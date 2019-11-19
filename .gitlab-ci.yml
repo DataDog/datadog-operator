@@ -1,0 +1,70 @@
+image: golang:1.13
+variables:
+  GO111MODULE: "on"
+  PROJECTNAME: "datadog-operator"
+  TARGET_TAG: "v$CI_PIPELINE_ID-${CI_COMMIT_SHA:0:7}"
+  DOCKER_REGISTRY: "486234852809.dkr.ecr.us-east-1.amazonaws.com/ci"
+  GOPATH: "$CI_PROJECT_DIR/.cache"
+  GIT_TERMINAL_PROMPT: "1"
+  GOFLAGS: "-mod=vendor"
+cache:
+  paths:
+  - .cache
+
+stages:
+  - build
+  - test
+  - image
+  - test-e2e
+
+before_script:
+  - mkdir -p .cache
+  - make install-tools
+
+build:
+  stage: build
+  tags: [ "runner:main", "size:large" ]
+  script:
+    - make build
+
+unit_tests:
+  stage: test
+  tags: [ "runner:main", "size:large" ]
+  script:
+    - make test
+
+lint_code:
+  stage: test
+  tags: [ "runner:main", "size:large" ]
+  script:
+    - make validate
+
+build_image:
+  stage: image
+  tags: [ "runner:docker", "size:large" ]
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker-notary:0.6.1
+  before_script: []
+  script:
+    - IMAGE_NAME=$DOCKER_REGISTRY/$PROJECTNAME:$TARGET_TAG
+    - docker build --build-arg TAG=$TARGET_TAG -t $IMAGE_NAME -f Dockerfile .
+    - docker push $IMAGE_NAME
+
+test_e2e:
+  stage: test-e2e
+  tags: [ "runner:docker", "size:large" ]
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker-notary:0.6.1
+  before_script:
+    - mkdir -p .cache
+    - ./hack/install_golang.sh
+    - ./hack/install_kube.sh
+    - apt-get update && apt-get install -y mercurial jq
+    - make install-tools
+  script:
+    - docker network inspect bridge
+    - export PATH=$PATH:/usr/local/go/bin:$(pwd)/bin
+    - export KUBECONFIG="$(kind get kubeconfig-path)"
+    - MASTER_IP=$(docker network inspect bridge | jq -r '.[].Containers[] | select( .Name | contains("kind-control-plane")).IPv4Address' | cut -d'/' -f1)
+    - sed -i "s/127.0.0.1:32001/$MASTER_IP:6443/" $KUBECONFIG
+    - kubectl cluster-info
+    - GOFLAGS=""
+    - make TAG=$TARGET_TAG PREFIX=$DOCKER_REGISTRY/$PROJECTNAME e2e

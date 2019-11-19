@@ -1,0 +1,45 @@
+{{- if .Values.rbac.create -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "datadog-operator.fullname" . }}
+  labels:
+{{ include "datadog-operator.labels" . | indent 4 }}
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - services
+  - endpoints
+  - events
+  - configmaps
+  - secrets
+  - serviceaccounts
+  verbs:
+  - '*'
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  - daemonsets
+  verbs:
+  - '*'
+- apiGroups:
+  - rbac.authorization.k8s.io
+  - roles.rbac.authorization.k8s.io
+  - authorization.k8s.io
+  resources:
+  - 'roles'
+  - 'rolebindings'
+  verbs:
+  - '*'
+- apiGroups:
+  - datadoghq.com
+  resources:
+  - 'datadogagentdeployments'
+  - 'datadogagentdeployments/status'
+  - 'extendeddaemonset'
+  verbs:
+  - '*'
+{{- end -}}

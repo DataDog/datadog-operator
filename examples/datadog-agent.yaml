@@ -1,0 +1,12 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentDeployment
+metadata:
+  name: datadog-agent
+spec:
+  credentials:
+    apiKey: <paste-your-api-key-here>
+  agent:
+    image: 
+      name: "datadog/agent:latest"
+
+  
