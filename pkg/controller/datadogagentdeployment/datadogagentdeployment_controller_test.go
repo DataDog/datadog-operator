@@ -124,6 +124,8 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 	s.AddKnownTypes(rbacv1.SchemeGroupVersion, &rbacv1.Role{})
 	s.AddKnownTypes(rbacv1.SchemeGroupVersion, &rbacv1.RoleBinding{})
 
+	defaultRequeueDuration := 15 * time.Second
+
 	type fields struct {
 		client   client.Client
 		scheme   *runtime.Scheme
@@ -199,7 +201,7 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 					_ = c.Create(context.TODO(), test.NewDefaultedDatadogAgentDeployment("bar", "foo", &test.NewDatadogAgentDeploymentOptions{UseEDS: true, Labels: map[string]string{"label-foo-key": "label-bar-value"}}))
 				},
 			},
-			want:    reconcile.Result{},
+			want:    reconcile.Result{Requeue: true},
 			wantErr: false,
 			wantFunc: func(c client.Client) error {
 				rbacResourcesName := "foo-agent"
@@ -233,6 +235,7 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 					dad := test.NewDefaultedDatadogAgentDeployment("bar", "foo", &test.NewDatadogAgentDeploymentOptions{UseEDS: true, Labels: map[string]string{"label-foo-key": "label-bar-value"}})
 					_ = c.Create(context.TODO(), dad)
 					_ = c.Create(context.TODO(), buildAgentClusterRole(dad, getAgentRbacResourcesName(dad), getAgentVersion(dad)))
+					_ = c.Create(context.TODO(), buildServiceAccount(dad, getAgentRbacResourcesName(dad), getAgentVersion(dad)))
 				},
 			},
 			want:    reconcile.Result{Requeue: true},
@@ -297,18 +300,11 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 				loadFunc: func(c client.Client) {
 					dad := test.NewDefaultedDatadogAgentDeployment("bar", "foo", &test.NewDatadogAgentDeploymentOptions{UseEDS: true, Labels: map[string]string{"label-foo-key": "label-bar-value"}})
 					_ = c.Create(context.TODO(), dad)
-					resourceName := getAgentRbacResourcesName(dad)
-					version := getAgentVersion(dad)
-					_ = c.Create(context.TODO(), buildAgentClusterRole(dad, resourceName, version))
-					_ = c.Create(context.TODO(), buildClusterRoleBinding(dad, roleBindingInfo{
-						name:               resourceName,
-						roleName:           resourceName,
-						serviceAccountName: resourceName,
-					}, version))
-					_ = c.Create(context.TODO(), buildServiceAccount(dad, resourceName, version))
+
+					createAgentDependencies(c, dad)
 				},
 			},
-			want:    reconcile.Result{},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
 			wantFunc: func(c client.Client) error {
 				eds := &edsdatadoghqv1alpha1.ExtendedDaemonSet{}
@@ -352,7 +348,7 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 			args: args{
 				request: newRequest("bar", "foo"),
 				loadFunc: func(c client.Client) {
-					_ = c.Create(context.TODO(), test.NewDefaultedDatadogAgentDeployment("bar", "foo", &test.NewDatadogAgentDeploymentOptions{
+					dad := test.NewDefaultedDatadogAgentDeployment("bar", "foo", &test.NewDatadogAgentDeploymentOptions{
 						UseEDS: true,
 						Labels: map[string]string{"label-foo-key": "label-bar-value"},
 						NodeAgentConfig: &datadoghqv1alpha1.NodeAgentConfig{
@@ -380,10 +376,13 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 							CollectEvents:  datadoghqv1alpha1.NewBoolPointer(true),
 							LeaderElection: datadoghqv1alpha1.NewBoolPointer(true),
 						},
-					}))
+					})
+					_ = c.Create(context.TODO(), dad)
+
+					createAgentDependencies(c, dad)
 				},
 			},
-			want:    reconcile.Result{},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
 			wantFunc: func(c client.Client) error {
 				eds := &edsdatadoghqv1alpha1.ExtendedDaemonSet{}
@@ -468,10 +467,12 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 			args: args{
 				request: newRequest("bar", "foo"),
 				loadFunc: func(c client.Client) {
-					_ = c.Create(context.TODO(), test.NewDefaultedDatadogAgentDeployment("bar", "foo", &test.NewDatadogAgentDeploymentOptions{ClusterAgentEnabled: false, UseEDS: false, Labels: map[string]string{"label-foo-key": "label-bar-value"}}))
+					dad := test.NewDefaultedDatadogAgentDeployment("bar", "foo", &test.NewDatadogAgentDeploymentOptions{ClusterAgentEnabled: false, UseEDS: false, Labels: map[string]string{"label-foo-key": "label-bar-value"}})
+					_ = c.Create(context.TODO(), dad)
+					createAgentDependencies(c, dad)
 				},
 			},
-			want:    reconcile.Result{},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
 			wantFunc: func(c client.Client) error {
 				ds := &appsv1.DaemonSet{}
@@ -505,6 +506,7 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 					}
 					ad := test.NewDefaultedDatadogAgentDeployment("bar", "foo", adOptions)
 					adHash, _ := comparison.GenerateMD5ForSpec(ad.Spec)
+					createAgentDependencies(c, ad)
 					edsOptions := &test.NewExtendedDaemonSetOptions{
 						Labels:      map[string]string{"label-foo-key": "label-bar-value"},
 						Annotations: map[string]string{string(datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey): adHash},
@@ -515,7 +517,7 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 					_ = c.Create(context.TODO(), eds)
 				},
 			},
-			want:    reconcile.Result{Requeue: false},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
 			wantFunc: func(c client.Client) error {
 				eds := &edsdatadoghqv1alpha1.ExtendedDaemonSet{}
@@ -544,7 +546,9 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 						Labels: map[string]string{"label-foo-key": "label-bar-value"},
 						Status: &datadoghqv1alpha1.DatadogAgentDeploymentStatus{},
 					}
-					ad := test.NewDefaultedDatadogAgentDeployment("bar", "foo", adOptions)
+					dad := test.NewDefaultedDatadogAgentDeployment("bar", "foo", adOptions)
+
+					createAgentDependencies(c, dad)
 
 					edsOptions := &test.NewExtendedDaemonSetOptions{
 						Labels:      map[string]string{"label-foo-key": "label-bar-value"},
@@ -552,7 +556,7 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 					}
 					eds := test.NewExtendedDaemonSet("bar", "foo", edsOptions)
 
-					_ = c.Create(context.TODO(), ad)
+					_ = c.Create(context.TODO(), dad)
 					_ = c.Create(context.TODO(), eds)
 				},
 			},
@@ -671,28 +675,11 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 					_ = c.Create(context.TODO(), test.NewSecret("bar", "foo-cluster-agent", &test.NewSecretOptions{Labels: commonDCAlabels, Data: map[string][]byte{
 						"token": []byte(base64.StdEncoding.EncodeToString([]byte("token-foo"))),
 					}}))
-					dcaService := test.NewService("bar", "foo-cluster-agent", &test.NewServiceOptions{Spec: &corev1.ServiceSpec{
-						Type: corev1.ServiceTypeClusterIP,
-						Selector: map[string]string{
-							datadoghqv1alpha1.AgentDeploymentNameLabelKey:      "foo",
-							datadoghqv1alpha1.AgentDeploymentComponentLabelKey: "cluster-agent",
-						},
-						Ports: []corev1.ServicePort{
-							{
-								Protocol:   corev1.ProtocolTCP,
-								TargetPort: intstr.FromInt(datadoghqv1alpha1.DefaultClusterAgentServicePort),
-								Port:       datadoghqv1alpha1.DefaultClusterAgentServicePort,
-							},
-						},
-						SessionAffinity: corev1.ServiceAffinityNone,
-					},
-					})
-					_, _ = comparison.SetMD5GenerationAnnotation(&dcaService.ObjectMeta, dcaService.Spec)
-					dcaService.Labels = commonDCAlabels
-					_ = c.Create(context.TODO(), dcaService)
+
+					createClusterAgentDependencies(c, dad)
 				},
 			},
-			want:    reconcile.Result{},
+			want:    reconcile.Result{Requeue: true},
 			wantErr: false,
 			wantFunc: func(c client.Client) error {
 				dca := &appsv1.Deployment{}
@@ -742,7 +729,7 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 					_ = c.Create(context.TODO(), dcaService)
 				},
 			},
-			want:    reconcile.Result{},
+			want:    reconcile.Result{Requeue: true},
 			wantErr: false,
 			wantFunc: func(c client.Client) error {
 				rbacResourcesNameClusterAgent := "foo-cluster-agent"
@@ -829,25 +816,9 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 					_ = c.Create(context.TODO(), test.NewSecret("bar", "foo-cluster-agent", &test.NewSecretOptions{Labels: commonDCAlabels, Data: map[string][]byte{
 						"token": []byte(base64.StdEncoding.EncodeToString([]byte("token-foo"))),
 					}}))
-					dcaService := test.NewService("bar", "foo-cluster-agent", &test.NewServiceOptions{Spec: &corev1.ServiceSpec{
-						Type: corev1.ServiceTypeClusterIP,
-						Selector: map[string]string{
-							datadoghqv1alpha1.AgentDeploymentNameLabelKey:      "foo",
-							datadoghqv1alpha1.AgentDeploymentComponentLabelKey: "cluster-agent",
-						},
-						Ports: []corev1.ServicePort{
-							{
-								Protocol:   corev1.ProtocolTCP,
-								TargetPort: intstr.FromInt(datadoghqv1alpha1.DefaultClusterAgentServicePort),
-								Port:       datadoghqv1alpha1.DefaultClusterAgentServicePort,
-							},
-						},
-						SessionAffinity: corev1.ServiceAffinityNone,
-					},
-					})
-					_, _ = comparison.SetMD5GenerationAnnotation(&dcaService.ObjectMeta, dcaService.Spec)
-					dcaService.Labels = commonDCAlabels
-					_ = c.Create(context.TODO(), dcaService)
+
+					createClusterAgentDependencies(c, dad)
+
 					dcaExternalMetricsService := test.NewService("bar", "foo-cluster-agent-metrics-server", &test.NewServiceOptions{Spec: &corev1.ServiceSpec{
 						Type: corev1.ServiceTypeClusterIP,
 						Selector: map[string]string{
@@ -867,13 +838,7 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 					_, _ = comparison.SetMD5GenerationAnnotation(&dcaExternalMetricsService.ObjectMeta, dcaExternalMetricsService.Spec)
 					dcaExternalMetricsService.Labels = commonDCAlabels
 					_ = c.Create(context.TODO(), dcaExternalMetricsService)
-					version := getClusterAgentVersion(dad)
-					_ = c.Create(context.TODO(), buildClusterAgentClusterRole(dad, "foo-cluster-agent", version))
-					_ = c.Create(context.TODO(), buildClusterRoleBinding(dad, roleBindingInfo{
-						name:               "foo-cluster-agent",
-						roleName:           "foo-cluster-agent",
-						serviceAccountName: "foo-cluster-agent",
-					}, version))
+
 				},
 			},
 			want:    reconcile.Result{Requeue: true},
@@ -993,25 +958,8 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 					_ = c.Create(context.TODO(), test.NewSecret("bar", "foo-cluster-agent", &test.NewSecretOptions{Labels: commonDCAlabels, Data: map[string][]byte{
 						"token": []byte(base64.StdEncoding.EncodeToString([]byte("token-foo"))),
 					}}))
-					dcaService := test.NewService("bar", "foo-cluster-agent", &test.NewServiceOptions{Spec: &corev1.ServiceSpec{
-						Type: corev1.ServiceTypeClusterIP,
-						Selector: map[string]string{
-							datadoghqv1alpha1.AgentDeploymentNameLabelKey:      "foo",
-							datadoghqv1alpha1.AgentDeploymentComponentLabelKey: "cluster-agent",
-						},
-						Ports: []corev1.ServicePort{
-							{
-								Protocol:   corev1.ProtocolTCP,
-								TargetPort: intstr.FromInt(datadoghqv1alpha1.DefaultClusterAgentServicePort),
-								Port:       datadoghqv1alpha1.DefaultClusterAgentServicePort,
-							},
-						},
-						SessionAffinity: corev1.ServiceAffinityNone,
-					},
-					})
-					_, _ = comparison.SetMD5GenerationAnnotation(&dcaService.ObjectMeta, dcaService.Spec)
-					dcaService.Labels = commonDCAlabels
-					_ = c.Create(context.TODO(), dcaService)
+
+					createClusterAgentDependencies(c, dad)
 
 					dcaOptions := &test.NewDeploymentOptions{
 						Labels:      map[string]string{"label-foo-key": "label-bar-value"},
@@ -1021,24 +969,20 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 
 					_ = c.Create(context.TODO(), dad)
 					_ = c.Create(context.TODO(), dca)
+
+					createAgentDependencies(c, dad)
 					resourceName := getAgentRbacResourcesName(dad)
 					version := getAgentVersion(dad)
-					_ = c.Create(context.TODO(), buildAgentClusterRole(dad, resourceName, version))
-					_ = c.Create(context.TODO(), buildClusterRoleBinding(dad, roleBindingInfo{
-						name:               resourceName,
-						roleName:           resourceName,
-						serviceAccountName: getAgentServiceAccount(dad),
-					}, version))
-					_ = c.Create(context.TODO(), buildServiceAccount(dad, getAgentServiceAccount(dad), version))
 					_ = c.Create(context.TODO(), buildClusterRoleBinding(dad, roleBindingInfo{
 						name:               getClusterChecksRunnerRbacResourcesName(dad),
 						roleName:           resourceName,
 						serviceAccountName: getClusterChecksRunnerServiceAccount(dad),
 					}, version))
 					_ = c.Create(context.TODO(), buildServiceAccount(dad, getClusterChecksRunnerServiceAccount(dad), version))
+
 				},
 			},
-			want:    reconcile.Result{},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
 			wantFunc: func(c client.Client) error {
 				ds := &appsv1.DaemonSet{}
@@ -1086,25 +1030,8 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 					_ = c.Create(context.TODO(), test.NewSecret("bar", "foo-cluster-agent", &test.NewSecretOptions{Labels: commonDCAlabels, Data: map[string][]byte{
 						"token": []byte(base64.StdEncoding.EncodeToString([]byte("token-foo"))),
 					}}))
-					dcaService := test.NewService("bar", "foo-cluster-agent", &test.NewServiceOptions{Spec: &corev1.ServiceSpec{
-						Type: corev1.ServiceTypeClusterIP,
-						Selector: map[string]string{
-							datadoghqv1alpha1.AgentDeploymentNameLabelKey:      "foo",
-							datadoghqv1alpha1.AgentDeploymentComponentLabelKey: "cluster-agent",
-						},
-						Ports: []corev1.ServicePort{
-							{
-								Protocol:   corev1.ProtocolTCP,
-								TargetPort: intstr.FromInt(datadoghqv1alpha1.DefaultClusterAgentServicePort),
-								Port:       datadoghqv1alpha1.DefaultClusterAgentServicePort,
-							},
-						},
-						SessionAffinity: corev1.ServiceAffinityNone,
-					},
-					})
-					_, _ = comparison.SetMD5GenerationAnnotation(&dcaService.ObjectMeta, dcaService.Spec)
-					dcaService.Labels = commonDCAlabels
-					_ = c.Create(context.TODO(), dcaService)
+
+					createClusterAgentDependencies(c, dad)
 				},
 			},
 			want:    reconcile.Result{Requeue: true},
@@ -1159,25 +1086,9 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 					_ = c.Create(context.TODO(), test.NewSecret("bar", "foo-cluster-agent", &test.NewSecretOptions{Labels: commonDCAlabels, Data: map[string][]byte{
 						"token": []byte(base64.StdEncoding.EncodeToString([]byte("token-foo"))),
 					}}))
-					dcaService := test.NewService("bar", "foo-cluster-agent", &test.NewServiceOptions{Spec: &corev1.ServiceSpec{
-						Type: corev1.ServiceTypeClusterIP,
-						Selector: map[string]string{
-							datadoghqv1alpha1.AgentDeploymentNameLabelKey:      "foo",
-							datadoghqv1alpha1.AgentDeploymentComponentLabelKey: "cluster-agent",
-						},
-						Ports: []corev1.ServicePort{
-							{
-								Protocol:   corev1.ProtocolTCP,
-								TargetPort: intstr.FromInt(datadoghqv1alpha1.DefaultClusterAgentServicePort),
-								Port:       datadoghqv1alpha1.DefaultClusterAgentServicePort,
-							},
-						},
-						SessionAffinity: corev1.ServiceAffinityNone,
-					},
-					})
-					_, _ = comparison.SetMD5GenerationAnnotation(&dcaService.ObjectMeta, dcaService.Spec)
-					dcaService.Labels = commonDCAlabels
-					_ = c.Create(context.TODO(), dcaService)
+
+					createClusterAgentDependencies(c, dad)
+
 					version := getClusterChecksRunnerVersion(dad)
 					_ = c.Create(context.TODO(), buildClusterRoleBinding(dad, roleBindingInfo{
 						name:               "foo-cluster-checks-runner",
@@ -1238,43 +1149,22 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 					_ = c.Create(context.TODO(), test.NewSecret("bar", "foo-cluster-agent", &test.NewSecretOptions{Labels: commonDCAlabels, Data: map[string][]byte{
 						"token": []byte(base64.StdEncoding.EncodeToString([]byte("token-foo"))),
 					}}))
-					dcaService := test.NewService("bar", "foo-cluster-agent", &test.NewServiceOptions{Spec: &corev1.ServiceSpec{
-						Type: corev1.ServiceTypeClusterIP,
-						Selector: map[string]string{
-							datadoghqv1alpha1.AgentDeploymentNameLabelKey:      "foo",
-							datadoghqv1alpha1.AgentDeploymentComponentLabelKey: "cluster-agent",
-						},
-						Ports: []corev1.ServicePort{
-							{
-								Protocol:   corev1.ProtocolTCP,
-								TargetPort: intstr.FromInt(datadoghqv1alpha1.DefaultClusterAgentServicePort),
-								Port:       datadoghqv1alpha1.DefaultClusterAgentServicePort,
-							},
-						},
-						SessionAffinity: corev1.ServiceAffinityNone,
-					},
-					})
-					_, _ = comparison.SetMD5GenerationAnnotation(&dcaService.ObjectMeta, dcaService.Spec)
-					dcaService.Labels = commonDCAlabels
-					_ = c.Create(context.TODO(), dcaService)
+
+					createClusterAgentDependencies(c, dad)
+					createAgentDependencies(c, dad)
+
 					resourceName := getAgentRbacResourcesName(dad)
 					version := getAgentVersion(dad)
-					_ = c.Create(context.TODO(), buildAgentClusterRole(dad, resourceName, version))
-					_ = c.Create(context.TODO(), buildClusterRoleBinding(dad, roleBindingInfo{
-						name:               resourceName,
-						roleName:           resourceName,
-						serviceAccountName: getAgentServiceAccount(dad),
-					}, version))
-					_ = c.Create(context.TODO(), buildServiceAccount(dad, getAgentServiceAccount(dad), version))
 					_ = c.Create(context.TODO(), buildClusterRoleBinding(dad, roleBindingInfo{
 						name:               getClusterChecksRunnerRbacResourcesName(dad),
 						roleName:           resourceName,
 						serviceAccountName: getClusterChecksRunnerServiceAccount(dad),
 					}, version))
 					_ = c.Create(context.TODO(), buildServiceAccount(dad, getClusterChecksRunnerServiceAccount(dad), version))
+
 				},
 			},
-			want:    reconcile.Result{},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
 			wantFunc: func(c client.Client) error {
 				dca := &appsv1.Deployment{}
@@ -1330,28 +1220,11 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 					_ = c.Create(context.TODO(), test.NewSecret("bar", "foo-cluster-agent", &test.NewSecretOptions{Labels: commonDCAlabels, Data: map[string][]byte{
 						"token": []byte(base64.StdEncoding.EncodeToString([]byte("token-foo"))),
 					}}))
-					dcaService := test.NewService("bar", "foo-cluster-agent", &test.NewServiceOptions{Spec: &corev1.ServiceSpec{
-						Type: corev1.ServiceTypeClusterIP,
-						Selector: map[string]string{
-							datadoghqv1alpha1.AgentDeploymentNameLabelKey:      "foo",
-							datadoghqv1alpha1.AgentDeploymentComponentLabelKey: "cluster-agent",
-						},
-						Ports: []corev1.ServicePort{
-							{
-								Protocol:   corev1.ProtocolTCP,
-								TargetPort: intstr.FromInt(datadoghqv1alpha1.DefaultClusterAgentServicePort),
-								Port:       datadoghqv1alpha1.DefaultClusterAgentServicePort,
-							},
-						},
-						SessionAffinity: corev1.ServiceAffinityNone,
-					},
-					})
-					_, _ = comparison.SetMD5GenerationAnnotation(&dcaService.ObjectMeta, dcaService.Spec)
-					dcaService.Labels = commonDCAlabels
-					_ = c.Create(context.TODO(), dcaService)
+
+					createClusterAgentDependencies(c, dad)
 				},
 			},
-			want:    reconcile.Result{},
+			want:    reconcile.Result{Requeue: true},
 			wantErr: false,
 			wantFunc: func(c client.Client) error {
 				dca := &appsv1.Deployment{}
@@ -1701,6 +1574,50 @@ func hasAllNodeLevelRbacResources(policyRules []rbacv1.PolicyRule) bool {
 		}
 	}
 	return len(nodeLevelResources) == 0
+}
+
+func createAgentDependencies(c client.Client, dad *datadoghqv1alpha1.DatadogAgentDeployment) {
+	resourceName := getAgentRbacResourcesName(dad)
+	version := getAgentVersion(dad)
+	_ = c.Create(context.TODO(), buildAgentClusterRole(dad, resourceName, version))
+	_ = c.Create(context.TODO(), buildClusterRoleBinding(dad, roleBindingInfo{
+		name:               resourceName,
+		roleName:           resourceName,
+		serviceAccountName: getAgentServiceAccount(dad),
+	}, version))
+	_ = c.Create(context.TODO(), buildServiceAccount(dad, getAgentServiceAccount(dad), version))
+}
+func createClusterAgentDependencies(c client.Client, dad *datadoghqv1alpha1.DatadogAgentDeployment) {
+	version := getAgentVersion(dad)
+	clusterAgentSAName := getClusterAgentServiceAccount(dad)
+	_ = c.Create(context.TODO(), buildClusterAgentClusterRole(dad, "foo-cluster-agent", version))
+	_ = c.Create(context.TODO(), buildClusterAgentRole(dad, "foo-cluster-agent", version))
+	_ = c.Create(context.TODO(), buildServiceAccount(dad, clusterAgentSAName, version))
+	_ = c.Create(context.TODO(), buildClusterRoleBinding(dad, roleBindingInfo{
+		name:               "foo-cluster-agent",
+		roleName:           "foo-cluster-agent",
+		serviceAccountName: clusterAgentSAName,
+	}, version))
+
+	dcaService := test.NewService("bar", "foo-cluster-agent", &test.NewServiceOptions{Spec: &corev1.ServiceSpec{
+		Type: corev1.ServiceTypeClusterIP,
+		Selector: map[string]string{
+			datadoghqv1alpha1.AgentDeploymentNameLabelKey:      "foo",
+			datadoghqv1alpha1.AgentDeploymentComponentLabelKey: "cluster-agent",
+		},
+		Ports: []corev1.ServicePort{
+			{
+				Protocol:   corev1.ProtocolTCP,
+				TargetPort: intstr.FromInt(datadoghqv1alpha1.DefaultClusterAgentServicePort),
+				Port:       datadoghqv1alpha1.DefaultClusterAgentServicePort,
+			},
+		},
+		SessionAffinity: corev1.ServiceAffinityNone,
+	},
+	})
+	_, _ = comparison.SetMD5GenerationAnnotation(&dcaService.ObjectMeta, dcaService.Spec)
+	dcaService.Labels = getDefaultLabels(dad, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dad))
+	_ = c.Create(context.TODO(), dcaService)
 }
 
 func init() {

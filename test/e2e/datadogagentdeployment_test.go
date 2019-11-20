@@ -8,29 +8,30 @@ package e2e
 import (
 	goctx "context"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"path/filepath"
 	"testing"
 	"time"
 
-	"k8s.io/client-go/kubernetes/scheme"
-
 	"github.com/DataDog/datadog-operator/pkg/apis"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
-
 	"github.com/DataDog/datadog-operator/test/e2e/utils"
+
 	framework "github.com/operator-framework/operator-sdk/pkg/test"
 	"github.com/operator-framework/operator-sdk/pkg/test/e2eutil"
-	rbacv1 "k8s.io/api/rbac/v1"
-	dynclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/scheme"
+	dynclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var (
 	retryInterval        = time.Second * 5
-	timeout              = time.Second * 60
+	timeout              = time.Second * 120
 	cleanupRetryInterval = time.Second * 1
 	cleanupTimeout       = time.Second * 5
 )
@@ -87,9 +88,9 @@ func DeploymentDaemonset(t *testing.T) {
 	// check if the Daemonset was created properly
 	isDaemonsetOK := func(ds *appsv1.DaemonSet) (bool, error) {
 		if ds.Status.NumberReady == ds.Status.DesiredNumberScheduled && ds.Status.DesiredNumberScheduled > 0 {
-			t.Logf("status false %#v", ds.Status)
 			return true, nil
 		}
+		t.Logf("status false %#v", ds.Status)
 		return false, nil
 	}
 	err = utils.WaitForFuncOnDaemonSet(t, f.Client, namespace, name, isDaemonsetOK, retryInterval, timeout)
@@ -302,7 +303,6 @@ func DeploymentWithClusterAgentEnabled(t *testing.T) {
 	// Get last version of DatadogAgentDeployment
 	agentdeployment = &datadoghqv1alpha1.DatadogAgentDeployment{}
 	err = f.Client.Get(goctx.TODO(), agentdeploymentKey, agentdeployment)
-	t.Log("error:", err)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -373,6 +373,61 @@ func initTestFwkResources(t *testing.T, deploymentName string) (string, *framewo
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	// setup streaming operator pod's logs for simplify investigation
+	pods, err2 := f.KubeClient.CoreV1().Pods(namespace).List(metav1.ListOptions{})
+	if err2 != nil {
+		t.Fatal(err2)
+	}
+	kubesystempods := []corev1.Pod{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "kube-scheduler-kind-control-plane",
+				Namespace: "kube-system",
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "kube-controller-manager-kind-control-plane",
+				Namespace: "kube-system",
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "kube-apiserver-kind-control-plane",
+				Namespace: "kube-system",
+			},
+		},
+	}
+
+	pods.Items = append(pods.Items, kubesystempods...)
+
+	options := &corev1.PodLogOptions{
+		Follow: true,
+	}
+	for _, pod := range pods.Items {
+		req := f.KubeClient.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, options)
+		go func(t *testing.T, namespace, name string) {
+			t.Logf("Add logger for pod:[%s/%s]", namespace, name)
+			readCloser, err := req.Stream()
+			if err != nil {
+				return
+			}
+			ctx.AddCleanupFn(
+				func() error {
+					_ = readCloser.Close()
+					t.Logf("end reader [%s]", name)
+					return nil
+				})
+			w := &logWriter{
+				name:      name,
+				namespace: namespace,
+				t:         t,
+			}
+			_, _ = io.Copy(w, readCloser)
+		}(t, pod.Namespace, pod.Name)
+	}
+
 	return namespace, ctx, f
 }
 
@@ -442,3 +497,14 @@ const (
 	clusterRoleYamlFile        = "clusterrole.yaml"
 	clusterRoleBindingYamlFile = "clusterrole_binding.yaml"
 )
+
+type logWriter struct {
+	name      string
+	namespace string
+	t         *testing.T
+}
+
+func (l *logWriter) Write(b []byte) (int, error) {
+	l.t.Logf("pod [%s/%s]: %s", l.namespace, l.name, string(b))
+	return len(b), nil
+}

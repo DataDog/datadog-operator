@@ -60,12 +60,12 @@ func (r *ReconcileDatadogAgentDeployment) cleanupClusterChecksRunnerRbacResource
 	rbacResourcesName := getClusterChecksRunnerRbacResourcesName(dad)
 
 	// Delete Cluster Role Binding
-	if result, err := cleanupClusterRoleBinding(r.client, rbacResourcesName); err != nil {
+	if result, err := r.cleanupClusterRoleBinding(logger, r.client, dad, rbacResourcesName); err != nil {
 		return result, err
 	}
 
 	// Delete Service Account
-	if result, err := cleanupServiceAccount(r.client, rbacResourcesName); err != nil {
+	if result, err := r.cleanupServiceAccount(logger, r.client, dad, rbacResourcesName); err != nil {
 		return result, err
 	}
 

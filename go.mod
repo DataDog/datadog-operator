@@ -3,7 +3,7 @@ module github.com/DataDog/datadog-operator
 go 1.13
 
 require (
-	github.com/datadog/extendeddaemonset v0.1.6
+	github.com/datadog/extendeddaemonset v0.1.0
 	github.com/go-logr/logr v0.1.0
 	github.com/go-openapi/spec v0.19.0
 	github.com/operator-framework/operator-sdk v0.12.0

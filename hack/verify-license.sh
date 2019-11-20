@@ -5,9 +5,10 @@ set -o nounset
 set -o pipefail
 set -e
 
-cd $(dirname $0)/..
+ROOT=$(git rev-parse --show-toplevel)
+cd $ROOT
 
-make license
+make license 2>&1
 
 DIFF=$(git --no-pager diff LICENSE-3rdparty.csv)
 if [[ "${DIFF}x" != "x" ]]

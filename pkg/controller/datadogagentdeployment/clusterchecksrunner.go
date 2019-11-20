@@ -48,13 +48,13 @@ func (r *ReconcileDatadogAgentDeployment) reconcileClusterChecksRunner(logger lo
 				// Create and attach a ClusterChecksRunner Deployment
 				var result reconcile.Result
 				result, err = r.createNewClusterChecksRunnerDeployment(logger, dad, newStatus)
-				return r.updateStatusIfNeeded(logger, dad, newStatus, result, err)
+				return result, err
 			}
-			return r.updateStatusIfNeeded(logger, dad, newStatus, reconcile.Result{}, err)
+			return reconcile.Result{}, err
 		}
 
 		result, err := r.updateClusterChecksRunnerDeployment(logger, dad, ClusterChecksRunnerDeployment, newStatus)
-		return r.updateStatusIfNeeded(logger, dad, newStatus, result, err)
+		return result, err
 	}
 	return reconcile.Result{}, nil
 }

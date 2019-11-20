@@ -9,6 +9,7 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
 
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -38,8 +39,15 @@ func NewDatadogAgentDeployment(ns, name, image string, options *NewDatadogAgentD
 			AppKey: "sgfggtdhfghfghfghfgbdfdgs",
 		},
 		Agent: &datadoghqv1alpha1.DatadogAgentDeploymentSpecAgentSpec{
-			Image:              datadoghqv1alpha1.ImageConfig{},
-			Config:             datadoghqv1alpha1.NodeAgentConfig{},
+			Image: datadoghqv1alpha1.ImageConfig{},
+			Config: datadoghqv1alpha1.NodeAgentConfig{
+				Resources: &v1.ResourceRequirements{
+					Requests: v1.ResourceList{
+						v1.ResourceCPU:    resource.MustParse("0"),
+						v1.ResourceMemory: resource.MustParse("0"),
+					},
+				},
+			},
 			DeploymentStrategy: &datadoghqv1alpha1.DaemonSetDeploymentcStrategy{},
 			Apm:                datadoghqv1alpha1.APMSpec{},
 			Log:                datadoghqv1alpha1.LogSpec{},

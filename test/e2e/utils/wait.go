@@ -63,13 +63,6 @@ func WaitForFuncOnExtendedDaemonSet(t *testing.T, client framework.FrameworkClie
 		}
 
 		ok, err := f(extendeddaemonset)
-		if ok {
-			// Update ExtendedDaemonSet status if created
-			err := client.Update(context.TODO(), extendeddaemonset)
-			if err != nil {
-				return false, err
-			}
-		}
 		t.Logf("Waiting for condition function to be true ok for %s ExtendedDaemonSet (%t/%v)\n", name, ok, err)
 		return ok, err
 	})
@@ -93,13 +86,6 @@ func WaitForFuncOnDaemonSet(t *testing.T, client framework.FrameworkClient, name
 		}
 
 		ok, err := f(daemonset)
-		if ok {
-			// Update DaemonSet status if created
-			err := client.Update(context.TODO(), daemonset)
-			if err != nil {
-				return false, err
-			}
-		}
 		t.Logf("Waiting for condition function to be true ok for %s DaemonSet (%t/%v)\n", name, ok, err)
 		return ok, err
 	})

@@ -7,9 +7,11 @@ package datadogagentdeployment
 
 import (
 	"context"
+	"fmt"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
 	"github.com/go-logr/logr"
+	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -49,6 +51,7 @@ func (r *ReconcileDatadogAgentDeployment) deleteIfNeededHpaClusterRoleBinding(lo
 		// External Metrics Server used for HPA has been disabled
 		// Delete its ClusterRoleBinding
 		logger.V(1).Info("deleteClusterAgentHPARoleBinding", "clusterRoleBinding.name", clusterRoleBinding.Name)
+		r.recorder.Event(dad, corev1.EventTypeNormal, "Delete ClusterRoleBinding", fmt.Sprintf("%s/%s", clusterRoleBinding.Namespace, clusterRoleBinding.Name))
 		if err := r.client.Delete(context.TODO(), clusterRoleBinding); err != nil {
 			if errors.IsNotFound(err) {
 				return reconcile.Result{}, nil
@@ -68,14 +71,6 @@ func (r *ReconcileDatadogAgentDeployment) createHPAClusterRoleBinding(logger log
 		return reconcile.Result{}, err
 	}
 	logger.V(1).Info("createClusterAgentHPARoleBinding", "clusterRoleBinding.name", clusterRoleBinding.Name)
+	r.recorder.Event(dad, corev1.EventTypeNormal, "Update ClusterRoleBinding", fmt.Sprintf("%s/%s", clusterRoleBinding.Namespace, clusterRoleBinding.Name))
 	return reconcile.Result{Requeue: true}, r.client.Create(context.TODO(), clusterRoleBinding)
-}
-
-func (r *ReconcileDatadogAgentDeployment) createServiceAccount(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment, name, agentVersion string) (reconcile.Result, error) {
-	serviceAccount := buildServiceAccount(dad, name, agentVersion)
-	if err := controllerutil.SetControllerReference(dad, serviceAccount, r.scheme); err != nil {
-		return reconcile.Result{}, err
-	}
-	logger.V(1).Info("createServiceAccount", "serviceAccount.name", serviceAccount.Name, "serviceAccount.Namespace", serviceAccount.Namespace)
-	return reconcile.Result{Requeue: true}, r.client.Create(context.TODO(), serviceAccount)
 }

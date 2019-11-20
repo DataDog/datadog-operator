@@ -203,34 +203,28 @@ func (r *ReconcileDatadogAgentDeployment) Reconcile(request reconcile.Request) (
 
 	newStatus := instance.Status.DeepCopy()
 
-	// ExtendedDaemonSet attached to this instance
+	reconcileFuncs :=
+		[]reconcileFuncInterface{
+			r.reconcileClusterAgent,
+			r.reconcileClusterChecksRunner,
+			r.reconcileAgent,
+		}
 	var result reconcile.Result
-	result, err = r.reconcileClusterAgent(reqLogger, instance, newStatus)
-	if err != nil {
-		reqLogger.Error(err, "unable to reconcile the ClusterAgent")
-		return r.updateStatusIfNeeded(reqLogger, instance, newStatus, result, err)
-	}
-	if shouldReturn(result, nil) {
-		return result, nil
+	for _, reconcileFunc := range reconcileFuncs {
+		result, err = reconcileFunc(reqLogger, instance, newStatus)
+		if shouldReturn(result, err) {
+			return r.updateStatusIfNeeded(reqLogger, instance, newStatus, result, err)
+		}
 	}
 
-	result, err = r.reconcileClusterChecksRunner(reqLogger, instance, newStatus)
-	if err != nil {
-		reqLogger.Error(err, "unable to reconcile the ClusterChecksRunner")
-		return r.updateStatusIfNeeded(reqLogger, instance, newStatus, result, err)
+	// Always requeue
+	if !result.Requeue {
+		result.RequeueAfter = 15 * time.Second
 	}
-	if shouldReturn(result, nil) {
-		return result, nil
-	}
-
-	result, err = r.reconcileAgent(reqLogger, instance, newStatus)
-	if err != nil {
-		reqLogger.Error(err, "unable to reconcile the Agent")
-		return r.updateStatusIfNeeded(reqLogger, instance, newStatus, result, err)
-	}
-
 	return r.updateStatusIfNeeded(reqLogger, instance, newStatus, result, err)
 }
+
+type reconcileFuncInterface func(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment, newStatus *datadoghqv1alpha1.DatadogAgentDeploymentStatus) (reconcile.Result, error)
 
 func (r *ReconcileDatadogAgentDeployment) updateStatusIfNeeded(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment, newStatus *datadoghqv1alpha1.DatadogAgentDeploymentStatus, result reconcile.Result, currentError error) (reconcile.Result, error) {
 	now := metav1.NewTime(time.Now())
@@ -245,8 +239,12 @@ func (r *ReconcileDatadogAgentDeployment) updateStatusIfNeeded(logger logr.Logge
 		updateAgentDeployment := agentdeployment.DeepCopy()
 		updateAgentDeployment.Status = *newStatus
 		if err := r.client.Status().Update(context.TODO(), updateAgentDeployment); err != nil {
+			if errors.IsConflict(err) {
+				logger.V(1).Info("unable to update DatadogAgentDeployment status due to update conflict")
+				return reconcile.Result{RequeueAfter: time.Second}, nil
+			}
 			logger.Error(err, "unable to update DatadogAgentDeployment status")
-			return reconcile.Result{RequeueAfter: time.Second}, nil
+			return reconcile.Result{}, err
 		}
 	}
 
