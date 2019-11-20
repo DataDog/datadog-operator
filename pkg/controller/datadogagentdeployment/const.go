@@ -6,6 +6,9 @@
 package datadogagentdeployment
 
 const (
-	// FieldPathSpecNodeName use as FieldPath for seleting the NodeName
+	// FieldPathSpecNodeName used as FieldPath for seleting the NodeName
 	FieldPathSpecNodeName = "spec.nodeName"
+
+	// FieldPathStatusHostIP used as FieldPath to retrieve the host ip
+	FieldPathStatusHostIP = "status.hostIP"
 )
