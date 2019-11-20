@@ -57,6 +57,10 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 	}
 	defaultEnvVars := []corev1.EnvVar{
 		{
+			Name:  "KUBERNETES",
+			Value: "yes",
+		},
+		{
 			Name:  "DD_CLUSTER_NAME",
 			Value: "",
 		},

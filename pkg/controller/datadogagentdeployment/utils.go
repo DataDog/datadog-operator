@@ -131,6 +131,10 @@ func getEnvVarsForAgent(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentD
 
 	envVars := []corev1.EnvVar{
 		{
+			Name:  datadoghqv1alpha1.KubernetesEnvvarName,
+			Value: "yes",
+		},
+		{
 			Name:  datadoghqv1alpha1.DDClusterName,
 			Value: spec.ClusterName,
 		},
