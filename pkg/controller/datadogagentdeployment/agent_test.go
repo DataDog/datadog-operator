@@ -57,6 +57,14 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 	}
 	defaultEnvVars := []corev1.EnvVar{
 		{
+			Name: "DD_KUBERNETES_KUBELET_HOST",
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: FieldPathStatusHostIP,
+				},
+			},
+		},
+		{
 			Name:  "KUBERNETES",
 			Value: "yes",
 		},

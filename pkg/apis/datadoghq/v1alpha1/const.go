@@ -59,6 +59,7 @@ const (
 	DDAPMEnabled                    = "DD_APM_ENABLED"
 	DDProcessAgentEnabled           = "DD_PROCESS_AGENT_ENABLED"
 	DDEnableMetadataCollection      = "DD_ENABLE_METADATA_COLLECTION"
+	DDKubeletHost                   = "DD_KUBERNETES_KUBELET_HOST"
 
 	// Env var used by the Datadog Agent container entrypoint
 	// to add kubelet config provider and listener
