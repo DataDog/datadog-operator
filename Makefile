@@ -16,7 +16,7 @@ TAG_HASH=${LAST_TAG}_$(shell git rev-parse --short HEAD)
 VERSION?=$(if $(GIT_TAG),$(GIT_TAG),$(TAG_HASH))
 GIT_COMMIT?=$(shell git rev-parse HEAD)
 DATE=$(shell date +%Y-%m-%d/%H:%M:%S )
-GOMOD="-mod=vendor"
+GOMOD?="-mod=vendor"
 LDFLAGS= -ldflags "-w -X ${BUILDINFOPKG}.Tag=${TAG} -X ${BUILDINFOPKG}.Commit=${GIT_COMMIT} -X ${BUILDINFOPKG}.Version=${VERSION} -X ${BUILDINFOPKG}.BuildTime=${DATE} -s"
 
 export GO111MODULE=on
@@ -58,7 +58,7 @@ clean:
 
 validate: bin/golangci-lint bin/wwhrd
 	./bin/golangci-lint run ./...
-	./hack/verify-license.sh
+	./hack/verify-license.sh > /dev/null
 
 generate:
 	operator-sdk generate k8s
@@ -87,4 +87,7 @@ bin/wwhrd:
 license: bin/wwhrd
 	./hack/license.sh
 
-.PHONY: vendor build push clean test e2e validate local-load install-tools list container container-ci license
+license-verify: bin/wwhrd
+	./hack/verify-license.sh
+
+.PHONY: vendor build push clean test e2e validate local-load install-tools list container container-ci license license-verify

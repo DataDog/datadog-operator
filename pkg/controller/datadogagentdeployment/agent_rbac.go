@@ -42,9 +42,18 @@ func (r *ReconcileDatadogAgentDeployment) manageAgentRBACs(logger logr.Logger, d
 		return result, err
 	}
 
+	// Create ServiceAccount
+	serviceAccountName := getAgentServiceAccount(dad)
+	serviceAccount := &corev1.ServiceAccount{}
+	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: serviceAccountName, Namespace: dad.Namespace}, serviceAccount); err != nil {
+		if errors.IsNotFound(err) {
+			return r.createServiceAccount(logger, dad, serviceAccountName, agentVersion)
+		}
+		return reconcile.Result{}, err
+	}
+
 	// Create ClusterRoleBindig
 	clusterRoleBinding := &rbacv1.ClusterRoleBinding{}
-	serviceAccountName := getAgentServiceAccount(dad)
 	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesName}, clusterRoleBinding); err != nil {
 		if errors.IsNotFound(err) {
 			return r.createClusterRoleBinding(logger, dad, roleBindingInfo{
@@ -52,15 +61,6 @@ func (r *ReconcileDatadogAgentDeployment) manageAgentRBACs(logger logr.Logger, d
 				roleName:           rbacResourcesName,
 				serviceAccountName: serviceAccountName,
 			}, agentVersion)
-		}
-		return reconcile.Result{}, err
-	}
-
-	// Create ServiceAccount
-	serviceAccount := &corev1.ServiceAccount{}
-	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: serviceAccountName, Namespace: dad.Namespace}, serviceAccount); err != nil {
-		if errors.IsNotFound(err) {
-			return r.createServiceAccount(logger, dad, serviceAccountName, agentVersion)
 		}
 		return reconcile.Result{}, err
 	}
@@ -73,17 +73,17 @@ func (r *ReconcileDatadogAgentDeployment) cleanupAgentRbacResources(logger logr.
 	rbacResourcesName := getAgentRbacResourcesName(dad)
 
 	// Delete ClusterRole
-	if result, err := cleanupClusterRole(r.client, rbacResourcesName); err != nil {
+	if result, err := r.cleanupClusterRole(logger, r.client, dad, rbacResourcesName); err != nil {
 		return result, err
 	}
 
 	// Delete Cluster Role Binding
-	if result, err := cleanupClusterRoleBinding(r.client, rbacResourcesName); err != nil {
+	if result, err := r.cleanupClusterRoleBinding(logger, r.client, dad, rbacResourcesName); err != nil {
 		return result, err
 	}
 
 	// Delete Service Account
-	if result, err := cleanupServiceAccount(r.client, rbacResourcesName); err != nil {
+	if result, err := r.cleanupServiceAccount(logger, r.client, dad, rbacResourcesName); err != nil {
 		return result, err
 	}
 

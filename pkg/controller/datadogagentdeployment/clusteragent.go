@@ -62,13 +62,13 @@ func (r *ReconcileDatadogAgentDeployment) reconcileClusterAgent(logger logr.Logg
 				// Create and attach a ClusterAgentDeployment
 				var result reconcile.Result
 				result, err = r.createNewClusterAgentDeployment(logger, dad, newStatus)
-				return r.updateStatusIfNeeded(logger, dad, newStatus, result, err)
+				return result, err
 			}
-			return r.updateStatusIfNeeded(logger, dad, newStatus, reconcile.Result{}, err)
+			return reconcile.Result{}, err
 		}
 
 		result, err := r.updateClusterAgentDeployment(logger, dad, clusterAgentDeployment, newStatus)
-		return r.updateStatusIfNeeded(logger, dad, newStatus, result, err)
+		return result, err
 	}
 	return reconcile.Result{}, nil
 }
@@ -462,16 +462,18 @@ func (r *ReconcileDatadogAgentDeployment) createClusterAgentClusterRole(logger l
 		return reconcile.Result{}, err
 	}
 	logger.V(1).Info("createClusterAgentClusterRole", "clusterRole.name", clusterRole.Name)
-	return reconcile.Result{}, r.client.Create(context.TODO(), clusterRole)
+	r.recorder.Event(dad, corev1.EventTypeNormal, "Create ClusterRole", fmt.Sprintf("%s/%s", clusterRole.Namespace, clusterRole.Name))
+	return reconcile.Result{Requeue: true}, r.client.Create(context.TODO(), clusterRole)
 }
 
 func (r *ReconcileDatadogAgentDeployment) createClusterAgentRole(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment, name, agentVersion string) (reconcile.Result, error) {
-	clusterRole := buildClusterAgentRole(dad, name, agentVersion)
-	if err := controllerutil.SetControllerReference(dad, clusterRole, r.scheme); err != nil {
+	role := buildClusterAgentRole(dad, name, agentVersion)
+	if err := controllerutil.SetControllerReference(dad, role, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
-	logger.V(1).Info("createClusterAgentRole", "clusterRole.name", clusterRole.Name)
-	return reconcile.Result{}, r.client.Create(context.TODO(), clusterRole)
+	logger.V(1).Info("createClusterAgentRole", "role.name", role.Name)
+	r.recorder.Event(dad, corev1.EventTypeNormal, "Create Role", fmt.Sprintf("%s/%s", role.Namespace, role.Name))
+	return reconcile.Result{Requeue: true}, r.client.Create(context.TODO(), role)
 }
 
 func (r *ReconcileDatadogAgentDeployment) createAgentClusterRole(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment, name, agentVersion string) (reconcile.Result, error) {
@@ -480,7 +482,8 @@ func (r *ReconcileDatadogAgentDeployment) createAgentClusterRole(logger logr.Log
 		return reconcile.Result{}, err
 	}
 	logger.V(1).Info("createAgentClusterRole", "clusterRole.name", clusterRole.Name)
-	return reconcile.Result{}, r.client.Create(context.TODO(), clusterRole)
+	r.recorder.Event(dad, corev1.EventTypeNormal, "Create ClusterRole", fmt.Sprintf("%s/%s", clusterRole.Namespace, clusterRole.Name))
+	return reconcile.Result{Requeue: true}, r.client.Create(context.TODO(), clusterRole)
 }
 
 func (r *ReconcileDatadogAgentDeployment) updateIfNeededClusterAgentClusterRole(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment, name, agentVersion string, clusterRole *rbacv1.ClusterRole) (reconcile.Result, error) {
@@ -490,6 +493,7 @@ func (r *ReconcileDatadogAgentDeployment) updateIfNeededClusterAgentClusterRole(
 		if err := r.client.Update(context.TODO(), newClusterRole); err != nil {
 			return reconcile.Result{}, err
 		}
+		r.recorder.Event(dad, corev1.EventTypeNormal, "Update ClusterRole", fmt.Sprintf("%s/%s", newClusterRole.Namespace, newClusterRole.Name))
 	}
 	return reconcile.Result{}, nil
 }
@@ -501,6 +505,7 @@ func (r *ReconcileDatadogAgentDeployment) updateIfNeededClusterAgentRole(logger 
 		if err := r.client.Update(context.TODO(), newRole); err != nil {
 			return reconcile.Result{}, err
 		}
+		r.recorder.Event(dad, corev1.EventTypeNormal, "Update Role", fmt.Sprintf("%s/%s", newRole.Namespace, newRole.Name))
 	}
 	return reconcile.Result{}, nil
 }
@@ -512,6 +517,7 @@ func (r *ReconcileDatadogAgentDeployment) updateIfNeededAgentClusterRole(logger 
 		if err := r.client.Update(context.TODO(), newClusterRole); err != nil {
 			return reconcile.Result{}, err
 		}
+		r.recorder.Event(dad, corev1.EventTypeNormal, "Update ClusterRole", fmt.Sprintf("%s/%s", newClusterRole.Namespace, newClusterRole.Name))
 	}
 	return reconcile.Result{}, nil
 }
@@ -520,20 +526,20 @@ func (r *ReconcileDatadogAgentDeployment) updateIfNeededAgentClusterRole(logger 
 func (r *ReconcileDatadogAgentDeployment) cleanupClusterAgentRbacResources(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment) (reconcile.Result, error) {
 	rbacResourcesName := getClusterAgentRbacResourcesName(dad)
 	// Delete ClusterRole
-	if result, err := cleanupClusterRole(r.client, rbacResourcesName); err != nil {
+	if result, err := r.cleanupClusterRole(logger, r.client, dad, rbacResourcesName); err != nil {
 		return result, err
 	}
 	// Delete Cluster Role Binding
-	if result, err := cleanupClusterRoleBinding(r.client, rbacResourcesName); err != nil {
+	if result, err := r.cleanupClusterRoleBinding(logger, r.client, dad, rbacResourcesName); err != nil {
 		return result, err
 	}
 	// Delete HPA Cluster Role Binding
 	hpaClusterRoleBindingName := getHPAClusterRoleBindingName(dad)
-	if result, err := cleanupClusterRoleBinding(r.client, hpaClusterRoleBindingName); err != nil {
+	if result, err := r.cleanupClusterRoleBinding(logger, r.client, dad, hpaClusterRoleBindingName); err != nil {
 		return result, err
 	}
 	// Delete Service Account
-	if result, err := cleanupServiceAccount(r.client, rbacResourcesName); err != nil {
+	if result, err := r.cleanupServiceAccount(logger, r.client, dad, rbacResourcesName); err != nil {
 		return result, err
 	}
 	return reconcile.Result{}, nil
@@ -545,6 +551,7 @@ func (r *ReconcileDatadogAgentDeployment) createClusterAgentRoleBinding(logger l
 		return reconcile.Result{}, err
 	}
 	logger.V(1).Info("createClusterAgentRoleBinding", "roleBinding.name", roleBinding.Name, "roleBinding.Namespace", roleBinding.Namespace)
+	r.recorder.Event(dad, corev1.EventTypeNormal, "Create RoleBinding", fmt.Sprintf("%s/%s", roleBinding.Namespace, roleBinding.Name))
 	return reconcile.Result{}, r.client.Create(context.TODO(), roleBinding)
 }
 
@@ -557,6 +564,7 @@ func (r *ReconcileDatadogAgentDeployment) updateIfNeededClusterAgentRoleBinding(
 	newRoleBinding := buildRoleBinding(dad, info, agentVersion)
 	if !apiequality.Semantic.DeepEqual(newRoleBinding.RoleRef, roleBinding.RoleRef) || !apiequality.Semantic.DeepEqual(newRoleBinding.Subjects, roleBinding.Subjects) {
 		logger.V(1).Info("updateAgentClusterRoleBinding", "roleBinding.name", newRoleBinding.Name, "roleBinding.namespace", newRoleBinding.Namespace)
+		r.recorder.Event(dad, corev1.EventTypeNormal, "Update RoleBinding", fmt.Sprintf("%s/%s", newRoleBinding.Namespace, newRoleBinding.Name))
 		if err := r.client.Update(context.TODO(), newRoleBinding); err != nil {
 			return reconcile.Result{}, err
 		}
