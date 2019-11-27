@@ -1,0 +1,51 @@
+name: validation
+on: [push, pull_request]
+env:
+  GO111MODULE: "on"
+  PROJECTNAME: "datadog-operator"
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Set up Go 1.13
+      uses: actions/setup-go@v1
+      with:
+        go-version: 1.13
+      id: go
+    - name: install requiere packages
+      uses: mstksg/get-package@v1
+      with:
+        apt-get: mercurial jq build-essential
+    - name: Check out code into the Go module directory
+      uses: actions/checkout@v1
+    - name: install tools
+      run: |
+        make install-tools
+    - name: run build
+      run: |
+        make build
+    - name: run unit-test
+      run: |
+        make test
+    - name: run validate
+      run: |
+        make validate
+    - name: setup kind
+      uses: engineerd/setup-kind@v0.1.0
+      with:
+        version: "v0.5.1"    
+        config: test/cluster-kind.yaml
+    - name: Run E2E
+      run: |
+        export KUBECONFIG="$(kind get kubeconfig-path)"
+        export PATH=$PATH:$(pwd)/bin
+        kubectl cluster-info
+        kubectl get pods -n kube-system
+        KINDPUSH=true make TAG=$GITHUB_SHA container
+        make TAG=$GITHUB_SHA e2e
+    - uses: codecov/codecov-action@v1
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: ./.cover/cover.out
+        flags: unittests
+        yml: .codecov.yml

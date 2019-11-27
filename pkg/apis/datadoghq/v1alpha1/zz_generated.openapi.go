@@ -39,6 +39,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./pkg/apis/datadoghq/v1alpha1.NodeAgentConfig":                                   schema_pkg_apis_datadoghq_v1alpha1_NodeAgentConfig(ref),
 		"./pkg/apis/datadoghq/v1alpha1.ProcessSpec":                                       schema_pkg_apis_datadoghq_v1alpha1_ProcessSpec(ref),
 		"./pkg/apis/datadoghq/v1alpha1.RbacConfig":                                        schema_pkg_apis_datadoghq_v1alpha1_RbacConfig(ref),
+		"./pkg/apis/datadoghq/v1alpha1.SystemProbeSpec":                                   schema_pkg_apis_datadoghq_v1alpha1_SystemProbeSpec(ref),
 	}
 }
 
@@ -56,9 +57,42 @@ func schema_pkg_apis_datadoghq_v1alpha1_APMSpec(ref common.ReferenceCallback) co
 							Format:      "",
 						},
 					},
+					"hostPort": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Number of port to expose on the host. If specified, this must be a valid port number, 0 < x < 65536. If HostNetwork is specified, this must match ContainerPort. Most containers do not need this.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"env": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "set",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "The Datadog Agent supports many environment variables Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("k8s.io/api/core/v1.EnvVar"),
+									},
+								},
+							},
+						},
+					},
+					"resources": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Datadog APM Agent resource requests and limits Make sure to keep requests and limits equal to keep the pods in the Guaranteed QoS class Ref: http://kubernetes.io/docs/user-guide/compute-resources/",
+							Ref:         ref("k8s.io/api/core/v1.ResourceRequirements"),
+						},
+					},
 				},
 			},
 		},
+		Dependencies: []string{
+			"k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements"},
 	}
 }
 
@@ -700,12 +734,18 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentDeploymentSpecAgentSpec(ref 
 							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.ProcessSpec"),
 						},
 					},
+					"systemProbe": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SystemProbe configuration",
+							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.SystemProbeSpec"),
+						},
+					},
 				},
 				Required: []string{"image"},
 			},
 		},
 		Dependencies: []string{
-			"./pkg/apis/datadoghq/v1alpha1.APMSpec", "./pkg/apis/datadoghq/v1alpha1.DaemonSetDeploymentcStrategy", "./pkg/apis/datadoghq/v1alpha1.ImageConfig", "./pkg/apis/datadoghq/v1alpha1.LogSpec", "./pkg/apis/datadoghq/v1alpha1.NodeAgentConfig", "./pkg/apis/datadoghq/v1alpha1.ProcessSpec", "./pkg/apis/datadoghq/v1alpha1.RbacConfig"},
+			"./pkg/apis/datadoghq/v1alpha1.APMSpec", "./pkg/apis/datadoghq/v1alpha1.DaemonSetDeploymentcStrategy", "./pkg/apis/datadoghq/v1alpha1.ImageConfig", "./pkg/apis/datadoghq/v1alpha1.LogSpec", "./pkg/apis/datadoghq/v1alpha1.NodeAgentConfig", "./pkg/apis/datadoghq/v1alpha1.ProcessSpec", "./pkg/apis/datadoghq/v1alpha1.RbacConfig", "./pkg/apis/datadoghq/v1alpha1.SystemProbeSpec"},
 	}
 }
 
@@ -1121,7 +1161,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_NodeAgentConfig(ref common.ReferenceCall
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "The Datadog Agent supports many environment variables ref: https://github.com/DataDog/datadog-agent/tree/master/Dockerfiles/agent#environment-variables",
+							Description: "The Datadog Agent supports many environment variables Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -1208,9 +1248,35 @@ func schema_pkg_apis_datadoghq_v1alpha1_ProcessSpec(ref common.ReferenceCallback
 							Format:      "",
 						},
 					},
+					"env": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "set",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "The Datadog Agent supports many environment variables Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("k8s.io/api/core/v1.EnvVar"),
+									},
+								},
+							},
+						},
+					},
+					"resources": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Datadog Process Agent resource requests and limits Make sure to keep requests and limits equal to keep the pods in the Guaranteed QoS class Ref: http://kubernetes.io/docs/user-guide/compute-resources/",
+							Ref:         ref("k8s.io/api/core/v1.ResourceRequirements"),
+						},
+					},
 				},
 			},
 		},
+		Dependencies: []string{
+			"k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements"},
 	}
 }
 
@@ -1238,5 +1304,86 @@ func schema_pkg_apis_datadoghq_v1alpha1_RbacConfig(ref common.ReferenceCallback)
 				},
 			},
 		},
+	}
+}
+
+func schema_pkg_apis_datadoghq_v1alpha1_SystemProbeSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SystemProbeSpec contains the SystemProbe Agent configuration",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enable this to activate live process monitoring. Note: /etc/passwd is automatically mounted to allow username resolution. ref: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"secCompRootPath": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SecCompRootPath specify the seccomp profile root directory",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"appArmorProfileName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AppArmorProfileName specify a apparmor profile",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"conntrackEnabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ConntrackEnabled enable the system-probe agent to connect to the netlink/conntrack subsystem to add NAT information to connection data Ref: http://conntrack-tools.netfilter.org/",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"bpfDebugEnabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "BPFDebugEnabled logging for kernel debug",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"debugPort": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DebugPort Specify the port to expose pprof and expvar for system-probe agent",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"env": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "set",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "The Datadog SystemProbe supports many environment variables Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("k8s.io/api/core/v1.EnvVar"),
+									},
+								},
+							},
+						},
+					},
+					"resources": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Datadog SystemProbe resource requests and limits Make sure to keep requests and limits equal to keep the pods in the Guaranteed QoS class Ref: http://kubernetes.io/docs/user-guide/compute-resources/",
+							Ref:         ref("k8s.io/api/core/v1.ResourceRequirements"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements"},
 	}
 }

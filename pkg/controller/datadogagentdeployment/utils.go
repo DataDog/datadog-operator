@@ -32,16 +32,50 @@ func init() {
 }
 
 // newAgentPodTemplate generates a PodTemplate from a DatadogAgentDeployment spec
-func newAgentPodTemplate(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment) corev1.PodTemplateSpec {
+func newAgentPodTemplate(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment) (*corev1.PodTemplateSpec, error) {
 	// copy Agent Spec to configure Agent Pod Template
-	spec := agentdeployment.Spec.DeepCopy()
 	labels := getDefaultLabels(agentdeployment, "agent", getAgentVersion(agentdeployment))
 	labels[datadoghqv1alpha1.AgentDeploymentNameLabelKey] = agentdeployment.Name
 	labels[datadoghqv1alpha1.AgentDeploymentComponentLabelKey] = "agent"
 
 	annotations := getDefaultAnnotations(agentdeployment)
+	if isSystemProbeEnabled(agentdeployment) {
+		annotations["container.apparmor.security.beta.kubernetes.io/system-probe"] = getAppArmorProfileName(&agentdeployment.Spec.Agent.SystemProbe)
+		annotations["container.seccomp.security.alpha.kubernetes.io/system-probe"] = "localhost/system-probe"
+	}
 
-	return corev1.PodTemplateSpec{
+	containers := []corev1.Container{}
+	agentContainer, err := getAgentContainer(agentdeployment)
+	if err != nil {
+		return nil, err
+	}
+	containers = append(containers, *agentContainer)
+
+	if isAPMEnabled(agentdeployment) {
+		var container *corev1.Container
+		container, err = getAPMAgentContainer(agentdeployment)
+		if err != nil {
+			return nil, err
+		}
+		containers = append(containers, *container)
+	}
+	if isProcessEnabled(agentdeployment) {
+		var processContainers []corev1.Container
+
+		processContainers, err = getProcessContainers(agentdeployment)
+		if err != nil {
+			return nil, err
+		}
+		containers = append(containers, processContainers...)
+	}
+
+	var initContainers []corev1.Container
+	initContainers, err = getInitContainers(logger, agentdeployment)
+	if err != nil {
+		return nil, err
+	}
+
+	return &corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: agentdeployment.Name,
 			Namespace:    agentdeployment.Namespace,
@@ -50,38 +84,172 @@ func newAgentPodTemplate(logger logr.Logger, agentdeployment *datadoghqv1alpha1.
 		},
 		Spec: corev1.PodSpec{
 			ServiceAccountName: getAgentServiceAccount(agentdeployment),
-			InitContainers:     getInitContainers(logger, agentdeployment),
-			Containers: []corev1.Container{
-				{
-					Name:            "agent",
-					Image:           spec.Agent.Image.Name,
-					ImagePullPolicy: *spec.Agent.Image.PullPolicy,
-					Command: []string{
-						"agent",
-						"start",
-					},
-					Resources: *spec.Agent.Config.Resources,
-					Ports: []corev1.ContainerPort{
-						{
-							ContainerPort: 8125,
-							Name:          "dogstatsdport",
-							Protocol:      "UDP",
-						},
-					},
-					Env:           getEnvVarsForAgent(logger, agentdeployment),
-					VolumeMounts:  getVolumeMountsForAgent(spec),
-					LivenessProbe: getDefaultLivenessProbe(),
-				},
-			},
-			Volumes:     getVolumesForAgent(spec),
-			Tolerations: agentdeployment.Spec.Agent.Config.Tolerations,
+			InitContainers:     initContainers,
+			Containers:         containers,
+			Volumes:            getVolumesForAgent(agentdeployment),
+			Tolerations:        agentdeployment.Spec.Agent.Config.Tolerations,
 		},
-	}
+	}, nil
 }
 
-func getInitContainers(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment) []corev1.Container {
+func isAPMEnabled(dad *datadoghqv1alpha1.DatadogAgentDeployment) bool {
+	if dad.Spec.Agent == nil {
+		return false
+	}
+	return datadoghqv1alpha1.BoolValue(dad.Spec.Agent.Apm.Enabled)
+}
+
+func isProcessEnabled(dad *datadoghqv1alpha1.DatadogAgentDeployment) bool {
+	if dad.Spec.Agent == nil {
+		return false
+	}
+	return datadoghqv1alpha1.BoolValue(dad.Spec.Agent.Process.Enabled)
+}
+
+func isSystemProbeEnabled(dad *datadoghqv1alpha1.DatadogAgentDeployment) bool {
+	if dad.Spec.Agent == nil {
+		return false
+	}
+	return datadoghqv1alpha1.BoolValue(dad.Spec.Agent.SystemProbe.Enabled)
+}
+
+func getAgentContainer(dad *datadoghqv1alpha1.DatadogAgentDeployment) (*corev1.Container, error) {
+	agentSpec := dad.Spec.Agent
+	envVars, err := getEnvVarsForAgent(dad)
+	if err != nil {
+		return nil, err
+	}
+	agentContainer := &corev1.Container{
+		Name:            "agent",
+		Image:           agentSpec.Image.Name,
+		ImagePullPolicy: *agentSpec.Image.PullPolicy,
+		Command: []string{
+			"agent",
+			"start",
+		},
+		Resources: *agentSpec.Config.Resources,
+		Ports: []corev1.ContainerPort{
+			{
+				ContainerPort: 8125,
+				Name:          "dogstatsdport",
+				Protocol:      "UDP",
+			},
+		},
+		Env:           envVars,
+		VolumeMounts:  getVolumeMountsForAgent(&dad.Spec),
+		LivenessProbe: getDefaultLivenessProbe(),
+	}
+
+	return agentContainer, nil
+}
+
+func getAPMAgentContainer(dad *datadoghqv1alpha1.DatadogAgentDeployment) (*corev1.Container, error) {
+	agentSpec := dad.Spec.Agent
+	envVars, err := getEnvVarsForAPMAgent(dad)
+	if err != nil {
+		return nil, err
+	}
+	tcpPort := corev1.ContainerPort{
+		ContainerPort: datadoghqv1alpha1.DefaultAPMAgentTCPPort,
+		Name:          "traceport",
+		Protocol:      corev1.ProtocolTCP,
+	}
+	if agentSpec.Apm.HostPort != nil {
+		tcpPort.HostPort = *agentSpec.Apm.HostPort
+	}
+
+	apmContainer := &corev1.Container{
+		Name:            "trace-agent",
+		Image:           agentSpec.Image.Name,
+		ImagePullPolicy: *agentSpec.Image.PullPolicy,
+		Command: []string{
+			"trace-agent",
+			"--config=/etc/datadog-agent/datadog.yaml",
+		},
+
+		Ports: []corev1.ContainerPort{
+			tcpPort,
+		},
+		Env:           envVars,
+		LivenessProbe: getDefaultAPMAgentLivenessProbe(),
+		VolumeMounts: []corev1.VolumeMount{
+			{
+				Name:      datadoghqv1alpha1.ConfigVolumeName,
+				MountPath: datadoghqv1alpha1.ConfigVolumePath,
+			},
+		},
+	}
+	if agentSpec.Apm.Resources != nil {
+		apmContainer.Resources = *agentSpec.Apm.Resources
+	}
+
+	return apmContainer, nil
+}
+
+func getProcessContainers(dad *datadoghqv1alpha1.DatadogAgentDeployment) ([]corev1.Container, error) {
+	agentSpec := dad.Spec.Agent
+	envVars, err := getEnvVarsForProcessAgent(dad)
+	if err != nil {
+		return nil, err
+	}
+
+	containers := []corev1.Container{}
+
+	process := corev1.Container{
+		Name:            "process-agent",
+		Image:           agentSpec.Image.Name,
+		ImagePullPolicy: *agentSpec.Image.PullPolicy,
+		Command: []string{
+			"process-agent",
+			"-config=/etc/datadog-agent/datadog.yaml",
+		},
+		Env:          envVars,
+		VolumeMounts: getVolumeMountsForProcessAgent(&dad.Spec),
+	}
+
+	if agentSpec.Process.Resources != nil {
+		process.Resources = *agentSpec.Process.Resources
+	}
+	containers = append(containers, process)
+	if isSystemProbeEnabled(dad) {
+		var systemProbeEnvVars []corev1.EnvVar
+		systemProbeEnvVars, err = getEnvVarsForSystemProbe(dad)
+		if err != nil {
+			return nil, err
+		}
+		systemProbe := corev1.Container{
+			Name:            "system-probe",
+			Image:           agentSpec.Image.Name,
+			ImagePullPolicy: *agentSpec.Image.PullPolicy,
+			Command: []string{
+				"/opt/datadog-agent/embedded/bin/system-probe",
+				fmt.Sprintf("-config=%s/system-probe.yaml", datadoghqv1alpha1.SystemProbeConfigVolumePath),
+			},
+			SecurityContext: &corev1.SecurityContext{
+				Capabilities: &corev1.Capabilities{
+					Add: []corev1.Capability{"SYS_ADMIN", "SYS_RESOURCE", "SYS_PTRACE", "NET_ADMIN", "IPC_LOCK"},
+				},
+			},
+			Env:          systemProbeEnvVars,
+			VolumeMounts: getVolumeMountsForSystemProbe(&dad.Spec),
+		}
+		if agentSpec.SystemProbe.Resources != nil {
+			systemProbe.Resources = *agentSpec.SystemProbe.Resources
+
+		}
+		containers = append(containers, systemProbe)
+	}
+
+	return containers, nil
+}
+
+func getInitContainers(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment) ([]corev1.Container, error) {
 	spec := &dad.Spec
 	volumeMounts := getVolumeMountsForAgent(spec)
+	envVars, err := getEnvVarsForAgent(dad)
+	if err != nil {
+		return nil, err
+	}
 	containers := []corev1.Container{
 		{
 			Name:            "init-volume",
@@ -104,32 +272,95 @@ func getInitContainers(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDe
 			Resources:       *spec.Agent.Config.Resources,
 			Command:         []string{"bash", "-c"},
 			Args:            []string{"for script in $(find /etc/cont-init.d/ -type f -name '*.sh' | sort) ; do bash $script ; done"},
-			Env:             getEnvVarsForAgent(logger, dad),
+			Env:             envVars,
 			VolumeMounts:    volumeMounts,
 		},
 	}
+	if isSystemProbeEnabled(dad) {
+		systemProbeInit := corev1.Container{
+			Name:            "seccomp-setup",
+			Image:           spec.Agent.Image.Name,
+			ImagePullPolicy: *spec.Agent.Image.PullPolicy,
+			Resources:       *spec.Agent.Config.Resources,
+			Command: []string{
+				"cp",
+				fmt.Sprintf("%s/system-probe-seccomp.json", datadoghqv1alpha1.SystemProbeAgentSecurityVolumePath),
+				fmt.Sprintf("%s/system-probe", datadoghqv1alpha1.SystemProbeSecCompRootVolumePath),
+			},
+			VolumeMounts: []corev1.VolumeMount{
+				{
+					Name:      datadoghqv1alpha1.SystemProbeAgentSecurityVolumeName,
+					MountPath: datadoghqv1alpha1.SystemProbeAgentSecurityVolumePath,
+				},
+				{
+					Name:      datadoghqv1alpha1.SystemProbeSecCompRootVolumeName,
+					MountPath: datadoghqv1alpha1.SystemProbeSecCompRootVolumePath,
+				},
+			},
+		}
+		containers = append(containers, systemProbeInit)
+	}
 
-	return containers
+	return containers, nil
 }
 
-// getEnvVarsForAgent converts Agent Config into container env vars
-func getEnvVarsForAgent(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment) []corev1.EnvVar {
-	spec := dad.Spec
-	// Marshal tag fields
-	podLabelsAsTags, err := json.Marshal(spec.Agent.Config.PodLabelsAsTags)
-	if err != nil {
-		logger.Error(err, "failed to marshal pod labels as tags")
+// getEnvVarsForAPMAgent converts APM Agent Config into container env vars
+func getEnvVarsForAPMAgent(dad *datadoghqv1alpha1.DatadogAgentDeployment) ([]corev1.EnvVar, error) {
+	envVars := []corev1.EnvVar{
+		{
+			Name:  datadoghqv1alpha1.DDAPMEnabled,
+			Value: strconv.FormatBool(isAPMEnabled(dad)),
+		},
 	}
-	podAnnotationsAsTags, err := json.Marshal(spec.Agent.Config.PodAnnotationsAsTags)
+	commonEnvVars, err := getEnvVarsCommon(dad, true)
 	if err != nil {
-		logger.Error(err, "failed to marshal pod annotations as tags")
+		return nil, err
 	}
-	tags, err := json.Marshal(spec.Agent.Config.Tags)
+	envVars = append(envVars, commonEnvVars...)
+	envVars = append(envVars, dad.Spec.Agent.Apm.Env...)
+	return envVars, nil
+}
+
+// getEnvVarsForProcessAgent converts Process Agent Config into container env vars
+func getEnvVarsForProcessAgent(dad *datadoghqv1alpha1.DatadogAgentDeployment) ([]corev1.EnvVar, error) {
+	envVars := []corev1.EnvVar{
+		{
+			Name:  datadoghqv1alpha1.DDProcessAgentEnabled,
+			Value: strconv.FormatBool(isProcessEnabled(dad)),
+		},
+		{
+			Name:  datadoghqv1alpha1.DDSystemProbeAgentEnabled,
+			Value: strconv.FormatBool(isSystemProbeEnabled(dad)),
+		},
+	}
+	commonEnvVars, err := getEnvVarsCommon(dad, true)
 	if err != nil {
-		logger.Error(err, "failed to marshal tags")
+		return nil, err
 	}
+	envVars = append(envVars, commonEnvVars...)
+	envVars = append(envVars, dad.Spec.Agent.Process.Env...)
+	return envVars, nil
+}
+
+// getEnvVarsForSystemProbe converts System Probe Config into container env vars
+func getEnvVarsForSystemProbe(dad *datadoghqv1alpha1.DatadogAgentDeployment) ([]corev1.EnvVar, error) {
+	envVars := []corev1.EnvVar{}
+	commonEnvVars, err := getEnvVarsCommon(dad, false)
+	if err != nil {
+		return nil, err
+	}
+	envVars = append(envVars, commonEnvVars...)
+	envVars = append(envVars, dad.Spec.Agent.SystemProbe.Env...)
+	return envVars, nil
+}
+
+func getEnvVarsCommon(dad *datadoghqv1alpha1.DatadogAgentDeployment, needApiKey bool) ([]corev1.EnvVar, error) {
 
 	envVars := []corev1.EnvVar{
+		{
+			Name:  datadoghqv1alpha1.DDLogLevel,
+			Value: getLogLevel(dad),
+		},
 		{
 			Name: datadoghqv1alpha1.DDKubeletHost,
 			ValueFrom: &corev1.EnvVarSource{
@@ -139,9 +370,64 @@ func getEnvVarsForAgent(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentD
 			},
 		},
 		{
+			Name: datadoghqv1alpha1.DDHostname,
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: FieldPathSpecNodeName,
+				},
+			},
+		},
+		{
 			Name:  datadoghqv1alpha1.KubernetesEnvvarName,
 			Value: "yes",
 		},
+	}
+
+	if needApiKey {
+		var apiKeyEnvVar corev1.EnvVar
+		if dad.Spec.Credentials.APIKeyExistingSecret != "" {
+			apiKeyEnvVar = corev1.EnvVar{
+				Name:      datadoghqv1alpha1.DDAPIKey,
+				ValueFrom: getAPIKeyFromSecret(dad),
+			}
+		} else {
+			apiKeyEnvVar = corev1.EnvVar{
+				Name:  datadoghqv1alpha1.DDAPIKey,
+				Value: dad.Spec.Credentials.APIKey,
+			}
+		}
+		envVars = append(envVars, apiKeyEnvVar)
+	}
+
+	if len(dad.Spec.Agent.Config.Tags) > 0 {
+		tags, err := json.Marshal(dad.Spec.Agent.Config.Tags)
+		if err != nil {
+			return nil, err
+		}
+
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  datadoghqv1alpha1.DDTags,
+			Value: string(tags),
+		})
+	}
+
+	return envVars, nil
+}
+
+// getEnvVarsForAgent converts Agent Config into container env vars
+func getEnvVarsForAgent(dad *datadoghqv1alpha1.DatadogAgentDeployment) ([]corev1.EnvVar, error) {
+	spec := dad.Spec
+	// Marshal tag fields
+	podLabelsAsTags, err := json.Marshal(spec.Agent.Config.PodLabelsAsTags)
+	if err != nil {
+		return nil, err
+	}
+	podAnnotationsAsTags, err := json.Marshal(spec.Agent.Config.PodAnnotationsAsTags)
+	if err != nil {
+		return nil, err
+	}
+
+	envVars := []corev1.EnvVar{
 		{
 			Name:  datadoghqv1alpha1.DDClusterName,
 			Value: spec.ClusterName,
@@ -159,20 +445,12 @@ func getEnvVarsForAgent(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentD
 			Value: strconv.Itoa(int(datadoghqv1alpha1.DefaultAgentHealthPort)),
 		},
 		{
-			Name:  datadoghqv1alpha1.DDLogLevel,
-			Value: *spec.Agent.Config.LogLevel,
-		},
-		{
 			Name:  datadoghqv1alpha1.DDPodLabelsAsTags,
 			Value: string(podLabelsAsTags),
 		},
 		{
 			Name:  datadoghqv1alpha1.DDPodAnnotationsAsTags,
 			Value: string(podAnnotationsAsTags),
-		},
-		{
-			Name:  datadoghqv1alpha1.DDTags,
-			Value: string(tags),
 		},
 		{
 			Name:  datadoghqv1alpha1.DDCollectKubeEvents,
@@ -195,18 +473,11 @@ func getEnvVarsForAgent(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentD
 			Value: strconv.FormatBool(*spec.Agent.Config.Dogstatsd.DogstatsdOriginDetection),
 		},
 	}
-
-	if spec.Credentials.APIKeyExistingSecret != "" {
-		envVars = append(envVars, corev1.EnvVar{
-			Name:      datadoghqv1alpha1.DDAPIKey,
-			ValueFrom: getAPIKeyFromSecret(dad),
-		})
-	} else {
-		envVars = append(envVars, corev1.EnvVar{
-			Name:  datadoghqv1alpha1.DDAPIKey,
-			Value: spec.Credentials.APIKey,
-		})
+	commonEnvVars, err := getEnvVarsCommon(dad, true)
+	if err != nil {
+		return nil, err
 	}
+	envVars = append(envVars, commonEnvVars...)
 	if spec.ClusterAgent != nil {
 		clusterEnv := []corev1.EnvVar{
 			{
@@ -230,11 +501,11 @@ func getEnvVarsForAgent(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentD
 		}
 		envVars = append(envVars, clusterEnv...)
 	}
-	return append(envVars, spec.Agent.Config.Env...)
+	return append(envVars, spec.Agent.Config.Env...), nil
 }
 
 // getVolumesForAgent defines volumes for the Agent
-func getVolumesForAgent(spec *datadoghqv1alpha1.DatadogAgentDeploymentSpec) []corev1.Volume {
+func getVolumesForAgent(dad *datadoghqv1alpha1.DatadogAgentDeployment) []corev1.Volume {
 	volumes := []corev1.Volume{
 		{
 			Name: datadoghqv1alpha1.ConfdVolumeName,
@@ -265,10 +536,10 @@ func getVolumesForAgent(spec *datadoghqv1alpha1.DatadogAgentDeploymentSpec) []co
 			},
 		},
 	}
-	if spec.Agent.Config.CriSocket != nil && spec.Agent.Config.CriSocket.UseCriSocketVolume != nil && *spec.Agent.Config.CriSocket.UseCriSocketVolume {
+	if dad.Spec.Agent.Config.CriSocket != nil && dad.Spec.Agent.Config.CriSocket.UseCriSocketVolume != nil && *dad.Spec.Agent.Config.CriSocket.UseCriSocketVolume {
 		path := "/var/run/docker.sock"
-		if spec.Agent.Config.CriSocket.CriSocketPath != nil {
-			path = *spec.Agent.Config.CriSocket.CriSocketPath
+		if dad.Spec.Agent.Config.CriSocket.CriSocketPath != nil {
+			path = *dad.Spec.Agent.Config.CriSocket.CriSocketPath
 		}
 		criVolume := corev1.Volume{
 			Name: datadoghqv1alpha1.CriSockerVolumeName,
@@ -280,7 +551,80 @@ func getVolumesForAgent(spec *datadoghqv1alpha1.DatadogAgentDeploymentSpec) []co
 		}
 		volumes = append(volumes, criVolume)
 	}
+	if datadoghqv1alpha1.BoolValue(dad.Spec.Agent.Process.Enabled) {
+		passwdVolume := corev1.Volume{
+			Name: datadoghqv1alpha1.PasswdVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: datadoghqv1alpha1.PasswdVolumePath,
+				},
+			},
+		}
+		volumes = append(volumes, passwdVolume)
+	}
+	if datadoghqv1alpha1.BoolValue(dad.Spec.Agent.SystemProbe.Enabled) {
+		systemProbeVolumes := []corev1.Volume{
+			{
+				Name: datadoghqv1alpha1.SystemProbeAgentSecurityVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: getSecCompConfigMapName(dad.Name),
+						},
+					},
+				},
+			},
+			{
+				Name: datadoghqv1alpha1.SystemProbeConfigVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: getSystemProbeConfiConfigMapName(dad.Name),
+						},
+					},
+				},
+			},
+			{
+				Name: datadoghqv1alpha1.SystemProbeSecCompRootVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: getSecCompRootPath(&dad.Spec.Agent.SystemProbe),
+					},
+				},
+			},
+			{
+				Name: datadoghqv1alpha1.SystemProbeDebugfsVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: datadoghqv1alpha1.SystemProbeDebugfsVolumePath,
+					},
+				},
+			},
+			{
+				Name: datadoghqv1alpha1.SystemProbeSocketVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
+			},
+		}
+
+		volumes = append(volumes, systemProbeVolumes...)
+	}
 	return volumes
+}
+
+func getSecCompRootPath(spec *datadoghqv1alpha1.SystemProbeSpec) string {
+	if spec.SecCompRootPath != "" {
+		return spec.SecCompRootPath
+	}
+	return datadoghqv1alpha1.DefaultSystemProbeSecCompRootPath
+}
+
+func getAppArmorProfileName(spec *datadoghqv1alpha1.SystemProbeSpec) string {
+	if spec.AppArmorProfileName != "" {
+		return spec.AppArmorProfileName
+	}
+	return datadoghqv1alpha1.DefaultAppArmorProfileName
 }
 
 // getVolumeMountsForAgent defines mounted volumes for the Agent
@@ -339,11 +683,82 @@ func getVolumeMountsForAgent(spec *datadoghqv1alpha1.DatadogAgentDeploymentSpec)
 			{
 				Name:      datadoghqv1alpha1.LogContainerVolumeName,
 				MountPath: *spec.Agent.Log.ContainerLogsPath,
-				ReadOnly:  datadoghqv1alpha1.LogContainerolumeReadOnly,
+				ReadOnly:  datadoghqv1alpha1.LogContainerVolumeReadOnly,
 			},
 		}...)
 	}
 	return append(volumeMounts, spec.Agent.Config.VolumeMounts...)
+}
+
+// getVolumeMountsForAgent defines mounted volumes for the Process Agent
+func getVolumeMountsForProcessAgent(spec *datadoghqv1alpha1.DatadogAgentDeploymentSpec) []corev1.VolumeMount {
+	// Default mounted volumes
+	volumeMounts := []corev1.VolumeMount{
+		{
+			Name:      datadoghqv1alpha1.CgroupsVolumeName,
+			MountPath: datadoghqv1alpha1.CgroupsVolumePath,
+			ReadOnly:  true,
+		},
+		{
+			Name:      datadoghqv1alpha1.ConfigVolumeName,
+			MountPath: datadoghqv1alpha1.ConfigVolumePath,
+		},
+		{
+			Name:      datadoghqv1alpha1.PasswdVolumeName,
+			MountPath: datadoghqv1alpha1.PasswdVolumePath,
+			ReadOnly:  true,
+		},
+		{
+			Name:      datadoghqv1alpha1.ProcVolumeName,
+			MountPath: datadoghqv1alpha1.ProcVolumePath,
+			ReadOnly:  true,
+		},
+	}
+
+	// Cri socket volume
+	if *spec.Agent.Config.CriSocket.UseCriSocketVolume {
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      datadoghqv1alpha1.CriSockerVolumeName,
+			MountPath: *spec.Agent.Config.CriSocket.CriSocketPath,
+			ReadOnly:  true,
+		})
+	}
+
+	if datadoghqv1alpha1.BoolValue(spec.Agent.SystemProbe.Enabled) {
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      datadoghqv1alpha1.SystemProbeSocketVolumeName,
+			MountPath: datadoghqv1alpha1.SystemProbeSocketVolumePath,
+			ReadOnly:  true,
+		})
+	}
+
+	return volumeMounts
+}
+
+// getVolumeMountsForSystemProbe defines mounted volumes for the SystemProbe
+func getVolumeMountsForSystemProbe(spec *datadoghqv1alpha1.DatadogAgentDeploymentSpec) []corev1.VolumeMount {
+	// Default mounted volumes
+	volumeMounts := []corev1.VolumeMount{
+		{
+			Name:      datadoghqv1alpha1.SystemProbeDebugfsVolumeName,
+			MountPath: datadoghqv1alpha1.SystemProbeDebugfsVolumePath,
+		},
+		{
+			Name:      datadoghqv1alpha1.SystemProbeConfigVolumeName,
+			MountPath: datadoghqv1alpha1.SystemProbeConfigVolumePath,
+		},
+		{
+			Name:      datadoghqv1alpha1.SystemProbeSocketVolumeName,
+			MountPath: datadoghqv1alpha1.SystemProbeSocketVolumePath,
+		},
+		{
+			Name:      datadoghqv1alpha1.ProcVolumeName,
+			MountPath: datadoghqv1alpha1.ProcVolumePath,
+			ReadOnly:  true,
+		},
+	}
+
+	return volumeMounts
 }
 
 func getAgentVersion(dad *datadoghqv1alpha1.DatadogAgentDeployment) string {
@@ -527,6 +942,20 @@ func getDefaultLivenessProbe() *corev1.Probe {
 	return livenessProbe
 }
 
+func getDefaultAPMAgentLivenessProbe() *corev1.Probe {
+	livenessProbe := &corev1.Probe{
+		InitialDelaySeconds: datadoghqv1alpha1.DefaultLivenessProveInitialDelaySeconds,
+		PeriodSeconds:       datadoghqv1alpha1.DefaultLivenessProvePeriodSeconds,
+		TimeoutSeconds:      datadoghqv1alpha1.DefaultLivenessProveTimeoutSeconds,
+	}
+	livenessProbe.TCPSocket = &corev1.TCPSocketAction{
+		Port: intstr.IntOrString{
+			IntVal: datadoghqv1alpha1.DefaultAPMAgentTCPPort,
+		},
+	}
+	return livenessProbe
+}
+
 func getPodAffinity(affinity *corev1.Affinity, labelValue string) *corev1.Affinity {
 	if affinity != nil {
 		return affinity
@@ -572,4 +1001,12 @@ func ownedByDatadogOperator(owners []metav1.OwnerReference) bool {
 		}
 	}
 	return false
+}
+
+func getLogLevel(dad *datadoghqv1alpha1.DatadogAgentDeployment) string {
+	logLevel := datadoghqv1alpha1.DefaultLogLevel
+	if dad.Spec.Agent.Config.LogLevel != nil {
+		logLevel = *dad.Spec.Agent.Config.LogLevel
+	}
+	return logLevel
 }

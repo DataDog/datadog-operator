@@ -58,6 +58,7 @@ const (
 	DDHostname                      = "DD_HOSTNAME"
 	DDAPMEnabled                    = "DD_APM_ENABLED"
 	DDProcessAgentEnabled           = "DD_PROCESS_AGENT_ENABLED"
+	DDSystemProbeAgentEnabled       = "DD_SYSTEM_PROBE_ENABLED"
 	DDEnableMetadataCollection      = "DD_ENABLE_METADATA_COLLECTION"
 	DDKubeletHost                   = "DD_KUBERNETES_KUBELET_HOST"
 
@@ -66,27 +67,43 @@ const (
 	KubernetesEnvvarName = "KUBERNETES"
 
 	// Datadog volume names and mount paths
-	ConfdVolumeName           = "confd"
-	ConfdVolumePath           = "/conf.d"
-	ConfigVolumeName          = "config"
-	ConfigVolumePath          = "/etc/datadog-agent"
-	ProcVolumeName            = "procdir"
-	ProcVolumePath            = "/host/proc"
-	ProcVolumeReadOnly        = true
-	CgroupsVolumeName         = "cgroups"
-	CgroupsVolumePath         = "/host/sys/fs/cgroup"
-	CgroupsVolumeReadOnly     = true
-	CriSockerVolumeName       = "runtimesocket"
-	CriSockerVolumeReadOnly   = true
-	DogstatsdSockerVolumeName = "dsdsocket"
-	DogstatsdSockerVolumePath = "/var/run/datadog"
-	PointerVolumeName         = "pointerdir"
-	PointerVolumePath         = "/opt/datadog-agent/run"
-	LogPodVolumeName          = "logpodpath"
-	LogPodVolumePath          = "/var/log/pods"
-	LogPodVolumeReadOnly      = true
-	LogContainerVolumeName    = "logcontainerpath"
-	LogContainerolumeReadOnly = true
+	ConfdVolumeName                    = "confd"
+	ConfdVolumePath                    = "/conf.d"
+	ConfigVolumeName                   = "config"
+	ConfigVolumePath                   = "/etc/datadog-agent"
+	ProcVolumeName                     = "procdir"
+	ProcVolumePath                     = "/host/proc"
+	ProcVolumeReadOnly                 = true
+	PasswdVolumeName                   = "passwd"
+	PasswdVolumePath                   = "/etc/passwd"
+	CgroupsVolumeName                  = "cgroups"
+	CgroupsVolumePath                  = "/host/sys/fs/cgroup"
+	CgroupsVolumeReadOnly              = true
+	SystemProbeSocketVolumeName        = "sysprobe-socket-dir"
+	SystemProbeSocketVolumePath        = "/opt/datadog-agent/run"
+	CriSockerVolumeName                = "runtimesocket"
+	CriSockerVolumeReadOnly            = true
+	DogstatsdSockerVolumeName          = "dsdsocket"
+	DogstatsdSockerVolumePath          = "/var/run/datadog"
+	PointerVolumeName                  = "pointerdir"
+	PointerVolumePath                  = "/opt/datadog-agent/run"
+	LogPodVolumeName                   = "logpodpath"
+	LogPodVolumePath                   = "/var/log/pods"
+	LogPodVolumeReadOnly               = true
+	LogContainerVolumeName             = "logcontainerpath"
+	LogContainerVolumeReadOnly         = true
+	SystemProbeDebugfsVolumeName       = "debugfs"
+	SystemProbeDebugfsVolumePath       = "/sys/kernel/debug"
+	SystemProbeConfigVolumeName        = "system-probe-config"
+	SystemProbeConfigVolumePath        = "/etc/datadog-agent"
+	SystemProbeAgentSecurityVolumeName = "datadog-agent-security"
+	SystemProbeAgentSecurityVolumePath = "/etc/config"
+	SystemProbeSecCompRootVolumeName   = "seccomp-root"
+	SystemProbeSecCompRootVolumePath   = "/host/var/lib/kubelet/seccomp"
+
+	DefaultSystemProbeSecCompRootPath = "/var/lib/kubelet/seccomp"
+	DefaultAppArmorProfileName        = "unconfined"
+
 	// Extra config provider names
 	KubeServicesConfigProvider    = "kube_services"
 	KubeEndpointsConfigProvider   = "kube_endpoints"
@@ -103,6 +120,9 @@ const (
 	DefaultLivenessProveFailureThreshold    int32 = 6
 	DefaultAgentHealthPort                  int32 = 5555
 	DefaultLivenessProveHTTPPath                  = "/health"
+
+	// APM default values
+	DefaultAPMAgentTCPPort int32 = 8126
 
 	// Consts used to setup Rbac config
 	// API Groups

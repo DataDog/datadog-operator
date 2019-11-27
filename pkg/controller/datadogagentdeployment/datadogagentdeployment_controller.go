@@ -37,6 +37,10 @@ var (
 	supportExtendedDaemonset bool = false
 )
 
+const (
+	defaultRequeuPeriod = 15 * time.Second
+)
+
 func init() {
 	pflag.BoolVarP(&supportExtendedDaemonset, "supportExtendedDaemonset", "", false, "support ExtendedDaemonset")
 }
@@ -79,6 +83,15 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 	// Watch for changes to secondary resource Secret and requeue the owner DatadogAgentDeployment
 	err = c.Watch(&source.Kind{Type: &corev1.Secret{}}, &handler.EnqueueRequestForOwner{
+		IsController: true,
+		OwnerType:    &datadoghqv1alpha1.DatadogAgentDeployment{},
+	})
+	if err != nil {
+		return err
+	}
+
+	// Watch for changes to secondary resource ConfigMap and requeue the owner DatadogAgentDeployment
+	err = c.Watch(&source.Kind{Type: &corev1.ConfigMap{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
 		OwnerType:    &datadoghqv1alpha1.DatadogAgentDeployment{},
 	})
@@ -219,7 +232,7 @@ func (r *ReconcileDatadogAgentDeployment) Reconcile(request reconcile.Request) (
 
 	// Always requeue
 	if !result.Requeue {
-		result.RequeueAfter = 15 * time.Second
+		result.RequeueAfter = defaultRequeuPeriod
 	}
 	return r.updateStatusIfNeeded(reqLogger, instance, newStatus, result, err)
 }

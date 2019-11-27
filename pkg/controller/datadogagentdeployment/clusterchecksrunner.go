@@ -114,7 +114,7 @@ func (r *ReconcileDatadogAgentDeployment) updateClusterChecksRunnerDeployment(lo
 
 	logger.Info("update Cluster Checks Runner deployment", "name", dep.Name, "namespace", dep.Namespace)
 
-	// Set ClusterAgent Deployment instance as the owner and controller
+	// Set DatadogAgentDeployment instance  instance as the owner and controller
 	if err = controllerutil.SetControllerReference(agentdeployment, dep, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
@@ -315,14 +315,6 @@ func getEnvVarsForClusterChecksRunner(logger logr.Logger, dad *datadoghqv1alpha1
 		{
 			Name:  datadoghqv1alpha1.DDEnableMetadataCollection,
 			Value: "false",
-		},
-		{
-			Name: datadoghqv1alpha1.DDHostname,
-			ValueFrom: &corev1.EnvVarSource{
-				FieldRef: &corev1.ObjectFieldSelector{
-					FieldPath: FieldPathSpecNodeName,
-				},
-			},
 		},
 	}
 

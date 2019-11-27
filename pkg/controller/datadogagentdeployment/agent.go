@@ -285,6 +285,12 @@ func (r *ReconcileDatadogAgentDeployment) manageAgentDependencies(logger logr.Lo
 	if shouldReturn(result, err) {
 		return result, err
 	}
+
+	result, err = r.manageSystemProbeDependencies(logger, dad)
+	if shouldReturn(result, err) {
+		return result, err
+	}
+
 	return reconcile.Result{}, nil
 }
 
@@ -306,10 +312,14 @@ func updateStatusWithDaemonset(ds *appsv1.DaemonSet, newStatus *datadoghqv1alpha
 
 // newExtendedDaemonSetFromInstance creates an ExtendedDaemonSet from a given DatadogAgentDeployment
 func newExtendedDaemonSetFromInstance(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment) (*edsdatadoghqv1alpha1.ExtendedDaemonSet, string, error) {
+	template, err := newAgentPodTemplate(logger, agentdeployment)
+	if err != nil {
+		return nil, "", err
+	}
 	eds := &edsdatadoghqv1alpha1.ExtendedDaemonSet{
 		ObjectMeta: newDaemonsetObjectMetaData(agentdeployment),
 		Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
-			Template: newAgentPodTemplate(logger, agentdeployment),
+			Template: *template,
 			Strategy: edsdatadoghqv1alpha1.ExtendedDaemonSetSpecStrategy{
 				Canary:             agentdeployment.Spec.Agent.DeploymentStrategy.Canary.DeepCopy(),
 				ReconcileFrequency: agentdeployment.Spec.Agent.DeploymentStrategy.ReconcileFrequency.DeepCopy(),
@@ -332,10 +342,14 @@ func newExtendedDaemonSetFromInstance(logger logr.Logger, agentdeployment *datad
 
 // newDaemonSetFromInstance creates a DaemonSet from a given DatadogAgentDeployment
 func newDaemonSetFromInstance(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment) (*appsv1.DaemonSet, string, error) {
+	template, err := newAgentPodTemplate(logger, agentdeployment)
+	if err != nil {
+		return nil, "", err
+	}
 	ds := &appsv1.DaemonSet{
 		ObjectMeta: newDaemonsetObjectMetaData(agentdeployment),
 		Spec: appsv1.DaemonSetSpec{
-			Template: newAgentPodTemplate(logger, agentdeployment),
+			Template: *template,
 			UpdateStrategy: appsv1.DaemonSetUpdateStrategy{
 				Type: *agentdeployment.Spec.Agent.DeploymentStrategy.UpdateStrategyType,
 				RollingUpdate: &appsv1.RollingUpdateDaemonSet{

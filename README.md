@@ -1,5 +1,9 @@
 # Datadog Operator
 
+![badge](https://action-badges.now.sh/datadog/datadog-operator)
+[![Go Report Card](https://goreportcard.com/badge/github.com/datadog/datadog-operator)](https://goreportcard.com/report/github.com/datadog/datadog-operator)
+[![codecov](https://codecov.io/gh/datadog/datadog-operator/branch/master/graph/badge.svg)](https://codecov.io/gh/datadog/datadog-operator)
+
 > **!!! Alpha version !!!**
 >
 > Please don't use it yet in production.
