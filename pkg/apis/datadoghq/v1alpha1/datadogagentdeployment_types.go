@@ -110,6 +110,10 @@ type DatadogAgentDeploymentSpecAgentSpec struct {
 	// Process Agent configuration
 	// +optional
 	Process ProcessSpec `json:"process,omitempty"`
+
+	// SystemProbe configuration
+	// +optional
+	SystemProbe SystemProbeSpec `json:"systemProbe,omitempty"`
 }
 
 // RbacConfig contains RBAC configuration
@@ -171,6 +175,25 @@ type APMSpec struct {
 	// ref: https://github.com/DataDog/docker-dd-agent#tracing-from-the-host
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+	// Number of port to expose on the host.
+	// If specified, this must be a valid port number, 0 < x < 65536.
+	// If HostNetwork is specified, this must match ContainerPort.
+	// Most containers do not need this.
+	//
+	// +optional
+	HostPort *int32 `json:"hostPort,omitempty"`
+
+	// The Datadog Agent supports many environment variables
+	// Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables
+	//
+	// +optional
+	// +listType=set
+	Env []corev1.EnvVar `json:"env,omitempty"`
+
+	// Datadog APM Agent resource requests and limits
+	// Make sure to keep requests and limits equal to keep the pods in the Guaranteed QoS class
+	// Ref: http://kubernetes.io/docs/user-guide/compute-resources/
+	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
 }
 
 // LogSpec contains the Log Agent configuration
@@ -178,6 +201,7 @@ type APMSpec struct {
 type LogSpec struct {
 	// Enables this to activate Datadog Agent log collection.
 	// ref: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup
+	//
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
@@ -188,6 +212,7 @@ type LogSpec struct {
 
 	// This to allow log collection from container log path. Set to a different path if not using docker runtime.
 	// ref: https://docs.datadoghq.com/agent/kubernetes/daemonset_setup/?tab=k8sfile#create-manifest
+	//
 	// +optional
 	ContainerLogsPath *string `json:"containerLogsPath,omitempty"`
 }
@@ -198,8 +223,60 @@ type ProcessSpec struct {
 	// Enable this to activate live process monitoring.
 	// Note: /etc/passwd is automatically mounted to allow username resolution.
 	// ref: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset
+	//
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+	// The Datadog Agent supports many environment variables
+	// Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables
+	//
+	// +optional
+	// +listType=set
+	Env []corev1.EnvVar `json:"env,omitempty"`
+
+	// Datadog Process Agent resource requests and limits
+	// Make sure to keep requests and limits equal to keep the pods in the Guaranteed QoS class
+	// Ref: http://kubernetes.io/docs/user-guide/compute-resources/
+	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
+}
+
+// SystemProbeSpec contains the SystemProbe Agent configuration
+// +k8s:openapi-gen=true
+type SystemProbeSpec struct {
+	// Enable this to activate live process monitoring.
+	// Note: /etc/passwd is automatically mounted to allow username resolution.
+	// ref: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// SecCompRootPath specify the seccomp profile root directory
+	// +optional
+	SecCompRootPath string `json:"secCompRootPath,omitempty"`
+
+	// AppArmorProfileName specify a apparmor profile
+	// +optional
+	AppArmorProfileName string `json:"appArmorProfileName,omitempty"`
+
+	// ConntrackEnabled enable the system-probe agent to connect to the netlink/conntrack subsystem to add NAT information to connection data
+	// Ref: http://conntrack-tools.netfilter.org/
+	ConntrackEnabled *bool `json:"conntrackEnabled,omitempty"`
+
+	// BPFDebugEnabled logging for kernel debug
+	BPFDebugEnabled *bool `json:"bpfDebugEnabled,omitempty"`
+
+	// DebugPort Specify the port to expose pprof and expvar for system-probe agent
+	DebugPort int32 `json:"debugPort,omitempty"`
+
+	// The Datadog SystemProbe supports many environment variables
+	// Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables
+	//
+	// +optional
+	// +listType=set
+	Env []corev1.EnvVar `json:"env,omitempty"`
+
+	// Datadog SystemProbe resource requests and limits
+	// Make sure to keep requests and limits equal to keep the pods in the Guaranteed QoS class
+	// Ref: http://kubernetes.io/docs/user-guide/compute-resources/
+	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
 }
 
 // NodeAgentConfig contains the configuration of the Node Agent
@@ -246,7 +323,8 @@ type NodeAgentConfig struct {
 	LeaderElection *bool `json:"leaderElection,omitempty"`
 
 	// The Datadog Agent supports many environment variables
-	// ref: https://github.com/DataDog/datadog-agent/tree/master/Dockerfiles/agent#environment-variables
+	// Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables
+	//
 	// +optional
 	// +listType=set
 	Env []corev1.EnvVar `json:"env,omitempty"`

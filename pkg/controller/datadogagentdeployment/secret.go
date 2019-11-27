@@ -52,7 +52,7 @@ func (r *ReconcileDatadogAgentDeployment) manageClusterAgentSecret(logger logr.L
 
 func (r *ReconcileDatadogAgentDeployment) createClusterAgentSecret(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment, newStatus *datadoghqv1alpha1.DatadogAgentDeploymentStatus) (reconcile.Result, error) {
 	newSecret := newClusterAgentSecret(dad)
-	// Set ClusterAgent Deployment instance as the owner and controller
+	// Set DatadogAgentDeployment instance  instance as the owner and controller
 	if err := controllerutil.SetControllerReference(dad, newSecret, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}

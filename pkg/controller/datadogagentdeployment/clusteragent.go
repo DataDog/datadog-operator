@@ -79,7 +79,7 @@ func (r *ReconcileDatadogAgentDeployment) createNewClusterAgentDeployment(logger
 		return reconcile.Result{}, err
 	}
 
-	// Set ClusterAgent Deployment instance as the owner and controller
+	// Set DatadogAgentDeployment instance  instance as the owner and controller
 	if err = controllerutil.SetControllerReference(agentdeployment, newDCA, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
@@ -118,7 +118,7 @@ func (r *ReconcileDatadogAgentDeployment) updateClusterAgentDeployment(logger lo
 		return reconcile.Result{}, nil
 	}
 	logger.Info("update ClusterAgent deployment", "name", dca.Name, "namespace", dca.Namespace)
-	// Set ClusterAgent Deployment instance as the owner and controller
+	// Set DatadogAgentDeployment instance  instance as the owner and controller
 	if err = controllerutil.SetControllerReference(agentdeployment, dca, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}

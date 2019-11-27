@@ -35,7 +35,7 @@ ${ARTIFACT}: ${SOURCES}
 	CGO_ENABLED=0 go build ${GOMOD} -i -installsuffix cgo ${LDFLAGS} -o ${ARTIFACT} ./cmd/manager/main.go
 
 container:
-	operator-sdk build $(PREFIX):$(TAG)
+	./bin/operator-sdk build $(PREFIX):$(TAG)
     ifeq ($(KINDPUSH), true)
 	 kind load docker-image $(PREFIX):$(TAG)
     endif
@@ -48,7 +48,7 @@ test:
 
 e2e:
 	kubectl apply -f deploy/datadoghq_v1alpha1_extendeddaemonset_crd.yaml
-	operator-sdk test local --verbose ./test/e2e --image $(PREFIX):$(TAG)
+	./bin/operator-sdk test local --verbose ./test/e2e --image $(PREFIX):$(TAG)
 
 push: container
 	docker push $(PREFIX):$(TAG)
@@ -61,8 +61,8 @@ validate: bin/golangci-lint bin/wwhrd
 	./hack/verify-license.sh > /dev/null
 
 generate:
-	operator-sdk generate k8s
-	operator-sdk generate openapi
+	./bin/operator-sdk generate k8s
+	./bin/operator-sdk generate openapi
 
 CRDS = $(wildcard deploy/crds/*_crd.yaml)
 local-load: $(CRDS)

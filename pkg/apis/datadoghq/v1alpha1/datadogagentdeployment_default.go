@@ -18,7 +18,7 @@ import (
 
 const (
 	defaultDatadogURL                             string = "https://app.datadoghq.com"
-	defaultLogLevel                               string = "INFO"
+	DefaultLogLevel                               string = "INFO"
 	defaultAgentImage                             string = "datadog/agent:latest"
 	defaultCollectEvents                          bool   = false
 	defaultLeaderElection                         bool   = false
@@ -398,7 +398,7 @@ func DefaultDatadogAgentDeploymentSpecAgentConfig(config *NodeAgentConfig) *Node
 	}
 
 	if config.LogLevel == nil {
-		config.LogLevel = NewStringPointer(defaultLogLevel)
+		config.LogLevel = NewStringPointer(DefaultLogLevel)
 	}
 
 	if config.CollectEvents == nil {

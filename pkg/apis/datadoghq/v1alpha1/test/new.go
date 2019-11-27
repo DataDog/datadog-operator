@@ -34,6 +34,9 @@ type NewDatadogAgentDeploymentOptions struct {
 	MetricsServerEnabled       bool
 	ClusterChecksRunnerEnabled bool
 	NodeAgentConfig            *datadoghqv1alpha1.NodeAgentConfig
+	APMEnabled                 bool
+	ProcessEnabled             bool
+	SystemProbeEnabled         bool
 }
 
 // NewDefaultedDatadogAgentDeployment returns an initialized and defaulted DatadogAgentDeployment for testing purpose
@@ -98,6 +101,18 @@ func NewDefaultedDatadogAgentDeployment(ns, name string, options *NewDatadogAgen
 
 		if options.NodeAgentConfig != nil {
 			ad.Spec.Agent.Config = *options.NodeAgentConfig
+		}
+
+		if options.APMEnabled {
+			ad.Spec.Agent.Apm.Enabled = datadoghqv1alpha1.NewBoolPointer(true)
+		}
+
+		if options.ProcessEnabled {
+			ad.Spec.Agent.Process.Enabled = datadoghqv1alpha1.NewBoolPointer(true)
+		}
+
+		if options.SystemProbeEnabled {
+			ad.Spec.Agent.SystemProbe.Enabled = datadoghqv1alpha1.NewBoolPointer(true)
 		}
 
 	}

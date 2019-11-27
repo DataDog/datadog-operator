@@ -27,3 +27,11 @@ func BoolValue(b *bool) bool {
 	}
 	return *b
 }
+
+// BoolToString return "true" if b == true, else "false"
+func BoolToString(b *bool) string {
+	if BoolValue(b) {
+		return "true"
+	}
+	return "false"
+}

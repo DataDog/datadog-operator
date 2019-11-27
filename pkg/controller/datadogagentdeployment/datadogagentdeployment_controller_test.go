@@ -119,6 +119,7 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 	s.AddKnownTypes(appsv1.SchemeGroupVersion, &appsv1.Deployment{})
 	s.AddKnownTypes(corev1.SchemeGroupVersion, &corev1.Secret{})
 	s.AddKnownTypes(corev1.SchemeGroupVersion, &corev1.ServiceAccount{})
+	s.AddKnownTypes(corev1.SchemeGroupVersion, &corev1.ConfigMap{})
 	s.AddKnownTypes(rbacv1.SchemeGroupVersion, &rbacv1.ClusterRoleBinding{})
 	s.AddKnownTypes(rbacv1.SchemeGroupVersion, &rbacv1.ClusterRole{})
 	s.AddKnownTypes(rbacv1.SchemeGroupVersion, &rbacv1.Role{})
@@ -484,6 +485,167 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 				}
 				if ds.OwnerReferences == nil || len(ds.OwnerReferences) != 1 {
 					return fmt.Errorf("ds bad owner references, should be: '[Kind DatadogAgentDeployment - Name foo]', current: %v", ds.OwnerReferences)
+				}
+
+				return nil
+			},
+		},
+		{
+			name: "DatadogAgentDeployment with APM agent found and defaulted, create Daemonset",
+			fields: fields{
+				client:   fake.NewFakeClient(),
+				scheme:   s,
+				recorder: recorder,
+			},
+			args: args{
+				request: newRequest("bar", "foo"),
+				loadFunc: func(c client.Client) {
+					dad := test.NewDefaultedDatadogAgentDeployment("bar", "foo", &test.NewDatadogAgentDeploymentOptions{APMEnabled: true, ClusterAgentEnabled: false, UseEDS: false, Labels: map[string]string{"label-foo-key": "label-bar-value"}})
+					_ = c.Create(context.TODO(), dad)
+					createAgentDependencies(c, dad)
+				},
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(c client.Client) error {
+				ds := &appsv1.DaemonSet{}
+				if err := c.Get(context.TODO(), newRequest("bar", "foo").NamespacedName, ds); err != nil {
+					return err
+				}
+
+				for _, container := range ds.Spec.Template.Spec.Containers {
+					if container.Name == "trace-agent" {
+						return nil
+					}
+				}
+
+				return fmt.Errorf("APM container not found")
+			},
+		},
+		{
+			name: "DatadogAgentDeployment with Process agent found and defaulted, create Daemonset",
+			fields: fields{
+				client:   fake.NewFakeClient(),
+				scheme:   s,
+				recorder: recorder,
+			},
+			args: args{
+				request: newRequest("bar", "foo"),
+				loadFunc: func(c client.Client) {
+					dad := test.NewDefaultedDatadogAgentDeployment("bar", "foo", &test.NewDatadogAgentDeploymentOptions{ProcessEnabled: true, ClusterAgentEnabled: false, UseEDS: false, Labels: map[string]string{"label-foo-key": "label-bar-value"}})
+					_ = c.Create(context.TODO(), dad)
+					createAgentDependencies(c, dad)
+				},
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(c client.Client) error {
+				ds := &appsv1.DaemonSet{}
+				if err := c.Get(context.TODO(), newRequest("bar", "foo").NamespacedName, ds); err != nil {
+					return err
+				}
+
+				for _, container := range ds.Spec.Template.Spec.Containers {
+					if container.Name == "process-agent" {
+						return nil
+					}
+				}
+
+				return fmt.Errorf("process container not found")
+			},
+		},
+		{
+			name: "DatadogAgentDeployment with Process agent found and defaulted, create system-probe-config configmap",
+			fields: fields{
+				client:   fake.NewFakeClient(),
+				scheme:   s,
+				recorder: recorder,
+			},
+			args: args{
+				request: newRequest("bar", "foo"),
+				loadFunc: func(c client.Client) {
+					dad := test.NewDefaultedDatadogAgentDeployment("bar", "foo", &test.NewDatadogAgentDeploymentOptions{ProcessEnabled: true, SystemProbeEnabled: true, ClusterAgentEnabled: false, UseEDS: false, Labels: map[string]string{"label-foo-key": "label-bar-value"}})
+					_ = c.Create(context.TODO(), dad)
+					createAgentDependencies(c, dad)
+				},
+			},
+			want:    reconcile.Result{Requeue: true},
+			wantErr: false,
+			wantFunc: func(c client.Client) error {
+				configmap := &corev1.ConfigMap{}
+				if err := c.Get(context.TODO(), newRequest("bar", getSystemProbeConfiConfigMapName("foo")).NamespacedName, configmap); err != nil {
+					return err
+				}
+
+				return nil
+			},
+		},
+		{
+			name: "DatadogAgentDeployment with Process agent found and defaulted, create datadog-agent-security configmap",
+			fields: fields{
+				client:   fake.NewFakeClient(),
+				scheme:   s,
+				recorder: recorder,
+			},
+			args: args{
+				request: newRequest("bar", "foo"),
+				loadFunc: func(c client.Client) {
+					dad := test.NewDefaultedDatadogAgentDeployment("bar", "foo", &test.NewDatadogAgentDeploymentOptions{ProcessEnabled: true, SystemProbeEnabled: true, ClusterAgentEnabled: false, UseEDS: false, Labels: map[string]string{"label-foo-key": "label-bar-value"}})
+					_ = c.Create(context.TODO(), dad)
+					createAgentDependencies(c, dad)
+					configCM, _ := buildSystemProbeConfigConfiMap(dad)
+					_ = c.Create(context.TODO(), configCM)
+				},
+			},
+			want:    reconcile.Result{Requeue: true},
+			wantErr: false,
+			wantFunc: func(c client.Client) error {
+				configmap := &corev1.ConfigMap{}
+				if err := c.Get(context.TODO(), newRequest("bar", getSecCompConfigMapName("foo")).NamespacedName, configmap); err != nil {
+					return err
+				}
+
+				return nil
+			},
+		},
+		{
+			name: "DatadogAgentDeployment with Process agent and system-probe found and defaulted, create Daemonset",
+			fields: fields{
+				client:   fake.NewFakeClient(),
+				scheme:   s,
+				recorder: recorder,
+			},
+			args: args{
+				request: newRequest("bar", "foo"),
+				loadFunc: func(c client.Client) {
+					dad := test.NewDefaultedDatadogAgentDeployment("bar", "foo", &test.NewDatadogAgentDeploymentOptions{ProcessEnabled: true, SystemProbeEnabled: true, ClusterAgentEnabled: false, UseEDS: false, Labels: map[string]string{"label-foo-key": "label-bar-value"}})
+					_ = c.Create(context.TODO(), dad)
+					createAgentDependencies(c, dad)
+					createSystemProbeDependencies(c, dad)
+				},
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(c client.Client) error {
+				ds := &appsv1.DaemonSet{}
+				if err := c.Get(context.TODO(), newRequest("bar", "foo").NamespacedName, ds); err != nil {
+					return err
+				}
+				var process, systemprobe bool
+				for _, container := range ds.Spec.Template.Spec.Containers {
+					if container.Name == "process-agent" {
+						process = true
+					}
+					if container.Name == "system-probe" {
+						systemprobe = true
+					}
+				}
+				if !process {
+					return fmt.Errorf("process container not found")
+				}
+
+				if !systemprobe {
+					return fmt.Errorf("system-probe container not found")
 				}
 
 				return nil
@@ -1574,6 +1736,13 @@ func hasAllNodeLevelRbacResources(policyRules []rbacv1.PolicyRule) bool {
 		}
 	}
 	return len(nodeLevelResources) == 0
+}
+
+func createSystemProbeDependencies(c client.Client, dad *datadoghqv1alpha1.DatadogAgentDeployment) {
+	configCM, _ := buildSystemProbeConfigConfiMap(dad)
+	securityCM, _ := buildSystemProbeSecCompConfigMap(dad)
+	_ = c.Create(context.TODO(), configCM)
+	_ = c.Create(context.TODO(), securityCM)
 }
 
 func createAgentDependencies(c client.Client, dad *datadoghqv1alpha1.DatadogAgentDeployment) {

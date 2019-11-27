@@ -19,6 +19,7 @@ type NewDatadogAgentDeploymentOptions struct {
 	ExtraAnnotations    map[string]string
 	ClusterAgentEnabled bool
 	UseEDS              bool
+	APIKey              string
 }
 
 var (
@@ -47,6 +48,17 @@ func NewDatadogAgentDeployment(ns, name, image string, options *NewDatadogAgentD
 						v1.ResourceMemory: resource.MustParse("0"),
 					},
 				},
+				CriSocket: &datadoghqv1alpha1.CRISocketConfig{
+					CriSocketPath:      datadoghqv1alpha1.NewStringPointer("/var/run/containerd/containerd.sock"),
+					UseCriSocketVolume: datadoghqv1alpha1.NewBoolPointer(true),
+				},
+				Env: []v1.EnvVar{
+					{
+						Name:  "DD_KUBELET_TLS_VERIFY",
+						Value: "false",
+					},
+				},
+				LeaderElection: datadoghqv1alpha1.NewBoolPointer(true),
 			},
 			DeploymentStrategy: &datadoghqv1alpha1.DaemonSetDeploymentcStrategy{},
 			Apm:                datadoghqv1alpha1.APMSpec{},
@@ -63,6 +75,10 @@ func NewDatadogAgentDeployment(ns, name, image string, options *NewDatadogAgentD
 	ad.Spec.Agent.Rbac.Create = datadoghqv1alpha1.NewBoolPointer(true)
 
 	if options != nil {
+		if options.APIKey != "" {
+			ad.Spec.Credentials.APIKey = options.APIKey
+		}
+
 		if options.UseEDS && ad.Spec.Agent != nil {
 			ad.Spec.Agent.UseExtendedDaemonset = &options.UseEDS
 		}
