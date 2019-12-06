@@ -169,9 +169,10 @@ func NewExtendedDaemonSet(ns, name string, options *NewExtendedDaemonSetOptions)
 
 // NewDeploymentOptions set of option for the Deployment creation
 type NewDeploymentOptions struct {
-	CreationTime *time.Time
-	Annotations  map[string]string
-	Labels       map[string]string
+	CreationTime           *time.Time
+	Annotations            map[string]string
+	Labels                 map[string]string
+	ForceAvailableReplicas *int32
 }
 
 // NewClusterAgentDeployment return new Cluster Agent Deployment instance for testing purpose
@@ -201,6 +202,9 @@ func NewClusterAgentDeployment(ns, name string, options *NewDeploymentOptions) *
 			for key, value := range options.Labels {
 				dca.Labels[key] = value
 			}
+		}
+		if options.ForceAvailableReplicas != nil {
+			dca.Status.AvailableReplicas = *options.ForceAvailableReplicas
 		}
 	}
 
