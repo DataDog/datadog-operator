@@ -25,6 +25,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -1124,8 +1125,9 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 					createClusterAgentDependencies(c, dad)
 
 					dcaOptions := &test.NewDeploymentOptions{
-						Labels:      map[string]string{"label-foo-key": "label-bar-value"},
-						Annotations: map[string]string{string(datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey): defaultClusterAgentHash},
+						Labels:                 map[string]string{"label-foo-key": "label-bar-value"},
+						Annotations:            map[string]string{string(datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey): defaultClusterAgentHash},
+						ForceAvailableReplicas: datadoghqv1alpha1.NewInt32Pointer(1),
 					}
 					dca := test.NewClusterAgentDeployment("bar", "foo", dcaOptions)
 
@@ -1157,6 +1159,67 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 		},
 
 		{
+			name: "DatadogAgentDeployment found and defaulted, Cluster Agent Deployment already exists but with 0 pods ready, do not create Daemonset",
+			fields: fields{
+				client:   fake.NewFakeClient(),
+				scheme:   s,
+				recorder: recorder,
+			},
+			args: args{
+				request: newRequest("bar", "foo"),
+				loadFunc: func(c client.Client) {
+					dadOptions := &test.NewDatadogAgentDeploymentOptions{
+						Labels:              map[string]string{"label-foo-key": "label-bar-value"},
+						Status:              &datadoghqv1alpha1.DatadogAgentDeploymentStatus{},
+						ClusterAgentEnabled: true,
+					}
+
+					dad := test.NewDefaultedDatadogAgentDeployment("bar", "foo", dadOptions)
+					_ = c.Create(context.TODO(), dad)
+					commonDCAlabels := getDefaultLabels(dad, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dad))
+					_ = c.Create(context.TODO(), test.NewSecret("bar", "foo-cluster-agent", &test.NewSecretOptions{Labels: commonDCAlabels, Data: map[string][]byte{
+						"token": []byte(base64.StdEncoding.EncodeToString([]byte("token-foo"))),
+					}}))
+
+					createClusterAgentDependencies(c, dad)
+
+					dcaOptions := &test.NewDeploymentOptions{
+						Labels:                 map[string]string{"label-foo-key": "label-bar-value"},
+						Annotations:            map[string]string{string(datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey): defaultClusterAgentHash},
+						ForceAvailableReplicas: datadoghqv1alpha1.NewInt32Pointer(0),
+					}
+					dca := test.NewClusterAgentDeployment("bar", "foo", dcaOptions)
+
+					_ = c.Create(context.TODO(), dad)
+					_ = c.Create(context.TODO(), dca)
+
+					createAgentDependencies(c, dad)
+					resourceName := getAgentRbacResourcesName(dad)
+					version := getAgentVersion(dad)
+					_ = c.Create(context.TODO(), buildClusterRoleBinding(dad, roleBindingInfo{
+						name:               getClusterChecksRunnerRbacResourcesName(dad),
+						roleName:           resourceName,
+						serviceAccountName: getClusterChecksRunnerServiceAccount(dad),
+					}, version))
+					_ = c.Create(context.TODO(), buildServiceAccount(dad, getClusterChecksRunnerServiceAccount(dad), version))
+
+				},
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeuPeriod},
+			wantErr: true,
+			wantFunc: func(c client.Client) error {
+				ds := &appsv1.DaemonSet{}
+				err := c.Get(context.TODO(), newRequest("bar", "foo").NamespacedName, ds)
+				if apierrors.IsNotFound(err) {
+					// The Cluster Agent exists but not available yet
+					// Daemonset must NOT be created
+					return nil
+				}
+				return err
+			},
+		},
+
+		{
 			name: "DatadogAgentDeployment found and defaulted, Cluster Checks Runner ClusterRoleBidning creation",
 			fields: fields{
 				client:   fake.NewFakeClient(),
@@ -1182,8 +1245,9 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 					}
 
 					dcaOptions := &test.NewDeploymentOptions{
-						Labels:      dcaLabels,
-						Annotations: map[string]string{string(datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey): defaultClusterAgentHash},
+						Labels:                 dcaLabels,
+						Annotations:            map[string]string{string(datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey): defaultClusterAgentHash},
+						ForceAvailableReplicas: datadoghqv1alpha1.NewInt32Pointer(1),
 					}
 					dca := test.NewClusterAgentDeployment("bar", "foo", dcaOptions)
 
@@ -1238,8 +1302,9 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 					}
 
 					dcaOptions := &test.NewDeploymentOptions{
-						Labels:      dcaLabels,
-						Annotations: map[string]string{string(datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey): defaultClusterAgentHash},
+						Labels:                 dcaLabels,
+						Annotations:            map[string]string{string(datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey): defaultClusterAgentHash},
+						ForceAvailableReplicas: datadoghqv1alpha1.NewInt32Pointer(1),
 					}
 					dca := test.NewClusterAgentDeployment("bar", "foo", dcaOptions)
 
@@ -1301,8 +1366,9 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 					}
 
 					dcaOptions := &test.NewDeploymentOptions{
-						Labels:      dcaLabels,
-						Annotations: map[string]string{string(datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey): defaultClusterAgentHash},
+						Labels:                 dcaLabels,
+						Annotations:            map[string]string{string(datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey): defaultClusterAgentHash},
+						ForceAvailableReplicas: datadoghqv1alpha1.NewInt32Pointer(1),
 					}
 					dca := test.NewClusterAgentDeployment("bar", "foo", dcaOptions)
 

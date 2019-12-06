@@ -60,15 +60,21 @@ func (r *ReconcileDatadogAgentDeployment) reconcileClusterAgent(logger logr.Logg
 			if errors.IsNotFound(err) {
 				logger.Info("ClusterAgent deployment not found", "name", nsName.Name, "namespace", nsName.Namespace)
 				// Create and attach a ClusterAgentDeployment
-				var result reconcile.Result
-				result, err = r.createNewClusterAgentDeployment(logger, dad, newStatus)
-				return result, err
+				return r.createNewClusterAgentDeployment(logger, dad, newStatus)
 			}
 			return reconcile.Result{}, err
 		}
 
-		result, err := r.updateClusterAgentDeployment(logger, dad, clusterAgentDeployment, newStatus)
-		return result, err
+		if result, err = r.updateClusterAgentDeployment(logger, dad, clusterAgentDeployment, newStatus); err != nil {
+			return result, err
+		}
+
+		// Make sure we have at least one Cluster Agent available replica
+		if clusterAgentDeployment.Status.AvailableReplicas == 0 {
+			return reconcile.Result{RequeueAfter: defaultRequeuPeriod}, fmt.Errorf("cluster agent deployment is not ready yet: 0 pods available out of %d", clusterAgentDeployment.Status.Replicas)
+		}
+
+		return reconcile.Result{}, nil
 	}
 	return reconcile.Result{}, nil
 }
