@@ -205,6 +205,7 @@ func (r *ReconcileDatadogAgentDeployment) cleanupClusterChecksRunner(logger logr
 	if err := r.client.Delete(context.TODO(), ClusterChecksRunnerDeployment); err != nil {
 		return reconcile.Result{}, err
 	}
+	newStatus.ClusterChecksRunner = nil
 	return reconcile.Result{Requeue: true}, nil
 }
 
