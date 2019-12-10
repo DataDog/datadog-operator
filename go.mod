@@ -6,6 +6,7 @@ require (
 	github.com/datadog/extendeddaemonset v0.1.0
 	github.com/go-logr/logr v0.1.0
 	github.com/go-openapi/spec v0.19.0
+	github.com/google/go-cmp v0.3.0
 	github.com/operator-framework/operator-sdk v0.12.0
 	github.com/spf13/pflag v1.0.3
 	go.uber.org/zap v1.10.0

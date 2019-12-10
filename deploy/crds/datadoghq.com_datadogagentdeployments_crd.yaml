@@ -197,6 +197,22 @@ spec:
                           type: object
                       type: object
                   type: object
+                checksd:
+                  description: Checksd configuration
+                  properties:
+                    configMapName:
+                      description: ConfigMapName name of a ConfigMap used to mount
+                        a directory
+                      type: string
+                  type: object
+                confd:
+                  description: Confd configuration
+                  properties:
+                    configMapName:
+                      description: ConfigMapName name of a ConfigMap used to mount
+                        a directory
+                      type: string
+                  type: object
                 config:
                   description: Agent configuration
                   properties:
