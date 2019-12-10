@@ -11,6 +11,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	edsdatadoghqv1alpha1 "github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1"
 
 	"github.com/go-logr/logr"
@@ -19,7 +20,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
@@ -33,8 +34,9 @@ import (
 )
 
 var (
-	log                           = logf.Log.WithName("DataDogAgentDeployment")
+	log                           = logf.Log.WithName("DatadogAgentDeployment")
 	supportExtendedDaemonset bool = false
+	metricsRetryInterval          = 15 * time.Second
 )
 
 const (
@@ -43,6 +45,7 @@ const (
 
 func init() {
 	pflag.BoolVarP(&supportExtendedDaemonset, "supportExtendedDaemonset", "", false, "support ExtendedDaemonset")
+	pflag.DurationVar(&metricsRetryInterval, "metricsRetryInterval", 15*time.Second, "Datadog API connection retry duration")
 }
 
 // Add creates a new DatadogAgentDeployment Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -53,7 +56,17 @@ func Add(mgr manager.Manager) error {
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
-	return &ReconcileDatadogAgentDeployment{client: mgr.GetClient(), scheme: mgr.GetScheme(), recorder: mgr.GetEventRecorderFor("DatadogAgentDeployment")}
+	reconciler := &ReconcileDatadogAgentDeployment{
+		client:   mgr.GetClient(),
+		scheme:   mgr.GetScheme(),
+		recorder: mgr.GetEventRecorderFor("DatadogAgentDeployment"),
+	}
+
+	if err := mgr.Add(datadog.NewMetricsForwarder(reconciler.client, metricsRetryInterval)); err != nil {
+		log.Error(err, "cannot add Datadog metrics forwarder")
+	}
+
+	return reconciler
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
@@ -192,7 +205,7 @@ func (r *ReconcileDatadogAgentDeployment) Reconcile(request reconcile.Request) (
 	instance := &datadoghqv1alpha1.DatadogAgentDeployment{}
 	err := r.client.Get(context.TODO(), request.NamespacedName, instance)
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
 			// Return and don't requeue
@@ -252,7 +265,7 @@ func (r *ReconcileDatadogAgentDeployment) updateStatusIfNeeded(logger logr.Logge
 		updateAgentDeployment := agentdeployment.DeepCopy()
 		updateAgentDeployment.Status = *newStatus
 		if err := r.client.Status().Update(context.TODO(), updateAgentDeployment); err != nil {
-			if errors.IsConflict(err) {
+			if apierrors.IsConflict(err) {
 				logger.V(1).Info("unable to update DatadogAgentDeployment status due to update conflict")
 				return reconcile.Result{RequeueAfter: time.Second}, nil
 			}

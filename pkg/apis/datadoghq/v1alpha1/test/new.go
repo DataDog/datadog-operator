@@ -37,6 +37,8 @@ type NewDatadogAgentDeploymentOptions struct {
 	APMEnabled                 bool
 	ProcessEnabled             bool
 	SystemProbeEnabled         bool
+	Creds                      *datadoghqv1alpha1.AgentCredentials
+	ClusterName                *string
 }
 
 // NewDefaultedDatadogAgentDeployment returns an initialized and defaulted DatadogAgentDeployment for testing purpose
@@ -113,6 +115,14 @@ func NewDefaultedDatadogAgentDeployment(ns, name string, options *NewDatadogAgen
 
 		if options.SystemProbeEnabled {
 			ad.Spec.Agent.SystemProbe.Enabled = datadoghqv1alpha1.NewBoolPointer(true)
+		}
+
+		if options.Creds != nil {
+			ad.Spec.Credentials = *options.Creds
+		}
+
+		if options.ClusterName != nil {
+			ad.Spec.ClusterName = *options.ClusterName
 		}
 
 	}
