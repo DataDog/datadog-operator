@@ -115,13 +115,15 @@ type DatadogAgentDeploymentSpecAgentSpec struct {
 	// +optional
 	SystemProbe SystemProbeSpec `json:"systemProbe,omitempty"`
 
-	// Confd configuration
+	// Confd configuration allowing to specify config files for custom checks placed under /etc/datadog-agent/conf.d/.
+	// See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.
 	// +optional
-	Confd *DirConfig `json:"confd,omitempty"`
+	Confd *ConfigDirSpec `json:"confd,omitempty"`
 
-	// Checksd configuration
+	// Checksd configuration allowing to specify custom checks placed under /etc/datadog-agent/checks.d/
+	// See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.
 	// +optional
-	Checksd *DirConfig `json:"checksd,omitempty"`
+	Checksd *ConfigDirSpec `json:"checksd,omitempty"`
 }
 
 // RbacConfig contains RBAC configuration
@@ -287,9 +289,9 @@ type SystemProbeSpec struct {
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
 }
 
-// DirConfig contains config file directory configuration
+// ConfigDirSpec contains config file directory configuration
 // +k8s:openapi-gen=true
-type DirConfig struct {
+type ConfigDirSpec struct {
 	// ConfigMapName name of a ConfigMap used to mount a directory
 	ConfigMapName string `json:"configMapName,omitempty"`
 }

@@ -36,10 +36,12 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 		{
 			Name:      "confd",
 			MountPath: "/conf.d",
+			ReadOnly:  true,
 		},
 		{
 			Name:      "checksd",
 			MountPath: "/checks.d",
+			ReadOnly:  true,
 		},
 		{
 			Name:      "config",
@@ -316,10 +318,10 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 	customConfigMapAgentDeployment := test.NewDefaultedDatadogAgentDeployment("bar", "foo", &test.NewDatadogAgentDeploymentOptions{
 		UseEDS:              true,
 		ClusterAgentEnabled: true,
-		Confd: &datadoghqv1alpha1.DirConfig{
+		Confd: &datadoghqv1alpha1.ConfigDirSpec{
 			ConfigMapName: customConfdConfigMapName,
 		},
-		Checksd: &datadoghqv1alpha1.DirConfig{
+		Checksd: &datadoghqv1alpha1.ConfigDirSpec{
 			ConfigMapName: customChecksdConfigMapName,
 		},
 	})

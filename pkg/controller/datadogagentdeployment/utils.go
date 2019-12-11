@@ -661,10 +661,12 @@ func getVolumeMountsForAgent(spec *datadoghqv1alpha1.DatadogAgentDeploymentSpec)
 		{
 			Name:      datadoghqv1alpha1.ConfdVolumeName,
 			MountPath: datadoghqv1alpha1.ConfdVolumePath,
+			ReadOnly:  true,
 		},
 		{
 			Name:      datadoghqv1alpha1.ChecksdVolumeName,
 			MountPath: datadoghqv1alpha1.ChecksdVolumePath,
+			ReadOnly:  true,
 		},
 		{
 			Name:      datadoghqv1alpha1.ConfigVolumeName,

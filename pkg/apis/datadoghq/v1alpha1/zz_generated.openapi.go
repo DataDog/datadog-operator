@@ -21,6 +21,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.CRISocketConfig":                                   schema_pkg_apis_datadoghq_v1alpha1_CRISocketConfig(ref),
 		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.ClusterAgentConfig":                                schema_pkg_apis_datadoghq_v1alpha1_ClusterAgentConfig(ref),
 		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.ClusterChecksRunnerConfig":                         schema_pkg_apis_datadoghq_v1alpha1_ClusterChecksRunnerConfig(ref),
+		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.ConfigDirSpec":                                     schema_pkg_apis_datadoghq_v1alpha1_ConfigDirSpec(ref),
 		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DaemonSetDeploymentcStrategy":                      schema_pkg_apis_datadoghq_v1alpha1_DaemonSetDeploymentcStrategy(ref),
 		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DaemonSetRollingUpdateSpec":                        schema_pkg_apis_datadoghq_v1alpha1_DaemonSetRollingUpdateSpec(ref),
 		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DatadogAgentDeployment":                            schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentDeployment(ref),
@@ -33,7 +34,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DatadogAgentDeploymentSpecClusterAgentSpec":        schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentDeploymentSpecClusterAgentSpec(ref),
 		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DatadogAgentDeploymentSpecClusterChecksRunnerSpec": schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentDeploymentSpecClusterChecksRunnerSpec(ref),
 		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DatadogAgentDeploymentStatus":                      schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentDeploymentStatus(ref),
-		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DirConfig":                                         schema_pkg_apis_datadoghq_v1alpha1_DirConfig(ref),
 		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DogstatsdConfig":                                   schema_pkg_apis_datadoghq_v1alpha1_DogstatsdConfig(ref),
 		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.ImageConfig":                                       schema_pkg_apis_datadoghq_v1alpha1_ImageConfig(ref),
 		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.LogSpec":                                           schema_pkg_apis_datadoghq_v1alpha1_LogSpec(ref),
@@ -246,6 +246,26 @@ func schema_pkg_apis_datadoghq_v1alpha1_ClusterChecksRunnerConfig(ref common.Ref
 		},
 		Dependencies: []string{
 			"k8s.io/api/core/v1.ResourceRequirements"},
+	}
+}
+
+func schema_pkg_apis_datadoghq_v1alpha1_ConfigDirSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ConfigDirSpec contains config file directory configuration",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"configMapName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ConfigMapName name of a ConfigMap used to mount a directory",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
 	}
 }
 
@@ -744,13 +764,13 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentDeploymentSpecAgentSpec(ref 
 					"confd": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Confd configuration",
-							Ref:         ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DirConfig"),
+							Ref:         ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.ConfigDirSpec"),
 						},
 					},
 					"checksd": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Checksd configuration",
-							Ref:         ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DirConfig"),
+							Ref:         ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.ConfigDirSpec"),
 						},
 					},
 				},
@@ -758,7 +778,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentDeploymentSpecAgentSpec(ref 
 			},
 		},
 		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.APMSpec", "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DaemonSetDeploymentcStrategy", "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DirConfig", "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.ImageConfig", "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.LogSpec", "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.NodeAgentConfig", "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.ProcessSpec", "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.RbacConfig", "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.SystemProbeSpec"},
+			"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.APMSpec", "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.ConfigDirSpec", "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DaemonSetDeploymentcStrategy", "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.ImageConfig", "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.LogSpec", "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.NodeAgentConfig", "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.ProcessSpec", "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.RbacConfig", "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.SystemProbeSpec"},
 	}
 }
 
@@ -970,26 +990,6 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentDeploymentStatus(ref common.
 		},
 		Dependencies: []string{
 			"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DatadogAgentDeploymentAgentStatus", "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DatadogAgentDeploymentCondition", "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DatadogAgentDeploymentDeploymentStatus"},
-	}
-}
-
-func schema_pkg_apis_datadoghq_v1alpha1_DirConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "DirConfig contains config file directory configuration",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"configMapName": {
-						SchemaProps: spec.SchemaProps{
-							Description: "ConfigMapName name of a ConfigMap used to mount a directory",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-				},
-			},
-		},
 	}
 }
 

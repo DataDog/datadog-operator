@@ -37,8 +37,8 @@ type NewDatadogAgentDeploymentOptions struct {
 	APMEnabled                 bool
 	ProcessEnabled             bool
 	SystemProbeEnabled         bool
-	Confd                      *datadoghqv1alpha1.DirConfig
-	Checksd                    *datadoghqv1alpha1.DirConfig
+	Confd                      *datadoghqv1alpha1.ConfigDirSpec
+	Checksd                    *datadoghqv1alpha1.ConfigDirSpec
 }
 
 // NewDefaultedDatadogAgentDeployment returns an initialized and defaulted DatadogAgentDeployment for testing purpose
