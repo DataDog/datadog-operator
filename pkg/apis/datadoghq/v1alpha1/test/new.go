@@ -37,6 +37,8 @@ type NewDatadogAgentDeploymentOptions struct {
 	APMEnabled                 bool
 	ProcessEnabled             bool
 	SystemProbeEnabled         bool
+	Confd                      *datadoghqv1alpha1.ConfigDirSpec
+	Checksd                    *datadoghqv1alpha1.ConfigDirSpec
 }
 
 // NewDefaultedDatadogAgentDeployment returns an initialized and defaulted DatadogAgentDeployment for testing purpose
@@ -115,6 +117,13 @@ func NewDefaultedDatadogAgentDeployment(ns, name string, options *NewDatadogAgen
 			ad.Spec.Agent.SystemProbe.Enabled = datadoghqv1alpha1.NewBoolPointer(true)
 		}
 
+		if options.Confd != nil {
+			ad.Spec.Agent.Confd = options.Confd
+		}
+
+		if options.Checksd != nil {
+			ad.Spec.Agent.Checksd = options.Checksd
+		}
 	}
 	return datadoghqv1alpha1.DefaultDatadogAgentDeployment(ad)
 }

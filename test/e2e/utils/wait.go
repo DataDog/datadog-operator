@@ -7,10 +7,12 @@ package utils
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 
@@ -111,5 +113,53 @@ func WaitForFuncOnClusterAgentDeployment(t *testing.T, client framework.Framewor
 		ok, err := f(dca)
 		t.Logf("Waiting for condition function to be true ok for %s Cluster Agent Deployment (%t/%v)\n", name, ok, err)
 		return ok, err
+	})
+}
+
+// WaitForFuncOnPods used to wait a valid condition on list of pods
+func WaitForFuncOnPods(t *testing.T, client framework.FrameworkClient, namespace string, labelSelector string, f func(pod *corev1.Pod) (bool, error), retryInterval, timeout time.Duration) error {
+	return wait.Poll(retryInterval, timeout, func() (bool, error) {
+		pods, err := FindPodsByLabels(t, client, namespace, labelSelector)
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				t.Logf("Waiting for pods with label %s\n", labelSelector)
+				return false, nil
+			}
+			return false, err
+		}
+
+		if len(pods.Items) == 0 {
+			t.Logf("Waiting for pods with label %s\n", labelSelector)
+			return false, nil
+		}
+
+		for _, pod := range pods.Items {
+			ok, err := f(&pod)
+			if !ok {
+				t.Logf("Waiting for condition function to be true for Pod %s (%t/%v)\n", pod.ObjectMeta.Name, ok, err)
+				return false, err
+			}
+		}
+		t.Logf("Condition satisfied for all pods with label %s\n", labelSelector)
+		return true, nil
+	})
+}
+
+// ExecValidationFunc checks results of a command execution in a running pod
+type ExecValidationFunc func(stdout, stderr string, returnErr error) (bool, error)
+
+// WaitForExecInPod is used to wait for a condition based on execution of a command in a running pod
+func WaitForExecInPod(t *testing.T, f *framework.Framework, namespace string, pod string, container string, command []string, validate ExecValidationFunc, retryInterval, timeout time.Duration) error {
+	return wait.Poll(retryInterval, timeout, func() (bool, error) {
+		stdout, stderr, err := ExecInPod(t, f, namespace, pod, container, command)
+
+		ok, err := validate(stdout, stderr, err)
+		t.Logf("Waiting for condition function to be true for command execution (%s) in Pod %s (%t/%v)\n",
+			strings.Join(command, " "),
+			pod,
+			ok,
+			err,
+		)
+		return true, nil
 	})
 }

@@ -506,12 +506,39 @@ func getEnvVarsForAgent(dad *datadoghqv1alpha1.DatadogAgentDeployment) ([]corev1
 
 // getVolumesForAgent defines volumes for the Agent
 func getVolumesForAgent(dad *datadoghqv1alpha1.DatadogAgentDeployment) []corev1.Volume {
+	confdVolumeSource := corev1.VolumeSource{
+		EmptyDir: &corev1.EmptyDirVolumeSource{},
+	}
+	if dad.Spec.Agent.Confd != nil {
+		confdVolumeSource = corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: dad.Spec.Agent.Confd.ConfigMapName,
+				},
+			},
+		}
+	}
+	checksdVolumeSource := corev1.VolumeSource{
+		EmptyDir: &corev1.EmptyDirVolumeSource{},
+	}
+	if dad.Spec.Agent.Checksd != nil {
+		checksdVolumeSource = corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: dad.Spec.Agent.Checksd.ConfigMapName,
+				},
+			},
+		}
+	}
+
 	volumes := []corev1.Volume{
 		{
-			Name: datadoghqv1alpha1.ConfdVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				EmptyDir: &corev1.EmptyDirVolumeSource{},
-			},
+			Name:         datadoghqv1alpha1.ConfdVolumeName,
+			VolumeSource: confdVolumeSource,
+		},
+		{
+			Name:         datadoghqv1alpha1.ChecksdVolumeName,
+			VolumeSource: checksdVolumeSource,
 		},
 		{
 			Name: datadoghqv1alpha1.ConfigVolumeName,
@@ -634,6 +661,12 @@ func getVolumeMountsForAgent(spec *datadoghqv1alpha1.DatadogAgentDeploymentSpec)
 		{
 			Name:      datadoghqv1alpha1.ConfdVolumeName,
 			MountPath: datadoghqv1alpha1.ConfdVolumePath,
+			ReadOnly:  true,
+		},
+		{
+			Name:      datadoghqv1alpha1.ChecksdVolumeName,
+			MountPath: datadoghqv1alpha1.ChecksdVolumePath,
+			ReadOnly:  true,
 		},
 		{
 			Name:      datadoghqv1alpha1.ConfigVolumeName,
