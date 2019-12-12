@@ -11,18 +11,18 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSet":                          schema_pkg_apis_datadoghq_v1alpha1_ExtendedDaemonSet(ref),
-		"github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetList":                      schema_pkg_apis_datadoghq_v1alpha1_ExtendedDaemonSetList(ref),
-		"github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetReplicaSet":                schema_pkg_apis_datadoghq_v1alpha1_ExtendedDaemonSetReplicaSet(ref),
-		"github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetReplicaSetSpec":            schema_pkg_apis_datadoghq_v1alpha1_ExtendedDaemonSetReplicaSetSpec(ref),
-		"github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetReplicaSetSpecStrategy":    schema_pkg_apis_datadoghq_v1alpha1_ExtendedDaemonSetReplicaSetSpecStrategy(ref),
-		"github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetReplicaSetStatus":          schema_pkg_apis_datadoghq_v1alpha1_ExtendedDaemonSetReplicaSetStatus(ref),
-		"github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetSpec":                      schema_pkg_apis_datadoghq_v1alpha1_ExtendedDaemonSetSpec(ref),
-		"github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetSpecStrategy":              schema_pkg_apis_datadoghq_v1alpha1_ExtendedDaemonSetSpecStrategy(ref),
-		"github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetSpecStrategyCanary":        schema_pkg_apis_datadoghq_v1alpha1_ExtendedDaemonSetSpecStrategyCanary(ref),
-		"github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetSpecStrategyRollingUpdate": schema_pkg_apis_datadoghq_v1alpha1_ExtendedDaemonSetSpecStrategyRollingUpdate(ref),
-		"github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetStatus":                    schema_pkg_apis_datadoghq_v1alpha1_ExtendedDaemonSetStatus(ref),
-		"github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetStatusCanary":              schema_pkg_apis_datadoghq_v1alpha1_ExtendedDaemonSetStatusCanary(ref),
+		"./pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSet":                          schema_pkg_apis_datadoghq_v1alpha1_ExtendedDaemonSet(ref),
+		"./pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetList":                      schema_pkg_apis_datadoghq_v1alpha1_ExtendedDaemonSetList(ref),
+		"./pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetReplicaSet":                schema_pkg_apis_datadoghq_v1alpha1_ExtendedDaemonSetReplicaSet(ref),
+		"./pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetReplicaSetSpec":            schema_pkg_apis_datadoghq_v1alpha1_ExtendedDaemonSetReplicaSetSpec(ref),
+		"./pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetReplicaSetSpecStrategy":    schema_pkg_apis_datadoghq_v1alpha1_ExtendedDaemonSetReplicaSetSpecStrategy(ref),
+		"./pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetReplicaSetStatus":          schema_pkg_apis_datadoghq_v1alpha1_ExtendedDaemonSetReplicaSetStatus(ref),
+		"./pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetSpec":                      schema_pkg_apis_datadoghq_v1alpha1_ExtendedDaemonSetSpec(ref),
+		"./pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetSpecStrategy":              schema_pkg_apis_datadoghq_v1alpha1_ExtendedDaemonSetSpecStrategy(ref),
+		"./pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetSpecStrategyCanary":        schema_pkg_apis_datadoghq_v1alpha1_ExtendedDaemonSetSpecStrategyCanary(ref),
+		"./pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetSpecStrategyRollingUpdate": schema_pkg_apis_datadoghq_v1alpha1_ExtendedDaemonSetSpecStrategyRollingUpdate(ref),
+		"./pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetStatus":                    schema_pkg_apis_datadoghq_v1alpha1_ExtendedDaemonSetStatus(ref),
+		"./pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetStatusCanary":              schema_pkg_apis_datadoghq_v1alpha1_ExtendedDaemonSetStatusCanary(ref),
 	}
 }
 
@@ -54,19 +54,19 @@ func schema_pkg_apis_datadoghq_v1alpha1_ExtendedDaemonSet(ref common.ReferenceCa
 					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetSpec"),
+							Ref: ref("./pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetStatus"),
+							Ref: ref("./pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetStatus"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetSpec", "github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"./pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetSpec", "./pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
@@ -107,7 +107,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_ExtendedDaemonSetList(ref common.Referen
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSet"),
+										Ref: ref("./pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSet"),
 									},
 								},
 							},
@@ -118,7 +118,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_ExtendedDaemonSetList(ref common.Referen
 			},
 		},
 		Dependencies: []string{
-			"github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSet", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+			"./pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSet", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 	}
 }
 
@@ -150,19 +150,19 @@ func schema_pkg_apis_datadoghq_v1alpha1_ExtendedDaemonSetReplicaSet(ref common.R
 					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetReplicaSetSpec"),
+							Ref: ref("./pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetReplicaSetSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetReplicaSetStatus"),
+							Ref: ref("./pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetReplicaSetStatus"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetReplicaSetSpec", "github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetReplicaSetStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"./pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetReplicaSetSpec", "./pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetReplicaSetStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
@@ -176,7 +176,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_ExtendedDaemonSetReplicaSetSpec(ref comm
 					"strategy": {
 						SchemaProps: spec.SchemaProps{
 							Description: "DaemonSetReplicaSet deployment strategy",
-							Ref:         ref("github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetReplicaSetSpecStrategy"),
+							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetReplicaSetSpecStrategy"),
 						},
 					},
 					"selector": {
@@ -203,7 +203,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_ExtendedDaemonSetReplicaSetSpec(ref comm
 			},
 		},
 		Dependencies: []string{
-			"github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetReplicaSetSpecStrategy", "k8s.io/api/core/v1.PodTemplateSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
+			"./pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetReplicaSetSpecStrategy", "k8s.io/api/core/v1.PodTemplateSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
 	}
 }
 
@@ -216,7 +216,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_ExtendedDaemonSetReplicaSetSpecStrategy(
 				Properties: map[string]spec.Schema{
 					"rollingUpdate": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetSpecStrategyRollingUpdate"),
+							Ref: ref("./pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetSpecStrategyRollingUpdate"),
 						},
 					},
 					"reconcileFrequency": {
@@ -228,7 +228,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_ExtendedDaemonSetReplicaSetSpecStrategy(
 			},
 		},
 		Dependencies: []string{
-			"github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetSpecStrategyRollingUpdate", "k8s.io/apimachinery/pkg/apis/meta/v1.Duration"},
+			"./pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetSpecStrategyRollingUpdate", "k8s.io/apimachinery/pkg/apis/meta/v1.Duration"},
 	}
 }
 
@@ -281,7 +281,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_ExtendedDaemonSetReplicaSetStatus(ref co
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetReplicaSetCondition"),
+										Ref: ref("./pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetReplicaSetCondition"),
 									},
 								},
 							},
@@ -292,7 +292,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_ExtendedDaemonSetReplicaSetStatus(ref co
 			},
 		},
 		Dependencies: []string{
-			"github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetReplicaSetCondition"},
+			"./pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetReplicaSetCondition"},
 	}
 }
 
@@ -318,7 +318,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_ExtendedDaemonSetSpec(ref common.Referen
 					"strategy": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Daemonset deployment strategy",
-							Ref:         ref("github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetSpecStrategy"),
+							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetSpecStrategy"),
 						},
 					},
 				},
@@ -326,7 +326,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_ExtendedDaemonSetSpec(ref common.Referen
 			},
 		},
 		Dependencies: []string{
-			"github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetSpecStrategy", "k8s.io/api/core/v1.PodTemplateSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
+			"./pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetSpecStrategy", "k8s.io/api/core/v1.PodTemplateSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
 	}
 }
 
@@ -339,13 +339,13 @@ func schema_pkg_apis_datadoghq_v1alpha1_ExtendedDaemonSetSpecStrategy(ref common
 				Properties: map[string]spec.Schema{
 					"rollingUpdate": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetSpecStrategyRollingUpdate"),
+							Ref: ref("./pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetSpecStrategyRollingUpdate"),
 						},
 					},
 					"canary": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Canary deployment configuration",
-							Ref:         ref("github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetSpecStrategyCanary"),
+							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetSpecStrategyCanary"),
 						},
 					},
 					"reconcileFrequency": {
@@ -358,7 +358,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_ExtendedDaemonSetSpecStrategy(ref common
 			},
 		},
 		Dependencies: []string{
-			"github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetSpecStrategyCanary", "github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetSpecStrategyRollingUpdate", "k8s.io/apimachinery/pkg/apis/meta/v1.Duration"},
+			"./pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetSpecStrategyCanary", "./pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetSpecStrategyRollingUpdate", "k8s.io/apimachinery/pkg/apis/meta/v1.Duration"},
 	}
 }
 
@@ -484,7 +484,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_ExtendedDaemonSetStatus(ref common.Refer
 					},
 					"canary": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetStatusCanary"),
+							Ref: ref("./pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetStatusCanary"),
 						},
 					},
 				},
@@ -492,7 +492,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_ExtendedDaemonSetStatus(ref common.Refer
 			},
 		},
 		Dependencies: []string{
-			"github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetStatusCanary"},
+			"./pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetStatusCanary"},
 	}
 }
 

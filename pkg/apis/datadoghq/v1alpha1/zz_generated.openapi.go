@@ -763,13 +763,13 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentDeploymentSpecAgentSpec(ref 
 					},
 					"confd": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Confd configuration",
+							Description: "Confd configuration allowing to specify config files for custom checks placed under /etc/datadog-agent/conf.d/. See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.",
 							Ref:         ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.ConfigDirSpec"),
 						},
 					},
 					"checksd": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Checksd configuration",
+							Description: "Checksd configuration allowing to specify custom checks placed under /etc/datadog-agent/checks.d/ See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.",
 							Ref:         ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.ConfigDirSpec"),
 						},
 					},

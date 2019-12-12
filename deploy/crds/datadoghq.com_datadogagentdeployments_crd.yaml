@@ -198,7 +198,9 @@ spec:
                       type: object
                   type: object
                 checksd:
-                  description: Checksd configuration
+                  description: Checksd configuration allowing to specify custom checks
+                    placed under /etc/datadog-agent/checks.d/ See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6
+                    for more details.
                   properties:
                     configMapName:
                       description: ConfigMapName name of a ConfigMap used to mount
@@ -206,7 +208,10 @@ spec:
                       type: string
                   type: object
                 confd:
-                  description: Confd configuration
+                  description: Confd configuration allowing to specify config files
+                    for custom checks placed under /etc/datadog-agent/conf.d/. See
+                    https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6
+                    for more details.
                   properties:
                     configMapName:
                       description: ConfigMapName name of a ConfigMap used to mount
