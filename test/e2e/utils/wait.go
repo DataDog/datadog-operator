@@ -7,6 +7,7 @@ package utils
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -135,11 +136,30 @@ func WaitForFuncOnPods(t *testing.T, client framework.FrameworkClient, namespace
 		for _, pod := range pods.Items {
 			ok, err := f(&pod)
 			if !ok {
-				t.Logf("Waiting for condition function to be true ok for %s Pod (%t/%v)\n", pod.ObjectMeta.Name, ok, err)
+				t.Logf("Waiting for condition function to be true for Pod %s (%t/%v)\n", pod.ObjectMeta.Name, ok, err)
 				return false, err
 			}
 		}
 		t.Logf("Condition satisfied for all pods with label %s\n", labelSelector)
+		return true, nil
+	})
+}
+
+// ExecValidationFunc checks results of a command execution in a running pod
+type ExecValidationFunc func(stdout, stderr string, returnErr error) (bool, error)
+
+// WaitForExecInPod is used to wait for a condition based on execution of a command in a running pod
+func WaitForExecInPod(t *testing.T, f *framework.Framework, namespace string, pod string, container string, command []string, validate ExecValidationFunc, retryInterval, timeout time.Duration) error {
+	return wait.Poll(retryInterval, timeout, func() (bool, error) {
+		stdout, stderr, err := ExecInPod(t, f, namespace, pod, container, command)
+
+		ok, err := validate(stdout, stderr, err)
+		t.Logf("Waiting for condition function to be true for command execution (%s) in Pod %s (%t/%v)\n",
+			strings.Join(command, " "),
+			pod,
+			ok,
+			err,
+		)
 		return true, nil
 	})
 }
