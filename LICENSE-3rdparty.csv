@@ -81,6 +81,7 @@ core,"github.com/operator-framework/operator-sdk/pkg/test",Apache-2.0
 core,"github.com/operator-framework/operator-sdk/pkg/test/e2eutil",Apache-2.0
 core,"github.com/operator-framework/operator-sdk/version",Apache-2.0
 core,"github.com/pkg/errors",FreeBSD
+core,"github.com/pmezard/go-difflib/difflib",FreeBSD
 core,"github.com/prometheus/client_golang/prometheus",Apache-2.0
 core,"github.com/prometheus/client_golang/prometheus/internal",Apache-2.0
 core,"github.com/prometheus/client_golang/prometheus/promhttp",Apache-2.0
@@ -98,6 +99,8 @@ core,"github.com/spf13/afero",Apache-2.0
 core,"github.com/spf13/afero/mem",Apache-2.0
 core,"github.com/spf13/cobra",Apache-2.0
 core,"github.com/spf13/pflag",NewBSD
+core,"github.com/stretchr/testify/assert",MIT
+core,"github.com/stretchr/testify/require",MIT
 core,"go.uber.org/atomic",MIT
 core,"go.uber.org/multierr",MIT
 core,"go.uber.org/zap",MIT
