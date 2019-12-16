@@ -15,6 +15,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	edsdatadoghqv1alpha1 "github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1"
 	"github.com/google/go-cmp/cmp"
+	assert "github.com/stretchr/testify/require"
 
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
@@ -463,13 +464,13 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			reqLogger := log.WithValues("test:", tt.name)
 			got, _, err := newExtendedDaemonSetFromInstance(reqLogger, tt.agentdeployment)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("newExtendedDaemonSetFromInstance() error = %v, wantErr %v", err, tt.wantErr)
-				return
+			if tt.wantErr {
+				assert.Error(t, err, "newExtendedDaemonSetFromInstance() expected an error")
+			} else {
+				assert.NoError(t, err, "newExtendedDaemonSetFromInstance() unexpected error: %v", err)
 			}
-			if !apiequality.Semantic.DeepEqual(got, tt.want) {
-				t.Errorf("newExtendedDaemonSetFromInstance() = %#v\n\nwant %#v\ndiff: %s", got, tt.want, cmp.Diff(got, tt.want))
-			}
+			assert.True(t, apiequality.Semantic.DeepEqual(got, tt.want), "newExtendedDaemonSetFromInstance() = %#v\n\nwant %#v\ndiff: %s",
+				got, tt.want, cmp.Diff(got, tt.want))
 		})
 	}
 }
