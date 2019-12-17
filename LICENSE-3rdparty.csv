@@ -13,6 +13,8 @@ core,"github.com/beorn7/perks/quantile",MIT
 core,"github.com/cenkalti/backoff",MIT
 core,"github.com/davecgh/go-spew/spew",ISC
 core,"github.com/dgrijalva/jwt-go",MIT
+core,"github.com/docker/spdystream",Apache-2.0
+core,"github.com/docker/spdystream/spdy",Apache-2.0
 core,"github.com/emicklei/go-restful",MIT
 core,"github.com/emicklei/go-restful/log",MIT
 core,"github.com/evanphx/json-patch",NewBSD
@@ -101,6 +103,7 @@ core,"github.com/spf13/pflag",NewBSD
 core,"github.com/stretchr/objx",MIT
 core,"github.com/stretchr/testify/assert",MIT
 core,"github.com/stretchr/testify/mock",MIT
+core,"github.com/stretchr/testify/require",MIT
 core,"github.com/zorkian/go-datadog-api",NewBSD
 core,"go.uber.org/atomic",MIT
 core,"go.uber.org/multierr",MIT
@@ -225,11 +228,14 @@ core,"k8s.io/apimachinery/pkg/util/clock",Apache-2.0
 core,"k8s.io/apimachinery/pkg/util/diff",Apache-2.0
 core,"k8s.io/apimachinery/pkg/util/errors",Apache-2.0
 core,"k8s.io/apimachinery/pkg/util/framer",Apache-2.0
+core,"k8s.io/apimachinery/pkg/util/httpstream",Apache-2.0
+core,"k8s.io/apimachinery/pkg/util/httpstream/spdy",Apache-2.0
 core,"k8s.io/apimachinery/pkg/util/intstr",Apache-2.0
 core,"k8s.io/apimachinery/pkg/util/json",Apache-2.0
 core,"k8s.io/apimachinery/pkg/util/mergepatch",Apache-2.0
 core,"k8s.io/apimachinery/pkg/util/naming",Apache-2.0
 core,"k8s.io/apimachinery/pkg/util/net",Apache-2.0
+core,"k8s.io/apimachinery/pkg/util/remotecommand",Apache-2.0
 core,"k8s.io/apimachinery/pkg/util/runtime",Apache-2.0
 core,"k8s.io/apimachinery/pkg/util/sets",Apache-2.0
 core,"k8s.io/apimachinery/pkg/util/strategicpatch",Apache-2.0
@@ -241,6 +247,7 @@ core,"k8s.io/apimachinery/pkg/util/yaml",Apache-2.0
 core,"k8s.io/apimachinery/pkg/version",Apache-2.0
 core,"k8s.io/apimachinery/pkg/watch",Apache-2.0
 core,"k8s.io/apimachinery/third_party/forked/golang/json",Apache-2.0
+core,"k8s.io/apimachinery/third_party/forked/golang/netutil",Apache-2.0
 core,"k8s.io/apimachinery/third_party/forked/golang/reflect",Apache-2.0
 core,"k8s.io/client-go/discovery",Apache-2.0
 core,"k8s.io/client-go/discovery/cached",Apache-2.0
@@ -312,9 +319,12 @@ core,"k8s.io/client-go/tools/pager",Apache-2.0
 core,"k8s.io/client-go/tools/record",Apache-2.0
 core,"k8s.io/client-go/tools/record/util",Apache-2.0
 core,"k8s.io/client-go/tools/reference",Apache-2.0
+core,"k8s.io/client-go/tools/remotecommand",Apache-2.0
 core,"k8s.io/client-go/transport",Apache-2.0
+core,"k8s.io/client-go/transport/spdy",Apache-2.0
 core,"k8s.io/client-go/util/cert",Apache-2.0
 core,"k8s.io/client-go/util/connrotation",Apache-2.0
+core,"k8s.io/client-go/util/exec",Apache-2.0
 core,"k8s.io/client-go/util/flowcontrol",Apache-2.0
 core,"k8s.io/client-go/util/homedir",Apache-2.0
 core,"k8s.io/client-go/util/jsonpath",Apache-2.0

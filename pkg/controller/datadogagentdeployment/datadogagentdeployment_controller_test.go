@@ -10,13 +10,13 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"reflect"
 	"testing"
 	"time"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
 	test "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1/test"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+	assert "github.com/stretchr/testify/require"
 
 	edsdatadoghqv1alpha1 "github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1"
 
@@ -94,13 +94,12 @@ func TestReconcileDatadogAgentDeployment_createNewExtendedDaemonSet(t *testing.T
 				recorder: recorder,
 			}
 			got, err := r.createNewExtendedDaemonSet(tt.args.logger, tt.args.agentdeployment, tt.args.newStatus)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ReconcileDatadogAgentDeployment.createNewExtendedDaemonSet() error = %v, wantErr %v", err, tt.wantErr)
-				return
+			if tt.wantErr {
+				assert.Error(t, err, "ReconcileDatadogAgentDeployment.createNewExtendedDaemonSet() expected an error")
+			} else {
+				assert.NoError(t, err, "ReconcileDatadogAgentDeployment.createNewExtendedDaemonSet() unexpected error: %v", err)
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("ReconcileDatadogAgentDeployment.createNewExtendedDaemonSet() = %v, want %v", got, tt.want)
-			}
+			assert.Equal(t, tt.want, got, "ReconcileDatadogAgentDeployment.createNewExtendedDaemonSet() unexpected result")
 		})
 	}
 }
@@ -1482,17 +1481,17 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 				tt.args.loadFunc(r.client)
 			}
 			got, err := r.Reconcile(tt.args.request)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ReconcileDatadogAgentDeployment.Reconcile() error = %v, wantErr %v", err, tt.wantErr)
-				return
+			if tt.wantErr {
+				assert.Error(t, err, "ReconcileDatadogAgentDeployment.Reconcile() expected an error")
+			} else {
+				assert.NoError(t, err, "ReconcileDatadogAgentDeployment.Reconcile() unexpected error: %v", err)
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("ReconcileDatadogAgentDeployment.Reconcile() = %v, want %v", got, tt.want)
-			}
+
+			assert.Equal(t, tt.want, got, "ReconcileDatadogAgentDeployment.Reconcile() unexpected result")
+
 			if tt.wantFunc != nil {
-				if err := tt.wantFunc(r.client); err != nil {
-					t.Errorf("ReconcileDatadogAgentDeployment.Reconcile() wantFunc validation error: %v", err)
-				}
+				err := tt.wantFunc(r.client)
+				assert.NoError(t, err, "ReconcileDatadogAgentDeployment.Reconcile() wantFunc validation error: %v", err)
 			}
 		})
 	}
@@ -1669,13 +1668,12 @@ func Test_newClusterAgentDeploymentFromInstance(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			reqLogger := log.WithValues("test:", tt.name)
 			got, _, err := newClusterAgentDeploymentFromInstance(reqLogger, tt.agentdeployment, tt.newStatus)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("newClusterAgentDeploymentFromInstance() error = %v, wantErr %v", err, tt.wantErr)
-				return
+			if tt.wantErr {
+				assert.Error(t, err, "newClusterAgentDeploymentFromInstance() expected an error")
+			} else {
+				assert.NoError(t, err, "newClusterAgentDeploymentFromInstance() unexpected error: %v", err)
 			}
-			if !apiequality.Semantic.DeepEqual(got, tt.want) {
-				t.Errorf("newClusterAgentDeploymentFromInstance() = %#v, want %#v", got, tt.want)
-			}
+			assert.True(t, apiequality.Semantic.DeepEqual(got, tt.want), "newClusterAgentDeploymentFromInstance() = %#v, want %#v", got, tt.want)
 		})
 	}
 }
@@ -1730,13 +1728,12 @@ func TestReconcileDatadogAgentDeployment_createNewClusterAgentDeployment(t *test
 				recorder: recorder,
 			}
 			got, err := r.createNewClusterAgentDeployment(tt.args.logger, tt.args.agentdeployment, tt.args.newStatus)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ReconcileDatadogAgentDeployment.createNewClusterAgentDeployment() error = %v, wantErr %v", err, tt.wantErr)
-				return
+			if tt.wantErr {
+				assert.Error(t, err, "ReconcileDatadogAgentDeployment.createNewClusterAgentDeployment() should return an error")
+			} else {
+				assert.NoError(t, err, "ReconcileDatadogAgentDeployment.createNewClusterAgentDeployment() unexpected error: %v", err)
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("ReconcileDatadogAgentDeployment.createNewClusterAgentDeployment() = %v, want %v", got, tt.want)
-			}
+			assert.Equal(t, tt.want, got, "ReconcileDatadogAgentDeployment.createNewClusterAgentDeployment() unexpected result")
 		})
 	}
 }

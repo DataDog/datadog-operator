@@ -29,7 +29,7 @@ spec:
     apiKey: <paste-your-api-key-here>
   agent:
     image:
-      name: "datadog/agent:latest"
+      name: 'datadog/agent:latest'
 ```
 
 By creating this resource in the `Datadog-Operator` namespace, the Agent will be deployed as a `DaemonSet` on every `Node` of your cluster.
@@ -105,13 +105,13 @@ spec:
     token: <paste-your-cluster-agent-token-here>
   agent:
     image:
-      name: "datadog/agent:latest"
+      name: 'datadog/agent:latest'
     config:
       tolerations:
-      - operator: Exists
+        - operator: Exists
   clusterAgent:
     image:
-      name: "datadog/cluster-agent:latest"
+      name: 'datadog/cluster-agent:latest'
     config:
       metricsProviderEnabled: true
       clusterChecksEnabled: true
@@ -138,7 +138,7 @@ datadog-agent-cluster-agent   2/2     2            2           21s
 The "datadog-agent" `DaemonSet` has also been updated to get the new configuration for using the `Cluster-Agent` deployment pods.
 
 ```console
-$kubectl get pod
+$ kubectl get pod
 NAME                                         READY   STATUS    RESTARTS   AGE
 datadog-operator-6f49889b99-vlscz            1/1     Running   0          15h
 datadog-agent-22x44                          1/1     Running   0          40s
@@ -148,12 +148,98 @@ datadog-agent-cluster-agent-9f9c5c4c-pmhqb   1/1     Running   0          58s
 datadog-agent-hjlbg                          1/1     Running   0          33s
 ```
 
+## Providing custom checks and config files
+
+The `DatadogAgentDeployment` can be configured to provide custom checks (`checks.d`) and their config files (`conf.d`) at initialization time.
+
+A `ConfigMap` resource needs to be configured by user for each of these settings before the `DatadogAgentDeployment` using them is created.
+
+Below is an example of configuring these `ConfigMaps` for a single check and its config file:
+
+```shell
+$ kubectl create configmap -n $DD_NAMESPACE confd-config --from-file=hello.yaml
+configmap/confd-config created
+
+$ kubectl get configmap -n $DD_NAMESPACE confd-config -o yaml
+apiVersion: v1
+data:
+  hello.yaml: |
+    init_config:
+
+    instances: [{}]
+kind: ConfigMap
+  ...
+  name: confd-config
+  namespace: datadog
+  ...
+...
+
+$ kubectl create configmap -n $DD_NAMESPACE checksd-config --from-file=hello.py
+configmap/checksd-config created
+
+$ kubectl get configmap -n $DD_NAMESPACE checksd-config -o yaml
+apiVersion: v1
+data:
+  hello.py: |
+    # the following try/except block will make the custom check compatible with any Agent version
+    try:
+        # first, try to import the base class from new versions of the Agent...
+        from datadog_checks.base import AgentCheck
+    except ImportError:
+        # ...if the above failed, the check is running in Agent version < 6.6.0
+        from checks import AgentCheck
+
+    # content of the special variable __version__ will be shown in the Agent status page
+    __version__ = "1.0.0"
+
+
+    class HelloCheck(AgentCheck):
+        def check(self, instance):
+            self.gauge('hello.world', 1, tags=['tag:value'])
+kind: ConfigMap
+metadata:
+  ...
+  name: checksd-config
+  namespace: datadog
+  ...
+
+```
+
+Once these `ConfigMaps` condfigured a `DatadogAgentDeployment` can be created to use these checks and config files:
+
+```yaml
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentDeployment
+metadata:
+  name: datadog-agent
+spec:
+  credentials:
+    apiKey: <paste-your-api-key-here>
+  agent:
+    image:
+      name: 'datadog/agent:latest'
+    confd:
+      configMapName: 'confd-config'
+    checksd:
+      configMapName: 'checksd-config'
+```
+
+In order to populate `ConfigMaps` with content of multiple checks or their respective config files, the following approach can be used:
+
+```shell
+$ kubectl create cm -n $DD_NAMESPACE confd-config $(find ./conf.d -name "*.yaml" | xargs -I'{}' echo -n '--from-file={} ')
+configmap/confd-config created
+
+$ kubectl create cm -n $DD_NAMESPACE checksd-config $(find ./checks.d -name "*.py" | xargs -I'{}' echo -n '--from-file={} ')
+configmap/checksd-config created
+```
+
 ## Cleanup
 
 The following command will delete all the Kubernetes resources created by the Datadog Operator and the linked `DatadogAgentDeployment` `datadog-agent`.
 
 ```console
-$ kubectl delete -n $DD_NAMESPACE dad datadog-agent 
+$ kubectl delete -n $DD_NAMESPACE dad datadog-agent
 datadogagentdeployment.datadoghq.com/datadog-agent deleted
 ```
 

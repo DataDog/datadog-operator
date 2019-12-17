@@ -69,6 +69,8 @@ const (
 	// Datadog volume names and mount paths
 	ConfdVolumeName                    = "confd"
 	ConfdVolumePath                    = "/conf.d"
+	ChecksdVolumeName                  = "checksd"
+	ChecksdVolumePath                  = "/checks.d"
 	ConfigVolumeName                   = "config"
 	ConfigVolumePath                   = "/etc/datadog-agent"
 	ProcVolumeName                     = "procdir"

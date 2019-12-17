@@ -39,6 +39,8 @@ type NewDatadogAgentDeploymentOptions struct {
 	SystemProbeEnabled         bool
 	Creds                      *datadoghqv1alpha1.AgentCredentials
 	ClusterName                *string
+	Confd                      *datadoghqv1alpha1.ConfigDirSpec
+	Checksd                    *datadoghqv1alpha1.ConfigDirSpec
 }
 
 // NewDefaultedDatadogAgentDeployment returns an initialized and defaulted DatadogAgentDeployment for testing purpose
@@ -125,6 +127,13 @@ func NewDefaultedDatadogAgentDeployment(ns, name string, options *NewDatadogAgen
 			ad.Spec.ClusterName = *options.ClusterName
 		}
 
+		if options.Confd != nil {
+			ad.Spec.Agent.Confd = options.Confd
+		}
+
+		if options.Checksd != nil {
+			ad.Spec.Agent.Checksd = options.Checksd
+		}
 	}
 	return datadoghqv1alpha1.DefaultDatadogAgentDeployment(ad)
 }

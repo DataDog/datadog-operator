@@ -12,7 +12,10 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
 	test "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1/test"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	edsdatadoghqv1alpha1 "github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1"
+	"github.com/google/go-cmp/cmp"
+	assert "github.com/stretchr/testify/require"
 
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
@@ -34,6 +37,12 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 		{
 			Name:      "confd",
 			MountPath: "/conf.d",
+			ReadOnly:  true,
+		},
+		{
+			Name:      "checksd",
+			MountPath: "/checks.d",
+			ReadOnly:  true,
 		},
 		{
 			Name:      "config",
@@ -212,6 +221,12 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 				},
 			},
 			{
+				Name: datadoghqv1alpha1.ChecksdVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
+			},
+			{
 				Name: datadoghqv1alpha1.ConfigVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					EmptyDir: &corev1.EmptyDirVolumeSource{},
@@ -243,6 +258,76 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 			},
 		},
 	}
+
+	customConfdConfigMapName := "confd-configmap"
+	customChecksdConfigMapName := "checksd-configmap"
+
+	customConfigMapsPodSpec := defaultPodSpec.DeepCopy()
+	customConfigMapsPodSpec.Volumes = []corev1.Volume{
+		{
+			Name: datadoghqv1alpha1.ConfdVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: customConfdConfigMapName,
+					},
+				},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.ChecksdVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: customChecksdConfigMapName,
+					},
+				},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.ConfigVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.ProcVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/proc",
+				},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.CgroupsVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/sys/fs/cgroup",
+				},
+			},
+		},
+		{
+			Name: "runtimesocket",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/var/run/docker.sock",
+				},
+			},
+		},
+	}
+
+	customConfigMapAgentDeployment := test.NewDefaultedDatadogAgentDeployment("bar", "foo", &test.NewDatadogAgentDeploymentOptions{
+		UseEDS:              true,
+		ClusterAgentEnabled: true,
+		Confd: &datadoghqv1alpha1.ConfigDirSpec{
+			ConfigMapName: customConfdConfigMapName,
+		},
+		Checksd: &datadoghqv1alpha1.ConfigDirSpec{
+			ConfigMapName: customChecksdConfigMapName,
+		},
+	})
+
+	customConfigMapAgentHash, _ := comparison.GenerateMD5ForSpec(customConfigMapAgentDeployment.Spec)
 
 	tests := []struct {
 		name            string
@@ -332,18 +417,60 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:            "with custom confd and checksd volume mounts",
+			agentdeployment: customConfigMapAgentDeployment,
+			wantErr:         false,
+			want: &edsdatadoghqv1alpha1.ExtendedDaemonSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "bar",
+					Name:      "foo",
+					Labels: map[string]string{
+						"agentdeployment.datadoghq.com/name":      "foo",
+						"agentdeployment.datadoghq.com/component": "agent",
+						"app.kubernetes.io/instance":              "agent",
+						"app.kubernetes.io/managed-by":            "datadog-operator",
+						"app.kubernetes.io/name":                  "datadog-agent-deployment",
+						"app.kubernetes.io/part-of":               "foo",
+						"app.kubernetes.io/version":               "",
+					},
+					Annotations: map[string]string{"agentdeployment.datadoghq.com/agentspechash": customConfigMapAgentHash},
+				},
+				Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							GenerateName: "foo",
+							Namespace:    "bar",
+							Labels: map[string]string{
+								"agentdeployment.datadoghq.com/name":      "foo",
+								"agentdeployment.datadoghq.com/component": "agent",
+								"app.kubernetes.io/instance":              "agent",
+								"app.kubernetes.io/managed-by":            "datadog-operator",
+								"app.kubernetes.io/name":                  "datadog-agent-deployment",
+								"app.kubernetes.io/part-of":               "foo",
+								"app.kubernetes.io/version":               "",
+							},
+							Annotations: make(map[string]string),
+						},
+						Spec: *customConfigMapsPodSpec,
+					},
+					Strategy: getDefaultEDSStrategy(),
+				},
+			},
+		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			reqLogger := log.WithValues("test:", tt.name)
 			got, _, err := newExtendedDaemonSetFromInstance(reqLogger, tt.agentdeployment)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("newExtendedDaemonSetFromInstance() error = %v, wantErr %v", err, tt.wantErr)
-				return
+			if tt.wantErr {
+				assert.Error(t, err, "newExtendedDaemonSetFromInstance() expected an error")
+			} else {
+				assert.NoError(t, err, "newExtendedDaemonSetFromInstance() unexpected error: %v", err)
 			}
-			if !apiequality.Semantic.DeepEqual(got, tt.want) {
-				t.Errorf("newExtendedDaemonSetFromInstance() = %#v, want %#v", got, tt.want)
-			}
+			assert.True(t, apiequality.Semantic.DeepEqual(got, tt.want), "newExtendedDaemonSetFromInstance() = %#v\n\nwant %#v\ndiff: %s",
+				got, tt.want, cmp.Diff(got, tt.want))
 		})
 	}
 }

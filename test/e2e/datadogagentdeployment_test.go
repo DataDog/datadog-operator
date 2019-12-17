@@ -13,6 +13,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"testing"
 	"time"
 
@@ -233,6 +234,80 @@ func DeploymentDaemonset(t *testing.T) {
 	if err != nil {
 		exportPodsLogs(t, f, namespace, err)
 		t.Fatal(err)
+	}
+
+	t.Logf("Update the DatadogAgentDeployment with custom conf.d and checks.d")
+	updateWithConfigMaps := func(ad *datadoghqv1alpha1.DatadogAgentDeployment) {
+		ad.Spec.Agent.Confd = &datadoghqv1alpha1.ConfigDirSpec{
+			ConfigMapName: confdConfigMapName,
+		}
+		ad.Spec.Agent.Checksd = &datadoghqv1alpha1.ConfigDirSpec{
+			ConfigMapName: checksdConfigMapName,
+		}
+	}
+	err = utils.UpdateDatadogAgentDeploymentFunc(f, namespace, name, updateWithConfigMaps, retryInterval, timeout)
+	if err != nil {
+		exportPodsLogs(t, f, namespace, err)
+		t.Fatal(err)
+	}
+
+	areConfigMapsMounted := func(pod *corev1.Pod) (bool, error) {
+		needConfigMaps := map[string]bool{
+			confdConfigMapName:   true,
+			checksdConfigMapName: true,
+		}
+		count := 0
+		name := pod.ObjectMeta.Name
+
+		if pod.Status.Phase != corev1.PodRunning {
+			t.Logf("pod %s is not Running (yet?)", name)
+			return false, nil
+		}
+
+		for _, vol := range pod.Spec.Volumes {
+			if vol.ConfigMap != nil && needConfigMaps[vol.ConfigMap.Name] {
+				count++
+			}
+			if count == len(needConfigMaps) {
+				t.Logf("config maps properly mounted in pod %s", name)
+				return true, nil
+			}
+		}
+		t.Logf("config maps not mounted in pod %s", name)
+		return false, nil
+	}
+
+	err = utils.WaitForFuncOnPods(t, f.Client, namespace, agentPodLabelSelector, areConfigMapsMounted, retryInterval, timeout)
+	if err != nil {
+		exportPodsLogs(t, f, namespace, err)
+		t.Fatal(err)
+	}
+
+	pods, err := utils.FindPodsByLabels(t, f.Client, namespace, agentPodLabelSelector)
+	if err != nil {
+		t.Fatalf("failed to find agent pods: %+v", err)
+	}
+
+	if len(pods.Items) == 0 {
+		t.Fatal("no agent pods found")
+	}
+
+	t.Logf("running check '%s' in pod %s", checkName, pods.Items[0].Name)
+	stdout, _, err := utils.ExecInPod(t, f, namespace, pods.Items[0].Name, "agent", []string{"agent", "check", checkName})
+	if err != nil {
+		t.Logf("exec failed in pod %s: %+v", pods.Items[0].Name, err)
+		t.Fatal(err)
+	}
+
+	pattern := fmt.Sprintf(regexp.QuoteMeta(`Configuration Source: file:/etc/datadog-agent/conf.d/%s.yaml`), checkName)
+	matched, err := regexp.MatchString(pattern, stdout)
+	if err != nil {
+		t.Fatalf("regex match failed %+v", err)
+	}
+
+	if !matched {
+		t.Logf("failed to match stdout with check run:\n%s", stdout)
+		t.Fatalf("failed to match stdout with check - expected to find '%s'", pattern)
 	}
 }
 
@@ -462,6 +537,11 @@ func initTestFwkResources(t *testing.T, deploymentName string) (string, *framewo
 		t.Fatal(err)
 	}
 
+	err = LoadConfigMaps(t, ctx, namespace, deployDirPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	// get global framework variables
 	f := framework.Global
 	// wait for datadog-controller to be ready
@@ -579,11 +659,47 @@ func GenerateClusterRoleManifest(t *testing.T, ctx *framework.TestCtx, namespace
 	return nil
 }
 
+// LoadConfigMaps loads config maps from yaml to use in tests
+func LoadConfigMaps(t *testing.T, ctx *framework.TestCtx, namespace, deployDir string) error {
+	configMaps := []string{
+		confdConfigMapYamlFile,
+		checksdConfigMapYamlFile,
+	}
+
+	for _, cm := range configMaps {
+		cmByte, err := ioutil.ReadFile(filepath.Join(deployDir, cm))
+		if err != nil {
+			t.Logf("failed to load config map %s %s", cm, err)
+			return err
+		}
+
+		decode := scheme.Codecs.UniversalDeserializer().Decode
+		obj, _, _ := decode(cmByte, nil, nil)
+
+		if cmObj, ok := obj.(*corev1.ConfigMap); ok {
+			cmObj.ObjectMeta.Namespace = namespace
+			cleanupOption := &framework.CleanupOptions{TestContext: ctx, Timeout: cleanupTimeout, RetryInterval: cleanupRetryInterval}
+
+			if err = framework.Global.Client.Create(goctx.TODO(), cmObj, cleanupOption); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 const (
 	deployDirPath              = "deploy"
 	serviceAccountYamlFile     = "service_account.yaml"
 	clusterRoleYamlFile        = "clusterrole.yaml"
 	clusterRoleBindingYamlFile = "clusterrole_binding.yaml"
+	confdConfigMapYamlFile     = "confd_configmap.yaml"
+	confdConfigMapName         = "confd-config"
+	checksdConfigMapYamlFile   = "checksd_configmap.yaml"
+	checksdConfigMapName       = "checksd-config"
+	checkName                  = "hello"
+	agentPodLabelSelector      = "app.kubernetes.io/name=datadog-agent-deployment"
 )
 
 type logWriter struct {
