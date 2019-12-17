@@ -39,6 +39,34 @@ Using the Datadog Operator requires the following prerequisites:
 
 See the [Quick Start tutorial](docs/quick-start.md).
 
+## Metrics and Events
+
+The Datadog Operator sends metrics and events to Datadog to monitor deploying the Datadog Agent components in the cluster.
+
+### Metrics
+
+|metric name   |metric type   |description   |
+|---|---|---|
+|datadog.operator.agent.deploymentsuccess   |gauge   |1 if the de desired number of Agent replicas equals the number of available Agent pods, 0 otherwise   |
+|datadog.operator.clusteragent.deploymentsuccess   |gauge   |1 if the de desired number of Cluster Agent replicas equals the number of available Cluster Agent pods, 0 otherwise   |
+|datadog.operator.clustercheckrunner.deploymentsuccess   |gauge   |1 if the de desired number of Cluster Check Runner replicas equals the number of available Cluster Check Runner pods, 0 otherwise   |
+
+**Note:** The Datadog API and APP keys are required to forward metrics to Datadog, they must be provided in the `credentials` field in the Custom Resource definiton.
+
+The Datadog Operator exposes Golang and Controller metrics in OpenMetrics format. For now they can be collected using the [OpenMetrics integration](https://docs.datadoghq.com/integrations/openmetrics/).
+
+The OpenMetrics check is activated by default via [autodiscovery annotations](./chart/datadog-operator/templates/deployment.yaml) and will be scheduled by the Agent running on the same node as the Datadog Operator Pod.
+
+### Events
+
+- Datadog Operator has started
+- Agent deployment created 
+- Agent deployment deleted 
+- Cluster Agent deployment created 
+- Cluster Agent deployment deleted 
+- Cluster Check Runner deployment created 
+- Cluster Check Runner deployment deleted 
+
 ## How to contribute
 
 See the [How to Contribute page](docs/how-to-contribute.md).
