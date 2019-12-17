@@ -35,6 +35,12 @@ rules:
   verbs:
   - '*'
 - apiGroups:
+  - policy
+  resources:
+  - poddisruptionbudgets
+  verbs:
+  - '*'
+- apiGroups:
   - datadoghq.com
   resources:
   - 'datadogagentdeployments'

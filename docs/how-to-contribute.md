@@ -12,9 +12,13 @@ $ make test
 # linter validation
 $ make validate
 
-# e2e test
-$ make KINDPUSH=true e2e
-
 # build you own docker image
 $ make TAG=latest container
+
+# build your own docker image and push it in a local Kind cluster
+# KIND_CLUSTER_NAME can be omitted if you use Kind default cluster name (i.e. "kind")
+$ make TAG=latest KINDPUSH=true KIND_CLUSTER_NAME="mycluster-local" container
+
+# e2e test
+$ make e2e
 ```

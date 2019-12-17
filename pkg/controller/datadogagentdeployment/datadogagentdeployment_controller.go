@@ -17,6 +17,7 @@ import (
 	"github.com/spf13/pflag"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1beta1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -155,6 +156,15 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 	// Watch for changes to secondary resource ClusterRoleBinding and requeue the owner DatadogAgentDeployment
 	err = c.Watch(&source.Kind{Type: &rbacv1.ClusterRoleBinding{}}, &handler.EnqueueRequestForOwner{
+		IsController: true,
+		OwnerType:    &datadoghqv1alpha1.DatadogAgentDeployment{},
+	})
+	if err != nil {
+		return err
+	}
+
+	// Watch for changes to secondary resource PodDisruptionBudget and requeue the owner DatadogAgentDeployment
+	err = c.Watch(&source.Kind{Type: &policyv1.PodDisruptionBudget{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
 		OwnerType:    &datadoghqv1alpha1.DatadogAgentDeployment{},
 	})

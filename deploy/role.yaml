@@ -35,8 +35,14 @@ rules:
   - roles.rbac.authorization.k8s.io
   - authorization.k8s.io
   resources:
-  - 'roles'
-  - 'rolebindings'
+  - roles
+  - rolebindings
+  verbs:
+  - '*'
+- apiGroups:
+  - policy
+  resources:
+  - poddisruptionbudgets
   verbs:
   - '*'
 - apiGroups:

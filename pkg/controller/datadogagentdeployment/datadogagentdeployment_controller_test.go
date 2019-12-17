@@ -23,6 +23,7 @@ import (
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1beta1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -34,6 +35,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
@@ -124,6 +126,7 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 	s.AddKnownTypes(rbacv1.SchemeGroupVersion, &rbacv1.ClusterRole{})
 	s.AddKnownTypes(rbacv1.SchemeGroupVersion, &rbacv1.Role{})
 	s.AddKnownTypes(rbacv1.SchemeGroupVersion, &rbacv1.RoleBinding{})
+	s.AddKnownTypes(policyv1.SchemeGroupVersion, &policyv1.PodDisruptionBudget{})
 
 	defaultRequeueDuration := 15 * time.Second
 
@@ -820,7 +823,6 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 				return nil
 			},
 		},
-
 		{
 			name: "DatadogAgentDeployment found and defaulted, Cluster Agent enabled, create the Cluster Agent Deployment",
 			fields: fields{
@@ -851,6 +853,57 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 				if dca.OwnerReferences == nil || len(dca.OwnerReferences) != 1 {
 					return fmt.Errorf("dca bad owner references, should be: '[Kind DatadogAgentDeployment - Name foo]', current: %v", dca.OwnerReferences)
 				}
+				return nil
+			},
+		},
+		{
+			name: "DatadogAgentDeployment found and defaulted, Cluster Agent enabled, create the Cluster Agent PDB",
+			fields: fields{
+				client:   fake.NewFakeClient(),
+				scheme:   s,
+				recorder: recorder,
+			},
+			args: args{
+				request: newRequest("bar", "foo"),
+				loadFunc: func(c client.Client) {
+					dad := test.NewDefaultedDatadogAgentDeployment("bar", "foo", &test.NewDatadogAgentDeploymentOptions{Labels: map[string]string{"label-foo-key": "label-bar-value"}, ClusterAgentEnabled: true})
+					_ = c.Create(context.TODO(), dad)
+					commonDCAlabels := getDefaultLabels(dad, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dad))
+					_ = c.Create(context.TODO(), test.NewSecret("bar", "foo-cluster-agent", &test.NewSecretOptions{Labels: commonDCAlabels, Data: map[string][]byte{
+						"token": []byte(base64.StdEncoding.EncodeToString([]byte("token-foo"))),
+					}}))
+					dcaService := test.NewService("bar", "foo-cluster-agent", &test.NewServiceOptions{Spec: &corev1.ServiceSpec{
+						Type: corev1.ServiceTypeClusterIP,
+						Selector: map[string]string{
+							datadoghqv1alpha1.AgentDeploymentNameLabelKey:      "foo",
+							datadoghqv1alpha1.AgentDeploymentComponentLabelKey: "cluster-agent",
+						},
+						Ports: []corev1.ServicePort{
+							{
+								Protocol:   corev1.ProtocolTCP,
+								TargetPort: intstr.FromInt(datadoghqv1alpha1.DefaultClusterAgentServicePort),
+								Port:       datadoghqv1alpha1.DefaultClusterAgentServicePort,
+							},
+						},
+						SessionAffinity: corev1.ServiceAffinityNone,
+					},
+					})
+					_, _ = comparison.SetMD5GenerationAnnotation(&dcaService.ObjectMeta, dcaService.Spec)
+					dcaService.Labels = commonDCAlabels
+					_ = c.Create(context.TODO(), dcaService)
+				},
+			},
+			want:    reconcile.Result{Requeue: true},
+			wantErr: false,
+			wantFunc: func(c client.Client) error {
+				pdb := &policyv1.PodDisruptionBudget{}
+				if err := c.Get(context.TODO(), types.NamespacedName{Namespace: "bar", Name: "foo-cluster-agent"}, pdb); err != nil {
+					return err
+				}
+				if !ownedByDatadogOperator(pdb.OwnerReferences) {
+					return fmt.Errorf("bad PDB, should be owned by the datadog operator, current owners: %v", pdb.OwnerReferences)
+				}
+
 				return nil
 			},
 		},
@@ -889,6 +942,7 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 					_, _ = comparison.SetMD5GenerationAnnotation(&dcaService.ObjectMeta, dcaService.Spec)
 					dcaService.Labels = commonDCAlabels
 					_ = c.Create(context.TODO(), dcaService)
+					_ = c.Create(context.TODO(), buildClusterAgentPDB(dad))
 				},
 			},
 			want:    reconcile.Result{Requeue: true},
@@ -945,6 +999,7 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 					dcaService.Labels = commonDCAlabels
 					_ = c.Create(context.TODO(), dcaService)
 					_ = c.Create(context.TODO(), buildClusterAgentClusterRole(dad, "foo-cluster-agent", getClusterAgentVersion(dad)))
+					_ = c.Create(context.TODO(), buildClusterAgentPDB(dad))
 				},
 			},
 			want:    reconcile.Result{Requeue: true},
@@ -1000,6 +1055,7 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 					_, _ = comparison.SetMD5GenerationAnnotation(&dcaExternalMetricsService.ObjectMeta, dcaExternalMetricsService.Spec)
 					dcaExternalMetricsService.Labels = commonDCAlabels
 					_ = c.Create(context.TODO(), dcaExternalMetricsService)
+					_ = c.Create(context.TODO(), buildClusterAgentPDB(dad))
 
 				},
 			},
@@ -1080,6 +1136,7 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 						serviceAccountName: "foo-cluster-agent",
 					}, version))
 					_ = c.Create(context.TODO(), buildMetricsServerClusterRoleBinding(dad, "foo-cluster-agent-system-auth-delegator", version))
+					_ = c.Create(context.TODO(), buildClusterAgentPDB(dad))
 				},
 			},
 			want:    reconcile.Result{Requeue: true},
@@ -1156,7 +1213,6 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 				return nil
 			},
 		},
-
 		{
 			name: "DatadogAgentDeployment found and defaulted, Cluster Agent Deployment already exists but with 0 pods ready, do not create Daemonset",
 			fields: fields{
@@ -1217,7 +1273,123 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 				return err
 			},
 		},
+		{
+			name: "DatadogAgentDeployment found and defaulted, Cluster Checks Runner PDB Creation",
+			fields: fields{
+				client:   fake.NewFakeClient(),
+				scheme:   s,
+				recorder: recorder,
+			},
+			args: args{
+				request: newRequest("bar", "foo"),
+				loadFunc: func(c client.Client) {
+					dadOptions := &test.NewDatadogAgentDeploymentOptions{
+						Labels:                     map[string]string{"label-foo-key": "label-bar-value"},
+						Status:                     &datadoghqv1alpha1.DatadogAgentDeploymentStatus{},
+						ClusterAgentEnabled:        true,
+						ClusterChecksRunnerEnabled: true,
+					}
+					dad := test.NewDefaultedDatadogAgentDeployment("bar", "foo", dadOptions)
+					_ = c.Create(context.TODO(), dad)
 
+					commonDCAlabels := getDefaultLabels(dad, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dad))
+					dcaLabels := map[string]string{"label-foo-key": "label-bar-value"}
+					for k, v := range commonDCAlabels {
+						dcaLabels[k] = v
+					}
+
+					dcaOptions := &test.NewDeploymentOptions{
+						Labels:                 dcaLabels,
+						Annotations:            map[string]string{string(datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey): defaultClusterAgentHash},
+						ForceAvailableReplicas: datadoghqv1alpha1.NewInt32Pointer(1),
+					}
+					dca := test.NewClusterAgentDeployment("bar", "foo", dcaOptions)
+
+					_ = c.Create(context.TODO(), dad)
+					_ = c.Create(context.TODO(), dca)
+					_ = c.Create(context.TODO(), test.NewSecret("bar", "foo-cluster-agent", &test.NewSecretOptions{Labels: commonDCAlabels, Data: map[string][]byte{
+						"token": []byte(base64.StdEncoding.EncodeToString([]byte("token-foo"))),
+					}}))
+
+					createClusterAgentDependencies(c, dad)
+				},
+			},
+			want:    reconcile.Result{Requeue: true},
+			wantErr: false,
+			wantFunc: func(c client.Client) error {
+				pdb := &policyv1.PodDisruptionBudget{}
+				if err := c.Get(context.TODO(), types.NamespacedName{Namespace: "bar", Name: "foo-cluster-checks-runner"}, pdb); err != nil {
+					return err
+				}
+				if !ownedByDatadogOperator(pdb.OwnerReferences) {
+					return fmt.Errorf("bad PDB, should be owned by the datadog operator, current owners: %v", pdb.OwnerReferences)
+				}
+
+				return nil
+			},
+		},
+		{
+			name: "DatadogAgentDeployment found and defaulted, Cluster Checks Runner PDB Update",
+			fields: fields{
+				client:   fake.NewFakeClient(),
+				scheme:   s,
+				recorder: recorder,
+			},
+			args: args{
+				request: newRequest("bar", "foo"),
+				loadFunc: func(c client.Client) {
+					dadOptions := &test.NewDatadogAgentDeploymentOptions{
+						Labels:                     map[string]string{"label-foo-key": "label-bar-value"},
+						Status:                     &datadoghqv1alpha1.DatadogAgentDeploymentStatus{},
+						ClusterAgentEnabled:        true,
+						ClusterChecksRunnerEnabled: true,
+					}
+					dad := test.NewDefaultedDatadogAgentDeployment("bar", "foo", dadOptions)
+					_ = c.Create(context.TODO(), dad)
+
+					commonDCAlabels := getDefaultLabels(dad, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dad))
+					dcaLabels := map[string]string{"label-foo-key": "label-bar-value"}
+					for k, v := range commonDCAlabels {
+						dcaLabels[k] = v
+					}
+
+					dcaOptions := &test.NewDeploymentOptions{
+						Labels:                 dcaLabels,
+						Annotations:            map[string]string{string(datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey): defaultClusterAgentHash},
+						ForceAvailableReplicas: datadoghqv1alpha1.NewInt32Pointer(1),
+					}
+					dca := test.NewClusterAgentDeployment("bar", "foo", dcaOptions)
+
+					_ = c.Create(context.TODO(), dad)
+					_ = c.Create(context.TODO(), dca)
+					_ = c.Create(context.TODO(), test.NewSecret("bar", "foo-cluster-agent", &test.NewSecretOptions{Labels: commonDCAlabels, Data: map[string][]byte{
+						"token": []byte(base64.StdEncoding.EncodeToString([]byte("token-foo"))),
+					}}))
+
+					createClusterAgentDependencies(c, dad)
+
+					// Create wrong value PDB
+					pdb := buildClusterChecksRunnerPDB(dad)
+					wrongMinAvailable := intstr.FromInt(10)
+					pdb.Spec.MinAvailable = &wrongMinAvailable
+					_ = controllerutil.SetControllerReference(dad, pdb, s)
+					_ = c.Create(context.TODO(), pdb)
+				},
+			},
+			want:    reconcile.Result{Requeue: true},
+			wantErr: false,
+			wantFunc: func(c client.Client) error {
+				pdb := &policyv1.PodDisruptionBudget{}
+				if err := c.Get(context.TODO(), types.NamespacedName{Namespace: "bar", Name: "foo-cluster-checks-runner"}, pdb); err != nil {
+					return err
+				}
+				if pdb.Spec.MinAvailable.IntValue() != pdbMinAvailableInstances {
+					return fmt.Errorf("MinAvailable incorrect, expected %d, got %d", pdbMinAvailableInstances, pdb.Spec.MinAvailable.IntValue())
+				}
+
+				return nil
+			},
+		},
 		{
 			name: "DatadogAgentDeployment found and defaulted, Cluster Checks Runner ClusterRoleBidning creation",
 			fields: fields{
@@ -1257,6 +1429,7 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 					}}))
 
 					createClusterAgentDependencies(c, dad)
+					createClusterChecksRunnerDependencies(c, dad)
 				},
 			},
 			want:    reconcile.Result{Requeue: true},
@@ -1274,7 +1447,6 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 				return nil
 			},
 		},
-
 		{
 			name: "DatadogAgentDeployment found and defaulted, Cluster Checks Runner Service Account creation",
 			fields: fields{
@@ -1314,6 +1486,7 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 					}}))
 
 					createClusterAgentDependencies(c, dad)
+					createClusterChecksRunnerDependencies(c, dad)
 
 					version := getClusterChecksRunnerVersion(dad)
 					_ = c.Create(context.TODO(), buildClusterRoleBinding(dad, roleBindingInfo{
@@ -1338,7 +1511,6 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 				return nil
 			},
 		},
-
 		{
 			name: "DatadogAgentDeployment found and defaulted, Cluster Checks Runner Deployment creation",
 			fields: fields{
@@ -1379,6 +1551,7 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 
 					createClusterAgentDependencies(c, dad)
 					createAgentDependencies(c, dad)
+					createClusterChecksRunnerDependencies(c, dad)
 
 					resourceName := getAgentRbacResourcesName(dad)
 					version := getAgentVersion(dad)
@@ -1449,6 +1622,7 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 					}}))
 
 					createClusterAgentDependencies(c, dad)
+					createClusterChecksRunnerDependencies(c, dad)
 				},
 			},
 			want:    reconcile.Result{Requeue: true},
@@ -1819,6 +1993,7 @@ func createAgentDependencies(c client.Client, dad *datadoghqv1alpha1.DatadogAgen
 	}, version))
 	_ = c.Create(context.TODO(), buildServiceAccount(dad, getAgentServiceAccount(dad), version))
 }
+
 func createClusterAgentDependencies(c client.Client, dad *datadoghqv1alpha1.DatadogAgentDeployment) {
 	version := getAgentVersion(dad)
 	clusterAgentSAName := getClusterAgentServiceAccount(dad)
@@ -1830,6 +2005,7 @@ func createClusterAgentDependencies(c client.Client, dad *datadoghqv1alpha1.Data
 		roleName:           "foo-cluster-agent",
 		serviceAccountName: clusterAgentSAName,
 	}, version))
+	_ = c.Create(context.TODO(), buildClusterAgentPDB(dad))
 
 	dcaService := test.NewService("bar", "foo-cluster-agent", &test.NewServiceOptions{Spec: &corev1.ServiceSpec{
 		Type: corev1.ServiceTypeClusterIP,
@@ -1850,6 +2026,10 @@ func createClusterAgentDependencies(c client.Client, dad *datadoghqv1alpha1.Data
 	_, _ = comparison.SetMD5GenerationAnnotation(&dcaService.ObjectMeta, dcaService.Spec)
 	dcaService.Labels = getDefaultLabels(dad, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dad))
 	_ = c.Create(context.TODO(), dcaService)
+}
+
+func createClusterChecksRunnerDependencies(c client.Client, dad *datadoghqv1alpha1.DatadogAgentDeployment) {
+	_ = c.Create(context.TODO(), buildClusterChecksRunnerPDB(dad))
 }
 
 func init() {

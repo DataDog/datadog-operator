@@ -23,6 +23,3 @@ spec:
   clusterChecksRunner:
     image: 
       name: "datadog/agent:latest"
-
-
-  
