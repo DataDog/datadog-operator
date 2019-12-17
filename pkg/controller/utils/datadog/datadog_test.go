@@ -32,6 +32,11 @@ func (c *fakeMetricsForwarder) delegatedSendDeploymentMetric(metricValue float64
 	return nil
 }
 
+func (c *fakeMetricsForwarder) delegatedSendDeploymentEvent(component, eventType string) error {
+	c.Called(component, eventType)
+	return nil
+}
+
 func (c *fakeMetricsForwarder) delegatedValidateCreds(apiKey, appKey string) (*api.Client, error) {
 	c.Called(apiKey, appKey)
 	if strings.Contains(apiKey, "invalid") || strings.Contains(appKey, "invalid") {
@@ -619,6 +624,303 @@ func TestMetricsForwarder_setTags(t *testing.T) {
 			sort.Strings(tt.want)
 			if !reflect.DeepEqual(dd.tags, tt.want) {
 				t.Errorf("MetricsForwarder.setTags() dd.tags = %v, want %v", dd.tags, tt.want)
+			}
+		})
+	}
+}
+
+func TestMetricsForwarder_sendStatusEvents(t *testing.T) {
+	tests := []struct {
+		name     string
+		loadFunc func() (*MetricsForwarder, *fakeMetricsForwarder)
+		status   *datadoghqv1alpha1.DatadogAgentDeploymentStatus
+		wantErr  bool
+		wantFunc func(*MetricsForwarder, *fakeMetricsForwarder) error
+	}{
+		{
+			name: "empty status",
+			loadFunc: func() (*MetricsForwarder, *fakeMetricsForwarder) {
+				f := &fakeMetricsForwarder{}
+				return &MetricsForwarder{
+					delegator: f,
+				}, f
+			},
+			status:  &datadoghqv1alpha1.DatadogAgentDeploymentStatus{},
+			wantErr: false,
+			wantFunc: func(dd *MetricsForwarder, f *fakeMetricsForwarder) error {
+				if !f.AssertNumberOfCalls(t, "delegatedSendDeploymentEvent", 0) {
+					return errors.New("Wrong number of calls")
+				}
+				return nil
+			},
+		},
+		{
+			name: "nil status",
+			loadFunc: func() (*MetricsForwarder, *fakeMetricsForwarder) {
+				f := &fakeMetricsForwarder{}
+				return &MetricsForwarder{
+					delegator: f,
+				}, f
+			},
+			status:  nil,
+			wantErr: true,
+			wantFunc: func(dd *MetricsForwarder, f *fakeMetricsForwarder) error {
+				if !f.AssertNumberOfCalls(t, "delegatedSendDeploymentEvent", 0) {
+					return errors.New("Wrong number of calls")
+				}
+				return nil
+			},
+		},
+		{
+			name: "agent only, deployment created",
+			loadFunc: func() (*MetricsForwarder, *fakeMetricsForwarder) {
+				f := &fakeMetricsForwarder{}
+				f.On("delegatedSendDeploymentEvent", "Agent", "created")
+				return &MetricsForwarder{
+					delegator: f,
+					componentEnabled: map[string]bool{
+						"agent":              false,
+						"clusteragent":       false,
+						"clustercheckrunner": false,
+					},
+				}, f
+			},
+			status: &datadoghqv1alpha1.DatadogAgentDeploymentStatus{
+				Agent: &datadoghqv1alpha1.DatadogAgentDeploymentAgentStatus{},
+			},
+			wantErr: false,
+			wantFunc: func(dd *MetricsForwarder, f *fakeMetricsForwarder) error {
+				if !f.AssertCalled(t, "delegatedSendDeploymentEvent", "Agent", "created") {
+					return errors.New("Function not called")
+				}
+				if !f.AssertNumberOfCalls(t, "delegatedSendDeploymentEvent", 1) {
+					return errors.New("Wrong number of calls")
+				}
+				if !dd.componentEnabled["agent"] {
+					return errors.New("Component state hasn't been updated")
+				}
+				return nil
+			},
+		},
+		{
+			name: "agent only, deployment deleted",
+			loadFunc: func() (*MetricsForwarder, *fakeMetricsForwarder) {
+				f := &fakeMetricsForwarder{}
+				f.On("delegatedSendDeploymentEvent", "Agent", "deleted")
+				return &MetricsForwarder{
+					delegator: f,
+					componentEnabled: map[string]bool{
+						"agent":              true,
+						"clusteragent":       false,
+						"clustercheckrunner": false,
+					},
+				}, f
+			},
+			status: &datadoghqv1alpha1.DatadogAgentDeploymentStatus{
+				Agent: nil,
+			},
+			wantErr: false,
+			wantFunc: func(dd *MetricsForwarder, f *fakeMetricsForwarder) error {
+				if !f.AssertCalled(t, "delegatedSendDeploymentEvent", "Agent", "deleted") {
+					return errors.New("Function not called")
+				}
+				if !f.AssertNumberOfCalls(t, "delegatedSendDeploymentEvent", 1) {
+					return errors.New("Wrong number of calls")
+				}
+				if dd.componentEnabled["agent"] {
+					return errors.New("Component state hasn't been updated")
+				}
+				return nil
+			},
+		},
+		{
+			name: "agent only, no event detected",
+			loadFunc: func() (*MetricsForwarder, *fakeMetricsForwarder) {
+				f := &fakeMetricsForwarder{}
+				return &MetricsForwarder{
+					delegator: f,
+					componentEnabled: map[string]bool{
+						"agent":              true,
+						"clusteragent":       false,
+						"clustercheckrunner": false,
+					},
+				}, f
+			},
+			status: &datadoghqv1alpha1.DatadogAgentDeploymentStatus{
+				Agent: &datadoghqv1alpha1.DatadogAgentDeploymentAgentStatus{},
+			},
+			wantErr: false,
+			wantFunc: func(dd *MetricsForwarder, f *fakeMetricsForwarder) error {
+				if !f.AssertNumberOfCalls(t, "delegatedSendDeploymentEvent", 0) {
+					return errors.New("Wrong number of calls")
+				}
+				if !dd.componentEnabled["agent"] {
+					return errors.New("Component should not be updated")
+				}
+				return nil
+			},
+		},
+		{
+			name: "cluster agent only, deployment created",
+			loadFunc: func() (*MetricsForwarder, *fakeMetricsForwarder) {
+				f := &fakeMetricsForwarder{}
+				f.On("delegatedSendDeploymentEvent", "Cluster Agent", "created")
+				return &MetricsForwarder{
+					delegator: f,
+					componentEnabled: map[string]bool{
+						"agent":              false,
+						"clusteragent":       false,
+						"clustercheckrunner": false,
+					},
+				}, f
+			},
+			status: &datadoghqv1alpha1.DatadogAgentDeploymentStatus{
+				ClusterAgent: &datadoghqv1alpha1.DatadogAgentDeploymentDeploymentStatus{},
+			},
+			wantErr: false,
+			wantFunc: func(dd *MetricsForwarder, f *fakeMetricsForwarder) error {
+				if !f.AssertCalled(t, "delegatedSendDeploymentEvent", "Cluster Agent", "created") {
+					return errors.New("Function not called")
+				}
+				if !f.AssertNumberOfCalls(t, "delegatedSendDeploymentEvent", 1) {
+					return errors.New("Wrong number of calls")
+				}
+				if !dd.componentEnabled["clusteragent"] {
+					return errors.New("Component state hasn't been updated")
+				}
+				return nil
+			},
+		},
+		{
+			name: "cluster check runner, deployment created",
+			loadFunc: func() (*MetricsForwarder, *fakeMetricsForwarder) {
+				f := &fakeMetricsForwarder{}
+				f.On("delegatedSendDeploymentEvent", "Cluster Check Runner", "created")
+				return &MetricsForwarder{
+					delegator: f,
+					componentEnabled: map[string]bool{
+						"agent":              false,
+						"clusteragent":       false,
+						"clustercheckrunner": false,
+					},
+				}, f
+			},
+			status: &datadoghqv1alpha1.DatadogAgentDeploymentStatus{
+				ClusterChecksRunner: &datadoghqv1alpha1.DatadogAgentDeploymentDeploymentStatus{},
+			},
+			wantErr: false,
+			wantFunc: func(dd *MetricsForwarder, f *fakeMetricsForwarder) error {
+				if !f.AssertCalled(t, "delegatedSendDeploymentEvent", "Cluster Check Runner", "created") {
+					return errors.New("Function not called")
+				}
+				if !f.AssertNumberOfCalls(t, "delegatedSendDeploymentEvent", 1) {
+					return errors.New("Wrong number of calls")
+				}
+				if !dd.componentEnabled["clustercheckrunner"] {
+					return errors.New("Component state hasn't been updated")
+				}
+				return nil
+			},
+		},
+		{
+			name: "all component, deployments created",
+			loadFunc: func() (*MetricsForwarder, *fakeMetricsForwarder) {
+				f := &fakeMetricsForwarder{}
+				f.On("delegatedSendDeploymentEvent", "Agent", "created")
+				f.On("delegatedSendDeploymentEvent", "Cluster Agent", "created")
+				f.On("delegatedSendDeploymentEvent", "Cluster Check Runner", "created")
+				return &MetricsForwarder{
+					delegator: f,
+					componentEnabled: map[string]bool{
+						"agent":              false,
+						"clusteragent":       false,
+						"clustercheckrunner": false,
+					},
+				}, f
+			},
+			status: &datadoghqv1alpha1.DatadogAgentDeploymentStatus{
+				Agent:               &datadoghqv1alpha1.DatadogAgentDeploymentAgentStatus{},
+				ClusterAgent:        &datadoghqv1alpha1.DatadogAgentDeploymentDeploymentStatus{},
+				ClusterChecksRunner: &datadoghqv1alpha1.DatadogAgentDeploymentDeploymentStatus{},
+			},
+			wantErr: false,
+			wantFunc: func(dd *MetricsForwarder, f *fakeMetricsForwarder) error {
+				if !f.AssertCalled(t, "delegatedSendDeploymentEvent", "Agent", "created") {
+					return errors.New("Function not called")
+				}
+				if !f.AssertCalled(t, "delegatedSendDeploymentEvent", "Cluster Agent", "created") {
+					return errors.New("Function not called")
+				}
+				if !f.AssertCalled(t, "delegatedSendDeploymentEvent", "Cluster Check Runner", "created") {
+					return errors.New("Function not called")
+				}
+				if !f.AssertNumberOfCalls(t, "delegatedSendDeploymentEvent", 3) {
+					return errors.New("Wrong number of calls")
+				}
+				if !dd.componentEnabled["agent"] {
+					return errors.New("Component state hasn't been updated")
+				}
+				if !dd.componentEnabled["clusteragent"] {
+					return errors.New("Component state hasn't been updated")
+				}
+				if !dd.componentEnabled["clustercheckrunner"] {
+					return errors.New("Component state hasn't been updated")
+				}
+				return nil
+			},
+		},
+		{
+			name: "all component, deployments deleted",
+			loadFunc: func() (*MetricsForwarder, *fakeMetricsForwarder) {
+				f := &fakeMetricsForwarder{}
+				f.On("delegatedSendDeploymentEvent", "Agent", "deleted")
+				f.On("delegatedSendDeploymentEvent", "Cluster Agent", "deleted")
+				f.On("delegatedSendDeploymentEvent", "Cluster Check Runner", "deleted")
+				return &MetricsForwarder{
+					delegator: f,
+					componentEnabled: map[string]bool{
+						"agent":              true,
+						"clusteragent":       true,
+						"clustercheckrunner": true,
+					},
+				}, f
+			},
+			status:  &datadoghqv1alpha1.DatadogAgentDeploymentStatus{},
+			wantErr: false,
+			wantFunc: func(dd *MetricsForwarder, f *fakeMetricsForwarder) error {
+				if !f.AssertCalled(t, "delegatedSendDeploymentEvent", "Agent", "deleted") {
+					return errors.New("Function not called")
+				}
+				if !f.AssertCalled(t, "delegatedSendDeploymentEvent", "Cluster Agent", "deleted") {
+					return errors.New("Function not called")
+				}
+				if !f.AssertCalled(t, "delegatedSendDeploymentEvent", "Cluster Check Runner", "deleted") {
+					return errors.New("Function not called")
+				}
+				if !f.AssertNumberOfCalls(t, "delegatedSendDeploymentEvent", 3) {
+					return errors.New("Wrong number of calls")
+				}
+				if dd.componentEnabled["agent"] {
+					return errors.New("Component state hasn't been updated")
+				}
+				if dd.componentEnabled["clusteragent"] {
+					return errors.New("Component state hasn't been updated")
+				}
+				if dd.componentEnabled["clustercheckrunner"] {
+					return errors.New("Component state hasn't been updated")
+				}
+				return nil
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dd, f := tt.loadFunc()
+			if err := dd.sendStatusEvents(tt.status); (err != nil) != tt.wantErr {
+				t.Errorf("MetricsForwarder.sendStatusEvents() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err := tt.wantFunc(dd, f); err != nil {
+				t.Errorf("MetricsForwarder.sendStatusEvents() wantFunc validation error: %v", err)
 			}
 		})
 	}
