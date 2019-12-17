@@ -24,12 +24,13 @@ import (
 )
 
 const (
+	defaultMetricsRetryInterval = 15 * time.Second
 	defaultSendMetricsInterval  = 15 * time.Second
 	defaultMetricsNamespace     = "datadog.operator"
 	gaugeType                   = "gauge"
 	deploymentSuccessValue      = 1.0
 	deploymentFailureValue      = 0.0
-	deploymentMetricFormat      = "%s.%s.deploymentsuccess"
+	deploymentMetricFormat      = "%s.%s.deployment.success"
 	stateTagFormat              = "state:%s"
 	clusterNameTagFormat        = "cluster_name:%s"
 	agentName                   = "agent"
@@ -38,8 +39,6 @@ const (
 	clusteragentEventName       = "Cluster Agent"
 	clustercheckrunnerName      = "clustercheckrunner"
 	clustercheckrunnerEventName = "Cluster Check Runner"
-	deploymentCreatedEventType  = "created"
-	deploymentDeletedEventType  = "deleted"
 )
 
 var (
@@ -47,6 +46,12 @@ var (
 	ErrEmptyAPIKey = errors.New("empty api key")
 	// ErrEmptyAPPKey empty APPKey error
 	ErrEmptyAPPKey = errors.New("empty app key")
+)
+
+var (
+	datadogOperatorSourceType  = "Datadog Operator"
+	deploymentCreatedEventType = "created"
+	deploymentDeletedEventType = "deleted"
 )
 
 var log = logf.Log.WithName("DatadogMetricsForwarder")
@@ -73,10 +78,10 @@ type delegatedAPI interface {
 
 // NewMetricsForwarder returs a new Datadog MetricsForwarder instance
 // MetricsForwarder implements the controller-runtime Runnable interface
-func NewMetricsForwarder(k8sClient client.Client, retryInterval time.Duration) *MetricsForwarder {
+func NewMetricsForwarder(k8sClient client.Client) *MetricsForwarder {
 	return &MetricsForwarder{
 		k8sClient:           k8sClient,
-		retryInterval:       retryInterval,
+		retryInterval:       defaultMetricsRetryInterval,
 		sendMetricsInterval: defaultSendMetricsInterval,
 		metricsPrefix:       defaultMetricsNamespace,
 		componentEnabled: map[string]bool{
@@ -170,9 +175,10 @@ func (dd *MetricsForwarder) forwardMetrics() error {
 // it must be called only once, when the operator starts
 func (dd *MetricsForwarder) sendStartupEvent() error {
 	event := &api.Event{
-		Time:      api.Int(int(time.Now().Unix())),
-		Title:     api.String("Datadog Operator has started"),
-		EventType: api.String("Datadog Operator Startup"),
+		Time:       api.Int(int(time.Now().Unix())),
+		Title:      api.String("Datadog Operator has started"),
+		EventType:  api.String("Datadog Operator Startup"),
+		SourceType: api.String(datadogOperatorSourceType),
 	}
 	if _, err := dd.datadogClient.PostEvent(event); err != nil {
 		return err
@@ -232,7 +238,7 @@ func (dd *MetricsForwarder) sendStatusMetrics(status *datadoghqv1alpha1.DatadogA
 		} else {
 			metricValue = deploymentFailureValue
 		}
-		tags := append(dd.tags, fmt.Sprintf(stateTagFormat, string(status.Agent.State)))
+		tags := dd.tagsWithState(string(status.Agent.State))
 		if err := dd.sendDeploymentMetric(metricValue, agentName, tags); err != nil {
 			return err
 		}
@@ -245,7 +251,7 @@ func (dd *MetricsForwarder) sendStatusMetrics(status *datadoghqv1alpha1.DatadogA
 		} else {
 			metricValue = deploymentFailureValue
 		}
-		tags := append(dd.tags, fmt.Sprintf(stateTagFormat, string(status.ClusterAgent.State)))
+		tags := dd.tagsWithState(string(status.ClusterAgent.State))
 		if err := dd.sendDeploymentMetric(metricValue, clusteragentName, tags); err != nil {
 			return err
 		}
@@ -258,13 +264,18 @@ func (dd *MetricsForwarder) sendStatusMetrics(status *datadoghqv1alpha1.DatadogA
 		} else {
 			metricValue = deploymentFailureValue
 		}
-		tags := append(dd.tags, fmt.Sprintf(stateTagFormat, string(status.ClusterChecksRunner.State)))
+		tags := dd.tagsWithState(string(status.ClusterChecksRunner.State))
 		if err := dd.sendDeploymentMetric(metricValue, clustercheckrunnerName, tags); err != nil {
 			return err
 		}
 	}
 
 	return nil
+}
+
+// tagsWithState used to append the state tag
+func (dd *MetricsForwarder) tagsWithState(state string) []string {
+	return append(dd.tags, fmt.Sprintf(stateTagFormat, state))
 }
 
 // sendStatusEvents forwards events for each component deployment (agent, clusteragent, clustercheck runner)
@@ -275,42 +286,44 @@ func (dd *MetricsForwarder) sendStatusEvents(status *datadoghqv1alpha1.DatadogAg
 	}
 
 	// Agent deployment events
-	if status.Agent != nil && !dd.componentEnabled[agentName] {
-		if err := dd.sendDeploymentEvent(agentEventName, deploymentCreatedEventType); err != nil {
+	if eventType := dd.getDeploymentEventType(status.Agent == nil, agentName); eventType != nil {
+		if err := dd.sendDeploymentEvent(agentEventName, *eventType); err != nil {
 			return err
 		}
-		dd.componentEnabled[agentName] = true
-	} else if status.Agent == nil && dd.componentEnabled[agentName] {
-		if err := dd.sendDeploymentEvent(agentEventName, deploymentDeletedEventType); err != nil {
-			return err
-		}
-		dd.componentEnabled[agentName] = false
 	}
 
 	// Cluster Agent deployment events
-	if status.ClusterAgent != nil && !dd.componentEnabled[clusteragentName] {
-		if err := dd.sendDeploymentEvent(clusteragentEventName, deploymentCreatedEventType); err != nil {
+	if eventType := dd.getDeploymentEventType(status.ClusterAgent == nil, clusteragentName); eventType != nil {
+		if err := dd.sendDeploymentEvent(clusteragentEventName, *eventType); err != nil {
 			return err
 		}
-		dd.componentEnabled[clusteragentName] = true
-	} else if status.ClusterAgent == nil && dd.componentEnabled[clusteragentName] {
-		if err := dd.sendDeploymentEvent(clusteragentEventName, deploymentDeletedEventType); err != nil {
-			return err
-		}
-		dd.componentEnabled[clusteragentName] = false
 	}
 
 	// Cluster Check Runner deployment events
-	if status.ClusterChecksRunner != nil && !dd.componentEnabled[clustercheckrunnerName] {
-		if err := dd.sendDeploymentEvent(clustercheckrunnerEventName, deploymentCreatedEventType); err != nil {
+	if eventType := dd.getDeploymentEventType(status.ClusterChecksRunner == nil, clustercheckrunnerName); eventType != nil {
+		if err := dd.sendDeploymentEvent(clustercheckrunnerEventName, *eventType); err != nil {
 			return err
 		}
-		dd.componentEnabled[clustercheckrunnerName] = true
-	} else if status.ClusterChecksRunner == nil && dd.componentEnabled[clustercheckrunnerName] {
-		if err := dd.sendDeploymentEvent(clustercheckrunnerEventName, deploymentDeletedEventType); err != nil {
-			return err
-		}
-		dd.componentEnabled[clustercheckrunnerName] = false
+	}
+
+	return nil
+}
+
+// getDeploymentEventType retrieves the deployment event type based on the status and the last recorded state of a component
+// it could be shared between the different components (agent, cluster agent, cluster check runner)
+// it returns nil if no event has been detected
+func (dd *MetricsForwarder) getDeploymentEventType(isComponentNil bool, componentName string) *string {
+	if !isComponentNil && !dd.componentEnabled[componentName] {
+		// The component is enabled (not nil) and wasn't enabled before
+		// Creation event detected
+		dd.componentEnabled[componentName] = true
+		return &deploymentCreatedEventType
+	}
+	if isComponentNil && dd.componentEnabled[componentName] {
+		// The component is disabled (nil) and was enabled before
+		// Deletion event detected
+		dd.componentEnabled[componentName] = false
+		return &deploymentDeletedEventType
 	}
 	return nil
 }
@@ -348,10 +361,11 @@ func (dd *MetricsForwarder) delegatedSendDeploymentMetric(metricValue float64, c
 // delegatedSendDeploymentEvent is separated from sendDeploymentEvent to facilitate mocking the Datadog API
 func (dd *MetricsForwarder) delegatedSendDeploymentEvent(component, eventType string) error {
 	event := &api.Event{
-		Time:      api.Int(int(time.Now().Unix())),
-		Title:     api.String(fmt.Sprintf("%s deployment %s", component, eventType)),
-		EventType: api.String(eventType),
-		Tags:      dd.tags,
+		Time:       api.Int(int(time.Now().Unix())),
+		Title:      api.String(fmt.Sprintf("%s deployment %s", component, eventType)),
+		EventType:  api.String(eventType),
+		SourceType: api.String(datadogOperatorSourceType),
+		Tags:       dd.tags,
 	}
 	if _, err := dd.datadogClient.PostEvent(event); err != nil {
 		return err

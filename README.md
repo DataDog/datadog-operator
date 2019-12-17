@@ -41,21 +41,21 @@ See the [Quick Start tutorial](docs/quick-start.md).
 
 ## Metrics and Events
 
-The Datadog Operator sends metrics and events to Datadog to monitor deploying the Datadog Agent components in the cluster.
+The Datadog Operator sends metrics and events to Datadog to monitor the Datadog Agent components deployment in the cluster.
 
 ### Metrics
 
-|metric name   |metric type   |description   |
+|Metric name   |Metric type   |Description   |
 |---|---|---|
-|datadog.operator.agent.deploymentsuccess   |gauge   |1 if the de desired number of Agent replicas equals the number of available Agent pods, 0 otherwise   |
-|datadog.operator.clusteragent.deploymentsuccess   |gauge   |1 if the de desired number of Cluster Agent replicas equals the number of available Cluster Agent pods, 0 otherwise   |
-|datadog.operator.clustercheckrunner.deploymentsuccess   |gauge   |1 if the de desired number of Cluster Check Runner replicas equals the number of available Cluster Check Runner pods, 0 otherwise   |
+| `datadog.operator.agent.deployment.success`   | gauge   | `1` if the de desired number of Agent replicas equals the number of available Agent pods, `0` otherwise.   |
+| `datadog.operator.clusteragent.deployment.success`   | gauge   | `1` if the de desired number of Cluster Agent replicas equals the number of available Cluster Agent pods, `0` otherwise.   |
+| `datadog.operator.clustercheckrunner.deployment.success`   | gauge   | `1` if the de desired number of Cluster Check Runner replicas equals the number of available Cluster Check Runner pods, `0` otherwise.   |
 
-**Note:** The Datadog API and APP keys are required to forward metrics to Datadog, they must be provided in the `credentials` field in the Custom Resource definiton.
+**Note:** The [Datadog API and APP keys](https://docs.datadoghq.com/account_management/api-app-keys/) are required to forward metrics to Datadog, they must be provided in the `credentials` field in the Custom Resource definiton.
 
-The Datadog Operator exposes Golang and Controller metrics in OpenMetrics format. For now they can be collected using the [OpenMetrics integration](https://docs.datadoghq.com/integrations/openmetrics/).
+The Datadog Operator exposes Golang and Controller metrics in OpenMetrics format. For now they can be collected using the [OpenMetrics integration](https://docs.datadoghq.com/integrations/openmetrics/). A Datadog integration will be available in the future.
 
-The OpenMetrics check is activated by default via [autodiscovery annotations](./chart/datadog-operator/templates/deployment.yaml) and will be scheduled by the Agent running on the same node as the Datadog Operator Pod.
+The OpenMetrics check is activated by default via [autodiscovery annotations](./chart/datadog-operator/templates/deployment.yaml) and is scheduled by the Agent running on the same node as the Datadog Operator Pod.
 
 ### Events
 

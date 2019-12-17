@@ -36,7 +36,6 @@ import (
 var (
 	log                           = logf.Log.WithName("DatadogAgentDeployment")
 	supportExtendedDaemonset bool = false
-	metricsRetryInterval          = 15 * time.Second
 )
 
 const (
@@ -45,7 +44,6 @@ const (
 
 func init() {
 	pflag.BoolVarP(&supportExtendedDaemonset, "supportExtendedDaemonset", "", false, "support ExtendedDaemonset")
-	pflag.DurationVar(&metricsRetryInterval, "metricsRetryInterval", 15*time.Second, "Datadog API connection retry duration")
 }
 
 // Add creates a new DatadogAgentDeployment Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -56,17 +54,11 @@ func Add(mgr manager.Manager) error {
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
-	reconciler := &ReconcileDatadogAgentDeployment{
+	return &ReconcileDatadogAgentDeployment{
 		client:   mgr.GetClient(),
 		scheme:   mgr.GetScheme(),
 		recorder: mgr.GetEventRecorderFor("DatadogAgentDeployment"),
 	}
-
-	if err := mgr.Add(datadog.NewMetricsForwarder(reconciler.client, metricsRetryInterval)); err != nil {
-		log.Error(err, "cannot add Datadog metrics forwarder")
-	}
-
-	return reconciler
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
@@ -171,6 +163,11 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		IsController: true,
 		OwnerType:    &datadoghqv1alpha1.DatadogAgentDeployment{},
 	})
+	if err != nil {
+		return err
+	}
+
+	err = mgr.Add(datadog.NewMetricsForwarder(mgr.GetClient()))
 	if err != nil {
 		return err
 	}
