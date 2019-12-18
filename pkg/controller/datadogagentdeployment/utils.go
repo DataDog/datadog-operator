@@ -14,6 +14,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	edsdatadoghqv1alpha1 "github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1"
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -1018,10 +1019,78 @@ func getPodAffinity(affinity *corev1.Affinity, labelValue string) *corev1.Affini
 	}
 }
 
+func updateDaemonSetStatus(ds *appsv1.DaemonSet, dsStatus *datadoghqv1alpha1.DatadogAgentDeploymentAgentStatus, updateTime *metav1.Time) *datadoghqv1alpha1.DatadogAgentDeploymentAgentStatus {
+	if dsStatus == nil {
+		dsStatus = &datadoghqv1alpha1.DatadogAgentDeploymentAgentStatus{}
+	}
+	if ds == nil {
+		dsStatus.State = string(datadoghqv1alpha1.DatadogAgentDeploymentStateFailed)
+		return dsStatus
+	}
+	if updateTime != nil {
+		dsStatus.LastUpdate = updateTime
+	}
+
+	dsStatus.CurrentHash = getHashAnnotation(ds.Annotations)
+	dsStatus.Desired = ds.Status.DesiredNumberScheduled
+	dsStatus.Current = ds.Status.CurrentNumberScheduled
+	dsStatus.Ready = ds.Status.NumberReady
+	dsStatus.Available = ds.Status.NumberAvailable
+	dsStatus.UpToDate = ds.Status.UpdatedNumberScheduled
+
+	var deploymentState datadoghqv1alpha1.DatadogAgentDeploymentState
+	switch {
+	case dsStatus.UpToDate != dsStatus.Desired:
+		deploymentState = datadoghqv1alpha1.DatadogAgentDeploymentStateUpdating
+	case dsStatus.Ready == 0:
+		deploymentState = datadoghqv1alpha1.DatadogAgentDeploymentStateProgressing
+	default:
+		deploymentState = datadoghqv1alpha1.DatadogAgentDeploymentStateRunning
+	}
+
+	dsStatus.State = fmt.Sprintf("%v (%d/%d/%d)", deploymentState, dsStatus.Desired, dsStatus.Ready, dsStatus.UpToDate)
+	return dsStatus
+}
+
+func updateExtendedDaemonSetStatus(eds *edsdatadoghqv1alpha1.ExtendedDaemonSet, dsStatus *datadoghqv1alpha1.DatadogAgentDeploymentAgentStatus, updateTime *metav1.Time) *datadoghqv1alpha1.DatadogAgentDeploymentAgentStatus {
+	if dsStatus == nil {
+		dsStatus = &datadoghqv1alpha1.DatadogAgentDeploymentAgentStatus{}
+	}
+	if updateTime != nil {
+		dsStatus.LastUpdate = updateTime
+	}
+	dsStatus.CurrentHash = getHashAnnotation(eds.Annotations)
+	dsStatus.Desired = eds.Status.Desired
+	dsStatus.Current = eds.Status.Current
+	dsStatus.Ready = eds.Status.Ready
+	dsStatus.Available = eds.Status.Available
+	dsStatus.UpToDate = eds.Status.UpToDate
+
+	var deploymentState datadoghqv1alpha1.DatadogAgentDeploymentState
+	switch {
+	case eds.Status.Canary != nil:
+		deploymentState = datadoghqv1alpha1.DatadogAgentDeploymentStateCanary
+	case dsStatus.UpToDate != dsStatus.Desired:
+		deploymentState = datadoghqv1alpha1.DatadogAgentDeploymentStateUpdating
+	case dsStatus.Ready == 0:
+		deploymentState = datadoghqv1alpha1.DatadogAgentDeploymentStateProgressing
+	default:
+		deploymentState = datadoghqv1alpha1.DatadogAgentDeploymentStateRunning
+	}
+
+	dsStatus.State = fmt.Sprintf("%v (%d/%d/%d)", deploymentState, dsStatus.Desired, dsStatus.Ready, dsStatus.UpToDate)
+	return dsStatus
+}
+
 func updateDeploymentStatus(dep *appsv1.Deployment, depStatus *datadoghqv1alpha1.DatadogAgentDeploymentDeploymentStatus, updateTime *metav1.Time) *datadoghqv1alpha1.DatadogAgentDeploymentDeploymentStatus {
 	if depStatus == nil {
 		depStatus = &datadoghqv1alpha1.DatadogAgentDeploymentDeploymentStatus{}
 	}
+	if dep == nil {
+		depStatus.State = string(datadoghqv1alpha1.DatadogAgentDeploymentStateFailed)
+		return depStatus
+	}
+
 	depStatus.CurrentHash = getHashAnnotation(dep.Annotations)
 	if updateTime != nil {
 		depStatus.LastUpdate = updateTime
@@ -1031,7 +1100,27 @@ func updateDeploymentStatus(dep *appsv1.Deployment, depStatus *datadoghqv1alpha1
 	depStatus.AvailableReplicas = dep.Status.AvailableReplicas
 	depStatus.UnavailableReplicas = dep.Status.UnavailableReplicas
 	depStatus.ReadyReplicas = dep.Status.ReadyReplicas
-	depStatus.State = datadoghqv1alpha1.DatadogAgentDeploymentDeploymentStateRunning
+
+	// Deciding on deployment status based on Deployment status
+	var deploymentState datadoghqv1alpha1.DatadogAgentDeploymentState
+	for _, condition := range dep.Status.Conditions {
+		if condition.Type == appsv1.DeploymentReplicaFailure && condition.Status == corev1.ConditionTrue {
+			deploymentState = datadoghqv1alpha1.DatadogAgentDeploymentStateFailed
+		}
+	}
+
+	if deploymentState == "" {
+		switch {
+		case depStatus.UpdatedReplicas != depStatus.Replicas:
+			deploymentState = datadoghqv1alpha1.DatadogAgentDeploymentStateUpdating
+		case depStatus.ReadyReplicas == 0:
+			deploymentState = datadoghqv1alpha1.DatadogAgentDeploymentStateProgressing
+		default:
+			deploymentState = datadoghqv1alpha1.DatadogAgentDeploymentStateRunning
+		}
+	}
+
+	depStatus.State = fmt.Sprintf("%v (%d/%d/%d)", deploymentState, depStatus.Replicas, depStatus.ReadyReplicas, depStatus.UpdatedReplicas)
 	return depStatus
 }
 

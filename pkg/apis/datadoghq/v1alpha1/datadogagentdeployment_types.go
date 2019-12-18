@@ -504,6 +504,22 @@ type ImageConfig struct {
 	PullSecrets *[]corev1.LocalObjectReference `json:"pullSecrets,omitempty"`
 }
 
+// DatadogAgentDeploymentState type representing the ClusterAgent as a DaemonSet deployment state
+type DatadogAgentDeploymentState string
+
+const (
+	// DatadogAgentDeploymentStateProgressing the deployment is running properly
+	DatadogAgentDeploymentStateProgressing DatadogAgentDeploymentState = "Progressing"
+	// DatadogAgentDeploymentStateRunning the deployment is running properly
+	DatadogAgentDeploymentStateRunning DatadogAgentDeploymentState = "Running"
+	// DatadogAgentDeploymentStateUpdating the deployment is currently under a rolling update
+	DatadogAgentDeploymentStateUpdating DatadogAgentDeploymentState = "Updating"
+	// DatadogAgentDeploymentStateCanary the deployment is currently under a canary testing (EDS only)
+	DatadogAgentDeploymentStateCanary DatadogAgentDeploymentState = "Canary"
+	// DatadogAgentDeploymentStateFailed the current state of the deployment is considered as Failed
+	DatadogAgentDeploymentStateFailed DatadogAgentDeploymentState = "Failed"
+)
+
 // DatadogAgentDeploymentStatus defines the observed state of DatadogAgentDeployment
 // +k8s:openapi-gen=true
 type DatadogAgentDeploymentStatus struct {
@@ -533,22 +549,10 @@ type DatadogAgentDeploymentAgentStatus struct {
 	Available int32 `json:"available"`
 	UpToDate  int32 `json:"upToDate"`
 
-	State       DatadogAgentDeploymentAgentState `json:"state,omitempty"`
-	LastUpdate  *metav1.Time                     `json:"lastUpdate,omitempty"`
-	CurrentHash string                           `json:"currentHash,omitempty"`
+	State       string       `json:"state,omitempty"`
+	LastUpdate  *metav1.Time `json:"lastUpdate,omitempty"`
+	CurrentHash string       `json:"currentHash,omitempty"`
 }
-
-// DatadogAgentDeploymentAgentState type representing the Agent as a DaemonSet deployment state
-type DatadogAgentDeploymentAgentState string
-
-const (
-	// DatadogAgentDeploymentAgentStateCanary the Agent deployment currently runs a new version with a Canary deployment
-	DatadogAgentDeploymentAgentStateCanary DatadogAgentDeploymentAgentState = "Canary"
-	// DatadogAgentDeploymentAgentStateRunning the  Agent deployment is currently running
-	DatadogAgentDeploymentAgentStateRunning DatadogAgentDeploymentAgentState = "Running"
-	// DatadogAgentDeploymentAgentStateFailed the current state of the  Agent deployment is considered as Failed
-	DatadogAgentDeploymentAgentStateFailed DatadogAgentDeploymentAgentState = "Failed"
-)
 
 // DatadogAgentDeploymentDeploymentStatus type representing the Cluster Agent Deployment status
 // +k8s:openapi-gen=true
@@ -584,20 +588,8 @@ type DatadogAgentDeploymentDeploymentStatus struct {
 	GeneratedToken string `json:"generatedToken,omitempty"`
 
 	// State corresponds to the ClusterAgent deployment state
-	State DatadogAgentDeploymentDeploymentState `json:"state,omitempty"`
+	State string `json:"state,omitempty"`
 }
-
-// DatadogAgentDeploymentDeploymentState type representing the ClusterAgent as a DaemonSet deployment state
-type DatadogAgentDeploymentDeploymentState string
-
-const (
-	// DatadogAgentDeploymentDeploymentStateStarted the Cluster-Agent deployment has been started
-	DatadogAgentDeploymentDeploymentStateStarted DatadogAgentDeploymentDeploymentState = "Started"
-	// DatadogAgentDeploymentDeploymentStateRunning the Cluster-Agent deployment is running properly
-	DatadogAgentDeploymentDeploymentStateRunning DatadogAgentDeploymentDeploymentState = "Running"
-	// DatadogAgentDeploymentDeploymentStateFailed the current state of the Cluster-Agent deployment is considered as Failed
-	DatadogAgentDeploymentDeploymentStateFailed DatadogAgentDeploymentDeploymentState = "Failed"
-)
 
 // DatadogAgentDeploymentCondition describes the state of a DatadogAgentDeployment at a certain point.
 // +k8s:openapi-gen=true

@@ -92,12 +92,12 @@ func (r *ReconcileDatadogAgentDeployment) createNewClusterAgentDeployment(logger
 	logger.Info("Creating a new Cluster Agent Deployment", "deployment.Namespace", newDCA.Namespace, "deployment.Name", newDCA.Name, "agentdeployment.Status.ClusterAgent.CurrentHash", hash)
 	newStatus.ClusterAgent = &datadoghqv1alpha1.DatadogAgentDeploymentDeploymentStatus{}
 	err = r.client.Create(context.TODO(), newDCA)
+	now := metav1.NewTime(time.Now())
 	if err != nil {
-		newStatus.ClusterAgent.State = datadoghqv1alpha1.DatadogAgentDeploymentDeploymentStateFailed
+		updateStatusWithClusterAgent(nil, newStatus, &now)
 		return reconcile.Result{}, err
 	}
-	now := metav1.NewTime(time.Now())
-	newStatus.ClusterAgent.State = datadoghqv1alpha1.DatadogAgentDeploymentDeploymentStateStarted
+
 	updateStatusWithClusterAgent(newDCA, newStatus, &now)
 	r.recorder.Event(agentdeployment, corev1.EventTypeNormal, "Create Cluster Agent Deployment", fmt.Sprintf("%s/%s", newDCA.Namespace, newDCA.Name))
 	return reconcile.Result{}, nil
