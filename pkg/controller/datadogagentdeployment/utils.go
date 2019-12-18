@@ -880,6 +880,14 @@ func getClusterAgentVersion(dad *datadoghqv1alpha1.DatadogAgentDeployment) strin
 	return ""
 }
 
+func getClusterAgentPDBName(dad *datadoghqv1alpha1.DatadogAgentDeployment) string {
+	return fmt.Sprintf("%s-%s", dad.Name, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix)
+}
+
+func getClusterChecksRunnerPDBName(dad *datadoghqv1alpha1.DatadogAgentDeployment) string {
+	return fmt.Sprintf("%s-%s", dad.Name, datadoghqv1alpha1.DefaultClusterChecksRunnerResourceSuffix)
+}
+
 func getMetricsServerServiceName(dad *datadoghqv1alpha1.DatadogAgentDeployment) string {
 	return fmt.Sprintf("%s-%s", dad.Name, datadoghqv1alpha1.DefaultMetricsServerResourceSuffix)
 }

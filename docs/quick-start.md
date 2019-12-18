@@ -10,7 +10,10 @@ Find the Datadog Operator Helm chart in `/chart/datadog-operator`:
 $ DD_NAMESPACE="datadog"
 $ DD_NAMEOP="ddoperator"
 $ kubectl create ns $DD_NAMESPACE
+$ # Helm v2
 $ helm install --name $DD_NAMEOP -n $DD_NAMESPACE ./chart/datadog-operator
+$ # Helm v3
+$ helm install $DD_NAMEOP -n $DD_NAMESPACE ./chart/datadog-operator
 ```
 
 ## Deploy the Datadog Agents with the operator

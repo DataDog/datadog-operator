@@ -180,7 +180,7 @@ func newClusterAgentDeploymentFromInstance(logger logr.Logger, agentdeployment *
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
 					datadoghqv1alpha1.AgentDeploymentNameLabelKey:      agentdeployment.Name,
-					datadoghqv1alpha1.AgentDeploymentComponentLabelKey: "cluster-agent",
+					datadoghqv1alpha1.AgentDeploymentComponentLabelKey: datadoghqv1alpha1.DefaultClusterAgentResourceSuffix,
 				},
 			},
 		},
@@ -201,6 +201,11 @@ func (r *ReconcileDatadogAgentDeployment) manageClusterAgentDependencies(logger 
 	}
 
 	result, err = r.manageMetricsServerService(logger, dad, newStatus)
+	if shouldReturn(result, err) {
+		return result, err
+	}
+
+	result, err = r.manageClusterAgentPDB(logger, dad, newStatus)
 	if shouldReturn(result, err) {
 		return result, err
 	}

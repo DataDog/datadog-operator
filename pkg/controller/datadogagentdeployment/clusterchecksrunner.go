@@ -180,7 +180,11 @@ func newClusterChecksRunnerDeploymentFromInstance(logger logr.Logger, agentdeplo
 }
 
 func (r *ReconcileDatadogAgentDeployment) manageClusterChecksRunnerDependencies(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment, newStatus *datadoghqv1alpha1.DatadogAgentDeploymentStatus) (reconcile.Result, error) {
-	result, err := r.manageClusterChecksRunnerRBACs(logger, dad)
+	result, err := r.manageClusterChecksRunnerPDB(logger, dad, newStatus)
+	if shouldReturn(result, err) {
+		return result, err
+	}
+	result, err = r.manageClusterChecksRunnerRBACs(logger, dad)
 	if shouldReturn(result, err) {
 		return result, err
 	}

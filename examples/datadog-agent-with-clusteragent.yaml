@@ -19,5 +19,3 @@ spec:
     config:
       metricsProviderEnabled: true
     replicas: 2
-
-  
