@@ -47,9 +47,9 @@ The Datadog Operator sends metrics and events to Datadog to monitor the Datadog 
 
 |Metric name   |Metric type   |Description   |
 |---|---|---|
-| `datadog.operator.agent.deployment.success`   | gauge   | `1` if the de desired number of Agent replicas equals the number of available Agent pods, `0` otherwise.   |
-| `datadog.operator.clusteragent.deployment.success`   | gauge   | `1` if the de desired number of Cluster Agent replicas equals the number of available Cluster Agent pods, `0` otherwise.   |
-| `datadog.operator.clustercheckrunner.deployment.success`   | gauge   | `1` if the de desired number of Cluster Check Runner replicas equals the number of available Cluster Check Runner pods, `0` otherwise.   |
+| `datadog.operator.agent.deployment.success`   | gauge   | `1` if the desired number of Agent replicas equals the number of available Agent pods, `0` otherwise.   |
+| `datadog.operator.clusteragent.deployment.success`   | gauge   | `1` if the desired number of Cluster Agent replicas equals the number of available Cluster Agent pods, `0` otherwise.   |
+| `datadog.operator.clustercheckrunner.deployment.success`   | gauge   | `1` if the desired number of Cluster Check Runner replicas equals the number of available Cluster Check Runner pods, `0` otherwise.   |
 
 **Note:** The [Datadog API and APP keys](https://docs.datadoghq.com/account_management/api-app-keys/) are required to forward metrics to Datadog, they must be provided in the `credentials` field in the Custom Resource definiton.
 
