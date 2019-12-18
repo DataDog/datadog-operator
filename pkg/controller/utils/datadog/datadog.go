@@ -49,7 +49,7 @@ var (
 )
 
 var (
-	datadogOperatorSourceType  = "Datadog Operator"
+	datadogOperatorSourceType  = "datadog_operator"
 	deploymentCreatedEventType = "created"
 	deploymentDeletedEventType = "deleted"
 )
