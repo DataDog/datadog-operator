@@ -19,6 +19,7 @@ import (
 	api "github.com/zorkian/go-datadog-api"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
@@ -45,21 +46,29 @@ func (c *fakeMetricsForwarder) delegatedValidateCreds(apiKey, appKey string) (*a
 	return &api.Client{}, nil
 }
 
-func TestMetricsForwarder_SendStatusMetrics(t *testing.T) {
+func TestMetricsForwarder_sendStatusMetrics(t *testing.T) {
+	fmf := &fakeMetricsForwarder{}
+	nsn := types.NamespacedName{
+		Namespace: "foo",
+		Name:      "bar",
+	}
+	mf := &metricsForwarder{
+		namespacedName: nsn,
+		delegator:      fmf,
+	}
+	mf.initGlobalTags()
+
 	tests := []struct {
 		name     string
-		loadFunc func() (*MetricsForwarder, *fakeMetricsForwarder)
+		loadFunc func() (*metricsForwarder, *fakeMetricsForwarder)
 		status   *datadoghqv1alpha1.DatadogAgentDeploymentStatus
 		wantErr  bool
 		wantFunc func(*fakeMetricsForwarder) error
 	}{
 		{
 			name: "empty status",
-			loadFunc: func() (*MetricsForwarder, *fakeMetricsForwarder) {
-				f := &fakeMetricsForwarder{}
-				return &MetricsForwarder{
-					delegator: f,
-				}, f
+			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
+				return mf, fmf
 			},
 			status:  &datadoghqv1alpha1.DatadogAgentDeploymentStatus{},
 			wantErr: false,
@@ -72,11 +81,8 @@ func TestMetricsForwarder_SendStatusMetrics(t *testing.T) {
 		},
 		{
 			name: "nil status",
-			loadFunc: func() (*MetricsForwarder, *fakeMetricsForwarder) {
-				f := &fakeMetricsForwarder{}
-				return &MetricsForwarder{
-					delegator: f,
-				}, f
+			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
+				return mf, fmf
 			},
 			status:  nil,
 			wantErr: true,
@@ -89,12 +95,11 @@ func TestMetricsForwarder_SendStatusMetrics(t *testing.T) {
 		},
 		{
 			name: "agent only, available",
-			loadFunc: func() (*MetricsForwarder, *fakeMetricsForwarder) {
+			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
-				f.On("delegatedSendDeploymentMetric", 1.0, "agent", []string{"state:Running"})
-				return &MetricsForwarder{
-					delegator: f,
-				}, f
+				f.On("delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running"})
+				mf.delegator = f
+				return mf, f
 			},
 			status: &datadoghqv1alpha1.DatadogAgentDeploymentStatus{
 				Agent: &datadoghqv1alpha1.DatadogAgentDeploymentAgentStatus{
@@ -105,7 +110,7 @@ func TestMetricsForwarder_SendStatusMetrics(t *testing.T) {
 			},
 			wantErr: false,
 			wantFunc: func(f *fakeMetricsForwarder) error {
-				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "agent", []string{"state:Running"}) {
+				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running"}) {
 					return errors.New("Function not called")
 				}
 				if !f.AssertNumberOfCalls(t, "delegatedSendDeploymentMetric", 1) {
@@ -116,13 +121,12 @@ func TestMetricsForwarder_SendStatusMetrics(t *testing.T) {
 		},
 		{
 			name: "agent only, available + tags not empty",
-			loadFunc: func() (*MetricsForwarder, *fakeMetricsForwarder) {
+			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
-				f.On("delegatedSendDeploymentMetric", 1.0, "agent", []string{"cluster_name:testcluster", "state:Running"})
-				return &MetricsForwarder{
-					delegator: f,
-					tags:      []string{"cluster_name:testcluster"},
-				}, f
+				f.On("delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "cluster_name:testcluster", "state:Running"})
+				mf.delegator = f
+				mf.tags = []string{"cluster_name:testcluster"}
+				return mf, f
 			},
 			status: &datadoghqv1alpha1.DatadogAgentDeploymentStatus{
 				Agent: &datadoghqv1alpha1.DatadogAgentDeploymentAgentStatus{
@@ -133,7 +137,7 @@ func TestMetricsForwarder_SendStatusMetrics(t *testing.T) {
 			},
 			wantErr: false,
 			wantFunc: func(f *fakeMetricsForwarder) error {
-				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "agent", []string{"cluster_name:testcluster", "state:Running"}) {
+				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "cluster_name:testcluster", "state:Running"}) {
 					return errors.New("Function not called")
 				}
 				if !f.AssertNumberOfCalls(t, "delegatedSendDeploymentMetric", 1) {
@@ -144,12 +148,12 @@ func TestMetricsForwarder_SendStatusMetrics(t *testing.T) {
 		},
 		{
 			name: "agent only, not available",
-			loadFunc: func() (*MetricsForwarder, *fakeMetricsForwarder) {
+			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
-				f.On("delegatedSendDeploymentMetric", 0.0, "agent", []string{"state:Failed"})
-				return &MetricsForwarder{
-					delegator: f,
-				}, f
+				f.On("delegatedSendDeploymentMetric", 0.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Failed"})
+				mf.delegator = f
+				mf.tags = []string{}
+				return mf, f
 			},
 			status: &datadoghqv1alpha1.DatadogAgentDeploymentStatus{
 				Agent: &datadoghqv1alpha1.DatadogAgentDeploymentAgentStatus{
@@ -160,7 +164,7 @@ func TestMetricsForwarder_SendStatusMetrics(t *testing.T) {
 			},
 			wantErr: false,
 			wantFunc: func(f *fakeMetricsForwarder) error {
-				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 0.0, "agent", []string{"state:Failed"}) {
+				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 0.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Failed"}) {
 					return errors.New("Function not called")
 				}
 				if !f.AssertNumberOfCalls(t, "delegatedSendDeploymentMetric", 1) {
@@ -171,14 +175,13 @@ func TestMetricsForwarder_SendStatusMetrics(t *testing.T) {
 		},
 		{
 			name: "all components, all available",
-			loadFunc: func() (*MetricsForwarder, *fakeMetricsForwarder) {
+			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
-				f.On("delegatedSendDeploymentMetric", 1.0, "agent", []string{"state:Running"})
-				f.On("delegatedSendDeploymentMetric", 1.0, "clusteragent", []string{"state:Running"})
-				f.On("delegatedSendDeploymentMetric", 1.0, "clustercheckrunner", []string{"state:Running"})
-				return &MetricsForwarder{
-					delegator: f,
-				}, f
+				f.On("delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running"})
+				f.On("delegatedSendDeploymentMetric", 1.0, "clusteragent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running"})
+				f.On("delegatedSendDeploymentMetric", 1.0, "clustercheckrunner", []string{"cr_namespace:foo", "cr_name:bar", "state:Running"})
+				mf.delegator = f
+				return mf, f
 			},
 			status: &datadoghqv1alpha1.DatadogAgentDeploymentStatus{
 				Agent: &datadoghqv1alpha1.DatadogAgentDeploymentAgentStatus{
@@ -199,13 +202,13 @@ func TestMetricsForwarder_SendStatusMetrics(t *testing.T) {
 			},
 			wantErr: false,
 			wantFunc: func(f *fakeMetricsForwarder) error {
-				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "agent", []string{"state:Running"}) {
+				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running"}) {
 					return errors.New("Function not called")
 				}
-				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "clusteragent", []string{"state:Running"}) {
+				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "clusteragent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running"}) {
 					return errors.New("Function not called")
 				}
-				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "clustercheckrunner", []string{"state:Running"}) {
+				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "clustercheckrunner", []string{"cr_namespace:foo", "cr_name:bar", "state:Running"}) {
 					return errors.New("Function not called")
 				}
 				if !f.AssertNumberOfCalls(t, "delegatedSendDeploymentMetric", 3) {
@@ -216,13 +219,12 @@ func TestMetricsForwarder_SendStatusMetrics(t *testing.T) {
 		},
 		{
 			name: "agent and clusteragent, clusteragent not available",
-			loadFunc: func() (*MetricsForwarder, *fakeMetricsForwarder) {
+			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
-				f.On("delegatedSendDeploymentMetric", 1.0, "agent", []string{"state:Running"})
-				f.On("delegatedSendDeploymentMetric", 0.0, "clusteragent", []string{"state:Started"})
-				return &MetricsForwarder{
-					delegator: f,
-				}, f
+				f.On("delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running"})
+				f.On("delegatedSendDeploymentMetric", 0.0, "clusteragent", []string{"cr_namespace:foo", "cr_name:bar", "state:Started"})
+				mf.delegator = f
+				return mf, f
 			},
 			status: &datadoghqv1alpha1.DatadogAgentDeploymentStatus{
 				Agent: &datadoghqv1alpha1.DatadogAgentDeploymentAgentStatus{
@@ -238,10 +240,10 @@ func TestMetricsForwarder_SendStatusMetrics(t *testing.T) {
 			},
 			wantErr: false,
 			wantFunc: func(f *fakeMetricsForwarder) error {
-				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "agent", []string{"state:Running"}) {
+				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running"}) {
 					return errors.New("Function not called")
 				}
-				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 0.0, "clusteragent", []string{"state:Started"}) {
+				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 0.0, "clusteragent", []string{"cr_namespace:foo", "cr_name:bar", "state:Started"}) {
 					return errors.New("Function not called")
 				}
 				if !f.AssertNumberOfCalls(t, "delegatedSendDeploymentMetric", 2) {
@@ -252,14 +254,13 @@ func TestMetricsForwarder_SendStatusMetrics(t *testing.T) {
 		},
 		{
 			name: "all components, clustercheckrunner not available",
-			loadFunc: func() (*MetricsForwarder, *fakeMetricsForwarder) {
+			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
-				f.On("delegatedSendDeploymentMetric", 1.0, "agent", []string{"state:Running"})
-				f.On("delegatedSendDeploymentMetric", 1.0, "clusteragent", []string{"state:Running"})
-				f.On("delegatedSendDeploymentMetric", 0.0, "clustercheckrunner", []string{"state:Running"})
-				return &MetricsForwarder{
-					delegator: f,
-				}, f
+				f.On("delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running"})
+				f.On("delegatedSendDeploymentMetric", 1.0, "clusteragent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running"})
+				f.On("delegatedSendDeploymentMetric", 0.0, "clustercheckrunner", []string{"cr_namespace:foo", "cr_name:bar", "state:Running"})
+				mf.delegator = f
+				return mf, f
 			},
 			status: &datadoghqv1alpha1.DatadogAgentDeploymentStatus{
 				Agent: &datadoghqv1alpha1.DatadogAgentDeploymentAgentStatus{
@@ -280,13 +281,13 @@ func TestMetricsForwarder_SendStatusMetrics(t *testing.T) {
 			},
 			wantErr: false,
 			wantFunc: func(f *fakeMetricsForwarder) error {
-				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "agent", []string{"state:Running"}) {
+				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running"}) {
 					return errors.New("Function not called")
 				}
-				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "clusteragent", []string{"state:Running"}) {
+				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "clusteragent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running"}) {
 					return errors.New("Function not called")
 				}
-				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 0.0, "clustercheckrunner", []string{"state:Running"}) {
+				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 0.0, "clustercheckrunner", []string{"cr_namespace:foo", "cr_name:bar", "state:Running"}) {
 					return errors.New("Function not called")
 				}
 				if !f.AssertNumberOfCalls(t, "delegatedSendDeploymentMetric", 3) {
@@ -300,10 +301,10 @@ func TestMetricsForwarder_SendStatusMetrics(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			dd, f := tt.loadFunc()
 			if err := dd.sendStatusMetrics(tt.status); (err != nil) != tt.wantErr {
-				t.Errorf("MetricsForwarder.sendStatusMetrics() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("metricsForwarder.sendStatusMetrics() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if err := tt.wantFunc(f); err != nil {
-				t.Errorf("MetricsForwarder.sendStatusMetrics() wantFunc validation error: %v", err)
+				t.Errorf("metricsForwarder.sendStatusMetrics() wantFunc validation error: %v", err)
 			}
 		})
 	}
@@ -312,17 +313,17 @@ func TestMetricsForwarder_SendStatusMetrics(t *testing.T) {
 func TestMetricsForwarder_updateCredsIfNeeded(t *testing.T) {
 	tests := []struct {
 		name     string
-		loadFunc func() (*MetricsForwarder, *fakeMetricsForwarder)
+		loadFunc func() (*metricsForwarder, *fakeMetricsForwarder)
 		apiKey   string
 		appKey   string
 		wantErr  bool
-		wantFunc func(*MetricsForwarder, *fakeMetricsForwarder) error
+		wantFunc func(*metricsForwarder, *fakeMetricsForwarder) error
 	}{
 		{
 			name: "same creds, no update",
-			loadFunc: func() (*MetricsForwarder, *fakeMetricsForwarder) {
+			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
-				return &MetricsForwarder{
+				return &metricsForwarder{
 					delegator: f,
 					keysHash:  hashKeys("sameApiKey", "sameAppKey"),
 				}, f
@@ -330,7 +331,7 @@ func TestMetricsForwarder_updateCredsIfNeeded(t *testing.T) {
 			apiKey:  "sameApiKey",
 			appKey:  "sameAppKey",
 			wantErr: false,
-			wantFunc: func(m *MetricsForwarder, f *fakeMetricsForwarder) error {
+			wantFunc: func(m *metricsForwarder, f *fakeMetricsForwarder) error {
 				if m.keysHash != hashKeys("sameApiKey", "sameAppKey") {
 					return errors.New("Wrong hash update")
 				}
@@ -342,10 +343,10 @@ func TestMetricsForwarder_updateCredsIfNeeded(t *testing.T) {
 		},
 		{
 			name: "new apiKey, update",
-			loadFunc: func() (*MetricsForwarder, *fakeMetricsForwarder) {
+			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
 				f.On("delegatedValidateCreds", "newApiKey", "sameAppKey")
-				return &MetricsForwarder{
+				return &metricsForwarder{
 					delegator: f,
 					keysHash:  hashKeys("oldApiKey", "sameAppKey"),
 				}, f
@@ -353,7 +354,7 @@ func TestMetricsForwarder_updateCredsIfNeeded(t *testing.T) {
 			apiKey:  "newApiKey",
 			appKey:  "sameAppKey",
 			wantErr: false,
-			wantFunc: func(m *MetricsForwarder, f *fakeMetricsForwarder) error {
+			wantFunc: func(m *metricsForwarder, f *fakeMetricsForwarder) error {
 				if m.keysHash != hashKeys("newApiKey", "sameAppKey") {
 					return errors.New("Wrong hash update")
 				}
@@ -365,10 +366,10 @@ func TestMetricsForwarder_updateCredsIfNeeded(t *testing.T) {
 		},
 		{
 			name: "new appKey, update",
-			loadFunc: func() (*MetricsForwarder, *fakeMetricsForwarder) {
+			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
 				f.On("delegatedValidateCreds", "sameApiKey", "newAppKey")
-				return &MetricsForwarder{
+				return &metricsForwarder{
 					delegator: f,
 					keysHash:  hashKeys("sameApiKey", "oldAppKey"),
 				}, f
@@ -376,7 +377,7 @@ func TestMetricsForwarder_updateCredsIfNeeded(t *testing.T) {
 			apiKey:  "sameApiKey",
 			appKey:  "newAppKey",
 			wantErr: false,
-			wantFunc: func(m *MetricsForwarder, f *fakeMetricsForwarder) error {
+			wantFunc: func(m *metricsForwarder, f *fakeMetricsForwarder) error {
 				if m.keysHash != hashKeys("sameApiKey", "newAppKey") {
 					return errors.New("Wrong hash update")
 				}
@@ -388,10 +389,10 @@ func TestMetricsForwarder_updateCredsIfNeeded(t *testing.T) {
 		},
 		{
 			name: "invalid creds, no update",
-			loadFunc: func() (*MetricsForwarder, *fakeMetricsForwarder) {
+			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
 				f.On("delegatedValidateCreds", "invalidApiKey", "invalidAppKey")
-				return &MetricsForwarder{
+				return &metricsForwarder{
 					delegator: f,
 					keysHash:  hashKeys("oldApiKey", "oldAppKey"),
 				}, f
@@ -399,7 +400,7 @@ func TestMetricsForwarder_updateCredsIfNeeded(t *testing.T) {
 			apiKey:  "invalidApiKey",
 			appKey:  "invalidAppKey",
 			wantErr: true,
-			wantFunc: func(m *MetricsForwarder, f *fakeMetricsForwarder) error {
+			wantFunc: func(m *metricsForwarder, f *fakeMetricsForwarder) error {
 				if m.keysHash != hashKeys("oldApiKey", "oldAppKey") {
 					return errors.New("Wrong hash update")
 				}
@@ -414,10 +415,10 @@ func TestMetricsForwarder_updateCredsIfNeeded(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			dd, f := tt.loadFunc()
 			if err := dd.updateCredsIfNeeded(tt.apiKey, tt.appKey); (err != nil) != tt.wantErr {
-				t.Errorf("MetricsForwarder.updateCredsIfNeeded() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("metricsForwarder.updateCredsIfNeeded() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if err := tt.wantFunc(dd, f); err != nil {
-				t.Errorf("MetricsForwarder.updateCredsIfNeeded() wantFunc validation error: %v", err)
+				t.Errorf("metricsForwarder.updateCredsIfNeeded() wantFunc validation error: %v", err)
 			}
 		})
 	}
@@ -536,7 +537,7 @@ func TestReconcileDatadogAgentDeployment_getCredentials(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dd := &MetricsForwarder{
+			dd := &metricsForwarder{
 				k8sClient: tt.fields.client,
 			}
 			if tt.args.loadFunc != nil {
@@ -544,14 +545,14 @@ func TestReconcileDatadogAgentDeployment_getCredentials(t *testing.T) {
 			}
 			apiKey, appKey, err := dd.getCredentials(tt.args.dad)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("MetricsForwarder.getCredentials() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("metricsForwarder.getCredentials() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if apiKey != tt.wantAPIKey {
-				t.Errorf("MetricsForwarder.getCredentials() apiKey = %v, want %v", apiKey, tt.wantAPIKey)
+				t.Errorf("metricsForwarder.getCredentials() apiKey = %v, want %v", apiKey, tt.wantAPIKey)
 			}
 			if appKey != tt.wantAPPKey {
-				t.Errorf("MetricsForwarder.getCredentials() appKey = %v, want %v", appKey, tt.wantAPPKey)
+				t.Errorf("metricsForwarder.getCredentials() appKey = %v, want %v", appKey, tt.wantAPPKey)
 			}
 		})
 	}
@@ -617,13 +618,13 @@ func TestMetricsForwarder_setTags(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dd := &MetricsForwarder{}
-			dd.setTags(tt.dad)
+			dd := &metricsForwarder{}
+			dd.updateTags(tt.dad)
 
 			sort.Strings(dd.tags)
 			sort.Strings(tt.want)
 			if !reflect.DeepEqual(dd.tags, tt.want) {
-				t.Errorf("MetricsForwarder.setTags() dd.tags = %v, want %v", dd.tags, tt.want)
+				t.Errorf("metricsForwarder.setTags() dd.tags = %v, want %v", dd.tags, tt.want)
 			}
 		})
 	}
@@ -632,22 +633,22 @@ func TestMetricsForwarder_setTags(t *testing.T) {
 func TestMetricsForwarder_sendStatusEvents(t *testing.T) {
 	tests := []struct {
 		name     string
-		loadFunc func() (*MetricsForwarder, *fakeMetricsForwarder)
+		loadFunc func() (*metricsForwarder, *fakeMetricsForwarder)
 		status   *datadoghqv1alpha1.DatadogAgentDeploymentStatus
 		wantErr  bool
-		wantFunc func(*MetricsForwarder, *fakeMetricsForwarder) error
+		wantFunc func(*metricsForwarder, *fakeMetricsForwarder) error
 	}{
 		{
 			name: "empty status",
-			loadFunc: func() (*MetricsForwarder, *fakeMetricsForwarder) {
+			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
-				return &MetricsForwarder{
+				return &metricsForwarder{
 					delegator: f,
 				}, f
 			},
 			status:  &datadoghqv1alpha1.DatadogAgentDeploymentStatus{},
 			wantErr: false,
-			wantFunc: func(dd *MetricsForwarder, f *fakeMetricsForwarder) error {
+			wantFunc: func(dd *metricsForwarder, f *fakeMetricsForwarder) error {
 				if !f.AssertNumberOfCalls(t, "delegatedSendDeploymentEvent", 0) {
 					return errors.New("Wrong number of calls")
 				}
@@ -656,15 +657,15 @@ func TestMetricsForwarder_sendStatusEvents(t *testing.T) {
 		},
 		{
 			name: "nil status",
-			loadFunc: func() (*MetricsForwarder, *fakeMetricsForwarder) {
+			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
-				return &MetricsForwarder{
+				return &metricsForwarder{
 					delegator: f,
 				}, f
 			},
 			status:  nil,
 			wantErr: true,
-			wantFunc: func(dd *MetricsForwarder, f *fakeMetricsForwarder) error {
+			wantFunc: func(dd *metricsForwarder, f *fakeMetricsForwarder) error {
 				if !f.AssertNumberOfCalls(t, "delegatedSendDeploymentEvent", 0) {
 					return errors.New("Wrong number of calls")
 				}
@@ -673,10 +674,10 @@ func TestMetricsForwarder_sendStatusEvents(t *testing.T) {
 		},
 		{
 			name: "agent only, deployment created",
-			loadFunc: func() (*MetricsForwarder, *fakeMetricsForwarder) {
+			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
 				f.On("delegatedSendDeploymentEvent", "Agent", "created")
-				return &MetricsForwarder{
+				return &metricsForwarder{
 					delegator: f,
 					componentEnabled: map[string]bool{
 						"agent":              false,
@@ -689,7 +690,7 @@ func TestMetricsForwarder_sendStatusEvents(t *testing.T) {
 				Agent: &datadoghqv1alpha1.DatadogAgentDeploymentAgentStatus{},
 			},
 			wantErr: false,
-			wantFunc: func(dd *MetricsForwarder, f *fakeMetricsForwarder) error {
+			wantFunc: func(dd *metricsForwarder, f *fakeMetricsForwarder) error {
 				if !f.AssertCalled(t, "delegatedSendDeploymentEvent", "Agent", "created") {
 					return errors.New("Function not called")
 				}
@@ -704,10 +705,10 @@ func TestMetricsForwarder_sendStatusEvents(t *testing.T) {
 		},
 		{
 			name: "agent only, deployment deleted",
-			loadFunc: func() (*MetricsForwarder, *fakeMetricsForwarder) {
+			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
 				f.On("delegatedSendDeploymentEvent", "Agent", "deleted")
-				return &MetricsForwarder{
+				return &metricsForwarder{
 					delegator: f,
 					componentEnabled: map[string]bool{
 						"agent":              true,
@@ -720,7 +721,7 @@ func TestMetricsForwarder_sendStatusEvents(t *testing.T) {
 				Agent: nil,
 			},
 			wantErr: false,
-			wantFunc: func(dd *MetricsForwarder, f *fakeMetricsForwarder) error {
+			wantFunc: func(dd *metricsForwarder, f *fakeMetricsForwarder) error {
 				if !f.AssertCalled(t, "delegatedSendDeploymentEvent", "Agent", "deleted") {
 					return errors.New("Function not called")
 				}
@@ -735,9 +736,9 @@ func TestMetricsForwarder_sendStatusEvents(t *testing.T) {
 		},
 		{
 			name: "agent only, no event detected",
-			loadFunc: func() (*MetricsForwarder, *fakeMetricsForwarder) {
+			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
-				return &MetricsForwarder{
+				return &metricsForwarder{
 					delegator: f,
 					componentEnabled: map[string]bool{
 						"agent":              true,
@@ -750,7 +751,7 @@ func TestMetricsForwarder_sendStatusEvents(t *testing.T) {
 				Agent: &datadoghqv1alpha1.DatadogAgentDeploymentAgentStatus{},
 			},
 			wantErr: false,
-			wantFunc: func(dd *MetricsForwarder, f *fakeMetricsForwarder) error {
+			wantFunc: func(dd *metricsForwarder, f *fakeMetricsForwarder) error {
 				if !f.AssertNumberOfCalls(t, "delegatedSendDeploymentEvent", 0) {
 					return errors.New("Wrong number of calls")
 				}
@@ -762,10 +763,10 @@ func TestMetricsForwarder_sendStatusEvents(t *testing.T) {
 		},
 		{
 			name: "cluster agent only, deployment created",
-			loadFunc: func() (*MetricsForwarder, *fakeMetricsForwarder) {
+			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
 				f.On("delegatedSendDeploymentEvent", "Cluster Agent", "created")
-				return &MetricsForwarder{
+				return &metricsForwarder{
 					delegator: f,
 					componentEnabled: map[string]bool{
 						"agent":              false,
@@ -778,7 +779,7 @@ func TestMetricsForwarder_sendStatusEvents(t *testing.T) {
 				ClusterAgent: &datadoghqv1alpha1.DatadogAgentDeploymentDeploymentStatus{},
 			},
 			wantErr: false,
-			wantFunc: func(dd *MetricsForwarder, f *fakeMetricsForwarder) error {
+			wantFunc: func(dd *metricsForwarder, f *fakeMetricsForwarder) error {
 				if !f.AssertCalled(t, "delegatedSendDeploymentEvent", "Cluster Agent", "created") {
 					return errors.New("Function not called")
 				}
@@ -793,10 +794,10 @@ func TestMetricsForwarder_sendStatusEvents(t *testing.T) {
 		},
 		{
 			name: "cluster check runner, deployment created",
-			loadFunc: func() (*MetricsForwarder, *fakeMetricsForwarder) {
+			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
 				f.On("delegatedSendDeploymentEvent", "Cluster Check Runner", "created")
-				return &MetricsForwarder{
+				return &metricsForwarder{
 					delegator: f,
 					componentEnabled: map[string]bool{
 						"agent":              false,
@@ -809,7 +810,7 @@ func TestMetricsForwarder_sendStatusEvents(t *testing.T) {
 				ClusterChecksRunner: &datadoghqv1alpha1.DatadogAgentDeploymentDeploymentStatus{},
 			},
 			wantErr: false,
-			wantFunc: func(dd *MetricsForwarder, f *fakeMetricsForwarder) error {
+			wantFunc: func(dd *metricsForwarder, f *fakeMetricsForwarder) error {
 				if !f.AssertCalled(t, "delegatedSendDeploymentEvent", "Cluster Check Runner", "created") {
 					return errors.New("Function not called")
 				}
@@ -824,12 +825,12 @@ func TestMetricsForwarder_sendStatusEvents(t *testing.T) {
 		},
 		{
 			name: "all component, deployments created",
-			loadFunc: func() (*MetricsForwarder, *fakeMetricsForwarder) {
+			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
 				f.On("delegatedSendDeploymentEvent", "Agent", "created")
 				f.On("delegatedSendDeploymentEvent", "Cluster Agent", "created")
 				f.On("delegatedSendDeploymentEvent", "Cluster Check Runner", "created")
-				return &MetricsForwarder{
+				return &metricsForwarder{
 					delegator: f,
 					componentEnabled: map[string]bool{
 						"agent":              false,
@@ -844,7 +845,7 @@ func TestMetricsForwarder_sendStatusEvents(t *testing.T) {
 				ClusterChecksRunner: &datadoghqv1alpha1.DatadogAgentDeploymentDeploymentStatus{},
 			},
 			wantErr: false,
-			wantFunc: func(dd *MetricsForwarder, f *fakeMetricsForwarder) error {
+			wantFunc: func(dd *metricsForwarder, f *fakeMetricsForwarder) error {
 				if !f.AssertCalled(t, "delegatedSendDeploymentEvent", "Agent", "created") {
 					return errors.New("Function not called")
 				}
@@ -871,12 +872,12 @@ func TestMetricsForwarder_sendStatusEvents(t *testing.T) {
 		},
 		{
 			name: "all component, deployments deleted",
-			loadFunc: func() (*MetricsForwarder, *fakeMetricsForwarder) {
+			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
 				f.On("delegatedSendDeploymentEvent", "Agent", "deleted")
 				f.On("delegatedSendDeploymentEvent", "Cluster Agent", "deleted")
 				f.On("delegatedSendDeploymentEvent", "Cluster Check Runner", "deleted")
-				return &MetricsForwarder{
+				return &metricsForwarder{
 					delegator: f,
 					componentEnabled: map[string]bool{
 						"agent":              true,
@@ -887,7 +888,7 @@ func TestMetricsForwarder_sendStatusEvents(t *testing.T) {
 			},
 			status:  &datadoghqv1alpha1.DatadogAgentDeploymentStatus{},
 			wantErr: false,
-			wantFunc: func(dd *MetricsForwarder, f *fakeMetricsForwarder) error {
+			wantFunc: func(dd *metricsForwarder, f *fakeMetricsForwarder) error {
 				if !f.AssertCalled(t, "delegatedSendDeploymentEvent", "Agent", "deleted") {
 					return errors.New("Function not called")
 				}
@@ -917,10 +918,10 @@ func TestMetricsForwarder_sendStatusEvents(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			dd, f := tt.loadFunc()
 			if err := dd.sendStatusEvents(tt.status); (err != nil) != tt.wantErr {
-				t.Errorf("MetricsForwarder.sendStatusEvents() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("metricsForwarder.sendStatusEvents() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if err := tt.wantFunc(dd, f); err != nil {
-				t.Errorf("MetricsForwarder.sendStatusEvents() wantFunc validation error: %v", err)
+				t.Errorf("metricsForwarder.sendStatusEvents() wantFunc validation error: %v", err)
 			}
 		})
 	}
