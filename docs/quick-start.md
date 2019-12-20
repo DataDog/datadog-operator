@@ -237,6 +237,46 @@ $ kubectl create cm -n $DD_NAMESPACE checksd-config $(find ./checks.d -name "*.p
 configmap/checksd-config created
 ```
 
+## Providing additional volumes
+
+Additional user-configured volumes can be to be mounted in either node agent or cluster agent containers by setting the `volumes` and `volumeMounts` properties.
+
+Example of using a volume to mount a secret:
+
+```yaml
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentDeployment
+metadata:
+  name: datadog-agent
+spec:
+  credentials:
+    apiKey: <paste-your-api-key-here>
+  agent:
+    image:
+      name: 'datadog/agent:latest'
+    # ...
+    volumes:
+      - name: secrets
+        secret:
+          secretName: secrets
+    volumeMounts:
+      - name: secrets
+        mountPath: /etc/secrets
+        readOnly: true
+
+  clusterAgent:
+    enabled: true
+    # ...
+    volumes:
+      - name: secrets
+        secret:
+          secretName: secrets
+    volumeMounts:
+      - name: secrets
+        mountPath: /etc/secrets
+        readOnly: true
+```
+
 ## Cleanup
 
 The following command will delete all the Kubernetes resources created by the Datadog Operator and the linked `DatadogAgentDeployment` `datadog-agent`.
