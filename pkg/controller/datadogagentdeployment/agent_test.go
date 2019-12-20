@@ -316,6 +316,102 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 		},
 	}
 
+	customConfigMapCustomDatadogYaml := test.NewDefaultedDatadogAgentDeployment("bar", "foo", &test.NewDatadogAgentDeploymentOptions{UseEDS: true, ClusterAgentEnabled: true, CustomConfig: "foo: bar\nbar: foo"})
+	customConfigMapCustomDatadogYamlSpec := defaultPodSpec.DeepCopy()
+	customConfigMapCustomDatadogYamlSpec.Volumes = []corev1.Volume{
+		{
+			Name: datadoghqv1alpha1.ConfdVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.ChecksdVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.ConfigVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.ProcVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/proc",
+				},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.CgroupsVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/sys/fs/cgroup",
+				},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.AgentCustomConfigVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: "foo-datadog-yaml",
+					},
+				},
+			},
+		},
+		{
+			Name: "runtimesocket",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/var/run/docker.sock",
+				},
+			},
+		},
+	}
+	customConfigMapCustomDatadogYamlSpec.Containers[0].VolumeMounts = []corev1.VolumeMount{
+		{
+			Name:      "confd",
+			MountPath: "/conf.d",
+			ReadOnly:  true,
+		},
+		{
+			Name:      "checksd",
+			MountPath: "/checks.d",
+			ReadOnly:  true,
+		},
+		{
+			Name:      "config",
+			MountPath: "/etc/datadog-agent",
+		},
+		{
+			Name:      "procdir",
+			MountPath: "/host/proc",
+			ReadOnly:  true,
+		},
+		{
+			Name:      "cgroups",
+			MountPath: "/host/sys/fs/cgroup",
+			ReadOnly:  true,
+		},
+		{
+			Name:      "custom-datadog-yaml",
+			MountPath: "/etc/datadog-agent/datadog.yaml",
+			SubPath:   "datadog.yaml",
+			ReadOnly:  true,
+		},
+		{
+			Name:      "runtimesocket",
+			MountPath: "/var/run/docker.sock",
+			ReadOnly:  true,
+		},
+	}
+	customConfigMapCustomDatadogYamlSpec.InitContainers[1].VolumeMounts = customConfigMapCustomDatadogYamlSpec.Containers[0].VolumeMounts
+	customConfigMagCustomDatadogYamlHash, _ := comparison.GenerateMD5ForSpec(customConfigMapCustomDatadogYaml.Spec)
+
 	customConfigMapAgentDeployment := test.NewDefaultedDatadogAgentDeployment("bar", "foo", &test.NewDatadogAgentDeploymentOptions{
 		UseEDS:              true,
 		ClusterAgentEnabled: true,
@@ -525,6 +621,47 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 							},
 						},
 						Spec: *userMountsPodSpec,
+					},
+					Strategy: getDefaultEDSStrategy(),
+				},
+			},
+		},
+		{
+			name:            "with custom config (datadog.yaml)",
+			agentdeployment: customConfigMapCustomDatadogYaml,
+			wantErr:         false,
+			want: &edsdatadoghqv1alpha1.ExtendedDaemonSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "bar",
+					Name:      "foo",
+					Labels: map[string]string{
+						"agentdeployment.datadoghq.com/name":      "foo",
+						"agentdeployment.datadoghq.com/component": "agent",
+						"app.kubernetes.io/instance":              "agent",
+						"app.kubernetes.io/managed-by":            "datadog-operator",
+						"app.kubernetes.io/name":                  "datadog-agent-deployment",
+						"app.kubernetes.io/part-of":               "foo",
+						"app.kubernetes.io/version":               "",
+					},
+					Annotations: map[string]string{"agentdeployment.datadoghq.com/agentspechash": customConfigMagCustomDatadogYamlHash},
+				},
+				Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							GenerateName: "foo",
+							Namespace:    "bar",
+							Labels: map[string]string{
+								"agentdeployment.datadoghq.com/name":      "foo",
+								"agentdeployment.datadoghq.com/component": "agent",
+								"app.kubernetes.io/instance":              "agent",
+								"app.kubernetes.io/managed-by":            "datadog-operator",
+								"app.kubernetes.io/name":                  "datadog-agent-deployment",
+								"app.kubernetes.io/part-of":               "foo",
+								"app.kubernetes.io/version":               "",
+							},
+							Annotations: make(map[string]string),
+						},
+						Spec: *customConfigMapCustomDatadogYamlSpec,
 					},
 					Strategy: getDefaultEDSStrategy(),
 				},

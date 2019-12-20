@@ -156,8 +156,8 @@ func cleanupService(client client.Client, name, namespace string) (reconcile.Res
 
 func (r *ReconcileDatadogAgentDeployment) updateIfNeededService(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment, currentService, newService *corev1.Service, newStatus *datadoghqv1alpha1.DatadogAgentDeploymentStatus) (reconcile.Result, error) {
 	result := reconcile.Result{}
-	hash := newService.Annotations[string(datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey)]
-	if !comparison.CompareSpecMD5Hash(hash, currentService.GetAnnotations()) {
+	hash := newService.Annotations[datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey]
+	if !comparison.IsSameSpecMD5Hash(hash, currentService.GetAnnotations()) {
 
 		updatedService := currentService.DeepCopy()
 		updatedService.Labels = newService.Labels

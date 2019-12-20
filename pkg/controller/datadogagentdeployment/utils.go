@@ -57,12 +57,13 @@ func newAgentPodTemplate(logger logr.Logger, agentdeployment *datadoghqv1alpha1.
 	containers = append(containers, *agentContainer)
 
 	if isAPMEnabled(agentdeployment) {
-		var container *corev1.Container
-		container, err = getAPMAgentContainer(agentdeployment)
+		var apmContainers []corev1.Container
+
+		apmContainers, err = getAPMAgentContainers(agentdeployment)
 		if err != nil {
 			return nil, err
 		}
-		containers = append(containers, *container)
+		containers = append(containers, apmContainers...)
 	}
 	if isProcessEnabled(agentdeployment) {
 		var processContainers []corev1.Container
@@ -72,6 +73,15 @@ func newAgentPodTemplate(logger logr.Logger, agentdeployment *datadoghqv1alpha1.
 			return nil, err
 		}
 		containers = append(containers, processContainers...)
+	}
+	if isSystemProbeEnabled(agentdeployment) {
+		var systemProbeContainers []corev1.Container
+
+		systemProbeContainers, err = getSystemProbeContainers(agentdeployment)
+		if err != nil {
+			return nil, err
+		}
+		containers = append(containers, systemProbeContainers...)
 	}
 
 	var initContainers []corev1.Container
@@ -148,7 +158,7 @@ func getAgentContainer(dad *datadoghqv1alpha1.DatadogAgentDeployment) (*corev1.C
 	return agentContainer, nil
 }
 
-func getAPMAgentContainer(dad *datadoghqv1alpha1.DatadogAgentDeployment) (*corev1.Container, error) {
+func getAPMAgentContainers(dad *datadoghqv1alpha1.DatadogAgentDeployment) ([]corev1.Container, error) {
 	agentSpec := dad.Spec.Agent
 	envVars, err := getEnvVarsForAPMAgent(dad)
 	if err != nil {
@@ -163,7 +173,7 @@ func getAPMAgentContainer(dad *datadoghqv1alpha1.DatadogAgentDeployment) (*corev
 		tcpPort.HostPort = *agentSpec.Apm.HostPort
 	}
 
-	apmContainer := &corev1.Container{
+	apmContainer := corev1.Container{
 		Name:            "trace-agent",
 		Image:           agentSpec.Image.Name,
 		ImagePullPolicy: *agentSpec.Image.PullPolicy,
@@ -188,7 +198,7 @@ func getAPMAgentContainer(dad *datadoghqv1alpha1.DatadogAgentDeployment) (*corev
 		apmContainer.Resources = *agentSpec.Apm.Resources
 	}
 
-	return apmContainer, nil
+	return []corev1.Container{apmContainer}, nil
 }
 
 func getProcessContainers(dad *datadoghqv1alpha1.DatadogAgentDeployment) ([]corev1.Container, error) {
@@ -197,8 +207,6 @@ func getProcessContainers(dad *datadoghqv1alpha1.DatadogAgentDeployment) ([]core
 	if err != nil {
 		return nil, err
 	}
-
-	containers := []corev1.Container{}
 
 	process := corev1.Container{
 		Name:            "process-agent",
@@ -215,37 +223,37 @@ func getProcessContainers(dad *datadoghqv1alpha1.DatadogAgentDeployment) ([]core
 	if agentSpec.Process.Resources != nil {
 		process.Resources = *agentSpec.Process.Resources
 	}
-	containers = append(containers, process)
-	if isSystemProbeEnabled(dad) {
-		var systemProbeEnvVars []corev1.EnvVar
-		systemProbeEnvVars, err = getEnvVarsForSystemProbe(dad)
-		if err != nil {
-			return nil, err
-		}
-		systemProbe := corev1.Container{
-			Name:            "system-probe",
-			Image:           agentSpec.Image.Name,
-			ImagePullPolicy: *agentSpec.Image.PullPolicy,
-			Command: []string{
-				"/opt/datadog-agent/embedded/bin/system-probe",
-				fmt.Sprintf("-config=%s/system-probe.yaml", datadoghqv1alpha1.SystemProbeConfigVolumePath),
-			},
-			SecurityContext: &corev1.SecurityContext{
-				Capabilities: &corev1.Capabilities{
-					Add: []corev1.Capability{"SYS_ADMIN", "SYS_RESOURCE", "SYS_PTRACE", "NET_ADMIN", "IPC_LOCK"},
-				},
-			},
-			Env:          systemProbeEnvVars,
-			VolumeMounts: getVolumeMountsForSystemProbe(&dad.Spec),
-		}
-		if agentSpec.SystemProbe.Resources != nil {
-			systemProbe.Resources = *agentSpec.SystemProbe.Resources
 
-		}
-		containers = append(containers, systemProbe)
+	return []corev1.Container{process}, nil
+}
+
+func getSystemProbeContainers(dad *datadoghqv1alpha1.DatadogAgentDeployment) ([]corev1.Container, error) {
+	agentSpec := dad.Spec.Agent
+	systemProbeEnvVars, err := getEnvVarsForSystemProbe(dad)
+	if err != nil {
+		return nil, err
+	}
+	systemProbe := corev1.Container{
+		Name:            "system-probe",
+		Image:           agentSpec.Image.Name,
+		ImagePullPolicy: *agentSpec.Image.PullPolicy,
+		Command: []string{
+			"/opt/datadog-agent/embedded/bin/system-probe",
+			fmt.Sprintf("-config=%s", datadoghqv1alpha1.SystemProbeConfigVolumePath),
+		},
+		SecurityContext: &corev1.SecurityContext{
+			Capabilities: &corev1.Capabilities{
+				Add: []corev1.Capability{"SYS_ADMIN", "SYS_RESOURCE", "SYS_PTRACE", "NET_ADMIN", "IPC_LOCK"},
+			},
+		},
+		Env:          systemProbeEnvVars,
+		VolumeMounts: getVolumeMountsForSystemProbe(&dad.Spec),
+	}
+	if agentSpec.SystemProbe.Resources != nil {
+		systemProbe.Resources = *agentSpec.SystemProbe.Resources
 	}
 
-	return containers, nil
+	return []corev1.Container{systemProbe}, nil
 }
 
 func getInitContainers(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment) ([]corev1.Container, error) {
@@ -359,8 +367,7 @@ func getEnvVarsForSystemProbe(dad *datadoghqv1alpha1.DatadogAgentDeployment) ([]
 	return envVars, nil
 }
 
-func getEnvVarsCommon(dad *datadoghqv1alpha1.DatadogAgentDeployment, needAPIKey bool) ([]corev1.EnvVar, error) {
-
+func getEnvVarsCommon(dad *datadoghqv1alpha1.DatadogAgentDeployment, needApiKey bool) ([]corev1.EnvVar, error) {
 	envVars := []corev1.EnvVar{
 		{
 			Name:  datadoghqv1alpha1.DDLogLevel,
@@ -388,7 +395,7 @@ func getEnvVarsCommon(dad *datadoghqv1alpha1.DatadogAgentDeployment, needAPIKey 
 		},
 	}
 
-	if needAPIKey {
+	if needApiKey {
 		var apiKeyEnvVar corev1.EnvVar
 		if dad.Spec.Credentials.APIKeyExistingSecret != "" {
 			apiKeyEnvVar = corev1.EnvVar{
@@ -568,6 +575,19 @@ func getVolumesForAgent(dad *datadoghqv1alpha1.DatadogAgentDeployment) []corev1.
 			},
 		},
 	}
+	if dad.Spec.Agent.CustomConfig != "" {
+		customConfigVolumeSource := corev1.Volume{
+			Name: datadoghqv1alpha1.AgentCustomConfigVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: getAgentCustomConfigConfigMapName(dad),
+					},
+				},
+			},
+		}
+		volumes = append(volumes, customConfigVolumeSource)
+	}
 	if dad.Spec.Agent.Config.CriSocket != nil && dad.Spec.Agent.Config.CriSocket.UseCriSocketVolume != nil && *dad.Spec.Agent.Config.CriSocket.UseCriSocketVolume {
 		path := "/var/run/docker.sock"
 		if dad.Spec.Agent.Config.CriSocket.CriSocketPath != nil {
@@ -691,6 +711,16 @@ func getVolumeMountsForAgent(spec *datadoghqv1alpha1.DatadogAgentDeploymentSpec)
 		},
 	}
 
+	// Custom config (datadog.yaml) volume
+	if spec.Agent.CustomConfig != "" {
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      datadoghqv1alpha1.AgentCustomConfigVolumeName,
+			MountPath: datadoghqv1alpha1.AgentCustomConfigVolumePath,
+			SubPath:   datadoghqv1alpha1.AgentCustomConfigVolumeSubPath,
+			ReadOnly:  true,
+		})
+	}
+
 	// Cri socket volume
 	if *spec.Agent.Config.CriSocket.UseCriSocketVolume {
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
@@ -786,6 +816,7 @@ func getVolumeMountsForSystemProbe(spec *datadoghqv1alpha1.DatadogAgentDeploymen
 		{
 			Name:      datadoghqv1alpha1.SystemProbeConfigVolumeName,
 			MountPath: datadoghqv1alpha1.SystemProbeConfigVolumePath,
+			SubPath:   datadoghqv1alpha1.SystemProbeConfigVolumeSubPath,
 		},
 		{
 			Name:      datadoghqv1alpha1.SystemProbeSocketVolumeName,

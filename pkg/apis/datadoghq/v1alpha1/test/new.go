@@ -45,6 +45,7 @@ type NewDatadogAgentDeploymentOptions struct {
 	VolumeMounts               []corev1.VolumeMount
 	ClusterAgentVolumes        []corev1.Volume
 	ClusterAgentVolumeMounts   []corev1.VolumeMount
+	CustomConfig               string
 }
 
 // NewDefaultedDatadogAgentDeployment returns an initialized and defaulted DatadogAgentDeployment for testing purpose
@@ -152,6 +153,10 @@ func NewDefaultedDatadogAgentDeployment(ns, name string, options *NewDatadogAgen
 
 		if options.Checksd != nil {
 			ad.Spec.Agent.Checksd = options.Checksd
+		}
+
+		if options.CustomConfig != "" {
+			ad.Spec.Agent.CustomConfig = options.CustomConfig
 		}
 	}
 	return datadoghqv1alpha1.DefaultDatadogAgentDeployment(ad)

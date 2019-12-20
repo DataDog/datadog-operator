@@ -16,22 +16,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
-	edsdatadoghqv1alpha1 "github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1"
 )
 
-// IsExtendedDaemonSetUpToDate returns true if the ExtendedDaemonSet is up to date with the DatadogAgentDeployment agent config spec.
-func IsExtendedDaemonSetUpToDate(eds *edsdatadoghqv1alpha1.ExtendedDaemonSet, agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment) bool {
-	hash, err := GenerateMD5ForSpec(agentdeployment.Spec.Agent)
-	if err != nil {
-		return false
-	}
-
-	return CompareSpecMD5Hash(hash, eds.Annotations)
-}
-
 // CompareSpecMD5Hash used to compare a md5 hash with the one set in annotations
-func CompareSpecMD5Hash(hash string, annotations map[string]string) bool {
-	if val, ok := annotations[string(datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey)]; ok && val == hash {
+func IsSameSpecMD5Hash(hash string, annotations map[string]string) bool {
+	if val, ok := annotations[datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey]; ok && val == hash {
 		return true
 	}
 	return false
@@ -52,20 +41,6 @@ func GenerateMD5ForSpec(spec interface{}) (string, error) {
 	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
-// SetMD5AgentSpecAnnotation used to set the md5 annotation key/value from the DatadogAgentDeployment.Spec.Agent
-func SetMD5AgentSpecAnnotation(meta *metav1.ObjectMeta, agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment) (string, error) {
-	hash, err := GenerateMD5ForSpec(agentdeployment.Spec)
-	if err != nil {
-		return "", fmt.Errorf("unable to generate the Agent spec MD5, %v", err)
-	}
-
-	if meta.Annotations == nil {
-		meta.SetAnnotations(map[string]string{})
-	}
-	meta.Annotations[string(datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey)] = hash
-	return hash, nil
-}
-
 // SetMD5GenerationAnnotation is used to set the md5 annotation key/value from spec
 func SetMD5GenerationAnnotation(obj *metav1.ObjectMeta, spec interface{}) (string, error) {
 	hash, err := GenerateMD5ForSpec(spec)
@@ -76,6 +51,6 @@ func SetMD5GenerationAnnotation(obj *metav1.ObjectMeta, spec interface{}) (strin
 	if obj.Annotations == nil {
 		obj.SetAnnotations(map[string]string{})
 	}
-	obj.Annotations[string(datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey)] = hash
+	obj.Annotations[datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey] = hash
 	return hash, nil
 }
