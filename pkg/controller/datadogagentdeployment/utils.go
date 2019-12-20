@@ -638,6 +638,8 @@ func getVolumesForAgent(dad *datadoghqv1alpha1.DatadogAgentDeployment) []corev1.
 
 		volumes = append(volumes, systemProbeVolumes...)
 	}
+
+	volumes = append(volumes, dad.Spec.Agent.Config.Volumes...)
 	return volumes
 }
 

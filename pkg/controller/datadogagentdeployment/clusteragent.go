@@ -268,11 +268,13 @@ func newClusterAgentPodTemplate(logger logr.Logger, agentdeployment *datadoghqv1
 							Protocol:      "TCP",
 						},
 					},
-					Env: getEnvVarsForClusterAgent(logger, agentdeployment),
+					Env:          getEnvVarsForClusterAgent(logger, agentdeployment),
+					VolumeMounts: agentdeployment.Spec.ClusterAgent.Config.VolumeMounts,
 				},
 			},
 			Affinity:    getPodAffinity(clusterAgentSpec.Affinity, getClusterAgentName(agentdeployment)),
 			Tolerations: clusterAgentSpec.Tolerations,
+			Volumes:     agentdeployment.Spec.ClusterAgent.Config.Volumes,
 		},
 	}
 
