@@ -346,10 +346,15 @@ type NodeAgentConfig struct {
 	// +listType=set
 	Env []corev1.EnvVar `json:"env,omitempty"`
 
-	// Specify additional volumes to mount in the Datadog Agent container
+	// Specify additional volume mounts in the Datadog Agent container
 	// +optional
 	// +listType=set
 	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
+
+	// Specify additional volumes in the Datadog Agent container
+	// +optional
+	// +listType=set
+	Volumes []corev1.Volume `json:"volumes,omitempty"`
 
 	// Datadog Agent resource requests and limits
 	// Make sure to keep requests and limits equal to keep the pods in the Guaranteed QoS class
@@ -442,6 +447,16 @@ type ClusterAgentConfig struct {
 
 	// Datadog cluster-agent resource requests and limits
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
+
+	// Specify additional volume mounts in the Datadog Cluster Agent container
+	// +optional
+	// +listType=set
+	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
+
+	// Specify additional volumes in the Datadog Cluster Agent container
+	// +optional
+	// +listType=set
+	Volumes []corev1.Volume `json:"volumes,omitempty"`
 }
 
 // ClusterChecksRunnerConfig contains the configuration of the Cluster Checks Runner

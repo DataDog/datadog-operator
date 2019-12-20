@@ -16,6 +16,7 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
 	test "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1/test"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+	"github.com/google/go-cmp/cmp"
 	assert "github.com/stretchr/testify/require"
 
 	edsdatadoghqv1alpha1 "github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1"
@@ -1739,6 +1740,38 @@ func Test_newClusterAgentDeploymentFromInstance(t *testing.T) {
 		},
 	}
 
+	userVolumes := []corev1.Volume{
+		{
+			Name: "tmp",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/tmp",
+				},
+			},
+		},
+	}
+	userVolumeMounts := []corev1.VolumeMount{
+		{
+			Name:      "tmp",
+			MountPath: "/some/path",
+			ReadOnly:  true,
+		},
+	}
+	userMountsPodSpec := defaultPodSpec.DeepCopy()
+	userMountsPodSpec.Volumes = append(userMountsPodSpec.Volumes, userVolumes...)
+	userMountsPodSpec.Containers[0].VolumeMounts = append(userMountsPodSpec.Containers[0].VolumeMounts, userVolumeMounts...)
+
+	userMountsAgentDeployment := test.NewDefaultedDatadogAgentDeployment(
+		"bar",
+		"foo",
+		&test.NewDatadogAgentDeploymentOptions{
+			ClusterAgentEnabled:      true,
+			ClusterAgentVolumes:      userVolumes,
+			ClusterAgentVolumeMounts: userVolumeMounts,
+		},
+	)
+	userMountsClusterAgentHash, _ := comparison.GenerateMD5ForSpec(userMountsAgentDeployment.Spec.ClusterAgent)
+
 	tests := []struct {
 		name            string
 		agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment
@@ -1837,6 +1870,50 @@ func Test_newClusterAgentDeploymentFromInstance(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:            "with user volumes and mounts",
+			agentdeployment: userMountsAgentDeployment,
+			newStatus:       &datadoghqv1alpha1.DatadogAgentDeploymentStatus{},
+			wantErr:         false,
+			want: &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "bar",
+					Name:      "foo-cluster-agent",
+					Labels: map[string]string{"agentdeployment.datadoghq.com/name": "foo",
+						"agentdeployment.datadoghq.com/component": "cluster-agent",
+						"app.kubernetes.io/instance":              "cluster-agent",
+						"app.kubernetes.io/managed-by":            "datadog-operator",
+						"app.kubernetes.io/name":                  "datadog-agent-deployment",
+						"app.kubernetes.io/part-of":               "foo",
+						"app.kubernetes.io/version":               "",
+					},
+					Annotations: map[string]string{"agentdeployment.datadoghq.com/agentspechash": userMountsClusterAgentHash},
+				},
+				Spec: appsv1.DeploymentSpec{
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{
+								"agentdeployment.datadoghq.com/name":      "foo",
+								"agentdeployment.datadoghq.com/component": "cluster-agent",
+								"app.kubernetes.io/instance":              "cluster-agent",
+								"app.kubernetes.io/managed-by":            "datadog-operator",
+								"app.kubernetes.io/name":                  "datadog-agent-deployment",
+								"app.kubernetes.io/part-of":               "foo",
+								"app.kubernetes.io/version":               "",
+							},
+						},
+						Spec: *userMountsPodSpec,
+					},
+					Replicas: &replicas,
+					Selector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"agentdeployment.datadoghq.com/name":      "foo",
+							"agentdeployment.datadoghq.com/component": "cluster-agent",
+						},
+					},
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1847,7 +1924,8 @@ func Test_newClusterAgentDeploymentFromInstance(t *testing.T) {
 			} else {
 				assert.NoError(t, err, "newClusterAgentDeploymentFromInstance() unexpected error: %v", err)
 			}
-			assert.True(t, apiequality.Semantic.DeepEqual(got, tt.want), "newClusterAgentDeploymentFromInstance() = %#v, want %#v", got, tt.want)
+			assert.True(t, apiequality.Semantic.DeepEqual(got, tt.want), "newClusterAgentDeploymentFromInstance() = %#v, want %#v\ndiff = %s", got, tt.want,
+				cmp.Diff(got, tt.want))
 		})
 	}
 }
