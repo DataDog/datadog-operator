@@ -355,7 +355,7 @@ func getEnvVarsForSystemProbe(dad *datadoghqv1alpha1.DatadogAgentDeployment) ([]
 	return envVars, nil
 }
 
-func getEnvVarsCommon(dad *datadoghqv1alpha1.DatadogAgentDeployment, needApiKey bool) ([]corev1.EnvVar, error) {
+func getEnvVarsCommon(dad *datadoghqv1alpha1.DatadogAgentDeployment, needAPIKey bool) ([]corev1.EnvVar, error) {
 
 	envVars := []corev1.EnvVar{
 		{
@@ -384,7 +384,7 @@ func getEnvVarsCommon(dad *datadoghqv1alpha1.DatadogAgentDeployment, needApiKey 
 		},
 	}
 
-	if needApiKey {
+	if needAPIKey {
 		var apiKeyEnvVar corev1.EnvVar
 		if dad.Spec.Credentials.APIKeyExistingSecret != "" {
 			apiKeyEnvVar = corev1.EnvVar{
