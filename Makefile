@@ -18,6 +18,7 @@ GIT_COMMIT?=$(shell git rev-parse HEAD)
 DATE=$(shell date +%Y-%m-%d/%H:%M:%S )
 GOMOD?="-mod=vendor"
 LDFLAGS= -ldflags "-w -X ${BUILDINFOPKG}.Tag=${TAG} -X ${BUILDINFOPKG}.Commit=${GIT_COMMIT} -X ${BUILDINFOPKG}.Version=${VERSION} -X ${BUILDINFOPKG}.BuildTime=${DATE} -s"
+KIND_CLUSTER_NAME="kind"
 
 export GO111MODULE=on
 
@@ -37,7 +38,7 @@ ${ARTIFACT}: ${SOURCES}
 container:
 	./bin/operator-sdk build $(PREFIX):$(TAG)
     ifeq ($(KINDPUSH), true)
-	 kind load docker-image $(PREFIX):$(TAG)
+	 kind load docker-image --name $(KIND_CLUSTER_NAME) $(PREFIX):$(TAG)
     endif
 
 container-ci:

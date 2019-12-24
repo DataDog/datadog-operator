@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"hash/fnv"
+	"sync"
 	"time"
 
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -21,7 +22,6 @@ import (
 	api "github.com/zorkian/go-datadog-api"
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -40,11 +40,8 @@ const (
 	crNsTagFormat               = "cr_namespace:%s"
 	crNameTagFormat             = "cr_name:%s"
 	agentName                   = "agent"
-	agentEventName              = "Agent"
 	clusteragentName            = "clusteragent"
-	clusteragentEventName       = "Cluster Agent"
 	clustercheckrunnerName      = "clustercheckrunner"
-	clustercheckrunnerEventName = "Cluster Check Runner"
 )
 
 var (
@@ -52,12 +49,6 @@ var (
 	ErrEmptyAPIKey = errors.New("empty api key")
 	// ErrEmptyAPPKey empty APPKey error
 	ErrEmptyAPPKey = errors.New("empty app key")
-)
-
-var (
-	datadogOperatorSourceType  = "datadog_operator"
-	deploymentCreatedEventType = "created"
-	deploymentDeletedEventType = "deleted"
 )
 
 // metricsForwarder sends metrics directly to Datadog using the public API
@@ -72,7 +63,6 @@ type metricsForwarder struct {
 	metricsPrefix       string
 	globalTags          []string
 	tags                []string
-	componentEnabled    map[string]bool
 	stopChan            chan struct{}
 	namespacedName      types.NamespacedName
 	logger              logr.Logger
@@ -82,7 +72,6 @@ type metricsForwarder struct {
 // delegatedAPI is used for testing purpose, it serves for mocking the Datadog API
 type delegatedAPI interface {
 	delegatedSendDeploymentMetric(float64, string, []string) error
-	delegatedSendDeploymentEvent(string, string) error
 	delegatedValidateCreds(string, string) (*api.Client, error)
 }
 
@@ -97,18 +86,15 @@ func newMetricsForwarder(k8sClient client.Client, namespacedName types.Namespace
 		metricsPrefix:       defaultMetricsNamespace,
 		stopChan:            make(chan struct{}),
 		logger:              log.WithValues("CustomResource.Namespace", namespacedName.Namespace, "CustomResource.Name", namespacedName.Name),
-		componentEnabled: map[string]bool{
-			agentName:              false,
-			clusteragentName:       false,
-			clustercheckrunnerName: false,
-		},
 	}
 }
 
 // start establishes a connection with the Datadog API
 // it starts sending deployment metrics once the connection is validated
 // designed to run a separate goroutine and stopped using the stop method
-func (mf *metricsForwarder) start() {
+func (mf *metricsForwarder) start(wg *sync.WaitGroup) {
+	defer wg.Done()
+
 	mf.logger.Info("Starting Datadog metrics forwarder")
 
 	// Global tags need to be set only once
@@ -126,25 +112,21 @@ func (mf *metricsForwarder) start() {
 
 	mf.logger.Info("Datadog metrics forwarder initilized successfully")
 
-	if err := mf.sendStartupEvent(); err != nil {
-		mf.logger.Error(err, "cannot send operator startup event")
-	}
-
 	metricsTicker := time.NewTicker(mf.sendMetricsInterval)
 	defer metricsTicker.Stop()
 	for {
 		select {
 		case <-mf.stopChan:
-			// The metrics forwarder stopped by the ForwardersManager
+			// The metrics forwarder is stopped by the ForwardersManager
+			// forward metrics and return
+			if err := mf.forwardMetrics(); err != nil {
+				mf.logger.Error(err, "an error occured while sending metrics")
+			}
 			mf.logger.Info("Shutting down Datadog metrics forwarder")
 			return
 		case <-metricsTicker.C:
 			if err := mf.forwardMetrics(); err != nil {
-				if apierrors.IsConflict(err) {
-					mf.logger.Info("Unable to update CR status due to update conflict")
-				} else {
-					mf.logger.Error(err, "an error occured while sending metrics or updating CR status")
-				}
+				mf.logger.Error(err, "an error occured while sending metrics")
 			}
 		}
 	}
@@ -211,7 +193,7 @@ func (mf *metricsForwarder) forwardMetrics() error {
 		}
 		return err
 	}
-	mf.logger.Info("Collecting metrics and events")
+	mf.logger.Info("Collecting metrics")
 	mf.updateTags(dad)
 	status := dad.Status.DeepCopy()
 	if err := mf.sendStatusMetrics(status); err != nil {
@@ -221,30 +203,7 @@ func (mf *metricsForwarder) forwardMetrics() error {
 		}
 		return err
 	}
-	if err := mf.sendStatusEvents(status); err != nil {
-		mf.logger.Error(err, "cannot send events to Datadog")
-		if err = mf.updateStatusIfNeeded(dad, err); err != nil {
-			mf.logger.Error(err, "cannot update DatadogAgentDeployment status")
-		}
-		return err
-	}
 	return mf.updateStatusIfNeeded(dad, err)
-}
-
-// sendStartupEvent posts the operator startup event
-// it must be called only once, when the operator starts
-func (mf *metricsForwarder) sendStartupEvent() error {
-	event := &api.Event{
-		Time:       api.Int(int(time.Now().Unix())),
-		Title:      api.String(fmt.Sprintf("New Datadog Operator Custom Resource - %s", mf.id)),
-		EventType:  api.String("Custom Resource Creation"),
-		SourceType: api.String(datadogOperatorSourceType),
-		Tags:       mf.globalTags,
-	}
-	if _, err := mf.datadogClient.PostEvent(event); err != nil {
-		return err
-	}
-	return nil
 }
 
 // initAPIClient initializes and validates the Datadog API client
@@ -342,64 +301,9 @@ func (mf *metricsForwarder) tagsWithState(state string) []string {
 	return append(mf.globalTags, append(mf.tags, fmt.Sprintf(stateTagFormat, state))...)
 }
 
-// sendStatusEvents forwards events for each component deployment (agent, clusteragent, clustercheck runner)
-// based on the status of DatadogAgentDeployment
-func (mf *metricsForwarder) sendStatusEvents(status *datadoghqv1alpha1.DatadogAgentDeploymentStatus) error {
-	if status == nil {
-		return errors.New("nil status")
-	}
-
-	// Agent deployment events
-	if eventType := mf.getDeploymentEventType(status.Agent == nil, agentName); eventType != nil {
-		if err := mf.sendDeploymentEvent(agentEventName, *eventType); err != nil {
-			return err
-		}
-	}
-
-	// Cluster Agent deployment events
-	if eventType := mf.getDeploymentEventType(status.ClusterAgent == nil, clusteragentName); eventType != nil {
-		if err := mf.sendDeploymentEvent(clusteragentEventName, *eventType); err != nil {
-			return err
-		}
-	}
-
-	// Cluster Check Runner deployment events
-	if eventType := mf.getDeploymentEventType(status.ClusterChecksRunner == nil, clustercheckrunnerName); eventType != nil {
-		if err := mf.sendDeploymentEvent(clustercheckrunnerEventName, *eventType); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// getDeploymentEventType retrieves the deployment event type based on the status and the last recorded state of a component
-// it could be shared between the different components (agent, cluster agent, cluster check runner)
-// it returns nil if no event has been detected
-func (mf *metricsForwarder) getDeploymentEventType(isComponentNil bool, componentName string) *string {
-	if !isComponentNil && !mf.componentEnabled[componentName] {
-		// The component is enabled (not nil) and wasn't enabled before
-		// Creation event detected
-		mf.componentEnabled[componentName] = true
-		return &deploymentCreatedEventType
-	}
-	if isComponentNil && mf.componentEnabled[componentName] {
-		// The component is disabled (nil) and was enabled before
-		// Deletion event detected
-		mf.componentEnabled[componentName] = false
-		return &deploymentDeletedEventType
-	}
-	return nil
-}
-
 // sendDeploymentMetric is a generic method used to forward component deployment metrics to Datadog
 func (mf *metricsForwarder) sendDeploymentMetric(metricValue float64, component string, tags []string) error {
 	return mf.delegator.delegatedSendDeploymentMetric(metricValue, component, tags)
-}
-
-// sendDeploymentEvent is a generic method used to forward component deployment events to Datadog
-func (mf *metricsForwarder) sendDeploymentEvent(component, eventType string) error {
-	return mf.delegator.delegatedSendDeploymentEvent(component, eventType)
 }
 
 // delegatedSendDeploymentMetric is separated from sendDeploymentMetric to facilitate mocking the Datadog API
@@ -420,21 +324,6 @@ func (mf *metricsForwarder) delegatedSendDeploymentMetric(metricValue float64, c
 		},
 	}
 	return mf.datadogClient.PostMetrics(serie)
-}
-
-// delegatedSendDeploymentEvent is separated from sendDeploymentEvent to facilitate mocking the Datadog API
-func (mf *metricsForwarder) delegatedSendDeploymentEvent(component, eventType string) error {
-	event := &api.Event{
-		Time:       api.Int(int(time.Now().Unix())),
-		Title:      api.String(fmt.Sprintf("%s deployment %s", component, eventType)),
-		EventType:  api.String(eventType),
-		SourceType: api.String(datadogOperatorSourceType),
-		Tags:       append(mf.globalTags, mf.tags...),
-	}
-	if _, err := mf.datadogClient.PostEvent(event); err != nil {
-		return err
-	}
-	return nil
 }
 
 // updateTags updates tags of the DatadogAgentDeployment
@@ -526,9 +415,9 @@ func (mf *metricsForwarder) updateStatusIfNeeded(dad *datadoghqv1alpha1.DatadogA
 	newStatus := dad.Status.DeepCopy()
 	condition.UpdateDatadogAgentDeploymentStatusConditionsFailure(newStatus, now, datadoghqv1alpha1.ConditionTypeDatadogMetricsError, err)
 	if err == nil {
-		condition.UpdateDatadogAgentDeploymentStatusCondition(newStatus, now, datadoghqv1alpha1.ConditionTypeActiveDatadogMetrics, corev1.ConditionTrue, "Datadog metrics and events forwarding ok", false)
+		condition.UpdateDatadogAgentDeploymentStatusCondition(newStatus, now, datadoghqv1alpha1.ConditionTypeActiveDatadogMetrics, corev1.ConditionTrue, "Datadog metrics forwarding ok", false)
 	} else {
-		condition.UpdateDatadogAgentDeploymentStatusCondition(newStatus, now, datadoghqv1alpha1.ConditionTypeActiveDatadogMetrics, corev1.ConditionFalse, "Datadog metrics and events forwarding error", false)
+		condition.UpdateDatadogAgentDeploymentStatusCondition(newStatus, now, datadoghqv1alpha1.ConditionTypeActiveDatadogMetrics, corev1.ConditionFalse, "Datadog metrics forwarding error", false)
 	}
 	if !apiequality.Semantic.DeepEqual(&dad.Status, newStatus) {
 		updatedDad := dad.DeepCopy()

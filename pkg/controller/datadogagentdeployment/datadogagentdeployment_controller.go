@@ -18,6 +18,7 @@ import (
 	"github.com/spf13/pflag"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1beta1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -198,6 +199,15 @@ func add(mgr manager.Manager, r reconcile.Reconciler, registerFunc func(types.Na
 		return err
 	}
 
+	// Watch for changes to secondary resource PodDisruptionBudget and requeue the owner DatadogAgentDeployment
+	err = c.Watch(&source.Kind{Type: &policyv1.PodDisruptionBudget{}}, &handler.EnqueueRequestForOwner{
+		IsController: true,
+		OwnerType:    &datadoghqv1alpha1.DatadogAgentDeployment{},
+	})
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -216,8 +226,6 @@ type ReconcileDatadogAgentDeployment struct {
 
 // Reconcile reads that state of the cluster for a DatadogAgentDeployment object and makes changes based on the state read
 // and what is in the DatadogAgentDeployment.Spec
-// TODO(user): Modify this Reconcile function to implement your Controller logic.  This example creates
-// a Pod as an example
 // Note:
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.

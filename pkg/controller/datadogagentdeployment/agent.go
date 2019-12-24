@@ -147,7 +147,7 @@ func (r *ReconcileDatadogAgentDeployment) createNewExtendedDaemonSet(logger logr
 	}
 	r.recorder.Event(agentdeployment, corev1.EventTypeNormal, "Create ExtendedDaemonSet", fmt.Sprintf("%s/%s", newEDS.Namespace, newEDS.Name))
 	now := metav1.NewTime(time.Now())
-	updateStatusWithExtendedDaemonset(newEDS, newStatus, &now)
+	newStatus.Agent = updateExtendedDaemonSetStatus(newEDS, newStatus.Agent, &now)
 
 	return reconcile.Result{}, nil
 }
@@ -172,7 +172,7 @@ func (r *ReconcileDatadogAgentDeployment) createNewDaemonSet(logger logr.Logger,
 	}
 	r.recorder.Event(agentdeployment, corev1.EventTypeNormal, "Create DaemonSet", fmt.Sprintf("%s/%s", newDS.Namespace, newDS.Name))
 	now := metav1.NewTime(time.Now())
-	updateStatusWithDaemonset(newDS, newStatus, &now)
+	newStatus.Agent = updateDaemonSetStatus(newDS, newStatus.Agent, &now)
 
 	return reconcile.Result{}, nil
 }
@@ -187,7 +187,7 @@ func (r *ReconcileDatadogAgentDeployment) updateExtendedDaemonSet(logger logr.Lo
 		needUpdate = true
 	}
 
-	updateStatusWithExtendedDaemonset(eds, newStatus, nil)
+	newStatus.Agent = updateExtendedDaemonSetStatus(eds, newStatus.Agent, nil)
 	if !needUpdate {
 		// no update needed so return now
 		return reconcile.Result{}, nil
@@ -214,24 +214,8 @@ func (r *ReconcileDatadogAgentDeployment) updateExtendedDaemonSet(logger logr.Lo
 		return reconcile.Result{}, err
 	}
 	r.recorder.Event(agentdeployment, corev1.EventTypeNormal, "Update ExtendedDaemonSet", fmt.Sprintf("%s/%s", updatedEds.Namespace, updatedEds.Name))
-	updateStatusWithExtendedDaemonset(updatedEds, newStatus, &now)
+	newStatus.Agent = updateExtendedDaemonSetStatus(updatedEds, newStatus.Agent, &now)
 	return reconcile.Result{RequeueAfter: 5 * time.Second}, nil
-}
-
-func updateStatusWithExtendedDaemonset(eds *edsdatadoghqv1alpha1.ExtendedDaemonSet, newStatus *datadoghqv1alpha1.DatadogAgentDeploymentStatus, updateTime *metav1.Time) {
-	if newStatus.Agent == nil {
-		newStatus.Agent = &datadoghqv1alpha1.DatadogAgentDeploymentAgentStatus{}
-	}
-	if updateTime != nil {
-		newStatus.Agent.LastUpdate = updateTime
-	}
-	newStatus.Agent.CurrentHash = getHashAnnotation(eds.Annotations)
-	newStatus.Agent.Desired = eds.Status.Desired
-	newStatus.Agent.Current = eds.Status.Current
-	newStatus.Agent.Ready = eds.Status.Ready
-	newStatus.Agent.Available = eds.Status.Available
-	newStatus.Agent.UpToDate = eds.Status.UpToDate
-	newStatus.Agent.State = datadoghqv1alpha1.DatadogAgentDeploymentAgentState(eds.Status.State)
 }
 
 func getHashAnnotation(annotations map[string]string) string {
@@ -249,7 +233,7 @@ func (r *ReconcileDatadogAgentDeployment) updateDaemonSet(logger logr.Logger, ag
 		needUpdate = true
 	}
 
-	updateStatusWithDaemonset(ds, newStatus, nil)
+	newStatus.Agent = updateDaemonSetStatus(ds, newStatus.Agent, nil)
 	if !needUpdate {
 		// no update needed so return now
 		return reconcile.Result{}, nil
@@ -276,7 +260,7 @@ func (r *ReconcileDatadogAgentDeployment) updateDaemonSet(logger logr.Logger, ag
 		return reconcile.Result{}, err
 	}
 	r.recorder.Event(agentdeployment, corev1.EventTypeNormal, "Update DaemonSet", fmt.Sprintf("%s/%s", updatedDS.Namespace, updatedDS.Name))
-	updateStatusWithDaemonset(updatedDS, newStatus, &now)
+	newStatus.Agent = updateDaemonSetStatus(updatedDS, newStatus.Agent, &now)
 	return reconcile.Result{RequeueAfter: 5 * time.Second}, nil
 }
 
@@ -292,22 +276,6 @@ func (r *ReconcileDatadogAgentDeployment) manageAgentDependencies(logger logr.Lo
 	}
 
 	return reconcile.Result{}, nil
-}
-
-func updateStatusWithDaemonset(ds *appsv1.DaemonSet, newStatus *datadoghqv1alpha1.DatadogAgentDeploymentStatus, updateTime *metav1.Time) {
-	if newStatus.Agent == nil {
-		newStatus.Agent = &datadoghqv1alpha1.DatadogAgentDeploymentAgentStatus{}
-	}
-	if updateTime != nil {
-		newStatus.Agent.LastUpdate = updateTime
-	}
-	newStatus.Agent.CurrentHash = getHashAnnotation(ds.Annotations)
-	newStatus.Agent.Desired = ds.Status.DesiredNumberScheduled
-	newStatus.Agent.Current = ds.Status.CurrentNumberScheduled
-	newStatus.Agent.Ready = ds.Status.NumberReady
-	newStatus.Agent.Available = ds.Status.NumberAvailable
-	newStatus.Agent.UpToDate = ds.Status.UpdatedNumberScheduled
-	newStatus.Agent.State = datadoghqv1alpha1.DatadogAgentDeploymentAgentStateRunning
 }
 
 // newExtendedDaemonSetFromInstance creates an ExtendedDaemonSet from a given DatadogAgentDeployment

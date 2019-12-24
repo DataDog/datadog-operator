@@ -10,7 +10,10 @@ Find the Datadog Operator Helm chart in `/chart/datadog-operator`:
 $ DD_NAMESPACE="datadog"
 $ DD_NAMEOP="ddoperator"
 $ kubectl create ns $DD_NAMESPACE
+$ # Helm v2
 $ helm install --name $DD_NAMEOP -n $DD_NAMESPACE ./chart/datadog-operator
+$ # Helm v3
+$ helm install $DD_NAMEOP -n $DD_NAMESPACE ./chart/datadog-operator
 ```
 
 ## Deploy the Datadog Agents with the operator
@@ -232,6 +235,46 @@ configmap/confd-config created
 
 $ kubectl create cm -n $DD_NAMESPACE checksd-config $(find ./checks.d -name "*.py" | xargs -I'{}' echo -n '--from-file={} ')
 configmap/checksd-config created
+```
+
+## Providing additional volumes
+
+Additional user-configured volumes can be to be mounted in either node agent or cluster agent containers by setting the `volumes` and `volumeMounts` properties.
+
+Example of using a volume to mount a secret:
+
+```yaml
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentDeployment
+metadata:
+  name: datadog-agent
+spec:
+  credentials:
+    apiKey: <paste-your-api-key-here>
+  agent:
+    image:
+      name: 'datadog/agent:latest'
+    # ...
+    volumes:
+      - name: secrets
+        secret:
+          secretName: secrets
+    volumeMounts:
+      - name: secrets
+        mountPath: /etc/secrets
+        readOnly: true
+
+  clusterAgent:
+    enabled: true
+    # ...
+    volumes:
+      - name: secrets
+        secret:
+          secretName: secrets
+    volumeMounts:
+      - name: secrets
+        mountPath: /etc/secrets
+        readOnly: true
 ```
 
 ## Cleanup

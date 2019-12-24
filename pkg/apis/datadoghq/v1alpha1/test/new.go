@@ -41,6 +41,10 @@ type NewDatadogAgentDeploymentOptions struct {
 	ClusterName                *string
 	Confd                      *datadoghqv1alpha1.ConfigDirSpec
 	Checksd                    *datadoghqv1alpha1.ConfigDirSpec
+	Volumes                    []corev1.Volume
+	VolumeMounts               []corev1.VolumeMount
+	ClusterAgentVolumes        []corev1.Volume
+	ClusterAgentVolumeMounts   []corev1.VolumeMount
 }
 
 // NewDefaultedDatadogAgentDeployment returns an initialized and defaulted DatadogAgentDeployment for testing purpose
@@ -51,9 +55,10 @@ func NewDefaultedDatadogAgentDeployment(ns, name string, options *NewDatadogAgen
 			APIVersion: apiVersion,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: ns,
-			Name:      name,
-			Labels:    map[string]string{},
+			Namespace:  ns,
+			Name:       name,
+			Labels:     map[string]string{},
+			Finalizers: []string{"finalizer.agentdeployment.datadoghq.com"},
 		},
 	}
 	ad.Spec = datadoghqv1alpha1.DatadogAgentDeploymentSpec{
@@ -88,6 +93,13 @@ func NewDefaultedDatadogAgentDeployment(ns, name string, options *NewDatadogAgen
 		if options.Status != nil {
 			ad.Status = *options.Status
 		}
+
+		if len(options.Volumes) != 0 {
+			ad.Spec.Agent.Config.Volumes = options.Volumes
+		}
+		if len(options.VolumeMounts) != 0 {
+			ad.Spec.Agent.Config.VolumeMounts = options.VolumeMounts
+		}
 		if options.ClusterAgentEnabled {
 			ad.Spec.ClusterAgent = &datadoghqv1alpha1.DatadogAgentDeploymentSpecClusterAgentSpec{
 				Config: datadoghqv1alpha1.ClusterAgentConfig{},
@@ -100,6 +112,13 @@ func NewDefaultedDatadogAgentDeployment(ns, name string, options *NewDatadogAgen
 			}
 			if options.ClusterChecksRunnerEnabled {
 				ad.Spec.ClusterAgent.Config.ClusterChecksRunnerEnabled = datadoghqv1alpha1.NewBoolPointer(true)
+			}
+
+			if len(options.ClusterAgentVolumes) != 0 {
+				ad.Spec.ClusterAgent.Config.Volumes = options.ClusterAgentVolumes
+			}
+			if len(options.ClusterAgentVolumeMounts) != 0 {
+				ad.Spec.ClusterAgent.Config.VolumeMounts = options.ClusterAgentVolumeMounts
 			}
 		}
 

@@ -18,6 +18,7 @@ import (
 type ForwardersManager struct {
 	forwarders map[string]*metricsForwarder
 	k8sClient  client.Client
+	wg         sync.WaitGroup
 	sync.Mutex
 }
 
@@ -27,6 +28,7 @@ func NewForwardersManager(k8sClient client.Client) *ForwardersManager {
 	return &ForwardersManager{
 		k8sClient:  k8sClient,
 		forwarders: make(map[string]*metricsForwarder),
+		wg:         sync.WaitGroup{},
 	}
 }
 
@@ -45,7 +47,8 @@ func (f *ForwardersManager) Register(namespacedName types.NamespacedName) {
 	if _, found := f.forwarders[id]; !found {
 		log.Info("New Datadog metrics forwarder registred", "ID", id)
 		f.forwarders[id] = newMetricsForwarder(f.k8sClient, namespacedName)
-		go f.forwarders[id].start()
+		f.wg.Add(1)
+		go f.forwarders[id].start(&f.wg)
 	}
 }
 
@@ -57,7 +60,6 @@ func (f *ForwardersManager) Unregister(namespacedName types.NamespacedName) {
 		log.Error(err, "cannot unregister metrics forwarder", "ID", id)
 		return
 	}
-	log.Info("Metrics forwarder unregistered", "ID", id)
 }
 
 // stopAllForwarders stops the running metricsForwarder goroutines
@@ -68,6 +70,7 @@ func (f *ForwardersManager) stopAllForwarders() {
 		log.Info("Stopping metrics forwarder", "ID", id)
 		forwarder.stop()
 	}
+	f.wg.Wait()
 }
 
 // unregisterForwarder deletes a given metricsForwarder

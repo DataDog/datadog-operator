@@ -47,6 +47,7 @@ func (r *ReconcileDatadogAgentDeployment) handleFinalizer(reqLogger logr.Logger,
 		if err := r.addFinalizer(reqLogger, dad); err != nil {
 			return reconcile.Result{}, err
 		}
+		return reconcile.Result{Requeue: true}, nil
 	}
 
 	return reconcile.Result{}, nil

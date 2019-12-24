@@ -92,12 +92,12 @@ func (r *ReconcileDatadogAgentDeployment) createNewClusterAgentDeployment(logger
 	logger.Info("Creating a new Cluster Agent Deployment", "deployment.Namespace", newDCA.Namespace, "deployment.Name", newDCA.Name, "agentdeployment.Status.ClusterAgent.CurrentHash", hash)
 	newStatus.ClusterAgent = &datadoghqv1alpha1.DatadogAgentDeploymentDeploymentStatus{}
 	err = r.client.Create(context.TODO(), newDCA)
+	now := metav1.NewTime(time.Now())
 	if err != nil {
-		newStatus.ClusterAgent.State = datadoghqv1alpha1.DatadogAgentDeploymentDeploymentStateFailed
+		updateStatusWithClusterAgent(nil, newStatus, &now)
 		return reconcile.Result{}, err
 	}
-	now := metav1.NewTime(time.Now())
-	newStatus.ClusterAgent.State = datadoghqv1alpha1.DatadogAgentDeploymentDeploymentStateStarted
+
 	updateStatusWithClusterAgent(newDCA, newStatus, &now)
 	r.recorder.Event(agentdeployment, corev1.EventTypeNormal, "Create Cluster Agent Deployment", fmt.Sprintf("%s/%s", newDCA.Namespace, newDCA.Name))
 	return reconcile.Result{}, nil
@@ -180,7 +180,7 @@ func newClusterAgentDeploymentFromInstance(logger logr.Logger, agentdeployment *
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
 					datadoghqv1alpha1.AgentDeploymentNameLabelKey:      agentdeployment.Name,
-					datadoghqv1alpha1.AgentDeploymentComponentLabelKey: "cluster-agent",
+					datadoghqv1alpha1.AgentDeploymentComponentLabelKey: datadoghqv1alpha1.DefaultClusterAgentResourceSuffix,
 				},
 			},
 		},
@@ -201,6 +201,11 @@ func (r *ReconcileDatadogAgentDeployment) manageClusterAgentDependencies(logger 
 	}
 
 	result, err = r.manageMetricsServerService(logger, dad, newStatus)
+	if shouldReturn(result, err) {
+		return result, err
+	}
+
+	result, err = r.manageClusterAgentPDB(logger, dad, newStatus)
 	if shouldReturn(result, err) {
 		return result, err
 	}
@@ -263,11 +268,13 @@ func newClusterAgentPodTemplate(logger logr.Logger, agentdeployment *datadoghqv1
 							Protocol:      "TCP",
 						},
 					},
-					Env: getEnvVarsForClusterAgent(logger, agentdeployment),
+					Env:          getEnvVarsForClusterAgent(logger, agentdeployment),
+					VolumeMounts: agentdeployment.Spec.ClusterAgent.Config.VolumeMounts,
 				},
 			},
 			Affinity:    getPodAffinity(clusterAgentSpec.Affinity, getClusterAgentName(agentdeployment)),
 			Tolerations: clusterAgentSpec.Tolerations,
+			Volumes:     agentdeployment.Spec.ClusterAgent.Config.Volumes,
 		},
 	}
 
