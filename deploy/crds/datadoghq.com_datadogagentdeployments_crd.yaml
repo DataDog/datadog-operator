@@ -5131,8 +5131,6 @@ spec:
                   format: int32
                   type: integer
                 state:
-                  description: DatadogAgentDeploymentAgentState type representing
-                    the Agent as a DaemonSet deployment state
                   type: string
                 upToDate:
                   format: int32
