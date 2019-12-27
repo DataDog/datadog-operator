@@ -3,13 +3,17 @@ module github.com/DataDog/datadog-operator
 go 1.13
 
 require (
+	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
 	github.com/datadog/extendeddaemonset v0.1.0
 	github.com/go-logr/logr v0.1.0
 	github.com/go-openapi/spec v0.19.0
+	github.com/gogo/protobuf v1.2.1
 	github.com/google/go-cmp v0.3.0
 	github.com/operator-framework/operator-sdk v0.12.0
 	github.com/spf13/pflag v1.0.3
 	github.com/stretchr/testify v1.3.0
+	github.com/zorkian/go-datadog-api v2.25.0+incompatible
+	gopkg.in/zorkian/go-datadog-api.v2 v2.25.0 // indirect
 	k8s.io/api v0.0.0
 	k8s.io/apimachinery v0.0.0
 	k8s.io/client-go v11.0.0+incompatible

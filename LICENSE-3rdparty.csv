@@ -10,6 +10,7 @@ core,"github.com/Azure/go-autorest/version",Apache-2.0
 core,"github.com/PuerkitoBio/purell",NewBSD
 core,"github.com/PuerkitoBio/urlesc",NewBSD
 core,"github.com/beorn7/perks/quantile",MIT
+core,"github.com/cenkalti/backoff",MIT
 core,"github.com/davecgh/go-spew/spew",ISC
 core,"github.com/dgrijalva/jwt-go",MIT
 core,"github.com/docker/spdystream",Apache-2.0
@@ -99,8 +100,11 @@ core,"github.com/spf13/afero",Apache-2.0
 core,"github.com/spf13/afero/mem",Apache-2.0
 core,"github.com/spf13/cobra",Apache-2.0
 core,"github.com/spf13/pflag",NewBSD
+core,"github.com/stretchr/objx",MIT
 core,"github.com/stretchr/testify/assert",MIT
+core,"github.com/stretchr/testify/mock",MIT
 core,"github.com/stretchr/testify/require",MIT
+core,"github.com/zorkian/go-datadog-api",NewBSD
 core,"go.uber.org/atomic",MIT
 core,"go.uber.org/multierr",MIT
 core,"go.uber.org/zap",MIT

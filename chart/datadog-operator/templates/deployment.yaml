@@ -15,6 +15,15 @@ spec:
       labels:
         app.kubernetes.io/name: {{ include "datadog-operator.name" . }}
         app.kubernetes.io/instance: {{ .Release.Name }}
+      annotations:
+        ad.datadoghq.com/datadog-operator.check_names: '["openmetrics"]'
+        ad.datadoghq.com/datadog-operator.init_configs: '[{}]'
+        ad.datadoghq.com/datadog-operator.instances: |
+          [{
+            "prometheus_url": "http://%%host%%:8383/metrics",
+            "namespace": "datadog.operator",
+            "metrics": ["*"]
+          }]
     spec:
     {{- with .Values.imagePullSecrets }}
       imagePullSecrets:

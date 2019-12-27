@@ -111,6 +111,7 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 	supportExtendedDaemonset = true
 	eventBroadcaster := record.NewBroadcaster()
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "TestReconcileDatadogAgentDeployment_Reconcile"})
+	forwarders := dummyManager{}
 
 	logf.SetLogger(logf.ZapLogger(true))
 
@@ -160,6 +161,46 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 			},
 			want:    reconcile.Result{},
 			wantErr: false,
+		},
+		{
+			name: "DatadogAgentDeployment found, add finalizer",
+			fields: fields{
+				client:   fake.NewFakeClient(),
+				scheme:   s,
+				recorder: recorder,
+			},
+			args: args{
+				request: newRequest("bar", "foo"),
+				loadFunc: func(c client.Client) {
+					_ = c.Create(context.TODO(), &datadoghqv1alpha1.DatadogAgentDeployment{
+						TypeMeta: metav1.TypeMeta{
+							Kind:       "DatadogAgentDeployment",
+							APIVersion: fmt.Sprintf("%s/%s", datadoghqv1alpha1.SchemeGroupVersion.Group, datadoghqv1alpha1.SchemeGroupVersion.Version),
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Namespace:   "bar",
+							Name:        "foo",
+							Labels:      map[string]string{"label-foo-key": "label-bar-value"},
+							Annotations: map[string]string{"annotations-foo-key": "annotations-bar-value"},
+						},
+						Spec: datadoghqv1alpha1.DatadogAgentDeploymentSpec{
+							Credentials:  datadoghqv1alpha1.AgentCredentials{Token: "token-foo"},
+							Agent:        &datadoghqv1alpha1.DatadogAgentDeploymentSpecAgentSpec{},
+							ClusterAgent: &datadoghqv1alpha1.DatadogAgentDeploymentSpecClusterAgentSpec{},
+						},
+					})
+				},
+			},
+			want:    reconcile.Result{Requeue: true},
+			wantErr: false,
+			wantFunc: func(c client.Client) error {
+				dad := &datadoghqv1alpha1.DatadogAgentDeployment{}
+				if err := c.Get(context.TODO(), types.NamespacedName{Name: "foo", Namespace: "bar"}, dad); err != nil {
+					return err
+				}
+				assert.Contains(t, dad.GetFinalizers(), "finalizer.agentdeployment.datadoghq.com")
+				return nil
+			},
 		},
 		{
 			name: "DatadogAgentDeployment found, but not defaulted",
@@ -1648,9 +1689,10 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			log = logf.Log.WithName(tt.name)
 			r := &ReconcileDatadogAgentDeployment{
-				client:   tt.fields.client,
-				scheme:   tt.fields.scheme,
-				recorder: recorder,
+				client:     tt.fields.client,
+				scheme:     tt.fields.scheme,
+				recorder:   recorder,
+				forwarders: forwarders,
 			}
 			if tt.args.loadFunc != nil {
 				tt.args.loadFunc(r.client)
@@ -2104,6 +2146,17 @@ func createClusterAgentDependencies(c client.Client, dad *datadoghqv1alpha1.Data
 	_, _ = comparison.SetMD5GenerationAnnotation(&dcaService.ObjectMeta, dcaService.Spec)
 	dcaService.Labels = getDefaultLabels(dad, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dad))
 	_ = c.Create(context.TODO(), dcaService)
+}
+
+// dummyManager mocks the metric forwarder by implementing the metricForwardersManager interface
+// the metricForwardersManager logic is tested in the util/datadog package
+type dummyManager struct {
+}
+
+func (dummyManager) Register(types.NamespacedName) {
+}
+
+func (dummyManager) Unregister(types.NamespacedName) {
 }
 
 func createClusterChecksRunnerDependencies(c client.Client, dad *datadoghqv1alpha1.DatadogAgentDeployment) {

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	edsdatadoghqv1alpha1 "github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1"
 	"github.com/go-logr/logr"
@@ -818,7 +819,7 @@ func getAPIKeyFromSecret(dad *datadoghqv1alpha1.DatadogAgentDeployment) *corev1.
 	authTokenValue := &corev1.EnvVarSource{
 		SecretKeyRef: &corev1.SecretKeySelector{
 			LocalObjectReference: corev1.LocalObjectReference{
-				Name: getAPIKeySecretName(dad),
+				Name: utils.GetAPIKeySecretName(dad),
 			},
 			Key: datadoghqv1alpha1.DefaultAPIKeyKey,
 		},
@@ -831,16 +832,9 @@ func getClusterAgentAuthToken(dad *datadoghqv1alpha1.DatadogAgentDeployment) *co
 	authTokenValue := &corev1.EnvVarSource{
 		SecretKeyRef: &corev1.SecretKeySelector{},
 	}
-	authTokenValue.SecretKeyRef.Name = getAppKeySecretName(dad)
+	authTokenValue.SecretKeyRef.Name = utils.GetAppKeySecretName(dad)
 	authTokenValue.SecretKeyRef.Key = "token"
 	return authTokenValue
-}
-
-func getAppKeySecretName(dad *datadoghqv1alpha1.DatadogAgentDeployment) string {
-	if dad.Spec.Credentials.AppKeyExistingSecret != "" {
-		return dad.Spec.Credentials.AppKeyExistingSecret
-	}
-	return fmt.Sprintf("%s-%s", dad.Name, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix)
 }
 
 // getAppKeyFromSecret returns the Agent API key as an env var source
@@ -848,19 +842,12 @@ func getAppKeyFromSecret(dad *datadoghqv1alpha1.DatadogAgentDeployment) *corev1.
 	authTokenValue := &corev1.EnvVarSource{
 		SecretKeyRef: &corev1.SecretKeySelector{
 			LocalObjectReference: corev1.LocalObjectReference{
-				Name: getAppKeySecretName(dad),
+				Name: utils.GetAppKeySecretName(dad),
 			},
 			Key: datadoghqv1alpha1.DefaultAPPKeyKey,
 		},
 	}
 	return authTokenValue
-}
-
-func getAPIKeySecretName(dad *datadoghqv1alpha1.DatadogAgentDeployment) string {
-	if dad.Spec.Credentials.APIKeyExistingSecret != "" {
-		return dad.Spec.Credentials.APIKeyExistingSecret
-	}
-	return dad.Name
 }
 
 func getClusterAgentServiceName(dad *datadoghqv1alpha1.DatadogAgentDeployment) string {

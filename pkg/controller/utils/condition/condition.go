@@ -15,11 +15,11 @@ import (
 )
 
 // UpdateDatadogAgentDeploymentStatusConditionsFailure used to update the failure StatusConditions
-func UpdateDatadogAgentDeploymentStatusConditionsFailure(status *datadoghqv1alpha1.DatadogAgentDeploymentStatus, now metav1.Time, err error) {
+func UpdateDatadogAgentDeploymentStatusConditionsFailure(status *datadoghqv1alpha1.DatadogAgentDeploymentStatus, now metav1.Time, conditionType datadoghqv1alpha1.DatadogAgentDeploymentConditionType, err error) {
 	if err != nil {
-		UpdateDatadogAgentDeploymentStatusCondition(status, now, datadoghqv1alpha1.ConditionTypeReconcileError, corev1.ConditionTrue, fmt.Sprintf("%v", err), false)
+		UpdateDatadogAgentDeploymentStatusCondition(status, now, conditionType, corev1.ConditionTrue, fmt.Sprintf("%v", err), false)
 	} else {
-		UpdateDatadogAgentDeploymentStatusCondition(status, now, datadoghqv1alpha1.ConditionTypeReconcileError, corev1.ConditionFalse, "", false)
+		UpdateDatadogAgentDeploymentStatusCondition(status, now, conditionType, corev1.ConditionFalse, "", false)
 	}
 }
 
