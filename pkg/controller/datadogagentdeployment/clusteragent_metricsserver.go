@@ -16,7 +16,6 @@ import (
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -67,7 +66,7 @@ func (r *ReconcileDatadogAgentDeployment) createHPAClusterRoleBinding(logger log
 	if clusterRoleBinding == nil {
 		return reconcile.Result{}, nil
 	}
-	if err := controllerutil.SetControllerReference(dad, clusterRoleBinding, r.scheme); err != nil {
+	if err := SetOwnerReference(dad, clusterRoleBinding, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
 	logger.V(1).Info("createClusterAgentHPARoleBinding", "clusterRoleBinding.name", clusterRoleBinding.Name)

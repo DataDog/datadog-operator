@@ -705,11 +705,12 @@ const (
 type logWriter struct {
 	name      string
 	namespace string
+	container string
 	t         *testing.T
 }
 
 func (l *logWriter) Write(b []byte) (int, error) {
-	l.t.Logf("pod [%s/%s]: %s", l.namespace, l.name, string(b))
+	l.t.Logf("pod [%s/%s - %s]: %s", l.namespace, l.name, l.container, string(b))
 	return len(b), nil
 }
 
@@ -725,21 +726,27 @@ func exportPodsLogs(t *testing.T, f *framework.Framework, namespace string, err 
 		t.Fatal(err2)
 	}
 
-	options := &corev1.PodLogOptions{}
 	for _, pod := range pods.Items {
-		t.Logf("Add logger for pod:[%s/%s]", pod.Namespace, pod.Name)
-		req := f.KubeClient.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, options)
-		readCloser, err := req.Stream()
-		if err != nil {
-			t.Errorf("unable to stream log for pod:[%s/%s], err:%v", pod.Namespace, pod.Name, err)
-			return
+		for _, container := range pod.Spec.Containers {
+			options := &corev1.PodLogOptions{
+				Container: container.Name,
+			}
+			t.Logf("Add logger for pod:[%s/%s], container: %s", pod.Namespace, pod.Name, container.Name)
+			req := f.KubeClient.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, options)
+			readCloser, err := req.Stream()
+			if err != nil {
+				t.Errorf("unable to stream log for pod:[%s/%s], err:%v", pod.Namespace, pod.Name, err)
+				return
+			}
+			w := &logWriter{
+				name:      pod.Name,
+				namespace: pod.Namespace,
+				container: container.Name,
+				t:         t,
+			}
+			_, _ = io.Copy(w, readCloser)
 		}
-		w := &logWriter{
-			name:      pod.Name,
-			namespace: pod.Namespace,
-			t:         t,
-		}
-		_, _ = io.Copy(w, readCloser)
+
 	}
 }
 

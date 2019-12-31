@@ -39,6 +39,13 @@ lint_code:
   script:
     - make validate
 
+generate_code:
+  stage: test
+  tags: [ "runner:main", "size:large" ]
+  script:
+    - make generate
+    - git diff --exit-code
+
 build_image:
   stage: image
   tags: [ "runner:docker", "size:large" ]

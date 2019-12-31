@@ -6,7 +6,7 @@ core,"github.com/Azure/go-autorest/autorest/adal",Apache-2.0
 core,"github.com/Azure/go-autorest/autorest/azure",Apache-2.0
 core,"github.com/Azure/go-autorest/autorest/date",Apache-2.0
 core,"github.com/Azure/go-autorest/logger",Apache-2.0
-core,"github.com/Azure/go-autorest/version",Apache-2.0
+core,"github.com/Azure/go-autorest/tracing",Apache-2.0
 core,"github.com/PuerkitoBio/purell",NewBSD
 core,"github.com/PuerkitoBio/urlesc",NewBSD
 core,"github.com/alecthomas/template",NewBSD
@@ -14,10 +14,6 @@ core,"github.com/alecthomas/template/parse",NewBSD
 core,"github.com/alecthomas/units",MIT
 core,"github.com/beorn7/perks/quantile",MIT
 core,"github.com/blang/semver",MIT
-core,"github.com/coreos/prometheus-operator/pkg/apis/monitoring",Apache-2.0
-core,"github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1",Apache-2.0
-core,"github.com/coreos/prometheus-operator/pkg/client/versioned/scheme",Apache-2.0
-core,"github.com/coreos/prometheus-operator/pkg/client/versioned/typed/monitoring/v1",Apache-2.0
 core,"github.com/davecgh/go-spew/spew",ISC
 core,"github.com/dgrijalva/jwt-go",MIT
 core,"github.com/emicklei/go-restful",MIT
@@ -88,7 +84,6 @@ core,"github.com/operator-framework/operator-sdk/internal/util/yamlutil",Apache-
 core,"github.com/operator-framework/operator-sdk/pkg/k8sutil",Apache-2.0
 core,"github.com/operator-framework/operator-sdk/pkg/leader",Apache-2.0
 core,"github.com/operator-framework/operator-sdk/pkg/log/zap",Apache-2.0
-core,"github.com/operator-framework/operator-sdk/pkg/metrics",Apache-2.0
 core,"github.com/operator-framework/operator-sdk/pkg/restmapper",Apache-2.0
 core,"github.com/operator-framework/operator-sdk/pkg/test",Apache-2.0
 core,"github.com/operator-framework/operator-sdk/pkg/test/e2eutil",Apache-2.0
@@ -179,6 +174,7 @@ core,"gopkg.in/fsnotify.v1",NewBSD
 core,"gopkg.in/inf.v0",NewBSD
 core,"gopkg.in/yaml.v2",Apache-2.0
 core,"k8s.io/api/admission/v1beta1",Apache-2.0
+core,"k8s.io/api/admissionregistration/v1",Apache-2.0
 core,"k8s.io/api/admissionregistration/v1beta1",Apache-2.0
 core,"k8s.io/api/apps/v1",Apache-2.0
 core,"k8s.io/api/apps/v1beta1",Apache-2.0
@@ -198,6 +194,7 @@ core,"k8s.io/api/certificates/v1beta1",Apache-2.0
 core,"k8s.io/api/coordination/v1",Apache-2.0
 core,"k8s.io/api/coordination/v1beta1",Apache-2.0
 core,"k8s.io/api/core/v1",Apache-2.0
+core,"k8s.io/api/discovery/v1alpha1",Apache-2.0
 core,"k8s.io/api/events/v1beta1",Apache-2.0
 core,"k8s.io/api/extensions/v1beta1",Apache-2.0
 core,"k8s.io/api/networking/v1",Apache-2.0
@@ -216,6 +213,7 @@ core,"k8s.io/api/storage/v1",Apache-2.0
 core,"k8s.io/api/storage/v1alpha1",Apache-2.0
 core,"k8s.io/api/storage/v1beta1",Apache-2.0
 core,"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions",Apache-2.0
+core,"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1",Apache-2.0
 core,"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1",Apache-2.0
 core,"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/scheme",Apache-2.0
 core,"k8s.io/apimachinery/pkg/api/equality",Apache-2.0
@@ -284,6 +282,7 @@ core,"k8s.io/client-go/discovery/cached/memory",Apache-2.0
 core,"k8s.io/client-go/dynamic",Apache-2.0
 core,"k8s.io/client-go/kubernetes",Apache-2.0
 core,"k8s.io/client-go/kubernetes/scheme",Apache-2.0
+core,"k8s.io/client-go/kubernetes/typed/admissionregistration/v1",Apache-2.0
 core,"k8s.io/client-go/kubernetes/typed/admissionregistration/v1beta1",Apache-2.0
 core,"k8s.io/client-go/kubernetes/typed/apps/v1",Apache-2.0
 core,"k8s.io/client-go/kubernetes/typed/apps/v1beta1",Apache-2.0
@@ -303,6 +302,7 @@ core,"k8s.io/client-go/kubernetes/typed/certificates/v1beta1",Apache-2.0
 core,"k8s.io/client-go/kubernetes/typed/coordination/v1",Apache-2.0
 core,"k8s.io/client-go/kubernetes/typed/coordination/v1beta1",Apache-2.0
 core,"k8s.io/client-go/kubernetes/typed/core/v1",Apache-2.0
+core,"k8s.io/client-go/kubernetes/typed/discovery/v1alpha1",Apache-2.0
 core,"k8s.io/client-go/kubernetes/typed/events/v1beta1",Apache-2.0
 core,"k8s.io/client-go/kubernetes/typed/extensions/v1beta1",Apache-2.0
 core,"k8s.io/client-go/kubernetes/typed/networking/v1",Apache-2.0
@@ -407,6 +407,7 @@ core,"sigs.k8s.io/controller-runtime/pkg/controller",Apache-2.0
 core,"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil",Apache-2.0
 core,"sigs.k8s.io/controller-runtime/pkg/event",Apache-2.0
 core,"sigs.k8s.io/controller-runtime/pkg/handler",Apache-2.0
+core,"sigs.k8s.io/controller-runtime/pkg/healthz",Apache-2.0
 core,"sigs.k8s.io/controller-runtime/pkg/internal/controller",Apache-2.0
 core,"sigs.k8s.io/controller-runtime/pkg/internal/controller/metrics",Apache-2.0
 core,"sigs.k8s.io/controller-runtime/pkg/internal/log",Apache-2.0

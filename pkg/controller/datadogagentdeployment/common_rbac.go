@@ -97,7 +97,7 @@ func (r *ReconcileDatadogAgentDeployment) createServiceAccount(logger logr.Logge
 
 func (r *ReconcileDatadogAgentDeployment) createClusterRoleBinding(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment, info roleBindingInfo, agentVersion string) (reconcile.Result, error) {
 	clusterRoleBinding := buildClusterRoleBinding(dad, info, agentVersion)
-	if err := controllerutil.SetControllerReference(dad, clusterRoleBinding, r.scheme); err != nil {
+	if err := SetOwnerReference(dad, clusterRoleBinding, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
 	logger.V(1).Info("createClusterRoleBinding", "clusterRoleBinding.name", clusterRoleBinding.Name)
