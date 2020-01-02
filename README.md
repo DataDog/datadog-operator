@@ -50,6 +50,7 @@ The Datadog Operator sends metrics and events to Datadog to monitor the Datadog 
 | `datadog.operator.agent.deployment.success`   | gauge   | `1` if the desired number of Agent replicas equals the number of available Agent pods, `0` otherwise.   |
 | `datadog.operator.clusteragent.deployment.success`   | gauge   | `1` if the desired number of Cluster Agent replicas equals the number of available Cluster Agent pods, `0` otherwise.   |
 | `datadog.operator.clustercheckrunner.deployment.success`   | gauge   | `1` if the desired number of Cluster Check Runner replicas equals the number of available Cluster Check Runner pods, `0` otherwise.   |
+| `datadog.operator.reconcile.success`   | gauge   | `1` if the last recorded reconcile error is null, `0` otherwise. The `reconcile_err` tag describes the last recorded error. |
 
 **Note:** The [Datadog API and APP keys](https://docs.datadoghq.com/account_management/api-app-keys/) are required to forward metrics to Datadog, they must be provided in the `credentials` field in the Custom Resource definiton.
 
@@ -59,13 +60,19 @@ The OpenMetrics check is activated by default via [autodiscovery annotations](./
 
 ### Events
 
-- Datadog Operator has started
-- Agent deployment created 
-- Agent deployment deleted 
-- Cluster Agent deployment created 
-- Cluster Agent deployment deleted 
-- Cluster Check Runner deployment created 
-- Cluster Check Runner deployment deleted 
+- Detect/Delete Custom Resource <Namespace/Name>
+- Create/Update/Delete Service <Namespace/Name>
+- Create/Update/Delete ConfigMap <Namespace/Name>
+- Create/Update/Delete DaemonSet <Namespace/Name>
+- Create/Update/Delete ExtendedDaemonSet <Namespace/Name>
+- Create/Update/Delete Deployment <Namespace/Name>
+- Create/Update/Delete ClusterRole </Name>
+- Create/Update/Delete Role <Namespace/Name>
+- Create/Update/Delete ClusterRoleBinding </Name>
+- Create/Update/Delete RoleBinding <Namespace/Name>
+- Create/Update/Delete Secret <Namespace/Name>
+- Create/Update/Delete PDB <Namespace/Name>
+- Create/Delete ServiceAccount <Namespace/Name>
 
 ## How to contribute
 
