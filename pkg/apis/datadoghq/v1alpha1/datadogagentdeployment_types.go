@@ -664,6 +664,7 @@ const (
 	ConditionTypeDatadogMetricsError DatadogAgentDeploymentConditionType = "DatadogMetricsError"
 )
 
+// +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // DatadogAgentDeployment is the Schema for the agentdeployments API
