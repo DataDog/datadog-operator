@@ -17,12 +17,14 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 )
 
 func (r *ReconcileDatadogAgentDeployment) manageClusterAgentSecret(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment, newStatus *datadoghqv1alpha1.DatadogAgentDeploymentStatus) (reconcile.Result, error) {
@@ -32,11 +34,11 @@ func (r *ReconcileDatadogAgentDeployment) manageClusterAgentSecret(logger logr.L
 	}
 	now := metav1.NewTime(time.Now())
 	// checks token secret
-	secretName := getAppKeySecretName(dad)
+	secretName := utils.GetAppKeySecretName(dad)
 	secret := &corev1.Secret{}
 	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: dad.Namespace, Name: secretName}, secret)
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			if dad.Spec.Credentials.AppKeyExistingSecret == "" {
 				return r.createClusterAgentSecret(logger, dad, newStatus)
 			}
@@ -60,7 +62,7 @@ func (r *ReconcileDatadogAgentDeployment) createClusterAgentSecret(logger logr.L
 		return reconcile.Result{}, err
 	}
 	logger.Info("Create Cluster Agent Secret", "name", newSecret.Name)
-	r.recorder.Event(dad, corev1.EventTypeNormal, "Create Cluster Agent Secret", fmt.Sprintf("%s/%s", newSecret.Namespace, newSecret.Name))
+	r.recordEvent(dad, corev1.EventTypeNormal, "Create Cluster Agent Secret", fmt.Sprintf("%s/%s", newSecret.Namespace, newSecret.Name), datadog.CreationEvent)
 
 	return reconcile.Result{Requeue: true}, nil
 }
@@ -86,7 +88,7 @@ func (r *ReconcileDatadogAgentDeployment) updateIfNeededClusterAgentSecret(logge
 		if err := r.client.Update(context.TODO(), updatedSecret); err != nil {
 			return reconcile.Result{}, err
 		}
-		r.recorder.Event(dad, corev1.EventTypeNormal, "Update Secret", fmt.Sprintf("%s/%s", updatedSecret.Namespace, updatedSecret.Name))
+		r.recordEvent(dad, corev1.EventTypeNormal, "Update Secret", fmt.Sprintf("%s/%s", updatedSecret.Namespace, updatedSecret.Name), datadog.UpdateEvent)
 		result.Requeue = true
 	}
 
@@ -95,11 +97,11 @@ func (r *ReconcileDatadogAgentDeployment) updateIfNeededClusterAgentSecret(logge
 
 func (r *ReconcileDatadogAgentDeployment) cleanupClusterAgentSecret(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment, newStatus *datadoghqv1alpha1.DatadogAgentDeploymentStatus) (reconcile.Result, error) {
 	// checks token secret
-	secretName := getAppKeySecretName(dad)
+	secretName := utils.GetAppKeySecretName(dad)
 	secret := &corev1.Secret{}
 	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: dad.Namespace, Name: secretName}, secret)
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return reconcile.Result{}, nil
 		}
 		return reconcile.Result{}, err
@@ -130,7 +132,7 @@ func newClusterAgentSecret(dad *datadoghqv1alpha1.DatadogAgentDeployment) *corev
 
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        getAppKeySecretName(dad),
+			Name:        utils.GetAppKeySecretName(dad),
 			Namespace:   dad.Namespace,
 			Labels:      labels,
 			Annotations: annotations,

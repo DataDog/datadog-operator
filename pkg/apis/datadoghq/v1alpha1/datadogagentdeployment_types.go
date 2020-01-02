@@ -637,6 +637,11 @@ const (
 	ConditionTypeReconcileError DatadogAgentDeploymentConditionType = "ReconcileError"
 	// ConditionTypeSecretError the required Secret doesn't exist.
 	ConditionTypeSecretError DatadogAgentDeploymentConditionType = "SecretError"
+
+	// ConditionTypeActiveDatadogMetrics forwarding metrics and events to Datadog is active
+	ConditionTypeActiveDatadogMetrics DatadogAgentDeploymentConditionType = "ActiveDatadogMetrics"
+	// ConditionTypeDatadogMetricsError cannot forward deployment metrics and events to Datadog
+	ConditionTypeDatadogMetricsError DatadogAgentDeploymentConditionType = "DatadogMetricsError"
 )
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

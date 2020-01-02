@@ -23,6 +23,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 )
 
 func (r *ReconcileDatadogAgentDeployment) manageClusterAgentService(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment, newStatus *datadoghqv1alpha1.DatadogAgentDeploymentStatus) (reconcile.Result, error) {
@@ -135,7 +136,7 @@ func (r *ReconcileDatadogAgentDeployment) createService(logger logr.Logger, dad 
 		return reconcile.Result{}, err
 	}
 	logger.Info("Create Service", "name", newService.Name)
-	r.recorder.Event(dad, corev1.EventTypeNormal, "Create Service", fmt.Sprintf("%s/%s", newService.Namespace, newService.Name))
+	r.recordEvent(dad, corev1.EventTypeNormal, "Create Service", fmt.Sprintf("%s/%s", newService.Namespace, newService.Name), datadog.CreationEvent)
 
 	return reconcile.Result{Requeue: true}, nil
 }
@@ -166,7 +167,7 @@ func (r *ReconcileDatadogAgentDeployment) updateIfNeededService(logger logr.Logg
 		if err := r.client.Update(context.TODO(), updatedService); err != nil {
 			return reconcile.Result{}, err
 		}
-		r.recorder.Event(dad, corev1.EventTypeNormal, "Update Service", fmt.Sprintf("%s/%s", updatedService.Namespace, updatedService.Name))
+		r.recordEvent(dad, corev1.EventTypeNormal, "Update Service", fmt.Sprintf("%s/%s", updatedService.Namespace, updatedService.Name), datadog.UpdateEvent)
 		logger.Info("Update Service", "name", newService.Name)
 
 		result.Requeue = true

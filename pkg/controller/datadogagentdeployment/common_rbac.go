@@ -8,6 +8,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -91,7 +92,7 @@ func (r *ReconcileDatadogAgentDeployment) createServiceAccount(logger logr.Logge
 		return reconcile.Result{}, err
 	}
 	logger.V(1).Info("createServiceAccount", "serviceAccount.name", serviceAccount.Name, "serviceAccount.Namespace", serviceAccount.Namespace)
-	r.recorder.Event(dad, corev1.EventTypeNormal, "Create ServiceAccount", fmt.Sprintf("%s/%s", serviceAccount.Namespace, serviceAccount.Name))
+	r.recordEvent(dad, corev1.EventTypeNormal, "Create ServiceAccount", fmt.Sprintf("%s/%s", serviceAccount.Namespace, serviceAccount.Name), datadog.CreationEvent)
 	return reconcile.Result{Requeue: true}, r.client.Create(context.TODO(), serviceAccount)
 }
 
@@ -101,7 +102,7 @@ func (r *ReconcileDatadogAgentDeployment) createClusterRoleBinding(logger logr.L
 		return reconcile.Result{}, err
 	}
 	logger.V(1).Info("createClusterRoleBinding", "clusterRoleBinding.name", clusterRoleBinding.Name)
-	r.recorder.Event(dad, corev1.EventTypeNormal, "Create ClusterRoleBinding", fmt.Sprintf("%s/%s", clusterRoleBinding.Namespace, clusterRoleBinding.Name))
+	r.recordEvent(dad, corev1.EventTypeNormal, "Create ClusterRoleBinding", fmt.Sprintf("%s/%s", clusterRoleBinding.Namespace, clusterRoleBinding.Name), datadog.CreationEvent)
 	return reconcile.Result{Requeue: true}, r.client.Create(context.TODO(), clusterRoleBinding)
 }
 
@@ -118,7 +119,7 @@ func (r *ReconcileDatadogAgentDeployment) cleanupClusterRole(logger logr.Logger,
 		return reconcile.Result{}, nil
 	}
 	logger.V(1).Info("deleteClusterRole", "clusterRole.name", clusterRole.Name, "clusterRole.Namespace", clusterRole.Namespace)
-	r.recorder.Event(dad, corev1.EventTypeNormal, "Delete ClusterRole", fmt.Sprintf("%s/%s", clusterRole.Namespace, clusterRole.Name))
+	r.recordEvent(dad, corev1.EventTypeNormal, "Delete ClusterRole", fmt.Sprintf("%s/%s", clusterRole.Namespace, clusterRole.Name), datadog.DeletionEvent)
 	return reconcile.Result{}, client.Delete(context.TODO(), clusterRole)
 }
 
@@ -135,7 +136,7 @@ func (r *ReconcileDatadogAgentDeployment) cleanupClusterRoleBinding(logger logr.
 		return reconcile.Result{}, nil
 	}
 	logger.V(1).Info("deleteClusterRoleBinding", "clusterRoleBinding.name", clusterRoleBinding.Name, "clusterRoleBinding.Namespace", clusterRoleBinding.Namespace)
-	r.recorder.Event(dad, corev1.EventTypeNormal, "Delete ClusterRoleBinding", fmt.Sprintf("%s/%s", clusterRoleBinding.Namespace, clusterRoleBinding.Name))
+	r.recordEvent(dad, corev1.EventTypeNormal, "Delete ClusterRoleBinding", fmt.Sprintf("%s/%s", clusterRoleBinding.Namespace, clusterRoleBinding.Name), datadog.DeletionEvent)
 	return reconcile.Result{}, client.Delete(context.TODO(), clusterRoleBinding)
 }
 
@@ -152,6 +153,6 @@ func (r *ReconcileDatadogAgentDeployment) cleanupServiceAccount(logger logr.Logg
 		return reconcile.Result{}, nil
 	}
 	logger.V(1).Info("deleteServiceAccount", "serviceAccount.name", serviceAccount.Name, "serviceAccount.Namespace", serviceAccount.Namespace)
-	r.recorder.Event(dad, corev1.EventTypeNormal, "Delete ServiceAccount", fmt.Sprintf("%s/%s", serviceAccount.Namespace, serviceAccount.Name))
+	r.recordEvent(dad, corev1.EventTypeNormal, "Delete ServiceAccount", fmt.Sprintf("%s/%s", serviceAccount.Namespace, serviceAccount.Name), datadog.DeletionEvent)
 	return reconcile.Result{}, client.Delete(context.TODO(), serviceAccount)
 }

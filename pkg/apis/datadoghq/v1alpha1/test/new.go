@@ -37,6 +37,8 @@ type NewDatadogAgentDeploymentOptions struct {
 	APMEnabled                 bool
 	ProcessEnabled             bool
 	SystemProbeEnabled         bool
+	Creds                      *datadoghqv1alpha1.AgentCredentials
+	ClusterName                *string
 	Confd                      *datadoghqv1alpha1.ConfigDirSpec
 	Checksd                    *datadoghqv1alpha1.ConfigDirSpec
 	Volumes                    []corev1.Volume
@@ -53,9 +55,10 @@ func NewDefaultedDatadogAgentDeployment(ns, name string, options *NewDatadogAgen
 			APIVersion: apiVersion,
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: ns,
-			Name:      name,
-			Labels:    map[string]string{},
+			Namespace:  ns,
+			Name:       name,
+			Labels:     map[string]string{},
+			Finalizers: []string{"finalizer.agentdeployment.datadoghq.com"},
 		},
 	}
 	ad.Spec = datadoghqv1alpha1.DatadogAgentDeploymentSpec{
@@ -133,6 +136,14 @@ func NewDefaultedDatadogAgentDeployment(ns, name string, options *NewDatadogAgen
 
 		if options.SystemProbeEnabled {
 			ad.Spec.Agent.SystemProbe.Enabled = datadoghqv1alpha1.NewBoolPointer(true)
+		}
+
+		if options.Creds != nil {
+			ad.Spec.Credentials = *options.Creds
+		}
+
+		if options.ClusterName != nil {
+			ad.Spec.ClusterName = *options.ClusterName
 		}
 
 		if options.Confd != nil {
