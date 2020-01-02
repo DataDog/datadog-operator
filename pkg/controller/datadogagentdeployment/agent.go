@@ -34,7 +34,7 @@ func (r *ReconcileDatadogAgentDeployment) reconcileAgent(logger logr.Logger, dad
 	}
 
 	nameNamespace := types.NamespacedName{
-		Name:      dad.ObjectMeta.Name,
+		Name:      daemonsetName(dad),
 		Namespace: dad.ObjectMeta.Namespace,
 	}
 	// check if EDS or DS already exist
@@ -342,6 +342,13 @@ func newDaemonSetFromInstance(logger logr.Logger, agentdeployment *datadoghqv1al
 	return ds, hash, nil
 }
 
+func daemonsetName(agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment) string {
+	if agentdeployment.Spec.Agent.DaemonsetName != "" {
+		return agentdeployment.Spec.Agent.DaemonsetName
+	}
+	return agentdeployment.Name
+}
+
 func newDaemonsetObjectMetaData(agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment) metav1.ObjectMeta {
 	labels := getDefaultLabels(agentdeployment, datadoghqv1alpha1.DefaultAgentResourceSuffix, getAgentVersion(agentdeployment))
 	labels[datadoghqv1alpha1.AgentDeploymentNameLabelKey] = agentdeployment.Name
@@ -352,7 +359,7 @@ func newDaemonsetObjectMetaData(agentdeployment *datadoghqv1alpha1.DatadogAgentD
 	annotations := map[string]string{}
 
 	return metav1.ObjectMeta{
-		Name:        agentdeployment.Name,
+		Name:        daemonsetName(agentdeployment),
 		Namespace:   agentdeployment.Namespace,
 		Labels:      labels,
 		Annotations: annotations,

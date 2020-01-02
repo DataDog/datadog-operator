@@ -87,6 +87,10 @@ type DatadogAgentDeploymentSpecAgentSpec struct {
 	// The container image of the Datadog Agent
 	Image ImageConfig `json:"image"`
 
+	// Name of the Daemonset to create or upgrade from
+	// +optional
+	DaemonsetName string `json:"daemonsetName,omitempty"`
+
 	// Agent configuration
 	Config NodeAgentConfig `json:"config,omitempty"`
 
@@ -406,6 +410,9 @@ type DogstatsdConfig struct {
 type DatadogAgentDeploymentSpecClusterAgentSpec struct {
 	// The container image of the Datadog Cluster Agent
 	Image ImageConfig `json:"image"`
+
+	// Name of the deployment to upgrade from or to create
+	DeploymentName string `json:"deploymentName,omitempty"`
 
 	// Cluster Agent configuration
 	Config ClusterAgentConfig `json:"config,omitempty"`

@@ -378,6 +378,9 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dad *datadoghqv1alpha1.Datado
 }
 
 func getClusterAgentName(dad *datadoghqv1alpha1.DatadogAgentDeployment) string {
+	if dad.Spec.ClusterAgent != nil && dad.Spec.ClusterAgent.DeploymentName != "" {
+		return dad.Spec.ClusterAgent.DeploymentName
+	}
 	return fmt.Sprintf("%s-%s", dad.Name, "cluster-agent")
 }
 

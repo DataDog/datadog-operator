@@ -757,6 +757,13 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentDeploymentSpecAgentSpec(ref 
 							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.ImageConfig"),
 						},
 					},
+					"daemonsetName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name of the Daemonset to create or upgrade from",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"config": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Agent configuration",
@@ -838,6 +845,13 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentDeploymentSpecClusterAgentSp
 						SchemaProps: spec.SchemaProps{
 							Description: "The container image of the Datadog Cluster Agent",
 							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.ImageConfig"),
+						},
+					},
+					"deploymentName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name of the deployment to upgrade from or to create",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"config": {
