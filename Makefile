@@ -61,9 +61,10 @@ validate: bin/golangci-lint bin/wwhrd
 	./bin/golangci-lint run ./...
 	./hack/verify-license.sh > /dev/null
 
-generate:
+generate: bin/openapi-gen
 	./bin/operator-sdk generate k8s
-	./bin/operator-sdk generate openapi
+	./bin/operator-sdk generate crds
+	./bin/openapi-gen --logtostderr=true -o "" -i ./pkg/apis/datadoghq/v1alpha1 -O zz_generated.openapi -p ./pkg/apis/datadoghq/v1alpha1 -h ./hack/boilerplate.go.txt -r "-"
 
 CRDS = $(wildcard deploy/crds/*_crd.yaml)
 local-load: $(CRDS)
@@ -84,6 +85,9 @@ bin/operator-sdk:
 
 bin/wwhrd:
 	./hack/install-wwhrd.sh
+
+bin/openapi-gen:
+	go build -o ./bin/openapi-gen k8s.io/kube-openapi/cmd/openapi-gen
 
 license: bin/wwhrd
 	./hack/license.sh

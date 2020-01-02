@@ -402,7 +402,7 @@ func (r *ReconcileDatadogAgentDeployment) manageClusterAgentRBACs(logger logr.Lo
 		return result, err
 	}
 
-	// Create ClusterRoleBindig
+	// Create ClusterRoleBinding
 	clusterRoleBinding := &rbacv1.ClusterRoleBinding{}
 	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesName}, clusterRoleBinding); err != nil {
 		if errors.IsNotFound(err) {
@@ -473,7 +473,7 @@ func (r *ReconcileDatadogAgentDeployment) manageClusterAgentRBACs(logger logr.Lo
 
 func (r *ReconcileDatadogAgentDeployment) createClusterAgentClusterRole(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment, name, agentVersion string) (reconcile.Result, error) {
 	clusterRole := buildClusterAgentClusterRole(dad, name, agentVersion)
-	if err := controllerutil.SetControllerReference(dad, clusterRole, r.scheme); err != nil {
+	if err := SetOwnerReference(dad, clusterRole, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
 	logger.V(1).Info("createClusterAgentClusterRole", "clusterRole.name", clusterRole.Name)
@@ -493,7 +493,7 @@ func (r *ReconcileDatadogAgentDeployment) createClusterAgentRole(logger logr.Log
 
 func (r *ReconcileDatadogAgentDeployment) createAgentClusterRole(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment, name, agentVersion string) (reconcile.Result, error) {
 	clusterRole := buildAgentClusterRole(dad, name, agentVersion)
-	if err := controllerutil.SetControllerReference(dad, clusterRole, r.scheme); err != nil {
+	if err := SetOwnerReference(dad, clusterRole, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
 	logger.V(1).Info("createAgentClusterRole", "clusterRole.name", clusterRole.Name)
