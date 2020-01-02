@@ -7,7 +7,6 @@ package datadogagentdeployment
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/go-logr/logr"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -15,7 +14,6 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
-	corev1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1beta1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -69,7 +67,8 @@ func (r *ReconcileDatadogAgentDeployment) createPDB(logger logr.Logger, dad *dat
 		return reconcile.Result{}, err
 	}
 	logger.Info("Create PDB", "name", newPdb.Name)
-	r.recordEvent(dad, corev1.EventTypeNormal, "Create PDB", fmt.Sprintf("%s/%s", newPdb.Namespace, newPdb.Name), datadog.CreationEvent)
+	eventInfo := buildEventInfo(newPdb.Name, newPdb.Namespace, podDisruptionBudgetKind, datadog.CreationEvent)
+	r.recordEvent(dad, eventInfo)
 
 	return reconcile.Result{Requeue: true}, nil
 }
@@ -92,7 +91,8 @@ func (r *ReconcileDatadogAgentDeployment) updateIfNeededPDB(logger logr.Logger, 
 		if err := r.client.Update(context.TODO(), updatedPDB); err != nil {
 			return reconcile.Result{}, err
 		}
-		r.recordEvent(dad, corev1.EventTypeNormal, "Update PDB", fmt.Sprintf("%s/%s", updatedPDB.Namespace, updatedPDB.Name), datadog.UpdateEvent)
+		eventInfo := buildEventInfo(updatedPDB.Name, updatedPDB.Namespace, podDisruptionBudgetKind, datadog.UpdateEvent)
+		r.recordEvent(dad, eventInfo)
 		result.Requeue = true
 	}
 

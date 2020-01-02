@@ -20,7 +20,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -1134,16 +1133,6 @@ func getLogLevel(dad *datadoghqv1alpha1.DatadogAgentDeployment) string {
 	return logLevel
 }
 
-func getNamespacedName(dad *datadoghqv1alpha1.DatadogAgentDeployment) types.NamespacedName {
-	if dad == nil {
-		return types.NamespacedName{}
-	}
-	return types.NamespacedName{
-		Namespace: dad.GetNamespace(),
-		Name:      dad.GetName(),
-	}
-}
-
 // SetOwnerReference sets owner as a OwnerReference.
 func SetOwnerReference(owner, object metav1.Object, scheme *runtime.Scheme) error {
 	ro, ok := owner.(runtime.Object)
@@ -1204,4 +1193,23 @@ func referSameObject(a, b metav1.OwnerReference) bool {
 	}
 
 	return aGV == bGV && a.Kind == b.Kind && a.Name == b.Name
+}
+
+// namespacedName implements the datadog.MonitoredObject interface
+// used to convert reconcile.Request into datadog.MonitoredObject
+type namespacedName struct {
+	reconcile.Request
+}
+
+func (nsn namespacedName) GetNamespace() string {
+	return nsn.Namespace
+}
+
+func (nsn namespacedName) GetName() string {
+	return nsn.Name
+}
+
+// getMonitoredObj returns a namespacedName from a reconcile.Request object
+func getMonitoredObj(req reconcile.Request) namespacedName {
+	return namespacedName{req}
 }

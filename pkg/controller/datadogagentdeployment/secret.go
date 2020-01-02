@@ -62,7 +62,8 @@ func (r *ReconcileDatadogAgentDeployment) createClusterAgentSecret(logger logr.L
 		return reconcile.Result{}, err
 	}
 	logger.Info("Create Cluster Agent Secret", "name", newSecret.Name)
-	r.recordEvent(dad, corev1.EventTypeNormal, "Create Cluster Agent Secret", fmt.Sprintf("%s/%s", newSecret.Namespace, newSecret.Name), datadog.CreationEvent)
+	eventInfo := buildEventInfo(newSecret.Name, newSecret.Namespace, secretKind, datadog.CreationEvent)
+	r.recordEvent(dad, eventInfo)
 
 	return reconcile.Result{Requeue: true}, nil
 }
@@ -88,7 +89,8 @@ func (r *ReconcileDatadogAgentDeployment) updateIfNeededClusterAgentSecret(logge
 		if err := r.client.Update(context.TODO(), updatedSecret); err != nil {
 			return reconcile.Result{}, err
 		}
-		r.recordEvent(dad, corev1.EventTypeNormal, "Update Secret", fmt.Sprintf("%s/%s", updatedSecret.Namespace, updatedSecret.Name), datadog.UpdateEvent)
+		eventInfo := buildEventInfo(updatedSecret.Name, updatedSecret.Namespace, secretKind, datadog.UpdateEvent)
+		r.recordEvent(dad, eventInfo)
 		result.Requeue = true
 	}
 

@@ -7,12 +7,10 @@ package datadogagentdeployment
 
 import (
 	"context"
-	"fmt"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/go-logr/logr"
-	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -51,7 +49,8 @@ func (r *ReconcileDatadogAgentDeployment) deleteIfNeededHpaClusterRoleBinding(lo
 		// External Metrics Server used for HPA has been disabled
 		// Delete its ClusterRoleBinding
 		logger.V(1).Info("deleteClusterAgentHPARoleBinding", "clusterRoleBinding.name", clusterRoleBinding.Name)
-		r.recordEvent(dad, corev1.EventTypeNormal, "Delete ClusterRoleBinding", fmt.Sprintf("%s/%s", clusterRoleBinding.Namespace, clusterRoleBinding.Name), datadog.DeletionEvent)
+		eventInfo := buildEventInfo(clusterRoleBinding.Name, clusterRoleBinding.Namespace, clusterRoleBindingKind, datadog.DeletionEvent)
+		r.recordEvent(dad, eventInfo)
 		if err := r.client.Delete(context.TODO(), clusterRoleBinding); err != nil {
 			if errors.IsNotFound(err) {
 				return reconcile.Result{}, nil
@@ -71,6 +70,7 @@ func (r *ReconcileDatadogAgentDeployment) createHPAClusterRoleBinding(logger log
 		return reconcile.Result{}, err
 	}
 	logger.V(1).Info("createClusterAgentHPARoleBinding", "clusterRoleBinding.name", clusterRoleBinding.Name)
-	r.recordEvent(dad, corev1.EventTypeNormal, "Update ClusterRoleBinding", fmt.Sprintf("%s/%s", clusterRoleBinding.Namespace, clusterRoleBinding.Name), datadog.UpdateEvent)
+	eventInfo := buildEventInfo(clusterRoleBinding.Name, clusterRoleBinding.Namespace, clusterRoleBindingKind, datadog.UpdateEvent)
+	r.recordEvent(dad, eventInfo)
 	return reconcile.Result{Requeue: true}, r.client.Create(context.TODO(), clusterRoleBinding)
 }

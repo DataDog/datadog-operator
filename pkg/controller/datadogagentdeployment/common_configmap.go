@@ -7,7 +7,6 @@ package datadogagentdeployment
 
 import (
 	"context"
-	"fmt"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
@@ -73,7 +72,8 @@ func (r *ReconcileDatadogAgentDeployment) updateIfNeededConfigMap(logger logr.Lo
 	if err != nil {
 		return reconcile.Result{}, err
 	}
-	r.recordEvent(dad, corev1.EventTypeNormal, "Update ConfigMap", fmt.Sprintf("%s/%s", updateCM.Namespace, updateCM.Name), datadog.UpdateEvent)
+	eventInfo := buildEventInfo(updateCM.Name, updateCM.Namespace, configMapKind, datadog.UpdateEvent)
+	r.recordEvent(dad, eventInfo)
 
 	return result, nil
 }
@@ -93,7 +93,8 @@ func (r *ReconcileDatadogAgentDeployment) createConfigMap(logger logr.Logger, da
 		return result, err
 	}
 	logger.V(1).Info("createConfigMap", "configMap.name", configMap.Name, "configMap.Namespace", configMap.Namespace)
-	r.recordEvent(dad, corev1.EventTypeNormal, "Create ConfigMap", fmt.Sprintf("%s/%s", configMap.Namespace, configMap.Name), datadog.CreationEvent)
+	eventInfo := buildEventInfo(configMap.Name, configMap.Namespace, configMapKind, datadog.CreationEvent)
+	r.recordEvent(dad, eventInfo)
 	result.Requeue = true
 	return result, err
 }
@@ -112,6 +113,7 @@ func (r *ReconcileDatadogAgentDeployment) cleanupConfigMap(logger logr.Logger, d
 		return reconcile.Result{}, nil
 	}
 	logger.V(1).Info("deleteConfigMap", "configMap.name", configmap.Name, "configMap.Namespace", configmap.Namespace)
-	r.recordEvent(dad, corev1.EventTypeNormal, "Delete ConfigMap", fmt.Sprintf("%s/%s", configmap.Namespace, configmap.Name), datadog.DeletionEvent)
+	eventInfo := buildEventInfo(configmap.Name, configmap.Namespace, configMapKind, datadog.DeletionEvent)
+	r.recordEvent(dad, eventInfo)
 	return reconcile.Result{}, r.client.Delete(context.TODO(), configmap)
 }

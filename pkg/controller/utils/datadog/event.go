@@ -16,17 +16,16 @@ type Event struct {
 // EventType enumerates the possible event types to be sent
 type EventType string
 
-// CreationEvent should be used for resource creation events
-const CreationEvent EventType = "Creation"
-
-// DetectionEvent should be used for resource detection events
-const DetectionEvent EventType = "Creation"
-
-// UpdateEvent should be used for resource update events
-const UpdateEvent EventType = "Update"
-
-// DeletionEvent should be used for resource deletion events
-const DeletionEvent EventType = "Deletion"
+const (
+	// CreationEvent should be used for resource creation events
+	CreationEvent EventType = "Create"
+	// DetectionEvent should be used for resource detection events
+	DetectionEvent EventType = "Detect"
+	// UpdateEvent should be used for resource update events
+	UpdateEvent EventType = "Update"
+	// DeletionEvent should be used for resource deletion events
+	DeletionEvent EventType = "Delete"
+)
 
 // crDetected returns the detection event of a CR
 func crDetected(id string) Event {

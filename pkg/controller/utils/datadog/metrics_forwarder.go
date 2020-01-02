@@ -91,11 +91,11 @@ type delegatedAPI interface {
 }
 
 // newMetricsForwarder returs a new Datadog MetricsForwarder instance
-func newMetricsForwarder(k8sClient client.Client, namespacedName types.NamespacedName) *metricsForwarder {
+func newMetricsForwarder(k8sClient client.Client, obj MonitoredObject) *metricsForwarder {
 	return &metricsForwarder{
-		id:                  namespacedName.String(),
+		id:                  getObjID(obj),
 		k8sClient:           k8sClient,
-		namespacedName:      namespacedName,
+		namespacedName:      getNamespacedName(obj),
 		retryInterval:       defaultMetricsRetryInterval,
 		sendMetricsInterval: defaultSendMetricsInterval,
 		metricsPrefix:       defaultMetricsNamespace,
@@ -103,7 +103,7 @@ func newMetricsForwarder(k8sClient client.Client, namespacedName types.Namespace
 		errorChan:           make(chan error, 100),
 		eventChan:           make(chan Event, 10),
 		lastReconcileErr:    errInitValue,
-		logger:              log.WithValues("CustomResource.Namespace", namespacedName.Namespace, "CustomResource.Name", namespacedName.Name),
+		logger:              log.WithValues("CustomResource.Namespace", obj.GetNamespace(), "CustomResource.Name", obj.GetName()),
 	}
 }
 

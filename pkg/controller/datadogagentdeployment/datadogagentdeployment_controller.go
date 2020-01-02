@@ -24,7 +24,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -73,14 +72,14 @@ func newReconciler(mgr manager.Manager) (reconcile.Reconciler, metricForwardersM
 }
 
 type metricForwardersManager interface {
-	Register(types.NamespacedName)
-	Unregister(types.NamespacedName)
-	ProcessError(types.NamespacedName, error)
-	ProcessEvent(types.NamespacedName, datadog.Event)
+	Register(datadog.MonitoredObject)
+	Unregister(datadog.MonitoredObject)
+	ProcessError(datadog.MonitoredObject, error)
+	ProcessEvent(datadog.MonitoredObject, datadog.Event)
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
-func add(mgr manager.Manager, r reconcile.Reconciler, registerFunc func(types.NamespacedName)) error {
+func add(mgr manager.Manager, r reconcile.Reconciler, registerFunc func(datadog.MonitoredObject)) error {
 	// Create a new controller
 	c, err := controller.New("datadogdeployment-controller", mgr, controller.Options{Reconciler: r})
 	if err != nil {
@@ -93,10 +92,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler, registerFunc func(types.Na
 		CreateFunc: func(ev event.CreateEvent) bool {
 			// Register a metrics forwarder that corresponds
 			// to this DatadogAgentDeployment instance
-			registerFunc(types.NamespacedName{
-				Namespace: ev.Meta.GetNamespace(),
-				Name:      ev.Meta.GetName(),
-			})
+			registerFunc(ev.Meta)
 
 			// Never ignore a creation event
 			return true
@@ -235,7 +231,7 @@ type ReconcileDatadogAgentDeployment struct {
 // Reconcile wraps internelReconcile to send metrics based on reconcile errors
 func (r *ReconcileDatadogAgentDeployment) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	resp, err := r.internelReconcile(request)
-	r.forwarders.ProcessError(request.NamespacedName, err)
+	r.forwarders.ProcessError(getMonitoredObj(request), err)
 	return resp, err
 }
 

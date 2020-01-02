@@ -10,17 +10,51 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	corev1 "k8s.io/api/core/v1"
 )
+
+// eventInfo contains the required information
+// to create kubernetes and datadog events
+type eventInfo struct {
+	objName      string
+	objNamespace string
+	objKind      string
+	eventType    datadog.EventType
+}
+
+// buildEventInfo creates a new eventInfo instance
+func buildEventInfo(name, ns, kind string, eventType datadog.EventType) eventInfo {
+	return eventInfo{
+		objName:      name,
+		objNamespace: ns,
+		objKind:      kind,
+		eventType:    eventType,
+	}
+}
+
+// getReason returns the event reason
+func (ei *eventInfo) getReason() string {
+	return fmt.Sprintf("%s %s", ei.eventType, ei.objKind)
+}
+
+// getMessage returns the event message
+func (ei *eventInfo) getMessage() string {
+	return fmt.Sprintf("%s/%s", ei.objNamespace, ei.objName)
+}
+
+// getDDEvent builds and returns a Datadog event
+func (ei *eventInfo) getDDEvent() datadog.Event {
+	reason := ei.getReason()
+	message := ei.getMessage()
+	return datadog.Event{
+		Title: fmt.Sprintf("%s %s", reason, message),
+		Type:  ei.eventType,
+	}
+}
 
 // recordEvent wraps the manager event recorder
 // recordEvent calls the metric forwarders to send Datadog events
-// the reason argument should contain the action and the object type e.g: Create DaemonSet
-// the message argument should contain object namespace and name e.g: default/datadog-agent
-func (r *ReconcileDatadogAgentDeployment) recordEvent(dad *datadoghqv1alpha1.DatadogAgentDeployment, eventtype, reason, message string, ddEventType datadog.EventType) {
-	r.recorder.Event(dad, eventtype, reason, message)
-	ddEvent := datadog.Event{
-		Title: fmt.Sprintf("%s %s", reason, message),
-		Type:  ddEventType,
-	}
-	r.forwarders.ProcessEvent(getNamespacedName(dad), ddEvent)
+func (r *ReconcileDatadogAgentDeployment) recordEvent(dad *datadoghqv1alpha1.DatadogAgentDeployment, info eventInfo) {
+	r.recorder.Event(dad, corev1.EventTypeNormal, info.getReason(), info.getMessage())
+	r.forwarders.ProcessEvent(dad, info.getDDEvent())
 }

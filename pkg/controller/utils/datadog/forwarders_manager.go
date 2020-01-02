@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"sync"
 
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -39,22 +38,22 @@ func (f *ForwardersManager) Start(stop <-chan struct{}) error {
 	return nil
 }
 
-// Register starts a new metricsForwarder if a new DatadogAgentDeployment is detected
-func (f *ForwardersManager) Register(namespacedName types.NamespacedName) {
+// Register starts a new metricsForwarder if a new MonitoredObject is detected
+func (f *ForwardersManager) Register(obj MonitoredObject) {
 	f.Lock()
 	defer f.Unlock()
-	id := namespacedName.String()
+	id := getObjID(obj)
 	if _, found := f.forwarders[id]; !found {
 		log.Info("New Datadog metrics forwarder registred", "ID", id)
-		f.forwarders[id] = newMetricsForwarder(f.k8sClient, namespacedName)
+		f.forwarders[id] = newMetricsForwarder(f.k8sClient, obj)
 		f.wg.Add(1)
 		go f.forwarders[id].start(&f.wg)
 	}
 }
 
-// Unregister stops a metricsForwarder when its corresponding DatadogAgentDeployment is deleted
-func (f *ForwardersManager) Unregister(namespacedName types.NamespacedName) {
-	id := namespacedName.String()
+// Unregister stops a metricsForwarder when its corresponding MonitoredObject is deleted
+func (f *ForwardersManager) Unregister(obj MonitoredObject) {
+	id := getObjID(obj)
 	log.Info("Unregistering metrics forwarder", "ID", id)
 	if err := f.unregisterForwarder(id); err != nil {
 		log.Error(err, "cannot unregister metrics forwarder", "ID", id)
@@ -64,13 +63,11 @@ func (f *ForwardersManager) Unregister(namespacedName types.NamespacedName) {
 
 // ProcessError dispatches reconcile errors to their corresponding metric forwarders
 // metric forwarders generates reconcile loop metrics based on the errors
-func (f *ForwardersManager) ProcessError(namespacedName types.NamespacedName, err error) {
-	f.Lock()
-	defer f.Unlock()
-	id := namespacedName.String()
-	forwarder, found := f.forwarders[id]
-	if !found {
-		log.Error(fmt.Errorf("%s not found", id), "cannot process error")
+func (f *ForwardersManager) ProcessError(obj MonitoredObject, reconcileErr error) {
+	id := getObjID(obj)
+	forwarder, err := f.getForwarder(id)
+	if err != nil {
+		log.Error(err, "cannot process error")
 		return
 	}
 	if forwarder.isErrChanFull() {
@@ -78,17 +75,15 @@ func (f *ForwardersManager) ProcessError(namespacedName types.NamespacedName, er
 		log.Error(fmt.Errorf("metrics forwarder %s: blocked error forwarding", id), "cannot process error")
 		return
 	}
-	forwarder.errorChan <- err
+	forwarder.errorChan <- reconcileErr
 }
 
 // ProcessEvent dispatches recorded events to their corresponding metric forwarders
-func (f *ForwardersManager) ProcessEvent(namespacedName types.NamespacedName, event Event) {
-	f.Lock()
-	defer f.Unlock()
-	id := namespacedName.String()
-	forwarder, found := f.forwarders[id]
-	if !found {
-		log.Error(fmt.Errorf("%s not found", id), "cannot process event")
+func (f *ForwardersManager) ProcessEvent(obj MonitoredObject, event Event) {
+	id := getObjID(obj)
+	forwarder, err := f.getForwarder(id)
+	if err != nil {
+		log.Error(err, "cannot process event")
 		return
 	}
 	if forwarder.isEventChanFull() {
@@ -120,4 +115,15 @@ func (f *ForwardersManager) unregisterForwarder(id string) error {
 	f.forwarders[id].stop()
 	delete(f.forwarders, id)
 	return nil
+}
+
+// getForwarder returns a metrics forwarder by ID
+func (f *ForwardersManager) getForwarder(id string) (*metricsForwarder, error) {
+	f.Lock()
+	defer f.Unlock()
+	forwarder, found := f.forwarders[id]
+	if !found {
+		return nil, fmt.Errorf("%s not found", id)
+	}
+	return forwarder, nil
 }

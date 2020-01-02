@@ -657,7 +657,7 @@ func Test_metricsForwarder_processReconcileError(t *testing.T) {
 			name: "last error init value, new unknown error => send unsucess metric",
 			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
-				f.On("delegatedSendReconcileMetric", 0.0, []string{"cr_namespace:foo", "cr_name:bar", "reconcile_err:err_msg"})
+				f.On("delegatedSendReconcileMetric", 0.0, []string{"cr_namespace:foo", "cr_name:bar", "reconcile_err:err_msg"}).Once()
 				mf.delegator = f
 				mf.lastReconcileErr = errInitValue
 				return mf, f
@@ -665,12 +665,7 @@ func Test_metricsForwarder_processReconcileError(t *testing.T) {
 			err:     errors.New("err_msg"),
 			wantErr: false,
 			wantFunc: func(f *fakeMetricsForwarder) error {
-				if !f.AssertCalled(t, "delegatedSendReconcileMetric", 0.0, []string{"cr_namespace:foo", "cr_name:bar", "reconcile_err:err_msg"}) {
-					return errors.New("Function not called")
-				}
-				if !f.AssertNumberOfCalls(t, "delegatedSendReconcileMetric", 1) {
-					return errors.New("Wrong number of calls")
-				}
+				f.AssertExpectations(t)
 				return nil
 			},
 		},
@@ -678,7 +673,7 @@ func Test_metricsForwarder_processReconcileError(t *testing.T) {
 			name: "last error init value, new auth error => send unsucess metric",
 			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
-				f.On("delegatedSendReconcileMetric", 0.0, []string{"cr_namespace:foo", "cr_name:bar", "reconcile_err:Unauthorized"})
+				f.On("delegatedSendReconcileMetric", 0.0, []string{"cr_namespace:foo", "cr_name:bar", "reconcile_err:Unauthorized"}).Once()
 				mf.delegator = f
 				mf.lastReconcileErr = errInitValue
 				return mf, f
@@ -686,12 +681,7 @@ func Test_metricsForwarder_processReconcileError(t *testing.T) {
 			err:     apierrors.NewUnauthorized("Auth error"),
 			wantErr: false,
 			wantFunc: func(f *fakeMetricsForwarder) error {
-				if !f.AssertCalled(t, "delegatedSendReconcileMetric", 0.0, []string{"cr_namespace:foo", "cr_name:bar", "reconcile_err:Unauthorized"}) {
-					return errors.New("Function not called")
-				}
-				if !f.AssertNumberOfCalls(t, "delegatedSendReconcileMetric", 1) {
-					return errors.New("Wrong number of calls")
-				}
+				f.AssertExpectations(t)
 				return nil
 			},
 		},
@@ -699,7 +689,7 @@ func Test_metricsForwarder_processReconcileError(t *testing.T) {
 			name: "last error init value, new error is nil => send success metric",
 			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
-				f.On("delegatedSendReconcileMetric", 1.0, []string{"cr_namespace:foo", "cr_name:bar", "reconcile_err:null"})
+				f.On("delegatedSendReconcileMetric", 1.0, []string{"cr_namespace:foo", "cr_name:bar", "reconcile_err:null"}).Once()
 				mf.delegator = f
 				mf.lastReconcileErr = errInitValue
 				return mf, f
@@ -707,12 +697,7 @@ func Test_metricsForwarder_processReconcileError(t *testing.T) {
 			err:     nil,
 			wantErr: false,
 			wantFunc: func(f *fakeMetricsForwarder) error {
-				if !f.AssertCalled(t, "delegatedSendReconcileMetric", 1.0, []string{"cr_namespace:foo", "cr_name:bar", "reconcile_err:null"}) {
-					return errors.New("Function not called")
-				}
-				if !f.AssertNumberOfCalls(t, "delegatedSendReconcileMetric", 1) {
-					return errors.New("Wrong number of calls")
-				}
+				f.AssertExpectations(t)
 				return nil
 			},
 		},
@@ -730,6 +715,7 @@ func Test_metricsForwarder_processReconcileError(t *testing.T) {
 				if !f.AssertNumberOfCalls(t, "delegatedSendReconcileMetric", 0) {
 					return errors.New("Wrong number of calls")
 				}
+				f.AssertExpectations(t)
 				return nil
 			},
 		},
@@ -747,6 +733,7 @@ func Test_metricsForwarder_processReconcileError(t *testing.T) {
 				if !f.AssertNumberOfCalls(t, "delegatedSendReconcileMetric", 0) {
 					return errors.New("Wrong number of calls")
 				}
+				f.AssertExpectations(t)
 				return nil
 			},
 		},

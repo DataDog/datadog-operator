@@ -2158,16 +2158,16 @@ func createClusterAgentDependencies(c client.Client, dad *datadoghqv1alpha1.Data
 type dummyManager struct {
 }
 
-func (dummyManager) Register(types.NamespacedName) {
+func (dummyManager) Register(datadog.MonitoredObject) {
 }
 
-func (dummyManager) Unregister(types.NamespacedName) {
+func (dummyManager) Unregister(datadog.MonitoredObject) {
 }
 
-func (dummyManager) ProcessError(types.NamespacedName, error) {
+func (dummyManager) ProcessError(datadog.MonitoredObject, error) {
 }
 
-func (dummyManager) ProcessEvent(types.NamespacedName, datadog.Event) {
+func (dummyManager) ProcessEvent(datadog.MonitoredObject, datadog.Event) {
 }
 
 func createClusterChecksRunnerDependencies(c client.Client, dad *datadoghqv1alpha1.DatadogAgentDeployment) {
