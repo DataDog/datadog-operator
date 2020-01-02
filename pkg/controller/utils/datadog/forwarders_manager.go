@@ -73,6 +73,11 @@ func (f *ForwardersManager) ProcessError(namespacedName types.NamespacedName, er
 		log.Error(fmt.Errorf("%s not found", id), "cannot process error")
 		return
 	}
+	if forwarder.isErrChanFull() {
+		// Discard sending the error to avoid blocking this method
+		log.Error(fmt.Errorf("metrics forwarder %s: blocked error forwarding", id), "cannot process error")
+		return
+	}
 	forwarder.errorChan <- err
 }
 
@@ -84,6 +89,11 @@ func (f *ForwardersManager) ProcessEvent(namespacedName types.NamespacedName, ev
 	forwarder, found := f.forwarders[id]
 	if !found {
 		log.Error(fmt.Errorf("%s not found", id), "cannot process event")
+		return
+	}
+	if forwarder.isEventChanFull() {
+		// Discard sending the event to avoid blocking this method
+		log.Error(fmt.Errorf("metrics forwarder %s: blocked event forwarding", id), "cannot process event")
 		return
 	}
 	forwarder.eventChan <- event
@@ -107,7 +117,6 @@ func (f *ForwardersManager) unregisterForwarder(id string) error {
 	if _, found := f.forwarders[id]; !found {
 		return fmt.Errorf("%s not found", id)
 	}
-	f.forwarders[id].eventChan <- crDeleted(id)
 	f.forwarders[id].stop()
 	delete(f.forwarders, id)
 	return nil

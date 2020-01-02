@@ -100,8 +100,8 @@ func newMetricsForwarder(k8sClient client.Client, namespacedName types.Namespace
 		sendMetricsInterval: defaultSendMetricsInterval,
 		metricsPrefix:       defaultMetricsNamespace,
 		stopChan:            make(chan struct{}),
-		errorChan:           make(chan error),
-		eventChan:           make(chan Event),
+		errorChan:           make(chan error, 100),
+		eventChan:           make(chan Event, 10),
 		lastReconcileErr:    errInitValue,
 		logger:              log.WithValues("CustomResource.Namespace", namespacedName.Namespace, "CustomResource.Name", namespacedName.Name),
 	}
@@ -142,9 +142,13 @@ func (mf *metricsForwarder) start(wg *sync.WaitGroup) {
 		select {
 		case <-mf.stopChan:
 			// The metrics forwarder is stopped by the ForwardersManager
-			// forward metrics and return
+			// forward metrics and deletion event then return
 			if err := mf.forwardMetrics(); err != nil {
 				mf.logger.Error(err, "an error occured while sending metrics")
+			}
+			crEvent := crDeleted(mf.id)
+			if err := mf.forwardEvent(crEvent); err != nil {
+				mf.logger.Error(err, "an error occured while sending event")
 			}
 			mf.logger.Info("Shutting down Datadog metrics forwarder")
 			return
@@ -580,4 +584,14 @@ func (mf *metricsForwarder) delegatedSendEvent(eventTitle string, eventType Even
 		return err
 	}
 	return nil
+}
+
+// isErrChanFull returs if the errorChan is full
+func (mf *metricsForwarder) isErrChanFull() bool {
+	return len(mf.errorChan) == cap(mf.errorChan)
+}
+
+// isEventChanFull returs if the eventChan is full
+func (mf *metricsForwarder) isEventChanFull() bool {
+	return len(mf.eventChan) == cap(mf.eventChan)
 }
