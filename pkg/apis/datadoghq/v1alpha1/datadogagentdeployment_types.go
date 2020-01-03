@@ -87,7 +87,7 @@ type DatadogAgentDeploymentSpecAgentSpec struct {
 	// The container image of the Datadog Agent
 	Image ImageConfig `json:"image"`
 
-	// Name of the Daemonset to create or upgrade from
+	// Name of the Daemonset to create or migrate from
 	// +optional
 	DaemonsetName string `json:"daemonsetName,omitempty"`
 
@@ -411,7 +411,8 @@ type DatadogAgentDeploymentSpecClusterAgentSpec struct {
 	// The container image of the Datadog Cluster Agent
 	Image ImageConfig `json:"image"`
 
-	// Name of the deployment to upgrade from or to create
+	// Name of the Cluster Agent Deployment to create or migrate from
+	// +optional
 	DeploymentName string `json:"deploymentName,omitempty"`
 
 	// Cluster Agent configuration
@@ -576,6 +577,9 @@ type DatadogAgentDeploymentAgentStatus struct {
 	State       string       `json:"state,omitempty"`
 	LastUpdate  *metav1.Time `json:"lastUpdate,omitempty"`
 	CurrentHash string       `json:"currentHash,omitempty"`
+
+	// DaemonsetName corresponds to the name of the created DaemonSet
+	DaemonsetName string `json:"daemonsetName,omitempty"`
 }
 
 // DatadogAgentDeploymentDeploymentStatus type representing the Cluster Agent Deployment status
@@ -613,6 +617,9 @@ type DatadogAgentDeploymentDeploymentStatus struct {
 
 	// State corresponds to the ClusterAgent deployment state
 	State string `json:"state,omitempty"`
+
+	// DeploymentName corresponds to the name of the Cluster Agent Deployment
+	DeploymentName string `json:"deploymentName,omitempty"`
 }
 
 // DatadogAgentDeploymentCondition describes the state of a DatadogAgentDeployment at a certain point.

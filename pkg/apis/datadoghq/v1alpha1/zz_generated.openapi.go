@@ -491,6 +491,13 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentDeploymentAgentStatus(ref co
 							Format: "",
 						},
 					},
+					"daemonsetName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DaemonsetName corresponds to the name of the created DaemonSet",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"desired", "current", "ready", "available", "upToDate"},
 			},
@@ -619,6 +626,13 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentDeploymentDeploymentStatus(r
 					"state": {
 						SchemaProps: spec.SchemaProps{
 							Description: "State corresponds to the ClusterAgent deployment state",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"deploymentName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DeploymentName corresponds to the name of the Cluster Agent Deployment",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -759,7 +773,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentDeploymentSpecAgentSpec(ref 
 					},
 					"daemonsetName": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Name of the Daemonset to create or upgrade from",
+							Description: "Name of the Daemonset to create or migrate from",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -849,7 +863,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentDeploymentSpecClusterAgentSp
 					},
 					"deploymentName": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Name of the deployment to upgrade from or to create",
+							Description: "Name of the Cluster Agent Deployment to create or migrate from",
 							Type:        []string{"string"},
 							Format:      "",
 						},

@@ -49,6 +49,12 @@ func (r *ReconcileDatadogAgentDeployment) reconcileClusterAgent(logger logr.Logg
 		}
 	}
 
+	if newStatus.ClusterAgent != nil &&
+		newStatus.ClusterAgent.DeploymentName != "" &&
+		newStatus.ClusterAgent.DeploymentName != getClusterAgentName(dad) {
+		return result, fmt.Errorf("Datadog cluster agent Deployment cannot be renamed once created")
+	}
+
 	nsName := types.NamespacedName{
 		Name:      getClusterAgentName(dad),
 		Namespace: dad.Namespace,

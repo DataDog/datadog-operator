@@ -33,6 +33,10 @@ func (r *ReconcileDatadogAgentDeployment) reconcileAgent(logger logr.Logger, dad
 		return result, err
 	}
 
+	if newStatus.Agent != nil && newStatus.Agent.DaemonsetName != "" && newStatus.Agent.DaemonsetName != daemonsetName(dad) {
+		return result, fmt.Errorf("Datadog agent DaemonSet cannot be renamed once created")
+	}
+
 	nameNamespace := types.NamespacedName{
 		Name:      daemonsetName(dad),
 		Namespace: dad.ObjectMeta.Namespace,

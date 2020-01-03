@@ -1894,7 +1894,7 @@ spec:
                     for more details.
                   type: string
                 daemonsetName:
-                  description: Name of the Daemonset to create or upgrade from
+                  description: Name of the Daemonset to create or migrate from
                   type: string
                 deploymentStrategy:
                   description: Update strategy configuration for the DaemonSet
@@ -4264,7 +4264,8 @@ spec:
                       type: array
                   type: object
                 deploymentName:
-                  description: Name of the deployment to upgrade from or to create
+                  description: Name of the Cluster Agent Deployment to create or migrate
+                    from
                   type: string
                 image:
                   description: The container image of the Datadog Cluster Agent
@@ -5145,6 +5146,10 @@ spec:
                   type: integer
                 currentHash:
                   type: string
+                daemonsetName:
+                  description: DaemonsetName corresponds to the name of the created
+                    DaemonSet
+                  type: string
                 desired:
                   format: int32
                   type: integer
@@ -5175,6 +5180,10 @@ spec:
                   format: int32
                   type: integer
                 currentHash:
+                  type: string
+                deploymentName:
+                  description: DeploymentName corresponds to the name of the Cluster
+                    Agent Deployment
                   type: string
                 generatedToken:
                   description: GeneratedToken corresponds to the generated token if
@@ -5219,6 +5228,10 @@ spec:
                   format: int32
                   type: integer
                 currentHash:
+                  type: string
+                deploymentName:
+                  description: DeploymentName corresponds to the name of the Cluster
+                    Agent Deployment
                   type: string
                 generatedToken:
                   description: GeneratedToken corresponds to the generated token if

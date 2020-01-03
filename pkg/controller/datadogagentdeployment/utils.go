@@ -1072,6 +1072,7 @@ func updateDaemonSetStatus(ds *appsv1.DaemonSet, dsStatus *datadoghqv1alpha1.Dat
 	}
 
 	dsStatus.State = fmt.Sprintf("%v (%d/%d/%d)", deploymentState, dsStatus.Desired, dsStatus.Ready, dsStatus.UpToDate)
+	dsStatus.DaemonsetName = ds.ObjectMeta.Name
 	return dsStatus
 }
 
@@ -1102,6 +1103,7 @@ func updateExtendedDaemonSetStatus(eds *edsdatadoghqv1alpha1.ExtendedDaemonSet, 
 	}
 
 	dsStatus.State = fmt.Sprintf("%v (%d/%d/%d)", deploymentState, dsStatus.Desired, dsStatus.Ready, dsStatus.UpToDate)
+	dsStatus.DaemonsetName = eds.ObjectMeta.Name
 	return dsStatus
 }
 
@@ -1144,6 +1146,7 @@ func updateDeploymentStatus(dep *appsv1.Deployment, depStatus *datadoghqv1alpha1
 	}
 
 	depStatus.State = fmt.Sprintf("%v (%d/%d/%d)", deploymentState, depStatus.Replicas, depStatus.ReadyReplicas, depStatus.UpdatedReplicas)
+	depStatus.DeploymentName = dep.ObjectMeta.Name
 	return depStatus
 }
 
