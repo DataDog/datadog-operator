@@ -1194,3 +1194,22 @@ func referSameObject(a, b metav1.OwnerReference) bool {
 
 	return aGV == bGV && a.Kind == b.Kind && a.Name == b.Name
 }
+
+// namespacedName implements the datadog.MonitoredObject interface
+// used to convert reconcile.Request into datadog.MonitoredObject
+type namespacedName struct {
+	reconcile.Request
+}
+
+func (nsn namespacedName) GetNamespace() string {
+	return nsn.Namespace
+}
+
+func (nsn namespacedName) GetName() string {
+	return nsn.Name
+}
+
+// getMonitoredObj returns a namespacedName from a reconcile.Request object
+func getMonitoredObj(req reconcile.Request) namespacedName {
+	return namespacedName{req}
+}

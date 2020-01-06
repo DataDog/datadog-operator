@@ -16,6 +16,7 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
 	test "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1/test"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/google/go-cmp/cmp"
 	assert "github.com/stretchr/testify/require"
 
@@ -46,6 +47,7 @@ var defaultAgentHash, defaultClusterAgentHash string
 func TestReconcileDatadogAgentDeployment_createNewExtendedDaemonSet(t *testing.T) {
 	eventBroadcaster := record.NewBroadcaster()
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "TestReconcileDatadogAgentDeployment_createNewExtendedDaemonSet"})
+	forwarders := dummyManager{}
 
 	logf.SetLogger(logf.ZapLogger(true))
 	log := logf.Log.WithName("TestReconcileDatadogAgentDeployment_createNewExtendedDaemonSet")
@@ -92,9 +94,10 @@ func TestReconcileDatadogAgentDeployment_createNewExtendedDaemonSet(t *testing.T
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := &ReconcileDatadogAgentDeployment{
-				client:   tt.fields.client,
-				scheme:   tt.fields.scheme,
-				recorder: recorder,
+				client:     tt.fields.client,
+				scheme:     tt.fields.scheme,
+				recorder:   recorder,
+				forwarders: forwarders,
 			}
 			got, err := r.createNewExtendedDaemonSet(tt.args.logger, tt.args.agentdeployment, tt.args.newStatus)
 			if tt.wantErr {
@@ -1975,6 +1978,7 @@ func Test_newClusterAgentDeploymentFromInstance(t *testing.T) {
 func TestReconcileDatadogAgentDeployment_createNewClusterAgentDeployment(t *testing.T) {
 	eventBroadcaster := record.NewBroadcaster()
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "TestReconcileDatadogAgentDeployment_createNewClusterAgentDeployment"})
+	forwarders := dummyManager{}
 
 	logf.SetLogger(logf.ZapLogger(true))
 	log := logf.Log.WithName("TestReconcileDatadogAgentDeployment_createNewClusterAgentDeployment")
@@ -2017,9 +2021,10 @@ func TestReconcileDatadogAgentDeployment_createNewClusterAgentDeployment(t *test
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := &ReconcileDatadogAgentDeployment{
-				client:   tt.fields.client,
-				scheme:   tt.fields.scheme,
-				recorder: recorder,
+				client:     tt.fields.client,
+				scheme:     tt.fields.scheme,
+				recorder:   recorder,
+				forwarders: forwarders,
 			}
 			got, err := r.createNewClusterAgentDeployment(tt.args.logger, tt.args.agentdeployment, tt.args.newStatus)
 			if tt.wantErr {
@@ -2153,10 +2158,16 @@ func createClusterAgentDependencies(c client.Client, dad *datadoghqv1alpha1.Data
 type dummyManager struct {
 }
 
-func (dummyManager) Register(types.NamespacedName) {
+func (dummyManager) Register(datadog.MonitoredObject) {
 }
 
-func (dummyManager) Unregister(types.NamespacedName) {
+func (dummyManager) Unregister(datadog.MonitoredObject) {
+}
+
+func (dummyManager) ProcessError(datadog.MonitoredObject, error) {
+}
+
+func (dummyManager) ProcessEvent(datadog.MonitoredObject, datadog.Event) {
 }
 
 func createClusterChecksRunnerDependencies(c client.Client, dad *datadoghqv1alpha1.DatadogAgentDeployment) {

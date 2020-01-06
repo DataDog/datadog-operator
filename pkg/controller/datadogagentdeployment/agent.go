@@ -7,12 +7,12 @@ package datadogagentdeployment
 
 import (
 	"context"
-	"fmt"
 	"time"
+
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -111,7 +111,8 @@ func (r *ReconcileDatadogAgentDeployment) deleteDaemonSet(logger logr.Logger, ag
 		return err
 	}
 	logger.Info("Delete DaemonSet", "daemonSet.Namespace", ds.Namespace, "daemonSet.Name", ds.Name)
-	r.recorder.Event(agentdeployment, corev1.EventTypeNormal, "Delete DaemonSet", fmt.Sprintf("%s/%s", ds.Namespace, ds.Name))
+	eventInfo := buildEventInfo(ds.Name, ds.Namespace, daemonSetKind, datadog.DeletionEvent)
+	r.recordEvent(agentdeployment, eventInfo)
 	return err
 }
 
@@ -121,7 +122,8 @@ func (r *ReconcileDatadogAgentDeployment) deleteExtendedDaemonSet(logger logr.Lo
 		return err
 	}
 	logger.Info("Delete DaemonSet", "extendedDaemonSet.Namespace", eds.Namespace, "extendedDaemonSet.Name", eds.Name)
-	r.recorder.Event(agentdeployment, corev1.EventTypeNormal, "Delete ExtendedDaemonSet", fmt.Sprintf("%s/%s", eds.Namespace, eds.Name))
+	eventInfo := buildEventInfo(eds.Name, eds.Namespace, extendedDaemonSetKind, datadog.DeletionEvent)
+	r.recordEvent(agentdeployment, eventInfo)
 	return err
 }
 
@@ -145,7 +147,8 @@ func (r *ReconcileDatadogAgentDeployment) createNewExtendedDaemonSet(logger logr
 	if err != nil {
 		return reconcile.Result{}, err
 	}
-	r.recorder.Event(agentdeployment, corev1.EventTypeNormal, "Create ExtendedDaemonSet", fmt.Sprintf("%s/%s", newEDS.Namespace, newEDS.Name))
+	eventInfo := buildEventInfo(newEDS.Name, newEDS.Namespace, extendedDaemonSetKind, datadog.CreationEvent)
+	r.recordEvent(agentdeployment, eventInfo)
 	now := metav1.NewTime(time.Now())
 	newStatus.Agent = updateExtendedDaemonSetStatus(newEDS, newStatus.Agent, &now)
 
@@ -170,7 +173,8 @@ func (r *ReconcileDatadogAgentDeployment) createNewDaemonSet(logger logr.Logger,
 	if err != nil {
 		return reconcile.Result{}, err
 	}
-	r.recorder.Event(agentdeployment, corev1.EventTypeNormal, "Create DaemonSet", fmt.Sprintf("%s/%s", newDS.Namespace, newDS.Name))
+	eventInfo := buildEventInfo(newDS.Name, newDS.Namespace, daemonSetKind, datadog.CreationEvent)
+	r.recordEvent(agentdeployment, eventInfo)
 	now := metav1.NewTime(time.Now())
 	newStatus.Agent = updateDaemonSetStatus(newDS, newStatus.Agent, &now)
 
@@ -213,7 +217,8 @@ func (r *ReconcileDatadogAgentDeployment) updateExtendedDaemonSet(logger logr.Lo
 	if err != nil {
 		return reconcile.Result{}, err
 	}
-	r.recorder.Event(agentdeployment, corev1.EventTypeNormal, "Update ExtendedDaemonSet", fmt.Sprintf("%s/%s", updatedEds.Namespace, updatedEds.Name))
+	eventInfo := buildEventInfo(updatedEds.Name, updatedEds.Namespace, extendedDaemonSetKind, datadog.UpdateEvent)
+	r.recordEvent(agentdeployment, eventInfo)
 	newStatus.Agent = updateExtendedDaemonSetStatus(updatedEds, newStatus.Agent, &now)
 	return reconcile.Result{RequeueAfter: 5 * time.Second}, nil
 }
@@ -259,7 +264,8 @@ func (r *ReconcileDatadogAgentDeployment) updateDaemonSet(logger logr.Logger, ag
 	if err != nil {
 		return reconcile.Result{}, err
 	}
-	r.recorder.Event(agentdeployment, corev1.EventTypeNormal, "Update DaemonSet", fmt.Sprintf("%s/%s", updatedDS.Namespace, updatedDS.Name))
+	eventInfo := buildEventInfo(updatedDS.Name, updatedDS.Namespace, daemonSetKind, datadog.UpdateEvent)
+	r.recordEvent(agentdeployment, eventInfo)
 	newStatus.Agent = updateDaemonSetStatus(updatedDS, newStatus.Agent, &now)
 	return reconcile.Result{RequeueAfter: 5 * time.Second}, nil
 }

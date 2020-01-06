@@ -22,6 +22,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 )
 
 func (r *ReconcileDatadogAgentDeployment) reconcileClusterChecksRunner(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment, newStatus *datadoghqv1alpha1.DatadogAgentDeploymentStatus) (reconcile.Result, error) {
@@ -87,7 +88,8 @@ func (r *ReconcileDatadogAgentDeployment) createNewClusterChecksRunnerDeployment
 	}
 
 	updateStatusWithClusterChecksRunner(newDCAW, newStatus, &now)
-	r.recorder.Event(agentdeployment, corev1.EventTypeNormal, "Create Cluster Checks Runner Deployment", fmt.Sprintf("%s/%s", newDCAW.Namespace, newDCAW.Name))
+	eventInfo := buildEventInfo(newDCAW.Name, newDCAW.Namespace, deploymentKind, datadog.CreationEvent)
+	r.recordEvent(agentdeployment, eventInfo)
 	return reconcile.Result{}, nil
 }
 
@@ -135,7 +137,8 @@ func (r *ReconcileDatadogAgentDeployment) updateClusterChecksRunnerDeployment(lo
 	if err != nil {
 		return reconcile.Result{}, err
 	}
-	r.recorder.Event(agentdeployment, corev1.EventTypeNormal, "Update Cluster Checks Runner Deployment", fmt.Sprintf("%s/%s", updateDca.Namespace, updateDca.Name))
+	eventInfo := buildEventInfo(updateDca.Name, updateDca.Namespace, deploymentKind, datadog.UpdateEvent)
+	r.recordEvent(agentdeployment, eventInfo)
 	updateStatusWithClusterChecksRunner(updateDca, newStatus, &now)
 	return reconcile.Result{}, nil
 }
@@ -205,7 +208,8 @@ func (r *ReconcileDatadogAgentDeployment) cleanupClusterChecksRunner(logger logr
 		return reconcile.Result{}, err
 	}
 	logger.Info("Deleting Cluster Checks Runner Deployment", "deployment.Namespace", ClusterChecksRunnerDeployment.Namespace, "deployment.Name", ClusterChecksRunnerDeployment.Name)
-	r.recorder.Event(dad, corev1.EventTypeNormal, "Delete Cluster Checks Runner Deployment", fmt.Sprintf("%s/%s", ClusterChecksRunnerDeployment.Namespace, ClusterChecksRunnerDeployment.Name))
+	eventInfo := buildEventInfo(ClusterChecksRunnerDeployment.Name, ClusterChecksRunnerDeployment.Namespace, deploymentKind, datadog.DeletionEvent)
+	r.recordEvent(dad, eventInfo)
 	if err := r.client.Delete(context.TODO(), ClusterChecksRunnerDeployment); err != nil {
 		return reconcile.Result{}, err
 	}

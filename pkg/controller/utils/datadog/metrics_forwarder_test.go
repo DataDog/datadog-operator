@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	api "github.com/zorkian/go-datadog-api"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -30,6 +31,16 @@ type fakeMetricsForwarder struct {
 
 func (c *fakeMetricsForwarder) delegatedSendDeploymentMetric(metricValue float64, component string, tags []string) error {
 	c.Called(metricValue, component, tags)
+	return nil
+}
+
+func (c *fakeMetricsForwarder) delegatedSendReconcileMetric(metricValue float64, tags []string) error {
+	c.Called(metricValue, tags)
+	return nil
+}
+
+func (c *fakeMetricsForwarder) delegatedSendEvent(eventTitle string, eventType EventType) error {
+	c.Called(eventTitle, eventType)
 	return nil
 }
 
@@ -620,6 +631,174 @@ func TestMetricsForwarder_setTags(t *testing.T) {
 			sort.Strings(tt.want)
 			if !reflect.DeepEqual(dd.tags, tt.want) {
 				t.Errorf("metricsForwarder.setTags() dd.tags = %v, want %v", dd.tags, tt.want)
+			}
+		})
+	}
+}
+
+func Test_metricsForwarder_processReconcileError(t *testing.T) {
+	nsn := types.NamespacedName{
+		Namespace: "foo",
+		Name:      "bar",
+	}
+	mf := &metricsForwarder{
+		namespacedName: nsn,
+	}
+	mf.initGlobalTags()
+
+	tests := []struct {
+		name     string
+		loadFunc func() (*metricsForwarder, *fakeMetricsForwarder)
+		err      error
+		wantErr  bool
+		wantFunc func(*fakeMetricsForwarder) error
+	}{
+		{
+			name: "last error init value, new unknown error => send unsucess metric",
+			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
+				f := &fakeMetricsForwarder{}
+				f.On("delegatedSendReconcileMetric", 0.0, []string{"cr_namespace:foo", "cr_name:bar", "reconcile_err:err_msg"}).Once()
+				mf.delegator = f
+				mf.lastReconcileErr = errInitValue
+				return mf, f
+			},
+			err:     errors.New("err_msg"),
+			wantErr: false,
+			wantFunc: func(f *fakeMetricsForwarder) error {
+				f.AssertExpectations(t)
+				return nil
+			},
+		},
+		{
+			name: "last error init value, new auth error => send unsucess metric",
+			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
+				f := &fakeMetricsForwarder{}
+				f.On("delegatedSendReconcileMetric", 0.0, []string{"cr_namespace:foo", "cr_name:bar", "reconcile_err:Unauthorized"}).Once()
+				mf.delegator = f
+				mf.lastReconcileErr = errInitValue
+				return mf, f
+			},
+			err:     apierrors.NewUnauthorized("Auth error"),
+			wantErr: false,
+			wantFunc: func(f *fakeMetricsForwarder) error {
+				f.AssertExpectations(t)
+				return nil
+			},
+		},
+		{
+			name: "last error init value, new error is nil => send success metric",
+			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
+				f := &fakeMetricsForwarder{}
+				f.On("delegatedSendReconcileMetric", 1.0, []string{"cr_namespace:foo", "cr_name:bar", "reconcile_err:null"}).Once()
+				mf.delegator = f
+				mf.lastReconcileErr = errInitValue
+				return mf, f
+			},
+			err:     nil,
+			wantErr: false,
+			wantFunc: func(f *fakeMetricsForwarder) error {
+				f.AssertExpectations(t)
+				return nil
+			},
+		},
+		{
+			name: "last error nil, new error is nil => don't send metric",
+			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
+				f := &fakeMetricsForwarder{}
+				mf.delegator = f
+				mf.lastReconcileErr = nil
+				return mf, f
+			},
+			err:     nil,
+			wantErr: false,
+			wantFunc: func(f *fakeMetricsForwarder) error {
+				if !f.AssertNumberOfCalls(t, "delegatedSendReconcileMetric", 0) {
+					return errors.New("Wrong number of calls")
+				}
+				f.AssertExpectations(t)
+				return nil
+			},
+		},
+		{
+			name: "last error not nil and not init value, new error equals last error => don't send metric",
+			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
+				f := &fakeMetricsForwarder{}
+				mf.delegator = f
+				mf.lastReconcileErr = apierrors.NewUnauthorized("Auth error")
+				return mf, f
+			},
+			err:     apierrors.NewUnauthorized("Auth error"),
+			wantErr: false,
+			wantFunc: func(f *fakeMetricsForwarder) error {
+				if !f.AssertNumberOfCalls(t, "delegatedSendReconcileMetric", 0) {
+					return errors.New("Wrong number of calls")
+				}
+				f.AssertExpectations(t)
+				return nil
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dd, f := tt.loadFunc()
+			if err := dd.processReconcileError(tt.err); (err != nil) != tt.wantErr {
+				t.Errorf("metricsForwarder.processReconcileError() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err := tt.wantFunc(f); err != nil {
+				t.Errorf("metricsForwarder.processReconcileError() wantFunc validation error: %v", err)
+			}
+		})
+	}
+}
+
+func Test_metricsForwarder_prepareReconcileMetric(t *testing.T) {
+	defaultGlobalTags := []string{"gtagkey:gtagvalue"}
+	defaultTags := []string{"tagkey:tagvalue"}
+	tests := []struct {
+		name         string
+		reconcileErr error
+		want         float64
+		want1        []string
+		wantErr      bool
+	}{
+		{
+			name:         "lastReconcileErr init value",
+			reconcileErr: errInitValue,
+			want:         0.0,
+			want1:        nil,
+			wantErr:      true,
+		},
+		{
+			name:         "lastReconcileErr nil",
+			reconcileErr: nil,
+			want:         1.0,
+			want1:        []string{"gtagkey:gtagvalue", "tagkey:tagvalue", "reconcile_err:null"},
+			wantErr:      false,
+		},
+		{
+			name:         "lastReconcileErr updated and not nil",
+			reconcileErr: apierrors.NewUnauthorized("Auth error"),
+			want:         0.0,
+			want1:        []string{"gtagkey:gtagvalue", "tagkey:tagvalue", "reconcile_err:Unauthorized"},
+			wantErr:      false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mf := &metricsForwarder{
+				globalTags: defaultGlobalTags,
+				tags:       defaultTags,
+			}
+			got, got1, err := mf.prepareReconcileMetric(tt.reconcileErr)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("metricsForwarder.prepareReconcileMetric() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("metricsForwarder.prepareReconcileMetric() got = %v, want %v", got, tt.want)
+			}
+			if !reflect.DeepEqual(got1, tt.want1) {
+				t.Errorf("metricsForwarder.prepareReconcileMetric() got1 = %v, want %v", got1, tt.want1)
 			}
 		})
 	}

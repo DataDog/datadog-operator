@@ -11,4 +11,18 @@ const (
 
 	// FieldPathStatusHostIP used as FieldPath to retrieve the host ip
 	FieldPathStatusHostIP = "status.hostIP"
+
+	// kind names definiton
+	extendedDaemonSetKind   = "ExtendedDaemonSet"
+	daemonSetKind           = "DaemonSet"
+	deploymentKind          = "Deployment"
+	clusterRoleKind         = "ClusterRole"
+	clusterRoleBindingKind  = "ClusterRoleBinding"
+	roleKind                = "Role"
+	roleBindingKind         = "RoleBinding"
+	configMapKind           = "ConfigMap"
+	serviceAccountKind      = "ServiceAccount"
+	podDisruptionBudgetKind = "PodDisruptionBudget"
+	secretKind              = "Secret"
+	serviceKind             = "Service"
 )

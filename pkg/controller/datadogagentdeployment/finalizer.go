@@ -9,7 +9,6 @@ import (
 	"context"
 
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
@@ -54,10 +53,7 @@ func (r *ReconcileDatadogAgentDeployment) handleFinalizer(reqLogger logr.Logger,
 }
 
 func (r *ReconcileDatadogAgentDeployment) finalizeDad(reqLogger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment) {
-	r.forwarders.Unregister(types.NamespacedName{
-		Namespace: dad.GetNamespace(),
-		Name:      dad.GetName(),
-	})
+	r.forwarders.Unregister(dad)
 	reqLogger.Info("Successfully finalized DatadogAgentDeployment")
 }
 
