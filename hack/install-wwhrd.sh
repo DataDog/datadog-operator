@@ -12,9 +12,12 @@ cleanup() {
 }
 trap "cleanup" EXIT SIGINT
 
-export GOPATH=$WORK_DIR
-export GO111MODULE="off"
-go get github.com/frapposelli/wwhrd
+VERSION=0.2.4
+TARBALL="wwhrd_${VERSION}_$(uname)_amd64.tar.gz"
 
+cd $WORK_DIR
+curl -Lo ${TARBALL} https://github.com/frapposelli/wwhrd/releases/download/v${VERSION}/${TARBALL} && tar -C . -xzf $TARBALL
+
+chmod +x wwhrd
 mkdir -p $ROOT/bin
-mv $GOPATH/bin/wwhrd $ROOT/bin/wwhrd
+mv wwhrd $ROOT/bin/wwhrd
