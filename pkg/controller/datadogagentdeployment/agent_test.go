@@ -469,6 +469,7 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 	tests := []struct {
 		name            string
 		agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment
+		selector        *metav1.LabelSelector
 		want            *edsdatadoghqv1alpha1.ExtendedDaemonSet
 		wantErr         bool
 	}{
@@ -679,7 +680,12 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 		{
 			name:            "with user daemonset name and selector",
 			agentdeployment: daemonsetNameAgentDeployment,
-			wantErr:         false,
+			selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": "datadog-monitoring",
+				},
+			},
+			wantErr: false,
 			want: &edsdatadoghqv1alpha1.ExtendedDaemonSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: "bar",
@@ -727,7 +733,7 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			reqLogger := log.WithValues("test:", tt.name)
-			got, _, err := newExtendedDaemonSetFromInstance(reqLogger, tt.agentdeployment)
+			got, _, err := newExtendedDaemonSetFromInstance(reqLogger, tt.agentdeployment, tt.selector)
 			if tt.wantErr {
 				assert.Error(t, err, "newExtendedDaemonSetFromInstance() expected an error")
 			} else {

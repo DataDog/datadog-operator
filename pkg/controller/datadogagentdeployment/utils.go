@@ -37,11 +37,17 @@ func init() {
 }
 
 // newAgentPodTemplate generates a PodTemplate from a DatadogAgentDeployment spec
-func newAgentPodTemplate(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment) (*corev1.PodTemplateSpec, error) {
+func newAgentPodTemplate(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment, selector *metav1.LabelSelector) (*corev1.PodTemplateSpec, error) {
 	// copy Agent Spec to configure Agent Pod Template
 	labels := getDefaultLabels(agentdeployment, "agent", getAgentVersion(agentdeployment))
 	labels[datadoghqv1alpha1.AgentDeploymentNameLabelKey] = agentdeployment.Name
 	labels[datadoghqv1alpha1.AgentDeploymentComponentLabelKey] = "agent"
+
+	if selector != nil {
+		for key, val := range selector.MatchLabels {
+			labels[key] = val
+		}
+	}
 
 	annotations := getDefaultAnnotations(agentdeployment)
 	if isSystemProbeEnabled(agentdeployment) {

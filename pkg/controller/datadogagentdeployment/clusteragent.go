@@ -87,7 +87,7 @@ func (r *ReconcileDatadogAgentDeployment) reconcileClusterAgent(logger logr.Logg
 }
 
 func (r *ReconcileDatadogAgentDeployment) createNewClusterAgentDeployment(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment, newStatus *datadoghqv1alpha1.DatadogAgentDeploymentStatus) (reconcile.Result, error) {
-	newDCA, hash, err := newClusterAgentDeploymentFromInstance(logger, agentdeployment, newStatus)
+	newDCA, hash, err := newClusterAgentDeploymentFromInstance(logger, agentdeployment, newStatus, nil)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -116,7 +116,7 @@ func updateStatusWithClusterAgent(dca *appsv1.Deployment, newStatus *datadoghqv1
 }
 
 func (r *ReconcileDatadogAgentDeployment) updateClusterAgentDeployment(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment, dca *appsv1.Deployment, newStatus *datadoghqv1alpha1.DatadogAgentDeploymentStatus) (reconcile.Result, error) {
-	newDCA, hash, err := newClusterAgentDeploymentFromInstance(logger, agentdeployment, newStatus)
+	newDCA, hash, err := newClusterAgentDeploymentFromInstance(logger, agentdeployment, newStatus, dca.Spec.Selector)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -160,7 +160,10 @@ func (r *ReconcileDatadogAgentDeployment) updateClusterAgentDeployment(logger lo
 }
 
 // newClusterAgentDeploymentFromInstance creates a Cluster Agent Deployment from a given DatadogAgentDeployment
-func newClusterAgentDeploymentFromInstance(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment, newStatus *datadoghqv1alpha1.DatadogAgentDeploymentStatus) (*appsv1.Deployment, string, error) {
+func newClusterAgentDeploymentFromInstance(logger logr.Logger,
+	agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment,
+	newStatus *datadoghqv1alpha1.DatadogAgentDeploymentStatus,
+	selector *metav1.LabelSelector) (*appsv1.Deployment, string, error) {
 	labels := map[string]string{
 		datadoghqv1alpha1.AgentDeploymentNameLabelKey:      agentdeployment.Name,
 		datadoghqv1alpha1.AgentDeploymentComponentLabelKey: datadoghqv1alpha1.DefaultClusterAgentResourceSuffix,
@@ -171,6 +174,20 @@ func newClusterAgentDeploymentFromInstance(logger logr.Logger, agentdeployment *
 	for key, val := range getDefaultLabels(agentdeployment, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(agentdeployment)) {
 		labels[key] = val
 	}
+
+	if selector != nil {
+		for key, val := range selector.MatchLabels {
+			labels[key] = val
+		}
+	} else {
+		selector = &metav1.LabelSelector{
+			MatchLabels: map[string]string{
+				datadoghqv1alpha1.AgentDeploymentNameLabelKey:      agentdeployment.Name,
+				datadoghqv1alpha1.AgentDeploymentComponentLabelKey: datadoghqv1alpha1.DefaultClusterAgentResourceSuffix,
+			},
+		}
+	}
+
 	annotations := map[string]string{}
 	for key, val := range agentdeployment.Annotations {
 		annotations[key] = val
@@ -186,12 +203,7 @@ func newClusterAgentDeploymentFromInstance(logger logr.Logger, agentdeployment *
 		Spec: appsv1.DeploymentSpec{
 			Template: newClusterAgentPodTemplate(logger, agentdeployment, labels, annotations),
 			Replicas: agentdeployment.Spec.ClusterAgent.Replicas,
-			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					datadoghqv1alpha1.AgentDeploymentNameLabelKey:      agentdeployment.Name,
-					datadoghqv1alpha1.AgentDeploymentComponentLabelKey: datadoghqv1alpha1.DefaultClusterAgentResourceSuffix,
-				},
-			},
+			Selector: selector,
 		},
 	}
 	hash, err := comparison.SetMD5GenerationAnnotation(&dca.ObjectMeta, agentdeployment.Spec.ClusterAgent)

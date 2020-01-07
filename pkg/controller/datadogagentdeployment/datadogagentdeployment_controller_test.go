@@ -1969,6 +1969,7 @@ func Test_newClusterAgentDeploymentFromInstance(t *testing.T) {
 	tests := []struct {
 		name            string
 		agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment
+		selector        *metav1.LabelSelector
 		newStatus       *datadoghqv1alpha1.DatadogAgentDeploymentStatus
 		want            *appsv1.Deployment
 		wantErr         bool
@@ -2109,10 +2110,15 @@ func Test_newClusterAgentDeploymentFromInstance(t *testing.T) {
 			},
 		},
 		{
-			name:            "with custom deployment name",
+			name:            "with custom deployment name and selector",
 			agentdeployment: deploymentNameAgentDeployment,
-			newStatus:       &datadoghqv1alpha1.DatadogAgentDeploymentStatus{},
-			wantErr:         false,
+			selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": "datadog-monitoring",
+				},
+			},
+			newStatus: &datadoghqv1alpha1.DatadogAgentDeploymentStatus{},
+			wantErr:   false,
 			want: &appsv1.Deployment{
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: "bar",
@@ -2124,6 +2130,7 @@ func Test_newClusterAgentDeploymentFromInstance(t *testing.T) {
 						"app.kubernetes.io/name":                  "datadog-agent-deployment",
 						"app.kubernetes.io/part-of":               "foo",
 						"app.kubernetes.io/version":               "",
+						"app":                                     "datadog-monitoring",
 					},
 					Annotations: map[string]string{"agentdeployment.datadoghq.com/agentspechash": deploymentNameClusterAgentHash},
 				},
@@ -2138,6 +2145,7 @@ func Test_newClusterAgentDeploymentFromInstance(t *testing.T) {
 								"app.kubernetes.io/name":                  "datadog-agent-deployment",
 								"app.kubernetes.io/part-of":               "foo",
 								"app.kubernetes.io/version":               "",
+								"app":                                     "datadog-monitoring",
 							},
 						},
 						Spec: *deploymentNamePodSpec,
@@ -2145,8 +2153,7 @@ func Test_newClusterAgentDeploymentFromInstance(t *testing.T) {
 					Replicas: &replicas,
 					Selector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{
-							"agentdeployment.datadoghq.com/name":      "foo",
-							"agentdeployment.datadoghq.com/component": "cluster-agent",
+							"app": "datadog-monitoring",
 						},
 					},
 				},
@@ -2156,7 +2163,7 @@ func Test_newClusterAgentDeploymentFromInstance(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			reqLogger := log.WithValues("test:", tt.name)
-			got, _, err := newClusterAgentDeploymentFromInstance(reqLogger, tt.agentdeployment, tt.newStatus)
+			got, _, err := newClusterAgentDeploymentFromInstance(reqLogger, tt.agentdeployment, tt.newStatus, tt.selector)
 			if tt.wantErr {
 				assert.Error(t, err, "newClusterAgentDeploymentFromInstance() expected an error")
 			} else {
