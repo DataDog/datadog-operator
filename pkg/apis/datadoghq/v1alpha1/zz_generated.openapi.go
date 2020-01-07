@@ -948,6 +948,13 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentDeploymentSpecClusterChecksR
 							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.ImageConfig"),
 						},
 					},
+					"deploymentName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name of the cluster checks deployment to create or migrate from",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"config": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Agent configuration",

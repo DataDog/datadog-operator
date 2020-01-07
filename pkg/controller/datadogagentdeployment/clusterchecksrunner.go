@@ -35,6 +35,12 @@ func (r *ReconcileDatadogAgentDeployment) reconcileClusterChecksRunner(logger lo
 		return r.cleanupClusterChecksRunner(logger, dad, newStatus)
 	}
 
+	if newStatus.ClusterChecksRunner != nil &&
+		newStatus.ClusterChecksRunner.DeploymentName != "" &&
+		newStatus.ClusterChecksRunner.DeploymentName != getClusterChecksRunnerName(dad) {
+		return result, fmt.Errorf("Datadog cluster checks runner Deployment cannot be renamed once created")
+	}
+
 	nsName := types.NamespacedName{
 		Name:      getClusterChecksRunnerName(dad),
 		Namespace: dad.Namespace,
@@ -69,7 +75,7 @@ func needClusterChecksRunner(dad *datadoghqv1alpha1.DatadogAgentDeployment) bool
 }
 
 func (r *ReconcileDatadogAgentDeployment) createNewClusterChecksRunnerDeployment(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment, newStatus *datadoghqv1alpha1.DatadogAgentDeploymentStatus) (reconcile.Result, error) {
-	newDCAW, hash, err := newClusterChecksRunnerDeploymentFromInstance(logger, agentdeployment, newStatus)
+	newDCAW, hash, err := newClusterChecksRunnerDeploymentFromInstance(logger, agentdeployment, newStatus, nil)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -98,7 +104,7 @@ func updateStatusWithClusterChecksRunner(dcaw *appsv1.Deployment, newStatus *dat
 }
 
 func (r *ReconcileDatadogAgentDeployment) updateClusterChecksRunnerDeployment(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment, dep *appsv1.Deployment, newStatus *datadoghqv1alpha1.DatadogAgentDeploymentStatus) (reconcile.Result, error) {
-	newDCAW, hash, err := newClusterChecksRunnerDeploymentFromInstance(logger, agentdeployment, newStatus)
+	newDCAW, hash, err := newClusterChecksRunnerDeploymentFromInstance(logger, agentdeployment, newStatus, dep.Spec.Selector)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -144,7 +150,10 @@ func (r *ReconcileDatadogAgentDeployment) updateClusterChecksRunnerDeployment(lo
 }
 
 // newClusterAgentDeploymentFromInstance creates a Cluster Agent Deployment from a given DatadogAgentDeployment
-func newClusterChecksRunnerDeploymentFromInstance(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment, newStatus *datadoghqv1alpha1.DatadogAgentDeploymentStatus) (*appsv1.Deployment, string, error) {
+func newClusterChecksRunnerDeploymentFromInstance(logger logr.Logger,
+	agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment,
+	newStatus *datadoghqv1alpha1.DatadogAgentDeploymentStatus,
+	selector *metav1.LabelSelector) (*appsv1.Deployment, string, error) {
 	labels := map[string]string{
 		datadoghqv1alpha1.AgentDeploymentNameLabelKey:      agentdeployment.Name,
 		datadoghqv1alpha1.AgentDeploymentComponentLabelKey: datadoghqv1alpha1.DefaultClusterChecksRunnerResourceSuffix,
@@ -155,6 +164,20 @@ func newClusterChecksRunnerDeploymentFromInstance(logger logr.Logger, agentdeplo
 	for key, val := range getDefaultLabels(agentdeployment, datadoghqv1alpha1.DefaultClusterChecksRunnerResourceSuffix, getClusterChecksRunnerVersion(agentdeployment)) {
 		labels[key] = val
 	}
+
+	if selector != nil {
+		for key, val := range selector.MatchLabels {
+			labels[key] = val
+		}
+	} else {
+		selector = &metav1.LabelSelector{
+			MatchLabels: map[string]string{
+				datadoghqv1alpha1.AgentDeploymentNameLabelKey:      agentdeployment.Name,
+				datadoghqv1alpha1.AgentDeploymentComponentLabelKey: datadoghqv1alpha1.DefaultClusterChecksRunnerResourceSuffix,
+			},
+		}
+	}
+
 	annotations := map[string]string{}
 	for key, val := range agentdeployment.Annotations {
 		annotations[key] = val
@@ -170,12 +193,7 @@ func newClusterChecksRunnerDeploymentFromInstance(logger logr.Logger, agentdeplo
 		Spec: appsv1.DeploymentSpec{
 			Template: newClusterChecksRunnerPodTemplate(logger, agentdeployment, labels, annotations),
 			Replicas: agentdeployment.Spec.ClusterChecksRunner.Replicas,
-			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					datadoghqv1alpha1.AgentDeploymentNameLabelKey:      agentdeployment.Name,
-					datadoghqv1alpha1.AgentDeploymentComponentLabelKey: datadoghqv1alpha1.DefaultClusterChecksRunnerResourceSuffix,
-				},
-			},
+			Selector: selector,
 		},
 	}
 	hash, err := comparison.SetMD5GenerationAnnotation(&dca.ObjectMeta, agentdeployment.Spec.ClusterAgent)
@@ -355,5 +373,8 @@ func getClusterChecksRunnerVersion(dad *datadoghqv1alpha1.DatadogAgentDeployment
 }
 
 func getClusterChecksRunnerName(dad *datadoghqv1alpha1.DatadogAgentDeployment) string {
+	if dad.Spec.ClusterChecksRunner != nil && dad.Spec.ClusterChecksRunner.DeploymentName != "" {
+		return dad.Spec.ClusterChecksRunner.DeploymentName
+	}
 	return fmt.Sprintf("%s-%s", dad.Name, "cluster-checks-runner")
 }

@@ -485,6 +485,10 @@ type DatadogAgentDeploymentSpecClusterChecksRunnerSpec struct {
 	// The container image of the Datadog Cluster Agent
 	Image ImageConfig `json:"image"`
 
+	// Name of the cluster checks deployment to create or migrate from
+	// +optional
+	DeploymentName string `json:"deploymentName,omitempty"`
+
 	// Agent configuration
 	Config ClusterChecksRunnerConfig `json:"config,omitempty"`
 

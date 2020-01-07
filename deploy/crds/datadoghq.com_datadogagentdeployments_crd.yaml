@@ -4992,6 +4992,10 @@ spec:
                           type: object
                       type: object
                   type: object
+                deploymentName:
+                  description: Name of the cluster checks deployment to create or
+                    migrate from
+                  type: string
                 image:
                   description: The container image of the Datadog Cluster Agent
                   properties:
