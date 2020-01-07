@@ -811,6 +811,13 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentDeploymentSpecAgentSpec(ref 
 							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.ConfigDirSpec"),
 						},
 					},
+					"customConfig": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Allow to put custom configuration for the agent, corresponding to the datadog.yaml config file See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"image"},
 			},

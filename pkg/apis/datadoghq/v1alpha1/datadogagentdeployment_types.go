@@ -14,9 +14,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // DatadogAgentDeploymentSpec defines the desired state of DatadogAgentDeployment
 // +k8s:openapi-gen=true
 type DatadogAgentDeploymentSpec struct {
@@ -124,6 +121,11 @@ type DatadogAgentDeploymentSpecAgentSpec struct {
 	// See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.
 	// +optional
 	Checksd *ConfigDirSpec `json:"checksd,omitempty"`
+
+	// Allow to put custom configuration for the agent, corresponding to the datadog.yaml config file
+	// See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.
+	// +optional
+	CustomConfig string `json:"customConfig,omitempty"`
 }
 
 // RbacConfig contains RBAC configuration

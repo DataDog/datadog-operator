@@ -116,7 +116,7 @@ func (r *ReconcileDatadogAgentDeployment) updateClusterAgentDeployment(logger lo
 	}
 
 	var needUpdate bool
-	if !comparison.CompareSpecMD5Hash(hash, dca.GetAnnotations()) {
+	if !comparison.IsSameSpecMD5Hash(hash, dca.GetAnnotations()) {
 		needUpdate = true
 	}
 

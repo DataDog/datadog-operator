@@ -24,17 +24,12 @@ const (
 )
 
 func (r *ReconcileDatadogAgentDeployment) manageSystemProbeDependencies(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment) (reconcile.Result, error) {
-	if !isSystemProbeEnabled(dad) {
-		result, err := r.cleanupSystemProbeDependencies(logger, dad)
-		return result, err
-	}
-
-	result, err := r.manageConfigMap(logger, dad, buildSystemProbeConfigConfiMap)
+	result, err := r.manageConfigMap(logger, dad, getSystemProbeConfiConfigMapName(dad.Name), buildSystemProbeConfigConfiMap)
 	if shouldReturn(result, err) {
 		return result, err
 	}
 
-	result, err = r.manageConfigMap(logger, dad, buildSystemProbeSecCompConfigMap)
+	result, err = r.manageConfigMap(logger, dad, getSecCompConfigMapName(dad.Name), buildSystemProbeSecCompConfigMap)
 	if shouldReturn(result, err) {
 		return result, err
 	}
@@ -42,16 +37,11 @@ func (r *ReconcileDatadogAgentDeployment) manageSystemProbeDependencies(logger l
 	return reconcile.Result{}, nil
 }
 
-func (r *ReconcileDatadogAgentDeployment) cleanupSystemProbeDependencies(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment) (reconcile.Result, error) {
-	result, err := r.cleanupConfigMap(logger, dad, getSystemProbeConfiConfigMapName(dad.Name))
-	if shouldReturn(result, err) {
-		return result, err
-	}
-	result, err = r.cleanupConfigMap(logger, dad, getSecCompConfigMapName(dad.Name))
-	return result, err
-}
-
 func buildSystemProbeConfigConfiMap(dad *datadoghqv1alpha1.DatadogAgentDeployment) (*corev1.ConfigMap, error) {
+	if !isSystemProbeEnabled(dad) {
+		return nil, nil
+	}
+
 	spec := &dad.Spec.Agent.SystemProbe
 	configMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -61,7 +51,7 @@ func buildSystemProbeConfigConfiMap(dad *datadoghqv1alpha1.DatadogAgentDeploymen
 			Annotations: getDefaultAnnotations(dad),
 		},
 		Data: map[string]string{
-			"system-probe.yaml": fmt.Sprintf(systemProbeAgentSecurityDataTmpl,
+			datadoghqv1alpha1.SystemProbeConfigVolumeSubPath: fmt.Sprintf(systemProbeAgentSecurityDataTmpl,
 				spec.DebugPort,
 				datadoghqv1alpha1.BoolToString(spec.ConntrackEnabled),
 				datadoghqv1alpha1.BoolToString(spec.BPFDebugEnabled)),
@@ -80,6 +70,10 @@ const systemProbeAgentSecurityDataTmpl = `system_probe_config:
 `
 
 func buildSystemProbeSecCompConfigMap(dad *datadoghqv1alpha1.DatadogAgentDeployment) (*corev1.ConfigMap, error) {
+	if !isSystemProbeEnabled(dad) {
+		return nil, nil
+	}
+
 	configMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        getSecCompConfigMapName(dad.Name),

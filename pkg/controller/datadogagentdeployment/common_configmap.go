@@ -22,11 +22,15 @@ import (
 
 type buildConfigMapFunc func(dad *datadoghqv1alpha1.DatadogAgentDeployment) (*corev1.ConfigMap, error)
 
-func (r *ReconcileDatadogAgentDeployment) manageConfigMap(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment, buildFunc buildConfigMapFunc) (reconcile.Result, error) {
+func (r *ReconcileDatadogAgentDeployment) manageConfigMap(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment, name string, buildFunc buildConfigMapFunc) (reconcile.Result, error) {
 	result := reconcile.Result{}
 	newConfigMap, err := buildFunc(dad)
 	if err != nil {
 		return result, err
+	}
+
+	if newConfigMap == nil {
+		return r.cleanupConfigMap(logger, dad, name)
 	}
 
 	configmap := &corev1.ConfigMap{}
@@ -51,7 +55,7 @@ func (r *ReconcileDatadogAgentDeployment) updateIfNeededConfigMap(logger logr.Lo
 		return result, err
 	}
 
-	if comparison.CompareSpecMD5Hash(hash, oldConfigMap.GetAnnotations()) {
+	if comparison.IsSameSpecMD5Hash(hash, oldConfigMap.GetAnnotations()) {
 		return result, nil
 	}
 

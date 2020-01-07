@@ -7,17 +7,20 @@ package datadogagentdeployment
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/yaml"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
@@ -182,17 +185,12 @@ func (r *ReconcileDatadogAgentDeployment) createNewDaemonSet(logger logr.Logger,
 }
 
 func (r *ReconcileDatadogAgentDeployment) updateExtendedDaemonSet(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment, eds *edsdatadoghqv1alpha1.ExtendedDaemonSet, newStatus *datadoghqv1alpha1.DatadogAgentDeploymentStatus) (reconcile.Result, error) {
-	newEDS, hash, err := newExtendedDaemonSetFromInstance(logger, agentdeployment)
+	newEDS, newHash, err := newExtendedDaemonSetFromInstance(logger, agentdeployment)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
-	var needUpdate bool
-	if !comparison.CompareSpecMD5Hash(hash, eds.GetAnnotations()) {
-		needUpdate = true
-	}
 
-	newStatus.Agent = updateExtendedDaemonSetStatus(eds, newStatus.Agent, nil)
-	if !needUpdate {
+	if comparison.IsSameSpecMD5Hash(newHash, eds.GetAnnotations()) {
 		// no update needed so return now
 		return reconcile.Result{}, nil
 	}
@@ -228,18 +226,15 @@ func getHashAnnotation(annotations map[string]string) string {
 }
 
 func (r *ReconcileDatadogAgentDeployment) updateDaemonSet(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment, ds *appsv1.DaemonSet, newStatus *datadoghqv1alpha1.DatadogAgentDeploymentStatus) (reconcile.Result, error) {
-	newDS, hash, err := newDaemonSetFromInstance(logger, agentdeployment)
+	// Update values from current DS in any case
+	updateDaemonSetStatus(ds, newStatus.Agent, nil)
+
+	newDS, newHash, err := newDaemonSetFromInstance(logger, agentdeployment)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
 
-	var needUpdate bool
-	if !comparison.CompareSpecMD5Hash(hash, ds.GetAnnotations()) {
-		needUpdate = true
-	}
-
-	newStatus.Agent = updateDaemonSetStatus(ds, newStatus.Agent, nil)
-	if !needUpdate {
+	if comparison.IsSameSpecMD5Hash(newHash, ds.GetAnnotations()) {
 		// no update needed so return now
 		return reconcile.Result{}, nil
 	}
@@ -281,6 +276,11 @@ func (r *ReconcileDatadogAgentDeployment) manageAgentDependencies(logger logr.Lo
 		return result, err
 	}
 
+	result, err = r.manageConfigMap(logger, dad, getAgentCustomConfigConfigMapName(dad), buildAgentConfigurationConfigMap)
+	if shouldReturn(result, err) {
+		return result, err
+	}
+
 	return reconcile.Result{}, nil
 }
 
@@ -307,7 +307,7 @@ func newExtendedDaemonSetFromInstance(logger logr.Logger, agentdeployment *datad
 			},
 		},
 	}
-	hash, err := comparison.SetMD5AgentSpecAnnotation(&eds.ObjectMeta, agentdeployment)
+	hash, err := comparison.SetMD5GenerationAnnotation(&eds.ObjectMeta, agentdeployment.Spec)
 	if err != nil {
 		return nil, "", err
 	}
@@ -335,7 +335,7 @@ func newDaemonSetFromInstance(logger logr.Logger, agentdeployment *datadoghqv1al
 	ds.Spec.Selector = &metav1.LabelSelector{
 		MatchLabels: ds.Spec.Template.Labels,
 	}
-	hash, err := comparison.SetMD5AgentSpecAnnotation(&ds.ObjectMeta, agentdeployment)
+	hash, err := comparison.SetMD5GenerationAnnotation(&ds.ObjectMeta, agentdeployment.Spec)
 	if err != nil {
 		return nil, "", err
 	}
@@ -357,4 +357,35 @@ func newDaemonsetObjectMetaData(agentdeployment *datadoghqv1alpha1.DatadogAgentD
 		Labels:      labels,
 		Annotations: annotations,
 	}
+}
+
+func getAgentCustomConfigConfigMapName(dad *datadoghqv1alpha1.DatadogAgentDeployment) string {
+	return fmt.Sprintf("%s-datadog-yaml", dad.Name)
+}
+
+func buildAgentConfigurationConfigMap(dad *datadoghqv1alpha1.DatadogAgentDeployment) (*corev1.ConfigMap, error) {
+	if dad.Spec.Agent.CustomConfig == "" {
+		return nil, nil
+	}
+
+	// Validate that user input is valid YAML
+	// Maybe later we can implement that directly verifies against Agent configuration?
+	m := make(map[interface{}]interface{})
+	if err := yaml.Unmarshal([]byte(dad.Spec.Agent.CustomConfig), m); err != nil {
+		return nil, fmt.Errorf("Unable to parse YAML from 'Agent.CustomConfig' field: %w", err)
+	}
+
+	configMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        getAgentCustomConfigConfigMapName(dad),
+			Namespace:   dad.Namespace,
+			Labels:      getDefaultLabels(dad, dad.Name, getAgentVersion(dad)),
+			Annotations: getDefaultAnnotations(dad),
+		},
+		Data: map[string]string{
+			datadoghqv1alpha1.AgentCustomConfigVolumeSubPath: dad.Spec.Agent.CustomConfig,
+		},
+	}
+
+	return configMap, nil
 }
