@@ -37,11 +37,17 @@ func init() {
 }
 
 // newAgentPodTemplate generates a PodTemplate from a DatadogAgentDeployment spec
-func newAgentPodTemplate(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment) (*corev1.PodTemplateSpec, error) {
+func newAgentPodTemplate(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment, selector *metav1.LabelSelector) (*corev1.PodTemplateSpec, error) {
 	// copy Agent Spec to configure Agent Pod Template
 	labels := getDefaultLabels(agentdeployment, "agent", getAgentVersion(agentdeployment))
 	labels[datadoghqv1alpha1.AgentDeploymentNameLabelKey] = agentdeployment.Name
 	labels[datadoghqv1alpha1.AgentDeploymentComponentLabelKey] = "agent"
+
+	if selector != nil {
+		for key, val := range selector.MatchLabels {
+			labels[key] = val
+		}
+	}
 
 	annotations := getDefaultAnnotations(agentdeployment)
 	if isSystemProbeEnabled(agentdeployment) {
@@ -1072,6 +1078,7 @@ func updateDaemonSetStatus(ds *appsv1.DaemonSet, dsStatus *datadoghqv1alpha1.Dat
 	}
 
 	dsStatus.State = fmt.Sprintf("%v (%d/%d/%d)", deploymentState, dsStatus.Desired, dsStatus.Ready, dsStatus.UpToDate)
+	dsStatus.DaemonsetName = ds.ObjectMeta.Name
 	return dsStatus
 }
 
@@ -1102,6 +1109,7 @@ func updateExtendedDaemonSetStatus(eds *edsdatadoghqv1alpha1.ExtendedDaemonSet, 
 	}
 
 	dsStatus.State = fmt.Sprintf("%v (%d/%d/%d)", deploymentState, dsStatus.Desired, dsStatus.Ready, dsStatus.UpToDate)
+	dsStatus.DaemonsetName = eds.ObjectMeta.Name
 	return dsStatus
 }
 
@@ -1144,6 +1152,7 @@ func updateDeploymentStatus(dep *appsv1.Deployment, depStatus *datadoghqv1alpha1
 	}
 
 	depStatus.State = fmt.Sprintf("%v (%d/%d/%d)", deploymentState, depStatus.Replicas, depStatus.ReadyReplicas, depStatus.UpdatedReplicas)
+	depStatus.DeploymentName = dep.ObjectMeta.Name
 	return depStatus
 }
 

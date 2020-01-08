@@ -388,6 +388,43 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 			},
 		},
 		{
+			name: "DatadogAgentDeployment found and defaulted, block daemonsetName change",
+			fields: fields{
+				client:   fake.NewFakeClient(),
+				scheme:   s,
+				recorder: recorder,
+			},
+			args: args{
+				request: newRequest("bar", "foo"),
+				loadFunc: func(c client.Client) {
+					dad := test.NewDefaultedDatadogAgentDeployment("bar", "foo", &test.NewDatadogAgentDeploymentOptions{
+						UseEDS: true,
+						Labels: map[string]string{"label-foo-key": "label-bar-value"},
+						Status: &datadoghqv1alpha1.DatadogAgentDeploymentStatus{
+							Agent: &datadoghqv1alpha1.DatadogAgentDeploymentAgentStatus{
+								DaemonsetName: "datadog-agent-daemonset-before",
+							},
+						},
+						AgentDaemonsetName: "datadog-agent-daemonset",
+					})
+					_ = c.Create(context.TODO(), dad)
+
+					createAgentDependencies(c, dad)
+				},
+			},
+			want:    reconcile.Result{},
+			wantErr: true,
+			wantFunc: func(c client.Client) error {
+				eds := &edsdatadoghqv1alpha1.ExtendedDaemonSet{}
+				err := c.Get(context.TODO(), newRequest("bar", "foo").NamespacedName, eds)
+				if apierrors.IsNotFound(err) {
+					// Daemonset must NOT be created
+					return nil
+				}
+				return err
+			},
+		},
+		{
 			name: "DatadogAgentDeployment found and defaulted, create the ExtendedDaemonSet with non default config",
 			fields: fields{
 				client:   fake.NewFakeClient(),
@@ -819,7 +856,6 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 				return nil
 			},
 		},
-
 		{
 			name: "DatadogAgentDeployment found and defaulted, Cluster Agent enabled, create the Metrics Server Service",
 			fields: fields{
@@ -1258,6 +1294,106 @@ func TestReconcileDatadogAgentDeployment_Reconcile(t *testing.T) {
 				return nil
 			},
 		},
+		{
+			name: "DatadogAgentDeployment found and defaulted, Cluster Agent Deployment already exists, block DeploymentName change",
+			fields: fields{
+				client:   fake.NewFakeClient(),
+				scheme:   s,
+				recorder: recorder,
+			},
+			args: args{
+				request: newRequest("bar", "foo"),
+				loadFunc: func(c client.Client) {
+					dadOptions := &test.NewDatadogAgentDeploymentOptions{
+						Labels: map[string]string{"label-foo-key": "label-bar-value"},
+						Status: &datadoghqv1alpha1.DatadogAgentDeploymentStatus{
+							ClusterAgent: &datadoghqv1alpha1.DatadogAgentDeploymentDeploymentStatus{
+								DeploymentName: "cluster-agent-deployment-before",
+							},
+						},
+						ClusterAgentEnabled:        true,
+						ClusterAgentDeploymentName: "cluster-agent-depoyment",
+					}
+
+					dad := test.NewDefaultedDatadogAgentDeployment("bar", "foo", dadOptions)
+					_ = c.Create(context.TODO(), dad)
+					commonDCAlabels := getDefaultLabels(dad, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dad))
+					_ = c.Create(context.TODO(), test.NewSecret("bar", "foo-cluster-agent", &test.NewSecretOptions{Labels: commonDCAlabels, Data: map[string][]byte{
+						"token": []byte(base64.StdEncoding.EncodeToString([]byte("token-foo"))),
+					}}))
+
+					createClusterAgentDependencies(c, dad)
+
+					dcaOptions := &test.NewDeploymentOptions{
+						Labels:                 map[string]string{"label-foo-key": "label-bar-value"},
+						Annotations:            map[string]string{string(datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey): defaultClusterAgentHash},
+						ForceAvailableReplicas: datadoghqv1alpha1.NewInt32Pointer(1),
+					}
+					dca := test.NewClusterAgentDeployment("bar", "foo", dcaOptions)
+
+					_ = c.Create(context.TODO(), dad)
+					_ = c.Create(context.TODO(), dca)
+
+					createAgentDependencies(c, dad)
+					resourceName := getAgentRbacResourcesName(dad)
+					version := getAgentVersion(dad)
+					_ = c.Create(context.TODO(), buildClusterRoleBinding(dad, roleBindingInfo{
+						name:               getClusterChecksRunnerRbacResourcesName(dad),
+						roleName:           resourceName,
+						serviceAccountName: getClusterChecksRunnerServiceAccount(dad),
+					}, version))
+					_ = c.Create(context.TODO(), buildServiceAccount(dad, getClusterChecksRunnerServiceAccount(dad), version))
+
+				},
+			},
+			want:    reconcile.Result{},
+			wantErr: true,
+			wantFunc: func(c client.Client) error {
+				ds := &appsv1.DaemonSet{}
+				err := c.Get(context.TODO(), newRequest("bar", "foo").NamespacedName, ds)
+				if apierrors.IsNotFound(err) {
+					// Daemonset must NOT be created
+					return nil
+				}
+				return err
+			},
+		},
+		/*
+			{
+				name: "DatadogAgentDeployment found and defaulted, Cluster Agent enabled, block DeploymentName change",
+				fields: fields{
+					client:   fake.NewFakeClient(),
+					scheme:   s,
+					recorder: recorder,
+				},
+				args: args{
+					request: newRequest("bar", "foo"),
+					loadFunc: func(c client.Client) {
+						dad := test.NewDefaultedDatadogAgentDeployment("bar", "foo", &test.NewDatadogAgentDeploymentOptions{Labels: map[string]string{"label-foo-key": "label-bar-value"}, ClusterAgentEnabled: true})
+						dad.Status.ClusterAgent = &datadoghqv1alpha1.DatadogAgentDeploymentDeploymentStatus{
+							DeploymentName: "cluster-agent-prev-name",
+						}
+						_ = c.Create(context.TODO(), dad)
+						// commonDCAlabels := getDefaultLabels(dad, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dad))
+						// _ = c.Create(context.TODO(), test.NewSecret("bar", "foo-cluster-agent", &test.NewSecretOptions{Labels: commonDCAlabels, Data: map[string][]byte{
+						// 	"token": []byte(base64.StdEncoding.EncodeToString([]byte("token-foo"))),
+						// }}))
+					},
+				},
+				want:    reconcile.Result{},
+				wantErr: true,
+				wantFunc: func(c client.Client) error {
+					dcaService := &corev1.Service{}
+					err := c.Get(context.TODO(), newRequest("bar", "foo-cluster-agent").NamespacedName, dcaService)
+					if apierrors.IsNotFound(err) {
+						// Daemonset must NOT be created
+						return nil
+					}
+					return err
+				},
+			},
+
+		*/
 		{
 			name: "DatadogAgentDeployment found and defaulted, Cluster Agent Deployment already exists but with 0 pods ready, do not create Daemonset",
 			fields: fields{
@@ -1817,9 +1953,23 @@ func Test_newClusterAgentDeploymentFromInstance(t *testing.T) {
 	)
 	userMountsClusterAgentHash, _ := comparison.GenerateMD5ForSpec(userMountsAgentDeployment.Spec.ClusterAgent)
 
+	customDeploymentName := "custom-cluster-agent-deployment"
+	deploymentNamePodSpec := defaultPodSpec.DeepCopy()
+	deploymentNamePodSpec.Affinity = getPodAffinity(nil, customDeploymentName)
+
+	deploymentNameAgentDeployment := test.NewDefaultedDatadogAgentDeployment("bar", "foo",
+		&test.NewDatadogAgentDeploymentOptions{
+			UseEDS:                     true,
+			ClusterAgentEnabled:        true,
+			ClusterAgentDeploymentName: customDeploymentName,
+		})
+
+	deploymentNameClusterAgentHash, _ := comparison.GenerateMD5ForSpec(deploymentNameAgentDeployment.Spec.ClusterAgent)
+
 	tests := []struct {
 		name            string
 		agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment
+		selector        *metav1.LabelSelector
 		newStatus       *datadoghqv1alpha1.DatadogAgentDeploymentStatus
 		want            *appsv1.Deployment
 		wantErr         bool
@@ -1959,11 +2109,61 @@ func Test_newClusterAgentDeploymentFromInstance(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:            "with custom deployment name and selector",
+			agentdeployment: deploymentNameAgentDeployment,
+			selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": "datadog-monitoring",
+				},
+			},
+			newStatus: &datadoghqv1alpha1.DatadogAgentDeploymentStatus{},
+			wantErr:   false,
+			want: &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "bar",
+					Name:      customDeploymentName,
+					Labels: map[string]string{"agentdeployment.datadoghq.com/name": "foo",
+						"agentdeployment.datadoghq.com/component": "cluster-agent",
+						"app.kubernetes.io/instance":              "cluster-agent",
+						"app.kubernetes.io/managed-by":            "datadog-operator",
+						"app.kubernetes.io/name":                  "datadog-agent-deployment",
+						"app.kubernetes.io/part-of":               "foo",
+						"app.kubernetes.io/version":               "",
+						"app":                                     "datadog-monitoring",
+					},
+					Annotations: map[string]string{"agentdeployment.datadoghq.com/agentspechash": deploymentNameClusterAgentHash},
+				},
+				Spec: appsv1.DeploymentSpec{
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{
+								"agentdeployment.datadoghq.com/name":      "foo",
+								"agentdeployment.datadoghq.com/component": "cluster-agent",
+								"app.kubernetes.io/instance":              "cluster-agent",
+								"app.kubernetes.io/managed-by":            "datadog-operator",
+								"app.kubernetes.io/name":                  "datadog-agent-deployment",
+								"app.kubernetes.io/part-of":               "foo",
+								"app.kubernetes.io/version":               "",
+								"app":                                     "datadog-monitoring",
+							},
+						},
+						Spec: *deploymentNamePodSpec,
+					},
+					Replicas: &replicas,
+					Selector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"app": "datadog-monitoring",
+						},
+					},
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			reqLogger := log.WithValues("test:", tt.name)
-			got, _, err := newClusterAgentDeploymentFromInstance(reqLogger, tt.agentdeployment, tt.newStatus)
+			got, _, err := newClusterAgentDeploymentFromInstance(reqLogger, tt.agentdeployment, tt.newStatus, tt.selector)
 			if tt.wantErr {
 				assert.Error(t, err, "newClusterAgentDeploymentFromInstance() expected an error")
 			} else {

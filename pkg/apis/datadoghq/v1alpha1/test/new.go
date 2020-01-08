@@ -46,6 +46,8 @@ type NewDatadogAgentDeploymentOptions struct {
 	ClusterAgentVolumes        []corev1.Volume
 	ClusterAgentVolumeMounts   []corev1.VolumeMount
 	CustomConfig               string
+	AgentDaemonsetName         string
+	ClusterAgentDeploymentName string
 }
 
 // NewDefaultedDatadogAgentDeployment returns an initialized and defaulted DatadogAgentDeployment for testing purpose
@@ -91,6 +93,9 @@ func NewDefaultedDatadogAgentDeployment(ns, name string, options *NewDatadogAgen
 				ad.Annotations[key] = value
 			}
 		}
+
+		ad.Spec.Agent.DaemonsetName = options.AgentDaemonsetName
+
 		if options.Status != nil {
 			ad.Status = *options.Status
 		}
@@ -107,6 +112,7 @@ func NewDefaultedDatadogAgentDeployment(ns, name string, options *NewDatadogAgen
 				Rbac: datadoghqv1alpha1.RbacConfig{
 					Create: datadoghqv1alpha1.NewBoolPointer(true),
 				},
+				DeploymentName: options.ClusterAgentDeploymentName,
 			}
 			if options.MetricsServerEnabled {
 				ad.Spec.ClusterAgent.Config.MetricsProviderEnabled = datadoghqv1alpha1.NewBoolPointer(true)

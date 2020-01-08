@@ -10,8 +10,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
-
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -24,6 +22,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	edsdatadoghqv1alpha1 "github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1"
 )
 
@@ -33,8 +32,12 @@ func (r *ReconcileDatadogAgentDeployment) reconcileAgent(logger logr.Logger, dad
 		return result, err
 	}
 
+	if newStatus.Agent != nil && newStatus.Agent.DaemonsetName != "" && newStatus.Agent.DaemonsetName != daemonsetName(dad) {
+		return result, fmt.Errorf("Datadog agent DaemonSet cannot be renamed once created")
+	}
+
 	nameNamespace := types.NamespacedName{
-		Name:      dad.ObjectMeta.Name,
+		Name:      daemonsetName(dad),
 		Namespace: dad.ObjectMeta.Namespace,
 	}
 	// check if EDS or DS already exist
@@ -135,7 +138,7 @@ func (r *ReconcileDatadogAgentDeployment) createNewExtendedDaemonSet(logger logr
 	// ExtendedDaemonSet up to date didn't exist yet, create a new one
 	var newEDS *edsdatadoghqv1alpha1.ExtendedDaemonSet
 	var hash string
-	if newEDS, hash, err = newExtendedDaemonSetFromInstance(logger, agentdeployment); err != nil {
+	if newEDS, hash, err = newExtendedDaemonSetFromInstance(logger, agentdeployment, nil); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -163,7 +166,7 @@ func (r *ReconcileDatadogAgentDeployment) createNewDaemonSet(logger logr.Logger,
 	// DaemonSet up to date didn't exist yet, create a new one
 	var newDS *appsv1.DaemonSet
 	var hash string
-	if newDS, hash, err = newDaemonSetFromInstance(logger, agentdeployment); err != nil {
+	if newDS, hash, err = newDaemonSetFromInstance(logger, agentdeployment, nil); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -185,7 +188,7 @@ func (r *ReconcileDatadogAgentDeployment) createNewDaemonSet(logger logr.Logger,
 }
 
 func (r *ReconcileDatadogAgentDeployment) updateExtendedDaemonSet(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment, eds *edsdatadoghqv1alpha1.ExtendedDaemonSet, newStatus *datadoghqv1alpha1.DatadogAgentDeploymentStatus) (reconcile.Result, error) {
-	newEDS, newHash, err := newExtendedDaemonSetFromInstance(logger, agentdeployment)
+	newEDS, newHash, err := newExtendedDaemonSetFromInstance(logger, agentdeployment, eds.Spec.Selector)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -229,7 +232,7 @@ func (r *ReconcileDatadogAgentDeployment) updateDaemonSet(logger logr.Logger, ag
 	// Update values from current DS in any case
 	updateDaemonSetStatus(ds, newStatus.Agent, nil)
 
-	newDS, newHash, err := newDaemonSetFromInstance(logger, agentdeployment)
+	newDS, newHash, err := newDaemonSetFromInstance(logger, agentdeployment, ds.Spec.Selector)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -285,14 +288,15 @@ func (r *ReconcileDatadogAgentDeployment) manageAgentDependencies(logger logr.Lo
 }
 
 // newExtendedDaemonSetFromInstance creates an ExtendedDaemonSet from a given DatadogAgentDeployment
-func newExtendedDaemonSetFromInstance(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment) (*edsdatadoghqv1alpha1.ExtendedDaemonSet, string, error) {
-	template, err := newAgentPodTemplate(logger, agentdeployment)
+func newExtendedDaemonSetFromInstance(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment, selector *metav1.LabelSelector) (*edsdatadoghqv1alpha1.ExtendedDaemonSet, string, error) {
+	template, err := newAgentPodTemplate(logger, agentdeployment, selector)
 	if err != nil {
 		return nil, "", err
 	}
 	eds := &edsdatadoghqv1alpha1.ExtendedDaemonSet{
 		ObjectMeta: newDaemonsetObjectMetaData(agentdeployment),
 		Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
+			Selector: selector,
 			Template: *template,
 			Strategy: edsdatadoghqv1alpha1.ExtendedDaemonSetSpecStrategy{
 				Canary:             agentdeployment.Spec.Agent.DeploymentStrategy.Canary.DeepCopy(),
@@ -315,14 +319,21 @@ func newExtendedDaemonSetFromInstance(logger logr.Logger, agentdeployment *datad
 }
 
 // newDaemonSetFromInstance creates a DaemonSet from a given DatadogAgentDeployment
-func newDaemonSetFromInstance(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment) (*appsv1.DaemonSet, string, error) {
-	template, err := newAgentPodTemplate(logger, agentdeployment)
+func newDaemonSetFromInstance(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment, selector *metav1.LabelSelector) (*appsv1.DaemonSet, string, error) {
+	template, err := newAgentPodTemplate(logger, agentdeployment, selector)
 	if err != nil {
 		return nil, "", err
+	}
+
+	if selector == nil {
+		selector = &metav1.LabelSelector{
+			MatchLabels: template.Labels,
+		}
 	}
 	ds := &appsv1.DaemonSet{
 		ObjectMeta: newDaemonsetObjectMetaData(agentdeployment),
 		Spec: appsv1.DaemonSetSpec{
+			Selector: selector,
 			Template: *template,
 			UpdateStrategy: appsv1.DaemonSetUpdateStrategy{
 				Type: *agentdeployment.Spec.Agent.DeploymentStrategy.UpdateStrategyType,
@@ -332,14 +343,18 @@ func newDaemonSetFromInstance(logger logr.Logger, agentdeployment *datadoghqv1al
 			},
 		},
 	}
-	ds.Spec.Selector = &metav1.LabelSelector{
-		MatchLabels: ds.Spec.Template.Labels,
-	}
 	hash, err := comparison.SetMD5GenerationAnnotation(&ds.ObjectMeta, agentdeployment.Spec)
 	if err != nil {
 		return nil, "", err
 	}
 	return ds, hash, nil
+}
+
+func daemonsetName(agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment) string {
+	if agentdeployment.Spec.Agent.DaemonsetName != "" {
+		return agentdeployment.Spec.Agent.DaemonsetName
+	}
+	return agentdeployment.Name
 }
 
 func newDaemonsetObjectMetaData(agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment) metav1.ObjectMeta {
@@ -352,7 +367,7 @@ func newDaemonsetObjectMetaData(agentdeployment *datadoghqv1alpha1.DatadogAgentD
 	annotations := map[string]string{}
 
 	return metav1.ObjectMeta{
-		Name:        agentdeployment.Name,
+		Name:        daemonsetName(agentdeployment),
 		Namespace:   agentdeployment.Namespace,
 		Labels:      labels,
 		Annotations: annotations,
