@@ -61,10 +61,13 @@ validate: bin/golangci-lint bin/wwhrd
 	./bin/golangci-lint run ./...
 	./hack/verify-license.sh > /dev/null
 
-generate: bin/openapi-gen
+generate: bin/operator-sdk bin/openapi-gen bin/client-gen bin/informer-gen bin/lister-gen
 	./bin/operator-sdk generate k8s
 	./bin/operator-sdk generate crds
 	./bin/openapi-gen --logtostderr=true -o "" -i ./pkg/apis/datadoghq/v1alpha1 -O zz_generated.openapi -p ./pkg/apis/datadoghq/v1alpha1 -h ./hack/boilerplate.go.txt -r "-"
+	./hack/generate-groups.sh client,lister,informer \
+  github.com/DataDog/datadog-operator/pkg/generated github.com/DataDog/datadog-operator/pkg/apis datadoghq:v1alpha1 \
+  --go-header-file ./hack/boilerplate.go.txt
 
 CRDS = $(wildcard deploy/crds/*_crd.yaml)
 local-load: $(CRDS)
@@ -88,6 +91,15 @@ bin/wwhrd:
 
 bin/openapi-gen:
 	go build -o ./bin/openapi-gen k8s.io/kube-openapi/cmd/openapi-gen
+
+bin/client-gen:
+	go build -o ./bin/client-gen ./vendor/k8s.io/code-generator/cmd/client-gen
+
+bin/informer-gen:
+	go build -o ./bin/informer-gen ./vendor/k8s.io/code-generator/cmd/informer-gen
+
+bin/lister-gen:
+	go build -o ./bin/lister-gen ./vendor/k8s.io/code-generator/cmd/lister-gen
 
 license: bin/wwhrd
 	./hack/license.sh
