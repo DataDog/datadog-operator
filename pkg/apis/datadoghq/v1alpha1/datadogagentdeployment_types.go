@@ -98,7 +98,7 @@ type DatadogAgentDeploymentSpecAgentSpec struct {
 	Rbac RbacConfig `json:"rbac,omitempty"`
 
 	// Update strategy configuration for the DaemonSet
-	DeploymentStrategy *DaemonSetDeploymentcStrategy `json:"deploymentStrategy,omitempty"`
+	DeploymentStrategy *DaemonSetDeploymentStrategy `json:"deploymentStrategy,omitempty"`
 
 	// Trace Agent configuration
 	// +optional
@@ -143,9 +143,9 @@ type RbacConfig struct {
 	ServiceAccountName *string `json:"serviceAccountName,omitempty"`
 }
 
-// DaemonSetDeploymentcStrategy contains the node Agent deployment configuration
+// DaemonSetDeploymentStrategy contains the node Agent deployment configuration
 // +k8s:openapi-gen=true
-type DaemonSetDeploymentcStrategy struct {
+type DaemonSetDeploymentStrategy struct {
 	// The update strategy used for the DaemonSet
 	UpdateStrategyType *appsv1.DaemonSetUpdateStrategyType `json:"updateStrategyType,omitempty"`
 	// Configure the rolling updater strategy of the DaemonSet or the ExtendedDaemonSet
