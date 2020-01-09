@@ -1,0 +1,33 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog-agent
+spec:
+  credentials:
+    apiKey: <apikey>
+    appKey: <appkey>
+  agent:
+    image: 
+      name: "datadog/agent:latest"
+    config:
+      logLevel: "DEBUG"
+      leaderElection: true
+      tolerations:
+      - operator: Exists
+      criSocket:
+        criSocketPath: /var/run/containerd/containerd.sock
+        useCriSocketVolume: true
+      env:
+      - name: DD_KUBELET_TLS_VERIFY
+        value: "false"
+    apm:
+      enabled: true
+    process:
+      enabled: true
+    systemProbe:
+      enabled: true
+      bpfDebugEnabled: true
+
+
+
+  

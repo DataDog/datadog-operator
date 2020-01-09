@@ -24,11 +24,11 @@ var (
 	pullPolicy = v1.PullIfNotPresent
 )
 
-// NewDatadogAgentDeploymentOptions set of option for the DatadogAgentDeployment creation
-type NewDatadogAgentDeploymentOptions struct {
+// NewDatadogAgentOptions set of option for the DatadogAgent creation
+type NewDatadogAgentOptions struct {
 	Labels                     map[string]string
 	Annotations                map[string]string
-	Status                     *datadoghqv1alpha1.DatadogAgentDeploymentStatus
+	Status                     *datadoghqv1alpha1.DatadogAgentStatus
 	UseEDS                     bool
 	ClusterAgentEnabled        bool
 	MetricsServerEnabled       bool
@@ -50,23 +50,23 @@ type NewDatadogAgentDeploymentOptions struct {
 	ClusterAgentDeploymentName string
 }
 
-// NewDefaultedDatadogAgentDeployment returns an initialized and defaulted DatadogAgentDeployment for testing purpose
-func NewDefaultedDatadogAgentDeployment(ns, name string, options *NewDatadogAgentDeploymentOptions) *datadoghqv1alpha1.DatadogAgentDeployment {
-	ad := &datadoghqv1alpha1.DatadogAgentDeployment{
+// NewDefaultedDatadogAgent returns an initialized and defaulted DatadogAgent for testing purpose
+func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) *datadoghqv1alpha1.DatadogAgent {
+	ad := &datadoghqv1alpha1.DatadogAgent{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "DatadogAgentDeployment",
+			Kind:       "DatadogAgent",
 			APIVersion: apiVersion,
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:  ns,
 			Name:       name,
 			Labels:     map[string]string{},
-			Finalizers: []string{"finalizer.agentdeployment.datadoghq.com"},
+			Finalizers: []string{"finalizer.agent.datadoghq.com"},
 		},
 	}
-	ad.Spec = datadoghqv1alpha1.DatadogAgentDeploymentSpec{
+	ad.Spec = datadoghqv1alpha1.DatadogAgentSpec{
 		Credentials: datadoghqv1alpha1.AgentCredentials{Token: "token-foo"},
-		Agent: &datadoghqv1alpha1.DatadogAgentDeploymentSpecAgentSpec{
+		Agent: &datadoghqv1alpha1.DatadogAgentSpecAgentSpec{
 			Image: datadoghqv1alpha1.ImageConfig{
 				Name:       "datadog/agent:latest",
 				PullPolicy: &pullPolicy,
@@ -107,7 +107,7 @@ func NewDefaultedDatadogAgentDeployment(ns, name string, options *NewDatadogAgen
 			ad.Spec.Agent.Config.VolumeMounts = options.VolumeMounts
 		}
 		if options.ClusterAgentEnabled {
-			ad.Spec.ClusterAgent = &datadoghqv1alpha1.DatadogAgentDeploymentSpecClusterAgentSpec{
+			ad.Spec.ClusterAgent = &datadoghqv1alpha1.DatadogAgentSpecClusterAgentSpec{
 				Config: datadoghqv1alpha1.ClusterAgentConfig{},
 				Rbac: datadoghqv1alpha1.RbacConfig{
 					Create: datadoghqv1alpha1.NewBoolPointer(true),
@@ -165,7 +165,7 @@ func NewDefaultedDatadogAgentDeployment(ns, name string, options *NewDatadogAgen
 			ad.Spec.Agent.CustomConfig = options.CustomConfig
 		}
 	}
-	return datadoghqv1alpha1.DefaultDatadogAgentDeployment(ad)
+	return datadoghqv1alpha1.DefaultDatadogAgent(ad)
 }
 
 // NewExtendedDaemonSetOptions set of option for the ExtendedDaemonset creation

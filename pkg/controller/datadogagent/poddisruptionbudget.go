@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-2019 Datadog, Inc.
 
-package datadogagentdeployment
+package datadogagent
 
 import (
 	"context"
@@ -27,40 +27,40 @@ const (
 )
 
 type (
-	pdbBuilder func(dad *datadoghqv1alpha1.DatadogAgentDeployment) *policyv1.PodDisruptionBudget
+	pdbBuilder func(dda *datadoghqv1alpha1.DatadogAgent) *policyv1.PodDisruptionBudget
 )
 
-func (r *ReconcileDatadogAgentDeployment) manageClusterAgentPDB(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment, newStatus *datadoghqv1alpha1.DatadogAgentDeploymentStatus) (reconcile.Result, error) {
-	cleanUpCondition := dad.Spec.ClusterAgent == nil
-	return r.managePDB(logger, dad, newStatus, getClusterAgentPDBName(dad), buildClusterAgentPDB, cleanUpCondition)
+func (r *ReconcileDatadogAgent) manageClusterAgentPDB(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
+	cleanUpCondition := dda.Spec.ClusterAgent == nil
+	return r.managePDB(logger, dda, newStatus, getClusterAgentPDBName(dda), buildClusterAgentPDB, cleanUpCondition)
 }
 
-func (r *ReconcileDatadogAgentDeployment) manageClusterChecksRunnerPDB(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment, newStatus *datadoghqv1alpha1.DatadogAgentDeploymentStatus) (reconcile.Result, error) {
-	cleanUpCondition := !needClusterChecksRunner(dad)
-	return r.managePDB(logger, dad, newStatus, getClusterChecksRunnerPDBName(dad), buildClusterChecksRunnerPDB, cleanUpCondition)
+func (r *ReconcileDatadogAgent) manageClusterChecksRunnerPDB(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
+	cleanUpCondition := !needClusterChecksRunner(dda)
+	return r.managePDB(logger, dda, newStatus, getClusterChecksRunnerPDBName(dda), buildClusterChecksRunnerPDB, cleanUpCondition)
 }
 
-func (r *ReconcileDatadogAgentDeployment) managePDB(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment, newStatus *datadoghqv1alpha1.DatadogAgentDeploymentStatus, pdbName string, builder pdbBuilder, cleanUp bool) (reconcile.Result, error) {
+func (r *ReconcileDatadogAgent) managePDB(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus, pdbName string, builder pdbBuilder, cleanUp bool) (reconcile.Result, error) {
 	if cleanUp {
-		return r.cleanupPDB(logger, dad, newStatus, pdbName)
+		return r.cleanupPDB(logger, dda, newStatus, pdbName)
 	}
 
 	pdb := &policyv1.PodDisruptionBudget{}
-	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: dad.Namespace, Name: pdbName}, pdb)
+	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: dda.Namespace, Name: pdbName}, pdb)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			return r.createPDB(logger, dad, newStatus, builder)
+			return r.createPDB(logger, dda, newStatus, builder)
 		}
 		return reconcile.Result{}, err
 	}
 
-	return r.updateIfNeededPDB(logger, dad, pdb, newStatus, builder)
+	return r.updateIfNeededPDB(logger, dda, pdb, newStatus, builder)
 }
 
-func (r *ReconcileDatadogAgentDeployment) createPDB(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment, newStatus *datadoghqv1alpha1.DatadogAgentDeploymentStatus, builder pdbBuilder) (reconcile.Result, error) {
-	newPdb := builder(dad)
-	// Set DatadogAgentDeployment instance  instance as the owner and controller
-	if err := controllerutil.SetControllerReference(dad, newPdb, r.scheme); err != nil {
+func (r *ReconcileDatadogAgent) createPDB(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus, builder pdbBuilder) (reconcile.Result, error) {
+	newPdb := builder(dda)
+	// Set DatadogAgent instance  instance as the owner and controller
+	if err := controllerutil.SetControllerReference(dda, newPdb, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
 	if err := r.client.Create(context.TODO(), newPdb); err != nil {
@@ -68,16 +68,16 @@ func (r *ReconcileDatadogAgentDeployment) createPDB(logger logr.Logger, dad *dat
 	}
 	logger.Info("Create PDB", "name", newPdb.Name)
 	eventInfo := buildEventInfo(newPdb.Name, newPdb.Namespace, podDisruptionBudgetKind, datadog.CreationEvent)
-	r.recordEvent(dad, eventInfo)
+	r.recordEvent(dda, eventInfo)
 
 	return reconcile.Result{Requeue: true}, nil
 }
 
-func (r *ReconcileDatadogAgentDeployment) updateIfNeededPDB(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment, currentPDB *policyv1.PodDisruptionBudget, newStatus *datadoghqv1alpha1.DatadogAgentDeploymentStatus, builder pdbBuilder) (reconcile.Result, error) {
+func (r *ReconcileDatadogAgent) updateIfNeededPDB(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, currentPDB *policyv1.PodDisruptionBudget, newStatus *datadoghqv1alpha1.DatadogAgentStatus, builder pdbBuilder) (reconcile.Result, error) {
 	if !ownedByDatadogOperator(currentPDB.OwnerReferences) {
 		return reconcile.Result{}, nil
 	}
-	newPDB := builder(dad)
+	newPDB := builder(dda)
 	result := reconcile.Result{}
 	if !(apiequality.Semantic.DeepEqual(newPDB.Spec, currentPDB.Spec) &&
 		apiequality.Semantic.DeepEqual(newPDB.Labels, currentPDB.Labels) &&
@@ -92,16 +92,16 @@ func (r *ReconcileDatadogAgentDeployment) updateIfNeededPDB(logger logr.Logger, 
 			return reconcile.Result{}, err
 		}
 		eventInfo := buildEventInfo(updatedPDB.Name, updatedPDB.Namespace, podDisruptionBudgetKind, datadog.UpdateEvent)
-		r.recordEvent(dad, eventInfo)
+		r.recordEvent(dda, eventInfo)
 		result.Requeue = true
 	}
 
 	return result, nil
 }
 
-func (r *ReconcileDatadogAgentDeployment) cleanupPDB(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment, newStatus *datadoghqv1alpha1.DatadogAgentDeploymentStatus, pdbName string) (reconcile.Result, error) {
+func (r *ReconcileDatadogAgent) cleanupPDB(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus, pdbName string) (reconcile.Result, error) {
 	pdb := &policyv1.PodDisruptionBudget{}
-	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: dad.Namespace, Name: pdbName}, pdb)
+	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: dda.Namespace, Name: pdbName}, pdb)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return reconcile.Result{}, nil
@@ -115,34 +115,34 @@ func (r *ReconcileDatadogAgentDeployment) cleanupPDB(logger logr.Logger, dad *da
 	return reconcile.Result{}, err
 }
 
-func buildClusterAgentPDB(dad *datadoghqv1alpha1.DatadogAgentDeployment) *policyv1.PodDisruptionBudget {
-	labels := getDefaultLabels(dad, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dad))
-	annotations := getDefaultAnnotations(dad)
+func buildClusterAgentPDB(dda *datadoghqv1alpha1.DatadogAgent) *policyv1.PodDisruptionBudget {
+	labels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
+	annotations := getDefaultAnnotations(dda)
 	metadata := metav1.ObjectMeta{
-		Name:        getClusterAgentPDBName(dad),
-		Namespace:   dad.Namespace,
+		Name:        getClusterAgentPDBName(dda),
+		Namespace:   dda.Namespace,
 		Labels:      labels,
 		Annotations: annotations,
 	}
 	matchLabels := map[string]string{
-		datadoghqv1alpha1.AgentDeploymentNameLabelKey:      dad.Name,
+		datadoghqv1alpha1.AgentDeploymentNameLabelKey:      dda.Name,
 		datadoghqv1alpha1.AgentDeploymentComponentLabelKey: datadoghqv1alpha1.DefaultClusterAgentResourceSuffix,
 	}
 
 	return buildPDB(metadata, matchLabels, pdbMinAvailableInstances)
 }
 
-func buildClusterChecksRunnerPDB(dad *datadoghqv1alpha1.DatadogAgentDeployment) *policyv1.PodDisruptionBudget {
-	labels := getDefaultLabels(dad, datadoghqv1alpha1.DefaultClusterChecksRunnerResourceSuffix, getAgentVersion(dad))
-	annotations := getDefaultAnnotations(dad)
+func buildClusterChecksRunnerPDB(dda *datadoghqv1alpha1.DatadogAgent) *policyv1.PodDisruptionBudget {
+	labels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterChecksRunnerResourceSuffix, getAgentVersion(dda))
+	annotations := getDefaultAnnotations(dda)
 	metadata := metav1.ObjectMeta{
-		Name:        getClusterChecksRunnerPDBName(dad),
-		Namespace:   dad.Namespace,
+		Name:        getClusterChecksRunnerPDBName(dda),
+		Namespace:   dda.Namespace,
 		Labels:      labels,
 		Annotations: annotations,
 	}
 	matchLabels := map[string]string{
-		datadoghqv1alpha1.AgentDeploymentNameLabelKey:      dad.Name,
+		datadoghqv1alpha1.AgentDeploymentNameLabelKey:      dda.Name,
 		datadoghqv1alpha1.AgentDeploymentComponentLabelKey: datadoghqv1alpha1.DefaultClusterChecksRunnerResourceSuffix,
 	}
 

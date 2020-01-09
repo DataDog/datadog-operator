@@ -1,6 +1,6 @@
 # Quick Start
 
-To use the Datadog Operator, deploy it in your Kubernetes cluster. Then create a `DatadogAgentDeployment` Kubernetes resource that contains the Datadog deployment configuration.
+To use the Datadog Operator, deploy it in your Kubernetes cluster. Then create a `DatadogAgent` Kubernetes resource that contains the Datadog deployment configuration.
 
 ## Deploy the Datadog Operator
 
@@ -18,13 +18,13 @@ $ helm install $DD_NAMEOP -n $DD_NAMESPACE ./chart/datadog-operator
 
 ## Deploy the Datadog Agents with the operator
 
-After deploying the Datadog Operator, create the `DatadogAgentDeployment` resource that will trigger the Datadog Agent's deployment in your Kubernetes cluster.
+After deploying the Datadog Operator, create the `DatadogAgent` resource that will trigger the Datadog Agent's deployment in your Kubernetes cluster.
 
 The following is the simplest configuration for the Datadog Operator:
 
 ```yaml
 apiVersion: datadoghq.com/v1alpha1
-kind: DatadogAgentDeployment
+kind: DatadogAgent
 metadata:
   name: datadog-agent
 spec:
@@ -41,13 +41,13 @@ After adding your own Datadog API key in the `examples/datadog-agent.yaml` file,
 
 ```console
 $ kubectl apply -n $DD_NAMESPACE -f examples/datadog-agent.yaml
-datadogagentdeployment.datadoghq.com/datadog-agent created
+datadogagent.datadoghq.com/datadog-agent created
 ```
 
-You can check the state of the `DatadogAgentDeployment` `datadog` with:
+You can check the state of the `DatadogAgent` `datadog` with:
 
 ```console
-kubectl get -n $DD_NAMESPACE dad datadog-agent
+kubectl get -n $DD_NAMESPACE dd datadog-agent
 NAME             ACTIVE   AGENT     CLUSTER-AGENT   AGE
 datadog-agent    True     Running                   4m2s
 ```
@@ -66,7 +66,7 @@ datadog-agent-k26tp                          1/1     Running   0          5m59s 
 datadog-agent-zcxx7                          1/1     Running   0          5m59s   10.244.1.7    kind-worker2
 ```
 
-If you now update the `DatadogAgentDeployment` `datadog-agent` by using `examples/datadog-agent-with-tolerations.yaml`, the `DaemonSet` will be updated in order to add the toleration in the `Daemonset.spec.template`. (Remember to also put your Datadog API key in this file.)
+If you now update the `DatadogAgent` `datadog-agent` by using `examples/datadog-agent-with-tolerations.yaml`, the `DaemonSet` will be updated in order to add the toleration in the `Daemonset.spec.template`. (Remember to also put your Datadog API key in this file.)
 
 ```console
 diff examples/datadog-agent.yaml examples/datadog-agent-with-tolerations.yaml
@@ -76,7 +76,7 @@ diff examples/datadog-agent.yaml examples/datadog-agent-with-tolerations.yaml
 >        - operator: Exists
 
 $ kubectl apply -f examples/datadog-agent-with-tolerations.yaml
-datadogagentdeployment.datadoghq.com/datadog-agent updated
+datadogagent.datadoghq.com/datadog-agent updated
 ```
 
 The DaemonSet update can be validated by looking at the new desired pod value:
@@ -94,11 +94,11 @@ datadog-agent-lkfqt                          0/1     Running    0          15s
 datadog-agent-zvdbw                          1/1     Running    0          8m1s
 ```
 
-The last experimentation step is to deploy the Cluster Agent along with the Agent. To do this, update the current `DatadogAgentDeployment` `datadog-agent` with the `examples/datadog-agent-with-clusteragent.yaml` file:
+The last experimentation step is to deploy the Cluster Agent along with the Agent. To do this, update the current `DatadogAgent` `datadog-agent` with the `examples/datadog-agent-with-clusteragent.yaml` file:
 
 ```yaml
 apiVersion: datadoghq.com/v1alpha1
-kind: DatadogAgentDeployment
+kind: DatadogAgent
 metadata:
   name: datadog-agent
 spec:
@@ -127,9 +127,9 @@ This `clusterAgent` section enables you to add several options:
 
 ```console
 $ kubectl apply -n $DD_NAMESPACE -f examples/datadog-agent-with-clusteragent.yaml
-datadogagentdeployment.datadoghq.com/datadog-agent configured
+datadogagent.datadoghq.com/datadog-agent configured
 
-$ kubectl get -n $DD_NAMESPACE dad datadog-agent
+$ kubectl get -n $DD_NAMESPACE dd datadog-agent
 NAME            ACTIVE   AGENT     CLUSTER-AGENT   AGE
 datadog-agent   True     Running   Running         15m22s
 
@@ -153,9 +153,9 @@ datadog-agent-hjlbg                          1/1     Running   0          33s
 
 ## Providing custom checks and config files
 
-The `DatadogAgentDeployment` can be configured to provide custom checks (`checks.d`) and their config files (`conf.d`) at initialization time.
+The `DatadogAgent` can be configured to provide custom checks (`checks.d`) and their config files (`conf.d`) at initialization time.
 
-A `ConfigMap` resource needs to be configured by user for each of these settings before the `DatadogAgentDeployment` using them is created.
+A `ConfigMap` resource needs to be configured by user for each of these settings before the `DatadogAgent` using them is created.
 
 Below is an example of configuring these `ConfigMaps` for a single check and its config file:
 
@@ -208,11 +208,11 @@ metadata:
 
 ```
 
-Once these `ConfigMaps` condfigured a `DatadogAgentDeployment` can be created to use these checks and config files:
+Once these `ConfigMaps` condfigured a `DatadogAgent` can be created to use these checks and config files:
 
 ```yaml
 apiVersion: datadoghq.com/v1alpha1
-kind: DatadogAgentDeployment
+kind: DatadogAgent
 metadata:
   name: datadog-agent
 spec:
@@ -245,7 +245,7 @@ Example of using a volume to mount a secret:
 
 ```yaml
 apiVersion: datadoghq.com/v1alpha1
-kind: DatadogAgentDeployment
+kind: DatadogAgent
 metadata:
   name: datadog-agent
 spec:
@@ -279,11 +279,11 @@ spec:
 
 ## Cleanup
 
-The following command will delete all the Kubernetes resources created by the Datadog Operator and the linked `DatadogAgentDeployment` `datadog-agent`.
+The following command will delete all the Kubernetes resources created by the Datadog Operator and the linked `DatadogAgent` `datadog-agent`.
 
 ```console
-$ kubectl delete -n $DD_NAMESPACE dad datadog-agent
-datadogagentdeployment.datadoghq.com/datadog-agent deleted
+$ kubectl delete -n $DD_NAMESPACE dd datadog-agent
+datadogagent.datadoghq.com/datadog-agent deleted
 ```
 
 You can then remove the Datadog-Operator with the `helm delete` command:

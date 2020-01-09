@@ -1,5 +1,5 @@
 apiVersion: datadoghq.com/v1alpha1
-kind: DatadogAgentDeployment
+kind: DatadogAgent
 metadata:
   name: datadog-agent
 spec:

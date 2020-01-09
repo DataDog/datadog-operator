@@ -43,8 +43,8 @@ rules:
 - apiGroups:
   - datadoghq.com
   resources:
-  - 'datadogagentdeployments'
-  - 'datadogagentdeployments/status'
+  - 'datadogagents'
+  - 'datadogagents/status'
   - 'extendeddaemonset'
   verbs:
   - '*'

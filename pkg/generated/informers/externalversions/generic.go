@@ -42,8 +42,8 @@ func (f *genericInformer) Lister() cache.GenericLister {
 func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource) (GenericInformer, error) {
 	switch resource {
 	// Group=datadoghq.com, Version=v1alpha1
-	case v1alpha1.SchemeGroupVersion.WithResource("datadogagentdeployments"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Datadoghq().V1alpha1().DatadogAgentDeployments().Informer()}, nil
+	case v1alpha1.SchemeGroupVersion.WithResource("datadogagents"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Datadoghq().V1alpha1().DatadogAgents().Informer()}, nil
 
 	}
 

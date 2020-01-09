@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-2019 Datadog, Inc.
 
-package datadogagentdeployment
+package datadogagent
 
 import (
 	"context"
@@ -28,20 +28,20 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 )
 
-func (r *ReconcileDatadogAgentDeployment) reconcileClusterAgent(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment, newStatus *datadoghqv1alpha1.DatadogAgentDeploymentStatus) (reconcile.Result, error) {
-	result, err := r.manageClusterAgentDependencies(logger, dad, newStatus)
+func (r *ReconcileDatadogAgent) reconcileClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
+	result, err := r.manageClusterAgentDependencies(logger, dda, newStatus)
 	if shouldReturn(result, err) {
 		return result, err
 	}
-	if dad.Spec.ClusterAgent == nil {
-		result, err := r.cleanupClusterAgent(logger, dad, newStatus)
+	if dda.Spec.ClusterAgent == nil {
+		result, err := r.cleanupClusterAgent(logger, dda, newStatus)
 		return result, err
 	}
 
 	// Generate a Token for clusterAgent-Agent communication if not provided
-	if dad.Spec.Credentials.Token == "" {
+	if dda.Spec.Credentials.Token == "" {
 		if newStatus.ClusterAgent == nil {
-			newStatus.ClusterAgent = &datadoghqv1alpha1.DatadogAgentDeploymentDeploymentStatus{}
+			newStatus.ClusterAgent = &datadoghqv1alpha1.DeploymentStatus{}
 		}
 		if newStatus.ClusterAgent.GeneratedToken == "" {
 			newStatus.ClusterAgent.GeneratedToken = generateRandomString(16)
@@ -51,28 +51,28 @@ func (r *ReconcileDatadogAgentDeployment) reconcileClusterAgent(logger logr.Logg
 
 	if newStatus.ClusterAgent != nil &&
 		newStatus.ClusterAgent.DeploymentName != "" &&
-		newStatus.ClusterAgent.DeploymentName != getClusterAgentName(dad) {
+		newStatus.ClusterAgent.DeploymentName != getClusterAgentName(dda) {
 		return result, fmt.Errorf("Datadog cluster agent Deployment cannot be renamed once created")
 	}
 
 	nsName := types.NamespacedName{
-		Name:      getClusterAgentName(dad),
-		Namespace: dad.Namespace,
+		Name:      getClusterAgentName(dda),
+		Namespace: dda.Namespace,
 	}
 	// ClusterAgentDeployment attached to this instance
 	clusterAgentDeployment := &appsv1.Deployment{}
-	if dad.Spec.ClusterAgent != nil {
+	if dda.Spec.ClusterAgent != nil {
 		err := r.client.Get(context.TODO(), nsName, clusterAgentDeployment)
 		if err != nil {
 			if errors.IsNotFound(err) {
 				logger.Info("ClusterAgent deployment not found", "name", nsName.Name, "namespace", nsName.Namespace)
 				// Create and attach a ClusterAgentDeployment
-				return r.createNewClusterAgentDeployment(logger, dad, newStatus)
+				return r.createNewClusterAgentDeployment(logger, dda, newStatus)
 			}
 			return reconcile.Result{}, err
 		}
 
-		if result, err = r.updateClusterAgentDeployment(logger, dad, clusterAgentDeployment, newStatus); err != nil {
+		if result, err = r.updateClusterAgentDeployment(logger, dda, clusterAgentDeployment, newStatus); err != nil {
 			return result, err
 		}
 
@@ -86,18 +86,18 @@ func (r *ReconcileDatadogAgentDeployment) reconcileClusterAgent(logger logr.Logg
 	return reconcile.Result{}, nil
 }
 
-func (r *ReconcileDatadogAgentDeployment) createNewClusterAgentDeployment(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment, newStatus *datadoghqv1alpha1.DatadogAgentDeploymentStatus) (reconcile.Result, error) {
+func (r *ReconcileDatadogAgent) createNewClusterAgentDeployment(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
 	newDCA, hash, err := newClusterAgentDeploymentFromInstance(logger, agentdeployment, newStatus, nil)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
 
-	// Set DatadogAgentDeployment instance  instance as the owner and controller
+	// Set DatadogAgent instance  instance as the owner and controller
 	if err = controllerutil.SetControllerReference(agentdeployment, newDCA, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
 	logger.Info("Creating a new Cluster Agent Deployment", "deployment.Namespace", newDCA.Namespace, "deployment.Name", newDCA.Name, "agentdeployment.Status.ClusterAgent.CurrentHash", hash)
-	newStatus.ClusterAgent = &datadoghqv1alpha1.DatadogAgentDeploymentDeploymentStatus{}
+	newStatus.ClusterAgent = &datadoghqv1alpha1.DeploymentStatus{}
 	err = r.client.Create(context.TODO(), newDCA)
 	now := metav1.NewTime(time.Now())
 	if err != nil {
@@ -111,11 +111,11 @@ func (r *ReconcileDatadogAgentDeployment) createNewClusterAgentDeployment(logger
 	return reconcile.Result{}, nil
 }
 
-func updateStatusWithClusterAgent(dca *appsv1.Deployment, newStatus *datadoghqv1alpha1.DatadogAgentDeploymentStatus, updateTime *metav1.Time) {
+func updateStatusWithClusterAgent(dca *appsv1.Deployment, newStatus *datadoghqv1alpha1.DatadogAgentStatus, updateTime *metav1.Time) {
 	newStatus.ClusterAgent = updateDeploymentStatus(dca, newStatus.ClusterAgent, updateTime)
 }
 
-func (r *ReconcileDatadogAgentDeployment) updateClusterAgentDeployment(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment, dca *appsv1.Deployment, newStatus *datadoghqv1alpha1.DatadogAgentDeploymentStatus) (reconcile.Result, error) {
+func (r *ReconcileDatadogAgent) updateClusterAgentDeployment(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgent, dca *appsv1.Deployment, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
 	newDCA, hash, err := newClusterAgentDeploymentFromInstance(logger, agentdeployment, newStatus, dca.Spec.Selector)
 	if err != nil {
 		return reconcile.Result{}, err
@@ -132,7 +132,7 @@ func (r *ReconcileDatadogAgentDeployment) updateClusterAgentDeployment(logger lo
 		return reconcile.Result{}, nil
 	}
 	logger.Info("update ClusterAgent deployment", "name", dca.Name, "namespace", dca.Namespace)
-	// Set DatadogAgentDeployment instance  instance as the owner and controller
+	// Set DatadogAgent instance  instance as the owner and controller
 	if err = controllerutil.SetControllerReference(agentdeployment, dca, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
@@ -159,10 +159,10 @@ func (r *ReconcileDatadogAgentDeployment) updateClusterAgentDeployment(logger lo
 	return reconcile.Result{}, nil
 }
 
-// newClusterAgentDeploymentFromInstance creates a Cluster Agent Deployment from a given DatadogAgentDeployment
+// newClusterAgentDeploymentFromInstance creates a Cluster Agent Deployment from a given DatadogAgent
 func newClusterAgentDeploymentFromInstance(logger logr.Logger,
-	agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment,
-	newStatus *datadoghqv1alpha1.DatadogAgentDeploymentStatus,
+	agentdeployment *datadoghqv1alpha1.DatadogAgent,
+	newStatus *datadoghqv1alpha1.DatadogAgentStatus,
 	selector *metav1.LabelSelector) (*appsv1.Deployment, string, error) {
 	labels := map[string]string{
 		datadoghqv1alpha1.AgentDeploymentNameLabelKey:      agentdeployment.Name,
@@ -210,28 +210,28 @@ func newClusterAgentDeploymentFromInstance(logger logr.Logger,
 	return dca, hash, err
 }
 
-func (r *ReconcileDatadogAgentDeployment) manageClusterAgentDependencies(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment, newStatus *datadoghqv1alpha1.DatadogAgentDeploymentStatus) (reconcile.Result, error) {
-	result, err := r.manageClusterAgentSecret(logger, dad, newStatus)
+func (r *ReconcileDatadogAgent) manageClusterAgentDependencies(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
+	result, err := r.manageClusterAgentSecret(logger, dda, newStatus)
 	if shouldReturn(result, err) {
 		return result, err
 	}
 
-	result, err = r.manageClusterAgentService(logger, dad, newStatus)
+	result, err = r.manageClusterAgentService(logger, dda, newStatus)
 	if shouldReturn(result, err) {
 		return result, err
 	}
 
-	result, err = r.manageMetricsServerService(logger, dad, newStatus)
+	result, err = r.manageMetricsServerService(logger, dda, newStatus)
 	if shouldReturn(result, err) {
 		return result, err
 	}
 
-	result, err = r.manageClusterAgentPDB(logger, dad, newStatus)
+	result, err = r.manageClusterAgentPDB(logger, dda, newStatus)
 	if shouldReturn(result, err) {
 		return result, err
 	}
 
-	result, err = r.manageClusterAgentRBACs(logger, dad)
+	result, err = r.manageClusterAgentRBACs(logger, dda)
 	if shouldReturn(result, err) {
 		return result, err
 	}
@@ -239,10 +239,10 @@ func (r *ReconcileDatadogAgentDeployment) manageClusterAgentDependencies(logger 
 	return reconcile.Result{}, nil
 }
 
-func (r *ReconcileDatadogAgentDeployment) cleanupClusterAgent(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment, newStatus *datadoghqv1alpha1.DatadogAgentDeploymentStatus) (reconcile.Result, error) {
+func (r *ReconcileDatadogAgent) cleanupClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
 	nsName := types.NamespacedName{
-		Name:      getClusterAgentName(dad),
-		Namespace: dad.Namespace,
+		Name:      getClusterAgentName(dda),
+		Namespace: dda.Namespace,
 	}
 	// ClusterAgentDeployment attached to this instance
 	clusterAgentDeployment := &appsv1.Deployment{}
@@ -254,7 +254,7 @@ func (r *ReconcileDatadogAgentDeployment) cleanupClusterAgent(logger logr.Logger
 	}
 	logger.Info("Deleting Cluster Agent Deployment", "deployment.Namespace", clusterAgentDeployment.Namespace, "deployment.Name", clusterAgentDeployment.Name)
 	eventInfo := buildEventInfo(clusterAgentDeployment.Name, clusterAgentDeployment.Namespace, clusterRoleBindingKind, datadog.DeletionEvent)
-	r.recordEvent(dad, eventInfo)
+	r.recordEvent(dda, eventInfo)
 	if err := r.client.Delete(context.TODO(), clusterAgentDeployment); err != nil {
 		return reconcile.Result{}, err
 	}
@@ -263,7 +263,7 @@ func (r *ReconcileDatadogAgentDeployment) cleanupClusterAgent(logger logr.Logger
 }
 
 // newClusterAgentPodTemplate generates a PodTemplate from a DatadogClusterAgentDeployment spec
-func newClusterAgentPodTemplate(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment, labels, annotations map[string]string) corev1.PodTemplateSpec {
+func newClusterAgentPodTemplate(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgent, labels, annotations map[string]string) corev1.PodTemplateSpec {
 	// copy Spec to configure the Cluster Agent Pod Template
 	clusterAgentSpec := agentdeployment.Spec.ClusterAgent.DeepCopy()
 
@@ -308,8 +308,8 @@ func newClusterAgentPodTemplate(logger logr.Logger, agentdeployment *datadoghqv1
 }
 
 // getEnvVarsForClusterAgent converts Cluster Agent Config into container env vars
-func getEnvVarsForClusterAgent(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment) []corev1.EnvVar {
-	spec := &dad.Spec
+func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) []corev1.EnvVar {
+	spec := &dda.Spec
 	envVars := []corev1.EnvVar{
 		{
 			Name:  datadoghqv1alpha1.DDClusterName,
@@ -329,11 +329,11 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dad *datadoghqv1alpha1.Datado
 		},
 		{
 			Name:  datadoghqv1alpha1.DDClusterAgentKubeServiceName,
-			Value: getClusterAgentServiceName(dad),
+			Value: getClusterAgentServiceName(dda),
 		},
 		{
 			Name:      datadoghqv1alpha1.DDClusterAgentAuthToken,
-			ValueFrom: getClusterAgentAuthToken(dad),
+			ValueFrom: getClusterAgentAuthToken(dda),
 		},
 		{
 			Name:  datadoghqv1alpha1.DDLeaderElection,
@@ -348,11 +348,11 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dad *datadoghqv1alpha1.Datado
 		})
 	}
 
-	if needClusterAgentSecret(dad) {
+	if needClusterAgentSecret(dda) {
 		if spec.Credentials.APIKeyExistingSecret != "" {
 			envVars = append(envVars, corev1.EnvVar{
 				Name:      datadoghqv1alpha1.DDAPIKey,
-				ValueFrom: getAPIKeyFromSecret(dad),
+				ValueFrom: getAPIKeyFromSecret(dda),
 			})
 		} else {
 			envVars = append(envVars, corev1.EnvVar{
@@ -368,7 +368,7 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dad *datadoghqv1alpha1.Datado
 			if spec.Credentials.APIKeyExistingSecret != "" {
 				envVars = append(envVars, corev1.EnvVar{
 					Name:      datadoghqv1alpha1.DDAppKey,
-					ValueFrom: getAppKeyFromSecret(dad),
+					ValueFrom: getAppKeyFromSecret(dda),
 				})
 			} else {
 				envVars = append(envVars, corev1.EnvVar{
@@ -395,34 +395,34 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dad *datadoghqv1alpha1.Datado
 	return append(envVars, spec.Agent.Config.Env...)
 }
 
-func getClusterAgentName(dad *datadoghqv1alpha1.DatadogAgentDeployment) string {
-	if dad.Spec.ClusterAgent != nil && dad.Spec.ClusterAgent.DeploymentName != "" {
-		return dad.Spec.ClusterAgent.DeploymentName
+func getClusterAgentName(dda *datadoghqv1alpha1.DatadogAgent) string {
+	if dda.Spec.ClusterAgent != nil && dda.Spec.ClusterAgent.DeploymentName != "" {
+		return dda.Spec.ClusterAgent.DeploymentName
 	}
-	return fmt.Sprintf("%s-%s", dad.Name, "cluster-agent")
+	return fmt.Sprintf("%s-%s", dda.Name, "cluster-agent")
 }
 
 // manageClusterAgentRBACs creates deletes and updates the RBACs for the Cluster Agent
-func (r *ReconcileDatadogAgentDeployment) manageClusterAgentRBACs(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment) (reconcile.Result, error) {
-	if dad.Spec.ClusterAgent == nil {
-		return r.cleanupClusterAgentRbacResources(logger, dad)
+func (r *ReconcileDatadogAgent) manageClusterAgentRBACs(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
+	if dda.Spec.ClusterAgent == nil {
+		return r.cleanupClusterAgentRbacResources(logger, dda)
 	}
 
-	if !isCreateRBACEnabled(dad.Spec.ClusterAgent.Rbac) {
+	if !isCreateRBACEnabled(dda.Spec.ClusterAgent.Rbac) {
 		return reconcile.Result{}, nil
 	}
 
-	rbacResourcesName := getClusterAgentRbacResourcesName(dad)
-	clusterAgentVersion := getClusterAgentVersion(dad)
+	rbacResourcesName := getClusterAgentRbacResourcesName(dda)
+	clusterAgentVersion := getClusterAgentVersion(dda)
 	// Create or update ClusterRole
 	clusterRole := &rbacv1.ClusterRole{}
 	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesName}, clusterRole); err != nil {
 		if errors.IsNotFound(err) {
-			return r.createClusterAgentClusterRole(logger, dad, rbacResourcesName, clusterAgentVersion)
+			return r.createClusterAgentClusterRole(logger, dda, rbacResourcesName, clusterAgentVersion)
 		}
 		return reconcile.Result{}, err
 	}
-	if result, err := r.updateIfNeededClusterAgentClusterRole(logger, dad, rbacResourcesName, clusterAgentVersion, clusterRole); err != nil {
+	if result, err := r.updateIfNeededClusterAgentClusterRole(logger, dda, rbacResourcesName, clusterAgentVersion, clusterRole); err != nil {
 		return result, err
 	}
 
@@ -430,188 +430,188 @@ func (r *ReconcileDatadogAgentDeployment) manageClusterAgentRBACs(logger logr.Lo
 	clusterRoleBinding := &rbacv1.ClusterRoleBinding{}
 	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesName}, clusterRoleBinding); err != nil {
 		if errors.IsNotFound(err) {
-			return r.createClusterRoleBinding(logger, dad, roleBindingInfo{
+			return r.createClusterRoleBinding(logger, dda, roleBindingInfo{
 				name:               rbacResourcesName,
 				roleName:           rbacResourcesName,
-				serviceAccountName: getClusterAgentServiceAccount(dad),
+				serviceAccountName: getClusterAgentServiceAccount(dda),
 			}, clusterAgentVersion)
 		}
 		return reconcile.Result{}, err
 	}
 
 	// Create or delete HPA ClusterRoleBindig
-	hpaClusterRoleBindingName := getHPAClusterRoleBindingName(dad)
+	hpaClusterRoleBindingName := getHPAClusterRoleBindingName(dda)
 	hpaClusterRoleBinding := &rbacv1.ClusterRoleBinding{}
-	if datadoghqv1alpha1.BoolValue(dad.Spec.ClusterAgent.Config.MetricsProviderEnabled) {
+	if datadoghqv1alpha1.BoolValue(dda.Spec.ClusterAgent.Config.MetricsProviderEnabled) {
 		if err := r.client.Get(context.TODO(), types.NamespacedName{Name: hpaClusterRoleBindingName}, hpaClusterRoleBinding); err != nil {
 			if errors.IsNotFound(err) {
-				return r.createHPAClusterRoleBinding(logger, dad, hpaClusterRoleBindingName, clusterAgentVersion)
+				return r.createHPAClusterRoleBinding(logger, dda, hpaClusterRoleBindingName, clusterAgentVersion)
 			}
 			return reconcile.Result{}, err
 		}
 	} else {
-		if result, err := r.deleteIfNeededHpaClusterRoleBinding(logger, dad, hpaClusterRoleBindingName, clusterAgentVersion, hpaClusterRoleBinding); err != nil {
+		if result, err := r.deleteIfNeededHpaClusterRoleBinding(logger, dda, hpaClusterRoleBindingName, clusterAgentVersion, hpaClusterRoleBinding); err != nil {
 			return result, err
 		}
 	}
 
 	// Create ServiceAccount
 	serviceAccount := &corev1.ServiceAccount{}
-	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesName, Namespace: dad.Namespace}, serviceAccount); err != nil {
+	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesName, Namespace: dda.Namespace}, serviceAccount); err != nil {
 		if errors.IsNotFound(err) {
-			return r.createServiceAccount(logger, dad, rbacResourcesName, clusterAgentVersion)
+			return r.createServiceAccount(logger, dda, rbacResourcesName, clusterAgentVersion)
 		}
 		return reconcile.Result{}, err
 	}
 
 	// Create or update Role
 	role := &rbacv1.Role{}
-	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesName, Namespace: dad.Namespace}, role); err != nil {
+	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesName, Namespace: dda.Namespace}, role); err != nil {
 		if errors.IsNotFound(err) {
-			return r.createClusterAgentRole(logger, dad, rbacResourcesName, clusterAgentVersion)
+			return r.createClusterAgentRole(logger, dda, rbacResourcesName, clusterAgentVersion)
 		}
 		return reconcile.Result{}, err
 	}
-	if result, err := r.updateIfNeededClusterAgentRole(logger, dad, rbacResourcesName, clusterAgentVersion, role); err != nil {
+	if result, err := r.updateIfNeededClusterAgentRole(logger, dda, rbacResourcesName, clusterAgentVersion, role); err != nil {
 		return result, err
 	}
 	// Create or update RoleBinding
 	roleBinding := &rbacv1.RoleBinding{}
-	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesName, Namespace: dad.Namespace}, roleBinding); err != nil {
+	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesName, Namespace: dda.Namespace}, roleBinding); err != nil {
 		if errors.IsNotFound(err) {
 			info := roleBindingInfo{
 				name:               rbacResourcesName,
 				roleName:           rbacResourcesName,
-				serviceAccountName: getClusterAgentServiceAccount(dad),
+				serviceAccountName: getClusterAgentServiceAccount(dda),
 			}
-			return r.createClusterAgentRoleBinding(logger, dad, info, clusterAgentVersion)
+			return r.createClusterAgentRoleBinding(logger, dda, info, clusterAgentVersion)
 		}
 		return reconcile.Result{}, err
 	}
-	if result, err := r.updateIfNeededClusterAgentRoleBinding(logger, dad, rbacResourcesName, clusterAgentVersion, roleBinding); err != nil {
+	if result, err := r.updateIfNeededClusterAgentRoleBinding(logger, dda, rbacResourcesName, clusterAgentVersion, roleBinding); err != nil {
 		return result, err
 	}
 
 	return reconcile.Result{}, nil
 }
 
-func (r *ReconcileDatadogAgentDeployment) createClusterAgentClusterRole(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment, name, agentVersion string) (reconcile.Result, error) {
-	clusterRole := buildClusterAgentClusterRole(dad, name, agentVersion)
-	if err := SetOwnerReference(dad, clusterRole, r.scheme); err != nil {
+func (r *ReconcileDatadogAgent) createClusterAgentClusterRole(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string) (reconcile.Result, error) {
+	clusterRole := buildClusterAgentClusterRole(dda, name, agentVersion)
+	if err := SetOwnerReference(dda, clusterRole, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
 	logger.V(1).Info("createClusterAgentClusterRole", "clusterRole.name", clusterRole.Name)
 	eventInfo := buildEventInfo(clusterRole.Name, clusterRole.Namespace, clusterRoleKind, datadog.CreationEvent)
-	r.recordEvent(dad, eventInfo)
+	r.recordEvent(dda, eventInfo)
 	return reconcile.Result{Requeue: true}, r.client.Create(context.TODO(), clusterRole)
 }
 
-func (r *ReconcileDatadogAgentDeployment) createClusterAgentRole(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment, name, agentVersion string) (reconcile.Result, error) {
-	role := buildClusterAgentRole(dad, name, agentVersion)
-	if err := controllerutil.SetControllerReference(dad, role, r.scheme); err != nil {
+func (r *ReconcileDatadogAgent) createClusterAgentRole(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string) (reconcile.Result, error) {
+	role := buildClusterAgentRole(dda, name, agentVersion)
+	if err := controllerutil.SetControllerReference(dda, role, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
 	logger.V(1).Info("createClusterAgentRole", "role.name", role.Name)
 	eventInfo := buildEventInfo(role.Name, role.Namespace, roleKind, datadog.CreationEvent)
-	r.recordEvent(dad, eventInfo)
+	r.recordEvent(dda, eventInfo)
 	return reconcile.Result{Requeue: true}, r.client.Create(context.TODO(), role)
 }
 
-func (r *ReconcileDatadogAgentDeployment) createAgentClusterRole(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment, name, agentVersion string) (reconcile.Result, error) {
-	clusterRole := buildAgentClusterRole(dad, name, agentVersion)
-	if err := SetOwnerReference(dad, clusterRole, r.scheme); err != nil {
+func (r *ReconcileDatadogAgent) createAgentClusterRole(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string) (reconcile.Result, error) {
+	clusterRole := buildAgentClusterRole(dda, name, agentVersion)
+	if err := SetOwnerReference(dda, clusterRole, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
 	logger.V(1).Info("createAgentClusterRole", "clusterRole.name", clusterRole.Name)
 	eventInfo := buildEventInfo(clusterRole.Name, clusterRole.Namespace, clusterRoleKind, datadog.CreationEvent)
-	r.recordEvent(dad, eventInfo)
+	r.recordEvent(dda, eventInfo)
 	return reconcile.Result{Requeue: true}, r.client.Create(context.TODO(), clusterRole)
 }
 
-func (r *ReconcileDatadogAgentDeployment) updateIfNeededClusterAgentClusterRole(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment, name, agentVersion string, clusterRole *rbacv1.ClusterRole) (reconcile.Result, error) {
-	newClusterRole := buildClusterAgentClusterRole(dad, name, agentVersion)
+func (r *ReconcileDatadogAgent) updateIfNeededClusterAgentClusterRole(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string, clusterRole *rbacv1.ClusterRole) (reconcile.Result, error) {
+	newClusterRole := buildClusterAgentClusterRole(dda, name, agentVersion)
 	if !apiequality.Semantic.DeepEqual(newClusterRole.Rules, clusterRole.Rules) {
 		logger.V(1).Info("updateClusterAgentClusterRole", "clusterRole.name", clusterRole.Name)
 		if err := r.client.Update(context.TODO(), newClusterRole); err != nil {
 			return reconcile.Result{}, err
 		}
 		eventInfo := buildEventInfo(newClusterRole.Name, newClusterRole.Namespace, clusterRoleKind, datadog.UpdateEvent)
-		r.recordEvent(dad, eventInfo)
+		r.recordEvent(dda, eventInfo)
 	}
 	return reconcile.Result{}, nil
 }
 
-func (r *ReconcileDatadogAgentDeployment) updateIfNeededClusterAgentRole(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment, name, agentVersion string, role *rbacv1.Role) (reconcile.Result, error) {
-	newRole := buildClusterAgentRole(dad, name, agentVersion)
+func (r *ReconcileDatadogAgent) updateIfNeededClusterAgentRole(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string, role *rbacv1.Role) (reconcile.Result, error) {
+	newRole := buildClusterAgentRole(dda, name, agentVersion)
 	if !apiequality.Semantic.DeepEqual(newRole.Rules, role.Rules) {
 		logger.V(1).Info("updateClusterAgentRole", "role.name", newRole.Name)
 		if err := r.client.Update(context.TODO(), newRole); err != nil {
 			return reconcile.Result{}, err
 		}
 		eventInfo := buildEventInfo(newRole.Name, newRole.Namespace, roleKind, datadog.UpdateEvent)
-		r.recordEvent(dad, eventInfo)
+		r.recordEvent(dda, eventInfo)
 	}
 	return reconcile.Result{}, nil
 }
 
-func (r *ReconcileDatadogAgentDeployment) updateIfNeededAgentClusterRole(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment, name, agentVersion string, clusterRole *rbacv1.ClusterRole) (reconcile.Result, error) {
-	newClusterRole := buildAgentClusterRole(dad, name, agentVersion)
+func (r *ReconcileDatadogAgent) updateIfNeededAgentClusterRole(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string, clusterRole *rbacv1.ClusterRole) (reconcile.Result, error) {
+	newClusterRole := buildAgentClusterRole(dda, name, agentVersion)
 	if !apiequality.Semantic.DeepEqual(newClusterRole.Rules, clusterRole.Rules) {
 		logger.V(1).Info("updateAgentClusterRole", "clusterRole.name", clusterRole.Name)
 		if err := r.client.Update(context.TODO(), newClusterRole); err != nil {
 			return reconcile.Result{}, err
 		}
 		eventInfo := buildEventInfo(newClusterRole.Name, newClusterRole.Namespace, clusterRoleKind, datadog.UpdateEvent)
-		r.recordEvent(dad, eventInfo)
+		r.recordEvent(dda, eventInfo)
 	}
 	return reconcile.Result{}, nil
 }
 
 // cleanupClusterAgentRbacResources deletes ClusterRole, ClusterRoleBindings, and ServiceAccount of the Cluster Agent
-func (r *ReconcileDatadogAgentDeployment) cleanupClusterAgentRbacResources(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment) (reconcile.Result, error) {
-	rbacResourcesName := getClusterAgentRbacResourcesName(dad)
+func (r *ReconcileDatadogAgent) cleanupClusterAgentRbacResources(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
+	rbacResourcesName := getClusterAgentRbacResourcesName(dda)
 	// Delete ClusterRole
-	if result, err := r.cleanupClusterRole(logger, r.client, dad, rbacResourcesName); err != nil {
+	if result, err := r.cleanupClusterRole(logger, r.client, dda, rbacResourcesName); err != nil {
 		return result, err
 	}
 	// Delete Cluster Role Binding
-	if result, err := r.cleanupClusterRoleBinding(logger, r.client, dad, rbacResourcesName); err != nil {
+	if result, err := r.cleanupClusterRoleBinding(logger, r.client, dda, rbacResourcesName); err != nil {
 		return result, err
 	}
 	// Delete HPA Cluster Role Binding
-	hpaClusterRoleBindingName := getHPAClusterRoleBindingName(dad)
-	if result, err := r.cleanupClusterRoleBinding(logger, r.client, dad, hpaClusterRoleBindingName); err != nil {
+	hpaClusterRoleBindingName := getHPAClusterRoleBindingName(dda)
+	if result, err := r.cleanupClusterRoleBinding(logger, r.client, dda, hpaClusterRoleBindingName); err != nil {
 		return result, err
 	}
 	// Delete Service Account
-	if result, err := r.cleanupServiceAccount(logger, r.client, dad, rbacResourcesName); err != nil {
+	if result, err := r.cleanupServiceAccount(logger, r.client, dda, rbacResourcesName); err != nil {
 		return result, err
 	}
 	return reconcile.Result{}, nil
 }
 
-func (r *ReconcileDatadogAgentDeployment) createClusterAgentRoleBinding(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment, info roleBindingInfo, agentVersion string) (reconcile.Result, error) {
-	roleBinding := buildRoleBinding(dad, info, agentVersion)
-	if err := controllerutil.SetControllerReference(dad, roleBinding, r.scheme); err != nil {
+func (r *ReconcileDatadogAgent) createClusterAgentRoleBinding(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, info roleBindingInfo, agentVersion string) (reconcile.Result, error) {
+	roleBinding := buildRoleBinding(dda, info, agentVersion)
+	if err := controllerutil.SetControllerReference(dda, roleBinding, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
 	logger.V(1).Info("createClusterAgentRoleBinding", "roleBinding.name", roleBinding.Name, "roleBinding.Namespace", roleBinding.Namespace)
 	eventInfo := buildEventInfo(roleBinding.Name, roleBinding.Namespace, roleBindingKind, datadog.CreationEvent)
-	r.recordEvent(dad, eventInfo)
+	r.recordEvent(dda, eventInfo)
 	return reconcile.Result{}, r.client.Create(context.TODO(), roleBinding)
 }
 
-func (r *ReconcileDatadogAgentDeployment) updateIfNeededClusterAgentRoleBinding(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment, name, agentVersion string, roleBinding *rbacv1.RoleBinding) (reconcile.Result, error) {
+func (r *ReconcileDatadogAgent) updateIfNeededClusterAgentRoleBinding(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string, roleBinding *rbacv1.RoleBinding) (reconcile.Result, error) {
 	info := roleBindingInfo{
-		name:               getClusterAgentRbacResourcesName(dad),
-		roleName:           getClusterAgentRbacResourcesName(dad),
-		serviceAccountName: getClusterAgentServiceAccount(dad),
+		name:               getClusterAgentRbacResourcesName(dda),
+		roleName:           getClusterAgentRbacResourcesName(dda),
+		serviceAccountName: getClusterAgentServiceAccount(dda),
 	}
-	newRoleBinding := buildRoleBinding(dad, info, agentVersion)
+	newRoleBinding := buildRoleBinding(dda, info, agentVersion)
 	if !apiequality.Semantic.DeepEqual(newRoleBinding.RoleRef, roleBinding.RoleRef) || !apiequality.Semantic.DeepEqual(newRoleBinding.Subjects, roleBinding.Subjects) {
 		logger.V(1).Info("updateAgentClusterRoleBinding", "roleBinding.name", newRoleBinding.Name, "roleBinding.namespace", newRoleBinding.Namespace)
 		eventInfo := buildEventInfo(newRoleBinding.Name, newRoleBinding.Namespace, roleBindingKind, datadog.UpdateEvent)
-		r.recordEvent(dad, eventInfo)
+		r.recordEvent(dda, eventInfo)
 		if err := r.client.Update(context.TODO(), newRoleBinding); err != nil {
 			return reconcile.Result{}, err
 		}
@@ -620,10 +620,10 @@ func (r *ReconcileDatadogAgentDeployment) updateIfNeededClusterAgentRoleBinding(
 }
 
 // buildAgentClusterRole creates a ClusterRole object for the Agent based on its config
-func buildAgentClusterRole(dad *datadoghqv1alpha1.DatadogAgentDeployment, name, version string) *rbacv1.ClusterRole {
+func buildAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, version string) *rbacv1.ClusterRole {
 	clusterRole := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels: getDefaultLabels(dad, name, version),
+			Labels: getDefaultLabels(dda, name, version),
 			Name:   name,
 		},
 	}
@@ -652,16 +652,16 @@ func buildAgentClusterRole(dad *datadoghqv1alpha1.DatadogAgentDeployment, name, 
 		},
 	}
 
-	if dad.Spec.ClusterAgent == nil {
+	if dda.Spec.ClusterAgent == nil {
 		// Cluster Agent is disabled, the Agent needs extra permissions
 		// to collect cluster level metrics and events
 		rbacRules = append(rbacRules, getDefaultClusterAgentPolicyRules()...)
 
-		if datadoghqv1alpha1.BoolValue(dad.Spec.Agent.Config.CollectEvents) {
+		if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Config.CollectEvents) {
 			rbacRules = append(rbacRules, getEventCollectionPolicyRule())
 		}
 
-		if datadoghqv1alpha1.BoolValue(dad.Spec.Agent.Config.LeaderElection) {
+		if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Config.LeaderElection) {
 			rbacRules = append(rbacRules, getLeaderElectionPolicyRule()...)
 		}
 	}
@@ -704,10 +704,10 @@ func getDefaultClusterAgentPolicyRules() []rbacv1.PolicyRule {
 }
 
 // buildClusterRoleBinding creates a ClusterRoleBinding object
-func buildClusterRoleBinding(dad *datadoghqv1alpha1.DatadogAgentDeployment, info roleBindingInfo, agentVersion string) *rbacv1.ClusterRoleBinding {
+func buildClusterRoleBinding(dda *datadoghqv1alpha1.DatadogAgent, info roleBindingInfo, agentVersion string) *rbacv1.ClusterRoleBinding {
 	return &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels: getDefaultLabels(dad, info.name, agentVersion),
+			Labels: getDefaultLabels(dda, info.name, agentVersion),
 			Name:   info.name,
 		},
 		RoleRef: rbacv1.RoleRef{
@@ -719,17 +719,17 @@ func buildClusterRoleBinding(dad *datadoghqv1alpha1.DatadogAgentDeployment, info
 			{
 				Kind:      datadoghqv1alpha1.ServiceAccountKind,
 				Name:      info.serviceAccountName,
-				Namespace: dad.Namespace,
+				Namespace: dda.Namespace,
 			},
 		},
 	}
 }
 
 // buildClusterAgentClusterRole creates a ClusterRole object for the Cluster Agent based on its config
-func buildClusterAgentClusterRole(dad *datadoghqv1alpha1.DatadogAgentDeployment, name, agentVersion string) *rbacv1.ClusterRole {
+func buildClusterAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string) *rbacv1.ClusterRole {
 	clusterRole := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels: getDefaultLabels(dad, name, agentVersion),
+			Labels: getDefaultLabels(dda, name, agentVersion),
 			Name:   name,
 		},
 	}
@@ -743,15 +743,15 @@ func buildClusterAgentClusterRole(dad *datadoghqv1alpha1.DatadogAgentDeployment,
 		Verbs:     []string{datadoghqv1alpha1.ListVerb, datadoghqv1alpha1.WatchVerb},
 	})
 
-	if datadoghqv1alpha1.BoolValue(dad.Spec.Agent.Config.CollectEvents) {
+	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Config.CollectEvents) {
 		rbacRules = append(rbacRules, getEventCollectionPolicyRule())
 	}
 
-	if datadoghqv1alpha1.BoolValue(dad.Spec.Agent.Config.LeaderElection) {
+	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Config.LeaderElection) {
 		rbacRules = append(rbacRules, getLeaderElectionPolicyRule()...)
 	}
 
-	if datadoghqv1alpha1.BoolValue(dad.Spec.ClusterAgent.Config.MetricsProviderEnabled) {
+	if datadoghqv1alpha1.BoolValue(dda.Spec.ClusterAgent.Config.MetricsProviderEnabled) {
 		rbacRules = append(rbacRules, rbacv1.PolicyRule{
 			APIGroups: []string{datadoghqv1alpha1.CoreAPIGroup},
 			Resources: []string{datadoghqv1alpha1.ConfigMapsResource},
@@ -769,18 +769,18 @@ func buildClusterAgentClusterRole(dad *datadoghqv1alpha1.DatadogAgentDeployment,
 }
 
 // buildClusterAgentRole creates a Role object for the Cluster Agent based on its config
-func buildClusterAgentRole(dad *datadoghqv1alpha1.DatadogAgentDeployment, name, agentVersion string) *rbacv1.Role {
+func buildClusterAgentRole(dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string) *rbacv1.Role {
 	role := &rbacv1.Role{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels:    getDefaultLabels(dad, name, agentVersion),
+			Labels:    getDefaultLabels(dda, name, agentVersion),
 			Name:      name,
-			Namespace: dad.Namespace,
+			Namespace: dda.Namespace,
 		},
 	}
 
 	rbacRules := getLeaderElectionPolicyRule()
 
-	if datadoghqv1alpha1.BoolValue(dad.Spec.ClusterAgent.Config.MetricsProviderEnabled) {
+	if datadoghqv1alpha1.BoolValue(dda.Spec.ClusterAgent.Config.MetricsProviderEnabled) {
 		rbacRules = append(rbacRules, rbacv1.PolicyRule{
 			APIGroups: []string{datadoghqv1alpha1.CoreAPIGroup},
 			Resources: []string{datadoghqv1alpha1.ConfigMapsResource},

@@ -17,8 +17,8 @@ type FakeDatadoghqV1alpha1 struct {
 	*testing.Fake
 }
 
-func (c *FakeDatadoghqV1alpha1) DatadogAgentDeployments(namespace string) v1alpha1.DatadogAgentDeploymentInterface {
-	return &FakeDatadogAgentDeployments{c, namespace}
+func (c *FakeDatadoghqV1alpha1) DatadogAgents(namespace string) v1alpha1.DatadogAgentInterface {
+	return &FakeDatadogAgents{c, namespace}
 }
 
 // RESTClient returns a RESTClient that is used to communicate

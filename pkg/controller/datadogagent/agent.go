@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-2019 Datadog, Inc.
 
-package datadogagentdeployment
+package datadogagent
 
 import (
 	"context"
@@ -26,19 +26,19 @@ import (
 	edsdatadoghqv1alpha1 "github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1"
 )
 
-func (r *ReconcileDatadogAgentDeployment) reconcileAgent(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment, newStatus *datadoghqv1alpha1.DatadogAgentDeploymentStatus) (reconcile.Result, error) {
-	result, err := r.manageAgentDependencies(logger, dad, newStatus)
+func (r *ReconcileDatadogAgent) reconcileAgent(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
+	result, err := r.manageAgentDependencies(logger, dda, newStatus)
 	if shouldReturn(result, err) {
 		return result, err
 	}
 
-	if newStatus.Agent != nil && newStatus.Agent.DaemonsetName != "" && newStatus.Agent.DaemonsetName != daemonsetName(dad) {
+	if newStatus.Agent != nil && newStatus.Agent.DaemonsetName != "" && newStatus.Agent.DaemonsetName != daemonsetName(dda) {
 		return result, fmt.Errorf("Datadog agent DaemonSet cannot be renamed once created")
 	}
 
 	nameNamespace := types.NamespacedName{
-		Name:      daemonsetName(dad),
-		Namespace: dad.ObjectMeta.Namespace,
+		Name:      daemonsetName(dda),
+		Namespace: dda.ObjectMeta.Namespace,
 	}
 	// check if EDS or DS already exist
 	eds := &edsdatadoghqv1alpha1.ExtendedDaemonSet{}
@@ -61,14 +61,14 @@ func (r *ReconcileDatadogAgentDeployment) reconcileAgent(logger logr.Logger, dad
 		ds = nil
 	}
 
-	if dad.Spec.Agent == nil {
+	if dda.Spec.Agent == nil {
 		if ds != nil {
-			if err = r.deleteDaemonSet(logger, dad, ds); err != nil {
+			if err = r.deleteDaemonSet(logger, dda, ds); err != nil {
 				return result, err
 			}
 		}
 		if eds != nil {
-			if err = r.deleteExtendedDaemonSet(logger, dad, eds); err != nil {
+			if err = r.deleteExtendedDaemonSet(logger, dda, eds); err != nil {
 				return result, err
 			}
 		}
@@ -76,10 +76,10 @@ func (r *ReconcileDatadogAgentDeployment) reconcileAgent(logger logr.Logger, dad
 		return result, err
 	}
 
-	if supportExtendedDaemonset && datadoghqv1alpha1.BoolValue(dad.Spec.Agent.UseExtendedDaemonset) {
+	if supportExtendedDaemonset && datadoghqv1alpha1.BoolValue(dda.Spec.Agent.UseExtendedDaemonset) {
 		if ds != nil {
 			// TODO manage properly the migration from DS to EDS
-			err = r.deleteDaemonSet(logger, dad, ds)
+			err = r.deleteDaemonSet(logger, dda, ds)
 			if err != nil {
 				return result, err
 			}
@@ -87,16 +87,16 @@ func (r *ReconcileDatadogAgentDeployment) reconcileAgent(logger logr.Logger, dad
 			return result, nil
 		}
 		if eds == nil {
-			return r.createNewExtendedDaemonSet(logger, dad, newStatus)
+			return r.createNewExtendedDaemonSet(logger, dda, newStatus)
 		}
 
-		return r.updateExtendedDaemonSet(logger, dad, eds, newStatus)
+		return r.updateExtendedDaemonSet(logger, dda, eds, newStatus)
 	}
 
 	// Case when Daemonset is requested
 	if eds != nil && supportExtendedDaemonset {
 		// if EDS exist delete before creating or updating the Daemonset
-		err = r.deleteExtendedDaemonSet(logger, dad, eds)
+		err = r.deleteExtendedDaemonSet(logger, dda, eds)
 		if err != nil {
 			return result, err
 		}
@@ -104,14 +104,14 @@ func (r *ReconcileDatadogAgentDeployment) reconcileAgent(logger logr.Logger, dad
 		return result, nil
 	}
 	if ds == nil {
-		return r.createNewDaemonSet(logger, dad, newStatus)
+		return r.createNewDaemonSet(logger, dda, newStatus)
 	}
 
-	return r.updateDaemonSet(logger, dad, ds, newStatus)
+	return r.updateDaemonSet(logger, dda, ds, newStatus)
 
 }
 
-func (r *ReconcileDatadogAgentDeployment) deleteDaemonSet(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment, ds *appsv1.DaemonSet) error {
+func (r *ReconcileDatadogAgent) deleteDaemonSet(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgent, ds *appsv1.DaemonSet) error {
 	err := r.client.Delete(context.TODO(), ds)
 	if err != nil {
 		return err
@@ -122,7 +122,7 @@ func (r *ReconcileDatadogAgentDeployment) deleteDaemonSet(logger logr.Logger, ag
 	return err
 }
 
-func (r *ReconcileDatadogAgentDeployment) deleteExtendedDaemonSet(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment, eds *edsdatadoghqv1alpha1.ExtendedDaemonSet) error {
+func (r *ReconcileDatadogAgent) deleteExtendedDaemonSet(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgent, eds *edsdatadoghqv1alpha1.ExtendedDaemonSet) error {
 	err := r.client.Delete(context.TODO(), eds)
 	if err != nil {
 		return err
@@ -133,7 +133,7 @@ func (r *ReconcileDatadogAgentDeployment) deleteExtendedDaemonSet(logger logr.Lo
 	return err
 }
 
-func (r *ReconcileDatadogAgentDeployment) createNewExtendedDaemonSet(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment, newStatus *datadoghqv1alpha1.DatadogAgentDeploymentStatus) (reconcile.Result, error) {
+func (r *ReconcileDatadogAgent) createNewExtendedDaemonSet(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
 	var err error
 	// ExtendedDaemonSet up to date didn't exist yet, create a new one
 	var newEDS *edsdatadoghqv1alpha1.ExtendedDaemonSet
@@ -161,7 +161,7 @@ func (r *ReconcileDatadogAgentDeployment) createNewExtendedDaemonSet(logger logr
 	return reconcile.Result{}, nil
 }
 
-func (r *ReconcileDatadogAgentDeployment) createNewDaemonSet(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment, newStatus *datadoghqv1alpha1.DatadogAgentDeploymentStatus) (reconcile.Result, error) {
+func (r *ReconcileDatadogAgent) createNewDaemonSet(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
 	var err error
 	// DaemonSet up to date didn't exist yet, create a new one
 	var newDS *appsv1.DaemonSet
@@ -187,7 +187,7 @@ func (r *ReconcileDatadogAgentDeployment) createNewDaemonSet(logger logr.Logger,
 	return reconcile.Result{}, nil
 }
 
-func (r *ReconcileDatadogAgentDeployment) updateExtendedDaemonSet(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment, eds *edsdatadoghqv1alpha1.ExtendedDaemonSet, newStatus *datadoghqv1alpha1.DatadogAgentDeploymentStatus) (reconcile.Result, error) {
+func (r *ReconcileDatadogAgent) updateExtendedDaemonSet(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgent, eds *edsdatadoghqv1alpha1.ExtendedDaemonSet, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
 	newEDS, newHash, err := newExtendedDaemonSetFromInstance(logger, agentdeployment, eds.Spec.Selector)
 	if err != nil {
 		return reconcile.Result{}, err
@@ -228,7 +228,7 @@ func getHashAnnotation(annotations map[string]string) string {
 	return annotations[datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey]
 }
 
-func (r *ReconcileDatadogAgentDeployment) updateDaemonSet(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment, ds *appsv1.DaemonSet, newStatus *datadoghqv1alpha1.DatadogAgentDeploymentStatus) (reconcile.Result, error) {
+func (r *ReconcileDatadogAgent) updateDaemonSet(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgent, ds *appsv1.DaemonSet, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
 	// Update values from current DS in any case
 	updateDaemonSetStatus(ds, newStatus.Agent, nil)
 
@@ -268,18 +268,18 @@ func (r *ReconcileDatadogAgentDeployment) updateDaemonSet(logger logr.Logger, ag
 	return reconcile.Result{RequeueAfter: 5 * time.Second}, nil
 }
 
-func (r *ReconcileDatadogAgentDeployment) manageAgentDependencies(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment, newStatus *datadoghqv1alpha1.DatadogAgentDeploymentStatus) (reconcile.Result, error) {
-	result, err := r.manageAgentRBACs(logger, dad)
+func (r *ReconcileDatadogAgent) manageAgentDependencies(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
+	result, err := r.manageAgentRBACs(logger, dda)
 	if shouldReturn(result, err) {
 		return result, err
 	}
 
-	result, err = r.manageSystemProbeDependencies(logger, dad)
+	result, err = r.manageSystemProbeDependencies(logger, dda)
 	if shouldReturn(result, err) {
 		return result, err
 	}
 
-	result, err = r.manageConfigMap(logger, dad, getAgentCustomConfigConfigMapName(dad), buildAgentConfigurationConfigMap)
+	result, err = r.manageConfigMap(logger, dda, getAgentCustomConfigConfigMapName(dda), buildAgentConfigurationConfigMap)
 	if shouldReturn(result, err) {
 		return result, err
 	}
@@ -287,8 +287,8 @@ func (r *ReconcileDatadogAgentDeployment) manageAgentDependencies(logger logr.Lo
 	return reconcile.Result{}, nil
 }
 
-// newExtendedDaemonSetFromInstance creates an ExtendedDaemonSet from a given DatadogAgentDeployment
-func newExtendedDaemonSetFromInstance(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment, selector *metav1.LabelSelector) (*edsdatadoghqv1alpha1.ExtendedDaemonSet, string, error) {
+// newExtendedDaemonSetFromInstance creates an ExtendedDaemonSet from a given DatadogAgent
+func newExtendedDaemonSetFromInstance(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgent, selector *metav1.LabelSelector) (*edsdatadoghqv1alpha1.ExtendedDaemonSet, string, error) {
 	template, err := newAgentPodTemplate(logger, agentdeployment, selector)
 	if err != nil {
 		return nil, "", err
@@ -318,8 +318,8 @@ func newExtendedDaemonSetFromInstance(logger logr.Logger, agentdeployment *datad
 	return eds, hash, nil
 }
 
-// newDaemonSetFromInstance creates a DaemonSet from a given DatadogAgentDeployment
-func newDaemonSetFromInstance(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment, selector *metav1.LabelSelector) (*appsv1.DaemonSet, string, error) {
+// newDaemonSetFromInstance creates a DaemonSet from a given DatadogAgent
+func newDaemonSetFromInstance(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgent, selector *metav1.LabelSelector) (*appsv1.DaemonSet, string, error) {
 	template, err := newAgentPodTemplate(logger, agentdeployment, selector)
 	if err != nil {
 		return nil, "", err
@@ -350,14 +350,14 @@ func newDaemonSetFromInstance(logger logr.Logger, agentdeployment *datadoghqv1al
 	return ds, hash, nil
 }
 
-func daemonsetName(agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment) string {
+func daemonsetName(agentdeployment *datadoghqv1alpha1.DatadogAgent) string {
 	if agentdeployment.Spec.Agent.DaemonsetName != "" {
 		return agentdeployment.Spec.Agent.DaemonsetName
 	}
 	return agentdeployment.Name
 }
 
-func newDaemonsetObjectMetaData(agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment) metav1.ObjectMeta {
+func newDaemonsetObjectMetaData(agentdeployment *datadoghqv1alpha1.DatadogAgent) metav1.ObjectMeta {
 	labels := getDefaultLabels(agentdeployment, datadoghqv1alpha1.DefaultAgentResourceSuffix, getAgentVersion(agentdeployment))
 	labels[datadoghqv1alpha1.AgentDeploymentNameLabelKey] = agentdeployment.Name
 	labels[datadoghqv1alpha1.AgentDeploymentComponentLabelKey] = datadoghqv1alpha1.DefaultAgentResourceSuffix
@@ -374,31 +374,31 @@ func newDaemonsetObjectMetaData(agentdeployment *datadoghqv1alpha1.DatadogAgentD
 	}
 }
 
-func getAgentCustomConfigConfigMapName(dad *datadoghqv1alpha1.DatadogAgentDeployment) string {
-	return fmt.Sprintf("%s-datadog-yaml", dad.Name)
+func getAgentCustomConfigConfigMapName(dda *datadoghqv1alpha1.DatadogAgent) string {
+	return fmt.Sprintf("%s-datadog-yaml", dda.Name)
 }
 
-func buildAgentConfigurationConfigMap(dad *datadoghqv1alpha1.DatadogAgentDeployment) (*corev1.ConfigMap, error) {
-	if dad.Spec.Agent.CustomConfig == "" {
+func buildAgentConfigurationConfigMap(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.ConfigMap, error) {
+	if dda.Spec.Agent.CustomConfig == "" {
 		return nil, nil
 	}
 
 	// Validate that user input is valid YAML
 	// Maybe later we can implement that directly verifies against Agent configuration?
 	m := make(map[interface{}]interface{})
-	if err := yaml.Unmarshal([]byte(dad.Spec.Agent.CustomConfig), m); err != nil {
+	if err := yaml.Unmarshal([]byte(dda.Spec.Agent.CustomConfig), m); err != nil {
 		return nil, fmt.Errorf("Unable to parse YAML from 'Agent.CustomConfig' field: %w", err)
 	}
 
 	configMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        getAgentCustomConfigConfigMapName(dad),
-			Namespace:   dad.Namespace,
-			Labels:      getDefaultLabels(dad, dad.Name, getAgentVersion(dad)),
-			Annotations: getDefaultAnnotations(dad),
+			Name:        getAgentCustomConfigConfigMapName(dda),
+			Namespace:   dda.Namespace,
+			Labels:      getDefaultLabels(dda, dda.Name, getAgentVersion(dda)),
+			Annotations: getDefaultAnnotations(dda),
 		},
 		Data: map[string]string{
-			datadoghqv1alpha1.AgentCustomConfigVolumeSubPath: dad.Spec.Agent.CustomConfig,
+			datadoghqv1alpha1.AgentCustomConfigVolumeSubPath: dda.Spec.Agent.CustomConfig,
 		},
 	}
 

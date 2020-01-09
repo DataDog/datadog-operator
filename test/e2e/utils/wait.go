@@ -24,25 +24,25 @@ import (
 	edsdatadoghqv1alpha1 "github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1"
 )
 
-// WaitForFuncOnDatadogAgentDeployment used to wait a valid condition on a DatadogAgentDeployment
-func WaitForFuncOnDatadogAgentDeployment(t *testing.T, client framework.FrameworkClient, namespace, name string, f func(ad *datadoghqv1alpha1.DatadogAgentDeployment) (bool, error), retryInterval, timeout time.Duration) error {
+// WaitForFuncOnDatadogAgent used to wait a valid condition on a DatadogAgent
+func WaitForFuncOnDatadogAgent(t *testing.T, client framework.FrameworkClient, namespace, name string, f func(ad *datadoghqv1alpha1.DatadogAgent) (bool, error), retryInterval, timeout time.Duration) error {
 	return wait.Poll(retryInterval, timeout, func() (bool, error) {
 		objKey := dynclient.ObjectKey{
 			Namespace: namespace,
 			Name:      name,
 		}
-		agentdeployment := &datadoghqv1alpha1.DatadogAgentDeployment{}
+		agentdeployment := &datadoghqv1alpha1.DatadogAgent{}
 		err := client.Get(context.TODO(), objKey, agentdeployment)
 		if err != nil {
 			if apierrors.IsNotFound(err) {
-				t.Logf("Waiting for availability of %s DatadogAgentDeployment\n", name)
+				t.Logf("Waiting for availability of %s DatadogAgent\n", name)
 				return false, nil
 			}
 			return false, err
 		}
 
 		ok, err := f(agentdeployment)
-		t.Logf("Waiting for condition function to be true ok for %s DatadogAgentDeployment (%t/%v)\n", name, ok, err)
+		t.Logf("Waiting for condition function to be true ok for %s DatadogAgent (%t/%v)\n", name, ok, err)
 		return ok, err
 	})
 }

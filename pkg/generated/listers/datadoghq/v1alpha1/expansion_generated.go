@@ -7,10 +7,10 @@
 
 package v1alpha1
 
-// DatadogAgentDeploymentListerExpansion allows custom methods to be added to
-// DatadogAgentDeploymentLister.
-type DatadogAgentDeploymentListerExpansion interface{}
+// DatadogAgentListerExpansion allows custom methods to be added to
+// DatadogAgentLister.
+type DatadogAgentListerExpansion interface{}
 
-// DatadogAgentDeploymentNamespaceListerExpansion allows custom methods to be added to
-// DatadogAgentDeploymentNamespaceLister.
-type DatadogAgentDeploymentNamespaceListerExpansion interface{}
+// DatadogAgentNamespaceListerExpansion allows custom methods to be added to
+// DatadogAgentNamespaceLister.
+type DatadogAgentNamespaceListerExpansion interface{}

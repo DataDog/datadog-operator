@@ -11,16 +11,16 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
 )
 
-func GetAPIKeySecretName(dad *datadoghqv1alpha1.DatadogAgentDeployment) string {
-	if dad.Spec.Credentials.APIKeyExistingSecret != "" {
-		return dad.Spec.Credentials.APIKeyExistingSecret
+func GetAPIKeySecretName(dda *datadoghqv1alpha1.DatadogAgent) string {
+	if dda.Spec.Credentials.APIKeyExistingSecret != "" {
+		return dda.Spec.Credentials.APIKeyExistingSecret
 	}
-	return dad.Name
+	return dda.Name
 }
 
-func GetAppKeySecretName(dad *datadoghqv1alpha1.DatadogAgentDeployment) string {
-	if dad.Spec.Credentials.AppKeyExistingSecret != "" {
-		return dad.Spec.Credentials.AppKeyExistingSecret
+func GetAppKeySecretName(dda *datadoghqv1alpha1.DatadogAgent) string {
+	if dda.Spec.Credentials.AppKeyExistingSecret != "" {
+		return dda.Spec.Credentials.AppKeyExistingSecret
 	}
-	return fmt.Sprintf("%s-%s", dad.Name, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix)
+	return fmt.Sprintf("%s-%s", dda.Name, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix)
 }

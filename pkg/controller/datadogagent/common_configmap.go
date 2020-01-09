@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-2019 Datadog, Inc.
 
-package datadogagentdeployment
+package datadogagent
 
 import (
 	"context"
@@ -20,35 +20,35 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-type buildConfigMapFunc func(dad *datadoghqv1alpha1.DatadogAgentDeployment) (*corev1.ConfigMap, error)
+type buildConfigMapFunc func(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.ConfigMap, error)
 
-func (r *ReconcileDatadogAgentDeployment) manageConfigMap(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment, name string, buildFunc buildConfigMapFunc) (reconcile.Result, error) {
+func (r *ReconcileDatadogAgent) manageConfigMap(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name string, buildFunc buildConfigMapFunc) (reconcile.Result, error) {
 	result := reconcile.Result{}
-	newConfigMap, err := buildFunc(dad)
+	newConfigMap, err := buildFunc(dda)
 	if err != nil {
 		return result, err
 	}
 
 	if newConfigMap == nil {
-		return r.cleanupConfigMap(logger, dad, name)
+		return r.cleanupConfigMap(logger, dda, name)
 	}
 
 	configmap := &corev1.ConfigMap{}
 	nameNamespace := types.NamespacedName{Name: newConfigMap.Name, Namespace: newConfigMap.Namespace}
 	if err = r.client.Get(context.TODO(), nameNamespace, configmap); err != nil {
 		if errors.IsNotFound(err) {
-			return r.createConfigMap(logger, dad, newConfigMap)
+			return r.createConfigMap(logger, dda, newConfigMap)
 		}
 		return result, err
 	}
 
-	if result, err := r.updateIfNeededConfigMap(logger, dad, configmap, newConfigMap); err != nil {
+	if result, err := r.updateIfNeededConfigMap(logger, dda, configmap, newConfigMap); err != nil {
 		return result, err
 	}
 	return result, nil
 }
 
-func (r *ReconcileDatadogAgentDeployment) updateIfNeededConfigMap(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment, oldConfigMap, newConfigMap *corev1.ConfigMap) (reconcile.Result, error) {
+func (r *ReconcileDatadogAgent) updateIfNeededConfigMap(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, oldConfigMap, newConfigMap *corev1.ConfigMap) (reconcile.Result, error) {
 	result := reconcile.Result{}
 	hash, err := comparison.GenerateMD5ForSpec(newConfigMap.Data)
 	if err != nil {
@@ -59,7 +59,7 @@ func (r *ReconcileDatadogAgentDeployment) updateIfNeededConfigMap(logger logr.Lo
 		return result, nil
 	}
 
-	if err = controllerutil.SetControllerReference(dad, newConfigMap, r.scheme); err != nil {
+	if err = controllerutil.SetControllerReference(dda, newConfigMap, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
 	// Copy possibly changed fields
@@ -77,19 +77,19 @@ func (r *ReconcileDatadogAgentDeployment) updateIfNeededConfigMap(logger logr.Lo
 		return reconcile.Result{}, err
 	}
 	eventInfo := buildEventInfo(updateCM.Name, updateCM.Namespace, configMapKind, datadog.UpdateEvent)
-	r.recordEvent(dad, eventInfo)
+	r.recordEvent(dda, eventInfo)
 
 	return result, nil
 }
 
-func (r *ReconcileDatadogAgentDeployment) createConfigMap(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment, configMap *corev1.ConfigMap) (reconcile.Result, error) {
+func (r *ReconcileDatadogAgent) createConfigMap(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, configMap *corev1.ConfigMap) (reconcile.Result, error) {
 	result := reconcile.Result{}
 	_, err := comparison.SetMD5GenerationAnnotation(&configMap.ObjectMeta, configMap.Data)
 	if err != nil {
 		return result, err
 	}
-	// Set DatadogAgentDeployment instance  instance as the owner and controller
-	if err = controllerutil.SetControllerReference(dad, configMap, r.scheme); err != nil {
+	// Set DatadogAgent instance  instance as the owner and controller
+	if err = controllerutil.SetControllerReference(dda, configMap, r.scheme); err != nil {
 		return result, err
 	}
 
@@ -98,14 +98,14 @@ func (r *ReconcileDatadogAgentDeployment) createConfigMap(logger logr.Logger, da
 	}
 	logger.V(1).Info("createConfigMap", "configMap.name", configMap.Name, "configMap.Namespace", configMap.Namespace)
 	eventInfo := buildEventInfo(configMap.Name, configMap.Namespace, configMapKind, datadog.CreationEvent)
-	r.recordEvent(dad, eventInfo)
+	r.recordEvent(dda, eventInfo)
 	result.Requeue = true
 	return result, err
 }
 
-func (r *ReconcileDatadogAgentDeployment) cleanupConfigMap(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment, name string) (reconcile.Result, error) {
+func (r *ReconcileDatadogAgent) cleanupConfigMap(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name string) (reconcile.Result, error) {
 	configmap := &corev1.ConfigMap{}
-	nsName := types.NamespacedName{Name: name, Namespace: dad.Namespace}
+	nsName := types.NamespacedName{Name: name, Namespace: dda.Namespace}
 	err := r.client.Get(context.TODO(), nsName, configmap)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -118,6 +118,6 @@ func (r *ReconcileDatadogAgentDeployment) cleanupConfigMap(logger logr.Logger, d
 	}
 	logger.V(1).Info("deleteConfigMap", "configMap.name", configmap.Name, "configMap.Namespace", configmap.Namespace)
 	eventInfo := buildEventInfo(configmap.Name, configmap.Namespace, configMapKind, datadog.DeletionEvent)
-	r.recordEvent(dad, eventInfo)
+	r.recordEvent(dda, eventInfo)
 	return reconcile.Result{}, r.client.Delete(context.TODO(), configmap)
 }

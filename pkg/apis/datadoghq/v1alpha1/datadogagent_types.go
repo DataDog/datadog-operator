@@ -14,24 +14,24 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-// DatadogAgentDeploymentSpec defines the desired state of DatadogAgentDeployment
+// DatadogAgentSpec defines the desired state of DatadogAgent
 // +k8s:openapi-gen=true
-type DatadogAgentDeploymentSpec struct {
+type DatadogAgentSpec struct {
 	// Configure the credentials required to run Agents
 	Credentials AgentCredentials `json:"credentials"`
 
 	// The desired state of the Agent as an extended daemonset
 	// Contains the Node Agent configuration and deployment strategy
 	// +optional
-	Agent *DatadogAgentDeploymentSpecAgentSpec `json:"agent,omitempty"`
+	Agent *DatadogAgentSpecAgentSpec `json:"agent,omitempty"`
 
 	// The desired state of the Cluster Agent as a deployment
 	// +optional
-	ClusterAgent *DatadogAgentDeploymentSpecClusterAgentSpec `json:"clusterAgent,omitempty"`
+	ClusterAgent *DatadogAgentSpecClusterAgentSpec `json:"clusterAgent,omitempty"`
 
 	// The desired state of the Cluster Checks Runner as a deployment
 	// +optional
-	ClusterChecksRunner *DatadogAgentDeploymentSpecClusterChecksRunnerSpec `json:"clusterChecksRunner,omitempty"`
+	ClusterChecksRunner *DatadogAgentSpecClusterChecksRunnerSpec `json:"clusterChecksRunner,omitempty"`
 
 	// Set a unique cluster name to allow scoping hosts and Cluster Checks Runner easily
 	// +optional
@@ -77,9 +77,9 @@ type AgentCredentials struct {
 	UseSecretBackend *bool `json:"useSecretBackend,omitempty"`
 }
 
-// DatadogAgentDeploymentSpecAgentSpec defines the desired state of the node Agent
+// DatadogAgentSpecAgentSpec defines the desired state of the node Agent
 // +k8s:openapi-gen=true
-type DatadogAgentDeploymentSpecAgentSpec struct {
+type DatadogAgentSpecAgentSpec struct {
 	// UseExtendedDaemonset use ExtendedDaemonset for Agent deployment.
 	// default value is false.
 	UseExtendedDaemonset *bool `json:"useExtendedDaemonset,omitempty"`
@@ -405,9 +405,9 @@ type DogstatsdConfig struct {
 	UseDogStatsDSocketVolume *bool `json:"useDogStatsDSocketVolume,omitempty"`
 }
 
-// DatadogAgentDeploymentSpecClusterAgentSpec defines the desired state of the cluster Agent
+// DatadogAgentSpecClusterAgentSpec defines the desired state of the cluster Agent
 // +k8s:openapi-gen=true
-type DatadogAgentDeploymentSpecClusterAgentSpec struct {
+type DatadogAgentSpecClusterAgentSpec struct {
 	// The container image of the Datadog Cluster Agent
 	Image ImageConfig `json:"image"`
 
@@ -479,9 +479,9 @@ type ClusterChecksRunnerConfig struct {
 	LogLevel *string `json:"logLevel,omitempty"`
 }
 
-// DatadogAgentDeploymentSpecClusterChecksRunnerSpec defines the desired state of the Cluster Checks Runner
+// DatadogAgentSpecClusterChecksRunnerSpec defines the desired state of the Cluster Checks Runner
 // +k8s:openapi-gen=true
-type DatadogAgentDeploymentSpecClusterChecksRunnerSpec struct {
+type DatadogAgentSpecClusterChecksRunnerSpec struct {
 	// The container image of the Datadog Cluster Agent
 	Image ImageConfig `json:"image"`
 
@@ -533,45 +533,45 @@ type ImageConfig struct {
 	PullSecrets *[]corev1.LocalObjectReference `json:"pullSecrets,omitempty"`
 }
 
-// DatadogAgentDeploymentState type representing the ClusterAgent as a DaemonSet deployment state
-type DatadogAgentDeploymentState string
+// DatadogAgentState type representing the deployment state of the different Agent components
+type DatadogAgentState string
 
 const (
-	// DatadogAgentDeploymentStateProgressing the deployment is running properly
-	DatadogAgentDeploymentStateProgressing DatadogAgentDeploymentState = "Progressing"
-	// DatadogAgentDeploymentStateRunning the deployment is running properly
-	DatadogAgentDeploymentStateRunning DatadogAgentDeploymentState = "Running"
-	// DatadogAgentDeploymentStateUpdating the deployment is currently under a rolling update
-	DatadogAgentDeploymentStateUpdating DatadogAgentDeploymentState = "Updating"
-	// DatadogAgentDeploymentStateCanary the deployment is currently under a canary testing (EDS only)
-	DatadogAgentDeploymentStateCanary DatadogAgentDeploymentState = "Canary"
-	// DatadogAgentDeploymentStateFailed the current state of the deployment is considered as Failed
-	DatadogAgentDeploymentStateFailed DatadogAgentDeploymentState = "Failed"
+	// DatadogAgentStateProgressing the deployment is running properly
+	DatadogAgentStateProgressing DatadogAgentState = "Progressing"
+	// DatadogAgentStateRunning the deployment is running properly
+	DatadogAgentStateRunning DatadogAgentState = "Running"
+	// DatadogAgentStateUpdating the deployment is currently under a rolling update
+	DatadogAgentStateUpdating DatadogAgentState = "Updating"
+	// DatadogAgentStateCanary the deployment is currently under a canary testing (EDS only)
+	DatadogAgentStateCanary DatadogAgentState = "Canary"
+	// DatadogAgentStateFailed the current state of the deployment is considered as Failed
+	DatadogAgentStateFailed DatadogAgentState = "Failed"
 )
 
-// DatadogAgentDeploymentStatus defines the observed state of DatadogAgentDeployment
+// DatadogAgentStatus defines the observed state of DatadogAgent
 // +k8s:openapi-gen=true
-type DatadogAgentDeploymentStatus struct {
+type DatadogAgentStatus struct {
 	// The actual state of the Agent as an extended daemonset
 	// +optional
-	Agent *DatadogAgentDeploymentAgentStatus `json:"agent,omitempty"`
+	Agent *DaemonSetStatus `json:"agent,omitempty"`
 
 	// The actual state of the Cluster Agent as a deployment
 	// +optional
-	ClusterAgent *DatadogAgentDeploymentDeploymentStatus `json:"clusterAgent,omitempty"`
+	ClusterAgent *DeploymentStatus `json:"clusterAgent,omitempty"`
 
 	// The actual state of the Cluster Checks Runner as a deployment
 	// +optional
-	ClusterChecksRunner *DatadogAgentDeploymentDeploymentStatus `json:"clusterChecksRunner,omitempty"`
+	ClusterChecksRunner *DeploymentStatus `json:"clusterChecksRunner,omitempty"`
 
-	// Conditions Represents the latest available observations of a DatadogAgentDeployment's current state.
+	// Conditions Represents the latest available observations of a DatadogAgent's current state.
 	// +listType=set
-	Conditions []DatadogAgentDeploymentCondition `json:"conditions,omitempty"`
+	Conditions []DatadogAgentCondition `json:"conditions,omitempty"`
 }
 
-// DatadogAgentDeploymentAgentStatus defines the observed state of Agent running as DaemonSet
+// DaemonSetStatus defines the observed state of Agent running as DaemonSet
 // +k8s:openapi-gen=true
-type DatadogAgentDeploymentAgentStatus struct {
+type DaemonSetStatus struct {
 	Desired   int32 `json:"desired"`
 	Current   int32 `json:"current"`
 	Ready     int32 `json:"ready"`
@@ -586,9 +586,9 @@ type DatadogAgentDeploymentAgentStatus struct {
 	DaemonsetName string `json:"daemonsetName,omitempty"`
 }
 
-// DatadogAgentDeploymentDeploymentStatus type representing the Cluster Agent Deployment status
+// DeploymentStatus type representing the Cluster Agent Deployment status
 // +k8s:openapi-gen=true
-type DatadogAgentDeploymentDeploymentStatus struct {
+type DeploymentStatus struct {
 	// Total number of non-terminated pods targeted by this deployment (their labels match the selector).
 	// +optional
 	Replicas int32 `json:"replicas,omitempty"`
@@ -626,11 +626,11 @@ type DatadogAgentDeploymentDeploymentStatus struct {
 	DeploymentName string `json:"deploymentName,omitempty"`
 }
 
-// DatadogAgentDeploymentCondition describes the state of a DatadogAgentDeployment at a certain point.
+// DatadogAgentCondition describes the state of a DatadogAgent at a certain point.
 // +k8s:openapi-gen=true
-type DatadogAgentDeploymentCondition struct {
-	// Type of DatadogAgentDeployment condition.
-	Type DatadogAgentDeploymentConditionType `json:"type"`
+type DatadogAgentCondition struct {
+	// Type of DatadogAgent condition.
+	Type DatadogAgentConditionType `json:"type"`
 	// Status of the condition, one of True, False, Unknown.
 	Status corev1.ConditionStatus `json:"status"`
 	// Last time the condition transitioned from one status to another.
@@ -647,55 +647,55 @@ type DatadogAgentDeploymentCondition struct {
 	Message string `json:"message,omitempty"`
 }
 
-// DatadogAgentDeploymentConditionType type use to represent a DatadogAgentDeployment condition
-type DatadogAgentDeploymentConditionType string
+// DatadogAgentConditionType type use to represent a DatadogAgent condition
+type DatadogAgentConditionType string
 
 const (
-	// ConditionTypeActive DatadogAgentDeployment is active
-	ConditionTypeActive DatadogAgentDeploymentConditionType = "Active"
-	// ConditionTypeReconcileError the controller wasn't able to run properly the reconcile loop with this DatadogAgentDeployment
-	ConditionTypeReconcileError DatadogAgentDeploymentConditionType = "ReconcileError"
+	// ConditionTypeActive DatadogAgent is active
+	ConditionTypeActive DatadogAgentConditionType = "Active"
+	// ConditionTypeReconcileError the controller wasn't able to run properly the reconcile loop with this DatadogAgent
+	ConditionTypeReconcileError DatadogAgentConditionType = "ReconcileError"
 	// ConditionTypeSecretError the required Secret doesn't exist.
-	ConditionTypeSecretError DatadogAgentDeploymentConditionType = "SecretError"
+	ConditionTypeSecretError DatadogAgentConditionType = "SecretError"
 
 	// ConditionTypeActiveDatadogMetrics forwarding metrics and events to Datadog is active
-	ConditionTypeActiveDatadogMetrics DatadogAgentDeploymentConditionType = "ActiveDatadogMetrics"
+	ConditionTypeActiveDatadogMetrics DatadogAgentConditionType = "ActiveDatadogMetrics"
 	// ConditionTypeDatadogMetricsError cannot forward deployment metrics and events to Datadog
-	ConditionTypeDatadogMetricsError DatadogAgentDeploymentConditionType = "DatadogMetricsError"
+	ConditionTypeDatadogMetricsError DatadogAgentConditionType = "DatadogMetricsError"
 )
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// DatadogAgentDeployment is the Schema for the agentdeployments API
+// DatadogAgent is the Schema for the agentdeployments API
 // +k8s:openapi-gen=true
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:path=datadogagentdeployments,shortName=dad
+// +kubebuilder:resource:path=datadogagents,shortName=dd
 // +kubebuilder:printcolumn:name="active",type="string",JSONPath=".status.conditions[?(@.type=='Active')].status"
 // +kubebuilder:printcolumn:name="agent",type="string",JSONPath=".status.agent.state"
 // +kubebuilder:printcolumn:name="cluster-agent",type="string",JSONPath=".status.clusterAgent.state"
 // +kubebuilder:printcolumn:name="cluster-checks-runner",type="string",JSONPath=".status.clusterChecksRunner.state"
 // +kubebuilder:printcolumn:name="age",type="date",JSONPath=".metadata.creationTimestamp"
-type DatadogAgentDeployment struct {
+type DatadogAgent struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   DatadogAgentDeploymentSpec   `json:"spec,omitempty"`
-	Status DatadogAgentDeploymentStatus `json:"status,omitempty"`
+	Spec   DatadogAgentSpec   `json:"spec,omitempty"`
+	Status DatadogAgentStatus `json:"status,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// DatadogAgentDeploymentList contains a list of DatadogAgentDeployment
+// DatadogAgentList contains a list of DatadogAgent
 // +k8s:openapi-gen=true
-type DatadogAgentDeploymentList struct {
+type DatadogAgentList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	// +listType=set
-	Items []DatadogAgentDeployment `json:"items"`
+	Items []DatadogAgent `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&DatadogAgentDeployment{}, &DatadogAgentDeploymentList{})
+	SchemeBuilder.Register(&DatadogAgent{}, &DatadogAgentList{})
 }

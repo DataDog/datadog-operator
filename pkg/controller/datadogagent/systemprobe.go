@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-2019 Datadog, Inc.
 
-package datadogagentdeployment
+package datadogagent
 
 import (
 	"fmt"
@@ -23,13 +23,13 @@ const (
 	SystemProbeAgentSecurityConfigMapSuffixName = "system-probe-seccomp"
 )
 
-func (r *ReconcileDatadogAgentDeployment) manageSystemProbeDependencies(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment) (reconcile.Result, error) {
-	result, err := r.manageConfigMap(logger, dad, getSystemProbeConfiConfigMapName(dad.Name), buildSystemProbeConfigConfiMap)
+func (r *ReconcileDatadogAgent) manageSystemProbeDependencies(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
+	result, err := r.manageConfigMap(logger, dda, getSystemProbeConfiConfigMapName(dda.Name), buildSystemProbeConfigConfiMap)
 	if shouldReturn(result, err) {
 		return result, err
 	}
 
-	result, err = r.manageConfigMap(logger, dad, getSecCompConfigMapName(dad.Name), buildSystemProbeSecCompConfigMap)
+	result, err = r.manageConfigMap(logger, dda, getSecCompConfigMapName(dda.Name), buildSystemProbeSecCompConfigMap)
 	if shouldReturn(result, err) {
 		return result, err
 	}
@@ -37,18 +37,18 @@ func (r *ReconcileDatadogAgentDeployment) manageSystemProbeDependencies(logger l
 	return reconcile.Result{}, nil
 }
 
-func buildSystemProbeConfigConfiMap(dad *datadoghqv1alpha1.DatadogAgentDeployment) (*corev1.ConfigMap, error) {
-	if !isSystemProbeEnabled(dad) {
+func buildSystemProbeConfigConfiMap(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.ConfigMap, error) {
+	if !isSystemProbeEnabled(dda) {
 		return nil, nil
 	}
 
-	spec := &dad.Spec.Agent.SystemProbe
+	spec := &dda.Spec.Agent.SystemProbe
 	configMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        getSystemProbeConfiConfigMapName(dad.Name),
-			Namespace:   dad.Namespace,
-			Labels:      getDefaultLabels(dad, dad.Name, getAgentVersion(dad)),
-			Annotations: getDefaultAnnotations(dad),
+			Name:        getSystemProbeConfiConfigMapName(dda.Name),
+			Namespace:   dda.Namespace,
+			Labels:      getDefaultLabels(dda, dda.Name, getAgentVersion(dda)),
+			Annotations: getDefaultAnnotations(dda),
 		},
 		Data: map[string]string{
 			datadoghqv1alpha1.SystemProbeConfigVolumeSubPath: fmt.Sprintf(systemProbeAgentSecurityDataTmpl,
@@ -69,17 +69,17 @@ const systemProbeAgentSecurityDataTmpl = `system_probe_config:
   bpf_debug: %s
 `
 
-func buildSystemProbeSecCompConfigMap(dad *datadoghqv1alpha1.DatadogAgentDeployment) (*corev1.ConfigMap, error) {
-	if !isSystemProbeEnabled(dad) {
+func buildSystemProbeSecCompConfigMap(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.ConfigMap, error) {
+	if !isSystemProbeEnabled(dda) {
 		return nil, nil
 	}
 
 	configMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        getSecCompConfigMapName(dad.Name),
-			Namespace:   dad.Namespace,
-			Labels:      getDefaultLabels(dad, dad.Name, getAgentVersion(dad)),
-			Annotations: getDefaultAnnotations(dad),
+			Name:        getSecCompConfigMapName(dda.Name),
+			Namespace:   dda.Namespace,
+			Labels:      getDefaultLabels(dda, dda.Name, getAgentVersion(dda)),
+			Annotations: getDefaultAnnotations(dda),
 		},
 		Data: map[string]string{
 			"system-probe-seccomp.json": systemProbeSecCompData,
