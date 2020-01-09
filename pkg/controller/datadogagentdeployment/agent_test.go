@@ -24,16 +24,39 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
-func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
-	logf.SetLogger(logf.ZapLogger(true))
-	authTokenValue := &corev1.EnvVarSource{
-		SecretKeyRef: &corev1.SecretKeySelector{},
-	}
-	dadName := "foo"
-	authTokenValue.SecretKeyRef.Name = fmt.Sprintf("%s-%s", dadName, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix)
-	authTokenValue.SecretKeyRef.Key = "token"
+const testDadName = "foo"
 
-	defaultMountVolume := []corev1.VolumeMount{
+func authTokenValue() *corev1.EnvVarSource {
+	return &corev1.EnvVarSource{
+		SecretKeyRef: &corev1.SecretKeySelector{
+			LocalObjectReference: corev1.LocalObjectReference{
+				Name: fmt.Sprintf("%s-%s", testDadName, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix),
+			},
+			Key: "token",
+		},
+	}
+}
+
+func defaultLivenessProbe() *corev1.Probe {
+	return &corev1.Probe{
+		InitialDelaySeconds: 15,
+		PeriodSeconds:       15,
+		TimeoutSeconds:      5,
+		SuccessThreshold:    1,
+		FailureThreshold:    6,
+		Handler: corev1.Handler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path: "/health",
+				Port: intstr.IntOrString{
+					IntVal: 5555,
+				},
+			},
+		},
+	}
+}
+
+func defaultMountVolume() []corev1.VolumeMount {
+	return []corev1.VolumeMount{
 		{
 			Name:      "confd",
 			MountPath: "/conf.d",
@@ -64,7 +87,10 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 			ReadOnly:  true,
 		},
 	}
-	defaultEnvVars := []corev1.EnvVar{
+}
+
+func defaultEnvVars() []corev1.EnvVar {
+	return []corev1.EnvVar{
 		{
 			Name:  "DD_CLUSTER_NAME",
 			Value: "",
@@ -143,27 +169,17 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 		},
 		{
 			Name:  "DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME",
-			Value: fmt.Sprintf("%s-%s", dadName, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix),
+			Value: fmt.Sprintf("%s-%s", testDadName, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix),
 		},
 		{
 			Name:      "DD_CLUSTER_AGENT_AUTH_TOKEN",
-			ValueFrom: authTokenValue,
+			ValueFrom: authTokenValue(),
 		},
 	}
-	defaultLivenessProbe := &corev1.Probe{
-		InitialDelaySeconds: 15,
-		PeriodSeconds:       15,
-		TimeoutSeconds:      5,
-		SuccessThreshold:    1,
-		FailureThreshold:    6,
-	}
-	defaultLivenessProbe.HTTPGet = &corev1.HTTPGetAction{
-		Path: "/health",
-		Port: intstr.IntOrString{
-			IntVal: 5555,
-		},
-	}
-	defaultPodSpec := corev1.PodSpec{
+}
+
+func defaultPodSpec() corev1.PodSpec {
+	return corev1.PodSpec{
 		ServiceAccountName: "foo-agent",
 		InitContainers: []corev1.Container{
 			{
@@ -187,8 +203,8 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 				Resources:       corev1.ResourceRequirements{},
 				Command:         []string{"bash", "-c"},
 				Args:            []string{"for script in $(find /etc/cont-init.d/ -type f -name '*.sh' | sort) ; do bash $script ; done"},
-				Env:             defaultEnvVars,
-				VolumeMounts:    defaultMountVolume,
+				Env:             defaultEnvVars(),
+				VolumeMounts:    defaultMountVolume(),
 			},
 		},
 		Containers: []corev1.Container{
@@ -208,9 +224,9 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 						Protocol:      "UDP",
 					},
 				},
-				Env:           defaultEnvVars,
-				VolumeMounts:  defaultMountVolume,
-				LivenessProbe: defaultLivenessProbe,
+				Env:           defaultEnvVars(),
+				VolumeMounts:  defaultMountVolume(),
+				LivenessProbe: defaultLivenessProbe(),
 			},
 		},
 		Volumes: []corev1.Volume{
@@ -258,11 +274,132 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 			},
 		},
 	}
+}
 
+type extendedDaemonSetFromInstanceTest struct {
+	name            string
+	agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment
+	selector        *metav1.LabelSelector
+	want            *edsdatadoghqv1alpha1.ExtendedDaemonSet
+	wantErr         bool
+}
+
+func (test extendedDaemonSetFromInstanceTest) Run(t *testing.T) {
+	t.Helper()
+	logf.SetLogger(logf.ZapLogger(true))
+	reqLogger := log.WithValues("test:", test.name)
+	got, _, err := newExtendedDaemonSetFromInstance(reqLogger, test.agentdeployment, test.selector)
+	if test.wantErr {
+		assert.Error(t, err, "newExtendedDaemonSetFromInstance() expected an error")
+	} else {
+		assert.NoError(t, err, "newExtendedDaemonSetFromInstance() unexpected error: %v", err)
+	}
+	assert.True(t, apiequality.Semantic.DeepEqual(got, test.want), "newExtendedDaemonSetFromInstance() = %#v\n\nwant %#v\ndiff: %s",
+		got, test.want, cmp.Diff(got, test.want))
+}
+
+type extendedDaemonSetFromInstanceTestSuite []extendedDaemonSetFromInstanceTest
+
+func (tests extendedDaemonSetFromInstanceTestSuite) Run(t *testing.T) {
+	t.Helper()
+	for _, tt := range tests {
+		t.Run(tt.name, tt.Run)
+	}
+}
+
+func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
+	tests := extendedDaemonSetFromInstanceTestSuite{
+		{
+			name:            "defaulted case",
+			agentdeployment: test.NewDefaultedDatadogAgentDeployment("bar", "foo", &test.NewDatadogAgentDeploymentOptions{UseEDS: true, ClusterAgentEnabled: true}),
+			wantErr:         false,
+			want: &edsdatadoghqv1alpha1.ExtendedDaemonSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "bar",
+					Name:      "foo",
+					Labels: map[string]string{
+						"agentdeployment.datadoghq.com/name":      "foo",
+						"agentdeployment.datadoghq.com/component": "agent",
+						"app.kubernetes.io/instance":              "agent",
+						"app.kubernetes.io/managed-by":            "datadog-operator",
+						"app.kubernetes.io/name":                  "datadog-agent-deployment",
+						"app.kubernetes.io/part-of":               "foo",
+						"app.kubernetes.io/version":               "",
+					},
+					Annotations: map[string]string{"agentdeployment.datadoghq.com/agentspechash": defaultAgentHash},
+				},
+				Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							GenerateName: "foo",
+							Namespace:    "bar",
+							Labels: map[string]string{
+								"agentdeployment.datadoghq.com/name":      "foo",
+								"agentdeployment.datadoghq.com/component": "agent",
+								"app.kubernetes.io/instance":              "agent",
+								"app.kubernetes.io/managed-by":            "datadog-operator",
+								"app.kubernetes.io/name":                  "datadog-agent-deployment",
+								"app.kubernetes.io/part-of":               "foo",
+								"app.kubernetes.io/version":               "",
+							},
+							Annotations: make(map[string]string),
+						},
+						Spec: defaultPodSpec(),
+					},
+					Strategy: getDefaultEDSStrategy(),
+				},
+			},
+		},
+		{
+			name:            "with labels and annotations",
+			agentdeployment: test.NewDefaultedDatadogAgentDeployment("bar", "foo", &test.NewDatadogAgentDeploymentOptions{UseEDS: true, ClusterAgentEnabled: true, Labels: map[string]string{"label-foo-key": "label-bar-value"}, Annotations: map[string]string{"annotations-foo-key": "annotations-bar-value"}}),
+			wantErr:         false,
+			want: &edsdatadoghqv1alpha1.ExtendedDaemonSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "bar",
+					Name:      "foo",
+					Labels: map[string]string{
+						"agentdeployment.datadoghq.com/name":      "foo",
+						"agentdeployment.datadoghq.com/component": "agent",
+						"label-foo-key":                "label-bar-value",
+						"app.kubernetes.io/instance":   "agent",
+						"app.kubernetes.io/managed-by": "datadog-operator",
+						"app.kubernetes.io/name":       "datadog-agent-deployment",
+						"app.kubernetes.io/part-of":    "foo",
+						"app.kubernetes.io/version":    "",
+					},
+					Annotations: map[string]string{"agentdeployment.datadoghq.com/agentspechash": defaultAgentHash},
+				},
+				Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							GenerateName: "foo",
+							Namespace:    "bar",
+							Labels: map[string]string{
+								"agentdeployment.datadoghq.com/name":      "foo",
+								"agentdeployment.datadoghq.com/component": "agent",
+								"app.kubernetes.io/instance":              "agent",
+								"app.kubernetes.io/managed-by":            "datadog-operator",
+								"app.kubernetes.io/name":                  "datadog-agent-deployment",
+								"app.kubernetes.io/part-of":               "foo",
+								"app.kubernetes.io/version":               "",
+							},
+						},
+						Spec: defaultPodSpec(),
+					},
+					Strategy: getDefaultEDSStrategy(),
+				},
+			},
+		},
+	}
+	tests.Run(t)
+}
+
+func Test_newExtendedDaemonSetFromInstance_CustomConfigMaps(t *testing.T) {
 	customConfdConfigMapName := "confd-configmap"
 	customChecksdConfigMapName := "checksd-configmap"
 
-	customConfigMapsPodSpec := defaultPodSpec.DeepCopy()
+	customConfigMapsPodSpec := defaultPodSpec()
 	customConfigMapsPodSpec.Volumes = []corev1.Volume{
 		{
 			Name: datadoghqv1alpha1.ConfdVolumeName,
@@ -316,8 +453,67 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 		},
 	}
 
+	customConfigMapAgentDeployment := test.NewDefaultedDatadogAgentDeployment("bar", "foo", &test.NewDatadogAgentDeploymentOptions{
+		UseEDS:              true,
+		ClusterAgentEnabled: true,
+		Confd: &datadoghqv1alpha1.ConfigDirSpec{
+			ConfigMapName: customConfdConfigMapName,
+		},
+		Checksd: &datadoghqv1alpha1.ConfigDirSpec{
+			ConfigMapName: customChecksdConfigMapName,
+		},
+	})
+
+	customConfigMapAgentHash, _ := comparison.GenerateMD5ForSpec(customConfigMapAgentDeployment.Spec)
+
+	test := extendedDaemonSetFromInstanceTest{
+		name:            "with custom confd and checksd volume mounts",
+		agentdeployment: customConfigMapAgentDeployment,
+		wantErr:         false,
+		want: &edsdatadoghqv1alpha1.ExtendedDaemonSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "bar",
+				Name:      "foo",
+				Labels: map[string]string{
+					"agentdeployment.datadoghq.com/name":      "foo",
+					"agentdeployment.datadoghq.com/component": "agent",
+					"app.kubernetes.io/instance":              "agent",
+					"app.kubernetes.io/managed-by":            "datadog-operator",
+					"app.kubernetes.io/name":                  "datadog-agent-deployment",
+					"app.kubernetes.io/part-of":               "foo",
+					"app.kubernetes.io/version":               "",
+				},
+				Annotations: map[string]string{"agentdeployment.datadoghq.com/agentspechash": customConfigMapAgentHash},
+			},
+			Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						GenerateName: "foo",
+						Namespace:    "bar",
+						Labels: map[string]string{
+							"agentdeployment.datadoghq.com/name":      "foo",
+							"agentdeployment.datadoghq.com/component": "agent",
+							"app.kubernetes.io/instance":              "agent",
+							"app.kubernetes.io/managed-by":            "datadog-operator",
+							"app.kubernetes.io/name":                  "datadog-agent-deployment",
+							"app.kubernetes.io/part-of":               "foo",
+							"app.kubernetes.io/version":               "",
+						},
+						Annotations: make(map[string]string),
+					},
+					Spec: customConfigMapsPodSpec,
+				},
+				Strategy: getDefaultEDSStrategy(),
+			},
+		},
+	}
+
+	test.Run(t)
+}
+
+func Test_newExtendedDaemonSetFromInstance_CustomDatadogYaml(t *testing.T) {
 	customConfigMapCustomDatadogYaml := test.NewDefaultedDatadogAgentDeployment("bar", "foo", &test.NewDatadogAgentDeploymentOptions{UseEDS: true, ClusterAgentEnabled: true, CustomConfig: "foo: bar\nbar: foo"})
-	customConfigMapCustomDatadogYamlSpec := defaultPodSpec.DeepCopy()
+	customConfigMapCustomDatadogYamlSpec := defaultPodSpec()
 	customConfigMapCustomDatadogYamlSpec.Volumes = []corev1.Volume{
 		{
 			Name: datadoghqv1alpha1.ConfdVolumeName,
@@ -412,19 +608,51 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 	customConfigMapCustomDatadogYamlSpec.InitContainers[1].VolumeMounts = customConfigMapCustomDatadogYamlSpec.Containers[0].VolumeMounts
 	customConfigMagCustomDatadogYamlHash, _ := comparison.GenerateMD5ForSpec(customConfigMapCustomDatadogYaml.Spec)
 
-	customConfigMapAgentDeployment := test.NewDefaultedDatadogAgentDeployment("bar", "foo", &test.NewDatadogAgentDeploymentOptions{
-		UseEDS:              true,
-		ClusterAgentEnabled: true,
-		Confd: &datadoghqv1alpha1.ConfigDirSpec{
-			ConfigMapName: customConfdConfigMapName,
+	test := extendedDaemonSetFromInstanceTest{
+		name:            "with custom config (datadog.yaml)",
+		agentdeployment: customConfigMapCustomDatadogYaml,
+		wantErr:         false,
+		want: &edsdatadoghqv1alpha1.ExtendedDaemonSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "bar",
+				Name:      "foo",
+				Labels: map[string]string{
+					"agentdeployment.datadoghq.com/name":      "foo",
+					"agentdeployment.datadoghq.com/component": "agent",
+					"app.kubernetes.io/instance":              "agent",
+					"app.kubernetes.io/managed-by":            "datadog-operator",
+					"app.kubernetes.io/name":                  "datadog-agent-deployment",
+					"app.kubernetes.io/part-of":               "foo",
+					"app.kubernetes.io/version":               "",
+				},
+				Annotations: map[string]string{"agentdeployment.datadoghq.com/agentspechash": customConfigMagCustomDatadogYamlHash},
+			},
+			Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						GenerateName: "foo",
+						Namespace:    "bar",
+						Labels: map[string]string{
+							"agentdeployment.datadoghq.com/name":      "foo",
+							"agentdeployment.datadoghq.com/component": "agent",
+							"app.kubernetes.io/instance":              "agent",
+							"app.kubernetes.io/managed-by":            "datadog-operator",
+							"app.kubernetes.io/name":                  "datadog-agent-deployment",
+							"app.kubernetes.io/part-of":               "foo",
+							"app.kubernetes.io/version":               "",
+						},
+						Annotations: make(map[string]string),
+					},
+					Spec: customConfigMapCustomDatadogYamlSpec,
+				},
+				Strategy: getDefaultEDSStrategy(),
+			},
 		},
-		Checksd: &datadoghqv1alpha1.ConfigDirSpec{
-			ConfigMapName: customChecksdConfigMapName,
-		},
-	})
+	}
+	test.Run(t)
+}
 
-	customConfigMapAgentHash, _ := comparison.GenerateMD5ForSpec(customConfigMapAgentDeployment.Spec)
-
+func Test_newExtendedDaemonSetFromInstance_CustomVolumes(t *testing.T) {
 	userVolumes := []corev1.Volume{
 		{
 			Name: "tmp",
@@ -442,7 +670,7 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 			ReadOnly:  true,
 		},
 	}
-	userMountsPodSpec := defaultPodSpec.DeepCopy()
+	userMountsPodSpec := defaultPodSpec()
 	userMountsPodSpec.Volumes = append(userMountsPodSpec.Volumes, userVolumes...)
 	userMountsPodSpec.Containers[0].VolumeMounts = append(userMountsPodSpec.Containers[0].VolumeMounts, userVolumeMounts...)
 	userMountsPodSpec.InitContainers[1].VolumeMounts = append(userMountsPodSpec.InitContainers[1].VolumeMounts, userVolumeMounts...)
@@ -457,6 +685,50 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 
 	userMountsAgentHash, _ := comparison.GenerateMD5ForSpec(userMountsAgentDeployment.Spec)
 
+	test := extendedDaemonSetFromInstanceTest{
+		name:            "with user volumes and mounts",
+		agentdeployment: userMountsAgentDeployment,
+		wantErr:         false,
+		want: &edsdatadoghqv1alpha1.ExtendedDaemonSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "bar",
+				Name:      "foo",
+				Labels: map[string]string{
+					"agentdeployment.datadoghq.com/name":      "foo",
+					"agentdeployment.datadoghq.com/component": "agent",
+					"app.kubernetes.io/instance":              "agent",
+					"app.kubernetes.io/managed-by":            "datadog-operator",
+					"app.kubernetes.io/name":                  "datadog-agent-deployment",
+					"app.kubernetes.io/part-of":               "foo",
+					"app.kubernetes.io/version":               "",
+				},
+				Annotations: map[string]string{"agentdeployment.datadoghq.com/agentspechash": userMountsAgentHash},
+			},
+			Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						GenerateName: "foo",
+						Namespace:    "bar",
+						Labels: map[string]string{
+							"agentdeployment.datadoghq.com/name":      "foo",
+							"agentdeployment.datadoghq.com/component": "agent",
+							"app.kubernetes.io/instance":              "agent",
+							"app.kubernetes.io/managed-by":            "datadog-operator",
+							"app.kubernetes.io/name":                  "datadog-agent-deployment",
+							"app.kubernetes.io/part-of":               "foo",
+							"app.kubernetes.io/version":               "",
+						},
+					},
+					Spec: userMountsPodSpec,
+				},
+				Strategy: getDefaultEDSStrategy(),
+			},
+		},
+	}
+	test.Run(t)
+}
+
+func Test_newExtendedDaemonSetFromInstance_DaemonSetNameAndSelector(t *testing.T) {
 	daemonsetNameAgentDeployment := test.NewDefaultedDatadogAgentDeployment("bar", "foo",
 		&test.NewDatadogAgentDeploymentOptions{
 			UseEDS:              true,
@@ -466,283 +738,58 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 
 	daemonsetNameAgentHash, _ := comparison.GenerateMD5ForSpec(daemonsetNameAgentDeployment.Spec)
 
-	tests := []struct {
-		name            string
-		agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment
-		selector        *metav1.LabelSelector
-		want            *edsdatadoghqv1alpha1.ExtendedDaemonSet
-		wantErr         bool
-	}{
-		{
-			name:            "defaulted case",
-			agentdeployment: test.NewDefaultedDatadogAgentDeployment("bar", "foo", &test.NewDatadogAgentDeploymentOptions{UseEDS: true, ClusterAgentEnabled: true}),
-			wantErr:         false,
-			want: &edsdatadoghqv1alpha1.ExtendedDaemonSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: "bar",
-					Name:      "foo",
-					Labels: map[string]string{
-						"agentdeployment.datadoghq.com/name":      "foo",
-						"agentdeployment.datadoghq.com/component": "agent",
-						"app.kubernetes.io/instance":              "agent",
-						"app.kubernetes.io/managed-by":            "datadog-operator",
-						"app.kubernetes.io/name":                  "datadog-agent-deployment",
-						"app.kubernetes.io/part-of":               "foo",
-						"app.kubernetes.io/version":               "",
-					},
-					Annotations: map[string]string{"agentdeployment.datadoghq.com/agentspechash": defaultAgentHash},
-				},
-				Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
-					Template: corev1.PodTemplateSpec{
-						ObjectMeta: metav1.ObjectMeta{
-							GenerateName: "foo",
-							Namespace:    "bar",
-							Labels: map[string]string{
-								"agentdeployment.datadoghq.com/name":      "foo",
-								"agentdeployment.datadoghq.com/component": "agent",
-								"app.kubernetes.io/instance":              "agent",
-								"app.kubernetes.io/managed-by":            "datadog-operator",
-								"app.kubernetes.io/name":                  "datadog-agent-deployment",
-								"app.kubernetes.io/part-of":               "foo",
-								"app.kubernetes.io/version":               "",
-							},
-							Annotations: make(map[string]string),
-						},
-						Spec: defaultPodSpec,
-					},
-					Strategy: getDefaultEDSStrategy(),
-				},
+	test := extendedDaemonSetFromInstanceTest{
+		name:            "with user daemonset name and selector",
+		agentdeployment: daemonsetNameAgentDeployment,
+		selector: &metav1.LabelSelector{
+			MatchLabels: map[string]string{
+				"app": "datadog-monitoring",
 			},
 		},
-		{
-			name:            "with labels and annotations",
-			agentdeployment: test.NewDefaultedDatadogAgentDeployment("bar", "foo", &test.NewDatadogAgentDeploymentOptions{UseEDS: true, ClusterAgentEnabled: true, Labels: map[string]string{"label-foo-key": "label-bar-value"}, Annotations: map[string]string{"annotations-foo-key": "annotations-bar-value"}}),
-			wantErr:         false,
-			want: &edsdatadoghqv1alpha1.ExtendedDaemonSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: "bar",
-					Name:      "foo",
-					Labels: map[string]string{
-						"agentdeployment.datadoghq.com/name":      "foo",
-						"agentdeployment.datadoghq.com/component": "agent",
-						"label-foo-key":                "label-bar-value",
-						"app.kubernetes.io/instance":   "agent",
-						"app.kubernetes.io/managed-by": "datadog-operator",
-						"app.kubernetes.io/name":       "datadog-agent-deployment",
-						"app.kubernetes.io/part-of":    "foo",
-						"app.kubernetes.io/version":    "",
-					},
-					Annotations: map[string]string{"agentdeployment.datadoghq.com/agentspechash": defaultAgentHash},
+		wantErr: false,
+		want: &edsdatadoghqv1alpha1.ExtendedDaemonSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "bar",
+				Name:      "custom-agent-daemonset",
+				Labels: map[string]string{
+					"agentdeployment.datadoghq.com/name":      "foo",
+					"agentdeployment.datadoghq.com/component": "agent",
+					"app.kubernetes.io/instance":              "agent",
+					"app.kubernetes.io/managed-by":            "datadog-operator",
+					"app.kubernetes.io/name":                  "datadog-agent-deployment",
+					"app.kubernetes.io/part-of":               "foo",
+					"app.kubernetes.io/version":               "",
 				},
-				Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
-					Template: corev1.PodTemplateSpec{
-						ObjectMeta: metav1.ObjectMeta{
-							GenerateName: "foo",
-							Namespace:    "bar",
-							Labels: map[string]string{
-								"agentdeployment.datadoghq.com/name":      "foo",
-								"agentdeployment.datadoghq.com/component": "agent",
-								"app.kubernetes.io/instance":              "agent",
-								"app.kubernetes.io/managed-by":            "datadog-operator",
-								"app.kubernetes.io/name":                  "datadog-agent-deployment",
-								"app.kubernetes.io/part-of":               "foo",
-								"app.kubernetes.io/version":               "",
-							},
-						},
-						Spec: defaultPodSpec,
-					},
-					Strategy: getDefaultEDSStrategy(),
-				},
+				Annotations: map[string]string{"agentdeployment.datadoghq.com/agentspechash": daemonsetNameAgentHash},
 			},
-		},
-		{
-			name:            "with custom confd and checksd volume mounts",
-			agentdeployment: customConfigMapAgentDeployment,
-			wantErr:         false,
-			want: &edsdatadoghqv1alpha1.ExtendedDaemonSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: "bar",
-					Name:      "foo",
-					Labels: map[string]string{
-						"agentdeployment.datadoghq.com/name":      "foo",
-						"agentdeployment.datadoghq.com/component": "agent",
-						"app.kubernetes.io/instance":              "agent",
-						"app.kubernetes.io/managed-by":            "datadog-operator",
-						"app.kubernetes.io/name":                  "datadog-agent-deployment",
-						"app.kubernetes.io/part-of":               "foo",
-						"app.kubernetes.io/version":               "",
+			Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
+				Selector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"app": "datadog-monitoring",
 					},
-					Annotations: map[string]string{"agentdeployment.datadoghq.com/agentspechash": customConfigMapAgentHash},
 				},
-				Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
-					Template: corev1.PodTemplateSpec{
-						ObjectMeta: metav1.ObjectMeta{
-							GenerateName: "foo",
-							Namespace:    "bar",
-							Labels: map[string]string{
-								"agentdeployment.datadoghq.com/name":      "foo",
-								"agentdeployment.datadoghq.com/component": "agent",
-								"app.kubernetes.io/instance":              "agent",
-								"app.kubernetes.io/managed-by":            "datadog-operator",
-								"app.kubernetes.io/name":                  "datadog-agent-deployment",
-								"app.kubernetes.io/part-of":               "foo",
-								"app.kubernetes.io/version":               "",
-							},
-							Annotations: make(map[string]string),
-						},
-						Spec: *customConfigMapsPodSpec,
-					},
-					Strategy: getDefaultEDSStrategy(),
-				},
-			},
-		},
-		{
-			name:            "with user volumes and mounts",
-			agentdeployment: userMountsAgentDeployment,
-			wantErr:         false,
-			want: &edsdatadoghqv1alpha1.ExtendedDaemonSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: "bar",
-					Name:      "foo",
-					Labels: map[string]string{
-						"agentdeployment.datadoghq.com/name":      "foo",
-						"agentdeployment.datadoghq.com/component": "agent",
-						"app.kubernetes.io/instance":              "agent",
-						"app.kubernetes.io/managed-by":            "datadog-operator",
-						"app.kubernetes.io/name":                  "datadog-agent-deployment",
-						"app.kubernetes.io/part-of":               "foo",
-						"app.kubernetes.io/version":               "",
-					},
-					Annotations: map[string]string{"agentdeployment.datadoghq.com/agentspechash": userMountsAgentHash},
-				},
-				Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
-					Template: corev1.PodTemplateSpec{
-						ObjectMeta: metav1.ObjectMeta{
-							GenerateName: "foo",
-							Namespace:    "bar",
-							Labels: map[string]string{
-								"agentdeployment.datadoghq.com/name":      "foo",
-								"agentdeployment.datadoghq.com/component": "agent",
-								"app.kubernetes.io/instance":              "agent",
-								"app.kubernetes.io/managed-by":            "datadog-operator",
-								"app.kubernetes.io/name":                  "datadog-agent-deployment",
-								"app.kubernetes.io/part-of":               "foo",
-								"app.kubernetes.io/version":               "",
-							},
-						},
-						Spec: *userMountsPodSpec,
-					},
-					Strategy: getDefaultEDSStrategy(),
-				},
-			},
-		},
-		{
-			name:            "with custom config (datadog.yaml)",
-			agentdeployment: customConfigMapCustomDatadogYaml,
-			wantErr:         false,
-			want: &edsdatadoghqv1alpha1.ExtendedDaemonSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: "bar",
-					Name:      "foo",
-					Labels: map[string]string{
-						"agentdeployment.datadoghq.com/name":      "foo",
-						"agentdeployment.datadoghq.com/component": "agent",
-						"app.kubernetes.io/instance":              "agent",
-						"app.kubernetes.io/managed-by":            "datadog-operator",
-						"app.kubernetes.io/name":                  "datadog-agent-deployment",
-						"app.kubernetes.io/part-of":               "foo",
-						"app.kubernetes.io/version":               "",
-					},
-					Annotations: map[string]string{"agentdeployment.datadoghq.com/agentspechash": customConfigMagCustomDatadogYamlHash},
-				},
-				Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
-					Template: corev1.PodTemplateSpec{
-						ObjectMeta: metav1.ObjectMeta{
-							GenerateName: "foo",
-							Namespace:    "bar",
-							Labels: map[string]string{
-								"agentdeployment.datadoghq.com/name":      "foo",
-								"agentdeployment.datadoghq.com/component": "agent",
-								"app.kubernetes.io/instance":              "agent",
-								"app.kubernetes.io/managed-by":            "datadog-operator",
-								"app.kubernetes.io/name":                  "datadog-agent-deployment",
-								"app.kubernetes.io/part-of":               "foo",
-								"app.kubernetes.io/version":               "",
-							},
-							Annotations: make(map[string]string),
-						},
-						Spec: *customConfigMapCustomDatadogYamlSpec,
-					},
-					Strategy: getDefaultEDSStrategy(),
-				},
-			},
-		},
-		{
-			name:            "with user daemonset name and selector",
-			agentdeployment: daemonsetNameAgentDeployment,
-			selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					"app": "datadog-monitoring",
-				},
-			},
-			wantErr: false,
-			want: &edsdatadoghqv1alpha1.ExtendedDaemonSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: "bar",
-					Name:      "custom-agent-daemonset",
-					Labels: map[string]string{
-						"agentdeployment.datadoghq.com/name":      "foo",
-						"agentdeployment.datadoghq.com/component": "agent",
-						"app.kubernetes.io/instance":              "agent",
-						"app.kubernetes.io/managed-by":            "datadog-operator",
-						"app.kubernetes.io/name":                  "datadog-agent-deployment",
-						"app.kubernetes.io/part-of":               "foo",
-						"app.kubernetes.io/version":               "",
-					},
-					Annotations: map[string]string{"agentdeployment.datadoghq.com/agentspechash": daemonsetNameAgentHash},
-				},
-				Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
-					Selector: &metav1.LabelSelector{
-						MatchLabels: map[string]string{
-							"app": "datadog-monitoring",
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						GenerateName: "foo",
+						Namespace:    "bar",
+						Labels: map[string]string{
+							"agentdeployment.datadoghq.com/name":      "foo",
+							"agentdeployment.datadoghq.com/component": "agent",
+							"app.kubernetes.io/instance":              "agent",
+							"app.kubernetes.io/managed-by":            "datadog-operator",
+							"app.kubernetes.io/name":                  "datadog-agent-deployment",
+							"app.kubernetes.io/part-of":               "foo",
+							"app.kubernetes.io/version":               "",
+							"app":                                     "datadog-monitoring",
 						},
 					},
-					Template: corev1.PodTemplateSpec{
-						ObjectMeta: metav1.ObjectMeta{
-							GenerateName: "foo",
-							Namespace:    "bar",
-							Labels: map[string]string{
-								"agentdeployment.datadoghq.com/name":      "foo",
-								"agentdeployment.datadoghq.com/component": "agent",
-								"app.kubernetes.io/instance":              "agent",
-								"app.kubernetes.io/managed-by":            "datadog-operator",
-								"app.kubernetes.io/name":                  "datadog-agent-deployment",
-								"app.kubernetes.io/part-of":               "foo",
-								"app.kubernetes.io/version":               "",
-								"app":                                     "datadog-monitoring",
-							},
-						},
-						Spec: defaultPodSpec,
-					},
-					Strategy: getDefaultEDSStrategy(),
+					Spec: defaultPodSpec(),
 				},
+				Strategy: getDefaultEDSStrategy(),
 			},
 		},
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			reqLogger := log.WithValues("test:", tt.name)
-			got, _, err := newExtendedDaemonSetFromInstance(reqLogger, tt.agentdeployment, tt.selector)
-			if tt.wantErr {
-				assert.Error(t, err, "newExtendedDaemonSetFromInstance() expected an error")
-			} else {
-				assert.NoError(t, err, "newExtendedDaemonSetFromInstance() unexpected error: %v", err)
-			}
-			assert.True(t, apiequality.Semantic.DeepEqual(got, tt.want), "newExtendedDaemonSetFromInstance() = %#v\n\nwant %#v\ndiff: %s",
-				got, tt.want, cmp.Diff(got, tt.want))
-		})
-	}
+	test.Run(t)
 }
 
 func getDefaultEDSStrategy() edsdatadoghqv1alpha1.ExtendedDaemonSetSpecStrategy {
