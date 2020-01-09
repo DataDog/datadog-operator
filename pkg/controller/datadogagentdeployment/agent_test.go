@@ -24,19 +24,21 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
-var (
-	dadName = "foo"
+const testDadName = "foo"
 
-	authTokenValue = &corev1.EnvVarSource{
+func authTokenValue() *corev1.EnvVarSource {
+	return &corev1.EnvVarSource{
 		SecretKeyRef: &corev1.SecretKeySelector{
 			LocalObjectReference: corev1.LocalObjectReference{
-				Name: fmt.Sprintf("%s-%s", dadName, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix),
+				Name: fmt.Sprintf("%s-%s", testDadName, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix),
 			},
 			Key: "token",
 		},
 	}
+}
 
-	defaultLivenessProbe = &corev1.Probe{
+func defaultLivenessProbe() *corev1.Probe {
+	return &corev1.Probe{
 		InitialDelaySeconds: 15,
 		PeriodSeconds:       15,
 		TimeoutSeconds:      5,
@@ -51,7 +53,7 @@ var (
 			},
 		},
 	}
-)
+}
 
 func defaultMountVolume() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
@@ -167,11 +169,11 @@ func defaultEnvVars() []corev1.EnvVar {
 		},
 		{
 			Name:  "DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME",
-			Value: fmt.Sprintf("%s-%s", dadName, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix),
+			Value: fmt.Sprintf("%s-%s", testDadName, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix),
 		},
 		{
 			Name:      "DD_CLUSTER_AGENT_AUTH_TOKEN",
-			ValueFrom: authTokenValue,
+			ValueFrom: authTokenValue(),
 		},
 	}
 }
@@ -224,7 +226,7 @@ func defaultPodSpec() corev1.PodSpec {
 				},
 				Env:           defaultEnvVars(),
 				VolumeMounts:  defaultMountVolume(),
-				LivenessProbe: defaultLivenessProbe,
+				LivenessProbe: defaultLivenessProbe(),
 			},
 		},
 		Volumes: []corev1.Volume{
