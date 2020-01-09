@@ -17,10 +17,10 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
 )
 
-// UpdateDatadogAgentDeploymentFunc used to update a DatadogAgentDeployment with retry and timeout policy
-func UpdateDatadogAgentDeploymentFunc(f *framework.Framework, namespace, name string, updateFunc func(ad *datadoghqv1alpha1.DatadogAgentDeployment), retryInterval, timeout time.Duration) error {
+// UpdateDatadogAgentFunc used to update a DatadogAgent with retry and timeout policy
+func UpdateDatadogAgentFunc(f *framework.Framework, namespace, name string, updateFunc func(ad *datadoghqv1alpha1.DatadogAgent), retryInterval, timeout time.Duration) error {
 	return wait.Poll(retryInterval, timeout, func() (bool, error) {
-		ad := &datadoghqv1alpha1.DatadogAgentDeployment{}
+		ad := &datadoghqv1alpha1.DatadogAgent{}
 		if err := f.Client.Get(goctx.TODO(), types.NamespacedName{Name: name, Namespace: namespace}, ad); err != nil {
 			return false, nil
 		}

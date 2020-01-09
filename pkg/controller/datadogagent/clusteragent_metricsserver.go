@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-2019 Datadog, Inc.
 
-package datadogagentdeployment
+package datadogagent
 
 import (
 	"context"
@@ -19,11 +19,11 @@ import (
 )
 
 // buildMetricsServerClusterRoleBinding creates a ClusterRoleBinding for the Cluster Agent HPA metrics server
-func buildMetricsServerClusterRoleBinding(dad *datadoghqv1alpha1.DatadogAgentDeployment, name, agentVersion string) *rbacv1.ClusterRoleBinding {
-	if isMetricsProviderEnabled(dad.Spec.ClusterAgent) {
+func buildMetricsServerClusterRoleBinding(dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string) *rbacv1.ClusterRoleBinding {
+	if isMetricsProviderEnabled(dda.Spec.ClusterAgent) {
 		return &rbacv1.ClusterRoleBinding{
 			ObjectMeta: metav1.ObjectMeta{
-				Labels: getDefaultLabels(dad, name, agentVersion),
+				Labels: getDefaultLabels(dda, name, agentVersion),
 				Name:   name,
 			},
 			RoleRef: rbacv1.RoleRef{
@@ -34,8 +34,8 @@ func buildMetricsServerClusterRoleBinding(dad *datadoghqv1alpha1.DatadogAgentDep
 			Subjects: []rbacv1.Subject{
 				{
 					Kind:      datadoghqv1alpha1.ServiceAccountKind,
-					Name:      getClusterAgentServiceAccount(dad),
-					Namespace: dad.Namespace,
+					Name:      getClusterAgentServiceAccount(dda),
+					Namespace: dda.Namespace,
 				},
 			},
 		}
@@ -43,14 +43,14 @@ func buildMetricsServerClusterRoleBinding(dad *datadoghqv1alpha1.DatadogAgentDep
 	return nil
 }
 
-func (r *ReconcileDatadogAgentDeployment) deleteIfNeededHpaClusterRoleBinding(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment, name, agentVersion string, clusterRoleBinding *rbacv1.ClusterRoleBinding) (reconcile.Result, error) {
-	newClusterRoleBinding := buildMetricsServerClusterRoleBinding(dad, name, agentVersion)
+func (r *ReconcileDatadogAgent) deleteIfNeededHpaClusterRoleBinding(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string, clusterRoleBinding *rbacv1.ClusterRoleBinding) (reconcile.Result, error) {
+	newClusterRoleBinding := buildMetricsServerClusterRoleBinding(dda, name, agentVersion)
 	if newClusterRoleBinding != nil && clusterRoleBinding != nil && !apiequality.Semantic.DeepEqual(&rbacv1.ClusterRoleBinding{}, clusterRoleBinding.Subjects) {
 		// External Metrics Server used for HPA has been disabled
 		// Delete its ClusterRoleBinding
 		logger.V(1).Info("deleteClusterAgentHPARoleBinding", "clusterRoleBinding.name", clusterRoleBinding.Name)
 		eventInfo := buildEventInfo(clusterRoleBinding.Name, clusterRoleBinding.Namespace, clusterRoleBindingKind, datadog.DeletionEvent)
-		r.recordEvent(dad, eventInfo)
+		r.recordEvent(dda, eventInfo)
 		if err := r.client.Delete(context.TODO(), clusterRoleBinding); err != nil {
 			if errors.IsNotFound(err) {
 				return reconcile.Result{}, nil
@@ -61,16 +61,16 @@ func (r *ReconcileDatadogAgentDeployment) deleteIfNeededHpaClusterRoleBinding(lo
 	return reconcile.Result{}, nil
 }
 
-func (r *ReconcileDatadogAgentDeployment) createHPAClusterRoleBinding(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment, name, agentVersion string) (reconcile.Result, error) {
-	clusterRoleBinding := buildMetricsServerClusterRoleBinding(dad, name, agentVersion)
+func (r *ReconcileDatadogAgent) createHPAClusterRoleBinding(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string) (reconcile.Result, error) {
+	clusterRoleBinding := buildMetricsServerClusterRoleBinding(dda, name, agentVersion)
 	if clusterRoleBinding == nil {
 		return reconcile.Result{}, nil
 	}
-	if err := SetOwnerReference(dad, clusterRoleBinding, r.scheme); err != nil {
+	if err := SetOwnerReference(dda, clusterRoleBinding, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
 	logger.V(1).Info("createClusterAgentHPARoleBinding", "clusterRoleBinding.name", clusterRoleBinding.Name)
 	eventInfo := buildEventInfo(clusterRoleBinding.Name, clusterRoleBinding.Namespace, clusterRoleBindingKind, datadog.UpdateEvent)
-	r.recordEvent(dad, eventInfo)
+	r.recordEvent(dda, eventInfo)
 	return reconcile.Result{Requeue: true}, r.client.Create(context.TODO(), clusterRoleBinding)
 }

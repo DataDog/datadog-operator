@@ -14,17 +14,17 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// UpdateDatadogAgentDeploymentStatusConditionsFailure used to update the failure StatusConditions
-func UpdateDatadogAgentDeploymentStatusConditionsFailure(status *datadoghqv1alpha1.DatadogAgentDeploymentStatus, now metav1.Time, conditionType datadoghqv1alpha1.DatadogAgentDeploymentConditionType, err error) {
+// UpdateDatadogAgentStatusConditionsFailure used to update the failure StatusConditions
+func UpdateDatadogAgentStatusConditionsFailure(status *datadoghqv1alpha1.DatadogAgentStatus, now metav1.Time, conditionType datadoghqv1alpha1.DatadogAgentConditionType, err error) {
 	if err != nil {
-		UpdateDatadogAgentDeploymentStatusCondition(status, now, conditionType, corev1.ConditionTrue, fmt.Sprintf("%v", err), false)
+		UpdateDatadogAgentStatusCondition(status, now, conditionType, corev1.ConditionTrue, fmt.Sprintf("%v", err), false)
 	} else {
-		UpdateDatadogAgentDeploymentStatusCondition(status, now, conditionType, corev1.ConditionFalse, "", false)
+		UpdateDatadogAgentStatusCondition(status, now, conditionType, corev1.ConditionFalse, "", false)
 	}
 }
 
-// UpdateDatadogAgentDeploymentStatusCondition used to update a specific DatadogAgentDeploymentConditionType
-func UpdateDatadogAgentDeploymentStatusCondition(status *datadoghqv1alpha1.DatadogAgentDeploymentStatus, now metav1.Time, t datadoghqv1alpha1.DatadogAgentDeploymentConditionType, conditionStatus corev1.ConditionStatus, desc string, writeFalseIfNotExist bool) {
+// UpdateDatadogAgentStatusCondition used to update a specific DatadogAgentConditionType
+func UpdateDatadogAgentStatusCondition(status *datadoghqv1alpha1.DatadogAgentStatus, now metav1.Time, t datadoghqv1alpha1.DatadogAgentConditionType, conditionStatus corev1.ConditionStatus, desc string, writeFalseIfNotExist bool) {
 	idConditionComplete := getIndexForConditionType(status, t)
 	if idConditionComplete >= 0 {
 		if status.Conditions[idConditionComplete].Status != conditionStatus {
@@ -35,13 +35,13 @@ func UpdateDatadogAgentDeploymentStatusCondition(status *datadoghqv1alpha1.Datad
 		status.Conditions[idConditionComplete].Message = desc
 	} else if conditionStatus == corev1.ConditionTrue || writeFalseIfNotExist {
 		// Only add if the condition is True
-		status.Conditions = append(status.Conditions, NewDatadogAgentDeploymentStatusCondition(t, conditionStatus, now, "", desc))
+		status.Conditions = append(status.Conditions, NewDatadogAgentStatusCondition(t, conditionStatus, now, "", desc))
 	}
 }
 
-// NewDatadogAgentDeploymentStatusCondition returns new DatadogAgentDeploymentCondition instance
-func NewDatadogAgentDeploymentStatusCondition(conditionType datadoghqv1alpha1.DatadogAgentDeploymentConditionType, conditionStatus corev1.ConditionStatus, now metav1.Time, reason, message string) datadoghqv1alpha1.DatadogAgentDeploymentCondition {
-	return datadoghqv1alpha1.DatadogAgentDeploymentCondition{
+// NewDatadogAgentStatusCondition returns new DatadogAgentCondition instance
+func NewDatadogAgentStatusCondition(conditionType datadoghqv1alpha1.DatadogAgentConditionType, conditionStatus corev1.ConditionStatus, now metav1.Time, reason, message string) datadoghqv1alpha1.DatadogAgentCondition {
+	return datadoghqv1alpha1.DatadogAgentCondition{
 		Type:               conditionType,
 		Status:             conditionStatus,
 		LastUpdateTime:     now,
@@ -51,7 +51,7 @@ func NewDatadogAgentDeploymentStatusCondition(conditionType datadoghqv1alpha1.Da
 	}
 }
 
-func getIndexForConditionType(status *datadoghqv1alpha1.DatadogAgentDeploymentStatus, t datadoghqv1alpha1.DatadogAgentDeploymentConditionType) int {
+func getIndexForConditionType(status *datadoghqv1alpha1.DatadogAgentStatus, t datadoghqv1alpha1.DatadogAgentConditionType) int {
 	idCondition := -1
 	if status == nil {
 		return idCondition

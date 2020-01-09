@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-2019 Datadog, Inc.
 
-package datadogagentdeployment
+package datadogagent
 
 import (
 	"fmt"
@@ -54,7 +54,7 @@ func (ei *eventInfo) getDDEvent() datadog.Event {
 
 // recordEvent wraps the manager event recorder
 // recordEvent calls the metric forwarders to send Datadog events
-func (r *ReconcileDatadogAgentDeployment) recordEvent(dad *datadoghqv1alpha1.DatadogAgentDeployment, info eventInfo) {
-	r.recorder.Event(dad, corev1.EventTypeNormal, info.getReason(), info.getMessage())
-	r.forwarders.ProcessEvent(dad, info.getDDEvent())
+func (r *ReconcileDatadogAgent) recordEvent(dda *datadoghqv1alpha1.DatadogAgent, info eventInfo) {
+	r.recorder.Event(dda, corev1.EventTypeNormal, info.getReason(), info.getMessage())
+	r.forwarders.ProcessEvent(dda, info.getDDEvent())
 }

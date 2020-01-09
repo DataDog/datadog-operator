@@ -50,9 +50,9 @@ const (
 
 var defaultImagePullPolicy v1.PullPolicy = v1.PullIfNotPresent
 
-// IsDefaultedDatadogAgentDeployment used to check if an DatadogAgentDeployment was already defaulted
+// IsDefaultedDatadogAgent used to check if an DatadogAgent was already defaulted
 // returns true if yes, else false
-func IsDefaultedDatadogAgentDeployment(ad *DatadogAgentDeployment) bool {
+func IsDefaultedDatadogAgent(ad *DatadogAgent) bool {
 	if ad.Spec.Agent != nil {
 		if ad.Spec.Agent.UseExtendedDaemonset == nil {
 			return false
@@ -61,27 +61,27 @@ func IsDefaultedDatadogAgentDeployment(ad *DatadogAgentDeployment) bool {
 			return false
 		}
 
-		if !IsDefaultedDatadogAgentDeploymentSpecAgentConfig(&ad.Spec.Agent.Config) {
+		if !IsDefaultedDatadogAgentSpecAgentConfig(&ad.Spec.Agent.Config) {
 			return false
 		}
 
-		if !IsDefaultedDatadogAgentDeploymentSpecRbacConfig(&ad.Spec.Agent.Rbac) {
+		if !IsDefaultedDatadogAgentSpecRbacConfig(&ad.Spec.Agent.Rbac) {
 			return false
 		}
 
-		if !IsDefaultedDatadogAgentDeploymentSpecDatadogAgentDeploymentStrategy(ad.Spec.Agent.DeploymentStrategy) {
+		if !IsDefaultedDatadogAgentSpecDatadogAgentStrategy(ad.Spec.Agent.DeploymentStrategy) {
 			return false
 		}
 
-		if !IsDefaultedDatadogAgentDeploymentSpecApm(&ad.Spec.Agent.Apm) {
+		if !IsDefaultedDatadogAgentSpecApm(&ad.Spec.Agent.Apm) {
 			return false
 		}
 
-		if !IsDefaultedDatadogAgentDeploymentSpecLog(&ad.Spec.Agent.Log) {
+		if !IsDefaultedDatadogAgentSpecLog(&ad.Spec.Agent.Log) {
 			return false
 		}
 
-		if !IsDefaultedDatadogAgentDeploymentSpecProcess(&ad.Spec.Agent.Process) {
+		if !IsDefaultedDatadogAgentSpecProcess(&ad.Spec.Agent.Process) {
 			return false
 		}
 	}
@@ -91,11 +91,11 @@ func IsDefaultedDatadogAgentDeployment(ad *DatadogAgentDeployment) bool {
 			return false
 		}
 
-		if !IsDefaultedDatadogAgentDeploymentSpecClusterAgentConfig(&ad.Spec.ClusterAgent.Config) {
+		if !IsDefaultedDatadogAgentSpecClusterAgentConfig(&ad.Spec.ClusterAgent.Config) {
 			return false
 		}
 
-		if !IsDefaultedDatadogAgentDeploymentSpecRbacConfig(&ad.Spec.ClusterAgent.Rbac) {
+		if !IsDefaultedDatadogAgentSpecRbacConfig(&ad.Spec.ClusterAgent.Rbac) {
 			return false
 		}
 
@@ -113,7 +113,7 @@ func IsDefaultedDatadogAgentDeployment(ad *DatadogAgentDeployment) bool {
 			return false
 		}
 
-		if !IsDefaultedDatadogAgentDeploymentSpecClusterChecksRunnerConfig(&ad.Spec.ClusterChecksRunner.Config) {
+		if !IsDefaultedDatadogAgentSpecClusterChecksRunnerConfig(&ad.Spec.ClusterChecksRunner.Config) {
 			return false
 		}
 
@@ -147,9 +147,9 @@ func IsDefaultedImageConfig(imageConfig *ImageConfig) bool {
 	return true
 }
 
-// IsDefaultedDatadogAgentDeploymentSpecAgentConfig used to check if a NodeAgentConfig was already defaulted
+// IsDefaultedDatadogAgentSpecAgentConfig used to check if a NodeAgentConfig was already defaulted
 // returns true if yes, else false
-func IsDefaultedDatadogAgentDeploymentSpecAgentConfig(config *NodeAgentConfig) bool {
+func IsDefaultedDatadogAgentSpecAgentConfig(config *NodeAgentConfig) bool {
 	if config == nil {
 		return false
 	}
@@ -201,9 +201,9 @@ func IsDefaultedDatadogAgentDeploymentSpecAgentConfig(config *NodeAgentConfig) b
 	return true
 }
 
-// IsDefaultedDatadogAgentDeploymentSpecRbacConfig used to check if a RbacConfig is defaulted
+// IsDefaultedDatadogAgentSpecRbacConfig used to check if a RbacConfig is defaulted
 // returns true if yes, else false
-func IsDefaultedDatadogAgentDeploymentSpecRbacConfig(rbac *RbacConfig) bool {
+func IsDefaultedDatadogAgentSpecRbacConfig(rbac *RbacConfig) bool {
 	if rbac == nil {
 		return false
 	}
@@ -215,10 +215,10 @@ func IsDefaultedDatadogAgentDeploymentSpecRbacConfig(rbac *RbacConfig) bool {
 	return true
 }
 
-// IsDefaultedDatadogAgentDeploymentSpecDatadogAgentDeploymentStrategy used to check if a
+// IsDefaultedDatadogAgentSpecDatadogAgentStrategy used to check if a
 // DaemonSetDeploymentStrategy was already defaulted
 // returns true if yes, else false
-func IsDefaultedDatadogAgentDeploymentSpecDatadogAgentDeploymentStrategy(strategy *DaemonSetDeploymentStrategy) bool {
+func IsDefaultedDatadogAgentSpecDatadogAgentStrategy(strategy *DaemonSetDeploymentStrategy) bool {
 	if strategy == nil {
 		return false
 	}
@@ -262,9 +262,9 @@ func IsDefaultedDatadogAgentDeploymentSpecDatadogAgentDeploymentStrategy(strateg
 	return true
 }
 
-// IsDefaultedDatadogAgentDeploymentSpecApm used to check if an APMSpec was already defaulted
+// IsDefaultedDatadogAgentSpecApm used to check if an APMSpec was already defaulted
 // returns true if yes, else false
-func IsDefaultedDatadogAgentDeploymentSpecApm(apm *APMSpec) bool {
+func IsDefaultedDatadogAgentSpecApm(apm *APMSpec) bool {
 	if apm == nil {
 		return false
 	}
@@ -276,9 +276,9 @@ func IsDefaultedDatadogAgentDeploymentSpecApm(apm *APMSpec) bool {
 	return true
 }
 
-// IsDefaultedDatadogAgentDeploymentSpecLog used to check if an LogSpec was already defaulted
+// IsDefaultedDatadogAgentSpecLog used to check if an LogSpec was already defaulted
 // returns true if yes, else false
-func IsDefaultedDatadogAgentDeploymentSpecLog(log *LogSpec) bool {
+func IsDefaultedDatadogAgentSpecLog(log *LogSpec) bool {
 	if log == nil {
 		return false
 	}
@@ -298,9 +298,9 @@ func IsDefaultedDatadogAgentDeploymentSpecLog(log *LogSpec) bool {
 	return true
 }
 
-// IsDefaultedDatadogAgentDeploymentSpecProcess used to check if an ProcessSpec was already defaulted
+// IsDefaultedDatadogAgentSpecProcess used to check if an ProcessSpec was already defaulted
 // returns true if yes, else false
-func IsDefaultedDatadogAgentDeploymentSpecProcess(process *ProcessSpec) bool {
+func IsDefaultedDatadogAgentSpecProcess(process *ProcessSpec) bool {
 	if process == nil {
 		return false
 	}
@@ -312,61 +312,61 @@ func IsDefaultedDatadogAgentDeploymentSpecProcess(process *ProcessSpec) bool {
 	return true
 }
 
-// IsDefaultedDatadogAgentDeploymentSpecClusterAgentConfig used to check if
+// IsDefaultedDatadogAgentSpecClusterAgentConfig used to check if
 // a ClusterAgentConfig was already defaulted
 // returns true if yes, else false
-func IsDefaultedDatadogAgentDeploymentSpecClusterAgentConfig(config *ClusterAgentConfig) bool {
+func IsDefaultedDatadogAgentSpecClusterAgentConfig(config *ClusterAgentConfig) bool {
 	return config != nil
 }
 
-// IsDefaultedDatadogAgentDeploymentSpecClusterChecksRunnerConfig used to check if
+// IsDefaultedDatadogAgentSpecClusterChecksRunnerConfig used to check if
 // a ClusterChecksRunnerConfig was already defaulted
 // returns true if yes, else false
-func IsDefaultedDatadogAgentDeploymentSpecClusterChecksRunnerConfig(config *ClusterChecksRunnerConfig) bool {
+func IsDefaultedDatadogAgentSpecClusterChecksRunnerConfig(config *ClusterChecksRunnerConfig) bool {
 	return config != nil
 }
 
-// DefaultDatadogAgentDeployment used to default an DatadogAgentDeployment
-// return the defaulted DatadogAgentDeployment
-func DefaultDatadogAgentDeployment(ad *DatadogAgentDeployment) *DatadogAgentDeployment {
+// DefaultDatadogAgent used to default an DatadogAgent
+// return the defaulted DatadogAgent
+func DefaultDatadogAgent(ad *DatadogAgent) *DatadogAgent {
 	defaultedAD := ad.DeepCopy()
 	if defaultedAD.Spec.Agent != nil {
-		defaultedAD.Spec.Agent = DefaultDatadogAgentDeploymentSpecAgent(defaultedAD.Spec.Agent)
+		defaultedAD.Spec.Agent = DefaultDatadogAgentSpecAgent(defaultedAD.Spec.Agent)
 	}
 
 	if defaultedAD.Spec.ClusterAgent != nil {
-		defaultedAD.Spec.ClusterAgent = DefaultDatadogAgentDeploymentSpecClusterAgent(defaultedAD.Spec.ClusterAgent)
+		defaultedAD.Spec.ClusterAgent = DefaultDatadogAgentSpecClusterAgent(defaultedAD.Spec.ClusterAgent)
 		if BoolValue(defaultedAD.Spec.ClusterAgent.Config.ClusterChecksRunnerEnabled) && ad.Spec.ClusterChecksRunner == nil {
-			defaultedAD.Spec.ClusterChecksRunner = &DatadogAgentDeploymentSpecClusterChecksRunnerSpec{}
+			defaultedAD.Spec.ClusterChecksRunner = &DatadogAgentSpecClusterChecksRunnerSpec{}
 		}
 	}
 
 	if defaultedAD.Spec.ClusterChecksRunner != nil {
-		defaultedAD.Spec.ClusterChecksRunner = DefaultDatadogAgentDeploymentSpecClusterChecksRunner(defaultedAD.Spec.ClusterChecksRunner)
+		defaultedAD.Spec.ClusterChecksRunner = DefaultDatadogAgentSpecClusterChecksRunner(defaultedAD.Spec.ClusterChecksRunner)
 	}
 
 	return defaultedAD
 }
 
-// DefaultDatadogAgentDeploymentSpecAgent used to default an DatadogAgentDeploymentSpecAgentSpec
-// return the defaulted DatadogAgentDeploymentSpecAgentSpec
-func DefaultDatadogAgentDeploymentSpecAgent(agent *DatadogAgentDeploymentSpecAgentSpec) *DatadogAgentDeploymentSpecAgentSpec {
+// DefaultDatadogAgentSpecAgent used to default an DatadogAgentSpecAgentSpec
+// return the defaulted DatadogAgentSpecAgentSpec
+func DefaultDatadogAgentSpecAgent(agent *DatadogAgentSpecAgentSpec) *DatadogAgentSpecAgentSpec {
 	if agent.UseExtendedDaemonset == nil {
 		agent.UseExtendedDaemonset = NewBoolPointer(false)
 	}
-	DefaultDatadogAgentDeploymentSpecAgentImage(&agent.Image)
-	DefaultDatadogAgentDeploymentSpecAgentConfig(&agent.Config)
-	DefaultDatadogAgentDeploymentSpecRbacConfig(&agent.Rbac)
-	agent.DeploymentStrategy = DefaultDatadogAgentDeploymentSpecDatadogAgentDeploymentStrategy(agent.DeploymentStrategy)
-	DefaultDatadogAgentDeploymentSpecAgentApm(&agent.Apm)
-	DefaultDatadogAgentDeploymentSpecAgentLog(&agent.Log)
-	DefaultDatadogAgentDeploymentSpecAgentProcess(&agent.Process)
+	DefaultDatadogAgentSpecAgentImage(&agent.Image)
+	DefaultDatadogAgentSpecAgentConfig(&agent.Config)
+	DefaultDatadogAgentSpecRbacConfig(&agent.Rbac)
+	agent.DeploymentStrategy = DefaultDatadogAgentSpecDatadogAgentStrategy(agent.DeploymentStrategy)
+	DefaultDatadogAgentSpecAgentApm(&agent.Apm)
+	DefaultDatadogAgentSpecAgentLog(&agent.Log)
+	DefaultDatadogAgentSpecAgentProcess(&agent.Process)
 	return agent
 }
 
-// DefaultDatadogAgentDeploymentSpecAgentImage used to default a ImageConfig
+// DefaultDatadogAgentSpecAgentImage used to default a ImageConfig
 // return the defaulted ImageConfig
-func DefaultDatadogAgentDeploymentSpecAgentImage(image *ImageConfig) *ImageConfig {
+func DefaultDatadogAgentSpecAgentImage(image *ImageConfig) *ImageConfig {
 	if image == nil {
 		image = &ImageConfig{}
 	}
@@ -386,9 +386,9 @@ func DefaultDatadogAgentDeploymentSpecAgentImage(image *ImageConfig) *ImageConfi
 	return image
 }
 
-// DefaultDatadogAgentDeploymentSpecAgentConfig used to default a NodeAgentConfig
+// DefaultDatadogAgentSpecAgentConfig used to default a NodeAgentConfig
 // return the defaulted NodeAgentConfig
-func DefaultDatadogAgentDeploymentSpecAgentConfig(config *NodeAgentConfig) *NodeAgentConfig {
+func DefaultDatadogAgentSpecAgentConfig(config *NodeAgentConfig) *NodeAgentConfig {
 	if config == nil {
 		config = &NodeAgentConfig{}
 	}
@@ -442,9 +442,9 @@ func DefaultDatadogAgentDeploymentSpecAgentConfig(config *NodeAgentConfig) *Node
 	return config
 }
 
-// DefaultDatadogAgentDeploymentSpecRbacConfig used to default a RbacConfig
+// DefaultDatadogAgentSpecRbacConfig used to default a RbacConfig
 // return the defaulted RbacConfig
-func DefaultDatadogAgentDeploymentSpecRbacConfig(rbac *RbacConfig) *RbacConfig {
+func DefaultDatadogAgentSpecRbacConfig(rbac *RbacConfig) *RbacConfig {
 	if rbac == nil {
 		rbac = &RbacConfig{}
 	}
@@ -456,9 +456,9 @@ func DefaultDatadogAgentDeploymentSpecRbacConfig(rbac *RbacConfig) *RbacConfig {
 	return rbac
 }
 
-// DefaultDatadogAgentDeploymentSpecDatadogAgentDeploymentStrategy used to default a DaemonSetDeploymentStrategy
+// DefaultDatadogAgentSpecDatadogAgentStrategy used to default a DaemonSetDeploymentStrategy
 // return the defaulted DaemonSetDeploymentStrategy
-func DefaultDatadogAgentDeploymentSpecDatadogAgentDeploymentStrategy(strategy *DaemonSetDeploymentStrategy) *DaemonSetDeploymentStrategy {
+func DefaultDatadogAgentSpecDatadogAgentStrategy(strategy *DaemonSetDeploymentStrategy) *DaemonSetDeploymentStrategy {
 	if strategy == nil {
 		strategy = &DaemonSetDeploymentStrategy{}
 	}
@@ -524,9 +524,9 @@ func DefaultDatadogAgentDeploymentSpecDatadogAgentDeploymentStrategy(strategy *D
 	return strategy
 }
 
-// DefaultDatadogAgentDeploymentSpecAgentApm used to default an APMSpec
+// DefaultDatadogAgentSpecAgentApm used to default an APMSpec
 // return the defaulted APMSpec
-func DefaultDatadogAgentDeploymentSpecAgentApm(apm *APMSpec) *APMSpec {
+func DefaultDatadogAgentSpecAgentApm(apm *APMSpec) *APMSpec {
 	if apm == nil {
 		apm = &APMSpec{}
 	}
@@ -538,9 +538,9 @@ func DefaultDatadogAgentDeploymentSpecAgentApm(apm *APMSpec) *APMSpec {
 	return apm
 }
 
-// DefaultDatadogAgentDeploymentSpecAgentLog used to default an LogSpec
+// DefaultDatadogAgentSpecAgentLog used to default an LogSpec
 // return the defaulted LogSpec
-func DefaultDatadogAgentDeploymentSpecAgentLog(log *LogSpec) *LogSpec {
+func DefaultDatadogAgentSpecAgentLog(log *LogSpec) *LogSpec {
 	if log == nil {
 		log = &LogSpec{}
 	}
@@ -560,9 +560,9 @@ func DefaultDatadogAgentDeploymentSpecAgentLog(log *LogSpec) *LogSpec {
 	return log
 }
 
-// DefaultDatadogAgentDeploymentSpecAgentProcess used to default an ProcessSpec
+// DefaultDatadogAgentSpecAgentProcess used to default an ProcessSpec
 // return the defaulted ProcessSpec
-func DefaultDatadogAgentDeploymentSpecAgentProcess(process *ProcessSpec) *ProcessSpec {
+func DefaultDatadogAgentSpecAgentProcess(process *ProcessSpec) *ProcessSpec {
 	if process == nil {
 		process = &ProcessSpec{}
 	}
@@ -574,21 +574,21 @@ func DefaultDatadogAgentDeploymentSpecAgentProcess(process *ProcessSpec) *Proces
 	return process
 }
 
-// DefaultDatadogAgentDeploymentSpecClusterAgent used to default an DatadogAgentDeploymentSpecClusterAgentSpec
-// return the defaulted DatadogAgentDeploymentSpecClusterAgentSpec
-func DefaultDatadogAgentDeploymentSpecClusterAgent(clusterAgent *DatadogAgentDeploymentSpecClusterAgentSpec) *DatadogAgentDeploymentSpecClusterAgentSpec {
-	DefaultDatadogAgentDeploymentSpecClusterAgentImage(&clusterAgent.Image)
-	DefaultDatadogAgentDeploymentSpecClusterAgentConfig(&clusterAgent.Config)
-	DefaultDatadogAgentDeploymentSpecRbacConfig(&clusterAgent.Rbac)
+// DefaultDatadogAgentSpecClusterAgent used to default an DatadogAgentSpecClusterAgentSpec
+// return the defaulted DatadogAgentSpecClusterAgentSpec
+func DefaultDatadogAgentSpecClusterAgent(clusterAgent *DatadogAgentSpecClusterAgentSpec) *DatadogAgentSpecClusterAgentSpec {
+	DefaultDatadogAgentSpecClusterAgentImage(&clusterAgent.Image)
+	DefaultDatadogAgentSpecClusterAgentConfig(&clusterAgent.Config)
+	DefaultDatadogAgentSpecRbacConfig(&clusterAgent.Rbac)
 	if clusterAgent.Replicas == nil {
 		clusterAgent.Replicas = NewInt32Pointer(defaultClusterAgentReplicas)
 	}
 	return clusterAgent
 }
 
-// DefaultDatadogAgentDeploymentSpecClusterAgentConfig used to default an ClusterAgentConfig
+// DefaultDatadogAgentSpecClusterAgentConfig used to default an ClusterAgentConfig
 // return the defaulted ClusterAgentConfig
-func DefaultDatadogAgentDeploymentSpecClusterAgentConfig(config *ClusterAgentConfig) *ClusterAgentConfig {
+func DefaultDatadogAgentSpecClusterAgentConfig(config *ClusterAgentConfig) *ClusterAgentConfig {
 	if config == nil {
 		config = &ClusterAgentConfig{}
 	}
@@ -604,9 +604,9 @@ func DefaultDatadogAgentDeploymentSpecClusterAgentConfig(config *ClusterAgentCon
 	return config
 }
 
-// DefaultDatadogAgentDeploymentSpecClusterAgentImage used to default ImageConfig for the Datadog Cluster Agent
+// DefaultDatadogAgentSpecClusterAgentImage used to default ImageConfig for the Datadog Cluster Agent
 // return the defaulted ImageConfig
-func DefaultDatadogAgentDeploymentSpecClusterAgentImage(image *ImageConfig) *ImageConfig {
+func DefaultDatadogAgentSpecClusterAgentImage(image *ImageConfig) *ImageConfig {
 	if image == nil {
 		image = &ImageConfig{}
 	}
@@ -626,21 +626,21 @@ func DefaultDatadogAgentDeploymentSpecClusterAgentImage(image *ImageConfig) *Ima
 	return image
 }
 
-// DefaultDatadogAgentDeploymentSpecClusterChecksRunner used to default an DatadogAgentDeploymentSpecClusterChecksRunnerSpec
-// return the defaulted DatadogAgentDeploymentSpecClusterChecksRunnerSpec
-func DefaultDatadogAgentDeploymentSpecClusterChecksRunner(ClusterChecksRunner *DatadogAgentDeploymentSpecClusterChecksRunnerSpec) *DatadogAgentDeploymentSpecClusterChecksRunnerSpec {
-	DefaultDatadogAgentDeploymentSpecClusterChecksRunnerImage(&ClusterChecksRunner.Image)
-	DefaultDatadogAgentDeploymentSpecClusterChecksRunnerConfig(&ClusterChecksRunner.Config)
-	DefaultDatadogAgentDeploymentSpecRbacConfig(&ClusterChecksRunner.Rbac)
+// DefaultDatadogAgentSpecClusterChecksRunner used to default an DatadogAgentSpecClusterChecksRunnerSpec
+// return the defaulted DatadogAgentSpecClusterChecksRunnerSpec
+func DefaultDatadogAgentSpecClusterChecksRunner(ClusterChecksRunner *DatadogAgentSpecClusterChecksRunnerSpec) *DatadogAgentSpecClusterChecksRunnerSpec {
+	DefaultDatadogAgentSpecClusterChecksRunnerImage(&ClusterChecksRunner.Image)
+	DefaultDatadogAgentSpecClusterChecksRunnerConfig(&ClusterChecksRunner.Config)
+	DefaultDatadogAgentSpecRbacConfig(&ClusterChecksRunner.Rbac)
 	if ClusterChecksRunner.Replicas == nil {
 		ClusterChecksRunner.Replicas = NewInt32Pointer(defaultClusterChecksRunnerReplicas)
 	}
 	return ClusterChecksRunner
 }
 
-// DefaultDatadogAgentDeploymentSpecClusterChecksRunnerConfig used to default an ClusterChecksRunnerConfig
+// DefaultDatadogAgentSpecClusterChecksRunnerConfig used to default an ClusterChecksRunnerConfig
 // return the defaulted ClusterChecksRunnerConfig
-func DefaultDatadogAgentDeploymentSpecClusterChecksRunnerConfig(config *ClusterChecksRunnerConfig) *ClusterChecksRunnerConfig {
+func DefaultDatadogAgentSpecClusterChecksRunnerConfig(config *ClusterChecksRunnerConfig) *ClusterChecksRunnerConfig {
 	if config == nil {
 		config = &ClusterChecksRunnerConfig{}
 	}
@@ -648,9 +648,9 @@ func DefaultDatadogAgentDeploymentSpecClusterChecksRunnerConfig(config *ClusterC
 	return config
 }
 
-// DefaultDatadogAgentDeploymentSpecClusterChecksRunnerImage used to default ImageConfig for the Datadog Cluster Agent
+// DefaultDatadogAgentSpecClusterChecksRunnerImage used to default ImageConfig for the Datadog Cluster Agent
 // return the defaulted ImageConfig
-func DefaultDatadogAgentDeploymentSpecClusterChecksRunnerImage(image *ImageConfig) *ImageConfig {
+func DefaultDatadogAgentSpecClusterChecksRunnerImage(image *ImageConfig) *ImageConfig {
 	if image == nil {
 		image = &ImageConfig{}
 	}

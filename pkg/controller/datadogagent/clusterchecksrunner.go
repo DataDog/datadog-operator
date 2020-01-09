@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-2019 Datadog, Inc.
 
-package datadogagentdeployment
+package datadogagent
 
 import (
 	"context"
@@ -25,56 +25,56 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 )
 
-func (r *ReconcileDatadogAgentDeployment) reconcileClusterChecksRunner(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment, newStatus *datadoghqv1alpha1.DatadogAgentDeploymentStatus) (reconcile.Result, error) {
-	result, err := r.manageClusterChecksRunnerDependencies(logger, dad, newStatus)
+func (r *ReconcileDatadogAgent) reconcileClusterChecksRunner(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
+	result, err := r.manageClusterChecksRunnerDependencies(logger, dda, newStatus)
 	if shouldReturn(result, err) {
 		return result, err
 	}
 
-	if !needClusterChecksRunner(dad) {
-		return r.cleanupClusterChecksRunner(logger, dad, newStatus)
+	if !needClusterChecksRunner(dda) {
+		return r.cleanupClusterChecksRunner(logger, dda, newStatus)
 	}
 
 	if newStatus.ClusterChecksRunner != nil &&
 		newStatus.ClusterChecksRunner.DeploymentName != "" &&
-		newStatus.ClusterChecksRunner.DeploymentName != getClusterChecksRunnerName(dad) {
+		newStatus.ClusterChecksRunner.DeploymentName != getClusterChecksRunnerName(dda) {
 		return result, fmt.Errorf("Datadog cluster checks runner Deployment cannot be renamed once created")
 	}
 
 	nsName := types.NamespacedName{
-		Name:      getClusterChecksRunnerName(dad),
-		Namespace: dad.Namespace,
+		Name:      getClusterChecksRunnerName(dda),
+		Namespace: dda.Namespace,
 	}
 	// ClusterChecksRunnerDeployment attached to this instance
 	ClusterChecksRunnerDeployment := &appsv1.Deployment{}
-	if needClusterChecksRunner(dad) {
+	if needClusterChecksRunner(dda) {
 		err := r.client.Get(context.TODO(), nsName, ClusterChecksRunnerDeployment)
 		if err != nil {
 			if errors.IsNotFound(err) {
 				logger.Info("ClusterChecksRunner deployment not found", "name", nsName.Name, "namespace", nsName.Namespace)
 				// Create and attach a ClusterChecksRunner Deployment
 				var result reconcile.Result
-				result, err = r.createNewClusterChecksRunnerDeployment(logger, dad, newStatus)
+				result, err = r.createNewClusterChecksRunnerDeployment(logger, dda, newStatus)
 				return result, err
 			}
 			return reconcile.Result{}, err
 		}
 
-		result, err := r.updateClusterChecksRunnerDeployment(logger, dad, ClusterChecksRunnerDeployment, newStatus)
+		result, err := r.updateClusterChecksRunnerDeployment(logger, dda, ClusterChecksRunnerDeployment, newStatus)
 		return result, err
 	}
 	return reconcile.Result{}, nil
 }
 
-func needClusterChecksRunner(dad *datadoghqv1alpha1.DatadogAgentDeployment) bool {
-	if dad.Spec.ClusterAgent != nil && datadoghqv1alpha1.BoolValue(dad.Spec.ClusterAgent.Config.ClusterChecksRunnerEnabled) {
+func needClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) bool {
+	if dda.Spec.ClusterAgent != nil && datadoghqv1alpha1.BoolValue(dda.Spec.ClusterAgent.Config.ClusterChecksRunnerEnabled) {
 		return true
 	}
 
 	return false
 }
 
-func (r *ReconcileDatadogAgentDeployment) createNewClusterChecksRunnerDeployment(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment, newStatus *datadoghqv1alpha1.DatadogAgentDeploymentStatus) (reconcile.Result, error) {
+func (r *ReconcileDatadogAgent) createNewClusterChecksRunnerDeployment(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
 	newDCAW, hash, err := newClusterChecksRunnerDeploymentFromInstance(logger, agentdeployment, newStatus, nil)
 	if err != nil {
 		return reconcile.Result{}, err
@@ -85,7 +85,7 @@ func (r *ReconcileDatadogAgentDeployment) createNewClusterChecksRunnerDeployment
 		return reconcile.Result{}, err
 	}
 	logger.Info("Creating a new Cluster Checks Runner Deployment", "deployment.Namespace", newDCAW.Namespace, "deployment.Name", newDCAW.Name, "agentdeployment.Status.ClusterAgent.CurrentHash", hash)
-	newStatus.ClusterChecksRunner = &datadoghqv1alpha1.DatadogAgentDeploymentDeploymentStatus{}
+	newStatus.ClusterChecksRunner = &datadoghqv1alpha1.DeploymentStatus{}
 	err = r.client.Create(context.TODO(), newDCAW)
 	now := metav1.NewTime(time.Now())
 	if err != nil {
@@ -99,11 +99,11 @@ func (r *ReconcileDatadogAgentDeployment) createNewClusterChecksRunnerDeployment
 	return reconcile.Result{}, nil
 }
 
-func updateStatusWithClusterChecksRunner(dcaw *appsv1.Deployment, newStatus *datadoghqv1alpha1.DatadogAgentDeploymentStatus, updateTime *metav1.Time) {
+func updateStatusWithClusterChecksRunner(dcaw *appsv1.Deployment, newStatus *datadoghqv1alpha1.DatadogAgentStatus, updateTime *metav1.Time) {
 	newStatus.ClusterChecksRunner = updateDeploymentStatus(dcaw, newStatus.ClusterChecksRunner, updateTime)
 }
 
-func (r *ReconcileDatadogAgentDeployment) updateClusterChecksRunnerDeployment(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment, dep *appsv1.Deployment, newStatus *datadoghqv1alpha1.DatadogAgentDeploymentStatus) (reconcile.Result, error) {
+func (r *ReconcileDatadogAgent) updateClusterChecksRunnerDeployment(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgent, dep *appsv1.Deployment, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
 	newDCAW, hash, err := newClusterChecksRunnerDeploymentFromInstance(logger, agentdeployment, newStatus, dep.Spec.Selector)
 	if err != nil {
 		return reconcile.Result{}, err
@@ -122,7 +122,7 @@ func (r *ReconcileDatadogAgentDeployment) updateClusterChecksRunnerDeployment(lo
 
 	logger.Info("update Cluster Checks Runner deployment", "name", dep.Name, "namespace", dep.Namespace)
 
-	// Set DatadogAgentDeployment instance  instance as the owner and controller
+	// Set DatadogAgent instance  instance as the owner and controller
 	if err = controllerutil.SetControllerReference(agentdeployment, dep, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
@@ -149,10 +149,10 @@ func (r *ReconcileDatadogAgentDeployment) updateClusterChecksRunnerDeployment(lo
 	return reconcile.Result{}, nil
 }
 
-// newClusterAgentDeploymentFromInstance creates a Cluster Agent Deployment from a given DatadogAgentDeployment
+// newClusterAgentDeploymentFromInstance creates a Cluster Agent Deployment from a given DatadogAgent
 func newClusterChecksRunnerDeploymentFromInstance(logger logr.Logger,
-	agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment,
-	newStatus *datadoghqv1alpha1.DatadogAgentDeploymentStatus,
+	agentdeployment *datadoghqv1alpha1.DatadogAgent,
+	newStatus *datadoghqv1alpha1.DatadogAgentStatus,
 	selector *metav1.LabelSelector) (*appsv1.Deployment, string, error) {
 	labels := map[string]string{
 		datadoghqv1alpha1.AgentDeploymentNameLabelKey:      agentdeployment.Name,
@@ -200,22 +200,22 @@ func newClusterChecksRunnerDeploymentFromInstance(logger logr.Logger,
 	return dca, hash, err
 }
 
-func (r *ReconcileDatadogAgentDeployment) manageClusterChecksRunnerDependencies(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment, newStatus *datadoghqv1alpha1.DatadogAgentDeploymentStatus) (reconcile.Result, error) {
-	result, err := r.manageClusterChecksRunnerPDB(logger, dad, newStatus)
+func (r *ReconcileDatadogAgent) manageClusterChecksRunnerDependencies(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
+	result, err := r.manageClusterChecksRunnerPDB(logger, dda, newStatus)
 	if shouldReturn(result, err) {
 		return result, err
 	}
-	result, err = r.manageClusterChecksRunnerRBACs(logger, dad)
+	result, err = r.manageClusterChecksRunnerRBACs(logger, dda)
 	if shouldReturn(result, err) {
 		return result, err
 	}
 	return reconcile.Result{}, nil
 }
 
-func (r *ReconcileDatadogAgentDeployment) cleanupClusterChecksRunner(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment, newStatus *datadoghqv1alpha1.DatadogAgentDeploymentStatus) (reconcile.Result, error) {
+func (r *ReconcileDatadogAgent) cleanupClusterChecksRunner(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
 	nsName := types.NamespacedName{
-		Name:      getClusterChecksRunnerName(dad),
-		Namespace: dad.Namespace,
+		Name:      getClusterChecksRunnerName(dda),
+		Namespace: dda.Namespace,
 	}
 	// ClusterChecksRunnerDeployment attached to this instance
 	ClusterChecksRunnerDeployment := &appsv1.Deployment{}
@@ -227,7 +227,7 @@ func (r *ReconcileDatadogAgentDeployment) cleanupClusterChecksRunner(logger logr
 	}
 	logger.Info("Deleting Cluster Checks Runner Deployment", "deployment.Namespace", ClusterChecksRunnerDeployment.Namespace, "deployment.Name", ClusterChecksRunnerDeployment.Name)
 	eventInfo := buildEventInfo(ClusterChecksRunnerDeployment.Name, ClusterChecksRunnerDeployment.Namespace, deploymentKind, datadog.DeletionEvent)
-	r.recordEvent(dad, eventInfo)
+	r.recordEvent(dda, eventInfo)
 	if err := r.client.Delete(context.TODO(), ClusterChecksRunnerDeployment); err != nil {
 		return reconcile.Result{}, err
 	}
@@ -236,7 +236,7 @@ func (r *ReconcileDatadogAgentDeployment) cleanupClusterChecksRunner(logger logr
 }
 
 // newClusterChecksRunnerPodTemplate generates a PodTemplate from a DatadogClusterChecksRunnerDeployment spec
-func newClusterChecksRunnerPodTemplate(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgentDeployment, labels, annotations map[string]string) corev1.PodTemplateSpec {
+func newClusterChecksRunnerPodTemplate(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgent, labels, annotations map[string]string) corev1.PodTemplateSpec {
 	// copy Spec to configure the Cluster Checks Runner Pod Template
 	ClusterChecksRunnerSpec := agentdeployment.Spec.ClusterChecksRunner.DeepCopy()
 
@@ -292,8 +292,8 @@ func newClusterChecksRunnerPodTemplate(logger logr.Logger, agentdeployment *data
 }
 
 // getEnvVarsForClusterChecksRunner converts Cluster Checks Runner Config into container env vars
-func getEnvVarsForClusterChecksRunner(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment) []corev1.EnvVar {
-	spec := &dad.Spec
+func getEnvVarsForClusterChecksRunner(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) []corev1.EnvVar {
+	spec := &dda.Spec
 	envVars := []corev1.EnvVar{
 		{
 			Name:  datadoghqv1alpha1.DDClusterName,
@@ -313,11 +313,11 @@ func getEnvVarsForClusterChecksRunner(logger logr.Logger, dad *datadoghqv1alpha1
 		},
 		{
 			Name:  datadoghqv1alpha1.DDClusterAgentKubeServiceName,
-			Value: getClusterAgentServiceName(dad),
+			Value: getClusterAgentServiceName(dda),
 		},
 		{
 			Name:      datadoghqv1alpha1.DDClusterAgentAuthToken,
-			ValueFrom: getClusterAgentAuthToken(dad),
+			ValueFrom: getClusterAgentAuthToken(dda),
 		},
 		{
 			Name:  datadoghqv1alpha1.DDExtraConfigProviders,
@@ -355,7 +355,7 @@ func getEnvVarsForClusterChecksRunner(logger logr.Logger, dad *datadoghqv1alpha1
 	if spec.Credentials.APIKeyExistingSecret != "" {
 		envVars = append(envVars, corev1.EnvVar{
 			Name:      datadoghqv1alpha1.DDAPIKey,
-			ValueFrom: getAPIKeyFromSecret(dad),
+			ValueFrom: getAPIKeyFromSecret(dda),
 		})
 	} else {
 		envVars = append(envVars, corev1.EnvVar{
@@ -367,14 +367,14 @@ func getEnvVarsForClusterChecksRunner(logger logr.Logger, dad *datadoghqv1alpha1
 	return append(envVars, spec.Agent.Config.Env...)
 }
 
-func getClusterChecksRunnerVersion(dad *datadoghqv1alpha1.DatadogAgentDeployment) string {
+func getClusterChecksRunnerVersion(dda *datadoghqv1alpha1.DatadogAgent) string {
 	// TODO implement this method
 	return ""
 }
 
-func getClusterChecksRunnerName(dad *datadoghqv1alpha1.DatadogAgentDeployment) string {
-	if dad.Spec.ClusterChecksRunner != nil && dad.Spec.ClusterChecksRunner.DeploymentName != "" {
-		return dad.Spec.ClusterChecksRunner.DeploymentName
+func getClusterChecksRunnerName(dda *datadoghqv1alpha1.DatadogAgent) string {
+	if dda.Spec.ClusterChecksRunner != nil && dda.Spec.ClusterChecksRunner.DeploymentName != "" {
+		return dda.Spec.ClusterChecksRunner.DeploymentName
 	}
-	return fmt.Sprintf("%s-%s", dad.Name, "cluster-checks-runner")
+	return fmt.Sprintf("%s-%s", dda.Name, "cluster-checks-runner")
 }

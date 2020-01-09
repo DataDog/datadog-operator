@@ -1,7 +1,7 @@
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  name: datadogagentdeployments.datadoghq.com
+  name: datadogagents.datadoghq.com
 spec:
   additionalPrinterColumns:
   - JSONPath: .status.conditions[?(@.type=='Active')].status
@@ -21,18 +21,18 @@ spec:
     type: date
   group: datadoghq.com
   names:
-    kind: DatadogAgentDeployment
-    listKind: DatadogAgentDeploymentList
-    plural: datadogagentdeployments
+    kind: DatadogAgent
+    listKind: DatadogAgentList
+    plural: datadogagents
     shortNames:
-    - dad
-    singular: datadogagentdeployment
+    - dd
+    singular: datadogagent
   scope: Namespaced
   subresources:
     status: {}
   validation:
     openAPIV3Schema:
-      description: DatadogAgentDeployment is the Schema for the agentdeployments API
+      description: DatadogAgent is the Schema for the agentdeployments API
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation
@@ -47,7 +47,7 @@ spec:
         metadata:
           type: object
         spec:
-          description: DatadogAgentDeploymentSpec defines the desired state of DatadogAgentDeployment
+          description: DatadogAgentSpec defines the desired state of DatadogAgent
           properties:
             agent:
               description: The desired state of the Agent as an extended daemonset
@@ -5136,8 +5136,7 @@ spec:
           - credentials
           type: object
         status:
-          description: DatadogAgentDeploymentStatus defines the observed state of
-            DatadogAgentDeployment
+          description: DatadogAgentStatus defines the observed state of DatadogAgent
           properties:
             agent:
               description: The actual state of the Agent as an extended daemonset
@@ -5273,10 +5272,10 @@ spec:
               type: object
             conditions:
               description: Conditions Represents the latest available observations
-                of a DatadogAgentDeployment's current state.
+                of a DatadogAgent's current state.
               items:
-                description: DatadogAgentDeploymentCondition describes the state of
-                  a DatadogAgentDeployment at a certain point.
+                description: DatadogAgentCondition describes the state of a DatadogAgent
+                  at a certain point.
                 properties:
                   lastTransitionTime:
                     description: Last time the condition transitioned from one status
@@ -5298,7 +5297,7 @@ spec:
                     description: Status of the condition, one of True, False, Unknown.
                     type: string
                   type:
-                    description: Type of DatadogAgentDeployment condition.
+                    description: Type of DatadogAgent condition.
                     type: string
                 required:
                 - status

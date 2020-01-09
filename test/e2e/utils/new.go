@@ -13,8 +13,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// NewDatadogAgentDeploymentOptions used to provide creation options to the NewDatadogAgentDeployment function
-type NewDatadogAgentDeploymentOptions struct {
+// NewDatadogAgentOptions used to provide creation options to the NewDatadogAgent function
+type NewDatadogAgentOptions struct {
 	ExtraLabels         map[string]string
 	ExtraAnnotations    map[string]string
 	ClusterAgentEnabled bool
@@ -26,20 +26,20 @@ var (
 	pullPolicy = v1.PullIfNotPresent
 )
 
-// NewDatadogAgentDeployment returns new DatadogAgentDeployment instance with is config hash
-func NewDatadogAgentDeployment(ns, name, image string, options *NewDatadogAgentDeploymentOptions) *datadoghqv1alpha1.DatadogAgentDeployment {
-	ad := &datadoghqv1alpha1.DatadogAgentDeployment{
+// NewDatadogAgent returns new DatadogAgent instance with is config hash
+func NewDatadogAgent(ns, name, image string, options *NewDatadogAgentOptions) *datadoghqv1alpha1.DatadogAgent {
+	ad := &datadoghqv1alpha1.DatadogAgent{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: ns,
 		},
 	}
-	ad.Spec = datadoghqv1alpha1.DatadogAgentDeploymentSpec{
+	ad.Spec = datadoghqv1alpha1.DatadogAgentSpec{
 		Credentials: datadoghqv1alpha1.AgentCredentials{
 			APIKey: "adflkajdflkjalkcmlkdjacsf",
 			AppKey: "sgfggtdhfghfghfghfgbdfdgs",
 		},
-		Agent: &datadoghqv1alpha1.DatadogAgentDeploymentSpecAgentSpec{
+		Agent: &datadoghqv1alpha1.DatadogAgentSpecAgentSpec{
 			Image: datadoghqv1alpha1.ImageConfig{},
 			Config: datadoghqv1alpha1.NodeAgentConfig{
 				Resources: &v1.ResourceRequirements{
@@ -66,7 +66,7 @@ func NewDatadogAgentDeployment(ns, name, image string, options *NewDatadogAgentD
 			Process:            datadoghqv1alpha1.ProcessSpec{},
 		},
 	}
-	ad = datadoghqv1alpha1.DefaultDatadogAgentDeployment(ad)
+	ad = datadoghqv1alpha1.DefaultDatadogAgent(ad)
 	ad.Spec.Agent.Image = datadoghqv1alpha1.ImageConfig{
 		Name:        image,
 		PullPolicy:  &pullPolicy,
@@ -102,7 +102,7 @@ func NewDatadogAgentDeployment(ns, name, image string, options *NewDatadogAgentD
 		}
 
 		if options.ClusterAgentEnabled {
-			ad.Spec.ClusterAgent = &datadoghqv1alpha1.DatadogAgentDeploymentSpecClusterAgentSpec{
+			ad.Spec.ClusterAgent = &datadoghqv1alpha1.DatadogAgentSpecClusterAgentSpec{
 				Config: datadoghqv1alpha1.ClusterAgentConfig{},
 				Image: datadoghqv1alpha1.ImageConfig{
 					Name:        image,

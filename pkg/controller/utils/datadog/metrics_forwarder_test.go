@@ -67,7 +67,7 @@ func TestMetricsForwarder_sendStatusMetrics(t *testing.T) {
 	tests := []struct {
 		name     string
 		loadFunc func() (*metricsForwarder, *fakeMetricsForwarder)
-		status   *datadoghqv1alpha1.DatadogAgentDeploymentStatus
+		status   *datadoghqv1alpha1.DatadogAgentStatus
 		wantErr  bool
 		wantFunc func(*fakeMetricsForwarder) error
 	}{
@@ -76,7 +76,7 @@ func TestMetricsForwarder_sendStatusMetrics(t *testing.T) {
 			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				return mf, fmf
 			},
-			status:  &datadoghqv1alpha1.DatadogAgentDeploymentStatus{},
+			status:  &datadoghqv1alpha1.DatadogAgentStatus{},
 			wantErr: false,
 			wantFunc: func(f *fakeMetricsForwarder) error {
 				if !f.AssertNumberOfCalls(t, "delegatedSendDeploymentMetric", 0) {
@@ -107,11 +107,11 @@ func TestMetricsForwarder_sendStatusMetrics(t *testing.T) {
 				mf.delegator = f
 				return mf, f
 			},
-			status: &datadoghqv1alpha1.DatadogAgentDeploymentStatus{
-				Agent: &datadoghqv1alpha1.DatadogAgentDeploymentAgentStatus{
+			status: &datadoghqv1alpha1.DatadogAgentStatus{
+				Agent: &datadoghqv1alpha1.DaemonSetStatus{
 					Desired:   int32(1337),
 					Available: int32(1337),
-					State:     string(datadoghqv1alpha1.DatadogAgentDeploymentStateRunning),
+					State:     string(datadoghqv1alpha1.DatadogAgentStateRunning),
 				},
 			},
 			wantErr: false,
@@ -134,11 +134,11 @@ func TestMetricsForwarder_sendStatusMetrics(t *testing.T) {
 				mf.tags = []string{"cluster_name:testcluster"}
 				return mf, f
 			},
-			status: &datadoghqv1alpha1.DatadogAgentDeploymentStatus{
-				Agent: &datadoghqv1alpha1.DatadogAgentDeploymentAgentStatus{
+			status: &datadoghqv1alpha1.DatadogAgentStatus{
+				Agent: &datadoghqv1alpha1.DaemonSetStatus{
 					Desired:   int32(1337),
 					Available: int32(1337),
-					State:     string(datadoghqv1alpha1.DatadogAgentDeploymentStateRunning),
+					State:     string(datadoghqv1alpha1.DatadogAgentStateRunning),
 				},
 			},
 			wantErr: false,
@@ -161,11 +161,11 @@ func TestMetricsForwarder_sendStatusMetrics(t *testing.T) {
 				mf.tags = []string{}
 				return mf, f
 			},
-			status: &datadoghqv1alpha1.DatadogAgentDeploymentStatus{
-				Agent: &datadoghqv1alpha1.DatadogAgentDeploymentAgentStatus{
+			status: &datadoghqv1alpha1.DatadogAgentStatus{
+				Agent: &datadoghqv1alpha1.DaemonSetStatus{
 					Desired:   int32(1337),
 					Available: int32(1336),
-					State:     string(datadoghqv1alpha1.DatadogAgentDeploymentStateFailed),
+					State:     string(datadoghqv1alpha1.DatadogAgentStateFailed),
 				},
 			},
 			wantErr: false,
@@ -189,21 +189,21 @@ func TestMetricsForwarder_sendStatusMetrics(t *testing.T) {
 				mf.delegator = f
 				return mf, f
 			},
-			status: &datadoghqv1alpha1.DatadogAgentDeploymentStatus{
-				Agent: &datadoghqv1alpha1.DatadogAgentDeploymentAgentStatus{
+			status: &datadoghqv1alpha1.DatadogAgentStatus{
+				Agent: &datadoghqv1alpha1.DaemonSetStatus{
 					Desired:   int32(1337),
 					Available: int32(1337),
-					State:     string(datadoghqv1alpha1.DatadogAgentDeploymentStateRunning),
+					State:     string(datadoghqv1alpha1.DatadogAgentStateRunning),
 				},
-				ClusterAgent: &datadoghqv1alpha1.DatadogAgentDeploymentDeploymentStatus{
+				ClusterAgent: &datadoghqv1alpha1.DeploymentStatus{
 					Replicas:          int32(2),
 					AvailableReplicas: int32(2),
-					State:             string(datadoghqv1alpha1.DatadogAgentDeploymentStateRunning),
+					State:             string(datadoghqv1alpha1.DatadogAgentStateRunning),
 				},
-				ClusterChecksRunner: &datadoghqv1alpha1.DatadogAgentDeploymentDeploymentStatus{
+				ClusterChecksRunner: &datadoghqv1alpha1.DeploymentStatus{
 					Replicas:          int32(3),
 					AvailableReplicas: int32(3),
-					State:             string(datadoghqv1alpha1.DatadogAgentDeploymentStateRunning),
+					State:             string(datadoghqv1alpha1.DatadogAgentStateRunning),
 				},
 			},
 			wantErr: false,
@@ -232,16 +232,16 @@ func TestMetricsForwarder_sendStatusMetrics(t *testing.T) {
 				mf.delegator = f
 				return mf, f
 			},
-			status: &datadoghqv1alpha1.DatadogAgentDeploymentStatus{
-				Agent: &datadoghqv1alpha1.DatadogAgentDeploymentAgentStatus{
+			status: &datadoghqv1alpha1.DatadogAgentStatus{
+				Agent: &datadoghqv1alpha1.DaemonSetStatus{
 					Desired:   int32(1337),
 					Available: int32(1337),
-					State:     string(datadoghqv1alpha1.DatadogAgentDeploymentStateRunning),
+					State:     string(datadoghqv1alpha1.DatadogAgentStateRunning),
 				},
-				ClusterAgent: &datadoghqv1alpha1.DatadogAgentDeploymentDeploymentStatus{
+				ClusterAgent: &datadoghqv1alpha1.DeploymentStatus{
 					Replicas:          int32(2),
 					AvailableReplicas: int32(0),
-					State:             string(datadoghqv1alpha1.DatadogAgentDeploymentStateProgressing),
+					State:             string(datadoghqv1alpha1.DatadogAgentStateProgressing),
 				},
 			},
 			wantErr: false,
@@ -268,21 +268,21 @@ func TestMetricsForwarder_sendStatusMetrics(t *testing.T) {
 				mf.delegator = f
 				return mf, f
 			},
-			status: &datadoghqv1alpha1.DatadogAgentDeploymentStatus{
-				Agent: &datadoghqv1alpha1.DatadogAgentDeploymentAgentStatus{
+			status: &datadoghqv1alpha1.DatadogAgentStatus{
+				Agent: &datadoghqv1alpha1.DaemonSetStatus{
 					Desired:   int32(1337),
 					Available: int32(1337),
-					State:     string(datadoghqv1alpha1.DatadogAgentDeploymentStateRunning),
+					State:     string(datadoghqv1alpha1.DatadogAgentStateRunning),
 				},
-				ClusterAgent: &datadoghqv1alpha1.DatadogAgentDeploymentDeploymentStatus{
+				ClusterAgent: &datadoghqv1alpha1.DeploymentStatus{
 					Replicas:          int32(2),
 					AvailableReplicas: int32(2),
-					State:             string(datadoghqv1alpha1.DatadogAgentDeploymentStateRunning),
+					State:             string(datadoghqv1alpha1.DatadogAgentStateRunning),
 				},
-				ClusterChecksRunner: &datadoghqv1alpha1.DatadogAgentDeploymentDeploymentStatus{
+				ClusterChecksRunner: &datadoghqv1alpha1.DeploymentStatus{
 					Replicas:          int32(3),
 					AvailableReplicas: int32(1),
-					State:             string(datadoghqv1alpha1.DatadogAgentDeploymentStateRunning),
+					State:             string(datadoghqv1alpha1.DatadogAgentStateRunning),
 				},
 			},
 			wantErr: false,
@@ -430,12 +430,12 @@ func TestMetricsForwarder_updateCredsIfNeeded(t *testing.T) {
 	}
 }
 
-func TestReconcileDatadogAgentDeployment_getCredentials(t *testing.T) {
+func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 	type fields struct {
 		client client.Client
 	}
 	type args struct {
-		dad      *datadoghqv1alpha1.DatadogAgentDeployment
+		dda      *datadoghqv1alpha1.DatadogAgent
 		loadFunc func(c client.Client)
 	}
 	tests := []struct {
@@ -452,8 +452,8 @@ func TestReconcileDatadogAgentDeployment_getCredentials(t *testing.T) {
 				client: fake.NewFakeClient(),
 			},
 			args: args{
-				dad: test.NewDefaultedDatadogAgentDeployment("foo", "bar",
-					&test.NewDatadogAgentDeploymentOptions{
+				dda: test.NewDefaultedDatadogAgent("foo", "bar",
+					&test.NewDatadogAgentOptions{
 						Creds: &datadoghqv1alpha1.AgentCredentials{
 							APIKey: "foundApiKey",
 							AppKey: "foundAppKey",
@@ -469,10 +469,10 @@ func TestReconcileDatadogAgentDeployment_getCredentials(t *testing.T) {
 				client: fake.NewFakeClient(),
 			},
 			args: args{
-				dad: test.NewDefaultedDatadogAgentDeployment(
+				dda: test.NewDefaultedDatadogAgent(
 					"foo",
 					"bar",
-					&test.NewDatadogAgentDeploymentOptions{
+					&test.NewDatadogAgentOptions{
 						Creds: &datadoghqv1alpha1.AgentCredentials{
 							APIKey: "foundApiKey",
 						}}),
@@ -487,8 +487,8 @@ func TestReconcileDatadogAgentDeployment_getCredentials(t *testing.T) {
 				client: fake.NewFakeClient(),
 			},
 			args: args{
-				dad: test.NewDefaultedDatadogAgentDeployment("foo", "bar",
-					&test.NewDatadogAgentDeploymentOptions{
+				dda: test.NewDefaultedDatadogAgent("foo", "bar",
+					&test.NewDatadogAgentOptions{
 						Creds: &datadoghqv1alpha1.AgentCredentials{
 							APIKeyExistingSecret: "datadog-creds",
 							AppKeyExistingSecret: "datadog-creds",
@@ -517,8 +517,8 @@ func TestReconcileDatadogAgentDeployment_getCredentials(t *testing.T) {
 				client: fake.NewFakeClient(),
 			},
 			args: args{
-				dad: test.NewDefaultedDatadogAgentDeployment("foo", "bar",
-					&test.NewDatadogAgentDeploymentOptions{
+				dda: test.NewDefaultedDatadogAgent("foo", "bar",
+					&test.NewDatadogAgentOptions{
 						Creds: &datadoghqv1alpha1.AgentCredentials{
 							APIKey:               "foundApiKey",
 							AppKeyExistingSecret: "datadog-creds",
@@ -549,7 +549,7 @@ func TestReconcileDatadogAgentDeployment_getCredentials(t *testing.T) {
 			if tt.args.loadFunc != nil {
 				tt.args.loadFunc(dd.k8sClient)
 			}
-			apiKey, appKey, err := dd.getCredentials(tt.args.dad)
+			apiKey, appKey, err := dd.getCredentials(tt.args.dda)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("metricsForwarder.getCredentials() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -567,24 +567,24 @@ func TestReconcileDatadogAgentDeployment_getCredentials(t *testing.T) {
 func TestMetricsForwarder_setTags(t *testing.T) {
 	tests := []struct {
 		name string
-		dad  *datadoghqv1alpha1.DatadogAgentDeployment
+		dda  *datadoghqv1alpha1.DatadogAgent
 		want []string
 	}{
 		{
 			name: "nil dad",
-			dad:  nil,
+			dda:  nil,
 			want: []string{},
 		},
 		{
 			name: "empty labels",
-			dad: test.NewDefaultedDatadogAgentDeployment("foo", "bar",
-				&test.NewDatadogAgentDeploymentOptions{}),
+			dda: test.NewDefaultedDatadogAgent("foo", "bar",
+				&test.NewDatadogAgentOptions{}),
 			want: []string{},
 		},
 		{
 			name: "with labels",
-			dad: test.NewDefaultedDatadogAgentDeployment("foo", "bar",
-				&test.NewDatadogAgentDeploymentOptions{
+			dda: test.NewDefaultedDatadogAgent("foo", "bar",
+				&test.NewDatadogAgentOptions{
 					Labels: map[string]string{
 						"firstKey":  "firstValue",
 						"secondKey": "secondValue",
@@ -597,8 +597,8 @@ func TestMetricsForwarder_setTags(t *testing.T) {
 		},
 		{
 			name: "with clustername",
-			dad: test.NewDefaultedDatadogAgentDeployment("foo", "bar",
-				&test.NewDatadogAgentDeploymentOptions{
+			dda: test.NewDefaultedDatadogAgent("foo", "bar",
+				&test.NewDatadogAgentOptions{
 					ClusterName: datadoghqv1alpha1.NewStringPointer("testcluster"),
 				}),
 			want: []string{
@@ -607,8 +607,8 @@ func TestMetricsForwarder_setTags(t *testing.T) {
 		},
 		{
 			name: "with clustername and labels",
-			dad: test.NewDefaultedDatadogAgentDeployment("foo", "bar",
-				&test.NewDatadogAgentDeploymentOptions{
+			dda: test.NewDefaultedDatadogAgent("foo", "bar",
+				&test.NewDatadogAgentOptions{
 					ClusterName: datadoghqv1alpha1.NewStringPointer("testcluster"),
 					Labels: map[string]string{
 						"firstKey":  "firstValue",
@@ -625,7 +625,7 @@ func TestMetricsForwarder_setTags(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dd := &metricsForwarder{}
-			dd.updateTags(tt.dad)
+			dd.updateTags(tt.dda)
 
 			sort.Strings(dd.tags)
 			sort.Strings(tt.want)

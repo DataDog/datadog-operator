@@ -12,7 +12,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// ForwardersManager is a collection of metricsForwarder per DatadogAgentDeployment
+// ForwardersManager is a collection of metricsForwarder per DatadogAgent
 // ForwardersManager implements the controller-runtime Runnable interface
 type ForwardersManager struct {
 	forwarders map[string]*metricsForwarder

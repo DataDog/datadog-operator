@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-2019 Datadog, Inc.
 
-package datadogagentdeployment
+package datadogagent
 
 import (
 	"context"
@@ -18,26 +18,26 @@ import (
 )
 
 // manageClusterChecksRunnerRBACs creates deletes and updates the RBACs for the Cluster Checks runner
-func (r *ReconcileDatadogAgentDeployment) manageClusterChecksRunnerRBACs(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment) (reconcile.Result, error) {
-	if dad.Spec.ClusterChecksRunner == nil {
-		return r.cleanupClusterChecksRunnerRbacResources(logger, dad)
+func (r *ReconcileDatadogAgent) manageClusterChecksRunnerRBACs(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
+	if dda.Spec.ClusterChecksRunner == nil {
+		return r.cleanupClusterChecksRunnerRbacResources(logger, dda)
 	}
 
-	if !isCreateRBACEnabled(dad.Spec.ClusterChecksRunner.Rbac) {
+	if !isCreateRBACEnabled(dda.Spec.ClusterChecksRunner.Rbac) {
 		return reconcile.Result{}, nil
 	}
 
-	rbacResourcesName := getClusterChecksRunnerRbacResourcesName(dad)
-	clusterChecksRunnerVersion := getClusterChecksRunnerVersion(dad)
+	rbacResourcesName := getClusterChecksRunnerRbacResourcesName(dda)
+	clusterChecksRunnerVersion := getClusterChecksRunnerVersion(dda)
 
 	// Create ClusterRoleBindig
 	clusterRoleBinding := &rbacv1.ClusterRoleBinding{}
 	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesName}, clusterRoleBinding); err != nil {
 		if errors.IsNotFound(err) {
-			return r.createClusterRoleBinding(logger, dad, roleBindingInfo{
+			return r.createClusterRoleBinding(logger, dda, roleBindingInfo{
 				name:               rbacResourcesName,
-				roleName:           getAgentRbacResourcesName(dad),
-				serviceAccountName: getClusterChecksRunnerServiceAccount(dad),
+				roleName:           getAgentRbacResourcesName(dda),
+				serviceAccountName: getClusterChecksRunnerServiceAccount(dda),
 			}, clusterChecksRunnerVersion)
 		}
 		return reconcile.Result{}, err
@@ -45,9 +45,9 @@ func (r *ReconcileDatadogAgentDeployment) manageClusterChecksRunnerRBACs(logger 
 
 	// Create ServiceAccount
 	serviceAccount := &corev1.ServiceAccount{}
-	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesName, Namespace: dad.Namespace}, serviceAccount); err != nil {
+	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesName, Namespace: dda.Namespace}, serviceAccount); err != nil {
 		if errors.IsNotFound(err) {
-			return r.createServiceAccount(logger, dad, rbacResourcesName, clusterChecksRunnerVersion)
+			return r.createServiceAccount(logger, dda, rbacResourcesName, clusterChecksRunnerVersion)
 		}
 		return reconcile.Result{}, err
 	}
@@ -56,16 +56,16 @@ func (r *ReconcileDatadogAgentDeployment) manageClusterChecksRunnerRBACs(logger 
 }
 
 // cleanupAgentRbacResources deletes ClusterRoleBindings and ServiceAccount of the Cluster Checks Runner
-func (r *ReconcileDatadogAgentDeployment) cleanupClusterChecksRunnerRbacResources(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment) (reconcile.Result, error) {
-	rbacResourcesName := getClusterChecksRunnerRbacResourcesName(dad)
+func (r *ReconcileDatadogAgent) cleanupClusterChecksRunnerRbacResources(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
+	rbacResourcesName := getClusterChecksRunnerRbacResourcesName(dda)
 
 	// Delete Cluster Role Binding
-	if result, err := r.cleanupClusterRoleBinding(logger, r.client, dad, rbacResourcesName); err != nil {
+	if result, err := r.cleanupClusterRoleBinding(logger, r.client, dda, rbacResourcesName); err != nil {
 		return result, err
 	}
 
 	// Delete Service Account
-	if result, err := r.cleanupServiceAccount(logger, r.client, dad, rbacResourcesName); err != nil {
+	if result, err := r.cleanupServiceAccount(logger, r.client, dda, rbacResourcesName); err != nil {
 		return result, err
 	}
 

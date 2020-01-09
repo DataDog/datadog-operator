@@ -45,9 +45,9 @@ func init() {
 	ddAPIKey = os.Getenv("DD_API_KEY")
 }
 
-func TestDatadogAgentDeployment(t *testing.T) {
-	datadogagentdeploymentList := &datadoghqv1alpha1.DatadogAgentDeploymentList{}
-	err := framework.AddToFrameworkScheme(apis.AddToScheme, datadogagentdeploymentList)
+func TestDatadogAgent(t *testing.T) {
+	datadogagentList := &datadoghqv1alpha1.DatadogAgentList{}
+	err := framework.AddToFrameworkScheme(apis.AddToScheme, datadogagentList)
 	if err != nil {
 		t.Fatalf("failed to add custom resource scheme to framework: %v", err)
 	}
@@ -65,19 +65,19 @@ func DeploymentDaemonset(t *testing.T) {
 	defer ctx.Cleanup()
 
 	name := "foo"
-	options := &utils.NewDatadogAgentDeploymentOptions{
+	options := &utils.NewDatadogAgentOptions{
 		UseEDS: false,
 		APIKey: ddAPIKey,
 	}
 
-	agentdeployment := utils.NewDatadogAgentDeployment(namespace, name, fmt.Sprintf("datadog/agent:%s", "6.14.0"), options)
+	agentdeployment := utils.NewDatadogAgent(namespace, name, fmt.Sprintf("datadog/agent:%s", "6.14.0"), options)
 	err = f.Client.Create(goctx.TODO(), agentdeployment, &framework.CleanupOptions{TestContext: ctx, Timeout: cleanupTimeout, RetryInterval: cleanupRetryInterval})
 	if err != nil {
 		exportPodsLogs(t, f, namespace, err)
 		t.Fatal(err)
 	}
 
-	isOK := func(ad *datadoghqv1alpha1.DatadogAgentDeployment) (bool, error) {
+	isOK := func(ad *datadoghqv1alpha1.DatadogAgent) (bool, error) {
 		if ad.Status.Agent == nil {
 			return false, nil
 		}
@@ -92,7 +92,7 @@ func DeploymentDaemonset(t *testing.T) {
 
 		return false, nil
 	}
-	err = utils.WaitForFuncOnDatadogAgentDeployment(t, f.Client, namespace, name, isOK, retryInterval, timeout)
+	err = utils.WaitForFuncOnDatadogAgent(t, f.Client, namespace, name, isOK, retryInterval, timeout)
 	if err != nil {
 		exportPodsLogs(t, f, namespace, err)
 		t.Fatal(err)
@@ -112,7 +112,7 @@ func DeploymentDaemonset(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// get DatadogAgentDeployment
+	// get DatadogAgent
 	agentdeploymentKey := dynclient.ObjectKey{
 		Namespace: namespace,
 		Name:      name,
@@ -122,12 +122,12 @@ func DeploymentDaemonset(t *testing.T) {
 		t.Fatal(err)
 	}
 	firstHash := agentdeployment.Status.Agent.CurrentHash
-	// update the DatadogAgentDeployment and check that the status is updated
-	updateImage := func(ad *datadoghqv1alpha1.DatadogAgentDeployment) {
+	// update the DatadogAgent and check that the status is updated
+	updateImage := func(ad *datadoghqv1alpha1.DatadogAgent) {
 		updatedImageTag := "6.15.0"
 		ad.Spec.Agent.Image.Name = fmt.Sprintf("datadog/agent:%s", updatedImageTag)
 	}
-	err = utils.UpdateDatadogAgentDeploymentFunc(f, namespace, name, updateImage, retryInterval, timeout)
+	err = utils.UpdateDatadogAgentFunc(f, namespace, name, updateImage, retryInterval, timeout)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -151,11 +151,11 @@ func DeploymentDaemonset(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t.Logf("Update the DatadogAgentDeployment to activate APM")
-	updateWithAPM := func(ad *datadoghqv1alpha1.DatadogAgentDeployment) {
+	t.Logf("Update the DatadogAgent to activate APM")
+	updateWithAPM := func(ad *datadoghqv1alpha1.DatadogAgent) {
 		ad.Spec.Agent.Apm.Enabled = datadoghqv1alpha1.NewBoolPointer(true)
 	}
-	err = utils.UpdateDatadogAgentDeploymentFunc(f, namespace, name, updateWithAPM, retryInterval, timeout)
+	err = utils.UpdateDatadogAgentFunc(f, namespace, name, updateWithAPM, retryInterval, timeout)
 	if err != nil {
 		printDaemonSet(t, f, namespace)
 		exportPodsLogs(t, f, namespace, err)
@@ -182,11 +182,11 @@ func DeploymentDaemonset(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t.Logf("Update the DatadogAgentDeployment to activate Process")
-	updateWithProcess := func(ad *datadoghqv1alpha1.DatadogAgentDeployment) {
+	t.Logf("Update the DatadogAgent to activate Process")
+	updateWithProcess := func(ad *datadoghqv1alpha1.DatadogAgent) {
 		ad.Spec.Agent.Process.Enabled = datadoghqv1alpha1.NewBoolPointer(true)
 	}
-	err = utils.UpdateDatadogAgentDeploymentFunc(f, namespace, name, updateWithProcess, retryInterval, timeout)
+	err = utils.UpdateDatadogAgentFunc(f, namespace, name, updateWithProcess, retryInterval, timeout)
 	if err != nil {
 		exportPodsLogs(t, f, namespace, err)
 		t.Fatal(err)
@@ -211,11 +211,11 @@ func DeploymentDaemonset(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t.Logf("Update the DatadogAgentDeployment to activate SystemProbe")
-	updateWithSystemProbe := func(ad *datadoghqv1alpha1.DatadogAgentDeployment) {
+	t.Logf("Update the DatadogAgent to activate SystemProbe")
+	updateWithSystemProbe := func(ad *datadoghqv1alpha1.DatadogAgent) {
 		ad.Spec.Agent.SystemProbe.Enabled = datadoghqv1alpha1.NewBoolPointer(true)
 	}
-	err = utils.UpdateDatadogAgentDeploymentFunc(f, namespace, name, updateWithSystemProbe, retryInterval, timeout)
+	err = utils.UpdateDatadogAgentFunc(f, namespace, name, updateWithSystemProbe, retryInterval, timeout)
 	if err != nil {
 		exportPodsLogs(t, f, namespace, err)
 		t.Fatal(err)
@@ -236,8 +236,8 @@ func DeploymentDaemonset(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t.Logf("Update the DatadogAgentDeployment with custom conf.d and checks.d")
-	updateWithConfigMaps := func(ad *datadoghqv1alpha1.DatadogAgentDeployment) {
+	t.Logf("Update the DatadogAgent with custom conf.d and checks.d")
+	updateWithConfigMaps := func(ad *datadoghqv1alpha1.DatadogAgent) {
 		ad.Spec.Agent.Confd = &datadoghqv1alpha1.ConfigDirSpec{
 			ConfigMapName: confdConfigMapName,
 		}
@@ -245,7 +245,7 @@ func DeploymentDaemonset(t *testing.T) {
 			ConfigMapName: checksdConfigMapName,
 		}
 	}
-	err = utils.UpdateDatadogAgentDeploymentFunc(f, namespace, name, updateWithConfigMaps, retryInterval, timeout)
+	err = utils.UpdateDatadogAgentFunc(f, namespace, name, updateWithConfigMaps, retryInterval, timeout)
 	if err != nil {
 		exportPodsLogs(t, f, namespace, err)
 		t.Fatal(err)
@@ -317,27 +317,27 @@ func DeploymentEDS(t *testing.T) {
 	defer ctx.Cleanup()
 
 	name := "foo"
-	options := &utils.NewDatadogAgentDeploymentOptions{
+	options := &utils.NewDatadogAgentOptions{
 		UseEDS: true,
 	}
-	agentdeployment, firstHash, _ := utils.NewDatadogAgentDeployment(namespace, name, fmt.Sprintf("datadog/agent:%s", "6.12.0"), options)
+	agentdeployment, firstHash, _ := utils.NewDatadogAgent(namespace, name, fmt.Sprintf("datadog/agent:%s", "6.12.0"), options)
 	err := f.Client.Create(goctx.TODO(), agentdeployment, &framework.CleanupOptions{TestContext: ctx, Timeout: cleanupTimeout, RetryInterval: cleanupRetryInterval})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	isOK := func(ad *datadoghqv1alpha1.DatadogAgentDeployment) (bool, error) {
+	isOK := func(ad *datadoghqv1alpha1.DatadogAgent) (bool, error) {
 		if ad.Status.Agent != nil && ad.Status.Agent.CurrentHash != firstHash {
 			return true, nil
 		}
 		return false, nil
 	}
-	err = utils.WaitForFuncOnDatadogAgentDeployment(t, f.Client, namespace, name, isOK, retryInterval, timeout)
+	err = utils.WaitForFuncOnDatadogAgent(t, f.Client, namespace, name, isOK, retryInterval, timeout)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// get DatadogAgentDeployment
+	// get DatadogAgent
 	agentdeploymentKey := dynclient.ObjectKey{
 		Namespace: namespace,
 		Name:      name,
@@ -364,17 +364,17 @@ func DeploymentEDS(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// update the DatadogAgentDeployment and check that the status is updated
-	updateImage := func(ad *datadoghqv1alpha1.DatadogAgentDeployment) {
+	// update the DatadogAgent and check that the status is updated
+	updateImage := func(ad *datadoghqv1alpha1.DatadogAgent) {
 		updatedImageTag := "6.13.0"
 		ad.Spec.Agent.Image.Name = fmt.Sprintf("datadog/agent:%s", updatedImageTag)
 	}
-	err = utils.UpdateDatadogAgentDeploymentFunc(f, namespace, agentdeployment.Name, updateImage, retryInterval, timeout)
+	err = utils.UpdateDatadogAgentFunc(f, namespace, agentdeployment.Name, updateImage, retryInterval, timeout)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	isUpdated := func(ad *datadoghqv1alpha1.DatadogAgentDeployment) (bool, error) {
+	isUpdated := func(ad *datadoghqv1alpha1.DatadogAgent) (bool, error) {
 		// hash must be updated and different compared to the initial hash
 		if ad.Status.Agent != nil && ad.Status.Agent.CurrentHash != firstHash {
 			return true, nil
@@ -382,7 +382,7 @@ func DeploymentEDS(t *testing.T) {
 
 		return false, nil
 	}
-	err = utils.WaitForFuncOnDatadogAgentDeployment(t, f.Client, namespace, name, isUpdated, retryInterval, timeout)
+	err = utils.WaitForFuncOnDatadogAgent(t, f.Client, namespace, name, isUpdated, retryInterval, timeout)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -408,13 +408,13 @@ func DeploymentWithClusterAgentEnabled(t *testing.T) {
 	defer ctx.Cleanup()
 
 	name := "foo"
-	agentdeployment := utils.NewDatadogAgentDeployment(namespace, name, fmt.Sprintf("datadog/agent:%s", "6.14.0"), &utils.NewDatadogAgentDeploymentOptions{ClusterAgentEnabled: true})
+	agentdeployment := utils.NewDatadogAgent(namespace, name, fmt.Sprintf("datadog/agent:%s", "6.14.0"), &utils.NewDatadogAgentOptions{ClusterAgentEnabled: true})
 	err = f.Client.Create(goctx.TODO(), agentdeployment, &framework.CleanupOptions{TestContext: ctx, Timeout: cleanupTimeout, RetryInterval: cleanupRetryInterval})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	isOK := func(ad *datadoghqv1alpha1.DatadogAgentDeployment) (bool, error) {
+	isOK := func(ad *datadoghqv1alpha1.DatadogAgent) (bool, error) {
 		if ad.Status.Agent == nil || ad.Status.ClusterAgent == nil {
 			return false, nil
 		}
@@ -429,13 +429,13 @@ func DeploymentWithClusterAgentEnabled(t *testing.T) {
 
 		return false, nil
 	}
-	err = utils.WaitForFuncOnDatadogAgentDeployment(t, f.Client, namespace, name, isOK, retryInterval, timeout)
+	err = utils.WaitForFuncOnDatadogAgent(t, f.Client, namespace, name, isOK, retryInterval, timeout)
 	if err != nil {
 		exportPodsLogs(t, f, namespace, err)
 		t.Fatal(err)
 	}
 
-	// get DatadogAgentDeployment
+	// get DatadogAgent
 	agentdeploymentKey := dynclient.ObjectKey{
 		Namespace: namespace,
 		Name:      name,
@@ -469,25 +469,25 @@ func DeploymentWithClusterAgentEnabled(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Get last version of DatadogAgentDeployment
-	agentdeployment = &datadoghqv1alpha1.DatadogAgentDeployment{}
+	// Get last version of DatadogAgent
+	agentdeployment = &datadoghqv1alpha1.DatadogAgent{}
 	err = f.Client.Get(goctx.TODO(), agentdeploymentKey, agentdeployment)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// update the Cluster Agent Deployment Spec and check that the status is updated
-	updateImage := func(ad *datadoghqv1alpha1.DatadogAgentDeployment) {
+	updateImage := func(ad *datadoghqv1alpha1.DatadogAgent) {
 		updatedImageTag := "1.3.0"
 		ad.Spec.ClusterAgent.Image.Name = fmt.Sprintf("datadog/cluster-agent:%s", updatedImageTag)
 		ad.Spec.ClusterAgent.Config.ClusterChecksRunnerEnabled = datadoghqv1alpha1.NewBoolPointer(true)
 	}
-	err = utils.UpdateDatadogAgentDeploymentFunc(f, namespace, name, updateImage, retryInterval, timeout)
+	err = utils.UpdateDatadogAgentFunc(f, namespace, name, updateImage, retryInterval, timeout)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	isUpdated := func(ad *datadoghqv1alpha1.DatadogAgentDeployment) (bool, error) {
+	isUpdated := func(ad *datadoghqv1alpha1.DatadogAgent) (bool, error) {
 		// hash must be updated and different compared to the initial hash
 		clusterAgentStatusOK := false
 		if ad.Status.ClusterAgent != nil && ad.Status.ClusterAgent.CurrentHash != clusterAgentFirstHash {
@@ -499,7 +499,7 @@ func DeploymentWithClusterAgentEnabled(t *testing.T) {
 		}
 		return clusterAgentStatusOK && ClusterChecksRunnerStatusOK, nil
 	}
-	err = utils.WaitForFuncOnDatadogAgentDeployment(t, f.Client, namespace, name, isUpdated, retryInterval, timeout)
+	err = utils.WaitForFuncOnDatadogAgent(t, f.Client, namespace, name, isUpdated, retryInterval, timeout)
 	if err != nil {
 		exportPodsLogs(t, f, namespace, err)
 		t.Fatal(err)

@@ -14,7 +14,7 @@ import (
 
 var log = logf.Log.WithName("DatadogMetricForwarders")
 
-// MonitoredObject must be implemented by the monitored object (e.g DatadogAgentDeployment)
+// MonitoredObject must be implemented by the monitored object (e.g DatadogAgent)
 type MonitoredObject interface {
 	GetNamespace() string
 	GetName() string

@@ -13,8 +13,8 @@ import (
 
 // Interface provides access to all the informers in this group version.
 type Interface interface {
-	// DatadogAgentDeployments returns a DatadogAgentDeploymentInformer.
-	DatadogAgentDeployments() DatadogAgentDeploymentInformer
+	// DatadogAgents returns a DatadogAgentInformer.
+	DatadogAgents() DatadogAgentInformer
 }
 
 type version struct {
@@ -28,7 +28,7 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
 }
 
-// DatadogAgentDeployments returns a DatadogAgentDeploymentInformer.
-func (v *version) DatadogAgentDeployments() DatadogAgentDeploymentInformer {
-	return &datadogAgentDeploymentInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+// DatadogAgents returns a DatadogAgentInformer.
+func (v *version) DatadogAgents() DatadogAgentInformer {
+	return &datadogAgentInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

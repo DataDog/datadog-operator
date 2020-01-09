@@ -6,12 +6,12 @@
 package v1alpha1
 
 const (
-	// AgentDeploymentNameLabelKey label key use to link a Resource to a DatadogAgentDeployment
-	AgentDeploymentNameLabelKey = "agentdeployment.datadoghq.com/name"
+	// AgentDeploymentNameLabelKey label key use to link a Resource to a DatadogAgent
+	AgentDeploymentNameLabelKey = "agent.datadoghq.com/name"
 	// AgentDeploymentComponentLabelKey label key use to know with component is it
-	AgentDeploymentComponentLabelKey = "agentdeployment.datadoghq.com/component"
+	AgentDeploymentComponentLabelKey = "agent.datadoghq.com/component"
 	// MD5AgentDeploymentAnnotationKey annotation key used on ExtendedDaemonSet in order to identify which AgentDeployment have been used to generate it.
-	MD5AgentDeploymentAnnotationKey = "agentdeployment.datadoghq.com/agentspechash"
+	MD5AgentDeploymentAnnotationKey = "agent.datadoghq.com/agentspechash"
 
 	// DefaultAgentResourceSuffix use as suffix for agent resource naming
 	DefaultAgentResourceSuffix = "agent"

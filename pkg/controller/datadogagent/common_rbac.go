@@ -1,4 +1,4 @@
-package datadogagentdeployment
+package datadogagent
 
 import (
 	"context"
@@ -25,12 +25,12 @@ type roleBindingInfo struct {
 }
 
 // buildRoleBinding creates a RoleBinding object
-func buildRoleBinding(dad *datadoghqv1alpha1.DatadogAgentDeployment, info roleBindingInfo, agentVersion string) *rbacv1.RoleBinding {
+func buildRoleBinding(dda *datadoghqv1alpha1.DatadogAgent, info roleBindingInfo, agentVersion string) *rbacv1.RoleBinding {
 	return &rbacv1.RoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels:    getDefaultLabels(dad, info.name, agentVersion),
+			Labels:    getDefaultLabels(dda, info.name, agentVersion),
 			Name:      info.name,
-			Namespace: dad.Namespace,
+			Namespace: dda.Namespace,
 		},
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: datadoghqv1alpha1.RbacAPIGroup,
@@ -41,19 +41,19 @@ func buildRoleBinding(dad *datadoghqv1alpha1.DatadogAgentDeployment, info roleBi
 			{
 				Kind:      datadoghqv1alpha1.ServiceAccountKind,
 				Name:      info.serviceAccountName,
-				Namespace: dad.Namespace,
+				Namespace: dda.Namespace,
 			},
 		},
 	}
 }
 
 // buildServiceAccount creates a ServiceAccount object
-func buildServiceAccount(dad *datadoghqv1alpha1.DatadogAgentDeployment, name, agentVersion string) *corev1.ServiceAccount {
+func buildServiceAccount(dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string) *corev1.ServiceAccount {
 	return &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels:    getDefaultLabels(dad, name, agentVersion),
+			Labels:    getDefaultLabels(dda, name, agentVersion),
 			Name:      name,
-			Namespace: dad.Namespace,
+			Namespace: dda.Namespace,
 		},
 	}
 }
@@ -85,29 +85,29 @@ func getLeaderElectionPolicyRule() []rbacv1.PolicyRule {
 	}
 }
 
-func (r *ReconcileDatadogAgentDeployment) createServiceAccount(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment, name, agentVersion string) (reconcile.Result, error) {
-	serviceAccount := buildServiceAccount(dad, name, agentVersion)
-	if err := controllerutil.SetControllerReference(dad, serviceAccount, r.scheme); err != nil {
+func (r *ReconcileDatadogAgent) createServiceAccount(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string) (reconcile.Result, error) {
+	serviceAccount := buildServiceAccount(dda, name, agentVersion)
+	if err := controllerutil.SetControllerReference(dda, serviceAccount, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
 	logger.V(1).Info("createServiceAccount", "serviceAccount.name", serviceAccount.Name, "serviceAccount.Namespace", serviceAccount.Namespace)
 	eventInfo := buildEventInfo(serviceAccount.Name, serviceAccount.Namespace, serviceAccountKind, datadog.CreationEvent)
-	r.recordEvent(dad, eventInfo)
+	r.recordEvent(dda, eventInfo)
 	return reconcile.Result{Requeue: true}, r.client.Create(context.TODO(), serviceAccount)
 }
 
-func (r *ReconcileDatadogAgentDeployment) createClusterRoleBinding(logger logr.Logger, dad *datadoghqv1alpha1.DatadogAgentDeployment, info roleBindingInfo, agentVersion string) (reconcile.Result, error) {
-	clusterRoleBinding := buildClusterRoleBinding(dad, info, agentVersion)
-	if err := SetOwnerReference(dad, clusterRoleBinding, r.scheme); err != nil {
+func (r *ReconcileDatadogAgent) createClusterRoleBinding(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, info roleBindingInfo, agentVersion string) (reconcile.Result, error) {
+	clusterRoleBinding := buildClusterRoleBinding(dda, info, agentVersion)
+	if err := SetOwnerReference(dda, clusterRoleBinding, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
 	logger.V(1).Info("createClusterRoleBinding", "clusterRoleBinding.name", clusterRoleBinding.Name)
 	eventInfo := buildEventInfo(clusterRoleBinding.Name, clusterRoleBinding.Namespace, clusterRoleBindingKind, datadog.CreationEvent)
-	r.recordEvent(dad, eventInfo)
+	r.recordEvent(dda, eventInfo)
 	return reconcile.Result{Requeue: true}, r.client.Create(context.TODO(), clusterRoleBinding)
 }
 
-func (r *ReconcileDatadogAgentDeployment) cleanupClusterRole(logger logr.Logger, client client.Client, dad *datadoghqv1alpha1.DatadogAgentDeployment, name string) (reconcile.Result, error) {
+func (r *ReconcileDatadogAgent) cleanupClusterRole(logger logr.Logger, client client.Client, dda *datadoghqv1alpha1.DatadogAgent, name string) (reconcile.Result, error) {
 	clusterRole := &rbacv1.ClusterRole{}
 	err := client.Get(context.TODO(), types.NamespacedName{Name: name}, clusterRole)
 	if err != nil {
@@ -121,11 +121,11 @@ func (r *ReconcileDatadogAgentDeployment) cleanupClusterRole(logger logr.Logger,
 	}
 	logger.V(1).Info("deleteClusterRole", "clusterRole.name", clusterRole.Name, "clusterRole.Namespace", clusterRole.Namespace)
 	eventInfo := buildEventInfo(clusterRole.Name, clusterRole.Namespace, clusterRoleKind, datadog.DeletionEvent)
-	r.recordEvent(dad, eventInfo)
+	r.recordEvent(dda, eventInfo)
 	return reconcile.Result{}, client.Delete(context.TODO(), clusterRole)
 }
 
-func (r *ReconcileDatadogAgentDeployment) cleanupClusterRoleBinding(logger logr.Logger, client client.Client, dad *datadoghqv1alpha1.DatadogAgentDeployment, name string) (reconcile.Result, error) {
+func (r *ReconcileDatadogAgent) cleanupClusterRoleBinding(logger logr.Logger, client client.Client, dda *datadoghqv1alpha1.DatadogAgent, name string) (reconcile.Result, error) {
 	clusterRoleBinding := &rbacv1.ClusterRoleBinding{}
 	err := client.Get(context.TODO(), types.NamespacedName{Name: name}, clusterRoleBinding)
 	if err != nil {
@@ -139,11 +139,11 @@ func (r *ReconcileDatadogAgentDeployment) cleanupClusterRoleBinding(logger logr.
 	}
 	logger.V(1).Info("deleteClusterRoleBinding", "clusterRoleBinding.name", clusterRoleBinding.Name, "clusterRoleBinding.Namespace", clusterRoleBinding.Namespace)
 	eventInfo := buildEventInfo(clusterRoleBinding.Name, clusterRoleBinding.Namespace, clusterRoleBindingKind, datadog.DeletionEvent)
-	r.recordEvent(dad, eventInfo)
+	r.recordEvent(dda, eventInfo)
 	return reconcile.Result{}, client.Delete(context.TODO(), clusterRoleBinding)
 }
 
-func (r *ReconcileDatadogAgentDeployment) cleanupServiceAccount(logger logr.Logger, client client.Client, dad *datadoghqv1alpha1.DatadogAgentDeployment, name string) (reconcile.Result, error) {
+func (r *ReconcileDatadogAgent) cleanupServiceAccount(logger logr.Logger, client client.Client, dda *datadoghqv1alpha1.DatadogAgent, name string) (reconcile.Result, error) {
 	serviceAccount := &corev1.ServiceAccount{}
 	err := client.Get(context.TODO(), types.NamespacedName{Name: name}, serviceAccount)
 	if err != nil {
@@ -157,6 +157,6 @@ func (r *ReconcileDatadogAgentDeployment) cleanupServiceAccount(logger logr.Logg
 	}
 	logger.V(1).Info("deleteServiceAccount", "serviceAccount.name", serviceAccount.Name, "serviceAccount.Namespace", serviceAccount.Namespace)
 	eventInfo := buildEventInfo(serviceAccount.Name, serviceAccount.Namespace, serviceAccountKind, datadog.DeletionEvent)
-	r.recordEvent(dad, eventInfo)
+	r.recordEvent(dda, eventInfo)
 	return reconcile.Result{}, client.Delete(context.TODO(), serviceAccount)
 }
