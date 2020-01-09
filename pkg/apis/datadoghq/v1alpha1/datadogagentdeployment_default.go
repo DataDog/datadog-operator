@@ -216,9 +216,9 @@ func IsDefaultedDatadogAgentDeploymentSpecRbacConfig(rbac *RbacConfig) bool {
 }
 
 // IsDefaultedDatadogAgentDeploymentSpecDatadogAgentDeploymentStrategy used to check if a
-// DaemonSetDeploymentcStrategy was already defaulted
+// DaemonSetDeploymentStrategy was already defaulted
 // returns true if yes, else false
-func IsDefaultedDatadogAgentDeploymentSpecDatadogAgentDeploymentStrategy(strategy *DaemonSetDeploymentcStrategy) bool {
+func IsDefaultedDatadogAgentDeploymentSpecDatadogAgentDeploymentStrategy(strategy *DaemonSetDeploymentStrategy) bool {
 	if strategy == nil {
 		return false
 	}
@@ -456,11 +456,11 @@ func DefaultDatadogAgentDeploymentSpecRbacConfig(rbac *RbacConfig) *RbacConfig {
 	return rbac
 }
 
-// DefaultDatadogAgentDeploymentSpecDatadogAgentDeploymentStrategy used to default a DaemonSetDeploymentcStrategy
-// return the defaulted DaemonSetDeploymentcStrategy
-func DefaultDatadogAgentDeploymentSpecDatadogAgentDeploymentStrategy(strategy *DaemonSetDeploymentcStrategy) *DaemonSetDeploymentcStrategy {
+// DefaultDatadogAgentDeploymentSpecDatadogAgentDeploymentStrategy used to default a DaemonSetDeploymentStrategy
+// return the defaulted DaemonSetDeploymentStrategy
+func DefaultDatadogAgentDeploymentSpecDatadogAgentDeploymentStrategy(strategy *DaemonSetDeploymentStrategy) *DaemonSetDeploymentStrategy {
 	if strategy == nil {
-		strategy = &DaemonSetDeploymentcStrategy{}
+		strategy = &DaemonSetDeploymentStrategy{}
 	}
 
 	if strategy.UpdateStrategyType == nil {

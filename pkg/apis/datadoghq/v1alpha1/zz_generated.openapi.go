@@ -24,7 +24,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./pkg/apis/datadoghq/v1alpha1.ClusterAgentConfig":                                schema_pkg_apis_datadoghq_v1alpha1_ClusterAgentConfig(ref),
 		"./pkg/apis/datadoghq/v1alpha1.ClusterChecksRunnerConfig":                         schema_pkg_apis_datadoghq_v1alpha1_ClusterChecksRunnerConfig(ref),
 		"./pkg/apis/datadoghq/v1alpha1.ConfigDirSpec":                                     schema_pkg_apis_datadoghq_v1alpha1_ConfigDirSpec(ref),
-		"./pkg/apis/datadoghq/v1alpha1.DaemonSetDeploymentcStrategy":                      schema_pkg_apis_datadoghq_v1alpha1_DaemonSetDeploymentcStrategy(ref),
+		"./pkg/apis/datadoghq/v1alpha1.DaemonSetDeploymentStrategy":                       schema_pkg_apis_datadoghq_v1alpha1_DaemonSetDeploymentStrategy(ref),
 		"./pkg/apis/datadoghq/v1alpha1.DaemonSetRollingUpdateSpec":                        schema_pkg_apis_datadoghq_v1alpha1_DaemonSetRollingUpdateSpec(ref),
 		"./pkg/apis/datadoghq/v1alpha1.DatadogAgentDeployment":                            schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentDeployment(ref),
 		"./pkg/apis/datadoghq/v1alpha1.DatadogAgentDeploymentAgentStatus":                 schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentDeploymentAgentStatus(ref),
@@ -307,11 +307,11 @@ func schema_pkg_apis_datadoghq_v1alpha1_ConfigDirSpec(ref common.ReferenceCallba
 	}
 }
 
-func schema_pkg_apis_datadoghq_v1alpha1_DaemonSetDeploymentcStrategy(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_datadoghq_v1alpha1_DaemonSetDeploymentStrategy(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DaemonSetDeploymentcStrategy contains the node Agent deployment configuration",
+				Description: "DaemonSetDeploymentStrategy contains the node Agent deployment configuration",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"updateStrategyType": {
@@ -793,7 +793,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentDeploymentSpecAgentSpec(ref 
 					"deploymentStrategy": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Update strategy configuration for the DaemonSet",
-							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.DaemonSetDeploymentcStrategy"),
+							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.DaemonSetDeploymentStrategy"),
 						},
 					},
 					"apm": {
@@ -844,7 +844,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentDeploymentSpecAgentSpec(ref 
 			},
 		},
 		Dependencies: []string{
-			"./pkg/apis/datadoghq/v1alpha1.APMSpec", "./pkg/apis/datadoghq/v1alpha1.ConfigDirSpec", "./pkg/apis/datadoghq/v1alpha1.DaemonSetDeploymentcStrategy", "./pkg/apis/datadoghq/v1alpha1.ImageConfig", "./pkg/apis/datadoghq/v1alpha1.LogSpec", "./pkg/apis/datadoghq/v1alpha1.NodeAgentConfig", "./pkg/apis/datadoghq/v1alpha1.ProcessSpec", "./pkg/apis/datadoghq/v1alpha1.RbacConfig", "./pkg/apis/datadoghq/v1alpha1.SystemProbeSpec"},
+			"./pkg/apis/datadoghq/v1alpha1.APMSpec", "./pkg/apis/datadoghq/v1alpha1.ConfigDirSpec", "./pkg/apis/datadoghq/v1alpha1.DaemonSetDeploymentStrategy", "./pkg/apis/datadoghq/v1alpha1.ImageConfig", "./pkg/apis/datadoghq/v1alpha1.LogSpec", "./pkg/apis/datadoghq/v1alpha1.NodeAgentConfig", "./pkg/apis/datadoghq/v1alpha1.ProcessSpec", "./pkg/apis/datadoghq/v1alpha1.RbacConfig", "./pkg/apis/datadoghq/v1alpha1.SystemProbeSpec"},
 	}
 }
 

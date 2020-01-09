@@ -60,7 +60,7 @@ func NewDatadogAgentDeployment(ns, name, image string, options *NewDatadogAgentD
 				},
 				LeaderElection: datadoghqv1alpha1.NewBoolPointer(true),
 			},
-			DeploymentStrategy: &datadoghqv1alpha1.DaemonSetDeploymentcStrategy{},
+			DeploymentStrategy: &datadoghqv1alpha1.DaemonSetDeploymentStrategy{},
 			Apm:                datadoghqv1alpha1.APMSpec{},
 			Log:                datadoghqv1alpha1.LogSpec{},
 			Process:            datadoghqv1alpha1.ProcessSpec{},

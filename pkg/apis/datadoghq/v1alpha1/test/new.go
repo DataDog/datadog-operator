@@ -72,7 +72,7 @@ func NewDefaultedDatadogAgentDeployment(ns, name string, options *NewDatadogAgen
 				PullPolicy: &pullPolicy,
 			},
 			Config:             datadoghqv1alpha1.NodeAgentConfig{},
-			DeploymentStrategy: &datadoghqv1alpha1.DaemonSetDeploymentcStrategy{},
+			DeploymentStrategy: &datadoghqv1alpha1.DaemonSetDeploymentStrategy{},
 			Apm:                datadoghqv1alpha1.APMSpec{},
 			Log:                datadoghqv1alpha1.LogSpec{},
 			Process:            datadoghqv1alpha1.ProcessSpec{},
