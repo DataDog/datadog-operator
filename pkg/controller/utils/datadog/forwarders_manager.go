@@ -10,6 +10,8 @@ import (
 	"sync"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/DataDog/datadog-operator/pkg/secrets"
 )
 
 // ForwardersManager is a collection of metricsForwarder per DatadogAgent
@@ -17,6 +19,7 @@ import (
 type ForwardersManager struct {
 	forwarders map[string]*metricsForwarder
 	k8sClient  client.Client
+	decryptor  secrets.Decryptor
 	wg         sync.WaitGroup
 	sync.Mutex
 }
@@ -27,6 +30,7 @@ func NewForwardersManager(k8sClient client.Client) *ForwardersManager {
 	return &ForwardersManager{
 		k8sClient:  k8sClient,
 		forwarders: make(map[string]*metricsForwarder),
+		decryptor:  secrets.NewSecretBackend(),
 		wg:         sync.WaitGroup{},
 	}
 }
@@ -45,7 +49,7 @@ func (f *ForwardersManager) Register(obj MonitoredObject) {
 	id := getObjID(obj)
 	if _, found := f.forwarders[id]; !found {
 		log.Info("New Datadog metrics forwarder registred", "ID", id)
-		f.forwarders[id] = newMetricsForwarder(f.k8sClient, obj)
+		f.forwarders[id] = newMetricsForwarder(f.k8sClient, f.decryptor, obj)
 		f.wg.Add(1)
 		go f.forwarders[id].start(&f.wg)
 	}

@@ -8,14 +8,17 @@ package datadog
 import (
 	"context"
 	"errors"
+	"fmt"
 	"reflect"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
 	test "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1/test"
 	"github.com/stretchr/testify/mock"
+	assert "github.com/stretchr/testify/require"
 	api "github.com/zorkian/go-datadog-api"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -430,13 +433,26 @@ func TestMetricsForwarder_updateCredsIfNeeded(t *testing.T) {
 	}
 }
 
+type dummyDecryptor struct {
+	mock.Mock
+}
+
+func (d *dummyDecryptor) Decrypt(secrets []string) (map[string]string, error) {
+	d.Called(secrets)
+	res := map[string]string{}
+	for _, secret := range secrets {
+		res[secret] = fmt.Sprintf("DEC[%s]", secret)
+	}
+	return res, nil
+}
+
 func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 	type fields struct {
 		client client.Client
 	}
 	type args struct {
 		dda      *datadoghqv1alpha1.DatadogAgent
-		loadFunc func(c client.Client)
+		loadFunc func(*metricsForwarder, *dummyDecryptor)
 	}
 	tests := []struct {
 		name       string
@@ -445,6 +461,7 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 		wantAPIKey string
 		wantAPPKey string
 		wantErr    bool
+		wantFunc   func(*metricsForwarder, *dummyDecryptor) error
 	}{
 		{
 			name: "creds found in CR",
@@ -493,7 +510,7 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 							APIKeyExistingSecret: "datadog-creds",
 							AppKeyExistingSecret: "datadog-creds",
 						}}),
-				loadFunc: func(c client.Client) {
+				loadFunc: func(m *metricsForwarder, d *dummyDecryptor) {
 					secret := &corev1.Secret{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:      "datadog-creds",
@@ -504,7 +521,7 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 							"app_key": []byte("foundAppKey"),
 						},
 					}
-					_ = c.Create(context.TODO(), secret)
+					_ = m.k8sClient.Create(context.TODO(), secret)
 				},
 			},
 			wantAPIKey: "foundApiKey",
@@ -523,7 +540,7 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 							APIKey:               "foundApiKey",
 							AppKeyExistingSecret: "datadog-creds",
 						}}),
-				loadFunc: func(c client.Client) {
+				loadFunc: func(m *metricsForwarder, d *dummyDecryptor) {
 					secret := &corev1.Secret{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:      "datadog-creds",
@@ -533,23 +550,88 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 							"app_key": []byte("foundAppKey"),
 						},
 					}
-					_ = c.Create(context.TODO(), secret)
+					_ = m.k8sClient.Create(context.TODO(), secret)
 				},
 			},
 			wantAPIKey: "foundApiKey",
 			wantAPPKey: "foundAppKey",
 			wantErr:    false,
 		},
+		{
+			name: "enc creds found in cache",
+			fields: fields{
+				client: fake.NewFakeClient(),
+			},
+			args: args{
+				dda: test.NewDefaultedDatadogAgent("foo", "bar",
+					&test.NewDatadogAgentOptions{
+						Creds: &datadoghqv1alpha1.AgentCredentials{
+							APIKey: "ENC[ApiKey]",
+							AppKey: "ENC[AppKey]",
+						}}),
+				loadFunc: func(m *metricsForwarder, d *dummyDecryptor) {
+					m.cleanSecretsCache()
+					m.creds.Store("ENC[ApiKey]", "cachedApiKey")
+					m.creds.Store("ENC[AppKey]", "cachedAppKey")
+				},
+			},
+			wantAPIKey: "cachedApiKey",
+			wantAPPKey: "cachedAppKey",
+			wantErr:    false,
+			wantFunc: func(m *metricsForwarder, d *dummyDecryptor) error {
+				if !d.AssertNumberOfCalls(t, "Decrypt", 0) {
+					return errors.New("Wrong number of calls")
+				}
+				d.AssertExpectations(t)
+				return nil
+			},
+		},
+		{
+			name: "enc creds not found in cache, call secret backend",
+			fields: fields{
+				client: fake.NewFakeClient(),
+			},
+			args: args{
+				dda: test.NewDefaultedDatadogAgent("foo", "bar",
+					&test.NewDatadogAgentOptions{
+						Creds: &datadoghqv1alpha1.AgentCredentials{
+							APIKey: "ENC[ApiKey]",
+							AppKey: "ENC[AppKey]",
+						}}),
+				loadFunc: func(m *metricsForwarder, d *dummyDecryptor) {
+					m.cleanSecretsCache()
+					d.On("Decrypt", []string{"ENC[ApiKey]", "ENC[AppKey]"}).Once()
+				},
+			},
+			wantAPIKey: "DEC[ENC[ApiKey]]",
+			wantAPPKey: "DEC[ENC[AppKey]]",
+			wantErr:    false,
+			wantFunc: func(m *metricsForwarder, d *dummyDecryptor) error {
+				v, found := m.creds.Load("ENC[ApiKey]")
+				assert.True(t, found)
+				assert.Equal(t, "DEC[ENC[ApiKey]]", v)
+
+				v, found = m.creds.Load("ENC[AppKey]")
+				assert.True(t, found)
+				assert.Equal(t, "DEC[ENC[AppKey]]", v)
+
+				d.AssertExpectations(t)
+				return nil
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dd := &metricsForwarder{
+			d := &dummyDecryptor{}
+			mf := &metricsForwarder{
 				k8sClient: tt.fields.client,
+				decryptor: d,
+				creds:     sync.Map{},
 			}
 			if tt.args.loadFunc != nil {
-				tt.args.loadFunc(dd.k8sClient)
+				tt.args.loadFunc(mf, d)
 			}
-			apiKey, appKey, err := dd.getCredentials(tt.args.dda)
+			apiKey, appKey, err := mf.getCredentials(tt.args.dda)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("metricsForwarder.getCredentials() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -559,6 +641,11 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 			}
 			if appKey != tt.wantAPPKey {
 				t.Errorf("metricsForwarder.getCredentials() appKey = %v, want %v", appKey, tt.wantAPPKey)
+			}
+			if tt.wantFunc != nil {
+				if err := tt.wantFunc(mf, d); err != nil {
+					t.Errorf("metricsForwarder.getCredentials() wantFunc validation error: %v", err)
+				}
 			}
 		})
 	}
@@ -799,6 +886,145 @@ func Test_metricsForwarder_prepareReconcileMetric(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got1, tt.want1) {
 				t.Errorf("metricsForwarder.prepareReconcileMetric() got1 = %v, want %v", got1, tt.want1)
+			}
+		})
+	}
+}
+
+func Test_metricsForwarder_cleanSecretsCache(t *testing.T) {
+	mf := &metricsForwarder{
+		creds: sync.Map{},
+	}
+
+	mf.creds.Store("k", "v")
+	mf.creds.Store("kk", "vv")
+
+	mf.cleanSecretsCache()
+
+	_, found := mf.creds.Load("k")
+	assert.False(t, found)
+
+	_, found = mf.creds.Load("kk")
+	assert.False(t, found)
+
+	mf.creds.Range(func(k, v interface{}) bool {
+		t.Error("creds cache not empty")
+		return false
+	})
+}
+
+func Test_metricsForwarder_resetSecretsCache(t *testing.T) {
+	mf := &metricsForwarder{
+		creds: sync.Map{},
+	}
+
+	mf.resetSecretsCache(map[string]string{
+		"k": "v",
+	})
+
+	v, found := mf.creds.Load("k")
+	assert.True(t, found)
+	assert.Equal(t, "v", v)
+
+	mf.resetSecretsCache(map[string]string{
+		"kk":  "vv",
+		"kkk": "vvv",
+	})
+
+	_, found = mf.creds.Load("k")
+	assert.False(t, found)
+
+	v, found = mf.creds.Load("kk")
+	assert.True(t, found)
+	assert.Equal(t, "vv", v)
+
+	v, found = mf.creds.Load("kkk")
+	assert.True(t, found)
+	assert.Equal(t, "vvv", v)
+}
+
+func Test_metricsForwarder_getSecretsFromCache(t *testing.T) {
+	type args struct {
+		encAPIKey string
+		encAPPKey string
+	}
+	tests := []struct {
+		name   string
+		cached map[string]string
+		args   args
+		want   string
+		want1  string
+		want2  bool
+	}{
+		{
+			name: "cache hit",
+			cached: map[string]string{
+				"apiKey": "decApiKey",
+				"appKey": "decAppKey",
+			},
+			args: args{
+				encAPIKey: "apiKey",
+				encAPPKey: "appKey",
+			},
+			want:  "decApiKey",
+			want1: "decAppKey",
+			want2: true,
+		},
+		{
+			name: "apiKey cache miss",
+			cached: map[string]string{
+				"appKey": "decAppKey",
+			},
+			args: args{
+				encAPIKey: "apiKey",
+				encAPPKey: "appKey",
+			},
+			want:  "",
+			want1: "",
+			want2: false,
+		},
+		{
+			name: "appKey cache miss",
+			cached: map[string]string{
+				"apiKey": "decApiKey",
+			},
+			args: args{
+				encAPIKey: "apiKey",
+				encAPPKey: "appKey",
+			},
+			want:  "",
+			want1: "",
+			want2: false,
+		},
+		{
+			name:   "total cache miss",
+			cached: map[string]string{},
+			args: args{
+				encAPIKey: "apiKey",
+				encAPPKey: "appKey",
+			},
+			want:  "",
+			want1: "",
+			want2: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mf := &metricsForwarder{
+				creds: sync.Map{},
+			}
+			for k, v := range tt.cached {
+				mf.creds.Store(k, v)
+			}
+			got, got1, got2 := mf.getSecretsFromCache(tt.args.encAPIKey, tt.args.encAPPKey)
+			if got != tt.want {
+				t.Errorf("metricsForwarder.getSecretsFromCache() got = %v, want %v", got, tt.want)
+			}
+			if got1 != tt.want1 {
+				t.Errorf("metricsForwarder.getSecretsFromCache() got1 = %v, want %v", got1, tt.want1)
+			}
+			if got2 != tt.want2 {
+				t.Errorf("metricsForwarder.getSecretsFromCache() got2 = %v, want %v", got2, tt.want2)
 			}
 		})
 	}
