@@ -14,11 +14,11 @@ import (
 	"sync"
 	"time"
 
-	"k8s.io/apimachinery/pkg/util/wait"
-
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
+	"github.com/DataDog/datadog-operator/pkg/secrets"
+
 	"github.com/go-logr/logr"
 	api "github.com/zorkian/go-datadog-api"
 	corev1 "k8s.io/api/core/v1"
@@ -26,6 +26,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -79,6 +80,8 @@ type metricsForwarder struct {
 	namespacedName      types.NamespacedName
 	logger              logr.Logger
 	delegator           delegatedAPI
+	decryptor           secrets.Decryptor
+	creds               sync.Map
 	sync.Mutex
 }
 
@@ -91,7 +94,7 @@ type delegatedAPI interface {
 }
 
 // newMetricsForwarder returs a new Datadog MetricsForwarder instance
-func newMetricsForwarder(k8sClient client.Client, obj MonitoredObject) *metricsForwarder {
+func newMetricsForwarder(k8sClient client.Client, decryptor secrets.Decryptor, obj MonitoredObject) *metricsForwarder {
 	return &metricsForwarder{
 		id:                  getObjID(obj),
 		k8sClient:           k8sClient,
@@ -103,6 +106,8 @@ func newMetricsForwarder(k8sClient client.Client, obj MonitoredObject) *metricsF
 		errorChan:           make(chan error, 100),
 		eventChan:           make(chan Event, 10),
 		lastReconcileErr:    errInitValue,
+		decryptor:           decryptor,
+		creds:               sync.Map{},
 		logger:              log.WithValues("CustomResource.Namespace", obj.GetNamespace(), "CustomResource.Name", obj.GetName()),
 	}
 }
@@ -509,7 +514,64 @@ func (mf *metricsForwarder) getCredentials(dda *datadoghqv1alpha1.DatadogAgent) 
 		return "", "", ErrEmptyAPPKey
 	}
 
-	return apiKey, appKey, nil
+	return mf.resolveSecretsIfNeeded(apiKey, appKey)
+}
+
+// resolveSecretsIfNeeded calls the secret backend if creds are encrypted
+func (mf *metricsForwarder) resolveSecretsIfNeeded(apiKey, appKey string) (string, string, error) {
+	if !secrets.IsEnc(apiKey) && !secrets.IsEnc(appKey) {
+		// Credentials are not encrypted
+		return apiKey, appKey, nil
+	}
+
+	// Try to get secrets from the local cache
+	if decAPIKey, decAPPKey, cacheHit := mf.getSecretsFromCache(apiKey, appKey); cacheHit {
+		// Creds are found in local cache
+		return decAPIKey, decAPPKey, nil
+	}
+
+	// Cache miss, call the secret decryptor
+	decrypted, err := mf.decryptor.Decrypt([]string{apiKey, appKey})
+	if err != nil {
+		mf.logger.Error(err, "cannot decrypt secrets")
+		return "", "", err
+	}
+
+	// Update the local cache with the decrypted secrets
+	mf.resetSecretsCache(decrypted)
+
+	return decrypted[apiKey], decrypted[appKey], nil
+}
+
+// getSecretsFromCache returns the cached and decrypted values of encrypted creds
+func (mf *metricsForwarder) getSecretsFromCache(encAPIKey, encAPPKey string) (string, string, bool) {
+	decAPIKey, found := mf.creds.Load(encAPIKey)
+	if !found {
+		return "", "", false
+	}
+
+	decAPPKey, found := mf.creds.Load(encAPPKey)
+	if !found {
+		return "", "", false
+	}
+
+	return decAPIKey.(string), decAPPKey.(string), true
+}
+
+// resetSecretsCache updates the local secret cache with new secret values
+func (mf *metricsForwarder) resetSecretsCache(newSecrets map[string]string) {
+	mf.cleanSecretsCache()
+	for k, v := range newSecrets {
+		mf.creds.Store(k, v)
+	}
+}
+
+// cleanSecretsCache deletes all cached secrets
+func (mf *metricsForwarder) cleanSecretsCache() {
+	mf.creds.Range(func(k, v interface{}) bool {
+		mf.creds.Delete(k)
+		return true
+	})
 }
 
 // getKeyFromSecret used to retrieve an api or app key from a secret object
