@@ -8,3 +8,5 @@
 package v1alpha1
 
 type DatadogAgentExpansion interface{}
+
+type DatadogMetricExpansion interface{}

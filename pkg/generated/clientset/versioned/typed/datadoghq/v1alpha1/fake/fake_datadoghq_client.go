@@ -21,6 +21,10 @@ func (c *FakeDatadoghqV1alpha1) DatadogAgents(namespace string) v1alpha1.Datadog
 	return &FakeDatadogAgents{c, namespace}
 }
 
+func (c *FakeDatadoghqV1alpha1) DatadogMetrics(namespace string) v1alpha1.DatadogMetricInterface {
+	return &FakeDatadogMetrics{c, namespace}
+}
+
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
 func (c *FakeDatadoghqV1alpha1) RESTClient() rest.Interface {

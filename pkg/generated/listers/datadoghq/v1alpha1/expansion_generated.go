@@ -14,3 +14,11 @@ type DatadogAgentListerExpansion interface{}
 // DatadogAgentNamespaceListerExpansion allows custom methods to be added to
 // DatadogAgentNamespaceLister.
 type DatadogAgentNamespaceListerExpansion interface{}
+
+// DatadogMetricListerExpansion allows custom methods to be added to
+// DatadogMetricLister.
+type DatadogMetricListerExpansion interface{}
+
+// DatadogMetricNamespaceListerExpansion allows custom methods to be added to
+// DatadogMetricNamespaceLister.
+type DatadogMetricNamespaceListerExpansion interface{}
