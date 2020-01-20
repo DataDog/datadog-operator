@@ -16,6 +16,7 @@ import (
 type DatadoghqV1alpha1Interface interface {
 	RESTClient() rest.Interface
 	DatadogAgentsGetter
+	DatadogMetricsGetter
 }
 
 // DatadoghqV1alpha1Client is used to interact with features provided by the datadoghq.com group.
@@ -25,6 +26,10 @@ type DatadoghqV1alpha1Client struct {
 
 func (c *DatadoghqV1alpha1Client) DatadogAgents(namespace string) DatadogAgentInterface {
 	return newDatadogAgents(c, namespace)
+}
+
+func (c *DatadoghqV1alpha1Client) DatadogMetrics(namespace string) DatadogMetricInterface {
+	return newDatadogMetrics(c, namespace)
 }
 
 // NewForConfig creates a new DatadoghqV1alpha1Client for the given config.

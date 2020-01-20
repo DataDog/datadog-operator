@@ -1,6 +1,7 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
+  creationTimestamp: null
   name: datadog-operator
 rules:
 - apiGroups:
@@ -52,5 +53,6 @@ rules:
   - 'datadogagents/status'
   - 'datadogagents/finalizers'
   - 'extendeddaemonsets'
+  - 'datadogmetrics'
   verbs:
   - '*'

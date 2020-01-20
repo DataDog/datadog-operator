@@ -15,6 +15,8 @@ import (
 type Interface interface {
 	// DatadogAgents returns a DatadogAgentInformer.
 	DatadogAgents() DatadogAgentInformer
+	// DatadogMetrics returns a DatadogMetricInformer.
+	DatadogMetrics() DatadogMetricInformer
 }
 
 type version struct {
@@ -31,4 +33,9 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 // DatadogAgents returns a DatadogAgentInformer.
 func (v *version) DatadogAgents() DatadogAgentInformer {
 	return &datadogAgentInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// DatadogMetrics returns a DatadogMetricInformer.
+func (v *version) DatadogMetrics() DatadogMetricInformer {
+	return &datadogMetricInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
