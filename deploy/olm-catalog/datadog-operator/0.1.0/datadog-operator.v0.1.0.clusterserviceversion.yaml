@@ -1,0 +1,140 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  annotations:
+    alm-examples: '[]'
+    capabilities: Basic Install
+  name: datadog-operator.v0.1.0
+  namespace: placeholder
+spec:
+  apiservicedefinitions: {}
+  customresourcedefinitions:
+    owned:
+    - description: DatadogAgent is the Schema for the agentdeployments API
+      kind: DatadogAgent
+      name: datadogagents.datadoghq.com
+      version: v1alpha1
+  description: Placeholder description
+  displayName: Datadog Operator
+  install:
+    spec:
+      deployments:
+      - name: datadog-operator
+        spec:
+          replicas: 1
+          selector:
+            matchLabels:
+              name: datadog-operator
+          strategy: {}
+          template:
+            metadata:
+              labels:
+                name: datadog-operator
+            spec:
+              containers:
+              - args:
+                - --zap-level=debug
+                command:
+                - datadog-operator
+                env:
+                - name: WATCH_NAMESPACE
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.annotations['olm.targetNamespaces']
+                - name: POD_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
+                - name: OPERATOR_NAME
+                  value: datadog-operator
+                image: datadog/operator:latest
+                imagePullPolicy: IfNotPresent
+                name: datadog-operator
+                resources: {}
+              serviceAccountName: datadog-operator
+      permissions:
+      - rules:
+        - apiGroups:
+          - ""
+          resources:
+          - pods
+          - services
+          - endpoints
+          - events
+          - configmaps
+          - secrets
+          - serviceaccounts
+          verbs:
+          - '*'
+        - apiGroups:
+          - apps
+          resources:
+          - deployments
+          - daemonsets
+          verbs:
+          - '*'
+        - apiGroups:
+          - apps
+          resourceNames:
+          - datadog-operator
+          resources:
+          - deployments/finalizers
+          verbs:
+          - update
+        - apiGroups:
+          - rbac.authorization.k8s.io
+          - roles.rbac.authorization.k8s.io
+          - authorization.k8s.io
+          resources:
+          - roles
+          - rolebindings
+          verbs:
+          - '*'
+        - apiGroups:
+          - policy
+          resources:
+          - poddisruptionbudgets
+          verbs:
+          - '*'
+        - apiGroups:
+          - datadoghq.com
+          resources:
+          - datadogagents
+          - datadogagents/status
+          - extendeddaemonset
+          verbs:
+          - '*'
+        serviceAccountName: datadog-operator
+    strategy: deployment
+  installModes:
+  - supported: true
+    type: OwnNamespace
+  - supported: true
+    type: SingleNamespace
+  - supported: false
+    type: MultiNamespace
+  - supported: true
+    type: AllNamespaces
+  keywords:
+  - Datadog
+  - Metrics
+  - Monitoring
+  - Logs
+  maintainers:
+  - email: charly@datadoghq.com
+    name: charlyf
+  - email: cedric.lamoriniere@datadoghq.com
+    name: clamoriniere
+  - email: lenaic.huard@datadoghq.com
+    name: L3n41c
+  - email: celene@datadoghq.com
+    name: celenechang
+  - email: ahmed.mezghani@datadoghq.com
+    name: ahmed-mez
+  - email: ivan.ilichev@datadoghq.com
+    name: xornivore
+  maturity: alpha
+  provider:
+    name: Datadog
+  replaces: datadog-operator.v0.0.0
+  version: 0.1.0
