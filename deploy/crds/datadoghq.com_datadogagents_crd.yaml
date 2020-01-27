@@ -2938,6 +2938,11 @@ spec:
                       description: Enable the metricsProvider to be able to scale
                         based on metrics in Datadog
                       type: boolean
+                    metricsProviderPort:
+                      description: If specified configures the metricsProvider external
+                        metrics service port
+                      format: int32
+                      type: integer
                     resources:
                       description: Datadog cluster-agent resource requests and limits
                       properties:

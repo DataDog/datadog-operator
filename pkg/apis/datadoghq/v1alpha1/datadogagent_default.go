@@ -32,6 +32,7 @@ const (
 	defaultContainerLogsPath                      string = "/var/lib/docker/containers"
 	defaultProcessEnabled                         bool   = false
 	defaultMetricsProviderEnabled                 bool   = false
+	defaultMetricsProviderPort                    int32  = 443
 	defaultClusterChecksRunnerEnabled             bool   = false
 	defaultClusterAgentReplicas                   int32  = 1
 	defaultAgentCanaryReplicas                    int32  = 1
@@ -595,6 +596,10 @@ func DefaultDatadogAgentSpecClusterAgentConfig(config *ClusterAgentConfig) *Clus
 
 	if config.MetricsProviderEnabled == nil {
 		config.MetricsProviderEnabled = NewBoolPointer(defaultMetricsProviderEnabled)
+	}
+
+	if config.MetricsProviderPort == nil {
+		config.MetricsProviderPort = NewInt32Pointer(defaultMetricsProviderPort)
 	}
 
 	if config.ClusterChecksRunnerEnabled == nil {

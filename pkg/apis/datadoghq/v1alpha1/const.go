@@ -51,6 +51,7 @@ const (
 	DDClusterAgentKubeServiceName   = "DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME"
 	DDClusterAgentAuthToken         = "DD_CLUSTER_AGENT_AUTH_TOKEN"
 	DDMetricsProviderEnabled        = "DD_EXTERNAL_METRICS_PROVIDER_ENABLED"
+	DDMetricsProviderPort           = "DD_EXTERNAL_METRICS_PROVIDER_PORT"
 	DDAppKey                        = "DD_APP_KEY"
 	DDClusterChecksRunnerEnabled    = "DD_CLUSTER_CHECKS_ENABLED"
 	DDExtraConfigProviders          = "DD_EXTRA_CONFIG_PROVIDERS"
