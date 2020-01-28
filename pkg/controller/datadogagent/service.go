@@ -163,6 +163,8 @@ func (r *ReconcileDatadogAgent) updateIfNeededService(logger logr.Logger, dda *d
 		updatedService.Labels = newService.Labels
 		updatedService.Annotations = newService.Annotations
 		updatedService.Spec = newService.Spec
+		// ClusterIP is an immutable field
+		updatedService.Spec.ClusterIP = currentService.Spec.ClusterIP
 
 		if err := r.client.Update(context.TODO(), updatedService); err != nil {
 			return reconcile.Result{}, err
