@@ -163,6 +163,8 @@ func (r *ReconcileDatadogAgent) updateIfNeededService(logger logr.Logger, dda *d
 		updatedService.Labels = newService.Labels
 		updatedService.Annotations = newService.Annotations
 		updatedService.Spec = newService.Spec
+		// ClusterIP is an immutable field
+		updatedService.Spec.ClusterIP = currentService.Spec.ClusterIP
 
 		if err := r.client.Update(context.TODO(), updatedService); err != nil {
 			return reconcile.Result{}, err
@@ -181,6 +183,7 @@ func newMetricsServerService(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.Servi
 	labels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
 	annotations := getDefaultAnnotations(dda)
 
+	port := getClusterAgentMetricsProviderPort(dda.Spec.ClusterAgent.Config)
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        getMetricsServerServiceName(dda),
@@ -197,8 +200,8 @@ func newMetricsServerService(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.Servi
 			Ports: []corev1.ServicePort{
 				{
 					Protocol:   corev1.ProtocolTCP,
-					TargetPort: intstr.FromInt(datadoghqv1alpha1.DefaultMetricsServerServicePort),
-					Port:       datadoghqv1alpha1.DefaultMetricsServerServicePort,
+					TargetPort: intstr.FromInt(int(port)),
+					Port:       port,
 				},
 			},
 			SessionAffinity: corev1.ServiceAffinityNone,

@@ -111,6 +111,11 @@ func (in *ClusterAgentConfig) DeepCopyInto(out *ClusterAgentConfig) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.MetricsProviderPort != nil {
+		in, out := &in.MetricsProviderPort, &out.MetricsProviderPort
+		*out = new(int32)
+		**out = **in
+	}
 	if in.ClusterChecksRunnerEnabled != nil {
 		in, out := &in.ClusterChecksRunnerEnabled, &out.ClusterChecksRunnerEnabled
 		*out = new(bool)

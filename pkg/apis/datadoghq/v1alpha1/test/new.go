@@ -32,6 +32,7 @@ type NewDatadogAgentOptions struct {
 	UseEDS                     bool
 	ClusterAgentEnabled        bool
 	MetricsServerEnabled       bool
+	MetricsServerPort          int32
 	ClusterChecksRunnerEnabled bool
 	NodeAgentConfig            *datadoghqv1alpha1.NodeAgentConfig
 	APMEnabled                 bool
@@ -116,6 +117,10 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 			}
 			if options.MetricsServerEnabled {
 				ad.Spec.ClusterAgent.Config.MetricsProviderEnabled = datadoghqv1alpha1.NewBoolPointer(true)
+
+				if options.MetricsServerPort != 0 {
+					ad.Spec.ClusterAgent.Config.MetricsProviderPort = datadoghqv1alpha1.NewInt32Pointer(options.MetricsServerPort)
+				}
 			}
 			if options.ClusterChecksRunnerEnabled {
 				ad.Spec.ClusterAgent.Config.ClusterChecksRunnerEnabled = datadoghqv1alpha1.NewBoolPointer(true)

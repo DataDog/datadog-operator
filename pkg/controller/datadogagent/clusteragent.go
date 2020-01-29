@@ -20,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -284,11 +285,6 @@ func newClusterAgentPodTemplate(logger logr.Logger, agentdeployment *datadoghqv1
 							Name:          "agentport",
 							Protocol:      "TCP",
 						},
-						{
-							ContainerPort: 443,
-							Name:          "metricsapi",
-							Protocol:      "TCP",
-						},
 					},
 					Env:          getEnvVarsForClusterAgent(logger, agentdeployment),
 					VolumeMounts: agentdeployment.Spec.ClusterAgent.Config.VolumeMounts,
@@ -300,8 +296,32 @@ func newClusterAgentPodTemplate(logger logr.Logger, agentdeployment *datadoghqv1
 		},
 	}
 
+	container := &newPodTemplate.Spec.Containers[0]
+
+	if datadoghqv1alpha1.BoolValue(agentdeployment.Spec.ClusterAgent.Config.MetricsProviderEnabled) {
+		port := getClusterAgentMetricsProviderPort(agentdeployment.Spec.ClusterAgent.Config)
+		container.Ports = append(container.Ports, corev1.ContainerPort{
+			ContainerPort: port,
+			Name:          "metricsapi",
+			Protocol:      "TCP",
+		})
+		probe := &corev1.Probe{
+			Handler: corev1.Handler{
+				HTTPGet: &corev1.HTTPGetAction{
+					Path: "/healthz",
+					Port: intstr.IntOrString{
+						IntVal: port,
+					},
+					Scheme: corev1.URISchemeHTTPS,
+				},
+			},
+		}
+		container.LivenessProbe = probe
+		container.ReadinessProbe = probe
+	}
+
 	if clusterAgentSpec.Config.Resources != nil {
-		newPodTemplate.Spec.Containers[0].Resources = *clusterAgentSpec.Config.Resources
+		container.Resources = *clusterAgentSpec.Config.Resources
 	}
 
 	return newPodTemplate
@@ -365,6 +385,11 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 				Name:  datadoghqv1alpha1.DDMetricsProviderEnabled,
 				Value: strconv.FormatBool(*spec.ClusterAgent.Config.MetricsProviderEnabled),
 			})
+
+			envVars = append(envVars, corev1.EnvVar{
+				Name:  datadoghqv1alpha1.DDMetricsProviderPort,
+				Value: strconv.Itoa(int(getClusterAgentMetricsProviderPort(spec.ClusterAgent.Config))),
+			})
 			if spec.Credentials.APIKeyExistingSecret != "" {
 				envVars = append(envVars, corev1.EnvVar{
 					Name:      datadoghqv1alpha1.DDAppKey,
@@ -400,6 +425,13 @@ func getClusterAgentName(dda *datadoghqv1alpha1.DatadogAgent) string {
 		return dda.Spec.ClusterAgent.DeploymentName
 	}
 	return fmt.Sprintf("%s-%s", dda.Name, "cluster-agent")
+}
+
+func getClusterAgentMetricsProviderPort(config datadoghqv1alpha1.ClusterAgentConfig) int32 {
+	if config.MetricsProviderPort != nil {
+		return *config.MetricsProviderPort
+	}
+	return datadoghqv1alpha1.DefaultMetricsServerServicePort
 }
 
 // manageClusterAgentRBACs creates deletes and updates the RBACs for the Cluster Agent

@@ -195,6 +195,13 @@ func schema_pkg_apis_datadoghq_v1alpha1_ClusterAgentConfig(ref common.ReferenceC
 							Format:      "",
 						},
 					},
+					"metricsProviderPort": {
+						SchemaProps: spec.SchemaProps{
+							Description: "If specified configures the metricsProvider external metrics service port",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
 					"clusterChecksRunnerEnabled": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Enable the Cluster Checks Runner feature on both the cluster-agents and the daemonset ref: https://docs.datadoghq.com/agent/autodiscovery/ClusterChecksRunner/ Autodiscovery via Kube Service annotations is automatically enabled",
