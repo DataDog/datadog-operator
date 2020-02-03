@@ -1,0 +1,534 @@
+package datadogagent
+
+import (
+	"fmt"
+	"strconv"
+	"testing"
+
+	"github.com/go-logr/logr"
+	"github.com/google/go-cmp/cmp"
+	assert "github.com/stretchr/testify/require"
+
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/tools/record"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
+
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
+	test "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1/test"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+)
+
+var testClusterAgentReplicas int32 = 1
+
+func clusterAgentDefaultPodSpec() corev1.PodSpec {
+	return corev1.PodSpec{
+		Affinity:           getPodAffinity(nil, "foo-cluster-agent"),
+		ServiceAccountName: "foo-cluster-agent",
+		Containers: []corev1.Container{
+			{
+				Name:            "cluster-agent",
+				Image:           "datadog/cluster-agent:latest",
+				ImagePullPolicy: corev1.PullIfNotPresent,
+				Resources:       corev1.ResourceRequirements{},
+				Ports: []corev1.ContainerPort{
+					{
+						ContainerPort: 5005,
+						Name:          "agentport",
+						Protocol:      "TCP",
+					},
+				},
+				Env: clusterAgentDefaultEnvVars(),
+			},
+		},
+	}
+}
+
+func clusterAgentDefaultEnvVars() []corev1.EnvVar {
+	return []corev1.EnvVar{
+		{
+			Name:  "DD_CLUSTER_NAME",
+			Value: "",
+		},
+		{
+			Name:  "DD_SITE",
+			Value: "",
+		},
+		{
+			Name:  "DD_DD_URL",
+			Value: "https://app.datadoghq.com",
+		},
+		{
+			Name:  "DD_CLUSTER_CHECKS_ENABLED",
+			Value: "false",
+		},
+		{
+			Name:  "DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME",
+			Value: fmt.Sprintf("%s-%s", testDadName, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix),
+		},
+		{
+			Name:      "DD_CLUSTER_AGENT_AUTH_TOKEN",
+			ValueFrom: authTokenValue(),
+		},
+		{
+			Name:  "DD_LEADER_ELECTION",
+			Value: "true",
+		},
+		{
+			Name:  "DD_API_KEY",
+			Value: "",
+		},
+	}
+}
+
+type clusterAgentDeploymentFromInstanceTest struct {
+	name            string
+	agentdeployment *datadoghqv1alpha1.DatadogAgent
+	selector        *metav1.LabelSelector
+	newStatus       *datadoghqv1alpha1.DatadogAgentStatus
+	want            *appsv1.Deployment
+	wantErr         bool
+}
+
+func (test clusterAgentDeploymentFromInstanceTest) Run(t *testing.T) {
+	t.Helper()
+	logf.SetLogger(logf.ZapLogger(true))
+	reqLogger := log.WithValues("test:", test.name)
+	got, _, err := newClusterAgentDeploymentFromInstance(reqLogger, test.agentdeployment, test.newStatus, test.selector)
+	if test.wantErr {
+		assert.Error(t, err, "newClusterAgentDeploymentFromInstance() expected an error")
+	} else {
+		assert.NoError(t, err, "newClusterAgentDeploymentFromInstance() unexpected error: %v", err)
+	}
+	assert.True(t, apiequality.Semantic.DeepEqual(got, test.want), "newClusterAgentDeploymentFromInstance() = %#v, want %#v\ndiff = %s", got, test.want,
+		cmp.Diff(got, test.want))
+}
+
+type clusterAgentDeploymentFromInstanceTestSuite []clusterAgentDeploymentFromInstanceTest
+
+func (tests clusterAgentDeploymentFromInstanceTestSuite) Run(t *testing.T) {
+	t.Helper()
+	for _, tt := range tests {
+		t.Run(tt.name, tt.Run)
+	}
+}
+
+func Test_newClusterAgentDeploymentFromInstance(t *testing.T) {
+	tests := clusterAgentDeploymentFromInstanceTestSuite{
+		{
+			name:            "defaulted case",
+			agentdeployment: test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{ClusterAgentEnabled: true}),
+			newStatus:       &datadoghqv1alpha1.DatadogAgentStatus{},
+			wantErr:         false,
+			want: &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "bar",
+					Name:      "foo-cluster-agent",
+					Labels: map[string]string{"agent.datadoghq.com/name": "foo",
+						"agent.datadoghq.com/component": "cluster-agent",
+						"app.kubernetes.io/instance":    "cluster-agent",
+						"app.kubernetes.io/managed-by":  "datadog-operator",
+						"app.kubernetes.io/name":        "datadog-agent-deployment",
+						"app.kubernetes.io/part-of":     "foo",
+						"app.kubernetes.io/version":     "",
+					},
+					Annotations: map[string]string{"agent.datadoghq.com/agentspechash": defaultClusterAgentHash},
+				},
+				Spec: appsv1.DeploymentSpec{
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{
+								"agent.datadoghq.com/name":      "foo",
+								"agent.datadoghq.com/component": "cluster-agent",
+								"app.kubernetes.io/instance":    "cluster-agent",
+								"app.kubernetes.io/managed-by":  "datadog-operator",
+								"app.kubernetes.io/name":        "datadog-agent-deployment",
+								"app.kubernetes.io/part-of":     "foo",
+								"app.kubernetes.io/version":     "",
+							},
+						},
+						Spec: clusterAgentDefaultPodSpec(),
+					},
+					Replicas: &testClusterAgentReplicas,
+					Selector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"agent.datadoghq.com/name":      "foo",
+							"agent.datadoghq.com/component": "cluster-agent",
+						},
+					},
+				},
+			},
+		},
+		{
+			name:            "with labels and annotations",
+			agentdeployment: test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{ClusterAgentEnabled: true, Labels: map[string]string{"label-foo-key": "label-bar-value"}, Annotations: map[string]string{"annotations-foo-key": "annotations-bar-value"}}),
+			newStatus:       &datadoghqv1alpha1.DatadogAgentStatus{},
+			wantErr:         false,
+			want: &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "bar",
+					Name:      "foo-cluster-agent",
+					Labels: map[string]string{
+						"agent.datadoghq.com/name":      "foo",
+						"agent.datadoghq.com/component": "cluster-agent",
+						"label-foo-key":                 "label-bar-value",
+						"app.kubernetes.io/instance":    "cluster-agent",
+						"app.kubernetes.io/managed-by":  "datadog-operator",
+						"app.kubernetes.io/name":        "datadog-agent-deployment",
+						"app.kubernetes.io/part-of":     "foo",
+						"app.kubernetes.io/version":     "",
+					},
+					Annotations: map[string]string{"agent.datadoghq.com/agentspechash": defaultClusterAgentHash, "annotations-foo-key": "annotations-bar-value"},
+				},
+				Spec: appsv1.DeploymentSpec{
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{
+								"agent.datadoghq.com/name":      "foo",
+								"agent.datadoghq.com/component": "cluster-agent",
+								"label-foo-key":                 "label-bar-value",
+								"app.kubernetes.io/instance":    "cluster-agent",
+								"app.kubernetes.io/managed-by":  "datadog-operator",
+								"app.kubernetes.io/name":        "datadog-agent-deployment",
+								"app.kubernetes.io/part-of":     "foo",
+								"app.kubernetes.io/version":     "",
+							},
+						},
+						Spec: clusterAgentDefaultPodSpec(),
+					},
+					Replicas: &testClusterAgentReplicas,
+					Selector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"agent.datadoghq.com/name":      "foo",
+							"agent.datadoghq.com/component": "cluster-agent",
+						},
+					},
+				},
+			},
+		},
+	}
+	tests.Run(t)
+}
+
+func Test_newClusterAgentDeploymentFromInstance_UserVolumes(t *testing.T) {
+	userVolumes := []corev1.Volume{
+		{
+			Name: "tmp",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/tmp",
+				},
+			},
+		},
+	}
+	userVolumeMounts := []corev1.VolumeMount{
+		{
+			Name:      "tmp",
+			MountPath: "/some/path",
+			ReadOnly:  true,
+		},
+	}
+	userMountsPodSpec := clusterAgentDefaultPodSpec()
+	userMountsPodSpec.Volumes = append(userMountsPodSpec.Volumes, userVolumes...)
+	userMountsPodSpec.Containers[0].VolumeMounts = append(userMountsPodSpec.Containers[0].VolumeMounts, userVolumeMounts...)
+
+	userMountsAgentDeployment := test.NewDefaultedDatadogAgent(
+		"bar",
+		"foo",
+		&test.NewDatadogAgentOptions{
+			ClusterAgentEnabled:      true,
+			ClusterAgentVolumes:      userVolumes,
+			ClusterAgentVolumeMounts: userVolumeMounts,
+		},
+	)
+	userMountsClusterAgentHash, _ := comparison.GenerateMD5ForSpec(userMountsAgentDeployment.Spec.ClusterAgent)
+
+	test := clusterAgentDeploymentFromInstanceTest{
+		name:            "with user volumes and mounts",
+		agentdeployment: userMountsAgentDeployment,
+		newStatus:       &datadoghqv1alpha1.DatadogAgentStatus{},
+		wantErr:         false,
+		want: &appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "bar",
+				Name:      "foo-cluster-agent",
+				Labels: map[string]string{"agent.datadoghq.com/name": "foo",
+					"agent.datadoghq.com/component": "cluster-agent",
+					"app.kubernetes.io/instance":    "cluster-agent",
+					"app.kubernetes.io/managed-by":  "datadog-operator",
+					"app.kubernetes.io/name":        "datadog-agent-deployment",
+					"app.kubernetes.io/part-of":     "foo",
+					"app.kubernetes.io/version":     "",
+				},
+				Annotations: map[string]string{"agent.datadoghq.com/agentspechash": userMountsClusterAgentHash},
+			},
+			Spec: appsv1.DeploymentSpec{
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{
+							"agent.datadoghq.com/name":      "foo",
+							"agent.datadoghq.com/component": "cluster-agent",
+							"app.kubernetes.io/instance":    "cluster-agent",
+							"app.kubernetes.io/managed-by":  "datadog-operator",
+							"app.kubernetes.io/name":        "datadog-agent-deployment",
+							"app.kubernetes.io/part-of":     "foo",
+							"app.kubernetes.io/version":     "",
+						},
+					},
+					Spec: userMountsPodSpec,
+				},
+				Replicas: &testClusterAgentReplicas,
+				Selector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"agent.datadoghq.com/name":      "foo",
+						"agent.datadoghq.com/component": "cluster-agent",
+					},
+				},
+			},
+		},
+	}
+	test.Run(t)
+}
+
+func Test_newClusterAgentDeploymentFromInstance_CustomDeploymentName(t *testing.T) {
+	customDeploymentName := "custom-cluster-agent-deployment"
+	deploymentNamePodSpec := clusterAgentDefaultPodSpec()
+	deploymentNamePodSpec.Affinity = getPodAffinity(nil, customDeploymentName)
+
+	deploymentNameAgentDeployment := test.NewDefaultedDatadogAgent("bar", "foo",
+		&test.NewDatadogAgentOptions{
+			UseEDS:                     true,
+			ClusterAgentEnabled:        true,
+			ClusterAgentDeploymentName: customDeploymentName,
+		})
+
+	deploymentNameClusterAgentHash, _ := comparison.GenerateMD5ForSpec(deploymentNameAgentDeployment.Spec.ClusterAgent)
+
+	test := clusterAgentDeploymentFromInstanceTest{
+		name:            "with custom deployment name and selector",
+		agentdeployment: deploymentNameAgentDeployment,
+		selector: &metav1.LabelSelector{
+			MatchLabels: map[string]string{
+				"app": "datadog-monitoring",
+			},
+		},
+		newStatus: &datadoghqv1alpha1.DatadogAgentStatus{},
+		wantErr:   false,
+		want: &appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "bar",
+				Name:      customDeploymentName,
+				Labels: map[string]string{"agent.datadoghq.com/name": "foo",
+					"agent.datadoghq.com/component": "cluster-agent",
+					"app.kubernetes.io/instance":    "cluster-agent",
+					"app.kubernetes.io/managed-by":  "datadog-operator",
+					"app.kubernetes.io/name":        "datadog-agent-deployment",
+					"app.kubernetes.io/part-of":     "foo",
+					"app.kubernetes.io/version":     "",
+					"app":                           "datadog-monitoring",
+				},
+				Annotations: map[string]string{"agent.datadoghq.com/agentspechash": deploymentNameClusterAgentHash},
+			},
+			Spec: appsv1.DeploymentSpec{
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{
+							"agent.datadoghq.com/name":      "foo",
+							"agent.datadoghq.com/component": "cluster-agent",
+							"app.kubernetes.io/instance":    "cluster-agent",
+							"app.kubernetes.io/managed-by":  "datadog-operator",
+							"app.kubernetes.io/name":        "datadog-agent-deployment",
+							"app.kubernetes.io/part-of":     "foo",
+							"app.kubernetes.io/version":     "",
+							"app":                           "datadog-monitoring",
+						},
+					},
+					Spec: deploymentNamePodSpec,
+				},
+				Replicas: &testClusterAgentReplicas,
+				Selector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"app": "datadog-monitoring",
+					},
+				},
+			},
+		},
+	}
+	test.Run(t)
+}
+
+func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
+	metricsServerPodSpec := clusterAgentDefaultPodSpec()
+	metricsServerPort := int32(4443)
+	metricsServerPodSpec.Containers[0].Ports = append(metricsServerPodSpec.Containers[0].Ports, corev1.ContainerPort{
+		ContainerPort: metricsServerPort,
+		Name:          "metricsapi",
+		Protocol:      "TCP",
+	})
+
+	metricsServerPodSpec.Containers[0].Env = append(metricsServerPodSpec.Containers[0].Env,
+		[]corev1.EnvVar{
+			{
+				Name:  "DD_EXTERNAL_METRICS_PROVIDER_ENABLED",
+				Value: "true",
+			},
+			{
+				Name:  "DD_EXTERNAL_METRICS_PROVIDER_PORT",
+				Value: strconv.Itoa(int(metricsServerPort)),
+			},
+			{
+				Name:  "DD_APP_KEY",
+				Value: "",
+			},
+		}...,
+	)
+
+	probe := &corev1.Probe{
+		Handler: corev1.Handler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path: "/healthz",
+				Port: intstr.IntOrString{
+					IntVal: metricsServerPort,
+				},
+				Scheme: corev1.URISchemeHTTPS,
+			},
+		},
+	}
+
+	metricsServerPodSpec.Containers[0].LivenessProbe = probe
+	metricsServerPodSpec.Containers[0].ReadinessProbe = probe
+
+	metricsServerAgentDeployment := test.NewDefaultedDatadogAgent("bar", "foo",
+		&test.NewDatadogAgentOptions{
+			UseEDS:               true,
+			ClusterAgentEnabled:  true,
+			MetricsServerEnabled: true,
+			MetricsServerPort:    metricsServerPort,
+		})
+
+	metricsServerClusterAgentHash, _ := comparison.GenerateMD5ForSpec(metricsServerAgentDeployment.Spec.ClusterAgent)
+
+	test := clusterAgentDeploymentFromInstanceTest{
+		name:            "with metrics server",
+		agentdeployment: metricsServerAgentDeployment,
+		selector: &metav1.LabelSelector{
+			MatchLabels: map[string]string{
+				"app": "datadog-monitoring",
+			},
+		},
+		newStatus: &datadoghqv1alpha1.DatadogAgentStatus{},
+		wantErr:   false,
+		want: &appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "bar",
+				Name:      "foo-cluster-agent",
+				Labels: map[string]string{"agent.datadoghq.com/name": "foo",
+					"agent.datadoghq.com/component": "cluster-agent",
+					"app.kubernetes.io/instance":    "cluster-agent",
+					"app.kubernetes.io/managed-by":  "datadog-operator",
+					"app.kubernetes.io/name":        "datadog-agent-deployment",
+					"app.kubernetes.io/part-of":     "foo",
+					"app.kubernetes.io/version":     "",
+					"app":                           "datadog-monitoring",
+				},
+				Annotations: map[string]string{"agent.datadoghq.com/agentspechash": metricsServerClusterAgentHash},
+			},
+			Spec: appsv1.DeploymentSpec{
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{
+							"agent.datadoghq.com/name":      "foo",
+							"agent.datadoghq.com/component": "cluster-agent",
+							"app.kubernetes.io/instance":    "cluster-agent",
+							"app.kubernetes.io/managed-by":  "datadog-operator",
+							"app.kubernetes.io/name":        "datadog-agent-deployment",
+							"app.kubernetes.io/part-of":     "foo",
+							"app.kubernetes.io/version":     "",
+							"app":                           "datadog-monitoring",
+						},
+					},
+					Spec: metricsServerPodSpec,
+				},
+				Replicas: &testClusterAgentReplicas,
+				Selector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"app": "datadog-monitoring",
+					},
+				},
+			},
+		},
+	}
+	test.Run(t)
+}
+
+func TestReconcileDatadogAgent_createNewClusterAgentDeployment(t *testing.T) {
+	eventBroadcaster := record.NewBroadcaster()
+	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "TestReconcileDatadogAgent_createNewClusterAgentDeployment"})
+	forwarders := dummyManager{}
+
+	logf.SetLogger(logf.ZapLogger(true))
+	log := logf.Log.WithName("TestReconcileDatadogAgent_createNewClusterAgentDeployment")
+
+	// Register operator types with the runtime scheme.
+	s := scheme.Scheme
+	s.AddKnownTypes(datadoghqv1alpha1.SchemeGroupVersion, &datadoghqv1alpha1.DatadogAgent{})
+
+	type fields struct {
+		client   client.Client
+		scheme   *runtime.Scheme
+		recorder record.EventRecorder
+	}
+	type args struct {
+		logger          logr.Logger
+		agentdeployment *datadoghqv1alpha1.DatadogAgent
+		newStatus       *datadoghqv1alpha1.DatadogAgentStatus
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    reconcile.Result
+		wantErr bool
+	}{
+		{
+			name: "create new DCA",
+			fields: fields{
+				client:   fake.NewFakeClient(),
+				scheme:   s,
+				recorder: recorder,
+			},
+			args: args{
+				logger:          log,
+				agentdeployment: test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{ClusterAgentEnabled: true}),
+				newStatus:       &datadoghqv1alpha1.DatadogAgentStatus{},
+			},
+			want:    reconcile.Result{},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := &ReconcileDatadogAgent{
+				client:     tt.fields.client,
+				scheme:     tt.fields.scheme,
+				recorder:   recorder,
+				forwarders: forwarders,
+			}
+			got, err := r.createNewClusterAgentDeployment(tt.args.logger, tt.args.agentdeployment, tt.args.newStatus)
+			if tt.wantErr {
+				assert.Error(t, err, "ReconcileDatadogAgent.createNewClusterAgentDeployment() should return an error")
+			} else {
+				assert.NoError(t, err, "ReconcileDatadogAgent.createNewClusterAgentDeployment() unexpected error: %v", err)
+			}
+			assert.Equal(t, tt.want, got, "ReconcileDatadogAgent.createNewClusterAgentDeployment() unexpected result")
+		})
+	}
+}
