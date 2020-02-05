@@ -753,18 +753,18 @@ func exportPodsLogs(t *testing.T, f *framework.Framework, namespace string, err 
 	// }
 }
 
-func printPods(t *testing.T, f *framework.Framework, namespace string) {
-	podList := &corev1.PodList{}
-	namespaceOption := &dynclient.ListOptions{Namespace: namespace}
-	_ = f.Client.List(goctx.TODO(), podList, namespaceOption)
-	for _, pod := range podList.Items {
-		b, err2 := json.Marshal(pod)
-		if err2 != nil {
-			t.Errorf("unable pr marshal pod, err: %v", err2)
-		}
-		t.Logf("pod [%s]: ", string(b))
-	}
-}
+// func printPods(t *testing.T, f *framework.Framework, namespace string) {
+// 	podList := &corev1.PodList{}
+// 	namespaceOption := &dynclient.ListOptions{Namespace: namespace}
+// 	_ = f.Client.List(goctx.TODO(), podList, namespaceOption)
+// 	for _, pod := range podList.Items {
+// 		b, err2 := json.Marshal(pod)
+// 		if err2 != nil {
+// 			t.Errorf("unable pr marshal pod, err: %v", err2)
+// 		}
+// 		t.Logf("pod [%s]: ", string(b))
+// 	}
+// }
 
 func printDaemonSet(t *testing.T, f *framework.Framework, namespace string) {
 	dsList := &appsv1.DaemonSetList{}
