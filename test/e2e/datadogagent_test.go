@@ -718,40 +718,39 @@ func (l *logWriter) Write(b []byte) (int, error) {
 
 func exportPodsLogs(t *testing.T, f *framework.Framework, namespace string, err error) {
 	// FIXME: Comment out exportPodsLogs temporarily for e2e debugging
-	return
-	if err == nil {
-		return
-	}
-	printPods(t, f, namespace)
+	// if err == nil {
+	// 	return
+	// }
+	// printPods(t, f, namespace)
 
-	// setup streaming operator pod's logs for simplify investigation
-	pods, err2 := f.KubeClient.CoreV1().Pods(namespace).List(metav1.ListOptions{})
-	if err2 != nil {
-		t.Fatal(err2)
-	}
+	// // setup streaming operator pod's logs for simplify investigation
+	// pods, err2 := f.KubeClient.CoreV1().Pods(namespace).List(metav1.ListOptions{})
+	// if err2 != nil {
+	// 	t.Fatal(err2)
+	// }
 
-	for _, pod := range pods.Items {
-		for _, container := range pod.Spec.Containers {
-			options := &corev1.PodLogOptions{
-				Container: container.Name,
-			}
-			t.Logf("Add logger for pod:[%s/%s], container: %s", pod.Namespace, pod.Name, container.Name)
-			req := f.KubeClient.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, options)
-			readCloser, err := req.Stream()
-			if err != nil {
-				t.Errorf("unable to stream log for pod:[%s/%s], err:%v", pod.Namespace, pod.Name, err)
-				return
-			}
-			w := &logWriter{
-				name:      pod.Name,
-				namespace: pod.Namespace,
-				container: container.Name,
-				t:         t,
-			}
-			_, _ = io.Copy(w, readCloser)
-		}
+	// for _, pod := range pods.Items {
+	// 	for _, container := range pod.Spec.Containers {
+	// 		options := &corev1.PodLogOptions{
+	// 			Container: container.Name,
+	// 		}
+	// 		t.Logf("Add logger for pod:[%s/%s], container: %s", pod.Namespace, pod.Name, container.Name)
+	// 		req := f.KubeClient.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, options)
+	// 		readCloser, err := req.Stream()
+	// 		if err != nil {
+	// 			t.Errorf("unable to stream log for pod:[%s/%s], err:%v", pod.Namespace, pod.Name, err)
+	// 			return
+	// 		}
+	// 		w := &logWriter{
+	// 			name:      pod.Name,
+	// 			namespace: pod.Namespace,
+	// 			container: container.Name,
+	// 			t:         t,
+	// 		}
+	// 		_, _ = io.Copy(w, readCloser)
+	// 	}
 
-	}
+	// }
 }
 
 func printPods(t *testing.T, f *framework.Framework, namespace string) {
