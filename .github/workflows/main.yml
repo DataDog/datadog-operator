@@ -37,9 +37,8 @@ jobs:
         config: test/cluster-kind.yaml
     - name: Run E2E
       run: |
-        export KUBECONFIG="$(kind get kubeconfig-path)"
         export PATH=$PATH:$(pwd)/bin
-        kubectl cluster-info
+        kubectl cluster-info --context kind-kind
         kubectl get pods -n kube-system
         KINDPUSH=true make TAG=$GITHUB_SHA container
         make TAG=$GITHUB_SHA e2e
