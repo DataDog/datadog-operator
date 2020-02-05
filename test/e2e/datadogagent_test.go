@@ -717,6 +717,8 @@ func (l *logWriter) Write(b []byte) (int, error) {
 }
 
 func exportPodsLogs(t *testing.T, f *framework.Framework, namespace string, err error) {
+	// FIXME: Comment out exportPodsLogs temporarily for e2e debugging
+	return
 	if err == nil {
 		return
 	}
