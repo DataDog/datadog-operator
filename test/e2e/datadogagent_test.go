@@ -14,12 +14,14 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/DataDog/datadog-operator/pkg/apis"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/test/e2e/utils"
+	"github.com/davecgh/go-spew/spew"
 
 	framework "github.com/operator-framework/operator-sdk/pkg/test"
 	"github.com/operator-framework/operator-sdk/pkg/test/e2eutil"
@@ -34,7 +36,7 @@ import (
 
 var (
 	retryInterval        = time.Second * 5
-	timeout              = time.Minute * 5
+	timeout              = time.Minute * 2
 	cleanupRetryInterval = time.Second * 1
 	cleanupTimeout       = time.Second * 60
 
@@ -78,6 +80,7 @@ func DeploymentDaemonset(t *testing.T) {
 	}
 
 	isOK := func(ad *datadoghqv1alpha1.DatadogAgent) (bool, error) {
+		t.Log(spew.Sprintf("isOK: status: agent: %#+v", ad.Status.Agent))
 		if ad.Status.Agent == nil {
 			return false, nil
 		}
@@ -94,8 +97,9 @@ func DeploymentDaemonset(t *testing.T) {
 	}
 	err = utils.WaitForFuncOnDatadogAgent(t, f.Client, namespace, name, isOK, retryInterval, timeout)
 	if err != nil {
-		exportPodsLogs(t, f, namespace, err)
+		// exportPodsLogs(t, f, namespace, err)
 		t.Fatal(err)
+		printPods(t, f, namespace)
 	}
 
 	// check if the Daemonset was created properly
@@ -415,24 +419,31 @@ func DeploymentWithClusterAgentEnabled(t *testing.T) {
 	}
 
 	isOK := func(ad *datadoghqv1alpha1.DatadogAgent) (bool, error) {
+		t.Log(spew.Sprintf("isOK: status: agent: %#+v, cluster agent: %#+v", ad.Status.Agent, ad.Status.ClusterAgent))
 		if ad.Status.Agent == nil || ad.Status.ClusterAgent == nil {
 			return false, nil
 		}
 		if ad.Status.Agent.CurrentHash == "" || ad.Status.ClusterAgent.CurrentHash == "" {
 			return false, nil
 		}
+
+		var conditions []string
 		for _, condition := range ad.Status.Conditions {
+			conditions = append(conditions, string(condition.Type))
 			if condition.Type == datadoghqv1alpha1.ConditionTypeActive && condition.Status == corev1.ConditionTrue {
 				return true, nil
 			}
 		}
 
+		t.Logf("isOK: not active status - conditions=%s", strings.Join(conditions, ","))
+
 		return false, nil
 	}
 	err = utils.WaitForFuncOnDatadogAgent(t, f.Client, namespace, name, isOK, retryInterval, timeout)
 	if err != nil {
-		exportPodsLogs(t, f, namespace, err)
+		// exportPodsLogs(t, f, namespace, err)
 		t.Fatal(err)
+		printPods(t, f, namespace)
 	}
 
 	// get DatadogAgent
@@ -753,18 +764,18 @@ func exportPodsLogs(t *testing.T, f *framework.Framework, namespace string, err 
 	// }
 }
 
-// func printPods(t *testing.T, f *framework.Framework, namespace string) {
-// 	podList := &corev1.PodList{}
-// 	namespaceOption := &dynclient.ListOptions{Namespace: namespace}
-// 	_ = f.Client.List(goctx.TODO(), podList, namespaceOption)
-// 	for _, pod := range podList.Items {
-// 		b, err2 := json.Marshal(pod)
-// 		if err2 != nil {
-// 			t.Errorf("unable pr marshal pod, err: %v", err2)
-// 		}
-// 		t.Logf("pod [%s]: ", string(b))
-// 	}
-// }
+func printPods(t *testing.T, f *framework.Framework, namespace string) {
+	podList := &corev1.PodList{}
+	namespaceOption := &dynclient.ListOptions{Namespace: namespace}
+	_ = f.Client.List(goctx.TODO(), podList, namespaceOption)
+	for _, pod := range podList.Items {
+		b, err2 := json.Marshal(pod)
+		if err2 != nil {
+			t.Errorf("unable pr marshal pod, err: %v", err2)
+		}
+		t.Logf("pod [%s]: ", string(b))
+	}
+}
 
 func printDaemonSet(t *testing.T, f *framework.Framework, namespace string) {
 	dsList := &appsv1.DaemonSetList{}
