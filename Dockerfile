@@ -16,6 +16,7 @@ COPY --from=build-env /src/controller ${OPERATOR}
 
 COPY --from=build-env /src/build/bin /usr/local/bin
 RUN  /usr/local/bin/user_setup
+RUN microdnf update && microdnf install curl
 
 ENTRYPOINT ["/usr/local/bin/entrypoint"]
 

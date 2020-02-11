@@ -1,5 +1,6 @@
 PROJECT_NAME=datadog-operator
 ARTIFACT=controller
+ARTIFACT_PLUGIN=kubectl-dd
 
 # 0.0 shouldn't clobber any released builds
 DOCKER_REGISTRY=datadog
@@ -34,6 +35,11 @@ build: ${ARTIFACT}
 
 ${ARTIFACT}: ${SOURCES}
 	CGO_ENABLED=0 go build ${GOMOD} -i -installsuffix cgo ${LDFLAGS} -o ${ARTIFACT} ./cmd/manager/main.go
+
+build-plugin: ${ARTIFACT_PLUGIN}
+
+${ARTIFACT_PLUGIN}: ${SOURCES}
+	CGO_ENABLED=0 go build -i -installsuffix cgo ${LDFLAGS} -o ${ARTIFACT_PLUGIN} ./cmd/${ARTIFACT_PLUGIN}/main.go
 
 container:
 	./bin/operator-sdk build $(PREFIX):$(TAG)
