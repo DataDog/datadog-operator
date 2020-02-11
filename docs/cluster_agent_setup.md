@@ -48,7 +48,7 @@ datadog-agent-cluster-agent   2/2     2            2           21s
 
 The "datadog-agent" `DaemonSet` has also been updated to get the new configuration for using the `Cluster-Agent` deployment pods.
 
-```console
+```shell
 $ kubectl get pod
 NAME                                         READY   STATUS    RESTARTS   AGE
 datadog-operator-6f49889b99-vlscz            1/1     Running   0          15h

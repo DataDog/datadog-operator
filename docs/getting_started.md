@@ -119,7 +119,7 @@ datadogagent.datadoghq.com/datadog-agent updated
 
 The DaemonSet update can be validated by looking at the new desired pod value:
 
-```console
+```shell
 $ kubectl get -n $DD_NAMESPACE ds
 NAME            DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR   AGE
 datadog-agent   3         3         3       3            3           <none>          7m31s
