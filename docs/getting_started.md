@@ -14,21 +14,22 @@ Using the Datadog Operator requires the following prerequisites:
 
 To use the Datadog Operator, deploy it in your Kubernetes cluster. Then create a `DatadogAgent` Kubernetes resource that contains the Datadog deployment configuration:
 
-1. Download the Datadog Operator Helm chart from [`datadog-operator/chart/datadog-operator`](https://github.com/DataDog/datadog-operator/tree/master/chart/datadog-operator).
-2. Define your namespace and operator:
+1. Download the [Datadog Operator project zip ball](https://github.com/DataDog/datadog-operator/archive/master.zip). Source code can be found at [`DataDog/datadog-operator`](https://github.com/DataDog/datadog-operator).
+2. Unzip the project, and go into the `./datadog-operator` folder.
+3. Define your namespace and operator:
 
    ```shell
    DD_NAMESPACE="datadog"
    DD_NAMEOP="ddoperator"
    ```
 
-3. Create the namespace:
+4. Create the namespace:
 
    ```shell
    kubectl create ns $DD_NAMESPACE
    ```
 
-4. Install the operator with helm:
+5. Install the operator with helm:
 
    - Helm v2:
 
@@ -68,10 +69,10 @@ $ kubectl apply -n $DD_NAMESPACE -f datadog-agent.yaml
 datadogagent.datadoghq.com/datadog-agent created
 ```
 
-You can check the state of the `DatadogAgent` `datadog` with:
+You can check the state of the `DatadogAgent` ressource with:
 
 ```shell
-kubectl get -n $DD_NAMESPACE dd datadog-agent
+kubectl get -n $DD_NAMESPACE datadogagent datadog-agent
 NAME             ACTIVE   AGENT     CLUSTER-AGENT   AGE
 datadog-agent    True     Running                   4m2s
 ```
@@ -79,7 +80,7 @@ datadog-agent    True     Running                   4m2s
 In a 2-worker-nodes cluster, you should see the Agent pods created on each node.
 
 ```shell
-$ kubectl get -n $DD_NAMESPACE ds
+$ kubectl get -n $DD_NAMESPACE daemonset
 NAME            DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR   AGE
 datadog-agent   2         2         2       2            2           <none>          5m30s
 
@@ -90,9 +91,9 @@ datadog-agent-k26tp                          1/1     Running   0          5m59s 
 datadog-agent-zcxx7                          1/1     Running   0          5m59s   10.244.1.7    kind-worker2
 ```
 
-### Going further
+### Tolerations
 
-Update your [`datadog-agent.yaml` file](https://github.com/DataDog/datadog-operator/blob/master/examples/datadog-agent-with-tolerations.yaml) with following configuration:
+Update your [`datadog-agent.yaml` file](https://github.com/DataDog/datadog-operator/blob/master/examples/datadog-agent-with-tolerations.yaml) with the following configuration to add the toleration in the `Daemonset.spec.template` of your `DaemonSet` :
 
 ```yaml
 apiVersion: datadoghq.com/v1alpha1
@@ -110,7 +111,7 @@ spec:
        - operator: Exists
 ```
 
-The `DaemonSet` will now be updated in order to add the toleration in the `Daemonset.spec.template`:
+Apply this new configuration:
 
 ```shell
 $ kubectl apply -f datadog-agent.yaml
@@ -120,7 +121,7 @@ datadogagent.datadoghq.com/datadog-agent updated
 The DaemonSet update can be validated by looking at the new desired pod value:
 
 ```shell
-$ kubectl get -n $DD_NAMESPACE ds
+$ kubectl get -n $DD_NAMESPACE daemonset
 NAME            DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR   AGE
 datadog-agent   3         3         3       3            3           <none>          7m31s
 
@@ -137,7 +138,7 @@ datadog-agent-zvdbw                          1/1     Running    0          8m1s
 The following command deletes all the Kubernetes resources created by the Datadog Operator and the linked `DatadogAgent` `datadog-agent`.
 
 ```shell
-$ kubectl delete -n $DD_NAMESPACE dd datadog-agent
+$ kubectl delete -n $DD_NAMESPACE datadogagent datadog-agent
 datadogagent.datadoghq.com/datadog-agent deleted
 ```
 

@@ -1,6 +1,6 @@
 # Cluster Agent
 
-To deploy the Cluster Agent along with the Agent update the current `DatadogAgent` `datadog-agent` with the [`datadog-agent-with-clusteragent.yaml` file](https://github.com/DataDog/datadog-operator/blob/master/examples/datadog-agent-with-clusteragent.yaml):
+To deploy the Cluster Agent along with the Agent update the current `DatadogAgent` resource with the [`datadog-agent-with-clusteragent.yaml` file](https://github.com/DataDog/datadog-operator/blob/master/examples/datadog-agent-with-clusteragent.yaml):
 
 ```yaml
 apiVersion: datadoghq.com/v1alpha1
@@ -8,16 +8,23 @@ kind: DatadogAgent
 metadata:
   name: datadog-agent
 spec:
+  # Credentials to communicate between:
+  #  * Agents and Datadog (API/APP key)
+  #  * Node Agent and Cluster Agent (Token)
   credentials:
     apiKey: <DATADOG_API_KEY>
     appKey: <DATADOG_APP_KEY>
     token: <DATADOG_CLUSTER_AGENT_TOKEN>
+
+  # Node Agent configuration
   agent:
     image:
       name: 'datadog/agent:latest'
     config:
       tolerations:
         - operator: Exists
+
+  # Cluster Agent configuration
   clusterAgent:
     image:
       name: 'datadog/cluster-agent:latest'
@@ -26,6 +33,8 @@ spec:
       clusterChecksEnabled: true
     replicas: 2
 ```
+
+**Note**: `<DATADOG_CLUSTER_AGENT_TOKEN>` is a custom 32 characters long token that you can defined, if omited, a random one is generated automatically.
 
 Then apply it with:
 
