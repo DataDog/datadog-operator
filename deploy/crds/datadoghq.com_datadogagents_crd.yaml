@@ -1994,7 +1994,8 @@ spec:
                     containerLogsPath:
                       description: 'This to allow log collection from container log
                         path. Set to a different path if not using docker runtime.
-                        ref: https://docs.datadoghq.com/agent/kubernetes/daemonset_setup/?tab=k8sfile#create-manifest'
+                        ref: https://docs.datadoghq.com/agent/kubernetes/daemonset_setup/?tab=k8sfile#create-manifest
+                        Default to `/var/lib/docker/containers`'
                       type: string
                     enabled:
                       description: 'Enables this to activate Datadog Agent log collection.
@@ -2004,6 +2005,16 @@ spec:
                       description: 'Enable this to allow log collection for all containers.
                         ref: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup'
                       type: boolean
+                    podLogsPath:
+                      description: This to allow log collection from pod log path.
+                        Default to `/var/log/pods`
+                      type: string
+                    tempStoragePath:
+                      description: This path (always mounted from the host) is used
+                        by Datadog Agent to store information about processed log
+                        files. If the Datadog Agent is restarted, it allows to start
+                        tailing the log files from the right offset Default to `/var/lib/datadog-agent/logs`
+                      type: string
                   type: object
                 process:
                   description: Process Agent configuration

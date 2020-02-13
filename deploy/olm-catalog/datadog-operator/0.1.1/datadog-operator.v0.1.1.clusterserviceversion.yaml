@@ -6,13 +6,13 @@ metadata:
     capabilities: Full Lifecycle
     categories: Logging & Tracing
     certified: "true"
-    containerImage: datadog/operator:v0.1.0
+    containerImage: datadog/operator:v0.1.1
     createdAt: 2020-002-07 00:00:00
     description: Datadog provides a modern monitoring and analytics platform. Gather
       metrics, logs and traces for full observability of your Kubernetes cluster with
       Datadog Operator.
     repository: https://github.com/DataDog/datadog-operator
-  name: datadog-operator.v0.1.0
+  name: datadog-operator.v0.1.1
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -22,6 +22,7 @@ spec:
       kind: DatadogAgent
       name: datadogagents.datadoghq.com
       version: v1alpha1
+      displayName: Datadog Agent
   description: Placeholder description
   displayName: Datadog Operator
   icon:
@@ -29,6 +30,26 @@ spec:
     mediatype: image/svg+xml
   install:
     spec:
+      clusterPermissions:
+      - rules:
+        - apiGroups:
+          - rbac.authorization.k8s.io
+          - roles.rbac.authorization.k8s.io
+          - authorization.k8s.io
+          resources:
+          - clusterroles
+          - clusterrolebindings
+          verbs:
+          - '*'
+        - apiGroups:
+          - datadoghq.com
+          resources:
+          - datadogagents
+          - datadogagents/status
+          - datadogagents/finalizers
+          verbs:
+          - '*'
+        serviceAccountName: datadog-operator
       deployments:
       - name: datadog-operator
         spec:
@@ -58,7 +79,7 @@ spec:
                       fieldPath: metadata.name
                 - name: OPERATOR_NAME
                   value: datadog-operator
-                image: datadog/operator:latest
+                image: datadog/operator:0.1.1
                 imagePullPolicy: IfNotPresent
                 name: datadog-operator
                 resources: {}
@@ -112,6 +133,7 @@ spec:
           resources:
           - datadogagents
           - datadogagents/status
+          - datadogagents/finalizers
           - extendeddaemonset
           verbs:
           - '*'
@@ -143,4 +165,4 @@ spec:
   provider:
     name: Datadog
   replaces: datadog-operator.v0.0.0
-  version: 0.1.0
+  version: 0.1.1

@@ -1186,7 +1186,21 @@ func schema_pkg_apis_datadoghq_v1alpha1_LogSpec(ref common.ReferenceCallback) co
 					},
 					"containerLogsPath": {
 						SchemaProps: spec.SchemaProps{
-							Description: "This to allow log collection from container log path. Set to a different path if not using docker runtime. ref: https://docs.datadoghq.com/agent/kubernetes/daemonset_setup/?tab=k8sfile#create-manifest",
+							Description: "This to allow log collection from container log path. Set to a different path if not using docker runtime. ref: https://docs.datadoghq.com/agent/kubernetes/daemonset_setup/?tab=k8sfile#create-manifest Default to `/var/lib/docker/containers`",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"podLogsPath": {
+						SchemaProps: spec.SchemaProps{
+							Description: "This to allow log collection from pod log path. Default to `/var/log/pods`",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"tempStoragePath": {
+						SchemaProps: spec.SchemaProps{
+							Description: "This path (always mounted from the host) is used by Datadog Agent to store information about processed log files. If the Datadog Agent is restarted, it allows to start tailing the log files from the right offset Default to `/var/lib/datadog-agent/logs`",
 							Type:        []string{"string"},
 							Format:      "",
 						},
