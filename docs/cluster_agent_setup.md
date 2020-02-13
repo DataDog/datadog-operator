@@ -1,6 +1,6 @@
 # Cluster Agent
 
-To deploy the Cluster Agent along with the Agent update the current `DatadogAgent` resource with the [`datadog-agent-with-clusteragent.yaml` file](https://github.com/DataDog/datadog-operator/blob/master/examples/datadog-agent-with-clusteragent.yaml):
+To deploy the Cluster Agent along with the Agent update the current `DatadogAgent` resource with the [`datadog-agent-with-clusteragent.yaml` file][1]:
 
 ```yaml
 apiVersion: datadoghq.com/v1alpha1
@@ -19,7 +19,7 @@ spec:
   # Node Agent configuration
   agent:
     image:
-      name: 'datadog/agent:latest'
+      name: "datadog/agent:latest"
     config:
       tolerations:
         - operator: Exists
@@ -27,7 +27,7 @@ spec:
   # Cluster Agent configuration
   clusterAgent:
     image:
-      name: 'datadog/cluster-agent:latest'
+      name: "datadog/cluster-agent:latest"
     config:
       metricsProviderEnabled: true
       clusterChecksEnabled: true
@@ -67,3 +67,5 @@ datadog-agent-cluster-agent-9f9c5c4c-2v9f7   1/1     Running   0          58s
 datadog-agent-cluster-agent-9f9c5c4c-pmhqb   1/1     Running   0          58s
 datadog-agent-hjlbg                          1/1     Running   0          33s
 ```
+
+[1]: https://github.com/DataDog/datadog-operator/blob/master/examples/datadog-agent-with-clusteragent.yaml

@@ -1,8 +1,8 @@
 # Custom Check
 
-To configure one of Datadog 400+ integrations, leverage the [Agent Autodiscovery feature](https://docs.datadoghq.com/agent/autodiscovery/). But if you want to run a Custom Check the `DatadogAgent` resource can be configured to provide custom checks (`checks.d`) and their configuration files (`conf.d`) at initialization time. A `ConfigMap` resource needs to be configured for each of these settings before the `DatadogAgent` resource using them is created.
+To configure one of Datadog 400+ integrations, leverage the [Agent Autodiscovery feature][1]. But if you want to run a Custom Check the `DatadogAgent` resource can be configured to provide custom checks (`checks.d`) and their configuration files (`conf.d`) at initialization time. A `ConfigMap` resource needs to be configured for each of these settings before the `DatadogAgent` resource using them is created.
 
-Below is an example of configuring these `ConfigMaps` for a single check `hello` that submits the `hello.world` metrics to Datadog. See the [Introduction to Integrations](https://docs.datadoghq.com/getting_started/integrations/) to learn what is a check in the Datadog ecosystem.
+Below is an example of configuring these `ConfigMaps` for a single check `hello` that submits the `hello.world` metrics to Datadog. See the [Introduction to Integrations][2] to learn what is a check in the Datadog ecosystem.
 
 ## Create the check files
 
@@ -163,3 +163,6 @@ spec:
         mountPath: /etc/secrets
         readOnly: true
 ```
+
+[1]: https://docs.datadoghq.com/agent/autodiscovery/
+[2]: https://docs.datadoghq.com/getting_started/integrations/

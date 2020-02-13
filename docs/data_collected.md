@@ -11,11 +11,11 @@ The Datadog Operator sends metrics and events to Datadog to monitor the Datadog 
 | `datadog.operator.clustercheckrunner.deployment.success` | gauge       | `1` if the desired number of Cluster Check Runner replicas equals the number of available Cluster Check Runner pods, `0` otherwise. |
 | `datadog.operator.reconcile.success`                     | gauge       | `1` if the last recorded reconcile error is null, `0` otherwise. The `reconcile_err` tag describes the last recorded error.         |
 
-**Note:** The [Datadog API and APP keys](https://docs.datadoghq.com/account_management/api-app-keys/) are required to forward metrics to Datadog, they must be provided in the `credentials` field in the Custom Resource definiton.
+**Note:** The [Datadog API and APP keys][1] are required to forward metrics to Datadog, they must be provided in the `credentials` field in the Custom Resource definiton.
 
-The Datadog Operator exposes Golang and Controller metrics in OpenMetrics format. For now they can be collected using the [OpenMetrics integration](https://docs.datadoghq.com/integrations/openmetrics/). A Datadog integration will be available in the future.
+The Datadog Operator exposes Golang and Controller metrics in OpenMetrics format. For now they can be collected using the [OpenMetrics integration][2]. A Datadog integration will be available in the future.
 
-The OpenMetrics check is activated by default via [autodiscovery annotations](./chart/datadog-operator/templates/deployment.yaml) and is scheduled by the Agent running on the same node as the Datadog Operator Pod.
+The OpenMetrics check is activated by default via [autodiscovery annotations][3] and is scheduled by the Agent running on the same node as the Datadog Operator Pod.
 
 ## Events
 
@@ -32,3 +32,7 @@ The OpenMetrics check is activated by default via [autodiscovery annotations](./
 - Create/Update/Delete Secret <Namespace/Name>
 - Create/Update/Delete PDB <Namespace/Name>
 - Create/Delete ServiceAccount <Namespace/Name>
+
+[1]: https://docs.datadoghq.com/account_management/api-app-keys/
+[2]: https://docs.datadoghq.com/integrations/openmetrics/
+[3]: ./chart/datadog-operator/templates/deployment.yaml

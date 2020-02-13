@@ -5,16 +5,16 @@
 Using the Datadog Operator requires the following prerequisites:
 
 - **Kubernetes Cluster version >= v1.14.X**: Tests were done on versions >= `1.14.0`. Still, it should work on versions `>= v1.11.0`. For earlier versions, due to limited CRD support, the operator may not work as expected.
-- [`Helm`](https://helm.sh) for deploying the `Datadog-operator`.
-- [`Kubectl` cli](https://kubernetes.io/docs/tasks/tools/install-kubectl/) for installing the `Datadog-agent`.
+- [`Helm`][1] for deploying the `Datadog-operator`.
+- [`Kubectl` cli][2] for installing the `Datadog-agent`.
 
-> Datadog plans to provide Openshift support with its [operators-framework](https://www.openshift.com/learn/topics/operators) ecosystem but it is not yet released (for information the `Datadog-Operator` is based on the [`operator-sdk`](https://github.com/operator-framework/operator-sdk)).
+> Datadog plans to provide Openshift support with its [operators-framework][3] ecosystem but it is not yet released (for information the `Datadog-Operator` is based on the [`operator-sdk`][4]).
 
 ## Deploy the Datadog Operator
 
 To use the Datadog Operator, deploy it in your Kubernetes cluster. Then create a `DatadogAgent` Kubernetes resource that contains the Datadog deployment configuration:
 
-1. Download the [Datadog Operator project zip ball](https://github.com/DataDog/datadog-operator/archive/master.zip). Source code can be found at [`DataDog/datadog-operator`](https://github.com/DataDog/datadog-operator).
+1. Download the [Datadog Operator project zip ball][5]. Source code can be found at [`DataDog/datadog-operator`][6].
 2. Unzip the project, and go into the `./datadog-operator` folder.
 3. Define your namespace and operator:
 
@@ -47,7 +47,7 @@ To use the Datadog Operator, deploy it in your Kubernetes cluster. Then create a
 
 After deploying the Datadog Operator, create the `DatadogAgent` resource that triggers the Datadog Agent's deployment in your Kubernetes cluster. By creating this resource in the `Datadog-Operator` namespace, the Agent will be deployed as a `DaemonSet` on every `Node` of your cluster.
 
-The following [`datadog-agent.yaml` file](https://github.com/DataDog/datadog-operator/blob/master/examples/datadog-agent.yaml) is the simplest configuration for the Datadog Operator:
+The following [`datadog-agent.yaml` file][7] is the simplest configuration for the Datadog Operator:
 
 ```yaml
 apiVersion: datadoghq.com/v1alpha1
@@ -63,7 +63,7 @@ spec:
       name: "datadog/agent:latest"
 ```
 
-Replace `<DATADOG_API_KEY>` and `<DATADOG_APP_KEY>` with your [Datadog API and application keys](https://app.datadoghq.com/account/settings#api), then trigger the Agent installation with the following command:
+Replace `<DATADOG_API_KEY>` and `<DATADOG_APP_KEY>` with your [Datadog API and application keys][8], then trigger the Agent installation with the following command:
 
 ```shell
 $ kubectl apply -n $DD_NAMESPACE -f datadog-agent.yaml
@@ -94,7 +94,7 @@ datadog-agent-zcxx7                          1/1     Running   0          5m59s 
 
 ### Tolerations
 
-Update your [`datadog-agent.yaml` file](https://github.com/DataDog/datadog-operator/blob/master/examples/datadog-agent-with-tolerations.yaml) with the following configuration to add the toleration in the `Daemonset.spec.template` of your `DaemonSet` :
+Update your [`datadog-agent.yaml` file][9] with the following configuration to add the toleration in the `Daemonset.spec.template` of your `DaemonSet` :
 
 ```yaml
 apiVersion: datadoghq.com/v1alpha1
@@ -149,3 +149,13 @@ You can then remove the Datadog-Operator with the `helm delete` command:
 ```shell
 helm delete $DD_NAMEOP -n $DD_NAMESPACE
 ```
+
+[1]: https://helm.sh
+[2]: https://kubernetes.io/docs/tasks/tools/install-kubectl/
+[3]: https://www.openshift.com/learn/topics/operators
+[4]: https://github.com/operator-framework/operator-sdk
+[5]: https://github.com/DataDog/datadog-operator/archive/master.zip
+[6]: https://github.com/DataDog/datadog-operator
+[7]: https://github.com/DataDog/datadog-operator/blob/master/examples/datadog-agent.yaml
+[8]: https://app.datadoghq.com/account/settings#api
+[9]: https://github.com/DataDog/datadog-operator/blob/master/examples/datadog-agent-with-tolerations.yaml
