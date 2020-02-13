@@ -12,9 +12,9 @@ spec:
   #  * Agents and Datadog (API/APP key)
   #  * Node Agent and Cluster Agent (Token)
   credentials:
-    apiKey: <DATADOG_API_KEY>
-    appKey: <DATADOG_APP_KEY>
-    token: <DATADOG_CLUSTER_AGENT_TOKEN>
+    apiKey: "<DATADOG_API_KEY>"
+    appKey: "<DATADOG_APP_KEY>"
+    token: "<DATADOG_CLUSTER_AGENT_TOKEN>"
 
   # Node Agent configuration
   agent:

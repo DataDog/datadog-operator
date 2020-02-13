@@ -19,15 +19,8 @@ At its core a check needs a configuration file `hello.yaml` and a script file `h
 2. Create the **`hello.py`** with the following content:
 
    ```python
-   # the following try/except block will make the custom check compatible with any Agent version
-   try:
-       # first, try to import the base class from new versions of the Agent...
-       from datadog_checks.base import AgentCheck
-   except ImportError:
-       # ...if the above failed, the check is running in Agent version < 6.6.0
-       from checks import AgentCheck
+   from datadog_checks.base import AgentCheck
 
-   # content of the special variable __version__ will be shown in the Agent status page
    __version__ = "1.0.0"
    class HelloCheck(AgentCheck):
        def check(self, instance):
@@ -75,19 +68,12 @@ Once the `hello` check files are created, create the associated `ConfigMaps`:
    apiVersion: v1
    data:
      hello.py: |
-       # the following try/except block will make the custom check compatible with any Agent version
-       try:
-           # first, try to import the base class from new versions of the Agent...
-           from datadog_checks.base import AgentCheck
-       except ImportError:
-           # ...if the above failed, the check is running in Agent version < 6.6.0
-           from checks import AgentCheck
+      from datadog_checks.base import AgentCheck
 
-       # content of the special variable __version__ will be shown in the Agent status page
-       __version__ = "1.0.0"
+      __version__ = "1.0.0"
       class HelloCheck(AgentCheck):
-          def check(self, instance):
-              self.gauge('hello.world', 1, tags=['env:dev'])
+        def check(self, instance):
+          self.gauge('hello.world', 1, tags=['env:dev'])
     kind: ConfigMap
     metadata:
       name: checksd-config
@@ -105,8 +91,8 @@ metadata:
   name: datadog-agent
 spec:
   credentials:
-    apiKey: <DATADOG_API_KEY>
-    appKey: <DATADOG_APP_KEY>
+    apiKey: "<DATADOG_API_KEY>"
+    appKey: "<DATADOG_APP_KEY>"
   agent:
     image:
       name: "datadog/agent:latest"
@@ -149,8 +135,8 @@ metadata:
   name: datadog-agent
 spec:
   credentials:
-    apiKey: <DATADOG_API_KEY>
-    appKey: <DATADOG_APP_KEY>
+    apiKey: "<DATADOG_API_KEY>"
+    appKey: "<DATADOG_APP_KEY>"
   agent:
     image:
       name: "datadog/agent:latest"
