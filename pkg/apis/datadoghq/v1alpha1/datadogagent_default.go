@@ -17,8 +17,8 @@ import (
 )
 
 const (
-	defaultDatadogURL                             string = "https://app.datadoghq.com"
 	DefaultLogLevel                               string = "INFO"
+	defaultDatadogURL                             string = "https://app.datadoghq.com"
 	defaultAgentImage                             string = "datadog/agent:latest"
 	defaultCollectEvents                          bool   = false
 	defaultLeaderElection                         bool   = false
@@ -30,6 +30,8 @@ const (
 	defaultLogEnabled                             bool   = false
 	defaultLogsConfigContainerCollectAll          bool   = false
 	defaultContainerLogsPath                      string = "/var/lib/docker/containers"
+	defaultPodLogsPath                            string = "/var/log/pods"
+	defaultLogsTempStoragePath                    string = "/var/lib/datadog-agent/logs"
 	defaultProcessEnabled                         bool   = false
 	defaultMetricsProviderEnabled                 bool   = false
 	defaultMetricsProviderPort                    int32  = 443
@@ -296,6 +298,14 @@ func IsDefaultedDatadogAgentSpecLog(log *LogSpec) bool {
 		return false
 	}
 
+	if log.PodLogsPath == nil {
+		return false
+	}
+
+	if log.TempStoragePath == nil {
+		return false
+	}
+
 	return true
 }
 
@@ -556,6 +566,14 @@ func DefaultDatadogAgentSpecAgentLog(log *LogSpec) *LogSpec {
 
 	if log.ContainerLogsPath == nil {
 		log.ContainerLogsPath = NewStringPointer(defaultContainerLogsPath)
+	}
+
+	if log.PodLogsPath == nil {
+		log.PodLogsPath = NewStringPointer(defaultPodLogsPath)
+	}
+
+	if log.TempStoragePath == nil {
+		log.TempStoragePath = NewStringPointer(defaultLogsTempStoragePath)
 	}
 
 	return log
