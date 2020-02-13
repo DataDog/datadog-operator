@@ -45,7 +45,7 @@ See the [How to Contribute page][8].
 [2]: https://github.com/DataDog/extendeddaemonset
 [3]: https://github.com/helm/charts/tree/master/stable/datadog
 [4]: https://github.com/DataDog/datadog-agent/tree/6.15.0/Dockerfiles/manifests
-[5]: https://github.com/DataDog/datadog-operator/blob/gus/doc-refactoring/docs/getting_started.md
-[6]: https://github.com/DataDog/datadog-operator/blob/gus/doc-refactoring/docs/custom_check.md
-[7]: https://github.com/DataDog/datadog-operator/blob/gus/doc-refactoring/docs/cluster_agent_setup.md
-[8]: https://github.com/DataDog/datadog-operator/tree/gus/doc-refactoring/docs/how-to-contribute.md
+[5]: https://github.com/DataDog/datadog-operator/blob/master/docs/getting_started.md
+[6]: https://github.com/DataDog/datadog-operator/blob/master/docs/custom_check.md
+[7]: https://github.com/DataDog/datadog-operator/blob/master/docs/cluster_agent_setup.md
+[8]: https://github.com/DataDog/datadog-operator/tree/master/docs/how-to-contribute.md
