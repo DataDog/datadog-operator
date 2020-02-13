@@ -57,6 +57,7 @@ metadata:
 spec:
   credentials:
     apiKey: <DATADOG_API_KEY>
+    appKey: <DATADOG_APP_KEY>
   agent:
     image:
       name: "datadog/agent:latest"
@@ -72,7 +73,7 @@ datadogagent.datadoghq.com/datadog-agent created
 You can check the state of the `DatadogAgent` ressource with:
 
 ```shell
-kubectl get -n $DD_NAMESPACE datadogagent datadog-agent
+kubectl get -n $DD_NAMESPACE dd datadog-agent
 NAME             ACTIVE   AGENT     CLUSTER-AGENT   AGE
 datadog-agent    True     Running                   4m2s
 ```
@@ -103,6 +104,7 @@ metadata:
 spec:
   credentials:
     apiKey: <DATADOG_API_KEY>
+    appKey: <DATADOG_APP_KEY>
   agent:
     image:
       name: "datadog/agent:latest"

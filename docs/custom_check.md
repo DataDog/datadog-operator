@@ -106,6 +106,7 @@ metadata:
 spec:
   credentials:
     apiKey: <DATADOG_API_KEY>
+    appKey: <DATADOG_APP_KEY>
   agent:
     image:
       name: "datadog/agent:latest"
@@ -149,6 +150,7 @@ metadata:
 spec:
   credentials:
     apiKey: <DATADOG_API_KEY>
+    appKey: <DATADOG_APP_KEY>
   agent:
     image:
       name: "datadog/agent:latest"
