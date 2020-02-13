@@ -63,7 +63,7 @@ spec:
       name: "datadog/agent:latest"
 ```
 
-Replace `<DATADOG_API_KEY>` with your [Datadog API key](https://app.datadoghq.com/account/settings#api), then trigger the Agent installation with the following command:
+Replace `<DATADOG_API_KEY>` and `<DATADOG_APP_KEY>` with your [Datadog API and application keys](https://app.datadoghq.com/account/settings#api), then trigger the Agent installation with the following command:
 
 ```shell
 $ kubectl apply -n $DD_NAMESPACE -f datadog-agent.yaml
@@ -74,8 +74,8 @@ You can check the state of the `DatadogAgent` ressource with:
 
 ```shell
 kubectl get -n $DD_NAMESPACE dd datadog-agent
-NAME             ACTIVE   AGENT     CLUSTER-AGENT   AGE
-datadog-agent    True     Running                   4m2s
+NAME            ACTIVE   AGENT             CLUSTER-AGENT   CLUSTER-CHECKS-RUNNER   AGE
+datadog-agent   True     Running (2/2/2)                                           110m
 ```
 
 In a 2-worker-nodes cluster, you should see the Agent pods created on each node.

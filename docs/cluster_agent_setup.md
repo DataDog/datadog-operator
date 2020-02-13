@@ -47,8 +47,8 @@ Verify that the Agent and Cluster Agent are correctly running:
 
 ```shell
 $ kubectl get -n $DD_NAMESPACE dd datadog-agent
-NAME            ACTIVE   AGENT     CLUSTER-AGENT   AGE
-datadog-agent   True     Running   Running         15m22s
+NAME            ACTIVE   AGENT             CLUSTER-AGENT     CLUSTER-CHECKS-RUNNER   AGE
+datadog-agent   True     Running (2/2/2)   Running (2/2/2)                           6m
 
 $ kubectl get -n $DD_NAMESPACE deployment datadog-agent-cluster-agent
 NAME                          READY   UP-TO-DATE   AVAILABLE   AGE
