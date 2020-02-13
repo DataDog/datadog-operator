@@ -29,7 +29,7 @@ To use the Datadog Operator, deploy it in your Kubernetes cluster. Then create a
    kubectl create ns $DD_NAMESPACE
    ```
 
-5. Install the operator with helm:
+5. Install the operator with Helm:
 
    - Helm v2:
 

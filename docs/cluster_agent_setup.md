@@ -1,6 +1,6 @@
 # Cluster Agent
 
-To deploy the Cluster Agent along with the Agent update the current `DatadogAgent` resource with the [`datadog-agent-with-clusteragent.yaml` file][1]:
+To deploy the Cluster Agent along with the Agent, update the current `DatadogAgent` resource with the [`datadog-agent-with-clusteragent.yaml` file][1]:
 
 ```yaml
 apiVersion: datadoghq.com/v1alpha1
@@ -34,7 +34,7 @@ spec:
     replicas: 2
 ```
 
-**Note**: `<DATADOG_CLUSTER_AGENT_TOKEN>` is a custom 32 characters long token that you can defined, if omited, a random one is generated automatically.
+**Note**: `<DATADOG_CLUSTER_AGENT_TOKEN>` is a custom 32 characters long token that you can define. If it is omitted, a random one is generated automatically.
 
 Then apply it with:
 
