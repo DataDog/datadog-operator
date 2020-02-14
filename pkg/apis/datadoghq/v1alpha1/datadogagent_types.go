@@ -582,7 +582,8 @@ type DaemonSetStatus struct {
 	Available int32 `json:"available"`
 	UpToDate  int32 `json:"upToDate"`
 
-	State       string       `json:"state,omitempty"`
+	Status string `json:"status,omitempty"`
+	State  string `json:"state,omitempty"`
 	LastUpdate  *metav1.Time `json:"lastUpdate,omitempty"`
 	CurrentHash string       `json:"currentHash,omitempty"`
 
@@ -623,6 +624,8 @@ type DeploymentStatus struct {
 	// +optional
 	GeneratedToken string `json:"generatedToken,omitempty"`
 
+	// Status corresponds to the ClusterAgent deployment computed status
+	Status string `json:"status,omitempty"`
 	// State corresponds to the ClusterAgent deployment state
 	State string `json:"state,omitempty"`
 
@@ -677,9 +680,9 @@ const (
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:path=datadogagents,shortName=dd
 // +kubebuilder:printcolumn:name="active",type="string",JSONPath=".status.conditions[?(@.type=='Active')].status"
-// +kubebuilder:printcolumn:name="agent",type="string",JSONPath=".status.agent.state"
-// +kubebuilder:printcolumn:name="cluster-agent",type="string",JSONPath=".status.clusterAgent.state"
-// +kubebuilder:printcolumn:name="cluster-checks-runner",type="string",JSONPath=".status.clusterChecksRunner.state"
+// +kubebuilder:printcolumn:name="agent",type="string",JSONPath=".status.agent.status"
+// +kubebuilder:printcolumn:name="cluster-agent",type="string",JSONPath=".status.clusterAgent.status"
+// +kubebuilder:printcolumn:name="cluster-checks-runner",type="string",JSONPath=".status.clusterChecksRunner.status"
 // +kubebuilder:printcolumn:name="age",type="date",JSONPath=".metadata.creationTimestamp"
 type DatadogAgent struct {
 	metav1.TypeMeta   `json:",inline"`

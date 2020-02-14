@@ -7,13 +7,13 @@ spec:
   - JSONPath: .status.conditions[?(@.type=='Active')].status
     name: active
     type: string
-  - JSONPath: .status.agent.state
+  - JSONPath: .status.agent.status
     name: agent
     type: string
-  - JSONPath: .status.clusterAgent.state
+  - JSONPath: .status.clusterAgent.status
     name: cluster-agent
     type: string
-  - JSONPath: .status.clusterChecksRunner.state
+  - JSONPath: .status.clusterChecksRunner.status
     name: cluster-checks-runner
     type: string
   - JSONPath: .metadata.creationTimestamp
@@ -5169,6 +5169,8 @@ spec:
                   type: integer
                 state:
                   type: string
+                status:
+                  type: string
                 upToDate:
                   format: int32
                   type: integer
@@ -5212,6 +5214,10 @@ spec:
                   type: integer
                 state:
                   description: State corresponds to the ClusterAgent deployment state
+                  type: string
+                status:
+                  description: Status corresponds to the ClusterAgent deployment computed
+                    status
                   type: string
                 unavailableReplicas:
                   description: Total number of unavailable pods targeted by this deployment.
@@ -5260,6 +5266,10 @@ spec:
                   type: integer
                 state:
                   description: State corresponds to the ClusterAgent deployment state
+                  type: string
+                status:
+                  description: Status corresponds to the ClusterAgent deployment computed
+                    status
                   type: string
                 unavailableReplicas:
                   description: Total number of unavailable pods targeted by this deployment.
