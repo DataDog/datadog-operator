@@ -286,7 +286,7 @@ func (r *ReconcileDatadogAgent) internelReconcile(request reconcile.Request) (re
 	}
 
 	// Always requeue
-	if !result.Requeue {
+	if !result.Requeue && result.RequeueAfter == 0 {
 		result.RequeueAfter = defaultRequeuPeriod
 	}
 	return r.updateStatusIfNeeded(reqLogger, instance, newStatus, result, err)

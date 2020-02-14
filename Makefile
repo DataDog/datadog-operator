@@ -75,6 +75,9 @@ generate: bin/operator-sdk bin/openapi-gen bin/client-gen bin/informer-gen bin/l
   github.com/DataDog/datadog-operator/pkg/generated github.com/DataDog/datadog-operator/pkg/apis datadoghq:v1alpha1 \
   --go-header-file ./hack/boilerplate.go.txt
 
+generate-olm: bin/operator-sdk
+	./bin/operator-sdk olm-catalog gen-csv --csv-version $(VERSION) --update-crds
+
 CRDS = $(wildcard deploy/crds/*_crd.yaml)
 local-load: $(CRDS)
 		for f in $^; do kubectl apply -f $$f; done

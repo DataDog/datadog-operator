@@ -4,10 +4,10 @@ metadata:
   name: datadog-agent
 spec:
   credentials:
-    apiKey: <apikey>
-    appKey: <appkey>
+    apiKey: <DATADOG_API_KEY>
+    appKey: <DATADOG_APP_KEY>
   agent:
-    image: 
+    image:
       name: "datadog/agent:latest"
     config:
       logLevel: "DEBUG"
@@ -30,4 +30,4 @@ spec:
 
 
 
-  
+
