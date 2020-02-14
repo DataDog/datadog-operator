@@ -1054,6 +1054,7 @@ func updateDaemonSetStatus(ds *appsv1.DaemonSet, dsStatus *datadoghqv1alpha1.Dae
 	}
 	if ds == nil {
 		dsStatus.State = string(datadoghqv1alpha1.DatadogAgentStateFailed)
+		dsStatus.Status = string(datadoghqv1alpha1.DatadogAgentStateFailed)
 		return dsStatus
 	}
 	if updateTime != nil {
@@ -1077,7 +1078,8 @@ func updateDaemonSetStatus(ds *appsv1.DaemonSet, dsStatus *datadoghqv1alpha1.Dae
 		deploymentState = datadoghqv1alpha1.DatadogAgentStateRunning
 	}
 
-	dsStatus.State = fmt.Sprintf("%v (%d/%d/%d)", deploymentState, dsStatus.Desired, dsStatus.Ready, dsStatus.UpToDate)
+	dsStatus.State = fmt.Sprintf("%v", deploymentState)
+	dsStatus.Status = fmt.Sprintf("%v (%d/%d/%d)", deploymentState, dsStatus.Desired, dsStatus.Ready, dsStatus.UpToDate)
 	dsStatus.DaemonsetName = ds.ObjectMeta.Name
 	return dsStatus
 }
@@ -1108,7 +1110,8 @@ func updateExtendedDaemonSetStatus(eds *edsdatadoghqv1alpha1.ExtendedDaemonSet, 
 		deploymentState = datadoghqv1alpha1.DatadogAgentStateRunning
 	}
 
-	dsStatus.State = fmt.Sprintf("%v (%d/%d/%d)", deploymentState, dsStatus.Desired, dsStatus.Ready, dsStatus.UpToDate)
+	dsStatus.State = fmt.Sprintf("%v", deploymentState)
+	dsStatus.Status = fmt.Sprintf("%v (%d/%d/%d)", deploymentState, dsStatus.Desired, dsStatus.Ready, dsStatus.UpToDate)
 	dsStatus.DaemonsetName = eds.ObjectMeta.Name
 	return dsStatus
 }
@@ -1119,6 +1122,7 @@ func updateDeploymentStatus(dep *appsv1.Deployment, depStatus *datadoghqv1alpha1
 	}
 	if dep == nil {
 		depStatus.State = string(datadoghqv1alpha1.DatadogAgentStateFailed)
+		depStatus.Status = string(datadoghqv1alpha1.DatadogAgentStateFailed)
 		return depStatus
 	}
 
@@ -1151,7 +1155,8 @@ func updateDeploymentStatus(dep *appsv1.Deployment, depStatus *datadoghqv1alpha1
 		}
 	}
 
-	depStatus.State = fmt.Sprintf("%v (%d/%d/%d)", deploymentState, depStatus.Replicas, depStatus.ReadyReplicas, depStatus.UpdatedReplicas)
+	depStatus.State = fmt.Sprintf("%v", deploymentState)
+	depStatus.Status = fmt.Sprintf("%v (%d/%d/%d)", deploymentState, depStatus.Replicas, depStatus.ReadyReplicas, depStatus.UpdatedReplicas)
 	depStatus.DeploymentName = dep.ObjectMeta.Name
 	return depStatus
 }

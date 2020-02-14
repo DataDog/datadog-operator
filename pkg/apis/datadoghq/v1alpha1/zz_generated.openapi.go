@@ -437,6 +437,12 @@ func schema_pkg_apis_datadoghq_v1alpha1_DaemonSetStatus(ref common.ReferenceCall
 							Format: "int32",
 						},
 					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
 					"state": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"string"},
@@ -1054,6 +1060,13 @@ func schema_pkg_apis_datadoghq_v1alpha1_DeploymentStatus(ref common.ReferenceCal
 					"generatedToken": {
 						SchemaProps: spec.SchemaProps{
 							Description: "GeneratedToken corresponds to the generated token if any token was provided in the Credential configuration when ClusterAgent is enabled",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Status corresponds to the ClusterAgent deployment computed status",
 							Type:        []string{"string"},
 							Format:      "",
 						},
