@@ -230,7 +230,7 @@ func getHashAnnotation(annotations map[string]string) string {
 
 func (r *ReconcileDatadogAgent) updateDaemonSet(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgent, ds *appsv1.DaemonSet, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
 	// Update values from current DS in any case
-	updateDaemonSetStatus(ds, newStatus.Agent, nil)
+	newStatus.Agent = updateDaemonSetStatus(ds, newStatus.Agent, nil)
 
 	newDS, newHash, err := newDaemonSetFromInstance(logger, agentdeployment, ds.Spec.Selector)
 	if err != nil {
