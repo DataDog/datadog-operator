@@ -12,6 +12,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/DataDog/datadog-operator/pkg/secrets"
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
 )
 
 // ForwardersManager is a collection of metricsForwarder per DatadogAgent
@@ -96,6 +97,17 @@ func (f *ForwardersManager) ProcessEvent(obj MonitoredObject, event Event) {
 		return
 	}
 	forwarder.eventChan <- event
+}
+
+// MetricsForwarderStatusForObj used to retrieve the Metrics forwarder status for a given object
+func (f *ForwardersManager) MetricsForwarderStatusForObj(obj MonitoredObject) *datadoghqv1alpha1.DatadogAgentCondition {
+	id := getObjID(obj)
+	forwarder, err := f.getForwarder(id)
+	if err != nil {
+		// forwarder not present yet
+		return nil
+	}
+	return forwarder.getStatus()
 }
 
 // stopAllForwarders stops the running metricsForwarder goroutines

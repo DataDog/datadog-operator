@@ -76,6 +76,7 @@ type metricForwardersManager interface {
 	Unregister(datadog.MonitoredObject)
 	ProcessError(datadog.MonitoredObject, error)
 	ProcessEvent(datadog.MonitoredObject, datadog.Event)
+	MetricsForwarderStatusForObj(obj datadog.MonitoredObject) *datadoghqv1alpha1.DatadogAgentCondition
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
@@ -298,9 +299,15 @@ func (r *ReconcileDatadogAgent) updateStatusIfNeeded(logger logr.Logger, agentde
 	now := metav1.NewTime(time.Now())
 	condition.UpdateDatadogAgentStatusConditionsFailure(newStatus, now, datadoghqv1alpha1.ConditionTypeReconcileError, currentError)
 	if currentError == nil {
-		condition.UpdateDatadogAgentStatusCondition(newStatus, now, datadoghqv1alpha1.ConditionTypeActive, corev1.ConditionTrue, "DatadogAgent reconcile ok", false)
+		condition.UpdateDatadogAgentStatusConditions(newStatus, now, datadoghqv1alpha1.ConditionTypeActive, corev1.ConditionTrue, "DatadogAgent reconcile ok", false)
 	} else {
-		condition.UpdateDatadogAgentStatusCondition(newStatus, now, datadoghqv1alpha1.ConditionTypeActive, corev1.ConditionFalse, "DatadogAgent reconcile error", false)
+		condition.UpdateDatadogAgentStatusConditions(newStatus, now, datadoghqv1alpha1.ConditionTypeActive, corev1.ConditionFalse, "DatadogAgent reconcile error", false)
+	}
+
+	// get metrics forwarder status
+	if metricsCondition := r.forwarders.MetricsForwarderStatusForObj(agentdeployment); metricsCondition != nil {
+		logger.V(1).Info("metrics conditions status not available")
+		condition.SetDatadogAgentStatusCondition(newStatus, metricsCondition)
 	}
 
 	if !apiequality.Semantic.DeepEqual(&agentdeployment.Status, newStatus) {
