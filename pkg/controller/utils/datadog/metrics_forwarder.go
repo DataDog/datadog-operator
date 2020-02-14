@@ -590,8 +590,6 @@ func (mf *metricsForwarder) updateStatusIfNeeded(dda *datadoghqv1alpha1.DatadogA
 		description = "Datadog metrics forwarding error"
 	}
 
-	mf.Lock()
-	defer mf.Unlock()
 	oldStatus := mf.getStatus()
 	if oldStatus == nil {
 		newStatus := condition.NewDatadogAgentStatusCondition(datadoghqv1alpha1.ConditionTypeActiveDatadogMetrics, conditionStatus, now, "", description)
