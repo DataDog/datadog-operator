@@ -4,7 +4,7 @@ metadata:
   name: datadog-agent
 spec:
   credentials:
-    apiKey: <paste-your-api-key-here>
+    apiKey: <DATADOG_API_KEY>
   agent:
-    image: 
+    image:
       name: "datadog/agent:latest"

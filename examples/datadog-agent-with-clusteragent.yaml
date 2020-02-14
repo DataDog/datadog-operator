@@ -4,17 +4,17 @@ metadata:
   name: datadog-agent
 spec:
   credentials:
-    apiKey: <paste-your-api-key-here>
-    appKey: <paste-your-app-key-here>
-    token: <paste-your-cluster-agent-token-here>
+    apiKey: <DATADOG_API_KEY>
+    appKey: <DATADOG_APP_KEY>
+    token: <DATADOG_CLUSTER_AGENT_TOKEN>
   agent:
-    image: 
+    image:
       name: "datadog/agent:latest"
     config:
       tolerations:
       - operator: Exists
   clusterAgent:
-    image: 
+    image:
       name: "datadog/cluster-agent:latest"
     config:
       metricsProviderEnabled: true

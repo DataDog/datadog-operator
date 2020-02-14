@@ -1,8 +1,8 @@
 # How to contribute
 
-This project uses the ```go module```. Be sure to have it activated: ```export GO111MODULE=on```.
+This project uses the `go module`. Be sure to have it activated with: `export GO111MODULE=on`.
 
-```console
+```shell
 $ make build
 CGO_ENABLED=0 go build -i -installsuffix cgo -ldflags '-w' -o controller ./cmd/manager/main.go
 
