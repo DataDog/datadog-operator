@@ -184,6 +184,12 @@ func (mf *metricsForwarder) getStatus() *datadoghqv1alpha1.DatadogAgentCondition
 	return mf.status
 }
 
+func (mf *metricsForwarder) setStatus(newStatus *datadoghqv1alpha1.DatadogAgentCondition) {
+	mf.Lock()
+	defer mf.Unlock()
+	mf.status = newStatus
+}
+
 // connectToDatadogAPI ensures the connection to the Datadog API is valid
 // implements wait.ConditionFunc and never returns error to keep retrying
 func (mf *metricsForwarder) connectToDatadogAPI() (bool, error) {
@@ -197,7 +203,6 @@ func (mf *metricsForwarder) connectToDatadogAPI() (bool, error) {
 	defer mf.updateStatusIfNeeded(dda, err)
 	if err != nil {
 		mf.logger.Error(err, "cannot get Datadog credentials,  will retry later...")
-		mf.updateStatusIfNeeded(dda, err)
 		return false, nil
 	}
 	mf.logger.Info("Initializing Datadog metrics forwarder")
@@ -587,11 +592,12 @@ func (mf *metricsForwarder) updateStatusIfNeeded(dda *datadoghqv1alpha1.DatadogA
 
 	mf.Lock()
 	defer mf.Unlock()
-	if mf.status == nil {
-		newCondition := condition.NewDatadogAgentStatusCondition(datadoghqv1alpha1.ConditionTypeActiveDatadogMetrics, conditionStatus, now, "", description)
-		mf.status = &newCondition
+	oldStatus := mf.getStatus()
+	if oldStatus == nil {
+		newStatus := condition.NewDatadogAgentStatusCondition(datadoghqv1alpha1.ConditionTypeActiveDatadogMetrics, conditionStatus, now, "", description)
+		mf.setStatus(&newStatus)
 	} else {
-		mf.status = condition.UpdateDatadogAgentStatusCondition(mf.status, now, datadoghqv1alpha1.ConditionTypeActiveDatadogMetrics, conditionStatus, description)
+		mf.setStatus(condition.UpdateDatadogAgentStatusCondition(oldStatus, now, datadoghqv1alpha1.ConditionTypeActiveDatadogMetrics, conditionStatus, description))
 	}
 }
 

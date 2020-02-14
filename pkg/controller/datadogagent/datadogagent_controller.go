@@ -306,6 +306,7 @@ func (r *ReconcileDatadogAgent) updateStatusIfNeeded(logger logr.Logger, agentde
 
 	// get metrics forwarder status
 	if metricsCondition := r.forwarders.MetricsForwarderStatusForObj(agentdeployment); metricsCondition != nil {
+		logger.V(1).Info("metrics conditions status not available")
 		condition.SetDatadogAgentStatusCondition(newStatus, metricsCondition)
 	}
 
