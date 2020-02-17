@@ -519,6 +519,15 @@ func getEnvVarsForAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.EnvVar, e
 		}
 		envVars = append(envVars, clusterEnv...)
 	}
+
+	// Activate/deactivate agent features
+	if dda.Spec.Agent.Config.CriSocket != nil && dda.Spec.Agent.Config.CriSocket.CriSocketPath != nil {
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  datadoghqv1alpha1.DDCriSocketPath,
+			Value: *dda.Spec.Agent.Config.CriSocket.CriSocketPath,
+		})
+	}
+
 	return append(envVars, spec.Agent.Config.Env...), nil
 }
 
@@ -667,6 +676,35 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 		}
 
 		volumes = append(volumes, systemProbeVolumes...)
+	}
+
+	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Log.Enabled) {
+		volumes = append(volumes, []corev1.Volume{
+			{
+				Name: datadoghqv1alpha1.PointerVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: *dda.Spec.Agent.Log.TempStoragePath,
+					},
+				},
+			},
+			{
+				Name: datadoghqv1alpha1.LogPodVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: *dda.Spec.Agent.Log.PodLogsPath,
+					},
+				},
+			},
+			{
+				Name: datadoghqv1alpha1.LogContainerVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: *dda.Spec.Agent.Log.ContainerLogsPath,
+					},
+				},
+			},
+		}...)
 	}
 
 	volumes = append(volumes, dda.Spec.Agent.Config.Volumes...)

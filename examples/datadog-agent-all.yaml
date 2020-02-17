@@ -27,7 +27,3 @@ spec:
     systemProbe:
       enabled: true
       bpfDebugEnabled: true
-
-
-
-

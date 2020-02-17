@@ -12,3 +12,11 @@ rules:
   - 'clusterrolebindings'
   verbs:
   - '*'
+- apiGroups:
+  - datadoghq.com
+  resources:
+  - datadogagents
+  - datadogagents/status
+  - datadogagents/finalizers
+  verbs:
+  - '*'

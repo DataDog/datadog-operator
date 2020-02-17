@@ -45,7 +45,7 @@ func (r *ReconcileDatadogAgent) reconcileClusterAgent(logger logr.Logger, dda *d
 			newStatus.ClusterAgent = &datadoghqv1alpha1.DeploymentStatus{}
 		}
 		if newStatus.ClusterAgent.GeneratedToken == "" {
-			newStatus.ClusterAgent.GeneratedToken = generateRandomString(16)
+			newStatus.ClusterAgent.GeneratedToken = generateRandomString(32)
 			return reconcile.Result{}, nil
 		}
 	}

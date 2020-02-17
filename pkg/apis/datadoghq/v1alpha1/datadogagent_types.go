@@ -223,14 +223,29 @@ type LogSpec struct {
 
 	// Enable this to allow log collection for all containers.
 	// ref: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup
+	//
 	// +optional
 	LogsConfigContainerCollectAll *bool `json:"logsConfigContainerCollectAll,omitempty"`
 
 	// This to allow log collection from container log path. Set to a different path if not using docker runtime.
 	// ref: https://docs.datadoghq.com/agent/kubernetes/daemonset_setup/?tab=k8sfile#create-manifest
+	// Default to `/var/lib/docker/containers`
 	//
 	// +optional
 	ContainerLogsPath *string `json:"containerLogsPath,omitempty"`
+
+	// This to allow log collection from pod log path.
+	// Default to `/var/log/pods`
+	//
+	// +optional
+	PodLogsPath *string `json:"podLogsPath,omitempty"`
+
+	// This path (always mounted from the host) is used by Datadog Agent to store information about processed log files.
+	// If the Datadog Agent is restarted, it allows to start tailing the log files from the right offset
+	// Default to `/var/lib/datadog-agent/logs`
+	//
+	// +optional
+	TempStoragePath *string `json:"tempStoragePath,omitempty"`
 }
 
 // ProcessSpec contains the Process Agent configuration

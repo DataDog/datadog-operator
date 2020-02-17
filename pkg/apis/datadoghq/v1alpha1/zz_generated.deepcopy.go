@@ -665,6 +665,16 @@ func (in *LogSpec) DeepCopyInto(out *LogSpec) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.PodLogsPath != nil {
+		in, out := &in.PodLogsPath, &out.PodLogsPath
+		*out = new(string)
+		**out = **in
+	}
+	if in.TempStoragePath != nil {
+		in, out := &in.TempStoragePath, &out.TempStoragePath
+		*out = new(string)
+		**out = **in
+	}
 	return
 }
 
