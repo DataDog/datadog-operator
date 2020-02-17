@@ -134,16 +134,24 @@ func (o *getOptions) run() error {
 
 	table := newGetTable(o.Out)
 	for _, item := range ddList.Items {
-		data := []string{item.Namespace, item.Name, common.GetDuration(&item.ObjectMeta)}
+		data := []string{item.Namespace, item.Name}
 		if item.Status.Agent != nil {
-			table.Append(append(data, getDaemonSetStatusData("Agent", item.Status.Agent)...))
+			data = append(data, item.Status.Agent.State)
+		} else {
+			data = append(data, "")
 		}
 		if item.Status.ClusterAgent != nil {
-			table.Append(append(data, getDeploymentStatusData("Cluster Agent", item.Status.ClusterAgent)...))
+			data = append(data, item.Status.ClusterAgent.State)
+		} else {
+			data = append(data, "")
 		}
 		if item.Status.ClusterChecksRunner != nil {
-			table.Append(append(data, getDeploymentStatusData("Cluster Checks Runner", item.Status.ClusterChecksRunner)...))
+			data = append(data, item.Status.ClusterChecksRunner.State)
+		} else {
+			data = append(data, "")
 		}
+		data = append(data, common.GetDuration(&item.ObjectMeta))
+		table.Append(data)
 	}
 
 	// Send output
@@ -152,23 +160,9 @@ func (o *getOptions) run() error {
 	return nil
 }
 
-func getDaemonSetStatusData(component string, dsStatus *v1alpha1.DaemonSetStatus) []string {
-	if dsStatus == nil {
-		return []string{component}
-	}
-	return []string{component, common.IntToString(dsStatus.Desired), common.IntToString(dsStatus.Current), common.IntToString(dsStatus.Ready), common.IntToString(dsStatus.UpToDate), common.IntToString(dsStatus.Available), string(dsStatus.State)}
-}
-
-func getDeploymentStatusData(component string, deployStatus *v1alpha1.DeploymentStatus) []string {
-	if deployStatus == nil {
-		return []string{component}
-	}
-	return []string{component, common.IntToString(deployStatus.Replicas), common.IntToString(deployStatus.Replicas - deployStatus.UnavailableReplicas), common.IntToString(deployStatus.ReadyReplicas), common.IntToString(deployStatus.UpdatedReplicas), common.IntToString(deployStatus.AvailableReplicas), string(deployStatus.State)}
-}
-
 func newGetTable(out io.Writer) *tablewriter.Table {
 	table := tablewriter.NewWriter(out)
-	table.SetHeader([]string{"Namespace", "Datadog Name", "Age", "Component", "Desired", "Current", "Ready", "Up-to-date", "Available", "Status"})
+	table.SetHeader([]string{"Namespace", "Name", "Agent", "Cluster-Agent", "Cluster-Checks-Runner", "Age"})
 	table.SetBorders(tablewriter.Border{Left: false, Top: false, Right: false, Bottom: false})
 	table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
 	table.SetRowLine(false)

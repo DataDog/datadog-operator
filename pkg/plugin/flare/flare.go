@@ -6,6 +6,7 @@
 package flare
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -24,21 +25,23 @@ import (
 
 	"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/plugin/common"
+	"github.com/DataDog/datadog-operator/version"
 
 	"github.com/mholt/archiver"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/remotecommand"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
 	httpTimeout = 60 * time.Second
-	// FIXME: Make 0-1-0-flare dynamic to reflect the real operator version
-	flareURL = "https://0-1-0-flare.agent.datadoghq.%s/support/flare"
+	flareURL    = "https://%s-flare.agent.datadoghq.%s/support/flare"
 )
 
 var (
@@ -230,10 +233,24 @@ func (o *flareOptions) run() error {
 		fmt.Println(fmt.Sprintf("Couldn't collect operator pod status: %v", err))
 	}
 
+	// Collect operator version
+	if err := o.createVersionFile(leaderPod, baseDir); err != nil {
+		fmt.Println(fmt.Sprintf("Couldn't collect operator version: %v", err))
+	}
+
 	// Create zip with the collected files
 	zipFilePath := getArchivePath()
 	if err := o.zip.Archive([]string{baseDir}, zipFilePath); err != nil {
 		return err
+	}
+
+	// Get the operator version
+	version, err := o.getVersion(leaderPod)
+	if err != nil {
+		fmt.Println(fmt.Sprintf("Couldn't get operator version: %v", err))
+
+		// Fallback to a default version used to build the flare URL
+		version = "0.1.0"
 	}
 
 	// ask for confirmation before sending the flare file and opening the support ticket
@@ -243,7 +260,7 @@ func (o *flareOptions) run() error {
 	}
 
 	// Send the flare
-	caseID, err := o.sendFlare(zipFilePath)
+	caseID, err := o.sendFlare(zipFilePath, version)
 	if err != nil {
 		return err
 	}
@@ -335,6 +352,7 @@ func (o *flareOptions) createMetricsFile(pod *corev1.Pod, dir string) error {
 		return errors.New("nil leader pod")
 	}
 
+	// Query the /metrics endpoint of the leader pod
 	result := o.clientset.CoreV1().RESTClient().Get().
 		Namespace(pod.Namespace).
 		Resource("pods").
@@ -366,6 +384,51 @@ func (o *flareOptions) createStatusFile(pod *corev1.Pod, dir string) error {
 	return redactAndSave(filepath.Join(dir, fmt.Sprintf("%s-status.txt", pod.Name)), status)
 }
 
+// createVersionFile gets the version from the operator pod and stores it in a file
+func (o *flareOptions) createVersionFile(pod *corev1.Pod, dir string) error {
+	if pod == nil {
+		return errors.New("nil leader pod")
+	}
+
+	// Prepare command and execute it
+	versionCmd := []string{"bash", "-c", "/usr/local/bin/datadog-operator --version"}
+	version, err := o.execInPod(versionCmd, pod)
+	if err != nil {
+		return err
+	}
+
+	return redactAndSave(filepath.Join(dir, fmt.Sprintf("%s-version.txt", pod.Name)), version)
+}
+
+// getOperatorVersion gets the version from the operator pod
+func (o *flareOptions) getVersion(pod *corev1.Pod) (string, error) {
+	if pod == nil {
+		return "", errors.New("nil leader pod")
+	}
+
+	// Prepare command and execute it
+	versionCmd := []string{"bash", "-c", "/usr/local/bin/datadog-operator --version --json"}
+	versionJSON, err := o.execInPod(versionCmd, pod)
+	if err != nil {
+		return "", err
+	}
+
+	// Unmarshal payload
+	decoded := version.JSON{}
+	if err := json.Unmarshal(versionJSON, &decoded); err != nil {
+		return "", err
+	}
+	if decoded.Error != "" {
+		return "", errors.New(decoded.Error)
+	}
+	if decoded.Version == "" {
+		return "", errors.New("empty version")
+	}
+
+	version := strings.Split(decoded.Version, "_")[0]
+	return strings.TrimLeft(version, "v"), nil
+}
+
 func (o *flareOptions) getLeader() (*corev1.Pod, error) {
 	// Get operator lock configmap to identify the leader
 	cm, err := o.clientset.CoreV1().ConfigMaps(o.userNamespace).Get("datadog-operator-lock", metav1.GetOptions{})
@@ -386,6 +449,47 @@ func (o *flareOptions) getLeader() (*corev1.Pod, error) {
 
 	// Get operator leader pod
 	return o.clientset.CoreV1().Pods(o.userNamespace).Get(leaderName, metav1.GetOptions{})
+}
+
+// execInPod execs a given command in a given pod
+func (o *flareOptions) execInPod(command []string, pod *corev1.Pod) ([]byte, error) {
+	req := o.clientset.CoreV1().RESTClient().Post().
+		Resource("pods").
+		Name(pod.Name).
+		Namespace(o.userNamespace).
+		SubResource("exec")
+
+	scheme := runtime.NewScheme()
+
+	if err := corev1.AddToScheme(scheme); err != nil {
+		return []byte{}, err
+	}
+
+	parameterCodec := runtime.NewParameterCodec(scheme)
+	req.VersionedParams(&corev1.PodExecOptions{
+		Command: command,
+		Stdin:   false,
+		Stdout:  true,
+		Stderr:  false,
+		TTY:     false,
+	}, parameterCodec)
+
+	restConfig, err := o.configFlags.ToRESTConfig()
+	if err != nil {
+		return []byte{}, err
+	}
+
+	exec, err := remotecommand.NewSPDYExecutor(restConfig, "POST", req.URL())
+	if err != nil {
+		return []byte{}, err
+	}
+
+	var stdout bytes.Buffer
+	if err := exec.Stream(remotecommand.StreamOptions{Stdout: &stdout}); err != nil {
+		return []byte{}, err
+	}
+
+	return stdout.Bytes(), nil
 }
 
 // savePodLogs retrieves pod logs and save them in a file
@@ -426,13 +530,13 @@ type flareResponse struct {
 }
 
 // sendFlare sends a flare to Datadog
-func (o *flareOptions) sendFlare(archivePath string) (string, error) {
-	url, err := o.buildFlareURL()
+func (o *flareOptions) sendFlare(archivePath, version string) (string, error) {
+	url, err := o.buildFlareURL(version)
 	if err != nil {
 		return "", err
 	}
 
-	r, err := o.readAndPostFlareFile(archivePath, url)
+	r, err := o.readAndPostFlareFile(archivePath, url, version)
 	if err != nil {
 		return "", err
 	}
@@ -455,7 +559,7 @@ func (o *flareOptions) sendFlare(archivePath string) (string, error) {
 }
 
 // readAndPostFlareFile prepares request and post the flare to Datadog
-func (o *flareOptions) readAndPostFlareFile(archivePath, url string) (*http.Response, error) {
+func (o *flareOptions) readAndPostFlareFile(archivePath, url, version string) (*http.Response, error) {
 	request, err := http.NewRequest("POST", url, nil)
 	if err != nil {
 		return nil, err
@@ -470,7 +574,7 @@ func (o *flareOptions) readAndPostFlareFile(archivePath, url string) (*http.Resp
 
 	// Manually set the Body and ContentLenght. http.NewRequest doesn't do all of this
 	// for us, since a PipeReader is not one of the Reader types it knows how to handle.
-	request.Body, err = o.getFlareReader(boundaryWriter.Boundary(), archivePath)
+	request.Body, err = o.getFlareReader(boundaryWriter.Boundary(), archivePath, version)
 	if err != nil {
 		return nil, err
 	}
@@ -480,7 +584,7 @@ func (o *flareOptions) readAndPostFlareFile(archivePath, url string) (*http.Resp
 	// Setting a GetBody function makes the request replayable in case there is a redirect.
 	// Otherwise, since the body is a pipe, what has been already read can't be read again.
 	request.GetBody = func() (io.ReadCloser, error) {
-		return o.getFlareReader(boundaryWriter.Boundary(), archivePath)
+		return o.getFlareReader(boundaryWriter.Boundary(), archivePath, version)
 	}
 
 	client := &http.Client{
@@ -490,7 +594,7 @@ func (o *flareOptions) readAndPostFlareFile(archivePath, url string) (*http.Resp
 	return client.Do(request)
 }
 
-func (o *flareOptions) getFlareReader(multipartBoundary, archivePath string) (io.ReadCloser, error) {
+func (o *flareOptions) getFlareReader(multipartBoundary, archivePath, version string) (io.ReadCloser, error) {
 	// No need to close the reader, http.Client does it for us
 	bodyReader, bodyWriter := io.Pipe()
 
@@ -534,8 +638,7 @@ func (o *flareOptions) getFlareReader(multipartBoundary, archivePath string) (io
 		// FIXME: Make Datadog backend accept not getting agent_version if operator_version is present
 		_ = writer.WriteField("agent_version", "6.16.0") // Value must be > 6.0.0
 
-		// FIXME: Add a /version endpoint to the operator http server and get the operator_version value from it
-		_ = writer.WriteField("operator_version", "0.1.0")
+		_ = writer.WriteField("operator_version", version)
 
 		// Hostname discarded in operator flares
 		_ = writer.WriteField("hostname", "datadog-operator")
@@ -544,8 +647,8 @@ func (o *flareOptions) getFlareReader(multipartBoundary, archivePath string) (io
 	return bodyReader, nil
 }
 
-func (o *flareOptions) buildFlareURL() (string, error) {
-	url, err := url.Parse(fmt.Sprintf(flareURL, o.site))
+func (o *flareOptions) buildFlareURL(version string) (string, error) {
+	url, err := url.Parse(fmt.Sprintf(flareURL, version, o.site))
 	if err != nil {
 		return "", err
 	}
