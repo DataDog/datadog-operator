@@ -16,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
+// default values
 const (
 	DefaultLogLevel                               string = "INFO"
 	defaultDatadogURL                             string = "https://app.datadoghq.com"
@@ -651,14 +652,14 @@ func DefaultDatadogAgentSpecClusterAgentImage(image *ImageConfig) *ImageConfig {
 
 // DefaultDatadogAgentSpecClusterChecksRunner used to default an DatadogAgentSpecClusterChecksRunnerSpec
 // return the defaulted DatadogAgentSpecClusterChecksRunnerSpec
-func DefaultDatadogAgentSpecClusterChecksRunner(ClusterChecksRunner *DatadogAgentSpecClusterChecksRunnerSpec) *DatadogAgentSpecClusterChecksRunnerSpec {
-	DefaultDatadogAgentSpecClusterChecksRunnerImage(&ClusterChecksRunner.Image)
-	DefaultDatadogAgentSpecClusterChecksRunnerConfig(&ClusterChecksRunner.Config)
-	DefaultDatadogAgentSpecRbacConfig(&ClusterChecksRunner.Rbac)
-	if ClusterChecksRunner.Replicas == nil {
-		ClusterChecksRunner.Replicas = NewInt32Pointer(defaultClusterChecksRunnerReplicas)
+func DefaultDatadogAgentSpecClusterChecksRunner(clusterChecksRunner *DatadogAgentSpecClusterChecksRunnerSpec) *DatadogAgentSpecClusterChecksRunnerSpec {
+	DefaultDatadogAgentSpecClusterChecksRunnerImage(&clusterChecksRunner.Image)
+	DefaultDatadogAgentSpecClusterChecksRunnerConfig(&clusterChecksRunner.Config)
+	DefaultDatadogAgentSpecRbacConfig(&clusterChecksRunner.Rbac)
+	if clusterChecksRunner.Replicas == nil {
+		clusterChecksRunner.Replicas = NewInt32Pointer(defaultClusterChecksRunnerReplicas)
 	}
-	return ClusterChecksRunner
+	return clusterChecksRunner
 }
 
 // DefaultDatadogAgentSpecClusterChecksRunnerConfig used to default an ClusterChecksRunnerConfig

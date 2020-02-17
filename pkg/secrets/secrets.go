@@ -80,18 +80,18 @@ func (sb *SecretBackend) fetchSecret(encrypted []string) (map[string]string, err
 
 	decrypted := map[string]string{}
 	for _, handle := range handles {
-		secret, found := secrets[handle]
+		secretHandle, found := secrets[handle]
 		if !found {
 			return nil, fmt.Errorf("secret handle '%s' was not decrypted by the secret_backend_command", handle)
 		}
-		if secret.ErrorMsg != "" {
-			return nil, fmt.Errorf("an error occurred while decrypting '%s': %s", handle, secret.ErrorMsg)
+		if secretHandle.ErrorMsg != "" {
+			return nil, fmt.Errorf("an error occurred while decrypting '%s': %s", handle, secretHandle.ErrorMsg)
 		}
-		if secret.Value == "" {
+		if secretHandle.Value == "" {
 			return nil, fmt.Errorf("decrypted secret for '%s' is empty", handle)
 		}
 
-		decrypted[encFormat(handle)] = secret.Value
+		decrypted[encFormat(handle)] = secretHandle.Value
 	}
 
 	return decrypted, nil

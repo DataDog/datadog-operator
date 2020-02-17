@@ -18,7 +18,7 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
 )
 
-// CompareSpecMD5Hash used to compare a md5 hash with the one set in annotations
+// IsSameSpecMD5Hash used to compare a md5 hash with the one set in annotations
 func IsSameSpecMD5Hash(hash string, annotations map[string]string) bool {
 	if val, ok := annotations[datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey]; ok && val == hash {
 		return true

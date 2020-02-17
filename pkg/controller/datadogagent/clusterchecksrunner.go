@@ -26,7 +26,7 @@ import (
 )
 
 func (r *ReconcileDatadogAgent) reconcileClusterChecksRunner(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
-	result, err := r.manageClusterChecksRunnerDependencies(logger, dda, newStatus)
+	result, err := r.manageClusterChecksRunnerDependencies(logger, dda)
 	if shouldReturn(result, err) {
 		return result, err
 	}
@@ -38,7 +38,7 @@ func (r *ReconcileDatadogAgent) reconcileClusterChecksRunner(logger logr.Logger,
 	if newStatus.ClusterChecksRunner != nil &&
 		newStatus.ClusterChecksRunner.DeploymentName != "" &&
 		newStatus.ClusterChecksRunner.DeploymentName != getClusterChecksRunnerName(dda) {
-		return result, fmt.Errorf("Datadog cluster checks runner Deployment cannot be renamed once created")
+		return result, fmt.Errorf("datadog cluster checks runner Deployment cannot be renamed once created")
 	}
 
 	nsName := types.NamespacedName{
@@ -75,7 +75,7 @@ func needClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) bool {
 }
 
 func (r *ReconcileDatadogAgent) createNewClusterChecksRunnerDeployment(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
-	newDCAW, hash, err := newClusterChecksRunnerDeploymentFromInstance(logger, agentdeployment, newStatus, nil)
+	newDCAW, hash, err := newClusterChecksRunnerDeploymentFromInstance(agentdeployment, nil)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -94,8 +94,8 @@ func (r *ReconcileDatadogAgent) createNewClusterChecksRunnerDeployment(logger lo
 	}
 
 	updateStatusWithClusterChecksRunner(newDCAW, newStatus, &now)
-	eventInfo := buildEventInfo(newDCAW.Name, newDCAW.Namespace, deploymentKind, datadog.CreationEvent)
-	r.recordEvent(agentdeployment, eventInfo)
+	event := buildEventInfo(newDCAW.Name, newDCAW.Namespace, deploymentKind, datadog.CreationEvent)
+	r.recordEvent(agentdeployment, event)
 	return reconcile.Result{}, nil
 }
 
@@ -104,7 +104,7 @@ func updateStatusWithClusterChecksRunner(dcaw *appsv1.Deployment, newStatus *dat
 }
 
 func (r *ReconcileDatadogAgent) updateClusterChecksRunnerDeployment(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgent, dep *appsv1.Deployment, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
-	newDCAW, hash, err := newClusterChecksRunnerDeploymentFromInstance(logger, agentdeployment, newStatus, dep.Spec.Selector)
+	newDCAW, hash, err := newClusterChecksRunnerDeploymentFromInstance(agentdeployment, dep.Spec.Selector)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -143,16 +143,15 @@ func (r *ReconcileDatadogAgent) updateClusterChecksRunnerDeployment(logger logr.
 	if err != nil {
 		return reconcile.Result{}, err
 	}
-	eventInfo := buildEventInfo(updateDca.Name, updateDca.Namespace, deploymentKind, datadog.UpdateEvent)
-	r.recordEvent(agentdeployment, eventInfo)
+	event := buildEventInfo(updateDca.Name, updateDca.Namespace, deploymentKind, datadog.UpdateEvent)
+	r.recordEvent(agentdeployment, event)
 	updateStatusWithClusterChecksRunner(updateDca, newStatus, &now)
 	return reconcile.Result{}, nil
 }
 
 // newClusterAgentDeploymentFromInstance creates a Cluster Agent Deployment from a given DatadogAgent
-func newClusterChecksRunnerDeploymentFromInstance(logger logr.Logger,
+func newClusterChecksRunnerDeploymentFromInstance(
 	agentdeployment *datadoghqv1alpha1.DatadogAgent,
-	newStatus *datadoghqv1alpha1.DatadogAgentStatus,
 	selector *metav1.LabelSelector) (*appsv1.Deployment, string, error) {
 	labels := map[string]string{
 		datadoghqv1alpha1.AgentDeploymentNameLabelKey:      agentdeployment.Name,
@@ -191,7 +190,7 @@ func newClusterChecksRunnerDeploymentFromInstance(logger logr.Logger,
 			Annotations: annotations,
 		},
 		Spec: appsv1.DeploymentSpec{
-			Template: newClusterChecksRunnerPodTemplate(logger, agentdeployment, labels, annotations),
+			Template: newClusterChecksRunnerPodTemplate(agentdeployment, labels, annotations),
 			Replicas: agentdeployment.Spec.ClusterChecksRunner.Replicas,
 			Selector: selector,
 		},
@@ -200,8 +199,8 @@ func newClusterChecksRunnerDeploymentFromInstance(logger logr.Logger,
 	return dca, hash, err
 }
 
-func (r *ReconcileDatadogAgent) manageClusterChecksRunnerDependencies(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
-	result, err := r.manageClusterChecksRunnerPDB(logger, dda, newStatus)
+func (r *ReconcileDatadogAgent) manageClusterChecksRunnerDependencies(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
+	result, err := r.manageClusterChecksRunnerPDB(logger, dda)
 	if shouldReturn(result, err) {
 		return result, err
 	}
@@ -226,8 +225,8 @@ func (r *ReconcileDatadogAgent) cleanupClusterChecksRunner(logger logr.Logger, d
 		return reconcile.Result{}, err
 	}
 	logger.Info("Deleting Cluster Checks Runner Deployment", "deployment.Namespace", ClusterChecksRunnerDeployment.Namespace, "deployment.Name", ClusterChecksRunnerDeployment.Name)
-	eventInfo := buildEventInfo(ClusterChecksRunnerDeployment.Name, ClusterChecksRunnerDeployment.Namespace, deploymentKind, datadog.DeletionEvent)
-	r.recordEvent(dda, eventInfo)
+	event := buildEventInfo(ClusterChecksRunnerDeployment.Name, ClusterChecksRunnerDeployment.Namespace, deploymentKind, datadog.DeletionEvent)
+	r.recordEvent(dda, event)
 	if err := r.client.Delete(context.TODO(), ClusterChecksRunnerDeployment); err != nil {
 		return reconcile.Result{}, err
 	}
@@ -236,13 +235,14 @@ func (r *ReconcileDatadogAgent) cleanupClusterChecksRunner(logger logr.Logger, d
 }
 
 // newClusterChecksRunnerPodTemplate generates a PodTemplate from a DatadogClusterChecksRunnerDeployment spec
-func newClusterChecksRunnerPodTemplate(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgent, labels, annotations map[string]string) corev1.PodTemplateSpec {
+func newClusterChecksRunnerPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent, labels, annotations map[string]string) corev1.PodTemplateSpec {
 	// copy Spec to configure the Cluster Checks Runner Pod Template
 	ClusterChecksRunnerSpec := agentdeployment.Spec.ClusterChecksRunner.DeepCopy()
 
 	newPodTemplate := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels: labels,
+			Labels:      labels,
+			Annotations: annotations,
 		},
 		Spec: corev1.PodSpec{
 			ServiceAccountName: getClusterChecksRunnerServiceAccount(agentdeployment),
@@ -251,7 +251,7 @@ func newClusterChecksRunnerPodTemplate(logger logr.Logger, agentdeployment *data
 					Name:            "cluster-checks-runner",
 					Image:           ClusterChecksRunnerSpec.Image.Name,
 					ImagePullPolicy: *ClusterChecksRunnerSpec.Image.PullPolicy,
-					Env:             getEnvVarsForClusterChecksRunner(logger, agentdeployment),
+					Env:             getEnvVarsForClusterChecksRunner(agentdeployment),
 					VolumeMounts: []corev1.VolumeMount{
 						{
 							Name:      "s6-run",
@@ -292,7 +292,7 @@ func newClusterChecksRunnerPodTemplate(logger logr.Logger, agentdeployment *data
 }
 
 // getEnvVarsForClusterChecksRunner converts Cluster Checks Runner Config into container env vars
-func getEnvVarsForClusterChecksRunner(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) []corev1.EnvVar {
+func getEnvVarsForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []corev1.EnvVar {
 	spec := &dda.Spec
 	envVars := []corev1.EnvVar{
 		{

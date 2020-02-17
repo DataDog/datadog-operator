@@ -16,7 +16,6 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	edsdatadoghqv1alpha1 "github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1"
-	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -37,7 +36,7 @@ func init() {
 }
 
 // newAgentPodTemplate generates a PodTemplate from a DatadogAgent spec
-func newAgentPodTemplate(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgent, selector *metav1.LabelSelector) (*corev1.PodTemplateSpec, error) {
+func newAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent, selector *metav1.LabelSelector) (*corev1.PodTemplateSpec, error) {
 	// copy Agent Spec to configure Agent Pod Template
 	labels := getDefaultLabels(agentdeployment, "agent", getAgentVersion(agentdeployment))
 	labels[datadoghqv1alpha1.AgentDeploymentNameLabelKey] = agentdeployment.Name
@@ -91,7 +90,7 @@ func newAgentPodTemplate(logger logr.Logger, agentdeployment *datadoghqv1alpha1.
 	}
 
 	var initContainers []corev1.Container
-	initContainers, err = getInitContainers(logger, agentdeployment)
+	initContainers, err = getInitContainers(agentdeployment)
 	if err != nil {
 		return nil, err
 	}
@@ -253,7 +252,7 @@ func getSystemProbeContainers(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.Con
 			},
 		},
 		Env:          systemProbeEnvVars,
-		VolumeMounts: getVolumeMountsForSystemProbe(&dda.Spec),
+		VolumeMounts: getVolumeMountsForSystemProbe(),
 	}
 	if agentSpec.SystemProbe.Resources != nil {
 		systemProbe.Resources = *agentSpec.SystemProbe.Resources
@@ -262,7 +261,7 @@ func getSystemProbeContainers(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.Con
 	return []corev1.Container{systemProbe}, nil
 }
 
-func getInitContainers(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.Container, error) {
+func getInitContainers(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.Container, error) {
 	spec := &dda.Spec
 	volumeMounts := getVolumeMountsForAgent(spec)
 	envVars, err := getEnvVarsForAgent(dda)
@@ -373,7 +372,7 @@ func getEnvVarsForSystemProbe(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.Env
 	return envVars, nil
 }
 
-func getEnvVarsCommon(dda *datadoghqv1alpha1.DatadogAgent, needApiKey bool) ([]corev1.EnvVar, error) {
+func getEnvVarsCommon(dda *datadoghqv1alpha1.DatadogAgent, needAPIKey bool) ([]corev1.EnvVar, error) {
 	envVars := []corev1.EnvVar{
 		{
 			Name:  datadoghqv1alpha1.DDLogLevel,
@@ -401,7 +400,7 @@ func getEnvVarsCommon(dda *datadoghqv1alpha1.DatadogAgent, needApiKey bool) ([]c
 		},
 	}
 
-	if needApiKey {
+	if needAPIKey {
 		var apiKeyEnvVar corev1.EnvVar
 		if dda.Spec.Credentials.APIKeyExistingSecret != "" {
 			apiKeyEnvVar = corev1.EnvVar{
@@ -850,7 +849,7 @@ func getVolumeMountsForProcessAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []
 }
 
 // getVolumeMountsForSystemProbe defines mounted volumes for the SystemProbe
-func getVolumeMountsForSystemProbe(spec *datadoghqv1alpha1.DatadogAgentSpec) []corev1.VolumeMount {
+func getVolumeMountsForSystemProbe() []corev1.VolumeMount {
 	// Default mounted volumes
 	volumeMounts := []corev1.VolumeMount{
 		{
@@ -1000,6 +999,7 @@ func getDefaultLabels(dda *datadoghqv1alpha1.DatadogAgent, instanceName, version
 
 func getDefaultAnnotations(dda *datadoghqv1alpha1.DatadogAgent) map[string]string {
 	// TODO implement this method
+	_ = dda.Annotations
 	return make(map[string]string)
 }
 

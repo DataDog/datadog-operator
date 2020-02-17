@@ -15,7 +15,7 @@ stages:
   - build
   - test
   - image
-#  - test-e2e
+  - release
 
 before_script:
   - mkdir -p .cache
@@ -56,26 +56,15 @@ build_image:
     - docker build --build-arg TAG=$TARGET_TAG -t $IMAGE_NAME -f Dockerfile .
     - docker push $IMAGE_NAME
 
-
-# test_e2e:
-#   stage: test-e2e
-#   tags: [ "runner:docker", "size:large" ]
-#   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:18.09.6
-#   before_script:
-#     - mkdir -p .cache
-#     - ./hack/install_golang.sh
-#     - ./hack/install_kube.sh
-#     - apt-get update && apt-get install -y mercurial jq build-essential
-#     - make install-tools
-#   script:
-#     - docker network inspect bridge
-#     - export PATH=$PATH:/usr/local/go/bin:$(pwd)/bin
-#     - mkdir -p ~/.kube/
-#     - export KUBECONFIG="$(kind get kubeconfig-path --name="kind")"
-#     - MASTER_IP=$(docker network inspect bridge | jq -r '.[].Containers[] | select( .Name == "kind-control-plane").IPv4Address' | cut -d'/' -f1)
-#     - sed -i "s/127.0.0.1:.*[0-9]/$MASTER_IP:6443/" $KUBECONFIG
-#     - kubectl cluster-info
-#     - kubectl get nodes
-#     - while [[ $(kubectl get node  -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}') != "True True True" ]]; do echo "waiting for node" && kubectl get nodes && sleep 1; done
-#     - GOFLAGS=""
-#     - make TAG=$TARGET_TAG PREFIX=$DOCKER_REGISTRY/$PROJECTNAME e2e
+push_release_tag:
+  only:
+    - tags
+  stage: release
+  tags: [ "runner:docker", "size:large" ]
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker-notary:0.6.1
+  script:
+    - IMAGE_NAME=$DOCKER_REGISTRY/$PROJECTNAME:$TARGET_TAG
+    - RELEASE_IMAGE_NAME=$DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG
+    - docker pull $IMAGE_NAME
+    - docker tag $IMAGE_NAME $RELEASE_IMAGE_NAME
+    - docker push $RELEASE_IMAGE_NAME

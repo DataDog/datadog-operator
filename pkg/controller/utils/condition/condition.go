@@ -27,7 +27,7 @@ func UpdateDatadogAgentStatusConditionsFailure(status *datadoghqv1alpha1.Datadog
 func UpdateDatadogAgentStatusConditions(status *datadoghqv1alpha1.DatadogAgentStatus, now metav1.Time, t datadoghqv1alpha1.DatadogAgentConditionType, conditionStatus corev1.ConditionStatus, desc string, writeFalseIfNotExist bool) {
 	idConditionComplete := getIndexForConditionType(status, t)
 	if idConditionComplete >= 0 {
-		UpdateDatadogAgentStatusCondition(&status.Conditions[idConditionComplete], now, t, conditionStatus,desc)
+		UpdateDatadogAgentStatusCondition(&status.Conditions[idConditionComplete], now, t, conditionStatus, desc)
 	} else if conditionStatus == corev1.ConditionTrue || writeFalseIfNotExist {
 		// Only add if the condition is True
 		status.Conditions = append(status.Conditions, NewDatadogAgentStatusCondition(t, conditionStatus, now, "", desc))
@@ -54,7 +54,6 @@ func SetDatadogAgentStatusCondition(status *datadoghqv1alpha1.DatadogAgentStatus
 		status.Conditions = append(status.Conditions, *condition)
 	}
 }
-
 
 // NewDatadogAgentStatusCondition returns new DatadogAgentCondition instance
 func NewDatadogAgentStatusCondition(conditionType datadoghqv1alpha1.DatadogAgentConditionType, conditionStatus corev1.ConditionStatus, now metav1.Time, reason, message string) datadoghqv1alpha1.DatadogAgentCondition {

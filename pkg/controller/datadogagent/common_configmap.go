@@ -42,13 +42,13 @@ func (r *ReconcileDatadogAgent) manageConfigMap(logger logr.Logger, dda *datadog
 		return result, err
 	}
 
-	if result, err := r.updateIfNeededConfigMap(logger, dda, configmap, newConfigMap); err != nil {
+	if result, err = r.updateIfNeededConfigMap(dda, configmap, newConfigMap); err != nil {
 		return result, err
 	}
 	return result, nil
 }
 
-func (r *ReconcileDatadogAgent) updateIfNeededConfigMap(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, oldConfigMap, newConfigMap *corev1.ConfigMap) (reconcile.Result, error) {
+func (r *ReconcileDatadogAgent) updateIfNeededConfigMap(dda *datadoghqv1alpha1.DatadogAgent, oldConfigMap, newConfigMap *corev1.ConfigMap) (reconcile.Result, error) {
 	result := reconcile.Result{}
 	hash, err := comparison.GenerateMD5ForSpec(newConfigMap.Data)
 	if err != nil {
@@ -76,8 +76,8 @@ func (r *ReconcileDatadogAgent) updateIfNeededConfigMap(logger logr.Logger, dda 
 	if err != nil {
 		return reconcile.Result{}, err
 	}
-	eventInfo := buildEventInfo(updateCM.Name, updateCM.Namespace, configMapKind, datadog.UpdateEvent)
-	r.recordEvent(dda, eventInfo)
+	event := buildEventInfo(updateCM.Name, updateCM.Namespace, configMapKind, datadog.UpdateEvent)
+	r.recordEvent(dda, event)
 
 	return result, nil
 }
@@ -97,8 +97,8 @@ func (r *ReconcileDatadogAgent) createConfigMap(logger logr.Logger, dda *datadog
 		return result, err
 	}
 	logger.V(1).Info("createConfigMap", "configMap.name", configMap.Name, "configMap.Namespace", configMap.Namespace)
-	eventInfo := buildEventInfo(configMap.Name, configMap.Namespace, configMapKind, datadog.CreationEvent)
-	r.recordEvent(dda, eventInfo)
+	event := buildEventInfo(configMap.Name, configMap.Namespace, configMapKind, datadog.CreationEvent)
+	r.recordEvent(dda, event)
 	result.Requeue = true
 	return result, err
 }
@@ -117,7 +117,7 @@ func (r *ReconcileDatadogAgent) cleanupConfigMap(logger logr.Logger, dda *datado
 		return reconcile.Result{}, nil
 	}
 	logger.V(1).Info("deleteConfigMap", "configMap.name", configmap.Name, "configMap.Namespace", configmap.Namespace)
-	eventInfo := buildEventInfo(configmap.Name, configmap.Namespace, configMapKind, datadog.DeletionEvent)
-	r.recordEvent(dda, eventInfo)
+	event := buildEventInfo(configmap.Name, configmap.Namespace, configMapKind, datadog.DeletionEvent)
+	r.recordEvent(dda, event)
 	return reconcile.Result{}, r.client.Delete(context.TODO(), configmap)
 }
