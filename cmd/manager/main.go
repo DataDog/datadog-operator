@@ -5,19 +5,18 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"runtime"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"github.com/DataDog/datadog-operator/pkg/apis"
 	"github.com/DataDog/datadog-operator/pkg/controller"
+	"github.com/DataDog/datadog-operator/version"
 
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
 	"github.com/operator-framework/operator-sdk/pkg/leader"
 	"github.com/operator-framework/operator-sdk/pkg/log/zap"
 	"github.com/operator-framework/operator-sdk/pkg/restmapper"
-	sdkVersion "github.com/operator-framework/operator-sdk/version"
 	"github.com/spf13/pflag"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -27,16 +26,12 @@ import (
 
 // Change below variables to serve metrics on different host or port.
 var (
-	metricsHost       = "0.0.0.0"
-	metricsPort int32 = 8383
+	metricsHost            = "0.0.0.0"
+	metricsPort      int32 = 8383
+	printVersionArg  bool
+	printVersionJSON bool
+	log              = logf.Log.WithName("cmd")
 )
-var log = logf.Log.WithName("cmd")
-
-func printVersion() {
-	log.Info(fmt.Sprintf("Go Version: %s", runtime.Version()))
-	log.Info(fmt.Sprintf("Go OS/Arch: %s/%s", runtime.GOOS, runtime.GOARCH))
-	log.Info(fmt.Sprintf("Version of operator-sdk: %v", sdkVersion.Version))
-}
 
 func main() {
 	// Add the zap logger flag set to the CLI. The flag set must
@@ -46,6 +41,8 @@ func main() {
 	// Add flags registered by imported packages (e.g. glog and
 	// controller-runtime)
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
+	pflag.BoolVarP(&printVersionArg, "version", "v", printVersionArg, "print version")
+	pflag.BoolVarP(&printVersionJSON, "json", "j", printVersionJSON, "version output format")
 
 	pflag.Parse()
 
@@ -59,7 +56,12 @@ func main() {
 	// uniform and structured logs.
 	logf.SetLogger(zap.Logger())
 
-	printVersion()
+	if printVersionArg {
+		version.PrintVersionWriter(os.Stdout, printVersionJSON)
+		os.Exit(0)
+	}
+
+	version.PrintVersionLogs(log)
 
 	namespace, err := k8sutil.GetWatchNamespace()
 	if err != nil {
