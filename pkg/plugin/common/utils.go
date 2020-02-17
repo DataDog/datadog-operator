@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-2019 Datadog, Inc.
 
-package plugin
+package common
 
 import (
 	"bufio"
@@ -18,26 +18,26 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// intToString converts int32 to string
-func intToString(i int32) string {
+// IntToString converts int32 to string
+func IntToString(i int32) string {
 	return fmt.Sprintf("%d", i)
 }
 
-// getDuration gets object's age
-func getDuration(obj *metav1.ObjectMeta) string {
+// GetDuration gets object's age
+func GetDuration(obj *metav1.ObjectMeta) string {
 	return durafmt.ParseShort(time.Since(obj.CreationTimestamp.Time)).String()
 }
 
-// streamToBytes converts a stream to bytes
-func streamToBytes(stream io.Reader) ([]byte, error) {
+// StreamToBytes converts a stream to bytes
+func StreamToBytes(stream io.Reader) ([]byte, error) {
 	bytes := new(bytes.Buffer)
 	_, err := bytes.ReadFrom(stream)
 	return bytes.Bytes(), err
 }
 
-// askForConfirmation asks for the user's confirmation before taking an action
-func askForConfirmation(input string) bool {
-	response, err := askForInput(input)
+// AskForConfirmation asks for the user's confirmation before taking an action
+func AskForConfirmation(input string) bool {
+	response, err := AskForInput(input)
 	if err != nil {
 		return false
 	}
@@ -47,8 +47,8 @@ func askForConfirmation(input string) bool {
 	return false
 }
 
-// askForInput asks the user for a given information
-func askForInput(question string) (string, error) {
+// AskForInput asks the user for a given information
+func AskForInput(question string) (string, error) {
 	scanner := bufio.NewScanner(os.Stdin)
 	if question != "" {
 		fmt.Println(question)

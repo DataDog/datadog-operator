@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-2019 Datadog, Inc.
 
-package plugin
+package get
 
 import (
 	"context"
@@ -11,6 +11,7 @@ import (
 	"io"
 
 	"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/pkg/plugin/common"
 
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
@@ -31,10 +32,10 @@ var (
 
 // getOptions provides information required by Datadog get command
 type getOptions struct {
-	configFlags *genericclioptions.ConfigFlags
-	args        []string
-	client      client.Client
 	genericclioptions.IOStreams
+	configFlags          *genericclioptions.ConfigFlags
+	args                 []string
+	client               client.Client
 	userNamespace        string
 	userDatadogAgentName string
 }
@@ -47,8 +48,8 @@ func newGetOptions(streams genericclioptions.IOStreams) *getOptions {
 	}
 }
 
-// newCmdGet provides a cobra command wrapping getOptions
-func newCmdGet(streams genericclioptions.IOStreams) *cobra.Command {
+// NewCmdGet provides a cobra command wrapping getOptions
+func NewCmdGet(streams genericclioptions.IOStreams) *cobra.Command {
 	o := newGetOptions(streams)
 	cmd := &cobra.Command{
 		Use:          "get [DatadogAgent name]",
@@ -79,7 +80,7 @@ func (o *getOptions) complete(cmd *cobra.Command, args []string) error {
 	clientConfig := o.configFlags.ToRawKubeConfigLoader()
 
 	// Create the Client for Read/Write operations.
-	o.client, err = newClient(clientConfig)
+	o.client, err = common.NewClient(clientConfig)
 	if err != nil {
 		return fmt.Errorf("unable to instantiate client: %v", err)
 	}
@@ -133,7 +134,7 @@ func (o *getOptions) run() error {
 
 	table := newGetTable(o.Out)
 	for _, item := range ddList.Items {
-		data := []string{item.Namespace, item.Name, getDuration(&item.ObjectMeta)}
+		data := []string{item.Namespace, item.Name, common.GetDuration(&item.ObjectMeta)}
 		if item.Status.Agent != nil {
 			table.Append(append(data, getDaemonSetStatusData("Agent", item.Status.Agent)...))
 		}
@@ -155,14 +156,14 @@ func getDaemonSetStatusData(component string, dsStatus *v1alpha1.DaemonSetStatus
 	if dsStatus == nil {
 		return []string{component}
 	}
-	return []string{component, intToString(dsStatus.Desired), intToString(dsStatus.Current), intToString(dsStatus.Ready), intToString(dsStatus.UpToDate), intToString(dsStatus.Available), string(dsStatus.State)}
+	return []string{component, common.IntToString(dsStatus.Desired), common.IntToString(dsStatus.Current), common.IntToString(dsStatus.Ready), common.IntToString(dsStatus.UpToDate), common.IntToString(dsStatus.Available), string(dsStatus.State)}
 }
 
 func getDeploymentStatusData(component string, deployStatus *v1alpha1.DeploymentStatus) []string {
 	if deployStatus == nil {
 		return []string{component}
 	}
-	return []string{component, intToString(deployStatus.Replicas), intToString(deployStatus.Replicas - deployStatus.UnavailableReplicas), intToString(deployStatus.ReadyReplicas), intToString(deployStatus.UpdatedReplicas), intToString(deployStatus.AvailableReplicas), string(deployStatus.State)}
+	return []string{component, common.IntToString(deployStatus.Replicas), common.IntToString(deployStatus.Replicas - deployStatus.UnavailableReplicas), common.IntToString(deployStatus.ReadyReplicas), common.IntToString(deployStatus.UpdatedReplicas), common.IntToString(deployStatus.AvailableReplicas), string(deployStatus.State)}
 }
 
 func newGetTable(out io.Writer) *tablewriter.Table {

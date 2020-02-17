@@ -8,18 +8,18 @@ package main
 import (
 	"os"
 
-	"github.com/DataDog/datadog-operator/pkg/plugin"
-	"github.com/spf13/pflag"
+	"github.com/DataDog/datadog-operator/pkg/plugin/datadog"
 
+	"github.com/spf13/pflag"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
 
 func main() {
-	flags := pflag.NewFlagSet("kubectl-dd", pflag.ExitOnError)
+	flags := pflag.NewFlagSet("kubectl-datadog", pflag.ExitOnError)
 	pflag.CommandLine = flags
 
-	root := plugin.NewDatadogCmd(genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr})
+	root := datadog.NewDatadogCmd(genericclioptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr})
 	if err := root.Execute(); err != nil {
 		os.Exit(1)
 	}

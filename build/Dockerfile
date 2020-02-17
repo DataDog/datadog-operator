@@ -9,7 +9,6 @@ COPY build/_output/bin/datadog-operator ${OPERATOR}
 
 COPY build/bin /usr/local/bin
 RUN  /usr/local/bin/user_setup
-RUN microdnf update && microdnf install curl
 
 ENTRYPOINT ["/usr/local/bin/entrypoint"]
 

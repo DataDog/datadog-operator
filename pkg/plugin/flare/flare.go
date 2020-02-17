@@ -3,10 +3,9 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-2019 Datadog, Inc.
 
-package plugin
+package flare
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -24,15 +23,15 @@ import (
 	"time"
 
 	"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/pkg/plugin/common"
+
 	"github.com/mholt/archiver"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/remotecommand"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -57,13 +56,13 @@ var (
 
 // flareOptions provides information required by Datadog flare command
 type flareOptions struct {
-	configFlags *genericclioptions.ConfigFlags
-	args        []string
-	client      client.Client
-	clientset   *kubernetes.Clientset
-	zip         *archiver.Zip
-	site        string
 	genericclioptions.IOStreams
+	configFlags   *genericclioptions.ConfigFlags
+	args          []string
+	client        client.Client
+	clientset     *kubernetes.Clientset
+	zip           *archiver.Zip
+	site          string
 	userNamespace string
 	caseID        string
 }
@@ -77,12 +76,12 @@ func newFlareOptions(streams genericclioptions.IOStreams) *flareOptions {
 	}
 }
 
-// newCmdFlare provides a cobra command wrapping flareOptions
-func newCmdFlare(streams genericclioptions.IOStreams) *cobra.Command {
+// NewCmdFlare provides a cobra command wrapping flareOptions
+func NewCmdFlare(streams genericclioptions.IOStreams) *cobra.Command {
 	o := newFlareOptions(streams)
 	cmd := &cobra.Command{
 		Use:          "flare [Case ID]",
-		Short:        "Collect an Operator flare and send it to Datadog",
+		Short:        "Collect a Datadog's Operator flare and send it to Datadog",
 		Example:      fmt.Sprintf(flareExample, "kubectl dd"),
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {
@@ -98,7 +97,7 @@ func newCmdFlare(streams genericclioptions.IOStreams) *cobra.Command {
 
 	cmd.Flags().StringVarP(&email, "email", "e", "", "Your email")
 	cmd.Flags().StringVarP(&apiKey, "apiKey", "k", "", "Your api key, could also be taken from stdin")
-	cmd.Flags().StringVarP(&ddSite, "ddSite", "d", "", "Your Datadog site US or EU (default: US)")
+	cmd.Flags().StringVarP(&ddSite, "ddSite", "d", "us", "Your Datadog site US or EU (default: US)")
 
 	o.configFlags.AddFlags(cmd.Flags())
 
@@ -113,13 +112,13 @@ func (o *flareOptions) complete(cmd *cobra.Command, args []string) error {
 	clientConfig := o.configFlags.ToRawKubeConfigLoader()
 
 	// Create the Client for Read/Write operations.
-	o.client, err = newClient(clientConfig)
+	o.client, err = common.NewClient(clientConfig)
 	if err != nil {
 		return fmt.Errorf("unable to instantiate client: %v", err)
 	}
 
 	// Create the Clientset for pod logss collection.
-	o.clientset, err = newClientset(clientConfig)
+	o.clientset, err = common.NewClientset(clientConfig)
 	if err != nil {
 		return fmt.Errorf("unable to instantiate clientset: %v", err)
 	}
@@ -143,21 +142,21 @@ func (o *flareOptions) complete(cmd *cobra.Command, args []string) error {
 	}
 
 	if email == "" {
-		email, err = askForInput("Please enter your email: ")
+		email, err = common.AskForInput("Please enter your email: ")
 		if err != nil {
 			return err
 		}
 	}
 
 	if apiKey == "" {
-		apiKey, err = askForInput("Please enter your api key: ")
+		apiKey, err = common.AskForInput("Please enter your api key: ")
 		if err != nil {
 			return err
 		}
 	}
 
 	if ddSite == "" {
-		ddSite, err = askForInput("Please enter your Datatod site [us/eu] (default us): ")
+		ddSite, err = common.AskForInput("Please enter your Datatod site [us/eu] (default us): ")
 		if err != nil {
 			return err
 		}
@@ -181,12 +180,10 @@ func (o *flareOptions) validate() error {
 	}
 
 	switch ddSite {
-	case "":
+	case "", "u", "us", "US":
 		o.site = "com"
 	case "e", "eu", "EU":
 		o.site = "eu"
-	case "u", "us", "US":
-		o.site = "com"
 	default:
 		return fmt.Errorf("invalid datadog site %s", ddSite)
 	}
@@ -240,7 +237,7 @@ func (o *flareOptions) run() error {
 	}
 
 	// ask for confirmation before sending the flare file and opening the support ticket
-	if !askForConfirmation("Are you sure you want to upload a flare? [y/N]") {
+	if !common.AskForConfirmation("Are you sure you want to upload a flare? [y/N]") {
 		fmt.Println(fmt.Sprintf("Aborting. (You can still use %s)", zipFilePath))
 		return nil
 	}
@@ -334,9 +331,19 @@ func (o *flareOptions) createDeploymentTemplate(dir string) error {
 
 // createMetricsFile gets metrics payload and stores it in a file
 func (o *flareOptions) createMetricsFile(pod *corev1.Pod, dir string) error {
-	// Prepare query and execute it
-	metricsQueryCmd := []string{"bash", "-c", "curl http://127.0.0.1:8383/metrics"}
-	metrics, err := o.execInPod(metricsQueryCmd, pod)
+	if pod == nil {
+		return errors.New("nil leader pod")
+	}
+
+	result := o.clientset.CoreV1().RESTClient().Get().
+		Namespace(pod.Namespace).
+		Resource("pods").
+		Name(fmt.Sprintf("%s:8383", pod.Name)).
+		SubResource("proxy").
+		Suffix("metrics").
+		Do()
+
+	metrics, err := result.Raw()
 	if err != nil {
 		return err
 	}
@@ -346,6 +353,10 @@ func (o *flareOptions) createMetricsFile(pod *corev1.Pod, dir string) error {
 
 // createStatusFile gets status of a pod and stores it in a file
 func (o *flareOptions) createStatusFile(pod *corev1.Pod, dir string) error {
+	if pod == nil {
+		return errors.New("nil leader pod")
+	}
+
 	// Get pod status in yaml
 	status, err := yaml.Marshal(pod.Status)
 	if err != nil {
@@ -377,47 +388,6 @@ func (o *flareOptions) getLeader() (*corev1.Pod, error) {
 	return o.clientset.CoreV1().Pods(o.userNamespace).Get(leaderName, metav1.GetOptions{})
 }
 
-// execInPod execs a given command in a given pod
-func (o *flareOptions) execInPod(command []string, pod *corev1.Pod) ([]byte, error) {
-	req := o.clientset.CoreV1().RESTClient().Post().
-		Resource("pods").
-		Name(pod.Name).
-		Namespace(o.userNamespace).
-		SubResource("exec")
-
-	scheme := runtime.NewScheme()
-
-	if err := corev1.AddToScheme(scheme); err != nil {
-		return []byte{}, err
-	}
-
-	parameterCodec := runtime.NewParameterCodec(scheme)
-	req.VersionedParams(&corev1.PodExecOptions{
-		Command: command,
-		Stdin:   false,
-		Stdout:  true,
-		Stderr:  false,
-		TTY:     false,
-	}, parameterCodec)
-
-	restConfig, err := o.configFlags.ToRESTConfig()
-	if err != nil {
-		return []byte{}, err
-	}
-
-	exec, err := remotecommand.NewSPDYExecutor(restConfig, "POST", req.URL())
-	if err != nil {
-		return []byte{}, err
-	}
-
-	var stdout bytes.Buffer
-	if err := exec.Stream(remotecommand.StreamOptions{Stdout: &stdout}); err != nil {
-		return []byte{}, err
-	}
-
-	return stdout.Bytes(), nil
-}
-
 // savePodLogs retrieves pod logs and save them in a file
 func (o *flareOptions) savePodLogs(pod corev1.Pod, dir string) error {
 	podLogOpts := corev1.PodLogOptions{}
@@ -429,7 +399,7 @@ func (o *flareOptions) savePodLogs(pod corev1.Pod, dir string) error {
 	defer podLogs.Close()
 
 	// Convert podLogs stream into bytes
-	logBytes, err := streamToBytes(podLogs)
+	logBytes, err := common.StreamToBytes(podLogs)
 	if err != nil {
 		return err
 	}

@@ -1,6 +1,6 @@
 PROJECT_NAME=datadog-operator
 ARTIFACT=controller
-ARTIFACT_PLUGIN=kubectl-dd
+ARTIFACT_PLUGIN=kubectl-datadog
 
 # 0.0 shouldn't clobber any released builds
 DOCKER_REGISTRY=datadog

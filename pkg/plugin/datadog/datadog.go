@@ -3,9 +3,11 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-2020 Datadog, Inc.
 
-package plugin
+package datadog
 
 import (
+	"github.com/DataDog/datadog-operator/pkg/plugin/flare"
+	"github.com/DataDog/datadog-operator/pkg/plugin/get"
 	"github.com/spf13/cobra"
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -13,8 +15,8 @@ import (
 
 // datadogOptions provides information required by Datadog command
 type datadogOptions struct {
-	configFlags *genericclioptions.ConfigFlags
 	genericclioptions.IOStreams
+	configFlags *genericclioptions.ConfigFlags
 }
 
 // newDatadogOptions provides an instance of DatadogOptions with default values
@@ -31,8 +33,8 @@ func NewDatadogCmd(streams genericclioptions.IOStreams) *cobra.Command {
 		Use: "datadog [subcommand] [flags]",
 	}
 
-	cmd.AddCommand(newCmdGet(streams))
-	cmd.AddCommand(newCmdFlare(streams))
+	cmd.AddCommand(get.NewCmdGet(streams))
+	cmd.AddCommand(flare.NewCmdFlare(streams))
 
 	o := newDatadogOptions(streams)
 	o.configFlags.AddFlags(cmd.Flags())

@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-2020 Datadog, Inc.
 
-package plugin
+package common
 
 import (
 	"fmt"
@@ -17,8 +17,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 )
 
-// newClient returns a new controller-runtime client instance
-func newClient(clientConfig clientcmd.ClientConfig) (client.Client, error) {
+// NewClient returns a new controller-runtime client instance
+func NewClient(clientConfig clientcmd.ClientConfig) (client.Client, error) {
 	restConfig, err := clientConfig.ClientConfig()
 	if err != nil {
 		return nil, fmt.Errorf("unable to get rest client config: %v", err)
@@ -45,8 +45,8 @@ func newClient(clientConfig clientcmd.ClientConfig) (client.Client, error) {
 	return newClient, nil
 }
 
-// newClientset returns a new client-go instance
-func newClientset(clientConfig clientcmd.ClientConfig) (*kubernetes.Clientset, error) {
+// NewClientset returns a new client-go instance
+func NewClientset(clientConfig clientcmd.ClientConfig) (*kubernetes.Clientset, error) {
 	restConfig, err := clientConfig.ClientConfig()
 	if err != nil {
 		return nil, fmt.Errorf("unable to get rest client config: %v", err)

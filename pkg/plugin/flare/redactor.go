@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-2019 Datadog, Inc.
 
-package plugin
+package flare
 
 import (
 	"io"
@@ -36,7 +36,6 @@ func (f *redactingWriter) Write(p []byte) (int, error) {
 	}
 
 	n, err := f.target.Write(cleaned)
-
 	if n != len(cleaned) {
 		err = io.ErrShortWrite
 	}
