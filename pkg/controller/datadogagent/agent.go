@@ -27,13 +27,13 @@ import (
 )
 
 func (r *ReconcileDatadogAgent) reconcileAgent(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
-	result, err := r.manageAgentDependencies(logger, dda, newStatus)
+	result, err := r.manageAgentDependencies(logger, dda)
 	if shouldReturn(result, err) {
 		return result, err
 	}
 
 	if newStatus.Agent != nil && newStatus.Agent.DaemonsetName != "" && newStatus.Agent.DaemonsetName != daemonsetName(dda) {
-		return result, fmt.Errorf("Datadog agent DaemonSet cannot be renamed once created")
+		return result, fmt.Errorf("the Datadog agent DaemonSet cannot be renamed once created")
 	}
 
 	nameNamespace := types.NamespacedName{
@@ -117,8 +117,8 @@ func (r *ReconcileDatadogAgent) deleteDaemonSet(logger logr.Logger, agentdeploym
 		return err
 	}
 	logger.Info("Delete DaemonSet", "daemonSet.Namespace", ds.Namespace, "daemonSet.Name", ds.Name)
-	eventInfo := buildEventInfo(ds.Name, ds.Namespace, daemonSetKind, datadog.DeletionEvent)
-	r.recordEvent(agentdeployment, eventInfo)
+	event := buildEventInfo(ds.Name, ds.Namespace, daemonSetKind, datadog.DeletionEvent)
+	r.recordEvent(agentdeployment, event)
 	return err
 }
 
@@ -128,8 +128,8 @@ func (r *ReconcileDatadogAgent) deleteExtendedDaemonSet(logger logr.Logger, agen
 		return err
 	}
 	logger.Info("Delete DaemonSet", "extendedDaemonSet.Namespace", eds.Namespace, "extendedDaemonSet.Name", eds.Name)
-	eventInfo := buildEventInfo(eds.Name, eds.Namespace, extendedDaemonSetKind, datadog.DeletionEvent)
-	r.recordEvent(agentdeployment, eventInfo)
+	event := buildEventInfo(eds.Name, eds.Namespace, extendedDaemonSetKind, datadog.DeletionEvent)
+	r.recordEvent(agentdeployment, event)
 	return err
 }
 
@@ -138,7 +138,7 @@ func (r *ReconcileDatadogAgent) createNewExtendedDaemonSet(logger logr.Logger, a
 	// ExtendedDaemonSet up to date didn't exist yet, create a new one
 	var newEDS *edsdatadoghqv1alpha1.ExtendedDaemonSet
 	var hash string
-	if newEDS, hash, err = newExtendedDaemonSetFromInstance(logger, agentdeployment, nil); err != nil {
+	if newEDS, hash, err = newExtendedDaemonSetFromInstance(agentdeployment, nil); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -153,8 +153,8 @@ func (r *ReconcileDatadogAgent) createNewExtendedDaemonSet(logger logr.Logger, a
 	if err != nil {
 		return reconcile.Result{}, err
 	}
-	eventInfo := buildEventInfo(newEDS.Name, newEDS.Namespace, extendedDaemonSetKind, datadog.CreationEvent)
-	r.recordEvent(agentdeployment, eventInfo)
+	event := buildEventInfo(newEDS.Name, newEDS.Namespace, extendedDaemonSetKind, datadog.CreationEvent)
+	r.recordEvent(agentdeployment, event)
 	now := metav1.NewTime(time.Now())
 	newStatus.Agent = updateExtendedDaemonSetStatus(newEDS, newStatus.Agent, &now)
 
@@ -166,7 +166,7 @@ func (r *ReconcileDatadogAgent) createNewDaemonSet(logger logr.Logger, agentdepl
 	// DaemonSet up to date didn't exist yet, create a new one
 	var newDS *appsv1.DaemonSet
 	var hash string
-	if newDS, hash, err = newDaemonSetFromInstance(logger, agentdeployment, nil); err != nil {
+	if newDS, hash, err = newDaemonSetFromInstance(agentdeployment, nil); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -179,8 +179,8 @@ func (r *ReconcileDatadogAgent) createNewDaemonSet(logger logr.Logger, agentdepl
 	if err != nil {
 		return reconcile.Result{}, err
 	}
-	eventInfo := buildEventInfo(newDS.Name, newDS.Namespace, daemonSetKind, datadog.CreationEvent)
-	r.recordEvent(agentdeployment, eventInfo)
+	event := buildEventInfo(newDS.Name, newDS.Namespace, daemonSetKind, datadog.CreationEvent)
+	r.recordEvent(agentdeployment, event)
 	now := metav1.NewTime(time.Now())
 	newStatus.Agent = updateDaemonSetStatus(newDS, newStatus.Agent, &now)
 
@@ -188,7 +188,7 @@ func (r *ReconcileDatadogAgent) createNewDaemonSet(logger logr.Logger, agentdepl
 }
 
 func (r *ReconcileDatadogAgent) updateExtendedDaemonSet(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgent, eds *edsdatadoghqv1alpha1.ExtendedDaemonSet, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
-	newEDS, newHash, err := newExtendedDaemonSetFromInstance(logger, agentdeployment, eds.Spec.Selector)
+	newEDS, newHash, err := newExtendedDaemonSetFromInstance(agentdeployment, eds.Spec.Selector)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -218,8 +218,8 @@ func (r *ReconcileDatadogAgent) updateExtendedDaemonSet(logger logr.Logger, agen
 	if err != nil {
 		return reconcile.Result{}, err
 	}
-	eventInfo := buildEventInfo(updatedEds.Name, updatedEds.Namespace, extendedDaemonSetKind, datadog.UpdateEvent)
-	r.recordEvent(agentdeployment, eventInfo)
+	event := buildEventInfo(updatedEds.Name, updatedEds.Namespace, extendedDaemonSetKind, datadog.UpdateEvent)
+	r.recordEvent(agentdeployment, event)
 	newStatus.Agent = updateExtendedDaemonSetStatus(updatedEds, newStatus.Agent, &now)
 	return reconcile.Result{RequeueAfter: 5 * time.Second}, nil
 }
@@ -232,7 +232,7 @@ func (r *ReconcileDatadogAgent) updateDaemonSet(logger logr.Logger, agentdeploym
 	// Update values from current DS in any case
 	newStatus.Agent = updateDaemonSetStatus(ds, newStatus.Agent, nil)
 
-	newDS, newHash, err := newDaemonSetFromInstance(logger, agentdeployment, ds.Spec.Selector)
+	newDS, newHash, err := newDaemonSetFromInstance(agentdeployment, ds.Spec.Selector)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -262,13 +262,13 @@ func (r *ReconcileDatadogAgent) updateDaemonSet(logger logr.Logger, agentdeploym
 	if err != nil {
 		return reconcile.Result{}, err
 	}
-	eventInfo := buildEventInfo(updatedDS.Name, updatedDS.Namespace, daemonSetKind, datadog.UpdateEvent)
-	r.recordEvent(agentdeployment, eventInfo)
+	event := buildEventInfo(updatedDS.Name, updatedDS.Namespace, daemonSetKind, datadog.UpdateEvent)
+	r.recordEvent(agentdeployment, event)
 	newStatus.Agent = updateDaemonSetStatus(updatedDS, newStatus.Agent, &now)
 	return reconcile.Result{RequeueAfter: 5 * time.Second}, nil
 }
 
-func (r *ReconcileDatadogAgent) manageAgentDependencies(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
+func (r *ReconcileDatadogAgent) manageAgentDependencies(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
 	result, err := r.manageAgentRBACs(logger, dda)
 	if shouldReturn(result, err) {
 		return result, err
@@ -288,8 +288,8 @@ func (r *ReconcileDatadogAgent) manageAgentDependencies(logger logr.Logger, dda 
 }
 
 // newExtendedDaemonSetFromInstance creates an ExtendedDaemonSet from a given DatadogAgent
-func newExtendedDaemonSetFromInstance(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgent, selector *metav1.LabelSelector) (*edsdatadoghqv1alpha1.ExtendedDaemonSet, string, error) {
-	template, err := newAgentPodTemplate(logger, agentdeployment, selector)
+func newExtendedDaemonSetFromInstance(agentdeployment *datadoghqv1alpha1.DatadogAgent, selector *metav1.LabelSelector) (*edsdatadoghqv1alpha1.ExtendedDaemonSet, string, error) {
+	template, err := newAgentPodTemplate(agentdeployment, selector)
 	if err != nil {
 		return nil, "", err
 	}
@@ -319,8 +319,8 @@ func newExtendedDaemonSetFromInstance(logger logr.Logger, agentdeployment *datad
 }
 
 // newDaemonSetFromInstance creates a DaemonSet from a given DatadogAgent
-func newDaemonSetFromInstance(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgent, selector *metav1.LabelSelector) (*appsv1.DaemonSet, string, error) {
-	template, err := newAgentPodTemplate(logger, agentdeployment, selector)
+func newDaemonSetFromInstance(agentdeployment *datadoghqv1alpha1.DatadogAgent, selector *metav1.LabelSelector) (*appsv1.DaemonSet, string, error) {
+	template, err := newAgentPodTemplate(agentdeployment, selector)
 	if err != nil {
 		return nil, "", err
 	}
@@ -387,7 +387,7 @@ func buildAgentConfigurationConfigMap(dda *datadoghqv1alpha1.DatadogAgent) (*cor
 	// Maybe later we can implement that directly verifies against Agent configuration?
 	m := make(map[interface{}]interface{})
 	if err := yaml.Unmarshal([]byte(dda.Spec.Agent.CustomConfig), m); err != nil {
-		return nil, fmt.Errorf("Unable to parse YAML from 'Agent.CustomConfig' field: %w", err)
+		return nil, fmt.Errorf("unable to parse YAML from 'Agent.CustomConfig' field: %w", err)
 	}
 
 	configMap := &corev1.ConfigMap{

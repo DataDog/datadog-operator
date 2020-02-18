@@ -101,8 +101,7 @@ type clusterAgentDeploymentFromInstanceTest struct {
 func (test clusterAgentDeploymentFromInstanceTest) Run(t *testing.T) {
 	t.Helper()
 	logf.SetLogger(logf.ZapLogger(true))
-	reqLogger := log.WithValues("test:", test.name)
-	got, _, err := newClusterAgentDeploymentFromInstance(reqLogger, test.agentdeployment, test.newStatus, test.selector)
+	got, _, err := newClusterAgentDeploymentFromInstance(test.agentdeployment, test.selector)
 	if test.wantErr {
 		assert.Error(t, err, "newClusterAgentDeploymentFromInstance() expected an error")
 	} else {
@@ -201,6 +200,7 @@ func Test_newClusterAgentDeploymentFromInstance(t *testing.T) {
 								"app.kubernetes.io/part-of":     "foo",
 								"app.kubernetes.io/version":     "",
 							},
+							Annotations: map[string]string{"annotations-foo-key": "annotations-bar-value"},
 						},
 						Spec: clusterAgentDefaultPodSpec(),
 					},
@@ -475,7 +475,7 @@ func TestReconcileDatadogAgent_createNewClusterAgentDeployment(t *testing.T) {
 	forwarders := dummyManager{}
 
 	logf.SetLogger(logf.ZapLogger(true))
-	log := logf.Log.WithName("TestReconcileDatadogAgent_createNewClusterAgentDeployment")
+	localLog := logf.Log.WithName("TestReconcileDatadogAgent_createNewClusterAgentDeployment")
 
 	// Register operator types with the runtime scheme.
 	s := scheme.Scheme
@@ -506,7 +506,7 @@ func TestReconcileDatadogAgent_createNewClusterAgentDeployment(t *testing.T) {
 				recorder: recorder,
 			},
 			args: args{
-				logger:          log,
+				logger:          localLog,
 				agentdeployment: test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{ClusterAgentEnabled: true}),
 				newStatus:       &datadoghqv1alpha1.DatadogAgentStatus{},
 			},

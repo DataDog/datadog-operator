@@ -37,8 +37,8 @@ import (
 )
 
 var (
-	log                           = logf.Log.WithName("DatadogAgent")
-	supportExtendedDaemonset bool = false
+	log                      = logf.Log.WithName("DatadogAgent")
+	supportExtendedDaemonset = false
 )
 
 const (
@@ -76,6 +76,7 @@ type metricForwardersManager interface {
 	Unregister(datadog.MonitoredObject)
 	ProcessError(datadog.MonitoredObject, error)
 	ProcessEvent(datadog.MonitoredObject, datadog.Event)
+	MetricsForwarderStatusForObj(obj datadog.MonitoredObject) *datadoghqv1alpha1.DatadogAgentCondition
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
@@ -228,32 +229,33 @@ type ReconcileDatadogAgent struct {
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 //
-// Reconcile wraps internelReconcile to send metrics based on reconcile errors
+// Reconcile wraps internalReconcile to send metrics based on reconcile errors
 func (r *ReconcileDatadogAgent) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	resp, err := r.internelReconcile(request)
+	resp, err := r.internalReconcile(request)
 	r.forwarders.ProcessError(getMonitoredObj(request), err)
 	return resp, err
 }
 
-func (r *ReconcileDatadogAgent) internelReconcile(request reconcile.Request) (reconcile.Result, error) {
+func (r *ReconcileDatadogAgent) internalReconcile(request reconcile.Request) (reconcile.Result, error) {
 	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling DatadogAgent")
 
 	// Fetch the DatadogAgent instance
 	instance := &datadoghqv1alpha1.DatadogAgent{}
+	var result reconcile.Result
 	err := r.client.Get(context.TODO(), request.NamespacedName, instance)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
 			// Return and don't requeue
-			return reconcile.Result{}, nil
+			return result, nil
 		}
 		// Error reading the object - requeue the request.
-		return reconcile.Result{}, err
+		return result, err
 	}
 
-	if result, err := r.handleFinalizer(reqLogger, instance); shouldReturn(result, err) {
+	if result, err = r.handleFinalizer(reqLogger, instance); shouldReturn(result, err) {
 		return result, err
 	}
 
@@ -277,7 +279,6 @@ func (r *ReconcileDatadogAgent) internelReconcile(request reconcile.Request) (re
 			r.reconcileClusterChecksRunner,
 			r.reconcileAgent,
 		}
-	var result reconcile.Result
 	for _, reconcileFunc := range reconcileFuncs {
 		result, err = reconcileFunc(reqLogger, instance, newStatus)
 		if shouldReturn(result, err) {
@@ -298,9 +299,15 @@ func (r *ReconcileDatadogAgent) updateStatusIfNeeded(logger logr.Logger, agentde
 	now := metav1.NewTime(time.Now())
 	condition.UpdateDatadogAgentStatusConditionsFailure(newStatus, now, datadoghqv1alpha1.ConditionTypeReconcileError, currentError)
 	if currentError == nil {
-		condition.UpdateDatadogAgentStatusCondition(newStatus, now, datadoghqv1alpha1.ConditionTypeActive, corev1.ConditionTrue, "DatadogAgent reconcile ok", false)
+		condition.UpdateDatadogAgentStatusConditions(newStatus, now, datadoghqv1alpha1.ConditionTypeActive, corev1.ConditionTrue, "DatadogAgent reconcile ok", false)
 	} else {
-		condition.UpdateDatadogAgentStatusCondition(newStatus, now, datadoghqv1alpha1.ConditionTypeActive, corev1.ConditionFalse, "DatadogAgent reconcile error", false)
+		condition.UpdateDatadogAgentStatusConditions(newStatus, now, datadoghqv1alpha1.ConditionTypeActive, corev1.ConditionFalse, "DatadogAgent reconcile error", false)
+	}
+
+	// get metrics forwarder status
+	if metricsCondition := r.forwarders.MetricsForwarderStatusForObj(agentdeployment); metricsCondition != nil {
+		logger.V(1).Info("metrics conditions status not available")
+		condition.SetDatadogAgentStatusCondition(newStatus, metricsCondition)
 	}
 
 	if !apiequality.Semantic.DeepEqual(&agentdeployment.Status, newStatus) {

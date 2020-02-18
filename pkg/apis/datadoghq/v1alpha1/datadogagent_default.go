@@ -16,9 +16,10 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
+// default values
 const (
-	defaultDatadogURL                             string = "https://app.datadoghq.com"
 	DefaultLogLevel                               string = "INFO"
+	defaultDatadogURL                             string = "https://app.datadoghq.com"
 	defaultAgentImage                             string = "datadog/agent:latest"
 	defaultCollectEvents                          bool   = false
 	defaultLeaderElection                         bool   = false
@@ -30,6 +31,8 @@ const (
 	defaultLogEnabled                             bool   = false
 	defaultLogsConfigContainerCollectAll          bool   = false
 	defaultContainerLogsPath                      string = "/var/lib/docker/containers"
+	defaultPodLogsPath                            string = "/var/log/pods"
+	defaultLogsTempStoragePath                    string = "/var/lib/datadog-agent/logs"
 	defaultProcessEnabled                         bool   = false
 	defaultMetricsProviderEnabled                 bool   = false
 	defaultMetricsProviderPort                    int32  = 443
@@ -296,6 +299,14 @@ func IsDefaultedDatadogAgentSpecLog(log *LogSpec) bool {
 		return false
 	}
 
+	if log.PodLogsPath == nil {
+		return false
+	}
+
+	if log.TempStoragePath == nil {
+		return false
+	}
+
 	return true
 }
 
@@ -558,6 +569,14 @@ func DefaultDatadogAgentSpecAgentLog(log *LogSpec) *LogSpec {
 		log.ContainerLogsPath = NewStringPointer(defaultContainerLogsPath)
 	}
 
+	if log.PodLogsPath == nil {
+		log.PodLogsPath = NewStringPointer(defaultPodLogsPath)
+	}
+
+	if log.TempStoragePath == nil {
+		log.TempStoragePath = NewStringPointer(defaultLogsTempStoragePath)
+	}
+
 	return log
 }
 
@@ -633,14 +652,14 @@ func DefaultDatadogAgentSpecClusterAgentImage(image *ImageConfig) *ImageConfig {
 
 // DefaultDatadogAgentSpecClusterChecksRunner used to default an DatadogAgentSpecClusterChecksRunnerSpec
 // return the defaulted DatadogAgentSpecClusterChecksRunnerSpec
-func DefaultDatadogAgentSpecClusterChecksRunner(ClusterChecksRunner *DatadogAgentSpecClusterChecksRunnerSpec) *DatadogAgentSpecClusterChecksRunnerSpec {
-	DefaultDatadogAgentSpecClusterChecksRunnerImage(&ClusterChecksRunner.Image)
-	DefaultDatadogAgentSpecClusterChecksRunnerConfig(&ClusterChecksRunner.Config)
-	DefaultDatadogAgentSpecRbacConfig(&ClusterChecksRunner.Rbac)
-	if ClusterChecksRunner.Replicas == nil {
-		ClusterChecksRunner.Replicas = NewInt32Pointer(defaultClusterChecksRunnerReplicas)
+func DefaultDatadogAgentSpecClusterChecksRunner(clusterChecksRunner *DatadogAgentSpecClusterChecksRunnerSpec) *DatadogAgentSpecClusterChecksRunnerSpec {
+	DefaultDatadogAgentSpecClusterChecksRunnerImage(&clusterChecksRunner.Image)
+	DefaultDatadogAgentSpecClusterChecksRunnerConfig(&clusterChecksRunner.Config)
+	DefaultDatadogAgentSpecRbacConfig(&clusterChecksRunner.Rbac)
+	if clusterChecksRunner.Replicas == nil {
+		clusterChecksRunner.Replicas = NewInt32Pointer(defaultClusterChecksRunnerReplicas)
 	}
-	return ClusterChecksRunner
+	return clusterChecksRunner
 }
 
 // DefaultDatadogAgentSpecClusterChecksRunnerConfig used to default an ClusterChecksRunnerConfig

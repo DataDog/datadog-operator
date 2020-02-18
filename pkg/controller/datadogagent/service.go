@@ -25,9 +25,9 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 )
 
-func (r *ReconcileDatadogAgent) manageClusterAgentService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
+func (r *ReconcileDatadogAgent) manageClusterAgentService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
 	if dda.Spec.ClusterAgent == nil {
-		return r.cleanupClusterAgentService(logger, dda, newStatus)
+		return r.cleanupClusterAgentService(dda)
 	}
 
 	serviceName := getClusterAgentServiceName(dda)
@@ -35,25 +35,25 @@ func (r *ReconcileDatadogAgent) manageClusterAgentService(logger logr.Logger, dd
 	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: dda.Namespace, Name: serviceName}, service)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			return r.createClusterAgentService(logger, dda, newStatus)
+			return r.createClusterAgentService(logger, dda)
 		}
 		return reconcile.Result{}, err
 	}
 
-	return r.updateIfNeededClusterAgentService(logger, dda, service, newStatus)
+	return r.updateIfNeededClusterAgentService(logger, dda, service)
 }
 
-func (r *ReconcileDatadogAgent) createClusterAgentService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
+func (r *ReconcileDatadogAgent) createClusterAgentService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
 	newService, _ := newClusterAgentService(dda)
-	return r.createService(logger, dda, newService, newStatus)
+	return r.createService(logger, dda, newService)
 }
 
-func (r *ReconcileDatadogAgent) updateIfNeededClusterAgentService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, currentService *corev1.Service, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
+func (r *ReconcileDatadogAgent) updateIfNeededClusterAgentService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, currentService *corev1.Service) (reconcile.Result, error) {
 	newService, _ := newClusterAgentService(dda)
-	return r.updateIfNeededService(logger, dda, currentService, newService, newStatus)
+	return r.updateIfNeededService(logger, dda, currentService, newService)
 }
 
-func (r *ReconcileDatadogAgent) cleanupClusterAgentService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
+func (r *ReconcileDatadogAgent) cleanupClusterAgentService(dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
 	serviceName := getClusterAgentServiceName(dda)
 	return cleanupService(r.client, serviceName, dda.Namespace)
 }
@@ -90,9 +90,9 @@ func newClusterAgentService(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.Servic
 	return service, hash
 }
 
-func (r *ReconcileDatadogAgent) manageMetricsServerService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
+func (r *ReconcileDatadogAgent) manageMetricsServerService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
 	if dda.Spec.ClusterAgent == nil {
-		return r.cleanupMetricsServerService(logger, dda, newStatus)
+		return r.cleanupMetricsServerService(dda)
 	}
 
 	if !isMetricsProviderEnabled(dda.Spec.ClusterAgent) {
@@ -104,30 +104,30 @@ func (r *ReconcileDatadogAgent) manageMetricsServerService(logger logr.Logger, d
 	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: dda.Namespace, Name: serviceName}, service)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			return r.createMetricsServerService(logger, dda, newStatus)
+			return r.createMetricsServerService(logger, dda)
 		}
 		return reconcile.Result{}, err
 	}
 
-	return r.updateIfNeededMetricsServerService(logger, dda, service, newStatus)
+	return r.updateIfNeededMetricsServerService(logger, dda, service)
 }
 
-func (r *ReconcileDatadogAgent) createMetricsServerService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
+func (r *ReconcileDatadogAgent) createMetricsServerService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
 	newService, _ := newMetricsServerService(dda)
-	return r.createService(logger, dda, newService, newStatus)
+	return r.createService(logger, dda, newService)
 }
 
-func (r *ReconcileDatadogAgent) cleanupMetricsServerService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
+func (r *ReconcileDatadogAgent) cleanupMetricsServerService(dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
 	serviceName := getMetricsServerServiceName(dda)
 	return cleanupService(r.client, serviceName, dda.Namespace)
 }
 
-func (r *ReconcileDatadogAgent) updateIfNeededMetricsServerService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, currentService *corev1.Service, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
+func (r *ReconcileDatadogAgent) updateIfNeededMetricsServerService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, currentService *corev1.Service) (reconcile.Result, error) {
 	newService, _ := newMetricsServerService(dda)
-	return r.updateIfNeededService(logger, dda, currentService, newService, newStatus)
+	return r.updateIfNeededService(logger, dda, currentService, newService)
 }
 
-func (r *ReconcileDatadogAgent) createService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newService *corev1.Service, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
+func (r *ReconcileDatadogAgent) createService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newService *corev1.Service) (reconcile.Result, error) {
 	if err := controllerutil.SetControllerReference(dda, newService, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
@@ -154,7 +154,7 @@ func cleanupService(client client.Client, name, namespace string) (reconcile.Res
 	return reconcile.Result{}, err
 }
 
-func (r *ReconcileDatadogAgent) updateIfNeededService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, currentService, newService *corev1.Service, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
+func (r *ReconcileDatadogAgent) updateIfNeededService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, currentService, newService *corev1.Service) (reconcile.Result, error) {
 	result := reconcile.Result{}
 	hash := newService.Annotations[datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey]
 	if !comparison.IsSameSpecMD5Hash(hash, currentService.GetAnnotations()) {

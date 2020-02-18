@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	// Version binary version
+	// Version Datadog Operator version
 	Version = "0.1.0"
 	// BuildTime binary build time
 	BuildTime = ""

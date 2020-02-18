@@ -31,8 +31,10 @@ const (
 	DefaultClusterAgentServicePort = 5005
 	// DefaultMetricsServerServicePort default metrics-server port
 	DefaultMetricsServerServicePort = 443
+)
 
-	// Datadog env var names
+// Datadog env var names
+const (
 	DDAPIKey                        = "DD_API_KEY"
 	DDClusterName                   = "DD_CLUSTER_NAME"
 	DDSite                          = "DD_SITE"
@@ -62,12 +64,14 @@ const (
 	DDSystemProbeAgentEnabled       = "DD_SYSTEM_PROBE_ENABLED"
 	DDEnableMetadataCollection      = "DD_ENABLE_METADATA_COLLECTION"
 	DDKubeletHost                   = "DD_KUBERNETES_KUBELET_HOST"
+	DDCriSocketPath                 = "DD_CRI_SOCKET_PATH"
 
-	// Env var used by the Datadog Agent container entrypoint
+	// KubernetesEnvvarName Env var used by the Datadog Agent container entrypoint
 	// to add kubelet config provider and listener
 	KubernetesEnvvarName = "KUBERNETES"
 
 	// Datadog volume names and mount paths
+
 	ConfdVolumeName                    = "confd"
 	ConfdVolumePath                    = "/conf.d"
 	ChecksdVolumeName                  = "checksd"
@@ -112,14 +116,19 @@ const (
 	DefaultAppArmorProfileName        = "unconfined"
 
 	// Extra config provider names
+
 	KubeServicesConfigProvider    = "kube_services"
 	KubeEndpointsConfigProvider   = "kube_endpoints"
 	ClusterChecksConfigProvider   = "clusterchecks"
 	EndpointsChecksConfigProvider = "endpointschecks"
+
 	// Extra listeners
+
 	KubeServicesListener  = "kube_services"
 	KubeEndpointsListener = "kube_endpoints"
+
 	// Liveness probe default config
+
 	DefaultLivenessProveInitialDelaySeconds int32 = 15
 	DefaultLivenessProvePeriodSeconds       int32 = 15
 	DefaultLivenessProveTimeoutSeconds      int32 = 5
@@ -129,15 +138,19 @@ const (
 	DefaultLivenessProveHTTPPath                  = "/health"
 
 	// APM default values
+
 	DefaultAPMAgentTCPPort int32 = 8126
 
 	// Consts used to setup Rbac config
 	// API Groups
+
 	CoreAPIGroup           = ""
 	OpenShiftQuotaAPIGroup = "quota.openshift.io"
 	RbacAPIGroup           = "rbac.authorization.k8s.io"
 	AutoscalingAPIGroup    = "autoscaling"
+
 	// Resources
+
 	ServicesResource                 = "services"
 	EventsResource                   = "events"
 	EndpointsResource                = "endpoints"
@@ -150,22 +163,30 @@ const (
 	NodeSpecResource                 = "nodes/spec"
 	NodeProxyResource                = "nodes/proxy"
 	HorizontalPodAutoscalersRecource = "horizontalpodautoscalers"
+
 	// Resource names
+
 	DatadogTokenResourceName           = "datadogtoken"
 	DatadogLeaderElectionResourceName  = "datadog-leader-election"
 	DatadogCustomMetricsResourceName   = "datadog-custom-metrics"
-	ExtensionApiServerAuthResourceName = "extension-apiserver-authentication"
+	ExtensionAPIServerAuthResourceName = "extension-apiserver-authentication"
+
 	// Non resource URLs
+
 	VersionURL = "/version"
 	HealthzURL = "/healthz"
 	MetricsURL = "/metrics"
+
 	// Verbs
+
 	GetVerb    = "get"
 	ListVerb   = "list"
 	WatchVerb  = "watch"
 	UpdateVerb = "update"
 	CreateVerb = "create"
+
 	// Rbac resource kinds
+
 	ClusterRoleKind    = "ClusterRole"
 	RoleKind           = "Role"
 	ServiceAccountKind = "ServiceAccount"

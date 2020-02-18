@@ -29,7 +29,7 @@ import (
 
 func (r *ReconcileDatadogAgent) manageClusterAgentSecret(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
 	if !needClusterAgentSecret(dda) {
-		result, err := r.cleanupClusterAgentSecret(logger, dda, newStatus)
+		result, err := r.cleanupClusterAgentSecret(dda)
 		return result, err
 	}
 	now := metav1.NewTime(time.Now())
@@ -40,19 +40,19 @@ func (r *ReconcileDatadogAgent) manageClusterAgentSecret(logger logr.Logger, dda
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			if dda.Spec.Credentials.AppKeyExistingSecret == "" {
-				return r.createClusterAgentSecret(logger, dda, newStatus)
+				return r.createClusterAgentSecret(logger, dda)
 			}
 			// return error since the secret didn't exist and we are not responsible to create it.
-			err = fmt.Errorf("Secret %s didn't exist", secretName)
-			condition.UpdateDatadogAgentStatusCondition(newStatus, now, datadoghqv1alpha1.ConditionTypeSecretError, corev1.ConditionTrue, fmt.Sprintf("%v", err), false)
+			err = fmt.Errorf("secret %s didn't exist", secretName)
+			condition.UpdateDatadogAgentStatusConditions(newStatus, now, datadoghqv1alpha1.ConditionTypeSecretError, corev1.ConditionTrue, fmt.Sprintf("%v", err), false)
 		}
 		return reconcile.Result{}, err
 	}
 
-	return r.updateIfNeededClusterAgentSecret(logger, dda, secret, newStatus)
+	return r.updateIfNeededClusterAgentSecret(dda, secret)
 }
 
-func (r *ReconcileDatadogAgent) createClusterAgentSecret(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
+func (r *ReconcileDatadogAgent) createClusterAgentSecret(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
 	newSecret := newClusterAgentSecret(dda)
 	// Set DatadogAgent instance  instance as the owner and controller
 	if err := controllerutil.SetControllerReference(dda, newSecret, r.scheme); err != nil {
@@ -62,13 +62,13 @@ func (r *ReconcileDatadogAgent) createClusterAgentSecret(logger logr.Logger, dda
 		return reconcile.Result{}, err
 	}
 	logger.Info("Create Cluster Agent Secret", "name", newSecret.Name)
-	eventInfo := buildEventInfo(newSecret.Name, newSecret.Namespace, secretKind, datadog.CreationEvent)
-	r.recordEvent(dda, eventInfo)
+	event := buildEventInfo(newSecret.Name, newSecret.Namespace, secretKind, datadog.CreationEvent)
+	r.recordEvent(dda, event)
 
 	return reconcile.Result{Requeue: true}, nil
 }
 
-func (r *ReconcileDatadogAgent) updateIfNeededClusterAgentSecret(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, currentSecret *corev1.Secret, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
+func (r *ReconcileDatadogAgent) updateIfNeededClusterAgentSecret(dda *datadoghqv1alpha1.DatadogAgent, currentSecret *corev1.Secret) (reconcile.Result, error) {
 	if !ownedByDatadogOperator(currentSecret.OwnerReferences) {
 		return reconcile.Result{}, nil
 	}
@@ -89,15 +89,15 @@ func (r *ReconcileDatadogAgent) updateIfNeededClusterAgentSecret(logger logr.Log
 		if err := r.client.Update(context.TODO(), updatedSecret); err != nil {
 			return reconcile.Result{}, err
 		}
-		eventInfo := buildEventInfo(updatedSecret.Name, updatedSecret.Namespace, secretKind, datadog.UpdateEvent)
-		r.recordEvent(dda, eventInfo)
+		event := buildEventInfo(updatedSecret.Name, updatedSecret.Namespace, secretKind, datadog.UpdateEvent)
+		r.recordEvent(dda, event)
 		result.Requeue = true
 	}
 
 	return result, nil
 }
 
-func (r *ReconcileDatadogAgent) cleanupClusterAgentSecret(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
+func (r *ReconcileDatadogAgent) cleanupClusterAgentSecret(dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
 	// checks token secret
 	secretName := utils.GetAppKeySecretName(dda)
 	secret := &corev1.Secret{}

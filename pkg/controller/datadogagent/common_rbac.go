@@ -91,8 +91,8 @@ func (r *ReconcileDatadogAgent) createServiceAccount(logger logr.Logger, dda *da
 		return reconcile.Result{}, err
 	}
 	logger.V(1).Info("createServiceAccount", "serviceAccount.name", serviceAccount.Name, "serviceAccount.Namespace", serviceAccount.Namespace)
-	eventInfo := buildEventInfo(serviceAccount.Name, serviceAccount.Namespace, serviceAccountKind, datadog.CreationEvent)
-	r.recordEvent(dda, eventInfo)
+	event := buildEventInfo(serviceAccount.Name, serviceAccount.Namespace, serviceAccountKind, datadog.CreationEvent)
+	r.recordEvent(dda, event)
 	return reconcile.Result{Requeue: true}, r.client.Create(context.TODO(), serviceAccount)
 }
 
@@ -102,8 +102,8 @@ func (r *ReconcileDatadogAgent) createClusterRoleBinding(logger logr.Logger, dda
 		return reconcile.Result{}, err
 	}
 	logger.V(1).Info("createClusterRoleBinding", "clusterRoleBinding.name", clusterRoleBinding.Name)
-	eventInfo := buildEventInfo(clusterRoleBinding.Name, clusterRoleBinding.Namespace, clusterRoleBindingKind, datadog.CreationEvent)
-	r.recordEvent(dda, eventInfo)
+	event := buildEventInfo(clusterRoleBinding.Name, clusterRoleBinding.Namespace, clusterRoleBindingKind, datadog.CreationEvent)
+	r.recordEvent(dda, event)
 	return reconcile.Result{Requeue: true}, r.client.Create(context.TODO(), clusterRoleBinding)
 }
 
@@ -120,8 +120,8 @@ func (r *ReconcileDatadogAgent) cleanupClusterRole(logger logr.Logger, client cl
 		return reconcile.Result{}, nil
 	}
 	logger.V(1).Info("deleteClusterRole", "clusterRole.name", clusterRole.Name, "clusterRole.Namespace", clusterRole.Namespace)
-	eventInfo := buildEventInfo(clusterRole.Name, clusterRole.Namespace, clusterRoleKind, datadog.DeletionEvent)
-	r.recordEvent(dda, eventInfo)
+	event := buildEventInfo(clusterRole.Name, clusterRole.Namespace, clusterRoleKind, datadog.DeletionEvent)
+	r.recordEvent(dda, event)
 	return reconcile.Result{}, client.Delete(context.TODO(), clusterRole)
 }
 
@@ -138,8 +138,8 @@ func (r *ReconcileDatadogAgent) cleanupClusterRoleBinding(logger logr.Logger, cl
 		return reconcile.Result{}, nil
 	}
 	logger.V(1).Info("deleteClusterRoleBinding", "clusterRoleBinding.name", clusterRoleBinding.Name, "clusterRoleBinding.Namespace", clusterRoleBinding.Namespace)
-	eventInfo := buildEventInfo(clusterRoleBinding.Name, clusterRoleBinding.Namespace, clusterRoleBindingKind, datadog.DeletionEvent)
-	r.recordEvent(dda, eventInfo)
+	event := buildEventInfo(clusterRoleBinding.Name, clusterRoleBinding.Namespace, clusterRoleBindingKind, datadog.DeletionEvent)
+	r.recordEvent(dda, event)
 	return reconcile.Result{}, client.Delete(context.TODO(), clusterRoleBinding)
 }
 
@@ -156,7 +156,7 @@ func (r *ReconcileDatadogAgent) cleanupServiceAccount(logger logr.Logger, client
 		return reconcile.Result{}, nil
 	}
 	logger.V(1).Info("deleteServiceAccount", "serviceAccount.name", serviceAccount.Name, "serviceAccount.Namespace", serviceAccount.Namespace)
-	eventInfo := buildEventInfo(serviceAccount.Name, serviceAccount.Namespace, serviceAccountKind, datadog.DeletionEvent)
-	r.recordEvent(dda, eventInfo)
+	event := buildEventInfo(serviceAccount.Name, serviceAccount.Namespace, serviceAccountKind, datadog.DeletionEvent)
+	r.recordEvent(dda, event)
 	return reconcile.Result{}, client.Delete(context.TODO(), serviceAccount)
 }

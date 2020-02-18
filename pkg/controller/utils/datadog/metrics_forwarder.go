@@ -22,7 +22,6 @@ import (
 	"github.com/go-logr/logr"
 	api "github.com/zorkian/go-datadog-api"
 	corev1 "k8s.io/api/core/v1"
-	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -83,6 +82,7 @@ type metricsForwarder struct {
 	decryptor           secrets.Decryptor
 	creds               sync.Map
 	sync.Mutex
+	status *datadoghqv1alpha1.DatadogAgentCondition
 }
 
 // delegatedAPI is used for testing purpose, it serves for mocking the Datadog API
@@ -138,7 +138,7 @@ func (mf *metricsForwarder) start(wg *sync.WaitGroup) {
 	// Send CR detection event
 	crEvent := crDetected(mf.id)
 	if err := mf.forwardEvent(crEvent); err != nil {
-		mf.logger.Error(err, "an error occured while sending event")
+		mf.logger.Error(err, "an error occurred while sending event")
 	}
 
 	metricsTicker := time.NewTicker(mf.sendMetricsInterval)
@@ -149,25 +149,25 @@ func (mf *metricsForwarder) start(wg *sync.WaitGroup) {
 			// The metrics forwarder is stopped by the ForwardersManager
 			// forward metrics and deletion event then return
 			if err := mf.forwardMetrics(); err != nil {
-				mf.logger.Error(err, "an error occured while sending metrics")
+				mf.logger.Error(err, "an error occurred while sending metrics")
 			}
 			crEvent := crDeleted(mf.id)
 			if err := mf.forwardEvent(crEvent); err != nil {
-				mf.logger.Error(err, "an error occured while sending event")
+				mf.logger.Error(err, "an error occurred while sending event")
 			}
 			mf.logger.Info("Shutting down Datadog metrics forwarder")
 			return
 		case <-metricsTicker.C:
 			if err := mf.forwardMetrics(); err != nil {
-				mf.logger.Error(err, "an error occured while sending metrics")
+				mf.logger.Error(err, "an error occurred while sending metrics")
 			}
 		case reconcileErr := <-mf.errorChan:
 			if err := mf.processReconcileError(reconcileErr); err != nil {
-				mf.logger.Error(err, "an error occured while processing reconcile metrics")
+				mf.logger.Error(err, "an error occurred while processing reconcile metrics")
 			}
 		case event := <-mf.eventChan:
 			if err := mf.forwardEvent(event); err != nil {
-				mf.logger.Error(err, "an error occured while sending event")
+				mf.logger.Error(err, "an error occurred while sending event")
 			}
 		}
 	}
@@ -176,6 +176,18 @@ func (mf *metricsForwarder) start(wg *sync.WaitGroup) {
 // stop closes the stopChan to stop the start method
 func (mf *metricsForwarder) stop() {
 	close(mf.stopChan)
+}
+
+func (mf *metricsForwarder) getStatus() *datadoghqv1alpha1.DatadogAgentCondition {
+	mf.Lock()
+	defer mf.Unlock()
+	return mf.status
+}
+
+func (mf *metricsForwarder) setStatus(newStatus *datadoghqv1alpha1.DatadogAgentCondition) {
+	mf.Lock()
+	defer mf.Unlock()
+	mf.status = newStatus
 }
 
 // connectToDatadogAPI ensures the connection to the Datadog API is valid
@@ -188,23 +200,15 @@ func (mf *metricsForwarder) connectToDatadogAPI() (bool, error) {
 	}
 	mf.logger.Info("Getting Datadog credentials")
 	apiKey, appKey, err := mf.getCredentials(dda)
+	defer mf.updateStatusIfNeeded(err)
 	if err != nil {
 		mf.logger.Error(err, "cannot get Datadog credentials,  will retry later...")
-		if err = mf.updateStatusIfNeeded(dda, err); err != nil {
-			mf.logger.Error(err, "cannot update DatadogAgent status")
-		}
 		return false, nil
 	}
 	mf.logger.Info("Initializing Datadog metrics forwarder")
-	if err := mf.initAPIClient(apiKey, appKey); err != nil {
+	if err = mf.initAPIClient(apiKey, appKey); err != nil {
 		mf.logger.Error(err, "cannot get Datadog metrics forwarder to send deployment metrics, will retry later...")
-		if err = mf.updateStatusIfNeeded(dda, err); err != nil {
-			mf.logger.Error(err, "cannot update DatadogAgent status")
-		}
 		return false, nil
-	}
-	if err = mf.updateStatusIfNeeded(dda, nil); err != nil {
-		mf.logger.Error(err, "cannot update DatadogAgent status")
 	}
 	return true, nil
 }
@@ -220,18 +224,13 @@ func (mf *metricsForwarder) forwardMetrics() error {
 		return err
 	}
 	apiKey, appKey, err := mf.getCredentials(dda)
+	defer mf.updateStatusIfNeeded(err)
 	if err != nil {
 		mf.logger.Error(err, "cannot get Datadog credentials")
-		if err = mf.updateStatusIfNeeded(dda, err); err != nil {
-			mf.logger.Error(err, "cannot update DatadogAgent status")
-		}
 		return err
 	}
-	if err := mf.updateCredsIfNeeded(apiKey, appKey); err != nil {
+	if err = mf.updateCredsIfNeeded(apiKey, appKey); err != nil {
 		mf.logger.Error(err, "cannot update Datadog credentials")
-		if err = mf.updateStatusIfNeeded(dda, err); err != nil {
-			mf.logger.Error(err, "cannot update DatadogAgent status")
-		}
 		return err
 	}
 
@@ -240,30 +239,26 @@ func (mf *metricsForwarder) forwardMetrics() error {
 
 	// Send status-based metrics
 	status := dda.Status.DeepCopy()
-	if err := mf.sendStatusMetrics(status); err != nil {
+	if err = mf.sendStatusMetrics(status); err != nil {
 		mf.logger.Error(err, "cannot send status metrics to Datadog")
-		if err = mf.updateStatusIfNeeded(dda, err); err != nil {
-			mf.logger.Error(err, "cannot update DatadogAgent status")
-		}
 		return err
 	}
 
 	// Send reconcile errors metric
 	reconcileErr := mf.getLastReconcileError()
-	metricValue, tags, err := mf.prepareReconcileMetric(reconcileErr)
+	var metricValue float64
+	var tags []string
+	metricValue, tags, err = mf.prepareReconcileMetric(reconcileErr)
 	if err != nil {
 		mf.logger.Error(err, "cannot prepare reconcile metric")
 		return err
 	}
-	if err := mf.sendReconcileMetric(metricValue, tags); err != nil {
+	if err = mf.sendReconcileMetric(metricValue, tags); err != nil {
 		mf.logger.Error(err, "cannot send reconcile errors metric to Datadog")
-		if err = mf.updateStatusIfNeeded(dda, err); err != nil {
-			mf.logger.Error(err, "cannot update DatadogAgent status")
-		}
 		return err
 	}
 
-	return mf.updateStatusIfNeeded(dda, err)
+	return nil
 }
 
 // processReconcileError updates lastReconcileErr
@@ -292,7 +287,7 @@ func (mf *metricsForwarder) prepareReconcileMetric(reconcileErr error) (float64,
 	var tags []string
 
 	if reconcileErr == errInitValue {
-		// Metrics forwarder didn't recieve any reconcile error
+		// Metrics forwarder didn't receive any reconcile error
 		// lastReconcileErr has never been updated
 		return metricValue, nil, errors.New("last reconcile error not updated")
 	}
@@ -380,7 +375,7 @@ func (mf *metricsForwarder) sendStatusMetrics(status *datadoghqv1alpha1.DatadogA
 		} else {
 			metricValue = deploymentFailureValue
 		}
-		tags := mf.tagsWithExtraTag(stateTagFormat, string(status.Agent.State))
+		tags := mf.tagsWithExtraTag(stateTagFormat, status.Agent.State)
 		if err := mf.sendDeploymentMetric(metricValue, agentName, tags); err != nil {
 			return err
 		}
@@ -393,7 +388,7 @@ func (mf *metricsForwarder) sendStatusMetrics(status *datadoghqv1alpha1.DatadogA
 		} else {
 			metricValue = deploymentFailureValue
 		}
-		tags := mf.tagsWithExtraTag(stateTagFormat, string(status.ClusterAgent.State))
+		tags := mf.tagsWithExtraTag(stateTagFormat, status.ClusterAgent.State)
 		if err := mf.sendDeploymentMetric(metricValue, clusteragentName, tags); err != nil {
 			return err
 		}
@@ -406,7 +401,7 @@ func (mf *metricsForwarder) sendStatusMetrics(status *datadoghqv1alpha1.DatadogA
 		} else {
 			metricValue = deploymentFailureValue
 		}
-		tags := mf.tagsWithExtraTag(stateTagFormat, string(status.ClusterChecksRunner.State))
+		tags := mf.tagsWithExtraTag(stateTagFormat, status.ClusterChecksRunner.State)
 		if err := mf.sendDeploymentMetric(metricValue, clustercheckrunnerName, tags); err != nil {
 			return err
 		}
@@ -586,21 +581,22 @@ func (mf *metricsForwarder) getKeyFromSecret(dda *datadoghqv1alpha1.DatadogAgent
 }
 
 // updateStatusIfNeeded updates the Datadog metrics forwarding status in the DatadogAgent status
-func (mf *metricsForwarder) updateStatusIfNeeded(dda *datadoghqv1alpha1.DatadogAgent, err error) error {
+func (mf *metricsForwarder) updateStatusIfNeeded(err error) {
 	now := metav1.NewTime(time.Now())
-	newStatus := dda.Status.DeepCopy()
-	condition.UpdateDatadogAgentStatusConditionsFailure(newStatus, now, datadoghqv1alpha1.ConditionTypeDatadogMetricsError, err)
-	if err == nil {
-		condition.UpdateDatadogAgentStatusCondition(newStatus, now, datadoghqv1alpha1.ConditionTypeActiveDatadogMetrics, corev1.ConditionTrue, "Datadog metrics forwarding ok", false)
+	conditionStatus := corev1.ConditionTrue
+	description := "Datadog metrics forwarding ok"
+	if err != nil {
+		conditionStatus = corev1.ConditionFalse
+		description = "Datadog metrics forwarding error"
+	}
+
+	oldStatus := mf.getStatus()
+	if oldStatus == nil {
+		newStatus := condition.NewDatadogAgentStatusCondition(datadoghqv1alpha1.ConditionTypeActiveDatadogMetrics, conditionStatus, now, "", description)
+		mf.setStatus(&newStatus)
 	} else {
-		condition.UpdateDatadogAgentStatusCondition(newStatus, now, datadoghqv1alpha1.ConditionTypeActiveDatadogMetrics, corev1.ConditionFalse, "Datadog metrics forwarding error", false)
+		mf.setStatus(condition.UpdateDatadogAgentStatusCondition(oldStatus, now, datadoghqv1alpha1.ConditionTypeActiveDatadogMetrics, conditionStatus, description))
 	}
-	if !apiequality.Semantic.DeepEqual(&dda.Status, newStatus) {
-		updatedDad := dda.DeepCopy()
-		updatedDad.Status = *newStatus
-		return mf.k8sClient.Status().Update(context.TODO(), updatedDad)
-	}
-	return nil
 }
 
 // sendReconcileMetric is used to forward reconcile metrics to Datadog

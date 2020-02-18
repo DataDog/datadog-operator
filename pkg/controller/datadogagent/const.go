@@ -12,7 +12,7 @@ const (
 	// FieldPathStatusHostIP used as FieldPath to retrieve the host ip
 	FieldPathStatusHostIP = "status.hostIP"
 
-	// kind names definiton
+	// kind names definition
 	extendedDaemonSetKind   = "ExtendedDaemonSet"
 	daemonSetKind           = "DaemonSet"
 	deploymentKind          = "Deployment"

@@ -16,7 +16,6 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	edsdatadoghqv1alpha1 "github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1"
-	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -37,7 +36,7 @@ func init() {
 }
 
 // newAgentPodTemplate generates a PodTemplate from a DatadogAgent spec
-func newAgentPodTemplate(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgent, selector *metav1.LabelSelector) (*corev1.PodTemplateSpec, error) {
+func newAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent, selector *metav1.LabelSelector) (*corev1.PodTemplateSpec, error) {
 	// copy Agent Spec to configure Agent Pod Template
 	labels := getDefaultLabels(agentdeployment, "agent", getAgentVersion(agentdeployment))
 	labels[datadoghqv1alpha1.AgentDeploymentNameLabelKey] = agentdeployment.Name
@@ -91,7 +90,7 @@ func newAgentPodTemplate(logger logr.Logger, agentdeployment *datadoghqv1alpha1.
 	}
 
 	var initContainers []corev1.Container
-	initContainers, err = getInitContainers(logger, agentdeployment)
+	initContainers, err = getInitContainers(agentdeployment)
 	if err != nil {
 		return nil, err
 	}
@@ -253,7 +252,7 @@ func getSystemProbeContainers(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.Con
 			},
 		},
 		Env:          systemProbeEnvVars,
-		VolumeMounts: getVolumeMountsForSystemProbe(&dda.Spec),
+		VolumeMounts: getVolumeMountsForSystemProbe(),
 	}
 	if agentSpec.SystemProbe.Resources != nil {
 		systemProbe.Resources = *agentSpec.SystemProbe.Resources
@@ -262,7 +261,7 @@ func getSystemProbeContainers(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.Con
 	return []corev1.Container{systemProbe}, nil
 }
 
-func getInitContainers(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.Container, error) {
+func getInitContainers(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.Container, error) {
 	spec := &dda.Spec
 	volumeMounts := getVolumeMountsForAgent(spec)
 	envVars, err := getEnvVarsForAgent(dda)
@@ -373,7 +372,7 @@ func getEnvVarsForSystemProbe(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.Env
 	return envVars, nil
 }
 
-func getEnvVarsCommon(dda *datadoghqv1alpha1.DatadogAgent, needApiKey bool) ([]corev1.EnvVar, error) {
+func getEnvVarsCommon(dda *datadoghqv1alpha1.DatadogAgent, needAPIKey bool) ([]corev1.EnvVar, error) {
 	envVars := []corev1.EnvVar{
 		{
 			Name:  datadoghqv1alpha1.DDLogLevel,
@@ -401,7 +400,7 @@ func getEnvVarsCommon(dda *datadoghqv1alpha1.DatadogAgent, needApiKey bool) ([]c
 		},
 	}
 
-	if needApiKey {
+	if needAPIKey {
 		var apiKeyEnvVar corev1.EnvVar
 		if dda.Spec.Credentials.APIKeyExistingSecret != "" {
 			apiKeyEnvVar = corev1.EnvVar{
@@ -519,6 +518,15 @@ func getEnvVarsForAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.EnvVar, e
 		}
 		envVars = append(envVars, clusterEnv...)
 	}
+
+	// Activate/deactivate agent features
+	if dda.Spec.Agent.Config.CriSocket != nil && dda.Spec.Agent.Config.CriSocket.CriSocketPath != nil {
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  datadoghqv1alpha1.DDCriSocketPath,
+			Value: *dda.Spec.Agent.Config.CriSocket.CriSocketPath,
+		})
+	}
+
 	return append(envVars, spec.Agent.Config.Env...), nil
 }
 
@@ -669,6 +677,35 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 		volumes = append(volumes, systemProbeVolumes...)
 	}
 
+	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Log.Enabled) {
+		volumes = append(volumes, []corev1.Volume{
+			{
+				Name: datadoghqv1alpha1.PointerVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: *dda.Spec.Agent.Log.TempStoragePath,
+					},
+				},
+			},
+			{
+				Name: datadoghqv1alpha1.LogPodVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: *dda.Spec.Agent.Log.PodLogsPath,
+					},
+				},
+			},
+			{
+				Name: datadoghqv1alpha1.LogContainerVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: *dda.Spec.Agent.Log.ContainerLogsPath,
+					},
+				},
+			},
+		}...)
+	}
+
 	volumes = append(volumes, dda.Spec.Agent.Config.Volumes...)
 	return volumes
 }
@@ -812,7 +849,7 @@ func getVolumeMountsForProcessAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []
 }
 
 // getVolumeMountsForSystemProbe defines mounted volumes for the SystemProbe
-func getVolumeMountsForSystemProbe(spec *datadoghqv1alpha1.DatadogAgentSpec) []corev1.VolumeMount {
+func getVolumeMountsForSystemProbe() []corev1.VolumeMount {
 	// Default mounted volumes
 	volumeMounts := []corev1.VolumeMount{
 		{
@@ -962,6 +999,7 @@ func getDefaultLabels(dda *datadoghqv1alpha1.DatadogAgent, instanceName, version
 
 func getDefaultAnnotations(dda *datadoghqv1alpha1.DatadogAgent) map[string]string {
 	// TODO implement this method
+	_ = dda.Annotations
 	return make(map[string]string)
 }
 
@@ -1054,6 +1092,7 @@ func updateDaemonSetStatus(ds *appsv1.DaemonSet, dsStatus *datadoghqv1alpha1.Dae
 	}
 	if ds == nil {
 		dsStatus.State = string(datadoghqv1alpha1.DatadogAgentStateFailed)
+		dsStatus.Status = string(datadoghqv1alpha1.DatadogAgentStateFailed)
 		return dsStatus
 	}
 	if updateTime != nil {
@@ -1077,7 +1116,8 @@ func updateDaemonSetStatus(ds *appsv1.DaemonSet, dsStatus *datadoghqv1alpha1.Dae
 		deploymentState = datadoghqv1alpha1.DatadogAgentStateRunning
 	}
 
-	dsStatus.State = fmt.Sprintf("%v (%d/%d/%d)", deploymentState, dsStatus.Desired, dsStatus.Ready, dsStatus.UpToDate)
+	dsStatus.State = fmt.Sprintf("%v", deploymentState)
+	dsStatus.Status = fmt.Sprintf("%v (%d/%d/%d)", deploymentState, dsStatus.Desired, dsStatus.Ready, dsStatus.UpToDate)
 	dsStatus.DaemonsetName = ds.ObjectMeta.Name
 	return dsStatus
 }
@@ -1108,7 +1148,8 @@ func updateExtendedDaemonSetStatus(eds *edsdatadoghqv1alpha1.ExtendedDaemonSet, 
 		deploymentState = datadoghqv1alpha1.DatadogAgentStateRunning
 	}
 
-	dsStatus.State = fmt.Sprintf("%v (%d/%d/%d)", deploymentState, dsStatus.Desired, dsStatus.Ready, dsStatus.UpToDate)
+	dsStatus.State = fmt.Sprintf("%v", deploymentState)
+	dsStatus.Status = fmt.Sprintf("%v (%d/%d/%d)", deploymentState, dsStatus.Desired, dsStatus.Ready, dsStatus.UpToDate)
 	dsStatus.DaemonsetName = eds.ObjectMeta.Name
 	return dsStatus
 }
@@ -1119,6 +1160,7 @@ func updateDeploymentStatus(dep *appsv1.Deployment, depStatus *datadoghqv1alpha1
 	}
 	if dep == nil {
 		depStatus.State = string(datadoghqv1alpha1.DatadogAgentStateFailed)
+		depStatus.Status = string(datadoghqv1alpha1.DatadogAgentStateFailed)
 		return depStatus
 	}
 
@@ -1151,7 +1193,8 @@ func updateDeploymentStatus(dep *appsv1.Deployment, depStatus *datadoghqv1alpha1
 		}
 	}
 
-	depStatus.State = fmt.Sprintf("%v (%d/%d/%d)", deploymentState, depStatus.Replicas, depStatus.ReadyReplicas, depStatus.UpdatedReplicas)
+	depStatus.State = fmt.Sprintf("%v", deploymentState)
+	depStatus.Status = fmt.Sprintf("%v (%d/%d/%d)", deploymentState, depStatus.Replicas, depStatus.ReadyReplicas, depStatus.UpdatedReplicas)
 	depStatus.DeploymentName = dep.ObjectMeta.Name
 	return depStatus
 }

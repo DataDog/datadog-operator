@@ -7,13 +7,13 @@ spec:
   - JSONPath: .status.conditions[?(@.type=='Active')].status
     name: active
     type: string
-  - JSONPath: .status.agent.state
+  - JSONPath: .status.agent.status
     name: agent
     type: string
-  - JSONPath: .status.clusterAgent.state
+  - JSONPath: .status.clusterAgent.status
     name: cluster-agent
     type: string
-  - JSONPath: .status.clusterChecksRunner.state
+  - JSONPath: .status.clusterChecksRunner.status
     name: cluster-checks-runner
     type: string
   - JSONPath: .metadata.creationTimestamp
@@ -1994,7 +1994,8 @@ spec:
                     containerLogsPath:
                       description: 'This to allow log collection from container log
                         path. Set to a different path if not using docker runtime.
-                        ref: https://docs.datadoghq.com/agent/kubernetes/daemonset_setup/?tab=k8sfile#create-manifest'
+                        ref: https://docs.datadoghq.com/agent/kubernetes/daemonset_setup/?tab=k8sfile#create-manifest
+                        Default to `/var/lib/docker/containers`'
                       type: string
                     enabled:
                       description: 'Enables this to activate Datadog Agent log collection.
@@ -2004,6 +2005,16 @@ spec:
                       description: 'Enable this to allow log collection for all containers.
                         ref: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup'
                       type: boolean
+                    podLogsPath:
+                      description: This to allow log collection from pod log path.
+                        Default to `/var/log/pods`
+                      type: string
+                    tempStoragePath:
+                      description: This path (always mounted from the host) is used
+                        by Datadog Agent to store information about processed log
+                        files. If the Datadog Agent is restarted, it allows to start
+                        tailing the log files from the right offset Default to `/var/lib/datadog-agent/logs`
+                      type: string
                   type: object
                 process:
                   description: Process Agent configuration
@@ -5169,6 +5180,8 @@ spec:
                   type: integer
                 state:
                   type: string
+                status:
+                  type: string
                 upToDate:
                   format: int32
                   type: integer
@@ -5212,6 +5225,10 @@ spec:
                   type: integer
                 state:
                   description: State corresponds to the ClusterAgent deployment state
+                  type: string
+                status:
+                  description: Status corresponds to the ClusterAgent deployment computed
+                    status
                   type: string
                 unavailableReplicas:
                   description: Total number of unavailable pods targeted by this deployment.
@@ -5260,6 +5277,10 @@ spec:
                   type: integer
                 state:
                   description: State corresponds to the ClusterAgent deployment state
+                  type: string
+                status:
+                  description: Status corresponds to the ClusterAgent deployment computed
+                    status
                   type: string
                 unavailableReplicas:
                   description: Total number of unavailable pods targeted by this deployment.
