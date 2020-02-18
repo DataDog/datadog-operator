@@ -17,11 +17,11 @@ type redactingWriter struct {
 }
 
 // newRedactingWriter instantiates a redactingWriter to target
-func newRedactingWriter(target *os.File) (*redactingWriter, error) {
+func newRedactingWriter(target *os.File) *redactingWriter {
 	return &redactingWriter{
 		target: target,
 		r:      replacer{},
-	}, nil
+	}
 }
 
 // Write writes the redacted byte stream, applying all replacers and credential cleanup to target

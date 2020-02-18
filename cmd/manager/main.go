@@ -26,11 +26,11 @@ import (
 
 // Change below variables to serve metrics on different host or port.
 var (
-	metricsHost            = "0.0.0.0"
-	metricsPort      int32 = 8383
-	printVersionArg  bool
-	printVersionJSON bool
-	log              = logf.Log.WithName("cmd")
+	metricsHost              = "0.0.0.0"
+	metricsPort        int32 = 8383
+	printVersionArg    bool
+	printVersionFormat string
+	log                = logf.Log.WithName("cmd")
 )
 
 func main() {
@@ -42,7 +42,7 @@ func main() {
 	// controller-runtime)
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 	pflag.BoolVarP(&printVersionArg, "version", "v", printVersionArg, "print version")
-	pflag.BoolVarP(&printVersionJSON, "json", "j", printVersionJSON, "version output format")
+	pflag.StringVarP(&printVersionFormat, "version-format", "f", "text", "version output format ('text', 'json')")
 
 	pflag.Parse()
 
@@ -57,7 +57,7 @@ func main() {
 	logf.SetLogger(zap.Logger())
 
 	if printVersionArg {
-		version.PrintVersionWriter(os.Stdout, printVersionJSON)
+		version.PrintVersionWriter(os.Stdout, printVersionFormat)
 		os.Exit(0)
 	}
 

@@ -18,6 +18,7 @@ require (
 	github.com/stretchr/testify v1.4.0
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
 	github.com/zorkian/go-datadog-api v2.25.0+incompatible
+	google.golang.org/appengine v1.5.0
 	gopkg.in/yaml.v2 v2.2.4
 	k8s.io/api v0.0.0
 	k8s.io/apimachinery v0.0.0

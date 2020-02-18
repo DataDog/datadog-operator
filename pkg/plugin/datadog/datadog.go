@@ -13,30 +13,30 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
-// datadogOptions provides information required by Datadog command
-type datadogOptions struct {
+// options provides information required by Datadog command
+type options struct {
 	genericclioptions.IOStreams
 	configFlags *genericclioptions.ConfigFlags
 }
 
-// newDatadogOptions provides an instance of DatadogOptions with default values
-func newDatadogOptions(streams genericclioptions.IOStreams) *datadogOptions {
-	return &datadogOptions{
+// newOptions provides an instance of DatadogOptions with default values
+func newOptions(streams genericclioptions.IOStreams) *options {
+	return &options{
 		configFlags: genericclioptions.NewConfigFlags(false),
 		IOStreams:   streams,
 	}
 }
 
-// NewDatadogCmd provides a cobra command wrapping DatadogOptions
-func NewDatadogCmd(streams genericclioptions.IOStreams) *cobra.Command {
+// NewCmd provides a cobra command wrapping DatadogOptions
+func NewCmd(streams genericclioptions.IOStreams) *cobra.Command {
 	cmd := &cobra.Command{
 		Use: "datadog [subcommand] [flags]",
 	}
 
-	cmd.AddCommand(get.NewCmdGet(streams))
-	cmd.AddCommand(flare.NewCmdFlare(streams))
+	cmd.AddCommand(get.New(streams))
+	cmd.AddCommand(flare.New(streams))
 
-	o := newDatadogOptions(streams)
+	o := newOptions(streams)
 	o.configFlags.AddFlags(cmd.Flags())
 
 	return cmd

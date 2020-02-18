@@ -59,16 +59,18 @@ func newVersionJSON() []byte {
 }
 
 // PrintVersionWriter print versions information in to writer interface
-func PrintVersionWriter(writer io.Writer, jsonFormat bool) {
-	if jsonFormat {
+func PrintVersionWriter(writer io.Writer, format string) {
+	switch format {
+	case "text":
+		fmt.Fprintf(writer, "Version:\n")
+		for _, val := range printVersionSlice() {
+			fmt.Fprintf(writer, "- %s\n", val)
+		}
+	case "json":
 		versionBytes := newVersionJSON()
 		fmt.Fprint(writer, string(versionBytes))
-		return
-	}
-
-	fmt.Fprintf(writer, "Version:\n")
-	for _, val := range printVersionSlice() {
-		fmt.Fprintf(writer, "- %s\n", val)
+	default:
+		fmt.Fprint(writer, fmt.Sprintf("Unknown format: %s", format))
 	}
 }
 

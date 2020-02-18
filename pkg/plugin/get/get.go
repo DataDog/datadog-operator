@@ -30,8 +30,8 @@ var (
 `
 )
 
-// getOptions provides information required by Datadog get command
-type getOptions struct {
+// options provides information required by Datadog get command
+type options struct {
 	genericclioptions.IOStreams
 	configFlags          *genericclioptions.ConfigFlags
 	args                 []string
@@ -40,17 +40,17 @@ type getOptions struct {
 	userDatadogAgentName string
 }
 
-// newGetOptions provides an instance of getOptions with default values
-func newGetOptions(streams genericclioptions.IOStreams) *getOptions {
-	return &getOptions{
+// newOptions provides an instance of getOptions with default values
+func newOptions(streams genericclioptions.IOStreams) *options {
+	return &options{
 		configFlags: genericclioptions.NewConfigFlags(false),
 		IOStreams:   streams,
 	}
 }
 
-// NewCmdGet provides a cobra command wrapping getOptions
-func NewCmdGet(streams genericclioptions.IOStreams) *cobra.Command {
-	o := newGetOptions(streams)
+// New provides a cobra command wrapping options
+func New(streams genericclioptions.IOStreams) *cobra.Command {
+	o := newOptions(streams)
 	cmd := &cobra.Command{
 		Use:          "get [DatadogAgent name]",
 		Short:        "Get DatadogAgent deployment(s)",
@@ -73,7 +73,7 @@ func NewCmdGet(streams genericclioptions.IOStreams) *cobra.Command {
 }
 
 // complete sets all information required for processing the command
-func (o *getOptions) complete(cmd *cobra.Command, args []string) error {
+func (o *options) complete(cmd *cobra.Command, args []string) error {
 	o.args = args
 	var err error
 
@@ -107,7 +107,7 @@ func (o *getOptions) complete(cmd *cobra.Command, args []string) error {
 }
 
 // validate ensures that all required arguments and flag values are provided
-func (o *getOptions) validate() error {
+func (o *options) validate() error {
 	if len(o.args) > 1 {
 		return fmt.Errorf("either one or no arguments are allowed")
 	}
@@ -115,7 +115,7 @@ func (o *getOptions) validate() error {
 }
 
 // run runs the get command
-func (o *getOptions) run() error {
+func (o *options) run() error {
 	ddList := &v1alpha1.DatadogAgentList{}
 	if o.userDatadogAgentName == "" {
 		if err := o.client.List(context.TODO(), ddList, &client.ListOptions{Namespace: o.userNamespace}); err != nil {
@@ -132,7 +132,7 @@ func (o *getOptions) run() error {
 		ddList.Items = append(ddList.Items, *dd)
 	}
 
-	table := newGetTable(o.Out)
+	table := newTable(o.Out)
 	for _, item := range ddList.Items {
 		data := []string{item.Namespace, item.Name}
 		if item.Status.Agent != nil {
@@ -150,7 +150,7 @@ func (o *getOptions) run() error {
 		} else {
 			data = append(data, "")
 		}
-		data = append(data, common.GetDuration(&item.ObjectMeta))
+		data = append(data, common.GetDurationAsString(&item.ObjectMeta))
 		table.Append(data)
 	}
 
@@ -160,7 +160,7 @@ func (o *getOptions) run() error {
 	return nil
 }
 
-func newGetTable(out io.Writer) *tablewriter.Table {
+func newTable(out io.Writer) *tablewriter.Table {
 	table := tablewriter.NewWriter(out)
 	table.SetHeader([]string{"Namespace", "Name", "Agent", "Cluster-Agent", "Cluster-Checks-Runner", "Age"})
 	table.SetBorders(tablewriter.Border{Left: false, Top: false, Right: false, Bottom: false})
