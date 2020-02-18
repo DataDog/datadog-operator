@@ -135,8 +135,8 @@ func (r *ReconcileDatadogAgent) createService(logger logr.Logger, dda *datadoghq
 		return reconcile.Result{}, err
 	}
 	logger.Info("Create Service", "name", newService.Name)
-	eventInfo := buildEventInfo(newService.Name, newService.Namespace, serviceKind, datadog.CreationEvent)
-	r.recordEvent(dda, eventInfo)
+	event := buildEventInfo(newService.Name, newService.Namespace, serviceKind, datadog.CreationEvent)
+	r.recordEvent(dda, event)
 
 	return reconcile.Result{Requeue: true}, nil
 }
@@ -169,8 +169,8 @@ func (r *ReconcileDatadogAgent) updateIfNeededService(logger logr.Logger, dda *d
 		if err := r.client.Update(context.TODO(), updatedService); err != nil {
 			return reconcile.Result{}, err
 		}
-		eventInfo := buildEventInfo(updatedService.Name, updatedService.Namespace, serviceKind, datadog.UpdateEvent)
-		r.recordEvent(dda, eventInfo)
+		event := buildEventInfo(updatedService.Name, updatedService.Namespace, serviceKind, datadog.UpdateEvent)
+		r.recordEvent(dda, event)
 		logger.Info("Update Service", "name", newService.Name)
 
 		result.Requeue = true

@@ -15,7 +15,7 @@ spec:
       serviceAccountName: datadog-operator
       containers:
         - name: datadog-operator
-          image: datadog/operator:latest
+          image: datadog/operator:0.1.2
           command:
           - datadog-operator
           imagePullPolicy: IfNotPresent

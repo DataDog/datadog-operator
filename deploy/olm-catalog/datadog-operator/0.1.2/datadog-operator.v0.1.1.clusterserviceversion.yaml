@@ -6,13 +6,13 @@ metadata:
     capabilities: Full Lifecycle
     categories: Logging & Tracing
     certified: "true"
-    containerImage: datadog/operator:v0.1.1
+    containerImage: datadog/operator:v0.1.2
     createdAt: 2020-002-07 00:00:00
     description: Datadog provides a modern monitoring and analytics platform. Gather
       metrics, logs and traces for full observability of your Kubernetes cluster with
       Datadog Operator.
     repository: https://github.com/DataDog/datadog-operator
-  name: datadog-operator.v0.1.1
+  name: datadog-operator.v0.1.2
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -79,7 +79,7 @@ spec:
                       fieldPath: metadata.name
                 - name: OPERATOR_NAME
                   value: datadog-operator
-                image: datadog/operator:0.1.1
+                image: datadog/operator:0.1.2
                 imagePullPolicy: IfNotPresent
                 name: datadog-operator
                 resources: {}
@@ -165,4 +165,4 @@ spec:
   provider:
     name: Datadog
   replaces: datadog-operator.v0.0.0
-  version: 0.1.1
+  version: 0.1.2
