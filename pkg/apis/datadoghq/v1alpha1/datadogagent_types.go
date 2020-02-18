@@ -597,8 +597,8 @@ type DaemonSetStatus struct {
 	Available int32 `json:"available"`
 	UpToDate  int32 `json:"upToDate"`
 
-	Status string `json:"status,omitempty"`
-	State  string `json:"state,omitempty"`
+	Status      string       `json:"status,omitempty"`
+	State       string       `json:"state,omitempty"`
 	LastUpdate  *metav1.Time `json:"lastUpdate,omitempty"`
 	CurrentHash string       `json:"currentHash,omitempty"`
 

@@ -265,6 +265,7 @@ func NewClusterAgentDeployment(ns, name string, options *NewDeploymentOptions) *
 	return dca
 }
 
+// NewSecretOptions used to provide option to the NewSecret function
 type NewSecretOptions struct {
 	CreationTime *time.Time
 	Annotations  map[string]string
@@ -272,6 +273,7 @@ type NewSecretOptions struct {
 	Data         map[string][]byte
 }
 
+// NewSecret returns new Secret instance
 func NewSecret(ns, name string, opts *NewSecretOptions) *corev1.Secret {
 	secret := &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
@@ -305,6 +307,7 @@ func NewSecret(ns, name string, opts *NewSecretOptions) *corev1.Secret {
 	return secret
 }
 
+// NewServiceOptions used to provide options to the NewService function
 type NewServiceOptions struct {
 	CreationTime *time.Time
 	Annotations  map[string]string
@@ -312,6 +315,7 @@ type NewServiceOptions struct {
 	Spec         *corev1.ServiceSpec
 }
 
+// NewService returns new corev1.Service instance
 func NewService(ns, name string, opts *NewServiceOptions) *corev1.Service {
 	service := &corev1.Service{
 		TypeMeta: metav1.TypeMeta{

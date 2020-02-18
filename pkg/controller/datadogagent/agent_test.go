@@ -306,8 +306,7 @@ type extendedDaemonSetFromInstanceTest struct {
 func (test extendedDaemonSetFromInstanceTest) Run(t *testing.T) {
 	t.Helper()
 	logf.SetLogger(logf.ZapLogger(true))
-	reqLogger := log.WithValues("test:", test.name)
-	got, _, err := newExtendedDaemonSetFromInstance(reqLogger, test.agentdeployment, test.selector)
+	got, _, err := newExtendedDaemonSetFromInstance(test.agentdeployment, test.selector)
 	if test.wantErr {
 		assert.Error(t, err, "newExtendedDaemonSetFromInstance() expected an error")
 	} else {

@@ -11,8 +11,8 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/DataDog/datadog-operator/pkg/secrets"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/pkg/secrets"
 )
 
 // ForwardersManager is a collection of metricsForwarder per DatadogAgent

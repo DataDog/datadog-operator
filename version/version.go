@@ -6,5 +6,6 @@
 package version
 
 var (
+	// Version Datadog Operator version
 	Version = "0.0.1"
 )

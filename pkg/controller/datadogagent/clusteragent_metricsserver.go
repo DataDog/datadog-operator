@@ -49,8 +49,8 @@ func (r *ReconcileDatadogAgent) deleteIfNeededHpaClusterRoleBinding(logger logr.
 		// External Metrics Server used for HPA has been disabled
 		// Delete its ClusterRoleBinding
 		logger.V(1).Info("deleteClusterAgentHPARoleBinding", "clusterRoleBinding.name", clusterRoleBinding.Name)
-		eventInfo := buildEventInfo(clusterRoleBinding.Name, clusterRoleBinding.Namespace, clusterRoleBindingKind, datadog.DeletionEvent)
-		r.recordEvent(dda, eventInfo)
+		event := buildEventInfo(clusterRoleBinding.Name, clusterRoleBinding.Namespace, clusterRoleBindingKind, datadog.DeletionEvent)
+		r.recordEvent(dda, event)
 		if err := r.client.Delete(context.TODO(), clusterRoleBinding); err != nil {
 			if errors.IsNotFound(err) {
 				return reconcile.Result{}, nil
@@ -70,7 +70,7 @@ func (r *ReconcileDatadogAgent) createHPAClusterRoleBinding(logger logr.Logger, 
 		return reconcile.Result{}, err
 	}
 	logger.V(1).Info("createClusterAgentHPARoleBinding", "clusterRoleBinding.name", clusterRoleBinding.Name)
-	eventInfo := buildEventInfo(clusterRoleBinding.Name, clusterRoleBinding.Namespace, clusterRoleBindingKind, datadog.UpdateEvent)
-	r.recordEvent(dda, eventInfo)
+	event := buildEventInfo(clusterRoleBinding.Name, clusterRoleBinding.Namespace, clusterRoleBindingKind, datadog.UpdateEvent)
+	r.recordEvent(dda, event)
 	return reconcile.Result{Requeue: true}, r.client.Create(context.TODO(), clusterRoleBinding)
 }

@@ -11,6 +11,7 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
 )
 
+// GetAPIKeySecretName return API key secret name
 func GetAPIKeySecretName(dda *datadoghqv1alpha1.DatadogAgent) string {
 	if dda.Spec.Credentials.APIKeyExistingSecret != "" {
 		return dda.Spec.Credentials.APIKeyExistingSecret
@@ -18,6 +19,7 @@ func GetAPIKeySecretName(dda *datadoghqv1alpha1.DatadogAgent) string {
 	return dda.Name
 }
 
+// GetAppKeySecretName return APP key secret name
 func GetAppKeySecretName(dda *datadoghqv1alpha1.DatadogAgent) string {
 	if dda.Spec.Credentials.AppKeyExistingSecret != "" {
 		return dda.Spec.Credentials.AppKeyExistingSecret

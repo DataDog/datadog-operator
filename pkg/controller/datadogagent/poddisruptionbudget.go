@@ -30,34 +30,34 @@ type (
 	pdbBuilder func(dda *datadoghqv1alpha1.DatadogAgent) *policyv1.PodDisruptionBudget
 )
 
-func (r *ReconcileDatadogAgent) manageClusterAgentPDB(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
+func (r *ReconcileDatadogAgent) manageClusterAgentPDB(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
 	cleanUpCondition := dda.Spec.ClusterAgent == nil
-	return r.managePDB(logger, dda, newStatus, getClusterAgentPDBName(dda), buildClusterAgentPDB, cleanUpCondition)
+	return r.managePDB(logger, dda, getClusterAgentPDBName(dda), buildClusterAgentPDB, cleanUpCondition)
 }
 
-func (r *ReconcileDatadogAgent) manageClusterChecksRunnerPDB(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
+func (r *ReconcileDatadogAgent) manageClusterChecksRunnerPDB(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
 	cleanUpCondition := !needClusterChecksRunner(dda)
-	return r.managePDB(logger, dda, newStatus, getClusterChecksRunnerPDBName(dda), buildClusterChecksRunnerPDB, cleanUpCondition)
+	return r.managePDB(logger, dda, getClusterChecksRunnerPDBName(dda), buildClusterChecksRunnerPDB, cleanUpCondition)
 }
 
-func (r *ReconcileDatadogAgent) managePDB(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus, pdbName string, builder pdbBuilder, cleanUp bool) (reconcile.Result, error) {
+func (r *ReconcileDatadogAgent) managePDB(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, pdbName string, builder pdbBuilder, cleanUp bool) (reconcile.Result, error) {
 	if cleanUp {
-		return r.cleanupPDB(logger, dda, newStatus, pdbName)
+		return r.cleanupPDB(dda, pdbName)
 	}
 
 	pdb := &policyv1.PodDisruptionBudget{}
 	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: dda.Namespace, Name: pdbName}, pdb)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			return r.createPDB(logger, dda, newStatus, builder)
+			return r.createPDB(logger, dda, builder)
 		}
 		return reconcile.Result{}, err
 	}
 
-	return r.updateIfNeededPDB(logger, dda, pdb, newStatus, builder)
+	return r.updateIfNeededPDB(dda, pdb, builder)
 }
 
-func (r *ReconcileDatadogAgent) createPDB(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus, builder pdbBuilder) (reconcile.Result, error) {
+func (r *ReconcileDatadogAgent) createPDB(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, builder pdbBuilder) (reconcile.Result, error) {
 	newPdb := builder(dda)
 	// Set DatadogAgent instance  instance as the owner and controller
 	if err := controllerutil.SetControllerReference(dda, newPdb, r.scheme); err != nil {
@@ -67,13 +67,13 @@ func (r *ReconcileDatadogAgent) createPDB(logger logr.Logger, dda *datadoghqv1al
 		return reconcile.Result{}, err
 	}
 	logger.Info("Create PDB", "name", newPdb.Name)
-	eventInfo := buildEventInfo(newPdb.Name, newPdb.Namespace, podDisruptionBudgetKind, datadog.CreationEvent)
-	r.recordEvent(dda, eventInfo)
+	event := buildEventInfo(newPdb.Name, newPdb.Namespace, podDisruptionBudgetKind, datadog.CreationEvent)
+	r.recordEvent(dda, event)
 
 	return reconcile.Result{Requeue: true}, nil
 }
 
-func (r *ReconcileDatadogAgent) updateIfNeededPDB(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, currentPDB *policyv1.PodDisruptionBudget, newStatus *datadoghqv1alpha1.DatadogAgentStatus, builder pdbBuilder) (reconcile.Result, error) {
+func (r *ReconcileDatadogAgent) updateIfNeededPDB(dda *datadoghqv1alpha1.DatadogAgent, currentPDB *policyv1.PodDisruptionBudget, builder pdbBuilder) (reconcile.Result, error) {
 	if !ownedByDatadogOperator(currentPDB.OwnerReferences) {
 		return reconcile.Result{}, nil
 	}
@@ -91,15 +91,15 @@ func (r *ReconcileDatadogAgent) updateIfNeededPDB(logger logr.Logger, dda *datad
 		if err := r.client.Update(context.TODO(), updatedPDB); err != nil {
 			return reconcile.Result{}, err
 		}
-		eventInfo := buildEventInfo(updatedPDB.Name, updatedPDB.Namespace, podDisruptionBudgetKind, datadog.UpdateEvent)
-		r.recordEvent(dda, eventInfo)
+		event := buildEventInfo(updatedPDB.Name, updatedPDB.Namespace, podDisruptionBudgetKind, datadog.UpdateEvent)
+		r.recordEvent(dda, event)
 		result.Requeue = true
 	}
 
 	return result, nil
 }
 
-func (r *ReconcileDatadogAgent) cleanupPDB(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus, pdbName string) (reconcile.Result, error) {
+func (r *ReconcileDatadogAgent) cleanupPDB(dda *datadoghqv1alpha1.DatadogAgent, pdbName string) (reconcile.Result, error) {
 	pdb := &policyv1.PodDisruptionBudget{}
 	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: dda.Namespace, Name: pdbName}, pdb)
 	if err != nil {
@@ -150,7 +150,7 @@ func buildClusterChecksRunnerPDB(dda *datadoghqv1alpha1.DatadogAgent) *policyv1.
 }
 
 func buildPDB(metadata metav1.ObjectMeta, matchLabels map[string]string, minAvailable int) *policyv1.PodDisruptionBudget {
-	minAvailableStr := intstr.FromInt(pdbMinAvailableInstances)
+	minAvailableStr := intstr.FromInt(minAvailable)
 
 	pdb := &policyv1.PodDisruptionBudget{
 		ObjectMeta: metadata,
