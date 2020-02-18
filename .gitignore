@@ -4,6 +4,7 @@ build/_test
 
 # binaries (build and tools)
 /controller
+/kubectl-datadog
 /bin
 
 # Created by https://www.gitignore.io/api/go,vim,emacs,visualstudiocode
