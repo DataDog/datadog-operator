@@ -8,7 +8,7 @@ package main
 import (
 	"os"
 
-	"github.com/DataDog/datadog-operator/pkg/plugin/datadog"
+	"github.com/DataDog/datadog-operator/pkg/plugin/cmd/datadog"
 
 	"github.com/spf13/pflag"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
