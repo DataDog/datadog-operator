@@ -501,7 +501,7 @@ type ClusterChecksRunnerConfig struct {
 // DatadogAgentSpecClusterChecksRunnerSpec defines the desired state of the Cluster Checks Runner
 // +k8s:openapi-gen=true
 type DatadogAgentSpecClusterChecksRunnerSpec struct {
-	// The container image of the Datadog Cluster Agent
+	// The container image of the Datadog Cluster Checks Runner
 	Image ImageConfig `json:"image"`
 
 	// Name of the cluster checks deployment to create or migrate from

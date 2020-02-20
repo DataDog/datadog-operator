@@ -60,3 +60,19 @@ func AskForInput(question string) (string, error) {
 	}
 	return strings.TrimSpace(text), nil
 }
+
+// HasImagePattern returns true if the image string respects the format <string>/<string>:<string>
+func HasImagePattern(image string) bool {
+	firstSplit := strings.Split(image, "/")
+	if len(firstSplit) != 2 || firstSplit[0] == "" {
+		return false
+	}
+	secondSplit := strings.Split(firstSplit[1], ":")
+	if len(secondSplit) < 2 {
+		return false
+	}
+	if secondSplit[0] == "" || secondSplit[1] == "" {
+		return false
+	}
+	return true
+}

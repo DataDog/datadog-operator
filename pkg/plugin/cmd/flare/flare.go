@@ -85,7 +85,7 @@ func New(streams genericclioptions.IOStreams) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:          "flare [Case ID]",
 		Short:        "Collect a Datadog's Operator flare and send it to Datadog",
-		Example:      fmt.Sprintf(flareExample, "kubectl dd"),
+		Example:      fmt.Sprintf(flareExample, "kubectl datadog"),
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {
 			if err := o.complete(c, args); err != nil {
@@ -120,7 +120,7 @@ func (o *options) complete(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("unable to instantiate client: %v", err)
 	}
 
-	// Create the Clientset for pod logss collection.
+	// Create the Clientset for pod logs collection.
 	o.clientset, err = common.NewClientset(clientConfig)
 	if err != nil {
 		return fmt.Errorf("unable to instantiate clientset: %v", err)

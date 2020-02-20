@@ -987,7 +987,6 @@ func getClusterChecksRunnerServiceAccount(dda *datadoghqv1alpha1.DatadogAgent) s
 }
 
 func getDefaultLabels(dda *datadoghqv1alpha1.DatadogAgent, instanceName, version string) map[string]string {
-	// TODO implement this method
 	labels := make(map[string]string)
 	labels[kubernetes.AppKubernetesNameLabelKey] = "datadog-agent-deployment"
 	labels[kubernetes.AppKubernetesInstanceLabelKey] = instanceName
