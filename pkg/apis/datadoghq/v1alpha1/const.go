@@ -88,8 +88,8 @@ const (
 	CgroupsVolumeReadOnly              = true
 	SystemProbeSocketVolumeName        = "sysprobe-socket-dir"
 	SystemProbeSocketVolumePath        = "/opt/datadog-agent/run"
-	CriSockerVolumeName                = "runtimesocket"
-	CriSockerVolumeReadOnly            = true
+	CriSocketVolumeName                = "runtimesocketdir"
+	CriSocketVolumeReadOnly            = true
 	DogstatsdSockerVolumeName          = "dsdsocket"
 	DogstatsdSockerVolumePath          = "/var/run/datadog"
 	PointerVolumeName                  = "pointerdir"
@@ -111,6 +111,7 @@ const (
 	AgentCustomConfigVolumeName        = "custom-datadog-yaml"
 	AgentCustomConfigVolumePath        = "/etc/datadog-agent/datadog.yaml"
 	AgentCustomConfigVolumeSubPath     = "datadog.yaml"
+	HostCriSocketPathPrefix            = "/host"
 
 	DefaultSystemProbeSecCompRootPath = "/var/lib/kubelet/seccomp"
 	DefaultAppArmorProfileName        = "unconfined"

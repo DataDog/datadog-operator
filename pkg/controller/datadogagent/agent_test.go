@@ -92,10 +92,10 @@ func defaultVolumes() []corev1.Volume {
 			},
 		},
 		{
-			Name: "runtimesocket",
+			Name: "runtimesocketdir",
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/var/run/docker.sock",
+					Path: "/var/run",
 				},
 			},
 		},
@@ -129,8 +129,8 @@ func defaultMountVolume() []corev1.VolumeMount {
 			ReadOnly:  true,
 		},
 		{
-			Name:      "runtimesocket",
-			MountPath: "/var/run/docker.sock",
+			Name:      "runtimesocketdir",
+			MountPath: "/host/var/run",
 			ReadOnly:  true,
 		},
 	}
@@ -224,7 +224,7 @@ func defaultEnvVars() []corev1.EnvVar {
 		},
 		{
 			Name:  "DD_CRI_SOCKET_PATH",
-			Value: "/var/run/docker.sock",
+			Value: "/host/var/run/docker.sock",
 		},
 	}
 }
@@ -462,10 +462,10 @@ func Test_newExtendedDaemonSetFromInstance_CustomConfigMaps(t *testing.T) {
 			},
 		},
 		{
-			Name: "runtimesocket",
+			Name: "runtimesocketdir",
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/var/run/docker.sock",
+					Path: "/var/run",
 				},
 			},
 		},
@@ -578,10 +578,10 @@ func Test_newExtendedDaemonSetFromInstance_CustomDatadogYaml(t *testing.T) {
 			},
 		},
 		{
-			Name: "runtimesocket",
+			Name: "runtimesocketdir",
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/var/run/docker.sock",
+					Path: "/var/run",
 				},
 			},
 		},
@@ -618,8 +618,8 @@ func Test_newExtendedDaemonSetFromInstance_CustomDatadogYaml(t *testing.T) {
 			ReadOnly:  true,
 		},
 		{
-			Name:      "runtimesocket",
-			MountPath: "/var/run/docker.sock",
+			Name:      "runtimesocketdir",
+			MountPath: "/host/var/run",
 			ReadOnly:  true,
 		},
 	}
