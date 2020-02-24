@@ -9,7 +9,7 @@ SOURCEDIR="."
 
 SOURCES := $(shell find $(SOURCEDIR) ! -name "*_test.go" -name '*.go')
 
-BUILDINFOPKG=github.com/DataDog/datadog-operator/version
+BUILDINFOPKG=github.com/DataDog/${PROJECT_NAME}/version
 GIT_TAG?=$(shell git tag -l --contains HEAD | tail -1)
 LAST_TAG=$(or $(shell git tag | tail -1),v0.0.0)
 TAG?=${GIT_TAG}
@@ -18,7 +18,8 @@ VERSION?=$(if $(GIT_TAG),$(GIT_TAG),$(TAG_HASH))
 GIT_COMMIT?=$(shell git rev-parse HEAD)
 DATE=$(shell date +%Y-%m-%d/%H:%M:%S )
 GOMOD?="-mod=vendor"
-LDFLAGS= -ldflags "-w -X ${BUILDINFOPKG}.Tag=${TAG} -X ${BUILDINFOPKG}.Commit=${GIT_COMMIT} -X ${BUILDINFOPKG}.Version=${VERSION} -X ${BUILDINFOPKG}.BuildTime=${DATE} -s"
+LDFLAGS=-ldflags "-w -X ${BUILDINFOPKG}.Tag=${TAG} -X ${BUILDINFOPKG}.Commit=${GIT_COMMIT} -X ${BUILDINFOPKG}.Version=${VERSION} -X ${BUILDINFOPKG}.BuildTime=${DATE} -s"
+
 KIND_CLUSTER_NAME="kind"
 
 export GO111MODULE=on

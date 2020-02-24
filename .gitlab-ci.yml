@@ -2,7 +2,7 @@ image: golang:1.13
 variables:
   GO111MODULE: "on"
   PROJECTNAME: "datadog-operator"
-  TARGET_TAG: "v$CI_PIPELINE_ID-${CI_COMMIT_SHA:0:7}"
+  TARGET_TAG: "v$CI_PIPELINE_ID-$CI_COMMIT_SHORT_SHA"
   DOCKER_REGISTRY: "486234852809.dkr.ecr.us-east-1.amazonaws.com/ci"
   GOPATH: "$CI_PROJECT_DIR/.cache"
   GIT_TERMINAL_PROMPT: "1"
