@@ -288,9 +288,10 @@ func newClusterAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent,
 					VolumeMounts: agentdeployment.Spec.ClusterAgent.Config.VolumeMounts,
 				},
 			},
-			Affinity:    getPodAffinity(clusterAgentSpec.Affinity, getClusterAgentName(agentdeployment)),
-			Tolerations: clusterAgentSpec.Tolerations,
-			Volumes:     agentdeployment.Spec.ClusterAgent.Config.Volumes,
+			Affinity:          getPodAffinity(clusterAgentSpec.Affinity, getClusterAgentName(agentdeployment)),
+			Tolerations:       clusterAgentSpec.Tolerations,
+			PriorityClassName: agentdeployment.Spec.ClusterAgent.PriorityClassName,
+			Volumes:           agentdeployment.Spec.ClusterAgent.Config.Volumes,
 		},
 	}
 
@@ -299,6 +300,14 @@ func newClusterAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent,
 	}
 
 	for key, val := range annotations {
+		newPodTemplate.Annotations[key] = val
+	}
+
+	for key, val := range agentdeployment.Spec.ClusterAgent.AdditionalLabels {
+		newPodTemplate.Labels[key] = val
+	}
+
+	for key, val := range agentdeployment.Spec.ClusterAgent.AdditionalAnnotations {
 		newPodTemplate.Annotations[key] = val
 	}
 

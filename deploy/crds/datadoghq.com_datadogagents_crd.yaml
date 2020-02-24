@@ -53,6 +53,18 @@ spec:
               description: The desired state of the Agent as an extended daemonset
                 Contains the Node Agent configuration and deployment strategy
               properties:
+                additionalAnnotations:
+                  additionalProperties:
+                    type: string
+                  description: AdditionalAnnotations provide annotations that will
+                    be added to the Agent Pods.
+                  type: object
+                additionalLabels:
+                  additionalProperties:
+                    type: string
+                  description: AdditionalLabels provide labels that will be added
+                    to the cluster checks runner Pods.
+                  type: object
                 apm:
                   description: Trace Agent configuration
                   properties:
@@ -1958,6 +1970,59 @@ spec:
                       description: The update strategy used for the DaemonSet
                       type: string
                   type: object
+                dnsConfig:
+                  description: Specifies the DNS parameters of a pod. Parameters specified
+                    here will be merged to the generated DNS configuration based on
+                    DNSPolicy.
+                  properties:
+                    nameservers:
+                      description: A list of DNS name server IP addresses. This will
+                        be appended to the base nameservers generated from DNSPolicy.
+                        Duplicated nameservers will be removed.
+                      items:
+                        type: string
+                      type: array
+                    options:
+                      description: A list of DNS resolver options. This will be merged
+                        with the base options generated from DNSPolicy. Duplicated
+                        entries will be removed. Resolution options given in Options
+                        will override those that appear in the base DNSPolicy.
+                      items:
+                        description: PodDNSConfigOption defines DNS resolver options
+                          of a pod.
+                        properties:
+                          name:
+                            description: Required.
+                            type: string
+                          value:
+                            type: string
+                        type: object
+                      type: array
+                    searches:
+                      description: A list of DNS search domains for host-name lookup.
+                        This will be appended to the base search paths generated from
+                        DNSPolicy. Duplicated search paths will be removed.
+                      items:
+                        type: string
+                      type: array
+                  type: object
+                dnsPolicy:
+                  description: Set DNS policy for the pod. Defaults to "ClusterFirst".
+                    Valid values are 'ClusterFirstWithHostNet', 'ClusterFirst', 'Default'
+                    or 'None'. DNS parameters given in DNSConfig will be merged with
+                    the policy selected with DNSPolicy. To have DNS options set along
+                    with hostNetwork, you have to specify DNS policy explicitly to
+                    'ClusterFirstWithHostNet'.
+                  type: string
+                hostNetwork:
+                  description: Host networking requested for this pod. Use the host's
+                    network namespace. If this option is set, the ports that will
+                    be used must be specified. Default to false.
+                  type: boolean
+                hostPID:
+                  description: 'Use the host''s pid namespace. Optional: Default to
+                    false.'
+                  type: boolean
                 image:
                   description: The container image of the Datadog Agent
                   properties:
@@ -2016,6 +2081,14 @@ spec:
                         tailing the log files from the right offset Default to `/var/lib/datadog-agent/logs`
                       type: string
                   type: object
+                priorityClassName:
+                  description: If specified, indicates the pod's priority. "system-node-critical"
+                    and "system-cluster-critical" are two special keywords which indicate
+                    the highest priorities with the former being the highest priority.
+                    Any other name must be defined by creating a PriorityClass object
+                    with that name. If not specified, the pod priority will be default
+                    or zero if there is no default.
+                  type: string
                 process:
                   description: Process Agent configuration
                   properties:
@@ -2322,6 +2395,137 @@ spec:
                       description: SecCompRootPath specify the seccomp profile root
                         directory
                       type: string
+                    securityContext:
+                      description: You can modify the security context used to run
+                        the containers by modifying the label type
+                      properties:
+                        allowPrivilegeEscalation:
+                          description: 'AllowPrivilegeEscalation controls whether
+                            a process can gain more privileges than its parent process.
+                            This bool directly controls if the no_new_privs flag will
+                            be set on the container process. AllowPrivilegeEscalation
+                            is true always when the container is: 1) run as Privileged
+                            2) has CAP_SYS_ADMIN'
+                          type: boolean
+                        capabilities:
+                          description: The capabilities to add/drop when running containers.
+                            Defaults to the default set of capabilities granted by
+                            the container runtime.
+                          properties:
+                            add:
+                              description: Added capabilities
+                              items:
+                                description: Capability represent POSIX capabilities
+                                  type
+                                type: string
+                              type: array
+                            drop:
+                              description: Removed capabilities
+                              items:
+                                description: Capability represent POSIX capabilities
+                                  type
+                                type: string
+                              type: array
+                          type: object
+                        privileged:
+                          description: Run container in privileged mode. Processes
+                            in privileged containers are essentially equivalent to
+                            root on the host. Defaults to false.
+                          type: boolean
+                        procMount:
+                          description: procMount denotes the type of proc mount to
+                            use for the containers. The default is DefaultProcMount
+                            which uses the container runtime defaults for readonly
+                            paths and masked paths. This requires the ProcMountType
+                            feature flag to be enabled.
+                          type: string
+                        readOnlyRootFilesystem:
+                          description: Whether this container has a read-only root
+                            filesystem. Default is false.
+                          type: boolean
+                        runAsGroup:
+                          description: The GID to run the entrypoint of the container
+                            process. Uses runtime default if unset. May also be set
+                            in PodSecurityContext.  If set in both SecurityContext
+                            and PodSecurityContext, the value specified in SecurityContext
+                            takes precedence.
+                          format: int64
+                          type: integer
+                        runAsNonRoot:
+                          description: Indicates that the container must run as a
+                            non-root user. If true, the Kubelet will validate the
+                            image at runtime to ensure that it does not run as UID
+                            0 (root) and fail to start the container if it does. If
+                            unset or false, no such validation will be performed.
+                            May also be set in PodSecurityContext.  If set in both
+                            SecurityContext and PodSecurityContext, the value specified
+                            in SecurityContext takes precedence.
+                          type: boolean
+                        runAsUser:
+                          description: The UID to run the entrypoint of the container
+                            process. Defaults to user specified in image metadata
+                            if unspecified. May also be set in PodSecurityContext.  If
+                            set in both SecurityContext and PodSecurityContext, the
+                            value specified in SecurityContext takes precedence.
+                          format: int64
+                          type: integer
+                        seLinuxOptions:
+                          description: The SELinux context to be applied to the container.
+                            If unspecified, the container runtime will allocate a
+                            random SELinux context for each container.  May also be
+                            set in PodSecurityContext.  If set in both SecurityContext
+                            and PodSecurityContext, the value specified in SecurityContext
+                            takes precedence.
+                          properties:
+                            level:
+                              description: Level is SELinux level label that applies
+                                to the container.
+                              type: string
+                            role:
+                              description: Role is a SELinux role label that applies
+                                to the container.
+                              type: string
+                            type:
+                              description: Type is a SELinux type label that applies
+                                to the container.
+                              type: string
+                            user:
+                              description: User is a SELinux user label that applies
+                                to the container.
+                              type: string
+                          type: object
+                        windowsOptions:
+                          description: The Windows specific settings applied to all
+                            containers. If unspecified, the options from the PodSecurityContext
+                            will be used. If set in both SecurityContext and PodSecurityContext,
+                            the value specified in SecurityContext takes precedence.
+                          properties:
+                            gmsaCredentialSpec:
+                              description: GMSACredentialSpec is where the GMSA admission
+                                webhook (https://github.com/kubernetes-sigs/windows-gmsa)
+                                inlines the contents of the GMSA credential spec named
+                                by the GMSACredentialSpecName field. This field is
+                                alpha-level and is only honored by servers that enable
+                                the WindowsGMSA feature flag.
+                              type: string
+                            gmsaCredentialSpecName:
+                              description: GMSACredentialSpecName is the name of the
+                                GMSA credential spec to use. This field is alpha-level
+                                and is only honored by servers that enable the WindowsGMSA
+                                feature flag.
+                              type: string
+                            runAsUserName:
+                              description: The UserName in Windows to run the entrypoint
+                                of the container process. Defaults to the user specified
+                                in image metadata if unspecified. May also be set
+                                in PodSecurityContext. If set in both SecurityContext
+                                and PodSecurityContext, the value specified in SecurityContext
+                                takes precedence. This field is alpha-level and it
+                                is only honored by servers that enable the WindowsRunAsUserName
+                                feature flag.
+                              type: string
+                          type: object
+                      type: object
                   type: object
                 useExtendedDaemonset:
                   description: UseExtendedDaemonset use ExtendedDaemonset for Agent
@@ -2333,6 +2537,18 @@ spec:
             clusterAgent:
               description: The desired state of the Cluster Agent as a deployment
               properties:
+                additionalAnnotations:
+                  additionalProperties:
+                    type: string
+                  description: AdditionalAnnotations provide annotations that will
+                    be added to the cluster-agent Pods.
+                  type: object
+                additionalLabels:
+                  additionalProperties:
+                    type: string
+                  description: AdditionalLabels provide labels that will be added
+                    to the cluster checks runner Pods.
+                  type: object
                 affinity:
                   description: If specified, the pod's scheduling constraints
                   properties:
@@ -4320,6 +4536,14 @@ spec:
                     the pod to fit on a node. Selector which must match a node''s
                     labels for the pod to be scheduled on that node. More info: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/'
                   type: object
+                priorityClassName:
+                  description: If specified, indicates the pod's priority. "system-node-critical"
+                    and "system-cluster-critical" are two special keywords which indicate
+                    the highest priorities with the former being the highest priority.
+                    Any other name must be defined by creating a PriorityClass object
+                    with that name. If not specified, the pod priority will be default
+                    or zero if there is no default.
+                  type: string
                 rbac:
                   description: RBAC configuration of the Datadog Cluster Agent
                   properties:
@@ -4381,6 +4605,18 @@ spec:
             clusterChecksRunner:
               description: The desired state of the Cluster Checks Runner as a deployment
               properties:
+                additionalAnnotations:
+                  additionalProperties:
+                    type: string
+                  description: AdditionalAnnotations provide annotations that will
+                    be added to the cluster checks runner Pods.
+                  type: object
+                additionalLabels:
+                  additionalProperties:
+                    type: string
+                  description: AdditionalLabels provide labels that will be added
+                    to the cluster checks runner Pods.
+                  type: object
                 affinity:
                   description: If specified, the pod's scheduling constraints
                   properties:
@@ -5049,6 +5285,14 @@ spec:
                     the pod to fit on a node. Selector which must match a node''s
                     labels for the pod to be scheduled on that node. More info: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/'
                   type: object
+                priorityClassName:
+                  description: If specified, indicates the pod's priority. "system-node-critical"
+                    and "system-cluster-critical" are two special keywords which indicate
+                    the highest priorities with the former being the highest priority.
+                    Any other name must be defined by creating a PriorityClass object
+                    with that name. If not specified, the pod priority will be default
+                    or zero if there is no default.
+                  type: string
                 rbac:
                   description: RBAC configuration of the Datadog Cluster Checks Runner
                   properties:
