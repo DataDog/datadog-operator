@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand"
+	"path/filepath"
 	"strconv"
 	"time"
 
@@ -523,7 +524,7 @@ func getEnvVarsForAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.EnvVar, e
 	if dda.Spec.Agent.Config.CriSocket != nil && dda.Spec.Agent.Config.CriSocket.CriSocketPath != nil {
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  datadoghqv1alpha1.DDCriSocketPath,
-			Value: *dda.Spec.Agent.Config.CriSocket.CriSocketPath,
+			Value: filepath.Join(datadoghqv1alpha1.HostCriSocketPathPrefix, *dda.Spec.Agent.Config.CriSocket.CriSocketPath),
 		})
 	}
 
@@ -608,10 +609,10 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 			path = *dda.Spec.Agent.Config.CriSocket.CriSocketPath
 		}
 		criVolume := corev1.Volume{
-			Name: datadoghqv1alpha1.CriSockerVolumeName,
+			Name: datadoghqv1alpha1.CriSocketVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: path,
+					Path: filepath.Dir(path),
 				},
 			},
 		}
@@ -767,8 +768,8 @@ func getVolumeMountsForAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []corev1.
 	// Cri socket volume
 	if *spec.Agent.Config.CriSocket.UseCriSocketVolume {
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      datadoghqv1alpha1.CriSockerVolumeName,
-			MountPath: *spec.Agent.Config.CriSocket.CriSocketPath,
+			Name:      datadoghqv1alpha1.CriSocketVolumeName,
+			MountPath: filepath.Join(datadoghqv1alpha1.HostCriSocketPathPrefix, filepath.Dir(*spec.Agent.Config.CriSocket.CriSocketPath)),
 			ReadOnly:  true,
 		})
 	}
@@ -831,8 +832,8 @@ func getVolumeMountsForProcessAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []
 	// Cri socket volume
 	if *spec.Agent.Config.CriSocket.UseCriSocketVolume {
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      datadoghqv1alpha1.CriSockerVolumeName,
-			MountPath: *spec.Agent.Config.CriSocket.CriSocketPath,
+			Name:      datadoghqv1alpha1.CriSocketVolumeName,
+			MountPath: filepath.Join(datadoghqv1alpha1.HostCriSocketPathPrefix, filepath.Dir(*spec.Agent.Config.CriSocket.CriSocketPath)),
 			ReadOnly:  true,
 		})
 	}
