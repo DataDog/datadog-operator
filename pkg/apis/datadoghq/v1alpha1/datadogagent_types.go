@@ -100,6 +100,44 @@ type DatadogAgentSpecAgentSpec struct {
 	// Update strategy configuration for the DaemonSet
 	DeploymentStrategy *DaemonSetDeploymentStrategy `json:"deploymentStrategy,omitempty"`
 
+	// AdditionalAnnotations provide annotations that will be added to the Agent Pods.
+	AdditionalAnnotations map[string]string `json:"additionalAnnotations,omitempty"`
+
+	// AdditionalLabels provide labels that will be added to the cluster checks runner Pods.
+	AdditionalLabels map[string]string `json:"additionalLabels,omitempty"`
+
+	// If specified, indicates the pod's priority. "system-node-critical" and "system-cluster-critical"
+	// are two special keywords which indicate the highest priorities with the former being the highest priority.
+	// Any other name must be defined by creating a PriorityClass object with that name. If not specified,
+	// the pod priority will be default or zero if there is no default.
+	PriorityClassName string `json:"priorityClassName,omitempty"`
+
+	// Set DNS policy for the pod.
+	// Defaults to "ClusterFirst".
+	// Valid values are 'ClusterFirstWithHostNet', 'ClusterFirst', 'Default' or 'None'.
+	// DNS parameters given in DNSConfig will be merged with the policy selected with DNSPolicy.
+	// To have DNS options set along with hostNetwork, you have to specify DNS policy
+	// explicitly to 'ClusterFirstWithHostNet'.
+	// +optional
+	DNSPolicy corev1.DNSPolicy `json:"dnsPolicy,omitempty" protobuf:"bytes,6,opt,name=dnsPolicy,casttype=DNSPolicy"`
+	// Specifies the DNS parameters of a pod.
+	// Parameters specified here will be merged to the generated DNS
+	// configuration based on DNSPolicy.
+	// +optional
+	DNSConfig *corev1.PodDNSConfig `json:"dnsConfig,omitempty"`
+
+	// Host networking requested for this pod. Use the host's network namespace.
+	// If this option is set, the ports that will be used must be specified.
+	// Default to false.
+	// +k8s:conversion-gen=false
+	// +optional
+	HostNetwork bool `json:"hostNetwork,omitempty"`
+	// Use the host's pid namespace.
+	// Optional: Default to false.
+	// +k8s:conversion-gen=false
+	// +optional
+	HostPID bool `json:"hostPID,omitempty"`
+
 	// Trace Agent configuration
 	// +optional
 	Apm APMSpec `json:"apm,omitempty"`
@@ -308,6 +346,11 @@ type SystemProbeSpec struct {
 	// Make sure to keep requests and limits equal to keep the pods in the Guaranteed QoS class
 	// Ref: http://kubernetes.io/docs/user-guide/compute-resources/
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
+
+	// You can modify the security context used to run the containers by
+	// modifying the label type
+	// +optional
+	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
 }
 
 // ConfigDirSpec contains config file directory configuration
@@ -439,6 +482,18 @@ type DatadogAgentSpecClusterAgentSpec struct {
 	// Number of the Cluster Agent replicas
 	Replicas *int32 `json:"replicas,omitempty"`
 
+	// AdditionalAnnotations provide annotations that will be added to the cluster-agent Pods.
+	AdditionalAnnotations map[string]string `json:"additionalAnnotations,omitempty"`
+
+	// AdditionalLabels provide labels that will be added to the cluster checks runner Pods.
+	AdditionalLabels map[string]string `json:"additionalLabels,omitempty"`
+
+	// If specified, indicates the pod's priority. "system-node-critical" and "system-cluster-critical"
+	// are two special keywords which indicate the highest priorities with the former being the highest priority.
+	// Any other name must be defined by creating a PriorityClass object with that name. If not specified,
+	// the pod priority will be default or zero if there is no default.
+	PriorityClassName string `json:"priorityClassName,omitempty"`
+
 	// If specified, the pod's scheduling constraints
 	// +optional
 	Affinity *corev1.Affinity `json:"affinity,omitempty"`
@@ -516,6 +571,18 @@ type DatadogAgentSpecClusterChecksRunnerSpec struct {
 
 	// Number of the Cluster Agent replicas
 	Replicas *int32 `json:"replicas,omitempty"`
+
+	// AdditionalAnnotations provide annotations that will be added to the cluster checks runner Pods.
+	AdditionalAnnotations map[string]string `json:"additionalAnnotations,omitempty"`
+
+	// AdditionalLabels provide labels that will be added to the cluster checks runner Pods.
+	AdditionalLabels map[string]string `json:"additionalLabels,omitempty"`
+
+	// If specified, indicates the pod's priority. "system-node-critical" and "system-cluster-critical"
+	// are two special keywords which indicate the highest priorities with the former being the highest priority.
+	// Any other name must be defined by creating a PriorityClass object with that name. If not specified,
+	// the pod priority will be default or zero if there is no default.
+	PriorityClassName string `json:"priorityClassName,omitempty"`
 
 	// If specified, the pod's scheduling constraints
 	// +optional

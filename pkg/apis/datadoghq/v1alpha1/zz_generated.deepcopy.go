@@ -420,6 +420,25 @@ func (in *DatadogAgentSpecAgentSpec) DeepCopyInto(out *DatadogAgentSpecAgentSpec
 		*out = new(DaemonSetDeploymentStrategy)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.AdditionalAnnotations != nil {
+		in, out := &in.AdditionalAnnotations, &out.AdditionalAnnotations
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
+	if in.AdditionalLabels != nil {
+		in, out := &in.AdditionalLabels, &out.AdditionalLabels
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
+	if in.DNSConfig != nil {
+		in, out := &in.DNSConfig, &out.DNSConfig
+		*out = new(v1.PodDNSConfig)
+		(*in).DeepCopyInto(*out)
+	}
 	in.Apm.DeepCopyInto(&out.Apm)
 	in.Log.DeepCopyInto(&out.Log)
 	in.Process.DeepCopyInto(&out.Process)
@@ -457,6 +476,20 @@ func (in *DatadogAgentSpecClusterAgentSpec) DeepCopyInto(out *DatadogAgentSpecCl
 		in, out := &in.Replicas, &out.Replicas
 		*out = new(int32)
 		**out = **in
+	}
+	if in.AdditionalAnnotations != nil {
+		in, out := &in.AdditionalAnnotations, &out.AdditionalAnnotations
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
+	if in.AdditionalLabels != nil {
+		in, out := &in.AdditionalLabels, &out.AdditionalLabels
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
 	}
 	if in.Affinity != nil {
 		in, out := &in.Affinity, &out.Affinity
@@ -500,6 +533,20 @@ func (in *DatadogAgentSpecClusterChecksRunnerSpec) DeepCopyInto(out *DatadogAgen
 		in, out := &in.Replicas, &out.Replicas
 		*out = new(int32)
 		**out = **in
+	}
+	if in.AdditionalAnnotations != nil {
+		in, out := &in.AdditionalAnnotations, &out.AdditionalAnnotations
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
+	if in.AdditionalLabels != nil {
+		in, out := &in.AdditionalLabels, &out.AdditionalLabels
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
 	}
 	if in.Affinity != nil {
 		in, out := &in.Affinity, &out.Affinity
@@ -878,6 +925,11 @@ func (in *SystemProbeSpec) DeepCopyInto(out *SystemProbeSpec) {
 	if in.Resources != nil {
 		in, out := &in.Resources, &out.Resources
 		*out = new(v1.ResourceRequirements)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.SecurityContext != nil {
+		in, out := &in.SecurityContext, &out.SecurityContext
+		*out = new(v1.SecurityContext)
 		(*in).DeepCopyInto(*out)
 	}
 	return

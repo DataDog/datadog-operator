@@ -43,6 +43,10 @@ func newAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent, select
 	labels[datadoghqv1alpha1.AgentDeploymentNameLabelKey] = agentdeployment.Name
 	labels[datadoghqv1alpha1.AgentDeploymentComponentLabelKey] = "agent"
 
+	for key, val := range agentdeployment.Spec.Agent.AdditionalLabels {
+		labels[key] = val
+	}
+
 	if selector != nil {
 		for key, val := range selector.MatchLabels {
 			labels[key] = val
@@ -53,6 +57,10 @@ func newAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent, select
 	if isSystemProbeEnabled(agentdeployment) {
 		annotations["container.apparmor.security.beta.kubernetes.io/system-probe"] = getAppArmorProfileName(&agentdeployment.Spec.Agent.SystemProbe)
 		annotations["container.seccomp.security.alpha.kubernetes.io/system-probe"] = "localhost/system-probe"
+	}
+
+	for key, val := range agentdeployment.Spec.Agent.AdditionalAnnotations {
+		annotations[key] = val
 	}
 
 	containers := []corev1.Container{}
@@ -109,6 +117,11 @@ func newAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent, select
 			Containers:         containers,
 			Volumes:            getVolumesForAgent(agentdeployment),
 			Tolerations:        agentdeployment.Spec.Agent.Config.Tolerations,
+			PriorityClassName:  agentdeployment.Spec.Agent.PriorityClassName,
+			HostNetwork:        agentdeployment.Spec.Agent.HostNetwork,
+			HostPID:            agentdeployment.Spec.Agent.HostPID,
+			DNSPolicy:          agentdeployment.Spec.Agent.DNSPolicy,
+			DNSConfig:          agentdeployment.Spec.Agent.DNSConfig,
 		},
 	}, nil
 }
@@ -254,6 +267,9 @@ func getSystemProbeContainers(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.Con
 		},
 		Env:          systemProbeEnvVars,
 		VolumeMounts: getVolumeMountsForSystemProbe(),
+	}
+	if agentSpec.SystemProbe.SecurityContext != nil {
+		systemProbe.SecurityContext = agentSpec.SystemProbe.SecurityContext.DeepCopy()
 	}
 	if agentSpec.SystemProbe.Resources != nil {
 		systemProbe.Resources = *agentSpec.SystemProbe.Resources

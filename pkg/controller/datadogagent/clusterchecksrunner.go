@@ -237,7 +237,7 @@ func (r *ReconcileDatadogAgent) cleanupClusterChecksRunner(logger logr.Logger, d
 // newClusterChecksRunnerPodTemplate generates a PodTemplate from a DatadogClusterChecksRunnerDeployment spec
 func newClusterChecksRunnerPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent, labels, annotations map[string]string) corev1.PodTemplateSpec {
 	// copy Spec to configure the Cluster Checks Runner Pod Template
-	ClusterChecksRunnerSpec := agentdeployment.Spec.ClusterChecksRunner.DeepCopy()
+	clusterChecksRunnerSpec := agentdeployment.Spec.ClusterChecksRunner.DeepCopy()
 
 	newPodTemplate := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
@@ -249,8 +249,8 @@ func newClusterChecksRunnerPodTemplate(agentdeployment *datadoghqv1alpha1.Datado
 			Containers: []corev1.Container{
 				{
 					Name:            "cluster-checks-runner",
-					Image:           ClusterChecksRunnerSpec.Image.Name,
-					ImagePullPolicy: *ClusterChecksRunnerSpec.Image.PullPolicy,
+					Image:           clusterChecksRunnerSpec.Image.Name,
+					ImagePullPolicy: *clusterChecksRunnerSpec.Image.PullPolicy,
 					Env:             getEnvVarsForClusterChecksRunner(agentdeployment),
 					VolumeMounts: []corev1.VolumeMount{
 						{
@@ -279,13 +279,22 @@ func newClusterChecksRunnerPodTemplate(agentdeployment *datadoghqv1alpha1.Datado
 					},
 				},
 			},
-			Affinity:    getPodAffinity(ClusterChecksRunnerSpec.Affinity, getClusterChecksRunnerName(agentdeployment)),
-			Tolerations: ClusterChecksRunnerSpec.Tolerations,
+			Affinity:          getPodAffinity(clusterChecksRunnerSpec.Affinity, getClusterChecksRunnerName(agentdeployment)),
+			Tolerations:       clusterChecksRunnerSpec.Tolerations,
+			PriorityClassName: clusterChecksRunnerSpec.PriorityClassName,
 		},
 	}
 
-	if ClusterChecksRunnerSpec.Config.Resources != nil {
-		newPodTemplate.Spec.Containers[0].Resources = *ClusterChecksRunnerSpec.Config.Resources
+	for key, val := range clusterChecksRunnerSpec.AdditionalLabels {
+		newPodTemplate.Labels[key] = val
+	}
+
+	for key, val := range clusterChecksRunnerSpec.AdditionalAnnotations {
+		newPodTemplate.Annotations[key] = val
+	}
+
+	if clusterChecksRunnerSpec.Config.Resources != nil {
+		newPodTemplate.Spec.Containers[0].Resources = *clusterChecksRunnerSpec.Config.Resources
 	}
 
 	return newPodTemplate
