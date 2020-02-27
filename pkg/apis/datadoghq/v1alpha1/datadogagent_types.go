@@ -532,6 +532,13 @@ type ClusterAgentConfig struct {
 	// Datadog cluster-agent resource requests and limits
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
 
+	// The Datadog Agent supports many environment variables
+	// Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables
+	//
+	// +optional
+	// +listType=set
+	Env []corev1.EnvVar `json:"env,omitempty"`
+
 	// Specify additional volume mounts in the Datadog Cluster Agent container
 	// +optional
 	// +listType=set
@@ -548,9 +555,27 @@ type ClusterAgentConfig struct {
 type ClusterChecksRunnerConfig struct {
 	// Datadog Cluster Checks Runner resource requests and limits
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
+
 	// Set logging verbosity, valid log levels are:
 	// trace, debug, info, warn, error, critical, and off
 	LogLevel *string `json:"logLevel,omitempty"`
+
+	// The Datadog Agent supports many environment variables
+	// Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables
+	//
+	// +optional
+	// +listType=set
+	Env []corev1.EnvVar `json:"env,omitempty"`
+
+	// Specify additional volume mounts in the Datadog Cluster Agent container
+	// +optional
+	// +listType=set
+	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
+
+	// Specify additional volumes in the Datadog Cluster Agent container
+	// +optional
+	// +listType=set
+	Volumes []corev1.Volume `json:"volumes,omitempty"`
 }
 
 // DatadogAgentSpecClusterChecksRunnerSpec defines the desired state of the Cluster Checks Runner
