@@ -56,6 +56,8 @@ const (
 	DDMetricsProviderPort           = "DD_EXTERNAL_METRICS_PROVIDER_PORT"
 	DDAppKey                        = "DD_APP_KEY"
 	DDClusterChecksRunnerEnabled    = "DD_CLUSTER_CHECKS_ENABLED"
+	DDClcRunnerEnabled              = "DD_CLC_RUNNER_ENABLED"
+	DDClcRunnerHost                 = "DD_CLC_RUNNER_HOST"
 	DDExtraConfigProviders          = "DD_EXTRA_CONFIG_PROVIDERS"
 	DDExtraListeners                = "DD_EXTRA_LISTENERS"
 	DDHostname                      = "DD_HOSTNAME"

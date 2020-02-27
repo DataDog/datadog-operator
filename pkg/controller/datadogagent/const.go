@@ -12,6 +12,9 @@ const (
 	// FieldPathStatusHostIP used as FieldPath to retrieve the host ip
 	FieldPathStatusHostIP = "status.hostIP"
 
+	// FieldPathStatusPodIP used as FieldPath to retrieve the pod ip
+	FieldPathStatusPodIP = "status.podIP"
+
 	// kind names definition
 	extendedDaemonSetKind   = "ExtendedDaemonSet"
 	daemonSetKind           = "DaemonSet"

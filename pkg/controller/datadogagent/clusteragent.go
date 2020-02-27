@@ -432,7 +432,7 @@ func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Env
 			},
 		}...)
 	}
-	return append(envVars, spec.Agent.Config.Env...)
+	return append(envVars, spec.ClusterAgent.Config.Env...)
 }
 
 func getClusterAgentName(dda *datadoghqv1alpha1.DatadogAgent) string {
