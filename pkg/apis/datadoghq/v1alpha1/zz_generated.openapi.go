@@ -941,6 +941,19 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentSpecClusterAgentSpec(ref com
 							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.ClusterAgentConfig"),
 						},
 					},
+					"customConfig": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Allow to put custom configuration for the agent, corresponding to the datadog-cluster.yaml config file",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"confd": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Confd Provide additional cluster check configurations. Each key will become a file in /conf.d see https://docs.datadoghq.com/agent/autodiscovery/ for more details.",
+							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.ConfigDirSpec"),
+						},
+					},
 					"rbac": {
 						SchemaProps: spec.SchemaProps{
 							Description: "RBAC configuration of the Datadog Cluster Agent",
@@ -1035,7 +1048,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentSpecClusterAgentSpec(ref com
 			},
 		},
 		Dependencies: []string{
-			"./pkg/apis/datadoghq/v1alpha1.ClusterAgentConfig", "./pkg/apis/datadoghq/v1alpha1.ImageConfig", "./pkg/apis/datadoghq/v1alpha1.RbacConfig", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Toleration"},
+			"./pkg/apis/datadoghq/v1alpha1.ClusterAgentConfig", "./pkg/apis/datadoghq/v1alpha1.ConfigDirSpec", "./pkg/apis/datadoghq/v1alpha1.ImageConfig", "./pkg/apis/datadoghq/v1alpha1.RbacConfig", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Toleration"},
 	}
 }
 
@@ -1063,6 +1076,13 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentSpecClusterChecksRunnerSpec(
 						SchemaProps: spec.SchemaProps{
 							Description: "Agent configuration",
 							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.ClusterChecksRunnerConfig"),
+						},
+					},
+					"customConfig": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Allow to put custom configuration for the agent, corresponding to the datadog.yaml config file See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"rbac": {

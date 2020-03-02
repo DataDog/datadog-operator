@@ -11,6 +11,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -47,6 +48,15 @@ func clusterAgentDefaultPodSpec() corev1.PodSpec {
 					},
 				},
 				Env: clusterAgentDefaultEnvVars(),
+				VolumeMounts: []corev1.VolumeMount{
+					{Name: "confd", ReadOnly: true, MountPath: "/conf.d"},
+				},
+			},
+		},
+		Volumes: []corev1.Volume{
+			{
+				Name:         "confd",
+				VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}},
 			},
 		},
 	}

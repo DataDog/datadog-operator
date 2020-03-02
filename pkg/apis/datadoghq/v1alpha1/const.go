@@ -115,6 +115,10 @@ const (
 	AgentCustomConfigVolumeSubPath     = "datadog.yaml"
 	HostCriSocketPathPrefix            = "/host"
 
+	ClusterAgentCustomConfigVolumeName    = "custom-datadog-yaml"
+	ClusterAgentCustomConfigVolumePath    = "/etc/datadog-agent/datadog-cluster.yaml"
+	ClusterAgentCustomConfigVolumeSubPath = "datadog-cluster.yaml"
+
 	DefaultSystemProbeSecCompRootPath = "/var/lib/kubelet/seccomp"
 	DefaultAppArmorProfileName        = "unconfined"
 

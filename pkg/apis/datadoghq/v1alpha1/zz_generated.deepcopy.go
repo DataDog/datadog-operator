@@ -499,6 +499,11 @@ func (in *DatadogAgentSpecClusterAgentSpec) DeepCopyInto(out *DatadogAgentSpecCl
 	*out = *in
 	in.Image.DeepCopyInto(&out.Image)
 	in.Config.DeepCopyInto(&out.Config)
+	if in.Confd != nil {
+		in, out := &in.Confd, &out.Confd
+		*out = new(ConfigDirSpec)
+		**out = **in
+	}
 	in.Rbac.DeepCopyInto(&out.Rbac)
 	if in.Replicas != nil {
 		in, out := &in.Replicas, &out.Replicas
