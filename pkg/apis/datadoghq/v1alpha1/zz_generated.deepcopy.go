@@ -131,6 +131,11 @@ func (in *ClusterAgentConfig) DeepCopyInto(out *ClusterAgentConfig) {
 		*out = new(v1.ResourceRequirements)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.Confd != nil {
+		in, out := &in.Confd, &out.Confd
+		*out = new(ConfigDirSpec)
+		**out = **in
+	}
 	if in.Env != nil {
 		in, out := &in.Env, &out.Env
 		*out = make([]v1.EnvVar, len(*in))
@@ -513,16 +518,6 @@ func (in *DatadogAgentSpecAgentSpec) DeepCopyInto(out *DatadogAgentSpecAgentSpec
 	in.Log.DeepCopyInto(&out.Log)
 	in.Process.DeepCopyInto(&out.Process)
 	in.SystemProbe.DeepCopyInto(&out.SystemProbe)
-	if in.Confd != nil {
-		in, out := &in.Confd, &out.Confd
-		*out = new(ConfigDirSpec)
-		**out = **in
-	}
-	if in.Checksd != nil {
-		in, out := &in.Checksd, &out.Checksd
-		*out = new(ConfigDirSpec)
-		**out = **in
-	}
 	if in.CustomConfig != nil {
 		in, out := &in.CustomConfig, &out.CustomConfig
 		*out = new(CustomConfigSpec)
@@ -550,11 +545,6 @@ func (in *DatadogAgentSpecClusterAgentSpec) DeepCopyInto(out *DatadogAgentSpecCl
 		in, out := &in.CustomConfig, &out.CustomConfig
 		*out = new(CustomConfigSpec)
 		(*in).DeepCopyInto(*out)
-	}
-	if in.Confd != nil {
-		in, out := &in.Confd, &out.Confd
-		*out = new(ConfigDirSpec)
-		**out = **in
 	}
 	in.Rbac.DeepCopyInto(&out.Rbac)
 	if in.Replicas != nil {
@@ -841,6 +831,16 @@ func (in *NodeAgentConfig) DeepCopyInto(out *NodeAgentConfig) {
 	if in.LogLevel != nil {
 		in, out := &in.LogLevel, &out.LogLevel
 		*out = new(string)
+		**out = **in
+	}
+	if in.Confd != nil {
+		in, out := &in.Confd, &out.Confd
+		*out = new(ConfigDirSpec)
+		**out = **in
+	}
+	if in.Checksd != nil {
+		in, out := &in.Checksd, &out.Checksd
+		*out = new(ConfigDirSpec)
 		**out = **in
 	}
 	if in.PodLabelsAsTags != nil {

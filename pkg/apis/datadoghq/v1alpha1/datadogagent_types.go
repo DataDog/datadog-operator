@@ -154,16 +154,6 @@ type DatadogAgentSpecAgentSpec struct {
 	// +optional
 	SystemProbe SystemProbeSpec `json:"systemProbe,omitempty"`
 
-	// Confd configuration allowing to specify config files for custom checks placed under /etc/datadog-agent/conf.d/.
-	// See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.
-	// +optional
-	Confd *ConfigDirSpec `json:"confd,omitempty"`
-
-	// Checksd configuration allowing to specify custom checks placed under /etc/datadog-agent/checks.d/
-	// See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.
-	// +optional
-	Checksd *ConfigDirSpec `json:"checksd,omitempty"`
-
 	// Allow to put custom configuration for the agent, corresponding to the datadog.yaml config file
 	// See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.
 	// +optional
@@ -363,19 +353,20 @@ type ConfigDirSpec struct {
 // ConfigFileConfigMapSpec contains configMap information used to store a config file
 // +k8s:openapi-gen=true
 type ConfigFileConfigMapSpec struct {
-	// Name ConfigMap name
+	// Name the ConfigMap name
 	Name string `json:"name,omitempty"`
 	// FileKey corresponds to the key used in the ConfigMap.Data to store the configuration file content
 	FileKey string `json:"fileKey,omitempty"`
 }
 
-// CustomConfigSpec Allow to put custom configuration for the agent, corresponding to the datadog-cluster.yaml config file
-// the configuration can be provided in the 'configData' field as raw data, or provided in a configmap.
+// CustomConfigSpec Allow to put custom configuration for the agent, corresponding to the datadog-cluster.yaml or datadog.yaml config file
+// the configuration can be provided in the 'configData' field as raw data, or in a configmap thanks to `configMap` field.
+// Important: `configData` and `configMap` can't be set together.
 // +k8s:openapi-gen=true
 type CustomConfigSpec struct {
 	// ConfigData corresponds to the configuration file content
 	ConfigData *string `json:"configData,omitempty"`
-	// ConfigMapName name of a ConfigMap used to mount the configuration file
+	// ConfigMap name of a ConfigMap used to mount the configuration file
 	ConfigMap *ConfigFileConfigMapSpec `json:"configMap,omitempty"`
 }
 
@@ -396,6 +387,16 @@ type NodeAgentConfig struct {
 	// Set logging verbosity, valid log levels are:
 	// trace, debug, info, warn, error, critical, and off
 	LogLevel *string `json:"logLevel,omitempty"`
+
+	// Confd configuration allowing to specify config files for custom checks placed under /etc/datadog-agent/conf.d/.
+	// See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.
+	// +optional
+	Confd *ConfigDirSpec `json:"confd,omitempty"`
+
+	// Checksd configuration allowing to specify custom checks placed under /etc/datadog-agent/checks.d/
+	// See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.
+	// +optional
+	Checksd *ConfigDirSpec `json:"checksd,omitempty"`
 
 	// Provide a mapping of Kubernetes Labels to Datadog Tags.
 	// <KUBERNETES_LABEL>: <DATADOG_TAG_KEY>
@@ -499,11 +500,6 @@ type DatadogAgentSpecClusterAgentSpec struct {
 	// +optional
 	CustomConfig *CustomConfigSpec `json:"customConfig,omitempty"`
 
-	// Confd Provide additional cluster check configurations. Each key will become a file in /conf.d
-	// see https://docs.datadoghq.com/agent/autodiscovery/ for more details.
-	// +optional
-	Confd *ConfigDirSpec `json:"confd,omitempty"`
-
 	// RBAC configuration of the Datadog Cluster Agent
 	Rbac RbacConfig `json:"rbac,omitempty"`
 
@@ -559,6 +555,11 @@ type ClusterAgentConfig struct {
 
 	// Datadog cluster-agent resource requests and limits
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
+
+	// Confd Provide additional cluster check configurations. Each key will become a file in /conf.d
+	// see https://docs.datadoghq.com/agent/autodiscovery/ for more details.
+	// +optional
+	Confd *ConfigDirSpec `json:"confd,omitempty"`
 
 	// The Datadog Agent supports many environment variables
 	// Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables

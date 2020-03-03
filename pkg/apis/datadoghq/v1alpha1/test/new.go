@@ -184,11 +184,11 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 		}
 
 		if options.Confd != nil {
-			ad.Spec.Agent.Confd = options.Confd
+			ad.Spec.Agent.Config.Confd = options.Confd
 		}
 
 		if options.Checksd != nil {
-			ad.Spec.Agent.Checksd = options.Checksd
+			ad.Spec.Agent.Config.Checksd = options.Checksd
 		}
 
 		if options.CustomConfig != "" {

@@ -238,10 +238,10 @@ func DeploymentDaemonset(t *testing.T) {
 
 	t.Logf("Update the DatadogAgent with custom conf.d and checks.d")
 	updateWithConfigMaps := func(ad *datadoghqv1alpha1.DatadogAgent) {
-		ad.Spec.Agent.Confd = &datadoghqv1alpha1.ConfigDirSpec{
+		ad.Spec.Agent.Config.Confd = &datadoghqv1alpha1.ConfigDirSpec{
 			ConfigMapName: confdConfigMapName,
 		}
-		ad.Spec.Agent.Checksd = &datadoghqv1alpha1.ConfigDirSpec{
+		ad.Spec.Agent.Config.Checksd = &datadoghqv1alpha1.ConfigDirSpec{
 			ConfigMapName: checksdConfigMapName,
 		}
 	}

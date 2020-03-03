@@ -209,34 +209,34 @@ spec:
                           type: object
                       type: object
                   type: object
-                checksd:
-                  description: Checksd configuration allowing to specify custom checks
-                    placed under /etc/datadog-agent/checks.d/ See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6
-                    for more details.
-                  properties:
-                    configMapName:
-                      description: ConfigMapName name of a ConfigMap used to mount
-                        a directory
-                      type: string
-                  type: object
-                confd:
-                  description: Confd configuration allowing to specify config files
-                    for custom checks placed under /etc/datadog-agent/conf.d/. See
-                    https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6
-                    for more details.
-                  properties:
-                    configMapName:
-                      description: ConfigMapName name of a ConfigMap used to mount
-                        a directory
-                      type: string
-                  type: object
                 config:
                   description: Agent configuration
                   properties:
+                    checksd:
+                      description: Checksd configuration allowing to specify custom
+                        checks placed under /etc/datadog-agent/checks.d/ See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6
+                        for more details.
+                      properties:
+                        configMapName:
+                          description: ConfigMapName name of a ConfigMap used to mount
+                            a directory
+                          type: string
+                      type: object
                     collectEvents:
                       description: 'nables this to start event collection from the
                         kubernetes API ref: https://docs.datadoghq.com/agent/kubernetes/event_collection/'
                       type: boolean
+                    confd:
+                      description: Confd configuration allowing to specify config
+                        files for custom checks placed under /etc/datadog-agent/conf.d/.
+                        See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6
+                        for more details.
+                      properties:
+                        configMapName:
+                          description: ConfigMapName name of a ConfigMap used to mount
+                            a directory
+                          type: string
+                      type: object
                     criSocket:
                       description: Configure the CRI Socket
                       properties:
@@ -1910,15 +1910,15 @@ spec:
                         content
                       type: string
                     configMap:
-                      description: ConfigMapName name of a ConfigMap used to mount
-                        the configuration file
+                      description: ConfigMap name of a ConfigMap used to mount the
+                        configuration file
                       properties:
                         fileKey:
                           description: FileKey corresponds to the key used in the
                             ConfigMap.Data to store the configuration file content
                           type: string
                         name:
-                          description: Name ConfigMap name
+                          description: Name the ConfigMap name
                           type: string
                       type: object
                   type: object
@@ -3165,16 +3165,6 @@ spec:
                           type: array
                       type: object
                   type: object
-                confd:
-                  description: Confd Provide additional cluster check configurations.
-                    Each key will become a file in /conf.d see https://docs.datadoghq.com/agent/autodiscovery/
-                    for more details.
-                  properties:
-                    configMapName:
-                      description: ConfigMapName name of a ConfigMap used to mount
-                        a directory
-                      type: string
-                  type: object
                 config:
                   description: Cluster Agent configuration
                   properties:
@@ -3184,6 +3174,16 @@ spec:
                         Autodiscovery via Kube Service annotations is automatically
                         enabled'
                       type: boolean
+                    confd:
+                      description: Confd Provide additional cluster check configurations.
+                        Each key will become a file in /conf.d see https://docs.datadoghq.com/agent/autodiscovery/
+                        for more details.
+                      properties:
+                        configMapName:
+                          description: ConfigMapName name of a ConfigMap used to mount
+                            a directory
+                          type: string
+                      type: object
                     env:
                       description: 'The Datadog Agent supports many environment variables
                         Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables'
@@ -4639,15 +4639,15 @@ spec:
                         content
                       type: string
                     configMap:
-                      description: ConfigMapName name of a ConfigMap used to mount
-                        the configuration file
+                      description: ConfigMap name of a ConfigMap used to mount the
+                        configuration file
                       properties:
                         fileKey:
                           description: FileKey corresponds to the key used in the
                             ConfigMap.Data to store the configuration file content
                           type: string
                         name:
-                          description: Name ConfigMap name
+                          description: Name the ConfigMap name
                           type: string
                       type: object
                   type: object
@@ -6823,15 +6823,15 @@ spec:
                         content
                       type: string
                     configMap:
-                      description: ConfigMapName name of a ConfigMap used to mount
-                        the configuration file
+                      description: ConfigMap name of a ConfigMap used to mount the
+                        configuration file
                       properties:
                         fileKey:
                           description: FileKey corresponds to the key used in the
                             ConfigMap.Data to store the configuration file content
                           type: string
                         name:
-                          description: Name ConfigMap name
+                          description: Name the ConfigMap name
                           type: string
                       type: object
                   type: object

@@ -42,7 +42,7 @@ func IsValidDatadogAgent(spec *DatadogAgentSpec) error {
 	return utilserrors.NewAggregate(errs)
 }
 
-// IsValidCustomConfigSpec use to check if a CustomConfigSpec is properly set
+// IsValidCustomConfigSpec used to check if a CustomConfigSpec is properly set
 func IsValidCustomConfigSpec(ccs *CustomConfigSpec) error {
 	if ccs.ConfigData != nil && ccs.ConfigMap != nil {
 		return fmt.Errorf("'configData' and 'configMap' should not be set at the same time")

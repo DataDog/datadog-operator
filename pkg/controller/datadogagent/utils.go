@@ -552,11 +552,11 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 	confdVolumeSource := corev1.VolumeSource{
 		EmptyDir: &corev1.EmptyDirVolumeSource{},
 	}
-	if dda.Spec.Agent.Confd != nil {
+	if dda.Spec.Agent.Config.Confd != nil {
 		confdVolumeSource = corev1.VolumeSource{
 			ConfigMap: &corev1.ConfigMapVolumeSource{
 				LocalObjectReference: corev1.LocalObjectReference{
-					Name: dda.Spec.Agent.Confd.ConfigMapName,
+					Name: dda.Spec.Agent.Config.Confd.ConfigMapName,
 				},
 			},
 		}
@@ -564,11 +564,11 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 	checksdVolumeSource := corev1.VolumeSource{
 		EmptyDir: &corev1.EmptyDirVolumeSource{},
 	}
-	if dda.Spec.Agent.Checksd != nil {
+	if dda.Spec.Agent.Config.Checksd != nil {
 		checksdVolumeSource = corev1.VolumeSource{
 			ConfigMap: &corev1.ConfigMapVolumeSource{
 				LocalObjectReference: corev1.LocalObjectReference{
-					Name: dda.Spec.Agent.Checksd.ConfigMapName,
+					Name: dda.Spec.Agent.Config.Checksd.ConfigMapName,
 				},
 			},
 		}

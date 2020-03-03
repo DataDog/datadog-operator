@@ -281,11 +281,11 @@ func newClusterAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent,
 	confdVolumeSource := corev1.VolumeSource{
 		EmptyDir: &corev1.EmptyDirVolumeSource{},
 	}
-	if agentdeployment.Spec.ClusterAgent.Confd != nil {
+	if agentdeployment.Spec.ClusterAgent.Config.Confd != nil {
 		confdVolumeSource = corev1.VolumeSource{
 			ConfigMap: &corev1.ConfigMapVolumeSource{
 				LocalObjectReference: corev1.LocalObjectReference{
-					Name: agentdeployment.Spec.ClusterAgent.Confd.ConfigMapName,
+					Name: agentdeployment.Spec.ClusterAgent.Config.Confd.ConfigMapName,
 				},
 			},
 		}
@@ -311,7 +311,7 @@ func newClusterAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent,
 			datadoghqv1alpha1.AgentCustomConfigVolumeName)
 		volumes = append(volumes, customConfigVolumeSource)
 
-		// Custom config (datadog.yaml) volume
+		// Custom config (datadog-cluster.yaml) volume
 		volumeMount := getVolumeMountFromCustomConfigSpec(
 			agentdeployment.Spec.ClusterAgent.CustomConfig,
 			datadoghqv1alpha1.ClusterAgentCustomConfigVolumeName,
