@@ -204,6 +204,10 @@ func (r *ReconcileDatadogAgent) manageClusterChecksRunnerDependencies(logger log
 	if shouldReturn(result, err) {
 		return result, err
 	}
+	result, err = r.manageConfigMap(logger, dda, getClusterChecksRunnerCustomConfigConfigMapName(dda), buildClusterChecksRunnerConfigurationConfigMap)
+	if shouldReturn(result, err) {
+		return result, err
+	}
 	result, err = r.manageClusterChecksRunnerRBACs(logger, dda)
 	if shouldReturn(result, err) {
 		return result, err
@@ -276,6 +280,13 @@ func newClusterChecksRunnerPodTemplate(dda *datadoghqv1alpha1.DatadogAgent, labe
 	}
 
 	return newPodTemplate
+}
+
+func buildClusterChecksRunnerConfigurationConfigMap(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.ConfigMap, error) {
+	if dda.Spec.ClusterChecksRunner == nil {
+		return nil, nil
+	}
+	return buildConfigurationConfigMap(dda, dda.Spec.ClusterChecksRunner.CustomConfig, getClusterChecksRunnerCustomConfigConfigMapName(dda), datadoghqv1alpha1.AgentCustomConfigVolumeSubPath)
 }
 
 // getEnvVarsForClusterChecksRunner converts Cluster Checks Runner Config into container env vars
@@ -394,6 +405,11 @@ func getVolumesForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []cor
 			},
 		},
 	}
+
+	if dda.Spec.ClusterChecksRunner.CustomConfig != nil {
+		volume := getVolumeFromCustomConfigSpec(dda.Spec.ClusterChecksRunner.CustomConfig, getClusterChecksRunnerCustomConfigConfigMapName(dda), datadoghqv1alpha1.AgentCustomConfigVolumeName)
+		volumes = append(volumes, volume)
+	}
 	return append(volumes, dda.Spec.ClusterChecksRunner.Config.Volumes...)
 }
 
@@ -409,5 +425,13 @@ func getVolumeMountsForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) 
 			MountPath: fmt.Sprintf("%s/%s", datadoghqv1alpha1.ConfigVolumePath, "conf.d"),
 		},
 	}
+	if dda.Spec.ClusterChecksRunner.CustomConfig != nil {
+		volumeMount := getVolumeMountFromCustomConfigSpec(dda.Spec.ClusterChecksRunner.CustomConfig, datadoghqv1alpha1.AgentCustomConfigVolumeName, datadoghqv1alpha1.AgentCustomConfigVolumePath, datadoghqv1alpha1.AgentCustomConfigVolumeSubPath)
+		volumeMounts = append(volumeMounts, volumeMount)
+	}
 	return append(volumeMounts, dda.Spec.ClusterChecksRunner.Config.VolumeMounts...)
+}
+
+func getClusterChecksRunnerCustomConfigConfigMapName(dda *datadoghqv1alpha1.DatadogAgent) string {
+	return fmt.Sprintf("%s-runner-datadog-yaml", dda.Name)
 }

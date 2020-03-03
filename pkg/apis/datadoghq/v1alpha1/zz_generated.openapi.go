@@ -24,6 +24,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./pkg/apis/datadoghq/v1alpha1.ClusterAgentConfig":                      schema_pkg_apis_datadoghq_v1alpha1_ClusterAgentConfig(ref),
 		"./pkg/apis/datadoghq/v1alpha1.ClusterChecksRunnerConfig":               schema_pkg_apis_datadoghq_v1alpha1_ClusterChecksRunnerConfig(ref),
 		"./pkg/apis/datadoghq/v1alpha1.ConfigDirSpec":                           schema_pkg_apis_datadoghq_v1alpha1_ConfigDirSpec(ref),
+		"./pkg/apis/datadoghq/v1alpha1.ConfigFileConfigMapSpec":                 schema_pkg_apis_datadoghq_v1alpha1_ConfigFileConfigMapSpec(ref),
+		"./pkg/apis/datadoghq/v1alpha1.CustomConfigSpec":                        schema_pkg_apis_datadoghq_v1alpha1_CustomConfigSpec(ref),
 		"./pkg/apis/datadoghq/v1alpha1.DaemonSetDeploymentStrategy":             schema_pkg_apis_datadoghq_v1alpha1_DaemonSetDeploymentStrategy(ref),
 		"./pkg/apis/datadoghq/v1alpha1.DaemonSetRollingUpdateSpec":              schema_pkg_apis_datadoghq_v1alpha1_DaemonSetRollingUpdateSpec(ref),
 		"./pkg/apis/datadoghq/v1alpha1.DaemonSetStatus":                         schema_pkg_apis_datadoghq_v1alpha1_DaemonSetStatus(ref),
@@ -383,6 +385,61 @@ func schema_pkg_apis_datadoghq_v1alpha1_ConfigDirSpec(ref common.ReferenceCallba
 				},
 			},
 		},
+	}
+}
+
+func schema_pkg_apis_datadoghq_v1alpha1_ConfigFileConfigMapSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ConfigFileConfigMapSpec contains configMap information used to store a config file",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name ConfigMap name",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"fileKey": {
+						SchemaProps: spec.SchemaProps{
+							Description: "FileKey corresponds to the key used in the ConfigMap.Data to store the configuration file content",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_datadoghq_v1alpha1_CustomConfigSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "CustomConfigSpec Allow to put custom configuration for the agent, corresponding to the datadog-cluster.yaml config file the configuration can be provided in the 'configData' field as raw data, or provided in a configmap.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"configData": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ConfigData corresponds to the configuration file content",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"configMap": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ConfigMapName name of a ConfigMap used to mount the configuration file",
+							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.ConfigFileConfigMapSpec"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"./pkg/apis/datadoghq/v1alpha1.ConfigFileConfigMapSpec"},
 	}
 }
 
@@ -902,8 +959,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentSpecAgentSpec(ref common.Ref
 					"customConfig": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Allow to put custom configuration for the agent, corresponding to the datadog.yaml config file See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.",
-							Type:        []string{"string"},
-							Format:      "",
+							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.CustomConfigSpec"),
 						},
 					},
 				},
@@ -911,7 +967,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentSpecAgentSpec(ref common.Ref
 			},
 		},
 		Dependencies: []string{
-			"./pkg/apis/datadoghq/v1alpha1.APMSpec", "./pkg/apis/datadoghq/v1alpha1.ConfigDirSpec", "./pkg/apis/datadoghq/v1alpha1.DaemonSetDeploymentStrategy", "./pkg/apis/datadoghq/v1alpha1.ImageConfig", "./pkg/apis/datadoghq/v1alpha1.LogSpec", "./pkg/apis/datadoghq/v1alpha1.NodeAgentConfig", "./pkg/apis/datadoghq/v1alpha1.ProcessSpec", "./pkg/apis/datadoghq/v1alpha1.RbacConfig", "./pkg/apis/datadoghq/v1alpha1.SystemProbeSpec", "k8s.io/api/core/v1.PodDNSConfig"},
+			"./pkg/apis/datadoghq/v1alpha1.APMSpec", "./pkg/apis/datadoghq/v1alpha1.ConfigDirSpec", "./pkg/apis/datadoghq/v1alpha1.CustomConfigSpec", "./pkg/apis/datadoghq/v1alpha1.DaemonSetDeploymentStrategy", "./pkg/apis/datadoghq/v1alpha1.ImageConfig", "./pkg/apis/datadoghq/v1alpha1.LogSpec", "./pkg/apis/datadoghq/v1alpha1.NodeAgentConfig", "./pkg/apis/datadoghq/v1alpha1.ProcessSpec", "./pkg/apis/datadoghq/v1alpha1.RbacConfig", "./pkg/apis/datadoghq/v1alpha1.SystemProbeSpec", "k8s.io/api/core/v1.PodDNSConfig"},
 	}
 }
 
@@ -944,8 +1000,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentSpecClusterAgentSpec(ref com
 					"customConfig": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Allow to put custom configuration for the agent, corresponding to the datadog-cluster.yaml config file",
-							Type:        []string{"string"},
-							Format:      "",
+							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.CustomConfigSpec"),
 						},
 					},
 					"confd": {
@@ -1048,7 +1103,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentSpecClusterAgentSpec(ref com
 			},
 		},
 		Dependencies: []string{
-			"./pkg/apis/datadoghq/v1alpha1.ClusterAgentConfig", "./pkg/apis/datadoghq/v1alpha1.ConfigDirSpec", "./pkg/apis/datadoghq/v1alpha1.ImageConfig", "./pkg/apis/datadoghq/v1alpha1.RbacConfig", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Toleration"},
+			"./pkg/apis/datadoghq/v1alpha1.ClusterAgentConfig", "./pkg/apis/datadoghq/v1alpha1.ConfigDirSpec", "./pkg/apis/datadoghq/v1alpha1.CustomConfigSpec", "./pkg/apis/datadoghq/v1alpha1.ImageConfig", "./pkg/apis/datadoghq/v1alpha1.RbacConfig", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Toleration"},
 	}
 }
 
@@ -1081,8 +1136,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentSpecClusterChecksRunnerSpec(
 					"customConfig": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Allow to put custom configuration for the agent, corresponding to the datadog.yaml config file See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.",
-							Type:        []string{"string"},
-							Format:      "",
+							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.CustomConfigSpec"),
 						},
 					},
 					"rbac": {
@@ -1179,7 +1233,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentSpecClusterChecksRunnerSpec(
 			},
 		},
 		Dependencies: []string{
-			"./pkg/apis/datadoghq/v1alpha1.ClusterChecksRunnerConfig", "./pkg/apis/datadoghq/v1alpha1.ImageConfig", "./pkg/apis/datadoghq/v1alpha1.RbacConfig", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Toleration"},
+			"./pkg/apis/datadoghq/v1alpha1.ClusterChecksRunnerConfig", "./pkg/apis/datadoghq/v1alpha1.CustomConfigSpec", "./pkg/apis/datadoghq/v1alpha1.ImageConfig", "./pkg/apis/datadoghq/v1alpha1.RbacConfig", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Toleration"},
 	}
 }
 

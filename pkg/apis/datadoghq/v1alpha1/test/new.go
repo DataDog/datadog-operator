@@ -192,7 +192,9 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 		}
 
 		if options.CustomConfig != "" {
-			ad.Spec.Agent.CustomConfig = options.CustomConfig
+			ad.Spec.Agent.CustomConfig = &datadoghqv1alpha1.CustomConfigSpec{
+				ConfigData: &options.CustomConfig,
+			}
 		}
 	}
 	return datadoghqv1alpha1.DefaultDatadogAgent(ad)

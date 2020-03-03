@@ -23,7 +23,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/yaml"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
@@ -244,30 +243,10 @@ func (r *ReconcileDatadogAgent) manageClusterAgentDependencies(logger logr.Logge
 }
 
 func buildClusterAgentConfigurationConfigMap(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.ConfigMap, error) {
-	if dda.Spec.ClusterAgent == nil || dda.Spec.ClusterAgent.CustomConfig == "" {
+	if dda.Spec.ClusterAgent == nil {
 		return nil, nil
 	}
-
-	// Validate that user input is valid YAML
-	// Maybe later we can implement that directly verifies against Cluster-Agent configuration?
-	m := make(map[interface{}]interface{})
-	if err := yaml.Unmarshal([]byte(dda.Spec.ClusterAgent.CustomConfig), m); err != nil {
-		return nil, fmt.Errorf("unable to parse YAML from 'ClusterAgent.CustomConfig' field: %v", err)
-	}
-
-	configMap := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        getClusterAgentCustomConfigConfigMapName(dda),
-			Namespace:   dda.Namespace,
-			Labels:      getDefaultLabels(dda, dda.Name, getClusterAgentVersion(dda)),
-			Annotations: getDefaultAnnotations(dda),
-		},
-		Data: map[string]string{
-			datadoghqv1alpha1.ClusterAgentCustomConfigVolumeSubPath: dda.Spec.ClusterAgent.CustomConfig,
-		},
-	}
-
-	return configMap, nil
+	return buildConfigurationConfigMap(dda, dda.Spec.ClusterAgent.CustomConfig, getClusterAgentCustomConfigConfigMapName(dda), datadoghqv1alpha1.ClusterAgentCustomConfigVolumeSubPath)
 }
 
 func (r *ReconcileDatadogAgent) cleanupClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
@@ -325,25 +304,20 @@ func newClusterAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent,
 		},
 	}
 
-	if agentdeployment.Spec.ClusterAgent.CustomConfig != "" {
-		customConfigVolumeSource := corev1.Volume{
-			Name: datadoghqv1alpha1.AgentCustomConfigVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: &corev1.ConfigMapVolumeSource{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: getClusterAgentCustomConfigConfigMapName(agentdeployment),
-					},
-				},
-			},
-		}
+	if agentdeployment.Spec.ClusterAgent.CustomConfig != nil {
+		customConfigVolumeSource := getVolumeFromCustomConfigSpec(
+			agentdeployment.Spec.ClusterAgent.CustomConfig,
+			getClusterAgentCustomConfigConfigMapName(agentdeployment),
+			datadoghqv1alpha1.AgentCustomConfigVolumeName)
 		volumes = append(volumes, customConfigVolumeSource)
 
-		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      datadoghqv1alpha1.ClusterAgentCustomConfigVolumeName,
-			MountPath: datadoghqv1alpha1.ClusterAgentCustomConfigVolumePath,
-			SubPath:   datadoghqv1alpha1.ClusterAgentCustomConfigVolumeSubPath,
-			ReadOnly:  true,
-		})
+		// Custom config (datadog.yaml) volume
+		volumeMount := getVolumeMountFromCustomConfigSpec(
+			agentdeployment.Spec.ClusterAgent.CustomConfig,
+			datadoghqv1alpha1.ClusterAgentCustomConfigVolumeName,
+			datadoghqv1alpha1.ClusterAgentCustomConfigVolumePath,
+			datadoghqv1alpha1.ClusterAgentCustomConfigVolumeSubPath)
+		volumeMounts = append(volumeMounts, volumeMount)
 	}
 
 	// Add other volumes

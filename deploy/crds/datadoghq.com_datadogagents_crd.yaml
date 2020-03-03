@@ -1904,7 +1904,24 @@ spec:
                   description: Allow to put custom configuration for the agent, corresponding
                     to the datadog.yaml config file See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6
                     for more details.
-                  type: string
+                  properties:
+                    configData:
+                      description: ConfigData corresponds to the configuration file
+                        content
+                      type: string
+                    configMap:
+                      description: ConfigMapName name of a ConfigMap used to mount
+                        the configuration file
+                      properties:
+                        fileKey:
+                          description: FileKey corresponds to the key used in the
+                            ConfigMap.Data to store the configuration file content
+                          type: string
+                        name:
+                          description: Name ConfigMap name
+                          type: string
+                      type: object
+                  type: object
                 daemonsetName:
                   description: Name of the Daemonset to create or migrate from
                   type: string
@@ -4616,7 +4633,24 @@ spec:
                 customConfig:
                   description: Allow to put custom configuration for the agent, corresponding
                     to the datadog-cluster.yaml config file
-                  type: string
+                  properties:
+                    configData:
+                      description: ConfigData corresponds to the configuration file
+                        content
+                      type: string
+                    configMap:
+                      description: ConfigMapName name of a ConfigMap used to mount
+                        the configuration file
+                      properties:
+                        fileKey:
+                          description: FileKey corresponds to the key used in the
+                            ConfigMap.Data to store the configuration file content
+                          type: string
+                        name:
+                          description: Name ConfigMap name
+                          type: string
+                      type: object
+                  type: object
                 deploymentName:
                   description: Name of the Cluster Agent Deployment to create or migrate
                     from
@@ -6783,7 +6817,24 @@ spec:
                   description: Allow to put custom configuration for the agent, corresponding
                     to the datadog.yaml config file See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6
                     for more details.
-                  type: string
+                  properties:
+                    configData:
+                      description: ConfigData corresponds to the configuration file
+                        content
+                      type: string
+                    configMap:
+                      description: ConfigMapName name of a ConfigMap used to mount
+                        the configuration file
+                      properties:
+                        fileKey:
+                          description: FileKey corresponds to the key used in the
+                            ConfigMap.Data to store the configuration file content
+                          type: string
+                        name:
+                          description: Name ConfigMap name
+                          type: string
+                      type: object
+                  type: object
                 deploymentName:
                   description: Name of the cluster checks deployment to create or
                     migrate from

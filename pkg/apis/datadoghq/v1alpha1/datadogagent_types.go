@@ -167,7 +167,7 @@ type DatadogAgentSpecAgentSpec struct {
 	// Allow to put custom configuration for the agent, corresponding to the datadog.yaml config file
 	// See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.
 	// +optional
-	CustomConfig string `json:"customConfig,omitempty"`
+	CustomConfig *CustomConfigSpec `json:"customConfig,omitempty"`
 }
 
 // RbacConfig contains RBAC configuration
@@ -360,6 +360,25 @@ type ConfigDirSpec struct {
 	ConfigMapName string `json:"configMapName,omitempty"`
 }
 
+// ConfigFileConfigMapSpec contains configMap information used to store a config file
+// +k8s:openapi-gen=true
+type ConfigFileConfigMapSpec struct {
+	// Name ConfigMap name
+	Name string `json:"name,omitempty"`
+	// FileKey corresponds to the key used in the ConfigMap.Data to store the configuration file content
+	FileKey string `json:"fileKey,omitempty"`
+}
+
+// CustomConfigSpec Allow to put custom configuration for the agent, corresponding to the datadog-cluster.yaml config file
+// the configuration can be provided in the 'configData' field as raw data, or provided in a configmap.
+// +k8s:openapi-gen=true
+type CustomConfigSpec struct {
+	// ConfigData corresponds to the configuration file content
+	ConfigData *string `json:"configData,omitempty"`
+	// ConfigMapName name of a ConfigMap used to mount the configuration file
+	ConfigMap *ConfigFileConfigMapSpec `json:"configMap,omitempty"`
+}
+
 // NodeAgentConfig contains the configuration of the Node Agent
 // +k8s:openapi-gen=true
 type NodeAgentConfig struct {
@@ -478,7 +497,7 @@ type DatadogAgentSpecClusterAgentSpec struct {
 
 	// Allow to put custom configuration for the agent, corresponding to the datadog-cluster.yaml config file
 	// +optional
-	CustomConfig string `json:"customConfig,omitempty"`
+	CustomConfig *CustomConfigSpec `json:"customConfig,omitempty"`
 
 	// Confd Provide additional cluster check configurations. Each key will become a file in /conf.d
 	// see https://docs.datadoghq.com/agent/autodiscovery/ for more details.
@@ -603,7 +622,7 @@ type DatadogAgentSpecClusterChecksRunnerSpec struct {
 	// Allow to put custom configuration for the agent, corresponding to the datadog.yaml config file
 	// See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.
 	// +optional
-	CustomConfig string `json:"customConfig,omitempty"`
+	CustomConfig *CustomConfigSpec `json:"customConfig,omitempty"`
 
 	// RBAC configuration of the Datadog Cluster Checks Runner
 	Rbac RbacConfig `json:"rbac,omitempty"`
