@@ -273,6 +273,11 @@ func (r *ReconcileDatadogAgent) internalReconcile(request reconcile.Request) (re
 
 	newStatus := instance.Status.DeepCopy()
 
+	if err = datadoghqv1alpha1.IsValidDatadogAgent(&instance.Spec); err != nil {
+		reqLogger.Info("Invalid spec")
+		return r.updateStatusIfNeeded(reqLogger, instance, newStatus, result, err)
+	}
+
 	reconcileFuncs :=
 		[]reconcileFuncInterface{
 			r.reconcileClusterAgent,

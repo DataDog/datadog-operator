@@ -24,6 +24,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./pkg/apis/datadoghq/v1alpha1.ClusterAgentConfig":                      schema_pkg_apis_datadoghq_v1alpha1_ClusterAgentConfig(ref),
 		"./pkg/apis/datadoghq/v1alpha1.ClusterChecksRunnerConfig":               schema_pkg_apis_datadoghq_v1alpha1_ClusterChecksRunnerConfig(ref),
 		"./pkg/apis/datadoghq/v1alpha1.ConfigDirSpec":                           schema_pkg_apis_datadoghq_v1alpha1_ConfigDirSpec(ref),
+		"./pkg/apis/datadoghq/v1alpha1.ConfigFileConfigMapSpec":                 schema_pkg_apis_datadoghq_v1alpha1_ConfigFileConfigMapSpec(ref),
+		"./pkg/apis/datadoghq/v1alpha1.CustomConfigSpec":                        schema_pkg_apis_datadoghq_v1alpha1_CustomConfigSpec(ref),
 		"./pkg/apis/datadoghq/v1alpha1.DaemonSetDeploymentStrategy":             schema_pkg_apis_datadoghq_v1alpha1_DaemonSetDeploymentStrategy(ref),
 		"./pkg/apis/datadoghq/v1alpha1.DaemonSetRollingUpdateSpec":              schema_pkg_apis_datadoghq_v1alpha1_DaemonSetRollingUpdateSpec(ref),
 		"./pkg/apis/datadoghq/v1alpha1.DaemonSetStatus":                         schema_pkg_apis_datadoghq_v1alpha1_DaemonSetStatus(ref),
@@ -222,6 +224,12 @@ func schema_pkg_apis_datadoghq_v1alpha1_ClusterAgentConfig(ref common.ReferenceC
 							Ref:         ref("k8s.io/api/core/v1.ResourceRequirements"),
 						},
 					},
+					"confd": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Confd Provide additional cluster check configurations. Each key will become a file in /conf.d see https://docs.datadoghq.com/agent/autodiscovery/ for more details.",
+							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.ConfigDirSpec"),
+						},
+					},
 					"env": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
@@ -280,7 +288,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_ClusterAgentConfig(ref common.ReferenceC
 			},
 		},
 		Dependencies: []string{
-			"k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
+			"./pkg/apis/datadoghq/v1alpha1.ConfigDirSpec", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
 	}
 }
 
@@ -383,6 +391,61 @@ func schema_pkg_apis_datadoghq_v1alpha1_ConfigDirSpec(ref common.ReferenceCallba
 				},
 			},
 		},
+	}
+}
+
+func schema_pkg_apis_datadoghq_v1alpha1_ConfigFileConfigMapSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ConfigFileConfigMapSpec contains configMap information used to store a config file",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name the ConfigMap name",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"fileKey": {
+						SchemaProps: spec.SchemaProps{
+							Description: "FileKey corresponds to the key used in the ConfigMap.Data to store the configuration file content",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_datadoghq_v1alpha1_CustomConfigSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "CustomConfigSpec Allow to put custom configuration for the agent, corresponding to the datadog-cluster.yaml or datadog.yaml config file the configuration can be provided in the 'configData' field as raw data, or in a configmap thanks to `configMap` field. Important: `configData` and `configMap` can't be set together.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"configData": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ConfigData corresponds to the configuration file content",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"configMap": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ConfigMap name of a ConfigMap used to mount the configuration file",
+							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.ConfigFileConfigMapSpec"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"./pkg/apis/datadoghq/v1alpha1.ConfigFileConfigMapSpec"},
 	}
 }
 
@@ -887,23 +950,10 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentSpecAgentSpec(ref common.Ref
 							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.SystemProbeSpec"),
 						},
 					},
-					"confd": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Confd configuration allowing to specify config files for custom checks placed under /etc/datadog-agent/conf.d/. See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.",
-							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.ConfigDirSpec"),
-						},
-					},
-					"checksd": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Checksd configuration allowing to specify custom checks placed under /etc/datadog-agent/checks.d/ See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.",
-							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.ConfigDirSpec"),
-						},
-					},
 					"customConfig": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Allow to put custom configuration for the agent, corresponding to the datadog.yaml config file See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.",
-							Type:        []string{"string"},
-							Format:      "",
+							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.CustomConfigSpec"),
 						},
 					},
 				},
@@ -911,7 +961,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentSpecAgentSpec(ref common.Ref
 			},
 		},
 		Dependencies: []string{
-			"./pkg/apis/datadoghq/v1alpha1.APMSpec", "./pkg/apis/datadoghq/v1alpha1.ConfigDirSpec", "./pkg/apis/datadoghq/v1alpha1.DaemonSetDeploymentStrategy", "./pkg/apis/datadoghq/v1alpha1.ImageConfig", "./pkg/apis/datadoghq/v1alpha1.LogSpec", "./pkg/apis/datadoghq/v1alpha1.NodeAgentConfig", "./pkg/apis/datadoghq/v1alpha1.ProcessSpec", "./pkg/apis/datadoghq/v1alpha1.RbacConfig", "./pkg/apis/datadoghq/v1alpha1.SystemProbeSpec", "k8s.io/api/core/v1.PodDNSConfig"},
+			"./pkg/apis/datadoghq/v1alpha1.APMSpec", "./pkg/apis/datadoghq/v1alpha1.CustomConfigSpec", "./pkg/apis/datadoghq/v1alpha1.DaemonSetDeploymentStrategy", "./pkg/apis/datadoghq/v1alpha1.ImageConfig", "./pkg/apis/datadoghq/v1alpha1.LogSpec", "./pkg/apis/datadoghq/v1alpha1.NodeAgentConfig", "./pkg/apis/datadoghq/v1alpha1.ProcessSpec", "./pkg/apis/datadoghq/v1alpha1.RbacConfig", "./pkg/apis/datadoghq/v1alpha1.SystemProbeSpec", "k8s.io/api/core/v1.PodDNSConfig"},
 	}
 }
 
@@ -939,6 +989,12 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentSpecClusterAgentSpec(ref com
 						SchemaProps: spec.SchemaProps{
 							Description: "Cluster Agent configuration",
 							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.ClusterAgentConfig"),
+						},
+					},
+					"customConfig": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Allow to put custom configuration for the agent, corresponding to the datadog-cluster.yaml config file",
+							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.CustomConfigSpec"),
 						},
 					},
 					"rbac": {
@@ -1035,7 +1091,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentSpecClusterAgentSpec(ref com
 			},
 		},
 		Dependencies: []string{
-			"./pkg/apis/datadoghq/v1alpha1.ClusterAgentConfig", "./pkg/apis/datadoghq/v1alpha1.ImageConfig", "./pkg/apis/datadoghq/v1alpha1.RbacConfig", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Toleration"},
+			"./pkg/apis/datadoghq/v1alpha1.ClusterAgentConfig", "./pkg/apis/datadoghq/v1alpha1.CustomConfigSpec", "./pkg/apis/datadoghq/v1alpha1.ImageConfig", "./pkg/apis/datadoghq/v1alpha1.RbacConfig", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Toleration"},
 	}
 }
 
@@ -1063,6 +1119,12 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentSpecClusterChecksRunnerSpec(
 						SchemaProps: spec.SchemaProps{
 							Description: "Agent configuration",
 							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.ClusterChecksRunnerConfig"),
+						},
+					},
+					"customConfig": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Allow to put custom configuration for the agent, corresponding to the datadog.yaml config file See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.",
+							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.CustomConfigSpec"),
 						},
 					},
 					"rbac": {
@@ -1159,7 +1221,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentSpecClusterChecksRunnerSpec(
 			},
 		},
 		Dependencies: []string{
-			"./pkg/apis/datadoghq/v1alpha1.ClusterChecksRunnerConfig", "./pkg/apis/datadoghq/v1alpha1.ImageConfig", "./pkg/apis/datadoghq/v1alpha1.RbacConfig", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Toleration"},
+			"./pkg/apis/datadoghq/v1alpha1.ClusterChecksRunnerConfig", "./pkg/apis/datadoghq/v1alpha1.CustomConfigSpec", "./pkg/apis/datadoghq/v1alpha1.ImageConfig", "./pkg/apis/datadoghq/v1alpha1.RbacConfig", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Toleration"},
 	}
 }
 
@@ -1448,6 +1510,18 @@ func schema_pkg_apis_datadoghq_v1alpha1_NodeAgentConfig(ref common.ReferenceCall
 							Format:      "",
 						},
 					},
+					"confd": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Confd configuration allowing to specify config files for custom checks placed under /etc/datadog-agent/conf.d/. See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.",
+							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.ConfigDirSpec"),
+						},
+					},
+					"checksd": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Checksd configuration allowing to specify custom checks placed under /etc/datadog-agent/checks.d/ See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.",
+							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.ConfigDirSpec"),
+						},
+					},
 					"podLabelsAsTags": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Provide a mapping of Kubernetes Labels to Datadog Tags. <KUBERNETES_LABEL>: <DATADOG_TAG_KEY>",
@@ -1605,7 +1679,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_NodeAgentConfig(ref common.ReferenceCall
 			},
 		},
 		Dependencies: []string{
-			"./pkg/apis/datadoghq/v1alpha1.CRISocketConfig", "./pkg/apis/datadoghq/v1alpha1.DogstatsdConfig", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.SecurityContext", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
+			"./pkg/apis/datadoghq/v1alpha1.CRISocketConfig", "./pkg/apis/datadoghq/v1alpha1.ConfigDirSpec", "./pkg/apis/datadoghq/v1alpha1.DogstatsdConfig", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.SecurityContext", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
 	}
 }
 

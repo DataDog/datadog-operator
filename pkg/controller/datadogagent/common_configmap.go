@@ -7,6 +7,7 @@ package datadogagent
 
 import (
 	"context"
+	"fmt"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
@@ -14,9 +15,11 @@ import (
 	"github.com/go-logr/logr"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/yaml"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -120,4 +123,34 @@ func (r *ReconcileDatadogAgent) cleanupConfigMap(logger logr.Logger, dda *datado
 	event := buildEventInfo(configmap.Name, configmap.Namespace, configMapKind, datadog.DeletionEvent)
 	r.recordEvent(dda, event)
 	return reconcile.Result{}, r.client.Delete(context.TODO(), configmap)
+}
+
+func buildConfigurationConfigMap(dda *datadoghqv1alpha1.DatadogAgent, cfcm *datadoghqv1alpha1.CustomConfigSpec, configMapName, subPath string) (*corev1.ConfigMap, error) {
+	if cfcm == nil || cfcm.ConfigData == nil {
+		return nil, nil
+	}
+	configData := *cfcm.ConfigData
+	if configData == "" {
+		return nil, nil
+	}
+
+	// Validate that user input is valid YAML
+	// Maybe later we can implement that directly verifies against Agent configuration?
+	m := make(map[interface{}]interface{})
+	if err := yaml.Unmarshal([]byte(configData), m); err != nil {
+		return nil, fmt.Errorf("unable to parse YAML from 'customConfig.ConfigData' field: %v", err)
+	}
+
+	configMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        configMapName,
+			Namespace:   dda.Namespace,
+			Labels:      getDefaultLabels(dda, dda.Name, getAgentVersion(dda)),
+			Annotations: getDefaultAnnotations(dda),
+		},
+		Data: map[string]string{
+			subPath: configData,
+		},
+	}
+	return configMap, nil
 }
