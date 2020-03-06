@@ -226,6 +226,10 @@ func defaultEnvVars() []corev1.EnvVar {
 			Name:  "DD_CRI_SOCKET_PATH",
 			Value: "/host/var/run/docker.sock",
 		},
+		{
+			Name:  "DOCKER_HOST",
+			Value: "unix:///host/var/run/docker.sock",
+		},
 	}
 }
 

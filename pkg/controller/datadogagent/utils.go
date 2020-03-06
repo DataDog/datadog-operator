@@ -11,6 +11,7 @@ import (
 	"math/rand"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
@@ -542,6 +543,13 @@ func getEnvVarsForAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.EnvVar, e
 			Name:  datadoghqv1alpha1.DDCriSocketPath,
 			Value: filepath.Join(datadoghqv1alpha1.HostCriSocketPathPrefix, *dda.Spec.Agent.Config.CriSocket.CriSocketPath),
 		})
+
+		if strings.HasSuffix(*dda.Spec.Agent.Config.CriSocket.CriSocketPath, "docker.sock") {
+			envVars = append(envVars, corev1.EnvVar{
+				Name:  datadoghqv1alpha1.DockerHost,
+				Value: "unix://" + filepath.Join(datadoghqv1alpha1.HostCriSocketPathPrefix, *dda.Spec.Agent.Config.CriSocket.CriSocketPath),
+			})
+		}
 	}
 
 	return append(envVars, spec.Agent.Config.Env...), nil
