@@ -16,9 +16,9 @@ spec:
         app.kubernetes.io/name: {{ include "datadog-operator.name" . }}
         app.kubernetes.io/instance: {{ .Release.Name }}
       annotations:
-        ad.datadoghq.com/datadog-operator.check_names: '["openmetrics"]'
-        ad.datadoghq.com/datadog-operator.init_configs: '[{}]'
-        ad.datadoghq.com/datadog-operator.instances: |
+        ad.datadoghq.com/{{ .Chart.Name }}.check_names: '["openmetrics"]'
+        ad.datadoghq.com/{{ .Chart.Name }}.init_configs: '[{}]'
+        ad.datadoghq.com/{{ .Chart.Name }}.instances: |
           [{
             "prometheus_url": "http://%%host%%:8383/metrics",
             "namespace": "datadog.operator",
@@ -52,10 +52,16 @@ spec:
             - name: metrics
               containerPort: 8383
               protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            periodSeconds: 10
           livenessProbe:
             httpGet:
-              path: /metrics
-              port: metrics
+              path: /live
+              port: 8080
+            periodSeconds: 10
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       {{- with .Values.nodeSelector }}

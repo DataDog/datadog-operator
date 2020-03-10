@@ -9,16 +9,18 @@ require (
 	github.com/go-openapi/spec v0.19.2
 	github.com/google/go-cmp v0.3.0
 	github.com/hako/durafmt v0.0.0-20191009132224-3f39dc1ed9f4
+	github.com/heptiolabs/healthcheck v0.0.0-20180807145615-6ff867650f40
 	github.com/mholt/archiver v3.1.1+incompatible
 	github.com/nwaples/rardecode v1.0.0 // indirect
 	github.com/olekukonko/tablewriter v0.0.2
 	github.com/operator-framework/operator-sdk v0.13.0
+	github.com/pierrec/lz4 v2.4.1+incompatible // indirect
 	github.com/spf13/cobra v0.0.5
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.4.0
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
 	github.com/zorkian/go-datadog-api v2.25.0+incompatible
-	google.golang.org/appengine v1.5.0
+	gopkg.in/DATA-DOG/go-sqlmock.v1 v1.3.0 // indirect
 	gopkg.in/yaml.v2 v2.2.4
 	k8s.io/api v0.0.0
 	k8s.io/apimachinery v0.0.0

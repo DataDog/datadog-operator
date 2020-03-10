@@ -65,6 +65,7 @@ core,"github.com/gregjones/httpcache/diskcache",MIT
 core,"github.com/hako/durafmt",MIT
 core,"github.com/hashicorp/golang-lru",MPL-2.0
 core,"github.com/hashicorp/golang-lru/simplelru",MPL-2.0
+core,"github.com/heptiolabs/healthcheck",Apache-2.0
 core,"github.com/imdario/mergo",NewBSD
 core,"github.com/inconshreveable/mousetrap",Apache-2.0
 core,"github.com/joho/godotenv",MIT
