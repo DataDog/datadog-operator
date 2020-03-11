@@ -5,8 +5,6 @@
 [![codecov](https://codecov.io/gh/datadog/datadog-operator/branch/master/graph/badge.svg)](https://codecov.io/gh/datadog/datadog-operator)
 
 > **!!! Alpha version !!!**
->
-> Please don't use it yet in production.
 
 ## Overview
 
