@@ -9,7 +9,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
@@ -42,6 +44,10 @@ func newAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent, select
 	labels[datadoghqv1alpha1.AgentDeploymentNameLabelKey] = agentdeployment.Name
 	labels[datadoghqv1alpha1.AgentDeploymentComponentLabelKey] = "agent"
 
+	for key, val := range agentdeployment.Spec.Agent.AdditionalLabels {
+		labels[key] = val
+	}
+
 	if selector != nil {
 		for key, val := range selector.MatchLabels {
 			labels[key] = val
@@ -52,6 +58,10 @@ func newAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent, select
 	if isSystemProbeEnabled(agentdeployment) {
 		annotations["container.apparmor.security.beta.kubernetes.io/system-probe"] = getAppArmorProfileName(&agentdeployment.Spec.Agent.SystemProbe)
 		annotations["container.seccomp.security.alpha.kubernetes.io/system-probe"] = "localhost/system-probe"
+	}
+
+	for key, val := range agentdeployment.Spec.Agent.AdditionalAnnotations {
+		annotations[key] = val
 	}
 
 	containers := []corev1.Container{}
@@ -108,6 +118,11 @@ func newAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent, select
 			Containers:         containers,
 			Volumes:            getVolumesForAgent(agentdeployment),
 			Tolerations:        agentdeployment.Spec.Agent.Config.Tolerations,
+			PriorityClassName:  agentdeployment.Spec.Agent.PriorityClassName,
+			HostNetwork:        agentdeployment.Spec.Agent.HostNetwork,
+			HostPID:            agentdeployment.Spec.Agent.HostPID,
+			DNSPolicy:          agentdeployment.Spec.Agent.DNSPolicy,
+			DNSConfig:          agentdeployment.Spec.Agent.DNSConfig,
 		},
 	}, nil
 }
@@ -253,6 +268,9 @@ func getSystemProbeContainers(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.Con
 		},
 		Env:          systemProbeEnvVars,
 		VolumeMounts: getVolumeMountsForSystemProbe(),
+	}
+	if agentSpec.SystemProbe.SecurityContext != nil {
+		systemProbe.SecurityContext = agentSpec.SystemProbe.SecurityContext.DeepCopy()
 	}
 	if agentSpec.SystemProbe.Resources != nil {
 		systemProbe.Resources = *agentSpec.SystemProbe.Resources
@@ -523,8 +541,15 @@ func getEnvVarsForAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.EnvVar, e
 	if dda.Spec.Agent.Config.CriSocket != nil && dda.Spec.Agent.Config.CriSocket.CriSocketPath != nil {
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  datadoghqv1alpha1.DDCriSocketPath,
-			Value: *dda.Spec.Agent.Config.CriSocket.CriSocketPath,
+			Value: filepath.Join(datadoghqv1alpha1.HostCriSocketPathPrefix, *dda.Spec.Agent.Config.CriSocket.CriSocketPath),
 		})
+
+		if strings.HasSuffix(*dda.Spec.Agent.Config.CriSocket.CriSocketPath, "docker.sock") {
+			envVars = append(envVars, corev1.EnvVar{
+				Name:  datadoghqv1alpha1.DockerHost,
+				Value: "unix://" + filepath.Join(datadoghqv1alpha1.HostCriSocketPathPrefix, *dda.Spec.Agent.Config.CriSocket.CriSocketPath),
+			})
+		}
 	}
 
 	return append(envVars, spec.Agent.Config.Env...), nil
@@ -535,11 +560,11 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 	confdVolumeSource := corev1.VolumeSource{
 		EmptyDir: &corev1.EmptyDirVolumeSource{},
 	}
-	if dda.Spec.Agent.Confd != nil {
+	if dda.Spec.Agent.Config.Confd != nil {
 		confdVolumeSource = corev1.VolumeSource{
 			ConfigMap: &corev1.ConfigMapVolumeSource{
 				LocalObjectReference: corev1.LocalObjectReference{
-					Name: dda.Spec.Agent.Confd.ConfigMapName,
+					Name: dda.Spec.Agent.Config.Confd.ConfigMapName,
 				},
 			},
 		}
@@ -547,11 +572,11 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 	checksdVolumeSource := corev1.VolumeSource{
 		EmptyDir: &corev1.EmptyDirVolumeSource{},
 	}
-	if dda.Spec.Agent.Checksd != nil {
+	if dda.Spec.Agent.Config.Checksd != nil {
 		checksdVolumeSource = corev1.VolumeSource{
 			ConfigMap: &corev1.ConfigMapVolumeSource{
 				LocalObjectReference: corev1.LocalObjectReference{
-					Name: dda.Spec.Agent.Checksd.ConfigMapName,
+					Name: dda.Spec.Agent.Config.Checksd.ConfigMapName,
 				},
 			},
 		}
@@ -589,29 +614,22 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 			},
 		},
 	}
-	if dda.Spec.Agent.CustomConfig != "" {
-		customConfigVolumeSource := corev1.Volume{
-			Name: datadoghqv1alpha1.AgentCustomConfigVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: &corev1.ConfigMapVolumeSource{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: getAgentCustomConfigConfigMapName(dda),
-					},
-				},
-			},
-		}
-		volumes = append(volumes, customConfigVolumeSource)
+
+	if dda.Spec.Agent.CustomConfig != nil {
+		volume := getVolumeFromCustomConfigSpec(dda.Spec.Agent.CustomConfig, getAgentCustomConfigConfigMapName(dda), datadoghqv1alpha1.AgentCustomConfigVolumeName)
+		volumes = append(volumes, volume)
 	}
+
 	if dda.Spec.Agent.Config.CriSocket != nil && dda.Spec.Agent.Config.CriSocket.UseCriSocketVolume != nil && *dda.Spec.Agent.Config.CriSocket.UseCriSocketVolume {
 		path := "/var/run/docker.sock"
 		if dda.Spec.Agent.Config.CriSocket.CriSocketPath != nil {
 			path = *dda.Spec.Agent.Config.CriSocket.CriSocketPath
 		}
 		criVolume := corev1.Volume{
-			Name: datadoghqv1alpha1.CriSockerVolumeName,
+			Name: datadoghqv1alpha1.CriSocketVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: path,
+					Path: filepath.Dir(path),
 				},
 			},
 		}
@@ -724,6 +742,38 @@ func getAppArmorProfileName(spec *datadoghqv1alpha1.SystemProbeSpec) string {
 	return datadoghqv1alpha1.DefaultAppArmorProfileName
 }
 
+func getVolumeFromCustomConfigSpec(cfcm *datadoghqv1alpha1.CustomConfigSpec, defaultConfigMapName, volumeName string) corev1.Volume {
+	configMapName := defaultConfigMapName
+	if cfcm.ConfigMap != nil {
+		configMapName = cfcm.ConfigMap.Name
+	}
+
+	return corev1.Volume{
+		Name: volumeName,
+		VolumeSource: corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: configMapName,
+				},
+			},
+		},
+	}
+}
+
+func getVolumeMountFromCustomConfigSpec(cfcm *datadoghqv1alpha1.CustomConfigSpec, volumeName, volumePath, defaultSubPath string) corev1.VolumeMount {
+	subPath := defaultSubPath
+	if cfcm.ConfigMap != nil && cfcm.ConfigMap.FileKey != "" {
+		subPath = cfcm.ConfigMap.FileKey
+	}
+
+	return corev1.VolumeMount{
+		Name:      volumeName,
+		MountPath: volumePath,
+		SubPath:   subPath,
+		ReadOnly:  true,
+	}
+}
+
 // getVolumeMountsForAgent defines mounted volumes for the Agent
 func getVolumeMountsForAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []corev1.VolumeMount {
 	// Default mounted volumes
@@ -755,20 +805,16 @@ func getVolumeMountsForAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []corev1.
 	}
 
 	// Custom config (datadog.yaml) volume
-	if spec.Agent.CustomConfig != "" {
-		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      datadoghqv1alpha1.AgentCustomConfigVolumeName,
-			MountPath: datadoghqv1alpha1.AgentCustomConfigVolumePath,
-			SubPath:   datadoghqv1alpha1.AgentCustomConfigVolumeSubPath,
-			ReadOnly:  true,
-		})
+	if spec.Agent.CustomConfig != nil {
+		volumeMount := getVolumeMountFromCustomConfigSpec(spec.Agent.CustomConfig, datadoghqv1alpha1.AgentCustomConfigVolumeName, datadoghqv1alpha1.AgentCustomConfigVolumePath, datadoghqv1alpha1.AgentCustomConfigVolumeSubPath)
+		volumeMounts = append(volumeMounts, volumeMount)
 	}
 
 	// Cri socket volume
 	if *spec.Agent.Config.CriSocket.UseCriSocketVolume {
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      datadoghqv1alpha1.CriSockerVolumeName,
-			MountPath: *spec.Agent.Config.CriSocket.CriSocketPath,
+			Name:      datadoghqv1alpha1.CriSocketVolumeName,
+			MountPath: filepath.Join(datadoghqv1alpha1.HostCriSocketPathPrefix, filepath.Dir(*spec.Agent.Config.CriSocket.CriSocketPath)),
 			ReadOnly:  true,
 		})
 	}
@@ -831,8 +877,8 @@ func getVolumeMountsForProcessAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []
 	// Cri socket volume
 	if *spec.Agent.Config.CriSocket.UseCriSocketVolume {
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      datadoghqv1alpha1.CriSockerVolumeName,
-			MountPath: *spec.Agent.Config.CriSocket.CriSocketPath,
+			Name:      datadoghqv1alpha1.CriSocketVolumeName,
+			MountPath: filepath.Join(datadoghqv1alpha1.HostCriSocketPathPrefix, filepath.Dir(*spec.Agent.Config.CriSocket.CriSocketPath)),
 			ReadOnly:  true,
 		})
 	}

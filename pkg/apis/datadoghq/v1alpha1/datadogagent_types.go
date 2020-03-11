@@ -100,6 +100,44 @@ type DatadogAgentSpecAgentSpec struct {
 	// Update strategy configuration for the DaemonSet
 	DeploymentStrategy *DaemonSetDeploymentStrategy `json:"deploymentStrategy,omitempty"`
 
+	// AdditionalAnnotations provide annotations that will be added to the Agent Pods.
+	AdditionalAnnotations map[string]string `json:"additionalAnnotations,omitempty"`
+
+	// AdditionalLabels provide labels that will be added to the cluster checks runner Pods.
+	AdditionalLabels map[string]string `json:"additionalLabels,omitempty"`
+
+	// If specified, indicates the pod's priority. "system-node-critical" and "system-cluster-critical"
+	// are two special keywords which indicate the highest priorities with the former being the highest priority.
+	// Any other name must be defined by creating a PriorityClass object with that name. If not specified,
+	// the pod priority will be default or zero if there is no default.
+	PriorityClassName string `json:"priorityClassName,omitempty"`
+
+	// Set DNS policy for the pod.
+	// Defaults to "ClusterFirst".
+	// Valid values are 'ClusterFirstWithHostNet', 'ClusterFirst', 'Default' or 'None'.
+	// DNS parameters given in DNSConfig will be merged with the policy selected with DNSPolicy.
+	// To have DNS options set along with hostNetwork, you have to specify DNS policy
+	// explicitly to 'ClusterFirstWithHostNet'.
+	// +optional
+	DNSPolicy corev1.DNSPolicy `json:"dnsPolicy,omitempty" protobuf:"bytes,6,opt,name=dnsPolicy,casttype=DNSPolicy"`
+	// Specifies the DNS parameters of a pod.
+	// Parameters specified here will be merged to the generated DNS
+	// configuration based on DNSPolicy.
+	// +optional
+	DNSConfig *corev1.PodDNSConfig `json:"dnsConfig,omitempty"`
+
+	// Host networking requested for this pod. Use the host's network namespace.
+	// If this option is set, the ports that will be used must be specified.
+	// Default to false.
+	// +k8s:conversion-gen=false
+	// +optional
+	HostNetwork bool `json:"hostNetwork,omitempty"`
+	// Use the host's pid namespace.
+	// Optional: Default to false.
+	// +k8s:conversion-gen=false
+	// +optional
+	HostPID bool `json:"hostPID,omitempty"`
+
 	// Trace Agent configuration
 	// +optional
 	Apm APMSpec `json:"apm,omitempty"`
@@ -116,20 +154,10 @@ type DatadogAgentSpecAgentSpec struct {
 	// +optional
 	SystemProbe SystemProbeSpec `json:"systemProbe,omitempty"`
 
-	// Confd configuration allowing to specify config files for custom checks placed under /etc/datadog-agent/conf.d/.
-	// See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.
-	// +optional
-	Confd *ConfigDirSpec `json:"confd,omitempty"`
-
-	// Checksd configuration allowing to specify custom checks placed under /etc/datadog-agent/checks.d/
-	// See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.
-	// +optional
-	Checksd *ConfigDirSpec `json:"checksd,omitempty"`
-
 	// Allow to put custom configuration for the agent, corresponding to the datadog.yaml config file
 	// See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.
 	// +optional
-	CustomConfig string `json:"customConfig,omitempty"`
+	CustomConfig *CustomConfigSpec `json:"customConfig,omitempty"`
 }
 
 // RbacConfig contains RBAC configuration
@@ -308,6 +336,11 @@ type SystemProbeSpec struct {
 	// Make sure to keep requests and limits equal to keep the pods in the Guaranteed QoS class
 	// Ref: http://kubernetes.io/docs/user-guide/compute-resources/
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
+
+	// You can modify the security context used to run the containers by
+	// modifying the label type
+	// +optional
+	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
 }
 
 // ConfigDirSpec contains config file directory configuration
@@ -315,6 +348,26 @@ type SystemProbeSpec struct {
 type ConfigDirSpec struct {
 	// ConfigMapName name of a ConfigMap used to mount a directory
 	ConfigMapName string `json:"configMapName,omitempty"`
+}
+
+// ConfigFileConfigMapSpec contains configMap information used to store a config file
+// +k8s:openapi-gen=true
+type ConfigFileConfigMapSpec struct {
+	// Name the ConfigMap name
+	Name string `json:"name,omitempty"`
+	// FileKey corresponds to the key used in the ConfigMap.Data to store the configuration file content
+	FileKey string `json:"fileKey,omitempty"`
+}
+
+// CustomConfigSpec Allow to put custom configuration for the agent, corresponding to the datadog-cluster.yaml or datadog.yaml config file
+// the configuration can be provided in the 'configData' field as raw data, or in a configmap thanks to `configMap` field.
+// Important: `configData` and `configMap` can't be set together.
+// +k8s:openapi-gen=true
+type CustomConfigSpec struct {
+	// ConfigData corresponds to the configuration file content
+	ConfigData *string `json:"configData,omitempty"`
+	// ConfigMap name of a ConfigMap used to mount the configuration file
+	ConfigMap *ConfigFileConfigMapSpec `json:"configMap,omitempty"`
 }
 
 // NodeAgentConfig contains the configuration of the Node Agent
@@ -334,6 +387,16 @@ type NodeAgentConfig struct {
 	// Set logging verbosity, valid log levels are:
 	// trace, debug, info, warn, error, critical, and off
 	LogLevel *string `json:"logLevel,omitempty"`
+
+	// Confd configuration allowing to specify config files for custom checks placed under /etc/datadog-agent/conf.d/.
+	// See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.
+	// +optional
+	Confd *ConfigDirSpec `json:"confd,omitempty"`
+
+	// Checksd configuration allowing to specify custom checks placed under /etc/datadog-agent/checks.d/
+	// See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.
+	// +optional
+	Checksd *ConfigDirSpec `json:"checksd,omitempty"`
 
 	// Provide a mapping of Kubernetes Labels to Datadog Tags.
 	// <KUBERNETES_LABEL>: <DATADOG_TAG_KEY>
@@ -433,11 +496,27 @@ type DatadogAgentSpecClusterAgentSpec struct {
 	// Cluster Agent configuration
 	Config ClusterAgentConfig `json:"config,omitempty"`
 
+	// Allow to put custom configuration for the agent, corresponding to the datadog-cluster.yaml config file
+	// +optional
+	CustomConfig *CustomConfigSpec `json:"customConfig,omitempty"`
+
 	// RBAC configuration of the Datadog Cluster Agent
 	Rbac RbacConfig `json:"rbac,omitempty"`
 
 	// Number of the Cluster Agent replicas
 	Replicas *int32 `json:"replicas,omitempty"`
+
+	// AdditionalAnnotations provide annotations that will be added to the cluster-agent Pods.
+	AdditionalAnnotations map[string]string `json:"additionalAnnotations,omitempty"`
+
+	// AdditionalLabels provide labels that will be added to the cluster checks runner Pods.
+	AdditionalLabels map[string]string `json:"additionalLabels,omitempty"`
+
+	// If specified, indicates the pod's priority. "system-node-critical" and "system-cluster-critical"
+	// are two special keywords which indicate the highest priorities with the former being the highest priority.
+	// Any other name must be defined by creating a PriorityClass object with that name. If not specified,
+	// the pod priority will be default or zero if there is no default.
+	PriorityClassName string `json:"priorityClassName,omitempty"`
 
 	// If specified, the pod's scheduling constraints
 	// +optional
@@ -477,6 +556,18 @@ type ClusterAgentConfig struct {
 	// Datadog cluster-agent resource requests and limits
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
 
+	// Confd Provide additional cluster check configurations. Each key will become a file in /conf.d
+	// see https://docs.datadoghq.com/agent/autodiscovery/ for more details.
+	// +optional
+	Confd *ConfigDirSpec `json:"confd,omitempty"`
+
+	// The Datadog Agent supports many environment variables
+	// Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables
+	//
+	// +optional
+	// +listType=set
+	Env []corev1.EnvVar `json:"env,omitempty"`
+
 	// Specify additional volume mounts in the Datadog Cluster Agent container
 	// +optional
 	// +listType=set
@@ -493,9 +584,27 @@ type ClusterAgentConfig struct {
 type ClusterChecksRunnerConfig struct {
 	// Datadog Cluster Checks Runner resource requests and limits
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
+
 	// Set logging verbosity, valid log levels are:
 	// trace, debug, info, warn, error, critical, and off
 	LogLevel *string `json:"logLevel,omitempty"`
+
+	// The Datadog Agent supports many environment variables
+	// Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables
+	//
+	// +optional
+	// +listType=set
+	Env []corev1.EnvVar `json:"env,omitempty"`
+
+	// Specify additional volume mounts in the Datadog Cluster Agent container
+	// +optional
+	// +listType=set
+	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
+
+	// Specify additional volumes in the Datadog Cluster Agent container
+	// +optional
+	// +listType=set
+	Volumes []corev1.Volume `json:"volumes,omitempty"`
 }
 
 // DatadogAgentSpecClusterChecksRunnerSpec defines the desired state of the Cluster Checks Runner
@@ -511,11 +620,28 @@ type DatadogAgentSpecClusterChecksRunnerSpec struct {
 	// Agent configuration
 	Config ClusterChecksRunnerConfig `json:"config,omitempty"`
 
+	// Allow to put custom configuration for the agent, corresponding to the datadog.yaml config file
+	// See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.
+	// +optional
+	CustomConfig *CustomConfigSpec `json:"customConfig,omitempty"`
+
 	// RBAC configuration of the Datadog Cluster Checks Runner
 	Rbac RbacConfig `json:"rbac,omitempty"`
 
 	// Number of the Cluster Agent replicas
 	Replicas *int32 `json:"replicas,omitempty"`
+
+	// AdditionalAnnotations provide annotations that will be added to the cluster checks runner Pods.
+	AdditionalAnnotations map[string]string `json:"additionalAnnotations,omitempty"`
+
+	// AdditionalLabels provide labels that will be added to the cluster checks runner Pods.
+	AdditionalLabels map[string]string `json:"additionalLabels,omitempty"`
+
+	// If specified, indicates the pod's priority. "system-node-critical" and "system-cluster-critical"
+	// are two special keywords which indicate the highest priorities with the former being the highest priority.
+	// Any other name must be defined by creating a PriorityClass object with that name. If not specified,
+	// the pod priority will be default or zero if there is no default.
+	PriorityClassName string `json:"priorityClassName,omitempty"`
 
 	// If specified, the pod's scheduling constraints
 	// +optional

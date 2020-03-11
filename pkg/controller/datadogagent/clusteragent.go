@@ -214,6 +214,11 @@ func (r *ReconcileDatadogAgent) manageClusterAgentDependencies(logger logr.Logge
 		return result, err
 	}
 
+	result, err = r.manageConfigMap(logger, dda, getClusterAgentCustomConfigConfigMapName(dda), buildClusterAgentConfigurationConfigMap)
+	if shouldReturn(result, err) {
+		return result, err
+	}
+
 	result, err = r.manageClusterAgentService(logger, dda)
 	if shouldReturn(result, err) {
 		return result, err
@@ -235,6 +240,13 @@ func (r *ReconcileDatadogAgent) manageClusterAgentDependencies(logger logr.Logge
 	}
 
 	return reconcile.Result{}, nil
+}
+
+func buildClusterAgentConfigurationConfigMap(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.ConfigMap, error) {
+	if dda.Spec.ClusterAgent == nil {
+		return nil, nil
+	}
+	return buildConfigurationConfigMap(dda, dda.Spec.ClusterAgent.CustomConfig, getClusterAgentCustomConfigConfigMapName(dda), datadoghqv1alpha1.ClusterAgentCustomConfigVolumeSubPath)
 }
 
 func (r *ReconcileDatadogAgent) cleanupClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
@@ -265,33 +277,83 @@ func newClusterAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent,
 	// copy Spec to configure the Cluster Agent Pod Template
 	clusterAgentSpec := agentdeployment.Spec.ClusterAgent.DeepCopy()
 
+	// confd volumes configuration
+	confdVolumeSource := corev1.VolumeSource{
+		EmptyDir: &corev1.EmptyDirVolumeSource{},
+	}
+	if agentdeployment.Spec.ClusterAgent.Config.Confd != nil {
+		confdVolumeSource = corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: agentdeployment.Spec.ClusterAgent.Config.Confd.ConfigMapName,
+				},
+			},
+		}
+	}
+	volumes := []corev1.Volume{
+		{
+			Name:         datadoghqv1alpha1.ConfdVolumeName,
+			VolumeSource: confdVolumeSource,
+		},
+	}
+	volumeMounts := []corev1.VolumeMount{
+		{
+			Name:      datadoghqv1alpha1.ConfdVolumeName,
+			MountPath: datadoghqv1alpha1.ConfdVolumePath,
+			ReadOnly:  true,
+		},
+	}
+
+	if agentdeployment.Spec.ClusterAgent.CustomConfig != nil {
+		customConfigVolumeSource := getVolumeFromCustomConfigSpec(
+			agentdeployment.Spec.ClusterAgent.CustomConfig,
+			getClusterAgentCustomConfigConfigMapName(agentdeployment),
+			datadoghqv1alpha1.AgentCustomConfigVolumeName)
+		volumes = append(volumes, customConfigVolumeSource)
+
+		// Custom config (datadog-cluster.yaml) volume
+		volumeMount := getVolumeMountFromCustomConfigSpec(
+			agentdeployment.Spec.ClusterAgent.CustomConfig,
+			datadoghqv1alpha1.ClusterAgentCustomConfigVolumeName,
+			datadoghqv1alpha1.ClusterAgentCustomConfigVolumePath,
+			datadoghqv1alpha1.ClusterAgentCustomConfigVolumeSubPath)
+		volumeMounts = append(volumeMounts, volumeMount)
+	}
+
+	// Add other volumes
+	volumes = append(volumes, agentdeployment.Spec.ClusterAgent.Config.Volumes...)
+	volumeMounts = append(volumeMounts, agentdeployment.Spec.ClusterAgent.Config.VolumeMounts...)
+
+	podSpec := corev1.PodSpec{
+		ServiceAccountName: getClusterAgentServiceAccount(agentdeployment),
+		Containers: []corev1.Container{
+			{
+				Name:            "cluster-agent",
+				Image:           clusterAgentSpec.Image.Name,
+				ImagePullPolicy: *clusterAgentSpec.Image.PullPolicy,
+				Ports: []corev1.ContainerPort{
+					{
+						ContainerPort: 5005,
+						Name:          "agentport",
+						Protocol:      "TCP",
+					},
+				},
+				Env:          getEnvVarsForClusterAgent(agentdeployment),
+				VolumeMounts: volumeMounts,
+			},
+		},
+		Affinity:          getPodAffinity(clusterAgentSpec.Affinity, getClusterAgentName(agentdeployment)),
+		Tolerations:       clusterAgentSpec.Tolerations,
+		PriorityClassName: agentdeployment.Spec.ClusterAgent.PriorityClassName,
+		Volumes:           volumes,
+	}
+
 	newPodTemplate := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels:      make(map[string]string),
 			Annotations: make(map[string]string),
 		},
-		Spec: corev1.PodSpec{
-			ServiceAccountName: getClusterAgentServiceAccount(agentdeployment),
-			Containers: []corev1.Container{
-				{
-					Name:            "cluster-agent",
-					Image:           clusterAgentSpec.Image.Name,
-					ImagePullPolicy: *clusterAgentSpec.Image.PullPolicy,
-					Ports: []corev1.ContainerPort{
-						{
-							ContainerPort: 5005,
-							Name:          "agentport",
-							Protocol:      "TCP",
-						},
-					},
-					Env:          getEnvVarsForClusterAgent(agentdeployment),
-					VolumeMounts: agentdeployment.Spec.ClusterAgent.Config.VolumeMounts,
-				},
-			},
-			Affinity:    getPodAffinity(clusterAgentSpec.Affinity, getClusterAgentName(agentdeployment)),
-			Tolerations: clusterAgentSpec.Tolerations,
-			Volumes:     agentdeployment.Spec.ClusterAgent.Config.Volumes,
-		},
+		Spec: podSpec,
 	}
 
 	for key, val := range labels {
@@ -299,6 +361,14 @@ func newClusterAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent,
 	}
 
 	for key, val := range annotations {
+		newPodTemplate.Annotations[key] = val
+	}
+
+	for key, val := range agentdeployment.Spec.ClusterAgent.AdditionalLabels {
+		newPodTemplate.Labels[key] = val
+	}
+
+	for key, val := range agentdeployment.Spec.ClusterAgent.AdditionalAnnotations {
 		newPodTemplate.Annotations[key] = val
 	}
 
@@ -331,6 +401,10 @@ func newClusterAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent,
 	}
 
 	return newPodTemplate
+}
+
+func getClusterAgentCustomConfigConfigMapName(dda *datadoghqv1alpha1.DatadogAgent) string {
+	return fmt.Sprintf("%s-cluster-datadog-yaml", dda.Name)
 }
 
 // getEnvVarsForClusterAgent converts Cluster Agent Config into container env vars
@@ -423,7 +497,7 @@ func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Env
 			},
 		}...)
 	}
-	return append(envVars, spec.Agent.Config.Env...)
+	return append(envVars, spec.ClusterAgent.Config.Env...)
 }
 
 func getClusterAgentName(dda *datadoghqv1alpha1.DatadogAgent) string {

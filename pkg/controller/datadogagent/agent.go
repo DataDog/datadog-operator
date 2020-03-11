@@ -18,7 +18,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/yaml"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
@@ -379,28 +378,5 @@ func getAgentCustomConfigConfigMapName(dda *datadoghqv1alpha1.DatadogAgent) stri
 }
 
 func buildAgentConfigurationConfigMap(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.ConfigMap, error) {
-	if dda.Spec.Agent.CustomConfig == "" {
-		return nil, nil
-	}
-
-	// Validate that user input is valid YAML
-	// Maybe later we can implement that directly verifies against Agent configuration?
-	m := make(map[interface{}]interface{})
-	if err := yaml.Unmarshal([]byte(dda.Spec.Agent.CustomConfig), m); err != nil {
-		return nil, fmt.Errorf("unable to parse YAML from 'Agent.CustomConfig' field: %w", err)
-	}
-
-	configMap := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        getAgentCustomConfigConfigMapName(dda),
-			Namespace:   dda.Namespace,
-			Labels:      getDefaultLabels(dda, dda.Name, getAgentVersion(dda)),
-			Annotations: getDefaultAnnotations(dda),
-		},
-		Data: map[string]string{
-			datadoghqv1alpha1.AgentCustomConfigVolumeSubPath: dda.Spec.Agent.CustomConfig,
-		},
-	}
-
-	return configMap, nil
+	return buildConfigurationConfigMap(dda, dda.Spec.Agent.CustomConfig, getAgentCustomConfigConfigMapName(dda), datadoghqv1alpha1.AgentCustomConfigVolumeSubPath)
 }

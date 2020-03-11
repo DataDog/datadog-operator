@@ -26,29 +26,33 @@ var (
 
 // NewDatadogAgentOptions set of option for the DatadogAgent creation
 type NewDatadogAgentOptions struct {
-	Labels                     map[string]string
-	Annotations                map[string]string
-	Status                     *datadoghqv1alpha1.DatadogAgentStatus
-	UseEDS                     bool
-	ClusterAgentEnabled        bool
-	MetricsServerEnabled       bool
-	MetricsServerPort          int32
-	ClusterChecksRunnerEnabled bool
-	NodeAgentConfig            *datadoghqv1alpha1.NodeAgentConfig
-	APMEnabled                 bool
-	ProcessEnabled             bool
-	SystemProbeEnabled         bool
-	Creds                      *datadoghqv1alpha1.AgentCredentials
-	ClusterName                *string
-	Confd                      *datadoghqv1alpha1.ConfigDirSpec
-	Checksd                    *datadoghqv1alpha1.ConfigDirSpec
-	Volumes                    []corev1.Volume
-	VolumeMounts               []corev1.VolumeMount
-	ClusterAgentVolumes        []corev1.Volume
-	ClusterAgentVolumeMounts   []corev1.VolumeMount
-	CustomConfig               string
-	AgentDaemonsetName         string
-	ClusterAgentDeploymentName string
+	Labels                          map[string]string
+	Annotations                     map[string]string
+	Status                          *datadoghqv1alpha1.DatadogAgentStatus
+	UseEDS                          bool
+	ClusterAgentEnabled             bool
+	MetricsServerEnabled            bool
+	MetricsServerPort               int32
+	ClusterChecksRunnerEnabled      bool
+	NodeAgentConfig                 *datadoghqv1alpha1.NodeAgentConfig
+	APMEnabled                      bool
+	ProcessEnabled                  bool
+	SystemProbeEnabled              bool
+	Creds                           *datadoghqv1alpha1.AgentCredentials
+	ClusterName                     *string
+	Confd                           *datadoghqv1alpha1.ConfigDirSpec
+	Checksd                         *datadoghqv1alpha1.ConfigDirSpec
+	Volumes                         []corev1.Volume
+	VolumeMounts                    []corev1.VolumeMount
+	ClusterAgentVolumes             []corev1.Volume
+	ClusterAgentVolumeMounts        []corev1.VolumeMount
+	ClusterAgentEnvVars             []corev1.EnvVar
+	CustomConfig                    string
+	AgentDaemonsetName              string
+	ClusterAgentDeploymentName      string
+	ClusterChecksRunnerVolumes      []corev1.Volume
+	ClusterChecksRunnerVolumeMounts []corev1.VolumeMount
+	ClusterChecksRunnerEnvVars      []corev1.EnvVar
 }
 
 // NewDefaultedDatadogAgent returns an initialized and defaulted DatadogAgent for testing purpose
@@ -132,6 +136,27 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 			if len(options.ClusterAgentVolumeMounts) != 0 {
 				ad.Spec.ClusterAgent.Config.VolumeMounts = options.ClusterAgentVolumeMounts
 			}
+			if len(options.ClusterAgentEnvVars) != 0 {
+				ad.Spec.ClusterAgent.Config.Env = options.ClusterAgentEnvVars
+			}
+		}
+
+		if options.ClusterChecksRunnerEnabled {
+			ad.Spec.ClusterChecksRunner = &datadoghqv1alpha1.DatadogAgentSpecClusterChecksRunnerSpec{
+				Config: datadoghqv1alpha1.ClusterChecksRunnerConfig{},
+				Rbac: datadoghqv1alpha1.RbacConfig{
+					Create: datadoghqv1alpha1.NewBoolPointer(true),
+				},
+			}
+			if len(options.ClusterChecksRunnerEnvVars) != 0 {
+				ad.Spec.ClusterChecksRunner.Config.Env = options.ClusterChecksRunnerEnvVars
+			}
+			if len(options.ClusterChecksRunnerVolumes) != 0 {
+				ad.Spec.ClusterChecksRunner.Config.VolumeMounts = options.ClusterChecksRunnerVolumeMounts
+			}
+			if len(options.ClusterChecksRunnerVolumes) != 0 {
+				ad.Spec.ClusterChecksRunner.Config.Volumes = options.ClusterChecksRunnerVolumes
+			}
 		}
 
 		if options.NodeAgentConfig != nil {
@@ -159,15 +184,17 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 		}
 
 		if options.Confd != nil {
-			ad.Spec.Agent.Confd = options.Confd
+			ad.Spec.Agent.Config.Confd = options.Confd
 		}
 
 		if options.Checksd != nil {
-			ad.Spec.Agent.Checksd = options.Checksd
+			ad.Spec.Agent.Config.Checksd = options.Checksd
 		}
 
 		if options.CustomConfig != "" {
-			ad.Spec.Agent.CustomConfig = options.CustomConfig
+			ad.Spec.Agent.CustomConfig = &datadoghqv1alpha1.CustomConfigSpec{
+				ConfigData: &options.CustomConfig,
+			}
 		}
 	}
 	return datadoghqv1alpha1.DefaultDatadogAgent(ad)

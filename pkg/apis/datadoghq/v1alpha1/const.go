@@ -56,6 +56,8 @@ const (
 	DDMetricsProviderPort           = "DD_EXTERNAL_METRICS_PROVIDER_PORT"
 	DDAppKey                        = "DD_APP_KEY"
 	DDClusterChecksRunnerEnabled    = "DD_CLUSTER_CHECKS_ENABLED"
+	DDClcRunnerEnabled              = "DD_CLC_RUNNER_ENABLED"
+	DDClcRunnerHost                 = "DD_CLC_RUNNER_HOST"
 	DDExtraConfigProviders          = "DD_EXTRA_CONFIG_PROVIDERS"
 	DDExtraListeners                = "DD_EXTRA_LISTENERS"
 	DDHostname                      = "DD_HOSTNAME"
@@ -65,6 +67,7 @@ const (
 	DDEnableMetadataCollection      = "DD_ENABLE_METADATA_COLLECTION"
 	DDKubeletHost                   = "DD_KUBERNETES_KUBELET_HOST"
 	DDCriSocketPath                 = "DD_CRI_SOCKET_PATH"
+	DockerHost                      = "DOCKER_HOST"
 
 	// KubernetesEnvvarName Env var used by the Datadog Agent container entrypoint
 	// to add kubelet config provider and listener
@@ -88,8 +91,8 @@ const (
 	CgroupsVolumeReadOnly              = true
 	SystemProbeSocketVolumeName        = "sysprobe-socket-dir"
 	SystemProbeSocketVolumePath        = "/opt/datadog-agent/run"
-	CriSockerVolumeName                = "runtimesocket"
-	CriSockerVolumeReadOnly            = true
+	CriSocketVolumeName                = "runtimesocketdir"
+	CriSocketVolumeReadOnly            = true
 	DogstatsdSockerVolumeName          = "dsdsocket"
 	DogstatsdSockerVolumePath          = "/var/run/datadog"
 	PointerVolumeName                  = "pointerdir"
@@ -111,6 +114,11 @@ const (
 	AgentCustomConfigVolumeName        = "custom-datadog-yaml"
 	AgentCustomConfigVolumePath        = "/etc/datadog-agent/datadog.yaml"
 	AgentCustomConfigVolumeSubPath     = "datadog.yaml"
+	HostCriSocketPathPrefix            = "/host"
+
+	ClusterAgentCustomConfigVolumeName    = "custom-datadog-yaml"
+	ClusterAgentCustomConfigVolumePath    = "/etc/datadog-agent/datadog-cluster.yaml"
+	ClusterAgentCustomConfigVolumeSubPath = "datadog-cluster.yaml"
 
 	DefaultSystemProbeSecCompRootPath = "/var/lib/kubelet/seccomp"
 	DefaultAppArmorProfileName        = "unconfined"

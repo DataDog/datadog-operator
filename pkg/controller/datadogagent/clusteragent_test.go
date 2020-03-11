@@ -11,6 +11,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -47,6 +48,15 @@ func clusterAgentDefaultPodSpec() corev1.PodSpec {
 					},
 				},
 				Env: clusterAgentDefaultEnvVars(),
+				VolumeMounts: []corev1.VolumeMount{
+					{Name: "confd", ReadOnly: true, MountPath: "/conf.d"},
+				},
+			},
+		},
+		Volumes: []corev1.Volume{
+			{
+				Name:         "confd",
+				VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}},
 			},
 		},
 	}
@@ -284,6 +294,81 @@ func Test_newClusterAgentDeploymentFromInstance_UserVolumes(t *testing.T) {
 						},
 					},
 					Spec: userMountsPodSpec,
+				},
+				Replicas: &testClusterAgentReplicas,
+				Selector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"agent.datadoghq.com/name":      "foo",
+						"agent.datadoghq.com/component": "cluster-agent",
+					},
+				},
+			},
+		},
+	}
+	test.Run(t)
+}
+
+func Test_newClusterAgentDeploymentFromInstance_EnvVars(t *testing.T) {
+	envVars := []corev1.EnvVar{
+		{
+			Name:  "ExtraEnvVar",
+			Value: "ExtraEnvVarValue",
+		},
+		{
+			Name: "ExtraEnvVarFromSpec",
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: "status.podIP",
+				},
+			},
+		},
+	}
+	podSpec := clusterAgentDefaultPodSpec()
+	podSpec.Containers[0].Env = append(podSpec.Containers[0].Env, envVars...)
+
+	envVarsAgentDeployment := test.NewDefaultedDatadogAgent(
+		"bar",
+		"foo",
+		&test.NewDatadogAgentOptions{
+			ClusterAgentEnabled: true,
+			ClusterAgentEnvVars: envVars,
+		},
+	)
+	envVarsClusterAgentHash, _ := comparison.GenerateMD5ForSpec(envVarsAgentDeployment.Spec.ClusterAgent)
+
+	test := clusterAgentDeploymentFromInstanceTest{
+		name:            "with extra env vars",
+		agentdeployment: envVarsAgentDeployment,
+		newStatus:       &datadoghqv1alpha1.DatadogAgentStatus{},
+		wantErr:         false,
+		want: &appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "bar",
+				Name:      "foo-cluster-agent",
+				Labels: map[string]string{"agent.datadoghq.com/name": "foo",
+					"agent.datadoghq.com/component": "cluster-agent",
+					"app.kubernetes.io/instance":    "cluster-agent",
+					"app.kubernetes.io/managed-by":  "datadog-operator",
+					"app.kubernetes.io/name":        "datadog-agent-deployment",
+					"app.kubernetes.io/part-of":     "foo",
+					"app.kubernetes.io/version":     "",
+				},
+				Annotations: map[string]string{"agent.datadoghq.com/agentspechash": envVarsClusterAgentHash},
+			},
+			Spec: appsv1.DeploymentSpec{
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{
+							"agent.datadoghq.com/name":      "foo",
+							"agent.datadoghq.com/component": "cluster-agent",
+							"app.kubernetes.io/instance":    "cluster-agent",
+							"app.kubernetes.io/managed-by":  "datadog-operator",
+							"app.kubernetes.io/name":        "datadog-agent-deployment",
+							"app.kubernetes.io/part-of":     "foo",
+							"app.kubernetes.io/version":     "",
+						},
+					},
+					Spec: podSpec,
 				},
 				Replicas: &testClusterAgentReplicas,
 				Selector: &metav1.LabelSelector{
