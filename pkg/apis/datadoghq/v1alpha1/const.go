@@ -67,6 +67,7 @@ const (
 	DDEnableMetadataCollection      = "DD_ENABLE_METADATA_COLLECTION"
 	DDKubeletHost                   = "DD_KUBERNETES_KUBELET_HOST"
 	DDCriSocketPath                 = "DD_CRI_SOCKET_PATH"
+	DockerHost                      = "DOCKER_HOST"
 
 	// KubernetesEnvvarName Env var used by the Datadog Agent container entrypoint
 	// to add kubelet config provider and listener
