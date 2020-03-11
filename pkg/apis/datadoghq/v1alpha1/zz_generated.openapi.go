@@ -875,7 +875,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentSpecClusterChecksRunnerSpec(
 				Properties: map[string]spec.Schema{
 					"image": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The container image of the Datadog Cluster Agent",
+							Description: "The container image of the Datadog Cluster Checks Runner",
 							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.ImageConfig"),
 						},
 					},

@@ -5013,7 +5013,7 @@ spec:
                     migrate from
                   type: string
                 image:
-                  description: The container image of the Datadog Cluster Agent
+                  description: The container image of the Datadog Cluster Checks Runner
                   properties:
                     name:
                       description: Define the image to use Use "datadog/agent:latest"

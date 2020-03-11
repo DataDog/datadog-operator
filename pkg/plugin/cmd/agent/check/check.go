@@ -1,7 +1,7 @@
 // Unless explicitly stated otherwise all files in this repository are licensed
 // under the Apache License Version 2.0.
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2016-2019 Datadog, Inc.
+// Copyright 2016-2020 Datadog, Inc.
 
 package check
 
@@ -27,7 +27,7 @@ const maxParallel = 10
 
 var (
 	checkExample = `
-  # check if the running Agents have detected check-config errors
+  # check if the running Agents have detected check errors
   %[1]s check
 `
 )
@@ -55,7 +55,7 @@ func New(streams genericclioptions.IOStreams) *cobra.Command {
 	o := newOptions(streams)
 	cmd := &cobra.Command{
 		Use:          "check [flags]",
-		Short:        "Check check-config errors",
+		Short:        "Find check errors",
 		Example:      fmt.Sprintf(checkExample, "kubectl datadog agent"),
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {
@@ -123,6 +123,7 @@ func (o *options) run() error {
 	if err != nil {
 		return fmt.Errorf("unable to get Agent pods: %v", err)
 	}
+	fmt.Println(fmt.Sprintf("Found %d node Agents and %d Cluster-Check Runners", len(agentPods), len(clcPods)))
 	statusCmd := []string{
 		"bash",
 		"-c",
@@ -192,11 +193,11 @@ func (o *options) execInPod(pod *corev1.Pod, cmd []string) (string, string, erro
 
 	parameterCodec := runtime.NewParameterCodec(scheme)
 	req.VersionedParams(&corev1.PodExecOptions{
-		Command:   cmd,
-		Stdin:     false,
-		Stdout:    true,
-		Stderr:    true,
-		TTY:       false,
+		Command: cmd,
+		Stdin:   false,
+		Stdout:  true,
+		Stderr:  true,
+		TTY:     false,
 	}, parameterCodec)
 
 	exec, err := remotecommand.NewSPDYExecutor(o.restConfig, "POST", req.URL())
@@ -226,9 +227,6 @@ func (o *options) getPods(component string) ([]corev1.Pod, error) {
 	podList, err := o.clientset.CoreV1().Pods(o.userNamespace).List(opts)
 	if err != nil {
 		return []corev1.Pod{}, err
-	}
-	if len(podList.Items) == 0 {
-		return []corev1.Pod{}, fmt.Errorf("no agent pod found. Label selector used: %v", opts.LabelSelector)
 	}
 	return podList.Items, nil
 }
