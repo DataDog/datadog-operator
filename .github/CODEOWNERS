@@ -6,5 +6,5 @@
 *                   @DataDog/container-integrations
 
 # Documentation
-README.md             @DataDog/baklava @DataDog/container-integrations
-/docs/                @DataDog/baklava @DataDog/container-integrations
+README.md             @DataDog/documentation @DataDog/container-integrations
+/docs/                @DataDog/documentation @DataDog/container-integrations
