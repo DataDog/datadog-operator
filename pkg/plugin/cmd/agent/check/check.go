@@ -127,7 +127,7 @@ func (o *options) run() error {
 	statusCmd := []string{
 		"bash",
 		"-c",
-		"curl -s -k -H \"Authorization: Bearer $(< /etc/datadog-agent/auth_token)\" https://127.0.0.1:5001/agent/status",
+		"agent status --json",
 	}
 	podErrors := make(map[string][]string)
 	mutex := &sync.Mutex{}
