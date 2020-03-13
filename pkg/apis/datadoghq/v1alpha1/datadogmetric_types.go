@@ -7,24 +7,15 @@ package v1alpha1
 
 import (
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // DatadogMetricSpec defines the desired state of DatadogMetric
 type DatadogMetricSpec struct {
-	// Name use to provide a Name to the metrics, if not provided, the "DatadogMetric.name"."DatadogMetric.name"
-	// will be used.
-	// +optional
-	Name string `json:"name,omitempty"`
-	// Query the raw datadog query
+	// Query is the raw datadog query
 	Query string `json:"query,omitempty"`
-	// ObjectReference
-	ObjectReference *v1.ObjectReference `json:"objectReference,omitempty"`
+	// ExternalMetricName is reversed for internal use
+	ExternalMetricName string `json:"externalMetricName,omitempty"`
 }
 
 // DatadogMetricStatus defines the observed state of DatadogMetric
@@ -32,8 +23,8 @@ type DatadogMetricStatus struct {
 	// Conditions Represents the latest available observations of a DatadogMetric's current state.
 	// +listType=set
 	Conditions []DatadogMetricCondition `json:"conditions,omitempty"`
-	// CurrentValue is the current value of the metric (as a quantity)
-	CurrentValue resource.Quantity `json:"currentValue"`
+	// Value is the latest value of the metric
+	Value float64 `json:"currentValue"`
 }
 
 // DatadogMetricCondition describes the state of a DatadogMetric at a certain point.
@@ -61,7 +52,7 @@ type DatadogMetricCondition struct {
 type DatadogMetricConditionType string
 
 const (
-	// DatadogMetricConditionTypeActive DatadogMetric is active
+	// DatadogMetricConditionTypeActive DatadogMetric is active (referenced by an HPA), Datadog will only be queried for active metrics
 	DatadogMetricConditionTypeActive DatadogMetricConditionType = "Active"
 	// DatadogMetricConditionTypeUpdated DatadogMetric is updated
 	DatadogMetricConditionTypeUpdated DatadogMetricConditionType = "Updated"
@@ -79,8 +70,9 @@ const (
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:path=datadogmetrics,scope=Namespaced
 // +kubebuilder:printcolumn:name="active",type="string",JSONPath=".status.conditions[?(@.type=='Active')].status"
-// +kubebuilder:printcolumn:name="value",type="string",JSONPath=".status.currentMetrics[*].external.currentValue.."
-// +kubebuilder:printcolumn:name="age",type="date",JSONPath=".metadata.creationTimestamp"
+// +kubebuilder:printcolumn:name="valid",type="string",JSONPath=".status.conditions[?(@.type=='Valid')].status"
+// +kubebuilder:printcolumn:name="value",type="string",JSONPath=".status.currentValue"
+// +kubebuilder:printcolumn:name="update time",type="date",JSONPath=".status.conditions[?(@.type=='Updated')].lastUpdateTime"
 type DatadogMetric struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
