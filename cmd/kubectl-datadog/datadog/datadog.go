@@ -6,12 +6,12 @@
 package datadog
 
 import (
-	"github.com/DataDog/datadog-operator/pkg/plugin/cmd/agent/agent"
-	"github.com/DataDog/datadog-operator/pkg/plugin/cmd/clusteragent/clusteragent"
-	"github.com/DataDog/datadog-operator/pkg/plugin/cmd/flare"
-	"github.com/DataDog/datadog-operator/pkg/plugin/cmd/get"
-	"github.com/spf13/cobra"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/agent/agent"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/clusteragent/clusteragent"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/flare"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/get"
 
+	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
@@ -29,7 +29,7 @@ func newOptions(streams genericclioptions.IOStreams) *options {
 	}
 }
 
-// NewCmd provides a cobra command wrapping options
+// NewCmd provides a cobra command wrapping options for "datadog" command
 func NewCmd(streams genericclioptions.IOStreams) *cobra.Command {
 	cmd := &cobra.Command{
 		Use: "datadog [subcommand] [flags]",

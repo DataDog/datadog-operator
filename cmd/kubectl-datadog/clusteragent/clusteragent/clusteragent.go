@@ -6,10 +6,10 @@
 package clusteragent
 
 import (
-	"github.com/DataDog/datadog-operator/pkg/plugin/cmd/clusteragent/leader"
-	"github.com/DataDog/datadog-operator/pkg/plugin/cmd/clusteragent/upgrade"
-	"github.com/spf13/cobra"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/clusteragent/leader"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/clusteragent/upgrade"
 
+	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
@@ -27,7 +27,7 @@ func newOptions(streams genericclioptions.IOStreams) *options {
 	}
 }
 
-// New provides a cobra command wrapping options
+// New provides a cobra command wrapping options for "clusteragent" sub command
 func New(streams genericclioptions.IOStreams) *cobra.Command {
 	cmd := &cobra.Command{
 		Use: "clusteragent [subcommand] [flags]",

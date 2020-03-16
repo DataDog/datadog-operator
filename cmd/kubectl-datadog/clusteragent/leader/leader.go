@@ -29,10 +29,8 @@ var (
 // options provides information required by clusteragent leader command
 type options struct {
 	genericclioptions.IOStreams
-	configFlags   *genericclioptions.ConfigFlags
-	args          []string
-	client        client.Client
-	userNamespace string
+	common.Options
+	args []string
 }
 
 type leaderResponse struct {
@@ -41,13 +39,14 @@ type leaderResponse struct {
 
 // newOptions provides an instance of options with default values
 func newOptions(streams genericclioptions.IOStreams) *options {
-	return &options{
-		configFlags: genericclioptions.NewConfigFlags(false),
-		IOStreams:   streams,
+	o := &options{
+		IOStreams: streams,
 	}
+	o.SetConfigFlags()
+	return o
 }
 
-// New provides a cobra command wrapping options
+// New provides a cobra command wrapping options for "leader" sub command
 func New(streams genericclioptions.IOStreams) *cobra.Command {
 	o := newOptions(streams)
 	cmd := &cobra.Command{
@@ -62,11 +61,11 @@ func New(streams genericclioptions.IOStreams) *cobra.Command {
 			if err := o.validate(); err != nil {
 				return err
 			}
-			return o.run()
+			return o.run(c)
 		},
 	}
 
-	o.configFlags.AddFlags(cmd.Flags())
+	o.ConfigFlags.AddFlags(cmd.Flags())
 
 	return cmd
 }
@@ -74,31 +73,7 @@ func New(streams genericclioptions.IOStreams) *cobra.Command {
 // complete sets all information required for processing the command
 func (o *options) complete(cmd *cobra.Command, args []string) error {
 	o.args = args
-	var err error
-
-	clientConfig := o.configFlags.ToRawKubeConfigLoader()
-
-	// Create the Client for Read/Write operations.
-	o.client, err = common.NewClient(clientConfig)
-	if err != nil {
-		return fmt.Errorf("unable to instantiate client: %v", err)
-	}
-
-	o.userNamespace, _, err = clientConfig.Namespace()
-	if err != nil {
-		return err
-	}
-
-	ns, err := cmd.Flags().GetString("namespace")
-	if err != nil {
-		return err
-	}
-
-	if ns != "" {
-		o.userNamespace = ns
-	}
-
-	return nil
+	return o.Init(cmd)
 }
 
 // validate ensures that all required arguments and flag values are provided
@@ -107,15 +82,15 @@ func (o *options) validate() error {
 }
 
 // run runs the leader command
-func (o *options) run() error {
+func (o *options) run(cmd *cobra.Command) error {
 	// FIXME: Support multiple leader election config maps
 	cmName := "datadog-leader-election"
 
 	// Get the config map holding the leader identity
 	cm := &corev1.ConfigMap{}
-	err := o.client.Get(context.TODO(), client.ObjectKey{Namespace: o.userNamespace, Name: cmName}, cm)
+	err := o.Client.Get(context.TODO(), client.ObjectKey{Namespace: o.UserNamespace, Name: cmName}, cm)
 	if err != nil && apierrors.IsNotFound(err) {
-		return fmt.Errorf("config map %s/%s not found", o.userNamespace, cmName)
+		return fmt.Errorf("config map %s/%s not found", o.UserNamespace, cmName)
 	} else if err != nil {
 		return fmt.Errorf("unable to get leader election config map: %v", err)
 	}
@@ -131,6 +106,6 @@ func (o *options) run() error {
 		return fmt.Errorf("couldn't unmarshal leader annotation: %v", err)
 	}
 
-	fmt.Println("The Pod name of the Cluster Agent is:", leader.HolderIdentity)
+	cmd.Println("The Pod name of the Cluster Agent is:", leader.HolderIdentity)
 	return nil
 }

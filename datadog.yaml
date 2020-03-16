@@ -12,9 +12,9 @@ spec:
   platforms:
   - uri: https://github.com/DataDog/datadog-operator/releases/download/v0.0.1/datadog-darwin-amd64.zip # TODO
     sha256: # TODO
-    bin: datadog
+    bin: kubectl-datadog
     files:
-    - from: datadog
+    - from: kubectl-datadog
       to: .
     - from: LICENSE
       to: .

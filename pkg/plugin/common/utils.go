@@ -8,9 +8,11 @@ package common
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -63,16 +65,17 @@ func AskForInput(question string) (string, error) {
 
 // HasImagePattern returns true if the image string respects the format <string>/<string>:<string>
 func HasImagePattern(image string) bool {
-	firstSplit := strings.Split(image, "/")
-	if len(firstSplit) != 2 || firstSplit[0] == "" {
-		return false
+	matched, _ := regexp.MatchString(`.+\/.+:.+`, image)
+	return matched
+}
+
+// ValidateUpgrade valides the input of the upgrade commands
+func ValidateUpgrade(image string, latest bool) error {
+	if image != "" && !HasImagePattern(image) {
+		return fmt.Errorf("image %s doesn't respect the format <account>/<repo>:<tag>", image)
 	}
-	secondSplit := strings.Split(firstSplit[1], ":")
-	if len(secondSplit) < 2 {
-		return false
+	if image == "" && !latest {
+		return errors.New("both 'image' and 'latest' flags are missing")
 	}
-	if secondSplit[0] == "" || secondSplit[1] == "" {
-		return false
-	}
-	return true
+	return nil
 }

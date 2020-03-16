@@ -6,10 +6,10 @@
 package agent
 
 import (
-	"github.com/DataDog/datadog-operator/pkg/plugin/cmd/agent/check"
-	"github.com/DataDog/datadog-operator/pkg/plugin/cmd/agent/upgrade"
-	"github.com/spf13/cobra"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/agent/check"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/agent/upgrade"
 
+	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
@@ -27,7 +27,7 @@ func newOptions(streams genericclioptions.IOStreams) *options {
 	}
 }
 
-// New provides a cobra command wrapping options
+// New provides a cobra command wrapping options for "agent" sub command
 func New(streams genericclioptions.IOStreams) *cobra.Command {
 	cmd := &cobra.Command{
 		Use: "agent [subcommand] [flags]",
