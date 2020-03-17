@@ -524,8 +524,9 @@ type NodeAgentConfig struct {
 // CRISocketConfig contains the CRI socket configuration parameters
 // +k8s:openapi-gen=true
 type CRISocketConfig struct {
-	// Enable container runtime socket volume mounting
-	UseCriSocketVolume *bool `json:"useCriSocketVolume,omitempty"`
+	// Path to the docker runtime socket
+	// +optional
+	DockerSocketPath *string `json:"dockerSocketPath,omitempty"`
 
 	// Path to the container runtime socket (if different from Docker)
 	// This is supported starting from agent 6.6.0

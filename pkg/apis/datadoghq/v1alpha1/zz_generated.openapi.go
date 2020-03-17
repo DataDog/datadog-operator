@@ -184,10 +184,10 @@ func schema_pkg_apis_datadoghq_v1alpha1_CRISocketConfig(ref common.ReferenceCall
 				Description: "CRISocketConfig contains the CRI socket configuration parameters",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"useCriSocketVolume": {
+					"dockerSocketPath": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enable container runtime socket volume mounting",
-							Type:        []string{"boolean"},
+							Description: "Path to the docker runtime socket",
+							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
