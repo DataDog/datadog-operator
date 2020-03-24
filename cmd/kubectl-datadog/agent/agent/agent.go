@@ -3,23 +3,23 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-2020 Datadog, Inc.
 
-package datadog
+package agent
 
 import (
-	"github.com/DataDog/datadog-operator/pkg/plugin/flare"
-	"github.com/DataDog/datadog-operator/pkg/plugin/get"
-	"github.com/spf13/cobra"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/agent/check"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/agent/upgrade"
 
+	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
-// options provides information required by Datadog command
+// options provides information required by agent command
 type options struct {
 	genericclioptions.IOStreams
 	configFlags *genericclioptions.ConfigFlags
 }
 
-// newOptions provides an instance of DatadogOptions with default values
+// newOptions provides an instance of options with default values
 func newOptions(streams genericclioptions.IOStreams) *options {
 	return &options{
 		configFlags: genericclioptions.NewConfigFlags(false),
@@ -27,14 +27,14 @@ func newOptions(streams genericclioptions.IOStreams) *options {
 	}
 }
 
-// NewCmd provides a cobra command wrapping DatadogOptions
-func NewCmd(streams genericclioptions.IOStreams) *cobra.Command {
+// New provides a cobra command wrapping options for "agent" sub command
+func New(streams genericclioptions.IOStreams) *cobra.Command {
 	cmd := &cobra.Command{
-		Use: "datadog [subcommand] [flags]",
+		Use: "agent [subcommand] [flags]",
 	}
 
-	cmd.AddCommand(get.New(streams))
-	cmd.AddCommand(flare.New(streams))
+	cmd.AddCommand(upgrade.New(streams))
+	cmd.AddCommand(check.New(streams))
 
 	o := newOptions(streams)
 	o.configFlags.AddFlags(cmd.Flags())

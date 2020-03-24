@@ -1,0 +1,24 @@
+apiVersion: krew.googlecontainertools.github.com/v1alpha2
+kind: Plugin
+metadata:
+  name: datadog
+spec:
+  version: v0.0.1
+  shortDescription: Manage the Datadog Operator
+  description: |
+    The datadog kubectl plugin provides useful utilities to operate datadog-agent components
+    via the Datadog Operator and the DatadogAgent CRD.
+  homepage: https://github.com/DataDog/datadog-operator
+  platforms:
+  - uri: https://github.com/DataDog/datadog-operator/releases/download/v0.0.1/datadog-darwin-amd64.zip # TODO
+    sha256: # TODO
+    bin: kubectl-datadog
+    files:
+    - from: kubectl-datadog
+      to: .
+    - from: LICENSE
+      to: .
+    selector:
+      matchLabels:
+        os: darwin
+        arch: amd64

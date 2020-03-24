@@ -1,7 +1,7 @@
 // Unless explicitly stated otherwise all files in this repository are licensed
 // under the Apache License Version 2.0.
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2016-2019 Datadog, Inc.
+// Copyright 2016-2020 Datadog, Inc.
 
 package get
 
@@ -33,28 +33,27 @@ var (
 // options provides information required by Datadog get command
 type options struct {
 	genericclioptions.IOStreams
-	configFlags          *genericclioptions.ConfigFlags
+	common.Options
 	args                 []string
-	client               client.Client
-	userNamespace        string
 	userDatadogAgentName string
 }
 
 // newOptions provides an instance of getOptions with default values
 func newOptions(streams genericclioptions.IOStreams) *options {
-	return &options{
-		configFlags: genericclioptions.NewConfigFlags(false),
-		IOStreams:   streams,
+	o := &options{
+		IOStreams: streams,
 	}
+	o.SetConfigFlags()
+	return o
 }
 
-// New provides a cobra command wrapping options
+// New provides a cobra command wrapping options for "get" sub command
 func New(streams genericclioptions.IOStreams) *cobra.Command {
 	o := newOptions(streams)
 	cmd := &cobra.Command{
 		Use:          "get [DatadogAgent name]",
 		Short:        "Get DatadogAgent deployment(s)",
-		Example:      fmt.Sprintf(getExample, "kubectl dd"),
+		Example:      fmt.Sprintf(getExample, "kubectl datadog"),
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {
 			if err := o.complete(c, args); err != nil {
@@ -67,7 +66,7 @@ func New(streams genericclioptions.IOStreams) *cobra.Command {
 		},
 	}
 
-	o.configFlags.AddFlags(cmd.Flags())
+	o.ConfigFlags.AddFlags(cmd.Flags())
 
 	return cmd
 }
@@ -75,35 +74,10 @@ func New(streams genericclioptions.IOStreams) *cobra.Command {
 // complete sets all information required for processing the command
 func (o *options) complete(cmd *cobra.Command, args []string) error {
 	o.args = args
-	var err error
-
-	clientConfig := o.configFlags.ToRawKubeConfigLoader()
-
-	// Create the Client for Read/Write operations.
-	o.client, err = common.NewClient(clientConfig)
-	if err != nil {
-		return fmt.Errorf("unable to instantiate client: %v", err)
-	}
-
-	o.userNamespace, _, err = clientConfig.Namespace()
-	if err != nil {
-		return err
-	}
-
-	ns, err := cmd.Flags().GetString("namespace")
-	if err != nil {
-		return err
-	}
-
-	if ns != "" {
-		o.userNamespace = ns
-	}
-
 	if len(args) > 0 {
 		o.userDatadogAgentName = args[0]
 	}
-
-	return nil
+	return o.Init(cmd)
 }
 
 // validate ensures that all required arguments and flag values are provided
@@ -118,14 +92,14 @@ func (o *options) validate() error {
 func (o *options) run() error {
 	ddList := &v1alpha1.DatadogAgentList{}
 	if o.userDatadogAgentName == "" {
-		if err := o.client.List(context.TODO(), ddList, &client.ListOptions{Namespace: o.userNamespace}); err != nil {
+		if err := o.Client.List(context.TODO(), ddList, &client.ListOptions{Namespace: o.UserNamespace}); err != nil {
 			return fmt.Errorf("unable to list DatadogAgent: %v", err)
 		}
 	} else {
 		dd := &v1alpha1.DatadogAgent{}
-		err := o.client.Get(context.TODO(), client.ObjectKey{Namespace: o.userNamespace, Name: o.userDatadogAgentName}, dd)
+		err := o.Client.Get(context.TODO(), client.ObjectKey{Namespace: o.UserNamespace, Name: o.userDatadogAgentName}, dd)
 		if err != nil && errors.IsNotFound(err) {
-			return fmt.Errorf("DatadogAgent %s/%s not found", o.userNamespace, o.userDatadogAgentName)
+			return fmt.Errorf("DatadogAgent %s/%s not found", o.UserNamespace, o.userDatadogAgentName)
 		} else if err != nil {
 			return fmt.Errorf("unable to get DatadogAgent: %v", err)
 		}
