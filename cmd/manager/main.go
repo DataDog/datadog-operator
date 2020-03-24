@@ -4,7 +4,9 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
+	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -13,6 +15,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller"
 	"github.com/DataDog/datadog-operator/version"
 
+	"github.com/heptiolabs/healthcheck"
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
 	"github.com/operator-framework/operator-sdk/pkg/leader"
 	"github.com/operator-framework/operator-sdk/pkg/log/zap"
@@ -78,12 +81,26 @@ func main() {
 
 	ctx := context.TODO()
 
+	// Serve /live and /ready before leader election
+	health := healthcheck.NewHandler()
+
+	// Add a liveness check to detect go routine leaks. If this fails, we want to be restarted.
+	health.AddLivenessCheck("goroutine-threshold", healthcheck.GoroutineCountCheck(200))
+
+	go func() {
+		log.Error(http.ListenAndServe(":8080", health),
+			"Failed to listen on the probe endpoint. We’ll be killed by k8s.")
+	}()
+
 	// Become the leader before proceeding
 	err = leader.Become(ctx, "datadog-operator-lock")
 	if err != nil {
 		log.Error(err, "")
 		os.Exit(1)
 	}
+
+	// Now that we’re a leader, the availability of /metrics becomes part of liveness check
+	health.AddLivenessCheck("metrics", healthcheck.Async(healthcheck.HTTPGetCheck(fmt.Sprintf("http://localhost:%d/metrics", metricsPort), 5*time.Second), 10*time.Second))
 
 	// Create a new Cmd to provide shared dependencies and start components
 	mgr, err := manager.New(cfg, manager.Options{
