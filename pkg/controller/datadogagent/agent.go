@@ -187,13 +187,15 @@ func (r *ReconcileDatadogAgent) createNewDaemonSet(logger logr.Logger, agentdepl
 }
 
 func (r *ReconcileDatadogAgent) updateExtendedDaemonSet(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgent, eds *edsdatadoghqv1alpha1.ExtendedDaemonSet, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
+	now := metav1.NewTime(time.Now())
 	newEDS, newHash, err := newExtendedDaemonSetFromInstance(agentdeployment, eds.Spec.Selector)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
 
 	if comparison.IsSameSpecMD5Hash(newHash, eds.GetAnnotations()) {
-		// no update needed so return now
+		// no update needed so return, update the status and return
+		newStatus.Agent = updateExtendedDaemonSetStatus(newEDS, newStatus.Agent, &now)
 		return reconcile.Result{}, nil
 	}
 
@@ -212,7 +214,7 @@ func (r *ReconcileDatadogAgent) updateExtendedDaemonSet(logger logr.Logger, agen
 	for k, v := range newEDS.Labels {
 		updatedEds.Labels[k] = v
 	}
-	now := metav1.NewTime(time.Now())
+
 	err = r.client.Update(context.TODO(), updatedEds)
 	if err != nil {
 		return reconcile.Result{}, err
@@ -235,9 +237,10 @@ func (r *ReconcileDatadogAgent) updateDaemonSet(logger logr.Logger, agentdeploym
 	if err != nil {
 		return reconcile.Result{}, err
 	}
-
+	now := metav1.NewTime(time.Now())
 	if comparison.IsSameSpecMD5Hash(newHash, ds.GetAnnotations()) {
-		// no update needed so return now
+		// no update needed so update the status and return
+		newStatus.Agent = updateDaemonSetStatus(newDS, newStatus.Agent, &now)
 		return reconcile.Result{}, nil
 	}
 
@@ -256,7 +259,6 @@ func (r *ReconcileDatadogAgent) updateDaemonSet(logger logr.Logger, agentdeploym
 	for k, v := range newDS.Labels {
 		updatedDS.Labels[k] = v
 	}
-	now := metav1.NewTime(time.Now())
 	err = r.client.Update(context.TODO(), updatedDS)
 	if err != nil {
 		return reconcile.Result{}, err
