@@ -45,7 +45,8 @@ rules:
   resources:
   - 'datadogagents'
   - 'datadogagents/status'
-  - 'extendeddaemonset'
+  - 'datadogagents/finalizers'
+  - 'extendeddaemonsets'
   verbs:
   - '*'
 {{- end -}}

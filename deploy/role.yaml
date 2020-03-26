@@ -51,6 +51,6 @@ rules:
   - 'datadogagents'
   - 'datadogagents/status'
   - 'datadogagents/finalizers'
-  - 'extendeddaemonset'
+  - 'extendeddaemonsets'
   verbs:
   - '*'
