@@ -32,3 +32,17 @@ spec:
                   fieldPath: metadata.name
             - name: OPERATOR_NAME
               value: "datadog-operator"
+          ports:
+            - name: metrics
+              containerPort: 8383
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /live
+              port: 8080
+            periodSeconds: 10

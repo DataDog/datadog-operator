@@ -195,7 +195,7 @@ func (r *ReconcileDatadogAgent) updateExtendedDaemonSet(logger logr.Logger, agen
 
 	if comparison.IsSameSpecMD5Hash(newHash, eds.GetAnnotations()) {
 		// no update needed so return, update the status and return
-		newStatus.Agent = updateExtendedDaemonSetStatus(newEDS, newStatus.Agent, &now)
+		newStatus.Agent = updateExtendedDaemonSetStatus(eds, newStatus.Agent, &now)
 		return reconcile.Result{}, nil
 	}
 
