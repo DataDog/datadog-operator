@@ -18,7 +18,7 @@ import (
 
 var (
 	// Version Datadog Operator version
-	Version = "0.1.2"
+	Version = "0.1.3"
 	// BuildTime binary build time
 	BuildTime = ""
 	// Commit current git commit
