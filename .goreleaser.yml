@@ -1,0 +1,31 @@
+before:
+  hooks:
+    - go mod download
+builds:
+- id: datadog-operator
+  goos:
+  - linux
+  - darwin
+  goarch:
+  - amd64
+  main: ./cmd/manager/main.go
+  ldflags: -w -X github.com/DataDog/datadog-operator/version.Tag=${TAG} -X github.com/DataDog/datadog-operator/version.Commit=${GIT_COMMIT} -X github.com/DataDog/datadog-operator/version.Version=${VERSION} -X github.com/DataDog/datadog-operator/version.BuildTime=${DATE} -s
+  binary: datadog-operator
+- id: kubectl-datadog
+  goos:
+  - linux
+  - darwin
+  goarch:
+  - amd64
+  main: ./cmd/kubectl-datadog/main.go
+  ldflags: -w -X github.com/DataDog/datadog-operator/version.Tag=${TAG} -X github.com/DataDog/datadog-operator/version.Commit=${GIT_COMMIT} -X github.com/DataDog/datadog-operator/version.Version=${VERSION} -X github.com/DataDog/datadog-operator/version.BuildTime=${DATE} -s
+  binary: kubectl-datadog
+archives:
+- id: kubectl-datadog
+  builds:
+  - kubectl-datadog
+  name_template: "kubectl-datadog_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+  wrap_in_directory: false
+  format: zip
+  files:
+  - LICENSE
