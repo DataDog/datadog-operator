@@ -13,7 +13,7 @@ LABEL name="datadog/operator"
 LABEL vendor="Datadog Inc."
 LABEL version=$TAG
 LABEL release=$TAG
-LABEL summary="The Datadog Operator aims to provide a new way of deploying the Datadog Agent on Kubernetes"
+LABEL summary="The Datadog Operator aims at providing a new way to deploy the Datadog Agent on Kubernetes"
 LABEL description="Datadog provides a modern monitoring and analytics platform. Gather \
       metrics, logs and traces for full observability of your Kubernetes cluster with \
       Datadog Operator."
