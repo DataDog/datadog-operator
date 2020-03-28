@@ -110,17 +110,17 @@ func (o *options) run() error {
 	for _, item := range ddList.Items {
 		data := []string{item.Namespace, item.Name}
 		if item.Status.Agent != nil {
-			data = append(data, item.Status.Agent.State)
+			data = append(data, item.Status.Agent.Status)
 		} else {
 			data = append(data, "")
 		}
 		if item.Status.ClusterAgent != nil {
-			data = append(data, item.Status.ClusterAgent.State)
+			data = append(data, item.Status.ClusterAgent.Status)
 		} else {
 			data = append(data, "")
 		}
 		if item.Status.ClusterChecksRunner != nil {
-			data = append(data, item.Status.ClusterChecksRunner.State)
+			data = append(data, item.Status.ClusterChecksRunner.Status)
 		} else {
 			data = append(data, "")
 		}
