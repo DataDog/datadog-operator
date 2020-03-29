@@ -39,10 +39,10 @@ spec:
           readinessProbe:
             httpGet:
               path: /ready
-              port: 8080
+              port: 9090
             periodSeconds: 10
           livenessProbe:
             httpGet:
               path: /live
-              port: 8080
+              port: 9090
             periodSeconds: 10
