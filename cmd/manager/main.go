@@ -31,6 +31,7 @@ import (
 var (
 	metricsHost              = "0.0.0.0"
 	metricsPort        int32 = 8383
+	probesPort         int32 = 9090
 	printVersionArg    bool
 	printVersionFormat string
 	log                = logf.Log.WithName("cmd")
@@ -46,7 +47,8 @@ func main() {
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 	pflag.BoolVarP(&printVersionArg, "version", "v", printVersionArg, "print version")
 	pflag.StringVarP(&printVersionFormat, "version-format", "f", "text", "version output format ('text', 'json')")
-
+	pflag.Int32VarP(&probesPort, "probesPort", "", probesPort, "port used for the probes endpoint")
+	pflag.Int32VarP(&metricsPort, "metricsPort", "", metricsPort, "port used for the metrics endpoint")
 	pflag.Parse()
 
 	// Use a zap logr.Logger implementation. If none of the zap
@@ -88,7 +90,7 @@ func main() {
 	health.AddLivenessCheck("goroutine-threshold", healthcheck.GoroutineCountCheck(200))
 
 	go func() {
-		log.Error(http.ListenAndServe(":8080", health),
+		log.Error(http.ListenAndServe(fmt.Sprintf(":%d", probesPort), health),
 			"Failed to listen on the probe endpoint. We’ll be killed by k8s.")
 	}()
 

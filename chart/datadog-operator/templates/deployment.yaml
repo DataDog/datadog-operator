@@ -48,19 +48,21 @@ spec:
           args:
             - --zap-level={{ .Values.logLevel }}
             - "--supportExtendedDaemonset={{ .Values.supportExtendedDaemonset}}"
+            - "--probesPort={{ .Values.probesPort }}"
+            - "--metricsPort={{ .Values.metricsPort }}"
           ports:
             - name: metrics
-              containerPort: 8383
+              containerPort: {{ .Values.metricsPort }}
               protocol: TCP
           readinessProbe:
             httpGet:
               path: /ready
-              port: 8080
+              port: {{ .Values.probesPort }}
             periodSeconds: 10
           livenessProbe:
             httpGet:
               path: /live
-              port: 8080
+              port: {{ .Values.probesPort }}
             periodSeconds: 10
           resources:
             {{- toYaml .Values.resources | nindent 12 }}

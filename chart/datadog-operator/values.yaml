@@ -13,6 +13,8 @@ nameOverride: ""
 fullnameOverride: ""
 logLevel: "info"
 supportExtendedDaemonset: "false"
+probesPort: 9090
+metricsPort: 8383
 
 rbac:
   # Specifies whether the RBAC resources should be created
