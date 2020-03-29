@@ -2408,6 +2408,9 @@ spec:
                             https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
                           type: object
                       type: object
+                    secCompProfileName:
+                      description: SecCompProfileName specify a seccomp profile
+                      type: string
                     secCompRootPath:
                       description: SecCompRootPath specify the seccomp profile root
                         directory

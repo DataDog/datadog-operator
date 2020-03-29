@@ -122,6 +122,7 @@ const (
 
 	DefaultSystemProbeSecCompRootPath = "/var/lib/kubelet/seccomp"
 	DefaultAppArmorProfileName        = "unconfined"
+	DefaultSeccompProfileName         = "localhost/system-probe"
 
 	// Extra config provider names
 
