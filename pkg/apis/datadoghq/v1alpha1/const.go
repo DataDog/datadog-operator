@@ -122,7 +122,9 @@ const (
 
 	DefaultSystemProbeSecCompRootPath = "/var/lib/kubelet/seccomp"
 	DefaultAppArmorProfileName        = "unconfined"
-
+	DefaultSeccompProfileName         = "localhost/system-probe"
+	SysteProbeAppArmorAnnotationKey   = "container.apparmor.security.beta.kubernetes.io/system-probe"
+	SysteProbeSeccompAnnotationKey    = "container.seccomp.security.alpha.kubernetes.io/system-probe"
 	// Extra config provider names
 
 	KubeServicesConfigProvider    = "kube_services"

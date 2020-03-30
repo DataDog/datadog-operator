@@ -56,8 +56,8 @@ func newAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent, select
 
 	annotations := getDefaultAnnotations(agentdeployment)
 	if isSystemProbeEnabled(agentdeployment) {
-		annotations["container.apparmor.security.beta.kubernetes.io/system-probe"] = getAppArmorProfileName(&agentdeployment.Spec.Agent.SystemProbe)
-		annotations["container.seccomp.security.alpha.kubernetes.io/system-probe"] = "localhost/system-probe"
+		annotations[datadoghqv1alpha1.SysteProbeAppArmorAnnotationKey] = getAppArmorProfileName(&agentdeployment.Spec.Agent.SystemProbe)
+		annotations[datadoghqv1alpha1.SysteProbeSeccompAnnotationKey] = getSeccompProfileName(&agentdeployment.Spec.Agent.SystemProbe)
 	}
 
 	for key, val := range agentdeployment.Spec.Agent.AdditionalAnnotations {
@@ -740,6 +740,13 @@ func getAppArmorProfileName(spec *datadoghqv1alpha1.SystemProbeSpec) string {
 		return spec.AppArmorProfileName
 	}
 	return datadoghqv1alpha1.DefaultAppArmorProfileName
+}
+
+func getSeccompProfileName(spec *datadoghqv1alpha1.SystemProbeSpec) string {
+	if spec.SecCompProfileName != "" {
+		return spec.SecCompProfileName
+	}
+	return datadoghqv1alpha1.DefaultSeccompProfileName
 }
 
 func getVolumeFromCustomConfigSpec(cfcm *datadoghqv1alpha1.CustomConfigSpec, defaultConfigMapName, volumeName string) corev1.Volume {

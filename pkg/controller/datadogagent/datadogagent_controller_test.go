@@ -709,7 +709,16 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
 				loadFunc: func(c client.Client) {
-					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, &test.NewDatadogAgentOptions{ProcessEnabled: true, SystemProbeEnabled: true, ClusterAgentEnabled: false, UseEDS: false, Labels: map[string]string{"label-foo-key": "label-bar-value"}})
+					options := &test.NewDatadogAgentOptions{
+						ProcessEnabled:                 true,
+						SystemProbeEnabled:             true,
+						SystemProbeAppArmorProfileName: "AppArmorFoo",
+						SystemProbeSeccompProfileName:  "runtime/default",
+						ClusterAgentEnabled:            false,
+						UseEDS:                         false,
+						Labels:                         map[string]string{"label-foo-key": "label-bar-value"},
+					}
+					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, options)
 					_ = c.Create(context.TODO(), dda)
 					createAgentDependencies(c, dda)
 					createSystemProbeDependencies(c, dda)
@@ -737,6 +746,14 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 
 				if !systemprobe {
 					return fmt.Errorf("system-probe container not found")
+				}
+
+				if val, ok := ds.Spec.Template.Annotations[datadoghqv1alpha1.SysteProbeAppArmorAnnotationKey]; !ok && val != "AppArmorFoo" {
+					return fmt.Errorf("AppArmor annotation is wrong, got: %s, want: AppArmorFoo", val)
+				}
+
+				if val, ok := ds.Spec.Template.Annotations[datadoghqv1alpha1.SysteProbeSeccompAnnotationKey]; !ok && val != "runtime/default" {
+					return fmt.Errorf("Seccomp annotation is wrong, got: %s, want: runtime/default", val)
 				}
 
 				return nil

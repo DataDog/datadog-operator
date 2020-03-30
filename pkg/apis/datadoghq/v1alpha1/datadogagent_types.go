@@ -311,6 +311,10 @@ type SystemProbeSpec struct {
 	// +optional
 	SecCompRootPath string `json:"secCompRootPath,omitempty"`
 
+	// SecCompProfileName specify a seccomp profile
+	// +optional
+	SecCompProfileName string `json:"secCompProfileName,omitempty"`
+
 	// AppArmorProfileName specify a apparmor profile
 	// +optional
 	AppArmorProfileName string `json:"appArmorProfileName,omitempty"`

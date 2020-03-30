@@ -1777,6 +1777,13 @@ func schema_pkg_apis_datadoghq_v1alpha1_SystemProbeSpec(ref common.ReferenceCall
 							Format:      "",
 						},
 					},
+					"secCompProfileName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SecCompProfileName specify a seccomp profile",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"appArmorProfileName": {
 						SchemaProps: spec.SchemaProps{
 							Description: "AppArmorProfileName specify a apparmor profile",
