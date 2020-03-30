@@ -38,6 +38,8 @@ type NewDatadogAgentOptions struct {
 	APMEnabled                      bool
 	ProcessEnabled                  bool
 	SystemProbeEnabled              bool
+	SystemProbeSeccompProfileName   string
+	SystemProbeAppArmorProfileName  string
 	Creds                           *datadoghqv1alpha1.AgentCredentials
 	ClusterName                     *string
 	Confd                           *datadoghqv1alpha1.ConfigDirSpec
@@ -173,6 +175,12 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 
 		if options.SystemProbeEnabled {
 			ad.Spec.Agent.SystemProbe.Enabled = datadoghqv1alpha1.NewBoolPointer(true)
+			if options.SystemProbeAppArmorProfileName != "" {
+				ad.Spec.Agent.SystemProbe.AppArmorProfileName = options.SystemProbeAppArmorProfileName
+			}
+			if options.SystemProbeSeccompProfileName != "" {
+				ad.Spec.Agent.SystemProbe.SecCompProfileName = options.SystemProbeSeccompProfileName
+			}
 		}
 
 		if options.Creds != nil {
