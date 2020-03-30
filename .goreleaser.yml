@@ -2,19 +2,11 @@ before:
   hooks:
     - go mod download
 builds:
-- id: datadog-operator
-  goos:
-  - linux
-  - darwin
-  goarch:
-  - amd64
-  main: ./cmd/manager/main.go
-  ldflags: -w -X github.com/DataDog/datadog-operator/version.Tag=${TAG} -X github.com/DataDog/datadog-operator/version.Commit=${GIT_COMMIT} -X github.com/DataDog/datadog-operator/version.Version=${VERSION} -X github.com/DataDog/datadog-operator/version.BuildTime=${DATE} -s
-  binary: datadog-operator
 - id: kubectl-datadog
   goos:
   - linux
   - darwin
+  - windows
   goarch:
   - amd64
   main: ./cmd/kubectl-datadog/main.go
