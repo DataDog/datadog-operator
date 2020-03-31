@@ -164,7 +164,7 @@ func (o *options) run(cmd *cobra.Command) error {
 	statusCmd := []string{
 		"bash",
 		"-c",
-		"agent status --json",
+		"DD_LOG_LEVEL=off agent status --json",
 	}
 	podErrors := make(map[string][]string)
 	mutex := &sync.Mutex{}
