@@ -819,7 +819,7 @@ const (
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// DatadogAgent is the Schema for the agentdeployments API
+// DatadogAgent Deployment with Datadog Operator
 // +k8s:openapi-gen=true
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status

@@ -615,7 +615,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgent(ref common.ReferenceCallbac
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DatadogAgent is the Schema for the agentdeployments API",
+				Description: "DatadogAgent Deployment with Datadog Operator",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {

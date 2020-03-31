@@ -20,7 +20,7 @@ spec:
           - datadog-operator
           imagePullPolicy: IfNotPresent
           args:
-            - --zap-level=debug
+            - --zap-level=info
           env:
             - name: WATCH_NAMESPACE
               valueFrom:
