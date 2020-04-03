@@ -23,15 +23,7 @@ import (
 )
 
 const (
-	maxParallel         = 10
-	componentLabelKey   = "agent.datadoghq.com/component"
-	agentLabelValue     = "agent"
-	clcRunnerLabelValue = "cluster-checks-runner"
-)
-
-var (
-	agentLabel     = fmt.Sprintf("%s=%s", componentLabelKey, agentLabelValue)
-	clcRunnerLabel = fmt.Sprintf("%s=%s", componentLabelKey, clcRunnerLabelValue)
+	maxParallel = 10
 )
 
 var (
@@ -134,7 +126,7 @@ func (o *options) run(cmd *cobra.Command) error {
 		var err error
 		pods, err = o.getPodsByOptions(metav1.ListOptions{
 			FieldSelector: fmt.Sprintf("spec.nodeName=%s", node),
-			LabelSelector: agentLabel,
+			LabelSelector: common.AgentLabel,
 		})
 		if err != nil {
 			return fmt.Errorf("unable to get Agent pods: %v", err)
@@ -144,13 +136,13 @@ func (o *options) run(cmd *cobra.Command) error {
 	default:
 		var err error
 		pods, err = o.getPodsByOptions(metav1.ListOptions{
-			LabelSelector: agentLabel,
+			LabelSelector: common.AgentLabel,
 		})
 		if err != nil {
 			return fmt.Errorf("unable to get Agent pods: %v", err)
 		}
 		clcPods, err := o.getPodsByOptions(metav1.ListOptions{
-			LabelSelector: clcRunnerLabel,
+			LabelSelector: common.ClcRunnerLabel,
 		})
 		if err != nil {
 			return fmt.Errorf("unable to get Agent pods: %v", err)
@@ -303,7 +295,7 @@ func findErrors(statusJSON string) ([]string, bool, error) {
 }
 
 func isCLCRunner(pod corev1.Pod) bool {
-	if value, found := pod.GetLabels()[componentLabelKey]; found && value == clcRunnerLabelValue {
+	if value, found := pod.GetLabels()[common.ComponentLabelKey]; found && value == common.ClcRunnerLabelValue {
 		return true
 	}
 	return false

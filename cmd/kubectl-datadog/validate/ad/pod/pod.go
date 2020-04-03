@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-2020 Datadog, Inc.
 
-package validate
+package pod
 
 import (
 	"errors"
@@ -16,13 +16,13 @@ import (
 )
 
 var (
-	validateExample = `
+	podExample = `
   # validate the autodiscovery annotations for a pod named foo
-  %[1]s validate foo
+  %[1]s pod foo
 `
 )
 
-// options provides information required by agent validate command
+// options provides information required by agent validate pod command
 type options struct {
 	genericclioptions.IOStreams
 	common.Options
@@ -39,13 +39,13 @@ func newOptions(streams genericclioptions.IOStreams) *options {
 	return o
 }
 
-// New provides a cobra command wrapping options for validate sub command
+// New provides a cobra command wrapping options for pod sub command
 func New(streams genericclioptions.IOStreams) *cobra.Command {
 	o := newOptions(streams)
 	cmd := &cobra.Command{
-		Use:          "validate [pod name] [flags]",
+		Use:          "pod [pod name] [flags]",
 		Short:        "Validate the autodiscovery annotations for a pod",
-		Example:      fmt.Sprintf(validateExample, "kubectl datadog agent"),
+		Example:      fmt.Sprintf(podExample, "kubectl datadog agent"),
 		SilenceUsage: true,
 		RunE: func(c *cobra.Command, args []string) error {
 			if err := o.complete(c, args); err != nil {
@@ -84,7 +84,7 @@ func (o *options) validate() error {
 	return nil
 }
 
-// run runs the validate command
+// run runs the pod command
 func (o *options) run(cmd *cobra.Command) error {
 	pod, err := o.Clientset.CoreV1().Pods(o.UserNamespace).Get(o.podName, metav1.GetOptions{})
 	if err != nil {

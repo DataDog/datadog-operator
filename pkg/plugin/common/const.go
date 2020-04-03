@@ -5,7 +5,22 @@
 
 package common
 
+import "fmt"
+
 const (
 	// ADPrefix prefix used for AD annotations
 	ADPrefix = "ad.datadoghq.com/"
+	// AgentLabelValue label value to define the Agent
+	AgentLabelValue = "agent"
+	// ComponentLabelKey label key used to define the datadog agent component
+	ComponentLabelKey = "agent.datadoghq.com/component"
+	// ClcRunnerLabelValue label value to define the Cluster Checks Runner
+	ClcRunnerLabelValue = "cluster-checks-runner"
+)
+
+var (
+	// AgentLabel can be used as a LabelSelector for the Agent
+	AgentLabel = fmt.Sprintf("%s=%s", ComponentLabelKey, AgentLabelValue)
+	// ClcRunnerLabel can be used as a LabelSelector for the Cluster Checks Runner
+	ClcRunnerLabel = fmt.Sprintf("%s=%s", ComponentLabelKey, ClcRunnerLabelValue)
 )

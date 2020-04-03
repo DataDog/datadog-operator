@@ -8,7 +8,6 @@ package clusteragent
 import (
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/clusteragent/leader"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/clusteragent/upgrade"
-	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/clusteragent/validate"
 
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -36,7 +35,6 @@ func New(streams genericclioptions.IOStreams) *cobra.Command {
 
 	cmd.AddCommand(leader.New(streams))
 	cmd.AddCommand(upgrade.New(streams))
-	cmd.AddCommand(validate.New(streams))
 
 	o := newOptions(streams)
 	o.configFlags.AddFlags(cmd.Flags())
