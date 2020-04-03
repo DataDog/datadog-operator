@@ -8,6 +8,7 @@ package agent
 import (
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/agent/check"
 	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/agent/upgrade"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/agent/validate"
 
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -35,6 +36,7 @@ func New(streams genericclioptions.IOStreams) *cobra.Command {
 
 	cmd.AddCommand(upgrade.New(streams))
 	cmd.AddCommand(check.New(streams))
+	cmd.AddCommand(validate.New(streams))
 
 	o := newOptions(streams)
 	o.configFlags.AddFlags(cmd.Flags())

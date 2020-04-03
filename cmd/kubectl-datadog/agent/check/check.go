@@ -104,7 +104,6 @@ func (o *options) complete(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("unable to instantiate restConfig: %v", err)
 	}
-	cmd.Println()
 	return o.Init(cmd)
 }
 
