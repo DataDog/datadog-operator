@@ -553,7 +553,7 @@ type ClusterAgentConfig struct {
 	// https://docs.datadoghq.com/agent/cluster_agent/clusterchecks/
 	// https://docs.datadoghq.com/agent/cluster_agent/endpointschecks/
 	// Autodiscovery via Kube Service annotations is automatically enabled
-	ClusterChecksEnabled *bool `json:"clusterChecks,omitempty"`
+	ClusterChecksEnabled *bool `json:"clusterChecksEnabled,omitempty"`
 
 	// Set logging verbosity, valid log levels are:
 	// trace, debug, info, warn, error, critical, and off

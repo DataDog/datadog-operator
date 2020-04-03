@@ -483,7 +483,7 @@ func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Env
 		}
 	}
 
-	// Cluster Checks Runner config
+	// Cluster Checks config
 	if *spec.ClusterAgent.Config.ClusterChecksEnabled {
 		envVars = append(envVars, []corev1.EnvVar{
 			{

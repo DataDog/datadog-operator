@@ -3171,7 +3171,7 @@ spec:
                 config:
                   description: Cluster Agent configuration
                   properties:
-                    clusterChecks:
+                    clusterChecksEnabled:
                       description: 'Enable the Cluster Checks and Endpoint Checks
                         feature on both the cluster-agents and the daemonset ref:
                         https://docs.datadoghq.com/agent/cluster_agent/clusterchecks/

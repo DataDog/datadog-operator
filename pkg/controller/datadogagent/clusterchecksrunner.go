@@ -310,6 +310,10 @@ func getEnvVarsForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []cor
 			Value: "true",
 		},
 		{
+			Name:  datadoghqv1alpha1.DDClusterAgentEnabled,
+			Value: "true",
+		},
+		{
 			Name:  datadoghqv1alpha1.DDClusterAgentKubeServiceName,
 			Value: getClusterAgentServiceName(dda),
 		},

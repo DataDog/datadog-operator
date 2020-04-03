@@ -204,7 +204,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_ClusterAgentConfig(ref common.ReferenceC
 							Format:      "int32",
 						},
 					},
-					"clusterChecks": {
+					"clusterChecksEnabled": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Enable the Cluster Checks and Endpoint Checks feature on both the cluster-agents and the daemonset ref: https://docs.datadoghq.com/agent/cluster_agent/clusterchecks/ https://docs.datadoghq.com/agent/cluster_agent/endpointschecks/ Autodiscovery via Kube Service annotations is automatically enabled",
 							Type:        []string{"boolean"},

@@ -125,20 +125,21 @@ const (
 	DefaultSeccompProfileName         = "localhost/system-probe"
 	SysteProbeAppArmorAnnotationKey   = "container.apparmor.security.beta.kubernetes.io/system-probe"
 	SysteProbeSeccompAnnotationKey    = "container.seccomp.security.alpha.kubernetes.io/system-probe"
+
 	// Extra config provider names
 
 	KubeServicesConfigProvider              = "kube_services"
 	KubeEndpointsConfigProvider             = "kube_endpoints"
 	KubeServicesAndEndpointsConfigProviders = "kube_services kube_endpoints"
-	KubeServicesAndEndpointsListeners       = "kube_services kube_endpoints"
 	ClusterChecksConfigProvider             = "clusterchecks"
 	EndpointsChecksConfigProvider           = "endpointschecks"
 	ClusterAndEndpointsConfigPoviders       = "clusterchecks endpointschecks"
 
 	// Extra listeners
 
-	KubeServicesListener  = "kube_services"
-	KubeEndpointsListener = "kube_endpoints"
+	KubeServicesListener              = "kube_services"
+	KubeEndpointsListener             = "kube_endpoints"
+	KubeServicesAndEndpointsListeners = "kube_services kube_endpoints"
 
 	// Liveness probe default config
 
