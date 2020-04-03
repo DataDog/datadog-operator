@@ -87,6 +87,10 @@ func clusterChecksRunnerDefaultEnvVars() []corev1.EnvVar {
 			Value: "true",
 		},
 		{
+			Name:  "DD_CLUSTER_AGENT_ENABLED",
+			Value: "true",
+		},
+		{
 			Name:  "DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME",
 			Value: fmt.Sprintf("%s-%s", testDadName, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix),
 		},

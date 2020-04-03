@@ -9,7 +9,6 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -424,8 +423,8 @@ func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Env
 			Value: *spec.Agent.Config.DDUrl,
 		},
 		{
-			Name:  datadoghqv1alpha1.DDClusterChecksRunnerEnabled,
-			Value: strconv.FormatBool(*spec.ClusterAgent.Config.ClusterChecksRunnerEnabled),
+			Name:  datadoghqv1alpha1.DDClusterChecksEnabled,
+			Value: strconv.FormatBool(*spec.ClusterAgent.Config.ClusterChecksEnabled),
 		},
 		{
 			Name:  datadoghqv1alpha1.DDClusterAgentKubeServiceName,
@@ -484,16 +483,16 @@ func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Env
 		}
 	}
 
-	// Cluster Checks Runner config
-	if *spec.ClusterAgent.Config.ClusterChecksRunnerEnabled {
+	// Cluster Checks config
+	if *spec.ClusterAgent.Config.ClusterChecksEnabled {
 		envVars = append(envVars, []corev1.EnvVar{
 			{
 				Name:  datadoghqv1alpha1.DDExtraConfigProviders,
-				Value: datadoghqv1alpha1.KubeServicesConfigProvider,
+				Value: datadoghqv1alpha1.KubeServicesAndEndpointsConfigProviders,
 			},
 			{
 				Name:  datadoghqv1alpha1.DDExtraListeners,
-				Value: strings.Join([]string{datadoghqv1alpha1.KubeServicesListener, datadoghqv1alpha1.KubeEndpointsListener}, " "),
+				Value: datadoghqv1alpha1.KubeServicesAndEndpointsListeners,
 			},
 		}...)
 	}

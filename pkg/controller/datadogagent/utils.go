@@ -513,6 +513,22 @@ func getEnvVarsForAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.EnvVar, e
 		return nil, err
 	}
 	envVars = append(envVars, commonEnvVars...)
+
+	// Activate/deactivate agent features
+	if dda.Spec.Agent.Config.CriSocket != nil && dda.Spec.Agent.Config.CriSocket.CriSocketPath != nil {
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  datadoghqv1alpha1.DDCriSocketPath,
+			Value: filepath.Join(datadoghqv1alpha1.HostCriSocketPathPrefix, *dda.Spec.Agent.Config.CriSocket.CriSocketPath),
+		})
+
+		if strings.HasSuffix(*dda.Spec.Agent.Config.CriSocket.CriSocketPath, "docker.sock") {
+			envVars = append(envVars, corev1.EnvVar{
+				Name:  datadoghqv1alpha1.DockerHost,
+				Value: "unix://" + filepath.Join(datadoghqv1alpha1.HostCriSocketPathPrefix, *dda.Spec.Agent.Config.CriSocket.CriSocketPath),
+			})
+		}
+	}
+
 	if spec.ClusterAgent != nil {
 		clusterEnv := []corev1.EnvVar{
 			{
@@ -528,28 +544,20 @@ func getEnvVarsForAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.EnvVar, e
 				ValueFrom: getClusterAgentAuthToken(dda),
 			},
 		}
-		if *spec.ClusterAgent.Config.ClusterChecksRunnerEnabled && spec.ClusterChecksRunner == nil {
-			clusterEnv = append(clusterEnv, corev1.EnvVar{
-				Name:  datadoghqv1alpha1.DDExtraConfigProviders,
-				Value: datadoghqv1alpha1.ClusterChecksConfigProvider,
-			})
+		if *spec.ClusterAgent.Config.ClusterChecksEnabled {
+			if spec.ClusterChecksRunner == nil {
+				clusterEnv = append(clusterEnv, corev1.EnvVar{
+					Name:  datadoghqv1alpha1.DDExtraConfigProviders,
+					Value: datadoghqv1alpha1.ClusterAndEndpointsConfigPoviders,
+				})
+			} else {
+				clusterEnv = append(clusterEnv, corev1.EnvVar{
+					Name:  datadoghqv1alpha1.DDExtraConfigProviders,
+					Value: datadoghqv1alpha1.EndpointsChecksConfigProvider,
+				})
+			}
 		}
 		envVars = append(envVars, clusterEnv...)
-	}
-
-	// Activate/deactivate agent features
-	if dda.Spec.Agent.Config.CriSocket != nil && dda.Spec.Agent.Config.CriSocket.CriSocketPath != nil {
-		envVars = append(envVars, corev1.EnvVar{
-			Name:  datadoghqv1alpha1.DDCriSocketPath,
-			Value: filepath.Join(datadoghqv1alpha1.HostCriSocketPathPrefix, *dda.Spec.Agent.Config.CriSocket.CriSocketPath),
-		})
-
-		if strings.HasSuffix(*dda.Spec.Agent.Config.CriSocket.CriSocketPath, "docker.sock") {
-			envVars = append(envVars, corev1.EnvVar{
-				Name:  datadoghqv1alpha1.DockerHost,
-				Value: "unix://" + filepath.Join(datadoghqv1alpha1.HostCriSocketPathPrefix, *dda.Spec.Agent.Config.CriSocket.CriSocketPath),
-			})
-		}
 	}
 
 	return append(envVars, spec.Agent.Config.Env...), nil

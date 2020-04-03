@@ -67,7 +67,7 @@ func (r *ReconcileDatadogAgent) reconcileClusterChecksRunner(logger logr.Logger,
 }
 
 func needClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) bool {
-	if dda.Spec.ClusterAgent != nil && datadoghqv1alpha1.BoolValue(dda.Spec.ClusterAgent.Config.ClusterChecksRunnerEnabled) {
+	if dda.Spec.ClusterAgent != nil && dda.Spec.ClusterChecksRunner != nil && datadoghqv1alpha1.BoolValue(dda.Spec.ClusterAgent.Config.ClusterChecksEnabled) {
 		return true
 	}
 
@@ -306,8 +306,12 @@ func getEnvVarsForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []cor
 			Value: *spec.Agent.Config.DDUrl,
 		},
 		{
-			Name:  datadoghqv1alpha1.DDClusterChecksRunnerEnabled,
-			Value: strconv.FormatBool(*spec.ClusterAgent.Config.ClusterChecksRunnerEnabled),
+			Name:  datadoghqv1alpha1.DDClusterChecksEnabled,
+			Value: "true",
+		},
+		{
+			Name:  datadoghqv1alpha1.DDClusterAgentEnabled,
+			Value: "true",
 		},
 		{
 			Name:  datadoghqv1alpha1.DDClusterAgentKubeServiceName,
