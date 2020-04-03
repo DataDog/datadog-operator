@@ -211,6 +211,14 @@ func defaultEnvVars() []corev1.EnvVar {
 			Value: "",
 		},
 		{
+			Name:  "DD_CRI_SOCKET_PATH",
+			Value: "/host/var/run/docker.sock",
+		},
+		{
+			Name:  "DOCKER_HOST",
+			Value: "unix:///host/var/run/docker.sock",
+		},
+		{
 			Name:  "DD_CLUSTER_AGENT_ENABLED",
 			Value: "true",
 		},
@@ -221,14 +229,6 @@ func defaultEnvVars() []corev1.EnvVar {
 		{
 			Name:      "DD_CLUSTER_AGENT_AUTH_TOKEN",
 			ValueFrom: authTokenValue(),
-		},
-		{
-			Name:  "DD_CRI_SOCKET_PATH",
-			Value: "/host/var/run/docker.sock",
-		},
-		{
-			Name:  "DOCKER_HOST",
-			Value: "unix:///host/var/run/docker.sock",
 		},
 	}
 }
@@ -911,6 +911,125 @@ func Test_newExtendedDaemonSetFromInstance_LogsEnabled(t *testing.T) {
 						Annotations: make(map[string]string),
 					},
 					Spec: logsEnabledPodSpec,
+				},
+				Strategy: getDefaultEDSStrategy(),
+			},
+		},
+	}
+
+	test.Run(t)
+}
+
+func Test_newExtendedDaemonSetFromInstance_clusterChecksConfig(t *testing.T) {
+	clusterChecksPodSpec := defaultPodSpec()
+	clusterChecksPodSpec.Containers[0].Env = addEnvVar(clusterChecksPodSpec.Containers[0].Env, "DD_EXTRA_CONFIG_PROVIDERS", "clusterchecks endpointschecks")
+	clusterChecksPodSpec.InitContainers[1].Env = addEnvVar(clusterChecksPodSpec.InitContainers[1].Env, "DD_EXTRA_CONFIG_PROVIDERS", "clusterchecks endpointschecks")
+
+	dda := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
+		UseEDS:               true,
+		ClusterAgentEnabled:  true,
+		ClusterChecksEnabled: true,
+	})
+
+	dda.Spec.ClusterChecksRunner = nil
+
+	ddaHash, _ := comparison.GenerateMD5ForSpec(dda.Spec)
+
+	test := extendedDaemonSetFromInstanceTest{
+		name:            "with cluster checks / clc runners",
+		agentdeployment: dda,
+		wantErr:         false,
+		want: &edsdatadoghqv1alpha1.ExtendedDaemonSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "bar",
+				Name:      "foo",
+				Labels: map[string]string{
+					"agent.datadoghq.com/name":      "foo",
+					"agent.datadoghq.com/component": "agent",
+					"app.kubernetes.io/instance":    "agent",
+					"app.kubernetes.io/managed-by":  "datadog-operator",
+					"app.kubernetes.io/name":        "datadog-agent-deployment",
+					"app.kubernetes.io/part-of":     "foo",
+					"app.kubernetes.io/version":     "",
+				},
+				Annotations: map[string]string{"agent.datadoghq.com/agentspechash": ddaHash},
+			},
+			Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						GenerateName: "foo",
+						Namespace:    "bar",
+						Labels: map[string]string{
+							"agent.datadoghq.com/name":      "foo",
+							"agent.datadoghq.com/component": "agent",
+							"app.kubernetes.io/instance":    "agent",
+							"app.kubernetes.io/managed-by":  "datadog-operator",
+							"app.kubernetes.io/name":        "datadog-agent-deployment",
+							"app.kubernetes.io/part-of":     "foo",
+							"app.kubernetes.io/version":     "",
+						},
+						Annotations: make(map[string]string),
+					},
+					Spec: clusterChecksPodSpec,
+				},
+				Strategy: getDefaultEDSStrategy(),
+			},
+		},
+	}
+
+	test.Run(t)
+}
+
+func Test_newExtendedDaemonSetFromInstance_endpointsChecksConfig(t *testing.T) {
+	endpointChecksChecksPodSpec := defaultPodSpec()
+	endpointChecksChecksPodSpec.Containers[0].Env = addEnvVar(endpointChecksChecksPodSpec.Containers[0].Env, "DD_EXTRA_CONFIG_PROVIDERS", "endpointschecks")
+	endpointChecksChecksPodSpec.InitContainers[1].Env = addEnvVar(endpointChecksChecksPodSpec.InitContainers[1].Env, "DD_EXTRA_CONFIG_PROVIDERS", "endpointschecks")
+
+	dda := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
+		UseEDS:                     true,
+		ClusterAgentEnabled:        true,
+		ClusterChecksEnabled:       true,
+		ClusterChecksRunnerEnabled: true,
+	})
+
+	ddaHash, _ := comparison.GenerateMD5ForSpec(dda.Spec)
+
+	test := extendedDaemonSetFromInstanceTest{
+		name:            "with cluster checks / with clc runners",
+		agentdeployment: dda,
+		wantErr:         false,
+		want: &edsdatadoghqv1alpha1.ExtendedDaemonSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "bar",
+				Name:      "foo",
+				Labels: map[string]string{
+					"agent.datadoghq.com/name":      "foo",
+					"agent.datadoghq.com/component": "agent",
+					"app.kubernetes.io/instance":    "agent",
+					"app.kubernetes.io/managed-by":  "datadog-operator",
+					"app.kubernetes.io/name":        "datadog-agent-deployment",
+					"app.kubernetes.io/part-of":     "foo",
+					"app.kubernetes.io/version":     "",
+				},
+				Annotations: map[string]string{"agent.datadoghq.com/agentspechash": ddaHash},
+			},
+			Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						GenerateName: "foo",
+						Namespace:    "bar",
+						Labels: map[string]string{
+							"agent.datadoghq.com/name":      "foo",
+							"agent.datadoghq.com/component": "agent",
+							"app.kubernetes.io/instance":    "agent",
+							"app.kubernetes.io/managed-by":  "datadog-operator",
+							"app.kubernetes.io/name":        "datadog-agent-deployment",
+							"app.kubernetes.io/part-of":     "foo",
+							"app.kubernetes.io/version":     "",
+						},
+						Annotations: make(map[string]string),
+					},
+					Spec: endpointChecksChecksPodSpec,
 				},
 				Strategy: getDefaultEDSStrategy(),
 			},

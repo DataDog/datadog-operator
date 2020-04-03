@@ -548,10 +548,12 @@ type ClusterAgentConfig struct {
 	// +optional
 	MetricsProviderPort *int32 `json:"metricsProviderPort,omitempty"`
 
-	// Enable the Cluster Checks Runner feature on both the cluster-agents and the daemonset
-	// ref: https://docs.datadoghq.com/agent/autodiscovery/ClusterChecksRunner/
+	// Enable the Cluster Checks and Endpoint Checks feature on both the cluster-agents and the daemonset
+	// ref:
+	// https://docs.datadoghq.com/agent/cluster_agent/clusterchecks/
+	// https://docs.datadoghq.com/agent/cluster_agent/endpointschecks/
 	// Autodiscovery via Kube Service annotations is automatically enabled
-	ClusterChecksRunnerEnabled *bool `json:"clusterChecksRunnerEnabled,omitempty"`
+	ClusterChecksEnabled *bool `json:"clusterChecks,omitempty"`
 
 	// Set logging verbosity, valid log levels are:
 	// trace, debug, info, warn, error, critical, and off

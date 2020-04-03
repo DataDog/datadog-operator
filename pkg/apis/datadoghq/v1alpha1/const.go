@@ -55,7 +55,7 @@ const (
 	DDMetricsProviderEnabled        = "DD_EXTERNAL_METRICS_PROVIDER_ENABLED"
 	DDMetricsProviderPort           = "DD_EXTERNAL_METRICS_PROVIDER_PORT"
 	DDAppKey                        = "DD_APP_KEY"
-	DDClusterChecksRunnerEnabled    = "DD_CLUSTER_CHECKS_ENABLED"
+	DDClusterChecksEnabled          = "DD_CLUSTER_CHECKS_ENABLED"
 	DDClcRunnerEnabled              = "DD_CLC_RUNNER_ENABLED"
 	DDClcRunnerHost                 = "DD_CLC_RUNNER_HOST"
 	DDExtraConfigProviders          = "DD_EXTRA_CONFIG_PROVIDERS"
@@ -127,10 +127,13 @@ const (
 	SysteProbeSeccompAnnotationKey    = "container.seccomp.security.alpha.kubernetes.io/system-probe"
 	// Extra config provider names
 
-	KubeServicesConfigProvider    = "kube_services"
-	KubeEndpointsConfigProvider   = "kube_endpoints"
-	ClusterChecksConfigProvider   = "clusterchecks"
-	EndpointsChecksConfigProvider = "endpointschecks"
+	KubeServicesConfigProvider              = "kube_services"
+	KubeEndpointsConfigProvider             = "kube_endpoints"
+	KubeServicesAndEndpointsConfigProviders = "kube_services kube_endpoints"
+	KubeServicesAndEndpointsListeners       = "kube_services kube_endpoints"
+	ClusterChecksConfigProvider             = "clusterchecks"
+	EndpointsChecksConfigProvider           = "endpointschecks"
+	ClusterAndEndpointsConfigPoviders       = "clusterchecks endpointschecks"
 
 	// Extra listeners
 
