@@ -1489,6 +1489,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						Labels:                     map[string]string{"label-foo-key": "label-bar-value"},
 						Status:                     &datadoghqv1alpha1.DatadogAgentStatus{},
 						ClusterAgentEnabled:        true,
+						ClusterChecksEnabled:       true,
 						ClusterChecksRunnerEnabled: true,
 					}
 					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, dadOptions)
@@ -1544,6 +1545,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						Labels:                     map[string]string{"label-foo-key": "label-bar-value"},
 						Status:                     &datadoghqv1alpha1.DatadogAgentStatus{},
 						ClusterAgentEnabled:        true,
+						ClusterChecksEnabled:       true,
 						ClusterChecksRunnerEnabled: true,
 					}
 					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, dadOptions)
@@ -1606,6 +1608,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						Labels:                     map[string]string{"label-foo-key": "label-bar-value"},
 						Status:                     &datadoghqv1alpha1.DatadogAgentStatus{},
 						ClusterAgentEnabled:        true,
+						ClusterChecksEnabled:       true,
 						ClusterChecksRunnerEnabled: true,
 					}
 					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, dadOptions)
@@ -1662,6 +1665,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						Labels:                     map[string]string{"label-foo-key": "label-bar-value"},
 						Status:                     &datadoghqv1alpha1.DatadogAgentStatus{},
 						ClusterAgentEnabled:        true,
+						ClusterChecksEnabled:       true,
 						ClusterChecksRunnerEnabled: true,
 					}
 					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, dadOptions)
@@ -1726,6 +1730,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						Labels:                     map[string]string{"label-foo-key": "label-bar-value"},
 						Status:                     &datadoghqv1alpha1.DatadogAgentStatus{},
 						ClusterAgentEnabled:        true,
+						ClusterChecksEnabled:       true,
 						ClusterChecksRunnerEnabled: true,
 					}
 					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, dadOptions)

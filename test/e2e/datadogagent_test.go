@@ -480,7 +480,9 @@ func DeploymentWithClusterAgentEnabled(t *testing.T) {
 	updateImage := func(ad *datadoghqv1alpha1.DatadogAgent) {
 		updatedImageTag := "1.3.0"
 		ad.Spec.ClusterAgent.Image.Name = fmt.Sprintf("datadog/cluster-agent:%s", updatedImageTag)
-		ad.Spec.ClusterAgent.Config.ClusterChecksRunnerEnabled = datadoghqv1alpha1.NewBoolPointer(true)
+		ad.Spec.ClusterAgent.Config.ClusterChecksEnabled = datadoghqv1alpha1.NewBoolPointer(true)
+		ad.Spec.ClusterChecksRunner = &datadoghqv1alpha1.DatadogAgentSpecClusterChecksRunnerSpec{}
+		ad.Spec.ClusterChecksRunner.Image.Name = "datadog/agent:6.15.0"
 	}
 	err = utils.UpdateDatadogAgentFunc(f, namespace, name, updateImage, retryInterval, timeout)
 	if err != nil {

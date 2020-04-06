@@ -36,7 +36,7 @@ const (
 	defaultProcessEnabled                         bool   = false
 	defaultMetricsProviderEnabled                 bool   = false
 	defaultMetricsProviderPort                    int32  = 443
-	defaultClusterChecksRunnerEnabled             bool   = false
+	defaultClusterChecksEnabled                   bool   = false
 	defaultClusterAgentReplicas                   int32  = 1
 	defaultAgentCanaryReplicas                    int32  = 1
 	defaultClusterChecksRunnerReplicas            int32  = 2
@@ -104,10 +104,6 @@ func IsDefaultedDatadogAgent(ad *DatadogAgent) bool {
 		}
 
 		if ad.Spec.ClusterAgent.Replicas == nil {
-			return false
-		}
-
-		if BoolValue(ad.Spec.ClusterAgent.Config.ClusterChecksRunnerEnabled) && ad.Spec.ClusterChecksRunner == nil {
 			return false
 		}
 	}
@@ -348,7 +344,7 @@ func DefaultDatadogAgent(ad *DatadogAgent) *DatadogAgent {
 
 	if defaultedAD.Spec.ClusterAgent != nil {
 		defaultedAD.Spec.ClusterAgent = DefaultDatadogAgentSpecClusterAgent(defaultedAD.Spec.ClusterAgent)
-		if BoolValue(defaultedAD.Spec.ClusterAgent.Config.ClusterChecksRunnerEnabled) && ad.Spec.ClusterChecksRunner == nil {
+		if BoolValue(defaultedAD.Spec.ClusterAgent.Config.ClusterChecksEnabled) && ad.Spec.ClusterChecksRunner == nil {
 			defaultedAD.Spec.ClusterChecksRunner = &DatadogAgentSpecClusterChecksRunnerSpec{}
 		}
 	}
@@ -621,8 +617,8 @@ func DefaultDatadogAgentSpecClusterAgentConfig(config *ClusterAgentConfig) *Clus
 		config.MetricsProviderPort = NewInt32Pointer(defaultMetricsProviderPort)
 	}
 
-	if config.ClusterChecksRunnerEnabled == nil {
-		config.ClusterChecksRunnerEnabled = NewBoolPointer(defaultClusterChecksRunnerEnabled)
+	if config.ClusterChecksEnabled == nil {
+		config.ClusterChecksEnabled = NewBoolPointer(defaultClusterChecksEnabled)
 	}
 
 	return config

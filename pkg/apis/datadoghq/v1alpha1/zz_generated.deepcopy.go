@@ -116,8 +116,8 @@ func (in *ClusterAgentConfig) DeepCopyInto(out *ClusterAgentConfig) {
 		*out = new(int32)
 		**out = **in
 	}
-	if in.ClusterChecksRunnerEnabled != nil {
-		in, out := &in.ClusterChecksRunnerEnabled, &out.ClusterChecksRunnerEnabled
+	if in.ClusterChecksEnabled != nil {
+		in, out := &in.ClusterChecksEnabled, &out.ClusterChecksEnabled
 		*out = new(bool)
 		**out = **in
 	}

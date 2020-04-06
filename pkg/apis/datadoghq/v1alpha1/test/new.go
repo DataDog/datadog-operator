@@ -33,7 +33,7 @@ type NewDatadogAgentOptions struct {
 	ClusterAgentEnabled             bool
 	MetricsServerEnabled            bool
 	MetricsServerPort               int32
-	ClusterChecksRunnerEnabled      bool
+	ClusterChecksEnabled            bool
 	NodeAgentConfig                 *datadoghqv1alpha1.NodeAgentConfig
 	APMEnabled                      bool
 	ProcessEnabled                  bool
@@ -52,6 +52,7 @@ type NewDatadogAgentOptions struct {
 	CustomConfig                    string
 	AgentDaemonsetName              string
 	ClusterAgentDeploymentName      string
+	ClusterChecksRunnerEnabled      bool
 	ClusterChecksRunnerVolumes      []corev1.Volume
 	ClusterChecksRunnerVolumeMounts []corev1.VolumeMount
 	ClusterChecksRunnerEnvVars      []corev1.EnvVar
@@ -128,8 +129,8 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 					ad.Spec.ClusterAgent.Config.MetricsProviderPort = datadoghqv1alpha1.NewInt32Pointer(options.MetricsServerPort)
 				}
 			}
-			if options.ClusterChecksRunnerEnabled {
-				ad.Spec.ClusterAgent.Config.ClusterChecksRunnerEnabled = datadoghqv1alpha1.NewBoolPointer(true)
+			if options.ClusterChecksEnabled {
+				ad.Spec.ClusterAgent.Config.ClusterChecksEnabled = datadoghqv1alpha1.NewBoolPointer(true)
 			}
 
 			if len(options.ClusterAgentVolumes) != 0 {
