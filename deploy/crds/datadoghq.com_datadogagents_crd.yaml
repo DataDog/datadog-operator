@@ -32,7 +32,7 @@ spec:
     status: {}
   validation:
     openAPIV3Schema:
-      description: DatadogAgent is the Schema for the agentdeployments API
+      description: DatadogAgent Deployment with Datadog Operator
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation
