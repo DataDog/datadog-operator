@@ -34,7 +34,7 @@ import (
 
 var (
 	retryInterval        = time.Second * 5
-	timeout              = time.Second * 120
+	timeout              = time.Minute * 2
 	cleanupRetryInterval = time.Second * 1
 	cleanupTimeout       = time.Second * 60
 
@@ -421,6 +421,7 @@ func DeploymentWithClusterAgentEnabled(t *testing.T) {
 		if ad.Status.Agent.CurrentHash == "" || ad.Status.ClusterAgent.CurrentHash == "" {
 			return false, nil
 		}
+
 		for _, condition := range ad.Status.Conditions {
 			if condition.Type == datadoghqv1alpha1.ConditionTypeActive && condition.Status == corev1.ConditionTrue {
 				return true, nil
