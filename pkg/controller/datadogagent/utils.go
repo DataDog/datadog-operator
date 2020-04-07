@@ -544,7 +544,7 @@ func getEnvVarsForAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.EnvVar, e
 				ValueFrom: getClusterAgentAuthToken(dda),
 			},
 		}
-		if *spec.ClusterAgent.Config.ClusterChecksEnabled {
+		if datadoghqv1alpha1.BoolValue(spec.ClusterAgent.Config.ClusterChecksEnabled) {
 			if spec.ClusterChecksRunner == nil {
 				clusterEnv = append(clusterEnv, corev1.EnvVar{
 					Name:  datadoghqv1alpha1.DDExtraConfigProviders,
