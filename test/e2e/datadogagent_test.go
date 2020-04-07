@@ -14,14 +14,12 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/DataDog/datadog-operator/pkg/apis"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/test/e2e/utils"
-	"github.com/davecgh/go-spew/spew"
 
 	framework "github.com/operator-framework/operator-sdk/pkg/test"
 	"github.com/operator-framework/operator-sdk/pkg/test/e2eutil"
@@ -80,7 +78,6 @@ func DeploymentDaemonset(t *testing.T) {
 	}
 
 	isOK := func(ad *datadoghqv1alpha1.DatadogAgent) (bool, error) {
-		t.Log(spew.Sprintf("isOK: status: agent: %#+v", ad.Status.Agent))
 		if ad.Status.Agent == nil {
 			return false, nil
 		}
@@ -97,9 +94,8 @@ func DeploymentDaemonset(t *testing.T) {
 	}
 	err = utils.WaitForFuncOnDatadogAgent(t, f.Client, namespace, name, isOK, retryInterval, timeout)
 	if err != nil {
-		// exportPodsLogs(t, f, namespace, err)
+		exportPodsLogs(t, f, namespace, err)
 		t.Fatal(err)
-		printPods(t, f, namespace)
 	}
 
 	// check if the Daemonset was created properly
@@ -419,7 +415,6 @@ func DeploymentWithClusterAgentEnabled(t *testing.T) {
 	}
 
 	isOK := func(ad *datadoghqv1alpha1.DatadogAgent) (bool, error) {
-		t.Log(spew.Sprintf("isOK: status: agent: %#+v, cluster agent: %#+v", ad.Status.Agent, ad.Status.ClusterAgent))
 		if ad.Status.Agent == nil || ad.Status.ClusterAgent == nil {
 			return false, nil
 		}
@@ -427,23 +422,18 @@ func DeploymentWithClusterAgentEnabled(t *testing.T) {
 			return false, nil
 		}
 
-		var conditions []string
 		for _, condition := range ad.Status.Conditions {
-			conditions = append(conditions, string(condition.Type))
 			if condition.Type == datadoghqv1alpha1.ConditionTypeActive && condition.Status == corev1.ConditionTrue {
 				return true, nil
 			}
 		}
 
-		t.Logf("isOK: not active status - conditions=%s", strings.Join(conditions, ","))
-
 		return false, nil
 	}
 	err = utils.WaitForFuncOnDatadogAgent(t, f.Client, namespace, name, isOK, retryInterval, timeout)
 	if err != nil {
-		// exportPodsLogs(t, f, namespace, err)
+		exportPodsLogs(t, f, namespace, err)
 		t.Fatal(err)
-		printPods(t, f, namespace)
 	}
 
 	// get DatadogAgent
@@ -728,40 +718,39 @@ func (l *logWriter) Write(b []byte) (int, error) {
 }
 
 func exportPodsLogs(t *testing.T, f *framework.Framework, namespace string, err error) {
-	// FIXME: Comment out exportPodsLogs temporarily for e2e debugging
-	// if err == nil {
-	// 	return
-	// }
-	// printPods(t, f, namespace)
+	if err == nil {
+		return
+	}
+	printPods(t, f, namespace)
 
-	// // setup streaming operator pod's logs for simplify investigation
-	// pods, err2 := f.KubeClient.CoreV1().Pods(namespace).List(metav1.ListOptions{})
-	// if err2 != nil {
-	// 	t.Fatal(err2)
-	// }
+	// setup streaming operator pod's logs for simplify investigation
+	pods, err2 := f.KubeClient.CoreV1().Pods(namespace).List(metav1.ListOptions{})
+	if err2 != nil {
+		t.Fatal(err2)
+	}
 
-	// for _, pod := range pods.Items {
-	// 	for _, container := range pod.Spec.Containers {
-	// 		options := &corev1.PodLogOptions{
-	// 			Container: container.Name,
-	// 		}
-	// 		t.Logf("Add logger for pod:[%s/%s], container: %s", pod.Namespace, pod.Name, container.Name)
-	// 		req := f.KubeClient.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, options)
-	// 		readCloser, err := req.Stream()
-	// 		if err != nil {
-	// 			t.Errorf("unable to stream log for pod:[%s/%s], err:%v", pod.Namespace, pod.Name, err)
-	// 			return
-	// 		}
-	// 		w := &logWriter{
-	// 			name:      pod.Name,
-	// 			namespace: pod.Namespace,
-	// 			container: container.Name,
-	// 			t:         t,
-	// 		}
-	// 		_, _ = io.Copy(w, readCloser)
-	// 	}
+	for _, pod := range pods.Items {
+		for _, container := range pod.Spec.Containers {
+			options := &corev1.PodLogOptions{
+				Container: container.Name,
+			}
+			t.Logf("Add logger for pod:[%s/%s], container: %s", pod.Namespace, pod.Name, container.Name)
+			req := f.KubeClient.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, options)
+			readCloser, err := req.Stream()
+			if err != nil {
+				t.Errorf("unable to stream log for pod:[%s/%s], err:%v", pod.Namespace, pod.Name, err)
+				return
+			}
+			w := &logWriter{
+				name:      pod.Name,
+				namespace: pod.Namespace,
+				container: container.Name,
+				t:         t,
+			}
+			_, _ = io.Copy(w, readCloser)
+		}
 
-	// }
+	}
 }
 
 func printPods(t *testing.T, f *framework.Framework, namespace string) {
