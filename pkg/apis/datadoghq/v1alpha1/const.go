@@ -176,6 +176,7 @@ const (
 	NodeMetricsResource              = "nodes/metrics"
 	NodeSpecResource                 = "nodes/spec"
 	NodeProxyResource                = "nodes/proxy"
+	NodeStats                        = "nodes/stats"
 	HorizontalPodAutoscalersRecource = "horizontalpodautoscalers"
 
 	// Resource names
