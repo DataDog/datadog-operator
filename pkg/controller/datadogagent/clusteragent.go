@@ -752,6 +752,7 @@ func buildAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, version st
 				datadoghqv1alpha1.NodeMetricsResource,
 				datadoghqv1alpha1.NodeSpecResource,
 				datadoghqv1alpha1.NodeProxyResource,
+				datadoghqv1alpha1.NodeStats,
 			},
 			Verbs: []string{datadoghqv1alpha1.GetVerb},
 		},
