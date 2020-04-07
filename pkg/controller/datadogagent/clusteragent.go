@@ -424,7 +424,7 @@ func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Env
 		},
 		{
 			Name:  datadoghqv1alpha1.DDClusterChecksEnabled,
-			Value: strconv.FormatBool(*spec.ClusterAgent.Config.ClusterChecksEnabled),
+			Value: datadoghqv1alpha1.BoolToString(spec.ClusterAgent.Config.ClusterChecksEnabled),
 		},
 		{
 			Name:  datadoghqv1alpha1.DDClusterAgentKubeServiceName,
@@ -484,7 +484,7 @@ func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Env
 	}
 
 	// Cluster Checks config
-	if *spec.ClusterAgent.Config.ClusterChecksEnabled {
+	if datadoghqv1alpha1.BoolValue(spec.ClusterAgent.Config.ClusterChecksEnabled) {
 		envVars = append(envVars, []corev1.EnvVar{
 			{
 				Name:  datadoghqv1alpha1.DDExtraConfigProviders,
