@@ -8,6 +8,7 @@ package common
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -78,4 +79,75 @@ func ValidateUpgrade(image string, latest bool) error {
 		return errors.New("both 'image' and 'latest' flags are missing")
 	}
 	return nil
+}
+
+// IsAnnotated returns true if annotations contain a key with a given prefix
+func IsAnnotated(annotations map[string]string, prefix string) bool {
+	if prefix == "" || annotations == nil {
+		return false
+	}
+	for k := range annotations {
+		if strings.HasPrefix(k, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+// ValidateAnnotationsContent reports errors in AD annotations content
+// the identifier string is expected to include the AD prefix
+func ValidateAnnotationsContent(annotations map[string]string, identifier string) ([]string, bool) {
+	if !IsAnnotated(annotations, identifier) {
+		return []string{}, false
+	}
+
+	errors := []string{}
+	adAnnotations := map[string]bool{
+		// Required
+		fmt.Sprintf("%s.check_names", identifier):  true,
+		fmt.Sprintf("%s.init_configs", identifier): true,
+		fmt.Sprintf("%s.instances", identifier):    true,
+		// Optional
+		fmt.Sprintf("%s.logs", identifier): false,
+		fmt.Sprintf("%s.tags", identifier): false,
+	}
+
+	metricAnnotations := false
+	for annotation, required := range adAnnotations {
+		if _, found := annotations[annotation]; found && required {
+			metricAnnotations = true
+			break
+		}
+	}
+
+	for annotation, required := range adAnnotations {
+		value, found := annotations[annotation]
+		if !found && required && metricAnnotations {
+			errors = append(errors, fmt.Sprintf("Annotation %s is missing", annotation))
+			continue
+		}
+		if !found {
+			continue
+		}
+		var unmarshalled interface{}
+		if err := json.Unmarshal([]byte(value), &unmarshalled); err != nil {
+			errors = append(errors, fmt.Sprintf("Annotation %s with value %s is not a valid JSON: %v", annotation, value, err))
+		}
+	}
+
+	return errors, true
+}
+
+// ValidateAnnotationsMatching detects if AD annotations don't match a valid container identifier
+func ValidateAnnotationsMatching(annotations map[string]string, validIDs map[string]bool) []string {
+	errors := []string{}
+	for annotation := range annotations {
+		if matched, _ := regexp.MatchString(fmt.Sprintf(`%s.+\..+`, ADPrefix), annotation); matched {
+			id := strings.Split(annotation[len(ADPrefix):], ".")[0]
+			if found := validIDs[id]; !found {
+				errors = append(errors, fmt.Sprintf("Annotation %s is invalid: %s doesn't match a container name", annotation, id))
+			}
+		}
+	}
+	return errors
 }

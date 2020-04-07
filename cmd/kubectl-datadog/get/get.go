@@ -7,6 +7,7 @@ package get
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 
@@ -15,7 +16,7 @@ import (
 
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -83,7 +84,7 @@ func (o *options) complete(cmd *cobra.Command, args []string) error {
 // validate ensures that all required arguments and flag values are provided
 func (o *options) validate() error {
 	if len(o.args) > 1 {
-		return fmt.Errorf("either one or no arguments are allowed")
+		return errors.New("either one or no arguments are allowed")
 	}
 	return nil
 }
@@ -98,7 +99,7 @@ func (o *options) run() error {
 	} else {
 		dd := &v1alpha1.DatadogAgent{}
 		err := o.Client.Get(context.TODO(), client.ObjectKey{Namespace: o.UserNamespace, Name: o.userDatadogAgentName}, dd)
-		if err != nil && errors.IsNotFound(err) {
+		if err != nil && apierrors.IsNotFound(err) {
 			return fmt.Errorf("DatadogAgent %s/%s not found", o.UserNamespace, o.userDatadogAgentName)
 		} else if err != nil {
 			return fmt.Errorf("unable to get DatadogAgent: %v", err)

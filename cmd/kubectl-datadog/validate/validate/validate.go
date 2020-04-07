@@ -3,18 +3,16 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-2020 Datadog, Inc.
 
-package agent
+package validate
 
 import (
-	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/agent/check"
-	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/agent/find"
-	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/agent/upgrade"
+	"github.com/DataDog/datadog-operator/cmd/kubectl-datadog/validate/ad/ad"
 
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
-// options provides information required by agent command
+// options provides information required by validate command
 type options struct {
 	genericclioptions.IOStreams
 	configFlags *genericclioptions.ConfigFlags
@@ -28,15 +26,13 @@ func newOptions(streams genericclioptions.IOStreams) *options {
 	}
 }
 
-// New provides a cobra command wrapping options for "agent" sub command
+// New provides a cobra command wrapping options for "validate" sub command
 func New(streams genericclioptions.IOStreams) *cobra.Command {
 	cmd := &cobra.Command{
-		Use: "agent [subcommand] [flags]",
+		Use: "validate [subcommand] [flags]",
 	}
 
-	cmd.AddCommand(upgrade.New(streams))
-	cmd.AddCommand(check.New(streams))
-	cmd.AddCommand(find.New(streams))
+	cmd.AddCommand(ad.New(streams))
 
 	o := newOptions(streams)
 	o.configFlags.AddFlags(cmd.Flags())
