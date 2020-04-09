@@ -7,7 +7,6 @@ package datadogagent
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"time"
 
@@ -121,15 +120,15 @@ func newClusterAgentSecret(dda *datadoghqv1alpha1.DatadogAgent) *corev1.Secret {
 
 	data := make(map[string][]byte)
 	if dda.Spec.Credentials.APIKey != "" {
-		data[datadoghqv1alpha1.DefaultAPIKeyKey] = []byte(base64.StdEncoding.EncodeToString([]byte(dda.Spec.Credentials.APIKey)))
+		data[datadoghqv1alpha1.DefaultAPIKeyKey] = []byte(dda.Spec.Credentials.APIKey)
 	}
 	if dda.Spec.Credentials.AppKey != "" {
-		data[datadoghqv1alpha1.DefaultAPPKeyKey] = []byte(base64.StdEncoding.EncodeToString([]byte(dda.Spec.Credentials.AppKey)))
+		data[datadoghqv1alpha1.DefaultAPPKeyKey] = []byte(dda.Spec.Credentials.AppKey)
 	}
 	if dda.Spec.Credentials.Token != "" {
-		data[datadoghqv1alpha1.DefaultTokenKey] = []byte(base64.StdEncoding.EncodeToString([]byte(dda.Spec.Credentials.Token)))
+		data[datadoghqv1alpha1.DefaultTokenKey] = []byte(dda.Spec.Credentials.Token)
 	} else if dda.Status.ClusterAgent != nil {
-		data[datadoghqv1alpha1.DefaultTokenKey] = []byte(base64.StdEncoding.EncodeToString([]byte(dda.Status.ClusterAgent.GeneratedToken)))
+		data[datadoghqv1alpha1.DefaultTokenKey] = []byte(dda.Status.ClusterAgent.GeneratedToken)
 	}
 
 	secret := &corev1.Secret{
