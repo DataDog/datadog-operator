@@ -313,7 +313,7 @@ type SystemProbeSpec struct {
 
 	// SecCompCustomProfileConfigMap specify a pre-existing ConfigMap containing a custom SecComp profile
 	// +optional
-	SecCompCustomProfileConfigMap string `json:"secCompCustomProfileConfigMap"`
+	SecCompCustomProfileConfigMap string `json:"secCompCustomProfileConfigMap,omitempty"`
 
 	// SecCompProfileName specify a seccomp profile
 	// +optional
