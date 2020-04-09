@@ -1777,6 +1777,13 @@ func schema_pkg_apis_datadoghq_v1alpha1_SystemProbeSpec(ref common.ReferenceCall
 							Format:      "",
 						},
 					},
+					"secCompCustomProfileConfigMap": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SecCompCustomProfileConfigMap specify a pre-existing ConfigMap containing a custom SecComp profile",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"secCompProfileName": {
 						SchemaProps: spec.SchemaProps{
 							Description: "SecCompProfileName specify a seccomp profile",

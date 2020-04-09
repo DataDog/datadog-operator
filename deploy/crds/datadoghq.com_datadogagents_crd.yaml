@@ -2408,6 +2408,10 @@ spec:
                             https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
                           type: object
                       type: object
+                    secCompCustomProfileConfigMap:
+                      description: SecCompCustomProfileConfigMap specify a pre-existing
+                        ConfigMap containing a custom SecComp profile
+                      type: string
                     secCompProfileName:
                       description: SecCompProfileName specify a seccomp profile
                       type: string
