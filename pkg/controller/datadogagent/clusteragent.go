@@ -419,10 +419,6 @@ func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Env
 			Value: spec.Site,
 		},
 		{
-			Name:  datadoghqv1alpha1.DDddURL,
-			Value: *spec.Agent.Config.DDUrl,
-		},
-		{
 			Name:  datadoghqv1alpha1.DDClusterChecksEnabled,
 			Value: datadoghqv1alpha1.BoolToString(spec.ClusterAgent.Config.ClusterChecksEnabled),
 		},
@@ -438,6 +434,13 @@ func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Env
 			Name:  datadoghqv1alpha1.DDLeaderElection,
 			Value: "true",
 		},
+	}
+
+	if spec.Agent != nil {
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  datadoghqv1alpha1.DDddURL,
+			Value: *spec.Agent.Config.DDUrl,
+		})
 	}
 
 	if spec.ClusterAgent.Config.LogLevel != nil {
@@ -769,12 +772,14 @@ func buildAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, version st
 		// to collect cluster level metrics and events
 		rbacRules = append(rbacRules, getDefaultClusterAgentPolicyRules()...)
 
-		if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Config.CollectEvents) {
-			rbacRules = append(rbacRules, getEventCollectionPolicyRule())
-		}
+		if dda.Spec.Agent != nil {
+			if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Config.CollectEvents) {
+				rbacRules = append(rbacRules, getEventCollectionPolicyRule())
+			}
 
-		if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Config.LeaderElection) {
-			rbacRules = append(rbacRules, getLeaderElectionPolicyRule()...)
+			if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Config.LeaderElection) {
+				rbacRules = append(rbacRules, getLeaderElectionPolicyRule()...)
+			}
 		}
 	}
 
@@ -855,12 +860,14 @@ func buildClusterAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, age
 		Verbs:     []string{datadoghqv1alpha1.ListVerb, datadoghqv1alpha1.WatchVerb},
 	})
 
-	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Config.CollectEvents) {
-		rbacRules = append(rbacRules, getEventCollectionPolicyRule())
-	}
+	if dda.Spec.Agent != nil {
+		if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Config.CollectEvents) {
+			rbacRules = append(rbacRules, getEventCollectionPolicyRule())
+		}
 
-	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Config.LeaderElection) {
-		rbacRules = append(rbacRules, getLeaderElectionPolicyRule()...)
+		if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Config.LeaderElection) {
+			rbacRules = append(rbacRules, getLeaderElectionPolicyRule()...)
+		}
 	}
 
 	if datadoghqv1alpha1.BoolValue(dda.Spec.ClusterAgent.Config.MetricsProviderEnabled) {

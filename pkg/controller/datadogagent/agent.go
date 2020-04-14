@@ -352,7 +352,7 @@ func newDaemonSetFromInstance(agentdeployment *datadoghqv1alpha1.DatadogAgent, s
 }
 
 func daemonsetName(agentdeployment *datadoghqv1alpha1.DatadogAgent) string {
-	if agentdeployment.Spec.Agent.DaemonsetName != "" {
+	if agentdeployment.Spec.Agent != nil && agentdeployment.Spec.Agent.DaemonsetName != "" {
 		return agentdeployment.Spec.Agent.DaemonsetName
 	}
 	return agentdeployment.Name
@@ -380,5 +380,8 @@ func getAgentCustomConfigConfigMapName(dda *datadoghqv1alpha1.DatadogAgent) stri
 }
 
 func buildAgentConfigurationConfigMap(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.ConfigMap, error) {
+	if dda.Spec.Agent == nil {
+		return nil, nil
+	}
 	return buildConfigurationConfigMap(dda, dda.Spec.Agent.CustomConfig, getAgentCustomConfigConfigMapName(dda), datadoghqv1alpha1.AgentCustomConfigVolumeSubPath)
 }

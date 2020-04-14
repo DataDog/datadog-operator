@@ -73,10 +73,6 @@ func clusterAgentDefaultEnvVars() []corev1.EnvVar {
 			Value: "",
 		},
 		{
-			Name:  "DD_DD_URL",
-			Value: "https://app.datadoghq.com",
-		},
-		{
 			Name:  "DD_CLUSTER_CHECKS_ENABLED",
 			Value: "false",
 		},
@@ -91,6 +87,10 @@ func clusterAgentDefaultEnvVars() []corev1.EnvVar {
 		{
 			Name:  "DD_LEADER_ELECTION",
 			Value: "true",
+		},
+		{
+			Name:  "DD_DD_URL",
+			Value: "https://app.datadoghq.com",
 		},
 		{
 			Name:  "DD_API_KEY",
