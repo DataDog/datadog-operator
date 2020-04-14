@@ -52,7 +52,7 @@ const (
 	defaultRbacCreate                                    = true
 )
 
-var defaultImagePullPolicy v1.PullPolicy = v1.PullIfNotPresent
+var defaultImagePullPolicy = v1.PullIfNotPresent
 
 // IsDefaultedDatadogAgent used to check if an DatadogAgent was already defaulted
 // returns true if yes, else false
@@ -109,7 +109,7 @@ func IsDefaultedDatadogAgent(ad *DatadogAgent) bool {
 	}
 
 	if ad.Spec.ClusterChecksRunner != nil {
-		if !IsDefaultedImageConfig(&ad.Spec.ClusterAgent.Image) {
+		if !IsDefaultedImageConfig(&ad.Spec.ClusterChecksRunner.Image) {
 			return false
 		}
 
