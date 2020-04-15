@@ -78,7 +78,7 @@ func clusterAgentDefaultEnvVars() []corev1.EnvVar {
 		},
 		{
 			Name:  "DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME",
-			Value: fmt.Sprintf("%s-%s", testDadName, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix),
+			Value: fmt.Sprintf("%s-%s", testDdaName, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix),
 		},
 		{
 			Name:      "DD_CLUSTER_AGENT_AUTH_TOKEN",

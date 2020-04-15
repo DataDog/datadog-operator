@@ -42,7 +42,7 @@ var (
 )
 
 const (
-	defaultRequeuPeriod = 15 * time.Second
+	defaultRequeuePeriod = 15 * time.Second
 )
 
 func init() {
@@ -293,7 +293,7 @@ func (r *ReconcileDatadogAgent) internalReconcile(request reconcile.Request) (re
 
 	// Always requeue
 	if !result.Requeue && result.RequeueAfter == 0 {
-		result.RequeueAfter = defaultRequeuPeriod
+		result.RequeueAfter = defaultRequeuePeriod
 	}
 	return r.updateStatusIfNeeded(reqLogger, instance, newStatus, result, err)
 }

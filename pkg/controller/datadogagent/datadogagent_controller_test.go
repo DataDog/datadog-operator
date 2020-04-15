@@ -114,6 +114,7 @@ func TestReconcileDatadogAgent_createNewExtendedDaemonSet(t *testing.T) {
 func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 	const resourcesName = "foo"
 	const resourcesNamespace = "bar"
+	const dsName = "foo-agent"
 	const rbacResourcesName = "foo-agent"
 	const rbacResourcesNameClusterAgent = "foo-cluster-agent"
 	const rbacResourcesNameClusterChecksRunner = "foo-cluster-checks-runner"
@@ -363,16 +364,15 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 			wantErr: false,
 			wantFunc: func(c client.Client) error {
 				eds := &edsdatadoghqv1alpha1.ExtendedDaemonSet{}
-				if err := c.Get(context.TODO(), newRequest(resourcesNamespace, resourcesName).NamespacedName, eds); err != nil {
+				if err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, eds); err != nil {
 					return err
 				}
-				if eds.Name != resourcesName {
+				if eds.Name != dsName {
 					return fmt.Errorf("eds bad name, should be: 'foo', current: %s", eds.Name)
 				}
 				if eds.OwnerReferences == nil || len(eds.OwnerReferences) != 1 {
 					return fmt.Errorf("eds bad owner references, should be: '[Kind DatadogAgent - Name foo]', current: %v", eds.OwnerReferences)
 				}
-				rbacResourcesName := fmt.Sprintf("%s-agent", eds.Name)
 				clusterRole := &rbacv1.ClusterRole{}
 				if err := c.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesName}, clusterRole); err != nil {
 					return err
@@ -422,7 +422,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 			wantErr: true,
 			wantFunc: func(c client.Client) error {
 				eds := &edsdatadoghqv1alpha1.ExtendedDaemonSet{}
-				err := c.Get(context.TODO(), newRequest(resourcesNamespace, resourcesName).NamespacedName, eds)
+				err := c.Get(context.TODO(), newRequest(resourcesNamespace, dsName).NamespacedName, eds)
 				if apierrors.IsNotFound(err) {
 					// Daemonset must NOT be created
 					return nil
@@ -478,10 +478,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 			wantErr: false,
 			wantFunc: func(c client.Client) error {
 				eds := &edsdatadoghqv1alpha1.ExtendedDaemonSet{}
-				if err := c.Get(context.TODO(), newRequest(resourcesNamespace, resourcesName).NamespacedName, eds); err != nil {
+				if err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, eds); err != nil {
 					return err
 				}
-				if eds.Name != resourcesName {
+				if eds.Name != dsName {
 					return fmt.Errorf("eds bad name, should be: 'foo', current: %s", eds.Name)
 				}
 				if eds.OwnerReferences == nil || len(eds.OwnerReferences) != 1 {
@@ -568,10 +568,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 			wantErr: false,
 			wantFunc: func(c client.Client) error {
 				ds := &appsv1.DaemonSet{}
-				if err := c.Get(context.TODO(), newRequest(resourcesNamespace, resourcesName).NamespacedName, ds); err != nil {
+				if err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, ds); err != nil {
 					return err
 				}
-				if ds.Name != resourcesName {
+				if ds.Name != dsName {
 					return fmt.Errorf("ds bad name, should be: 'foo', current: %s", ds.Name)
 				}
 				if ds.OwnerReferences == nil || len(ds.OwnerReferences) != 1 {
@@ -600,7 +600,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 			wantErr: false,
 			wantFunc: func(c client.Client) error {
 				ds := &appsv1.DaemonSet{}
-				if err := c.Get(context.TODO(), newRequest(resourcesNamespace, resourcesName).NamespacedName, ds); err != nil {
+				if err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, ds); err != nil {
 					return err
 				}
 
@@ -632,7 +632,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 			wantErr: false,
 			wantFunc: func(c client.Client) error {
 				ds := &appsv1.DaemonSet{}
-				if err := c.Get(context.TODO(), newRequest(resourcesNamespace, resourcesName).NamespacedName, ds); err != nil {
+				if err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, ds); err != nil {
 					return err
 				}
 
@@ -728,7 +728,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 			wantErr: false,
 			wantFunc: func(c client.Client) error {
 				ds := &appsv1.DaemonSet{}
-				if err := c.Get(context.TODO(), newRequest(resourcesNamespace, resourcesName).NamespacedName, ds); err != nil {
+				if err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, ds); err != nil {
 					return err
 				}
 				var process, systemprobe bool
@@ -830,14 +830,14 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 					_ = c.Create(context.TODO(), eds)
 				},
 			},
-			want:    reconcile.Result{RequeueAfter: 5 * time.Second},
+			want:    reconcile.Result{RequeueAfter: defaultRequeuePeriod},
 			wantErr: false,
 			wantFunc: func(c client.Client) error {
 				eds := &edsdatadoghqv1alpha1.ExtendedDaemonSet{}
-				if err := c.Get(context.TODO(), newRequest(resourcesNamespace, resourcesName).NamespacedName, eds); err != nil {
+				if err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, eds); err != nil {
 					return err
 				}
-				if eds.Name != resourcesName {
+				if eds.Name != dsName {
 					return fmt.Errorf("eds bad name, should be: 'foo', current: %s", eds.Name)
 				}
 				if eds.OwnerReferences == nil || len(eds.OwnerReferences) != 1 {
@@ -1308,7 +1308,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 			wantErr: false,
 			wantFunc: func(c client.Client) error {
 				ds := &appsv1.DaemonSet{}
-				if err := c.Get(context.TODO(), newRequest(resourcesNamespace, resourcesName).NamespacedName, ds); err != nil {
+				if err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, ds); err != nil {
 					return err
 				}
 
@@ -1462,7 +1462,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 
 				},
 			},
-			want:    reconcile.Result{RequeueAfter: defaultRequeuPeriod},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: true,
 			wantFunc: func(c client.Client) error {
 				ds := &appsv1.DaemonSet{}

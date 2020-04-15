@@ -78,7 +78,7 @@ func (r *ReconcileDatadogAgent) reconcileClusterAgent(logger logr.Logger, dda *d
 
 		// Make sure we have at least one Cluster Agent available replica
 		if clusterAgentDeployment.Status.AvailableReplicas == 0 {
-			return reconcile.Result{RequeueAfter: defaultRequeuPeriod}, fmt.Errorf("cluster agent deployment is not ready yet: 0 pods available out of %d", clusterAgentDeployment.Status.Replicas)
+			return reconcile.Result{RequeueAfter: defaultRequeuePeriod}, fmt.Errorf("cluster agent deployment is not ready yet: 0 pods available out of %d", clusterAgentDeployment.Status.Replicas)
 		}
 
 		return reconcile.Result{}, nil
