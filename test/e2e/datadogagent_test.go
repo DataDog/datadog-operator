@@ -106,7 +106,8 @@ func DeploymentDaemonset(t *testing.T) {
 		t.Logf("status false %#v", ds.Status)
 		return false, nil
 	}
-	err = utils.WaitForFuncOnDaemonSet(t, f.Client, namespace, name, isDaemonsetOK, retryInterval, timeout)
+	dsName := fmt.Sprintf("%s-%s", name, "agent")
+	err = utils.WaitForFuncOnDaemonSet(t, f.Client, namespace, dsName, isDaemonsetOK, retryInterval, timeout)
 	if err != nil {
 		exportPodsLogs(t, f, namespace, err)
 		t.Fatal(err)
@@ -141,11 +142,11 @@ func DeploymentDaemonset(t *testing.T) {
 		}
 		return false, nil
 	}
-	err = utils.WaitForFuncOnDaemonSet(t, f.Client, namespace, name, isDaemonsetUpdated, retryInterval, timeout)
+	err = utils.WaitForFuncOnDaemonSet(t, f.Client, namespace, dsName, isDaemonsetUpdated, retryInterval, timeout)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = utils.WaitForFuncOnDaemonSet(t, f.Client, namespace, name, isDaemonsetOK, retryInterval, timeout)
+	err = utils.WaitForFuncOnDaemonSet(t, f.Client, namespace, dsName, isDaemonsetOK, retryInterval, timeout)
 	if err != nil {
 		exportPodsLogs(t, f, namespace, err)
 		t.Fatal(err)
@@ -170,12 +171,12 @@ func DeploymentDaemonset(t *testing.T) {
 		}
 		return false, nil
 	}
-	err = utils.WaitForFuncOnDaemonSet(t, f.Client, namespace, name, isApmActivatedAndRunning, retryInterval, timeout)
+	err = utils.WaitForFuncOnDaemonSet(t, f.Client, namespace, dsName, isApmActivatedAndRunning, retryInterval, timeout)
 	if err != nil {
 		exportPodsLogs(t, f, namespace, err)
 		t.Fatal(err)
 	}
-	err = utils.WaitForFuncOnDaemonSet(t, f.Client, namespace, name, isDaemonsetOK, retryInterval, timeout)
+	err = utils.WaitForFuncOnDaemonSet(t, f.Client, namespace, dsName, isDaemonsetOK, retryInterval, timeout)
 	if err != nil {
 		printDaemonSet(t, f, namespace)
 		exportPodsLogs(t, f, namespace, err)
@@ -200,12 +201,12 @@ func DeploymentDaemonset(t *testing.T) {
 		}
 		return false, nil
 	}
-	err = utils.WaitForFuncOnDaemonSet(t, f.Client, namespace, name, isProcessActivatedAndRunning, retryInterval, timeout)
+	err = utils.WaitForFuncOnDaemonSet(t, f.Client, namespace, dsName, isProcessActivatedAndRunning, retryInterval, timeout)
 	if err != nil {
 		exportPodsLogs(t, f, namespace, err)
 		t.Fatal(err)
 	}
-	err = utils.WaitForFuncOnDaemonSet(t, f.Client, namespace, name, isDaemonsetOK, retryInterval, timeout)
+	err = utils.WaitForFuncOnDaemonSet(t, f.Client, namespace, dsName, isDaemonsetOK, retryInterval, timeout)
 	if err != nil {
 		exportPodsLogs(t, f, namespace, err)
 		t.Fatal(err)
@@ -230,7 +231,7 @@ func DeploymentDaemonset(t *testing.T) {
 		t.Logf("Daemonset pod not ready %#v", ds.Status)
 		return false, nil
 	}
-	err = utils.WaitForFuncOnDaemonSet(t, f.Client, namespace, name, isSystemProbeActivatedAndRunning, retryInterval, timeout)
+	err = utils.WaitForFuncOnDaemonSet(t, f.Client, namespace, dsName, isSystemProbeActivatedAndRunning, retryInterval, timeout)
 	if err != nil {
 		exportPodsLogs(t, f, namespace, err)
 		t.Fatal(err)

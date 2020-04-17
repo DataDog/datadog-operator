@@ -24,13 +24,13 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
-const testDadName = "foo"
+const testDdaName = "foo"
 
 func authTokenValue() *corev1.EnvVarSource {
 	return &corev1.EnvVarSource{
 		SecretKeyRef: &corev1.SecretKeySelector{
 			LocalObjectReference: corev1.LocalObjectReference{
-				Name: fmt.Sprintf("%s-%s", testDadName, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix),
+				Name: fmt.Sprintf("%s-%s", testDdaName, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix),
 			},
 			Key: "token",
 		},
@@ -224,7 +224,7 @@ func defaultEnvVars() []corev1.EnvVar {
 		},
 		{
 			Name:  "DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME",
-			Value: fmt.Sprintf("%s-%s", testDadName, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix),
+			Value: fmt.Sprintf("%s-%s", testDdaName, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix),
 		},
 		{
 			Name:      "DD_CLUSTER_AGENT_AUTH_TOKEN",
@@ -338,7 +338,7 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 			want: &edsdatadoghqv1alpha1.ExtendedDaemonSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: "bar",
-					Name:      "foo",
+					Name:      "foo-agent",
 					Labels: map[string]string{
 						"agent.datadoghq.com/name":      "foo",
 						"agent.datadoghq.com/component": "agent",
@@ -379,7 +379,7 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 			want: &edsdatadoghqv1alpha1.ExtendedDaemonSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: "bar",
-					Name:      "foo",
+					Name:      "foo-agent",
 					Labels: map[string]string{
 						"agent.datadoghq.com/name":      "foo",
 						"agent.datadoghq.com/component": "agent",
@@ -495,7 +495,7 @@ func Test_newExtendedDaemonSetFromInstance_CustomConfigMaps(t *testing.T) {
 		want: &edsdatadoghqv1alpha1.ExtendedDaemonSet{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: "bar",
-				Name:      "foo",
+				Name:      "foo-agent",
 				Labels: map[string]string{
 					"agent.datadoghq.com/name":      "foo",
 					"agent.datadoghq.com/component": "agent",
@@ -637,7 +637,7 @@ func Test_newExtendedDaemonSetFromInstance_CustomDatadogYaml(t *testing.T) {
 		want: &edsdatadoghqv1alpha1.ExtendedDaemonSet{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: "bar",
-				Name:      "foo",
+				Name:      "foo-agent",
 				Labels: map[string]string{
 					"agent.datadoghq.com/name":      "foo",
 					"agent.datadoghq.com/component": "agent",
@@ -714,7 +714,7 @@ func Test_newExtendedDaemonSetFromInstance_CustomVolumes(t *testing.T) {
 		want: &edsdatadoghqv1alpha1.ExtendedDaemonSet{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: "bar",
-				Name:      "foo",
+				Name:      "foo-agent",
 				Labels: map[string]string{
 					"agent.datadoghq.com/name":      "foo",
 					"agent.datadoghq.com/component": "agent",
@@ -882,7 +882,7 @@ func Test_newExtendedDaemonSetFromInstance_LogsEnabled(t *testing.T) {
 		want: &edsdatadoghqv1alpha1.ExtendedDaemonSet{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: "bar",
-				Name:      "foo",
+				Name:      "foo-agent",
 				Labels: map[string]string{
 					"agent.datadoghq.com/name":      "foo",
 					"agent.datadoghq.com/component": "agent",
@@ -942,7 +942,7 @@ func Test_newExtendedDaemonSetFromInstance_clusterChecksConfig(t *testing.T) {
 		want: &edsdatadoghqv1alpha1.ExtendedDaemonSet{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: "bar",
-				Name:      "foo",
+				Name:      "foo-agent",
 				Labels: map[string]string{
 					"agent.datadoghq.com/name":      "foo",
 					"agent.datadoghq.com/component": "agent",
@@ -1001,7 +1001,7 @@ func Test_newExtendedDaemonSetFromInstance_endpointsChecksConfig(t *testing.T) {
 		want: &edsdatadoghqv1alpha1.ExtendedDaemonSet{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: "bar",
-				Name:      "foo",
+				Name:      "foo-agent",
 				Labels: map[string]string{
 					"agent.datadoghq.com/name":      "foo",
 					"agent.datadoghq.com/component": "agent",

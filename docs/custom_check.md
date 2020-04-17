@@ -88,7 +88,7 @@ Once the `ConfigMaps` are configured, a `DatadogAgent` resource can be created t
 apiVersion: datadoghq.com/v1alpha1
 kind: DatadogAgent
 metadata:
-  name: datadog-agent
+  name: datadog
 spec:
   credentials:
     apiKey: "<DATADOG_API_KEY>"
@@ -132,7 +132,7 @@ Additional user-configured volumes can be mounted in either the node or Cluster 
 apiVersion: datadoghq.com/v1alpha1
 kind: DatadogAgent
 metadata:
-  name: datadog-agent
+  name: datadog
 spec:
   credentials:
     apiKey: "<DATADOG_API_KEY>"

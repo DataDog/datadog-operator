@@ -53,7 +53,7 @@ The following [`datadog-agent.yaml` file][7] is the simplest configuration for t
 apiVersion: datadoghq.com/v1alpha1
 kind: DatadogAgent
 metadata:
-  name: datadog-agent
+  name: datadog
 spec:
   credentials:
     apiKey: "<DATADOG_API_KEY>"
@@ -67,13 +67,13 @@ Replace `<DATADOG_API_KEY>` and `<DATADOG_APP_KEY>` with your [Datadog API and a
 
 ```shell
 $ kubectl apply -n $DD_NAMESPACE -f datadog-agent.yaml
-datadogagent.datadoghq.com/datadog-agent created
+datadogagent.datadoghq.com/datadog created
 ```
 
 You can check the state of the `DatadogAgent` ressource with:
 
 ```shell
-kubectl get -n $DD_NAMESPACE dd datadog-agent
+kubectl get -n $DD_NAMESPACE dd datadog
 NAME            ACTIVE   AGENT             CLUSTER-AGENT   CLUSTER-CHECKS-RUNNER   AGE
 datadog-agent   True     Running (2/2/2)                                           110m
 ```
@@ -100,7 +100,7 @@ Update your [`datadog-agent.yaml` file][9] with the following configuration to a
 apiVersion: datadoghq.com/v1alpha1
 kind: DatadogAgent
 metadata:
-  name: datadog-agent
+  name: datadog
 spec:
   credentials:
     apiKey: "<DATADOG_API_KEY>"
@@ -117,7 +117,7 @@ Apply this new configuration:
 
 ```shell
 $ kubectl apply -f datadog-agent.yaml
-datadogagent.datadoghq.com/datadog-agent updated
+datadogagent.datadoghq.com/datadog updated
 ```
 
 The DaemonSet update can be validated by looking at the new desired pod value:
@@ -137,11 +137,11 @@ datadog-agent-zvdbw                          1/1     Running    0          8m1s
 
 ## Cleanup
 
-The following command deletes all the Kubernetes resources created by the Datadog Operator and the linked `DatadogAgent` `datadog-agent`.
+The following command deletes all the Kubernetes resources created by the Datadog Operator and the linked `DatadogAgent` `datadog`.
 
 ```shell
-$ kubectl delete -n $DD_NAMESPACE datadogagent datadog-agent
-datadogagent.datadoghq.com/datadog-agent deleted
+$ kubectl delete -n $DD_NAMESPACE datadogagent datadog
+datadogagent.datadoghq.com/datadog deleted
 ```
 
 You can then remove the Datadog-Operator with the `helm delete` command:
