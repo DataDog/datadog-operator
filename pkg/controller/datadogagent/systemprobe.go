@@ -29,9 +29,11 @@ func (r *ReconcileDatadogAgent) manageSystemProbeDependencies(logger logr.Logger
 		return result, err
 	}
 
-	result, err = r.manageConfigMap(logger, dda, getSecCompConfigMapName(dda.Name), buildSystemProbeSecCompConfigMap)
-	if shouldReturn(result, err) {
-		return result, err
+	if getSeccompProfileName(&dda.Spec.Agent.SystemProbe) == datadoghqv1alpha1.DefaultSeccompProfileName && dda.Spec.Agent.SystemProbe.SecCompCustomProfileConfigMap == "" {
+		result, err = r.manageConfigMap(logger, dda, getSecCompConfigMapName(dda.Name), buildSystemProbeSecCompConfigMap)
+		if shouldReturn(result, err) {
+			return result, err
+		}
 	}
 
 	return reconcile.Result{}, nil
