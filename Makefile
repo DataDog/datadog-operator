@@ -79,6 +79,9 @@ generate: bin/operator-sdk bin/openapi-gen bin/client-gen bin/informer-gen bin/l
 generate-olm: bin/operator-sdk
 	./bin/operator-sdk olm-catalog gen-csv --csv-version $(VERSION) --update-crds
 
+pre-release: bin/yq
+	./hack/pre-release.sh $(VERSION)
+
 CRDS = $(wildcard deploy/crds/*_crd.yaml)
 local-load: $(CRDS)
 		for f in $^; do kubectl apply -f $$f; done
@@ -88,7 +91,7 @@ local-load: $(CRDS)
 $(filter %.yaml,$(files)): %.yaml: %yaml
 	kubectl apply -f $@
 
-install-tools: bin/golangci-lint bin/operator-sdk
+install-tools: bin/golangci-lint bin/operator-sdk bin/yq
 
 bin/golangci-lint:
 	./hack/golangci-lint.sh v1.18.0
@@ -111,10 +114,13 @@ bin/informer-gen:
 bin/lister-gen:
 	go build -o ./bin/lister-gen ./vendor/k8s.io/code-generator/cmd/lister-gen
 
+bin/yq:
+	go build -o ./bin/yq ./vendor/github.com/mikefarah/yq/v3
+
 license: bin/wwhrd
 	./hack/license.sh
 
 license-verify: bin/wwhrd
 	./hack/verify-license.sh
 
-.PHONY: vendor build push clean test e2e validate local-load install-tools list container container-ci license license-verify
+.PHONY: vendor build push clean test e2e validate local-load install-tools list container container-ci license license-verify pre-release

@@ -9,6 +9,9 @@ builds:
   - windows
   goarch:
   - amd64
+  env:
+  - CGO_ENABLED=0
+  - GO111MODULE=on
   main: ./cmd/kubectl-datadog/main.go
   ldflags: -w -X github.com/DataDog/datadog-operator/version.Tag=${TAG} -X github.com/DataDog/datadog-operator/version.Commit=${GIT_COMMIT} -X github.com/DataDog/datadog-operator/version.Version=${VERSION} -X github.com/DataDog/datadog-operator/version.BuildTime=${DATE} -s
   binary: kubectl-datadog
@@ -21,3 +24,10 @@ archives:
   format: zip
   files:
   - LICENSE
+snapshot:
+  name_template: SNAPSHOT-{{ .Commit }}
+checksum:
+  # Algorithm to be used.
+  # Accepted options are sha256, sha512, sha1, crc32, md5, sha224 and sha384.
+  # Default is sha256.
+  algorithm: sha256

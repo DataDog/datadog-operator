@@ -47,3 +47,7 @@ See the [How to Contribute page][8].
 [6]: https://github.com/DataDog/datadog-operator/blob/master/docs/custom_check.md
 [7]: https://github.com/DataDog/datadog-operator/blob/master/docs/cluster_agent_setup.md
 [8]: https://github.com/DataDog/datadog-operator/tree/master/docs/how-to-contribute.md
+
+## Release
+
+Release process documentation is available [here](hack/release/README.md).
