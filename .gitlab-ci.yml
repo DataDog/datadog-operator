@@ -21,38 +21,51 @@ before_script:
   - mkdir -p .cache
   - make install-tools
 
-build:
-  stage: build
-  tags: [ "runner:main", "size:large" ]
-  script:
-    - make build
+# build:
+#   stage: build
+#   tags: [ "runner:main", "size:large" ]
+#   script:
+#     - make build
 
-unit_tests:
-  stage: test
-  tags: [ "runner:main", "size:large" ]
-  script:
-    - make test
+# unit_tests:
+#   stage: test
+#   tags: [ "runner:main", "size:large" ]
+#   script:
+#     - make test
 
-lint_code:
-  stage: test
-  tags: [ "runner:main", "size:large" ]
-  script:
-    - make validate
+# lint_code:
+#   stage: test
+#   tags: [ "runner:main", "size:large" ]
+#   script:
+#     - make validate
 
-generate_code:
-  stage: test
-  tags: [ "runner:main", "size:large" ]
-  script:
-    - make generate
-    - git diff --exit-code
+# generate_code:
+#   stage: test
+#   tags: [ "runner:main", "size:large" ]
+#   script:
+#     - make generate
+#     - git diff --exit-code
 
-build_image:
+# build_image:
+#   stage: image
+#   tags: [ "runner:docker", "size:large" ]
+#   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker-notary:0.6.1
+#   before_script: []
+#   script:
+#     - IMAGE_NAME=$DOCKER_REGISTRY/$PROJECTNAME:$TARGET_TAG
+#     - docker build --build-arg TAG=$TARGET_TAG -t $IMAGE_NAME -f Dockerfile .
+#     - docker push $IMAGE_NAME
+
+sign_image:
   stage: image
   tags: [ "runner:docker", "size:large" ]
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker-notary:0.6.1
   before_script: []
   script:
-    - IMAGE_NAME=$DOCKER_REGISTRY/$PROJECTNAME:$TARGET_TAG
+    - DOCKER_REGISTRY_LOGIN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.docker_hub_login --with-decryption --query "Parameter.Value" --out text)
+    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.docker_hub_pwd --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin "docker.io"
+    - echo $DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE
+    - IMAGE_NAME=datadog/operator:test
     - docker build --build-arg TAG=$TARGET_TAG -t $IMAGE_NAME -f Dockerfile .
     - docker push $IMAGE_NAME
 
