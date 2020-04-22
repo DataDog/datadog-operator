@@ -451,17 +451,10 @@ func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Env
 	}
 
 	if needClusterAgentSecret(dda) {
-		if spec.Credentials.APIKeyExistingSecret != "" {
-			envVars = append(envVars, corev1.EnvVar{
-				Name:      datadoghqv1alpha1.DDAPIKey,
-				ValueFrom: getAPIKeyFromSecret(dda),
-			})
-		} else {
-			envVars = append(envVars, corev1.EnvVar{
-				Name:  datadoghqv1alpha1.DDAPIKey,
-				Value: spec.Credentials.APIKey,
-			})
-		}
+		envVars = append(envVars, corev1.EnvVar{
+			Name:      datadoghqv1alpha1.DDAPIKey,
+			ValueFrom: getAPIKeyFromSecret(dda),
+		})
 		if isMetricsProviderEnabled(spec.ClusterAgent) {
 			envVars = append(envVars, corev1.EnvVar{
 				Name:  datadoghqv1alpha1.DDMetricsProviderEnabled,
@@ -472,17 +465,10 @@ func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Env
 				Name:  datadoghqv1alpha1.DDMetricsProviderPort,
 				Value: strconv.Itoa(int(getClusterAgentMetricsProviderPort(spec.ClusterAgent.Config))),
 			})
-			if spec.Credentials.APIKeyExistingSecret != "" {
-				envVars = append(envVars, corev1.EnvVar{
-					Name:      datadoghqv1alpha1.DDAppKey,
-					ValueFrom: getAppKeyFromSecret(dda),
-				})
-			} else {
-				envVars = append(envVars, corev1.EnvVar{
-					Name:  datadoghqv1alpha1.DDAppKey,
-					Value: spec.Credentials.AppKey,
-				})
-			}
+			envVars = append(envVars, corev1.EnvVar{
+				Name:      datadoghqv1alpha1.DDAppKey,
+				ValueFrom: getAppKeyFromSecret(dda),
+			})
 		}
 	}
 

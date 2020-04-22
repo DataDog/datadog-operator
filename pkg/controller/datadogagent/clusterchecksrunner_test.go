@@ -75,6 +75,10 @@ func clusterChecksRunnerDefaultEnvVars() []corev1.EnvVar {
 			Value: "",
 		},
 		{
+			Name:      "DD_API_KEY",
+			ValueFrom: apiKeyValue(),
+		},
+		{
 			Name:  "DD_SITE",
 			Value: "",
 		},
@@ -133,10 +137,6 @@ func clusterChecksRunnerDefaultEnvVars() []corev1.EnvVar {
 					FieldPath: "status.podIP",
 				},
 			},
-		},
-		{
-			Name:  "DD_API_KEY",
-			Value: "",
 		},
 	}
 }

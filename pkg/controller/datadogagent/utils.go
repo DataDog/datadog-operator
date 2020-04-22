@@ -37,6 +37,11 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
+// getTokenSecretName returns the token secret name
+func getAuthTokenSecretName(dda *datadoghqv1alpha1.DatadogAgent) string {
+	return dda.Name
+}
+
 // newAgentPodTemplate generates a PodTemplate from a DatadogAgent spec
 func newAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent, selector *metav1.LabelSelector) (*corev1.PodTemplateSpec, error) {
 	// copy Agent Spec to configure Agent Pod Template
@@ -421,19 +426,10 @@ func getEnvVarsCommon(dda *datadoghqv1alpha1.DatadogAgent, needAPIKey bool) ([]c
 	}
 
 	if needAPIKey {
-		var apiKeyEnvVar corev1.EnvVar
-		if dda.Spec.Credentials.APIKeyExistingSecret != "" {
-			apiKeyEnvVar = corev1.EnvVar{
-				Name:      datadoghqv1alpha1.DDAPIKey,
-				ValueFrom: getAPIKeyFromSecret(dda),
-			}
-		} else {
-			apiKeyEnvVar = corev1.EnvVar{
-				Name:  datadoghqv1alpha1.DDAPIKey,
-				Value: dda.Spec.Credentials.APIKey,
-			}
-		}
-		envVars = append(envVars, apiKeyEnvVar)
+		envVars = append(envVars, corev1.EnvVar{
+			Name:      datadoghqv1alpha1.DDAPIKey,
+			ValueFrom: getAPIKeyFromSecret(dda),
+		})
 	}
 
 	if len(dda.Spec.Agent.Config.Tags) > 0 {
@@ -974,10 +970,13 @@ func getAPIKeyFromSecret(dda *datadoghqv1alpha1.DatadogAgent) *corev1.EnvVarSour
 // getClusterAgentAuthToken returns the Cluster Agent auth token as an env var source
 func getClusterAgentAuthToken(dda *datadoghqv1alpha1.DatadogAgent) *corev1.EnvVarSource {
 	authTokenValue := &corev1.EnvVarSource{
-		SecretKeyRef: &corev1.SecretKeySelector{},
+		SecretKeyRef: &corev1.SecretKeySelector{
+			LocalObjectReference: corev1.LocalObjectReference{
+				Name: getAuthTokenSecretName(dda),
+			},
+			Key: datadoghqv1alpha1.DefaultTokenKey,
+		},
 	}
-	authTokenValue.SecretKeyRef.Name = utils.GetAppKeySecretName(dda)
-	authTokenValue.SecretKeyRef.Key = "token"
 	return authTokenValue
 }
 

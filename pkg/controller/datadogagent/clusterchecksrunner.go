@@ -298,6 +298,10 @@ func getEnvVarsForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []cor
 			Value: spec.ClusterName,
 		},
 		{
+			Name:      datadoghqv1alpha1.DDAPIKey,
+			ValueFrom: getAPIKeyFromSecret(dda),
+		},
+		{
 			Name:  datadoghqv1alpha1.DDSite,
 			Value: spec.Site,
 		},
@@ -363,18 +367,6 @@ func getEnvVarsForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []cor
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  datadoghqv1alpha1.DDLogLevel,
 			Value: *spec.ClusterChecksRunner.Config.LogLevel,
-		})
-	}
-
-	if spec.Credentials.APIKeyExistingSecret != "" {
-		envVars = append(envVars, corev1.EnvVar{
-			Name:      datadoghqv1alpha1.DDAPIKey,
-			ValueFrom: getAPIKeyFromSecret(dda),
-		})
-	} else {
-		envVars = append(envVars, corev1.EnvVar{
-			Name:  datadoghqv1alpha1.DDAPIKey,
-			Value: spec.Credentials.APIKey,
 		})
 	}
 

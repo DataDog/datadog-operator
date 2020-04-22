@@ -93,8 +93,8 @@ func clusterAgentDefaultEnvVars() []corev1.EnvVar {
 			Value: "https://app.datadoghq.com",
 		},
 		{
-			Name:  "DD_API_KEY",
-			Value: "",
+			Name:      "DD_API_KEY",
+			ValueFrom: apiKeyValue(),
 		},
 	}
 }
@@ -470,8 +470,8 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 				Value: strconv.Itoa(int(metricsServerPort)),
 			},
 			{
-				Name:  "DD_APP_KEY",
-				Value: "",
+				Name:      "DD_APP_KEY",
+				ValueFrom: appKeyValue(),
 			},
 		}...,
 	)
