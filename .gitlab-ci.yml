@@ -68,3 +68,45 @@ push_release_tag:
     - docker pull $IMAGE_NAME
     - docker tag $IMAGE_NAME $RELEASE_IMAGE_NAME
     - docker push $RELEASE_IMAGE_NAME
+
+.docker_hub_variables: &docker_hub_variables
+  DOCKER_REGISTRY_LOGIN_SSM_KEY: docker_hub_login
+  DOCKER_REGISTRY_PWD_SSM_KEY: docker_hub_pwd
+  DOCKER_REGISTRY_URL: docker.io
+  DOCKERHUB_REPO: operator
+  DOCKERHUB_ORG: datadog
+
+push_tag_to_docker_hub:
+  only:
+    - tags
+  stage: release
+  tags: [ "runner:docker", "size:large" ]
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker-notary:0.6.1
+  variables:
+    <<: *docker_hub_variables
+  before_script: []
+  when: manual
+  script:
+    - DOCKER_REGISTRY_LOGIN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_LOGIN_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
+    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin $DOCKER_REGISTRY_URL
+    - IMAGE_NAME=$DOCKERHUB_ORG/$DOCKERHUB_REPO:$TARGET_TAG
+    - docker build --build-arg TAG=$TARGET_TAG -t $IMAGE_NAME -f Dockerfile .
+    - docker push $IMAGE_NAME
+
+# remove the leading dot from the name to let the job appear in gitlab
+.push_latest_to_docker_hub:
+  only:
+    - tags
+  stage: release
+  tags: [ "runner:docker", "size:large" ]
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker-notary:0.6.1
+  variables:
+    <<: *docker_hub_variables
+  before_script: []
+  when: manual
+  script:
+    - DOCKER_REGISTRY_LOGIN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_LOGIN_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
+    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin $DOCKER_REGISTRY_URL
+    - IMAGE_NAME=$DOCKERHUB_ORG/$DOCKERHUB_REPO:latest
+    - docker build --build-arg TAG=$TARGET_TAG -t $IMAGE_NAME -f Dockerfile .
+    - docker push $IMAGE_NAME
