@@ -56,6 +56,7 @@ type NewDatadogAgentOptions struct {
 	ClusterChecksRunnerVolumes      []corev1.Volume
 	ClusterChecksRunnerVolumeMounts []corev1.VolumeMount
 	ClusterChecksRunnerEnvVars      []corev1.EnvVar
+	APIKeyExistingSecret            string
 }
 
 // NewDefaultedDatadogAgent returns an initialized and defaulted DatadogAgent for testing purpose
@@ -204,6 +205,10 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 			ad.Spec.Agent.CustomConfig = &datadoghqv1alpha1.CustomConfigSpec{
 				ConfigData: &options.CustomConfig,
 			}
+		}
+
+		if options.APIKeyExistingSecret != "" {
+			ad.Spec.Credentials.APIKeyExistingSecret = options.APIKeyExistingSecret
 		}
 	}
 	return datadoghqv1alpha1.DefaultDatadogAgent(ad)
