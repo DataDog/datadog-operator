@@ -255,7 +255,14 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
 				loadFunc: func(c client.Client) {
-					_ = c.Create(context.TODO(), test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, &test.NewDatadogAgentOptions{UseEDS: true, Labels: map[string]string{"label-foo-key": "label-bar-value"}}))
+					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, &test.NewDatadogAgentOptions{UseEDS: true, Labels: map[string]string{"label-foo-key": "label-bar-value"}})
+					_ = c.Create(context.TODO(), dda)
+					labels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultAgentResourceSuffix, getAgentVersion(dda))
+					_ = c.Create(context.TODO(), test.NewSecret(resourcesNamespace, "foo", &test.NewSecretOptions{Labels: labels, Data: map[string][]byte{
+						"api-key": []byte(base64.StdEncoding.EncodeToString([]byte("api-foo"))),
+						"app-key": []byte(base64.StdEncoding.EncodeToString([]byte("app-foo"))),
+						"token":   []byte(base64.StdEncoding.EncodeToString([]byte("token-foo"))),
+					}}))
 				},
 			},
 			want:    reconcile.Result{Requeue: true},
@@ -292,6 +299,12 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 					_ = c.Create(context.TODO(), dda)
 					_ = c.Create(context.TODO(), buildAgentClusterRole(dda, getAgentRbacResourcesName(dda), getAgentVersion(dda)))
 					_ = c.Create(context.TODO(), buildServiceAccount(dda, getAgentRbacResourcesName(dda), getAgentVersion(dda)))
+					labels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultAgentResourceSuffix, getAgentVersion(dda))
+					_ = c.Create(context.TODO(), test.NewSecret(resourcesNamespace, "foo", &test.NewSecretOptions{Labels: labels, Data: map[string][]byte{
+						"api-key": []byte(base64.StdEncoding.EncodeToString([]byte("api-foo"))),
+						"app-key": []byte(base64.StdEncoding.EncodeToString([]byte("app-foo"))),
+						"token":   []byte(base64.StdEncoding.EncodeToString([]byte("token-foo"))),
+					}}))
 				},
 			},
 			want:    reconcile.Result{Requeue: true},
@@ -328,6 +341,12 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						roleName:           resourceName,
 						serviceAccountName: resourceName,
 					}, version))
+					labels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultAgentResourceSuffix, getAgentVersion(dda))
+					_ = c.Create(context.TODO(), test.NewSecret(resourcesNamespace, "foo", &test.NewSecretOptions{Labels: labels, Data: map[string][]byte{
+						"api-key": []byte(base64.StdEncoding.EncodeToString([]byte("api-foo"))),
+						"app-key": []byte(base64.StdEncoding.EncodeToString([]byte("app-foo"))),
+						"token":   []byte(base64.StdEncoding.EncodeToString([]byte("token-foo"))),
+					}}))
 				},
 			},
 			want:    reconcile.Result{Requeue: true},
@@ -1958,6 +1977,14 @@ func createAgentDependencies(c client.Client, dda *datadoghqv1alpha1.DatadogAgen
 		serviceAccountName: getAgentServiceAccount(dda),
 	}, version))
 	_ = c.Create(context.TODO(), buildServiceAccount(dda, getAgentServiceAccount(dda), version))
+
+	labels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultAgentResourceSuffix, getAgentVersion(dda))
+	_ = c.Create(context.TODO(), test.NewSecret(dda.ObjectMeta.Namespace, "foo", &test.NewSecretOptions{Labels: labels, Data: map[string][]byte{
+		"api-key": []byte(base64.StdEncoding.EncodeToString([]byte("api-foo"))),
+		"app-key": []byte(base64.StdEncoding.EncodeToString([]byte("app-foo"))),
+		"token":   []byte(base64.StdEncoding.EncodeToString([]byte("token-foo"))),
+	}}))
+
 }
 
 func createClusterAgentDependencies(c client.Client, dda *datadoghqv1alpha1.DatadogAgent) {

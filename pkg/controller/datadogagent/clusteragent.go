@@ -208,7 +208,7 @@ func newClusterAgentDeploymentFromInstance(agentdeployment *datadoghqv1alpha1.Da
 }
 
 func (r *ReconcileDatadogAgent) manageClusterAgentDependencies(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
-	result, err := r.manageClusterAgentSecret(logger, dda, newStatus)
+	result, err := r.manageAgentSecret(logger, dda, newStatus)
 	if shouldReturn(result, err) {
 		return result, err
 	}
@@ -450,7 +450,7 @@ func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Env
 		})
 	}
 
-	if needClusterAgentSecret(dda) {
+	if needAgentSecret(dda) {
 		envVars = append(envVars, corev1.EnvVar{
 			Name:      datadoghqv1alpha1.DDAPIKey,
 			ValueFrom: getAPIKeyFromSecret(dda),
