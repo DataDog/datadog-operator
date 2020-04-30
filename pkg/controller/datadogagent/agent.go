@@ -26,7 +26,7 @@ import (
 )
 
 func (r *ReconcileDatadogAgent) reconcileAgent(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
-	result, err := r.manageAgentDependencies(logger, dda)
+	result, err := r.manageAgentDependencies(logger, dda, newStatus)
 	if shouldReturn(result, err) {
 		return result, err
 	}
@@ -269,8 +269,13 @@ func (r *ReconcileDatadogAgent) updateDaemonSet(logger logr.Logger, dda *datadog
 	return reconcile.Result{RequeueAfter: 5 * time.Second}, nil
 }
 
-func (r *ReconcileDatadogAgent) manageAgentDependencies(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
-	result, err := r.manageAgentRBACs(logger, dda)
+func (r *ReconcileDatadogAgent) manageAgentDependencies(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
+	result, err := r.manageAgentSecret(logger, dda, newStatus)
+	if shouldReturn(result, err) {
+		return result, err
+	}
+
+	result, err = r.manageAgentRBACs(logger, dda)
 	if shouldReturn(result, err) {
 		return result, err
 	}

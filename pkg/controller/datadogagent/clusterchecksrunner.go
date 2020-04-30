@@ -26,7 +26,7 @@ import (
 )
 
 func (r *ReconcileDatadogAgent) reconcileClusterChecksRunner(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
-	result, err := r.manageClusterChecksRunnerDependencies(logger, dda)
+	result, err := r.manageClusterChecksRunnerDependencies(logger, dda, newStatus)
 	if shouldReturn(result, err) {
 		return result, err
 	}
@@ -199,8 +199,12 @@ func newClusterChecksRunnerDeploymentFromInstance(
 	return dca, hash, err
 }
 
-func (r *ReconcileDatadogAgent) manageClusterChecksRunnerDependencies(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
-	result, err := r.manageClusterChecksRunnerPDB(logger, dda)
+func (r *ReconcileDatadogAgent) manageClusterChecksRunnerDependencies(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
+	result, err := r.manageAgentSecret(logger, dda, newStatus)
+	if shouldReturn(result, err) {
+		return result, err
+	}
+	result, err = r.manageClusterChecksRunnerPDB(logger, dda)
 	if shouldReturn(result, err) {
 		return result, err
 	}
@@ -298,6 +302,10 @@ func getEnvVarsForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []cor
 			Value: spec.ClusterName,
 		},
 		{
+			Name:      datadoghqv1alpha1.DDAPIKey,
+			ValueFrom: getAPIKeyFromSecret(dda),
+		},
+		{
 			Name:  datadoghqv1alpha1.DDSite,
 			Value: spec.Site,
 		},
@@ -363,18 +371,6 @@ func getEnvVarsForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []cor
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  datadoghqv1alpha1.DDLogLevel,
 			Value: *spec.ClusterChecksRunner.Config.LogLevel,
-		})
-	}
-
-	if spec.Credentials.APIKeyExistingSecret != "" {
-		envVars = append(envVars, corev1.EnvVar{
-			Name:      datadoghqv1alpha1.DDAPIKey,
-			ValueFrom: getAPIKeyFromSecret(dda),
-		})
-	} else {
-		envVars = append(envVars, corev1.EnvVar{
-			Name:  datadoghqv1alpha1.DDAPIKey,
-			Value: spec.Credentials.APIKey,
 		})
 	}
 

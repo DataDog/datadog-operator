@@ -26,11 +26,33 @@ import (
 
 const testDdaName = "foo"
 
+func apiKeyValue() *corev1.EnvVarSource {
+	return &corev1.EnvVarSource{
+		SecretKeyRef: &corev1.SecretKeySelector{
+			LocalObjectReference: corev1.LocalObjectReference{
+				Name: testDdaName,
+			},
+			Key: "api_key",
+		},
+	}
+}
+
+func appKeyValue() *corev1.EnvVarSource {
+	return &corev1.EnvVarSource{
+		SecretKeyRef: &corev1.SecretKeySelector{
+			LocalObjectReference: corev1.LocalObjectReference{
+				Name: testDdaName,
+			},
+			Key: "app_key",
+		},
+	}
+}
+
 func authTokenValue() *corev1.EnvVarSource {
 	return &corev1.EnvVarSource{
 		SecretKeyRef: &corev1.SecretKeySelector{
 			LocalObjectReference: corev1.LocalObjectReference{
-				Name: fmt.Sprintf("%s-%s", testDdaName, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix),
+				Name: testDdaName,
 			},
 			Key: "token",
 		},
@@ -207,8 +229,8 @@ func defaultEnvVars() []corev1.EnvVar {
 			Value: "yes",
 		},
 		{
-			Name:  "DD_API_KEY",
-			Value: "",
+			Name:      "DD_API_KEY",
+			ValueFrom: apiKeyValue(),
 		},
 		{
 			Name:  "DD_CRI_SOCKET_PATH",
