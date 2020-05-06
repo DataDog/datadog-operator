@@ -91,7 +91,7 @@ local-load: $(CRDS)
 $(filter %.yaml,$(files)): %.yaml: %yaml
 	kubectl apply -f $@
 
-install-tools: bin/golangci-lint bin/operator-sdk bin/yq
+install-tools: bin/yq bin/golangci-lint bin/operator-sdk
 
 bin/golangci-lint:
 	./hack/golangci-lint.sh v1.18.0
