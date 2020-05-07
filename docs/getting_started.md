@@ -133,6 +133,10 @@ datadog-agent-lkfqt                          0/1     Running    0          15s
 datadog-agent-zvdbw                          1/1     Running    0          8m1s
 ```
 
+## Install the kubectl plugin
+
+[kubctl plugin doc](/docs/kubectl-plugin.md)
+
 ## Cleanup
 
 The following command deletes all the Kubernetes resources created by the Datadog Operator and the linked `DatadogAgent` `datadog`.
