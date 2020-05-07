@@ -1,4 +1,4 @@
-ARG TAG=0.2.0
+ARG TAG=0.2.1
 FROM golang as build-env
 ARG TAG
 
