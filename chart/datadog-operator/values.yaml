@@ -4,7 +4,7 @@
 replicaCount: 1
 image:
   repository: datadog/operator
-  tag: 0.2.0
+  tag: 0.2.1
   pullPolicy: IfNotPresent
 imagePullSecrets: []
 nameOverride: ""
