@@ -62,3 +62,15 @@ Available Commands:
   leader      Get Datadog Cluster Agent leader
   upgrade     Upgrade the Datadog Cluster Agent version
 ```
+
+### Validate sub-commands
+
+```console
+$ kubectl datadog validate ad --help
+Usage:
+  datadog validate ad [command]
+
+Available Commands:
+  pod         Validate the autodiscovery annotations for a pod
+  service     Validate the autodiscovery annotations for a service
+```
