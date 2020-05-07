@@ -62,6 +62,7 @@ push_release_tag:
   stage: release
   tags: [ "runner:docker", "size:large" ]
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker-notary:0.6.1
+  before_script: []
   script:
     - IMAGE_NAME=$DOCKER_REGISTRY/$PROJECTNAME:$TARGET_TAG
     - RELEASE_IMAGE_NAME=$DOCKER_REGISTRY/$PROJECTNAME:${CI_COMMIT_TAG:1}
