@@ -8,8 +8,6 @@ Using the Datadog Operator requires the following prerequisites:
 - [`Helm`][1] for deploying the `Datadog-operator`.
 - [`Kubectl` cli][2] for installing the `Datadog-agent`.
 
-> Datadog plans to provide Openshift support with its [operators-framework][3] ecosystem but it is not yet released (for information the `Datadog-Operator` is based on the [`operator-sdk`][4]).
-
 ## Deploy the Datadog Operator
 
 To use the Datadog Operator, deploy it in your Kubernetes cluster. Then create a `DatadogAgent` Kubernetes resource that contains the Datadog deployment configuration:
