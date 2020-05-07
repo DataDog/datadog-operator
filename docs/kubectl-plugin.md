@@ -1,12 +1,12 @@
-# kubectl datadog plugin
+# Datadog Operator kubectl plugin
 
-## install the plugin with krew
+## Install the plugin with krew
 
-The Datatadog operator comes with a kubectl plugin that provides a set of helper went you want to get some inside components information.
+The Datatadog Operator comes with a kubectl plugin providing a set of helper utilities giving visibility into certain internal components which some users may find useful.
 
-The installation is done with the [plugin manager krew](https://krew.sigs.k8s.io/)
+To install please use the [krew plugin manager](https://krew.sigs.k8s.io/)
 
-The krew plugin manifest url can be found on the project [release page](https://github.com/DataDog/datadog-operator/releases). Each release has an artifact: `datadog-plugin.yaml` manifest file.
+The krew plugin manifest url can be found on the project [release page](https://github.com/DataDog/datadog-operator/releases). Each release has its own `datadog-plugin.yaml` manifest file.
 
 ```console
 $ kubectl krew install --manifest-url https://github.com/DataDog/datadog-operator/releases/download/<release-version>/datadog-plugin.yaml
@@ -20,7 +20,7 @@ Installed plugin: datadog
 /
 ```
 
-## available commands
+## Available commands
 
 ```console
 $ kubectl datadog --help
@@ -37,7 +37,7 @@ Available Commands:
 
 ```
 
-### agent sub-commands
+### Agent sub-commands
 
 ```console
 $ kubectl datadog agent --help
@@ -51,7 +51,7 @@ Available Commands:
 
 ```
 
-### clusteragent sub-commands
+### Cluster Agent sub-commands
 
 ```console
 $ kubectl datadog clusteragent --help
