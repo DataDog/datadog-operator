@@ -16,6 +16,8 @@ The **Datadog Operator** aims to provide a new way of deploying the [Datadog Age
 - Optionally, use of an advanced `DaemonSet` deployment by leveraging the [ExtendedDaemonSet][2].
 - Many other features to come :).
 
+The **Datadog Operator** is [RedHat certified][9] and available on [operatorhub.io][10].
+
 ## Datadog Operator vs. Helm chart
 
 The official [Datadog Helm chart][3] is still the recommended way to setup Datadog in a Kubernetes cluster, as it has most supported configuration options readily accessible. It also makes using more advanced features easier than rolling your own deployments.
@@ -47,6 +49,8 @@ See the [How to Contribute page][8].
 [6]: https://github.com/DataDog/datadog-operator/blob/master/docs/custom_check.md
 [7]: https://github.com/DataDog/datadog-operator/blob/master/docs/cluster_agent_setup.md
 [8]: https://github.com/DataDog/datadog-operator/tree/master/docs/how-to-contribute.md
+[9]: https://catalog.redhat.com/software/operators/detail/5e845a42ecb5246c09fe90b6
+[10]: https://operatorhub.io/operator/datadog-operator
 
 ## Release
 
