@@ -33,15 +33,15 @@ trap cleanup EXIT
 # move all zip file if exit
 mv $ZIP_FILE_NAME $ZIP_FILE_NAME.old
 
-for i in $OLM_FOLDER/$VERSION/*.yaml $OLM_FOLDER/*.yaml
+for i in $OLM_FOLDER/*/*.yaml $OLM_FOLDER/*.yaml
 do  
     cp $i $WORK_DIR/${i##*/}
-    sed ${SED_OPTIONS} -e "s|${IMAGE_NAME}|${REDHAT_IMAGE_NAME}|g" $WORK_DIR/${i##*/}
+    $SED -e "s|${IMAGE_NAME}|${REDHAT_IMAGE_NAME}|g" $WORK_DIR/${i##*/}
     echo "$i $filename" 
 done
 
 pushd $WORK_DIR
-sed ${SED_OPTIONS} -e 's/packageName\: datadog-operator/packageName\: datadog-operator-certified/g' datadog-operator.package.yaml
+$SED -e 's/packageName\: datadog-operator/packageName\: datadog-operator-certified/g' datadog-operator.package.yaml
 rm *.bak
 zip $ZIP_FILE_NAME ./*.yaml
 popd
