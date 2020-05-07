@@ -4,6 +4,7 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
+source "$(dirname $0)/os-env.sh"
 ROOT=$(git rev-parse --show-toplevel)
 
 pushd $ROOT/deploy/olm-catalog/datadog-operator/
@@ -21,9 +22,10 @@ else
 fi
 VVERSION=v$VERSION
 
-
-
 pushd $ROOT
+# Update dockerfile
+$SED "s/ARG TAG=.*/ARG TAG=$VERSION/g" $ROOT/Dockerfile
+
 # Update chart version, and image.tag
 $ROOT/bin/yq w -i $ROOT/chart/datadog-operator/Chart.yaml "version" $VERSION
 $ROOT/bin/yq w -i $ROOT/chart/datadog-operator/values.yaml "image.tag" $VERSION
@@ -42,6 +44,9 @@ $ROOT/bin/yq w -i $OLM_FILE "metadata.annotations.createdAt" "$(date '+%Y-0%m-%d
 
 # update datadog-operator.package.yaml
 $ROOT/bin/yq w -i $ROOT/deploy/olm-catalog/datadog-operator/datadog-operator.package.yaml "channels[0].currentCSV" "datadog-operator.$VVERSION"
+
+# cleanup tmp files
+find . -name "*.bak" -type f -delete
 
 # leave the ROOT folder
 popd

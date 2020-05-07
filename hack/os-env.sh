@@ -9,7 +9,7 @@ uname_os() {
 }
 
 OS=$(uname_os)
-SED_OPTIONS="-i"
+SED="sed -i"
 if [ "$OS" == "darwin" ]; then
-    SED_OPTIONS="-i ''"
+    SED="sed -i .bak"
 fi

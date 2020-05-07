@@ -3,14 +3,14 @@ kind: Plugin
 metadata:
   name: datadog
 spec:
-  version: "PLACEHOLDER_VERSION"
+  version: "PLACEHOLDER_TAG"
   shortDescription: Manage the Datadog Operator
   description: |
     The datadog kubectl plugin provides useful utilities to operate datadog-agent components
     via the Datadog Operator and the DatadogAgent CRD.
   homepage: https://github.com/DataDog/datadog-operator
   platforms:
-  - uri: https://github.com/DataDog/datadog-operator/releases/download/PLACEHOLDER_VERSION/kubectl-datadog_PLACEHOLDER_VERSION_darwin_amd64.zip
+  - uri: https://github.com/DataDog/datadog-operator/releases/download/PLACEHOLDER_TAG/kubectl-datadog_PLACEHOLDER_VERSION_darwin_amd64.zip
     sha256: "PLACEHOLDER_SHA_DARWIN"
     bin: kubectl-datadog
     files:
@@ -22,7 +22,7 @@ spec:
       matchLabels:
         os: darwin
         arch: amd64
-  - uri: https://github.com/DataDog/datadog-operator/releases/download/PLACEHOLDER_VERSION/kubectl-datadog_PLACEHOLDER_VERSION_linux_amd64.zip
+  - uri: https://github.com/DataDog/datadog-operator/releases/download/PLACEHOLDER_TAG/kubectl-datadog_PLACEHOLDER_VERSION_linux_amd64.zip
     sha256: "PLACEHOLDER_SHA_LINUX"
     bin: kubectl-datadog
     files:
@@ -34,7 +34,7 @@ spec:
       matchLabels:
         os: linux
         arch: amd64
-  - uri: https://github.com/DataDog/datadog-operator/releases/download/PLACEHOLDER_VERSION/kubectl-datadog_PLACEHOLDER_VERSION_windows_amd64.zip
+  - uri: https://github.com/DataDog/datadog-operator/releases/download/PLACEHOLDER_TAG/kubectl-datadog_PLACEHOLDER_VERSION_windows_amd64.zip
     sha256: "PLACEHOLDER_SHA_WINDOWS"
     bin: kubectl-datadog.exe
     files:
