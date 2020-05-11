@@ -201,6 +201,10 @@ func defaultEnvVars() []corev1.EnvVar {
 			Value: "false",
 		},
 		{
+			Name:  "DD_LOGS_CONFIG_K8S_CONTAINER_USE_FILE",
+			Value: "true",
+		},
+		{
 			Name:  "DD_DOGSTATSD_ORIGIN_DETECTION",
 			Value: "false",
 		},

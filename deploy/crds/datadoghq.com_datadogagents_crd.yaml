@@ -2073,6 +2073,12 @@ spec:
                 log:
                   description: Log Agent configuration
                   properties:
+                    containerCollectUsingFiles:
+                      description: 'Collect logs from files in /var/log/pods instead
+                        of using container runtime API. It''s usually the most efficient
+                        way of collecting logs. ref: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup
+                        Default: true'
+                      type: boolean
                     containerLogsPath:
                       description: 'This to allow log collection from container log
                         path. Set to a different path if not using docker runtime.

@@ -12,9 +12,9 @@ SOURCES := $(shell find $(SOURCEDIR) ! -name "*_test.go" -name '*.go')
 BUILDINFOPKG=github.com/DataDog/${PROJECT_NAME}/version
 GIT_TAG?=$(shell git tag -l --contains HEAD | tail -1)
 LAST_TAG=$(or $(shell git tag | tail -1),v0.0.0)
-TAG?=${GIT_TAG}
 TAG_HASH=${LAST_TAG}_$(shell git rev-parse --short HEAD)
 VERSION?=$(if $(GIT_TAG),$(GIT_TAG),$(TAG_HASH))
+TAG?=${VERSION}
 GIT_COMMIT?=$(shell git rev-parse HEAD)
 DATE=$(shell date +%Y-%m-%d/%H:%M:%S )
 GOMOD?="-mod=vendor"

@@ -30,6 +30,7 @@ const (
 	defaultApmEnabled                             bool   = false
 	defaultLogEnabled                             bool   = false
 	defaultLogsConfigContainerCollectAll          bool   = false
+	defaultLogsContainerCollectUsingFiles         bool   = true
 	defaultContainerLogsPath                      string = "/var/lib/docker/containers"
 	defaultPodLogsPath                            string = "/var/log/pods"
 	defaultLogsTempStoragePath                    string = "/var/lib/datadog-agent/logs"
@@ -559,6 +560,10 @@ func DefaultDatadogAgentSpecAgentLog(log *LogSpec) *LogSpec {
 
 	if log.LogsConfigContainerCollectAll == nil {
 		log.LogsConfigContainerCollectAll = NewBoolPointer(defaultLogsConfigContainerCollectAll)
+	}
+
+	if log.ContainerCollectUsingFiles == nil {
+		log.ContainerCollectUsingFiles = NewBoolPointer(defaultLogsContainerCollectUsingFiles)
 	}
 
 	if log.ContainerLogsPath == nil {
