@@ -787,6 +787,11 @@ func (in *LogSpec) DeepCopyInto(out *LogSpec) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.ContainerCollectUsingFiles != nil {
+		in, out := &in.ContainerCollectUsingFiles, &out.ContainerCollectUsingFiles
+		*out = new(bool)
+		**out = **in
+	}
 	if in.ContainerLogsPath != nil {
 		in, out := &in.ContainerLogsPath, &out.ContainerLogsPath
 		*out = new(string)

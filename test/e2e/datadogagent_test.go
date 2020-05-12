@@ -714,11 +714,13 @@ type logWriter struct {
 }
 
 func (l *logWriter) Write(b []byte) (int, error) {
+	l.t.Helper()
 	l.t.Logf("pod [%s/%s - %s]: %s", l.namespace, l.name, l.container, string(b))
 	return len(b), nil
 }
 
 func exportPodsLogs(t *testing.T, f *framework.Framework, namespace string, err error) {
+	t.Helper()
 	if err == nil {
 		return
 	}
@@ -755,6 +757,7 @@ func exportPodsLogs(t *testing.T, f *framework.Framework, namespace string, err 
 }
 
 func printPods(t *testing.T, f *framework.Framework, namespace string) {
+	t.Helper()
 	podList := &corev1.PodList{}
 	namespaceOption := &dynclient.ListOptions{Namespace: namespace}
 	_ = f.Client.List(goctx.TODO(), podList, namespaceOption)
@@ -768,6 +771,7 @@ func printPods(t *testing.T, f *framework.Framework, namespace string) {
 }
 
 func printDaemonSet(t *testing.T, f *framework.Framework, namespace string) {
+	t.Helper()
 	dsList := &appsv1.DaemonSetList{}
 	namespaceOption := &dynclient.ListOptions{Namespace: namespace}
 	_ = f.Client.List(goctx.TODO(), dsList, namespaceOption)

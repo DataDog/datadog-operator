@@ -1456,6 +1456,13 @@ func schema_pkg_apis_datadoghq_v1alpha1_LogSpec(ref common.ReferenceCallback) co
 							Format:      "",
 						},
 					},
+					"containerCollectUsingFiles": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Collect logs from files in /var/log/pods instead of using container runtime API. It's usually the most efficient way of collecting logs. ref: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup Default: true",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 					"containerLogsPath": {
 						SchemaProps: spec.SchemaProps{
 							Description: "This to allow log collection from container log path. Set to a different path if not using docker runtime. ref: https://docs.datadoghq.com/agent/kubernetes/daemonset_setup/?tab=k8sfile#create-manifest Default to `/var/lib/docker/containers`",

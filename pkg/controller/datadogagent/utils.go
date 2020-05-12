@@ -502,6 +502,10 @@ func getEnvVarsForAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.EnvVar, e
 			Value: strconv.FormatBool(*spec.Agent.Log.LogsConfigContainerCollectAll),
 		},
 		{
+			Name:  datadoghqv1alpha1.DDLogsContainerCollectUsingFiles,
+			Value: strconv.FormatBool(*spec.Agent.Log.ContainerCollectUsingFiles),
+		},
+		{
 			Name:  datadoghqv1alpha1.DDDogstatsdOriginDetection,
 			Value: strconv.FormatBool(*spec.Agent.Config.Dogstatsd.DogstatsdOriginDetection),
 		},
