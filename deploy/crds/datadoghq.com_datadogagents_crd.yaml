@@ -120,7 +120,7 @@ spec:
                                 description: 'Selects a field of the pod: supports
                                   metadata.name, metadata.namespace, metadata.labels,
                                   metadata.annotations, spec.nodeName, spec.serviceAccountName,
-                                  status.hostIP, status.podIP.'
+                                  status.hostIP, status.podIP, status.podIPs.'
                                 properties:
                                   apiVersion:
                                     description: Version of the schema the FieldPath
@@ -145,9 +145,13 @@ spec:
                                       optional for env vars'
                                     type: string
                                   divisor:
+                                    anyOf:
+                                    - type: integer
+                                    - type: string
                                     description: Specifies the output format of the
                                       exposed resources, defaults to "1"
-                                    type: string
+                                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                    x-kubernetes-int-or-string: true
                                   resource:
                                     description: 'Required: resource to select'
                                     type: string
@@ -180,6 +184,9 @@ spec:
                         - name
                         type: object
                       type: array
+                      x-kubernetes-list-map-keys:
+                      - name
+                      x-kubernetes-list-type: map
                     hostPort:
                       description: Number of port to expose on the host. If specified,
                         this must be a valid port number, 0 < x < 65536. If HostNetwork
@@ -194,13 +201,21 @@ spec:
                       properties:
                         limits:
                           additionalProperties:
-                            type: string
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                            x-kubernetes-int-or-string: true
                           description: 'Limits describes the maximum amount of compute
                             resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
                           type: object
                         requests:
                           additionalProperties:
-                            type: string
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                            x-kubernetes-int-or-string: true
                           description: 'Requests describes the minimum amount of compute
                             resources required. If Requests is omitted for a container,
                             it defaults to Limits if that is explicitly specified,
@@ -314,7 +329,7 @@ spec:
                                 description: 'Selects a field of the pod: supports
                                   metadata.name, metadata.namespace, metadata.labels,
                                   metadata.annotations, spec.nodeName, spec.serviceAccountName,
-                                  status.hostIP, status.podIP.'
+                                  status.hostIP, status.podIP, status.podIPs.'
                                 properties:
                                   apiVersion:
                                     description: Version of the schema the FieldPath
@@ -339,9 +354,13 @@ spec:
                                       optional for env vars'
                                     type: string
                                   divisor:
+                                    anyOf:
+                                    - type: integer
+                                    - type: string
                                     description: Specifies the output format of the
                                       exposed resources, defaults to "1"
-                                    type: string
+                                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                    x-kubernetes-int-or-string: true
                                   resource:
                                     description: 'Required: resource to select'
                                     type: string
@@ -374,6 +393,9 @@ spec:
                         - name
                         type: object
                       type: array
+                      x-kubernetes-list-map-keys:
+                      - name
+                      x-kubernetes-list-type: map
                     leaderElection:
                       description: Enables leader election mechanism for event collection.
                       type: boolean
@@ -400,13 +422,21 @@ spec:
                       properties:
                         limits:
                           additionalProperties:
-                            type: string
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                            x-kubernetes-int-or-string: true
                           description: 'Limits describes the maximum amount of compute
                             resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
                           type: object
                         requests:
                           additionalProperties:
-                            type: string
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                            x-kubernetes-int-or-string: true
                           description: 'Requests describes the minimum amount of compute
                             resources required. If Requests is omitted for a container,
                             it defaults to Limits if that is explicitly specified,
@@ -539,9 +569,9 @@ spec:
                                 in image metadata if unspecified. May also be set
                                 in PodSecurityContext. If set in both SecurityContext
                                 and PodSecurityContext, the value specified in SecurityContext
-                                takes precedence. This field is alpha-level and it
-                                is only honored by servers that enable the WindowsRunAsUserName
-                                feature flag.
+                                takes precedence. This field is beta-level and may
+                                be disabled with the WindowsRunAsUserName feature
+                                flag.
                               type: string
                           type: object
                       type: object
@@ -552,6 +582,7 @@ spec:
                       items:
                         type: string
                       type: array
+                      x-kubernetes-list-type: set
                     tolerations:
                       description: If specified, the Agent pod's tolerations.
                       items:
@@ -594,6 +625,7 @@ spec:
                             type: string
                         type: object
                       type: array
+                      x-kubernetes-list-type: atomic
                     volumeMounts:
                       description: Specify additional volume mounts in the Datadog
                         Agent container
@@ -628,13 +660,17 @@ spec:
                               to SubPath but environment variable references $(VAR_NAME)
                               are expanded using the container's environment. Defaults
                               to "" (volume's root). SubPathExpr and SubPath are mutually
-                              exclusive. This field is beta in 1.15.
+                              exclusive.
                             type: string
                         required:
                         - mountPath
                         - name
                         type: object
                       type: array
+                      x-kubernetes-list-map-keys:
+                      - name
+                      - mountPath
+                      x-kubernetes-list-type: map
                     volumes:
                       description: Specify additional volumes in the Datadog Agent
                         container
@@ -981,10 +1017,14 @@ spec:
                                             volumes, optional for env vars'
                                           type: string
                                         divisor:
+                                          anyOf:
+                                          - type: integer
+                                          - type: string
                                           description: Specifies the output format
                                             of the exposed resources, defaults to
                                             "1"
-                                          type: string
+                                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                          x-kubernetes-int-or-string: true
                                         resource:
                                           description: 'Required: resource to select'
                                           type: string
@@ -1007,6 +1047,9 @@ spec:
                                   string (default) or Memory. More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir'
                                 type: string
                               sizeLimit:
+                                anyOf:
+                                - type: integer
+                                - type: string
                                 description: 'Total amount of local storage required
                                   for this EmptyDir volume. The size limit is also
                                   applicable for memory medium. The maximum usage
@@ -1015,7 +1058,8 @@ spec:
                                   of memory limits of all containers in a pod. The
                                   default is nil which means that the limit is undefined.
                                   More info: http://kubernetes.io/docs/user-guide/volumes#emptydir'
-                                type: string
+                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                x-kubernetes-int-or-string: true
                             type: object
                           fc:
                             description: FC represents a Fibre Channel resource that
@@ -1502,10 +1546,14 @@ spec:
                                                       for env vars'
                                                     type: string
                                                   divisor:
+                                                    anyOf:
+                                                    - type: integer
+                                                    - type: string
                                                     description: Specifies the output
                                                       format of the exposed resources,
                                                       defaults to "1"
-                                                    type: string
+                                                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                                    x-kubernetes-int-or-string: true
                                                   resource:
                                                     description: 'Required: resource
                                                       to select'
@@ -1899,6 +1947,9 @@ spec:
                         - name
                         type: object
                       type: array
+                      x-kubernetes-list-map-keys:
+                      - name
+                      x-kubernetes-list-type: map
                   type: object
                 customConfig:
                   description: Allow to put custom configuration for the agent, corresponding
@@ -1936,8 +1987,9 @@ spec:
                           type: string
                         replicas:
                           anyOf:
-                          - type: string
                           - type: integer
+                          - type: string
+                          x-kubernetes-int-or-string: true
                       type: object
                     reconcileFrequency:
                       description: The reconcile frequency of the ExtendDaemonSet
@@ -1953,31 +2005,34 @@ spec:
                           type: integer
                         maxPodSchedulerFailure:
                           anyOf:
-                          - type: string
                           - type: integer
+                          - type: string
                           description: 'MaxPodSchedulerFailure the maxinum number
                             of not scheduled on its Node due to a scheduler failure:
                             resource constraints. Value can be an absolute number
                             (ex: 5) or a percentage of total number of DaemonSet pods
                             at the start of the update (ex: 10%). Absolute'
+                          x-kubernetes-int-or-string: true
                         maxUnavailable:
                           anyOf:
-                          - type: string
                           - type: integer
+                          - type: string
                           description: 'The maximum number of DaemonSet pods that
                             can be unavailable during the update. Value can be an
                             absolute number (ex: 5) or a percentage of total number
                             of DaemonSet pods at the start of the update (ex: 10%).
                             Absolute number is calculated from percentage by rounding
                             up. This cannot be 0. Default value is 1.'
+                          x-kubernetes-int-or-string: true
                         slowStartAdditiveIncrease:
                           anyOf:
-                          - type: string
                           - type: integer
+                          - type: string
                           description: 'SlowStartAdditiveIncrease Value can be an
                             absolute number (ex: 5) or a percentage of total number
                             of DaemonSet pods at the start of the update (ex: 10%).
                             Default value is 5.'
+                          x-kubernetes-int-or-string: true
                         slowStartIntervalDuration:
                           description: SlowStartIntervalDuration the duration between
                             to 2 Default value is 1min.
@@ -2168,7 +2223,7 @@ spec:
                                 description: 'Selects a field of the pod: supports
                                   metadata.name, metadata.namespace, metadata.labels,
                                   metadata.annotations, spec.nodeName, spec.serviceAccountName,
-                                  status.hostIP, status.podIP.'
+                                  status.hostIP, status.podIP, status.podIPs.'
                                 properties:
                                   apiVersion:
                                     description: Version of the schema the FieldPath
@@ -2193,9 +2248,13 @@ spec:
                                       optional for env vars'
                                     type: string
                                   divisor:
+                                    anyOf:
+                                    - type: integer
+                                    - type: string
                                     description: Specifies the output format of the
                                       exposed resources, defaults to "1"
-                                    type: string
+                                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                    x-kubernetes-int-or-string: true
                                   resource:
                                     description: 'Required: resource to select'
                                     type: string
@@ -2228,6 +2287,9 @@ spec:
                         - name
                         type: object
                       type: array
+                      x-kubernetes-list-map-keys:
+                      - name
+                      x-kubernetes-list-type: map
                     resources:
                       description: 'Datadog Process Agent resource requests and limits
                         Make sure to keep requests and limits equal to keep the pods
@@ -2235,13 +2297,21 @@ spec:
                       properties:
                         limits:
                           additionalProperties:
-                            type: string
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                            x-kubernetes-int-or-string: true
                           description: 'Limits describes the maximum amount of compute
                             resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
                           type: object
                         requests:
                           additionalProperties:
-                            type: string
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                            x-kubernetes-int-or-string: true
                           description: 'Requests describes the minimum amount of compute
                             resources required. If Requests is omitted for a container,
                             it defaults to Limits if that is explicitly specified,
@@ -2333,7 +2403,7 @@ spec:
                                 description: 'Selects a field of the pod: supports
                                   metadata.name, metadata.namespace, metadata.labels,
                                   metadata.annotations, spec.nodeName, spec.serviceAccountName,
-                                  status.hostIP, status.podIP.'
+                                  status.hostIP, status.podIP, status.podIPs.'
                                 properties:
                                   apiVersion:
                                     description: Version of the schema the FieldPath
@@ -2358,9 +2428,13 @@ spec:
                                       optional for env vars'
                                     type: string
                                   divisor:
+                                    anyOf:
+                                    - type: integer
+                                    - type: string
                                     description: Specifies the output format of the
                                       exposed resources, defaults to "1"
-                                    type: string
+                                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                    x-kubernetes-int-or-string: true
                                   resource:
                                     description: 'Required: resource to select'
                                     type: string
@@ -2393,6 +2467,9 @@ spec:
                         - name
                         type: object
                       type: array
+                      x-kubernetes-list-map-keys:
+                      - name
+                      x-kubernetes-list-type: map
                     resources:
                       description: 'Datadog SystemProbe resource requests and limits
                         Make sure to keep requests and limits equal to keep the pods
@@ -2400,13 +2477,21 @@ spec:
                       properties:
                         limits:
                           additionalProperties:
-                            type: string
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                            x-kubernetes-int-or-string: true
                           description: 'Limits describes the maximum amount of compute
                             resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
                           type: object
                         requests:
                           additionalProperties:
-                            type: string
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                            x-kubernetes-int-or-string: true
                           description: 'Requests describes the minimum amount of compute
                             resources required. If Requests is omitted for a container,
                             it defaults to Limits if that is explicitly specified,
@@ -2550,9 +2635,9 @@ spec:
                                 in image metadata if unspecified. May also be set
                                 in PodSecurityContext. If set in both SecurityContext
                                 and PodSecurityContext, the value specified in SecurityContext
-                                takes precedence. This field is alpha-level and it
-                                is only honored by servers that enable the WindowsRunAsUserName
-                                feature flag.
+                                takes precedence. This field is beta-level and may
+                                be disabled with the WindowsRunAsUserName feature
+                                flag.
                               type: string
                           type: object
                       type: object
@@ -3247,7 +3332,7 @@ spec:
                                 description: 'Selects a field of the pod: supports
                                   metadata.name, metadata.namespace, metadata.labels,
                                   metadata.annotations, spec.nodeName, spec.serviceAccountName,
-                                  status.hostIP, status.podIP.'
+                                  status.hostIP, status.podIP, status.podIPs.'
                                 properties:
                                   apiVersion:
                                     description: Version of the schema the FieldPath
@@ -3272,9 +3357,13 @@ spec:
                                       optional for env vars'
                                     type: string
                                   divisor:
+                                    anyOf:
+                                    - type: integer
+                                    - type: string
                                     description: Specifies the output format of the
                                       exposed resources, defaults to "1"
-                                    type: string
+                                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                    x-kubernetes-int-or-string: true
                                   resource:
                                     description: 'Required: resource to select'
                                     type: string
@@ -3307,6 +3396,9 @@ spec:
                         - name
                         type: object
                       type: array
+                      x-kubernetes-list-map-keys:
+                      - name
+                      x-kubernetes-list-type: map
                     logLevel:
                       description: 'Set logging verbosity, valid log levels are: trace,
                         debug, info, warn, error, critical, and off'
@@ -3325,13 +3417,21 @@ spec:
                       properties:
                         limits:
                           additionalProperties:
-                            type: string
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                            x-kubernetes-int-or-string: true
                           description: 'Limits describes the maximum amount of compute
                             resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
                           type: object
                         requests:
                           additionalProperties:
-                            type: string
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                            x-kubernetes-int-or-string: true
                           description: 'Requests describes the minimum amount of compute
                             resources required. If Requests is omitted for a container,
                             it defaults to Limits if that is explicitly specified,
@@ -3373,13 +3473,17 @@ spec:
                               to SubPath but environment variable references $(VAR_NAME)
                               are expanded using the container's environment. Defaults
                               to "" (volume's root). SubPathExpr and SubPath are mutually
-                              exclusive. This field is beta in 1.15.
+                              exclusive.
                             type: string
                         required:
                         - mountPath
                         - name
                         type: object
                       type: array
+                      x-kubernetes-list-map-keys:
+                      - name
+                      - mountPath
+                      x-kubernetes-list-type: map
                     volumes:
                       description: Specify additional volumes in the Datadog Cluster
                         Agent container
@@ -3726,10 +3830,14 @@ spec:
                                             volumes, optional for env vars'
                                           type: string
                                         divisor:
+                                          anyOf:
+                                          - type: integer
+                                          - type: string
                                           description: Specifies the output format
                                             of the exposed resources, defaults to
                                             "1"
-                                          type: string
+                                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                          x-kubernetes-int-or-string: true
                                         resource:
                                           description: 'Required: resource to select'
                                           type: string
@@ -3752,6 +3860,9 @@ spec:
                                   string (default) or Memory. More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir'
                                 type: string
                               sizeLimit:
+                                anyOf:
+                                - type: integer
+                                - type: string
                                 description: 'Total amount of local storage required
                                   for this EmptyDir volume. The size limit is also
                                   applicable for memory medium. The maximum usage
@@ -3760,7 +3871,8 @@ spec:
                                   of memory limits of all containers in a pod. The
                                   default is nil which means that the limit is undefined.
                                   More info: http://kubernetes.io/docs/user-guide/volumes#emptydir'
-                                type: string
+                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                x-kubernetes-int-or-string: true
                             type: object
                           fc:
                             description: FC represents a Fibre Channel resource that
@@ -4247,10 +4359,14 @@ spec:
                                                       for env vars'
                                                     type: string
                                                   divisor:
+                                                    anyOf:
+                                                    - type: integer
+                                                    - type: string
                                                     description: Specifies the output
                                                       format of the exposed resources,
                                                       defaults to "1"
-                                                    type: string
+                                                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                                    x-kubernetes-int-or-string: true
                                                   resource:
                                                     description: 'Required: resource
                                                       to select'
@@ -4644,6 +4760,9 @@ spec:
                         - name
                         type: object
                       type: array
+                      x-kubernetes-list-map-keys:
+                      - name
+                      x-kubernetes-list-type: map
                   type: object
                 customConfig:
                   description: Allow to put custom configuration for the agent, corresponding
@@ -4770,6 +4889,7 @@ spec:
                         type: string
                     type: object
                   type: array
+                  x-kubernetes-list-type: atomic
               required:
               - image
               type: object
@@ -5438,7 +5558,7 @@ spec:
                                 description: 'Selects a field of the pod: supports
                                   metadata.name, metadata.namespace, metadata.labels,
                                   metadata.annotations, spec.nodeName, spec.serviceAccountName,
-                                  status.hostIP, status.podIP.'
+                                  status.hostIP, status.podIP, status.podIPs.'
                                 properties:
                                   apiVersion:
                                     description: Version of the schema the FieldPath
@@ -5463,9 +5583,13 @@ spec:
                                       optional for env vars'
                                     type: string
                                   divisor:
+                                    anyOf:
+                                    - type: integer
+                                    - type: string
                                     description: Specifies the output format of the
                                       exposed resources, defaults to "1"
-                                    type: string
+                                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                    x-kubernetes-int-or-string: true
                                   resource:
                                     description: 'Required: resource to select'
                                     type: string
@@ -5498,6 +5622,9 @@ spec:
                         - name
                         type: object
                       type: array
+                      x-kubernetes-list-map-keys:
+                      - name
+                      x-kubernetes-list-type: map
                     logLevel:
                       description: 'Set logging verbosity, valid log levels are: trace,
                         debug, info, warn, error, critical, and off'
@@ -5508,13 +5635,21 @@ spec:
                       properties:
                         limits:
                           additionalProperties:
-                            type: string
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                            x-kubernetes-int-or-string: true
                           description: 'Limits describes the maximum amount of compute
                             resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
                           type: object
                         requests:
                           additionalProperties:
-                            type: string
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                            x-kubernetes-int-or-string: true
                           description: 'Requests describes the minimum amount of compute
                             resources required. If Requests is omitted for a container,
                             it defaults to Limits if that is explicitly specified,
@@ -5524,7 +5659,7 @@ spec:
                       type: object
                     volumeMounts:
                       description: Specify additional volume mounts in the Datadog
-                        Cluster Agent container
+                        Cluster Check Runner container
                       items:
                         description: VolumeMount describes a mounting of a Volume
                           within a container.
@@ -5556,16 +5691,20 @@ spec:
                               to SubPath but environment variable references $(VAR_NAME)
                               are expanded using the container's environment. Defaults
                               to "" (volume's root). SubPathExpr and SubPath are mutually
-                              exclusive. This field is beta in 1.15.
+                              exclusive.
                             type: string
                         required:
                         - mountPath
                         - name
                         type: object
                       type: array
+                      x-kubernetes-list-map-keys:
+                      - name
+                      - mountPath
+                      x-kubernetes-list-type: map
                     volumes:
                       description: Specify additional volumes in the Datadog Cluster
-                        Agent container
+                        Check Runner container
                       items:
                         description: Volume represents a named volume in a pod that
                           may be accessed by any container in the pod.
@@ -5909,10 +6048,14 @@ spec:
                                             volumes, optional for env vars'
                                           type: string
                                         divisor:
+                                          anyOf:
+                                          - type: integer
+                                          - type: string
                                           description: Specifies the output format
                                             of the exposed resources, defaults to
                                             "1"
-                                          type: string
+                                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                          x-kubernetes-int-or-string: true
                                         resource:
                                           description: 'Required: resource to select'
                                           type: string
@@ -5935,6 +6078,9 @@ spec:
                                   string (default) or Memory. More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir'
                                 type: string
                               sizeLimit:
+                                anyOf:
+                                - type: integer
+                                - type: string
                                 description: 'Total amount of local storage required
                                   for this EmptyDir volume. The size limit is also
                                   applicable for memory medium. The maximum usage
@@ -5943,7 +6089,8 @@ spec:
                                   of memory limits of all containers in a pod. The
                                   default is nil which means that the limit is undefined.
                                   More info: http://kubernetes.io/docs/user-guide/volumes#emptydir'
-                                type: string
+                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                x-kubernetes-int-or-string: true
                             type: object
                           fc:
                             description: FC represents a Fibre Channel resource that
@@ -6430,10 +6577,14 @@ spec:
                                                       for env vars'
                                                     type: string
                                                   divisor:
+                                                    anyOf:
+                                                    - type: integer
+                                                    - type: string
                                                     description: Specifies the output
                                                       format of the exposed resources,
                                                       defaults to "1"
-                                                    type: string
+                                                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                                    x-kubernetes-int-or-string: true
                                                   resource:
                                                     description: 'Required: resource
                                                       to select'
@@ -6827,6 +6978,9 @@ spec:
                         - name
                         type: object
                       type: array
+                      x-kubernetes-list-map-keys:
+                      - name
+                      x-kubernetes-list-type: map
                   type: object
                 customConfig:
                   description: Allow to put custom configuration for the agent, corresponding
@@ -6954,6 +7108,7 @@ spec:
                         type: string
                     type: object
                   type: array
+                  x-kubernetes-list-type: atomic
               required:
               - image
               type: object
@@ -7180,6 +7335,9 @@ spec:
                 - type
                 type: object
               type: array
+              x-kubernetes-list-map-keys:
+              - type
+              x-kubernetes-list-type: map
           type: object
       type: object
   version: v1alpha1

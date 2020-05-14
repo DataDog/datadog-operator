@@ -14,35 +14,37 @@ spec:
     spec:
       serviceAccountName: datadog-operator
       containers:
-      - name: datadog-operator
-        image: datadog/operator:0.2.1
-        command:
-        - datadog-operator
-        imagePullPolicy: IfNotPresent
-        args:
-        - --zap-level=info
-        env:
-        - name: WATCH_NAMESPACE
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.namespace
-        - name: POD_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.name
-        - name: OPERATOR_NAME
-          value: "datadog-operator"
-        ports:
-        - name: metrics
-          containerPort: 8383
-          protocol: TCP
-        readinessProbe:
-          httpGet:
-            path: /ready
-            port: 9090
-          periodSeconds: 10
-        livenessProbe:
-          httpGet:
-            path: /live
-            port: 9090
-          periodSeconds: 10
+        - name: datadog-operator
+          image: datadog/operator:0.2.1
+          command:
+            - datadog-operator
+          imagePullPolicy: IfNotPresent
+          args:
+            - --zap-level=info
+            - --zap-encoder=console
+            - --zap-stacktrace-level=error
+          env:
+            - name: WATCH_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: OPERATOR_NAME
+              value: "datadog-operator"
+          ports:
+            - name: metrics
+              containerPort: 8383
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 9090
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /live
+              port: 9090
+            periodSeconds: 10
