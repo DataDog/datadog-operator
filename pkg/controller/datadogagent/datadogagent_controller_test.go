@@ -354,7 +354,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 			wantFunc: func(c client.Client) error {
 				rbacResourcesName := "foo-agent"
 				serviceAccount := &corev1.ServiceAccount{}
-				if err := c.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesName}, serviceAccount); err != nil {
+				if err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: rbacResourcesName}, serviceAccount); err != nil {
 					return err
 				}
 				if !ownedByDatadogOperator(serviceAccount.OwnerReferences) {
@@ -405,7 +405,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				if err := c.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesName}, &rbacv1.ClusterRoleBinding{}); err != nil {
 					return err
 				}
-				if err := c.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesName}, &corev1.ServiceAccount{}); err != nil {
+				if err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: rbacResourcesName}, &corev1.ServiceAccount{}); err != nil {
 					return err
 				}
 
@@ -1266,7 +1266,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				// Make sure Cluster Agent ServiceAccount is created properly
 				rbacResourcesNameClusterAgent := "foo-cluster-agent"
 				serviceAccount := &corev1.ServiceAccount{}
-				if err := c.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesNameClusterAgent}, serviceAccount); err != nil {
+				if err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: rbacResourcesNameClusterAgent}, serviceAccount); err != nil {
 					return err
 				}
 				if !ownedByDatadogOperator(serviceAccount.OwnerReferences) {
@@ -1725,7 +1725,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 			wantFunc: func(c client.Client) error {
 				rbacResourcesNameClusterChecksRunner := rbacResourcesNameClusterChecksRunner
 				serviceAccount := &corev1.ServiceAccount{}
-				if err := c.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesNameClusterChecksRunner}, serviceAccount); err != nil {
+				if err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: rbacResourcesNameClusterChecksRunner}, serviceAccount); err != nil {
 					return err
 				}
 				if !ownedByDatadogOperator(serviceAccount.OwnerReferences) {

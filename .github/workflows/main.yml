@@ -7,10 +7,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - name: Set up Go 1.13
+    - name: Set up Go
       uses: actions/setup-go@v1
       with:
-        go-version: 1.13
+        go-version: 1.14
       id: go
     - name: install requiere packages
       uses: mstksg/get-package@v1
@@ -31,9 +31,9 @@ jobs:
       run: |
         make validate
     - name: setup kind
-      uses: engineerd/setup-kind@v0.1.0
+      uses: engineerd/setup-kind@v0.3.0
       with:
-        version: "v0.7.0"
+        version: "v0.8.1"
         config: test/cluster-kind.yaml
     - name: Run E2E
       run: |

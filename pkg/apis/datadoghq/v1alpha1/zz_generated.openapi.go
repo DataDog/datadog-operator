@@ -74,7 +74,8 @@ func schema_pkg_apis_datadoghq_v1alpha1_APMSpec(ref common.ReferenceCallback) co
 					"env": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "set",
+								"x-kubernetes-list-map-keys": "name",
+								"x-kubernetes-list-type":     "map",
 							},
 						},
 						SchemaProps: spec.SchemaProps{
@@ -235,7 +236,8 @@ func schema_pkg_apis_datadoghq_v1alpha1_ClusterAgentConfig(ref common.ReferenceC
 					"env": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "set",
+								"x-kubernetes-list-map-keys": "name",
+								"x-kubernetes-list-type":     "map",
 							},
 						},
 						SchemaProps: spec.SchemaProps{
@@ -253,7 +255,11 @@ func schema_pkg_apis_datadoghq_v1alpha1_ClusterAgentConfig(ref common.ReferenceC
 					"volumeMounts": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "set",
+								"x-kubernetes-list-map-keys": []interface{}{
+									"name",
+									"mountPath",
+								},
+								"x-kubernetes-list-type": "map",
 							},
 						},
 						SchemaProps: spec.SchemaProps{
@@ -271,7 +277,8 @@ func schema_pkg_apis_datadoghq_v1alpha1_ClusterAgentConfig(ref common.ReferenceC
 					"volumes": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "set",
+								"x-kubernetes-list-map-keys": "name",
+								"x-kubernetes-list-type":     "map",
 							},
 						},
 						SchemaProps: spec.SchemaProps{
@@ -317,7 +324,8 @@ func schema_pkg_apis_datadoghq_v1alpha1_ClusterChecksRunnerConfig(ref common.Ref
 					"env": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "set",
+								"x-kubernetes-list-map-keys": "name",
+								"x-kubernetes-list-type":     "map",
 							},
 						},
 						SchemaProps: spec.SchemaProps{
@@ -335,11 +343,15 @@ func schema_pkg_apis_datadoghq_v1alpha1_ClusterChecksRunnerConfig(ref common.Ref
 					"volumeMounts": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "set",
+								"x-kubernetes-list-map-keys": []interface{}{
+									"name",
+									"mountPath",
+								},
+								"x-kubernetes-list-type": "map",
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "Specify additional volume mounts in the Datadog Cluster Agent container",
+							Description: "Specify additional volume mounts in the Datadog Cluster Check Runner container",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -353,11 +365,12 @@ func schema_pkg_apis_datadoghq_v1alpha1_ClusterChecksRunnerConfig(ref common.Ref
 					"volumes": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "set",
+								"x-kubernetes-list-map-keys": "name",
+								"x-kubernetes-list-type":     "map",
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "Specify additional volumes in the Datadog Cluster Agent container",
+							Description: "Specify additional volumes in the Datadog Cluster Check Runner container",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -742,7 +755,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentList(ref common.ReferenceCal
 					"items": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "set",
+								"x-kubernetes-list-type": "atomic",
 							},
 						},
 						SchemaProps: spec.SchemaProps{
@@ -1058,7 +1071,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentSpecClusterAgentSpec(ref com
 					"tolerations": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "set",
+								"x-kubernetes-list-type": "atomic",
 							},
 						},
 						SchemaProps: spec.SchemaProps{
@@ -1188,7 +1201,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentSpecClusterChecksRunnerSpec(
 					"tolerations": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "set",
+								"x-kubernetes-list-type": "atomic",
 							},
 						},
 						SchemaProps: spec.SchemaProps{
@@ -1255,7 +1268,8 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentStatus(ref common.ReferenceC
 					"conditions": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "set",
+								"x-kubernetes-list-map-keys": "type",
+								"x-kubernetes-list-type":     "map",
 							},
 						},
 						SchemaProps: spec.SchemaProps{
@@ -1697,7 +1711,8 @@ func schema_pkg_apis_datadoghq_v1alpha1_NodeAgentConfig(ref common.ReferenceCall
 					"env": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "set",
+								"x-kubernetes-list-map-keys": "name",
+								"x-kubernetes-list-type":     "map",
 							},
 						},
 						SchemaProps: spec.SchemaProps{
@@ -1715,7 +1730,11 @@ func schema_pkg_apis_datadoghq_v1alpha1_NodeAgentConfig(ref common.ReferenceCall
 					"volumeMounts": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "set",
+								"x-kubernetes-list-map-keys": []interface{}{
+									"name",
+									"mountPath",
+								},
+								"x-kubernetes-list-type": "map",
 							},
 						},
 						SchemaProps: spec.SchemaProps{
@@ -1733,7 +1752,8 @@ func schema_pkg_apis_datadoghq_v1alpha1_NodeAgentConfig(ref common.ReferenceCall
 					"volumes": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "set",
+								"x-kubernetes-list-map-keys": "name",
+								"x-kubernetes-list-type":     "map",
 							},
 						},
 						SchemaProps: spec.SchemaProps{
@@ -1769,7 +1789,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_NodeAgentConfig(ref common.ReferenceCall
 					"tolerations": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "set",
+								"x-kubernetes-list-type": "atomic",
 							},
 						},
 						SchemaProps: spec.SchemaProps{
@@ -1809,7 +1829,8 @@ func schema_pkg_apis_datadoghq_v1alpha1_ProcessSpec(ref common.ReferenceCallback
 					"env": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "set",
+								"x-kubernetes-list-map-keys": "name",
+								"x-kubernetes-list-type":     "map",
 							},
 						},
 						SchemaProps: spec.SchemaProps{
@@ -1931,7 +1952,8 @@ func schema_pkg_apis_datadoghq_v1alpha1_SystemProbeSpec(ref common.ReferenceCall
 					"env": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "set",
+								"x-kubernetes-list-map-keys": "name",
+								"x-kubernetes-list-type":     "map",
 							},
 						},
 						SchemaProps: spec.SchemaProps{
