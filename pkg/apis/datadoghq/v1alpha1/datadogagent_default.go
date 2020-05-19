@@ -19,7 +19,6 @@ import (
 // default values
 const (
 	DefaultLogLevel                               string = "INFO"
-	defaultDatadogURL                             string = "https://app.datadoghq.com"
 	defaultAgentImage                             string = "datadog/agent:latest"
 	defaultCollectEvents                          bool   = false
 	defaultLeaderElection                         bool   = false
@@ -152,10 +151,6 @@ func IsDefaultedImageConfig(imageConfig *ImageConfig) bool {
 // returns true if yes, else false
 func IsDefaultedDatadogAgentSpecAgentConfig(config *NodeAgentConfig) bool {
 	if config == nil {
-		return false
-	}
-
-	if config.DDUrl == nil {
 		return false
 	}
 
@@ -400,10 +395,6 @@ func DefaultDatadogAgentSpecAgentImage(image *ImageConfig) *ImageConfig {
 func DefaultDatadogAgentSpecAgentConfig(config *NodeAgentConfig) *NodeAgentConfig {
 	if config == nil {
 		config = &NodeAgentConfig{}
-	}
-
-	if config.DDUrl == nil {
-		config.DDUrl = NewStringPointer(defaultDatadogURL)
 	}
 
 	if config.LogLevel == nil {
