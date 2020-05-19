@@ -89,10 +89,6 @@ func clusterAgentDefaultEnvVars() []corev1.EnvVar {
 			Value: "true",
 		},
 		{
-			Name:  "DD_DD_URL",
-			Value: "https://app.datadoghq.com",
-		},
-		{
 			Name:      "DD_API_KEY",
 			ValueFrom: apiKeyValue(),
 		},
