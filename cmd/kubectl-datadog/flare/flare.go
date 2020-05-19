@@ -132,7 +132,7 @@ func (o *options) complete(cmd *cobra.Command, args []string) error {
 	}
 
 	if ddSite == "" {
-		ddSite, err = common.AskForInput("Please enter your Datatod site [us/eu] (default us): ")
+		ddSite, err = common.AskForInput("Please enter your Datatog site [us/eu] (default us): ")
 		if err != nil {
 			return err
 		}
