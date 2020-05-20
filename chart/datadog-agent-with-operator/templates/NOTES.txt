@@ -1,0 +1,3 @@
+Datadog agents are spinning up on each node in your cluster. After a few
+minutes, you should see your agents starting in your event stream:
+    https://app.datadoghq.com/event/stream

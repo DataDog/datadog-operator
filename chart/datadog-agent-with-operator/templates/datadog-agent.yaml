@@ -1,0 +1,8 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgent
+metadata:
+  name: {{ include "datadog-agent-with-operator.fullname" . }}
+  labels:
+{{ include "datadog-agent-with-operator.labels" . | indent 4 }}
+spec:
+{{ .Values.agent_spec | indent 2 }}
