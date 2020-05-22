@@ -49,6 +49,7 @@ const (
 	reconcileMetricFormat       = "%s.reconcile.success"
 	reconcileErrTagFormat       = "reconcile_err:%s"
 	datadogOperatorSourceType   = "datadog_operator"
+	defaultbaseURL              = "https://api.datadoghq.com"
 )
 
 var (
@@ -81,6 +82,7 @@ type metricsForwarder struct {
 	delegator           delegatedAPI
 	decryptor           secrets.Decryptor
 	creds               sync.Map
+	baseURL             string
 	sync.Mutex
 	status *datadoghqv1alpha1.DatadogAgentCondition
 }
@@ -108,6 +110,7 @@ func newMetricsForwarder(k8sClient client.Client, decryptor secrets.Decryptor, o
 		lastReconcileErr:    errInitValue,
 		decryptor:           decryptor,
 		creds:               sync.Map{},
+		baseURL:             defaultbaseURL,
 		logger:              log.WithValues("CustomResource.Namespace", obj.GetNamespace(), "CustomResource.Name", obj.GetName()),
 	}
 }
@@ -133,7 +136,7 @@ func (mf *metricsForwarder) start(wg *sync.WaitGroup) {
 		return
 	}
 
-	mf.logger.Info("Datadog metrics forwarder initilized successfully")
+	mf.logger.Info("Datadog metrics forwarder initialized successfully")
 
 	// Send CR detection event
 	crEvent := crDetected(mf.id)
@@ -200,6 +203,8 @@ func (mf *metricsForwarder) connectToDatadogAPI() (bool, error) {
 	}
 	mf.logger.Info("Getting Datadog credentials")
 	apiKey, appKey, err := mf.getCredentials(dda)
+	mf.baseURL = getbaseURL(dda)
+	mf.logger.Info("Got Datadog Site", "site", mf.baseURL)
 	defer mf.updateStatusIfNeeded(err)
 	if err != nil {
 		mf.logger.Error(err, "cannot get Datadog credentials,  will retry later...")
@@ -350,12 +355,13 @@ func (mf *metricsForwarder) validateCreds(apiKey, appKey string) (*api.Client, e
 // delegatedValidateCreds is separated from validateCreds to facilitate mocking the Datadog API
 func (mf *metricsForwarder) delegatedValidateCreds(apiKey, appKey string) (*api.Client, error) {
 	datadogClient := api.NewClient(apiKey, appKey)
+	datadogClient.SetBaseUrl(mf.baseURL)
 	valid, err := datadogClient.Validate()
 	if err != nil {
 		return nil, fmt.Errorf("cannot validate datadog credentials: %v", err)
 	}
 	if !valid {
-		return nil, errors.New("invalid datadog credentials")
+		return nil, fmt.Errorf("invalid datadog credentials on %s", mf.baseURL)
 	}
 	return datadogClient, nil
 }
@@ -652,4 +658,13 @@ func (mf *metricsForwarder) isErrChanFull() bool {
 // isEventChanFull returs if the eventChan is full
 func (mf *metricsForwarder) isEventChanFull() bool {
 	return len(mf.eventChan) == cap(mf.eventChan)
+}
+
+func getbaseURL(dda *datadoghqv1alpha1.DatadogAgent) string {
+	if dda.Spec.Agent != nil && dda.Spec.Agent.Config.DDUrl != nil {
+		return *dda.Spec.Agent.Config.DDUrl
+	} else if dda.Spec.Site != "" {
+		return fmt.Sprintf("https://api.%s", dda.Spec.Site)
+	}
+	return defaultbaseURL
 }
