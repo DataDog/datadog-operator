@@ -240,7 +240,7 @@ func (r *ReconcileDatadogAgent) updateDaemonSet(logger logr.Logger, dda *datadog
 	now := metav1.NewTime(time.Now())
 	if comparison.IsSameSpecMD5Hash(newHash, ds.GetAnnotations()) {
 		// no update needed so update the status and return
-		newStatus.Agent = updateDaemonSetStatus(newDS, newStatus.Agent, &now)
+		newStatus.Agent = updateDaemonSetStatus(ds, newStatus.Agent, &now)
 		return reconcile.Result{}, nil
 	}
 
