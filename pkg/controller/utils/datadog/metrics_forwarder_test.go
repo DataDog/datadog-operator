@@ -1029,3 +1029,59 @@ func Test_metricsForwarder_getSecretsFromCache(t *testing.T) {
 		})
 	}
 }
+
+func Test_getbaseURL(t *testing.T) {
+	type args struct {
+		dda *datadoghqv1alpha1.DatadogAgent
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "Get default baseURL",
+			args: args{
+				dda: test.NewDefaultedDatadogAgent("foo", "bar", &test.NewDatadogAgentOptions{}),
+			},
+			want: "https://api.datadoghq.com",
+		},
+		{
+			name: "Compute baseURL from site when passing Site",
+			args: args{
+				dda: test.NewDefaultedDatadogAgent("foo", "bar", &test.NewDatadogAgentOptions{
+					Site: "datadoghq.eu",
+				}),
+			},
+			want: "https://api.datadoghq.eu",
+		},
+		{
+			name: "Compute baseURL from ddUrl when Site is not defined",
+			args: args{
+				dda: test.NewDefaultedDatadogAgent("foo", "bar", &test.NewDatadogAgentOptions{
+					NodeAgentConfig: &datadoghqv1alpha1.NodeAgentConfig{
+						DDUrl: datadoghqv1alpha1.NewStringPointer("https://test.url.com"),
+					}}),
+			},
+			want: "https://test.url.com",
+		},
+		{
+			name: "Test that DDUrl takes precedence over Site",
+			args: args{
+				dda: test.NewDefaultedDatadogAgent("foo", "bar", &test.NewDatadogAgentOptions{
+					Site: "datadoghq.eu",
+					NodeAgentConfig: &datadoghqv1alpha1.NodeAgentConfig{
+						DDUrl: datadoghqv1alpha1.NewStringPointer("https://test.url.com"),
+					}}),
+			},
+			want: "https://test.url.com",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := getbaseURL(tt.args.dda); got != tt.want {
+				t.Errorf("getbaseURL() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
