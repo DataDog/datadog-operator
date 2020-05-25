@@ -16,7 +16,7 @@ The **Datadog Operator** aims to provide a new way of deploying the [Datadog Age
 - Optionally, use of an advanced `DaemonSet` deployment by leveraging the [ExtendedDaemonSet][2].
 - Many other features to come :).
 
-The **Datadog Operator** is [RedHat certified][9] and available on [operatorhub.io][10].
+The **Datadog Operator** is [RedHat certified][10] and available on [operatorhub.io][11].
 
 ## Datadog Operator vs. Helm chart
 
@@ -36,10 +36,11 @@ The Datadog operator also allows you to:
 
 - [Configure and provide custom checks to the Agents][6].
 - [Deploy the Datadog Cluster Agent with your node Agents][7].
+- [Secrets Management with the Datadog Operator][8].
 
 ## How to contribute
 
-See the [How to Contribute page][8].
+See the [How to Contribute page][9].
 
 [1]: https://github.com/DataDog/datadog-agent/
 [2]: https://github.com/DataDog/extendeddaemonset
@@ -48,9 +49,10 @@ See the [How to Contribute page][8].
 [5]: https://github.com/DataDog/datadog-operator/blob/master/docs/getting_started.md
 [6]: https://github.com/DataDog/datadog-operator/blob/master/docs/custom_check.md
 [7]: https://github.com/DataDog/datadog-operator/blob/master/docs/cluster_agent_setup.md
-[8]: https://github.com/DataDog/datadog-operator/tree/master/docs/how-to-contribute.md
-[9]: https://catalog.redhat.com/software/operators/detail/5e845a42ecb5246c09fe90b6
-[10]: https://operatorhub.io/operator/datadog-operator
+[8]: https://github.com/DataDog/datadog-operator/blob/master/docs/secret_management.md
+[9]: https://github.com/DataDog/datadog-operator/tree/master/docs/how-to-contribute.md
+[10]: https://catalog.redhat.com/software/operators/detail/5e845a42ecb5246c09fe90b6
+[11]: https://operatorhub.io/operator/datadog-operator
 
 ## Release
 
