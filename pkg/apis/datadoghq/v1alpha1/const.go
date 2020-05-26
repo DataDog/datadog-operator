@@ -31,6 +31,8 @@ const (
 	DefaultClusterAgentServicePort = 5005
 	// DefaultMetricsServerServicePort default metrics-server port
 	DefaultMetricsServerServicePort = 443
+	// DefaultDogstatsdPort default dogstatsd port
+	DefaultDogstatsdPort = 8125
 )
 
 // Datadog env var names

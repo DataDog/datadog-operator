@@ -471,6 +471,14 @@ type NodeAgentConfig struct {
 	// +optional
 	// +listType=set
 	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
+
+	// Number of port to expose on the host.
+	// If specified, this must be a valid port number, 0 < x < 65536.
+	// If HostNetwork is specified, this must match ContainerPort.
+	// Most containers do not need this.
+	//
+	// +optional
+	HostPort *int32 `json:"hostPort,omitempty"`
 }
 
 // CRISocketConfig contains the CRI socket configuration parameters
