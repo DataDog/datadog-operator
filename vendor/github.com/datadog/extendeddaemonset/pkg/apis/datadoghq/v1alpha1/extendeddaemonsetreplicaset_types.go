@@ -13,8 +13,6 @@ import (
 // ExtendedDaemonSetReplicaSetSpec defines the desired state of ExtendedDaemonSetReplicaSet
 // +k8s:openapi-gen=true
 type ExtendedDaemonSetReplicaSetSpec struct {
-	// DaemonSetReplicaSet deployment strategy
-	Strategy ExtendedDaemonSetReplicaSetSpecStrategy `json:"strategy"`
 	// A label query over pods that are managed by the daemon set.
 	// Must match in order to be controlled.
 	// If empty, defaulted to labels on Pod template.
@@ -42,14 +40,16 @@ type ExtendedDaemonSetReplicaSetSpecStrategy struct {
 // ExtendedDaemonSetReplicaSetStatus defines the observed state of ExtendedDaemonSetReplicaSet
 // +k8s:openapi-gen=true
 type ExtendedDaemonSetReplicaSetStatus struct {
-	Status    string `json:"status"`
-	Desired   int32  `json:"desired"`
-	Current   int32  `json:"current"`
-	Ready     int32  `json:"ready"`
-	Available int32  `json:"available"`
+	Status                   string `json:"status"`
+	Desired                  int32  `json:"desired"`
+	Current                  int32  `json:"current"`
+	Ready                    int32  `json:"ready"`
+	Available                int32  `json:"available"`
+	IgnoredUnresponsiveNodes int32  `json:"ignoredUnresponsiveNodes"`
 
 	// Conditions Represents the latest available observations of a DaemonSet's current state.
-	// +listType=set
+	// +listType=map
+	// +listMapKey=type
 	Conditions []ExtendedDaemonSetReplicaSetCondition `json:"conditions,omitempty"`
 }
 
@@ -95,6 +95,7 @@ const (
 	ConditionTypeLastFullSync ExtendedDaemonSetReplicaSetConditionType = "LastFullSync"
 )
 
+// +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // ExtendedDaemonSetReplicaSet is the Schema for the extendeddaemonsetreplicasets API
@@ -105,6 +106,7 @@ const (
 // +kubebuilder:printcolumn:name="current",type="integer",JSONPath=".status.current"
 // +kubebuilder:printcolumn:name="ready",type="integer",JSONPath=".status.ready"
 // +kubebuilder:printcolumn:name="available",type="integer",JSONPath=".status.available"
+// +kubebuilder:printcolumn:name="ignored unresponsive nodes",type="integer",JSONPath=".status.ignoredUnresponsiveNodes"
 // +kubebuilder:printcolumn:name="node selector",type="string",JSONPath=".spec.selector"
 // +kubebuilder:printcolumn:name="age",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:resource:path=extendeddaemonsetreplicasets,shortName=ers

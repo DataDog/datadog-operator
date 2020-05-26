@@ -1,0 +1,3 @@
+role-paths:
+- deploy/role.yaml
+- deploy/clusterrole.yaml

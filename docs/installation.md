@@ -156,7 +156,7 @@ helm delete $DD_NAMEOP -n $DD_NAMESPACE
 [2]: https://kubernetes.io/docs/tasks/tools/install-kubectl/
 [3]: https://www.openshift.com/learn/topics/operators
 [4]: https://github.com/operator-framework/operator-sdk
-[5]: https://github.com/DataDog/datadog-operator/archive/0.1.3.zip
+[5]: https://github.com/DataDog/datadog-operator/releases/latest
 [6]: https://github.com/DataDog/datadog-operator
 [7]: https://github.com/DataDog/datadog-operator/blob/master/examples/datadog-agent.yaml
 [8]: https://app.datadoghq.com/account/settings#api

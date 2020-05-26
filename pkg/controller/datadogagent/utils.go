@@ -404,6 +404,10 @@ func getEnvVarsCommon(dda *datadoghqv1alpha1.DatadogAgent, needAPIKey bool) ([]c
 			Value: getLogLevel(dda),
 		},
 		{
+			Name:  datadoghqv1alpha1.DDSite,
+			Value: dda.Spec.Site,
+		},
+		{
 			Name: datadoghqv1alpha1.DDKubeletHost,
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
@@ -444,6 +448,13 @@ func getEnvVarsCommon(dda *datadoghqv1alpha1.DatadogAgent, needAPIKey bool) ([]c
 		})
 	}
 
+	if dda.Spec.Agent.Config.DDUrl != nil {
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  datadoghqv1alpha1.DDddURL,
+			Value: *dda.Spec.Agent.Config.DDUrl,
+		})
+	}
+
 	return envVars, nil
 }
 
@@ -464,14 +475,6 @@ func getEnvVarsForAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.EnvVar, e
 		{
 			Name:  datadoghqv1alpha1.DDClusterName,
 			Value: spec.ClusterName,
-		},
-		{
-			Name:  datadoghqv1alpha1.DDSite,
-			Value: spec.Site,
-		},
-		{
-			Name:  datadoghqv1alpha1.DDddURL,
-			Value: *spec.Agent.Config.DDUrl,
 		},
 		{
 			Name:  datadoghqv1alpha1.DDHealthPort,

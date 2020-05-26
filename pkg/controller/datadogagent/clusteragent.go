@@ -436,7 +436,7 @@ func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Env
 		},
 	}
 
-	if spec.Agent != nil {
+	if spec.Agent != nil && spec.Agent.Config.DDUrl != nil {
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  datadoghqv1alpha1.DDddURL,
 			Value: *spec.Agent.Config.DDUrl,

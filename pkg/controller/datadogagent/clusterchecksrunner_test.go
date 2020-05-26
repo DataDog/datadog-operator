@@ -83,10 +83,6 @@ func clusterChecksRunnerDefaultEnvVars() []corev1.EnvVar {
 			Value: "",
 		},
 		{
-			Name:  "DD_DD_URL",
-			Value: "https://app.datadoghq.com",
-		},
-		{
 			Name:  "DD_CLUSTER_CHECKS_ENABLED",
 			Value: "true",
 		},

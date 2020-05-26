@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-RELEASE_VERSION=v0.13.0
+RELEASE_VERSION=v0.17.0
 
 ROOT=$(pwd)
 
@@ -28,7 +28,6 @@ uname_os() {
 }
 
 OS=$(uname_os)
-
 
 mkdir -p bin
 

@@ -231,7 +231,8 @@ type APMSpec struct {
 	// Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables
 	//
 	// +optional
-	// +listType=set
+	// +listType=map
+	// +listMapKey=name
 	Env []corev1.EnvVar `json:"env,omitempty"`
 
 	// Datadog APM Agent resource requests and limits
@@ -297,7 +298,8 @@ type ProcessSpec struct {
 	// Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables
 	//
 	// +optional
-	// +listType=set
+	// +listType=map
+	// +listMapKey=name
 	Env []corev1.EnvVar `json:"env,omitempty"`
 
 	// Datadog Process Agent resource requests and limits
@@ -345,7 +347,8 @@ type SystemProbeSpec struct {
 	// Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables
 	//
 	// +optional
-	// +listType=set
+	// +listType=map
+	// +listMapKey=name
 	Env []corev1.EnvVar `json:"env,omitempty"`
 
 	// Datadog SystemProbe resource requests and limits
@@ -443,17 +446,21 @@ type NodeAgentConfig struct {
 	// Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables
 	//
 	// +optional
-	// +listType=set
+	// +listType=map
+	// +listMapKey=name
 	Env []corev1.EnvVar `json:"env,omitempty"`
 
 	// Specify additional volume mounts in the Datadog Agent container
 	// +optional
-	// +listType=set
+	// +listType=map
+	// +listMapKey=name
+	// +listMapKey=mountPath
 	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
 
 	// Specify additional volumes in the Datadog Agent container
 	// +optional
-	// +listType=set
+	// +listType=map
+	// +listMapKey=name
 	Volumes []corev1.Volume `json:"volumes,omitempty"`
 
 	// Datadog Agent resource requests and limits
@@ -469,7 +476,7 @@ type NodeAgentConfig struct {
 
 	// If specified, the Agent pod's tolerations.
 	// +optional
-	// +listType=set
+	// +listType=atomic
 	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
 }
 
@@ -540,7 +547,7 @@ type DatadogAgentSpecClusterAgentSpec struct {
 
 	// If specified, the Cluster-Agent pod's tolerations.
 	// +optional
-	// +listType=set
+	// +listType=atomic
 	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
 
 	// NodeSelector is a selector which must be true for the pod to fit on a node.
@@ -583,17 +590,21 @@ type ClusterAgentConfig struct {
 	// Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables
 	//
 	// +optional
-	// +listType=set
+	// +listType=map
+	// +listMapKey=name
 	Env []corev1.EnvVar `json:"env,omitempty"`
 
 	// Specify additional volume mounts in the Datadog Cluster Agent container
 	// +optional
-	// +listType=set
+	// +listType=map
+	// +listMapKey=name
+	// +listMapKey=mountPath
 	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
 
 	// Specify additional volumes in the Datadog Cluster Agent container
 	// +optional
-	// +listType=set
+	// +listType=map
+	// +listMapKey=name
 	Volumes []corev1.Volume `json:"volumes,omitempty"`
 }
 
@@ -611,17 +622,21 @@ type ClusterChecksRunnerConfig struct {
 	// Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables
 	//
 	// +optional
-	// +listType=set
+	// +listType=map
+	// +listMapKey=name
 	Env []corev1.EnvVar `json:"env,omitempty"`
 
-	// Specify additional volume mounts in the Datadog Cluster Agent container
+	// Specify additional volume mounts in the Datadog Cluster Check Runner container
 	// +optional
-	// +listType=set
+	// +listType=map
+	// +listMapKey=name
+	// +listMapKey=mountPath
 	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
 
-	// Specify additional volumes in the Datadog Cluster Agent container
+	// Specify additional volumes in the Datadog Cluster Check Runner container
 	// +optional
-	// +listType=set
+	// +listType=map
+	// +listMapKey=name
 	Volumes []corev1.Volume `json:"volumes,omitempty"`
 }
 
@@ -667,7 +682,7 @@ type DatadogAgentSpecClusterChecksRunnerSpec struct {
 
 	// If specified, the Cluster-Checks pod's tolerations.
 	// +optional
-	// +listType=set
+	// +listType=atomic
 	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
 
 	// NodeSelector is a selector which must be true for the pod to fit on a node.
@@ -728,7 +743,8 @@ type DatadogAgentStatus struct {
 	ClusterChecksRunner *DeploymentStatus `json:"clusterChecksRunner,omitempty"`
 
 	// Conditions Represents the latest available observations of a DatadogAgent's current state.
-	// +listType=set
+	// +listType=map
+	// +listMapKey=type
 	Conditions []DatadogAgentCondition `json:"conditions,omitempty"`
 }
 
@@ -858,7 +874,7 @@ type DatadogAgent struct {
 type DatadogAgentList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	// +listType=set
+	// +listType=atomic
 	Items []DatadogAgent `json:"items"`
 }
 

@@ -47,6 +47,8 @@ spec:
               value: {{ .Chart.Name }}
           args:
             - --zap-level={{ .Values.logLevel }}
+            - --zap-encoder=console
+            - --zap-stacktrace-level=error
             - "--supportExtendedDaemonset={{ .Values.supportExtendedDaemonset}}"
             - "--probesPort={{ .Values.probesPort }}"
             - "--metricsPort={{ .Values.metricsPort }}"

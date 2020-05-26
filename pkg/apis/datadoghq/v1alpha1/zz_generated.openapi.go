@@ -37,6 +37,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./pkg/apis/datadoghq/v1alpha1.DatadogAgentSpecClusterAgentSpec":        schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentSpecClusterAgentSpec(ref),
 		"./pkg/apis/datadoghq/v1alpha1.DatadogAgentSpecClusterChecksRunnerSpec": schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentSpecClusterChecksRunnerSpec(ref),
 		"./pkg/apis/datadoghq/v1alpha1.DatadogAgentStatus":                      schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentStatus(ref),
+		"./pkg/apis/datadoghq/v1alpha1.DatadogMetric":                           schema_pkg_apis_datadoghq_v1alpha1_DatadogMetric(ref),
+		"./pkg/apis/datadoghq/v1alpha1.DatadogMetricCondition":                  schema_pkg_apis_datadoghq_v1alpha1_DatadogMetricCondition(ref),
 		"./pkg/apis/datadoghq/v1alpha1.DeploymentStatus":                        schema_pkg_apis_datadoghq_v1alpha1_DeploymentStatus(ref),
 		"./pkg/apis/datadoghq/v1alpha1.DogstatsdConfig":                         schema_pkg_apis_datadoghq_v1alpha1_DogstatsdConfig(ref),
 		"./pkg/apis/datadoghq/v1alpha1.ImageConfig":                             schema_pkg_apis_datadoghq_v1alpha1_ImageConfig(ref),
@@ -72,7 +74,8 @@ func schema_pkg_apis_datadoghq_v1alpha1_APMSpec(ref common.ReferenceCallback) co
 					"env": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "set",
+								"x-kubernetes-list-map-keys": "name",
+								"x-kubernetes-list-type":     "map",
 							},
 						},
 						SchemaProps: spec.SchemaProps{
@@ -233,7 +236,8 @@ func schema_pkg_apis_datadoghq_v1alpha1_ClusterAgentConfig(ref common.ReferenceC
 					"env": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "set",
+								"x-kubernetes-list-map-keys": "name",
+								"x-kubernetes-list-type":     "map",
 							},
 						},
 						SchemaProps: spec.SchemaProps{
@@ -251,7 +255,11 @@ func schema_pkg_apis_datadoghq_v1alpha1_ClusterAgentConfig(ref common.ReferenceC
 					"volumeMounts": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "set",
+								"x-kubernetes-list-map-keys": []interface{}{
+									"name",
+									"mountPath",
+								},
+								"x-kubernetes-list-type": "map",
 							},
 						},
 						SchemaProps: spec.SchemaProps{
@@ -269,7 +277,8 @@ func schema_pkg_apis_datadoghq_v1alpha1_ClusterAgentConfig(ref common.ReferenceC
 					"volumes": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "set",
+								"x-kubernetes-list-map-keys": "name",
+								"x-kubernetes-list-type":     "map",
 							},
 						},
 						SchemaProps: spec.SchemaProps{
@@ -315,7 +324,8 @@ func schema_pkg_apis_datadoghq_v1alpha1_ClusterChecksRunnerConfig(ref common.Ref
 					"env": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "set",
+								"x-kubernetes-list-map-keys": "name",
+								"x-kubernetes-list-type":     "map",
 							},
 						},
 						SchemaProps: spec.SchemaProps{
@@ -333,11 +343,15 @@ func schema_pkg_apis_datadoghq_v1alpha1_ClusterChecksRunnerConfig(ref common.Ref
 					"volumeMounts": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "set",
+								"x-kubernetes-list-map-keys": []interface{}{
+									"name",
+									"mountPath",
+								},
+								"x-kubernetes-list-type": "map",
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "Specify additional volume mounts in the Datadog Cluster Agent container",
+							Description: "Specify additional volume mounts in the Datadog Cluster Check Runner container",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -351,11 +365,12 @@ func schema_pkg_apis_datadoghq_v1alpha1_ClusterChecksRunnerConfig(ref common.Ref
 					"volumes": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "set",
+								"x-kubernetes-list-map-keys": "name",
+								"x-kubernetes-list-type":     "map",
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "Specify additional volumes in the Datadog Cluster Agent container",
+							Description: "Specify additional volumes in the Datadog Cluster Check Runner container",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -740,7 +755,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentList(ref common.ReferenceCal
 					"items": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "set",
+								"x-kubernetes-list-type": "atomic",
 							},
 						},
 						SchemaProps: spec.SchemaProps{
@@ -1056,7 +1071,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentSpecClusterAgentSpec(ref com
 					"tolerations": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "set",
+								"x-kubernetes-list-type": "atomic",
 							},
 						},
 						SchemaProps: spec.SchemaProps{
@@ -1186,7 +1201,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentSpecClusterChecksRunnerSpec(
 					"tolerations": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "set",
+								"x-kubernetes-list-type": "atomic",
 							},
 						},
 						SchemaProps: spec.SchemaProps{
@@ -1253,7 +1268,8 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentStatus(ref common.ReferenceC
 					"conditions": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "set",
+								"x-kubernetes-list-map-keys": "type",
+								"x-kubernetes-list-type":     "map",
 							},
 						},
 						SchemaProps: spec.SchemaProps{
@@ -1273,6 +1289,106 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentStatus(ref common.ReferenceC
 		},
 		Dependencies: []string{
 			"./pkg/apis/datadoghq/v1alpha1.DaemonSetStatus", "./pkg/apis/datadoghq/v1alpha1.DatadogAgentCondition", "./pkg/apis/datadoghq/v1alpha1.DeploymentStatus"},
+	}
+}
+
+func schema_pkg_apis_datadoghq_v1alpha1_DatadogMetric(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogMetric is the Schema for the datadogmetrics API",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("./pkg/apis/datadoghq/v1alpha1.DatadogMetricSpec"),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("./pkg/apis/datadoghq/v1alpha1.DatadogMetricStatus"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"./pkg/apis/datadoghq/v1alpha1.DatadogMetricSpec", "./pkg/apis/datadoghq/v1alpha1.DatadogMetricStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_pkg_apis_datadoghq_v1alpha1_DatadogMetricCondition(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogMetricCondition describes the state of a DatadogMetric at a certain point.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"type": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Type of DatadogMetric condition.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Status of the condition, one of True, False, Unknown.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"lastTransitionTime": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Last time the condition transitioned from one status to another.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"lastUpdateTime": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Last time the condition was updated.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"reason": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The reason for the condition's last transition.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"message": {
+						SchemaProps: spec.SchemaProps{
+							Description: "A human readable message indicating details about the transition.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"type", "status"},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 
@@ -1595,7 +1711,8 @@ func schema_pkg_apis_datadoghq_v1alpha1_NodeAgentConfig(ref common.ReferenceCall
 					"env": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "set",
+								"x-kubernetes-list-map-keys": "name",
+								"x-kubernetes-list-type":     "map",
 							},
 						},
 						SchemaProps: spec.SchemaProps{
@@ -1613,7 +1730,11 @@ func schema_pkg_apis_datadoghq_v1alpha1_NodeAgentConfig(ref common.ReferenceCall
 					"volumeMounts": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "set",
+								"x-kubernetes-list-map-keys": []interface{}{
+									"name",
+									"mountPath",
+								},
+								"x-kubernetes-list-type": "map",
 							},
 						},
 						SchemaProps: spec.SchemaProps{
@@ -1631,7 +1752,8 @@ func schema_pkg_apis_datadoghq_v1alpha1_NodeAgentConfig(ref common.ReferenceCall
 					"volumes": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "set",
+								"x-kubernetes-list-map-keys": "name",
+								"x-kubernetes-list-type":     "map",
 							},
 						},
 						SchemaProps: spec.SchemaProps{
@@ -1667,7 +1789,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_NodeAgentConfig(ref common.ReferenceCall
 					"tolerations": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "set",
+								"x-kubernetes-list-type": "atomic",
 							},
 						},
 						SchemaProps: spec.SchemaProps{
@@ -1707,7 +1829,8 @@ func schema_pkg_apis_datadoghq_v1alpha1_ProcessSpec(ref common.ReferenceCallback
 					"env": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "set",
+								"x-kubernetes-list-map-keys": "name",
+								"x-kubernetes-list-type":     "map",
 							},
 						},
 						SchemaProps: spec.SchemaProps{
@@ -1829,7 +1952,8 @@ func schema_pkg_apis_datadoghq_v1alpha1_SystemProbeSpec(ref common.ReferenceCall
 					"env": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
-								"x-kubernetes-list-type": "set",
+								"x-kubernetes-list-map-keys": "name",
+								"x-kubernetes-list-type":     "map",
 							},
 						},
 						SchemaProps: spec.SchemaProps{

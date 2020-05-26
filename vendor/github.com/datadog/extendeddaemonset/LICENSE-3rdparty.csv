@@ -14,6 +14,7 @@ core,"github.com/alecthomas/template/parse",NewBSD
 core,"github.com/alecthomas/units",MIT
 core,"github.com/beorn7/perks/quantile",MIT
 core,"github.com/blang/semver",MIT
+core,"github.com/cespare/xxhash/v2",MIT
 core,"github.com/davecgh/go-spew/spew",ISC
 core,"github.com/dgrijalva/jwt-go",MIT
 core,"github.com/emicklei/go-restful",MIT
@@ -27,7 +28,6 @@ core,"github.com/go-openapi/jsonreference",Apache-2.0
 core,"github.com/go-openapi/spec",Apache-2.0
 core,"github.com/go-openapi/swag",Apache-2.0
 core,"github.com/gobuffalo/envy",MIT
-core,"github.com/gobuffalo/flect",MIT
 core,"github.com/gogo/protobuf/proto",NewBSD
 core,"github.com/gogo/protobuf/sortkeys",NewBSD
 core,"github.com/golang/groupcache/lru",Apache-2.0
@@ -59,11 +59,13 @@ core,"github.com/gregjones/httpcache/diskcache",MIT
 core,"github.com/hako/durafmt",MIT
 core,"github.com/hashicorp/golang-lru",MPL-2.0
 core,"github.com/hashicorp/golang-lru/simplelru",MPL-2.0
+core,"github.com/heptiolabs/healthcheck",Apache-2.0
 core,"github.com/imdario/mergo",NewBSD
 core,"github.com/inconshreveable/mousetrap",Apache-2.0
 core,"github.com/joho/godotenv",MIT
 core,"github.com/json-iterator/go",MIT
 core,"github.com/konsorten/go-windows-terminal-sequences",MIT
+core,"github.com/liggitt/tabwriter",NewBSD
 core,"github.com/mailru/easyjson/buffer",MIT
 core,"github.com/mailru/easyjson/jlexer",MIT
 core,"github.com/mailru/easyjson/jwriter",MIT
@@ -80,14 +82,13 @@ core,"github.com/operator-framework/operator-sdk/internal/scaffold/internal/deps
 core,"github.com/operator-framework/operator-sdk/internal/util/fileutil",Apache-2.0
 core,"github.com/operator-framework/operator-sdk/internal/util/k8sutil",Apache-2.0
 core,"github.com/operator-framework/operator-sdk/internal/util/projutil",Apache-2.0
-core,"github.com/operator-framework/operator-sdk/internal/util/yamlutil",Apache-2.0
 core,"github.com/operator-framework/operator-sdk/pkg/k8sutil",Apache-2.0
 core,"github.com/operator-framework/operator-sdk/pkg/leader",Apache-2.0
 core,"github.com/operator-framework/operator-sdk/pkg/log/zap",Apache-2.0
-core,"github.com/operator-framework/operator-sdk/pkg/restmapper",Apache-2.0
 core,"github.com/operator-framework/operator-sdk/pkg/test",Apache-2.0
 core,"github.com/operator-framework/operator-sdk/pkg/test/e2eutil",Apache-2.0
 core,"github.com/operator-framework/operator-sdk/version",Apache-2.0
+core,"github.com/pborman/uuid",NewBSD
 core,"github.com/peterbourgon/diskv",MIT
 core,"github.com/pkg/errors",FreeBSD
 core,"github.com/prometheus/client_golang/prometheus",Apache-2.0
@@ -100,6 +101,7 @@ core,"github.com/prometheus/common/log",Apache-2.0
 core,"github.com/prometheus/common/model",Apache-2.0
 core,"github.com/prometheus/procfs",Apache-2.0
 core,"github.com/prometheus/procfs/internal/fs",Apache-2.0
+core,"github.com/prometheus/procfs/internal/util",Apache-2.0
 core,"github.com/rogpeppe/go-internal/modfile",NewBSD
 core,"github.com/rogpeppe/go-internal/module",NewBSD
 core,"github.com/rogpeppe/go-internal/semver",NewBSD
@@ -117,6 +119,8 @@ core,"go.uber.org/zap/internal/color",MIT
 core,"go.uber.org/zap/internal/exit",MIT
 core,"go.uber.org/zap/zapcore",MIT
 core,"golang.org/x/crypto/ssh/terminal",NewBSD
+core,"golang.org/x/mod/module",NewBSD
+core,"golang.org/x/mod/semver",NewBSD
 core,"golang.org/x/net/context",NewBSD
 core,"golang.org/x/net/context/ctxhttp",NewBSD
 core,"golang.org/x/net/http/httpguts",NewBSD
@@ -145,17 +149,11 @@ core,"golang.org/x/text/unicode/norm",NewBSD
 core,"golang.org/x/text/width",NewBSD
 core,"golang.org/x/time/rate",NewBSD
 core,"golang.org/x/tools/go/ast/astutil",NewBSD
-core,"golang.org/x/tools/go/gcexportdata",NewBSD
-core,"golang.org/x/tools/go/internal/gcimporter",NewBSD
-core,"golang.org/x/tools/go/internal/packagesdriver",NewBSD
-core,"golang.org/x/tools/go/packages",NewBSD
 core,"golang.org/x/tools/imports",NewBSD
 core,"golang.org/x/tools/internal/fastwalk",NewBSD
+core,"golang.org/x/tools/internal/gocommand",NewBSD
 core,"golang.org/x/tools/internal/gopathwalk",NewBSD
 core,"golang.org/x/tools/internal/imports",NewBSD
-core,"golang.org/x/tools/internal/module",NewBSD
-core,"golang.org/x/tools/internal/semver",NewBSD
-core,"golang.org/x/tools/internal/span",NewBSD
 core,"golang.org/x/xerrors",NewBSD
 core,"golang.org/x/xerrors/internal",NewBSD
 core,"gomodules.xyz/jsonpatch/v2",Apache-2.0
@@ -195,8 +193,10 @@ core,"k8s.io/api/coordination/v1",Apache-2.0
 core,"k8s.io/api/coordination/v1beta1",Apache-2.0
 core,"k8s.io/api/core/v1",Apache-2.0
 core,"k8s.io/api/discovery/v1alpha1",Apache-2.0
+core,"k8s.io/api/discovery/v1beta1",Apache-2.0
 core,"k8s.io/api/events/v1beta1",Apache-2.0
 core,"k8s.io/api/extensions/v1beta1",Apache-2.0
+core,"k8s.io/api/flowcontrol/v1alpha1",Apache-2.0
 core,"k8s.io/api/networking/v1",Apache-2.0
 core,"k8s.io/api/networking/v1beta1",Apache-2.0
 core,"k8s.io/api/node/v1alpha1",Apache-2.0
@@ -244,6 +244,7 @@ core,"k8s.io/apimachinery/pkg/types",Apache-2.0
 core,"k8s.io/apimachinery/pkg/util/cache",Apache-2.0
 core,"k8s.io/apimachinery/pkg/util/clock",Apache-2.0
 core,"k8s.io/apimachinery/pkg/util/diff",Apache-2.0
+core,"k8s.io/apimachinery/pkg/util/duration",Apache-2.0
 core,"k8s.io/apimachinery/pkg/util/errors",Apache-2.0
 core,"k8s.io/apimachinery/pkg/util/framer",Apache-2.0
 core,"k8s.io/apimachinery/pkg/util/intstr",Apache-2.0
@@ -251,6 +252,7 @@ core,"k8s.io/apimachinery/pkg/util/json",Apache-2.0
 core,"k8s.io/apimachinery/pkg/util/mergepatch",Apache-2.0
 core,"k8s.io/apimachinery/pkg/util/naming",Apache-2.0
 core,"k8s.io/apimachinery/pkg/util/net",Apache-2.0
+core,"k8s.io/apimachinery/pkg/util/rand",Apache-2.0
 core,"k8s.io/apimachinery/pkg/util/runtime",Apache-2.0
 core,"k8s.io/apimachinery/pkg/util/sets",Apache-2.0
 core,"k8s.io/apimachinery/pkg/util/strategicpatch",Apache-2.0
@@ -279,6 +281,7 @@ core,"k8s.io/client-go/discovery",Apache-2.0
 core,"k8s.io/client-go/discovery/cached",Apache-2.0
 core,"k8s.io/client-go/discovery/cached/disk",Apache-2.0
 core,"k8s.io/client-go/discovery/cached/memory",Apache-2.0
+core,"k8s.io/client-go/discovery/fake",Apache-2.0
 core,"k8s.io/client-go/dynamic",Apache-2.0
 core,"k8s.io/client-go/kubernetes",Apache-2.0
 core,"k8s.io/client-go/kubernetes/scheme",Apache-2.0
@@ -303,8 +306,10 @@ core,"k8s.io/client-go/kubernetes/typed/coordination/v1",Apache-2.0
 core,"k8s.io/client-go/kubernetes/typed/coordination/v1beta1",Apache-2.0
 core,"k8s.io/client-go/kubernetes/typed/core/v1",Apache-2.0
 core,"k8s.io/client-go/kubernetes/typed/discovery/v1alpha1",Apache-2.0
+core,"k8s.io/client-go/kubernetes/typed/discovery/v1beta1",Apache-2.0
 core,"k8s.io/client-go/kubernetes/typed/events/v1beta1",Apache-2.0
 core,"k8s.io/client-go/kubernetes/typed/extensions/v1beta1",Apache-2.0
+core,"k8s.io/client-go/kubernetes/typed/flowcontrol/v1alpha1",Apache-2.0
 core,"k8s.io/client-go/kubernetes/typed/networking/v1",Apache-2.0
 core,"k8s.io/client-go/kubernetes/typed/networking/v1beta1",Apache-2.0
 core,"k8s.io/client-go/kubernetes/typed/node/v1alpha1",Apache-2.0
@@ -393,6 +398,8 @@ core,"k8s.io/kube-openapi/pkg/generators",Apache-2.0
 core,"k8s.io/kube-openapi/pkg/generators/rules",Apache-2.0
 core,"k8s.io/kube-openapi/pkg/util/proto",Apache-2.0
 core,"k8s.io/kube-openapi/pkg/util/sets",Apache-2.0
+core,"k8s.io/kube-state-metrics/pkg/metric",Apache-2.0
+core,"k8s.io/kube-state-metrics/pkg/metrics_store",Apache-2.0
 core,"k8s.io/utils/buffer",Apache-2.0
 core,"k8s.io/utils/integer",Apache-2.0
 core,"k8s.io/utils/pointer",Apache-2.0
@@ -420,6 +427,7 @@ core,"sigs.k8s.io/controller-runtime/pkg/manager",Apache-2.0
 core,"sigs.k8s.io/controller-runtime/pkg/manager/signals",Apache-2.0
 core,"sigs.k8s.io/controller-runtime/pkg/metrics",Apache-2.0
 core,"sigs.k8s.io/controller-runtime/pkg/predicate",Apache-2.0
+core,"sigs.k8s.io/controller-runtime/pkg/ratelimiter",Apache-2.0
 core,"sigs.k8s.io/controller-runtime/pkg/reconcile",Apache-2.0
 core,"sigs.k8s.io/controller-runtime/pkg/recorder",Apache-2.0
 core,"sigs.k8s.io/controller-runtime/pkg/runtime/inject",Apache-2.0
@@ -433,12 +441,6 @@ core,"sigs.k8s.io/controller-runtime/pkg/webhook",Apache-2.0
 core,"sigs.k8s.io/controller-runtime/pkg/webhook/admission",Apache-2.0
 core,"sigs.k8s.io/controller-runtime/pkg/webhook/internal/certwatcher",Apache-2.0
 core,"sigs.k8s.io/controller-runtime/pkg/webhook/internal/metrics",Apache-2.0
-core,"sigs.k8s.io/controller-tools/pkg/crd",Apache-2.0
-core,"sigs.k8s.io/controller-tools/pkg/crd/markers",Apache-2.0
-core,"sigs.k8s.io/controller-tools/pkg/genall",Apache-2.0
-core,"sigs.k8s.io/controller-tools/pkg/loader",Apache-2.0
-core,"sigs.k8s.io/controller-tools/pkg/markers",Apache-2.0
-core,"sigs.k8s.io/controller-tools/pkg/version",Apache-2.0
 core,"sigs.k8s.io/kustomize/pkg/commands/build",Apache-2.0
 core,"sigs.k8s.io/kustomize/pkg/constants",Apache-2.0
 core,"sigs.k8s.io/kustomize/pkg/expansion",Apache-2.0

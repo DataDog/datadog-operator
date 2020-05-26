@@ -17,4 +17,9 @@ const (
 	// ExtendedDaemonSetOldDaemonsetAnnotationKey annotation key used on ExtendedDaemonset in order to inform the controller that old Daemonset's pod.
 	// should be taken into consideration during the initial rolling-update.
 	ExtendedDaemonSetOldDaemonsetAnnotationKey = "extendeddaemonset.datadoghq.com/old-daemonset"
+	// ExtendedDaemonSetRessourceNodeAnnotationKey annotation key used on Node to overwrite the resource allocated to a specific container linked to an ExtendedDaemonset
+	// The value format is: <eds-namespace>.<eds-name>.<container-name>
+	ExtendedDaemonSetRessourceNodeAnnotationKey = "resources.extendeddaemonset.datadoghq.com/%s.%s.%s"
+	// MD5NodeExtendedDaemonSetAnnotationKey annotation key use on Pods in order to identify which Node Resources Overwride have been used to generate it.
+	MD5NodeExtendedDaemonSetAnnotationKey = "extendeddaemonset.datadoghq.com/nodehash"
 )

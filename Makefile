@@ -56,7 +56,7 @@ test:
 
 e2e:
 	kubectl apply -f deploy/datadoghq_v1alpha1_extendeddaemonset_crd.yaml
-	./bin/operator-sdk test local --verbose ./test/e2e --image $(PREFIX):$(TAG)
+	./bin/operator-sdk test local ./test/e2e --go-test-flags '-v' --image $(PREFIX):$(TAG)
 
 push: container
 	docker push $(PREFIX):$(TAG)

@@ -165,14 +165,6 @@ func defaultEnvVars() []corev1.EnvVar {
 			Value: "",
 		},
 		{
-			Name:  "DD_SITE",
-			Value: "",
-		},
-		{
-			Name:  "DD_DD_URL",
-			Value: "https://app.datadoghq.com",
-		},
-		{
 			Name:  "DD_HEALTH_PORT",
 			Value: "5555",
 		},
@@ -211,6 +203,10 @@ func defaultEnvVars() []corev1.EnvVar {
 		{
 			Name:  "DD_LOG_LEVEL",
 			Value: "INFO",
+		},
+		{
+			Name:  "DD_SITE",
+			Value: "",
 		},
 		{
 			Name: "DD_KUBERNETES_KUBELET_HOST",
