@@ -52,6 +52,9 @@ spec:
             - "--supportExtendedDaemonset={{ .Values.supportExtendedDaemonset}}"
             - "--probesPort={{ .Values.probesPort }}"
             - "--metricsPort={{ .Values.metricsPort }}"
+          {{- if .Values.secretBackend.command }}
+            - "--secretBackendCommand={{ .Values.secretBackend.command }}"
+          {{- end }}
           ports:
             - name: metrics
               containerPort: {{ .Values.metricsPort }}

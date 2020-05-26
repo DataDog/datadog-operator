@@ -13,6 +13,11 @@ logLevel: "info"
 supportExtendedDaemonset: "false"
 probesPort: 9090
 metricsPort: 8383
+
+secretBackend:
+  # Specifies the path to the command that implements the secret backend api
+  command: ""
+
 rbac:
   # Specifies whether the RBAC resources should be created
   create: true
