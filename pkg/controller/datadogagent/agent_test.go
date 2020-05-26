@@ -16,7 +16,6 @@ import (
 	edsdatadoghqv1alpha1 "github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1"
 	"github.com/google/go-cmp/cmp"
 	assert "github.com/stretchr/testify/require"
-
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -352,6 +351,18 @@ func (tests extendedDaemonSetFromInstanceTestSuite) Run(t *testing.T) {
 }
 
 func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
+
+	hostPortAgent := test.NewDefaultedDatadogAgent("bar", "foo",
+		&test.NewDatadogAgentOptions{
+			UseEDS:              true,
+			ClusterAgentEnabled: true,
+			HostPort:            datadoghqv1alpha1.DefaultDogstatsdPort,
+		})
+	hostPortAgentSpecHash, _ := comparison.GenerateMD5ForSpec(hostPortAgent.Spec)
+
+	hostPortPodSpec := defaultPodSpec()
+	hostPortPodSpec.Containers[0].Ports[0].HostPort = datadoghqv1alpha1.DefaultDogstatsdPort
+
 	tests := extendedDaemonSetFromInstanceTestSuite{
 		{
 			name:            "defaulted case",
@@ -430,6 +441,47 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 							},
 						},
 						Spec: defaultPodSpec(),
+					},
+					Strategy: getDefaultEDSStrategy(),
+				},
+			},
+		},
+		{
+			name:            "with host port",
+			agentdeployment: hostPortAgent,
+			wantErr:         false,
+			want: &edsdatadoghqv1alpha1.ExtendedDaemonSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "bar",
+					Name:      "foo-agent",
+					Labels: map[string]string{
+						"agent.datadoghq.com/name":      "foo",
+						"agent.datadoghq.com/component": "agent",
+						"app.kubernetes.io/instance":    "agent",
+						"app.kubernetes.io/managed-by":  "datadog-operator",
+						"app.kubernetes.io/name":        "datadog-agent-deployment",
+						"app.kubernetes.io/part-of":     "foo",
+						"app.kubernetes.io/version":     "",
+					},
+					Annotations: map[string]string{"agent.datadoghq.com/agentspechash": hostPortAgentSpecHash},
+				},
+				Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							GenerateName: "foo",
+							Namespace:    "bar",
+							Labels: map[string]string{
+								"agent.datadoghq.com/name":      "foo",
+								"agent.datadoghq.com/component": "agent",
+								"app.kubernetes.io/instance":    "agent",
+								"app.kubernetes.io/managed-by":  "datadog-operator",
+								"app.kubernetes.io/name":        "datadog-agent-deployment",
+								"app.kubernetes.io/part-of":     "foo",
+								"app.kubernetes.io/version":     "",
+							},
+							Annotations: make(map[string]string),
+						},
+						Spec: hostPortPodSpec,
 					},
 					Strategy: getDefaultEDSStrategy(),
 				},

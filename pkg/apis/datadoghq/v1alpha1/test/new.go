@@ -58,6 +58,7 @@ type NewDatadogAgentOptions struct {
 	ClusterChecksRunnerEnvVars      []corev1.EnvVar
 	APIKeyExistingSecret            string
 	Site                            string
+	HostPort                        int32
 }
 
 // NewDefaultedDatadogAgent returns an initialized and defaulted DatadogAgent for testing purpose
@@ -106,6 +107,10 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 
 		ad.Spec.Agent.DaemonsetName = options.AgentDaemonsetName
 		ad.Spec.Site = options.Site
+
+		if options.HostPort != 0 {
+			ad.Spec.Agent.Config.HostPort = &options.HostPort
+		}
 
 		if options.Status != nil {
 			ad.Status = *options.Status
