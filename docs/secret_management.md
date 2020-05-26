@@ -1,10 +1,10 @@
 # Secrets Management for the API and APP keys
 
-The Datadog-Operator is able to retrieves the datadog credentials securely thanks to 3 different methods.
+The Datadog Operator is able to retrieve the Datadog credentials securely using these three methods:
 
 ## 1. Plain credentials in DatadogAgent resource
 
-this is the simplest way to provide the credentials that will be used by the agents.
+Add credentials to the Agent:
 
 ```yaml
 apiVersion: datadoghq.com/v1alpha1
@@ -18,12 +18,12 @@ spec:
   # ...
 ```
 
-The credentials provided here will be stored in a Secret created by the Operator. By setting properly the `RBAC` on the `DatadogAgent` CRD. It is possible to limit who is able to see those credentials.
+The credentials provided here will be stored in a Secret created by the Operator. By setting properly the `RBAC` on the `DatadogAgent` CRD, it is possible to limit who is able to see those credentials.
 But still, it is not the best solution in terms of security. This solution is good for testing purposes.
 
 ## 2. Use secret(s) references
 
-Another solution is to provide the name of the secret(s) that store the credentials. like this the `DatadogAgent` resource doesn't contain any credentials as plain text.
+Another solution is to provide the name of the secret(s) that store the credentials:
 
 ```yaml
 apiVersion: datadoghq.com/v1alpha1
@@ -37,7 +37,7 @@ spec:
   # ...
 ```
 
-In this case, the secret(s) should exist before trying to create the `DatadogAgent`, else the deployment will fail.
+Create the secret before deploying the Datadog Agent, or the deployment fails.
 
 ```yaml
 apiVersion: v1
@@ -60,7 +60,7 @@ The data keys used in the secret(s) are important. for the "API key" the key ins
 
 **Note:**
 
-* It is possible to use the same secret to store both credentials
+It is possible to use the same secret to store both credentials:
 
     ```yaml
     ---
@@ -75,7 +75,7 @@ The data keys used in the secret(s) are important. for the "API key" the key ins
 
 ## 3. Use the Secret backend feature
 
-The Datatog Operator is compatible with the ["Secret backend" feature][1] implemented initialy in the datadog agent.
+The Datatog Operator is compatible with the ["Secret backend" feature][1] implemented.
 
 ### How Deploy the Datadog-Operator with the secret backend activated
 
