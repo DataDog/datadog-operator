@@ -37,7 +37,7 @@ spec:
   # ...
 ```
 
-In this case, the secret(s) should exist before trying to create the `DatadogAgent`, else the deployment will failed.
+In this case, the secret(s) should exist before trying to create the `DatadogAgent`, else the deployment will fail.
 
 ```yaml
 apiVersion: v1
@@ -56,9 +56,9 @@ data:
   app_key: <app-key>
 ```
 
-The keys used in the secret(s) are important. for the "API key" the key inside the secret should be `api_key`, and for the "APP key" it is `app_key`.
+The data keys used in the secret(s) are important. for the "API key" the key inside the secret should be `api_key`, and for the "APP key" it is `app_key`.
 
-**Remarks:**
+**Note:**
 
 * It is possible to use the same secret to store both credentials
 
@@ -95,14 +95,14 @@ success
 ```
 
 Then, during the installation or the update of the "Datadog Operator" deployment the value parameter: `.Values.secretBackend.command` should be set with the secret backend command path (inside the container).
-Also don't for get use the "custom" Datadog Operator container image.
+Also don't forget to use the "custom" Datadog Operator container image.
 
 ```console
 $ helm [install|upgrade] dd-operator --set "secretBackend.command=/my-secret-backend.sh" --set "image.repository=datadog-operator-with-secret-be" ./chart/datadog-operator
 success
 ```
 
-### How deploy agents using the secret backend feature with DatadogDeployment
+### How deploy agents using the secret backend feature with DatadogAgent
 
 To activate the secret backend feature in the `DatadogAgent` configuration, the `spec.credentials.useSecretBackend` parameter should be set to `true`.
 
