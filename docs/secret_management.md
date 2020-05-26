@@ -1,8 +1,10 @@
 # Secrets Management for the API and APP keys
 
-The Datadog Operator is able to retrieve the Datadog credentials securely using these three methods:
+Datadog Operator can be configured to retrieve the Datadog credentials using secrets for enhanced security. There are three methods you can choose from to set it up
 
-## 1. Plain credentials in DatadogAgent resource
+## 1. Plain credentials in `DatadogAgent` resource
+
+This is the simplest way to provide the credentials to the agents. This method is recommended for testing purposes only.
 
 Add credentials to the Agent:
 
@@ -19,7 +21,6 @@ spec:
 ```
 
 The credentials provided here will be stored in a Secret created by the Operator. By setting properly the `RBAC` on the `DatadogAgent` CRD, it is possible to limit who is able to see those credentials.
-But still, it is not the best solution in terms of security. This solution is good for testing purposes.
 
 ## 2. Use secret(s) references
 
