@@ -52,7 +52,7 @@ const (
 	DDLogsConfigContainerCollectAll  = "DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL"
 	DDLogsContainerCollectUsingFiles = "DD_LOGS_CONFIG_K8S_CONTAINER_USE_FILE"
 	DDDogstatsdOriginDetection       = "DD_DOGSTATSD_ORIGIN_DETECTION"
-	DDDogstatsdPort                  = "DD_DOGSTATD_PORT"
+	DDDogstatsdPort                  = "DD_DOGSTATSD_PORT"
 	DDClusterAgentEnabled            = "DD_CLUSTER_AGENT_ENABLED"
 	DDClusterAgentKubeServiceName    = "DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME"
 	DDClusterAgentAuthToken          = "DD_CLUSTER_AGENT_AUTH_TOKEN"
