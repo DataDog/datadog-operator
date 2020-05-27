@@ -168,6 +168,10 @@ func getAgentContainer(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.Container, 
 
 	if agentSpec.Config.HostPort != nil {
 		udpPort.HostPort = *agentSpec.Config.HostPort
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  datadoghqv1alpha1.DDDogstatsdPort,
+			Value: strconv.Itoa(int(*agentSpec.Config.HostPort)),
+		})
 	}
 
 	agentContainer := &corev1.Container{

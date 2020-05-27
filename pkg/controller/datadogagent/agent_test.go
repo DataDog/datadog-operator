@@ -7,6 +7,7 @@ package datadogagent
 
 import (
 	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
@@ -362,6 +363,10 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 
 	hostPortPodSpec := defaultPodSpec()
 	hostPortPodSpec.Containers[0].Ports[0].HostPort = datadoghqv1alpha1.DefaultDogstatsdPort
+	hostPortPodSpec.Containers[0].Env = append(hostPortPodSpec.Containers[0].Env, corev1.EnvVar{
+		Name:  datadoghqv1alpha1.DDDogstatsdPort,
+		Value: strconv.Itoa(int(datadoghqv1alpha1.DefaultDogstatsdPort)),
+	})
 
 	tests := extendedDaemonSetFromInstanceTestSuite{
 		{
