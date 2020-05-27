@@ -59,6 +59,7 @@ type NewDatadogAgentOptions struct {
 	APIKeyExistingSecret            string
 	Site                            string
 	HostPort                        int32
+	HostNetwork                     bool
 }
 
 // NewDefaultedDatadogAgent returns an initialized and defaulted DatadogAgent for testing purpose
@@ -181,6 +182,10 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 
 		if options.ProcessEnabled {
 			ad.Spec.Agent.Process.Enabled = datadoghqv1alpha1.NewBoolPointer(true)
+		}
+
+		if options.HostNetwork {
+			ad.Spec.Agent.HostNetwork = true
 		}
 
 		if options.SystemProbeEnabled {
