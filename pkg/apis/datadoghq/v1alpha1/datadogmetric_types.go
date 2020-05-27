@@ -21,10 +21,11 @@ type DatadogMetricSpec struct {
 // DatadogMetricStatus defines the observed state of DatadogMetric
 type DatadogMetricStatus struct {
 	// Conditions Represents the latest available observations of a DatadogMetric's current state.
-	// +listType=set
+	// +listType=map
+	// +listMapKey=type
 	Conditions []DatadogMetricCondition `json:"conditions,omitempty"`
 	// Value is the latest value of the metric
-	Value float64 `json:"currentValue"`
+	Value string `json:"currentValue"`
 }
 
 // DatadogMetricCondition describes the state of a DatadogMetric at a certain point.

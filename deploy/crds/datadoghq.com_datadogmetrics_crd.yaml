@@ -88,8 +88,12 @@ spec:
                 - type
                 type: object
               type: array
+              x-kubernetes-list-map-keys:
+              - type
+              x-kubernetes-list-type: map
             currentValue:
               description: Value is the latest value of the metric
+              type: string
           required:
           - currentValue
           type: object
