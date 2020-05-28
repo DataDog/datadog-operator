@@ -35,6 +35,7 @@ const (
 
 // Datadog env var names
 const (
+	DatadogHost                      = "DATADOG_HOST"
 	DDAPIKey                         = "DD_API_KEY"
 	DDClusterName                    = "DD_CLUSTER_NAME"
 	DDSite                           = "DD_SITE"

@@ -469,6 +469,10 @@ func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Env
 				Name:      datadoghqv1alpha1.DDAppKey,
 				ValueFrom: getAppKeyFromSecret(dda),
 			})
+			envVars = append(envVars, corev1.EnvVar{
+				Name:  datadoghqv1alpha1.DatadogHost,
+				Value: getDatadogHost(dda),
+			})
 		}
 	}
 
@@ -900,4 +904,13 @@ func buildClusterAgentRole(dda *datadoghqv1alpha1.DatadogAgent, name, agentVersi
 	role.Rules = rbacRules
 
 	return role
+}
+
+func getDatadogHost(dda *datadoghqv1alpha1.DatadogAgent) string {
+	if dda.Spec.Agent != nil && dda.Spec.Agent.Config.DDUrl != nil {
+		return *dda.Spec.Agent.Config.DDUrl
+	} else if dda.Spec.Site != "" {
+		return fmt.Sprintf("https://app.%s", dda.Spec.Site)
+	}
+	return "https://app.datadoghq.com"
 }
