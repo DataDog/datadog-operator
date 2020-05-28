@@ -165,7 +165,7 @@ func getAgentContainer(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.Container, 
 		ImagePullPolicy: *agentSpec.Image.PullPolicy,
 		Command: []string{
 			"agent",
-			"start",
+			"run",
 		},
 		Resources: *agentSpec.Config.Resources,
 		Ports: []corev1.ContainerPort{
