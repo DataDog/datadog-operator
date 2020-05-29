@@ -469,6 +469,8 @@ func getEnvVarsCommon(dda *datadoghqv1alpha1.DatadogAgent, needAPIKey bool) ([]c
 		}
 	}
 
+	envVars = append(envVars, dda.Spec.Agent.Env...)
+
 	return envVars, nil
 }
 

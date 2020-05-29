@@ -138,6 +138,14 @@ type DatadogAgentSpecAgentSpec struct {
 	// +optional
 	HostPID bool `json:"hostPID,omitempty"`
 
+	// Environment variables for all Datadog Agents
+	// Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables
+	//
+	// +optional
+	// +listType=map
+	// +listMapKey=name
+	Env []corev1.EnvVar `json:"env,omitempty"`
+
 	// Trace Agent configuration
 	// +optional
 	Apm APMSpec `json:"apm,omitempty"`

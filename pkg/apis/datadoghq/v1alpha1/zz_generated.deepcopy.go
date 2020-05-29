@@ -514,6 +514,13 @@ func (in *DatadogAgentSpecAgentSpec) DeepCopyInto(out *DatadogAgentSpecAgentSpec
 		*out = new(v1.PodDNSConfig)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.Env != nil {
+		in, out := &in.Env, &out.Env
+		*out = make([]v1.EnvVar, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
 	in.Apm.DeepCopyInto(&out.Apm)
 	in.Log.DeepCopyInto(&out.Log)
 	in.Process.DeepCopyInto(&out.Process)

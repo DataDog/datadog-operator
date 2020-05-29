@@ -951,6 +951,27 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentSpecAgentSpec(ref common.Ref
 							Format:      "",
 						},
 					},
+					"env": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"name",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Environment variables for all Datadog Agents Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("k8s.io/api/core/v1.EnvVar"),
+									},
+								},
+							},
+						},
+					},
 					"apm": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Trace Agent configuration",
@@ -986,7 +1007,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentSpecAgentSpec(ref common.Ref
 			},
 		},
 		Dependencies: []string{
-			"./pkg/apis/datadoghq/v1alpha1.APMSpec", "./pkg/apis/datadoghq/v1alpha1.CustomConfigSpec", "./pkg/apis/datadoghq/v1alpha1.DaemonSetDeploymentStrategy", "./pkg/apis/datadoghq/v1alpha1.ImageConfig", "./pkg/apis/datadoghq/v1alpha1.LogSpec", "./pkg/apis/datadoghq/v1alpha1.NodeAgentConfig", "./pkg/apis/datadoghq/v1alpha1.ProcessSpec", "./pkg/apis/datadoghq/v1alpha1.RbacConfig", "./pkg/apis/datadoghq/v1alpha1.SystemProbeSpec", "k8s.io/api/core/v1.PodDNSConfig"},
+			"./pkg/apis/datadoghq/v1alpha1.APMSpec", "./pkg/apis/datadoghq/v1alpha1.CustomConfigSpec", "./pkg/apis/datadoghq/v1alpha1.DaemonSetDeploymentStrategy", "./pkg/apis/datadoghq/v1alpha1.ImageConfig", "./pkg/apis/datadoghq/v1alpha1.LogSpec", "./pkg/apis/datadoghq/v1alpha1.NodeAgentConfig", "./pkg/apis/datadoghq/v1alpha1.ProcessSpec", "./pkg/apis/datadoghq/v1alpha1.RbacConfig", "./pkg/apis/datadoghq/v1alpha1.SystemProbeSpec", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.PodDNSConfig"},
 	}
 }
 
