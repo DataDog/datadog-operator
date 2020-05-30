@@ -5,10 +5,13 @@ import (
 	"strconv"
 	"testing"
 
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
+	test "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1/test"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+	
 	"github.com/go-logr/logr"
 	"github.com/google/go-cmp/cmp"
 	assert "github.com/stretchr/testify/require"
-
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
@@ -22,10 +25,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
-
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
-	test "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1/test"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 )
 
 var testClusterAgentReplicas int32 = 1
@@ -469,6 +468,10 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 				Name:      "DD_APP_KEY",
 				ValueFrom: appKeyValue(),
 			},
+			{
+				Name:  datadoghqv1alpha1.DatadogHost,
+				Value: "https://app.datadoghq.com",
+			},
 		}...,
 	)
 
@@ -497,57 +500,155 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 
 	metricsServerClusterAgentHash, _ := comparison.GenerateMD5ForSpec(metricsServerAgentDeployment.Spec.ClusterAgent)
 
-	test := clusterAgentDeploymentFromInstanceTest{
-		name:            "with metrics server",
-		agentdeployment: metricsServerAgentDeployment,
-		selector: &metav1.LabelSelector{
-			MatchLabels: map[string]string{
-				"app": "datadog-monitoring",
+	metricsServerWithSitePodSpec := clusterAgentDefaultPodSpec()
+	metricsServerWithSitePodSpec.Containers[0].Ports = append(metricsServerWithSitePodSpec.Containers[0].Ports, corev1.ContainerPort{
+		ContainerPort: metricsServerPort,
+		Name:          "metricsapi",
+		Protocol:      "TCP",
+	})
+	metricsServerWithSitePodSpec.Containers[0].Env = append(metricsServerWithSitePodSpec.Containers[0].Env,
+		[]corev1.EnvVar{
+			{
+				Name:  "DD_EXTERNAL_METRICS_PROVIDER_ENABLED",
+				Value: "true",
 			},
-		},
-		newStatus: &datadoghqv1alpha1.DatadogAgentStatus{},
-		wantErr:   false,
-		want: &appsv1.Deployment{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "bar",
-				Name:      "foo-cluster-agent",
-				Labels: map[string]string{"agent.datadoghq.com/name": "foo",
-					"agent.datadoghq.com/component": "cluster-agent",
-					"app.kubernetes.io/instance":    "cluster-agent",
-					"app.kubernetes.io/managed-by":  "datadog-operator",
-					"app.kubernetes.io/name":        "datadog-agent-deployment",
-					"app.kubernetes.io/part-of":     "foo",
-					"app.kubernetes.io/version":     "",
-					"app":                           "datadog-monitoring",
+			{
+				Name:  "DD_EXTERNAL_METRICS_PROVIDER_PORT",
+				Value: strconv.Itoa(int(metricsServerPort)),
+			},
+			{
+				Name:      "DD_APP_KEY",
+				ValueFrom: appKeyValue(),
+			},
+			{
+				Name:  datadoghqv1alpha1.DatadogHost,
+				Value: "https://app.datadoghq.eu",
+			},
+		}...,
+	)
+	metricsServerWithSitePodSpec.Containers[0].LivenessProbe = probe
+	metricsServerWithSitePodSpec.Containers[0].ReadinessProbe = probe
+
+	for index := range metricsServerWithSitePodSpec.Containers[0].Env {
+		if metricsServerWithSitePodSpec.Containers[0].Env[index].Name == "DD_SITE" {
+			metricsServerWithSitePodSpec.Containers[0].Env[index].Value = "datadoghq.eu"
+		}
+	}
+
+	metricsServerAgentWithSiteDeployment := test.NewDefaultedDatadogAgent("bar", "foo",
+		&test.NewDatadogAgentOptions{
+			UseEDS:               true,
+			ClusterAgentEnabled:  true,
+			MetricsServerEnabled: true,
+			Site:                 "datadoghq.eu",
+			MetricsServerPort:    metricsServerPort,
+		})
+
+	metricsServerClusterAgentWithSiteHash, _ := comparison.GenerateMD5ForSpec(metricsServerAgentWithSiteDeployment.Spec.ClusterAgent)
+
+	tests := clusterAgentDeploymentFromInstanceTestSuite{
+		{
+			name:            "with metrics server",
+			agentdeployment: metricsServerAgentDeployment,
+			selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": "datadog-monitoring",
 				},
-				Annotations: map[string]string{"agent.datadoghq.com/agentspechash": metricsServerClusterAgentHash},
 			},
-			Spec: appsv1.DeploymentSpec{
-				Template: corev1.PodTemplateSpec{
-					ObjectMeta: metav1.ObjectMeta{
-						Labels: map[string]string{
-							"agent.datadoghq.com/name":      "foo",
-							"agent.datadoghq.com/component": "cluster-agent",
-							"app.kubernetes.io/instance":    "cluster-agent",
-							"app.kubernetes.io/managed-by":  "datadog-operator",
-							"app.kubernetes.io/name":        "datadog-agent-deployment",
-							"app.kubernetes.io/part-of":     "foo",
-							"app.kubernetes.io/version":     "",
-							"app":                           "datadog-monitoring",
+			newStatus: &datadoghqv1alpha1.DatadogAgentStatus{},
+			wantErr:   false,
+			want: &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "bar",
+					Name:      "foo-cluster-agent",
+					Labels: map[string]string{"agent.datadoghq.com/name": "foo",
+						"agent.datadoghq.com/component": "cluster-agent",
+						"app.kubernetes.io/instance":    "cluster-agent",
+						"app.kubernetes.io/managed-by":  "datadog-operator",
+						"app.kubernetes.io/name":        "datadog-agent-deployment",
+						"app.kubernetes.io/part-of":     "foo",
+						"app.kubernetes.io/version":     "",
+						"app":                           "datadog-monitoring",
+					},
+					Annotations: map[string]string{"agent.datadoghq.com/agentspechash": metricsServerClusterAgentHash},
+				},
+				Spec: appsv1.DeploymentSpec{
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{
+								"agent.datadoghq.com/name":      "foo",
+								"agent.datadoghq.com/component": "cluster-agent",
+								"app.kubernetes.io/instance":    "cluster-agent",
+								"app.kubernetes.io/managed-by":  "datadog-operator",
+								"app.kubernetes.io/name":        "datadog-agent-deployment",
+								"app.kubernetes.io/part-of":     "foo",
+								"app.kubernetes.io/version":     "",
+								"app":                           "datadog-monitoring",
+							},
+						},
+						Spec: metricsServerPodSpec,
+					},
+					Replicas: &testClusterAgentReplicas,
+					Selector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"app": "datadog-monitoring",
 						},
 					},
-					Spec: metricsServerPodSpec,
 				},
-				Replicas: &testClusterAgentReplicas,
-				Selector: &metav1.LabelSelector{
-					MatchLabels: map[string]string{
-						"app": "datadog-monitoring",
+			},
+		},
+		{
+			name:            "with metrics server and site",
+			agentdeployment: metricsServerAgentWithSiteDeployment,
+			selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": "datadog-monitoring",
+				},
+			},
+			newStatus: &datadoghqv1alpha1.DatadogAgentStatus{},
+			wantErr:   false,
+			want: &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "bar",
+					Name:      "foo-cluster-agent",
+					Labels: map[string]string{"agent.datadoghq.com/name": "foo",
+						"agent.datadoghq.com/component": "cluster-agent",
+						"app.kubernetes.io/instance":    "cluster-agent",
+						"app.kubernetes.io/managed-by":  "datadog-operator",
+						"app.kubernetes.io/name":        "datadog-agent-deployment",
+						"app.kubernetes.io/part-of":     "foo",
+						"app.kubernetes.io/version":     "",
+						"app":                           "datadog-monitoring",
+					},
+					Annotations: map[string]string{"agent.datadoghq.com/agentspechash": metricsServerClusterAgentWithSiteHash},
+				},
+				Spec: appsv1.DeploymentSpec{
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{
+								"agent.datadoghq.com/name":      "foo",
+								"agent.datadoghq.com/component": "cluster-agent",
+								"app.kubernetes.io/instance":    "cluster-agent",
+								"app.kubernetes.io/managed-by":  "datadog-operator",
+								"app.kubernetes.io/name":        "datadog-agent-deployment",
+								"app.kubernetes.io/part-of":     "foo",
+								"app.kubernetes.io/version":     "",
+								"app":                           "datadog-monitoring",
+							},
+						},
+						Spec: metricsServerWithSitePodSpec,
+					},
+					Replicas: &testClusterAgentReplicas,
+					Selector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"app": "datadog-monitoring",
+						},
 					},
 				},
 			},
 		},
 	}
-	test.Run(t)
+	tests.Run(t)
 }
 
 func Test_newClusterAgentDeploymentFromInstance_UserProvidedSecret(t *testing.T) {
@@ -674,6 +775,54 @@ func TestReconcileDatadogAgent_createNewClusterAgentDeployment(t *testing.T) {
 				assert.NoError(t, err, "ReconcileDatadogAgent.createNewClusterAgentDeployment() unexpected error: %v", err)
 			}
 			assert.Equal(t, tt.want, got, "ReconcileDatadogAgent.createNewClusterAgentDeployment() unexpected result")
+		})
+	}
+}
+
+func Test_getDatadogHost(t *testing.T) {
+	tests := []struct {
+		name  string
+		agent *datadoghqv1alpha1.DatadogAgent
+		want  string
+	}{
+		{
+			name:  "Default",
+			agent: test.NewDefaultedDatadogAgent("foo", "bar", &test.NewDatadogAgentOptions{}),
+			want:  "https://app.datadoghq.com",
+		},
+		{
+			name: "DD_SITE but no DD_DD_URL",
+			agent: test.NewDefaultedDatadogAgent("foo", "bar", &test.NewDatadogAgentOptions{
+				Site: "datadoghq.eu",
+			}),
+			want: "https://app.datadoghq.eu",
+		},
+		{
+			name: "DD_SITE and DD_DD_URL",
+			agent: test.NewDefaultedDatadogAgent("foo", "bar", &test.NewDatadogAgentOptions{
+				Site: "datadoghq.eu",
+				NodeAgentConfig: &datadoghqv1alpha1.NodeAgentConfig{
+					DDUrl: datadoghqv1alpha1.NewStringPointer("https://test.url.com"),
+				},
+			}),
+			want: "https://test.url.com",
+		},
+		{
+			name: "DD_DD_URL",
+			agent: test.NewDefaultedDatadogAgent("foo", "bar", &test.NewDatadogAgentOptions{
+				NodeAgentConfig: &datadoghqv1alpha1.NodeAgentConfig{
+					DDUrl: datadoghqv1alpha1.NewStringPointer("https://another.test.url.com"),
+				},
+			}),
+			want: "https://another.test.url.com",
+		},
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := getDatadogHost(tt.agent); got != tt.want {
+				t.Errorf("getDatadogHost() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }
