@@ -30,7 +30,7 @@ However, the Datadog Operator is still in beta, so it is not yet a recommended w
 
 See the [Getting Started][5] dedicated documentation to learn how to deploy the Datadog operator and your first Agent.
 
-## Functionnalities
+## Functionalities
 
 The Datadog operator also allows you to:
 
