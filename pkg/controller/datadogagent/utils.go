@@ -159,6 +159,28 @@ func getAgentContainer(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.Container, 
 	if err != nil {
 		return nil, err
 	}
+
+	udpPort := corev1.ContainerPort{
+		ContainerPort: datadoghqv1alpha1.DefaultDogstatsdPort,
+		Name:          "dogstatsdport",
+		Protocol:      corev1.ProtocolUDP,
+	}
+
+	if agentSpec.Config.HostPort != nil {
+		// Create the host port configuration
+		udpPort.HostPort = *agentSpec.Config.HostPort
+		// If HostNetwork is enabled, set the container port
+		// and the DD_DOGSTATSD_PORT environment variable to match the host port
+		// so that Dogstatsd can be reached on the port configured in HostPort
+		if agentSpec.HostNetwork {
+			udpPort.ContainerPort = *agentSpec.Config.HostPort
+			envVars = append(envVars, corev1.EnvVar{
+				Name:  datadoghqv1alpha1.DDDogstatsdPort,
+				Value: strconv.Itoa(int(*agentSpec.Config.HostPort)),
+			})
+		}
+	}
+
 	agentContainer := &corev1.Container{
 		Name:            "agent",
 		Image:           agentSpec.Image.Name,
@@ -169,11 +191,7 @@ func getAgentContainer(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.Container, 
 		},
 		Resources: *agentSpec.Config.Resources,
 		Ports: []corev1.ContainerPort{
-			{
-				ContainerPort: 8125,
-				Name:          "dogstatsdport",
-				Protocol:      "UDP",
-			},
+			udpPort,
 		},
 		Env:           envVars,
 		VolumeMounts:  getVolumeMountsForAgent(&dda.Spec),

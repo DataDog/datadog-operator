@@ -58,6 +58,8 @@ type NewDatadogAgentOptions struct {
 	ClusterChecksRunnerEnvVars      []corev1.EnvVar
 	APIKeyExistingSecret            string
 	Site                            string
+	HostPort                        int32
+	HostNetwork                     bool
 }
 
 // NewDefaultedDatadogAgent returns an initialized and defaulted DatadogAgent for testing purpose
@@ -106,6 +108,10 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 
 		ad.Spec.Agent.DaemonsetName = options.AgentDaemonsetName
 		ad.Spec.Site = options.Site
+
+		if options.HostPort != 0 {
+			ad.Spec.Agent.Config.HostPort = &options.HostPort
+		}
 
 		if options.Status != nil {
 			ad.Status = *options.Status
@@ -176,6 +182,10 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 
 		if options.ProcessEnabled {
 			ad.Spec.Agent.Process.Enabled = datadoghqv1alpha1.NewBoolPointer(true)
+		}
+
+		if options.HostNetwork {
+			ad.Spec.Agent.HostNetwork = true
 		}
 
 		if options.SystemProbeEnabled {

@@ -31,6 +31,8 @@ const (
 	DefaultClusterAgentServicePort = 5005
 	// DefaultMetricsServerServicePort default metrics-server port
 	DefaultMetricsServerServicePort = 443
+	// DefaultDogstatsdPort default dogstatsd port
+	DefaultDogstatsdPort = 8125
 )
 
 // Datadog env var names
@@ -51,6 +53,7 @@ const (
 	DDLogsConfigContainerCollectAll  = "DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL"
 	DDLogsContainerCollectUsingFiles = "DD_LOGS_CONFIG_K8S_CONTAINER_USE_FILE"
 	DDDogstatsdOriginDetection       = "DD_DOGSTATSD_ORIGIN_DETECTION"
+	DDDogstatsdPort                  = "DD_DOGSTATSD_PORT"
 	DDClusterAgentEnabled            = "DD_CLUSTER_AGENT_ENABLED"
 	DDClusterAgentKubeServiceName    = "DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME"
 	DDClusterAgentAuthToken          = "DD_CLUSTER_AGENT_AUTH_TOKEN"

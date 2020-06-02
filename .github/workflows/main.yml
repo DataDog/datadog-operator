@@ -12,7 +12,7 @@ jobs:
       with:
         go-version: 1.14
       id: go
-    - name: install requiere packages
+    - name: install required packages
       uses: mstksg/get-package@v1
       with:
         apt-get: mercurial jq build-essential
