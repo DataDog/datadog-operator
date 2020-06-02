@@ -167,7 +167,11 @@ func getAgentContainer(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.Container, 
 	}
 
 	if agentSpec.Config.HostPort != nil {
+		// Create the host port configuration
 		udpPort.HostPort = *agentSpec.Config.HostPort
+		// If HostNetwork is enabled, set the container port
+		// and the DD_DOGSTATSD_PORT environment variable to match the host port
+		// so that Dogstatsd can be reached on the port configured in HostPort
 		if agentSpec.HostNetwork {
 			udpPort.ContainerPort = *agentSpec.Config.HostPort
 			envVars = append(envVars, corev1.EnvVar{
