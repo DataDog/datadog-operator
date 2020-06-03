@@ -187,7 +187,7 @@ func getAgentContainer(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.Container, 
 		ImagePullPolicy: *agentSpec.Image.PullPolicy,
 		Command: []string{
 			"agent",
-			"start",
+			"run",
 		},
 		Resources: *agentSpec.Config.Resources,
 		Ports: []corev1.ContainerPort{
@@ -473,6 +473,22 @@ func getEnvVarsCommon(dda *datadoghqv1alpha1.DatadogAgent, needAPIKey bool) ([]c
 		})
 	}
 
+	if dda.Spec.Agent.Config.CriSocket != nil && dda.Spec.Agent.Config.CriSocket.CriSocketPath != nil {
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  datadoghqv1alpha1.DDCriSocketPath,
+			Value: filepath.Join(datadoghqv1alpha1.HostCriSocketPathPrefix, *dda.Spec.Agent.Config.CriSocket.CriSocketPath),
+		})
+
+		if strings.HasSuffix(*dda.Spec.Agent.Config.CriSocket.CriSocketPath, "docker.sock") {
+			envVars = append(envVars, corev1.EnvVar{
+				Name:  datadoghqv1alpha1.DockerHost,
+				Value: "unix://" + filepath.Join(datadoghqv1alpha1.HostCriSocketPathPrefix, *dda.Spec.Agent.Config.CriSocket.CriSocketPath),
+			})
+		}
+	}
+
+	envVars = append(envVars, dda.Spec.Agent.Env...)
+
 	return envVars, nil
 }
 
@@ -536,21 +552,6 @@ func getEnvVarsForAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.EnvVar, e
 		return nil, err
 	}
 	envVars = append(envVars, commonEnvVars...)
-
-	// Activate/deactivate agent features
-	if dda.Spec.Agent.Config.CriSocket != nil && dda.Spec.Agent.Config.CriSocket.CriSocketPath != nil {
-		envVars = append(envVars, corev1.EnvVar{
-			Name:  datadoghqv1alpha1.DDCriSocketPath,
-			Value: filepath.Join(datadoghqv1alpha1.HostCriSocketPathPrefix, *dda.Spec.Agent.Config.CriSocket.CriSocketPath),
-		})
-
-		if strings.HasSuffix(*dda.Spec.Agent.Config.CriSocket.CriSocketPath, "docker.sock") {
-			envVars = append(envVars, corev1.EnvVar{
-				Name:  datadoghqv1alpha1.DockerHost,
-				Value: "unix://" + filepath.Join(datadoghqv1alpha1.HostCriSocketPathPrefix, *dda.Spec.Agent.Config.CriSocket.CriSocketPath),
-			})
-		}
-	}
 
 	if spec.ClusterAgent != nil {
 		clusterEnv := []corev1.EnvVar{
@@ -981,12 +982,13 @@ func getAgentServiceAccount(dda *datadoghqv1alpha1.DatadogAgent) string {
 
 // getAPIKeyFromSecret returns the Agent API key as an env var source
 func getAPIKeyFromSecret(dda *datadoghqv1alpha1.DatadogAgent) *corev1.EnvVarSource {
+	secretName, secretKeyName := utils.GetAPIKeySecret(dda)
 	authTokenValue := &corev1.EnvVarSource{
 		SecretKeyRef: &corev1.SecretKeySelector{
 			LocalObjectReference: corev1.LocalObjectReference{
-				Name: utils.GetAPIKeySecretName(dda),
+				Name: secretName,
 			},
-			Key: datadoghqv1alpha1.DefaultAPIKeyKey,
+			Key: secretKeyName,
 		},
 	}
 	return authTokenValue
@@ -1007,12 +1009,13 @@ func getClusterAgentAuthToken(dda *datadoghqv1alpha1.DatadogAgent) *corev1.EnvVa
 
 // getAppKeyFromSecret returns the Agent API key as an env var source
 func getAppKeyFromSecret(dda *datadoghqv1alpha1.DatadogAgent) *corev1.EnvVarSource {
+	secretName, secretKeyName := utils.GetAppKeySecret(dda)
 	authTokenValue := &corev1.EnvVarSource{
 		SecretKeyRef: &corev1.SecretKeySelector{
 			LocalObjectReference: corev1.LocalObjectReference{
-				Name: utils.GetAppKeySecretName(dda),
+				Name: secretName,
 			},
-			Key: datadoghqv1alpha1.DefaultAPPKeyKey,
+			Key: secretKeyName,
 		},
 	}
 	return authTokenValue

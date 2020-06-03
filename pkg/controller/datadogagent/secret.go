@@ -33,12 +33,13 @@ func (r *ReconcileDatadogAgent) manageAgentSecret(logger logr.Logger, dda *datad
 	}
 	now := metav1.NewTime(time.Now())
 	// checks token secret
-	secretName := utils.GetAppKeySecretName(dda)
+	secretName, _ := utils.GetAppKeySecret(dda)
 	secret := &corev1.Secret{}
 	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: dda.Namespace, Name: secretName}, secret)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			if dda.Spec.Credentials.AppKeyExistingSecret == "" {
+			if (dda.Spec.Credentials.AppKeyExistingSecret == "" && dda.Spec.Credentials.APPSecret == nil) ||
+				(dda.Spec.Credentials.APIKeyExistingSecret == "" && dda.Spec.Credentials.APISecret == nil) {
 				return r.createAgentSecret(logger, dda)
 			}
 			// return error since the secret didn't exist and we are not responsible to create it.
@@ -98,7 +99,7 @@ func (r *ReconcileDatadogAgent) updateIfNeededAgentSecret(dda *datadoghqv1alpha1
 
 func (r *ReconcileDatadogAgent) cleanupAgentSecret(dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
 	// checks token secret
-	secretName := utils.GetAppKeySecretName(dda)
+	secretName, _ := utils.GetAppKeySecret(dda)
 	secret := &corev1.Secret{}
 	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: dda.Namespace, Name: secretName}, secret)
 	if err != nil {
@@ -131,9 +132,10 @@ func newAgentSecret(dda *datadoghqv1alpha1.DatadogAgent) *corev1.Secret {
 		data[datadoghqv1alpha1.DefaultTokenKey] = []byte(dda.Status.ClusterAgent.GeneratedToken)
 	}
 
+	secretName, _ := utils.GetAPIKeySecret(dda)
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        utils.GetAppKeySecretName(dda),
+			Name:        secretName,
 			Namespace:   dda.Namespace,
 			Labels:      labels,
 			Annotations: annotations,

@@ -493,7 +493,8 @@ func (mf *metricsForwarder) getCredentials(dda *datadoghqv1alpha1.DatadogAgent) 
 	if dda.Spec.Credentials.APIKey != "" {
 		apiKey = dda.Spec.Credentials.APIKey
 	} else {
-		apiKey, err = mf.getKeyFromSecret(dda, utils.GetAPIKeySecretName, datadoghqv1alpha1.DefaultAPIKeyKey)
+		secretName, secretKeyName := utils.GetAPIKeySecret(dda)
+		apiKey, err = mf.getKeyFromSecret(dda, secretName, secretKeyName)
 		if err != nil {
 			return "", "", err
 		}
@@ -501,7 +502,8 @@ func (mf *metricsForwarder) getCredentials(dda *datadoghqv1alpha1.DatadogAgent) 
 	if dda.Spec.Credentials.AppKey != "" {
 		appKey = dda.Spec.Credentials.AppKey
 	} else {
-		appKey, err = mf.getKeyFromSecret(dda, utils.GetAppKeySecretName, datadoghqv1alpha1.DefaultAPPKeyKey)
+		secretName, secretKeyName := utils.GetAppKeySecret(dda)
+		appKey, err = mf.getKeyFromSecret(dda, secretName, secretKeyName)
 		if err != nil {
 			return "", "", err
 		}
@@ -576,8 +578,7 @@ func (mf *metricsForwarder) cleanSecretsCache() {
 }
 
 // getKeyFromSecret used to retrieve an api or app key from a secret object
-func (mf *metricsForwarder) getKeyFromSecret(dda *datadoghqv1alpha1.DatadogAgent, nameFunc func(*datadoghqv1alpha1.DatadogAgent) string, dataKey string) (string, error) {
-	secretName := nameFunc(dda)
+func (mf *metricsForwarder) getKeyFromSecret(dda *datadoghqv1alpha1.DatadogAgent, secretName string, dataKey string) (string, error) {
 	secret := &corev1.Secret{}
 	err := mf.k8sClient.Get(context.TODO(), types.NamespacedName{Namespace: dda.Namespace, Name: secretName}, secret)
 	if err != nil {

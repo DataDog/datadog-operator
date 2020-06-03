@@ -507,6 +507,52 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 				dda: test.NewDefaultedDatadogAgent("foo", "bar",
 					&test.NewDatadogAgentOptions{
 						Creds: &datadoghqv1alpha1.AgentCredentials{
+							APISecret: &datadoghqv1alpha1.Secret{
+								SecretName: "datadog-creds-api",
+								KeyName:    "datadog_api_key",
+							},
+							APPSecret: &datadoghqv1alpha1.Secret{
+								SecretName: "datadog-creds-app",
+								KeyName:    "applicative_key",
+							},
+						}}),
+				loadFunc: func(m *metricsForwarder, d *dummyDecryptor) {
+					secret := &corev1.Secret{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "datadog-creds-api",
+							Namespace: "foo",
+						},
+						Data: map[string][]byte{
+							"datadog_api_key": []byte("foundApiKey"),
+						},
+					}
+					_ = m.k8sClient.Create(context.TODO(), secret)
+
+					secret = &corev1.Secret{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "datadog-creds-app",
+							Namespace: "foo",
+						},
+						Data: map[string][]byte{
+							"applicative_key": []byte("foundAppKey"),
+						},
+					}
+					_ = m.k8sClient.Create(context.TODO(), secret)
+				},
+			},
+			wantAPIKey: "foundApiKey",
+			wantAPPKey: "foundAppKey",
+			wantErr:    false,
+		},
+		{
+			name: "creds found in deprecated secrets",
+			fields: fields{
+				client: fake.NewFakeClient(),
+			},
+			args: args{
+				dda: test.NewDefaultedDatadogAgent("foo", "bar",
+					&test.NewDatadogAgentOptions{
+						Creds: &datadoghqv1alpha1.AgentCredentials{
 							APIKeyExistingSecret: "datadog-creds",
 							AppKeyExistingSecret: "datadog-creds",
 						}}),
@@ -530,6 +576,37 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 		},
 		{
 			name: "apiKey found in CR, appKey found in secret",
+			fields: fields{
+				client: fake.NewFakeClient(),
+			},
+			args: args{
+				dda: test.NewDefaultedDatadogAgent("foo", "bar",
+					&test.NewDatadogAgentOptions{
+						Creds: &datadoghqv1alpha1.AgentCredentials{
+							APIKey: "foundApiKey",
+							APPSecret: &datadoghqv1alpha1.Secret{
+								SecretName: "datadog-creds",
+							},
+						}}),
+				loadFunc: func(m *metricsForwarder, d *dummyDecryptor) {
+					secret := &corev1.Secret{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "datadog-creds",
+							Namespace: "foo",
+						},
+						Data: map[string][]byte{
+							"app_key": []byte("foundAppKey"),
+						},
+					}
+					_ = m.k8sClient.Create(context.TODO(), secret)
+				},
+			},
+			wantAPIKey: "foundApiKey",
+			wantAPPKey: "foundAppKey",
+			wantErr:    false,
+		},
+		{
+			name: "apiKey found in CR, appKey found in deprecated secret",
 			fields: fields{
 				client: fake.NewFakeClient(),
 			},

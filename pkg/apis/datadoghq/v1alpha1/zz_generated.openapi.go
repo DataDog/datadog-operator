@@ -46,6 +46,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./pkg/apis/datadoghq/v1alpha1.NodeAgentConfig":                         schema_pkg_apis_datadoghq_v1alpha1_NodeAgentConfig(ref),
 		"./pkg/apis/datadoghq/v1alpha1.ProcessSpec":                             schema_pkg_apis_datadoghq_v1alpha1_ProcessSpec(ref),
 		"./pkg/apis/datadoghq/v1alpha1.RbacConfig":                              schema_pkg_apis_datadoghq_v1alpha1_RbacConfig(ref),
+		"./pkg/apis/datadoghq/v1alpha1.Secret":                                  schema_pkg_apis_datadoghq_v1alpha1_Secret(ref),
 		"./pkg/apis/datadoghq/v1alpha1.SystemProbeSpec":                         schema_pkg_apis_datadoghq_v1alpha1_SystemProbeSpec(ref),
 	}
 }
@@ -122,9 +123,15 @@ func schema_pkg_apis_datadoghq_v1alpha1_AgentCredentials(ref common.ReferenceCal
 					},
 					"apiKeyExistingSecret": {
 						SchemaProps: spec.SchemaProps{
-							Description: "APIKeyExistingSecret Use existing Secret which stores API key instead of creating a new one. If set, this parameter takes precedence over \"apiKey\".",
+							Description: "APIKeyExistingSecret is DEPRECATED. In order to pass the API key through an existing secret, please consider \"apiSecret\" instead. If set, this parameter takes precedence over \"apiKey\".",
 							Type:        []string{"string"},
 							Format:      "",
+						},
+					},
+					"apiSecret": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APISecret Use existing Secret which stores API key instead of creating a new one. If set, this parameter takes precedence over \"apiKey\" and \"apiKeyExistingSecret\".",
+							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.Secret"),
 						},
 					},
 					"appKey": {
@@ -136,9 +143,15 @@ func schema_pkg_apis_datadoghq_v1alpha1_AgentCredentials(ref common.ReferenceCal
 					},
 					"appKeyExistingSecret": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Use existing Secret which stores APP key instead of creating a new one If set, this parameter takes precedence over \"appKey\".",
+							Description: "AppKeyExistingSecret is DEPRECATED. In order to pass the APP key through an existing secret, please consider \"appSecret\" instead. If set, this parameter takes precedence over \"appKey\".",
 							Type:        []string{"string"},
 							Format:      "",
+						},
+					},
+					"appSecret": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APPSecret Use existing Secret which stores API key instead of creating a new one. If set, this parameter takes precedence over \"apiKey\" and \"appKeyExistingSecret\".",
+							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.Secret"),
 						},
 					},
 					"token": {
@@ -158,6 +171,8 @@ func schema_pkg_apis_datadoghq_v1alpha1_AgentCredentials(ref common.ReferenceCal
 				},
 			},
 		},
+		Dependencies: []string{
+			"./pkg/apis/datadoghq/v1alpha1.Secret"},
 	}
 }
 
@@ -951,6 +966,27 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentSpecAgentSpec(ref common.Ref
 							Format:      "",
 						},
 					},
+					"env": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"name",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Environment variables for all Datadog Agents Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("k8s.io/api/core/v1.EnvVar"),
+									},
+								},
+							},
+						},
+					},
 					"apm": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Trace Agent configuration",
@@ -986,7 +1022,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentSpecAgentSpec(ref common.Ref
 			},
 		},
 		Dependencies: []string{
-			"./pkg/apis/datadoghq/v1alpha1.APMSpec", "./pkg/apis/datadoghq/v1alpha1.CustomConfigSpec", "./pkg/apis/datadoghq/v1alpha1.DaemonSetDeploymentStrategy", "./pkg/apis/datadoghq/v1alpha1.ImageConfig", "./pkg/apis/datadoghq/v1alpha1.LogSpec", "./pkg/apis/datadoghq/v1alpha1.NodeAgentConfig", "./pkg/apis/datadoghq/v1alpha1.ProcessSpec", "./pkg/apis/datadoghq/v1alpha1.RbacConfig", "./pkg/apis/datadoghq/v1alpha1.SystemProbeSpec", "k8s.io/api/core/v1.PodDNSConfig"},
+			"./pkg/apis/datadoghq/v1alpha1.APMSpec", "./pkg/apis/datadoghq/v1alpha1.CustomConfigSpec", "./pkg/apis/datadoghq/v1alpha1.DaemonSetDeploymentStrategy", "./pkg/apis/datadoghq/v1alpha1.ImageConfig", "./pkg/apis/datadoghq/v1alpha1.LogSpec", "./pkg/apis/datadoghq/v1alpha1.NodeAgentConfig", "./pkg/apis/datadoghq/v1alpha1.ProcessSpec", "./pkg/apis/datadoghq/v1alpha1.RbacConfig", "./pkg/apis/datadoghq/v1alpha1.SystemProbeSpec", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.PodDNSConfig"},
 	}
 }
 
@@ -1899,6 +1935,34 @@ func schema_pkg_apis_datadoghq_v1alpha1_RbacConfig(ref common.ReferenceCallback)
 						},
 					},
 				},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_datadoghq_v1alpha1_Secret(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Secret contains a secret name and an included key",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"secretName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SecretName is the name of the secret",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"keyName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "KeyName is the key of the secret to use",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"secretName"},
 			},
 		},
 	}

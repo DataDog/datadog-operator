@@ -302,7 +302,7 @@ func defaultPodSpec() corev1.PodSpec {
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Command: []string{
 					"agent",
-					"start",
+					"run",
 				},
 				Resources: corev1.ResourceRequirements{},
 				Ports: []corev1.ContainerPort{
