@@ -9,18 +9,30 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
 )
 
-// GetAPIKeySecretName return the API key secret name
-func GetAPIKeySecretName(dda *datadoghqv1alpha1.DatadogAgent) string {
-	if dda.Spec.Credentials.APIKeyExistingSecret != "" {
-		return dda.Spec.Credentials.APIKeyExistingSecret
+// GetAPIKeySecret returns the API key secret name and the key inside the secret
+func GetAPIKeySecret(dda *datadoghqv1alpha1.DatadogAgent) (string, string) {
+	if dda.Spec.Credentials.APISecret != nil {
+		if dda.Spec.Credentials.APISecret.KeyName != "" {
+			return dda.Spec.Credentials.APISecret.SecretName, dda.Spec.Credentials.APISecret.KeyName
+		}
+		return dda.Spec.Credentials.APISecret.SecretName, datadoghqv1alpha1.DefaultAPIKeyKey
 	}
-	return dda.Name
+	if dda.Spec.Credentials.APIKeyExistingSecret != "" {
+		return dda.Spec.Credentials.APIKeyExistingSecret, datadoghqv1alpha1.DefaultAPIKeyKey
+	}
+	return dda.Name, datadoghqv1alpha1.DefaultAPIKeyKey
 }
 
-// GetAppKeySecretName return the APP key secret name
-func GetAppKeySecretName(dda *datadoghqv1alpha1.DatadogAgent) string {
-	if dda.Spec.Credentials.AppKeyExistingSecret != "" {
-		return dda.Spec.Credentials.AppKeyExistingSecret
+// GetAppKeySecret returns the APP key secret name and the key inside the secret
+func GetAppKeySecret(dda *datadoghqv1alpha1.DatadogAgent) (string, string) {
+	if dda.Spec.Credentials.APPSecret != nil {
+		if dda.Spec.Credentials.APPSecret.KeyName != "" {
+			return dda.Spec.Credentials.APPSecret.SecretName, dda.Spec.Credentials.APPSecret.KeyName
+		}
+		return dda.Spec.Credentials.APPSecret.SecretName, datadoghqv1alpha1.DefaultAPPKeyKey
 	}
-	return dda.Name
+	if dda.Spec.Credentials.AppKeyExistingSecret != "" {
+		return dda.Spec.Credentials.AppKeyExistingSecret, datadoghqv1alpha1.DefaultAPPKeyKey
+	}
+	return dda.Name, datadoghqv1alpha1.DefaultAPPKeyKey
 }

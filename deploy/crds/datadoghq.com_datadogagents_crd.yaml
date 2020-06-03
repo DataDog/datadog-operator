@@ -7234,20 +7234,48 @@ spec:
                     Agent runs. ref: https://app.datadoghq.com/account/settings#agent/kubernetes'
                   type: string
                 apiKeyExistingSecret:
-                  description: APIKeyExistingSecret Use existing Secret which stores
-                    API key instead of creating a new one. If set, this parameter
-                    takes precedence over "apiKey".
+                  description: APIKeyExistingSecret is DEPRECATED. In order to pass
+                    the API key through an existing secret, please consider "apiSecret"
+                    instead. If set, this parameter takes precedence over "apiKey".
                   type: string
+                apiSecret:
+                  description: APISecret Use existing Secret which stores API key
+                    instead of creating a new one. If set, this parameter takes precedence
+                    over "apiKey" and "apiKeyExistingSecret".
+                  properties:
+                    keyName:
+                      description: KeyName is the key of the secret to use
+                      type: string
+                    secretName:
+                      description: SecretName is the name of the secret
+                      type: string
+                  required:
+                  - secretName
+                  type: object
                 appKey:
                   description: If you are using clusterAgent.metricsProvider.enabled
                     = true, you must set a Datadog application key for read access
                     to your metrics.
                   type: string
                 appKeyExistingSecret:
-                  description: Use existing Secret which stores APP key instead of
-                    creating a new one If set, this parameter takes precedence over
-                    "appKey".
+                  description: AppKeyExistingSecret is DEPRECATED. In order to pass
+                    the APP key through an existing secret, please consider "appSecret"
+                    instead. If set, this parameter takes precedence over "appKey".
                   type: string
+                appSecret:
+                  description: APPSecret Use existing Secret which stores API key
+                    instead of creating a new one. If set, this parameter takes precedence
+                    over "apiKey" and "appKeyExistingSecret".
+                  properties:
+                    keyName:
+                      description: KeyName is the key of the secret to use
+                      type: string
+                    secretName:
+                      description: SecretName is the name of the secret
+                      type: string
+                  required:
+                  - secretName
+                  type: object
                 token:
                   description: This needs to be at least 32 characters a-zA-z It is
                     a preshared key between the node agents and the cluster agent

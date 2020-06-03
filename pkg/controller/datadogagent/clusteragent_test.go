@@ -565,6 +565,59 @@ func Test_newClusterAgentDeploymentFromInstance_UserProvidedSecret(t *testing.T)
 				"bar",
 				"foo",
 				&test.NewDatadogAgentOptions{
+					ClusterAgentEnabled: true,
+					APISecret: &datadoghqv1alpha1.Secret{
+						SecretName: "my_secret",
+					},
+				},
+			),
+			newStatus: &datadoghqv1alpha1.DatadogAgentStatus{},
+			wantErr:   false,
+			want: &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "bar",
+					Name:      "foo-cluster-agent",
+					Labels: map[string]string{"agent.datadoghq.com/name": "foo",
+						"agent.datadoghq.com/component": "cluster-agent",
+						"app.kubernetes.io/instance":    "cluster-agent",
+						"app.kubernetes.io/managed-by":  "datadog-operator",
+						"app.kubernetes.io/name":        "datadog-agent-deployment",
+						"app.kubernetes.io/part-of":     "foo",
+						"app.kubernetes.io/version":     "",
+					},
+					Annotations: map[string]string{"agent.datadoghq.com/agentspechash": defaultClusterAgentHash},
+				},
+				Spec: appsv1.DeploymentSpec{
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{
+								"agent.datadoghq.com/name":      "foo",
+								"agent.datadoghq.com/component": "cluster-agent",
+								"app.kubernetes.io/instance":    "cluster-agent",
+								"app.kubernetes.io/managed-by":  "datadog-operator",
+								"app.kubernetes.io/name":        "datadog-agent-deployment",
+								"app.kubernetes.io/part-of":     "foo",
+								"app.kubernetes.io/version":     "",
+							},
+						},
+						Spec: podSpec,
+					},
+					Replicas: &testClusterAgentReplicas,
+					Selector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"agent.datadoghq.com/name":      "foo",
+							"agent.datadoghq.com/component": "cluster-agent",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "user provided secret for API key",
+			agentdeployment: test.NewDefaultedDatadogAgent(
+				"bar",
+				"foo",
+				&test.NewDatadogAgentOptions{
 					ClusterAgentEnabled:  true,
 					APIKeyExistingSecret: "my_secret",
 				},

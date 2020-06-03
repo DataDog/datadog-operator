@@ -50,20 +50,34 @@ type AgentCredentials struct {
 	// ref: https://app.datadoghq.com/account/settings#agent/kubernetes
 	APIKey string `json:"apiKey,omitempty"`
 
-	// APIKeyExistingSecret Use existing Secret which stores API key instead of creating a new one.
+	// APIKeyExistingSecret is DEPRECATED.
+	// In order to pass the API key through an existing secret, please consider "apiSecret" instead.
 	// If set, this parameter takes precedence over "apiKey".
 	// +optional
+	// +deprecated
 	APIKeyExistingSecret string `json:"apiKeyExistingSecret,omitempty"`
+
+	// APISecret Use existing Secret which stores API key instead of creating a new one.
+	// If set, this parameter takes precedence over "apiKey" and "apiKeyExistingSecret".
+	// +optional
+	APISecret *Secret `json:"apiSecret,omitempty"`
 
 	// If you are using clusterAgent.metricsProvider.enabled = true, you must set
 	// a Datadog application key for read access to your metrics.
 	// +optional
 	AppKey string `json:"appKey,omitempty"`
 
-	// Use existing Secret which stores APP key instead of creating a new one
+	// AppKeyExistingSecret is DEPRECATED.
+	// In order to pass the APP key through an existing secret, please consider "appSecret" instead.
 	// If set, this parameter takes precedence over "appKey".
 	// +optional
+	// +deprecated
 	AppKeyExistingSecret string `json:"appKeyExistingSecret,omitempty"`
+
+	// APPSecret Use existing Secret which stores API key instead of creating a new one.
+	// If set, this parameter takes precedence over "apiKey" and "appKeyExistingSecret".
+	// +optional
+	APPSecret *Secret `json:"appSecret,omitempty"`
 
 	// This needs to be at least 32 characters a-zA-z
 	// It is a preshared key between the node agents and the cluster agent
@@ -75,6 +89,17 @@ type AgentCredentials struct {
 	// If `useSecretBackend: true`, other credential parameters will be ignored.
 	// default value is false.
 	UseSecretBackend *bool `json:"useSecretBackend,omitempty"`
+}
+
+// Secret contains a secret name and an included key
+// +k8s:openapi-gen=true
+type Secret struct {
+	// SecretName is the name of the secret
+	SecretName string `json:"secretName"`
+
+	// KeyName is the key of the secret to use
+	// +optional
+	KeyName string `json:"keyName,omitempty"`
 }
 
 // DatadogAgentSpecAgentSpec defines the desired state of the node Agent

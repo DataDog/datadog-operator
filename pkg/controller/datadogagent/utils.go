@@ -964,12 +964,13 @@ func getAgentServiceAccount(dda *datadoghqv1alpha1.DatadogAgent) string {
 
 // getAPIKeyFromSecret returns the Agent API key as an env var source
 func getAPIKeyFromSecret(dda *datadoghqv1alpha1.DatadogAgent) *corev1.EnvVarSource {
+	secretName, secretKeyName := utils.GetAPIKeySecret(dda)
 	authTokenValue := &corev1.EnvVarSource{
 		SecretKeyRef: &corev1.SecretKeySelector{
 			LocalObjectReference: corev1.LocalObjectReference{
-				Name: utils.GetAPIKeySecretName(dda),
+				Name: secretName,
 			},
-			Key: datadoghqv1alpha1.DefaultAPIKeyKey,
+			Key: secretKeyName,
 		},
 	}
 	return authTokenValue
@@ -990,12 +991,13 @@ func getClusterAgentAuthToken(dda *datadoghqv1alpha1.DatadogAgent) *corev1.EnvVa
 
 // getAppKeyFromSecret returns the Agent API key as an env var source
 func getAppKeyFromSecret(dda *datadoghqv1alpha1.DatadogAgent) *corev1.EnvVarSource {
+	secretName, secretKeyName := utils.GetAppKeySecret(dda)
 	authTokenValue := &corev1.EnvVarSource{
 		SecretKeyRef: &corev1.SecretKeySelector{
 			LocalObjectReference: corev1.LocalObjectReference{
-				Name: utils.GetAppKeySecretName(dda),
+				Name: secretName,
 			},
-			Key: datadoghqv1alpha1.DefaultAPPKeyKey,
+			Key: secretKeyName,
 		},
 	}
 	return authTokenValue
