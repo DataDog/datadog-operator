@@ -503,7 +503,7 @@ func getClusterAgentMetricsProviderPort(config datadoghqv1alpha1.ClusterAgentCon
 	if config.MetricsProviderPort != nil {
 		return *config.MetricsProviderPort
 	}
-	return datadoghqv1alpha1.DefaultMetricsServerServicePort
+	return int32(datadoghqv1alpha1.DefaultMetricsServerTargetPort)
 }
 
 // manageClusterAgentRBACs creates deletes and updates the RBACs for the Cluster Agent
