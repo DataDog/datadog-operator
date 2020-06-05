@@ -1166,7 +1166,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						Ports: []corev1.ServicePort{
 							{
 								Protocol:   corev1.ProtocolTCP,
-								TargetPort: intstr.FromInt(datadoghqv1alpha1.DefaultMetricsServerServicePort),
+								TargetPort: intstr.FromInt(datadoghqv1alpha1.DefaultMetricsServerTargetPort),
 								Port:       datadoghqv1alpha1.DefaultMetricsServerServicePort,
 							},
 						},
@@ -1239,7 +1239,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						Ports: []corev1.ServicePort{
 							{
 								Protocol:   corev1.ProtocolTCP,
-								TargetPort: intstr.FromInt(datadoghqv1alpha1.DefaultMetricsServerServicePort),
+								TargetPort: intstr.FromInt(datadoghqv1alpha1.DefaultMetricsServerTargetPort),
 								Port:       datadoghqv1alpha1.DefaultMetricsServerServicePort,
 							},
 						},

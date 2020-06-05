@@ -31,6 +31,8 @@ const (
 	DefaultClusterAgentServicePort = 5005
 	// DefaultMetricsServerServicePort default metrics-server port
 	DefaultMetricsServerServicePort = 443
+	// DefaultMetricsServerTargetPort default metrics-server pod port
+	DefaultMetricsServerTargetPort = int(defaultMetricsProviderPort)
 	// DefaultDogstatsdPort default dogstatsd port
 	DefaultDogstatsdPort = 8125
 )

@@ -1055,6 +1055,11 @@ func (in *NodeAgentConfig) DeepCopyInto(out *NodeAgentConfig) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.HostPort != nil {
+		in, out := &in.HostPort, &out.HostPort
+		*out = new(int32)
+		**out = **in
+	}
 	return
 }
 

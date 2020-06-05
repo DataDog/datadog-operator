@@ -35,7 +35,7 @@ const (
 	defaultLogsTempStoragePath                    string = "/var/lib/datadog-agent/logs"
 	defaultProcessEnabled                         bool   = false
 	defaultMetricsProviderEnabled                 bool   = false
-	defaultMetricsProviderPort                    int32  = 443
+	defaultMetricsProviderPort                    int32  = 8443
 	defaultClusterChecksEnabled                   bool   = false
 	defaultClusterAgentReplicas                   int32  = 1
 	defaultAgentCanaryReplicas                    int32  = 1

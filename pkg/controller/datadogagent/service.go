@@ -183,7 +183,6 @@ func newMetricsServerService(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.Servi
 	labels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
 	annotations := getDefaultAnnotations(dda)
 
-	port := getClusterAgentMetricsProviderPort(dda.Spec.ClusterAgent.Config)
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        getMetricsServerServiceName(dda),
@@ -200,8 +199,8 @@ func newMetricsServerService(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.Servi
 			Ports: []corev1.ServicePort{
 				{
 					Protocol:   corev1.ProtocolTCP,
-					TargetPort: intstr.FromInt(int(port)),
-					Port:       port,
+					TargetPort: intstr.FromInt(int(getClusterAgentMetricsProviderPort(dda.Spec.ClusterAgent.Config))),
+					Port:       datadoghqv1alpha1.DefaultMetricsServerServicePort,
 				},
 			},
 			SessionAffinity: corev1.ServiceAffinityNone,
