@@ -3516,19 +3516,28 @@ spec:
                       x-kubernetes-list-map-keys:
                       - name
                       x-kubernetes-list-type: map
+                    externalMetrics:
+                      description: ExternalMetricsConfig contains the configuration
+                        of the external metrics provider in Cluster Agent
+                      properties:
+                        enabled:
+                          description: Enable the metricsProvider to be able to scale
+                            based on metrics in Datadog
+                          type: boolean
+                        port:
+                          description: If specified configures the metricsProvider
+                            external metrics service port
+                          format: int32
+                          type: integer
+                        useDatadogMetrics:
+                          description: Enable usage of DatadogMetrics CRD (allow to
+                            scale on arbitrary queries)
+                          type: boolean
+                      type: object
                     logLevel:
                       description: 'Set logging verbosity, valid log levels are: trace,
                         debug, info, warn, error, critical, and off'
                       type: string
-                    metricsProviderEnabled:
-                      description: Enable the metricsProvider to be able to scale
-                        based on metrics in Datadog
-                      type: boolean
-                    metricsProviderPort:
-                      description: If specified configures the metricsProvider external
-                        metrics service port
-                      format: int32
-                      type: integer
                     resources:
                       description: Datadog cluster-agent resource requests and limits
                       properties:

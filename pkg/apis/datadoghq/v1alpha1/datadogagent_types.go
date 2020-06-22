@@ -601,12 +601,7 @@ type DatadogAgentSpecClusterAgentSpec struct {
 // ClusterAgentConfig contains the configuration of the Cluster Agent
 // +k8s:openapi-gen=true
 type ClusterAgentConfig struct {
-	// Enable the metricsProvider to be able to scale based on metrics in Datadog
-	MetricsProviderEnabled *bool `json:"metricsProviderEnabled,omitempty"`
-
-	// If specified configures the metricsProvider external metrics service port
-	// +optional
-	MetricsProviderPort *int32 `json:"metricsProviderPort,omitempty"`
+	ExternalMetrics *ExternalMetricsConfig `json:"externalMetrics,omitempty"`
 
 	// Enable the Cluster Checks and Endpoint Checks feature on both the cluster-agents and the daemonset
 	// ref:
@@ -647,6 +642,22 @@ type ClusterAgentConfig struct {
 	// +listType=map
 	// +listMapKey=name
 	Volumes []corev1.Volume `json:"volumes,omitempty"`
+}
+
+// ExternalMetricsConfig contains the configuration of the external metrics provider in Cluster Agent
+// +k8s:openapi-gen=true
+type ExternalMetricsConfig struct {
+	// Enable the metricsProvider to be able to scale based on metrics in Datadog
+	// +optional
+	Enabled bool `json:"enabled,omitempty"`
+
+	// Enable usage of DatadogMetrics CRD (allow to scale on arbitrary queries)
+	// +optional
+	UseDatadogMetrics bool `json:"useDatadogMetrics,omitempty"`
+
+	// If specified configures the metricsProvider external metrics service port
+	// +optional
+	Port *int32 `json:"port,omitempty"`
 }
 
 // ClusterChecksRunnerConfig contains the configuration of the Cluster Checks Runner

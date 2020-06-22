@@ -34,7 +34,6 @@ const (
 	defaultPodLogsPath                            string = "/var/log/pods"
 	defaultLogsTempStoragePath                    string = "/var/lib/datadog-agent/logs"
 	defaultProcessEnabled                         bool   = false
-	defaultMetricsProviderEnabled                 bool   = false
 	defaultMetricsProviderPort                    int32  = 8443
 	defaultClusterChecksEnabled                   bool   = false
 	defaultClusterAgentReplicas                   int32  = 1
@@ -605,12 +604,10 @@ func DefaultDatadogAgentSpecClusterAgentConfig(config *ClusterAgentConfig) *Clus
 		config = &ClusterAgentConfig{}
 	}
 
-	if config.MetricsProviderEnabled == nil {
-		config.MetricsProviderEnabled = NewBoolPointer(defaultMetricsProviderEnabled)
-	}
-
-	if config.MetricsProviderPort == nil {
-		config.MetricsProviderPort = NewInt32Pointer(defaultMetricsProviderPort)
+	if config.ExternalMetrics != nil {
+		if config.ExternalMetrics.Port == nil {
+			config.ExternalMetrics.Port = NewInt32Pointer(defaultMetricsProviderPort)
+		}
 	}
 
 	if config.ClusterChecksEnabled == nil {

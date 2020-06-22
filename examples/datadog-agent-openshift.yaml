@@ -22,9 +22,10 @@ spec:
     image: 
       name: "datadog/cluster-agent:latest"
     config:
-      metricsProviderEnabled: true
+      externalMetrics:
+        enabled: true
+        port: 5010
       clusterChecksRunnerEnabled: true
-      metricsProviderPort: 5010
     replicas: 2
   clusterChecksRunner:
     image: 
