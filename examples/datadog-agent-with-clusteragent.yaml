@@ -17,5 +17,6 @@ spec:
     image:
       name: "datadog/cluster-agent:latest"
     config:
-      metricsProviderEnabled: true
+      externalMetrics:
+        enabled: true
     replicas: 2

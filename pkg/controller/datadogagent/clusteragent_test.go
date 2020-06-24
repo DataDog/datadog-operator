@@ -8,7 +8,7 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
 	test "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1/test"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
-	
+
 	"github.com/go-logr/logr"
 	"github.com/google/go-cmp/cmp"
 	assert "github.com/stretchr/testify/require"
@@ -472,6 +472,10 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 				Name:  datadoghqv1alpha1.DatadogHost,
 				Value: "https://app.datadoghq.com",
 			},
+			{
+				Name:  datadoghqv1alpha1.DDMetricsProviderUseDatadogMetric,
+				Value: "false",
+			},
 		}...,
 	)
 
@@ -524,6 +528,10 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 				Name:  datadoghqv1alpha1.DatadogHost,
 				Value: "https://app.datadoghq.eu",
 			},
+			{
+				Name:  datadoghqv1alpha1.DDMetricsProviderUseDatadogMetric,
+				Value: "true",
+			},
 		}...,
 	)
 	metricsServerWithSitePodSpec.Containers[0].LivenessProbe = probe
@@ -537,11 +545,12 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 
 	metricsServerAgentWithSiteDeployment := test.NewDefaultedDatadogAgent("bar", "foo",
 		&test.NewDatadogAgentOptions{
-			UseEDS:               true,
-			ClusterAgentEnabled:  true,
-			MetricsServerEnabled: true,
-			Site:                 "datadoghq.eu",
-			MetricsServerPort:    metricsServerPort,
+			UseEDS:                        true,
+			ClusterAgentEnabled:           true,
+			MetricsServerEnabled:          true,
+			MetricsServerUseDatadogMetric: true,
+			Site:                          "datadoghq.eu",
+			MetricsServerPort:             metricsServerPort,
 		})
 
 	metricsServerClusterAgentWithSiteHash, _ := comparison.GenerateMD5ForSpec(metricsServerAgentWithSiteDeployment.Spec.ClusterAgent)

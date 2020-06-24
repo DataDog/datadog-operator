@@ -1117,10 +1117,7 @@ func isMetricsProviderEnabled(spec *datadoghqv1alpha1.DatadogAgentSpecClusterAge
 	if spec == nil {
 		return false
 	}
-	if datadoghqv1alpha1.BoolValue(spec.Config.MetricsProviderEnabled) {
-		return true
-	}
-	return false
+	return spec.Config.ExternalMetrics != nil && spec.Config.ExternalMetrics.Enabled
 }
 
 func isCreateRBACEnabled(config datadoghqv1alpha1.RbacConfig) bool {

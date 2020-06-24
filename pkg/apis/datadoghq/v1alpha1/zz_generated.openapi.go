@@ -41,6 +41,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./pkg/apis/datadoghq/v1alpha1.DatadogMetricCondition":                  schema_pkg_apis_datadoghq_v1alpha1_DatadogMetricCondition(ref),
 		"./pkg/apis/datadoghq/v1alpha1.DeploymentStatus":                        schema_pkg_apis_datadoghq_v1alpha1_DeploymentStatus(ref),
 		"./pkg/apis/datadoghq/v1alpha1.DogstatsdConfig":                         schema_pkg_apis_datadoghq_v1alpha1_DogstatsdConfig(ref),
+		"./pkg/apis/datadoghq/v1alpha1.ExternalMetricsConfig":                   schema_pkg_apis_datadoghq_v1alpha1_ExternalMetricsConfig(ref),
 		"./pkg/apis/datadoghq/v1alpha1.ImageConfig":                             schema_pkg_apis_datadoghq_v1alpha1_ImageConfig(ref),
 		"./pkg/apis/datadoghq/v1alpha1.LogSpec":                                 schema_pkg_apis_datadoghq_v1alpha1_LogSpec(ref),
 		"./pkg/apis/datadoghq/v1alpha1.NodeAgentConfig":                         schema_pkg_apis_datadoghq_v1alpha1_NodeAgentConfig(ref),
@@ -210,18 +211,9 @@ func schema_pkg_apis_datadoghq_v1alpha1_ClusterAgentConfig(ref common.ReferenceC
 				Description: "ClusterAgentConfig contains the configuration of the Cluster Agent",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"metricsProviderEnabled": {
+					"externalMetrics": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enable the metricsProvider to be able to scale based on metrics in Datadog",
-							Type:        []string{"boolean"},
-							Format:      "",
-						},
-					},
-					"metricsProviderPort": {
-						SchemaProps: spec.SchemaProps{
-							Description: "If specified configures the metricsProvider external metrics service port",
-							Type:        []string{"integer"},
-							Format:      "int32",
+							Ref: ref("./pkg/apis/datadoghq/v1alpha1.ExternalMetricsConfig"),
 						},
 					},
 					"clusterChecksEnabled": {
@@ -318,7 +310,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_ClusterAgentConfig(ref common.ReferenceC
 			},
 		},
 		Dependencies: []string{
-			"./pkg/apis/datadoghq/v1alpha1.ConfigDirSpec", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
+			"./pkg/apis/datadoghq/v1alpha1.ConfigDirSpec", "./pkg/apis/datadoghq/v1alpha1.ExternalMetricsConfig", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
 	}
 }
 
@@ -1548,6 +1540,40 @@ func schema_pkg_apis_datadoghq_v1alpha1_DogstatsdConfig(ref common.ReferenceCall
 							Description: "Enable dogstatsd over Unix Domain Socket ref: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/",
 							Type:        []string{"boolean"},
 							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_datadoghq_v1alpha1_ExternalMetricsConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ExternalMetricsConfig contains the configuration of the external metrics provider in Cluster Agent",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enable the metricsProvider to be able to scale based on metrics in Datadog",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"useDatadogMetrics": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enable usage of DatadogMetrics CRD (allow to scale on arbitrary queries)",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"port": {
+						SchemaProps: spec.SchemaProps{
+							Description: "If specified configures the metricsProvider external metrics service port",
+							Type:        []string{"integer"},
+							Format:      "int32",
 						},
 					},
 				},
