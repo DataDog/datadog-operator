@@ -52,10 +52,16 @@ func init() {
 // Add creates a new DatadogAgent Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
+	//Add Extendeddaemonset scheme
+	if err := edsdatadoghqv1alpha1.AddToScheme(mgr.GetScheme()); err != nil {
+		return err
+	}
+
 	reconciler, forwarders, err := newReconciler(mgr)
 	if err != nil {
 		return err
 	}
+
 	return add(mgr, reconciler, forwarders.Register)
 }
 

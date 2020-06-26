@@ -21,7 +21,7 @@ github.com/beorn7/perks/quantile
 github.com/cenkalti/backoff
 # github.com/cespare/xxhash/v2 v2.1.1
 github.com/cespare/xxhash/v2
-# github.com/datadog/extendeddaemonset v0.1.1-0.20200514082145-c99b8a156378
+# github.com/datadog/extendeddaemonset v0.1.1-0.20200618074032-94ec1f3a5192
 github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1
 # github.com/davecgh/go-spew v1.1.1
 github.com/davecgh/go-spew/spew

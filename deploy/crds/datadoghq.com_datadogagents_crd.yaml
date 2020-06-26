@@ -1992,6 +1992,8 @@ spec:
                       properties:
                         duration:
                           type: string
+                        paused:
+                          type: boolean
                         replicas:
                           anyOf:
                           - type: integer
