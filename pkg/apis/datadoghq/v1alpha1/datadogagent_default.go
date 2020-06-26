@@ -286,6 +286,10 @@ func IsDefaultedDatadogAgentSpecLog(log *LogSpec) bool {
 		return false
 	}
 
+	if log.ContainerCollectUsingFiles == nil {
+		return false
+	}
+
 	if log.ContainerLogsPath == nil {
 		return false
 	}
