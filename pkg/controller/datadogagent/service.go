@@ -112,8 +112,35 @@ func (r *ReconcileDatadogAgent) manageMetricsServerService(logger logr.Logger, d
 	return r.updateIfNeededMetricsServerService(logger, dda, service)
 }
 
+func (r *ReconcileDatadogAgent) manageAdmissionControllerService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
+	if dda.Spec.ClusterAgent == nil {
+		return r.cleanupAdmissionControllerService(dda)
+	}
+
+	if !isAdmissionControllerEnabled(dda.Spec.ClusterAgent) {
+		return reconcile.Result{}, nil
+	}
+
+	serviceName := getAdmissionControllerServiceName(dda)
+	service := &corev1.Service{}
+	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: dda.Namespace, Name: serviceName}, service)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return r.createAdmissionControllerService(logger, dda)
+		}
+		return reconcile.Result{}, err
+	}
+
+	return r.updateIfNeededAdmissionControllerService(logger, dda, service)
+}
+
 func (r *ReconcileDatadogAgent) createMetricsServerService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
 	newService, _ := newMetricsServerService(dda)
+	return r.createService(logger, dda, newService)
+}
+
+func (r *ReconcileDatadogAgent) createAdmissionControllerService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
+	newService, _ := newAdmissionControllerService(dda)
 	return r.createService(logger, dda, newService)
 }
 
@@ -122,8 +149,18 @@ func (r *ReconcileDatadogAgent) cleanupMetricsServerService(dda *datadoghqv1alph
 	return cleanupService(r.client, serviceName, dda.Namespace)
 }
 
+func (r *ReconcileDatadogAgent) cleanupAdmissionControllerService(dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
+	serviceName := getAdmissionControllerServiceName(dda)
+	return cleanupService(r.client, serviceName, dda.Namespace)
+}
+
 func (r *ReconcileDatadogAgent) updateIfNeededMetricsServerService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, currentService *corev1.Service) (reconcile.Result, error) {
 	newService, _ := newMetricsServerService(dda)
+	return r.updateIfNeededService(logger, dda, currentService, newService)
+}
+
+func (r *ReconcileDatadogAgent) updateIfNeededAdmissionControllerService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, currentService *corev1.Service) (reconcile.Result, error) {
+	newService, _ := newAdmissionControllerService(dda)
 	return r.updateIfNeededService(logger, dda, currentService, newService)
 }
 
@@ -201,6 +238,35 @@ func newMetricsServerService(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.Servi
 					Protocol:   corev1.ProtocolTCP,
 					TargetPort: intstr.FromInt(int(getClusterAgentMetricsProviderPort(dda.Spec.ClusterAgent.Config))),
 					Port:       datadoghqv1alpha1.DefaultMetricsServerServicePort,
+				},
+			},
+			SessionAffinity: corev1.ServiceAffinityNone,
+		},
+	}
+	hash, _ := comparison.SetMD5GenerationAnnotation(&service.ObjectMeta, &service.Spec)
+
+	return service, hash
+}
+
+func newAdmissionControllerService(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.Service, string) {
+	service := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        getAdmissionControllerServiceName(dda),
+			Namespace:   dda.Namespace,
+			Labels:      getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda)),
+			Annotations: getDefaultAnnotations(dda),
+		},
+		Spec: corev1.ServiceSpec{
+			Type: corev1.ServiceTypeClusterIP,
+			Selector: map[string]string{
+				datadoghqv1alpha1.AgentDeploymentNameLabelKey:      dda.Name,
+				datadoghqv1alpha1.AgentDeploymentComponentLabelKey: datadoghqv1alpha1.DefaultClusterAgentResourceSuffix,
+			},
+			Ports: []corev1.ServicePort{
+				{
+					Protocol:   corev1.ProtocolTCP,
+					TargetPort: intstr.FromInt(datadoghqv1alpha1.DefaultAdmissionControllerTargetPort),
+					Port:       datadoghqv1alpha1.DefaultAdmissionControllerServicePort,
 				},
 			},
 			SessionAffinity: corev1.ServiceAffinityNone,

@@ -49,6 +49,8 @@ const (
 	defaultAgentCanaryDuratrion                          = 10 * time.Minute
 	defaultReconcileFrequency                            = 10 * time.Second
 	defaultRbacCreate                                    = true
+	defaultMutateUnlabelled                              = false
+	DefaultAdmissionServiceName                          = "datadog-admission-controller"
 )
 
 var defaultImagePullPolicy = v1.PullIfNotPresent
@@ -612,6 +614,15 @@ func DefaultDatadogAgentSpecClusterAgentConfig(config *ClusterAgentConfig) *Clus
 
 	if config.ClusterChecksEnabled == nil {
 		config.ClusterChecksEnabled = NewBoolPointer(defaultClusterChecksEnabled)
+	}
+
+	if config.AdmissionController != nil {
+		if config.AdmissionController.MutateUnlabelled == nil {
+			NewBoolPointer(defaultMutateUnlabelled)
+		}
+		if config.AdmissionController.ServiceName == nil {
+			NewStringPointer(DefaultAdmissionServiceName)
+		}
 	}
 
 	return config

@@ -3383,6 +3383,23 @@ spec:
                 config:
                   description: Cluster Agent configuration
                   properties:
+                    admissionController:
+                      description: Configure the Admission Controller
+                      properties:
+                        enabled:
+                          description: Enable the admission controller to be able
+                            to inject APM/Dogstatsd config and standard tags (env,
+                            service, version) automatically into your pods
+                          type: boolean
+                        mutateUnlabelled:
+                          description: MutateUnlabelled enables injecting config without
+                            having the pod label 'admission.datadoghq.com/enabled="true"'
+                          type: boolean
+                        serviceName:
+                          description: ServiceName corresponds to the webhook service
+                            name
+                          type: string
+                      type: object
                     clusterChecksEnabled:
                       description: 'Enable the Cluster Checks and Endpoint Checks
                         feature on both the cluster-agents and the daemonset ref:

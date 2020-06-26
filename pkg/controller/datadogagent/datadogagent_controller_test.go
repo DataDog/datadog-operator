@@ -947,6 +947,54 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 			},
 		},
 		{
+			name: "DatadogAgent found and defaulted, Cluster Agent enabled, create the Admission Controller Service",
+			fields: fields{
+				client:   fake.NewFakeClient(),
+				scheme:   s,
+				recorder: recorder,
+			},
+			args: args{
+				request: newRequest(resourcesNamespace, resourcesName),
+				loadFunc: func(c client.Client) {
+					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, &test.NewDatadogAgentOptions{Labels: map[string]string{"label-foo-key": "label-bar-value"}, ClusterAgentEnabled: true, AdmissionControllerEnabled: true})
+					_ = c.Create(context.TODO(), dda)
+					commonDCAlabels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
+					_ = c.Create(context.TODO(), test.NewSecret(resourcesNamespace, "foo", &test.NewSecretOptions{Labels: commonDCAlabels, Data: map[string][]byte{
+						"token": []byte(base64.StdEncoding.EncodeToString([]byte("token-foo"))),
+					}}))
+					dcaService := test.NewService(resourcesNamespace, "foo-cluster-agent", &test.NewServiceOptions{Spec: &corev1.ServiceSpec{
+						Type: corev1.ServiceTypeClusterIP,
+						Selector: map[string]string{
+							datadoghqv1alpha1.AgentDeploymentNameLabelKey:      resourcesName,
+							datadoghqv1alpha1.AgentDeploymentComponentLabelKey: "cluster-agent",
+						},
+						Ports: []corev1.ServicePort{
+							{
+								Protocol:   corev1.ProtocolTCP,
+								TargetPort: intstr.FromInt(datadoghqv1alpha1.DefaultClusterAgentServicePort),
+								Port:       datadoghqv1alpha1.DefaultClusterAgentServicePort,
+							},
+						},
+						SessionAffinity: corev1.ServiceAffinityNone,
+					},
+					})
+					_, _ = comparison.SetMD5GenerationAnnotation(&dcaService.ObjectMeta, dcaService.Spec)
+					dcaService.Labels = commonDCAlabels
+					_ = c.Create(context.TODO(), dcaService)
+				},
+			},
+			want:    reconcile.Result{Requeue: true},
+			wantErr: false,
+			wantFunc: func(c client.Client) error {
+				dcaService := &corev1.Service{}
+				if err := c.Get(context.TODO(), newRequest(resourcesNamespace, "datadog-admission-controller").NamespacedName, dcaService); err != nil {
+					return err
+				}
+
+				return nil
+			},
+		},
+		{
 			name: "DatadogAgent found and defaulted, Cluster Agent enabled, create the Cluster Agent Deployment",
 			fields: fields{
 				client:   fake.NewFakeClient(),
@@ -1077,6 +1125,85 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				}
 				if !hasAllClusterLevelRbacResources(clusterRole.Rules) {
 					return fmt.Errorf("bad cluster role, should contain all cluster level rbac resources, current: %v", clusterRole.Rules)
+				}
+				if !ownedByDatadogOperator(clusterRole.OwnerReferences) {
+					return fmt.Errorf("bad clusterRole, should be owned by the datadog operator, current owners: %v", clusterRole.OwnerReferences)
+				}
+
+				return nil
+			},
+		},
+		{
+			name: "DatadogAgent found and defaulted, Cluster Agent enabled, Admission Controller enabled, create the Cluster Agent ClusterRole",
+			fields: fields{
+				client:   fake.NewFakeClient(),
+				scheme:   s,
+				recorder: recorder,
+			},
+			args: args{
+				request: newRequest(resourcesNamespace, resourcesName),
+				loadFunc: func(c client.Client) {
+					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, &test.NewDatadogAgentOptions{Labels: map[string]string{"label-foo-key": "label-bar-value"}, ClusterAgentEnabled: true, AdmissionControllerEnabled: true})
+					_ = c.Create(context.TODO(), dda)
+					commonDCAlabels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
+					_ = c.Create(context.TODO(), test.NewSecret(resourcesNamespace, "foo", &test.NewSecretOptions{Labels: commonDCAlabels, Data: map[string][]byte{
+						"token": []byte(base64.StdEncoding.EncodeToString([]byte("token-foo"))),
+					}}))
+					dcaService := test.NewService(resourcesNamespace, "foo-cluster-agent", &test.NewServiceOptions{Spec: &corev1.ServiceSpec{
+						Type: corev1.ServiceTypeClusterIP,
+						Selector: map[string]string{
+							datadoghqv1alpha1.AgentDeploymentNameLabelKey:      resourcesName,
+							datadoghqv1alpha1.AgentDeploymentComponentLabelKey: "cluster-agent",
+						},
+						Ports: []corev1.ServicePort{
+							{
+								Protocol:   corev1.ProtocolTCP,
+								TargetPort: intstr.FromInt(datadoghqv1alpha1.DefaultClusterAgentServicePort),
+								Port:       datadoghqv1alpha1.DefaultClusterAgentServicePort,
+							},
+						},
+						SessionAffinity: corev1.ServiceAffinityNone,
+					},
+					})
+					admissionService := test.NewService(resourcesNamespace, "datadog-admission-controller", &test.NewServiceOptions{Spec: &corev1.ServiceSpec{
+						Type: corev1.ServiceTypeClusterIP,
+						Selector: map[string]string{
+							datadoghqv1alpha1.AgentDeploymentNameLabelKey:      resourcesName,
+							datadoghqv1alpha1.AgentDeploymentComponentLabelKey: "cluster-agent",
+						},
+						Ports: []corev1.ServicePort{
+							{
+								Protocol:   corev1.ProtocolTCP,
+								TargetPort: intstr.FromInt(8000),
+								Port:       443,
+							},
+						},
+						SessionAffinity: corev1.ServiceAffinityNone,
+					},
+					})
+					_, _ = comparison.SetMD5GenerationAnnotation(&dcaService.ObjectMeta, dcaService.Spec)
+					dcaService.Labels = commonDCAlabels
+					_ = c.Create(context.TODO(), dcaService)
+
+					_, _ = comparison.SetMD5GenerationAnnotation(&admissionService.ObjectMeta, admissionService.Spec)
+					admissionService.Labels = commonDCAlabels
+					_ = c.Create(context.TODO(), admissionService)
+
+					_ = c.Create(context.TODO(), buildClusterAgentPDB(dda))
+				},
+			},
+			want:    reconcile.Result{Requeue: true},
+			wantErr: false,
+			wantFunc: func(c client.Client) error {
+				clusterRole := &rbacv1.ClusterRole{}
+				if err := c.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesNameClusterAgent}, clusterRole); err != nil {
+					return err
+				}
+				if !hasAllClusterLevelRbacResources(clusterRole.Rules) {
+					return fmt.Errorf("bad cluster role, should contain all cluster level rbac resources, current: %v", clusterRole.Rules)
+				}
+				if !hasAdmissionRbacResources(clusterRole.Rules) {
+					return fmt.Errorf("bad cluster role, should contain cluster level rbac resources needed by the admission controller, current: %v", clusterRole.Rules)
 				}
 				if !ownedByDatadogOperator(clusterRole.OwnerReferences) {
 					return fmt.Errorf("bad clusterRole, should be owned by the datadog operator, current owners: %v", clusterRole.OwnerReferences)
@@ -1932,6 +2059,26 @@ func hasAllClusterLevelRbacResources(policyRules []rbacv1.PolicyRule) bool {
 		"nodes":                 true,
 		"componentstatuses":     true,
 		"clusterresourcequotas": true,
+	}
+	for _, policyRule := range policyRules {
+		for _, resource := range policyRule.Resources {
+			if _, found := clusterLevelResources[resource]; found {
+				delete(clusterLevelResources, resource)
+			}
+		}
+	}
+	return len(clusterLevelResources) == 0
+}
+
+func hasAdmissionRbacResources(policyRules []rbacv1.PolicyRule) bool {
+	clusterLevelResources := map[string]bool{
+		"secrets":                       true,
+		"mutatingwebhookconfigurations": true,
+		"replicasets":                   true,
+		"deployments":                   true,
+		"statefulsets":                  true,
+		"cronjobs":                      true,
+		"jobs":                          true,
 	}
 	for _, policyRule := range policyRules {
 		for _, resource := range policyRule.Resources {

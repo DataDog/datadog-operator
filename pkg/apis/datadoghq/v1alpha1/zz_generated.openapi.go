@@ -19,6 +19,7 @@ import (
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
 		"./pkg/apis/datadoghq/v1alpha1.APMSpec":                                 schema_pkg_apis_datadoghq_v1alpha1_APMSpec(ref),
+		"./pkg/apis/datadoghq/v1alpha1.AdmissionControllerConfig":               schema_pkg_apis_datadoghq_v1alpha1_AdmissionControllerConfig(ref),
 		"./pkg/apis/datadoghq/v1alpha1.AgentCredentials":                        schema_pkg_apis_datadoghq_v1alpha1_AgentCredentials(ref),
 		"./pkg/apis/datadoghq/v1alpha1.CRISocketConfig":                         schema_pkg_apis_datadoghq_v1alpha1_CRISocketConfig(ref),
 		"./pkg/apis/datadoghq/v1alpha1.ClusterAgentConfig":                      schema_pkg_apis_datadoghq_v1alpha1_ClusterAgentConfig(ref),
@@ -105,6 +106,40 @@ func schema_pkg_apis_datadoghq_v1alpha1_APMSpec(ref common.ReferenceCallback) co
 		},
 		Dependencies: []string{
 			"k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements"},
+	}
+}
+
+func schema_pkg_apis_datadoghq_v1alpha1_AdmissionControllerConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "AdmissionControllerConfig contains the configuration of the admission controller in Cluster Agent",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enable the admission controller to be able to inject APM/Dogstatsd config and standard tags (env, service, version) automatically into your pods",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"mutateUnlabelled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MutateUnlabelled enables injecting config without having the pod label 'admission.datadoghq.com/enabled=\"true\"'",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"serviceName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ServiceName corresponds to the webhook service name",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
 	}
 }
 
@@ -216,6 +251,12 @@ func schema_pkg_apis_datadoghq_v1alpha1_ClusterAgentConfig(ref common.ReferenceC
 							Ref: ref("./pkg/apis/datadoghq/v1alpha1.ExternalMetricsConfig"),
 						},
 					},
+					"admissionController": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Configure the Admission Controller",
+							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.AdmissionControllerConfig"),
+						},
+					},
 					"clusterChecksEnabled": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Enable the Cluster Checks and Endpoint Checks feature on both the cluster-agents and the daemonset ref: https://docs.datadoghq.com/agent/cluster_agent/clusterchecks/ https://docs.datadoghq.com/agent/cluster_agent/endpointschecks/ Autodiscovery via Kube Service annotations is automatically enabled",
@@ -310,7 +351,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_ClusterAgentConfig(ref common.ReferenceC
 			},
 		},
 		Dependencies: []string{
-			"./pkg/apis/datadoghq/v1alpha1.ConfigDirSpec", "./pkg/apis/datadoghq/v1alpha1.ExternalMetricsConfig", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
+			"./pkg/apis/datadoghq/v1alpha1.AdmissionControllerConfig", "./pkg/apis/datadoghq/v1alpha1.ConfigDirSpec", "./pkg/apis/datadoghq/v1alpha1.ExternalMetricsConfig", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
 	}
 }
 
