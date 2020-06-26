@@ -75,6 +75,8 @@ type ExtendedDaemonSetSpecStrategyRollingUpdate struct {
 type ExtendedDaemonSetSpecStrategyCanary struct {
 	Replicas *intstr.IntOrString `json:"replicas,omitempty"`
 	Duration *metav1.Duration    `json:"duration,omitempty"`
+	// +optional
+	Paused bool `json:"paused,omitempty"`
 }
 
 // ExtendedDaemonSetStatusState type representing the ExtendedDaemonSet state
@@ -127,6 +129,7 @@ type ExtendedDaemonSetStatusCanary struct {
 // +kubebuilder:printcolumn:name="status",type="string",JSONPath=".status.state"
 // +kubebuilder:printcolumn:name="active rs",type="string",JSONPath=".status.activeReplicaSet"
 // +kubebuilder:printcolumn:name="canary rs",type="string",JSONPath=".status.canary.replicaSet"
+// +kubebuilder:printcolumn:name="canary paused",type="boolean",JSONPath=".spec.strategy.canary.paused"
 // +kubebuilder:printcolumn:name="age",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:resource:path=extendeddaemonsets,shortName=eds
 type ExtendedDaemonSet struct {

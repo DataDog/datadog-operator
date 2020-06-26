@@ -12,6 +12,7 @@ core,"github.com/PuerkitoBio/urlesc",NewBSD
 core,"github.com/beorn7/perks/quantile",MIT
 core,"github.com/cenkalti/backoff",MIT
 core,"github.com/cespare/xxhash/v2",MIT
+core,"github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1",Apache-2.0
 core,"github.com/davecgh/go-spew/spew",ISC
 core,"github.com/dgrijalva/jwt-go",MIT
 core,"github.com/docker/spdystream",Apache-2.0
