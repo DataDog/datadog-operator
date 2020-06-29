@@ -228,6 +228,11 @@ func (r *ReconcileDatadogAgent) manageClusterAgentDependencies(logger logr.Logge
 		return result, err
 	}
 
+	result, err = r.manageAdmissionControllerService(logger, dda)
+	if shouldReturn(result, err) {
+		return result, err
+	}
+
 	result, err = r.manageClusterAgentPDB(logger, dda)
 	if shouldReturn(result, err) {
 		return result, err
@@ -492,6 +497,22 @@ func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Env
 			},
 		}...)
 	}
+
+	if isAdmissionControllerEnabled(spec.ClusterAgent) {
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  datadoghqv1alpha1.DDAdmissionControllerEnabled,
+			Value: strconv.FormatBool(spec.ClusterAgent.Config.AdmissionController.Enabled),
+		})
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  datadoghqv1alpha1.DDAdmissionControllerMutateUnlabelled,
+			Value: datadoghqv1alpha1.BoolToString(spec.ClusterAgent.Config.AdmissionController.MutateUnlabelled),
+		})
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  datadoghqv1alpha1.DDAdmissionControllerServiceName,
+			Value: getAdmissionControllerServiceName(dda),
+		})
+	}
+
 	return append(envVars, spec.ClusterAgent.Config.Env...)
 }
 
@@ -507,6 +528,13 @@ func getClusterAgentMetricsProviderPort(config datadoghqv1alpha1.ClusterAgentCon
 		return *config.ExternalMetrics.Port
 	}
 	return int32(datadoghqv1alpha1.DefaultMetricsServerTargetPort)
+}
+
+func getAdmissionControllerServiceName(dda *datadoghqv1alpha1.DatadogAgent) string {
+	if dda.Spec.ClusterAgent != nil && dda.Spec.ClusterAgent.Config.AdmissionController != nil && dda.Spec.ClusterAgent.Config.AdmissionController.ServiceName != nil {
+		return *dda.Spec.ClusterAgent.Config.AdmissionController.ServiceName
+	}
+	return datadoghqv1alpha1.DefaultAdmissionServiceName
 }
 
 // manageClusterAgentRBACs creates deletes and updates the RBACs for the Cluster Agent
@@ -892,6 +920,67 @@ func buildClusterAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, age
 				Verbs:     []string{datadoghqv1alpha1.UpdateVerb},
 			})
 		}
+	}
+
+	if dda.Spec.ClusterAgent.Config.AdmissionController != nil && dda.Spec.ClusterAgent.Config.AdmissionController.Enabled {
+		// MutatingWebhooksConfigs
+		rbacRules = append(rbacRules, rbacv1.PolicyRule{
+			APIGroups: []string{datadoghqv1alpha1.AdmissionAPIGroup},
+			Resources: []string{datadoghqv1alpha1.MutatingConfigResource},
+			Verbs: []string{
+				datadoghqv1alpha1.GetVerb,
+				datadoghqv1alpha1.ListVerb,
+				datadoghqv1alpha1.WatchVerb,
+				datadoghqv1alpha1.CreateVerb,
+				datadoghqv1alpha1.UpdateVerb},
+		})
+
+		// Secrets
+		rbacRules = append(rbacRules, rbacv1.PolicyRule{
+			APIGroups: []string{datadoghqv1alpha1.CoreAPIGroup},
+			Resources: []string{datadoghqv1alpha1.SecretsResource},
+			Verbs: []string{
+				datadoghqv1alpha1.GetVerb,
+				datadoghqv1alpha1.ListVerb,
+				datadoghqv1alpha1.WatchVerb,
+				datadoghqv1alpha1.CreateVerb,
+				datadoghqv1alpha1.UpdateVerb},
+		})
+
+		// Replicasets
+		rbacRules = append(rbacRules, rbacv1.PolicyRule{
+			APIGroups: []string{datadoghqv1alpha1.AppsAPIGroup},
+			Resources: []string{datadoghqv1alpha1.ReplicasetsResource},
+			Verbs:     []string{datadoghqv1alpha1.GetVerb},
+		})
+
+		// Deployments
+		rbacRules = append(rbacRules, rbacv1.PolicyRule{
+			APIGroups: []string{datadoghqv1alpha1.AppsAPIGroup},
+			Resources: []string{datadoghqv1alpha1.DeploymentsResource},
+			Verbs:     []string{datadoghqv1alpha1.GetVerb},
+		})
+
+		// Deployments
+		rbacRules = append(rbacRules, rbacv1.PolicyRule{
+			APIGroups: []string{datadoghqv1alpha1.AppsAPIGroup},
+			Resources: []string{datadoghqv1alpha1.StatefulsetsResource},
+			Verbs:     []string{datadoghqv1alpha1.GetVerb},
+		})
+
+		// Jobs
+		rbacRules = append(rbacRules, rbacv1.PolicyRule{
+			APIGroups: []string{datadoghqv1alpha1.BatchAPIGroup},
+			Resources: []string{datadoghqv1alpha1.JobsResource},
+			Verbs:     []string{datadoghqv1alpha1.GetVerb},
+		})
+
+		// CronJobs
+		rbacRules = append(rbacRules, rbacv1.PolicyRule{
+			APIGroups: []string{datadoghqv1alpha1.BatchAPIGroup},
+			Resources: []string{datadoghqv1alpha1.CronjobsResource},
+			Verbs:     []string{datadoghqv1alpha1.GetVerb},
+		})
 	}
 
 	clusterRole.Rules = rbacRules

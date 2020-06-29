@@ -62,6 +62,9 @@ type NewDatadogAgentOptions struct {
 	Site                            string
 	HostPort                        int32
 	HostNetwork                     bool
+	AdmissionControllerEnabled      bool
+	AdmissionMutateUnlabelled       bool
+	AdmissionServiceName            string
 }
 
 // NewDefaultedDatadogAgent returns an initialized and defaulted DatadogAgent for testing purpose
@@ -146,6 +149,17 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 
 				ad.Spec.ClusterAgent.Config.ExternalMetrics = &externalMetricsConfig
 			}
+
+			if options.AdmissionControllerEnabled {
+				ad.Spec.ClusterAgent.Config.AdmissionController = &datadoghqv1alpha1.AdmissionControllerConfig{
+					Enabled:          true,
+					MutateUnlabelled: &options.AdmissionMutateUnlabelled,
+				}
+				if options.AdmissionServiceName != "" {
+					ad.Spec.ClusterAgent.Config.AdmissionController.ServiceName = &options.AdmissionServiceName
+				}
+			}
+
 			if options.ClusterChecksEnabled {
 				ad.Spec.ClusterAgent.Config.ClusterChecksEnabled = datadoghqv1alpha1.NewBoolPointer(true)
 			}

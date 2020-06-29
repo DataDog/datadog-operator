@@ -15,4 +15,27 @@ rules:
   - 'clusterrolebindings'
   verbs:
   - '*'
+- apiGroups:
+  - admissionregistration.k8s.io
+  - ''
+  resources:
+  - 'mutatingwebhookconfigurations'
+  - 'secrets'
+  verbs:
+  - 'get'
+  - 'list'
+  - 'watch'
+  - 'update'
+  - create
+- apiGroups:
+  - apps
+  - batch
+  resources:
+  - 'replicasets'
+  - 'deployments'
+  - 'statefulsets'
+  - 'jobs'
+  - 'cronjobs'
+  verbs:
+  - 'get'
 {{- end -}}

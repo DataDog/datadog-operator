@@ -1120,6 +1120,13 @@ func isMetricsProviderEnabled(spec *datadoghqv1alpha1.DatadogAgentSpecClusterAge
 	return spec.Config.ExternalMetrics != nil && spec.Config.ExternalMetrics.Enabled
 }
 
+func isAdmissionControllerEnabled(spec *datadoghqv1alpha1.DatadogAgentSpecClusterAgentSpec) bool {
+	if spec == nil {
+		return false
+	}
+	return spec.Config.AdmissionController != nil && spec.Config.AdmissionController.Enabled
+}
+
 func isCreateRBACEnabled(config datadoghqv1alpha1.RbacConfig) bool {
 	return datadoghqv1alpha1.BoolValue(config.Create)
 }

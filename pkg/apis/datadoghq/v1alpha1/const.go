@@ -33,49 +33,58 @@ const (
 	DefaultMetricsServerServicePort = 443
 	// DefaultMetricsServerTargetPort default metrics-server pod port
 	DefaultMetricsServerTargetPort = int(defaultMetricsProviderPort)
+	// DefaultAdmissionControllerServicePort default admission controller service port
+	DefaultAdmissionControllerServicePort = 443
+	// DefaultAdmissionControllerTargetPort default admission controller pod port
+	DefaultAdmissionControllerTargetPort = 8000
 	// DefaultDogstatsdPort default dogstatsd port
 	DefaultDogstatsdPort = 8125
 )
 
 // Datadog env var names
 const (
-	DatadogHost                       = "DATADOG_HOST"
-	DDAPIKey                          = "DD_API_KEY"
-	DDClusterName                     = "DD_CLUSTER_NAME"
-	DDSite                            = "DD_SITE"
-	DDddURL                           = "DD_DD_URL"
-	DDHealthPort                      = "DD_HEALTH_PORT"
-	DDLogLevel                        = "DD_LOG_LEVEL"
-	DDPodLabelsAsTags                 = "DD_KUBERNETES_POD_LABELS_AS_TAGS"
-	DDPodAnnotationsAsTags            = "DD_KUBERNETES_POD_ANNOTATIONS_AS_TAGS"
-	DDTags                            = "DD_TAGS"
-	DDCollectKubeEvents               = "DD_COLLECT_KUBERNETES_EVENTS"
-	DDLeaderElection                  = "DD_LEADER_ELECTION"
-	DDLogsEnabled                     = "DD_LOGS_ENABLED"
-	DDLogsConfigContainerCollectAll   = "DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL"
-	DDLogsContainerCollectUsingFiles  = "DD_LOGS_CONFIG_K8S_CONTAINER_USE_FILE"
-	DDDogstatsdOriginDetection        = "DD_DOGSTATSD_ORIGIN_DETECTION"
-	DDDogstatsdPort                   = "DD_DOGSTATSD_PORT"
-	DDClusterAgentEnabled             = "DD_CLUSTER_AGENT_ENABLED"
-	DDClusterAgentKubeServiceName     = "DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME"
-	DDClusterAgentAuthToken           = "DD_CLUSTER_AGENT_AUTH_TOKEN"
-	DDMetricsProviderEnabled          = "DD_EXTERNAL_METRICS_PROVIDER_ENABLED"
-	DDMetricsProviderPort             = "DD_EXTERNAL_METRICS_PROVIDER_PORT"
-	DDMetricsProviderUseDatadogMetric = "DD_EXTERNAL_METRICS_PROVIDER_USE_DATADOGMETRIC_CRD"
-	DDAppKey                          = "DD_APP_KEY"
-	DDClusterChecksEnabled            = "DD_CLUSTER_CHECKS_ENABLED"
-	DDClcRunnerEnabled                = "DD_CLC_RUNNER_ENABLED"
-	DDClcRunnerHost                   = "DD_CLC_RUNNER_HOST"
-	DDExtraConfigProviders            = "DD_EXTRA_CONFIG_PROVIDERS"
-	DDExtraListeners                  = "DD_EXTRA_LISTENERS"
-	DDHostname                        = "DD_HOSTNAME"
-	DDAPMEnabled                      = "DD_APM_ENABLED"
-	DDProcessAgentEnabled             = "DD_PROCESS_AGENT_ENABLED"
-	DDSystemProbeAgentEnabled         = "DD_SYSTEM_PROBE_ENABLED"
-	DDEnableMetadataCollection        = "DD_ENABLE_METADATA_COLLECTION"
-	DDKubeletHost                     = "DD_KUBERNETES_KUBELET_HOST"
-	DDCriSocketPath                   = "DD_CRI_SOCKET_PATH"
-	DockerHost                        = "DOCKER_HOST"
+	DatadogHost                           = "DATADOG_HOST"
+	DDAPIKey                              = "DD_API_KEY"
+	DDClusterName                         = "DD_CLUSTER_NAME"
+	DDSite                                = "DD_SITE"
+	DDddURL                               = "DD_DD_URL"
+	DDHealthPort                          = "DD_HEALTH_PORT"
+	DDLogLevel                            = "DD_LOG_LEVEL"
+	DDPodLabelsAsTags                     = "DD_KUBERNETES_POD_LABELS_AS_TAGS"
+	DDPodAnnotationsAsTags                = "DD_KUBERNETES_POD_ANNOTATIONS_AS_TAGS"
+	DDTags                                = "DD_TAGS"
+	DDCollectKubeEvents                   = "DD_COLLECT_KUBERNETES_EVENTS"
+	DDLeaderElection                      = "DD_LEADER_ELECTION"
+	DDLogsEnabled                         = "DD_LOGS_ENABLED"
+	DDLogsConfigContainerCollectAll       = "DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL"
+	DDLogsContainerCollectUsingFiles      = "DD_LOGS_CONFIG_K8S_CONTAINER_USE_FILE"
+	DDDogstatsdOriginDetection            = "DD_DOGSTATSD_ORIGIN_DETECTION"
+	DDDogstatsdPort                       = "DD_DOGSTATSD_PORT"
+	DDClusterAgentEnabled                 = "DD_CLUSTER_AGENT_ENABLED"
+	DDClusterAgentKubeServiceName         = "DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME"
+	DDClusterAgentAuthToken               = "DD_CLUSTER_AGENT_AUTH_TOKEN"
+	DDMetricsProviderEnabled              = "DD_EXTERNAL_METRICS_PROVIDER_ENABLED"
+	DDMetricsProviderPort                 = "DD_EXTERNAL_METRICS_PROVIDER_PORT"
+	DDMetricsProviderUseDatadogMetric     = "DD_EXTERNAL_METRICS_PROVIDER_USE_DATADOGMETRIC_CRD"
+	DDAppKey                              = "DD_APP_KEY"
+	DDClusterChecksEnabled                = "DD_CLUSTER_CHECKS_ENABLED"
+	DDClcRunnerEnabled                    = "DD_CLC_RUNNER_ENABLED"
+	DDClcRunnerHost                       = "DD_CLC_RUNNER_HOST"
+	DDExtraConfigProviders                = "DD_EXTRA_CONFIG_PROVIDERS"
+	DDExtraListeners                      = "DD_EXTRA_LISTENERS"
+	DDHostname                            = "DD_HOSTNAME"
+	DDAPMEnabled                          = "DD_APM_ENABLED"
+	DDProcessAgentEnabled                 = "DD_PROCESS_AGENT_ENABLED"
+	DDSystemProbeAgentEnabled             = "DD_SYSTEM_PROBE_ENABLED"
+	DDEnableMetadataCollection            = "DD_ENABLE_METADATA_COLLECTION"
+	DDKubeletHost                         = "DD_KUBERNETES_KUBELET_HOST"
+	DDCriSocketPath                       = "DD_CRI_SOCKET_PATH"
+	DockerHost                            = "DOCKER_HOST"
+	DDAdmissionControllerEnabled          = "DD_ADMISSION_CONTROLLER_ENABLED"
+	DDAdmissionControllerMutateUnlabelled = "DD_ADMISSION_CONTROLLER_MUTATE_UNLABELLED"
+	DDAdmissionControllerInjectConfig     = "DD_ADMISSION_CONTROLLER_INJECT_CONFIG_ENABLED"
+	DDAdmissionControllerInjectTags       = "DD_ADMISSION_CONTROLLER_INJECT_TAGS_ENABLED"
+	DDAdmissionControllerServiceName      = "DD_ADMISSION_CONTROLLER_SERVICE_NAME"
 
 	// KubernetesEnvvarName Env var used by the Datadog Agent container entrypoint
 	// to add kubelet config provider and listener
@@ -171,6 +180,9 @@ const (
 	RbacAPIGroup           = "rbac.authorization.k8s.io"
 	AutoscalingAPIGroup    = "autoscaling"
 	DatadogAPIGroup        = "datadoghq.com"
+	AdmissionAPIGroup      = "admissionregistration.k8s.io"
+	AppsAPIGroup           = "apps"
+	BatchAPIGroup          = "batch"
 
 	// Resources
 
@@ -189,6 +201,13 @@ const (
 	HorizontalPodAutoscalersRecource = "horizontalpodautoscalers"
 	DatadogMetricsResource           = "datadogmetrics"
 	DatadogMetricsStatusResource     = "datadogmetrics/status"
+	MutatingConfigResource           = "mutatingwebhookconfigurations"
+	SecretsResource                  = "secrets"
+	ReplicasetsResource              = "replicasets"
+	DeploymentsResource              = "deployments"
+	StatefulsetsResource             = "statefulsets"
+	JobsResource                     = "jobs"
+	CronjobsResource                 = "cronjobs"
 
 	// Resource names
 

@@ -603,6 +603,9 @@ type DatadogAgentSpecClusterAgentSpec struct {
 type ClusterAgentConfig struct {
 	ExternalMetrics *ExternalMetricsConfig `json:"externalMetrics,omitempty"`
 
+	// Configure the Admission Controller
+	AdmissionController *AdmissionControllerConfig `json:"admissionController,omitempty"`
+
 	// Enable the Cluster Checks and Endpoint Checks feature on both the cluster-agents and the daemonset
 	// ref:
 	// https://docs.datadoghq.com/agent/cluster_agent/clusterchecks/
@@ -658,6 +661,23 @@ type ExternalMetricsConfig struct {
 	// If specified configures the metricsProvider external metrics service port
 	// +optional
 	Port *int32 `json:"port,omitempty"`
+}
+
+// AdmissionControllerConfig contains the configuration of the admission controller in Cluster Agent
+// +k8s:openapi-gen=true
+type AdmissionControllerConfig struct {
+	// Enable the admission controller to be able to inject APM/Dogstatsd config
+	// and standard tags (env, service, version) automatically into your pods
+	// +optional
+	Enabled bool `json:"enabled,omitempty"`
+
+	// MutateUnlabelled enables injecting config without having the pod label 'admission.datadoghq.com/enabled="true"'
+	// +optional
+	MutateUnlabelled *bool `json:"mutateUnlabelled,omitempty"`
+
+	// ServiceName corresponds to the webhook service name
+	// +optional
+	ServiceName *string `json:"serviceName,omitempty"`
 }
 
 // ClusterChecksRunnerConfig contains the configuration of the Cluster Checks Runner

@@ -660,6 +660,145 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 	tests.Run(t)
 }
 
+func Test_newClusterAgentDeploymentFromInstance_AdmissionController(t *testing.T) {
+	commonLabels := map[string]string{
+		"agent.datadoghq.com/name":      "foo",
+		"agent.datadoghq.com/component": "cluster-agent",
+		"app.kubernetes.io/instance":    "cluster-agent",
+		"app.kubernetes.io/managed-by":  "datadog-operator",
+		"app.kubernetes.io/name":        "datadog-agent-deployment",
+		"app.kubernetes.io/part-of":     "foo",
+		"app.kubernetes.io/version":     "",
+		"app":                           "datadog-monitoring",
+	}
+
+	admissionControllerPodSpec := clusterAgentDefaultPodSpec()
+	admissionControllerPodSpec.Containers[0].Env = append(admissionControllerPodSpec.Containers[0].Env,
+		[]corev1.EnvVar{
+			{
+				Name:  "DD_ADMISSION_CONTROLLER_ENABLED",
+				Value: "true",
+			},
+			{
+				Name:  "DD_ADMISSION_CONTROLLER_MUTATE_UNLABELLED",
+				Value: "false",
+			},
+			{
+				Name:  "DD_ADMISSION_CONTROLLER_SERVICE_NAME",
+				Value: "datadog-admission-controller",
+			},
+		}...,
+	)
+
+	admissionControllerDatadogAgent := test.NewDefaultedDatadogAgent("bar", "foo",
+		&test.NewDatadogAgentOptions{
+			UseEDS:                     true,
+			ClusterAgentEnabled:        true,
+			AdmissionControllerEnabled: true,
+		})
+
+	admissionControllerClusterAgentHash, _ := comparison.GenerateMD5ForSpec(admissionControllerDatadogAgent.Spec.ClusterAgent)
+
+	admissionControllerPodSpecCustom := clusterAgentDefaultPodSpec()
+	admissionControllerPodSpecCustom.Containers[0].Env = append(admissionControllerPodSpecCustom.Containers[0].Env,
+		[]corev1.EnvVar{
+			{
+				Name:  "DD_ADMISSION_CONTROLLER_ENABLED",
+				Value: "true",
+			},
+			{
+				Name:  "DD_ADMISSION_CONTROLLER_MUTATE_UNLABELLED",
+				Value: "true",
+			},
+			{
+				Name:  "DD_ADMISSION_CONTROLLER_SERVICE_NAME",
+				Value: "custom-service-name",
+			},
+		}...,
+	)
+
+	admissionControllerDatadogAgentCustom := test.NewDefaultedDatadogAgent("bar", "foo",
+		&test.NewDatadogAgentOptions{
+			UseEDS:                     true,
+			ClusterAgentEnabled:        true,
+			AdmissionControllerEnabled: true,
+			AdmissionMutateUnlabelled:  true,
+			AdmissionServiceName:       "custom-service-name",
+		})
+
+	admissionControllerClusterAgentHashCustom, _ := comparison.GenerateMD5ForSpec(admissionControllerDatadogAgentCustom.Spec.ClusterAgent)
+
+	tests := clusterAgentDeploymentFromInstanceTestSuite{
+		{
+			name:            "with admission controller",
+			agentdeployment: admissionControllerDatadogAgent,
+			selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": "datadog-monitoring",
+				},
+			},
+			newStatus: &datadoghqv1alpha1.DatadogAgentStatus{},
+			wantErr:   false,
+			want: &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace:   "bar",
+					Name:        "foo-cluster-agent",
+					Labels:      commonLabels,
+					Annotations: map[string]string{"agent.datadoghq.com/agentspechash": admissionControllerClusterAgentHash},
+				},
+				Spec: appsv1.DeploymentSpec{
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: commonLabels,
+						},
+						Spec: admissionControllerPodSpec,
+					},
+					Replicas: &testClusterAgentReplicas,
+					Selector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"app": "datadog-monitoring",
+						},
+					},
+				},
+			},
+		},
+		{
+			name:            "with custom admission controller config",
+			agentdeployment: admissionControllerDatadogAgentCustom,
+			selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": "datadog-monitoring",
+				},
+			},
+			newStatus: &datadoghqv1alpha1.DatadogAgentStatus{},
+			wantErr:   false,
+			want: &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace:   "bar",
+					Name:        "foo-cluster-agent",
+					Labels:      commonLabels,
+					Annotations: map[string]string{"agent.datadoghq.com/agentspechash": admissionControllerClusterAgentHashCustom},
+				},
+				Spec: appsv1.DeploymentSpec{
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: commonLabels,
+						},
+						Spec: admissionControllerPodSpecCustom,
+					},
+					Replicas: &testClusterAgentReplicas,
+					Selector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"app": "datadog-monitoring",
+						},
+					},
+				},
+			},
+		},
+	}
+	tests.Run(t)
+}
+
 func Test_newClusterAgentDeploymentFromInstance_UserProvidedSecret(t *testing.T) {
 	podSpec := clusterAgentDefaultPodSpec()
 	for _, e := range podSpec.Containers[0].Env {
