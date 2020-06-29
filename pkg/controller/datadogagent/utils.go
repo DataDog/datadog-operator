@@ -193,9 +193,10 @@ func getAgentContainer(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.Container, 
 		Ports: []corev1.ContainerPort{
 			udpPort,
 		},
-		Env:           envVars,
-		VolumeMounts:  getVolumeMountsForAgent(&dda.Spec),
-		LivenessProbe: getDefaultLivenessProbe(),
+		Env:            envVars,
+		VolumeMounts:   getVolumeMountsForAgent(&dda.Spec),
+		LivenessProbe:  getDefaultLivenessProbe(),
+		ReadinessProbe: getDefaultReadinessProbe(),
 	}
 
 	return agentContainer, nil
@@ -1133,14 +1134,14 @@ func isCreateRBACEnabled(config datadoghqv1alpha1.RbacConfig) bool {
 
 func getDefaultLivenessProbe() *corev1.Probe {
 	livenessProbe := &corev1.Probe{
-		InitialDelaySeconds: datadoghqv1alpha1.DefaultLivenessProveInitialDelaySeconds,
-		PeriodSeconds:       datadoghqv1alpha1.DefaultLivenessProvePeriodSeconds,
-		TimeoutSeconds:      datadoghqv1alpha1.DefaultLivenessProveTimeoutSeconds,
-		SuccessThreshold:    datadoghqv1alpha1.DefaultLivenessProveSuccessThreshold,
-		FailureThreshold:    datadoghqv1alpha1.DefaultLivenessProveFailureThreshold,
+		InitialDelaySeconds: datadoghqv1alpha1.DefaultLivenessProbeInitialDelaySeconds,
+		PeriodSeconds:       datadoghqv1alpha1.DefaultLivenessProbePeriodSeconds,
+		TimeoutSeconds:      datadoghqv1alpha1.DefaultLivenessProbeTimeoutSeconds,
+		SuccessThreshold:    datadoghqv1alpha1.DefaultLivenessProbeSuccessThreshold,
+		FailureThreshold:    datadoghqv1alpha1.DefaultLivenessProbeFailureThreshold,
 	}
 	livenessProbe.HTTPGet = &corev1.HTTPGetAction{
-		Path: datadoghqv1alpha1.DefaultLivenessProveHTTPPath,
+		Path: datadoghqv1alpha1.DefaultLivenessProbeHTTPPath,
 		Port: intstr.IntOrString{
 			IntVal: datadoghqv1alpha1.DefaultAgentHealthPort,
 		},
@@ -1148,11 +1149,28 @@ func getDefaultLivenessProbe() *corev1.Probe {
 	return livenessProbe
 }
 
+func getDefaultReadinessProbe() *corev1.Probe {
+	readinessProbe := &corev1.Probe{
+		InitialDelaySeconds: datadoghqv1alpha1.DefaultReadinessProbeInitialDelaySeconds,
+		PeriodSeconds:       datadoghqv1alpha1.DefaultReadinessProbePeriodSeconds,
+		TimeoutSeconds:      datadoghqv1alpha1.DefaultReadinessProbeTimeoutSeconds,
+		SuccessThreshold:    datadoghqv1alpha1.DefaultReadinessProbeSuccessThreshold,
+		FailureThreshold:    datadoghqv1alpha1.DefaultReadinessProbeFailureThreshold,
+	}
+	readinessProbe.HTTPGet = &corev1.HTTPGetAction{
+		Path: datadoghqv1alpha1.DefaultReadinessProbeHTTPPath,
+		Port: intstr.IntOrString{
+			IntVal: datadoghqv1alpha1.DefaultAgentHealthPort,
+		},
+	}
+	return readinessProbe
+}
+
 func getDefaultAPMAgentLivenessProbe() *corev1.Probe {
 	livenessProbe := &corev1.Probe{
-		InitialDelaySeconds: datadoghqv1alpha1.DefaultLivenessProveInitialDelaySeconds,
-		PeriodSeconds:       datadoghqv1alpha1.DefaultLivenessProvePeriodSeconds,
-		TimeoutSeconds:      datadoghqv1alpha1.DefaultLivenessProveTimeoutSeconds,
+		InitialDelaySeconds: datadoghqv1alpha1.DefaultLivenessProbeInitialDelaySeconds,
+		PeriodSeconds:       datadoghqv1alpha1.DefaultLivenessProbePeriodSeconds,
+		TimeoutSeconds:      datadoghqv1alpha1.DefaultLivenessProbeTimeoutSeconds,
 	}
 	livenessProbe.TCPSocket = &corev1.TCPSocketAction{
 		Port: intstr.IntOrString{

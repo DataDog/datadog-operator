@@ -32,6 +32,7 @@ func clusterChecksRunnerDefaultPodSpec() corev1.PodSpec {
 				Env:             clusterChecksRunnerDefaultEnvVars(),
 				VolumeMounts:    clusterChecksRunnerDefaultVolumeMounts(),
 				LivenessProbe:   getDefaultLivenessProbe(),
+				ReadinessProbe:  getDefaultReadinessProbe(),
 			},
 		},
 		Volumes: clusterChecksRunnerDefaultVolumes(),

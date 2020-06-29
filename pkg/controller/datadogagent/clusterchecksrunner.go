@@ -262,6 +262,7 @@ func newClusterChecksRunnerPodTemplate(dda *datadoghqv1alpha1.DatadogAgent, labe
 					Env:             getEnvVarsForClusterChecksRunner(dda),
 					VolumeMounts:    getVolumeMountsForClusterChecksRunner(dda),
 					LivenessProbe:   getDefaultLivenessProbe(),
+					ReadinessProbe:  getDefaultReadinessProbe(),
 				},
 			},
 			Volumes:           getVolumesForClusterChecksRunner(dda),

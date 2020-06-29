@@ -160,13 +160,22 @@ const (
 
 	// Liveness probe default config
 
-	DefaultLivenessProveInitialDelaySeconds int32 = 15
-	DefaultLivenessProvePeriodSeconds       int32 = 15
-	DefaultLivenessProveTimeoutSeconds      int32 = 5
-	DefaultLivenessProveSuccessThreshold    int32 = 1
-	DefaultLivenessProveFailureThreshold    int32 = 6
+	DefaultLivenessProbeInitialDelaySeconds int32 = 15
+	DefaultLivenessProbePeriodSeconds       int32 = 15
+	DefaultLivenessProbeTimeoutSeconds      int32 = 5
+	DefaultLivenessProbeSuccessThreshold    int32 = 1
+	DefaultLivenessProbeFailureThreshold    int32 = 6
 	DefaultAgentHealthPort                  int32 = 5555
-	DefaultLivenessProveHTTPPath                  = "/health"
+	DefaultLivenessProbeHTTPPath                  = "/live"
+
+	// Readiness probe default config
+
+	DefaultReadinessProbeInitialDelaySeconds int32 = 15
+	DefaultReadinessProbePeriodSeconds       int32 = 15
+	DefaultReadinessProbeTimeoutSeconds      int32 = 5
+	DefaultReadinessProbeSuccessThreshold    int32 = 1
+	DefaultReadinessProbeFailureThreshold    int32 = 6
+	DefaultReadinessProbeHTTPPath                  = "/ready"
 
 	// APM default values
 

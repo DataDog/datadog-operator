@@ -68,7 +68,25 @@ func defaultLivenessProbe() *corev1.Probe {
 		FailureThreshold:    6,
 		Handler: corev1.Handler{
 			HTTPGet: &corev1.HTTPGetAction{
-				Path: "/health",
+				Path: "/live",
+				Port: intstr.IntOrString{
+					IntVal: 5555,
+				},
+			},
+		},
+	}
+}
+
+func defaultReadinessProbe() *corev1.Probe {
+	return &corev1.Probe{
+		InitialDelaySeconds: 15,
+		PeriodSeconds:       15,
+		TimeoutSeconds:      5,
+		SuccessThreshold:    1,
+		FailureThreshold:    6,
+		Handler: corev1.Handler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path: "/ready",
 				Port: intstr.IntOrString{
 					IntVal: 5555,
 				},
@@ -312,9 +330,10 @@ func defaultPodSpec() corev1.PodSpec {
 						Protocol:      "UDP",
 					},
 				},
-				Env:           defaultEnvVars(),
-				VolumeMounts:  defaultMountVolume(),
-				LivenessProbe: defaultLivenessProbe(),
+				Env:            defaultEnvVars(),
+				VolumeMounts:   defaultMountVolume(),
+				LivenessProbe:  defaultLivenessProbe(),
+				ReadinessProbe: defaultReadinessProbe(),
 			},
 		},
 		Volumes: defaultVolumes(),
