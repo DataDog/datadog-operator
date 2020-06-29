@@ -176,10 +176,6 @@ func IsDefaultedDatadogAgentSpecAgentConfig(config *NodeAgentConfig) bool {
 		return false
 	}
 
-	if config.CriSocket.CriSocketPath == nil {
-		return false
-	}
-
 	if config.Dogstatsd == nil {
 		return false
 	}
@@ -416,9 +412,11 @@ func DefaultDatadogAgentSpecAgentConfig(config *NodeAgentConfig) *NodeAgentConfi
 	}
 
 	if config.CriSocket == nil {
-		config.CriSocket = &CRISocketConfig{
-			DockerSocketPath: NewStringPointer(defaultDockerSocketPath),
-		}
+		config.CriSocket = &CRISocketConfig{}
+	}
+
+	if config.CriSocket.DockerSocketPath == nil {
+		config.CriSocket.DockerSocketPath = NewStringPointer(defaultDockerSocketPath)
 	}
 
 	if config.Dogstatsd == nil {
