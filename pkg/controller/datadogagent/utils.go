@@ -11,7 +11,6 @@ import (
 	"math/rand"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"time"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
@@ -473,16 +472,16 @@ func getEnvVarsCommon(dda *datadoghqv1alpha1.DatadogAgent, needAPIKey bool) ([]c
 		})
 	}
 
-	if dda.Spec.Agent.Config.CriSocket != nil && dda.Spec.Agent.Config.CriSocket.CriSocketPath != nil {
-		envVars = append(envVars, corev1.EnvVar{
-			Name:  datadoghqv1alpha1.DDCriSocketPath,
-			Value: filepath.Join(datadoghqv1alpha1.HostCriSocketPathPrefix, *dda.Spec.Agent.Config.CriSocket.CriSocketPath),
-		})
-
-		if strings.HasSuffix(*dda.Spec.Agent.Config.CriSocket.CriSocketPath, "docker.sock") {
+	if dda.Spec.Agent.Config.CriSocket != nil {
+		if dda.Spec.Agent.Config.CriSocket.CriSocketPath != nil {
+			envVars = append(envVars, corev1.EnvVar{
+				Name:  datadoghqv1alpha1.DDCriSocketPath,
+				Value: filepath.Join(datadoghqv1alpha1.HostCriSocketPathPrefix, *dda.Spec.Agent.Config.CriSocket.CriSocketPath),
+			})
+		} else if dda.Spec.Agent.Config.CriSocket.DockerSocketPath != nil {
 			envVars = append(envVars, corev1.EnvVar{
 				Name:  datadoghqv1alpha1.DockerHost,
-				Value: "unix://" + filepath.Join(datadoghqv1alpha1.HostCriSocketPathPrefix, *dda.Spec.Agent.Config.CriSocket.CriSocketPath),
+				Value: "unix://" + filepath.Join(datadoghqv1alpha1.HostCriSocketPathPrefix, *dda.Spec.Agent.Config.CriSocket.DockerSocketPath),
 			})
 		}
 	}
@@ -652,20 +651,24 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 		volumes = append(volumes, volume)
 	}
 
-	if dda.Spec.Agent.Config.CriSocket != nil && dda.Spec.Agent.Config.CriSocket.UseCriSocketVolume != nil && *dda.Spec.Agent.Config.CriSocket.UseCriSocketVolume {
-		path := "/var/run/docker.sock"
-		if dda.Spec.Agent.Config.CriSocket.CriSocketPath != nil {
+	if dda.Spec.Agent.Config.CriSocket != nil {
+		path := ""
+		if dda.Spec.Agent.Config.CriSocket.DockerSocketPath != nil {
+			path = *dda.Spec.Agent.Config.CriSocket.DockerSocketPath
+		} else if dda.Spec.Agent.Config.CriSocket.CriSocketPath != nil {
 			path = *dda.Spec.Agent.Config.CriSocket.CriSocketPath
 		}
-		criVolume := corev1.Volume{
-			Name: datadoghqv1alpha1.CriSocketVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: filepath.Dir(path),
+		if path != "" {
+			criVolume := corev1.Volume{
+				Name: datadoghqv1alpha1.CriSocketVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: filepath.Dir(path),
+					},
 				},
-			},
+			}
+			volumes = append(volumes, criVolume)
 		}
-		volumes = append(volumes, criVolume)
 	}
 	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Process.Enabled) {
 		passwdVolume := corev1.Volume{
@@ -854,12 +857,20 @@ func getVolumeMountsForAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []corev1.
 	}
 
 	// Cri socket volume
-	if *spec.Agent.Config.CriSocket.UseCriSocketVolume {
-		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      datadoghqv1alpha1.CriSocketVolumeName,
-			MountPath: filepath.Join(datadoghqv1alpha1.HostCriSocketPathPrefix, filepath.Dir(*spec.Agent.Config.CriSocket.CriSocketPath)),
-			ReadOnly:  true,
-		})
+	if spec.Agent.Config.CriSocket != nil {
+		path := ""
+		if spec.Agent.Config.CriSocket.DockerSocketPath != nil {
+			path = *spec.Agent.Config.CriSocket.DockerSocketPath
+		} else if spec.Agent.Config.CriSocket.CriSocketPath != nil {
+			path = *spec.Agent.Config.CriSocket.CriSocketPath
+		}
+		if path != "" {
+			volumeMounts = append(volumeMounts, corev1.VolumeMount{
+				Name:      datadoghqv1alpha1.CriSocketVolumeName,
+				MountPath: filepath.Join(datadoghqv1alpha1.HostCriSocketPathPrefix, filepath.Dir(path)),
+				ReadOnly:  true,
+			})
+		}
 	}
 
 	// Dogstatsd volume
@@ -918,12 +929,20 @@ func getVolumeMountsForProcessAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []
 	}
 
 	// Cri socket volume
-	if *spec.Agent.Config.CriSocket.UseCriSocketVolume {
-		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      datadoghqv1alpha1.CriSocketVolumeName,
-			MountPath: filepath.Join(datadoghqv1alpha1.HostCriSocketPathPrefix, filepath.Dir(*spec.Agent.Config.CriSocket.CriSocketPath)),
-			ReadOnly:  true,
-		})
+	if spec.Agent.Config.CriSocket != nil {
+		path := ""
+		if spec.Agent.Config.CriSocket.DockerSocketPath != nil {
+			path = *spec.Agent.Config.CriSocket.DockerSocketPath
+		} else if spec.Agent.Config.CriSocket.CriSocketPath != nil {
+			path = *spec.Agent.Config.CriSocket.CriSocketPath
+		}
+		if path != "" {
+			volumeMounts = append(volumeMounts, corev1.VolumeMount{
+				Name:      datadoghqv1alpha1.CriSocketVolumeName,
+				MountPath: filepath.Join(datadoghqv1alpha1.HostCriSocketPathPrefix, filepath.Dir(path)),
+				ReadOnly:  true,
+			})
+		}
 	}
 
 	if datadoghqv1alpha1.BoolValue(spec.Agent.SystemProbe.Enabled) {

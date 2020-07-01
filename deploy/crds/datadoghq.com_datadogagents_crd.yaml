@@ -259,9 +259,9 @@ spec:
                           description: Path to the container runtime socket (if different
                             from Docker) This is supported starting from agent 6.6.0
                           type: string
-                        useCriSocketVolume:
-                          description: Enable container runtime socket volume mounting
-                          type: boolean
+                        dockerSocketPath:
+                          description: Path to the docker runtime socket
+                          type: string
                       type: object
                     ddUrl:
                       description: The host of the Datadog intake server to send Agent

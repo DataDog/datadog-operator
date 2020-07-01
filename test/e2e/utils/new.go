@@ -49,8 +49,7 @@ func NewDatadogAgent(ns, name, image string, options *NewDatadogAgentOptions) *d
 					},
 				},
 				CriSocket: &datadoghqv1alpha1.CRISocketConfig{
-					CriSocketPath:      datadoghqv1alpha1.NewStringPointer("/var/run/containerd/containerd.sock"),
-					UseCriSocketVolume: datadoghqv1alpha1.NewBoolPointer(true),
+					CriSocketPath: datadoghqv1alpha1.NewStringPointer("/var/run/containerd/containerd.sock"),
 				},
 				Env: []v1.EnvVar{
 					{
