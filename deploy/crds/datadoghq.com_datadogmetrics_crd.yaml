@@ -13,6 +13,9 @@ spec:
   - JSONPath: .status.currentValue
     name: value
     type: string
+  - JSONPath: .status.autoscalerReferences
+    name: references
+    type: string
   - JSONPath: .status.conditions[?(@.type=='Updated')].lastUpdateTime
     name: update time
     type: date
@@ -54,6 +57,9 @@ spec:
         status:
           description: DatadogMetricStatus defines the observed state of DatadogMetric
           properties:
+            autoscalerReferences:
+              description: List of autoscalers currently using this DatadogMetric
+              type: string
             conditions:
               description: Conditions Represents the latest available observations
                 of a DatadogMetric's current state.
@@ -95,6 +101,7 @@ spec:
               description: Value is the latest value of the metric
               type: string
           required:
+          - autoscalerReferences
           - currentValue
           type: object
       type: object

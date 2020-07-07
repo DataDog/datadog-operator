@@ -26,6 +26,8 @@ type DatadogMetricStatus struct {
 	Conditions []DatadogMetricCondition `json:"conditions,omitempty"`
 	// Value is the latest value of the metric
 	Value string `json:"currentValue"`
+	// List of autoscalers currently using this DatadogMetric
+	AutoscalerReferences string `json:"autoscalerReferences"`
 }
 
 // DatadogMetricCondition describes the state of a DatadogMetric at a certain point.
@@ -73,6 +75,7 @@ const (
 // +kubebuilder:printcolumn:name="active",type="string",JSONPath=".status.conditions[?(@.type=='Active')].status"
 // +kubebuilder:printcolumn:name="valid",type="string",JSONPath=".status.conditions[?(@.type=='Valid')].status"
 // +kubebuilder:printcolumn:name="value",type="string",JSONPath=".status.currentValue"
+// +kubebuilder:printcolumn:name="references",type="string",JSONPath=".status.autoscalerReferences"
 // +kubebuilder:printcolumn:name="update time",type="date",JSONPath=".status.conditions[?(@.type=='Updated')].lastUpdateTime"
 type DatadogMetric struct {
 	metav1.TypeMeta   `json:",inline"`
