@@ -224,22 +224,24 @@ func (r *ReconcileDatadogAgent) cleanupClusterChecksRunner(logger logr.Logger, d
 		Name:      getClusterChecksRunnerName(dda),
 		Namespace: dda.Namespace,
 	}
+
 	// ClusterChecksRunnerDeployment attached to this instance
 	ClusterChecksRunnerDeployment := &appsv1.Deployment{}
 	if err := r.client.Get(context.TODO(), nsName, ClusterChecksRunnerDeployment); err != nil {
-		if errors.IsNotFound(err) {
-			return reconcile.Result{}, nil
+		if !errors.IsNotFound(err) {
+			return reconcile.Result{}, err
 		}
-		return reconcile.Result{}, err
+	} else {
+		logger.Info("Deleting Cluster Checks Runner Deployment", "deployment.Namespace", ClusterChecksRunnerDeployment.Namespace, "deployment.Name", ClusterChecksRunnerDeployment.Name)
+		event := buildEventInfo(ClusterChecksRunnerDeployment.Name, ClusterChecksRunnerDeployment.Namespace, deploymentKind, datadog.DeletionEvent)
+		r.recordEvent(dda, event)
+		if err := r.client.Delete(context.TODO(), ClusterChecksRunnerDeployment); err != nil {
+			return reconcile.Result{}, err
+		}
 	}
-	logger.Info("Deleting Cluster Checks Runner Deployment", "deployment.Namespace", ClusterChecksRunnerDeployment.Namespace, "deployment.Name", ClusterChecksRunnerDeployment.Name)
-	event := buildEventInfo(ClusterChecksRunnerDeployment.Name, ClusterChecksRunnerDeployment.Namespace, deploymentKind, datadog.DeletionEvent)
-	r.recordEvent(dda, event)
-	if err := r.client.Delete(context.TODO(), ClusterChecksRunnerDeployment); err != nil {
-		return reconcile.Result{}, err
-	}
+
 	newStatus.ClusterChecksRunner = nil
-	return reconcile.Result{Requeue: true}, nil
+	return reconcile.Result{}, nil
 }
 
 // newClusterChecksRunnerPodTemplate generates a PodTemplate from a DatadogClusterChecksRunnerDeployment spec
