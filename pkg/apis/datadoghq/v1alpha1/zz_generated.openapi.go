@@ -1715,6 +1715,13 @@ func schema_pkg_apis_datadoghq_v1alpha1_LogSpec(ref common.ReferenceCallback) co
 							Format:      "",
 						},
 					},
+					"openFilesLimit": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Set the maximum number of logs files that the Datadog Agent will tail up to. Increasing this limit can increase resource consumption of the Agent. ref: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup Default to 100",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
 				},
 			},
 		},

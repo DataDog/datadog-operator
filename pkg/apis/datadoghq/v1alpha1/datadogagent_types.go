@@ -316,6 +316,15 @@ type LogSpec struct {
 	//
 	// +optional
 	TempStoragePath *string `json:"tempStoragePath,omitempty"`
+
+	// Set the maximum number of logs files that the Datadog Agent will
+	// tail up to. Increasing this limit can increase resource consumption
+	// of the Agent.
+	// ref: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup
+	// Default to 100
+	//
+	// +optional
+	OpenFilesLimit *int32 `json:"openFilesLimit,omitempty"`
 }
 
 // ProcessSpec contains the Process Agent configuration

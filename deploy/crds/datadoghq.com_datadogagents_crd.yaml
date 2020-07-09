@@ -2267,6 +2267,13 @@ spec:
                       description: 'Enable this to allow log collection for all containers.
                         ref: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup'
                       type: boolean
+                    openFilesLimit:
+                      description: 'Set the maximum number of logs files that the
+                        Datadog Agent will tail up to. Increasing this limit can increase
+                        resource consumption of the Agent. ref: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup
+                        Default to 100'
+                      format: int32
+                      type: integer
                     podLogsPath:
                       description: This to allow log collection from pod log path.
                         Default to `/var/log/pods`
