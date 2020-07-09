@@ -32,6 +32,7 @@ const (
 	defaultContainerLogsPath                      string = "/var/lib/docker/containers"
 	defaultPodLogsPath                            string = "/var/log/pods"
 	defaultLogsTempStoragePath                    string = "/var/lib/datadog-agent/logs"
+	defaultLogsOpenFilesLimit                     int32  = 100
 	defaultProcessEnabled                         bool   = false
 	defaultMetricsProviderPort                    int32  = 8443
 	defaultClusterChecksEnabled                   bool   = false
@@ -292,6 +293,10 @@ func IsDefaultedDatadogAgentSpecLog(log *LogSpec) bool {
 	}
 
 	if log.TempStoragePath == nil {
+		return false
+	}
+
+	if log.OpenFilesLimit == nil {
 		return false
 	}
 
@@ -566,6 +571,10 @@ func DefaultDatadogAgentSpecAgentLog(log *LogSpec) *LogSpec {
 
 	if log.TempStoragePath == nil {
 		log.TempStoragePath = NewStringPointer(defaultLogsTempStoragePath)
+	}
+
+	if log.OpenFilesLimit == nil {
+		log.OpenFilesLimit = NewInt32Pointer(defaultLogsOpenFilesLimit)
 	}
 
 	return log

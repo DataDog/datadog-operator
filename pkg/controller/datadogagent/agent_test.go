@@ -197,6 +197,10 @@ func defaultEnvVars() []corev1.EnvVar {
 			Value: "true",
 		},
 		{
+			Name:  "DD_LOGS_CONFIG_OPEN_FILES_LIMIT",
+			Value: "100",
+		},
+		{
 			Name:  "DD_DOGSTATSD_ORIGIN_DETECTION",
 			Value: "false",
 		},

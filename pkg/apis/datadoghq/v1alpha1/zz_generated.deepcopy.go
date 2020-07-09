@@ -989,6 +989,11 @@ func (in *LogSpec) DeepCopyInto(out *LogSpec) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.OpenFilesLimit != nil {
+		in, out := &in.OpenFilesLimit, &out.OpenFilesLimit
+		*out = new(int32)
+		**out = **in
+	}
 	return
 }
 
