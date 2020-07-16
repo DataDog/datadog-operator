@@ -96,10 +96,11 @@ spec:
   agent:
     image:
       name: "datadog/agent:latest"
-    confd:
-      configMapName: "confd-config"
-    checksd:
-      configMapName: "checksd-config"
+    config:
+      confd:
+        configMapName: "confd-config"
+      checksd:
+        configMapName: "checksd-config"
 ```
 
 **Note**: Any ConfigMaps you create need to be in the same `DD_NAMESPACE` as the `DatadogAgent` resource.
