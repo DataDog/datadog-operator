@@ -23,6 +23,32 @@ func clusterChecksRunnerDefaultPodSpec() corev1.PodSpec {
 	return corev1.PodSpec{
 		Affinity:           getPodAffinity(nil, "foo-cluster-checks-runner"),
 		ServiceAccountName: "foo-cluster-checks-runner",
+		InitContainers: []corev1.Container{
+			{
+				Name:            "init-volume",
+				Image:           "datadog/agent:latest",
+				ImagePullPolicy: corev1.PullIfNotPresent,
+				Resources:       corev1.ResourceRequirements{},
+				Command:         []string{"bash", "-c"},
+				Args:            []string{"cp -r /etc/datadog-agent /opt"},
+				VolumeMounts: []corev1.VolumeMount{
+					{
+						Name:      datadoghqv1alpha1.ConfigVolumeName,
+						MountPath: "/opt/datadog-agent",
+					},
+				},
+			},
+			{
+				Name:            "init-config",
+				Image:           "datadog/agent:latest",
+				ImagePullPolicy: corev1.PullIfNotPresent,
+				Resources:       corev1.ResourceRequirements{},
+				Command:         []string{"bash", "-c"},
+				Args:            []string{"for script in $(find /etc/cont-init.d/ -type f -name '*.sh' | sort) ; do bash $script ; done"},
+				Env:             clusterChecksRunnerDefaultEnvVars(),
+				VolumeMounts:    clusterChecksRunnerDefaultVolumeMounts(),
+			},
+		},
 		Containers: []corev1.Container{
 			{
 				Name:            "cluster-checks-runner",
@@ -41,6 +67,15 @@ func clusterChecksRunnerDefaultPodSpec() corev1.PodSpec {
 func clusterChecksRunnerDefaultVolumeMounts() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		{
+			Name:      datadoghqv1alpha1.ChecksdVolumeName,
+			MountPath: datadoghqv1alpha1.ChecksdVolumePath,
+			ReadOnly:  true,
+		},
+		{
+			Name:      datadoghqv1alpha1.ConfigVolumeName,
+			MountPath: datadoghqv1alpha1.ConfigVolumePath,
+		},
+		{
 			Name:      "s6-run",
 			MountPath: "/var/run/s6",
 		},
@@ -53,6 +88,18 @@ func clusterChecksRunnerDefaultVolumeMounts() []corev1.VolumeMount {
 
 func clusterChecksRunnerDefaultVolumes() []corev1.Volume {
 	return []corev1.Volume{
+		{
+			Name: datadoghqv1alpha1.ChecksdVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.ConfigVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
 		{
 			Name: "s6-run",
 			VolumeSource: corev1.VolumeSource{
@@ -188,6 +235,7 @@ func Test_newClusterChecksRunnerDeploymentFromInstance_UserVolumes(t *testing.T)
 	}
 	userMountsPodSpec := clusterChecksRunnerDefaultPodSpec()
 	userMountsPodSpec.Volumes = append(userMountsPodSpec.Volumes, userVolumes...)
+	userMountsPodSpec.InitContainers[1].VolumeMounts = append(userMountsPodSpec.InitContainers[1].VolumeMounts, userVolumeMounts...)
 	userMountsPodSpec.Containers[0].VolumeMounts = append(userMountsPodSpec.Containers[0].VolumeMounts, userVolumeMounts...)
 
 	envVarsAgentDeployment := test.NewDefaultedDatadogAgent(
@@ -266,6 +314,7 @@ func Test_newClusterChecksRunnerDeploymentFromInstance_EnvVars(t *testing.T) {
 		},
 	}
 	podSpec := clusterChecksRunnerDefaultPodSpec()
+	podSpec.InitContainers[1].Env = append(podSpec.InitContainers[1].Env, envVars...)
 	podSpec.Containers[0].Env = append(podSpec.Containers[0].Env, envVars...)
 
 	envVarsAgentDeployment := test.NewDefaultedDatadogAgent(
