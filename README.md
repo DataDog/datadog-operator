@@ -28,7 +28,7 @@ However, the Datadog Operator is still in beta, so it is not yet a recommended w
 
 ## Getting started
 
-See the [Getting Started][5] dedicated documentation to learn how to deploy the Datadog operator and your first Agent.
+See the [Getting Started][5] dedicated documentation to learn how to deploy the Datadog operator and your first Agent, and [Configuration][12] to see examples and a list of all configuration keys.
 
 ## Functionalities
 
@@ -53,6 +53,7 @@ See the [How to Contribute page][9].
 [9]: https://github.com/DataDog/datadog-operator/tree/master/docs/how-to-contribute.md
 [10]: https://catalog.redhat.com/software/operators/detail/5e845a42ecb5246c09fe90b6
 [11]: https://operatorhub.io/operator/datadog-operator
+[12]: https://github.com/DataDog/datadog-operator/blob/master/docs/configuration.md
 
 ## Release
 
