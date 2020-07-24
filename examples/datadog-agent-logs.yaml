@@ -9,12 +9,5 @@ spec:
   agent:
     image:
       name: "datadog/agent:latest"
-    apm:
-      enabled: true
-    process:
-      enabled: true
     log:
       enabled: true
-    systemProbe:
-      enabled: true
-      bpfDebugEnabled: true
