@@ -33,6 +33,9 @@ jobs:
       -
         name: Generate Plugin manifest
         run: ./hack/release/generate-plugin-manifest.sh ${{steps.tag.outputs.tag}}
+      -
+        name: Generate Chart tarball
+        run: ./hack/release/generate-chart-tarball.sh ${{steps.tag.outputs.tag}}
       - 
         name: OLM RedHat bundle
         run: ./hack/generate-olm-bundle.sh ${{steps.tag.outputs.tag}}
@@ -43,6 +46,7 @@ jobs:
           files: |
             dist/datadog-plugin.yaml
             dist/*.zip
+            dist/*.tar.gz
         env:
           COMMIT_TAG: ${{steps.tag.outputs.tag}}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
