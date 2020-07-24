@@ -1,5 +1,5 @@
 apiVersion: v2
-appVersion: "0.1.3"
+appVersion: "PLACEHOLDER_VERSION"
 description: Datadog Operator
 name: datadog-operator
-version: 0.2.1
+version: "PLACEHOLDER_VERSION"
