@@ -8,6 +8,8 @@
 package fake
 
 import (
+	"context"
+
 	v1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
@@ -28,7 +30,7 @@ var datadogmetricsResource = schema.GroupVersionResource{Group: "datadoghq.com",
 var datadogmetricsKind = schema.GroupVersionKind{Group: "datadoghq.com", Version: "v1alpha1", Kind: "DatadogMetric"}
 
 // Get takes name of the datadogMetric, and returns the corresponding datadogMetric object, and an error if there is any.
-func (c *FakeDatadogMetrics) Get(name string, options v1.GetOptions) (result *v1alpha1.DatadogMetric, err error) {
+func (c *FakeDatadogMetrics) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.DatadogMetric, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewGetAction(datadogmetricsResource, c.ns, name), &v1alpha1.DatadogMetric{})
 
@@ -39,7 +41,7 @@ func (c *FakeDatadogMetrics) Get(name string, options v1.GetOptions) (result *v1
 }
 
 // List takes label and field selectors, and returns the list of DatadogMetrics that match those selectors.
-func (c *FakeDatadogMetrics) List(opts v1.ListOptions) (result *v1alpha1.DatadogMetricList, err error) {
+func (c *FakeDatadogMetrics) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.DatadogMetricList, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewListAction(datadogmetricsResource, datadogmetricsKind, c.ns, opts), &v1alpha1.DatadogMetricList{})
 
@@ -61,14 +63,14 @@ func (c *FakeDatadogMetrics) List(opts v1.ListOptions) (result *v1alpha1.Datadog
 }
 
 // Watch returns a watch.Interface that watches the requested datadogMetrics.
-func (c *FakeDatadogMetrics) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeDatadogMetrics) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewWatchAction(datadogmetricsResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a datadogMetric and creates it.  Returns the server's representation of the datadogMetric, and an error, if there is any.
-func (c *FakeDatadogMetrics) Create(datadogMetric *v1alpha1.DatadogMetric) (result *v1alpha1.DatadogMetric, err error) {
+func (c *FakeDatadogMetrics) Create(ctx context.Context, datadogMetric *v1alpha1.DatadogMetric, opts v1.CreateOptions) (result *v1alpha1.DatadogMetric, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewCreateAction(datadogmetricsResource, c.ns, datadogMetric), &v1alpha1.DatadogMetric{})
 
@@ -79,7 +81,7 @@ func (c *FakeDatadogMetrics) Create(datadogMetric *v1alpha1.DatadogMetric) (resu
 }
 
 // Update takes the representation of a datadogMetric and updates it. Returns the server's representation of the datadogMetric, and an error, if there is any.
-func (c *FakeDatadogMetrics) Update(datadogMetric *v1alpha1.DatadogMetric) (result *v1alpha1.DatadogMetric, err error) {
+func (c *FakeDatadogMetrics) Update(ctx context.Context, datadogMetric *v1alpha1.DatadogMetric, opts v1.UpdateOptions) (result *v1alpha1.DatadogMetric, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewUpdateAction(datadogmetricsResource, c.ns, datadogMetric), &v1alpha1.DatadogMetric{})
 
@@ -91,7 +93,7 @@ func (c *FakeDatadogMetrics) Update(datadogMetric *v1alpha1.DatadogMetric) (resu
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeDatadogMetrics) UpdateStatus(datadogMetric *v1alpha1.DatadogMetric) (*v1alpha1.DatadogMetric, error) {
+func (c *FakeDatadogMetrics) UpdateStatus(ctx context.Context, datadogMetric *v1alpha1.DatadogMetric, opts v1.UpdateOptions) (*v1alpha1.DatadogMetric, error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewUpdateSubresourceAction(datadogmetricsResource, "status", c.ns, datadogMetric), &v1alpha1.DatadogMetric{})
 
@@ -102,7 +104,7 @@ func (c *FakeDatadogMetrics) UpdateStatus(datadogMetric *v1alpha1.DatadogMetric)
 }
 
 // Delete takes name of the datadogMetric and deletes it. Returns an error if one occurs.
-func (c *FakeDatadogMetrics) Delete(name string, options *v1.DeleteOptions) error {
+func (c *FakeDatadogMetrics) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
 		Invokes(testing.NewDeleteAction(datadogmetricsResource, c.ns, name), &v1alpha1.DatadogMetric{})
 
@@ -110,15 +112,15 @@ func (c *FakeDatadogMetrics) Delete(name string, options *v1.DeleteOptions) erro
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeDatadogMetrics) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(datadogmetricsResource, c.ns, listOptions)
+func (c *FakeDatadogMetrics) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+	action := testing.NewDeleteCollectionAction(datadogmetricsResource, c.ns, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1alpha1.DatadogMetricList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched datadogMetric.
-func (c *FakeDatadogMetrics) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.DatadogMetric, err error) {
+func (c *FakeDatadogMetrics) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.DatadogMetric, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewPatchSubresourceAction(datadogmetricsResource, c.ns, name, pt, data, subresources...), &v1alpha1.DatadogMetric{})
 

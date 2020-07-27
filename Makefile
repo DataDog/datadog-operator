@@ -70,14 +70,14 @@ validate: bin/golangci-lint bin/wwhrd
 
 generate: bin/operator-sdk bin/openapi-gen bin/client-gen bin/informer-gen bin/lister-gen
 	./bin/operator-sdk generate k8s
-	./bin/operator-sdk generate crds
+	./bin/operator-sdk generate crds --crd-version=v1beta1
 	./bin/openapi-gen --logtostderr=true -o "" -i ./pkg/apis/datadoghq/v1alpha1 -O zz_generated.openapi -p ./pkg/apis/datadoghq/v1alpha1 -h ./hack/boilerplate.go.txt -r "-"
 	./hack/generate-groups.sh client,lister,informer \
   github.com/DataDog/datadog-operator/pkg/generated github.com/DataDog/datadog-operator/pkg/apis datadoghq:v1alpha1 \
   --go-header-file ./hack/boilerplate.go.txt
 
 generate-olm: bin/operator-sdk
-	./bin/operator-sdk olm-catalog gen-csv --csv-version $(VERSION) --update-crds
+	./bin/operator-sdk generate packagemanifests --version $(VERSION) --update-crds --interactive=false
 
 pre-release: bin/yq
 	./hack/pre-release.sh $(VERSION)
