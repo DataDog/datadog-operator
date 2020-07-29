@@ -18,5 +18,5 @@
 
 ## Other PRs to create
 
-- Create krew PR for the plugin on https://github.com/kubernetes-sigs/krew-index to update the `datadog-plugin.yaml` artifact.
+- Create krew PR for the plugin on https://github.com/kubernetes-sigs/krew-index to update the `datadog.yaml` artifact. (See [kubernetes-sigs/krew-index#727](https://github.com/kubernetes-sigs/krew-index/pull/727) as an example)
 - Create PRs on https://github.com/operator-framework/community-operators for `community` and `upstream` operator.

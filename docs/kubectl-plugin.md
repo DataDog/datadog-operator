@@ -6,10 +6,8 @@ The Datadog Operator comes with a kubectl plugin providing a set of helper utili
 
 To install, use the [krew plugin manager](https://krew.sigs.k8s.io/).
 
-The krew plugin manifest url can be found on the project [release page](https://github.com/DataDog/datadog-operator/releases). Each release has its own `datadog-plugin.yaml` manifest file.
-
 ```console
-$ kubectl krew install --manifest-url https://github.com/DataDog/datadog-operator/releases/download/<release-version>/datadog-plugin.yaml
+$ kubectl krew install datadog
 Installing plugin: datadog
 Installed plugin: datadog
 \
