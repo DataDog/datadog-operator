@@ -619,6 +619,16 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 
 	volumes := []corev1.Volume{
 		{
+			Name: datadoghqv1alpha1.InstallInfoVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: getInstallInfoConfigMapName(dda),
+					},
+				},
+			},
+		},
+		{
 			Name:         datadoghqv1alpha1.ConfdVolumeName,
 			VolumeSource: confdVolumeSource,
 		},
@@ -828,6 +838,12 @@ func getVolumeMountFromCustomConfigSpec(cfcm *datadoghqv1alpha1.CustomConfigSpec
 func getVolumeMountsForAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []corev1.VolumeMount {
 	// Default mounted volumes
 	volumeMounts := []corev1.VolumeMount{
+		{
+			Name:      datadoghqv1alpha1.InstallInfoVolumeName,
+			SubPath:   datadoghqv1alpha1.InstallInfoVolumeSubPath,
+			MountPath: datadoghqv1alpha1.InstallInfoVolumePath,
+			ReadOnly:  datadoghqv1alpha1.InstallInfoVolumeReadOnly,
+		},
 		{
 			Name:      datadoghqv1alpha1.ConfdVolumeName,
 			MountPath: datadoghqv1alpha1.ConfdVolumePath,

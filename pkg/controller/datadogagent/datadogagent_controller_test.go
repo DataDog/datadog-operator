@@ -2132,6 +2132,8 @@ func createAgentDependencies(c client.Client, dda *datadoghqv1alpha1.DatadogAgen
 		"token":   []byte(base64.StdEncoding.EncodeToString([]byte("token-foo"))),
 	}}))
 
+	installinfoCM, _ := buildInstallInfoConfigMap(dda)
+	_ = c.Create(context.TODO(), installinfoCM)
 }
 
 func createClusterAgentDependencies(c client.Client, dda *datadoghqv1alpha1.DatadogAgent) {
