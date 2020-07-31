@@ -2180,6 +2180,9 @@ func createClusterAgentDependencies(c client.Client, dda *datadoghqv1alpha1.Data
 	_, _ = comparison.SetMD5GenerationAnnotation(&dcaService.ObjectMeta, dcaService.Spec)
 	dcaService.Labels = getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
 	_ = c.Create(context.TODO(), dcaService)
+
+	installinfoCM, _ := buildInstallInfoConfigMap(dda)
+	_ = c.Create(context.TODO(), installinfoCM)
 }
 
 // dummyManager mocks the metric forwarder by implementing the metricForwardersManager interface
