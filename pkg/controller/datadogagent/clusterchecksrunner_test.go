@@ -41,6 +41,12 @@ func clusterChecksRunnerDefaultPodSpec() corev1.PodSpec {
 func clusterChecksRunnerDefaultVolumeMounts() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		{
+			Name:      "installinfo",
+			SubPath:   "install_info",
+			MountPath: "/etc/datadog-agent/install_info",
+			ReadOnly:  true,
+		},
+		{
 			Name:      "s6-run",
 			MountPath: "/var/run/s6",
 		},
@@ -53,6 +59,16 @@ func clusterChecksRunnerDefaultVolumeMounts() []corev1.VolumeMount {
 
 func clusterChecksRunnerDefaultVolumes() []corev1.Volume {
 	return []corev1.Volume{
+		{
+			Name: "installinfo",
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: "foo-install-info",
+					},
+				},
+			},
+		},
 		{
 			Name: "s6-run",
 			VolumeSource: corev1.VolumeSource{

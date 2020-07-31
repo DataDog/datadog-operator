@@ -263,6 +263,9 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						"app-key": []byte(base64.StdEncoding.EncodeToString([]byte("app-foo"))),
 						"token":   []byte(base64.StdEncoding.EncodeToString([]byte("token-foo"))),
 					}}))
+
+					installinfoCM, _ := buildInstallInfoConfigMap(dda)
+					_ = c.Create(context.TODO(), installinfoCM)
 				},
 			},
 			want:    reconcile.Result{Requeue: true},
@@ -305,6 +308,9 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						"app-key": []byte(base64.StdEncoding.EncodeToString([]byte("app-foo"))),
 						"token":   []byte(base64.StdEncoding.EncodeToString([]byte("token-foo"))),
 					}}))
+
+					installinfoCM, _ := buildInstallInfoConfigMap(dda)
+					_ = c.Create(context.TODO(), installinfoCM)
 				},
 			},
 			want:    reconcile.Result{Requeue: true},
@@ -347,6 +353,9 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						"app-key": []byte(base64.StdEncoding.EncodeToString([]byte("app-foo"))),
 						"token":   []byte(base64.StdEncoding.EncodeToString([]byte("token-foo"))),
 					}}))
+
+					installinfoCM, _ := buildInstallInfoConfigMap(dda)
+					_ = c.Create(context.TODO(), installinfoCM)
 				},
 			},
 			want:    reconcile.Result{Requeue: true},
@@ -2196,6 +2205,10 @@ func (dummyManager) MetricsForwarderStatusForObj(obj datadog.MonitoredObject) *d
 
 func createClusterChecksRunnerDependencies(c client.Client, dda *datadoghqv1alpha1.DatadogAgent) {
 	_ = c.Create(context.TODO(), buildClusterChecksRunnerPDB(dda))
+
+	installinfoCM, _ := buildInstallInfoConfigMap(dda)
+	_ = c.Create(context.TODO(), installinfoCM)
+
 }
 
 func init() {
