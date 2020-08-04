@@ -15,27 +15,27 @@ require (
 	github.com/mikefarah/yq/v3 v3.0.0-20200418141808-3ccd32a47e54
 	github.com/nwaples/rardecode v1.0.0 // indirect
 	github.com/olekukonko/tablewriter v0.0.2
-	github.com/operator-framework/operator-sdk v0.17.0
+	github.com/operator-framework/operator-sdk v0.19.0
 	github.com/pierrec/lz4 v2.4.1+incompatible // indirect
 	github.com/spf13/cobra v1.0.0
 	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.4.0
+	github.com/stretchr/testify v1.5.1
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 // indirect
 	github.com/zorkian/go-datadog-api v2.25.0+incompatible
 	gopkg.in/yaml.v2 v2.2.8
-	k8s.io/api v0.17.4
-	k8s.io/apimachinery v0.17.4
-	k8s.io/cli-runtime v0.17.4
+	k8s.io/api v0.18.2
+	k8s.io/apimachinery v0.18.2
+	k8s.io/cli-runtime v0.18.2
 	k8s.io/client-go v12.0.0+incompatible
-	k8s.io/code-generator v0.17.4
-	k8s.io/gengo v0.0.0-20191010091904-7fa3014cb28f
-	k8s.io/kube-openapi v0.0.0-20191107075043-30be4d16710a
-	sigs.k8s.io/controller-runtime v0.5.2
-	sigs.k8s.io/yaml v1.1.0
+	k8s.io/code-generator v0.18.2
+	k8s.io/gengo v0.0.0-20200114144118-36b2048a9120
+	k8s.io/kube-openapi v0.0.0-20200121204235-bf4fb3bd569c
+	sigs.k8s.io/controller-runtime v0.6.0
+	sigs.k8s.io/yaml v1.2.0
 )
 
-// From operator-sdk, see https://github.com/operator-framework/operator-sdk/blob/master/website/content/en/docs/migration/version-upgrade-guide.md
+// From operator-sdk, see https://github.com/operator-framework/operator-sdk/tree/master/website/content/en/docs/upgrading-sdk-version
 replace (
 	github.com/Azure/go-autorest => github.com/Azure/go-autorest v13.3.2+incompatible // Required by OLM
-	k8s.io/client-go => k8s.io/client-go v0.17.4 // Required by prometheus-operator
+	k8s.io/client-go => k8s.io/client-go v0.18.2 // Required by prometheus-operator
 )

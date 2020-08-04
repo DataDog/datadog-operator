@@ -6,6 +6,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -86,7 +87,7 @@ func (o *options) validate() error {
 
 // run runs the service command
 func (o *options) run(cmd *cobra.Command) error {
-	svc, err := o.Clientset.CoreV1().Services(o.UserNamespace).Get(o.serviceName, metav1.GetOptions{})
+	svc, err := o.Clientset.CoreV1().Services(o.UserNamespace).Get(context.TODO(), o.serviceName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}

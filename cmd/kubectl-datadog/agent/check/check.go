@@ -7,6 +7,7 @@ package check
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"sync"
@@ -254,7 +255,7 @@ func (o *options) execInPod(pod *corev1.Pod, cmd []string, container string) (st
 
 // getPodsByOptions returns a list of the pods by ListOptions
 func (o *options) getPodsByOptions(opts metav1.ListOptions) ([]corev1.Pod, error) {
-	podList, err := o.Clientset.CoreV1().Pods(o.UserNamespace).List(opts)
+	podList, err := o.Clientset.CoreV1().Pods(o.UserNamespace).List(context.TODO(), opts)
 	if err != nil {
 		return []corev1.Pod{}, err
 	}
@@ -263,7 +264,7 @@ func (o *options) getPodsByOptions(opts metav1.ListOptions) ([]corev1.Pod, error
 
 // getPodByName returns a pod by name
 func (o *options) getPodByName(name string) (corev1.Pod, error) {
-	pod, err := o.Clientset.CoreV1().Pods(o.UserNamespace).Get(name, metav1.GetOptions{})
+	pod, err := o.Clientset.CoreV1().Pods(o.UserNamespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return corev1.Pod{}, err
 	}

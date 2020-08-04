@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-RELEASE_VERSION=v0.17.0
+RELEASE_VERSION=v0.19.0
 
 ROOT=$(pwd)
 
