@@ -101,7 +101,6 @@ spec:
               description: Value is the latest value of the metric
               type: string
           required:
-          - autoscalerReferences
           - currentValue
           type: object
       type: object
