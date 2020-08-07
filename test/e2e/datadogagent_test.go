@@ -6,6 +6,7 @@
 package e2e
 
 import (
+	"context"
 	goctx "context"
 	"encoding/json"
 	"fmt"
@@ -583,7 +584,7 @@ func initTestFwkResources(t *testing.T, deploymentName string) (string, *framewo
 		req := f.KubeClient.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, options)
 		go func(t *testing.T, namespace, name string) {
 			t.Logf("Add logger for pod:[%s/%s]", namespace, name)
-			readCloser, err := req.Stream()
+			readCloser, err := req.Stream(context.TODO())
 			if err != nil {
 				return
 			}
@@ -727,7 +728,7 @@ func exportPodsLogs(t *testing.T, f *framework.Framework, namespace string, err 
 	printPods(t, f, namespace)
 
 	// setup streaming operator pod's logs for simplify investigation
-	pods, err2 := f.KubeClient.CoreV1().Pods(namespace).List(metav1.ListOptions{})
+	pods, err2 := f.KubeClient.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
 	if err2 != nil {
 		t.Fatal(err2)
 	}
@@ -739,7 +740,7 @@ func exportPodsLogs(t *testing.T, f *framework.Framework, namespace string, err 
 			}
 			t.Logf("Add logger for pod:[%s/%s], container: %s", pod.Namespace, pod.Name, container.Name)
 			req := f.KubeClient.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, options)
-			readCloser, err := req.Stream()
+			readCloser, err := req.Stream(context.TODO())
 			if err != nil {
 				t.Errorf("unable to stream log for pod:[%s/%s], err:%v", pod.Namespace, pod.Name, err)
 				return

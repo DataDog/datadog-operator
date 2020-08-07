@@ -253,6 +253,11 @@ func newClusterChecksRunnerPodTemplate(dda *datadoghqv1alpha1.DatadogAgent, labe
 	// copy Spec to configure the Cluster Checks Runner Pod Template
 	clusterChecksRunnerSpec := dda.Spec.ClusterChecksRunner.DeepCopy()
 
+	spec := &dda.Spec
+	volumeMounts := getVolumeMountsForClusterChecksRunner(dda)
+	envVars := getEnvVarsForClusterChecksRunner(dda)
+	initContainers := getConfigInitContainers(spec, volumeMounts, envVars)
+
 	newPodTemplate := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels:      labels,
@@ -260,13 +265,14 @@ func newClusterChecksRunnerPodTemplate(dda *datadoghqv1alpha1.DatadogAgent, labe
 		},
 		Spec: corev1.PodSpec{
 			ServiceAccountName: getClusterChecksRunnerServiceAccount(dda),
+			InitContainers:     initContainers,
 			Containers: []corev1.Container{
 				{
 					Name:            "cluster-checks-runner",
 					Image:           clusterChecksRunnerSpec.Image.Name,
 					ImagePullPolicy: *clusterChecksRunnerSpec.Image.PullPolicy,
-					Env:             getEnvVarsForClusterChecksRunner(dda),
-					VolumeMounts:    getVolumeMountsForClusterChecksRunner(dda),
+					Env:             envVars,
+					VolumeMounts:    volumeMounts,
 					LivenessProbe:   getDefaultLivenessProbe(),
 				},
 			},
@@ -401,6 +407,8 @@ func getClusterChecksRunnerName(dda *datadoghqv1alpha1.DatadogAgent) string {
 // getVolumesForClusterChecksRunner defines volumes for the Cluster Checks Runner
 func getVolumesForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 	volumes := []corev1.Volume{
+		getVolumeForChecksd(dda),
+		getVolumeForConfig(),
 		{
 			Name: datadoghqv1alpha1.InstallInfoVolumeName,
 			VolumeSource: corev1.VolumeSource{
@@ -435,6 +443,8 @@ func getVolumesForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []cor
 // getVolumeMountsForClusterChecksRunner defines volume mounts for the Cluster Checks Runner
 func getVolumeMountsForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []corev1.VolumeMount {
 	volumeMounts := []corev1.VolumeMount{
+		getVolumeMountForChecksd(),
+		getVolumeMountForConfig(),
 		{
 			Name:      datadoghqv1alpha1.InstallInfoVolumeName,
 			SubPath:   datadoghqv1alpha1.InstallInfoVolumeSubPath,
@@ -450,6 +460,7 @@ func getVolumeMountsForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) 
 			MountPath: fmt.Sprintf("%s/%s", datadoghqv1alpha1.ConfigVolumePath, "conf.d"),
 		},
 	}
+
 	if dda.Spec.ClusterChecksRunner.CustomConfig != nil {
 		volumeMount := getVolumeMountFromCustomConfigSpec(dda.Spec.ClusterChecksRunner.CustomConfig, datadoghqv1alpha1.AgentCustomConfigVolumeName, datadoghqv1alpha1.AgentCustomConfigVolumePath, datadoghqv1alpha1.AgentCustomConfigVolumeSubPath)
 		volumeMounts = append(volumeMounts, volumeMount)

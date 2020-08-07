@@ -27,7 +27,7 @@ type DatadogMetricStatus struct {
 	// Value is the latest value of the metric
 	Value string `json:"currentValue"`
 	// List of autoscalers currently using this DatadogMetric
-	AutoscalerReferences string `json:"autoscalerReferences"`
+	AutoscalerReferences string `json:"autoscalerReferences,omitempty"`
 }
 
 // DatadogMetricCondition describes the state of a DatadogMetric at a certain point.

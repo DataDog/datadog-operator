@@ -8,6 +8,8 @@
 package fake
 
 import (
+	"context"
+
 	v1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
@@ -28,7 +30,7 @@ var datadogagentsResource = schema.GroupVersionResource{Group: "datadoghq.com", 
 var datadogagentsKind = schema.GroupVersionKind{Group: "datadoghq.com", Version: "v1alpha1", Kind: "DatadogAgent"}
 
 // Get takes name of the datadogAgent, and returns the corresponding datadogAgent object, and an error if there is any.
-func (c *FakeDatadogAgents) Get(name string, options v1.GetOptions) (result *v1alpha1.DatadogAgent, err error) {
+func (c *FakeDatadogAgents) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.DatadogAgent, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewGetAction(datadogagentsResource, c.ns, name), &v1alpha1.DatadogAgent{})
 
@@ -39,7 +41,7 @@ func (c *FakeDatadogAgents) Get(name string, options v1.GetOptions) (result *v1a
 }
 
 // List takes label and field selectors, and returns the list of DatadogAgents that match those selectors.
-func (c *FakeDatadogAgents) List(opts v1.ListOptions) (result *v1alpha1.DatadogAgentList, err error) {
+func (c *FakeDatadogAgents) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.DatadogAgentList, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewListAction(datadogagentsResource, datadogagentsKind, c.ns, opts), &v1alpha1.DatadogAgentList{})
 
@@ -61,14 +63,14 @@ func (c *FakeDatadogAgents) List(opts v1.ListOptions) (result *v1alpha1.DatadogA
 }
 
 // Watch returns a watch.Interface that watches the requested datadogAgents.
-func (c *FakeDatadogAgents) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeDatadogAgents) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewWatchAction(datadogagentsResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a datadogAgent and creates it.  Returns the server's representation of the datadogAgent, and an error, if there is any.
-func (c *FakeDatadogAgents) Create(datadogAgent *v1alpha1.DatadogAgent) (result *v1alpha1.DatadogAgent, err error) {
+func (c *FakeDatadogAgents) Create(ctx context.Context, datadogAgent *v1alpha1.DatadogAgent, opts v1.CreateOptions) (result *v1alpha1.DatadogAgent, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewCreateAction(datadogagentsResource, c.ns, datadogAgent), &v1alpha1.DatadogAgent{})
 
@@ -79,7 +81,7 @@ func (c *FakeDatadogAgents) Create(datadogAgent *v1alpha1.DatadogAgent) (result 
 }
 
 // Update takes the representation of a datadogAgent and updates it. Returns the server's representation of the datadogAgent, and an error, if there is any.
-func (c *FakeDatadogAgents) Update(datadogAgent *v1alpha1.DatadogAgent) (result *v1alpha1.DatadogAgent, err error) {
+func (c *FakeDatadogAgents) Update(ctx context.Context, datadogAgent *v1alpha1.DatadogAgent, opts v1.UpdateOptions) (result *v1alpha1.DatadogAgent, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewUpdateAction(datadogagentsResource, c.ns, datadogAgent), &v1alpha1.DatadogAgent{})
 
@@ -91,7 +93,7 @@ func (c *FakeDatadogAgents) Update(datadogAgent *v1alpha1.DatadogAgent) (result 
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeDatadogAgents) UpdateStatus(datadogAgent *v1alpha1.DatadogAgent) (*v1alpha1.DatadogAgent, error) {
+func (c *FakeDatadogAgents) UpdateStatus(ctx context.Context, datadogAgent *v1alpha1.DatadogAgent, opts v1.UpdateOptions) (*v1alpha1.DatadogAgent, error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewUpdateSubresourceAction(datadogagentsResource, "status", c.ns, datadogAgent), &v1alpha1.DatadogAgent{})
 
@@ -102,7 +104,7 @@ func (c *FakeDatadogAgents) UpdateStatus(datadogAgent *v1alpha1.DatadogAgent) (*
 }
 
 // Delete takes name of the datadogAgent and deletes it. Returns an error if one occurs.
-func (c *FakeDatadogAgents) Delete(name string, options *v1.DeleteOptions) error {
+func (c *FakeDatadogAgents) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
 		Invokes(testing.NewDeleteAction(datadogagentsResource, c.ns, name), &v1alpha1.DatadogAgent{})
 
@@ -110,15 +112,15 @@ func (c *FakeDatadogAgents) Delete(name string, options *v1.DeleteOptions) error
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeDatadogAgents) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(datadogagentsResource, c.ns, listOptions)
+func (c *FakeDatadogAgents) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+	action := testing.NewDeleteCollectionAction(datadogagentsResource, c.ns, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1alpha1.DatadogAgentList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched datadogAgent.
-func (c *FakeDatadogAgents) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.DatadogAgent, err error) {
+func (c *FakeDatadogAgents) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.DatadogAgent, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewPatchSubresourceAction(datadogagentsResource, c.ns, name, pt, data, subresources...), &v1alpha1.DatadogAgent{})
 

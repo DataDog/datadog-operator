@@ -16,11 +16,10 @@ Using the Datadog Operator requires the following prerequisites:
 In order to deploy a Datadog agent with the operator in the minimum number of steps, the [`datadog-agent-with-operator`](https://github.com/DataDog/datadog-operator/tree/master/chart/datadog-agent-with-operator) helm chart can be used.
 Here are the steps:
 
-1. Download the [Datadog Operator project zip ball][3] and unzip it. Source code can be found at [`DataDog/datadog-operator`][4]. Go into the `datadog-operator-<tag>` folder.
+1. [Download the chart][3]:
 
    ```shell
-   curl -L https://github.com/DataDog/datadog-operator/archive/master.tar.gz | tar xvz
-   cd datadog-operator-master
+   curl -Lo datadog-agent-with-operator.tar.gz https://github.com/DataDog/datadog-operator/releases/latest/download/datadog-agent-with-operator.tar.gz
    ```
 
 2. Create a file with the spec of your agent. The simplest configuration is:
@@ -34,11 +33,11 @@ Here are the steps:
        name: "datadog/agent:latest"
    ```
 
-   Replace `<DATADOG_API_KEY>` and `<DATADOG_APP_KEY>` with your [Datadog API and application keys][5]
+   Replace `<DATADOG_API_KEY>` and `<DATADOG_APP_KEY>` with your [Datadog API and application keys][4]
 
 3. Deploy the Datadog agent with the above configuration file:
    ```shell
-   helm install --set-file agent_spec=/path/to/your/datadog-agent.yaml datadog chart/datadog-agent-with-operator
+   helm install --set-file agent_spec=/path/to/your/datadog-agent.yaml datadog datadog-agent-with-operator.tar.gz
    ```
 
 ## Cleanup
@@ -52,6 +51,5 @@ helm delete datadog
 
 [1]: https://helm.sh
 [2]: https://kubernetes.io/docs/tasks/tools/install-kubectl/
-[3]: https://github.com/DataDog/datadog-operator/archive/master.tar.gz
-[4]: https://github.com/DataDog/datadog-operator
-[5]: https://app.datadoghq.com/account/settings#api
+[3]: https://github.com/DataDog/datadog-operator/releases/latest/download/datadog-agent-with-operator.tar.gz
+[4]: https://app.datadoghq.com/account/settings#api

@@ -308,32 +308,9 @@ func getInitContainers(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.Container,
 	if err != nil {
 		return nil, err
 	}
-	containers := []corev1.Container{
-		{
-			Name:            "init-volume",
-			Image:           spec.Agent.Image.Name,
-			ImagePullPolicy: *spec.Agent.Image.PullPolicy,
-			Resources:       *spec.Agent.Config.Resources,
-			Command:         []string{"bash", "-c"},
-			Args:            []string{"cp -r /etc/datadog-agent /opt"},
-			VolumeMounts: []corev1.VolumeMount{
-				{
-					Name:      datadoghqv1alpha1.ConfigVolumeName,
-					MountPath: "/opt/datadog-agent",
-				},
-			},
-		},
-		{
-			Name:            "init-config",
-			Image:           spec.Agent.Image.Name,
-			ImagePullPolicy: *spec.Agent.Image.PullPolicy,
-			Resources:       *spec.Agent.Config.Resources,
-			Command:         []string{"bash", "-c"},
-			Args:            []string{"for script in $(find /etc/cont-init.d/ -type f -name '*.sh' | sort) ; do bash $script ; done"},
-			Env:             envVars,
-			VolumeMounts:    volumeMounts,
-		},
-	}
+
+	containers := getConfigInitContainers(spec, volumeMounts, envVars)
+
 	if isSystemProbeEnabled(dda) {
 		if getSeccompProfileName(&dda.Spec.Agent.SystemProbe) == datadoghqv1alpha1.DefaultSeccompProfileName || dda.Spec.Agent.SystemProbe.SecCompCustomProfileConfigMap != "" {
 			systemProbeInit := corev1.Container{
@@ -362,6 +339,37 @@ func getInitContainers(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.Container,
 	}
 
 	return containers, nil
+}
+
+// getConfigInitContainers returns the init containers necessary to set up the
+// agent's configuration volume.
+func getConfigInitContainers(spec *datadoghqv1alpha1.DatadogAgentSpec, volumeMounts []corev1.VolumeMount, envVars []corev1.EnvVar) []corev1.Container {
+	return []corev1.Container{
+		{
+			Name:            "init-volume",
+			Image:           spec.Agent.Image.Name,
+			ImagePullPolicy: *spec.Agent.Image.PullPolicy,
+			Resources:       *spec.Agent.Config.Resources,
+			Command:         []string{"bash", "-c"},
+			Args:            []string{"cp -r /etc/datadog-agent /opt"},
+			VolumeMounts: []corev1.VolumeMount{
+				{
+					Name:      datadoghqv1alpha1.ConfigVolumeName,
+					MountPath: "/opt/datadog-agent",
+				},
+			},
+		},
+		{
+			Name:            "init-config",
+			Image:           spec.Agent.Image.Name,
+			ImagePullPolicy: *spec.Agent.Image.PullPolicy,
+			Resources:       *spec.Agent.Config.Resources,
+			Command:         []string{"bash", "-c"},
+			Args:            []string{"for script in $(find /etc/cont-init.d/ -type f -name '*.sh' | sort) ; do bash $script ; done"},
+			Env:             envVars,
+			VolumeMounts:    volumeMounts,
+		},
+	}
 }
 
 // getEnvVarsForAPMAgent converts APM Agent Config into container env vars
@@ -592,31 +600,6 @@ func getEnvVarsForAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.EnvVar, e
 
 // getVolumesForAgent defines volumes for the Agent
 func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
-	confdVolumeSource := corev1.VolumeSource{
-		EmptyDir: &corev1.EmptyDirVolumeSource{},
-	}
-	if dda.Spec.Agent.Config.Confd != nil {
-		confdVolumeSource = corev1.VolumeSource{
-			ConfigMap: &corev1.ConfigMapVolumeSource{
-				LocalObjectReference: corev1.LocalObjectReference{
-					Name: dda.Spec.Agent.Config.Confd.ConfigMapName,
-				},
-			},
-		}
-	}
-	checksdVolumeSource := corev1.VolumeSource{
-		EmptyDir: &corev1.EmptyDirVolumeSource{},
-	}
-	if dda.Spec.Agent.Config.Checksd != nil {
-		checksdVolumeSource = corev1.VolumeSource{
-			ConfigMap: &corev1.ConfigMapVolumeSource{
-				LocalObjectReference: corev1.LocalObjectReference{
-					Name: dda.Spec.Agent.Config.Checksd.ConfigMapName,
-				},
-			},
-		}
-	}
-
 	volumes := []corev1.Volume{
 		{
 			Name: datadoghqv1alpha1.InstallInfoVolumeName,
@@ -628,20 +611,9 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 				},
 			},
 		},
-		{
-			Name:         datadoghqv1alpha1.ConfdVolumeName,
-			VolumeSource: confdVolumeSource,
-		},
-		{
-			Name:         datadoghqv1alpha1.ChecksdVolumeName,
-			VolumeSource: checksdVolumeSource,
-		},
-		{
-			Name: datadoghqv1alpha1.ConfigVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				EmptyDir: &corev1.EmptyDirVolumeSource{},
-			},
-		},
+		getVolumeForConfd(dda),
+		getVolumeForChecksd(dda),
+		getVolumeForConfig(),
 		{
 			Name: datadoghqv1alpha1.ProcVolumeName,
 			VolumeSource: corev1.VolumeSource{
@@ -781,6 +753,55 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 	return volumes
 }
 
+func getVolumeForConfd(dda *datadoghqv1alpha1.DatadogAgent) corev1.Volume {
+	source := corev1.VolumeSource{
+		EmptyDir: &corev1.EmptyDirVolumeSource{},
+	}
+	if dda.Spec.Agent.Config.Confd != nil {
+		source = corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: dda.Spec.Agent.Config.Confd.ConfigMapName,
+				},
+			},
+		}
+	}
+
+	return corev1.Volume{
+		Name:         datadoghqv1alpha1.ConfdVolumeName,
+		VolumeSource: source,
+	}
+}
+
+func getVolumeForChecksd(dda *datadoghqv1alpha1.DatadogAgent) corev1.Volume {
+	source := corev1.VolumeSource{
+		EmptyDir: &corev1.EmptyDirVolumeSource{},
+	}
+	if dda.Spec.Agent.Config.Checksd != nil {
+		source = corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: dda.Spec.Agent.Config.Checksd.ConfigMapName,
+				},
+			},
+		}
+	}
+
+	return corev1.Volume{
+		Name:         datadoghqv1alpha1.ChecksdVolumeName,
+		VolumeSource: source,
+	}
+}
+
+func getVolumeForConfig() corev1.Volume {
+	return corev1.Volume{
+		Name: datadoghqv1alpha1.ConfigVolumeName,
+		VolumeSource: corev1.VolumeSource{
+			EmptyDir: &corev1.EmptyDirVolumeSource{},
+		},
+	}
+}
+
 func getSecCompRootPath(spec *datadoghqv1alpha1.SystemProbeSpec) string {
 	if spec.SecCompRootPath != "" {
 		return spec.SecCompRootPath
@@ -844,20 +865,9 @@ func getVolumeMountsForAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []corev1.
 			MountPath: datadoghqv1alpha1.InstallInfoVolumePath,
 			ReadOnly:  datadoghqv1alpha1.InstallInfoVolumeReadOnly,
 		},
-		{
-			Name:      datadoghqv1alpha1.ConfdVolumeName,
-			MountPath: datadoghqv1alpha1.ConfdVolumePath,
-			ReadOnly:  true,
-		},
-		{
-			Name:      datadoghqv1alpha1.ChecksdVolumeName,
-			MountPath: datadoghqv1alpha1.ChecksdVolumePath,
-			ReadOnly:  true,
-		},
-		{
-			Name:      datadoghqv1alpha1.ConfigVolumeName,
-			MountPath: datadoghqv1alpha1.ConfigVolumePath,
-		},
+		getVolumeMountForConfd(),
+		getVolumeMountForChecksd(),
+		getVolumeMountForConfig(),
 		{
 			Name:      datadoghqv1alpha1.ProcVolumeName,
 			MountPath: datadoghqv1alpha1.ProcVolumePath,
@@ -921,6 +931,28 @@ func getVolumeMountsForAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []corev1.
 		}...)
 	}
 	return append(volumeMounts, spec.Agent.Config.VolumeMounts...)
+}
+
+func getVolumeMountForConfig() corev1.VolumeMount {
+	return corev1.VolumeMount{
+		Name:      datadoghqv1alpha1.ConfigVolumeName,
+		MountPath: datadoghqv1alpha1.ConfigVolumePath,
+	}
+}
+
+func getVolumeMountForConfd() corev1.VolumeMount {
+	return corev1.VolumeMount{
+		Name:      datadoghqv1alpha1.ConfdVolumeName,
+		MountPath: datadoghqv1alpha1.ConfdVolumePath,
+		ReadOnly:  true,
+	}
+}
+func getVolumeMountForChecksd() corev1.VolumeMount {
+	return corev1.VolumeMount{
+		Name:      datadoghqv1alpha1.ChecksdVolumeName,
+		MountPath: datadoghqv1alpha1.ChecksdVolumePath,
+		ReadOnly:  true,
+	}
 }
 
 // getVolumeMountsForAgent defines mounted volumes for the Process Agent

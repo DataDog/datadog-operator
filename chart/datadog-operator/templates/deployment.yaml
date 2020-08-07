@@ -48,7 +48,7 @@ spec:
           args:
             - --zap-level={{ .Values.logLevel }}
             - --zap-encoder=console
-            # - --zap-stacktrace-level=error // TODO: uncomment after releasing v0.3.0
+            # - --zap-stacktrace-level=panic // TODO: uncomment after releasing v0.3.0
             - "--supportExtendedDaemonset={{ .Values.supportExtendedDaemonset}}"
             - "--probesPort={{ .Values.probesPort }}"
             - "--metricsPort={{ .Values.metricsPort }}"

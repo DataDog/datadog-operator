@@ -286,7 +286,7 @@ func (o *options) createLogFiles(dir string, cmd *cobra.Command) error {
 	podOpts := metav1.ListOptions{
 		LabelSelector: "app.kubernetes.io/name=datadog-operator",
 	}
-	pods, err := o.Clientset.CoreV1().Pods(o.UserNamespace).List(podOpts)
+	pods, err := o.Clientset.CoreV1().Pods(o.UserNamespace).List(context.TODO(), podOpts)
 	if err != nil {
 		return err
 	}
@@ -306,7 +306,7 @@ func (o *options) createLogFiles(dir string, cmd *cobra.Command) error {
 // createDeploymentTemplate gets the deployment template of the operator
 func (o *options) createDeploymentTemplate(dir string, cmd *cobra.Command) error {
 	// Get Datadog operator deployment
-	deploy, err := o.Clientset.ExtensionsV1beta1().Deployments(o.UserNamespace).Get("datadog-operator", metav1.GetOptions{})
+	deploy, err := o.Clientset.ExtensionsV1beta1().Deployments(o.UserNamespace).Get(context.TODO(), "datadog-operator", metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -333,7 +333,7 @@ func (o *options) createMetricsFile(pod *corev1.Pod, dir string, cmd *cobra.Comm
 		Name(fmt.Sprintf("%s:8383", pod.Name)).
 		SubResource("proxy").
 		Suffix("metrics").
-		Do()
+		Do(context.TODO())
 
 	metrics, err := result.Raw()
 	if err != nil {
@@ -405,7 +405,7 @@ func (o *options) getVersion(pod *corev1.Pod) (string, error) {
 
 func (o *options) getLeader() (*corev1.Pod, error) {
 	// Get operator lock configmap to identify the leader
-	cm, err := o.Clientset.CoreV1().ConfigMaps(o.UserNamespace).Get("datadog-operator-lock", metav1.GetOptions{})
+	cm, err := o.Clientset.CoreV1().ConfigMaps(o.UserNamespace).Get(context.TODO(), "datadog-operator-lock", metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -422,7 +422,7 @@ func (o *options) getLeader() (*corev1.Pod, error) {
 	}
 
 	// Get operator leader pod
-	return o.Clientset.CoreV1().Pods(o.UserNamespace).Get(leaderName, metav1.GetOptions{})
+	return o.Clientset.CoreV1().Pods(o.UserNamespace).Get(context.TODO(), leaderName, metav1.GetOptions{})
 }
 
 // execInPod execs a given command in a given pod
@@ -470,7 +470,7 @@ func (o *options) execInPod(command []string, pod *corev1.Pod) ([]byte, error) {
 func (o *options) savePodLogs(pod corev1.Pod, dir string, cmd *cobra.Command) error {
 	podLogOpts := corev1.PodLogOptions{}
 	req := o.Clientset.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &podLogOpts)
-	podLogs, err := req.Stream()
+	podLogs, err := req.Stream(context.TODO())
 	if err != nil {
 		return err
 	}

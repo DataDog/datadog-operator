@@ -6,6 +6,7 @@
 package find
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -87,7 +88,7 @@ func (o *options) validate() error {
 
 // run runs the find command
 func (o *options) run(cmd *cobra.Command) error {
-	pod, err := o.Clientset.CoreV1().Pods(o.UserNamespace).Get(o.podName, metav1.GetOptions{})
+	pod, err := o.Clientset.CoreV1().Pods(o.UserNamespace).Get(context.TODO(), o.podName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -101,7 +102,7 @@ func (o *options) run(cmd *cobra.Command) error {
 
 // getAgentByNode returns the pod of the datadog agent running on a given node
 func (o *options) getAgentByNode(nodeName string) (string, error) {
-	podList, err := o.Clientset.CoreV1().Pods("").List(metav1.ListOptions{
+	podList, err := o.Clientset.CoreV1().Pods("").List(context.TODO(), metav1.ListOptions{
 		FieldSelector: fmt.Sprintf("spec.nodeName=%s", nodeName),
 		LabelSelector: common.AgentLabel,
 	})

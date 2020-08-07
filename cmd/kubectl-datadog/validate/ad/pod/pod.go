@@ -6,6 +6,7 @@
 package pod
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -86,7 +87,7 @@ func (o *options) validate() error {
 
 // run runs the pod command
 func (o *options) run(cmd *cobra.Command) error {
-	pod, err := o.Clientset.CoreV1().Pods(o.UserNamespace).Get(o.podName, metav1.GetOptions{})
+	pod, err := o.Clientset.CoreV1().Pods(o.UserNamespace).Get(context.TODO(), o.podName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
