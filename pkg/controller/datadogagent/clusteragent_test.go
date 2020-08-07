@@ -48,11 +48,22 @@ func clusterAgentDefaultPodSpec() corev1.PodSpec {
 				},
 				Env: clusterAgentDefaultEnvVars(),
 				VolumeMounts: []corev1.VolumeMount{
+					{Name: "installinfo", ReadOnly: true, SubPath: "install_info", MountPath: "/etc/datadog-agent/install_info"},
 					{Name: "confd", ReadOnly: true, MountPath: "/conf.d"},
 				},
 			},
 		},
 		Volumes: []corev1.Volume{
+			{
+				Name: "installinfo",
+				VolumeSource: corev1.VolumeSource{
+					ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: "foo-install-info",
+						},
+					},
+				},
+			},
 			{
 				Name:         "confd",
 				VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}},

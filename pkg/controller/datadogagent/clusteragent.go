@@ -243,6 +243,11 @@ func (r *ReconcileDatadogAgent) manageClusterAgentDependencies(logger logr.Logge
 		return result, err
 	}
 
+	result, err = r.manageConfigMap(logger, dda, getInstallInfoConfigMapName(dda), buildInstallInfoConfigMap)
+	if shouldReturn(result, err) {
+		return result, err
+	}
+
 	return reconcile.Result{}, nil
 }
 
@@ -296,11 +301,27 @@ func newClusterAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent,
 	}
 	volumes := []corev1.Volume{
 		{
+			Name: datadoghqv1alpha1.InstallInfoVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: getInstallInfoConfigMapName(agentdeployment),
+					},
+				},
+			},
+		},
+		{
 			Name:         datadoghqv1alpha1.ConfdVolumeName,
 			VolumeSource: confdVolumeSource,
 		},
 	}
 	volumeMounts := []corev1.VolumeMount{
+		{
+			Name:      "installinfo",
+			SubPath:   "install_info",
+			MountPath: "/etc/datadog-agent/install_info",
+			ReadOnly:  true,
+		},
 		{
 			Name:      datadoghqv1alpha1.ConfdVolumeName,
 			MountPath: datadoghqv1alpha1.ConfdVolumePath,

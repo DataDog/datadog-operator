@@ -93,6 +93,10 @@ const (
 
 	// Datadog volume names and mount paths
 
+	InstallInfoVolumeName              = "installinfo"
+	InstallInfoVolumeSubPath           = "install_info"
+	InstallInfoVolumePath              = "/etc/datadog-agent/install_info"
+	InstallInfoVolumeReadOnly          = true
 	ConfdVolumeName                    = "confd"
 	ConfdVolumePath                    = "/conf.d"
 	ChecksdVolumeName                  = "checksd"

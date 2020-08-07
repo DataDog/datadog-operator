@@ -76,6 +76,12 @@ func clusterChecksRunnerDefaultVolumeMounts() []corev1.VolumeMount {
 			MountPath: datadoghqv1alpha1.ConfigVolumePath,
 		},
 		{
+			Name:      "installinfo",
+			SubPath:   "install_info",
+			MountPath: "/etc/datadog-agent/install_info",
+			ReadOnly:  true,
+		},
+		{
 			Name:      "s6-run",
 			MountPath: "/var/run/s6",
 		},
@@ -98,6 +104,16 @@ func clusterChecksRunnerDefaultVolumes() []corev1.Volume {
 			Name: datadoghqv1alpha1.ConfigVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
+			Name: "installinfo",
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: "foo-install-info",
+					},
+				},
 			},
 		},
 		{

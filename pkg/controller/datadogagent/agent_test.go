@@ -80,6 +80,16 @@ func defaultLivenessProbe() *corev1.Probe {
 func defaultVolumes() []corev1.Volume {
 	return []corev1.Volume{
 		{
+			Name: datadoghqv1alpha1.InstallInfoVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: "foo-install-info",
+					},
+				},
+			},
+		},
+		{
 			Name: datadoghqv1alpha1.ConfdVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
@@ -126,6 +136,12 @@ func defaultVolumes() []corev1.Volume {
 
 func defaultMountVolume() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
+		{
+			Name:      "installinfo",
+			SubPath:   "install_info",
+			MountPath: "/etc/datadog-agent/install_info",
+			ReadOnly:  true,
+		},
 		{
 			Name:      "confd",
 			MountPath: "/conf.d",
@@ -559,6 +575,16 @@ func Test_newExtendedDaemonSetFromInstance_CustomConfigMaps(t *testing.T) {
 	customConfigMapsPodSpec := defaultPodSpec()
 	customConfigMapsPodSpec.Volumes = []corev1.Volume{
 		{
+			Name: datadoghqv1alpha1.InstallInfoVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: "foo-install-info",
+					},
+				},
+			},
+		},
+		{
 			Name: datadoghqv1alpha1.ConfdVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
@@ -673,6 +699,16 @@ func Test_newExtendedDaemonSetFromInstance_CustomDatadogYaml(t *testing.T) {
 	customConfigMapCustomDatadogYamlSpec := defaultPodSpec()
 	customConfigMapCustomDatadogYamlSpec.Volumes = []corev1.Volume{
 		{
+			Name: datadoghqv1alpha1.InstallInfoVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: "foo-install-info",
+					},
+				},
+			},
+		},
+		{
 			Name: datadoghqv1alpha1.ConfdVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
@@ -726,6 +762,12 @@ func Test_newExtendedDaemonSetFromInstance_CustomDatadogYaml(t *testing.T) {
 		},
 	}
 	customConfigMapCustomDatadogYamlSpec.Containers[0].VolumeMounts = []corev1.VolumeMount{
+		{
+			Name:      "installinfo",
+			SubPath:   "install_info",
+			MountPath: "/etc/datadog-agent/install_info",
+			ReadOnly:  true,
+		},
 		{
 			Name:      "confd",
 			MountPath: "/conf.d",

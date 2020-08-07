@@ -22,6 +22,7 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	"github.com/DataDog/datadog-operator/version"
 	edsdatadoghqv1alpha1 "github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1"
 )
 
@@ -290,6 +291,11 @@ func (r *ReconcileDatadogAgent) manageAgentDependencies(logger logr.Logger, dda 
 		return result, err
 	}
 
+	result, err = r.manageConfigMap(logger, dda, getInstallInfoConfigMapName(dda), buildInstallInfoConfigMap)
+	if shouldReturn(result, err) {
+		return result, err
+	}
+
 	return reconcile.Result{}, nil
 }
 
@@ -389,4 +395,31 @@ func buildAgentConfigurationConfigMap(dda *datadoghqv1alpha1.DatadogAgent) (*cor
 		return nil, nil
 	}
 	return buildConfigurationConfigMap(dda, dda.Spec.Agent.CustomConfig, getAgentCustomConfigConfigMapName(dda), datadoghqv1alpha1.AgentCustomConfigVolumeSubPath)
+}
+
+func getInstallInfoConfigMapName(dda *datadoghqv1alpha1.DatadogAgent) string {
+	return fmt.Sprintf("%s-install-info", dda.Name)
+}
+
+const installInfoDataTmpl = `---
+install_method:
+  tool: datadog-operator
+  tool_version: datadog-operator
+  installer_version: %s
+`
+
+func buildInstallInfoConfigMap(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.ConfigMap, error) {
+	configMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        getInstallInfoConfigMapName(dda),
+			Namespace:   dda.Namespace,
+			Labels:      getDefaultLabels(dda, dda.Name, getAgentVersion(dda)),
+			Annotations: getDefaultAnnotations(dda),
+		},
+		Data: map[string]string{
+			"install_info": fmt.Sprintf(installInfoDataTmpl, version.Version),
+		},
+	}
+
+	return configMap, nil
 }

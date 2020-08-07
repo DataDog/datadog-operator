@@ -216,6 +216,10 @@ func (r *ReconcileDatadogAgent) manageClusterChecksRunnerDependencies(logger log
 	if shouldReturn(result, err) {
 		return result, err
 	}
+	result, err = r.manageConfigMap(logger, dda, getInstallInfoConfigMapName(dda), buildInstallInfoConfigMap)
+	if shouldReturn(result, err) {
+		return result, err
+	}
 	return reconcile.Result{}, nil
 }
 
@@ -406,6 +410,16 @@ func getVolumesForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []cor
 		getVolumeForChecksd(dda),
 		getVolumeForConfig(),
 		{
+			Name: datadoghqv1alpha1.InstallInfoVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: getInstallInfoConfigMapName(dda),
+					},
+				},
+			},
+		},
+		{
 			Name: "s6-run",
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
@@ -431,6 +445,12 @@ func getVolumeMountsForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) 
 	volumeMounts := []corev1.VolumeMount{
 		getVolumeMountForChecksd(),
 		getVolumeMountForConfig(),
+		{
+			Name:      datadoghqv1alpha1.InstallInfoVolumeName,
+			SubPath:   datadoghqv1alpha1.InstallInfoVolumeSubPath,
+			MountPath: datadoghqv1alpha1.InstallInfoVolumePath,
+			ReadOnly:  datadoghqv1alpha1.InstallInfoVolumeReadOnly,
+		},
 		{
 			Name:      "s6-run",
 			MountPath: "/var/run/s6",
