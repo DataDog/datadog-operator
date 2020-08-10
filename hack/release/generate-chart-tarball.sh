@@ -22,7 +22,7 @@ cp -Lr $GIT_ROOT/chart/* $OUTPUT_FOLDER/
 
 for CHART in datadog-operator datadog-agent-with-operator
 do
-    $SED "s/PLACEHOLDER_VERSION/$VERSION/g" $OUTPUT_FOLDER/$CHART/Chart.yaml
-    $SED "s/PLACEHOLDER_VERSION/$VERSION/g" $OUTPUT_FOLDER/$CHART/values.yaml
+    find $OUTPUT_FOLDER/$CHART -name Chart.yaml | xargs $SED "s/PLACEHOLDER_VERSION/$VERSION/g"
+    find $OUTPUT_FOLDER/$CHART -name values.yaml | xargs $SED "s/PLACEHOLDER_VERSION/$VERSION/g"
     tar -zcvf $OUTPUT_FOLDER/$CHART.tar.gz -C $OUTPUT_FOLDER $CHART
 done
