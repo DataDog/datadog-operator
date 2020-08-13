@@ -43,6 +43,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           body_path: dist/CHANGELOG.md
+          prerelease: ${{ contains(github.ref, '-rc.') }}
           files: |
             dist/datadog-plugin.yaml
             dist/*.zip
