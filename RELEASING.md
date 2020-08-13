@@ -8,7 +8,7 @@
     - For a release candidate, run the following command, locally: `make VERSION=x.v.z RELEASE_CANDIDATE=1 pre-release`
 
       For example, to generate the release version `0.3.0-rc.2`, run: `make VERSION=0.3.0 RELEASE_CANDIDATE=2 pre-release`
-     - For a final release, run the following command, locally: `make VERSION=x.v.z pre-release`
+    - For a final release, run the following command, locally: `make VERSION=x.v.z pre-release`
 
 3. Commit all the changes generated from the previous command:
 
@@ -19,10 +19,8 @@
    $ git commit -s -m "release vX.Y.X-rc.W"
    ```
 
-4. Uncomment the job `push_latest_to_docker_hub` in `.gitlab-ci.yml` in case you plan to push the image to dockerhub with the `latest` image tag.
-
-5. Add release tag, correct format: `git tag vX.Y.Z` or `git tag vX.Y.Z-rc.W`
-6. Push the generated commit and tag to the repostory branch.
+4. Add release tag, correct format: `git tag vX.Y.Z` or `git tag vX.Y.Z-rc.W`
+5. Push the generated commit and tag to the repostory branch.
 
    ```console
    $ git push origin vX.Y.Z
