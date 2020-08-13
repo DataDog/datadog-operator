@@ -36,7 +36,7 @@ $ROOT/bin/yq w -i $ROOT/deploy/operator.yaml "spec.template.spec.containers[0].i
 make VERSION=$VERSION generate-olm 
 
 # Patch OLM Generation
-OLM_FILE=$ROOT/deploy/olm-catalog/datadog-operator/$VERSION/datadog-operator.$VVERSION.clusterserviceversion.yaml
+OLM_FILE=$ROOT/deploy/olm-catalog/datadog-operator/$VERSION/datadog-operator.clusterserviceversion.yaml
 $ROOT/bin/yq m -i --overwrite --autocreate=true $OLM_FILE $ROOT/hack/release/cluster-service-version-patch.yaml
 $ROOT/bin/yq w -i $OLM_FILE "spec.customresourcedefinitions.owned[0].displayName" "Datadog Agent"
 $ROOT/bin/yq w -i $OLM_FILE "spec.replaces" "datadog-operator.v$PREVIOUS_VERSION"
