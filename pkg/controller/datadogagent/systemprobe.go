@@ -122,6 +122,8 @@ const systemProbeSecCompData = `{
 			"epoll_wait",
 			"epoll_wait",
 			"epoll_wait_old",
+			"eventfd",
+			"eventfd2",
 			"execve",
 			"execveat",
 			"exit",
