@@ -80,7 +80,7 @@ generate-olm: bin/operator-sdk
 	./bin/operator-sdk generate packagemanifests --version $(VERSION) --update-crds --interactive=false
 
 pre-release: bin/yq
-	./hack/pre-release.sh $(VERSION)
+	./hack/pre-release.sh $(VERSION) $(RELEASE_CANDIDATE)
 
 CRDS = $(wildcard deploy/crds/*_crd.yaml)
 local-load: $(CRDS)
