@@ -4,7 +4,7 @@
 replicaCount: 1
 image:
   repository: datadog/operator
-  tag: "PLACEHOLDER_VERSION"
+  tag: 0.3.0-rc.1
   pullPolicy: IfNotPresent
 imagePullSecrets: []
 nameOverride: ""
@@ -13,11 +13,9 @@ logLevel: "info"
 supportExtendedDaemonset: "false"
 probesPort: 9090
 metricsPort: 8383
-
 secretBackend:
   # Specifies the path to the command that implements the secret backend api
   command: ""
-
 rbac:
   # Specifies whether the RBAC resources should be created
   create: true

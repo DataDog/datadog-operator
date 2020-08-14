@@ -1,7 +1,7 @@
 channels:
 - currentCSV: datadog-operator.v0.2.2
   name: beta
-- currentCSV: datadog-operator.v0.2.2
+- currentCSV: datadog-operator.v0.3.0-rc.1
   name: test
 defaultChannel: beta
 packageName: datadog-operator
