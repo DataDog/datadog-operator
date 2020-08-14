@@ -1,0 +1,16 @@
+name: pull request linter
+on:
+  pull_request:
+   types: [opened, labeled, unlabeled, synchronize]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out code into the Go module directory
+      uses: actions/checkout@v1
+    - name: Verify Pull Request Labels
+      uses: jesusvasquez333/verify-pr-label-action@v1.1.0
+      with:
+        github-token: '${{ secrets.GITHUB_TOKEN }}'
+        valid-labels: 'bug, enhancement, documentation'
+    
