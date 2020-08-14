@@ -14,9 +14,9 @@
 
    ```console
    $ git add .
-   $ git commit -s -m "release vX.Y.X"
+   $ git commit -S -m "release vX.Y.X"
    # or
-   $ git commit -s -m "release vX.Y.X-rc.W"
+   $ git commit -S -m "release vX.Y.X-rc.W"
    ```
 
 4. Add release tag, correct format: `git tag vX.Y.Z` or `git tag vX.Y.Z-rc.W`
