@@ -68,9 +68,22 @@ validate: bin/golangci-lint bin/wwhrd
 	./bin/golangci-lint run ./...
 	./hack/verify-license.sh > /dev/null
 
-generate: bin/operator-sdk bin/openapi-gen bin/client-gen bin/informer-gen bin/lister-gen
+generate: generate-k8s generate-crds patch-crds
+
+generate-k8s: bin/operator-sdk
 	./bin/operator-sdk generate k8s
+
+generate-crds: bin/operator-sdk
+	rm -f ./deploy/crds/*.yaml
 	./bin/operator-sdk generate crds --crd-version=v1beta1
+	mv ./deploy/crds/*.yaml ./deploy/crds/v1beta1/
+	./bin/operator-sdk generate crds --crd-version=v1
+	mv ./deploy/crds/*.yaml ./deploy/crds/v1/
+
+patch-crds: bin/yq generate-crds
+	./hack/patch-crds.sh
+
+generate-openapi: bin/openapi-gen bin/client-gen bin/informer-gen bin/lister-gen
 	./bin/openapi-gen --logtostderr=true -o "" -i ./pkg/apis/datadoghq/v1alpha1 -O zz_generated.openapi -p ./pkg/apis/datadoghq/v1alpha1 -h ./hack/boilerplate.go.txt -r "-"
 	./hack/generate-groups.sh client,lister,informer \
   github.com/DataDog/datadog-operator/pkg/generated github.com/DataDog/datadog-operator/pkg/apis datadoghq:v1alpha1 \
