@@ -616,7 +616,8 @@ func (r *ReconcileDatadogAgent) manageClusterAgentRBACs(logger logr.Logger, dda 
 	}
 
 	// Create or delete external metrics reader ClusterRole and ClusterRoleBinding
-	metricsReaderClusterRoleName := getExternalMetricsReaderClusterRoleName(dda)
+	metricsReaderClusterRoleName := getExternalMetricsReaderClusterRoleName(dda, r.versionInfo)
+
 	metricsReaderClusterRole := &rbacv1.ClusterRole{}
 	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: metricsReaderClusterRoleName}, metricsReaderClusterRole); err != nil {
 		if errors.IsNotFound(err) {
@@ -772,7 +773,7 @@ func (r *ReconcileDatadogAgent) cleanupClusterAgentRbacResources(logger logr.Log
 		return result, err
 	}
 
-	externalMetricsReaderName := getExternalMetricsReaderClusterRoleName(dda)
+	externalMetricsReaderName := getExternalMetricsReaderClusterRoleName(dda, r.versionInfo)
 	if result, err := r.cleanupClusterRoleBinding(logger, r.client, dda, externalMetricsReaderName); err != nil {
 		return result, err
 	}

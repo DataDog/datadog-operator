@@ -13,6 +13,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	edsdatadoghqv1alpha1 "github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1"
+	"github.com/pkg/errors"
 
 	"github.com/go-logr/logr"
 	"github.com/spf13/pflag"
@@ -24,6 +25,8 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/version"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/tools/record"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -73,12 +76,27 @@ func Add(mgr manager.Manager) error {
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager) (reconcile.Reconciler, metricForwardersManager, error) {
+	cfg := mgr.GetConfig()
+
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(cfg)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "failed to get discovery client")
+	}
+
+	versionInfo, err := discoveryClient.ServerVersion()
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "failed to get server version")
+	}
+
+	log.Info("running on", "version", versionInfo.String())
+
 	forwarders := datadog.NewForwardersManager(mgr.GetClient())
 	reconciler := &ReconcileDatadogAgent{
-		client:     mgr.GetClient(),
-		scheme:     mgr.GetScheme(),
-		recorder:   mgr.GetEventRecorderFor("DatadogAgent"),
-		forwarders: forwarders,
+		client:      mgr.GetClient(),
+		scheme:      mgr.GetScheme(),
+		recorder:    mgr.GetEventRecorderFor("DatadogAgent"),
+		forwarders:  forwarders,
+		versionInfo: versionInfo,
 	}
 	return reconciler, forwarders, mgr.Add(forwarders)
 }
@@ -229,10 +247,11 @@ var _ reconcile.Reconciler = &ReconcileDatadogAgent{}
 type ReconcileDatadogAgent struct {
 	// This client, initialized using mgr.Client() above, is a split client
 	// that reads objects from the cache and writes to the apiserver
-	client     client.Client
-	scheme     *runtime.Scheme
-	recorder   record.EventRecorder
-	forwarders metricForwardersManager
+	client      client.Client
+	scheme      *runtime.Scheme
+	recorder    record.EventRecorder
+	forwarders  metricForwardersManager
+	versionInfo *version.Info
 }
 
 // Reconcile reads that state of the cluster for a DatadogAgent object and makes changes based on the state read

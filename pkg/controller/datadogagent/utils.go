@@ -11,6 +11,7 @@ import (
 	"math/rand"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
@@ -23,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/version"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -1145,7 +1147,11 @@ func getHPAClusterRoleBindingName(dda *datadoghqv1alpha1.DatadogAgent) string {
 	return fmt.Sprintf(authDelegatorName, getClusterAgentRbacResourcesName(dda))
 }
 
-func getExternalMetricsReaderClusterRoleName(dda *datadoghqv1alpha1.DatadogAgent) string {
+func getExternalMetricsReaderClusterRoleName(dda *datadoghqv1alpha1.DatadogAgent, versionInfo *version.Info) string {
+	if versionInfo != nil && strings.Contains(versionInfo.GitVersion, "-gke.") {
+		// For GKE clusters the name of the role is hardcoded and cannot be changed - HPA controller expects this name
+		return "external-metrics-reader"
+	}
 	return fmt.Sprintf(externalMetricsReaderName, getClusterAgentRbacResourcesName(dda))
 }
 
