@@ -25,6 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
+	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -54,6 +55,11 @@ func init() {
 func Add(mgr manager.Manager) error {
 	//Add Extendeddaemonset scheme
 	if err := edsdatadoghqv1alpha1.AddToScheme(mgr.GetScheme()); err != nil {
+		return err
+	}
+
+	//Add APIService scheme
+	if err := apiregistrationv1.AddToScheme(mgr.GetScheme()); err != nil {
 		return err
 	}
 

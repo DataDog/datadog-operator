@@ -28,8 +28,9 @@ import (
 )
 
 const (
-	authDelegatorName   = "%s-auth-delegator"
-	datadogOperatorName = "DatadogAgent"
+	authDelegatorName         = "%s-auth-delegator"
+	datadogOperatorName       = "DatadogAgent"
+	externalMetricsReaderName = "%s-metrics-reader"
 )
 
 func init() {
@@ -1124,6 +1125,10 @@ func getMetricsServerServiceName(dda *datadoghqv1alpha1.DatadogAgent) string {
 	return fmt.Sprintf("%s-%s", dda.Name, datadoghqv1alpha1.DefaultMetricsServerResourceSuffix)
 }
 
+func getMetricsServerAPIServiceName() string {
+	return fmt.Sprintf("v1beta1.external.metrics.k8s.io")
+}
+
 func getClusterAgentRbacResourcesName(dda *datadoghqv1alpha1.DatadogAgent) string {
 	return fmt.Sprintf("%s-%s", dda.Name, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix)
 }
@@ -1138,6 +1143,10 @@ func getClusterChecksRunnerRbacResourcesName(dda *datadoghqv1alpha1.DatadogAgent
 
 func getHPAClusterRoleBindingName(dda *datadoghqv1alpha1.DatadogAgent) string {
 	return fmt.Sprintf(authDelegatorName, getClusterAgentRbacResourcesName(dda))
+}
+
+func getExternalMetricsReaderClusterRoleName(dda *datadoghqv1alpha1.DatadogAgent) string {
+	return fmt.Sprintf(externalMetricsReaderName, getClusterAgentRbacResourcesName(dda))
 }
 
 func getClusterChecksRunnerServiceAccount(dda *datadoghqv1alpha1.DatadogAgent) string {

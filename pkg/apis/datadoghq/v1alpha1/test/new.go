@@ -16,6 +16,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
 	edsdatadoghqv1alpha1 "github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1"
+	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 )
 
 var (
@@ -425,4 +426,45 @@ func NewService(ns, name string, opts *NewServiceOptions) *corev1.Service {
 	}
 
 	return service
+}
+
+// NewAPIServiceOptions used to provide options to the NewAPIService function
+type NewAPIServiceOptions struct {
+	CreationTime *time.Time
+	Annotations  map[string]string
+	Labels       map[string]string
+	Spec         *apiregistrationv1.APIServiceSpec
+}
+
+// NewAPIService returns new apiregistrationv1.APIService instance
+func NewAPIService(ns, name string, opts *NewAPIServiceOptions) *apiregistrationv1.APIService {
+	apiService := &apiregistrationv1.APIService{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "APIService",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace:   ns,
+			Name:        name,
+			Labels:      map[string]string{},
+			Annotations: map[string]string{},
+		},
+	}
+
+	if opts != nil {
+		if opts.CreationTime != nil {
+			apiService.CreationTimestamp = metav1.NewTime(*opts.CreationTime)
+		}
+		if opts.Labels != nil {
+			apiService.Labels = opts.Labels
+		}
+		if opts.Annotations != nil {
+			apiService.Annotations = opts.Annotations
+		}
+		if opts.Spec != nil {
+			apiService.Spec = *opts.Spec
+		}
+	}
+
+	return apiService
 }
