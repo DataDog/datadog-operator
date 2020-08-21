@@ -92,12 +92,8 @@ func newClusterAgentService(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.Servic
 }
 
 func (r *ReconcileDatadogAgent) manageMetricsServerService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
-	if dda.Spec.ClusterAgent == nil {
-		return r.cleanupMetricsServerService(dda)
-	}
-
 	if !isMetricsProviderEnabled(dda.Spec.ClusterAgent) {
-		return reconcile.Result{}, nil
+		return r.cleanupMetricsServerService(dda)
 	}
 
 	serviceName := getMetricsServerServiceName(dda)
@@ -114,12 +110,8 @@ func (r *ReconcileDatadogAgent) manageMetricsServerService(logger logr.Logger, d
 }
 
 func (r *ReconcileDatadogAgent) manageMetricsServerAPIService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
-	if dda.Spec.ClusterAgent == nil {
-		return r.cleanupMetricsServerAPIService(logger)
-	}
-
 	if !isMetricsProviderEnabled(dda.Spec.ClusterAgent) {
-		return reconcile.Result{}, nil
+		return r.cleanupMetricsServerAPIService(logger)
 	}
 
 	apiServiceName := getMetricsServerAPIServiceName()
@@ -136,12 +128,8 @@ func (r *ReconcileDatadogAgent) manageMetricsServerAPIService(logger logr.Logger
 }
 
 func (r *ReconcileDatadogAgent) manageAdmissionControllerService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
-	if dda.Spec.ClusterAgent == nil {
-		return r.cleanupAdmissionControllerService(dda)
-	}
-
 	if !isAdmissionControllerEnabled(dda.Spec.ClusterAgent) {
-		return reconcile.Result{}, nil
+		return r.cleanupAdmissionControllerService(dda)
 	}
 
 	serviceName := getAdmissionControllerServiceName(dda)
