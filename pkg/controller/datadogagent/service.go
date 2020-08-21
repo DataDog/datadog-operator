@@ -115,7 +115,7 @@ func (r *ReconcileDatadogAgent) manageMetricsServerService(logger logr.Logger, d
 
 func (r *ReconcileDatadogAgent) manageMetricsServerAPIService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
 	if dda.Spec.ClusterAgent == nil {
-		return r.cleanupMetricsServerAPIService(dda)
+		return r.cleanupMetricsServerAPIService(logger)
 	}
 
 	if !isMetricsProviderEnabled(dda.Spec.ClusterAgent) {
@@ -177,9 +177,9 @@ func (r *ReconcileDatadogAgent) cleanupMetricsServerService(dda *datadoghqv1alph
 	return cleanupService(r.client, serviceName, dda.Namespace)
 }
 
-func (r *ReconcileDatadogAgent) cleanupMetricsServerAPIService(dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
-	apiServiceName := getMetricsServerServiceName(dda)
-	return cleanupAPIService(r.client, apiServiceName, dda.Namespace)
+func (r *ReconcileDatadogAgent) cleanupMetricsServerAPIService(logger logr.Logger) (reconcile.Result, error) {
+	apiServiceName := getMetricsServerAPIServiceName()
+	return r.cleanupAPIService(logger, apiServiceName)
 }
 
 func (r *ReconcileDatadogAgent) cleanupAdmissionControllerService(dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
@@ -209,7 +209,7 @@ func (r *ReconcileDatadogAgent) createService(logger logr.Logger, dda *datadoghq
 	if err := r.client.Create(context.TODO(), newService); err != nil {
 		return reconcile.Result{}, err
 	}
-	logger.Info("Create Service", "name", newService.Name)
+	logger.Info("Created Service", "name", newService.Name)
 	event := buildEventInfo(newService.Name, newService.Namespace, serviceKind, datadog.CreationEvent)
 	r.recordEvent(dda, event)
 
@@ -221,9 +221,10 @@ func (r *ReconcileDatadogAgent) createAPIService(logger logr.Logger, dda *datado
 		return reconcile.Result{}, err
 	}
 	if err := r.client.Create(context.TODO(), newAPIService); err != nil {
+		logger.Error(err, "failed to create APIService", "name", newAPIService.Name)
 		return reconcile.Result{}, err
 	}
-	logger.Info("Create APIService", "name", newAPIService.Name)
+	logger.Info("Created APIService", "name", newAPIService.Name)
 	event := buildEventInfo(newAPIService.Name, newAPIService.Namespace, apiServiceKind, datadog.CreationEvent)
 	r.recordEvent(dda, event)
 
@@ -243,16 +244,20 @@ func cleanupService(client client.Client, name, namespace string) (reconcile.Res
 	return reconcile.Result{}, err
 }
 
-func cleanupAPIService(client client.Client, name, namespace string) (reconcile.Result, error) {
+func (r *ReconcileDatadogAgent) cleanupAPIService(logger logr.Logger, name string) (reconcile.Result, error) {
 	apiService := &apiregistrationv1.APIService{}
-	err := client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, apiService)
+	err := r.client.Get(context.TODO(), types.NamespacedName{Name: name}, apiService)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return reconcile.Result{}, nil
 		}
 		return reconcile.Result{}, err
 	}
-	err = client.Delete(context.TODO(), apiService)
+	err = r.client.Delete(context.TODO(), apiService)
+	if err != nil {
+		logger.Error(err, "failed to delete APIService", "name", name)
+	}
+	logger.Info("Deleted APIService", "name", name)
 	return reconcile.Result{}, err
 }
 
