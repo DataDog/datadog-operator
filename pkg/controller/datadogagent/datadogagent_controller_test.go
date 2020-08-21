@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
+
 	"fmt"
 	"testing"
 	"time"
@@ -27,12 +28,14 @@ import (
 	policyv1 "k8s.io/api/policy/v1beta1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/record"
+	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -140,6 +143,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 	s.AddKnownTypes(rbacv1.SchemeGroupVersion, &rbacv1.Role{})
 	s.AddKnownTypes(rbacv1.SchemeGroupVersion, &rbacv1.RoleBinding{})
 	s.AddKnownTypes(policyv1.SchemeGroupVersion, &policyv1.PodDisruptionBudget{})
+	s.AddKnownTypes(apiregistrationv1.SchemeGroupVersion, &apiregistrationv1.APIService{})
 
 	defaultRequeueDuration := 15 * time.Second
 
@@ -1312,6 +1316,26 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 					_, _ = comparison.SetMD5GenerationAnnotation(&dcaExternalMetricsService.ObjectMeta, dcaExternalMetricsService.Spec)
 					dcaExternalMetricsService.Labels = commonDCAlabels
 					_ = c.Create(context.TODO(), dcaExternalMetricsService)
+
+					port := int32(datadoghqv1alpha1.DefaultMetricsServerServicePort)
+					dcaExternalMetricsAPIService := test.NewAPIService("", "v1beta1.external.metrics.k8s.io", &test.NewAPIServiceOptions{
+						Spec: &apiregistrationv1.APIServiceSpec{
+							Service: &apiregistrationv1.ServiceReference{
+								Namespace: resourcesNamespace,
+								Name:      "foo-cluster-agent-metrics-server",
+								Port:      &port,
+							},
+							Version:               "v1beta1",
+							InsecureSkipTLSVerify: true,
+							Group:                 "external.metrics.k8s.io",
+							GroupPriorityMinimum:  100,
+							VersionPriority:       100,
+						},
+					})
+					_, _ = comparison.SetMD5GenerationAnnotation(&dcaExternalMetricsAPIService.ObjectMeta, dcaExternalMetricsAPIService.Spec)
+					dcaExternalMetricsAPIService.Labels = commonDCAlabels
+					_ = c.Create(context.TODO(), dcaExternalMetricsAPIService)
+
 					_ = c.Create(context.TODO(), buildClusterAgentPDB(dda))
 
 				},

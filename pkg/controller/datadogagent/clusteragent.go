@@ -80,9 +80,8 @@ func (r *ReconcileDatadogAgent) reconcileClusterAgent(logger logr.Logger, dda *d
 		if clusterAgentDeployment.Status.AvailableReplicas == 0 {
 			return reconcile.Result{RequeueAfter: defaultRequeuePeriod}, fmt.Errorf("cluster agent deployment is not ready yet: 0 pods available out of %d", clusterAgentDeployment.Status.Replicas)
 		}
-
-		return reconcile.Result{}, nil
 	}
+
 	return reconcile.Result{}, nil
 }
 
@@ -224,6 +223,11 @@ func (r *ReconcileDatadogAgent) manageClusterAgentDependencies(logger logr.Logge
 	}
 
 	result, err = r.manageMetricsServerService(logger, dda)
+	if shouldReturn(result, err) {
+		return result, err
+	}
+
+	result, err = r.manageMetricsServerAPIService(logger, dda)
 	if shouldReturn(result, err) {
 		return result, err
 	}
@@ -595,20 +599,49 @@ func (r *ReconcileDatadogAgent) manageClusterAgentRBACs(logger logr.Logger, dda 
 		return reconcile.Result{}, err
 	}
 
-	// Create or delete HPA ClusterRoleBindig
+	metricsProviderEnabled := isMetricsProviderEnabled(dda.Spec.ClusterAgent)
+	// Create or delete HPA ClusterRoleBinding
 	hpaClusterRoleBindingName := getHPAClusterRoleBindingName(dda)
 	hpaClusterRoleBinding := &rbacv1.ClusterRoleBinding{}
-	if isMetricsProviderEnabled(dda.Spec.ClusterAgent) {
-		if err := r.client.Get(context.TODO(), types.NamespacedName{Name: hpaClusterRoleBindingName}, hpaClusterRoleBinding); err != nil {
-			if errors.IsNotFound(err) {
+	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: hpaClusterRoleBindingName}, hpaClusterRoleBinding); err != nil {
+		if errors.IsNotFound(err) {
+			if metricsProviderEnabled {
 				return r.createHPAClusterRoleBinding(logger, dda, hpaClusterRoleBindingName, clusterAgentVersion)
 			}
+		} else {
 			return reconcile.Result{}, err
 		}
-	} else {
-		if result, err := r.deleteIfNeededHpaClusterRoleBinding(logger, dda, hpaClusterRoleBindingName, clusterAgentVersion, hpaClusterRoleBinding); err != nil {
-			return result, err
+	} else if !metricsProviderEnabled {
+		return r.cleanupClusterRoleBinding(logger, r.client, dda, hpaClusterRoleBindingName)
+	}
+
+	// Create or delete external metrics reader ClusterRole and ClusterRoleBinding
+	metricsReaderClusterRoleName := getExternalMetricsReaderClusterRoleName(dda, r.versionInfo)
+
+	metricsReaderClusterRole := &rbacv1.ClusterRole{}
+	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: metricsReaderClusterRoleName}, metricsReaderClusterRole); err != nil {
+		if errors.IsNotFound(err) {
+			if metricsProviderEnabled {
+				return r.createExternalMetricsReaderClusterRole(logger, dda, metricsReaderClusterRoleName, clusterAgentVersion)
+			}
+		} else {
+			return reconcile.Result{}, err
 		}
+	} else if !metricsProviderEnabled {
+		return r.cleanupClusterRole(logger, r.client, dda, metricsReaderClusterRoleName)
+	}
+
+	metricsReaderClusterRoleBinding := &rbacv1.ClusterRoleBinding{}
+	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: metricsReaderClusterRoleName}, metricsReaderClusterRoleBinding); err != nil {
+		if errors.IsNotFound(err) {
+			if metricsProviderEnabled {
+				return r.createExternalMetricsReaderClusterRoleBinding(logger, dda, metricsReaderClusterRoleName, clusterAgentVersion)
+			}
+		} else {
+			return reconcile.Result{}, err
+		}
+	} else if !metricsProviderEnabled {
+		return r.cleanupClusterRoleBinding(logger, r.client, dda, metricsReaderClusterRoleName)
 	}
 
 	// Create ServiceAccount
@@ -739,6 +772,16 @@ func (r *ReconcileDatadogAgent) cleanupClusterAgentRbacResources(logger logr.Log
 	if result, err := r.cleanupClusterRoleBinding(logger, r.client, dda, hpaClusterRoleBindingName); err != nil {
 		return result, err
 	}
+
+	externalMetricsReaderName := getExternalMetricsReaderClusterRoleName(dda, r.versionInfo)
+	if result, err := r.cleanupClusterRoleBinding(logger, r.client, dda, externalMetricsReaderName); err != nil {
+		return result, err
+	}
+
+	if result, err := r.cleanupClusterRole(logger, r.client, dda, externalMetricsReaderName); err != nil {
+		return result, err
+	}
+
 	// Delete Service Account
 	if result, err := r.cleanupServiceAccount(logger, r.client, dda, rbacResourcesName); err != nil {
 		return result, err

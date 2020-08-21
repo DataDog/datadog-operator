@@ -38,4 +38,15 @@ rules:
   - 'cronjobs'
   verbs:
   - 'get'
+- apiGroups:
+  - apiregistration.k8s.io
+  resources:
+  - apiservices
+  verbs:
+  - get
+  - list
+  - watch
+  - update
+  - create
+  - delete
 {{- end -}}

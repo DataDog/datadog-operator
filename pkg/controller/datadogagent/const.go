@@ -28,4 +28,5 @@ const (
 	podDisruptionBudgetKind = "PodDisruptionBudget"
 	secretKind              = "Secret"
 	serviceKind             = "Service"
+	apiServiceKind          = "APIService"
 )
