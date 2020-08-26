@@ -94,8 +94,7 @@ push_tag_to_docker_hub:
     - docker build --build-arg TAG=${CI_COMMIT_TAG:1} -t $IMAGE_NAME -f Dockerfile .
     - docker push $IMAGE_NAME
 
-# remove the leading dot from the name to let the job appear in gitlab
-.push_latest_to_docker_hub:
+push_latest_to_docker_hub:
   only:
     - tags
   stage: release
