@@ -373,6 +373,14 @@ func getEnvVarsForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []cor
 				},
 			},
 		},
+		{
+			Name: datadoghqv1alpha1.DDHostname,
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: FieldPathSpecNodeName,
+				},
+			},
+		},
 	}
 
 	if spec.ClusterChecksRunner.Config.LogLevel != nil {

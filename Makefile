@@ -42,7 +42,7 @@ build-plugin: ${ARTIFACT_PLUGIN}
 ${ARTIFACT_PLUGIN}: ${SOURCES}
 	CGO_ENABLED=0 go build -i -installsuffix cgo ${LDFLAGS} -o ${ARTIFACT_PLUGIN} ./cmd/${ARTIFACT_PLUGIN}/main.go
 
-container:
+container: bin/operator-sdk
 	./bin/operator-sdk build $(PREFIX):$(TAG)
     ifeq ($(KINDPUSH), true)
 	 kind load docker-image --name $(KIND_CLUSTER_NAME) $(PREFIX):$(TAG)
@@ -54,7 +54,7 @@ container-ci:
 test:
 	./go.test.sh
 
-e2e:
+e2e: bin/operator-sdk
 	kubectl apply -f deploy/datadoghq_v1alpha1_extendeddaemonset_crd.yaml
 	./bin/operator-sdk test local ./test/e2e --go-test-flags '-v' --image $(PREFIX):$(TAG)
 
