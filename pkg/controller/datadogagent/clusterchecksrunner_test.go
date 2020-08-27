@@ -197,6 +197,14 @@ func clusterChecksRunnerDefaultEnvVars() []corev1.EnvVar {
 				},
 			},
 		},
+		{
+			Name: datadoghqv1alpha1.DDHostname,
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: FieldPathSpecNodeName,
+				},
+			},
+		},
 	}
 }
 

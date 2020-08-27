@@ -464,6 +464,14 @@ func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Env
 			Name:  datadoghqv1alpha1.DDLeaderElection,
 			Value: "true",
 		},
+		{
+			Name: datadoghqv1alpha1.DDHostname,
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: FieldPathSpecNodeName,
+				},
+			},
+		},
 	}
 
 	if spec.Agent != nil && spec.Agent.Config.DDUrl != nil {
