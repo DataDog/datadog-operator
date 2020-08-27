@@ -99,14 +99,6 @@ func clusterAgentDefaultEnvVars() []corev1.EnvVar {
 			Value: "true",
 		},
 		{
-			Name: datadoghqv1alpha1.DDHostname,
-			ValueFrom: &corev1.EnvVarSource{
-				FieldRef: &corev1.ObjectFieldSelector{
-					FieldPath: FieldPathSpecNodeName,
-				},
-			},
-		},
-		{
 			Name:      "DD_API_KEY",
 			ValueFrom: apiKeyValue(),
 		},

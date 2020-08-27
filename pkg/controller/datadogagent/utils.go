@@ -444,14 +444,6 @@ func getEnvVarsCommon(dda *datadoghqv1alpha1.DatadogAgent, needAPIKey bool) ([]c
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.DDHostname,
-			ValueFrom: &corev1.EnvVarSource{
-				FieldRef: &corev1.ObjectFieldSelector{
-					FieldPath: FieldPathSpecNodeName,
-				},
-			},
-		},
-		{
 			Name:  datadoghqv1alpha1.KubernetesEnvvarName,
 			Value: "yes",
 		},
