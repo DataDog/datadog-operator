@@ -49,4 +49,12 @@ rules:
   - update
   - create
   - delete
+- apiGroups:
+  - "datadoghq.com"
+  resources:
+  - "watermarkpodautoscalers"
+  verbs:
+  - "list"
+  - "get"
+  - "watch"
 {{- end -}}

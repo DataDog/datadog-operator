@@ -1603,6 +1603,13 @@ func schema_pkg_apis_datadoghq_v1alpha1_ExternalMetricsConfig(ref common.Referen
 							Format:      "",
 						},
 					},
+					"wpaController": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enable informer and controller of the watermark pod autoscaler NOTE: The WatermarkPodAutoscaler controller needs to be installed see https://github.com/DataDog/watermarkpodautoscaler for more details.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 					"useDatadogMetrics": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Enable usage of DatadogMetrics CRD (allow to scale on arbitrary queries)",
