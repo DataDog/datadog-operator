@@ -67,6 +67,12 @@ type NewDatadogAgentOptions struct {
 	AdmissionControllerEnabled      bool
 	AdmissionMutateUnlabelled       bool
 	AdmissionServiceName            string
+	ComplianceEnabled               bool
+	ComplianceCheckInterval         time.Duration
+	ComplianceConfigDir             *datadoghqv1alpha1.ConfigDirSpec
+	RuntimeSecurityEnabled          bool
+	RuntimeSyscallMonitorEnabled    bool
+	RuntimePoliciesDir              *datadoghqv1alpha1.ConfigDirSpec
 }
 
 // NewDefaultedDatadogAgent returns an initialized and defaulted DatadogAgent for testing purpose
@@ -250,6 +256,31 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 
 		if options.APISecret != nil {
 			ad.Spec.Credentials.APISecret = options.APISecret
+		}
+
+		if options.ComplianceEnabled {
+			ad.Spec.Agent.Security.Compliance.Enabled = datadoghqv1alpha1.NewBoolPointer(true)
+
+			if options.ComplianceCheckInterval != 0 {
+				ad.Spec.Agent.Security.Compliance.CheckInterval = &options.ComplianceCheckInterval
+			}
+			if options.ComplianceConfigDir != nil {
+				ad.Spec.Agent.Security.Compliance.ConfigDir = options.ComplianceConfigDir
+			}
+		}
+
+		if options.RuntimeSecurityEnabled {
+			ad.Spec.Agent.Security.Runtime.Enabled = datadoghqv1alpha1.NewBoolPointer(true)
+
+			if options.RuntimePoliciesDir != nil {
+				ad.Spec.Agent.Security.Runtime.PoliciesDir = options.RuntimePoliciesDir
+			}
+
+			if options.RuntimeSyscallMonitorEnabled {
+				ad.Spec.Agent.Security.Runtime.SyscallMonitor = &datadoghqv1alpha1.SyscallMonitorSpec{
+					Enabled: datadoghqv1alpha1.NewBoolPointer(true),
+				}
+			}
 		}
 	}
 	return datadoghqv1alpha1.DefaultDatadogAgent(ad)

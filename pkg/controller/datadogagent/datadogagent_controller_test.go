@@ -697,7 +697,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 			wantErr: false,
 			wantFunc: func(c client.Client) error {
 				configmap := &corev1.ConfigMap{}
-				if err := c.Get(context.TODO(), newRequest(resourcesNamespace, getSystemProbeConfiConfigMapName(resourcesName)).NamespacedName, configmap); err != nil {
+				if err := c.Get(context.TODO(), newRequest(resourcesNamespace, getSystemProbeConfigConfigMapName(resourcesName)).NamespacedName, configmap); err != nil {
 					return err
 				}
 

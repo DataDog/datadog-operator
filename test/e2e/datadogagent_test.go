@@ -238,6 +238,32 @@ func DeploymentDaemonset(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	t.Logf("Update the DatadogAgent to activate SecurityAgent")
+	updateWithSecurityAgent := func(ad *datadoghqv1alpha1.DatadogAgent) {
+		ad.Spec.Agent.Security.Compliance.Enabled = datadoghqv1alpha1.NewBoolPointer(true)
+		ad.Spec.Agent.Security.Runtime.Enabled = datadoghqv1alpha1.NewBoolPointer(true)
+	}
+	err = utils.UpdateDatadogAgentFunc(f, namespace, name, updateWithSecurityAgent, retryInterval, timeout)
+	if err != nil {
+		exportPodsLogs(t, f, namespace, err)
+		t.Fatal(err)
+	}
+
+	withSecurityAgentHash := ""
+	isSecurityAgentActivatedAndRunning := func(ds *appsv1.DaemonSet) (bool, error) {
+		withSecurityAgentHash = ds.Annotations[datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey]
+		if withSecurityAgentHash != withSystemProbeHash && withSecurityAgentHash != "" {
+			return true, nil
+		}
+		t.Logf("Daemonset pod not ready %#v", ds.Status)
+		return false, nil
+	}
+	err = utils.WaitForFuncOnDaemonSet(t, f.Client, namespace, dsName, isSecurityAgentActivatedAndRunning, retryInterval, timeout)
+	if err != nil {
+		exportPodsLogs(t, f, namespace, err)
+		t.Fatal(err)
+	}
+
 	t.Logf("Update the DatadogAgent with custom conf.d and checks.d")
 	updateWithConfigMaps := func(ad *datadoghqv1alpha1.DatadogAgent) {
 		ad.Spec.Agent.Config.Confd = &datadoghqv1alpha1.ConfigDirSpec{

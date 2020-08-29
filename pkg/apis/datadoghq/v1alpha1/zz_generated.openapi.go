@@ -18,38 +18,42 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"./pkg/apis/datadoghq/v1alpha1.APMSpec":                                 schema_pkg_apis_datadoghq_v1alpha1_APMSpec(ref),
-		"./pkg/apis/datadoghq/v1alpha1.AdmissionControllerConfig":               schema_pkg_apis_datadoghq_v1alpha1_AdmissionControllerConfig(ref),
-		"./pkg/apis/datadoghq/v1alpha1.AgentCredentials":                        schema_pkg_apis_datadoghq_v1alpha1_AgentCredentials(ref),
-		"./pkg/apis/datadoghq/v1alpha1.CRISocketConfig":                         schema_pkg_apis_datadoghq_v1alpha1_CRISocketConfig(ref),
-		"./pkg/apis/datadoghq/v1alpha1.ClusterAgentConfig":                      schema_pkg_apis_datadoghq_v1alpha1_ClusterAgentConfig(ref),
-		"./pkg/apis/datadoghq/v1alpha1.ClusterChecksRunnerConfig":               schema_pkg_apis_datadoghq_v1alpha1_ClusterChecksRunnerConfig(ref),
-		"./pkg/apis/datadoghq/v1alpha1.ConfigDirSpec":                           schema_pkg_apis_datadoghq_v1alpha1_ConfigDirSpec(ref),
-		"./pkg/apis/datadoghq/v1alpha1.ConfigFileConfigMapSpec":                 schema_pkg_apis_datadoghq_v1alpha1_ConfigFileConfigMapSpec(ref),
-		"./pkg/apis/datadoghq/v1alpha1.CustomConfigSpec":                        schema_pkg_apis_datadoghq_v1alpha1_CustomConfigSpec(ref),
-		"./pkg/apis/datadoghq/v1alpha1.DaemonSetDeploymentStrategy":             schema_pkg_apis_datadoghq_v1alpha1_DaemonSetDeploymentStrategy(ref),
-		"./pkg/apis/datadoghq/v1alpha1.DaemonSetRollingUpdateSpec":              schema_pkg_apis_datadoghq_v1alpha1_DaemonSetRollingUpdateSpec(ref),
-		"./pkg/apis/datadoghq/v1alpha1.DaemonSetStatus":                         schema_pkg_apis_datadoghq_v1alpha1_DaemonSetStatus(ref),
-		"./pkg/apis/datadoghq/v1alpha1.DatadogAgent":                            schema_pkg_apis_datadoghq_v1alpha1_DatadogAgent(ref),
-		"./pkg/apis/datadoghq/v1alpha1.DatadogAgentCondition":                   schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentCondition(ref),
-		"./pkg/apis/datadoghq/v1alpha1.DatadogAgentList":                        schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentList(ref),
-		"./pkg/apis/datadoghq/v1alpha1.DatadogAgentSpec":                        schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentSpec(ref),
-		"./pkg/apis/datadoghq/v1alpha1.DatadogAgentSpecAgentSpec":               schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentSpecAgentSpec(ref),
-		"./pkg/apis/datadoghq/v1alpha1.DatadogAgentSpecClusterAgentSpec":        schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentSpecClusterAgentSpec(ref),
-		"./pkg/apis/datadoghq/v1alpha1.DatadogAgentSpecClusterChecksRunnerSpec": schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentSpecClusterChecksRunnerSpec(ref),
-		"./pkg/apis/datadoghq/v1alpha1.DatadogAgentStatus":                      schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentStatus(ref),
-		"./pkg/apis/datadoghq/v1alpha1.DatadogMetric":                           schema_pkg_apis_datadoghq_v1alpha1_DatadogMetric(ref),
-		"./pkg/apis/datadoghq/v1alpha1.DatadogMetricCondition":                  schema_pkg_apis_datadoghq_v1alpha1_DatadogMetricCondition(ref),
-		"./pkg/apis/datadoghq/v1alpha1.DeploymentStatus":                        schema_pkg_apis_datadoghq_v1alpha1_DeploymentStatus(ref),
-		"./pkg/apis/datadoghq/v1alpha1.DogstatsdConfig":                         schema_pkg_apis_datadoghq_v1alpha1_DogstatsdConfig(ref),
-		"./pkg/apis/datadoghq/v1alpha1.ExternalMetricsConfig":                   schema_pkg_apis_datadoghq_v1alpha1_ExternalMetricsConfig(ref),
-		"./pkg/apis/datadoghq/v1alpha1.ImageConfig":                             schema_pkg_apis_datadoghq_v1alpha1_ImageConfig(ref),
-		"./pkg/apis/datadoghq/v1alpha1.LogSpec":                                 schema_pkg_apis_datadoghq_v1alpha1_LogSpec(ref),
-		"./pkg/apis/datadoghq/v1alpha1.NodeAgentConfig":                         schema_pkg_apis_datadoghq_v1alpha1_NodeAgentConfig(ref),
-		"./pkg/apis/datadoghq/v1alpha1.ProcessSpec":                             schema_pkg_apis_datadoghq_v1alpha1_ProcessSpec(ref),
-		"./pkg/apis/datadoghq/v1alpha1.RbacConfig":                              schema_pkg_apis_datadoghq_v1alpha1_RbacConfig(ref),
-		"./pkg/apis/datadoghq/v1alpha1.Secret":                                  schema_pkg_apis_datadoghq_v1alpha1_Secret(ref),
-		"./pkg/apis/datadoghq/v1alpha1.SystemProbeSpec":                         schema_pkg_apis_datadoghq_v1alpha1_SystemProbeSpec(ref),
+		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.APMSpec":                                 schema_pkg_apis_datadoghq_v1alpha1_APMSpec(ref),
+		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.AdmissionControllerConfig":               schema_pkg_apis_datadoghq_v1alpha1_AdmissionControllerConfig(ref),
+		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.AgentCredentials":                        schema_pkg_apis_datadoghq_v1alpha1_AgentCredentials(ref),
+		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.CRISocketConfig":                         schema_pkg_apis_datadoghq_v1alpha1_CRISocketConfig(ref),
+		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.ClusterAgentConfig":                      schema_pkg_apis_datadoghq_v1alpha1_ClusterAgentConfig(ref),
+		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.ClusterChecksRunnerConfig":               schema_pkg_apis_datadoghq_v1alpha1_ClusterChecksRunnerConfig(ref),
+		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.ComplianceSpec":                          schema_pkg_apis_datadoghq_v1alpha1_ComplianceSpec(ref),
+		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.ConfigDirSpec":                           schema_pkg_apis_datadoghq_v1alpha1_ConfigDirSpec(ref),
+		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.ConfigFileConfigMapSpec":                 schema_pkg_apis_datadoghq_v1alpha1_ConfigFileConfigMapSpec(ref),
+		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.CustomConfigSpec":                        schema_pkg_apis_datadoghq_v1alpha1_CustomConfigSpec(ref),
+		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DaemonSetDeploymentStrategy":             schema_pkg_apis_datadoghq_v1alpha1_DaemonSetDeploymentStrategy(ref),
+		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DaemonSetRollingUpdateSpec":              schema_pkg_apis_datadoghq_v1alpha1_DaemonSetRollingUpdateSpec(ref),
+		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DaemonSetStatus":                         schema_pkg_apis_datadoghq_v1alpha1_DaemonSetStatus(ref),
+		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DatadogAgent":                            schema_pkg_apis_datadoghq_v1alpha1_DatadogAgent(ref),
+		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DatadogAgentCondition":                   schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentCondition(ref),
+		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DatadogAgentList":                        schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentList(ref),
+		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DatadogAgentSpec":                        schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentSpec(ref),
+		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DatadogAgentSpecAgentSpec":               schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentSpecAgentSpec(ref),
+		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DatadogAgentSpecClusterAgentSpec":        schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentSpecClusterAgentSpec(ref),
+		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DatadogAgentSpecClusterChecksRunnerSpec": schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentSpecClusterChecksRunnerSpec(ref),
+		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DatadogAgentStatus":                      schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentStatus(ref),
+		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DatadogMetric":                           schema_pkg_apis_datadoghq_v1alpha1_DatadogMetric(ref),
+		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DatadogMetricCondition":                  schema_pkg_apis_datadoghq_v1alpha1_DatadogMetricCondition(ref),
+		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DeploymentStatus":                        schema_pkg_apis_datadoghq_v1alpha1_DeploymentStatus(ref),
+		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DogstatsdConfig":                         schema_pkg_apis_datadoghq_v1alpha1_DogstatsdConfig(ref),
+		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.ExternalMetricsConfig":                   schema_pkg_apis_datadoghq_v1alpha1_ExternalMetricsConfig(ref),
+		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.ImageConfig":                             schema_pkg_apis_datadoghq_v1alpha1_ImageConfig(ref),
+		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.LogSpec":                                 schema_pkg_apis_datadoghq_v1alpha1_LogSpec(ref),
+		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.NodeAgentConfig":                         schema_pkg_apis_datadoghq_v1alpha1_NodeAgentConfig(ref),
+		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.ProcessSpec":                             schema_pkg_apis_datadoghq_v1alpha1_ProcessSpec(ref),
+		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.RbacConfig":                              schema_pkg_apis_datadoghq_v1alpha1_RbacConfig(ref),
+		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.RuntimeSecuritySpec":                     schema_pkg_apis_datadoghq_v1alpha1_RuntimeSecuritySpec(ref),
+		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.Secret":                                  schema_pkg_apis_datadoghq_v1alpha1_Secret(ref),
+		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.SecuritySpec":                            schema_pkg_apis_datadoghq_v1alpha1_SecuritySpec(ref),
+		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.SyscallMonitorSpec":                      schema_pkg_apis_datadoghq_v1alpha1_SyscallMonitorSpec(ref),
+		"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.SystemProbeSpec":                         schema_pkg_apis_datadoghq_v1alpha1_SystemProbeSpec(ref),
 	}
 }
 
@@ -167,7 +171,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_AgentCredentials(ref common.ReferenceCal
 					"apiSecret": {
 						SchemaProps: spec.SchemaProps{
 							Description: "APISecret Use existing Secret which stores API key instead of creating a new one. If set, this parameter takes precedence over \"apiKey\" and \"apiKeyExistingSecret\".",
-							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.Secret"),
+							Ref:         ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.Secret"),
 						},
 					},
 					"appKey": {
@@ -187,7 +191,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_AgentCredentials(ref common.ReferenceCal
 					"appSecret": {
 						SchemaProps: spec.SchemaProps{
 							Description: "APPSecret Use existing Secret which stores API key instead of creating a new one. If set, this parameter takes precedence over \"apiKey\" and \"appKeyExistingSecret\".",
-							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.Secret"),
+							Ref:         ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.Secret"),
 						},
 					},
 					"token": {
@@ -208,7 +212,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_AgentCredentials(ref common.ReferenceCal
 			},
 		},
 		Dependencies: []string{
-			"./pkg/apis/datadoghq/v1alpha1.Secret"},
+			"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.Secret"},
 	}
 }
 
@@ -248,13 +252,13 @@ func schema_pkg_apis_datadoghq_v1alpha1_ClusterAgentConfig(ref common.ReferenceC
 				Properties: map[string]spec.Schema{
 					"externalMetrics": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("./pkg/apis/datadoghq/v1alpha1.ExternalMetricsConfig"),
+							Ref: ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.ExternalMetricsConfig"),
 						},
 					},
 					"admissionController": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Configure the Admission Controller",
-							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.AdmissionControllerConfig"),
+							Ref:         ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.AdmissionControllerConfig"),
 						},
 					},
 					"clusterChecksEnabled": {
@@ -280,7 +284,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_ClusterAgentConfig(ref common.ReferenceC
 					"confd": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Confd Provide additional cluster check configurations. Each key will become a file in /conf.d see https://docs.datadoghq.com/agent/autodiscovery/ for more details.",
-							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.ConfigDirSpec"),
+							Ref:         ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.ConfigDirSpec"),
 						},
 					},
 					"env": {
@@ -351,7 +355,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_ClusterAgentConfig(ref common.ReferenceC
 			},
 		},
 		Dependencies: []string{
-			"./pkg/apis/datadoghq/v1alpha1.AdmissionControllerConfig", "./pkg/apis/datadoghq/v1alpha1.ConfigDirSpec", "./pkg/apis/datadoghq/v1alpha1.ExternalMetricsConfig", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
+			"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.AdmissionControllerConfig", "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.ConfigDirSpec", "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.ExternalMetricsConfig", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
 	}
 }
 
@@ -447,6 +451,41 @@ func schema_pkg_apis_datadoghq_v1alpha1_ClusterChecksRunnerConfig(ref common.Ref
 	}
 }
 
+func schema_pkg_apis_datadoghq_v1alpha1_ComplianceSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ComplianceSpec contains configuration for continuous compliance",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enables continuous compliance monitoring",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"checkInterval": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Check interval",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"configDir": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Config dir containing compliance benchmarks",
+							Ref:         ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.ConfigDirSpec"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.ConfigDirSpec"},
+	}
+}
+
 func schema_pkg_apis_datadoghq_v1alpha1_ConfigDirSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -511,14 +550,14 @@ func schema_pkg_apis_datadoghq_v1alpha1_CustomConfigSpec(ref common.ReferenceCal
 					"configMap": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ConfigMap name of a ConfigMap used to mount the configuration file",
-							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.ConfigFileConfigMapSpec"),
+							Ref:         ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.ConfigFileConfigMapSpec"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./pkg/apis/datadoghq/v1alpha1.ConfigFileConfigMapSpec"},
+			"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.ConfigFileConfigMapSpec"},
 	}
 }
 
@@ -539,7 +578,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_DaemonSetDeploymentStrategy(ref common.R
 					"rollingUpdate": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Configure the rolling updater strategy of the DaemonSet or the ExtendedDaemonSet",
-							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.DaemonSetRollingUpdateSpec"),
+							Ref:         ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DaemonSetRollingUpdateSpec"),
 						},
 					},
 					"canary": {
@@ -558,7 +597,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_DaemonSetDeploymentStrategy(ref common.R
 			},
 		},
 		Dependencies: []string{
-			"./pkg/apis/datadoghq/v1alpha1.DaemonSetRollingUpdateSpec", "github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetSpecStrategyCanary", "k8s.io/apimachinery/pkg/apis/meta/v1.Duration"},
+			"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DaemonSetRollingUpdateSpec", "github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1.ExtendedDaemonSetSpecStrategyCanary", "k8s.io/apimachinery/pkg/apis/meta/v1.Duration"},
 	}
 }
 
@@ -712,19 +751,19 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgent(ref common.ReferenceCallbac
 					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("./pkg/apis/datadoghq/v1alpha1.DatadogAgentSpec"),
+							Ref: ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DatadogAgentSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("./pkg/apis/datadoghq/v1alpha1.DatadogAgentStatus"),
+							Ref: ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DatadogAgentStatus"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./pkg/apis/datadoghq/v1alpha1.DatadogAgentSpec", "./pkg/apis/datadoghq/v1alpha1.DatadogAgentStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DatadogAgentSpec", "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DatadogAgentStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
@@ -821,7 +860,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentList(ref common.ReferenceCal
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("./pkg/apis/datadoghq/v1alpha1.DatadogAgent"),
+										Ref: ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DatadogAgent"),
 									},
 								},
 							},
@@ -832,7 +871,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentList(ref common.ReferenceCal
 			},
 		},
 		Dependencies: []string{
-			"./pkg/apis/datadoghq/v1alpha1.DatadogAgent", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
+			"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DatadogAgent", "k8s.io/apimachinery/pkg/apis/meta/v1.ListMeta"},
 	}
 }
 
@@ -846,25 +885,25 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentSpec(ref common.ReferenceCal
 					"credentials": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Configure the credentials required to run Agents",
-							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.AgentCredentials"),
+							Ref:         ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.AgentCredentials"),
 						},
 					},
 					"agent": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The desired state of the Agent as an extended daemonset Contains the Node Agent configuration and deployment strategy",
-							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.DatadogAgentSpecAgentSpec"),
+							Ref:         ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DatadogAgentSpecAgentSpec"),
 						},
 					},
 					"clusterAgent": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The desired state of the Cluster Agent as a deployment",
-							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.DatadogAgentSpecClusterAgentSpec"),
+							Ref:         ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DatadogAgentSpecClusterAgentSpec"),
 						},
 					},
 					"clusterChecksRunner": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The desired state of the Cluster Checks Runner as a deployment",
-							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.DatadogAgentSpecClusterChecksRunnerSpec"),
+							Ref:         ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DatadogAgentSpecClusterChecksRunnerSpec"),
 						},
 					},
 					"clusterName": {
@@ -886,7 +925,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentSpec(ref common.ReferenceCal
 			},
 		},
 		Dependencies: []string{
-			"./pkg/apis/datadoghq/v1alpha1.AgentCredentials", "./pkg/apis/datadoghq/v1alpha1.DatadogAgentSpecAgentSpec", "./pkg/apis/datadoghq/v1alpha1.DatadogAgentSpecClusterAgentSpec", "./pkg/apis/datadoghq/v1alpha1.DatadogAgentSpecClusterChecksRunnerSpec"},
+			"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.AgentCredentials", "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DatadogAgentSpecAgentSpec", "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DatadogAgentSpecClusterAgentSpec", "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DatadogAgentSpecClusterChecksRunnerSpec"},
 	}
 }
 
@@ -907,7 +946,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentSpecAgentSpec(ref common.Ref
 					"image": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The container image of the Datadog Agent",
-							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.ImageConfig"),
+							Ref:         ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.ImageConfig"),
 						},
 					},
 					"daemonsetName": {
@@ -920,19 +959,19 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentSpecAgentSpec(ref common.Ref
 					"config": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Agent configuration",
-							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.NodeAgentConfig"),
+							Ref:         ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.NodeAgentConfig"),
 						},
 					},
 					"rbac": {
 						SchemaProps: spec.SchemaProps{
 							Description: "RBAC configuration of the Agent",
-							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.RbacConfig"),
+							Ref:         ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.RbacConfig"),
 						},
 					},
 					"deploymentStrategy": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Update strategy configuration for the DaemonSet",
-							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.DaemonSetDeploymentStrategy"),
+							Ref:         ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DaemonSetDeploymentStrategy"),
 						},
 					},
 					"additionalAnnotations": {
@@ -1023,31 +1062,37 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentSpecAgentSpec(ref common.Ref
 					"apm": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Trace Agent configuration",
-							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.APMSpec"),
+							Ref:         ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.APMSpec"),
 						},
 					},
 					"log": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Log Agent configuration",
-							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.LogSpec"),
+							Ref:         ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.LogSpec"),
 						},
 					},
 					"process": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Process Agent configuration",
-							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.ProcessSpec"),
+							Ref:         ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.ProcessSpec"),
 						},
 					},
 					"systemProbe": {
 						SchemaProps: spec.SchemaProps{
 							Description: "SystemProbe configuration",
-							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.SystemProbeSpec"),
+							Ref:         ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.SystemProbeSpec"),
+						},
+					},
+					"security": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Security Agent configuration",
+							Ref:         ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.SecuritySpec"),
 						},
 					},
 					"customConfig": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Allow to put custom configuration for the agent, corresponding to the datadog.yaml config file See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.",
-							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.CustomConfigSpec"),
+							Ref:         ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.CustomConfigSpec"),
 						},
 					},
 				},
@@ -1055,7 +1100,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentSpecAgentSpec(ref common.Ref
 			},
 		},
 		Dependencies: []string{
-			"./pkg/apis/datadoghq/v1alpha1.APMSpec", "./pkg/apis/datadoghq/v1alpha1.CustomConfigSpec", "./pkg/apis/datadoghq/v1alpha1.DaemonSetDeploymentStrategy", "./pkg/apis/datadoghq/v1alpha1.ImageConfig", "./pkg/apis/datadoghq/v1alpha1.LogSpec", "./pkg/apis/datadoghq/v1alpha1.NodeAgentConfig", "./pkg/apis/datadoghq/v1alpha1.ProcessSpec", "./pkg/apis/datadoghq/v1alpha1.RbacConfig", "./pkg/apis/datadoghq/v1alpha1.SystemProbeSpec", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.PodDNSConfig"},
+			"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.APMSpec", "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.CustomConfigSpec", "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DaemonSetDeploymentStrategy", "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.ImageConfig", "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.LogSpec", "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.NodeAgentConfig", "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.ProcessSpec", "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.RbacConfig", "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.SecuritySpec", "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.SystemProbeSpec", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.PodDNSConfig"},
 	}
 }
 
@@ -1069,7 +1114,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentSpecClusterAgentSpec(ref com
 					"image": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The container image of the Datadog Cluster Agent",
-							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.ImageConfig"),
+							Ref:         ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.ImageConfig"),
 						},
 					},
 					"deploymentName": {
@@ -1082,19 +1127,19 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentSpecClusterAgentSpec(ref com
 					"config": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Cluster Agent configuration",
-							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.ClusterAgentConfig"),
+							Ref:         ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.ClusterAgentConfig"),
 						},
 					},
 					"customConfig": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Allow to put custom configuration for the agent, corresponding to the datadog-cluster.yaml config file",
-							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.CustomConfigSpec"),
+							Ref:         ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.CustomConfigSpec"),
 						},
 					},
 					"rbac": {
 						SchemaProps: spec.SchemaProps{
 							Description: "RBAC configuration of the Datadog Cluster Agent",
-							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.RbacConfig"),
+							Ref:         ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.RbacConfig"),
 						},
 					},
 					"replicas": {
@@ -1185,7 +1230,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentSpecClusterAgentSpec(ref com
 			},
 		},
 		Dependencies: []string{
-			"./pkg/apis/datadoghq/v1alpha1.ClusterAgentConfig", "./pkg/apis/datadoghq/v1alpha1.CustomConfigSpec", "./pkg/apis/datadoghq/v1alpha1.ImageConfig", "./pkg/apis/datadoghq/v1alpha1.RbacConfig", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Toleration"},
+			"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.ClusterAgentConfig", "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.CustomConfigSpec", "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.ImageConfig", "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.RbacConfig", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Toleration"},
 	}
 }
 
@@ -1199,7 +1244,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentSpecClusterChecksRunnerSpec(
 					"image": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The container image of the Datadog Cluster Checks Runner",
-							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.ImageConfig"),
+							Ref:         ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.ImageConfig"),
 						},
 					},
 					"deploymentName": {
@@ -1212,19 +1257,19 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentSpecClusterChecksRunnerSpec(
 					"config": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Agent configuration",
-							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.ClusterChecksRunnerConfig"),
+							Ref:         ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.ClusterChecksRunnerConfig"),
 						},
 					},
 					"customConfig": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Allow to put custom configuration for the agent, corresponding to the datadog.yaml config file See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.",
-							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.CustomConfigSpec"),
+							Ref:         ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.CustomConfigSpec"),
 						},
 					},
 					"rbac": {
 						SchemaProps: spec.SchemaProps{
 							Description: "RBAC configuration of the Datadog Cluster Checks Runner",
-							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.RbacConfig"),
+							Ref:         ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.RbacConfig"),
 						},
 					},
 					"replicas": {
@@ -1315,7 +1360,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentSpecClusterChecksRunnerSpec(
 			},
 		},
 		Dependencies: []string{
-			"./pkg/apis/datadoghq/v1alpha1.ClusterChecksRunnerConfig", "./pkg/apis/datadoghq/v1alpha1.CustomConfigSpec", "./pkg/apis/datadoghq/v1alpha1.ImageConfig", "./pkg/apis/datadoghq/v1alpha1.RbacConfig", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Toleration"},
+			"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.ClusterChecksRunnerConfig", "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.CustomConfigSpec", "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.ImageConfig", "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.RbacConfig", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Toleration"},
 	}
 }
 
@@ -1329,19 +1374,19 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentStatus(ref common.ReferenceC
 					"agent": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The actual state of the Agent as an extended daemonset",
-							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.DaemonSetStatus"),
+							Ref:         ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DaemonSetStatus"),
 						},
 					},
 					"clusterAgent": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The actual state of the Cluster Agent as a deployment",
-							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.DeploymentStatus"),
+							Ref:         ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DeploymentStatus"),
 						},
 					},
 					"clusterChecksRunner": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The actual state of the Cluster Checks Runner as a deployment",
-							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.DeploymentStatus"),
+							Ref:         ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DeploymentStatus"),
 						},
 					},
 					"conditions": {
@@ -1359,7 +1404,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentStatus(ref common.ReferenceC
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("./pkg/apis/datadoghq/v1alpha1.DatadogAgentCondition"),
+										Ref: ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DatadogAgentCondition"),
 									},
 								},
 							},
@@ -1369,7 +1414,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogAgentStatus(ref common.ReferenceC
 			},
 		},
 		Dependencies: []string{
-			"./pkg/apis/datadoghq/v1alpha1.DaemonSetStatus", "./pkg/apis/datadoghq/v1alpha1.DatadogAgentCondition", "./pkg/apis/datadoghq/v1alpha1.DeploymentStatus"},
+			"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DaemonSetStatus", "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DatadogAgentCondition", "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DeploymentStatus"},
 	}
 }
 
@@ -1401,19 +1446,19 @@ func schema_pkg_apis_datadoghq_v1alpha1_DatadogMetric(ref common.ReferenceCallba
 					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("./pkg/apis/datadoghq/v1alpha1.DatadogMetricSpec"),
+							Ref: ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DatadogMetricSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("./pkg/apis/datadoghq/v1alpha1.DatadogMetricStatus"),
+							Ref: ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DatadogMetricStatus"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./pkg/apis/datadoghq/v1alpha1.DatadogMetricSpec", "./pkg/apis/datadoghq/v1alpha1.DatadogMetricStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DatadogMetricSpec", "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DatadogMetricStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
@@ -1765,13 +1810,13 @@ func schema_pkg_apis_datadoghq_v1alpha1_NodeAgentConfig(ref common.ReferenceCall
 					"confd": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Confd configuration allowing to specify config files for custom checks placed under /etc/datadog-agent/conf.d/. See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.",
-							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.ConfigDirSpec"),
+							Ref:         ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.ConfigDirSpec"),
 						},
 					},
 					"checksd": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Checksd configuration allowing to specify custom checks placed under /etc/datadog-agent/checks.d/ See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.",
-							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.ConfigDirSpec"),
+							Ref:         ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.ConfigDirSpec"),
 						},
 					},
 					"podLabelsAsTags": {
@@ -1910,13 +1955,13 @@ func schema_pkg_apis_datadoghq_v1alpha1_NodeAgentConfig(ref common.ReferenceCall
 					"criSocket": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Configure the CRI Socket",
-							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.CRISocketConfig"),
+							Ref:         ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.CRISocketConfig"),
 						},
 					},
 					"dogstatsd": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Configure Dogstatsd",
-							Ref:         ref("./pkg/apis/datadoghq/v1alpha1.DogstatsdConfig"),
+							Ref:         ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DogstatsdConfig"),
 						},
 					},
 					"tolerations": {
@@ -1948,7 +1993,7 @@ func schema_pkg_apis_datadoghq_v1alpha1_NodeAgentConfig(ref common.ReferenceCall
 			},
 		},
 		Dependencies: []string{
-			"./pkg/apis/datadoghq/v1alpha1.CRISocketConfig", "./pkg/apis/datadoghq/v1alpha1.ConfigDirSpec", "./pkg/apis/datadoghq/v1alpha1.DogstatsdConfig", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.SecurityContext", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
+			"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.CRISocketConfig", "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.ConfigDirSpec", "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.DogstatsdConfig", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.SecurityContext", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
 	}
 }
 
@@ -2028,6 +2073,40 @@ func schema_pkg_apis_datadoghq_v1alpha1_RbacConfig(ref common.ReferenceCallback)
 	}
 }
 
+func schema_pkg_apis_datadoghq_v1alpha1_RuntimeSecuritySpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "RuntimeSecuritySpec contains configuration for runtime security features",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enables runtime security features",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"policiesDir": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ConfigDir containing security policies",
+							Ref:         ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.ConfigDirSpec"),
+						},
+					},
+					"syscallMonitor": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Syscall monitor configuration",
+							Ref:         ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.SyscallMonitorSpec"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.ConfigDirSpec", "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.SyscallMonitorSpec"},
+	}
+}
+
 func schema_pkg_apis_datadoghq_v1alpha1_Secret(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -2051,6 +2130,80 @@ func schema_pkg_apis_datadoghq_v1alpha1_Secret(ref common.ReferenceCallback) com
 					},
 				},
 				Required: []string{"secretName"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_datadoghq_v1alpha1_SecuritySpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SecuritySpec contains the Security Agent configuration",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"compliance": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Compliance configuration",
+							Ref:         ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.ComplianceSpec"),
+						},
+					},
+					"runtime": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Runtime security configuration",
+							Ref:         ref("github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.RuntimeSecuritySpec"),
+						},
+					},
+					"env": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"name",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "The Datadog Security Agent supports many environment variables Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("k8s.io/api/core/v1.EnvVar"),
+									},
+								},
+							},
+						},
+					},
+					"resources": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Datadog Security Agent resource requests and limits Make sure to keep requests and limits equal to keep the pods in the Guaranteed QoS class Ref: http://kubernetes.io/docs/user-guide/compute-resources/",
+							Ref:         ref("k8s.io/api/core/v1.ResourceRequirements"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.ComplianceSpec", "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1.RuntimeSecuritySpec", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements"},
+	}
+}
+
+func schema_pkg_apis_datadoghq_v1alpha1_SyscallMonitorSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SyscallMonitorSpec contains configuration for syscall monitor",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enabled enables syscall monitor",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+				},
 			},
 		},
 	}
