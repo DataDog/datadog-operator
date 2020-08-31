@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
+	"reflect"
 
 	"fmt"
 	"testing"
@@ -1147,6 +1148,67 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 			},
 		},
 		{
+			name: "DatadogAgent found and defaulted, Cluster Agent enabled, WPA Controller enabled, create the Cluster Agent ClusterRole",
+			fields: fields{
+				client:   fake.NewFakeClient(),
+				scheme:   s,
+				recorder: recorder,
+			},
+			args: args{
+				request: newRequest(resourcesNamespace, resourcesName),
+				loadFunc: func(c client.Client) {
+					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, &test.NewDatadogAgentOptions{Labels: map[string]string{"label-foo-key": "label-bar-value"}, ClusterAgentEnabled: true, MetricsServerEnabled: true, MetricsServerWPAController: true})
+					_ = c.Create(context.TODO(), dda)
+					commonDCAlabels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
+					_ = c.Create(context.TODO(), test.NewSecret(resourcesNamespace, "foo", &test.NewSecretOptions{Labels: commonDCAlabels, Data: map[string][]byte{
+						"token": []byte(base64.StdEncoding.EncodeToString([]byte("token-foo"))),
+					}}))
+
+					createClusterAgentDependencies(c, dda)
+
+					dcaExternalMetricsService := test.NewService(resourcesNamespace, "foo-cluster-agent-metrics-server", &test.NewServiceOptions{Spec: &corev1.ServiceSpec{
+						Type: corev1.ServiceTypeClusterIP,
+						Selector: map[string]string{
+							datadoghqv1alpha1.AgentDeploymentNameLabelKey:      resourcesName,
+							datadoghqv1alpha1.AgentDeploymentComponentLabelKey: "cluster-agent",
+						},
+						Ports: []corev1.ServicePort{
+							{
+								Protocol:   corev1.ProtocolTCP,
+								TargetPort: intstr.FromInt(datadoghqv1alpha1.DefaultMetricsServerTargetPort),
+								Port:       datadoghqv1alpha1.DefaultMetricsServerServicePort,
+							},
+						},
+						SessionAffinity: corev1.ServiceAffinityNone,
+					},
+					})
+					_, _ = comparison.SetMD5GenerationAnnotation(&dcaExternalMetricsService.ObjectMeta, dcaExternalMetricsService.Spec)
+					dcaExternalMetricsService.Labels = commonDCAlabels
+					_ = c.Create(context.TODO(), dcaExternalMetricsService)
+					_ = c.Create(context.TODO(), buildClusterAgentPDB(dda))
+				},
+			},
+			want:    reconcile.Result{Requeue: true},
+			wantErr: false,
+			wantFunc: func(c client.Client) error {
+				metricsService := &corev1.Service{}
+				if err := c.Get(context.TODO(), newRequest(resourcesNamespace, "foo-cluster-agent-metrics-server").NamespacedName, metricsService); err != nil {
+					return err
+				}
+				clusterRole := &rbacv1.ClusterRole{}
+				if err := c.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesNameClusterAgent}, clusterRole); err != nil {
+					return err
+				}
+				if !hasAllClusterLevelRbacResources(clusterRole.Rules) {
+					return fmt.Errorf("bad cluster role, should contain all cluster level rbac resources, current: %v", clusterRole.Rules)
+				}
+				if !hasWpaRbacs(clusterRole.Rules) {
+					return fmt.Errorf("bad cluster role, should contain wpa cluster level rbac resources, current: %v", clusterRole.Rules)
+				}
+				return nil
+			},
+		},
+		{
 			name: "DatadogAgent found and defaulted, Cluster Agent enabled, Admission Controller enabled, create the Cluster Agent ClusterRole",
 			fields: fields{
 				client:   fake.NewFakeClient(),
@@ -2101,6 +2163,41 @@ func hasAllClusterLevelRbacResources(policyRules []rbacv1.PolicyRule) bool {
 		}
 	}
 	return len(clusterLevelResources) == 0
+}
+
+func hasWpaRbacs(policyRules []rbacv1.PolicyRule) bool {
+	requiredVerbs := []string{
+		datadoghqv1alpha1.ListVerb,
+		datadoghqv1alpha1.WatchVerb,
+		datadoghqv1alpha1.GetVerb,
+	}
+
+	for _, policyRule := range policyRules {
+		resourceFound := false
+		groupFound := false
+		verbsFound := false
+
+		for _, resource := range policyRule.Resources {
+			if resource == "watermarkpodautoscalers" {
+				resourceFound = true
+				break
+			}
+		}
+		for _, group := range policyRule.APIGroups {
+			if group == "datadoghq.com" {
+				groupFound = true
+				break
+			}
+		}
+		if reflect.DeepEqual(policyRule.Verbs, requiredVerbs) {
+			verbsFound = true
+		}
+		if resourceFound && groupFound && verbsFound {
+			return true
+		}
+	}
+
+	return false
 }
 
 func hasAdmissionRbacResources(policyRules []rbacv1.PolicyRule) bool {

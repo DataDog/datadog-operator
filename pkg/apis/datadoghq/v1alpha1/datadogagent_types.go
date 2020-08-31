@@ -664,6 +664,12 @@ type ExternalMetricsConfig struct {
 	// +optional
 	Enabled bool `json:"enabled,omitempty"`
 
+	// Enable informer and controller of the watermark pod autoscaler
+	// NOTE: The WatermarkPodAutoscaler controller needs to be installed
+	// see https://github.com/DataDog/watermarkpodautoscaler for more details.
+	// +optional
+	WpaController bool `json:"wpaController,omitempty"`
+
 	// Enable usage of DatadogMetrics CRD (allow to scale on arbitrary queries)
 	// +optional
 	UseDatadogMetrics bool `json:"useDatadogMetrics,omitempty"`

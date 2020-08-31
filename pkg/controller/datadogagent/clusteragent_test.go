@@ -487,6 +487,10 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 				Name:  datadoghqv1alpha1.DDMetricsProviderUseDatadogMetric,
 				Value: "false",
 			},
+			{
+				Name:  datadoghqv1alpha1.DDMetricsProviderWPAController,
+				Value: "false",
+			},
 		}...,
 	)
 
@@ -543,6 +547,10 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 				Name:  datadoghqv1alpha1.DDMetricsProviderUseDatadogMetric,
 				Value: "true",
 			},
+			{
+				Name:  datadoghqv1alpha1.DDMetricsProviderWPAController,
+				Value: "true",
+			},
 		}...,
 	)
 	metricsServerWithSitePodSpec.Containers[0].LivenessProbe = probe
@@ -560,6 +568,7 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 			ClusterAgentEnabled:           true,
 			MetricsServerEnabled:          true,
 			MetricsServerUseDatadogMetric: true,
+			MetricsServerWPAController:    true,
 			Site:                          "datadoghq.eu",
 			MetricsServerPort:             metricsServerPort,
 		})
