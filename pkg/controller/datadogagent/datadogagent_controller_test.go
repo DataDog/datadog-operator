@@ -2166,31 +2166,38 @@ func hasAllClusterLevelRbacResources(policyRules []rbacv1.PolicyRule) bool {
 }
 
 func hasWpaRbacs(policyRules []rbacv1.PolicyRule) bool {
-	resourceFound := false
-	groupFound := false
-	verbsFound := false
 	requiredVerbs := []string{
 		datadoghqv1alpha1.ListVerb,
 		datadoghqv1alpha1.WatchVerb,
 		datadoghqv1alpha1.GetVerb,
 	}
+
 	for _, policyRule := range policyRules {
+		resourceFound := false
+		groupFound := false
+		verbsFound := false
+
 		for _, resource := range policyRule.Resources {
 			if resource == "watermarkpodautoscalers" {
 				resourceFound = true
+				break
 			}
 		}
 		for _, group := range policyRule.APIGroups {
 			if group == "datadoghq.com" {
 				groupFound = true
+				break
 			}
 		}
 		if reflect.DeepEqual(policyRule.Verbs, requiredVerbs) {
 			verbsFound = true
 		}
+		if resourceFound && groupFound && verbsFound {
+			return true
+		}
 	}
 
-	return resourceFound && groupFound && verbsFound
+	return false
 }
 
 func hasAdmissionRbacResources(policyRules []rbacv1.PolicyRule) bool {
