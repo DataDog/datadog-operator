@@ -202,7 +202,7 @@ func newClusterAgentDeploymentFromInstance(agentdeployment *datadoghqv1alpha1.Da
 			Selector: selector,
 		},
 	}
-	hash, err := comparison.SetMD5GenerationAnnotation(&dca.ObjectMeta, agentdeployment.Spec.ClusterAgent)
+	hash, err := comparison.SetMD5GenerationAnnotation(&dca.ObjectMeta, dca.Spec)
 	return dca, hash, err
 }
 

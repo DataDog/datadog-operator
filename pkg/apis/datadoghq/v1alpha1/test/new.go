@@ -15,6 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	edsdatadoghqv1alpha1 "github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 )
@@ -356,6 +357,8 @@ func NewClusterAgentDeployment(ns, name string, options *NewDeploymentOptions) *
 			Annotations: map[string]string{},
 		},
 	}
+
+	_, _ = comparison.SetMD5GenerationAnnotation(&dca.ObjectMeta, dca.Spec)
 	if options != nil {
 		if options.CreationTime != nil {
 			dca.CreationTimestamp = metav1.NewTime(*options.CreationTime)

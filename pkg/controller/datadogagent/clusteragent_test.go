@@ -126,6 +126,11 @@ func (test clusterAgentDeploymentFromInstanceTest) Run(t *testing.T) {
 		assert.Error(t, err, "newClusterAgentDeploymentFromInstance() expected an error")
 	} else {
 		assert.NoError(t, err, "newClusterAgentDeploymentFromInstance() unexpected error: %v", err)
+		deploymentSpecHash, _ := comparison.GenerateMD5ForSpec(test.want.Spec)
+		if test.want.Annotations == nil {
+			test.want.Annotations = map[string]string{}
+		}
+		test.want.Annotations["agent.datadoghq.com/agentspechash"] = deploymentSpecHash
 	}
 	assert.True(t, apiequality.Semantic.DeepEqual(got, test.want), "newClusterAgentDeploymentFromInstance() = %#v, want %#v\ndiff = %s", got, test.want,
 		cmp.Diff(got, test.want))
@@ -159,7 +164,6 @@ func Test_newClusterAgentDeploymentFromInstance(t *testing.T) {
 						"app.kubernetes.io/part-of":     "foo",
 						"app.kubernetes.io/version":     "",
 					},
-					Annotations: map[string]string{"agent.datadoghq.com/agentspechash": defaultClusterAgentHash},
 				},
 				Spec: appsv1.DeploymentSpec{
 					Template: corev1.PodTemplateSpec{
@@ -205,7 +209,7 @@ func Test_newClusterAgentDeploymentFromInstance(t *testing.T) {
 						"app.kubernetes.io/part-of":     "foo",
 						"app.kubernetes.io/version":     "",
 					},
-					Annotations: map[string]string{"agent.datadoghq.com/agentspechash": defaultClusterAgentHash, "annotations-foo-key": "annotations-bar-value"},
+					Annotations: map[string]string{"annotations-foo-key": "annotations-bar-value"},
 				},
 				Spec: appsv1.DeploymentSpec{
 					Template: corev1.PodTemplateSpec{
@@ -269,7 +273,6 @@ func Test_newClusterAgentDeploymentFromInstance_UserVolumes(t *testing.T) {
 			ClusterAgentVolumeMounts: userVolumeMounts,
 		},
 	)
-	userMountsClusterAgentHash, _ := comparison.GenerateMD5ForSpec(userMountsAgentDeployment.Spec.ClusterAgent)
 
 	test := clusterAgentDeploymentFromInstanceTest{
 		name:            "with user volumes and mounts",
@@ -288,7 +291,6 @@ func Test_newClusterAgentDeploymentFromInstance_UserVolumes(t *testing.T) {
 					"app.kubernetes.io/part-of":     "foo",
 					"app.kubernetes.io/version":     "",
 				},
-				Annotations: map[string]string{"agent.datadoghq.com/agentspechash": userMountsClusterAgentHash},
 			},
 			Spec: appsv1.DeploymentSpec{
 				Template: corev1.PodTemplateSpec{
@@ -344,7 +346,6 @@ func Test_newClusterAgentDeploymentFromInstance_EnvVars(t *testing.T) {
 			ClusterAgentEnvVars: envVars,
 		},
 	)
-	envVarsClusterAgentHash, _ := comparison.GenerateMD5ForSpec(envVarsAgentDeployment.Spec.ClusterAgent)
 
 	test := clusterAgentDeploymentFromInstanceTest{
 		name:            "with extra env vars",
@@ -363,7 +364,6 @@ func Test_newClusterAgentDeploymentFromInstance_EnvVars(t *testing.T) {
 					"app.kubernetes.io/part-of":     "foo",
 					"app.kubernetes.io/version":     "",
 				},
-				Annotations: map[string]string{"agent.datadoghq.com/agentspechash": envVarsClusterAgentHash},
 			},
 			Spec: appsv1.DeploymentSpec{
 				Template: corev1.PodTemplateSpec{
@@ -405,8 +405,6 @@ func Test_newClusterAgentDeploymentFromInstance_CustomDeploymentName(t *testing.
 			ClusterAgentDeploymentName: customDeploymentName,
 		})
 
-	deploymentNameClusterAgentHash, _ := comparison.GenerateMD5ForSpec(deploymentNameAgentDeployment.Spec.ClusterAgent)
-
 	test := clusterAgentDeploymentFromInstanceTest{
 		name:            "with custom deployment name and selector",
 		agentdeployment: deploymentNameAgentDeployment,
@@ -430,7 +428,6 @@ func Test_newClusterAgentDeploymentFromInstance_CustomDeploymentName(t *testing.
 					"app.kubernetes.io/version":     "",
 					"app":                           "datadog-monitoring",
 				},
-				Annotations: map[string]string{"agent.datadoghq.com/agentspechash": deploymentNameClusterAgentHash},
 			},
 			Spec: appsv1.DeploymentSpec{
 				Template: corev1.PodTemplateSpec{
@@ -521,8 +518,6 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 			MetricsServerPort:    metricsServerPort,
 		})
 
-	metricsServerClusterAgentHash, _ := comparison.GenerateMD5ForSpec(metricsServerAgentDeployment.Spec.ClusterAgent)
-
 	metricsServerWithSitePodSpec := clusterAgentDefaultPodSpec()
 	metricsServerWithSitePodSpec.Containers[0].Ports = append(metricsServerWithSitePodSpec.Containers[0].Ports, corev1.ContainerPort{
 		ContainerPort: metricsServerPort,
@@ -577,8 +572,6 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 			MetricsServerPort:             metricsServerPort,
 		})
 
-	metricsServerClusterAgentWithSiteHash, _ := comparison.GenerateMD5ForSpec(metricsServerAgentWithSiteDeployment.Spec.ClusterAgent)
-
 	tests := clusterAgentDeploymentFromInstanceTestSuite{
 		{
 			name:            "with metrics server",
@@ -603,7 +596,6 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 						"app.kubernetes.io/version":     "",
 						"app":                           "datadog-monitoring",
 					},
-					Annotations: map[string]string{"agent.datadoghq.com/agentspechash": metricsServerClusterAgentHash},
 				},
 				Spec: appsv1.DeploymentSpec{
 					Template: corev1.PodTemplateSpec{
@@ -653,7 +645,6 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 						"app.kubernetes.io/version":     "",
 						"app":                           "datadog-monitoring",
 					},
-					Annotations: map[string]string{"agent.datadoghq.com/agentspechash": metricsServerClusterAgentWithSiteHash},
 				},
 				Spec: appsv1.DeploymentSpec{
 					Template: corev1.PodTemplateSpec{
@@ -721,8 +712,6 @@ func Test_newClusterAgentDeploymentFromInstance_AdmissionController(t *testing.T
 			AdmissionControllerEnabled: true,
 		})
 
-	admissionControllerClusterAgentHash, _ := comparison.GenerateMD5ForSpec(admissionControllerDatadogAgent.Spec.ClusterAgent)
-
 	admissionControllerPodSpecCustom := clusterAgentDefaultPodSpec()
 	admissionControllerPodSpecCustom.Containers[0].Env = append(admissionControllerPodSpecCustom.Containers[0].Env,
 		[]corev1.EnvVar{
@@ -750,8 +739,6 @@ func Test_newClusterAgentDeploymentFromInstance_AdmissionController(t *testing.T
 			AdmissionServiceName:       "custom-service-name",
 		})
 
-	admissionControllerClusterAgentHashCustom, _ := comparison.GenerateMD5ForSpec(admissionControllerDatadogAgentCustom.Spec.ClusterAgent)
-
 	tests := clusterAgentDeploymentFromInstanceTestSuite{
 		{
 			name:            "with admission controller",
@@ -765,10 +752,9 @@ func Test_newClusterAgentDeploymentFromInstance_AdmissionController(t *testing.T
 			wantErr:   false,
 			want: &appsv1.Deployment{
 				ObjectMeta: metav1.ObjectMeta{
-					Namespace:   "bar",
-					Name:        "foo-cluster-agent",
-					Labels:      commonLabels,
-					Annotations: map[string]string{"agent.datadoghq.com/agentspechash": admissionControllerClusterAgentHash},
+					Namespace: "bar",
+					Name:      "foo-cluster-agent",
+					Labels:    commonLabels,
 				},
 				Spec: appsv1.DeploymentSpec{
 					Template: corev1.PodTemplateSpec{
@@ -798,10 +784,9 @@ func Test_newClusterAgentDeploymentFromInstance_AdmissionController(t *testing.T
 			wantErr:   false,
 			want: &appsv1.Deployment{
 				ObjectMeta: metav1.ObjectMeta{
-					Namespace:   "bar",
-					Name:        "foo-cluster-agent",
-					Labels:      commonLabels,
-					Annotations: map[string]string{"agent.datadoghq.com/agentspechash": admissionControllerClusterAgentHashCustom},
+					Namespace: "bar",
+					Name:      "foo-cluster-agent",
+					Labels:    commonLabels,
 				},
 				Spec: appsv1.DeploymentSpec{
 					Template: corev1.PodTemplateSpec{
@@ -858,7 +843,6 @@ func Test_newClusterAgentDeploymentFromInstance_UserProvidedSecret(t *testing.T)
 						"app.kubernetes.io/part-of":     "foo",
 						"app.kubernetes.io/version":     "",
 					},
-					Annotations: map[string]string{"agent.datadoghq.com/agentspechash": defaultClusterAgentHash},
 				},
 				Spec: appsv1.DeploymentSpec{
 					Template: corev1.PodTemplateSpec{
@@ -909,7 +893,6 @@ func Test_newClusterAgentDeploymentFromInstance_UserProvidedSecret(t *testing.T)
 						"app.kubernetes.io/part-of":     "foo",
 						"app.kubernetes.io/version":     "",
 					},
-					Annotations: map[string]string{"agent.datadoghq.com/agentspechash": defaultClusterAgentHash},
 				},
 				Spec: appsv1.DeploymentSpec{
 					Template: corev1.PodTemplateSpec{
@@ -954,8 +937,6 @@ func Test_newClusterAgentDeploymentFromInstance_Compliance(t *testing.T) {
 		},
 	)
 
-	clusterAgentHash, _ := comparison.GenerateMD5ForSpec(agentDeployment.Spec.ClusterAgent)
-
 	test := clusterAgentDeploymentFromInstanceTest{
 		name:            "with compliance",
 		agentdeployment: agentDeployment,
@@ -973,7 +954,6 @@ func Test_newClusterAgentDeploymentFromInstance_Compliance(t *testing.T) {
 					"app.kubernetes.io/part-of":     "foo",
 					"app.kubernetes.io/version":     "",
 				},
-				Annotations: map[string]string{"agent.datadoghq.com/agentspechash": clusterAgentHash},
 			},
 			Spec: appsv1.DeploymentSpec{
 				Template: corev1.PodTemplateSpec{

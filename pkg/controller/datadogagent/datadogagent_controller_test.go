@@ -44,7 +44,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
-var defaultAgentHash, defaultClusterAgentHash string
+var defaultAgentHash string
 
 func TestReconcileDatadogAgent_createNewExtendedDaemonSet(t *testing.T) {
 	eventBroadcaster := record.NewBroadcaster()
@@ -1525,7 +1525,6 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 
 					dcaOptions := &test.NewDeploymentOptions{
 						Labels:                 map[string]string{"label-foo-key": "label-bar-value"},
-						Annotations:            map[string]string{string(datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey): defaultClusterAgentHash},
 						ForceAvailableReplicas: datadoghqv1alpha1.NewInt32Pointer(1),
 					}
 					dca := test.NewClusterAgentDeployment(resourcesNamespace, resourcesName, dcaOptions)
@@ -1588,7 +1587,6 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 
 					dcaOptions := &test.NewDeploymentOptions{
 						Labels:                 map[string]string{"label-foo-key": "label-bar-value"},
-						Annotations:            map[string]string{string(datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey): defaultClusterAgentHash},
 						ForceAvailableReplicas: datadoghqv1alpha1.NewInt32Pointer(1),
 					}
 					dca := test.NewClusterAgentDeployment(resourcesNamespace, resourcesName, dcaOptions)
@@ -1683,7 +1681,6 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 
 					dcaOptions := &test.NewDeploymentOptions{
 						Labels:                 map[string]string{"label-foo-key": "label-bar-value"},
-						Annotations:            map[string]string{string(datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey): defaultClusterAgentHash},
 						ForceAvailableReplicas: datadoghqv1alpha1.NewInt32Pointer(0),
 					}
 					dca := test.NewClusterAgentDeployment(resourcesNamespace, resourcesName, dcaOptions)
@@ -1744,7 +1741,6 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 
 					dcaOptions := &test.NewDeploymentOptions{
 						Labels:                 dcaLabels,
-						Annotations:            map[string]string{string(datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey): defaultClusterAgentHash},
 						ForceAvailableReplicas: datadoghqv1alpha1.NewInt32Pointer(1),
 					}
 					dca := test.NewClusterAgentDeployment(resourcesNamespace, resourcesName, dcaOptions)
@@ -1800,7 +1796,6 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 
 					dcaOptions := &test.NewDeploymentOptions{
 						Labels:                 dcaLabels,
-						Annotations:            map[string]string{string(datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey): defaultClusterAgentHash},
 						ForceAvailableReplicas: datadoghqv1alpha1.NewInt32Pointer(1),
 					}
 					dca := test.NewClusterAgentDeployment(resourcesNamespace, resourcesName, dcaOptions)
@@ -1863,7 +1858,6 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 
 					dcaOptions := &test.NewDeploymentOptions{
 						Labels:                 dcaLabels,
-						Annotations:            map[string]string{string(datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey): defaultClusterAgentHash},
 						ForceAvailableReplicas: datadoghqv1alpha1.NewInt32Pointer(1),
 					}
 					dca := test.NewClusterAgentDeployment(resourcesNamespace, resourcesName, dcaOptions)
@@ -1920,7 +1914,6 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 
 					dcaOptions := &test.NewDeploymentOptions{
 						Labels:                 dcaLabels,
-						Annotations:            map[string]string{string(datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey): defaultClusterAgentHash},
 						ForceAvailableReplicas: datadoghqv1alpha1.NewInt32Pointer(1),
 					}
 					dca := test.NewClusterAgentDeployment(resourcesNamespace, resourcesName, dcaOptions)
@@ -1985,7 +1978,6 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 
 					dcaOptions := &test.NewDeploymentOptions{
 						Labels:                 dcaLabels,
-						Annotations:            map[string]string{string(datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey): defaultClusterAgentHash},
 						ForceAvailableReplicas: datadoghqv1alpha1.NewInt32Pointer(1),
 					}
 					dca := test.NewClusterAgentDeployment(resourcesNamespace, resourcesName, dcaOptions)
@@ -2342,5 +2334,4 @@ func init() {
 	// init default hashes global variables for a bar/foo datadog agent deployment default config
 	ad := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, &test.NewDatadogAgentOptions{UseEDS: true, ClusterAgentEnabled: true, Labels: map[string]string{"label-foo-key": "label-bar-value"}})
 	defaultAgentHash, _ = comparison.GenerateMD5ForSpec(ad.Spec)
-	defaultClusterAgentHash, _ = comparison.GenerateMD5ForSpec(ad.Spec.ClusterAgent)
 }
