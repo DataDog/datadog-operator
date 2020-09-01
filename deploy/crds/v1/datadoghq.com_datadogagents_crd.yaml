@@ -3609,6 +3609,12 @@ spec:
                             description: Enable usage of DatadogMetrics CRD (allow
                               to scale on arbitrary queries)
                             type: boolean
+                          wpaController:
+                            description: 'Enable informer and controller of the watermark
+                              pod autoscaler NOTE: The WatermarkPodAutoscaler controller
+                              needs to be installed see https://github.com/DataDog/watermarkpodautoscaler
+                              for more details.'
+                            type: boolean
                         type: object
                       logLevel:
                         description: 'Set logging verbosity, valid log levels are:
