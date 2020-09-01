@@ -6,6 +6,8 @@
 package v1alpha1
 
 import (
+	"time"
+
 	edsdatadoghqv1alpha1 "github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -186,6 +188,10 @@ type DatadogAgentSpecAgentSpec struct {
 	// SystemProbe configuration
 	// +optional
 	SystemProbe SystemProbeSpec `json:"systemProbe,omitempty"`
+
+	// Security Agent configuration
+	// +optional
+	Security SecuritySpec `json:"security,omitempty"`
 
 	// Allow to put custom configuration for the agent, corresponding to the datadog.yaml config file
 	// See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.
@@ -402,6 +408,71 @@ type SystemProbeSpec struct {
 	// modifying the label type
 	// +optional
 	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
+}
+
+// SecuritySpec contains the Security Agent configuration
+// +k8s:openapi-gen=true
+type SecuritySpec struct {
+	// Compliance configuration
+	// +optional
+	Compliance ComplianceSpec `json:"compliance,omitempty"`
+
+	// Runtime security configuration
+	// +optional
+	Runtime RuntimeSecuritySpec `json:"runtime,omitempty"`
+
+	// The Datadog Security Agent supports many environment variables
+	// Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables
+	//
+	// +optional
+	// +listType=map
+	// +listMapKey=name
+	Env []corev1.EnvVar `json:"env,omitempty"`
+
+	// Datadog Security Agent resource requests and limits
+	// Make sure to keep requests and limits equal to keep the pods in the Guaranteed QoS class
+	// Ref: http://kubernetes.io/docs/user-guide/compute-resources/
+	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
+}
+
+// ComplianceSpec contains configuration for continuous compliance
+// +k8s:openapi-gen=true
+type ComplianceSpec struct {
+	// Enables continuous compliance monitoring
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Check interval
+	// +optional
+	CheckInterval *time.Duration `json:"checkInterval,omitempty"`
+
+	// Config dir containing compliance benchmarks
+	// +optional
+	ConfigDir *ConfigDirSpec `json:"configDir,omitempty"`
+}
+
+// RuntimeSecuritySpec contains configuration for runtime security features
+// +k8s:openapi-gen=true
+type RuntimeSecuritySpec struct {
+	// Enables runtime security features
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// ConfigDir containing security policies
+	// +optional
+	PoliciesDir *ConfigDirSpec `json:"policiesDir,omitempty"`
+
+	// Syscall monitor configuration
+	// +optional
+	SyscallMonitor *SyscallMonitorSpec `json:"syscallMonitor,omitempty"`
+}
+
+// SyscallMonitorSpec contains configuration for syscall monitor
+// +k8s:openapi-gen=true
+type SyscallMonitorSpec struct {
+	// Enabled enables syscall monitor
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // ConfigDirSpec contains config file directory configuration

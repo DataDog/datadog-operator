@@ -202,7 +202,7 @@ func newClusterAgentDeploymentFromInstance(agentdeployment *datadoghqv1alpha1.Da
 			Selector: selector,
 		},
 	}
-	hash, err := comparison.SetMD5GenerationAnnotation(&dca.ObjectMeta, agentdeployment.Spec.ClusterAgent)
+	hash, err := comparison.SetMD5GenerationAnnotation(&dca.ObjectMeta, dca.Spec)
 	return dca, hash, err
 }
 
@@ -349,6 +349,26 @@ func newClusterAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent,
 		volumeMounts = append(volumeMounts, volumeMount)
 	}
 
+	if isComplianceEnabled(agentdeployment) {
+		if agentdeployment.Spec.Agent.Security.Compliance.ConfigDir != nil {
+			volumes = append(volumes, corev1.Volume{
+				Name: datadoghqv1alpha1.SecurityAgentComplianceConfigDirVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: agentdeployment.Spec.Agent.Security.Compliance.ConfigDir.ConfigMapName,
+						},
+					},
+				},
+			})
+			volumeMounts = append(volumeMounts, corev1.VolumeMount{
+				Name:      datadoghqv1alpha1.SecurityAgentComplianceConfigDirVolumeName,
+				MountPath: datadoghqv1alpha1.SecurityAgentComplianceConfigDirVolumePath,
+				ReadOnly:  true,
+			})
+		}
+	}
+
 	// Add other volumes
 	volumes = append(volumes, agentdeployment.Spec.ClusterAgent.Config.Volumes...)
 	volumeMounts = append(volumeMounts, agentdeployment.Spec.ClusterAgent.Config.VolumeMounts...)
@@ -439,6 +459,9 @@ func getClusterAgentCustomConfigConfigMapName(dda *datadoghqv1alpha1.DatadogAgen
 // getEnvVarsForClusterAgent converts Cluster Agent Config into container env vars
 func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.EnvVar {
 	spec := &dda.Spec
+
+	complianceEnabled := isComplianceEnabled(dda)
+
 	envVars := []corev1.EnvVar{
 		{
 			Name:  datadoghqv1alpha1.DDClusterName,
@@ -464,6 +487,26 @@ func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Env
 			Name:  datadoghqv1alpha1.DDLeaderElection,
 			Value: "true",
 		},
+		{
+			Name:  datadoghqv1alpha1.DDComplianceConfigEnabled,
+			Value: strconv.FormatBool(complianceEnabled),
+		},
+	}
+
+	if complianceEnabled {
+		if dda.Spec.Agent.Security.Compliance.CheckInterval != nil {
+			envVars = append(envVars, corev1.EnvVar{
+				Name:  datadoghqv1alpha1.DDComplianceConfigCheckInterval,
+				Value: dda.Spec.Agent.Security.Compliance.CheckInterval.String(),
+			})
+		}
+
+		if dda.Spec.Agent.Security.Compliance.ConfigDir != nil {
+			envVars = append(envVars, corev1.EnvVar{
+				Name:  datadoghqv1alpha1.DDComplianceConfigDir,
+				Value: datadoghqv1alpha1.SecurityAgentComplianceConfigDirVolumePath,
+			})
+		}
 	}
 
 	if spec.Agent != nil && spec.Agent.Config.DDUrl != nil {
@@ -1060,6 +1103,47 @@ func buildClusterAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, age
 			APIGroups: []string{datadoghqv1alpha1.BatchAPIGroup},
 			Resources: []string{datadoghqv1alpha1.CronjobsResource},
 			Verbs:     []string{datadoghqv1alpha1.GetVerb},
+		})
+	}
+
+	if isComplianceEnabled(dda) {
+		// ServiceAccounts and Namespaces
+		rbacRules = append(rbacRules, rbacv1.PolicyRule{
+			APIGroups: []string{datadoghqv1alpha1.CoreAPIGroup},
+			Resources: []string{datadoghqv1alpha1.ServiceAccountResource, datadoghqv1alpha1.NamespaceResource},
+			Verbs: []string{
+				datadoghqv1alpha1.ListVerb,
+			},
+		})
+
+		// PodSecurityPolicies
+		rbacRules = append(rbacRules, rbacv1.PolicyRule{
+			APIGroups: []string{datadoghqv1alpha1.PolicyAPIGroup},
+			Resources: []string{datadoghqv1alpha1.PodSecurityPolicyResource},
+			Verbs: []string{
+				datadoghqv1alpha1.ListVerb,
+				datadoghqv1alpha1.GetVerb,
+				datadoghqv1alpha1.ListVerb,
+				datadoghqv1alpha1.WatchVerb,
+			},
+		})
+
+		// ClusterRoleBindings and RoleBindings
+		rbacRules = append(rbacRules, rbacv1.PolicyRule{
+			APIGroups: []string{datadoghqv1alpha1.RbacAPIGroup},
+			Resources: []string{datadoghqv1alpha1.ClusterRoleBindingResource, datadoghqv1alpha1.RoleBindingResource},
+			Verbs: []string{
+				datadoghqv1alpha1.ListVerb,
+			},
+		})
+
+		// NetworkPolicies
+		rbacRules = append(rbacRules, rbacv1.PolicyRule{
+			APIGroups: []string{datadoghqv1alpha1.NetworkingAPIGroup},
+			Resources: []string{datadoghqv1alpha1.NetworkPolicyResource},
+			Verbs: []string{
+				datadoghqv1alpha1.ListVerb,
+			},
 		})
 	}
 

@@ -54,6 +54,6 @@ generate_cover_report() {
   go tool cover -${1}="$profile" -o "${COVER}/coverage.html"
 }
 
-generate_cover_data 
+generate_cover_data
 generate_cover_report html
 exit $exit_code

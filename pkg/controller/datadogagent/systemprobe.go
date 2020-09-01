@@ -7,6 +7,7 @@ package datadogagent
 
 import (
 	"fmt"
+	"path/filepath"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
 	"github.com/go-logr/logr"
@@ -24,7 +25,7 @@ const (
 )
 
 func (r *ReconcileDatadogAgent) manageSystemProbeDependencies(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
-	result, err := r.manageConfigMap(logger, dda, getSystemProbeConfiConfigMapName(dda.Name), buildSystemProbeConfigConfiMap)
+	result, err := r.manageConfigMap(logger, dda, getSystemProbeConfigConfigMapName(dda.Name), buildSystemProbeConfigConfiMap)
 	if shouldReturn(result, err) {
 		return result, err
 	}
@@ -47,7 +48,7 @@ func buildSystemProbeConfigConfiMap(dda *datadoghqv1alpha1.DatadogAgent) (*corev
 	spec := &dda.Spec.Agent.SystemProbe
 	configMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        getSystemProbeConfiConfigMapName(dda.Name),
+			Name:        getSystemProbeConfigConfigMapName(dda.Name),
 			Namespace:   dda.Namespace,
 			Labels:      getDefaultLabels(dda, dda.Name, getAgentVersion(dda)),
 			Annotations: getDefaultAnnotations(dda),
@@ -56,7 +57,12 @@ func buildSystemProbeConfigConfiMap(dda *datadoghqv1alpha1.DatadogAgent) (*corev
 			datadoghqv1alpha1.SystemProbeConfigVolumeSubPath: fmt.Sprintf(systemProbeAgentSecurityDataTmpl,
 				spec.DebugPort,
 				datadoghqv1alpha1.BoolToString(spec.ConntrackEnabled),
-				datadoghqv1alpha1.BoolToString(spec.BPFDebugEnabled)),
+				datadoghqv1alpha1.BoolToString(spec.BPFDebugEnabled),
+				isRuntimeSecurityEnabled(dda),
+				filepath.Join(datadoghqv1alpha1.SystemProbeSocketVolumePath, "runtime-security.sock"),
+				datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumePath,
+				isSyscallMonitorEnabled(dda),
+			),
 		},
 	}
 
@@ -67,8 +73,16 @@ const systemProbeAgentSecurityDataTmpl = `system_probe_config:
   enabled: true
   debug_port: %d
   sysprobe_socket: /opt/datadog-agent/run/sysprobe.sock
-  enable_conntrack : %s
+  enable_conntrack: %s
   bpf_debug: %s
+runtime_security_config:
+  enabled: %v
+  debug: false
+  socket: %s
+  policies:
+    dir: %s
+  syscall_monitor:
+    enabled: %v
 `
 
 func buildSystemProbeSecCompConfigMap(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.ConfigMap, error) {
@@ -276,6 +290,6 @@ func getSecCompConfigMapName(prefix string) string {
 	return fmt.Sprintf("%s-%s", prefix, SystemProbeAgentSecurityConfigMapSuffixName)
 }
 
-func getSystemProbeConfiConfigMapName(prefix string) string {
+func getSystemProbeConfigConfigMapName(prefix string) string {
 	return fmt.Sprintf("%s-%s", prefix, SystemProbeConfigMapSuffixName)
 }
