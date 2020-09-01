@@ -2,26 +2,27 @@ package datadogagent
 
 import (
 	"fmt"
+	"reflect"
 	"testing"
 
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
+	test "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1/test"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+
+	"github.com/google/go-cmp/cmp"
+	assert "github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
-
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
-	test "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1/test"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
-	"github.com/google/go-cmp/cmp"
-	assert "github.com/stretchr/testify/require"
 )
 
 var testClusterChecksRunnerReplicas int32 = 2
 
 func clusterChecksRunnerDefaultPodSpec() corev1.PodSpec {
 	return corev1.PodSpec{
-		Affinity:           getPodAffinity(nil, "foo-cluster-checks-runner"),
+		Affinity:           getPodAffinity(nil),
 		ServiceAccountName: "foo-cluster-checks-runner",
 		InitContainers: []corev1.Container{
 			{
@@ -398,4 +399,69 @@ func Test_newClusterChecksRunnerDeploymentFromInstance_EnvVars(t *testing.T) {
 		},
 	}
 	test.Run(t)
+}
+
+func Test_getPodAffinity(t *testing.T) {
+	tests := []struct {
+		name     string
+		affinity *corev1.Affinity
+		want     *corev1.Affinity
+	}{
+		{
+			name:     "no user-defined affinity - apply default",
+			affinity: nil,
+			want: &corev1.Affinity{
+				PodAntiAffinity: &corev1.PodAntiAffinity{
+					RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+						{
+							LabelSelector: &metav1.LabelSelector{
+								MatchLabels: map[string]string{
+									"agent.datadoghq.com/component": "cluster-checks-runner",
+								},
+							},
+							TopologyKey: "kubernetes.io/hostname",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "user-defined affinity",
+			affinity: &corev1.Affinity{
+				PodAntiAffinity: &corev1.PodAntiAffinity{
+					RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+						{
+							LabelSelector: &metav1.LabelSelector{
+								MatchLabels: map[string]string{
+									"foo": "bar",
+								},
+							},
+							TopologyKey: "baz",
+						},
+					},
+				},
+			},
+			want: &corev1.Affinity{
+				PodAntiAffinity: &corev1.PodAntiAffinity{
+					RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+						{
+							LabelSelector: &metav1.LabelSelector{
+								MatchLabels: map[string]string{
+									"foo": "bar",
+								},
+							},
+							TopologyKey: "baz",
+						},
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := getPodAffinity(tt.affinity); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("getPodAffinity() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

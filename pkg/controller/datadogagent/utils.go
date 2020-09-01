@@ -1240,27 +1240,6 @@ func getDefaultAPMAgentLivenessProbe() *corev1.Probe {
 	return livenessProbe
 }
 
-func getPodAffinity(affinity *corev1.Affinity, labelValue string) *corev1.Affinity {
-	if affinity != nil {
-		return affinity
-	}
-
-	return &corev1.Affinity{
-		PodAntiAffinity: &corev1.PodAntiAffinity{
-			RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
-				{
-					LabelSelector: &metav1.LabelSelector{
-						MatchLabels: map[string]string{
-							"app": labelValue,
-						},
-					},
-					TopologyKey: "kubernetes.io/hostname",
-				},
-			},
-		},
-	}
-}
-
 func updateDaemonSetStatus(ds *appsv1.DaemonSet, dsStatus *datadoghqv1alpha1.DaemonSetStatus, updateTime *metav1.Time) *datadoghqv1alpha1.DaemonSetStatus {
 	if dsStatus == nil {
 		dsStatus = &datadoghqv1alpha1.DaemonSetStatus{}

@@ -277,7 +277,7 @@ func newClusterChecksRunnerPodTemplate(dda *datadoghqv1alpha1.DatadogAgent, labe
 				},
 			},
 			Volumes:           getVolumesForClusterChecksRunner(dda),
-			Affinity:          getPodAffinity(clusterChecksRunnerSpec.Affinity, getClusterChecksRunnerName(dda)),
+			Affinity:          getPodAffinity(clusterChecksRunnerSpec.Affinity),
 			Tolerations:       clusterChecksRunnerSpec.Tolerations,
 			PriorityClassName: clusterChecksRunnerSpec.PriorityClassName,
 		},
@@ -478,4 +478,27 @@ func getVolumeMountsForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) 
 
 func getClusterChecksRunnerCustomConfigConfigMapName(dda *datadoghqv1alpha1.DatadogAgent) string {
 	return fmt.Sprintf("%s-runner-datadog-yaml", dda.Name)
+}
+
+// getPodAffinity returns the pod anti affinity of the cluster check runner pods
+// the default anti affinity ensures we don't schedule multiple cluster check runners on the same node
+func getPodAffinity(affinity *corev1.Affinity) *corev1.Affinity {
+	if affinity != nil {
+		return affinity
+	}
+
+	return &corev1.Affinity{
+		PodAntiAffinity: &corev1.PodAntiAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+				{
+					LabelSelector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							datadoghqv1alpha1.AgentDeploymentComponentLabelKey: datadoghqv1alpha1.DefaultClusterChecksRunnerResourceSuffix,
+						},
+					},
+					TopologyKey: "kubernetes.io/hostname",
+				},
+			},
+		},
+	}
 }

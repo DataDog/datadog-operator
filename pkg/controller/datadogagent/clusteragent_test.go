@@ -31,7 +31,6 @@ var testClusterAgentReplicas int32 = 1
 
 func clusterAgentDefaultPodSpec() corev1.PodSpec {
 	return corev1.PodSpec{
-		Affinity:           getPodAffinity(nil, "foo-cluster-agent"),
 		ServiceAccountName: "foo-cluster-agent",
 		Containers: []corev1.Container{
 			{
@@ -392,7 +391,7 @@ func Test_newClusterAgentDeploymentFromInstance_EnvVars(t *testing.T) {
 func Test_newClusterAgentDeploymentFromInstance_CustomDeploymentName(t *testing.T) {
 	customDeploymentName := "custom-cluster-agent-deployment"
 	deploymentNamePodSpec := clusterAgentDefaultPodSpec()
-	deploymentNamePodSpec.Affinity = getPodAffinity(nil, customDeploymentName)
+	deploymentNamePodSpec.Affinity = nil
 
 	deploymentNameAgentDeployment := test.NewDefaultedDatadogAgent("bar", "foo",
 		&test.NewDatadogAgentOptions{
