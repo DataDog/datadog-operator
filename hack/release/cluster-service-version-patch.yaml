@@ -50,6 +50,17 @@ metadata:
             }
           }
         }
+      },
+      {
+        "apiVersion": "datadoghq.com/v1alpha1",
+        "kind": "DatadogMetric",
+        "metadata": {
+          "name": "cpu-example"
+        },
+        "spec": {
+          "externalMetricName": "cpu-example",
+          "query": "avg:kubernetes.cpu.usage.total{app:foo}.rollup(avg,30)/(avg:kubernetes.cpu.limits{app:foo}.rollup(avg,30)*10000000)"
+        }
       }]
 spec:
   description: Datadog provides a modern monitoring and analytics platform. Gather
@@ -71,5 +82,4 @@ spec:
   maintainers:
   - email: support@datadoghq.com
     name: Datadog Inc.
-  provider:
-    name: Datadog
+  provider: {name: Datadog}
