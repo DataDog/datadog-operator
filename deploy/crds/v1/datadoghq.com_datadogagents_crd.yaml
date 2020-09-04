@@ -2691,6 +2691,9 @@ spec:
                       bpfDebugEnabled:
                         description: BPFDebugEnabled logging for kernel debug
                         type: boolean
+                      collectDNSStats:
+                        description: CollectDNSStats enables DNS stat collection
+                        type: boolean
                       conntrackEnabled:
                         description: 'ConntrackEnabled enable the system-probe agent
                           to connect to the netlink/conntrack subsystem to add NAT
@@ -2701,6 +2704,14 @@ spec:
                           expvar for system-probe agent
                         format: int32
                         type: integer
+                      enableOOMKill:
+                        description: EnableOOMKill enables the OOM kill eBPF-based
+                          check
+                        type: boolean
+                      enableTCPQueueLength:
+                        description: EnableTCPQueueLength enables the TCP queue length
+                          eBPF-based check
+                        type: boolean
                       enabled:
                         description: 'Enable this to activate live process monitoring.
                           Note: /etc/passwd is automatically mounted to allow username

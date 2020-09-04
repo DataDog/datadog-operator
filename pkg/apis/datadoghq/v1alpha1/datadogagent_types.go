@@ -391,6 +391,15 @@ type SystemProbeSpec struct {
 	// DebugPort Specify the port to expose pprof and expvar for system-probe agent
 	DebugPort int32 `json:"debugPort,omitempty"`
 
+	// EnableTCPQueueLength enables the TCP queue length eBPF-based check
+	EnableTCPQueueLength *bool `json:"enableTCPQueueLength,omitempty"`
+
+	// EnableOOMKill enables the OOM kill eBPF-based check
+	EnableOOMKill *bool `json:"enableOOMKill,omitempty"`
+
+	// CollectDNSStats enables DNS stat collection
+	CollectDNSStats *bool `json:"collectDNSStats,omitempty"`
+
 	// The Datadog SystemProbe supports many environment variables
 	// Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables
 	//
