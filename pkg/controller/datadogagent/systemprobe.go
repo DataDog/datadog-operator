@@ -58,6 +58,9 @@ func buildSystemProbeConfigConfiMap(dda *datadoghqv1alpha1.DatadogAgent) (*corev
 				spec.DebugPort,
 				datadoghqv1alpha1.BoolToString(spec.ConntrackEnabled),
 				datadoghqv1alpha1.BoolToString(spec.BPFDebugEnabled),
+				datadoghqv1alpha1.BoolToString(spec.EnableTCPQueueLength),
+				datadoghqv1alpha1.BoolToString(spec.EnableOOMKill),
+				datadoghqv1alpha1.BoolToString(spec.CollectDNSStats),
 				isRuntimeSecurityEnabled(dda),
 				filepath.Join(datadoghqv1alpha1.SystemProbeSocketVolumePath, "runtime-security.sock"),
 				datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumePath,
@@ -75,6 +78,9 @@ const systemProbeAgentSecurityDataTmpl = `system_probe_config:
   sysprobe_socket: /opt/datadog-agent/run/sysprobe.sock
   enable_conntrack: %s
   bpf_debug: %s
+  enable_tcp_queue_length: %s
+  enable_oom_kill: %s
+  collect_dns_stats: %s
 runtime_security_config:
   enabled: %v
   debug: false

@@ -1334,6 +1334,21 @@ func (in *SystemProbeSpec) DeepCopyInto(out *SystemProbeSpec) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.EnableTCPQueueLength != nil {
+		in, out := &in.EnableTCPQueueLength, &out.EnableTCPQueueLength
+		*out = new(bool)
+		**out = **in
+	}
+	if in.EnableOOMKill != nil {
+		in, out := &in.EnableOOMKill, &out.EnableOOMKill
+		*out = new(bool)
+		**out = **in
+	}
+	if in.CollectDNSStats != nil {
+		in, out := &in.CollectDNSStats, &out.CollectDNSStats
+		*out = new(bool)
+		**out = **in
+	}
 	if in.Env != nil {
 		in, out := &in.Env, &out.Env
 		*out = make([]v1.EnvVar, len(*in))

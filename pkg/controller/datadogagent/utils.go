@@ -867,6 +867,28 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 		}
 
 		volumes = append(volumes, systemProbeVolumes...)
+
+		if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.SystemProbe.EnableTCPQueueLength) ||
+			datadoghqv1alpha1.BoolValue(dda.Spec.Agent.SystemProbe.EnableOOMKill) {
+			volumes = append(volumes, []corev1.Volume{
+				{
+					Name: datadoghqv1alpha1.SystemProbeLibModulesVolumeName,
+					VolumeSource: corev1.VolumeSource{
+						HostPath: &corev1.HostPathVolumeSource{
+							Path: datadoghqv1alpha1.SystemProbeLibModulesVolumePath,
+						},
+					},
+				},
+				{
+					Name: datadoghqv1alpha1.SystemProbeUsrSrcVolumeName,
+					VolumeSource: corev1.VolumeSource{
+						HostPath: &corev1.HostPathVolumeSource{
+							Path: datadoghqv1alpha1.SystemProbeUsrSrcVolumePath,
+						},
+					},
+				},
+			}...)
+		}
 	}
 
 	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Log.Enabled) {
@@ -1229,6 +1251,22 @@ func getVolumeMountsForSystemProbe(dda *datadoghqv1alpha1.DatadogAgent) []corev1
 			MountPath: datadoghqv1alpha1.ProcVolumePath,
 			ReadOnly:  true,
 		},
+	}
+
+	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.SystemProbe.EnableTCPQueueLength) ||
+		datadoghqv1alpha1.BoolValue(dda.Spec.Agent.SystemProbe.EnableOOMKill) {
+		volumeMounts = append(volumeMounts, []corev1.VolumeMount{
+			{
+				Name:      datadoghqv1alpha1.SystemProbeLibModulesVolumeName,
+				MountPath: datadoghqv1alpha1.SystemProbeLibModulesVolumePath,
+				ReadOnly:  true,
+			},
+			{
+				Name:      datadoghqv1alpha1.SystemProbeUsrSrcVolumeName,
+				MountPath: datadoghqv1alpha1.SystemProbeUsrSrcVolumePath,
+				ReadOnly:  true,
+			},
+		}...)
 	}
 
 	if isRuntimeSecurityEnabled(dda) && dda.Spec.Agent.Security.Runtime.PoliciesDir != nil {

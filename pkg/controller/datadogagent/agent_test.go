@@ -134,6 +134,105 @@ func defaultVolumes() []corev1.Volume {
 	}
 }
 
+func defaultSystemProbeVolumes() []corev1.Volume {
+	return []corev1.Volume{
+		{
+			Name: datadoghqv1alpha1.InstallInfoVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: "foo-install-info",
+					},
+				},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.ConfdVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.ChecksdVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.ConfigVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.ProcVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/proc",
+				},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.CgroupsVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/sys/fs/cgroup",
+				},
+			},
+		},
+		{
+			Name: "runtimesocketdir",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/var/run",
+				},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.SystemProbeAgentSecurityVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: "foo-system-probe-seccomp",
+					},
+				},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.SystemProbeConfigVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: "foo-system-probe-config",
+					},
+				},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.SystemProbeSecCompRootVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/var/lib/kubelet/seccomp",
+				},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.SystemProbeDebugfsVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/sys/kernel/debug",
+				},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.SystemProbeSocketVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+	}
+}
+
 func defaultSecurityAgentVolumes() []corev1.Volume {
 	return []corev1.Volume{
 		{
@@ -615,6 +714,95 @@ func defaultPodSpec() corev1.PodSpec {
 			},
 		},
 		Volumes: defaultVolumes(),
+	}
+}
+
+func defaultSystemProbePodSpec() corev1.PodSpec {
+	return corev1.PodSpec{
+		ServiceAccountName: "foo-agent",
+		InitContainers: []corev1.Container{
+			{
+				Name:            "init-volume",
+				Image:           "datadog/agent:latest",
+				ImagePullPolicy: corev1.PullIfNotPresent,
+				Resources:       corev1.ResourceRequirements{},
+				Command:         []string{"bash", "-c"},
+				Args:            []string{"cp -r /etc/datadog-agent /opt"},
+				VolumeMounts: []corev1.VolumeMount{
+					{
+						Name:      datadoghqv1alpha1.ConfigVolumeName,
+						MountPath: "/opt/datadog-agent",
+					},
+				},
+			},
+			{
+				Name:            "init-config",
+				Image:           "datadog/agent:latest",
+				ImagePullPolicy: corev1.PullIfNotPresent,
+				Resources:       corev1.ResourceRequirements{},
+				Command:         []string{"bash", "-c"},
+				Args:            []string{"for script in $(find /etc/cont-init.d/ -type f -name '*.sh' | sort) ; do bash $script ; done"},
+				Env:             defaultEnvVars(),
+				VolumeMounts:    defaultMountVolume(),
+			},
+			{
+				Name:            "seccomp-setup",
+				Image:           "datadog/agent:latest",
+				ImagePullPolicy: corev1.PullIfNotPresent,
+				Resources:       corev1.ResourceRequirements{},
+				Command:         []string{"cp", "/etc/config/system-probe-seccomp.json", "/host/var/lib/kubelet/seccomp/system-probe"},
+				VolumeMounts: []corev1.VolumeMount{
+					{
+						Name:      datadoghqv1alpha1.SystemProbeAgentSecurityVolumeName,
+						MountPath: "/etc/config",
+					},
+					{
+						Name:      datadoghqv1alpha1.SystemProbeSecCompRootVolumeName,
+						MountPath: "/host/var/lib/kubelet/seccomp",
+					},
+				},
+			},
+		},
+		Containers: []corev1.Container{
+			{
+				Name:            "agent",
+				Image:           "datadog/agent:latest",
+				ImagePullPolicy: corev1.PullIfNotPresent,
+				Command: []string{
+					"agent",
+					"run",
+				},
+				Resources: corev1.ResourceRequirements{},
+				Ports: []corev1.ContainerPort{
+					{
+						ContainerPort: 8125,
+						Name:          "dogstatsdport",
+						Protocol:      "UDP",
+					},
+				},
+				Env:           defaultEnvVars(),
+				VolumeMounts:  defaultMountVolume(),
+				LivenessProbe: defaultLivenessProbe(),
+			},
+			{
+				Name:            "system-probe",
+				Image:           "datadog/agent:latest",
+				ImagePullPolicy: corev1.PullIfNotPresent,
+				Command: []string{
+					"/opt/datadog-agent/embedded/bin/system-probe",
+					"-config=/etc/datadog-agent/system-probe.yaml",
+				},
+				SecurityContext: &corev1.SecurityContext{
+					Capabilities: &corev1.Capabilities{
+						Add: []corev1.Capability{"SYS_ADMIN", "SYS_RESOURCE", "SYS_PTRACE", "NET_ADMIN", "NET_BROADCAST", "IPC_LOCK"},
+					},
+				},
+				Resources:    corev1.ResourceRequirements{},
+				Env:          defaultSystemProbeEnvVars(),
+				VolumeMounts: defaultSystemProbeMountVolume(),
+			},
+		},
+		Volumes: defaultSystemProbeVolumes(),
 	}
 }
 
@@ -1603,6 +1791,138 @@ func Test_newExtendedDaemonSetFromInstance_endpointsChecksConfig(t *testing.T) {
 	}
 
 	test.Run(t)
+}
+func extendedDaemonSetWithSystemProbe(ddaHash string, podSpec corev1.PodSpec) *edsdatadoghqv1alpha1.ExtendedDaemonSet {
+	return &edsdatadoghqv1alpha1.ExtendedDaemonSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "bar",
+			Name:      "foo-agent",
+			Labels: map[string]string{
+				"agent.datadoghq.com/name":      "foo",
+				"agent.datadoghq.com/component": "agent",
+				"app.kubernetes.io/instance":    "agent",
+				"app.kubernetes.io/managed-by":  "datadog-operator",
+				"app.kubernetes.io/name":        "datadog-agent-deployment",
+				"app.kubernetes.io/part-of":     "foo",
+				"app.kubernetes.io/version":     "",
+			},
+			Annotations: map[string]string{"agent.datadoghq.com/agentspechash": ddaHash},
+		},
+		Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "foo",
+					Namespace:    "bar",
+					Labels: map[string]string{
+						"agent.datadoghq.com/name":      "foo",
+						"agent.datadoghq.com/component": "agent",
+						"app.kubernetes.io/instance":    "agent",
+						"app.kubernetes.io/managed-by":  "datadog-operator",
+						"app.kubernetes.io/name":        "datadog-agent-deployment",
+						"app.kubernetes.io/part-of":     "foo",
+						"app.kubernetes.io/version":     "",
+					},
+					Annotations: map[string]string{
+						"container.apparmor.security.beta.kubernetes.io/system-probe": "unconfined",
+						"container.seccomp.security.alpha.kubernetes.io/system-probe": "localhost/system-probe",
+					},
+				},
+				Spec: podSpec,
+			},
+			Strategy: getDefaultEDSStrategy(),
+		},
+	}
+}
+
+func Test_newExtendedDaemonSetFromInstance_SystemProbe(t *testing.T) {
+	systemProbePodSpec := defaultSystemProbePodSpec()
+	systemProbeExtraMountsSpec := systemProbePodSpec.DeepCopy()
+	systemProbeExtraMountsSpec.Volumes = append(systemProbeExtraMountsSpec.Volumes, []corev1.Volume{
+		{
+			Name: "modules",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/lib/modules",
+				},
+			},
+		},
+		{
+			Name: "src",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/usr/src",
+				},
+			},
+		},
+	}...)
+	for idx := range systemProbeExtraMountsSpec.Containers {
+		if systemProbeExtraMountsSpec.Containers[idx].Name == "system-probe" {
+			systemProbeExtraMountsSpec.Containers[idx].VolumeMounts = append(systemProbeExtraMountsSpec.Containers[idx].VolumeMounts, []corev1.VolumeMount{
+				{
+					Name:      "modules",
+					MountPath: "/lib/modules",
+					ReadOnly:  true,
+				},
+				{
+					Name:      "src",
+					MountPath: "/usr/src",
+					ReadOnly:  true,
+				},
+			}...)
+			break
+		}
+	}
+
+	dda := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
+		UseEDS:              true,
+		ClusterAgentEnabled: true,
+		SystemProbeEnabled:  true,
+	})
+
+	ddaOOMKill := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
+		UseEDS:                    true,
+		ClusterAgentEnabled:       true,
+		SystemProbeEnabled:        true,
+		SystemProbeOOMKillEnabled: true,
+	})
+
+	ddaTCPQueueLength := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
+		UseEDS:                           true,
+		ClusterAgentEnabled:              true,
+		SystemProbeEnabled:               true,
+		SystemProbeTCPQueueLengthEnabled: true,
+	})
+
+	ddaHash, _ := comparison.GenerateMD5ForSpec(dda.Spec)
+	ddaHashOOMKill, _ := comparison.GenerateMD5ForSpec(ddaOOMKill.Spec)
+	ddaHashTCPQueueLength, _ := comparison.GenerateMD5ForSpec(ddaTCPQueueLength.Spec)
+
+	tests := []extendedDaemonSetFromInstanceTest{
+		{
+			name:            "with default settings",
+			agentdeployment: dda,
+			wantErr:         false,
+			want:            extendedDaemonSetWithSystemProbe(ddaHash, systemProbePodSpec),
+		},
+		{
+			name:            "with oom kill",
+			agentdeployment: ddaOOMKill,
+			wantErr:         false,
+			want:            extendedDaemonSetWithSystemProbe(ddaHashOOMKill, *systemProbeExtraMountsSpec),
+		},
+		{
+			name:            "with tcp queue length",
+			agentdeployment: ddaTCPQueueLength,
+			wantErr:         false,
+			want:            extendedDaemonSetWithSystemProbe(ddaHashTCPQueueLength, *systemProbeExtraMountsSpec),
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			test.Run(t)
+		})
+	}
 }
 
 func Test_newExtendedDaemonSetFromInstance_SecurityAgent(t *testing.T) {
