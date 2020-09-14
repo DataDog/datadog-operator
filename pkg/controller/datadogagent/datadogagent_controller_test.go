@@ -581,7 +581,6 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				return nil
 			},
 		},
-
 		{
 			name: "DatadogAgent found and defaulted, create the DaemonSet",
 			fields: fields{
@@ -592,7 +591,18 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
 				loadFunc: func(c client.Client) {
-					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, &test.NewDatadogAgentOptions{ClusterAgentEnabled: false, UseEDS: false, Labels: map[string]string{"label-foo-key": "label-bar-value"}})
+					dda := test.NewDefaultedDatadogAgent(
+						resourcesNamespace,
+						resourcesName,
+						&test.NewDatadogAgentOptions{
+							ClusterAgentEnabled: false,
+							UseEDS:              false,
+							Labels:              map[string]string{"label-foo-key": "label-bar-value"},
+							NodeAgentConfig: datadoghqv1alpha1.DefaultDatadogAgentSpecAgentConfig(&datadoghqv1alpha1.NodeAgentConfig{
+								SecurityContext: &corev1.PodSecurityContext{
+									RunAsUser: datadoghqv1alpha1.NewInt64Pointer(100),
+								}}),
+						})
 					_ = c.Create(context.TODO(), dda)
 					createAgentDependencies(c, dda)
 				},
@@ -603,6 +613,9 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				ds := &appsv1.DaemonSet{}
 				if err := c.Get(context.TODO(), types.NamespacedName{Namespace: resourcesNamespace, Name: dsName}, ds); err != nil {
 					return err
+				}
+				if ds.Spec.Template.Spec.SecurityContext == nil || ds.Spec.Template.Spec.SecurityContext.RunAsUser == nil || *ds.Spec.Template.Spec.SecurityContext.RunAsUser != 100 {
+					return fmt.Errorf("securityContext not applied")
 				}
 				if ds.Name != dsName {
 					return fmt.Errorf("ds bad name, should be: 'foo', current: %s", ds.Name)

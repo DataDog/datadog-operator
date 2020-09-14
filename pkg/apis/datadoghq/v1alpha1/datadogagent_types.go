@@ -514,10 +514,9 @@ type CustomConfigSpec struct {
 // NodeAgentConfig contains the configuration of the Node Agent
 // +k8s:openapi-gen=true
 type NodeAgentConfig struct {
-	// You can modify the security context used to run the containers by
-	// modifying the label type
+	// Pod-level SecurityContext
 	// +optional
-	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
+	SecurityContext *corev1.PodSecurityContext `json:"securityContext,omitempty"`
 
 	// The host of the Datadog intake server to send Agent data to, only set this option
 	// if you need the Agent to send data to a custom URL.
