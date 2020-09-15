@@ -989,6 +989,15 @@ func buildClusterAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, age
 		Verbs:     []string{datadoghqv1alpha1.ListVerb, datadoghqv1alpha1.WatchVerb},
 	})
 
+	rbacRules = append(rbacRules, rbacv1.PolicyRule{
+		APIGroups: []string{datadoghqv1alpha1.CoreAPIGroup},
+		Resources: []string{datadoghqv1alpha1.NamespaceResource},
+		ResourceNames: []string{
+			datadoghqv1alpha1.KubeSystemResourceName,
+		},
+		Verbs: []string{datadoghqv1alpha1.GetVerb},
+	})
+
 	if dda.Spec.Agent != nil {
 		if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Config.CollectEvents) {
 			rbacRules = append(rbacRules, getEventCollectionPolicyRule())
@@ -1159,6 +1168,15 @@ func buildClusterAgentRole(dda *datadoghqv1alpha1.DatadogAgent, name, agentVersi
 	}
 
 	rbacRules := getLeaderElectionPolicyRule()
+
+	rbacRules = append(rbacRules, rbacv1.PolicyRule{
+		APIGroups: []string{datadoghqv1alpha1.CoreAPIGroup},
+		Resources: []string{datadoghqv1alpha1.ConfigMapsResource},
+		ResourceNames: []string{
+			datadoghqv1alpha1.DatadogClusterIDResourceName,
+		},
+		Verbs: []string{datadoghqv1alpha1.GetVerb, datadoghqv1alpha1.UpdateVerb, datadoghqv1alpha1.CreateVerb},
+	})
 
 	if dda.Spec.ClusterAgent.Config.ExternalMetrics != nil && dda.Spec.ClusterAgent.Config.ExternalMetrics.Enabled {
 		rbacRules = append(rbacRules, rbacv1.PolicyRule{
