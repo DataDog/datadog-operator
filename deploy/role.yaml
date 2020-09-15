@@ -48,10 +48,10 @@ rules:
 - apiGroups:
   - datadoghq.com
   resources:
-  - 'datadogagents'
-  - 'datadogagents/status'
-  - 'datadogagents/finalizers'
-  - 'extendeddaemonsets'
-  - 'datadogmetrics'
+  - datadogagents
+  - datadogagents/status
+  - datadogagents/finalizers
+  - extendeddaemonsets
+  - datadogmetrics
   verbs:
   - '*'
