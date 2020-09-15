@@ -786,6 +786,11 @@ type ClusterChecksRunnerConfig struct {
 	// trace, debug, info, warn, error, critical, and off
 	LogLevel *string `json:"logLevel,omitempty"`
 
+	// Confd configuration allowing to specify config files for custom checks placed under /etc/datadog-agent/conf.d/.
+	// See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.
+	// +optional
+	Confd *ConfigDirSpec `json:"confd,omitempty"`
+
 	// The Datadog Agent supports many environment variables
 	// Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables
 	//

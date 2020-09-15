@@ -445,7 +445,24 @@ func getVolumesForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []cor
 		volume := getVolumeFromCustomConfigSpec(dda.Spec.ClusterChecksRunner.CustomConfig, getClusterChecksRunnerCustomConfigConfigMapName(dda), datadoghqv1alpha1.AgentCustomConfigVolumeName)
 		volumes = append(volumes, volume)
 	}
-	return append(volumes, dda.Spec.ClusterChecksRunner.Config.Volumes...)
+
+	volumes = append(volumes, dda.Spec.ClusterChecksRunner.Config.Volumes...)
+
+	if dda.Spec.ClusterChecksRunner.Config.Confd != nil {
+		condfVolume := corev1.Volume{
+			Name: datadoghqv1alpha1.ConfdVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: dda.Spec.ClusterChecksRunner.Config.Confd.ConfigMapName,
+					},
+				},
+			},
+		}
+		volumes = append(volumes, condfVolume)
+	}
+
+	return volumes
 }
 
 // getVolumeMountsForClusterChecksRunner defines volume mounts for the Cluster Checks Runner
@@ -473,7 +490,13 @@ func getVolumeMountsForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) 
 		volumeMount := getVolumeMountFromCustomConfigSpec(dda.Spec.ClusterChecksRunner.CustomConfig, datadoghqv1alpha1.AgentCustomConfigVolumeName, datadoghqv1alpha1.AgentCustomConfigVolumePath, datadoghqv1alpha1.AgentCustomConfigVolumeSubPath)
 		volumeMounts = append(volumeMounts, volumeMount)
 	}
-	return append(volumeMounts, dda.Spec.ClusterChecksRunner.Config.VolumeMounts...)
+	volumeMounts = append(volumeMounts, dda.Spec.ClusterChecksRunner.Config.VolumeMounts...)
+
+	if dda.Spec.ClusterChecksRunner.Config.Confd != nil {
+		volumeMounts = append(volumeMounts, getVolumeMountForConfd())
+	}
+
+	return volumeMounts
 }
 
 func getClusterChecksRunnerCustomConfigConfigMapName(dda *datadoghqv1alpha1.DatadogAgent) string {

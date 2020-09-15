@@ -221,6 +221,11 @@ func (in *ClusterChecksRunnerConfig) DeepCopyInto(out *ClusterChecksRunnerConfig
 		*out = new(string)
 		**out = **in
 	}
+	if in.Confd != nil {
+		in, out := &in.Confd, &out.Confd
+		*out = new(ConfigDirSpec)
+		**out = **in
+	}
 	if in.Env != nil {
 		in, out := &in.Env, &out.Env
 		*out = make([]v1.EnvVar, len(*in))
