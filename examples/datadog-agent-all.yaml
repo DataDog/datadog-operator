@@ -18,3 +18,16 @@ spec:
     systemProbe:
       enabled: true
       bpfDebugEnabled: true
+    security:
+      compliance:
+        enabled: true
+      runtime:
+        enabled: false
+  clusterAgent:
+    image:
+      name: "datadog/cluster-agent:latest"
+    config:
+      externalMetrics:
+        enabled: true
+      admissionController:
+        enabled: true
