@@ -8,18 +8,19 @@ package datadogagent
 import (
 	"context"
 	"encoding/base64"
-	"errors"
 	"reflect"
+	"time"
 
 	"fmt"
 	"testing"
-	"time"
+
+	"github.com/pkg/errors"
+	assert "github.com/stretchr/testify/require"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
 	test "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1/test"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
-	assert "github.com/stretchr/testify/require"
 
 	edsdatadoghqv1alpha1 "github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1"
 
@@ -29,8 +30,8 @@ import (
 	policyv1 "k8s.io/api/policy/v1beta1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -1108,6 +1109,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 					_ = c.Create(context.TODO(), test.NewSecret(resourcesNamespace, "foo", &test.NewSecretOptions{Labels: commonDCAlabels, Data: map[string][]byte{
 						"token": []byte(base64.StdEncoding.EncodeToString([]byte("token-foo"))),
 					}}))
+					_ = c.Create(context.TODO(), buildServiceAccount(dda, "foo-cluster-agent", getClusterAgentVersion(dda)))
 					dcaService := test.NewService(resourcesNamespace, "foo-cluster-agent", &test.NewServiceOptions{Spec: &corev1.ServiceSpec{
 						Type: corev1.ServiceTypeClusterIP,
 						Selector: map[string]string{
@@ -1224,6 +1226,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 					_ = c.Create(context.TODO(), test.NewSecret(resourcesNamespace, "foo", &test.NewSecretOptions{Labels: commonDCAlabels, Data: map[string][]byte{
 						"token": []byte(base64.StdEncoding.EncodeToString([]byte("token-foo"))),
 					}}))
+					_ = c.Create(context.TODO(), buildServiceAccount(dda, "foo-cluster-agent", getClusterAgentVersion(dda)))
 					dcaService := test.NewService(resourcesNamespace, "foo-cluster-agent", &test.NewServiceOptions{Spec: &corev1.ServiceSpec{
 						Type: corev1.ServiceTypeClusterIP,
 						Selector: map[string]string{
@@ -1322,6 +1325,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 					_, _ = comparison.SetMD5GenerationAnnotation(&dcaService.ObjectMeta, dcaService.Spec)
 					dcaService.Labels = commonDCAlabels
 					_ = c.Create(context.TODO(), dcaService)
+					_ = c.Create(context.TODO(), buildServiceAccount(dda, "foo-cluster-agent", getClusterAgentVersion(dda)))
 					_ = c.Create(context.TODO(), buildClusterAgentClusterRole(dda, "foo-cluster-agent", getClusterAgentVersion(dda)))
 					_ = c.Create(context.TODO(), buildClusterAgentPDB(dda))
 				},
@@ -1399,7 +1403,6 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 					_ = c.Create(context.TODO(), dcaExternalMetricsAPIService)
 
 					_ = c.Create(context.TODO(), buildClusterAgentPDB(dda))
-
 				},
 			},
 			want:    reconcile.Result{Requeue: true},
@@ -2267,11 +2270,13 @@ func createClusterAgentDependencies(c client.Client, dda *datadoghqv1alpha1.Data
 	_ = c.Create(context.TODO(), buildClusterAgentClusterRole(dda, "foo-cluster-agent", version))
 	_ = c.Create(context.TODO(), buildClusterAgentRole(dda, "foo-cluster-agent", version))
 	_ = c.Create(context.TODO(), buildServiceAccount(dda, clusterAgentSAName, version))
-	_ = c.Create(context.TODO(), buildClusterRoleBinding(dda, roleBindingInfo{
+	info := roleBindingInfo{
 		name:               "foo-cluster-agent",
 		roleName:           "foo-cluster-agent",
-		serviceAccountName: clusterAgentSAName,
-	}, version))
+		serviceAccountName: getClusterAgentServiceAccount(dda),
+	}
+	_ = c.Create(context.TODO(), buildClusterRoleBinding(dda, info, version))
+	_ = c.Create(context.TODO(), buildRoleBinding(dda, info, version))
 	_ = c.Create(context.TODO(), buildClusterAgentPDB(dda))
 
 	dcaService := test.NewService(resourcesNamespace, "foo-cluster-agent", &test.NewServiceOptions{Spec: &corev1.ServiceSpec{
