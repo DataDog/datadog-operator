@@ -7,6 +7,9 @@ build/_test
 /kubectl-datadog
 /bin
 
+# vendor
+/vendor
+
 # Created by https://www.gitignore.io/api/go,vim,emacs,visualstudiocode
 ### Emacs ###
 # -*- mode: gitignore; -*-
