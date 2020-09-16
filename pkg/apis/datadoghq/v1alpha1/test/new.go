@@ -76,6 +76,7 @@ type NewDatadogAgentOptions struct {
 	RuntimeSecurityEnabled           bool
 	RuntimeSyscallMonitorEnabled     bool
 	RuntimePoliciesDir               *datadoghqv1alpha1.ConfigDirSpec
+	SecurityContext                  *corev1.PodSecurityContext
 }
 
 // NewDefaultedDatadogAgent returns an initialized and defaulted DatadogAgent for testing purpose

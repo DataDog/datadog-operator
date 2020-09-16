@@ -10,6 +10,11 @@ func NewInt32Pointer(i int32) *int32 {
 	return &i
 }
 
+// NewInt64Pointer returns pointer on a new int32 value instance
+func NewInt64Pointer(i int64) *int64 {
+	return &i
+}
+
 // NewStringPointer returns pointer on a new string value instance
 func NewStringPointer(s string) *string {
 	return &s

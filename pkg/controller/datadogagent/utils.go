@@ -129,6 +129,7 @@ func newAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent, select
 			Annotations:  annotations,
 		},
 		Spec: corev1.PodSpec{
+			SecurityContext:    agentdeployment.Spec.Agent.Config.SecurityContext,
 			ServiceAccountName: getAgentServiceAccount(agentdeployment),
 			InitContainers:     initContainers,
 			Containers:         containers,
