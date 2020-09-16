@@ -26,12 +26,20 @@ rules:
   verbs:
   - '*'
 - apiGroups:
+  - apps
+  resourceNames:
+  - datadog-operator
+  resources:
+  - deployments/finalizers
+  verbs:
+  - update
+- apiGroups:
   - rbac.authorization.k8s.io
   - roles.rbac.authorization.k8s.io
   - authorization.k8s.io
   resources:
-  - 'roles'
-  - 'rolebindings'
+  - roles
+  - rolebindings
   verbs:
   - '*'
 - apiGroups:
@@ -43,10 +51,11 @@ rules:
 - apiGroups:
   - datadoghq.com
   resources:
-  - 'datadogagents'
-  - 'datadogagents/status'
-  - 'datadogagents/finalizers'
-  - 'extendeddaemonsets'
+  - datadogagents
+  - datadogagents/status
+  - datadogagents/finalizers
+  - extendeddaemonsets
+  - datadogmetrics
   verbs:
   - '*'
 {{- end -}}

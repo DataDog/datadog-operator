@@ -622,6 +622,16 @@ func (r *ReconcileDatadogAgent) manageClusterAgentRBACs(logger logr.Logger, dda 
 
 	rbacResourcesName := getClusterAgentRbacResourcesName(dda)
 	clusterAgentVersion := getClusterAgentVersion(dda)
+
+	// Create ServiceAccount
+	serviceAccount := &corev1.ServiceAccount{}
+	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesName, Namespace: dda.Namespace}, serviceAccount); err != nil {
+		if errors.IsNotFound(err) {
+			return r.createServiceAccount(logger, dda, rbacResourcesName, clusterAgentVersion)
+		}
+		return reconcile.Result{}, err
+	}
+
 	// Create or update ClusterRole
 	clusterRole := &rbacv1.ClusterRole{}
 	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesName}, clusterRole); err != nil {
@@ -643,6 +653,32 @@ func (r *ReconcileDatadogAgent) manageClusterAgentRBACs(logger logr.Logger, dda 
 				roleName:           rbacResourcesName,
 				serviceAccountName: getClusterAgentServiceAccount(dda),
 			}, clusterAgentVersion)
+		}
+		return reconcile.Result{}, err
+	}
+
+	// Create or update Role
+	role := &rbacv1.Role{}
+	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesName, Namespace: dda.Namespace}, role); err != nil {
+		if errors.IsNotFound(err) {
+			return r.createClusterAgentRole(logger, dda, rbacResourcesName, clusterAgentVersion)
+		}
+		return reconcile.Result{}, err
+	}
+	if result, err := r.updateIfNeededClusterAgentRole(logger, dda, rbacResourcesName, clusterAgentVersion, role); err != nil {
+		return result, err
+	}
+
+	// Create or update RoleBinding
+	roleBinding := &rbacv1.RoleBinding{}
+	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesName, Namespace: dda.Namespace}, roleBinding); err != nil {
+		if errors.IsNotFound(err) {
+			info := roleBindingInfo{
+				name:               rbacResourcesName,
+				roleName:           rbacResourcesName,
+				serviceAccountName: getClusterAgentServiceAccount(dda),
+			}
+			return r.createClusterAgentRoleBinding(logger, dda, info, clusterAgentVersion)
 		}
 		return reconcile.Result{}, err
 	}
@@ -692,39 +728,6 @@ func (r *ReconcileDatadogAgent) manageClusterAgentRBACs(logger logr.Logger, dda 
 		return r.cleanupClusterRoleBinding(logger, r.client, dda, metricsReaderClusterRoleName)
 	}
 
-	// Create ServiceAccount
-	serviceAccount := &corev1.ServiceAccount{}
-	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesName, Namespace: dda.Namespace}, serviceAccount); err != nil {
-		if errors.IsNotFound(err) {
-			return r.createServiceAccount(logger, dda, rbacResourcesName, clusterAgentVersion)
-		}
-		return reconcile.Result{}, err
-	}
-
-	// Create or update Role
-	role := &rbacv1.Role{}
-	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesName, Namespace: dda.Namespace}, role); err != nil {
-		if errors.IsNotFound(err) {
-			return r.createClusterAgentRole(logger, dda, rbacResourcesName, clusterAgentVersion)
-		}
-		return reconcile.Result{}, err
-	}
-	if result, err := r.updateIfNeededClusterAgentRole(logger, dda, rbacResourcesName, clusterAgentVersion, role); err != nil {
-		return result, err
-	}
-	// Create or update RoleBinding
-	roleBinding := &rbacv1.RoleBinding{}
-	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesName, Namespace: dda.Namespace}, roleBinding); err != nil {
-		if errors.IsNotFound(err) {
-			info := roleBindingInfo{
-				name:               rbacResourcesName,
-				roleName:           rbacResourcesName,
-				serviceAccountName: getClusterAgentServiceAccount(dda),
-			}
-			return r.createClusterAgentRoleBinding(logger, dda, info, clusterAgentVersion)
-		}
-		return reconcile.Result{}, err
-	}
 	if result, err := r.updateIfNeededClusterAgentRoleBinding(logger, dda, clusterAgentVersion, roleBinding); err != nil {
 		return result, err
 	}
@@ -993,6 +996,15 @@ func buildClusterAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, age
 		Verbs:     []string{datadoghqv1alpha1.ListVerb, datadoghqv1alpha1.WatchVerb},
 	})
 
+	rbacRules = append(rbacRules, rbacv1.PolicyRule{
+		APIGroups: []string{datadoghqv1alpha1.CoreAPIGroup},
+		Resources: []string{datadoghqv1alpha1.NamespaceResource},
+		ResourceNames: []string{
+			datadoghqv1alpha1.KubeSystemResourceName,
+		},
+		Verbs: []string{datadoghqv1alpha1.GetVerb},
+	})
+
 	if dda.Spec.Agent != nil {
 		if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Config.CollectEvents) {
 			rbacRules = append(rbacRules, getEventCollectionPolicyRule())
@@ -1070,25 +1082,25 @@ func buildClusterAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, age
 				datadoghqv1alpha1.UpdateVerb},
 		})
 
-		// Replicasets
+		// ExtendedDaemonsetReplicaSets
 		rbacRules = append(rbacRules, rbacv1.PolicyRule{
-			APIGroups: []string{datadoghqv1alpha1.AppsAPIGroup},
-			Resources: []string{datadoghqv1alpha1.ReplicasetsResource},
-			Verbs:     []string{datadoghqv1alpha1.GetVerb},
+			APIGroups: []string{datadoghqv1alpha1.SchemeGroupVersion.Group},
+			Resources: []string{
+				datadoghqv1alpha1.ExtendedDaemonSetReplicaSetResource,
+			},
+			Verbs: []string{datadoghqv1alpha1.GetVerb},
 		})
 
-		// Deployments
+		// Deployments, Replicasets, Statefulsets, Daemonsets,
 		rbacRules = append(rbacRules, rbacv1.PolicyRule{
 			APIGroups: []string{datadoghqv1alpha1.AppsAPIGroup},
-			Resources: []string{datadoghqv1alpha1.DeploymentsResource},
-			Verbs:     []string{datadoghqv1alpha1.GetVerb},
-		})
-
-		// Deployments
-		rbacRules = append(rbacRules, rbacv1.PolicyRule{
-			APIGroups: []string{datadoghqv1alpha1.AppsAPIGroup},
-			Resources: []string{datadoghqv1alpha1.StatefulsetsResource},
-			Verbs:     []string{datadoghqv1alpha1.GetVerb},
+			Resources: []string{
+				datadoghqv1alpha1.DeploymentsResource,
+				datadoghqv1alpha1.ReplicasetsResource,
+				datadoghqv1alpha1.StatefulsetsResource,
+				datadoghqv1alpha1.DaemonsetsResource,
+			},
+			Verbs: []string{datadoghqv1alpha1.GetVerb},
 		})
 
 		// Jobs
@@ -1163,6 +1175,15 @@ func buildClusterAgentRole(dda *datadoghqv1alpha1.DatadogAgent, name, agentVersi
 	}
 
 	rbacRules := getLeaderElectionPolicyRule()
+
+	rbacRules = append(rbacRules, rbacv1.PolicyRule{
+		APIGroups: []string{datadoghqv1alpha1.CoreAPIGroup},
+		Resources: []string{datadoghqv1alpha1.ConfigMapsResource},
+		ResourceNames: []string{
+			datadoghqv1alpha1.DatadogClusterIDResourceName,
+		},
+		Verbs: []string{datadoghqv1alpha1.GetVerb, datadoghqv1alpha1.UpdateVerb, datadoghqv1alpha1.CreateVerb},
+	})
 
 	if dda.Spec.ClusterAgent.Config.ExternalMetrics != nil && dda.Spec.ClusterAgent.Config.ExternalMetrics.Enabled {
 		rbacRules = append(rbacRules, rbacv1.PolicyRule{
