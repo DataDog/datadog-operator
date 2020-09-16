@@ -23,9 +23,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/api/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/plugin/common"
-	"github.com/DataDog/datadog-operator/version"
+	"github.com/DataDog/datadog-operator/pkg/version"
 
 	"github.com/mholt/archiver"
 	"github.com/spf13/cobra"

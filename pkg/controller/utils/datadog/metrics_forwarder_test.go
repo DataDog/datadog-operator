@@ -15,8 +15,8 @@ import (
 	"sync"
 	"testing"
 
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
-	test "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1/test"
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
+	test "github.com/DataDog/datadog-operator/api/v1alpha1/test"
 	"github.com/stretchr/testify/mock"
 	assert "github.com/stretchr/testify/require"
 	api "github.com/zorkian/go-datadog-api"

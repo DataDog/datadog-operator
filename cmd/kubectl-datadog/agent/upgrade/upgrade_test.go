@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"testing"
 
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"

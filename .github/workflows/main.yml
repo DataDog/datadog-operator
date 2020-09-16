@@ -23,28 +23,13 @@ jobs:
         make install-tools
     - name: run build
       run: |
-        make build
-    - name: run unit-test
+        make manager
+    - name: run unit tests and E2E tests (fake cluster)
       run: |
         make test
-    - name: run validate
-      run: |
-        make validate
-    - name: setup kind
-      uses: engineerd/setup-kind@v0.3.0
-      with:
-        version: "v0.8.1"
-        config: test/cluster-kind.yaml
-    - name: Run E2E
-      run: |
-        export PATH=$PATH:$(pwd)/bin
-        kubectl cluster-info --context kind-kind
-        kubectl get pods -n kube-system
-        KINDPUSH=true make TAG=$GITHUB_SHA container
-        make TAG=$GITHUB_SHA e2e
     - uses: codecov/codecov-action@v1
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        file: ./.cover/cover.out
+        file: cover.out
         flags: unittests
         yml: .codecov.yml
