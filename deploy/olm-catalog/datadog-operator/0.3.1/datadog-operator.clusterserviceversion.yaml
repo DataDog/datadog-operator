@@ -66,7 +66,7 @@ metadata:
       Datadog Operator.
     repository: https://github.com/DataDog/datadog-operator
     support: Datadog Inc.
-    createdAt: 2020-009-16 14:14:02
+    createdAt: 2020-009-16 14:49:37
   name: datadog-operator.v0.3.1
   namespace: placeholder
 spec:
@@ -81,6 +81,7 @@ spec:
     - kind: DatadogMetric
       name: datadogmetrics.datadoghq.com
       version: v1alpha1
+      displayName: Datadog Metric
   description: Datadog provides a modern monitoring and analytics platform. Gather
     metrics, logs and traces for full observability of your Kubernetes cluster with
     Datadog Operator.
