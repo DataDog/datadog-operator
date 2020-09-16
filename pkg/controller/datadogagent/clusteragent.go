@@ -631,6 +631,7 @@ func (r *ReconcileDatadogAgent) manageClusterAgentRBACs(logger logr.Logger, dda 
 		}
 		return reconcile.Result{}, err
 	}
+
 	// Create or update ClusterRole
 	clusterRole := &rbacv1.ClusterRole{}
 	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesName}, clusterRole); err != nil {
@@ -638,9 +639,11 @@ func (r *ReconcileDatadogAgent) manageClusterAgentRBACs(logger logr.Logger, dda 
 			return r.createClusterAgentClusterRole(logger, dda, rbacResourcesName, clusterAgentVersion)
 		}
 		return reconcile.Result{}, err
-	} else if result, err := r.updateIfNeededClusterAgentClusterRole(logger, dda, rbacResourcesName, clusterAgentVersion, clusterRole); err != nil {
+	}
+	if result, err := r.updateIfNeededClusterAgentClusterRole(logger, dda, rbacResourcesName, clusterAgentVersion, clusterRole); err != nil {
 		return result, err
 	}
+
 	// Create ClusterRoleBinding
 	clusterRoleBinding := &rbacv1.ClusterRoleBinding{}
 	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesName}, clusterRoleBinding); err != nil {
@@ -653,6 +656,7 @@ func (r *ReconcileDatadogAgent) manageClusterAgentRBACs(logger logr.Logger, dda 
 		}
 		return reconcile.Result{}, err
 	}
+
 	// Create or update Role
 	role := &rbacv1.Role{}
 	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesName, Namespace: dda.Namespace}, role); err != nil {
@@ -660,9 +664,11 @@ func (r *ReconcileDatadogAgent) manageClusterAgentRBACs(logger logr.Logger, dda 
 			return r.createClusterAgentRole(logger, dda, rbacResourcesName, clusterAgentVersion)
 		}
 		return reconcile.Result{}, err
-	} else if result, err := r.updateIfNeededClusterAgentRole(logger, dda, rbacResourcesName, clusterAgentVersion, role); err != nil {
+	}
+	if result, err := r.updateIfNeededClusterAgentRole(logger, dda, rbacResourcesName, clusterAgentVersion, role); err != nil {
 		return result, err
 	}
+
 	// Create or update RoleBinding
 	roleBinding := &rbacv1.RoleBinding{}
 	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesName, Namespace: dda.Namespace}, roleBinding); err != nil {
@@ -676,6 +682,7 @@ func (r *ReconcileDatadogAgent) manageClusterAgentRBACs(logger logr.Logger, dda 
 		}
 		return reconcile.Result{}, err
 	}
+
 	metricsProviderEnabled := isMetricsProviderEnabled(dda.Spec.ClusterAgent)
 	// Create or delete HPA ClusterRoleBinding
 	hpaClusterRoleBindingName := getHPAClusterRoleBindingName(dda)
