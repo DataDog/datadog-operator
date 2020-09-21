@@ -702,6 +702,11 @@ type ClusterAgentConfig struct {
 	// Autodiscovery via Kube Service annotations is automatically enabled
 	ClusterChecksEnabled *bool `json:"clusterChecksEnabled,omitempty"`
 
+	// Enables this to start event collection from the kubernetes API
+	// ref: https://docs.datadoghq.com/agent/cluster_agent/event_collection/
+	// +optional
+	CollectEvents *bool `json:"collectEvents,omitempty"`
+
 	// Set logging verbosity, valid log levels are:
 	// trace, debug, info, warn, error, critical, and off
 	LogLevel *string `json:"logLevel,omitempty"`
