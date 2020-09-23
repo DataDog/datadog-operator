@@ -1283,7 +1283,12 @@ func getVolumeMountsForSystemProbe(dda *datadoghqv1alpha1.DatadogAgent) []corev1
 
 // getVolumeMountsForSecurityAgent defines mounted volumes for the Security Agent
 func getVolumeMountsForSecurityAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.VolumeMount {
-	var volumeMounts []corev1.VolumeMount
+	volumeMounts := []corev1.VolumeMount{
+		{
+			Name:      datadoghqv1alpha1.ConfigVolumeName,
+			MountPath: datadoghqv1alpha1.ConfigVolumePath,
+		},
+	}
 
 	complianceEnabled := isComplianceEnabled(dda)
 	runtimeEnabled := isRuntimeSecurityEnabled(dda)
@@ -1294,10 +1299,6 @@ func getVolumeMountsForSecurityAgent(dda *datadoghqv1alpha1.DatadogAgent) []core
 				Name:      datadoghqv1alpha1.CgroupsVolumeName,
 				MountPath: datadoghqv1alpha1.CgroupsVolumePath,
 				ReadOnly:  true,
-			},
-			{
-				Name:      datadoghqv1alpha1.ConfigVolumeName,
-				MountPath: datadoghqv1alpha1.ConfigVolumePath,
 			},
 			{
 				Name:      datadoghqv1alpha1.PasswdVolumeName,
