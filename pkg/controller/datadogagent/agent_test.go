@@ -233,7 +233,7 @@ func defaultSystemProbeVolumes() []corev1.Volume {
 	}
 }
 
-func defaultSecurityAgentVolumes() []corev1.Volume {
+func complianceSecurityAgentVolumes() []corev1.Volume {
 	return []corev1.Volume{
 		{
 			Name: datadoghqv1alpha1.InstallInfoVolumeName,
@@ -296,6 +296,79 @@ func defaultSecurityAgentVolumes() []corev1.Volume {
 			},
 		},
 		{
+			Name: datadoghqv1alpha1.GroupVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/etc/group",
+				},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.HostRootVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/",
+				},
+			},
+		},
+	}
+}
+
+func runtimeSecurityAgentVolumes() []corev1.Volume {
+	return []corev1.Volume{
+		{
+			Name: datadoghqv1alpha1.InstallInfoVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: "foo-install-info",
+					},
+				},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.ConfdVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.ChecksdVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.ConfigVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.ProcVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/proc",
+				},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.CgroupsVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/sys/fs/cgroup",
+				},
+			},
+		},
+		{
+			Name: "runtimesocketdir",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/var/run",
+				},
+			},
+		},
+		{
 			Name: datadoghqv1alpha1.SystemProbeAgentSecurityVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
@@ -335,22 +408,6 @@ func defaultSecurityAgentVolumes() []corev1.Volume {
 			Name: datadoghqv1alpha1.SystemProbeSocketVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
-			},
-		},
-		{
-			Name: datadoghqv1alpha1.GroupVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/etc/group",
-				},
-			},
-		},
-		{
-			Name: datadoghqv1alpha1.HostRootVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/",
-				},
 			},
 		},
 	}
@@ -419,16 +476,16 @@ func defaultSystemProbeMountVolume() []corev1.VolumeMount {
 	}
 }
 
-func defaultSecurityAgentMountVolume() []corev1.VolumeMount {
+func complianceSecurityAgentMountVolume() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
+		{
+			Name:      "config",
+			MountPath: "/etc/datadog-agent",
+		},
 		{
 			Name:      "cgroups",
 			MountPath: "/host/sys/fs/cgroup",
 			ReadOnly:  true,
-		},
-		{
-			Name:      "config",
-			MountPath: "/etc/datadog-agent",
 		},
 		{
 			Name:      "passwd",
@@ -458,6 +515,20 @@ func defaultSecurityAgentMountVolume() []corev1.VolumeMount {
 		{
 			Name:      "runtimesocketdir",
 			MountPath: "/host/root/var/run",
+			ReadOnly:  true,
+		},
+	}
+}
+
+func runtimeSecurityAgentMountVolume() []corev1.VolumeMount {
+	return []corev1.VolumeMount{
+		{
+			Name:      "config",
+			MountPath: "/etc/datadog-agent",
+		},
+		{
+			Name:      "runtimesocketdir",
+			MountPath: "/host/var/run",
 			ReadOnly:  true,
 		},
 		{
@@ -586,28 +657,44 @@ func defaultSystemProbeEnvVars() []corev1.EnvVar {
 	}
 }
 
-func defaultSecurityAgentEnvVars() []corev1.EnvVar {
-	return []corev1.EnvVar{
+func securityAgentEnvVars(compliance, runtime bool) []corev1.EnvVar {
+	env := []corev1.EnvVar{
 		{
 			Name:  "DD_COMPLIANCE_CONFIG_ENABLED",
-			Value: "true",
+			Value: strconv.FormatBool(compliance),
 		},
-		{
-			Name:  "HOST_ROOT",
-			Value: "/host/root",
-		},
+	}
+
+	if compliance {
+		env = append(env, []corev1.EnvVar{
+			{
+				Name:  "HOST_ROOT",
+				Value: "/host/root",
+			},
+		}...)
+	}
+
+	env = append(env, []corev1.EnvVar{
 		{
 			Name:  "DD_RUNTIME_SECURITY_CONFIG_ENABLED",
-			Value: "true",
+			Value: strconv.FormatBool(runtime),
 		},
-		{
-			Name:  "DD_RUNTIME_SECURITY_CONFIG_SOCKET",
-			Value: "/opt/datadog-agent/run/runtime-security.sock",
-		},
-		{
-			Name:  "DD_RUNTIME_SECURITY_CONFIG_SYSCALL_MONITOR_ENABLED",
-			Value: "true",
-		},
+	}...)
+
+	if runtime {
+		env = append(env, []corev1.EnvVar{
+			{
+				Name:  "DD_RUNTIME_SECURITY_CONFIG_SOCKET",
+				Value: "/opt/datadog-agent/run/runtime-security.sock",
+			},
+			{
+				Name:  "DD_RUNTIME_SECURITY_CONFIG_SYSCALL_MONITOR_ENABLED",
+				Value: "true",
+			},
+		}...)
+	}
+
+	env = append(env, []corev1.EnvVar{
 		{
 			Name:  "DD_LOG_LEVEL",
 			Value: "INFO",
@@ -648,7 +735,8 @@ func defaultSecurityAgentEnvVars() []corev1.EnvVar {
 			Name:      "DD_CLUSTER_AGENT_AUTH_TOKEN",
 			ValueFrom: authTokenValue(),
 		},
-	}
+	}...)
+	return env
 }
 
 func addEnvVar(currentVars []corev1.EnvVar, varName string, varValue string) []corev1.EnvVar {
@@ -806,10 +894,10 @@ func defaultSystemProbePodSpec() corev1.PodSpec {
 	}
 }
 
-func defaultSecurityAgentPodSpec() corev1.PodSpec {
+func runtimeSecurityAgentPodSpec() corev1.PodSpec {
 	return corev1.PodSpec{
 		ServiceAccountName: "foo-agent",
-		HostPID:            true,
+		HostPID:            false,
 		InitContainers: []corev1.Container{
 			{
 				Name:            "init-volume",
@@ -906,11 +994,85 @@ func defaultSecurityAgentPodSpec() corev1.PodSpec {
 					},
 				},
 				Resources:    corev1.ResourceRequirements{},
-				Env:          defaultSecurityAgentEnvVars(),
-				VolumeMounts: defaultSecurityAgentMountVolume(),
+				Env:          securityAgentEnvVars(false, true),
+				VolumeMounts: runtimeSecurityAgentMountVolume(),
 			},
 		},
-		Volumes: defaultSecurityAgentVolumes(),
+		Volumes: runtimeSecurityAgentVolumes(),
+	}
+}
+
+func complianceSecurityAgentPodSpec() corev1.PodSpec {
+	return corev1.PodSpec{
+		ServiceAccountName: "foo-agent",
+		HostPID:            true,
+		InitContainers: []corev1.Container{
+			{
+				Name:            "init-volume",
+				Image:           "datadog/agent:latest",
+				ImagePullPolicy: corev1.PullIfNotPresent,
+				Resources:       corev1.ResourceRequirements{},
+				Command:         []string{"bash", "-c"},
+				Args:            []string{"cp -r /etc/datadog-agent /opt"},
+				VolumeMounts: []corev1.VolumeMount{
+					{
+						Name:      datadoghqv1alpha1.ConfigVolumeName,
+						MountPath: "/opt/datadog-agent",
+					},
+				},
+			},
+			{
+				Name:            "init-config",
+				Image:           "datadog/agent:latest",
+				ImagePullPolicy: corev1.PullIfNotPresent,
+				Resources:       corev1.ResourceRequirements{},
+				Command:         []string{"bash", "-c"},
+				Args:            []string{"for script in $(find /etc/cont-init.d/ -type f -name '*.sh' | sort) ; do bash $script ; done"},
+				Env:             defaultEnvVars(),
+				VolumeMounts:    defaultMountVolume(),
+			},
+		},
+		Containers: []corev1.Container{
+			{
+				Name:            "agent",
+				Image:           "datadog/agent:latest",
+				ImagePullPolicy: corev1.PullIfNotPresent,
+				Command: []string{
+					"agent",
+					"run",
+				},
+				Resources: corev1.ResourceRequirements{},
+				Ports: []corev1.ContainerPort{
+					{
+						ContainerPort: 8125,
+						Name:          "dogstatsdport",
+						Protocol:      "UDP",
+					},
+				},
+				Env:           defaultEnvVars(),
+				VolumeMounts:  defaultMountVolume(),
+				LivenessProbe: defaultLivenessProbe(),
+			},
+			{
+				Name:            "security-agent",
+				Image:           "datadog/agent:latest",
+				ImagePullPolicy: corev1.PullIfNotPresent,
+				Command: []string{
+					"security-agent",
+					"start",
+					"-c=/etc/datadog-agent/datadog.yaml",
+				},
+				SecurityContext: &corev1.SecurityContext{
+					Capabilities: &corev1.Capabilities{
+						Add: []corev1.Capability{"AUDIT_CONTROL", "AUDIT_READ"},
+					},
+				},
+				Resources:    corev1.ResourceRequirements{},
+				Env:          securityAgentEnvVars(true, false),
+				VolumeMounts: complianceSecurityAgentMountVolume(),
+			},
+		},
+		Volumes: complianceSecurityAgentVolumes(),
 	}
 }
 
@@ -1925,13 +2087,69 @@ func Test_newExtendedDaemonSetFromInstance_SystemProbe(t *testing.T) {
 	}
 }
 
-func Test_newExtendedDaemonSetFromInstance_SecurityAgent(t *testing.T) {
-	securityAgentPodSpec := defaultSecurityAgentPodSpec()
+func Test_newExtendedDaemonSetFromInstance_SecurityAgent_Compliance(t *testing.T) {
+	securityAgentPodSpec := complianceSecurityAgentPodSpec()
 
 	dda := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
 		UseEDS:                       true,
 		ClusterAgentEnabled:          true,
 		ComplianceEnabled:            true,
+		RuntimeSyscallMonitorEnabled: true,
+	})
+
+	ddaHash, _ := comparison.GenerateMD5ForSpec(dda.Spec)
+
+	test := extendedDaemonSetFromInstanceTest{
+		name:            "with compliance agent enabled",
+		agentdeployment: dda,
+		wantErr:         false,
+		want: &edsdatadoghqv1alpha1.ExtendedDaemonSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "bar",
+				Name:      "foo-agent",
+				Labels: map[string]string{
+					"agent.datadoghq.com/name":      "foo",
+					"agent.datadoghq.com/component": "agent",
+					"app.kubernetes.io/instance":    "agent",
+					"app.kubernetes.io/managed-by":  "datadog-operator",
+					"app.kubernetes.io/name":        "datadog-agent-deployment",
+					"app.kubernetes.io/part-of":     "foo",
+					"app.kubernetes.io/version":     "",
+				},
+				Annotations: map[string]string{"agent.datadoghq.com/agentspechash": ddaHash},
+			},
+			Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						GenerateName: "foo",
+						Namespace:    "bar",
+						Labels: map[string]string{
+							"agent.datadoghq.com/name":      "foo",
+							"agent.datadoghq.com/component": "agent",
+							"app.kubernetes.io/instance":    "agent",
+							"app.kubernetes.io/managed-by":  "datadog-operator",
+							"app.kubernetes.io/name":        "datadog-agent-deployment",
+							"app.kubernetes.io/part-of":     "foo",
+							"app.kubernetes.io/version":     "",
+						},
+						Annotations: map[string]string{},
+					},
+					Spec: securityAgentPodSpec,
+				},
+				Strategy: getDefaultEDSStrategy(),
+			},
+		},
+	}
+
+	test.Run(t)
+}
+
+func Test_newExtendedDaemonSetFromInstance_SecurityAgent_Runtime(t *testing.T) {
+	securityAgentPodSpec := runtimeSecurityAgentPodSpec()
+
+	dda := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
+		UseEDS:                       true,
+		ClusterAgentEnabled:          true,
 		RuntimeSecurityEnabled:       true,
 		RuntimeSyscallMonitorEnabled: true,
 	})
@@ -1939,7 +2157,7 @@ func Test_newExtendedDaemonSetFromInstance_SecurityAgent(t *testing.T) {
 	ddaHash, _ := comparison.GenerateMD5ForSpec(dda.Spec)
 
 	test := extendedDaemonSetFromInstanceTest{
-		name:            "with security agent enabled",
+		name:            "with runtime security agent enabled",
 		agentdeployment: dda,
 		wantErr:         false,
 		want: &edsdatadoghqv1alpha1.ExtendedDaemonSet{
