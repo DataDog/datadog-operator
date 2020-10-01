@@ -32,13 +32,13 @@ To use the Datadog Operator, deploy it in your Kubernetes cluster. Then create a
    - Helm v2:
 
    ```shell
-   helm install --name $DD_NAMEOP -n $DD_NAMESPACE ./chart/datadog-operator
+   helm install --name $DD_NAMEOP -n $DD_NAMESPACE .
    ```
 
    - Helm v3:
 
    ```shell
-   helm install $DD_NAMEOP -n $DD_NAMESPACE ./chart/datadog-operator
+   helm install $DD_NAMEOP -n $DD_NAMESPACE .
    ```
 
 ## Deploy the Datadog Agents with the operator
