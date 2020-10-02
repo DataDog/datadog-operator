@@ -102,6 +102,10 @@ func clusterAgentDefaultEnvVars() []corev1.EnvVar {
 			Value: "false",
 		},
 		{
+			Name:  "DD_COLLECT_KUBERNETES_EVENTS",
+			Value: "false",
+		},
+		{
 			Name:      "DD_API_KEY",
 			ValueFrom: apiKeyValue(),
 		},

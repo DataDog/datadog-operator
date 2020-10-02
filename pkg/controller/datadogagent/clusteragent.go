@@ -491,6 +491,10 @@ func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Env
 			Name:  datadoghqv1alpha1.DDComplianceConfigEnabled,
 			Value: strconv.FormatBool(complianceEnabled),
 		},
+		{
+			Name:  datadoghqv1alpha1.DDCollectKubeEvents,
+			Value: datadoghqv1alpha1.BoolToString(spec.ClusterAgent.Config.CollectEvents),
+		},
 	}
 
 	if complianceEnabled {

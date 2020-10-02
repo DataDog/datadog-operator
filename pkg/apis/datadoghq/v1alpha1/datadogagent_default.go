@@ -623,6 +623,10 @@ func DefaultDatadogAgentSpecClusterAgentConfig(config *ClusterAgentConfig) *Clus
 		config.ClusterChecksEnabled = NewBoolPointer(defaultClusterChecksEnabled)
 	}
 
+	if config.CollectEvents == nil {
+		config.CollectEvents = NewBoolPointer(defaultCollectEvents)
+	}
+
 	if config.AdmissionController != nil {
 		if config.AdmissionController.MutateUnlabelled == nil {
 			NewBoolPointer(defaultMutateUnlabelled)

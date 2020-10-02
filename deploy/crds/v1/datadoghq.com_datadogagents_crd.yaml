@@ -3673,6 +3673,10 @@ spec:
                           Autodiscovery via Kube Service annotations is automatically
                           enabled'
                         type: boolean
+                      collectEvents:
+                        description: 'Enable this to start event collection from the
+                          kubernetes API ref: https://docs.datadoghq.com/agent/cluster_agent/event_collection/'
+                        type: boolean
                       confd:
                         description: Confd Provide additional cluster check configurations.
                           Each key will become a file in /conf.d see https://docs.datadoghq.com/agent/autodiscovery/
