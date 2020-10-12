@@ -2426,8 +2426,7 @@ spec:
                       properties:
                         checkInterval:
                           description: Check interval
-                          format: int64
-                          type: integer
+                          type: string
                         configDir:
                           description: Config dir containing compliance benchmarks
                           properties:
@@ -3560,7 +3559,7 @@ spec:
                         enabled'
                       type: boolean
                     collectEvents:
-                      description: 'Enable this to start event collection from the
+                      description: 'Enables this to start event collection from the
                         kubernetes API ref: https://docs.datadoghq.com/agent/cluster_agent/event_collection/'
                       type: boolean
                     confd:

@@ -10,8 +10,6 @@
 package v1alpha1
 
 import (
-	time "time"
-
 	datadoghqv1alpha1 "github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -159,6 +157,11 @@ func (in *ClusterAgentConfig) DeepCopyInto(out *ClusterAgentConfig) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.CollectEvents != nil {
+		in, out := &in.CollectEvents, &out.CollectEvents
+		*out = new(bool)
+		**out = **in
+	}
 	if in.LogLevel != nil {
 		in, out := &in.LogLevel, &out.LogLevel
 		*out = new(string)
@@ -265,7 +268,7 @@ func (in *ComplianceSpec) DeepCopyInto(out *ComplianceSpec) {
 	}
 	if in.CheckInterval != nil {
 		in, out := &in.CheckInterval, &out.CheckInterval
-		*out = new(time.Duration)
+		*out = new(metav1.Duration)
 		**out = **in
 	}
 	if in.ConfigDir != nil {

@@ -71,7 +71,7 @@ type NewDatadogAgentOptions struct {
 	AdmissionMutateUnlabelled        bool
 	AdmissionServiceName             string
 	ComplianceEnabled                bool
-	ComplianceCheckInterval          time.Duration
+	ComplianceCheckInterval          metav1.Duration
 	ComplianceConfigDir              *datadoghqv1alpha1.ConfigDirSpec
 	RuntimeSecurityEnabled           bool
 	RuntimeSyscallMonitorEnabled     bool
@@ -273,7 +273,7 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 		if options.ComplianceEnabled {
 			ad.Spec.Agent.Security.Compliance.Enabled = datadoghqv1alpha1.NewBoolPointer(true)
 
-			if options.ComplianceCheckInterval != 0 {
+			if options.ComplianceCheckInterval.Duration != 0 {
 				ad.Spec.Agent.Security.Compliance.CheckInterval = &options.ComplianceCheckInterval
 			}
 			if options.ComplianceConfigDir != nil {
