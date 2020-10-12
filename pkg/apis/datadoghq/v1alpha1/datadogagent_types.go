@@ -6,8 +6,6 @@
 package v1alpha1
 
 import (
-	"time"
-
 	edsdatadoghqv1alpha1 "github.com/datadog/extendeddaemonset/pkg/apis/datadoghq/v1alpha1"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -453,7 +451,7 @@ type ComplianceSpec struct {
 
 	// Check interval
 	// +optional
-	CheckInterval *time.Duration `json:"checkInterval,omitempty"`
+	CheckInterval *metav1.Duration `json:"checkInterval,omitempty"`
 
 	// Config dir containing compliance benchmarks
 	// +optional
