@@ -1652,8 +1652,7 @@ spec:
                       properties:
                         checkInterval:
                           description: Check interval
-                          format: int64
-                          type: integer
+                          type: string
                         configDir:
                           description: Config dir containing compliance benchmarks
                           properties:
@@ -2373,6 +2372,9 @@ spec:
                       type: object
                     clusterChecksEnabled:
                       description: 'Enable the Cluster Checks and Endpoint Checks feature on both the cluster-agents and the daemonset ref: https://docs.datadoghq.com/agent/cluster_agent/clusterchecks/ https://docs.datadoghq.com/agent/cluster_agent/endpointschecks/ Autodiscovery via Kube Service annotations is automatically enabled'
+                      type: boolean
+                    collectEvents:
+                      description: 'Enables this to start event collection from the kubernetes API ref: https://docs.datadoghq.com/agent/cluster_agent/event_collection/'
                       type: boolean
                     confd:
                       description: Confd Provide additional cluster check configurations. Each key will become a file in /conf.d see https://docs.datadoghq.com/agent/autodiscovery/ for more details.
