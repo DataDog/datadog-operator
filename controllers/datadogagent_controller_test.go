@@ -48,14 +48,29 @@ func checkAgentUpdateOnObject(agentKey, objKey types.NamespacedName, obj runtime
 	getAnnotationHash func() string,
 	updateAgent func(agent *datadoghqv1alpha1.DatadogAgent),
 	check func(agent *datadoghqv1alpha1.DatadogAgent) bool) {
-	// Getting Agent object to fetch hash before update
-	agent := &datadoghqv1alpha1.DatadogAgent{}
-	Expect(k8sClient.Get(context.Background(), agentKey, agent)).ToNot(HaveOccurred())
-	beforeHash := getAgentHash(agent)
+	var beforeHash string
+	var agent *datadoghqv1alpha1.DatadogAgent
 
-	// Update agent
-	updateAgent(agent)
-	Expect(k8sClient.Update(context.Background(), agent)).ToNot(HaveOccurred())
+	Eventually(func() bool {
+		// Getting Agent object to fetch hash before update
+		agent = &datadoghqv1alpha1.DatadogAgent{}
+		err := k8sClient.Get(context.Background(), agentKey, agent)
+		if err != nil {
+			fmt.Fprint(GinkgoWriter, err)
+			return false
+		}
+		beforeHash = getAgentHash(agent)
+
+		// Update agent
+		updateAgent(agent)
+		err = k8sClient.Update(context.Background(), agent)
+		if err != nil {
+			fmt.Fprint(GinkgoWriter, err)
+			return false
+		}
+
+		return true
+	}, 5*time.Second, time.Second).Should(BeTrue())
 
 	getObjectAndCheck(obj, objKey, func() bool {
 		currentHash := getAnnotationHash()
