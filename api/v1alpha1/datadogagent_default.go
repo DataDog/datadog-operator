@@ -11,7 +11,6 @@ import (
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -53,7 +52,7 @@ const (
 	DefaultAdmissionServiceName                          = "datadog-admission-controller"
 )
 
-var defaultImagePullPolicy = v1.PullIfNotPresent
+var defaultImagePullPolicy = corev1.PullIfNotPresent
 
 // IsDefaultedDatadogAgent used to check if an DatadogAgent was already defaulted
 // returns true if yes, else false
@@ -89,6 +88,10 @@ func IsDefaultedDatadogAgent(ad *DatadogAgent) bool {
 		if !IsDefaultedDatadogAgentSpecProcess(&ad.Spec.Agent.Process) {
 			return false
 		}
+
+		if !IsDefaultedNetworkPolicy(&ad.Spec.Agent.NetworkPolicy) {
+			return false
+		}
 	}
 
 	if ad.Spec.ClusterAgent != nil {
@@ -104,6 +107,10 @@ func IsDefaultedDatadogAgent(ad *DatadogAgent) bool {
 			return false
 		}
 
+		if !IsDefaultedNetworkPolicy(&ad.Spec.ClusterAgent.NetworkPolicy) {
+			return false
+		}
+
 		if ad.Spec.ClusterAgent.Replicas == nil {
 			return false
 		}
@@ -115,6 +122,10 @@ func IsDefaultedDatadogAgent(ad *DatadogAgent) bool {
 		}
 
 		if !IsDefaultedDatadogAgentSpecClusterChecksRunnerConfig(&ad.Spec.ClusterChecksRunner.Config) {
+			return false
+		}
+
+		if !IsDefaultedNetworkPolicy(&ad.Spec.ClusterChecksRunner.NetworkPolicy) {
 			return false
 		}
 
@@ -317,6 +328,20 @@ func IsDefaultedDatadogAgentSpecProcess(process *ProcessSpec) bool {
 	return true
 }
 
+// IsDefaultedNetworkPolicy used to check if a NetworkPolicySpec was already
+// defaulted. Returns true if yes, or false otherwise
+func IsDefaultedNetworkPolicy(policy *NetworkPolicySpec) bool {
+	if policy == nil {
+		return false
+	}
+
+	if policy.Create == nil {
+		return false
+	}
+
+	return true
+}
+
 // IsDefaultedDatadogAgentSpecClusterAgentConfig used to check if
 // a ClusterAgentConfig was already defaulted
 // returns true if yes, else false
@@ -366,6 +391,7 @@ func DefaultDatadogAgentSpecAgent(agent *DatadogAgentSpecAgentSpec) *DatadogAgen
 	DefaultDatadogAgentSpecAgentApm(&agent.Apm)
 	DefaultDatadogAgentSpecAgentLog(&agent.Log)
 	DefaultDatadogAgentSpecAgentProcess(&agent.Process)
+	DefaultNetworkPolicy(&agent.NetworkPolicy)
 	return agent
 }
 
@@ -600,6 +626,7 @@ func DefaultDatadogAgentSpecClusterAgent(clusterAgent *DatadogAgentSpecClusterAg
 	DefaultDatadogAgentSpecClusterAgentImage(&clusterAgent.Image)
 	DefaultDatadogAgentSpecClusterAgentConfig(&clusterAgent.Config)
 	DefaultDatadogAgentSpecRbacConfig(&clusterAgent.Rbac)
+	DefaultNetworkPolicy(&clusterAgent.NetworkPolicy)
 	if clusterAgent.Replicas == nil {
 		clusterAgent.Replicas = NewInt32Pointer(defaultClusterAgentReplicas)
 	}
@@ -667,6 +694,7 @@ func DefaultDatadogAgentSpecClusterChecksRunner(clusterChecksRunner *DatadogAgen
 	DefaultDatadogAgentSpecClusterChecksRunnerImage(&clusterChecksRunner.Image)
 	DefaultDatadogAgentSpecClusterChecksRunnerConfig(&clusterChecksRunner.Config)
 	DefaultDatadogAgentSpecRbacConfig(&clusterChecksRunner.Rbac)
+	DefaultNetworkPolicy(&clusterChecksRunner.NetworkPolicy)
 	if clusterChecksRunner.Replicas == nil {
 		clusterChecksRunner.Replicas = NewInt32Pointer(defaultClusterChecksRunnerReplicas)
 	}
@@ -703,4 +731,18 @@ func DefaultDatadogAgentSpecClusterChecksRunnerImage(image *ImageConfig) *ImageC
 	}
 
 	return image
+}
+
+// DefaultNetworkPolicy is used to default NetworkPolicy. Returns the defaulted
+// ImageConfig
+func DefaultNetworkPolicy(policy *NetworkPolicySpec) *NetworkPolicySpec {
+	if policy == nil {
+		policy = &NetworkPolicySpec{}
+	}
+
+	if policy.Create == nil {
+		policy.Create = NewBoolPointer(false)
+	}
+
+	return policy
 }

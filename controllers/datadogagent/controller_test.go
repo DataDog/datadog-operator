@@ -26,10 +26,12 @@ import (
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	policyv1 "k8s.io/api/policy/v1beta1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -156,6 +158,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 	s.AddKnownTypes(rbacv1.SchemeGroupVersion, &rbacv1.RoleBinding{})
 	s.AddKnownTypes(policyv1.SchemeGroupVersion, &policyv1.PodDisruptionBudget{})
 	s.AddKnownTypes(apiregistrationv1.SchemeGroupVersion, &apiregistrationv1.APIService{})
+	s.AddKnownTypes(networkingv1.SchemeGroupVersion, &networkingv1.NetworkPolicy{})
 
 	defaultRequeueDuration := 15 * time.Second
 
@@ -168,6 +171,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 		request  reconcile.Request
 		loadFunc func(c client.Client)
 	}
+
 	tests := []struct {
 		name     string
 		fields   fields
@@ -329,7 +333,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 					_ = c.Create(context.TODO(), installinfoCM)
 				},
 			},
-			want:    reconcile.Result{Requeue: true},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
 			wantFunc: func(c client.Client) error {
 				rbacResourcesName := "foo-agent"
@@ -2107,7 +2111,154 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				return nil
 			},
 		},
+		{
+			name: "DatadogAgent found and defaulted, Agent network policies are created",
+			fields: fields{
+				client:   fake.NewFakeClient(),
+				scheme:   s,
+				recorder: recorder,
+			},
+			args: args{
+				request: newRequest(resourcesNamespace, resourcesName),
+				loadFunc: func(c client.Client) {
+					dadOptions := &test.NewDatadogAgentOptions{
+						CreateNetworkPolicy: true,
+					}
+
+					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, dadOptions)
+					_ = c.Create(context.TODO(), dda)
+
+					createAgentDependencies(c, dda)
+				},
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(c client.Client) error {
+				ds := &appsv1.DaemonSet{}
+				err := c.Get(context.TODO(), newRequest(resourcesNamespace, dsName).NamespacedName, ds)
+				if err != nil {
+					return err
+				}
+
+				policy := &networkingv1.NetworkPolicy{}
+				err = c.Get(context.TODO(), newRequest(resourcesNamespace, dsName).NamespacedName, policy)
+				if err != nil {
+					return err
+				}
+
+				dsLabels := labels.Set(ds.Spec.Template.Labels)
+				policySelector := labels.Set(policy.Spec.PodSelector.MatchLabels).AsSelector()
+				if !policySelector.Matches(dsLabels) {
+					return fmt.Errorf("network policy's selector %s does not match pods defined in the daemonset", policySelector)
+				}
+
+				return nil
+			},
+		},
+		{
+			name: "DatadogAgent found and defaulted, Cluster Agent network policies are created",
+			fields: fields{
+				client:   fake.NewFakeClient(),
+				scheme:   s,
+				recorder: recorder,
+			},
+			args: args{
+				request: newRequest(resourcesNamespace, resourcesName),
+				loadFunc: func(c client.Client) {
+					dadOptions := &test.NewDatadogAgentOptions{
+						ClusterAgentEnabled: true,
+						CreateNetworkPolicy: true,
+					}
+
+					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, dadOptions)
+					_ = c.Create(context.TODO(), dda)
+
+					createAgentDependencies(c, dda)
+					createClusterAgentDependencies(c, dda)
+				},
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(c client.Client) error {
+				dca := &appsv1.Deployment{}
+				err := c.Get(context.TODO(), newRequest(resourcesNamespace, rbacResourcesNameClusterAgent).NamespacedName, dca)
+				if err != nil {
+					return err
+				}
+
+				policy := &networkingv1.NetworkPolicy{}
+				err = c.Get(context.TODO(), newRequest(resourcesNamespace, rbacResourcesNameClusterAgent).NamespacedName, policy)
+				if err != nil {
+					return err
+				}
+
+				dcaLabels := labels.Set(dca.Spec.Template.Labels)
+				policySelector := labels.Set(policy.Spec.PodSelector.MatchLabels).AsSelector()
+				if !policySelector.Matches(dcaLabels) {
+					return fmt.Errorf("network policy's selector %s does not match pods defined in the daemonset", policySelector)
+				}
+
+				return nil
+			},
+		},
+		{
+			name: "DatadogAgent found and defaulted, Cluster Checks Runner network policies are created",
+			fields: fields{
+				client:   fake.NewFakeClient(),
+				scheme:   s,
+				recorder: recorder,
+			},
+			args: args{
+				request: newRequest(resourcesNamespace, resourcesName),
+				loadFunc: func(c client.Client) {
+					dadOptions := &test.NewDatadogAgentOptions{
+						ClusterAgentEnabled:        true,
+						ClusterChecksEnabled:       true,
+						ClusterChecksRunnerEnabled: true,
+						CreateNetworkPolicy:        true,
+					}
+
+					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, dadOptions)
+					_ = c.Create(context.TODO(), dda)
+
+					dcaOptions := &test.NewDeploymentOptions{
+						Labels:                 map[string]string{"label-foo-key": "label-bar-value"},
+						ForceAvailableReplicas: datadoghqv1alpha1.NewInt32Pointer(1),
+					}
+					dca := test.NewClusterAgentDeployment(resourcesNamespace, resourcesName, dcaOptions)
+					_ = c.Create(context.TODO(), dca)
+
+					createAgentDependencies(c, dda)
+					createClusterAgentDependencies(c, dda)
+					createClusterChecksRunnerDependencies(c, dda)
+				},
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(c client.Client) error {
+				dca := &appsv1.Deployment{}
+				err := c.Get(context.TODO(), newRequest(resourcesNamespace, rbacResourcesNameClusterChecksRunner).NamespacedName, dca)
+				if err != nil {
+					return err
+				}
+
+				policy := &networkingv1.NetworkPolicy{}
+				err = c.Get(context.TODO(), newRequest(resourcesNamespace, rbacResourcesNameClusterChecksRunner).NamespacedName, policy)
+				if err != nil {
+					return err
+				}
+
+				dcaLabels := labels.Set(dca.Spec.Template.Labels)
+				policySelector := labels.Set(policy.Spec.PodSelector.MatchLabels).AsSelector()
+				if !policySelector.Matches(dcaLabels) {
+					return fmt.Errorf("network policy's selector %s does not match pods defined in the daemonset", policySelector)
+				}
+
+				return nil
+			},
+		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := &Reconciler{
@@ -2355,5 +2506,4 @@ func createClusterChecksRunnerDependencies(c client.Client, dda *datadoghqv1alph
 
 	installinfoCM, _ := buildInstallInfoConfigMap(dda)
 	_ = c.Create(context.TODO(), installinfoCM)
-
 }

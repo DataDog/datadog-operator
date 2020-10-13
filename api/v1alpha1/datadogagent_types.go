@@ -195,6 +195,10 @@ type DatadogAgentSpecAgentSpec struct {
 	// See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.
 	// +optional
 	CustomConfig *CustomConfigSpec `json:"customConfig,omitempty"`
+
+	// Provide Agent Network Policy configuration
+	// +optional
+	NetworkPolicy NetworkPolicySpec `json:"networkPolicy,omitempty"`
 }
 
 // RbacConfig contains RBAC configuration
@@ -683,6 +687,10 @@ type DatadogAgentSpecClusterAgentSpec struct {
 	// More info: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
 	// +optional
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+
+	// Provide Cluster Agent Network Policy configuration
+	// +optional
+	NetworkPolicy NetworkPolicySpec `json:"networkPolicy,omitempty"`
 }
 
 // ClusterAgentConfig contains the configuration of the Cluster Agent
@@ -860,6 +868,10 @@ type DatadogAgentSpecClusterChecksRunnerSpec struct {
 	// More info: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
 	// +optional
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+
+	// Provide Cluster Checks Runner Network Policy configuration
+	// +optional
+	NetworkPolicy NetworkPolicySpec `json:"networkPolicy,omitempty"`
 }
 
 // ImageConfig Datadog agent container image config
@@ -879,6 +891,14 @@ type ImageConfig struct {
 	// See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod
 	// +optional
 	PullSecrets *[]corev1.LocalObjectReference `json:"pullSecrets,omitempty"`
+}
+
+// NetworkPolicySpec provides Network Policy configuration for the agents
+// +k8s:openapi-gen=true
+type NetworkPolicySpec struct {
+	// If true, create a NetworkPolicy for the current agent
+	// +optional
+	Create *bool `json:"create,omitempty"`
 }
 
 // DatadogAgentState type representing the deployment state of the different Agent components

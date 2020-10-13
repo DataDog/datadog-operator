@@ -14,6 +14,7 @@ import (
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -26,6 +27,7 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func (r *Reconciler) reconcileClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
@@ -248,6 +250,11 @@ func (r *Reconciler) manageClusterAgentDependencies(logger logr.Logger, dda *dat
 	}
 
 	result, err = r.manageConfigMap(logger, dda, getInstallInfoConfigMapName(dda), buildInstallInfoConfigMap)
+	if shouldReturn(result, err) {
+		return result, err
+	}
+
+	result, err = r.manageClusterAgentNetworkPolicy(logger, dda)
 	if shouldReturn(result, err) {
 		return result, err
 	}
@@ -1213,4 +1220,116 @@ func getDatadogHost(dda *datadoghqv1alpha1.DatadogAgent) string {
 		return fmt.Sprintf("https://app.%s", dda.Spec.Site)
 	}
 	return "https://app.datadoghq.com"
+}
+
+func (r *Reconciler) manageClusterAgentNetworkPolicy(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
+	policyName := fmt.Sprintf("%s-%s", dda.Name, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix)
+
+	spec := dda.Spec.ClusterAgent
+	if spec == nil || !datadoghqv1alpha1.BoolValue(spec.NetworkPolicy.Create) {
+		return r.cleanupNetworkPolicy(logger, dda, policyName)
+	}
+
+	return r.ensureNetworkPolicy(logger, dda, policyName, buildClusterAgentNetworkPolicy)
+}
+
+func buildClusterAgentNetworkPolicy(dda *datadoghqv1alpha1.DatadogAgent, name string) *networkingv1.NetworkPolicy {
+	egressRules := []networkingv1.NetworkPolicyEgressRule{
+		// Egress to datadog intake and
+		// kubeapi server
+		{
+			Ports: []networkingv1.NetworkPolicyPort{
+				{
+					Port: &intstr.IntOrString{
+						Type:   intstr.Int,
+						IntVal: 443,
+					},
+				},
+			},
+		},
+	}
+
+	ingressRules := []networkingv1.NetworkPolicyIngressRule{
+		// Ingress for the node agents
+		{
+			Ports: []networkingv1.NetworkPolicyPort{
+				{
+					Port: &intstr.IntOrString{
+						Type:   intstr.Int,
+						IntVal: datadoghqv1alpha1.DefaultClusterAgentServicePort,
+					},
+				},
+			},
+			From: []networkingv1.NetworkPolicyPeer{
+				{
+					PodSelector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							kubernetes.AppKubernetesInstanceLabelKey: datadoghqv1alpha1.DefaultAgentResourceSuffix,
+							kubernetes.AppKubernetesPartOfLabelKey:   dda.Name,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	if datadoghqv1alpha1.BoolValue(dda.Spec.ClusterAgent.Config.ClusterChecksEnabled) {
+		ingressRules = append(ingressRules, networkingv1.NetworkPolicyIngressRule{
+			Ports: []networkingv1.NetworkPolicyPort{
+				{
+					Port: &intstr.IntOrString{
+						Type:   intstr.Int,
+						IntVal: datadoghqv1alpha1.DefaultClusterAgentServicePort,
+					},
+				},
+			},
+			From: []networkingv1.NetworkPolicyPeer{
+				{
+					PodSelector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							kubernetes.AppKubernetesInstanceLabelKey: datadoghqv1alpha1.DefaultClusterChecksRunnerResourceSuffix,
+							kubernetes.AppKubernetesPartOfLabelKey:   dda.Name,
+						},
+					},
+				},
+			},
+		})
+	}
+
+	if dda.Spec.ClusterAgent.Config.ExternalMetrics != nil && dda.Spec.ClusterAgent.Config.ExternalMetrics.Enabled {
+		ingressRules = append(ingressRules, networkingv1.NetworkPolicyIngressRule{
+			Ports: []networkingv1.NetworkPolicyPort{
+				{
+					Port: &intstr.IntOrString{
+						Type:   intstr.Int,
+						IntVal: int32(datadoghqv1alpha1.DefaultMetricsServerTargetPort),
+					},
+				},
+			},
+		})
+	}
+
+	policy := &networkingv1.NetworkPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels:    getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda)),
+			Name:      name,
+			Namespace: dda.Namespace,
+		},
+		Spec: networkingv1.NetworkPolicySpec{
+			PodSelector: metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					kubernetes.AppKubernetesInstanceLabelKey: datadoghqv1alpha1.DefaultClusterAgentResourceSuffix,
+					kubernetes.AppKubernetesPartOfLabelKey:   dda.Name,
+				},
+			},
+			Ingress: ingressRules,
+			Egress:  egressRules,
+			PolicyTypes: []networkingv1.PolicyType{
+				networkingv1.PolicyTypeIngress,
+				networkingv1.PolicyTypeEgress,
+			},
+		},
+	}
+
+	return policy
 }

@@ -2325,6 +2325,15 @@ spec:
                           tailing the log files from the right offset Default to `/var/lib/datadog-agent/logs`
                         type: string
                     type: object
+                  networkPolicy:
+                    description: Provide Agent Network Policy configuration
+                    properties:
+                      create:
+                        description: If true, create a NetworkPolicy for the agents
+                        type: boolean
+                    required:
+                    - create
+                    type: object
                   priorityClassName:
                     description: If specified, indicates the pod's priority. "system-node-critical"
                       and "system-cluster-critical" are two special keywords which
@@ -5271,6 +5280,15 @@ spec:
                     required:
                     - name
                     type: object
+                  networkPolicy:
+                    description: Provide Cluster Agent Network Policy configuration
+                    properties:
+                      create:
+                        description: If true, create a NetworkPolicy for the agents
+                        type: boolean
+                    required:
+                    - create
+                    type: object
                   nodeSelector:
                     additionalProperties:
                       type: string
@@ -7545,6 +7563,15 @@ spec:
                         type: array
                     required:
                     - name
+                    type: object
+                  networkPolicy:
+                    description: Provide Cluster Checks Runner Network Policy configuration
+                    properties:
+                      create:
+                        description: If true, create a NetworkPolicy for the agents
+                        type: boolean
+                    required:
+                    - create
                     type: object
                   nodeSelector:
                     additionalProperties:

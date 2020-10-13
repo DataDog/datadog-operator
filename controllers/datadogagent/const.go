@@ -29,4 +29,5 @@ const (
 	secretKind              = "Secret"
 	serviceKind             = "Service"
 	apiServiceKind          = "APIService"
+	networkPolicyKind       = "NetworkPolicy"
 )
