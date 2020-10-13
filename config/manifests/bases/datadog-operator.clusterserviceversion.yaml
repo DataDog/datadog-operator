@@ -1,0 +1,51 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  annotations:
+    alm-examples: '[]'
+    capabilities: Basic Install
+    operators.operatorframework.io/builder: operator-sdk-v1.0.0
+    operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
+  name: datadog-operator.vX.Y.Z
+  namespace: placeholder
+spec:
+  apiservicedefinitions: {}
+  customresourcedefinitions:
+    owned:
+    - description: DatadogAgent Deployment with Datadog Operator
+      displayName: Datadog Agent
+      kind: DatadogAgent
+      name: datadogagents.datadoghq.com
+      version: v1alpha1
+    - description: DatadogMetric is the Schema for the datadogmetrics API
+      displayName: Datadog Metric
+      kind: DatadogMetric
+      name: datadogmetrics.datadoghq.com
+      version: v1alpha1
+  description: Datadog Operator
+  displayName: Datadog Operator
+  icon:
+  - base64data: ""
+    mediatype: ""
+  install:
+    spec:
+      deployments: null
+    strategy: ""
+  installModes:
+  - supported: true
+    type: OwnNamespace
+  - supported: true
+    type: SingleNamespace
+  - supported: false
+    type: MultiNamespace
+  - supported: true
+    type: AllNamespaces
+  keywords:
+  - monitoring
+  links:
+  - name: Datadog Operator
+    url: https://datadog-operator.domain
+  maturity: alpha
+  provider:
+    name: Datadog
+  version: 0.0.0

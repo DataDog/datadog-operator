@@ -11,9 +11,18 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 )
+
+// MetricForwardersManager defines interface for metrics forwarding
+type MetricForwardersManager interface {
+	Register(MonitoredObject)
+	Unregister(MonitoredObject)
+	ProcessError(MonitoredObject, error)
+	ProcessEvent(MonitoredObject, Event)
+	MetricsForwarderStatusForObj(obj MonitoredObject) *datadoghqv1alpha1.DatadogAgentCondition
+}
 
 // ForwardersManager is a collection of metricsForwarder per DatadogAgent
 // ForwardersManager implements the controller-runtime Runnable interface

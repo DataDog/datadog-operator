@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
 set -e
 
-RELEASE_VERSION=v0.19.0
-
+RELEASE_VERSION=$1
 ROOT=$(pwd)
+
+if [ -z "$RELEASE_VERSION" ];
+then
+  echo "usage: bin/install-operator-sdk.sh <version>"
+  exit 1
+fi
 
 # copy binary in current repo
 mkdir -p $ROOT/bin
@@ -29,6 +34,7 @@ uname_os() {
 
 OS=$(uname_os)
 
+
 mkdir -p bin
 
 cd $WORK_DIR
@@ -42,4 +48,4 @@ else
     mv operator-sdk-${RELEASE_VERSION}-x86_64-linux-gnu $ROOT/bin/operator-sdk
 fi
 
-chmod +x $ROOT/bin/operator-sdk
+chmod +x $ROOT/bin/operator-sdk 

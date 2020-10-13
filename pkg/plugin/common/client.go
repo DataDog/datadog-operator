@@ -8,8 +8,7 @@ package common
 import (
 	"fmt"
 
-	"github.com/DataDog/datadog-operator/pkg/apis"
-
+	"github.com/DataDog/datadog-operator/api/v1alpha1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/clientcmd"
@@ -31,7 +30,7 @@ func NewClient(clientConfig clientcmd.ClientConfig) (client.Client, error) {
 	}
 
 	// Register DatadogAgent scheme
-	if err = apis.AddToScheme(scheme.Scheme); err != nil {
+	if err = v1alpha1.AddToScheme(scheme.Scheme); err != nil {
 		return nil, fmt.Errorf("unable register DatadogAgent apis: %v", err)
 	}
 

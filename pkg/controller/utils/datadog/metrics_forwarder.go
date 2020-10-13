@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
@@ -65,7 +65,7 @@ var (
 // its lifecycle must be handled by a ForwardersManager
 type metricsForwarder struct {
 	id                  string
-	datadogClient       api.Client
+	datadogClient       *api.Client
 	k8sClient           client.Client
 	keysHash            uint64
 	retryInterval       time.Duration
@@ -334,7 +334,7 @@ func (mf *metricsForwarder) initAPIClient(apiKey, appKey string) error {
 	if err != nil {
 		return err
 	}
-	mf.datadogClient = *datadogClient
+	mf.datadogClient = datadogClient
 	mf.keysHash = hashKeys(apiKey, appKey)
 	return nil
 }

@@ -1,39 +1,27 @@
-ARG TAG=0.3.1
-FROM golang as build-env
-ARG TAG
+# Build the manager binary
+FROM golang:1.14 as builder
 
-WORKDIR /src
-COPY . .
-RUN make TAG=$TAG GOMOD="-mod=vendor" build
+WORKDIR /workspace
+# Copy the Go Modules manifests
+COPY go.mod go.mod
+COPY go.sum go.sum
+# cache deps before building and copying source so that we don't need to re-download as much
+# and so that source changes don't invalidate our downloaded layer
+RUN go mod download
 
-FROM registry.access.redhat.com/ubi7/ubi-minimal:latest AS final
-ARG TAG
+# Copy the go source
+COPY main.go main.go
+COPY api/ api/
+COPY controllers/ controllers/
+COPY pkg/ pkg/
 
-LABEL name="datadog/operator"
-LABEL vendor="Datadog Inc."
-LABEL version=$TAG
-LABEL release=$TAG
-LABEL summary="The Datadog Operator aims at providing a new way to deploy the Datadog Agent on Kubernetes"
-LABEL description="Datadog provides a modern monitoring and analytics platform. Gather \
-      metrics, logs and traces for full observability of your Kubernetes cluster with \
-      Datadog Operator."
+# Build
+ARG LDFLAGS
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -ldflags "${LDFLAGS}" -o manager main.go
 
-RUN mkdir -p /licences
+FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
+WORKDIR /
+COPY --from=builder /workspace/manager .
+USER 1001
 
-ENV OPERATOR=/usr/local/bin/datadog-operator \
-    USER_UID=1001 \
-    USER_NAME=datadog-operator
-
-# install operator binary
-COPY --from=build-env /src/controller ${OPERATOR}
-
-COPY ./LICENSE /licenses/LICENSE
-COPY ./LICENSE-3rdparty.csv /licenses/LICENSE-3rdparty
-RUN chmod -R 755 /licences
-
-COPY --from=build-env /src/build/bin /usr/local/bin
-RUN  /usr/local/bin/user_setup
-
-ENTRYPOINT ["/usr/local/bin/entrypoint"]
-
-USER ${USER_UID}
+ENTRYPOINT ["/manager"]

@@ -6,7 +6,7 @@
 package utils
 
 import (
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
 )
 
 // GetAPIKeySecret returns the API key secret name and the key inside the secret

@@ -1,139 +1,191 @@
-PROJECT_NAME=datadog-operator
-ARTIFACT=controller
-ARTIFACT_PLUGIN=kubectl-datadog
-
-# 0.0 shouldn't clobber any released builds
-DOCKER_REGISTRY=datadog
-PREFIX=${DOCKER_REGISTRY}/operator
-SOURCEDIR="."
-
-SOURCES := $(shell find $(SOURCEDIR) ! -name "*_test.go" -name '*.go')
-
-BUILDINFOPKG=github.com/DataDog/${PROJECT_NAME}/version
+#
+# Datadog custom variables
+#
+BUILDINFOPKG=github.com/DataDog/datadog-operator/pkg/version
 GIT_TAG?=$(shell git tag -l --contains HEAD | tail -1)
-LAST_TAG=$(or $(shell git tag | tail -1),v0.0.0)
-TAG_HASH=${LAST_TAG}_$(shell git rev-parse --short HEAD)
+TAG_HASH=$(shell git tag | tail -1)_$(shell git rev-parse --short HEAD)
 VERSION?=$(if $(GIT_TAG),$(GIT_TAG),$(TAG_HASH))
-TAG?=${VERSION}
 GIT_COMMIT?=$(shell git rev-parse HEAD)
 DATE=$(shell date +%Y-%m-%d/%H:%M:%S )
-GOMOD?="-mod=vendor"
-LDFLAGS=-ldflags "-w -X ${BUILDINFOPKG}.Tag=${TAG} -X ${BUILDINFOPKG}.Commit=${GIT_COMMIT} -X ${BUILDINFOPKG}.Version=${VERSION} -X ${BUILDINFOPKG}.BuildTime=${DATE} -s"
+LDFLAGS=-w -s -X ${BUILDINFOPKG}.Commit=${GIT_COMMIT} -X ${BUILDINFOPKG}.Version=${VERSION} -X ${BUILDINFOPKG}.BuildTime=${DATE}
 
-KIND_CLUSTER_NAME="kind"
+# Default bundle image tag
+BUNDLE_IMG ?= controller-bundle:$(VERSION)
+# Options for 'bundle-build'
+ifneq ($(origin CHANNELS), undefined)
+BUNDLE_CHANNELS := --channels=$(CHANNELS)
+endif
+ifneq ($(origin DEFAULT_CHANNEL), undefined)
+BUNDLE_DEFAULT_CHANNEL := --default-channel=$(DEFAULT_CHANNEL)
+endif
+BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 
-export GO111MODULE=on
+# Image URL to use all building/pushing image targets
+IMG ?= datadog/datadog-operator:latest
 
-all: test build
+# Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
+ifeq (,$(shell go env GOBIN))
+GOBIN=$(shell go env GOPATH)/bin
+else
+GOBIN=$(shell go env GOBIN)
+endif
 
-vendor:
-	go mod vendor
+all: build test
 
+build: manager kubectl-datadog
+
+# Run tests
+test: build manifests verify-license gotest
+
+gotest:
+	go test ./... -coverprofile cover.out
+
+# Build manager binary
+manager: generate lint
+	go build -ldflags '${LDFLAGS}' -o bin/manager main.go
+
+# Run against the configured Kubernetes cluster in ~/.kube/config
+run: generate lint manifests
+	go run ./main.go
+
+# Install CRDs into a cluster
+install: manifests kustomize
+	$(KUSTOMIZE) build config/crd | kubectl apply -f -
+
+# Uninstall CRDs from a cluster
+uninstall: manifests kustomize
+	$(KUSTOMIZE) build config/crd | kubectl delete -f -
+
+# Deploy controller in the configured Kubernetes cluster in ~/.kube/config
+deploy: manifests kustomize
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	$(KUSTOMIZE) build config/default | kubectl apply -f -
+
+# Generate manifests e.g. CRD, RBAC etc.
+manifests: generate-manifests patch-crds
+
+generate-manifests: controller-gen
+	$(CONTROLLER_GEN) crd:trivialVersions=true,crdVersions=v1 rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases/v1
+	$(CONTROLLER_GEN) crd:trivialVersions=true,crdVersions=v1beta1 rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases/v1beta1
+
+# Run go fmt against code
+fmt:
+	go fmt ./...
+
+# Run go vet against code
+vet:
+	go vet ./...
+
+# Generate code
+generate: controller-gen generate-openapi
+	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+
+# Build the docker image
+docker-build: generate docker-build-ci
+
+docker-build-ci:
+	docker build . -t ${IMG} --build-arg LDFLAGS="${LDFLAGS}"
+
+# Push the docker image
+docker-push:
+	docker push ${IMG}
+
+# find or download controller-gen
+# download controller-gen if necessary
+controller-gen: install-tools
+ifeq (, $(shell which controller-gen))
+	@{ \
+	set -e ;\
+	CONTROLLER_GEN_TMP_DIR=$$(mktemp -d) ;\
+	cd $$CONTROLLER_GEN_TMP_DIR ;\
+	go mod init tmp ;\
+	go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.3.0 ;\
+	rm -rf $$CONTROLLER_GEN_TMP_DIR ;\
+	}
+CONTROLLER_GEN=$(GOBIN)/controller-gen
+else
+CONTROLLER_GEN=$(shell which controller-gen)
+endif
+
+kustomize:
+ifeq (, $(shell which kustomize))
+	@{ \
+	set -e ;\
+	KUSTOMIZE_GEN_TMP_DIR=$$(mktemp -d) ;\
+	cd $$KUSTOMIZE_GEN_TMP_DIR ;\
+	go mod init tmp ;\
+	go get sigs.k8s.io/kustomize/kustomize/v3@v3.5.4 ;\
+	rm -rf $$KUSTOMIZE_GEN_TMP_DIR ;\
+	}
+KUSTOMIZE=$(GOBIN)/kustomize
+else
+KUSTOMIZE=$(shell which kustomize)
+endif
+
+# Generate bundle manifests and metadata, then validate generated files.
+.PHONY: bundle
+bundle: manifests
+	./bin/operator-sdk generate kustomize manifests -q
+	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
+	$(KUSTOMIZE) build config/manifests | ./bin/operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
+	./bin/operator-sdk bundle validate ./bundle
+
+# Build the bundle image.
+.PHONY: bundle-build
+bundle-build:
+	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+
+#
+# Datadog Custom part
+#
+.PHONY: install-tools
+install-tools: bin/golangci-lint bin/operator-sdk bin/yq bin/kubebuilder
+
+.PHONY: generate-openapi
+generate-openapi: bin/openapi-gen
+	./bin/openapi-gen --logtostderr=true -o "" -i ./api/v1alpha1 -O zz_generated.openapi -p ./api/v1alpha1 -h ./hack/boilerplate.go.txt -r "-"
+
+.PHONY: patch-crds
+patch-crds: bin/yq
+	./hack/patch-crds.sh
+
+.PHONY: lint
+lint: bin/golangci-lint fmt vet
+	./bin/golangci-lint run ./...
+
+.PHONY: license
+license: bin/wwhrd vendor
+	./hack/license.sh
+
+.PHONY: verify-license
+verify-license: bin/wwhrd vendor
+	./hack/verify-license.sh
+
+.PHONY: tidy
 tidy:
 	go mod tidy -v
 
-build: ${ARTIFACT}
+.PHONY: vendor
+vendor:
+	go mod vendor
 
-${ARTIFACT}: ${SOURCES}
-	CGO_ENABLED=0 go build ${GOMOD} -i -installsuffix cgo ${LDFLAGS} -o ${ARTIFACT} ./cmd/manager/main.go
+kubectl-datadog: fmt vet lint
+	go build -ldflags '${LDFLAGS}' -o bin/kubectl-datadog ./cmd/kubectl-datadog/main.go
 
-build-plugin: ${ARTIFACT_PLUGIN}
-
-${ARTIFACT_PLUGIN}: ${SOURCES}
-	CGO_ENABLED=0 go build -i -installsuffix cgo ${LDFLAGS} -o ${ARTIFACT_PLUGIN} ./cmd/${ARTIFACT_PLUGIN}/main.go
-
-container: bin/operator-sdk
-	./bin/operator-sdk build $(PREFIX):$(TAG)
-    ifeq ($(KINDPUSH), true)
-	 kind load docker-image --name $(KIND_CLUSTER_NAME) $(PREFIX):$(TAG)
-    endif
-
-container-ci:
-	docker build -t $(PREFIX):$(TAG) --build-arg "TAG=$(TAG)" .
-
-test:
-	./go.test.sh
-
-e2e: bin/operator-sdk
-	kubectl apply -f deploy/datadoghq_v1alpha1_extendeddaemonset_crd.yaml
-	./bin/operator-sdk test local ./test/e2e --go-test-flags '-v' --image $(PREFIX):$(TAG)
-
-push: container
-	docker push $(PREFIX):$(TAG)
-
-clean:
-	rm -f ${ARTIFACT}
-
-validate: bin/golangci-lint bin/wwhrd
-	./bin/golangci-lint run ./...
-	./hack/verify-license.sh > /dev/null
-
-generate: generate-k8s generate-crds patch-crds
-
-generate-k8s: bin/operator-sdk
-	./bin/operator-sdk generate k8s
-
-generate-crds: bin/operator-sdk
-	rm -f ./deploy/crds/*.yaml
-	./bin/operator-sdk generate crds --crd-version=v1beta1
-	mv ./deploy/crds/*.yaml ./deploy/crds/v1beta1/
-	./bin/operator-sdk generate crds --crd-version=v1
-	mv ./deploy/crds/*.yaml ./deploy/crds/v1/
-
-patch-crds: bin/yq generate-crds
-	./hack/patch-crds.sh
-
-generate-openapi: bin/openapi-gen bin/client-gen bin/informer-gen bin/lister-gen
-	./bin/openapi-gen --logtostderr=true -o "" -i ./pkg/apis/datadoghq/v1alpha1 -O zz_generated.openapi -p ./pkg/apis/datadoghq/v1alpha1 -h ./hack/boilerplate.go.txt -r "-"
-	./hack/generate-groups.sh client,lister,informer \
-  github.com/DataDog/datadog-operator/pkg/generated github.com/DataDog/datadog-operator/pkg/apis datadoghq:v1alpha1 \
-  --go-header-file ./hack/boilerplate.go.txt
-
-generate-olm: bin/operator-sdk
-	./bin/operator-sdk generate packagemanifests --version $(VERSION) --update-crds --interactive=false
-
-pre-release: bin/yq
-	./hack/pre-release.sh $(VERSION) $(RELEASE_CANDIDATE)
-
-CRDS = $(wildcard deploy/crds/*_crd.yaml)
-local-load: $(CRDS)
-		for f in $^; do kubectl apply -f $$f; done
-		kubectl apply -f deploy/
-		kubectl delete pod -l name=${PROJECT_NAME}
-
-$(filter %.yaml,$(files)): %.yaml: %yaml
-	kubectl apply -f $@
-
-install-tools: bin/yq bin/golangci-lint bin/operator-sdk
-
-bin/golangci-lint:
-	./hack/golangci-lint.sh v1.18.0
-
-bin/operator-sdk:
-	./hack/install-operator-sdk.sh
-
-bin/wwhrd:
-	./hack/install-wwhrd.sh
+bin/kubebuilder:
+	./hack/install-kubebuilder.sh 2.3.1
 
 bin/openapi-gen:
 	go build -o ./bin/openapi-gen k8s.io/kube-openapi/cmd/openapi-gen
 
-bin/client-gen:
-	go build -o ./bin/client-gen ./vendor/k8s.io/code-generator/cmd/client-gen
-
-bin/informer-gen:
-	go build -o ./bin/informer-gen ./vendor/k8s.io/code-generator/cmd/informer-gen
-
-bin/lister-gen:
-	go build -o ./bin/lister-gen ./vendor/k8s.io/code-generator/cmd/lister-gen
-
 bin/yq:
-	go build -o ./bin/yq ./vendor/github.com/mikefarah/yq/v3
+	./hack/install-yq.sh 3.3.0
 
-license: bin/wwhrd
-	./hack/license.sh
+bin/golangci-lint:
+	hack/golangci-lint.sh v1.18.0
 
-license-verify: bin/wwhrd
-	./hack/verify-license.sh
+bin/operator-sdk:
+	./hack/install-operator-sdk.sh v1.0.0
 
-.PHONY: vendor build push clean test e2e validate local-load install-tools list container container-ci license license-verify pre-release
+bin/wwhrd:
+	./hack/install-wwhrd.sh 0.2.4

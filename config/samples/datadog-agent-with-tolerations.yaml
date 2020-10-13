@@ -1,0 +1,13 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog
+spec:
+  credentials:
+    apiKey: <DATADOG_API_KEY>
+  agent:
+    image:
+      name: "datadog/agent:latest"
+    config:
+      tolerations:
+       - operator: Exists

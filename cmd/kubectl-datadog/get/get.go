@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/DataDog/datadog-operator/pkg/apis/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/api/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/plugin/common"
 
 	"github.com/olekukonko/tablewriter"

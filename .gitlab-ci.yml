@@ -1,15 +1,15 @@
-image: golang:1.13
+image: golang:1.14
 variables:
   GO111MODULE: "on"
   PROJECTNAME: "datadog-operator"
-  TARGET_TAG: "v$CI_PIPELINE_ID-$CI_COMMIT_SHORT_SHA"
-  DOCKER_REGISTRY: "486234852809.dkr.ecr.us-east-1.amazonaws.com/ci"
   GOPATH: "$CI_PROJECT_DIR/.cache"
-  GIT_TERMINAL_PROMPT: "1"
-  GOFLAGS: "-mod=vendor"
-cache:
+  TARGET_TAG: v$CI_PIPELINE_ID-$CI_COMMIT_SHORT_SHA
+  DOCKER_REGISTRY: "486234852809.dkr.ecr.us-east-1.amazonaws.com/ci"
+cache: &global_cache
+  key: ${CI_COMMIT_REF_SLUG}
   paths:
   - .cache
+  policy: pull-push
 
 stages:
   - build
@@ -31,20 +31,14 @@ unit_tests:
   stage: test
   tags: [ "runner:main", "size:large" ]
   script:
-    - make test
-
-lint_code:
-  stage: test
-  tags: [ "runner:main", "size:large" ]
-  script:
-    - make validate
+  - make test
 
 generate_code:
   stage: test
   tags: [ "runner:main", "size:large" ]
   script:
-    - make generate
-    - git diff --exit-code
+  - make generate manifests
+  - git diff --exit-code
 
 build_image:
   stage: image
@@ -52,9 +46,7 @@ build_image:
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker-notary:0.6.1
   before_script: []
   script:
-    - IMAGE_NAME=$DOCKER_REGISTRY/$PROJECTNAME:$TARGET_TAG
-    - docker build --build-arg TAG=$TARGET_TAG -t $IMAGE_NAME -f Dockerfile .
-    - docker push $IMAGE_NAME
+    - IMG=$DOCKER_REGISTRY/$PROJECTNAME:$TARGET_TAG make docker-build-ci docker-push
 
 push_release_tag:
   only:
@@ -65,7 +57,7 @@ push_release_tag:
   before_script: []
   script:
     - IMAGE_NAME=$DOCKER_REGISTRY/$PROJECTNAME:$TARGET_TAG
-    - RELEASE_IMAGE_NAME=$DOCKER_REGISTRY/$PROJECTNAME:${CI_COMMIT_TAG:1}
+    - RELEASE_IMAGE_NAME=$DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG
     - docker pull $IMAGE_NAME
     - docker tag $IMAGE_NAME $RELEASE_IMAGE_NAME
     - docker push $RELEASE_IMAGE_NAME
@@ -90,9 +82,7 @@ push_tag_to_docker_hub:
   script:
     - DOCKER_REGISTRY_LOGIN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_LOGIN_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
     - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin $DOCKER_REGISTRY_URL
-    - IMAGE_NAME=$DOCKERHUB_ORG/$DOCKERHUB_REPO:${CI_COMMIT_TAG:1}
-    - docker build --build-arg TAG=${CI_COMMIT_TAG:1} -t $IMAGE_NAME -f Dockerfile .
-    - docker push $IMAGE_NAME
+    - IMG=$DOCKERHUB_ORG/$DOCKERHUB_REPO:${CI_COMMIT_TAG:1} make docker-build-ci docker-push
 
 push_latest_to_docker_hub:
   only:
@@ -107,6 +97,4 @@ push_latest_to_docker_hub:
   script:
     - DOCKER_REGISTRY_LOGIN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_LOGIN_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
     - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin $DOCKER_REGISTRY_URL
-    - IMAGE_NAME=$DOCKERHUB_ORG/$DOCKERHUB_REPO:latest
-    - docker build --build-arg TAG=${CI_COMMIT_TAG:1} -t $IMAGE_NAME -f Dockerfile .
-    - docker push $IMAGE_NAME
+    - IMG=$DOCKERHUB_ORG/$DOCKERHUB_REPO:latest make docker-build-ci docker-push
