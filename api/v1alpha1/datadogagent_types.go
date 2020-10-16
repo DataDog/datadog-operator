@@ -759,6 +759,12 @@ type ExternalMetricsConfig struct {
 	// If specified configures the metricsProvider external metrics service port
 	// +optional
 	Port *int32 `json:"port,omitempty"`
+
+	// Override the API endpoint for the external metrics server. Defaults
+	// to .spec.agent.config.ddUrl or "https://app.datadoghq.com" if that's
+	// empty.
+	// +optional
+	Endpoint *string `json:"endpoint,omitempty"`
 }
 
 // AdmissionControllerConfig contains the configuration of the admission controller in Cluster Agent

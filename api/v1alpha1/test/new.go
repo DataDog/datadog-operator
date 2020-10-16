@@ -35,6 +35,7 @@ type NewDatadogAgentOptions struct {
 	ClusterAgentEnabled              bool
 	MetricsServerEnabled             bool
 	MetricsServerPort                int32
+	MetricsServerEndpoint            string
 	MetricsServerUseDatadogMetric    bool
 	MetricsServerWPAController       bool
 	ClusterChecksEnabled             bool
@@ -158,6 +159,10 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 
 				if options.MetricsServerPort != 0 {
 					externalMetricsConfig.Port = datadoghqv1alpha1.NewInt32Pointer(options.MetricsServerPort)
+				}
+
+				if options.MetricsServerEndpoint != "" {
+					externalMetricsConfig.Endpoint = &options.MetricsServerEndpoint
 				}
 
 				ad.Spec.ClusterAgent.Config.ExternalMetrics = &externalMetricsConfig

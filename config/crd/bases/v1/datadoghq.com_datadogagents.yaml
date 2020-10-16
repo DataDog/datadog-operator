@@ -3866,6 +3866,11 @@ spec:
                             description: Enable the metricsProvider to be able to
                               scale based on metrics in Datadog
                             type: boolean
+                          endpoint:
+                            description: Override the API endpoint for the external
+                              metrics server. Defaults to .spec.agent.config.ddUrl
+                              or "https://app.datadoghq.com" if that's empty.
+                            type: string
                           port:
                             description: If specified configures the metricsProvider
                               external metrics service port

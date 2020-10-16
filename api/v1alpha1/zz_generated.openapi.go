@@ -1622,6 +1622,13 @@ func schema__api_v1alpha1_ExternalMetricsConfig(ref common.ReferenceCallback) co
 							Format:      "int32",
 						},
 					},
+					"endpoint": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Override the API endpoint for the external metrics server. Defaults to .spec.agent.config.ddUrl or \"https://app.datadoghq.com\" if that's empty.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
