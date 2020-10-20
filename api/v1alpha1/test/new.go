@@ -78,6 +78,7 @@ type NewDatadogAgentOptions struct {
 	RuntimeSyscallMonitorEnabled     bool
 	RuntimePoliciesDir               *datadoghqv1alpha1.ConfigDirSpec
 	SecurityContext                  *corev1.PodSecurityContext
+	CreateNetworkPolicy              bool
 }
 
 // NewDefaultedDatadogAgent returns an initialized and defaulted DatadogAgent for testing purpose
@@ -126,6 +127,9 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 
 		ad.Spec.Agent.DaemonsetName = options.AgentDaemonsetName
 		ad.Spec.Site = options.Site
+		ad.Spec.Agent.NetworkPolicy = datadoghqv1alpha1.NetworkPolicySpec{
+			Create: &options.CreateNetworkPolicy,
+		}
 
 		if options.HostPort != 0 {
 			ad.Spec.Agent.Config.HostPort = &options.HostPort
@@ -148,6 +152,9 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 					Create: datadoghqv1alpha1.NewBoolPointer(true),
 				},
 				DeploymentName: options.ClusterAgentDeploymentName,
+				NetworkPolicy: datadoghqv1alpha1.NetworkPolicySpec{
+					Create: &options.CreateNetworkPolicy,
+				},
 			}
 
 			if options.MetricsServerEnabled {
@@ -198,6 +205,9 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 				Config: datadoghqv1alpha1.ClusterChecksRunnerConfig{},
 				Rbac: datadoghqv1alpha1.RbacConfig{
 					Create: datadoghqv1alpha1.NewBoolPointer(true),
+				},
+				NetworkPolicy: datadoghqv1alpha1.NetworkPolicySpec{
+					Create: &options.CreateNetworkPolicy,
 				},
 			}
 			if len(options.ClusterChecksRunnerEnvVars) != 0 {

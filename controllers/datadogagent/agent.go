@@ -13,15 +13,18 @@ import (
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/version"
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 )
@@ -296,7 +299,112 @@ func (r *Reconciler) manageAgentDependencies(logger logr.Logger, dda *datadoghqv
 		return result, err
 	}
 
+	result, err = r.manageAgentNetworkPolicy(logger, dda)
+	if shouldReturn(result, err) {
+		return result, err
+	}
+
 	return reconcile.Result{}, nil
+}
+
+func (r *Reconciler) manageAgentNetworkPolicy(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
+	policyName := fmt.Sprintf("%s-%s", dda.Name, datadoghqv1alpha1.DefaultAgentResourceSuffix)
+
+	spec := dda.Spec.Agent
+	if spec == nil || !datadoghqv1alpha1.BoolValue(spec.NetworkPolicy.Create) {
+		return r.cleanupNetworkPolicy(logger, dda, policyName)
+	}
+
+	return r.ensureNetworkPolicy(logger, dda, policyName, buildAgentNetworkPolicy)
+}
+
+func buildAgentNetworkPolicy(dda *datadoghqv1alpha1.DatadogAgent, name string) *networkingv1.NetworkPolicy {
+	egressRules := []networkingv1.NetworkPolicyEgressRule{
+		// Egress to datadog intake and
+		// kubeapi server
+		{
+			Ports: []networkingv1.NetworkPolicyPort{
+				{
+					Port: &intstr.IntOrString{
+						Type:   intstr.Int,
+						IntVal: 443,
+					},
+				},
+			},
+		},
+
+		// The agents are susceptible to connect to any pod that would
+		// be annotated with auto-discovery annotations.
+		//
+		// When a user wants to add a check on one of its pod, he needs
+		// to
+		// * annotate its pod
+		// * add an ingress policy from the agent on its own pod
+		// In order to not ask end-users to inject NetworkPolicy on the
+		// agent in the agent namespace, the agent must be allowed to
+		// probe any pod.
+		{},
+	}
+
+	protocolUDP := corev1.ProtocolUDP
+	protocolTCP := corev1.ProtocolTCP
+	ingressRules := []networkingv1.NetworkPolicyIngressRule{
+		// Ingress for dogstatsd
+		{
+			Ports: []networkingv1.NetworkPolicyPort{
+				{
+					Port: &intstr.IntOrString{
+						Type:   intstr.Int,
+						IntVal: datadoghqv1alpha1.DefaultDogstatsdPort,
+					},
+					Protocol: &protocolUDP,
+				},
+			},
+		},
+	}
+
+	if isAPMEnabled(dda) {
+		port := datadoghqv1alpha1.DefaultAPMAgentTCPPort
+		if dda.Spec.Agent.Apm.HostPort != nil {
+			port = *dda.Spec.Agent.Apm.HostPort
+		}
+
+		ingressRules = append(ingressRules, networkingv1.NetworkPolicyIngressRule{
+			Ports: []networkingv1.NetworkPolicyPort{
+				{
+					Port: &intstr.IntOrString{
+						Type:   intstr.Int,
+						IntVal: port,
+					},
+					Protocol: &protocolTCP,
+				},
+			},
+		})
+	}
+
+	policy := &networkingv1.NetworkPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels:    getDefaultLabels(dda, name, getAgentVersion(dda)),
+			Name:      name,
+			Namespace: dda.Namespace,
+		},
+		Spec: networkingv1.NetworkPolicySpec{
+			PodSelector: metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					kubernetes.AppKubernetesInstanceLabelKey: datadoghqv1alpha1.DefaultAgentResourceSuffix,
+					kubernetes.AppKubernetesPartOfLabelKey:   dda.Name,
+				},
+			},
+			Ingress: ingressRules,
+			Egress:  egressRules,
+			PolicyTypes: []networkingv1.PolicyType{
+				networkingv1.PolicyTypeIngress,
+				networkingv1.PolicyTypeEgress,
+			},
+		},
+	}
+
+	return policy
 }
 
 // newExtendedDaemonSetFromInstance creates an ExtendedDaemonSet from a given DatadogAgent

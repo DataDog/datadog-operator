@@ -45,6 +45,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./api/v1alpha1.ExternalMetricsConfig":                   schema__api_v1alpha1_ExternalMetricsConfig(ref),
 		"./api/v1alpha1.ImageConfig":                             schema__api_v1alpha1_ImageConfig(ref),
 		"./api/v1alpha1.LogSpec":                                 schema__api_v1alpha1_LogSpec(ref),
+		"./api/v1alpha1.NetworkPolicySpec":                       schema__api_v1alpha1_NetworkPolicySpec(ref),
 		"./api/v1alpha1.NodeAgentConfig":                         schema__api_v1alpha1_NodeAgentConfig(ref),
 		"./api/v1alpha1.ProcessSpec":                             schema__api_v1alpha1_ProcessSpec(ref),
 		"./api/v1alpha1.RbacConfig":                              schema__api_v1alpha1_RbacConfig(ref),
@@ -1048,12 +1049,18 @@ func schema__api_v1alpha1_DatadogAgentSpecAgentSpec(ref common.ReferenceCallback
 							Ref:         ref("./api/v1alpha1.CustomConfigSpec"),
 						},
 					},
+					"networkPolicy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Provide Agent Network Policy configuration",
+							Ref:         ref("./api/v1alpha1.NetworkPolicySpec"),
+						},
+					},
 				},
 				Required: []string{"image"},
 			},
 		},
 		Dependencies: []string{
-			"./api/v1alpha1.APMSpec", "./api/v1alpha1.CustomConfigSpec", "./api/v1alpha1.DaemonSetDeploymentStrategy", "./api/v1alpha1.ImageConfig", "./api/v1alpha1.LogSpec", "./api/v1alpha1.NodeAgentConfig", "./api/v1alpha1.ProcessSpec", "./api/v1alpha1.RbacConfig", "./api/v1alpha1.SecuritySpec", "./api/v1alpha1.SystemProbeSpec", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.PodDNSConfig"},
+			"./api/v1alpha1.APMSpec", "./api/v1alpha1.CustomConfigSpec", "./api/v1alpha1.DaemonSetDeploymentStrategy", "./api/v1alpha1.ImageConfig", "./api/v1alpha1.LogSpec", "./api/v1alpha1.NetworkPolicySpec", "./api/v1alpha1.NodeAgentConfig", "./api/v1alpha1.ProcessSpec", "./api/v1alpha1.RbacConfig", "./api/v1alpha1.SecuritySpec", "./api/v1alpha1.SystemProbeSpec", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.PodDNSConfig"},
 	}
 }
 
@@ -1178,12 +1185,18 @@ func schema__api_v1alpha1_DatadogAgentSpecClusterAgentSpec(ref common.ReferenceC
 							},
 						},
 					},
+					"networkPolicy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Provide Cluster Agent Network Policy configuration",
+							Ref:         ref("./api/v1alpha1.NetworkPolicySpec"),
+						},
+					},
 				},
 				Required: []string{"image"},
 			},
 		},
 		Dependencies: []string{
-			"./api/v1alpha1.ClusterAgentConfig", "./api/v1alpha1.CustomConfigSpec", "./api/v1alpha1.ImageConfig", "./api/v1alpha1.RbacConfig", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Toleration"},
+			"./api/v1alpha1.ClusterAgentConfig", "./api/v1alpha1.CustomConfigSpec", "./api/v1alpha1.ImageConfig", "./api/v1alpha1.NetworkPolicySpec", "./api/v1alpha1.RbacConfig", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Toleration"},
 	}
 }
 
@@ -1308,12 +1321,18 @@ func schema__api_v1alpha1_DatadogAgentSpecClusterChecksRunnerSpec(ref common.Ref
 							},
 						},
 					},
+					"networkPolicy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Provide Cluster Checks Runner Network Policy configuration",
+							Ref:         ref("./api/v1alpha1.NetworkPolicySpec"),
+						},
+					},
 				},
 				Required: []string{"image"},
 			},
 		},
 		Dependencies: []string{
-			"./api/v1alpha1.ClusterChecksRunnerConfig", "./api/v1alpha1.CustomConfigSpec", "./api/v1alpha1.ImageConfig", "./api/v1alpha1.RbacConfig", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Toleration"},
+			"./api/v1alpha1.ClusterChecksRunnerConfig", "./api/v1alpha1.CustomConfigSpec", "./api/v1alpha1.ImageConfig", "./api/v1alpha1.NetworkPolicySpec", "./api/v1alpha1.RbacConfig", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.Toleration"},
 	}
 }
 
@@ -1732,6 +1751,26 @@ func schema__api_v1alpha1_LogSpec(ref common.ReferenceCallback) common.OpenAPIDe
 							Description: "Set the maximum number of logs files that the Datadog Agent will tail up to. Increasing this limit can increase resource consumption of the Agent. ref: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup Default to 100",
 							Type:        []string{"integer"},
 							Format:      "int32",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema__api_v1alpha1_NetworkPolicySpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "NetworkPolicySpec provides Network Policy configuration for the agents",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"create": {
+						SchemaProps: spec.SchemaProps{
+							Description: "If true, create a NetworkPolicy for the current agent",
+							Type:        []string{"boolean"},
+							Format:      "",
 						},
 					},
 				},
