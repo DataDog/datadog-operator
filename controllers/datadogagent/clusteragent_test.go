@@ -1050,7 +1050,7 @@ func TestReconcileDatadogAgent_createNewClusterAgentDeployment(t *testing.T) {
 	}
 }
 
-func Test_getDatadogHost(t *testing.T) {
+func Test_getExternalMetricsEndpoint(t *testing.T) {
 	tests := []struct {
 		name  string
 		agent *datadoghqv1alpha1.DatadogAgent
@@ -1087,12 +1087,24 @@ func Test_getDatadogHost(t *testing.T) {
 			}),
 			want: "https://another.test.url.com",
 		},
-		// TODO: Add test cases.
+		{
+			name: "DD_SITE, DD_DD_URL and ExternalMetrics.Endpoint",
+			agent: test.NewDefaultedDatadogAgent("foo", "bar", &test.NewDatadogAgentOptions{
+				Site: "datadoghq.eu",
+				NodeAgentConfig: &datadoghqv1alpha1.NodeAgentConfig{
+					DDUrl: datadoghqv1alpha1.NewStringPointer("https://another.test.url.com"),
+				},
+				ClusterAgentEnabled:   true,
+				MetricsServerEnabled:  true,
+				MetricsServerEndpoint: "https://yet.another.test.url.com",
+			}),
+			want: "https://yet.another.test.url.com",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := getDatadogHost(tt.agent); got != tt.want {
-				t.Errorf("getDatadogHost() = %v, want %v", got, tt.want)
+			if got := getExternalMetricsEndpoint(tt.agent); got != tt.want {
+				t.Errorf("getExternalMetricsEndpoint() = %v, want %v", got, tt.want)
 			}
 		})
 	}
