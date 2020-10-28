@@ -368,7 +368,7 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.annotations['olm.targetNamespaces']
-                image: datadog/datadog-operator:latest
+                image: datadog/datadog-operator:0.4.0-rc.1
                 imagePullPolicy: Always
                 livenessProbe:
                   httpGet:

@@ -4,6 +4,7 @@
 BUILDINFOPKG=github.com/DataDog/datadog-operator/pkg/version
 GIT_TAG?=$(shell git tag -l --contains HEAD | tail -1)
 TAG_HASH=$(shell git tag | tail -1)_$(shell git rev-parse --short HEAD)
+IMG_VERSION?=$(if $(VERSION),$(VERSION),latest)
 VERSION?=$(if $(GIT_TAG),$(GIT_TAG),$(TAG_HASH))
 GIT_COMMIT?=$(shell git rev-parse HEAD)
 DATE=$(shell date +%Y-%m-%d/%H:%M:%S )
@@ -21,7 +22,7 @@ endif
 BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 
 # Image URL to use all building/pushing image targets
-IMG ?= datadog/datadog-operator:latest
+IMG ?= datadog/datadog-operator:$(IMG_VERSION)
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -134,6 +135,10 @@ bundle: manifests
 .PHONY: bundle-build
 bundle-build:
 	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+
+.PHONY: bundle-push
+bundle-push:
+	docker push $(BUNDLE_IMG)
 
 #
 # Datadog Custom part
