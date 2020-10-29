@@ -63,7 +63,7 @@ func main() {
 	var printVersion, pprofActive, supportExtendedDaemonset bool
 	var logEncoder, secretBackendCommand string
 	flag.StringVar(&logEncoder, "logEncoder", "json", "log encoding ('json' or 'console')")
-	flag.StringVar(&secretBackendCommand, "secretBackendCommand", "", "Scret backend command")
+	flag.StringVar(&secretBackendCommand, "secretBackendCommand", "", "Secret backend command")
 	logLevel := zap.LevelFlag("loglevel", zapcore.InfoLevel, "Set log level")
 	flag.BoolVar(&printVersion, "version", false, "Print version and exit")
 	flag.BoolVar(&pprofActive, "pprof", false, "Enable pprof endpoint")
