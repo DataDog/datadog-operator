@@ -24,6 +24,7 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
 	"github.com/DataDog/datadog-operator/controllers"
 	"github.com/DataDog/datadog-operator/pkg/controller/debug"
+	"github.com/DataDog/datadog-operator/pkg/secrets"
 	"github.com/DataDog/datadog-operator/pkg/version"
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	"github.com/DataDog/extendeddaemonset/pkg/controller/metrics"
@@ -60,13 +61,13 @@ func main() {
 
 	// Custom flags
 	var printVersion, pprofActive, supportExtendedDaemonset bool
-	var logEncoder string
+	var logEncoder, secretBackendCommand string
 	flag.StringVar(&logEncoder, "logEncoder", "json", "log encoding ('json' or 'console')")
+	flag.StringVar(&secretBackendCommand, "secretBackendCommand", "", "Scret backend command")
 	logLevel := zap.LevelFlag("loglevel", zapcore.InfoLevel, "Set log level")
 	flag.BoolVar(&printVersion, "version", false, "Print version and exit")
 	flag.BoolVar(&pprofActive, "pprof", false, "Enable pprof endpoint")
 	flag.BoolVar(&supportExtendedDaemonset, "supportExtendedDaemonset", false, "Support usage of Datadog ExtendedDaemonset CRD.")
-	flag.Parse()
 
 	// Parsing flags
 	flag.Parse()
@@ -82,8 +83,10 @@ func main() {
 		version.PrintVersionWriter(os.Stdout, "text")
 		os.Exit(0)
 	}
-
 	version.PrintVersionLogs(setupLog)
+
+	// Dispatch CLI flags to each package
+	secrets.SetSecretBackendCommand(secretBackendCommand)
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
