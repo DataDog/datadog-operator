@@ -14,8 +14,6 @@ import (
 	"os/exec"
 	"strings"
 	"time"
-
-	"github.com/spf13/pflag"
 )
 
 var (
@@ -28,8 +26,9 @@ const (
 	payloadVersion          = "1.0"
 )
 
-func init() {
-	pflag.StringVarP(&secretBackendCommand, "secretBackendCommand", "", "", "secret backend command")
+// SetSecretBackendCommand set the secretBackendCommand var
+func SetSecretBackendCommand(command string) {
+	secretBackendCommand = command
 }
 
 // NewSecretBackend returns a new SecretBackend instance
