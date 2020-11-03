@@ -208,6 +208,16 @@ func newClusterAgentDeploymentFromInstance(agentdeployment *datadoghqv1alpha1.Da
 	return dca, hash, err
 }
 
+// TODO: check whether here is a good place to manage orchestrator dependencies
+/**
+need:
+- if orchestrator-explorer is enabled:
+-- process-agent true
+-- cluster-name is needed
+-- leader election is true
+-- ensure rbac is correct (services, nodes, pods, rs, dplm, cm ...) -> look at helm
+-- enforce cluster name, how? --> if empty will not start. Either set or AD e.g. set by provider
+ */
 func (r *Reconciler) manageClusterAgentDependencies(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
 	result, err := r.manageAgentSecret(logger, dda, newStatus)
 	if shouldReturn(result, err) {

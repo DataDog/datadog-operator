@@ -183,6 +183,10 @@ type DatadogAgentSpecAgentSpec struct {
 	// +optional
 	Process ProcessSpec `json:"process,omitempty"`
 
+	// OrchestratorExplorer configuration
+	// +optional
+	OrchestratorExplorer OrchestratorExplorerConfig `json:"orchestratorExplorer,omitempty"`
+
 	// SystemProbe configuration
 	// +optional
 	SystemProbe SystemProbeSpec `json:"systemProbe,omitempty"`
@@ -356,6 +360,33 @@ type ProcessSpec struct {
 	// Make sure to keep requests and limits equal to keep the pods in the Guaranteed QoS class
 	// Ref: http://kubernetes.io/docs/user-guide/compute-resources/
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
+}
+
+// OrchestratorExplorerConfig contains the orchestrator explorer configuration.
+// The orchestratorExplorer runs in the process-agent and DCA.
+// +k8s:openapi-gen=true
+type OrchestratorExplorerConfig struct {
+	// Enable this to activate live kubernetes monitoring.
+	// ref: https://docs.datadoghq.com/infrastructure/livecontainers/#kubernetes-resources
+	//
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// +optional
+	// Deactivate this to stop the scrubbing of sensitive container data (passwords, tokens ect.).
+	ContainerScrubbingEnabled *bool `json:"containerScrubbingEnabled,omitempty"`
+
+	// +optional
+	// Additional endpoints for shipping the collected data
+	AdditionalEndpoints *[]string `json:"additionalEndpoints,omitempty"`
+
+	// +optional
+	// Set this for the datadog endpoint for the orchestrator explorer
+	DDUrl *string `json:"ddUrl,omitempty"`
+
+	// +optional
+	// Additional tags for the collected data
+	ExtraTags *[]string `json:"extraTags,omitempty"`
 }
 
 // SystemProbeSpec contains the SystemProbe Agent configuration
@@ -701,6 +732,9 @@ type ClusterAgentConfig struct {
 	// Configure the Admission Controller
 	AdmissionController *AdmissionControllerConfig `json:"admissionController,omitempty"`
 
+	// OrchestratorExplorer configuration
+	OrchestratorExplorer *OrchestratorExplorerConfig `json:"orchestratorExplorer,omitempty"`
+
 	// Enable the Cluster Checks and Endpoint Checks feature on both the cluster-agents and the daemonset
 	// ref:
 	// https://docs.datadoghq.com/agent/cluster_agent/clusterchecks/
@@ -712,6 +746,10 @@ type ClusterAgentConfig struct {
 	// ref: https://docs.datadoghq.com/agent/cluster_agent/event_collection/
 	// +optional
 	CollectEvents *bool `json:"collectEvents,omitempty"`
+
+	// Enables leader election mechanism for live kubernetes monitoring and collection.
+	// +optional
+	LeaderElection *bool `json:"leaderElection,omitempty"`
 
 	// Set logging verbosity, valid log levels are:
 	// trace, debug, info, warn, error, critical, and off

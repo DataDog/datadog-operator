@@ -33,6 +33,7 @@ const (
 	defaultLogsTempStoragePath                    string = "/var/lib/datadog-agent/logs"
 	defaultLogsOpenFilesLimit                     int32  = 100
 	defaultProcessEnabled                         bool   = false
+	defaultOrchestratorExplorerEnabled            bool   = false
 	defaultMetricsProviderPort                    int32  = 8443
 	defaultClusterChecksEnabled                   bool   = false
 	defaultClusterAgentReplicas                   int32  = 1
@@ -620,6 +621,22 @@ func DefaultDatadogAgentSpecAgentProcess(process *ProcessSpec) *ProcessSpec {
 	return process
 }
 
+// DefaultDatadogAgentSpecOrchestratorExplorer used to default an OrchestratorExplorerConfig
+// return the defaulted OrchestratorExplorerConfig
+func DefaultDatadogAgentSpecOrchestratorExplorer(explorerConfig *OrchestratorExplorerConfig) *OrchestratorExplorerConfig {
+	if explorerConfig == nil {
+		explorerConfig = &OrchestratorExplorerConfig{}
+	}
+
+	if explorerConfig.Enabled == nil {
+		explorerConfig.Enabled = NewBoolPointer(defaultOrchestratorExplorerEnabled)
+	}
+
+	// TODO: add scrubbing setting
+
+	return explorerConfig
+}
+
 // DefaultDatadogAgentSpecClusterAgent used to default an DatadogAgentSpecClusterAgentSpec
 // return the defaulted DatadogAgentSpecClusterAgentSpec
 func DefaultDatadogAgentSpecClusterAgent(clusterAgent *DatadogAgentSpecClusterAgentSpec) *DatadogAgentSpecClusterAgentSpec {
@@ -645,6 +662,8 @@ func DefaultDatadogAgentSpecClusterAgentConfig(config *ClusterAgentConfig) *Clus
 			config.ExternalMetrics.Port = NewInt32Pointer(defaultMetricsProviderPort)
 		}
 	}
+
+	config.OrchestratorExplorer = DefaultDatadogAgentSpecOrchestratorExplorer(config.OrchestratorExplorer)
 
 	if config.ClusterChecksEnabled == nil {
 		config.ClusterChecksEnabled = NewBoolPointer(defaultClusterChecksEnabled)

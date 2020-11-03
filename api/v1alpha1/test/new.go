@@ -42,6 +42,8 @@ type NewDatadogAgentOptions struct {
 	NodeAgentConfig                  *datadoghqv1alpha1.NodeAgentConfig
 	APMEnabled                       bool
 	ProcessEnabled                   bool
+	OrchestratorExplorerEnabled      bool
+	LeaderElectionEnabled            bool
 	SystemProbeEnabled               bool
 	SystemProbeSeccompProfileName    string
 	SystemProbeAppArmorProfileName   string
@@ -102,11 +104,12 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 				Name:       "datadog/agent:latest",
 				PullPolicy: &pullPolicy,
 			},
-			Config:             datadoghqv1alpha1.NodeAgentConfig{},
-			DeploymentStrategy: &datadoghqv1alpha1.DaemonSetDeploymentStrategy{},
-			Apm:                datadoghqv1alpha1.APMSpec{},
-			Log:                datadoghqv1alpha1.LogSpec{},
-			Process:            datadoghqv1alpha1.ProcessSpec{},
+			Config:               datadoghqv1alpha1.NodeAgentConfig{},
+			DeploymentStrategy:   &datadoghqv1alpha1.DaemonSetDeploymentStrategy{},
+			Apm:                  datadoghqv1alpha1.APMSpec{},
+			Log:                  datadoghqv1alpha1.LogSpec{},
+			Process:              datadoghqv1alpha1.ProcessSpec{},
+			OrchestratorExplorer: datadoghqv1alpha1.OrchestratorExplorerConfig{},
 		},
 	}
 	if options != nil {
@@ -155,6 +158,11 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 				NetworkPolicy: datadoghqv1alpha1.NetworkPolicySpec{
 					Create: &options.CreateNetworkPolicy,
 				},
+			}
+
+			if options.OrchestratorExplorerEnabled {
+				orExplorer := datadoghqv1alpha1.OrchestratorExplorerConfig{Enabled: datadoghqv1alpha1.NewBoolPointer(true)}
+				ad.Spec.ClusterAgent.Config.OrchestratorExplorer = &orExplorer
 			}
 
 			if options.MetricsServerEnabled {
@@ -231,6 +239,10 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 
 		if options.ProcessEnabled {
 			ad.Spec.Agent.Process.Enabled = datadoghqv1alpha1.NewBoolPointer(true)
+		}
+
+		if options.OrchestratorExplorerEnabled {
+			ad.Spec.Agent.OrchestratorExplorer.Enabled = datadoghqv1alpha1.NewBoolPointer(true)
 		}
 
 		if options.HostNetwork {
