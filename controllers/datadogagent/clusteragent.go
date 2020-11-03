@@ -264,6 +264,12 @@ func (r *Reconciler) manageClusterAgentDependencies(logger logr.Logger, dda *dat
 	if shouldReturn(result, err) {
 		return result, err
 	}
+	if datadoghqv1alpha1.DDKubeStateMetricsCoreConfigMap != "" {
+		result, err = r.manageConfigMap(logger, dda, getKSMCoreConfigMapName(dda), buildKSMCoreConfigMap)
+		if shouldReturn(result, err) {
+			return result, err
+		}
+	}
 
 	return reconcile.Result{}, nil
 }
@@ -382,6 +388,24 @@ func newClusterAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent,
 		}
 	}
 
+	if *clusterAgentSpec.Config.KubeStateMetricsCoreEnabled {
+		volumes = append(volumes, corev1.Volume{
+			Name: datadoghqv1alpha1.KubeStateMetricCoreVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: getKSMCoreConfigMapName(agentdeployment),
+					},
+				},
+			},
+		})
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      datadoghqv1alpha1.KubeStateMetricCoreVolumeName,
+			MountPath: datadoghqv1alpha1.ConfdVolumePath,
+			ReadOnly:  true,
+		})
+	}
+
 	// Add other volumes
 	volumes = append(volumes, agentdeployment.Spec.ClusterAgent.Config.Volumes...)
 	volumeMounts = append(volumeMounts, agentdeployment.Spec.ClusterAgent.Config.VolumeMounts...)
@@ -493,6 +517,10 @@ func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.En
 			Value: datadoghqv1alpha1.BoolToString(spec.ClusterAgent.Config.ClusterChecksEnabled),
 		},
 		{
+			Name:  datadoghqv1alpha1.DDKubeStateMetricsCoreEnabled,
+			Value: datadoghqv1alpha1.BoolToString(spec.ClusterAgent.Config.KubeStateMetricsCoreEnabled),
+		},
+		{
 			Name:  datadoghqv1alpha1.DDClusterAgentKubeServiceName,
 			Value: getClusterAgentServiceName(dda),
 		},
@@ -590,6 +618,13 @@ func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.En
 				Value: datadoghqv1alpha1.KubeServicesAndEndpointsListeners,
 			},
 		}...)
+	}
+
+	if datadoghqv1alpha1.BoolValue(spec.ClusterAgent.Config.KubeStateMetricsCoreEnabled) {
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  datadoghqv1alpha1.DDKubeStateMetricsCoreEnabled,
+			Value: strconv.FormatBool(*spec.ClusterAgent.Config.KubeStateMetricsCoreEnabled),
+		})
 	}
 
 	if isAdmissionControllerEnabled(spec.ClusterAgent) {
@@ -1391,6 +1426,109 @@ func buildClusterAgentNetworkPolicy(dda *datadoghqv1alpha1.DatadogAgent, name st
 			},
 		},
 	}
-
 	return policy
+}
+
+func getKSMCoreConfigMapName(dda *datadoghqv1alpha1.DatadogAgent) string {
+	if datadoghqv1alpha1.DDKubeStateMetricsCoreConfigMap != "" {
+		return datadoghqv1alpha1.DDKubeStateMetricsCoreConfigMap
+	}
+	return fmt.Sprintf("%s-kube-state-metrics-core-config", dda.Name)
+}
+
+const defaultKSMCoreConfigMap = `---
+---
+cluster_check: true
+init_config:
+instances:
+  - kube_state_url: s
+    prometheus_timeout: 30
+    min_collection_interval: 30
+    send_pod_phase_service_checks: false
+    collectors:
+      - pods
+    telemetry: true
+  - kube_state_url: x
+    prometheus_timeout: 30
+    min_collection_interval: 20
+    send_pod_phase_service_checks: false
+    collectors:
+      - configmaps
+      - services
+      - endpoints
+      - daemonsets
+      - deployments
+      - cronjobs
+      - statefulsets
+      - horizontalpodautoscalers
+      - limitranges
+      - resourcequotas
+      - secrets
+      - namespaces
+      - replicationcontrollers
+      - resourcequotas
+      - persistentvolumeclaims
+      - persistentvolumes
+      - jobs
+      - replicasets
+    label_joins:
+      kube_job_labels:
+      labels_to_match:
+      - job_name
+      - namespace
+      labels_to_get:
+      - label_service
+      - label_chart_name
+      - label_chart_version
+      - label_team
+      - label_app
+      kube_deployment_labels:
+      labels_to_match:
+      - deployment
+      - namespace
+      labels_to_get:
+      - label_service
+      - label_chart_name
+      - label_chart_version
+      - label_team
+      - label_app
+      kube_daemonset_labels:
+      labels_to_match:
+      - daemonset
+      - namespace
+      labels_to_get:
+      - label_service
+      - label_chart_name
+      - label_chart_version
+      - label_team
+      - label_app
+    labels_mapper:
+      label_service: service
+      label_chart_name: chart_name
+      label_chart_version: chart_version
+      label_team: team
+      label_app: app
+    telemetry: true
+  - kube_state_url: http://%%host%%:8080/metrics
+    prometheus_timeout": 30
+    min_collection_interval": 30
+    send_pod_phase_service_checks": false
+    collectors:
+      - nodes
+    telemetry: true
+`
+
+func buildKSMCoreConfigMap(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.ConfigMap, error) {
+	configMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        getKSMCoreConfigMapName(dda),
+			Namespace:   dda.Namespace,
+			Labels:      getDefaultLabels(dda, dda.Name, getAgentVersion(dda)),
+			Annotations: getDefaultAnnotations(dda),
+		},
+		Data: map[string]string{
+			"kubernetes_state_core.yaml": defaultKSMCoreConfigMap,
+		},
+	}
+	return configMap, nil
 }

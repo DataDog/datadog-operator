@@ -2489,6 +2489,9 @@ spec:
                           description: 'Enable informer and controller of the watermark pod autoscaler NOTE: The WatermarkPodAutoscaler controller needs to be installed see https://github.com/DataDog/watermarkpodautoscaler for more details.'
                           type: boolean
                       type: object
+                    kubeStateMetricCoreEnabled:
+                      description: KSM CORE
+                      type: boolean
                     logLevel:
                       description: 'Set logging verbosity, valid log levels are: trace, debug, info, warn, error, critical, and off'
                       type: string

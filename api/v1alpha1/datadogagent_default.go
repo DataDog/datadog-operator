@@ -712,6 +712,10 @@ func DefaultDatadogAgentSpecClusterAgentConfig(config *ClusterAgentConfig) *Clus
 		config.ClusterChecksEnabled = NewBoolPointer(defaultClusterChecksEnabled)
 	}
 
+	if config.KubeStateMetricsCoreEnabled == nil {
+		config.KubeStateMetricsCoreEnabled = NewBoolPointer(defaultKubeStateMetricsCore)
+	}
+
 	if config.CollectEvents == nil {
 		config.CollectEvents = NewBoolPointer(defaultCollectEvents)
 	}

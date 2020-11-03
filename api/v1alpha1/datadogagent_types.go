@@ -760,7 +760,12 @@ type ClusterAgentConfig struct {
 	// Autodiscovery via Kube Service annotations is automatically enabled
 	ClusterChecksEnabled *bool `json:"clusterChecksEnabled,omitempty"`
 
-	// Enables this to start event collection from the Kubernetes API
+	// Enable this to start the Kubernetes State Metrics Core check.
+	// TODO add reference to the documentation.
+	// +optional
+	KubeStateMetricsCoreEnabled *bool `json:"kubeStateMetricsCoreEnabled,omitempty"`
+
+	// Enable this to start event collection from the kubernetes API
 	// ref: https://docs.datadoghq.com/agent/cluster_agent/event_collection/
 	// +optional
 	CollectEvents *bool `json:"collectEvents,omitempty"`

@@ -30,7 +30,7 @@ func (r *Reconciler) manageClusterChecksRunnerRBACs(logger logr.Logger, dda *dat
 	rbacResourcesName := getClusterChecksRunnerRbacResourcesName(dda)
 	clusterChecksRunnerVersion := getClusterChecksRunnerVersion(dda)
 
-	// Create ClusterRoleBindig
+	// Create ClusterRoleBinding
 	clusterRoleBinding := &rbacv1.ClusterRoleBinding{}
 	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesName}, clusterRoleBinding); err != nil {
 		if errors.IsNotFound(err) {

@@ -70,6 +70,9 @@ const (
 	DDMetricsProviderWPAController               = "DD_EXTERNAL_METRICS_PROVIDER_WPA_CONTROLLER"
 	DDAppKey                                     = "DD_APP_KEY"
 	DDClusterChecksEnabled                       = "DD_CLUSTER_CHECKS_ENABLED"
+	DDIgnoreAutoConf                             = "DD_IGNORE_AUTOCONF"
+	DDKubeStateMetricsCoreEnabled                = "DD_KUBE_STATE_METRICS_CORE_ENABLED"
+	DDKubeStateMetricsCoreConfigMap              = "DD_KUBE_STATE_METRICS_CORE_CONFIGMAP_NAME"
 	DDClcRunnerEnabled                           = "DD_CLC_RUNNER_ENABLED"
 	DDClcRunnerHost                              = "DD_CLC_RUNNER_HOST"
 	DDExtraConfigProviders                       = "DD_EXTRA_CONFIG_PROVIDERS"
@@ -129,6 +132,7 @@ const (
 	CriSocketVolumeReadOnly            = true
 	DogstatsdSockerVolumeName          = "dsdsocket"
 	DogstatsdSockerVolumePath          = "/var/run/datadog"
+	KubeStateMetricCoreVolumeName      = "ksm-core-config"
 	PointerVolumeName                  = "pointerdir"
 	PointerVolumePath                  = "/opt/datadog-agent/run"
 	LogPodVolumeName                   = "logpodpath"

@@ -3898,6 +3898,10 @@ spec:
                               for more details.'
                             type: boolean
                         type: object
+                      kubeStateMetricsCoreEnabled:
+                        description: Enable this to start the Kubernetes State Metrics
+                          Core check. TODO add reference to the documentation.
+                        type: boolean
                       logLevel:
                         description: 'Set logging verbosity, valid log levels are:
                           trace, debug, info, warn, error, critical, and off'
