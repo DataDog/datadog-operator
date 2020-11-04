@@ -34,7 +34,7 @@ endif
 
 all: build test ## Build test
 
-build: manager kubectl-datadog ## build
+build: manager kubectl-datadog ## Builds manager + kubectl plugin
 
 fmt: ## Run go fmt against code
 	go fmt ./...
@@ -65,7 +65,7 @@ deploy: manifests kustomize ## Deploy controller in the configured Kubernetes cl
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
 
-manifests: generate-manifests patch-crds ## Generate manifests e.g. CRD, RBAC etc.
+manifests: generate-manifests patch-crds ## Generate manifestcd s e.g. CRD, RBAC etc.
 
 generate-manifests: controller-gen
 	$(CONTROLLER_GEN) crd:trivialVersions=true,crdVersions=v1 rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases/v1
@@ -86,13 +86,13 @@ docker-push: ## Push the docker image
 
 ##@ Test
 
-test: build manifests verify-license gotest ## Run tests
+test: build manifests verify-license gotest ## Run unit tests and E2E tests
 
 gotest:
 	go test ./... -coverprofile cover.out
 
 
-controller-gen: install-tools ## find or download controller-gen, download controller-gen if necessary
+controller-gen: install-tools ## Find or download controller-gen, download controller-gen if necessary
 ifeq (, $(shell which controller-gen))
 	@{ \
 	set -e ;\
@@ -143,11 +143,11 @@ generate-openapi: bin/openapi-gen
 	./bin/openapi-gen --logtostderr=true -o "" -i ./api/v1alpha1 -O zz_generated.openapi -p ./api/v1alpha1 -h ./hack/boilerplate.go.txt -r "-"
 
 .PHONY: patch-crds
-patch-crds: bin/yq ## patch-crds
+patch-crds: bin/yq ## Patch-crds
 	./hack/patch-crds.sh
 
 .PHONY: lint
-lint: bin/golangci-lint fmt vet ## lint
+lint: bin/golangci-lint fmt vet ## Lint
 	./bin/golangci-lint run ./...
 
 .PHONY: license
@@ -155,7 +155,7 @@ license: bin/wwhrd vendor
 	./hack/license.sh
 
 .PHONY: verify-license
-verify-license: bin/wwhrd vendor ## verify licenses
+verify-license: bin/wwhrd vendor ## Verify licenses
 	./hack/verify-license.sh
 
 .PHONY: tidy
