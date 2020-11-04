@@ -93,6 +93,7 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=*
 // +kubebuilder:rbac:groups=apps,resources=daemonsets,verbs=*
 // +kubebuilder:rbac:groups=policy,resources=poddisruptionbudgets,verbs=*
+// +kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=*
 
 // Reconcile loop for DatadogAgent
 func (r *DatadogAgentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
