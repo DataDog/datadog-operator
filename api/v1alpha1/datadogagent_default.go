@@ -17,40 +17,41 @@ import (
 
 // default values
 const (
-	DefaultLogLevel                               string = "INFO"
-	defaultAgentImage                             string = "datadog/agent:latest"
-	defaultCollectEvents                          bool   = false
-	defaultLeaderElection                         bool   = false
-	defaultDockerSocketPath                       string = "/var/run/docker.sock"
-	defaultDogstatsdOriginDetection               bool   = false
-	defaultUseDogStatsDSocketVolume               bool   = false
-	defaultApmEnabled                             bool   = false
-	defaultLogEnabled                             bool   = false
-	defaultLogsConfigContainerCollectAll          bool   = false
-	defaultLogsContainerCollectUsingFiles         bool   = true
-	defaultContainerLogsPath                      string = "/var/lib/docker/containers"
-	defaultPodLogsPath                            string = "/var/log/pods"
-	defaultLogsTempStoragePath                    string = "/var/lib/datadog-agent/logs"
-	defaultLogsOpenFilesLimit                     int32  = 100
-	defaultProcessEnabled                         bool   = false
-	defaultOrchestratorExplorerEnabled            bool   = false
-	defaultMetricsProviderPort                    int32  = 8443
-	defaultClusterChecksEnabled                   bool   = false
-	defaultClusterAgentReplicas                   int32  = 1
-	defaultAgentCanaryReplicas                    int32  = 1
-	defaultClusterChecksRunnerReplicas            int32  = 2
-	defaultClusterAgentImage                      string = "datadog/cluster-agent:latest"
-	defaultRollingUpdateMaxUnavailable                   = "10%"
-	defaultUpdateStrategy                                = appsv1.RollingUpdateDaemonSetStrategyType
-	defaultRollingUpdateMaxPodSchedulerFailure           = "10%"
-	defaultRollingUpdateMaxParallelPodCreation    int32  = 250
-	defaultRollingUpdateSlowStartIntervalDuration        = 1 * time.Minute
-	defaultRollingUpdateSlowStartAdditiveIncrease        = "5"
-	defaultAgentCanaryDuratrion                          = 10 * time.Minute
-	defaultReconcileFrequency                            = 10 * time.Second
-	defaultRbacCreate                                    = true
-	defaultMutateUnlabelled                              = false
-	DefaultAdmissionServiceName                          = "datadog-admission-controller"
+	DefaultLogLevel                                      string = "INFO"
+	defaultAgentImage                                    string = "datadog/agent:latest"
+	defaultCollectEvents                                 bool   = false
+	defaultLeaderElection                                bool   = false
+	defaultDockerSocketPath                              string = "/var/run/docker.sock"
+	defaultDogstatsdOriginDetection                      bool   = false
+	defaultUseDogStatsDSocketVolume                      bool   = false
+	defaultApmEnabled                                    bool   = false
+	defaultLogEnabled                                    bool   = false
+	defaultLogsConfigContainerCollectAll                 bool   = false
+	defaultLogsContainerCollectUsingFiles                bool   = true
+	defaultContainerLogsPath                             string = "/var/lib/docker/containers"
+	defaultPodLogsPath                                   string = "/var/log/pods"
+	defaultLogsTempStoragePath                           string = "/var/lib/datadog-agent/logs"
+	defaultLogsOpenFilesLimit                            int32  = 100
+	defaultProcessEnabled                                bool   = false
+	defaultOrchestratorExplorerEnabled                   bool   = false
+	defaultOrchestratorExplorerContainerScrubbingEnabled bool   = true
+	defaultMetricsProviderPort                           int32  = 8443
+	defaultClusterChecksEnabled                          bool   = false
+	defaultClusterAgentReplicas                          int32  = 1
+	defaultAgentCanaryReplicas                           int32  = 1
+	defaultClusterChecksRunnerReplicas                   int32  = 2
+	defaultClusterAgentImage                             string = "datadog/cluster-agent:latest"
+	defaultRollingUpdateMaxUnavailable                          = "10%"
+	defaultUpdateStrategy                                       = appsv1.RollingUpdateDaemonSetStrategyType
+	defaultRollingUpdateMaxPodSchedulerFailure                  = "10%"
+	defaultRollingUpdateMaxParallelPodCreation           int32  = 250
+	defaultRollingUpdateSlowStartIntervalDuration               = 1 * time.Minute
+	defaultRollingUpdateSlowStartAdditiveIncrease               = "5"
+	defaultAgentCanaryDuratrion                                 = 10 * time.Minute
+	defaultReconcileFrequency                                   = 10 * time.Second
+	defaultRbacCreate                                           = true
+	defaultMutateUnlabelled                                     = false
+	DefaultAdmissionServiceName                                 = "datadog-admission-controller"
 )
 
 var defaultImagePullPolicy = corev1.PullIfNotPresent
@@ -632,7 +633,9 @@ func DefaultDatadogAgentSpecOrchestratorExplorer(explorerConfig *OrchestratorExp
 		explorerConfig.Enabled = NewBoolPointer(defaultOrchestratorExplorerEnabled)
 	}
 
-	// TODO: add scrubbing setting
+	if explorerConfig.ContainerScrubbingEnabled == nil {
+		explorerConfig.ContainerScrubbingEnabled = NewBoolPointer(defaultOrchestratorExplorerContainerScrubbingEnabled)
+	}
 
 	return explorerConfig
 }

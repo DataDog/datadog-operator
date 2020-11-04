@@ -82,7 +82,7 @@ const (
 	DDOrchestratorExplorerEnabled                   = "DD_ORCHESTRATOR_EXPLORER_ENABLED"
 	DDOrchestratorExplorerExtraTags                 = "DD_ORCHESTRATOR_EXPLORER_EXTRA_TAGS"
 	DDOrchestratorExplorerDDUrl                     = "DD_ORCHESTRATOR_EXPLORER_DD_URL"
-	DDOrchestratorExplorerAdditionalEndpoints       = "DD_ORCHESTRATOR_EXPLORER_ADDITIONAL_ENDPOINTS"
+	DDOrchestratorExplorerAdditionalEndpoints       = "DD_ORCHESTRATOR_ADDITIONAL_ENDPOINTS"
 	DDOrchestratorExplorerContainerScrubbingEnabled = "DD_ORCHESTRATOR_EXPLORER_CONTAINER_SCRUBBING_ENABLED"
 	// orchestrator explorer section end
 	DDSystemProbeAgentEnabled                    = "DD_SYSTEM_PROBE_ENABLED"

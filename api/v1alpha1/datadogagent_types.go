@@ -373,20 +373,20 @@ type OrchestratorExplorerConfig struct {
 	Enabled *bool `json:"enabled,omitempty"`
 
 	// +optional
-	// Deactivate this to stop the scrubbing of sensitive container data (passwords, tokens ect.).
+	// Deactivate this to stop the scrubbing of sensitive container data (passwords, tokens etc. ).
 	ContainerScrubbingEnabled *bool `json:"containerScrubbingEnabled,omitempty"`
 
 	// +optional
-	// Additional endpoints for shipping the collected data
-	AdditionalEndpoints *[]string `json:"additionalEndpoints,omitempty"`
+	// Additional endpoints for shipping the collected data as json in the form of {"https://process.agent.datadoghq.com": ["apikey1", ...], ...}'.
+	AdditionalEndpoints *string `json:"additionalEndpoints,omitempty"`
 
 	// +optional
 	// Set this for the datadog endpoint for the orchestrator explorer
 	DDUrl *string `json:"ddUrl,omitempty"`
 
 	// +optional
-	// Additional tags for the collected data
-	ExtraTags *[]string `json:"extraTags,omitempty"`
+	// Additional tags for the collected data in the form of `a b c`
+	ExtraTags *string `json:"extraTags,omitempty"`
 }
 
 // SystemProbeSpec contains the SystemProbe Agent configuration

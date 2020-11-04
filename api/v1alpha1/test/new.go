@@ -43,7 +43,6 @@ type NewDatadogAgentOptions struct {
 	APMEnabled                       bool
 	ProcessEnabled                   bool
 	OrchestratorExplorerEnabled      bool
-	LeaderElectionEnabled            bool
 	SystemProbeEnabled               bool
 	SystemProbeSeccompProfileName    string
 	SystemProbeAppArmorProfileName   string

@@ -208,16 +208,6 @@ func newClusterAgentDeploymentFromInstance(agentdeployment *datadoghqv1alpha1.Da
 	return dca, hash, err
 }
 
-// TODO: check whether here is a good place to manage orchestrator dependencies
-/**
-need:
-- if orchestrator-explorer is enabled:
--- process-agent true
--- cluster-name is needed
--- leader election is true
--- ensure rbac is correct (services, nodes, pods, rs, dplm, cm ...) -> look at helm
--- enforce cluster name, how? --> if empty will not start. Either set or AD e.g. set by provider
- */
 func (r *Reconciler) manageClusterAgentDependencies(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
 	result, err := r.manageAgentSecret(logger, dda, newStatus)
 	if shouldReturn(result, err) {
@@ -302,6 +292,16 @@ func (r *Reconciler) cleanupClusterAgent(logger logr.Logger, dda *datadoghqv1alp
 	return reconcile.Result{Requeue: true}, nil
 }
 
+// TODO: check whether here is a good place to manage orchestrator dependencies
+/**
+need:
+- if orchestrator-explorer is enabled:
+-- process-agent true
+-- cluster-name is needed
+-- leader election is true
+-- ensure rbac is correct (services, nodes, pods, rs, dplm, cm ...) -> look at helm
+-- enforce cluster name, how? --> if empty will not start. Either set or AD e.g. set by provider
+*/
 // newClusterAgentPodTemplate generates a PodTemplate from a DatadogClusterAgentDeployment spec
 func newClusterAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent, labels, annotations map[string]string) corev1.PodTemplateSpec {
 	// copy Spec to configure the Cluster Agent Pod Template
@@ -605,6 +605,35 @@ func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Env
 			Name:  datadoghqv1alpha1.DDAdmissionControllerServiceName,
 			Value: getAdmissionControllerServiceName(dda),
 		})
+	}
+
+	if isOrchestratorEnabledClusterAgent(spec.ClusterAgent) {
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  datadoghqv1alpha1.DDOrchestratorExplorerEnabled,
+			Value: strconv.FormatBool(true),
+		})
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  datadoghqv1alpha1.DDOrchestratorExplorerContainerScrubbingEnabled,
+			Value: strconv.FormatBool(datadoghqv1alpha1.BoolValue(spec.ClusterAgent.Config.OrchestratorExplorer.ContainerScrubbingEnabled)),
+		})
+		if spec.ClusterAgent.Config.OrchestratorExplorer.AdditionalEndpoints != nil {
+			envVars = append(envVars, corev1.EnvVar{
+				Name:  datadoghqv1alpha1.DDOrchestratorExplorerDDUrl,
+				Value: *spec.ClusterAgent.Config.OrchestratorExplorer.DDUrl,
+			})
+		}
+		if spec.ClusterAgent.Config.OrchestratorExplorer.AdditionalEndpoints != nil {
+			envVars = append(envVars, corev1.EnvVar{
+				Name:  datadoghqv1alpha1.DDOrchestratorExplorerAdditionalEndpoints,
+				Value: *spec.ClusterAgent.Config.OrchestratorExplorer.AdditionalEndpoints,
+			})
+		}
+		if spec.ClusterAgent.Config.OrchestratorExplorer.ExtraTags != nil {
+			envVars = append(envVars, corev1.EnvVar{
+				Name:  datadoghqv1alpha1.DDOrchestratorExplorerExtraTags,
+				Value: *spec.ClusterAgent.Config.OrchestratorExplorer.ExtraTags,
+			})
+		}
 	}
 
 	return append(envVars, spec.ClusterAgent.Config.Env...)

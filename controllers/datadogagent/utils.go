@@ -1565,6 +1565,13 @@ func isAdmissionControllerEnabled(spec *datadoghqv1alpha1.DatadogAgentSpecCluste
 	return spec.Config.AdmissionController != nil && spec.Config.AdmissionController.Enabled
 }
 
+func isOrchestratorEnabledClusterAgent(spec *datadoghqv1alpha1.DatadogAgentSpecClusterAgentSpec) bool {
+	if spec.Config.OrchestratorExplorer == nil {
+		return false
+	}
+	return datadoghqv1alpha1.BoolValue(spec.Config.OrchestratorExplorer.Enabled)
+}
+
 func isCreateRBACEnabled(config datadoghqv1alpha1.RbacConfig) bool {
 	return datadoghqv1alpha1.BoolValue(config.Create)
 }

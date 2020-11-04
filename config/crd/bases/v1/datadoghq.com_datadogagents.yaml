@@ -2389,6 +2389,31 @@ spec:
                           agent
                         type: boolean
                     type: object
+                  orchestratorExplorer:
+                    description: OrchestratorExplorer configuration
+                    properties:
+                      additionalEndpoints:
+                        description: 'Additional endpoints for shipping the collected
+                          data as json in the form of {"https://process.agent.datadoghq.com":
+                          ["apikey1", ...], ...}''.'
+                        type: string
+                      containerScrubbingEnabled:
+                        description: Deactivate this to stop the scrubbing of sensitive
+                          container data (passwords, tokens etc. ).
+                        type: boolean
+                      ddUrl:
+                        description: Set this for the datadog endpoint for the orchestrator
+                          explorer
+                        type: string
+                      enabled:
+                        description: 'Enable this to activate live kubernetes monitoring.
+                          ref: https://docs.datadoghq.com/infrastructure/livecontainers/#kubernetes-resources'
+                        type: boolean
+                      extraTags:
+                        description: Additional tags for the collected data in the
+                          form of `a b c`
+                        type: string
+                    type: object
                   priorityClassName:
                     description: If specified, indicates the pod's priority. "system-node-critical"
                       and "system-cluster-critical" are two special keywords which
@@ -3895,10 +3920,39 @@ spec:
                               for more details.'
                             type: boolean
                         type: object
+                      leaderElection:
+                        description: Enables leader election mechanism for live kubernetes
+                          monitoring and collection.
+                        type: boolean
                       logLevel:
                         description: 'Set logging verbosity, valid log levels are:
                           trace, debug, info, warn, error, critical, and off'
                         type: string
+                      orchestratorExplorer:
+                        description: OrchestratorExplorer configuration
+                        properties:
+                          additionalEndpoints:
+                            description: 'Additional endpoints for shipping the collected
+                              data as json in the form of {"https://process.agent.datadoghq.com":
+                              ["apikey1", ...], ...}''.'
+                            type: string
+                          containerScrubbingEnabled:
+                            description: Deactivate this to stop the scrubbing of
+                              sensitive container data (passwords, tokens etc. ).
+                            type: boolean
+                          ddUrl:
+                            description: Set this for the datadog endpoint for the
+                              orchestrator explorer
+                            type: string
+                          enabled:
+                            description: 'Enable this to activate live kubernetes
+                              monitoring. ref: https://docs.datadoghq.com/infrastructure/livecontainers/#kubernetes-resources'
+                            type: boolean
+                          extraTags:
+                            description: Additional tags for the collected data in
+                              the form of `a b c`
+                            type: string
+                        type: object
                       resources:
                         description: Datadog cluster-agent resource requests and limits
                         properties:
