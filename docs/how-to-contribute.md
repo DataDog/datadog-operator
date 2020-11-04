@@ -2,7 +2,7 @@
 
 This project uses the `go module`. Be sure to have it activated with: `export GO111MODULE=on`.
 
-to list all the available make commands run:
+To list the available `make` commands, run:
 ```shell
 make help
 ```
