@@ -21,8 +21,8 @@ spec:
     config:
       tolerations:
         - operator: Exists
-#    process: <- if the orchestrator explorer is defined but process not we default to enabled: false which will suppot live containers but not live processes
-#      enabled: true
+  #    process: <- if the orchestrator explorer is defined but process not we default to = `enabled: "false"` which will support live containers but not live processes
+  #      enabled: "false"
   clusterAgent:
     image:
       name: "datadog/cluster-agent:latest"

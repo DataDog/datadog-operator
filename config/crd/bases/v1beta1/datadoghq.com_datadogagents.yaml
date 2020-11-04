@@ -2325,10 +2325,9 @@ spec:
                   description: Process Agent configuration
                   properties:
                     enabled:
-                      description: 'Enable this to activate live process monitoring.
-                        Note: /etc/passwd is automatically mounted to allow username
-                        resolution. ref: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset'
-                      type: boolean
+                      description: 'Note: /etc/passwd is automatically mounted to
+                        allow username resolution. ref: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset'
+                      type: string
                     env:
                       description: 'The Datadog Agent supports many environment variables
                         Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables'

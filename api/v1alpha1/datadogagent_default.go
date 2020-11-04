@@ -32,7 +32,7 @@ const (
 	defaultPodLogsPath                                   string = "/var/log/pods"
 	defaultLogsTempStoragePath                           string = "/var/lib/datadog-agent/logs"
 	defaultLogsOpenFilesLimit                            int32  = 100
-	defaultProcessEnabled                                bool   = false
+	defaultProcessEnabled                                string = "false"
 	defaultOrchestratorExplorerEnabled                   bool   = false
 	defaultOrchestratorExplorerContainerScrubbingEnabled bool   = true
 	defaultMetricsProviderPort                           int32  = 8443
@@ -654,7 +654,7 @@ func DefaultDatadogAgentSpecAgentProcess(process *ProcessSpec) *ProcessSpec {
 	}
 
 	if process.Enabled == nil {
-		process.Enabled = NewBoolPointer(defaultProcessEnabled)
+		process.Enabled = NewStringPointer(defaultProcessEnabled)
 	}
 
 	return process

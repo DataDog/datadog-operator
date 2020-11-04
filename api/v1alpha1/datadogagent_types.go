@@ -15,6 +15,7 @@ import (
 )
 
 // DatadogFeatures are features which are running on the agent as well on the clusterAgent.
+// +k8s:openapi-gen=true
 type DatadogFeatures struct {
 	// OrchestratorExplorer configuration
 	OrchestratorExplorer *OrchestratorExplorerConfig `json:"orchestratorExplorer,omitempty"`
@@ -349,11 +350,17 @@ type LogSpec struct {
 // +k8s:openapi-gen=true
 type ProcessSpec struct {
 	// Enable this to activate live process monitoring.
+	// The enabled value is a string with the following options:
+	//
+	// "true": Enable the Process Agent to collect processes and containers.
+	// "false" (default): Only collect containers if available.
+	// "disabled": Don’t run the Process Agent at all.
+
 	// Note: /etc/passwd is automatically mounted to allow username resolution.
 	// ref: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset
 	//
 	// +optional
-	Enabled *bool `json:"enabled,omitempty"`
+	Enabled *string `json:"enabled,omitempty"`
 	// The Datadog Agent supports many environment variables
 	// Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables
 	//

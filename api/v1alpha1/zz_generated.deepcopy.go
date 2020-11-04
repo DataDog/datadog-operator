@@ -1228,7 +1228,7 @@ func (in *ProcessSpec) DeepCopyInto(out *ProcessSpec) {
 	*out = *in
 	if in.Enabled != nil {
 		in, out := &in.Enabled, &out.Enabled
-		*out = new(bool)
+		*out = new(string)
 		**out = **in
 	}
 	if in.Env != nil {

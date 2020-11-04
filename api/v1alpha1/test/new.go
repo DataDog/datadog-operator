@@ -41,7 +41,7 @@ type NewDatadogAgentOptions struct {
 	ClusterChecksEnabled             bool
 	NodeAgentConfig                  *datadoghqv1alpha1.NodeAgentConfig
 	APMEnabled                       bool
-	ProcessEnabled                   bool
+	ProcessEnabled                   string
 	OrchestratorExplorerEnabled      bool
 	SystemProbeEnabled               bool
 	SystemProbeSeccompProfileName    string
@@ -107,7 +107,7 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 			DeploymentStrategy: &datadoghqv1alpha1.DaemonSetDeploymentStrategy{},
 			Apm:                datadoghqv1alpha1.APMSpec{},
 			Log:                datadoghqv1alpha1.LogSpec{},
-			Process:            datadoghqv1alpha1.ProcessSpec{},
+			Process:            datadoghqv1alpha1.ProcessSpec{Enabled: datadoghqv1alpha1.NewStringPointer("disabled")},
 		},
 	}
 	if options != nil {
@@ -236,8 +236,8 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 			ad.Spec.Agent.Apm.Enabled = datadoghqv1alpha1.NewBoolPointer(true)
 		}
 
-		if options.ProcessEnabled {
-			ad.Spec.Agent.Process.Enabled = datadoghqv1alpha1.NewBoolPointer(true)
+		if options.ProcessEnabled != "" {
+			ad.Spec.Agent.Process.Enabled = datadoghqv1alpha1.NewStringPointer(options.ProcessEnabled)
 		}
 
 		if options.HostNetwork {

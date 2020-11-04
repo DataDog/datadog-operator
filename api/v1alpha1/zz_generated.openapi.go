@@ -38,6 +38,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/DataDog/datadog-operator/api/v1alpha1.DatadogAgentSpecClusterAgentSpec":        schema_DataDog_datadog_operator_api_v1alpha1_DatadogAgentSpecClusterAgentSpec(ref),
 		"github.com/DataDog/datadog-operator/api/v1alpha1.DatadogAgentSpecClusterChecksRunnerSpec": schema_DataDog_datadog_operator_api_v1alpha1_DatadogAgentSpecClusterChecksRunnerSpec(ref),
 		"github.com/DataDog/datadog-operator/api/v1alpha1.DatadogAgentStatus":                      schema_DataDog_datadog_operator_api_v1alpha1_DatadogAgentStatus(ref),
+		"github.com/DataDog/datadog-operator/api/v1alpha1.DatadogFeatures":                         schema_DataDog_datadog_operator_api_v1alpha1_DatadogFeatures(ref),
 		"github.com/DataDog/datadog-operator/api/v1alpha1.DatadogMetric":                           schema_DataDog_datadog_operator_api_v1alpha1_DatadogMetric(ref),
 		"github.com/DataDog/datadog-operator/api/v1alpha1.DatadogMetricCondition":                  schema_DataDog_datadog_operator_api_v1alpha1_DatadogMetricCondition(ref),
 		"github.com/DataDog/datadog-operator/api/v1alpha1.DeploymentStatus":                        schema_DataDog_datadog_operator_api_v1alpha1_DeploymentStatus(ref),
@@ -1397,6 +1398,27 @@ func schema_DataDog_datadog_operator_api_v1alpha1_DatadogAgentStatus(ref common.
 	}
 }
 
+func schema_DataDog_datadog_operator_api_v1alpha1_DatadogFeatures(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogFeatures are features which are running on the agent as well on the clusterAgent.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"orchestratorExplorer": {
+						SchemaProps: spec.SchemaProps{
+							Description: "OrchestratorExplorer configuration",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/v1alpha1.OrchestratorExplorerConfig"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/DataDog/datadog-operator/api/v1alpha1.OrchestratorExplorerConfig"},
+	}
+}
+
 func schema_DataDog_datadog_operator_api_v1alpha1_DatadogMetric(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -2060,8 +2082,8 @@ func schema_DataDog_datadog_operator_api_v1alpha1_ProcessSpec(ref common.Referen
 				Properties: map[string]spec.Schema{
 					"enabled": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enable this to activate live process monitoring. Note: /etc/passwd is automatically mounted to allow username resolution. ref: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset",
-							Type:        []string{"boolean"},
+							Description: "Note: /etc/passwd is automatically mounted to allow username resolution. ref: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset",
+							Type:        []string{"string"},
 							Format:      "",
 						},
 					},

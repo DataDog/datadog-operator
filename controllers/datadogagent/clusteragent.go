@@ -25,6 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/orchestrator"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -86,6 +87,17 @@ func (r *Reconciler) reconcileClusterAgent(logger logr.Logger, dda *datadoghqv1a
 
 	return reconcile.Result{}, nil
 }
+
+// TODO: check whether here is a good place to manage orchestrator dependencies
+/**
+need:
+- if orchestrator-explorer is enabled:
+-- process-agent true
+-- cluster-name is needed
+  -- enforce cluster name, how? --> if empty will not start. Either set or AD e.g. set by provider
+-- leader election is true (done)
+-- ensure rbac is correct (services, nodes, pods, rs, dplm, cm ...) -> look at helm (done)
+*/
 
 func (r *Reconciler) createNewClusterAgentDeployment(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
 	newDCA, hash, err := newClusterAgentDeploymentFromInstance(agentdeployment, nil)
@@ -292,16 +304,6 @@ func (r *Reconciler) cleanupClusterAgent(logger logr.Logger, dda *datadoghqv1alp
 	return reconcile.Result{Requeue: true}, nil
 }
 
-// TODO: check whether here is a good place to manage orchestrator dependencies
-/**
-need:
-- if orchestrator-explorer is enabled:
--- process-agent true
--- cluster-name is needed
--- leader election is true
--- ensure rbac is correct (services, nodes, pods, rs, dplm, cm ...) -> look at helm
--- enforce cluster name, how? --> if empty will not start. Either set or AD e.g. set by provider
-*/
 // newClusterAgentPodTemplate generates a PodTemplate from a DatadogClusterAgentDeployment spec
 func newClusterAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent, labels, annotations map[string]string) corev1.PodTemplateSpec {
 	// copy Spec to configure the Cluster Agent Pod Template
@@ -607,34 +609,8 @@ func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Env
 		})
 	}
 
-	if isOrchestratorEnabledClusterAgent(spec.DatadogFeatures) {
-		orc := spec.DatadogFeatures.OrchestratorExplorer
-		envVars = append(envVars, corev1.EnvVar{
-			Name:  datadoghqv1alpha1.DDOrchestratorExplorerEnabled,
-			Value: strconv.FormatBool(true),
-		})
-		envVars = append(envVars, corev1.EnvVar{
-			Name:  datadoghqv1alpha1.DDOrchestratorExplorerContainerScrubbingEnabled,
-			Value: strconv.FormatBool(datadoghqv1alpha1.BoolValue(orc.ContainerScrubbingEnabled)),
-		})
-		if orc.AdditionalEndpoints != nil {
-			envVars = append(envVars, corev1.EnvVar{
-				Name:  datadoghqv1alpha1.DDOrchestratorExplorerDDUrl,
-				Value: *orc.DDUrl,
-			})
-		}
-		if orc.AdditionalEndpoints != nil {
-			envVars = append(envVars, corev1.EnvVar{
-				Name:  datadoghqv1alpha1.DDOrchestratorExplorerAdditionalEndpoints,
-				Value: *orc.AdditionalEndpoints,
-			})
-		}
-		if orc.ExtraTags != nil {
-			envVars = append(envVars, corev1.EnvVar{
-				Name:  datadoghqv1alpha1.DDOrchestratorExplorerExtraTags,
-				Value: *orc.ExtraTags,
-			})
-		}
+	if isOrchestratorExplorerEnabled(dda) {
+		envVars = append(envVars, orchestrator.EnvVars(spec)...)
 	}
 
 	return append(envVars, spec.ClusterAgent.Config.Env...)
@@ -1210,7 +1186,7 @@ func buildClusterAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, age
 		})
 	}
 
-	if isOrchestratorExplorerEnabled(dda.Spec.DatadogFeatures) {
+	if isOrchestratorExplorerEnabled(dda) {
 		// To get the kube-system namespace UID and generate a cluster ID
 		rbacRules = append(rbacRules, rbacv1.PolicyRule{
 			APIGroups:     []string{datadoghqv1alpha1.CoreAPIGroup},

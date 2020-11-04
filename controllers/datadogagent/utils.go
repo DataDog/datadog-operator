@@ -15,6 +15,7 @@ import (
 	"time"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/orchestrator"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
@@ -87,7 +88,8 @@ func newAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent, select
 		}
 		containers = append(containers, apmContainers...)
 	}
-	if isProcessEnabled(agentdeployment) {
+
+	if shouldAddProcessContainer(agentdeployment) {
 		var processContainers []corev1.Container
 
 		processContainers, err = getProcessContainers(agentdeployment)
@@ -151,14 +153,31 @@ func isAPMEnabled(dda *datadoghqv1alpha1.DatadogAgent) bool {
 	return datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Apm.Enabled)
 }
 
-func isProcessEnabled(dda *datadoghqv1alpha1.DatadogAgent) bool {
-	if dda.Spec.Agent == nil {
-		return false
+// shouldAddProcessContainer returns whether the process container should be added.
+// It returns false if the feature is "disabled" or neither OrchestratorExplorer nor ProcessContainer are set
+// Note: the container will still be added even if it is set to "false".
+func shouldAddProcessContainer(dda *datadoghqv1alpha1.DatadogAgent) bool {
+	// we still want to have the process-agent if the orchestrator explorer is activated
+	if dda.Spec.Agent == nil || dda.Spec.Agent.Process.Enabled == nil {
+		return isOrchestratorExplorerEnabled(dda)
 	}
-	return datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Process.Enabled)
+
+	return *dda.Spec.Agent.Process.Enabled != "disabled"
 }
 
-func isOrchestratorExplorerEnabled(features *datadoghqv1alpha1.DatadogFeatures) bool {
+// processEnabled can return disabled, true or false
+// false still collects live container data, true also collects process data + live container, disabled disables the container all together
+func processEnabled(dda *datadoghqv1alpha1.DatadogAgent) string {
+	// we still want to have the process-agent if the orchestrator explorer is activated
+	if dda.Spec.Agent == nil || dda.Spec.Agent.Process.Enabled == nil {
+		return "false"
+	}
+
+	return *dda.Spec.Agent.Process.Enabled
+}
+
+func isOrchestratorExplorerEnabled(dda *datadoghqv1alpha1.DatadogAgent) bool {
+	features := dda.Spec.DatadogFeatures
 	if features == nil || features.OrchestratorExplorer == nil {
 		return false
 	}
@@ -468,23 +487,23 @@ func getEnvVarsForAPMAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.EnvVar
 	return envVars, nil
 }
 
-// TODO: doublecheck whether we can do verification here (orchestrator_explorer enabled needs process-agent enabled ("false" is enough, not "disabled" -> live containers)
 // getEnvVarsForProcessAgent converts Process Agent Config into container env vars
 func getEnvVarsForProcessAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.EnvVar, error) {
 	envVars := []corev1.EnvVar{
 		{
 			Name:  datadoghqv1alpha1.DDProcessAgentEnabled,
-			Value: strconv.FormatBool(isProcessEnabled(dda)),
+			Value: processEnabled(dda),
 		},
 		{
 			Name:  datadoghqv1alpha1.DDSystemProbeAgentEnabled,
 			Value: strconv.FormatBool(isSystemProbeEnabled(dda)),
 		},
-		{
-			Name:  datadoghqv1alpha1.DDOrchestratorExplorerEnabled,
-			Value: strconv.FormatBool(isOrchestratorExplorerEnabled(dda.Spec.DatadogFeatures)),
-		},
 	}
+
+	if isOrchestratorExplorerEnabled(dda) {
+		envVars = append(envVars, orchestrator.EnvVars(&dda.Spec)...)
+	}
+
 	commonEnvVars, err := getEnvVarsCommon(dda, true)
 	if err != nil {
 		return nil, err
@@ -818,7 +837,7 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 			volumes = append(volumes, criVolume)
 		}
 	}
-	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Process.Enabled) || isComplianceEnabled(dda) {
+	if shouldAddProcessContainer(dda) || isComplianceEnabled(dda) {
 		passwdVolume := corev1.Volume{
 			Name: datadoghqv1alpha1.PasswdVolumeName,
 			VolumeSource: corev1.VolumeSource{
@@ -1563,13 +1582,6 @@ func isAdmissionControllerEnabled(spec *datadoghqv1alpha1.DatadogAgentSpecCluste
 		return false
 	}
 	return spec.Config.AdmissionController != nil && spec.Config.AdmissionController.Enabled
-}
-
-func isOrchestratorEnabledClusterAgent(features *datadoghqv1alpha1.DatadogFeatures) bool {
-	if features == nil || features.OrchestratorExplorer == nil {
-		return false
-	}
-	return datadoghqv1alpha1.BoolValue(features.OrchestratorExplorer.Enabled)
 }
 
 func isCreateRBACEnabled(config datadoghqv1alpha1.RbacConfig) bool {

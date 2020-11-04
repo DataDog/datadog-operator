@@ -65,7 +65,7 @@ func NewDatadogAgent(ns, name, image string, options *NewDatadogAgentOptions) *d
 			DeploymentStrategy: &datadoghqv1alpha1.DaemonSetDeploymentStrategy{},
 			Apm:                datadoghqv1alpha1.APMSpec{},
 			Log:                datadoghqv1alpha1.LogSpec{},
-			Process:            datadoghqv1alpha1.ProcessSpec{},
+			Process:            datadoghqv1alpha1.ProcessSpec{Enabled: datadoghqv1alpha1.NewStringPointer("disabled")},
 		},
 	}
 	ad = datadoghqv1alpha1.DefaultDatadogAgent(ad)
