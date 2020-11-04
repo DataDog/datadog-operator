@@ -1876,7 +1876,7 @@ func schema_DataDog_datadog_operator_api_v1alpha1_NodeAgentConfig(ref common.Ref
 					},
 					"collectEvents": {
 						SchemaProps: spec.SchemaProps{
-							Description: "nables this to start event collection from the kubernetes API ref: https://docs.datadoghq.com/agent/kubernetes/event_collection/",
+							Description: "enables this to start event collection from the kubernetes API ref: https://docs.datadoghq.com/agent/kubernetes/event_collection/",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},

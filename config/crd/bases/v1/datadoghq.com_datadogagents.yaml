@@ -244,8 +244,8 @@ spec:
                             type: string
                         type: object
                       collectEvents:
-                        description: 'nables this to start event collection from the
-                          kubernetes API ref: https://docs.datadoghq.com/agent/kubernetes/event_collection/'
+                        description: 'enables this to start event collection from
+                          the kubernetes API ref: https://docs.datadoghq.com/agent/kubernetes/event_collection/'
                         type: boolean
                       confd:
                         description: Confd configuration allowing to specify config

@@ -1226,11 +1226,10 @@ func buildClusterAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, age
 			Verbs:         []string{datadoghqv1alpha1.GetVerb, datadoghqv1alpha1.CreateVerb, datadoghqv1alpha1.UpdateVerb},
 		})
 
-
 		rbacRules = append(rbacRules, rbacv1.PolicyRule{
-			APIGroups:     []string{datadoghqv1alpha1.AppsAPIGroup},
-			Resources:     []string{datadoghqv1alpha1.DeploymentsResource,datadoghqv1alpha1.ReplicasetsResource},
-			Verbs:         []string{datadoghqv1alpha1.GetVerb, datadoghqv1alpha1.ListVerb, datadoghqv1alpha1.WatchVerb},
+			APIGroups: []string{datadoghqv1alpha1.AppsAPIGroup},
+			Resources: []string{datadoghqv1alpha1.DeploymentsResource, datadoghqv1alpha1.ReplicasetsResource},
+			Verbs:     []string{datadoghqv1alpha1.GetVerb, datadoghqv1alpha1.ListVerb, datadoghqv1alpha1.WatchVerb},
 		})
 	}
 
