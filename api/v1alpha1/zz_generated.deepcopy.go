@@ -158,11 +158,6 @@ func (in *ClusterAgentConfig) DeepCopyInto(out *ClusterAgentConfig) {
 		*out = new(bool)
 		**out = **in
 	}
-	if in.LeaderElection != nil {
-		in, out := &in.LeaderElection, &out.LeaderElection
-		*out = new(bool)
-		**out = **in
-	}
 	if in.LogLevel != nil {
 		in, out := &in.LogLevel, &out.LogLevel
 		*out = new(string)

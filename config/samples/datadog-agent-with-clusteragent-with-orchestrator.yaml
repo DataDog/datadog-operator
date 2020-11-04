@@ -1,0 +1,29 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog
+spec:
+  credentials:
+    apiKey: <DATADOG_API_KEY>
+    appKey: <DATADOG_APP_KEY>
+    token: <DATADOG_CLUSTER_AGENT_TOKEN>
+  features:
+    orchestratorExplorer:
+      enabled: true
+  # further settings:
+  # containerScrubbingEnabled
+  # additionalEndpoints
+  # ddUrl
+  # extraTags
+  agent:
+    image:
+      name: "datadog/agent:latest"
+    config:
+      tolerations:
+        - operator: Exists
+  #    process: <- if the orchestrator explorer is defined but process not we default to enabled: false which will suppot live containers but not live processes
+  #      enabled: true
+  clusterAgent:
+    image:
+      name: "datadog/cluster-agent:latest"
+    replicas: 2

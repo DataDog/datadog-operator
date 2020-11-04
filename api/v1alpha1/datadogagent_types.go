@@ -593,7 +593,7 @@ type NodeAgentConfig struct {
 	// +listType=set
 	Tags []string `json:"tags,omitempty"`
 
-	// nables this to start event collection from the kubernetes API
+	// enables this to start event collection from the kubernetes API
 	// ref: https://docs.datadoghq.com/agent/kubernetes/event_collection/
 	// +optional
 	CollectEvents *bool `json:"collectEvents,omitempty"`
@@ -749,10 +749,6 @@ type ClusterAgentConfig struct {
 	// ref: https://docs.datadoghq.com/agent/cluster_agent/event_collection/
 	// +optional
 	CollectEvents *bool `json:"collectEvents,omitempty"`
-
-	// Enables leader election mechanism for live kubernetes monitoring and collection.
-	// +optional
-	LeaderElection *bool `json:"leaderElection,omitempty"`
 
 	// Set logging verbosity, valid log levels are:
 	// trace, debug, info, warn, error, critical, and off

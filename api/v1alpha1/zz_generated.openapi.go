@@ -276,13 +276,6 @@ func schema_DataDog_datadog_operator_api_v1alpha1_ClusterAgentConfig(ref common.
 							Format:      "",
 						},
 					},
-					"leaderElection": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Enables leader election mechanism for live kubernetes monitoring and collection.",
-							Type:        []string{"boolean"},
-							Format:      "",
-						},
-					},
 					"logLevel": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Set logging verbosity, valid log levels are: trace, debug, info, warn, error, critical, and off",

@@ -3773,10 +3773,6 @@ spec:
                             for more details.'
                           type: boolean
                       type: object
-                    leaderElection:
-                      description: Enables leader election mechanism for live kubernetes
-                        monitoring and collection.
-                      type: boolean
                     logLevel:
                       description: 'Set logging verbosity, valid log levels are: trace,
                         debug, info, warn, error, critical, and off'

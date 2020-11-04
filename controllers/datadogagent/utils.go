@@ -158,7 +158,7 @@ func isProcessEnabled(dda *datadoghqv1alpha1.DatadogAgent) bool {
 	return datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Process.Enabled)
 }
 
-func isOrchestratorEnabled(features *datadoghqv1alpha1.DatadogFeatures) bool {
+func isOrchestratorExplorerEnabled(features *datadoghqv1alpha1.DatadogFeatures) bool {
 	if features == nil || features.OrchestratorExplorer == nil {
 		return false
 	}
@@ -468,7 +468,7 @@ func getEnvVarsForAPMAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.EnvVar
 	return envVars, nil
 }
 
-// TODO: doublecheck whether we can do verification here (orchestrator_explorer enabled needs process-agent enabled)
+// TODO: doublecheck whether we can do verification here (orchestrator_explorer enabled needs process-agent enabled ("false" is enough, not "disabled" -> live containers)
 // getEnvVarsForProcessAgent converts Process Agent Config into container env vars
 func getEnvVarsForProcessAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.EnvVar, error) {
 	envVars := []corev1.EnvVar{
@@ -482,7 +482,7 @@ func getEnvVarsForProcessAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.En
 		},
 		{
 			Name:  datadoghqv1alpha1.DDOrchestratorExplorerEnabled,
-			Value: strconv.FormatBool(isOrchestratorEnabled(dda.Spec.DatadogFeatures)),
+			Value: strconv.FormatBool(isOrchestratorExplorerEnabled(dda.Spec.DatadogFeatures)),
 		},
 	}
 	commonEnvVars, err := getEnvVarsCommon(dda, true)

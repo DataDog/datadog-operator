@@ -1210,6 +1210,30 @@ func buildClusterAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, age
 		})
 	}
 
+	if isOrchestratorExplorerEnabled(dda.Spec.DatadogFeatures) {
+		// To get the kube-system namespace UID and generate a cluster ID
+		rbacRules = append(rbacRules, rbacv1.PolicyRule{
+			APIGroups:     []string{datadoghqv1alpha1.CoreAPIGroup},
+			Resources:     []string{datadoghqv1alpha1.NamespaceResource},
+			ResourceNames: []string{datadoghqv1alpha1.KubeSystemResourceName},
+			Verbs:         []string{datadoghqv1alpha1.GetVerb},
+		})
+		// To create the cluster-id configmap
+		rbacRules = append(rbacRules, rbacv1.PolicyRule{
+			APIGroups:     []string{datadoghqv1alpha1.CoreAPIGroup},
+			Resources:     []string{datadoghqv1alpha1.ConfigMapsResource},
+			ResourceNames: []string{datadoghqv1alpha1.DatadogClusterIDResourceName},
+			Verbs:         []string{datadoghqv1alpha1.GetVerb, datadoghqv1alpha1.CreateVerb, datadoghqv1alpha1.UpdateVerb},
+		})
+
+
+		rbacRules = append(rbacRules, rbacv1.PolicyRule{
+			APIGroups:     []string{datadoghqv1alpha1.AppsAPIGroup},
+			Resources:     []string{datadoghqv1alpha1.DeploymentsResource,datadoghqv1alpha1.ReplicasetsResource},
+			Verbs:         []string{datadoghqv1alpha1.GetVerb, datadoghqv1alpha1.ListVerb, datadoghqv1alpha1.WatchVerb},
+		})
+	}
+
 	clusterRole.Rules = rbacRules
 
 	return clusterRole
