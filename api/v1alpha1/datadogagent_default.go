@@ -96,6 +96,12 @@ func IsDefaultedDatadogAgent(ad *DatadogAgent) bool {
 		}
 	}
 
+	if ad.Spec.DatadogFeatures != nil {
+		if !IsDefaultedOrchestratorExplorer(ad.Spec.DatadogFeatures.OrchestratorExplorer) {
+			return false
+		}
+	}
+
 	if ad.Spec.ClusterAgent != nil {
 		if !IsDefaultedImageConfig(&ad.Spec.ClusterAgent.Image) {
 			return false
@@ -155,6 +161,32 @@ func IsDefaultedImageConfig(imageConfig *ImageConfig) bool {
 	}
 
 	if imageConfig.PullSecrets == nil {
+		return false
+	}
+
+	return true
+}
+
+// IsDefaultedOrchestratorExplorer used to check if the orchestratorExplorer feature was already defaulted
+// returns true if yes, else false
+func IsDefaultedOrchestratorExplorer(orc *OrchestratorExplorerConfig) bool {
+	if orc == nil {
+		return false
+	}
+
+	if orc.AdditionalEndpoints == nil {
+		return false
+	}
+	if orc.ExtraTags == nil {
+		return false
+	}
+	if orc.ContainerScrubbingEnabled == nil {
+		return false
+	}
+	if orc.DDUrl == nil {
+		return false
+	}
+	if orc.Enabled == nil {
 		return false
 	}
 
@@ -370,6 +402,12 @@ func DefaultDatadogAgent(ad *DatadogAgent) *DatadogAgent {
 		defaultedAD.Spec.ClusterAgent = DefaultDatadogAgentSpecClusterAgent(defaultedAD.Spec.ClusterAgent)
 		if BoolValue(defaultedAD.Spec.ClusterAgent.Config.ClusterChecksEnabled) && ad.Spec.ClusterChecksRunner == nil {
 			defaultedAD.Spec.ClusterChecksRunner = &DatadogAgentSpecClusterChecksRunnerSpec{}
+		}
+	}
+
+	if defaultedAD.Spec.DatadogFeatures != nil {
+		if defaultedAD.Spec.DatadogFeatures.OrchestratorExplorer != nil {
+			defaultedAD.Spec.DatadogFeatures.OrchestratorExplorer = DefaultDatadogFeatureOrchestratorExplorer(defaultedAD.Spec.DatadogFeatures.OrchestratorExplorer)
 		}
 	}
 
@@ -622,9 +660,9 @@ func DefaultDatadogAgentSpecAgentProcess(process *ProcessSpec) *ProcessSpec {
 	return process
 }
 
-// DefaultDatadogAgentSpecOrchestratorExplorer used to default an OrchestratorExplorerConfig
+// DefaultDatadogFeatureOrchestratorExplorer used to default an OrchestratorExplorerConfig
 // return the defaulted OrchestratorExplorerConfig
-func DefaultDatadogAgentSpecOrchestratorExplorer(explorerConfig *OrchestratorExplorerConfig) *OrchestratorExplorerConfig {
+func DefaultDatadogFeatureOrchestratorExplorer(explorerConfig *OrchestratorExplorerConfig) *OrchestratorExplorerConfig {
 	if explorerConfig == nil {
 		explorerConfig = &OrchestratorExplorerConfig{}
 	}
@@ -665,8 +703,6 @@ func DefaultDatadogAgentSpecClusterAgentConfig(config *ClusterAgentConfig) *Clus
 			config.ExternalMetrics.Port = NewInt32Pointer(defaultMetricsProviderPort)
 		}
 	}
-
-	config.OrchestratorExplorer = DefaultDatadogAgentSpecOrchestratorExplorer(config.OrchestratorExplorer)
 
 	if config.ClusterChecksEnabled == nil {
 		config.ClusterChecksEnabled = NewBoolPointer(defaultClusterChecksEnabled)

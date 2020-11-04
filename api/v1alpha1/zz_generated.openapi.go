@@ -262,12 +262,6 @@ func schema_DataDog_datadog_operator_api_v1alpha1_ClusterAgentConfig(ref common.
 							Ref:         ref("github.com/DataDog/datadog-operator/api/v1alpha1.AdmissionControllerConfig"),
 						},
 					},
-					"orchestratorExplorer": {
-						SchemaProps: spec.SchemaProps{
-							Description: "OrchestratorExplorer configuration",
-							Ref:         ref("github.com/DataDog/datadog-operator/api/v1alpha1.OrchestratorExplorerConfig"),
-						},
-					},
 					"clusterChecksEnabled": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Enable the Cluster Checks and Endpoint Checks feature on both the cluster-agents and the daemonset ref: https://docs.datadoghq.com/agent/cluster_agent/clusterchecks/ https://docs.datadoghq.com/agent/cluster_agent/endpointschecks/ Autodiscovery via Kube Service annotations is automatically enabled",
@@ -376,7 +370,7 @@ func schema_DataDog_datadog_operator_api_v1alpha1_ClusterAgentConfig(ref common.
 			},
 		},
 		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/api/v1alpha1.AdmissionControllerConfig", "github.com/DataDog/datadog-operator/api/v1alpha1.ConfigDirSpec", "github.com/DataDog/datadog-operator/api/v1alpha1.ExternalMetricsConfig", "github.com/DataDog/datadog-operator/api/v1alpha1.OrchestratorExplorerConfig", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
+			"github.com/DataDog/datadog-operator/api/v1alpha1.AdmissionControllerConfig", "github.com/DataDog/datadog-operator/api/v1alpha1.ConfigDirSpec", "github.com/DataDog/datadog-operator/api/v1alpha1.ExternalMetricsConfig", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
 	}
 }
 
@@ -856,6 +850,12 @@ func schema_DataDog_datadog_operator_api_v1alpha1_DatadogAgentSpec(ref common.Re
 							Ref:         ref("github.com/DataDog/datadog-operator/api/v1alpha1.AgentCredentials"),
 						},
 					},
+					"features": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DatadogFeatures are features which are running on the agent as well on the clusterAgent.",
+							Ref:         ref("github.com/DataDog/datadog-operator/api/v1alpha1.DatadogFeatures"),
+						},
+					},
 					"agent": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The desired state of the Agent as an extended daemonset Contains the Node Agent configuration and deployment strategy",
@@ -893,7 +893,7 @@ func schema_DataDog_datadog_operator_api_v1alpha1_DatadogAgentSpec(ref common.Re
 			},
 		},
 		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/api/v1alpha1.AgentCredentials", "github.com/DataDog/datadog-operator/api/v1alpha1.DatadogAgentSpecAgentSpec", "github.com/DataDog/datadog-operator/api/v1alpha1.DatadogAgentSpecClusterAgentSpec", "github.com/DataDog/datadog-operator/api/v1alpha1.DatadogAgentSpecClusterChecksRunnerSpec"},
+			"github.com/DataDog/datadog-operator/api/v1alpha1.AgentCredentials", "github.com/DataDog/datadog-operator/api/v1alpha1.DatadogAgentSpecAgentSpec", "github.com/DataDog/datadog-operator/api/v1alpha1.DatadogAgentSpecClusterAgentSpec", "github.com/DataDog/datadog-operator/api/v1alpha1.DatadogAgentSpecClusterChecksRunnerSpec", "github.com/DataDog/datadog-operator/api/v1alpha1.DatadogFeatures"},
 	}
 }
 
@@ -1045,12 +1045,6 @@ func schema_DataDog_datadog_operator_api_v1alpha1_DatadogAgentSpecAgentSpec(ref 
 							Ref:         ref("github.com/DataDog/datadog-operator/api/v1alpha1.ProcessSpec"),
 						},
 					},
-					"orchestratorExplorer": {
-						SchemaProps: spec.SchemaProps{
-							Description: "OrchestratorExplorer configuration",
-							Ref:         ref("github.com/DataDog/datadog-operator/api/v1alpha1.OrchestratorExplorerConfig"),
-						},
-					},
 					"systemProbe": {
 						SchemaProps: spec.SchemaProps{
 							Description: "SystemProbe configuration",
@@ -1080,7 +1074,7 @@ func schema_DataDog_datadog_operator_api_v1alpha1_DatadogAgentSpecAgentSpec(ref 
 			},
 		},
 		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/api/v1alpha1.APMSpec", "github.com/DataDog/datadog-operator/api/v1alpha1.CustomConfigSpec", "github.com/DataDog/datadog-operator/api/v1alpha1.DaemonSetDeploymentStrategy", "github.com/DataDog/datadog-operator/api/v1alpha1.ImageConfig", "github.com/DataDog/datadog-operator/api/v1alpha1.LogSpec", "github.com/DataDog/datadog-operator/api/v1alpha1.NetworkPolicySpec", "github.com/DataDog/datadog-operator/api/v1alpha1.NodeAgentConfig", "github.com/DataDog/datadog-operator/api/v1alpha1.OrchestratorExplorerConfig", "github.com/DataDog/datadog-operator/api/v1alpha1.ProcessSpec", "github.com/DataDog/datadog-operator/api/v1alpha1.RbacConfig", "github.com/DataDog/datadog-operator/api/v1alpha1.SecuritySpec", "github.com/DataDog/datadog-operator/api/v1alpha1.SystemProbeSpec", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.PodDNSConfig"},
+			"github.com/DataDog/datadog-operator/api/v1alpha1.APMSpec", "github.com/DataDog/datadog-operator/api/v1alpha1.CustomConfigSpec", "github.com/DataDog/datadog-operator/api/v1alpha1.DaemonSetDeploymentStrategy", "github.com/DataDog/datadog-operator/api/v1alpha1.ImageConfig", "github.com/DataDog/datadog-operator/api/v1alpha1.LogSpec", "github.com/DataDog/datadog-operator/api/v1alpha1.NetworkPolicySpec", "github.com/DataDog/datadog-operator/api/v1alpha1.NodeAgentConfig", "github.com/DataDog/datadog-operator/api/v1alpha1.ProcessSpec", "github.com/DataDog/datadog-operator/api/v1alpha1.RbacConfig", "github.com/DataDog/datadog-operator/api/v1alpha1.SecuritySpec", "github.com/DataDog/datadog-operator/api/v1alpha1.SystemProbeSpec", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.PodDNSConfig"},
 	}
 }
 

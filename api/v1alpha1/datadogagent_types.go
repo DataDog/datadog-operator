@@ -14,11 +14,21 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
+// DatadogFeatures are features which are running on the agent as well on the clusterAgent.
+type DatadogFeatures struct {
+	// OrchestratorExplorer configuration
+	OrchestratorExplorer *OrchestratorExplorerConfig `json:"orchestratorExplorer,omitempty"`
+}
+
 // DatadogAgentSpec defines the desired state of DatadogAgent
 // +k8s:openapi-gen=true
 type DatadogAgentSpec struct {
 	// Configure the credentials required to run Agents
 	Credentials AgentCredentials `json:"credentials"`
+
+	// DatadogFeatures are features which are running on the agent as well on the clusterAgent.
+	// +optional
+	DatadogFeatures *DatadogFeatures `json:"features,omitempty"`
 
 	// The desired state of the Agent as an extended daemonset
 	// Contains the Node Agent configuration and deployment strategy
@@ -182,10 +192,6 @@ type DatadogAgentSpecAgentSpec struct {
 	// Process Agent configuration
 	// +optional
 	Process ProcessSpec `json:"process,omitempty"`
-
-	// OrchestratorExplorer configuration
-	// +optional
-	OrchestratorExplorer OrchestratorExplorerConfig `json:"orchestratorExplorer,omitempty"`
 
 	// SystemProbe configuration
 	// +optional
@@ -731,9 +737,6 @@ type ClusterAgentConfig struct {
 
 	// Configure the Admission Controller
 	AdmissionController *AdmissionControllerConfig `json:"admissionController,omitempty"`
-
-	// OrchestratorExplorer configuration
-	OrchestratorExplorer *OrchestratorExplorerConfig `json:"orchestratorExplorer,omitempty"`
 
 	// Enable the Cluster Checks and Endpoint Checks feature on both the cluster-agents and the daemonset
 	// ref:

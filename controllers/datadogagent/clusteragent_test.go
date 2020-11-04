@@ -194,6 +194,49 @@ func Test_newClusterAgentDeploymentFromInstance(t *testing.T) {
 			},
 		},
 		{
+			name:            "defaulted case with DatadogFeature orchestrator Explorer",
+			agentdeployment: test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{ClusterAgentEnabled: true, OrchestratorExplorerEnabled: true}),
+			newStatus:       &datadoghqv1alpha1.DatadogAgentStatus{},
+			wantErr:         false,
+			want: &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "bar",
+					Name:      "foo-cluster-agent",
+					Labels: map[string]string{"agent.datadoghq.com/name": "foo",
+						"agent.datadoghq.com/component": "cluster-agent",
+						"app.kubernetes.io/instance":    "cluster-agent",
+						"app.kubernetes.io/managed-by":  "datadog-operator",
+						"app.kubernetes.io/name":        "datadog-agent-deployment",
+						"app.kubernetes.io/part-of":     "foo",
+						"app.kubernetes.io/version":     "",
+					},
+				},
+				Spec: appsv1.DeploymentSpec{
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{
+								"agent.datadoghq.com/name":      "foo",
+								"agent.datadoghq.com/component": "cluster-agent",
+								"app.kubernetes.io/instance":    "cluster-agent",
+								"app.kubernetes.io/managed-by":  "datadog-operator",
+								"app.kubernetes.io/name":        "datadog-agent-deployment",
+								"app.kubernetes.io/part-of":     "foo",
+								"app.kubernetes.io/version":     "",
+							},
+						},
+						Spec: clusterAgentPodSpecOrchestratorEnabled(),
+					},
+					Replicas: &testClusterAgentReplicas,
+					Selector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"agent.datadoghq.com/name":      "foo",
+							"agent.datadoghq.com/component": "cluster-agent",
+						},
+					},
+				},
+			},
+		},
+		{
 			name:            "with labels and annotations",
 			agentdeployment: test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{ClusterAgentEnabled: true, Labels: map[string]string{"label-foo-key": "label-bar-value"}, Annotations: map[string]string{"annotations-foo-key": "annotations-bar-value"}}),
 			newStatus:       &datadoghqv1alpha1.DatadogAgentStatus{},
@@ -243,6 +286,17 @@ func Test_newClusterAgentDeploymentFromInstance(t *testing.T) {
 		},
 	}
 	tests.Run(t)
+}
+
+func clusterAgentPodSpecOrchestratorEnabled() v1.PodSpec {
+	clusterAgentSpec := clusterAgentDefaultPodSpec()
+	cnt := clusterAgentSpec.Containers[0]
+	cnt.Env = append(cnt.Env, []corev1.EnvVar{
+		{Name: "DD_ORCHESTRATOR_EXPLORER_ENABLED", Value: "true"},
+		{Name: "DD_ORCHESTRATOR_EXPLORER_CONTAINER_SCRUBBING_ENABLED", Value: "true"},
+	}...)
+	clusterAgentSpec.Containers[0] = cnt
+	return clusterAgentSpec
 }
 
 func Test_newClusterAgentDeploymentFromInstance_UserVolumes(t *testing.T) {

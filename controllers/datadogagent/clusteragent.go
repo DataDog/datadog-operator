@@ -607,31 +607,32 @@ func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Env
 		})
 	}
 
-	if isOrchestratorEnabledClusterAgent(spec.ClusterAgent) {
+	if isOrchestratorEnabledClusterAgent(spec.DatadogFeatures) {
+		orc := spec.DatadogFeatures.OrchestratorExplorer
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  datadoghqv1alpha1.DDOrchestratorExplorerEnabled,
 			Value: strconv.FormatBool(true),
 		})
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  datadoghqv1alpha1.DDOrchestratorExplorerContainerScrubbingEnabled,
-			Value: strconv.FormatBool(datadoghqv1alpha1.BoolValue(spec.ClusterAgent.Config.OrchestratorExplorer.ContainerScrubbingEnabled)),
+			Value: strconv.FormatBool(datadoghqv1alpha1.BoolValue(orc.ContainerScrubbingEnabled)),
 		})
-		if spec.ClusterAgent.Config.OrchestratorExplorer.AdditionalEndpoints != nil {
+		if orc.AdditionalEndpoints != nil {
 			envVars = append(envVars, corev1.EnvVar{
 				Name:  datadoghqv1alpha1.DDOrchestratorExplorerDDUrl,
-				Value: *spec.ClusterAgent.Config.OrchestratorExplorer.DDUrl,
+				Value: *orc.DDUrl,
 			})
 		}
-		if spec.ClusterAgent.Config.OrchestratorExplorer.AdditionalEndpoints != nil {
+		if orc.AdditionalEndpoints != nil {
 			envVars = append(envVars, corev1.EnvVar{
 				Name:  datadoghqv1alpha1.DDOrchestratorExplorerAdditionalEndpoints,
-				Value: *spec.ClusterAgent.Config.OrchestratorExplorer.AdditionalEndpoints,
+				Value: *orc.AdditionalEndpoints,
 			})
 		}
-		if spec.ClusterAgent.Config.OrchestratorExplorer.ExtraTags != nil {
+		if orc.ExtraTags != nil {
 			envVars = append(envVars, corev1.EnvVar{
 				Name:  datadoghqv1alpha1.DDOrchestratorExplorerExtraTags,
-				Value: *spec.ClusterAgent.Config.OrchestratorExplorer.ExtraTags,
+				Value: *orc.ExtraTags,
 			})
 		}
 	}

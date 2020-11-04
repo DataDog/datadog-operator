@@ -85,6 +85,7 @@ const (
 	DDOrchestratorExplorerAdditionalEndpoints       = "DD_ORCHESTRATOR_ADDITIONAL_ENDPOINTS"
 	DDOrchestratorExplorerContainerScrubbingEnabled = "DD_ORCHESTRATOR_EXPLORER_CONTAINER_SCRUBBING_ENABLED"
 	// orchestrator explorer section end
+
 	DDSystemProbeAgentEnabled                    = "DD_SYSTEM_PROBE_ENABLED"
 	DDEnableMetadataCollection                   = "DD_ENABLE_METADATA_COLLECTION"
 	DDKubeletHost                                = "DD_KUBERNETES_KUBELET_HOST"

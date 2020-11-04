@@ -103,15 +103,20 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 				Name:       "datadog/agent:latest",
 				PullPolicy: &pullPolicy,
 			},
-			Config:               datadoghqv1alpha1.NodeAgentConfig{},
-			DeploymentStrategy:   &datadoghqv1alpha1.DaemonSetDeploymentStrategy{},
-			Apm:                  datadoghqv1alpha1.APMSpec{},
-			Log:                  datadoghqv1alpha1.LogSpec{},
-			Process:              datadoghqv1alpha1.ProcessSpec{},
-			OrchestratorExplorer: datadoghqv1alpha1.OrchestratorExplorerConfig{},
+			Config:             datadoghqv1alpha1.NodeAgentConfig{},
+			DeploymentStrategy: &datadoghqv1alpha1.DaemonSetDeploymentStrategy{},
+			Apm:                datadoghqv1alpha1.APMSpec{},
+			Log:                datadoghqv1alpha1.LogSpec{},
+			Process:            datadoghqv1alpha1.ProcessSpec{},
 		},
 	}
 	if options != nil {
+
+		if options.OrchestratorExplorerEnabled {
+			orExplorer := datadoghqv1alpha1.OrchestratorExplorerConfig{Enabled: datadoghqv1alpha1.NewBoolPointer(true)}
+			ad.Spec.DatadogFeatures = &datadoghqv1alpha1.DatadogFeatures{OrchestratorExplorer: &orExplorer}
+		}
+
 		if options.UseEDS {
 			ad.Spec.Agent.UseExtendedDaemonset = &options.UseEDS
 		}
@@ -157,11 +162,6 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 				NetworkPolicy: datadoghqv1alpha1.NetworkPolicySpec{
 					Create: &options.CreateNetworkPolicy,
 				},
-			}
-
-			if options.OrchestratorExplorerEnabled {
-				orExplorer := datadoghqv1alpha1.OrchestratorExplorerConfig{Enabled: datadoghqv1alpha1.NewBoolPointer(true)}
-				ad.Spec.ClusterAgent.Config.OrchestratorExplorer = &orExplorer
 			}
 
 			if options.MetricsServerEnabled {
@@ -238,10 +238,6 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 
 		if options.ProcessEnabled {
 			ad.Spec.Agent.Process.Enabled = datadoghqv1alpha1.NewBoolPointer(true)
-		}
-
-		if options.OrchestratorExplorerEnabled {
-			ad.Spec.Agent.OrchestratorExplorer.Enabled = datadoghqv1alpha1.NewBoolPointer(true)
 		}
 
 		if options.HostNetwork {

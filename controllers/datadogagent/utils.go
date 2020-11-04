@@ -158,11 +158,11 @@ func isProcessEnabled(dda *datadoghqv1alpha1.DatadogAgent) bool {
 	return datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Process.Enabled)
 }
 
-func isOrchestratorEnabled(dda *datadoghqv1alpha1.DatadogAgent) bool {
-	if dda.Spec.Agent == nil {
+func isOrchestratorEnabled(features *datadoghqv1alpha1.DatadogFeatures) bool {
+	if features == nil || features.OrchestratorExplorer == nil {
 		return false
 	}
-	return datadoghqv1alpha1.BoolValue(dda.Spec.Agent.OrchestratorExplorer.Enabled)
+	return datadoghqv1alpha1.BoolValue(features.OrchestratorExplorer.Enabled)
 }
 
 func isSystemProbeEnabled(dda *datadoghqv1alpha1.DatadogAgent) bool {
@@ -482,7 +482,7 @@ func getEnvVarsForProcessAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.En
 		},
 		{
 			Name:  datadoghqv1alpha1.DDOrchestratorExplorerEnabled,
-			Value: strconv.FormatBool(isOrchestratorEnabled(dda)),
+			Value: strconv.FormatBool(isOrchestratorEnabled(dda.Spec.DatadogFeatures)),
 		},
 	}
 	commonEnvVars, err := getEnvVarsCommon(dda, true)
@@ -1565,11 +1565,11 @@ func isAdmissionControllerEnabled(spec *datadoghqv1alpha1.DatadogAgentSpecCluste
 	return spec.Config.AdmissionController != nil && spec.Config.AdmissionController.Enabled
 }
 
-func isOrchestratorEnabledClusterAgent(spec *datadoghqv1alpha1.DatadogAgentSpecClusterAgentSpec) bool {
-	if spec.Config.OrchestratorExplorer == nil {
+func isOrchestratorEnabledClusterAgent(features *datadoghqv1alpha1.DatadogFeatures) bool {
+	if features == nil || features.OrchestratorExplorer == nil {
 		return false
 	}
-	return datadoghqv1alpha1.BoolValue(spec.Config.OrchestratorExplorer.Enabled)
+	return datadoghqv1alpha1.BoolValue(features.OrchestratorExplorer.Enabled)
 }
 
 func isCreateRBACEnabled(config datadoghqv1alpha1.RbacConfig) bool {

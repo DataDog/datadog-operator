@@ -39,6 +39,7 @@ func NewDatadogAgent(ns, name, image string, options *NewDatadogAgentOptions) *d
 			APIKey: "adflkajdflkjalkcmlkdjacsf",
 			AppKey: "sgfggtdhfghfghfghfgbdfdgs",
 		},
+		DatadogFeatures: &datadoghqv1alpha1.DatadogFeatures{},
 		Agent: &datadoghqv1alpha1.DatadogAgentSpecAgentSpec{
 			Image: datadoghqv1alpha1.ImageConfig{},
 			Config: datadoghqv1alpha1.NodeAgentConfig{
@@ -59,11 +60,10 @@ func NewDatadogAgent(ns, name, image string, options *NewDatadogAgentOptions) *d
 				},
 				LeaderElection: datadoghqv1alpha1.NewBoolPointer(true),
 			},
-			DeploymentStrategy:   &datadoghqv1alpha1.DaemonSetDeploymentStrategy{},
-			Apm:                  datadoghqv1alpha1.APMSpec{},
-			Log:                  datadoghqv1alpha1.LogSpec{},
-			Process:              datadoghqv1alpha1.ProcessSpec{},
-			OrchestratorExplorer: datadoghqv1alpha1.OrchestratorExplorerConfig{},
+			DeploymentStrategy: &datadoghqv1alpha1.DaemonSetDeploymentStrategy{},
+			Apm:                datadoghqv1alpha1.APMSpec{},
+			Log:                datadoghqv1alpha1.LogSpec{},
+			Process:            datadoghqv1alpha1.ProcessSpec{},
 		},
 	}
 	ad = datadoghqv1alpha1.DefaultDatadogAgent(ad)
