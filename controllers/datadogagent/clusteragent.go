@@ -938,7 +938,7 @@ func buildAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, version st
 // getDefaultClusterAgentPolicyRules returns the default policy rules for the Cluster Agent
 // Can be used by the Agent if the Cluster Agent is disabled
 func getDefaultClusterAgentPolicyRules() []rbacv1.PolicyRule {
-	return []rbacv1.PolicyRule{
+	return append([]rbacv1.PolicyRule{
 		{
 			APIGroups: []string{datadoghqv1alpha1.CoreAPIGroup},
 			Resources: []string{
@@ -964,7 +964,7 @@ func getDefaultClusterAgentPolicyRules() []rbacv1.PolicyRule {
 			NonResourceURLs: []string{datadoghqv1alpha1.VersionURL, datadoghqv1alpha1.HealthzURL},
 			Verbs:           []string{datadoghqv1alpha1.GetVerb},
 		},
-	}
+	}, getLeaderElectionPolicyRule()...)
 }
 
 // buildClusterRoleBinding creates a ClusterRoleBinding object
@@ -1016,14 +1016,8 @@ func buildClusterAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, age
 		Verbs: []string{datadoghqv1alpha1.GetVerb},
 	})
 
-	if dda.Spec.Agent != nil {
-		if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Config.CollectEvents) {
-			rbacRules = append(rbacRules, getEventCollectionPolicyRule())
-		}
-
-		if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Config.LeaderElection) {
-			rbacRules = append(rbacRules, getLeaderElectionPolicyRule()...)
-		}
+	if datadoghqv1alpha1.BoolValue(dda.Spec.ClusterAgent.Config.CollectEvents) {
+		rbacRules = append(rbacRules, getEventCollectionPolicyRule())
 	}
 
 	if dda.Spec.ClusterAgent.Config.ExternalMetrics != nil && dda.Spec.ClusterAgent.Config.ExternalMetrics.Enabled {
