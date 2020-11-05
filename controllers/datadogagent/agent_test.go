@@ -825,6 +825,20 @@ func defaultPodSpec() corev1.PodSpec {
 }
 
 func defaultSystemProbePodSpec() corev1.PodSpec {
+	agentWithSystemProbeVolumeMounts := []corev1.VolumeMount{}
+	agentWithSystemProbeVolumeMounts = append(agentWithSystemProbeVolumeMounts, defaultMountVolume()...)
+	agentWithSystemProbeVolumeMounts = append(agentWithSystemProbeVolumeMounts, []corev1.VolumeMount{
+		{
+			Name:      "sysprobe-socket-dir",
+			ReadOnly:  true,
+			MountPath: "/opt/datadog-agent/run",
+		},
+		{
+			Name:      "system-probe-config",
+			MountPath: "/etc/datadog-agent/system-probe.yaml",
+			SubPath:   "system-probe.yaml",
+		},
+	}...)
 	return corev1.PodSpec{
 		ServiceAccountName: "foo-agent",
 		InitContainers: []corev1.Container{
@@ -850,7 +864,7 @@ func defaultSystemProbePodSpec() corev1.PodSpec {
 				Command:         []string{"bash", "-c"},
 				Args:            []string{"for script in $(find /etc/cont-init.d/ -type f -name '*.sh' | sort) ; do bash $script ; done"},
 				Env:             defaultEnvVars(),
-				VolumeMounts:    defaultMountVolume(),
+				VolumeMounts:    agentWithSystemProbeVolumeMounts,
 			},
 			{
 				Name:            "seccomp-setup",
@@ -888,7 +902,7 @@ func defaultSystemProbePodSpec() corev1.PodSpec {
 					},
 				},
 				Env:            defaultEnvVars(),
-				VolumeMounts:   defaultMountVolume(),
+				VolumeMounts:   agentWithSystemProbeVolumeMounts,
 				LivenessProbe:  defaultLivenessProbe(),
 				ReadinessProbe: defaultReadinessProbe(),
 			},
@@ -1976,6 +1990,7 @@ func Test_newExtendedDaemonSetFromInstance_endpointsChecksConfig(t *testing.T) {
 
 	test.Run(t)
 }
+
 func extendedDaemonSetWithSystemProbe(ddaHash string, podSpec corev1.PodSpec) *edsdatadoghqv1alpha1.ExtendedDaemonSet {
 	return &edsdatadoghqv1alpha1.ExtendedDaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
