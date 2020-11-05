@@ -3,6 +3,10 @@ resources:
 images:
 - name: controller
   newName: datadog/operator
+<<<<<<< HEAD
   newTag: 0.4.0-rc.3
+=======
+  newTag: latest
+>>>>>>> origin/master
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
