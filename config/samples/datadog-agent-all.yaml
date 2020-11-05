@@ -12,7 +12,7 @@ spec:
     apm:
       enabled: true
     process:
-      enabled: true
+      enabled: "true"
     log:
       enabled: true
     systemProbe:

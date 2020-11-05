@@ -10,19 +10,20 @@ spec:
   features:
     orchestratorExplorer:
       enabled: true
-  # further settings:
-  # containerScrubbingEnabled
-  # additionalEndpoints
-  # ddUrl
-  # extraTags
+      #    process: <- if the orchestrator explorer is defined but process not we default to = `enabled: "false"` which will support live containers but not live processes
+      #      enabled: "false"
+      # further settings:
+      # containerScrubbingEnabled
+      # additionalEndpoints
+      # ddUrl
+      # extraTags
   agent:
     image:
       name: "datadog/agent:latest"
     config:
       tolerations:
         - operator: Exists
-  #    process: <- if the orchestrator explorer is defined but process not we default to = `enabled: "false"` which will support live containers but not live processes
-  #      enabled: "false"
+
   clusterAgent:
     image:
       name: "datadog/cluster-agent:latest"

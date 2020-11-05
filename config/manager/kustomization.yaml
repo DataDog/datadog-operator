@@ -2,7 +2,7 @@ resources:
 - manager.yaml
 images:
 - name: controller
-  newName: datadog/datadog-operator
+  newName: nammn/operator
   newTag: latest
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
