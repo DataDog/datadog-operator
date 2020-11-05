@@ -162,7 +162,16 @@ func shouldAddProcessContainer(dda *datadoghqv1alpha1.DatadogAgent) bool {
 		return isOrchestratorExplorerEnabled(dda)
 	}
 
-	return *dda.Spec.Agent.Process.Enabled != "disabled"
+	switch *dda.Spec.Agent.Process.Enabled {
+	case "disabled":
+		return false
+	case "false":
+		return true
+	case "true":
+		return true
+
+	}
+	return false
 }
 
 // processEnabled can return disabled, true or false
