@@ -174,15 +174,13 @@ func shouldAddProcessContainer(dda *datadoghqv1alpha1.DatadogAgent) bool {
 	return false
 }
 
-// processEnabled can return disabled, true or false
-// false still collects live container data, true also collects process data + live container, disabled disables the container all together
-func processEnabled(dda *datadoghqv1alpha1.DatadogAgent) string {
-	// we still want to have the process-agent if the orchestrator explorer is activated
-	if dda.Spec.Agent == nil || dda.Spec.Agent.Process.Enabled == nil {
-		return "false"
+// processCollectionEnabled
+// only collect process information if it is directly specified.
+func processCollectionEnabled(dda *datadoghqv1alpha1.DatadogAgent) bool {
+	if dda.Spec.Agent == nil || dda.Spec.Agent.Process.Enabled == nil || *dda.Spec.Agent.Process.Enabled != "true" {
+		return false
 	}
-
-	return *dda.Spec.Agent.Process.Enabled
+	return true
 }
 
 func isOrchestratorExplorerEnabled(dda *datadoghqv1alpha1.DatadogAgent) bool {
@@ -500,13 +498,17 @@ func getEnvVarsForAPMAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.EnvVar
 func getEnvVarsForProcessAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.EnvVar, error) {
 	envVars := []corev1.EnvVar{
 		{
-			Name:  datadoghqv1alpha1.DDProcessAgentEnabled,
-			Value: processEnabled(dda),
-		},
-		{
 			Name:  datadoghqv1alpha1.DDSystemProbeAgentEnabled,
 			Value: strconv.FormatBool(isSystemProbeEnabled(dda)),
 		},
+	}
+
+	// TODO: add DD_ORCHESTRATOR_CLUSTER_ID
+	if processCollectionEnabled(dda) {
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  datadoghqv1alpha1.DDProcessAgentEnabled,
+			Value: "true",
+		})
 	}
 
 	if isOrchestratorExplorerEnabled(dda) {

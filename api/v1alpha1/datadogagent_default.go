@@ -17,21 +17,22 @@ import (
 
 // default values
 const (
-	DefaultLogLevel                                      string = "INFO"
-	defaultAgentImage                                    string = "datadog/agent:latest"
-	defaultCollectEvents                                 bool   = false
-	defaultLeaderElection                                bool   = false
-	defaultDockerSocketPath                              string = "/var/run/docker.sock"
-	defaultDogstatsdOriginDetection                      bool   = false
-	defaultUseDogStatsDSocketVolume                      bool   = false
-	defaultApmEnabled                                    bool   = false
-	defaultLogEnabled                                    bool   = false
-	defaultLogsConfigContainerCollectAll                 bool   = false
-	defaultLogsContainerCollectUsingFiles                bool   = true
-	defaultContainerLogsPath                             string = "/var/lib/docker/containers"
-	defaultPodLogsPath                                   string = "/var/log/pods"
-	defaultLogsTempStoragePath                           string = "/var/lib/datadog-agent/logs"
-	defaultLogsOpenFilesLimit                            int32  = 100
+	DefaultLogLevel                       string = "INFO"
+	defaultAgentImage                     string = "datadog/agent:latest"
+	defaultCollectEvents                  bool   = false
+	defaultLeaderElection                 bool   = false
+	defaultDockerSocketPath               string = "/var/run/docker.sock"
+	defaultDogstatsdOriginDetection       bool   = false
+	defaultUseDogStatsDSocketVolume       bool   = false
+	defaultApmEnabled                     bool   = false
+	defaultLogEnabled                     bool   = false
+	defaultLogsConfigContainerCollectAll  bool   = false
+	defaultLogsContainerCollectUsingFiles bool   = true
+	defaultContainerLogsPath              string = "/var/lib/docker/containers"
+	defaultPodLogsPath                    string = "/var/log/pods"
+	defaultLogsTempStoragePath            string = "/var/lib/datadog-agent/logs"
+	defaultLogsOpenFilesLimit             int32  = 100
+	// `false` defaults to live container, agent activated but not `disabled`
 	defaultProcessEnabled                                string = "false"
 	defaultOrchestratorExplorerEnabled                   bool   = false
 	defaultOrchestratorExplorerContainerScrubbingEnabled bool   = true
