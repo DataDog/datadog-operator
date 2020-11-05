@@ -174,18 +174,10 @@ func IsDefaultedOrchestratorExplorer(orc *OrchestratorExplorerConfig) bool {
 		return false
 	}
 
-	if orc.AdditionalEndpoints == nil {
-		return false
-	}
-	if orc.ExtraTags == nil {
-		return false
-	}
 	if orc.ContainerScrubbingEnabled == nil {
 		return false
 	}
-	if orc.DDUrl == nil {
-		return false
-	}
+
 	if orc.Enabled == nil {
 		return false
 	}

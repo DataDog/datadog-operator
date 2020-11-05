@@ -90,6 +90,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, request reconcile.Re
 		return result, err
 	}
 
+	// TODO: error lies here
 	if !datadoghqv1alpha1.IsDefaultedDatadogAgent(instance) {
 		reqLogger.Info("Defaulting values")
 		defaultedInstance := datadoghqv1alpha1.DefaultDatadogAgent(instance)
