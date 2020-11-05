@@ -32,7 +32,7 @@ const (
 	defaultPodLogsPath                                   string = "/var/log/pods"
 	defaultLogsTempStoragePath                           string = "/var/lib/datadog-agent/logs"
 	defaultLogsOpenFilesLimit                            int32  = 100
-	defaultProcessEnabled                                string = "false"
+	defaultProcessEnabled                                string = "disabled"
 	defaultOrchestratorExplorerEnabled                   bool   = false
 	defaultOrchestratorExplorerContainerScrubbingEnabled bool   = true
 	defaultMetricsProviderPort                           int32  = 8443

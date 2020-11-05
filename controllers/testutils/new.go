@@ -39,9 +39,6 @@ func NewDatadogAgent(ns, name, image string, options *NewDatadogAgentOptions) *d
 			APIKey: "adflkajdflkjalkcmlkdjacsf",
 			AppKey: "sgfggtdhfghfghfghfgbdfdgs",
 		},
-		DatadogFeatures: &datadoghqv1alpha1.DatadogFeatures{
-			OrchestratorExplorer: &datadoghqv1alpha1.OrchestratorExplorerConfig{},
-		},
 		Agent: &datadoghqv1alpha1.DatadogAgentSpecAgentSpec{
 			Image: datadoghqv1alpha1.ImageConfig{},
 			Config: datadoghqv1alpha1.NodeAgentConfig{
