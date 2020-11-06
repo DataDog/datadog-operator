@@ -2083,7 +2083,14 @@ func schema_DataDog_datadog_operator_api_v1alpha1_ProcessSpec(ref common.Referen
 					"enabled": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Note: /etc/passwd is automatically mounted to allow username resolution. ref: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset",
-							Type:        []string{"string"},
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"processCollection": {
+						SchemaProps: spec.SchemaProps{
+							Description: "false (default): Only collect containers if available. true: collect process information as well",
+							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},

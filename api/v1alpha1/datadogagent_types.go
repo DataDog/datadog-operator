@@ -349,18 +349,17 @@ type LogSpec struct {
 // ProcessSpec contains the Process Agent configuration
 // +k8s:openapi-gen=true
 type ProcessSpec struct {
-	// Enable this to activate live process monitoring.
-	// The enabled value is a string with the following options:
-	//
-	// "true": Enable the Process Agent to collect processes and containers.
-	// "false" (default): Only collect containers if available.
-	// "disabled": Don’t run the Process Agent at all.
+	// Enable this to activate the process-agent to collection live-containers and if activated process information
 
 	// Note: /etc/passwd is automatically mounted to allow username resolution.
 	// ref: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset
 	//
 	// +optional
-	Enabled *string `json:"enabled,omitempty"`
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// false (default): Only collect containers if available.
+	// true: collect process information as well
+	ProcessCollectionEnabled *bool `json:"processCollection,omitempty"`
 	// The Datadog Agent supports many environment variables
 	// Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables
 	//

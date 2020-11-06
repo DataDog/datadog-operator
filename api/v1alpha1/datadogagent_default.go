@@ -32,8 +32,9 @@ const (
 	defaultPodLogsPath                    string = "/var/log/pods"
 	defaultLogsTempStoragePath            string = "/var/lib/datadog-agent/logs"
 	defaultLogsOpenFilesLimit             int32  = 100
-	// `false` defaults to live container, agent activated but not `disabled`
-	defaultProcessEnabled                                string = "false"
+	defaultProcessEnabled                 bool   = false
+	// `false` defaults to live container, agent activated but no process collection
+	defaultProcessCollectionEnabled                      bool   = false
 	defaultOrchestratorExplorerEnabled                   bool   = false
 	defaultOrchestratorExplorerContainerScrubbingEnabled bool   = true
 	defaultMetricsProviderPort                           int32  = 8443
@@ -352,6 +353,10 @@ func IsDefaultedDatadogAgentSpecProcess(process *ProcessSpec) bool {
 		return false
 	}
 
+	if process.ProcessCollectionEnabled == nil {
+		return false
+	}
+
 	return true
 }
 
@@ -647,7 +652,11 @@ func DefaultDatadogAgentSpecAgentProcess(process *ProcessSpec) *ProcessSpec {
 	}
 
 	if process.Enabled == nil {
-		process.Enabled = NewStringPointer(defaultProcessEnabled)
+		process.Enabled = NewBoolPointer(defaultProcessEnabled)
+	}
+
+	if process.ProcessCollectionEnabled == nil {
+		process.ProcessCollectionEnabled = NewBoolPointer(defaultProcessCollectionEnabled)
 	}
 
 	return process

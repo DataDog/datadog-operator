@@ -686,7 +686,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
 				loadFunc: func(c client.Client) {
-					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, &test.NewDatadogAgentOptions{ProcessEnabled: "true", ClusterAgentEnabled: false, UseEDS: false, Labels: map[string]string{"label-foo-key": "label-bar-value"}})
+					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, &test.NewDatadogAgentOptions{ProcessEnabled: true, ClusterAgentEnabled: false, UseEDS: false, Labels: map[string]string{"label-foo-key": "label-bar-value"}})
 					_ = c.Create(context.TODO(), dda)
 					createAgentDependencies(c, dda)
 				},
@@ -718,7 +718,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
 				loadFunc: func(c client.Client) {
-					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, &test.NewDatadogAgentOptions{ProcessEnabled: "true", SystemProbeEnabled: true, ClusterAgentEnabled: false, UseEDS: false, Labels: map[string]string{"label-foo-key": "label-bar-value"}})
+					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, &test.NewDatadogAgentOptions{ProcessEnabled: true, SystemProbeEnabled: true, ClusterAgentEnabled: false, UseEDS: false, Labels: map[string]string{"label-foo-key": "label-bar-value"}})
 					_ = c.Create(context.TODO(), dda)
 					createAgentDependencies(c, dda)
 				},
@@ -744,7 +744,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
 				loadFunc: func(c client.Client) {
-					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, &test.NewDatadogAgentOptions{ProcessEnabled: "true", SystemProbeEnabled: true, ClusterAgentEnabled: false, UseEDS: false, Labels: map[string]string{"label-foo-key": "label-bar-value"}})
+					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, &test.NewDatadogAgentOptions{ProcessEnabled: true, SystemProbeEnabled: true, ClusterAgentEnabled: false, UseEDS: false, Labels: map[string]string{"label-foo-key": "label-bar-value"}})
 					_ = c.Create(context.TODO(), dda)
 					createAgentDependencies(c, dda)
 					configCM, _ := buildSystemProbeConfigConfiMap(dda)
@@ -773,7 +773,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				request: newRequest(resourcesNamespace, resourcesName),
 				loadFunc: func(c client.Client) {
 					options := &test.NewDatadogAgentOptions{
-						ProcessEnabled:                 "true",
+						ProcessEnabled:                 true,
 						SystemProbeEnabled:             true,
 						SystemProbeAppArmorProfileName: "AppArmorFoo",
 						SystemProbeSeccompProfileName:  "runtime/default",

@@ -161,26 +161,19 @@ func shouldAddProcessContainer(dda *datadoghqv1alpha1.DatadogAgent) bool {
 	if dda.Spec.Agent == nil || dda.Spec.Agent.Process.Enabled == nil {
 		return isOrchestratorExplorerEnabled(dda)
 	}
-
-	switch *dda.Spec.Agent.Process.Enabled {
-	case "disabled":
-		return false
-	case "false":
-		return true
-	case "true":
-		return true
-
-	}
-	return false
+	return datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Process.Enabled) || isOrchestratorExplorerEnabled(dda)
 }
 
 // processCollectionEnabled
 // only collect process information if it is directly specified.
 func processCollectionEnabled(dda *datadoghqv1alpha1.DatadogAgent) bool {
-	if dda.Spec.Agent == nil || dda.Spec.Agent.Process.Enabled == nil || *dda.Spec.Agent.Process.Enabled != "true" {
+	if dda.Spec.Agent == nil || dda.Spec.Agent.Process.Enabled == nil || dda.Spec.Agent.Process.ProcessCollectionEnabled == nil {
 		return false
 	}
-	return true
+	if *dda.Spec.Agent.Process.ProcessCollectionEnabled && *dda.Spec.Agent.Process.Enabled {
+		return true
+	}
+	return false
 }
 
 func isOrchestratorExplorerEnabled(dda *datadoghqv1alpha1.DatadogAgent) bool {
@@ -503,7 +496,6 @@ func getEnvVarsForProcessAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.En
 		},
 	}
 
-	// TODO: add DD_ORCHESTRATOR_CLUSTER_ID
 	if processCollectionEnabled(dda) {
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  datadoghqv1alpha1.DDProcessAgentEnabled,
@@ -512,7 +504,8 @@ func getEnvVarsForProcessAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.En
 	}
 
 	if isOrchestratorExplorerEnabled(dda) {
-		envVars = append(envVars, orchestrator.EnvVars(&dda.Spec)...)
+		envVars = append(envVars, orchestrator.EnvVars(dda.Spec.DatadogFeatures.OrchestratorExplorer)...)
+		envVars = append(envVars, orchestrator.ClusterID())
 	}
 
 	commonEnvVars, err := getEnvVarsCommon(dda, true)
