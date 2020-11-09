@@ -484,7 +484,7 @@ func defaultSystemProbeMountVolume() []corev1.VolumeMount {
 		},
 		{
 			Name:      "sysprobe-socket-dir",
-			MountPath: "/opt/datadog-agent/run",
+			MountPath: "/var/run/sysprobe",
 		},
 		{
 			Name:      "procdir",
@@ -551,7 +551,7 @@ func runtimeSecurityAgentMountVolume() []corev1.VolumeMount {
 		},
 		{
 			Name:      "sysprobe-socket-dir",
-			MountPath: "/opt/datadog-agent/run",
+			MountPath: "/var/run/sysprobe",
 			ReadOnly:  true,
 		},
 	}
@@ -703,7 +703,7 @@ func securityAgentEnvVars(compliance, runtime bool) []corev1.EnvVar {
 		env = append(env, []corev1.EnvVar{
 			{
 				Name:  "DD_RUNTIME_SECURITY_CONFIG_SOCKET",
-				Value: "/opt/datadog-agent/run/runtime-security.sock",
+				Value: "/var/run/sysprobe/runtime-security.sock",
 			},
 			{
 				Name:  "DD_RUNTIME_SECURITY_CONFIG_SYSCALL_MONITOR_ENABLED",
@@ -831,7 +831,7 @@ func defaultSystemProbePodSpec() corev1.PodSpec {
 		{
 			Name:      "sysprobe-socket-dir",
 			ReadOnly:  true,
-			MountPath: "/opt/datadog-agent/run",
+			MountPath: "/var/run/sysprobe",
 		},
 		{
 			Name:      "system-probe-config",
