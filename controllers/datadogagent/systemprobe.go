@@ -56,6 +56,7 @@ func buildSystemProbeConfigConfiMap(dda *datadoghqv1alpha1.DatadogAgent) (*corev
 		Data: map[string]string{
 			datadoghqv1alpha1.SystemProbeConfigVolumeSubPath: fmt.Sprintf(systemProbeAgentSecurityDataTmpl,
 				spec.DebugPort,
+				filepath.Join(datadoghqv1alpha1.SystemProbeSocketVolumePath, "sysprobe.sock"),
 				datadoghqv1alpha1.BoolToString(spec.ConntrackEnabled),
 				datadoghqv1alpha1.BoolToString(spec.BPFDebugEnabled),
 				datadoghqv1alpha1.BoolToString(spec.EnableTCPQueueLength),
@@ -75,7 +76,7 @@ func buildSystemProbeConfigConfiMap(dda *datadoghqv1alpha1.DatadogAgent) (*corev
 const systemProbeAgentSecurityDataTmpl = `system_probe_config:
   enabled: true
   debug_port: %d
-  sysprobe_socket: /opt/datadog-agent/run/sysprobe.sock
+  sysprobe_socket: %s
   enable_conntrack: %s
   bpf_debug: %s
   enable_tcp_queue_length: %s

@@ -124,7 +124,7 @@ const (
 	CgroupsVolumePath                  = "/host/sys/fs/cgroup"
 	CgroupsVolumeReadOnly              = true
 	SystemProbeSocketVolumeName        = "sysprobe-socket-dir"
-	SystemProbeSocketVolumePath        = "/opt/datadog-agent/run"
+	SystemProbeSocketVolumePath        = "/var/run/sysprobe"
 	CriSocketVolumeName                = "runtimesocketdir"
 	CriSocketVolumeReadOnly            = true
 	DogstatsdSockerVolumeName          = "dsdsocket"
