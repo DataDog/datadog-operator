@@ -49,7 +49,7 @@ metadata:
     capabilities: Basic Install
     operators.operatorframework.io/builder: operator-sdk-v1.0.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
-  name: datadog-operator.v0.4.0-rc.4
+  name: datadog-operator.v0.4.0-rc.5
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -279,6 +279,12 @@ spec:
           - list
           - watch
         - apiGroups:
+          - networking.k8s.io
+          resources:
+          - networkpolicies
+          verbs:
+          - '*'
+        - apiGroups:
           - policy
           resources:
           - poddisruptionbudgets
@@ -368,7 +374,7 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.annotations['olm.targetNamespaces']
-                image: datadog/operator:0.4.0-rc.4
+                image: datadog/operator:0.4.0-rc.5
                 imagePullPolicy: Always
                 livenessProbe:
                   httpGet:
@@ -444,5 +450,5 @@ spec:
   maturity: alpha
   provider:
     name: Datadog
-  replaces: datadog-operator.v0.4.0-rc.1
-  version: 0.4.0-rc.4
+  replaces: datadog-operator.v0.4.0-rc.4
+  version: 0.4.0-rc.5
