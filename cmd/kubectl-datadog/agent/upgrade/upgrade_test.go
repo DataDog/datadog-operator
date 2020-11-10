@@ -25,7 +25,7 @@ func Test_options_upgrade(t *testing.T) {
 		t.Fatalf("Unable to add DatadogAgent scheme: %v", err)
 	}
 
-	s.AddKnownTypes(datadoghqv1alpha1.SchemeGroupVersion, &datadoghqv1alpha1.DatadogAgent{})
+	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogAgent{})
 
 	tests := []struct {
 		name     string
@@ -138,7 +138,7 @@ func buildDatadogAgent(image string) *datadoghqv1alpha1.DatadogAgent {
 	return &datadoghqv1alpha1.DatadogAgent{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "DatadogAgent",
-			APIVersion: fmt.Sprintf("%s/%s", datadoghqv1alpha1.SchemeGroupVersion.Group, datadoghqv1alpha1.SchemeGroupVersion.Version),
+			APIVersion: fmt.Sprintf("%s/%s", datadoghqv1alpha1.GroupVersion.Group, datadoghqv1alpha1.GroupVersion.Version),
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "datadog-agent",
