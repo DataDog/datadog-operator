@@ -199,6 +199,26 @@ rules:
 - apiGroups:
   - datadoghq.com
   resources:
+  - datadogmonitors
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - datadoghq.com
+  resources:
+  - datadogmonitors/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - datadoghq.com
+  resources:
   - extendeddaemonsets
   verbs:
   - '*'

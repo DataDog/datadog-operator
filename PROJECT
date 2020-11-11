@@ -9,6 +9,9 @@ resources:
 - group: datadoghq
   kind: DatadogMetric
   version: v1alpha1
+- group: datadoghq
+  kind: DatadogMonitor
+  version: v1alpha1
 version: 3-alpha
 plugins:
   go.sdk.operatorframework.io/v2-alpha: {}
