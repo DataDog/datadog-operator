@@ -505,7 +505,6 @@ core,"sigs.k8s.io/controller-runtime/pkg/reconcile",Apache-2.0
 core,"sigs.k8s.io/controller-runtime/pkg/recorder",Apache-2.0
 core,"sigs.k8s.io/controller-runtime/pkg/runtime/inject",Apache-2.0
 core,"sigs.k8s.io/controller-runtime/pkg/runtime/log",Apache-2.0
-core,"sigs.k8s.io/controller-runtime/pkg/runtime/scheme",Apache-2.0
 core,"sigs.k8s.io/controller-runtime/pkg/scheme",Apache-2.0
 core,"sigs.k8s.io/controller-runtime/pkg/source",Apache-2.0
 core,"sigs.k8s.io/controller-runtime/pkg/source/internal",Apache-2.0

@@ -70,8 +70,8 @@ func TestReconcileDatadogAgent_createNewExtendedDaemonSet(t *testing.T) {
 
 	// Register operator types with the runtime scheme.
 	s := scheme.Scheme
-	s.AddKnownTypes(datadoghqv1alpha1.SchemeGroupVersion, &datadoghqv1alpha1.DatadogAgent{})
-	s.AddKnownTypes(datadoghqv1alpha1.SchemeGroupVersion, &edsdatadoghqv1alpha1.ExtendedDaemonSet{})
+	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogAgent{})
+	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &edsdatadoghqv1alpha1.ExtendedDaemonSet{})
 	s.AddKnownTypes(appsv1.SchemeGroupVersion, &appsv1.DaemonSet{})
 
 	type fields struct {
@@ -145,7 +145,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 
 	// Register operator types with the runtime scheme.
 	s := scheme.Scheme
-	s.AddKnownTypes(datadoghqv1alpha1.SchemeGroupVersion, &datadoghqv1alpha1.DatadogAgent{})
+	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogAgent{})
 	s.AddKnownTypes(edsdatadoghqv1alpha1.GroupVersion, &edsdatadoghqv1alpha1.ExtendedDaemonSet{})
 	s.AddKnownTypes(appsv1.SchemeGroupVersion, &appsv1.DaemonSet{})
 	s.AddKnownTypes(appsv1.SchemeGroupVersion, &appsv1.Deployment{})
@@ -206,7 +206,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 					_ = c.Create(context.TODO(), &datadoghqv1alpha1.DatadogAgent{
 						TypeMeta: metav1.TypeMeta{
 							Kind:       "DatadogAgent",
-							APIVersion: fmt.Sprintf("%s/%s", datadoghqv1alpha1.SchemeGroupVersion.Group, datadoghqv1alpha1.SchemeGroupVersion.Version),
+							APIVersion: fmt.Sprintf("%s/%s", datadoghqv1alpha1.GroupVersion.Group, datadoghqv1alpha1.GroupVersion.Version),
 						},
 						ObjectMeta: metav1.ObjectMeta{
 							Namespace:   resourcesNamespace,
@@ -246,7 +246,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 					_ = c.Create(context.TODO(), &datadoghqv1alpha1.DatadogAgent{
 						TypeMeta: metav1.TypeMeta{
 							Kind:       "DatadogAgent",
-							APIVersion: fmt.Sprintf("%s/%s", datadoghqv1alpha1.SchemeGroupVersion.Group, datadoghqv1alpha1.SchemeGroupVersion.Version),
+							APIVersion: fmt.Sprintf("%s/%s", datadoghqv1alpha1.GroupVersion.Group, datadoghqv1alpha1.GroupVersion.Version),
 						},
 						ObjectMeta: metav1.ObjectMeta{
 							Namespace:   resourcesNamespace,
