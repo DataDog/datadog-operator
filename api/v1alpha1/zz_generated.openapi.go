@@ -279,6 +279,13 @@ func schema__api_v1alpha1_ClusterAgentConfig(ref common.ReferenceCallback) commo
 							Format:      "",
 						},
 					},
+					"kubeStateMetricsCoreConf": {
+						SchemaProps: spec.SchemaProps{
+							Description: "To override the configuration for the default Kubernetes State Metrics Core check. Must point to a ConfigMap containing the a valid cluster check configuration.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"collectEvents": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Enables this to start event collection from the Kubernetes API ref: https://docs.datadoghq.com/agent/cluster_agent/event_collection/",

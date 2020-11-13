@@ -158,6 +158,11 @@ func (in *ClusterAgentConfig) DeepCopyInto(out *ClusterAgentConfig) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.KubeStateMetricsCoreConf != nil {
+		in, out := &in.KubeStateMetricsCoreConf, &out.KubeStateMetricsCoreConf
+		*out = new(string)
+		**out = **in
+	}
 	if in.CollectEvents != nil {
 		in, out := &in.CollectEvents, &out.CollectEvents
 		*out = new(bool)

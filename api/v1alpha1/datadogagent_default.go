@@ -6,6 +6,7 @@
 package v1alpha1
 
 import (
+	"fmt"
 	"time"
 
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
@@ -39,7 +40,8 @@ const (
 	defaultOrchestratorExplorerContainerScrubbingEnabled bool   = true
 	defaultMetricsProviderPort                           int32  = 8443
 	defaultClusterChecksEnabled                          bool   = false
-	defaultClusterAgentReplicas                          int32  = 1
+    defaultKubeStateMetricsCoreConf                      string = "kube-state-metrics-core-config"
+    defaultClusterAgentReplicas                          int32  = 1
 	defaultAgentCanaryReplicas                           int32  = 1
 	defaultClusterChecksRunnerReplicas                   int32  = 2
 	defaultClusterAgentImage                             string = "datadog/cluster-agent:latest"
@@ -712,10 +714,6 @@ func DefaultDatadogAgentSpecClusterAgentConfig(config *ClusterAgentConfig) *Clus
 		config.ClusterChecksEnabled = NewBoolPointer(defaultClusterChecksEnabled)
 	}
 
-	if config.KubeStateMetricsCoreEnabled == nil {
-		config.KubeStateMetricsCoreEnabled = NewBoolPointer(defaultKubeStateMetricsCore)
-	}
-
 	if config.CollectEvents == nil {
 		config.CollectEvents = NewBoolPointer(defaultCollectEvents)
 	}
@@ -730,6 +728,14 @@ func DefaultDatadogAgentSpecClusterAgentConfig(config *ClusterAgentConfig) *Clus
 	}
 
 	return config
+}
+
+// GetKubeStateMetricsConfName get the name of the Configmap for the KSM Core check.
+func GetKubeStateMetricsConfName(dcaConf *DatadogAgent) string {
+	if dcaConf.Spec.ClusterAgent.Config.KubeStateMetricsCoreConf != nil {
+		return *dcaConf.Spec.ClusterAgent.Config.KubeStateMetricsCoreConf
+	}
+	return fmt.Sprintf("%s-%s", dcaConf.Name, defaultKubeStateMetricsCoreConf)
 }
 
 // DefaultDatadogAgentSpecClusterAgentImage used to default ImageConfig for the Datadog Cluster Agent

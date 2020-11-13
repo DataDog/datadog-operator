@@ -22,36 +22,41 @@ func (r *Reconciler) manageAgentRBACs(logger logr.Logger, dda *datadoghqv1alpha1
 	if dda.Spec.Agent == nil {
 		return r.cleanupAgentRbacResources(logger, dda)
 	}
-
+	logger.Info("HERE")
 	if !isCreateRBACEnabled(dda.Spec.Agent.Rbac) {
 		return reconcile.Result{}, nil
 	}
-
+	logger.Info("HERE", "look at the rbac conf", *dda.Spec.Agent.Rbac.Create)
 	rbacResourcesName := getAgentRbacResourcesName(dda)
 	agentVersion := getAgentVersion(dda)
+	logger.Info("HERE", "rbac res nam", rbacResourcesName, "agentversion", agentVersion)
 
 	// Create or update ClusterRole
 	clusterRole := &rbacv1.ClusterRole{}
 	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesName}, clusterRole); err != nil {
 		if errors.IsNotFound(err) {
+			logger.Info("HERE", "creating CR")
 			return r.createAgentClusterRole(logger, dda, rbacResourcesName, agentVersion)
 		}
 		return reconcile.Result{}, err
 	}
+	logger.Info("HERE", "almost updateing")
 	if result, err := r.updateIfNeededAgentClusterRole(logger, dda, rbacResourcesName, agentVersion, clusterRole); err != nil {
 		return result, err
 	}
-
+	logger.Info("HERE", "updated")
 	// Create ServiceAccount
 	serviceAccountName := getAgentServiceAccount(dda)
 	serviceAccount := &corev1.ServiceAccount{}
+	logger.Info("HERE", "sa is ", serviceAccount)
 	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: serviceAccountName, Namespace: dda.Namespace}, serviceAccount); err != nil {
 		if errors.IsNotFound(err) {
+			logger.Info("HERE", "creating sa")
 			return r.createServiceAccount(logger, dda, serviceAccountName, agentVersion)
 		}
 		return reconcile.Result{}, err
 	}
-
+	logger.Info("HERE", "created sa")
 	// Create ClusterRoleBinding
 	clusterRoleBinding := &rbacv1.ClusterRoleBinding{}
 	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesName}, clusterRoleBinding); err != nil {
@@ -63,6 +68,9 @@ func (r *Reconciler) manageAgentRBACs(logger logr.Logger, dda *datadoghqv1alpha1
 			}, agentVersion)
 		}
 		return reconcile.Result{}, err
+	}
+	if result, err := r.udpateIfNeededAgentClusterRoleBinding(logger, dda, rbacResourcesName, serviceAccountName, agentVersion, clusterRoleBinding); err != nil {
+		return result, err
 	}
 
 	return r.udpateIfNeededAgentClusterRoleBinding(logger, dda, rbacResourcesName, serviceAccountName, agentVersion, clusterRoleBinding)

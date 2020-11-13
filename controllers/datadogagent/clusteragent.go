@@ -133,7 +133,7 @@ func (r *Reconciler) updateClusterAgentDeployment(logger logr.Logger, agentdeplo
 	if !needUpdate {
 		return reconcile.Result{}, nil
 	}
-	logger.Info("update ClusterAgent deployment", "name", dca.Name, "namespace", dca.Namespace)
+	logger.Info("Update ClusterAgent deployment", "name", dca.Name, "namespace", dca.Namespace)
 	// Set DatadogAgent instance  instance as the owner and controller
 	if err = controllerutil.SetControllerReference(agentdeployment, dca, r.scheme); err != nil {
 		return reconcile.Result{}, err
@@ -264,11 +264,9 @@ func (r *Reconciler) manageClusterAgentDependencies(logger logr.Logger, dda *dat
 	if shouldReturn(result, err) {
 		return result, err
 	}
-	if datadoghqv1alpha1.DDKubeStateMetricsCoreConfigMap != "" {
-		result, err = r.manageConfigMap(logger, dda, getKSMCoreConfigMapName(dda), buildKSMCoreConfigMap)
-		if shouldReturn(result, err) {
-			return result, err
-		}
+	result, err = r.manageKubeStateMetricsCore(logger, dda)
+	if shouldReturn(result, err) {
+		return result, err
 	}
 
 	return reconcile.Result{}, nil
@@ -388,24 +386,23 @@ func newClusterAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent,
 		}
 	}
 
-	if *clusterAgentSpec.Config.KubeStateMetricsCoreEnabled {
+	if isKSMCoreEnabled(clusterAgentSpec) {
 		volumes = append(volumes, corev1.Volume{
 			Name: datadoghqv1alpha1.KubeStateMetricCoreVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
 					LocalObjectReference: corev1.LocalObjectReference{
-						Name: getKSMCoreConfigMapName(agentdeployment),
+						Name: datadoghqv1alpha1.GetKubeStateMetricsConfName(agentdeployment),
 					},
 				},
 			},
 		})
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
 			Name:      datadoghqv1alpha1.KubeStateMetricCoreVolumeName,
-			MountPath: datadoghqv1alpha1.ConfdVolumePath,
+			MountPath: fmt.Sprintf("/etc/datadog-agent%s", datadoghqv1alpha1.ConfdVolumePath),
 			ReadOnly:  true,
 		})
 	}
-
 	// Add other volumes
 	volumes = append(volumes, agentdeployment.Spec.ClusterAgent.Config.Volumes...)
 	volumeMounts = append(volumeMounts, agentdeployment.Spec.ClusterAgent.Config.VolumeMounts...)
@@ -620,10 +617,14 @@ func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.En
 		}...)
 	}
 
-	if datadoghqv1alpha1.BoolValue(spec.ClusterAgent.Config.KubeStateMetricsCoreEnabled) {
+	if isKSMCoreEnabled(spec.ClusterAgent) {
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  datadoghqv1alpha1.DDKubeStateMetricsCoreEnabled,
-			Value: strconv.FormatBool(*spec.ClusterAgent.Config.KubeStateMetricsCoreEnabled),
+			Value: "true",
+		})
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  datadoghqv1alpha1.DDKubeStateMetricsCoreConfigMap,
+			Value: datadoghqv1alpha1.GetKubeStateMetricsConfName(dda),
 		})
 	}
 
@@ -1318,6 +1319,14 @@ func getExternalMetricsEndpoint(dda *datadoghqv1alpha1.DatadogAgent) string {
 	return "https://app.datadoghq.com"
 }
 
+func (r *Reconciler) manageKubeStateMetricsCore(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
+	if !isKSMCoreEnabled(dda.Spec.ClusterAgent) {
+		return reconcile.Result{}, nil
+	}
+	// Only create the default ConfigMap if the conf is not overridden
+	return r.manageConfigMap(logger, dda, datadoghqv1alpha1.GetKubeStateMetricsConfName(dda), buildKSMCoreConfigMap)
+}
+
 func (r *Reconciler) manageClusterAgentNetworkPolicy(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
 	policyName := fmt.Sprintf("%s-%s", dda.Name, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix)
 
@@ -1429,14 +1438,8 @@ func buildClusterAgentNetworkPolicy(dda *datadoghqv1alpha1.DatadogAgent, name st
 	return policy
 }
 
-func getKSMCoreConfigMapName(dda *datadoghqv1alpha1.DatadogAgent) string {
-	if datadoghqv1alpha1.DDKubeStateMetricsCoreConfigMap != "" {
-		return datadoghqv1alpha1.DDKubeStateMetricsCoreConfigMap
-	}
-	return fmt.Sprintf("%s-kube-state-metrics-core-config", dda.Name)
-}
-
-const defaultKSMCoreConfigMap = `---
+const (
+	defaultKSMCoreConfigMap = `
 ---
 cluster_check: true
 init_config:
@@ -1448,7 +1451,7 @@ instances:
     collectors:
       - pods
     telemetry: true
-  - kube_state_url: x
+  - kube_state_url: 
     prometheus_timeout: 30
     min_collection_interval: 20
     send_pod_phase_service_checks: false
@@ -1517,17 +1520,19 @@ instances:
       - nodes
     telemetry: true
 `
+	ksmCoreCheckName = "kubernetes_state_core.yaml"
+)
 
 func buildKSMCoreConfigMap(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.ConfigMap, error) {
 	configMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        getKSMCoreConfigMapName(dda),
+			Name:        datadoghqv1alpha1.GetKubeStateMetricsConfName(dda),
 			Namespace:   dda.Namespace,
 			Labels:      getDefaultLabels(dda, dda.Name, getAgentVersion(dda)),
 			Annotations: getDefaultAnnotations(dda),
 		},
 		Data: map[string]string{
-			"kubernetes_state_core.yaml": defaultKSMCoreConfigMap,
+			ksmCoreCheckName: defaultKSMCoreConfigMap,
 		},
 	}
 	return configMap, nil
