@@ -2520,7 +2520,7 @@ spec:
                         x-kubernetes-list-map-keys:
                         - name
                         x-kubernetes-list-type: map
-                      processCollection:
+                      processCollectionEnabled:
                         description: 'false (default): Only collect containers if
                           available. true: collect process information as well'
                         type: boolean
@@ -7777,7 +7777,7 @@ spec:
                       false.'
                     type: boolean
                 type: object
-              features:
+              datadogFeatures:
                 description: DatadogFeatures are features which are running on the
                   agent as well on the clusterAgent.
                 properties:

@@ -29,7 +29,7 @@ type DatadogAgentSpec struct {
 
 	// DatadogFeatures are features which are running on the agent as well on the clusterAgent.
 	// +optional
-	DatadogFeatures *DatadogFeatures `json:"features,omitempty"`
+	DatadogFeatures *DatadogFeatures `json:"datadogFeatures,omitempty"`
 
 	// The desired state of the Agent as an extended daemonset
 	// Contains the Node Agent configuration and deployment strategy
@@ -359,7 +359,8 @@ type ProcessSpec struct {
 
 	// false (default): Only collect containers if available.
 	// true: collect process information as well
-	ProcessCollectionEnabled *bool `json:"processCollection,omitempty"`
+	ProcessCollectionEnabled *bool `json:"processCollectionEnabled,omitempty"`
+
 	// The Datadog Agent supports many environment variables
 	// Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables
 	//
