@@ -65,6 +65,10 @@ func (r *Reconciler) manageAgentRBACs(logger logr.Logger, dda *datadoghqv1alpha1
 		return reconcile.Result{}, err
 	}
 
+	if result, err := r.udpateIfNeededAgentClusterRoleBinding(logger, dda, rbacResourcesName, serviceAccountName, agentVersion, clusterRoleBinding); err != nil {
+		return result, err
+	}
+
 	return reconcile.Result{}, nil
 }
 
