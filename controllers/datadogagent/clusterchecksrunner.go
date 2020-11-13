@@ -530,8 +530,7 @@ func (r *Reconciler) manageClusterChecksRunnerNetworkPolicy(logger logr.Logger, 
 
 func buildClusterChecksRunnerNetworkPolicy(dda *datadoghqv1alpha1.DatadogAgent, name string) *networkingv1.NetworkPolicy {
 	egressRules := []networkingv1.NetworkPolicyEgressRule{
-		// Egress to datadog intake and
-		// kubeapi server
+		// Egress to datadog intake and kubeapi server
 		{
 			Ports: []networkingv1.NetworkPolicyPort{
 				{
@@ -544,9 +543,8 @@ func buildClusterChecksRunnerNetworkPolicy(dda *datadoghqv1alpha1.DatadogAgent, 
 		},
 	}
 
-	ingressRules := []networkingv1.NetworkPolicyIngressRule{
-		// Ingress for the node agents
-		{
+	if dda.Spec.ClusterAgent != nil {
+		egressRules = append(egressRules, networkingv1.NetworkPolicyEgressRule{
 			Ports: []networkingv1.NetworkPolicyPort{
 				{
 					Port: &intstr.IntOrString{
@@ -555,33 +553,11 @@ func buildClusterChecksRunnerNetworkPolicy(dda *datadoghqv1alpha1.DatadogAgent, 
 					},
 				},
 			},
-			From: []networkingv1.NetworkPolicyPeer{
+			To: []networkingv1.NetworkPolicyPeer{
 				{
 					PodSelector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{
-							"app": dda.Name,
-						},
-					},
-				},
-			},
-		},
-	}
-
-	if datadoghqv1alpha1.BoolValue(dda.Spec.ClusterAgent.Config.ClusterChecksEnabled) {
-		ingressRules = append(ingressRules, networkingv1.NetworkPolicyIngressRule{
-			Ports: []networkingv1.NetworkPolicyPort{
-				{
-					Port: &intstr.IntOrString{
-						Type:   intstr.Int,
-						IntVal: datadoghqv1alpha1.DefaultClusterAgentServicePort,
-					},
-				},
-			},
-			From: []networkingv1.NetworkPolicyPeer{
-				{
-					PodSelector: &metav1.LabelSelector{
-						MatchLabels: map[string]string{
-							"app": fmt.Sprintf("%s-%s", dda.Name, datadoghqv1alpha1.DefaultClusterChecksRunnerResourceSuffix),
+							"app": fmt.Sprintf("%s-%s", dda.Name, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix),
 						},
 					},
 				},
@@ -589,18 +565,15 @@ func buildClusterChecksRunnerNetworkPolicy(dda *datadoghqv1alpha1.DatadogAgent, 
 		})
 	}
 
-	if dda.Spec.ClusterAgent.Config.ExternalMetrics != nil && dda.Spec.ClusterAgent.Config.ExternalMetrics.Enabled {
-		ingressRules = append(ingressRules, networkingv1.NetworkPolicyIngressRule{
-			Ports: []networkingv1.NetworkPolicyPort{
-				{
-					Port: &intstr.IntOrString{
-						Type:   intstr.Int,
-						IntVal: int32(datadoghqv1alpha1.DefaultMetricsServerTargetPort),
-					},
-				},
-			},
-		})
-	}
+	// The cluster check runners are susceptible to connect to any service
+	// that would be annotated with auto-discovery annotations.
+	//
+	// When a user wants to add a check on one of its service, he needs to
+	// * annotate its service
+	// * add an ingress policy from the CLC on its own pod
+	// In order to not ask end-users to inject NetworkPolicy on the agent in
+	// the agent namespace, the agent must be allowed to probe any service.
+	egressRules = append(egressRules, networkingv1.NetworkPolicyEgressRule{})
 
 	policy := &networkingv1.NetworkPolicy{
 		ObjectMeta: metav1.ObjectMeta{
@@ -615,8 +588,7 @@ func buildClusterChecksRunnerNetworkPolicy(dda *datadoghqv1alpha1.DatadogAgent, 
 					kubernetes.AppKubernetesPartOfLabelKey:   dda.Name,
 				},
 			},
-			Ingress: ingressRules,
-			Egress:  egressRules,
+			Egress: egressRules,
 			PolicyTypes: []networkingv1.PolicyType{
 				networkingv1.PolicyTypeIngress,
 				networkingv1.PolicyTypeEgress,

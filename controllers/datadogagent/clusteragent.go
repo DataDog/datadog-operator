@@ -520,7 +520,7 @@ func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Env
 		if dda.Spec.Agent.Security.Compliance.CheckInterval != nil {
 			envVars = append(envVars, corev1.EnvVar{
 				Name:  datadoghqv1alpha1.DDComplianceConfigCheckInterval,
-				Value: dda.Spec.Agent.Security.Compliance.CheckInterval.String(),
+				Value: strconv.FormatInt(dda.Spec.Agent.Security.Compliance.CheckInterval.Nanoseconds(), 10),
 			})
 		}
 
@@ -1105,7 +1105,7 @@ func buildClusterAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, age
 
 		// ExtendedDaemonsetReplicaSets
 		rbacRules = append(rbacRules, rbacv1.PolicyRule{
-			APIGroups: []string{datadoghqv1alpha1.SchemeGroupVersion.Group},
+			APIGroups: []string{datadoghqv1alpha1.GroupVersion.Group},
 			Resources: []string{
 				datadoghqv1alpha1.ExtendedDaemonSetReplicaSetResource,
 			},

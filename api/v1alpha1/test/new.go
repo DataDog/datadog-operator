@@ -22,7 +22,7 @@ import (
 
 var (
 	// apiVersion datadoghqv1alpha1 api version
-	apiVersion = fmt.Sprintf("%s/%s", datadoghqv1alpha1.SchemeGroupVersion.Group, datadoghqv1alpha1.SchemeGroupVersion.Version)
+	apiVersion = fmt.Sprintf("%s/%s", datadoghqv1alpha1.GroupVersion.Group, datadoghqv1alpha1.GroupVersion.Version)
 	pullPolicy = v1.PullIfNotPresent
 )
 
