@@ -1537,3 +1537,125 @@ func buildKSMCoreConfigMap(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.ConfigM
 	}
 	return configMap, nil
 }
+
+func (r *Reconciler) createKubeStateMetricsClusterRole(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, version string) (reconcile.Result, error) {
+	clusterRole := buildKubeStateMetricsCoreRBAC(dda, name, version)
+	if err := controllerutil.SetControllerReference(dda, clusterRole, r.scheme); err != nil {
+		return reconcile.Result{}, err
+	}
+	logger.V(1).Info("createKubeStateMetricsClusterRole", "clusterRole.name", clusterRole.Name)
+	event := buildEventInfo(clusterRole.Name, clusterRole.Namespace, clusterRoleKind, datadog.CreationEvent)
+	r.recordEvent(dda, event)
+	return reconcile.Result{Requeue: true}, r.client.Create(context.TODO(), clusterRole)
+}
+
+// buildKubeStateMetricsCoreRBAC generates the cluster role required for the KSM informers to query
+// what is exposed as of the v2.0 https://github.com/kubernetes/kube-state-metrics/blob/release-2.0/examples/standard/cluster-role.yaml
+func buildKubeStateMetricsCoreRBAC(dda *datadoghqv1alpha1.DatadogAgent, name, version string) *rbacv1.ClusterRole {
+	clusterRole := &rbacv1.ClusterRole{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels: getDefaultLabels(dda, name, version),
+			Name:   name,
+		},
+	}
+
+	rbacRules := []rbacv1.PolicyRule{
+		{
+			APIGroups: []string{datadoghqv1alpha1.CoreAPIGroup},
+			Resources: []string{
+				datadoghqv1alpha1.ConfigMapsResource,
+				datadoghqv1alpha1.SecretsResource,
+				datadoghqv1alpha1.NodesResource,
+				datadoghqv1alpha1.PodsResource,
+				datadoghqv1alpha1.ServicesResource,
+				datadoghqv1alpha1.ResourceQuotasResource,
+				datadoghqv1alpha1.ReplicationControllersResource,
+				datadoghqv1alpha1.LimitRangesResource,
+				datadoghqv1alpha1.PersistentVolumeClaimsResource,
+				datadoghqv1alpha1.PersistentVolumesResource,
+				datadoghqv1alpha1.NamespaceResource,
+				datadoghqv1alpha1.EndpointsResource,
+			},
+		},
+		{
+			APIGroups: []string{datadoghqv1alpha1.ExtensionsAPIGroup},
+			ResourceNames: []string{
+				datadoghqv1alpha1.DaemonsetsResource,
+				datadoghqv1alpha1.DeploymentsResource,
+				datadoghqv1alpha1.ReplicasetsResource,
+			},
+		},
+		{
+			APIGroups: []string{datadoghqv1alpha1.AppsAPIGroup},
+			ResourceNames: []string{
+				datadoghqv1alpha1.StatefulsetsResource,
+				datadoghqv1alpha1.DaemonsetsResource,
+				datadoghqv1alpha1.DeploymentsResource,
+				datadoghqv1alpha1.ReplicasetsResource,
+			},
+		},
+		{
+			APIGroups: []string{datadoghqv1alpha1.BatchAPIGroup},
+			ResourceNames: []string{
+				datadoghqv1alpha1.CronjobsResource,
+				datadoghqv1alpha1.JobsResource,
+			},
+		},
+		{
+			APIGroups: []string{datadoghqv1alpha1.AutoscalingAPIGroup},
+			ResourceNames: []string{
+				datadoghqv1alpha1.HorizontalPodAutoscalersRecource,
+			},
+		},
+		{
+			APIGroups: []string{datadoghqv1alpha1.PolicyAPIGroup},
+			ResourceNames: []string{
+				datadoghqv1alpha1.PodDisruptionBudgetsResource,
+			},
+		},
+		{
+			APIGroups: []string{datadoghqv1alpha1.CertificatesAPIGroup},
+			ResourceNames: []string{
+				datadoghqv1alpha1.CertificatesSigningRequestsResource,
+			},
+		},
+		{
+			APIGroups: []string{datadoghqv1alpha1.StorageAPIGroup},
+			ResourceNames: []string{
+				datadoghqv1alpha1.StorageClassesResource,
+				datadoghqv1alpha1.VolumeAttachments,
+			},
+		},
+		{
+			APIGroups: []string{datadoghqv1alpha1.AdmissionAPIGroup},
+			ResourceNames: []string{
+				datadoghqv1alpha1.MutatingConfigResource,
+				datadoghqv1alpha1.ValidatingConfigResource,
+			},
+		},
+		{
+			APIGroups: []string{datadoghqv1alpha1.NetworkingAPIGroup},
+			ResourceNames: []string{
+				datadoghqv1alpha1.NetworkPolicyResource,
+				datadoghqv1alpha1.IngressesResource,
+			},
+		},
+		{
+			APIGroups: []string{datadoghqv1alpha1.CoordinationAPIGroup},
+			ResourceNames: []string{
+				datadoghqv1alpha1.LeasesResource,
+			},
+		},
+	}
+
+	commonVerbs := []string{
+		datadoghqv1alpha1.ListVerb,
+		datadoghqv1alpha1.WatchVerb,
+	}
+	for _, rule := range rbacRules {
+		rule.Verbs = commonVerbs
+	}
+
+	clusterRole.Rules = rbacRules
+	return clusterRole
+}
