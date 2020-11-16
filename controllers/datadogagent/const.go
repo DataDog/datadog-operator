@@ -6,7 +6,7 @@
 package datadogagent
 
 const (
-	// FieldPathSpecNodeName used as FieldPath for selecting the NodeName
+	// FieldPathSpecNodeName used as FieldPath for seleting the NodeName
 	FieldPathSpecNodeName = "spec.nodeName"
 
 	// FieldPathStatusHostIP used as FieldPath to retrieve the host ip

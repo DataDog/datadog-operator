@@ -42,8 +42,6 @@ type NewDatadogAgentOptions struct {
 	NodeAgentConfig                  *datadoghqv1alpha1.NodeAgentConfig
 	APMEnabled                       bool
 	ProcessEnabled                   bool
-	ProcessCollectionEnabled         bool
-	OrchestratorExplorerEnabled      bool
 	SystemProbeEnabled               bool
 	SystemProbeSeccompProfileName    string
 	SystemProbeAppArmorProfileName   string
@@ -108,20 +106,10 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 			DeploymentStrategy: &datadoghqv1alpha1.DaemonSetDeploymentStrategy{},
 			Apm:                datadoghqv1alpha1.APMSpec{},
 			Log:                datadoghqv1alpha1.LogSpec{},
-			Process: datadoghqv1alpha1.ProcessSpec{
-				Enabled:                  datadoghqv1alpha1.NewBoolPointer(false),
-				ProcessCollectionEnabled: datadoghqv1alpha1.NewBoolPointer(false),
-			},
+			Process:            datadoghqv1alpha1.ProcessSpec{},
 		},
 	}
 	if options != nil {
-
-		if options.OrchestratorExplorerEnabled {
-			orExplorer := datadoghqv1alpha1.OrchestratorExplorerConfig{Enabled: datadoghqv1alpha1.NewBoolPointer(true)}
-			ad.Spec.DatadogFeatures = &datadoghqv1alpha1.DatadogFeatures{OrchestratorExplorer: &orExplorer}
-			ad.Spec.Agent.Process.Enabled = datadoghqv1alpha1.NewBoolPointer(true)
-		}
-
 		if options.UseEDS {
 			ad.Spec.Agent.UseExtendedDaemonset = &options.UseEDS
 		}
@@ -242,13 +230,7 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 		}
 
 		if options.ProcessEnabled {
-			ad.Spec.Agent.Process.Enabled = datadoghqv1alpha1.NewBoolPointer(options.ProcessEnabled)
-		}
-
-		if options.ProcessCollectionEnabled {
 			ad.Spec.Agent.Process.Enabled = datadoghqv1alpha1.NewBoolPointer(true)
-			ad.Spec.Agent.Process.ProcessCollectionEnabled = datadoghqv1alpha1.NewBoolPointer(true)
-
 		}
 
 		if options.HostNetwork {

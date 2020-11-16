@@ -13,7 +13,6 @@ spec:
       enabled: true
     process:
       enabled: true
-      processCollection: true
     log:
       enabled: true
     systemProbe:

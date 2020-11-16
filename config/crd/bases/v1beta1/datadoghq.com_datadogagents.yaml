@@ -235,7 +235,7 @@ spec:
                           type: string
                       type: object
                     collectEvents:
-                      description: 'enables this to start event collection from the
+                      description: 'nables this to start event collection from the
                         kubernetes API ref: https://docs.datadoghq.com/agent/kubernetes/event_collection/'
                       type: boolean
                     confd:
@@ -2325,8 +2325,9 @@ spec:
                   description: Process Agent configuration
                   properties:
                     enabled:
-                      description: 'Note: /etc/passwd is automatically mounted to
-                        allow username resolution. ref: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset'
+                      description: 'Enable this to activate live process monitoring.
+                        Note: /etc/passwd is automatically mounted to allow username
+                        resolution. ref: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset'
                       type: boolean
                     env:
                       description: 'The Datadog Agent supports many environment variables
@@ -2439,10 +2440,6 @@ spec:
                         - name
                         type: object
                       type: array
-                    processCollectionEnabled:
-                      description: 'false (default): Only collect containers if available.
-                        true: collect process information as well'
-                      type: boolean
                     resources:
                       description: 'Datadog Process Agent resource requests and limits
                         Make sure to keep requests and limits equal to keep the pods
@@ -7530,36 +7527,6 @@ spec:
                     Agent, Cluster, Cluster-Checks. If `useSecretBackend: true`, other
                     credential parameters will be ignored. default value is false.'
                   type: boolean
-              type: object
-            datadogFeatures:
-              description: DatadogFeatures are features which are running on the agent
-                as well on the clusterAgent.
-              properties:
-                orchestratorExplorer:
-                  description: OrchestratorExplorer configuration
-                  properties:
-                    additionalEndpoints:
-                      description: 'Additional endpoints for shipping the collected
-                        data as json in the form of {"https://process.agent.datadoghq.com":
-                        ["apikey1", ...], ...}''.'
-                      type: string
-                    containerScrubbingEnabled:
-                      description: Deactivate this to stop the scrubbing of sensitive
-                        container data (passwords, tokens etc. ).
-                      type: boolean
-                    ddUrl:
-                      description: Set this for the datadog endpoint for the orchestrator
-                        explorer
-                      type: string
-                    enabled:
-                      description: 'Enable this to activate live kubernetes monitoring.
-                        ref: https://docs.datadoghq.com/infrastructure/livecontainers/#kubernetes-resources'
-                      type: boolean
-                    extraTags:
-                      description: Additional tags for the collected data in the form
-                        of `a b c`
-                      type: string
-                  type: object
               type: object
             site:
               description: The site of the Datadog intake to send Agent data to. Set

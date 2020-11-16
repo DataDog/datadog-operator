@@ -62,10 +62,7 @@ func NewDatadogAgent(ns, name, image string, options *NewDatadogAgentOptions) *d
 			DeploymentStrategy: &datadoghqv1alpha1.DaemonSetDeploymentStrategy{},
 			Apm:                datadoghqv1alpha1.APMSpec{},
 			Log:                datadoghqv1alpha1.LogSpec{},
-			Process: datadoghqv1alpha1.ProcessSpec{
-				Enabled:                  datadoghqv1alpha1.NewBoolPointer(false),
-				ProcessCollectionEnabled: datadoghqv1alpha1.NewBoolPointer(false),
-			},
+			Process:            datadoghqv1alpha1.ProcessSpec{},
 		},
 	}
 	ad = datadoghqv1alpha1.DefaultDatadogAgent(ad)
