@@ -25,6 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/orchestrator"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -86,6 +87,17 @@ func (r *Reconciler) reconcileClusterAgent(logger logr.Logger, dda *datadoghqv1a
 
 	return reconcile.Result{}, nil
 }
+
+// TODO: check whether here is a good place to manage orchestrator dependencies
+/**
+need:
+- if orchestrator-explorer is enabled:
+-- process-agent true
+-- cluster-name is needed
+  -- enforce cluster name, how? --> if empty will not start. Either set or AD e.g. set by provider
+-- leader election is true (done)
+-- ensure rbac is correct (services, nodes, pods, rs, dplm, cm ...) -> look at helm (done)
+*/
 
 func (r *Reconciler) createNewClusterAgentDeployment(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
 	newDCA, hash, err := newClusterAgentDeploymentFromInstance(agentdeployment, nil)
@@ -595,6 +607,10 @@ func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Env
 			Name:  datadoghqv1alpha1.DDAdmissionControllerServiceName,
 			Value: getAdmissionControllerServiceName(dda),
 		})
+	}
+
+	if isOrchestratorExplorerEnabled(dda) {
+		envVars = append(envVars, orchestrator.EnvVars(spec.DatadogFeatures.OrchestratorExplorer)...)
 	}
 
 	return append(envVars, spec.ClusterAgent.Config.Env...)
@@ -1161,6 +1177,29 @@ func buildClusterAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, age
 			Verbs: []string{
 				datadoghqv1alpha1.ListVerb,
 			},
+		})
+	}
+
+	if isOrchestratorExplorerEnabled(dda) {
+		// To get the kube-system namespace UID and generate a cluster ID
+		rbacRules = append(rbacRules, rbacv1.PolicyRule{
+			APIGroups:     []string{datadoghqv1alpha1.CoreAPIGroup},
+			Resources:     []string{datadoghqv1alpha1.NamespaceResource},
+			ResourceNames: []string{datadoghqv1alpha1.KubeSystemResourceName},
+			Verbs:         []string{datadoghqv1alpha1.GetVerb},
+		})
+		// To create the cluster-id configmap
+		rbacRules = append(rbacRules, rbacv1.PolicyRule{
+			APIGroups:     []string{datadoghqv1alpha1.CoreAPIGroup},
+			Resources:     []string{datadoghqv1alpha1.ConfigMapsResource},
+			ResourceNames: []string{datadoghqv1alpha1.DatadogClusterIDResourceName},
+			Verbs:         []string{datadoghqv1alpha1.GetVerb, datadoghqv1alpha1.CreateVerb, datadoghqv1alpha1.UpdateVerb},
+		})
+
+		rbacRules = append(rbacRules, rbacv1.PolicyRule{
+			APIGroups: []string{datadoghqv1alpha1.AppsAPIGroup},
+			Resources: []string{datadoghqv1alpha1.DeploymentsResource, datadoghqv1alpha1.ReplicasetsResource},
+			Verbs:     []string{datadoghqv1alpha1.GetVerb, datadoghqv1alpha1.ListVerb, datadoghqv1alpha1.WatchVerb},
 		})
 	}
 

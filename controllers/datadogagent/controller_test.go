@@ -215,9 +215,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 							Annotations: map[string]string{"annotations-foo-key": "annotations-bar-value"},
 						},
 						Spec: datadoghqv1alpha1.DatadogAgentSpec{
-							Credentials:  datadoghqv1alpha1.AgentCredentials{Token: "token-foo"},
-							Agent:        &datadoghqv1alpha1.DatadogAgentSpecAgentSpec{},
-							ClusterAgent: &datadoghqv1alpha1.DatadogAgentSpecClusterAgentSpec{},
+							Credentials:     datadoghqv1alpha1.AgentCredentials{Token: "token-foo"},
+							Agent:           &datadoghqv1alpha1.DatadogAgentSpecAgentSpec{},
+							DatadogFeatures: &datadoghqv1alpha1.DatadogFeatures{},
+							ClusterAgent:    &datadoghqv1alpha1.DatadogAgentSpecClusterAgentSpec{},
 						},
 					})
 				},
@@ -255,9 +256,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 							Annotations: map[string]string{"annotations-foo-key": "annotations-bar-value"},
 						},
 						Spec: datadoghqv1alpha1.DatadogAgentSpec{
-							Credentials:  datadoghqv1alpha1.AgentCredentials{Token: "token-foo"},
-							Agent:        &datadoghqv1alpha1.DatadogAgentSpecAgentSpec{},
-							ClusterAgent: &datadoghqv1alpha1.DatadogAgentSpecClusterAgentSpec{},
+							Credentials:     datadoghqv1alpha1.AgentCredentials{Token: "token-foo"},
+							DatadogFeatures: &datadoghqv1alpha1.DatadogFeatures{},
+							Agent:           &datadoghqv1alpha1.DatadogAgentSpecAgentSpec{},
+							ClusterAgent:    &datadoghqv1alpha1.DatadogAgentSpecClusterAgentSpec{},
 						},
 					})
 				},
