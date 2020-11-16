@@ -65,7 +65,7 @@ func (r *Reconciler) manageAgentRBACs(logger logr.Logger, dda *datadoghqv1alpha1
 		return reconcile.Result{}, err
 	}
 
-	return reconcile.Result{}, nil
+	return r.udpateIfNeededAgentClusterRoleBinding(logger, dda, rbacResourcesName, serviceAccountName, agentVersion, clusterRoleBinding)
 }
 
 // cleanupAgentRbacResources deletes ClusterRole, ClusterRoleBindings, and ServiceAccount of the Agent
