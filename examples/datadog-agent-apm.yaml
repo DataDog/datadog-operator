@@ -11,3 +11,4 @@ spec:
       name: "datadog/agent:latest"
     apm:
       enabled: true
+      hostPort: 8126
