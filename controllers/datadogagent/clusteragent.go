@@ -834,6 +834,24 @@ func (r *Reconciler) updateIfNeededAgentClusterRole(logger logr.Logger, dda *dat
 	return reconcile.Result{}, nil
 }
 
+func (r *Reconciler) udpateIfNeededAgentClusterRoleBinding(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, serviceAccountName, agentVersion string, clusterRoleBinding *rbacv1.ClusterRoleBinding) (reconcile.Result, error) {
+	info := roleBindingInfo{
+		name:               name,
+		roleName:           name,
+		serviceAccountName: serviceAccountName,
+	}
+	newClusterRoleBinding := buildClusterRoleBinding(dda, info, agentVersion)
+	if !apiequality.Semantic.DeepEqual(newClusterRoleBinding.Subjects, clusterRoleBinding.Subjects) || !apiequality.Semantic.DeepEqual(newClusterRoleBinding.RoleRef, clusterRoleBinding.RoleRef) {
+		logger.V(1).Info("updateAgentClusterRoleBinding", "clusterRoleBinding.name", clusterRoleBinding.Name)
+		if err := r.client.Update(context.TODO(), newClusterRoleBinding); err != nil {
+			return reconcile.Result{}, err
+		}
+		event := buildEventInfo(newClusterRoleBinding.Name, newClusterRoleBinding.Namespace, clusterRoleKind, datadog.UpdateEvent)
+		r.recordEvent(dda, event)
+	}
+	return reconcile.Result{}, nil
+}
+
 // cleanupClusterAgentRbacResources deletes ClusterRole, ClusterRoleBindings, and ServiceAccount of the Cluster Agent
 func (r *Reconciler) cleanupClusterAgentRbacResources(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
 	rbacResourcesName := getClusterAgentRbacResourcesName(dda)
