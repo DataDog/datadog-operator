@@ -26,10 +26,10 @@ func EnvVars(orc *datadoghqv1alpha1.OrchestratorExplorerConfig) []corev1.EnvVar 
 		Name:  DDOrchestratorExplorerEnabled,
 		Value: strconv.FormatBool(datadoghqv1alpha1.BoolValue(orc.Enabled)),
 	})
-	// ContainerScrubbingEnabled is defaulted to true beforehand in case it is nil
+	// Scrubbing is defaulted to true beforehand in case it is nil
 	envVars = append(envVars, corev1.EnvVar{
 		Name:  DDOrchestratorExplorerContainerScrubbingEnabled,
-		Value: strconv.FormatBool(datadoghqv1alpha1.BoolValue(orc.ContainerScrubbingEnabled)),
+		Value: strconv.FormatBool(datadoghqv1alpha1.BoolValue(orc.Scrubbing.Containers)),
 	})
 
 	if orc.AdditionalEndpoints != nil {

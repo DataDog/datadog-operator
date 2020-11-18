@@ -1103,8 +1103,8 @@ func defaultOrchestratorEnvVars() []corev1.EnvVar {
 	}
 
 	explorerConfig := datadoghqv1alpha1.OrchestratorExplorerConfig{
-		Enabled:                   datadoghqv1alpha1.NewBoolPointer(true),
-		ContainerScrubbingEnabled: datadoghqv1alpha1.NewBoolPointer(true),
+		Enabled:   datadoghqv1alpha1.NewBoolPointer(true),
+		Scrubbing: &datadoghqv1alpha1.Scrubbing{Containers: datadoghqv1alpha1.NewBoolPointer(true)},
 	}
 
 	vars := []corev1.EnvVar{

@@ -118,7 +118,7 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 
 		if options.OrchestratorExplorerEnabled {
 			orExplorer := datadoghqv1alpha1.OrchestratorExplorerConfig{Enabled: datadoghqv1alpha1.NewBoolPointer(true)}
-			ad.Spec.DatadogFeatures = &datadoghqv1alpha1.DatadogFeatures{OrchestratorExplorer: &orExplorer}
+			ad.Spec.Features = &datadoghqv1alpha1.DatadogFeatures{OrchestratorExplorer: &orExplorer}
 			ad.Spec.Agent.Process.Enabled = datadoghqv1alpha1.NewBoolPointer(true)
 		}
 

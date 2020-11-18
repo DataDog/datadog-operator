@@ -176,7 +176,7 @@ var _ = Describe("DatadogAgent Controller", func() {
 
 			By("Activating OrchestratorExplorer", func() {
 				checkAgentUpdateOnDaemonSet(key, dsKey, func(agent *datadoghqv1alpha1.DatadogAgent) {
-					agent.Spec.DatadogFeatures = &datadoghqv1alpha1.DatadogFeatures{OrchestratorExplorer: &datadoghqv1alpha1.OrchestratorExplorerConfig{
+					agent.Spec.Features = &datadoghqv1alpha1.DatadogFeatures{OrchestratorExplorer: &datadoghqv1alpha1.OrchestratorExplorerConfig{
 						Enabled: datadoghqv1alpha1.NewBoolPointer(true),
 					}}
 				}, nil)

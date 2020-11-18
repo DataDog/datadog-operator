@@ -7777,9 +7777,9 @@ spec:
                       false.'
                     type: boolean
                 type: object
-              datadogFeatures:
-                description: DatadogFeatures are features which are running on the
-                  agent as well on the clusterAgent.
+              features:
+                description: Features are features which are running on the agent
+                  as well on the clusterAgent.
                 properties:
                   orchestratorExplorer:
                     description: OrchestratorExplorer configuration
@@ -7789,10 +7789,6 @@ spec:
                           data as json in the form of {"https://process.agent.datadoghq.com":
                           ["apikey1", ...], ...}''.'
                         type: string
-                      containerScrubbingEnabled:
-                        description: Deactivate this to stop the scrubbing of sensitive
-                          container data (passwords, tokens etc. ).
-                        type: boolean
                       ddUrl:
                         description: Set this for the datadog endpoint for the orchestrator
                           explorer
@@ -7805,6 +7801,15 @@ spec:
                         description: Additional tags for the collected data in the
                           form of `a b c`
                         type: string
+                      scrubbing:
+                        description: Option to disable scrubbing of sensitive container
+                          data (passwords, tokens etc. ).
+                        properties:
+                          containers:
+                            description: Deactivate this to stop the scrubbing of
+                              sensitive container data (passwords, tokens etc. ).
+                            type: boolean
+                        type: object
                     type: object
                 type: object
               site:

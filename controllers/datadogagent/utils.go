@@ -177,7 +177,7 @@ func processCollectionEnabled(dda *datadoghqv1alpha1.DatadogAgent) bool {
 }
 
 func isOrchestratorExplorerEnabled(dda *datadoghqv1alpha1.DatadogAgent) bool {
-	features := dda.Spec.DatadogFeatures
+	features := dda.Spec.Features
 	if features == nil || features.OrchestratorExplorer == nil {
 		return false
 	}
@@ -504,7 +504,7 @@ func getEnvVarsForProcessAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.En
 	}
 
 	if isOrchestratorExplorerEnabled(dda) {
-		envVars = append(envVars, orchestrator.EnvVars(dda.Spec.DatadogFeatures.OrchestratorExplorer)...)
+		envVars = append(envVars, orchestrator.EnvVars(dda.Spec.Features.OrchestratorExplorer)...)
 		envVars = append(envVars, orchestrator.ClusterID())
 	}
 

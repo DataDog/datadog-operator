@@ -610,7 +610,7 @@ func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Env
 	}
 
 	if isOrchestratorExplorerEnabled(dda) {
-		envVars = append(envVars, orchestrator.EnvVars(spec.DatadogFeatures.OrchestratorExplorer)...)
+		envVars = append(envVars, orchestrator.EnvVars(spec.Features.OrchestratorExplorer)...)
 	}
 
 	return append(envVars, spec.ClusterAgent.Config.Env...)

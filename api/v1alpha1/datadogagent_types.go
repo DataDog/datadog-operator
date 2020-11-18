@@ -27,9 +27,9 @@ type DatadogAgentSpec struct {
 	// Configure the credentials required to run Agents
 	Credentials AgentCredentials `json:"credentials"`
 
-	// DatadogFeatures are features which are running on the agent as well on the clusterAgent.
+	// Features are features which are running on the agent as well on the clusterAgent.
 	// +optional
-	DatadogFeatures *DatadogFeatures `json:"datadogFeatures,omitempty"`
+	Features *DatadogFeatures `json:"features,omitempty"`
 
 	// The desired state of the Agent as an extended daemonset
 	// Contains the Node Agent configuration and deployment strategy
@@ -386,8 +386,8 @@ type OrchestratorExplorerConfig struct {
 	Enabled *bool `json:"enabled,omitempty"`
 
 	// +optional
-	// Deactivate this to stop the scrubbing of sensitive container data (passwords, tokens etc. ).
-	ContainerScrubbingEnabled *bool `json:"containerScrubbingEnabled,omitempty"`
+	// Option to disable scrubbing of sensitive container data (passwords, tokens etc. ).
+	Scrubbing *Scrubbing `json:"scrubbing,omitempty"`
 
 	// +optional
 	// Additional endpoints for shipping the collected data as json in the form of {"https://process.agent.datadoghq.com": ["apikey1", ...], ...}'.
@@ -400,6 +400,12 @@ type OrchestratorExplorerConfig struct {
 	// +optional
 	// Additional tags for the collected data in the form of `a b c`
 	ExtraTags *string `json:"extraTags,omitempty"`
+}
+
+// Scrubbing contains configuration to enable or disable scrubbing options
+type Scrubbing struct {
+	// Deactivate this to stop the scrubbing of sensitive container data (passwords, tokens etc. ).
+	Containers *bool `json:"containers,omitempty"`
 }
 
 // SystemProbeSpec contains the SystemProbe Agent configuration

@@ -98,8 +98,8 @@ func IsDefaultedDatadogAgent(ad *DatadogAgent) bool {
 		}
 	}
 
-	if ad.Spec.DatadogFeatures != nil {
-		if !IsDefaultedOrchestratorExplorer(ad.Spec.DatadogFeatures.OrchestratorExplorer) {
+	if ad.Spec.Features != nil {
+		if !IsDefaultedOrchestratorExplorer(ad.Spec.Features.OrchestratorExplorer) {
 			return false
 		}
 	}
@@ -176,7 +176,11 @@ func IsDefaultedOrchestratorExplorer(orc *OrchestratorExplorerConfig) bool {
 		return false
 	}
 
-	if orc.ContainerScrubbingEnabled == nil {
+	if orc.Scrubbing == nil {
+		return false
+	}
+
+	if orc.Scrubbing.Containers == nil {
 		return false
 	}
 
@@ -403,8 +407,8 @@ func DefaultDatadogAgent(ad *DatadogAgent) *DatadogAgent {
 		}
 	}
 
-	if defaultedAD.Spec.DatadogFeatures != nil && defaultedAD.Spec.DatadogFeatures.OrchestratorExplorer != nil {
-		defaultedAD.Spec.DatadogFeatures.OrchestratorExplorer = DefaultDatadogFeatureOrchestratorExplorer(defaultedAD.Spec.DatadogFeatures.OrchestratorExplorer)
+	if defaultedAD.Spec.Features != nil && defaultedAD.Spec.Features.OrchestratorExplorer != nil {
+		defaultedAD.Spec.Features.OrchestratorExplorer = DefaultDatadogFeatureOrchestratorExplorer(defaultedAD.Spec.Features.OrchestratorExplorer)
 	}
 
 	if defaultedAD.Spec.ClusterChecksRunner != nil {
@@ -671,8 +675,8 @@ func DefaultDatadogFeatureOrchestratorExplorer(explorerConfig *OrchestratorExplo
 		explorerConfig.Enabled = NewBoolPointer(defaultOrchestratorExplorerEnabled)
 	}
 
-	if explorerConfig.ContainerScrubbingEnabled == nil {
-		explorerConfig.ContainerScrubbingEnabled = NewBoolPointer(defaultOrchestratorExplorerContainerScrubbingEnabled)
+	if explorerConfig.Scrubbing == nil || explorerConfig.Scrubbing.Containers == nil {
+		explorerConfig.Scrubbing = &Scrubbing{Containers: NewBoolPointer(defaultOrchestratorExplorerContainerScrubbingEnabled)}
 	}
 
 	return explorerConfig
