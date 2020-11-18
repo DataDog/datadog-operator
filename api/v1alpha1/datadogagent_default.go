@@ -403,10 +403,8 @@ func DefaultDatadogAgent(ad *DatadogAgent) *DatadogAgent {
 		}
 	}
 
-	if defaultedAD.Spec.DatadogFeatures != nil {
-		if defaultedAD.Spec.DatadogFeatures.OrchestratorExplorer != nil {
-			defaultedAD.Spec.DatadogFeatures.OrchestratorExplorer = DefaultDatadogFeatureOrchestratorExplorer(defaultedAD.Spec.DatadogFeatures.OrchestratorExplorer)
-		}
+	if defaultedAD.Spec.DatadogFeatures != nil && defaultedAD.Spec.DatadogFeatures.OrchestratorExplorer != nil {
+		defaultedAD.Spec.DatadogFeatures.OrchestratorExplorer = DefaultDatadogFeatureOrchestratorExplorer(defaultedAD.Spec.DatadogFeatures.OrchestratorExplorer)
 	}
 
 	if defaultedAD.Spec.ClusterChecksRunner != nil {
