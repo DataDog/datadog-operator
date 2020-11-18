@@ -1540,10 +1540,7 @@ func buildKSMCoreConfigMap(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.ConfigM
 
 func (r *Reconciler) createKubeStateMetricsClusterRole(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, version string) (reconcile.Result, error) {
 	clusterRole := buildKubeStateMetricsCoreRBAC(dda, name, version)
-	if err := controllerutil.SetControllerReference(dda, clusterRole, r.scheme); err != nil {
-		return reconcile.Result{}, err
-	}
-	logger.V(1).Info("createKubeStateMetricsClusterRole", "clusterRole.name", clusterRole.Name)
+	logger.Info("createKubeStateMetricsClusterRole", "clusterRole.name", clusterRole.Name)
 	event := buildEventInfo(clusterRole.Name, clusterRole.Namespace, clusterRoleKind, datadog.CreationEvent)
 	r.recordEvent(dda, event)
 	return reconcile.Result{Requeue: true}, r.client.Create(context.TODO(), clusterRole)
@@ -1562,6 +1559,10 @@ func buildKubeStateMetricsCoreRBAC(dda *datadoghqv1alpha1.DatadogAgent, name, ve
 	rbacRules := []rbacv1.PolicyRule{
 		{
 			APIGroups: []string{datadoghqv1alpha1.CoreAPIGroup},
+			Verbs: []string{
+				datadoghqv1alpha1.ListVerb,
+				datadoghqv1alpha1.WatchVerb,
+			},
 			Resources: []string{
 				datadoghqv1alpha1.ConfigMapsResource,
 				datadoghqv1alpha1.SecretsResource,
@@ -1579,7 +1580,11 @@ func buildKubeStateMetricsCoreRBAC(dda *datadoghqv1alpha1.DatadogAgent, name, ve
 		},
 		{
 			APIGroups: []string{datadoghqv1alpha1.ExtensionsAPIGroup},
-			ResourceNames: []string{
+			Verbs: []string{
+				datadoghqv1alpha1.ListVerb,
+				datadoghqv1alpha1.WatchVerb,
+			},
+			Resources: []string{
 				datadoghqv1alpha1.DaemonsetsResource,
 				datadoghqv1alpha1.DeploymentsResource,
 				datadoghqv1alpha1.ReplicasetsResource,
@@ -1587,7 +1592,11 @@ func buildKubeStateMetricsCoreRBAC(dda *datadoghqv1alpha1.DatadogAgent, name, ve
 		},
 		{
 			APIGroups: []string{datadoghqv1alpha1.AppsAPIGroup},
-			ResourceNames: []string{
+			Verbs: []string{
+				datadoghqv1alpha1.ListVerb,
+				datadoghqv1alpha1.WatchVerb,
+			},
+			Resources: []string{
 				datadoghqv1alpha1.StatefulsetsResource,
 				datadoghqv1alpha1.DaemonsetsResource,
 				datadoghqv1alpha1.DeploymentsResource,
@@ -1596,66 +1605,97 @@ func buildKubeStateMetricsCoreRBAC(dda *datadoghqv1alpha1.DatadogAgent, name, ve
 		},
 		{
 			APIGroups: []string{datadoghqv1alpha1.BatchAPIGroup},
-			ResourceNames: []string{
+			Verbs: []string{
+				datadoghqv1alpha1.ListVerb,
+				datadoghqv1alpha1.WatchVerb,
+			},
+			Resources: []string{
 				datadoghqv1alpha1.CronjobsResource,
 				datadoghqv1alpha1.JobsResource,
 			},
 		},
 		{
 			APIGroups: []string{datadoghqv1alpha1.AutoscalingAPIGroup},
-			ResourceNames: []string{
+			Verbs: []string{
+				datadoghqv1alpha1.ListVerb,
+				datadoghqv1alpha1.WatchVerb,
+			},
+			Resources: []string{
 				datadoghqv1alpha1.HorizontalPodAutoscalersRecource,
 			},
 		},
 		{
 			APIGroups: []string{datadoghqv1alpha1.PolicyAPIGroup},
-			ResourceNames: []string{
+			Verbs: []string{
+				datadoghqv1alpha1.ListVerb,
+				datadoghqv1alpha1.WatchVerb,
+			},
+			Resources: []string{
 				datadoghqv1alpha1.PodDisruptionBudgetsResource,
 			},
 		},
 		{
 			APIGroups: []string{datadoghqv1alpha1.CertificatesAPIGroup},
-			ResourceNames: []string{
+			Verbs: []string{
+				datadoghqv1alpha1.ListVerb,
+				datadoghqv1alpha1.WatchVerb,
+			},
+			Resources: []string{
 				datadoghqv1alpha1.CertificatesSigningRequestsResource,
 			},
 		},
 		{
 			APIGroups: []string{datadoghqv1alpha1.StorageAPIGroup},
-			ResourceNames: []string{
+			Verbs: []string{
+				datadoghqv1alpha1.ListVerb,
+				datadoghqv1alpha1.WatchVerb,
+			},
+			Resources: []string{
 				datadoghqv1alpha1.StorageClassesResource,
 				datadoghqv1alpha1.VolumeAttachments,
 			},
 		},
 		{
 			APIGroups: []string{datadoghqv1alpha1.AdmissionAPIGroup},
-			ResourceNames: []string{
+			Verbs: []string{
+				datadoghqv1alpha1.ListVerb,
+				datadoghqv1alpha1.WatchVerb,
+			},
+			Resources: []string{
 				datadoghqv1alpha1.MutatingConfigResource,
 				datadoghqv1alpha1.ValidatingConfigResource,
 			},
 		},
 		{
 			APIGroups: []string{datadoghqv1alpha1.NetworkingAPIGroup},
-			ResourceNames: []string{
+			Verbs: []string{
+				datadoghqv1alpha1.ListVerb,
+				datadoghqv1alpha1.WatchVerb,
+			},
+			Resources: []string{
 				datadoghqv1alpha1.NetworkPolicyResource,
 				datadoghqv1alpha1.IngressesResource,
 			},
 		},
 		{
 			APIGroups: []string{datadoghqv1alpha1.CoordinationAPIGroup},
-			ResourceNames: []string{
+			Verbs: []string{
+				datadoghqv1alpha1.ListVerb,
+				datadoghqv1alpha1.WatchVerb,
+			},
+			Resources: []string{
 				datadoghqv1alpha1.LeasesResource,
 			},
 		},
 	}
 
-	commonVerbs := []string{
-		datadoghqv1alpha1.ListVerb,
-		datadoghqv1alpha1.WatchVerb,
-	}
-	for _, rule := range rbacRules {
-		rule.Verbs = commonVerbs
-	}
-
+	//commonVerbs := []string{
+	//	datadoghqv1alpha1.ListVerb,
+	//	datadoghqv1alpha1.WatchVerb,
+	//}
+	//for _, rule := range rbacRules {
+	//	rule.Verbs = append(rule.Verbs, commonVerbs...)
+	//}
 	clusterRole.Rules = rbacRules
 	return clusterRole
 }

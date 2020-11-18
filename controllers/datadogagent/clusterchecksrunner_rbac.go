@@ -20,6 +20,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
+const (
+	kubeStateMetricsRBACName = "kube-state-metrics-core"
+)
+
 // manageClusterChecksRunnerRBACs creates deletes and updates the RBACs for the Cluster Checks runner
 func (r *Reconciler) manageClusterChecksRunnerRBACs(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
 	if dda.Spec.ClusterChecksRunner == nil {
@@ -57,12 +61,9 @@ func (r *Reconciler) manageClusterChecksRunnerRBACs(logger logr.Logger, dda *dat
 
 	kubeStateMetricsClusterRole := &rbacv1.ClusterRole{}
 	if isKSMCoreEnabled(dda.Spec.ClusterAgent) {
-		kubeStateMetricsRBACName := "kube-state-metrics-core"
-		// need to create the ksm cr
-		if err := r.client.Get(context.TODO(), types.NamespacedName{Name: kubeStateMetricsRBACName, Namespace: dda.Namespace}, kubeStateMetricsClusterRole); err != nil {
+		if err := r.client.Get(context.TODO(), types.NamespacedName{Name: kubeStateMetricsRBACName}, kubeStateMetricsClusterRole); err != nil {
 			if errors.IsNotFound(err) {
 				return r.createKubeStateMetricsClusterRole(logger, dda, kubeStateMetricsRBACName, clusterChecksRunnerVersion)
-				// buildKubeStateMetricsCoreRBAC(logger, dda, rbacResourcesName, clusterChecksRunnerVersion)
 			}
 			return reconcile.Result{}, err
 		}
