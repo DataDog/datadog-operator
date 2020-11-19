@@ -1,0 +1,7 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogMonitor
+metadata:
+  name: datadogmonitor-sample
+spec:
+  # Add fields here
+  foo: bar
