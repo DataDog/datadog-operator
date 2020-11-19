@@ -3,5 +3,10 @@ kind: DatadogMonitor
 metadata:
   name: datadogmonitor-sample
 spec:
-  # Add fields here
-  foo: bar
+  query: "avg(last_15m):avg:foo{env:staging,service:bar} > 1"
+  type: "metric alert"
+  title: "Latency is increasing on staging"
+  message: "Something is wrong and we need to fix it."
+  tags:
+    - env:staging
+    - service:bar
