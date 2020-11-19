@@ -147,9 +147,6 @@ spec:
                 - type
                 type: object
               type: array
-              x-kubernetes-list-map-keys:
-              - type
-              x-kubernetes-list-type: map
             created:
               description: Created is the time the monitor was created
               format: date-time
