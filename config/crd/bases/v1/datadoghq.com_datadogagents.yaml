@@ -244,8 +244,8 @@ spec:
                             type: string
                         type: object
                       collectEvents:
-                        description: 'enables this to start event collection from
-                          the kubernetes API ref: https://docs.datadoghq.com/agent/kubernetes/event_collection/'
+                        description: 'Enables this to start event collection from
+                          the Kubernetes API ref: https://docs.datadoghq.com/agent/kubernetes/event_collection/'
                         type: boolean
                       confd:
                         description: Confd configuration allowing to specify config
@@ -7778,8 +7778,8 @@ spec:
                     type: boolean
                 type: object
               features:
-                description: Features are features which are running on the agent
-                  as well on the clusterAgent.
+                description: Features running on the Agent
+                  and Cluster Agent.
                 properties:
                   orchestratorExplorer:
                     description: OrchestratorExplorer configuration
@@ -7790,11 +7790,11 @@ spec:
                           ["apikey1", ...], ...}''.'
                         type: string
                       ddUrl:
-                        description: Set this for the datadog endpoint for the orchestrator
+                        description: Set this for the Datadog endpoint for the orchestrator
                           explorer
                         type: string
                       enabled:
-                        description: 'Enable this to activate live kubernetes monitoring.
+                        description: 'Enable this to activate live Kubernetes monitoring.
                           ref: https://docs.datadoghq.com/infrastructure/livecontainers/#kubernetes-resources'
                         type: boolean
                       extraTags:
@@ -7803,11 +7803,11 @@ spec:
                         type: string
                       scrubbing:
                         description: Option to disable scrubbing of sensitive container
-                          data (passwords, tokens etc. ).
+                          data (passwords, tokens, etc. ).
                         properties:
                           containers:
                             description: Deactivate this to stop the scrubbing of
-                              sensitive container data (passwords, tokens etc. ).
+                              sensitive container data (passwords, tokens, etc. ).
                             type: boolean
                         type: object
                     type: object
