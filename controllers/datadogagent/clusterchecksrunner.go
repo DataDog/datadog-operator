@@ -288,6 +288,10 @@ func newClusterChecksRunnerPodTemplate(dda *datadoghqv1alpha1.DatadogAgent, labe
 					VolumeMounts:    volumeMounts,
 					LivenessProbe:   getDefaultLivenessProbe(),
 					ReadinessProbe:  getDefaultReadinessProbe(),
+					Command: []string{
+						"agent",
+						"run",
+					},
 				},
 			},
 			Volumes:           getVolumesForClusterChecksRunner(dda),
@@ -442,12 +446,6 @@ func getVolumesForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []cor
 			},
 		},
 		{
-			Name: "s6-run",
-			VolumeSource: corev1.VolumeSource{
-				EmptyDir: &corev1.EmptyDirVolumeSource{},
-			},
-		},
-		{
 			Name: "remove-corechecks",
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
@@ -472,10 +470,6 @@ func getVolumeMountsForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) 
 			SubPath:   datadoghqv1alpha1.InstallInfoVolumeSubPath,
 			MountPath: datadoghqv1alpha1.InstallInfoVolumePath,
 			ReadOnly:  datadoghqv1alpha1.InstallInfoVolumeReadOnly,
-		},
-		{
-			Name:      "s6-run",
-			MountPath: "/var/run/s6",
 		},
 		{
 			Name:      "remove-corechecks",

@@ -1238,11 +1238,18 @@ func getVolumeMountsForProcessAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []
 	}
 
 	if datadoghqv1alpha1.BoolValue(spec.Agent.SystemProbe.Enabled) {
-		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      datadoghqv1alpha1.SystemProbeSocketVolumeName,
-			MountPath: datadoghqv1alpha1.SystemProbeSocketVolumePath,
-			ReadOnly:  true,
-		})
+		volumeMounts = append(volumeMounts, []corev1.VolumeMount{
+			{
+				Name:      datadoghqv1alpha1.SystemProbeSocketVolumeName,
+				MountPath: datadoghqv1alpha1.SystemProbeSocketVolumePath,
+				ReadOnly:  true,
+			},
+			{
+				Name:      datadoghqv1alpha1.SystemProbeConfigVolumeName,
+				MountPath: datadoghqv1alpha1.SystemProbeConfigVolumePath,
+				SubPath:   datadoghqv1alpha1.SystemProbeConfigVolumeSubPath,
+			},
+		}...)
 	}
 
 	return volumeMounts
