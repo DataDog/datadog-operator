@@ -14,7 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-// DatadogFeatures are features which are running on the agent as well on the clusterAgent.
+// DatadogFeatures are Features running on the Agent and Cluster Agent.
 // +k8s:openapi-gen=true
 type DatadogFeatures struct {
 	// OrchestratorExplorer configuration
@@ -27,7 +27,7 @@ type DatadogAgentSpec struct {
 	// Configure the credentials required to run Agents
 	Credentials AgentCredentials `json:"credentials"`
 
-	// Features are features which are running on the agent as well on the clusterAgent.
+	// Features running on the Agent and Cluster Agent
 	// +optional
 	Features *DatadogFeatures `json:"features,omitempty"`
 
@@ -379,14 +379,14 @@ type ProcessSpec struct {
 // The orchestratorExplorer runs in the process-agent and DCA.
 // +k8s:openapi-gen=true
 type OrchestratorExplorerConfig struct {
-	// Enable this to activate live kubernetes monitoring.
+	// Enable this to activate live Kubernetes monitoring.
 	// ref: https://docs.datadoghq.com/infrastructure/livecontainers/#kubernetes-resources
 	//
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
 	// +optional
-	// Option to disable scrubbing of sensitive container data (passwords, tokens etc. ).
+	// Option to disable scrubbing of sensitive container data (passwords, tokens, etc. ).
 	Scrubbing *Scrubbing `json:"scrubbing,omitempty"`
 
 	// +optional
@@ -394,7 +394,7 @@ type OrchestratorExplorerConfig struct {
 	AdditionalEndpoints *string `json:"additionalEndpoints,omitempty"`
 
 	// +optional
-	// Set this for the datadog endpoint for the orchestrator explorer
+	// Set this for the Datadog endpoint for the orchestrator explorer
 	DDUrl *string `json:"ddUrl,omitempty"`
 
 	// +optional
@@ -404,7 +404,7 @@ type OrchestratorExplorerConfig struct {
 
 // Scrubbing contains configuration to enable or disable scrubbing options
 type Scrubbing struct {
-	// Deactivate this to stop the scrubbing of sensitive container data (passwords, tokens etc. ).
+	// Deactivate this to stop the scrubbing of sensitive container data (passwords, tokens, etc. ).
 	Containers *bool `json:"containers,omitempty"`
 }
 
@@ -606,7 +606,7 @@ type NodeAgentConfig struct {
 	// +listType=set
 	Tags []string `json:"tags,omitempty"`
 
-	// enables this to start event collection from the kubernetes API
+	// Enables this to start event collection from the Kubernetes API
 	// ref: https://docs.datadoghq.com/agent/kubernetes/event_collection/
 	// +optional
 	CollectEvents *bool `json:"collectEvents,omitempty"`
@@ -758,7 +758,7 @@ type ClusterAgentConfig struct {
 	// Autodiscovery via Kube Service annotations is automatically enabled
 	ClusterChecksEnabled *bool `json:"clusterChecksEnabled,omitempty"`
 
-	// Enables this to start event collection from the kubernetes API
+	// Enables this to start event collection from the Kubernetes API
 	// ref: https://docs.datadoghq.com/agent/cluster_agent/event_collection/
 	// +optional
 	CollectEvents *bool `json:"collectEvents,omitempty"`

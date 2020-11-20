@@ -274,7 +274,7 @@ func schema__api_v1alpha1_ClusterAgentConfig(ref common.ReferenceCallback) commo
 					},
 					"collectEvents": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enables this to start event collection from the kubernetes API ref: https://docs.datadoghq.com/agent/cluster_agent/event_collection/",
+							Description: "Enables this to start event collection from the Kubernetes API ref: https://docs.datadoghq.com/agent/cluster_agent/event_collection/",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
@@ -848,7 +848,7 @@ func schema__api_v1alpha1_DatadogAgentSpec(ref common.ReferenceCallback) common.
 					},
 					"features": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Features are features which are running on the agent as well on the clusterAgent.",
+							Description: "Features running on the Agent and Cluster Agent",
 							Ref:         ref("./api/v1alpha1.DatadogFeatures"),
 						},
 					},
@@ -1404,7 +1404,7 @@ func schema__api_v1alpha1_DatadogFeatures(ref common.ReferenceCallback) common.O
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DatadogFeatures are features which are running on the agent as well on the clusterAgent.",
+				Description: "DatadogFeatures are Features running on the Agent and Cluster Agent.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"orchestratorExplorer": {
@@ -2000,7 +2000,7 @@ func schema__api_v1alpha1_NodeAgentConfig(ref common.ReferenceCallback) common.O
 					},
 					"collectEvents": {
 						SchemaProps: spec.SchemaProps{
-							Description: "enables this to start event collection from the kubernetes API ref: https://docs.datadoghq.com/agent/kubernetes/event_collection/",
+							Description: "Enables this to start event collection from the Kubernetes API ref: https://docs.datadoghq.com/agent/kubernetes/event_collection/",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
@@ -2136,14 +2136,14 @@ func schema__api_v1alpha1_OrchestratorExplorerConfig(ref common.ReferenceCallbac
 				Properties: map[string]spec.Schema{
 					"enabled": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enable this to activate live kubernetes monitoring. ref: https://docs.datadoghq.com/infrastructure/livecontainers/#kubernetes-resources",
+							Description: "Enable this to activate live Kubernetes monitoring. ref: https://docs.datadoghq.com/infrastructure/livecontainers/#kubernetes-resources",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},
 					"scrubbing": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Option to disable scrubbing of sensitive container data (passwords, tokens etc. ).",
+							Description: "Option to disable scrubbing of sensitive container data (passwords, tokens, etc. ).",
 							Ref:         ref("./api/v1alpha1.Scrubbing"),
 						},
 					},
@@ -2156,7 +2156,7 @@ func schema__api_v1alpha1_OrchestratorExplorerConfig(ref common.ReferenceCallbac
 					},
 					"ddUrl": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Set this for the datadog endpoint for the orchestrator explorer",
+							Description: "Set this for the Datadog endpoint for the orchestrator explorer",
 							Type:        []string{"string"},
 							Format:      "",
 						},

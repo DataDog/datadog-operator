@@ -3624,7 +3624,7 @@ spec:
                       type: boolean
                     collectEvents:
                       description: 'Enables this to start event collection from the
-                        kubernetes API ref: https://docs.datadoghq.com/agent/cluster_agent/event_collection/'
+                        Kubernetes API ref: https://docs.datadoghq.com/agent/cluster_agent/event_collection/'
                       type: boolean
                     confd:
                       description: Confd Provide additional cluster check configurations.
@@ -7532,8 +7532,7 @@ spec:
                   type: boolean
               type: object
             features:
-              description: Features running on the Agent and
-                Cluster Agent.
+              description: Features running on the Agent and Cluster Agent
               properties:
                 orchestratorExplorer:
                   description: OrchestratorExplorer configuration
