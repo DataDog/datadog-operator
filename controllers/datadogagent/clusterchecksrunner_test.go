@@ -60,6 +60,7 @@ func clusterChecksRunnerDefaultPodSpec() corev1.PodSpec {
 				VolumeMounts:    clusterChecksRunnerDefaultVolumeMounts(),
 				LivenessProbe:   getDefaultLivenessProbe(),
 				ReadinessProbe:  getDefaultReadinessProbe(),
+				Command:         []string{"agent", "run"},
 			},
 		},
 		Volumes: clusterChecksRunnerDefaultVolumes(),
@@ -82,10 +83,6 @@ func clusterChecksRunnerDefaultVolumeMounts() []corev1.VolumeMount {
 			SubPath:   "install_info",
 			MountPath: "/etc/datadog-agent/install_info",
 			ReadOnly:  true,
-		},
-		{
-			Name:      "s6-run",
-			MountPath: "/var/run/s6",
 		},
 		{
 			Name:      "remove-corechecks",
@@ -116,12 +113,6 @@ func clusterChecksRunnerDefaultVolumes() []corev1.Volume {
 						Name: "foo-install-info",
 					},
 				},
-			},
-		},
-		{
-			Name: "s6-run",
-			VolumeSource: corev1.VolumeSource{
-				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
 		},
 		{
