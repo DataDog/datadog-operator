@@ -1444,67 +1444,27 @@ const (
 cluster_check: true
 init_config:
 instances:
-  - kube_state_url: s
-    prometheus_timeout: 30
+  - prometheus_timeout: 30
     min_collection_interval: 30
-    send_pod_phase_service_checks: false
     collectors:
       - pods
-    telemetry: true
-  - kube_state_url: 
-    prometheus_timeout: 30
-    min_collection_interval: 20
-    send_pod_phase_service_checks: false
-    collectors:
-      - configmaps
-      - services
-      - endpoints
-      - daemonsets
-      - deployments
-      - cronjobs
-      - statefulsets
-      - horizontalpodautoscalers
-      - limitranges
-      - resourcequotas
-      - secrets
-      - namespaces
       - replicationcontrollers
-      - resourcequotas
-      - persistentvolumeclaims
-      - persistentvolumes
+      - statefulsets
+      - nodes
+      - cronjobs
       - jobs
       - replicasets
     label_joins:
       kube_job_labels:
-      labels_to_match:
-      - job_name
-      - namespace
-      labels_to_get:
-      - label_service
-      - label_chart_name
-      - label_chart_version
-      - label_team
-      - label_app
-      kube_deployment_labels:
-      labels_to_match:
-      - deployment
-      - namespace
-      labels_to_get:
-      - label_service
-      - label_chart_name
-      - label_chart_version
-      - label_team
-      - label_app
-      kube_daemonset_labels:
-      labels_to_match:
-      - daemonset
-      - namespace
-      labels_to_get:
-      - label_service
-      - label_chart_name
-      - label_chart_version
-      - label_team
-      - label_app
+          labels_to_match:
+            - job_name
+            - namespace
+          labels_to_get:
+            - label_service
+            - label_chart_name
+            - label_chart_version
+            - label_team
+            - label_app
     labels_mapper:
       label_service: service
       label_chart_name: chart_name
@@ -1512,12 +1472,48 @@ instances:
       label_team: team
       label_app: app
     telemetry: true
-  - kube_state_url: http://%%host%%:8080/metrics
-    prometheus_timeout": 30
-    min_collection_interval": 30
-    send_pod_phase_service_checks": false
+  - prometheus_timeout: 30
+    min_collection_interval: 20
     collectors:
-      - nodes
+      - deployments
+      - configmaps
+      - services
+      - endpoints
+      - daemonsets
+      - horizontalpodautoscalers
+      - limitranges
+      - resourcequotas
+      - secrets
+      - namespaces
+      - persistentvolumeclaims
+      - persistentvolumes
+    label_joins:
+      kube_deployment_labels:
+          labels_to_match:
+            - deployment
+            - namespace
+          labels_to_get:
+            - label_service
+            - label_chart_name
+            - label_chart_version
+            - label_team
+            - label_app
+      kube_daemonset_labels:
+          labels_to_match:
+            - daemonset
+            - namespace
+          labels_to_get:
+            - label_service
+            - label_chart_name
+            - label_chart_version
+            - label_team
+            - label_app
+    labels_mapper:
+      label_service: service
+      label_chart_name: chart_name
+      label_chart_version: chart_version
+      label_team: team
+      label_app: app
     telemetry: true
 `
 	ksmCoreCheckName = "kubernetes_state_core.yaml"
