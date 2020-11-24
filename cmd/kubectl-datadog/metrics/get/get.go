@@ -124,6 +124,9 @@ func (o *options) run() error {
 					}
 				}
 			}
+		} else {
+			data = append(data, "")
+			data = append(data, "")
 		}
 		if item.Status.Value != "" {
 			data = append(data, item.Status.Value)
@@ -146,6 +149,8 @@ func (o *options) run() error {
 					}
 				}
 			}
+		} else {
+			data = append(data, "")
 		}
 		table.Append(data)
 	}
