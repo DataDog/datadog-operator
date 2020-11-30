@@ -10,11 +10,6 @@ spec:
   features:
     orchestratorExplorer:
       enabled: true
-      # further settings:
-      # containerScrubbingEnabled
-      # additionalEndpoints
-      # ddUrl
-      # extraTags
   agent:
     image:
       name: "datadog/agent:latest"
