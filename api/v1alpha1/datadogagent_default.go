@@ -35,7 +35,7 @@ const (
 	defaultProcessEnabled                 bool   = false
 	// `false` defaults to live container, agent activated but no process collection
 	defaultProcessCollectionEnabled                      bool   = false
-	defaultOrchestratorExplorerEnabled                   bool   = false
+	defaultOrchestratorExplorerEnabled                   bool   = true
 	defaultOrchestratorExplorerContainerScrubbingEnabled bool   = true
 	defaultMetricsProviderPort                           int32  = 8443
 	defaultClusterChecksEnabled                          bool   = false
