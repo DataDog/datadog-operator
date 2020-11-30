@@ -216,7 +216,7 @@ const (
 	// API Groups
 
 	CoreAPIGroup           = ""
-	ExtensionsAPIGroup     = "extension"
+	ExtensionsAPIGroup     = "extensions"
 	OpenShiftQuotaAPIGroup = "quota.openshift.io"
 	RbacAPIGroup           = "rbac.authorization.k8s.io"
 	AutoscalingAPIGroup    = "autoscaling"

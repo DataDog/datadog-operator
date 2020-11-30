@@ -86,6 +86,10 @@ func clusterAgentDefaultEnvVars() []corev1.EnvVar {
 			Value: "false",
 		},
 		{
+			Name:  "DD_KUBE_STATE_METRICS_CORE_ENABLED",
+			Value: "false",
+		},
+		{
 			Name:  "DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME",
 			Value: fmt.Sprintf("%s-%s", testDdaName, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix),
 		},

@@ -2,17 +2,19 @@ package datadogagent
 
 import (
 	"context"
-	corev1 "k8s.io/api/core/v1"
+
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"github.com/go-logr/logr"
-	rbacv1 "k8s.io/api/rbac/v1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	"github.com/go-logr/logr"
+	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 const (
-	defaultKSMCoreConfigMap = `
+	kubeStateMetricsRBACName = "kube-state-metrics-core"
+	defaultKSMCoreConfigMap  = `
 ---
 cluster_check: true
 init_config:
@@ -173,15 +175,15 @@ func buildKubeStateMetricsCoreRBAC(dda *datadoghqv1alpha1.DatadogAgent, name, ve
 		},
 	}
 
+	clusterRole.Rules = rbacRules
 	commonVerbs := []string{
 		datadoghqv1alpha1.ListVerb,
 		datadoghqv1alpha1.WatchVerb,
 	}
-	for _, rule := range rbacRules {
-		rule.Verbs = commonVerbs
-	}
 
-	clusterRole.Rules = rbacRules
+	for i := range clusterRole.Rules {
+		clusterRole.Rules[i].Verbs = commonVerbs
+	}
 
 	return clusterRole
 }

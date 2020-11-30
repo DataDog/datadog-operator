@@ -20,10 +20,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-const (
-	kubeStateMetricsRBACName = "kube-state-metrics-core"
-)
-
 // manageClusterChecksRunnerRBACs creates deletes and updates the RBACs for the Cluster Checks runner
 func (r *Reconciler) manageClusterChecksRunnerRBACs(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
 	if dda.Spec.ClusterChecksRunner == nil {
