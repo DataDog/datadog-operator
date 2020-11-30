@@ -22,9 +22,11 @@ func (r *Reconciler) manageAgentRBACs(logger logr.Logger, dda *datadoghqv1alpha1
 	if dda.Spec.Agent == nil {
 		return r.cleanupAgentRbacResources(logger, dda)
 	}
+
 	if !isCreateRBACEnabled(dda.Spec.Agent.Rbac) {
 		return reconcile.Result{}, nil
 	}
+
 	rbacResourcesName := getAgentRbacResourcesName(dda)
 	agentVersion := getAgentVersion(dda)
 
@@ -39,6 +41,7 @@ func (r *Reconciler) manageAgentRBACs(logger logr.Logger, dda *datadoghqv1alpha1
 	if result, err := r.updateIfNeededAgentClusterRole(logger, dda, rbacResourcesName, agentVersion, clusterRole); err != nil {
 		return result, err
 	}
+
 	// Create ServiceAccount
 	serviceAccountName := getAgentServiceAccount(dda)
 	serviceAccount := &corev1.ServiceAccount{}
@@ -48,6 +51,7 @@ func (r *Reconciler) manageAgentRBACs(logger logr.Logger, dda *datadoghqv1alpha1
 		}
 		return reconcile.Result{}, err
 	}
+
 	// Create ClusterRoleBinding
 	clusterRoleBinding := &rbacv1.ClusterRoleBinding{}
 	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesName}, clusterRoleBinding); err != nil {

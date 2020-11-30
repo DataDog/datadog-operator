@@ -766,7 +766,7 @@ type ClusterAgentConfig struct {
 	KubeStateMetricsCoreEnabled *bool `json:"kubeStateMetricsCoreEnabled,omitempty"`
 
 	// To override the configuration for the default Kubernetes State Metrics Core check.
-	// Must point to a ConfigMap containing the a valid cluster check configuration.
+	// Must point to a ConfigMap containing a valid cluster check configuration.
 	KubeStateMetricsCoreConf *string `json:"kubeStateMetricsCoreConf,omitempty"`
 
 	// Enable this to start event collection from the kubernetes API
