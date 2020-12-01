@@ -27,6 +27,7 @@ instances:
       - cronjobs
       - jobs
       - replicasets
+    telemetry: true
   - collectors:
       - deployments
       - configmaps
@@ -50,6 +51,9 @@ func (r *Reconciler) manageKubeStateMetricsCore(logger logr.Logger, dda *datadog
 		return reconcile.Result{}, nil
 	}
 	// Only create the default ConfigMap if the conf is not overridden
+	if dda.Spec.ClusterAgent.Config.KubeStateMetricsCoreConf != nil {
+		return reconcile.Result{}, nil
+	}
 	return r.manageConfigMap(logger, dda, datadoghqv1alpha1.GetKubeStateMetricsConfName(dda), buildKSMCoreConfigMap)
 }
 
@@ -81,8 +85,9 @@ func (r *Reconciler) createKubeStateMetricsClusterRole(logger logr.Logger, dda *
 func buildKubeStateMetricsCoreRBAC(dda *datadoghqv1alpha1.DatadogAgent, name, version string) *rbacv1.ClusterRole {
 	clusterRole := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels: getDefaultLabels(dda, name, version),
-			Name:   name,
+			Labels:      getDefaultLabels(dda, name, version),
+			Annotations: getDefaultAnnotations(dda),
+			Name:        name,
 		},
 	}
 
