@@ -36,6 +36,17 @@ type options struct {
 	datadogMetricName string
 }
 
+// metricData provides information about a datadogmetric's status
+type metricData struct {
+	Namespace  string
+	Name       string
+	Active     string
+	Valid      string
+	Value      string
+	References string
+	UpdateTime string
+}
+
 // newOptions provides an instance of getOptions with default values
 func newOptions(streams genericclioptions.IOStreams) *options {
 	o := &options{
@@ -106,59 +117,59 @@ func (o *options) run() error {
 
 	table := newTable(o.Out)
 	for _, item := range ddList.Items {
-		data := []string{item.Namespace, item.Name}
+		metric := &metricData{
+			Namespace: item.Namespace,
+			Name:      item.Name,
+		}
 		if item.Status.Conditions != nil {
 			for i := range item.Status.Conditions {
 				if item.Status.Conditions[i].Type == v1alpha1.DatadogMetricConditionTypeActive {
 					if string(item.Status.Conditions[i].Status) != "" {
-						data = append(data, string(item.Status.Conditions[i].Status))
-					} else {
-						data = append(data, "")
+						metric.Active = string(item.Status.Conditions[i].Status)
 					}
 				}
 				if item.Status.Conditions[i].Type == v1alpha1.DatadogMetricConditionTypeValid {
 					if string(item.Status.Conditions[i].Status) != "" {
-						data = append(data, string(item.Status.Conditions[i].Status))
-					} else {
-						data = append(data, "")
+						metric.Valid = string(item.Status.Conditions[i].Status)
 					}
 				}
 			}
-		} else {
-			data = append(data, "")
-			data = append(data, "")
 		}
 		if item.Status.Value != "" {
-			data = append(data, item.Status.Value)
-		} else {
-			data = append(data, "")
+			metric.Value = item.Status.Value
 		}
 		if item.Status.AutoscalerReferences != "" {
-			data = append(data, item.Status.AutoscalerReferences)
-		} else {
-			data = append(data, "")
+			metric.References = item.Status.AutoscalerReferences
 		}
 		if item.Status.Conditions != nil {
 			for i := range item.Status.Conditions {
 				if item.Status.Conditions[i].Type == v1alpha1.DatadogMetricConditionTypeUpdated {
 					if !item.Status.Conditions[i].LastUpdateTime.IsZero() {
-						age := duration.HumanDuration(time.Since(item.Status.Conditions[i].LastUpdateTime.Time))
-						data = append(data, age)
-					} else {
-						data = append(data, "")
+						metric.UpdateTime = duration.HumanDuration(time.Since(item.Status.Conditions[i].LastUpdateTime.Time))
 					}
 				}
 			}
-		} else {
-			data = append(data, "")
 		}
-		table.Append(data)
+		table.Append(metricDataToData(metric))
 	}
 
 	// Send output
 	table.Render()
 
 	return nil
+}
+
+// metricDataToData converts metricData fields to use in tablewriter
+func metricDataToData(metric *metricData) []string {
+	return []string{
+		metric.Namespace,
+		metric.Name,
+		metric.Active,
+		metric.Valid,
+		metric.Value,
+		metric.References,
+		metric.UpdateTime,
+	}
 }
 
 func newTable(out io.Writer) *tablewriter.Table {
