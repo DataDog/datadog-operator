@@ -17,7 +17,7 @@ jobs:
         run: git fetch --prune --unshallow --tags
       -
         name: Get tag
-        uses: olegtarasov/get-tag@v2
+        uses: little-core-labs/get-git-tag@v3.0.2
         id: tag
       -
         name: Set up Go
