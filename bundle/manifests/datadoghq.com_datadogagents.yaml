@@ -1525,6 +1525,13 @@ spec:
                       description: This path (always mounted from the host) is used by Datadog Agent to store information about processed log files. If the Datadog Agent is restarted, it allows to start tailing the log files from the right offset Default to `/var/lib/datadog-agent/logs`
                       type: string
                   type: object
+                networkPolicy:
+                  description: Provide Agent Network Policy configuration
+                  properties:
+                    create:
+                      description: If true, create a NetworkPolicy for the current agent
+                      type: boolean
+                  type: object
                 priorityClassName:
                   description: If specified, indicates the pod's priority. "system-node-critical" and "system-cluster-critical" are two special keywords which indicate the highest priorities with the former being the highest priority. Any other name must be defined by creating a PriorityClass object with that name. If not specified, the pod priority will be default or zero if there is no default.
                   type: string
@@ -2468,6 +2475,9 @@ spec:
                         enabled:
                           description: Enable the metricsProvider to be able to scale based on metrics in Datadog
                           type: boolean
+                        endpoint:
+                          description: Override the API endpoint for the external metrics server. Defaults to .spec.agent.config.ddUrl or "https://app.datadoghq.com" if that's empty.
+                          type: string
                         port:
                           description: If specified configures the metricsProvider external metrics service port
                           format: int32
@@ -3372,6 +3382,13 @@ spec:
                       type: array
                   required:
                   - name
+                  type: object
+                networkPolicy:
+                  description: Provide Cluster Agent Network Policy configuration
+                  properties:
+                    create:
+                      description: If true, create a NetworkPolicy for the current agent
+                      type: boolean
                   type: object
                 nodeSelector:
                   additionalProperties:
@@ -4750,6 +4767,13 @@ spec:
                       type: array
                   required:
                   - name
+                  type: object
+                networkPolicy:
+                  description: Provide Cluster Checks Runner Network Policy configuration
+                  properties:
+                    create:
+                      description: If true, create a NetworkPolicy for the current agent
+                      type: boolean
                   type: object
                 nodeSelector:
                   additionalProperties:

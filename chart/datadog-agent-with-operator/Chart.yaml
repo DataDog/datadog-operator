@@ -1,6 +1,0 @@
-apiVersion: v2
-name: datadog-agent-with-operator
-description: A Helm chart for Kubernetes
-type: application
-version: PLACEHOLDER_VERSION
-appVersion: PLACEHOLDER_VERSION
