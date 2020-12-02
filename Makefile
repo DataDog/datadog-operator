@@ -31,69 +31,69 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
-all: build test
+##@ Development
 
-build: manager kubectl-datadog
+all: build test ## Build test
 
-# Run tests
-test: build manifests verify-license gotest
+build: manager kubectl-datadog ## Builds manager + kubectl plugin
 
-gotest:
-	go test ./... -coverprofile cover.out
+fmt: ## Run go fmt against code
+	go fmt ./...
 
-# Build manager binary
-manager: generate lint
+vet: ## Run go vet against code
+	go vet ./...
+
+
+##@ Deploy
+
+manager: generate lint ## Build manager binary
 	go build -ldflags '${LDFLAGS}' -o bin/manager main.go
 
-# Run against the configured Kubernetes cluster in ~/.kube/config
-run: generate lint manifests
+
+run: generate lint manifests ## Run against the configured Kubernetes cluster in ~/.kube/config
 	go run ./main.go
 
-# Install CRDs into a cluster
-install: manifests kustomize
+
+install: manifests kustomize ## Install CRDs into a cluster
 	$(KUSTOMIZE) build config/crd | kubectl apply -f -
 
-# Uninstall CRDs from a cluster
-uninstall: manifests kustomize
+
+uninstall: manifests kustomize ## Uninstall CRDs from a cluster
 	$(KUSTOMIZE) build config/crd | kubectl delete -f -
 
-# Deploy controller in the configured Kubernetes cluster in ~/.kube/config
-deploy: manifests kustomize
+
+deploy: manifests kustomize ## Deploy controller in the configured Kubernetes cluster in ~/.kube/config
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
 
-# Generate manifests e.g. CRD, RBAC etc.
-manifests: generate-manifests patch-crds
+manifests: generate-manifests patch-crds ## Generate manifestcd s e.g. CRD, RBAC etc.
 
 generate-manifests: controller-gen
 	$(CONTROLLER_GEN) crd:trivialVersions=true,crdVersions=v1 rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases/v1
 	$(CONTROLLER_GEN) crd:trivialVersions=true,crdVersions=v1beta1 rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases/v1beta1
 
-# Run go fmt against code
-fmt:
-	go fmt ./...
 
-# Run go vet against code
-vet:
-	go vet ./...
-
-# Generate code
-generate: controller-gen generate-openapi
+generate: controller-gen generate-openapi ## Generate code
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
-# Build the docker image
-docker-build: generate docker-build-ci
+
+docker-build: generate docker-build-ci ## Build the docker image
 
 docker-build-ci:
 	docker build . -t ${IMG} --build-arg LDFLAGS="${LDFLAGS}"
 
-# Push the docker image
-docker-push:
+docker-push: ## Push the docker image
 	docker push ${IMG}
 
-# find or download controller-gen
-# download controller-gen if necessary
-controller-gen: install-tools
+##@ Test
+
+test: build manifests verify-license gotest ## Run unit tests and E2E tests
+
+gotest:
+	go test ./... -coverprofile cover.out
+
+
+controller-gen: install-tools ## Find or download controller-gen, download controller-gen if necessary
 ifeq (, $(shell which controller-gen))
 	@{ \
 	set -e ;\
@@ -123,26 +123,23 @@ else
 KUSTOMIZE=$(shell which kustomize)
 endif
 
-# Generate bundle manifests and metadata, then validate generated files.
 .PHONY: bundle
-bundle: manifests
+bundle: manifests ## Generate bundle manifests and metadata, then validate generated files.
 	./bin/operator-sdk generate kustomize manifests -q
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
 	$(KUSTOMIZE) build config/manifests | ./bin/operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
 	./bin/operator-sdk bundle validate ./bundle
 
-# Build the bundle image.
 .PHONY: bundle-build
-bundle-build:
+bundle-build: ## Build the bundle image.
 	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
 
 .PHONY: bundle-push
 bundle-push:
 	docker push $(BUNDLE_IMG)
 
-#
-# Datadog Custom part
-#
+##@ Datadog Custom part
+
 .PHONY: install-tools
 install-tools: bin/golangci-lint bin/operator-sdk bin/yq bin/kubebuilder
 
@@ -151,11 +148,11 @@ generate-openapi: bin/openapi-gen
 	./bin/openapi-gen --logtostderr=true -o "" -i ./api/v1alpha1 -O zz_generated.openapi -p ./api/v1alpha1 -h ./hack/boilerplate.go.txt -r "-"
 
 .PHONY: patch-crds
-patch-crds: bin/yq
+patch-crds: bin/yq ## Patch-crds
 	./hack/patch-crds.sh
 
 .PHONY: lint
-lint: bin/golangci-lint fmt vet
+lint: bin/golangci-lint fmt vet ## Lint
 	./bin/golangci-lint run ./...
 
 .PHONY: license
@@ -163,15 +160,15 @@ license: bin/wwhrd vendor
 	./hack/license.sh
 
 .PHONY: verify-license
-verify-license: bin/wwhrd vendor
+verify-license: bin/wwhrd vendor ## Verify licenses
 	./hack/verify-license.sh
 
 .PHONY: tidy
-tidy:
+tidy: ## Run go tidy
 	go mod tidy -v
 
 .PHONY: vendor
-vendor:
+vendor: ## Run go vendor
 	go mod vendor
 
 kubectl-datadog: fmt vet lint
@@ -194,3 +191,12 @@ bin/operator-sdk:
 
 bin/wwhrd:
 	./hack/install-wwhrd.sh 0.2.4
+
+.DEFAULT_GOAL := help
+.PHONY: help
+help: ## Show this help screen.
+	@echo 'Usage: make <OPTIONS> ... <TARGETS>'
+	@echo ''
+	@echo 'Available targets are:'
+	@echo ''
+	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z0-9_-]+:.*?##/ { printf "  \033[36m%-25s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)

@@ -1,0 +1,205 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.3.0
+  creationTimestamp: null
+  name: datadogmonitors.datadoghq.com
+spec:
+  group: datadoghq.com
+  names:
+    kind: DatadogMonitor
+    listKind: DatadogMonitorList
+    plural: datadogmonitors
+    singular: datadogmonitor
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.id
+      name: id
+      type: string
+    - jsonPath: .status.conditions[?(@.type=='Created')].status
+      name: created
+      type: string
+    - jsonPath: .status.monitorState
+      name: monitor state
+      type: string
+    - jsonPath: .status.conditions[?(@.type=='Updated')].lastUpdateTime
+      name: last updated
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: DatadogMonitor is the Schema for the datadogmonitor API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: DatadogMonitorSpec defines the desired state of DatadogMonitor
+            properties:
+              message:
+                description: Message is the message to include in a monitor notification
+                type: string
+              options:
+                description: Options are the optional parameters of a monitor
+                properties:
+                  evaluationDelay:
+                    description: Time (in seconds) to delay evaluation, as a non-negative
+                      integer. For example, if the value is set to 300 (5min), the
+                      timeframe is set to last_5m and the time is 7:00, the monitor
+                      evaluates data from 6:50 to 6:55. This is useful for AWS CloudWatch
+                      and other backfilled metrics to ensure the monitor always has
+                      data during evaluation.
+                    type: integer
+                  locked:
+                    description: Whether or not the monitor is locked (only editable
+                      by creator and admins).
+                    type: boolean
+                  newHostDelay:
+                    description: Time (in seconds) to allow a host to boot and applications
+                      to fully start before starting the evaluation of monitor results.
+                      Should be a non negative integer.
+                    type: integer
+                  noDataTimeframe:
+                    description: The number of minutes before a monitor notifies after
+                      data stops reporting. Datadog recommends at least 2x the monitor
+                      timeframe for metric alerts or 2 minutes for service checks.
+                      If omitted, 2x the evaluation timeframe is used for metric alerts,
+                      and 24 hours is used for service checks.
+                    type: integer
+                  notifyNoData:
+                    description: A Boolean indicating whether this monitor notifies
+                      when data stops reporting.
+                    type: boolean
+                  renotifyInterval:
+                    description: The number of minutes after the last notification
+                      before a monitor re-notifies on the current status. It only
+                      re-notifies if it’s not resolved.
+                    type: integer
+                  requireFullWindow:
+                    description: A Boolean indicating whether this monitor needs a
+                      full window of data before it’s evaluated. We highly recommend
+                      you set this to false for sparse metrics, otherwise some evaluations
+                      are skipped. Default is false.
+                    type: boolean
+                type: object
+              query:
+                description: Query is the Datadog query
+                type: string
+              tags:
+                description: Tags is the monitor tags used to organize monitors
+                items:
+                  type: string
+                type: array
+              title:
+                description: Title is the monitor title
+                type: string
+              type:
+                description: Type is the monitor type
+                type: string
+            type: object
+          status:
+            description: DatadogMonitorStatus defines the observed state of DatadogMonitor
+            properties:
+              conditions:
+                description: Conditions Represents the latest available observations
+                  of a DatadogMonitor's current state.
+                items:
+                  description: DatadogMonitorCondition describes the current state
+                    of a DatadogMonitor
+                  properties:
+                    lastTransitionTime:
+                      description: Last time the condition transitioned from one status
+                        to another.
+                      format: date-time
+                      type: string
+                    lastUpdateTime:
+                      description: Last time the condition was updated.
+                      format: date-time
+                      type: string
+                    message:
+                      description: A human readable message indicating details about
+                        the transition.
+                      type: string
+                    reason:
+                      description: The reason for the condition's last transition.
+                      type: string
+                    status:
+                      description: Status of the condition, one of True, False, Unknown.
+                      type: string
+                    type:
+                      description: Type of DatadogMonitor condition
+                      type: string
+                  required:
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              created:
+                description: Created is the time the monitor was created
+                format: date-time
+                type: string
+              creator:
+                description: Creator is the identify of the monitor creator
+                type: string
+              downtimeStatus:
+                description: DowntimeStatus defines whether the monitor is downtimed
+                properties:
+                  downtimeId:
+                    type: integer
+                  isDowntimed:
+                    type: boolean
+                type: object
+              id:
+                description: ID is the monitor ID generated in Datadog
+                type: integer
+              monitorState:
+                description: MonitorState is the overall state of monitor
+                type: string
+              triggeredState:
+                description: TriggeredState only includes details for monitor groups
+                  that are triggering
+                items:
+                  description: DatadogMonitorTriggeredState represents the details
+                    of a triggering DatadogMonitor The DatadogMonitor is triggering
+                    if one of its groups is in Alert, Warn, or No Data
+                  properties:
+                    lastTransitionTime:
+                      format: date-time
+                      type: string
+                    monitorGroup:
+                      description: MonitorGroup is the name of the triggering group
+                      type: string
+                    state:
+                      description: DatadogMonitorState represents the overall DatadogMonitor
+                        state
+                      type: string
+                  type: object
+                type: array
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

@@ -2,4 +2,5 @@
 resources:
 - datadog-agent-all.yaml
 - datadogmetric-v1alpha1.yaml
+- datadoghq_v1alpha1_datadogmonitor.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples
