@@ -1382,8 +1382,8 @@ func (in *OrchestratorExplorerConfig) DeepCopyInto(out *OrchestratorExplorerConf
 	}
 	if in.ExtraTags != nil {
 		in, out := &in.ExtraTags, &out.ExtraTags
-		*out = new(string)
-		**out = **in
+		*out = make([]string, len(*in))
+		copy(*out, *in)
 	}
 }
 

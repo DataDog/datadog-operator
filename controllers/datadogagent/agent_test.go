@@ -1137,8 +1137,8 @@ func defaultOrchestratorEnvVars() []corev1.EnvVar {
 			Value: "unix:///host/var/run/docker.sock",
 		},
 	}
-
-	newVars = append(newVars, orchestrator.EnvVars(&explorerConfig)...)
+	orchestratorEnvs, _ := orchestrator.EnvVars(&explorerConfig)
+	newVars = append(newVars, orchestratorEnvs...)
 	newVars = append(newVars, orchestrator.ClusterID())
 
 	return append(newVars, vars...)

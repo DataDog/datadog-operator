@@ -504,7 +504,11 @@ func getEnvVarsForProcessAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.En
 	}
 
 	if isOrchestratorExplorerEnabled(dda) {
-		envVars = append(envVars, orchestrator.EnvVars(dda.Spec.Features.OrchestratorExplorer)...)
+		envs, err := orchestrator.EnvVars(dda.Spec.Features.OrchestratorExplorer)
+		if err != nil {
+			return nil, err
+		}
+		envVars = append(envVars, envs...)
 		envVars = append(envVars, orchestrator.ClusterID())
 	}
 

@@ -7551,9 +7551,12 @@ spec:
                         ref: https://docs.datadoghq.com/infrastructure/livecontainers/#kubernetes-resources'
                       type: boolean
                     extraTags:
-                      description: Additional tags for the collected data in the form
-                        of `a b c`
-                      type: string
+                      description: 'Additional tags for the collected data in the
+                        form of `a b c` Difference to DD_TAGS: this is a cluster agent
+                        option that is used to define custom cluster tags'
+                      items:
+                        type: string
+                      type: array
                     scrubbing:
                       description: Option to disable scrubbing of sensitive container
                         data (passwords, tokens, etc. ).

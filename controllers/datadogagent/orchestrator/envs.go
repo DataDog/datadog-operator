@@ -1,6 +1,7 @@
 package orchestrator
 
 import (
+	"encoding/json"
 	"strconv"
 
 	corev1 "k8s.io/api/core/v1"
@@ -20,7 +21,7 @@ const (
 )
 
 // EnvVars returns the orchestrator vars if the feature is enabled
-func EnvVars(orc *datadoghqv1alpha1.OrchestratorExplorerConfig) []corev1.EnvVar {
+func EnvVars(orc *datadoghqv1alpha1.OrchestratorExplorerConfig) ([]corev1.EnvVar, error) {
 	var envVars []corev1.EnvVar
 	envVars = append(envVars, corev1.EnvVar{
 		Name:  DDOrchestratorExplorerEnabled,
@@ -32,7 +33,7 @@ func EnvVars(orc *datadoghqv1alpha1.OrchestratorExplorerConfig) []corev1.EnvVar 
 		Value: strconv.FormatBool(datadoghqv1alpha1.BoolValue(orc.Scrubbing.Containers)),
 	})
 
-	if orc.AdditionalEndpoints != nil {
+	if orc.DDUrl != nil {
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  DDOrchestratorExplorerDDUrl,
 			Value: *orc.DDUrl,
@@ -44,13 +45,19 @@ func EnvVars(orc *datadoghqv1alpha1.OrchestratorExplorerConfig) []corev1.EnvVar 
 			Value: *orc.AdditionalEndpoints,
 		})
 	}
-	if orc.ExtraTags != nil {
+	if len(orc.ExtraTags) > 0 {
+		tags, err := json.Marshal(orc.ExtraTags)
+		if err != nil {
+			return nil, err
+		}
+
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  DDOrchestratorExplorerExtraTags,
-			Value: *orc.ExtraTags,
+			Value: string(tags),
 		})
 	}
-	return envVars
+
+	return envVars, nil
 }
 
 // ClusterID returns the ClusterID for the orchestrator. The ClusterAgent creates the ID as a configmap while the agent retrieves it from there.

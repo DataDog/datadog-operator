@@ -398,8 +398,10 @@ type OrchestratorExplorerConfig struct {
 	DDUrl *string `json:"ddUrl,omitempty"`
 
 	// +optional
+	// +listType=set
 	// Additional tags for the collected data in the form of `a b c`
-	ExtraTags *string `json:"extraTags,omitempty"`
+	// Difference to DD_TAGS: this is a cluster agent option that is used to define custom cluster tags
+	ExtraTags []string `json:"extraTags,omitempty"`
 }
 
 // Scrubbing contains configuration to enable or disable scrubbing options

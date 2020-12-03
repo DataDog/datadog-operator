@@ -2162,10 +2162,22 @@ func schema__api_v1alpha1_OrchestratorExplorerConfig(ref common.ReferenceCallbac
 						},
 					},
 					"extraTags": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "set",
+							},
+						},
 						SchemaProps: spec.SchemaProps{
-							Description: "Additional tags for the collected data in the form of `a b c`",
-							Type:        []string{"string"},
-							Format:      "",
+							Description: "Additional tags for the collected data in the form of `a b c` Difference to DD_TAGS: this is a cluster agent option that is used to define custom cluster tags",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Type:   []string{"string"},
+										Format: "",
+									},
+								},
+							},
 						},
 					},
 				},

@@ -192,6 +192,11 @@ func newClusterAgentDeploymentFromInstance(agentdeployment *datadoghqv1alpha1.Da
 		annotations[key] = val
 	}
 
+	dcaPodTemplate, err := newClusterAgentPodTemplate(agentdeployment, labels, annotations)
+	if err != nil {
+		return nil, "", err
+	}
+	
 	dca := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        getClusterAgentName(agentdeployment),
@@ -200,7 +205,7 @@ func newClusterAgentDeploymentFromInstance(agentdeployment *datadoghqv1alpha1.Da
 			Annotations: annotations,
 		},
 		Spec: appsv1.DeploymentSpec{
-			Template: newClusterAgentPodTemplate(agentdeployment, labels, annotations),
+			Template: dcaPodTemplate,
 			Replicas: agentdeployment.Spec.ClusterAgent.Replicas,
 			Selector: selector,
 		},
@@ -294,7 +299,7 @@ func (r *Reconciler) cleanupClusterAgent(logger logr.Logger, dda *datadoghqv1alp
 }
 
 // newClusterAgentPodTemplate generates a PodTemplate from a DatadogClusterAgentDeployment spec
-func newClusterAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent, labels, annotations map[string]string) corev1.PodTemplateSpec {
+func newClusterAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent, labels, annotations map[string]string) (corev1.PodTemplateSpec, error) {
 	// copy Spec to configure the Cluster Agent Pod Template
 	clusterAgentSpec := agentdeployment.Spec.ClusterAgent.DeepCopy()
 
@@ -380,6 +385,10 @@ func newClusterAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent,
 	// Add other volumes
 	volumes = append(volumes, agentdeployment.Spec.ClusterAgent.Config.Volumes...)
 	volumeMounts = append(volumeMounts, agentdeployment.Spec.ClusterAgent.Config.VolumeMounts...)
+	envs, err := getEnvVarsForClusterAgent(agentdeployment)
+	if err != nil {
+		return corev1.PodTemplateSpec{}, err
+	}
 
 	podSpec := corev1.PodSpec{
 		ServiceAccountName: getClusterAgentServiceAccount(agentdeployment),
@@ -395,7 +404,7 @@ func newClusterAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent,
 						Protocol:      "TCP",
 					},
 				},
-				Env:          getEnvVarsForClusterAgent(agentdeployment),
+				Env:          envs,
 				VolumeMounts: volumeMounts,
 			},
 		},
@@ -457,7 +466,7 @@ func newClusterAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent,
 		container.Resources = *clusterAgentSpec.Config.Resources
 	}
 
-	return newPodTemplate
+	return newPodTemplate, nil
 }
 
 func getClusterAgentCustomConfigConfigMapName(dda *datadoghqv1alpha1.DatadogAgent) string {
@@ -465,7 +474,7 @@ func getClusterAgentCustomConfigConfigMapName(dda *datadoghqv1alpha1.DatadogAgen
 }
 
 // getEnvVarsForClusterAgent converts Cluster Agent Config into container env vars
-func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.EnvVar {
+func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.EnvVar, error) {
 	spec := &dda.Spec
 
 	complianceEnabled := isComplianceEnabled(dda)
@@ -599,10 +608,15 @@ func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Env
 	}
 
 	if isOrchestratorExplorerEnabled(dda) {
-		envVars = append(envVars, orchestrator.EnvVars(spec.Features.OrchestratorExplorer)...)
+		envs, err := orchestrator.EnvVars(spec.Features.OrchestratorExplorer)
+		if err != nil {
+			return nil, err
+		}
+
+		envVars = append(envVars, envs...)
 	}
 
-	return append(envVars, spec.ClusterAgent.Config.Env...)
+	return append(envVars, spec.ClusterAgent.Config.Env...), nil
 }
 
 func getClusterAgentName(dda *datadoghqv1alpha1.DatadogAgent) string {
