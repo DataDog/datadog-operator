@@ -272,12 +272,7 @@ func getAPMAgentContainers(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.Contai
 		},
 		Env:           envVars,
 		LivenessProbe: getDefaultAPMAgentLivenessProbe(),
-		VolumeMounts: []corev1.VolumeMount{
-			{
-				Name:      datadoghqv1alpha1.ConfigVolumeName,
-				MountPath: datadoghqv1alpha1.ConfigVolumePath,
-			},
-		},
+		VolumeMounts:  getVolumeMountsForAPMAgent(&dda.Spec),
 	}
 	if agentSpec.Apm.Resources != nil {
 		apmContainer.Resources = *agentSpec.Apm.Resources
@@ -1090,7 +1085,6 @@ func getVolumeMountsForAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []corev1.
 		},
 		getVolumeMountForConfd(),
 		getVolumeMountForChecksd(),
-		getVolumeMountForConfig(),
 		{
 			Name:      datadoghqv1alpha1.ProcVolumeName,
 			MountPath: datadoghqv1alpha1.ProcVolumePath,
@@ -1103,11 +1097,8 @@ func getVolumeMountsForAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []corev1.
 		},
 	}
 
-	// Custom config (datadog.yaml) volume
-	if spec.Agent.CustomConfig != nil {
-		volumeMount := getVolumeMountFromCustomConfigSpec(spec.Agent.CustomConfig, datadoghqv1alpha1.AgentCustomConfigVolumeName, datadoghqv1alpha1.AgentCustomConfigVolumePath, datadoghqv1alpha1.AgentCustomConfigVolumeSubPath)
-		volumeMounts = append(volumeMounts, volumeMount)
-	}
+	// Add configuration volumesMount default and extra config (datadog.yaml) volume
+	volumeMounts = append(volumeMounts, getVolumeMountForConfig(spec.Agent.CustomConfig)...)
 
 	// Cri socket volume
 	if spec.Agent.Config.CriSocket != nil {
@@ -1173,11 +1164,21 @@ func getVolumeMountsForAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []corev1.
 	return append(volumeMounts, spec.Agent.Config.VolumeMounts...)
 }
 
-func getVolumeMountForConfig() corev1.VolumeMount {
-	return corev1.VolumeMount{
-		Name:      datadoghqv1alpha1.ConfigVolumeName,
-		MountPath: datadoghqv1alpha1.ConfigVolumePath,
+func getVolumeMountForConfig(customConfig *datadoghqv1alpha1.CustomConfigSpec) []corev1.VolumeMount {
+	volumeMounts := []corev1.VolumeMount{
+		{
+			Name:      datadoghqv1alpha1.ConfigVolumeName,
+			MountPath: datadoghqv1alpha1.ConfigVolumePath,
+		},
 	}
+
+	// Custom config (datadog.yaml) volume
+	if customConfig != nil {
+		volumeMount := getVolumeMountFromCustomConfigSpec(customConfig, datadoghqv1alpha1.AgentCustomConfigVolumeName, datadoghqv1alpha1.AgentCustomConfigVolumePath, datadoghqv1alpha1.AgentCustomConfigVolumeSubPath)
+		volumeMounts = append(volumeMounts, volumeMount)
+	}
+
+	return volumeMounts
 }
 
 func getVolumeMountForConfd() corev1.VolumeMount {
@@ -1205,10 +1206,6 @@ func getVolumeMountsForProcessAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []
 			ReadOnly:  true,
 		},
 		{
-			Name:      datadoghqv1alpha1.ConfigVolumeName,
-			MountPath: datadoghqv1alpha1.ConfigVolumePath,
-		},
-		{
 			Name:      datadoghqv1alpha1.PasswdVolumeName,
 			MountPath: datadoghqv1alpha1.PasswdVolumePath,
 			ReadOnly:  true,
@@ -1219,6 +1216,9 @@ func getVolumeMountsForProcessAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []
 			ReadOnly:  true,
 		},
 	}
+
+	// Add configuration mount
+	volumeMounts = append(volumeMounts, getVolumeMountForConfig(spec.Agent.CustomConfig)...)
 
 	// Cri socket volume
 	if spec.Agent.Config.CriSocket != nil {
@@ -1251,6 +1251,17 @@ func getVolumeMountsForProcessAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []
 			},
 		}...)
 	}
+
+	return volumeMounts
+}
+
+// getVolumeMountsForAgent defines mounted volumes for the Process Agent
+func getVolumeMountsForAPMAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []corev1.VolumeMount {
+	// Default mounted volumes
+	volumeMounts := []corev1.VolumeMount{}
+
+	// Add configuration volumesMount default and custom config (datadog.yaml) volume
+	volumeMounts = append(volumeMounts, getVolumeMountForConfig(spec.Agent.CustomConfig)...)
 
 	return volumeMounts
 }

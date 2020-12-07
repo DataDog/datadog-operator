@@ -77,6 +77,23 @@ func defaultLivenessProbe() *corev1.Probe {
 	}
 }
 
+func defaultAPMAgentLivenessProbe() *corev1.Probe {
+	return &corev1.Probe{
+		InitialDelaySeconds: 15,
+		PeriodSeconds:       15,
+		TimeoutSeconds:      5,
+		SuccessThreshold:    0,
+		FailureThreshold:    0,
+		Handler: corev1.Handler{
+			TCPSocket: &corev1.TCPSocketAction{
+				Port: intstr.IntOrString{
+					IntVal: 8126,
+				},
+			},
+		},
+	}
+}
+
 func defaultReadinessProbe() *corev1.Probe {
 	return &corev1.Probe{
 		InitialDelaySeconds: 15,
@@ -450,10 +467,6 @@ func defaultMountVolume() []corev1.VolumeMount {
 			ReadOnly:  true,
 		},
 		{
-			Name:      "config",
-			MountPath: "/etc/datadog-agent",
-		},
-		{
 			Name:      "procdir",
 			MountPath: "/host/proc",
 			ReadOnly:  true,
@@ -462,6 +475,10 @@ func defaultMountVolume() []corev1.VolumeMount {
 			Name:      "cgroups",
 			MountPath: "/host/sys/fs/cgroup",
 			ReadOnly:  true,
+		},
+		{
+			Name:      "config",
+			MountPath: "/etc/datadog-agent",
 		},
 		{
 			Name:      "runtimesocketdir",
@@ -646,6 +663,37 @@ func defaultEnvVars() []corev1.EnvVar {
 	}
 }
 
+func defaultAPMContainerEnvVars() []corev1.EnvVar {
+	return []corev1.EnvVar{
+		{
+			Name:  "DD_APM_ENABLED",
+			Value: "true",
+		},
+		{Name: "DD_LOG_LEVEL", Value: "INFO"},
+		{Name: "DD_SITE"},
+		{
+			Name: "DD_KUBERNETES_KUBELET_HOST",
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: FieldPathStatusHostIP,
+				},
+			},
+		},
+		{
+			Name:  "KUBERNETES",
+			Value: "yes",
+		},
+		{
+			Name:      "DD_API_KEY",
+			ValueFrom: apiKeyValue(),
+		},
+		{
+			Name:  "DOCKER_HOST",
+			Value: "unix:///host/var/run/docker.sock",
+		},
+	}
+}
+
 func defaultSystemProbeEnvVars() []corev1.EnvVar {
 	return []corev1.EnvVar{
 		{
@@ -822,6 +870,29 @@ func defaultPodSpec() corev1.PodSpec {
 		},
 		Volumes: defaultVolumes(),
 	}
+}
+
+func appendDefaultAPMAgentContainer(podSpec *corev1.PodSpec) {
+	apmContainer := corev1.Container{
+		Name:            "trace-agent",
+		Image:           "datadog/agent:latest",
+		ImagePullPolicy: corev1.PullIfNotPresent,
+		Command:         []string{"trace-agent", "--config=/etc/datadog-agent/datadog.yaml"},
+		Resources:       corev1.ResourceRequirements{},
+		Ports:           []corev1.ContainerPort{{Name: "traceport", ContainerPort: 8126, Protocol: "TCP"}},
+		Env:             defaultAPMContainerEnvVars(),
+		VolumeMounts: []corev1.VolumeMount{
+			{Name: "config", MountPath: "/etc/datadog-agent"},
+			{
+				Name:      "custom-datadog-yaml",
+				ReadOnly:  true,
+				MountPath: "/etc/datadog-agent/datadog.yaml",
+				SubPath:   "datadog.yaml",
+			},
+		},
+		LivenessProbe: defaultAPMAgentLivenessProbe(),
+	}
+	podSpec.Containers = append(podSpec.Containers, apmContainer)
 }
 
 func defaultSystemProbePodSpec() corev1.PodSpec {
@@ -1470,8 +1541,10 @@ func Test_newExtendedDaemonSetFromInstance_CustomConfigMaps(t *testing.T) {
 }
 
 func Test_newExtendedDaemonSetFromInstance_CustomDatadogYaml(t *testing.T) {
-	customConfigMapCustomDatadogYaml := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{UseEDS: true, ClusterAgentEnabled: true, CustomConfig: "foo: bar\nbar: foo"})
+	customConfigMapCustomDatadogYaml := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{UseEDS: true, ClusterAgentEnabled: true, APMEnabled: true, CustomConfig: "foo: bar\nbar: foo"})
 	customConfigMapCustomDatadogYamlSpec := defaultPodSpec()
+	appendDefaultAPMAgentContainer(&customConfigMapCustomDatadogYamlSpec)
+
 	customConfigMapCustomDatadogYamlSpec.Volumes = []corev1.Volume{
 		{
 			Name: datadoghqv1alpha1.InstallInfoVolumeName,
@@ -1554,10 +1627,6 @@ func Test_newExtendedDaemonSetFromInstance_CustomDatadogYaml(t *testing.T) {
 			ReadOnly:  true,
 		},
 		{
-			Name:      "config",
-			MountPath: "/etc/datadog-agent",
-		},
-		{
 			Name:      "procdir",
 			MountPath: "/host/proc",
 			ReadOnly:  true,
@@ -1566,6 +1635,10 @@ func Test_newExtendedDaemonSetFromInstance_CustomDatadogYaml(t *testing.T) {
 			Name:      "cgroups",
 			MountPath: "/host/sys/fs/cgroup",
 			ReadOnly:  true,
+		},
+		{
+			Name:      "config",
+			MountPath: "/etc/datadog-agent",
 		},
 		{
 			Name:      "custom-datadog-yaml",

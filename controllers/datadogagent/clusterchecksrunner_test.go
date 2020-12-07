@@ -75,10 +75,6 @@ func clusterChecksRunnerDefaultVolumeMounts() []corev1.VolumeMount {
 			ReadOnly:  true,
 		},
 		{
-			Name:      datadoghqv1alpha1.ConfigVolumeName,
-			MountPath: datadoghqv1alpha1.ConfigVolumePath,
-		},
-		{
 			Name:      "installinfo",
 			SubPath:   "install_info",
 			MountPath: "/etc/datadog-agent/install_info",
@@ -87,6 +83,10 @@ func clusterChecksRunnerDefaultVolumeMounts() []corev1.VolumeMount {
 		{
 			Name:      "remove-corechecks",
 			MountPath: fmt.Sprintf("%s/%s", datadoghqv1alpha1.ConfigVolumePath, "conf.d"),
+		},
+		{
+			Name:      datadoghqv1alpha1.ConfigVolumeName,
+			MountPath: datadoghqv1alpha1.ConfigVolumePath,
 		},
 	}
 }
