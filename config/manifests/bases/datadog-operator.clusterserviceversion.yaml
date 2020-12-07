@@ -22,6 +22,11 @@ spec:
       kind: DatadogMetric
       name: datadogmetrics.datadoghq.com
       version: v1alpha1
+    - description: DatadogMonitor is the Schema for the datadogmonitor API
+      displayName: Datadog Monitor
+      kind: DatadogMonitor
+      name: datadogmonitors.datadoghq.com
+      version: v1alpha1
   description: Datadog provides a modern monitoring and analytics platform. Gather metrics, logs and traces for full observability of your Kubernetes cluster with Datadog Operator.
   displayName: Datadog Operator
   icon:
