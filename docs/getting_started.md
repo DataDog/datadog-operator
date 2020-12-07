@@ -16,28 +16,37 @@ Using the Datadog Operator requires the following prerequisites:
 In order to deploy a Datadog agent with the operator in the minimum number of steps, the [`datadog-agent-with-operator`](https://github.com/DataDog/datadog-operator/tree/master/chart/datadog-agent-with-operator) helm chart can be used.
 Here are the steps:
 
-1. [Download the chart][3]:
+1. Install the Datadog Operator:
 
    ```shell
-   curl -Lo datadog-agent-with-operator.tar.gz https://github.com/DataDog/datadog-operator/releases/latest/download/datadog-agent-with-operator.tar.gz
+   helm repo add datadog https://helm.datadoghq.com
+   helm install my-datadog-operator datadog/datadog-operator
    ```
 
-2. Create a file with the spec of your agent. The simplest configuration is:
+1. Create a file with the spec of your DatadogAgent deployment configuration. The simplest configuration is:
 
    ```yaml
-   credentials:
-     apiKey: <DATADOG_API_KEY>
-     appKey: <DATADOG_APP_KEY>
-   agent:
-     image:
-       name: "datadog/agent:latest"
+   apiVersion: datadoghq.com/v1alpha1
+   kind: DatadogAgent
+   metadata:
+     name: datadog
+   spec:
+     credentials:
+       apiKey: <DATADOG_API_KEY>
+       appKey: <DATADOG_APP_KEY>
+     agent:
+       image:
+         name: "gcr.io/datadoghq/agent:latest"
+     clusterAgent:
+       image:
+         name: "gcr.io/datadoghq/cluster-agent:latest"
    ```
 
    Replace `<DATADOG_API_KEY>` and `<DATADOG_APP_KEY>` with your [Datadog API and application keys][4]
 
-3. Deploy the Datadog agent with the above configuration file:
+2. Deploy the Datadog agent with the above configuration file:
    ```shell
-   helm install --set-file agent_spec=/path/to/your/datadog-agent.yaml datadog datadog-agent-with-operator.tar.gz
+   kubectl apply -f agent_spec=/path/to/your/datadog-agent.yaml
    ```
 
 ## Cleanup
