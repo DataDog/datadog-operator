@@ -16,7 +16,7 @@ Using the Datadog Operator requires the following prerequisites:
 In order to deploy a Datadog agent with the operator in the minimum number of steps, the [`datadog-agent-with-operator`](https://github.com/DataDog/datadog-operator/tree/master/chart/datadog-agent-with-operator) helm chart can be used.
 Here are the steps:
 
-1. Install the Datadog Operator:
+1. Install the [Datadog Operator][3]:
 
    ```shell
    helm repo add datadog https://helm.datadoghq.com
@@ -60,5 +60,5 @@ helm delete datadog
 
 [1]: https://helm.sh
 [2]: https://kubernetes.io/docs/tasks/tools/install-kubectl/
-[3]: https://github.com/DataDog/datadog-operator/releases/latest/download/datadog-agent-with-operator.tar.gz
+[3]: https://artifacthub.io/packages/helm/datadog/datadog-operator
 [4]: https://app.datadoghq.com/account/settings#api
