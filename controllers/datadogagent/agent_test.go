@@ -25,6 +25,7 @@ import (
 )
 
 const testDdaName = "foo"
+const agentConfigFile = "/etc/datadog-agent/datadog.yaml"
 
 func apiKeyValue() *corev1.EnvVarSource {
 	return &corev1.EnvVarSource{
@@ -877,7 +878,7 @@ func appendDefaultAPMAgentContainer(podSpec *corev1.PodSpec) {
 		Name:            "trace-agent",
 		Image:           "datadog/agent:latest",
 		ImagePullPolicy: corev1.PullIfNotPresent,
-		Command:         []string{"trace-agent", "--config=/etc/datadog-agent/datadog.yaml"},
+		Command:         []string{"trace-agent", "--config=" + agentConfigFile},
 		Resources:       corev1.ResourceRequirements{},
 		Ports:           []corev1.ContainerPort{{Name: "traceport", ContainerPort: 8126, Protocol: "TCP"}},
 		Env:             defaultAPMContainerEnvVars(),
@@ -886,7 +887,7 @@ func appendDefaultAPMAgentContainer(podSpec *corev1.PodSpec) {
 			{
 				Name:      "custom-datadog-yaml",
 				ReadOnly:  true,
-				MountPath: "/etc/datadog-agent/datadog.yaml",
+				MountPath: agentConfigFile,
 				SubPath:   "datadog.yaml",
 			},
 		},
@@ -1092,7 +1093,7 @@ func runtimeSecurityAgentPodSpec() corev1.PodSpec {
 				Command: []string{
 					"security-agent",
 					"start",
-					"-c=/etc/datadog-agent/datadog.yaml",
+					"-c=" + agentConfigFile,
 				},
 				SecurityContext: &corev1.SecurityContext{
 					Capabilities: &corev1.Capabilities{
@@ -1167,7 +1168,7 @@ func complianceSecurityAgentPodSpec() corev1.PodSpec {
 				Command: []string{
 					"security-agent",
 					"start",
-					"-c=/etc/datadog-agent/datadog.yaml",
+					"-c=" + agentConfigFile,
 				},
 				SecurityContext: &corev1.SecurityContext{
 					Capabilities: &corev1.Capabilities{
@@ -1642,7 +1643,7 @@ func Test_newExtendedDaemonSetFromInstance_CustomDatadogYaml(t *testing.T) {
 		},
 		{
 			Name:      "custom-datadog-yaml",
-			MountPath: "/etc/datadog-agent/datadog.yaml",
+			MountPath: agentConfigFile,
 			SubPath:   "datadog.yaml",
 			ReadOnly:  true,
 		},
