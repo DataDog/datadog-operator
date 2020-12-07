@@ -724,7 +724,7 @@ func defaultSystemProbeEnvVars() []corev1.EnvVar {
 	}
 }
 
-func securityAgentEnvVars(compliance, runtime bool) []corev1.EnvVar {
+func securityAgentEnvVars(compliance, runtime bool, duration string) []corev1.EnvVar {
 	env := []corev1.EnvVar{
 		{
 			Name:  "DD_COMPLIANCE_CONFIG_ENABLED",
@@ -733,12 +733,17 @@ func securityAgentEnvVars(compliance, runtime bool) []corev1.EnvVar {
 	}
 
 	if compliance {
-		env = append(env, []corev1.EnvVar{
-			{
-				Name:  "HOST_ROOT",
-				Value: "/host/root",
-			},
-		}...)
+		if duration != "" {
+			env = append(env, corev1.EnvVar{
+				Name:  "DD_COMPLIANCE_CONFIG_CHECK_INTERVAL",
+				Value: duration,
+			})
+		}
+
+		env = append(env, corev1.EnvVar{
+			Name:  "HOST_ROOT",
+			Value: "/host/root",
+		})
 	}
 
 	env = append(env, []corev1.EnvVar{
@@ -1000,7 +1005,7 @@ func defaultSystemProbePodSpec() corev1.PodSpec {
 	}
 }
 
-func runtimeSecurityAgentPodSpec() corev1.PodSpec {
+func runtimeSecurityAgentPodSpec(complianceDuration string) corev1.PodSpec {
 	return corev1.PodSpec{
 		ServiceAccountName: "foo-agent",
 		HostPID:            false,
@@ -1101,7 +1106,7 @@ func runtimeSecurityAgentPodSpec() corev1.PodSpec {
 					},
 				},
 				Resources:    corev1.ResourceRequirements{},
-				Env:          securityAgentEnvVars(false, true),
+				Env:          securityAgentEnvVars(false, true, complianceDuration),
 				VolumeMounts: runtimeSecurityAgentMountVolume(),
 			},
 		},
@@ -1109,7 +1114,7 @@ func runtimeSecurityAgentPodSpec() corev1.PodSpec {
 	}
 }
 
-func complianceSecurityAgentPodSpec() corev1.PodSpec {
+func complianceSecurityAgentPodSpec(complianceDuration string) corev1.PodSpec {
 	return corev1.PodSpec{
 		ServiceAccountName: "foo-agent",
 		HostPID:            true,
@@ -1176,7 +1181,7 @@ func complianceSecurityAgentPodSpec() corev1.PodSpec {
 					},
 				},
 				Resources:    corev1.ResourceRequirements{},
-				Env:          securityAgentEnvVars(true, false),
+				Env:          securityAgentEnvVars(true, false, complianceDuration),
 				VolumeMounts: complianceSecurityAgentMountVolume(),
 			},
 		},
@@ -1306,7 +1311,10 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 						"app.kubernetes.io/part-of":     "foo",
 						"app.kubernetes.io/version":     "",
 					},
-					Annotations: map[string]string{"agent.datadoghq.com/agentspechash": defaultAgentHash},
+					Annotations: map[string]string{
+						"agent.datadoghq.com/agentspechash": defaultAgentHash,
+						"annotations-foo-key":               "annotations-bar-value",
+					},
 				},
 				Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
 					Template: corev1.PodTemplateSpec{
@@ -1692,6 +1700,94 @@ func Test_newExtendedDaemonSetFromInstance_CustomDatadogYaml(t *testing.T) {
 						Annotations: make(map[string]string),
 					},
 					Spec: customConfigMapCustomDatadogYamlSpec,
+				},
+				Strategy: getDefaultEDSStrategy(),
+			},
+		},
+	}
+	test.Run(t)
+}
+
+func updateContainersEnv(container *corev1.Container, envName string, envValue string) {
+	found := false
+	for envKey := range container.Env {
+		if container.Env[envKey].Name == envName {
+			container.Env[envKey].Value = envValue
+			found = true
+		}
+	}
+	if !found {
+		container.Env = append(container.Env, corev1.EnvVar{
+			Name:  envName,
+			Value: envValue,
+		})
+	}
+}
+
+func Test_ExtraParameters(t *testing.T) {
+	site := "datadoghq.eu"
+	options := &test.NewDatadogAgentOptions{
+		UseEDS:                         true,
+		ClusterAgentEnabled:            true,
+		Annotations:                    map[string]string{"foo": "bar"},
+		Labels:                         map[string]string{"bar": "foo"},
+		AgentSpecAdditionalLabels:      map[string]string{"pod-foo": "bar"},
+		AgentSpecAdditionalAnnotations: map[string]string{"pod-bar": "foo"},
+		Site:                           site,
+		ComplianceEnabled:              true,
+		ComplianceCheckInterval:        metav1.Duration{Duration: time.Minute},
+	}
+	datadogAgent := test.NewDefaultedDatadogAgent("bar", "foo", options)
+	customConfigMagCustomDatadogYamlHash, _ := comparison.GenerateMD5ForSpec(datadogAgent.Spec)
+
+	podSpec := complianceSecurityAgentPodSpec("60000000000")
+	updateContainersEnv(&podSpec.InitContainers[1], "DD_SITE", site)
+	updateContainersEnv(&podSpec.Containers[0], "DD_SITE", site)
+	updateContainersEnv(&podSpec.Containers[1], "DD_SITE", site)
+
+	test := extendedDaemonSetFromInstanceTest{
+		name:            "with custom config (datadog.yaml)",
+		agentdeployment: datadogAgent,
+		wantErr:         false,
+		want: &edsdatadoghqv1alpha1.ExtendedDaemonSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "bar",
+				Name:      "foo-agent",
+				Labels: map[string]string{
+					"agent.datadoghq.com/name":      "foo",
+					"agent.datadoghq.com/component": "agent",
+					"app.kubernetes.io/instance":    "agent",
+					"app.kubernetes.io/managed-by":  "datadog-operator",
+					"app.kubernetes.io/name":        "datadog-agent-deployment",
+					"app.kubernetes.io/part-of":     "foo",
+					"app.kubernetes.io/version":     "",
+					"bar":                           "foo",
+				},
+				Annotations: map[string]string{
+					"agent.datadoghq.com/agentspechash": customConfigMagCustomDatadogYamlHash,
+					"foo":                               "bar",
+				},
+			},
+			Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						GenerateName: "foo",
+						Namespace:    "bar",
+						Labels: map[string]string{
+							"agent.datadoghq.com/name":      "foo",
+							"agent.datadoghq.com/component": "agent",
+							"app.kubernetes.io/instance":    "agent",
+							"app.kubernetes.io/managed-by":  "datadog-operator",
+							"app.kubernetes.io/name":        "datadog-agent-deployment",
+							"app.kubernetes.io/part-of":     "foo",
+							"app.kubernetes.io/version":     "",
+							"pod-foo":                       "bar",
+						},
+						Annotations: map[string]string{
+							"pod-bar": "foo",
+						},
+					},
+					Spec: podSpec,
 				},
 				Strategy: getDefaultEDSStrategy(),
 			},
@@ -2199,7 +2295,7 @@ func Test_newExtendedDaemonSetFromInstance_SystemProbe(t *testing.T) {
 }
 
 func Test_newExtendedDaemonSetFromInstance_SecurityAgent_Compliance(t *testing.T) {
-	securityAgentPodSpec := complianceSecurityAgentPodSpec()
+	securityAgentPodSpec := complianceSecurityAgentPodSpec("")
 
 	dda := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
 		UseEDS:                       true,
@@ -2256,7 +2352,7 @@ func Test_newExtendedDaemonSetFromInstance_SecurityAgent_Compliance(t *testing.T
 }
 
 func Test_newExtendedDaemonSetFromInstance_SecurityAgent_Runtime(t *testing.T) {
-	securityAgentPodSpec := runtimeSecurityAgentPodSpec()
+	securityAgentPodSpec := runtimeSecurityAgentPodSpec("")
 
 	dda := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
 		UseEDS:                       true,

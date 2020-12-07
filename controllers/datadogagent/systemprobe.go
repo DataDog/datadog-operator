@@ -41,7 +41,7 @@ func (r *Reconciler) manageSystemProbeDependencies(logger logr.Logger, dda *data
 }
 
 func buildSystemProbeConfigConfiMap(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.ConfigMap, error) {
-	if !isSystemProbeEnabled(dda) {
+	if !isSystemProbeEnabled(&dda.Spec) {
 		return nil, nil
 	}
 
@@ -62,10 +62,10 @@ func buildSystemProbeConfigConfiMap(dda *datadoghqv1alpha1.DatadogAgent) (*corev
 				datadoghqv1alpha1.BoolToString(spec.EnableTCPQueueLength),
 				datadoghqv1alpha1.BoolToString(spec.EnableOOMKill),
 				datadoghqv1alpha1.BoolToString(spec.CollectDNSStats),
-				isRuntimeSecurityEnabled(dda),
+				isRuntimeSecurityEnabled(&dda.Spec),
 				filepath.Join(datadoghqv1alpha1.SystemProbeSocketVolumePath, "runtime-security.sock"),
 				datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumePath,
-				isSyscallMonitorEnabled(dda),
+				isSyscallMonitorEnabled(&dda.Spec),
 			),
 		},
 	}
@@ -93,7 +93,7 @@ runtime_security_config:
 `
 
 func buildSystemProbeSecCompConfigMap(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.ConfigMap, error) {
-	if !isSystemProbeEnabled(dda) {
+	if !isSystemProbeEnabled(&dda.Spec) {
 		return nil, nil
 	}
 
