@@ -25,6 +25,7 @@ import (
 )
 
 const testDdaName = "foo"
+const agentConfigFile = "/etc/datadog-agent/datadog.yaml"
 
 func apiKeyValue() *corev1.EnvVarSource {
 	return &corev1.EnvVarSource{
@@ -71,6 +72,23 @@ func defaultLivenessProbe() *corev1.Probe {
 				Path: "/live",
 				Port: intstr.IntOrString{
 					IntVal: 5555,
+				},
+			},
+		},
+	}
+}
+
+func defaultAPMAgentLivenessProbe() *corev1.Probe {
+	return &corev1.Probe{
+		InitialDelaySeconds: 15,
+		PeriodSeconds:       15,
+		TimeoutSeconds:      5,
+		SuccessThreshold:    0,
+		FailureThreshold:    0,
+		Handler: corev1.Handler{
+			TCPSocket: &corev1.TCPSocketAction{
+				Port: intstr.IntOrString{
+					IntVal: 8126,
 				},
 			},
 		},
@@ -450,10 +468,6 @@ func defaultMountVolume() []corev1.VolumeMount {
 			ReadOnly:  true,
 		},
 		{
-			Name:      "config",
-			MountPath: "/etc/datadog-agent",
-		},
-		{
 			Name:      "procdir",
 			MountPath: "/host/proc",
 			ReadOnly:  true,
@@ -462,6 +476,10 @@ func defaultMountVolume() []corev1.VolumeMount {
 			Name:      "cgroups",
 			MountPath: "/host/sys/fs/cgroup",
 			ReadOnly:  true,
+		},
+		{
+			Name:      "config",
+			MountPath: "/etc/datadog-agent",
 		},
 		{
 			Name:      "runtimesocketdir",
@@ -646,6 +664,37 @@ func defaultEnvVars() []corev1.EnvVar {
 	}
 }
 
+func defaultAPMContainerEnvVars() []corev1.EnvVar {
+	return []corev1.EnvVar{
+		{
+			Name:  "DD_APM_ENABLED",
+			Value: "true",
+		},
+		{Name: "DD_LOG_LEVEL", Value: "INFO"},
+		{Name: "DD_SITE"},
+		{
+			Name: "DD_KUBERNETES_KUBELET_HOST",
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: FieldPathStatusHostIP,
+				},
+			},
+		},
+		{
+			Name:  "KUBERNETES",
+			Value: "yes",
+		},
+		{
+			Name:      "DD_API_KEY",
+			ValueFrom: apiKeyValue(),
+		},
+		{
+			Name:  "DOCKER_HOST",
+			Value: "unix:///host/var/run/docker.sock",
+		},
+	}
+}
+
 func defaultSystemProbeEnvVars() []corev1.EnvVar {
 	return []corev1.EnvVar{
 		{
@@ -675,7 +724,7 @@ func defaultSystemProbeEnvVars() []corev1.EnvVar {
 	}
 }
 
-func securityAgentEnvVars(compliance, runtime bool) []corev1.EnvVar {
+func securityAgentEnvVars(compliance, runtime bool, duration string) []corev1.EnvVar {
 	env := []corev1.EnvVar{
 		{
 			Name:  "DD_COMPLIANCE_CONFIG_ENABLED",
@@ -684,12 +733,17 @@ func securityAgentEnvVars(compliance, runtime bool) []corev1.EnvVar {
 	}
 
 	if compliance {
-		env = append(env, []corev1.EnvVar{
-			{
-				Name:  "HOST_ROOT",
-				Value: "/host/root",
-			},
-		}...)
+		if duration != "" {
+			env = append(env, corev1.EnvVar{
+				Name:  "DD_COMPLIANCE_CONFIG_CHECK_INTERVAL",
+				Value: duration,
+			})
+		}
+
+		env = append(env, corev1.EnvVar{
+			Name:  "HOST_ROOT",
+			Value: "/host/root",
+		})
 	}
 
 	env = append(env, []corev1.EnvVar{
@@ -824,6 +878,29 @@ func defaultPodSpec() corev1.PodSpec {
 	}
 }
 
+func appendDefaultAPMAgentContainer(podSpec *corev1.PodSpec) {
+	apmContainer := corev1.Container{
+		Name:            "trace-agent",
+		Image:           "datadog/agent:latest",
+		ImagePullPolicy: corev1.PullIfNotPresent,
+		Command:         []string{"trace-agent", "--config=" + agentConfigFile},
+		Resources:       corev1.ResourceRequirements{},
+		Ports:           []corev1.ContainerPort{{Name: "traceport", ContainerPort: 8126, Protocol: "TCP"}},
+		Env:             defaultAPMContainerEnvVars(),
+		VolumeMounts: []corev1.VolumeMount{
+			{Name: "config", MountPath: "/etc/datadog-agent"},
+			{
+				Name:      "custom-datadog-yaml",
+				ReadOnly:  true,
+				MountPath: agentConfigFile,
+				SubPath:   "datadog.yaml",
+			},
+		},
+		LivenessProbe: defaultAPMAgentLivenessProbe(),
+	}
+	podSpec.Containers = append(podSpec.Containers, apmContainer)
+}
+
 func defaultSystemProbePodSpec() corev1.PodSpec {
 	agentWithSystemProbeVolumeMounts := []corev1.VolumeMount{}
 	agentWithSystemProbeVolumeMounts = append(agentWithSystemProbeVolumeMounts, defaultMountVolume()...)
@@ -928,7 +1005,7 @@ func defaultSystemProbePodSpec() corev1.PodSpec {
 	}
 }
 
-func runtimeSecurityAgentPodSpec() corev1.PodSpec {
+func runtimeSecurityAgentPodSpec(complianceDuration string) corev1.PodSpec {
 	return corev1.PodSpec{
 		ServiceAccountName: "foo-agent",
 		HostPID:            false,
@@ -1021,7 +1098,7 @@ func runtimeSecurityAgentPodSpec() corev1.PodSpec {
 				Command: []string{
 					"security-agent",
 					"start",
-					"-c=/etc/datadog-agent/datadog.yaml",
+					"-c=" + agentConfigFile,
 				},
 				SecurityContext: &corev1.SecurityContext{
 					Capabilities: &corev1.Capabilities{
@@ -1029,7 +1106,7 @@ func runtimeSecurityAgentPodSpec() corev1.PodSpec {
 					},
 				},
 				Resources:    corev1.ResourceRequirements{},
-				Env:          securityAgentEnvVars(false, true),
+				Env:          securityAgentEnvVars(false, true, complianceDuration),
 				VolumeMounts: runtimeSecurityAgentMountVolume(),
 			},
 		},
@@ -1037,7 +1114,7 @@ func runtimeSecurityAgentPodSpec() corev1.PodSpec {
 	}
 }
 
-func complianceSecurityAgentPodSpec() corev1.PodSpec {
+func complianceSecurityAgentPodSpec(complianceDuration string) corev1.PodSpec {
 	return corev1.PodSpec{
 		ServiceAccountName: "foo-agent",
 		HostPID:            true,
@@ -1096,7 +1173,7 @@ func complianceSecurityAgentPodSpec() corev1.PodSpec {
 				Command: []string{
 					"security-agent",
 					"start",
-					"-c=/etc/datadog-agent/datadog.yaml",
+					"-c=" + agentConfigFile,
 				},
 				SecurityContext: &corev1.SecurityContext{
 					Capabilities: &corev1.Capabilities{
@@ -1104,7 +1181,7 @@ func complianceSecurityAgentPodSpec() corev1.PodSpec {
 					},
 				},
 				Resources:    corev1.ResourceRequirements{},
-				Env:          securityAgentEnvVars(true, false),
+				Env:          securityAgentEnvVars(true, false, complianceDuration),
 				VolumeMounts: complianceSecurityAgentMountVolume(),
 			},
 		},
@@ -1234,7 +1311,10 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 						"app.kubernetes.io/part-of":     "foo",
 						"app.kubernetes.io/version":     "",
 					},
-					Annotations: map[string]string{"agent.datadoghq.com/agentspechash": defaultAgentHash},
+					Annotations: map[string]string{
+						"agent.datadoghq.com/agentspechash": defaultAgentHash,
+						"annotations-foo-key":               "annotations-bar-value",
+					},
 				},
 				Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
 					Template: corev1.PodTemplateSpec{
@@ -1470,8 +1550,10 @@ func Test_newExtendedDaemonSetFromInstance_CustomConfigMaps(t *testing.T) {
 }
 
 func Test_newExtendedDaemonSetFromInstance_CustomDatadogYaml(t *testing.T) {
-	customConfigMapCustomDatadogYaml := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{UseEDS: true, ClusterAgentEnabled: true, CustomConfig: "foo: bar\nbar: foo"})
+	customConfigMapCustomDatadogYaml := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{UseEDS: true, ClusterAgentEnabled: true, APMEnabled: true, CustomConfig: "foo: bar\nbar: foo"})
 	customConfigMapCustomDatadogYamlSpec := defaultPodSpec()
+	appendDefaultAPMAgentContainer(&customConfigMapCustomDatadogYamlSpec)
+
 	customConfigMapCustomDatadogYamlSpec.Volumes = []corev1.Volume{
 		{
 			Name: datadoghqv1alpha1.InstallInfoVolumeName,
@@ -1554,10 +1636,6 @@ func Test_newExtendedDaemonSetFromInstance_CustomDatadogYaml(t *testing.T) {
 			ReadOnly:  true,
 		},
 		{
-			Name:      "config",
-			MountPath: "/etc/datadog-agent",
-		},
-		{
 			Name:      "procdir",
 			MountPath: "/host/proc",
 			ReadOnly:  true,
@@ -1568,8 +1646,12 @@ func Test_newExtendedDaemonSetFromInstance_CustomDatadogYaml(t *testing.T) {
 			ReadOnly:  true,
 		},
 		{
+			Name:      "config",
+			MountPath: "/etc/datadog-agent",
+		},
+		{
 			Name:      "custom-datadog-yaml",
-			MountPath: "/etc/datadog-agent/datadog.yaml",
+			MountPath: agentConfigFile,
 			SubPath:   "datadog.yaml",
 			ReadOnly:  true,
 		},
@@ -1618,6 +1700,94 @@ func Test_newExtendedDaemonSetFromInstance_CustomDatadogYaml(t *testing.T) {
 						Annotations: make(map[string]string),
 					},
 					Spec: customConfigMapCustomDatadogYamlSpec,
+				},
+				Strategy: getDefaultEDSStrategy(),
+			},
+		},
+	}
+	test.Run(t)
+}
+
+func updateContainersEnv(container *corev1.Container, envName string, envValue string) {
+	found := false
+	for envKey := range container.Env {
+		if container.Env[envKey].Name == envName {
+			container.Env[envKey].Value = envValue
+			found = true
+		}
+	}
+	if !found {
+		container.Env = append(container.Env, corev1.EnvVar{
+			Name:  envName,
+			Value: envValue,
+		})
+	}
+}
+
+func Test_ExtraParameters(t *testing.T) {
+	site := "datadoghq.eu"
+	options := &test.NewDatadogAgentOptions{
+		UseEDS:                         true,
+		ClusterAgentEnabled:            true,
+		Annotations:                    map[string]string{"foo": "bar"},
+		Labels:                         map[string]string{"bar": "foo"},
+		AgentSpecAdditionalLabels:      map[string]string{"pod-foo": "bar"},
+		AgentSpecAdditionalAnnotations: map[string]string{"pod-bar": "foo"},
+		Site:                           site,
+		ComplianceEnabled:              true,
+		ComplianceCheckInterval:        metav1.Duration{Duration: time.Minute},
+	}
+	datadogAgent := test.NewDefaultedDatadogAgent("bar", "foo", options)
+	customConfigMagCustomDatadogYamlHash, _ := comparison.GenerateMD5ForSpec(datadogAgent.Spec)
+
+	podSpec := complianceSecurityAgentPodSpec("60000000000")
+	updateContainersEnv(&podSpec.InitContainers[1], "DD_SITE", site)
+	updateContainersEnv(&podSpec.Containers[0], "DD_SITE", site)
+	updateContainersEnv(&podSpec.Containers[1], "DD_SITE", site)
+
+	test := extendedDaemonSetFromInstanceTest{
+		name:            "with custom config (datadog.yaml)",
+		agentdeployment: datadogAgent,
+		wantErr:         false,
+		want: &edsdatadoghqv1alpha1.ExtendedDaemonSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "bar",
+				Name:      "foo-agent",
+				Labels: map[string]string{
+					"agent.datadoghq.com/name":      "foo",
+					"agent.datadoghq.com/component": "agent",
+					"app.kubernetes.io/instance":    "agent",
+					"app.kubernetes.io/managed-by":  "datadog-operator",
+					"app.kubernetes.io/name":        "datadog-agent-deployment",
+					"app.kubernetes.io/part-of":     "foo",
+					"app.kubernetes.io/version":     "",
+					"bar":                           "foo",
+				},
+				Annotations: map[string]string{
+					"agent.datadoghq.com/agentspechash": customConfigMagCustomDatadogYamlHash,
+					"foo":                               "bar",
+				},
+			},
+			Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						GenerateName: "foo",
+						Namespace:    "bar",
+						Labels: map[string]string{
+							"agent.datadoghq.com/name":      "foo",
+							"agent.datadoghq.com/component": "agent",
+							"app.kubernetes.io/instance":    "agent",
+							"app.kubernetes.io/managed-by":  "datadog-operator",
+							"app.kubernetes.io/name":        "datadog-agent-deployment",
+							"app.kubernetes.io/part-of":     "foo",
+							"app.kubernetes.io/version":     "",
+							"pod-foo":                       "bar",
+						},
+						Annotations: map[string]string{
+							"pod-bar": "foo",
+						},
+					},
+					Spec: podSpec,
 				},
 				Strategy: getDefaultEDSStrategy(),
 			},
@@ -2125,7 +2295,7 @@ func Test_newExtendedDaemonSetFromInstance_SystemProbe(t *testing.T) {
 }
 
 func Test_newExtendedDaemonSetFromInstance_SecurityAgent_Compliance(t *testing.T) {
-	securityAgentPodSpec := complianceSecurityAgentPodSpec()
+	securityAgentPodSpec := complianceSecurityAgentPodSpec("")
 
 	dda := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
 		UseEDS:                       true,
@@ -2182,7 +2352,7 @@ func Test_newExtendedDaemonSetFromInstance_SecurityAgent_Compliance(t *testing.T
 }
 
 func Test_newExtendedDaemonSetFromInstance_SecurityAgent_Runtime(t *testing.T) {
-	securityAgentPodSpec := runtimeSecurityAgentPodSpec()
+	securityAgentPodSpec := runtimeSecurityAgentPodSpec("")
 
 	dda := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
 		UseEDS:                       true,

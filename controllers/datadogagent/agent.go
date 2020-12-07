@@ -363,7 +363,7 @@ func buildAgentNetworkPolicy(dda *datadoghqv1alpha1.DatadogAgent, name string) *
 		},
 	}
 
-	if isAPMEnabled(dda) {
+	if isAPMEnabled(&dda.Spec) {
 		port := datadoghqv1alpha1.DefaultAPMAgentTCPPort
 		if dda.Spec.Agent.Apm.HostPort != nil {
 			port = *dda.Spec.Agent.Apm.HostPort
@@ -485,6 +485,9 @@ func newDaemonsetObjectMetaData(dda *datadoghqv1alpha1.DatadogAgent) metav1.Obje
 		labels[key] = val
 	}
 	annotations := map[string]string{}
+	for key, val := range dda.Annotations {
+		annotations[key] = val
+	}
 
 	return metav1.ObjectMeta{
 		Name:        daemonsetName(dda),

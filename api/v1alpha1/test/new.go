@@ -79,6 +79,8 @@ type NewDatadogAgentOptions struct {
 	RuntimePoliciesDir               *datadoghqv1alpha1.ConfigDirSpec
 	SecurityContext                  *corev1.PodSecurityContext
 	CreateNetworkPolicy              bool
+	AgentSpecAdditionalLabels        map[string]string
+	AgentSpecAdditionalAnnotations   map[string]string
 }
 
 // NewDefaultedDatadogAgent returns an initialized and defaulted DatadogAgent for testing purpose
@@ -129,6 +131,14 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 		ad.Spec.Site = options.Site
 		ad.Spec.Agent.NetworkPolicy = datadoghqv1alpha1.NetworkPolicySpec{
 			Create: &options.CreateNetworkPolicy,
+		}
+
+		if len(options.AgentSpecAdditionalLabels) > 0 {
+			ad.Spec.Agent.AdditionalLabels = options.AgentSpecAdditionalLabels
+		}
+
+		if len(options.AgentSpecAdditionalAnnotations) > 0 {
+			ad.Spec.Agent.AdditionalAnnotations = options.AgentSpecAdditionalAnnotations
 		}
 
 		if options.HostPort != 0 {

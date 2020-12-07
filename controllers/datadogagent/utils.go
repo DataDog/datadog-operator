@@ -62,7 +62,7 @@ func newAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent, select
 	}
 
 	annotations := getDefaultAnnotations(agentdeployment)
-	if isSystemProbeEnabled(agentdeployment) {
+	if isSystemProbeEnabled(&agentdeployment.Spec) {
 		annotations[datadoghqv1alpha1.SysteProbeAppArmorAnnotationKey] = getAppArmorProfileName(&agentdeployment.Spec.Agent.SystemProbe)
 		annotations[datadoghqv1alpha1.SysteProbeSeccompAnnotationKey] = getSeccompProfileName(&agentdeployment.Spec.Agent.SystemProbe)
 	}
@@ -78,7 +78,7 @@ func newAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent, select
 	}
 	containers = append(containers, *agentContainer)
 
-	if isAPMEnabled(agentdeployment) {
+	if isAPMEnabled(&agentdeployment.Spec) {
 		var apmContainers []corev1.Container
 
 		apmContainers, err = getAPMAgentContainers(agentdeployment)
@@ -87,7 +87,7 @@ func newAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent, select
 		}
 		containers = append(containers, apmContainers...)
 	}
-	if isProcessEnabled(agentdeployment) {
+	if isProcessEnabled(&agentdeployment.Spec) {
 		var processContainers []corev1.Container
 
 		processContainers, err = getProcessContainers(agentdeployment)
@@ -96,7 +96,7 @@ func newAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent, select
 		}
 		containers = append(containers, processContainers...)
 	}
-	if isSystemProbeEnabled(agentdeployment) {
+	if isSystemProbeEnabled(&agentdeployment.Spec) {
 		var systemProbeContainers []corev1.Container
 
 		systemProbeContainers, err = getSystemProbeContainers(agentdeployment)
@@ -105,7 +105,7 @@ func newAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent, select
 		}
 		containers = append(containers, systemProbeContainers...)
 	}
-	if isSecurityAgentEnabled(agentdeployment) {
+	if isSecurityAgentEnabled(&agentdeployment.Spec) {
 		var securityAgentContainer *corev1.Container
 
 		securityAgentContainer, err = getSecurityAgentContainer(agentdeployment)
@@ -137,61 +137,43 @@ func newAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent, select
 			Tolerations:        agentdeployment.Spec.Agent.Config.Tolerations,
 			PriorityClassName:  agentdeployment.Spec.Agent.PriorityClassName,
 			HostNetwork:        agentdeployment.Spec.Agent.HostNetwork,
-			HostPID:            agentdeployment.Spec.Agent.HostPID || isComplianceEnabled(agentdeployment),
+			HostPID:            agentdeployment.Spec.Agent.HostPID || isComplianceEnabled(&agentdeployment.Spec),
 			DNSPolicy:          agentdeployment.Spec.Agent.DNSPolicy,
 			DNSConfig:          agentdeployment.Spec.Agent.DNSConfig,
 		},
 	}, nil
 }
 
-func isAPMEnabled(dda *datadoghqv1alpha1.DatadogAgent) bool {
-	if dda.Spec.Agent == nil {
-		return false
-	}
-	return datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Apm.Enabled)
+func isAPMEnabled(spec *datadoghqv1alpha1.DatadogAgentSpec) bool {
+	return datadoghqv1alpha1.BoolValue(spec.Agent.Apm.Enabled)
 }
 
-func isProcessEnabled(dda *datadoghqv1alpha1.DatadogAgent) bool {
-	if dda.Spec.Agent == nil {
-		return false
-	}
-	return datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Process.Enabled)
+func isProcessEnabled(spec *datadoghqv1alpha1.DatadogAgentSpec) bool {
+	return datadoghqv1alpha1.BoolValue(spec.Agent.Process.Enabled)
 }
 
-func isSystemProbeEnabled(dda *datadoghqv1alpha1.DatadogAgent) bool {
-	if dda.Spec.Agent == nil {
-		return false
-	}
-	return datadoghqv1alpha1.BoolValue(dda.Spec.Agent.SystemProbe.Enabled) || datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Security.Runtime.Enabled)
+func isSystemProbeEnabled(spec *datadoghqv1alpha1.DatadogAgentSpec) bool {
+	return datadoghqv1alpha1.BoolValue(spec.Agent.SystemProbe.Enabled) || datadoghqv1alpha1.BoolValue(spec.Agent.Security.Runtime.Enabled)
 }
 
-func isComplianceEnabled(dda *datadoghqv1alpha1.DatadogAgent) bool {
-	if dda.Spec.Agent == nil {
-		return false
-	}
-	return datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Security.Compliance.Enabled)
+func isComplianceEnabled(spec *datadoghqv1alpha1.DatadogAgentSpec) bool {
+	return datadoghqv1alpha1.BoolValue(spec.Agent.Security.Compliance.Enabled)
 }
 
-func isRuntimeSecurityEnabled(dda *datadoghqv1alpha1.DatadogAgent) bool {
-	if dda.Spec.Agent == nil {
-		return false
-	}
-	return datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Security.Runtime.Enabled)
+func isRuntimeSecurityEnabled(spec *datadoghqv1alpha1.DatadogAgentSpec) bool {
+	return datadoghqv1alpha1.BoolValue(spec.Agent.Security.Runtime.Enabled)
 }
 
-func isSecurityAgentEnabled(dda *datadoghqv1alpha1.DatadogAgent) bool {
-	if dda.Spec.Agent == nil {
-		return false
-	}
-	return datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Security.Compliance.Enabled) || datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Security.Runtime.Enabled)
+func isSecurityAgentEnabled(spec *datadoghqv1alpha1.DatadogAgentSpec) bool {
+	return datadoghqv1alpha1.BoolValue(spec.Agent.Security.Compliance.Enabled) || datadoghqv1alpha1.BoolValue(spec.Agent.Security.Runtime.Enabled)
 }
 
-func isSyscallMonitorEnabled(dda *datadoghqv1alpha1.DatadogAgent) bool {
-	if !isRuntimeSecurityEnabled(dda) {
+func isSyscallMonitorEnabled(spec *datadoghqv1alpha1.DatadogAgentSpec) bool {
+	if !isRuntimeSecurityEnabled(spec) {
 		return false
 	}
 
-	return dda.Spec.Agent.Security.Runtime.SyscallMonitor != nil && datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Security.Runtime.SyscallMonitor.Enabled)
+	return spec.Agent.Security.Runtime.SyscallMonitor != nil && datadoghqv1alpha1.BoolValue(spec.Agent.Security.Runtime.SyscallMonitor.Enabled)
 }
 
 func getAgentContainer(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.Container, error) {
@@ -272,12 +254,7 @@ func getAPMAgentContainers(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.Contai
 		},
 		Env:           envVars,
 		LivenessProbe: getDefaultAPMAgentLivenessProbe(),
-		VolumeMounts: []corev1.VolumeMount{
-			{
-				Name:      datadoghqv1alpha1.ConfigVolumeName,
-				MountPath: datadoghqv1alpha1.ConfigVolumePath,
-			},
-		},
+		VolumeMounts:  getVolumeMountsForAPMAgent(&dda.Spec),
 	}
 	if agentSpec.Apm.Resources != nil {
 		apmContainer.Resources = *agentSpec.Apm.Resources
@@ -383,7 +360,7 @@ func getInitContainers(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.Container,
 
 	containers := getConfigInitContainers(spec, volumeMounts, envVars)
 
-	if isSystemProbeEnabled(dda) {
+	if isSystemProbeEnabled(&dda.Spec) {
 		if getSeccompProfileName(&dda.Spec.Agent.SystemProbe) == datadoghqv1alpha1.DefaultSeccompProfileName || dda.Spec.Agent.SystemProbe.SecCompCustomProfileConfigMap != "" {
 			systemProbeInit := corev1.Container{
 				Name:            "seccomp-setup",
@@ -449,7 +426,7 @@ func getEnvVarsForAPMAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.EnvVar
 	envVars := []corev1.EnvVar{
 		{
 			Name:  datadoghqv1alpha1.DDAPMEnabled,
-			Value: strconv.FormatBool(isAPMEnabled(dda)),
+			Value: strconv.FormatBool(isAPMEnabled(&dda.Spec)),
 		},
 	}
 	commonEnvVars, err := getEnvVarsCommon(dda, true)
@@ -466,11 +443,11 @@ func getEnvVarsForProcessAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.En
 	envVars := []corev1.EnvVar{
 		{
 			Name:  datadoghqv1alpha1.DDProcessAgentEnabled,
-			Value: strconv.FormatBool(isProcessEnabled(dda)),
+			Value: strconv.FormatBool(isProcessEnabled(&dda.Spec)),
 		},
 		{
 			Name:  datadoghqv1alpha1.DDSystemProbeAgentEnabled,
-			Value: strconv.FormatBool(isSystemProbeEnabled(dda)),
+			Value: strconv.FormatBool(isSystemProbeEnabled(&dda.Spec)),
 		},
 	}
 	commonEnvVars, err := getEnvVarsCommon(dda, true)
@@ -666,8 +643,8 @@ func getEnvVarsForAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.EnvVar, e
 func getEnvVarsForSecurityAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.EnvVar, error) {
 	spec := dda.Spec
 
-	complianceEnabled := isComplianceEnabled(dda)
-	runtimeEnabled := isRuntimeSecurityEnabled(dda)
+	complianceEnabled := isComplianceEnabled(&dda.Spec)
+	runtimeEnabled := isRuntimeSecurityEnabled(&dda.Spec)
 
 	envVars := []corev1.EnvVar{
 		{
@@ -716,7 +693,7 @@ func getEnvVarsForSecurityAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.E
 			},
 			{
 				Name:  datadoghqv1alpha1.DDRuntimeSecurityConfigSyscallMonitorEnabled,
-				Value: strconv.FormatBool(isSyscallMonitorEnabled(dda)),
+				Value: strconv.FormatBool(isSyscallMonitorEnabled(&dda.Spec)),
 			},
 		}...)
 	}
@@ -806,7 +783,7 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 			volumes = append(volumes, criVolume)
 		}
 	}
-	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Process.Enabled) || isComplianceEnabled(dda) {
+	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Process.Enabled) || isComplianceEnabled(&dda.Spec) {
 		passwdVolume := corev1.Volume{
 			Name: datadoghqv1alpha1.PasswdVolumeName,
 			VolumeSource: corev1.VolumeSource{
@@ -818,7 +795,7 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 		volumes = append(volumes, passwdVolume)
 	}
 
-	if isSystemProbeEnabled(dda) {
+	if isSystemProbeEnabled(&dda.Spec) {
 		seccompConfigMapName := getSecCompConfigMapName(dda.Name)
 		if dda.Spec.Agent.SystemProbe.SecCompCustomProfileConfigMap != "" {
 			seccompConfigMapName = dda.Spec.Agent.SystemProbe.SecCompCustomProfileConfigMap
@@ -922,7 +899,7 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 		}...)
 	}
 
-	if isComplianceEnabled(dda) {
+	if isComplianceEnabled(&dda.Spec) {
 		groupVolume := corev1.Volume{
 			Name: datadoghqv1alpha1.GroupVolumeName,
 			VolumeSource: corev1.VolumeSource{
@@ -957,7 +934,7 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 		}
 	}
 
-	if isRuntimeSecurityEnabled(dda) {
+	if isRuntimeSecurityEnabled(&dda.Spec) {
 		if dda.Spec.Agent.Security.Runtime.PoliciesDir != nil {
 			volumes = append(volumes, corev1.Volume{
 				Name: datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumeName,
@@ -1090,7 +1067,6 @@ func getVolumeMountsForAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []corev1.
 		},
 		getVolumeMountForConfd(),
 		getVolumeMountForChecksd(),
-		getVolumeMountForConfig(),
 		{
 			Name:      datadoghqv1alpha1.ProcVolumeName,
 			MountPath: datadoghqv1alpha1.ProcVolumePath,
@@ -1103,11 +1079,8 @@ func getVolumeMountsForAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []corev1.
 		},
 	}
 
-	// Custom config (datadog.yaml) volume
-	if spec.Agent.CustomConfig != nil {
-		volumeMount := getVolumeMountFromCustomConfigSpec(spec.Agent.CustomConfig, datadoghqv1alpha1.AgentCustomConfigVolumeName, datadoghqv1alpha1.AgentCustomConfigVolumePath, datadoghqv1alpha1.AgentCustomConfigVolumeSubPath)
-		volumeMounts = append(volumeMounts, volumeMount)
-	}
+	// Add configuration volumesMount default and extra config (datadog.yaml) volume
+	volumeMounts = append(volumeMounts, getVolumeMountForConfig(spec.Agent.CustomConfig)...)
 
 	// Cri socket volume
 	if spec.Agent.Config.CriSocket != nil {
@@ -1173,11 +1146,21 @@ func getVolumeMountsForAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []corev1.
 	return append(volumeMounts, spec.Agent.Config.VolumeMounts...)
 }
 
-func getVolumeMountForConfig() corev1.VolumeMount {
-	return corev1.VolumeMount{
-		Name:      datadoghqv1alpha1.ConfigVolumeName,
-		MountPath: datadoghqv1alpha1.ConfigVolumePath,
+func getVolumeMountForConfig(customConfig *datadoghqv1alpha1.CustomConfigSpec) []corev1.VolumeMount {
+	volumeMounts := []corev1.VolumeMount{
+		{
+			Name:      datadoghqv1alpha1.ConfigVolumeName,
+			MountPath: datadoghqv1alpha1.ConfigVolumePath,
+		},
 	}
+
+	// Custom config (datadog.yaml) volume
+	if customConfig != nil {
+		volumeMount := getVolumeMountFromCustomConfigSpec(customConfig, datadoghqv1alpha1.AgentCustomConfigVolumeName, datadoghqv1alpha1.AgentCustomConfigVolumePath, datadoghqv1alpha1.AgentCustomConfigVolumeSubPath)
+		volumeMounts = append(volumeMounts, volumeMount)
+	}
+
+	return volumeMounts
 }
 
 func getVolumeMountForConfd() corev1.VolumeMount {
@@ -1205,10 +1188,6 @@ func getVolumeMountsForProcessAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []
 			ReadOnly:  true,
 		},
 		{
-			Name:      datadoghqv1alpha1.ConfigVolumeName,
-			MountPath: datadoghqv1alpha1.ConfigVolumePath,
-		},
-		{
 			Name:      datadoghqv1alpha1.PasswdVolumeName,
 			MountPath: datadoghqv1alpha1.PasswdVolumePath,
 			ReadOnly:  true,
@@ -1219,6 +1198,9 @@ func getVolumeMountsForProcessAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []
 			ReadOnly:  true,
 		},
 	}
+
+	// Add configuration mount
+	volumeMounts = append(volumeMounts, getVolumeMountForConfig(spec.Agent.CustomConfig)...)
 
 	// Cri socket volume
 	if spec.Agent.Config.CriSocket != nil {
@@ -1251,6 +1233,17 @@ func getVolumeMountsForProcessAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []
 			},
 		}...)
 	}
+
+	return volumeMounts
+}
+
+// getVolumeMountsForAgent defines mounted volumes for the Process Agent
+func getVolumeMountsForAPMAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []corev1.VolumeMount {
+	// Default mounted volumes
+	volumeMounts := []corev1.VolumeMount{}
+
+	// Add configuration volumesMount default and custom config (datadog.yaml) volume
+	volumeMounts = append(volumeMounts, getVolumeMountForConfig(spec.Agent.CustomConfig)...)
 
 	return volumeMounts
 }
@@ -1295,7 +1288,7 @@ func getVolumeMountsForSystemProbe(dda *datadoghqv1alpha1.DatadogAgent) []corev1
 		}...)
 	}
 
-	if isRuntimeSecurityEnabled(dda) && dda.Spec.Agent.Security.Runtime.PoliciesDir != nil {
+	if isRuntimeSecurityEnabled(&dda.Spec) && dda.Spec.Agent.Security.Runtime.PoliciesDir != nil {
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
 			Name:      datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumeName,
 			MountPath: datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumePath,
@@ -1315,8 +1308,8 @@ func getVolumeMountsForSecurityAgent(dda *datadoghqv1alpha1.DatadogAgent) []core
 		},
 	}
 
-	complianceEnabled := isComplianceEnabled(dda)
-	runtimeEnabled := isRuntimeSecurityEnabled(dda)
+	complianceEnabled := isComplianceEnabled(&dda.Spec)
+	runtimeEnabled := isRuntimeSecurityEnabled(&dda.Spec)
 
 	if complianceEnabled {
 		volumeMounts = append(volumeMounts, []corev1.VolumeMount{
