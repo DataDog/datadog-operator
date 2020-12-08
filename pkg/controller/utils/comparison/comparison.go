@@ -18,9 +18,19 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
 )
 
-// IsSameSpecMD5Hash used to compare a md5 hash with the one set in annotations
+// IsSameSpecMD5Hash used to compare the DatadogAgent.spec md5 hash with the one set in annotations
 func IsSameSpecMD5Hash(hash string, annotations map[string]string) bool {
-	if val, ok := annotations[datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey]; ok && val == hash {
+	return IsSameMD5Hash(hash, annotations, datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey)
+}
+
+// IsSameResourceMD5Hash used to compare the Resource.spec md5 hash with the one set in annotations
+func IsSameResourceMD5Hash(hash string, annotations map[string]string) bool {
+	return IsSameMD5Hash(hash, annotations, datadoghqv1alpha1.MD5ResourceAnnotationKey)
+}
+
+// IsSameMD5Hash used to compare a md5 hash with the one set in annotations
+func IsSameMD5Hash(hash string, annotations map[string]string, annotationKey string) bool {
+	if val, ok := annotations[annotationKey]; ok && val == hash {
 		return true
 	}
 	return false
@@ -41,8 +51,13 @@ func GenerateMD5ForSpec(spec interface{}) (string, error) {
 	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
+// SetMD5DatadogAgentGenerationAnnotation is used to set the md5 annotation key/value from spec
+func SetMD5DatadogAgentGenerationAnnotation(obj *metav1.ObjectMeta, spec interface{}) (string, error) {
+	return SetMD5GenerationAnnotation(obj, spec, datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey)
+}
+
 // SetMD5GenerationAnnotation is used to set the md5 annotation key/value from spec
-func SetMD5GenerationAnnotation(obj *metav1.ObjectMeta, spec interface{}) (string, error) {
+func SetMD5GenerationAnnotation(obj *metav1.ObjectMeta, spec interface{}, annotationKey string) (string, error) {
 	hash, err := GenerateMD5ForSpec(spec)
 	if err != nil {
 		return "", fmt.Errorf("unable to generate the spec MD5, %v", err)
@@ -51,6 +66,6 @@ func SetMD5GenerationAnnotation(obj *metav1.ObjectMeta, spec interface{}) (strin
 	if obj.Annotations == nil {
 		obj.SetAnnotations(map[string]string{})
 	}
-	obj.Annotations[datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey] = hash
+	obj.Annotations[annotationKey] = hash
 	return hash, nil
 }

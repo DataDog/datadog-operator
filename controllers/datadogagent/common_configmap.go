@@ -87,7 +87,7 @@ func (r *Reconciler) updateIfNeededConfigMap(dda *datadoghqv1alpha1.DatadogAgent
 
 func (r *Reconciler) createConfigMap(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, configMap *corev1.ConfigMap) (reconcile.Result, error) {
 	result := reconcile.Result{}
-	_, err := comparison.SetMD5GenerationAnnotation(&configMap.ObjectMeta, configMap.Data)
+	_, err := comparison.SetMD5DatadogAgentGenerationAnnotation(&configMap.ObjectMeta, configMap.Data)
 	if err != nil {
 		return result, err
 	}

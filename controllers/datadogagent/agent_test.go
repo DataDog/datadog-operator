@@ -1419,12 +1419,16 @@ type extendedDaemonSetFromInstanceTest struct {
 func (test extendedDaemonSetFromInstanceTest) Run(t *testing.T) {
 	t.Helper()
 	logf.SetLogger(logf.ZapLogger(true))
-	got, _, err := newExtendedDaemonSetFromInstance(test.agentdeployment, test.selector)
+	got, _, _, err := newExtendedDaemonSetFromInstance(test.agentdeployment, test.selector)
 	if test.wantErr {
 		assert.Error(t, err, "newExtendedDaemonSetFromInstance() expected an error")
 	} else {
 		assert.NoError(t, err, "newExtendedDaemonSetFromInstance() unexpected error: %v", err)
 	}
+
+	// Remove the generated Resource hash before comparison because it is not easy generate it in the test definition.
+	delete(got.Annotations, datadoghqv1alpha1.MD5ResourceAnnotationKey)
+
 	assert.True(t, apiequality.Semantic.DeepEqual(got, test.want), "newExtendedDaemonSetFromInstance() = %#v\n\nwant %#v\ndiff: %s",
 		got, test.want, cmp.Diff(got, test.want))
 }

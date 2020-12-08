@@ -10,8 +10,10 @@ const (
 	AgentDeploymentNameLabelKey = "agent.datadoghq.com/name"
 	// AgentDeploymentComponentLabelKey label key use to know with component is it
 	AgentDeploymentComponentLabelKey = "agent.datadoghq.com/component"
-	// MD5AgentDeploymentAnnotationKey annotation key used on ExtendedDaemonSet in order to identify which AgentDeployment have been used to generate it.
+	// MD5AgentDeploymentAnnotationKey annotation key used on a Resource in order to identify which AgentDeployment have been used to generate it.
 	MD5AgentDeploymentAnnotationKey = "agent.datadoghq.com/agentspechash"
+	// MD5ResourceAnnotationKey  annotation key used on Resource in order to identify a change compared to the previous Resource version.
+	MD5ResourceAnnotationKey = "agent.datadoghq.com/resourcespechash"
 
 	// DefaultAgentResourceSuffix use as suffix for agent resource naming
 	DefaultAgentResourceSuffix = "agent"

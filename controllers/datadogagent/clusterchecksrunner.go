@@ -198,7 +198,7 @@ func newClusterChecksRunnerDeploymentFromInstance(
 			Selector: selector,
 		},
 	}
-	hash, err := comparison.SetMD5GenerationAnnotation(&dca.ObjectMeta, dda.Spec.ClusterChecksRunner)
+	hash, err := comparison.SetMD5DatadogAgentGenerationAnnotation(&dca.ObjectMeta, dda.Spec.ClusterChecksRunner)
 	return dca, hash, err
 }
 

@@ -974,7 +974,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						SessionAffinity: corev1.ServiceAffinityNone,
 					},
 					})
-					_, _ = comparison.SetMD5GenerationAnnotation(&dcaService.ObjectMeta, dcaService.Spec)
+					_, _ = comparison.SetMD5DatadogAgentGenerationAnnotation(&dcaService.ObjectMeta, dcaService.Spec)
 					dcaService.Labels = commonDCAlabels
 					_ = c.Create(context.TODO(), dcaService)
 				},
@@ -1022,7 +1022,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						SessionAffinity: corev1.ServiceAffinityNone,
 					},
 					})
-					_, _ = comparison.SetMD5GenerationAnnotation(&dcaService.ObjectMeta, dcaService.Spec)
+					_, _ = comparison.SetMD5DatadogAgentGenerationAnnotation(&dcaService.ObjectMeta, dcaService.Spec)
 					dcaService.Labels = commonDCAlabels
 					_ = c.Create(context.TODO(), dcaService)
 				},
@@ -1103,7 +1103,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						SessionAffinity: corev1.ServiceAffinityNone,
 					},
 					})
-					_, _ = comparison.SetMD5GenerationAnnotation(&dcaService.ObjectMeta, dcaService.Spec)
+					_, _ = comparison.SetMD5DatadogAgentGenerationAnnotation(&dcaService.ObjectMeta, dcaService.Spec)
 					dcaService.Labels = commonDCAlabels
 					_ = c.Create(context.TODO(), dcaService)
 				},
@@ -1155,7 +1155,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						SessionAffinity: corev1.ServiceAffinityNone,
 					},
 					})
-					_, _ = comparison.SetMD5GenerationAnnotation(&dcaService.ObjectMeta, dcaService.Spec)
+					_, _ = comparison.SetMD5DatadogAgentGenerationAnnotation(&dcaService.ObjectMeta, dcaService.Spec)
 					dcaService.Labels = commonDCAlabels
 					_ = c.Create(context.TODO(), dcaService)
 					_ = c.Create(context.TODO(), buildClusterAgentPDB(dda))
@@ -1213,7 +1213,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						SessionAffinity: corev1.ServiceAffinityNone,
 					},
 					})
-					_, _ = comparison.SetMD5GenerationAnnotation(&dcaExternalMetricsService.ObjectMeta, dcaExternalMetricsService.Spec)
+					_, _ = comparison.SetMD5DatadogAgentGenerationAnnotation(&dcaExternalMetricsService.ObjectMeta, dcaExternalMetricsService.Spec)
 					dcaExternalMetricsService.Labels = commonDCAlabels
 					_ = c.Create(context.TODO(), dcaExternalMetricsService)
 					_ = c.Create(context.TODO(), buildClusterAgentPDB(dda))
@@ -1288,11 +1288,11 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						SessionAffinity: corev1.ServiceAffinityNone,
 					},
 					})
-					_, _ = comparison.SetMD5GenerationAnnotation(&dcaService.ObjectMeta, dcaService.Spec)
+					_, _ = comparison.SetMD5DatadogAgentGenerationAnnotation(&dcaService.ObjectMeta, dcaService.Spec)
 					dcaService.Labels = commonDCAlabels
 					_ = c.Create(context.TODO(), dcaService)
 
-					_, _ = comparison.SetMD5GenerationAnnotation(&admissionService.ObjectMeta, admissionService.Spec)
+					_, _ = comparison.SetMD5DatadogAgentGenerationAnnotation(&admissionService.ObjectMeta, admissionService.Spec)
 					admissionService.Labels = commonDCAlabels
 					_ = c.Create(context.TODO(), admissionService)
 
@@ -1351,7 +1351,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						SessionAffinity: corev1.ServiceAffinityNone,
 					},
 					})
-					_, _ = comparison.SetMD5GenerationAnnotation(&dcaService.ObjectMeta, dcaService.Spec)
+					_, _ = comparison.SetMD5DatadogAgentGenerationAnnotation(&dcaService.ObjectMeta, dcaService.Spec)
 					dcaService.Labels = commonDCAlabels
 					_ = c.Create(context.TODO(), dcaService)
 					_ = c.Create(context.TODO(), buildServiceAccount(dda, "foo-cluster-agent", getClusterAgentVersion(dda)))
@@ -1408,7 +1408,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						SessionAffinity: corev1.ServiceAffinityNone,
 					},
 					})
-					_, _ = comparison.SetMD5GenerationAnnotation(&dcaExternalMetricsService.ObjectMeta, dcaExternalMetricsService.Spec)
+					_, _ = comparison.SetMD5DatadogAgentGenerationAnnotation(&dcaExternalMetricsService.ObjectMeta, dcaExternalMetricsService.Spec)
 					dcaExternalMetricsService.Labels = commonDCAlabels
 					_ = c.Create(context.TODO(), dcaExternalMetricsService)
 
@@ -1427,7 +1427,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 							VersionPriority:       100,
 						},
 					})
-					_, _ = comparison.SetMD5GenerationAnnotation(&dcaExternalMetricsAPIService.ObjectMeta, dcaExternalMetricsAPIService.Spec)
+					_, _ = comparison.SetMD5DatadogAgentGenerationAnnotation(&dcaExternalMetricsAPIService.ObjectMeta, dcaExternalMetricsAPIService.Spec)
 					dcaExternalMetricsAPIService.Labels = commonDCAlabels
 					_ = c.Create(context.TODO(), dcaExternalMetricsAPIService)
 
@@ -1481,7 +1481,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						SessionAffinity: corev1.ServiceAffinityNone,
 					},
 					})
-					_, _ = comparison.SetMD5GenerationAnnotation(&dcaService.ObjectMeta, dcaService.Spec)
+					_, _ = comparison.SetMD5DatadogAgentGenerationAnnotation(&dcaService.ObjectMeta, dcaService.Spec)
 					dcaService.Labels = commonDCAlabels
 					_ = c.Create(context.TODO(), dcaService)
 					dcaExternalMetricsService := test.NewService(resourcesNamespace, "foo-cluster-agent-metrics-server", &test.NewServiceOptions{Spec: &corev1.ServiceSpec{
@@ -1500,7 +1500,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						SessionAffinity: corev1.ServiceAffinityNone,
 					},
 					})
-					_, _ = comparison.SetMD5GenerationAnnotation(&dcaExternalMetricsService.ObjectMeta, dcaExternalMetricsService.Spec)
+					_, _ = comparison.SetMD5DatadogAgentGenerationAnnotation(&dcaExternalMetricsService.ObjectMeta, dcaExternalMetricsService.Spec)
 					dcaExternalMetricsService.Labels = commonDCAlabels
 					_ = c.Create(context.TODO(), dcaExternalMetricsService)
 					version := getClusterAgentVersion(dda)
@@ -2474,7 +2474,7 @@ func createClusterAgentDependencies(c client.Client, dda *datadoghqv1alpha1.Data
 		SessionAffinity: corev1.ServiceAffinityNone,
 	},
 	})
-	_, _ = comparison.SetMD5GenerationAnnotation(&dcaService.ObjectMeta, dcaService.Spec)
+	_, _ = comparison.SetMD5DatadogAgentGenerationAnnotation(&dcaService.ObjectMeta, dcaService.Spec)
 	dcaService.Labels = getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
 	_ = c.Create(context.TODO(), dcaService)
 
