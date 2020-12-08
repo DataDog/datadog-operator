@@ -23,7 +23,7 @@ Here are the steps:
    helm install my-datadog-operator datadog/datadog-operator
    ```
 
-2. Create a file with the spec of your DatadogAgent deployment configuration. The simplest configuration is:
+1. Create a file with the spec of your DatadogAgent deployment configuration. The simplest configuration is:
 
    ```yaml
    apiVersion: datadoghq.com/v1alpha1
@@ -44,7 +44,7 @@ Here are the steps:
 
    Replace `<DATADOG_API_KEY>` and `<DATADOG_APP_KEY>` with your [Datadog API and application keys][4]
 
-3. Deploy the Datadog agent with the above configuration file:
+1. Deploy the Datadog agent with the above configuration file:
    ```shell
    kubectl apply -f agent_spec=/path/to/your/datadog-agent.yaml
    ```
