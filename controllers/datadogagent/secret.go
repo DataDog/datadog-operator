@@ -21,7 +21,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 )
@@ -33,17 +32,17 @@ func (r *Reconciler) manageAgentSecret(logger logr.Logger, dda *datadoghqv1alpha
 	}
 	now := metav1.NewTime(time.Now())
 	// checks token secret
-	secretName, _ := utils.GetAppKeySecret(dda)
 	secret := &corev1.Secret{}
-	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: dda.Namespace, Name: secretName}, secret)
+	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: dda.Namespace, Name: dda.Name}, secret)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			if (dda.Spec.Credentials.AppKeyExistingSecret == "" && dda.Spec.Credentials.APPSecret == nil) ||
-				(dda.Spec.Credentials.APIKeyExistingSecret == "" && dda.Spec.Credentials.APISecret == nil) {
+				(dda.Spec.Credentials.APIKeyExistingSecret == "" && dda.Spec.Credentials.APISecret == nil) ||
+				dda.Spec.ClusterAgent != nil {
 				return r.createAgentSecret(logger, dda)
 			}
 			// return error since the secret didn't exist and we are not responsible to create it.
-			err = fmt.Errorf("secret %s didn't exist", secretName)
+			err = fmt.Errorf("secret %s didn't exist", dda.Name)
 			condition.UpdateDatadogAgentStatusConditions(newStatus, now, datadoghqv1alpha1.ConditionTypeSecretError, corev1.ConditionTrue, fmt.Sprintf("%v", err), false)
 		}
 		return reconcile.Result{}, err
@@ -82,6 +81,9 @@ func (r *Reconciler) updateIfNeededAgentSecret(dda *datadoghqv1alpha1.DatadogAge
 		updatedSecret.Labels = newSecret.Labels
 		updatedSecret.Annotations = newSecret.Annotations
 		updatedSecret.Type = newSecret.Type
+		if updatedSecret.Data == nil {
+			updatedSecret.Data = make(map[string][]byte)
+		}
 		for key, val := range newSecret.Data {
 			updatedSecret.Data[key] = val
 		}
@@ -99,9 +101,8 @@ func (r *Reconciler) updateIfNeededAgentSecret(dda *datadoghqv1alpha1.DatadogAge
 
 func (r *Reconciler) cleanupAgentSecret(dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
 	// checks token secret
-	secretName, _ := utils.GetAppKeySecret(dda)
 	secret := &corev1.Secret{}
-	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: dda.Namespace, Name: secretName}, secret)
+	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: dda.Namespace, Name: dda.Name}, secret)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return reconcile.Result{}, nil
@@ -132,10 +133,9 @@ func newAgentSecret(dda *datadoghqv1alpha1.DatadogAgent) *corev1.Secret {
 		data[datadoghqv1alpha1.DefaultTokenKey] = []byte(dda.Status.ClusterAgent.GeneratedToken)
 	}
 
-	secretName, _ := utils.GetAPIKeySecret(dda)
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        secretName,
+			Name:        dda.Name,
 			Namespace:   dda.Namespace,
 			Labels:      labels,
 			Annotations: annotations,
