@@ -605,8 +605,8 @@ func runtimeSecurityAgentMountVolume() []corev1.VolumeMount {
 	}
 }
 
-func defaultEnvVars() []corev1.EnvVar {
-	return []corev1.EnvVar{
+func defaultEnvVars(extraEnv map[string]string) []corev1.EnvVar {
+	envs := []corev1.EnvVar{
 		{
 			Name:  "DD_CLUSTER_NAME",
 			Value: "",
@@ -656,10 +656,6 @@ func defaultEnvVars() []corev1.EnvVar {
 			Value: "INFO",
 		},
 		{
-			Name:  "DD_SITE",
-			Value: "",
-		},
-		{
 			Name: "DD_KUBERNETES_KUBELET_HOST",
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
@@ -679,6 +675,13 @@ func defaultEnvVars() []corev1.EnvVar {
 			Name:  "DOCKER_HOST",
 			Value: "unix:///host/var/run/docker.sock",
 		},
+	}
+
+	if ddSite := createEnvFromExtra(extraEnv, "DD_SITE"); ddSite != nil {
+		envs = append(envs, *ddSite)
+	}
+
+	envs = append(envs, []corev1.EnvVar{
 		{
 			Name:  "DD_CLUSTER_AGENT_ENABLED",
 			Value: "true",
@@ -691,7 +694,9 @@ func defaultEnvVars() []corev1.EnvVar {
 			Name:      "DD_CLUSTER_AGENT_AUTH_TOKEN",
 			ValueFrom: authTokenValue(),
 		},
-	}
+	}...)
+
+	return envs
 }
 
 func defaultAPMContainerEnvVars() []corev1.EnvVar {
@@ -700,8 +705,10 @@ func defaultAPMContainerEnvVars() []corev1.EnvVar {
 			Name:  "DD_APM_ENABLED",
 			Value: "true",
 		},
-		{Name: "DD_LOG_LEVEL", Value: "INFO"},
-		{Name: "DD_SITE"},
+		{
+			Name:  "DD_LOG_LEVEL",
+			Value: "INFO",
+		},
 		{
 			Name: "DD_KUBERNETES_KUBELET_HOST",
 			ValueFrom: &corev1.EnvVarSource{
@@ -732,10 +739,6 @@ func defaultSystemProbeEnvVars() []corev1.EnvVar {
 			Value: "INFO",
 		},
 		{
-			Name:  "DD_SITE",
-			Value: "",
-		},
-		{
 			Name: "DD_KUBERNETES_KUBELET_HOST",
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
@@ -754,7 +757,7 @@ func defaultSystemProbeEnvVars() []corev1.EnvVar {
 	}
 }
 
-func securityAgentEnvVars(compliance, runtime bool, duration string) []corev1.EnvVar {
+func securityAgentEnvVars(compliance, runtime bool, extraEnv map[string]string) []corev1.EnvVar {
 	env := []corev1.EnvVar{
 		{
 			Name:  "DD_COMPLIANCE_CONFIG_ENABLED",
@@ -763,11 +766,8 @@ func securityAgentEnvVars(compliance, runtime bool, duration string) []corev1.En
 	}
 
 	if compliance {
-		if duration != "" {
-			env = append(env, corev1.EnvVar{
-				Name:  "DD_COMPLIANCE_CONFIG_CHECK_INTERVAL",
-				Value: duration,
-			})
+		if envDuration := createEnvFromExtra(extraEnv, "DD_COMPLIANCE_CONFIG_CHECK_INTERVAL"); envDuration != nil {
+			env = append(env, *envDuration)
 		}
 
 		env = append(env, corev1.EnvVar{
@@ -802,10 +802,6 @@ func securityAgentEnvVars(compliance, runtime bool, duration string) []corev1.En
 			Value: "INFO",
 		},
 		{
-			Name:  "DD_SITE",
-			Value: "",
-		},
-		{
 			Name: "DD_KUBERNETES_KUBELET_HOST",
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
@@ -825,6 +821,13 @@ func securityAgentEnvVars(compliance, runtime bool, duration string) []corev1.En
 			Name:  "DOCKER_HOST",
 			Value: "unix:///host/var/run/docker.sock",
 		},
+	}...)
+
+	if ddSite := createEnvFromExtra(extraEnv, "DD_SITE"); ddSite != nil {
+		env = append(env, *ddSite)
+	}
+
+	env = append(env, []corev1.EnvVar{
 		{
 			Name:  "DD_CLUSTER_AGENT_ENABLED",
 			Value: "true",
@@ -839,6 +842,16 @@ func securityAgentEnvVars(compliance, runtime bool, duration string) []corev1.En
 		},
 	}...)
 	return env
+}
+
+func createEnvFromExtra(extraEnv map[string]string, envKey string) *corev1.EnvVar {
+	if extraEnv != nil && extraEnv[envKey] != "" {
+		return &corev1.EnvVar{
+			Name:  envKey,
+			Value: extraEnv[envKey],
+		}
+	}
+	return nil
 }
 
 func addEnvVar(currentVars []corev1.EnvVar, varName string, varValue string) []corev1.EnvVar {
@@ -877,7 +890,7 @@ func defaultPodSpec() corev1.PodSpec {
 				Resources:       corev1.ResourceRequirements{},
 				Command:         []string{"bash", "-c"},
 				Args:            []string{"for script in $(find /etc/cont-init.d/ -type f -name '*.sh' | sort) ; do bash $script ; done"},
-				Env:             defaultEnvVars(),
+				Env:             defaultEnvVars(nil),
 				VolumeMounts:    defaultMountVolume(),
 			},
 		},
@@ -898,7 +911,7 @@ func defaultPodSpec() corev1.PodSpec {
 						Protocol:      "UDP",
 					},
 				},
-				Env:            defaultEnvVars(),
+				Env:            defaultEnvVars(nil),
 				VolumeMounts:   defaultMountVolume(),
 				LivenessProbe:  defaultLivenessProbe(),
 				ReadinessProbe: defaultReadinessProbe(),
@@ -973,7 +986,7 @@ func defaultSystemProbePodSpec() corev1.PodSpec {
 				Resources:       corev1.ResourceRequirements{},
 				Command:         []string{"bash", "-c"},
 				Args:            []string{"for script in $(find /etc/cont-init.d/ -type f -name '*.sh' | sort) ; do bash $script ; done"},
-				Env:             defaultEnvVars(),
+				Env:             defaultEnvVars(nil),
 				VolumeMounts:    agentWithSystemProbeVolumeMounts,
 			},
 			{
@@ -1011,7 +1024,7 @@ func defaultSystemProbePodSpec() corev1.PodSpec {
 						Protocol:      "UDP",
 					},
 				},
-				Env:            defaultEnvVars(),
+				Env:            defaultEnvVars(nil),
 				VolumeMounts:   agentWithSystemProbeVolumeMounts,
 				LivenessProbe:  defaultLivenessProbe(),
 				ReadinessProbe: defaultReadinessProbe(),
@@ -1064,7 +1077,7 @@ func defaultOrchestratorPodSpec() corev1.PodSpec {
 				Resources:       corev1.ResourceRequirements{},
 				Command:         []string{"bash", "-c"},
 				Args:            []string{"for script in $(find /etc/cont-init.d/ -type f -name '*.sh' | sort) ; do bash $script ; done"},
-				Env:             defaultEnvVars(),
+				Env:             defaultEnvVars(nil),
 				VolumeMounts:    defaultMountVolume(),
 			},
 		},
@@ -1085,7 +1098,7 @@ func defaultOrchestratorPodSpec() corev1.PodSpec {
 						Protocol:      "UDP",
 					},
 				},
-				Env:            defaultEnvVars(),
+				Env:            defaultEnvVars(nil),
 				VolumeMounts:   defaultMountVolume(),
 				LivenessProbe:  defaultLivenessProbe(),
 				ReadinessProbe: defaultReadinessProbe(),
@@ -1192,10 +1205,6 @@ func defaultOrchestratorEnvVars() []corev1.EnvVar {
 			Value: "INFO",
 		},
 		{
-			Name:  "DD_SITE",
-			Value: "",
-		},
-		{
 			Name: "DD_KUBERNETES_KUBELET_HOST",
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
@@ -1223,7 +1232,7 @@ func defaultOrchestratorEnvVars() []corev1.EnvVar {
 	return append(newVars, vars...)
 }
 
-func runtimeSecurityAgentPodSpec(complianceDuration string) corev1.PodSpec {
+func runtimeSecurityAgentPodSpec(extraEnv map[string]string) corev1.PodSpec {
 	return corev1.PodSpec{
 		ServiceAccountName: "foo-agent",
 		HostPID:            false,
@@ -1249,7 +1258,7 @@ func runtimeSecurityAgentPodSpec(complianceDuration string) corev1.PodSpec {
 				Resources:       corev1.ResourceRequirements{},
 				Command:         []string{"bash", "-c"},
 				Args:            []string{"for script in $(find /etc/cont-init.d/ -type f -name '*.sh' | sort) ; do bash $script ; done"},
-				Env:             defaultEnvVars(),
+				Env:             defaultEnvVars(extraEnv),
 				VolumeMounts:    defaultMountVolume(),
 			},
 			{
@@ -1287,7 +1296,7 @@ func runtimeSecurityAgentPodSpec(complianceDuration string) corev1.PodSpec {
 						Protocol:      "UDP",
 					},
 				},
-				Env:            defaultEnvVars(),
+				Env:            defaultEnvVars(extraEnv),
 				VolumeMounts:   defaultMountVolume(),
 				LivenessProbe:  defaultLivenessProbe(),
 				ReadinessProbe: defaultReadinessProbe(),
@@ -1324,7 +1333,7 @@ func runtimeSecurityAgentPodSpec(complianceDuration string) corev1.PodSpec {
 					},
 				},
 				Resources:    corev1.ResourceRequirements{},
-				Env:          securityAgentEnvVars(false, true, complianceDuration),
+				Env:          securityAgentEnvVars(false, true, extraEnv),
 				VolumeMounts: runtimeSecurityAgentMountVolume(),
 			},
 		},
@@ -1332,7 +1341,7 @@ func runtimeSecurityAgentPodSpec(complianceDuration string) corev1.PodSpec {
 	}
 }
 
-func complianceSecurityAgentPodSpec(complianceDuration string) corev1.PodSpec {
+func complianceSecurityAgentPodSpec(extraEnv map[string]string) corev1.PodSpec {
 	return corev1.PodSpec{
 		ServiceAccountName: "foo-agent",
 		HostPID:            true,
@@ -1358,7 +1367,7 @@ func complianceSecurityAgentPodSpec(complianceDuration string) corev1.PodSpec {
 				Resources:       corev1.ResourceRequirements{},
 				Command:         []string{"bash", "-c"},
 				Args:            []string{"for script in $(find /etc/cont-init.d/ -type f -name '*.sh' | sort) ; do bash $script ; done"},
-				Env:             defaultEnvVars(),
+				Env:             defaultEnvVars(extraEnv),
 				VolumeMounts:    defaultMountVolume(),
 			},
 		},
@@ -1379,7 +1388,7 @@ func complianceSecurityAgentPodSpec(complianceDuration string) corev1.PodSpec {
 						Protocol:      "UDP",
 					},
 				},
-				Env:            defaultEnvVars(),
+				Env:            defaultEnvVars(extraEnv),
 				VolumeMounts:   defaultMountVolume(),
 				LivenessProbe:  defaultLivenessProbe(),
 				ReadinessProbe: defaultReadinessProbe(),
@@ -1399,7 +1408,7 @@ func complianceSecurityAgentPodSpec(complianceDuration string) corev1.PodSpec {
 					},
 				},
 				Resources:    corev1.ResourceRequirements{},
-				Env:          securityAgentEnvVars(true, false, complianceDuration),
+				Env:          securityAgentEnvVars(true, false, extraEnv),
 				VolumeMounts: complianceSecurityAgentMountVolume(),
 			},
 		},
@@ -1955,10 +1964,11 @@ func Test_ExtraParameters(t *testing.T) {
 	}
 	datadogAgent := test.NewDefaultedDatadogAgent("bar", "foo", options)
 
-	podSpec := complianceSecurityAgentPodSpec("60000000000")
-	updateContainersEnv(&podSpec.InitContainers[1], "DD_SITE", site)
-	updateContainersEnv(&podSpec.Containers[0], "DD_SITE", site)
-	updateContainersEnv(&podSpec.Containers[1], "DD_SITE", site)
+	extraEnvs := map[string]string{
+		"DD_COMPLIANCE_CONFIG_CHECK_INTERVAL": "60000000000",
+		"DD_SITE":                             site,
+	}
+	podSpec := complianceSecurityAgentPodSpec(extraEnvs)
 
 	test := extendedDaemonSetFromInstanceTest{
 		name:            "with custom config (datadog.yaml)",
@@ -2560,7 +2570,7 @@ func Test_newExtendedDaemonSetFromInstance_Orchestrator(t *testing.T) {
 }
 
 func Test_newExtendedDaemonSetFromInstance_SecurityAgent_Compliance(t *testing.T) {
-	securityAgentPodSpec := complianceSecurityAgentPodSpec("")
+	securityAgentPodSpec := complianceSecurityAgentPodSpec(nil)
 
 	dda := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
 		UseEDS:                       true,
@@ -2615,7 +2625,7 @@ func Test_newExtendedDaemonSetFromInstance_SecurityAgent_Compliance(t *testing.T
 }
 
 func Test_newExtendedDaemonSetFromInstance_SecurityAgent_Runtime(t *testing.T) {
-	securityAgentPodSpec := runtimeSecurityAgentPodSpec("")
+	securityAgentPodSpec := runtimeSecurityAgentPodSpec(nil)
 
 	dda := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
 		UseEDS:                       true,

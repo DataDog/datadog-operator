@@ -485,10 +485,6 @@ func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.En
 			Value: spec.ClusterName,
 		},
 		{
-			Name:  datadoghqv1alpha1.DDSite,
-			Value: spec.Site,
-		},
-		{
 			Name:  datadoghqv1alpha1.DDClusterChecksEnabled,
 			Value: datadoghqv1alpha1.BoolToString(spec.ClusterAgent.Config.ClusterChecksEnabled),
 		},
@@ -548,6 +544,13 @@ func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.En
 		envVars = append(envVars, corev1.EnvVar{
 			Name:      datadoghqv1alpha1.DDAPIKey,
 			ValueFrom: getAPIKeyFromSecret(dda),
+		})
+	}
+
+	if spec.Site != "" {
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  datadoghqv1alpha1.DDSite,
+			Value: spec.Site,
 		})
 	}
 

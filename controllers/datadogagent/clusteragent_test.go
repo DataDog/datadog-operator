@@ -78,10 +78,6 @@ func clusterAgentDefaultEnvVars() []corev1.EnvVar {
 			Value: "",
 		},
 		{
-			Name:  "DD_SITE",
-			Value: "",
-		},
-		{
 			Name:  "DD_CLUSTER_CHECKS_ENABLED",
 			Value: "false",
 		},
@@ -581,6 +577,9 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 		Name:          "metricsapi",
 		Protocol:      "TCP",
 	})
+
+	updateContainersEnv(&metricsServerWithSitePodSpec.Containers[0], "DD_SITE", "datadoghq.eu")
+
 	metricsServerWithSitePodSpec.Containers[0].Env = append(metricsServerWithSitePodSpec.Containers[0].Env,
 		[]corev1.EnvVar{
 			{
@@ -611,12 +610,6 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 	)
 	metricsServerWithSitePodSpec.Containers[0].LivenessProbe = probe
 	metricsServerWithSitePodSpec.Containers[0].ReadinessProbe = probe
-
-	for index := range metricsServerWithSitePodSpec.Containers[0].Env {
-		if metricsServerWithSitePodSpec.Containers[0].Env[index].Name == "DD_SITE" {
-			metricsServerWithSitePodSpec.Containers[0].Env[index].Value = "datadoghq.eu"
-		}
-	}
 
 	metricsServerAgentWithSiteDeployment := test.NewDefaultedDatadogAgent("bar", "foo",
 		&test.NewDatadogAgentOptions{
@@ -716,6 +709,7 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 								"app.kubernetes.io/version":     "",
 								"app":                           "datadog-monitoring",
 							},
+							Annotations: map[string]string{},
 						},
 						Spec: metricsServerWithSitePodSpec,
 					},
