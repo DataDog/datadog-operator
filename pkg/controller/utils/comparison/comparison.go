@@ -23,11 +23,6 @@ func IsSameSpecMD5Hash(hash string, annotations map[string]string) bool {
 	return IsSameMD5Hash(hash, annotations, datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey)
 }
 
-// IsSameResourceMD5Hash used to compare the Resource.spec md5 hash with the one set in annotations
-func IsSameResourceMD5Hash(hash string, annotations map[string]string) bool {
-	return IsSameMD5Hash(hash, annotations, datadoghqv1alpha1.MD5ResourceAnnotationKey)
-}
-
 // IsSameMD5Hash used to compare a md5 hash with the one set in annotations
 func IsSameMD5Hash(hash string, annotations map[string]string, annotationKey string) bool {
 	if val, ok := annotations[annotationKey]; ok && val == hash {

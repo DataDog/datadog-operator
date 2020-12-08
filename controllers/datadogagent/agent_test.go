@@ -14,7 +14,6 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
 	test "github.com/DataDog/datadog-operator/api/v1alpha1/test"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/orchestrator"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	"github.com/google/go-cmp/cmp"
 	assert "github.com/stretchr/testify/require"
@@ -1419,15 +1418,15 @@ type extendedDaemonSetFromInstanceTest struct {
 func (test extendedDaemonSetFromInstanceTest) Run(t *testing.T) {
 	t.Helper()
 	logf.SetLogger(logf.ZapLogger(true))
-	got, _, _, err := newExtendedDaemonSetFromInstance(test.agentdeployment, test.selector)
+	got, _, err := newExtendedDaemonSetFromInstance(test.agentdeployment, test.selector)
 	if test.wantErr {
 		assert.Error(t, err, "newExtendedDaemonSetFromInstance() expected an error")
 	} else {
 		assert.NoError(t, err, "newExtendedDaemonSetFromInstance() unexpected error: %v", err)
 	}
 
-	// Remove the generated Resource hash before comparison because it is not easy generate it in the test definition.
-	delete(got.Annotations, datadoghqv1alpha1.MD5ResourceAnnotationKey)
+	// Remove the generated hash before comparison because it is not easy generate it in the test definition.
+	delete(got.Annotations, datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey)
 
 	assert.True(t, apiequality.Semantic.DeepEqual(got, test.want), "newExtendedDaemonSetFromInstance() = %#v\n\nwant %#v\ndiff: %s",
 		got, test.want, cmp.Diff(got, test.want))
@@ -1453,7 +1452,6 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 			ClusterAgentEnabled: true,
 			HostPort:            datadoghqv1alpha1.DefaultDogstatsdPort,
 		})
-	hostPortAgentSpecHash, _ := comparison.GenerateMD5ForSpec(hostPortAgent.Spec)
 	hostPortPodSpec := defaultPodSpec()
 	hostPortPodSpec.Containers[0].Ports[0].HostPort = datadoghqv1alpha1.DefaultDogstatsdPort
 
@@ -1464,7 +1462,6 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 		HostPort:            12345,
 		HostNetwork:         true,
 	})
-	hostPortNetworkAgentSpecHash, _ := comparison.GenerateMD5ForSpec(hostPortNetworkAgent.Spec)
 	hostPortNetworkPodSpec := defaultPodSpec()
 	hostPortNetworkPodSpec.HostNetwork = true
 	hostPortNetworkPodSpec.Containers[0].Ports[0].ContainerPort = 12345
@@ -1492,7 +1489,7 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 						"app.kubernetes.io/part-of":     "foo",
 						"app.kubernetes.io/version":     "",
 					},
-					Annotations: map[string]string{"agent.datadoghq.com/agentspechash": defaultAgentHash},
+					Annotations: map[string]string{},
 				},
 				Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
 					Template: corev1.PodTemplateSpec{
@@ -1535,8 +1532,7 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 						"app.kubernetes.io/version":     "",
 					},
 					Annotations: map[string]string{
-						"agent.datadoghq.com/agentspechash": defaultAgentHash,
-						"annotations-foo-key":               "annotations-bar-value",
+						"annotations-foo-key": "annotations-bar-value",
 					},
 				},
 				Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
@@ -1577,7 +1573,7 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 						"app.kubernetes.io/part-of":     "foo",
 						"app.kubernetes.io/version":     "",
 					},
-					Annotations: map[string]string{"agent.datadoghq.com/agentspechash": hostPortAgentSpecHash},
+					Annotations: map[string]string{},
 				},
 				Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
 					Template: corev1.PodTemplateSpec{
@@ -1618,7 +1614,7 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 						"app.kubernetes.io/part-of":     "foo",
 						"app.kubernetes.io/version":     "",
 					},
-					Annotations: map[string]string{"agent.datadoghq.com/agentspechash": hostPortNetworkAgentSpecHash},
+					Annotations: map[string]string{},
 				},
 				Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
 					Template: corev1.PodTemplateSpec{
@@ -1725,8 +1721,6 @@ func Test_newExtendedDaemonSetFromInstance_CustomConfigMaps(t *testing.T) {
 		},
 	})
 
-	customConfigMapAgentHash, _ := comparison.GenerateMD5ForSpec(customConfigMapAgentDeployment.Spec)
-
 	test := extendedDaemonSetFromInstanceTest{
 		name:            "with custom confd and checksd volume mounts",
 		agentdeployment: customConfigMapAgentDeployment,
@@ -1744,7 +1738,7 @@ func Test_newExtendedDaemonSetFromInstance_CustomConfigMaps(t *testing.T) {
 					"app.kubernetes.io/part-of":     "foo",
 					"app.kubernetes.io/version":     "",
 				},
-				Annotations: map[string]string{"agent.datadoghq.com/agentspechash": customConfigMapAgentHash},
+				Annotations: map[string]string{},
 			},
 			Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
 				Template: corev1.PodTemplateSpec{
@@ -1885,7 +1879,6 @@ func Test_newExtendedDaemonSetFromInstance_CustomDatadogYaml(t *testing.T) {
 		},
 	}
 	customConfigMapCustomDatadogYamlSpec.InitContainers[1].VolumeMounts = customConfigMapCustomDatadogYamlSpec.Containers[0].VolumeMounts
-	customConfigMagCustomDatadogYamlHash, _ := comparison.GenerateMD5ForSpec(customConfigMapCustomDatadogYaml.Spec)
 
 	test := extendedDaemonSetFromInstanceTest{
 		name:            "with custom config (datadog.yaml)",
@@ -1904,7 +1897,7 @@ func Test_newExtendedDaemonSetFromInstance_CustomDatadogYaml(t *testing.T) {
 					"app.kubernetes.io/part-of":     "foo",
 					"app.kubernetes.io/version":     "",
 				},
-				Annotations: map[string]string{"agent.datadoghq.com/agentspechash": customConfigMagCustomDatadogYamlHash},
+				Annotations: map[string]string{},
 			},
 			Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
 				Template: corev1.PodTemplateSpec{
@@ -1961,7 +1954,6 @@ func Test_ExtraParameters(t *testing.T) {
 		ComplianceCheckInterval:        metav1.Duration{Duration: time.Minute},
 	}
 	datadogAgent := test.NewDefaultedDatadogAgent("bar", "foo", options)
-	customConfigMagCustomDatadogYamlHash, _ := comparison.GenerateMD5ForSpec(datadogAgent.Spec)
 
 	podSpec := complianceSecurityAgentPodSpec("60000000000")
 	updateContainersEnv(&podSpec.InitContainers[1], "DD_SITE", site)
@@ -1987,8 +1979,7 @@ func Test_ExtraParameters(t *testing.T) {
 					"bar":                           "foo",
 				},
 				Annotations: map[string]string{
-					"agent.datadoghq.com/agentspechash": customConfigMagCustomDatadogYamlHash,
-					"foo":                               "bar",
+					"foo": "bar",
 				},
 			},
 			Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
@@ -2050,8 +2041,6 @@ func Test_newExtendedDaemonSetFromInstance_CustomVolumes(t *testing.T) {
 			VolumeMounts:        userVolumeMounts,
 		})
 
-	userMountsAgentHash, _ := comparison.GenerateMD5ForSpec(userMountsAgentDeployment.Spec)
-
 	test := extendedDaemonSetFromInstanceTest{
 		name:            "with user volumes and mounts",
 		agentdeployment: userMountsAgentDeployment,
@@ -2069,7 +2058,7 @@ func Test_newExtendedDaemonSetFromInstance_CustomVolumes(t *testing.T) {
 					"app.kubernetes.io/part-of":     "foo",
 					"app.kubernetes.io/version":     "",
 				},
-				Annotations: map[string]string{"agent.datadoghq.com/agentspechash": userMountsAgentHash},
+				Annotations: map[string]string{},
 			},
 			Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
 				Template: corev1.PodTemplateSpec{
@@ -2103,8 +2092,6 @@ func Test_newExtendedDaemonSetFromInstance_DaemonSetNameAndSelector(t *testing.T
 			AgentDaemonsetName:  "custom-agent-daemonset",
 		})
 
-	daemonsetNameAgentHash, _ := comparison.GenerateMD5ForSpec(daemonsetNameAgentDeployment.Spec)
-
 	test := extendedDaemonSetFromInstanceTest{
 		name:            "with user daemonset name and selector",
 		agentdeployment: daemonsetNameAgentDeployment,
@@ -2127,7 +2114,7 @@ func Test_newExtendedDaemonSetFromInstance_DaemonSetNameAndSelector(t *testing.T
 					"app.kubernetes.io/part-of":     "foo",
 					"app.kubernetes.io/version":     "",
 				},
-				Annotations: map[string]string{"agent.datadoghq.com/agentspechash": daemonsetNameAgentHash},
+				Annotations: map[string]string{},
 			},
 			Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
 				Selector: &metav1.LabelSelector{
@@ -2218,8 +2205,6 @@ func Test_newExtendedDaemonSetFromInstance_LogsEnabled(t *testing.T) {
 	logEnabled := true
 	dda.Spec.Agent.Log.Enabled = &logEnabled
 
-	ddaHash, _ := comparison.GenerateMD5ForSpec(dda.Spec)
-
 	test := extendedDaemonSetFromInstanceTest{
 		name:            "with logs enabled",
 		agentdeployment: dda,
@@ -2237,7 +2222,7 @@ func Test_newExtendedDaemonSetFromInstance_LogsEnabled(t *testing.T) {
 					"app.kubernetes.io/part-of":     "foo",
 					"app.kubernetes.io/version":     "",
 				},
-				Annotations: map[string]string{"agent.datadoghq.com/agentspechash": ddaHash},
+				Annotations: map[string]string{},
 			},
 			Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
 				Template: corev1.PodTemplateSpec{
@@ -2278,8 +2263,6 @@ func Test_newExtendedDaemonSetFromInstance_clusterChecksConfig(t *testing.T) {
 
 	dda.Spec.ClusterChecksRunner = nil
 
-	ddaHash, _ := comparison.GenerateMD5ForSpec(dda.Spec)
-
 	test := extendedDaemonSetFromInstanceTest{
 		name:            "with cluster checks / clc runners",
 		agentdeployment: dda,
@@ -2297,7 +2280,7 @@ func Test_newExtendedDaemonSetFromInstance_clusterChecksConfig(t *testing.T) {
 					"app.kubernetes.io/part-of":     "foo",
 					"app.kubernetes.io/version":     "",
 				},
-				Annotations: map[string]string{"agent.datadoghq.com/agentspechash": ddaHash},
+				Annotations: map[string]string{},
 			},
 			Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
 				Template: corev1.PodTemplateSpec{
@@ -2337,8 +2320,6 @@ func Test_newExtendedDaemonSetFromInstance_endpointsChecksConfig(t *testing.T) {
 		ClusterChecksRunnerEnabled: true,
 	})
 
-	ddaHash, _ := comparison.GenerateMD5ForSpec(dda.Spec)
-
 	test := extendedDaemonSetFromInstanceTest{
 		name:            "with cluster checks / with clc runners",
 		agentdeployment: dda,
@@ -2356,7 +2337,7 @@ func Test_newExtendedDaemonSetFromInstance_endpointsChecksConfig(t *testing.T) {
 					"app.kubernetes.io/part-of":     "foo",
 					"app.kubernetes.io/version":     "",
 				},
-				Annotations: map[string]string{"agent.datadoghq.com/agentspechash": ddaHash},
+				Annotations: map[string]string{},
 			},
 			Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
 				Template: corev1.PodTemplateSpec{
@@ -2384,7 +2365,7 @@ func Test_newExtendedDaemonSetFromInstance_endpointsChecksConfig(t *testing.T) {
 	test.Run(t)
 }
 
-func extendedDaemonSetWithSystemProbe(ddaHash string, podSpec corev1.PodSpec) *edsdatadoghqv1alpha1.ExtendedDaemonSet {
+func extendedDaemonSetWithSystemProbe(podSpec corev1.PodSpec) *edsdatadoghqv1alpha1.ExtendedDaemonSet {
 	return &edsdatadoghqv1alpha1.ExtendedDaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "bar",
@@ -2398,7 +2379,7 @@ func extendedDaemonSetWithSystemProbe(ddaHash string, podSpec corev1.PodSpec) *e
 				"app.kubernetes.io/part-of":     "foo",
 				"app.kubernetes.io/version":     "",
 			},
-			Annotations: map[string]string{"agent.datadoghq.com/agentspechash": ddaHash},
+			Annotations: map[string]string{},
 		},
 		Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
 			Template: corev1.PodTemplateSpec{
@@ -2426,7 +2407,7 @@ func extendedDaemonSetWithSystemProbe(ddaHash string, podSpec corev1.PodSpec) *e
 	}
 }
 
-func extendedDaemonSetDefault(ddaHash string, podSpec corev1.PodSpec) *edsdatadoghqv1alpha1.ExtendedDaemonSet {
+func extendedDaemonSetDefault(podSpec corev1.PodSpec) *edsdatadoghqv1alpha1.ExtendedDaemonSet {
 	return &edsdatadoghqv1alpha1.ExtendedDaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "bar",
@@ -2440,7 +2421,7 @@ func extendedDaemonSetDefault(ddaHash string, podSpec corev1.PodSpec) *edsdatado
 				"app.kubernetes.io/part-of":     "foo",
 				"app.kubernetes.io/version":     "",
 			},
-			Annotations: map[string]string{"agent.datadoghq.com/agentspechash": ddaHash},
+			Annotations: map[string]string{},
 		},
 		Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
 			Template: corev1.PodTemplateSpec{
@@ -2525,28 +2506,24 @@ func Test_newExtendedDaemonSetFromInstance_SystemProbe(t *testing.T) {
 		SystemProbeTCPQueueLengthEnabled: true,
 	})
 
-	ddaHash, _ := comparison.GenerateMD5ForSpec(dda.Spec)
-	ddaHashOOMKill, _ := comparison.GenerateMD5ForSpec(ddaOOMKill.Spec)
-	ddaHashTCPQueueLength, _ := comparison.GenerateMD5ForSpec(ddaTCPQueueLength.Spec)
-
 	tests := []extendedDaemonSetFromInstanceTest{
 		{
 			name:            "with default settings",
 			agentdeployment: dda,
 			wantErr:         false,
-			want:            extendedDaemonSetWithSystemProbe(ddaHash, systemProbePodSpec),
+			want:            extendedDaemonSetWithSystemProbe(systemProbePodSpec),
 		},
 		{
 			name:            "with oom kill",
 			agentdeployment: ddaOOMKill,
 			wantErr:         false,
-			want:            extendedDaemonSetWithSystemProbe(ddaHashOOMKill, *systemProbeExtraMountsSpec),
+			want:            extendedDaemonSetWithSystemProbe(*systemProbeExtraMountsSpec),
 		},
 		{
 			name:            "with tcp queue length",
 			agentdeployment: ddaTCPQueueLength,
 			wantErr:         false,
-			want:            extendedDaemonSetWithSystemProbe(ddaHashTCPQueueLength, *systemProbeExtraMountsSpec),
+			want:            extendedDaemonSetWithSystemProbe(*systemProbeExtraMountsSpec),
 		},
 	}
 
@@ -2566,14 +2543,12 @@ func Test_newExtendedDaemonSetFromInstance_Orchestrator(t *testing.T) {
 		OrchestratorExplorerEnabled: true,
 	})
 
-	ddaHash, _ := comparison.GenerateMD5ForSpec(dda.Spec)
-
 	tests := []extendedDaemonSetFromInstanceTest{
 		{
 			name:            "with default settings",
 			agentdeployment: dda,
 			wantErr:         false,
-			want:            extendedDaemonSetDefault(ddaHash, orchestratorPodSpec),
+			want:            extendedDaemonSetDefault(orchestratorPodSpec),
 		},
 	}
 
@@ -2594,8 +2569,6 @@ func Test_newExtendedDaemonSetFromInstance_SecurityAgent_Compliance(t *testing.T
 		RuntimeSyscallMonitorEnabled: true,
 	})
 
-	ddaHash, _ := comparison.GenerateMD5ForSpec(dda.Spec)
-
 	test := extendedDaemonSetFromInstanceTest{
 		name:            "with compliance agent enabled",
 		agentdeployment: dda,
@@ -2613,7 +2586,7 @@ func Test_newExtendedDaemonSetFromInstance_SecurityAgent_Compliance(t *testing.T
 					"app.kubernetes.io/part-of":     "foo",
 					"app.kubernetes.io/version":     "",
 				},
-				Annotations: map[string]string{"agent.datadoghq.com/agentspechash": ddaHash},
+				Annotations: map[string]string{},
 			},
 			Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
 				Template: corev1.PodTemplateSpec{
@@ -2651,8 +2624,6 @@ func Test_newExtendedDaemonSetFromInstance_SecurityAgent_Runtime(t *testing.T) {
 		RuntimeSyscallMonitorEnabled: true,
 	})
 
-	ddaHash, _ := comparison.GenerateMD5ForSpec(dda.Spec)
-
 	test := extendedDaemonSetFromInstanceTest{
 		name:            "with runtime security agent enabled",
 		agentdeployment: dda,
@@ -2670,7 +2641,7 @@ func Test_newExtendedDaemonSetFromInstance_SecurityAgent_Runtime(t *testing.T) {
 					"app.kubernetes.io/part-of":     "foo",
 					"app.kubernetes.io/version":     "",
 				},
-				Annotations: map[string]string{"agent.datadoghq.com/agentspechash": ddaHash},
+				Annotations: map[string]string{},
 			},
 			Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
 				Template: corev1.PodTemplateSpec{

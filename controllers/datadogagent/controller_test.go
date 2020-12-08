@@ -46,15 +46,9 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
-var defaultAgentHash string
-
 func init() {
 	const resourcesName = "foo"
 	const resourcesNamespace = "bar"
-
-	// init default hashes global variables for a bar/foo datadog agent deployment default config
-	ad := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, &test.NewDatadogAgentOptions{UseEDS: true, ClusterAgentEnabled: true, Labels: map[string]string{"label-foo-key": "label-bar-value"}})
-	defaultAgentHash, _ = comparison.GenerateMD5ForSpec(ad.Spec)
 }
 
 func TestReconcileDatadogAgent_createNewExtendedDaemonSet(t *testing.T) {
