@@ -919,7 +919,10 @@ func appendDefaultAPMAgentContainer(podSpec *corev1.PodSpec) {
 		Ports:           []corev1.ContainerPort{{Name: "traceport", ContainerPort: 8126, Protocol: "TCP"}},
 		Env:             defaultAPMContainerEnvVars(),
 		VolumeMounts: []corev1.VolumeMount{
-			{Name: "config", MountPath: "/etc/datadog-agent"},
+			{
+				Name:      "config",
+				MountPath: "/etc/datadog-agent",
+			},
 			{
 				Name:      "custom-datadog-yaml",
 				ReadOnly:  true,

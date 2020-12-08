@@ -431,7 +431,7 @@ func newExtendedDaemonSetFromInstance(dda *datadoghqv1alpha1.DatadogAgent, selec
 			},
 		},
 	}
-	hash, err := comparison.SetMD5GenerationAnnotation(&eds.ObjectMeta, dda.Spec)
+	hash, err := comparison.SetMD5GenerationAnnotation(&eds.ObjectMeta, eds.Spec)
 	if err != nil {
 		return nil, "", err
 	}
@@ -463,7 +463,7 @@ func newDaemonSetFromInstance(dda *datadoghqv1alpha1.DatadogAgent, selector *met
 			},
 		},
 	}
-	hash, err := comparison.SetMD5GenerationAnnotation(&ds.ObjectMeta, dda.Spec)
+	hash, err := comparison.SetMD5GenerationAnnotation(&ds.ObjectMeta, ds.Spec)
 	if err != nil {
 		return nil, "", err
 	}
