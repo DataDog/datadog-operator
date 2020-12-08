@@ -415,13 +415,6 @@ func getEnvVarsForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []cor
 		})
 	}
 
-	if isKSMCoreEnabled(spec.ClusterAgent) {
-		envVars = append(envVars, corev1.EnvVar{
-			Name:  datadoghqv1alpha1.DDIgnoreAutoConf,
-			Value: "kubernetes_state",
-		})
-	}
-
 	return append(envVars, spec.ClusterChecksRunner.Config.Env...)
 }
 

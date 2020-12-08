@@ -669,17 +669,26 @@ func getEnvVarsForAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.EnvVar, e
 					Value: datadoghqv1alpha1.ClusterAndEndpointsConfigPoviders,
 				})
 			} else {
-				// Remove ksm v1 conf if the cluster checks are enabled and the ksm core is enabled
-				if isKSMCoreEnabled(spec.ClusterAgent) {
+				clusterEnv = append(clusterEnv, corev1.EnvVar{
+					Name:  datadoghqv1alpha1.DDExtraConfigProviders,
+					Value: datadoghqv1alpha1.EndpointsChecksConfigProvider,
+				})
+			}
+			// Remove ksm v1 conf if the cluster checks are enabled and the ksm core is enabled
+			if isKSMCoreEnabled(spec.ClusterAgent) {
+				ignoreAutoConfMutated := false
+				for i, e := range spec.Agent.Config.Env {
+					if e.Name == datadoghqv1alpha1.DDIgnoreAutoConf {
+						spec.Agent.Config.Env[i].Value = fmt.Sprintf("%s kubernetes_state", e.Value)
+						ignoreAutoConfMutated = true
+					}
+				}
+				if !ignoreAutoConfMutated {
 					envVars = append(envVars, corev1.EnvVar{
 						Name:  datadoghqv1alpha1.DDIgnoreAutoConf,
 						Value: "kubernetes_state",
 					})
 				}
-				clusterEnv = append(clusterEnv, corev1.EnvVar{
-					Name:  datadoghqv1alpha1.DDExtraConfigProviders,
-					Value: datadoghqv1alpha1.EndpointsChecksConfigProvider,
-				})
 			}
 		}
 		envVars = append(envVars, clusterEnv...)

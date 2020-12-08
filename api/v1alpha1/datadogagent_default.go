@@ -40,8 +40,8 @@ const (
 	defaultOrchestratorExplorerContainerScrubbingEnabled bool   = true
 	defaultMetricsProviderPort                           int32  = 8443
 	defaultClusterChecksEnabled                          bool   = false
-    defaultKubeStateMetricsCoreConf                      string = "kube-state-metrics-core-config"
-    defaultClusterAgentReplicas                          int32  = 1
+	defaultKubeStateMetricsCoreConf                      string = "kube-state-metrics-core-config"
+	defaultClusterAgentReplicas                          int32  = 1
 	defaultAgentCanaryReplicas                           int32  = 1
 	defaultClusterChecksRunnerReplicas                   int32  = 2
 	defaultClusterAgentImage                             string = "datadog/cluster-agent:latest"

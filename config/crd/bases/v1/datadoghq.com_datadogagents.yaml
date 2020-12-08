@@ -3740,8 +3740,8 @@ spec:
                           enabled'
                         type: boolean
                       collectEvents:
-                        description: 'Enables this to start event collection from
-                          the Kubernetes API ref: https://docs.datadoghq.com/agent/cluster_agent/event_collection/'
+                        description: 'Enable this to start event collection from the
+                          kubernetes API ref: https://docs.datadoghq.com/agent/cluster_agent/event_collection/'
                         type: boolean
                       confd:
                         description: Confd Provide additional cluster check configurations.
