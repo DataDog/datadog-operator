@@ -2,13 +2,11 @@
 
 ## Steps
 
-1. Checkout the repository on the correct branch and changeset (`master`).
-2. Run the pre-release script:
-
-    - For a release candidate, run the following command, locally: `make VERSION=x.v.z RELEASE_CANDIDATE=1 pre-release`
-
-      For example, to generate the release version `0.3.0-rc.2`, run: `make VERSION=0.3.0 RELEASE_CANDIDATE=2 pre-release`
-    - For a final release, run the following command, locally: `make VERSION=x.v.z pre-release`
+1. Checkout the repository on the correct branch and changeset (`master`).Creates a new branch if it is the first release for a "minor" version: `git checkout -b vX.Y`.
+2. Run the bundle generation:
+    - For a release candidate, run the following command, locally: `make VERSION=x.v.z-rc.w bundle`
+      For example, to generate the release version `0.3.0-rc.2`, run: `make VERSION=0.3.0-rc.2 bundle`
+    - For a release, command is the same with final version: `make VERSION=x.v.z bundle`
 
 3. Commit all the changes generated from the previous command:
 
@@ -23,6 +21,7 @@
 5. Push the generated commit and tag to the repostory branch.
 
    ```console
+   $ git push origin vX.Y
    $ git push origin vX.Y.Z
    ```
 

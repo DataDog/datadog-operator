@@ -83,6 +83,7 @@ push_tag_to_docker_hub:
     - DOCKER_REGISTRY_LOGIN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_LOGIN_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
     - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin $DOCKER_REGISTRY_URL
     - IMG=$DOCKERHUB_ORG/$DOCKERHUB_REPO:${CI_COMMIT_TAG:1} make docker-build-ci docker-push
+    - BUNDLE_IMG=$DOCKERHUB_ORG/$DOCKERHUB_REPO-bundle:${CI_COMMIT_TAG:1} make bundle-build bundle-push
 
 push_latest_to_docker_hub:
   only:

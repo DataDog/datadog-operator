@@ -277,3 +277,11 @@ rules:
   - roles
   verbs:
   - '*'
+- apiGroups:
+  - security.openshift.io
+  resourceNames:
+  - restricted
+  resources:
+  - securitycontextconstraints
+  verbs:
+  - use

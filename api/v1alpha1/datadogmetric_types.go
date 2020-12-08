@@ -16,6 +16,10 @@ type DatadogMetricSpec struct {
 	Query string `json:"query,omitempty"`
 	// ExternalMetricName is reversed for internal use
 	ExternalMetricName string `json:"externalMetricName,omitempty"`
+	// MaxAge provides the max age for the metric query (overrides the default setting
+	// `external_metrics_provider.max_age`)
+	// +optional
+	MaxAge metav1.Duration `json:"maxAge,omitempty"`
 }
 
 // DatadogMetricStatus defines the observed state of DatadogMetric

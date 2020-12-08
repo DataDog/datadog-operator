@@ -196,7 +196,7 @@ func newClusterAgentDeploymentFromInstance(agentdeployment *datadoghqv1alpha1.Da
 	if err != nil {
 		return nil, "", err
 	}
-	
+
 	dca := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        getClusterAgentName(agentdeployment),
@@ -362,7 +362,7 @@ func newClusterAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent,
 		volumeMounts = append(volumeMounts, volumeMount)
 	}
 
-	if isComplianceEnabled(agentdeployment) {
+	if isComplianceEnabled(&agentdeployment.Spec) {
 		if agentdeployment.Spec.Agent.Security.Compliance.ConfigDir != nil {
 			volumes = append(volumes, corev1.Volume{
 				Name: datadoghqv1alpha1.SecurityAgentComplianceConfigDirVolumeName,
@@ -477,7 +477,7 @@ func getClusterAgentCustomConfigConfigMapName(dda *datadoghqv1alpha1.DatadogAgen
 func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.EnvVar, error) {
 	spec := &dda.Spec
 
-	complianceEnabled := isComplianceEnabled(dda)
+	complianceEnabled := isComplianceEnabled(&dda.Spec)
 
 	envVars := []corev1.EnvVar{
 		{
@@ -1160,7 +1160,7 @@ func buildClusterAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, age
 		})
 	}
 
-	if isComplianceEnabled(dda) {
+	if isComplianceEnabled(&dda.Spec) {
 		// ServiceAccounts and Namespaces
 		rbacRules = append(rbacRules, rbacv1.PolicyRule{
 			APIGroups: []string{datadoghqv1alpha1.CoreAPIGroup},
