@@ -38,6 +38,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./api/v1alpha1.DatadogAgentSpecClusterAgentSpec":        schema__api_v1alpha1_DatadogAgentSpecClusterAgentSpec(ref),
 		"./api/v1alpha1.DatadogAgentSpecClusterChecksRunnerSpec": schema__api_v1alpha1_DatadogAgentSpecClusterChecksRunnerSpec(ref),
 		"./api/v1alpha1.DatadogAgentStatus":                      schema__api_v1alpha1_DatadogAgentStatus(ref),
+		"./api/v1alpha1.DatadogFeatures":                         schema__api_v1alpha1_DatadogFeatures(ref),
 		"./api/v1alpha1.DatadogMetric":                           schema__api_v1alpha1_DatadogMetric(ref),
 		"./api/v1alpha1.DatadogMetricCondition":                  schema__api_v1alpha1_DatadogMetricCondition(ref),
 		"./api/v1alpha1.DatadogMonitor":                          schema__api_v1alpha1_DatadogMonitor(ref),
@@ -49,6 +50,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./api/v1alpha1.LogSpec":                                 schema__api_v1alpha1_LogSpec(ref),
 		"./api/v1alpha1.NetworkPolicySpec":                       schema__api_v1alpha1_NetworkPolicySpec(ref),
 		"./api/v1alpha1.NodeAgentConfig":                         schema__api_v1alpha1_NodeAgentConfig(ref),
+		"./api/v1alpha1.OrchestratorExplorerConfig":              schema__api_v1alpha1_OrchestratorExplorerConfig(ref),
 		"./api/v1alpha1.ProcessSpec":                             schema__api_v1alpha1_ProcessSpec(ref),
 		"./api/v1alpha1.RbacConfig":                              schema__api_v1alpha1_RbacConfig(ref),
 		"./api/v1alpha1.RuntimeSecuritySpec":                     schema__api_v1alpha1_RuntimeSecuritySpec(ref),
@@ -272,7 +274,7 @@ func schema__api_v1alpha1_ClusterAgentConfig(ref common.ReferenceCallback) commo
 					},
 					"collectEvents": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enables this to start event collection from the kubernetes API ref: https://docs.datadoghq.com/agent/cluster_agent/event_collection/",
+							Description: "Enables this to start event collection from the Kubernetes API ref: https://docs.datadoghq.com/agent/cluster_agent/event_collection/",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
@@ -844,6 +846,12 @@ func schema__api_v1alpha1_DatadogAgentSpec(ref common.ReferenceCallback) common.
 							Ref:         ref("./api/v1alpha1.AgentCredentials"),
 						},
 					},
+					"features": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Features running on the Agent and Cluster Agent",
+							Ref:         ref("./api/v1alpha1.DatadogFeatures"),
+						},
+					},
 					"agent": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The desired state of the Agent as an extended daemonset Contains the Node Agent configuration and deployment strategy",
@@ -881,7 +889,7 @@ func schema__api_v1alpha1_DatadogAgentSpec(ref common.ReferenceCallback) common.
 			},
 		},
 		Dependencies: []string{
-			"./api/v1alpha1.AgentCredentials", "./api/v1alpha1.DatadogAgentSpecAgentSpec", "./api/v1alpha1.DatadogAgentSpecClusterAgentSpec", "./api/v1alpha1.DatadogAgentSpecClusterChecksRunnerSpec"},
+			"./api/v1alpha1.AgentCredentials", "./api/v1alpha1.DatadogAgentSpecAgentSpec", "./api/v1alpha1.DatadogAgentSpecClusterAgentSpec", "./api/v1alpha1.DatadogAgentSpecClusterChecksRunnerSpec", "./api/v1alpha1.DatadogFeatures"},
 	}
 }
 
@@ -1389,6 +1397,27 @@ func schema__api_v1alpha1_DatadogAgentStatus(ref common.ReferenceCallback) commo
 		},
 		Dependencies: []string{
 			"./api/v1alpha1.DaemonSetStatus", "./api/v1alpha1.DatadogAgentCondition", "./api/v1alpha1.DeploymentStatus"},
+	}
+}
+
+func schema__api_v1alpha1_DatadogFeatures(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogFeatures are Features running on the Agent and Cluster Agent.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"orchestratorExplorer": {
+						SchemaProps: spec.SchemaProps{
+							Description: "OrchestratorExplorer configuration",
+							Ref:         ref("./api/v1alpha1.OrchestratorExplorerConfig"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"./api/v1alpha1.OrchestratorExplorerConfig"},
 	}
 }
 
@@ -1971,7 +2000,7 @@ func schema__api_v1alpha1_NodeAgentConfig(ref common.ReferenceCallback) common.O
 					},
 					"collectEvents": {
 						SchemaProps: spec.SchemaProps{
-							Description: "nables this to start event collection from the kubernetes API ref: https://docs.datadoghq.com/agent/kubernetes/event_collection/",
+							Description: "Enables this to start event collection from the Kubernetes API ref: https://docs.datadoghq.com/agent/kubernetes/event_collection/",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
@@ -2098,6 +2127,67 @@ func schema__api_v1alpha1_NodeAgentConfig(ref common.ReferenceCallback) common.O
 	}
 }
 
+func schema__api_v1alpha1_OrchestratorExplorerConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "OrchestratorExplorerConfig contains the orchestrator explorer configuration. The orchestratorExplorer runs in the process-agent and DCA.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enable this to activate live Kubernetes monitoring. ref: https://docs.datadoghq.com/infrastructure/livecontainers/#kubernetes-resources",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"scrubbing": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Option to disable scrubbing of sensitive container data (passwords, tokens, etc. ).",
+							Ref:         ref("./api/v1alpha1.Scrubbing"),
+						},
+					},
+					"additionalEndpoints": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Additional endpoints for shipping the collected data as json in the form of {\"https://process.agent.datadoghq.com\": [\"apikey1\", ...], ...}'.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"ddUrl": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Set this for the Datadog endpoint for the orchestrator explorer",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"extraTags": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "set",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Additional tags for the collected data in the form of `a b c` Difference to DD_TAGS: this is a cluster agent option that is used to define custom cluster tags",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Type:   []string{"string"},
+										Format: "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"./api/v1alpha1.Scrubbing"},
+	}
+}
+
 func schema__api_v1alpha1_ProcessSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -2107,7 +2197,14 @@ func schema__api_v1alpha1_ProcessSpec(ref common.ReferenceCallback) common.OpenA
 				Properties: map[string]spec.Schema{
 					"enabled": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enable this to activate live process monitoring. Note: /etc/passwd is automatically mounted to allow username resolution. ref: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset",
+							Description: "Note: /etc/passwd is automatically mounted to allow username resolution. ref: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"processCollectionEnabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "false (default): Only collect containers if available. true: collect process information as well",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},

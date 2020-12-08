@@ -25,6 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/orchestrator"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -191,6 +192,11 @@ func newClusterAgentDeploymentFromInstance(agentdeployment *datadoghqv1alpha1.Da
 		annotations[key] = val
 	}
 
+	dcaPodTemplate, err := newClusterAgentPodTemplate(agentdeployment, labels, annotations)
+	if err != nil {
+		return nil, "", err
+	}
+
 	dca := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        getClusterAgentName(agentdeployment),
@@ -199,7 +205,7 @@ func newClusterAgentDeploymentFromInstance(agentdeployment *datadoghqv1alpha1.Da
 			Annotations: annotations,
 		},
 		Spec: appsv1.DeploymentSpec{
-			Template: newClusterAgentPodTemplate(agentdeployment, labels, annotations),
+			Template: dcaPodTemplate,
 			Replicas: agentdeployment.Spec.ClusterAgent.Replicas,
 			Selector: selector,
 		},
@@ -293,7 +299,7 @@ func (r *Reconciler) cleanupClusterAgent(logger logr.Logger, dda *datadoghqv1alp
 }
 
 // newClusterAgentPodTemplate generates a PodTemplate from a DatadogClusterAgentDeployment spec
-func newClusterAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent, labels, annotations map[string]string) corev1.PodTemplateSpec {
+func newClusterAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent, labels, annotations map[string]string) (corev1.PodTemplateSpec, error) {
 	// copy Spec to configure the Cluster Agent Pod Template
 	clusterAgentSpec := agentdeployment.Spec.ClusterAgent.DeepCopy()
 
@@ -379,6 +385,10 @@ func newClusterAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent,
 	// Add other volumes
 	volumes = append(volumes, agentdeployment.Spec.ClusterAgent.Config.Volumes...)
 	volumeMounts = append(volumeMounts, agentdeployment.Spec.ClusterAgent.Config.VolumeMounts...)
+	envs, err := getEnvVarsForClusterAgent(agentdeployment)
+	if err != nil {
+		return corev1.PodTemplateSpec{}, err
+	}
 
 	podSpec := corev1.PodSpec{
 		ServiceAccountName: getClusterAgentServiceAccount(agentdeployment),
@@ -394,7 +404,7 @@ func newClusterAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent,
 						Protocol:      "TCP",
 					},
 				},
-				Env:          getEnvVarsForClusterAgent(agentdeployment),
+				Env:          envs,
 				VolumeMounts: volumeMounts,
 			},
 		},
@@ -456,7 +466,7 @@ func newClusterAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent,
 		container.Resources = *clusterAgentSpec.Config.Resources
 	}
 
-	return newPodTemplate
+	return newPodTemplate, nil
 }
 
 func getClusterAgentCustomConfigConfigMapName(dda *datadoghqv1alpha1.DatadogAgent) string {
@@ -464,7 +474,7 @@ func getClusterAgentCustomConfigConfigMapName(dda *datadoghqv1alpha1.DatadogAgen
 }
 
 // getEnvVarsForClusterAgent converts Cluster Agent Config into container env vars
-func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.EnvVar {
+func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.EnvVar, error) {
 	spec := &dda.Spec
 
 	complianceEnabled := isComplianceEnabled(&dda.Spec)
@@ -597,7 +607,16 @@ func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Env
 		})
 	}
 
-	return append(envVars, spec.ClusterAgent.Config.Env...)
+	if isOrchestratorExplorerEnabled(dda) {
+		envs, err := orchestrator.EnvVars(spec.Features.OrchestratorExplorer)
+		if err != nil {
+			return nil, err
+		}
+
+		envVars = append(envVars, envs...)
+	}
+
+	return append(envVars, spec.ClusterAgent.Config.Env...), nil
 }
 
 func getClusterAgentName(dda *datadoghqv1alpha1.DatadogAgent) string {
@@ -1179,6 +1198,29 @@ func buildClusterAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, age
 			Verbs: []string{
 				datadoghqv1alpha1.ListVerb,
 			},
+		})
+	}
+
+	if isOrchestratorExplorerEnabled(dda) {
+		// To get the kube-system namespace UID and generate a cluster ID
+		rbacRules = append(rbacRules, rbacv1.PolicyRule{
+			APIGroups:     []string{datadoghqv1alpha1.CoreAPIGroup},
+			Resources:     []string{datadoghqv1alpha1.NamespaceResource},
+			ResourceNames: []string{datadoghqv1alpha1.KubeSystemResourceName},
+			Verbs:         []string{datadoghqv1alpha1.GetVerb},
+		})
+		// To create the cluster-id configmap
+		rbacRules = append(rbacRules, rbacv1.PolicyRule{
+			APIGroups:     []string{datadoghqv1alpha1.CoreAPIGroup},
+			Resources:     []string{datadoghqv1alpha1.ConfigMapsResource},
+			ResourceNames: []string{datadoghqv1alpha1.DatadogClusterIDResourceName},
+			Verbs:         []string{datadoghqv1alpha1.GetVerb, datadoghqv1alpha1.CreateVerb, datadoghqv1alpha1.UpdateVerb},
+		})
+
+		rbacRules = append(rbacRules, rbacv1.PolicyRule{
+			APIGroups: []string{datadoghqv1alpha1.AppsAPIGroup},
+			Resources: []string{datadoghqv1alpha1.DeploymentsResource, datadoghqv1alpha1.ReplicasetsResource},
+			Verbs:     []string{datadoghqv1alpha1.GetVerb, datadoghqv1alpha1.ListVerb, datadoghqv1alpha1.WatchVerb},
 		})
 	}
 

@@ -244,8 +244,8 @@ spec:
                             type: string
                         type: object
                       collectEvents:
-                        description: 'nables this to start event collection from the
-                          kubernetes API ref: https://docs.datadoghq.com/agent/kubernetes/event_collection/'
+                        description: 'Enables this to start event collection from
+                          the Kubernetes API ref: https://docs.datadoghq.com/agent/kubernetes/event_collection/'
                         type: boolean
                       confd:
                         description: Confd configuration allowing to specify config
@@ -2401,9 +2401,8 @@ spec:
                     description: Process Agent configuration
                     properties:
                       enabled:
-                        description: 'Enable this to activate live process monitoring.
-                          Note: /etc/passwd is automatically mounted to allow username
-                          resolution. ref: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset'
+                        description: 'Note: /etc/passwd is automatically mounted to
+                          allow username resolution. ref: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset'
                         type: boolean
                       env:
                         description: 'The Datadog Agent supports many environment
@@ -2521,6 +2520,10 @@ spec:
                         x-kubernetes-list-map-keys:
                         - name
                         x-kubernetes-list-type: map
+                      processCollectionEnabled:
+                        description: 'false (default): Only collect containers if
+                          available. true: collect process information as well'
+                        type: boolean
                       resources:
                         description: 'Datadog Process Agent resource requests and
                           limits Make sure to keep requests and limits equal to keep
@@ -3738,7 +3741,7 @@ spec:
                         type: boolean
                       collectEvents:
                         description: 'Enables this to start event collection from
-                          the kubernetes API ref: https://docs.datadoghq.com/agent/cluster_agent/event_collection/'
+                          the Kubernetes API ref: https://docs.datadoghq.com/agent/cluster_agent/event_collection/'
                         type: boolean
                       confd:
                         description: Confd Provide additional cluster check configurations.
@@ -7773,6 +7776,44 @@ spec:
                       other credential parameters will be ignored. default value is
                       false.'
                     type: boolean
+                type: object
+              features:
+                description: Features running on the Agent and Cluster Agent
+                properties:
+                  orchestratorExplorer:
+                    description: OrchestratorExplorer configuration
+                    properties:
+                      additionalEndpoints:
+                        description: 'Additional endpoints for shipping the collected
+                          data as json in the form of {"https://process.agent.datadoghq.com":
+                          ["apikey1", ...], ...}''.'
+                        type: string
+                      ddUrl:
+                        description: Set this for the Datadog endpoint for the orchestrator
+                          explorer
+                        type: string
+                      enabled:
+                        description: 'Enable this to activate live Kubernetes monitoring.
+                          ref: https://docs.datadoghq.com/infrastructure/livecontainers/#kubernetes-resources'
+                        type: boolean
+                      extraTags:
+                        description: 'Additional tags for the collected data in the
+                          form of `a b c` Difference to DD_TAGS: this is a cluster
+                          agent option that is used to define custom cluster tags'
+                        items:
+                          type: string
+                        type: array
+                        x-kubernetes-list-type: set
+                      scrubbing:
+                        description: Option to disable scrubbing of sensitive container
+                          data (passwords, tokens, etc. ).
+                        properties:
+                          containers:
+                            description: Deactivate this to stop the scrubbing of
+                              sensitive container data (passwords, tokens, etc. ).
+                            type: boolean
+                        type: object
+                    type: object
                 type: object
               site:
                 description: The site of the Datadog intake to send Agent data to.

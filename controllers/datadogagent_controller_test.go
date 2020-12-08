@@ -174,6 +174,14 @@ var _ = Describe("DatadogAgent Controller", func() {
 				}, nil)
 			})
 
+			By("Activating OrchestratorExplorer", func() {
+				checkAgentUpdateOnDaemonSet(key, dsKey, func(agent *datadoghqv1alpha1.DatadogAgent) {
+					agent.Spec.Features = &datadoghqv1alpha1.DatadogFeatures{OrchestratorExplorer: &datadoghqv1alpha1.OrchestratorExplorerConfig{
+						Enabled: datadoghqv1alpha1.NewBoolPointer(true),
+					}}
+				}, nil)
+			})
+
 			By("Activating System Probe", func() {
 				checkAgentUpdateOnDaemonSet(key, dsKey, func(agent *datadoghqv1alpha1.DatadogAgent) {
 					agent.Spec.Agent.SystemProbe.Enabled = datadoghqv1alpha1.NewBoolPointer(true)

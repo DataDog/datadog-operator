@@ -14,11 +14,22 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
+// DatadogFeatures are Features running on the Agent and Cluster Agent.
+// +k8s:openapi-gen=true
+type DatadogFeatures struct {
+	// OrchestratorExplorer configuration
+	OrchestratorExplorer *OrchestratorExplorerConfig `json:"orchestratorExplorer,omitempty"`
+}
+
 // DatadogAgentSpec defines the desired state of DatadogAgent
 // +k8s:openapi-gen=true
 type DatadogAgentSpec struct {
 	// Configure the credentials required to run Agents
 	Credentials AgentCredentials `json:"credentials"`
+
+	// Features running on the Agent and Cluster Agent
+	// +optional
+	Features *DatadogFeatures `json:"features,omitempty"`
 
 	// The desired state of the Agent as an extended daemonset
 	// Contains the Node Agent configuration and deployment strategy
@@ -338,12 +349,18 @@ type LogSpec struct {
 // ProcessSpec contains the Process Agent configuration
 // +k8s:openapi-gen=true
 type ProcessSpec struct {
-	// Enable this to activate live process monitoring.
+	// Enable this to activate the process-agent to collection live-containers and if activated process information
+
 	// Note: /etc/passwd is automatically mounted to allow username resolution.
 	// ref: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset
 	//
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+
+	// false (default): Only collect containers if available.
+	// true: collect process information as well
+	ProcessCollectionEnabled *bool `json:"processCollectionEnabled,omitempty"`
+
 	// The Datadog Agent supports many environment variables
 	// Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables
 	//
@@ -356,6 +373,41 @@ type ProcessSpec struct {
 	// Make sure to keep requests and limits equal to keep the pods in the Guaranteed QoS class
 	// Ref: http://kubernetes.io/docs/user-guide/compute-resources/
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
+}
+
+// OrchestratorExplorerConfig contains the orchestrator explorer configuration.
+// The orchestratorExplorer runs in the process-agent and DCA.
+// +k8s:openapi-gen=true
+type OrchestratorExplorerConfig struct {
+	// Enable this to activate live Kubernetes monitoring.
+	// ref: https://docs.datadoghq.com/infrastructure/livecontainers/#kubernetes-resources
+	//
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// +optional
+	// Option to disable scrubbing of sensitive container data (passwords, tokens, etc. ).
+	Scrubbing *Scrubbing `json:"scrubbing,omitempty"`
+
+	// +optional
+	// Additional endpoints for shipping the collected data as json in the form of {"https://process.agent.datadoghq.com": ["apikey1", ...], ...}'.
+	AdditionalEndpoints *string `json:"additionalEndpoints,omitempty"`
+
+	// +optional
+	// Set this for the Datadog endpoint for the orchestrator explorer
+	DDUrl *string `json:"ddUrl,omitempty"`
+
+	// +optional
+	// +listType=set
+	// Additional tags for the collected data in the form of `a b c`
+	// Difference to DD_TAGS: this is a cluster agent option that is used to define custom cluster tags
+	ExtraTags []string `json:"extraTags,omitempty"`
+}
+
+// Scrubbing contains configuration to enable or disable scrubbing options
+type Scrubbing struct {
+	// Deactivate this to stop the scrubbing of sensitive container data (passwords, tokens, etc. ).
+	Containers *bool `json:"containers,omitempty"`
 }
 
 // SystemProbeSpec contains the SystemProbe Agent configuration
@@ -556,7 +608,7 @@ type NodeAgentConfig struct {
 	// +listType=set
 	Tags []string `json:"tags,omitempty"`
 
-	// nables this to start event collection from the kubernetes API
+	// Enables this to start event collection from the Kubernetes API
 	// ref: https://docs.datadoghq.com/agent/kubernetes/event_collection/
 	// +optional
 	CollectEvents *bool `json:"collectEvents,omitempty"`
@@ -708,7 +760,7 @@ type ClusterAgentConfig struct {
 	// Autodiscovery via Kube Service annotations is automatically enabled
 	ClusterChecksEnabled *bool `json:"clusterChecksEnabled,omitempty"`
 
-	// Enables this to start event collection from the kubernetes API
+	// Enables this to start event collection from the Kubernetes API
 	// ref: https://docs.datadoghq.com/agent/cluster_agent/event_collection/
 	// +optional
 	CollectEvents *bool `json:"collectEvents,omitempty"`

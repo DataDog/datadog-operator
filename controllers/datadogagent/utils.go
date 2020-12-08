@@ -15,6 +15,7 @@ import (
 	"time"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/orchestrator"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
@@ -87,7 +88,8 @@ func newAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent, select
 		}
 		containers = append(containers, apmContainers...)
 	}
-	if isProcessEnabled(&agentdeployment.Spec) {
+
+	if shouldAddProcessContainer(agentdeployment) {
 		var processContainers []corev1.Container
 
 		processContainers, err = getProcessContainers(agentdeployment)
@@ -148,10 +150,6 @@ func isAPMEnabled(spec *datadoghqv1alpha1.DatadogAgentSpec) bool {
 	return datadoghqv1alpha1.BoolValue(spec.Agent.Apm.Enabled)
 }
 
-func isProcessEnabled(spec *datadoghqv1alpha1.DatadogAgentSpec) bool {
-	return datadoghqv1alpha1.BoolValue(spec.Agent.Process.Enabled)
-}
-
 func isSystemProbeEnabled(spec *datadoghqv1alpha1.DatadogAgentSpec) bool {
 	return datadoghqv1alpha1.BoolValue(spec.Agent.SystemProbe.Enabled) || datadoghqv1alpha1.BoolValue(spec.Agent.Security.Runtime.Enabled)
 }
@@ -174,6 +172,37 @@ func isSyscallMonitorEnabled(spec *datadoghqv1alpha1.DatadogAgentSpec) bool {
 	}
 
 	return spec.Agent.Security.Runtime.SyscallMonitor != nil && datadoghqv1alpha1.BoolValue(spec.Agent.Security.Runtime.SyscallMonitor.Enabled)
+}
+
+// shouldAddProcessContainer returns whether the process container should be added.
+// It returns false if the feature is "disabled" or neither OrchestratorExplorer nor ProcessContainer are set
+// Note: the container will still be added even if it is set to "false".
+func shouldAddProcessContainer(dda *datadoghqv1alpha1.DatadogAgent) bool {
+	// we still want to have the process-agent if the orchestrator explorer is activated
+	if dda.Spec.Agent == nil || dda.Spec.Agent.Process.Enabled == nil {
+		return isOrchestratorExplorerEnabled(dda)
+	}
+	return datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Process.Enabled) || isOrchestratorExplorerEnabled(dda)
+}
+
+// processCollectionEnabled
+// only collect process information if it is directly specified.
+func processCollectionEnabled(dda *datadoghqv1alpha1.DatadogAgent) bool {
+	if dda.Spec.Agent == nil || dda.Spec.Agent.Process.Enabled == nil || dda.Spec.Agent.Process.ProcessCollectionEnabled == nil {
+		return false
+	}
+	if *dda.Spec.Agent.Process.ProcessCollectionEnabled && *dda.Spec.Agent.Process.Enabled {
+		return true
+	}
+	return false
+}
+
+func isOrchestratorExplorerEnabled(dda *datadoghqv1alpha1.DatadogAgent) bool {
+	features := dda.Spec.Features
+	if features == nil || features.OrchestratorExplorer == nil {
+		return false
+	}
+	return datadoghqv1alpha1.BoolValue(features.OrchestratorExplorer.Enabled)
 }
 
 func getAgentContainer(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.Container, error) {
@@ -442,14 +471,27 @@ func getEnvVarsForAPMAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.EnvVar
 func getEnvVarsForProcessAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.EnvVar, error) {
 	envVars := []corev1.EnvVar{
 		{
-			Name:  datadoghqv1alpha1.DDProcessAgentEnabled,
-			Value: strconv.FormatBool(isProcessEnabled(&dda.Spec)),
-		},
-		{
 			Name:  datadoghqv1alpha1.DDSystemProbeAgentEnabled,
 			Value: strconv.FormatBool(isSystemProbeEnabled(&dda.Spec)),
 		},
 	}
+
+	if processCollectionEnabled(dda) {
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  datadoghqv1alpha1.DDProcessAgentEnabled,
+			Value: "true",
+		})
+	}
+
+	if isOrchestratorExplorerEnabled(dda) {
+		envs, err := orchestrator.EnvVars(dda.Spec.Features.OrchestratorExplorer)
+		if err != nil {
+			return nil, err
+		}
+		envVars = append(envVars, envs...)
+		envVars = append(envVars, orchestrator.ClusterID())
+	}
+
 	commonEnvVars, err := getEnvVarsCommon(dda, true)
 	if err != nil {
 		return nil, err
@@ -783,7 +825,7 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 			volumes = append(volumes, criVolume)
 		}
 	}
-	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Process.Enabled) || isComplianceEnabled(&dda.Spec) {
+	if shouldAddProcessContainer(dda) || isComplianceEnabled(&dda.Spec) {
 		passwdVolume := corev1.Volume{
 			Name: datadoghqv1alpha1.PasswdVolumeName,
 			VolumeSource: corev1.VolumeSource{
