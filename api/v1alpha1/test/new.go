@@ -412,7 +412,7 @@ func NewClusterAgentDeployment(ns, name string, options *NewDeploymentOptions) *
 		},
 	}
 
-	_, _ = comparison.SetMD5GenerationAnnotation(&dca.ObjectMeta, dca.Spec)
+	_, _ = comparison.SetMD5DatadogAgentGenerationAnnotation(&dca.ObjectMeta, dca.Spec)
 	if options != nil {
 		if options.CreationTime != nil {
 			dca.CreationTimestamp = metav1.NewTime(*options.CreationTime)

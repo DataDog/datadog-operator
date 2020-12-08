@@ -86,7 +86,7 @@ func newClusterAgentService(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.Servic
 			SessionAffinity: corev1.ServiceAffinityNone,
 		},
 	}
-	hash, _ := comparison.SetMD5GenerationAnnotation(&service.ObjectMeta, &service.Spec)
+	hash, _ := comparison.SetMD5DatadogAgentGenerationAnnotation(&service.ObjectMeta, &service.Spec)
 
 	return service, hash
 }
@@ -324,7 +324,7 @@ func newMetricsServerService(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.Servi
 			SessionAffinity: corev1.ServiceAffinityNone,
 		},
 	}
-	hash, _ := comparison.SetMD5GenerationAnnotation(&service.ObjectMeta, &service.Spec)
+	hash, _ := comparison.SetMD5DatadogAgentGenerationAnnotation(&service.ObjectMeta, &service.Spec)
 
 	return service, hash
 }
@@ -353,7 +353,7 @@ func newMetricsServerAPIService(dda *datadoghqv1alpha1.DatadogAgent) (*apiregist
 			VersionPriority:       100,
 		},
 	}
-	hash, _ := comparison.SetMD5GenerationAnnotation(&apiService.ObjectMeta, &apiService.Spec)
+	hash, _ := comparison.SetMD5DatadogAgentGenerationAnnotation(&apiService.ObjectMeta, &apiService.Spec)
 	return apiService, hash
 }
 
@@ -381,7 +381,7 @@ func newAdmissionControllerService(dda *datadoghqv1alpha1.DatadogAgent) (*corev1
 			SessionAffinity: corev1.ServiceAffinityNone,
 		},
 	}
-	hash, _ := comparison.SetMD5GenerationAnnotation(&service.ObjectMeta, &service.Spec)
+	hash, _ := comparison.SetMD5DatadogAgentGenerationAnnotation(&service.ObjectMeta, &service.Spec)
 
 	return service, hash
 }

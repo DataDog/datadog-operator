@@ -140,8 +140,8 @@ func (r *Reconciler) createNewExtendedDaemonSet(logger logr.Logger, dda *datadog
 	var err error
 	// ExtendedDaemonSet up to date didn't exist yet, create a new one
 	var newEDS *edsdatadoghqv1alpha1.ExtendedDaemonSet
-	var hash string
-	if newEDS, hash, err = newExtendedDaemonSetFromInstance(dda, nil); err != nil {
+	var hashEDS string
+	if newEDS, hashEDS, err = newExtendedDaemonSetFromInstance(dda, nil); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -150,7 +150,7 @@ func (r *Reconciler) createNewExtendedDaemonSet(logger logr.Logger, dda *datadog
 		return reconcile.Result{}, err
 	}
 
-	logger.Info("Creating a new ExtendedDaemonSet", "extendedDaemonSet.Namespace", newEDS.Namespace, "extendedDaemonSet.Name", newEDS.Name, "agentdeployment.Status.Agent.CurrentHash", hash)
+	logger.Info("Creating a new ExtendedDaemonSet", "extendedDaemonSet.Namespace", newEDS.Namespace, "extendedDaemonSet.Name", newEDS.Name, "agentdeployment.Status.Agent.CurrentHash", hashEDS)
 
 	err = r.client.Create(context.TODO(), newEDS)
 	if err != nil {
@@ -168,8 +168,8 @@ func (r *Reconciler) createNewDaemonSet(logger logr.Logger, dda *datadoghqv1alph
 	var err error
 	// DaemonSet up to date didn't exist yet, create a new one
 	var newDS *appsv1.DaemonSet
-	var hash string
-	if newDS, hash, err = newDaemonSetFromInstance(dda, nil); err != nil {
+	var hashDS string
+	if newDS, hashDS, err = newDaemonSetFromInstance(dda, nil); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -177,7 +177,7 @@ func (r *Reconciler) createNewDaemonSet(logger logr.Logger, dda *datadoghqv1alph
 	if err = controllerutil.SetControllerReference(dda, newDS, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
-	logger.Info("Creating a new DaemonSet", "daemonSet.Namespace", newDS.Namespace, "daemonSet.Name", newDS.Name, "agentdeployment.Status.Agent.CurrentHash", hash)
+	logger.Info("Creating a new DaemonSet", "daemonSet.Namespace", newDS.Namespace, "daemonSet.Name", newDS.Name, "agentdeployment.Status.Agent.CurrentHash", hashDS)
 	err = r.client.Create(context.TODO(), newDS)
 	if err != nil {
 		return reconcile.Result{}, err
@@ -192,12 +192,12 @@ func (r *Reconciler) createNewDaemonSet(logger logr.Logger, dda *datadoghqv1alph
 
 func (r *Reconciler) updateExtendedDaemonSet(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, eds *edsdatadoghqv1alpha1.ExtendedDaemonSet, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
 	now := metav1.NewTime(time.Now())
-	newEDS, newHash, err := newExtendedDaemonSetFromInstance(dda, eds.Spec.Selector)
+	newEDS, newHashEDS, err := newExtendedDaemonSetFromInstance(dda, eds.Spec.Selector)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
 
-	if comparison.IsSameSpecMD5Hash(newHash, eds.GetAnnotations()) {
+	if comparison.IsSameSpecMD5Hash(newHashEDS, eds.GetAnnotations()) {
 		// no update needed so return, update the status and return
 		newStatus.Agent = updateExtendedDaemonSetStatus(eds, newStatus.Agent, &now)
 		return reconcile.Result{}, nil
@@ -237,12 +237,12 @@ func (r *Reconciler) updateDaemonSet(logger logr.Logger, dda *datadoghqv1alpha1.
 	// Update values from current DS in any case
 	newStatus.Agent = updateDaemonSetStatus(ds, newStatus.Agent, nil)
 
-	newDS, newHash, err := newDaemonSetFromInstance(dda, ds.Spec.Selector)
+	newDS, newHashDS, err := newDaemonSetFromInstance(dda, ds.Spec.Selector)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
 	now := metav1.NewTime(time.Now())
-	if comparison.IsSameSpecMD5Hash(newHash, ds.GetAnnotations()) {
+	if comparison.IsSameSpecMD5Hash(newHashDS, ds.GetAnnotations()) {
 		// no update needed so update the status and return
 		newStatus.Agent = updateDaemonSetStatus(ds, newStatus.Agent, &now)
 		return reconcile.Result{}, nil
@@ -431,10 +431,11 @@ func newExtendedDaemonSetFromInstance(dda *datadoghqv1alpha1.DatadogAgent, selec
 			},
 		},
 	}
-	hash, err := comparison.SetMD5GenerationAnnotation(&eds.ObjectMeta, dda.Spec)
+	hash, err := comparison.SetMD5DatadogAgentGenerationAnnotation(&eds.ObjectMeta, eds.Spec)
 	if err != nil {
 		return nil, "", err
 	}
+
 	return eds, hash, nil
 }
 
@@ -463,11 +464,12 @@ func newDaemonSetFromInstance(dda *datadoghqv1alpha1.DatadogAgent, selector *met
 			},
 		},
 	}
-	hash, err := comparison.SetMD5GenerationAnnotation(&ds.ObjectMeta, dda.Spec)
+	hashDS, err := comparison.SetMD5DatadogAgentGenerationAnnotation(&ds.ObjectMeta, dda.Spec)
 	if err != nil {
 		return nil, "", err
 	}
-	return ds, hash, nil
+
+	return ds, hashDS, nil
 }
 
 func daemonsetName(dda *datadoghqv1alpha1.DatadogAgent) string {
