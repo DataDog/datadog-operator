@@ -1,6 +1,7 @@
 # Monitoring your cluster with Kubernetes State Metrics
 
 ## Introduction
+
 You can easily monitor your cluster using [Kubernetes State Metrics][1].
 
 The Datadog Operator has a feature that allows users to configure the new Kubernetes State Metrics check (v2.0.0) as a Cluster Level Check.
@@ -8,6 +9,7 @@ See the Further Reading section for more details on the v2.0.0 of the check.
 You will need to have the [Datadog Cluster Agent][2] as well as the Cluster Level Check features enabled.
 
 ## Configuration 
+
 To enable this feature, you will need to use the option `kubeStateMetricsCore.enabled: true`, the DatadogAgent spec should look like this:
 
 ```yaml
@@ -146,7 +148,7 @@ NB: You can't use `configData` and `configMap` simultaneously.
 The v2 of the Kubernetes State Metrics check is embedded as a "core check" in the Datadog Agent.
 When an agent (Cluster Check Runner) receives the instruction to schedule this check, the configured Kube State Metrics collectors will be started as separate routines in the container.
 
-This means that the agent does not need to monitor independent instances of Kube State Metrics anymore. 
+This means that the agent does not need to monitor independent instances of [Kube State Metrics][1] anymore. 
 
 When activating this feature, the Datadog Node Agent will be instructed not to Autodiscover independent Kubernetes State Metrics instances (via their image name) in order to avoid overlap.
 However if you have configured the v1 of the check via annotations, make sure you remove them to avoid any potential confusion. 
