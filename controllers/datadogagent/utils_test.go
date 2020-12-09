@@ -11,7 +11,7 @@ func TestKSMCoreGetEnvVarsForAgent(t *testing.T) {
 	enabledFeature := true
 	spec := generateSpec()
 	spec.Spec.ClusterAgent.Config.ClusterChecksEnabled = &enabledFeature
-	spec.Spec.ClusterAgent.Config.KubeStateMetricsCoreEnabled = &enabledFeature
+	spec.Spec.Features.KubeStateMetricsCore.Enabled = &enabledFeature
 	env, err := getEnvVarsForAgent(spec)
 	require.Subset(t, env, []corev1.EnvVar{{
 		Name:  datadoghqv1alpha1.DDIgnoreAutoConf,
@@ -35,6 +35,9 @@ func generateSpec() *datadoghqv1alpha1.DatadogAgent {
 	var intPtr int32
 	return &datadoghqv1alpha1.DatadogAgent{
 		Spec: datadoghqv1alpha1.DatadogAgentSpec{
+			Features: &datadoghqv1alpha1.DatadogFeatures{
+				KubeStateMetricsCore: &datadoghqv1alpha1.KubeStateMetricsCore{},
+			},
 			ClusterAgent: &datadoghqv1alpha1.DatadogAgentSpecClusterAgentSpec{
 				CustomConfig: &datadoghqv1alpha1.CustomConfigSpec{},
 				Affinity:     &corev1.Affinity{},

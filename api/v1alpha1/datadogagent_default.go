@@ -732,8 +732,8 @@ func DefaultDatadogAgentSpecClusterAgentConfig(config *ClusterAgentConfig) *Clus
 
 // GetKubeStateMetricsConfName get the name of the Configmap for the KSM Core check.
 func GetKubeStateMetricsConfName(dcaConf *DatadogAgent) string {
-	if dcaConf.Spec.ClusterAgent.Config.KubeStateMetricsCoreConf != nil {
-		return *dcaConf.Spec.ClusterAgent.Config.KubeStateMetricsCoreConf
+	if dcaConf.Spec.Features.KubeStateMetricsCore.Conf != nil {
+		return *dcaConf.Spec.Features.KubeStateMetricsCore.Conf
 	}
 	return fmt.Sprintf("%s-%s", dcaConf.Name, defaultKubeStateMetricsCoreConf)
 }

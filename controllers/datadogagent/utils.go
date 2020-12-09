@@ -675,7 +675,7 @@ func getEnvVarsForAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.EnvVar, e
 				})
 			}
 			// Remove ksm v1 conf if the cluster checks are enabled and the ksm core is enabled
-			if isKSMCoreEnabled(spec.ClusterAgent) {
+			if isKSMCoreEnabled(dda) {
 				ignoreAutoConfMutated := false
 				for i, e := range spec.Agent.Config.Env {
 					if e.Name == datadoghqv1alpha1.DDIgnoreAutoConf {
@@ -1614,12 +1614,12 @@ func shouldReturn(result reconcile.Result, err error) bool {
 	return false
 }
 
-func isKSMCoreEnabled(spec *datadoghqv1alpha1.DatadogAgentSpecClusterAgentSpec) bool {
-	if spec == nil {
+func isKSMCoreEnabled(dda *datadoghqv1alpha1.DatadogAgent) bool {
+	if dda.Spec.Features == nil || dda.Spec.Features.KubeStateMetricsCore == nil {
 		return false
 	}
-	if spec.Config.KubeStateMetricsCoreEnabled != nil {
-		return *spec.Config.KubeStateMetricsCoreEnabled
+	if dda.Spec.Features.KubeStateMetricsCore.Enabled != nil {
+		return *dda.Spec.Features.KubeStateMetricsCore.Enabled
 	}
 	return false
 }

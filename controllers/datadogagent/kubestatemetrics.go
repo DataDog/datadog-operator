@@ -45,11 +45,11 @@ instances:
 )
 
 func (r *Reconciler) manageKubeStateMetricsCore(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
-	if !isKSMCoreEnabled(dda.Spec.ClusterAgent) {
+	if !isKSMCoreEnabled(dda) {
 		return reconcile.Result{}, nil
 	}
 	// Only create the default ConfigMap if the conf is not overridden
-	if dda.Spec.ClusterAgent.Config.KubeStateMetricsCoreConf != nil {
+	if dda.Spec.Features.KubeStateMetricsCore.Conf != nil {
 		return reconcile.Result{}, nil
 	}
 	return r.manageConfigMap(logger, dda, datadoghqv1alpha1.GetKubeStateMetricsConfName(dda), buildKSMCoreConfigMap)

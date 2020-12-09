@@ -8,15 +8,17 @@ See the Further Reading section for more details on the v2.0.0 of the check.
 You will need to have the [Datadog Cluster Agent][2] as well as the Cluster Level Check features enabled.
 
 ## Configuration 
-To enable this feature, you will need to use the option `kubeStateMetricsCoreEnabled: true`, the DatadogAgent spec should look like this:
+To enable this feature, you will need to use the option `kubeStateMetricsCore.enabled: true`, the DatadogAgent spec should look like this:
 
 ```yaml
+features:
+    kubeStateMetricsCore:
+      enabled: true
 clusterAgent:
     image:
       name: "datadog/cluster-agent:1.10.0"
     config:
 [...]
-      kubeStateMetricsCoreEnabled: true
       clusterChecksEnabled: true
 clusterChecksRunner:
     image:
@@ -110,12 +112,10 @@ The above example will create 2 separate Cluster Level Checks, using different c
 Once you have created the ConfigMap (in the same namespace as the operator), make sure you reference the name in the DatadogAgent Spec, in this case:
 
 ```yaml
-clusterAgent:
-[...]
-    config:
-[...]
-      kubeStateMetricsCoreEnabled: true
-      kubeStateMetricsCoreConf: custom-kubernetes-state-core-check
+features:
+    kubeStateMetricsCore:
+      enabled: true
+      conf: custom-kubernetes-state-core-check
 ```
 
 ## Further Reading

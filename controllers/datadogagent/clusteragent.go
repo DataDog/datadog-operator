@@ -386,7 +386,7 @@ func newClusterAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent,
 		}
 	}
 
-	if isKSMCoreEnabled(clusterAgentSpec) {
+	if isKSMCoreEnabled(agentdeployment) {
 		volumes = append(volumes, corev1.Volume{
 			Name: datadoghqv1alpha1.KubeStateMetricCoreVolumeName,
 			VolumeSource: corev1.VolumeSource{
@@ -499,6 +499,7 @@ func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.En
 	spec := &dda.Spec
 
 	complianceEnabled := isComplianceEnabled(&dda.Spec)
+	ksmCoreEnabled := isKSMCoreEnabled(dda)
 
 	envVars := []corev1.EnvVar{
 		{
@@ -515,7 +516,7 @@ func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.En
 		},
 		{
 			Name:  datadoghqv1alpha1.DDKubeStateMetricsCoreEnabled,
-			Value: datadoghqv1alpha1.BoolToString(spec.ClusterAgent.Config.KubeStateMetricsCoreEnabled),
+			Value: strconv.FormatBool(ksmCoreEnabled),
 		},
 		{
 			Name:  datadoghqv1alpha1.DDClusterAgentKubeServiceName,
@@ -617,7 +618,7 @@ func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.En
 		}...)
 	}
 
-	if isKSMCoreEnabled(spec.ClusterAgent) {
+	if isKSMCoreEnabled(dda) {
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  datadoghqv1alpha1.DDKubeStateMetricsCoreEnabled,
 			Value: "true",

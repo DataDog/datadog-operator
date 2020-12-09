@@ -56,7 +56,7 @@ func (r *Reconciler) manageClusterChecksRunnerRBACs(logger logr.Logger, dda *dat
 	}
 
 	kubeStateMetricsClusterRole := &rbacv1.ClusterRole{}
-	if isKSMCoreEnabled(dda.Spec.ClusterAgent) {
+	if isKSMCoreEnabled(dda) {
 		if err := r.client.Get(context.TODO(), types.NamespacedName{Name: kubeStateMetricsRBACName}, kubeStateMetricsClusterRole); err != nil {
 			if errors.IsNotFound(err) {
 				return r.createKubeStateMetricsClusterRole(logger, dda, kubeStateMetricsRBACName, clusterChecksRunnerVersion)
