@@ -387,8 +387,8 @@ func newClusterAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent,
 	}
 
 	if isKSMCoreEnabled(agentdeployment) {
-		volKSM := corev1.Volume{}
-		volumeMountKSM := corev1.VolumeMount{}
+		var volKSM corev1.Volume
+		var volumeMountKSM corev1.VolumeMount
 		if agentdeployment.Spec.Features.KubeStateMetricsCore.Conf != nil {
 			volKSM = getVolumeFromCustomConfigSpec(
 				agentdeployment.Spec.Features.KubeStateMetricsCore.Conf,
@@ -400,7 +400,7 @@ func newClusterAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent,
 				datadoghqv1alpha1.KubeStateMetricCoreVolumeName,
 				fmt.Sprintf("%s%s", datadoghqv1alpha1.ConfigVolumePath, datadoghqv1alpha1.ConfdVolumePath),
 				ksmCoreCheckName,
-				)
+			)
 		} else {
 			volKSM = corev1.Volume{
 				Name: datadoghqv1alpha1.KubeStateMetricCoreVolumeName,

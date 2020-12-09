@@ -306,18 +306,18 @@ func Test_newClusterAgentDeploymentMountKSMCore(t *testing.T) {
 		Enabled: &enabledFeature,
 		Conf: &datadoghqv1alpha1.CustomConfigSpec{
 			ConfigMap: &datadoghqv1alpha1.ConfigFileConfigMapSpec{
-				Name: "bla",
+				Name:    "bla",
 				FileKey: "ksm_core.yaml",
 			},
 		},
 	}
 	envVars := []v1.EnvVar{
 		{
-			Name: datadoghqv1alpha1.DDKubeStateMetricsCoreEnabled,
+			Name:  datadoghqv1alpha1.DDKubeStateMetricsCoreEnabled,
 			Value: "true",
 		},
 		{
-			Name: datadoghqv1alpha1.DDKubeStateMetricsCoreConfigMap,
+			Name:  datadoghqv1alpha1.DDKubeStateMetricsCoreConfigMap,
 			Value: "bla",
 		},
 	}
@@ -349,8 +349,8 @@ func Test_newClusterAgentDeploymentMountKSMCore(t *testing.T) {
 		"bar",
 		"foo",
 		&test.NewDatadogAgentOptions{
-			ClusterAgentEnabled:      true,
-			KubeStateMetricsCore:     &ksmCore,
+			ClusterAgentEnabled:  true,
+			KubeStateMetricsCore: &ksmCore,
 		},
 	)
 	testDCA := clusterAgentDeploymentFromInstanceTest{

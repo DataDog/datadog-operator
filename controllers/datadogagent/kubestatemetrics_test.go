@@ -59,7 +59,7 @@ instances:
 
 	// override case configData
 	dda.Spec.Features.KubeStateMetricsCore.Conf = &datadoghqv1alpha1.CustomConfigSpec{
-			ConfigData: &overrideConf,
+		ConfigData: &overrideConf,
 	}
 	cm, err = buildKSMCoreConfigMap(dda)
 	require.NoError(t, err)
