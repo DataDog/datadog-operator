@@ -68,7 +68,6 @@ func (r *Reconciler) updateIfNeededConfigMap(dda *datadoghqv1alpha1.DatadogAgent
 	// Copy possibly changed fields
 	updateCM := oldConfigMap.DeepCopy()
 	updateCM.Data = newConfigMap.Data
-	// TODO if new CM does not have labels it panics.
 	for k, v := range newConfigMap.Annotations {
 		updateCM.Annotations[k] = v
 	}

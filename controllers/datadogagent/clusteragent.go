@@ -387,21 +387,39 @@ func newClusterAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent,
 	}
 
 	if isKSMCoreEnabled(agentdeployment) {
-		volumes = append(volumes, corev1.Volume{
-			Name: datadoghqv1alpha1.KubeStateMetricCoreVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: &corev1.ConfigMapVolumeSource{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: datadoghqv1alpha1.GetKubeStateMetricsConfName(agentdeployment),
+		volKSM := corev1.Volume{}
+		volumeMountKSM := corev1.VolumeMount{}
+		if agentdeployment.Spec.Features.KubeStateMetricsCore.Conf != nil {
+			volKSM = getVolumeFromCustomConfigSpec(
+				agentdeployment.Spec.Features.KubeStateMetricsCore.Conf,
+				datadoghqv1alpha1.GetKubeStateMetricsConfName(agentdeployment),
+				datadoghqv1alpha1.KubeStateMetricCoreVolumeName,
+			)
+			volumeMountKSM = getVolumeMountFromCustomConfigSpec(
+				agentdeployment.Spec.Features.KubeStateMetricsCore.Conf,
+				datadoghqv1alpha1.KubeStateMetricCoreVolumeName,
+				fmt.Sprintf("%s%s", datadoghqv1alpha1.ConfigVolumePath, datadoghqv1alpha1.ConfdVolumePath),
+				ksmCoreCheckName,
+				)
+		} else {
+			volKSM = corev1.Volume{
+				Name: datadoghqv1alpha1.KubeStateMetricCoreVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: datadoghqv1alpha1.GetKubeStateMetricsConfName(agentdeployment),
+						},
 					},
 				},
-			},
-		})
-		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      datadoghqv1alpha1.KubeStateMetricCoreVolumeName,
-			MountPath: fmt.Sprintf("/etc/datadog-agent%s", datadoghqv1alpha1.ConfdVolumePath),
-			ReadOnly:  true,
-		})
+			}
+			volumeMountKSM = corev1.VolumeMount{
+				Name:      datadoghqv1alpha1.KubeStateMetricCoreVolumeName,
+				MountPath: fmt.Sprintf("/etc/datadog-agent%s", datadoghqv1alpha1.ConfdVolumePath),
+				ReadOnly:  true,
+			}
+		}
+		volumes = append(volumes, volKSM)
+		volumeMounts = append(volumeMounts, volumeMountKSM)
 	}
 	// Add other volumes
 	volumes = append(volumes, agentdeployment.Spec.ClusterAgent.Config.Volumes...)
@@ -499,7 +517,6 @@ func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.En
 	spec := &dda.Spec
 
 	complianceEnabled := isComplianceEnabled(&dda.Spec)
-	ksmCoreEnabled := isKSMCoreEnabled(dda)
 
 	envVars := []corev1.EnvVar{
 		{
@@ -513,10 +530,6 @@ func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.En
 		{
 			Name:  datadoghqv1alpha1.DDClusterChecksEnabled,
 			Value: datadoghqv1alpha1.BoolToString(spec.ClusterAgent.Config.ClusterChecksEnabled),
-		},
-		{
-			Name:  datadoghqv1alpha1.DDKubeStateMetricsCoreEnabled,
-			Value: strconv.FormatBool(ksmCoreEnabled),
 		},
 		{
 			Name:  datadoghqv1alpha1.DDClusterAgentKubeServiceName,

@@ -1186,8 +1186,8 @@ func (in *KubeStateMetricsCore) DeepCopyInto(out *KubeStateMetricsCore) {
 	}
 	if in.Conf != nil {
 		in, out := &in.Conf, &out.Conf
-		*out = new(string)
-		**out = **in
+		*out = new(CustomConfigSpec)
+		(*in).DeepCopyInto(*out)
 	}
 }
 

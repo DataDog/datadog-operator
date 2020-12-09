@@ -48,6 +48,15 @@ By default the following collectors will be activated:
 
 This will be done through a single Cluster Level Check.
 You can also customize the configuration of this check with a ConfigMap.
+If you want to maintain the ConfigMap yourself, you will need to use the field `features.kubeStateMetricsCore.conf.configMap: <name_of_your_CM>` as follows:
+
+```yaml
+features:
+    kubeStateMetricsCore:
+      enabled: true
+      conf: 
+        configMap: custom-kubernetes-state-core-check
+```
 
 For instance, in a large cluster where you might want to take advantage of the label join features and split the collectors so several Cluster Check Runners process them, your configuration could look like this:
 
@@ -111,12 +120,26 @@ data:
 The above example will create 2 separate Cluster Level Checks, using different collectors and features (label joins, telemetry, remapping...).
 Once you have created the ConfigMap (in the same namespace as the operator), make sure you reference the name in the DatadogAgent Spec, in this case:
 
+You can also reference the configuration in the specification of the DatadogAgent spec as follows:
+
 ```yaml
 features:
     kubeStateMetricsCore:
       enabled: true
-      conf: custom-kubernetes-state-core-check
+      conf: 
+        configData: |
+            cluster_check: true
+            init_config:
+            instances:
+              - collectors:
+                  - pods
+                  - nodes
+            telemetry: true
 ```
+
+The above will have the operator create and maintain a ConfigMap for you with this config. It will run a single Kubernetes State Metrics Core check with the pods and nodes collectors enabled.
+
+NB: You can't use `configData` and `configMap` simultaneously.
 
 ## Further Reading
 

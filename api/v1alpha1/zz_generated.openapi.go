@@ -1852,13 +1852,14 @@ func schema__api_v1alpha1_KubeStateMetricsCore(ref common.ReferenceCallback) com
 					"conf": {
 						SchemaProps: spec.SchemaProps{
 							Description: "To override the configuration for the default Kubernetes State Metrics Core check. Must point to a ConfigMap containing a valid cluster check configuration.",
-							Type:        []string{"string"},
-							Format:      "",
+							Ref:         ref("./api/v1alpha1.CustomConfigSpec"),
 						},
 					},
 				},
 			},
 		},
+		Dependencies: []string{
+			"./api/v1alpha1.CustomConfigSpec"},
 	}
 }
 

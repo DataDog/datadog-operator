@@ -388,7 +388,7 @@ type KubeStateMetricsCore struct {
 
 	// To override the configuration for the default Kubernetes State Metrics Core check.
 	// Must point to a ConfigMap containing a valid cluster check configuration.
-	Conf *string `json:"conf,omitempty"`
+	Conf *CustomConfigSpec `json:"conf,omitempty"`
 }
 
 // OrchestratorExplorerConfig contains the orchestrator explorer configuration.

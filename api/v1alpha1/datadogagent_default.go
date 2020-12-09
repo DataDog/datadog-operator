@@ -40,7 +40,7 @@ const (
 	defaultOrchestratorExplorerContainerScrubbingEnabled bool   = true
 	defaultMetricsProviderPort                           int32  = 8443
 	defaultClusterChecksEnabled                          bool   = false
-	defaultKubeStateMetricsCoreConf                      string = "kube-state-metrics-core-config"
+	DefaultKubeStateMetricsCoreConf                      string = "kube-state-metrics-core-config"
 	defaultClusterAgentReplicas                          int32  = 1
 	defaultAgentCanaryReplicas                           int32  = 1
 	defaultClusterChecksRunnerReplicas                   int32  = 2
@@ -732,10 +732,12 @@ func DefaultDatadogAgentSpecClusterAgentConfig(config *ClusterAgentConfig) *Clus
 
 // GetKubeStateMetricsConfName get the name of the Configmap for the KSM Core check.
 func GetKubeStateMetricsConfName(dcaConf *DatadogAgent) string {
-	if dcaConf.Spec.Features.KubeStateMetricsCore.Conf != nil {
-		return *dcaConf.Spec.Features.KubeStateMetricsCore.Conf
+	// `configData` and `configMap` can't be set together.
+	// Return the default if the conf is not overridden or if it is just overridden with the ConfigData.
+	if dcaConf.Spec.Features.KubeStateMetricsCore.Conf != nil && dcaConf.Spec.Features.KubeStateMetricsCore.Conf.ConfigMap != nil {
+		return dcaConf.Spec.Features.KubeStateMetricsCore.Conf.ConfigMap.Name
 	}
-	return fmt.Sprintf("%s-%s", dcaConf.Name, defaultKubeStateMetricsCoreConf)
+	return fmt.Sprintf("%s-%s", dcaConf.Name, DefaultKubeStateMetricsCoreConf)
 }
 
 // DefaultDatadogAgentSpecClusterAgentImage used to default ImageConfig for the Datadog Cluster Agent
