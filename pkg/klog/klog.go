@@ -5,7 +5,7 @@
 
 // +build !windows
 
-package main
+package klog
 
 import (
 	"flag"
@@ -13,12 +13,9 @@ import (
 	"strconv"
 	"strings"
 
-	"k8s.io/klog"
-
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
+	"github.com/go-logr/logr"
+	k8slog "k8s.io/klog"
 )
-
-var log = logf.Log.WithName("klog")
 
 // redirectLogger is used to redirect klog logs to datadog logs. klog is
 // client-go's logger, logging to STDERR by default, which makes all severities
@@ -28,7 +25,9 @@ var log = logf.Log.WithName("klog")
 // NOTE: on klog v2, used by newer versions of client-go than the one we have
 // right now, this parsing is no longer necessary, as it allows us to use
 // klog.SetLogger() instead of klog.SetOutputBySeverity().
-type redirectLogger struct{}
+type redirectLogger struct {
+	log logr.Logger
+}
 
 func (l redirectLogger) Write(b []byte) (int, error) {
 	// klog log lines have the following format:
@@ -46,16 +45,17 @@ func (l redirectLogger) Write(b []byte) (int, error) {
 		msg = msg[i+2:]
 	}
 
-	log.Info(msg)
+	l.log.Info(msg)
 
 	return 0, nil
 }
 
-func init() {
+// Configure setups the redirection from klog to the logger passed as parameter
+func Configure(log logr.Logger) {
 	// klog takes configuration from command line flags or, like we're
 	// doing here, a flagset passed as a parameter
 	flagset := flag.NewFlagSet("", flag.ContinueOnError)
-	klog.InitFlags(flagset)
+	k8slog.InitFlags(flagset)
 
 	// logtostderr is true by default, and when enabled promotes all logs
 	// to ERROR when collected by the agent, so we disable it
@@ -82,5 +82,5 @@ func init() {
 	// out of the log instead of having an output for each severity. having
 	// an output just for the lowest level captures the logs on all enabled
 	// severities just once.
-	klog.SetOutputBySeverity("INFO", redirectLogger{})
+	k8slog.SetOutputBySeverity("INFO", redirectLogger{log: log})
 }
