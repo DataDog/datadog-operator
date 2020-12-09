@@ -27,8 +27,6 @@ instances:
       - cronjobs
       - jobs
       - replicasets
-    telemetry: true
-  - collectors:
       - deployments
       - configmaps
       - services

@@ -761,7 +761,7 @@ type ClusterAgentConfig struct {
 	ClusterChecksEnabled *bool `json:"clusterChecksEnabled,omitempty"`
 
 	// Enable this to start the Kubernetes State Metrics Core check.
-	// TODO add reference to the documentation.
+	// Refer to https://github.com/DataDog/datadog-operator/blob/master/docs/kubernetes_state_metrics.md
 	// +optional
 	KubeStateMetricsCoreEnabled *bool `json:"kubeStateMetricsCoreEnabled,omitempty"`
 
