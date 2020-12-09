@@ -28,6 +28,7 @@ import (
 	"github.com/DataDog/datadog-operator/controllers"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/debug"
+	"github.com/DataDog/datadog-operator/pkg/klog"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 	"github.com/DataDog/datadog-operator/pkg/version"
 
@@ -46,6 +47,8 @@ var (
 )
 
 func init() {
+	klog.Configure(ctrl.Log.WithName("klog"))
+
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(apiregistrationv1.AddToScheme(scheme))
 
