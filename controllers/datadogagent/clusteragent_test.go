@@ -586,7 +586,7 @@ func Test_newClusterAgentDeploymentFromInstance_CustomDeploymentName(t *testing.
 					"app.kubernetes.io/name":        "datadog-agent-deployment",
 					"app.kubernetes.io/part-of":     "foo",
 					"app.kubernetes.io/version":     "",
-					"app": "datadog-monitoring",
+					"app":                           "datadog-monitoring",
 				},
 			},
 			Spec: appsv1.DeploymentSpec{
@@ -600,7 +600,7 @@ func Test_newClusterAgentDeploymentFromInstance_CustomDeploymentName(t *testing.
 							"app.kubernetes.io/name":        "datadog-agent-deployment",
 							"app.kubernetes.io/part-of":     "foo",
 							"app.kubernetes.io/version":     "",
-							"app": "datadog-monitoring",
+							"app":                           "datadog-monitoring",
 						},
 					},
 					Spec: deploymentNamePodSpec,
@@ -725,8 +725,8 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 			MetricsServerEnabled:          true,
 			MetricsServerUseDatadogMetric: true,
 			MetricsServerWPAController:    true,
-			Site:              "datadoghq.eu",
-			MetricsServerPort: metricsServerPort,
+			Site:                          "datadoghq.eu",
+			MetricsServerPort:             metricsServerPort,
 		})
 
 	tests := clusterAgentDeploymentFromInstanceTestSuite{
@@ -751,7 +751,7 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 						"app.kubernetes.io/name":        "datadog-agent-deployment",
 						"app.kubernetes.io/part-of":     "foo",
 						"app.kubernetes.io/version":     "",
-						"app": "datadog-monitoring",
+						"app":                           "datadog-monitoring",
 					},
 				},
 				Spec: appsv1.DeploymentSpec{
@@ -765,7 +765,7 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 								"app.kubernetes.io/name":        "datadog-agent-deployment",
 								"app.kubernetes.io/part-of":     "foo",
 								"app.kubernetes.io/version":     "",
-								"app": "datadog-monitoring",
+								"app":                           "datadog-monitoring",
 							},
 						},
 						Spec: metricsServerPodSpec,
@@ -800,7 +800,7 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 						"app.kubernetes.io/name":        "datadog-agent-deployment",
 						"app.kubernetes.io/part-of":     "foo",
 						"app.kubernetes.io/version":     "",
-						"app": "datadog-monitoring",
+						"app":                           "datadog-monitoring",
 					},
 				},
 				Spec: appsv1.DeploymentSpec{
@@ -814,7 +814,7 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 								"app.kubernetes.io/name":        "datadog-agent-deployment",
 								"app.kubernetes.io/part-of":     "foo",
 								"app.kubernetes.io/version":     "",
-								"app": "datadog-monitoring",
+								"app":                           "datadog-monitoring",
 							},
 							Annotations: map[string]string{},
 						},
@@ -842,7 +842,7 @@ func Test_newClusterAgentDeploymentFromInstance_AdmissionController(t *testing.T
 		"app.kubernetes.io/name":        "datadog-agent-deployment",
 		"app.kubernetes.io/part-of":     "foo",
 		"app.kubernetes.io/version":     "",
-		"app": "datadog-monitoring",
+		"app":                           "datadog-monitoring",
 	}
 
 	admissionControllerPodSpec := clusterAgentDefaultPodSpec()
