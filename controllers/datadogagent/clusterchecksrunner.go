@@ -336,10 +336,6 @@ func getEnvVarsForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []cor
 			ValueFrom: getAPIKeyFromSecret(dda),
 		},
 		{
-			Name:  datadoghqv1alpha1.DDSite,
-			Value: spec.Site,
-		},
-		{
 			Name:  datadoghqv1alpha1.DDClusterChecksEnabled,
 			Value: "true",
 		},
@@ -399,6 +395,13 @@ func getEnvVarsForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []cor
 				},
 			},
 		},
+	}
+
+	if spec.Site != "" {
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  datadoghqv1alpha1.DDSite,
+			Value: spec.Site,
+		})
 	}
 
 	if spec.ClusterChecksRunner.Config.LogLevel != nil {
