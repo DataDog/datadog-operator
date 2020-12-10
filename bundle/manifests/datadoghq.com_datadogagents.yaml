@@ -182,7 +182,7 @@ spec:
                           type: string
                       type: object
                     collectEvents:
-                      description: 'nables this to start event collection from the kubernetes API ref: https://docs.datadoghq.com/agent/kubernetes/event_collection/'
+                      description: 'Enables this to start event collection from the Kubernetes API ref: https://docs.datadoghq.com/agent/kubernetes/event_collection/'
                       type: boolean
                     confd:
                       description: Confd configuration allowing to specify config files for custom checks placed under /etc/datadog-agent/conf.d/. See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.
@@ -1539,7 +1539,7 @@ spec:
                   description: Process Agent configuration
                   properties:
                     enabled:
-                      description: 'Enable this to activate live process monitoring. Note: /etc/passwd is automatically mounted to allow username resolution. ref: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset'
+                      description: 'Note: /etc/passwd is automatically mounted to allow username resolution. ref: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset'
                       type: boolean
                     env:
                       description: 'The Datadog Agent supports many environment variables Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables'
@@ -1620,6 +1620,9 @@ spec:
                         - name
                         type: object
                       type: array
+                    processCollectionEnabled:
+                      description: 'false (default): Only collect containers if available. true: collect process information as well'
+                      type: boolean
                     resources:
                       description: 'Datadog Process Agent resource requests and limits Make sure to keep requests and limits equal to keep the pods in the Guaranteed QoS class Ref: http://kubernetes.io/docs/user-guide/compute-resources/'
                       properties:
@@ -2381,7 +2384,7 @@ spec:
                       description: 'Enable the Cluster Checks and Endpoint Checks feature on both the cluster-agents and the daemonset ref: https://docs.datadoghq.com/agent/cluster_agent/clusterchecks/ https://docs.datadoghq.com/agent/cluster_agent/endpointschecks/ Autodiscovery via Kube Service annotations is automatically enabled'
                       type: boolean
                     collectEvents:
-                      description: 'Enables this to start event collection from the kubernetes API ref: https://docs.datadoghq.com/agent/cluster_agent/event_collection/'
+                      description: 'Enable this to start event collection from the kubernetes API ref: https://docs.datadoghq.com/agent/cluster_agent/event_collection/'
                       type: boolean
                     confd:
                       description: Confd Provide additional cluster check configurations. Each key will become a file in /conf.d see https://docs.datadoghq.com/agent/autodiscovery/ for more details.
@@ -2489,10 +2492,6 @@ spec:
                           description: 'Enable informer and controller of the watermark pod autoscaler NOTE: The WatermarkPodAutoscaler controller needs to be installed see https://github.com/DataDog/watermarkpodautoscaler for more details.'
                           type: boolean
                       type: object
-                    kubeStateMetricsCoreEnabled:
-                      description: Enable this to start the Kubernetes State Metrics
-                        Core check. TODO add reference to the documentation.
-                      type: boolean
                     logLevel:
                       description: 'Set logging verbosity, valid log levels are: trace, debug, info, warn, error, critical, and off'
                       type: string
@@ -4875,6 +4874,59 @@ spec:
                 useSecretBackend:
                   description: 'UseSecretBackend use the Agent secret backend feature for retreiving all credentials needed by the different components: Agent, Cluster, Cluster-Checks. If `useSecretBackend: true`, other credential parameters will be ignored. default value is false.'
                   type: boolean
+              type: object
+            features:
+              description: Features running on the Agent and Cluster Agent
+              properties:
+                kubeStateMetricsCore:
+                  description: KubeStateMetricsCore configuration
+                  properties:
+                    conf:
+                      description: To override the configuration for the default Kubernetes State Metrics Core check. Must point to a ConfigMap containing a valid cluster check configuration.
+                      properties:
+                        configData:
+                          description: ConfigData corresponds to the configuration file content
+                          type: string
+                        configMap:
+                          description: ConfigMap name of a ConfigMap used to mount the configuration file
+                          properties:
+                            fileKey:
+                              description: FileKey corresponds to the key used in the ConfigMap.Data to store the configuration file content
+                              type: string
+                            name:
+                              description: Name the ConfigMap name
+                              type: string
+                          type: object
+                      type: object
+                    enabled:
+                      description: Enable this to start the Kubernetes State Metrics Core check. Refer to https://github.com/DataDog/datadog-operator/blob/master/docs/kubernetes_state_metrics.md
+                      type: boolean
+                  type: object
+                orchestratorExplorer:
+                  description: OrchestratorExplorer configuration
+                  properties:
+                    additionalEndpoints:
+                      description: 'Additional endpoints for shipping the collected data as json in the form of {"https://process.agent.datadoghq.com": ["apikey1", ...], ...}''.'
+                      type: string
+                    ddUrl:
+                      description: Set this for the Datadog endpoint for the orchestrator explorer
+                      type: string
+                    enabled:
+                      description: 'Enable this to activate live Kubernetes monitoring. ref: https://docs.datadoghq.com/infrastructure/livecontainers/#kubernetes-resources'
+                      type: boolean
+                    extraTags:
+                      description: 'Additional tags for the collected data in the form of `a b c` Difference to DD_TAGS: this is a cluster agent option that is used to define custom cluster tags'
+                      items:
+                        type: string
+                      type: array
+                    scrubbing:
+                      description: Option to disable scrubbing of sensitive container data (passwords, tokens, etc. ).
+                      properties:
+                        containers:
+                          description: Deactivate this to stop the scrubbing of sensitive container data (passwords, tokens, etc. ).
+                          type: boolean
+                      type: object
+                  type: object
               type: object
             site:
               description: The site of the Datadog intake to send Agent data to. Set to 'datadoghq.eu' to send data to the EU site.
