@@ -19,6 +19,8 @@ import (
 type DatadogFeatures struct {
 	// OrchestratorExplorer configuration
 	OrchestratorExplorer *OrchestratorExplorerConfig `json:"orchestratorExplorer,omitempty"`
+	// KubeStateMetricsCore configuration
+	KubeStateMetricsCore *KubeStateMetricsCore `json:"kubeStateMetricsCore,omitempty"`
 }
 
 // DatadogAgentSpec defines the desired state of DatadogAgent
@@ -373,6 +375,20 @@ type ProcessSpec struct {
 	// Make sure to keep requests and limits equal to keep the pods in the Guaranteed QoS class
 	// Ref: http://kubernetes.io/docs/user-guide/compute-resources/
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
+}
+
+// KubeStateMetricsCore contains the required parameters to enable and override the configuration
+// of the Kubernetes State Metrics Core (aka v2.0.0) of the check.
+// +k8s:openapi-gen=true
+type KubeStateMetricsCore struct {
+	// Enable this to start the Kubernetes State Metrics Core check.
+	// Refer to https://github.com/DataDog/datadog-operator/blob/master/docs/kubernetes_state_metrics.md
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// To override the configuration for the default Kubernetes State Metrics Core check.
+	// Must point to a ConfigMap containing a valid cluster check configuration.
+	Conf *CustomConfigSpec `json:"conf,omitempty"`
 }
 
 // OrchestratorExplorerConfig contains the orchestrator explorer configuration.
@@ -760,7 +776,7 @@ type ClusterAgentConfig struct {
 	// Autodiscovery via Kube Service annotations is automatically enabled
 	ClusterChecksEnabled *bool `json:"clusterChecksEnabled,omitempty"`
 
-	// Enables this to start event collection from the Kubernetes API
+	// Enable this to start event collection from the kubernetes API
 	// ref: https://docs.datadoghq.com/agent/cluster_agent/event_collection/
 	// +optional
 	CollectEvents *bool `json:"collectEvents,omitempty"`

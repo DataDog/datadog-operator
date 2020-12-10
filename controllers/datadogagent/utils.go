@@ -677,6 +677,22 @@ func getEnvVarsForAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.EnvVar, e
 					Value: datadoghqv1alpha1.EndpointsChecksConfigProvider,
 				})
 			}
+			// Remove ksm v1 conf if the cluster checks are enabled and the ksm core is enabled
+			if isKSMCoreEnabled(dda) {
+				ignoreAutoConfMutated := false
+				for i, e := range spec.Agent.Config.Env {
+					if e.Name == datadoghqv1alpha1.DDIgnoreAutoConf {
+						spec.Agent.Config.Env[i].Value = fmt.Sprintf("%s kubernetes_state", e.Value)
+						ignoreAutoConfMutated = true
+					}
+				}
+				if !ignoreAutoConfMutated {
+					envVars = append(envVars, corev1.EnvVar{
+						Name:  datadoghqv1alpha1.DDIgnoreAutoConf,
+						Value: "kubernetes_state",
+					})
+				}
+			}
 		}
 		envVars = append(envVars, clusterEnv...)
 	}
@@ -1597,6 +1613,16 @@ func generateRandomString(n int) string {
 func shouldReturn(result reconcile.Result, err error) bool {
 	if err != nil || result.Requeue || result.RequeueAfter > 0 {
 		return true
+	}
+	return false
+}
+
+func isKSMCoreEnabled(dda *datadoghqv1alpha1.DatadogAgent) bool {
+	if dda.Spec.Features == nil || dda.Spec.Features.KubeStateMetricsCore == nil {
+		return false
+	}
+	if dda.Spec.Features.KubeStateMetricsCore.Enabled != nil {
+		return *dda.Spec.Features.KubeStateMetricsCore.Enabled
 	}
 	return false
 }

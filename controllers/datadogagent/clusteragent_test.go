@@ -6,7 +6,8 @@ import (
 	"testing"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
-	test "github.com/DataDog/datadog-operator/api/v1alpha1/test"
+	"github.com/DataDog/datadog-operator/api/v1alpha1/test"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/orchestrator"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 
 	"github.com/go-logr/logr"
@@ -295,6 +296,114 @@ func clusterAgentPodSpecOrchestratorEnabled() v1.PodSpec {
 	return clusterAgentSpec
 }
 
+func Test_newClusterAgentDeploymentMountKSMCore(t *testing.T) {
+	enabledFeature := true
+	// test proper mount of volume
+	ksmCore := datadoghqv1alpha1.KubeStateMetricsCore{
+		Enabled: &enabledFeature,
+		Conf: &datadoghqv1alpha1.CustomConfigSpec{
+			ConfigMap: &datadoghqv1alpha1.ConfigFileConfigMapSpec{
+				Name:    "bla",
+				FileKey: "ksm_core.yaml",
+			},
+		},
+	}
+	envVars := []v1.EnvVar{
+		{
+			Name:  datadoghqv1alpha1.DDKubeStateMetricsCoreEnabled,
+			Value: "true",
+		},
+		{
+			Name:  datadoghqv1alpha1.DDKubeStateMetricsCoreConfigMap,
+			Value: "bla",
+		},
+		{
+			Name:  orchestrator.DDOrchestratorExplorerEnabled,
+			Value: "true",
+		},
+		{
+			Name:  orchestrator.DDOrchestratorExplorerContainerScrubbingEnabled,
+			Value: "true",
+		},
+	}
+	userVolumes := []corev1.Volume{
+		{
+			Name: "ksm-core-config",
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: "bla",
+					},
+				},
+			},
+		},
+	}
+	userVolumeMounts := []corev1.VolumeMount{
+		{
+			Name:      "ksm-core-config",
+			MountPath: "/etc/datadog-agent/conf.d/kubernetes_state_core.yaml",
+			SubPath:   "ksm_core.yaml",
+			ReadOnly:  true,
+		},
+	}
+	clusterAgentPodSpec := clusterAgentDefaultPodSpec()
+	clusterAgentPodSpec.Volumes = append(clusterAgentPodSpec.Volumes, userVolumes...)
+	clusterAgentPodSpec.Containers[0].VolumeMounts = append(clusterAgentPodSpec.Containers[0].VolumeMounts, userVolumeMounts...)
+	clusterAgentPodSpec.Containers[0].Env = append(clusterAgentPodSpec.Containers[0].Env, envVars...)
+	clusterAgentDeployment := test.NewDefaultedDatadogAgent(
+		"bar",
+		"foo",
+		&test.NewDatadogAgentOptions{
+			ClusterAgentEnabled:  true,
+			KubeStateMetricsCore: &ksmCore,
+		},
+	)
+	testDCA := clusterAgentDeploymentFromInstanceTest{
+		name:            "with KSM core check custom conf volumes and mounts",
+		agentdeployment: clusterAgentDeployment,
+		newStatus:       &datadoghqv1alpha1.DatadogAgentStatus{},
+		wantErr:         false,
+		want: &appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "bar",
+				Name:      "foo-cluster-agent",
+				Labels: map[string]string{"agent.datadoghq.com/name": "foo",
+					"agent.datadoghq.com/component": "cluster-agent",
+					"app.kubernetes.io/instance":    "cluster-agent",
+					"app.kubernetes.io/managed-by":  "datadog-operator",
+					"app.kubernetes.io/name":        "datadog-agent-deployment",
+					"app.kubernetes.io/part-of":     "foo",
+					"app.kubernetes.io/version":     "",
+				},
+			},
+			Spec: appsv1.DeploymentSpec{
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{
+							"agent.datadoghq.com/name":      "foo",
+							"agent.datadoghq.com/component": "cluster-agent",
+							"app.kubernetes.io/instance":    "cluster-agent",
+							"app.kubernetes.io/managed-by":  "datadog-operator",
+							"app.kubernetes.io/name":        "datadog-agent-deployment",
+							"app.kubernetes.io/part-of":     "foo",
+							"app.kubernetes.io/version":     "",
+						},
+					},
+					Spec: clusterAgentPodSpec,
+				},
+				Replicas: &testClusterAgentReplicas,
+				Selector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"agent.datadoghq.com/name":      "foo",
+						"agent.datadoghq.com/component": "cluster-agent",
+					},
+				},
+			},
+		},
+	}
+	testDCA.Run(t)
+}
+
 func Test_newClusterAgentDeploymentFromInstance_UserVolumes(t *testing.T) {
 	userVolumes := []corev1.Volume{
 		{
@@ -316,7 +425,6 @@ func Test_newClusterAgentDeploymentFromInstance_UserVolumes(t *testing.T) {
 	userMountsPodSpec := clusterAgentDefaultPodSpec()
 	userMountsPodSpec.Volumes = append(userMountsPodSpec.Volumes, userVolumes...)
 	userMountsPodSpec.Containers[0].VolumeMounts = append(userMountsPodSpec.Containers[0].VolumeMounts, userVolumeMounts...)
-
 	userMountsAgentDeployment := test.NewDefaultedDatadogAgent(
 		"bar",
 		"foo",
@@ -326,7 +434,6 @@ func Test_newClusterAgentDeploymentFromInstance_UserVolumes(t *testing.T) {
 			ClusterAgentVolumeMounts: userVolumeMounts,
 		},
 	)
-
 	test := clusterAgentDeploymentFromInstanceTest{
 		name:            "with user volumes and mounts",
 		agentdeployment: userMountsAgentDeployment,
@@ -479,7 +586,7 @@ func Test_newClusterAgentDeploymentFromInstance_CustomDeploymentName(t *testing.
 					"app.kubernetes.io/name":        "datadog-agent-deployment",
 					"app.kubernetes.io/part-of":     "foo",
 					"app.kubernetes.io/version":     "",
-					"app":                           "datadog-monitoring",
+					"app": "datadog-monitoring",
 				},
 			},
 			Spec: appsv1.DeploymentSpec{
@@ -493,7 +600,7 @@ func Test_newClusterAgentDeploymentFromInstance_CustomDeploymentName(t *testing.
 							"app.kubernetes.io/name":        "datadog-agent-deployment",
 							"app.kubernetes.io/part-of":     "foo",
 							"app.kubernetes.io/version":     "",
-							"app":                           "datadog-monitoring",
+							"app": "datadog-monitoring",
 						},
 					},
 					Spec: deploymentNamePodSpec,
@@ -618,8 +725,8 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 			MetricsServerEnabled:          true,
 			MetricsServerUseDatadogMetric: true,
 			MetricsServerWPAController:    true,
-			Site:                          "datadoghq.eu",
-			MetricsServerPort:             metricsServerPort,
+			Site:              "datadoghq.eu",
+			MetricsServerPort: metricsServerPort,
 		})
 
 	tests := clusterAgentDeploymentFromInstanceTestSuite{
@@ -644,7 +751,7 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 						"app.kubernetes.io/name":        "datadog-agent-deployment",
 						"app.kubernetes.io/part-of":     "foo",
 						"app.kubernetes.io/version":     "",
-						"app":                           "datadog-monitoring",
+						"app": "datadog-monitoring",
 					},
 				},
 				Spec: appsv1.DeploymentSpec{
@@ -658,7 +765,7 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 								"app.kubernetes.io/name":        "datadog-agent-deployment",
 								"app.kubernetes.io/part-of":     "foo",
 								"app.kubernetes.io/version":     "",
-								"app":                           "datadog-monitoring",
+								"app": "datadog-monitoring",
 							},
 						},
 						Spec: metricsServerPodSpec,
@@ -693,7 +800,7 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 						"app.kubernetes.io/name":        "datadog-agent-deployment",
 						"app.kubernetes.io/part-of":     "foo",
 						"app.kubernetes.io/version":     "",
-						"app":                           "datadog-monitoring",
+						"app": "datadog-monitoring",
 					},
 				},
 				Spec: appsv1.DeploymentSpec{
@@ -707,7 +814,7 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 								"app.kubernetes.io/name":        "datadog-agent-deployment",
 								"app.kubernetes.io/part-of":     "foo",
 								"app.kubernetes.io/version":     "",
-								"app":                           "datadog-monitoring",
+								"app": "datadog-monitoring",
 							},
 							Annotations: map[string]string{},
 						},
@@ -735,7 +842,7 @@ func Test_newClusterAgentDeploymentFromInstance_AdmissionController(t *testing.T
 		"app.kubernetes.io/name":        "datadog-agent-deployment",
 		"app.kubernetes.io/part-of":     "foo",
 		"app.kubernetes.io/version":     "",
-		"app":                           "datadog-monitoring",
+		"app": "datadog-monitoring",
 	}
 
 	admissionControllerPodSpec := clusterAgentDefaultPodSpec()

@@ -39,6 +39,7 @@ type NewDatadogAgentOptions struct {
 	MetricsServerUseDatadogMetric    bool
 	MetricsServerWPAController       bool
 	ClusterChecksEnabled             bool
+	KubeStateMetricsCore             *datadoghqv1alpha1.KubeStateMetricsCore
 	NodeAgentConfig                  *datadoghqv1alpha1.NodeAgentConfig
 	APMEnabled                       bool
 	ProcessEnabled                   bool
@@ -209,6 +210,13 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 
 			if options.ClusterChecksEnabled {
 				ad.Spec.ClusterAgent.Config.ClusterChecksEnabled = datadoghqv1alpha1.NewBoolPointer(true)
+			}
+
+			if options.KubeStateMetricsCore != nil {
+				if ad.Spec.Features == nil {
+					ad.Spec.Features = &datadoghqv1alpha1.DatadogFeatures{}
+				}
+				ad.Spec.Features.KubeStateMetricsCore = options.KubeStateMetricsCore
 			}
 
 			if len(options.ClusterAgentVolumes) != 0 {

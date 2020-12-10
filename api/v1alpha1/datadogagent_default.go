@@ -6,6 +6,7 @@
 package v1alpha1
 
 import (
+	"fmt"
 	"time"
 
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
@@ -39,6 +40,8 @@ const (
 	defaultOrchestratorExplorerContainerScrubbingEnabled bool   = true
 	defaultMetricsProviderPort                           int32  = 8443
 	defaultClusterChecksEnabled                          bool   = false
+	DefaultKubeStateMetricsCoreConf                      string = "kube-state-metrics-core-config"
+	defaultKubeStateMetricsCoreEnabled                   bool   = false
 	defaultClusterAgentReplicas                          int32  = 1
 	defaultAgentCanaryReplicas                           int32  = 1
 	defaultClusterChecksRunnerReplicas                   int32  = 2
@@ -100,6 +103,9 @@ func IsDefaultedDatadogAgent(ad *DatadogAgent) bool {
 
 	if ad.Spec.Features != nil {
 		if !IsDefaultedOrchestratorExplorer(ad.Spec.Features.OrchestratorExplorer) {
+			return false
+		}
+		if !IsDefaultedKubeStateMetricsCore(ad.Spec.Features.KubeStateMetricsCore) {
 			return false
 		}
 	}
@@ -188,6 +194,17 @@ func IsDefaultedOrchestratorExplorer(orc *OrchestratorExplorerConfig) bool {
 		return false
 	}
 
+	return true
+}
+
+// IsDefaultedKubeStateMetricsCore check if the Kubernetes State Metrics Core has the minimal config
+func IsDefaultedKubeStateMetricsCore(ksmCore *KubeStateMetricsCore) bool {
+	if ksmCore == nil {
+		return false
+	}
+	if ksmCore.Enabled == nil {
+		return false
+	}
 	return true
 }
 
@@ -407,9 +424,9 @@ func DefaultDatadogAgent(ad *DatadogAgent) *DatadogAgent {
 		}
 	}
 
-	if defaultedAD.Spec.Features != nil && defaultedAD.Spec.Features.OrchestratorExplorer != nil {
-		defaultedAD.Spec.Features.OrchestratorExplorer = DefaultDatadogFeatureOrchestratorExplorer(defaultedAD.Spec.Features.OrchestratorExplorer)
-	}
+	// Initialize the features if necessary
+	// TODO defaulting values has to be consistent across all fields of the DatadogAgent
+	DefaultFeatures(defaultedAD.Spec.Features)
 
 	if defaultedAD.Spec.ClusterChecksRunner != nil {
 		defaultedAD.Spec.ClusterChecksRunner = DefaultDatadogAgentSpecClusterChecksRunner(defaultedAD.Spec.ClusterChecksRunner)
@@ -664,6 +681,16 @@ func DefaultDatadogAgentSpecAgentProcess(process *ProcessSpec) *ProcessSpec {
 	return process
 }
 
+// DefaultFeatures used to initialized the Features' default values if necessary
+func DefaultFeatures(ft *DatadogFeatures) *DatadogFeatures {
+	if ft == nil {
+		return &DatadogFeatures{}
+	}
+	ft.OrchestratorExplorer = DefaultDatadogFeatureOrchestratorExplorer(ft.OrchestratorExplorer)
+	ft.KubeStateMetricsCore = DefaultDatadogFeatureKubeStateMetricsCore(ft.KubeStateMetricsCore)
+	return ft
+}
+
 // DefaultDatadogFeatureOrchestratorExplorer used to default an OrchestratorExplorerConfig
 // return the defaulted OrchestratorExplorerConfig
 func DefaultDatadogFeatureOrchestratorExplorer(explorerConfig *OrchestratorExplorerConfig) *OrchestratorExplorerConfig {
@@ -680,6 +707,20 @@ func DefaultDatadogFeatureOrchestratorExplorer(explorerConfig *OrchestratorExplo
 	}
 
 	return explorerConfig
+}
+
+// DefaultDatadogFeatureKubeStateMetricsCore used to default the Kubernetes State Metrics core check
+// Disabled by default with no overridden configuration.
+func DefaultDatadogFeatureKubeStateMetricsCore(ksmCore *KubeStateMetricsCore) *KubeStateMetricsCore {
+	if ksmCore == nil {
+		ksmCore = &KubeStateMetricsCore{}
+	}
+
+	if ksmCore.Enabled == nil {
+		ksmCore.Enabled = NewBoolPointer(defaultKubeStateMetricsCoreEnabled)
+	}
+
+	return ksmCore
 }
 
 // DefaultDatadogAgentSpecClusterAgent used to default an DatadogAgentSpecClusterAgentSpec
@@ -726,6 +767,16 @@ func DefaultDatadogAgentSpecClusterAgentConfig(config *ClusterAgentConfig) *Clus
 	}
 
 	return config
+}
+
+// GetKubeStateMetricsConfName get the name of the Configmap for the KSM Core check.
+func GetKubeStateMetricsConfName(dcaConf *DatadogAgent) string {
+	// `configData` and `configMap` can't be set together.
+	// Return the default if the conf is not overridden or if it is just overridden with the ConfigData.
+	if dcaConf.Spec.Features.KubeStateMetricsCore.Conf != nil && dcaConf.Spec.Features.KubeStateMetricsCore.Conf.ConfigMap != nil {
+		return dcaConf.Spec.Features.KubeStateMetricsCore.Conf.ConfigMap.Name
+	}
+	return fmt.Sprintf("%s-%s", dcaConf.Name, DefaultKubeStateMetricsCoreConf)
 }
 
 // DefaultDatadogAgentSpecClusterAgentImage used to default ImageConfig for the Datadog Cluster Agent
