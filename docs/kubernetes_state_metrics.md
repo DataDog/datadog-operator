@@ -56,8 +56,10 @@ If you want to maintain the ConfigMap yourself, you will need to use the field `
 features:
     kubeStateMetricsCore:
       enabled: true
-      conf: 
-        configMap: custom-kubernetes-state-core-check
+      conf:
+        configMap:
+          name: custom-kubernetes-state-core-check
+          fileKey: kubernetes_state_core.yaml
 ```
 
 For instance, in a large cluster where you might want to take advantage of the label join features and split the collectors so several Cluster Check Runners process them, your configuration could look like this:

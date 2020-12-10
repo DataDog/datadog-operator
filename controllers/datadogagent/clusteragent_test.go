@@ -336,7 +336,7 @@ func Test_newClusterAgentDeploymentMountKSMCore(t *testing.T) {
 	userVolumeMounts := []corev1.VolumeMount{
 		{
 			Name:      "ksm-core-config",
-			MountPath: "/etc/datadog-agent/conf.d",
+			MountPath: "/etc/datadog-agent/conf.d/kubernetes_state_core.yaml",
 			SubPath:   "ksm_core.yaml",
 			ReadOnly:  true,
 		},

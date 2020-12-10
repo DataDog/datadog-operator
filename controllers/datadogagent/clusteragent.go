@@ -395,10 +395,11 @@ func newClusterAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent,
 				datadoghqv1alpha1.GetKubeStateMetricsConfName(agentdeployment),
 				datadoghqv1alpha1.KubeStateMetricCoreVolumeName,
 			)
+			// subpath only updated to Filekey if config uses configMap, default to ksmCoreCheckName for configData.
 			volumeMountKSM = getVolumeMountFromCustomConfigSpec(
 				agentdeployment.Spec.Features.KubeStateMetricsCore.Conf,
 				datadoghqv1alpha1.KubeStateMetricCoreVolumeName,
-				fmt.Sprintf("%s%s", datadoghqv1alpha1.ConfigVolumePath, datadoghqv1alpha1.ConfdVolumePath),
+				fmt.Sprintf("%s%s/%s", datadoghqv1alpha1.ConfigVolumePath, datadoghqv1alpha1.ConfdVolumePath, ksmCoreCheckName),
 				ksmCoreCheckName,
 			)
 		} else {

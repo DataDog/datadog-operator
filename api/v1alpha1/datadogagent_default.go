@@ -41,6 +41,7 @@ const (
 	defaultMetricsProviderPort                           int32  = 8443
 	defaultClusterChecksEnabled                          bool   = false
 	DefaultKubeStateMetricsCoreConf                      string = "kube-state-metrics-core-config"
+	defaultKubeStateMetricsCoreEnabled                   bool   = false
 	defaultClusterAgentReplicas                          int32  = 1
 	defaultAgentCanaryReplicas                           int32  = 1
 	defaultClusterChecksRunnerReplicas                   int32  = 2
@@ -101,7 +102,10 @@ func IsDefaultedDatadogAgent(ad *DatadogAgent) bool {
 	}
 
 	if ad.Spec.Features != nil {
-		if !IsDefaultedOrchestratorExplorer(ad.Spec.Features.OrchestratorExplorer) {
+		if ad.Spec.Features.OrchestratorExplorer != nil && !IsDefaultedOrchestratorExplorer(ad.Spec.Features.OrchestratorExplorer) {
+			return false
+		}
+		if ad.Spec.Features.KubeStateMetricsCore != nil && !IsDefaultedKubeStateMetricsCore(ad.Spec.Features.KubeStateMetricsCore) {
 			return false
 		}
 	}
@@ -190,6 +194,17 @@ func IsDefaultedOrchestratorExplorer(orc *OrchestratorExplorerConfig) bool {
 		return false
 	}
 
+	return true
+}
+
+// IsDefaultedKubeStateMetricsCore check if the Kubernetes State Metrics Core has the minimal config
+func IsDefaultedKubeStateMetricsCore(ksmCore *KubeStateMetricsCore) bool {
+	if ksmCore == nil {
+		return false
+	}
+	if ksmCore.Enabled == nil {
+		return false
+	}
 	return true
 }
 
@@ -409,8 +424,13 @@ func DefaultDatadogAgent(ad *DatadogAgent) *DatadogAgent {
 		}
 	}
 
-	if defaultedAD.Spec.Features != nil && defaultedAD.Spec.Features.OrchestratorExplorer != nil {
-		defaultedAD.Spec.Features.OrchestratorExplorer = DefaultDatadogFeatureOrchestratorExplorer(defaultedAD.Spec.Features.OrchestratorExplorer)
+	if defaultedAD.Spec.Features != nil {
+		if defaultedAD.Spec.Features.OrchestratorExplorer != nil {
+			defaultedAD.Spec.Features.OrchestratorExplorer = DefaultDatadogFeatureOrchestratorExplorer(defaultedAD.Spec.Features.OrchestratorExplorer)
+		}
+		if defaultedAD.Spec.Features.KubeStateMetricsCore != nil {
+			defaultedAD.Spec.Features.KubeStateMetricsCore = DefaultDatadogFeatureKubeStateMetricsCore(defaultedAD.Spec.Features.KubeStateMetricsCore)
+		}
 	}
 
 	if defaultedAD.Spec.ClusterChecksRunner != nil {
@@ -682,6 +702,20 @@ func DefaultDatadogFeatureOrchestratorExplorer(explorerConfig *OrchestratorExplo
 	}
 
 	return explorerConfig
+}
+
+// DefaultDatadogFeatureKubeStateMetricsCore used to default the Kubernetes State Metrics core check
+// Disabled by default with no overridden configuration.
+func DefaultDatadogFeatureKubeStateMetricsCore(ksmCore *KubeStateMetricsCore) *KubeStateMetricsCore {
+	if ksmCore == nil {
+		ksmCore = &KubeStateMetricsCore{}
+	}
+
+	if ksmCore.Enabled == nil {
+		ksmCore.Enabled = NewBoolPointer(defaultKubeStateMetricsCoreEnabled)
+	}
+
+	return ksmCore
 }
 
 // DefaultDatadogAgentSpecClusterAgent used to default an DatadogAgentSpecClusterAgentSpec
