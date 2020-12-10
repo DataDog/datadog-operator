@@ -7,6 +7,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/v1alpha1/test"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/orchestrator"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 
 	"github.com/go-logr/logr"
@@ -320,6 +321,14 @@ func Test_newClusterAgentDeploymentMountKSMCore(t *testing.T) {
 			Name:  datadoghqv1alpha1.DDKubeStateMetricsCoreConfigMap,
 			Value: "bla",
 		},
+		{
+			Name:  orchestrator.DDOrchestratorExplorerEnabled,
+			Value: "true",
+		},
+		{
+			Name:  orchestrator.DDOrchestratorExplorerContainerScrubbingEnabled,
+			Value: "true",
+		},
 	}
 	userVolumes := []corev1.Volume{
 		{
@@ -581,7 +590,7 @@ func Test_newClusterAgentDeploymentFromInstance_CustomDeploymentName(t *testing.
 					"app.kubernetes.io/name":        "datadog-agent-deployment",
 					"app.kubernetes.io/part-of":     "foo",
 					"app.kubernetes.io/version":     "",
-					"app":                           "datadog-monitoring",
+					"app": "datadog-monitoring",
 				},
 			},
 			Spec: appsv1.DeploymentSpec{
@@ -595,7 +604,7 @@ func Test_newClusterAgentDeploymentFromInstance_CustomDeploymentName(t *testing.
 							"app.kubernetes.io/name":        "datadog-agent-deployment",
 							"app.kubernetes.io/part-of":     "foo",
 							"app.kubernetes.io/version":     "",
-							"app":                           "datadog-monitoring",
+							"app": "datadog-monitoring",
 						},
 					},
 					Spec: deploymentNamePodSpec,
@@ -723,8 +732,8 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 			MetricsServerEnabled:          true,
 			MetricsServerUseDatadogMetric: true,
 			MetricsServerWPAController:    true,
-			Site:                          "datadoghq.eu",
-			MetricsServerPort:             metricsServerPort,
+			Site:              "datadoghq.eu",
+			MetricsServerPort: metricsServerPort,
 		})
 
 	tests := clusterAgentDeploymentFromInstanceTestSuite{
@@ -749,7 +758,7 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 						"app.kubernetes.io/name":        "datadog-agent-deployment",
 						"app.kubernetes.io/part-of":     "foo",
 						"app.kubernetes.io/version":     "",
-						"app":                           "datadog-monitoring",
+						"app": "datadog-monitoring",
 					},
 				},
 				Spec: appsv1.DeploymentSpec{
@@ -763,7 +772,7 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 								"app.kubernetes.io/name":        "datadog-agent-deployment",
 								"app.kubernetes.io/part-of":     "foo",
 								"app.kubernetes.io/version":     "",
-								"app":                           "datadog-monitoring",
+								"app": "datadog-monitoring",
 							},
 						},
 						Spec: metricsServerPodSpec,
@@ -798,7 +807,7 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 						"app.kubernetes.io/name":        "datadog-agent-deployment",
 						"app.kubernetes.io/part-of":     "foo",
 						"app.kubernetes.io/version":     "",
-						"app":                           "datadog-monitoring",
+						"app": "datadog-monitoring",
 					},
 				},
 				Spec: appsv1.DeploymentSpec{
@@ -812,7 +821,7 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 								"app.kubernetes.io/name":        "datadog-agent-deployment",
 								"app.kubernetes.io/part-of":     "foo",
 								"app.kubernetes.io/version":     "",
-								"app":                           "datadog-monitoring",
+								"app": "datadog-monitoring",
 							},
 						},
 						Spec: metricsServerWithSitePodSpec,
@@ -839,7 +848,7 @@ func Test_newClusterAgentDeploymentFromInstance_AdmissionController(t *testing.T
 		"app.kubernetes.io/name":        "datadog-agent-deployment",
 		"app.kubernetes.io/part-of":     "foo",
 		"app.kubernetes.io/version":     "",
-		"app":                           "datadog-monitoring",
+		"app": "datadog-monitoring",
 	}
 
 	admissionControllerPodSpec := clusterAgentDefaultPodSpec()

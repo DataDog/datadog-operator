@@ -102,10 +102,10 @@ func IsDefaultedDatadogAgent(ad *DatadogAgent) bool {
 	}
 
 	if ad.Spec.Features != nil {
-		if ad.Spec.Features.OrchestratorExplorer != nil && !IsDefaultedOrchestratorExplorer(ad.Spec.Features.OrchestratorExplorer) {
+		if !IsDefaultedOrchestratorExplorer(ad.Spec.Features.OrchestratorExplorer) {
 			return false
 		}
-		if ad.Spec.Features.KubeStateMetricsCore != nil && !IsDefaultedKubeStateMetricsCore(ad.Spec.Features.KubeStateMetricsCore) {
+		if !IsDefaultedKubeStateMetricsCore(ad.Spec.Features.KubeStateMetricsCore) {
 			return false
 		}
 	}
@@ -424,14 +424,9 @@ func DefaultDatadogAgent(ad *DatadogAgent) *DatadogAgent {
 		}
 	}
 
-	if defaultedAD.Spec.Features != nil {
-		if defaultedAD.Spec.Features.OrchestratorExplorer != nil {
-			defaultedAD.Spec.Features.OrchestratorExplorer = DefaultDatadogFeatureOrchestratorExplorer(defaultedAD.Spec.Features.OrchestratorExplorer)
-		}
-		if defaultedAD.Spec.Features.KubeStateMetricsCore != nil {
-			defaultedAD.Spec.Features.KubeStateMetricsCore = DefaultDatadogFeatureKubeStateMetricsCore(defaultedAD.Spec.Features.KubeStateMetricsCore)
-		}
-	}
+	// Initialize the features if necessary
+	// TODO defaulting values has to be consistent across all fields of the DatadogAgent
+	DefaultFeatures(defaultedAD.Spec.Features)
 
 	if defaultedAD.Spec.ClusterChecksRunner != nil {
 		defaultedAD.Spec.ClusterChecksRunner = DefaultDatadogAgentSpecClusterChecksRunner(defaultedAD.Spec.ClusterChecksRunner)
@@ -684,6 +679,16 @@ func DefaultDatadogAgentSpecAgentProcess(process *ProcessSpec) *ProcessSpec {
 	}
 
 	return process
+}
+
+// DefaultFeatures used to initialized the Features' default values if necessary
+func DefaultFeatures(ft *DatadogFeatures) *DatadogFeatures {
+	if ft == nil {
+		return &DatadogFeatures{}
+	}
+	ft.OrchestratorExplorer = DefaultDatadogFeatureOrchestratorExplorer(ft.OrchestratorExplorer)
+	ft.KubeStateMetricsCore = DefaultDatadogFeatureKubeStateMetricsCore(ft.KubeStateMetricsCore)
+	return ft
 }
 
 // DefaultDatadogFeatureOrchestratorExplorer used to default an OrchestratorExplorerConfig
