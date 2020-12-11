@@ -18,12 +18,15 @@ import (
 
 var (
 	secretBackendCommand = ""
+	secretBackendArgs    = []string{}
 )
 
 const (
 	defaultCmdOutputMaxSize = 1024 * 1024
 	defaultCmdTimeout       = 5 * time.Second
-	payloadVersion          = "1.0"
+
+	// PayloadVersion represents the version of the SB API
+	PayloadVersion = "1.0"
 )
 
 // SetSecretBackendCommand set the secretBackendCommand var
@@ -31,10 +34,16 @@ func SetSecretBackendCommand(command string) {
 	secretBackendCommand = command
 }
 
+// SetSecretBackendArgs set the secretBackendArgs var
+func SetSecretBackendArgs(args []string) {
+	secretBackendArgs = args
+}
+
 // NewSecretBackend returns a new SecretBackend instance
 func NewSecretBackend() *SecretBackend {
 	return &SecretBackend{
 		cmd:              secretBackendCommand,
+		cmdArgs:          secretBackendArgs,
 		cmdOutputMaxSize: defaultCmdOutputMaxSize,
 		cmdTimeout:       defaultCmdTimeout,
 	}
@@ -57,7 +66,7 @@ func (sb *SecretBackend) fetchSecret(encrypted []string) (map[string]string, err
 	}
 
 	payload := map[string]interface{}{
-		"version": payloadVersion,
+		"version": PayloadVersion,
 		"secrets": handles,
 	}
 
@@ -71,7 +80,7 @@ func (sb *SecretBackend) fetchSecret(encrypted []string) (map[string]string, err
 		return nil, err
 	}
 
-	secrets := map[string]secret{}
+	secrets := map[string]Secret{}
 	err = json.Unmarshal(output, &secrets)
 	if err != nil {
 		return nil, fmt.Errorf("could not unmarshal 'secret_backend_command' output: %v", err)
@@ -101,7 +110,7 @@ func (sb *SecretBackend) execCommand(inputPayload string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), sb.cmdTimeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, sb.cmd)
+	cmd := exec.CommandContext(ctx, sb.cmd, sb.cmdArgs...)
 
 	cmd.Stdin = strings.NewReader(inputPayload)
 

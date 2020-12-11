@@ -17,12 +17,13 @@ type Decryptor interface {
 // SecretBackend implements the Decryptor interface
 type SecretBackend struct {
 	cmd              string
+	cmdArgs          []string
 	cmdOutputMaxSize int
 	cmdTimeout       time.Duration
 }
 
-// secret defines the structure for secrets in JSON output
-type secret struct {
+// Secret defines the structure for secrets in JSON output
+type Secret struct {
 	Value    string `json:"value,omitempty"`
 	ErrorMsg string `json:"error,omitempty"`
 }
