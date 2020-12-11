@@ -3,5 +3,4 @@ kind: DatadogMetric
 metadata:
   name: datadogmetric-sample
 spec:
-  # Add fields here
-  foo: bar
+  query: "avg:kubernetes.cpu.usage.total{app:foo}.rollup(avg,30)/(avg:kubernetes.cpu.limits{app:foo}.rollup(avg,30)*10000000)"
