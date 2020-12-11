@@ -43,7 +43,7 @@ metadata:
             "name": "datadogmetric-sample"
           },
           "spec": {
-            "foo": "bar"
+            "query": "avg:kubernetes.cpu.usage.total{app:foo}.rollup(avg,30)/(avg:kubernetes.cpu.limits{app:foo}.rollup(avg,30)*10000000)"
           }
         },
         {
@@ -64,8 +64,8 @@ metadata:
           }
         }
       ]
-    capabilities: Basic Install
-    operators.operatorframework.io/builder: operator-sdk-v1.0.0
+    capabilities: Full Lifecycle
+    operators.operatorframework.io/builder: operator-sdk-v1.2.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
   name: datadog-operator.v0.4.0
   namespace: placeholder
@@ -78,7 +78,7 @@ spec:
       kind: DatadogAgent
       name: datadogagents.datadoghq.com
       version: v1alpha1
-    - description: DatadogMetric is the Schema for the datadogmetrics API
+    - description: DatadogMetric allows autoscaling on arbitrary Datadog query
       displayName: Datadog Metric
       kind: DatadogMetric
       name: datadogmetrics.datadoghq.com
@@ -376,11 +376,22 @@ spec:
           - securitycontextconstraints
           verbs:
           - use
-        serviceAccountName: default
+        serviceAccountName: datadog-operator-manager
+      - rules:
+        - apiGroups:
+          - security.openshift.io
+          resourceNames:
+          - hostaccess
+          - privileged
+          resources:
+          - securitycontextconstraints
+          verbs:
+          - use
+        serviceAccountName: datadog-agent-scc
       deployments:
-      - name: datadog-operator-controller-manager
+      - name: datadog-operator-manager
         spec:
-          replicas: 2
+          replicas: 1
           selector:
             matchLabels:
               app.kubernetes.io/name: datadog-operator
@@ -412,7 +423,7 @@ spec:
                     path: /healthz/
                     port: 8081
                   periodSeconds: 10
-                name: datadog-operator-manager
+                name: manager
                 ports:
                 - containerPort: 8080
                   name: metrics
@@ -424,6 +435,7 @@ spec:
                   requests:
                     cpu: 100m
                     memory: 100Mi
+              serviceAccountName: datadog-operator-manager
               terminationGracePeriodSeconds: 10
       permissions:
       - rules:
@@ -454,7 +466,7 @@ spec:
           verbs:
           - create
           - patch
-        serviceAccountName: default
+        serviceAccountName: datadog-operator-manager
     strategy: deployment
   installModes:
   - supported: true
@@ -482,3 +494,4 @@ spec:
   provider:
     name: Datadog
   version: 0.4.0
+  replaces: datadog-operator.v0.3.2
