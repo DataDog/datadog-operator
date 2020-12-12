@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"reflect"
 	"sort"
 	"strings"
@@ -17,6 +18,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
 	test "github.com/DataDog/datadog-operator/api/v1alpha1/test"
+	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/stretchr/testify/mock"
 	assert "github.com/stretchr/testify/require"
 	api "github.com/zorkian/go-datadog-api"
@@ -513,7 +515,7 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 							},
 							APPSecret: &datadoghqv1alpha1.Secret{
 								SecretName: "datadog-creds-app",
-								KeyName:    "applicative_key",
+								KeyName:    "application_key",
 							},
 						}}),
 				loadFunc: func(m *metricsForwarder, d *dummyDecryptor) {
@@ -534,7 +536,7 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 							Namespace: "foo",
 						},
 						Data: map[string][]byte{
-							"applicative_key": []byte("foundAppKey"),
+							"application_key": []byte("foundAppKey"),
 						},
 					}
 					_ = m.k8sClient.Create(context.TODO(), secret)
@@ -628,6 +630,24 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 						},
 					}
 					_ = m.k8sClient.Create(context.TODO(), secret)
+				},
+			},
+			wantAPIKey: "foundApiKey",
+			wantAPPKey: "foundAppKey",
+			wantErr:    false,
+		},
+		{
+			name: "no creds defined, apiKey and appKey found in env var",
+			fields: fields{
+				client: fake.NewFakeClient(),
+			},
+			args: args{
+				dda: test.NewDefaultedDatadogAgent("foo", "bar",
+					&test.NewDatadogAgentOptions{},
+				),
+				loadFunc: func(m *metricsForwarder, d *dummyDecryptor) {
+					os.Setenv(config.DDAPIKeyEnvVar, "foundApiKey")
+					os.Setenv(config.DDAppKeyEnvVar, "foundAppKey")
 				},
 			},
 			wantAPIKey: "foundApiKey",

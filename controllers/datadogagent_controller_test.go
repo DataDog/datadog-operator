@@ -215,7 +215,7 @@ var _ = Describe("DatadogAgent Controller", func() {
 		}
 
 		It("It should create Deployment", func() {
-			agent := testutils.NewDatadogAgent(namespace, name, "datadog/agent:7.22.0", &testutils.NewDatadogAgentOptions{ClusterAgentEnabled: true})
+			agent := testutils.NewDatadogAgent(namespace, name, "datadog/agent:7.22.0", &testutils.NewDatadogAgentOptions{ClusterAgentEnabled: true, APIKey: "xnfdsjgdjcxlg42rqmzxzvdsgjdfklg"})
 			Expect(k8sClient.Create(context.Background(), agent)).Should(Succeed())
 
 			var agentClusterAgentHash string

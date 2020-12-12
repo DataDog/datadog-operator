@@ -24,8 +24,9 @@ type DatadogFeatures struct {
 // DatadogAgentSpec defines the desired state of DatadogAgent
 // +k8s:openapi-gen=true
 type DatadogAgentSpec struct {
-	// Configure the credentials required to run Agents
-	Credentials AgentCredentials `json:"credentials"`
+	// Configure the credentials needed to run Agents. If not set, then the credentials
+	// set in the DatadogOperator will be used
+	Credentials AgentCredentials `json:"credentials,omitempty"`
 
 	// Features running on the Agent and Cluster Agent
 	// +optional

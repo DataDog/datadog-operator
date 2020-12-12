@@ -842,7 +842,7 @@ func schema__api_v1alpha1_DatadogAgentSpec(ref common.ReferenceCallback) common.
 				Properties: map[string]spec.Schema{
 					"credentials": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Configure the credentials required to run Agents",
+							Description: "Configure the credentials needed to run Agents. If not set, then the credentials set in the DatadogOperator will be used",
 							Ref:         ref("./api/v1alpha1.AgentCredentials"),
 						},
 					},
@@ -885,7 +885,6 @@ func schema__api_v1alpha1_DatadogAgentSpec(ref common.ReferenceCallback) common.
 						},
 					},
 				},
-				Required: []string{"credentials"},
 			},
 		},
 		Dependencies: []string{

@@ -19,6 +19,12 @@ const (
 	// which specifies the Namespace to watch.
 	// An empty value means the operator is running with cluster scope.
 	WatchNamespaceEnvVar = "WATCH_NAMESPACE"
+	// DDAPIKeyEnvVar is the constant for the env variable DD_API_KEY which is the fallback
+	// API key to use if a resource does not have it defined in its spec
+	DDAPIKeyEnvVar = "DD_API_KEY"
+	// DDAppKeyEnvVar is the constant for the env variable DD_APP_KEY which is the fallback
+	// App key to use if a resource does not have it defined in its spec
+	DDAppKeyEnvVar = "DD_APP_KEY"
 )
 
 // GetWatchNamespaces returns the Namespaces the operator should be watching for changes

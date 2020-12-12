@@ -20,6 +20,7 @@ type NewDatadogAgentOptions struct {
 	ClusterAgentEnabled bool
 	UseEDS              bool
 	APIKey              string
+	AppKey              string
 }
 
 var (
@@ -36,8 +37,8 @@ func NewDatadogAgent(ns, name, image string, options *NewDatadogAgentOptions) *d
 	}
 	ad.Spec = datadoghqv1alpha1.DatadogAgentSpec{
 		Credentials: datadoghqv1alpha1.AgentCredentials{
-			APIKey: "adflkajdflkjalkcmlkdjacsf",
-			AppKey: "sgfggtdhfghfghfghfgbdfdgs",
+			APIKey: "",
+			AppKey: "",
 		},
 		Agent: &datadoghqv1alpha1.DatadogAgentSpecAgentSpec{
 			Image: datadoghqv1alpha1.ImageConfig{},
@@ -79,6 +80,10 @@ func NewDatadogAgent(ns, name, image string, options *NewDatadogAgentOptions) *d
 	if options != nil {
 		if options.APIKey != "" {
 			ad.Spec.Credentials.APIKey = options.APIKey
+		}
+
+		if options.AppKey != "" {
+			ad.Spec.Credentials.AppKey = options.AppKey
 		}
 
 		if options.UseEDS && ad.Spec.Agent != nil {
