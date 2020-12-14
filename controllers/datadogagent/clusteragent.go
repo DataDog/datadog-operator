@@ -133,7 +133,7 @@ func (r *Reconciler) updateClusterAgentDeployment(logger logr.Logger, agentdeplo
 	if !needUpdate {
 		return reconcile.Result{}, nil
 	}
-	logger.Info("update ClusterAgent deployment", "name", dca.Name, "namespace", dca.Namespace)
+	logger.Info("Update ClusterAgent deployment", "name", dca.Name, "namespace", dca.Namespace)
 	// Set DatadogAgent instance  instance as the owner and controller
 	if err = controllerutil.SetControllerReference(agentdeployment, dca, r.scheme); err != nil {
 		return reconcile.Result{}, err
@@ -264,6 +264,10 @@ func (r *Reconciler) manageClusterAgentDependencies(logger logr.Logger, dda *dat
 	if shouldReturn(result, err) {
 		return result, err
 	}
+	result, err = r.manageKubeStateMetricsCore(logger, dda)
+	if shouldReturn(result, err) {
+		return result, err
+	}
 
 	return reconcile.Result{}, nil
 }
@@ -382,6 +386,42 @@ func newClusterAgentPodTemplate(agentdeployment *datadoghqv1alpha1.DatadogAgent,
 		}
 	}
 
+	if isKSMCoreEnabled(agentdeployment) {
+		var volKSM corev1.Volume
+		var volumeMountKSM corev1.VolumeMount
+		if agentdeployment.Spec.Features.KubeStateMetricsCore.Conf != nil {
+			volKSM = getVolumeFromCustomConfigSpec(
+				agentdeployment.Spec.Features.KubeStateMetricsCore.Conf,
+				datadoghqv1alpha1.GetKubeStateMetricsConfName(agentdeployment),
+				datadoghqv1alpha1.KubeStateMetricCoreVolumeName,
+			)
+			// subpath only updated to Filekey if config uses configMap, default to ksmCoreCheckName for configData.
+			volumeMountKSM = getVolumeMountFromCustomConfigSpec(
+				agentdeployment.Spec.Features.KubeStateMetricsCore.Conf,
+				datadoghqv1alpha1.KubeStateMetricCoreVolumeName,
+				fmt.Sprintf("%s%s/%s", datadoghqv1alpha1.ConfigVolumePath, datadoghqv1alpha1.ConfdVolumePath, ksmCoreCheckName),
+				ksmCoreCheckName,
+			)
+		} else {
+			volKSM = corev1.Volume{
+				Name: datadoghqv1alpha1.KubeStateMetricCoreVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: datadoghqv1alpha1.GetKubeStateMetricsConfName(agentdeployment),
+						},
+					},
+				},
+			}
+			volumeMountKSM = corev1.VolumeMount{
+				Name:      datadoghqv1alpha1.KubeStateMetricCoreVolumeName,
+				MountPath: fmt.Sprintf("/etc/datadog-agent%s", datadoghqv1alpha1.ConfdVolumePath),
+				ReadOnly:  true,
+			}
+		}
+		volumes = append(volumes, volKSM)
+		volumeMounts = append(volumeMounts, volumeMountKSM)
+	}
 	// Add other volumes
 	volumes = append(volumes, agentdeployment.Spec.ClusterAgent.Config.Volumes...)
 	volumeMounts = append(volumeMounts, agentdeployment.Spec.ClusterAgent.Config.VolumeMounts...)
@@ -485,10 +525,6 @@ func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.En
 			Value: spec.ClusterName,
 		},
 		{
-			Name:  datadoghqv1alpha1.DDSite,
-			Value: spec.Site,
-		},
-		{
 			Name:  datadoghqv1alpha1.DDClusterChecksEnabled,
 			Value: datadoghqv1alpha1.BoolToString(spec.ClusterAgent.Config.ClusterChecksEnabled),
 		},
@@ -544,10 +580,15 @@ func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.En
 		})
 	}
 
-	if needAgentSecret(dda) {
+	envVars = append(envVars, corev1.EnvVar{
+		Name:      datadoghqv1alpha1.DDAPIKey,
+		ValueFrom: getAPIKeyFromSecret(dda),
+	})
+
+	if spec.Site != "" {
 		envVars = append(envVars, corev1.EnvVar{
-			Name:      datadoghqv1alpha1.DDAPIKey,
-			ValueFrom: getAPIKeyFromSecret(dda),
+			Name:  datadoghqv1alpha1.DDSite,
+			Value: spec.Site,
 		})
 	}
 
@@ -590,6 +631,17 @@ func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.En
 				Value: datadoghqv1alpha1.KubeServicesAndEndpointsListeners,
 			},
 		}...)
+	}
+
+	if isKSMCoreEnabled(dda) {
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  datadoghqv1alpha1.DDKubeStateMetricsCoreEnabled,
+			Value: "true",
+		})
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  datadoghqv1alpha1.DDKubeStateMetricsCoreConfigMap,
+			Value: datadoghqv1alpha1.GetKubeStateMetricsConfName(dda),
+		})
 	}
 
 	if isAdmissionControllerEnabled(spec.ClusterAgent) {
@@ -1391,6 +1443,5 @@ func buildClusterAgentNetworkPolicy(dda *datadoghqv1alpha1.DatadogAgent, name st
 			},
 		},
 	}
-
 	return policy
 }

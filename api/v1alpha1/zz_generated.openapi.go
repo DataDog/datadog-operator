@@ -47,6 +47,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./api/v1alpha1.DogstatsdConfig":                         schema__api_v1alpha1_DogstatsdConfig(ref),
 		"./api/v1alpha1.ExternalMetricsConfig":                   schema__api_v1alpha1_ExternalMetricsConfig(ref),
 		"./api/v1alpha1.ImageConfig":                             schema__api_v1alpha1_ImageConfig(ref),
+		"./api/v1alpha1.KubeStateMetricsCore":                    schema__api_v1alpha1_KubeStateMetricsCore(ref),
 		"./api/v1alpha1.LogSpec":                                 schema__api_v1alpha1_LogSpec(ref),
 		"./api/v1alpha1.NetworkPolicySpec":                       schema__api_v1alpha1_NetworkPolicySpec(ref),
 		"./api/v1alpha1.NodeAgentConfig":                         schema__api_v1alpha1_NodeAgentConfig(ref),
@@ -274,7 +275,7 @@ func schema__api_v1alpha1_ClusterAgentConfig(ref common.ReferenceCallback) commo
 					},
 					"collectEvents": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enables this to start event collection from the Kubernetes API ref: https://docs.datadoghq.com/agent/cluster_agent/event_collection/",
+							Description: "Enable this to start event collection from the kubernetes API ref: https://docs.datadoghq.com/agent/cluster_agent/event_collection/",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
@@ -1412,11 +1413,17 @@ func schema__api_v1alpha1_DatadogFeatures(ref common.ReferenceCallback) common.O
 							Ref:         ref("./api/v1alpha1.OrchestratorExplorerConfig"),
 						},
 					},
+					"kubeStateMetricsCore": {
+						SchemaProps: spec.SchemaProps{
+							Description: "KubeStateMetricsCore configuration",
+							Ref:         ref("./api/v1alpha1.KubeStateMetricsCore"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./api/v1alpha1.OrchestratorExplorerConfig"},
+			"./api/v1alpha1.KubeStateMetricsCore", "./api/v1alpha1.OrchestratorExplorerConfig"},
 	}
 }
 
@@ -1824,6 +1831,34 @@ func schema__api_v1alpha1_ImageConfig(ref common.ReferenceCallback) common.OpenA
 		},
 		Dependencies: []string{
 			"k8s.io/api/core/v1.LocalObjectReference"},
+	}
+}
+
+func schema__api_v1alpha1_KubeStateMetricsCore(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "KubeStateMetricsCore contains the required parameters to enable and override the configuration of the Kubernetes State Metrics Core (aka v2.0.0) of the check.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enable this to start the Kubernetes State Metrics Core check. Refer to https://github.com/DataDog/datadog-operator/blob/master/docs/kubernetes_state_metrics.md",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"conf": {
+						SchemaProps: spec.SchemaProps{
+							Description: "To override the configuration for the default Kubernetes State Metrics Core check. Must point to a ConfigMap containing a valid cluster check configuration.",
+							Ref:         ref("./api/v1alpha1.CustomConfigSpec"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"./api/v1alpha1.CustomConfigSpec"},
 	}
 }
 

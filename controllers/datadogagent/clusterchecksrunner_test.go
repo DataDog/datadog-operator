@@ -135,10 +135,6 @@ func clusterChecksRunnerDefaultEnvVars() []corev1.EnvVar {
 			ValueFrom: apiKeyValue(),
 		},
 		{
-			Name:  "DD_SITE",
-			Value: "",
-		},
-		{
 			Name:  "DD_CLUSTER_CHECKS_ENABLED",
 			Value: "true",
 		},

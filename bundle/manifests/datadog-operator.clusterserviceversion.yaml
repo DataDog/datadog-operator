@@ -22,7 +22,8 @@ metadata:
                 "enabled": true
               },
               "process": {
-                "enabled": true
+                "enabled": true,
+                "processCollection": true
               },
               "systemProbe": {
                 "bpfDebugEnabled": true,

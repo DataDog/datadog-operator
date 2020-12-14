@@ -39,6 +39,13 @@ func IsValidDatadogAgent(spec *DatadogAgentSpec) error {
 		}
 	}
 
+	if spec.Features != nil && spec.Features.KubeStateMetricsCore != nil {
+		if spec.Features.KubeStateMetricsCore.Conf != nil {
+			if err = IsValidCustomConfigSpec(spec.Features.KubeStateMetricsCore.Conf); err != nil {
+				errs = append(errs, fmt.Errorf("invalid spec.features.kubeStateMetricsCore.conf, err: %v", err))
+			}
+		}
+	}
 	return utilserrors.NewAggregate(errs)
 }
 

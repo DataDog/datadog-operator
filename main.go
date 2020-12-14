@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	goruntime "runtime"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -57,6 +58,18 @@ func init() {
 	// +kubebuilder:scaffold:scheme
 }
 
+// stringSlice implements flag.Value
+type stringSlice []string
+
+func (ss *stringSlice) String() string {
+	return fmt.Sprintf("%s", *ss)
+}
+
+func (ss *stringSlice) Set(value string) error {
+	*ss = strings.Split(value, " ")
+	return nil
+}
+
 func main() {
 	var metricsAddr string
 	var enableLeaderElection bool
@@ -67,8 +80,10 @@ func main() {
 	// Custom flags
 	var printVersion, pprofActive, supportExtendedDaemonset bool
 	var logEncoder, secretBackendCommand string
+	var secretBackendArgs stringSlice
 	flag.StringVar(&logEncoder, "logEncoder", "json", "log encoding ('json' or 'console')")
 	flag.StringVar(&secretBackendCommand, "secretBackendCommand", "", "Secret backend command")
+	flag.Var(&secretBackendArgs, "secretBackendArgs", "Space separated arguments of the secret backend command")
 	logLevel := zap.LevelFlag("loglevel", zapcore.InfoLevel, "Set log level")
 	flag.BoolVar(&printVersion, "version", false, "Print version and exit")
 	flag.BoolVar(&pprofActive, "pprof", false, "Enable pprof endpoint")
@@ -92,6 +107,7 @@ func main() {
 
 	// Dispatch CLI flags to each package
 	secrets.SetSecretBackendCommand(secretBackendCommand)
+	secrets.SetSecretBackendArgs(secretBackendArgs)
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), config.ManagerOptionsWithNamespaces(setupLog, ctrl.Options{
 		Scheme:                 scheme,
