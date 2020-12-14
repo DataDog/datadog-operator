@@ -580,12 +580,10 @@ func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.En
 		})
 	}
 
-	if needAgentSecret(dda) {
-		envVars = append(envVars, corev1.EnvVar{
-			Name:      datadoghqv1alpha1.DDAPIKey,
-			ValueFrom: getAPIKeyFromSecret(dda),
-		})
-	}
+	envVars = append(envVars, corev1.EnvVar{
+		Name:      datadoghqv1alpha1.DDAPIKey,
+		ValueFrom: getAPIKeyFromSecret(dda),
+	})
 
 	if spec.Site != "" {
 		envVars = append(envVars, corev1.EnvVar{
