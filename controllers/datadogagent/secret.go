@@ -8,6 +8,7 @@ package datadogagent
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -21,6 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
+	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 )
@@ -121,11 +123,16 @@ func newAgentSecret(dda *datadoghqv1alpha1.DatadogAgent) *corev1.Secret {
 	annotations := getDefaultAnnotations(dda)
 
 	data := make(map[string][]byte)
+	// Create secret using DatadogAgent credentials if it exists, otherwise use Datadog Operator env var
 	if dda.Spec.Credentials.APIKey != "" {
 		data[datadoghqv1alpha1.DefaultAPIKeyKey] = []byte(dda.Spec.Credentials.APIKey)
+	} else if os.Getenv(config.DDAPIKeyEnvVar) != "" {
+		data[datadoghqv1alpha1.DefaultAPIKeyKey] = []byte(os.Getenv(config.DDAPIKeyEnvVar))
 	}
 	if dda.Spec.Credentials.AppKey != "" {
 		data[datadoghqv1alpha1.DefaultAPPKeyKey] = []byte(dda.Spec.Credentials.AppKey)
+	} else if os.Getenv(config.DDAppKeyEnvVar) != "" {
+		data[datadoghqv1alpha1.DefaultAPPKeyKey] = []byte(os.Getenv(config.DDAppKeyEnvVar))
 	}
 	if dda.Spec.Credentials.Token != "" {
 		data[datadoghqv1alpha1.DefaultTokenKey] = []byte(dda.Spec.Credentials.Token)
@@ -147,7 +154,9 @@ func newAgentSecret(dda *datadoghqv1alpha1.DatadogAgent) *corev1.Secret {
 	return secret
 }
 
+// needAgentSecret checks if a secret should be used or created due to the cluster agent being defined, or if any api or app key
+// is configured, AND the secret backend is not used
 func needAgentSecret(dda *datadoghqv1alpha1.DatadogAgent) bool {
-	return (dda.Spec.ClusterAgent != nil || dda.Spec.Credentials.APIKey != "" || dda.Spec.Credentials.AppKey != "") &&
+	return (dda.Spec.ClusterAgent != nil || (dda.Spec.Credentials.APIKey != "" || os.Getenv(config.DDAPIKeyEnvVar) != "") || (dda.Spec.Credentials.AppKey != "" || os.Getenv(config.DDAppKeyEnvVar) != "")) &&
 		!datadoghqv1alpha1.BoolValue(dda.Spec.Credentials.UseSecretBackend)
 }

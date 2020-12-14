@@ -10,11 +10,13 @@ import (
 	"errors"
 	"fmt"
 	"hash/fnv"
+	"os"
 	"reflect"
 	"sync"
 	"time"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
+	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
@@ -490,18 +492,28 @@ func (mf *metricsForwarder) getDatadogAgent() (*datadoghqv1alpha1.DatadogAgent, 
 func (mf *metricsForwarder) getCredentials(dda *datadoghqv1alpha1.DatadogAgent) (string, string, error) {
 	var err error
 	apiKey, appKey := "", ""
-	if dda.Spec.Credentials.APIKey != "" {
+
+	// Use API key in order of priority: DatadogAgent spec, env var, or secret
+	switch {
+	case dda.Spec.Credentials.APIKey != "":
 		apiKey = dda.Spec.Credentials.APIKey
-	} else {
+	case os.Getenv(config.DDAPIKeyEnvVar) != "":
+		apiKey = os.Getenv(config.DDAPIKeyEnvVar)
+	default:
 		secretName, secretKeyName := utils.GetAPIKeySecret(dda)
 		apiKey, err = mf.getKeyFromSecret(dda, secretName, secretKeyName)
 		if err != nil {
 			return "", "", err
 		}
 	}
-	if dda.Spec.Credentials.AppKey != "" {
+
+	// Use App key in order of priority: DatadogAgent spec, env var, or secret
+	switch {
+	case dda.Spec.Credentials.AppKey != "":
 		appKey = dda.Spec.Credentials.AppKey
-	} else {
+	case os.Getenv(config.DDAppKeyEnvVar) != "":
+		appKey = os.Getenv(config.DDAppKeyEnvVar)
+	default:
 		secretName, secretKeyName := utils.GetAppKeySecret(dda)
 		appKey, err = mf.getKeyFromSecret(dda, secretName, secretKeyName)
 		if err != nil {
