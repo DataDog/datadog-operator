@@ -1,6 +1,6 @@
 ## Append samples you want in your CSV to this file as resources ##
 resources:
-- datadog-agent-all.yaml
+- datadog-operator-hub-example.yaml
 - datadogmetric-v1alpha1.yaml
 - datadoghq_v1alpha1_datadogmonitor.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples
