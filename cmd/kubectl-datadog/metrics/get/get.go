@@ -118,36 +118,19 @@ func (o *options) run() error {
 	table := newTable(o.Out)
 	for _, item := range ddList.Items {
 		metric := &metricData{
-			Namespace: item.Namespace,
-			Name:      item.Name,
+			Namespace:  item.Namespace,
+			Name:       item.Name,
+			Value:      item.Status.Value,
+			References: item.Status.AutoscalerReferences,
 		}
-		if item.Status.Conditions != nil {
-			for i := range item.Status.Conditions {
-				if item.Status.Conditions[i].Type == v1alpha1.DatadogMetricConditionTypeActive {
-					if string(item.Status.Conditions[i].Status) != "" {
-						metric.Active = string(item.Status.Conditions[i].Status)
-					}
-				}
-				if item.Status.Conditions[i].Type == v1alpha1.DatadogMetricConditionTypeValid {
-					if string(item.Status.Conditions[i].Status) != "" {
-						metric.Valid = string(item.Status.Conditions[i].Status)
-					}
-				}
-			}
-		}
-		if item.Status.Value != "" {
-			metric.Value = item.Status.Value
-		}
-		if item.Status.AutoscalerReferences != "" {
-			metric.References = item.Status.AutoscalerReferences
-		}
-		if item.Status.Conditions != nil {
-			for i := range item.Status.Conditions {
-				if item.Status.Conditions[i].Type == v1alpha1.DatadogMetricConditionTypeUpdated {
-					if !item.Status.Conditions[i].LastUpdateTime.IsZero() {
-						metric.UpdateTime = duration.HumanDuration(time.Since(item.Status.Conditions[i].LastUpdateTime.Time))
-					}
-				}
+		for i := range item.Status.Conditions {
+			switch item.Status.Conditions[i].Type {
+			case v1alpha1.DatadogMetricConditionTypeActive:
+				metric.Active = string(item.Status.Conditions[i].Status)
+			case v1alpha1.DatadogMetricConditionTypeValid:
+				metric.Valid = string(item.Status.Conditions[i].Status)
+			case v1alpha1.DatadogMetricConditionTypeUpdated:
+				metric.UpdateTime = duration.HumanDuration(time.Since(item.Status.Conditions[i].LastUpdateTime.Time))
 			}
 		}
 		table.Append(metricDataToData(metric))
