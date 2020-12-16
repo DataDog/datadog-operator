@@ -9,6 +9,8 @@ VERSION?=$(if $(GIT_TAG),$(GIT_TAG),$(TAG_HASH))
 GIT_COMMIT?=$(shell git rev-parse HEAD)
 DATE=$(shell date +%Y-%m-%d/%H:%M:%S )
 LDFLAGS=-w -s -X ${BUILDINFOPKG}.Commit=${GIT_COMMIT} -X ${BUILDINFOPKG}.Version=${VERSION} -X ${BUILDINFOPKG}.BuildTime=${DATE}
+CHANNELS=alpha
+DEFAULT_CHANNEL=alpha
 
 # Default bundle image tag
 BUNDLE_IMG ?= controller-bundle:$(VERSION)
@@ -129,6 +131,7 @@ bundle: manifests ## Generate bundle manifests and metadata, then validate gener
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
 	$(KUSTOMIZE) build config/manifests | ./bin/operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
 	./bin/operator-sdk bundle validate ./bundle
+	./hack/redhat-bundle.sh
 
 .PHONY: bundle-build
 bundle-build: ## Build the bundle image.
@@ -138,8 +141,11 @@ bundle-build: ## Build the bundle image.
 bundle-push:
 	docker push $(BUNDLE_IMG)
 
-##@ Datadog Custom part
+.PHONY: bundle-redhat-build
+bundle-redhat-build:
+	docker build -f bundle.redhat.Dockerfile -t scan.connect.redhat.com/ospid-1125a16e-7487-49a2-93ae-f6a21920e804/operator-bundle:$(VERSION) .
 
+##@ Datadog Custom part
 .PHONY: install-tools
 install-tools: bin/golangci-lint bin/operator-sdk bin/yq bin/kubebuilder
 
@@ -187,7 +193,7 @@ bin/golangci-lint:
 	hack/golangci-lint.sh v1.18.0
 
 bin/operator-sdk:
-	./hack/install-operator-sdk.sh v1.0.0
+	./hack/install-operator-sdk.sh v1.2.0
 
 bin/wwhrd:
 	./hack/install-wwhrd.sh 0.2.4

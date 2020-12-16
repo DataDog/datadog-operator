@@ -1431,7 +1431,7 @@ func schema__api_v1alpha1_DatadogMetric(ref common.ReferenceCallback) common.Ope
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DatadogMetric is the Schema for the datadogmetrics API",
+				Description: "DatadogMetric allows autoscaling on arbitrary Datadog query",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
