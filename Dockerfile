@@ -20,8 +20,21 @@ ARG LDFLAGS
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -ldflags "${LDFLAGS}" -o manager main.go
 
 FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
+
+LABEL name="datadog/operator"
+LABEL vendor="Datadog Inc."
+LABEL summary="The Datadog Operator aims at providing a new way to deploy the Datadog Agent on Kubernetes"
+LABEL description="Datadog provides a modern monitoring and analytics platform. Gather \
+      metrics, logs and traces for full observability of your Kubernetes cluster with \
+      Datadog Operator."
+
 WORKDIR /
 COPY --from=builder /workspace/manager .
+
+RUN mkdir -p /licences
+COPY ./LICENSE ./LICENSE-3rdparty.csv /licenses/
+RUN chmod -R 755 /licences
+
 USER 1001
 
 ENTRYPOINT ["/manager"]
