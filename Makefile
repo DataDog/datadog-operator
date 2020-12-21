@@ -131,8 +131,8 @@ bundle: manifests
 	./bin/operator-sdk generate kustomize manifests -q
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
 	$(KUSTOMIZE) build config/manifests | ./bin/operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
-	./hack/patch-bundle.sh
 	./bin/operator-sdk bundle validate ./bundle
+	./hack/redhat-bundle.sh
 
 # Build the bundle image.
 .PHONY: bundle-build
@@ -142,6 +142,10 @@ bundle-build:
 .PHONY: bundle-push
 bundle-push:
 	docker push $(BUNDLE_IMG)
+
+.PHONY: bundle-redhat-build
+bundle-redhat-build:
+	docker build -f bundle.redhat.Dockerfile -t scan.connect.redhat.com/ospid-1125a16e-7487-49a2-93ae-f6a21920e804/operator-bundle:$(VERSION) .
 
 #
 # Datadog Custom part
@@ -193,7 +197,7 @@ bin/golangci-lint:
 	hack/golangci-lint.sh v1.18.0
 
 bin/operator-sdk:
-	./hack/install-operator-sdk.sh v1.0.0
+	./hack/install-operator-sdk.sh v1.2.0
 
 bin/wwhrd:
 	./hack/install-wwhrd.sh 0.2.4
