@@ -1,9 +1,9 @@
 // Unless explicitly stated otherwise all files in this repository are licensed
 // under the Apache License Version 2.0.
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2016-2019 Datadog, Inc.
+// Copyright 2016-2020 Datadog, Inc.
 
-package datadogagent
+package datadogmonitor
 
 import (
 	corev1 "k8s.io/api/core/v1"
@@ -13,14 +13,14 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 )
 
+const datadogMonitorKind = "DatadogMonitor"
+
 // buildEventInfo creates a new EventInfo instance
-func buildEventInfo(name, ns, kind string, eventType datadog.EventType) utils.EventInfo {
-	return utils.BuildEventInfo(name, ns, kind, eventType)
+func buildEventInfo(name, ns string, eventType datadog.EventType) utils.EventInfo {
+	return utils.BuildEventInfo(name, ns, datadogMonitorKind, eventType)
 }
 
 // recordEvent wraps the manager event recorder
-// recordEvent calls the metric forwarders to send Datadog events
-func (r *Reconciler) recordEvent(dda *datadoghqv1alpha1.DatadogAgent, info utils.EventInfo) {
-	r.recorder.Event(dda, corev1.EventTypeNormal, info.GetReason(), info.GetMessage())
-	r.forwarders.ProcessEvent(dda, info.GetDDEvent())
+func (r *Reconciler) recordEvent(dm *datadoghqv1alpha1.DatadogMonitor, info utils.EventInfo) {
+	r.Recorder.Event(dm, corev1.EventTypeNormal, info.GetReason(), info.GetMessage())
 }

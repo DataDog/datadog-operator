@@ -1098,17 +1098,17 @@ type DatadogAgentCondition struct {
 type DatadogAgentConditionType string
 
 const (
-	// ConditionTypeActive DatadogAgent is active
-	ConditionTypeActive DatadogAgentConditionType = "Active"
-	// ConditionTypeReconcileError the controller wasn't able to run properly the reconcile loop with this DatadogAgent
-	ConditionTypeReconcileError DatadogAgentConditionType = "ReconcileError"
-	// ConditionTypeSecretError the required Secret doesn't exist.
-	ConditionTypeSecretError DatadogAgentConditionType = "SecretError"
+	// DatadogAgentConditionTypeActive DatadogAgent is active
+	DatadogAgentConditionTypeActive DatadogAgentConditionType = "Active"
+	// DatadogAgentConditionTypeReconcileError the controller wasn't able to run properly the reconcile loop with this DatadogAgent
+	DatadogAgentConditionTypeReconcileError DatadogAgentConditionType = "ReconcileError"
+	// DatadogAgentConditionTypeSecretError the required Secret doesn't exist.
+	DatadogAgentConditionTypeSecretError DatadogAgentConditionType = "SecretError"
 
-	// ConditionTypeActiveDatadogMetrics forwarding metrics and events to Datadog is active
-	ConditionTypeActiveDatadogMetrics DatadogAgentConditionType = "ActiveDatadogMetrics"
-	// ConditionTypeDatadogMetricsError cannot forward deployment metrics and events to Datadog
-	ConditionTypeDatadogMetricsError DatadogAgentConditionType = "DatadogMetricsError"
+	// DatadogAgentConditionTypeActiveDatadogMetrics forwarding metrics and events to Datadog is active
+	DatadogAgentConditionTypeActiveDatadogMetrics DatadogAgentConditionType = "ActiveDatadogMetrics"
+	// DatadogAgentConditionTypeDatadogMetricsError cannot forward deployment metrics and events to Datadog
+	DatadogAgentConditionTypeDatadogMetricsError DatadogAgentConditionType = "DatadogMetricsError"
 )
 
 // DatadogAgent Deployment with Datadog Operator

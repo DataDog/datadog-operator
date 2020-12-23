@@ -25,6 +25,9 @@ const (
 	// DDAppKeyEnvVar is the constant for the env variable DD_APP_KEY which is the fallback
 	// App key to use if a resource does not have it defined in its spec
 	DDAppKeyEnvVar = "DD_APP_KEY"
+	// DDURLEnvVar is the constant for the env variable DD_URL which is the
+	// host of the Datadog intake server to send data to
+	DDURLEnvVar = "DD_URL"
 )
 
 // GetWatchNamespaces returns the Namespaces the operator should be watching for changes

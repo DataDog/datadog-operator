@@ -138,7 +138,7 @@ var _ = Describe("DatadogAgent Controller", func() {
 					return false
 				}
 				for _, condition := range agent.Status.Conditions {
-					if condition.Type == datadoghqv1alpha1.ConditionTypeActive && condition.Status == corev1.ConditionTrue {
+					if condition.Type == datadoghqv1alpha1.DatadogAgentConditionTypeActive && condition.Status == corev1.ConditionTrue {
 						return true
 					}
 				}

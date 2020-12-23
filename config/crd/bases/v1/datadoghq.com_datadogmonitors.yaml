@@ -20,15 +20,15 @@ spec:
     - jsonPath: .status.id
       name: id
       type: string
-    - jsonPath: .status.conditions[?(@.type=='Created')].status
-      name: created
-      type: string
     - jsonPath: .status.monitorState
       name: monitor state
       type: string
+    - jsonPath: .status.conditions[?(@.type=='Created')].lastUpdateTime
+      name: created
+      type: string
     - jsonPath: .status.conditions[?(@.type=='Updated')].lastUpdateTime
       name: last updated
-      type: date
+      type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:
@@ -51,6 +51,9 @@ spec:
             properties:
               message:
                 description: Message is the message to include in a monitor notification
+                type: string
+              name:
+                description: Name is the monitor name
                 type: string
               options:
                 description: Options are the optional parameters of a monitor
@@ -103,9 +106,6 @@ spec:
                 items:
                   type: string
                 type: array
-              title:
-                description: Title is the monitor title
-                type: string
               type:
                 description: Type is the monitor type
                 type: string
@@ -157,6 +157,8 @@ spec:
               creator:
                 description: Creator is the identify of the monitor creator
                 type: string
+              currentHash:
+                type: string
               downtimeStatus:
                 description: DowntimeStatus defines whether the monitor is downtimed
                 properties:
@@ -171,6 +173,10 @@ spec:
               monitorState:
                 description: MonitorState is the overall state of monitor
                 type: string
+              primary:
+                description: Primary defines whether the monitor is managed by the
+                  Kubernetes custom resource (true) or outside Kubernetes (false)
+                type: boolean
               triggeredState:
                 description: TriggeredState only includes details for monitor groups
                   that are triggering
@@ -180,8 +186,8 @@ spec:
                     if one of its groups is in Alert, Warn, or No Data
                   properties:
                     lastTransitionTime:
-                      format: date-time
-                      type: string
+                      format: int64
+                      type: integer
                     monitorGroup:
                       description: MonitorGroup is the name of the triggering group
                       type: string

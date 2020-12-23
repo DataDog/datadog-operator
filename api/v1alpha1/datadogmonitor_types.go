@@ -16,8 +16,8 @@ type DatadogMonitorSpec struct {
 	Query string `json:"query,omitempty"`
 	// Type is the monitor type
 	Type DatadogMonitorType `json:"type,omitempty"`
-	// Title is the monitor title
-	Title string `json:"title,omitempty"`
+	// Name is the monitor name
+	Name string `json:"name,omitempty"`
 	// Message is the message to include in a monitor notification
 	Message string `json:"message,omitempty"`
 	// Tags is the monitor tags used to organize monitors
@@ -32,7 +32,7 @@ type DatadogMonitorType string
 
 const (
 	// DatadogMonitorTypeMetric is the metric alert monitor
-	DatadogMonitorTypeMetric DatadogMonitorType = "metric"
+	DatadogMonitorTypeMetric DatadogMonitorType = "metric alert"
 )
 
 // DatadogMonitorOptions define the optional parameters of a monitor
@@ -69,16 +69,22 @@ type DatadogMonitorStatus struct {
 
 	// ID is the monitor ID generated in Datadog
 	ID int `json:"id,omitempty"`
+	// Creator is the identify of the monitor creator
+	Creator string `json:"creator,omitempty"`
+	// Created is the time the monitor was created
+	Created *metav1.Time `json:"created,omitempty"`
 	// MonitorState is the overall state of monitor
 	MonitorState DatadogMonitorState `json:"monitorState,omitempty"`
 	// TriggeredState only includes details for monitor groups that are triggering
 	TriggeredState []DatadogMonitorTriggeredState `json:"triggeredState,omitempty"`
 	// DowntimeStatus defines whether the monitor is downtimed
 	DowntimeStatus DatadogMonitorDowntimeStatus `json:"downtimeStatus,omitempty"`
-	// Creator is the identify of the monitor creator
-	Creator string `json:"creator,omitempty"`
-	// Created is the time the monitor was created
-	Created metav1.Time `json:"created,omitempty"`
+
+	// Primary defines whether the monitor is managed by the Kubernetes custom
+	// resource (true) or outside Kubernetes (false)
+	Primary bool `json:"primary,omitempty"`
+
+	CurrentHash string `json:"currentHash,omitempty"`
 }
 
 // DatadogMonitorCondition describes the current state of a DatadogMonitor
@@ -108,8 +114,8 @@ type DatadogMonitorConditionType string
 const (
 	// DatadogMonitorConditionTypeCreated means the DatadogMonitor is created successfully
 	DatadogMonitorConditionTypeCreated DatadogMonitorConditionType = "Created"
-	// DatadogMonitorConditionTypePending means the DatadogMonitor is pending
-	DatadogMonitorConditionTypePending DatadogMonitorConditionType = "Pending"
+	// DatadogMonitorConditionTypeActive means the DatadogMonitor is active
+	DatadogMonitorConditionTypeActive DatadogMonitorConditionType = "Active"
 	// DatadogMonitorConditionTypeUpdated means the DatadogMonitor is updated
 	DatadogMonitorConditionTypeUpdated DatadogMonitorConditionType = "Updated"
 	// DatadogMonitorConditionTypeError means the DatadogMonitor has an error
@@ -140,9 +146,9 @@ const (
 // The DatadogMonitor is triggering if one of its groups is in Alert, Warn, or No Data
 type DatadogMonitorTriggeredState struct {
 	// MonitorGroup is the name of the triggering group
-	MonitorGroup       string              `json:"monitorGroup,omitempty"`
-	State              DatadogMonitorState `json:"state,omitempty"`
-	LastTransitionTime metav1.Time         `json:"lastTransitionTime,omitempty"`
+	MonitorGroup     string              `json:"monitorGroup,omitempty"`
+	State            DatadogMonitorState `json:"state,omitempty"`
+	LastTransitionTs int64               `json:"lastTransitionTime,omitempty"`
 }
 
 // DatadogMonitorDowntimeStatus represents the downtime status of a DatadogMonitor
@@ -156,9 +162,9 @@ type DatadogMonitorDowntimeStatus struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:path=datadogmonitors,scope=Namespaced
 // +kubebuilder:printcolumn:name="id",type="string",JSONPath=".status.id"
-// +kubebuilder:printcolumn:name="created",type="string",JSONPath=".status.conditions[?(@.type=='Created')].status"
 // +kubebuilder:printcolumn:name="monitor state",type="string",JSONPath=".status.monitorState"
-// +kubebuilder:printcolumn:name="last updated",type="date",JSONPath=".status.conditions[?(@.type=='Updated')].lastUpdateTime"
+// +kubebuilder:printcolumn:name="created",type="string",JSONPath=".status.conditions[?(@.type=='Created')].lastUpdateTime"
+// +kubebuilder:printcolumn:name="last updated",type="string",JSONPath=".status.conditions[?(@.type=='Updated')].lastUpdateTime"
 // +k8s:openapi-gen=true
 // +genclient
 type DatadogMonitor struct {
