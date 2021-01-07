@@ -35,7 +35,7 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: DatadogMetric is the Schema for the datadogmetrics API
+        description: DatadogMetric allows autoscaling on arbitrary Datadog query
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation

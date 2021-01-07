@@ -22,8 +22,7 @@ metadata:
                 "enabled": true
               },
               "process": {
-                "enabled": true,
-                "processCollection": true
+                "enabled": true
               },
               "systemProbe": {
                 "bpfDebugEnabled": true,
@@ -45,23 +44,6 @@ metadata:
           "spec": {
             "query": "avg:kubernetes.cpu.usage.total{app:foo}.rollup(avg,30)/(avg:kubernetes.cpu.limits{app:foo}.rollup(avg,30)*10000000)"
           }
-        },
-        {
-          "apiVersion": "datadoghq.com/v1alpha1",
-          "kind": "DatadogMonitor",
-          "metadata": {
-            "name": "datadogmonitor-sample"
-          },
-          "spec": {
-            "message": "Something is wrong and we need to fix it.",
-            "query": "avg(last_15m):avg:foo{env:staging,service:bar} \u003e 1",
-            "tags": [
-              "env:staging",
-              "service:bar"
-            ],
-            "title": "Latency is increasing on staging",
-            "type": "metric alert"
-          }
         }
       ]
     capabilities: Full Lifecycle
@@ -82,11 +64,6 @@ spec:
       displayName: Datadog Metric
       kind: DatadogMetric
       name: datadogmetrics.datadoghq.com
-      version: v1alpha1
-    - description: DatadogMonitor is the Schema for the datadogmonitor API
-      displayName: Datadog Monitor
-      kind: DatadogMonitor
-      name: datadogmonitors.datadoghq.com
       version: v1alpha1
   description: Datadog provides a modern monitoring and analytics platform. Gather metrics, logs and traces for full observability of your Kubernetes cluster with Datadog Operator.
   displayName: Datadog Operator
@@ -416,7 +393,7 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.annotations['olm.targetNamespaces']
-                image: datadog/operator:0.4.0
+                image: registry.connect.redhat.com/datadog/operator:0.4.0
                 imagePullPolicy: Always
                 livenessProbe:
                   httpGet:
@@ -494,4 +471,4 @@ spec:
   provider:
     name: Datadog
   version: 0.4.0
-  replaces: datadog-operator.v0.3.2
+  replaces: datadog-operator.v0.3.0

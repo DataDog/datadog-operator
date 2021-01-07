@@ -49,9 +49,6 @@ spec:
             externalMetricName:
               description: ExternalMetricName is reversed for internal use
               type: string
-            maxAge:
-              description: MaxAge provides the max age for the metric query (overrides the default setting `external_metrics_provider.max_age`)
-              type: string
             query:
               description: Query is the raw datadog query
               type: string
