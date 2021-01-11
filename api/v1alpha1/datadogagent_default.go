@@ -490,12 +490,7 @@ func DefaultDatadogAgentSpecAgentConfig(config *NodeAgentConfig) *NodeAgentConfi
 		config.CriSocket.DockerSocketPath = NewStringPointer(defaultDockerSocketPath)
 	}
 
-	if config.Dogstatsd == nil {
-		config.Dogstatsd = &DogstatsdConfig{
-			DogstatsdOriginDetection: NewBoolPointer(defaultDogstatsdOriginDetection),
-			UseDogStatsDSocketVolume: NewBoolPointer(defaultUseDogStatsDSocketVolume),
-		}
-	}
+	DefaultConfigDogstatsd(config)
 
 	if config.PodLabelsAsTags == nil {
 		config.PodLabelsAsTags = map[string]string{}
@@ -510,6 +505,21 @@ func DefaultDatadogAgentSpecAgentConfig(config *NodeAgentConfig) *NodeAgentConfi
 	}
 
 	return config
+}
+
+// DefaultConfigDogstatsd used to default Dogstatsd config in NodeAgentConfig
+func DefaultConfigDogstatsd(config *NodeAgentConfig) {
+	if config.Dogstatsd == nil {
+		config.Dogstatsd = &DogstatsdConfig{}
+	}
+
+	if config.Dogstatsd.DogstatsdOriginDetection == nil {
+		config.Dogstatsd.DogstatsdOriginDetection = NewBoolPointer(defaultDogstatsdOriginDetection)
+	}
+
+	if config.Dogstatsd.UseDogStatsDSocketVolume == nil {
+		config.Dogstatsd.UseDogStatsDSocketVolume = NewBoolPointer(defaultUseDogStatsDSocketVolume)
+	}
 }
 
 // DefaultDatadogAgentSpecRbacConfig used to default a RbacConfig
