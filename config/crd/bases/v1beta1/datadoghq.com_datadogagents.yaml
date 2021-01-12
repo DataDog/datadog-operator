@@ -273,6 +273,11 @@ spec:
                           description: Enable origin detection for container tagging
                             https://docs.datadoghq.com/developers/dogstatsd/unix_socket/#using-origin-detection-for-container-tagging
                           type: boolean
+                        hostSocketPath:
+                          description: 'Define the host path used to store the dogstatsd
+                            socket when dogstatsd over Unix Domain Socket is enabled
+                            ref: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/'
+                          type: string
                         useDogStatsDSocketVolume:
                           description: 'Enable dogstatsd over Unix Domain Socket ref:
                             https://docs.datadoghq.com/developers/dogstatsd/unix_socket/'

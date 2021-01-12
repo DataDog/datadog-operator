@@ -825,6 +825,23 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 		volumes = append(volumes, volume)
 	}
 
+	// Dogstatsd volume
+	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Config.Dogstatsd.UseDogStatsDSocketVolume) {
+		volumeType := corev1.HostPathDirectoryOrCreate
+		hostPath := *dda.Spec.Agent.Config.Dogstatsd.HostSocketPath
+
+		dsdsockerVolume := corev1.Volume{
+			Name: datadoghqv1alpha1.DogstatsdSockerVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: hostPath,
+					Type: &volumeType,
+				},
+			},
+		}
+		volumes = append(volumes, dsdsockerVolume)
+	}
+
 	if dda.Spec.Agent.Config.CriSocket != nil {
 		path := ""
 		if dda.Spec.Agent.Config.CriSocket.DockerSocketPath != nil {

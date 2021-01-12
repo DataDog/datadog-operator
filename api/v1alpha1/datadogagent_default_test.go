@@ -12,11 +12,12 @@ import (
 )
 
 func TestDefaultConfigDogstatsd(t *testing.T) {
-
+	defaultPath := defaultDogstatsdSocketPath
 	defaultAgentConfig := NodeAgentConfig{
 		Dogstatsd: &DogstatsdConfig{
 			DogstatsdOriginDetection: NewBoolPointer(false),
 			UseDogStatsDSocketVolume: NewBoolPointer(false),
+			HostSocketPath:           &defaultPath,
 		},
 	}
 

@@ -25,6 +25,7 @@ const (
 	defaultDockerSocketPath               string = "/var/run/docker.sock"
 	defaultDogstatsdOriginDetection       bool   = false
 	defaultUseDogStatsDSocketVolume       bool   = false
+	defaultDogstatsdSocketPath            string = "/var/run/datadog/"
 	defaultApmEnabled                     bool   = false
 	defaultLogEnabled                     bool   = false
 	defaultLogsConfigContainerCollectAll  bool   = false
@@ -235,15 +236,28 @@ func IsDefaultedDatadogAgentSpecAgentConfig(config *NodeAgentConfig) bool {
 		return false
 	}
 
-	if config.Dogstatsd == nil {
+	if !IsDefaultedDogstatsConfig(config.Dogstatsd) {
 		return false
 	}
 
-	if config.Dogstatsd.DogstatsdOriginDetection == nil {
+	return true
+}
+
+// IsDefaultedDogstatsConfig used to check if the dogstatsd configuration is defaulted
+func IsDefaultedDogstatsConfig(dsd *DogstatsdConfig) bool {
+	if dsd == nil {
 		return false
 	}
 
-	if config.Dogstatsd.UseDogStatsDSocketVolume == nil {
+	if dsd.DogstatsdOriginDetection == nil {
+		return false
+	}
+
+	if dsd.UseDogStatsDSocketVolume == nil {
+		return false
+	}
+
+	if dsd.HostSocketPath == nil {
 		return false
 	}
 
@@ -536,6 +550,11 @@ func DefaultConfigDogstatsd(config *NodeAgentConfig) {
 
 	if config.Dogstatsd.UseDogStatsDSocketVolume == nil {
 		config.Dogstatsd.UseDogStatsDSocketVolume = NewBoolPointer(defaultUseDogStatsDSocketVolume)
+	}
+
+	if config.Dogstatsd.HostSocketPath == nil {
+		path := defaultDogstatsdSocketPath
+		config.Dogstatsd.HostSocketPath = &path
 	}
 }
 
