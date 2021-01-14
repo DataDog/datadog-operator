@@ -641,10 +641,6 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 				ValueFrom: appKeyValue(),
 			},
 			{
-				Name:  datadoghqv1alpha1.DatadogHost,
-				Value: "https://app.datadoghq.com",
-			},
-			{
 				Name:  datadoghqv1alpha1.DDMetricsProviderUseDatadogMetric,
 				Value: "false",
 			},
@@ -685,8 +681,6 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 		Protocol:      "TCP",
 	})
 
-	updateContainersEnv(&metricsServerWithSitePodSpec.Containers[0], "DD_SITE", "datadoghq.eu")
-
 	metricsServerWithSitePodSpec.Containers[0].Env = append(metricsServerWithSitePodSpec.Containers[0].Env,
 		[]corev1.EnvVar{
 			{
@@ -702,10 +696,6 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 				ValueFrom: appKeyValue(),
 			},
 			{
-				Name:  datadoghqv1alpha1.DatadogHost,
-				Value: "https://app.datadoghq.eu",
-			},
-			{
 				Name:  datadoghqv1alpha1.DDMetricsProviderUseDatadogMetric,
 				Value: "true",
 			},
@@ -713,19 +703,23 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 				Name:  datadoghqv1alpha1.DDMetricsProviderWPAController,
 				Value: "true",
 			},
+			{
+				Name:  datadoghqv1alpha1.DDExternalMetricsProviderEndpoint,
+				Value: "https://app.datadoghq.eu",
+			},
 		}...,
 	)
 	metricsServerWithSitePodSpec.Containers[0].LivenessProbe = probe
 	metricsServerWithSitePodSpec.Containers[0].ReadinessProbe = probe
 
-	metricsServerAgentWithSiteDeployment := test.NewDefaultedDatadogAgent("bar", "foo",
+	metricsServerAgentWithEndpointDeployment := test.NewDefaultedDatadogAgent("bar", "foo",
 		&test.NewDatadogAgentOptions{
 			UseEDS:                        true,
 			ClusterAgentEnabled:           true,
 			MetricsServerEnabled:          true,
 			MetricsServerUseDatadogMetric: true,
 			MetricsServerWPAController:    true,
-			Site:                          "datadoghq.eu",
+			MetricsServerEndpoint:         "https://app.datadoghq.eu",
 			MetricsServerPort:             metricsServerPort,
 		})
 
@@ -780,8 +774,8 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 			},
 		},
 		{
-			name:            "with metrics server and site",
-			agentdeployment: metricsServerAgentWithSiteDeployment,
+			name:            "with metrics server and endpoint",
+			agentdeployment: metricsServerAgentWithEndpointDeployment,
 			selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
 					"app": "datadog-monitoring",
@@ -1201,66 +1195,6 @@ func TestReconcileDatadogAgent_createNewClusterAgentDeployment(t *testing.T) {
 				assert.NoError(t, err, "ReconcileDatadogAgent.createNewClusterAgentDeployment() unexpected error: %v", err)
 			}
 			assert.Equal(t, tt.want, got, "ReconcileDatadogAgent.createNewClusterAgentDeployment() unexpected result")
-		})
-	}
-}
-
-func Test_getExternalMetricsEndpoint(t *testing.T) {
-	tests := []struct {
-		name  string
-		agent *datadoghqv1alpha1.DatadogAgent
-		want  string
-	}{
-		{
-			name:  "Default",
-			agent: test.NewDefaultedDatadogAgent("foo", "bar", &test.NewDatadogAgentOptions{}),
-			want:  "https://app.datadoghq.com",
-		},
-		{
-			name: "DD_SITE but no DD_DD_URL",
-			agent: test.NewDefaultedDatadogAgent("foo", "bar", &test.NewDatadogAgentOptions{
-				Site: "datadoghq.eu",
-			}),
-			want: "https://app.datadoghq.eu",
-		},
-		{
-			name: "DD_SITE and DD_DD_URL",
-			agent: test.NewDefaultedDatadogAgent("foo", "bar", &test.NewDatadogAgentOptions{
-				Site: "datadoghq.eu",
-				NodeAgentConfig: &datadoghqv1alpha1.NodeAgentConfig{
-					DDUrl: datadoghqv1alpha1.NewStringPointer("https://test.url.com"),
-				},
-			}),
-			want: "https://test.url.com",
-		},
-		{
-			name: "DD_DD_URL",
-			agent: test.NewDefaultedDatadogAgent("foo", "bar", &test.NewDatadogAgentOptions{
-				NodeAgentConfig: &datadoghqv1alpha1.NodeAgentConfig{
-					DDUrl: datadoghqv1alpha1.NewStringPointer("https://another.test.url.com"),
-				},
-			}),
-			want: "https://another.test.url.com",
-		},
-		{
-			name: "DD_SITE, DD_DD_URL and ExternalMetrics.Endpoint",
-			agent: test.NewDefaultedDatadogAgent("foo", "bar", &test.NewDatadogAgentOptions{
-				Site: "datadoghq.eu",
-				NodeAgentConfig: &datadoghqv1alpha1.NodeAgentConfig{
-					DDUrl: datadoghqv1alpha1.NewStringPointer("https://another.test.url.com"),
-				},
-				ClusterAgentEnabled:   true,
-				MetricsServerEnabled:  true,
-				MetricsServerEndpoint: "https://yet.another.test.url.com",
-			}),
-			want: "https://yet.another.test.url.com",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := getExternalMetricsEndpoint(tt.agent); got != tt.want {
-				t.Errorf("getExternalMetricsEndpoint() = %v, want %v", got, tt.want)
-			}
 		})
 	}
 }
