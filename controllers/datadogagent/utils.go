@@ -831,7 +831,7 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 		hostPath := *dda.Spec.Agent.Config.Dogstatsd.HostSocketPath
 
 		dsdsockerVolume := corev1.Volume{
-			Name: datadoghqv1alpha1.DogstatsdSockerVolumeName,
+			Name: datadoghqv1alpha1.DogstatsdSocketVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: hostPath,
@@ -1180,7 +1180,7 @@ func getVolumeMountsForAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []corev1.
 	// Dogstatsd volume
 	if *spec.Agent.Config.Dogstatsd.UseDogStatsDSocketVolume {
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      datadoghqv1alpha1.DogstatsdSockerVolumeName,
+			Name:      datadoghqv1alpha1.DogstatsdSocketVolumeName,
 			MountPath: datadoghqv1alpha1.DogstatsdSockerVolumePath,
 		})
 	}

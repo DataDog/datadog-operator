@@ -131,7 +131,7 @@ const (
 	SystemProbeSocketVolumePath        = "/var/run/sysprobe"
 	CriSocketVolumeName                = "runtimesocketdir"
 	CriSocketVolumeReadOnly            = true
-	DogstatsdSockerVolumeName          = "dsdsocket"
+	DogstatsdSocketVolumeName          = "dsdsocket"
 	DogstatsdSockerVolumePath          = "/var/run/datadog"
 	KubeStateMetricCoreVolumeName      = "ksm-core-config"
 	PointerVolumeName                  = "pointerdir"
