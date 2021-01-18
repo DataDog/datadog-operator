@@ -606,10 +606,6 @@ func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.En
 			ValueFrom: getAppKeyFromSecret(dda),
 		})
 		envVars = append(envVars, corev1.EnvVar{
-			Name:  datadoghqv1alpha1.DatadogHost,
-			Value: getExternalMetricsEndpoint(dda),
-		})
-		envVars = append(envVars, corev1.EnvVar{
 			Name:  datadoghqv1alpha1.DDMetricsProviderUseDatadogMetric,
 			Value: strconv.FormatBool(spec.ClusterAgent.Config.ExternalMetrics.UseDatadogMetrics),
 		})
@@ -617,6 +613,14 @@ func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.En
 			Name:  datadoghqv1alpha1.DDMetricsProviderWPAController,
 			Value: strconv.FormatBool(spec.ClusterAgent.Config.ExternalMetrics.WpaController),
 		})
+
+		externalMetricsEndpoint := dda.Spec.ClusterAgent.Config.ExternalMetrics.Endpoint
+		if externalMetricsEndpoint != nil && *externalMetricsEndpoint != "" {
+			envVars = append(envVars, corev1.EnvVar{
+				Name:  datadoghqv1alpha1.DDExternalMetricsProviderEndpoint,
+				Value: *externalMetricsEndpoint,
+			})
+		}
 	}
 
 	// Cluster Checks config
@@ -1317,22 +1321,6 @@ func buildClusterAgentRole(dda *datadoghqv1alpha1.DatadogAgent, name, agentVersi
 	role.Rules = rbacRules
 
 	return role
-}
-
-func getExternalMetricsEndpoint(dda *datadoghqv1alpha1.DatadogAgent) string {
-	if dda.Spec.ClusterAgent != nil && dda.Spec.ClusterAgent.Config.ExternalMetrics != nil && dda.Spec.ClusterAgent.Config.ExternalMetrics.Endpoint != nil {
-		return *dda.Spec.ClusterAgent.Config.ExternalMetrics.Endpoint
-	}
-
-	if dda.Spec.Agent != nil && dda.Spec.Agent.Config.DDUrl != nil {
-		return *dda.Spec.Agent.Config.DDUrl
-	}
-
-	if dda.Spec.Site != "" {
-		return fmt.Sprintf("https://app.%s", dda.Spec.Site)
-	}
-
-	return "https://app.datadoghq.com"
 }
 
 func (r *Reconciler) manageClusterAgentNetworkPolicy(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
