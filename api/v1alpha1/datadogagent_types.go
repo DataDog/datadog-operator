@@ -706,10 +706,11 @@ type DogstatsdConfig struct {
 	// +optional
 	UseDogStatsDSocketVolume *bool `json:"useDogStatsDSocketVolume,omitempty"`
 
-	// Define the host path used to store the dogstatsd socket when dogstatsd over Unix Domain Socket is enabled
+	// Define the host dogstatsd socket filepath used when dogstatsd over Unix Domain Socket is enabled
+	// (default value: /var/run/datadog/statsd.sock)
 	// ref: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/
 	// +optional
-	HostSocketPath *string `json:"hostSocketPath,omitempty"`
+	HostSocketFilepath *string `json:"hostSocketFilepath,omitempty"`
 }
 
 // DatadogAgentSpecClusterAgentSpec defines the desired state of the cluster Agent

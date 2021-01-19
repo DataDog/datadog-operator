@@ -1737,9 +1737,9 @@ func schema__api_v1alpha1_DogstatsdConfig(ref common.ReferenceCallback) common.O
 							Format:      "",
 						},
 					},
-					"hostSocketPath": {
+					"hostSocketFilepath": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Define the host path used to store the dogstatsd socket when dogstatsd over Unix Domain Socket is enabled ref: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/",
+							Description: "Define the host dogstatsd socket filepath used when dogstatsd over Unix Domain Socket is enabled (default value: /var/run/datadog/statsd.sock) ref: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/",
 							Type:        []string{"string"},
 							Format:      "",
 						},

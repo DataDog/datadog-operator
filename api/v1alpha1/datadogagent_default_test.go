@@ -6,18 +6,19 @@
 package v1alpha1
 
 import (
+	"path"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 )
 
 func TestDefaultConfigDogstatsd(t *testing.T) {
-	defaultPath := defaultDogstatsdSocketPath
+	defaultPath := path.Join(defaultDogstatsdSocketPath, defaultDogstatsdSocketName)
 	defaultAgentConfig := NodeAgentConfig{
 		Dogstatsd: &DogstatsdConfig{
 			DogstatsdOriginDetection: NewBoolPointer(false),
 			UseDogStatsDSocketVolume: NewBoolPointer(false),
-			HostSocketPath:           &defaultPath,
+			HostSocketFilepath:       &defaultPath,
 		},
 	}
 

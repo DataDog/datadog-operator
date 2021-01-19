@@ -1110,8 +1110,8 @@ func (in *DogstatsdConfig) DeepCopyInto(out *DogstatsdConfig) {
 		*out = new(bool)
 		**out = **in
 	}
-	if in.HostSocketPath != nil {
-		in, out := &in.HostSocketPath, &out.HostSocketPath
+	if in.HostSocketFilepath != nil {
+		in, out := &in.HostSocketFilepath, &out.HostSocketFilepath
 		*out = new(string)
 		**out = **in
 	}

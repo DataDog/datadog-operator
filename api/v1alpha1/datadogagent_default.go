@@ -7,6 +7,7 @@ package v1alpha1
 
 import (
 	"fmt"
+	"path"
 	"time"
 
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
@@ -25,7 +26,8 @@ const (
 	defaultDockerSocketPath               string = "/var/run/docker.sock"
 	defaultDogstatsdOriginDetection       bool   = false
 	defaultUseDogStatsDSocketVolume       bool   = false
-	defaultDogstatsdSocketPath            string = "/var/run/datadog/"
+	defaultDogstatsdSocketName            string = "statsd.sock"
+	defaultDogstatsdSocketPath            string = "/var/run/datadog"
 	defaultApmEnabled                     bool   = false
 	defaultLogEnabled                     bool   = false
 	defaultLogsConfigContainerCollectAll  bool   = false
@@ -257,7 +259,7 @@ func IsDefaultedDogstatsConfig(dsd *DogstatsdConfig) bool {
 		return false
 	}
 
-	if dsd.HostSocketPath == nil {
+	if dsd.HostSocketFilepath == nil {
 		return false
 	}
 
@@ -552,9 +554,9 @@ func DefaultConfigDogstatsd(config *NodeAgentConfig) {
 		config.Dogstatsd.UseDogStatsDSocketVolume = NewBoolPointer(defaultUseDogStatsDSocketVolume)
 	}
 
-	if config.Dogstatsd.HostSocketPath == nil {
-		path := defaultDogstatsdSocketPath
-		config.Dogstatsd.HostSocketPath = &path
+	if config.Dogstatsd.HostSocketFilepath == nil {
+		path := path.Join(defaultDogstatsdSocketPath, defaultDogstatsdSocketName)
+		config.Dogstatsd.HostSocketFilepath = &path
 	}
 }
 

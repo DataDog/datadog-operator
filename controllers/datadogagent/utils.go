@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -31,9 +32,10 @@ import (
 )
 
 const (
-	authDelegatorName         = "%s-auth-delegator"
-	datadogOperatorName       = "DatadogAgent"
-	externalMetricsReaderName = "%s-metrics-reader"
+	authDelegatorName         string = "%s-auth-delegator"
+	datadogOperatorName       string = "DatadogAgent"
+	externalMetricsReaderName string = "%s-metrics-reader"
+	localDogstatsdSocketPath  string = "/var/run/datadog"
 )
 
 func init() {
@@ -650,6 +652,13 @@ func getEnvVarsForAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.EnvVar, e
 	}
 	envVars = append(envVars, commonEnvVars...)
 
+	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Config.Dogstatsd.UseDogStatsDSocketVolume) {
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  datadoghqv1alpha1.DDDogstatsdSocket,
+			Value: getLocalFilepath(*dda.Spec.Agent.Config.Dogstatsd.HostSocketFilepath, localDogstatsdSocketPath),
+		})
+	}
+
 	if spec.ClusterAgent != nil {
 		clusterEnv := []corev1.EnvVar{
 			{
@@ -828,7 +837,7 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 	// Dogstatsd volume
 	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Config.Dogstatsd.UseDogStatsDSocketVolume) {
 		volumeType := corev1.HostPathDirectoryOrCreate
-		hostPath := *dda.Spec.Agent.Config.Dogstatsd.HostSocketPath
+		hostPath := getDirFromFilepath(*dda.Spec.Agent.Config.Dogstatsd.HostSocketFilepath)
 
 		dsdsockerVolume := corev1.Volume{
 			Name: datadoghqv1alpha1.DogstatsdSocketVolumeName,
@@ -1029,6 +1038,15 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 
 	volumes = append(volumes, dda.Spec.Agent.Config.Volumes...)
 	return volumes
+}
+
+func getDirFromFilepath(filePath string) string {
+	return filepath.Dir(filePath)
+}
+
+func getLocalFilepath(filePath, localPath string) string {
+	base := filepath.Base(filePath)
+	return path.Join(localPath, base)
 }
 
 func getVolumeForConfd(dda *datadoghqv1alpha1.DatadogAgent) corev1.Volume {

@@ -61,6 +61,7 @@ const (
 	DDLogsConfigOpenFilesLimit                   = "DD_LOGS_CONFIG_OPEN_FILES_LIMIT"
 	DDDogstatsdOriginDetection                   = "DD_DOGSTATSD_ORIGIN_DETECTION"
 	DDDogstatsdPort                              = "DD_DOGSTATSD_PORT"
+	DDDogstatsdSocket                            = "DD_DOGSTATSD_SOCKET"
 	DDClusterAgentEnabled                        = "DD_CLUSTER_AGENT_ENABLED"
 	DDClusterAgentKubeServiceName                = "DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME"
 	DDClusterAgentAuthToken                      = "DD_CLUSTER_AGENT_AUTH_TOKEN"
