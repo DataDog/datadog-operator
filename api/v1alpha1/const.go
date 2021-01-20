@@ -80,6 +80,7 @@ const (
 	DDExtraListeners                             = "DD_EXTRA_LISTENERS"
 	DDHostname                                   = "DD_HOSTNAME"
 	DDAPMEnabled                                 = "DD_APM_ENABLED"
+	DDPPMReceiverSocket                          = "DD_APM_RECEIVER_SOCKET"
 	DDProcessAgentEnabled                        = "DD_PROCESS_AGENT_ENABLED"
 	DDSystemProbeAgentEnabled                    = "DD_SYSTEM_PROBE_ENABLED"
 	DDEnableMetadataCollection                   = "DD_ENABLE_METADATA_COLLECTION"
@@ -106,6 +107,8 @@ const (
 
 	// Datadog volume names and mount paths
 
+	APMSocketVolumeName                = "apmsocket"
+	APMSocketVolumePath                = "/var/run/datadog"
 	InstallInfoVolumeName              = "installinfo"
 	InstallInfoVolumeSubPath           = "install_info"
 	InstallInfoVolumePath              = "/etc/datadog-agent/install_info"
@@ -133,7 +136,7 @@ const (
 	CriSocketVolumeName                = "runtimesocketdir"
 	CriSocketVolumeReadOnly            = true
 	DogstatsdSocketVolumeName          = "dsdsocket"
-	DogstatsdSockerVolumePath          = "/var/run/datadog"
+	DogstatsdSocketVolumePath          = "/var/run/datadog"
 	KubeStateMetricCoreVolumeName      = "ksm-core-config"
 	PointerVolumeName                  = "pointerdir"
 	PointerVolumePath                  = "/opt/datadog-agent/run"

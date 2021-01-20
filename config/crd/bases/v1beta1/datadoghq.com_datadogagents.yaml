@@ -220,6 +220,18 @@ spec:
                             https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
                           type: object
                       type: object
+                    unixDomainSocket:
+                      description: 'UnixDomainSocket socket configuration ref: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables'
+                      properties:
+                        hostFilepath:
+                          description: 'Define the host APM socket filepath used when
+                            APM over Unix Domain Socket is enabled (default value:
+                            /var/run/datadog/apm.sock) ref: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/'
+                          type: string
+                        useUnixDomainSocket:
+                          description: 'Enable APM over Unix Domain Socket ref: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables'
+                          type: boolean
+                      type: object
                   type: object
                 config:
                   description: Agent configuration
@@ -270,18 +282,23 @@ spec:
                       description: Configure Dogstatsd
                       properties:
                         dogstatsdOriginDetection:
-                          description: Enable origin detection for container tagging
-                            https://docs.datadoghq.com/developers/dogstatsd/unix_socket/#using-origin-detection-for-container-tagging
+                          description: 'Enable origin detection for container tagging
+                            ref: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/#using-origin-detection-for-container-tagging'
                           type: boolean
-                        hostSocketPath:
-                          description: 'Define the host path used to store the dogstatsd
-                            socket when dogstatsd over Unix Domain Socket is enabled
+                        unixDomainSocket:
+                          description: 'Configure the Dogstatsd Unix Domain Socket
                             ref: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/'
-                          type: string
-                        useDogStatsDSocketVolume:
-                          description: 'Enable dogstatsd over Unix Domain Socket ref:
-                            https://docs.datadoghq.com/developers/dogstatsd/unix_socket/'
-                          type: boolean
+                          properties:
+                            enabled:
+                              description: 'Enable APM over Unix Domain Socket ref:
+                                https://docs.datadoghq.com/developers/dogstatsd/unix_socket/'
+                              type: boolean
+                            hostFilepath:
+                              description: 'Define the host APM socket filepath used
+                                when APM over Unix Domain Socket is enabled (default
+                                value: /var/run/datadog/statsd.sock) ref: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/'
+                              type: string
+                          type: object
                       type: object
                     env:
                       description: 'The Datadog Agent supports many environment variables

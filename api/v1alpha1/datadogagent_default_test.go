@@ -17,8 +17,10 @@ func TestDefaultConfigDogstatsd(t *testing.T) {
 	defaultAgentConfig := NodeAgentConfig{
 		Dogstatsd: &DogstatsdConfig{
 			DogstatsdOriginDetection: NewBoolPointer(false),
-			UseDogStatsDSocketVolume: NewBoolPointer(false),
-			HostSocketFilepath:       &defaultPath,
+			UnixDomainSocket: &DSDUnixDomainSocketSpec{
+				Enabled:      NewBoolPointer(false),
+				HostFilepath: &defaultPath,
+			},
 		},
 	}
 
@@ -42,7 +44,9 @@ func TestDefaultConfigDogstatsd(t *testing.T) {
 			args: args{
 				config: &NodeAgentConfig{
 					Dogstatsd: &DogstatsdConfig{
-						UseDogStatsDSocketVolume: NewBoolPointer(false),
+						UnixDomainSocket: &DSDUnixDomainSocketSpec{
+							Enabled: NewBoolPointer(false),
+						},
 					},
 				},
 			},

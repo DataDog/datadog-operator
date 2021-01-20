@@ -29,6 +29,8 @@ const (
 	defaultDogstatsdSocketName            string = "statsd.sock"
 	defaultDogstatsdSocketPath            string = "/var/run/datadog"
 	defaultApmEnabled                     bool   = false
+	defaultApmSocketName                  string = "apm.sock"
+	defaultApmSocketPath                  string = "/var/run/datadog"
 	defaultLogEnabled                     bool   = false
 	defaultLogsConfigContainerCollectAll  bool   = false
 	defaultLogsContainerCollectUsingFiles bool   = true
@@ -255,11 +257,11 @@ func IsDefaultedDogstatsConfig(dsd *DogstatsdConfig) bool {
 		return false
 	}
 
-	if dsd.UseDogStatsDSocketVolume == nil {
+	if dsd.UnixDomainSocket == nil {
 		return false
 	}
 
-	if dsd.HostSocketFilepath == nil {
+	if dsd.UnixDomainSocket.HostFilepath == nil {
 		return false
 	}
 
@@ -335,6 +337,18 @@ func IsDefaultedDatadogAgentSpecApm(apm *APMSpec) bool {
 	}
 
 	if apm.Enabled == nil {
+		return false
+	}
+
+	if apm.UnixDomainSocket == nil {
+		return false
+	}
+
+	if apm.UnixDomainSocket.Enabled == nil {
+		return false
+	}
+
+	if apm.UnixDomainSocket.HostFilepath == nil {
 		return false
 	}
 
@@ -550,14 +564,25 @@ func DefaultConfigDogstatsd(config *NodeAgentConfig) {
 		config.Dogstatsd.DogstatsdOriginDetection = NewBoolPointer(defaultDogstatsdOriginDetection)
 	}
 
-	if config.Dogstatsd.UseDogStatsDSocketVolume == nil {
-		config.Dogstatsd.UseDogStatsDSocketVolume = NewBoolPointer(defaultUseDogStatsDSocketVolume)
+	config.Dogstatsd.UnixDomainSocket = DefaultConfigDogstatsdUDS(config.Dogstatsd.UnixDomainSocket)
+}
+
+// DefaultConfigDogstatsdUDS used to default DSDUnixDomainSocketSpec
+// rreturn the defaulted DSDUnixDomainSocketSpec
+func DefaultConfigDogstatsdUDS(uds *DSDUnixDomainSocketSpec) *DSDUnixDomainSocketSpec {
+	if uds == nil {
+		uds = &DSDUnixDomainSocketSpec{}
 	}
 
-	if config.Dogstatsd.HostSocketFilepath == nil {
-		path := path.Join(defaultDogstatsdSocketPath, defaultDogstatsdSocketName)
-		config.Dogstatsd.HostSocketFilepath = &path
+	if uds.Enabled == nil {
+		uds.Enabled = NewBoolPointer(defaultUseDogStatsDSocketVolume)
 	}
+
+	if uds.HostFilepath == nil {
+		socketPath := path.Join(defaultDogstatsdSocketPath, defaultDogstatsdSocketName)
+		uds.HostFilepath = &socketPath
+	}
+	return uds
 }
 
 // DefaultDatadogAgentSpecRbacConfig used to default a RbacConfig
@@ -653,7 +678,27 @@ func DefaultDatadogAgentSpecAgentApm(apm *APMSpec) *APMSpec {
 		apm.Enabled = NewBoolPointer(defaultApmEnabled)
 	}
 
+	apm.UnixDomainSocket = DefaultDatadogAgentSpecAgentApmUDS(apm.UnixDomainSocket)
+
 	return apm
+}
+
+// DefaultDatadogAgentSpecAgentApmUDS used to default APMUnixDomainSocketSpec
+// rreturn the defaulted APMUnixDomainSocketSpec
+func DefaultDatadogAgentSpecAgentApmUDS(uds *APMUnixDomainSocketSpec) *APMUnixDomainSocketSpec {
+	if uds == nil {
+		uds = &APMUnixDomainSocketSpec{}
+	}
+
+	if uds.Enabled == nil {
+		uds.Enabled = NewBoolPointer(false)
+	}
+
+	if uds.HostFilepath == nil {
+		socketPath := path.Join(defaultApmSocketPath, defaultApmSocketName)
+		uds.HostFilepath = &socketPath
+	}
+	return uds
 }
 
 // DefaultDatadogAgentSpecAgentLog used to default an LogSpec
