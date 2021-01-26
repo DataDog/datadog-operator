@@ -489,7 +489,6 @@ func getEnvVarsForProcessAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.En
 			return nil, err
 		}
 		envVars = append(envVars, envs...)
-		envVars = append(envVars, orchestrator.ClusterID())
 	}
 
 	commonEnvVars, err := getEnvVarsCommon(dda, true)

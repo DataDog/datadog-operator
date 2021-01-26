@@ -16,7 +16,6 @@ const (
 	DDOrchestratorExplorerDDUrl                     = "DD_ORCHESTRATOR_EXPLORER_DD_URL"
 	DDOrchestratorExplorerAdditionalEndpoints       = "DD_ORCHESTRATOR_ADDITIONAL_ENDPOINTS"
 	DDOrchestratorExplorerContainerScrubbingEnabled = "DD_ORCHESTRATOR_EXPLORER_CONTAINER_SCRUBBING_ENABLED"
-	DDOrchestratorClusterID                         = "DD_ORCHESTRATOR_CLUSTER_ID"
 	DefaultID                                       = "id"
 )
 
@@ -58,19 +57,4 @@ func EnvVars(orc *datadoghqv1alpha1.OrchestratorExplorerConfig) ([]corev1.EnvVar
 	}
 
 	return envVars, nil
-}
-
-// ClusterID returns the ClusterID for the orchestrator. The ClusterAgent creates the ID as a configmap while the agent retrieves it from there.
-func ClusterID() corev1.EnvVar {
-	authTokenValue := &corev1.EnvVarSource{
-		ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
-			LocalObjectReference: corev1.LocalObjectReference{Name: datadoghqv1alpha1.DatadogClusterIDResourceName},
-			Key:                  DefaultID,
-		},
-	}
-
-	return corev1.EnvVar{
-		Name:      DDOrchestratorClusterID,
-		ValueFrom: authTokenValue,
-	}
 }

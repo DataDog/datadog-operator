@@ -1227,7 +1227,6 @@ func defaultOrchestratorEnvVars() []corev1.EnvVar {
 	}
 	orchestratorEnvs, _ := orchestrator.EnvVars(&explorerConfig)
 	newVars = append(newVars, orchestratorEnvs...)
-	newVars = append(newVars, orchestrator.ClusterID())
 
 	return append(newVars, vars...)
 }
