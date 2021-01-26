@@ -282,6 +282,11 @@ type APMSpec struct {
 	// +optional
 	HostPort *int32 `json:"hostPort,omitempty"`
 
+	// UnixDomainSocket socket configuration
+	// ref: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables
+	// +optional
+	UnixDomainSocket *APMUnixDomainSocketSpec `json:"unixDomainSocket,omitempty"`
+
 	// The Datadog Agent supports many environment variables
 	// Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables
 	//
@@ -294,6 +299,21 @@ type APMSpec struct {
 	// Make sure to keep requests and limits equal to keep the pods in the Guaranteed QoS class
 	// Ref: http://kubernetes.io/docs/user-guide/compute-resources/
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
+}
+
+// APMUnixDomainSocketSpec contains the APM Unix Domain Socket configuration
+// +k8s:openapi-gen=true
+type APMUnixDomainSocketSpec struct {
+	// Enable APM over Unix Domain Socket
+	// ref: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Define the host APM socket filepath used when APM over Unix Domain Socket is enabled
+	// (default value: /var/run/datadog/apm.sock)
+	// ref: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables
+	// +optional
+	HostFilepath *string `json:"hostFilepath,omitempty"`
 }
 
 // LogSpec contains the Log Agent configuration
@@ -697,14 +717,29 @@ type CRISocketConfig struct {
 // +k8s:openapi-gen=true
 type DogstatsdConfig struct {
 	// Enable origin detection for container tagging
-	// https://docs.datadoghq.com/developers/dogstatsd/unix_socket/#using-origin-detection-for-container-tagging
+	// ref: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/#using-origin-detection-for-container-tagging
 	// +optional
 	DogstatsdOriginDetection *bool `json:"dogstatsdOriginDetection,omitempty"`
 
-	// Enable dogstatsd over Unix Domain Socket
+	// Configure the Dogstatsd Unix Domain Socket
 	// ref: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/
 	// +optional
-	UseDogStatsDSocketVolume *bool `json:"useDogStatsDSocketVolume,omitempty"`
+	UnixDomainSocket *DSDUnixDomainSocketSpec `json:"unixDomainSocket,omitempty"`
+}
+
+// DSDUnixDomainSocketSpec contains the Dogstatsd Unix Domain Socket configuration
+// +k8s:openapi-gen=true
+type DSDUnixDomainSocketSpec struct {
+	// Enable APM over Unix Domain Socket
+	// ref: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Define the host APM socket filepath used when APM over Unix Domain Socket is enabled
+	// (default value: /var/run/datadog/statsd.sock)
+	// ref: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/
+	// +optional
+	HostFilepath *string `json:"hostFilepath,omitempty"`
 }
 
 // DatadogAgentSpecClusterAgentSpec defines the desired state of the cluster Agent

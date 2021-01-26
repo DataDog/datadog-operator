@@ -1,10 +1,11 @@
 package datadogagent
 
 import (
+	"testing"
+
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	"testing"
 )
 
 func TestKSMCoreGetEnvVarsForAgent(t *testing.T) {
@@ -51,6 +52,9 @@ func generateSpec() *datadoghqv1alpha1.DatadogAgent {
 					LeaderElection:       &boolPtr,
 					Dogstatsd: &datadoghqv1alpha1.DogstatsdConfig{
 						DogstatsdOriginDetection: &boolPtr,
+						UnixDomainSocket: &datadoghqv1alpha1.DSDUnixDomainSocketSpec{
+							Enabled: &boolPtr,
+						},
 					},
 				},
 				Log: datadoghqv1alpha1.LogSpec{
@@ -61,5 +65,33 @@ func generateSpec() *datadoghqv1alpha1.DatadogAgent {
 				},
 			},
 		},
+	}
+}
+
+func Test_getLocalFilepath(t *testing.T) {
+	type args struct {
+		filePath  string
+		localPath string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "basic test",
+			args: args{
+				"/host/var/file.txt",
+				"/local/foo",
+			},
+			want: "/local/foo/file.txt",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := getLocalFilepath(tt.args.filePath, tt.args.localPath); got != tt.want {
+				t.Errorf("getLocalFilepath() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }

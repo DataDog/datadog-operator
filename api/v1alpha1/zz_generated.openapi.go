@@ -19,6 +19,7 @@ import (
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
 		"./api/v1alpha1.APMSpec":                                 schema__api_v1alpha1_APMSpec(ref),
+		"./api/v1alpha1.APMUnixDomainSocketSpec":                 schema__api_v1alpha1_APMUnixDomainSocketSpec(ref),
 		"./api/v1alpha1.AdmissionControllerConfig":               schema__api_v1alpha1_AdmissionControllerConfig(ref),
 		"./api/v1alpha1.AgentCredentials":                        schema__api_v1alpha1_AgentCredentials(ref),
 		"./api/v1alpha1.CRISocketConfig":                         schema__api_v1alpha1_CRISocketConfig(ref),
@@ -28,6 +29,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./api/v1alpha1.ConfigDirSpec":                           schema__api_v1alpha1_ConfigDirSpec(ref),
 		"./api/v1alpha1.ConfigFileConfigMapSpec":                 schema__api_v1alpha1_ConfigFileConfigMapSpec(ref),
 		"./api/v1alpha1.CustomConfigSpec":                        schema__api_v1alpha1_CustomConfigSpec(ref),
+		"./api/v1alpha1.DSDUnixDomainSocketSpec":                 schema__api_v1alpha1_DSDUnixDomainSocketSpec(ref),
 		"./api/v1alpha1.DaemonSetDeploymentStrategy":             schema__api_v1alpha1_DaemonSetDeploymentStrategy(ref),
 		"./api/v1alpha1.DaemonSetRollingUpdateSpec":              schema__api_v1alpha1_DaemonSetRollingUpdateSpec(ref),
 		"./api/v1alpha1.DaemonSetStatus":                         schema__api_v1alpha1_DaemonSetStatus(ref),
@@ -83,6 +85,12 @@ func schema__api_v1alpha1_APMSpec(ref common.ReferenceCallback) common.OpenAPIDe
 							Format:      "int32",
 						},
 					},
+					"unixDomainSocket": {
+						SchemaProps: spec.SchemaProps{
+							Description: "UnixDomainSocket socket configuration ref: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables",
+							Ref:         ref("./api/v1alpha1.APMUnixDomainSocketSpec"),
+						},
+					},
 					"env": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
@@ -114,7 +122,34 @@ func schema__api_v1alpha1_APMSpec(ref common.ReferenceCallback) common.OpenAPIDe
 			},
 		},
 		Dependencies: []string{
-			"k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements"},
+			"./api/v1alpha1.APMUnixDomainSocketSpec", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements"},
+	}
+}
+
+func schema__api_v1alpha1_APMUnixDomainSocketSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "APMUnixDomainSocketSpec contains the APM Unix Domain Socket configuration",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enable APM over Unix Domain Socket ref: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"hostFilepath": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Define the host APM socket filepath used when APM over Unix Domain Socket is enabled (default value: /var/run/datadog/apm.sock) ref: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
 	}
 }
 
@@ -569,6 +604,33 @@ func schema__api_v1alpha1_CustomConfigSpec(ref common.ReferenceCallback) common.
 		},
 		Dependencies: []string{
 			"./api/v1alpha1.ConfigFileConfigMapSpec"},
+	}
+}
+
+func schema__api_v1alpha1_DSDUnixDomainSocketSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DSDUnixDomainSocketSpec contains the Dogstatsd Unix Domain Socket configuration",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enable APM over Unix Domain Socket ref: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"hostFilepath": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Define the host APM socket filepath used when APM over Unix Domain Socket is enabled (default value: /var/run/datadog/statsd.sock) ref: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
 	}
 }
 
@@ -1725,21 +1787,22 @@ func schema__api_v1alpha1_DogstatsdConfig(ref common.ReferenceCallback) common.O
 				Properties: map[string]spec.Schema{
 					"dogstatsdOriginDetection": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enable origin detection for container tagging https://docs.datadoghq.com/developers/dogstatsd/unix_socket/#using-origin-detection-for-container-tagging",
+							Description: "Enable origin detection for container tagging ref: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/#using-origin-detection-for-container-tagging",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},
-					"useDogStatsDSocketVolume": {
+					"unixDomainSocket": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enable dogstatsd over Unix Domain Socket ref: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/",
-							Type:        []string{"boolean"},
-							Format:      "",
+							Description: "Configure the Dogstatsd Unix Domain Socket ref: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/",
+							Ref:         ref("./api/v1alpha1.DSDUnixDomainSocketSpec"),
 						},
 					},
 				},
 			},
 		},
+		Dependencies: []string{
+			"./api/v1alpha1.DSDUnixDomainSocketSpec"},
 	}
 }
 
