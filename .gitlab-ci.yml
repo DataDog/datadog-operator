@@ -72,7 +72,7 @@ build_image_arm64:
 publish_public_master:
   stage: release
   rules:
-    - if: '$CI_COMMIT_BRANCH == "master" && $CI_PIPELINE_SOURCE == "push"'
+    - if: '$CI_COMMIT_BRANCH == "master"'
   trigger:
     project: DataDog/public-images
     branch: main
