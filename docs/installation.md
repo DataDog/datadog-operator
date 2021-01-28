@@ -10,6 +10,8 @@ Using the Datadog Operator requires the following prerequisites:
 
 ## Deploy the Datadog Operator
 
+### With Helm
+
 To use the Datadog Operator, deploy it in your Kubernetes cluster. Then create a `DatadogAgent` Kubernetes resource that contains the Datadog deployment configuration:
 
 1. Download the [Datadog Operator project zip ball][5]. Source code can be found at [`DataDog/datadog-operator`][6].
@@ -41,11 +43,42 @@ To use the Datadog Operator, deploy it in your Kubernetes cluster. Then create a
    helm install $DD_NAMEOP -n $DD_NAMESPACE .
    ```
 
+### With the Operator Lifecycle Manager
+
+The Datadog Operator deployment with [Operator Lifecycle Manager][7] documentation is available on the [operatorhub.io][8].
+
+#### Override default Operator configuration
+
+The [Operator Lifecycle Manager][7] framework allows overriding default Operator configuration. The list of the supported installation configuration parameters is documented [here][9].
+
+For example, the Datadog Operator's Pod resources are changed with the following [Operator Lifecycle Manager][7] `Subscription`:
+
+```yaml
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: my-datadog-operator
+  namespace: operators
+spec:
+  channel: alpha
+  name: datadog-operator
+  source: operatorhubio-catalog
+  sourceNamespace: olm
+  config:
+    resources:
+      requests:
+        memory: "250Mi"
+        cpu: "250m"
+      limits:
+        memory: "250Mi"
+        cpu: "500m"
+```
+
 ## Deploy the Datadog Agents with the operator
 
 After deploying the Datadog Operator, create the `DatadogAgent` resource that triggers the Datadog Agent's deployment in your Kubernetes cluster. By creating this resource in the `Datadog-Operator` namespace, the Agent will be deployed as a `DaemonSet` on every `Node` of your cluster.
 
-The following [`datadog-agent.yaml` file][7] is the simplest configuration for the Datadog Operator:
+The following [`datadog-agent.yaml` file][10] is the simplest configuration for the Datadog Operator:
 
 ```yaml
 apiVersion: datadoghq.com/v1alpha1
@@ -61,7 +94,7 @@ spec:
       name: "datadog/agent:latest"
 ```
 
-Replace `<DATADOG_API_KEY>` and `<DATADOG_APP_KEY>` with your [Datadog API and application keys][8], then trigger the Agent installation with the following command:
+Replace `<DATADOG_API_KEY>` and `<DATADOG_APP_KEY>` with your [Datadog API and application keys][11], then trigger the Agent installation with the following command:
 
 ```shell
 $ kubectl apply -n $DD_NAMESPACE -f datadog-agent.yaml
@@ -92,7 +125,7 @@ datadog-agent-zcxx7                          1/1     Running   0          5m59s 
 
 ### Tolerations
 
-Update your [`datadog-agent.yaml` file][9] with the following configuration to add the toleration in the `Daemonset.spec.template` of your `DaemonSet` :
+Update your [`datadog-agent.yaml` file][12] with the following configuration to add the toleration in the `Daemonset.spec.template` of your `DaemonSet` :
 
 ```yaml
 apiVersion: datadoghq.com/v1alpha1
@@ -158,6 +191,9 @@ helm delete $DD_NAMEOP -n $DD_NAMESPACE
 [4]: https://github.com/operator-framework/operator-sdk
 [5]: https://github.com/DataDog/datadog-operator/releases/latest
 [6]: https://github.com/DataDog/datadog-operator
-[7]: https://github.com/DataDog/datadog-operator/blob/master/examples/datadog-agent.yaml
-[8]: https://app.datadoghq.com/account/settings#api
-[9]: https://github.com/DataDog/datadog-operator/blob/master/examples/datadog-agent-with-tolerations.yaml
+[7]: https://olm.operatorframework.io/
+[8]: https://operatorhub.io/operator/datadog-operator
+[9]: https://github.com/operator-framework/operator-lifecycle-manager/blob/master/doc/design/subscription-config.md#subscription-config
+[10]: https://github.com/DataDog/datadog-operator/blob/master/examples/datadog-agent.yaml
+[11]: https://app.datadoghq.com/account/settings#api
+[12]: https://github.com/DataDog/datadog-operator/blob/master/examples/datadog-agent-with-tolerations.yaml
