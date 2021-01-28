@@ -45,11 +45,11 @@ To use the Datadog Operator, deploy it in your Kubernetes cluster. Then create a
 
 ### With the Operator Lifecycle Manager
 
-The Datadog Operator deployment with [Operator Lifecycle Manager][7] documentation is available on the [operatorhub.io][8].
+The Datadog Operator deployment with [Operator Lifecycle Manager][7] documentation is available at [operatorhub.io][8].
 
 #### Override default Operator configuration
 
-The [Operator Lifecycle Manager][7] framework allows overriding default Operator configuration. The list of the supported installation configuration parameters is documented [here][9].
+The [Operator Lifecycle Manager][7] framework allows overriding default Operator configuration. See the [Subscription Config][9] document for a list of the supported installation configuration parameters.
 
 For example, the Datadog Operator's Pod resources are changed with the following [Operator Lifecycle Manager][7] `Subscription`:
 
