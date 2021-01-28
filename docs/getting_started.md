@@ -11,9 +11,9 @@ Using the Datadog Operator requires the following prerequisites:
 - [`Helm`][1] for deploying the `Datadog-operator`.
 - [`Kubectl` cli][2] for installing the `Datadog-agent`.
 
-## Deploy an agent with the operator
+## Deploy the Agent with the operator
 
-In order to deploy a Datadog agent with the operator in the minimum number of steps, the [`datadog-agent-with-operator`](https://github.com/DataDog/datadog-operator/tree/master/chart/datadog-agent-with-operator) helm chart can be used.
+To deploy the Datadog Agent with the operator in the minimum number of steps, see the [`datadog-operator`](https://github.com/DataDog/helm-charts/tree/master/charts/datadog-operator) helm chart.
 Here are the steps:
 
 1. Install the [Datadog Operator][3]:
