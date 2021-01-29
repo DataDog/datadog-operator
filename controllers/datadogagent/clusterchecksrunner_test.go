@@ -18,7 +18,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
-var testClusterChecksRunnerReplicas int32 = 2
+var testClusterChecksRunnerReplicas int32 = 1
 
 func clusterChecksRunnerDefaultPodSpec() corev1.PodSpec {
 	return corev1.PodSpec{

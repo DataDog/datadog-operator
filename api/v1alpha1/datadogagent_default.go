@@ -49,7 +49,7 @@ const (
 	defaultKubeStateMetricsCoreEnabled                   bool   = false
 	defaultClusterAgentReplicas                          int32  = 1
 	defaultAgentCanaryReplicas                           int32  = 1
-	defaultClusterChecksRunnerReplicas                   int32  = 2
+	defaultClusterChecksRunnerReplicas                   int32  = 1
 	defaultClusterAgentImage                             string = "gcr.io/datadoghq/cluster-agent:latest"
 	defaultRollingUpdateMaxUnavailable                          = "10%"
 	defaultUpdateStrategy                                       = appsv1.RollingUpdateDaemonSetStrategyType
