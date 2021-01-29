@@ -91,7 +91,7 @@ spec:
     appKey: "<DATADOG_APP_KEY>"
   agent:
     image:
-      name: "datadog/agent:latest"
+      name: "gcr.io/datadoghq/agent:latest"
 ```
 
 Replace `<DATADOG_API_KEY>` and `<DATADOG_APP_KEY>` with your [Datadog API and application keys][11], then trigger the Agent installation with the following command:
@@ -138,7 +138,7 @@ spec:
     appKey: "<DATADOG_APP_KEY>"
   agent:
     image:
-      name: "datadog/agent:latest"
+      name: "gcr.io/datadoghq/agent:latest"
     config:
       tolerations:
        - operator: Exists

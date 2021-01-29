@@ -22,7 +22,7 @@ import (
 var (
 	image          string
 	latest         bool
-	latestImage    = "datadog/agent:latest"
+	latestImage    = "gcr.io/datadoghq/agent:latest"
 	upgradeExample = `
   # upgrade the version of the datadog agent to latest
   %[1]s upgrade --latest
@@ -72,7 +72,7 @@ func New(streams genericclioptions.IOStreams) *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&image, "image", "i", "", "The image of the Datadog Agent")
-	cmd.Flags().BoolVarP(&latest, "latest", "l", false, "Upgrade to datadog/agent:latest")
+	cmd.Flags().BoolVarP(&latest, "latest", "l", false, "Upgrade to gcr.io/datadoghq/agent:latest")
 
 	o.ConfigFlags.AddFlags(cmd.Flags())
 

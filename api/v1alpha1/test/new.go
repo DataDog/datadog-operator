@@ -104,7 +104,7 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 		Credentials: datadoghqv1alpha1.AgentCredentials{Token: "token-foo"},
 		Agent: &datadoghqv1alpha1.DatadogAgentSpecAgentSpec{
 			Image: datadoghqv1alpha1.ImageConfig{
-				Name:       "datadog/agent:latest",
+				Name:       "gcr.io/datadoghq/agent:latest",
 				PullPolicy: &pullPolicy,
 			},
 			Config:             datadoghqv1alpha1.NodeAgentConfig{},

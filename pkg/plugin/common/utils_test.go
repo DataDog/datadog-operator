@@ -35,7 +35,7 @@ func TestHasImagePattern(t *testing.T) {
 	}{
 		{
 			name:  "nominal case",
-			image: "datadog/agent:latest",
+			image: "gcr.io/datadoghq/agent:latest",
 			want:  true,
 		},
 		{
