@@ -141,7 +141,7 @@ spec:
   # ..
   agent:
     image:
-      name: "datadog/agent:latest"
+      name: "gcr.io/datadoghq/agent:latest"
     config:
       env:
       - name: DD_SECRET_BACKEND_COMMAND

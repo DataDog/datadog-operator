@@ -9,13 +9,13 @@ spec:
     token: <DATADOG_CLUSTER_AGENT_TOKEN>
   agent:
     image:
-      name: "datadog/agent:latest"
+      name: "gcr.io/datadoghq/agent:latest"
     config:
       tolerations:
       - operator: Exists
   clusterAgent:
     image:
-      name: "datadog/cluster-agent:latest"
+      name: "gcr.io/datadoghq/cluster-agent:latest"
     config:
       externalMetrics:
         enabled: true
@@ -23,4 +23,4 @@ spec:
     replicas: 2
   clusterChecksRunner:
     image:
-      name: "datadog/agent:latest"
+      name: "gcr.io/datadoghq/agent:latest"

@@ -1481,7 +1481,7 @@ spec:
                   description: The container image of the Datadog Agent
                   properties:
                     name:
-                      description: Define the image to use Use "datadog/agent:latest" for Datadog Agent 6 Use "datadog/dogstatsd:latest" for Standalone Datadog Agent DogStatsD6 Use "datadog/cluster-agent:latest" for Datadog Cluster Agent
+                      description: Define the image to use Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 6 Use "datadog/dogstatsd:latest" for Standalone Datadog Agent DogStatsD6 Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent
                       type: string
                     pullPolicy:
                       description: The Kubernetes pull policy Use Always, Never or IfNotPresent
@@ -3368,7 +3368,7 @@ spec:
                   description: The container image of the Datadog Cluster Agent
                   properties:
                     name:
-                      description: Define the image to use Use "datadog/agent:latest" for Datadog Agent 6 Use "datadog/dogstatsd:latest" for Standalone Datadog Agent DogStatsD6 Use "datadog/cluster-agent:latest" for Datadog Cluster Agent
+                      description: Define the image to use Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 6 Use "datadog/dogstatsd:latest" for Standalone Datadog Agent DogStatsD6 Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent
                       type: string
                     pullPolicy:
                       description: The Kubernetes pull policy Use Always, Never or IfNotPresent
@@ -4753,7 +4753,7 @@ spec:
                   description: The container image of the Datadog Cluster Checks Runner
                   properties:
                     name:
-                      description: Define the image to use Use "datadog/agent:latest" for Datadog Agent 6 Use "datadog/dogstatsd:latest" for Standalone Datadog Agent DogStatsD6 Use "datadog/cluster-agent:latest" for Datadog Cluster Agent
+                      description: Define the image to use Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 6 Use "datadog/dogstatsd:latest" for Standalone Datadog Agent DogStatsD6 Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent
                       type: string
                     pullPolicy:
                       description: The Kubernetes pull policy Use Always, Never or IfNotPresent

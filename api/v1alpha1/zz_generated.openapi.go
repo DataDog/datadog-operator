@@ -1863,7 +1863,7 @@ func schema__api_v1alpha1_ImageConfig(ref common.ReferenceCallback) common.OpenA
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Define the image to use Use \"datadog/agent:latest\" for Datadog Agent 6 Use \"datadog/dogstatsd:latest\" for Standalone Datadog Agent DogStatsD6 Use \"datadog/cluster-agent:latest\" for Datadog Cluster Agent",
+							Description: "Define the image to use Use \"gcr.io/datadoghq/agent:latest\" for Datadog Agent 6 Use \"datadog/dogstatsd:latest\" for Standalone Datadog Agent DogStatsD6 Use \"gcr.io/datadoghq/cluster-agent:latest\" for Datadog Cluster Agent",
 							Type:        []string{"string"},
 							Format:      "",
 						},

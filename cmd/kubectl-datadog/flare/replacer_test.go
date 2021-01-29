@@ -265,12 +265,12 @@ credentials:
   appKey: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabbbb
 agent:
   image:
-    name: "datadog/agent:latest"`, `spec:
+    name: "gcr.io/datadoghq/agent:latest"`, `spec:
 clusterName: "cluster-name"
 credentials:
   apiKey: ***************************abbbb
   appKey: ***********************************abbbb
 agent:
   image:
-    name: "datadog/agent:latest"`)
+    name: "gcr.io/datadoghq/agent:latest"`)
 }

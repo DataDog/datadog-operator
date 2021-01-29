@@ -20,7 +20,7 @@ import (
 // default values
 const (
 	DefaultLogLevel                       string = "INFO"
-	defaultAgentImage                     string = "datadog/agent:latest"
+	defaultAgentImage                     string = "gcr.io/datadoghq/agent:latest"
 	defaultCollectEvents                  bool   = false
 	defaultLeaderElection                 bool   = false
 	defaultDockerSocketPath               string = "/var/run/docker.sock"
@@ -50,7 +50,7 @@ const (
 	defaultClusterAgentReplicas                          int32  = 1
 	defaultAgentCanaryReplicas                           int32  = 1
 	defaultClusterChecksRunnerReplicas                   int32  = 2
-	defaultClusterAgentImage                             string = "datadog/cluster-agent:latest"
+	defaultClusterAgentImage                             string = "gcr.io/datadoghq/cluster-agent:latest"
 	defaultRollingUpdateMaxUnavailable                          = "10%"
 	defaultUpdateStrategy                                       = appsv1.RollingUpdateDaemonSetStrategyType
 	defaultRollingUpdateMaxPodSchedulerFailure                  = "10%"

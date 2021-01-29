@@ -19,7 +19,7 @@ spec:
   # Node Agent configuration
   agent:
     image:
-      name: "datadog/agent:latest"
+      name: "gcr.io/datadoghq/agent:latest"
     config:
       tolerations:
         - operator: Exists
@@ -27,7 +27,7 @@ spec:
   # Cluster Agent configuration
   clusterAgent:
     image:
-      name: "datadog/cluster-agent:latest"
+      name: "gcr.io/datadoghq/cluster-agent:latest"
     config:
       metricsProviderEnabled: true
       clusterChecksEnabled: true
