@@ -988,9 +988,9 @@ type DatadogAgentSpecClusterChecksRunnerSpec struct {
 // +k8s:openapi-gen=true
 type ImageConfig struct {
 	// Define the image to use
-	// Use "datadog/agent:latest" for Datadog Agent 6
+	// Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 6
 	// Use "datadog/dogstatsd:latest" for Standalone Datadog Agent DogStatsD6
-	// Use "datadog/cluster-agent:latest" for Datadog Cluster Agent
+	// Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent
 	Name string `json:"name"`
 
 	// The Kubernetes pull policy

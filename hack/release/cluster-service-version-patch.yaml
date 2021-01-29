@@ -24,7 +24,7 @@ metadata:
           },
           "agent": {
             "image": {
-              "name": "datadog/agent:latest"
+              "name": "gcr.io/datadoghq/agent:latest"
             },
             "config": {
               "tolerations": [
@@ -36,7 +36,7 @@ metadata:
           },
           "clusterAgent": {
             "image": {
-              "name": "datadog/cluster-agent:latest"
+              "name": "gcr.io/datadoghq/cluster-agent:latest"
             },
             "config": {
               "metricsProviderEnabled": true,
@@ -46,7 +46,7 @@ metadata:
           },
           "clusterChecksRunner": {
             "image": {
-              "name": "datadog/agent:latest"
+              "name": "gcr.io/datadoghq/agent:latest"
             }
           }
         }

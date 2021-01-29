@@ -12,11 +12,11 @@ spec:
       enabled: true
   agent:
     image:
-      name: "datadog/agent:latest"
+      name: "gcr.io/datadoghq/agent:latest"
     config:
       tolerations:
         - operator: Exists
   clusterAgent:
     image:
-      name: "datadog/cluster-agent:latest"
+      name: "gcr.io/datadoghq/cluster-agent:latest"
     replicas: 2

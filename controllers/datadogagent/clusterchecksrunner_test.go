@@ -27,7 +27,7 @@ func clusterChecksRunnerDefaultPodSpec() corev1.PodSpec {
 		InitContainers: []corev1.Container{
 			{
 				Name:            "init-volume",
-				Image:           "datadog/agent:latest",
+				Image:           "gcr.io/datadoghq/agent:latest",
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
 				Command:         []string{"bash", "-c"},
@@ -41,7 +41,7 @@ func clusterChecksRunnerDefaultPodSpec() corev1.PodSpec {
 			},
 			{
 				Name:            "init-config",
-				Image:           "datadog/agent:latest",
+				Image:           "gcr.io/datadoghq/agent:latest",
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
 				Command:         []string{"bash", "-c"},
@@ -53,7 +53,7 @@ func clusterChecksRunnerDefaultPodSpec() corev1.PodSpec {
 		Containers: []corev1.Container{
 			{
 				Name:            "cluster-checks-runner",
-				Image:           "datadog/agent:latest",
+				Image:           "gcr.io/datadoghq/agent:latest",
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
 				Env:             clusterChecksRunnerDefaultEnvVars(),

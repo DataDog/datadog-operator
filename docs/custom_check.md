@@ -95,7 +95,7 @@ spec:
     appKey: "<DATADOG_APP_KEY>"
   agent:
     image:
-      name: "datadog/agent:latest"
+      name: "gcr.io/datadoghq/agent:latest"
     config:
       confd:
         configMapName: "confd-config"
@@ -140,7 +140,7 @@ spec:
     appKey: "<DATADOG_APP_KEY>"
   agent:
     image:
-      name: "datadog/agent:latest"
+      name: "gcr.io/datadoghq/agent:latest"
     volumes:
       - name: secrets
         secret:
