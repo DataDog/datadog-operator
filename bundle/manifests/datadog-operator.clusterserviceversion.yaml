@@ -13,26 +13,58 @@ metadata:
           "spec": {
             "agent": {
               "apm": {
-                "enabled": true
+                "enabled": false
               },
               "image": {
-                "name": "gcr.io/datadoghq/agent:latest"
+                "name": "gcr.io/datadoghq/agent:7.24.1"
               },
               "log": {
-                "enabled": true
+                "enabled": false,
+                "logsConfigContainerCollectAll": false
               },
               "process": {
                 "enabled": true,
-                "processCollection": true
+                "processCollection": false
+              },
+              "security": {
+                "compliance": {
+                  "enabled": false
+                },
+                "runtime": {
+                  "enabled": false
+                }
               },
               "systemProbe": {
-                "bpfDebugEnabled": true,
-                "enabled": true
+                "bpfDebugEnabled": false,
+                "enabled": false
               }
             },
+            "clusterAgent": {
+              "config": {
+                "admissionController": {
+                  "enabled": false
+                },
+                "clusterChecksEnabled": false,
+                "externalMetrics": {
+                  "enabled": false
+                }
+              },
+              "image": {
+                "name": "gcr.io/datadoghq/cluster-agent:1.10.0"
+              },
+              "replicas": 2
+            },
+            "clusterChecksRunner": {
+              "image": {
+                "name": "gcr.io/datadoghq/agent:7.24.1"
+              },
+              "replicas": 2
+            },
+            "clusterName": "\u003cCLUSTER_NAME\u003e",
             "credentials": {
               "apiKey": "\u003cDATADOG_API_KEY\u003e",
-              "appKey": "\u003cDATADOG_APP_KEY\u003e"
+              "appKey": "\u003cDATADOG_APP_KEY\u003e",
+              "token": "\u003cDATADOG_CLUSTER_AGENT_TOKEN\u003e"
             }
           }
         },
@@ -67,7 +99,7 @@ metadata:
     capabilities: Full Lifecycle
     operators.operatorframework.io/builder: operator-sdk-v1.2.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
-  name: datadog-operator.v0.4.0
+  name: datadog-operator.v0.5.0-rc.1
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -377,17 +409,6 @@ spec:
           verbs:
           - use
         serviceAccountName: datadog-operator-manager
-      - rules:
-        - apiGroups:
-          - security.openshift.io
-          resourceNames:
-          - hostaccess
-          - privileged
-          resources:
-          - securitycontextconstraints
-          verbs:
-          - use
-        serviceAccountName: datadog-agent-scc
       deployments:
       - name: datadog-operator-manager
         spec:
@@ -416,7 +437,7 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.annotations['olm.targetNamespaces']
-                image: datadog/operator:0.4.0
+                image: datadog/operator:0.5.0-rc.1
                 imagePullPolicy: Always
                 livenessProbe:
                   httpGet:
@@ -431,10 +452,10 @@ spec:
                 resources:
                   limits:
                     cpu: 100m
-                    memory: 100Mi
+                    memory: 250Mi
                   requests:
                     cpu: 100m
-                    memory: 100Mi
+                    memory: 250Mi
               serviceAccountName: datadog-operator-manager
               terminationGracePeriodSeconds: 10
       permissions:
@@ -493,5 +514,5 @@ spec:
   maturity: alpha
   provider:
     name: Datadog
-  version: 0.4.0
-  replaces: datadog-operator.v0.3.2
+  replaces: datadog-operator.v0.4.0
+  version: 0.5.0-rc.1

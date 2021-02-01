@@ -3,7 +3,6 @@ variables:
   GO111MODULE: "on"
   PROJECTNAME: "datadog-operator"
   GOPATH: "$CI_PROJECT_DIR/.cache"
-  TARGET_TAG: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
   BUILD_DOCKER_REGISTRY: "486234852809.dkr.ecr.us-east-1.amazonaws.com/ci"
 cache: &global_cache
   key: ${CI_COMMIT_REF_SLUG}
@@ -51,7 +50,7 @@ build_image_amd64:
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:v2718644-9ce6565-18.09.6-py3
   variables:
     GOARCH: amd64
-    TARGET_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$TARGET_TAG-amd64
+    TARGET_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-amd64
     RELEASE_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64
   script:
     - IMG=$TARGET_IMAGE make docker-build-ci docker-push
@@ -63,7 +62,7 @@ build_image_arm64:
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:v2718787-3888eda-18.09.6-arm64-py3
   variables:
     GOARCH: arm64
-    TARGET_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$TARGET_TAG-arm64
+    TARGET_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-arm64
     RELEASE_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-arm64
   script:
     - IMG=$TARGET_IMAGE make docker-build-ci docker-push

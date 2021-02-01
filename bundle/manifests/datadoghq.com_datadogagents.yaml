@@ -170,6 +170,16 @@ spec:
                           description: 'Requests describes the minimum amount of compute resources required. If Requests is omitted for a container, it defaults to Limits if that is explicitly specified, otherwise to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
                           type: object
                       type: object
+                    unixDomainSocket:
+                      description: 'UnixDomainSocket socket configuration ref: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables'
+                      properties:
+                        enabled:
+                          description: 'Enable APM over Unix Domain Socket ref: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables'
+                          type: boolean
+                        hostFilepath:
+                          description: 'Define the host APM socket filepath used when APM over Unix Domain Socket is enabled (default value: /var/run/datadog/apm.sock) ref: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables'
+                          type: string
+                      type: object
                   type: object
                 config:
                   description: Agent configuration
@@ -208,11 +218,18 @@ spec:
                       description: Configure Dogstatsd
                       properties:
                         dogstatsdOriginDetection:
-                          description: Enable origin detection for container tagging https://docs.datadoghq.com/developers/dogstatsd/unix_socket/#using-origin-detection-for-container-tagging
+                          description: 'Enable origin detection for container tagging ref: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/#using-origin-detection-for-container-tagging'
                           type: boolean
-                        useDogStatsDSocketVolume:
-                          description: 'Enable dogstatsd over Unix Domain Socket ref: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/'
-                          type: boolean
+                        unixDomainSocket:
+                          description: 'Configure the Dogstatsd Unix Domain Socket ref: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/'
+                          properties:
+                            enabled:
+                              description: 'Enable APM over Unix Domain Socket ref: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/'
+                              type: boolean
+                            hostFilepath:
+                              description: 'Define the host APM socket filepath used when APM over Unix Domain Socket is enabled (default value: /var/run/datadog/statsd.sock) ref: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/'
+                              type: string
+                          type: object
                       type: object
                     env:
                       description: 'The Datadog Agent supports many environment variables Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables'
@@ -4830,7 +4847,7 @@ spec:
               description: Set a unique cluster name to allow scoping hosts and Cluster Checks Runner easily
               type: string
             credentials:
-              description: Configure the credentials required to run Agents
+              description: Configure the credentials needed to run Agents. If not set, then the credentials set in the DatadogOperator will be used
               properties:
                 apiKey:
                   description: 'APIKey Set this to your Datadog API key before the Agent runs. ref: https://app.datadoghq.com/account/settings#agent/kubernetes'
@@ -4931,8 +4948,6 @@ spec:
             site:
               description: The site of the Datadog intake to send Agent data to. Set to 'datadoghq.eu' to send data to the EU site.
               type: string
-          required:
-          - credentials
           type: object
         status:
           description: DatadogAgentStatus defines the observed state of DatadogAgent
