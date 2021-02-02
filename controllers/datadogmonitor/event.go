@@ -22,5 +22,5 @@ func buildEventInfo(name, ns string, eventType datadog.EventType) utils.EventInf
 
 // recordEvent wraps the manager event recorder
 func (r *Reconciler) recordEvent(dm *datadoghqv1alpha1.DatadogMonitor, info utils.EventInfo) {
-	r.Recorder.Event(dm, corev1.EventTypeNormal, info.GetReason(), info.GetMessage())
+	r.recorder.Event(dm, corev1.EventTypeNormal, info.GetReason(), info.GetMessage())
 }

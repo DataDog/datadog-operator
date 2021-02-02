@@ -1,7 +1,7 @@
 // Unless explicitly stated otherwise all files in this repository are licensed
 // under the Apache License Version 2.0.
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2016-2020 Datadog, Inc.
+// Copyright 2016-2021 Datadog, Inc.
 
 package datadogmonitor
 
@@ -9,8 +9,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/url"
-	"os"
 	"sort"
 	"time"
 
@@ -24,14 +22,14 @@ import (
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	datadogapiclientv1 "github.com/DataDog/datadog-api-client-go/api/v1/datadog"
-
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
-	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 )
 
 const (
@@ -42,75 +40,43 @@ const (
 
 // Reconciler reconciles a DatadogMonitor object
 type Reconciler struct {
-	Client        client.Client
+	client        client.Client
 	datadogClient *datadogapiclientv1.APIClient
 	datadogAuth   context.Context
-	VersionInfo   *version.Info
-	Log           logr.Logger
-	Scheme        *runtime.Scheme
-	Recorder      record.EventRecorder
+	versionInfo   *version.Info
+	log           logr.Logger
+	scheme        *runtime.Scheme
+	recorder      record.EventRecorder
 }
 
-// +kubebuilder:rbac:groups=datadoghq.com,resources=datadogmonitors,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=datadoghq.com,resources=datadogmonitors/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=datadoghq.com,resources=datadogmonitors/finalizers,verbs=get;list;watch;create;update;patch;delete
+// NewReconciler returns a new Reconciler object
+func NewReconciler(client client.Client, ddClient datadogclient.DatadogClient, versionInfo *version.Info, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder) (*Reconciler, error) {
+	return &Reconciler{
+		client:        client,
+		datadogClient: ddClient.Client,
+		datadogAuth:   ddClient.Auth,
+		versionInfo:   versionInfo,
+		scheme:        scheme,
+		log:           log,
+		recorder:      recorder,
+	}, nil
+}
 
-func (r *Reconciler) initDatadogClient() error {
-	// TODO support secret configuration in the operator
-	apiKey := os.Getenv(config.DDAPIKeyEnvVar)
-	appKey := os.Getenv(config.DDAppKeyEnvVar)
-
-	if apiKey == "" || appKey == "" {
-		return errors.New("error obtaining api key and/or app key")
-	}
-
-	// Initialize the official Datadog V1 API client
-	authV1 := context.WithValue(
-		context.Background(),
-		datadogapiclientv1.ContextAPIKeys,
-		map[string]datadogapiclientv1.APIKey{
-			"apiKeyAuth": {
-				Key: apiKey,
-			},
-			"appKeyAuth": {
-				Key: appKey,
-			},
-		},
-	)
-	configV1 := datadogapiclientv1.NewConfiguration()
-
-	if apiURL := os.Getenv(config.DDURLEnvVar); apiURL != "" {
-		parsedAPIURL, parseErr := url.Parse(apiURL)
-		if parseErr != nil {
-			return fmt.Errorf(`invalid API Url : %v`, parseErr)
-		}
-		if parsedAPIURL.Host == "" || parsedAPIURL.Scheme == "" {
-			return fmt.Errorf(`missing protocol or host : %v`, apiURL)
-		}
-		// If api url is passed, set and use the api name and protocol on ServerIndex{1}
-		authV1 = context.WithValue(authV1, datadogapiclientv1.ContextServerIndex, 1)
-		authV1 = context.WithValue(authV1, datadogapiclientv1.ContextServerVariables, map[string]string{
-			"name":     parsedAPIURL.Host,
-			"protocol": parsedAPIURL.Scheme,
-		})
-	}
-	r.datadogClient = datadogapiclientv1.NewAPIClient(configV1)
-	r.datadogAuth = authV1
-
-	return nil
+// Reconcile is similar to reconciler.Reconcile interface, but taking a context
+func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
+	return r.internalReconcile(ctx, request)
 }
 
 // Reconcile loop for DatadogMonitor
-func (r *Reconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	ctx := context.Background()
-	logger := r.Log.WithValues("datadogmonitor", req.NamespacedName)
+func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
+	logger := r.log.WithValues("datadogmonitor", req.NamespacedName)
 	logger.Info("Reconciling DatadogMonitor")
 	now := metav1.NewTime(time.Now())
 
 	// Get instance
 	instance := &datadoghqv1alpha1.DatadogMonitor{}
 	var result ctrl.Result
-	err := r.Client.Get(ctx, req.NamespacedName, instance)
+	err := r.client.Get(ctx, req.NamespacedName, instance)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
@@ -126,14 +92,6 @@ func (r *Reconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	if result, err = r.handleFinalizer(logger, instance); err != nil || result.Requeue {
 		return r.updateStatusIfNeeded(logger, instance, now, newStatus, err, result)
-	}
-
-	if r.datadogClient == nil {
-		err = r.initDatadogClient()
-		if err != nil {
-			logger.Error(err, "Error initializing Datadog client")
-			return r.updateStatusIfNeeded(logger, instance, now, newStatus, err, result)
-		}
 	}
 
 	// Validate the DatadogMonitor spec
@@ -164,6 +122,7 @@ func (r *Reconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		if result, err = r.checkRequiredTags(logger, instance); err != nil || result.Requeue {
 			return r.updateStatusIfNeeded(logger, instance, now, newStatus, err, result)
 		}
+
 		err = r.create(logger, instance, newStatus, now)
 		if err != nil {
 			logger.Error(err, "Error creating monitor")
@@ -201,14 +160,17 @@ func (r *Reconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 }
 
 func (r *Reconciler) create(logger logr.Logger, datadogMonitor *datadoghqv1alpha1.DatadogMonitor, status *datadoghqv1alpha1.DatadogMonitorStatus, now metav1.Time) error {
+	logger.Info(fmt.Sprint(datadogMonitor.Spec.Query))
+
+	logger.Info(fmt.Sprint(datadogMonitor.Status.ID))
 	// Validate monitor in Datadog
-	err := r.validateMonitor(datadogMonitor)
+	err := validateMonitor(r.datadogAuth, r.datadogClient, datadogMonitor)
 	if err != nil {
 		return err
 	}
 
 	// Create monitor in Datadog
-	m, err := r.createMonitor(datadogMonitor)
+	m, err := createMonitor(r.datadogAuth, r.datadogClient, datadogMonitor)
 	if err != nil {
 		return err
 	}
@@ -232,13 +194,13 @@ func (r *Reconciler) create(logger logr.Logger, datadogMonitor *datadoghqv1alpha
 
 func (r *Reconciler) update(logger logr.Logger, datadogMonitor *datadoghqv1alpha1.DatadogMonitor, status *datadoghqv1alpha1.DatadogMonitorStatus, now metav1.Time) error {
 	// Validate monitor in Datadog
-	err := r.validateMonitor(datadogMonitor)
+	err := validateMonitor(r.datadogAuth, r.datadogClient, datadogMonitor)
 	if err != nil {
 		return err
 	}
 
 	// Update monitor in Datadog
-	_, err = r.updateMonitor(datadogMonitor)
+	_, err = updateMonitor(r.datadogAuth, r.datadogClient, datadogMonitor)
 	if err != nil {
 		return err
 	}
@@ -252,7 +214,7 @@ func (r *Reconciler) update(logger logr.Logger, datadogMonitor *datadoghqv1alpha
 
 func (r *Reconciler) get(logger logr.Logger, datadogMonitor *datadoghqv1alpha1.DatadogMonitor, newStatus *datadoghqv1alpha1.DatadogMonitorStatus) error {
 	// Get monitor from Datadog and update resource status if needed
-	m, err := r.getMonitor(datadogMonitor.Status.ID)
+	m, err := getMonitor(r.datadogAuth, r.datadogClient, datadogMonitor.Status.ID)
 	if err != nil {
 		return err
 	}
@@ -265,15 +227,14 @@ func (r *Reconciler) get(logger logr.Logger, datadogMonitor *datadoghqv1alpha1.D
 
 func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, datadogMonitor *datadoghqv1alpha1.DatadogMonitor, now metav1.Time, status *datadoghqv1alpha1.DatadogMonitorStatus, currentErr error, result ctrl.Result) (ctrl.Result, error) {
 	// Update Error and Active conditions
-	setErrorActiveConditions(status, now, currentErr)
+	condition.SetErrorActiveConditions(status, now, currentErr)
 
 	if !apiequality.Semantic.DeepEqual(&datadogMonitor.Status, status) {
-		datadogMonitorCopy := datadogMonitor.DeepCopy()
-		datadogMonitorCopy.Status = *status
-		if err := r.Client.Status().Update(context.TODO(), datadogMonitorCopy); err != nil {
+		datadogMonitor.Status = *status
+		if err := r.client.Status().Update(context.TODO(), datadogMonitor); err != nil {
 			if apierrors.IsConflict(err) {
 				logger.Error(err, "Unable to update DatadogMonitor status due to update conflict")
-				return ctrl.Result{RequeueAfter: defaultErrRequeuePeriod}, nil
+				return ctrl.Result{Requeue: true, RequeueAfter: defaultErrRequeuePeriod}, nil
 			}
 			logger.Error(err, "Unable to update DatadogMonitor status")
 			return ctrl.Result{}, err
@@ -285,7 +246,7 @@ func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, datadogMonitor *da
 		// not an issue, but if a monitor has many groups and is "flapping", then it can cause a flood of updates to
 		// the Status.TriggeredState and put pressure on the controller. As a safeguard against this, the maximum number
 		// of groups stored in Status.TriggeredState should be conservative.
-		return ctrl.Result{RequeueAfter: defaultRequeuePeriod}, nil
+		return ctrl.Result{Requeue: true, RequeueAfter: defaultRequeuePeriod}, nil
 	}
 	return result, nil
 }
@@ -310,7 +271,7 @@ func (r *Reconciler) checkRequiredTags(logger logr.Logger, datadogMonitor *datad
 	if len(tagsToAdd) > 0 {
 		tags = append(tags, tagsToAdd...)
 		datadogMonitor.Spec.Tags = tags
-		err := r.Client.Update(context.TODO(), datadogMonitor)
+		err := r.client.Update(context.TODO(), datadogMonitor)
 		if err != nil {
 			logger.Error(err, "Failed to update DatadogMonitor with required tags")
 			return ctrl.Result{Requeue: true, RequeueAfter: defaultErrRequeuePeriod}, err
@@ -320,13 +281,6 @@ func (r *Reconciler) checkRequiredTags(logger logr.Logger, datadogMonitor *datad
 
 	// Proceed in reconcile loop
 	return ctrl.Result{}, nil
-}
-
-// SetupWithManager creates a new DatadogMonitor controller
-func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&datadoghqv1alpha1.DatadogMonitor{}).
-		Complete(r)
 }
 
 func getRequiredTags() []string {
@@ -364,20 +318,6 @@ func convertStateToStatus(monitor datadogapiclientv1.Monitor, newStatus *datadog
 	newStatus.MonitorState = datadoghqv1alpha1.DatadogMonitorState(monitor.GetOverallState())
 	// TODO Updating this requires having the API client also return any matching downtime objects
 	newStatus.DowntimeStatus = datadoghqv1alpha1.DatadogMonitorDowntimeStatus{}
-}
-
-func setErrorActiveConditions(status *datadoghqv1alpha1.DatadogMonitorStatus, now metav1.Time, err error) {
-	if err != nil {
-		// Set the error condition to True
-		condition.UpdateDatadogMonitorConditions(status, now, datadoghqv1alpha1.DatadogMonitorConditionTypeError, corev1.ConditionTrue, fmt.Sprintf("%v", err))
-		// Set the active condition to False
-		condition.UpdateDatadogMonitorConditions(status, now, datadoghqv1alpha1.DatadogMonitorConditionTypeActive, corev1.ConditionFalse, "DatadogMonitor error")
-	} else {
-		// Set the error condition to False
-		condition.UpdateDatadogMonitorConditions(status, now, datadoghqv1alpha1.DatadogMonitorConditionTypeError, corev1.ConditionFalse, "")
-		// Set the active condition to True
-		condition.UpdateDatadogMonitorConditions(status, now, datadoghqv1alpha1.DatadogMonitorConditionTypeActive, corev1.ConditionTrue, "DatadogMonitor OK")
-	}
 }
 
 func isTriggered(groupStatus string) bool {

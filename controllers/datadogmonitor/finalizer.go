@@ -1,7 +1,7 @@
 // Unless explicitly stated otherwise all files in this repository are licensed
 // under the Apache License Version 2.0.
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2016-2020 Datadog, Inc.
+// Copyright 2016-2021 Datadog, Inc.
 
 package datadogmonitor
 
@@ -27,7 +27,7 @@ func (r *Reconciler) handleFinalizer(logger logr.Logger, dm *datadoghqv1alpha1.D
 			r.finalizeDatadogMonitor(logger, dm)
 
 			dm.SetFinalizers(utils.RemoveString(dm.GetFinalizers(), datadogMonitorFinalizer))
-			err := r.Client.Update(context.TODO(), dm)
+			err := r.client.Update(context.TODO(), dm)
 			if err != nil {
 				return ctrl.Result{Requeue: true, RequeueAfter: defaultErrRequeuePeriod}, err
 			}
@@ -41,7 +41,7 @@ func (r *Reconciler) handleFinalizer(logger logr.Logger, dm *datadoghqv1alpha1.D
 		if err := r.addFinalizer(logger, dm); err != nil {
 			return ctrl.Result{Requeue: true, RequeueAfter: defaultErrRequeuePeriod}, err
 		}
-		// No need to requeue because the client update automatically requeues
+		return ctrl.Result{Requeue: true, RequeueAfter: defaultRequeuePeriod}, nil
 	}
 
 	// Proceed in reconcile loop
@@ -50,7 +50,7 @@ func (r *Reconciler) handleFinalizer(logger logr.Logger, dm *datadoghqv1alpha1.D
 
 func (r *Reconciler) finalizeDatadogMonitor(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) {
 	if dm.Status.Primary {
-		err := r.deleteMonitor(dm.Status.ID)
+		err := deleteMonitor(r.datadogAuth, r.datadogClient, dm.Status.ID)
 		if err != nil {
 			logger.Error(err, "failed to finalize monitor")
 			return
@@ -64,7 +64,7 @@ func (r *Reconciler) addFinalizer(logger logr.Logger, dm *datadoghqv1alpha1.Data
 
 	dm.SetFinalizers(append(dm.GetFinalizers(), datadogMonitorFinalizer))
 
-	err := r.Client.Update(context.TODO(), dm)
+	err := r.client.Update(context.TODO(), dm)
 	if err != nil {
 		logger.Error(err, "Failed to update DatadogMonitor with finalizer")
 		return err

@@ -12,7 +12,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/DataDog/datadog-operator/controllers/datadogagent"
-	"github.com/DataDog/datadog-operator/controllers/datadogmonitor"
 	"k8s.io/client-go/discovery"
 )
 
@@ -42,7 +41,7 @@ func SetupControllers(mgr manager.Manager, supportExtendedDaemonset bool) error 
 		return fmt.Errorf("unable to create controller DatadogAgent: %w", err)
 	}
 
-	if err = (&datadogmonitor.Reconciler{
+	if err = (&DatadogMonitorReconciler{
 		Client:      mgr.GetClient(),
 		VersionInfo: versionInfo,
 		Log:         ctrl.Log.WithName("controllers").WithName("DatadogMonitor"),
