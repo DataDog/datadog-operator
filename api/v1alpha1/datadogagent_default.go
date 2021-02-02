@@ -7,6 +7,7 @@ package v1alpha1
 
 import (
 	"fmt"
+	"path"
 	"time"
 
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
@@ -19,13 +20,17 @@ import (
 // default values
 const (
 	DefaultLogLevel                       string = "INFO"
-	defaultAgentImage                     string = "datadog/agent:latest"
+	defaultAgentImage                     string = "gcr.io/datadoghq/agent:latest"
 	defaultCollectEvents                  bool   = false
 	defaultLeaderElection                 bool   = false
 	defaultDockerSocketPath               string = "/var/run/docker.sock"
 	defaultDogstatsdOriginDetection       bool   = false
 	defaultUseDogStatsDSocketVolume       bool   = false
+	defaultDogstatsdSocketName            string = "statsd.sock"
+	defaultDogstatsdSocketPath            string = "/var/run/datadog"
 	defaultApmEnabled                     bool   = false
+	defaultApmSocketName                  string = "apm.sock"
+	defaultApmSocketPath                  string = "/var/run/datadog"
 	defaultLogEnabled                     bool   = false
 	defaultLogsConfigContainerCollectAll  bool   = false
 	defaultLogsContainerCollectUsingFiles bool   = true
@@ -44,8 +49,8 @@ const (
 	defaultKubeStateMetricsCoreEnabled                   bool   = false
 	defaultClusterAgentReplicas                          int32  = 1
 	defaultAgentCanaryReplicas                           int32  = 1
-	defaultClusterChecksRunnerReplicas                   int32  = 2
-	defaultClusterAgentImage                             string = "datadog/cluster-agent:latest"
+	defaultClusterChecksRunnerReplicas                   int32  = 1
+	defaultClusterAgentImage                             string = "gcr.io/datadoghq/cluster-agent:latest"
 	defaultRollingUpdateMaxUnavailable                          = "10%"
 	defaultUpdateStrategy                                       = appsv1.RollingUpdateDaemonSetStrategyType
 	defaultRollingUpdateMaxPodSchedulerFailure                  = "10%"
@@ -235,15 +240,28 @@ func IsDefaultedDatadogAgentSpecAgentConfig(config *NodeAgentConfig) bool {
 		return false
 	}
 
-	if config.Dogstatsd == nil {
+	if !IsDefaultedDogstatsConfig(config.Dogstatsd) {
 		return false
 	}
 
-	if config.Dogstatsd.DogstatsdOriginDetection == nil {
+	return true
+}
+
+// IsDefaultedDogstatsConfig used to check if the dogstatsd configuration is defaulted
+func IsDefaultedDogstatsConfig(dsd *DogstatsdConfig) bool {
+	if dsd == nil {
 		return false
 	}
 
-	if config.Dogstatsd.UseDogStatsDSocketVolume == nil {
+	if dsd.DogstatsdOriginDetection == nil {
+		return false
+	}
+
+	if dsd.UnixDomainSocket == nil {
+		return false
+	}
+
+	if dsd.UnixDomainSocket.HostFilepath == nil {
 		return false
 	}
 
@@ -319,6 +337,18 @@ func IsDefaultedDatadogAgentSpecApm(apm *APMSpec) bool {
 	}
 
 	if apm.Enabled == nil {
+		return false
+	}
+
+	if apm.UnixDomainSocket == nil {
+		return false
+	}
+
+	if apm.UnixDomainSocket.Enabled == nil {
+		return false
+	}
+
+	if apm.UnixDomainSocket.HostFilepath == nil {
 		return false
 	}
 
@@ -507,12 +537,7 @@ func DefaultDatadogAgentSpecAgentConfig(config *NodeAgentConfig) *NodeAgentConfi
 		config.CriSocket.DockerSocketPath = NewStringPointer(defaultDockerSocketPath)
 	}
 
-	if config.Dogstatsd == nil {
-		config.Dogstatsd = &DogstatsdConfig{
-			DogstatsdOriginDetection: NewBoolPointer(defaultDogstatsdOriginDetection),
-			UseDogStatsDSocketVolume: NewBoolPointer(defaultUseDogStatsDSocketVolume),
-		}
-	}
+	DefaultConfigDogstatsd(config)
 
 	if config.PodLabelsAsTags == nil {
 		config.PodLabelsAsTags = map[string]string{}
@@ -527,6 +552,37 @@ func DefaultDatadogAgentSpecAgentConfig(config *NodeAgentConfig) *NodeAgentConfi
 	}
 
 	return config
+}
+
+// DefaultConfigDogstatsd used to default Dogstatsd config in NodeAgentConfig
+func DefaultConfigDogstatsd(config *NodeAgentConfig) {
+	if config.Dogstatsd == nil {
+		config.Dogstatsd = &DogstatsdConfig{}
+	}
+
+	if config.Dogstatsd.DogstatsdOriginDetection == nil {
+		config.Dogstatsd.DogstatsdOriginDetection = NewBoolPointer(defaultDogstatsdOriginDetection)
+	}
+
+	config.Dogstatsd.UnixDomainSocket = DefaultConfigDogstatsdUDS(config.Dogstatsd.UnixDomainSocket)
+}
+
+// DefaultConfigDogstatsdUDS used to default DSDUnixDomainSocketSpec
+// rreturn the defaulted DSDUnixDomainSocketSpec
+func DefaultConfigDogstatsdUDS(uds *DSDUnixDomainSocketSpec) *DSDUnixDomainSocketSpec {
+	if uds == nil {
+		uds = &DSDUnixDomainSocketSpec{}
+	}
+
+	if uds.Enabled == nil {
+		uds.Enabled = NewBoolPointer(defaultUseDogStatsDSocketVolume)
+	}
+
+	if uds.HostFilepath == nil {
+		socketPath := path.Join(defaultDogstatsdSocketPath, defaultDogstatsdSocketName)
+		uds.HostFilepath = &socketPath
+	}
+	return uds
 }
 
 // DefaultDatadogAgentSpecRbacConfig used to default a RbacConfig
@@ -622,7 +678,27 @@ func DefaultDatadogAgentSpecAgentApm(apm *APMSpec) *APMSpec {
 		apm.Enabled = NewBoolPointer(defaultApmEnabled)
 	}
 
+	apm.UnixDomainSocket = DefaultDatadogAgentSpecAgentApmUDS(apm.UnixDomainSocket)
+
 	return apm
+}
+
+// DefaultDatadogAgentSpecAgentApmUDS used to default APMUnixDomainSocketSpec
+// rreturn the defaulted APMUnixDomainSocketSpec
+func DefaultDatadogAgentSpecAgentApmUDS(uds *APMUnixDomainSocketSpec) *APMUnixDomainSocketSpec {
+	if uds == nil {
+		uds = &APMUnixDomainSocketSpec{}
+	}
+
+	if uds.Enabled == nil {
+		uds.Enabled = NewBoolPointer(false)
+	}
+
+	if uds.HostFilepath == nil {
+		socketPath := path.Join(defaultApmSocketPath, defaultApmSocketName)
+		uds.HostFilepath = &socketPath
+	}
+	return uds
 }
 
 // DefaultDatadogAgentSpecAgentLog used to default an LogSpec

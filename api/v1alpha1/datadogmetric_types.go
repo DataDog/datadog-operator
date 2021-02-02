@@ -69,7 +69,7 @@ const (
 	DatadogMetricConditionTypeError DatadogMetricConditionType = "Error"
 )
 
-// DatadogMetric is the Schema for the datadogmetrics API
+// DatadogMetric allows autoscaling on arbitrary Datadog query
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:path=datadogmetrics,scope=Namespaced

@@ -61,6 +61,7 @@ const (
 	DDLogsConfigOpenFilesLimit                   = "DD_LOGS_CONFIG_OPEN_FILES_LIMIT"
 	DDDogstatsdOriginDetection                   = "DD_DOGSTATSD_ORIGIN_DETECTION"
 	DDDogstatsdPort                              = "DD_DOGSTATSD_PORT"
+	DDDogstatsdSocket                            = "DD_DOGSTATSD_SOCKET"
 	DDClusterAgentEnabled                        = "DD_CLUSTER_AGENT_ENABLED"
 	DDClusterAgentKubeServiceName                = "DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME"
 	DDClusterAgentAuthToken                      = "DD_CLUSTER_AGENT_AUTH_TOKEN"
@@ -79,6 +80,7 @@ const (
 	DDExtraListeners                             = "DD_EXTRA_LISTENERS"
 	DDHostname                                   = "DD_HOSTNAME"
 	DDAPMEnabled                                 = "DD_APM_ENABLED"
+	DDPPMReceiverSocket                          = "DD_APM_RECEIVER_SOCKET"
 	DDProcessAgentEnabled                        = "DD_PROCESS_AGENT_ENABLED"
 	DDSystemProbeAgentEnabled                    = "DD_SYSTEM_PROBE_ENABLED"
 	DDEnableMetadataCollection                   = "DD_ENABLE_METADATA_COLLECTION"
@@ -97,6 +99,7 @@ const (
 	DDRuntimeSecurityConfigPoliciesDir           = "DD_RUNTIME_SECURITY_CONFIG_POLICIES_DIR"
 	DDRuntimeSecurityConfigSocket                = "DD_RUNTIME_SECURITY_CONFIG_SOCKET"
 	DDRuntimeSecurityConfigSyscallMonitorEnabled = "DD_RUNTIME_SECURITY_CONFIG_SYSCALL_MONITOR_ENABLED"
+	DDExternalMetricsProviderEndpoint            = "DD_EXTERNAL_METRICS_PROVIDER_ENDPOINT"
 
 	// KubernetesEnvvarName Env var used by the Datadog Agent container entrypoint
 	// to add kubelet config provider and listener
@@ -104,6 +107,8 @@ const (
 
 	// Datadog volume names and mount paths
 
+	APMSocketVolumeName                = "apmsocket"
+	APMSocketVolumePath                = "/var/run/datadog"
 	InstallInfoVolumeName              = "installinfo"
 	InstallInfoVolumeSubPath           = "install_info"
 	InstallInfoVolumePath              = "/etc/datadog-agent/install_info"
@@ -130,8 +135,8 @@ const (
 	SystemProbeSocketVolumePath        = "/var/run/sysprobe"
 	CriSocketVolumeName                = "runtimesocketdir"
 	CriSocketVolumeReadOnly            = true
-	DogstatsdSockerVolumeName          = "dsdsocket"
-	DogstatsdSockerVolumePath          = "/var/run/datadog"
+	DogstatsdSocketVolumeName          = "dsdsocket"
+	DogstatsdSocketVolumePath          = "/var/run/datadog"
 	KubeStateMetricCoreVolumeName      = "ksm-core-config"
 	PointerVolumeName                  = "pointerdir"
 	PointerVolumePath                  = "/opt/datadog-agent/run"

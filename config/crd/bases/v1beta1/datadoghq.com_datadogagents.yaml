@@ -220,6 +220,18 @@ spec:
                             https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
                           type: object
                       type: object
+                    unixDomainSocket:
+                      description: 'UnixDomainSocket socket configuration ref: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables'
+                      properties:
+                        enabled:
+                          description: 'Enable APM over Unix Domain Socket ref: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables'
+                          type: boolean
+                        hostFilepath:
+                          description: 'Define the host APM socket filepath used when
+                            APM over Unix Domain Socket is enabled (default value:
+                            /var/run/datadog/apm.sock) ref: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables'
+                          type: string
+                      type: object
                   type: object
                 config:
                   description: Agent configuration
@@ -270,13 +282,23 @@ spec:
                       description: Configure Dogstatsd
                       properties:
                         dogstatsdOriginDetection:
-                          description: Enable origin detection for container tagging
-                            https://docs.datadoghq.com/developers/dogstatsd/unix_socket/#using-origin-detection-for-container-tagging
+                          description: 'Enable origin detection for container tagging
+                            ref: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/#using-origin-detection-for-container-tagging'
                           type: boolean
-                        useDogStatsDSocketVolume:
-                          description: 'Enable dogstatsd over Unix Domain Socket ref:
-                            https://docs.datadoghq.com/developers/dogstatsd/unix_socket/'
-                          type: boolean
+                        unixDomainSocket:
+                          description: 'Configure the Dogstatsd Unix Domain Socket
+                            ref: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/'
+                          properties:
+                            enabled:
+                              description: 'Enable APM over Unix Domain Socket ref:
+                                https://docs.datadoghq.com/developers/dogstatsd/unix_socket/'
+                              type: boolean
+                            hostFilepath:
+                              description: 'Define the host APM socket filepath used
+                                when APM over Unix Domain Socket is enabled (default
+                                value: /var/run/datadog/statsd.sock) ref: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/'
+                              type: string
+                          type: object
                       type: object
                     env:
                       description: 'The Datadog Agent supports many environment variables
@@ -2238,9 +2260,9 @@ spec:
                   description: The container image of the Datadog Agent
                   properties:
                     name:
-                      description: Define the image to use Use "datadog/agent:latest"
+                      description: Define the image to use Use "gcr.io/datadoghq/agent:latest"
                         for Datadog Agent 6 Use "datadog/dogstatsd:latest" for Standalone
-                        Datadog Agent DogStatsD6 Use "datadog/cluster-agent:latest"
+                        Datadog Agent DogStatsD6 Use "gcr.io/datadoghq/cluster-agent:latest"
                         for Datadog Cluster Agent
                       type: string
                     pullPolicy:
@@ -5149,9 +5171,9 @@ spec:
                   description: The container image of the Datadog Cluster Agent
                   properties:
                     name:
-                      description: Define the image to use Use "datadog/agent:latest"
+                      description: Define the image to use Use "gcr.io/datadoghq/agent:latest"
                         for Datadog Agent 6 Use "datadog/dogstatsd:latest" for Standalone
-                        Datadog Agent DogStatsD6 Use "datadog/cluster-agent:latest"
+                        Datadog Agent DogStatsD6 Use "gcr.io/datadoghq/cluster-agent:latest"
                         for Datadog Cluster Agent
                       type: string
                     pullPolicy:
@@ -7359,9 +7381,9 @@ spec:
                   description: The container image of the Datadog Cluster Checks Runner
                   properties:
                     name:
-                      description: Define the image to use Use "datadog/agent:latest"
+                      description: Define the image to use Use "gcr.io/datadoghq/agent:latest"
                         for Datadog Agent 6 Use "datadog/dogstatsd:latest" for Standalone
-                        Datadog Agent DogStatsD6 Use "datadog/cluster-agent:latest"
+                        Datadog Agent DogStatsD6 Use "gcr.io/datadoghq/cluster-agent:latest"
                         for Datadog Cluster Agent
                       type: string
                     pullPolicy:

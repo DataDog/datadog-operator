@@ -3,8 +3,8 @@ kind: ClusterServiceVersion
 metadata:
   annotations:
     alm-examples: '[]'
-    capabilities: Basic Install
-    operators.operatorframework.io/builder: operator-sdk-v1.0.0
+    capabilities: Full Lifecycle
+    operators.operatorframework.io/builder: operator-sdk-v1.2.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
   name: datadog-operator.vX.Y.Z
   namespace: placeholder
@@ -17,7 +17,7 @@ spec:
       kind: DatadogAgent
       name: datadogagents.datadoghq.com
       version: v1alpha1
-    - description: DatadogMetric is the Schema for the datadogmetrics API
+    - description: DatadogMetric allows autoscaling on arbitrary Datadog query
       displayName: Datadog Metric
       kind: DatadogMetric
       name: datadogmetrics.datadoghq.com
@@ -34,6 +34,18 @@ spec:
     mediatype: image/svg+xml
   install:
     spec:
+      clusterPermissions:
+      - rules:
+        - apiGroups:
+          - security.openshift.io
+          resourceNames:
+          - hostaccess
+          - privileged
+          resources:
+          - securitycontextconstraints
+          verbs:
+          - use
+        serviceAccountName: datadog-agent-scc
       deployments: null
     strategy: ""
   installModes:

@@ -41,7 +41,7 @@ func Test_options_upgrade(t *testing.T) {
 				_ = c.Create(context.TODO(), dd)
 				return dd
 			},
-			image:   "datadog/cluster-agent:latest",
+			image:   "gcr.io/datadoghq/cluster-agent:latest",
 			wantErr: false,
 			wantFunc: func(c client.Client, image string) error {
 				dd := &datadoghqv1alpha1.DatadogAgent{}

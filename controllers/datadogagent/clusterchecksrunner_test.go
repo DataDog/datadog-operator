@@ -18,7 +18,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
-var testClusterChecksRunnerReplicas int32 = 2
+var testClusterChecksRunnerReplicas int32 = 1
 
 func clusterChecksRunnerDefaultPodSpec() corev1.PodSpec {
 	return corev1.PodSpec{
@@ -27,7 +27,7 @@ func clusterChecksRunnerDefaultPodSpec() corev1.PodSpec {
 		InitContainers: []corev1.Container{
 			{
 				Name:            "init-volume",
-				Image:           "datadog/agent:latest",
+				Image:           "gcr.io/datadoghq/agent:latest",
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
 				Command:         []string{"bash", "-c"},
@@ -41,7 +41,7 @@ func clusterChecksRunnerDefaultPodSpec() corev1.PodSpec {
 			},
 			{
 				Name:            "init-config",
-				Image:           "datadog/agent:latest",
+				Image:           "gcr.io/datadoghq/agent:latest",
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
 				Command:         []string{"bash", "-c"},
@@ -53,7 +53,7 @@ func clusterChecksRunnerDefaultPodSpec() corev1.PodSpec {
 		Containers: []corev1.Container{
 			{
 				Name:            "cluster-checks-runner",
-				Image:           "datadog/agent:latest",
+				Image:           "gcr.io/datadoghq/agent:latest",
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
 				Env:             clusterChecksRunnerDefaultEnvVars(),

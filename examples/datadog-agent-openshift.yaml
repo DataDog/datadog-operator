@@ -7,8 +7,8 @@ spec:
     apiKey: <paste-your-api-key-here>
     appKey: <paste-your-app-key-here>
   agent:
-    image: 
-      name: "datadog/agent:latest"
+    image:
+      name: "gcr.io/datadoghq/agent:latest"
     config:
       criSocket:
         criSocketPath: /var/run/crio/crio.sock
@@ -19,8 +19,8 @@ spec:
     log:
       enabled: false
   clusterAgent:
-    image: 
-      name: "datadog/cluster-agent:latest"
+    image:
+      name: "gcr.io/datadoghq/cluster-agent:latest"
     config:
       externalMetrics:
         enabled: true
@@ -28,5 +28,5 @@ spec:
       clusterChecksRunnerEnabled: true
     replicas: 2
   clusterChecksRunner:
-    image: 
-      name: "datadog/agent:latest"
+    image:
+      name: "gcr.io/datadoghq/agent:latest"
