@@ -47,10 +47,11 @@ func (r *Reconciler) manageClusterChecksRunnerRBACs(logger logr.Logger, dda *dat
 	}
 
 	// Create ServiceAccount
+	serviceAccountName := getClusterChecksRunnerServiceAccount(dda)
 	serviceAccount := &corev1.ServiceAccount{}
-	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesName, Namespace: dda.Namespace}, serviceAccount); err != nil {
+	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: serviceAccountName, Namespace: dda.Namespace}, serviceAccount); err != nil {
 		if errors.IsNotFound(err) {
-			return r.createServiceAccount(logger, dda, rbacResourcesName, clusterChecksRunnerVersion)
+			return r.createServiceAccount(logger, dda, serviceAccountName, clusterChecksRunnerVersion)
 		}
 		return reconcile.Result{}, err
 	}
@@ -70,7 +71,7 @@ func (r *Reconciler) manageClusterChecksRunnerRBACs(logger logr.Logger, dda *dat
 				return r.createClusterRoleBinding(logger, dda, roleBindingInfo{
 					name:               kubeStateMetricsRBACName,
 					roleName:           kubeStateMetricsRBACName,
-					serviceAccountName: serviceAccount.Name,
+					serviceAccountName: serviceAccountName,
 				}, clusterChecksRunnerVersion)
 			}
 			return reconcile.Result{}, err
