@@ -32,6 +32,10 @@ spec:
         imagePullPolicy: Always
         name: manager
         env:
+        - name: DD_API_KEY
+          value: "dummy_api_key"
+        - name: DD_APP_KEY
+          value: "dummy_app_key"
         - name: POD_NAME
           valueFrom:
             fieldRef:

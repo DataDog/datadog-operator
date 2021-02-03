@@ -6,6 +6,8 @@
 package condition
 
 import (
+	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -15,6 +17,159 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+func TestSetErrorActiveConditions(t *testing.T) {
+	now := metav1.Now()
+
+	testCases := []struct {
+		name                      string
+		status                    *datadoghqv1alpha1.DatadogMonitorStatus
+		err                       error
+		transition                bool
+		wantFirstConditionType    datadoghqv1alpha1.DatadogMonitorConditionType
+		wantFirstConditionStatus  corev1.ConditionStatus
+		wantSecondConditionType   datadoghqv1alpha1.DatadogMonitorConditionType
+		wantSecondConditionStatus corev1.ConditionStatus
+	}{
+		{
+			name:                     "status empty, no error",
+			status:                   &datadoghqv1alpha1.DatadogMonitorStatus{},
+			err:                      nil,
+			wantFirstConditionType:   datadoghqv1alpha1.DatadogMonitorConditionTypeActive,
+			wantFirstConditionStatus: corev1.ConditionTrue,
+		},
+		{
+			name:                     "status empty, error",
+			status:                   &datadoghqv1alpha1.DatadogMonitorStatus{},
+			err:                      errors.New("dummy error"),
+			wantFirstConditionType:   datadoghqv1alpha1.DatadogMonitorConditionTypeError,
+			wantFirstConditionStatus: corev1.ConditionTrue,
+		},
+		{
+			name: "status error, no error",
+			status: &datadoghqv1alpha1.DatadogMonitorStatus{
+				Conditions: []datadoghqv1alpha1.DatadogMonitorCondition{
+					{
+						Type:               datadoghqv1alpha1.DatadogMonitorConditionTypeError,
+						Message:            "old description",
+						Status:             corev1.ConditionTrue,
+						LastTransitionTime: metav1.NewTime(now.Add(-time.Hour)),
+						LastUpdateTime:     metav1.NewTime(now.Add(-time.Hour)),
+					},
+				},
+			},
+			err:                       nil,
+			transition:                true,
+			wantFirstConditionType:    datadoghqv1alpha1.DatadogMonitorConditionTypeError,
+			wantFirstConditionStatus:  corev1.ConditionFalse,
+			wantSecondConditionType:   datadoghqv1alpha1.DatadogMonitorConditionTypeActive,
+			wantSecondConditionStatus: corev1.ConditionTrue,
+		},
+		{
+			name: "status error, error",
+			status: &datadoghqv1alpha1.DatadogMonitorStatus{
+				Conditions: []datadoghqv1alpha1.DatadogMonitorCondition{
+					{
+						Type:               datadoghqv1alpha1.DatadogMonitorConditionTypeError,
+						Message:            "old description",
+						Status:             corev1.ConditionTrue,
+						LastTransitionTime: metav1.NewTime(now.Add(-time.Hour)),
+						LastUpdateTime:     metav1.NewTime(now.Add(-time.Hour)),
+					},
+				},
+			},
+			err:                      errors.New("dummy error"),
+			wantFirstConditionType:   datadoghqv1alpha1.DatadogMonitorConditionTypeError,
+			wantFirstConditionStatus: corev1.ConditionTrue,
+		},
+		{
+			name: "status no error, no error",
+			status: &datadoghqv1alpha1.DatadogMonitorStatus{
+				Conditions: []datadoghqv1alpha1.DatadogMonitorCondition{
+					{
+						Type:               datadoghqv1alpha1.DatadogMonitorConditionTypeActive,
+						Message:            "old description",
+						Status:             corev1.ConditionTrue,
+						LastTransitionTime: metav1.NewTime(now.Add(-time.Hour)),
+						LastUpdateTime:     metav1.NewTime(now.Add(-time.Hour)),
+					},
+				},
+			},
+			err:                      nil,
+			wantFirstConditionType:   datadoghqv1alpha1.DatadogMonitorConditionTypeActive,
+			wantFirstConditionStatus: corev1.ConditionTrue,
+		},
+		{
+			name: "status no error, error",
+			status: &datadoghqv1alpha1.DatadogMonitorStatus{
+				Conditions: []datadoghqv1alpha1.DatadogMonitorCondition{
+					{
+						Type:               datadoghqv1alpha1.DatadogMonitorConditionTypeActive,
+						Message:            "old description",
+						Status:             corev1.ConditionTrue,
+						LastTransitionTime: metav1.NewTime(now.Add(-time.Hour)),
+						LastUpdateTime:     metav1.NewTime(now.Add(-time.Hour)),
+					},
+				},
+			},
+			err:                       errors.New("dummy error"),
+			transition:                true,
+			wantFirstConditionType:    datadoghqv1alpha1.DatadogMonitorConditionTypeActive,
+			wantFirstConditionStatus:  corev1.ConditionFalse,
+			wantSecondConditionType:   datadoghqv1alpha1.DatadogMonitorConditionTypeError,
+			wantSecondConditionStatus: corev1.ConditionTrue,
+		},
+	}
+
+	for _, test := range testCases {
+		t.Run(test.name, func(t *testing.T) {
+			SetErrorActiveConditions(test.status, now, test.err)
+
+			assert.Equal(t, test.wantFirstConditionType, test.status.Conditions[0].Type)
+			assert.Equal(t, test.wantFirstConditionStatus, test.status.Conditions[0].Status)
+			assert.Equal(t, now, test.status.Conditions[0].LastUpdateTime)
+
+			if test.transition {
+				assert.Equal(t, now, test.status.Conditions[0].LastTransitionTime)
+			}
+
+			switch {
+			case test.err == nil && test.status.Conditions[0].Type == datadoghqv1alpha1.DatadogMonitorConditionTypeActive:
+				assert.Equal(t, "DatadogMonitor ready", test.status.Conditions[0].Message)
+			case test.err == nil && test.status.Conditions[0].Type == datadoghqv1alpha1.DatadogMonitorConditionTypeError:
+				assert.Equal(t, "", test.status.Conditions[0].Message)
+			case test.err != nil && test.status.Conditions[0].Type == datadoghqv1alpha1.DatadogMonitorConditionTypeActive:
+				assert.Equal(t, "DatadogMonitor error", test.status.Conditions[0].Message)
+			case test.err != nil && test.status.Conditions[0].Type == datadoghqv1alpha1.DatadogMonitorConditionTypeError:
+				assert.Equal(t, test.err.Error(), test.status.Conditions[0].Message)
+			}
+
+			fmt.Print(test.status)
+
+			if test.wantSecondConditionType != "" {
+				assert.Equal(t, test.wantSecondConditionType, test.status.Conditions[1].Type)
+				assert.Equal(t, test.wantSecondConditionStatus, test.status.Conditions[1].Status)
+				assert.Equal(t, now, test.status.Conditions[1].LastUpdateTime)
+
+				switch {
+				case test.err == nil && test.status.Conditions[1].Type == datadoghqv1alpha1.DatadogMonitorConditionTypeActive:
+					assert.Equal(t, "DatadogMonitor ready", test.status.Conditions[1].Message)
+				case test.err == nil && test.status.Conditions[1].Type == datadoghqv1alpha1.DatadogMonitorConditionTypeError:
+					assert.Equal(t, "", test.status.Conditions[1].Message)
+				case test.err != nil && test.status.Conditions[1].Type == datadoghqv1alpha1.DatadogMonitorConditionTypeActive:
+					assert.Equal(t, "DatadogMonitor error", test.status.Conditions[1].Message)
+				case test.err != nil && test.status.Conditions[1].Type == datadoghqv1alpha1.DatadogMonitorConditionTypeError:
+					assert.Contains(t, test.err.Error(), test.status.Conditions[1].Message)
+				}
+
+				if test.transition {
+					assert.Equal(t, now, test.status.Conditions[1].LastTransitionTime)
+				}
+			}
+
+		})
+	}
+}
 
 func TestUpdateDatadogMonitorConditions(t *testing.T) {
 	now := time.Now()

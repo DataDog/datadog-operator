@@ -24,13 +24,9 @@ type DatadogClient struct {
 }
 
 // InitDatadogClient initializes the Datadog API Client and establishes credentials
-func InitDatadogClient() (DatadogClient, error) {
-	// TODO support secret configuration in the operator
-	apiKey := os.Getenv(config.DDAPIKeyEnvVar)
-	appKey := os.Getenv(config.DDAppKeyEnvVar)
-
+func InitDatadogClient(apiKey, appKey string) (DatadogClient, error) {
 	if apiKey == "" || appKey == "" {
-		return DatadogClient{}, errors.New("error obtaining api key and/or app key")
+		return DatadogClient{}, errors.New("error obtaining API key and/or app key")
 	}
 
 	// Initialize the official Datadog V1 API client

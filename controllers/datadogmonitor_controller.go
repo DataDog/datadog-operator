@@ -23,6 +23,7 @@ import (
 // DatadogMonitorReconciler reconciles a DatadogMonitor object
 type DatadogMonitorReconciler struct {
 	Client      client.Client
+	DDClient    datadogclient.DatadogClient
 	VersionInfo *version.Info
 	Log         logr.Logger
 	Scheme      *runtime.Scheme
@@ -42,12 +43,7 @@ func (r *DatadogMonitorReconciler) Reconcile(req ctrl.Request) (ctrl.Result, err
 // SetupWithManager creates a new DatadogMonitor controller
 func (r *DatadogMonitorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
-	ddClient, err := datadogclient.InitDatadogClient()
-	if err != nil {
-		return err
-	}
-
-	internal, err := datadogmonitor.NewReconciler(r.Client, ddClient, r.VersionInfo, r.Scheme, r.Log, r.Recorder)
+	internal, err := datadogmonitor.NewReconciler(r.Client, r.DDClient, r.VersionInfo, r.Scheme, r.Log, r.Recorder)
 	if err != nil {
 		return err
 	}

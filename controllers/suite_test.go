@@ -83,7 +83,13 @@ var _ = BeforeSuite(func(done Done) {
 	})
 	Expect(err).ToNot(HaveOccurred())
 
-	err = SetupControllers(mgr, false)
+	options := SetupOptions{
+		SupportExtendedDaemonset: false,
+		APIKey:                   "dummy_api_key",
+		AppKey:                   "dummy_app_key",
+	}
+
+	err = SetupControllers(mgr, options)
 	Expect(err).ToNot(HaveOccurred())
 
 	go func() {

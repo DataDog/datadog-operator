@@ -126,8 +126,14 @@ func main() {
 	customSetupHealthChecks(mgr)
 	customSetupEndpoints(pprofActive, mgr)
 
+	options := controllers.SetupOptions{
+		SupportExtendedDaemonset: supportExtendedDaemonset,
+		APIKey:                   os.Getenv(config.DDAPIKeyEnvVar),
+		AppKey:                   os.Getenv(config.DDAppKeyEnvVar),
+	}
+
 	// Get some information about Kubernetes version
-	if err := controllers.SetupControllers(mgr, supportExtendedDaemonset); err != nil {
+	if err := controllers.SetupControllers(mgr, options); err != nil {
 		setupLog.Error(err, "unable to start controllers")
 		os.Exit(1)
 	}
