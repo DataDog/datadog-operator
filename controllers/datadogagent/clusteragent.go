@@ -706,17 +706,19 @@ func (r *Reconciler) manageClusterAgentRBACs(logger logr.Logger, dda *datadoghqv
 		return reconcile.Result{}, nil
 	}
 
-	rbacResourcesName := getClusterAgentRbacResourcesName(dda)
 	clusterAgentVersion := getClusterAgentVersion(dda)
 
 	// Create ServiceAccount
+	serviceAccountName := getClusterAgentServiceAccount(dda)
 	serviceAccount := &corev1.ServiceAccount{}
-	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesName, Namespace: dda.Namespace}, serviceAccount); err != nil {
+	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: serviceAccountName, Namespace: dda.Namespace}, serviceAccount); err != nil {
 		if errors.IsNotFound(err) {
-			return r.createServiceAccount(logger, dda, rbacResourcesName, clusterAgentVersion)
+			return r.createServiceAccount(logger, dda, serviceAccountName, clusterAgentVersion)
 		}
 		return reconcile.Result{}, err
 	}
+
+	rbacResourcesName := getClusterAgentRbacResourcesName(dda)
 
 	// Create or update ClusterRole
 	clusterRole := &rbacv1.ClusterRole{}
@@ -737,7 +739,7 @@ func (r *Reconciler) manageClusterAgentRBACs(logger logr.Logger, dda *datadoghqv
 			return r.createClusterRoleBinding(logger, dda, roleBindingInfo{
 				name:               rbacResourcesName,
 				roleName:           rbacResourcesName,
-				serviceAccountName: getClusterAgentServiceAccount(dda),
+				serviceAccountName: serviceAccountName,
 			}, clusterAgentVersion)
 		}
 		return reconcile.Result{}, err
