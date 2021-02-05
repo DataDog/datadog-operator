@@ -744,6 +744,9 @@ func (r *Reconciler) manageClusterAgentRBACs(logger logr.Logger, dda *datadoghqv
 		}
 		return reconcile.Result{}, err
 	}
+	if result, err := r.udpateIfNeededClusterAgentClusterRoleBinding(logger, dda, rbacResourcesName, serviceAccountName, clusterAgentVersion, clusterRoleBinding); err != nil {
+		return result, err
+	}
 
 	// Create or update Role
 	role := &rbacv1.Role{}
@@ -814,9 +817,7 @@ func (r *Reconciler) manageClusterAgentRBACs(logger logr.Logger, dda *datadoghqv
 		}
 	} else if !metricsProviderEnabled {
 		return r.cleanupClusterRoleBinding(logger, r.client, dda, metricsReaderClusterRoleName)
-	}
-
-	if result, err := r.updateIfNeededClusterAgentRoleBinding(logger, dda, clusterAgentVersion, roleBinding); err != nil {
+	} else if result, err := r.updateIfNeededClusterAgentRoleBinding(logger, dda, clusterAgentVersion, roleBinding); err != nil {
 		return result, err
 	}
 
@@ -882,6 +883,30 @@ func (r *Reconciler) updateIfNeededClusterAgentRole(logger logr.Logger, dda *dat
 	return reconcile.Result{}, nil
 }
 
+func (r *Reconciler) udpateIfNeededClusterAgentClusterRoleBinding(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, serviceAccountName, agentVersion string, clusterRoleBinding *rbacv1.ClusterRoleBinding) (reconcile.Result, error) {
+	info := roleBindingInfo{
+		name:               name,
+		roleName:           name,
+		serviceAccountName: serviceAccountName,
+	}
+	newClusterRoleBinding := buildClusterRoleBinding(dda, info, agentVersion)
+	if !apiequality.Semantic.DeepEqual(newClusterRoleBinding.Subjects, clusterRoleBinding.Subjects) || !apiequality.Semantic.DeepEqual(newClusterRoleBinding.RoleRef, clusterRoleBinding.RoleRef) {
+		updatedClusterRoleBinding := clusterRoleBinding.DeepCopy()
+		{
+			updatedClusterRoleBinding.Labels = newClusterRoleBinding.Labels
+			updatedClusterRoleBinding.RoleRef = newClusterRoleBinding.RoleRef
+			updatedClusterRoleBinding.Subjects = newClusterRoleBinding.Subjects
+		}
+		logger.V(1).Info("updateClusterAgentClusterRoleBinding", "clusterRoleBinding.name", updatedClusterRoleBinding.Name, "serviceAccount", serviceAccountName)
+		if err := r.client.Update(context.TODO(), updatedClusterRoleBinding); err != nil {
+			return reconcile.Result{}, err
+		}
+		event := buildEventInfo(updatedClusterRoleBinding.Name, updatedClusterRoleBinding.Namespace, clusterRoleKind, datadog.UpdateEvent)
+		r.recordEvent(dda, event)
+	}
+	return reconcile.Result{}, nil
+}
+
 func (r *Reconciler) updateIfNeededAgentClusterRole(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string, clusterRole *rbacv1.ClusterRole) (reconcile.Result, error) {
 	newClusterRole := buildAgentClusterRole(dda, name, agentVersion)
 	if !apiequality.Semantic.DeepEqual(newClusterRole.Rules, clusterRole.Rules) {
@@ -895,19 +920,25 @@ func (r *Reconciler) updateIfNeededAgentClusterRole(logger logr.Logger, dda *dat
 	return reconcile.Result{}, nil
 }
 
-func (r *Reconciler) udpateIfNeededAgentClusterRoleBinding(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, serviceAccountName, agentVersion string, clusterRoleBinding *rbacv1.ClusterRoleBinding) (reconcile.Result, error) {
+func (r *Reconciler) udpateIfNeededAgentClusterRoleBinding(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, roleName, serviceAccountName, agentVersion string, clusterRoleBinding *rbacv1.ClusterRoleBinding) (reconcile.Result, error) {
 	info := roleBindingInfo{
 		name:               name,
-		roleName:           name,
+		roleName:           roleName,
 		serviceAccountName: serviceAccountName,
 	}
 	newClusterRoleBinding := buildClusterRoleBinding(dda, info, agentVersion)
 	if !apiequality.Semantic.DeepEqual(newClusterRoleBinding.Subjects, clusterRoleBinding.Subjects) || !apiequality.Semantic.DeepEqual(newClusterRoleBinding.RoleRef, clusterRoleBinding.RoleRef) {
-		logger.V(1).Info("updateAgentClusterRoleBinding", "clusterRoleBinding.name", clusterRoleBinding.Name)
-		if err := r.client.Update(context.TODO(), newClusterRoleBinding); err != nil {
+		updatedClusterRoleBinding := clusterRoleBinding.DeepCopy()
+		{
+			updatedClusterRoleBinding.Labels = newClusterRoleBinding.Labels
+			updatedClusterRoleBinding.RoleRef = newClusterRoleBinding.RoleRef
+			updatedClusterRoleBinding.Subjects = newClusterRoleBinding.Subjects
+		}
+		logger.V(1).Info("updateAgentClusterRoleBinding", "clusterRoleBinding.name", updatedClusterRoleBinding.Name, "serviceAccount", serviceAccountName)
+		if err := r.client.Update(context.TODO(), updatedClusterRoleBinding); err != nil {
 			return reconcile.Result{}, err
 		}
-		event := buildEventInfo(newClusterRoleBinding.Name, newClusterRoleBinding.Namespace, clusterRoleKind, datadog.UpdateEvent)
+		event := buildEventInfo(updatedClusterRoleBinding.Name, newClusterRoleBinding.Namespace, clusterRoleKind, datadog.UpdateEvent)
 		r.recordEvent(dda, event)
 	}
 	return reconcile.Result{}, nil
@@ -951,7 +982,7 @@ func (r *Reconciler) createClusterAgentRoleBinding(logger logr.Logger, dda *data
 	if err := controllerutil.SetControllerReference(dda, roleBinding, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
-	logger.V(1).Info("createClusterAgentRoleBinding", "roleBinding.name", roleBinding.Name, "roleBinding.Namespace", roleBinding.Namespace)
+	logger.V(1).Info("createClusterAgentRoleBinding", "roleBinding.name", roleBinding.Name, "roleBinding.Namespace", roleBinding.Namespace, "serviceAccount", info.serviceAccountName)
 	event := buildEventInfo(roleBinding.Name, roleBinding.Namespace, roleBindingKind, datadog.CreationEvent)
 	r.recordEvent(dda, event)
 	return reconcile.Result{}, r.client.Create(context.TODO(), roleBinding)
@@ -965,7 +996,7 @@ func (r *Reconciler) updateIfNeededClusterAgentRoleBinding(logger logr.Logger, d
 	}
 	newRoleBinding := buildRoleBinding(dda, info, agentVersion)
 	if !apiequality.Semantic.DeepEqual(newRoleBinding.RoleRef, roleBinding.RoleRef) || !apiequality.Semantic.DeepEqual(newRoleBinding.Subjects, roleBinding.Subjects) {
-		logger.V(1).Info("updateAgentClusterRoleBinding", "roleBinding.name", newRoleBinding.Name, "roleBinding.namespace", newRoleBinding.Namespace)
+		logger.V(1).Info("updateClusterAgentClusterRoleBinding", "roleBinding.name", newRoleBinding.Name, "roleBinding.namespace", newRoleBinding.Namespace, "serviceAccount", info.serviceAccountName)
 		event := buildEventInfo(newRoleBinding.Name, newRoleBinding.Namespace, roleBindingKind, datadog.UpdateEvent)
 		r.recordEvent(dda, event)
 		if err := r.client.Update(context.TODO(), newRoleBinding); err != nil {
