@@ -86,6 +86,8 @@ type DatadogMonitorStatus struct {
 	// resource (true) or outside Kubernetes (false)
 	Primary bool `json:"primary,omitempty"`
 
+	// CurrentHash tracks the hash of the current DatadogMonitorSpec to know
+	// if the Spec has changed and needs an update
 	CurrentHash string `json:"currentHash,omitempty"`
 }
 

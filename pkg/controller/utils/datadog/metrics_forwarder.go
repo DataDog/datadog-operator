@@ -611,10 +611,10 @@ func (mf *metricsForwarder) updateStatusIfNeeded(err error) {
 
 	oldStatus := mf.getStatus()
 	if oldStatus == nil {
-		newStatus := condition.NewDatadogAgentStatusCondition(datadoghqv1alpha1.DatadogAgentConditionTypeActiveDatadogMetrics, conditionStatus, now, "", description)
+		newStatus := condition.NewDatadogAgentStatusCondition(datadoghqv1alpha1.DatadogMetricsActive, conditionStatus, now, "", description)
 		mf.setStatus(&newStatus)
 	} else {
-		mf.setStatus(condition.UpdateDatadogAgentStatusCondition(oldStatus, now, datadoghqv1alpha1.DatadogAgentConditionTypeActiveDatadogMetrics, conditionStatus, description))
+		mf.setStatus(condition.UpdateDatadogAgentStatusCondition(oldStatus, now, datadoghqv1alpha1.DatadogMetricsActive, conditionStatus, description))
 	}
 }
 

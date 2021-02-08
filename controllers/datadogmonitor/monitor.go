@@ -25,18 +25,22 @@ func buildMonitor(dm *datadoghqv1alpha1.DatadogMonitor) (*datadogapiclientv1.Mon
 	o := datadogapiclientv1.MonitorOptions{}
 
 	m := datadogapiclientv1.NewMonitor()
-	m.SetType(monitorType)
-	m.SetQuery(query)
-	m.SetName(name)
-	m.SetMessage(msg)
-	m.SetOptions(o)
+	{
+		m.SetType(monitorType)
+		m.SetQuery(query)
+		m.SetName(name)
+		m.SetMessage(msg)
+		m.SetOptions(o)
+	}
 
 	u := datadogapiclientv1.NewMonitorUpdateRequest()
-	u.SetType(monitorType)
-	u.SetQuery(query)
-	u.SetName(name)
-	u.SetMessage(msg)
-	u.SetOptions(o)
+	{
+		u.SetType(monitorType)
+		u.SetQuery(query)
+		u.SetName(name)
+		u.SetMessage(msg)
+		u.SetOptions(o)
+	}
 
 	tags := dm.Spec.Tags
 	sort.Strings(tags)

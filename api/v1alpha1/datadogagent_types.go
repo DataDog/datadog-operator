@@ -1140,10 +1140,10 @@ const (
 	// DatadogAgentConditionTypeSecretError the required Secret doesn't exist.
 	DatadogAgentConditionTypeSecretError DatadogAgentConditionType = "SecretError"
 
-	// DatadogAgentConditionTypeActiveDatadogMetrics forwarding metrics and events to Datadog is active
-	DatadogAgentConditionTypeActiveDatadogMetrics DatadogAgentConditionType = "ActiveDatadogMetrics"
-	// DatadogAgentConditionTypeDatadogMetricsError cannot forward deployment metrics and events to Datadog
-	DatadogAgentConditionTypeDatadogMetricsError DatadogAgentConditionType = "DatadogMetricsError"
+	// DatadogMetricsActive forwarding metrics and events to Datadog is active
+	DatadogMetricsActive DatadogAgentConditionType = "ActiveDatadogMetrics"
+	// DatadogMetricsError cannot forward deployment metrics and events to Datadog
+	DatadogMetricsError DatadogAgentConditionType = "DatadogMetricsError"
 )
 
 // DatadogAgent Deployment with Datadog Operator

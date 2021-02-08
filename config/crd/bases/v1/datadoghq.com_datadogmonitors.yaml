@@ -158,6 +158,8 @@ spec:
                 description: Creator is the identify of the monitor creator
                 type: string
               currentHash:
+                description: CurrentHash tracks the hash of the current DatadogMonitorSpec
+                  to know if the Spec has changed and needs an update
                 type: string
               downtimeStatus:
                 description: DowntimeStatus defines whether the monitor is downtimed
