@@ -1465,6 +1465,12 @@ func getVolumeMountsForSecurityAgent(dda *datadoghqv1alpha1.DatadogAgent) []core
 	}
 
 	spec := dda.Spec
+
+	if spec.Agent.CustomConfig != nil {
+		volumeMount := getVolumeMountFromCustomConfigSpec(spec.Agent.CustomConfig, datadoghqv1alpha1.AgentCustomConfigVolumeName, datadoghqv1alpha1.AgentCustomConfigVolumePath, datadoghqv1alpha1.AgentCustomConfigVolumeSubPath)
+		volumeMounts = append(volumeMounts, volumeMount)
+	}
+
 	// Cri socket volume
 	if spec.Agent.Config.CriSocket != nil {
 		path := ""
