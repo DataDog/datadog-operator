@@ -211,7 +211,7 @@ func (r *Reconciler) get(logger logr.Logger, datadogMonitor *datadoghqv1alpha1.D
 	}
 
 	convertStateToStatus(m, newStatus)
-	logger.Info("Synced DatadogMonitor state", "datadogMonitor.Namespace", datadogMonitor.Namespace, "datadogMonitor.Name", datadogMonitor.Name, "datadogMonitor.Status.ID", datadogMonitor.Status.ID)
+	logger.V(1).Info("Synced DatadogMonitor state", "datadogMonitor.Namespace", datadogMonitor.Namespace, "datadogMonitor.Name", datadogMonitor.Name, "datadogMonitor.Status.ID", datadogMonitor.Status.ID)
 
 	return nil
 }
@@ -267,7 +267,7 @@ func (r *Reconciler) checkRequiredTags(logger logr.Logger, datadogMonitor *datad
 			logger.Error(err, "Failed to update DatadogMonitor with required tags")
 			return ctrl.Result{Requeue: true, RequeueAfter: defaultErrRequeuePeriod}, err
 		}
-		logger.Info("Added required tags", "datadogMonitor.Status.ID", datadogMonitor.Status.ID)
+		logger.Info("Added required tags", "datadogMonitor.Namespace", datadogMonitor.Namespace, "datadogMonitor.Name", datadogMonitor.Name, "datadogMonitor.Status.ID", datadogMonitor.Status.ID)
 		return ctrl.Result{Requeue: true, RequeueAfter: defaultRequeuePeriod}, nil
 	}
 

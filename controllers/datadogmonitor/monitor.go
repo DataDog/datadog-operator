@@ -106,12 +106,12 @@ func translateClientError(err error, msg string) error {
 	}
 
 	if apiErr, ok := err.(datadogapiclientv1.GenericOpenAPIError); ok {
-		return fmt.Errorf(msg+": %v: %s", err, apiErr.Body())
+		return fmt.Errorf(msg+": %w: %s", err, apiErr.Body())
 	}
 
 	if errURL, ok := err.(*url.Error); ok {
 		return fmt.Errorf(msg+" (url.Error): %s", errURL)
 	}
 
-	return fmt.Errorf(msg+": %s", err.Error())
+	return fmt.Errorf(msg+": %w", err.Error())
 }
