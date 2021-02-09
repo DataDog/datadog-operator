@@ -21,6 +21,8 @@ type NewDatadogAgentOptions struct {
 	UseEDS              bool
 	APIKey              string
 	AppKey              string
+	CustomConfig        *datadoghqv1alpha1.CustomConfigSpec
+	SecuritySpec        *datadoghqv1alpha1.SecuritySpec
 }
 
 var (
@@ -117,6 +119,14 @@ func NewDatadogAgent(ns, name, image string, options *NewDatadogAgentOptions) *d
 					PullSecrets: &[]v1.LocalObjectReference{},
 				},
 			}
+		}
+
+		if options.CustomConfig != nil {
+			ad.Spec.Agent.CustomConfig = options.CustomConfig
+		}
+
+		if options.SecuritySpec != nil {
+			ad.Spec.Agent.Security = *options.SecuritySpec
 		}
 	}
 
