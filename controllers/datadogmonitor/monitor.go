@@ -113,5 +113,5 @@ func translateClientError(err error, msg string) error {
 		return fmt.Errorf(msg+" (url.Error): %s", errURL)
 	}
 
-	return fmt.Errorf(msg+": %w", err.Error())
+	return fmt.Errorf(msg+": %w", err)
 }

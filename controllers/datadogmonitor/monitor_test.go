@@ -7,6 +7,7 @@ package datadogmonitor
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -272,30 +273,33 @@ func setupTestAuth(apiURL string) context.Context {
 }
 
 func Test_translateClientError(t *testing.T) {
+	var ErrGeneric = errors.New("generic error")
 
 	testCases := []struct {
-		name          string
-		error         error
-		message       string
-		expectedError error
+		name                   string
+		error                  error
+		message                string
+		expectedErrorType      error
+		expectedError          error
+		expectedErrorInterface interface{}
 	}{
 		{
-			name:          "no message, generic error",
-			error:         fmt.Errorf("generic error"),
-			message:       "",
-			expectedError: fmt.Errorf("an error occurred: generic error"),
+			name:              "no message, generic error",
+			error:             ErrGeneric,
+			message:           "",
+			expectedErrorType: ErrGeneric,
 		},
 		{
-			name:          "generic message, generic error",
-			error:         fmt.Errorf("generic error"),
-			message:       "generic message",
-			expectedError: fmt.Errorf("generic message: generic error"),
+			name:              "generic message, generic error",
+			error:             ErrGeneric,
+			message:           "generic message",
+			expectedErrorType: ErrGeneric,
 		},
 		{
-			name:          "generic message, error type datadogapiclientv1.GenericOpenAPIError",
-			error:         datadogapiclientv1.GenericOpenAPIError{},
-			message:       "generic message",
-			expectedError: fmt.Errorf("generic message: : "),
+			name:                   "generic message, error type datadogapiclientv1.GenericOpenAPIError",
+			error:                  datadogapiclientv1.GenericOpenAPIError{},
+			message:                "generic message",
+			expectedErrorInterface: &datadogapiclientv1.GenericOpenAPIError{},
 		},
 		{
 			name:          "generic message, error type *url.Error",
@@ -307,7 +311,18 @@ func Test_translateClientError(t *testing.T) {
 	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
 			result := translateClientError(test.error, test.message)
-			assert.Equal(t, test.expectedError, result)
+
+			if test.expectedErrorType != nil {
+				assert.True(t, errors.Is(result, test.expectedErrorType))
+			}
+
+			if test.expectedErrorInterface != nil {
+				assert.True(t, errors.As(result, test.expectedErrorInterface))
+			}
+
+			if test.expectedError != nil {
+				assert.Equal(t, test.expectedError, result)
+			}
 		})
 	}
 }
