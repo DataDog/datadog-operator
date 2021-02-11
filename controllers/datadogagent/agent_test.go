@@ -1053,7 +1053,7 @@ func defaultSystemProbePodSpec() corev1.PodSpec {
 	}
 }
 
-func defaultOrchestratorPodSpec() corev1.PodSpec {
+func defaultOrchestratorPodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodSpec {
 	return corev1.PodSpec{
 		ServiceAccountName: "foo-agent",
 		InitContainers: []corev1.Container{
@@ -1113,7 +1113,7 @@ func defaultOrchestratorPodSpec() corev1.PodSpec {
 					"-config=/etc/datadog-agent/datadog.yaml",
 				},
 				Resources:    corev1.ResourceRequirements{},
-				Env:          defaultOrchestratorEnvVars(),
+				Env:          defaultOrchestratorEnvVars(dda),
 				VolumeMounts: defaultProcessMountVolumes(),
 			},
 		},
@@ -1186,7 +1186,7 @@ func defaultProcessMount() []corev1.Volume {
 	}
 }
 
-func defaultOrchestratorEnvVars() []corev1.EnvVar {
+func defaultOrchestratorEnvVars(dda *datadoghqv1alpha1.DatadogAgent) []corev1.EnvVar {
 
 	newVars := []corev1.EnvVar{
 		{
@@ -1228,6 +1228,7 @@ func defaultOrchestratorEnvVars() []corev1.EnvVar {
 	}
 	orchestratorEnvs, _ := orchestrator.EnvVars(&explorerConfig)
 	newVars = append(newVars, orchestratorEnvs...)
+	newVars = append(newVars, envForClusterAgentConnection(dda)...)
 
 	return append(newVars, vars...)
 }
@@ -2545,13 +2546,13 @@ func Test_newExtendedDaemonSetFromInstance_SystemProbe(t *testing.T) {
 }
 
 func Test_newExtendedDaemonSetFromInstance_Orchestrator(t *testing.T) {
-	orchestratorPodSpec := defaultOrchestratorPodSpec()
-
 	dda := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
 		UseEDS:                      true,
 		ClusterAgentEnabled:         true,
 		OrchestratorExplorerEnabled: true,
 	})
+
+	orchestratorPodSpec := defaultOrchestratorPodSpec(dda)
 
 	tests := []extendedDaemonSetFromInstanceTest{
 		{
