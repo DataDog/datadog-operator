@@ -504,6 +504,9 @@ func getEnvVarsForProcessAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.En
 			return nil, err
 		}
 		envVars = append(envVars, envs...)
+
+		// The process agent retrieves the cluster id from the Cluster Agent
+		envVars = append(envVars, envForClusterAgentConnection(dda)...)
 	}
 
 	commonEnvVars, err := getEnvVarsCommon(dda, true)
@@ -679,20 +682,7 @@ func getEnvVarsForAgent(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent)
 	}
 
 	if spec.ClusterAgent != nil {
-		clusterEnv := []corev1.EnvVar{
-			{
-				Name:  datadoghqv1alpha1.DDClusterAgentEnabled,
-				Value: strconv.FormatBool(true),
-			},
-			{
-				Name:  datadoghqv1alpha1.DDClusterAgentKubeServiceName,
-				Value: getClusterAgentServiceName(dda),
-			},
-			{
-				Name:      datadoghqv1alpha1.DDClusterAgentAuthToken,
-				ValueFrom: getClusterAgentAuthToken(dda),
-			},
-		}
+		clusterEnv := envForClusterAgentConnection(dda)
 		if datadoghqv1alpha1.BoolValue(spec.ClusterAgent.Config.ClusterChecksEnabled) {
 			if spec.ClusterChecksRunner == nil {
 				clusterEnv = append(clusterEnv, corev1.EnvVar{
@@ -2053,4 +2043,25 @@ func (nsn namespacedName) GetName() string {
 // getMonitoredObj returns a namespacedName from a reconcile.Request object
 func getMonitoredObj(req reconcile.Request) namespacedName {
 	return namespacedName{req}
+}
+
+// envForClusterAgentConnection returns the environment variables required to connect to the Cluster Agent
+func envForClusterAgentConnection(dda *datadoghqv1alpha1.DatadogAgent) []corev1.EnvVar {
+	if dda.Spec.ClusterAgent != nil {
+		return []corev1.EnvVar{
+			{
+				Name:  datadoghqv1alpha1.DDClusterAgentEnabled,
+				Value: strconv.FormatBool(true),
+			},
+			{
+				Name:  datadoghqv1alpha1.DDClusterAgentKubeServiceName,
+				Value: getClusterAgentServiceName(dda),
+			},
+			{
+				Name:      datadoghqv1alpha1.DDClusterAgentAuthToken,
+				ValueFrom: getClusterAgentAuthToken(dda),
+			},
+		}
+	}
+	return []corev1.EnvVar{}
 }
