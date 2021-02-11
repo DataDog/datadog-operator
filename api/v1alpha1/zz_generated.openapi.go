@@ -142,7 +142,7 @@ func schema__api_v1alpha1_APMUnixDomainSocketSpec(ref common.ReferenceCallback) 
 					},
 					"hostFilepath": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Define the host APM socket filepath used when APM over Unix Domain Socket is enabled (default value: /var/run/datadog/apm.sock) ref: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables",
+							Description: "Define the host APM socket filepath used when APM over Unix Domain Socket is enabled (default value: /var/run/datadog/apm/apm.sock) ref: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -623,7 +623,7 @@ func schema__api_v1alpha1_DSDUnixDomainSocketSpec(ref common.ReferenceCallback) 
 					},
 					"hostFilepath": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Define the host APM socket filepath used when APM over Unix Domain Socket is enabled (default value: /var/run/datadog/statsd.sock) ref: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/",
+							Description: "Define the host APM socket filepath used when APM over Unix Domain Socket is enabled (default value: /var/run/datadog/statsd/statsd.sock) ref: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/",
 							Type:        []string{"string"},
 							Format:      "",
 						},
