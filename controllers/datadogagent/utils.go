@@ -862,6 +862,23 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 		volumes = append(volumes, dsdsocketVolume)
 	}
 
+	// APM volume
+	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Apm.UnixDomainSocket.Enabled) {
+		volumeType := corev1.HostPathDirectoryOrCreate
+		hostPath := getDirFromFilepath(*dda.Spec.Agent.Apm.UnixDomainSocket.HostFilepath)
+
+		dsdsocketVolume := corev1.Volume{
+			Name: datadoghqv1alpha1.APMSocketVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: hostPath,
+					Type: &volumeType,
+				},
+			},
+		}
+		volumes = append(volumes, dsdsocketVolume)
+	}
+
 	if dda.Spec.Agent.Config.CriSocket != nil {
 		path := ""
 		if dda.Spec.Agent.Config.CriSocket.DockerSocketPath != nil {
@@ -1208,14 +1225,6 @@ func getVolumeMountsForAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []corev1.
 
 	// Dogstatsd volume
 	if datadoghqv1alpha1.BoolValue(spec.Agent.Config.Dogstatsd.UnixDomainSocket.Enabled) {
-		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      datadoghqv1alpha1.DogstatsdSocketVolumeName,
-			MountPath: datadoghqv1alpha1.DogstatsdSocketVolumePath,
-		})
-	}
-
-	// APM volume
-	if datadoghqv1alpha1.BoolValue(spec.Agent.Apm.UnixDomainSocket.Enabled) {
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
 			Name:      datadoghqv1alpha1.DogstatsdSocketVolumeName,
 			MountPath: datadoghqv1alpha1.DogstatsdSocketVolumePath,
