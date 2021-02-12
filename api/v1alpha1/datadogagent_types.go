@@ -319,7 +319,7 @@ type APMUnixDomainSocketSpec struct {
 	Enabled *bool `json:"enabled,omitempty"`
 
 	// Define the host APM socket filepath used when APM over Unix Domain Socket is enabled
-	// (default value: /var/run/datadog/apm.sock)
+	// (default value: /var/run/datadog/apm/apm.sock)
 	// ref: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables
 	// +optional
 	HostFilepath *string `json:"hostFilepath,omitempty"`
@@ -779,7 +779,7 @@ type DSDUnixDomainSocketSpec struct {
 	Enabled *bool `json:"enabled,omitempty"`
 
 	// Define the host APM socket filepath used when APM over Unix Domain Socket is enabled
-	// (default value: /var/run/datadog/statsd.sock)
+	// (default value: /var/run/datadog/statsd/statsd.sock)
 	// ref: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/
 	// +optional
 	HostFilepath *string `json:"hostFilepath,omitempty"`
