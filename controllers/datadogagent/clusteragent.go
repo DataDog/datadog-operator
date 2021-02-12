@@ -1040,6 +1040,12 @@ func buildAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, version st
 			Resources: []string{datadoghqv1alpha1.EndpointsResource},
 			Verbs:     []string{datadoghqv1alpha1.GetVerb},
 		},
+		{
+			// Leader election check
+			APIGroups: []string{datadoghqv1alpha1.CoordinationAPIGroup},
+			Resources: []string{datadoghqv1alpha1.LeasesResource},
+			Verbs:     []string{datadoghqv1alpha1.GetVerb},
+		},
 	}
 
 	if dda.Spec.ClusterAgent == nil {
