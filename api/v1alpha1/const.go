@@ -108,7 +108,7 @@ const (
 	// Datadog volume names and mount paths
 
 	APMSocketVolumeName                = "apmsocket"
-	APMSocketVolumePath                = "/var/run/datadog"
+	APMSocketVolumePath                = "/var/run/datadog/apm"
 	InstallInfoVolumeName              = "installinfo"
 	InstallInfoVolumeSubPath           = "install_info"
 	InstallInfoVolumePath              = "/etc/datadog-agent/install_info"
@@ -136,7 +136,7 @@ const (
 	CriSocketVolumeName                = "runtimesocketdir"
 	CriSocketVolumeReadOnly            = true
 	DogstatsdSocketVolumeName          = "dsdsocket"
-	DogstatsdSocketVolumePath          = "/var/run/datadog"
+	DogstatsdSocketVolumePath          = "/var/run/datadog/statsd"
 	KubeStateMetricCoreVolumeName      = "ksm-core-config"
 	PointerVolumeName                  = "pointerdir"
 	PointerVolumePath                  = "/opt/datadog-agent/run"
