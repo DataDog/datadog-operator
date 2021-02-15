@@ -76,9 +76,11 @@ generate-manifests: controller-gen
 	$(CONTROLLER_GEN) crd:trivialVersions=true,crdVersions=v1beta1 rbac:roleName=manager webhook paths="./..." output:crd:artifacts:config=config/crd/bases/v1beta1
 
 
-generate: controller-gen generate-openapi ## Generate code
+generate: controller-gen generate-openapi generate-docs ## Generate code
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
+generate-docs: bin/crd-to-markdown
+	./bin/crd-to-markdown --links hack/docs-generator/links.csv  --header hack/docs-generator/header.md --footer hack/docs-generator/footer.md -f ./api/v1alpha1/datadogagent_types.go -f./api/v1alpha1/datadogmetric_types.go -n DatadogAgent -n DatadogMetric > docs/configuration.md
 
 docker-build: generate docker-build-ci ## Build the docker image
 
@@ -186,6 +188,9 @@ bin/kubebuilder:
 
 bin/openapi-gen:
 	go build -o ./bin/openapi-gen k8s.io/kube-openapi/cmd/openapi-gen
+
+bin/crd-to-markdown:
+	./hack/install-crd-to-markdown.sh v0.0.3
 
 bin/yq:
 	./hack/install-yq.sh 3.3.0
