@@ -527,10 +527,6 @@ func getEnvVarsForSystemProbe(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.Env
 func getEnvVarsCommon(dda *datadoghqv1alpha1.DatadogAgent, needAPIKey bool) ([]corev1.EnvVar, error) {
 	envVars := []corev1.EnvVar{
 		{
-			Name:  datadoghqv1alpha1.DDClusterName,
-			Value: dda.Spec.ClusterName,
-		},
-		{
 			Name:  datadoghqv1alpha1.DDLogLevel,
 			Value: getLogLevel(dda),
 		},
@@ -546,6 +542,13 @@ func getEnvVarsCommon(dda *datadoghqv1alpha1.DatadogAgent, needAPIKey bool) ([]c
 			Name:  datadoghqv1alpha1.KubernetesEnvvarName,
 			Value: "yes",
 		},
+	}
+
+	if dda.Spec.ClusterName != "" {
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  datadoghqv1alpha1.DDClusterName,
+			Value: dda.Spec.ClusterName,
+		})
 	}
 
 	if needAPIKey {

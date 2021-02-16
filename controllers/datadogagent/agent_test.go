@@ -610,10 +610,6 @@ func runtimeSecurityAgentMountVolume() []corev1.VolumeMount {
 func defaultEnvVars(extraEnv map[string]string) []corev1.EnvVar {
 	envs := []corev1.EnvVar{
 		{
-			Name:  "DD_CLUSTER_NAME",
-			Value: "",
-		},
-		{
 			Name:  "DD_HEALTH_PORT",
 			Value: "5555",
 		},
@@ -2546,7 +2542,6 @@ func Test_newExtendedDaemonSetFromInstance_SystemProbe(t *testing.T) {
 
 func Test_newExtendedDaemonSetFromInstance_Orchestrator(t *testing.T) {
 	orchestratorPodSpec := defaultOrchestratorPodSpec()
-
 	dda := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
 		UseEDS:                      true,
 		ClusterAgentEnabled:         true,
