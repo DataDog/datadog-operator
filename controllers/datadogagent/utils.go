@@ -501,6 +501,9 @@ func getEnvVarsForProcessAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.En
 			return nil, err
 		}
 		envVars = append(envVars, envs...)
+
+		// The process agent retrieves the cluster id from the Cluster Agent
+		envVars = append(envVars, envForClusterAgentConnection(dda)...)
 	}
 
 	commonEnvVars, err := getEnvVarsCommon(dda, true)
@@ -673,20 +676,7 @@ func getEnvVarsForAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.EnvVar, e
 	}
 
 	if spec.ClusterAgent != nil {
-		clusterEnv := []corev1.EnvVar{
-			{
-				Name:  datadoghqv1alpha1.DDClusterAgentEnabled,
-				Value: strconv.FormatBool(true),
-			},
-			{
-				Name:  datadoghqv1alpha1.DDClusterAgentKubeServiceName,
-				Value: getClusterAgentServiceName(dda),
-			},
-			{
-				Name:      datadoghqv1alpha1.DDClusterAgentAuthToken,
-				ValueFrom: getClusterAgentAuthToken(dda),
-			},
-		}
+		clusterEnv := envForClusterAgentConnection(dda)
 		if datadoghqv1alpha1.BoolValue(spec.ClusterAgent.Config.ClusterChecksEnabled) {
 			if spec.ClusterChecksRunner == nil {
 				clusterEnv = append(clusterEnv, corev1.EnvVar{
@@ -854,6 +844,23 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 
 		dsdsocketVolume := corev1.Volume{
 			Name: datadoghqv1alpha1.DogstatsdSocketVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: hostPath,
+					Type: &volumeType,
+				},
+			},
+		}
+		volumes = append(volumes, dsdsocketVolume)
+	}
+
+	// APM volume
+	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Apm.UnixDomainSocket.Enabled) {
+		volumeType := corev1.HostPathDirectoryOrCreate
+		hostPath := getDirFromFilepath(*dda.Spec.Agent.Apm.UnixDomainSocket.HostFilepath)
+
+		dsdsocketVolume := corev1.Volume{
+			Name: datadoghqv1alpha1.APMSocketVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: hostPath,
@@ -1210,14 +1217,6 @@ func getVolumeMountsForAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []corev1.
 
 	// Dogstatsd volume
 	if datadoghqv1alpha1.BoolValue(spec.Agent.Config.Dogstatsd.UnixDomainSocket.Enabled) {
-		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      datadoghqv1alpha1.DogstatsdSocketVolumeName,
-			MountPath: datadoghqv1alpha1.DogstatsdSocketVolumePath,
-		})
-	}
-
-	// APM volume
-	if datadoghqv1alpha1.BoolValue(spec.Agent.Apm.UnixDomainSocket.Enabled) {
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
 			Name:      datadoghqv1alpha1.DogstatsdSocketVolumeName,
 			MountPath: datadoghqv1alpha1.DogstatsdSocketVolumePath,
@@ -1972,4 +1971,25 @@ func (nsn namespacedName) GetName() string {
 // getMonitoredObj returns a namespacedName from a reconcile.Request object
 func getMonitoredObj(req reconcile.Request) namespacedName {
 	return namespacedName{req}
+}
+
+// envForClusterAgentConnection returns the environment variables required to connect to the Cluster Agent
+func envForClusterAgentConnection(dda *datadoghqv1alpha1.DatadogAgent) []corev1.EnvVar {
+	if dda.Spec.ClusterAgent != nil {
+		return []corev1.EnvVar{
+			{
+				Name:  datadoghqv1alpha1.DDClusterAgentEnabled,
+				Value: strconv.FormatBool(true),
+			},
+			{
+				Name:  datadoghqv1alpha1.DDClusterAgentKubeServiceName,
+				Value: getClusterAgentServiceName(dda),
+			},
+			{
+				Name:      datadoghqv1alpha1.DDClusterAgentAuthToken,
+				ValueFrom: getClusterAgentAuthToken(dda),
+			},
+		}
+	}
+	return []corev1.EnvVar{}
 }
