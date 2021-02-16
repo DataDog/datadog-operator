@@ -51,7 +51,6 @@ func (r *DatadogMonitorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	builder := ctrl.NewControllerManagedBy(mgr).
 		For(&datadoghqv1alpha1.DatadogMonitor{})
-		// Owns(&corev1.Secret{}).
 
 	err = builder.Complete(r)
 	if err != nil {

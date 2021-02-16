@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-2021 Datadog, Inc.
 
-package datadogmonitor
+package utils
 
 import (
 	"testing"
@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_getMax(t *testing.T) {
+func TestGetMax(t *testing.T) {
 	// Val1 is bigger, val2 is bigger, or same
 
 	testCases := []struct {
@@ -41,7 +41,7 @@ func Test_getMax(t *testing.T) {
 	}
 	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
-			result := getMax(test.val1, test.val2)
+			result := GetMax(test.val1, test.val2)
 			assert.Equal(t, test.expectedResult, result)
 		})
 	}

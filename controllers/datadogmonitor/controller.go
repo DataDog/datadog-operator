@@ -29,6 +29,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/datadogclient"
+	"github.com/DataDog/datadog-operator/pkg/utils"
 )
 
 const (
@@ -295,7 +296,7 @@ func convertStateToStatus(monitor datadogapiclientv1.Monitor, newStatus *datadog
 					triggeredStates = append(triggeredStates, datadoghqv1alpha1.DatadogMonitorTriggeredState{
 						MonitorGroup:     group,
 						State:            datadoghqv1alpha1.DatadogMonitorState(groupStatus),
-						LastTransitionTs: getMax(monitorStateGroup.GetLastTriggeredTs(), monitorStateGroup.GetLastNodataTs()),
+						LastTransitionTs: utils.GetMax(monitorStateGroup.GetLastTriggeredTs(), monitorStateGroup.GetLastNodataTs()),
 					})
 				}
 			}
