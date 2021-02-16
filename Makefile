@@ -76,9 +76,11 @@ generate-manifests: controller-gen
 	$(CONTROLLER_GEN) crd:trivialVersions=true,crdVersions=v1beta1 rbac:roleName=manager webhook paths="./..." output:crd:artifacts:config=config/crd/bases/v1beta1
 
 
-generate: controller-gen generate-openapi ## Generate code
+generate: controller-gen generate-openapi generate-docs ## Generate code
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
+generate-docs:
+	go run ./hack/generate-docs.go
 
 docker-build: generate docker-build-ci ## Build the docker image
 

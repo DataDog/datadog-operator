@@ -28,6 +28,7 @@ require (
 	go.uber.org/zap v1.14.1
 	gopkg.in/yaml.v2 v2.3.0
 	k8s.io/api v0.18.6
+	k8s.io/apiextensions-apiserver v0.18.6
 	k8s.io/apimachinery v0.18.6
 	k8s.io/cli-runtime v0.18.6
 	k8s.io/client-go v0.18.6
