@@ -2542,7 +2542,6 @@ func Test_newExtendedDaemonSetFromInstance_SystemProbe(t *testing.T) {
 }
 
 func Test_newExtendedDaemonSetFromInstance_Orchestrator(t *testing.T) {
-	orchestratorPodSpec := defaultOrchestratorPodSpec()
 	dda := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
 		UseEDS:                      true,
 		ClusterAgentEnabled:         true,
