@@ -547,6 +547,13 @@ func getEnvVarsCommon(dda *datadoghqv1alpha1.DatadogAgent, needAPIKey bool) ([]c
 		},
 	}
 
+	if dda.Spec.ClusterName != "" {
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  datadoghqv1alpha1.DDClusterName,
+			Value: dda.Spec.ClusterName,
+		})
+	}
+
 	if needAPIKey {
 		envVars = append(envVars, corev1.EnvVar{
 			Name:      datadoghqv1alpha1.DDAPIKey,
@@ -613,10 +620,6 @@ func getEnvVarsForAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.EnvVar, e
 	}
 
 	envVars := []corev1.EnvVar{
-		{
-			Name:  datadoghqv1alpha1.DDClusterName,
-			Value: spec.ClusterName,
-		},
 		{
 			Name:  datadoghqv1alpha1.DDHealthPort,
 			Value: strconv.Itoa(int(datadoghqv1alpha1.DefaultAgentHealthPort)),

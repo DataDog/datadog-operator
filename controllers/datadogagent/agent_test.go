@@ -610,10 +610,6 @@ func runtimeSecurityAgentMountVolume() []corev1.VolumeMount {
 func defaultEnvVars(extraEnv map[string]string) []corev1.EnvVar {
 	envs := []corev1.EnvVar{
 		{
-			Name:  "DD_CLUSTER_NAME",
-			Value: "",
-		},
-		{
 			Name:  "DD_HEALTH_PORT",
 			Value: "5555",
 		},
