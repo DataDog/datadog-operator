@@ -52,7 +52,7 @@ func (r *Reconciler) finalizeDatadogMonitor(logger logr.Logger, dm *datadoghqv1a
 	if dm.Status.Primary {
 		err := deleteMonitor(r.datadogAuth, r.datadogClient, dm.Status.ID)
 		if err != nil {
-			logger.Error(err, "failed to finalize monitor")
+			logger.Error(err, "failed to finalize monitor", "Monitor ID", fmt.Sprint(dm.Status.ID))
 			return
 		}
 	}
@@ -66,7 +66,7 @@ func (r *Reconciler) addFinalizer(logger logr.Logger, dm *datadoghqv1alpha1.Data
 
 	err := r.client.Update(context.TODO(), dm)
 	if err != nil {
-		logger.Error(err, "Failed to update DatadogMonitor with finalizer")
+		logger.Error(err, "failed to update DatadogMonitor with finalizer", "Monitor ID", fmt.Sprint(dm.Status.ID))
 		return err
 	}
 	return nil

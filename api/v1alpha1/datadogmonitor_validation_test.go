@@ -41,41 +41,41 @@ func TestIsValidDatadogMonitor(t *testing.T) {
 	}
 
 	testCases := []struct {
-		name  string
-		spec  *DatadogMonitorSpec
-		isErr bool
+		name    string
+		spec    *DatadogMonitorSpec
+		wantErr string
 	}{
 		{
-			name:  "minimum valid monitor",
-			spec:  minimumValid,
-			isErr: false,
+			name: "minimum valid monitor",
+			spec: minimumValid,
 		},
 		{
-			name:  "monitor missing query",
-			spec:  missingQuery,
-			isErr: true,
+			name:    "monitor missing query",
+			spec:    missingQuery,
+			wantErr: "spec.Query must be defined",
 		},
 		{
-			name:  "monitor missing type",
-			spec:  missingType,
-			isErr: true,
+			name:    "monitor missing type",
+			spec:    missingType,
+			wantErr: "spec.Type must be defined",
 		},
 		{
-			name:  "monitor missing name",
-			spec:  missingName,
-			isErr: true,
+			name:    "monitor missing name",
+			spec:    missingName,
+			wantErr: "spec.Name must be defined",
 		},
 		{
-			name:  "monitor missing message",
-			spec:  missingMessage,
-			isErr: true,
+			name:    "monitor missing message",
+			spec:    missingMessage,
+			wantErr: "spec.Message must be defined",
 		},
 	}
 	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
 			result := IsValidDatadogMonitor(test.spec)
-			if test.isErr {
+			if test.wantErr != "" {
 				assert.Error(t, result)
+				assert.EqualError(t, result, test.wantErr)
 			} else {
 				assert.NoError(t, result)
 			}

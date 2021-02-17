@@ -96,13 +96,13 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 
 	// Validate the DatadogMonitor spec
 	if err = datadoghqv1alpha1.IsValidDatadogMonitor(&instance.Spec); err != nil {
-		logger.Error(err, "Invalid DatadogMonitor spec")
+		logger.Error(err, "invalid DatadogMonitor spec")
 		return r.updateStatusIfNeeded(logger, instance, now, newStatus, err, result)
 	}
 
 	instanceSpecHash, err := comparison.GenerateMD5ForSpec(&instance.Spec)
 	if err != nil {
-		logger.Error(err, "Error generating hash")
+		logger.Error(err, "error generating hash")
 		return r.updateStatusIfNeeded(logger, instance, now, newStatus, err, result)
 	}
 
@@ -120,12 +120,12 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 			}
 
 			if err = r.create(logger, instance, newStatus, now); err != nil {
-				logger.Error(err, "Error creating monitor")
+				logger.Error(err, "error creating monitor")
 			}
 			newStatus.CurrentHash = instanceSpecHash
 		default:
 			err = errors.New("monitor type not supported")
-			logger.Error(err, "For the alpha version, only metric alert type monitors are supported")
+			logger.Error(err, "for the alpha version, only metric alert type monitors are supported")
 			return r.updateStatusIfNeeded(logger, instance, now, newStatus, err, result)
 		}
 	} else {
@@ -137,13 +137,13 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 			}
 			// Update action
 			if err = r.update(logger, instance, newStatus, now); err != nil {
-				logger.Error(err, "Error updating monitor", "datadogMonitor.Status.ID", instance.Status.ID)
+				logger.Error(err, "error updating monitor", "Monitor ID", instance.Status.ID)
 			}
 			newStatus.CurrentHash = instanceSpecHash
 		} else { //nolint:gocritic
 			// Spec has not changed, just check if monitor state has changed (alert, warn, OK, etc.)
 			if err = r.get(logger, instance, newStatus); err != nil {
-				logger.Error(err, "Error getting monitor", "datadogMonitor.Status.ID", instance.Status.ID)
+				logger.Error(err, "error getting monitor", "Monitor ID", instance.Status.ID)
 			}
 		}
 	}
@@ -181,7 +181,7 @@ func (r *Reconciler) create(logger logr.Logger, datadogMonitor *datadoghqv1alpha
 
 	// Set Created Condition
 	condition.UpdateDatadogMonitorConditions(status, now, datadoghqv1alpha1.DatadogMonitorConditionTypeCreated, corev1.ConditionTrue, "DatadogMonitor Created")
-	logger.Info("Created a new DatadogMonitor", "datadogMonitor.Namespace", datadogMonitor.Namespace, "datadogMonitor.Name", datadogMonitor.Name, "m.ID", m.GetId())
+	logger.Info("Created a new DatadogMonitor", "Monitor Namespace", datadogMonitor.Namespace, "Monitor Name", datadogMonitor.Name, "Monitor ID", m.GetId())
 
 	return nil
 }
@@ -199,7 +199,7 @@ func (r *Reconciler) update(logger logr.Logger, datadogMonitor *datadoghqv1alpha
 
 	// Set Updated Condition
 	condition.UpdateDatadogMonitorConditions(status, now, datadoghqv1alpha1.DatadogMonitorConditionTypeUpdated, corev1.ConditionTrue, "DatadogMonitor Updated")
-	logger.Info("Updated DatadogMonitor", "DatadogMonitor.Namespace", datadogMonitor.Namespace, "datadogMonitor.Name", datadogMonitor.Name, "datadogMonitor.Status.ID", datadogMonitor.Status.ID)
+	logger.Info("Updated DatadogMonitor", "Monitor Namespace", datadogMonitor.Namespace, "Monitor Name", datadogMonitor.Name, "Monitor ID", datadogMonitor.Status.ID)
 
 	return nil
 }
@@ -212,7 +212,7 @@ func (r *Reconciler) get(logger logr.Logger, datadogMonitor *datadoghqv1alpha1.D
 	}
 
 	convertStateToStatus(m, newStatus)
-	logger.V(1).Info("Synced DatadogMonitor state", "datadogMonitor.Namespace", datadogMonitor.Namespace, "datadogMonitor.Name", datadogMonitor.Name, "datadogMonitor.Status.ID", datadogMonitor.Status.ID)
+	logger.V(1).Info("Synced DatadogMonitor state", "Monitor Namespace", datadogMonitor.Namespace, "Monitor Name", datadogMonitor.Name, "Monitor ID", datadogMonitor.Status.ID)
 
 	return nil
 }
@@ -225,10 +225,10 @@ func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, datadogMonitor *da
 		datadogMonitor.Status = *status
 		if err := r.client.Status().Update(context.TODO(), datadogMonitor); err != nil {
 			if apierrors.IsConflict(err) {
-				logger.Error(err, "Unable to update DatadogMonitor status due to update conflict")
+				logger.Error(err, "unable to update DatadogMonitor status due to update conflict")
 				return ctrl.Result{Requeue: true, RequeueAfter: defaultErrRequeuePeriod}, nil
 			}
-			logger.Error(err, "Unable to update DatadogMonitor status")
+			logger.Error(err, "unable to update DatadogMonitor status")
 			return ctrl.Result{}, err
 		}
 		// This is brittle; typically if a Spec or Status is updated in the API, the result gets requeued without additional action.
@@ -265,10 +265,10 @@ func (r *Reconciler) checkRequiredTags(logger logr.Logger, datadogMonitor *datad
 		datadogMonitor.Spec.Tags = tags
 		err := r.client.Update(context.TODO(), datadogMonitor)
 		if err != nil {
-			logger.Error(err, "Failed to update DatadogMonitor with required tags")
+			logger.Error(err, "failed to update DatadogMonitor with required tags")
 			return ctrl.Result{Requeue: true, RequeueAfter: defaultErrRequeuePeriod}, err
 		}
-		logger.Info("Added required tags", "datadogMonitor.Namespace", datadogMonitor.Namespace, "datadogMonitor.Name", datadogMonitor.Name, "datadogMonitor.Status.ID", datadogMonitor.Status.ID)
+		logger.Info("Added required tags", "Monitor Namespace", datadogMonitor.Namespace, "Monitor Name", datadogMonitor.Name, "Monitor ID", datadogMonitor.Status.ID)
 		return ctrl.Result{Requeue: true, RequeueAfter: defaultRequeuePeriod}, nil
 	}
 
