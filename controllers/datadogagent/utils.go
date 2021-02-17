@@ -1540,43 +1540,30 @@ func getAgentServiceAccount(dda *datadoghqv1alpha1.DatadogAgent) string {
 
 // getAPIKeyFromSecret returns the Agent API key as an env var source
 func getAPIKeyFromSecret(dda *datadoghqv1alpha1.DatadogAgent) *corev1.EnvVarSource {
-	secretName, secretKeyName := utils.GetAPIKeySecret(dda)
-	authTokenValue := &corev1.EnvVarSource{
-		SecretKeyRef: &corev1.SecretKeySelector{
-			LocalObjectReference: corev1.LocalObjectReference{
-				Name: secretName,
-			},
-			Key: secretKeyName,
-		},
-	}
-	return authTokenValue
+	_, name, key := utils.GetAPIKeySecret(&dda.Spec.Credentials.DatadogCredentials, utils.GetDefaultCredentialsSecretName(dda))
+	return buildEnvVarFromSecret(name, key)
 }
 
 // getClusterAgentAuthToken returns the Cluster Agent auth token as an env var source
 func getClusterAgentAuthToken(dda *datadoghqv1alpha1.DatadogAgent) *corev1.EnvVarSource {
-	authTokenValue := &corev1.EnvVarSource{
-		SecretKeyRef: &corev1.SecretKeySelector{
-			LocalObjectReference: corev1.LocalObjectReference{
-				Name: getAuthTokenSecretName(dda),
-			},
-			Key: datadoghqv1alpha1.DefaultTokenKey,
-		},
-	}
-	return authTokenValue
+	return buildEnvVarFromSecret(getAuthTokenSecretName(dda), datadoghqv1alpha1.DefaultTokenKey)
 }
 
 // getAppKeyFromSecret returns the Agent API key as an env var source
 func getAppKeyFromSecret(dda *datadoghqv1alpha1.DatadogAgent) *corev1.EnvVarSource {
-	secretName, secretKeyName := utils.GetAppKeySecret(dda)
-	authTokenValue := &corev1.EnvVarSource{
+	_, name, key := utils.GetAppKeySecret(&dda.Spec.Credentials.DatadogCredentials, utils.GetDefaultCredentialsSecretName(dda))
+	return buildEnvVarFromSecret(name, key)
+}
+
+func buildEnvVarFromSecret(name, key string) *corev1.EnvVarSource {
+	return &corev1.EnvVarSource{
 		SecretKeyRef: &corev1.SecretKeySelector{
 			LocalObjectReference: corev1.LocalObjectReference{
-				Name: secretName,
+				Name: name,
 			},
-			Key: secretKeyName,
+			Key: key,
 		},
 	}
-	return authTokenValue
 }
 
 func getClusterAgentServiceName(dda *datadoghqv1alpha1.DatadogAgent) string {
@@ -1698,6 +1685,10 @@ func isMetricsProviderEnabled(spec *datadoghqv1alpha1.DatadogAgentSpecClusterAge
 		return false
 	}
 	return spec.Config.ExternalMetrics != nil && spec.Config.ExternalMetrics.Enabled
+}
+
+func hasMetricsProviderCustomCredentials(spec *datadoghqv1alpha1.DatadogAgentSpecClusterAgentSpec) bool {
+	return isMetricsProviderEnabled(spec) && spec.Config.ExternalMetrics.Credentials != nil
 }
 
 func isAdmissionControllerEnabled(spec *datadoghqv1alpha1.DatadogAgentSpecClusterAgentSpec) bool {
