@@ -294,9 +294,9 @@ func convertStateToStatus(monitor datadogapiclientv1.Monitor, newStatus *datadog
 				groupStatus = monitorStateGroup.GetStatus()
 				if isTriggered(string(groupStatus)) {
 					triggeredStates = append(triggeredStates, datadoghqv1alpha1.DatadogMonitorTriggeredState{
-						MonitorGroup:     group,
-						State:            datadoghqv1alpha1.DatadogMonitorState(groupStatus),
-						LastTransitionTs: utils.GetMax(monitorStateGroup.GetLastTriggeredTs(), monitorStateGroup.GetLastNodataTs()),
+						MonitorGroup:       group,
+						State:              datadoghqv1alpha1.DatadogMonitorState(groupStatus),
+						LastTransitionTime: metav1.Unix(utils.GetMax(monitorStateGroup.GetLastTriggeredTs(), monitorStateGroup.GetLastNodataTs()), 0),
 					})
 				}
 			}

@@ -391,9 +391,9 @@ func Test_convertStateToStatus(t *testing.T) {
 			wantStatus: &datadoghqv1alpha1.DatadogMonitorStatus{
 				TriggeredState: []datadoghqv1alpha1.DatadogMonitorTriggeredState{
 					{
-						MonitorGroup:     "groupC",
-						State:            datadoghqv1alpha1.DatadogMonitorStateAlert,
-						LastTransitionTs: triggerTs,
+						MonitorGroup:       "groupC",
+						State:              datadoghqv1alpha1.DatadogMonitorStateAlert,
+						LastTransitionTime: metav1.Unix(triggerTs, 0),
 					},
 				},
 				MonitorState: datadoghqv1alpha1.DatadogMonitorStateAlert,
@@ -431,9 +431,9 @@ func Test_convertStateToStatus(t *testing.T) {
 			wantStatus: &datadoghqv1alpha1.DatadogMonitorStatus{
 				TriggeredState: []datadoghqv1alpha1.DatadogMonitorTriggeredState{
 					{
-						MonitorGroup:     "groupC",
-						State:            datadoghqv1alpha1.DatadogMonitorStateAlert,
-						LastTransitionTs: triggerTs,
+						MonitorGroup:       "groupC",
+						State:              datadoghqv1alpha1.DatadogMonitorStateAlert,
+						LastTransitionTime: metav1.Unix(triggerTs, 0),
 					},
 				},
 				MonitorState: datadoghqv1alpha1.DatadogMonitorStateAlert,
@@ -469,9 +469,9 @@ func Test_convertStateToStatus(t *testing.T) {
 			wantStatus: &datadoghqv1alpha1.DatadogMonitorStatus{
 				TriggeredState: []datadoghqv1alpha1.DatadogMonitorTriggeredState{
 					{
-						MonitorGroup:     "groupC",
-						State:            datadoghqv1alpha1.DatadogMonitorStateNoData,
-						LastTransitionTs: triggerTs,
+						MonitorGroup:       "groupC",
+						State:              datadoghqv1alpha1.DatadogMonitorStateNoData,
+						LastTransitionTime: metav1.Unix(triggerTs, 0),
 					},
 				},
 				MonitorState: datadoghqv1alpha1.DatadogMonitorStateNoData,
@@ -507,14 +507,14 @@ func Test_convertStateToStatus(t *testing.T) {
 			wantStatus: &datadoghqv1alpha1.DatadogMonitorStatus{
 				TriggeredState: []datadoghqv1alpha1.DatadogMonitorTriggeredState{
 					{
-						MonitorGroup:     "groupB",
-						State:            datadoghqv1alpha1.DatadogMonitorStateAlert,
-						LastTransitionTs: triggerTs,
+						MonitorGroup:       "groupB",
+						State:              datadoghqv1alpha1.DatadogMonitorStateAlert,
+						LastTransitionTime: metav1.Unix(triggerTs, 0),
 					},
 					{
-						MonitorGroup:     "groupC",
-						State:            datadoghqv1alpha1.DatadogMonitorStateNoData,
-						LastTransitionTs: secondTriggerTs,
+						MonitorGroup:       "groupC",
+						State:              datadoghqv1alpha1.DatadogMonitorStateNoData,
+						LastTransitionTime: metav1.Unix(secondTriggerTs, 0),
 					},
 				},
 				MonitorState: datadoghqv1alpha1.DatadogMonitorStateAlert,

@@ -150,9 +150,9 @@ const (
 // The DatadogMonitor is triggering if one of its groups is in Alert, Warn, or No Data
 type DatadogMonitorTriggeredState struct {
 	// MonitorGroup is the name of the triggering group
-	MonitorGroup     string              `json:"monitorGroup,omitempty"`
-	State            DatadogMonitorState `json:"state,omitempty"`
-	LastTransitionTs int64               `json:"lastTransitionTime,omitempty"`
+	MonitorGroup       string              `json:"monitorGroup,omitempty"`
+	State              DatadogMonitorState `json:"state,omitempty"`
+	LastTransitionTime metav1.Time         `json:"lastTransitionTime,omitempty"`
 }
 
 // DatadogMonitorDowntimeStatus represents the downtime status of a DatadogMonitor

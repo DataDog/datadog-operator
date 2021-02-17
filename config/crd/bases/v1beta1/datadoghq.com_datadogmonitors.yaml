@@ -183,8 +183,8 @@ spec:
                   one of its groups is in Alert, Warn, or No Data
                 properties:
                   lastTransitionTime:
-                    format: int64
-                    type: integer
+                    format: date-time
+                    type: string
                   monitorGroup:
                     description: MonitorGroup is the name of the triggering group
                     type: string
