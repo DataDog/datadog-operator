@@ -41,8 +41,10 @@ func NewDatadogAgent(ns, name, image string, options *NewDatadogAgentOptions) *d
 
 	ad.Spec = datadoghqv1alpha1.DatadogAgentSpec{
 		Credentials: datadoghqv1alpha1.AgentCredentials{
-			APIKey: "",
-			AppKey: "",
+			DatadogCredentials: datadoghqv1alpha1.DatadogCredentials{
+				APIKey: "",
+				AppKey: "",
+			},
 		},
 		Agent: &datadoghqv1alpha1.DatadogAgentSpecAgentSpec{
 			Image: datadoghqv1alpha1.ImageConfig{},

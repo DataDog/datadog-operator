@@ -3919,6 +3919,63 @@ spec:
                       description: ExternalMetricsConfig contains the configuration
                         of the external metrics provider in Cluster Agent
                       properties:
+                        credentials:
+                          description: Datadog credentials used by external metrics
+                            server to query Datadog. If not set, the external metrics
+                            server uses the global .spec.Credentials
+                          properties:
+                            apiKey:
+                              description: 'APIKey Set this to your Datadog API key
+                                before the Agent runs. ref: https://app.datadoghq.com/account/settings#agent/kubernetes'
+                              type: string
+                            apiKeyExistingSecret:
+                              description: APIKeyExistingSecret is DEPRECATED. In
+                                order to pass the API key through an existing secret,
+                                please consider "apiSecret" instead. If set, this
+                                parameter takes precedence over "apiKey".
+                              type: string
+                            apiSecret:
+                              description: APISecret Use existing Secret which stores
+                                API key instead of creating a new one. If set, this
+                                parameter takes precedence over "apiKey" and "apiKeyExistingSecret".
+                              properties:
+                                keyName:
+                                  description: KeyName is the key of the secret to
+                                    use
+                                  type: string
+                                secretName:
+                                  description: SecretName is the name of the secret
+                                  type: string
+                              required:
+                              - secretName
+                              type: object
+                            appKey:
+                              description: If you are using clusterAgent.metricsProvider.enabled
+                                = true, you must set a Datadog application key for
+                                read access to your metrics.
+                              type: string
+                            appKeyExistingSecret:
+                              description: AppKeyExistingSecret is DEPRECATED. In
+                                order to pass the APP key through an existing secret,
+                                please consider "appSecret" instead. If set, this
+                                parameter takes precedence over "appKey".
+                              type: string
+                            appSecret:
+                              description: APPSecret Use existing Secret which stores
+                                API key instead of creating a new one. If set, this
+                                parameter takes precedence over "apiKey" and "appKeyExistingSecret".
+                              properties:
+                                keyName:
+                                  description: KeyName is the key of the secret to
+                                    use
+                                  type: string
+                                secretName:
+                                  description: SecretName is the name of the secret
+                                  type: string
+                              required:
+                              - secretName
+                              type: object
+                          type: object
                         enabled:
                           description: Enable the metricsProvider to be able to scale
                             based on metrics in Datadog

@@ -40,6 +40,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./api/v1alpha1.DatadogAgentSpecClusterAgentSpec":        schema__api_v1alpha1_DatadogAgentSpecClusterAgentSpec(ref),
 		"./api/v1alpha1.DatadogAgentSpecClusterChecksRunnerSpec": schema__api_v1alpha1_DatadogAgentSpecClusterChecksRunnerSpec(ref),
 		"./api/v1alpha1.DatadogAgentStatus":                      schema__api_v1alpha1_DatadogAgentStatus(ref),
+		"./api/v1alpha1.DatadogCredentials":                      schema__api_v1alpha1_DatadogCredentials(ref),
 		"./api/v1alpha1.DatadogFeatures":                         schema__api_v1alpha1_DatadogFeatures(ref),
 		"./api/v1alpha1.DatadogMetric":                           schema__api_v1alpha1_DatadogMetric(ref),
 		"./api/v1alpha1.DatadogMetricCondition":                  schema__api_v1alpha1_DatadogMetricCondition(ref),
@@ -1485,6 +1486,61 @@ func schema__api_v1alpha1_DatadogAgentStatus(ref common.ReferenceCallback) commo
 	}
 }
 
+func schema__api_v1alpha1_DatadogCredentials(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogCredentials is a generic structure that holds credentials to access Datadog",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"apiKey": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIKey Set this to your Datadog API key before the Agent runs. ref: https://app.datadoghq.com/account/settings#agent/kubernetes",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiKeyExistingSecret": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIKeyExistingSecret is DEPRECATED. In order to pass the API key through an existing secret, please consider \"apiSecret\" instead. If set, this parameter takes precedence over \"apiKey\".",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiSecret": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APISecret Use existing Secret which stores API key instead of creating a new one. If set, this parameter takes precedence over \"apiKey\" and \"apiKeyExistingSecret\".",
+							Ref:         ref("./api/v1alpha1.Secret"),
+						},
+					},
+					"appKey": {
+						SchemaProps: spec.SchemaProps{
+							Description: "If you are using clusterAgent.metricsProvider.enabled = true, you must set a Datadog application key for read access to your metrics.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"appKeyExistingSecret": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AppKeyExistingSecret is DEPRECATED. In order to pass the APP key through an existing secret, please consider \"appSecret\" instead. If set, this parameter takes precedence over \"appKey\".",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"appSecret": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APPSecret Use existing Secret which stores API key instead of creating a new one. If set, this parameter takes precedence over \"apiKey\" and \"appKeyExistingSecret\".",
+							Ref:         ref("./api/v1alpha1.Secret"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"./api/v1alpha1.Secret"},
+	}
+}
+
 func schema__api_v1alpha1_DatadogFeatures(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -1883,9 +1939,17 @@ func schema__api_v1alpha1_ExternalMetricsConfig(ref common.ReferenceCallback) co
 							Format:      "",
 						},
 					},
+					"credentials": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Datadog credentials used by external metrics server to query Datadog. If not set, the external metrics server uses the global .spec.Credentials",
+							Ref:         ref("./api/v1alpha1.DatadogCredentials"),
+						},
+					},
 				},
 			},
 		},
+		Dependencies: []string{
+			"./api/v1alpha1.DatadogCredentials"},
 	}
 }
 

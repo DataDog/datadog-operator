@@ -26,6 +26,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/orchestrator"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -216,6 +217,11 @@ func newClusterAgentDeploymentFromInstance(logger logr.Logger, dda *datadoghqv1a
 
 func (r *Reconciler) manageClusterAgentDependencies(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
 	result, err := r.manageAgentSecret(logger, dda, newStatus)
+	if shouldReturn(result, err) {
+		return result, err
+	}
+
+	result, err = r.manageExternalMetricsSecret(logger, dda, newStatus)
 	if shouldReturn(result, err) {
 		return result, err
 	}
@@ -620,6 +626,24 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 				Name:  datadoghqv1alpha1.DDExternalMetricsProviderEndpoint,
 				Value: *externalMetricsEndpoint,
 			})
+		}
+
+		if hasMetricsProviderCustomCredentials(spec.ClusterAgent) {
+			apiSet, secretName, secretKey := utils.GetAPIKeySecret(dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials, getDefaultExternalMetricSecretName(dda))
+			if apiSet {
+				envVars = append(envVars, corev1.EnvVar{
+					Name:      datadoghqv1alpha1.DDExternalMetricsProviderAPIKey,
+					ValueFrom: buildEnvVarFromSecret(secretName, secretKey),
+				})
+			}
+
+			appSet, secretName, secretKey := utils.GetAppKeySecret(dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials, getDefaultExternalMetricSecretName(dda))
+			if appSet {
+				envVars = append(envVars, corev1.EnvVar{
+					Name:      datadoghqv1alpha1.DDExternalMetricsProviderAppKey,
+					ValueFrom: buildEnvVarFromSecret(secretName, secretKey),
+				})
+			}
 		}
 	}
 

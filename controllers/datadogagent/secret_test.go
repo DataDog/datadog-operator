@@ -73,7 +73,10 @@ func TestNewAgentSecret(t *testing.T) {
 			options.AppKey = tt.fields.DatadogAgentAppKey
 			dda := testutils.NewDatadogAgent("default", "test", "datadog/agent:7.24.1", options)
 
-			result := newAgentSecret(dda)
+			result, err := newAgentSecret("foo", dda)
+			if err != nil {
+				t.Errorf("newAgentSecret() failed with err: %v", err)
+			}
 			if string(result.Data[datadoghqv1alpha1.DefaultAPIKeyKey]) != tt.wantAPIKey {
 				t.Errorf("newAgentSecret() API key = %v, want %v", string(result.Data[datadoghqv1alpha1.DefaultAPIKeyKey]), tt.wantAPIKey)
 			}
