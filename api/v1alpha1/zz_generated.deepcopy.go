@@ -43,6 +43,13 @@ func (in *APMSpec) DeepCopyInto(out *APMSpec) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.VolumeMounts != nil {
+		in, out := &in.VolumeMounts, &out.VolumeMounts
+		*out = make([]v1.VolumeMount, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
 	if in.Resources != nil {
 		in, out := &in.Resources, &out.Resources
 		*out = new(v1.ResourceRequirements)
@@ -1506,6 +1513,13 @@ func (in *ProcessSpec) DeepCopyInto(out *ProcessSpec) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.VolumeMounts != nil {
+		in, out := &in.VolumeMounts, &out.VolumeMounts
+		*out = make([]v1.VolumeMount, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
 	if in.Resources != nil {
 		in, out := &in.Resources, &out.Resources
 		*out = new(v1.ResourceRequirements)
@@ -1621,6 +1635,13 @@ func (in *SecuritySpec) DeepCopyInto(out *SecuritySpec) {
 	if in.Env != nil {
 		in, out := &in.Env, &out.Env
 		*out = make([]v1.EnvVar, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+	if in.VolumeMounts != nil {
+		in, out := &in.VolumeMounts, &out.VolumeMounts
+		*out = make([]v1.VolumeMount, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}

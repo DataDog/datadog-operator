@@ -147,6 +147,15 @@ func Test_getVolumeMountsForSecurityAgent(t *testing.T) {
 			},
 		},
 		{
+			name: "extra volumeMounts",
+			dda:  testutils.NewDatadogAgent("foo", "bar", "datadog/agent:7", &testutils.NewDatadogAgentOptions{VolumeMounts: []corev1.VolumeMount{{Name: "extra", MountPath: "/etc/datadog-agent/extra"}}}),
+			want: []corev1.VolumeMount{
+				{Name: "config", ReadOnly: false, MountPath: "/etc/datadog-agent"},
+				{Name: "extra", MountPath: "/etc/datadog-agent/extra"},
+				{Name: "runtimesocketdir", ReadOnly: true, MountPath: "/host/var/run"},
+			},
+		},
+		{
 			name: "compliance volumeMounts",
 			dda:  testutils.NewDatadogAgent("foo", "bar", "datadog/agent:7", &testutils.NewDatadogAgentOptions{SecuritySpec: securityCompliance}),
 			want: []corev1.VolumeMount{

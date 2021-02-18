@@ -79,7 +79,7 @@ generate-manifests: controller-gen
 generate: controller-gen generate-openapi generate-docs ## Generate code
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
-generate-docs:
+generate-docs: manifests
 	go run ./hack/generate-docs.go
 
 docker-build: generate docker-build-ci ## Build the docker image

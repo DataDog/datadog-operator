@@ -1316,6 +1316,9 @@ func getVolumeMountsForProcessAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []
 	// Add configuration mount
 	volumeMounts = append(volumeMounts, getVolumeMountForConfig(spec.Agent.CustomConfig)...)
 
+	// Add extra volume mounts
+	volumeMounts = append(volumeMounts, spec.Agent.Process.VolumeMounts...)
+
 	// Cri socket volume
 	if spec.Agent.Config.CriSocket != nil {
 		path := ""
@@ -1366,6 +1369,9 @@ func getVolumeMountsForAPMAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []core
 
 	// Add configuration volumesMount default and custom config (datadog.yaml) volume
 	volumeMounts = append(volumeMounts, getVolumeMountForConfig(spec.Agent.CustomConfig)...)
+
+	// Add extra volume mounts
+	volumeMounts = append(volumeMounts, spec.Agent.Apm.VolumeMounts...)
 
 	return volumeMounts
 }
@@ -1470,6 +1476,9 @@ func getVolumeMountsForSecurityAgent(dda *datadoghqv1alpha1.DatadogAgent) []core
 		volumeMount := getVolumeMountFromCustomConfigSpec(spec.Agent.CustomConfig, datadoghqv1alpha1.AgentCustomConfigVolumeName, datadoghqv1alpha1.AgentCustomConfigVolumePath, datadoghqv1alpha1.AgentCustomConfigVolumeSubPath)
 		volumeMounts = append(volumeMounts, volumeMount)
 	}
+
+	// Add extra volume mounts
+	volumeMounts = append(volumeMounts, spec.Agent.Security.VolumeMounts...)
 
 	// Cri socket volume
 	if spec.Agent.Config.CriSocket != nil {

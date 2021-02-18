@@ -112,6 +112,28 @@ func schema__api_v1alpha1_APMSpec(ref common.ReferenceCallback) common.OpenAPIDe
 							},
 						},
 					},
+					"volumeMounts": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"name",
+									"mountPath",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Specify additional volume mounts in the APM Agent container",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("k8s.io/api/core/v1.VolumeMount"),
+									},
+								},
+							},
+						},
+					},
 					"resources": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Datadog APM Agent resource requests and limits Make sure to keep requests and limits equal to keep the pods in the Guaranteed QoS class Ref: http://kubernetes.io/docs/user-guide/compute-resources/",
@@ -122,7 +144,7 @@ func schema__api_v1alpha1_APMSpec(ref common.ReferenceCallback) common.OpenAPIDe
 			},
 		},
 		Dependencies: []string{
-			"./api/v1alpha1.APMUnixDomainSocketSpec", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements"},
+			"./api/v1alpha1.APMUnixDomainSocketSpec", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.VolumeMount"},
 	}
 }
 
@@ -2327,6 +2349,28 @@ func schema__api_v1alpha1_ProcessSpec(ref common.ReferenceCallback) common.OpenA
 							},
 						},
 					},
+					"volumeMounts": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"name",
+									"mountPath",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Specify additional volume mounts in the Process Agent container",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("k8s.io/api/core/v1.VolumeMount"),
+									},
+								},
+							},
+						},
+					},
 					"resources": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Datadog Process Agent resource requests and limits Make sure to keep requests and limits equal to keep the pods in the Guaranteed QoS class Ref: http://kubernetes.io/docs/user-guide/compute-resources/",
@@ -2337,7 +2381,7 @@ func schema__api_v1alpha1_ProcessSpec(ref common.ReferenceCallback) common.OpenA
 			},
 		},
 		Dependencies: []string{
-			"k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements"},
+			"k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.VolumeMount"},
 	}
 }
 
@@ -2470,6 +2514,28 @@ func schema__api_v1alpha1_SecuritySpec(ref common.ReferenceCallback) common.Open
 							},
 						},
 					},
+					"volumeMounts": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"name",
+									"mountPath",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Specify additional volume mounts in the Security Agent container",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("k8s.io/api/core/v1.VolumeMount"),
+									},
+								},
+							},
+						},
+					},
 					"resources": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Datadog Security Agent resource requests and limits Make sure to keep requests and limits equal to keep the pods in the Guaranteed QoS class Ref: http://kubernetes.io/docs/user-guide/compute-resources/",
@@ -2480,7 +2546,7 @@ func schema__api_v1alpha1_SecuritySpec(ref common.ReferenceCallback) common.Open
 			},
 		},
 		Dependencies: []string{
-			"./api/v1alpha1.ComplianceSpec", "./api/v1alpha1.RuntimeSecuritySpec", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements"},
+			"./api/v1alpha1.ComplianceSpec", "./api/v1alpha1.RuntimeSecuritySpec", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.VolumeMount"},
 	}
 }
 
