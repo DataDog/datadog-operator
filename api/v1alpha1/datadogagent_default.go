@@ -135,6 +135,10 @@ func IsDefaultedDatadogAgent(ad *DatadogAgent) bool {
 		if ad.Spec.ClusterAgent.Replicas == nil {
 			return false
 		}
+
+		if BoolValue(ad.Spec.ClusterAgent.Config.ClusterChecksEnabled) && ad.Spec.ClusterChecksRunner == nil {
+			return false
+		}
 	}
 
 	if ad.Spec.ClusterChecksRunner != nil {
