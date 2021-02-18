@@ -12,11 +12,20 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/DataDog/datadog-operator/controllers/datadogagent"
+	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 	"k8s.io/client-go/discovery"
 )
 
-// SetupControllers start all controllers (also used by e2e tests)
-func SetupControllers(mgr manager.Manager, supportExtendedDaemonset bool) error {
+// SetupOptions defines options for setting up controllers to ease testing
+type SetupOptions struct {
+	SupportExtendedDaemonset bool
+	APIKey                   string
+	AppKey                   string
+}
+
+// SetupControllers starts all controllers (also used by e2e tests)
+// func SetupControllers(mgr manager.Manager, supportExtendedDaemonset bool) error {
+func SetupControllers(mgr manager.Manager, options SetupOptions) error {
 	// Get some information about Kubernetes version
 	discoveryClient, err := discovery.NewDiscoveryClientForConfig(mgr.GetConfig())
 	if err != nil {
@@ -35,10 +44,26 @@ func SetupControllers(mgr manager.Manager, supportExtendedDaemonset bool) error 
 		Scheme:      mgr.GetScheme(),
 		Recorder:    mgr.GetEventRecorderFor("DatadogAgent"),
 		Options: datadogagent.ReconcilerOptions{
-			SupportExtendedDaemonset: supportExtendedDaemonset,
+			SupportExtendedDaemonset: options.SupportExtendedDaemonset,
 		},
 	}).SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("unable to create controller DatadogAgent: %w", err)
+	}
+
+	ddClient, err := datadogclient.InitDatadogClient(options.APIKey, options.AppKey)
+	if err != nil {
+		return fmt.Errorf("unable to create Datadog API Client: %w", err)
+	}
+
+	if err = (&DatadogMonitorReconciler{
+		Client:      mgr.GetClient(),
+		DDClient:    ddClient,
+		VersionInfo: versionInfo,
+		Log:         ctrl.Log.WithName("controllers").WithName("DatadogMonitor"),
+		Scheme:      mgr.GetScheme(),
+		Recorder:    mgr.GetEventRecorderFor("DatadogMonitor"),
+	}).SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("unable to create controller DatadogMonitor: %w", err)
 	}
 
 	return nil

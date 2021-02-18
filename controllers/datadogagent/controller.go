@@ -133,11 +133,11 @@ type reconcileFuncInterface func(logger logr.Logger, dda *datadoghqv1alpha1.Data
 
 func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus, result reconcile.Result, currentError error) (reconcile.Result, error) {
 	now := metav1.NewTime(time.Now())
-	condition.UpdateDatadogAgentStatusConditionsFailure(newStatus, now, datadoghqv1alpha1.ConditionTypeReconcileError, currentError)
+	condition.UpdateDatadogAgentStatusConditionsFailure(newStatus, now, datadoghqv1alpha1.DatadogAgentConditionTypeReconcileError, currentError)
 	if currentError == nil {
-		condition.UpdateDatadogAgentStatusConditions(newStatus, now, datadoghqv1alpha1.ConditionTypeActive, corev1.ConditionTrue, "DatadogAgent reconcile ok", false)
+		condition.UpdateDatadogAgentStatusConditions(newStatus, now, datadoghqv1alpha1.DatadogAgentConditionTypeActive, corev1.ConditionTrue, "DatadogAgent reconcile ok", false)
 	} else {
-		condition.UpdateDatadogAgentStatusConditions(newStatus, now, datadoghqv1alpha1.ConditionTypeActive, corev1.ConditionFalse, "DatadogAgent reconcile error", false)
+		condition.UpdateDatadogAgentStatusConditions(newStatus, now, datadoghqv1alpha1.DatadogAgentConditionTypeActive, corev1.ConditionFalse, "DatadogAgent reconcile error", false)
 	}
 
 	// get metrics forwarder status

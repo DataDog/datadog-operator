@@ -10,6 +10,8 @@ import (
 )
 
 // GetAPIKeySecret returns the API key secret name and the key inside the secret
+// TODO these can become more general if they instead accept *datadoghqv1alpha1.DatadogCredentials
+// and have that be a common struct in both CRs
 func GetAPIKeySecret(dda *datadoghqv1alpha1.DatadogAgent) (string, string) {
 	if dda.Spec.Credentials.APISecret != nil {
 		if dda.Spec.Credentials.APISecret.KeyName != "" {

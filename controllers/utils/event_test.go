@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-2019 Datadog, Inc.
 
-package datadogagent
+package utils
 
 import (
 	"reflect"
@@ -12,7 +12,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 )
 
-func Test_eventInfo_getReason(t *testing.T) {
+func Test_EventInfo_GetReason(t *testing.T) {
 	type fields struct {
 		objName      string
 		objNamespace string
@@ -47,20 +47,20 @@ func Test_eventInfo_getReason(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ei := &eventInfo{
+			ei := &EventInfo{
 				objName:      tt.fields.objName,
 				objNamespace: tt.fields.objNamespace,
 				objKind:      tt.fields.objKind,
 				eventType:    tt.fields.eventType,
 			}
-			if got := ei.getReason(); got != tt.want {
-				t.Errorf("eventInfo.getReason() = %v, want %v", got, tt.want)
+			if got := ei.GetReason(); got != tt.want {
+				t.Errorf("EventInfo.GetReason() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func Test_eventInfo_getMessage(t *testing.T) {
+func Test_EventInfo_GetMessage(t *testing.T) {
 	type fields struct {
 		objName      string
 		objNamespace string
@@ -95,20 +95,20 @@ func Test_eventInfo_getMessage(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ei := &eventInfo{
+			ei := &EventInfo{
 				objName:      tt.fields.objName,
 				objNamespace: tt.fields.objNamespace,
 				objKind:      tt.fields.objKind,
 				eventType:    tt.fields.eventType,
 			}
-			if got := ei.getMessage(); got != tt.want {
-				t.Errorf("eventInfo.getMessage() = %v, want %v", got, tt.want)
+			if got := ei.GetMessage(); got != tt.want {
+				t.Errorf("EventInfo.GetMessage() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func Test_eventInfo_getDDEvent(t *testing.T) {
+func Test_EventInfo_GetDDEvent(t *testing.T) {
 	type fields struct {
 		objName      string
 		objNamespace string
@@ -149,14 +149,14 @@ func Test_eventInfo_getDDEvent(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ei := &eventInfo{
+			ei := &EventInfo{
 				objName:      tt.fields.objName,
 				objNamespace: tt.fields.objNamespace,
 				objKind:      tt.fields.objKind,
 				eventType:    tt.fields.eventType,
 			}
-			if got := ei.getDDEvent(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("eventInfo.getDDEvent() = %v, want %v", got, tt.want)
+			if got := ei.GetDDEvent(); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("EventInfo.GetDDEvent() = %v, want %v", got, tt.want)
 			}
 		})
 	}

@@ -1,0 +1,12 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogMonitor
+metadata:
+  name: datadog-monitor-test
+  namespace: datadog
+spec:
+  query: "avg(last_10m):avg:system.disk.in_use{*} by {host} > 0.5"
+  type: "metric alert"
+  name: "Test monitor made from DatadogMonitor"
+  message: "1-2-3 testing"
+  tags:
+    - "test:datadog"

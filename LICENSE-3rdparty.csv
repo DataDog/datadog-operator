@@ -7,6 +7,8 @@ core,"github.com/Azure/go-autorest/autorest/azure",Apache-2.0
 core,"github.com/Azure/go-autorest/autorest/date",Apache-2.0
 core,"github.com/Azure/go-autorest/logger",Apache-2.0
 core,"github.com/Azure/go-autorest/tracing",Apache-2.0
+core,"github.com/DataDog/datadog-api-client-go",Apache-2.0
+core,"github.com/DataDog/datadog-api-client-go/api/v1/datadog",Apache-2.0
 core,"github.com/DataDog/extendeddaemonset/api/v1alpha1",Apache-2.0
 core,"github.com/DataDog/extendeddaemonset/pkg/config",Apache-2.0
 core,"github.com/DataDog/extendeddaemonset/pkg/controller/metrics",Apache-2.0

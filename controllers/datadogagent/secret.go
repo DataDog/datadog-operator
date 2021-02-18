@@ -45,7 +45,7 @@ func (r *Reconciler) manageAgentSecret(logger logr.Logger, dda *datadoghqv1alpha
 			}
 			// return error since the secret didn't exist and we are not responsible to create it.
 			err = fmt.Errorf("secret %s didn't exist", dda.Name)
-			condition.UpdateDatadogAgentStatusConditions(newStatus, now, datadoghqv1alpha1.ConditionTypeSecretError, corev1.ConditionTrue, fmt.Sprintf("%v", err), false)
+			condition.UpdateDatadogAgentStatusConditions(newStatus, now, datadoghqv1alpha1.DatadogAgentConditionTypeSecretError, corev1.ConditionTrue, fmt.Sprintf("%v", err), false)
 		}
 		return reconcile.Result{}, err
 	}

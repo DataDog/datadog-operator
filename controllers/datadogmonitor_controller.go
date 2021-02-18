@@ -1,42 +1,61 @@
 // Unless explicitly stated otherwise all files in this repository are licensed
 // under the Apache License Version 2.0.
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2016-2020 Datadog, Inc.
+// Copyright 2016-2021 Datadog, Inc.
 
 package controllers
 
-// import (
-// 	"context"
+import (
+	"context"
 
-// 	"github.com/go-logr/logr"
-// 	"k8s.io/apimachinery/pkg/runtime"
-// 	ctrl "sigs.k8s.io/controller-runtime"
-// 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"github.com/go-logr/logr"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/version"
+	"k8s.io/client-go/tools/record"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
-// 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
-// )
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
+	"github.com/DataDog/datadog-operator/controllers/datadogmonitor"
+	"github.com/DataDog/datadog-operator/pkg/datadogclient"
+)
 
-// // DatadogMonitorReconciler reconciles a DatadogMonitor object
-// type DatadogMonitorReconciler struct {
-// 	client.Client
-// 	Log    logr.Logger
-// 	Scheme *runtime.Scheme
-// }
+// DatadogMonitorReconciler reconciles a DatadogMonitor object
+type DatadogMonitorReconciler struct {
+	Client      client.Client
+	DDClient    datadogclient.DatadogClient
+	VersionInfo *version.Info
+	Log         logr.Logger
+	Scheme      *runtime.Scheme
+	Recorder    record.EventRecorder
+	internal    *datadogmonitor.Reconciler
+}
 
-// // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogmonitors,verbs=get;list;watch;create;update;patch;delete
-// // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogmonitors/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=datadoghq.com,resources=datadogmonitors,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=datadoghq.com,resources=datadogmonitors/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=datadoghq.com,resources=datadogmonitors/finalizers,verbs=get;list;watch;create;update;patch;delete
 
-// func (r *DatadogMonitorReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-// 	_ = context.Background()
-// 	_ = r.Log.WithValues("datadogmonitor", req.NamespacedName)
+// Reconcile loop for DatadogMonitor
+func (r *DatadogMonitorReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
+	return r.internal.Reconcile(context.Background(), req)
+}
 
-// 	// your logic here
+// SetupWithManager creates a new DatadogMonitor controller
+func (r *DatadogMonitorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
-// 	return ctrl.Result{}, nil
-// }
+	internal, err := datadogmonitor.NewReconciler(r.Client, r.DDClient, r.VersionInfo, r.Scheme, r.Log, r.Recorder)
+	if err != nil {
+		return err
+	}
+	r.internal = internal
 
-// func (r *DatadogMonitorReconciler) SetupWithManager(mgr ctrl.Manager) error {
-// 	return ctrl.NewControllerManagedBy(mgr).
-// 		For(&datadoghqv1alpha1.DatadogMonitor{}).
-// 		Complete(r)
-// }
+	builder := ctrl.NewControllerManagedBy(mgr).
+		For(&datadoghqv1alpha1.DatadogMonitor{})
+
+	err = builder.Complete(r)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
