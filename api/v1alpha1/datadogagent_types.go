@@ -59,9 +59,9 @@ type DatadogAgentSpec struct {
 	Site string `json:"site,omitempty"`
 }
 
-// AgentCredentials contains credentials values to configure the Agent
+// DatadogCredentials is a generic structure that holds credentials to access Datadog
 // +k8s:openapi-gen=true
-type AgentCredentials struct {
+type DatadogCredentials struct {
 	// APIKey Set this to your Datadog API key before the Agent runs.
 	// ref: https://app.datadoghq.com/account/settings#agent/kubernetes
 	APIKey string `json:"apiKey,omitempty"`
@@ -94,6 +94,12 @@ type AgentCredentials struct {
 	// If set, this parameter takes precedence over "apiKey" and "appKeyExistingSecret".
 	// +optional
 	APPSecret *Secret `json:"appSecret,omitempty"`
+}
+
+// AgentCredentials contains credentials values to configure the Agent
+// +k8s:openapi-gen=true
+type AgentCredentials struct {
+	DatadogCredentials `json:",inline"`
 
 	// This needs to be at least 32 characters a-zA-z
 	// It is a preshared key between the node agents and the cluster agent
@@ -920,6 +926,11 @@ type ExternalMetricsConfig struct {
 	// empty.
 	// +optional
 	Endpoint *string `json:"endpoint,omitempty"`
+
+	// Datadog credentials used by external metrics server to query Datadog.
+	// If not set, the external metrics server uses the global .spec.Credentials
+	// +optional
+	Credentials *DatadogCredentials `json:"credentials,omitempty"`
 }
 
 // AdmissionControllerConfig contains the configuration of the admission controller in Cluster Agent

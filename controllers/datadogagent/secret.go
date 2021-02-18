@@ -27,34 +27,38 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 )
 
-func (r *Reconciler) manageAgentSecret(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
-	if !needAgentSecret(dda) {
-		result, err := r.cleanupAgentSecret(dda)
+type managedSecret struct {
+	name        string
+	requireFunc func(dda *datadoghqv1alpha1.DatadogAgent) bool
+	createFunc  func(name string, dda *datadoghqv1alpha1.DatadogAgent) (*corev1.Secret, error)
+}
+
+func (r *Reconciler) manageSecret(logger logr.Logger, secret managedSecret, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
+	if !secret.requireFunc(dda) {
+		result, err := r.cleanupSecret(dda.Namespace, secret.name)
 		return result, err
 	}
+
 	now := metav1.NewTime(time.Now())
-	// checks token secret
-	secret := &corev1.Secret{}
-	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: dda.Namespace, Name: dda.Name}, secret)
+	secretObj := &corev1.Secret{}
+	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: dda.Namespace, Name: secret.name}, secretObj)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			if (dda.Spec.Credentials.AppKeyExistingSecret == "" && dda.Spec.Credentials.APPSecret == nil) ||
-				(dda.Spec.Credentials.APIKeyExistingSecret == "" && dda.Spec.Credentials.APISecret == nil) ||
-				dda.Spec.ClusterAgent != nil {
-				return r.createAgentSecret(logger, dda)
+			s, errCreate := secret.createFunc(secret.name, dda)
+			if errCreate != nil {
+				condition.UpdateDatadogAgentStatusConditions(newStatus, now, datadoghqv1alpha1.ConditionTypeSecretError, corev1.ConditionTrue, fmt.Sprintf("%v", err), false)
+				return reconcile.Result{}, fmt.Errorf("cannot create secret %s, err: %v", secret.name, errCreate)
 			}
-			// return error since the secret didn't exist and we are not responsible to create it.
-			err = fmt.Errorf("secret %s didn't exist", dda.Name)
-			condition.UpdateDatadogAgentStatusConditions(newStatus, now, datadoghqv1alpha1.DatadogAgentConditionTypeSecretError, corev1.ConditionTrue, fmt.Sprintf("%v", err), false)
+
+			return r.createSecret(logger, s, dda)
 		}
 		return reconcile.Result{}, err
 	}
 
-	return r.updateIfNeededAgentSecret(dda, secret)
+	return r.updateIfNeededSecret(secret, dda, secretObj)
 }
 
-func (r *Reconciler) createAgentSecret(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
-	newSecret := newAgentSecret(dda)
+func (r *Reconciler) createSecret(logger logr.Logger, newSecret *corev1.Secret, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
 	// Set DatadogAgent instance  instance as the owner and controller
 	if err := controllerutil.SetControllerReference(dda, newSecret, r.scheme); err != nil {
 		return reconcile.Result{}, err
@@ -62,18 +66,23 @@ func (r *Reconciler) createAgentSecret(logger logr.Logger, dda *datadoghqv1alpha
 	if err := r.client.Create(context.TODO(), newSecret); err != nil {
 		return reconcile.Result{}, err
 	}
-	logger.Info("Create Agent Secret", "name", newSecret.Name)
+	logger.Info("Create Secret", "name", newSecret.Name)
 	event := buildEventInfo(newSecret.Name, newSecret.Namespace, secretKind, datadog.CreationEvent)
 	r.recordEvent(dda, event)
 
 	return reconcile.Result{Requeue: true}, nil
 }
 
-func (r *Reconciler) updateIfNeededAgentSecret(dda *datadoghqv1alpha1.DatadogAgent, currentSecret *corev1.Secret) (reconcile.Result, error) {
+func (r *Reconciler) updateIfNeededSecret(secret managedSecret, dda *datadoghqv1alpha1.DatadogAgent, currentSecret *corev1.Secret) (reconcile.Result, error) {
 	if !ownedByDatadogOperator(currentSecret.OwnerReferences) {
 		return reconcile.Result{}, nil
 	}
-	newSecret := newAgentSecret(dda)
+
+	newSecret, err := secret.createFunc(secret.name, dda)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
 	result := reconcile.Result{}
 	if !(apiequality.Semantic.DeepEqual(newSecret.Data, currentSecret.Data) &&
 		apiequality.Semantic.DeepEqual(newSecret.Labels, currentSecret.Labels) &&
@@ -101,10 +110,9 @@ func (r *Reconciler) updateIfNeededAgentSecret(dda *datadoghqv1alpha1.DatadogAge
 	return result, nil
 }
 
-func (r *Reconciler) cleanupAgentSecret(dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
-	// checks token secret
+func (r *Reconciler) cleanupSecret(namespace, name string) (reconcile.Result, error) {
 	secret := &corev1.Secret{}
-	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: dda.Namespace, Name: dda.Name}, secret)
+	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, secret)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return reconcile.Result{}, nil
@@ -118,45 +126,19 @@ func (r *Reconciler) cleanupAgentSecret(dda *datadoghqv1alpha1.DatadogAgent) (re
 	return reconcile.Result{}, err
 }
 
-func newAgentSecret(dda *datadoghqv1alpha1.DatadogAgent) *corev1.Secret {
-	labels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
-	annotations := getDefaultAnnotations(dda)
-
+func dataFromCredentials(credentials *datadoghqv1alpha1.DatadogCredentials) map[string][]byte {
 	data := make(map[string][]byte)
 	// Create secret using DatadogAgent credentials if it exists, otherwise use Datadog Operator env var
-	if dda.Spec.Credentials.APIKey != "" {
-		data[datadoghqv1alpha1.DefaultAPIKeyKey] = []byte(dda.Spec.Credentials.APIKey)
+	if credentials.APIKey != "" {
+		data[datadoghqv1alpha1.DefaultAPIKeyKey] = []byte(credentials.APIKey)
 	} else if os.Getenv(config.DDAPIKeyEnvVar) != "" {
 		data[datadoghqv1alpha1.DefaultAPIKeyKey] = []byte(os.Getenv(config.DDAPIKeyEnvVar))
 	}
-	if dda.Spec.Credentials.AppKey != "" {
-		data[datadoghqv1alpha1.DefaultAPPKeyKey] = []byte(dda.Spec.Credentials.AppKey)
+	if credentials.AppKey != "" {
+		data[datadoghqv1alpha1.DefaultAPPKeyKey] = []byte(credentials.AppKey)
 	} else if os.Getenv(config.DDAppKeyEnvVar) != "" {
 		data[datadoghqv1alpha1.DefaultAPPKeyKey] = []byte(os.Getenv(config.DDAppKeyEnvVar))
 	}
-	if dda.Spec.Credentials.Token != "" {
-		data[datadoghqv1alpha1.DefaultTokenKey] = []byte(dda.Spec.Credentials.Token)
-	} else if dda.Status.ClusterAgent != nil {
-		data[datadoghqv1alpha1.DefaultTokenKey] = []byte(dda.Status.ClusterAgent.GeneratedToken)
-	}
 
-	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        dda.Name,
-			Namespace:   dda.Namespace,
-			Labels:      labels,
-			Annotations: annotations,
-		},
-		Type: corev1.SecretTypeOpaque,
-		Data: data,
-	}
-
-	return secret
-}
-
-// needAgentSecret checks if a secret should be used or created due to the cluster agent being defined, or if any api or app key
-// is configured, AND the secret backend is not used
-func needAgentSecret(dda *datadoghqv1alpha1.DatadogAgent) bool {
-	return (dda.Spec.ClusterAgent != nil || (dda.Spec.Credentials.APIKey != "" || os.Getenv(config.DDAPIKeyEnvVar) != "") || (dda.Spec.Credentials.AppKey != "" || os.Getenv(config.DDAppKeyEnvVar) != "")) &&
-		!datadoghqv1alpha1.BoolValue(dda.Spec.Credentials.UseSecretBackend)
+	return data
 }
