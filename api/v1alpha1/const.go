@@ -100,6 +100,8 @@ const (
 	DDRuntimeSecurityConfigSocket                = "DD_RUNTIME_SECURITY_CONFIG_SOCKET"
 	DDRuntimeSecurityConfigSyscallMonitorEnabled = "DD_RUNTIME_SECURITY_CONFIG_SYSCALL_MONITOR_ENABLED"
 	DDExternalMetricsProviderEndpoint            = "DD_EXTERNAL_METRICS_PROVIDER_ENDPOINT"
+	DDPrometheusScrapeEnabled                    = "DD_PROMETHEUS_SCRAPE_ENABLED"
+	DDPrometheusScrapeServiceEndpoints           = "DD_PROMETHEUS_SCRAPE_SERVICE_ENDPOINTS"
 
 	// KubernetesEnvvarName Env var used by the Datadog Agent container entrypoint
 	// to add kubelet config provider and listener

@@ -716,6 +716,8 @@ func getEnvVarsForAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.EnvVar, e
 		envVars = append(envVars, clusterEnv...)
 	}
 
+	envVars = append(envVars, prometheusScrapeEnvVars(dda)...)
+
 	return append(envVars, spec.Agent.Config.Env...), nil
 }
 
@@ -1692,6 +1694,28 @@ func isKSMCoreEnabled(dda *datadoghqv1alpha1.DatadogAgent) bool {
 		return *dda.Spec.Features.KubeStateMetricsCore.Enabled
 	}
 	return false
+}
+
+func prometheusScrapeEnvVars(dda *datadoghqv1alpha1.DatadogAgent) []corev1.EnvVar {
+	envVars := []corev1.EnvVar{}
+	if dda.Spec.Features == nil || dda.Spec.Features.PrometheusScrape == nil {
+		return envVars
+	}
+
+	if dda.Spec.Features.PrometheusScrape.Enabled != nil && datadoghqv1alpha1.BoolValue(dda.Spec.Features.PrometheusScrape.Enabled) {
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  datadoghqv1alpha1.DDPrometheusScrapeEnabled,
+			Value: datadoghqv1alpha1.BoolToString(dda.Spec.Features.PrometheusScrape.Enabled),
+		})
+		if dda.Spec.Features.PrometheusScrape.ServiceEndpoints != nil {
+			envVars = append(envVars, corev1.EnvVar{
+				Name:  datadoghqv1alpha1.DDPrometheusScrapeServiceEndpoints,
+				Value: datadoghqv1alpha1.BoolToString(dda.Spec.Features.PrometheusScrape.ServiceEndpoints),
+			})
+		}
+	}
+
+	return envVars
 }
 
 func isMetricsProviderEnabled(spec *datadoghqv1alpha1.DatadogAgentSpecClusterAgentSpec) bool {

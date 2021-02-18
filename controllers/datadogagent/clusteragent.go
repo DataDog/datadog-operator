@@ -672,6 +672,8 @@ func getEnvVarsForClusterAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.En
 		envVars = append(envVars, envs...)
 	}
 
+	envVars = append(envVars, prometheusScrapeEnvVars(dda)...)
+
 	return append(envVars, spec.ClusterAgent.Config.Env...), nil
 }
 

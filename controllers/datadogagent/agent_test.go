@@ -2569,6 +2569,35 @@ func Test_newExtendedDaemonSetFromInstance_Orchestrator(t *testing.T) {
 	}
 }
 
+func Test_newExtendedDaemonSetFromInstance_PrometheusScrape(t *testing.T) {
+	dda := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
+		UseEDS:              true,
+		ClusterAgentEnabled: true,
+		Features: &datadoghqv1alpha1.DatadogFeatures{
+			OrchestratorExplorer: &datadoghqv1alpha1.OrchestratorExplorerConfig{Enabled: datadoghqv1alpha1.NewBoolPointer(false)}, // Do not add the process agent container in this test case for simplicity
+			PrometheusScrape:     &datadoghqv1alpha1.PrometheusScrapeConfig{Enabled: datadoghqv1alpha1.NewBoolPointer(true), ServiceEndpoints: datadoghqv1alpha1.NewBoolPointer(true)}},
+	})
+
+	promEnabledPodSpec := defaultPodSpec()
+	promEnabledPodSpec.Containers[0].Env = append(promEnabledPodSpec.Containers[0].Env, prometheusScrapeEnvVars(dda)...)
+	promEnabledPodSpec.InitContainers[1].Env = append(promEnabledPodSpec.InitContainers[1].Env, prometheusScrapeEnvVars(dda)...)
+
+	tests := []extendedDaemonSetFromInstanceTest{
+		{
+			name:            "Prometheus scrape enabled",
+			agentdeployment: dda,
+			wantErr:         false,
+			want:            extendedDaemonSetDefault(promEnabledPodSpec),
+		},
+	}
+
+	for _, instanceTest := range tests {
+		t.Run(instanceTest.name, func(t *testing.T) {
+			instanceTest.Run(t)
+		})
+	}
+}
+
 func Test_newExtendedDaemonSetFromInstance_SecurityAgent_Compliance(t *testing.T) {
 	securityAgentPodSpec := complianceSecurityAgentPodSpec(nil)
 

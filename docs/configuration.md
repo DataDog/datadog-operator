@@ -241,6 +241,9 @@ spec:
 | features.orchestratorExplorer.enabled | Enable this to activate live Kubernetes monitoring. ref: https://docs.datadoghq.com/infrastructure/livecontainers/#kubernetes-resources |
 | features.orchestratorExplorer.extraTags | Additional tags for the collected data in the form of `a b c` Difference to DD_TAGS: this is a cluster agent option that is used to define custom cluster tags |
 | features.orchestratorExplorer.scrubbing.containers | Deactivate this to stop the scrubbing of sensitive container data (passwords, tokens, etc. ). |
+| features.prometheusScrape.additionalConfigs | AdditionalConfigs allows adding advanced prometheus check configurations with custom discovery rules. |
+| features.prometheusScrape.enabled | Enable autodiscovering pods and services exposing prometheus metrics. |
+| features.prometheusScrape.serviceEndpoints | ServiceEndpoints enables generating dedicated checks for service endpoints. |
 | site | The site of the Datadog intake to send Agent data to. Set to 'datadoghq.eu' to send data to the EU site. |
 
 [1]: https://github.com/DataDog/datadog-operator/blob/master/examples/datadog-agent-all.yaml

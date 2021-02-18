@@ -404,6 +404,67 @@ func Test_newClusterAgentDeploymentMountKSMCore(t *testing.T) {
 	testDCA.Run(t)
 }
 
+func Test_newClusterAgentPrometheusScrapeEnabled(t *testing.T) {
+	clusterAgentPodSpec := clusterAgentDefaultPodSpec()
+	clusterAgentDeployment := test.NewDefaultedDatadogAgent(
+		"bar",
+		"foo",
+		&test.NewDatadogAgentOptions{
+			ClusterAgentEnabled: true,
+			Features: &datadoghqv1alpha1.DatadogFeatures{
+				OrchestratorExplorer: &datadoghqv1alpha1.OrchestratorExplorerConfig{Enabled: datadoghqv1alpha1.NewBoolPointer(false)},
+				PrometheusScrape:     &datadoghqv1alpha1.PrometheusScrapeConfig{Enabled: datadoghqv1alpha1.NewBoolPointer(true), ServiceEndpoints: datadoghqv1alpha1.NewBoolPointer(true)}},
+		},
+	)
+
+	clusterAgentPodSpec.Containers[0].Env = append(clusterAgentPodSpec.Containers[0].Env, prometheusScrapeEnvVars(clusterAgentDeployment)...)
+
+	testDCA := clusterAgentDeploymentFromInstanceTest{
+		name:            "Prometheus scrape enabled",
+		agentdeployment: clusterAgentDeployment,
+		newStatus:       &datadoghqv1alpha1.DatadogAgentStatus{},
+		wantErr:         false,
+		want: &appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "bar",
+				Name:      "foo-cluster-agent",
+				Labels: map[string]string{"agent.datadoghq.com/name": "foo",
+					"agent.datadoghq.com/component": "cluster-agent",
+					"app.kubernetes.io/instance":    "cluster-agent",
+					"app.kubernetes.io/managed-by":  "datadog-operator",
+					"app.kubernetes.io/name":        "datadog-agent-deployment",
+					"app.kubernetes.io/part-of":     "foo",
+					"app.kubernetes.io/version":     "",
+				},
+			},
+			Spec: appsv1.DeploymentSpec{
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{
+							"agent.datadoghq.com/name":      "foo",
+							"agent.datadoghq.com/component": "cluster-agent",
+							"app.kubernetes.io/instance":    "cluster-agent",
+							"app.kubernetes.io/managed-by":  "datadog-operator",
+							"app.kubernetes.io/name":        "datadog-agent-deployment",
+							"app.kubernetes.io/part-of":     "foo",
+							"app.kubernetes.io/version":     "",
+						},
+					},
+					Spec: clusterAgentPodSpec,
+				},
+				Replicas: &testClusterAgentReplicas,
+				Selector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"agent.datadoghq.com/name":      "foo",
+						"agent.datadoghq.com/component": "cluster-agent",
+					},
+				},
+			},
+		},
+	}
+	testDCA.Run(t)
+}
+
 func Test_newClusterAgentDeploymentFromInstance_UserVolumes(t *testing.T) {
 	userVolumes := []corev1.Volume{
 		{
