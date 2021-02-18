@@ -111,6 +111,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 	// Create or update monitor, or check monitor state. Fall through this block (without returning)
 	// if the result should be requeued with the default period
 	if instance.Status.ID == 0 {
+		logger.V(1).Info("Monitor ID is not set; creating monitor in Datadog")
 		// If the monitor ID is 0, then it doesn't exist yet in Datadog. Create the monitor (only metric alerts)
 		switch string(instance.Spec.Type) {
 		case string(datadogapiclientv1.MONITORTYPE_METRIC_ALERT):
