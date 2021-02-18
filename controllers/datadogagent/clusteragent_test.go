@@ -707,6 +707,14 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 				Name:  datadoghqv1alpha1.DDExternalMetricsProviderEndpoint,
 				Value: "https://app.datadoghq.eu",
 			},
+			{
+				Name:      datadoghqv1alpha1.DDExternalMetricsProviderAPIKey,
+				ValueFrom: buildEnvVarFromSecret("foo-metrics-server", "api_key"),
+			},
+			{
+				Name:      datadoghqv1alpha1.DDExternalMetricsProviderAppKey,
+				ValueFrom: buildEnvVarFromSecret("extmetrics-app-key-secret-name", "appkey"),
+			},
 		}...,
 	)
 	metricsServerWithSitePodSpec.Containers[0].LivenessProbe = probe
@@ -721,6 +729,13 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 			MetricsServerWPAController:    true,
 			MetricsServerEndpoint:         "https://app.datadoghq.eu",
 			MetricsServerPort:             metricsServerPort,
+			MetricsServerCredentials: &datadoghqv1alpha1.DatadogCredentials{
+				APIKey: "extmetrics-api-key-literal-foo",
+				APPSecret: &datadoghqv1alpha1.Secret{
+					SecretName: "extmetrics-app-key-secret-name",
+					KeyName:    "appkey",
+				},
+			},
 		})
 
 	tests := clusterAgentDeploymentFromInstanceTestSuite{
@@ -774,7 +789,7 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 			},
 		},
 		{
-			name:            "with metrics server and endpoint",
+			name:            "with metrics server and endpoint and custom API/APPKeys",
 			agentdeployment: metricsServerAgentWithEndpointDeployment,
 			selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{

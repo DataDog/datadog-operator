@@ -38,6 +38,7 @@ type NewDatadogAgentOptions struct {
 	MetricsServerEndpoint            string
 	MetricsServerUseDatadogMetric    bool
 	MetricsServerWPAController       bool
+	MetricsServerCredentials         *datadoghqv1alpha1.DatadogCredentials
 	ClusterChecksEnabled             bool
 	KubeStateMetricsCore             *datadoghqv1alpha1.KubeStateMetricsCore
 	NodeAgentConfig                  *datadoghqv1alpha1.NodeAgentConfig
@@ -117,8 +118,8 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 			},
 		},
 	}
-	if options != nil {
 
+	if options != nil {
 		if options.OrchestratorExplorerEnabled {
 			orExplorer := datadoghqv1alpha1.OrchestratorExplorerConfig{Enabled: datadoghqv1alpha1.NewBoolPointer(true)}
 			ad.Spec.Features = &datadoghqv1alpha1.DatadogFeatures{OrchestratorExplorer: &orExplorer}
@@ -193,6 +194,10 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 
 				if options.MetricsServerEndpoint != "" {
 					externalMetricsConfig.Endpoint = &options.MetricsServerEndpoint
+				}
+
+				if options.MetricsServerCredentials != nil {
+					externalMetricsConfig.Credentials = options.MetricsServerCredentials
 				}
 
 				ad.Spec.ClusterAgent.Config.ExternalMetrics = &externalMetricsConfig

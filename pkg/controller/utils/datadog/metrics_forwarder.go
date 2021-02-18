@@ -500,7 +500,7 @@ func (mf *metricsForwarder) getCredentials(dda *datadoghqv1alpha1.DatadogAgent) 
 	case os.Getenv(config.DDAPIKeyEnvVar) != "":
 		apiKey = os.Getenv(config.DDAPIKeyEnvVar)
 	default:
-		secretName, secretKeyName := utils.GetAPIKeySecret(dda)
+		_, secretName, secretKeyName := utils.GetAPIKeySecret(&dda.Spec.Credentials.DatadogCredentials, utils.GetDefaultCredentialsSecretName(dda))
 		apiKey, err = mf.getKeyFromSecret(dda, secretName, secretKeyName)
 		if err != nil {
 			return "", "", err
@@ -514,7 +514,7 @@ func (mf *metricsForwarder) getCredentials(dda *datadoghqv1alpha1.DatadogAgent) 
 	case os.Getenv(config.DDAppKeyEnvVar) != "":
 		appKey = os.Getenv(config.DDAppKeyEnvVar)
 	default:
-		secretName, secretKeyName := utils.GetAppKeySecret(dda)
+		_, secretName, secretKeyName := utils.GetAppKeySecret(&dda.Spec.Credentials.DatadogCredentials, utils.GetDefaultCredentialsSecretName(dda))
 		appKey, err = mf.getKeyFromSecret(dda, secretName, secretKeyName)
 		if err != nil {
 			return "", "", err
