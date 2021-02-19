@@ -99,7 +99,7 @@ metadata:
     capabilities: Full Lifecycle
     operators.operatorframework.io/builder: operator-sdk-v1.2.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
-  name: datadog-operator.v0.5.0-rc.2
+  name: datadog-operator.v0.5.0-rc.3
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -437,7 +437,7 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.annotations['olm.targetNamespaces']
-                image: datadog/operator:0.5.0-rc.2
+                image: datadog/operator:0.5.0-rc.3
                 imagePullPolicy: Always
                 livenessProbe:
                   httpGet:
@@ -514,5 +514,5 @@ spec:
   maturity: alpha
   provider:
     name: Datadog
-  replaces: datadog-operator.v0.5.0-rc.1
-  version: 0.5.0-rc.2
+  replaces: datadog-operator.v0.5.0-rc.2
+  version: 0.5.0-rc.3
