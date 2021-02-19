@@ -141,7 +141,7 @@ func (r *Reconciler) createNewExtendedDaemonSet(logger logr.Logger, dda *datadog
 	// ExtendedDaemonSet up to date didn't exist yet, create a new one
 	var newEDS *edsdatadoghqv1alpha1.ExtendedDaemonSet
 	var hashEDS string
-	if newEDS, hashEDS, err = newExtendedDaemonSetFromInstance(logger, dda, nil); err != nil {
+	if newEDS, hashEDS, err = newExtendedDaemonSetFromInstance(logger, dda, nil, &r.options); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -169,7 +169,7 @@ func (r *Reconciler) createNewDaemonSet(logger logr.Logger, dda *datadoghqv1alph
 	// DaemonSet up to date didn't exist yet, create a new one
 	var newDS *appsv1.DaemonSet
 	var hashDS string
-	if newDS, hashDS, err = newDaemonSetFromInstance(logger, dda, nil); err != nil {
+	if newDS, hashDS, err = newDaemonSetFromInstance(logger, dda, nil, &r.options); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -192,7 +192,7 @@ func (r *Reconciler) createNewDaemonSet(logger logr.Logger, dda *datadoghqv1alph
 
 func (r *Reconciler) updateExtendedDaemonSet(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, eds *edsdatadoghqv1alpha1.ExtendedDaemonSet, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
 	now := metav1.NewTime(time.Now())
-	newEDS, newHashEDS, err := newExtendedDaemonSetFromInstance(logger, dda, eds.Spec.Selector)
+	newEDS, newHashEDS, err := newExtendedDaemonSetFromInstance(logger, dda, eds.Spec.Selector, &r.options)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -237,7 +237,7 @@ func (r *Reconciler) updateDaemonSet(logger logr.Logger, dda *datadoghqv1alpha1.
 	// Update values from current DS in any case
 	newStatus.Agent = updateDaemonSetStatus(ds, newStatus.Agent, nil)
 
-	newDS, newHashDS, err := newDaemonSetFromInstance(logger, dda, ds.Spec.Selector)
+	newDS, newHashDS, err := newDaemonSetFromInstance(logger, dda, ds.Spec.Selector, &r.options)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -408,8 +408,8 @@ func buildAgentNetworkPolicy(dda *datadoghqv1alpha1.DatadogAgent, name string) *
 }
 
 // newExtendedDaemonSetFromInstance creates an ExtendedDaemonSet from a given DatadogAgent
-func newExtendedDaemonSetFromInstance(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, selector *metav1.LabelSelector) (*edsdatadoghqv1alpha1.ExtendedDaemonSet, string, error) {
-	template, err := newAgentPodTemplate(logger, dda, selector)
+func newExtendedDaemonSetFromInstance(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, selector *metav1.LabelSelector, options *ReconcilerOptions) (*edsdatadoghqv1alpha1.ExtendedDaemonSet, string, error) {
+	template, err := newAgentPodTemplate(logger, dda, selector, options)
 	if err != nil {
 		return nil, "", err
 	}
@@ -440,8 +440,8 @@ func newExtendedDaemonSetFromInstance(logger logr.Logger, dda *datadoghqv1alpha1
 }
 
 // newDaemonSetFromInstance creates a DaemonSet from a given DatadogAgent
-func newDaemonSetFromInstance(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, selector *metav1.LabelSelector) (*appsv1.DaemonSet, string, error) {
-	template, err := newAgentPodTemplate(logger, dda, selector)
+func newDaemonSetFromInstance(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, selector *metav1.LabelSelector, options *ReconcilerOptions) (*appsv1.DaemonSet, string, error) {
+	template, err := newAgentPodTemplate(logger, dda, selector, options)
 	if err != nil {
 		return nil, "", err
 	}

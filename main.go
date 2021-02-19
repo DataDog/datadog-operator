@@ -6,12 +6,13 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"net/http"
 	"os"
 	goruntime "runtime"
 	"strings"
+
+	flag "github.com/spf13/pflag"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -58,7 +59,7 @@ func init() {
 	// +kubebuilder:scaffold:scheme
 }
 
-// stringSlice implements flag.Value
+// stringSlice implements pflag.Value
 type stringSlice []string
 
 func (ss *stringSlice) String() string {
@@ -68,6 +69,10 @@ func (ss *stringSlice) String() string {
 func (ss *stringSlice) Set(value string) error {
 	*ss = strings.Split(value, " ")
 	return nil
+}
+
+func (ss *stringSlice) Type() string {
+	return "stringSlice"
 }
 
 func main() {
@@ -81,6 +86,9 @@ func main() {
 	var printVersion, pprofActive, supportExtendedDaemonset bool
 	var logEncoder, secretBackendCommand string
 	var secretBackendArgs stringSlice
+	var allowedRegistries []string
+	var disallowedFeatures []string
+	var hostStoragePath string
 	flag.StringVar(&logEncoder, "logEncoder", "json", "log encoding ('json' or 'console')")
 	flag.StringVar(&secretBackendCommand, "secretBackendCommand", "", "Secret backend command")
 	flag.Var(&secretBackendArgs, "secretBackendArgs", "Space separated arguments of the secret backend command")
@@ -88,6 +96,9 @@ func main() {
 	flag.BoolVar(&printVersion, "version", false, "Print version and exit")
 	flag.BoolVar(&pprofActive, "pprof", false, "Enable pprof endpoint")
 	flag.BoolVar(&supportExtendedDaemonset, "supportExtendedDaemonset", false, "Support usage of Datadog ExtendedDaemonset CRD.")
+	flag.StringSliceVar(&allowedRegistries, "allowedRegistries", nil, "Allowed container registries")
+	flag.StringSliceVar(&disallowedFeatures, "disallowedFeatures", nil, "Disallowed DatadogAgent features")
+	flag.StringVar(&hostStoragePath, "hostStoragePath", "", "Host storage dir for DatadogAgent components")
 
 	// Parsing flags
 	flag.Parse()
@@ -127,9 +138,12 @@ func main() {
 	customSetupEndpoints(pprofActive, mgr)
 
 	options := controllers.SetupOptions{
-		SupportExtendedDaemonset: supportExtendedDaemonset,
-		APIKey:                   os.Getenv(config.DDAPIKeyEnvVar),
-		AppKey:                   os.Getenv(config.DDAppKeyEnvVar),
+		SupportExtendedDaemonset:   supportExtendedDaemonset,
+		APIKey:                     os.Getenv(config.DDAPIKeyEnvVar),
+		AppKey:                     os.Getenv(config.DDAppKeyEnvVar),
+		AllowedContainerRegistries: allowedRegistries,
+		DisallowedAgentFeatures:    disallowedFeatures,
+		AgentHostStoragePath:       hostStoragePath,
 	}
 
 	// Get some information about Kubernetes version

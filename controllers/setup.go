@@ -21,10 +21,15 @@ type SetupOptions struct {
 	SupportExtendedDaemonset bool
 	APIKey                   string
 	AppKey                   string
+	// AllowedContainerRegistries is a list of allowed container registries
+	AllowedContainerRegistries []string
+	// DisallowedFeatures is a list of allowed agent features
+	DisallowedAgentFeatures []string
+	// AgentHostStoragePath is a path allowed for use on the host
+	AgentHostStoragePath string
 }
 
-// SetupControllers starts all controllers (also used by e2e tests)
-// func SetupControllers(mgr manager.Manager, supportExtendedDaemonset bool) error {
+// SetupControllers start all controllers (also used by e2e tests)
 func SetupControllers(mgr manager.Manager, options SetupOptions) error {
 	// Get some information about Kubernetes version
 	discoveryClient, err := discovery.NewDiscoveryClientForConfig(mgr.GetConfig())
@@ -37,6 +42,16 @@ func SetupControllers(mgr manager.Manager, options SetupOptions) error {
 		return fmt.Errorf("unable to get APIServer version: %w", err)
 	}
 
+	disallowedFeatures := make([]datadogagent.AgentFeature, 0, len(options.DisallowedAgentFeatures))
+
+	for _, f := range options.DisallowedAgentFeatures {
+		feature := datadogagent.AgentFeature(f)
+		if !feature.IsValid() {
+			return fmt.Errorf("feature not valid: %s", f)
+		}
+		disallowedFeatures = append(disallowedFeatures, feature)
+	}
+
 	if err = (&DatadogAgentReconciler{
 		Client:      mgr.GetClient(),
 		VersionInfo: versionInfo,
@@ -44,7 +59,10 @@ func SetupControllers(mgr manager.Manager, options SetupOptions) error {
 		Scheme:      mgr.GetScheme(),
 		Recorder:    mgr.GetEventRecorderFor("DatadogAgent"),
 		Options: datadogagent.ReconcilerOptions{
-			SupportExtendedDaemonset: options.SupportExtendedDaemonset,
+			SupportExtendedDaemonset:   options.SupportExtendedDaemonset,
+			AllowedContainerRegistries: options.AllowedContainerRegistries,
+			DisallowedAgentFeatures:    disallowedFeatures,
+			AgentHostStoragePath:       options.AgentHostStoragePath,
 		},
 	}).SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("unable to create controller DatadogAgent: %w", err)

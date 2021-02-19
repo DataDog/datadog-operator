@@ -7,6 +7,8 @@ package datadogagent
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -24,15 +26,52 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+
+	utilserrors "k8s.io/apimachinery/pkg/util/errors"
 )
+
+// AgentFeature describes a feature in Datadog agent that can be subject to restriction
+type AgentFeature string
+
+// IsValid returns true if the feature is known
+func (f AgentFeature) IsValid() bool {
+	switch f {
+	case
+		AgentFeatureSystemProbe,
+		AgentFeatureAPM,
+		AgentFeatureLogs,
+		AgentFeatureRuntimeSecurity,
+		AgentFeatureCompliance:
+		return true
+	default:
+		return false
+	}
+}
 
 const (
 	defaultRequeuePeriod = 15 * time.Second
+
+	// AgentFeatureSystemProbe represents the system probe container
+	AgentFeatureSystemProbe AgentFeature = "system-probe"
+	// AgentFeatureAPM represents the APM/trace-agent container
+	AgentFeatureAPM = "apm"
+	// AgentFeatureLogs represents the logs-agent (core agent container)
+	AgentFeatureLogs = "logs"
+	// AgentFeatureRuntimeSecurity represents the runtime-security features
+	AgentFeatureRuntimeSecurity = "runtime-security"
+	// AgentFeatureCompliance represents the compliance features
+	AgentFeatureCompliance = "compliance"
 )
 
 // ReconcilerOptions provides options read from command line
 type ReconcilerOptions struct {
 	SupportExtendedDaemonset bool
+	// AllowedContainerRegistries is a list of allowed container registries
+	AllowedContainerRegistries []string
+	// DisallowedAgentFeatures is a list of allowed agent features
+	DisallowedAgentFeatures []AgentFeature
+	// AgentHostStoragePath is a path allowed for use on the host
+	AgentHostStoragePath string
 }
 
 // Reconciler is the internal reconciler for Datadog Agent
@@ -109,6 +148,10 @@ func (r *Reconciler) internalReconcile(ctx context.Context, request reconcile.Re
 		return r.updateStatusIfNeeded(reqLogger, instance, newStatus, result, err)
 	}
 
+	if err = r.validateRestrictions(&instance.Spec); err != nil {
+		return r.updateStatusIfNeeded(reqLogger, instance, newStatus, result, err)
+	}
+
 	reconcileFuncs :=
 		[]reconcileFuncInterface{
 			r.reconcileClusterAgent,
@@ -160,4 +203,66 @@ func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, agentdeployment *d
 	}
 
 	return result, currentError
+}
+
+func (r *Reconciler) validateRestrictions(spec *datadoghqv1alpha1.DatadogAgentSpec) error {
+	// Check registries used
+	errs := []error{
+		r.allowImage(spec.Agent.Image.Name),
+	}
+
+	if spec.ClusterAgent != nil {
+		errs = append(errs, r.allowImage(spec.ClusterAgent.Image.Name))
+	}
+
+	if spec.ClusterChecksRunner != nil {
+		errs = append(errs, r.allowImage(spec.ClusterChecksRunner.Image.Name))
+	}
+
+	// Check features used
+	if isSystemProbeEnabled(spec) {
+		errs = append(errs, r.allowFeature(AgentFeatureSystemProbe))
+	}
+
+	if datadoghqv1alpha1.BoolValue(spec.Agent.Log.Enabled) {
+		errs = append(errs, r.allowFeature(AgentFeatureLogs))
+	}
+
+	if isAPMEnabled(spec) {
+		errs = append(errs, r.allowFeature(AgentFeatureAPM))
+	}
+
+	if isRuntimeSecurityEnabled(spec) {
+		errs = append(errs, r.allowFeature(AgentFeatureRuntimeSecurity))
+	}
+
+	if isComplianceEnabled(spec) {
+		errs = append(errs, r.allowFeature(AgentFeatureCompliance))
+	}
+
+	return utilserrors.NewAggregate(errs)
+}
+
+func (r *Reconciler) allowImage(imageName string) error {
+	if len(r.options.AllowedContainerRegistries) == 0 {
+		return nil
+	}
+	for _, registry := range r.options.AllowedContainerRegistries {
+		if strings.HasPrefix(imageName, registry+"/") {
+			return nil
+		}
+	}
+	return fmt.Errorf("image %s is disallowed in the current configuration", imageName)
+}
+
+func (r *Reconciler) allowFeature(f AgentFeature) error {
+	if len(r.options.DisallowedAgentFeatures) == 0 {
+		return nil
+	}
+	for _, disallowed := range r.options.DisallowedAgentFeatures {
+		if f == disallowed {
+			return fmt.Errorf("%s agent feature cannot be enabled in the current configuration", f)
+		}
+	}
+	return nil
 }

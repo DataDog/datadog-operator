@@ -172,6 +172,36 @@ func defaultVolumes() []corev1.Volume {
 	}
 }
 
+func defaultLogVolumes() []corev1.Volume {
+	volumes := defaultVolumes()
+	return append(volumes, []corev1.Volume{
+		{
+			Name: datadoghqv1alpha1.PointerVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/var/lib/datadog-agent/logs",
+				},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.LogPodVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/var/log/pods",
+				},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.LogContainerVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/var/lib/docker/containers",
+				},
+			},
+		},
+	}...)
+}
+
 func defaultSystemProbeVolumes() []corev1.Volume {
 	return []corev1.Volume{
 		{
@@ -491,6 +521,26 @@ func defaultMountVolume() []corev1.VolumeMount {
 	}
 }
 
+func defaultLogMountVolume() []corev1.VolumeMount {
+	mounts := defaultMountVolume()
+	return append(mounts, []corev1.VolumeMount{
+		{
+			Name:      "pointerdir",
+			MountPath: "/opt/datadog-agent/run",
+		},
+		{
+			Name:      "logpodpath",
+			MountPath: "/var/log/pods",
+			ReadOnly:  true,
+		},
+		{
+			Name:      "logcontainerpath",
+			MountPath: "/var/lib/docker/containers",
+			ReadOnly:  true,
+		},
+	}...)
+}
+
 func defaultProcessMountVolumes() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		{
@@ -699,6 +749,11 @@ func defaultEnvVars(extraEnv map[string]string) []corev1.EnvVar {
 	}...)
 
 	return envs
+}
+
+func defaultLogEnvVars(extraEnv map[string]string) []corev1.EnvVar {
+	envs := defaultEnvVars(extraEnv)
+	return addEnvVar(envs, "DD_LOGS_ENABLED", "true")
 }
 
 func defaultAPMContainerEnvVars() []corev1.EnvVar {
@@ -920,6 +975,62 @@ func defaultPodSpec() corev1.PodSpec {
 			},
 		},
 		Volumes: defaultVolumes(),
+	}
+}
+
+func defaultLogPodSpec() corev1.PodSpec {
+	return corev1.PodSpec{
+		ServiceAccountName: "foo-agent",
+		InitContainers: []corev1.Container{
+			{
+				Name:            "init-volume",
+				Image:           "gcr.io/datadoghq/agent:latest",
+				ImagePullPolicy: corev1.PullIfNotPresent,
+				Resources:       corev1.ResourceRequirements{},
+				Command:         []string{"bash", "-c"},
+				Args:            []string{"cp -r /etc/datadog-agent /opt"},
+				VolumeMounts: []corev1.VolumeMount{
+					{
+						Name:      datadoghqv1alpha1.ConfigVolumeName,
+						MountPath: "/opt/datadog-agent",
+					},
+				},
+			},
+			{
+				Name:            "init-config",
+				Image:           "gcr.io/datadoghq/agent:latest",
+				ImagePullPolicy: corev1.PullIfNotPresent,
+				Resources:       corev1.ResourceRequirements{},
+				Command:         []string{"bash", "-c"},
+				Args:            []string{"for script in $(find /etc/cont-init.d/ -type f -name '*.sh' | sort) ; do bash $script ; done"},
+				Env:             defaultLogEnvVars(nil),
+				VolumeMounts:    defaultLogMountVolume(),
+			},
+		},
+		Containers: []corev1.Container{
+			{
+				Name:            "agent",
+				Image:           "gcr.io/datadoghq/agent:latest",
+				ImagePullPolicy: corev1.PullIfNotPresent,
+				Command: []string{
+					"agent",
+					"run",
+				},
+				Resources: corev1.ResourceRequirements{},
+				Ports: []corev1.ContainerPort{
+					{
+						ContainerPort: 8125,
+						Name:          "dogstatsdport",
+						Protocol:      "UDP",
+					},
+				},
+				Env:            defaultLogEnvVars(nil),
+				VolumeMounts:   defaultLogMountVolume(),
+				LivenessProbe:  defaultLivenessProbe(),
+				ReadinessProbe: defaultReadinessProbe(),
+			},
+		},
+		Volumes: defaultLogVolumes(),
 	}
 }
 
@@ -1417,18 +1528,19 @@ func complianceSecurityAgentPodSpec(extraEnv map[string]string) corev1.PodSpec {
 }
 
 type extendedDaemonSetFromInstanceTest struct {
-	name            string
-	agentdeployment *datadoghqv1alpha1.DatadogAgent
-	selector        *metav1.LabelSelector
-	want            *edsdatadoghqv1alpha1.ExtendedDaemonSet
-	wantErr         bool
+	name              string
+	agentdeployment   *datadoghqv1alpha1.DatadogAgent
+	selector          *metav1.LabelSelector
+	reconcilerOptions ReconcilerOptions
+	want              *edsdatadoghqv1alpha1.ExtendedDaemonSet
+	wantErr           bool
 }
 
 func (test extendedDaemonSetFromInstanceTest) Run(t *testing.T) {
 	t.Helper()
 	logf.SetLogger(logf.ZapLogger(true))
 	logger := logf.Log.Logger
-	got, _, err := newExtendedDaemonSetFromInstance(logger, test.agentdeployment, test.selector)
+	got, _, err := newExtendedDaemonSetFromInstance(logger, test.agentdeployment, test.selector, &test.reconcilerOptions)
 	if test.wantErr {
 		assert.Error(t, err, "newExtendedDaemonSetFromInstance() expected an error")
 	} else {
@@ -1480,6 +1592,21 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 		Name:  datadoghqv1alpha1.DDDogstatsdPort,
 		Value: strconv.Itoa(12345),
 	})
+
+	agentWithLogEnabled := test.NewDefaultedDatadogAgent("bar", "foo",
+		&test.NewDatadogAgentOptions{
+			UseEDS:              true,
+			ClusterAgentEnabled: true,
+			LogEnabled:          true,
+		})
+
+	logPodSpecWithHostStoragePath := defaultLogPodSpec()
+	for _, v := range logPodSpecWithHostStoragePath.Volumes {
+		if v.Name == datadoghqv1alpha1.PointerVolumeName {
+			v.VolumeSource.HostPath.Path = "/foo/bar/logs"
+			break
+		}
+	}
 
 	tests := extendedDaemonSetFromInstanceTestSuite{
 		{
@@ -1643,6 +1770,91 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 							Annotations: make(map[string]string),
 						},
 						Spec: hostPortNetworkPodSpec,
+					},
+					Strategy: getDefaultEDSStrategy(),
+				},
+			},
+		},
+		{
+			name:            "logs enabled",
+			agentdeployment: agentWithLogEnabled,
+			wantErr:         false,
+			want: &edsdatadoghqv1alpha1.ExtendedDaemonSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "bar",
+					Name:      "foo-agent",
+					Labels: map[string]string{
+						"agent.datadoghq.com/name":      "foo",
+						"agent.datadoghq.com/component": "agent",
+						"app.kubernetes.io/instance":    "agent",
+						"app.kubernetes.io/managed-by":  "datadog-operator",
+						"app.kubernetes.io/name":        "datadog-agent-deployment",
+						"app.kubernetes.io/part-of":     "foo",
+						"app.kubernetes.io/version":     "",
+					},
+					Annotations: map[string]string{},
+				},
+				Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							GenerateName: "foo",
+							Namespace:    "bar",
+							Labels: map[string]string{
+								"agent.datadoghq.com/name":      "foo",
+								"agent.datadoghq.com/component": "agent",
+								"app.kubernetes.io/instance":    "agent",
+								"app.kubernetes.io/managed-by":  "datadog-operator",
+								"app.kubernetes.io/name":        "datadog-agent-deployment",
+								"app.kubernetes.io/part-of":     "foo",
+								"app.kubernetes.io/version":     "",
+							},
+							Annotations: make(map[string]string),
+						},
+						Spec: defaultLogPodSpec(),
+					},
+					Strategy: getDefaultEDSStrategy(),
+				},
+			},
+		},
+		{
+			name:            "logs enabled and host storage path case",
+			agentdeployment: agentWithLogEnabled,
+			reconcilerOptions: ReconcilerOptions{
+				AgentHostStoragePath: "/foo/bar",
+			},
+			wantErr: false,
+			want: &edsdatadoghqv1alpha1.ExtendedDaemonSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "bar",
+					Name:      "foo-agent",
+					Labels: map[string]string{
+						"agent.datadoghq.com/name":      "foo",
+						"agent.datadoghq.com/component": "agent",
+						"app.kubernetes.io/instance":    "agent",
+						"app.kubernetes.io/managed-by":  "datadog-operator",
+						"app.kubernetes.io/name":        "datadog-agent-deployment",
+						"app.kubernetes.io/part-of":     "foo",
+						"app.kubernetes.io/version":     "",
+					},
+					Annotations: map[string]string{},
+				},
+				Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							GenerateName: "foo",
+							Namespace:    "bar",
+							Labels: map[string]string{
+								"agent.datadoghq.com/name":      "foo",
+								"agent.datadoghq.com/component": "agent",
+								"app.kubernetes.io/instance":    "agent",
+								"app.kubernetes.io/managed-by":  "datadog-operator",
+								"app.kubernetes.io/name":        "datadog-agent-deployment",
+								"app.kubernetes.io/part-of":     "foo",
+								"app.kubernetes.io/version":     "",
+							},
+							Annotations: make(map[string]string),
+						},
+						Spec: logPodSpecWithHostStoragePath,
 					},
 					Strategy: getDefaultEDSStrategy(),
 				},

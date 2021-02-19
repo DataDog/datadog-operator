@@ -41,6 +41,7 @@ type NewDatadogAgentOptions struct {
 	ClusterChecksEnabled             bool
 	KubeStateMetricsCore             *datadoghqv1alpha1.KubeStateMetricsCore
 	NodeAgentConfig                  *datadoghqv1alpha1.NodeAgentConfig
+	LogEnabled                       bool
 	APMEnabled                       bool
 	ProcessEnabled                   bool
 	ProcessCollectionEnabled         bool
@@ -258,6 +259,10 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 
 		if options.NodeAgentConfig != nil {
 			ad.Spec.Agent.Config = *options.NodeAgentConfig
+		}
+
+		if options.LogEnabled {
+			ad.Spec.Agent.Log.Enabled = datadoghqv1alpha1.NewBoolPointer(true)
 		}
 
 		if options.APMEnabled {

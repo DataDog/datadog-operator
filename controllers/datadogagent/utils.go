@@ -52,7 +52,7 @@ func getAuthTokenSecretName(dda *datadoghqv1alpha1.DatadogAgent) string {
 }
 
 // newAgentPodTemplate generates a PodTemplate from a DatadogAgent spec
-func newAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, selector *metav1.LabelSelector) (*corev1.PodTemplateSpec, error) {
+func newAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, selector *metav1.LabelSelector, options *ReconcilerOptions) (*corev1.PodTemplateSpec, error) {
 	// copy Agent Spec to configure Agent Pod Template
 	labels := getDefaultLabels(dda, "agent", getAgentVersion(dda))
 	labels[datadoghqv1alpha1.AgentDeploymentNameLabelKey] = dda.Name
@@ -141,7 +141,7 @@ func newAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent
 			ServiceAccountName: getAgentServiceAccount(dda),
 			InitContainers:     initContainers,
 			Containers:         containers,
-			Volumes:            getVolumesForAgent(dda),
+			Volumes:            getVolumesForAgent(dda, options),
 			Tolerations:        dda.Spec.Agent.Config.Tolerations,
 			PriorityClassName:  dda.Spec.Agent.PriorityClassName,
 			HostNetwork:        dda.Spec.Agent.HostNetwork,
@@ -811,7 +811,7 @@ func getEnvVarsForSecurityAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.E
 }
 
 // getVolumesForAgent defines volumes for the Agent
-func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
+func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent, options *ReconcilerOptions) []corev1.Volume {
 	volumes := []corev1.Volume{
 		{
 			Name: datadoghqv1alpha1.InstallInfoVolumeName,
@@ -973,12 +973,17 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 	}
 
 	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Log.Enabled) {
+
+		var tempStoragePath = *dda.Spec.Agent.Log.TempStoragePath
+		if options.AgentHostStoragePath != "" {
+			tempStoragePath = filepath.Join(options.AgentHostStoragePath, "logs")
+		}
 		volumes = append(volumes, []corev1.Volume{
 			{
 				Name: datadoghqv1alpha1.PointerVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
-						Path: *dda.Spec.Agent.Log.TempStoragePath,
+						Path: tempStoragePath,
 					},
 				},
 			},
