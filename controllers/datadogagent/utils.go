@@ -35,8 +35,8 @@ const (
 	authDelegatorName         string = "%s-auth-delegator"
 	datadogOperatorName       string = "DatadogAgent"
 	externalMetricsReaderName string = "%s-metrics-reader"
-	localDogstatsdSocketPath  string = "/var/run/datadog"
-	localAPMSocketPath        string = "/var/run/datadog"
+	localDogstatsdSocketPath  string = "/var/run/datadog/statsd"
+	localAPMSocketPath        string = "/var/run/datadog/apm"
 )
 
 func init() {
