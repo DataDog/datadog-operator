@@ -26,11 +26,11 @@ const (
 	defaultDockerSocketPath               string = "/var/run/docker.sock"
 	defaultDogstatsdOriginDetection       bool   = false
 	defaultUseDogStatsDSocketVolume       bool   = false
-	defaultDogstatsdSocketName            string = "statsd.sock"
-	defaultDogstatsdSocketPath            string = "/var/run/datadog"
+	defaultHostDogstatsdSocketName        string = "statsd.sock"
+	defaultHostDogstatsdSocketPath        string = "/var/run/datadog"
 	defaultApmEnabled                     bool   = false
-	defaultApmSocketName                  string = "apm.sock"
-	defaultApmSocketPath                  string = "/var/run/datadog"
+	defaultHostApmSocketName              string = "apm.sock"
+	defaultHostApmSocketPath              string = "/var/run/datadog"
 	defaultLogEnabled                     bool   = false
 	defaultLogsConfigContainerCollectAll  bool   = false
 	defaultLogsContainerCollectUsingFiles bool   = true
@@ -583,7 +583,7 @@ func DefaultConfigDogstatsdUDS(uds *DSDUnixDomainSocketSpec) *DSDUnixDomainSocke
 	}
 
 	if uds.HostFilepath == nil {
-		socketPath := path.Join(defaultDogstatsdSocketPath, defaultDogstatsdSocketName)
+		socketPath := path.Join(defaultHostDogstatsdSocketPath, defaultHostDogstatsdSocketName)
 		uds.HostFilepath = &socketPath
 	}
 	return uds
@@ -699,7 +699,7 @@ func DefaultDatadogAgentSpecAgentApmUDS(uds *APMUnixDomainSocketSpec) *APMUnixDo
 	}
 
 	if uds.HostFilepath == nil {
-		socketPath := path.Join(defaultApmSocketPath, defaultApmSocketName)
+		socketPath := path.Join(defaultHostApmSocketPath, defaultHostApmSocketName)
 		uds.HostFilepath = &socketPath
 	}
 	return uds

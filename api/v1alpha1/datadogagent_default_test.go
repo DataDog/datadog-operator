@@ -13,7 +13,7 @@ import (
 )
 
 func TestDefaultConfigDogstatsd(t *testing.T) {
-	defaultPath := path.Join(defaultDogstatsdSocketPath, defaultDogstatsdSocketName)
+	defaultPath := path.Join(defaultHostDogstatsdSocketPath, defaultHostDogstatsdSocketName)
 	defaultAgentConfig := NodeAgentConfig{
 		Dogstatsd: &DogstatsdConfig{
 			DogstatsdOriginDetection: NewBoolPointer(false),
