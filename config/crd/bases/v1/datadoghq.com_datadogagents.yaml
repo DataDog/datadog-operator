@@ -239,7 +239,7 @@ spec:
                           hostFilepath:
                             description: 'Define the host APM socket filepath used
                               when APM over Unix Domain Socket is enabled (default
-                              value: /var/run/datadog/apm/apm.sock) ref: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables'
+                              value: /var/run/datadog/apm.sock) ref: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables'
                             type: string
                         type: object
                       volumeMounts:
@@ -376,8 +376,8 @@ spec:
                               hostFilepath:
                                 description: 'Define the host APM socket filepath
                                   used when APM over Unix Domain Socket is enabled
-                                  (default value: /var/run/datadog/statsd/statsd.sock)
-                                  ref: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/'
+                                  (default value: /var/run/datadog/statsd.sock) ref:
+                                  https://docs.datadoghq.com/developers/dogstatsd/unix_socket/'
                                 type: string
                             type: object
                         type: object
