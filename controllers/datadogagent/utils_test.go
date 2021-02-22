@@ -5,18 +5,22 @@ import (
 	"testing"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
+	"github.com/DataDog/datadog-operator/api/v1alpha1/test"
 	"github.com/DataDog/datadog-operator/controllers/testutils"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
+	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
 func TestKSMCoreGetEnvVarsForAgent(t *testing.T) {
+	logger := logf.Log.Logger
 	enabledFeature := true
 	spec := generateSpec()
 	spec.Spec.ClusterAgent.Config.ClusterChecksEnabled = &enabledFeature
 	spec.Spec.Features.KubeStateMetricsCore.Enabled = &enabledFeature
-	env, err := getEnvVarsForAgent(spec)
+	env, err := getEnvVarsForAgent(logger, spec)
 	require.Subset(t, env, []corev1.EnvVar{{
 		Name:  datadoghqv1alpha1.DDIgnoreAutoConf,
 		Value: "kubernetes_state",
@@ -26,7 +30,7 @@ func TestKSMCoreGetEnvVarsForAgent(t *testing.T) {
 		Name:  datadoghqv1alpha1.DDIgnoreAutoConf,
 		Value: "redis custom",
 	})
-	env, err = getEnvVarsForAgent(spec)
+	env, err = getEnvVarsForAgent(logger, spec)
 	require.NoError(t, err)
 	require.Subset(t, env, []corev1.EnvVar{{
 		Name:  datadoghqv1alpha1.DDIgnoreAutoConf,
@@ -179,6 +183,87 @@ func Test_getVolumeMountsForSecurityAgent(t *testing.T) {
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("getVolumeMountsForSecurityAgent() = %#v, want %#v", got, tt.want)
 			}
+		})
+	}
+}
+
+func Test_prometheusScrapeEnvVars(t *testing.T) {
+	tests := []struct {
+		name       string
+		promConfig *datadoghqv1alpha1.PrometheusScrapeConfig
+		want       []corev1.EnvVar
+	}{
+		{
+			name: "Enabled + Service endpoints disabled",
+			promConfig: &datadoghqv1alpha1.PrometheusScrapeConfig{
+				Enabled:          datadoghqv1alpha1.NewBoolPointer(true),
+				ServiceEndpoints: datadoghqv1alpha1.NewBoolPointer(false),
+			},
+			want: []corev1.EnvVar{
+				{Name: "DD_PROMETHEUS_SCRAPE_ENABLED", Value: "true"},
+				{Name: "DD_PROMETHEUS_SCRAPE_SERVICE_ENDPOINTS", Value: "false"},
+			},
+		},
+		{
+			name: "Enabled + Service endpoints enabled",
+			promConfig: &datadoghqv1alpha1.PrometheusScrapeConfig{
+				Enabled:          datadoghqv1alpha1.NewBoolPointer(true),
+				ServiceEndpoints: datadoghqv1alpha1.NewBoolPointer(true),
+			},
+			want: []corev1.EnvVar{
+				{Name: "DD_PROMETHEUS_SCRAPE_ENABLED", Value: "true"},
+				{Name: "DD_PROMETHEUS_SCRAPE_SERVICE_ENDPOINTS", Value: "true"},
+			},
+		},
+		{
+			name: "Disabled + Service endpoints enabled",
+			promConfig: &datadoghqv1alpha1.PrometheusScrapeConfig{
+				Enabled:          datadoghqv1alpha1.NewBoolPointer(false),
+				ServiceEndpoints: datadoghqv1alpha1.NewBoolPointer(true),
+			},
+			want: []corev1.EnvVar{},
+		},
+		{
+			name: "Additional config",
+			promConfig: &datadoghqv1alpha1.PrometheusScrapeConfig{
+				Enabled: datadoghqv1alpha1.NewBoolPointer(true),
+				AdditionalConfigs: datadoghqv1alpha1.NewStringPointer(`- configurations:
+  - timeout: 5
+    send_distribution_buckets: true
+  autodiscovery:
+    kubernetes_container_names:
+      - my-app
+    kubernetes_annotations:
+      include:
+        custom_label: 'true'
+`),
+			},
+			want: []corev1.EnvVar{
+				{Name: "DD_PROMETHEUS_SCRAPE_ENABLED", Value: "true"},
+				{Name: "DD_PROMETHEUS_SCRAPE_SERVICE_ENDPOINTS", Value: "false"},
+				{Name: "DD_PROMETHEUS_SCRAPE_CHECKS", Value: `[{"autodiscovery":{"kubernetes_annotations":{"include":{"custom_label":"true"}},"kubernetes_container_names":["my-app"]},"configurations":[{"send_distribution_buckets":true,"timeout":5}]}]`},
+			},
+		},
+		{
+			name: "Invalid additional config",
+			promConfig: &datadoghqv1alpha1.PrometheusScrapeConfig{
+				Enabled:           datadoghqv1alpha1.NewBoolPointer(true),
+				AdditionalConfigs: datadoghqv1alpha1.NewStringPointer(","),
+			},
+			want: []corev1.EnvVar{
+				{Name: "DD_PROMETHEUS_SCRAPE_ENABLED", Value: "true"},
+				{Name: "DD_PROMETHEUS_SCRAPE_SERVICE_ENDPOINTS", Value: "false"},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dda := test.NewDefaultedDatadogAgent("foo", "bar", &test.NewDatadogAgentOptions{
+				Features: &datadoghqv1alpha1.DatadogFeatures{
+					PrometheusScrape: tt.promConfig,
+				},
+			})
+			assert.EqualValues(t, tt.want, prometheusScrapeEnvVars(logf.Log.Logger, dda))
 		})
 	}
 }

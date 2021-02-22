@@ -121,7 +121,8 @@ type clusterAgentDeploymentFromInstanceTest struct {
 func (test clusterAgentDeploymentFromInstanceTest) Run(t *testing.T) {
 	t.Helper()
 	logf.SetLogger(logf.ZapLogger(true))
-	got, _, err := newClusterAgentDeploymentFromInstance(test.agentdeployment, test.selector)
+	logger := logf.Log.Logger
+	got, _, err := newClusterAgentDeploymentFromInstance(logger, test.agentdeployment, test.selector)
 	if test.wantErr {
 		assert.Error(t, err, "newClusterAgentDeploymentFromInstance() expected an error")
 	} else {
@@ -417,7 +418,8 @@ func Test_newClusterAgentPrometheusScrapeEnabled(t *testing.T) {
 		},
 	)
 
-	clusterAgentPodSpec.Containers[0].Env = append(clusterAgentPodSpec.Containers[0].Env, prometheusScrapeEnvVars(clusterAgentDeployment)...)
+	logger := logf.Log.Logger
+	clusterAgentPodSpec.Containers[0].Env = append(clusterAgentPodSpec.Containers[0].Env, prometheusScrapeEnvVars(logger, clusterAgentDeployment)...)
 
 	testDCA := clusterAgentDeploymentFromInstanceTest{
 		name:            "Prometheus scrape enabled",

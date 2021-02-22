@@ -102,6 +102,7 @@ const (
 	DDExternalMetricsProviderEndpoint            = "DD_EXTERNAL_METRICS_PROVIDER_ENDPOINT"
 	DDPrometheusScrapeEnabled                    = "DD_PROMETHEUS_SCRAPE_ENABLED"
 	DDPrometheusScrapeServiceEndpoints           = "DD_PROMETHEUS_SCRAPE_SERVICE_ENDPOINTS"
+	DDPrometheusScrapeChecks                     = "DD_PROMETHEUS_SCRAPE_CHECKS"
 
 	// KubernetesEnvvarName Env var used by the Datadog Agent container entrypoint
 	// to add kubelet config provider and listener
