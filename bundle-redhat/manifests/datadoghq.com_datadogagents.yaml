@@ -177,7 +177,7 @@ spec:
                           description: 'Enable APM over Unix Domain Socket ref: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables'
                           type: boolean
                         hostFilepath:
-                          description: 'Define the host APM socket filepath used when APM over Unix Domain Socket is enabled (default value: /var/run/datadog/apm/apm.sock) ref: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables'
+                          description: 'Define the host APM socket filepath used when APM over Unix Domain Socket is enabled (default value: /var/run/datadog/apm.sock) ref: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables'
                           type: string
                       type: object
                   type: object
@@ -227,7 +227,7 @@ spec:
                               description: 'Enable APM over Unix Domain Socket ref: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/'
                               type: boolean
                             hostFilepath:
-                              description: 'Define the host APM socket filepath used when APM over Unix Domain Socket is enabled (default value: /var/run/datadog/statsd/statsd.sock) ref: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/'
+                              description: 'Define the host APM socket filepath used when APM over Unix Domain Socket is enabled (default value: /var/run/datadog/statsd.sock) ref: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/'
                               type: string
                           type: object
                       type: object
