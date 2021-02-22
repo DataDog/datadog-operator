@@ -1427,7 +1427,8 @@ type extendedDaemonSetFromInstanceTest struct {
 func (test extendedDaemonSetFromInstanceTest) Run(t *testing.T) {
 	t.Helper()
 	logf.SetLogger(logf.ZapLogger(true))
-	got, _, err := newExtendedDaemonSetFromInstance(test.agentdeployment, test.selector)
+	logger := logf.Log.Logger
+	got, _, err := newExtendedDaemonSetFromInstance(logger, test.agentdeployment, test.selector)
 	if test.wantErr {
 		assert.Error(t, err, "newExtendedDaemonSetFromInstance() expected an error")
 	} else {
@@ -2559,6 +2560,70 @@ func Test_newExtendedDaemonSetFromInstance_Orchestrator(t *testing.T) {
 			agentdeployment: dda,
 			wantErr:         false,
 			want:            extendedDaemonSetDefault(orchestratorPodSpec),
+		},
+	}
+
+	for _, instanceTest := range tests {
+		t.Run(instanceTest.name, func(t *testing.T) {
+			instanceTest.Run(t)
+		})
+	}
+}
+
+func Test_newExtendedDaemonSetFromInstance_PrometheusScrape(t *testing.T) {
+	dda := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
+		UseEDS:              true,
+		ClusterAgentEnabled: true,
+		Features: &datadoghqv1alpha1.DatadogFeatures{
+			OrchestratorExplorer: &datadoghqv1alpha1.OrchestratorExplorerConfig{Enabled: datadoghqv1alpha1.NewBoolPointer(false)}, // Do not add the process agent container in this test case for simplicity
+			PrometheusScrape: &datadoghqv1alpha1.PrometheusScrapeConfig{
+				Enabled:          datadoghqv1alpha1.NewBoolPointer(true),
+				ServiceEndpoints: datadoghqv1alpha1.NewBoolPointer(true),
+			},
+		},
+	})
+
+	promEnabledPodSpec := defaultPodSpec()
+	logger := logf.Log.Logger
+	promEnabledPodSpec.Containers[0].Env = append(promEnabledPodSpec.Containers[0].Env, prometheusScrapeEnvVars(logger, dda)...)
+	promEnabledPodSpec.InitContainers[1].Env = append(promEnabledPodSpec.InitContainers[1].Env, prometheusScrapeEnvVars(logger, dda)...)
+
+	additionalConfig := `- configurations:
+  - timeout: 5
+    send_distribution_buckets: true
+  autodiscovery:
+    kubernetes_annotations:
+      include:
+        custom_label: true`
+	ddaWithAdditionalConf := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
+		UseEDS:              true,
+		ClusterAgentEnabled: true,
+		Features: &datadoghqv1alpha1.DatadogFeatures{
+			OrchestratorExplorer: &datadoghqv1alpha1.OrchestratorExplorerConfig{Enabled: datadoghqv1alpha1.NewBoolPointer(false)},
+			PrometheusScrape: &datadoghqv1alpha1.PrometheusScrapeConfig{
+				Enabled:           datadoghqv1alpha1.NewBoolPointer(true),
+				ServiceEndpoints:  datadoghqv1alpha1.NewBoolPointer(false),
+				AdditionalConfigs: &additionalConfig,
+			},
+		},
+	})
+
+	promAdditionalConfPodSpec := defaultPodSpec()
+	promAdditionalConfPodSpec.Containers[0].Env = append(promAdditionalConfPodSpec.Containers[0].Env, prometheusScrapeEnvVars(logger, ddaWithAdditionalConf)...)
+	promAdditionalConfPodSpec.InitContainers[1].Env = append(promAdditionalConfPodSpec.InitContainers[1].Env, prometheusScrapeEnvVars(logger, ddaWithAdditionalConf)...)
+
+	tests := []extendedDaemonSetFromInstanceTest{
+		{
+			name:            "Prometheus scrape enabled",
+			agentdeployment: dda,
+			wantErr:         false,
+			want:            extendedDaemonSetDefault(promEnabledPodSpec),
+		},
+		{
+			name:            "With additional config",
+			agentdeployment: ddaWithAdditionalConf,
+			wantErr:         false,
+			want:            extendedDaemonSetDefault(promAdditionalConfPodSpec),
 		},
 	}
 

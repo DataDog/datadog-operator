@@ -7870,6 +7870,22 @@ spec:
                             type: boolean
                         type: object
                     type: object
+                  prometheusScrape:
+                    description: PrometheusScrape configuration
+                    properties:
+                      additionalConfigs:
+                        description: AdditionalConfigs allows adding advanced prometheus
+                          check configurations with custom discovery rules.
+                        type: string
+                      enabled:
+                        description: Enable autodiscovering pods and services exposing
+                          prometheus metrics.
+                        type: boolean
+                      serviceEndpoints:
+                        description: ServiceEndpoints enables generating dedicated
+                          checks for service endpoints.
+                        type: boolean
+                    type: object
                 type: object
               site:
                 description: The site of the Datadog intake to send Agent data to.

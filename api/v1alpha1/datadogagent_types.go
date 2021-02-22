@@ -21,6 +21,8 @@ type DatadogFeatures struct {
 	OrchestratorExplorer *OrchestratorExplorerConfig `json:"orchestratorExplorer,omitempty"`
 	// KubeStateMetricsCore configuration
 	KubeStateMetricsCore *KubeStateMetricsCore `json:"kubeStateMetricsCore,omitempty"`
+	// PrometheusScrape configuration
+	PrometheusScrape *PrometheusScrapeConfig `json:"prometheusScrape,omitempty"`
 }
 
 // DatadogAgentSpec defines the desired state of DatadogAgent
@@ -445,6 +447,20 @@ type OrchestratorExplorerConfig struct {
 type Scrubbing struct {
 	// Deactivate this to stop the scrubbing of sensitive container data (passwords, tokens, etc. ).
 	Containers *bool `json:"containers,omitempty"`
+}
+
+// PrometheusScrapeConfig allows configuring Prometheus Autodiscovery feature
+// +k8s:openapi-gen=true
+type PrometheusScrapeConfig struct {
+	// Enable autodiscovering pods and services exposing prometheus metrics.
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+	// ServiceEndpoints enables generating dedicated checks for service endpoints.
+	// +optional
+	ServiceEndpoints *bool `json:"serviceEndpoints,omitempty"`
+	// AdditionalConfigs allows adding advanced prometheus check configurations with custom discovery rules.
+	// +optional
+	AdditionalConfigs *string `json:"additionalConfigs,omitempty"`
 }
 
 // SystemProbeSpec contains the SystemProbe Agent configuration

@@ -55,6 +55,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./api/v1alpha1.NodeAgentConfig":                         schema__api_v1alpha1_NodeAgentConfig(ref),
 		"./api/v1alpha1.OrchestratorExplorerConfig":              schema__api_v1alpha1_OrchestratorExplorerConfig(ref),
 		"./api/v1alpha1.ProcessSpec":                             schema__api_v1alpha1_ProcessSpec(ref),
+		"./api/v1alpha1.PrometheusScrapeConfig":                  schema__api_v1alpha1_PrometheusScrapeConfig(ref),
 		"./api/v1alpha1.RbacConfig":                              schema__api_v1alpha1_RbacConfig(ref),
 		"./api/v1alpha1.RuntimeSecuritySpec":                     schema__api_v1alpha1_RuntimeSecuritySpec(ref),
 		"./api/v1alpha1.Secret":                                  schema__api_v1alpha1_Secret(ref),
@@ -1481,11 +1482,17 @@ func schema__api_v1alpha1_DatadogFeatures(ref common.ReferenceCallback) common.O
 							Ref:         ref("./api/v1alpha1.KubeStateMetricsCore"),
 						},
 					},
+					"prometheusScrape": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PrometheusScrape configuration",
+							Ref:         ref("./api/v1alpha1.PrometheusScrapeConfig"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./api/v1alpha1.KubeStateMetricsCore", "./api/v1alpha1.OrchestratorExplorerConfig"},
+			"./api/v1alpha1.KubeStateMetricsCore", "./api/v1alpha1.OrchestratorExplorerConfig", "./api/v1alpha1.PrometheusScrapeConfig"},
 	}
 }
 
@@ -2338,6 +2345,40 @@ func schema__api_v1alpha1_ProcessSpec(ref common.ReferenceCallback) common.OpenA
 		},
 		Dependencies: []string{
 			"k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements"},
+	}
+}
+
+func schema__api_v1alpha1_PrometheusScrapeConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "PrometheusScrapeConfig allows configuring Prometheus Autodiscovery feature",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enable autodiscovering pods and services exposing prometheus metrics.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"serviceEndpoints": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ServiceEndpoints enables generating dedicated checks for service endpoints.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"additionalConfigs": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AdditionalConfigs allows adding advanced prometheus check configurations with custom discovery rules.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
 	}
 }
 

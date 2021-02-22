@@ -47,6 +47,8 @@ const (
 	defaultClusterChecksEnabled                          bool   = false
 	DefaultKubeStateMetricsCoreConf                      string = "kube-state-metrics-core-config"
 	defaultKubeStateMetricsCoreEnabled                   bool   = false
+	defaultPrometheusScrapeEnabled                       bool   = false
+	defaultPrometheusScrapeServiceEndpoints              bool   = false
 	defaultClusterAgentReplicas                          int32  = 1
 	defaultAgentCanaryReplicas                           int32  = 1
 	defaultClusterChecksRunnerReplicas                   int32  = 1
@@ -111,6 +113,9 @@ func IsDefaultedDatadogAgent(ad *DatadogAgent) bool {
 			return false
 		}
 		if !IsDefaultedKubeStateMetricsCore(ad.Spec.Features.KubeStateMetricsCore) {
+			return false
+		}
+		if !IsDefaultedPrometheusScrape(ad.Spec.Features.PrometheusScrape) {
 			return false
 		}
 	}
@@ -210,6 +215,23 @@ func IsDefaultedKubeStateMetricsCore(ksmCore *KubeStateMetricsCore) bool {
 	if ksmCore.Enabled == nil {
 		return false
 	}
+	return true
+}
+
+// IsDefaultedPrometheusScrape returns whether Prometheus Scrape config is defauled
+func IsDefaultedPrometheusScrape(prom *PrometheusScrapeConfig) bool {
+	if prom == nil {
+		return false
+	}
+
+	if prom.Enabled == nil {
+		return false
+	}
+
+	if prom.ServiceEndpoints == nil {
+		return false
+	}
+
 	return true
 }
 
@@ -764,6 +786,7 @@ func DefaultFeatures(ft *DatadogFeatures) *DatadogFeatures {
 	}
 	ft.OrchestratorExplorer = DefaultDatadogFeatureOrchestratorExplorer(ft.OrchestratorExplorer)
 	ft.KubeStateMetricsCore = DefaultDatadogFeatureKubeStateMetricsCore(ft.KubeStateMetricsCore)
+	ft.PrometheusScrape = DefaultDatadogFeaturePrometheusScrape(ft.PrometheusScrape)
 	return ft
 }
 
@@ -797,6 +820,23 @@ func DefaultDatadogFeatureKubeStateMetricsCore(ksmCore *KubeStateMetricsCore) *K
 	}
 
 	return ksmCore
+}
+
+// DefaultDatadogFeaturePrometheusScrape used to default the Prometheus Scrape config
+func DefaultDatadogFeaturePrometheusScrape(prom *PrometheusScrapeConfig) *PrometheusScrapeConfig {
+	if prom == nil {
+		prom = &PrometheusScrapeConfig{}
+	}
+
+	if prom.Enabled == nil {
+		prom.Enabled = NewBoolPointer(defaultPrometheusScrapeEnabled)
+	}
+
+	if prom.ServiceEndpoints == nil {
+		prom.ServiceEndpoints = NewBoolPointer(defaultPrometheusScrapeServiceEndpoints)
+	}
+
+	return prom
 }
 
 // DefaultDatadogAgentSpecClusterAgent used to default an DatadogAgentSpecClusterAgentSpec

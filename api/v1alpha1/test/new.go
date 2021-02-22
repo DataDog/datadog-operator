@@ -84,6 +84,7 @@ type NewDatadogAgentOptions struct {
 	CreateNetworkPolicy              bool
 	AgentSpecAdditionalLabels        map[string]string
 	AgentSpecAdditionalAnnotations   map[string]string
+	Features                         *datadoghqv1alpha1.DatadogFeatures
 }
 
 // NewDefaultedDatadogAgent returns an initialized and defaulted DatadogAgent for testing purpose
@@ -123,6 +124,10 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 			orExplorer := datadoghqv1alpha1.OrchestratorExplorerConfig{Enabled: datadoghqv1alpha1.NewBoolPointer(true)}
 			ad.Spec.Features = &datadoghqv1alpha1.DatadogFeatures{OrchestratorExplorer: &orExplorer}
 			ad.Spec.Agent.Process.Enabled = datadoghqv1alpha1.NewBoolPointer(true)
+		}
+
+		if options.Features != nil {
+			ad.Spec.Features = options.Features
 		}
 
 		if options.UseEDS {
