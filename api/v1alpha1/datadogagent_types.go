@@ -297,6 +297,13 @@ type APMSpec struct {
 	// +listMapKey=name
 	Env []corev1.EnvVar `json:"env,omitempty"`
 
+	// Specify additional volume mounts in the APM Agent container
+	// +optional
+	// +listType=map
+	// +listMapKey=name
+	// +listMapKey=mountPath
+	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
+
 	// Datadog APM Agent resource requests and limits
 	// Make sure to keep requests and limits equal to keep the pods in the Guaranteed QoS class
 	// Ref: http://kubernetes.io/docs/user-guide/compute-resources/
@@ -393,6 +400,13 @@ type ProcessSpec struct {
 	// +listType=map
 	// +listMapKey=name
 	Env []corev1.EnvVar `json:"env,omitempty"`
+
+	// Specify additional volume mounts in the Process Agent container
+	// +optional
+	// +listType=map
+	// +listMapKey=name
+	// +listMapKey=mountPath
+	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
 
 	// Datadog Process Agent resource requests and limits
 	// Make sure to keep requests and limits equal to keep the pods in the Guaranteed QoS class
@@ -544,6 +558,13 @@ type SecuritySpec struct {
 	// +listType=map
 	// +listMapKey=name
 	Env []corev1.EnvVar `json:"env,omitempty"`
+
+	// Specify additional volume mounts in the Security Agent container
+	// +optional
+	// +listType=map
+	// +listMapKey=name
+	// +listMapKey=mountPath
+	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
 
 	// Datadog Security Agent resource requests and limits
 	// Make sure to keep requests and limits equal to keep the pods in the Guaranteed QoS class

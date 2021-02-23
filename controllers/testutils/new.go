@@ -23,6 +23,7 @@ type NewDatadogAgentOptions struct {
 	AppKey              string
 	CustomConfig        *datadoghqv1alpha1.CustomConfigSpec
 	SecuritySpec        *datadoghqv1alpha1.SecuritySpec
+	VolumeMounts        []v1.VolumeMount
 }
 
 var (
@@ -37,6 +38,7 @@ func NewDatadogAgent(ns, name, image string, options *NewDatadogAgentOptions) *d
 			Namespace: ns,
 		},
 	}
+
 	ad.Spec = datadoghqv1alpha1.DatadogAgentSpec{
 		Credentials: datadoghqv1alpha1.AgentCredentials{
 			APIKey: "",
@@ -121,12 +123,18 @@ func NewDatadogAgent(ns, name, image string, options *NewDatadogAgentOptions) *d
 			}
 		}
 
+		ad.Spec.Agent.Config.VolumeMounts = options.VolumeMounts
+		ad.Spec.Agent.Process.VolumeMounts = options.VolumeMounts
+		ad.Spec.Agent.Apm.VolumeMounts = options.VolumeMounts
+
 		if options.CustomConfig != nil {
 			ad.Spec.Agent.CustomConfig = options.CustomConfig
 		}
 
 		if options.SecuritySpec != nil {
 			ad.Spec.Agent.Security = *options.SecuritySpec
+		} else {
+			ad.Spec.Agent.Security.VolumeMounts = options.VolumeMounts
 		}
 	}
 

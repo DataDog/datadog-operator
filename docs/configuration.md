@@ -37,6 +37,7 @@ spec:
 | agent.apm.resources.requests | Requests describes the minimum amount of compute resources required. If Requests is omitted for a container, it defaults to Limits if that is explicitly specified, otherwise to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/ |
 | agent.apm.unixDomainSocket.enabled | Enable APM over Unix Domain Socket ref: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables |
 | agent.apm.unixDomainSocket.hostFilepath | Define the host APM socket filepath used when APM over Unix Domain Socket is enabled (default value: /var/run/datadog/apm.sock) ref: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables |
+| agent.apm.volumeMounts | Specify additional volume mounts in the APM Agent container |
 | agent.config.checksd.configMapName | ConfigMapName name of a ConfigMap used to mount a directory |
 | agent.config.collectEvents | Enables this to start event collection from the Kubernetes API ref: https://docs.datadoghq.com/agent/kubernetes/event_collection/ |
 | agent.config.confd.configMapName | ConfigMapName name of a ConfigMap used to mount a directory |
@@ -112,6 +113,7 @@ spec:
 | agent.process.processCollectionEnabled | false (default): Only collect containers if available. true: collect process information as well |
 | agent.process.resources.limits | Limits describes the maximum amount of compute resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/ |
 | agent.process.resources.requests | Requests describes the minimum amount of compute resources required. If Requests is omitted for a container, it defaults to Limits if that is explicitly specified, otherwise to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/ |
+| agent.process.volumeMounts | Specify additional volume mounts in the Process Agent container |
 | agent.rbac.create | Used to configure RBAC resources creation |
 | agent.rbac.serviceAccountName | Used to set up the service account name to use Ignored if the field Create is true |
 | agent.security.compliance.checkInterval | Check interval |
@@ -123,6 +125,7 @@ spec:
 | agent.security.runtime.enabled | Enables runtime security features |
 | agent.security.runtime.policiesDir.configMapName | ConfigMapName name of a ConfigMap used to mount a directory |
 | agent.security.runtime.syscallMonitor.enabled | Enabled enables syscall monitor |
+| agent.security.volumeMounts | Specify additional volume mounts in the Security Agent container |
 | agent.systemProbe.appArmorProfileName | AppArmorProfileName specify a apparmor profile |
 | agent.systemProbe.bpfDebugEnabled | BPFDebugEnabled logging for kernel debug |
 | agent.systemProbe.collectDNSStats | CollectDNSStats enables DNS stat collection |

@@ -172,6 +172,9 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 		}
 		if len(options.VolumeMounts) != 0 {
 			ad.Spec.Agent.Config.VolumeMounts = options.VolumeMounts
+			ad.Spec.Agent.Process.VolumeMounts = options.VolumeMounts
+			ad.Spec.Agent.Apm.VolumeMounts = options.VolumeMounts
+			ad.Spec.Agent.Security.VolumeMounts = options.VolumeMounts
 		}
 		if options.ClusterAgentEnabled {
 			ad.Spec.ClusterAgent = &datadoghqv1alpha1.DatadogAgentSpecClusterAgentSpec{
