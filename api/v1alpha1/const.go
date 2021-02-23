@@ -62,6 +62,7 @@ const (
 	DDDogstatsdOriginDetection                   = "DD_DOGSTATSD_ORIGIN_DETECTION"
 	DDDogstatsdPort                              = "DD_DOGSTATSD_PORT"
 	DDDogstatsdSocket                            = "DD_DOGSTATSD_SOCKET"
+	DDDogstatsdMapperProfiles                    = "DD_DOGSTATSD_MAPPER_PROFILES"
 	DDClusterAgentEnabled                        = "DD_CLUSTER_AGENT_ENABLED"
 	DDClusterAgentKubeServiceName                = "DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME"
 	DDClusterAgentAuthToken                      = "DD_CLUSTER_AGENT_AUTH_TOKEN"

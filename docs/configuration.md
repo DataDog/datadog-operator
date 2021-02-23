@@ -44,6 +44,9 @@ spec:
 | agent.config.criSocket.dockerSocketPath | Path to the docker runtime socket |
 | agent.config.ddUrl | The host of the Datadog intake server to send Agent data to, only set this option if you need the Agent to send data to a custom URL. Overrides the site setting defined in "site". |
 | agent.config.dogstatsd.dogstatsdOriginDetection | Enable origin detection for container tagging ref: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/#using-origin-detection-for-container-tagging |
+| agent.config.dogstatsd.mapperProfiles.configData | ConfigData corresponds to the configuration file content |
+| agent.config.dogstatsd.mapperProfiles.configMap.fileKey | FileKey corresponds to the key used in the ConfigMap.Data to store the configuration file content |
+| agent.config.dogstatsd.mapperProfiles.configMap.name | Name the ConfigMap name |
 | agent.config.dogstatsd.unixDomainSocket.enabled | Enable APM over Unix Domain Socket ref: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/ |
 | agent.config.dogstatsd.unixDomainSocket.hostFilepath | Define the host APM socket filepath used when APM over Unix Domain Socket is enabled (default value: /var/run/datadog/statsd.sock) ref: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/ |
 | agent.config.env | The Datadog Agent supports many environment variables Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables |

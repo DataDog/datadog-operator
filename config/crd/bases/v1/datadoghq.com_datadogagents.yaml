@@ -296,6 +296,29 @@ spec:
                             description: 'Enable origin detection for container tagging
                               ref: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/#using-origin-detection-for-container-tagging'
                             type: boolean
+                          mapperProfiles:
+                            description: 'Configure the Dogstasd Mapper Profiles Can
+                              be passed as raw data or via a json encoded string in
+                              a config map ref: https://docs.datadoghq.com/developers/dogstatsd/dogstatsd_mapper/'
+                            properties:
+                              configData:
+                                description: ConfigData corresponds to the configuration
+                                  file content
+                                type: string
+                              configMap:
+                                description: ConfigMap name of a ConfigMap used to
+                                  mount the configuration file
+                                properties:
+                                  fileKey:
+                                    description: FileKey corresponds to the key used
+                                      in the ConfigMap.Data to store the configuration
+                                      file content
+                                    type: string
+                                  name:
+                                    description: Name the ConfigMap name
+                                    type: string
+                                type: object
+                            type: object
                           unixDomainSocket:
                             description: 'Configure the Dogstatsd Unix Domain Socket
                               ref: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/'

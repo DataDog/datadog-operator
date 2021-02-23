@@ -1805,11 +1805,17 @@ func schema__api_v1alpha1_DogstatsdConfig(ref common.ReferenceCallback) common.O
 							Ref:         ref("./api/v1alpha1.DSDUnixDomainSocketSpec"),
 						},
 					},
+					"mapperProfiles": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Configure the Dogstasd Mapper Profiles Can be passed as raw data or via a json encoded string in a config map ref: https://docs.datadoghq.com/developers/dogstatsd/dogstatsd_mapper/",
+							Ref:         ref("./api/v1alpha1.CustomConfigSpec"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./api/v1alpha1.DSDUnixDomainSocketSpec"},
+			"./api/v1alpha1.CustomConfigSpec", "./api/v1alpha1.DSDUnixDomainSocketSpec"},
 	}
 }
 
