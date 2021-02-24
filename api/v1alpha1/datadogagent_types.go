@@ -762,6 +762,12 @@ type DogstatsdConfig struct {
 	// ref: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/
 	// +optional
 	UnixDomainSocket *DSDUnixDomainSocketSpec `json:"unixDomainSocket,omitempty"`
+
+	// Configure the Dogstasd Mapper Profiles
+	// Can be passed as raw data or via a json encoded string in a config map
+	// ref: https://docs.datadoghq.com/developers/dogstatsd/dogstatsd_mapper/
+	// +optional
+	MapperProfiles *CustomConfigSpec `json:"mapperProfiles,omitempty"`
 }
 
 // DSDUnixDomainSocketSpec contains the Dogstatsd Unix Domain Socket configuration

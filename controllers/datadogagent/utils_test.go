@@ -276,3 +276,90 @@ func Test_prometheusScrapeEnvVars(t *testing.T) {
 		})
 	}
 }
+
+func Test_dsdMapperProfilesEnvVar(t *testing.T) {
+	cmKeySelector := func(name, key string) (cmSelector *corev1.ConfigMapKeySelector) {
+		cmSelector = &corev1.ConfigMapKeySelector{}
+		cmSelector.Name = name
+		cmSelector.Key = key
+		return
+	}
+	tests := []struct {
+		name                  string
+		dsdMapperProfilesConf *datadoghqv1alpha1.CustomConfigSpec
+		want                  *corev1.EnvVar
+	}{
+		{
+			name: "YAML conf data",
+			dsdMapperProfilesConf: &datadoghqv1alpha1.CustomConfigSpec{
+				ConfigData: datadoghqv1alpha1.NewStringPointer(`- name: my_custom_metric_profile
+  prefix: custom_metric.
+  mappings:
+    - match: 'custom_metric.process.*.*'
+      match_type: wildcard
+      name: 'custom_metric.process.prod.$1.live'
+      tags:
+        tag_key_2: '$2'
+`),
+			},
+			want: &corev1.EnvVar{
+				Name:  "DD_DOGSTATSD_MAPPER_PROFILES",
+				Value: `[{"mappings":[{"match":"custom_metric.process.*.*","match_type":"wildcard","name":"custom_metric.process.prod.$1.live","tags":{"tag_key_2":"$2"}}],"name":"my_custom_metric_profile","prefix":"custom_metric."}]`,
+			},
+		},
+		{
+			name: "JSON conf data",
+			dsdMapperProfilesConf: &datadoghqv1alpha1.CustomConfigSpec{
+				ConfigData: datadoghqv1alpha1.NewStringPointer(`[{"mappings":[{"match":"custom_metric.process.*.*","match_type":"wildcard","name":"custom_metric.process.prod.$1.live","tags":{"tag_key_2":"$2"}}],"name":"my_custom_metric_profile","prefix":"custom_metric."}]`),
+			},
+			want: &corev1.EnvVar{
+				Name:  "DD_DOGSTATSD_MAPPER_PROFILES",
+				Value: `[{"mappings":[{"match":"custom_metric.process.*.*","match_type":"wildcard","name":"custom_metric.process.prod.$1.live","tags":{"tag_key_2":"$2"}}],"name":"my_custom_metric_profile","prefix":"custom_metric."}]`,
+			},
+		},
+		{
+			name: "config map",
+			dsdMapperProfilesConf: &datadoghqv1alpha1.CustomConfigSpec{
+				ConfigMap: &datadoghqv1alpha1.ConfigFileConfigMapSpec{
+					Name:    "dsd-config",
+					FileKey: "config",
+				},
+			},
+			want: &corev1.EnvVar{
+				Name:      "DD_DOGSTATSD_MAPPER_PROFILES",
+				ValueFrom: &v1.EnvVarSource{ConfigMapKeyRef: cmKeySelector("dsd-config", "config")},
+			},
+		},
+		{
+			name: "conf data + config map",
+			dsdMapperProfilesConf: &datadoghqv1alpha1.CustomConfigSpec{
+				ConfigData: datadoghqv1alpha1.NewStringPointer("foo: bar"),
+				ConfigMap: &datadoghqv1alpha1.ConfigFileConfigMapSpec{
+					Name:    "dsd-config",
+					FileKey: "config",
+				},
+			},
+			want: &corev1.EnvVar{
+				Name:  "DD_DOGSTATSD_MAPPER_PROFILES",
+				Value: `{"foo":"bar"}`,
+			},
+		},
+		{
+			name: "invalid conf data",
+			dsdMapperProfilesConf: &datadoghqv1alpha1.CustomConfigSpec{
+				ConfigData: datadoghqv1alpha1.NewStringPointer(","),
+			},
+			want: nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dda := test.NewDefaultedDatadogAgent("foo", "bar", &test.NewDatadogAgentOptions{
+				NodeAgentConfig: &datadoghqv1alpha1.NodeAgentConfig{
+					Dogstatsd: &datadoghqv1alpha1.DogstatsdConfig{MapperProfiles: tt.dsdMapperProfilesConf},
+				},
+			})
+			assert.EqualValues(t, tt.want, dsdMapperProfilesEnvVar(logf.Log.Logger, dda))
+		})
+	}
+}

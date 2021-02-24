@@ -672,6 +672,12 @@ func getEnvVarsForAgent(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent)
 		})
 	}
 
+	if dda.Spec.Agent.Config.Dogstatsd.MapperProfiles != nil {
+		if dsdMapperProfilesEnv := dsdMapperProfilesEnvVar(logger, dda); dsdMapperProfilesEnv != nil {
+			envVars = append(envVars, *dsdMapperProfilesEnv)
+		}
+	}
+
 	if spec.ClusterAgent != nil {
 		clusterEnv := []corev1.EnvVar{
 			{
@@ -1741,6 +1747,35 @@ func prometheusScrapeEnvVars(logger logr.Logger, dda *datadoghqv1alpha1.DatadogA
 	}
 
 	return envVars
+}
+
+func dsdMapperProfilesEnvVar(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) *corev1.EnvVar {
+	if dda.Spec.Agent.Config.Dogstatsd.MapperProfiles.ConfigData != nil {
+		if dda.Spec.Agent.Config.Dogstatsd.MapperProfiles.ConfigMap != nil {
+			logger.Info("configData and configMap cannot be set simultaneously for dogstastd mapper profiles, ignoring the config map")
+		}
+		jsonValue, err := yaml.YAMLToJSON([]byte(*dda.Spec.Agent.Config.Dogstatsd.MapperProfiles.ConfigData))
+		if err != nil {
+			logger.Error(err, "Invalid dogstatsd mapper profiles config, ignoring it")
+			return nil
+		}
+		return &corev1.EnvVar{
+			Name:  datadoghqv1alpha1.DDDogstatsdMapperProfiles,
+			Value: string(jsonValue),
+		}
+	}
+
+	if dda.Spec.Agent.Config.Dogstatsd.MapperProfiles.ConfigMap != nil {
+		cmSelector := corev1.ConfigMapKeySelector{}
+		cmSelector.Name = dda.Spec.Agent.Config.Dogstatsd.MapperProfiles.ConfigMap.Name
+		cmSelector.Key = dda.Spec.Agent.Config.Dogstatsd.MapperProfiles.ConfigMap.FileKey
+		return &corev1.EnvVar{
+			Name:      datadoghqv1alpha1.DDDogstatsdMapperProfiles,
+			ValueFrom: &corev1.EnvVarSource{ConfigMapKeyRef: &cmSelector},
+		}
+	}
+
+	return nil
 }
 
 func isMetricsProviderEnabled(spec *datadoghqv1alpha1.DatadogAgentSpecClusterAgentSpec) bool {
