@@ -8,11 +8,10 @@ package datadogagent
 import (
 	"context"
 	"encoding/base64"
-	"reflect"
-	"time"
-
 	"fmt"
+	"reflect"
 	"testing"
+	"time"
 
 	"github.com/pkg/errors"
 	assert "github.com/stretchr/testify/require"
@@ -29,6 +28,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	policyv1 "k8s.io/api/policy/v1beta1"
 	rbacv1 "k8s.io/api/rbac/v1"
+
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -159,6 +159,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 	type fields struct {
 		client   client.Client
 		scheme   *runtime.Scheme
+		options  *ReconcilerOptions
 		recorder record.EventRecorder
 	}
 	type args struct {
@@ -260,6 +261,57 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 			},
 			want:    reconcile.Result{Requeue: true},
 			wantErr: false,
+		},
+		{
+			name: "DatadogAgent found, but violates restrictions",
+			fields: fields{
+				client: fake.NewFakeClient(),
+				scheme: s,
+				options: &ReconcilerOptions{
+					SupportExtendedDaemonset:   true,
+					AllowedContainerRegistries: []string{"foohub.io"},
+					DisallowedAgentFeatures:    []AgentFeature{AgentFeatureSystemProbe},
+				},
+				recorder: recorder,
+			},
+			args: args{
+				request: newRequest(resourcesNamespace, resourcesName),
+				loadFunc: func(c client.Client) {
+					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, &test.NewDatadogAgentOptions{UseEDS: true, Labels: map[string]string{"label-foo-key": "label-bar-value"}, SystemProbeEnabled: true})
+					_ = c.Create(context.TODO(), dda)
+					labels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultAgentResourceSuffix, getAgentVersion(dda))
+					_ = c.Create(context.TODO(), test.NewSecret(resourcesNamespace, "foo", &test.NewSecretOptions{Labels: labels, Data: map[string][]byte{
+						"api-key": []byte(base64.StdEncoding.EncodeToString([]byte("api-foo"))),
+						"app-key": []byte(base64.StdEncoding.EncodeToString([]byte("app-foo"))),
+						"token":   []byte(base64.StdEncoding.EncodeToString([]byte("token-foo"))),
+					}}))
+
+					installinfoCM, _ := buildInstallInfoConfigMap(dda)
+					_ = c.Create(context.TODO(), installinfoCM)
+				},
+			},
+			want:    reconcile.Result{Requeue: false},
+			wantErr: true,
+			wantFunc: func(c client.Client) error {
+				datadogAgent := &datadoghqv1alpha1.DatadogAgent{}
+				if err := c.Get(context.TODO(), newRequest(resourcesNamespace, resourcesName).NamespacedName, datadogAgent); err != nil {
+					return err
+				}
+
+				if len(datadogAgent.Status.Conditions) != 1 {
+					return errors.New("expected error missing in Status.Conditions")
+				}
+
+				if datadogAgent.Status.Conditions[0].Type != datadoghqv1alpha1.DatadogAgentConditionTypeReconcileError {
+					return fmt.Errorf("expected reconcile error in status, got %s", datadogAgent.Status.Conditions[0].Type)
+				}
+
+				expectedError := "[image gcr.io/datadoghq/agent:latest is disallowed in the current configuration, system-probe agent feature cannot be enabled in the current configuration]"
+				if datadogAgent.Status.Conditions[0].Message != expectedError {
+					return fmt.Errorf("unexpected error in Status: %s", datadogAgent.Status.Conditions[0].Message)
+				}
+				return nil
+			},
 		},
 		{
 			name: "DatadogAgent found and defaulted, create the Agent's ClusterRole",
@@ -2266,6 +2318,9 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				options: ReconcilerOptions{
 					SupportExtendedDaemonset: true,
 				},
+			}
+			if tt.fields.options != nil {
+				r.options = *tt.fields.options
 			}
 			if tt.args.loadFunc != nil {
 				tt.args.loadFunc(r.client)
