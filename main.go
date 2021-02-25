@@ -78,7 +78,7 @@ func main() {
 		"Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
 
 	// Custom flags
-	var printVersion, pprofActive, supportExtendedDaemonset bool
+	var printVersion, pprofActive, supportExtendedDaemonset, datadogMonitorEnabled bool
 	var logEncoder, secretBackendCommand string
 	var secretBackendArgs stringSlice
 	flag.StringVar(&logEncoder, "logEncoder", "json", "log encoding ('json' or 'console')")
@@ -88,13 +88,14 @@ func main() {
 	flag.BoolVar(&printVersion, "version", false, "Print version and exit")
 	flag.BoolVar(&pprofActive, "pprof", false, "Enable pprof endpoint")
 	flag.BoolVar(&supportExtendedDaemonset, "supportExtendedDaemonset", false, "Support usage of Datadog ExtendedDaemonset CRD.")
+	flag.BoolVar(&datadogMonitorEnabled, "datadogMonitorEnabled", true, "Enable the DatadogMonitor controller")
 
 	// Parsing flags
 	flag.Parse()
 
 	// Logging setup
 	if err := customSetupLogging(*logLevel, logEncoder); err != nil {
-		setupLog.Error(err, "unable to setup the logger")
+		setupLog.Error(err, "Unable to setup the logger")
 		os.Exit(1)
 	}
 
@@ -118,7 +119,7 @@ func main() {
 		LeaderElectionID:       "datadog-operator-lock",
 	}))
 	if err != nil {
-		setupLog.Error(err, "unable to start manager")
+		setupLog.Error(err, "Unable to start manager")
 		os.Exit(1)
 	}
 
@@ -126,15 +127,21 @@ func main() {
 	customSetupHealthChecks(mgr)
 	customSetupEndpoints(pprofActive, mgr)
 
+	creds, err := config.GetCredentials()
+	if err != nil {
+		setupLog.Error(err, "Unable to get credentials")
+	}
+
 	options := controllers.SetupOptions{
 		SupportExtendedDaemonset: supportExtendedDaemonset,
-		APIKey:                   os.Getenv(config.DDAPIKeyEnvVar),
-		AppKey:                   os.Getenv(config.DDAppKeyEnvVar),
+		Creds:                    creds,
+		HaveCreds:                err == nil,
+		DatadogMonitorEnabled:    datadogMonitorEnabled,
 	}
 
 	// Get some information about Kubernetes version
-	if err := controllers.SetupControllers(mgr, options); err != nil {
-		setupLog.Error(err, "unable to start controllers")
+	if err := controllers.SetupControllers(setupLog, mgr, options); err != nil {
+		setupLog.Error(err, "Unable to start controllers")
 		os.Exit(1)
 	}
 
@@ -142,7 +149,7 @@ func main() {
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-		setupLog.Error(err, "problem running manager")
+		setupLog.Error(err, "Problem running manager")
 		os.Exit(1)
 	}
 }
