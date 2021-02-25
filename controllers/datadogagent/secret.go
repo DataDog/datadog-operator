@@ -35,7 +35,7 @@ type managedSecret struct {
 
 func (r *Reconciler) manageSecret(logger logr.Logger, secret managedSecret, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
 	if !secret.requireFunc(dda) {
-		result, err := r.cleanupSecret(dda.Namespace, secret.name)
+		result, err := r.cleanupSecret(dda.Namespace, secret.name, dda)
 		return result, err
 	}
 
@@ -74,7 +74,7 @@ func (r *Reconciler) createSecret(logger logr.Logger, newSecret *corev1.Secret, 
 }
 
 func (r *Reconciler) updateIfNeededSecret(secret managedSecret, dda *datadoghqv1alpha1.DatadogAgent, currentSecret *corev1.Secret) (reconcile.Result, error) {
-	if !ownedByDatadogOperator(currentSecret.OwnerReferences) {
+	if !CheckOwnerReference(dda, currentSecret) {
 		return reconcile.Result{}, nil
 	}
 
@@ -110,7 +110,7 @@ func (r *Reconciler) updateIfNeededSecret(secret managedSecret, dda *datadoghqv1
 	return result, nil
 }
 
-func (r *Reconciler) cleanupSecret(namespace, name string) (reconcile.Result, error) {
+func (r *Reconciler) cleanupSecret(namespace, name string, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
 	secret := &corev1.Secret{}
 	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, secret)
 	if err != nil {
@@ -119,7 +119,8 @@ func (r *Reconciler) cleanupSecret(namespace, name string) (reconcile.Result, er
 		}
 		return reconcile.Result{}, err
 	}
-	if ownedByDatadogOperator(secret.OwnerReferences) {
+
+	if CheckOwnerReference(dda, secret) {
 		err = r.client.Delete(context.TODO(), secret)
 	}
 

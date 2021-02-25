@@ -116,7 +116,7 @@ func (r *Reconciler) cleanupConfigMap(logger logr.Logger, dda *datadoghqv1alpha1
 		}
 		return reconcile.Result{}, err
 	}
-	if !ownedByDatadogOperator(configmap.OwnerReferences) {
+	if !CheckOwnerReference(dda, configmap) {
 		return reconcile.Result{}, nil
 	}
 	logger.V(1).Info("deleteConfigMap", "configMap.name", configmap.Name, "configMap.Namespace", configmap.Namespace)

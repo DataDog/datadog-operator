@@ -116,7 +116,7 @@ func (r *Reconciler) cleanupClusterRole(logger logr.Logger, client client.Client
 		}
 		return reconcile.Result{}, err
 	}
-	if !ownedByDatadogOperator(clusterRole.OwnerReferences) {
+	if !CheckOwnerReference(dda, clusterRole) {
 		return reconcile.Result{}, nil
 	}
 	logger.V(1).Info("deleteClusterRole", "clusterRole.name", clusterRole.Name, "clusterRole.Namespace", clusterRole.Namespace)
@@ -134,7 +134,7 @@ func (r *Reconciler) cleanupClusterRoleBinding(logger logr.Logger, client client
 		}
 		return reconcile.Result{}, err
 	}
-	if !ownedByDatadogOperator(clusterRoleBinding.OwnerReferences) {
+	if !CheckOwnerReference(dda, clusterRoleBinding) {
 		return reconcile.Result{}, nil
 	}
 	logger.V(1).Info("deleteClusterRoleBinding", "clusterRoleBinding.name", clusterRoleBinding.Name, "clusterRoleBinding.Namespace", clusterRoleBinding.Namespace)
@@ -152,7 +152,7 @@ func (r *Reconciler) cleanupServiceAccount(logger logr.Logger, client client.Cli
 		}
 		return reconcile.Result{}, err
 	}
-	if !ownedByDatadogOperator(serviceAccount.OwnerReferences) {
+	if !CheckOwnerReference(dda, serviceAccount) {
 		return reconcile.Result{}, nil
 	}
 	logger.V(1).Info("deleteServiceAccount", "serviceAccount.name", serviceAccount.Name, "serviceAccount.Namespace", serviceAccount.Namespace)

@@ -56,7 +56,7 @@ func (r *Reconciler) updateIfNeededClusterAgentService(logger logr.Logger, dda *
 
 func (r *Reconciler) cleanupClusterAgentService(dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
 	serviceName := getClusterAgentServiceName(dda)
-	return cleanupService(r.client, serviceName, dda.Namespace)
+	return cleanupService(r.client, serviceName, dda.Namespace, dda)
 }
 
 func newClusterAgentService(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.Service, string) {
@@ -111,7 +111,7 @@ func (r *Reconciler) manageMetricsServerService(logger logr.Logger, dda *datadog
 
 func (r *Reconciler) manageMetricsServerAPIService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
 	if !isMetricsProviderEnabled(dda.Spec.ClusterAgent) {
-		return r.cleanupMetricsServerAPIService(logger)
+		return r.cleanupMetricsServerAPIService(logger, dda)
 	}
 
 	apiServiceName := getMetricsServerAPIServiceName()
@@ -162,17 +162,17 @@ func (r *Reconciler) createAdmissionControllerService(logger logr.Logger, dda *d
 
 func (r *Reconciler) cleanupMetricsServerService(dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
 	serviceName := getMetricsServerServiceName(dda)
-	return cleanupService(r.client, serviceName, dda.Namespace)
+	return cleanupService(r.client, serviceName, dda.Namespace, dda)
 }
 
-func (r *Reconciler) cleanupMetricsServerAPIService(logger logr.Logger) (reconcile.Result, error) {
+func (r *Reconciler) cleanupMetricsServerAPIService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
 	apiServiceName := getMetricsServerAPIServiceName()
-	return r.cleanupAPIService(logger, apiServiceName)
+	return r.cleanupAPIService(logger, apiServiceName, dda)
 }
 
 func (r *Reconciler) cleanupAdmissionControllerService(dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
 	serviceName := getAdmissionControllerServiceName(dda)
-	return cleanupService(r.client, serviceName, dda.Namespace)
+	return cleanupService(r.client, serviceName, dda.Namespace, dda)
 }
 
 func (r *Reconciler) updateIfNeededMetricsServerService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, currentService *corev1.Service) (reconcile.Result, error) {
@@ -219,7 +219,7 @@ func (r *Reconciler) createAPIService(logger logr.Logger, dda *datadoghqv1alpha1
 	return reconcile.Result{Requeue: true}, nil
 }
 
-func cleanupService(client client.Client, name, namespace string) (reconcile.Result, error) {
+func cleanupService(client client.Client, name, namespace string, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
 	service := &corev1.Service{}
 	err := client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, service)
 	if err != nil {
@@ -228,11 +228,15 @@ func cleanupService(client client.Client, name, namespace string) (reconcile.Res
 		}
 		return reconcile.Result{}, err
 	}
+	if !CheckOwnerReference(dda, service) {
+		return reconcile.Result{}, nil
+	}
+
 	err = client.Delete(context.TODO(), service)
 	return reconcile.Result{}, err
 }
 
-func (r *Reconciler) cleanupAPIService(logger logr.Logger, name string) (reconcile.Result, error) {
+func (r *Reconciler) cleanupAPIService(logger logr.Logger, name string, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
 	apiService := &apiregistrationv1.APIService{}
 	err := r.client.Get(context.TODO(), types.NamespacedName{Name: name}, apiService)
 	if err != nil {
@@ -241,6 +245,13 @@ func (r *Reconciler) cleanupAPIService(logger logr.Logger, name string) (reconci
 		}
 		return reconcile.Result{}, err
 	}
+
+	// if the apiService object is not owner by the DatadogAgent resource
+	// do not delete it.
+	if !CheckOwnerReference(dda, apiService) {
+		return reconcile.Result{}, nil
+	}
+
 	err = r.client.Delete(context.TODO(), apiService)
 	if err != nil {
 		logger.Error(err, "failed to delete APIService", "name", name)

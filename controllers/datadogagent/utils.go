@@ -36,7 +36,6 @@ import (
 
 const (
 	authDelegatorName         string = "%s-auth-delegator"
-	datadogOperatorName       string = "DatadogAgent"
 	externalMetricsReaderName string = "%s-metrics-reader"
 	localDogstatsdSocketPath  string = "/var/run/datadog/statsd"
 	localAPMSocketPath        string = "/var/run/datadog/apm"
@@ -1950,21 +1949,17 @@ func updateDeploymentStatus(dep *appsv1.Deployment, depStatus *datadoghqv1alpha1
 	return depStatus
 }
 
-func ownedByDatadogOperator(owners []metav1.OwnerReference) bool {
-	for _, owner := range owners {
-		if owner.Kind == datadogOperatorName {
-			return true
-		}
-	}
-	return false
-}
-
 func getLogLevel(dda *datadoghqv1alpha1.DatadogAgent) string {
 	logLevel := datadoghqv1alpha1.DefaultLogLevel
 	if dda.Spec.Agent.Config.LogLevel != nil {
 		logLevel = *dda.Spec.Agent.Config.LogLevel
 	}
 	return logLevel
+}
+
+// CheckOwnerReference return true if owner is the owner of the object
+func CheckOwnerReference(owner, object metav1.Object) bool {
+	return metav1.IsControlledBy(object, owner)
 }
 
 // SetOwnerReference sets owner as a OwnerReference.
