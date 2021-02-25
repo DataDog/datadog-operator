@@ -5,7 +5,12 @@
 
 package secrets
 
-import "time"
+import (
+	"fmt"
+	"time"
+
+	"github.com/stretchr/testify/mock"
+)
 
 // Decryptor is used to decrypt encrypted secrets
 // Decryptor is implemented by SecretBackend
@@ -26,4 +31,19 @@ type SecretBackend struct {
 type Secret struct {
 	Value    string `json:"value,omitempty"`
 	ErrorMsg string `json:"error,omitempty"`
+}
+
+// DummyDecryptor can be used in other packages to mock the secret backend
+type DummyDecryptor struct {
+	mock.Mock
+}
+
+// Decrypt is used for testing
+func (d *DummyDecryptor) Decrypt(secrets []string) (map[string]string, error) {
+	d.Called(secrets)
+	res := map[string]string{}
+	for _, secret := range secrets {
+		res[secret] = fmt.Sprintf("DEC[%s]", secret)
+	}
+	return res, nil
 }

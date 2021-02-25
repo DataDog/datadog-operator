@@ -27,6 +27,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
 	"github.com/DataDog/datadog-operator/controllers/testutils"
+	"github.com/DataDog/datadog-operator/pkg/config"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -86,11 +87,12 @@ var _ = BeforeSuite(func(done Done) {
 
 	options := SetupOptions{
 		SupportExtendedDaemonset: false,
-		APIKey:                   "dummy_api_key",
-		AppKey:                   "dummy_app_key",
+		Creds:                    config.Creds{APIKey: "dummy_api_key", AppKey: "dummy_app_key"},
+		DatadogMonitorEnabled:    true,
 	}
 
-	err = SetupControllers(mgr, options)
+	logger := logf.Log.Logger
+	err = SetupControllers(logger, mgr, options)
 	Expect(err).ToNot(HaveOccurred())
 
 	go func() {

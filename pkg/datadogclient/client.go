@@ -24,8 +24,8 @@ type DatadogClient struct {
 }
 
 // InitDatadogClient initializes the Datadog API Client and establishes credentials
-func InitDatadogClient(apiKey, appKey string) (DatadogClient, error) {
-	if apiKey == "" || appKey == "" {
+func InitDatadogClient(creds config.Creds) (DatadogClient, error) {
+	if creds.APIKey == "" || creds.AppKey == "" {
 		return DatadogClient{}, errors.New("error obtaining API key and/or app key")
 	}
 
@@ -35,10 +35,10 @@ func InitDatadogClient(apiKey, appKey string) (DatadogClient, error) {
 		datadogapiclientv1.ContextAPIKeys,
 		map[string]datadogapiclientv1.APIKey{
 			"apiKeyAuth": {
-				Key: apiKey,
+				Key: creds.APIKey,
 			},
 			"appKeyAuth": {
-				Key: appKey,
+				Key: creds.AppKey,
 			},
 		},
 	)
