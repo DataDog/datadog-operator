@@ -175,6 +175,14 @@ spec:
 | clusterAgent.config.collectEvents | Enable this to start event collection from the kubernetes API ref: https://docs.datadoghq.com/agent/cluster_agent/event_collection/ |
 | clusterAgent.config.confd.configMapName | ConfigMapName name of a ConfigMap used to mount a directory |
 | clusterAgent.config.env | The Datadog Agent supports many environment variables Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables |
+| clusterAgent.config.externalMetrics.credentials.apiKey | APIKey Set this to your Datadog API key before the Agent runs. ref: https://app.datadoghq.com/account/settings#agent/kubernetes |
+| clusterAgent.config.externalMetrics.credentials.apiKeyExistingSecret | APIKeyExistingSecret is DEPRECATED. In order to pass the API key through an existing secret, please consider "apiSecret" instead. If set, this parameter takes precedence over "apiKey". |
+| clusterAgent.config.externalMetrics.credentials.apiSecret.keyName | KeyName is the key of the secret to use |
+| clusterAgent.config.externalMetrics.credentials.apiSecret.secretName | SecretName is the name of the secret |
+| clusterAgent.config.externalMetrics.credentials.appKey | If you are using clusterAgent.metricsProvider.enabled = true, you must set a Datadog application key for read access to your metrics. |
+| clusterAgent.config.externalMetrics.credentials.appKeyExistingSecret | AppKeyExistingSecret is DEPRECATED. In order to pass the APP key through an existing secret, please consider "appSecret" instead. If set, this parameter takes precedence over "appKey". |
+| clusterAgent.config.externalMetrics.credentials.appSecret.keyName | KeyName is the key of the secret to use |
+| clusterAgent.config.externalMetrics.credentials.appSecret.secretName | SecretName is the name of the secret |
 | clusterAgent.config.externalMetrics.enabled | Enable the metricsProvider to be able to scale based on metrics in Datadog |
 | clusterAgent.config.externalMetrics.endpoint | Override the API endpoint for the external metrics server. Defaults to .spec.agent.config.ddUrl or "https://app.datadoghq.com" if that's empty. |
 | clusterAgent.config.externalMetrics.port | If specified configures the metricsProvider external metrics service port |
