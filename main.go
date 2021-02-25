@@ -6,13 +6,12 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"net/http"
 	"os"
 	goruntime "runtime"
 	"strings"
-
-	flag "github.com/spf13/pflag"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -60,19 +59,18 @@ func init() {
 }
 
 // stringSlice implements pflag.Value
-type stringSlice []string
+type stringSlice struct {
+	value     []string
+	separator string
+}
 
 func (ss *stringSlice) String() string {
 	return fmt.Sprintf("%s", *ss)
 }
 
 func (ss *stringSlice) Set(value string) error {
-	*ss = strings.Split(value, " ")
+	ss.value = strings.Split(value, ss.separator)
 	return nil
-}
-
-func (ss *stringSlice) Type() string {
-	return "stringSlice"
 }
 
 func main() {
@@ -85,9 +83,9 @@ func main() {
 	// Custom flags
 	var printVersion, pprofActive, supportExtendedDaemonset bool
 	var logEncoder, secretBackendCommand string
-	var secretBackendArgs stringSlice
-	var allowedRegistries []string
-	var disallowedFeatures []string
+	secretBackendArgs := stringSlice{separator: " "}
+	allowedRegistries := stringSlice{separator: ","}
+	disallowedFeatures := stringSlice{separator: ","}
 	var hostStoragePath string
 	flag.StringVar(&logEncoder, "logEncoder", "json", "log encoding ('json' or 'console')")
 	flag.StringVar(&secretBackendCommand, "secretBackendCommand", "", "Secret backend command")
@@ -96,8 +94,8 @@ func main() {
 	flag.BoolVar(&printVersion, "version", false, "Print version and exit")
 	flag.BoolVar(&pprofActive, "pprof", false, "Enable pprof endpoint")
 	flag.BoolVar(&supportExtendedDaemonset, "supportExtendedDaemonset", false, "Support usage of Datadog ExtendedDaemonset CRD.")
-	flag.StringSliceVar(&allowedRegistries, "allowedRegistries", nil, "Allowed container registries")
-	flag.StringSliceVar(&disallowedFeatures, "disallowedFeatures", nil, "Disallowed DatadogAgent features")
+	flag.Var(&allowedRegistries, "allowedRegistries", "Allowed container registries")
+	flag.Var(&disallowedFeatures, "disallowedFeatures", "Disallowed DatadogAgent features")
 	flag.StringVar(&hostStoragePath, "hostStoragePath", "", "Host storage dir for DatadogAgent components")
 
 	// Parsing flags
@@ -118,7 +116,7 @@ func main() {
 
 	// Dispatch CLI flags to each package
 	secrets.SetSecretBackendCommand(secretBackendCommand)
-	secrets.SetSecretBackendArgs(secretBackendArgs)
+	secrets.SetSecretBackendArgs(secretBackendArgs.value)
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), config.ManagerOptionsWithNamespaces(setupLog, ctrl.Options{
 		Scheme:                 scheme,
@@ -141,8 +139,8 @@ func main() {
 		SupportExtendedDaemonset:   supportExtendedDaemonset,
 		APIKey:                     os.Getenv(config.DDAPIKeyEnvVar),
 		AppKey:                     os.Getenv(config.DDAppKeyEnvVar),
-		AllowedContainerRegistries: allowedRegistries,
-		DisallowedAgentFeatures:    disallowedFeatures,
+		AllowedContainerRegistries: allowedRegistries.value,
+		DisallowedAgentFeatures:    disallowedFeatures.value,
 		AgentHostStoragePath:       hostStoragePath,
 	}
 
