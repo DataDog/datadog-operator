@@ -46,7 +46,7 @@ func (r *Reconciler) manageSecret(logger logr.Logger, secret managedSecret, dda 
 		if apierrors.IsNotFound(err) {
 			s, errCreate := secret.createFunc(secret.name, dda)
 			if errCreate != nil {
-				condition.UpdateDatadogAgentStatusConditions(newStatus, now, datadoghqv1alpha1.ConditionTypeSecretError, corev1.ConditionTrue, fmt.Sprintf("%v", err), false)
+				condition.UpdateDatadogAgentStatusConditions(newStatus, now, datadoghqv1alpha1.DatadogAgentConditionTypeSecretError, corev1.ConditionTrue, fmt.Sprintf("%v", err), false)
 				return reconcile.Result{}, fmt.Errorf("cannot create secret %s, err: %v", secret.name, errCreate)
 			}
 
