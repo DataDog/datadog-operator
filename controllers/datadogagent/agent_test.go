@@ -1041,7 +1041,7 @@ func defaultSystemProbePodSpec() corev1.PodSpec {
 				},
 				SecurityContext: &corev1.SecurityContext{
 					Capabilities: &corev1.Capabilities{
-						Add: []corev1.Capability{"SYS_ADMIN", "SYS_RESOURCE", "SYS_PTRACE", "NET_ADMIN", "NET_BROADCAST", "IPC_LOCK"},
+						Add: []corev1.Capability{"SYS_ADMIN", "SYS_RESOURCE", "SYS_PTRACE", "NET_ADMIN", "NET_BROADCAST", "NET_RAW", "IPC_LOCK"},
 					},
 				},
 				Resources:    corev1.ResourceRequirements{},
@@ -1311,7 +1311,7 @@ func runtimeSecurityAgentPodSpec(extraEnv map[string]string) corev1.PodSpec {
 				},
 				SecurityContext: &corev1.SecurityContext{
 					Capabilities: &corev1.Capabilities{
-						Add: []corev1.Capability{"SYS_ADMIN", "SYS_RESOURCE", "SYS_PTRACE", "NET_ADMIN", "NET_BROADCAST", "IPC_LOCK"},
+						Add: []corev1.Capability{"SYS_ADMIN", "SYS_RESOURCE", "SYS_PTRACE", "NET_ADMIN", "NET_BROADCAST", "NET_RAW", "IPC_LOCK"},
 					},
 				},
 				Resources:    corev1.ResourceRequirements{},
