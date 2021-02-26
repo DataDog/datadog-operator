@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"hash/fnv"
-	"os"
 	"reflect"
 	"sync"
 	"time"
@@ -85,8 +84,9 @@ type metricsForwarder struct {
 	decryptor           secrets.Decryptor
 	creds               sync.Map
 	baseURL             string
+	status              *datadoghqv1alpha1.DatadogAgentCondition
+	credsManager        *config.CredentialManager
 	sync.Mutex
-	status *datadoghqv1alpha1.DatadogAgentCondition
 }
 
 // delegatedAPI is used for testing purpose, it serves for mocking the Datadog API
@@ -114,6 +114,7 @@ func newMetricsForwarder(k8sClient client.Client, decryptor secrets.Decryptor, o
 		creds:               sync.Map{},
 		baseURL:             defaultbaseURL,
 		logger:              log.WithValues("CustomResource.Namespace", obj.GetNamespace(), "CustomResource.Name", obj.GetName()),
+		credsManager:        config.NewCredentialManager(),
 	}
 }
 
@@ -489,17 +490,28 @@ func (mf *metricsForwarder) getDatadogAgent() (*datadoghqv1alpha1.DatadogAgent, 
 }
 
 // getCredentials returns the Datadog API Key and APP Key, it returns an error if one key is missing
+// getCredentials tries to get the credentials from the CRD, then from operator configuration
 func (mf *metricsForwarder) getCredentials(dda *datadoghqv1alpha1.DatadogAgent) (string, string, error) {
+	apiKey, appKey, err := mf.getCredsFromDatadogAgent(dda)
+	if err != nil {
+		if errors.Is(err, ErrEmptyAPIKey) || errors.Is(err, ErrEmptyAPPKey) {
+			// Fallback to the operator config in this case
+			var creds config.Creds
+			creds, err = mf.credsManager.GetCredentials()
+			return creds.APIKey, creds.AppKey, err
+		}
+	}
+
+	return apiKey, appKey, err
+}
+
+func (mf *metricsForwarder) getCredsFromDatadogAgent(dda *datadoghqv1alpha1.DatadogAgent) (string, string, error) {
 	var err error
 	apiKey, appKey := "", ""
 
-	// Use API key in order of priority: DatadogAgent spec, env var, or secret
-	switch {
-	case dda.Spec.Credentials.APIKey != "":
+	if dda.Spec.Credentials.APIKey != "" {
 		apiKey = dda.Spec.Credentials.APIKey
-	case os.Getenv(config.DDAPIKeyEnvVar) != "":
-		apiKey = os.Getenv(config.DDAPIKeyEnvVar)
-	default:
+	} else {
 		_, secretName, secretKeyName := utils.GetAPIKeySecret(&dda.Spec.Credentials.DatadogCredentials, utils.GetDefaultCredentialsSecretName(dda))
 		apiKey, err = mf.getKeyFromSecret(dda, secretName, secretKeyName)
 		if err != nil {
@@ -507,13 +519,9 @@ func (mf *metricsForwarder) getCredentials(dda *datadoghqv1alpha1.DatadogAgent) 
 		}
 	}
 
-	// Use App key in order of priority: DatadogAgent spec, env var, or secret
-	switch {
-	case dda.Spec.Credentials.AppKey != "":
+	if dda.Spec.Credentials.AppKey != "" {
 		appKey = dda.Spec.Credentials.AppKey
-	case os.Getenv(config.DDAppKeyEnvVar) != "":
-		appKey = os.Getenv(config.DDAppKeyEnvVar)
-	default:
+	} else {
 		_, secretName, secretKeyName := utils.GetAppKeySecret(&dda.Spec.Credentials.DatadogCredentials, utils.GetDefaultCredentialsSecretName(dda))
 		appKey, err = mf.getKeyFromSecret(dda, secretName, secretKeyName)
 		if err != nil {

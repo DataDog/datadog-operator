@@ -8,7 +8,6 @@ package datadog
 import (
 	"context"
 	"errors"
-	"os"
 	"reflect"
 	"sort"
 	"strings"
@@ -17,7 +16,6 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
 	test "github.com/DataDog/datadog-operator/api/v1alpha1/test"
-	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 
 	"github.com/stretchr/testify/mock"
@@ -436,7 +434,7 @@ func TestMetricsForwarder_updateCredsIfNeeded(t *testing.T) {
 	}
 }
 
-func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
+func TestReconcileDatadogAgent_getCredsFromDatadogAgent(t *testing.T) {
 	type fields struct {
 		client client.Client
 	}
@@ -637,24 +635,6 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 			wantErr:    false,
 		},
 		{
-			name: "no creds defined, apiKey and appKey found in env var",
-			fields: fields{
-				client: fake.NewFakeClient(),
-			},
-			args: args{
-				dda: test.NewDefaultedDatadogAgent("foo", "bar",
-					&test.NewDatadogAgentOptions{},
-				),
-				loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
-					os.Setenv(config.DDAPIKeyEnvVar, "foundApiKey")
-					os.Setenv(config.DDAppKeyEnvVar, "foundAppKey")
-				},
-			},
-			wantAPIKey: "foundApiKey",
-			wantAPPKey: "foundAppKey",
-			wantErr:    false,
-		},
-		{
 			name: "enc creds found in cache",
 			fields: fields{
 				client: fake.NewFakeClient(),
@@ -732,20 +712,20 @@ func TestReconcileDatadogAgent_getCredentials(t *testing.T) {
 			if tt.args.loadFunc != nil {
 				tt.args.loadFunc(mf, d)
 			}
-			apiKey, appKey, err := mf.getCredentials(tt.args.dda)
+			apiKey, appKey, err := mf.getCredsFromDatadogAgent(tt.args.dda)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("metricsForwarder.getCredentials() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("metricsForwarder.getCredsFromDatadogAgent() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if apiKey != tt.wantAPIKey {
-				t.Errorf("metricsForwarder.getCredentials() apiKey = %v, want %v", apiKey, tt.wantAPIKey)
+				t.Errorf("metricsForwarder.getCredsFromDatadogAgent() apiKey = %v, want %v", apiKey, tt.wantAPIKey)
 			}
 			if appKey != tt.wantAPPKey {
-				t.Errorf("metricsForwarder.getCredentials() appKey = %v, want %v", appKey, tt.wantAPPKey)
+				t.Errorf("metricsForwarder.getCredsFromDatadogAgent() appKey = %v, want %v", appKey, tt.wantAPPKey)
 			}
 			if tt.wantFunc != nil {
 				if err := tt.wantFunc(mf, d); err != nil {
-					t.Errorf("metricsForwarder.getCredentials() wantFunc validation error: %v", err)
+					t.Errorf("metricsForwarder.getCredsFromDatadogAgent() wantFunc validation error: %v", err)
 				}
 			}
 		})

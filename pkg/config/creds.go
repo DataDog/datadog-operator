@@ -8,6 +8,7 @@ package config
 import (
 	"errors"
 	"os"
+	"sync"
 
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 )
@@ -18,15 +19,29 @@ type Creds struct {
 	AppKey string
 }
 
+// CredentialManager provides the credentials from the operator configuration
+type CredentialManager struct {
+	secretBackend secrets.Decryptor
+	creds         Creds
+	credsMutex    sync.Mutex
+}
+
+// NewCredentialManager returns a CredentialManager
+func NewCredentialManager() *CredentialManager {
+	return &CredentialManager{
+		secretBackend: secrets.NewSecretBackend(),
+		creds:         Creds{},
+	}
+}
+
 // GetCredentials returns the API and APP keys respectively from the operator configurations
 // This function tries to decrypt the secrets using the secret backend if needed
 // It returns an error if the creds aren't configured or if the secret backend fails to decrypt
-func GetCredentials() (Creds, error) {
-	return getCredentials(secrets.NewSecretBackend())
-}
+func (cm *CredentialManager) GetCredentials() (Creds, error) {
+	if creds, found := cm.getCredsFromCache(); found {
+		return creds, nil
+	}
 
-// getCredentials used to ease testing
-func getCredentials(decryptor secrets.Decryptor) (Creds, error) {
 	apiKey := os.Getenv(DDAPIKeyEnvVar)
 	appKey := os.Getenv(DDAppKeyEnvVar)
 
@@ -45,10 +60,12 @@ func getCredentials(decryptor secrets.Decryptor) (Creds, error) {
 
 	if len(encrypted) == 0 {
 		// Nothing to decrypt
-		return Creds{APIKey: apiKey, AppKey: appKey}, nil
+		creds := Creds{APIKey: apiKey, AppKey: appKey}
+		cm.cacheCreds(creds)
+		return creds, nil
 	}
 
-	decrypted, err := decryptor.Decrypt(encrypted)
+	decrypted, err := cm.secretBackend.Decrypt(encrypted)
 	if err != nil {
 		return Creds{}, err
 	}
@@ -61,5 +78,22 @@ func getCredentials(decryptor secrets.Decryptor) (Creds, error) {
 		appKey = val
 	}
 
-	return Creds{APIKey: apiKey, AppKey: appKey}, nil
+	creds := Creds{APIKey: apiKey, AppKey: appKey}
+	cm.cacheCreds(creds)
+	return creds, nil
+}
+
+func (cm *CredentialManager) cacheCreds(creds Creds) {
+	cm.credsMutex.Lock()
+	defer cm.credsMutex.Unlock()
+	cm.creds = creds
+}
+
+func (cm *CredentialManager) getCredsFromCache() (Creds, bool) {
+	cm.credsMutex.Lock()
+	defer cm.credsMutex.Unlock()
+	if cm.creds.APIKey != "" && cm.creds.AppKey != "" {
+		return cm.creds, true
+	}
+	return Creds{}, false
 }

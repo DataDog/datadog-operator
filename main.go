@@ -78,7 +78,7 @@ func main() {
 		"Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
 
 	// Custom flags
-	var printVersion, pprofActive, supportExtendedDaemonset, datadogMonitorEnabled bool
+	var printVersion, pprofActive, supportExtendedDaemonset, datadogMonitorEnabled, operatorMetricsEnabled bool
 	var logEncoder, secretBackendCommand string
 	var secretBackendArgs stringSlice
 	flag.StringVar(&logEncoder, "logEncoder", "json", "log encoding ('json' or 'console')")
@@ -89,6 +89,7 @@ func main() {
 	flag.BoolVar(&pprofActive, "pprof", false, "Enable pprof endpoint")
 	flag.BoolVar(&supportExtendedDaemonset, "supportExtendedDaemonset", false, "Support usage of Datadog ExtendedDaemonset CRD.")
 	flag.BoolVar(&datadogMonitorEnabled, "datadogMonitorEnabled", true, "Enable the DatadogMonitor controller")
+	flag.BoolVar(&operatorMetricsEnabled, "operatorMetricsEnabled", true, "Enable sending operator metrics to Datadog")
 
 	// Parsing flags
 	flag.Parse()
@@ -127,7 +128,7 @@ func main() {
 	customSetupHealthChecks(mgr)
 	customSetupEndpoints(pprofActive, mgr)
 
-	creds, err := config.GetCredentials()
+	creds, err := config.NewCredentialManager().GetCredentials()
 	if err != nil {
 		setupLog.Error(err, "Unable to get credentials")
 	}
@@ -137,6 +138,7 @@ func main() {
 		Creds:                    creds,
 		HaveCreds:                err == nil,
 		DatadogMonitorEnabled:    datadogMonitorEnabled,
+		OperatorMetricsEnabled:   operatorMetricsEnabled,
 	}
 
 	// Get some information about Kubernetes version

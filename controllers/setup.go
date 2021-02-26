@@ -32,6 +32,7 @@ type SetupOptions struct {
 	Creds                    config.Creds
 	HaveCreds                bool
 	DatadogMonitorEnabled    bool
+	OperatorMetricsEnabled   bool
 }
 
 type starterFunc func(logr.Logger, manager.Manager, *version.Info, SetupOptions) error
@@ -72,6 +73,7 @@ func startDatadogAgent(logger logr.Logger, mgr manager.Manager, vInfo *version.I
 		Recorder:    mgr.GetEventRecorderFor(agentControllerName),
 		Options: datadogagent.ReconcilerOptions{
 			SupportExtendedDaemonset: options.SupportExtendedDaemonset,
+			OperatorMetricsEnabled:   options.OperatorMetricsEnabled,
 		},
 	}).SetupWithManager(mgr)
 }

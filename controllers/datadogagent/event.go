@@ -22,5 +22,7 @@ func buildEventInfo(name, ns, kind string, eventType datadog.EventType) utils.Ev
 // recordEvent calls the metric forwarders to send Datadog events
 func (r *Reconciler) recordEvent(dda *datadoghqv1alpha1.DatadogAgent, info utils.EventInfo) {
 	r.recorder.Event(dda, corev1.EventTypeNormal, info.GetReason(), info.GetMessage())
-	r.forwarders.ProcessEvent(dda, info.GetDDEvent())
+	if r.options.OperatorMetricsEnabled {
+		r.forwarders.ProcessEvent(dda, info.GetDDEvent())
+	}
 }
