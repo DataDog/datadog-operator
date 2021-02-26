@@ -74,7 +74,7 @@ func (r *Reconciler) createPDB(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 }
 
 func (r *Reconciler) updateIfNeededPDB(dda *datadoghqv1alpha1.DatadogAgent, currentPDB *policyv1.PodDisruptionBudget, builder pdbBuilder) (reconcile.Result, error) {
-	if !ownedByDatadogOperator(currentPDB.OwnerReferences) {
+	if !CheckOwnerReference(dda, currentPDB) {
 		return reconcile.Result{}, nil
 	}
 	newPDB := builder(dda)
@@ -108,7 +108,7 @@ func (r *Reconciler) cleanupPDB(dda *datadoghqv1alpha1.DatadogAgent, pdbName str
 		}
 		return reconcile.Result{}, err
 	}
-	if ownedByDatadogOperator(pdb.OwnerReferences) {
+	if CheckOwnerReference(dda, pdb) {
 		err = r.client.Delete(context.TODO(), pdb)
 	}
 

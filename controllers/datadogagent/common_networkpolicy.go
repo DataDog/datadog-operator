@@ -47,7 +47,7 @@ func (r *Reconciler) cleanupNetworkPolicy(logger logr.Logger, dda *datadoghqv1al
 		return reconcile.Result{}, err
 	}
 
-	if !ownedByDatadogOperator(policy.OwnerReferences) {
+	if !CheckOwnerReference(dda, policy) {
 		return reconcile.Result{}, nil
 	}
 
