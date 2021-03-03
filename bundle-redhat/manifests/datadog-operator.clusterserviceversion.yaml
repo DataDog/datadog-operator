@@ -97,6 +97,7 @@ metadata:
         }
       ]
     capabilities: Full Lifecycle
+    categories: "Monitoring, Logging & Tracing"
     operators.operatorframework.io/builder: operator-sdk-v1.2.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
   name: datadog-operator.v0.5.0
