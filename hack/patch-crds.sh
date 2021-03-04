@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
-set -e
+set -o errexit
+set -o nounset
+set -o pipefail
 
 ROOT_DIR=$(git rev-parse --show-toplevel)
 YQ="$ROOT_DIR/bin/yq"
