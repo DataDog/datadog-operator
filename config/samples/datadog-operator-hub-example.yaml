@@ -10,7 +10,7 @@ spec:
     token: <DATADOG_CLUSTER_AGENT_TOKEN>
   agent:
     image:
-      name: "gcr.io/datadoghq/agent:7.24.1"
+      name: "gcr.io/datadoghq/agent:7.26.0"
     apm:
       enabled: false
     process:
@@ -30,7 +30,7 @@ spec:
   clusterAgent:
     replicas: 2
     image:
-      name: "gcr.io/datadoghq/cluster-agent:1.10.0"
+      name: "gcr.io/datadoghq/cluster-agent:1.11.0"
     config:
       externalMetrics:
         enabled: false
@@ -40,4 +40,4 @@ spec:
   clusterChecksRunner:
     replicas: 2
     image:
-      name: "gcr.io/datadoghq/agent:7.24.1"
+      name: "gcr.io/datadoghq/agent:7.26.0"

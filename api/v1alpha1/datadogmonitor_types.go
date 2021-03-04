@@ -161,7 +161,7 @@ type DatadogMonitorDowntimeStatus struct {
 	DowntimeID  int  `json:"downtimeId,omitempty"`
 }
 
-// DatadogMonitor is the Schema for the datadogmonitor API
+// DatadogMonitor allows to define and manage Monitors from your Kubernetes Cluster
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:path=datadogmonitors,scope=Namespaced

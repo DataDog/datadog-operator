@@ -4,8 +4,8 @@ metadata:
   annotations:
     alm-examples: '[]'
     capabilities: Full Lifecycle
-    categories: "Monitoring, Logging & Tracing"
     description: "Datadog provides a modern monitoring and analytics platform. Gather metrics, logs and traces for full observability of your Kubernetes cluster with Datadog Operator."
+    categories: Monitoring, Logging & Tracing
     operators.operatorframework.io/builder: operator-sdk-v1.2.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
     repository: https://github.com/DataDog/datadog-operator
@@ -25,7 +25,7 @@ spec:
       kind: DatadogMetric
       name: datadogmetrics.datadoghq.com
       version: v1alpha1
-    - description: DatadogMonitor is the Schema for the datadogmonitor API
+    - description: DatadogMonitor allows to define and manage Monitors from your Kubernetes Cluster
       displayName: Datadog Monitor
       kind: DatadogMonitor
       name: datadogmonitors.datadoghq.com
@@ -37,18 +37,6 @@ spec:
     mediatype: image/svg+xml
   install:
     spec:
-      clusterPermissions:
-      - rules:
-        - apiGroups:
-          - security.openshift.io
-          resourceNames:
-          - hostaccess
-          - privileged
-          resources:
-          - securitycontextconstraints
-          verbs:
-          - use
-        serviceAccountName: datadog-agent-scc
       deployments: null
     strategy: ""
   installModes:
