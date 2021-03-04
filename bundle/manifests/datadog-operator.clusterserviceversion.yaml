@@ -97,6 +97,7 @@ metadata:
         }
       ]
     capabilities: Full Lifecycle
+    categories: "Monitoring, Logging & Tracing"
     operators.operatorframework.io/builder: operator-sdk-v1.2.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
   name: datadog-operator.v0.5.0
@@ -408,7 +409,7 @@ spec:
           - securitycontextconstraints
           verbs:
           - use
-        serviceAccountName: datadog-operator-datadog-operator-manager
+        serviceAccountName: datadog-ageent-scc
       deployments:
       - name: datadog-operator-manager
         spec:
@@ -456,7 +457,7 @@ spec:
                   requests:
                     cpu: 100m
                     memory: 250Mi
-              serviceAccountName: datadog-operator-datadog-operator-manager
+              serviceAccountName: datadog-operator-manager
               terminationGracePeriodSeconds: 10
       permissions:
       - rules:
@@ -487,7 +488,7 @@ spec:
           verbs:
           - create
           - patch
-        serviceAccountName: datadog-operator-datadog-operator-manager
+        serviceAccountName: datadog-operator-manager
     strategy: deployment
   installModes:
   - supported: true
