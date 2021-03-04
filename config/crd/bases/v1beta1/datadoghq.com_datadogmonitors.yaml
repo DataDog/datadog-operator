@@ -30,7 +30,8 @@ spec:
     status: {}
   validation:
     openAPIV3Schema:
-      description: DatadogMonitor is the Schema for the datadogmonitor API
+      description: DatadogMonitor allows to define and manage Monitors from your Kubernetes
+        Cluster
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation

@@ -1649,7 +1649,7 @@ func schema__api_v1alpha1_DatadogMonitor(ref common.ReferenceCallback) common.Op
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DatadogMonitor is the Schema for the datadogmonitor API",
+				Description: "DatadogMonitor allows to define and manage Monitors from your Kubernetes Cluster",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {

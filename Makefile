@@ -131,6 +131,7 @@ bundle: manifests ## Generate bundle manifests and metadata, then validate gener
 	./bin/operator-sdk generate kustomize manifests -q
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
 	$(KUSTOMIZE) build config/manifests | ./bin/operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
+	./hack/patch-bundle.sh
 	./bin/operator-sdk bundle validate ./bundle
 	./hack/redhat-bundle.sh
 
