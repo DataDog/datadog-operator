@@ -8,6 +8,7 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -73,10 +74,23 @@ func buildKSMCoreConfigMap(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.ConfigM
 
 func (r *Reconciler) createKubeStateMetricsClusterRole(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, version string) (reconcile.Result, error) {
 	clusterRole := buildKubeStateMetricsCoreRBAC(dda, name, version)
-	logger.Info("createKubeStateMetricsClusterRole", "clusterRole.name", clusterRole.Name)
+	logger.V(1).Info("createKubeStateMetricsClusterRole", "clusterRole.name", clusterRole.Name)
 	event := buildEventInfo(clusterRole.Name, clusterRole.Namespace, clusterRoleKind, datadog.CreationEvent)
 	r.recordEvent(dda, event)
 	return reconcile.Result{Requeue: true}, r.client.Create(context.TODO(), clusterRole)
+}
+
+func (r *Reconciler) updateIfNeededKubeStateMetricsClusterRole(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, version string, clusterRole *rbacv1.ClusterRole) (reconcile.Result, error) {
+	newClusterRole := buildKubeStateMetricsCoreRBAC(dda, name, version)
+	if !apiequality.Semantic.DeepEqual(newClusterRole.Rules, clusterRole.Rules) {
+		logger.V(1).Info("updateKubeStateMetricsClusterRole", "clusterRole.name", clusterRole.Name)
+		if err := r.client.Update(context.TODO(), newClusterRole); err != nil {
+			return reconcile.Result{}, err
+		}
+		event := buildEventInfo(newClusterRole.Name, newClusterRole.Namespace, clusterRoleKind, datadog.UpdateEvent)
+		r.recordEvent(dda, event)
+	}
+	return reconcile.Result{}, nil
 }
 
 // buildKubeStateMetricsCoreRBAC generates the cluster role required for the KSM informers to query
@@ -95,17 +109,18 @@ func buildKubeStateMetricsCoreRBAC(dda *datadoghqv1alpha1.DatadogAgent, name, ve
 			APIGroups: []string{datadoghqv1alpha1.CoreAPIGroup},
 			Resources: []string{
 				datadoghqv1alpha1.ConfigMapsResource,
-				datadoghqv1alpha1.SecretsResource,
-				datadoghqv1alpha1.NodesResource,
-				datadoghqv1alpha1.PodsResource,
-				datadoghqv1alpha1.ServicesResource,
-				datadoghqv1alpha1.ResourceQuotasResource,
-				datadoghqv1alpha1.ReplicationControllersResource,
+				datadoghqv1alpha1.EndpointsResource,
+				datadoghqv1alpha1.EventsResource,
 				datadoghqv1alpha1.LimitRangesResource,
+				datadoghqv1alpha1.NamespaceResource,
+				datadoghqv1alpha1.NodesResource,
 				datadoghqv1alpha1.PersistentVolumeClaimsResource,
 				datadoghqv1alpha1.PersistentVolumesResource,
-				datadoghqv1alpha1.NamespaceResource,
-				datadoghqv1alpha1.EndpointsResource,
+				datadoghqv1alpha1.PodsResource,
+				datadoghqv1alpha1.ReplicationControllersResource,
+				datadoghqv1alpha1.ResourceQuotasResource,
+				datadoghqv1alpha1.SecretsResource,
+				datadoghqv1alpha1.ServicesResource,
 			},
 		},
 		{
@@ -119,10 +134,10 @@ func buildKubeStateMetricsCoreRBAC(dda *datadoghqv1alpha1.DatadogAgent, name, ve
 		{
 			APIGroups: []string{datadoghqv1alpha1.AppsAPIGroup},
 			Resources: []string{
-				datadoghqv1alpha1.StatefulsetsResource,
 				datadoghqv1alpha1.DaemonsetsResource,
 				datadoghqv1alpha1.DeploymentsResource,
 				datadoghqv1alpha1.ReplicasetsResource,
+				datadoghqv1alpha1.StatefulsetsResource,
 			},
 		},
 		{
@@ -167,8 +182,8 @@ func buildKubeStateMetricsCoreRBAC(dda *datadoghqv1alpha1.DatadogAgent, name, ve
 		{
 			APIGroups: []string{datadoghqv1alpha1.NetworkingAPIGroup},
 			Resources: []string{
-				datadoghqv1alpha1.NetworkPolicyResource,
 				datadoghqv1alpha1.IngressesResource,
+				datadoghqv1alpha1.NetworkPolicyResource,
 			},
 		},
 		{

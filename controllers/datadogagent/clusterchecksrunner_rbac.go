@@ -70,6 +70,10 @@ func (r *Reconciler) manageClusterChecksRunnerRBACs(logger logr.Logger, dda *dat
 			return reconcile.Result{}, err
 		}
 
+		if result, err := r.updateIfNeededKubeStateMetricsClusterRole(logger, dda, kubeStateMetricsRBACName, clusterChecksRunnerVersion, kubeStateMetricsClusterRole); err != nil {
+			return result, err
+		}
+
 		kubeStateMetricsClusterRoleBinding := &rbacv1.ClusterRoleBinding{}
 		if err := r.client.Get(context.TODO(), types.NamespacedName{Name: kubeStateMetricsRBACName}, kubeStateMetricsClusterRoleBinding); err != nil {
 			if errors.IsNotFound(err) {
