@@ -11,17 +11,18 @@ rules:
       - ""
     resources:
       - configmaps
-      - secrets
-      - nodes
-      - pods
-      - services
-      - resourcequotas
-      - replicationcontrollers
+      - endpoints
+      - events
       - limitranges
+      - namespaces
+      - nodes
       - persistentvolumeclaims
       - persistentvolumes
-      - namespaces
-      - endpoints
+      - pods
+      - replicationcontrollers
+      - resourcequotas
+      - secrets
+      - services
     verbs:
       - list
       - watch
@@ -37,10 +38,10 @@ rules:
   - apigroups:
       - apps
     resources:
-      - statefulsets
       - daemonsets
       - deployments
       - replicasets
+      - statefulsets
     verbs:
       - list
       - watch
@@ -105,8 +106,8 @@ rules:
   - apigroups:
       - networking.k8s.io
     resources:
-      - networkpolicies
       - ingresses
+      - networkpolicies
     verbs:
       - list
       - watch
