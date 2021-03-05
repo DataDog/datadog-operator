@@ -12,6 +12,41 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
+// DecryptorError describes the error returned by a Decryptor
+type DecryptorError struct {
+	error
+	message   string
+	retriable bool
+}
+
+// Error implements the Error interface
+func (e *DecryptorError) Error() string {
+	return e.message
+}
+
+// IsRetriable returns wether the error is retriable
+func (e *DecryptorError) IsRetriable() bool {
+	return e.retriable
+}
+
+// NewDecryptorError returns a new DecryptorError
+func NewDecryptorError(message string, retriable bool) *DecryptorError {
+	return &DecryptorError{
+		message:   message,
+		retriable: retriable,
+	}
+}
+
+// Retriable can be used to evaluate whether an error should be retried
+func Retriable(err error) bool {
+	switch t := err.(type) {
+	case *DecryptorError:
+		return t.IsRetriable()
+	default:
+		return false
+	}
+}
+
 // Decryptor is used to decrypt encrypted secrets
 // Decryptor is implemented by SecretBackend
 type Decryptor interface {
@@ -33,14 +68,36 @@ type Secret struct {
 	ErrorMsg string `json:"error,omitempty"`
 }
 
+// NewDummyDecryptor returns a dummy decryptor for tests
+// maxRetries is the number of retries before returning a nil error
+// If maxRetries < 0 Decrypt directly returns a permanent error
+// If maxRetries == 0 Decrypt directly returns a a nil error
+// If maxRetries > 0 Decrypt returns a retriable error until it's called maxRetries-times then returns a nil error
+func NewDummyDecryptor(maxRetries int) *DummyDecryptor {
+	return &DummyDecryptor{
+		maxRetries: maxRetries,
+	}
+}
+
 // DummyDecryptor can be used in other packages to mock the secret backend
 type DummyDecryptor struct {
 	mock.Mock
+	maxRetries int
+	retryCount int
 }
 
 // Decrypt is used for testing
 func (d *DummyDecryptor) Decrypt(secrets []string) (map[string]string, error) {
 	d.Called(secrets)
+	if d.maxRetries < 0 {
+		return nil, NewDecryptorError("permanent error", false)
+	}
+
+	d.retryCount++
+	if d.retryCount < d.maxRetries {
+		return nil, NewDecryptorError("retriable error", true)
+	}
+
 	res := map[string]string{}
 	for _, secret := range secrets {
 		res[secret] = fmt.Sprintf("DEC[%s]", secret)

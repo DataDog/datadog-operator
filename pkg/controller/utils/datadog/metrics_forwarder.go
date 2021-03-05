@@ -496,6 +496,7 @@ func (mf *metricsForwarder) getCredentials(dda *datadoghqv1alpha1.DatadogAgent) 
 	if err != nil {
 		if errors.Is(err, ErrEmptyAPIKey) || errors.Is(err, ErrEmptyAPPKey) {
 			// Fallback to the operator config in this case
+			mf.logger.Info("API and/or APP key aren't defined in the Custom Resource, getting credentials from the operator config")
 			var creds config.Creds
 			creds, err = mf.credsManager.GetCredentials()
 			return creds.APIKey, creds.AppKey, err

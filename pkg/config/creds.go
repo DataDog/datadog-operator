@@ -9,8 +9,12 @@ import (
 	"errors"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/DataDog/datadog-operator/pkg/secrets"
+
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/util/retry"
 )
 
 // Creds holds the api and app keys
@@ -21,9 +25,10 @@ type Creds struct {
 
 // CredentialManager provides the credentials from the operator configuration
 type CredentialManager struct {
-	secretBackend secrets.Decryptor
-	creds         Creds
-	credsMutex    sync.Mutex
+	secretBackend    secrets.Decryptor
+	creds            Creds
+	credsMutex       sync.Mutex
+	decryptorBackoff wait.Backoff
 }
 
 // NewCredentialManager returns a CredentialManager
@@ -31,6 +36,12 @@ func NewCredentialManager() *CredentialManager {
 	return &CredentialManager{
 		secretBackend: secrets.NewSecretBackend(),
 		creds:         Creds{},
+		decryptorBackoff: wait.Backoff{
+			Steps:    5,
+			Duration: 10 * time.Millisecond,
+			Factor:   5.0,
+			Cap:      20 * time.Second,
+		},
 	}
 }
 
@@ -65,8 +76,12 @@ func (cm *CredentialManager) GetCredentials() (Creds, error) {
 		return creds, nil
 	}
 
-	decrypted, err := cm.secretBackend.Decrypt(encrypted)
-	if err != nil {
+	decrypted := map[string]string{}
+	var decErr error
+	if err := retry.OnError(cm.decryptorBackoff, secrets.Retriable, func() error {
+		decrypted, decErr = cm.secretBackend.Decrypt(encrypted)
+		return decErr
+	}); err != nil {
 		return Creds{}, err
 	}
 

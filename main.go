@@ -88,7 +88,7 @@ func main() {
 	flag.BoolVar(&printVersion, "version", false, "Print version and exit")
 	flag.BoolVar(&pprofActive, "pprof", false, "Enable pprof endpoint")
 	flag.BoolVar(&supportExtendedDaemonset, "supportExtendedDaemonset", false, "Support usage of Datadog ExtendedDaemonset CRD.")
-	flag.BoolVar(&datadogMonitorEnabled, "datadogMonitorEnabled", true, "Enable the DatadogMonitor controller")
+	flag.BoolVar(&datadogMonitorEnabled, "datadogMonitorEnabled", false, "Enable the DatadogMonitor controller")
 	flag.BoolVar(&operatorMetricsEnabled, "operatorMetricsEnabled", true, "Enable sending operator metrics to Datadog")
 
 	// Parsing flags
@@ -129,14 +129,14 @@ func main() {
 	customSetupEndpoints(pprofActive, mgr)
 
 	creds, err := config.NewCredentialManager().GetCredentials()
-	if err != nil {
+	if err != nil && datadogMonitorEnabled {
 		setupLog.Error(err, "Unable to get credentials")
+		os.Exit(1)
 	}
 
 	options := controllers.SetupOptions{
 		SupportExtendedDaemonset: supportExtendedDaemonset,
 		Creds:                    creds,
-		HaveCreds:                err == nil,
 		DatadogMonitorEnabled:    datadogMonitorEnabled,
 		OperatorMetricsEnabled:   operatorMetricsEnabled,
 	}

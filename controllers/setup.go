@@ -6,7 +6,6 @@
 package controllers
 
 import (
-	"errors"
 	"fmt"
 
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -30,7 +29,6 @@ const (
 type SetupOptions struct {
 	SupportExtendedDaemonset bool
 	Creds                    config.Creds
-	HaveCreds                bool
 	DatadogMonitorEnabled    bool
 	OperatorMetricsEnabled   bool
 }
@@ -82,10 +80,6 @@ func startDatadogMonitor(logger logr.Logger, mgr manager.Manager, vInfo *version
 	if !options.DatadogMonitorEnabled {
 		logger.Info("Feature disabled, not starting the controller", "controller", monitorControllerName)
 		return nil
-	}
-
-	if !options.HaveCreds {
-		return errors.New("credentials not provided")
 	}
 
 	ddClient, err := datadogclient.InitDatadogClient(options.Creds)
