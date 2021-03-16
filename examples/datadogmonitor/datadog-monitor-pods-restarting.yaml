@@ -1,0 +1,12 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogMonitor
+metadata:
+  name: pods-restarting
+  namespace: datadog
+spec:
+  query: "change(sum(last_5m),last_5m):exclude_null(avg:kubernetes.containers.restarts{*} by {pod_name}) > 5"
+  type: "query alert"
+  name: "[kubernetes] Monitor Kubernetes Pods Restarting"
+  message: "Pods are restarting multiple times in the last five minutes."
+  tags:
+    - "integration:kubernetes"

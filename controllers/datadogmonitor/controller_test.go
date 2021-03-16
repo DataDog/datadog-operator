@@ -186,7 +186,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 			},
 		},
 		{
-			name: "DatadogMonitor of unsupported type",
+			name: "DatadogMonitor, query alert",
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
 				firstAction: func(c client.Client) {
@@ -200,7 +200,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 							Name:      resourcesName,
 						},
 						Spec: datadoghqv1alpha1.DatadogMonitorSpec{
-							Query:   "avg(last_10m):avg:system.disk.in_use{*} by {host} > 0.1",
+							Query:   "avg(last_10m):avg:system.disk.in_use{*} by {host} * 100 > 10",
 							Type:    datadoghqv1alpha1.DatadogMonitorTypeQuery,
 							Name:    "test monitor",
 							Message: "something is wrong",
@@ -216,7 +216,76 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 				if err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, dm); err != nil {
 					return err
 				}
-				assert.Nil(t, dm.Status.Created)
+				assert.NotContains(t, dm.Status.Conditions[0].Message, "error")
+				return nil
+			},
+		},
+		{
+			name: "DatadogMonitor, service check",
+			args: args{
+				request: newRequest(resourcesNamespace, resourcesName),
+				firstAction: func(c client.Client) {
+					_ = c.Create(context.TODO(), &datadoghqv1alpha1.DatadogMonitor{
+						TypeMeta: metav1.TypeMeta{
+							Kind:       "DatadogMonitor",
+							APIVersion: fmt.Sprintf("%s/%s", datadoghqv1alpha1.GroupVersion.Group, datadoghqv1alpha1.GroupVersion.Version),
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Namespace: resourcesNamespace,
+							Name:      resourcesName,
+						},
+						Spec: datadoghqv1alpha1.DatadogMonitorSpec{
+							Query:   "\"kubernetes.kubelet.check\".over(\"*\").by(\"check\",\"id\").last(2).count_by_status()",
+							Type:    datadoghqv1alpha1.DatadogMonitorTypeService,
+							Name:    "test monitor",
+							Message: "something is wrong",
+						},
+					})
+				},
+				firstReconcileCount: 10,
+			},
+			wantResult: reconcile.Result{Requeue: true, RequeueAfter: defaultRequeuePeriod},
+			wantErr:    false,
+			wantFunc: func(c client.Client) error {
+				dm := &datadoghqv1alpha1.DatadogMonitor{}
+				if err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, dm); err != nil {
+					return err
+				}
+				assert.NotContains(t, dm.Status.Conditions[0].Message, "error")
+				return nil
+			},
+		},
+		{
+			name: "DatadogMonitor of unsupported type",
+			args: args{
+				request: newRequest(resourcesNamespace, resourcesName),
+				firstAction: func(c client.Client) {
+					_ = c.Create(context.TODO(), &datadoghqv1alpha1.DatadogMonitor{
+						TypeMeta: metav1.TypeMeta{
+							Kind:       "DatadogMonitor",
+							APIVersion: fmt.Sprintf("%s/%s", datadoghqv1alpha1.GroupVersion.Group, datadoghqv1alpha1.GroupVersion.Version),
+						},
+						ObjectMeta: metav1.ObjectMeta{
+							Namespace: resourcesNamespace,
+							Name:      resourcesName,
+						},
+						Spec: datadoghqv1alpha1.DatadogMonitorSpec{
+							Query:   "avg(last_10m):avg:system.disk.in_use{*} by {host} > 0.1",
+							Type:    datadoghqv1alpha1.DatadogMonitorTypeComposite,
+							Name:    "test monitor",
+							Message: "something is wrong",
+						},
+					})
+				},
+				firstReconcileCount: 2,
+			},
+			wantResult: reconcile.Result{Requeue: true, RequeueAfter: defaultRequeuePeriod},
+			wantErr:    false,
+			wantFunc: func(c client.Client) error {
+				dm := &datadoghqv1alpha1.DatadogMonitor{}
+				if err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, dm); err != nil {
+					return err
+				}
 				assert.Contains(t, dm.Status.Conditions[0].Message, "error")
 				return nil
 			},

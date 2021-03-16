@@ -25,10 +25,6 @@ import (
 const dateFormat = "2006-01-02 15:04:05.999999999 -0700 MST"
 
 func Test_buildMonitor(t *testing.T) {
-	// Define a monitor dm *datadoghqv1alpha1.DatadogMonitor
-	// Assert that each of the components of dm is equal to the output components in *datadogapiclientv1.Monitor and *datadogapiclientv1.MonitorUpdateRequest
-
-	// What types of monitors to define?
 	dm := &datadoghqv1alpha1.DatadogMonitor{
 		Spec: datadoghqv1alpha1.DatadogMonitorSpec{
 			Query:   "avg(last_10m):avg:system.disk.in_use{*} by {host} > 0.05",

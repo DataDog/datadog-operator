@@ -114,7 +114,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 		logger.V(1).Info("Monitor ID is not set; creating monitor in Datadog")
 		// If the monitor ID is 0, then it doesn't exist yet in Datadog. Create the monitor (only metric alerts)
 		switch string(instance.Spec.Type) {
-		case string(datadogapiclientv1.MONITORTYPE_METRIC_ALERT):
+		case string(datadogapiclientv1.MONITORTYPE_METRIC_ALERT), string(datadogapiclientv1.MONITORTYPE_QUERY_ALERT), string(datadogapiclientv1.MONITORTYPE_SERVICE_CHECK):
 			// Make sure required tags are present
 			if result, err = r.checkRequiredTags(logger, instance); err != nil || result.Requeue {
 				return r.updateStatusIfNeeded(logger, instance, now, newStatus, err, result)
@@ -126,7 +126,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 			newStatus.CurrentHash = instanceSpecHash
 		default:
 			err = errors.New("monitor type not supported")
-			logger.Error(err, "for the alpha version, only metric alert type monitors are supported")
+			logger.Error(err, "for the alpha version, only metric alert, query alert, and service check type monitors are supported")
 			return r.updateStatusIfNeeded(logger, instance, now, newStatus, err, result)
 		}
 	} else {

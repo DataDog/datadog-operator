@@ -31,10 +31,14 @@ type DatadogMonitorSpec struct {
 type DatadogMonitorType string
 
 const (
-	// DatadogMonitorTypeMetric is the metric alert monitor
+	// DatadogMonitorTypeMetric is the metric alert monitor type
 	DatadogMonitorTypeMetric DatadogMonitorType = "metric alert"
-	// DatadogMonitorTypeQuery is the query alert monitor
+	// DatadogMonitorTypeQuery is the query alert monitor type
 	DatadogMonitorTypeQuery DatadogMonitorType = "query alert"
+	// DatadogMonitorTypeService is the service check monitor type
+	DatadogMonitorTypeService DatadogMonitorType = "service check"
+	// DatadogMonitorTypeComposite is the composite alert monitor type
+	DatadogMonitorTypeComposite DatadogMonitorType = "composite"
 )
 
 // DatadogMonitorOptions define the optional parameters of a monitor
