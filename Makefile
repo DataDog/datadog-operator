@@ -58,7 +58,7 @@ run: generate lint manifests ## Run against the configured Kubernetes cluster in
 
 
 install: manifests kustomize ## Install CRDs into a cluster
-	$(KUSTOMIZE) build config/crd | kubectl apply -f -
+	$(KUSTOMIZE) build config/crd | kubectl apply --force-conflicts --server-side -f -
 
 
 uninstall: manifests kustomize ## Uninstall CRDs from a cluster
