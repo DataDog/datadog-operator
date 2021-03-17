@@ -6,6 +6,7 @@
 package secrets
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -14,14 +15,18 @@ import (
 
 // DecryptorError describes the error returned by a Decryptor
 type DecryptorError struct {
-	error
-	message   string
+	err       error
 	retriable bool
 }
 
 // Error implements the Error interface
 func (e *DecryptorError) Error() string {
-	return e.message
+	return e.Unwrap().Error()
+}
+
+// Unwrap implements the Error interface
+func (e *DecryptorError) Unwrap() error {
+	return e.err
 }
 
 // IsRetriable returns wether the error is retriable
@@ -30,21 +35,20 @@ func (e *DecryptorError) IsRetriable() bool {
 }
 
 // NewDecryptorError returns a new DecryptorError
-func NewDecryptorError(message string, retriable bool) *DecryptorError {
+func NewDecryptorError(err error, retriable bool) *DecryptorError {
 	return &DecryptorError{
-		message:   message,
+		err:       err,
 		retriable: retriable,
 	}
 }
 
 // Retriable can be used to evaluate whether an error should be retried
 func Retriable(err error) bool {
-	switch t := err.(type) {
-	case *DecryptorError:
-		return t.IsRetriable()
-	default:
-		return false
+	var decryptorErr *DecryptorError
+	if errors.As(err, &decryptorErr) {
+		return decryptorErr.IsRetriable()
 	}
+	return false
 }
 
 // Decryptor is used to decrypt encrypted secrets
@@ -90,12 +94,12 @@ type DummyDecryptor struct {
 func (d *DummyDecryptor) Decrypt(secrets []string) (map[string]string, error) {
 	d.Called(secrets)
 	if d.maxRetries < 0 {
-		return nil, NewDecryptorError("permanent error", false)
+		return nil, NewDecryptorError(errors.New("permanent error"), false)
 	}
 
 	d.retryCount++
 	if d.retryCount < d.maxRetries {
-		return nil, NewDecryptorError("retriable error", true)
+		return nil, NewDecryptorError(errors.New("retriable error"), true)
 	}
 
 	res := map[string]string{}

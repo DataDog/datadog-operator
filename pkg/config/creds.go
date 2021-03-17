@@ -69,28 +69,23 @@ func (cm *CredentialManager) GetCredentials() (Creds, error) {
 		encrypted = append(encrypted, appKey)
 	}
 
-	if len(encrypted) == 0 {
-		// Nothing to decrypt
-		creds := Creds{APIKey: apiKey, AppKey: appKey}
-		cm.cacheCreds(creds)
-		return creds, nil
-	}
+	if len(encrypted) > 0 {
+		decrypted := map[string]string{}
+		var decErr error
+		if err := retry.OnError(cm.decryptorBackoff, secrets.Retriable, func() error {
+			decrypted, decErr = cm.secretBackend.Decrypt(encrypted)
+			return decErr
+		}); err != nil {
+			return Creds{}, err
+		}
 
-	decrypted := map[string]string{}
-	var decErr error
-	if err := retry.OnError(cm.decryptorBackoff, secrets.Retriable, func() error {
-		decrypted, decErr = cm.secretBackend.Decrypt(encrypted)
-		return decErr
-	}); err != nil {
-		return Creds{}, err
-	}
+		if val, found := decrypted[apiKey]; found {
+			apiKey = val
+		}
 
-	if val, found := decrypted[apiKey]; found {
-		apiKey = val
-	}
-
-	if val, found := decrypted[appKey]; found {
-		appKey = val
+		if val, found := decrypted[appKey]; found {
+			appKey = val
+		}
 	}
 
 	creds := Creds{APIKey: apiKey, AppKey: appKey}
