@@ -12,7 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/builder"
+	ctrlbuilder "sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -103,21 +103,7 @@ func (r *DatadogAgentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error
 
 // SetupWithManager creates a new DatadogAgent controller
 func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	metricForwarder := datadog.NewForwardersManager(r.Client)
-	internal, err := datadogagent.NewReconciler(r.Options, r.Client, r.VersionInfo, r.Scheme, r.Log, r.Recorder, metricForwarder)
-	if err != nil {
-		return err
-	}
-	r.internal = internal
-
 	builder := ctrl.NewControllerManagedBy(mgr).
-		For(&datadoghqv1alpha1.DatadogAgent{}, builder.WithPredicates(predicate.Funcs{
-			// On `DatadogAgent` object creation, we register a metrics forwarder for it
-			CreateFunc: func(e event.CreateEvent) bool {
-				metricForwarder.Register(e.Meta)
-				return true
-			},
-		})).
 		Owns(&corev1.Secret{}).
 		Owns(&corev1.ConfigMap{}).
 		Owns(&appsv1.DaemonSet{}).
@@ -134,10 +120,30 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		builder = builder.Owns(&edsdatadoghqv1alpha1.ExtendedDaemonSet{})
 	}
 
-	err = builder.Complete(r)
+	var metricForwarder datadog.MetricForwardersManager
+	if r.Options.OperatorMetricsEnabled {
+		metricForwarder = datadog.NewForwardersManager(r.Client)
+		builder = builder.For(&datadoghqv1alpha1.DatadogAgent{}, ctrlbuilder.WithPredicates(predicate.Funcs{
+			// On `DatadogAgent` object creation, we register a metrics forwarder for it
+			CreateFunc: func(e event.CreateEvent) bool {
+				metricForwarder.Register(e.Meta)
+				return true
+			},
+		}))
+	} else {
+		metricForwarder = nil
+		builder = builder.For(&datadoghqv1alpha1.DatadogAgent{})
+	}
+
+	if err := builder.Complete(r); err != nil {
+		return err
+	}
+
+	internal, err := datadogagent.NewReconciler(r.Options, r.Client, r.VersionInfo, r.Scheme, r.Log, r.Recorder, metricForwarder)
 	if err != nil {
 		return err
 	}
+	r.internal = internal
 
 	return nil
 }

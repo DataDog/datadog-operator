@@ -52,7 +52,7 @@ func NewSecretBackend() *SecretBackend {
 // Decrypt tries to decrypt a given string slice using the secret backend command
 func (sb *SecretBackend) Decrypt(encrypted []string) (map[string]string, error) {
 	if !sb.isConfigured() {
-		return nil, errors.New("secret backend command not configured")
+		return nil, NewDecryptorError(errors.New("secret backend command not configured"), false)
 	}
 
 	return sb.fetchSecret(encrypted)
@@ -62,7 +62,7 @@ func (sb *SecretBackend) Decrypt(encrypted []string) (map[string]string, error) 
 func (sb *SecretBackend) fetchSecret(encrypted []string) (map[string]string, error) {
 	handles, err := extractHandles(encrypted)
 	if err != nil {
-		return nil, err
+		return nil, NewDecryptorError(err, false)
 	}
 
 	payload := map[string]interface{}{
@@ -72,31 +72,31 @@ func (sb *SecretBackend) fetchSecret(encrypted []string) (map[string]string, err
 
 	jsonPayload, err := json.Marshal(payload)
 	if err != nil {
-		return nil, fmt.Errorf("could not serialize secrets IDs to fetch secrets: %v", err)
+		return nil, NewDecryptorError(err, false)
 	}
 
 	output, err := sb.execCommand(string(jsonPayload))
 	if err != nil {
-		return nil, err
+		return nil, NewDecryptorError(err, true)
 	}
 
 	secrets := map[string]Secret{}
 	err = json.Unmarshal(output, &secrets)
 	if err != nil {
-		return nil, fmt.Errorf("could not unmarshal 'secret_backend_command' output: %v", err)
+		return nil, NewDecryptorError(err, true)
 	}
 
 	decrypted := map[string]string{}
 	for _, handle := range handles {
 		secretHandle, found := secrets[handle]
 		if !found {
-			return nil, fmt.Errorf("secret handle '%s' was not decrypted by the secret_backend_command", handle)
+			return nil, NewDecryptorError(fmt.Errorf("secret handle '%s' was not decrypted by the secret_backend_command", handle), false)
 		}
 		if secretHandle.ErrorMsg != "" {
-			return nil, fmt.Errorf("an error occurred while decrypting '%s': %s", handle, secretHandle.ErrorMsg)
+			return nil, NewDecryptorError(fmt.Errorf("an error occurred while decrypting '%s': %s", handle, secretHandle.ErrorMsg), false)
 		}
 		if secretHandle.Value == "" {
-			return nil, fmt.Errorf("decrypted secret for '%s' is empty", handle)
+			return nil, NewDecryptorError(fmt.Errorf("decrypted secret for '%s' is empty", handle), false)
 		}
 
 		decrypted[encFormat(handle)] = secretHandle.Value

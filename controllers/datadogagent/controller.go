@@ -33,6 +33,7 @@ const (
 // ReconcilerOptions provides options read from command line
 type ReconcilerOptions struct {
 	SupportExtendedDaemonset bool
+	OperatorMetricsEnabled   bool
 }
 
 // Reconciler is the internal reconciler for Datadog Agent
@@ -63,7 +64,7 @@ func NewReconciler(options ReconcilerOptions, client client.Client, versionInfo 
 // Reconcile is similar to reconciler.Reconcile interface, but taking a context
 func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
 	resp, err := r.internalReconcile(ctx, request)
-	r.forwarders.ProcessError(getMonitoredObj(request), err)
+	r.metricsForwarderProcessError(request, err)
 	return resp, err
 }
 
@@ -140,11 +141,7 @@ func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, agentdeployment *d
 		condition.UpdateDatadogAgentStatusConditions(newStatus, now, datadoghqv1alpha1.DatadogAgentConditionTypeActive, corev1.ConditionFalse, "DatadogAgent reconcile error", false)
 	}
 
-	// get metrics forwarder status
-	if metricsCondition := r.forwarders.MetricsForwarderStatusForObj(agentdeployment); metricsCondition != nil {
-		logger.V(1).Info("metrics conditions status not available")
-		condition.SetDatadogAgentStatusCondition(newStatus, metricsCondition)
-	}
+	r.setMetricsForwarderStatus(logger, agentdeployment, newStatus)
 
 	if !apiequality.Semantic.DeepEqual(&agentdeployment.Status, newStatus) {
 		updateAgentDeployment := agentdeployment.DeepCopy()
@@ -160,4 +157,21 @@ func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, agentdeployment *d
 	}
 
 	return result, currentError
+}
+
+// setMetricsForwarderStatus sets the metrics forwarder status condition if enabled
+func (r *Reconciler) setMetricsForwarderStatus(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) {
+	if r.options.OperatorMetricsEnabled {
+		if metricsCondition := r.forwarders.MetricsForwarderStatusForObj(agentdeployment); metricsCondition != nil {
+			logger.V(1).Info("metrics conditions status not available")
+			condition.SetDatadogAgentStatusCondition(newStatus, metricsCondition)
+		}
+	}
+}
+
+// metricsForwarderProcessError convert the reconciler errors into metrics if metrics forwarder is enabled
+func (r *Reconciler) metricsForwarderProcessError(req reconcile.Request, err error) {
+	if r.options.OperatorMetricsEnabled {
+		r.forwarders.ProcessError(getMonitoredObj(req), err)
+	}
 }
