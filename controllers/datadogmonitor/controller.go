@@ -7,7 +7,7 @@ package datadogmonitor
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"sort"
 	"time"
 
@@ -37,6 +37,12 @@ const (
 	defaultErrRequeuePeriod = 5 * time.Second
 	maxTriggeredStateGroups = 10
 )
+
+var supportedMonitorTypes = map[string]bool{
+	string(datadogapiclientv1.MONITORTYPE_METRIC_ALERT):  true,
+	string(datadogapiclientv1.MONITORTYPE_QUERY_ALERT):   true,
+	string(datadogapiclientv1.MONITORTYPE_SERVICE_CHECK): true,
+}
 
 // Reconciler reconciles a DatadogMonitor object
 type Reconciler struct {
@@ -113,8 +119,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 	if instance.Status.ID == 0 {
 		logger.V(1).Info("Monitor ID is not set; creating monitor in Datadog")
 		// If the monitor ID is 0, then it doesn't exist yet in Datadog. Create the monitor (only metric alerts)
-		switch string(instance.Spec.Type) {
-		case string(datadogapiclientv1.MONITORTYPE_METRIC_ALERT), string(datadogapiclientv1.MONITORTYPE_QUERY_ALERT), string(datadogapiclientv1.MONITORTYPE_SERVICE_CHECK):
+		if isSupportedMonitorType(instance.Spec.Type) {
 			// Make sure required tags are present
 			if result, err = r.checkRequiredTags(logger, instance); err != nil || result.Requeue {
 				return r.updateStatusIfNeeded(logger, instance, now, newStatus, err, result)
@@ -124,8 +129,8 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 				logger.Error(err, "error creating monitor")
 			}
 			newStatus.CurrentHash = instanceSpecHash
-		default:
-			err = errors.New("monitor type not supported")
+		} else {
+			err = fmt.Errorf("monitor type %v not supported", instance.Spec.Type)
 			logger.Error(err, "for the alpha version, only metric alert, query alert, and service check type monitors are supported")
 			return r.updateStatusIfNeeded(logger, instance, now, newStatus, err, result)
 		}
@@ -312,6 +317,10 @@ func convertStateToStatus(monitor datadogapiclientv1.Monitor, newStatus *datadog
 	newStatus.MonitorState = datadoghqv1alpha1.DatadogMonitorState(monitor.GetOverallState())
 	// TODO Updating this requires having the API client also return any matching downtime objects
 	newStatus.DowntimeStatus = datadoghqv1alpha1.DatadogMonitorDowntimeStatus{}
+}
+
+func isSupportedMonitorType(monitorType datadoghqv1alpha1.DatadogMonitorType) bool {
+	return supportedMonitorTypes[string(monitorType)]
 }
 
 func isTriggered(groupStatus string) bool {
