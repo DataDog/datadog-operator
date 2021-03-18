@@ -251,7 +251,7 @@ func getAgentContainer(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) 
 			udpPort,
 		},
 		Env:            envVars,
-		VolumeMounts:   getVolumeMountsForAgent(&dda.Spec),
+		VolumeMounts:   getVolumeMountsForAgent(dda),
 		LivenessProbe:  getDefaultLivenessProbe(),
 		ReadinessProbe: getDefaultReadinessProbe(),
 	}
@@ -288,7 +288,7 @@ func getAPMAgentContainers(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.Contai
 		},
 		Env:           envVars,
 		LivenessProbe: getDefaultAPMAgentLivenessProbe(),
-		VolumeMounts:  getVolumeMountsForAPMAgent(&dda.Spec),
+		VolumeMounts:  getVolumeMountsForAPMAgent(dda),
 	}
 	if agentSpec.Apm.Resources != nil {
 		apmContainer.Resources = *agentSpec.Apm.Resources
@@ -313,7 +313,7 @@ func getProcessContainers(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.Contain
 			"-config=/etc/datadog-agent/datadog.yaml",
 		},
 		Env:          envVars,
-		VolumeMounts: getVolumeMountsForProcessAgent(&dda.Spec),
+		VolumeMounts: getVolumeMountsForProcessAgent(dda),
 	}
 
 	if agentSpec.Process.Resources != nil {
@@ -394,7 +394,7 @@ func getSecurityAgentContainer(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.Con
 
 func getInitContainers(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.Container, error) {
 	spec := &dda.Spec
-	volumeMounts := getVolumeMountsForAgent(spec)
+	volumeMounts := getVolumeMountsForAgent(dda)
 	envVars, err := getEnvVarsForAgent(logger, dda)
 	if err != nil {
 		return nil, err
@@ -544,18 +544,12 @@ func getEnvVarsCommon(dda *datadoghqv1alpha1.DatadogAgent, needAPIKey bool) ([]c
 			Value: getLogLevel(dda),
 		},
 		{
-			Name: datadoghqv1alpha1.DDKubeletHost,
-			ValueFrom: &corev1.EnvVarSource{
-				FieldRef: &corev1.ObjectFieldSelector{
-					FieldPath: FieldPathStatusHostIP,
-				},
-			},
-		},
-		{
 			Name:  datadoghqv1alpha1.KubernetesEnvvarName,
 			Value: "yes",
 		},
 	}
+
+	envVars = append(envVars, getKubeletEnvVars(dda)...)
 
 	if dda.Spec.ClusterName != "" {
 		envVars = append(envVars, corev1.EnvVar{
@@ -854,6 +848,9 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 			},
 		},
 	}
+
+	// Kubelet volumes
+	volumes = append(volumes, getKubeletVolumes(dda)...)
 
 	if dda.Spec.Agent.CustomConfig != nil {
 		volume := getVolumeFromCustomConfigSpec(dda.Spec.Agent.CustomConfig, getAgentCustomConfigConfigMapName(dda), datadoghqv1alpha1.AgentCustomConfigVolumeName)
@@ -1195,7 +1192,7 @@ func getVolumeMountFromCustomConfigSpec(cfcm *datadoghqv1alpha1.CustomConfigSpec
 }
 
 // getVolumeMountsForAgent defines mounted volumes for the Agent
-func getVolumeMountsForAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []corev1.VolumeMount {
+func getVolumeMountsForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.VolumeMount {
 	// Default mounted volumes
 	volumeMounts := []corev1.VolumeMount{
 		{
@@ -1222,16 +1219,19 @@ func getVolumeMountsForAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []corev1.
 		},
 	}
 
-	// Add configuration volumesMount default and extra config (datadog.yaml) volume
-	volumeMounts = append(volumeMounts, getVolumeMountForConfig(spec.Agent.CustomConfig)...)
+	// Kubelet volumeMounts
+	volumeMounts = append(volumeMounts, getKubeletVolumeMounts(dda)...)
+
+	// Add configuration volumeMounts default and extra config (datadog.yaml) volume
+	volumeMounts = append(volumeMounts, getVolumeMountForConfig(dda.Spec.Agent.CustomConfig)...)
 
 	// Cri socket volume
-	if spec.Agent.Config.CriSocket != nil {
+	if dda.Spec.Agent.Config.CriSocket != nil {
 		path := ""
-		if spec.Agent.Config.CriSocket.DockerSocketPath != nil {
-			path = *spec.Agent.Config.CriSocket.DockerSocketPath
-		} else if spec.Agent.Config.CriSocket.CriSocketPath != nil {
-			path = *spec.Agent.Config.CriSocket.CriSocketPath
+		if dda.Spec.Agent.Config.CriSocket.DockerSocketPath != nil {
+			path = *dda.Spec.Agent.Config.CriSocket.DockerSocketPath
+		} else if dda.Spec.Agent.Config.CriSocket.CriSocketPath != nil {
+			path = *dda.Spec.Agent.Config.CriSocket.CriSocketPath
 		}
 		if path != "" {
 			volumeMounts = append(volumeMounts, corev1.VolumeMount{
@@ -1243,7 +1243,7 @@ func getVolumeMountsForAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []corev1.
 	}
 
 	// Dogstatsd volume
-	if datadoghqv1alpha1.BoolValue(spec.Agent.Config.Dogstatsd.UnixDomainSocket.Enabled) {
+	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Config.Dogstatsd.UnixDomainSocket.Enabled) {
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
 			Name:      datadoghqv1alpha1.DogstatsdSocketVolumeName,
 			MountPath: datadoghqv1alpha1.DogstatsdSocketVolumePath,
@@ -1251,7 +1251,7 @@ func getVolumeMountsForAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []corev1.
 	}
 
 	// Log volumes
-	if datadoghqv1alpha1.BoolValue(spec.Agent.Log.Enabled) {
+	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Log.Enabled) {
 		volumeMounts = append(volumeMounts, []corev1.VolumeMount{
 			{
 				Name:      datadoghqv1alpha1.PointerVolumeName,
@@ -1264,14 +1264,14 @@ func getVolumeMountsForAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []corev1.
 			},
 			{
 				Name:      datadoghqv1alpha1.LogContainerVolumeName,
-				MountPath: *spec.Agent.Log.ContainerLogsPath,
+				MountPath: *dda.Spec.Agent.Log.ContainerLogsPath,
 				ReadOnly:  datadoghqv1alpha1.LogContainerVolumeReadOnly,
 			},
 		}...)
 	}
 
 	// SystemProbe volumes
-	if datadoghqv1alpha1.BoolValue(spec.Agent.SystemProbe.Enabled) {
+	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.SystemProbe.Enabled) {
 		volumeMounts = append(volumeMounts, []corev1.VolumeMount{
 			{
 				Name:      datadoghqv1alpha1.SystemProbeSocketVolumeName,
@@ -1286,7 +1286,7 @@ func getVolumeMountsForAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []corev1.
 		}...)
 	}
 
-	return append(volumeMounts, spec.Agent.Config.VolumeMounts...)
+	return append(volumeMounts, dda.Spec.Agent.Config.VolumeMounts...)
 }
 
 func getVolumeMountForConfig(customConfig *datadoghqv1alpha1.CustomConfigSpec) []corev1.VolumeMount {
@@ -1323,7 +1323,7 @@ func getVolumeMountForChecksd() corev1.VolumeMount {
 }
 
 // getVolumeMountsForAgent defines mounted volumes for the Process Agent
-func getVolumeMountsForProcessAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []corev1.VolumeMount {
+func getVolumeMountsForProcessAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.VolumeMount {
 	// Default mounted volumes
 	volumeMounts := []corev1.VolumeMount{
 		{
@@ -1347,19 +1347,22 @@ func getVolumeMountsForProcessAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []
 		},
 	}
 
+	// Kubelet volumeMounts
+	volumeMounts = append(volumeMounts, getKubeletVolumeMounts(dda)...)
+
 	// Add configuration mount
-	volumeMounts = append(volumeMounts, getVolumeMountForConfig(spec.Agent.CustomConfig)...)
+	volumeMounts = append(volumeMounts, getVolumeMountForConfig(dda.Spec.Agent.CustomConfig)...)
 
 	// Add extra volume mounts
-	volumeMounts = append(volumeMounts, spec.Agent.Process.VolumeMounts...)
+	volumeMounts = append(volumeMounts, dda.Spec.Agent.Process.VolumeMounts...)
 
 	// Cri socket volume
-	if spec.Agent.Config.CriSocket != nil {
+	if dda.Spec.Agent.Config.CriSocket != nil {
 		path := ""
-		if spec.Agent.Config.CriSocket.DockerSocketPath != nil {
-			path = *spec.Agent.Config.CriSocket.DockerSocketPath
-		} else if spec.Agent.Config.CriSocket.CriSocketPath != nil {
-			path = *spec.Agent.Config.CriSocket.CriSocketPath
+		if dda.Spec.Agent.Config.CriSocket.DockerSocketPath != nil {
+			path = *dda.Spec.Agent.Config.CriSocket.DockerSocketPath
+		} else if dda.Spec.Agent.Config.CriSocket.CriSocketPath != nil {
+			path = *dda.Spec.Agent.Config.CriSocket.CriSocketPath
 		}
 		if path != "" {
 			volumeMounts = append(volumeMounts, corev1.VolumeMount{
@@ -1370,7 +1373,7 @@ func getVolumeMountsForProcessAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []
 		}
 	}
 
-	if datadoghqv1alpha1.BoolValue(spec.Agent.SystemProbe.Enabled) {
+	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.SystemProbe.Enabled) {
 		volumeMounts = append(volumeMounts, []corev1.VolumeMount{
 			{
 				Name:      datadoghqv1alpha1.SystemProbeSocketVolumeName,
@@ -1389,7 +1392,7 @@ func getVolumeMountsForProcessAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []
 }
 
 // getVolumeMountsForAgent defines mounted volumes for the Process Agent
-func getVolumeMountsForAPMAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []corev1.VolumeMount {
+func getVolumeMountsForAPMAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.VolumeMount {
 	// Default mounted volumes
 	volumeMounts := []corev1.VolumeMount{
 		{
@@ -1399,18 +1402,21 @@ func getVolumeMountsForAPMAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []core
 	}
 
 	// APM UDS
-	if datadoghqv1alpha1.BoolValue(spec.Agent.Apm.UnixDomainSocket.Enabled) {
+	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Apm.UnixDomainSocket.Enabled) {
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
 			Name:      datadoghqv1alpha1.APMSocketVolumeName,
 			MountPath: datadoghqv1alpha1.APMSocketVolumePath,
 		})
 	}
 
+	// Kubelet volumeMounts
+	volumeMounts = append(volumeMounts, getKubeletVolumeMounts(dda)...)
+
 	// Add configuration volumesMount default and custom config (datadog.yaml) volume
-	volumeMounts = append(volumeMounts, getVolumeMountForConfig(spec.Agent.CustomConfig)...)
+	volumeMounts = append(volumeMounts, getVolumeMountForConfig(dda.Spec.Agent.CustomConfig)...)
 
 	// Add extra volume mounts
-	volumeMounts = append(volumeMounts, spec.Agent.Apm.VolumeMounts...)
+	volumeMounts = append(volumeMounts, dda.Spec.Agent.Apm.VolumeMounts...)
 
 	return volumeMounts
 }

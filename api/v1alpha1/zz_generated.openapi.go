@@ -51,6 +51,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./api/v1alpha1.ExternalMetricsConfig":                   schema__api_v1alpha1_ExternalMetricsConfig(ref),
 		"./api/v1alpha1.ImageConfig":                             schema__api_v1alpha1_ImageConfig(ref),
 		"./api/v1alpha1.KubeStateMetricsCore":                    schema__api_v1alpha1_KubeStateMetricsCore(ref),
+		"./api/v1alpha1.KubeletConfig":                           schema__api_v1alpha1_KubeletConfig(ref),
 		"./api/v1alpha1.LogSpec":                                 schema__api_v1alpha1_LogSpec(ref),
 		"./api/v1alpha1.NetworkPolicySpec":                       schema__api_v1alpha1_NetworkPolicySpec(ref),
 		"./api/v1alpha1.NodeAgentConfig":                         schema__api_v1alpha1_NodeAgentConfig(ref),
@@ -2091,6 +2092,48 @@ func schema__api_v1alpha1_KubeStateMetricsCore(ref common.ReferenceCallback) com
 	}
 }
 
+func schema__api_v1alpha1_KubeletConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "KubeletConfig contains the Kubelet configuration parameters",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"host": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Override host used to contact Kubelet API (default to status.hostIP)",
+							Ref:         ref("k8s.io/api/core/v1.EnvVarSource"),
+						},
+					},
+					"tlsVerify": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Toggle kubelet TLS verification (default to true)",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"hostCAPath": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Path (on host) where the Kubelet CA certificate is stored",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"agentCAPath": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Path (inside Agent containers) where the Kubelet CA certificate is stored Default to /var/run/host-kubelet-ca.crt if hostCAPath else /var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/api/core/v1.EnvVarSource"},
+	}
+}
+
 func schema__api_v1alpha1_LogSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -2389,11 +2432,17 @@ func schema__api_v1alpha1_NodeAgentConfig(ref common.ReferenceCallback) common.O
 							Format:      "int32",
 						},
 					},
+					"kubelet": {
+						SchemaProps: spec.SchemaProps{
+							Description: "KubeletConfig contains the Kubelet configuration parameters",
+							Ref:         ref("./api/v1alpha1.KubeletConfig"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./api/v1alpha1.CRISocketConfig", "./api/v1alpha1.ConfigDirSpec", "./api/v1alpha1.DogstatsdConfig", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.PodSecurityContext", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
+			"./api/v1alpha1.CRISocketConfig", "./api/v1alpha1.ConfigDirSpec", "./api/v1alpha1.DogstatsdConfig", "./api/v1alpha1.KubeletConfig", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.PodSecurityContext", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
 	}
 }
 

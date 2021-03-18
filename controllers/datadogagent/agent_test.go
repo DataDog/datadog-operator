@@ -699,16 +699,16 @@ func defaultEnvVars(extraEnv map[string]string) []corev1.EnvVar {
 			Value: "INFO",
 		},
 		{
+			Name:  "KUBERNETES",
+			Value: "yes",
+		},
+		{
 			Name: "DD_KUBERNETES_KUBELET_HOST",
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
 					FieldPath: FieldPathStatusHostIP,
 				},
 			},
-		},
-		{
-			Name:  "KUBERNETES",
-			Value: "yes",
 		},
 		{
 			Name:      "DD_API_KEY",
@@ -753,16 +753,16 @@ func defaultAPMContainerEnvVars() []corev1.EnvVar {
 			Value: "INFO",
 		},
 		{
+			Name:  "KUBERNETES",
+			Value: "yes",
+		},
+		{
 			Name: "DD_KUBERNETES_KUBELET_HOST",
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
 					FieldPath: FieldPathStatusHostIP,
 				},
 			},
-		},
-		{
-			Name:  "KUBERNETES",
-			Value: "yes",
 		},
 		{
 			Name:      "DD_API_KEY",
@@ -782,16 +782,16 @@ func defaultSystemProbeEnvVars() []corev1.EnvVar {
 			Value: "INFO",
 		},
 		{
+			Name:  "KUBERNETES",
+			Value: "yes",
+		},
+		{
 			Name: "DD_KUBERNETES_KUBELET_HOST",
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
 					FieldPath: FieldPathStatusHostIP,
 				},
 			},
-		},
-		{
-			Name:  "KUBERNETES",
-			Value: "yes",
 		},
 		{
 			Name:  "DOCKER_HOST",
@@ -845,16 +845,16 @@ func securityAgentEnvVars(compliance, runtime bool, extraEnv map[string]string) 
 			Value: "INFO",
 		},
 		{
+			Name:  "KUBERNETES",
+			Value: "yes",
+		},
+		{
 			Name: "DD_KUBERNETES_KUBELET_HOST",
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
 					FieldPath: FieldPathStatusHostIP,
 				},
 			},
-		},
-		{
-			Name:  "KUBERNETES",
-			Value: "yes",
 		},
 		{
 			Name:      "DD_API_KEY",
@@ -1238,7 +1238,6 @@ func defaultProcessMount() []corev1.Volume {
 }
 
 func defaultOrchestratorEnvVars(dda *datadoghqv1alpha1.DatadogAgent) []corev1.EnvVar {
-
 	newVars := []corev1.EnvVar{
 		{
 			Name:  "DD_SYSTEM_PROBE_ENABLED",
@@ -1257,16 +1256,16 @@ func defaultOrchestratorEnvVars(dda *datadoghqv1alpha1.DatadogAgent) []corev1.En
 			Value: "INFO",
 		},
 		{
+			Name:  "KUBERNETES",
+			Value: "yes",
+		},
+		{
 			Name: "DD_KUBERNETES_KUBELET_HOST",
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
 					FieldPath: FieldPathStatusHostIP,
 				},
 			},
-		},
-		{
-			Name:  "KUBERNETES",
-			Value: "yes",
 		},
 		{
 			Name:      "DD_API_KEY",
@@ -1468,6 +1467,248 @@ func complianceSecurityAgentPodSpec(extraEnv map[string]string) corev1.PodSpec {
 	}
 }
 
+func customKubeletConfigPodSpec(kubeletConfig *datadoghqv1alpha1.KubeletConfig) corev1.PodSpec {
+	kubeletCAVolumeType := corev1.HostPathFile
+	volumeMounts := []corev1.VolumeMount{
+		{
+			Name:      "logdatadog",
+			MountPath: "/var/log/datadog",
+		},
+		{
+			Name:      "installinfo",
+			SubPath:   "install_info",
+			MountPath: "/etc/datadog-agent/install_info",
+			ReadOnly:  true,
+		},
+		{
+			Name:      "confd",
+			MountPath: "/conf.d",
+			ReadOnly:  true,
+		},
+		{
+			Name:      "checksd",
+			MountPath: "/checks.d",
+			ReadOnly:  true,
+		},
+		{
+			Name:      "procdir",
+			MountPath: "/host/proc",
+			ReadOnly:  true,
+		},
+		{
+			Name:      "cgroups",
+			MountPath: "/host/sys/fs/cgroup",
+			ReadOnly:  true,
+		},
+		{
+			Name:      datadoghqv1alpha1.KubeletCAVolumeName,
+			ReadOnly:  true,
+			MountPath: kubeletConfig.AgentCAPath,
+		},
+		{
+			Name:      "config",
+			MountPath: "/etc/datadog-agent",
+		},
+		{
+			Name:      "runtimesocketdir",
+			MountPath: "/host/var/run",
+			ReadOnly:  true,
+		},
+	}
+	envVars := []corev1.EnvVar{
+		{
+			Name:  "DD_HEALTH_PORT",
+			Value: "5555",
+		},
+		{
+			Name:  "DD_KUBERNETES_POD_LABELS_AS_TAGS",
+			Value: "{}",
+		},
+		{
+			Name:  "DD_KUBERNETES_POD_ANNOTATIONS_AS_TAGS",
+			Value: "{}",
+		},
+		{
+			Name:  "DD_COLLECT_KUBERNETES_EVENTS",
+			Value: "false",
+		},
+		{
+			Name:  "DD_LEADER_ELECTION",
+			Value: "false",
+		},
+		{
+			Name:  "DD_LOGS_ENABLED",
+			Value: "false",
+		},
+		{
+			Name:  "DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL",
+			Value: "false",
+		},
+		{
+			Name:  "DD_LOGS_CONFIG_K8S_CONTAINER_USE_FILE",
+			Value: "true",
+		},
+		{
+			Name:  "DD_LOGS_CONFIG_OPEN_FILES_LIMIT",
+			Value: "100",
+		},
+		{
+			Name:  "DD_DOGSTATSD_ORIGIN_DETECTION",
+			Value: "false",
+		},
+		{
+			Name:  "DD_LOG_LEVEL",
+			Value: "INFO",
+		},
+		{
+			Name:  "KUBERNETES",
+			Value: "yes",
+		},
+		{
+			Name:      "DD_KUBERNETES_KUBELET_HOST",
+			ValueFrom: kubeletConfig.Host,
+		},
+		{
+			Name:  "DD_KUBELET_TLS_VERIFY",
+			Value: datadoghqv1alpha1.BoolToString(kubeletConfig.TLSVerify),
+		},
+		{
+			Name:  "DD_KUBELET_CLIENT_CA",
+			Value: kubeletConfig.AgentCAPath,
+		},
+		{
+			Name:      "DD_API_KEY",
+			ValueFrom: apiKeyValue(),
+		},
+		{
+			Name:  "DOCKER_HOST",
+			Value: "unix:///host/var/run/docker.sock",
+		},
+	}
+
+	return corev1.PodSpec{
+		ServiceAccountName: "foo-agent",
+		InitContainers: []corev1.Container{
+			{
+				Name:            "init-volume",
+				Image:           "gcr.io/datadoghq/agent:latest",
+				ImagePullPolicy: corev1.PullIfNotPresent,
+				Resources:       corev1.ResourceRequirements{},
+				Command:         []string{"bash", "-c"},
+				Args:            []string{"cp -r /etc/datadog-agent /opt"},
+				VolumeMounts: []corev1.VolumeMount{
+					{
+						Name:      datadoghqv1alpha1.ConfigVolumeName,
+						MountPath: "/opt/datadog-agent",
+					},
+				},
+			},
+			{
+				Name:            "init-config",
+				Image:           "gcr.io/datadoghq/agent:latest",
+				ImagePullPolicy: corev1.PullIfNotPresent,
+				Resources:       corev1.ResourceRequirements{},
+				Command:         []string{"bash", "-c"},
+				Args:            []string{"for script in $(find /etc/cont-init.d/ -type f -name '*.sh' | sort) ; do bash $script ; done"},
+				Env:             envVars,
+				VolumeMounts:    volumeMounts,
+			},
+		},
+		Containers: []corev1.Container{
+			{
+				Name:            "agent",
+				Image:           "gcr.io/datadoghq/agent:latest",
+				ImagePullPolicy: corev1.PullIfNotPresent,
+				Command: []string{
+					"agent",
+					"run",
+				},
+				Resources: corev1.ResourceRequirements{},
+				Ports: []corev1.ContainerPort{
+					{
+						ContainerPort: 8125,
+						Name:          "dogstatsdport",
+						Protocol:      "UDP",
+					},
+				},
+				Env:            envVars,
+				VolumeMounts:   volumeMounts,
+				LivenessProbe:  defaultLivenessProbe(),
+				ReadinessProbe: defaultReadinessProbe(),
+			},
+		},
+		Volumes: []corev1.Volume{
+			{
+				Name: datadoghqv1alpha1.LogDatadogVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
+			},
+			{
+				Name: datadoghqv1alpha1.InstallInfoVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: "foo-install-info",
+						},
+					},
+				},
+			},
+			{
+				Name: datadoghqv1alpha1.ConfdVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
+			},
+			{
+				Name: datadoghqv1alpha1.ChecksdVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
+			},
+			{
+				Name: datadoghqv1alpha1.ConfigVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
+			},
+			{
+				Name: datadoghqv1alpha1.ProcVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: "/proc",
+					},
+				},
+			},
+			{
+				Name: datadoghqv1alpha1.CgroupsVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: "/sys/fs/cgroup",
+					},
+				},
+			},
+			{
+				Name: "kubelet-ca",
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: kubeletConfig.HostCAPath,
+						Type: &kubeletCAVolumeType,
+					},
+				},
+			},
+			{
+				Name: "runtimesocketdir",
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: "/var/run",
+					},
+				},
+			},
+		},
+	}
+}
+
 type extendedDaemonSetFromInstanceTest struct {
 	name            string
 	agentdeployment *datadoghqv1alpha1.DatadogAgent
@@ -1504,7 +1745,6 @@ func (tests extendedDaemonSetFromInstanceTestSuite) Run(t *testing.T) {
 }
 
 func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
-
 	// Create test fixtures
 
 	// Create a Datadog Agent with a custom host port
@@ -2000,22 +2240,6 @@ func Test_newExtendedDaemonSetFromInstance_CustomDatadogYaml(t *testing.T) {
 		},
 	}
 	test.Run(t)
-}
-
-func updateContainersEnv(container *corev1.Container, envName string, envValue string) {
-	found := false
-	for envKey := range container.Env {
-		if container.Env[envKey].Name == envName {
-			container.Env[envKey].Value = envValue
-			found = true
-		}
-	}
-	if !found {
-		container.Env = append(container.Env, corev1.EnvVar{
-			Name:  envName,
-			Value: envValue,
-		})
-	}
 }
 
 func Test_ExtraParameters(t *testing.T) {
@@ -2806,6 +3030,67 @@ func Test_newExtendedDaemonSetFromInstance_SecurityAgent_Runtime(t *testing.T) {
 						},
 					},
 					Spec: securityAgentPodSpec,
+				},
+				Strategy: getDefaultEDSStrategy(),
+			},
+		},
+	}
+
+	test.Run(t)
+}
+
+func Test_newExtendedDaemonSetFromInstance_KubeletConfiguration(t *testing.T) {
+	dda := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
+		UseEDS: true,
+	})
+
+	dda.Spec.Agent.Config.Kubelet = &datadoghqv1alpha1.KubeletConfig{
+		Host: &corev1.EnvVarSource{
+			FieldRef: &corev1.ObjectFieldSelector{
+				FieldPath: FieldPathSpecNodeName,
+			},
+		},
+		TLSVerify:   datadoghqv1alpha1.NewBoolPointer(false),
+		HostCAPath:  "/foo/bar/kubeletca.crt",
+		AgentCAPath: "/agent/foo/bar/ca.crt",
+	}
+
+	test := extendedDaemonSetFromInstanceTest{
+		name:            "with custom Kubelet config",
+		agentdeployment: dda,
+		wantErr:         false,
+		want: &edsdatadoghqv1alpha1.ExtendedDaemonSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "bar",
+				Name:      "foo-agent",
+				Labels: map[string]string{
+					"agent.datadoghq.com/name":      "foo",
+					"agent.datadoghq.com/component": "agent",
+					"app.kubernetes.io/instance":    "agent",
+					"app.kubernetes.io/managed-by":  "datadog-operator",
+					"app.kubernetes.io/name":        "datadog-agent-deployment",
+					"app.kubernetes.io/part-of":     "foo",
+					"app.kubernetes.io/version":     "",
+				},
+				Annotations: map[string]string{},
+			},
+			Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						GenerateName: "foo",
+						Namespace:    "bar",
+						Labels: map[string]string{
+							"agent.datadoghq.com/name":      "foo",
+							"agent.datadoghq.com/component": "agent",
+							"app.kubernetes.io/instance":    "agent",
+							"app.kubernetes.io/managed-by":  "datadog-operator",
+							"app.kubernetes.io/name":        "datadog-agent-deployment",
+							"app.kubernetes.io/part-of":     "foo",
+							"app.kubernetes.io/version":     "",
+						},
+						Annotations: map[string]string{},
+					},
+					Spec: customKubeletConfigPodSpec(dda.Spec.Agent.Config.Kubelet),
 				},
 				Strategy: getDefaultEDSStrategy(),
 			},
