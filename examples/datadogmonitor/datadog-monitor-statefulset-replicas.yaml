@@ -1,0 +1,12 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogMonitor
+metadata:
+  name: statefulset-replicas
+  namespace: datadog
+spec:
+  query: "max(last_15m):sum:kubernetes_state.statefulset.replicas_desired{*} by {statefulset} - sum:kubernetes_state.statefulset.replicas_ready{*} by {statefulset} >= 2"
+  type: "query alert"
+  name: "[kubernetes] Monitor Kubernetes Statefulset Replicas"
+  message: "More than one Statefulset Replica's pods are down. This might present an unsafe situation for any further manual operations, such as killing other pods."
+  tags:
+    - "integration:kubernetes"
