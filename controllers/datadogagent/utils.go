@@ -820,6 +820,12 @@ func getEnvVarsForSecurityAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.E
 func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 	volumes := []corev1.Volume{
 		{
+			Name: datadoghqv1alpha1.LogDatadogVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
 			Name: datadoghqv1alpha1.InstallInfoVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
@@ -1194,6 +1200,10 @@ func getVolumeMountsForAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []corev1.
 	// Default mounted volumes
 	volumeMounts := []corev1.VolumeMount{
 		{
+			Name:      datadoghqv1alpha1.LogDatadogVolumeName,
+			MountPath: datadoghqv1alpha1.LogDatadogVolumePath,
+		},
+		{
 			Name:      datadoghqv1alpha1.InstallInfoVolumeName,
 			SubPath:   datadoghqv1alpha1.InstallInfoVolumeSubPath,
 			MountPath: datadoghqv1alpha1.InstallInfoVolumePath,
@@ -1317,6 +1327,10 @@ func getVolumeMountsForProcessAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []
 	// Default mounted volumes
 	volumeMounts := []corev1.VolumeMount{
 		{
+			Name:      datadoghqv1alpha1.LogDatadogVolumeName,
+			MountPath: datadoghqv1alpha1.LogDatadogVolumePath,
+		},
+		{
 			Name:      datadoghqv1alpha1.CgroupsVolumeName,
 			MountPath: datadoghqv1alpha1.CgroupsVolumePath,
 			ReadOnly:  true,
@@ -1377,7 +1391,12 @@ func getVolumeMountsForProcessAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []
 // getVolumeMountsForAgent defines mounted volumes for the Process Agent
 func getVolumeMountsForAPMAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []corev1.VolumeMount {
 	// Default mounted volumes
-	volumeMounts := []corev1.VolumeMount{}
+	volumeMounts := []corev1.VolumeMount{
+		{
+			Name:      datadoghqv1alpha1.LogDatadogVolumeName,
+			MountPath: datadoghqv1alpha1.LogDatadogVolumePath,
+		},
+	}
 
 	// APM UDS
 	if datadoghqv1alpha1.BoolValue(spec.Agent.Apm.UnixDomainSocket.Enabled) {
@@ -1400,6 +1419,10 @@ func getVolumeMountsForAPMAgent(spec *datadoghqv1alpha1.DatadogAgentSpec) []core
 func getVolumeMountsForSystemProbe(dda *datadoghqv1alpha1.DatadogAgent) []corev1.VolumeMount {
 	// Default mounted volumes
 	volumeMounts := []corev1.VolumeMount{
+		{
+			Name:      datadoghqv1alpha1.LogDatadogVolumeName,
+			MountPath: datadoghqv1alpha1.LogDatadogVolumePath,
+		},
 		{
 			Name:      datadoghqv1alpha1.SystemProbeDebugfsVolumeName,
 			MountPath: datadoghqv1alpha1.SystemProbeDebugfsVolumePath,
@@ -1450,6 +1473,10 @@ func getVolumeMountsForSystemProbe(dda *datadoghqv1alpha1.DatadogAgent) []corev1
 // getVolumeMountsForSecurityAgent defines mounted volumes for the Security Agent
 func getVolumeMountsForSecurityAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.VolumeMount {
 	volumeMounts := []corev1.VolumeMount{
+		{
+			Name:      datadoghqv1alpha1.LogDatadogVolumeName,
+			MountPath: datadoghqv1alpha1.LogDatadogVolumePath,
+		},
 		{
 			Name:      datadoghqv1alpha1.ConfigVolumeName,
 			MountPath: datadoghqv1alpha1.ConfigVolumePath,

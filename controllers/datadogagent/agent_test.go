@@ -118,6 +118,12 @@ func defaultReadinessProbe() *corev1.Probe {
 func defaultVolumes() []corev1.Volume {
 	return []corev1.Volume{
 		{
+			Name: datadoghqv1alpha1.LogDatadogVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
 			Name: datadoghqv1alpha1.InstallInfoVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
@@ -174,6 +180,12 @@ func defaultVolumes() []corev1.Volume {
 
 func defaultSystemProbeVolumes() []corev1.Volume {
 	return []corev1.Volume{
+		{
+			Name: datadoghqv1alpha1.LogDatadogVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
 		{
 			Name: datadoghqv1alpha1.InstallInfoVolumeName,
 			VolumeSource: corev1.VolumeSource{
@@ -274,6 +286,12 @@ func defaultSystemProbeVolumes() []corev1.Volume {
 func complianceSecurityAgentVolumes() []corev1.Volume {
 	return []corev1.Volume{
 		{
+			Name: datadoghqv1alpha1.LogDatadogVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
 			Name: datadoghqv1alpha1.InstallInfoVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
@@ -354,6 +372,12 @@ func complianceSecurityAgentVolumes() []corev1.Volume {
 
 func runtimeSecurityAgentVolumes() []corev1.Volume {
 	return []corev1.Volume{
+		{
+			Name: datadoghqv1alpha1.LogDatadogVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
 		{
 			Name: datadoghqv1alpha1.InstallInfoVolumeName,
 			VolumeSource: corev1.VolumeSource{
@@ -454,6 +478,10 @@ func runtimeSecurityAgentVolumes() []corev1.Volume {
 func defaultMountVolume() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		{
+			Name:      "logdatadog",
+			MountPath: "/var/log/datadog",
+		},
+		{
 			Name:      "installinfo",
 			SubPath:   "install_info",
 			MountPath: "/etc/datadog-agent/install_info",
@@ -494,6 +522,10 @@ func defaultMountVolume() []corev1.VolumeMount {
 func defaultProcessMountVolumes() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		{
+			Name:      "logdatadog",
+			MountPath: "/var/log/datadog",
+		},
+		{
 			Name:      "cgroups",
 			MountPath: "/host/sys/fs/cgroup",
 			ReadOnly:  true,
@@ -524,6 +556,10 @@ func defaultProcessMountVolumes() []corev1.VolumeMount {
 func defaultSystemProbeMountVolume() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		{
+			Name:      "logdatadog",
+			MountPath: "/var/log/datadog",
+		},
+		{
 			Name:      "debugfs",
 			MountPath: "/sys/kernel/debug",
 		},
@@ -546,6 +582,10 @@ func defaultSystemProbeMountVolume() []corev1.VolumeMount {
 
 func complianceSecurityAgentMountVolume() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
+		{
+			Name:      "logdatadog",
+			MountPath: "/var/log/datadog",
+		},
 		{
 			Name:      "config",
 			MountPath: "/etc/datadog-agent",
@@ -590,6 +630,10 @@ func complianceSecurityAgentMountVolume() []corev1.VolumeMount {
 
 func runtimeSecurityAgentMountVolume() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
+		{
+			Name:      "logdatadog",
+			MountPath: "/var/log/datadog",
+		},
 		{
 			Name:      "config",
 			MountPath: "/etc/datadog-agent",
@@ -930,6 +974,10 @@ func appendDefaultAPMAgentContainer(podSpec *corev1.PodSpec) {
 		Env:             defaultAPMContainerEnvVars(),
 		VolumeMounts: []corev1.VolumeMount{
 			{
+				Name:      "logdatadog",
+				MountPath: "/var/log/datadog",
+			},
+			{
 				Name:      "config",
 				MountPath: "/etc/datadog-agent",
 			},
@@ -1119,6 +1167,12 @@ func defaultOrchestratorPodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodS
 
 func defaultProcessMount() []corev1.Volume {
 	return []corev1.Volume{
+		{
+			Name: datadoghqv1alpha1.LogDatadogVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
 		{
 			Name: datadoghqv1alpha1.InstallInfoVolumeName,
 			VolumeSource: corev1.VolumeSource{
@@ -1656,6 +1710,12 @@ func Test_newExtendedDaemonSetFromInstance_CustomConfigMaps(t *testing.T) {
 	customConfigMapsPodSpec := defaultPodSpec()
 	customConfigMapsPodSpec.Volumes = []corev1.Volume{
 		{
+			Name: datadoghqv1alpha1.LogDatadogVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
 			Name: datadoghqv1alpha1.InstallInfoVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
@@ -1780,6 +1840,12 @@ func Test_newExtendedDaemonSetFromInstance_CustomDatadogYaml(t *testing.T) {
 
 	customConfigMapCustomDatadogYamlSpec.Volumes = []corev1.Volume{
 		{
+			Name: datadoghqv1alpha1.LogDatadogVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
 			Name: datadoghqv1alpha1.InstallInfoVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
@@ -1843,6 +1909,10 @@ func Test_newExtendedDaemonSetFromInstance_CustomDatadogYaml(t *testing.T) {
 		},
 	}
 	customConfigMapCustomDatadogYamlSpec.Containers[0].VolumeMounts = []corev1.VolumeMount{
+		{
+			Name:      "logdatadog",
+			MountPath: "/var/log/datadog",
+		},
 		{
 			Name:      "installinfo",
 			SubPath:   "install_info",
