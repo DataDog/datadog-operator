@@ -51,14 +51,19 @@ spec:
             description: DatadogMonitorSpec defines the desired state of DatadogMonitor
             properties:
               message:
-                description: Message is the message to include in a monitor notification
+                description: Message is a message to include with notifications for
+                  this monitor
                 type: string
               name:
                 description: Name is the monitor name
                 type: string
               options:
-                description: Options are the optional parameters of a monitor
+                description: Options are the optional parameters associated with your
+                  monitor
                 properties:
+                  escalationMessage:
+                    description: A message to include with a re-notification.
+                    type: string
                   evaluationDelay:
                     description: Time (in seconds) to delay evaluation, as a non-negative
                       integer. For example, if the value is set to 300 (5min), the
@@ -66,7 +71,12 @@ spec:
                       evaluates data from 6:50 to 6:55. This is useful for AWS CloudWatch
                       and other backfilled metrics to ensure the monitor always has
                       data during evaluation.
+                    format: int64
                     type: integer
+                  includeTags:
+                    description: A Boolean indicating whether notifications from this
+                      monitor automatically inserts its triggering tags into the title.
+                    type: boolean
                   locked:
                     description: Whether or not the monitor is locked (only editable
                       by creator and admins).
@@ -75,6 +85,7 @@ spec:
                     description: Time (in seconds) to allow a host to boot and applications
                       to fully start before starting the evaluation of monitor results.
                       Should be a non negative integer.
+                    format: int64
                     type: integer
                   noDataTimeframe:
                     description: The number of minutes before a monitor notifies after
@@ -82,7 +93,12 @@ spec:
                       timeframe for metric alerts or 2 minutes for service checks.
                       If omitted, 2x the evaluation timeframe is used for metric alerts,
                       and 24 hours is used for service checks.
+                    format: int64
                     type: integer
+                  notifyAudit:
+                    description: A Boolean indicating whether tagged users are notified
+                      on changes to this monitor.
+                    type: boolean
                   notifyNoData:
                     description: A Boolean indicating whether this monitor notifies
                       when data stops reporting.
@@ -91,6 +107,7 @@ spec:
                     description: The number of minutes after the last notification
                       before a monitor re-notifies on the current status. It only
                       re-notifies if it’s not resolved.
+                    format: int64
                     type: integer
                   requireFullWindow:
                     description: A Boolean indicating whether this monitor needs a
@@ -98,12 +115,56 @@ spec:
                       you set this to false for sparse metrics, otherwise some evaluations
                       are skipped. Default is false.
                     type: boolean
+                  thresholdWindows:
+                    description: A struct of the alerting time window options.
+                    properties:
+                      recoveryWindow:
+                        description: Describes how long an anomalous metric must be
+                          normal before the alert recovers.
+                        type: string
+                      triggerWindow:
+                        description: Describes how long a metric must be anomalous
+                          before an alert triggers.
+                        type: string
+                    type: object
+                  thresholds:
+                    description: A struct of the different monitor threshold values.
+                    properties:
+                      critical:
+                        description: The monitor CRITICAL threshold.
+                        type: string
+                      criticalRecovery:
+                        description: The monitor CRITICAL recovery threshold.
+                        type: string
+                      ok:
+                        description: The monitor OK threshold.
+                        type: string
+                      unknown:
+                        description: The monitor UNKNOWN threshold.
+                        type: string
+                      warning:
+                        description: The monitor WARNING threshold.
+                        type: string
+                      warningRecovery:
+                        description: The monitor WARNING recovery threshold.
+                        type: string
+                    type: object
+                  timeoutH:
+                    description: The number of hours of the monitor not reporting
+                      data before it automatically resolves from a triggered state.
+                    format: int64
+                    type: integer
                 type: object
+              priority:
+                description: Priority is an integer from 1 (high) to 5 (low) indicating
+                  alert severity
+                format: int64
+                type: integer
               query:
-                description: Query is the Datadog query
+                description: Query is the Datadog monitor query
                 type: string
               tags:
-                description: Tags is the monitor tags used to organize monitors
+                description: Tags is the monitor tags associated with your monitor
                 items:
                   type: string
                 type: array

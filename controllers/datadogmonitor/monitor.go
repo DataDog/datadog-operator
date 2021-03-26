@@ -10,35 +10,151 @@ import (
 	"fmt"
 	"net/url"
 	"sort"
+	"strconv"
+
+	"github.com/go-logr/logr"
 
 	datadogapiclientv1 "github.com/DataDog/datadog-api-client-go/api/v1/datadog"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
 )
 
-func buildMonitor(dm *datadoghqv1alpha1.DatadogMonitor) (*datadogapiclientv1.Monitor, *datadogapiclientv1.MonitorUpdateRequest) {
+func buildMonitor(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) (*datadogapiclientv1.Monitor, *datadogapiclientv1.MonitorUpdateRequest) {
 	monitorType := datadogapiclientv1.MonitorType(string(dm.Spec.Type))
-	query := dm.Spec.Query
 	name := dm.Spec.Name
 	msg := dm.Spec.Message
+	priority := dm.Spec.Priority
+	query := dm.Spec.Query
+	options := dm.Spec.Options
 
-	// TODO
+	var (
+		thresholds       datadogapiclientv1.MonitorThresholds
+		thresholdWindows datadogapiclientv1.MonitorThresholdWindowOptions
+		t                float64
+		err              error
+	)
+
+	if options.Thresholds != nil {
+		if options.Thresholds.OK != nil {
+			if t, err = strconv.ParseFloat(*options.Thresholds.OK, 64); err == nil {
+				thresholds.SetOk(t)
+			} else {
+				logger.Error(err, "error parsing OK threshold value")
+			}
+		}
+		if options.Thresholds.Warning != nil {
+			if t, err = strconv.ParseFloat(*options.Thresholds.Warning, 64); err == nil {
+				thresholds.SetWarning(t)
+			} else {
+				logger.Error(err, "error parsing Warning threshold value")
+			}
+		}
+		if options.Thresholds.Unknown != nil {
+			if t, err = strconv.ParseFloat(*options.Thresholds.Unknown, 64); err == nil {
+				thresholds.SetUnknown(t)
+			} else {
+				logger.Error(err, "error parsing Unknown threshold value")
+			}
+		}
+		if options.Thresholds.Critical != nil {
+			if t, err = strconv.ParseFloat(*options.Thresholds.Critical, 64); err == nil {
+				thresholds.SetCritical(t)
+			} else {
+				logger.Error(err, "error parsing Critical threshold value")
+			}
+		}
+		if options.Thresholds.WarningRecovery != nil {
+			if t, err = strconv.ParseFloat(*options.Thresholds.WarningRecovery, 64); err == nil {
+				thresholds.SetWarningRecovery(t)
+			} else {
+				logger.Error(err, "error parsing WarningRecovery threshold value")
+			}
+		}
+		if options.Thresholds.CriticalRecovery != nil {
+			if t, err = strconv.ParseFloat(*options.Thresholds.CriticalRecovery, 64); err == nil {
+				thresholds.SetCriticalRecovery(t)
+			} else {
+				logger.Error(err, "error parsing CriticalRecovery threshold value")
+			}
+		}
+	}
+
+	if options.ThresholdWindows != nil {
+		if options.ThresholdWindows.RecoveryWindow != nil {
+			thresholdWindows.SetRecoveryWindow(*options.ThresholdWindows.RecoveryWindow)
+		}
+		if options.ThresholdWindows.TriggerWindow != nil {
+			thresholdWindows.SetRecoveryWindow(*options.ThresholdWindows.TriggerWindow)
+		}
+	}
+
 	o := datadogapiclientv1.MonitorOptions{}
+	o.SetThresholds(thresholds)
+
+	if thresholdWindows.HasRecoveryWindow() || thresholdWindows.HasTriggerWindow() {
+		o.SetThresholdWindows(thresholdWindows)
+	}
+
+	if options.EscalationMessage != nil {
+		o.SetEscalationMessage(*options.EscalationMessage)
+	}
+
+	if options.EvaluationDelay != nil {
+		o.SetEvaluationDelay(*options.EvaluationDelay)
+	}
+
+	if options.IncludeTags != nil {
+		o.SetIncludeTags(*options.IncludeTags)
+	}
+
+	if options.Locked != nil {
+		o.SetLocked(*options.Locked)
+	}
+
+	if options.NewHostDelay != nil {
+		o.SetNewHostDelay(*options.NewHostDelay)
+	}
+
+	if options.NoDataTimeframe != nil {
+		o.SetNoDataTimeframe(*options.NoDataTimeframe)
+	}
+
+	if options.NotifyAudit != nil {
+		o.SetNotifyAudit(*options.NotifyAudit)
+	}
+
+	if options.NotifyNoData != nil {
+		o.SetNotifyNoData(*options.NotifyNoData)
+	}
+
+	if options.RequireFullWindow != nil {
+		o.SetRequireFullWindow(*options.RequireFullWindow)
+	}
+
+	if options.RenotifyInterval != nil {
+		o.SetRenotifyInterval(*options.RenotifyInterval)
+	}
+
+	if options.TimeoutH != nil {
+		o.SetTimeoutH(*options.TimeoutH)
+	}
 
 	m := datadogapiclientv1.NewMonitor()
 	{
 		m.SetType(monitorType)
-		m.SetQuery(query)
 		m.SetName(name)
 		m.SetMessage(msg)
+		m.SetPriority(priority)
+		m.SetQuery(query)
 		m.SetOptions(o)
 	}
 
 	u := datadogapiclientv1.NewMonitorUpdateRequest()
 	{
 		u.SetType(monitorType)
-		u.SetQuery(query)
 		u.SetName(name)
 		u.SetMessage(msg)
+		u.SetPriority(priority)
+		u.SetQuery(query)
 		u.SetOptions(o)
 	}
 
@@ -59,16 +175,17 @@ func getMonitor(auth context.Context, client *datadogapiclientv1.APIClient, moni
 	return m, nil
 }
 
-func validateMonitor(auth context.Context, client *datadogapiclientv1.APIClient, dm *datadoghqv1alpha1.DatadogMonitor) error {
-	m, _ := buildMonitor(dm)
+func validateMonitor(auth context.Context, logger logr.Logger, client *datadogapiclientv1.APIClient, dm *datadoghqv1alpha1.DatadogMonitor) error {
+	m, _ := buildMonitor(logger, dm)
 	if _, _, err := client.MonitorsApi.ValidateMonitor(auth).Body(*m).Execute(); err != nil {
 		return translateClientError(err, "error validating monitor")
 	}
+
 	return nil
 }
 
-func createMonitor(auth context.Context, client *datadogapiclientv1.APIClient, dm *datadoghqv1alpha1.DatadogMonitor) (datadogapiclientv1.Monitor, error) {
-	m, _ := buildMonitor(dm)
+func createMonitor(auth context.Context, logger logr.Logger, client *datadogapiclientv1.APIClient, dm *datadoghqv1alpha1.DatadogMonitor) (datadogapiclientv1.Monitor, error) {
+	m, _ := buildMonitor(logger, dm)
 	mCreated, _, err := client.MonitorsApi.CreateMonitor(auth).Body(*m).Execute()
 	if err != nil {
 		return datadogapiclientv1.Monitor{}, translateClientError(err, "error creating monitor")
@@ -77,8 +194,8 @@ func createMonitor(auth context.Context, client *datadogapiclientv1.APIClient, d
 	return mCreated, nil
 }
 
-func updateMonitor(auth context.Context, client *datadogapiclientv1.APIClient, dm *datadoghqv1alpha1.DatadogMonitor) (datadogapiclientv1.Monitor, error) {
-	_, u := buildMonitor(dm)
+func updateMonitor(auth context.Context, logger logr.Logger, client *datadogapiclientv1.APIClient, dm *datadoghqv1alpha1.DatadogMonitor) (datadogapiclientv1.Monitor, error) {
+	_, u := buildMonitor(logger, dm)
 
 	mUpdated, _, err := client.MonitorsApi.UpdateMonitor(auth, int64(dm.Status.ID)).Body(*u).Execute()
 	if err != nil {
@@ -91,9 +208,7 @@ func updateMonitor(auth context.Context, client *datadogapiclientv1.APIClient, d
 }
 
 func deleteMonitor(auth context.Context, client *datadogapiclientv1.APIClient, monitorID int) error {
-	_, _, err := client.MonitorsApi.DeleteMonitor(auth, int64(monitorID)).Execute()
-
-	if err != nil {
+	if _, _, err := client.MonitorsApi.DeleteMonitor(auth, int64(monitorID)).Execute(); err != nil {
 		return translateClientError(err, "error deleting monitor")
 	}
 

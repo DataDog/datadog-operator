@@ -12,18 +12,19 @@ import (
 
 // DatadogMonitorSpec defines the desired state of DatadogMonitor
 type DatadogMonitorSpec struct {
-	// Query is the Datadog query
-	Query string `json:"query,omitempty"`
-	// Type is the monitor type
-	Type DatadogMonitorType `json:"type,omitempty"`
 	// Name is the monitor name
 	Name string `json:"name,omitempty"`
-	// Message is the message to include in a monitor notification
+	// Message is a message to include with notifications for this monitor
 	Message string `json:"message,omitempty"`
-	// Tags is the monitor tags used to organize monitors
+	// Priority is an integer from 1 (high) to 5 (low) indicating alert severity
+	Priority int64 `json:"priority,omitempty"`
+	// Query is the Datadog monitor query
+	Query string `json:"query,omitempty"`
+	// Tags is the monitor tags associated with your monitor
 	Tags []string `json:"tags,omitempty"`
-
-	// Options are the optional parameters of a monitor
+	// Type is the monitor type
+	Type DatadogMonitorType `json:"type,omitempty"`
+	// Options are the optional parameters associated with your monitor
 	Options DatadogMonitorOptions `json:"options,omitempty"`
 }
 
@@ -43,27 +44,63 @@ const (
 
 // DatadogMonitorOptions define the optional parameters of a monitor
 type DatadogMonitorOptions struct {
+	// A message to include with a re-notification.
+	EscalationMessage *string `json:"escalationMessage,omitempty"`
 	// Time (in seconds) to delay evaluation, as a non-negative integer. For example, if the value is set to 300 (5min),
 	// the timeframe is set to last_5m and the time is 7:00, the monitor evaluates data from 6:50 to 6:55.
 	// This is useful for AWS CloudWatch and other backfilled metrics to ensure the monitor always has data during evaluation.
-	EvaluationDelay int `json:"evaluationDelay,omitempty"`
+	EvaluationDelay *int64 `json:"evaluationDelay,omitempty"`
+	// A Boolean indicating whether notifications from this monitor automatically inserts its triggering tags into the title.
+	IncludeTags *bool `json:"includeTags,omitempty"`
 	// Whether or not the monitor is locked (only editable by creator and admins).
-	Locked bool `json:"locked,omitempty"`
+	Locked *bool `json:"locked,omitempty"`
 	// Time (in seconds) to allow a host to boot and applications to fully start before starting the evaluation of
 	// monitor results. Should be a non negative integer.
-	NewHostDelay int `json:"newHostDelay,omitempty"`
+	NewHostDelay *int64 `json:"newHostDelay,omitempty"`
 	// The number of minutes before a monitor notifies after data stops reporting. Datadog recommends at least 2x the
 	// monitor timeframe for metric alerts or 2 minutes for service checks. If omitted, 2x the evaluation timeframe
 	// is used for metric alerts, and 24 hours is used for service checks.
-	NoDataTimeframe int `json:"noDataTimeframe,omitempty"`
+	NoDataTimeframe *int64 `json:"noDataTimeframe,omitempty"`
+	// A Boolean indicating whether tagged users are notified on changes to this monitor.
+	NotifyAudit *bool `json:"notifyAudit,omitempty"`
 	// A Boolean indicating whether this monitor notifies when data stops reporting.
-	NotifyNoData bool `json:"notifyNoData,omitempty"`
+	NotifyNoData *bool `json:"notifyNoData,omitempty"`
 	// The number of minutes after the last notification before a monitor re-notifies on the current status.
 	// It only re-notifies if it’s not resolved.
-	RenotifyInterval int `json:"renotifyInterval,omitempty"`
+	RenotifyInterval *int64 `json:"renotifyInterval,omitempty"`
 	// A Boolean indicating whether this monitor needs a full window of data before it’s evaluated. We highly
 	// recommend you set this to false for sparse metrics, otherwise some evaluations are skipped. Default is false.
-	RequireFullWindow bool `json:"requireFullWindow,omitempty"`
+	RequireFullWindow *bool `json:"requireFullWindow,omitempty"`
+	// The number of hours of the monitor not reporting data before it automatically resolves from a triggered state.
+	TimeoutH *int64 `json:"timeoutH,omitempty"`
+	// A struct of the different monitor threshold values.
+	Thresholds *DatadogMonitorOptionsThresholds `json:"thresholds,omitempty"`
+	// A struct of the alerting time window options.
+	ThresholdWindows *DatadogMonitorOptionsThresholdWindows `json:"thresholdWindows,omitempty"`
+}
+
+// DatadogMonitorOptionsThresholds is a struct of the different monitor threshold values
+type DatadogMonitorOptionsThresholds struct {
+	// The monitor CRITICAL threshold.
+	Critical *string `json:"critical,omitempty"`
+	// The monitor CRITICAL recovery threshold.
+	CriticalRecovery *string `json:"criticalRecovery,omitempty"`
+	// The monitor OK threshold.
+	OK *string `json:"ok,omitempty"`
+	// The monitor UNKNOWN threshold.
+	Unknown *string `json:"unknown,omitempty"`
+	// The monitor WARNING threshold.
+	Warning *string `json:"warning,omitempty"`
+	// The monitor WARNING recovery threshold.
+	WarningRecovery *string `json:"warningRecovery,omitempty"`
+}
+
+// DatadogMonitorOptionsThresholdWindows is a struct of the alerting time window options
+type DatadogMonitorOptionsThresholdWindows struct {
+	// Describes how long an anomalous metric must be normal before the alert recovers.
+	RecoveryWindow *string `json:"recoveryWindow,omitempty"`
+	// Describes how long a metric must be anomalous before an alert triggers.
+	TriggerWindow *string `json:"triggerWindow,omitempty"`
 }
 
 // DatadogMonitorStatus defines the observed state of DatadogMonitor

@@ -10,3 +10,15 @@ spec:
   message: "1-2-3 testing"
   tags:
     - "test:datadog"
+  priority: 5
+  options:
+    evaluationDelay: 300
+    includeTags: true
+    locked: false
+    newHostDelay: 300
+    notifyNoData: true
+    noDataTimeframe: 30
+    renotifyInterval: 1440
+    thresholds:
+      critical: "0.5"
+      warning: "0.28"
