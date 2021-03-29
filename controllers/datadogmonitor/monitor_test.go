@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -25,21 +26,47 @@ import (
 const dateFormat = "2006-01-02 15:04:05.999999999 -0700 MST"
 
 func Test_buildMonitor(t *testing.T) {
+	evalDelay := int64(100)
+	escalationMsg := "This is an escalation message"
+	valTrue := true
+	newHostDelay := int64(400)
+	noDataTimeframe := int64(15)
+	renotifyInterval := int64(1440)
+	timeoutH := int64(2)
+	critThreshold := "0.05"
+	warnThreshold := "0.02"
+
 	dm := &datadoghqv1alpha1.DatadogMonitor{
 		Spec: datadoghqv1alpha1.DatadogMonitorSpec{
-			Query:   "avg(last_10m):avg:system.disk.in_use{*} by {host} > 0.05",
-			Type:    "metric alert",
-			Name:    "Test monitor",
-			Message: "Something went wrong",
+			Query:    "avg(last_10m):avg:system.disk.in_use{*} by {host} > 0.05",
+			Type:     "metric alert",
+			Name:     "Test monitor",
+			Message:  "Something went wrong",
+			Priority: 3,
 			Tags: []string{
 				"env:staging",
 				"kube_namespace:test",
 				"kube_cluster:test.staging",
 			},
+			Options: datadoghqv1alpha1.DatadogMonitorOptions{
+				EvaluationDelay:   &evalDelay,
+				EscalationMessage: &escalationMsg,
+				IncludeTags:       &valTrue,
+				Locked:            &valTrue,
+				NewHostDelay:      &newHostDelay,
+				NotifyNoData:      &valTrue,
+				NoDataTimeframe:   &noDataTimeframe,
+				RenotifyInterval:  &renotifyInterval,
+				TimeoutH:          &timeoutH,
+				Thresholds: &datadoghqv1alpha1.DatadogMonitorOptionsThresholds{
+					Critical: &critThreshold,
+					Warning:  &warnThreshold,
+				},
+			},
 		},
 	}
 
-	monitor, monitorUR := buildMonitor(dm)
+	monitor, monitorUR := buildMonitor(testLogger, dm)
 
 	assert.Equal(t, dm.Spec.Query, *monitor.Query, "discrepancy found in parameter: Query")
 	assert.Equal(t, dm.Spec.Query, *monitorUR.Query, "discrepancy found in parameter: Query")
@@ -53,8 +80,45 @@ func Test_buildMonitor(t *testing.T) {
 	assert.Equal(t, dm.Spec.Message, *monitor.Message, "discrepancy found in parameter: Message")
 	assert.Equal(t, dm.Spec.Message, *monitorUR.Message, "discrepancy found in parameter: Message")
 
+	assert.Equal(t, dm.Spec.Priority, *monitor.Priority, "discrepancy found in parameter: Priority")
+	assert.Equal(t, dm.Spec.Priority, *monitorUR.Priority, "discrepancy found in parameter: Priority")
+
 	assert.Equal(t, dm.Spec.Tags, *monitor.Tags, "discrepancy found in parameter: Tags")
 	assert.Equal(t, dm.Spec.Tags, *monitorUR.Tags, "discrepancy found in parameter: Tags")
+
+	assert.Equal(t, *dm.Spec.Options.EvaluationDelay, monitor.Options.GetEvaluationDelay(), "discrepancy found in parameter: EvaluationDelay")
+	assert.Equal(t, *dm.Spec.Options.EvaluationDelay, monitorUR.Options.GetEvaluationDelay(), "discrepancy found in parameter: EvaluationDelay")
+
+	assert.Equal(t, *dm.Spec.Options.EscalationMessage, monitor.Options.GetEscalationMessage(), "discrepancy found in parameter: EscalationMessage")
+	assert.Equal(t, *dm.Spec.Options.EscalationMessage, monitorUR.Options.GetEscalationMessage(), "discrepancy found in parameter: EscalationMessage")
+
+	assert.Equal(t, *dm.Spec.Options.IncludeTags, monitor.Options.GetIncludeTags(), "discrepancy found in parameter: IncludeTags")
+	assert.Equal(t, *dm.Spec.Options.IncludeTags, monitorUR.Options.GetIncludeTags(), "discrepancy found in parameter: IncludeTags")
+
+	assert.Equal(t, *dm.Spec.Options.Locked, monitor.Options.GetLocked(), "discrepancy found in parameter: Locked")
+	assert.Equal(t, *dm.Spec.Options.Locked, monitorUR.Options.GetLocked(), "discrepancy found in parameter: Locked")
+
+	assert.Equal(t, *dm.Spec.Options.NewHostDelay, monitor.Options.GetNewHostDelay(), "discrepancy found in parameter: NewHostDelay")
+	assert.Equal(t, *dm.Spec.Options.NewHostDelay, monitorUR.Options.GetNewHostDelay(), "discrepancy found in parameter: NewHostDelay")
+
+	assert.Equal(t, *dm.Spec.Options.NotifyNoData, monitor.Options.GetNotifyNoData(), "discrepancy found in parameter: NotifyNoData")
+	assert.Equal(t, *dm.Spec.Options.NotifyNoData, monitorUR.Options.GetNotifyNoData(), "discrepancy found in parameter: NotifyNoData")
+
+	assert.Equal(t, *dm.Spec.Options.NoDataTimeframe, monitor.Options.GetNoDataTimeframe(), "discrepancy found in parameter: NoDataTimeframe")
+	assert.Equal(t, *dm.Spec.Options.NoDataTimeframe, monitorUR.Options.GetNoDataTimeframe(), "discrepancy found in parameter: NoDataTimeframe")
+
+	assert.Equal(t, *dm.Spec.Options.RenotifyInterval, monitor.Options.GetRenotifyInterval(), "discrepancy found in parameter: RenotifyInterval")
+	assert.Equal(t, *dm.Spec.Options.RenotifyInterval, monitorUR.Options.GetRenotifyInterval(), "discrepancy found in parameter: RenotifyInterval")
+
+	assert.Equal(t, *dm.Spec.Options.TimeoutH, monitor.Options.GetTimeoutH(), "discrepancy found in parameter: TimeoutH")
+	assert.Equal(t, *dm.Spec.Options.TimeoutH, monitorUR.Options.GetTimeoutH(), "discrepancy found in parameter: TimeoutH")
+
+	apiMonitorThresholds := monitor.Options.GetThresholds()
+	apiMonitorURThresholds := monitorUR.Options.GetThresholds()
+	warnVal, _ := strconv.ParseFloat(*dm.Spec.Options.Thresholds.Warning, 64)
+	critVal, _ := strconv.ParseFloat(*dm.Spec.Options.Thresholds.Critical, 64)
+	assert.Equal(t, warnVal, (&apiMonitorThresholds).GetWarning(), "discrepancy found in parameter: Threshold.Warning")
+	assert.Equal(t, critVal, (&apiMonitorURThresholds).GetCritical(), "discrepancy found in parameter: Threshold.Critical")
 
 	// Also make sure tags are sorted
 	assert.Equal(t, "env:staging", (*monitor.Tags)[0], "tags are not properly sorted")
@@ -111,7 +175,7 @@ func Test_validateMonitor(t *testing.T) {
 	client := datadogapiclientv1.NewAPIClient(testConfig)
 	testAuth := setupTestAuth(httpServer.URL)
 
-	err := validateMonitor(testAuth, client, dm)
+	err := validateMonitor(testAuth, testLogger, client, dm)
 	assert.Nil(t, err)
 }
 
@@ -145,7 +209,7 @@ func Test_createMonitor(t *testing.T) {
 	client := datadogapiclientv1.NewAPIClient(testConfig)
 	testAuth := setupTestAuth(httpServer.URL)
 
-	monitor, err := createMonitor(testAuth, client, dm)
+	monitor, err := createMonitor(testAuth, testLogger, client, dm)
 	assert.Nil(t, err)
 
 	assert.Equal(t, dm.Spec.Query, *monitor.Query, "discrepancy found in parameter: Query")
@@ -188,7 +252,7 @@ func Test_updateMonitor(t *testing.T) {
 	client := datadogapiclientv1.NewAPIClient(testConfig)
 	testAuth := setupTestAuth(httpServer.URL)
 
-	monitor, err := updateMonitor(testAuth, client, dm)
+	monitor, err := updateMonitor(testAuth, testLogger, client, dm)
 	assert.Nil(t, err)
 
 	assert.Equal(t, dm.Spec.Query, *monitor.Query, "discrepancy found in parameter: Query")

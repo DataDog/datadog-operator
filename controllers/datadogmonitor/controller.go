@@ -165,12 +165,12 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 
 func (r *Reconciler) create(logger logr.Logger, datadogMonitor *datadoghqv1alpha1.DatadogMonitor, status *datadoghqv1alpha1.DatadogMonitorStatus, now metav1.Time) error {
 	// Validate monitor in Datadog
-	if err := validateMonitor(r.datadogAuth, r.datadogClient, datadogMonitor); err != nil {
+	if err := validateMonitor(r.datadogAuth, logger, r.datadogClient, datadogMonitor); err != nil {
 		return err
 	}
 
 	// Create monitor in Datadog
-	m, err := createMonitor(r.datadogAuth, r.datadogClient, datadogMonitor)
+	m, err := createMonitor(r.datadogAuth, logger, r.datadogClient, datadogMonitor)
 	if err != nil {
 		return err
 	}
@@ -194,12 +194,12 @@ func (r *Reconciler) create(logger logr.Logger, datadogMonitor *datadoghqv1alpha
 
 func (r *Reconciler) update(logger logr.Logger, datadogMonitor *datadoghqv1alpha1.DatadogMonitor, status *datadoghqv1alpha1.DatadogMonitorStatus, now metav1.Time) error {
 	// Validate monitor in Datadog
-	if err := validateMonitor(r.datadogAuth, r.datadogClient, datadogMonitor); err != nil {
+	if err := validateMonitor(r.datadogAuth, logger, r.datadogClient, datadogMonitor); err != nil {
 		return err
 	}
 
 	// Update monitor in Datadog
-	if _, err := updateMonitor(r.datadogAuth, r.datadogClient, datadogMonitor); err != nil {
+	if _, err := updateMonitor(r.datadogAuth, logger, r.datadogClient, datadogMonitor); err != nil {
 		return err
 	}
 
