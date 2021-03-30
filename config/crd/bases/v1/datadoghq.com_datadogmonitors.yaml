@@ -23,12 +23,19 @@ spec:
     - jsonPath: .status.monitorState
       name: monitor state
       type: string
-    - jsonPath: .status.conditions[?(@.type=='Created')].lastUpdateTime
-      name: created
+    - jsonPath: .status.monitorStateLastTransitionTime
+      name: last transition
       type: string
-    - jsonPath: .status.conditions[?(@.type=='Updated')].lastUpdateTime
-      name: last updated
+    - format: date
+      jsonPath: .status.monitorStateLastUpdateTime
+      name: last sync
       type: string
+    - jsonPath: .status.syncStatus
+      name: sync status
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: age
+      type: date
     name: v1alpha1
     schema:
       openAPIV3Schema:
@@ -237,10 +244,24 @@ spec:
               monitorState:
                 description: MonitorState is the overall state of monitor
                 type: string
+              monitorStateLastTransitionTime:
+                description: MonitorStateLastTransitionTime is the last time the monitor
+                  state changed
+                format: date-time
+                type: string
+              monitorStateLastUpdateTime:
+                description: MonitorStateLastUpdateTime is the last time the monitor
+                  state updated
+                format: date-time
+                type: string
               primary:
                 description: Primary defines whether the monitor is managed by the
                   Kubernetes custom resource (true) or outside Kubernetes (false)
                 type: boolean
+              syncStatus:
+                description: SyncStatus shows the health of syncing the monitor state
+                  to Datadog
+                type: string
               triggeredState:
                 description: TriggeredState only includes details for monitor groups
                   that are triggering

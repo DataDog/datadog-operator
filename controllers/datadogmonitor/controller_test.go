@@ -387,6 +387,7 @@ func newRequest(ns, name string) reconcile.Request {
 func Test_convertStateToStatus(t *testing.T) {
 	triggerTs := int64(1612244495)
 	secondTriggerTs := triggerTs + 300
+	now := metav1.Unix(secondTriggerTs, 0)
 
 	okState := datadogapiclientv1.MONITOROVERALLSTATES_OK
 	alertState := datadogapiclientv1.MONITOROVERALLSTATES_ALERT
@@ -593,7 +594,7 @@ func Test_convertStateToStatus(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			convertStateToStatus(tt.monitor(), tt.status)
+			convertStateToStatus(tt.monitor(), tt.status, now)
 
 			assert.Equal(t, tt.wantStatus.TriggeredState, tt.status.TriggeredState)
 			assert.Equal(t, tt.wantStatus.MonitorState, tt.status.MonitorState)
