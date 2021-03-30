@@ -16,14 +16,12 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
-var (
-	podExample = `
+var podExample = `
   # validate the autodiscovery annotations for a pod named foo
   %[1]s pod foo
 `
-)
 
-// options provides information required by agent validate pod command
+// options provides information required by agent validate pod command.
 type options struct {
 	genericclioptions.IOStreams
 	common.Options
@@ -31,16 +29,17 @@ type options struct {
 	podName string
 }
 
-// newOptions provides an instance of options with default values
+// newOptions provides an instance of options with default values.
 func newOptions(streams genericclioptions.IOStreams) *options {
 	o := &options{
 		IOStreams: streams,
 	}
 	o.SetConfigFlags()
+
 	return o
 }
 
-// New provides a cobra command wrapping options for pod sub command
+// New provides a cobra command wrapping options for pod sub command.
 func New(streams genericclioptions.IOStreams) *cobra.Command {
 	o := newOptions(streams)
 	cmd := &cobra.Command{
@@ -64,28 +63,31 @@ func New(streams genericclioptions.IOStreams) *cobra.Command {
 	return cmd
 }
 
-// complete sets all information required for processing the command
+// complete sets all information required for processing the command.
 func (o *options) complete(cmd *cobra.Command, args []string) error {
 	o.args = args
 	if len(args) > 0 {
 		o.podName = args[0]
 	}
+
 	return o.Init(cmd)
 }
 
-// validate ensures that all required arguments and flag values are provided
+// validate ensures that all required arguments and flag values are provided.
 func (o *options) validate() error {
 	if o.podName == "" {
 		return errors.New("pod name argument is missing")
 	}
+
 	argsCount := len(o.args)
 	if argsCount > 1 {
 		return fmt.Errorf("one argument is allowed, got %d", argsCount)
 	}
+
 	return nil
 }
 
-// run runs the pod command
+// run runs the pod command.
 func (o *options) run(cmd *cobra.Command) error {
 	pod, err := o.Clientset.CoreV1().Pods(o.UserNamespace).Get(context.TODO(), o.podName, metav1.GetOptions{})
 	if err != nil {

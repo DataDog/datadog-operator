@@ -79,6 +79,7 @@ func startDatadogAgent(logger logr.Logger, mgr manager.Manager, vInfo *version.I
 func startDatadogMonitor(logger logr.Logger, mgr manager.Manager, vInfo *version.Info, options SetupOptions) error {
 	if !options.DatadogMonitorEnabled {
 		logger.Info("Feature disabled, not starting the controller", "controller", monitorControllerName)
+
 		return nil
 	}
 

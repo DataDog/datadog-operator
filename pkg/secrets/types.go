@@ -48,6 +48,7 @@ func Retriable(err error) bool {
 	if errors.As(err, &decryptorErr) {
 		return decryptorErr.IsRetriable()
 	}
+
 	return false
 }
 
@@ -106,5 +107,6 @@ func (d *DummyDecryptor) Decrypt(secrets []string) (map[string]string, error) {
 	for _, secret := range secrets {
 		res[secret] = fmt.Sprintf("DEC[%s]", secret)
 	}
+
 	return res, nil
 }

@@ -48,6 +48,7 @@ func SetDatadogMonitorCondition(condition *datadoghqv1alpha1.DatadogMonitorCondi
 	}
 	condition.LastUpdateTime = now
 	condition.Message = desc
+
 	return condition
 }
 
@@ -68,11 +69,13 @@ func getIndexForDatadogMonitorConditionType(status *datadoghqv1alpha1.DatadogMon
 	if status == nil {
 		return idx
 	}
+
 	for i, condition := range status.Conditions {
 		if condition.Type == t {
 			idx = i
 			break
 		}
 	}
+
 	return idx
 }

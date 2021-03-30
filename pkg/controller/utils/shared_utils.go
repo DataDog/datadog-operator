@@ -21,14 +21,18 @@ func GetAPIKeySecret(credentials *datadoghqv1alpha1.DatadogCredentials, defaultN
 		if credentials.APISecret.KeyName != "" {
 			return true, credentials.APISecret.SecretName, credentials.APISecret.KeyName
 		}
+
 		return true, credentials.APISecret.SecretName, datadoghqv1alpha1.DefaultAPIKeyKey
 	}
+
 	if credentials.APIKeyExistingSecret != "" {
 		return true, credentials.APIKeyExistingSecret, datadoghqv1alpha1.DefaultAPIKeyKey
 	}
+
 	if credentials.APIKey != "" {
 		return true, defaultName, datadoghqv1alpha1.DefaultAPIKeyKey
 	}
+
 	return false, defaultName, datadoghqv1alpha1.DefaultAPIKeyKey
 }
 
@@ -39,13 +43,17 @@ func GetAppKeySecret(credentials *datadoghqv1alpha1.DatadogCredentials, defaultN
 		if credentials.APPSecret.KeyName != "" {
 			return true, credentials.APPSecret.SecretName, credentials.APPSecret.KeyName
 		}
+
 		return true, credentials.APPSecret.SecretName, datadoghqv1alpha1.DefaultAPPKeyKey
 	}
+
 	if credentials.AppKeyExistingSecret != "" {
 		return true, credentials.AppKeyExistingSecret, datadoghqv1alpha1.DefaultAPPKeyKey
 	}
+
 	if credentials.AppKey != "" {
 		return true, defaultName, datadoghqv1alpha1.DefaultAPPKeyKey
 	}
+
 	return false, defaultName, datadoghqv1alpha1.DefaultAPPKeyKey
 }

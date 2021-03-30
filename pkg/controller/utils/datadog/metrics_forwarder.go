@@ -132,7 +132,7 @@ func (mf *metricsForwarder) start(wg *sync.WaitGroup) {
 	// wait.PollImmediateUntil is blocking until mf.connectToDatadogAPI returns true or stopChan is closed
 	// wait.PollImmediateUntil keeps retrying to connect to the Datadog API without returning an error
 	// wait.PollImmediateUntil returns an error only when stopChan is closed
-	if err := wait.PollImmediateUntil(mf.retryInterval, mf.connectToDatadogAPI, mf.stopChan); err == wait.ErrWaitTimeout {
+	if err := wait.PollImmediateUntil(mf.retryInterval, mf.connectToDatadogAPI, mf.stopChan); errors.Is(err, wait.ErrWaitTimeout) {
 		// stopChan was closed while trying to connect to Datadog API
 		// The metrics forwarder stopped by the ForwardersManager
 		mf.logger.Info("Shutting down Datadog metrics forwarder")
@@ -294,7 +294,7 @@ func (mf *metricsForwarder) prepareReconcileMetric(reconcileErr error) (float64,
 	var metricValue float64
 	var tags []string
 
-	if reconcileErr == errInitValue {
+	if errors.Is(reconcileErr, errInitValue) {
 		// Metrics forwarder didn't receive any reconcile error
 		// lastReconcileErr has never been updated
 		return metricValue, nil, errors.New("last reconcile error not updated")
@@ -361,11 +361,12 @@ func (mf *metricsForwarder) delegatedValidateCreds(apiKey, appKey string) (*api.
 	datadogClient.SetBaseUrl(mf.baseURL)
 	valid, err := datadogClient.Validate()
 	if err != nil {
-		return nil, fmt.Errorf("cannot validate datadog credentials: %v", err)
+		return nil, fmt.Errorf("cannot validate datadog credentials: %w", err)
 	}
 	if !valid {
 		return nil, fmt.Errorf("invalid datadog credentials on %s", mf.baseURL)
 	}
+
 	return datadogClient, nil
 }
 
@@ -479,6 +480,7 @@ func hashKeys(apiKey, appKey string) uint64 {
 	h := fnv.New64()
 	_, _ = h.Write([]byte(apiKey))
 	_, _ = h.Write([]byte(appKey))
+
 	return h.Sum64()
 }
 
@@ -486,6 +488,7 @@ func hashKeys(apiKey, appKey string) uint64 {
 func (mf *metricsForwarder) getDatadogAgent() (*datadoghqv1alpha1.DatadogAgent, error) {
 	dda := &datadoghqv1alpha1.DatadogAgent{}
 	err := mf.k8sClient.Get(context.TODO(), mf.namespacedName, dda)
+
 	return dda, err
 }
 
@@ -605,6 +608,7 @@ func (mf *metricsForwarder) getKeyFromSecret(dda *datadoghqv1alpha1.DatadogAgent
 	if err != nil {
 		return "", err
 	}
+
 	return string(secret.Data[dataKey]), nil
 }
 
@@ -618,8 +622,7 @@ func (mf *metricsForwarder) updateStatusIfNeeded(err error) {
 		description = "Datadog metrics forwarding error"
 	}
 
-	oldStatus := mf.getStatus()
-	if oldStatus == nil {
+	if oldStatus := mf.getStatus(); oldStatus == nil {
 		newStatus := condition.NewDatadogAgentStatusCondition(datadoghqv1alpha1.DatadogMetricsActive, conditionStatus, now, "", description)
 		mf.setStatus(&newStatus)
 	} else {

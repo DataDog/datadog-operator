@@ -22,7 +22,7 @@ const (
 )
 
 func (r *Reconciler) handleFinalizer(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) (ctrl.Result, error) {
-	// Check if the DatadogMonitor instance is marked to be deleted, which is indicated by the deletion timestamp being set
+	// Check if the DatadogMonitor instance is marked to be deleted, which is indicated by the deletion timestamp being set.
 	if dm.GetDeletionTimestamp() != nil {
 		if utils.ContainsString(dm.GetFinalizers(), datadogMonitorFinalizer) {
 			r.finalizeDatadogMonitor(logger, dm)
@@ -33,19 +33,21 @@ func (r *Reconciler) handleFinalizer(logger logr.Logger, dm *datadoghqv1alpha1.D
 				return ctrl.Result{Requeue: true, RequeueAfter: defaultErrRequeuePeriod}, err
 			}
 		}
-		// Proceed in reconcile loop
+
+		// Proceed in reconcile loop.
 		return ctrl.Result{}, nil
 	}
 
-	// Add finalizer for this resource if it doesn't already exist
+	// Add finalizer for this resource if it doesn't already exist.
 	if !utils.ContainsString(dm.GetFinalizers(), datadogMonitorFinalizer) {
 		if err := r.addFinalizer(logger, dm); err != nil {
 			return ctrl.Result{Requeue: true, RequeueAfter: defaultErrRequeuePeriod}, err
 		}
+
 		return ctrl.Result{Requeue: true, RequeueAfter: defaultRequeuePeriod}, nil
 	}
 
-	// Proceed in reconcile loop
+	// Proceed in reconcile loop.
 	return ctrl.Result{}, nil
 }
 
@@ -54,6 +56,7 @@ func (r *Reconciler) finalizeDatadogMonitor(logger logr.Logger, dm *datadoghqv1a
 		err := deleteMonitor(r.datadogAuth, r.datadogClient, dm.Status.ID)
 		if err != nil {
 			logger.Error(err, "failed to finalize monitor", "Monitor ID", fmt.Sprint(dm.Status.ID))
+
 			return
 		}
 		logger.Info("Successfully finalized DatadogMonitor", "Monitor ID", fmt.Sprint(dm.Status.ID))
@@ -72,5 +75,6 @@ func (r *Reconciler) addFinalizer(logger logr.Logger, dm *datadoghqv1alpha1.Data
 		logger.Error(err, "failed to update DatadogMonitor with finalizer", "Monitor ID", fmt.Sprint(dm.Status.ID))
 		return err
 	}
+
 	return nil
 }

@@ -27,9 +27,9 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/plugin/common"
 	"github.com/DataDog/datadog-operator/pkg/version"
 
-	"github.com/mholt/archiver"
+	"github.com/mholt/archiver/v3"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -543,7 +543,7 @@ func (o *options) sendFlare(archivePath, version string, cmd *cobra.Command) (st
 
 // readAndPostFlareFile prepares request and post the flare to Datadog
 func (o *options) readAndPostFlareFile(archivePath, url, version string, cmd *cobra.Command) (*http.Response, error) {
-	request, err := http.NewRequest("POST", url, nil)
+	request, err := http.NewRequestWithContext(context.TODO(), "POST", url, nil)
 	if err != nil {
 		return nil, err
 	}

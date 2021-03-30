@@ -15,7 +15,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
 var testClusterChecksRunnerReplicas int32 = 1
@@ -208,7 +209,7 @@ type clusterChecksRunnerDeploymentFromInstanceTest struct {
 
 func (test clusterChecksRunnerDeploymentFromInstanceTest) Run(t *testing.T) {
 	t.Helper()
-	logf.SetLogger(logf.ZapLogger(true))
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
 	got, _, err := newClusterChecksRunnerDeploymentFromInstance(test.agentdeployment, test.selector)
 	if test.wantErr {
 		assert.Error(t, err, "newClusterChecksRunnerDeploymentFromInstance() expected an error")

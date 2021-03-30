@@ -98,7 +98,7 @@ func (o *options) run(cmd *cobra.Command) error {
 	ddList := &v1alpha1.DatadogAgentList{}
 	if o.userDatadogAgentName == "" {
 		if err := o.Client.List(context.TODO(), ddList, &client.ListOptions{Namespace: o.UserNamespace}); err != nil {
-			return fmt.Errorf("unable to list DatadogAgent: %v", err)
+			return fmt.Errorf("unable to list DatadogAgent: %w", err)
 		}
 		if len(ddList.Items) == 0 {
 			return errors.New("cannot find any DatadogAgent")
@@ -109,7 +109,7 @@ func (o *options) run(cmd *cobra.Command) error {
 		if err != nil && apierrors.IsNotFound(err) {
 			return fmt.Errorf("DatadogAgent %s/%s not found", o.UserNamespace, o.userDatadogAgentName)
 		} else if err != nil {
-			return fmt.Errorf("unable to get DatadogAgent: %v", err)
+			return fmt.Errorf("unable to get DatadogAgent: %w", err)
 		}
 		ddList.Items = append(ddList.Items, *dd)
 	}

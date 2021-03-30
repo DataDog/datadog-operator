@@ -22,9 +22,11 @@ type replacer struct {
 	replFunc func(b []byte) []byte
 }
 
-var commentRegex = regexp.MustCompile(`^\s*#.*$`)
-var blankRegex = regexp.MustCompile(`^\s*$`)
-var singleLineReplacers, multiLineReplacers []replacer
+var (
+	commentRegex                            = regexp.MustCompile(`^\s*#.*$`)
+	blankRegex                              = regexp.MustCompile(`^\s*$`)
+	singleLineReplacers, multiLineReplacers []replacer
+)
 
 func init() {
 	apiKeyReplacer := replacer{

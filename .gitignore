@@ -6,6 +6,7 @@ build/_test
 /controller
 /kubectl-datadog
 /bin
+/testbin
 
 # vendor
 /vendor

@@ -20,24 +20,24 @@ const (
 	// An empty value means the operator is running with cluster scope.
 	WatchNamespaceEnvVar = "WATCH_NAMESPACE"
 	// DDAPIKeyEnvVar is the constant for the env variable DD_API_KEY which is the fallback
-	// API key to use if a resource does not have it defined in its spec
+	// API key to use if a resource does not have it defined in its spec.
 	DDAPIKeyEnvVar = "DD_API_KEY"
 	// DDAppKeyEnvVar is the constant for the env variable DD_APP_KEY which is the fallback
-	// App key to use if a resource does not have it defined in its spec
+	// App key to use if a resource does not have it defined in its spec.
 	DDAppKeyEnvVar = "DD_APP_KEY"
 	// DDURLEnvVar is the constant for the env variable DD_URL which is the
-	// host of the Datadog intake server to send data to
+	// host of the Datadog intake server to send data to.
 	DDURLEnvVar = "DD_URL"
 )
 
-// GetWatchNamespaces returns the Namespaces the operator should be watching for changes
+// GetWatchNamespaces returns the Namespaces the operator should be watching for changes.
 func GetWatchNamespaces() []string {
 	ns, found := os.LookupEnv(WatchNamespaceEnvVar)
 	if !found {
 		return nil
 	}
 
-	// Add support for MultiNamespace set in WATCH_NAMESPACE (e.g ns1,ns2)
+	// Add support for MultiNamespace set in WATCH_NAMESPACE (e.g ns1,ns2).
 	if strings.Contains(ns, ",") {
 		return strings.Split(ns, ",")
 	}
@@ -45,7 +45,7 @@ func GetWatchNamespaces() []string {
 	return []string{ns}
 }
 
-// ManagerOptionsWithNamespaces returns an updated Options with namespaces information
+// ManagerOptionsWithNamespaces returns an updated Options with namespaces information.
 func ManagerOptionsWithNamespaces(logger logr.Logger, opt ctrl.Options) ctrl.Options {
 	namespaces := GetWatchNamespaces()
 	switch {

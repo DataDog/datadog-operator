@@ -20,7 +20,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 )
 
-// DatadogMonitorReconciler reconciles a DatadogMonitor object
+// DatadogMonitorReconciler reconciles a DatadogMonitor object.
 type DatadogMonitorReconciler struct {
 	Client      client.Client
 	DDClient    datadogclient.DatadogClient
@@ -35,14 +35,13 @@ type DatadogMonitorReconciler struct {
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogmonitors/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogmonitors/finalizers,verbs=get;list;watch;create;update;patch;delete
 
-// Reconcile loop for DatadogMonitor
-func (r *DatadogMonitorReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	return r.internal.Reconcile(context.Background(), req)
+// Reconcile loop for DatadogMonitor.
+func (r *DatadogMonitorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	return r.internal.Reconcile(ctx, req)
 }
 
-// SetupWithManager creates a new DatadogMonitor controller
+// SetupWithManager creates a new DatadogMonitor controller.
 func (r *DatadogMonitorReconciler) SetupWithManager(mgr ctrl.Manager) error {
-
 	internal, err := datadogmonitor.NewReconciler(r.Client, r.DDClient, r.VersionInfo, r.Scheme, r.Log, r.Recorder)
 	if err != nil {
 		return err

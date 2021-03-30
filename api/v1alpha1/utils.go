@@ -30,6 +30,7 @@ func BoolValue(b *bool) bool {
 	if b == nil {
 		return false
 	}
+
 	return *b
 }
 
@@ -38,5 +39,6 @@ func BoolToString(b *bool) string {
 	if BoolValue(b) {
 		return "true"
 	}
+
 	return "false"
 }

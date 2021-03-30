@@ -16,14 +16,12 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
-var (
-	serviceExample = `
+var serviceExample = `
   # validate the autodiscovery annotations for a service named foo
   %[1]s service foo
 `
-)
 
-// options provides information required by validate service command
+// options provides information required by validate service command.
 type options struct {
 	genericclioptions.IOStreams
 	common.Options
@@ -31,16 +29,17 @@ type options struct {
 	serviceName string
 }
 
-// newOptions provides an instance of options with default values
+// newOptions provides an instance of options with default values.
 func newOptions(streams genericclioptions.IOStreams) *options {
 	o := &options{
 		IOStreams: streams,
 	}
 	o.SetConfigFlags()
+
 	return o
 }
 
-// New provides a cobra command wrapping options for service sub command
+// New provides a cobra command wrapping options for service sub command.
 func New(streams genericclioptions.IOStreams) *cobra.Command {
 	o := newOptions(streams)
 	cmd := &cobra.Command{
@@ -64,28 +63,31 @@ func New(streams genericclioptions.IOStreams) *cobra.Command {
 	return cmd
 }
 
-// complete sets all information required for processing the command
+// complete sets all information required for processing the command.
 func (o *options) complete(cmd *cobra.Command, args []string) error {
 	o.args = args
 	if len(args) > 0 {
 		o.serviceName = args[0]
 	}
+
 	return o.Init(cmd)
 }
 
-// validate ensures that all required arguments and flag values are provided
+// validate ensures that all required arguments and flag values are provided.
 func (o *options) validate() error {
 	if o.serviceName == "" {
 		return errors.New("service name argument is missing")
 	}
+
 	argsCount := len(o.args)
 	if argsCount > 1 {
 		return fmt.Errorf("one argument is allowed, got %d", argsCount)
 	}
+
 	return nil
 }
 
-// run runs the service command
+// run runs the service command.
 func (o *options) run(cmd *cobra.Command) error {
 	svc, err := o.Clientset.CoreV1().Services(o.UserNamespace).Get(context.TODO(), o.serviceName, metav1.GetOptions{})
 	if err != nil {
@@ -104,6 +106,7 @@ func (o *options) run(cmd *cobra.Command) error {
 		for _, err := range errors {
 			cmd.Println("\t", err)
 		}
+
 		return nil
 	}
 

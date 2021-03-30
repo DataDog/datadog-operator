@@ -82,7 +82,6 @@ func (r *Reconciler) updateIfNeededPDB(dda *datadoghqv1alpha1.DatadogAgent, curr
 	if !(apiequality.Semantic.DeepEqual(newPDB.Spec, currentPDB.Spec) &&
 		apiequality.Semantic.DeepEqual(newPDB.Labels, currentPDB.Labels) &&
 		apiequality.Semantic.DeepEqual(newPDB.Annotations, currentPDB.Annotations)) {
-
 		updatedPDB := currentPDB.DeepCopy()
 		updatedPDB.Labels = newPDB.Labels
 		updatedPDB.Annotations = newPDB.Annotations

@@ -42,8 +42,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
 func init() {
@@ -56,7 +57,7 @@ func TestReconcileDatadogAgent_createNewExtendedDaemonSet(t *testing.T) {
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "TestReconcileDatadogAgent_createNewExtendedDaemonSet"})
 	forwarders := dummyManager{}
 
-	logf.SetLogger(logf.ZapLogger(true))
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
 	localLog := logf.Log.WithName("TestReconcileDatadogAgent_createNewExtendedDaemonSet")
 
 	const resourcesName = "foo"
@@ -135,7 +136,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "TestReconcileDatadogAgent_Reconcile"})
 	forwarders := dummyManager{}
 
-	logf.SetLogger(logf.ZapLogger(true))
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
 
 	// Register operator types with the runtime scheme.
 	s := scheme.Scheme

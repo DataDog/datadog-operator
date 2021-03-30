@@ -35,6 +35,7 @@ func GetDurationAsString(obj *metav1.ObjectMeta) string {
 func StreamToBytes(stream io.Reader) ([]byte, error) {
 	bytes := new(bytes.Buffer)
 	_, err := bytes.ReadFrom(stream)
+
 	return bytes.Bytes(), err
 }
 
@@ -44,9 +45,11 @@ func AskForConfirmation(input string) bool {
 	if err != nil {
 		return false
 	}
+
 	if response == "y" || response == "Y" {
 		return true
 	}
+
 	return false
 }
 
@@ -54,19 +57,22 @@ func AskForConfirmation(input string) bool {
 func AskForInput(question string) (string, error) {
 	scanner := bufio.NewScanner(os.Stdin)
 	if question != "" {
-		fmt.Println(question)
+		fmt.Println(question) //nolint:forbidigo
 	}
+
 	scanner.Scan()
 	text := scanner.Text()
 	if err := scanner.Err(); err != nil {
 		return "", err
 	}
+
 	return strings.TrimSpace(text), nil
 }
 
 // HasImagePattern returns true if the image string respects the format <string>/<string>:<string>
 func HasImagePattern(image string) bool {
 	matched, _ := regexp.MatchString(`.+\/.+:.+`, image)
+
 	return matched
 }
 
@@ -75,9 +81,11 @@ func ValidateUpgrade(image string, latest bool) error {
 	if image != "" && !HasImagePattern(image) {
 		return fmt.Errorf("image %s doesn't respect the format <account>/<repo>:<tag>", image)
 	}
+
 	if image == "" && !latest {
 		return errors.New("both 'image' and 'latest' flags are missing")
 	}
+
 	return nil
 }
 
@@ -86,11 +94,13 @@ func IsAnnotated(annotations map[string]string, prefix string) bool {
 	if prefix == "" || annotations == nil {
 		return false
 	}
+
 	for k := range annotations {
 		if strings.HasPrefix(k, prefix) {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -149,5 +159,6 @@ func ValidateAnnotationsMatching(annotations map[string]string, validIDs map[str
 			}
 		}
 	}
+
 	return errors
 }

@@ -21,7 +21,8 @@ import (
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
 const (
@@ -1477,8 +1478,8 @@ type extendedDaemonSetFromInstanceTest struct {
 
 func (test extendedDaemonSetFromInstanceTest) Run(t *testing.T) {
 	t.Helper()
-	logf.SetLogger(logf.ZapLogger(true))
-	logger := logf.Log.Logger
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+	logger := logf.Log.WithName(t.Name())
 	got, _, err := newExtendedDaemonSetFromInstance(logger, test.agentdeployment, test.selector)
 	if test.wantErr {
 		assert.Error(t, err, "newExtendedDaemonSetFromInstance() expected an error")
@@ -2651,7 +2652,7 @@ func Test_newExtendedDaemonSetFromInstance_PrometheusScrape(t *testing.T) {
 	})
 
 	promEnabledPodSpec := defaultPodSpec()
-	logger := logf.Log.Logger
+	logger := logf.Log.WithName(t.Name())
 	promEnabledPodSpec.Containers[0].Env = append(promEnabledPodSpec.Containers[0].Env, prometheusScrapeEnvVars(logger, dda)...)
 	promEnabledPodSpec.InitContainers[1].Env = append(promEnabledPodSpec.InitContainers[1].Env, prometheusScrapeEnvVars(logger, dda)...)
 

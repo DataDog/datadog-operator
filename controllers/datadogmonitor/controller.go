@@ -103,12 +103,14 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 	// Validate the DatadogMonitor spec
 	if err = datadoghqv1alpha1.IsValidDatadogMonitor(&instance.Spec); err != nil {
 		logger.Error(err, "invalid DatadogMonitor spec")
+
 		return r.updateStatusIfNeeded(logger, instance, now, newStatus, err, result)
 	}
 
 	instanceSpecHash, err := comparison.GenerateMD5ForSpec(&instance.Spec)
 	if err != nil {
 		logger.Error(err, "error generating hash")
+
 		return r.updateStatusIfNeeded(logger, instance, now, newStatus, err, result)
 	}
 
@@ -132,6 +134,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 		} else {
 			err = fmt.Errorf("monitor type %v not supported", instance.Spec.Type)
 			logger.Error(err, "for the alpha version, only metric alert, query alert, and service check type monitors are supported")
+
 			return r.updateStatusIfNeeded(logger, instance, now, newStatus, err, result)
 		}
 	} else {
@@ -243,9 +246,11 @@ func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, datadogMonitor *da
 		if err := r.client.Status().Update(context.TODO(), datadogMonitor); err != nil {
 			if apierrors.IsConflict(err) {
 				logger.Error(err, "unable to update DatadogMonitor status due to update conflict")
+
 				return ctrl.Result{Requeue: true, RequeueAfter: defaultErrRequeuePeriod}, nil
 			}
 			logger.Error(err, "unable to update DatadogMonitor status")
+
 			return ctrl.Result{}, err
 		}
 		// This is brittle; typically if a Spec or Status is updated in the API, the result gets requeued without additional action.
@@ -257,6 +262,7 @@ func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, datadogMonitor *da
 		// of groups stored in Status.TriggeredState should be conservative.
 		return ctrl.Result{Requeue: true, RequeueAfter: defaultRequeuePeriod}, nil
 	}
+
 	return result, nil
 }
 
@@ -283,13 +289,15 @@ func (r *Reconciler) checkRequiredTags(logger logr.Logger, datadogMonitor *datad
 		err := r.client.Update(context.TODO(), datadogMonitor)
 		if err != nil {
 			logger.Error(err, "failed to update DatadogMonitor with required tags")
+
 			return ctrl.Result{Requeue: true, RequeueAfter: defaultErrRequeuePeriod}, err
 		}
 		logger.Info("Added required tags", "Monitor Namespace", datadogMonitor.Namespace, "Monitor Name", datadogMonitor.Name, "Monitor ID", datadogMonitor.Status.ID)
+
 		return ctrl.Result{Requeue: true, RequeueAfter: defaultRequeuePeriod}, nil
 	}
 
-	// Proceed in reconcile loop
+	// Proceed in reconcile loop.
 	return ctrl.Result{}, nil
 }
 
@@ -299,7 +307,6 @@ func getRequiredTags() []string {
 
 // convertStateToStatus updates status.MonitorState, status.TriggeredState, and status.DowntimeStatus according to the current state of the monitor
 func convertStateToStatus(monitor datadogapiclientv1.Monitor, newStatus *datadoghqv1alpha1.DatadogMonitorStatus, now metav1.Time) {
-
 	// If monitor group is in Alert, Warn or No Data, then add its info to the TriggeredState
 	triggeredStates := []datadoghqv1alpha1.DatadogMonitorTriggeredState{}
 	monitorState, exists := monitor.GetStateOk()

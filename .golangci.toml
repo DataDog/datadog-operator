@@ -1,9 +1,8 @@
 [run]
   deadline = "5m"
-  skip-files = ["_test.go"]
+  tests = false
 
 [linters-settings]
-
   [linters-settings.govet]
     check-shadowing = true
 
@@ -32,6 +31,25 @@
     "gochecknoinits",
     "gochecknoglobals",
     "funlen",
+    "gocognit",
+    "cyclop",
+    "gomnd",
+    "wrapcheck",
+    "exhaustivestruct",
+    "forcetypeassert",
+    "goerr113",
+    "testpackage",
+    "wastedassign",
+    "thelper",
+    "paralleltest",
+    "nestif",
+    "exhaustive",
+    "interfacer",
+    "gci",
+    "wsl",
+    "godox",
+    "godot",
+    "nlreturn"
   ]
 
 [issues]
@@ -39,3 +57,10 @@
   max-per-linter = 0
   max-same-issues = 0
   exclude = []
+  
+    [issues.exclude-rules]
+      linters = ["stylecheck"]
+      text = "ST1000:"
+
+[output]
+  sort-results = true

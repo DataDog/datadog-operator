@@ -21,17 +21,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var (
-	getExample = `
+var getExample = `
   # view all DatadogAgent in the current namespace
   %[1]s get
 
   # view DatadogAgent foo
   %[1]s get foo
 `
-)
 
-// options provides information required by Datadog get command
+// options provides information required by Datadog get command.
 type options struct {
 	genericclioptions.IOStreams
 	common.Options
@@ -39,7 +37,7 @@ type options struct {
 	userDatadogAgentName string
 }
 
-// newOptions provides an instance of getOptions with default values
+// newOptions provides an instance of getOptions with default values.
 func newOptions(streams genericclioptions.IOStreams) *options {
 	o := &options{
 		IOStreams: streams,
@@ -48,7 +46,7 @@ func newOptions(streams genericclioptions.IOStreams) *options {
 	return o
 }
 
-// New provides a cobra command wrapping options for "get" sub command
+// New provides a cobra command wrapping options for "get" sub command.
 func New(streams genericclioptions.IOStreams) *cobra.Command {
 	o := newOptions(streams)
 	cmd := &cobra.Command{
@@ -72,7 +70,7 @@ func New(streams genericclioptions.IOStreams) *cobra.Command {
 	return cmd
 }
 
-// complete sets all information required for processing the command
+// complete sets all information required for processing the command.
 func (o *options) complete(cmd *cobra.Command, args []string) error {
 	o.args = args
 	if len(args) > 0 {
@@ -81,7 +79,7 @@ func (o *options) complete(cmd *cobra.Command, args []string) error {
 	return o.Init(cmd)
 }
 
-// validate ensures that all required arguments and flag values are provided
+// validate ensures that all required arguments and flag values are provided.
 func (o *options) validate() error {
 	if len(o.args) > 1 {
 		return errors.New("either one or no arguments are allowed")
@@ -89,12 +87,12 @@ func (o *options) validate() error {
 	return nil
 }
 
-// run runs the get command
+// run runs the get command.
 func (o *options) run() error {
 	ddList := &v1alpha1.DatadogAgentList{}
 	if o.userDatadogAgentName == "" {
 		if err := o.Client.List(context.TODO(), ddList, &client.ListOptions{Namespace: o.UserNamespace}); err != nil {
-			return fmt.Errorf("unable to list DatadogAgent: %v", err)
+			return fmt.Errorf("unable to list DatadogAgent: %w", err)
 		}
 	} else {
 		dd := &v1alpha1.DatadogAgent{}
@@ -102,7 +100,7 @@ func (o *options) run() error {
 		if err != nil && apierrors.IsNotFound(err) {
 			return fmt.Errorf("DatadogAgent %s/%s not found", o.UserNamespace, o.userDatadogAgentName)
 		} else if err != nil {
-			return fmt.Errorf("unable to get DatadogAgent: %v", err)
+			return fmt.Errorf("unable to get DatadogAgent: %w", err)
 		}
 		ddList.Items = append(ddList.Items, *dd)
 	}
@@ -129,7 +127,7 @@ func (o *options) run() error {
 		table.Append(data)
 	}
 
-	// Send output
+	// Send output.
 	table.Render()
 
 	return nil

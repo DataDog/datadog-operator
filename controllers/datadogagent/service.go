@@ -45,12 +45,12 @@ func (r *Reconciler) manageClusterAgentService(logger logr.Logger, dda *datadogh
 }
 
 func (r *Reconciler) createClusterAgentService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
-	newService, _ := newClusterAgentService(dda)
+	newService := newClusterAgentService(dda)
 	return r.createService(logger, dda, newService)
 }
 
 func (r *Reconciler) updateIfNeededClusterAgentService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, currentService *corev1.Service) (reconcile.Result, error) {
-	newService, _ := newClusterAgentService(dda)
+	newService := newClusterAgentService(dda)
 	return r.updateIfNeededService(logger, dda, currentService, newService)
 }
 
@@ -59,7 +59,7 @@ func (r *Reconciler) cleanupClusterAgentService(dda *datadoghqv1alpha1.DatadogAg
 	return cleanupService(r.client, serviceName, dda.Namespace, dda)
 }
 
-func newClusterAgentService(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.Service, string) {
+func newClusterAgentService(dda *datadoghqv1alpha1.DatadogAgent) *corev1.Service {
 	labels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
 	annotations := getDefaultAnnotations(dda)
 
@@ -86,9 +86,9 @@ func newClusterAgentService(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.Servic
 			SessionAffinity: corev1.ServiceAffinityNone,
 		},
 	}
-	hash, _ := comparison.SetMD5DatadogAgentGenerationAnnotation(&service.ObjectMeta, &service.Spec)
+	_, _ = comparison.SetMD5DatadogAgentGenerationAnnotation(&service.ObjectMeta, &service.Spec)
 
-	return service, hash
+	return service
 }
 
 func (r *Reconciler) manageMetricsServerService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
@@ -146,17 +146,17 @@ func (r *Reconciler) manageAdmissionControllerService(logger logr.Logger, dda *d
 }
 
 func (r *Reconciler) createMetricsServerService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
-	newService, _ := newMetricsServerService(dda)
+	newService := newMetricsServerService(dda)
 	return r.createService(logger, dda, newService)
 }
 
 func (r *Reconciler) createMetricsServerAPIService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
-	newAPIService, _ := newMetricsServerAPIService(dda)
+	newAPIService := newMetricsServerAPIService(dda)
 	return r.createAPIService(logger, dda, newAPIService)
 }
 
 func (r *Reconciler) createAdmissionControllerService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
-	newService, _ := newAdmissionControllerService(dda)
+	newService := newAdmissionControllerService(dda)
 	return r.createService(logger, dda, newService)
 }
 
@@ -176,17 +176,17 @@ func (r *Reconciler) cleanupAdmissionControllerService(dda *datadoghqv1alpha1.Da
 }
 
 func (r *Reconciler) updateIfNeededMetricsServerService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, currentService *corev1.Service) (reconcile.Result, error) {
-	newService, _ := newMetricsServerService(dda)
+	newService := newMetricsServerService(dda)
 	return r.updateIfNeededService(logger, dda, currentService, newService)
 }
 
 func (r *Reconciler) updateIfNeededMetricsServerAPIService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, currentAPIService *apiregistrationv1.APIService) (reconcile.Result, error) {
-	newAPIService, _ := newMetricsServerAPIService(dda)
+	newAPIService := newMetricsServerAPIService(dda)
 	return r.updateIfNeededAPIService(logger, dda, currentAPIService, newAPIService)
 }
 
 func (r *Reconciler) updateIfNeededAdmissionControllerService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, currentService *corev1.Service) (reconcile.Result, error) {
-	newService, _ := newAdmissionControllerService(dda)
+	newService := newAdmissionControllerService(dda)
 	return r.updateIfNeededService(logger, dda, currentService, newService)
 }
 
@@ -264,7 +264,6 @@ func (r *Reconciler) updateIfNeededService(logger logr.Logger, dda *datadoghqv1a
 	result := reconcile.Result{}
 	hash := newService.Annotations[datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey]
 	if !comparison.IsSameSpecMD5Hash(hash, currentService.GetAnnotations()) {
-
 		updatedService := currentService.DeepCopy()
 		updatedService.Labels = newService.Labels
 		updatedService.Annotations = newService.Annotations
@@ -289,7 +288,6 @@ func (r *Reconciler) updateIfNeededAPIService(logger logr.Logger, dda *datadoghq
 	result := reconcile.Result{}
 	hash := newAPIService.Annotations[datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey]
 	if !comparison.IsSameSpecMD5Hash(hash, currentAPIService.GetAnnotations()) {
-
 		updatedAPIService := currentAPIService.DeepCopy()
 		updatedAPIService.Labels = newAPIService.Labels
 		updatedAPIService.Annotations = newAPIService.Annotations
@@ -308,7 +306,7 @@ func (r *Reconciler) updateIfNeededAPIService(logger logr.Logger, dda *datadoghq
 	return result, nil
 }
 
-func newMetricsServerService(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.Service, string) {
+func newMetricsServerService(dda *datadoghqv1alpha1.DatadogAgent) *corev1.Service {
 	labels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
 	annotations := getDefaultAnnotations(dda)
 
@@ -335,12 +333,12 @@ func newMetricsServerService(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.Servi
 			SessionAffinity: corev1.ServiceAffinityNone,
 		},
 	}
-	hash, _ := comparison.SetMD5DatadogAgentGenerationAnnotation(&service.ObjectMeta, &service.Spec)
+	_, _ = comparison.SetMD5DatadogAgentGenerationAnnotation(&service.ObjectMeta, &service.Spec)
 
-	return service, hash
+	return service
 }
 
-func newMetricsServerAPIService(dda *datadoghqv1alpha1.DatadogAgent) (*apiregistrationv1.APIService, string) {
+func newMetricsServerAPIService(dda *datadoghqv1alpha1.DatadogAgent) *apiregistrationv1.APIService {
 	labels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
 	annotations := getDefaultAnnotations(dda)
 
@@ -364,11 +362,12 @@ func newMetricsServerAPIService(dda *datadoghqv1alpha1.DatadogAgent) (*apiregist
 			VersionPriority:       100,
 		},
 	}
-	hash, _ := comparison.SetMD5DatadogAgentGenerationAnnotation(&apiService.ObjectMeta, &apiService.Spec)
-	return apiService, hash
+	_, _ = comparison.SetMD5DatadogAgentGenerationAnnotation(&apiService.ObjectMeta, &apiService.Spec)
+
+	return apiService
 }
 
-func newAdmissionControllerService(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.Service, string) {
+func newAdmissionControllerService(dda *datadoghqv1alpha1.DatadogAgent) *corev1.Service {
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        getAdmissionControllerServiceName(dda),
@@ -392,7 +391,7 @@ func newAdmissionControllerService(dda *datadoghqv1alpha1.DatadogAgent) (*corev1
 			SessionAffinity: corev1.ServiceAffinityNone,
 		},
 	}
-	hash, _ := comparison.SetMD5DatadogAgentGenerationAnnotation(&service.ObjectMeta, &service.Spec)
+	_, _ = comparison.SetMD5DatadogAgentGenerationAnnotation(&service.ObjectMeta, &service.Spec)
 
-	return service, hash
+	return service
 }

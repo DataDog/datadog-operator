@@ -18,17 +18,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var (
-	getExample = `
+var getExample = `
   # view all DatadogMetric in the current namespace
   %[1]s get
 
   # get the DatadogMetric named foo
   %[1]s get foo
 `
-)
 
-// options provides information required by Datadog get command
+// options provides information required by Datadog get command.
 type options struct {
 	genericclioptions.IOStreams
 	common.Options
@@ -36,7 +34,7 @@ type options struct {
 	datadogMetricName string
 }
 
-// metricData provides information about a datadogmetric's status
+// metricData provides information about a datadogmetric's status.
 type metricData struct {
 	Namespace  string
 	Name       string
@@ -47,7 +45,7 @@ type metricData struct {
 	UpdateTime string
 }
 
-// newOptions provides an instance of getOptions with default values
+// newOptions provides an instance of getOptions with default values.
 func newOptions(streams genericclioptions.IOStreams) *options {
 	o := &options{
 		IOStreams: streams,
@@ -56,7 +54,7 @@ func newOptions(streams genericclioptions.IOStreams) *options {
 	return o
 }
 
-// New provides a cobra command wrapping options for "get" sub command
+// New provides a cobra command wrapping options for "get" sub command.
 func New(streams genericclioptions.IOStreams) *cobra.Command {
 	o := newOptions(streams)
 	cmd := &cobra.Command{
@@ -71,6 +69,7 @@ func New(streams genericclioptions.IOStreams) *cobra.Command {
 			if err := o.validate(); err != nil {
 				return err
 			}
+
 			return o.run()
 		},
 	}
@@ -80,29 +79,31 @@ func New(streams genericclioptions.IOStreams) *cobra.Command {
 	return cmd
 }
 
-// complete sets all information required for processing the command
+// complete sets all information required for processing the command.
 func (o *options) complete(cmd *cobra.Command, args []string) error {
 	o.args = args
 	if len(args) > 0 {
 		o.datadogMetricName = args[0]
 	}
+
 	return o.Init(cmd)
 }
 
-// validate ensures that all required arguments and flag values are provided
+// validate ensures that all required arguments and flag values are provided.
 func (o *options) validate() error {
 	if len(o.args) > 1 {
 		return errors.New("either one or no arguments are allowed")
 	}
+
 	return nil
 }
 
-// run runs the get command
+// run runs the get command.
 func (o *options) run() error {
 	ddList := &v1alpha1.DatadogMetricList{}
 	if o.datadogMetricName == "" {
 		if err := o.Client.List(context.TODO(), ddList, &client.ListOptions{Namespace: o.UserNamespace}); err != nil {
-			return fmt.Errorf("unable to list DatadogMetric: %v", err)
+			return fmt.Errorf("unable to list DatadogMetric: %w", err)
 		}
 	} else {
 		dd := &v1alpha1.DatadogMetric{}
@@ -110,7 +111,7 @@ func (o *options) run() error {
 		if err != nil && apierrors.IsNotFound(err) {
 			return fmt.Errorf("DatadogMetric %s/%s not found", o.UserNamespace, o.datadogMetricName)
 		} else if err != nil {
-			return fmt.Errorf("unable to get DatadogMetric: %v", err)
+			return fmt.Errorf("unable to get DatadogMetric: %w", err)
 		}
 		ddList.Items = append(ddList.Items, *dd)
 	}

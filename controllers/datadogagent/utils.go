@@ -762,7 +762,6 @@ func getEnvVarsForSecurityAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.E
 			Name:  "HOST_ROOT",
 			Value: datadoghqv1alpha1.HostRootVolumePath,
 		})
-
 	}
 
 	envVars = append(envVars, corev1.EnvVar{
@@ -1314,6 +1313,7 @@ func getVolumeMountForConfd() corev1.VolumeMount {
 		ReadOnly:  true,
 	}
 }
+
 func getVolumeMountForChecksd() corev1.VolumeMount {
 	return corev1.VolumeMount{
 		Name:      datadoghqv1alpha1.ChecksdVolumeName,
@@ -1514,7 +1514,6 @@ func getVolumeMountsForSecurityAgent(dda *datadoghqv1alpha1.DatadogAgent) []core
 				ReadOnly:  true,
 			},
 		}...)
-
 	}
 
 	spec := dda.Spec
@@ -1558,7 +1557,6 @@ func getVolumeMountsForSecurityAgent(dda *datadoghqv1alpha1.DatadogAgent) []core
 			MountPath: datadoghqv1alpha1.SystemProbeSocketVolumePath,
 			ReadOnly:  true,
 		})
-
 	}
 
 	if complianceEnabled && dda.Spec.Agent.Security.Compliance.ConfigDir != nil {
@@ -1656,7 +1654,7 @@ func getMetricsServerServiceName(dda *datadoghqv1alpha1.DatadogAgent) string {
 }
 
 func getMetricsServerAPIServiceName() string {
-	return fmt.Sprintf("v1beta1.external.metrics.k8s.io")
+	return "v1beta1.external.metrics.k8s.io"
 }
 
 func getClusterAgentRbacResourcesName(dda *datadoghqv1alpha1.DatadogAgent) string {

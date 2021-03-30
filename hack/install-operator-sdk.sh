@@ -40,12 +40,12 @@ mkdir -p bin
 cd $WORK_DIR
 if [ "$OS" == "darwin" ]; then
     echo "darwin"
-    curl -OJL https://github.com/operator-framework/operator-sdk/releases/download/${RELEASE_VERSION}/operator-sdk-${RELEASE_VERSION}-x86_64-apple-darwin
-    mv operator-sdk-${RELEASE_VERSION}-x86_64-apple-darwin $ROOT/bin/operator-sdk
+    curl -OJL https://github.com/operator-framework/operator-sdk/releases/download/${RELEASE_VERSION}/operator-sdk_darwin_amd64
+    mv operator-sdk_darwin_amd64 $ROOT/bin/operator-sdk
 else
     echo "linux"
-    curl -OJL https://github.com/operator-framework/operator-sdk/releases/download/${RELEASE_VERSION}/operator-sdk-${RELEASE_VERSION}-x86_64-linux-gnu
-    mv operator-sdk-${RELEASE_VERSION}-x86_64-linux-gnu $ROOT/bin/operator-sdk
+    curl -OJL https://github.com/operator-framework/operator-sdk/releases/download/${RELEASE_VERSION}/operator-sdk_linux_amd64
+    mv operator-sdk_linux_amd64 $ROOT/bin/operator-sdk
 fi
 
 chmod +x $ROOT/bin/operator-sdk 
