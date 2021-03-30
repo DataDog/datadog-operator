@@ -1263,6 +1263,14 @@ func (in *DatadogMonitorStatus) DeepCopyInto(out *DatadogMonitorStatus) {
 		in, out := &in.Created, &out.Created
 		*out = (*in).DeepCopy()
 	}
+	if in.MonitorStateLastUpdateTime != nil {
+		in, out := &in.MonitorStateLastUpdateTime, &out.MonitorStateLastUpdateTime
+		*out = (*in).DeepCopy()
+	}
+	if in.MonitorStateLastTransitionTime != nil {
+		in, out := &in.MonitorStateLastTransitionTime, &out.MonitorStateLastTransitionTime
+		*out = (*in).DeepCopy()
+	}
 	if in.TriggeredState != nil {
 		in, out := &in.TriggeredState, &out.TriggeredState
 		*out = make([]DatadogMonitorTriggeredState, len(*in))

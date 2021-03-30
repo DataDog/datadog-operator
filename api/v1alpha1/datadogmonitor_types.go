@@ -118,6 +118,12 @@ type DatadogMonitorStatus struct {
 	Created *metav1.Time `json:"created,omitempty"`
 	// MonitorState is the overall state of monitor
 	MonitorState DatadogMonitorState `json:"monitorState,omitempty"`
+	// MonitorStateLastUpdateTime is the last time the monitor state updated
+	MonitorStateLastUpdateTime *metav1.Time `json:"monitorStateLastUpdateTime,omitempty"`
+	// MonitorStateLastTransitionTime is the last time the monitor state changed
+	MonitorStateLastTransitionTime *metav1.Time `json:"monitorStateLastTransitionTime,omitempty"`
+	// SyncStatus shows the health of syncing the monitor state to Datadog
+	SyncStatus SyncStatusMessage `json:"syncStatus,omitempty"`
 	// TriggeredState only includes details for monitor groups that are triggering
 	TriggeredState []DatadogMonitorTriggeredState `json:"triggeredState,omitempty"`
 	// DowntimeStatus defines whether the monitor is downtimed
@@ -187,6 +193,20 @@ const (
 	DatadogMonitorStateUnknown DatadogMonitorState = "Unknown"
 )
 
+// SyncStatusMessage is the message reflecting the health of monitor state syncs to Datadog
+type SyncStatusMessage string
+
+const (
+	// SyncStatusOK means syncing is OK
+	SyncStatusOK SyncStatusMessage = "OK"
+	// SyncStatusValidateError means there is a monitor validation error
+	SyncStatusValidateError SyncStatusMessage = "error validating monitor"
+	// SyncStatusUpdateError means there is a monitor update error
+	SyncStatusUpdateError SyncStatusMessage = "error updating monitor"
+	// SyncStatusGetError means there is an error getting the monitor
+	SyncStatusGetError SyncStatusMessage = "error getting monitor"
+)
+
 // DatadogMonitorTriggeredState represents the details of a triggering DatadogMonitor
 // The DatadogMonitor is triggering if one of its groups is in Alert, Warn, or No Data
 type DatadogMonitorTriggeredState struct {
@@ -208,8 +228,10 @@ type DatadogMonitorDowntimeStatus struct {
 // +kubebuilder:resource:path=datadogmonitors,scope=Namespaced
 // +kubebuilder:printcolumn:name="id",type="string",JSONPath=".status.id"
 // +kubebuilder:printcolumn:name="monitor state",type="string",JSONPath=".status.monitorState"
-// +kubebuilder:printcolumn:name="created",type="string",JSONPath=".status.conditions[?(@.type=='Created')].lastUpdateTime"
-// +kubebuilder:printcolumn:name="last updated",type="string",JSONPath=".status.conditions[?(@.type=='Updated')].lastUpdateTime"
+// +kubebuilder:printcolumn:name="last transition",type="string",JSONPath=".status.monitorStateLastTransitionTime"
+// +kubebuilder:printcolumn:name="last sync",type="string",format="date",JSONPath=".status.monitorStateLastUpdateTime"
+// +kubebuilder:printcolumn:name="sync status",type="string",JSONPath=".status.syncStatus"
+// +kubebuilder:printcolumn:name="age",type="date",JSONPath=".metadata.creationTimestamp"
 // +k8s:openapi-gen=true
 // +genclient
 type DatadogMonitor struct {

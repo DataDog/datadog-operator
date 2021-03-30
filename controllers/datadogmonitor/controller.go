@@ -144,11 +144,12 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 			// Update action
 			if err = r.update(logger, instance, newStatus, now); err != nil {
 				logger.Error(err, "error updating monitor", "Monitor ID", instance.Status.ID)
+			} else {
+				newStatus.CurrentHash = instanceSpecHash
 			}
-			newStatus.CurrentHash = instanceSpecHash
 		} else { //nolint:gocritic
 			// Spec has not changed, just check if monitor state has changed (alert, warn, OK, etc.)
-			if err = r.get(logger, instance, newStatus); err != nil {
+			if err = r.get(logger, instance, newStatus, now); err != nil {
 				logger.Error(err, "error getting monitor", "Monitor ID", instance.Status.ID)
 			}
 		}
@@ -184,6 +185,7 @@ func (r *Reconciler) create(logger logr.Logger, datadogMonitor *datadoghqv1alpha
 	createdTime := metav1.NewTime(m.GetCreated())
 	status.Created = &createdTime
 	status.Primary = true
+	status.SyncStatus = ""
 
 	// Set Created Condition
 	condition.UpdateDatadogMonitorConditions(status, now, datadoghqv1alpha1.DatadogMonitorConditionTypeCreated, corev1.ConditionTrue, "DatadogMonitor Created")
@@ -195,29 +197,38 @@ func (r *Reconciler) create(logger logr.Logger, datadogMonitor *datadoghqv1alpha
 func (r *Reconciler) update(logger logr.Logger, datadogMonitor *datadoghqv1alpha1.DatadogMonitor, status *datadoghqv1alpha1.DatadogMonitorStatus, now metav1.Time) error {
 	// Validate monitor in Datadog
 	if err := validateMonitor(r.datadogAuth, logger, r.datadogClient, datadogMonitor); err != nil {
+		status.SyncStatus = datadoghqv1alpha1.SyncStatusValidateError
 		return err
 	}
 
 	// Update monitor in Datadog
 	if _, err := updateMonitor(r.datadogAuth, logger, r.datadogClient, datadogMonitor); err != nil {
+		status.SyncStatus = datadoghqv1alpha1.SyncStatusUpdateError
 		return err
 	}
 
+	event := buildEventInfo(datadogMonitor.Name, datadogMonitor.Namespace, datadog.UpdateEvent)
+	r.recordEvent(datadogMonitor, event)
+
 	// Set Updated Condition
 	condition.UpdateDatadogMonitorConditions(status, now, datadoghqv1alpha1.DatadogMonitorConditionTypeUpdated, corev1.ConditionTrue, "DatadogMonitor Updated")
+	status.SyncStatus = datadoghqv1alpha1.SyncStatusOK
 	logger.Info("Updated DatadogMonitor", "Monitor Namespace", datadogMonitor.Namespace, "Monitor Name", datadogMonitor.Name, "Monitor ID", datadogMonitor.Status.ID)
 
 	return nil
 }
 
-func (r *Reconciler) get(logger logr.Logger, datadogMonitor *datadoghqv1alpha1.DatadogMonitor, newStatus *datadoghqv1alpha1.DatadogMonitorStatus) error {
+func (r *Reconciler) get(logger logr.Logger, datadogMonitor *datadoghqv1alpha1.DatadogMonitor, status *datadoghqv1alpha1.DatadogMonitorStatus, now metav1.Time) error {
 	// Get monitor from Datadog and update resource status if needed
 	m, err := getMonitor(r.datadogAuth, r.datadogClient, datadogMonitor.Status.ID)
 	if err != nil {
+		status.SyncStatus = datadoghqv1alpha1.SyncStatusGetError
 		return err
 	}
 
-	convertStateToStatus(m, newStatus)
+	convertStateToStatus(m, status, now)
+	status.MonitorStateLastUpdateTime = &now
+	status.SyncStatus = datadoghqv1alpha1.SyncStatusOK
 	logger.V(1).Info("Synced DatadogMonitor state", "Monitor Namespace", datadogMonitor.Namespace, "Monitor Name", datadogMonitor.Name, "Monitor ID", datadogMonitor.Status.ID)
 
 	return nil
@@ -287,7 +298,7 @@ func getRequiredTags() []string {
 }
 
 // convertStateToStatus updates status.MonitorState, status.TriggeredState, and status.DowntimeStatus according to the current state of the monitor
-func convertStateToStatus(monitor datadogapiclientv1.Monitor, newStatus *datadoghqv1alpha1.DatadogMonitorStatus) {
+func convertStateToStatus(monitor datadogapiclientv1.Monitor, newStatus *datadoghqv1alpha1.DatadogMonitorStatus, now metav1.Time) {
 
 	// If monitor group is in Alert, Warn or No Data, then add its info to the TriggeredState
 	triggeredStates := []datadoghqv1alpha1.DatadogMonitorTriggeredState{}
@@ -314,7 +325,13 @@ func convertStateToStatus(monitor datadogapiclientv1.Monitor, newStatus *datadog
 		triggeredStates = triggeredStates[0:maxTriggeredStateGroups]
 	}
 	newStatus.TriggeredState = triggeredStates
+
+	oldMonitorState := newStatus.MonitorState
 	newStatus.MonitorState = datadoghqv1alpha1.DatadogMonitorState(monitor.GetOverallState())
+	// An accurate LastTransitionTime requires looping through four timestamps in every MonitorGroup, so using an approximation based on sync time
+	if newStatus.MonitorState != oldMonitorState {
+		newStatus.MonitorStateLastTransitionTime = &now
+	}
 	// TODO Updating this requires having the API client also return any matching downtime objects
 	newStatus.DowntimeStatus = datadoghqv1alpha1.DatadogMonitorDowntimeStatus{}
 }

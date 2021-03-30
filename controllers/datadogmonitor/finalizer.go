@@ -14,6 +14,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 )
 
 const (
@@ -55,8 +56,10 @@ func (r *Reconciler) finalizeDatadogMonitor(logger logr.Logger, dm *datadoghqv1a
 			logger.Error(err, "failed to finalize monitor", "Monitor ID", fmt.Sprint(dm.Status.ID))
 			return
 		}
+		logger.Info("Successfully finalized DatadogMonitor", "Monitor ID", fmt.Sprint(dm.Status.ID))
+		event := buildEventInfo(dm.Name, dm.Namespace, datadog.DeletionEvent)
+		r.recordEvent(dm, event)
 	}
-	logger.Info("Successfully finalized DatadogMonitor", "Monitor ID", fmt.Sprint(dm.Status.ID))
 }
 
 func (r *Reconciler) addFinalizer(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) error {
