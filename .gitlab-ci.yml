@@ -69,10 +69,10 @@ build_image_arm64:
     - IMG=$TARGET_IMAGE make docker-build-ci docker-push
     - if [ -n "$CI_COMMIT_TAG" ]; then docker tag $TARGET_IMAGE $RELEASE_IMAGE && docker push $RELEASE_IMAGE; fi
 
-publish_public_master:
+publish_public_main:
   stage: release
   rules:
-    - if: '$CI_COMMIT_BRANCH == "master"'
+    - if: '$CI_COMMIT_BRANCH == "main"'
       when: on_success
     - when: never
   trigger:
@@ -81,7 +81,7 @@ publish_public_master:
     strategy: depend
   variables:
     IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-arm64
-    IMG_DESTINATIONS: operator:master
+    IMG_DESTINATIONS: operator:main
     IMG_SIGNING: "false"
 
 # Before Gitlab 13.5 trigger with `when:manual` does not work

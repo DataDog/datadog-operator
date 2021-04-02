@@ -8892,7 +8892,7 @@ spec:
                         type: object
                       enabled:
                         description: Enable this to start the Kubernetes State Metrics
-                          Core check. Refer to https://github.com/DataDog/datadog-operator/blob/master/docs/kubernetes_state_metrics.md
+                          Core check. Refer to https://github.com/DataDog/datadog-operator/blob/main/docs/kubernetes_state_metrics.md
                         type: boolean
                     type: object
                   orchestratorExplorer:

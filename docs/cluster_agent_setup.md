@@ -68,4 +68,4 @@ datadog-cluster-agent-9f9c5c4c-pmhqb         1/1     Running   0          58s
 datadog-agent-hjlbg                          1/1     Running   0          33s
 ```
 
-[1]: https://github.com/DataDog/datadog-operator/blob/master/examples/datadog-agent-with-clusteragent.yaml
+[1]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadog-agent-with-clusteragent.yaml

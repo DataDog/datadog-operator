@@ -260,7 +260,7 @@ spec:
 | features.kubeStateMetricsCore.conf.configData | ConfigData corresponds to the configuration file content |
 | features.kubeStateMetricsCore.conf.configMap.fileKey | FileKey corresponds to the key used in the ConfigMap.Data to store the configuration file content |
 | features.kubeStateMetricsCore.conf.configMap.name | Name the ConfigMap name |
-| features.kubeStateMetricsCore.enabled | Enable this to start the Kubernetes State Metrics Core check. Refer to https://github.com/DataDog/datadog-operator/blob/master/docs/kubernetes_state_metrics.md |
+| features.kubeStateMetricsCore.enabled | Enable this to start the Kubernetes State Metrics Core check. Refer to https://github.com/DataDog/datadog-operator/blob/main/docs/kubernetes_state_metrics.md |
 | features.orchestratorExplorer.additionalEndpoints | Additional endpoints for shipping the collected data as json in the form of {"https://process.agent.datadoghq.com": ["apikey1", ...], ...}'. |
 | features.orchestratorExplorer.ddUrl | Set this for the Datadog endpoint for the orchestrator explorer |
 | features.orchestratorExplorer.enabled | Enable this to activate live Kubernetes monitoring. ref: https://docs.datadoghq.com/infrastructure/livecontainers/#kubernetes-resources |
@@ -271,9 +271,9 @@ spec:
 | features.prometheusScrape.serviceEndpoints | ServiceEndpoints enables generating dedicated checks for service endpoints. |
 | site | The site of the Datadog intake to send Agent data to. Set to 'datadoghq.eu' to send data to the EU site. |
 
-[1]: https://github.com/DataDog/datadog-operator/blob/master/examples/datadog-agent-all.yaml
-[2]: https://github.com/DataDog/datadog-operator/blob/master/examples/datadog-agent-logs-apm.yaml
-[3]: https://github.com/DataDog/datadog-operator/blob/master/examples/datadog-agent-logs.yaml
-[4]: https://github.com/DataDog/datadog-operator/blob/master/examples/datadog-agent-apm.yaml
-[5]: https://github.com/DataDog/datadog-operator/blob/master/examples/datadog-agent-with-clusteragent.yaml
-[6]: https://github.com/DataDog/datadog-operator/blob/master/examples/datadog-agent-with-tolerations.yaml
+[1]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadog-agent-all.yaml
+[2]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadog-agent-logs-apm.yaml
+[3]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadog-agent-logs.yaml
+[4]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadog-agent-apm.yaml
+[5]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadog-agent-with-clusteragent.yaml
+[6]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadog-agent-with-tolerations.yaml

@@ -193,7 +193,7 @@ helm delete $DD_NAMEOP -n $DD_NAMESPACE
 [6]: https://github.com/DataDog/datadog-operator
 [7]: https://olm.operatorframework.io/
 [8]: https://operatorhub.io/operator/datadog-operator
-[9]: https://github.com/operator-framework/operator-lifecycle-manager/blob/master/doc/design/subscription-config.md#subscription-config
-[10]: https://github.com/DataDog/datadog-operator/blob/master/examples/datadog-agent.yaml
+[9]: https://github.com/operator-framework/operator-lifecycle-manager/blob/main/doc/design/subscription-config.md#subscription-config
+[10]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadog-agent.yaml
 [11]: https://app.datadoghq.com/account/settings#api
-[12]: https://github.com/DataDog/datadog-operator/blob/master/examples/datadog-agent-with-tolerations.yaml
+[12]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadog-agent-with-tolerations.yaml

@@ -2,7 +2,7 @@
 
 ## Steps
 
-1. Checkout the repository on the correct branch and changeset (`master`).Creates a new branch if it is the first release for a "minor" version: `git checkout -b vX.Y`.
+1. Checkout the repository on the correct branch and changeset (`main`).Creates a new branch if it is the first release for a "minor" version: `git checkout -b vX.Y`.
 2. Run the bundle generation:
     - For a release candidate, run the following command, locally: `make VERSION=x.v.z-rc.w bundle`
       For example, to generate the release version `0.3.0-rc.2`, run: `make VERSION=0.3.0-rc.2 bundle`

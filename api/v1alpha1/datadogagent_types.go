@@ -425,7 +425,7 @@ type ProcessSpec struct {
 // +k8s:openapi-gen=true
 type KubeStateMetricsCore struct {
 	// Enable this to start the Kubernetes State Metrics Core check.
-	// Refer to https://github.com/DataDog/datadog-operator/blob/master/docs/kubernetes_state_metrics.md
+	// Refer to https://github.com/DataDog/datadog-operator/blob/main/docs/kubernetes_state_metrics.md
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 

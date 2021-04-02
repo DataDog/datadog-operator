@@ -13,7 +13,7 @@ Using the Datadog Operator requires the following prerequisites:
 
 ## Deploy the Agent with the operator
 
-To deploy the Datadog Agent with the operator in the minimum number of steps, see the [`datadog-operator`](https://github.com/DataDog/helm-charts/tree/master/charts/datadog-operator) helm chart.
+To deploy the Datadog Agent with the operator in the minimum number of steps, see the [`datadog-operator`](https://github.com/DataDog/helm-charts/tree/main/charts/datadog-operator) helm chart.
 Here are the steps:
 
 1. Install the [Datadog Operator][3]:

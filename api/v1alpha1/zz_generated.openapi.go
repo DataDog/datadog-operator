@@ -2072,7 +2072,7 @@ func schema__api_v1alpha1_KubeStateMetricsCore(ref common.ReferenceCallback) com
 				Properties: map[string]spec.Schema{
 					"enabled": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enable this to start the Kubernetes State Metrics Core check. Refer to https://github.com/DataDog/datadog-operator/blob/master/docs/kubernetes_state_metrics.md",
+							Description: "Enable this to start the Kubernetes State Metrics Core check. Refer to https://github.com/DataDog/datadog-operator/blob/main/docs/kubernetes_state_metrics.md",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},

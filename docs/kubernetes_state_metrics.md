@@ -156,4 +156,4 @@ When activating this feature, the Datadog Node Agent will be instructed not to A
 However if you have configured the v1 of the check via annotations, make sure you remove them to avoid any potential confusion. 
 
 [1]: https://github.com/kubernetes/kube-state-metrics
-[2]: https://github.com/DataDog/datadog-operator/blob/master/docs/cluster_agent_setup.md
+[2]: https://github.com/DataDog/datadog-operator/blob/main/docs/cluster_agent_setup.md
