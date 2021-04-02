@@ -47,7 +47,7 @@ func (r *Reconciler) manageSecret(logger logr.Logger, secret managedSecret, dda 
 			s, errCreate := secret.createFunc(secret.name, dda)
 			if errCreate != nil {
 				condition.UpdateDatadogAgentStatusConditions(newStatus, now, datadoghqv1alpha1.DatadogAgentConditionTypeSecretError, corev1.ConditionTrue, fmt.Sprintf("%v", err), false)
-				return reconcile.Result{}, fmt.Errorf("cannot create secret %s, err: %v", secret.name, errCreate)
+				return reconcile.Result{}, fmt.Errorf("cannot create secret %s, err: %w", secret.name, errCreate)
 			}
 
 			return r.createSecret(logger, s, dda)
@@ -87,7 +87,6 @@ func (r *Reconciler) updateIfNeededSecret(secret managedSecret, dda *datadoghqv1
 	if !(apiequality.Semantic.DeepEqual(newSecret.Data, currentSecret.Data) &&
 		apiequality.Semantic.DeepEqual(newSecret.Labels, currentSecret.Labels) &&
 		apiequality.Semantic.DeepEqual(newSecret.Annotations, currentSecret.Annotations)) {
-
 		updatedSecret := currentSecret.DeepCopy()
 		updatedSecret.Labels = newSecret.Labels
 		updatedSecret.Annotations = newSecret.Annotations

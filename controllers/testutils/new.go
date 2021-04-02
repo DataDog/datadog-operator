@@ -26,9 +26,7 @@ type NewDatadogAgentOptions struct {
 	VolumeMounts        []v1.VolumeMount
 }
 
-var (
-	pullPolicy = v1.PullIfNotPresent
-)
+var pullPolicy = v1.PullIfNotPresent
 
 // NewDatadogAgent returns new DatadogAgent instance with is config hash
 func NewDatadogAgent(ns, name, image string, options *NewDatadogAgentOptions) *datadoghqv1alpha1.DatadogAgent {

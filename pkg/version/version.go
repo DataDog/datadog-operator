@@ -42,7 +42,6 @@ func newVersionJSON() []byte {
 		Os:        fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH),
 		Error:     "",
 	})
-
 	if err != nil {
 		bytes, _ = json.Marshal(JSON{Error: fmt.Sprintf("cannot get version: %v", err)})
 	}
@@ -62,7 +61,7 @@ func PrintVersionWriter(writer io.Writer, format string) {
 		versionBytes := newVersionJSON()
 		fmt.Fprint(writer, string(versionBytes))
 	default:
-		fmt.Fprint(writer, fmt.Sprintf("Unknown format: %s", format))
+		fmt.Fprintf(writer, "Unknown format: %s", format)
 	}
 }
 

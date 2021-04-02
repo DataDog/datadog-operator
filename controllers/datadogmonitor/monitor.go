@@ -7,6 +7,7 @@ package datadogmonitor
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"sort"
@@ -220,11 +221,13 @@ func translateClientError(err error, msg string) error {
 		msg = "an error occurred"
 	}
 
-	if apiErr, ok := err.(datadogapiclientv1.GenericOpenAPIError); ok {
+	var apiErr datadogapiclientv1.GenericOpenAPIError
+	var errURL *url.Error
+	if errors.As(err, &apiErr) {
 		return fmt.Errorf(msg+": %w: %s", err, apiErr.Body())
 	}
 
-	if errURL, ok := err.(*url.Error); ok {
+	if errors.As(err, &errURL) {
 		return fmt.Errorf(msg+" (url.Error): %s", errURL)
 	}
 

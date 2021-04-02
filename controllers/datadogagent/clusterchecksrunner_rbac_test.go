@@ -25,14 +25,15 @@ import (
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
 func TestReconciler_manageClusterChecksRunnerRBACs(t *testing.T) {
 	t.Helper()
-	logf.SetLogger(logf.ZapLogger(true))
-	logger := logf.Log.Logger
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+	logger := logf.Log.WithName(t.Name())
 	eventBroadcaster := record.NewBroadcaster()
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "TestReconciler_manageClusterChecksRunnerRBACs"})
 	forwarders := dummyManager{}

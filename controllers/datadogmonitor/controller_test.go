@@ -22,8 +22,9 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 
 	datadogapiclientv1 "github.com/DataDog/datadog-api-client-go/api/v1/datadog"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
@@ -39,7 +40,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 	eventBroadcaster := record.NewBroadcaster()
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "TestReconcileDatadogMonitor_Reconcile"})
 
-	logf.SetLogger(logf.ZapLogger(true))
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
 
 	s := scheme.Scheme
 	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogMonitor{})

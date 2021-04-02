@@ -20,25 +20,25 @@ import (
 func NewClient(clientConfig clientcmd.ClientConfig) (client.Client, error) {
 	restConfig, err := clientConfig.ClientConfig()
 	if err != nil {
-		return nil, fmt.Errorf("unable to get rest client config: %v", err)
+		return nil, fmt.Errorf("unable to get rest client config: %w", err)
 	}
 
 	// Create the mapper provider
 	mapper, err := apiutil.NewDiscoveryRESTMapper(restConfig)
 	if err != nil {
-		return nil, fmt.Errorf("unable to to instantiate mapper: %v", err)
+		return nil, fmt.Errorf("unable to to instantiate mapper: %w", err)
 	}
 
 	// Register DatadogAgent scheme
 	if err = v1alpha1.AddToScheme(scheme.Scheme); err != nil {
-		return nil, fmt.Errorf("unable register DatadogAgent apis: %v", err)
+		return nil, fmt.Errorf("unable register DatadogAgent apis: %w", err)
 	}
 
 	// Create the Client for Read/Write operations.
 	var newClient client.Client
 	newClient, err = client.New(restConfig, client.Options{Scheme: scheme.Scheme, Mapper: mapper})
 	if err != nil {
-		return nil, fmt.Errorf("unable to instantiate client: %v", err)
+		return nil, fmt.Errorf("unable to instantiate client: %w", err)
 	}
 
 	return newClient, nil
@@ -48,12 +48,12 @@ func NewClient(clientConfig clientcmd.ClientConfig) (client.Client, error) {
 func NewClientset(clientConfig clientcmd.ClientConfig) (*kubernetes.Clientset, error) {
 	restConfig, err := clientConfig.ClientConfig()
 	if err != nil {
-		return nil, fmt.Errorf("unable to get rest client config: %v", err)
+		return nil, fmt.Errorf("unable to get rest client config: %w", err)
 	}
 
 	clientset, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
-		return nil, fmt.Errorf("unable to instantiate client: %v", err)
+		return nil, fmt.Errorf("unable to instantiate client: %w", err)
 	}
 
 	return clientset, nil

@@ -58,6 +58,7 @@ func newOptions(streams genericclioptions.IOStreams) *options {
 		IOStreams: streams,
 	}
 	o.SetConfigFlags()
+
 	return o
 }
 
@@ -73,9 +74,11 @@ func New(streams genericclioptions.IOStreams) *cobra.Command {
 			if err := o.complete(c, args); err != nil {
 				return err
 			}
+
 			if err := o.validate(c); err != nil {
 				return err
 			}
+
 			return o.run(c)
 		},
 	}
@@ -95,8 +98,9 @@ func (o *options) complete(cmd *cobra.Command, args []string) error {
 	var err error
 	o.restConfig, err = o.ConfigFlags.ToRawKubeConfigLoader().ClientConfig()
 	if err != nil {
-		return fmt.Errorf("unable to instantiate restConfig: %v", err)
+		return fmt.Errorf("unable to instantiate restConfig: %w", err)
 	}
+
 	return o.Init(cmd)
 }
 
@@ -105,6 +109,7 @@ func (o *options) validate(cmd *cobra.Command) error {
 	if podName != "" && node != "" {
 		cmd.Println("pod-name and node flags are both set, ignoring the node flag")
 	}
+
 	return nil
 }
 
@@ -118,7 +123,7 @@ func (o *options) run(cmd *cobra.Command) error {
 		var err error
 		pod, err := o.getPodByName(podName)
 		if err != nil {
-			return fmt.Errorf("unable to get Agent pod: %v", err)
+			return fmt.Errorf("unable to get Agent pod: %w", err)
 		}
 		pods = append(pods, pod)
 		cmd.Println(fmt.Sprintf("Agent %s found", podName))
@@ -130,7 +135,7 @@ func (o *options) run(cmd *cobra.Command) error {
 			LabelSelector: common.AgentLabel,
 		})
 		if err != nil {
-			return fmt.Errorf("unable to get Agent pods: %v", err)
+			return fmt.Errorf("unable to get Agent pods: %w", err)
 		}
 		cmd.Println(fmt.Sprintf("Agents running on node %s found", node))
 		goRoutinesCount = 1
@@ -140,13 +145,13 @@ func (o *options) run(cmd *cobra.Command) error {
 			LabelSelector: common.AgentLabel,
 		})
 		if err != nil {
-			return fmt.Errorf("unable to get Agent pods: %v", err)
+			return fmt.Errorf("unable to get Agent pods: %w", err)
 		}
 		clcPods, err := o.getPodsByOptions(metav1.ListOptions{
 			LabelSelector: common.ClcRunnerLabel,
 		})
 		if err != nil {
-			return fmt.Errorf("unable to get Agent pods: %v", err)
+			return fmt.Errorf("unable to get Agent pods: %w", err)
 		}
 		cmd.Println(fmt.Sprintf("Found %d node Agents and %d Cluster-Check Runners", len(pods), len(clcPods)))
 		pods = append(pods, clcPods...)
@@ -196,18 +201,21 @@ func (o *options) run(cmd *cobra.Command) error {
 			}
 		}()
 	}
+
 	for _, p := range pods {
 		podChan <- p
 	}
 	close(podChan)
 	wg.Wait()
+
 	for podName, errors := range podErrors {
 		cmd.Println(fmt.Sprintf("Errors reported by Agent %s", podName))
 		for _, err := range errors {
 			cmd.Println(err)
 		}
-		fmt.Printf("\n")
+		fmt.Printf("\n") //nolint:forbidigo
 	}
+
 	return nil
 }
 
@@ -221,7 +229,7 @@ func (o *options) execInPod(pod *corev1.Pod, cmd []string, container string) (st
 
 	scheme := runtime.NewScheme()
 	if err := corev1.AddToScheme(scheme); err != nil {
-		return "", "", fmt.Errorf("error adding to scheme: %v", err)
+		return "", "", fmt.Errorf("error adding to scheme: %w", err)
 	}
 
 	parameterCodec := runtime.NewParameterCodec(scheme)
@@ -259,6 +267,7 @@ func (o *options) getPodsByOptions(opts metav1.ListOptions) ([]corev1.Pod, error
 	if err != nil {
 		return []corev1.Pod{}, err
 	}
+
 	return podList.Items, nil
 }
 
@@ -268,6 +277,7 @@ func (o *options) getPodByName(name string) (corev1.Pod, error) {
 	if err != nil {
 		return corev1.Pod{}, err
 	}
+
 	return *pod, nil
 }
 
@@ -292,6 +302,7 @@ func findErrors(statusJSON string) ([]string, bool, error) {
 			}
 		}
 	}
+
 	return errors, len(errors) > 0, nil
 }
 
@@ -299,5 +310,6 @@ func isCLCRunner(pod corev1.Pod) bool {
 	if value, found := pod.GetLabels()[common.ComponentLabelKey]; found && value == common.ClcRunnerLabelValue {
 		return true
 	}
+
 	return false
 }

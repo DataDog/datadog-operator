@@ -13,13 +13,13 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
-// options provides information required by ad command
+// options provides information required by ad command.
 type options struct {
 	genericclioptions.IOStreams
 	configFlags *genericclioptions.ConfigFlags
 }
 
-// newOptions provides an instance of options with default values
+// newOptions provides an instance of options with default values.
 func newOptions(streams genericclioptions.IOStreams) *options {
 	return &options{
 		configFlags: genericclioptions.NewConfigFlags(false),
@@ -27,7 +27,7 @@ func newOptions(streams genericclioptions.IOStreams) *options {
 	}
 }
 
-// New provides a cobra command wrapping options for "ad" sub command
+// New provides a cobra command wrapping options for "ad" sub command.
 func New(streams genericclioptions.IOStreams) *cobra.Command {
 	cmd := &cobra.Command{
 		Use: "ad [subcommand] [flags]",

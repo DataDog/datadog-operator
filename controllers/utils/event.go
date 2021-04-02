@@ -12,7 +12,7 @@ import (
 )
 
 // EventInfo contains the required information
-// to create Kubernetes and Datadog events
+// to create Kubernetes and Datadog events.
 type EventInfo struct {
 	objName      string
 	objNamespace string
@@ -20,7 +20,7 @@ type EventInfo struct {
 	eventType    datadog.EventType
 }
 
-// BuildEventInfo creates a new EventInfo instance
+// BuildEventInfo creates a new EventInfo instance.
 func BuildEventInfo(name, ns, kind string, eventType datadog.EventType) EventInfo {
 	return EventInfo{
 		objName:      name,
@@ -30,20 +30,21 @@ func BuildEventInfo(name, ns, kind string, eventType datadog.EventType) EventInf
 	}
 }
 
-// GetReason returns the event reason
+// GetReason returns the event reason.
 func (ei *EventInfo) GetReason() string {
 	return fmt.Sprintf("%s %s", ei.eventType, ei.objKind)
 }
 
-// GetMessage returns the event message
+// GetMessage returns the event message.
 func (ei *EventInfo) GetMessage() string {
 	return fmt.Sprintf("%s/%s", ei.objNamespace, ei.objName)
 }
 
-// GetDDEvent builds and returns a Datadog event
+// GetDDEvent builds and returns a Datadog event.
 func (ei *EventInfo) GetDDEvent() datadog.Event {
 	reason := ei.GetReason()
 	message := ei.GetMessage()
+
 	return datadog.Event{
 		Title: fmt.Sprintf("%s %s", reason, message),
 		Type:  ei.eventType,

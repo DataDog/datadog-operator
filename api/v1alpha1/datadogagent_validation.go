@@ -18,7 +18,7 @@ func IsValidDatadogAgent(spec *DatadogAgentSpec) error {
 	if spec.Agent != nil {
 		if spec.Agent.CustomConfig != nil {
 			if err = IsValidCustomConfigSpec(spec.Agent.CustomConfig); err != nil {
-				errs = append(errs, fmt.Errorf("invalid spec.agent.customConfig, err: %v", err))
+				errs = append(errs, fmt.Errorf("invalid spec.agent.customConfig, err: %w", err))
 			}
 		}
 	}
@@ -26,7 +26,7 @@ func IsValidDatadogAgent(spec *DatadogAgentSpec) error {
 	if spec.ClusterAgent != nil {
 		if spec.ClusterAgent.CustomConfig != nil {
 			if err = IsValidCustomConfigSpec(spec.ClusterAgent.CustomConfig); err != nil {
-				errs = append(errs, fmt.Errorf("invalid spec.clusterAgent.customConfig, err: %v", err))
+				errs = append(errs, fmt.Errorf("invalid spec.clusterAgent.customConfig, err: %w", err))
 			}
 		}
 	}
@@ -34,7 +34,7 @@ func IsValidDatadogAgent(spec *DatadogAgentSpec) error {
 	if spec.ClusterChecksRunner != nil {
 		if spec.ClusterChecksRunner.CustomConfig != nil {
 			if err = IsValidCustomConfigSpec(spec.ClusterChecksRunner.CustomConfig); err != nil {
-				errs = append(errs, fmt.Errorf("invalid spec.clusterChecksRunner.customConfig, err: %v", err))
+				errs = append(errs, fmt.Errorf("invalid spec.clusterChecksRunner.customConfig, err: %w", err))
 			}
 		}
 	}
@@ -42,10 +42,11 @@ func IsValidDatadogAgent(spec *DatadogAgentSpec) error {
 	if spec.Features != nil && spec.Features.KubeStateMetricsCore != nil {
 		if spec.Features.KubeStateMetricsCore.Conf != nil {
 			if err = IsValidCustomConfigSpec(spec.Features.KubeStateMetricsCore.Conf); err != nil {
-				errs = append(errs, fmt.Errorf("invalid spec.features.kubeStateMetricsCore.conf, err: %v", err))
+				errs = append(errs, fmt.Errorf("invalid spec.features.kubeStateMetricsCore.conf, err: %w", err))
 			}
 		}
 	}
+
 	return utilserrors.NewAggregate(errs)
 }
 
@@ -54,5 +55,6 @@ func IsValidCustomConfigSpec(ccs *CustomConfigSpec) error {
 	if ccs.ConfigData != nil && ccs.ConfigMap != nil {
 		return fmt.Errorf("'configData' and 'configMap' should not be set at the same time")
 	}
+
 	return nil
 }

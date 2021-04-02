@@ -17,13 +17,13 @@ import (
 	"k8s.io/client-go/util/retry"
 )
 
-// Creds holds the api and app keys
+// Creds holds the api and app keys.
 type Creds struct {
 	APIKey string
 	AppKey string
 }
 
-// CredentialManager provides the credentials from the operator configuration
+// CredentialManager provides the credentials from the operator configuration.
 type CredentialManager struct {
 	secretBackend    secrets.Decryptor
 	creds            Creds
@@ -31,7 +31,7 @@ type CredentialManager struct {
 	decryptorBackoff wait.Backoff
 }
 
-// NewCredentialManager returns a CredentialManager
+// NewCredentialManager returns a CredentialManager.
 func NewCredentialManager() *CredentialManager {
 	return &CredentialManager{
 		secretBackend: secrets.NewSecretBackend(),
@@ -45,9 +45,9 @@ func NewCredentialManager() *CredentialManager {
 	}
 }
 
-// GetCredentials returns the API and APP keys respectively from the operator configurations
-// This function tries to decrypt the secrets using the secret backend if needed
-// It returns an error if the creds aren't configured or if the secret backend fails to decrypt
+// GetCredentials returns the API and APP keys respectively from the operator configurations.
+// This function tries to decrypt the secrets using the secret backend if needed.
+// It returns an error if the creds aren't configured or if the secret backend fails to decrypt.
 func (cm *CredentialManager) GetCredentials() (Creds, error) {
 	if creds, found := cm.getCredsFromCache(); found {
 		return creds, nil
@@ -74,6 +74,7 @@ func (cm *CredentialManager) GetCredentials() (Creds, error) {
 		var decErr error
 		if err := retry.OnError(cm.decryptorBackoff, secrets.Retriable, func() error {
 			decrypted, decErr = cm.secretBackend.Decrypt(encrypted)
+
 			return decErr
 		}); err != nil {
 			return Creds{}, err
@@ -90,6 +91,7 @@ func (cm *CredentialManager) GetCredentials() (Creds, error) {
 
 	creds := Creds{APIKey: apiKey, AppKey: appKey}
 	cm.cacheCreds(creds)
+
 	return creds, nil
 }
 
@@ -105,5 +107,6 @@ func (cm *CredentialManager) getCredsFromCache() (Creds, bool) {
 	if cm.creds.APIKey != "" && cm.creds.AppKey != "" {
 		return cm.creds, true
 	}
+
 	return Creds{}, false
 }

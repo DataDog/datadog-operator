@@ -15,12 +15,12 @@ import (
 
 const datadogMonitorKind = "DatadogMonitor"
 
-// buildEventInfo creates a new EventInfo instance
+// buildEventInfo creates a new EventInfo instance.
 func buildEventInfo(name, ns string, eventType datadog.EventType) utils.EventInfo {
 	return utils.BuildEventInfo(name, ns, datadogMonitorKind, eventType)
 }
 
-// recordEvent wraps the manager event recorder
+// recordEvent wraps the manager event recorder.
 func (r *Reconciler) recordEvent(dm *datadoghqv1alpha1.DatadogMonitor, info utils.EventInfo) {
 	r.recorder.Event(dm, corev1.EventTypeNormal, info.GetReason(), info.GetMessage())
 }

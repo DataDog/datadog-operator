@@ -49,6 +49,7 @@ func NewForwardersManager(k8sClient client.Client) *ForwardersManager {
 func (f *ForwardersManager) Start(stop <-chan struct{}) error {
 	<-stop
 	f.stopAllForwarders()
+
 	return nil
 }
 
@@ -56,7 +57,7 @@ func (f *ForwardersManager) Start(stop <-chan struct{}) error {
 func (f *ForwardersManager) Register(obj MonitoredObject) {
 	f.Lock()
 	defer f.Unlock()
-	id := getObjID(obj)
+	id := getObjID(obj) // nolint: ifshort
 	if _, found := f.forwarders[id]; !found {
 		log.Info("New Datadog metrics forwarder registred", "ID", id)
 		f.forwarders[id] = newMetricsForwarder(f.k8sClient, f.decryptor, obj)
@@ -71,6 +72,7 @@ func (f *ForwardersManager) Unregister(obj MonitoredObject) {
 	log.Info("Unregistering metrics forwarder", "ID", id)
 	if err := f.unregisterForwarder(id); err != nil {
 		log.Error(err, "cannot unregister metrics forwarder", "ID", id)
+
 		return
 	}
 }
@@ -82,11 +84,13 @@ func (f *ForwardersManager) ProcessError(obj MonitoredObject, reconcileErr error
 	forwarder, err := f.getForwarder(id)
 	if err != nil {
 		log.Error(err, "cannot process error")
+
 		return
 	}
 	if forwarder.isErrChanFull() {
 		// Discard sending the error to avoid blocking this method
 		log.Error(fmt.Errorf("metrics forwarder %s: blocked error forwarding", id), "cannot process error")
+
 		return
 	}
 	forwarder.errorChan <- reconcileErr
@@ -98,11 +102,13 @@ func (f *ForwardersManager) ProcessEvent(obj MonitoredObject, event Event) {
 	forwarder, err := f.getForwarder(id)
 	if err != nil {
 		log.Error(err, "cannot process event")
+
 		return
 	}
 	if forwarder.isEventChanFull() {
 		// Discard sending the event to avoid blocking this method
 		log.Error(fmt.Errorf("metrics forwarder %s: blocked event forwarding", id), "cannot process event")
+
 		return
 	}
 	forwarder.eventChan <- event
@@ -116,6 +122,7 @@ func (f *ForwardersManager) MetricsForwarderStatusForObj(obj MonitoredObject) *d
 		// forwarder not present yet
 		return nil
 	}
+
 	return forwarder.getStatus()
 }
 
@@ -139,6 +146,7 @@ func (f *ForwardersManager) unregisterForwarder(id string) error {
 	}
 	f.forwarders[id].stop()
 	delete(f.forwarders, id)
+
 	return nil
 }
 
@@ -150,5 +158,6 @@ func (f *ForwardersManager) getForwarder(id string) (*metricsForwarder, error) {
 	if !found {
 		return nil, fmt.Errorf("%s not found", id)
 	}
+
 	return forwarder, nil
 }

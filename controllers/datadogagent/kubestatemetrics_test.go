@@ -2,13 +2,14 @@ package datadogagent
 
 import (
 	"fmt"
+	"io/ioutil"
+	"testing"
+
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/yaml.v2"
-	"io/ioutil"
+	"gopkg.in/yaml.v3"
 	rbacv1 "k8s.io/api/rbac/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"testing"
 )
 
 func TestBuildKubeStateMetricsCoreRBAC(t *testing.T) {

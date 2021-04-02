@@ -126,10 +126,10 @@ func (sb *SecretBackend) execCommand(inputPayload string) ([]byte, error) {
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		if ctx.Err() == context.DeadlineExceeded {
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 			return nil, fmt.Errorf("error while running '%s': command timeout", sb.cmd)
 		}
-		return nil, fmt.Errorf("error while running '%s': %s", sb.cmd, err)
+		return nil, fmt.Errorf("error while running '%s': %w", sb.cmd, err)
 	}
 
 	return stdout.buf.Bytes(), nil

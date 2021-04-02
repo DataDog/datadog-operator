@@ -42,6 +42,7 @@ func UpdateDatadogAgentStatusCondition(condition *datadoghqv1alpha1.DatadogAgent
 	}
 	condition.LastUpdateTime = now
 	condition.Message = desc
+
 	return condition
 }
 
@@ -72,11 +73,13 @@ func getIndexForConditionType(status *datadoghqv1alpha1.DatadogAgentStatus, t da
 	if status == nil {
 		return idCondition
 	}
+
 	for i, condition := range status.Conditions {
 		if condition.Type == t {
 			idCondition = i
 			break
 		}
 	}
+
 	return idCondition
 }

@@ -15,14 +15,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 )
 
 var (
-	testLogger logr.Logger = logf.ZapLogger(true)
+	testLogger logr.Logger = zap.New(zap.UseDevMode(true))
 )
 
 func Test_handleFinalizer(t *testing.T) {

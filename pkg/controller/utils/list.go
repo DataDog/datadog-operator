@@ -7,6 +7,7 @@ func ContainsString(list []string, s string) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -17,5 +18,6 @@ func RemoveString(list []string, s string) []string {
 			list = append(list[:i], list[i+1:]...)
 		}
 	}
+
 	return list
 }

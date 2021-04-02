@@ -138,7 +138,7 @@ func buildConfigurationConfigMap(dda *datadoghqv1alpha1.DatadogAgent, cfcm *data
 	// Maybe later we can implement that directly verifies against Agent configuration?
 	m := make(map[interface{}]interface{})
 	if err := yaml.Unmarshal([]byte(configData), m); err != nil {
-		return nil, fmt.Errorf("unable to parse YAML from 'customConfig.ConfigData' field: %v", err)
+		return nil, fmt.Errorf("unable to parse YAML from 'customConfig.ConfigData' field: %w", err)
 	}
 
 	configMap := &corev1.ConfigMap{

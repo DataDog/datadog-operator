@@ -11,7 +11,6 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
@@ -23,7 +22,7 @@ import (
 var (
 	// apiVersion datadoghqv1alpha1 api version
 	apiVersion = fmt.Sprintf("%s/%s", datadoghqv1alpha1.GroupVersion.Group, datadoghqv1alpha1.GroupVersion.Version)
-	pullPolicy = v1.PullIfNotPresent
+	pullPolicy = corev1.PullIfNotPresent
 )
 
 // NewDatadogAgentOptions set of option for the DatadogAgent creation
@@ -279,7 +278,6 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 		if options.ProcessCollectionEnabled {
 			ad.Spec.Agent.Process.Enabled = datadoghqv1alpha1.NewBoolPointer(true)
 			ad.Spec.Agent.Process.ProcessCollectionEnabled = datadoghqv1alpha1.NewBoolPointer(true)
-
 		}
 
 		if options.HostNetwork {
@@ -359,6 +357,7 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 			}
 		}
 	}
+
 	return datadoghqv1alpha1.DefaultDatadogAgent(ad)
 }
 

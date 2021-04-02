@@ -1197,7 +1197,8 @@ func buildClusterAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, age
 					datadoghqv1alpha1.ListVerb,
 					datadoghqv1alpha1.WatchVerb,
 					datadoghqv1alpha1.CreateVerb,
-					datadoghqv1alpha1.DeleteVerb},
+					datadoghqv1alpha1.DeleteVerb,
+				},
 			})
 
 			// Specific update rule for status subresource
@@ -1215,7 +1216,8 @@ func buildClusterAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, age
 				Verbs: []string{
 					datadoghqv1alpha1.ListVerb,
 					datadoghqv1alpha1.WatchVerb,
-					datadoghqv1alpha1.GetVerb},
+					datadoghqv1alpha1.GetVerb,
+				},
 			})
 		}
 	}
@@ -1230,7 +1232,8 @@ func buildClusterAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, age
 				datadoghqv1alpha1.ListVerb,
 				datadoghqv1alpha1.WatchVerb,
 				datadoghqv1alpha1.CreateVerb,
-				datadoghqv1alpha1.UpdateVerb},
+				datadoghqv1alpha1.UpdateVerb,
+			},
 		})
 
 		// Secrets
@@ -1242,7 +1245,8 @@ func buildClusterAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, age
 				datadoghqv1alpha1.ListVerb,
 				datadoghqv1alpha1.WatchVerb,
 				datadoghqv1alpha1.CreateVerb,
-				datadoghqv1alpha1.UpdateVerb},
+				datadoghqv1alpha1.UpdateVerb,
+			},
 		})
 
 		// ExtendedDaemonsetReplicaSets

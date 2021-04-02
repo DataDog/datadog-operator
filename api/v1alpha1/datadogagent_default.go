@@ -216,9 +216,11 @@ func IsDefaultedKubeStateMetricsCore(ksmCore *KubeStateMetricsCore) bool {
 	if ksmCore == nil {
 		return false
 	}
+
 	if ksmCore.Enabled == nil {
 		return false
 	}
+
 	return true
 }
 
@@ -497,6 +499,7 @@ func DefaultDatadogAgentSpecAgent(agent *DatadogAgentSpecAgentSpec) *DatadogAgen
 	if agent.UseExtendedDaemonset == nil {
 		agent.UseExtendedDaemonset = NewBoolPointer(false)
 	}
+
 	DefaultDatadogAgentSpecAgentImage(&agent.Image)
 	DefaultDatadogAgentSpecAgentConfig(&agent.Config)
 	DefaultDatadogAgentSpecRbacConfig(&agent.Rbac)
@@ -505,6 +508,7 @@ func DefaultDatadogAgentSpecAgent(agent *DatadogAgentSpecAgentSpec) *DatadogAgen
 	DefaultDatadogAgentSpecAgentLog(&agent.Log)
 	DefaultDatadogAgentSpecAgentProcess(&agent.Process)
 	DefaultNetworkPolicy(&agent.NetworkPolicy)
+
 	return agent
 }
 
@@ -608,6 +612,7 @@ func DefaultConfigDogstatsdUDS(uds *DSDUnixDomainSocketSpec) *DSDUnixDomainSocke
 		socketPath := path.Join(defaultHostDogstatsdSocketPath, defaultHostDogstatsdSocketName)
 		uds.HostFilepath = &socketPath
 	}
+
 	return uds
 }
 
@@ -724,6 +729,7 @@ func DefaultDatadogAgentSpecAgentApmUDS(uds *APMUnixDomainSocketSpec) *APMUnixDo
 		socketPath := path.Join(defaultHostApmSocketPath, defaultHostApmSocketName)
 		uds.HostFilepath = &socketPath
 	}
+
 	return uds
 }
 
@@ -788,9 +794,11 @@ func DefaultFeatures(ft *DatadogFeatures) *DatadogFeatures {
 	if ft == nil {
 		return &DatadogFeatures{}
 	}
+
 	ft.OrchestratorExplorer = DefaultDatadogFeatureOrchestratorExplorer(ft.OrchestratorExplorer)
 	ft.KubeStateMetricsCore = DefaultDatadogFeatureKubeStateMetricsCore(ft.KubeStateMetricsCore)
 	ft.PrometheusScrape = DefaultDatadogFeaturePrometheusScrape(ft.PrometheusScrape)
+
 	return ft
 }
 
@@ -850,9 +858,11 @@ func DefaultDatadogAgentSpecClusterAgent(clusterAgent *DatadogAgentSpecClusterAg
 	DefaultDatadogAgentSpecClusterAgentConfig(&clusterAgent.Config)
 	DefaultDatadogAgentSpecRbacConfig(&clusterAgent.Rbac)
 	DefaultNetworkPolicy(&clusterAgent.NetworkPolicy)
+
 	if clusterAgent.Replicas == nil {
 		clusterAgent.Replicas = NewInt32Pointer(defaultClusterAgentReplicas)
 	}
+
 	return clusterAgent
 }
 
@@ -896,6 +906,7 @@ func GetKubeStateMetricsConfName(dcaConf *DatadogAgent) string {
 	if dcaConf.Spec.Features.KubeStateMetricsCore.Conf != nil && dcaConf.Spec.Features.KubeStateMetricsCore.Conf.ConfigMap != nil {
 		return dcaConf.Spec.Features.KubeStateMetricsCore.Conf.ConfigMap.Name
 	}
+
 	return fmt.Sprintf("%s-%s", dcaConf.Name, DefaultKubeStateMetricsCoreConf)
 }
 
@@ -928,9 +939,11 @@ func DefaultDatadogAgentSpecClusterChecksRunner(clusterChecksRunner *DatadogAgen
 	DefaultDatadogAgentSpecClusterChecksRunnerConfig(&clusterChecksRunner.Config)
 	DefaultDatadogAgentSpecRbacConfig(&clusterChecksRunner.Rbac)
 	DefaultNetworkPolicy(&clusterChecksRunner.NetworkPolicy)
+
 	if clusterChecksRunner.Replicas == nil {
 		clusterChecksRunner.Replicas = NewInt32Pointer(defaultClusterChecksRunnerReplicas)
 	}
+
 	return clusterChecksRunner
 }
 

@@ -11,11 +11,11 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 func TestKSMCoreGetEnvVarsForAgent(t *testing.T) {
-	logger := logf.Log.Logger
+	logger := logf.Log.WithName(t.Name())
 	enabledFeature := true
 	spec := generateSpec()
 	spec.Spec.ClusterAgent.Config.ClusterChecksEnabled = &enabledFeature
@@ -277,7 +277,7 @@ func Test_prometheusScrapeEnvVars(t *testing.T) {
 					PrometheusScrape: tt.promConfig,
 				},
 			})
-			assert.EqualValues(t, tt.want, prometheusScrapeEnvVars(logf.Log.Logger, dda))
+			assert.EqualValues(t, tt.want, prometheusScrapeEnvVars(logf.Log.WithName(t.Name()), dda))
 		})
 	}
 }
@@ -364,7 +364,7 @@ func Test_dsdMapperProfilesEnvVar(t *testing.T) {
 					Dogstatsd: &datadoghqv1alpha1.DogstatsdConfig{MapperProfiles: tt.dsdMapperProfilesConf},
 				},
 			})
-			assert.EqualValues(t, tt.want, dsdMapperProfilesEnvVar(logf.Log.Logger, dda))
+			assert.EqualValues(t, tt.want, dsdMapperProfilesEnvVar(logf.Log.WithName(t.Name()), dda))
 		})
 	}
 }

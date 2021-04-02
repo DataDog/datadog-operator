@@ -22,6 +22,7 @@ func extractHandles(encData []string) ([]string, error) {
 		}
 		handles = append(handles, handle)
 	}
+
 	return handles, nil
 }
 
@@ -35,6 +36,7 @@ func extractHandle(str string) (string, error) {
 	if IsEnc(str) {
 		return str[4 : len(str)-1], nil
 	}
+
 	return "", fmt.Errorf("wrong format, want ENC[<hanlde>], got: %s", str)
 }
 
@@ -52,5 +54,6 @@ func (b *limitBuffer) Write(p []byte) (n int, err error) {
 	if len(p)+b.buf.Len() > b.max {
 		return 0, fmt.Errorf("command output was too long: exceeded %d bytes", b.max)
 	}
+
 	return b.buf.Write(p)
 }

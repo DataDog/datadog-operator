@@ -111,7 +111,6 @@ func (r *Reconciler) reconcileAgent(logger logr.Logger, dda *datadoghqv1alpha1.D
 	}
 
 	return r.updateDaemonSet(logger, dda, ds, newStatus)
-
 }
 
 func (r *Reconciler) deleteDaemonSet(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, ds *appsv1.DaemonSet) error {

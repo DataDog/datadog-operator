@@ -17,12 +17,10 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 )
 
-var (
-	findExample = `
+var findExample = `
   # find the datadog agent pod monitoring a pod named foo
   %[1]s find foo
 `
-)
 
 // options provides information required by Datadog find command
 type options struct {

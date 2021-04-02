@@ -30,7 +30,7 @@ import (
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 )
 
-// DatadogAgentReconciler reconciles a DatadogAgent object
+// DatadogAgentReconciler reconciles a DatadogAgent object.
 type DatadogAgentReconciler struct {
 	client.Client
 	VersionInfo *version.Info
@@ -96,12 +96,12 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=policy,resources=poddisruptionbudgets,verbs=*
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=*
 
-// Reconcile loop for DatadogAgent
-func (r *DatadogAgentReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	return r.internal.Reconcile(context.Background(), req)
+// Reconcile loop for DatadogAgent.
+func (r *DatadogAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	return r.internal.Reconcile(ctx, req)
 }
 
-// SetupWithManager creates a new DatadogAgent controller
+// SetupWithManager creates a new DatadogAgent controller.
 func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	builder := ctrl.NewControllerManagedBy(mgr).
 		Owns(&corev1.Secret{}).
@@ -124,9 +124,10 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if r.Options.OperatorMetricsEnabled {
 		metricForwarder = datadog.NewForwardersManager(r.Client)
 		builder = builder.For(&datadoghqv1alpha1.DatadogAgent{}, ctrlbuilder.WithPredicates(predicate.Funcs{
-			// On `DatadogAgent` object creation, we register a metrics forwarder for it
+			// On `DatadogAgent` object creation, we register a metrics forwarder for it.
 			CreateFunc: func(e event.CreateEvent) bool {
-				metricForwarder.Register(e.Meta)
+				metricForwarder.Register(e.Object)
+
 				return true
 			},
 		}))

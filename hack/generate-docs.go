@@ -83,15 +83,13 @@ func mustReadFile(path string) []byte {
 }
 
 func mustWrite(f io.Writer, b []byte) {
-	_, err := f.Write(b)
-	if err != nil {
+	if _, err := f.Write(b); err != nil {
 		panic(fmt.Sprintf("cannot write to file: %s", err))
 	}
 }
 
 func mustWriteString(f io.StringWriter, b string) {
-	_, err := f.WriteString(b)
-	if err != nil {
+	if _, err := f.WriteString(b); err != nil {
 		panic(fmt.Sprintf("cannot write to file: %s", err))
 	}
 }

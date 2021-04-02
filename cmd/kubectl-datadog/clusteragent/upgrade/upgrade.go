@@ -35,7 +35,7 @@ var (
 `
 )
 
-// options provides information required by clusteragent upgrade command
+// options provides information required by clusteragent upgrade command.
 type options struct {
 	genericclioptions.IOStreams
 	common.Options
@@ -43,7 +43,7 @@ type options struct {
 	userDatadogAgentName string
 }
 
-// newOptions provides an instance of options with default values
+// newOptions provides an instance of options with default values.
 func newOptions(streams genericclioptions.IOStreams) *options {
 	o := &options{
 		IOStreams: streams,
@@ -52,7 +52,7 @@ func newOptions(streams genericclioptions.IOStreams) *options {
 	return o
 }
 
-// New provides a cobra command wrapping options for "upgrade" sub command
+// New provides a cobra command wrapping options for "upgrade" sub command.
 func New(streams genericclioptions.IOStreams) *cobra.Command {
 	o := newOptions(streams)
 	cmd := &cobra.Command{
@@ -79,26 +79,27 @@ func New(streams genericclioptions.IOStreams) *cobra.Command {
 	return cmd
 }
 
-// complete sets all information required for processing the command
+// complete sets all information required for processing the command.
 func (o *options) complete(cmd *cobra.Command, args []string) error {
 	o.args = args
 	if len(args) > 0 {
 		o.userDatadogAgentName = args[0]
 	}
+
 	return o.Init(cmd)
 }
 
-// validate ensures that all required arguments and flag values are provided
+// validate ensures that all required arguments and flag values are provided.
 func (o *options) validate() error {
 	return common.ValidateUpgrade(image, latest)
 }
 
-// run runs the upgrade command
+// run runs the upgrade command.
 func (o *options) run(cmd *cobra.Command) error {
 	ddList := &v1alpha1.DatadogAgentList{}
 	if o.userDatadogAgentName == "" {
 		if err := o.Client.List(context.TODO(), ddList, &client.ListOptions{Namespace: o.UserNamespace}); err != nil {
-			return fmt.Errorf("unable to list DatadogAgent: %v", err)
+			return fmt.Errorf("unable to list DatadogAgent: %w", err)
 		}
 		if len(ddList.Items) == 0 {
 			return errors.New("cannot find any DatadogAgent")
@@ -109,10 +110,11 @@ func (o *options) run(cmd *cobra.Command) error {
 		if err != nil && apierrors.IsNotFound(err) {
 			return fmt.Errorf("DatadogAgent %s/%s not found", o.UserNamespace, o.userDatadogAgentName)
 		} else if err != nil {
-			return fmt.Errorf("unable to get DatadogAgent: %v", err)
+			return fmt.Errorf("unable to get DatadogAgent: %w", err)
 		}
 		ddList.Items = append(ddList.Items, *dd)
 	}
+
 	image = getImage()
 	for _, dd := range ddList.Items {
 		err := o.upgrade(dd, image)
@@ -122,10 +124,11 @@ func (o *options) run(cmd *cobra.Command) error {
 			cmd.Println(fmt.Sprintf("Cluster Agent image updated successfully in %s/%s", dd.GetNamespace(), dd.GetName()))
 		}
 	}
+
 	return nil
 }
 
-// upgrade updates the cluster agent version in the DatadogAgent object
+// upgrade updates the cluster agent version in the DatadogAgent object.
 func (o *options) upgrade(dd v1alpha1.DatadogAgent, image string) error {
 	if dd.Spec.ClusterAgent == nil {
 		return errors.New("cluster agent is not enabled")
@@ -134,8 +137,8 @@ func (o *options) upgrade(dd v1alpha1.DatadogAgent, image string) error {
 	if dd.Spec.ClusterAgent.Image.Name == image {
 		return fmt.Errorf("the current image is already %s", image)
 	}
-
 	dd.Spec.ClusterAgent.Image.Name = image
+
 	return o.Client.Update(context.TODO(), &dd)
 }
 
@@ -143,5 +146,6 @@ func getImage() string {
 	if image != "" {
 		return image
 	}
+
 	return latestImage
 }

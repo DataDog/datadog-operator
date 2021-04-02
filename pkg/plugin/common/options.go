@@ -29,13 +29,13 @@ func (o *Options) Init(cmd *cobra.Command) error {
 
 	client, err := NewClient(clientConfig)
 	if err != nil {
-		return fmt.Errorf("unable to instantiate client: %v", err)
+		return fmt.Errorf("unable to instantiate client: %w", err)
 	}
 	o.SetClient(client)
 
 	clientset, err := NewClientset(clientConfig)
 	if err != nil {
-		return fmt.Errorf("unable to instantiate clientset: %v", err)
+		return fmt.Errorf("unable to instantiate clientset: %w", err)
 	}
 	o.SetClientset(clientset)
 

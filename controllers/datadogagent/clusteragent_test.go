@@ -24,8 +24,9 @@ import (
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
 var testClusterAgentReplicas int32 = 1
@@ -120,8 +121,8 @@ type clusterAgentDeploymentFromInstanceTest struct {
 
 func (test clusterAgentDeploymentFromInstanceTest) Run(t *testing.T) {
 	t.Helper()
-	logf.SetLogger(logf.ZapLogger(true))
-	logger := logf.Log.Logger
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+	logger := logf.Log.WithName(t.Name())
 	got, _, err := newClusterAgentDeploymentFromInstance(logger, test.agentdeployment, test.selector)
 	if test.wantErr {
 		assert.Error(t, err, "newClusterAgentDeploymentFromInstance() expected an error")
@@ -418,7 +419,7 @@ func Test_newClusterAgentPrometheusScrapeEnabled(t *testing.T) {
 		},
 	)
 
-	logger := logf.Log.Logger
+	logger := logf.Log.WithName(t.Name())
 	clusterAgentPodSpec.Containers[0].Env = append(clusterAgentPodSpec.Containers[0].Env, prometheusScrapeEnvVars(logger, clusterAgentDeployment)...)
 
 	testDCA := clusterAgentDeploymentFromInstanceTest{
@@ -1218,7 +1219,7 @@ func TestReconcileDatadogAgent_createNewClusterAgentDeployment(t *testing.T) {
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "TestReconcileDatadogAgent_createNewClusterAgentDeployment"})
 	forwarders := dummyManager{}
 
-	logf.SetLogger(logf.ZapLogger(true))
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
 	localLog := logf.Log.WithName("TestReconcileDatadogAgent_createNewClusterAgentDeployment")
 
 	// Register operator types with the runtime scheme.

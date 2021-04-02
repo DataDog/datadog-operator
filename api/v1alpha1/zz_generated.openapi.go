@@ -108,7 +108,8 @@ func schema__api_v1alpha1_APMSpec(ref common.ReferenceCallback) common.OpenAPIDe
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("k8s.io/api/core/v1.EnvVar"),
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.EnvVar"),
 									},
 								},
 							},
@@ -130,7 +131,8 @@ func schema__api_v1alpha1_APMSpec(ref common.ReferenceCallback) common.OpenAPIDe
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("k8s.io/api/core/v1.VolumeMount"),
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.VolumeMount"),
 									},
 								},
 							},
@@ -373,7 +375,8 @@ func schema__api_v1alpha1_ClusterAgentConfig(ref common.ReferenceCallback) commo
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("k8s.io/api/core/v1.EnvVar"),
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.EnvVar"),
 									},
 								},
 							},
@@ -395,7 +398,8 @@ func schema__api_v1alpha1_ClusterAgentConfig(ref common.ReferenceCallback) commo
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("k8s.io/api/core/v1.VolumeMount"),
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.VolumeMount"),
 									},
 								},
 							},
@@ -416,7 +420,8 @@ func schema__api_v1alpha1_ClusterAgentConfig(ref common.ReferenceCallback) commo
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("k8s.io/api/core/v1.Volume"),
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.Volume"),
 									},
 								},
 							},
@@ -465,7 +470,8 @@ func schema__api_v1alpha1_ClusterChecksRunnerConfig(ref common.ReferenceCallback
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("k8s.io/api/core/v1.EnvVar"),
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.EnvVar"),
 									},
 								},
 							},
@@ -487,7 +493,8 @@ func schema__api_v1alpha1_ClusterChecksRunnerConfig(ref common.ReferenceCallback
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("k8s.io/api/core/v1.VolumeMount"),
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.VolumeMount"),
 									},
 								},
 							},
@@ -508,7 +515,8 @@ func schema__api_v1alpha1_ClusterChecksRunnerConfig(ref common.ReferenceCallback
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("k8s.io/api/core/v1.Volume"),
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.Volume"),
 									},
 								},
 							},
@@ -675,6 +683,7 @@ func schema__api_v1alpha1_DaemonSetDeploymentStrategy(ref common.ReferenceCallba
 					"rollingUpdate": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Configure the rolling updater strategy of the DaemonSet or the ExtendedDaemonSet",
+							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.DaemonSetRollingUpdateSpec"),
 						},
 					},
@@ -753,32 +762,37 @@ func schema__api_v1alpha1_DaemonSetStatus(ref common.ReferenceCallback) common.O
 				Properties: map[string]spec.Schema{
 					"desired": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"integer"},
-							Format: "int32",
+							Default: 0,
+							Type:    []string{"integer"},
+							Format:  "int32",
 						},
 					},
 					"current": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"integer"},
-							Format: "int32",
+							Default: 0,
+							Type:    []string{"integer"},
+							Format:  "int32",
 						},
 					},
 					"ready": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"integer"},
-							Format: "int32",
+							Default: 0,
+							Type:    []string{"integer"},
+							Format:  "int32",
 						},
 					},
 					"available": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"integer"},
-							Format: "int32",
+							Default: 0,
+							Type:    []string{"integer"},
+							Format:  "int32",
 						},
 					},
 					"upToDate": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"integer"},
-							Format: "int32",
+							Default: 0,
+							Type:    []string{"integer"},
+							Format:  "int32",
 						},
 					},
 					"status": {
@@ -843,17 +857,20 @@ func schema__api_v1alpha1_DatadogAgent(ref common.ReferenceCallback) common.Open
 					},
 					"metadata": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
 						},
 					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("./api/v1alpha1.DatadogAgentSpec"),
+							Default: map[string]interface{}{},
+							Ref:     ref("./api/v1alpha1.DatadogAgentSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("./api/v1alpha1.DatadogAgentStatus"),
+							Default: map[string]interface{}{},
+							Ref:     ref("./api/v1alpha1.DatadogAgentStatus"),
 						},
 					},
 				},
@@ -874,6 +891,7 @@ func schema__api_v1alpha1_DatadogAgentCondition(ref common.ReferenceCallback) co
 					"type": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Type of DatadogAgent condition.",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -881,6 +899,7 @@ func schema__api_v1alpha1_DatadogAgentCondition(ref common.ReferenceCallback) co
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Status of the condition, one of True, False, Unknown.",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -888,12 +907,14 @@ func schema__api_v1alpha1_DatadogAgentCondition(ref common.ReferenceCallback) co
 					"lastTransitionTime": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Last time the condition transitioned from one status to another.",
+							Default:     map[string]interface{}{},
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
 					"lastUpdateTime": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Last time the condition was updated.",
+							Default:     map[string]interface{}{},
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
@@ -930,6 +951,7 @@ func schema__api_v1alpha1_DatadogAgentSpec(ref common.ReferenceCallback) common.
 					"credentials": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Configure the credentials needed to run Agents. If not set, then the credentials set in the DatadogOperator will be used",
+							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.AgentCredentials"),
 						},
 					},
@@ -996,6 +1018,7 @@ func schema__api_v1alpha1_DatadogAgentSpecAgentSpec(ref common.ReferenceCallback
 					"image": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The container image of the Datadog Agent",
+							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.ImageConfig"),
 						},
 					},
@@ -1009,12 +1032,14 @@ func schema__api_v1alpha1_DatadogAgentSpecAgentSpec(ref common.ReferenceCallback
 					"config": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Agent configuration",
+							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.NodeAgentConfig"),
 						},
 					},
 					"rbac": {
 						SchemaProps: spec.SchemaProps{
 							Description: "RBAC configuration of the Agent",
+							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.RbacConfig"),
 						},
 					},
@@ -1032,8 +1057,9 @@ func schema__api_v1alpha1_DatadogAgentSpecAgentSpec(ref common.ReferenceCallback
 								Allows: true,
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Type:   []string{"string"},
-										Format: "",
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
 									},
 								},
 							},
@@ -1047,8 +1073,9 @@ func schema__api_v1alpha1_DatadogAgentSpecAgentSpec(ref common.ReferenceCallback
 								Allows: true,
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Type:   []string{"string"},
-										Format: "",
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
 									},
 								},
 							},
@@ -1103,7 +1130,8 @@ func schema__api_v1alpha1_DatadogAgentSpecAgentSpec(ref common.ReferenceCallback
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("k8s.io/api/core/v1.EnvVar"),
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.EnvVar"),
 									},
 								},
 							},
@@ -1112,30 +1140,35 @@ func schema__api_v1alpha1_DatadogAgentSpecAgentSpec(ref common.ReferenceCallback
 					"apm": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Trace Agent configuration",
+							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.APMSpec"),
 						},
 					},
 					"log": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Log Agent configuration",
+							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.LogSpec"),
 						},
 					},
 					"process": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Process Agent configuration",
+							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.ProcessSpec"),
 						},
 					},
 					"systemProbe": {
 						SchemaProps: spec.SchemaProps{
 							Description: "SystemProbe configuration",
+							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.SystemProbeSpec"),
 						},
 					},
 					"security": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Security Agent configuration",
+							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.SecuritySpec"),
 						},
 					},
@@ -1148,6 +1181,7 @@ func schema__api_v1alpha1_DatadogAgentSpecAgentSpec(ref common.ReferenceCallback
 					"networkPolicy": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Provide Agent Network Policy configuration",
+							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.NetworkPolicySpec"),
 						},
 					},
@@ -1170,6 +1204,7 @@ func schema__api_v1alpha1_DatadogAgentSpecClusterAgentSpec(ref common.ReferenceC
 					"image": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The container image of the Datadog Cluster Agent",
+							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.ImageConfig"),
 						},
 					},
@@ -1183,6 +1218,7 @@ func schema__api_v1alpha1_DatadogAgentSpecClusterAgentSpec(ref common.ReferenceC
 					"config": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Cluster Agent configuration",
+							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.ClusterAgentConfig"),
 						},
 					},
@@ -1195,6 +1231,7 @@ func schema__api_v1alpha1_DatadogAgentSpecClusterAgentSpec(ref common.ReferenceC
 					"rbac": {
 						SchemaProps: spec.SchemaProps{
 							Description: "RBAC configuration of the Datadog Cluster Agent",
+							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.RbacConfig"),
 						},
 					},
@@ -1213,8 +1250,9 @@ func schema__api_v1alpha1_DatadogAgentSpecClusterAgentSpec(ref common.ReferenceC
 								Allows: true,
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Type:   []string{"string"},
-										Format: "",
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
 									},
 								},
 							},
@@ -1228,8 +1266,9 @@ func schema__api_v1alpha1_DatadogAgentSpecClusterAgentSpec(ref common.ReferenceC
 								Allows: true,
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Type:   []string{"string"},
-										Format: "",
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
 									},
 								},
 							},
@@ -1260,7 +1299,8 @@ func schema__api_v1alpha1_DatadogAgentSpecClusterAgentSpec(ref common.ReferenceC
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("k8s.io/api/core/v1.Toleration"),
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.Toleration"),
 									},
 								},
 							},
@@ -1274,8 +1314,9 @@ func schema__api_v1alpha1_DatadogAgentSpecClusterAgentSpec(ref common.ReferenceC
 								Allows: true,
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Type:   []string{"string"},
-										Format: "",
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
 									},
 								},
 							},
@@ -1284,6 +1325,7 @@ func schema__api_v1alpha1_DatadogAgentSpecClusterAgentSpec(ref common.ReferenceC
 					"networkPolicy": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Provide Cluster Agent Network Policy configuration",
+							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.NetworkPolicySpec"),
 						},
 					},
@@ -1306,6 +1348,7 @@ func schema__api_v1alpha1_DatadogAgentSpecClusterChecksRunnerSpec(ref common.Ref
 					"image": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The container image of the Datadog Cluster Checks Runner",
+							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.ImageConfig"),
 						},
 					},
@@ -1319,6 +1362,7 @@ func schema__api_v1alpha1_DatadogAgentSpecClusterChecksRunnerSpec(ref common.Ref
 					"config": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Agent configuration",
+							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.ClusterChecksRunnerConfig"),
 						},
 					},
@@ -1331,6 +1375,7 @@ func schema__api_v1alpha1_DatadogAgentSpecClusterChecksRunnerSpec(ref common.Ref
 					"rbac": {
 						SchemaProps: spec.SchemaProps{
 							Description: "RBAC configuration of the Datadog Cluster Checks Runner",
+							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.RbacConfig"),
 						},
 					},
@@ -1349,8 +1394,9 @@ func schema__api_v1alpha1_DatadogAgentSpecClusterChecksRunnerSpec(ref common.Ref
 								Allows: true,
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Type:   []string{"string"},
-										Format: "",
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
 									},
 								},
 							},
@@ -1364,8 +1410,9 @@ func schema__api_v1alpha1_DatadogAgentSpecClusterChecksRunnerSpec(ref common.Ref
 								Allows: true,
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Type:   []string{"string"},
-										Format: "",
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
 									},
 								},
 							},
@@ -1396,7 +1443,8 @@ func schema__api_v1alpha1_DatadogAgentSpecClusterChecksRunnerSpec(ref common.Ref
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("k8s.io/api/core/v1.Toleration"),
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.Toleration"),
 									},
 								},
 							},
@@ -1410,8 +1458,9 @@ func schema__api_v1alpha1_DatadogAgentSpecClusterChecksRunnerSpec(ref common.Ref
 								Allows: true,
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Type:   []string{"string"},
-										Format: "",
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
 									},
 								},
 							},
@@ -1420,6 +1469,7 @@ func schema__api_v1alpha1_DatadogAgentSpecClusterChecksRunnerSpec(ref common.Ref
 					"networkPolicy": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Provide Cluster Checks Runner Network Policy configuration",
+							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.NetworkPolicySpec"),
 						},
 					},
@@ -1472,7 +1522,8 @@ func schema__api_v1alpha1_DatadogAgentStatus(ref common.ReferenceCallback) commo
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("./api/v1alpha1.DatadogAgentCondition"),
+										Default: map[string]interface{}{},
+										Ref:     ref("./api/v1alpha1.DatadogAgentCondition"),
 									},
 								},
 							},
@@ -1597,17 +1648,20 @@ func schema__api_v1alpha1_DatadogMetric(ref common.ReferenceCallback) common.Ope
 					},
 					"metadata": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
 						},
 					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("./api/v1alpha1.DatadogMetricSpec"),
+							Default: map[string]interface{}{},
+							Ref:     ref("./api/v1alpha1.DatadogMetricSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("./api/v1alpha1.DatadogMetricStatus"),
+							Default: map[string]interface{}{},
+							Ref:     ref("./api/v1alpha1.DatadogMetricStatus"),
 						},
 					},
 				},
@@ -1628,6 +1682,7 @@ func schema__api_v1alpha1_DatadogMetricCondition(ref common.ReferenceCallback) c
 					"type": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Type of DatadogMetric condition.",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1635,6 +1690,7 @@ func schema__api_v1alpha1_DatadogMetricCondition(ref common.ReferenceCallback) c
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Status of the condition, one of True, False, Unknown.",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1642,12 +1698,14 @@ func schema__api_v1alpha1_DatadogMetricCondition(ref common.ReferenceCallback) c
 					"lastTransitionTime": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Last time the condition transitioned from one status to another.",
+							Default:     map[string]interface{}{},
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
 					"lastUpdateTime": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Last time the condition was updated.",
+							Default:     map[string]interface{}{},
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
@@ -1697,17 +1755,20 @@ func schema__api_v1alpha1_DatadogMonitor(ref common.ReferenceCallback) common.Op
 					},
 					"metadata": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
 						},
 					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("./api/v1alpha1.DatadogMonitorSpec"),
+							Default: map[string]interface{}{},
+							Ref:     ref("./api/v1alpha1.DatadogMonitorSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("./api/v1alpha1.DatadogMonitorStatus"),
+							Default: map[string]interface{}{},
+							Ref:     ref("./api/v1alpha1.DatadogMonitorStatus"),
 						},
 					},
 				},
@@ -1728,6 +1789,7 @@ func schema__api_v1alpha1_DatadogMonitorCondition(ref common.ReferenceCallback) 
 					"type": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Type of DatadogMonitor condition",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1735,6 +1797,7 @@ func schema__api_v1alpha1_DatadogMonitorCondition(ref common.ReferenceCallback) 
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Status of the condition, one of True, False, Unknown.",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1742,12 +1805,14 @@ func schema__api_v1alpha1_DatadogMonitorCondition(ref common.ReferenceCallback) 
 					"lastTransitionTime": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Last time the condition transitioned from one status to another.",
+							Default:     map[string]interface{}{},
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
 					"lastUpdateTime": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Last time the condition was updated.",
+							Default:     map[string]interface{}{},
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
@@ -1963,6 +2028,7 @@ func schema__api_v1alpha1_ImageConfig(ref common.ReferenceCallback) common.OpenA
 					"name": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Define the image to use Use \"gcr.io/datadoghq/agent:latest\" for Datadog Agent 6 Use \"datadog/dogstatsd:latest\" for Standalone Datadog Agent DogStatsD6 Use \"gcr.io/datadoghq/cluster-agent:latest\" for Datadog Cluster Agent",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1981,7 +2047,8 @@ func schema__api_v1alpha1_ImageConfig(ref common.ReferenceCallback) common.OpenA
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("k8s.io/api/core/v1.LocalObjectReference"),
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.LocalObjectReference"),
 									},
 								},
 							},
@@ -2153,8 +2220,9 @@ func schema__api_v1alpha1_NodeAgentConfig(ref common.ReferenceCallback) common.O
 								Allows: true,
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Type:   []string{"string"},
-										Format: "",
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
 									},
 								},
 							},
@@ -2168,8 +2236,9 @@ func schema__api_v1alpha1_NodeAgentConfig(ref common.ReferenceCallback) common.O
 								Allows: true,
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Type:   []string{"string"},
-										Format: "",
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
 									},
 								},
 							},
@@ -2187,8 +2256,9 @@ func schema__api_v1alpha1_NodeAgentConfig(ref common.ReferenceCallback) common.O
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Type:   []string{"string"},
-										Format: "",
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
 									},
 								},
 							},
@@ -2223,7 +2293,8 @@ func schema__api_v1alpha1_NodeAgentConfig(ref common.ReferenceCallback) common.O
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("k8s.io/api/core/v1.EnvVar"),
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.EnvVar"),
 									},
 								},
 							},
@@ -2245,7 +2316,8 @@ func schema__api_v1alpha1_NodeAgentConfig(ref common.ReferenceCallback) common.O
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("k8s.io/api/core/v1.VolumeMount"),
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.VolumeMount"),
 									},
 								},
 							},
@@ -2266,7 +2338,8 @@ func schema__api_v1alpha1_NodeAgentConfig(ref common.ReferenceCallback) common.O
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("k8s.io/api/core/v1.Volume"),
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.Volume"),
 									},
 								},
 							},
@@ -2302,7 +2375,8 @@ func schema__api_v1alpha1_NodeAgentConfig(ref common.ReferenceCallback) common.O
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("k8s.io/api/core/v1.Toleration"),
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.Toleration"),
 									},
 								},
 							},
@@ -2369,8 +2443,9 @@ func schema__api_v1alpha1_OrchestratorExplorerConfig(ref common.ReferenceCallbac
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Type:   []string{"string"},
-										Format: "",
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
 									},
 								},
 							},
@@ -2420,7 +2495,8 @@ func schema__api_v1alpha1_ProcessSpec(ref common.ReferenceCallback) common.OpenA
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("k8s.io/api/core/v1.EnvVar"),
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.EnvVar"),
 									},
 								},
 							},
@@ -2442,7 +2518,8 @@ func schema__api_v1alpha1_ProcessSpec(ref common.ReferenceCallback) common.OpenA
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("k8s.io/api/core/v1.VolumeMount"),
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.VolumeMount"),
 									},
 								},
 							},
@@ -2567,6 +2644,7 @@ func schema__api_v1alpha1_Secret(ref common.ReferenceCallback) common.OpenAPIDef
 					"secretName": {
 						SchemaProps: spec.SchemaProps{
 							Description: "SecretName is the name of the secret",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -2595,12 +2673,14 @@ func schema__api_v1alpha1_SecuritySpec(ref common.ReferenceCallback) common.Open
 					"compliance": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Compliance configuration",
+							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.ComplianceSpec"),
 						},
 					},
 					"runtime": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Runtime security configuration",
+							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.RuntimeSecuritySpec"),
 						},
 					},
@@ -2619,7 +2699,8 @@ func schema__api_v1alpha1_SecuritySpec(ref common.ReferenceCallback) common.Open
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("k8s.io/api/core/v1.EnvVar"),
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.EnvVar"),
 									},
 								},
 							},
@@ -2641,7 +2722,8 @@ func schema__api_v1alpha1_SecuritySpec(ref common.ReferenceCallback) common.Open
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("k8s.io/api/core/v1.VolumeMount"),
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.VolumeMount"),
 									},
 								},
 							},
@@ -2780,7 +2862,8 @@ func schema__api_v1alpha1_SystemProbeSpec(ref common.ReferenceCallback) common.O
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("k8s.io/api/core/v1.EnvVar"),
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.EnvVar"),
 									},
 								},
 							},
