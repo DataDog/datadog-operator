@@ -9001,6 +9001,47 @@ spec:
                           Core check. Refer to https://github.com/DataDog/datadog-operator/blob/main/docs/kubernetes_state_metrics.md
                         type: boolean
                     type: object
+                  logCollection:
+                    description: Logs configuration
+                    properties:
+                      containerCollectUsingFiles:
+                        description: 'Collect logs from files in /var/log/pods instead
+                          of using container runtime API. It''s usually the most efficient
+                          way of collecting logs. ref: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup
+                          Default: true'
+                        type: boolean
+                      containerLogsPath:
+                        description: 'This to allow log collection from container
+                          log path. Set to a different path if not using docker runtime.
+                          ref: https://docs.datadoghq.com/agent/kubernetes/daemonset_setup/?tab=k8sfile#create-manifest
+                          Default to `/var/lib/docker/containers`'
+                        type: string
+                      enabled:
+                        description: 'Enables this to activate Datadog Agent log collection.
+                          ref: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup'
+                        type: boolean
+                      logsConfigContainerCollectAll:
+                        description: 'Enable this to allow log collection for all
+                          containers. ref: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup'
+                        type: boolean
+                      openFilesLimit:
+                        description: 'Set the maximum number of logs files that the
+                          Datadog Agent will tail up to. Increasing this limit can
+                          increase resource consumption of the Agent. ref: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup
+                          Default to 100'
+                        format: int32
+                        type: integer
+                      podLogsPath:
+                        description: This to allow log collection from pod log path.
+                          Default to `/var/log/pods`
+                        type: string
+                      tempStoragePath:
+                        description: This path (always mounted from the host) is used
+                          by Datadog Agent to store information about processed log
+                          files. If the Datadog Agent is restarted, it allows to start
+                          tailing the log files from the right offset Default to `/var/lib/datadog-agent/logs`
+                        type: string
+                    type: object
                   networkMonitoring:
                     description: NetworkMonitoring configuration
                     properties:

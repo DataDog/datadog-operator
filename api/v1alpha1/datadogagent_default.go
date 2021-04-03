@@ -95,7 +95,7 @@ func IsDefaultedDatadogAgent(ad *DatadogAgent) bool {
 			return false
 		}
 
-		if !IsDefaultedDatadogAgentSpecLog(&ad.Spec.Agent.Log) {
+		if !IsDefaultedDatadogAgentSpecLog(ad.Spec.Features.LogCollection) {
 			return false
 		}
 
@@ -108,16 +108,14 @@ func IsDefaultedDatadogAgent(ad *DatadogAgent) bool {
 		}
 	}
 
-	if ad.Spec.Features != nil {
-		if !IsDefaultedOrchestratorExplorer(ad.Spec.Features.OrchestratorExplorer) {
-			return false
-		}
-		if !IsDefaultedKubeStateMetricsCore(ad.Spec.Features.KubeStateMetricsCore) {
-			return false
-		}
-		if !IsDefaultedPrometheusScrape(ad.Spec.Features.PrometheusScrape) {
-			return false
-		}
+	if !IsDefaultedOrchestratorExplorer(ad.Spec.Features.OrchestratorExplorer) {
+		return false
+	}
+	if !IsDefaultedKubeStateMetricsCore(ad.Spec.Features.KubeStateMetricsCore) {
+		return false
+	}
+	if !IsDefaultedPrometheusScrape(ad.Spec.Features.PrometheusScrape) {
+		return false
 	}
 
 	if ad.Spec.ClusterAgent != nil {
@@ -482,9 +480,8 @@ func DefaultDatadogAgent(ad *DatadogAgent) *DatadogAgent {
 		}
 	}
 
-	// Initialize the features if necessary
 	// TODO defaulting values has to be consistent across all fields of the DatadogAgent
-	DefaultFeatures(defaultedAD.Spec.Features)
+	DefaultFeatures(&defaultedAD.Spec.Features)
 
 	if defaultedAD.Spec.ClusterChecksRunner != nil {
 		defaultedAD.Spec.ClusterChecksRunner = DefaultDatadogAgentSpecClusterChecksRunner(defaultedAD.Spec.ClusterChecksRunner)
@@ -505,7 +502,6 @@ func DefaultDatadogAgentSpecAgent(agent *DatadogAgentSpecAgentSpec) *DatadogAgen
 	DefaultDatadogAgentSpecRbacConfig(&agent.Rbac)
 	agent.DeploymentStrategy = DefaultDatadogAgentSpecDatadogAgentStrategy(agent.DeploymentStrategy)
 	DefaultDatadogAgentSpecAgentApm(&agent.Apm)
-	DefaultDatadogAgentSpecAgentLog(&agent.Log)
 	DefaultDatadogAgentSpecAgentProcess(&agent.Process)
 	DefaultNetworkPolicy(&agent.NetworkPolicy)
 
@@ -733,9 +729,9 @@ func DefaultDatadogAgentSpecAgentApmUDS(uds *APMUnixDomainSocketSpec) *APMUnixDo
 	return uds
 }
 
-// DefaultDatadogAgentSpecAgentLog used to default an LogSpec
+// DefaultDatadogAgentSpecLogCollection used to default an LogSpec
 // return the defaulted LogSpec
-func DefaultDatadogAgentSpecAgentLog(log *LogSpec) *LogSpec {
+func DefaultDatadogAgentSpecLogCollection(log *LogSpec) *LogSpec {
 	if log == nil {
 		log = &LogSpec{}
 	}
@@ -798,6 +794,7 @@ func DefaultFeatures(ft *DatadogFeatures) *DatadogFeatures {
 	ft.OrchestratorExplorer = DefaultDatadogFeatureOrchestratorExplorer(ft.OrchestratorExplorer)
 	ft.KubeStateMetricsCore = DefaultDatadogFeatureKubeStateMetricsCore(ft.KubeStateMetricsCore)
 	ft.PrometheusScrape = DefaultDatadogFeaturePrometheusScrape(ft.PrometheusScrape)
+	ft.LogCollection = DefaultDatadogAgentSpecLogCollection(ft.LogCollection)
 
 	return ft
 }
@@ -811,6 +808,10 @@ func DefaultDatadogFeatureOrchestratorExplorer(explorerConfig *OrchestratorExplo
 
 	if explorerConfig.Enabled == nil {
 		explorerConfig.Enabled = NewBoolPointer(defaultOrchestratorExplorerEnabled)
+	}
+
+	if !BoolValue(explorerConfig.Enabled) {
+		return explorerConfig
 	}
 
 	if explorerConfig.Scrubbing == nil || explorerConfig.Scrubbing.Containers == nil {

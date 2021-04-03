@@ -25,6 +25,8 @@ type DatadogFeatures struct {
 	PrometheusScrape *PrometheusScrapeConfig `json:"prometheusScrape,omitempty"`
 	// NetworkMonitoring configuration
 	NetworkMonitoring *NetworkMonitoringConfig `json:"networkMonitoring,omitempty"`
+	// Logs configuration
+	LogCollection *LogSpec `json:"logCollection,omitempty"`
 }
 
 // DatadogAgentSpec defines the desired state of DatadogAgent
@@ -36,7 +38,7 @@ type DatadogAgentSpec struct {
 
 	// Features running on the Agent and Cluster Agent
 	// +optional
-	Features *DatadogFeatures `json:"features,omitempty"`
+	Features DatadogFeatures `json:"features,omitempty"`
 
 	// The desired state of the Agent as an extended daemonset
 	// Contains the Node Agent configuration and deployment strategy
@@ -201,7 +203,7 @@ type DatadogAgentSpecAgentSpec struct {
 
 	// Log Agent configuration
 	// +optional
-	Log LogSpec `json:"log,omitempty"`
+	Log *LogSpec `json:"log,omitempty"`
 
 	// Process Agent configuration
 	// +optional

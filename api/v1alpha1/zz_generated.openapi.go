@@ -959,6 +959,7 @@ func schema__api_v1alpha1_DatadogAgentSpec(ref common.ReferenceCallback) common.
 					"features": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Features running on the Agent and Cluster Agent",
+							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.DatadogFeatures"),
 						},
 					},
@@ -1148,7 +1149,6 @@ func schema__api_v1alpha1_DatadogAgentSpecAgentSpec(ref common.ReferenceCallback
 					"log": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Log Agent configuration",
-							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.LogSpec"),
 						},
 					},
@@ -1624,11 +1624,17 @@ func schema__api_v1alpha1_DatadogFeatures(ref common.ReferenceCallback) common.O
 							Ref:         ref("./api/v1alpha1.NetworkMonitoringConfig"),
 						},
 					},
+					"logCollection": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Logs configuration",
+							Ref:         ref("./api/v1alpha1.LogSpec"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./api/v1alpha1.KubeStateMetricsCore", "./api/v1alpha1.NetworkMonitoringConfig", "./api/v1alpha1.OrchestratorExplorerConfig", "./api/v1alpha1.PrometheusScrapeConfig"},
+			"./api/v1alpha1.KubeStateMetricsCore", "./api/v1alpha1.LogSpec", "./api/v1alpha1.NetworkMonitoringConfig", "./api/v1alpha1.OrchestratorExplorerConfig", "./api/v1alpha1.PrometheusScrapeConfig"},
 	}
 }
 

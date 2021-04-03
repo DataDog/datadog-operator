@@ -7,6 +7,7 @@ package v1alpha1
 
 import (
 	"path"
+	"reflect"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -69,6 +70,74 @@ func TestDefaultConfigDogstatsd(t *testing.T) {
 			DefaultConfigDogstatsd(tt.args.config)
 			if diff := cmp.Diff(tt.args.config, tt.want); diff != "" {
 				t.Errorf("DefaultConfigDogstatsd err, diff:\n %s", diff)
+			}
+		})
+	}
+}
+
+func TestDefaultFeatures(t *testing.T) {
+	defaultWant := &DatadogFeatures{
+		OrchestratorExplorer: &OrchestratorExplorerConfig{
+			Enabled: NewBoolPointer(true),
+			Scrubbing: &Scrubbing{
+				Containers: NewBoolPointer(true),
+			},
+		},
+		KubeStateMetricsCore: &KubeStateMetricsCore{Enabled: NewBoolPointer(false)},
+		PrometheusScrape: &PrometheusScrapeConfig{
+			Enabled:          NewBoolPointer(false),
+			ServiceEndpoints: NewBoolPointer(false),
+		},
+		LogCollection: &LogSpec{
+			Enabled:                       NewBoolPointer(false),
+			LogsConfigContainerCollectAll: NewBoolPointer(false),
+			ContainerCollectUsingFiles:    NewBoolPointer(true),
+			ContainerLogsPath:             NewStringPointer("/var/lib/docker/containers"),
+			PodLogsPath:                   NewStringPointer("/var/log/pods"),
+			TempStoragePath:               NewStringPointer("/var/lib/datadog-agent/logs"),
+			OpenFilesLimit:                NewInt32Pointer(100),
+		},
+	}
+
+	tests := []struct {
+		name     string
+		ft       *DatadogFeatures
+		wantFunc func() *DatadogFeatures
+	}{
+		{
+			name:     "empty",
+			ft:       &DatadogFeatures{},
+			wantFunc: func() *DatadogFeatures { return defaultWant },
+		},
+		{
+			name: "enable LogCollection",
+			ft: &DatadogFeatures{
+				LogCollection: &LogSpec{Enabled: NewBoolPointer(true)},
+			},
+			wantFunc: func() *DatadogFeatures {
+				want := defaultWant.DeepCopy()
+				want.LogCollection.Enabled = NewBoolPointer(true)
+				return want
+			},
+		},
+		{
+			name: "disable Orchestrator",
+			ft: &DatadogFeatures{
+				OrchestratorExplorer: &OrchestratorExplorerConfig{Enabled: NewBoolPointer(false)},
+			},
+			wantFunc: func() *DatadogFeatures {
+				want := defaultWant.DeepCopy()
+				want.OrchestratorExplorer = &OrchestratorExplorerConfig{Enabled: NewBoolPointer(false)}
+
+				return want
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			want := tt.wantFunc()
+			if got := DefaultFeatures(tt.ft); !reflect.DeepEqual(got, want) {
+				t.Errorf("DefaultFeatures() = %v, want %v\n diff: %s", got, want, cmp.Diff(got, want))
 			}
 		})
 	}

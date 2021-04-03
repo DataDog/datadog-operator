@@ -560,11 +560,7 @@ func (in *DatadogAgentList) DeepCopyObject() runtime.Object {
 func (in *DatadogAgentSpec) DeepCopyInto(out *DatadogAgentSpec) {
 	*out = *in
 	in.Credentials.DeepCopyInto(&out.Credentials)
-	if in.Features != nil {
-		in, out := &in.Features, &out.Features
-		*out = new(DatadogFeatures)
-		(*in).DeepCopyInto(*out)
-	}
+	in.Features.DeepCopyInto(&out.Features)
 	if in.Agent != nil {
 		in, out := &in.Agent, &out.Agent
 		*out = new(DatadogAgentSpecAgentSpec)
@@ -635,7 +631,11 @@ func (in *DatadogAgentSpecAgentSpec) DeepCopyInto(out *DatadogAgentSpecAgentSpec
 		}
 	}
 	in.Apm.DeepCopyInto(&out.Apm)
-	in.Log.DeepCopyInto(&out.Log)
+	if in.Log != nil {
+		in, out := &in.Log, &out.Log
+		*out = new(LogSpec)
+		(*in).DeepCopyInto(*out)
+	}
 	in.Process.DeepCopyInto(&out.Process)
 	in.SystemProbe.DeepCopyInto(&out.SystemProbe)
 	in.Security.DeepCopyInto(&out.Security)
@@ -864,6 +864,11 @@ func (in *DatadogFeatures) DeepCopyInto(out *DatadogFeatures) {
 	if in.NetworkMonitoring != nil {
 		in, out := &in.NetworkMonitoring, &out.NetworkMonitoring
 		*out = new(NetworkMonitoringConfig)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.LogCollection != nil {
+		in, out := &in.LogCollection, &out.LogCollection
+		*out = new(LogSpec)
 		(*in).DeepCopyInto(*out)
 	}
 }

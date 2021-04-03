@@ -164,7 +164,7 @@ func isSystemProbeEnabled(spec *datadoghqv1alpha1.DatadogAgentSpec) bool {
 
 func isNetworkMonitoringEnabled(spec *datadoghqv1alpha1.DatadogAgentSpec) bool {
 	featuresSpec := spec.Features
-	if featuresSpec != nil && featuresSpec.NetworkMonitoring != nil {
+	if featuresSpec.NetworkMonitoring != nil {
 		return datadoghqv1alpha1.BoolValue(featuresSpec.NetworkMonitoring.Enabled)
 	}
 	return false
@@ -214,11 +214,10 @@ func processCollectionEnabled(dda *datadoghqv1alpha1.DatadogAgent) bool {
 }
 
 func isOrchestratorExplorerEnabled(dda *datadoghqv1alpha1.DatadogAgent) bool {
-	features := dda.Spec.Features
-	if features == nil || features.OrchestratorExplorer == nil {
+	if dda.Spec.Features.OrchestratorExplorer == nil {
 		return false
 	}
-	return datadoghqv1alpha1.BoolValue(features.OrchestratorExplorer.Enabled)
+	return datadoghqv1alpha1.BoolValue(dda.Spec.Features.OrchestratorExplorer.Enabled)
 }
 
 func getAgentContainer(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (*corev1.Container, error) {
@@ -622,6 +621,35 @@ func getEnvVarsCommon(dda *datadoghqv1alpha1.DatadogAgent, needAPIKey bool) ([]c
 	return envVars, nil
 }
 
+func getEnvVarsForLogCollection(logSpec *datadoghqv1alpha1.LogSpec) []corev1.EnvVar {
+	if logSpec == nil {
+		return []corev1.EnvVar{}
+	}
+
+	envVars := []corev1.EnvVar{
+		{
+			Name:  datadoghqv1alpha1.DDLogsEnabled,
+			Value: strconv.FormatBool(datadoghqv1alpha1.BoolValue(logSpec.Enabled)),
+		},
+		{
+			Name:  datadoghqv1alpha1.DDLogsConfigContainerCollectAll,
+			Value: strconv.FormatBool(datadoghqv1alpha1.BoolValue(logSpec.LogsConfigContainerCollectAll)),
+		},
+		{
+			Name:  datadoghqv1alpha1.DDLogsContainerCollectUsingFiles,
+			Value: strconv.FormatBool(datadoghqv1alpha1.BoolValue(logSpec.ContainerCollectUsingFiles)),
+		},
+	}
+	if logSpec.OpenFilesLimit != nil {
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  datadoghqv1alpha1.DDLogsConfigOpenFilesLimit,
+			Value: strconv.FormatInt(int64(*logSpec.OpenFilesLimit), 10),
+		})
+	}
+
+	return envVars
+}
+
 // getEnvVarsForAgent converts Agent Config into container env vars
 func getEnvVarsForAgent(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.EnvVar, error) {
 	spec := dda.Spec
@@ -657,26 +685,12 @@ func getEnvVarsForAgent(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent)
 			Value: strconv.FormatBool(*spec.Agent.Config.LeaderElection),
 		},
 		{
-			Name:  datadoghqv1alpha1.DDLogsEnabled,
-			Value: strconv.FormatBool(*spec.Agent.Log.Enabled),
-		},
-		{
-			Name:  datadoghqv1alpha1.DDLogsConfigContainerCollectAll,
-			Value: strconv.FormatBool(*spec.Agent.Log.LogsConfigContainerCollectAll),
-		},
-		{
-			Name:  datadoghqv1alpha1.DDLogsContainerCollectUsingFiles,
-			Value: strconv.FormatBool(*spec.Agent.Log.ContainerCollectUsingFiles),
-		},
-		{
-			Name:  datadoghqv1alpha1.DDLogsConfigOpenFilesLimit,
-			Value: strconv.FormatInt(int64(*spec.Agent.Log.OpenFilesLimit), 10),
-		},
-		{
 			Name:  datadoghqv1alpha1.DDDogstatsdOriginDetection,
 			Value: strconv.FormatBool(*spec.Agent.Config.Dogstatsd.DogstatsdOriginDetection),
 		},
 	}
+
+	envVars = append(envVars, getEnvVarsForLogCollection(spec.Features.LogCollection)...)
 	commonEnvVars, err := getEnvVarsCommon(dda, true)
 	if err != nil {
 		return nil, err
@@ -1009,33 +1023,38 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 		}
 	}
 
-	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Log.Enabled) {
-		volumes = append(volumes, []corev1.Volume{
-			{
+	logConfig := dda.Spec.Features.LogCollection
+	if logConfig != nil && datadoghqv1alpha1.BoolValue(logConfig.Enabled) {
+		if logConfig.TempStoragePath != nil {
+			volumes = append(volumes, corev1.Volume{
 				Name: datadoghqv1alpha1.PointerVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
-						Path: *dda.Spec.Agent.Log.TempStoragePath,
+						Path: *logConfig.TempStoragePath,
 					},
 				},
-			},
-			{
+			})
+		}
+		if logConfig.PodLogsPath != nil {
+			volumes = append(volumes, corev1.Volume{
 				Name: datadoghqv1alpha1.LogPodVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
-						Path: *dda.Spec.Agent.Log.PodLogsPath,
+						Path: *logConfig.PodLogsPath,
 					},
 				},
-			},
-			{
+			})
+		}
+		if logConfig.ContainerLogsPath != nil {
+			volumes = append(volumes, corev1.Volume{
 				Name: datadoghqv1alpha1.LogContainerVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
-						Path: *dda.Spec.Agent.Log.ContainerLogsPath,
+						Path: *logConfig.ContainerLogsPath,
 					},
 				},
-			},
-		}...)
+			})
+		}
 	}
 
 	if isComplianceEnabled(&dda.Spec) {
@@ -1263,7 +1282,7 @@ func getVolumeMountsForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volum
 	}
 
 	// Log volumes
-	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Log.Enabled) {
+	if dda.Spec.Features.LogCollection != nil && datadoghqv1alpha1.BoolValue(dda.Spec.Features.LogCollection.Enabled) {
 		volumeMounts = append(volumeMounts, []corev1.VolumeMount{
 			{
 				Name:      datadoghqv1alpha1.PointerVolumeName,
@@ -1274,12 +1293,14 @@ func getVolumeMountsForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volum
 				MountPath: datadoghqv1alpha1.LogPodVolumePath,
 				ReadOnly:  datadoghqv1alpha1.LogPodVolumeReadOnly,
 			},
-			{
-				Name:      datadoghqv1alpha1.LogContainerVolumeName,
-				MountPath: *dda.Spec.Agent.Log.ContainerLogsPath,
-				ReadOnly:  datadoghqv1alpha1.LogContainerVolumeReadOnly,
-			},
 		}...)
+		if dda.Spec.Features.LogCollection.ContainerLogsPath != nil {
+			volumeMounts = append(volumeMounts, corev1.VolumeMount{
+				Name:      datadoghqv1alpha1.LogContainerVolumeName,
+				MountPath: *dda.Spec.Features.LogCollection.ContainerLogsPath,
+				ReadOnly:  datadoghqv1alpha1.LogContainerVolumeReadOnly,
+			})
+		}
 	}
 
 	// SystemProbe volumes
@@ -1744,18 +1765,15 @@ func shouldReturn(result reconcile.Result, err error) bool {
 }
 
 func isKSMCoreEnabled(dda *datadoghqv1alpha1.DatadogAgent) bool {
-	if dda.Spec.Features == nil || dda.Spec.Features.KubeStateMetricsCore == nil {
+	if dda.Spec.Features.KubeStateMetricsCore == nil {
 		return false
 	}
-	if dda.Spec.Features.KubeStateMetricsCore.Enabled != nil {
-		return *dda.Spec.Features.KubeStateMetricsCore.Enabled
-	}
-	return false
+	return datadoghqv1alpha1.BoolValue(dda.Spec.Features.KubeStateMetricsCore.Enabled)
 }
 
 func prometheusScrapeEnvVars(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) []corev1.EnvVar {
 	envVars := []corev1.EnvVar{}
-	if dda.Spec.Features == nil || dda.Spec.Features.PrometheusScrape == nil {
+	if dda.Spec.Features.PrometheusScrape == nil {
 		return envVars
 	}
 

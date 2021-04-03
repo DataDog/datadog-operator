@@ -45,7 +45,7 @@ instances:
 			Name: "test",
 		},
 		Spec: datadoghqv1alpha1.DatadogAgentSpec{
-			Features: &datadoghqv1alpha1.DatadogFeatures{
+			Features: datadoghqv1alpha1.DatadogFeatures{
 				KubeStateMetricsCore: &datadoghqv1alpha1.KubeStateMetricsCore{
 					Enabled: &enabledBool,
 				},

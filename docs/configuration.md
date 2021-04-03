@@ -275,6 +275,13 @@ spec:
 | features.kubeStateMetricsCore.conf.configMap.fileKey | FileKey corresponds to the key used in the ConfigMap.Data to store the configuration file content |
 | features.kubeStateMetricsCore.conf.configMap.name | Name the ConfigMap name |
 | features.kubeStateMetricsCore.enabled | Enable this to start the Kubernetes State Metrics Core check. Refer to https://github.com/DataDog/datadog-operator/blob/main/docs/kubernetes_state_metrics.md |
+| features.logCollection.containerCollectUsingFiles | Collect logs from files in /var/log/pods instead of using container runtime API. It's usually the most efficient way of collecting logs. ref: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup Default: true |
+| features.logCollection.containerLogsPath | This to allow log collection from container log path. Set to a different path if not using docker runtime. ref: https://docs.datadoghq.com/agent/kubernetes/daemonset_setup/?tab=k8sfile#create-manifest Default to `/var/lib/docker/containers` |
+| features.logCollection.enabled | Enables this to activate Datadog Agent log collection. ref: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup |
+| features.logCollection.logsConfigContainerCollectAll | Enable this to allow log collection for all containers. ref: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup |
+| features.logCollection.openFilesLimit | Set the maximum number of logs files that the Datadog Agent will tail up to. Increasing this limit can increase resource consumption of the Agent. ref: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup Default to 100 |
+| features.logCollection.podLogsPath | This to allow log collection from pod log path. Default to `/var/log/pods` |
+| features.logCollection.tempStoragePath | This path (always mounted from the host) is used by Datadog Agent to store information about processed log files. If the Datadog Agent is restarted, it allows to start tailing the log files from the right offset Default to `/var/lib/datadog-agent/logs` |
 | features.networkMonitoring.enabled |  |
 | features.orchestratorExplorer.additionalEndpoints | Additional endpoints for shipping the collected data as json in the form of {"https://process.agent.datadoghq.com": ["apikey1", ...], ...}'. |
 | features.orchestratorExplorer.ddUrl | Set this for the Datadog endpoint for the orchestrator explorer |

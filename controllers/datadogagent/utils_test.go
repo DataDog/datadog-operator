@@ -43,8 +43,14 @@ func generateSpec() *datadoghqv1alpha1.DatadogAgent {
 	var intPtr int32
 	return &datadoghqv1alpha1.DatadogAgent{
 		Spec: datadoghqv1alpha1.DatadogAgentSpec{
-			Features: &datadoghqv1alpha1.DatadogFeatures{
+			Features: datadoghqv1alpha1.DatadogFeatures{
 				KubeStateMetricsCore: &datadoghqv1alpha1.KubeStateMetricsCore{},
+				LogCollection: &datadoghqv1alpha1.LogSpec{
+					Enabled:                       &boolPtr,
+					LogsConfigContainerCollectAll: &boolPtr,
+					ContainerCollectUsingFiles:    &boolPtr,
+					OpenFilesLimit:                &intPtr,
+				},
 			},
 			ClusterAgent: &datadoghqv1alpha1.DatadogAgentSpecClusterAgentSpec{
 				CustomConfig: &datadoghqv1alpha1.CustomConfigSpec{},
@@ -63,12 +69,6 @@ func generateSpec() *datadoghqv1alpha1.DatadogAgent {
 							Enabled: &boolPtr,
 						},
 					},
-				},
-				Log: datadoghqv1alpha1.LogSpec{
-					Enabled:                       &boolPtr,
-					LogsConfigContainerCollectAll: &boolPtr,
-					ContainerCollectUsingFiles:    &boolPtr,
-					OpenFilesLimit:                &intPtr,
 				},
 			},
 		},

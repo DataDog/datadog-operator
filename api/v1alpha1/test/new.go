@@ -44,7 +44,7 @@ type NewDatadogAgentOptions struct {
 	APMEnabled                       bool
 	ProcessEnabled                   bool
 	ProcessCollectionEnabled         bool
-	OrchestratorExplorerEnabled      bool
+	OrchestratorExplorerDisable      bool
 	SystemProbeEnabled               bool
 	SystemProbeSeccompProfileName    string
 	SystemProbeAppArmorProfileName   string
@@ -111,7 +111,6 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 			Config:             datadoghqv1alpha1.NodeAgentConfig{},
 			DeploymentStrategy: &datadoghqv1alpha1.DaemonSetDeploymentStrategy{},
 			Apm:                datadoghqv1alpha1.APMSpec{},
-			Log:                datadoghqv1alpha1.LogSpec{},
 			Process: datadoghqv1alpha1.ProcessSpec{
 				Enabled:                  datadoghqv1alpha1.NewBoolPointer(false),
 				ProcessCollectionEnabled: datadoghqv1alpha1.NewBoolPointer(false),
@@ -120,14 +119,12 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 	}
 
 	if options != nil {
-		if options.OrchestratorExplorerEnabled {
-			orExplorer := datadoghqv1alpha1.OrchestratorExplorerConfig{Enabled: datadoghqv1alpha1.NewBoolPointer(true)}
-			ad.Spec.Features = &datadoghqv1alpha1.DatadogFeatures{OrchestratorExplorer: &orExplorer}
-			ad.Spec.Agent.Process.Enabled = datadoghqv1alpha1.NewBoolPointer(true)
+		if options.Features != nil {
+			ad.Spec.Features = *options.Features.DeepCopy()
 		}
 
-		if options.Features != nil {
-			ad.Spec.Features = options.Features
+		if options.OrchestratorExplorerDisable {
+			ad.Spec.Features.OrchestratorExplorer = &datadoghqv1alpha1.OrchestratorExplorerConfig{Enabled: datadoghqv1alpha1.NewBoolPointer(false)}
 		}
 
 		if options.UseEDS {
@@ -225,9 +222,6 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 			}
 
 			if options.KubeStateMetricsCore != nil {
-				if ad.Spec.Features == nil {
-					ad.Spec.Features = &datadoghqv1alpha1.DatadogFeatures{}
-				}
 				ad.Spec.Features.KubeStateMetricsCore = options.KubeStateMetricsCore
 			}
 

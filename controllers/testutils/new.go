@@ -15,15 +15,16 @@ import (
 
 // NewDatadogAgentOptions used to provide creation options to the NewDatadogAgent function
 type NewDatadogAgentOptions struct {
-	ExtraLabels         map[string]string
-	ExtraAnnotations    map[string]string
-	ClusterAgentEnabled bool
-	UseEDS              bool
-	APIKey              string
-	AppKey              string
-	CustomConfig        *datadoghqv1alpha1.CustomConfigSpec
-	SecuritySpec        *datadoghqv1alpha1.SecuritySpec
-	VolumeMounts        []v1.VolumeMount
+	ExtraLabels                 map[string]string
+	ExtraAnnotations            map[string]string
+	ClusterAgentEnabled         bool
+	OrchestratorExplorerDisable bool
+	UseEDS                      bool
+	APIKey                      string
+	AppKey                      string
+	CustomConfig                *datadoghqv1alpha1.CustomConfigSpec
+	SecuritySpec                *datadoghqv1alpha1.SecuritySpec
+	VolumeMounts                []v1.VolumeMount
 }
 
 var pullPolicy = v1.PullIfNotPresent
@@ -66,7 +67,6 @@ func NewDatadogAgent(ns, name, image string, options *NewDatadogAgentOptions) *d
 			},
 			DeploymentStrategy: &datadoghqv1alpha1.DaemonSetDeploymentStrategy{},
 			Apm:                datadoghqv1alpha1.APMSpec{},
-			Log:                datadoghqv1alpha1.LogSpec{},
 			Process: datadoghqv1alpha1.ProcessSpec{
 				Enabled:                  datadoghqv1alpha1.NewBoolPointer(false),
 				ProcessCollectionEnabled: datadoghqv1alpha1.NewBoolPointer(false),
@@ -135,6 +135,14 @@ func NewDatadogAgent(ns, name, image string, options *NewDatadogAgentOptions) *d
 			ad.Spec.Agent.Security = *options.SecuritySpec
 		} else {
 			ad.Spec.Agent.Security.VolumeMounts = options.VolumeMounts
+		}
+
+		if options.OrchestratorExplorerDisable {
+			if ad.Spec.Features.OrchestratorExplorer == nil {
+				ad.Spec.Features.OrchestratorExplorer = &datadoghqv1alpha1.OrchestratorExplorerConfig{}
+			}
+
+			ad.Spec.Features.OrchestratorExplorer.Enabled = datadoghqv1alpha1.NewBoolPointer(false)
 		}
 	}
 
