@@ -57,4 +57,4 @@ See the [How to Contribute page][9].
 
 ## Release
 
-Release process documentation is available [here](hack/release/README.md).
+Release process documentation is available [here](./RELEASING.md).
