@@ -74,9 +74,6 @@ publish_public_main:
     - if: '$CI_COMMIT_BRANCH == "main"'
       when: on_success
     - when: never
-  needs:
-    - build_image_arm64
-    - build_image_amd64
   trigger:
     project: DataDog/public-images
     branch: main
@@ -92,9 +89,6 @@ publish_public_tag:
     - if: $CI_COMMIT_TAG
       when: manual
     - when: never
-  needs:
-    - build_image_arm64
-    - build_image_amd64
   trigger:
     project: DataDog/public-images
     branch: main
@@ -110,9 +104,6 @@ publish_public_latest:
     - if: $CI_COMMIT_TAG
       when: manual
     - when: never
-  needs:
-    - build_image_arm64
-    - build_image_amd64
   trigger:
     project: DataDog/public-images
     branch: main
@@ -127,9 +118,6 @@ trigger_internal_image:
   rules:
     - if: $CI_COMMIT_TAG
     - when: never
-  needs:
-    - build_image_arm64
-    - build_image_amd64
   trigger:
     project: DataDog/images
     branch: master
