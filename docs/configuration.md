@@ -52,6 +52,20 @@ spec:
 | agent.config.dogstatsd.unixDomainSocket.hostFilepath | Define the host APM socket filepath used when APM over Unix Domain Socket is enabled (default value: /var/run/datadog/statsd.sock) ref: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/ |
 | agent.config.env | The Datadog Agent supports many environment variables Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables |
 | agent.config.hostPort | Number of port to expose on the host. If specified, this must be a valid port number, 0 < x < 65536. If HostNetwork is specified, this must match ContainerPort. Most containers do not need this. |
+| agent.config.kubelet.agentCAPath | Path (inside Agent containers) where the Kubelet CA certificate is stored Default to /var/run/host-kubelet-ca.crt if hostCAPath else /var/run/secrets/kubernetes.io/serviceaccount/ca.crt |
+| agent.config.kubelet.host.configMapKeyRef.key | The key to select. |
+| agent.config.kubelet.host.configMapKeyRef.name | Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names TODO: Add other useful fields. apiVersion, kind, uid? |
+| agent.config.kubelet.host.configMapKeyRef.optional | Specify whether the ConfigMap or its key must be defined |
+| agent.config.kubelet.host.fieldRef.apiVersion | Version of the schema the FieldPath is written in terms of, defaults to "v1". |
+| agent.config.kubelet.host.fieldRef.fieldPath | Path of the field to select in the specified API version. |
+| agent.config.kubelet.host.resourceFieldRef.containerName | Container name: required for volumes, optional for env vars |
+| agent.config.kubelet.host.resourceFieldRef.divisor | Specifies the output format of the exposed resources, defaults to "1" |
+| agent.config.kubelet.host.resourceFieldRef.resource | Required: resource to select |
+| agent.config.kubelet.host.secretKeyRef.key | The key of the secret to select from.  Must be a valid secret key. |
+| agent.config.kubelet.host.secretKeyRef.name | Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names TODO: Add other useful fields. apiVersion, kind, uid? |
+| agent.config.kubelet.host.secretKeyRef.optional | Specify whether the Secret or its key must be defined |
+| agent.config.kubelet.hostCAPath | Path (on host) where the Kubelet CA certificate is stored |
+| agent.config.kubelet.tlsVerify | Toggle kubelet TLS verification (default to true) |
 | agent.config.leaderElection | Enables leader election mechanism for event collection. |
 | agent.config.logLevel | Set logging verbosity, valid log levels are: trace, debug, info, warn, error, critical, and off |
 | agent.config.podAnnotationsAsTags | Provide a mapping of Kubernetes Annotations to Datadog Tags. <KUBERNETES_ANNOTATIONS>: <DATADOG_TAG_KEY> |

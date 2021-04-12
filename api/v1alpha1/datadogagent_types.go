@@ -741,6 +741,31 @@ type NodeAgentConfig struct {
 	//
 	// +optional
 	HostPort *int32 `json:"hostPort,omitempty"`
+
+	// KubeletConfig contains the Kubelet configuration parameters
+	// +optional
+	Kubelet *KubeletConfig `json:"kubelet,omitempty"`
+}
+
+// KubeletConfig contains the Kubelet configuration parameters
+// +k8s:openapi-gen=true
+type KubeletConfig struct {
+	// Override host used to contact Kubelet API (default to status.hostIP)
+	// +optional
+	Host *corev1.EnvVarSource `json:"host,omitempty"`
+
+	// Toggle kubelet TLS verification (default to true)
+	// +optional
+	TLSVerify *bool `json:"tlsVerify,omitempty"`
+
+	// Path (on host) where the Kubelet CA certificate is stored
+	// +optional
+	HostCAPath string `json:"hostCAPath,omitempty"`
+
+	// Path (inside Agent containers) where the Kubelet CA certificate is stored
+	// Default to /var/run/host-kubelet-ca.crt if hostCAPath else /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+	// +optional
+	AgentCAPath string `json:"agentCAPath,omitempty"`
 }
 
 // CRISocketConfig contains the CRI socket configuration parameters

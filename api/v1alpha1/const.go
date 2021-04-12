@@ -86,6 +86,8 @@ const (
 	DDSystemProbeAgentEnabled                    = "DD_SYSTEM_PROBE_ENABLED"
 	DDEnableMetadataCollection                   = "DD_ENABLE_METADATA_COLLECTION"
 	DDKubeletHost                                = "DD_KUBERNETES_KUBELET_HOST"
+	DDKubeletTLSVerify                           = "DD_KUBELET_TLS_VERIFY"
+	DDKubeletCAPath                              = "DD_KUBELET_CLIENT_CA"
 	DDCriSocketPath                              = "DD_CRI_SOCKET_PATH"
 	DockerHost                                   = "DOCKER_HOST"
 	DDAdmissionControllerEnabled                 = "DD_ADMISSION_CONTROLLER_ENABLED"
@@ -169,6 +171,8 @@ const (
 	AgentCustomConfigVolumeName        = "custom-datadog-yaml"
 	AgentCustomConfigVolumePath        = "/etc/datadog-agent/datadog.yaml"
 	AgentCustomConfigVolumeSubPath     = "datadog.yaml"
+	KubeletCAVolumeName                = "kubelet-ca"
+	DefaultKubeletAgentCAPath          = "/var/run/host-kubelet-ca.crt"
 
 	HostCriSocketPathPrefix = "/host"
 
