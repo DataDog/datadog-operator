@@ -62,6 +62,7 @@ func buildSystemProbeConfigConfiMap(dda *datadoghqv1alpha1.DatadogAgent) (*corev
 				datadoghqv1alpha1.BoolToString(spec.EnableTCPQueueLength),
 				datadoghqv1alpha1.BoolToString(spec.EnableOOMKill),
 				datadoghqv1alpha1.BoolToString(spec.CollectDNSStats),
+				datadoghqv1alpha1.BoolToString(spec.EnableNetworkMonitoring),
 				isRuntimeSecurityEnabled(&dda.Spec),
 				filepath.Join(datadoghqv1alpha1.SystemProbeSocketVolumePath, "runtime-security.sock"),
 				datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumePath,
@@ -82,6 +83,8 @@ const systemProbeAgentSecurityDataTmpl = `system_probe_config:
   enable_tcp_queue_length: %s
   enable_oom_kill: %s
   collect_dns_stats: %s
+network_config:
+  enabled: %s
 runtime_security_config:
   enabled: %v
   debug: false

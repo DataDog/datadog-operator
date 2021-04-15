@@ -3264,6 +3264,10 @@ spec:
                         expvar for system-probe agent
                       format: int32
                       type: integer
+                    enableNetworkMonitoring:
+                      description: EnableNetworkMonitoring enables Network Performance
+                        Monitoring
+                      type: boolean
                     enableOOMKill:
                       description: EnableOOMKill enables the OOM kill eBPF-based check
                       type: boolean
@@ -3272,9 +3276,10 @@ spec:
                         eBPF-based check
                       type: boolean
                     enabled:
-                      description: 'Enable this to activate live process monitoring.
-                        Note: /etc/passwd is automatically mounted to allow username
-                        resolution. ref: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset'
+                      description: 'Enabled is DEPRECATED - enable by feature instead.
+                        Enable this to activate live process monitoring. Note: /etc/passwd
+                        is automatically mounted to allow username resolution. ref:
+                        https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset'
                       type: boolean
                     env:
                       description: 'The Datadog SystemProbe supports many environment

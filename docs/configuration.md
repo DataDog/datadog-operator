@@ -157,9 +157,10 @@ spec:
 | agent.systemProbe.collectDNSStats | CollectDNSStats enables DNS stat collection |
 | agent.systemProbe.conntrackEnabled | ConntrackEnabled enable the system-probe agent to connect to the netlink/conntrack subsystem to add NAT information to connection data Ref: http://conntrack-tools.netfilter.org/ |
 | agent.systemProbe.debugPort | DebugPort Specify the port to expose pprof and expvar for system-probe agent |
+| agent.systemProbe.enableNetworkMonitoring | EnableNetworkMonitoring enables Network Performance Monitoring |
 | agent.systemProbe.enableOOMKill | EnableOOMKill enables the OOM kill eBPF-based check |
 | agent.systemProbe.enableTCPQueueLength | EnableTCPQueueLength enables the TCP queue length eBPF-based check |
-| agent.systemProbe.enabled | Enable this to activate live process monitoring. Note: /etc/passwd is automatically mounted to allow username resolution. ref: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset |
+| agent.systemProbe.enabled | Enabled is DEPRECATED - enable by feature instead. Enable this to activate live process monitoring. Note: /etc/passwd is automatically mounted to allow username resolution. ref: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset |
 | agent.systemProbe.env | The Datadog SystemProbe supports many environment variables Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables |
 | agent.systemProbe.resources.limits | Limits describes the maximum amount of compute resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/ |
 | agent.systemProbe.resources.requests | Requests describes the minimum amount of compute resources required. If Requests is omitted for a container, it defaults to Limits if that is explicitly specified, otherwise to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/ |

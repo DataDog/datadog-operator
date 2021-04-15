@@ -1935,6 +1935,11 @@ func (in *SystemProbeSpec) DeepCopyInto(out *SystemProbeSpec) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.EnableNetworkMonitoring != nil {
+		in, out := &in.EnableNetworkMonitoring, &out.EnableNetworkMonitoring
+		*out = new(bool)
+		**out = **in
+	}
 	if in.EnableTCPQueueLength != nil {
 		in, out := &in.EnableTCPQueueLength, &out.EnableTCPQueueLength
 		*out = new(bool)
