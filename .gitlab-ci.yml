@@ -14,7 +14,6 @@ stages:
   - build
   - test
   - image
-  - intermediate
   - release
 
 build:
@@ -84,40 +83,12 @@ publish_public_main:
     IMG_DESTINATIONS: operator:main
     IMG_SIGNING: "false"
 
-# Before Gitlab 13.5 trigger with `when:manual` does not work
-# Workaround it by having a manual intermediate job
-intermediate_latest:
-  stage: intermediate
-  tags: ["runner:main", "size:large"]
-  rules:
-    - if: $CI_COMMIT_TAG
-      when: manual
-      allow_failure: false
-    - when: never
-  script:
-    echo "OK"
-
-# Before Gitlab 13.5 trigger with `when:manual` does not work
-# Workaround it by having a manual intermediate job
-intermediate_tag:
-  stage: intermediate
-  tags: ["runner:main", "size:large"]
-  rules:
-    - if: $CI_COMMIT_TAG
-      when: manual
-      allow_failure: false
-    - when: never
-  script:
-    echo "OK"
-
 publish_public_tag:
   stage: release
   rules:
     - if: $CI_COMMIT_TAG
       when: manual
     - when: never
-  needs:
-    - intermediate_tag
   trigger:
     project: DataDog/public-images
     branch: main
@@ -133,8 +104,6 @@ publish_public_latest:
     - if: $CI_COMMIT_TAG
       when: manual
     - when: never
-  needs:
-    - intermediate_latest
   trigger:
     project: DataDog/public-images
     branch: main
@@ -149,9 +118,6 @@ trigger_internal_image:
   rules:
     - if: $CI_COMMIT_TAG
     - when: never
-  needs:
-    - build_image_arm64
-    - build_image_amd64
   trigger:
     project: DataDog/images
     branch: master
