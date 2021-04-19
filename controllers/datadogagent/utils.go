@@ -1386,9 +1386,6 @@ func getVolumeMountsForProcessAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev
 	// Add configuration mount
 	volumeMounts = append(volumeMounts, getVolumeMountForConfig(dda.Spec.Agent.CustomConfig)...)
 
-	// Add extra volume mounts
-	volumeMounts = append(volumeMounts, dda.Spec.Agent.Process.VolumeMounts...)
-
 	// Cri socket volume
 	if dda.Spec.Agent.Config.CriSocket != nil {
 		path := ""
@@ -1420,6 +1417,9 @@ func getVolumeMountsForProcessAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev
 			},
 		}...)
 	}
+
+	// Add extra volume mounts
+	volumeMounts = append(volumeMounts, dda.Spec.Agent.Process.VolumeMounts...)
 
 	return volumeMounts
 }

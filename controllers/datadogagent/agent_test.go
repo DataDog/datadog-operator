@@ -1495,6 +1495,10 @@ func customKubeletConfigPodSpec(kubeletConfig *datadoghqv1alpha1.KubeletConfig) 
 			Value: "false",
 		},
 		{
+			Name:  "DD_DOGSTATSD_ORIGIN_DETECTION",
+			Value: "false",
+		},
+		{
 			Name:  "DD_LOGS_ENABLED",
 			Value: "false",
 		},
@@ -1509,10 +1513,6 @@ func customKubeletConfigPodSpec(kubeletConfig *datadoghqv1alpha1.KubeletConfig) 
 		{
 			Name:  "DD_LOGS_CONFIG_OPEN_FILES_LIMIT",
 			Value: "100",
-		},
-		{
-			Name:  "DD_DOGSTATSD_ORIGIN_DETECTION",
-			Value: "false",
 		},
 		{
 			Name:  "DD_LOG_LEVEL",
@@ -3059,7 +3059,8 @@ func Test_newExtendedDaemonSetFromInstance_SecurityAgent_Runtime(t *testing.T) {
 
 func Test_newExtendedDaemonSetFromInstance_KubeletConfiguration(t *testing.T) {
 	dda := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
-		UseEDS: true,
+		UseEDS:                      true,
+		OrchestratorExplorerDisable: true,
 	})
 
 	dda.Spec.Agent.Config.Kubelet = &datadoghqv1alpha1.KubeletConfig{
