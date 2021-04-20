@@ -1156,6 +1156,7 @@ func defaultOrchestratorPodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodS
 				Command: []string{
 					"process-agent",
 					"--config=/etc/datadog-agent/datadog.yaml",
+					"--sysprobe-config=/etc/datadog-agent/system-probe.yaml",
 				},
 				Resources:    corev1.ResourceRequirements{},
 				Env:          defaultOrchestratorEnvVars(dda),
