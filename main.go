@@ -73,9 +73,11 @@ func (ss *stringSlice) Set(value string) error {
 func main() {
 	var metricsAddr string
 	var enableLeaderElection bool
+	var leaderElectionResourceLock string
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", true,
 		"Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
+	flag.StringVar(&leaderElectionResourceLock, "leader-election-resource", "configmaps", "determines which resource lock to use for leader election. option:[configmapsleases|endpointsleases|configmaps]")
 
 	// Custom flags
 	var printVersion, pprofActive, supportExtendedDaemonset, datadogMonitorEnabled, operatorMetricsEnabled bool
@@ -112,12 +114,13 @@ func main() {
 	secrets.SetSecretBackendArgs(secretBackendArgs)
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), config.ManagerOptionsWithNamespaces(setupLog, ctrl.Options{
-		Scheme:                 scheme,
-		MetricsBindAddress:     metricsAddr,
-		HealthProbeBindAddress: ":8081",
-		Port:                   9443,
-		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "datadog-operator-lock",
+		Scheme:                     scheme,
+		MetricsBindAddress:         metricsAddr,
+		HealthProbeBindAddress:     ":8081",
+		Port:                       9443,
+		LeaderElection:             enableLeaderElection,
+		LeaderElectionID:           "datadog-operator-lock",
+		LeaderElectionResourceLock: leaderElectionResourceLock,
 	}))
 	if err != nil {
 		setupLog.Error(err, "Unable to start manager")
