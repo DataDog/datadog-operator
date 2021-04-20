@@ -60,11 +60,12 @@ Here are the steps:
     kubectl apply -f /path/to/your/datadog-monitor.yaml
     ```
 
-    If configured properly this results in the creation of a new monitor in your [Datadog account][7].
+    This results in the automatic creation of a new monitor in Datadog. The monitor can be found on the [Manage Monitors][7] page of your Datadog account.
+    *Note*: All monitors created from `DatadogMonitor` are automatically tagged with `generated:kubernetes`.
 
 ## Cleanup
 
-The following command deletes all the Kubernetes resources created by the above instructions:
+The following commands delete the monitor from your Datadog account and all the Kubernetes resources created by the above instructions:
 
 ```shell
 kubectl delete datadogmonitor datadog-monitor-test
@@ -76,13 +77,45 @@ helm delete datadog
 To verify monitor creation and check the monitor state, run
 
 ```shell
-kubectl get datadogmonitor datadog-monitor-test
+$ kubectl get datadogmonitor datadog-monitor-test
+
+NAME                     ID         MONITOR STATE   LAST TRANSITION        LAST SYNC              SYNC STATUS                AGE
+datadog-monitor-test     1234       Alert           2021-03-29T17:32:47Z   2021-03-30T12:52:47Z   OK                         19h
 ```
 
 To view details about the monitor, including monitor groups that are currently in an alerting state, run
 
 ```shell
-kubectl describe datadogmonitor datadog-monitor-test
+$ kubectl describe datadogmonitor datadog-monitor-test
+
+Name:         datadog-monitor-test
+Namespace:    datadog
+Labels:       <none>
+Annotations:  <none>
+API Version:  datadoghq.com/v1alpha1
+Kind:         DatadogMonitor
+Metadata:
+  Creation Timestamp:  2021-03-20T13:17:03Z
+  ...
+Spec:
+  Message:  1-2-3 testing
+  Name:     Test monitor made from DatadogMonitor
+  Options:
+  Query:  avg(last_10m):avg:system.disk.in_use{*} by {host} > 0.5
+  Tags:
+    test:datadog
+    generated:kubernetes
+  Type:  metric alert
+Status:
+  Conditions:
+    Last Transition Time:  2021-03-29T17:32:47Z
+    Last Update Time:      2021-03-30T12:52:47Z
+    Message:               DatadogMonitor ready
+    Status:                True
+    Type:                  Active
+  Current Hash:            b30484c5976d3709b623e5e081e6ce18
+  Downtime Status:
+Events:  <none>
 ```
 
 To investigate any issues, view the Operator logs (of the leader pod, if more than one):
