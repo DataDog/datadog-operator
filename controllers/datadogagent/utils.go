@@ -310,7 +310,7 @@ func getProcessContainers(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.Contain
 		ImagePullPolicy: *agentSpec.Image.PullPolicy,
 		Command: []string{
 			"process-agent",
-			"-config=/etc/datadog-agent/datadog.yaml",
+			"--config=/etc/datadog-agent/datadog.yaml",
 		},
 		Env:          envVars,
 		VolumeMounts: getVolumeMountsForProcessAgent(dda),
@@ -335,7 +335,7 @@ func getSystemProbeContainers(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.Con
 		ImagePullPolicy: *agentSpec.Image.PullPolicy,
 		Command: []string{
 			"/opt/datadog-agent/embedded/bin/system-probe",
-			fmt.Sprintf("-config=%s", datadoghqv1alpha1.SystemProbeConfigVolumePath),
+			fmt.Sprintf("--config=%s", datadoghqv1alpha1.SystemProbeConfigVolumePath),
 		},
 		SecurityContext: &corev1.SecurityContext{
 			Capabilities: &corev1.Capabilities{

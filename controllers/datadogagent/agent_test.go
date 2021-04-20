@@ -1082,7 +1082,7 @@ func defaultSystemProbePodSpec() corev1.PodSpec {
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Command: []string{
 					"/opt/datadog-agent/embedded/bin/system-probe",
-					"-config=/etc/datadog-agent/system-probe.yaml",
+					"--config=/etc/datadog-agent/system-probe.yaml",
 				},
 				SecurityContext: &corev1.SecurityContext{
 					Capabilities: &corev1.Capabilities{
@@ -1155,7 +1155,7 @@ func defaultOrchestratorPodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodS
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Command: []string{
 					"process-agent",
-					"-config=/etc/datadog-agent/datadog.yaml",
+					"--config=/etc/datadog-agent/datadog.yaml",
 				},
 				Resources:    corev1.ResourceRequirements{},
 				Env:          defaultOrchestratorEnvVars(dda),
@@ -1358,7 +1358,7 @@ func runtimeSecurityAgentPodSpec(extraEnv map[string]string) corev1.PodSpec {
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Command: []string{
 					"/opt/datadog-agent/embedded/bin/system-probe",
-					"-config=/etc/datadog-agent/system-probe.yaml",
+					"--config=/etc/datadog-agent/system-probe.yaml",
 				},
 				SecurityContext: &corev1.SecurityContext{
 					Capabilities: &corev1.Capabilities{
