@@ -280,7 +280,7 @@ func getAPMAgentContainers(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.Contai
 		ImagePullPolicy: *agentSpec.Image.PullPolicy,
 		Command: []string{
 			"trace-agent",
-			"--config=/etc/datadog-agent/datadog.yaml",
+			fmt.Sprintf("--config=%s", datadoghqv1alpha1.AgentCustomConfigVolumePath),
 		},
 
 		Ports: []corev1.ContainerPort{
@@ -310,7 +310,8 @@ func getProcessContainers(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.Contain
 		ImagePullPolicy: *agentSpec.Image.PullPolicy,
 		Command: []string{
 			"process-agent",
-			"--config=/etc/datadog-agent/datadog.yaml",
+			fmt.Sprintf("--config=%s", datadoghqv1alpha1.AgentCustomConfigVolumePath),
+			fmt.Sprintf("--sysprobe-config=%s", datadoghqv1alpha1.SystemProbeConfigVolumePath),
 		},
 		Env:          envVars,
 		VolumeMounts: getVolumeMountsForProcessAgent(dda),
@@ -377,7 +378,7 @@ func getSecurityAgentContainer(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.Con
 		Command: []string{
 			"security-agent",
 			"start",
-			"-c=/etc/datadog-agent/datadog.yaml",
+			fmt.Sprintf("-c=%s", datadoghqv1alpha1.AgentCustomConfigVolumePath),
 		},
 		SecurityContext: &corev1.SecurityContext{
 			Capabilities: &corev1.Capabilities{
