@@ -23,6 +23,8 @@ type DatadogFeatures struct {
 	KubeStateMetricsCore *KubeStateMetricsCore `json:"kubeStateMetricsCore,omitempty"`
 	// PrometheusScrape configuration
 	PrometheusScrape *PrometheusScrapeConfig `json:"prometheusScrape,omitempty"`
+	// NetworkMonitoring configuration
+	NetworkMonitoring *NetworkMonitoringConfig `json:"networkMonitoring,omitempty"`
 }
 
 // DatadogAgentSpec defines the desired state of DatadogAgent
@@ -483,10 +485,14 @@ type PrometheusScrapeConfig struct {
 	AdditionalConfigs *string `json:"additionalConfigs,omitempty"`
 }
 
+// NetworkMonitoringConfig allows configuration of network performance monitoring
+type NetworkMonitoringConfig struct {
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
 // SystemProbeSpec contains the SystemProbe Agent configuration
 // +k8s:openapi-gen=true
 type SystemProbeSpec struct {
-	// Enabled is DEPRECATED - enable by feature instead.
 	// Enable this to activate live process monitoring.
 	// Note: /etc/passwd is automatically mounted to allow username resolution.
 	// ref: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset
@@ -518,9 +524,6 @@ type SystemProbeSpec struct {
 
 	// DebugPort Specify the port to expose pprof and expvar for system-probe agent
 	DebugPort int32 `json:"debugPort,omitempty"`
-
-	// EnableNetworkMonitoring enables Network Performance Monitoring
-	EnableNetworkMonitoring *bool `json:"enableNetworkMonitoring,omitempty"`
 
 	// EnableTCPQueueLength enables the TCP queue length eBPF-based check
 	EnableTCPQueueLength *bool `json:"enableTCPQueueLength,omitempty"`

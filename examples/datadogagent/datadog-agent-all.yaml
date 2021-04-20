@@ -18,7 +18,6 @@ spec:
       enabled: true
     systemProbe:
       bpfDebugEnabled: true
-      enableNetworkMonitoring: true
     security:
       compliance:
         enabled: true

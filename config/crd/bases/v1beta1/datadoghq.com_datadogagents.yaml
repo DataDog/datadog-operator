@@ -3264,10 +3264,6 @@ spec:
                         expvar for system-probe agent
                       format: int32
                       type: integer
-                    enableNetworkMonitoring:
-                      description: EnableNetworkMonitoring enables Network Performance
-                        Monitoring
-                      type: boolean
                     enableOOMKill:
                       description: EnableOOMKill enables the OOM kill eBPF-based check
                       type: boolean
@@ -3276,10 +3272,9 @@ spec:
                         eBPF-based check
                       type: boolean
                     enabled:
-                      description: 'Enabled is DEPRECATED - enable by feature instead.
-                        Enable this to activate live process monitoring. Note: /etc/passwd
-                        is automatically mounted to allow username resolution. ref:
-                        https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset'
+                      description: 'Enable this to activate live process monitoring.
+                        Note: /etc/passwd is automatically mounted to allow username
+                        resolution. ref: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset'
                       type: boolean
                     env:
                       description: 'The Datadog SystemProbe supports many environment
@@ -8709,6 +8704,12 @@ spec:
                     enabled:
                       description: Enable this to start the Kubernetes State Metrics
                         Core check. Refer to https://github.com/DataDog/datadog-operator/blob/main/docs/kubernetes_state_metrics.md
+                      type: boolean
+                  type: object
+                networkMonitoring:
+                  description: NetworkMonitoring configuration
+                  properties:
+                    enabled:
                       type: boolean
                   type: object
                 orchestratorExplorer:

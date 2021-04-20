@@ -1618,11 +1618,17 @@ func schema__api_v1alpha1_DatadogFeatures(ref common.ReferenceCallback) common.O
 							Ref:         ref("./api/v1alpha1.PrometheusScrapeConfig"),
 						},
 					},
+					"networkMonitoring": {
+						SchemaProps: spec.SchemaProps{
+							Description: "NetworkMonitoring configuration",
+							Ref:         ref("./api/v1alpha1.NetworkMonitoringConfig"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./api/v1alpha1.KubeStateMetricsCore", "./api/v1alpha1.OrchestratorExplorerConfig", "./api/v1alpha1.PrometheusScrapeConfig"},
+			"./api/v1alpha1.KubeStateMetricsCore", "./api/v1alpha1.NetworkMonitoringConfig", "./api/v1alpha1.OrchestratorExplorerConfig", "./api/v1alpha1.PrometheusScrapeConfig"},
 	}
 }
 
@@ -2821,7 +2827,7 @@ func schema__api_v1alpha1_SystemProbeSpec(ref common.ReferenceCallback) common.O
 				Properties: map[string]spec.Schema{
 					"enabled": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enabled is DEPRECATED - enable by feature instead. Enable this to activate live process monitoring. Note: /etc/passwd is automatically mounted to allow username resolution. ref: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset",
+							Description: "Enable this to activate live process monitoring. Note: /etc/passwd is automatically mounted to allow username resolution. ref: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
@@ -2873,13 +2879,6 @@ func schema__api_v1alpha1_SystemProbeSpec(ref common.ReferenceCallback) common.O
 							Description: "DebugPort Specify the port to expose pprof and expvar for system-probe agent",
 							Type:        []string{"integer"},
 							Format:      "int32",
-						},
-					},
-					"enableNetworkMonitoring": {
-						SchemaProps: spec.SchemaProps{
-							Description: "EnableNetworkMonitoring enables Network Performance Monitoring",
-							Type:        []string{"boolean"},
-							Format:      "",
 						},
 					},
 					"enableTCPQueueLength": {
