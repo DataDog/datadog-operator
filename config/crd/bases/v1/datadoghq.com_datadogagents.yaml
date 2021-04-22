@@ -9001,6 +9001,12 @@ spec:
                           Core check. Refer to https://github.com/DataDog/datadog-operator/blob/main/docs/kubernetes_state_metrics.md
                         type: boolean
                     type: object
+                  networkMonitoring:
+                    description: NetworkMonitoring configuration
+                    properties:
+                      enabled:
+                        type: boolean
+                    type: object
                   orchestratorExplorer:
                     description: OrchestratorExplorer configuration
                     properties:

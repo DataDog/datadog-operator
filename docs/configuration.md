@@ -275,6 +275,7 @@ spec:
 | features.kubeStateMetricsCore.conf.configMap.fileKey | FileKey corresponds to the key used in the ConfigMap.Data to store the configuration file content |
 | features.kubeStateMetricsCore.conf.configMap.name | Name the ConfigMap name |
 | features.kubeStateMetricsCore.enabled | Enable this to start the Kubernetes State Metrics Core check. Refer to https://github.com/DataDog/datadog-operator/blob/main/docs/kubernetes_state_metrics.md |
+| features.networkMonitoring.enabled |  |
 | features.orchestratorExplorer.additionalEndpoints | Additional endpoints for shipping the collected data as json in the form of {"https://process.agent.datadoghq.com": ["apikey1", ...], ...}'. |
 | features.orchestratorExplorer.ddUrl | Set this for the Datadog endpoint for the orchestrator explorer |
 | features.orchestratorExplorer.enabled | Enable this to activate live Kubernetes monitoring. ref: https://docs.datadoghq.com/infrastructure/livecontainers/#kubernetes-resources |

@@ -20,7 +20,6 @@ spec:
       enabled: false
       logsConfigContainerCollectAll: false
     systemProbe:
-      enabled: false
       bpfDebugEnabled: false
     security:
       compliance:

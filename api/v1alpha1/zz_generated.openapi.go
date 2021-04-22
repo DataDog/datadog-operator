@@ -1618,11 +1618,17 @@ func schema__api_v1alpha1_DatadogFeatures(ref common.ReferenceCallback) common.O
 							Ref:         ref("./api/v1alpha1.PrometheusScrapeConfig"),
 						},
 					},
+					"networkMonitoring": {
+						SchemaProps: spec.SchemaProps{
+							Description: "NetworkMonitoring configuration",
+							Ref:         ref("./api/v1alpha1.NetworkMonitoringConfig"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./api/v1alpha1.KubeStateMetricsCore", "./api/v1alpha1.OrchestratorExplorerConfig", "./api/v1alpha1.PrometheusScrapeConfig"},
+			"./api/v1alpha1.KubeStateMetricsCore", "./api/v1alpha1.NetworkMonitoringConfig", "./api/v1alpha1.OrchestratorExplorerConfig", "./api/v1alpha1.PrometheusScrapeConfig"},
 	}
 }
 

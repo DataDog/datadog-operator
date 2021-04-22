@@ -156,7 +156,18 @@ func isAPMEnabled(spec *datadoghqv1alpha1.DatadogAgentSpec) bool {
 }
 
 func isSystemProbeEnabled(spec *datadoghqv1alpha1.DatadogAgentSpec) bool {
-	return datadoghqv1alpha1.BoolValue(spec.Agent.SystemProbe.Enabled) || datadoghqv1alpha1.BoolValue(spec.Agent.Security.Runtime.Enabled)
+	if isNetworkMonitoringEnabled(spec) {
+		return true
+	}
+	return datadoghqv1alpha1.BoolValue(spec.Agent.SystemProbe.Enabled) || datadoghqv1alpha1.BoolValue(spec.Agent.Security.Runtime.Enabled) || datadoghqv1alpha1.BoolValue(spec.Agent.SystemProbe.EnableTCPQueueLength) || datadoghqv1alpha1.BoolValue(spec.Agent.SystemProbe.EnableOOMKill)
+}
+
+func isNetworkMonitoringEnabled(spec *datadoghqv1alpha1.DatadogAgentSpec) bool {
+	featuresSpec := spec.Features
+	if featuresSpec != nil && featuresSpec.NetworkMonitoring != nil {
+		return datadoghqv1alpha1.BoolValue(featuresSpec.NetworkMonitoring.Enabled)
+	}
+	return false
 }
 
 func isComplianceEnabled(spec *datadoghqv1alpha1.DatadogAgentSpec) bool {

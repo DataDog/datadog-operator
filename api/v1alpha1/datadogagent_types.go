@@ -23,6 +23,8 @@ type DatadogFeatures struct {
 	KubeStateMetricsCore *KubeStateMetricsCore `json:"kubeStateMetricsCore,omitempty"`
 	// PrometheusScrape configuration
 	PrometheusScrape *PrometheusScrapeConfig `json:"prometheusScrape,omitempty"`
+	// NetworkMonitoring configuration
+	NetworkMonitoring *NetworkMonitoringConfig `json:"networkMonitoring,omitempty"`
 }
 
 // DatadogAgentSpec defines the desired state of DatadogAgent
@@ -481,6 +483,11 @@ type PrometheusScrapeConfig struct {
 	// AdditionalConfigs allows adding advanced prometheus check configurations with custom discovery rules.
 	// +optional
 	AdditionalConfigs *string `json:"additionalConfigs,omitempty"`
+}
+
+// NetworkMonitoringConfig allows configuration of network performance monitoring
+type NetworkMonitoringConfig struct {
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // SystemProbeSpec contains the SystemProbe Agent configuration

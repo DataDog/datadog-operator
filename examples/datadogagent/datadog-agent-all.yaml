@@ -17,7 +17,6 @@ spec:
     log:
       enabled: true
     systemProbe:
-      enabled: true
       bpfDebugEnabled: true
     security:
       compliance:
