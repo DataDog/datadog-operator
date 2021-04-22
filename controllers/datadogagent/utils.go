@@ -621,7 +621,7 @@ func getEnvVarsCommon(dda *datadoghqv1alpha1.DatadogAgent, needAPIKey bool) ([]c
 	return envVars, nil
 }
 
-func getEnvVarsForLogCollection(logSpec *datadoghqv1alpha1.LogSpec) []corev1.EnvVar {
+func getEnvVarsForLogCollection(logSpec *datadoghqv1alpha1.LogCollectionConfig) []corev1.EnvVar {
 	if logSpec == nil {
 		return []corev1.EnvVar{}
 	}

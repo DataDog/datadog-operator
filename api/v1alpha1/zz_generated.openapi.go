@@ -52,7 +52,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./api/v1alpha1.ImageConfig":                             schema__api_v1alpha1_ImageConfig(ref),
 		"./api/v1alpha1.KubeStateMetricsCore":                    schema__api_v1alpha1_KubeStateMetricsCore(ref),
 		"./api/v1alpha1.KubeletConfig":                           schema__api_v1alpha1_KubeletConfig(ref),
-		"./api/v1alpha1.LogSpec":                                 schema__api_v1alpha1_LogSpec(ref),
+		"./api/v1alpha1.LogCollectionConfig":                     schema__api_v1alpha1_LogCollectionConfig(ref),
 		"./api/v1alpha1.NetworkPolicySpec":                       schema__api_v1alpha1_NetworkPolicySpec(ref),
 		"./api/v1alpha1.NodeAgentConfig":                         schema__api_v1alpha1_NodeAgentConfig(ref),
 		"./api/v1alpha1.OrchestratorExplorerConfig":              schema__api_v1alpha1_OrchestratorExplorerConfig(ref),
@@ -1149,7 +1149,7 @@ func schema__api_v1alpha1_DatadogAgentSpecAgentSpec(ref common.ReferenceCallback
 					"log": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Log Agent configuration",
-							Ref:         ref("./api/v1alpha1.LogSpec"),
+							Ref:         ref("./api/v1alpha1.LogCollectionConfig"),
 						},
 					},
 					"process": {
@@ -1191,7 +1191,7 @@ func schema__api_v1alpha1_DatadogAgentSpecAgentSpec(ref common.ReferenceCallback
 			},
 		},
 		Dependencies: []string{
-			"./api/v1alpha1.APMSpec", "./api/v1alpha1.CustomConfigSpec", "./api/v1alpha1.DaemonSetDeploymentStrategy", "./api/v1alpha1.ImageConfig", "./api/v1alpha1.LogSpec", "./api/v1alpha1.NetworkPolicySpec", "./api/v1alpha1.NodeAgentConfig", "./api/v1alpha1.ProcessSpec", "./api/v1alpha1.RbacConfig", "./api/v1alpha1.SecuritySpec", "./api/v1alpha1.SystemProbeSpec", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.PodDNSConfig"},
+			"./api/v1alpha1.APMSpec", "./api/v1alpha1.CustomConfigSpec", "./api/v1alpha1.DaemonSetDeploymentStrategy", "./api/v1alpha1.ImageConfig", "./api/v1alpha1.LogCollectionConfig", "./api/v1alpha1.NetworkPolicySpec", "./api/v1alpha1.NodeAgentConfig", "./api/v1alpha1.ProcessSpec", "./api/v1alpha1.RbacConfig", "./api/v1alpha1.SecuritySpec", "./api/v1alpha1.SystemProbeSpec", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.PodDNSConfig"},
 	}
 }
 
@@ -1620,21 +1620,21 @@ func schema__api_v1alpha1_DatadogFeatures(ref common.ReferenceCallback) common.O
 					},
 					"networkMonitoring": {
 						SchemaProps: spec.SchemaProps{
-							Description: "NetworkMonitoring configuration",
+							Description: "NetworkMonitoring configuration.",
 							Ref:         ref("./api/v1alpha1.NetworkMonitoringConfig"),
 						},
 					},
 					"logCollection": {
 						SchemaProps: spec.SchemaProps{
-							Description: "LogCollection configuration",
-							Ref:         ref("./api/v1alpha1.LogSpec"),
+							Description: "LogCollection configuration.",
+							Ref:         ref("./api/v1alpha1.LogCollectionConfig"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./api/v1alpha1.KubeStateMetricsCore", "./api/v1alpha1.LogSpec", "./api/v1alpha1.NetworkMonitoringConfig", "./api/v1alpha1.OrchestratorExplorerConfig", "./api/v1alpha1.PrometheusScrapeConfig"},
+			"./api/v1alpha1.KubeStateMetricsCore", "./api/v1alpha1.LogCollectionConfig", "./api/v1alpha1.NetworkMonitoringConfig", "./api/v1alpha1.OrchestratorExplorerConfig", "./api/v1alpha1.PrometheusScrapeConfig"},
 	}
 }
 
@@ -2146,11 +2146,11 @@ func schema__api_v1alpha1_KubeletConfig(ref common.ReferenceCallback) common.Ope
 	}
 }
 
-func schema__api_v1alpha1_LogSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema__api_v1alpha1_LogCollectionConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "LogSpec contains the Log Agent configuration.",
+				Description: "LogCollectionConfig contains the Log Agent configuration.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"enabled": {
@@ -2604,7 +2604,7 @@ func schema__api_v1alpha1_PrometheusScrapeConfig(ref common.ReferenceCallback) c
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "PrometheusScrapeConfig allows configuring Prometheus Autodiscovery feature.",
+				Description: "PrometheusScrapeConfig allows configuration of the Prometheus Autodiscovery feature.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"enabled": {

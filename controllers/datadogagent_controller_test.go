@@ -122,9 +122,9 @@ var _ = Describe("DatadogAgent Controller", func() {
 
 		It("It should create DaemonSet", func() {
 			options := &testutils.NewDatadogAgentOptions{
-				UseEDS:                      false,
-				APIKey:                      "xnfdsjgdjcxlg42rqmzxzvdsgjdfklg",
-				OrchestratorExplorerDisable: true,
+				UseEDS:                       false,
+				APIKey:                       "xnfdsjgdjcxlg42rqmzxzvdsgjdfklg",
+				OrchestratorExplorerDisabled: true,
 			}
 
 			agent := testutils.NewDatadogAgent(namespace, name, "datadog/agent:7.21.0", options)

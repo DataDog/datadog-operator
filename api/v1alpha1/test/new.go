@@ -44,7 +44,7 @@ type NewDatadogAgentOptions struct {
 	APMEnabled                       bool
 	ProcessEnabled                   bool
 	ProcessCollectionEnabled         bool
-	OrchestratorExplorerDisable      bool
+	OrchestratorExplorerDisabled     bool
 	SystemProbeEnabled               bool
 	SystemProbeSeccompProfileName    string
 	SystemProbeAppArmorProfileName   string
@@ -123,7 +123,7 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 			ad.Spec.Features = *options.Features.DeepCopy()
 		}
 
-		if options.OrchestratorExplorerDisable {
+		if options.OrchestratorExplorerDisabled {
 			ad.Spec.Features.OrchestratorExplorer = &datadoghqv1alpha1.OrchestratorExplorerConfig{Enabled: datadoghqv1alpha1.NewBoolPointer(false)}
 		}
 

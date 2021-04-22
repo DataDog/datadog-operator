@@ -241,14 +241,6 @@ func defaultSystemProbeVolumes() []corev1.Volume {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.PasswdVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: datadoghqv1alpha1.PasswdVolumePath,
-				},
-			},
-		},
-		{
 			Name: datadoghqv1alpha1.SystemProbeAgentSecurityVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
@@ -2265,7 +2257,7 @@ func Test_ExtraParameters(t *testing.T) {
 		Site:                           site,
 		ComplianceEnabled:              true,
 		ComplianceCheckInterval:        metav1.Duration{Duration: time.Minute},
-		OrchestratorExplorerDisable:    true,
+		OrchestratorExplorerDisabled:   true,
 	}
 	datadogAgent := test.NewDefaultedDatadogAgent("bar", "foo", options)
 
@@ -2469,7 +2461,7 @@ func Test_newExtendedDaemonSetFromInstance_LogsEnabled(t *testing.T) {
 		UseEDS:              true,
 		ClusterAgentEnabled: true,
 		Features: &datadoghqv1alpha1.DatadogFeatures{
-			LogCollection: &datadoghqv1alpha1.LogSpec{
+			LogCollection: &datadoghqv1alpha1.LogCollectionConfig{
 				Enabled: v1alpha1.NewBoolPointer(true),
 			},
 		},
@@ -2769,9 +2761,10 @@ func extendedDaemonSetDefault(podSpec corev1.PodSpec) *edsdatadoghqv1alpha1.Exte
 
 func Test_newExtendedDaemonSetFromInstance_SystemProbe(t *testing.T) {
 	dda := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
-		UseEDS:              true,
-		ClusterAgentEnabled: true,
-		SystemProbeEnabled:  true,
+		UseEDS:                       true,
+		ClusterAgentEnabled:          true,
+		SystemProbeEnabled:           true,
+		OrchestratorExplorerDisabled: true,
 	})
 
 	systemProbePodSpec := defaultSystemProbePodSpec(dda)
@@ -2812,10 +2805,11 @@ func Test_newExtendedDaemonSetFromInstance_SystemProbe(t *testing.T) {
 		}
 	}
 	ddaOOMKill := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
-		UseEDS:                    true,
-		ClusterAgentEnabled:       true,
-		SystemProbeEnabled:        true,
-		SystemProbeOOMKillEnabled: true,
+		UseEDS:                       true,
+		ClusterAgentEnabled:          true,
+		SystemProbeEnabled:           true,
+		OrchestratorExplorerDisabled: true,
+		SystemProbeOOMKillEnabled:    true,
 	})
 
 	ddaTCPQueueLength := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
@@ -2823,6 +2817,7 @@ func Test_newExtendedDaemonSetFromInstance_SystemProbe(t *testing.T) {
 		ClusterAgentEnabled:              true,
 		SystemProbeEnabled:               true,
 		SystemProbeTCPQueueLengthEnabled: true,
+		OrchestratorExplorerDisabled:     true,
 	})
 
 	tests := []extendedDaemonSetFromInstanceTest{
@@ -2950,7 +2945,7 @@ func Test_newExtendedDaemonSetFromInstance_SecurityAgent_Compliance(t *testing.T
 		ClusterAgentEnabled:          true,
 		ComplianceEnabled:            true,
 		RuntimeSyscallMonitorEnabled: true,
-		OrchestratorExplorerDisable:  true,
+		OrchestratorExplorerDisabled: true,
 	})
 
 	test := extendedDaemonSetFromInstanceTest{
@@ -3006,7 +3001,7 @@ func Test_newExtendedDaemonSetFromInstance_SecurityAgent_Runtime(t *testing.T) {
 		ClusterAgentEnabled:          true,
 		RuntimeSecurityEnabled:       true,
 		RuntimeSyscallMonitorEnabled: true,
-		OrchestratorExplorerDisable:  true,
+		OrchestratorExplorerDisabled: true,
 	})
 
 	test := extendedDaemonSetFromInstanceTest{
@@ -3059,8 +3054,8 @@ func Test_newExtendedDaemonSetFromInstance_SecurityAgent_Runtime(t *testing.T) {
 
 func Test_newExtendedDaemonSetFromInstance_KubeletConfiguration(t *testing.T) {
 	dda := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
-		UseEDS:                      true,
-		OrchestratorExplorerDisable: true,
+		UseEDS:                       true,
+		OrchestratorExplorerDisabled: true,
 	})
 
 	dda.Spec.Agent.Config.Kubelet = &datadoghqv1alpha1.KubeletConfig{

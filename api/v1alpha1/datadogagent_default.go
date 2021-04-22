@@ -381,9 +381,9 @@ func IsDefaultedDatadogAgentSpecApm(apm *APMSpec) bool {
 	return true
 }
 
-// IsDefaultedDatadogAgentSpecLog used to check if an LogSpec was already defaulted
+// IsDefaultedDatadogAgentSpecLog used to check if an LogCollectionConfig was already defaulted
 // returns true if yes, else false
-func IsDefaultedDatadogAgentSpecLog(log *LogSpec) bool {
+func IsDefaultedDatadogAgentSpecLog(log *LogCollectionConfig) bool {
 	if log == nil {
 		return false
 	}
@@ -729,11 +729,11 @@ func DefaultDatadogAgentSpecAgentApmUDS(uds *APMUnixDomainSocketSpec) *APMUnixDo
 	return uds
 }
 
-// DefaultDatadogAgentSpecLogCollection used to default an LogSpec
-// return the defaulted LogSpec
-func DefaultDatadogAgentSpecLogCollection(log *LogSpec) *LogSpec {
+// DefaultDatadogAgentSpecLogCollection used to default an LogCollectionConfig
+// return the defaulted LogCollectionConfig
+func DefaultDatadogAgentSpecLogCollection(log *LogCollectionConfig) *LogCollectionConfig {
 	if log == nil {
-		log = &LogSpec{}
+		log = &LogCollectionConfig{}
 	}
 
 	if log.Enabled == nil {

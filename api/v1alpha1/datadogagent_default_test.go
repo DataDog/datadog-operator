@@ -88,7 +88,7 @@ func TestDefaultFeatures(t *testing.T) {
 			Enabled:          NewBoolPointer(false),
 			ServiceEndpoints: NewBoolPointer(false),
 		},
-		LogCollection: &LogSpec{
+		LogCollection: &LogCollectionConfig{
 			Enabled:                       NewBoolPointer(false),
 			LogsConfigContainerCollectAll: NewBoolPointer(false),
 			ContainerCollectUsingFiles:    NewBoolPointer(true),
@@ -112,7 +112,7 @@ func TestDefaultFeatures(t *testing.T) {
 		{
 			name: "enable LogCollection",
 			ft: &DatadogFeatures{
-				LogCollection: &LogSpec{Enabled: NewBoolPointer(true)},
+				LogCollection: &LogCollectionConfig{Enabled: NewBoolPointer(true)},
 			},
 			wantFunc: func() *DatadogFeatures {
 				want := defaultWant.DeepCopy()

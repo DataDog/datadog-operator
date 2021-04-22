@@ -8709,7 +8709,7 @@ spec:
                       type: boolean
                   type: object
                 logCollection:
-                  description: LogCollection configuration
+                  description: LogCollection configuration.
                   properties:
                     containerCollectUsingFiles:
                       description: 'Collect logs from files in `/var/log/pods instead`
@@ -8751,7 +8751,7 @@ spec:
                       type: string
                   type: object
                 networkMonitoring:
-                  description: NetworkMonitoring configuration
+                  description: NetworkMonitoring configuration.
                   properties:
                     enabled:
                       type: boolean

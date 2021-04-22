@@ -93,7 +93,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, request reconcile.Re
 	}
 
 	var patched bool
-	if instance, patched = patch.DatadogAgent(instance); patched {
+	if instance, patched = patch.CopyAndPatchDatadogAgent(instance); patched {
 		reqLogger.Info("Patching DatadogAgent")
 		err = r.client.Update(ctx, instance)
 		if err != nil {

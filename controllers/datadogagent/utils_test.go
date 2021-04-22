@@ -45,7 +45,7 @@ func generateSpec() *datadoghqv1alpha1.DatadogAgent {
 		Spec: datadoghqv1alpha1.DatadogAgentSpec{
 			Features: datadoghqv1alpha1.DatadogFeatures{
 				KubeStateMetricsCore: &datadoghqv1alpha1.KubeStateMetricsCore{},
-				LogCollection: &datadoghqv1alpha1.LogSpec{
+				LogCollection: &datadoghqv1alpha1.LogCollectionConfig{
 					Enabled:                       &boolPtr,
 					LogsConfigContainerCollectAll: &boolPtr,
 					ContainerCollectUsingFiles:    &boolPtr,

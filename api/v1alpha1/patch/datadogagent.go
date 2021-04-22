@@ -7,8 +7,9 @@ package patch
 
 import "github.com/DataDog/datadog-operator/api/v1alpha1"
 
-// DatadogAgent used to patch the current DatadogAgent instance to use the rescent fields.
-func DatadogAgent(da *v1alpha1.DatadogAgent) (*v1alpha1.DatadogAgent, bool) {
+// CopyAndPatchDatadogAgent used to patch the current DatadogAgent instance to use the new fields (not deprecated).
+// This function is here to ease the migration to a new DatadogAgent CRD version.
+func CopyAndPatchDatadogAgent(da *v1alpha1.DatadogAgent) (*v1alpha1.DatadogAgent, bool) {
 	newDA := da.DeepCopy()
 	patched := patchFeatures(da, newDA)
 	if patched {

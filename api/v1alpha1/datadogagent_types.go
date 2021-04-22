@@ -23,10 +23,10 @@ type DatadogFeatures struct {
 	KubeStateMetricsCore *KubeStateMetricsCore `json:"kubeStateMetricsCore,omitempty"`
 	// PrometheusScrape configuration.
 	PrometheusScrape *PrometheusScrapeConfig `json:"prometheusScrape,omitempty"`
-	// NetworkMonitoring configuration
+	// NetworkMonitoring configuration.
 	NetworkMonitoring *NetworkMonitoringConfig `json:"networkMonitoring,omitempty"`
-	// LogCollection configuration
-	LogCollection *LogSpec `json:"logCollection,omitempty"`
+	// LogCollection configuration.
+	LogCollection *LogCollectionConfig `json:"logCollection,omitempty"`
 }
 
 // DatadogAgentSpec defines the desired state of DatadogAgent.
@@ -203,7 +203,7 @@ type DatadogAgentSpecAgentSpec struct {
 
 	// Log Agent configuration
 	// +optional
-	Log *LogSpec `json:"log,omitempty"`
+	Log *LogCollectionConfig `json:"log,omitempty"`
 
 	// Process Agent configuration
 	// +optional
@@ -335,9 +335,9 @@ type APMUnixDomainSocketSpec struct {
 	HostFilepath *string `json:"hostFilepath,omitempty"`
 }
 
-// LogSpec contains the Log Agent configuration.
+// LogCollectionConfig contains the Log Agent configuration.
 // +k8s:openapi-gen=true
-type LogSpec struct {
+type LogCollectionConfig struct {
 	// Enable this option to activate Datadog Agent log collection.
 	// See also: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup
 	//
@@ -472,7 +472,7 @@ type Scrubbing struct {
 	Containers *bool `json:"containers,omitempty"`
 }
 
-// PrometheusScrapeConfig allows configuring Prometheus Autodiscovery feature.
+// PrometheusScrapeConfig allows configuration of the Prometheus Autodiscovery feature.
 // +k8s:openapi-gen=true
 type PrometheusScrapeConfig struct {
 	// Enable autodiscovering pods and services exposing prometheus metrics.

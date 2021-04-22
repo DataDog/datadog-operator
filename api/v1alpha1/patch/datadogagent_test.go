@@ -31,7 +31,7 @@ func TestDatadogAgent(t *testing.T) {
 			da: &v1alpha1.DatadogAgent{
 				Spec: v1alpha1.DatadogAgentSpec{
 					Agent: &v1alpha1.DatadogAgentSpecAgentSpec{
-						Log: &v1alpha1.LogSpec{
+						Log: &v1alpha1.LogCollectionConfig{
 							Enabled: v1alpha1.NewBoolPointer(true),
 						},
 					},
@@ -40,12 +40,12 @@ func TestDatadogAgent(t *testing.T) {
 			want: &v1alpha1.DatadogAgent{
 				Spec: v1alpha1.DatadogAgentSpec{
 					Features: v1alpha1.DatadogFeatures{
-						LogCollection: &v1alpha1.LogSpec{
+						LogCollection: &v1alpha1.LogCollectionConfig{
 							Enabled: v1alpha1.NewBoolPointer(true),
 						},
 					},
 					Agent: &v1alpha1.DatadogAgentSpecAgentSpec{
-						Log: &v1alpha1.LogSpec{
+						Log: &v1alpha1.LogCollectionConfig{
 							Enabled: v1alpha1.NewBoolPointer(true),
 						},
 					},
@@ -58,12 +58,12 @@ func TestDatadogAgent(t *testing.T) {
 			da: &v1alpha1.DatadogAgent{
 				Spec: v1alpha1.DatadogAgentSpec{
 					Features: v1alpha1.DatadogFeatures{
-						LogCollection: &v1alpha1.LogSpec{
+						LogCollection: &v1alpha1.LogCollectionConfig{
 							Enabled: v1alpha1.NewBoolPointer(false),
 						},
 					},
 					Agent: &v1alpha1.DatadogAgentSpecAgentSpec{
-						Log: &v1alpha1.LogSpec{
+						Log: &v1alpha1.LogCollectionConfig{
 							Enabled: v1alpha1.NewBoolPointer(true),
 						},
 					},
@@ -72,12 +72,12 @@ func TestDatadogAgent(t *testing.T) {
 			want: &v1alpha1.DatadogAgent{
 				Spec: v1alpha1.DatadogAgentSpec{
 					Features: v1alpha1.DatadogFeatures{
-						LogCollection: &v1alpha1.LogSpec{
+						LogCollection: &v1alpha1.LogCollectionConfig{
 							Enabled: v1alpha1.NewBoolPointer(false),
 						},
 					},
 					Agent: &v1alpha1.DatadogAgentSpecAgentSpec{
-						Log: &v1alpha1.LogSpec{
+						Log: &v1alpha1.LogCollectionConfig{
 							Enabled: v1alpha1.NewBoolPointer(true),
 						},
 					},
@@ -88,7 +88,7 @@ func TestDatadogAgent(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, got1 := DatadogAgent(tt.da)
+			got, got1 := CopyAndPatchDatadogAgent(tt.da)
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("DatadogAgent() %s", cmp.Diff(got, tt.want))
 			}
