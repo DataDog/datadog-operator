@@ -100,7 +100,8 @@ metadata:
     categories: Monitoring, Logging & Tracing
     operators.operatorframework.io/builder: operator-sdk-v1.2.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
-  name: datadog-operator.v0.5.0
+    repository: https://github.com/DataDog/datadog-operator
+  name: datadog-operator.v0.5.1
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -452,7 +453,7 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.annotations['olm.targetNamespaces']
-                image: registry.connect.redhat.com/datadog/operator:0.5.0
+                image: registry.connect.redhat.com/datadog/operator:0.5.1
                 imagePullPolicy: Always
                 livenessProbe:
                   httpGet:
@@ -529,5 +530,5 @@ spec:
   maturity: alpha
   provider:
     name: Datadog
-  version: 0.5.0
+  version: 0.5.1
   replaces: datadog-operator.v0.4.0

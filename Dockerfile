@@ -31,6 +31,8 @@ LABEL description="Datadog provides a modern monitoring and analytics platform. 
       metrics, logs and traces for full observability of your Kubernetes cluster with \
       Datadog Operator."
 
+RUN microdnf update -y && rm -rf /var/cache/yum
+
 WORKDIR /
 COPY --from=builder /workspace/manager .
 

@@ -17,7 +17,7 @@ COPY bundle-redhat/metadata /metadata/
 COPY bundle-redhat/tests/scorecard /tests/scorecard/
 # RedHat OpenShift specific labels
 # Specify which OpenShift version we support
-LABEL com.redhat.openshift.versions="v4.5,v4.6"
+LABEL com.redhat.openshift.versions="v4.5,v4.6,v4.7"
 LABEL com.redhat.delivery.operator.bundle=true
 # Specify that we are compatible with OpenShift <= 4.4
 LABEL com.redhat.delivery.backport=true
