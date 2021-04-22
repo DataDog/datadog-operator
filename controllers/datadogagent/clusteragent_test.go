@@ -76,10 +76,6 @@ func clusterAgentDefaultPodSpec() corev1.PodSpec {
 func clusterAgentDefaultEnvVars() []corev1.EnvVar {
 	return []corev1.EnvVar{
 		{
-			Name:  "DD_CLUSTER_NAME",
-			Value: "",
-		},
-		{
 			Name:  "DD_CLUSTER_CHECKS_ENABLED",
 			Value: "false",
 		},
@@ -120,10 +116,6 @@ func clusterAgentDefaultEnvVars() []corev1.EnvVar {
 
 func clusterAgentWithAdmissionControllerDefaultEnvVars(serviceName string, unlabelled bool) []corev1.EnvVar {
 	return []corev1.EnvVar{
-		{
-			Name:  "DD_CLUSTER_NAME",
-			Value: "",
-		},
 		{
 			Name:  "DD_CLUSTER_CHECKS_ENABLED",
 			Value: "false",

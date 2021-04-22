@@ -128,10 +128,6 @@ func clusterChecksRunnerDefaultVolumes() []corev1.Volume {
 func clusterChecksRunnerDefaultEnvVars() []corev1.EnvVar {
 	return []corev1.EnvVar{
 		{
-			Name:  "DD_CLUSTER_NAME",
-			Value: "",
-		},
-		{
 			Name:      "DD_API_KEY",
 			ValueFrom: apiKeyValue(),
 		},

@@ -527,10 +527,6 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 
 	envVars := []corev1.EnvVar{
 		{
-			Name:  datadoghqv1alpha1.DDClusterName,
-			Value: spec.ClusterName,
-		},
-		{
 			Name:  datadoghqv1alpha1.DDClusterChecksEnabled,
 			Value: datadoghqv1alpha1.BoolToString(spec.ClusterAgent.Config.ClusterChecksEnabled),
 		},
@@ -554,6 +550,13 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 			Name:  datadoghqv1alpha1.DDCollectKubeEvents,
 			Value: datadoghqv1alpha1.BoolToString(spec.ClusterAgent.Config.CollectEvents),
 		},
+	}
+
+	if spec.ClusterName != "" {
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  datadoghqv1alpha1.DDClusterName,
+			Value: spec.ClusterName,
+		})
 	}
 
 	if complianceEnabled {
