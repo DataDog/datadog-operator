@@ -1186,7 +1186,11 @@ func buildClusterAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, age
 				datadoghqv1alpha1.DatadogCustomMetricsResourceName,
 				datadoghqv1alpha1.ExtensionAPIServerAuthResourceName,
 			},
-			Verbs: []string{datadoghqv1alpha1.GetVerb, datadoghqv1alpha1.UpdateVerb},
+			Verbs: []string{
+				datadoghqv1alpha1.GetVerb,
+				datadoghqv1alpha1.UpdateVerb,
+				datadoghqv1alpha1.ListVerb,
+			},
 		})
 
 		if dda.Spec.ClusterAgent.Config.ExternalMetrics.UseDatadogMetrics {
