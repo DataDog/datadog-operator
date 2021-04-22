@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DataDog/datadog-operator/api/v1alpha1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
 	test "github.com/DataDog/datadog-operator/api/v1alpha1/test"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/orchestrator"
@@ -675,6 +676,10 @@ func defaultEnvVars(extraEnv map[string]string) []corev1.EnvVar {
 			Value: "false",
 		},
 		{
+			Name:  "DD_DOGSTATSD_ORIGIN_DETECTION",
+			Value: "false",
+		},
+		{
 			Name:  "DD_LOGS_ENABLED",
 			Value: "false",
 		},
@@ -689,10 +694,6 @@ func defaultEnvVars(extraEnv map[string]string) []corev1.EnvVar {
 		{
 			Name:  "DD_LOGS_CONFIG_OPEN_FILES_LIMIT",
 			Value: "100",
-		},
-		{
-			Name:  "DD_DOGSTATSD_ORIGIN_DETECTION",
-			Value: "false",
 		},
 		{
 			Name:  "DD_LOG_LEVEL",
@@ -908,62 +909,6 @@ func addEnvVar(currentVars []corev1.EnvVar, varName string, varValue string) []c
 	return append(currentVars, corev1.EnvVar{Name: varName, Value: varValue})
 }
 
-func defaultPodSpec() corev1.PodSpec {
-	return corev1.PodSpec{
-		ServiceAccountName: "foo-agent",
-		InitContainers: []corev1.Container{
-			{
-				Name:            "init-volume",
-				Image:           "gcr.io/datadoghq/agent:latest",
-				ImagePullPolicy: corev1.PullIfNotPresent,
-				Resources:       corev1.ResourceRequirements{},
-				Command:         []string{"bash", "-c"},
-				Args:            []string{"cp -r /etc/datadog-agent /opt"},
-				VolumeMounts: []corev1.VolumeMount{
-					{
-						Name:      datadoghqv1alpha1.ConfigVolumeName,
-						MountPath: "/opt/datadog-agent",
-					},
-				},
-			},
-			{
-				Name:            "init-config",
-				Image:           "gcr.io/datadoghq/agent:latest",
-				ImagePullPolicy: corev1.PullIfNotPresent,
-				Resources:       corev1.ResourceRequirements{},
-				Command:         []string{"bash", "-c"},
-				Args:            []string{"for script in $(find /etc/cont-init.d/ -type f -name '*.sh' | sort) ; do bash $script ; done"},
-				Env:             defaultEnvVars(nil),
-				VolumeMounts:    defaultMountVolume(),
-			},
-		},
-		Containers: []corev1.Container{
-			{
-				Name:            "agent",
-				Image:           "gcr.io/datadoghq/agent:latest",
-				ImagePullPolicy: corev1.PullIfNotPresent,
-				Command: []string{
-					"agent",
-					"run",
-				},
-				Resources: corev1.ResourceRequirements{},
-				Ports: []corev1.ContainerPort{
-					{
-						ContainerPort: 8125,
-						Name:          "dogstatsdport",
-						Protocol:      "UDP",
-					},
-				},
-				Env:            defaultEnvVars(nil),
-				VolumeMounts:   defaultMountVolume(),
-				LivenessProbe:  defaultLivenessProbe(),
-				ReadinessProbe: defaultReadinessProbe(),
-			},
-		},
-		Volumes: defaultVolumes(),
-	}
-}
-
 func appendDefaultAPMAgentContainer(podSpec *corev1.PodSpec) {
 	apmContainer := corev1.Container{
 		Name:            "trace-agent",
@@ -991,10 +936,14 @@ func appendDefaultAPMAgentContainer(podSpec *corev1.PodSpec) {
 		},
 		LivenessProbe: defaultAPMAgentLivenessProbe(),
 	}
-	podSpec.Containers = append(podSpec.Containers, apmContainer)
+	podSpec.Containers = []corev1.Container{
+		podSpec.Containers[0],
+		apmContainer,
+		podSpec.Containers[1],
+	}
 }
 
-func defaultSystemProbePodSpec() corev1.PodSpec {
+func defaultSystemProbePodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodSpec {
 	agentWithSystemProbeVolumeMounts := []corev1.VolumeMount{}
 	agentWithSystemProbeVolumeMounts = append(agentWithSystemProbeVolumeMounts, defaultMountVolume()...)
 	agentWithSystemProbeVolumeMounts = append(agentWithSystemProbeVolumeMounts, []corev1.VolumeMount{
@@ -1098,7 +1047,7 @@ func defaultSystemProbePodSpec() corev1.PodSpec {
 	}
 }
 
-func defaultOrchestratorPodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodSpec {
+func defaultPodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodSpec {
 	return corev1.PodSpec{
 		ServiceAccountName: "foo-agent",
 		InitContainers: []corev1.Container{
@@ -1538,6 +1487,10 @@ func customKubeletConfigPodSpec(kubeletConfig *datadoghqv1alpha1.KubeletConfig) 
 			Value: "false",
 		},
 		{
+			Name:  "DD_DOGSTATSD_ORIGIN_DETECTION",
+			Value: "false",
+		},
+		{
 			Name:  "DD_LOGS_ENABLED",
 			Value: "false",
 		},
@@ -1552,10 +1505,6 @@ func customKubeletConfigPodSpec(kubeletConfig *datadoghqv1alpha1.KubeletConfig) 
 		{
 			Name:  "DD_LOGS_CONFIG_OPEN_FILES_LIMIT",
 			Value: "100",
-		},
-		{
-			Name:  "DD_DOGSTATSD_ORIGIN_DETECTION",
-			Value: "false",
 		},
 		{
 			Name:  "DD_LOG_LEVEL",
@@ -1746,7 +1695,8 @@ func (tests extendedDaemonSetFromInstanceTestSuite) Run(t *testing.T) {
 }
 
 func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
-	// Create test fixtures
+
+	defaultDatadogAgent := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{UseEDS: true, ClusterAgentEnabled: true})
 
 	// Create a Datadog Agent with a custom host port
 	hostPortAgent := test.NewDefaultedDatadogAgent("bar", "foo",
@@ -1755,7 +1705,7 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 			ClusterAgentEnabled: true,
 			HostPort:            datadoghqv1alpha1.DefaultDogstatsdPort,
 		})
-	hostPortPodSpec := defaultPodSpec()
+	hostPortPodSpec := defaultPodSpec(hostPortAgent)
 	hostPortPodSpec.Containers[0].Ports[0].HostPort = datadoghqv1alpha1.DefaultDogstatsdPort
 
 	// Create a Datadog Agent with a custom host port and host network set to true
@@ -1765,7 +1715,7 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 		HostPort:            12345,
 		HostNetwork:         true,
 	})
-	hostPortNetworkPodSpec := defaultPodSpec()
+	hostPortNetworkPodSpec := defaultPodSpec(hostPortNetworkAgent)
 	hostPortNetworkPodSpec.HostNetwork = true
 	hostPortNetworkPodSpec.Containers[0].Ports[0].ContainerPort = 12345
 	hostPortNetworkPodSpec.Containers[0].Ports[0].HostPort = 12345
@@ -1777,7 +1727,7 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 	tests := extendedDaemonSetFromInstanceTestSuite{
 		{
 			name:            "defaulted case",
-			agentdeployment: test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{UseEDS: true, ClusterAgentEnabled: true}),
+			agentdeployment: defaultDatadogAgent,
 			wantErr:         false,
 			want: &edsdatadoghqv1alpha1.ExtendedDaemonSet{
 				ObjectMeta: metav1.ObjectMeta{
@@ -1810,7 +1760,7 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 							},
 							Annotations: make(map[string]string),
 						},
-						Spec: defaultPodSpec(),
+						Spec: defaultPodSpec(defaultDatadogAgent),
 					},
 					Strategy: getDefaultEDSStrategy(),
 				},
@@ -1853,7 +1803,7 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 								"app.kubernetes.io/version":     "",
 							},
 						},
-						Spec: defaultPodSpec(),
+						Spec: defaultPodSpec(defaultDatadogAgent),
 					},
 					Strategy: getDefaultEDSStrategy(),
 				},
@@ -1949,7 +1899,18 @@ func Test_newExtendedDaemonSetFromInstance_CustomConfigMaps(t *testing.T) {
 	customConfdConfigMapName := "confd-configmap"
 	customChecksdConfigMapName := "checksd-configmap"
 
-	customConfigMapsPodSpec := defaultPodSpec()
+	customConfigMapAgentDeployment := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
+		UseEDS:              true,
+		ClusterAgentEnabled: true,
+		Confd: &datadoghqv1alpha1.ConfigDirSpec{
+			ConfigMapName: customConfdConfigMapName,
+		},
+		Checksd: &datadoghqv1alpha1.ConfigDirSpec{
+			ConfigMapName: customChecksdConfigMapName,
+		},
+	})
+
+	customConfigMapsPodSpec := defaultPodSpec(customConfigMapAgentDeployment)
 	customConfigMapsPodSpec.Volumes = []corev1.Volume{
 		{
 			Name: datadoghqv1alpha1.LogDatadogVolumeName,
@@ -2017,18 +1978,15 @@ func Test_newExtendedDaemonSetFromInstance_CustomConfigMaps(t *testing.T) {
 				},
 			},
 		},
+		{
+			Name: datadoghqv1alpha1.PasswdVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/etc/passwd",
+				},
+			},
+		},
 	}
-
-	customConfigMapAgentDeployment := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
-		UseEDS:              true,
-		ClusterAgentEnabled: true,
-		Confd: &datadoghqv1alpha1.ConfigDirSpec{
-			ConfigMapName: customConfdConfigMapName,
-		},
-		Checksd: &datadoghqv1alpha1.ConfigDirSpec{
-			ConfigMapName: customChecksdConfigMapName,
-		},
-	})
 
 	test := extendedDaemonSetFromInstanceTest{
 		name:            "with custom confd and checksd volume mounts",
@@ -2077,7 +2035,7 @@ func Test_newExtendedDaemonSetFromInstance_CustomConfigMaps(t *testing.T) {
 
 func Test_newExtendedDaemonSetFromInstance_CustomDatadogYaml(t *testing.T) {
 	customConfigMapCustomDatadogYaml := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{UseEDS: true, ClusterAgentEnabled: true, APMEnabled: true, CustomConfig: "foo: bar\nbar: foo"})
-	customConfigMapCustomDatadogYamlSpec := defaultPodSpec()
+	customConfigMapCustomDatadogYamlSpec := defaultPodSpec(customConfigMapCustomDatadogYaml)
 	appendDefaultAPMAgentContainer(&customConfigMapCustomDatadogYamlSpec)
 
 	customConfigMapCustomDatadogYamlSpec.Volumes = []corev1.Volume{
@@ -2149,6 +2107,14 @@ func Test_newExtendedDaemonSetFromInstance_CustomDatadogYaml(t *testing.T) {
 				},
 			},
 		},
+		{
+			Name: datadoghqv1alpha1.PasswdVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/etc/passwd",
+				},
+			},
+		},
 	}
 	customConfigMapCustomDatadogYamlSpec.Containers[0].VolumeMounts = []corev1.VolumeMount{
 		{
@@ -2179,6 +2145,42 @@ func Test_newExtendedDaemonSetFromInstance_CustomDatadogYaml(t *testing.T) {
 		{
 			Name:      "cgroups",
 			MountPath: "/host/sys/fs/cgroup",
+			ReadOnly:  true,
+		},
+		{
+			Name:      "config",
+			MountPath: "/etc/datadog-agent",
+		},
+		{
+			Name:      "custom-datadog-yaml",
+			MountPath: agentConfigFile,
+			SubPath:   "datadog.yaml",
+			ReadOnly:  true,
+		},
+		{
+			Name:      "runtimesocketdir",
+			MountPath: "/host/var/run",
+			ReadOnly:  true,
+		},
+	}
+	customConfigMapCustomDatadogYamlSpec.Containers[2].VolumeMounts = []corev1.VolumeMount{
+		{
+			Name:      "logdatadog",
+			MountPath: "/var/log/datadog",
+		},
+		{
+			Name:      "cgroups",
+			MountPath: "/host/sys/fs/cgroup",
+			ReadOnly:  true,
+		},
+		{
+			Name:      "passwd",
+			MountPath: "/etc/passwd",
+			ReadOnly:  true,
+		},
+		{
+			Name:      "procdir",
+			MountPath: "/host/proc",
 			ReadOnly:  true,
 		},
 		{
@@ -2255,6 +2257,7 @@ func Test_ExtraParameters(t *testing.T) {
 		Site:                           site,
 		ComplianceEnabled:              true,
 		ComplianceCheckInterval:        metav1.Duration{Duration: time.Minute},
+		OrchestratorExplorerDisabled:   true,
 	}
 	datadogAgent := test.NewDefaultedDatadogAgent("bar", "foo", options)
 
@@ -2332,10 +2335,6 @@ func Test_newExtendedDaemonSetFromInstance_CustomVolumes(t *testing.T) {
 			ReadOnly:  true,
 		},
 	}
-	userMountsPodSpec := defaultPodSpec()
-	userMountsPodSpec.Volumes = append(userMountsPodSpec.Volumes, userVolumes...)
-	userMountsPodSpec.Containers[0].VolumeMounts = append(userMountsPodSpec.Containers[0].VolumeMounts, userVolumeMounts...)
-	userMountsPodSpec.InitContainers[1].VolumeMounts = append(userMountsPodSpec.InitContainers[1].VolumeMounts, userVolumeMounts...)
 
 	userMountsAgentDeployment := test.NewDefaultedDatadogAgent("bar", "foo",
 		&test.NewDatadogAgentOptions{
@@ -2344,6 +2343,12 @@ func Test_newExtendedDaemonSetFromInstance_CustomVolumes(t *testing.T) {
 			Volumes:             userVolumes,
 			VolumeMounts:        userVolumeMounts,
 		})
+
+	userMountsPodSpec := defaultPodSpec(userMountsAgentDeployment)
+	userMountsPodSpec.Volumes = append(userMountsPodSpec.Volumes, userVolumes...)
+	userMountsPodSpec.Containers[0].VolumeMounts = append(userMountsPodSpec.Containers[0].VolumeMounts, userVolumeMounts...) // core agent
+	userMountsPodSpec.Containers[1].VolumeMounts = append(userMountsPodSpec.Containers[1].VolumeMounts, userVolumeMounts...) // proces agent
+	userMountsPodSpec.InitContainers[1].VolumeMounts = append(userMountsPodSpec.InitContainers[1].VolumeMounts, userVolumeMounts...)
 
 	test := extendedDaemonSetFromInstanceTest{
 		name:            "with user volumes and mounts",
@@ -2441,7 +2446,7 @@ func Test_newExtendedDaemonSetFromInstance_DaemonSetNameAndSelector(t *testing.T
 							"app":                           "datadog-monitoring",
 						},
 					},
-					Spec: defaultPodSpec(),
+					Spec: defaultPodSpec(daemonsetNameAgentDeployment),
 				},
 				Strategy: getDefaultEDSStrategy(),
 			},
@@ -2451,7 +2456,18 @@ func Test_newExtendedDaemonSetFromInstance_DaemonSetNameAndSelector(t *testing.T
 }
 
 func Test_newExtendedDaemonSetFromInstance_LogsEnabled(t *testing.T) {
-	logsEnabledPodSpec := defaultPodSpec()
+
+	dda := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
+		UseEDS:              true,
+		ClusterAgentEnabled: true,
+		Features: &datadoghqv1alpha1.DatadogFeatures{
+			LogCollection: &datadoghqv1alpha1.LogCollectionConfig{
+				Enabled: v1alpha1.NewBoolPointer(true),
+			},
+		},
+	})
+
+	logsEnabledPodSpec := defaultPodSpec(dda)
 	logsVolumes := []corev1.Volume{
 		{
 			Name: "pointerdir",
@@ -2502,13 +2518,6 @@ func Test_newExtendedDaemonSetFromInstance_LogsEnabled(t *testing.T) {
 	logsEnabledPodSpec.InitContainers[1].VolumeMounts = append(logsEnabledPodSpec.InitContainers[1].VolumeMounts, logsVolumeMounts...)
 	logsEnabledPodSpec.InitContainers[1].Env = addEnvVar(logsEnabledPodSpec.InitContainers[1].Env, "DD_LOGS_ENABLED", "true")
 
-	dda := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
-		UseEDS:              true,
-		ClusterAgentEnabled: true,
-	})
-	logEnabled := true
-	dda.Spec.Agent.Log.Enabled = &logEnabled
-
 	test := extendedDaemonSetFromInstanceTest{
 		name:            "with logs enabled",
 		agentdeployment: dda,
@@ -2555,15 +2564,15 @@ func Test_newExtendedDaemonSetFromInstance_LogsEnabled(t *testing.T) {
 }
 
 func Test_newExtendedDaemonSetFromInstance_clusterChecksConfig(t *testing.T) {
-	clusterChecksPodSpec := defaultPodSpec()
-	clusterChecksPodSpec.Containers[0].Env = addEnvVar(clusterChecksPodSpec.Containers[0].Env, "DD_EXTRA_CONFIG_PROVIDERS", "clusterchecks endpointschecks")
-	clusterChecksPodSpec.InitContainers[1].Env = addEnvVar(clusterChecksPodSpec.InitContainers[1].Env, "DD_EXTRA_CONFIG_PROVIDERS", "clusterchecks endpointschecks")
-
 	dda := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
 		UseEDS:               true,
 		ClusterAgentEnabled:  true,
 		ClusterChecksEnabled: true,
 	})
+
+	clusterChecksPodSpec := defaultPodSpec(dda)
+	clusterChecksPodSpec.Containers[0].Env = addEnvVar(clusterChecksPodSpec.Containers[0].Env, "DD_EXTRA_CONFIG_PROVIDERS", "clusterchecks endpointschecks")
+	clusterChecksPodSpec.InitContainers[1].Env = addEnvVar(clusterChecksPodSpec.InitContainers[1].Env, "DD_EXTRA_CONFIG_PROVIDERS", "clusterchecks endpointschecks")
 
 	dda.Spec.ClusterChecksRunner = nil
 
@@ -2613,16 +2622,15 @@ func Test_newExtendedDaemonSetFromInstance_clusterChecksConfig(t *testing.T) {
 }
 
 func Test_newExtendedDaemonSetFromInstance_endpointsChecksConfig(t *testing.T) {
-	endpointChecksChecksPodSpec := defaultPodSpec()
-	endpointChecksChecksPodSpec.Containers[0].Env = addEnvVar(endpointChecksChecksPodSpec.Containers[0].Env, "DD_EXTRA_CONFIG_PROVIDERS", "endpointschecks")
-	endpointChecksChecksPodSpec.InitContainers[1].Env = addEnvVar(endpointChecksChecksPodSpec.InitContainers[1].Env, "DD_EXTRA_CONFIG_PROVIDERS", "endpointschecks")
-
 	dda := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
 		UseEDS:                     true,
 		ClusterAgentEnabled:        true,
 		ClusterChecksEnabled:       true,
 		ClusterChecksRunnerEnabled: true,
 	})
+	endpointChecksChecksPodSpec := defaultPodSpec(dda)
+	endpointChecksChecksPodSpec.Containers[0].Env = addEnvVar(endpointChecksChecksPodSpec.Containers[0].Env, "DD_EXTRA_CONFIG_PROVIDERS", "endpointschecks")
+	endpointChecksChecksPodSpec.InitContainers[1].Env = addEnvVar(endpointChecksChecksPodSpec.InitContainers[1].Env, "DD_EXTRA_CONFIG_PROVIDERS", "endpointschecks")
 
 	test := extendedDaemonSetFromInstanceTest{
 		name:            "with cluster checks / with clc runners",
@@ -2752,7 +2760,14 @@ func extendedDaemonSetDefault(podSpec corev1.PodSpec) *edsdatadoghqv1alpha1.Exte
 }
 
 func Test_newExtendedDaemonSetFromInstance_SystemProbe(t *testing.T) {
-	systemProbePodSpec := defaultSystemProbePodSpec()
+	dda := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
+		UseEDS:                       true,
+		ClusterAgentEnabled:          true,
+		SystemProbeEnabled:           true,
+		OrchestratorExplorerDisabled: true,
+	})
+
+	systemProbePodSpec := defaultSystemProbePodSpec(dda)
 	systemProbeExtraMountsSpec := systemProbePodSpec.DeepCopy()
 	systemProbeExtraMountsSpec.Volumes = append(systemProbeExtraMountsSpec.Volumes, []corev1.Volume{
 		{
@@ -2789,18 +2804,12 @@ func Test_newExtendedDaemonSetFromInstance_SystemProbe(t *testing.T) {
 			break
 		}
 	}
-
-	dda := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
-		UseEDS:              true,
-		ClusterAgentEnabled: true,
-		SystemProbeEnabled:  true,
-	})
-
 	ddaOOMKill := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
-		UseEDS:                    true,
-		ClusterAgentEnabled:       true,
-		SystemProbeEnabled:        true,
-		SystemProbeOOMKillEnabled: true,
+		UseEDS:                       true,
+		ClusterAgentEnabled:          true,
+		SystemProbeEnabled:           true,
+		OrchestratorExplorerDisabled: true,
+		SystemProbeOOMKillEnabled:    true,
 	})
 
 	ddaTCPQueueLength := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
@@ -2808,6 +2817,7 @@ func Test_newExtendedDaemonSetFromInstance_SystemProbe(t *testing.T) {
 		ClusterAgentEnabled:              true,
 		SystemProbeEnabled:               true,
 		SystemProbeTCPQueueLengthEnabled: true,
+		OrchestratorExplorerDisabled:     true,
 	})
 
 	tests := []extendedDaemonSetFromInstanceTest{
@@ -2840,12 +2850,11 @@ func Test_newExtendedDaemonSetFromInstance_SystemProbe(t *testing.T) {
 
 func Test_newExtendedDaemonSetFromInstance_Orchestrator(t *testing.T) {
 	dda := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
-		UseEDS:                      true,
-		ClusterAgentEnabled:         true,
-		OrchestratorExplorerEnabled: true,
+		UseEDS:              true,
+		ClusterAgentEnabled: true,
 	})
 
-	orchestratorPodSpec := defaultOrchestratorPodSpec(dda)
+	orchestratorPodSpec := defaultPodSpec(dda)
 
 	tests := []extendedDaemonSetFromInstanceTest{
 		{
@@ -2864,11 +2873,13 @@ func Test_newExtendedDaemonSetFromInstance_Orchestrator(t *testing.T) {
 }
 
 func Test_newExtendedDaemonSetFromInstance_PrometheusScrape(t *testing.T) {
+	logger := logf.Log.WithName(t.Name())
+
 	dda := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
 		UseEDS:              true,
 		ClusterAgentEnabled: true,
 		Features: &datadoghqv1alpha1.DatadogFeatures{
-			OrchestratorExplorer: &datadoghqv1alpha1.OrchestratorExplorerConfig{Enabled: datadoghqv1alpha1.NewBoolPointer(false)}, // Do not add the process agent container in this test case for simplicity
+			OrchestratorExplorer: &datadoghqv1alpha1.OrchestratorExplorerConfig{Enabled: datadoghqv1alpha1.NewBoolPointer(true)},
 			PrometheusScrape: &datadoghqv1alpha1.PrometheusScrapeConfig{
 				Enabled:          datadoghqv1alpha1.NewBoolPointer(true),
 				ServiceEndpoints: datadoghqv1alpha1.NewBoolPointer(true),
@@ -2876,8 +2887,7 @@ func Test_newExtendedDaemonSetFromInstance_PrometheusScrape(t *testing.T) {
 		},
 	})
 
-	promEnabledPodSpec := defaultPodSpec()
-	logger := logf.Log.WithName(t.Name())
+	promEnabledPodSpec := defaultPodSpec(dda)
 	promEnabledPodSpec.Containers[0].Env = append(promEnabledPodSpec.Containers[0].Env, prometheusScrapeEnvVars(logger, dda)...)
 	promEnabledPodSpec.InitContainers[1].Env = append(promEnabledPodSpec.InitContainers[1].Env, prometheusScrapeEnvVars(logger, dda)...)
 
@@ -2892,7 +2902,7 @@ func Test_newExtendedDaemonSetFromInstance_PrometheusScrape(t *testing.T) {
 		UseEDS:              true,
 		ClusterAgentEnabled: true,
 		Features: &datadoghqv1alpha1.DatadogFeatures{
-			OrchestratorExplorer: &datadoghqv1alpha1.OrchestratorExplorerConfig{Enabled: datadoghqv1alpha1.NewBoolPointer(false)},
+			OrchestratorExplorer: &datadoghqv1alpha1.OrchestratorExplorerConfig{Enabled: datadoghqv1alpha1.NewBoolPointer(true)},
 			PrometheusScrape: &datadoghqv1alpha1.PrometheusScrapeConfig{
 				Enabled:           datadoghqv1alpha1.NewBoolPointer(true),
 				ServiceEndpoints:  datadoghqv1alpha1.NewBoolPointer(false),
@@ -2901,7 +2911,7 @@ func Test_newExtendedDaemonSetFromInstance_PrometheusScrape(t *testing.T) {
 		},
 	})
 
-	promAdditionalConfPodSpec := defaultPodSpec()
+	promAdditionalConfPodSpec := defaultPodSpec(ddaWithAdditionalConf)
 	promAdditionalConfPodSpec.Containers[0].Env = append(promAdditionalConfPodSpec.Containers[0].Env, prometheusScrapeEnvVars(logger, ddaWithAdditionalConf)...)
 	promAdditionalConfPodSpec.InitContainers[1].Env = append(promAdditionalConfPodSpec.InitContainers[1].Env, prometheusScrapeEnvVars(logger, ddaWithAdditionalConf)...)
 
@@ -2935,6 +2945,7 @@ func Test_newExtendedDaemonSetFromInstance_SecurityAgent_Compliance(t *testing.T
 		ClusterAgentEnabled:          true,
 		ComplianceEnabled:            true,
 		RuntimeSyscallMonitorEnabled: true,
+		OrchestratorExplorerDisabled: true,
 	})
 
 	test := extendedDaemonSetFromInstanceTest{
@@ -2990,6 +3001,7 @@ func Test_newExtendedDaemonSetFromInstance_SecurityAgent_Runtime(t *testing.T) {
 		ClusterAgentEnabled:          true,
 		RuntimeSecurityEnabled:       true,
 		RuntimeSyscallMonitorEnabled: true,
+		OrchestratorExplorerDisabled: true,
 	})
 
 	test := extendedDaemonSetFromInstanceTest{
@@ -3042,7 +3054,8 @@ func Test_newExtendedDaemonSetFromInstance_SecurityAgent_Runtime(t *testing.T) {
 
 func Test_newExtendedDaemonSetFromInstance_KubeletConfiguration(t *testing.T) {
 	dda := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
-		UseEDS: true,
+		UseEDS:                       true,
+		OrchestratorExplorerDisabled: true,
 	})
 
 	dda.Spec.Agent.Config.Kubelet = &datadoghqv1alpha1.KubeletConfig{

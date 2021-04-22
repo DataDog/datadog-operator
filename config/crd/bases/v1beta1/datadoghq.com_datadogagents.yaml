@@ -35,7 +35,7 @@ spec:
     status: {}
   validation:
     openAPIV3Schema:
-      description: DatadogAgent Deployment with Datadog Operator
+      description: DatadogAgent Deployment with Datadog Operator.
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation
@@ -50,11 +50,11 @@ spec:
         metadata:
           type: object
         spec:
-          description: DatadogAgentSpec defines the desired state of DatadogAgent
+          description: DatadogAgentSpec defines the desired state of DatadogAgent.
           properties:
             agent:
-              description: The desired state of the Agent as an extended daemonset
-                Contains the Node Agent configuration and deployment strategy
+              description: The desired state of the Agent as an extended daemonset.
+                Contains the Node Agent configuration and deployment strategy.
               properties:
                 additionalAnnotations:
                   additionalProperties:
@@ -73,11 +73,11 @@ spec:
                   properties:
                     enabled:
                       description: 'Enable this to enable APM and tracing, on port
-                        8126 ref: https://github.com/DataDog/docker-dd-agent#tracing-from-the-host'
+                        8126. See also: https://github.com/DataDog/docker-dd-agent#tracing-from-the-host'
                       type: boolean
                     env:
-                      description: 'The Datadog Agent supports many environment variables
-                        Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables'
+                      description: 'The Datadog Agent supports many environment variables.
+                        See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables'
                       items:
                         description: EnvVar represents an environment variable present
                           in a Container.
@@ -195,9 +195,9 @@ spec:
                       format: int32
                       type: integer
                     resources:
-                      description: 'Datadog APM Agent resource requests and limits
+                      description: 'Datadog APM Agent resource requests and limits.
                         Make sure to keep requests and limits equal to keep the pods
-                        in the Guaranteed QoS class Ref: http://kubernetes.io/docs/user-guide/compute-resources/'
+                        in the Guaranteed QoS class. See also: http://kubernetes.io/docs/user-guide/compute-resources/'
                       properties:
                         limits:
                           additionalProperties:
@@ -222,20 +222,22 @@ spec:
                           type: object
                       type: object
                     unixDomainSocket:
-                      description: 'UnixDomainSocket socket configuration ref: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables'
+                      description: 'UnixDomainSocket socket configuration. See also:
+                        https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables'
                       properties:
                         enabled:
-                          description: 'Enable APM over Unix Domain Socket ref: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables'
+                          description: 'Enable APM over Unix Domain Socket See also:
+                            https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables'
                           type: boolean
                         hostFilepath:
                           description: 'Define the host APM socket filepath used when
-                            APM over Unix Domain Socket is enabled (default value:
-                            /var/run/datadog/apm.sock) ref: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables'
+                            APM over Unix Domain Socket is enabled. (default value:
+                            /var/run/datadog/apm.sock) See also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables'
                           type: string
                       type: object
                     volumeMounts:
                       description: Specify additional volume mounts in the APM Agent
-                        container
+                        container.
                       items:
                         description: VolumeMount describes a mounting of a Volume
                           within a container.
@@ -276,7 +278,7 @@ spec:
                       type: array
                   type: object
                 config:
-                  description: Agent configuration
+                  description: Agent configuration.
                   properties:
                     checksd:
                       description: Checksd configuration allowing to specify custom
@@ -285,12 +287,12 @@ spec:
                       properties:
                         configMapName:
                           description: ConfigMapName name of a ConfigMap used to mount
-                            a directory
+                            a directory.
                           type: string
                       type: object
                     collectEvents:
                       description: 'Enables this to start event collection from the
-                        Kubernetes API ref: https://docs.datadoghq.com/agent/kubernetes/event_collection/'
+                        Kubernetes API. See also: https://docs.datadoghq.com/agent/kubernetes/event_collection/'
                       type: boolean
                     confd:
                       description: Confd configuration allowing to specify config
@@ -300,18 +302,18 @@ spec:
                       properties:
                         configMapName:
                           description: ConfigMapName name of a ConfigMap used to mount
-                            a directory
+                            a directory.
                           type: string
                       type: object
                     criSocket:
-                      description: Configure the CRI Socket
+                      description: Configure the CRI Socket.
                       properties:
                         criSocketPath:
                           description: Path to the container runtime socket (if different
-                            from Docker) This is supported starting from agent 6.6.0
+                            from Docker). This is supported starting from agent 6.6.0.
                           type: string
                         dockerSocketPath:
-                          description: Path to the docker runtime socket
+                          description: Path to the docker runtime socket.
                           type: string
                       type: object
                     ddUrl:
@@ -321,53 +323,53 @@ spec:
                         "site".
                       type: string
                     dogstatsd:
-                      description: Configure Dogstatsd
+                      description: Configure Dogstatsd.
                       properties:
                         dogstatsdOriginDetection:
-                          description: 'Enable origin detection for container tagging
-                            ref: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/#using-origin-detection-for-container-tagging'
+                          description: 'Enable origin detection for container tagging.
+                            See also: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/#using-origin-detection-for-container-tagging'
                           type: boolean
                         mapperProfiles:
-                          description: 'Configure the Dogstasd Mapper Profiles Can
+                          description: 'Configure the Dogstasd Mapper Profiles. Can
                             be passed as raw data or via a json encoded string in
-                            a config map ref: https://docs.datadoghq.com/developers/dogstatsd/dogstatsd_mapper/'
+                            a config map. See also: https://docs.datadoghq.com/developers/dogstatsd/dogstatsd_mapper/'
                           properties:
                             configData:
                               description: ConfigData corresponds to the configuration
-                                file content
+                                file content.
                               type: string
                             configMap:
                               description: ConfigMap name of a ConfigMap used to mount
-                                the configuration file
+                                the configuration file.
                               properties:
                                 fileKey:
                                   description: FileKey corresponds to the key used
                                     in the ConfigMap.Data to store the configuration
-                                    file content
+                                    file content.
                                   type: string
                                 name:
-                                  description: Name the ConfigMap name
+                                  description: Name the ConfigMap name.
                                   type: string
                               type: object
                           type: object
                         unixDomainSocket:
-                          description: 'Configure the Dogstatsd Unix Domain Socket
-                            ref: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/'
+                          description: 'Configure the Dogstatsd Unix Domain Socket.
+                            See also: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/'
                           properties:
                             enabled:
-                              description: 'Enable APM over Unix Domain Socket ref:
-                                https://docs.datadoghq.com/developers/dogstatsd/unix_socket/'
+                              description: 'Enable APM over Unix Domain Socket. See
+                                also: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/'
                               type: boolean
                             hostFilepath:
                               description: 'Define the host APM socket filepath used
-                                when APM over Unix Domain Socket is enabled (default
-                                value: /var/run/datadog/statsd.sock) ref: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/'
+                                when APM over Unix Domain Socket is enabled. (default
+                                value: /var/run/datadog/statsd.sock). See also: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/'
                               type: string
                           type: object
                       type: object
                     env:
-                      description: 'The Datadog Agent supports many environment variables
-                        Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables'
+                      description: 'The Datadog Agent supports many environment variables.
+                        See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables'
                       items:
                         description: EnvVar represents an environment variable present
                           in a Container.
@@ -606,9 +608,9 @@ spec:
                         Tags. <KUBERNETES_LABEL>: <DATADOG_TAG_KEY>'
                       type: object
                     resources:
-                      description: 'Datadog Agent resource requests and limits Make
+                      description: 'Datadog Agent resource requests and limits. Make
                         sure to keep requests and limits equal to keep the pods in
-                        the Guaranteed QoS class Ref: http://kubernetes.io/docs/user-guide/compute-resources/'
+                        the Guaranteed QoS class. See also: http://kubernetes.io/docs/user-guide/compute-resources/'
                       properties:
                         limits:
                           additionalProperties:
@@ -633,7 +635,7 @@ spec:
                           type: object
                       type: object
                     securityContext:
-                      description: Pod-level SecurityContext
+                      description: Pod-level SecurityContext.
                       properties:
                         fsGroup:
                           description: "A special supplemental group that applies
@@ -836,7 +838,7 @@ spec:
                       type: array
                     volumeMounts:
                       description: Specify additional volume mounts in the Datadog
-                        Agent container
+                        Agent container.
                       items:
                         description: VolumeMount describes a mounting of a Volume
                           within a container.
@@ -877,7 +879,7 @@ spec:
                       type: array
                     volumes:
                       description: Specify additional volumes in the Datadog Agent
-                        container
+                        container.
                       items:
                         description: Volume represents a named volume in a pod that
                           may be accessed by any container in the pod.
@@ -2390,35 +2392,35 @@ spec:
                   type: object
                 customConfig:
                   description: Allow to put custom configuration for the agent, corresponding
-                    to the datadog.yaml config file See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6
+                    to the datadog.yaml config file. See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6
                     for more details.
                   properties:
                     configData:
                       description: ConfigData corresponds to the configuration file
-                        content
+                        content.
                       type: string
                     configMap:
                       description: ConfigMap name of a ConfigMap used to mount the
-                        configuration file
+                        configuration file.
                       properties:
                         fileKey:
                           description: FileKey corresponds to the key used in the
-                            ConfigMap.Data to store the configuration file content
+                            ConfigMap.Data to store the configuration file content.
                           type: string
                         name:
-                          description: Name the ConfigMap name
+                          description: Name the ConfigMap name.
                           type: string
                       type: object
                   type: object
                 daemonsetName:
-                  description: Name of the Daemonset to create or migrate from
+                  description: Name of the Daemonset to create or migrate from.
                   type: string
                 deploymentStrategy:
-                  description: Update strategy configuration for the DaemonSet
+                  description: Update strategy configuration for the DaemonSet.
                   properties:
                     canary:
                       description: Configure the canary deployment configuration using
-                        ExtendedDaemonSet
+                        ExtendedDaemonSet.
                       properties:
                         autoFail:
                           description: ExtendedDaemonSetSpecStrategyCanaryAutoFail
@@ -2522,11 +2524,11 @@ spec:
                           - type: string
                       type: object
                     reconcileFrequency:
-                      description: The reconcile frequency of the ExtendDaemonSet
+                      description: The reconcile frequency of the ExtendDaemonSet.
                       type: string
                     rollingUpdate:
                       description: Configure the rolling updater strategy of the DaemonSet
-                        or the ExtendedDaemonSet
+                        or the ExtendedDaemonSet.
                       properties:
                         maxParallelPodCreation:
                           description: The maxium number of pods created in parallel.
@@ -2566,7 +2568,7 @@ spec:
                           type: string
                       type: object
                     updateStrategyType:
-                      description: The update strategy used for the DaemonSet
+                      description: The update strategy used for the DaemonSet.
                       type: string
                   type: object
                 dnsConfig:
@@ -2614,8 +2616,8 @@ spec:
                     'ClusterFirstWithHostNet'.
                   type: string
                 env:
-                  description: 'Environment variables for all Datadog Agents Ref:
-                    https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables'
+                  description: 'Environment variables for all Datadog Agents. See
+                    also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables'
                   items:
                     description: EnvVar represents an environment variable present
                       in a Container.
@@ -2729,20 +2731,20 @@ spec:
                     false.'
                   type: boolean
                 image:
-                  description: The container image of the Datadog Agent
+                  description: The container image of the Datadog Agent.
                   properties:
                     name:
-                      description: Define the image to use Use "gcr.io/datadoghq/agent:latest"
+                      description: 'Define the image to use: Use "gcr.io/datadoghq/agent:latest"
                         for Datadog Agent 6 Use "datadog/dogstatsd:latest" for Standalone
                         Datadog Agent DogStatsD6 Use "gcr.io/datadoghq/cluster-agent:latest"
-                        for Datadog Cluster Agent
+                        for Datadog Cluster Agent'
                       type: string
                     pullPolicy:
-                      description: The Kubernetes pull policy Use Always, Never or
-                        IfNotPresent
+                      description: 'The Kubernetes pull policy: Use Always, Never
+                        or IfNotPresent.'
                       type: string
                     pullSecrets:
-                      description: It is possible to specify docker registry credentials
+                      description: It is possible to specify docker registry credentials.
                         See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod
                       items:
                         description: LocalObjectReference contains enough information
@@ -2762,41 +2764,42 @@ spec:
                   description: Log Agent configuration
                   properties:
                     containerCollectUsingFiles:
-                      description: 'Collect logs from files in /var/log/pods instead
-                        of using container runtime API. It''s usually the most efficient
-                        way of collecting logs. ref: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup
-                        Default: true'
+                      description: 'Collect logs from files in `/var/log/pods instead`
+                        of using the container runtime API. Collecting logs from files
+                        is usually the most efficient way of collecting logs. See
+                        also: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup
+                        Default is true'
                       type: boolean
                     containerLogsPath:
-                      description: 'This to allow log collection from container log
-                        path. Set to a different path if not using docker runtime.
-                        ref: https://docs.datadoghq.com/agent/kubernetes/daemonset_setup/?tab=k8sfile#create-manifest
-                        Default to `/var/lib/docker/containers`'
+                      description: 'Allows log collection from the container log path.
+                        Set to a different path if you are not using the Docker runtime.
+                        See also: https://docs.datadoghq.com/agent/kubernetes/daemonset_setup/?tab=k8sfile#create-manifest
+                        Defaults to `/var/lib/docker/containers`'
                       type: string
                     enabled:
-                      description: 'Enables this to activate Datadog Agent log collection.
-                        ref: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup'
+                      description: 'Enable this option to activate Datadog Agent log
+                        collection. See also: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup'
                       type: boolean
                     logsConfigContainerCollectAll:
-                      description: 'Enable this to allow log collection for all containers.
-                        ref: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup'
+                      description: 'Enable this option to allow log collection for
+                        all containers. See also: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup'
                       type: boolean
                     openFilesLimit:
-                      description: 'Set the maximum number of logs files that the
-                        Datadog Agent will tail up to. Increasing this limit can increase
-                        resource consumption of the Agent. ref: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup
-                        Default to 100'
+                      description: 'Sets the maximum number of log files that the
+                        Datadog Agent tails. Increasing this limit can increase resource
+                        consumption of the Agent. See also: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup
+                        Default is 100'
                       format: int32
                       type: integer
                     podLogsPath:
-                      description: This to allow log collection from pod log path.
-                        Default to `/var/log/pods`
+                      description: Allows log collection from pod log path. Defaults
+                        to `/var/log/pods`.
                       type: string
                     tempStoragePath:
                       description: This path (always mounted from the host) is used
                         by Datadog Agent to store information about processed log
-                        files. If the Datadog Agent is restarted, it allows to start
-                        tailing the log files from the right offset Default to `/var/lib/datadog-agent/logs`
+                        files. If the Datadog Agent is restarted, it starts tailing
+                        the log files immediately. Default to `/var/lib/datadog-agent/logs`
                       type: string
                   type: object
                 networkPolicy:
@@ -2804,7 +2807,7 @@ spec:
                   properties:
                     create:
                       description: If true, create a NetworkPolicy for the current
-                        agent
+                        agent.
                       type: boolean
                   type: object
                 priorityClassName:
@@ -2820,11 +2823,11 @@ spec:
                   properties:
                     enabled:
                       description: 'Note: /etc/passwd is automatically mounted to
-                        allow username resolution. ref: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset'
+                        allow username resolution. See also: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset'
                       type: boolean
                     env:
-                      description: 'The Datadog Agent supports many environment variables
-                        Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables'
+                      description: 'The Datadog Agent supports many environment variables.
+                        See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables'
                       items:
                         description: EnvVar represents an environment variable present
                           in a Container.
@@ -2939,9 +2942,9 @@ spec:
                         true: collect process information as well'
                       type: boolean
                     resources:
-                      description: 'Datadog Process Agent resource requests and limits
+                      description: 'Datadog Process Agent resource requests and limits.
                         Make sure to keep requests and limits equal to keep the pods
-                        in the Guaranteed QoS class Ref: http://kubernetes.io/docs/user-guide/compute-resources/'
+                        in the Guaranteed QoS class. See also: http://kubernetes.io/docs/user-guide/compute-resources/'
                       properties:
                         limits:
                           additionalProperties:
@@ -2967,7 +2970,7 @@ spec:
                       type: object
                     volumeMounts:
                       description: Specify additional volume mounts in the Process
-                        Agent container
+                        Agent container.
                       items:
                         description: VolumeMount describes a mounting of a Volume
                           within a container.
@@ -3008,40 +3011,40 @@ spec:
                       type: array
                   type: object
                 rbac:
-                  description: RBAC configuration of the Agent
+                  description: RBAC configuration of the Agent.
                   properties:
                     create:
-                      description: Used to configure RBAC resources creation
+                      description: Used to configure RBAC resources creation.
                       type: boolean
                     serviceAccountName:
-                      description: Used to set up the service account name to use
-                        Ignored if the field Create is true
+                      description: Used to set up the service account name to use.
+                        Ignored if the field Create is true.
                       type: string
                   type: object
                 security:
                   description: Security Agent configuration
                   properties:
                     compliance:
-                      description: Compliance configuration
+                      description: Compliance configuration.
                       properties:
                         checkInterval:
-                          description: Check interval
+                          description: Check interval.
                           type: string
                         configDir:
-                          description: Config dir containing compliance benchmarks
+                          description: Config dir containing compliance benchmarks.
                           properties:
                             configMapName:
                               description: ConfigMapName name of a ConfigMap used
-                                to mount a directory
+                                to mount a directory.
                               type: string
                           type: object
                         enabled:
-                          description: Enables continuous compliance monitoring
+                          description: Enables continuous compliance monitoring.
                           type: boolean
                       type: object
                     env:
                       description: 'The Datadog Security Agent supports many environment
-                        variables Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables'
+                        variables. See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables'
                       items:
                         description: EnvVar represents an environment variable present
                           in a Container.
@@ -3152,9 +3155,9 @@ spec:
                         type: object
                       type: array
                     resources:
-                      description: 'Datadog Security Agent resource requests and limits
+                      description: 'Datadog Security Agent resource requests and limits.
                         Make sure to keep requests and limits equal to keep the pods
-                        in the Guaranteed QoS class Ref: http://kubernetes.io/docs/user-guide/compute-resources/'
+                        in the Guaranteed QoS class. See also: http://kubernetes.io/docs/user-guide/compute-resources/'
                       properties:
                         limits:
                           additionalProperties:
@@ -3179,21 +3182,21 @@ spec:
                           type: object
                       type: object
                     runtime:
-                      description: Runtime security configuration
+                      description: Runtime security configuration.
                       properties:
                         enabled:
-                          description: Enables runtime security features
+                          description: Enables runtime security features.
                           type: boolean
                         policiesDir:
-                          description: ConfigDir containing security policies
+                          description: ConfigDir containing security policies.
                           properties:
                             configMapName:
                               description: ConfigMapName name of a ConfigMap used
-                                to mount a directory
+                                to mount a directory.
                               type: string
                           type: object
                         syscallMonitor:
-                          description: Syscall monitor configuration
+                          description: Syscall monitor configuration.
                           properties:
                             enabled:
                               description: Enabled enables syscall monitor
@@ -3202,7 +3205,7 @@ spec:
                       type: object
                     volumeMounts:
                       description: Specify additional volume mounts in the Security
-                        Agent container
+                        Agent container.
                       items:
                         description: VolumeMount describes a mounting of a Volume
                           within a container.
@@ -3246,39 +3249,39 @@ spec:
                   description: SystemProbe configuration
                   properties:
                     appArmorProfileName:
-                      description: AppArmorProfileName specify a apparmor profile
+                      description: AppArmorProfileName specify a apparmor profile.
                       type: string
                     bpfDebugEnabled:
-                      description: BPFDebugEnabled logging for kernel debug
+                      description: BPFDebugEnabled logging for kernel debug.
                       type: boolean
                     collectDNSStats:
-                      description: CollectDNSStats enables DNS stat collection
+                      description: CollectDNSStats enables DNS stat collection.
                       type: boolean
                     conntrackEnabled:
                       description: 'ConntrackEnabled enable the system-probe agent
                         to connect to the netlink/conntrack subsystem to add NAT information
-                        to connection data Ref: http://conntrack-tools.netfilter.org/'
+                        to connection data. See also: http://conntrack-tools.netfilter.org/'
                       type: boolean
                     debugPort:
                       description: DebugPort Specify the port to expose pprof and
-                        expvar for system-probe agent
+                        expvar for system-probe agent.
                       format: int32
                       type: integer
                     enableOOMKill:
-                      description: EnableOOMKill enables the OOM kill eBPF-based check
+                      description: EnableOOMKill enables the OOM kill eBPF-based check.
                       type: boolean
                     enableTCPQueueLength:
                       description: EnableTCPQueueLength enables the TCP queue length
-                        eBPF-based check
+                        eBPF-based check.
                       type: boolean
                     enabled:
                       description: 'Enable this to activate live process monitoring.
                         Note: /etc/passwd is automatically mounted to allow username
-                        resolution. ref: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset'
+                        resolution. See also: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset'
                       type: boolean
                     env:
                       description: 'The Datadog SystemProbe supports many environment
-                        variables Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables'
+                        variables. See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables'
                       items:
                         description: EnvVar represents an environment variable present
                           in a Container.
@@ -3389,9 +3392,9 @@ spec:
                         type: object
                       type: array
                     resources:
-                      description: 'Datadog SystemProbe resource requests and limits
+                      description: 'Datadog SystemProbe resource requests and limits.
                         Make sure to keep requests and limits equal to keep the pods
-                        in the Guaranteed QoS class Ref: http://kubernetes.io/docs/user-guide/compute-resources/'
+                        in the Guaranteed QoS class. See also: http://kubernetes.io/docs/user-guide/compute-resources/'
                       properties:
                         limits:
                           additionalProperties:
@@ -3417,18 +3420,18 @@ spec:
                       type: object
                     secCompCustomProfileConfigMap:
                       description: SecCompCustomProfileConfigMap specify a pre-existing
-                        ConfigMap containing a custom SecComp profile
+                        ConfigMap containing a custom SecComp profile.
                       type: string
                     secCompProfileName:
-                      description: SecCompProfileName specify a seccomp profile
+                      description: SecCompProfileName specify a seccomp profile.
                       type: string
                     secCompRootPath:
                       description: SecCompRootPath specify the seccomp profile root
-                        directory
+                        directory.
                       type: string
                     securityContext:
                       description: You can modify the security context used to run
-                        the containers by modifying the label type
+                        the containers by modifying the label type.
                       properties:
                         allowPrivilegeEscalation:
                           description: 'AllowPrivilegeEscalation controls whether
@@ -3584,7 +3587,7 @@ spec:
               - image
               type: object
             clusterAgent:
-              description: The desired state of the Cluster Agent as a deployment
+              description: The desired state of the Cluster Agent as a deployment.
               properties:
                 additionalAnnotations:
                   additionalProperties:
@@ -3599,7 +3602,7 @@ spec:
                     to the cluster checks runner Pods.
                   type: object
                 affinity:
-                  description: If specified, the pod's scheduling constraints
+                  description: If specified, the pod's scheduling constraints.
                   properties:
                     nodeAffinity:
                       description: Describes node affinity scheduling rules for the
@@ -4198,50 +4201,50 @@ spec:
                       type: object
                   type: object
                 config:
-                  description: Cluster Agent configuration
+                  description: Cluster Agent configuration.
                   properties:
                     admissionController:
-                      description: Configure the Admission Controller
+                      description: Configure the Admission Controller.
                       properties:
                         enabled:
                           description: Enable the admission controller to be able
                             to inject APM/Dogstatsd config and standard tags (env,
-                            service, version) automatically into your pods
+                            service, version) automatically into your pods.
                           type: boolean
                         mutateUnlabelled:
                           description: MutateUnlabelled enables injecting config without
-                            having the pod label 'admission.datadoghq.com/enabled="true"'
+                            having the pod label 'admission.datadoghq.com/enabled="true"'.
                           type: boolean
                         serviceName:
                           description: ServiceName corresponds to the webhook service
-                            name
+                            name.
                           type: string
                       type: object
                     clusterChecksEnabled:
                       description: 'Enable the Cluster Checks and Endpoint Checks
-                        feature on both the cluster-agents and the daemonset ref:
-                        https://docs.datadoghq.com/agent/cluster_agent/clusterchecks/
+                        feature on both the cluster-agents and the daemonset. See
+                        also: https://docs.datadoghq.com/agent/cluster_agent/clusterchecks/
                         https://docs.datadoghq.com/agent/cluster_agent/endpointschecks/
                         Autodiscovery via Kube Service annotations is automatically
-                        enabled'
+                        enabled.'
                       type: boolean
                     collectEvents:
                       description: 'Enable this to start event collection from the
-                        kubernetes API ref: https://docs.datadoghq.com/agent/cluster_agent/event_collection/'
+                        kubernetes API. See also: https://docs.datadoghq.com/agent/cluster_agent/event_collection/'
                       type: boolean
                     confd:
                       description: Confd Provide additional cluster check configurations.
-                        Each key will become a file in /conf.d see https://docs.datadoghq.com/agent/autodiscovery/
+                        Each key will become a file in /conf.d. see https://docs.datadoghq.com/agent/autodiscovery/
                         for more details.
                       properties:
                         configMapName:
                           description: ConfigMapName name of a ConfigMap used to mount
-                            a directory
+                            a directory.
                           type: string
                       type: object
                     env:
-                      description: 'The Datadog Agent supports many environment variables
-                        Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables'
+                      description: 'The Datadog Agent supports many environment variables.
+                        See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables'
                       items:
                         description: EnvVar represents an environment variable present
                           in a Container.
@@ -4353,7 +4356,7 @@ spec:
                       type: array
                     externalMetrics:
                       description: ExternalMetricsConfig contains the configuration
-                        of the external metrics provider in Cluster Agent
+                        of the external metrics provider in Cluster Agent.
                       properties:
                         credentials:
                           description: Datadog credentials used by external metrics
@@ -4362,7 +4365,7 @@ spec:
                           properties:
                             apiKey:
                               description: 'APIKey Set this to your Datadog API key
-                                before the Agent runs. ref: https://app.datadoghq.com/account/settings#agent/kubernetes'
+                                before the Agent runs. See also: https://app.datadoghq.com/account/settings#agent/kubernetes'
                               type: string
                             apiKeyExistingSecret:
                               description: APIKeyExistingSecret is DEPRECATED. In
@@ -4377,10 +4380,10 @@ spec:
                               properties:
                                 keyName:
                                   description: KeyName is the key of the secret to
-                                    use
+                                    use.
                                   type: string
                                 secretName:
-                                  description: SecretName is the name of the secret
+                                  description: SecretName is the name of the secret.
                                   type: string
                               required:
                               - secretName
@@ -4403,10 +4406,10 @@ spec:
                               properties:
                                 keyName:
                                   description: KeyName is the key of the secret to
-                                    use
+                                    use.
                                   type: string
                                 secretName:
-                                  description: SecretName is the name of the secret
+                                  description: SecretName is the name of the secret.
                                   type: string
                               required:
                               - secretName
@@ -4414,7 +4417,7 @@ spec:
                           type: object
                         enabled:
                           description: Enable the metricsProvider to be able to scale
-                            based on metrics in Datadog
+                            based on metrics in Datadog.
                           type: boolean
                         endpoint:
                           description: Override the API endpoint for the external
@@ -4423,18 +4426,17 @@ spec:
                           type: string
                         port:
                           description: If specified configures the metricsProvider
-                            external metrics service port
+                            external metrics service port.
                           format: int32
                           type: integer
                         useDatadogMetrics:
                           description: Enable usage of DatadogMetrics CRD (allow to
-                            scale on arbitrary queries)
+                            scale on arbitrary queries).
                           type: boolean
                         wpaController:
                           description: 'Enable informer and controller of the watermark
-                            pod autoscaler NOTE: The WatermarkPodAutoscaler controller
-                            needs to be installed see https://github.com/DataDog/watermarkpodautoscaler
-                            for more details.'
+                            pod autoscaler. NOTE: The WatermarkPodAutoscaler controller
+                            needs to be installed. See also: https://github.com/DataDog/watermarkpodautoscaler.'
                           type: boolean
                       type: object
                     logLevel:
@@ -4442,7 +4444,7 @@ spec:
                         debug, info, warn, error, critical, and off'
                       type: string
                     resources:
-                      description: Datadog cluster-agent resource requests and limits
+                      description: Datadog cluster-agent resource requests and limits.
                       properties:
                         limits:
                           additionalProperties:
@@ -4468,7 +4470,7 @@ spec:
                       type: object
                     volumeMounts:
                       description: Specify additional volume mounts in the Datadog
-                        Cluster Agent container
+                        Cluster Agent container.
                       items:
                         description: VolumeMount describes a mounting of a Volume
                           within a container.
@@ -4509,7 +4511,7 @@ spec:
                       type: array
                     volumes:
                       description: Specify additional volumes in the Datadog Cluster
-                        Agent container
+                        Agent container.
                       items:
                         description: Volume represents a named volume in a pod that
                           may be accessed by any container in the pod.
@@ -6022,44 +6024,44 @@ spec:
                   type: object
                 customConfig:
                   description: Allow to put custom configuration for the agent, corresponding
-                    to the datadog-cluster.yaml config file
+                    to the datadog-cluster.yaml config file.
                   properties:
                     configData:
                       description: ConfigData corresponds to the configuration file
-                        content
+                        content.
                       type: string
                     configMap:
                       description: ConfigMap name of a ConfigMap used to mount the
-                        configuration file
+                        configuration file.
                       properties:
                         fileKey:
                           description: FileKey corresponds to the key used in the
-                            ConfigMap.Data to store the configuration file content
+                            ConfigMap.Data to store the configuration file content.
                           type: string
                         name:
-                          description: Name the ConfigMap name
+                          description: Name the ConfigMap name.
                           type: string
                       type: object
                   type: object
                 deploymentName:
                   description: Name of the Cluster Agent Deployment to create or migrate
-                    from
+                    from.
                   type: string
                 image:
-                  description: The container image of the Datadog Cluster Agent
+                  description: The container image of the Datadog Cluster Agent.
                   properties:
                     name:
-                      description: Define the image to use Use "gcr.io/datadoghq/agent:latest"
+                      description: 'Define the image to use: Use "gcr.io/datadoghq/agent:latest"
                         for Datadog Agent 6 Use "datadog/dogstatsd:latest" for Standalone
                         Datadog Agent DogStatsD6 Use "gcr.io/datadoghq/cluster-agent:latest"
-                        for Datadog Cluster Agent
+                        for Datadog Cluster Agent'
                       type: string
                     pullPolicy:
-                      description: The Kubernetes pull policy Use Always, Never or
-                        IfNotPresent
+                      description: 'The Kubernetes pull policy: Use Always, Never
+                        or IfNotPresent.'
                       type: string
                     pullSecrets:
-                      description: It is possible to specify docker registry credentials
+                      description: It is possible to specify docker registry credentials.
                         See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod
                       items:
                         description: LocalObjectReference contains enough information
@@ -6076,11 +6078,11 @@ spec:
                   - name
                   type: object
                 networkPolicy:
-                  description: Provide Cluster Agent Network Policy configuration
+                  description: Provide Cluster Agent Network Policy configuration.
                   properties:
                     create:
                       description: If true, create a NetworkPolicy for the current
-                        agent
+                        agent.
                       type: boolean
                   type: object
                 nodeSelector:
@@ -6099,18 +6101,18 @@ spec:
                     or zero if there is no default.
                   type: string
                 rbac:
-                  description: RBAC configuration of the Datadog Cluster Agent
+                  description: RBAC configuration of the Datadog Cluster Agent.
                   properties:
                     create:
-                      description: Used to configure RBAC resources creation
+                      description: Used to configure RBAC resources creation.
                       type: boolean
                     serviceAccountName:
-                      description: Used to set up the service account name to use
-                        Ignored if the field Create is true
+                      description: Used to set up the service account name to use.
+                        Ignored if the field Create is true.
                       type: string
                   type: object
                 replicas:
-                  description: Number of the Cluster Agent replicas
+                  description: Number of the Cluster Agent replicas.
                   format: int32
                   type: integer
                 tolerations:
@@ -6157,7 +6159,7 @@ spec:
               - image
               type: object
             clusterChecksRunner:
-              description: The desired state of the Cluster Checks Runner as a deployment
+              description: The desired state of the Cluster Checks Runner as a deployment.
               properties:
                 additionalAnnotations:
                   additionalProperties:
@@ -6172,7 +6174,7 @@ spec:
                     to the cluster checks runner Pods.
                   type: object
                 affinity:
-                  description: If specified, the pod's scheduling constraints
+                  description: If specified, the pod's scheduling constraints.
                   properties:
                     nodeAffinity:
                       description: Describes node affinity scheduling rules for the
@@ -6771,11 +6773,11 @@ spec:
                       type: object
                   type: object
                 config:
-                  description: Agent configuration
+                  description: Agent configuration.
                   properties:
                     env:
-                      description: 'The Datadog Agent supports many environment variables
-                        Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables'
+                      description: 'The Datadog Agent supports many environment variables.
+                        See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables'
                       items:
                         description: EnvVar represents an environment variable present
                           in a Container.
@@ -6891,7 +6893,7 @@ spec:
                       type: string
                     resources:
                       description: Datadog Cluster Checks Runner resource requests
-                        and limits
+                        and limits.
                       properties:
                         limits:
                           additionalProperties:
@@ -6917,7 +6919,7 @@ spec:
                       type: object
                     volumeMounts:
                       description: Specify additional volume mounts in the Datadog
-                        Cluster Check Runner container
+                        Cluster Check Runner container.
                       items:
                         description: VolumeMount describes a mounting of a Volume
                           within a container.
@@ -6958,7 +6960,7 @@ spec:
                       type: array
                     volumes:
                       description: Specify additional volumes in the Datadog Cluster
-                        Check Runner container
+                        Check Runner container.
                       items:
                         description: Volume represents a named volume in a pod that
                           may be accessed by any container in the pod.
@@ -8471,45 +8473,45 @@ spec:
                   type: object
                 customConfig:
                   description: Allow to put custom configuration for the agent, corresponding
-                    to the datadog.yaml config file See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6
+                    to the datadog.yaml config file. See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6
                     for more details.
                   properties:
                     configData:
                       description: ConfigData corresponds to the configuration file
-                        content
+                        content.
                       type: string
                     configMap:
                       description: ConfigMap name of a ConfigMap used to mount the
-                        configuration file
+                        configuration file.
                       properties:
                         fileKey:
                           description: FileKey corresponds to the key used in the
-                            ConfigMap.Data to store the configuration file content
+                            ConfigMap.Data to store the configuration file content.
                           type: string
                         name:
-                          description: Name the ConfigMap name
+                          description: Name the ConfigMap name.
                           type: string
                       type: object
                   type: object
                 deploymentName:
                   description: Name of the cluster checks deployment to create or
-                    migrate from
+                    migrate from.
                   type: string
                 image:
-                  description: The container image of the Datadog Cluster Checks Runner
+                  description: The container image of the Datadog Cluster Checks Runner.
                   properties:
                     name:
-                      description: Define the image to use Use "gcr.io/datadoghq/agent:latest"
+                      description: 'Define the image to use: Use "gcr.io/datadoghq/agent:latest"
                         for Datadog Agent 6 Use "datadog/dogstatsd:latest" for Standalone
                         Datadog Agent DogStatsD6 Use "gcr.io/datadoghq/cluster-agent:latest"
-                        for Datadog Cluster Agent
+                        for Datadog Cluster Agent'
                       type: string
                     pullPolicy:
-                      description: The Kubernetes pull policy Use Always, Never or
-                        IfNotPresent
+                      description: 'The Kubernetes pull policy: Use Always, Never
+                        or IfNotPresent.'
                       type: string
                     pullSecrets:
-                      description: It is possible to specify docker registry credentials
+                      description: It is possible to specify docker registry credentials.
                         See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod
                       items:
                         description: LocalObjectReference contains enough information
@@ -8526,11 +8528,11 @@ spec:
                   - name
                   type: object
                 networkPolicy:
-                  description: Provide Cluster Checks Runner Network Policy configuration
+                  description: Provide Cluster Checks Runner Network Policy configuration.
                   properties:
                     create:
                       description: If true, create a NetworkPolicy for the current
-                        agent
+                        agent.
                       type: boolean
                   type: object
                 nodeSelector:
@@ -8549,18 +8551,18 @@ spec:
                     or zero if there is no default.
                   type: string
                 rbac:
-                  description: RBAC configuration of the Datadog Cluster Checks Runner
+                  description: RBAC configuration of the Datadog Cluster Checks Runner.
                   properties:
                     create:
-                      description: Used to configure RBAC resources creation
+                      description: Used to configure RBAC resources creation.
                       type: boolean
                     serviceAccountName:
-                      description: Used to set up the service account name to use
-                        Ignored if the field Create is true
+                      description: Used to set up the service account name to use.
+                        Ignored if the field Create is true.
                       type: string
                   type: object
                 replicas:
-                  description: Number of the Cluster Agent replicas
+                  description: Number of the Cluster Agent replicas.
                   format: int32
                   type: integer
                 tolerations:
@@ -8608,15 +8610,15 @@ spec:
               type: object
             clusterName:
               description: Set a unique cluster name to allow scoping hosts and Cluster
-                Checks Runner easily
+                Checks Runner easily.
               type: string
             credentials:
               description: Configure the credentials needed to run Agents. If not
-                set, then the credentials set in the DatadogOperator will be used
+                set, then the credentials set in the DatadogOperator will be used.
               properties:
                 apiKey:
                   description: 'APIKey Set this to your Datadog API key before the
-                    Agent runs. ref: https://app.datadoghq.com/account/settings#agent/kubernetes'
+                    Agent runs. See also: https://app.datadoghq.com/account/settings#agent/kubernetes'
                   type: string
                 apiKeyExistingSecret:
                   description: APIKeyExistingSecret is DEPRECATED. In order to pass
@@ -8629,10 +8631,10 @@ spec:
                     over "apiKey" and "apiKeyExistingSecret".
                   properties:
                     keyName:
-                      description: KeyName is the key of the secret to use
+                      description: KeyName is the key of the secret to use.
                       type: string
                     secretName:
-                      description: SecretName is the name of the secret
+                      description: SecretName is the name of the secret.
                       type: string
                   required:
                   - secretName
@@ -8653,17 +8655,17 @@ spec:
                     over "apiKey" and "appKeyExistingSecret".
                   properties:
                     keyName:
-                      description: KeyName is the key of the secret to use
+                      description: KeyName is the key of the secret to use.
                       type: string
                     secretName:
-                      description: SecretName is the name of the secret
+                      description: SecretName is the name of the secret.
                       type: string
                   required:
                   - secretName
                   type: object
                 token:
-                  description: This needs to be at least 32 characters a-zA-z It is
-                    a preshared key between the node agents and the cluster agent
+                  description: This needs to be at least 32 characters a-zA-z. It
+                    is a preshared key between the node agents and the cluster agent.
                   type: string
                 useSecretBackend:
                   description: 'UseSecretBackend use the Agent secret backend feature
@@ -8673,10 +8675,10 @@ spec:
                   type: boolean
               type: object
             features:
-              description: Features running on the Agent and Cluster Agent
+              description: Features running on the Agent and Cluster Agent.
               properties:
                 kubeStateMetricsCore:
-                  description: KubeStateMetricsCore configuration
+                  description: KubeStateMetricsCore configuration.
                   properties:
                     conf:
                       description: To override the configuration for the default Kubernetes
@@ -8685,19 +8687,19 @@ spec:
                       properties:
                         configData:
                           description: ConfigData corresponds to the configuration
-                            file content
+                            file content.
                           type: string
                         configMap:
                           description: ConfigMap name of a ConfigMap used to mount
-                            the configuration file
+                            the configuration file.
                           properties:
                             fileKey:
                               description: FileKey corresponds to the key used in
                                 the ConfigMap.Data to store the configuration file
-                                content
+                                content.
                               type: string
                             name:
-                              description: Name the ConfigMap name
+                              description: Name the ConfigMap name.
                               type: string
                           type: object
                       type: object
@@ -8706,14 +8708,56 @@ spec:
                         Core check. Refer to https://github.com/DataDog/datadog-operator/blob/main/docs/kubernetes_state_metrics.md
                       type: boolean
                   type: object
+                logCollection:
+                  description: LogCollection configuration.
+                  properties:
+                    containerCollectUsingFiles:
+                      description: 'Collect logs from files in `/var/log/pods instead`
+                        of using the container runtime API. Collecting logs from files
+                        is usually the most efficient way of collecting logs. See
+                        also: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup
+                        Default is true'
+                      type: boolean
+                    containerLogsPath:
+                      description: 'Allows log collection from the container log path.
+                        Set to a different path if you are not using the Docker runtime.
+                        See also: https://docs.datadoghq.com/agent/kubernetes/daemonset_setup/?tab=k8sfile#create-manifest
+                        Defaults to `/var/lib/docker/containers`'
+                      type: string
+                    enabled:
+                      description: 'Enable this option to activate Datadog Agent log
+                        collection. See also: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup'
+                      type: boolean
+                    logsConfigContainerCollectAll:
+                      description: 'Enable this option to allow log collection for
+                        all containers. See also: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup'
+                      type: boolean
+                    openFilesLimit:
+                      description: 'Sets the maximum number of log files that the
+                        Datadog Agent tails. Increasing this limit can increase resource
+                        consumption of the Agent. See also: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup
+                        Default is 100'
+                      format: int32
+                      type: integer
+                    podLogsPath:
+                      description: Allows log collection from pod log path. Defaults
+                        to `/var/log/pods`.
+                      type: string
+                    tempStoragePath:
+                      description: This path (always mounted from the host) is used
+                        by Datadog Agent to store information about processed log
+                        files. If the Datadog Agent is restarted, it starts tailing
+                        the log files immediately. Default to `/var/lib/datadog-agent/logs`
+                      type: string
+                  type: object
                 networkMonitoring:
-                  description: NetworkMonitoring configuration
+                  description: NetworkMonitoring configuration.
                   properties:
                     enabled:
                       type: boolean
                   type: object
                 orchestratorExplorer:
-                  description: OrchestratorExplorer configuration
+                  description: OrchestratorExplorer configuration.
                   properties:
                     additionalEndpoints:
                       description: 'Additional endpoints for shipping the collected
@@ -8726,7 +8770,7 @@ spec:
                       type: string
                     enabled:
                       description: 'Enable this to activate live Kubernetes monitoring.
-                        ref: https://docs.datadoghq.com/infrastructure/livecontainers/#kubernetes-resources'
+                        See also: https://docs.datadoghq.com/infrastructure/livecontainers/#kubernetes-resources'
                       type: boolean
                     extraTags:
                       description: 'Additional tags for the collected data in the
@@ -8746,7 +8790,7 @@ spec:
                       type: object
                   type: object
                 prometheusScrape:
-                  description: PrometheusScrape configuration
+                  description: PrometheusScrape configuration.
                   properties:
                     additionalConfigs:
                       description: AdditionalConfigs allows adding advanced prometheus
@@ -8768,10 +8812,10 @@ spec:
               type: string
           type: object
         status:
-          description: DatadogAgentStatus defines the observed state of DatadogAgent
+          description: DatadogAgentStatus defines the observed state of DatadogAgent.
           properties:
             agent:
-              description: The actual state of the Agent as an extended daemonset
+              description: The actual state of the Agent as an extended daemonset.
               properties:
                 available:
                   format: int32
@@ -8783,7 +8827,7 @@ spec:
                   type: string
                 daemonsetName:
                   description: DaemonsetName corresponds to the name of the created
-                    DaemonSet
+                    DaemonSet.
                   type: string
                 desired:
                   format: int32
@@ -8809,7 +8853,7 @@ spec:
               - upToDate
               type: object
             clusterAgent:
-              description: The actual state of the Cluster Agent as a deployment
+              description: The actual state of the Cluster Agent as a deployment.
               properties:
                 availableReplicas:
                   description: Total number of available pods (ready for at least
@@ -8820,12 +8864,12 @@ spec:
                   type: string
                 deploymentName:
                   description: DeploymentName corresponds to the name of the Cluster
-                    Agent Deployment
+                    Agent Deployment.
                   type: string
                 generatedToken:
                   description: GeneratedToken corresponds to the generated token if
                     any token was provided in the Credential configuration when ClusterAgent
-                    is enabled
+                    is enabled.
                   type: string
                 lastUpdate:
                   format: date-time
@@ -8840,11 +8884,11 @@ spec:
                   format: int32
                   type: integer
                 state:
-                  description: State corresponds to the ClusterAgent deployment state
+                  description: State corresponds to the ClusterAgent deployment state.
                   type: string
                 status:
                   description: Status corresponds to the ClusterAgent deployment computed
-                    status
+                    status.
                   type: string
                 unavailableReplicas:
                   description: Total number of unavailable pods targeted by this deployment.
@@ -8861,7 +8905,7 @@ spec:
                   type: integer
               type: object
             clusterChecksRunner:
-              description: The actual state of the Cluster Checks Runner as a deployment
+              description: The actual state of the Cluster Checks Runner as a deployment.
               properties:
                 availableReplicas:
                   description: Total number of available pods (ready for at least
@@ -8872,12 +8916,12 @@ spec:
                   type: string
                 deploymentName:
                   description: DeploymentName corresponds to the name of the Cluster
-                    Agent Deployment
+                    Agent Deployment.
                   type: string
                 generatedToken:
                   description: GeneratedToken corresponds to the generated token if
                     any token was provided in the Credential configuration when ClusterAgent
-                    is enabled
+                    is enabled.
                   type: string
                 lastUpdate:
                   format: date-time
@@ -8892,11 +8936,11 @@ spec:
                   format: int32
                   type: integer
                 state:
-                  description: State corresponds to the ClusterAgent deployment state
+                  description: State corresponds to the ClusterAgent deployment state.
                   type: string
                 status:
                   description: Status corresponds to the ClusterAgent deployment computed
-                    status
+                    status.
                   type: string
                 unavailableReplicas:
                   description: Total number of unavailable pods targeted by this deployment.

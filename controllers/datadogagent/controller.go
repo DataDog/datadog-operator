@@ -22,6 +22,7 @@ import (
 	"k8s.io/client-go/tools/record"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
+	"github.com/DataDog/datadog-operator/api/v1alpha1/patch"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 )
@@ -89,6 +90,16 @@ func (r *Reconciler) internalReconcile(ctx context.Context, request reconcile.Re
 
 	if result, err = r.handleFinalizer(reqLogger, instance); shouldReturn(result, err) {
 		return result, err
+	}
+
+	var patched bool
+	if instance, patched = patch.CopyAndPatchDatadogAgent(instance); patched {
+		reqLogger.Info("Patching DatadogAgent")
+		err = r.client.Update(ctx, instance)
+		if err != nil {
+			reqLogger.Error(err, "failed to update DatadogAgent")
+			return reconcile.Result{}, err
+		}
 	}
 
 	if !datadoghqv1alpha1.IsDefaultedDatadogAgent(instance) {

@@ -52,7 +52,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./api/v1alpha1.ImageConfig":                             schema__api_v1alpha1_ImageConfig(ref),
 		"./api/v1alpha1.KubeStateMetricsCore":                    schema__api_v1alpha1_KubeStateMetricsCore(ref),
 		"./api/v1alpha1.KubeletConfig":                           schema__api_v1alpha1_KubeletConfig(ref),
-		"./api/v1alpha1.LogSpec":                                 schema__api_v1alpha1_LogSpec(ref),
+		"./api/v1alpha1.LogCollectionConfig":                     schema__api_v1alpha1_LogCollectionConfig(ref),
 		"./api/v1alpha1.NetworkPolicySpec":                       schema__api_v1alpha1_NetworkPolicySpec(ref),
 		"./api/v1alpha1.NodeAgentConfig":                         schema__api_v1alpha1_NodeAgentConfig(ref),
 		"./api/v1alpha1.OrchestratorExplorerConfig":              schema__api_v1alpha1_OrchestratorExplorerConfig(ref),
@@ -71,12 +71,12 @@ func schema__api_v1alpha1_APMSpec(ref common.ReferenceCallback) common.OpenAPIDe
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "APMSpec contains the Trace Agent configuration",
+				Description: "APMSpec contains the Trace Agent configuration.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"enabled": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enable this to enable APM and tracing, on port 8126 ref: https://github.com/DataDog/docker-dd-agent#tracing-from-the-host",
+							Description: "Enable this to enable APM and tracing, on port 8126. See also: https://github.com/DataDog/docker-dd-agent#tracing-from-the-host",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
@@ -90,7 +90,7 @@ func schema__api_v1alpha1_APMSpec(ref common.ReferenceCallback) common.OpenAPIDe
 					},
 					"unixDomainSocket": {
 						SchemaProps: spec.SchemaProps{
-							Description: "UnixDomainSocket socket configuration ref: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables",
+							Description: "UnixDomainSocket socket configuration. See also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables",
 							Ref:         ref("./api/v1alpha1.APMUnixDomainSocketSpec"),
 						},
 					},
@@ -104,7 +104,7 @@ func schema__api_v1alpha1_APMSpec(ref common.ReferenceCallback) common.OpenAPIDe
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "The Datadog Agent supports many environment variables Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables",
+							Description: "The Datadog Agent supports many environment variables. See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -127,7 +127,7 @@ func schema__api_v1alpha1_APMSpec(ref common.ReferenceCallback) common.OpenAPIDe
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "Specify additional volume mounts in the APM Agent container",
+							Description: "Specify additional volume mounts in the APM Agent container.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -141,7 +141,7 @@ func schema__api_v1alpha1_APMSpec(ref common.ReferenceCallback) common.OpenAPIDe
 					},
 					"resources": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Datadog APM Agent resource requests and limits Make sure to keep requests and limits equal to keep the pods in the Guaranteed QoS class Ref: http://kubernetes.io/docs/user-guide/compute-resources/",
+							Description: "Datadog APM Agent resource requests and limits. Make sure to keep requests and limits equal to keep the pods in the Guaranteed QoS class. See also: http://kubernetes.io/docs/user-guide/compute-resources/",
 							Ref:         ref("k8s.io/api/core/v1.ResourceRequirements"),
 						},
 					},
@@ -157,19 +157,19 @@ func schema__api_v1alpha1_APMUnixDomainSocketSpec(ref common.ReferenceCallback) 
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "APMUnixDomainSocketSpec contains the APM Unix Domain Socket configuration",
+				Description: "APMUnixDomainSocketSpec contains the APM Unix Domain Socket configuration.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"enabled": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enable APM over Unix Domain Socket ref: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables",
+							Description: "Enable APM over Unix Domain Socket See also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},
 					"hostFilepath": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Define the host APM socket filepath used when APM over Unix Domain Socket is enabled (default value: /var/run/datadog/apm.sock) ref: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables",
+							Description: "Define the host APM socket filepath used when APM over Unix Domain Socket is enabled. (default value: /var/run/datadog/apm.sock) See also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -184,26 +184,26 @@ func schema__api_v1alpha1_AdmissionControllerConfig(ref common.ReferenceCallback
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "AdmissionControllerConfig contains the configuration of the admission controller in Cluster Agent",
+				Description: "AdmissionControllerConfig contains the configuration of the admission controller in Cluster Agent.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"enabled": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enable the admission controller to be able to inject APM/Dogstatsd config and standard tags (env, service, version) automatically into your pods",
+							Description: "Enable the admission controller to be able to inject APM/Dogstatsd config and standard tags (env, service, version) automatically into your pods.",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},
 					"mutateUnlabelled": {
 						SchemaProps: spec.SchemaProps{
-							Description: "MutateUnlabelled enables injecting config without having the pod label 'admission.datadoghq.com/enabled=\"true\"'",
+							Description: "MutateUnlabelled enables injecting config without having the pod label 'admission.datadoghq.com/enabled=\"true\"'.",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},
 					"serviceName": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ServiceName corresponds to the webhook service name",
+							Description: "ServiceName corresponds to the webhook service name.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -218,12 +218,12 @@ func schema__api_v1alpha1_AgentCredentials(ref common.ReferenceCallback) common.
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "AgentCredentials contains credentials values to configure the Agent",
+				Description: "AgentCredentials contains credentials values to configure the Agent.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"apiKey": {
 						SchemaProps: spec.SchemaProps{
-							Description: "APIKey Set this to your Datadog API key before the Agent runs. ref: https://app.datadoghq.com/account/settings#agent/kubernetes",
+							Description: "APIKey Set this to your Datadog API key before the Agent runs. See also: https://app.datadoghq.com/account/settings#agent/kubernetes",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -263,7 +263,7 @@ func schema__api_v1alpha1_AgentCredentials(ref common.ReferenceCallback) common.
 					},
 					"token": {
 						SchemaProps: spec.SchemaProps{
-							Description: "This needs to be at least 32 characters a-zA-z It is a preshared key between the node agents and the cluster agent",
+							Description: "This needs to be at least 32 characters a-zA-z. It is a preshared key between the node agents and the cluster agent.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -287,19 +287,19 @@ func schema__api_v1alpha1_CRISocketConfig(ref common.ReferenceCallback) common.O
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "CRISocketConfig contains the CRI socket configuration parameters",
+				Description: "CRISocketConfig contains the CRI socket configuration parameters.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"dockerSocketPath": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Path to the docker runtime socket",
+							Description: "Path to the docker runtime socket.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"criSocketPath": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Path to the container runtime socket (if different from Docker) This is supported starting from agent 6.6.0",
+							Description: "Path to the container runtime socket (if different from Docker). This is supported starting from agent 6.6.0.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -314,7 +314,7 @@ func schema__api_v1alpha1_ClusterAgentConfig(ref common.ReferenceCallback) commo
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "ClusterAgentConfig contains the configuration of the Cluster Agent",
+				Description: "ClusterAgentConfig contains the configuration of the Cluster Agent.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"externalMetrics": {
@@ -324,20 +324,20 @@ func schema__api_v1alpha1_ClusterAgentConfig(ref common.ReferenceCallback) commo
 					},
 					"admissionController": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Configure the Admission Controller",
+							Description: "Configure the Admission Controller.",
 							Ref:         ref("./api/v1alpha1.AdmissionControllerConfig"),
 						},
 					},
 					"clusterChecksEnabled": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enable the Cluster Checks and Endpoint Checks feature on both the cluster-agents and the daemonset ref: https://docs.datadoghq.com/agent/cluster_agent/clusterchecks/ https://docs.datadoghq.com/agent/cluster_agent/endpointschecks/ Autodiscovery via Kube Service annotations is automatically enabled",
+							Description: "Enable the Cluster Checks and Endpoint Checks feature on both the cluster-agents and the daemonset. See also: https://docs.datadoghq.com/agent/cluster_agent/clusterchecks/ https://docs.datadoghq.com/agent/cluster_agent/endpointschecks/ Autodiscovery via Kube Service annotations is automatically enabled.",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},
 					"collectEvents": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enable this to start event collection from the kubernetes API ref: https://docs.datadoghq.com/agent/cluster_agent/event_collection/",
+							Description: "Enable this to start event collection from the kubernetes API. See also: https://docs.datadoghq.com/agent/cluster_agent/event_collection/",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
@@ -351,13 +351,13 @@ func schema__api_v1alpha1_ClusterAgentConfig(ref common.ReferenceCallback) commo
 					},
 					"resources": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Datadog cluster-agent resource requests and limits",
+							Description: "Datadog cluster-agent resource requests and limits.",
 							Ref:         ref("k8s.io/api/core/v1.ResourceRequirements"),
 						},
 					},
 					"confd": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Confd Provide additional cluster check configurations. Each key will become a file in /conf.d see https://docs.datadoghq.com/agent/autodiscovery/ for more details.",
+							Description: "Confd Provide additional cluster check configurations. Each key will become a file in /conf.d. see https://docs.datadoghq.com/agent/autodiscovery/ for more details.",
 							Ref:         ref("./api/v1alpha1.ConfigDirSpec"),
 						},
 					},
@@ -371,7 +371,7 @@ func schema__api_v1alpha1_ClusterAgentConfig(ref common.ReferenceCallback) commo
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "The Datadog Agent supports many environment variables Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables",
+							Description: "The Datadog Agent supports many environment variables. See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -394,7 +394,7 @@ func schema__api_v1alpha1_ClusterAgentConfig(ref common.ReferenceCallback) commo
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "Specify additional volume mounts in the Datadog Cluster Agent container",
+							Description: "Specify additional volume mounts in the Datadog Cluster Agent container.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -416,7 +416,7 @@ func schema__api_v1alpha1_ClusterAgentConfig(ref common.ReferenceCallback) commo
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "Specify additional volumes in the Datadog Cluster Agent container",
+							Description: "Specify additional volumes in the Datadog Cluster Agent container.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -440,12 +440,12 @@ func schema__api_v1alpha1_ClusterChecksRunnerConfig(ref common.ReferenceCallback
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "ClusterChecksRunnerConfig contains the configuration of the Cluster Checks Runner",
+				Description: "ClusterChecksRunnerConfig contains the configuration of the Cluster Checks Runner.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"resources": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Datadog Cluster Checks Runner resource requests and limits",
+							Description: "Datadog Cluster Checks Runner resource requests and limits.",
 							Ref:         ref("k8s.io/api/core/v1.ResourceRequirements"),
 						},
 					},
@@ -466,7 +466,7 @@ func schema__api_v1alpha1_ClusterChecksRunnerConfig(ref common.ReferenceCallback
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "The Datadog Agent supports many environment variables Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables",
+							Description: "The Datadog Agent supports many environment variables. See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -489,7 +489,7 @@ func schema__api_v1alpha1_ClusterChecksRunnerConfig(ref common.ReferenceCallback
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "Specify additional volume mounts in the Datadog Cluster Check Runner container",
+							Description: "Specify additional volume mounts in the Datadog Cluster Check Runner container.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -511,7 +511,7 @@ func schema__api_v1alpha1_ClusterChecksRunnerConfig(ref common.ReferenceCallback
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "Specify additional volumes in the Datadog Cluster Check Runner container",
+							Description: "Specify additional volumes in the Datadog Cluster Check Runner container.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -535,25 +535,25 @@ func schema__api_v1alpha1_ComplianceSpec(ref common.ReferenceCallback) common.Op
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "ComplianceSpec contains configuration for continuous compliance",
+				Description: "ComplianceSpec contains configuration for continuous compliance.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"enabled": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enables continuous compliance monitoring",
+							Description: "Enables continuous compliance monitoring.",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},
 					"checkInterval": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Check interval",
+							Description: "Check interval.",
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Duration"),
 						},
 					},
 					"configDir": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Config dir containing compliance benchmarks",
+							Description: "Config dir containing compliance benchmarks.",
 							Ref:         ref("./api/v1alpha1.ConfigDirSpec"),
 						},
 					},
@@ -569,12 +569,12 @@ func schema__api_v1alpha1_ConfigDirSpec(ref common.ReferenceCallback) common.Ope
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "ConfigDirSpec contains config file directory configuration",
+				Description: "ConfigDirSpec contains config file directory configuration.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"configMapName": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ConfigMapName name of a ConfigMap used to mount a directory",
+							Description: "ConfigMapName name of a ConfigMap used to mount a directory.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -589,19 +589,19 @@ func schema__api_v1alpha1_ConfigFileConfigMapSpec(ref common.ReferenceCallback) 
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "ConfigFileConfigMapSpec contains configMap information used to store a config file",
+				Description: "ConfigFileConfigMapSpec contains configMap information used to store a config file.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Name the ConfigMap name",
+							Description: "Name the ConfigMap name.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"fileKey": {
 						SchemaProps: spec.SchemaProps{
-							Description: "FileKey corresponds to the key used in the ConfigMap.Data to store the configuration file content",
+							Description: "FileKey corresponds to the key used in the ConfigMap.Data to store the configuration file content.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -621,14 +621,14 @@ func schema__api_v1alpha1_CustomConfigSpec(ref common.ReferenceCallback) common.
 				Properties: map[string]spec.Schema{
 					"configData": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ConfigData corresponds to the configuration file content",
+							Description: "ConfigData corresponds to the configuration file content.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"configMap": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ConfigMap name of a ConfigMap used to mount the configuration file",
+							Description: "ConfigMap name of a ConfigMap used to mount the configuration file.",
 							Ref:         ref("./api/v1alpha1.ConfigFileConfigMapSpec"),
 						},
 					},
@@ -644,19 +644,19 @@ func schema__api_v1alpha1_DSDUnixDomainSocketSpec(ref common.ReferenceCallback) 
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DSDUnixDomainSocketSpec contains the Dogstatsd Unix Domain Socket configuration",
+				Description: "DSDUnixDomainSocketSpec contains the Dogstatsd Unix Domain Socket configuration.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"enabled": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enable APM over Unix Domain Socket ref: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/",
+							Description: "Enable APM over Unix Domain Socket. See also: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},
 					"hostFilepath": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Define the host APM socket filepath used when APM over Unix Domain Socket is enabled (default value: /var/run/datadog/statsd.sock) ref: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/",
+							Description: "Define the host APM socket filepath used when APM over Unix Domain Socket is enabled. (default value: /var/run/datadog/statsd.sock). See also: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -671,32 +671,32 @@ func schema__api_v1alpha1_DaemonSetDeploymentStrategy(ref common.ReferenceCallba
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DaemonSetDeploymentStrategy contains the node Agent deployment configuration",
+				Description: "DaemonSetDeploymentStrategy contains the node Agent deployment configuration.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"updateStrategyType": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The update strategy used for the DaemonSet",
+							Description: "The update strategy used for the DaemonSet.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"rollingUpdate": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Configure the rolling updater strategy of the DaemonSet or the ExtendedDaemonSet",
+							Description: "Configure the rolling updater strategy of the DaemonSet or the ExtendedDaemonSet.",
 							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.DaemonSetRollingUpdateSpec"),
 						},
 					},
 					"canary": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Configure the canary deployment configuration using ExtendedDaemonSet",
+							Description: "Configure the canary deployment configuration using ExtendedDaemonSet.",
 							Ref:         ref("github.com/DataDog/extendeddaemonset/api/v1alpha1.ExtendedDaemonSetSpecStrategyCanary"),
 						},
 					},
 					"reconcileFrequency": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The reconcile frequency of the ExtendDaemonSet",
+							Description: "The reconcile frequency of the ExtendDaemonSet.",
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Duration"),
 						},
 					},
@@ -712,7 +712,7 @@ func schema__api_v1alpha1_DaemonSetRollingUpdateSpec(ref common.ReferenceCallbac
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DaemonSetRollingUpdateSpec contains configuration fields of the rolling update strategy The configuration is shared between DaemonSet and ExtendedDaemonSet",
+				Description: "DaemonSetRollingUpdateSpec contains configuration fields of the rolling update strategy. The configuration is shared between DaemonSet and ExtendedDaemonSet.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"maxUnavailable": {
@@ -758,7 +758,7 @@ func schema__api_v1alpha1_DaemonSetStatus(ref common.ReferenceCallback) common.O
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DaemonSetStatus defines the observed state of Agent running as DaemonSet",
+				Description: "DaemonSetStatus defines the observed state of Agent running as DaemonSet.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"desired": {
@@ -821,7 +821,7 @@ func schema__api_v1alpha1_DaemonSetStatus(ref common.ReferenceCallback) common.O
 					},
 					"daemonsetName": {
 						SchemaProps: spec.SchemaProps{
-							Description: "DaemonsetName corresponds to the name of the created DaemonSet",
+							Description: "DaemonsetName corresponds to the name of the created DaemonSet.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -839,7 +839,7 @@ func schema__api_v1alpha1_DatadogAgent(ref common.ReferenceCallback) common.Open
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DatadogAgent Deployment with Datadog Operator",
+				Description: "DatadogAgent Deployment with Datadog Operator.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
@@ -946,43 +946,44 @@ func schema__api_v1alpha1_DatadogAgentSpec(ref common.ReferenceCallback) common.
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DatadogAgentSpec defines the desired state of DatadogAgent",
+				Description: "DatadogAgentSpec defines the desired state of DatadogAgent.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"credentials": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Configure the credentials needed to run Agents. If not set, then the credentials set in the DatadogOperator will be used",
+							Description: "Configure the credentials needed to run Agents. If not set, then the credentials set in the DatadogOperator will be used.",
 							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.AgentCredentials"),
 						},
 					},
 					"features": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Features running on the Agent and Cluster Agent",
+							Description: "Features running on the Agent and Cluster Agent.",
+							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.DatadogFeatures"),
 						},
 					},
 					"agent": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The desired state of the Agent as an extended daemonset Contains the Node Agent configuration and deployment strategy",
+							Description: "The desired state of the Agent as an extended daemonset. Contains the Node Agent configuration and deployment strategy.",
 							Ref:         ref("./api/v1alpha1.DatadogAgentSpecAgentSpec"),
 						},
 					},
 					"clusterAgent": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The desired state of the Cluster Agent as a deployment",
+							Description: "The desired state of the Cluster Agent as a deployment.",
 							Ref:         ref("./api/v1alpha1.DatadogAgentSpecClusterAgentSpec"),
 						},
 					},
 					"clusterChecksRunner": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The desired state of the Cluster Checks Runner as a deployment",
+							Description: "The desired state of the Cluster Checks Runner as a deployment.",
 							Ref:         ref("./api/v1alpha1.DatadogAgentSpecClusterChecksRunnerSpec"),
 						},
 					},
 					"clusterName": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Set a unique cluster name to allow scoping hosts and Cluster Checks Runner easily",
+							Description: "Set a unique cluster name to allow scoping hosts and Cluster Checks Runner easily.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1006,7 +1007,7 @@ func schema__api_v1alpha1_DatadogAgentSpecAgentSpec(ref common.ReferenceCallback
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DatadogAgentSpecAgentSpec defines the desired state of the node Agent",
+				Description: "DatadogAgentSpecAgentSpec defines the desired state of the node Agent.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"useExtendedDaemonset": {
@@ -1018,35 +1019,35 @@ func schema__api_v1alpha1_DatadogAgentSpecAgentSpec(ref common.ReferenceCallback
 					},
 					"image": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The container image of the Datadog Agent",
+							Description: "The container image of the Datadog Agent.",
 							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.ImageConfig"),
 						},
 					},
 					"daemonsetName": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Name of the Daemonset to create or migrate from",
+							Description: "Name of the Daemonset to create or migrate from.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"config": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Agent configuration",
+							Description: "Agent configuration.",
 							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.NodeAgentConfig"),
 						},
 					},
 					"rbac": {
 						SchemaProps: spec.SchemaProps{
-							Description: "RBAC configuration of the Agent",
+							Description: "RBAC configuration of the Agent.",
 							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.RbacConfig"),
 						},
 					},
 					"deploymentStrategy": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Update strategy configuration for the DaemonSet",
+							Description: "Update strategy configuration for the DaemonSet.",
 							Ref:         ref("./api/v1alpha1.DaemonSetDeploymentStrategy"),
 						},
 					},
@@ -1126,7 +1127,7 @@ func schema__api_v1alpha1_DatadogAgentSpecAgentSpec(ref common.ReferenceCallback
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "Environment variables for all Datadog Agents Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables",
+							Description: "Environment variables for all Datadog Agents. See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -1148,8 +1149,7 @@ func schema__api_v1alpha1_DatadogAgentSpecAgentSpec(ref common.ReferenceCallback
 					"log": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Log Agent configuration",
-							Default:     map[string]interface{}{},
-							Ref:         ref("./api/v1alpha1.LogSpec"),
+							Ref:         ref("./api/v1alpha1.LogCollectionConfig"),
 						},
 					},
 					"process": {
@@ -1175,7 +1175,7 @@ func schema__api_v1alpha1_DatadogAgentSpecAgentSpec(ref common.ReferenceCallback
 					},
 					"customConfig": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Allow to put custom configuration for the agent, corresponding to the datadog.yaml config file See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.",
+							Description: "Allow to put custom configuration for the agent, corresponding to the datadog.yaml config file. See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.",
 							Ref:         ref("./api/v1alpha1.CustomConfigSpec"),
 						},
 					},
@@ -1191,7 +1191,7 @@ func schema__api_v1alpha1_DatadogAgentSpecAgentSpec(ref common.ReferenceCallback
 			},
 		},
 		Dependencies: []string{
-			"./api/v1alpha1.APMSpec", "./api/v1alpha1.CustomConfigSpec", "./api/v1alpha1.DaemonSetDeploymentStrategy", "./api/v1alpha1.ImageConfig", "./api/v1alpha1.LogSpec", "./api/v1alpha1.NetworkPolicySpec", "./api/v1alpha1.NodeAgentConfig", "./api/v1alpha1.ProcessSpec", "./api/v1alpha1.RbacConfig", "./api/v1alpha1.SecuritySpec", "./api/v1alpha1.SystemProbeSpec", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.PodDNSConfig"},
+			"./api/v1alpha1.APMSpec", "./api/v1alpha1.CustomConfigSpec", "./api/v1alpha1.DaemonSetDeploymentStrategy", "./api/v1alpha1.ImageConfig", "./api/v1alpha1.LogCollectionConfig", "./api/v1alpha1.NetworkPolicySpec", "./api/v1alpha1.NodeAgentConfig", "./api/v1alpha1.ProcessSpec", "./api/v1alpha1.RbacConfig", "./api/v1alpha1.SecuritySpec", "./api/v1alpha1.SystemProbeSpec", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.PodDNSConfig"},
 	}
 }
 
@@ -1199,46 +1199,46 @@ func schema__api_v1alpha1_DatadogAgentSpecClusterAgentSpec(ref common.ReferenceC
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DatadogAgentSpecClusterAgentSpec defines the desired state of the cluster Agent",
+				Description: "DatadogAgentSpecClusterAgentSpec defines the desired state of the cluster Agent.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"image": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The container image of the Datadog Cluster Agent",
+							Description: "The container image of the Datadog Cluster Agent.",
 							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.ImageConfig"),
 						},
 					},
 					"deploymentName": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Name of the Cluster Agent Deployment to create or migrate from",
+							Description: "Name of the Cluster Agent Deployment to create or migrate from.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"config": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Cluster Agent configuration",
+							Description: "Cluster Agent configuration.",
 							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.ClusterAgentConfig"),
 						},
 					},
 					"customConfig": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Allow to put custom configuration for the agent, corresponding to the datadog-cluster.yaml config file",
+							Description: "Allow to put custom configuration for the agent, corresponding to the datadog-cluster.yaml config file.",
 							Ref:         ref("./api/v1alpha1.CustomConfigSpec"),
 						},
 					},
 					"rbac": {
 						SchemaProps: spec.SchemaProps{
-							Description: "RBAC configuration of the Datadog Cluster Agent",
+							Description: "RBAC configuration of the Datadog Cluster Agent.",
 							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.RbacConfig"),
 						},
 					},
 					"replicas": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Number of the Cluster Agent replicas",
+							Description: "Number of the Cluster Agent replicas.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
@@ -1284,7 +1284,7 @@ func schema__api_v1alpha1_DatadogAgentSpecClusterAgentSpec(ref common.ReferenceC
 					},
 					"affinity": {
 						SchemaProps: spec.SchemaProps{
-							Description: "If specified, the pod's scheduling constraints",
+							Description: "If specified, the pod's scheduling constraints.",
 							Ref:         ref("k8s.io/api/core/v1.Affinity"),
 						},
 					},
@@ -1325,7 +1325,7 @@ func schema__api_v1alpha1_DatadogAgentSpecClusterAgentSpec(ref common.ReferenceC
 					},
 					"networkPolicy": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Provide Cluster Agent Network Policy configuration",
+							Description: "Provide Cluster Agent Network Policy configuration.",
 							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.NetworkPolicySpec"),
 						},
@@ -1343,46 +1343,46 @@ func schema__api_v1alpha1_DatadogAgentSpecClusterChecksRunnerSpec(ref common.Ref
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DatadogAgentSpecClusterChecksRunnerSpec defines the desired state of the Cluster Checks Runner",
+				Description: "DatadogAgentSpecClusterChecksRunnerSpec defines the desired state of the Cluster Checks Runner.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"image": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The container image of the Datadog Cluster Checks Runner",
+							Description: "The container image of the Datadog Cluster Checks Runner.",
 							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.ImageConfig"),
 						},
 					},
 					"deploymentName": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Name of the cluster checks deployment to create or migrate from",
+							Description: "Name of the cluster checks deployment to create or migrate from.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"config": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Agent configuration",
+							Description: "Agent configuration.",
 							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.ClusterChecksRunnerConfig"),
 						},
 					},
 					"customConfig": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Allow to put custom configuration for the agent, corresponding to the datadog.yaml config file See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.",
+							Description: "Allow to put custom configuration for the agent, corresponding to the datadog.yaml config file. See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.",
 							Ref:         ref("./api/v1alpha1.CustomConfigSpec"),
 						},
 					},
 					"rbac": {
 						SchemaProps: spec.SchemaProps{
-							Description: "RBAC configuration of the Datadog Cluster Checks Runner",
+							Description: "RBAC configuration of the Datadog Cluster Checks Runner.",
 							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.RbacConfig"),
 						},
 					},
 					"replicas": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Number of the Cluster Agent replicas",
+							Description: "Number of the Cluster Agent replicas.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
@@ -1428,7 +1428,7 @@ func schema__api_v1alpha1_DatadogAgentSpecClusterChecksRunnerSpec(ref common.Ref
 					},
 					"affinity": {
 						SchemaProps: spec.SchemaProps{
-							Description: "If specified, the pod's scheduling constraints",
+							Description: "If specified, the pod's scheduling constraints.",
 							Ref:         ref("k8s.io/api/core/v1.Affinity"),
 						},
 					},
@@ -1469,7 +1469,7 @@ func schema__api_v1alpha1_DatadogAgentSpecClusterChecksRunnerSpec(ref common.Ref
 					},
 					"networkPolicy": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Provide Cluster Checks Runner Network Policy configuration",
+							Description: "Provide Cluster Checks Runner Network Policy configuration.",
 							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.NetworkPolicySpec"),
 						},
@@ -1487,24 +1487,24 @@ func schema__api_v1alpha1_DatadogAgentStatus(ref common.ReferenceCallback) commo
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DatadogAgentStatus defines the observed state of DatadogAgent",
+				Description: "DatadogAgentStatus defines the observed state of DatadogAgent.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"agent": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The actual state of the Agent as an extended daemonset",
+							Description: "The actual state of the Agent as an extended daemonset.",
 							Ref:         ref("./api/v1alpha1.DaemonSetStatus"),
 						},
 					},
 					"clusterAgent": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The actual state of the Cluster Agent as a deployment",
+							Description: "The actual state of the Cluster Agent as a deployment.",
 							Ref:         ref("./api/v1alpha1.DeploymentStatus"),
 						},
 					},
 					"clusterChecksRunner": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The actual state of the Cluster Checks Runner as a deployment",
+							Description: "The actual state of the Cluster Checks Runner as a deployment.",
 							Ref:         ref("./api/v1alpha1.DeploymentStatus"),
 						},
 					},
@@ -1542,12 +1542,12 @@ func schema__api_v1alpha1_DatadogCredentials(ref common.ReferenceCallback) commo
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DatadogCredentials is a generic structure that holds credentials to access Datadog",
+				Description: "DatadogCredentials is a generic structure that holds credentials to access Datadog.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"apiKey": {
 						SchemaProps: spec.SchemaProps{
-							Description: "APIKey Set this to your Datadog API key before the Agent runs. ref: https://app.datadoghq.com/account/settings#agent/kubernetes",
+							Description: "APIKey Set this to your Datadog API key before the Agent runs. See also: https://app.datadoghq.com/account/settings#agent/kubernetes",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1602,33 +1602,39 @@ func schema__api_v1alpha1_DatadogFeatures(ref common.ReferenceCallback) common.O
 				Properties: map[string]spec.Schema{
 					"orchestratorExplorer": {
 						SchemaProps: spec.SchemaProps{
-							Description: "OrchestratorExplorer configuration",
+							Description: "OrchestratorExplorer configuration.",
 							Ref:         ref("./api/v1alpha1.OrchestratorExplorerConfig"),
 						},
 					},
 					"kubeStateMetricsCore": {
 						SchemaProps: spec.SchemaProps{
-							Description: "KubeStateMetricsCore configuration",
+							Description: "KubeStateMetricsCore configuration.",
 							Ref:         ref("./api/v1alpha1.KubeStateMetricsCore"),
 						},
 					},
 					"prometheusScrape": {
 						SchemaProps: spec.SchemaProps{
-							Description: "PrometheusScrape configuration",
+							Description: "PrometheusScrape configuration.",
 							Ref:         ref("./api/v1alpha1.PrometheusScrapeConfig"),
 						},
 					},
 					"networkMonitoring": {
 						SchemaProps: spec.SchemaProps{
-							Description: "NetworkMonitoring configuration",
+							Description: "NetworkMonitoring configuration.",
 							Ref:         ref("./api/v1alpha1.NetworkMonitoringConfig"),
+						},
+					},
+					"logCollection": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LogCollection configuration.",
+							Ref:         ref("./api/v1alpha1.LogCollectionConfig"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./api/v1alpha1.KubeStateMetricsCore", "./api/v1alpha1.NetworkMonitoringConfig", "./api/v1alpha1.OrchestratorExplorerConfig", "./api/v1alpha1.PrometheusScrapeConfig"},
+			"./api/v1alpha1.KubeStateMetricsCore", "./api/v1alpha1.LogCollectionConfig", "./api/v1alpha1.NetworkMonitoringConfig", "./api/v1alpha1.OrchestratorExplorerConfig", "./api/v1alpha1.PrometheusScrapeConfig"},
 	}
 }
 
@@ -1850,7 +1856,7 @@ func schema__api_v1alpha1_DeploymentStatus(ref common.ReferenceCallback) common.
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DeploymentStatus type representing the Cluster Agent Deployment status",
+				Description: "DeploymentStatus type representing the Cluster Agent Deployment status.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"replicas": {
@@ -1901,28 +1907,28 @@ func schema__api_v1alpha1_DeploymentStatus(ref common.ReferenceCallback) common.
 					},
 					"generatedToken": {
 						SchemaProps: spec.SchemaProps{
-							Description: "GeneratedToken corresponds to the generated token if any token was provided in the Credential configuration when ClusterAgent is enabled",
+							Description: "GeneratedToken corresponds to the generated token if any token was provided in the Credential configuration when ClusterAgent is enabled.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Status corresponds to the ClusterAgent deployment computed status",
+							Description: "Status corresponds to the ClusterAgent deployment computed status.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"state": {
 						SchemaProps: spec.SchemaProps{
-							Description: "State corresponds to the ClusterAgent deployment state",
+							Description: "State corresponds to the ClusterAgent deployment state.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"deploymentName": {
 						SchemaProps: spec.SchemaProps{
-							Description: "DeploymentName corresponds to the name of the Cluster Agent Deployment",
+							Description: "DeploymentName corresponds to the name of the Cluster Agent Deployment.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -1939,25 +1945,25 @@ func schema__api_v1alpha1_DogstatsdConfig(ref common.ReferenceCallback) common.O
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DogstatsdConfig contains the Dogstatsd configuration parameters",
+				Description: "DogstatsdConfig contains the Dogstatsd configuration parameters.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"dogstatsdOriginDetection": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enable origin detection for container tagging ref: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/#using-origin-detection-for-container-tagging",
+							Description: "Enable origin detection for container tagging. See also: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/#using-origin-detection-for-container-tagging",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},
 					"unixDomainSocket": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Configure the Dogstatsd Unix Domain Socket ref: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/",
+							Description: "Configure the Dogstatsd Unix Domain Socket. See also: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/",
 							Ref:         ref("./api/v1alpha1.DSDUnixDomainSocketSpec"),
 						},
 					},
 					"mapperProfiles": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Configure the Dogstasd Mapper Profiles Can be passed as raw data or via a json encoded string in a config map ref: https://docs.datadoghq.com/developers/dogstatsd/dogstatsd_mapper/",
+							Description: "Configure the Dogstasd Mapper Profiles. Can be passed as raw data or via a json encoded string in a config map. See also: https://docs.datadoghq.com/developers/dogstatsd/dogstatsd_mapper/",
 							Ref:         ref("./api/v1alpha1.CustomConfigSpec"),
 						},
 					},
@@ -1973,33 +1979,33 @@ func schema__api_v1alpha1_ExternalMetricsConfig(ref common.ReferenceCallback) co
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "ExternalMetricsConfig contains the configuration of the external metrics provider in Cluster Agent",
+				Description: "ExternalMetricsConfig contains the configuration of the external metrics provider in Cluster Agent.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"enabled": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enable the metricsProvider to be able to scale based on metrics in Datadog",
+							Description: "Enable the metricsProvider to be able to scale based on metrics in Datadog.",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},
 					"wpaController": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enable informer and controller of the watermark pod autoscaler NOTE: The WatermarkPodAutoscaler controller needs to be installed see https://github.com/DataDog/watermarkpodautoscaler for more details.",
+							Description: "Enable informer and controller of the watermark pod autoscaler. NOTE: The WatermarkPodAutoscaler controller needs to be installed. See also: https://github.com/DataDog/watermarkpodautoscaler.",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},
 					"useDatadogMetrics": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enable usage of DatadogMetrics CRD (allow to scale on arbitrary queries)",
+							Description: "Enable usage of DatadogMetrics CRD (allow to scale on arbitrary queries).",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},
 					"port": {
 						SchemaProps: spec.SchemaProps{
-							Description: "If specified configures the metricsProvider external metrics service port",
+							Description: "If specified configures the metricsProvider external metrics service port.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
@@ -2029,12 +2035,12 @@ func schema__api_v1alpha1_ImageConfig(ref common.ReferenceCallback) common.OpenA
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "ImageConfig Datadog agent container image config",
+				Description: "ImageConfig Datadog agent container image config.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Define the image to use Use \"gcr.io/datadoghq/agent:latest\" for Datadog Agent 6 Use \"datadog/dogstatsd:latest\" for Standalone Datadog Agent DogStatsD6 Use \"gcr.io/datadoghq/cluster-agent:latest\" for Datadog Cluster Agent",
+							Description: "Define the image to use: Use \"gcr.io/datadoghq/agent:latest\" for Datadog Agent 6 Use \"datadog/dogstatsd:latest\" for Standalone Datadog Agent DogStatsD6 Use \"gcr.io/datadoghq/cluster-agent:latest\" for Datadog Cluster Agent",
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
@@ -2042,14 +2048,14 @@ func schema__api_v1alpha1_ImageConfig(ref common.ReferenceCallback) common.OpenA
 					},
 					"pullPolicy": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The Kubernetes pull policy Use Always, Never or IfNotPresent",
+							Description: "The Kubernetes pull policy: Use Always, Never or IfNotPresent.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"pullSecrets": {
 						SchemaProps: spec.SchemaProps{
-							Description: "It is possible to specify docker registry credentials See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod",
+							Description: "It is possible to specify docker registry credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -2140,58 +2146,58 @@ func schema__api_v1alpha1_KubeletConfig(ref common.ReferenceCallback) common.Ope
 	}
 }
 
-func schema__api_v1alpha1_LogSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema__api_v1alpha1_LogCollectionConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "LogSpec contains the Log Agent configuration",
+				Description: "LogCollectionConfig contains the Log Agent configuration.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"enabled": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enables this to activate Datadog Agent log collection. ref: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup",
+							Description: "Enable this option to activate Datadog Agent log collection. See also: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},
 					"logsConfigContainerCollectAll": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enable this to allow log collection for all containers. ref: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup",
+							Description: "Enable this option to allow log collection for all containers. See also: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},
 					"containerCollectUsingFiles": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Collect logs from files in /var/log/pods instead of using container runtime API. It's usually the most efficient way of collecting logs. ref: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup Default: true",
+							Description: "Collect logs from files in `/var/log/pods instead` of using the container runtime API. Collecting logs from files is usually the most efficient way of collecting logs. See also: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup Default is true",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},
 					"containerLogsPath": {
 						SchemaProps: spec.SchemaProps{
-							Description: "This to allow log collection from container log path. Set to a different path if not using docker runtime. ref: https://docs.datadoghq.com/agent/kubernetes/daemonset_setup/?tab=k8sfile#create-manifest Default to `/var/lib/docker/containers`",
+							Description: "Allows log collection from the container log path. Set to a different path if you are not using the Docker runtime. See also: https://docs.datadoghq.com/agent/kubernetes/daemonset_setup/?tab=k8sfile#create-manifest Defaults to `/var/lib/docker/containers`",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"podLogsPath": {
 						SchemaProps: spec.SchemaProps{
-							Description: "This to allow log collection from pod log path. Default to `/var/log/pods`",
+							Description: "Allows log collection from pod log path. Defaults to `/var/log/pods`.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"tempStoragePath": {
 						SchemaProps: spec.SchemaProps{
-							Description: "This path (always mounted from the host) is used by Datadog Agent to store information about processed log files. If the Datadog Agent is restarted, it allows to start tailing the log files from the right offset Default to `/var/lib/datadog-agent/logs`",
+							Description: "This path (always mounted from the host) is used by Datadog Agent to store information about processed log files. If the Datadog Agent is restarted, it starts tailing the log files immediately. Default to `/var/lib/datadog-agent/logs`",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"openFilesLimit": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Set the maximum number of logs files that the Datadog Agent will tail up to. Increasing this limit can increase resource consumption of the Agent. ref: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup Default to 100",
+							Description: "Sets the maximum number of log files that the Datadog Agent tails. Increasing this limit can increase resource consumption of the Agent. See also: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup Default is 100",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
@@ -2206,12 +2212,12 @@ func schema__api_v1alpha1_NetworkPolicySpec(ref common.ReferenceCallback) common
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "NetworkPolicySpec provides Network Policy configuration for the agents",
+				Description: "NetworkPolicySpec provides Network Policy configuration for the agents.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"create": {
 						SchemaProps: spec.SchemaProps{
-							Description: "If true, create a NetworkPolicy for the current agent",
+							Description: "If true, create a NetworkPolicy for the current agent.",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
@@ -2226,12 +2232,12 @@ func schema__api_v1alpha1_NodeAgentConfig(ref common.ReferenceCallback) common.O
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "NodeAgentConfig contains the configuration of the Node Agent",
+				Description: "NodeAgentConfig contains the configuration of the Node Agent.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"securityContext": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Pod-level SecurityContext",
+							Description: "Pod-level SecurityContext.",
 							Ref:         ref("k8s.io/api/core/v1.PodSecurityContext"),
 						},
 					},
@@ -2315,7 +2321,7 @@ func schema__api_v1alpha1_NodeAgentConfig(ref common.ReferenceCallback) common.O
 					},
 					"collectEvents": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enables this to start event collection from the Kubernetes API ref: https://docs.datadoghq.com/agent/kubernetes/event_collection/",
+							Description: "Enables this to start event collection from the Kubernetes API. See also: https://docs.datadoghq.com/agent/kubernetes/event_collection/",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
@@ -2337,7 +2343,7 @@ func schema__api_v1alpha1_NodeAgentConfig(ref common.ReferenceCallback) common.O
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "The Datadog Agent supports many environment variables Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables",
+							Description: "The Datadog Agent supports many environment variables. See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -2360,7 +2366,7 @@ func schema__api_v1alpha1_NodeAgentConfig(ref common.ReferenceCallback) common.O
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "Specify additional volume mounts in the Datadog Agent container",
+							Description: "Specify additional volume mounts in the Datadog Agent container.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -2382,7 +2388,7 @@ func schema__api_v1alpha1_NodeAgentConfig(ref common.ReferenceCallback) common.O
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "Specify additional volumes in the Datadog Agent container",
+							Description: "Specify additional volumes in the Datadog Agent container.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -2396,19 +2402,19 @@ func schema__api_v1alpha1_NodeAgentConfig(ref common.ReferenceCallback) common.O
 					},
 					"resources": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Datadog Agent resource requests and limits Make sure to keep requests and limits equal to keep the pods in the Guaranteed QoS class Ref: http://kubernetes.io/docs/user-guide/compute-resources/",
+							Description: "Datadog Agent resource requests and limits. Make sure to keep requests and limits equal to keep the pods in the Guaranteed QoS class. See also: http://kubernetes.io/docs/user-guide/compute-resources/",
 							Ref:         ref("k8s.io/api/core/v1.ResourceRequirements"),
 						},
 					},
 					"criSocket": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Configure the CRI Socket",
+							Description: "Configure the CRI Socket.",
 							Ref:         ref("./api/v1alpha1.CRISocketConfig"),
 						},
 					},
 					"dogstatsd": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Configure Dogstatsd",
+							Description: "Configure Dogstatsd.",
 							Ref:         ref("./api/v1alpha1.DogstatsdConfig"),
 						},
 					},
@@ -2461,7 +2467,7 @@ func schema__api_v1alpha1_OrchestratorExplorerConfig(ref common.ReferenceCallbac
 				Properties: map[string]spec.Schema{
 					"enabled": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enable this to activate live Kubernetes monitoring. ref: https://docs.datadoghq.com/infrastructure/livecontainers/#kubernetes-resources",
+							Description: "Enable this to activate live Kubernetes monitoring. See also: https://docs.datadoghq.com/infrastructure/livecontainers/#kubernetes-resources",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
@@ -2518,12 +2524,12 @@ func schema__api_v1alpha1_ProcessSpec(ref common.ReferenceCallback) common.OpenA
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "ProcessSpec contains the Process Agent configuration",
+				Description: "ProcessSpec contains the Process Agent configuration.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"enabled": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Note: /etc/passwd is automatically mounted to allow username resolution. ref: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset",
+							Description: "Note: /etc/passwd is automatically mounted to allow username resolution. See also: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
@@ -2545,7 +2551,7 @@ func schema__api_v1alpha1_ProcessSpec(ref common.ReferenceCallback) common.OpenA
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "The Datadog Agent supports many environment variables Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables",
+							Description: "The Datadog Agent supports many environment variables. See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -2568,7 +2574,7 @@ func schema__api_v1alpha1_ProcessSpec(ref common.ReferenceCallback) common.OpenA
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "Specify additional volume mounts in the Process Agent container",
+							Description: "Specify additional volume mounts in the Process Agent container.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -2582,7 +2588,7 @@ func schema__api_v1alpha1_ProcessSpec(ref common.ReferenceCallback) common.OpenA
 					},
 					"resources": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Datadog Process Agent resource requests and limits Make sure to keep requests and limits equal to keep the pods in the Guaranteed QoS class Ref: http://kubernetes.io/docs/user-guide/compute-resources/",
+							Description: "Datadog Process Agent resource requests and limits. Make sure to keep requests and limits equal to keep the pods in the Guaranteed QoS class. See also: http://kubernetes.io/docs/user-guide/compute-resources/",
 							Ref:         ref("k8s.io/api/core/v1.ResourceRequirements"),
 						},
 					},
@@ -2598,7 +2604,7 @@ func schema__api_v1alpha1_PrometheusScrapeConfig(ref common.ReferenceCallback) c
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "PrometheusScrapeConfig allows configuring Prometheus Autodiscovery feature",
+				Description: "PrometheusScrapeConfig allows configuration of the Prometheus Autodiscovery feature.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"enabled": {
@@ -2632,19 +2638,19 @@ func schema__api_v1alpha1_RbacConfig(ref common.ReferenceCallback) common.OpenAP
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "RbacConfig contains RBAC configuration",
+				Description: "RbacConfig contains RBAC configuration.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"create": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Used to configure RBAC resources creation",
+							Description: "Used to configure RBAC resources creation.",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},
 					"serviceAccountName": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Used to set up the service account name to use Ignored if the field Create is true",
+							Description: "Used to set up the service account name to use. Ignored if the field Create is true.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -2659,25 +2665,25 @@ func schema__api_v1alpha1_RuntimeSecuritySpec(ref common.ReferenceCallback) comm
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "RuntimeSecuritySpec contains configuration for runtime security features",
+				Description: "RuntimeSecuritySpec contains configuration for runtime security features.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"enabled": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enables runtime security features",
+							Description: "Enables runtime security features.",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},
 					"policiesDir": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ConfigDir containing security policies",
+							Description: "ConfigDir containing security policies.",
 							Ref:         ref("./api/v1alpha1.ConfigDirSpec"),
 						},
 					},
 					"syscallMonitor": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Syscall monitor configuration",
+							Description: "Syscall monitor configuration.",
 							Ref:         ref("./api/v1alpha1.SyscallMonitorSpec"),
 						},
 					},
@@ -2693,12 +2699,12 @@ func schema__api_v1alpha1_Secret(ref common.ReferenceCallback) common.OpenAPIDef
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "Secret contains a secret name and an included key",
+				Description: "Secret contains a secret name and an included key.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"secretName": {
 						SchemaProps: spec.SchemaProps{
-							Description: "SecretName is the name of the secret",
+							Description: "SecretName is the name of the secret.",
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
@@ -2706,7 +2712,7 @@ func schema__api_v1alpha1_Secret(ref common.ReferenceCallback) common.OpenAPIDef
 					},
 					"keyName": {
 						SchemaProps: spec.SchemaProps{
-							Description: "KeyName is the key of the secret to use",
+							Description: "KeyName is the key of the secret to use.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -2722,19 +2728,19 @@ func schema__api_v1alpha1_SecuritySpec(ref common.ReferenceCallback) common.Open
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "SecuritySpec contains the Security Agent configuration",
+				Description: "SecuritySpec contains the Security Agent configuration.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"compliance": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Compliance configuration",
+							Description: "Compliance configuration.",
 							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.ComplianceSpec"),
 						},
 					},
 					"runtime": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Runtime security configuration",
+							Description: "Runtime security configuration.",
 							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.RuntimeSecuritySpec"),
 						},
@@ -2749,7 +2755,7 @@ func schema__api_v1alpha1_SecuritySpec(ref common.ReferenceCallback) common.Open
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "The Datadog Security Agent supports many environment variables Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables",
+							Description: "The Datadog Security Agent supports many environment variables. See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -2772,7 +2778,7 @@ func schema__api_v1alpha1_SecuritySpec(ref common.ReferenceCallback) common.Open
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "Specify additional volume mounts in the Security Agent container",
+							Description: "Specify additional volume mounts in the Security Agent container.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -2786,7 +2792,7 @@ func schema__api_v1alpha1_SecuritySpec(ref common.ReferenceCallback) common.Open
 					},
 					"resources": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Datadog Security Agent resource requests and limits Make sure to keep requests and limits equal to keep the pods in the Guaranteed QoS class Ref: http://kubernetes.io/docs/user-guide/compute-resources/",
+							Description: "Datadog Security Agent resource requests and limits. Make sure to keep requests and limits equal to keep the pods in the Guaranteed QoS class. See also: http://kubernetes.io/docs/user-guide/compute-resources/",
 							Ref:         ref("k8s.io/api/core/v1.ResourceRequirements"),
 						},
 					},
@@ -2802,7 +2808,7 @@ func schema__api_v1alpha1_SyscallMonitorSpec(ref common.ReferenceCallback) commo
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "SyscallMonitorSpec contains configuration for syscall monitor",
+				Description: "SyscallMonitorSpec contains configuration for syscall monitor.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"enabled": {
@@ -2822,82 +2828,82 @@ func schema__api_v1alpha1_SystemProbeSpec(ref common.ReferenceCallback) common.O
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "SystemProbeSpec contains the SystemProbe Agent configuration",
+				Description: "SystemProbeSpec contains the SystemProbe Agent configuration.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"enabled": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enable this to activate live process monitoring. Note: /etc/passwd is automatically mounted to allow username resolution. ref: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset",
+							Description: "Enable this to activate live process monitoring. Note: /etc/passwd is automatically mounted to allow username resolution. See also: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},
 					"secCompRootPath": {
 						SchemaProps: spec.SchemaProps{
-							Description: "SecCompRootPath specify the seccomp profile root directory",
+							Description: "SecCompRootPath specify the seccomp profile root directory.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"secCompCustomProfileConfigMap": {
 						SchemaProps: spec.SchemaProps{
-							Description: "SecCompCustomProfileConfigMap specify a pre-existing ConfigMap containing a custom SecComp profile",
+							Description: "SecCompCustomProfileConfigMap specify a pre-existing ConfigMap containing a custom SecComp profile.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"secCompProfileName": {
 						SchemaProps: spec.SchemaProps{
-							Description: "SecCompProfileName specify a seccomp profile",
+							Description: "SecCompProfileName specify a seccomp profile.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"appArmorProfileName": {
 						SchemaProps: spec.SchemaProps{
-							Description: "AppArmorProfileName specify a apparmor profile",
+							Description: "AppArmorProfileName specify a apparmor profile.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"conntrackEnabled": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ConntrackEnabled enable the system-probe agent to connect to the netlink/conntrack subsystem to add NAT information to connection data Ref: http://conntrack-tools.netfilter.org/",
+							Description: "ConntrackEnabled enable the system-probe agent to connect to the netlink/conntrack subsystem to add NAT information to connection data. See also: http://conntrack-tools.netfilter.org/",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},
 					"bpfDebugEnabled": {
 						SchemaProps: spec.SchemaProps{
-							Description: "BPFDebugEnabled logging for kernel debug",
+							Description: "BPFDebugEnabled logging for kernel debug.",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},
 					"debugPort": {
 						SchemaProps: spec.SchemaProps{
-							Description: "DebugPort Specify the port to expose pprof and expvar for system-probe agent",
+							Description: "DebugPort Specify the port to expose pprof and expvar for system-probe agent.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
 					},
 					"enableTCPQueueLength": {
 						SchemaProps: spec.SchemaProps{
-							Description: "EnableTCPQueueLength enables the TCP queue length eBPF-based check",
+							Description: "EnableTCPQueueLength enables the TCP queue length eBPF-based check.",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},
 					"enableOOMKill": {
 						SchemaProps: spec.SchemaProps{
-							Description: "EnableOOMKill enables the OOM kill eBPF-based check",
+							Description: "EnableOOMKill enables the OOM kill eBPF-based check.",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},
 					"collectDNSStats": {
 						SchemaProps: spec.SchemaProps{
-							Description: "CollectDNSStats enables DNS stat collection",
+							Description: "CollectDNSStats enables DNS stat collection.",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
@@ -2912,7 +2918,7 @@ func schema__api_v1alpha1_SystemProbeSpec(ref common.ReferenceCallback) common.O
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "The Datadog SystemProbe supports many environment variables Ref: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables",
+							Description: "The Datadog SystemProbe supports many environment variables. See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -2926,13 +2932,13 @@ func schema__api_v1alpha1_SystemProbeSpec(ref common.ReferenceCallback) common.O
 					},
 					"resources": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Datadog SystemProbe resource requests and limits Make sure to keep requests and limits equal to keep the pods in the Guaranteed QoS class Ref: http://kubernetes.io/docs/user-guide/compute-resources/",
+							Description: "Datadog SystemProbe resource requests and limits. Make sure to keep requests and limits equal to keep the pods in the Guaranteed QoS class. See also: http://kubernetes.io/docs/user-guide/compute-resources/",
 							Ref:         ref("k8s.io/api/core/v1.ResourceRequirements"),
 						},
 					},
 					"securityContext": {
 						SchemaProps: spec.SchemaProps{
-							Description: "You can modify the security context used to run the containers by modifying the label type",
+							Description: "You can modify the security context used to run the containers by modifying the label type.",
 							Ref:         ref("k8s.io/api/core/v1.SecurityContext"),
 						},
 					},

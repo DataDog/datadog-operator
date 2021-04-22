@@ -107,6 +107,71 @@ func clusterAgentDefaultEnvVars() []corev1.EnvVar {
 			Name:      "DD_API_KEY",
 			ValueFrom: apiKeyValue(),
 		},
+		{
+			Name:  "DD_ORCHESTRATOR_EXPLORER_ENABLED",
+			Value: "true",
+		},
+		{
+			Name:  "DD_ORCHESTRATOR_EXPLORER_CONTAINER_SCRUBBING_ENABLED",
+			Value: "true",
+		},
+	}
+}
+
+func clusterAgentWithAdmissionControllerDefaultEnvVars(serviceName string, unlabelled bool) []corev1.EnvVar {
+	return []corev1.EnvVar{
+		{
+			Name:  "DD_CLUSTER_NAME",
+			Value: "",
+		},
+		{
+			Name:  "DD_CLUSTER_CHECKS_ENABLED",
+			Value: "false",
+		},
+		{
+			Name:  "DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME",
+			Value: fmt.Sprintf("%s-%s", testDdaName, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix),
+		},
+		{
+			Name:      "DD_CLUSTER_AGENT_AUTH_TOKEN",
+			ValueFrom: authTokenValue(),
+		},
+		{
+			Name:  "DD_LEADER_ELECTION",
+			Value: "true",
+		},
+		{
+			Name:  "DD_COMPLIANCE_CONFIG_ENABLED",
+			Value: "false",
+		},
+		{
+			Name:  "DD_COLLECT_KUBERNETES_EVENTS",
+			Value: "false",
+		},
+		{
+			Name:      "DD_API_KEY",
+			ValueFrom: apiKeyValue(),
+		},
+		{
+			Name:  "DD_ADMISSION_CONTROLLER_ENABLED",
+			Value: "true",
+		},
+		{
+			Name:  "DD_ADMISSION_CONTROLLER_MUTATE_UNLABELLED",
+			Value: datadoghqv1alpha1.BoolToString(&unlabelled),
+		},
+		{
+			Name:  "DD_ADMISSION_CONTROLLER_SERVICE_NAME",
+			Value: serviceName,
+		},
+		{
+			Name:  "DD_ORCHESTRATOR_EXPLORER_ENABLED",
+			Value: "true",
+		},
+		{
+			Name:  "DD_ORCHESTRATOR_EXPLORER_CONTAINER_SCRUBBING_ENABLED",
+			Value: "true",
+		},
 	}
 }
 
@@ -134,8 +199,7 @@ func (test clusterAgentDeploymentFromInstanceTest) Run(t *testing.T) {
 		}
 		test.want.Annotations["agent.datadoghq.com/agentspechash"] = deploymentSpecHash
 	}
-	assert.True(t, apiequality.Semantic.DeepEqual(got, test.want), "newClusterAgentDeploymentFromInstance() = %#v, want %#v\ndiff = %s", got, test.want,
-		cmp.Diff(got, test.want))
+	assert.True(t, apiequality.Semantic.DeepEqual(got, test.want), "newClusterAgentDeploymentFromInstance()\ndiff = %s", cmp.Diff(got, test.want))
 }
 
 type clusterAgentDeploymentFromInstanceTestSuite []clusterAgentDeploymentFromInstanceTest
@@ -194,7 +258,7 @@ func Test_newClusterAgentDeploymentFromInstance(t *testing.T) {
 		},
 		{
 			name:            "defaulted case with DatadogFeature orchestrator Explorer",
-			agentdeployment: test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{ClusterAgentEnabled: true, OrchestratorExplorerEnabled: true}),
+			agentdeployment: test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{ClusterAgentEnabled: true}),
 			newStatus:       &datadoghqv1alpha1.DatadogAgentStatus{},
 			wantErr:         false,
 			want: &appsv1.Deployment{
@@ -223,7 +287,7 @@ func Test_newClusterAgentDeploymentFromInstance(t *testing.T) {
 								"app.kubernetes.io/version":     "",
 							},
 						},
-						Spec: clusterAgentPodSpecOrchestratorEnabled(),
+						Spec: clusterAgentDefaultPodSpec(),
 					},
 					Replicas: &testClusterAgentReplicas,
 					Selector: &metav1.LabelSelector{
@@ -287,17 +351,6 @@ func Test_newClusterAgentDeploymentFromInstance(t *testing.T) {
 	tests.Run(t)
 }
 
-func clusterAgentPodSpecOrchestratorEnabled() v1.PodSpec {
-	clusterAgentSpec := clusterAgentDefaultPodSpec()
-	cnt := clusterAgentSpec.Containers[0]
-	cnt.Env = append(cnt.Env, []corev1.EnvVar{
-		{Name: "DD_ORCHESTRATOR_EXPLORER_ENABLED", Value: "true"},
-		{Name: "DD_ORCHESTRATOR_EXPLORER_CONTAINER_SCRUBBING_ENABLED", Value: "true"},
-	}...)
-	clusterAgentSpec.Containers[0] = cnt
-	return clusterAgentSpec
-}
-
 func Test_newClusterAgentDeploymentMountKSMCore(t *testing.T) {
 	enabledFeature := true
 	// test proper mount of volume
@@ -308,24 +361,6 @@ func Test_newClusterAgentDeploymentMountKSMCore(t *testing.T) {
 				Name:    "bla",
 				FileKey: "ksm_core.yaml",
 			},
-		},
-	}
-	envVars := []v1.EnvVar{
-		{
-			Name:  datadoghqv1alpha1.DDKubeStateMetricsCoreEnabled,
-			Value: "true",
-		},
-		{
-			Name:  datadoghqv1alpha1.DDKubeStateMetricsCoreConfigMap,
-			Value: "bla",
-		},
-		{
-			Name:  orchestrator.DDOrchestratorExplorerEnabled,
-			Value: "true",
-		},
-		{
-			Name:  orchestrator.DDOrchestratorExplorerContainerScrubbingEnabled,
-			Value: "true",
 		},
 	}
 	userVolumes := []corev1.Volume{
@@ -351,6 +386,25 @@ func Test_newClusterAgentDeploymentMountKSMCore(t *testing.T) {
 	clusterAgentPodSpec := clusterAgentDefaultPodSpec()
 	clusterAgentPodSpec.Volumes = append(clusterAgentPodSpec.Volumes, userVolumes...)
 	clusterAgentPodSpec.Containers[0].VolumeMounts = append(clusterAgentPodSpec.Containers[0].VolumeMounts, userVolumeMounts...)
+	clusterAgentPodSpec.Containers[0].Env = clusterAgentPodSpec.Containers[0].Env[:len(clusterAgentPodSpec.Containers[0].Env)-2]
+	envVars := []v1.EnvVar{
+		{
+			Name:  datadoghqv1alpha1.DDKubeStateMetricsCoreEnabled,
+			Value: "true",
+		},
+		{
+			Name:  datadoghqv1alpha1.DDKubeStateMetricsCoreConfigMap,
+			Value: "bla",
+		},
+		{
+			Name:  orchestrator.DDOrchestratorExplorerEnabled,
+			Value: "true",
+		},
+		{
+			Name:  orchestrator.DDOrchestratorExplorerContainerScrubbingEnabled,
+			Value: "true",
+		},
+	}
 	clusterAgentPodSpec.Containers[0].Env = append(clusterAgentPodSpec.Containers[0].Env, envVars...)
 	clusterAgentDeployment := test.NewDefaultedDatadogAgent(
 		"bar",
@@ -414,7 +468,7 @@ func Test_newClusterAgentPrometheusScrapeEnabled(t *testing.T) {
 		&test.NewDatadogAgentOptions{
 			ClusterAgentEnabled: true,
 			Features: &datadoghqv1alpha1.DatadogFeatures{
-				OrchestratorExplorer: &datadoghqv1alpha1.OrchestratorExplorerConfig{Enabled: datadoghqv1alpha1.NewBoolPointer(false)},
+				OrchestratorExplorer: &datadoghqv1alpha1.OrchestratorExplorerConfig{Enabled: datadoghqv1alpha1.NewBoolPointer(true)},
 				PrometheusScrape:     &datadoghqv1alpha1.PrometheusScrapeConfig{Enabled: datadoghqv1alpha1.NewBoolPointer(true), ServiceEndpoints: datadoghqv1alpha1.NewBoolPointer(true)}},
 		},
 	)
@@ -690,6 +744,7 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 		Protocol:      "TCP",
 	})
 
+	metricsServerPodSpec.Containers[0].Env = metricsServerPodSpec.Containers[0].Env[:len(metricsServerPodSpec.Containers[0].Env)-2]
 	metricsServerPodSpec.Containers[0].Env = append(metricsServerPodSpec.Containers[0].Env,
 		[]corev1.EnvVar{
 			{
@@ -711,6 +766,14 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 			{
 				Name:  datadoghqv1alpha1.DDMetricsProviderWPAController,
 				Value: "false",
+			},
+			{
+				Name:  orchestrator.DDOrchestratorExplorerEnabled,
+				Value: "true",
+			},
+			{
+				Name:  orchestrator.DDOrchestratorExplorerContainerScrubbingEnabled,
+				Value: "true",
 			},
 		}...,
 	)
@@ -745,6 +808,7 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 		Protocol:      "TCP",
 	})
 
+	metricsServerWithSitePodSpec.Containers[0].Env = metricsServerWithSitePodSpec.Containers[0].Env[:len(metricsServerWithSitePodSpec.Containers[0].Env)-2]
 	metricsServerWithSitePodSpec.Containers[0].Env = append(metricsServerWithSitePodSpec.Containers[0].Env,
 		[]corev1.EnvVar{
 			{
@@ -778,6 +842,14 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 			{
 				Name:      datadoghqv1alpha1.DDExternalMetricsProviderAppKey,
 				ValueFrom: buildEnvVarFromSecret("extmetrics-app-key-secret-name", "appkey"),
+			},
+			{
+				Name:  orchestrator.DDOrchestratorExplorerEnabled,
+				Value: "true",
+			},
+			{
+				Name:  orchestrator.DDOrchestratorExplorerContainerScrubbingEnabled,
+				Value: "true",
 			},
 		}...,
 	)
@@ -919,22 +991,7 @@ func Test_newClusterAgentDeploymentFromInstance_AdmissionController(t *testing.T
 	}
 
 	admissionControllerPodSpec := clusterAgentDefaultPodSpec()
-	admissionControllerPodSpec.Containers[0].Env = append(admissionControllerPodSpec.Containers[0].Env,
-		[]corev1.EnvVar{
-			{
-				Name:  "DD_ADMISSION_CONTROLLER_ENABLED",
-				Value: "true",
-			},
-			{
-				Name:  "DD_ADMISSION_CONTROLLER_MUTATE_UNLABELLED",
-				Value: "false",
-			},
-			{
-				Name:  "DD_ADMISSION_CONTROLLER_SERVICE_NAME",
-				Value: "datadog-admission-controller",
-			},
-		}...,
-	)
+	admissionControllerPodSpec.Containers[0].Env = clusterAgentWithAdmissionControllerDefaultEnvVars("datadog-admission-controller", false)
 
 	admissionControllerDatadogAgent := test.NewDefaultedDatadogAgent("bar", "foo",
 		&test.NewDatadogAgentOptions{
@@ -944,22 +1001,7 @@ func Test_newClusterAgentDeploymentFromInstance_AdmissionController(t *testing.T
 		})
 
 	admissionControllerPodSpecCustom := clusterAgentDefaultPodSpec()
-	admissionControllerPodSpecCustom.Containers[0].Env = append(admissionControllerPodSpecCustom.Containers[0].Env,
-		[]corev1.EnvVar{
-			{
-				Name:  "DD_ADMISSION_CONTROLLER_ENABLED",
-				Value: "true",
-			},
-			{
-				Name:  "DD_ADMISSION_CONTROLLER_MUTATE_UNLABELLED",
-				Value: "true",
-			},
-			{
-				Name:  "DD_ADMISSION_CONTROLLER_SERVICE_NAME",
-				Value: "custom-service-name",
-			},
-		}...,
-	)
+	admissionControllerPodSpecCustom.Containers[0].Env = clusterAgentWithAdmissionControllerDefaultEnvVars("custom-service-name", true)
 
 	admissionControllerDatadogAgentCustom := test.NewDefaultedDatadogAgent("bar", "foo",
 		&test.NewDatadogAgentOptions{
