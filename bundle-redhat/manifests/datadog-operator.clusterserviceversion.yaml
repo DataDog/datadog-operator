@@ -35,8 +35,7 @@ metadata:
                 }
               },
               "systemProbe": {
-                "bpfDebugEnabled": false,
-                "enabled": false
+                "bpfDebugEnabled": false
               }
             },
             "clusterAgent": {
@@ -98,15 +97,19 @@ metadata:
       ]
     capabilities: Full Lifecycle
     categories: Monitoring, Logging & Tracing
-    operators.operatorframework.io/builder: operator-sdk-v1.2.0
+    description: Datadog provides a modern monitoring and analytics platform. Gather
+      metrics, logs and traces for full observability of your Kubernetes cluster with
+      Datadog Operator.
+    operators.operatorframework.io/builder: operator-sdk-v1.4.0+git
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
-  name: datadog-operator.v0.5.0
+    repository: https://github.com/DataDog/datadog-operator
+  name: datadog-operator.v0.6.0-rc.1
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
-    - description: DatadogAgent Deployment with Datadog Operator
+    - description: DatadogAgent Deployment with Datadog Operator.
       displayName: Datadog Agent
       kind: DatadogAgent
       name: datadogagents.datadoghq.com
@@ -326,6 +329,38 @@ spec:
         - apiGroups:
           - datadoghq.com
           resources:
+          - datadogmonitors
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - datadoghq.com
+          resources:
+          - datadogmonitors/finalizers
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - datadoghq.com
+          resources:
+          - datadogmonitors/status
+          verbs:
+          - get
+          - patch
+          - update
+        - apiGroups:
+          - datadoghq.com
+          resources:
           - extendeddaemonsets
           verbs:
           - '*'
@@ -452,7 +487,7 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.annotations['olm.targetNamespaces']
-                image: registry.connect.redhat.com/datadog/operator:0.5.0
+                image: registry.connect.redhat.com/datadog/operator:0.6.0-rc.1
                 imagePullPolicy: Always
                 livenessProbe:
                   httpGet:
@@ -529,5 +564,5 @@ spec:
   maturity: alpha
   provider:
     name: Datadog
-  version: 0.5.0
+  version: 0.6.0-rc.1
   replaces: datadog-operator.v0.4.0
