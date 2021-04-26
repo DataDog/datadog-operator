@@ -1,10 +1,10 @@
 # Getting Started
 
-This procedure describes the simplest and fastest way to deploy a `DatadogMonitor` with the Datadog Operator. **Note: Operator version 0.6+ is required.**
+The simplest and fastest way to deploy a `DatadogMonitor` with the Datadog Operator is described in the steps below. **Note: Operator version 0.6+ is required.**
 
 ## Prerequisites
 
-The following prerequisites are required to use `DatadogMonitor`:
+These prerequisites are required to use `DatadogMonitor`:
 
 - **Kubernetes Cluster version >= v1.14.X**: Tests were done on versions >= `1.14.0`. However, it should work on versions `>= v1.11.0`. For earlier versions, due to limited CRD support, the Operator may not work as expected.
 - [`Helm`][1] for deploying the `datadog-operator`.
