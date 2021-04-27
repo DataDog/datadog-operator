@@ -16,7 +16,7 @@ metadata:
                 "enabled": false
               },
               "image": {
-                "name": "gcr.io/datadoghq/agent:7.26.0"
+                "name": "datadog/agent:7.26.0"
               },
               "log": {
                 "enabled": false,
@@ -50,13 +50,13 @@ metadata:
                 }
               },
               "image": {
-                "name": "gcr.io/datadoghq/cluster-agent:1.11.0"
+                "name": "datadog/cluster-agent:1.11.0"
               },
               "replicas": 2
             },
             "clusterChecksRunner": {
               "image": {
-                "name": "gcr.io/datadoghq/agent:7.26.0"
+                "name": "datadog/agent:7.26.0"
               },
               "replicas": 2
             },
