@@ -1109,6 +1109,8 @@ func getDefaultClusterAgentPolicyRules() []rbacv1.PolicyRule {
 				datadoghqv1alpha1.PodsResource,
 				datadoghqv1alpha1.NodesResource,
 				datadoghqv1alpha1.ComponentStatusesResource,
+				datadoghqv1alpha1.ConfigMapsResource,
+				datadoghqv1alpha1.NamespaceResource,
 			},
 			Verbs: []string{
 				datadoghqv1alpha1.GetVerb,
