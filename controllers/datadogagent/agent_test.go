@@ -189,6 +189,12 @@ func defaultSystemProbeVolumes() []corev1.Volume {
 			},
 		},
 		{
+			Name: datadoghqv1alpha1.AuthVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
 			Name: datadoghqv1alpha1.InstallInfoVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
@@ -294,6 +300,12 @@ func complianceSecurityAgentVolumes() []corev1.Volume {
 			},
 		},
 		{
+			Name: datadoghqv1alpha1.AuthVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
 			Name: datadoghqv1alpha1.InstallInfoVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
@@ -376,6 +388,12 @@ func runtimeSecurityAgentVolumes() []corev1.Volume {
 	return []corev1.Volume{
 		{
 			Name: datadoghqv1alpha1.LogDatadogVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.AuthVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
@@ -484,6 +502,10 @@ func defaultMountVolume() []corev1.VolumeMount {
 			MountPath: "/var/log/datadog",
 		},
 		{
+			Name:      "datadog-agent-auth",
+			MountPath: "/etc/datadog-agent/auth",
+		},
+		{
 			Name:      "installinfo",
 			SubPath:   "install_info",
 			MountPath: "/etc/datadog-agent/install_info",
@@ -528,6 +550,11 @@ func defaultProcessMountVolumes() []corev1.VolumeMount {
 			MountPath: "/var/log/datadog",
 		},
 		{
+			Name:      "datadog-agent-auth",
+			MountPath: "/etc/datadog-agent/auth",
+			ReadOnly:  true,
+		},
+		{
 			Name:      "cgroups",
 			MountPath: "/host/sys/fs/cgroup",
 			ReadOnly:  true,
@@ -562,6 +589,11 @@ func defaultSystemProbeMountVolume() []corev1.VolumeMount {
 			MountPath: "/var/log/datadog",
 		},
 		{
+			Name:      "datadog-agent-auth",
+			MountPath: "/etc/datadog-agent/auth",
+			ReadOnly:  true,
+		},
+		{
 			Name:      "debugfs",
 			MountPath: "/sys/kernel/debug",
 		},
@@ -587,6 +619,11 @@ func complianceSecurityAgentMountVolume() []corev1.VolumeMount {
 		{
 			Name:      "logdatadog",
 			MountPath: "/var/log/datadog",
+		},
+		{
+			Name:      "datadog-agent-auth",
+			MountPath: "/etc/datadog-agent/auth",
+			ReadOnly:  true,
 		},
 		{
 			Name:      "config",
@@ -635,6 +672,11 @@ func runtimeSecurityAgentMountVolume() []corev1.VolumeMount {
 		{
 			Name:      "logdatadog",
 			MountPath: "/var/log/datadog",
+		},
+		{
+			Name:      "datadog-agent-auth",
+			MountPath: "/etc/datadog-agent/auth",
+			ReadOnly:  true,
 		},
 		{
 			Name:      "config",
@@ -924,6 +966,12 @@ func appendDefaultAPMAgentContainer(podSpec *corev1.PodSpec) {
 				MountPath: "/var/log/datadog",
 			},
 			{
+				Name:      "datadog-agent-auth",
+				MountPath: "/etc/datadog-agent/auth",
+				ReadOnly:  true,
+			},
+
+			{
 				Name:      "config",
 				MountPath: "/etc/datadog-agent",
 			},
@@ -1120,6 +1168,12 @@ func defaultProcessMount() []corev1.Volume {
 	return []corev1.Volume{
 		{
 			Name: datadoghqv1alpha1.LogDatadogVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.AuthVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
@@ -1425,6 +1479,10 @@ func customKubeletConfigPodSpec(kubeletConfig *datadoghqv1alpha1.KubeletConfig) 
 			MountPath: "/var/log/datadog",
 		},
 		{
+			Name:      "datadog-agent-auth",
+			MountPath: "/etc/datadog-agent/auth",
+		},
+		{
 			Name:      "installinfo",
 			SubPath:   "install_info",
 			MountPath: "/etc/datadog-agent/install_info",
@@ -1590,6 +1648,12 @@ func customKubeletConfigPodSpec(kubeletConfig *datadoghqv1alpha1.KubeletConfig) 
 		Volumes: []corev1.Volume{
 			{
 				Name: datadoghqv1alpha1.LogDatadogVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
+			},
+			{
+				Name: datadoghqv1alpha1.AuthVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},
@@ -1919,6 +1983,12 @@ func Test_newExtendedDaemonSetFromInstance_CustomConfigMaps(t *testing.T) {
 			},
 		},
 		{
+			Name: datadoghqv1alpha1.AuthVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
 			Name: datadoghqv1alpha1.InstallInfoVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
@@ -2046,6 +2116,12 @@ func Test_newExtendedDaemonSetFromInstance_CustomDatadogYaml(t *testing.T) {
 			},
 		},
 		{
+			Name: datadoghqv1alpha1.AuthVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
 			Name: datadoghqv1alpha1.InstallInfoVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
@@ -2122,6 +2198,10 @@ func Test_newExtendedDaemonSetFromInstance_CustomDatadogYaml(t *testing.T) {
 			MountPath: "/var/log/datadog",
 		},
 		{
+			Name:      "datadog-agent-auth",
+			MountPath: "/etc/datadog-agent/auth",
+		},
+		{
 			Name:      "installinfo",
 			SubPath:   "install_info",
 			MountPath: "/etc/datadog-agent/install_info",
@@ -2167,6 +2247,11 @@ func Test_newExtendedDaemonSetFromInstance_CustomDatadogYaml(t *testing.T) {
 		{
 			Name:      "logdatadog",
 			MountPath: "/var/log/datadog",
+		},
+		{
+			Name:      "datadog-agent-auth",
+			MountPath: "/etc/datadog-agent/auth",
+			ReadOnly:  true,
 		},
 		{
 			Name:      "cgroups",

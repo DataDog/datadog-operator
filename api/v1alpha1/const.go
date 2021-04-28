@@ -129,6 +129,8 @@ const (
 	ChecksdVolumePath                  = "/checks.d"
 	ConfigVolumeName                   = "config"
 	ConfigVolumePath                   = "/etc/datadog-agent"
+	AuthVolumeName                     = "datadog-agent-auth"
+	AuthVolumePath                     = "/etc/datadog-agent/auth"
 	ProcVolumeName                     = "procdir"
 	ProcVolumePath                     = "/host/proc"
 	ProcVolumeReadOnly                 = true
