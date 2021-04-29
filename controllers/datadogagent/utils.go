@@ -1738,13 +1738,20 @@ func getDefaultLabels(dda *datadoghqv1alpha1.DatadogAgent, instanceName, version
 	labels[kubernetes.AppKubernetesPartOfLabelKey] = dda.Name
 	labels[kubernetes.AppKubernetesVersionLabelKey] = version
 	labels[kubernetes.AppKubernetesManageByLabelKey] = "datadog-operator"
+
+	// Copy Datadog labels from DDA Labels
+	for k, v := range dda.Labels {
+		if strings.HasPrefix(k, datadogTagPrefix) {
+			labels[k] = v
+		}
+	}
+
 	return labels
 }
 
-func getDefaultAnnotations(dda *datadoghqv1alpha1.DatadogAgent) map[string]string {
-	// TODO implement this method
-	_ = dda.Annotations
-	return make(map[string]string)
+func getDefaultAnnotations(*datadoghqv1alpha1.DatadogAgent) map[string]string {
+	// Currently we don't have any annotation to set by default
+	return map[string]string{}
 }
 
 var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")

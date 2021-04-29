@@ -1069,7 +1069,7 @@ func schema__api_v1alpha1_DatadogAgentSpecAgentSpec(ref common.ReferenceCallback
 					},
 					"additionalLabels": {
 						SchemaProps: spec.SchemaProps{
-							Description: "AdditionalLabels provide labels that will be added to the cluster checks runner Pods.",
+							Description: "AdditionalLabels provide labels that will be added to the Agent Pods.",
 							Type:        []string{"object"},
 							AdditionalProperties: &spec.SchemaOrBool{
 								Allows: true,
@@ -1245,7 +1245,7 @@ func schema__api_v1alpha1_DatadogAgentSpecClusterAgentSpec(ref common.ReferenceC
 					},
 					"additionalAnnotations": {
 						SchemaProps: spec.SchemaProps{
-							Description: "AdditionalAnnotations provide annotations that will be added to the cluster-agent Pods.",
+							Description: "AdditionalAnnotations provide annotations that will be added to the Cluster Agent Pods.",
 							Type:        []string{"object"},
 							AdditionalProperties: &spec.SchemaOrBool{
 								Allows: true,
@@ -1261,7 +1261,7 @@ func schema__api_v1alpha1_DatadogAgentSpecClusterAgentSpec(ref common.ReferenceC
 					},
 					"additionalLabels": {
 						SchemaProps: spec.SchemaProps{
-							Description: "AdditionalLabels provide labels that will be added to the cluster checks runner Pods.",
+							Description: "AdditionalLabels provide labels that will be added to the Cluster Agent Pods.",
 							Type:        []string{"object"},
 							AdditionalProperties: &spec.SchemaOrBool{
 								Allows: true,

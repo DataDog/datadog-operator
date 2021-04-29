@@ -482,13 +482,8 @@ func newDaemonsetObjectMetaData(dda *datadoghqv1alpha1.DatadogAgent) metav1.Obje
 	labels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultAgentResourceSuffix, getAgentVersion(dda))
 	labels[datadoghqv1alpha1.AgentDeploymentNameLabelKey] = dda.Name
 	labels[datadoghqv1alpha1.AgentDeploymentComponentLabelKey] = datadoghqv1alpha1.DefaultAgentResourceSuffix
-	for key, val := range dda.Labels {
-		labels[key] = val
-	}
-	annotations := map[string]string{}
-	for key, val := range dda.Annotations {
-		annotations[key] = val
-	}
+
+	annotations := getDefaultAnnotations(dda)
 
 	return metav1.ObjectMeta{
 		Name:        daemonsetName(dda),

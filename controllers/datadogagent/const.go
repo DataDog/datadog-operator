@@ -30,4 +30,7 @@ const (
 	serviceKind             = "Service"
 	apiServiceKind          = "APIService"
 	networkPolicyKind       = "NetworkPolicy"
+
+	// Datadog tags prefix
+	datadogTagPrefix = "tags.datadoghq.com"
 )
