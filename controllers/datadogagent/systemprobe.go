@@ -95,7 +95,7 @@ runtime_security_config:
     dir: %s
   syscall_monitor:
     enabled: %v
-remote_tagger: %v
+  remote_tagger: %v
 auth_token_file_path: %s
 `
 

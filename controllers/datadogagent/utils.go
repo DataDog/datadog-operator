@@ -954,6 +954,7 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 		if dda.Spec.Agent.SystemProbe.SecCompCustomProfileConfigMap != "" {
 			seccompConfigMapName = dda.Spec.Agent.SystemProbe.SecCompCustomProfileConfigMap
 		}
+		fileOrCreate := corev1.HostPathFileOrCreate
 		systemProbeVolumes := []corev1.Volume{
 			{
 				Name: datadoghqv1alpha1.SystemProbeAgentSecurityVolumeName,
@@ -995,6 +996,15 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 				Name: datadoghqv1alpha1.SystemProbeSocketVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
+			},
+			{
+				Name: datadoghqv1alpha1.SystemProbeOSReleaseDirVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: datadoghqv1alpha1.SystemProbeOSReleaseDirVolumePath,
+						Type: &fileOrCreate,
+					},
 				},
 			},
 		}
@@ -1093,19 +1103,17 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 		}
 	}
 
-	if isRuntimeSecurityEnabled(&dda.Spec) {
-		if dda.Spec.Agent.Security.Runtime.PoliciesDir != nil {
-			volumes = append(volumes, corev1.Volume{
-				Name: datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumeName,
-				VolumeSource: corev1.VolumeSource{
-					ConfigMap: &corev1.ConfigMapVolumeSource{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: dda.Spec.Agent.Security.Runtime.PoliciesDir.ConfigMapName,
-						},
+	if isRuntimeSecurityEnabled(&dda.Spec) && dda.Spec.Agent.Security.Runtime.PoliciesDir != nil {
+		volumes = append(volumes, corev1.Volume{
+			Name: datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: dda.Spec.Agent.Security.Runtime.PoliciesDir.ConfigMapName,
 					},
 				},
-			})
-		}
+			},
+		})
 	}
 
 	volumes = append(volumes, dda.Spec.Agent.Config.Volumes...)
@@ -1504,6 +1512,11 @@ func getVolumeMountsForSystemProbe(dda *datadoghqv1alpha1.DatadogAgent) []corev1
 			MountPath: datadoghqv1alpha1.ProcVolumePath,
 			ReadOnly:  true,
 		},
+		{
+			Name:      datadoghqv1alpha1.SystemProbeOSReleaseDirVolumeName,
+			MountPath: datadoghqv1alpha1.SystemProbeOSReleaseDirMountPath,
+			ReadOnly:  true,
+		},
 	}
 
 	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.SystemProbe.EnableTCPQueueLength) ||
@@ -1522,12 +1535,14 @@ func getVolumeMountsForSystemProbe(dda *datadoghqv1alpha1.DatadogAgent) []corev1
 		}...)
 	}
 
-	if isRuntimeSecurityEnabled(&dda.Spec) && dda.Spec.Agent.Security.Runtime.PoliciesDir != nil {
-		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumeName,
-			MountPath: datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumePath,
-			ReadOnly:  true,
-		})
+	if isRuntimeSecurityEnabled(&dda.Spec) {
+		if dda.Spec.Agent.Security.Runtime.PoliciesDir != nil {
+			volumeMounts = append(volumeMounts, corev1.VolumeMount{
+				Name:      datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumeName,
+				MountPath: datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumePath,
+				ReadOnly:  true,
+			})
+		}
 	}
 
 	return volumeMounts

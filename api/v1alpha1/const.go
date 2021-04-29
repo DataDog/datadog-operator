@@ -192,6 +192,9 @@ const (
 	DefaultSeccompProfileName         = "localhost/system-probe"
 	SysteProbeAppArmorAnnotationKey   = "container.apparmor.security.beta.kubernetes.io/system-probe"
 	SysteProbeSeccompAnnotationKey    = "container.seccomp.security.alpha.kubernetes.io/system-probe"
+	SystemProbeOSReleaseDirVolumeName = "host-osrelease"
+	SystemProbeOSReleaseDirVolumePath = "/etc/os-release"
+	SystemProbeOSReleaseDirMountPath  = "/host/etc/os-release"
 
 	// Extra config provider names
 

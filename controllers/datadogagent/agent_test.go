@@ -181,6 +181,7 @@ func defaultVolumes() []corev1.Volume {
 }
 
 func defaultSystemProbeVolumes() []corev1.Volume {
+	fileOrCreate := corev1.HostPathFileOrCreate
 	return []corev1.Volume{
 		{
 			Name: datadoghqv1alpha1.LogDatadogVolumeName,
@@ -286,6 +287,15 @@ func defaultSystemProbeVolumes() []corev1.Volume {
 			Name: datadoghqv1alpha1.SystemProbeSocketVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.SystemProbeOSReleaseDirVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: datadoghqv1alpha1.SystemProbeOSReleaseDirVolumePath,
+					Type: &fileOrCreate,
+				},
 			},
 		},
 	}
@@ -385,6 +395,7 @@ func complianceSecurityAgentVolumes() []corev1.Volume {
 }
 
 func runtimeSecurityAgentVolumes() []corev1.Volume {
+	fileOrCreate := corev1.HostPathFileOrCreate
 	return []corev1.Volume{
 		{
 			Name: datadoghqv1alpha1.LogDatadogVolumeName,
@@ -490,6 +501,15 @@ func runtimeSecurityAgentVolumes() []corev1.Volume {
 			Name: datadoghqv1alpha1.SystemProbeSocketVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.SystemProbeOSReleaseDirVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: datadoghqv1alpha1.SystemProbeOSReleaseDirVolumePath,
+					Type: &fileOrCreate,
+				},
 			},
 		},
 	}
@@ -609,6 +629,11 @@ func defaultSystemProbeMountVolume() []corev1.VolumeMount {
 		{
 			Name:      "procdir",
 			MountPath: "/host/proc",
+			ReadOnly:  true,
+		},
+		{
+			Name:      "host-osrelease",
+			MountPath: "/host/etc/os-release",
 			ReadOnly:  true,
 		},
 	}
