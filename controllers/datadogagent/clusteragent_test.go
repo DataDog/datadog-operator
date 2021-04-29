@@ -214,7 +214,8 @@ func Test_newClusterAgentDeploymentFromInstance(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: "bar",
 					Name:      "foo-cluster-agent",
-					Labels: map[string]string{"agent.datadoghq.com/name": "foo",
+					Labels: map[string]string{
+						"agent.datadoghq.com/name":      "foo",
 						"agent.datadoghq.com/component": "cluster-agent",
 						"app.kubernetes.io/instance":    "cluster-agent",
 						"app.kubernetes.io/managed-by":  "datadog-operator",
@@ -257,7 +258,8 @@ func Test_newClusterAgentDeploymentFromInstance(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: "bar",
 					Name:      "foo-cluster-agent",
-					Labels: map[string]string{"agent.datadoghq.com/name": "foo",
+					Labels: map[string]string{
+						"agent.datadoghq.com/name":      "foo",
 						"agent.datadoghq.com/component": "cluster-agent",
 						"app.kubernetes.io/instance":    "cluster-agent",
 						"app.kubernetes.io/managed-by":  "datadog-operator",
@@ -303,14 +305,13 @@ func Test_newClusterAgentDeploymentFromInstance(t *testing.T) {
 					Labels: map[string]string{
 						"agent.datadoghq.com/name":      "foo",
 						"agent.datadoghq.com/component": "cluster-agent",
-						"label-foo-key":                 "label-bar-value",
 						"app.kubernetes.io/instance":    "cluster-agent",
 						"app.kubernetes.io/managed-by":  "datadog-operator",
 						"app.kubernetes.io/name":        "datadog-agent-deployment",
 						"app.kubernetes.io/part-of":     "foo",
 						"app.kubernetes.io/version":     "",
 					},
-					Annotations: map[string]string{"annotations-foo-key": "annotations-bar-value"},
+					Annotations: map[string]string{},
 				},
 				Spec: appsv1.DeploymentSpec{
 					Template: corev1.PodTemplateSpec{
@@ -318,14 +319,13 @@ func Test_newClusterAgentDeploymentFromInstance(t *testing.T) {
 							Labels: map[string]string{
 								"agent.datadoghq.com/name":      "foo",
 								"agent.datadoghq.com/component": "cluster-agent",
-								"label-foo-key":                 "label-bar-value",
 								"app.kubernetes.io/instance":    "cluster-agent",
 								"app.kubernetes.io/managed-by":  "datadog-operator",
 								"app.kubernetes.io/name":        "datadog-agent-deployment",
 								"app.kubernetes.io/part-of":     "foo",
 								"app.kubernetes.io/version":     "",
 							},
-							Annotations: map[string]string{"annotations-foo-key": "annotations-bar-value"},
+							Annotations: map[string]string{},
 						},
 						Spec: clusterAgentDefaultPodSpec(),
 					},
@@ -415,7 +415,8 @@ func Test_newClusterAgentDeploymentMountKSMCore(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: "bar",
 				Name:      "foo-cluster-agent",
-				Labels: map[string]string{"agent.datadoghq.com/name": "foo",
+				Labels: map[string]string{
+					"agent.datadoghq.com/name":      "foo",
 					"agent.datadoghq.com/component": "cluster-agent",
 					"app.kubernetes.io/instance":    "cluster-agent",
 					"app.kubernetes.io/managed-by":  "datadog-operator",
@@ -461,7 +462,8 @@ func Test_newClusterAgentPrometheusScrapeEnabled(t *testing.T) {
 			ClusterAgentEnabled: true,
 			Features: &datadoghqv1alpha1.DatadogFeatures{
 				OrchestratorExplorer: &datadoghqv1alpha1.OrchestratorExplorerConfig{Enabled: datadoghqv1alpha1.NewBoolPointer(true)},
-				PrometheusScrape:     &datadoghqv1alpha1.PrometheusScrapeConfig{Enabled: datadoghqv1alpha1.NewBoolPointer(true), ServiceEndpoints: datadoghqv1alpha1.NewBoolPointer(true)}},
+				PrometheusScrape:     &datadoghqv1alpha1.PrometheusScrapeConfig{Enabled: datadoghqv1alpha1.NewBoolPointer(true), ServiceEndpoints: datadoghqv1alpha1.NewBoolPointer(true)},
+			},
 		},
 	)
 
@@ -477,7 +479,8 @@ func Test_newClusterAgentPrometheusScrapeEnabled(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: "bar",
 				Name:      "foo-cluster-agent",
-				Labels: map[string]string{"agent.datadoghq.com/name": "foo",
+				Labels: map[string]string{
+					"agent.datadoghq.com/name":      "foo",
 					"agent.datadoghq.com/component": "cluster-agent",
 					"app.kubernetes.io/instance":    "cluster-agent",
 					"app.kubernetes.io/managed-by":  "datadog-operator",
@@ -553,7 +556,8 @@ func Test_newClusterAgentDeploymentFromInstance_UserVolumes(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: "bar",
 				Name:      "foo-cluster-agent",
-				Labels: map[string]string{"agent.datadoghq.com/name": "foo",
+				Labels: map[string]string{
+					"agent.datadoghq.com/name":      "foo",
 					"agent.datadoghq.com/component": "cluster-agent",
 					"app.kubernetes.io/instance":    "cluster-agent",
 					"app.kubernetes.io/managed-by":  "datadog-operator",
@@ -626,7 +630,8 @@ func Test_newClusterAgentDeploymentFromInstance_EnvVars(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: "bar",
 				Name:      "foo-cluster-agent",
-				Labels: map[string]string{"agent.datadoghq.com/name": "foo",
+				Labels: map[string]string{
+					"agent.datadoghq.com/name":      "foo",
 					"agent.datadoghq.com/component": "cluster-agent",
 					"app.kubernetes.io/instance":    "cluster-agent",
 					"app.kubernetes.io/managed-by":  "datadog-operator",
@@ -689,7 +694,8 @@ func Test_newClusterAgentDeploymentFromInstance_CustomDeploymentName(t *testing.
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: "bar",
 				Name:      customDeploymentName,
-				Labels: map[string]string{"agent.datadoghq.com/name": "foo",
+				Labels: map[string]string{
+					"agent.datadoghq.com/name":      "foo",
 					"agent.datadoghq.com/component": "cluster-agent",
 					"app.kubernetes.io/instance":    "cluster-agent",
 					"app.kubernetes.io/managed-by":  "datadog-operator",
@@ -881,7 +887,8 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: "bar",
 					Name:      "foo-cluster-agent",
-					Labels: map[string]string{"agent.datadoghq.com/name": "foo",
+					Labels: map[string]string{
+						"agent.datadoghq.com/name":      "foo",
 						"agent.datadoghq.com/component": "cluster-agent",
 						"app.kubernetes.io/instance":    "cluster-agent",
 						"app.kubernetes.io/managed-by":  "datadog-operator",
@@ -930,7 +937,8 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: "bar",
 					Name:      "foo-cluster-agent",
-					Labels: map[string]string{"agent.datadoghq.com/name": "foo",
+					Labels: map[string]string{
+						"agent.datadoghq.com/name":      "foo",
 						"agent.datadoghq.com/component": "cluster-agent",
 						"app.kubernetes.io/instance":    "cluster-agent",
 						"app.kubernetes.io/managed-by":  "datadog-operator",
@@ -1100,7 +1108,8 @@ func Test_newClusterAgentDeploymentFromInstance_UserProvidedSecret(t *testing.T)
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: "bar",
 					Name:      "foo-cluster-agent",
-					Labels: map[string]string{"agent.datadoghq.com/name": "foo",
+					Labels: map[string]string{
+						"agent.datadoghq.com/name":      "foo",
 						"agent.datadoghq.com/component": "cluster-agent",
 						"app.kubernetes.io/instance":    "cluster-agent",
 						"app.kubernetes.io/managed-by":  "datadog-operator",
@@ -1150,7 +1159,8 @@ func Test_newClusterAgentDeploymentFromInstance_UserProvidedSecret(t *testing.T)
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: "bar",
 					Name:      "foo-cluster-agent",
-					Labels: map[string]string{"agent.datadoghq.com/name": "foo",
+					Labels: map[string]string{
+						"agent.datadoghq.com/name":      "foo",
 						"agent.datadoghq.com/component": "cluster-agent",
 						"app.kubernetes.io/instance":    "cluster-agent",
 						"app.kubernetes.io/managed-by":  "datadog-operator",
@@ -1189,7 +1199,6 @@ func Test_newClusterAgentDeploymentFromInstance_UserProvidedSecret(t *testing.T)
 }
 
 func Test_newClusterAgentDeploymentFromInstance_Compliance(t *testing.T) {
-
 	podSpec := clusterAgentDefaultPodSpec()
 	podSpec.Containers[0].Env = addEnvVar(podSpec.Containers[0].Env, "DD_COMPLIANCE_CONFIG_ENABLED", "true")
 
@@ -1211,7 +1220,8 @@ func Test_newClusterAgentDeploymentFromInstance_Compliance(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: "bar",
 				Name:      "foo-cluster-agent",
-				Labels: map[string]string{"agent.datadoghq.com/name": "foo",
+				Labels: map[string]string{
+					"agent.datadoghq.com/name":      "foo",
 					"agent.datadoghq.com/component": "cluster-agent",
 					"app.kubernetes.io/instance":    "cluster-agent",
 					"app.kubernetes.io/managed-by":  "datadog-operator",

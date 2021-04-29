@@ -154,7 +154,7 @@ type DatadogAgentSpecAgentSpec struct {
 	// AdditionalAnnotations provide annotations that will be added to the Agent Pods.
 	AdditionalAnnotations map[string]string `json:"additionalAnnotations,omitempty"`
 
-	// AdditionalLabels provide labels that will be added to the cluster checks runner Pods.
+	// AdditionalLabels provide labels that will be added to the Agent Pods.
 	AdditionalLabels map[string]string `json:"additionalLabels,omitempty"`
 
 	// If specified, indicates the pod's priority. "system-node-critical" and "system-cluster-critical"
@@ -847,10 +847,10 @@ type DatadogAgentSpecClusterAgentSpec struct {
 	// Number of the Cluster Agent replicas.
 	Replicas *int32 `json:"replicas,omitempty"`
 
-	// AdditionalAnnotations provide annotations that will be added to the cluster-agent Pods.
+	// AdditionalAnnotations provide annotations that will be added to the Cluster Agent Pods.
 	AdditionalAnnotations map[string]string `json:"additionalAnnotations,omitempty"`
 
-	// AdditionalLabels provide labels that will be added to the cluster checks runner Pods.
+	// AdditionalLabels provide labels that will be added to the Cluster Agent Pods.
 	AdditionalLabels map[string]string `json:"additionalLabels,omitempty"`
 
 	// If specified, indicates the pod's priority. "system-node-critical" and "system-cluster-critical"

@@ -67,6 +67,8 @@ func buildSystemProbeConfigConfiMap(dda *datadoghqv1alpha1.DatadogAgent) (*corev
 				filepath.Join(datadoghqv1alpha1.SystemProbeSocketVolumePath, "runtime-security.sock"),
 				datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumePath,
 				isSyscallMonitorEnabled(&dda.Spec),
+				isRuntimeSecurityEnabled(&dda.Spec), // For now don't expose the remote_tagger setting to user, since it is an implementation detail.
+				filepath.Join(datadoghqv1alpha1.AuthVolumePath, "token"),
 			),
 		},
 	}
@@ -93,6 +95,8 @@ runtime_security_config:
     dir: %s
   syscall_monitor:
     enabled: %v
+  remote_tagger: %v
+auth_token_file_path: %s
 `
 
 func buildSystemProbeSecCompConfigMap(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.ConfigMap, error) {
@@ -263,6 +267,7 @@ const systemProbeSecCompData = `{
 			"stat64",
 			"statfs",
 			"sysinfo",
+			"tgkill",
 			"umask",
 			"uname",
 			"unlink",
@@ -270,7 +275,10 @@ const systemProbeSecCompData = `{
 			"wait4",
 			"waitid",
 			"waitpid",
-			"write"
+			"write",
+			"getgroups",
+			"getpgrp",
+			"setpgid"
 		],
 		"action": "SCMP_ACT_ALLOW",
 		"args": null

@@ -23,6 +23,13 @@ Here are the steps:
    helm install my-datadog-operator datadog/datadog-operator
    ```
 
+1. Create a Kubernetes secret with your API and APP keys
+
+   ```shell
+   kubectl create secret generic datadog-secret --from-literal api-key=<DATADOG_API_KEY> --from-literal app-key=<DATADOG_APP_KEY>
+   ```
+   Replace `<DATADOG_API_KEY>` and `<DATADOG_APP_KEY>` with your [Datadog API and application keys][4]
+
 1. Create a file with the spec of your DatadogAgent deployment configuration. The simplest configuration is:
 
    ```yaml
@@ -32,8 +39,12 @@ Here are the steps:
      name: datadog
    spec:
      credentials:
-       apiKey: <DATADOG_API_KEY>
-       appKey: <DATADOG_APP_KEY>
+       apiSecret:
+         secretName: datadog-secret
+         keyName: api-key
+       appSecret:
+         secretName: datadog-secret
+         keyName: app-key
      agent:
        image:
          name: "gcr.io/datadoghq/agent:latest"
@@ -41,8 +52,6 @@ Here are the steps:
        image:
          name: "gcr.io/datadoghq/cluster-agent:latest"
    ```
-
-   Replace `<DATADOG_API_KEY>` and `<DATADOG_APP_KEY>` with your [Datadog API and application keys][4]
 
 1. Deploy the Datadog agent with the above configuration file:
    ```shell
@@ -55,7 +64,7 @@ The following command deletes all the Kubernetes resources created by the above 
 
 ```shell
 kubectl delete datadogagent datadog
-helm delete datadog
+helm delete my-datadog-operator
 ```
 
 [1]: https://helm.sh

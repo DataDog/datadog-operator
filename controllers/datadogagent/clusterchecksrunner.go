@@ -156,16 +156,9 @@ func (r *Reconciler) updateClusterChecksRunnerDeployment(logger logr.Logger, dda
 func newClusterChecksRunnerDeploymentFromInstance(
 	dda *datadoghqv1alpha1.DatadogAgent,
 	selector *metav1.LabelSelector) (*appsv1.Deployment, string, error) {
-	labels := map[string]string{
-		datadoghqv1alpha1.AgentDeploymentNameLabelKey:      dda.Name,
-		datadoghqv1alpha1.AgentDeploymentComponentLabelKey: datadoghqv1alpha1.DefaultClusterChecksRunnerResourceSuffix,
-	}
-	for key, val := range dda.Labels {
-		labels[key] = val
-	}
-	for key, val := range getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterChecksRunnerResourceSuffix, getClusterChecksRunnerVersion(dda)) {
-		labels[key] = val
-	}
+	labels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterChecksRunnerResourceSuffix, getClusterChecksRunnerVersion(dda))
+	labels[datadoghqv1alpha1.AgentDeploymentNameLabelKey] = dda.Name
+	labels[datadoghqv1alpha1.AgentDeploymentComponentLabelKey] = datadoghqv1alpha1.DefaultClusterChecksRunnerResourceSuffix
 
 	if selector != nil {
 		for key, val := range selector.MatchLabels {
@@ -180,11 +173,7 @@ func newClusterChecksRunnerDeploymentFromInstance(
 		}
 	}
 
-	annotations := map[string]string{}
-	for key, val := range dda.Annotations {
-		annotations[key] = val
-	}
-
+	annotations := getDefaultAnnotations(dda)
 	dca := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        getClusterChecksRunnerName(dda),

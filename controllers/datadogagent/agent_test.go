@@ -181,9 +181,16 @@ func defaultVolumes() []corev1.Volume {
 }
 
 func defaultSystemProbeVolumes() []corev1.Volume {
+	fileOrCreate := corev1.HostPathFileOrCreate
 	return []corev1.Volume{
 		{
 			Name: datadoghqv1alpha1.LogDatadogVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.AuthVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
@@ -282,6 +289,15 @@ func defaultSystemProbeVolumes() []corev1.Volume {
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
 		},
+		{
+			Name: datadoghqv1alpha1.SystemProbeOSReleaseDirVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: datadoghqv1alpha1.SystemProbeOSReleaseDirVolumePath,
+					Type: &fileOrCreate,
+				},
+			},
+		},
 	}
 }
 
@@ -289,6 +305,12 @@ func complianceSecurityAgentVolumes() []corev1.Volume {
 	return []corev1.Volume{
 		{
 			Name: datadoghqv1alpha1.LogDatadogVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.AuthVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
@@ -373,9 +395,16 @@ func complianceSecurityAgentVolumes() []corev1.Volume {
 }
 
 func runtimeSecurityAgentVolumes() []corev1.Volume {
+	fileOrCreate := corev1.HostPathFileOrCreate
 	return []corev1.Volume{
 		{
 			Name: datadoghqv1alpha1.LogDatadogVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.AuthVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
@@ -474,6 +503,15 @@ func runtimeSecurityAgentVolumes() []corev1.Volume {
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
 		},
+		{
+			Name: datadoghqv1alpha1.SystemProbeOSReleaseDirVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: datadoghqv1alpha1.SystemProbeOSReleaseDirVolumePath,
+					Type: &fileOrCreate,
+				},
+			},
+		},
 	}
 }
 
@@ -482,6 +520,10 @@ func defaultMountVolume() []corev1.VolumeMount {
 		{
 			Name:      "logdatadog",
 			MountPath: "/var/log/datadog",
+		},
+		{
+			Name:      "datadog-agent-auth",
+			MountPath: "/etc/datadog-agent/auth",
 		},
 		{
 			Name:      "installinfo",
@@ -528,6 +570,11 @@ func defaultProcessMountVolumes() []corev1.VolumeMount {
 			MountPath: "/var/log/datadog",
 		},
 		{
+			Name:      "datadog-agent-auth",
+			MountPath: "/etc/datadog-agent/auth",
+			ReadOnly:  true,
+		},
+		{
 			Name:      "cgroups",
 			MountPath: "/host/sys/fs/cgroup",
 			ReadOnly:  true,
@@ -562,6 +609,11 @@ func defaultSystemProbeMountVolume() []corev1.VolumeMount {
 			MountPath: "/var/log/datadog",
 		},
 		{
+			Name:      "datadog-agent-auth",
+			MountPath: "/etc/datadog-agent/auth",
+			ReadOnly:  true,
+		},
+		{
 			Name:      "debugfs",
 			MountPath: "/sys/kernel/debug",
 		},
@@ -579,6 +631,11 @@ func defaultSystemProbeMountVolume() []corev1.VolumeMount {
 			MountPath: "/host/proc",
 			ReadOnly:  true,
 		},
+		{
+			Name:      "host-osrelease",
+			MountPath: "/host/etc/os-release",
+			ReadOnly:  true,
+		},
 	}
 }
 
@@ -587,6 +644,11 @@ func complianceSecurityAgentMountVolume() []corev1.VolumeMount {
 		{
 			Name:      "logdatadog",
 			MountPath: "/var/log/datadog",
+		},
+		{
+			Name:      "datadog-agent-auth",
+			MountPath: "/etc/datadog-agent/auth",
+			ReadOnly:  true,
 		},
 		{
 			Name:      "config",
@@ -635,6 +697,11 @@ func runtimeSecurityAgentMountVolume() []corev1.VolumeMount {
 		{
 			Name:      "logdatadog",
 			MountPath: "/var/log/datadog",
+		},
+		{
+			Name:      "datadog-agent-auth",
+			MountPath: "/etc/datadog-agent/auth",
+			ReadOnly:  true,
 		},
 		{
 			Name:      "config",
@@ -924,6 +991,12 @@ func appendDefaultAPMAgentContainer(podSpec *corev1.PodSpec) {
 				MountPath: "/var/log/datadog",
 			},
 			{
+				Name:      "datadog-agent-auth",
+				MountPath: "/etc/datadog-agent/auth",
+				ReadOnly:  true,
+			},
+
+			{
 				Name:      "config",
 				MountPath: "/etc/datadog-agent",
 			},
@@ -1120,6 +1193,12 @@ func defaultProcessMount() []corev1.Volume {
 	return []corev1.Volume{
 		{
 			Name: datadoghqv1alpha1.LogDatadogVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.AuthVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
@@ -1425,6 +1504,10 @@ func customKubeletConfigPodSpec(kubeletConfig *datadoghqv1alpha1.KubeletConfig) 
 			MountPath: "/var/log/datadog",
 		},
 		{
+			Name:      "datadog-agent-auth",
+			MountPath: "/etc/datadog-agent/auth",
+		},
+		{
 			Name:      "installinfo",
 			SubPath:   "install_info",
 			MountPath: "/etc/datadog-agent/install_info",
@@ -1595,6 +1678,12 @@ func customKubeletConfigPodSpec(kubeletConfig *datadoghqv1alpha1.KubeletConfig) 
 				},
 			},
 			{
+				Name: datadoghqv1alpha1.AuthVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
+			},
+			{
 				Name: datadoghqv1alpha1.InstallInfoVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					ConfigMap: &corev1.ConfigMapVolumeSource{
@@ -1695,7 +1784,6 @@ func (tests extendedDaemonSetFromInstanceTestSuite) Run(t *testing.T) {
 }
 
 func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
-
 	defaultDatadogAgent := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{UseEDS: true, ClusterAgentEnabled: true})
 
 	// Create a Datadog Agent with a custom host port
@@ -1768,7 +1856,7 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 		},
 		{
 			name:            "with labels and annotations",
-			agentdeployment: test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{UseEDS: true, ClusterAgentEnabled: true, Labels: map[string]string{"label-foo-key": "label-bar-value"}, Annotations: map[string]string{"annotations-foo-key": "annotations-bar-value"}}),
+			agentdeployment: test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{UseEDS: true, ClusterAgentEnabled: true, Labels: map[string]string{"label-foo-key": "label-bar-value", "tags.datadoghq.com/env": "test"}, Annotations: map[string]string{"annotations-foo-key": "annotations-bar-value"}}),
 			wantErr:         false,
 			want: &edsdatadoghqv1alpha1.ExtendedDaemonSet{
 				ObjectMeta: metav1.ObjectMeta{
@@ -1777,16 +1865,14 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 					Labels: map[string]string{
 						"agent.datadoghq.com/name":      "foo",
 						"agent.datadoghq.com/component": "agent",
-						"label-foo-key":                 "label-bar-value",
+						"tags.datadoghq.com/env":        "test",
 						"app.kubernetes.io/instance":    "agent",
 						"app.kubernetes.io/managed-by":  "datadog-operator",
 						"app.kubernetes.io/name":        "datadog-agent-deployment",
 						"app.kubernetes.io/part-of":     "foo",
 						"app.kubernetes.io/version":     "",
 					},
-					Annotations: map[string]string{
-						"annotations-foo-key": "annotations-bar-value",
-					},
+					Annotations: map[string]string{},
 				},
 				Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
 					Template: corev1.PodTemplateSpec{
@@ -1801,7 +1887,9 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 								"app.kubernetes.io/name":        "datadog-agent-deployment",
 								"app.kubernetes.io/part-of":     "foo",
 								"app.kubernetes.io/version":     "",
+								"tags.datadoghq.com/env":        "test",
 							},
+							Annotations: map[string]string{},
 						},
 						Spec: defaultPodSpec(defaultDatadogAgent),
 					},
@@ -1914,6 +2002,12 @@ func Test_newExtendedDaemonSetFromInstance_CustomConfigMaps(t *testing.T) {
 	customConfigMapsPodSpec.Volumes = []corev1.Volume{
 		{
 			Name: datadoghqv1alpha1.LogDatadogVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.AuthVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
@@ -2046,6 +2140,12 @@ func Test_newExtendedDaemonSetFromInstance_CustomDatadogYaml(t *testing.T) {
 			},
 		},
 		{
+			Name: datadoghqv1alpha1.AuthVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
 			Name: datadoghqv1alpha1.InstallInfoVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
@@ -2122,6 +2222,10 @@ func Test_newExtendedDaemonSetFromInstance_CustomDatadogYaml(t *testing.T) {
 			MountPath: "/var/log/datadog",
 		},
 		{
+			Name:      "datadog-agent-auth",
+			MountPath: "/etc/datadog-agent/auth",
+		},
+		{
 			Name:      "installinfo",
 			SubPath:   "install_info",
 			MountPath: "/etc/datadog-agent/install_info",
@@ -2167,6 +2271,11 @@ func Test_newExtendedDaemonSetFromInstance_CustomDatadogYaml(t *testing.T) {
 		{
 			Name:      "logdatadog",
 			MountPath: "/var/log/datadog",
+		},
+		{
+			Name:      "datadog-agent-auth",
+			MountPath: "/etc/datadog-agent/auth",
+			ReadOnly:  true,
 		},
 		{
 			Name:      "cgroups",
@@ -2283,11 +2392,8 @@ func Test_ExtraParameters(t *testing.T) {
 					"app.kubernetes.io/name":        "datadog-agent-deployment",
 					"app.kubernetes.io/part-of":     "foo",
 					"app.kubernetes.io/version":     "",
-					"bar":                           "foo",
 				},
-				Annotations: map[string]string{
-					"foo": "bar",
-				},
+				Annotations: map[string]string{},
 			},
 			Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
 				Template: corev1.PodTemplateSpec{
@@ -2304,9 +2410,7 @@ func Test_ExtraParameters(t *testing.T) {
 							"app.kubernetes.io/version":     "",
 							"pod-foo":                       "bar",
 						},
-						Annotations: map[string]string{
-							"pod-bar": "foo",
-						},
+						Annotations: map[string]string{"pod-bar": "foo"},
 					},
 					Spec: podSpec,
 				},
@@ -2456,7 +2560,6 @@ func Test_newExtendedDaemonSetFromInstance_DaemonSetNameAndSelector(t *testing.T
 }
 
 func Test_newExtendedDaemonSetFromInstance_LogsEnabled(t *testing.T) {
-
 	dda := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
 		UseEDS:              true,
 		ClusterAgentEnabled: true,

@@ -19,7 +19,7 @@ cp "$ROOT/bundle.Dockerfile" "$RH_BUNDLE_DOCKERFILE"
 cat <<EOF >> $RH_BUNDLE_DOCKERFILE
 # RedHat OpenShift specific labels
 # Specify which OpenShift version we support
-LABEL com.redhat.openshift.versions="v4.5,v4.6"
+LABEL com.redhat.openshift.versions="v4.5,v4.6,v4.7"
 LABEL com.redhat.delivery.operator.bundle=true
 # Specify that we are compatible with OpenShift <= 4.4
 LABEL com.redhat.delivery.backport=true
@@ -33,3 +33,5 @@ sed -i 's/operators.operatorframework.io.bundle.package.v1: datadog-operator/ope
 
 # Patch CSV
 sed -i 's#image: datadog/operator:#image: registry.connect.redhat.com/datadog/operator:#g' "$RH_BUNDLE_PATH/manifests/datadog-operator.clusterserviceversion.yaml"
+# Patch images in DatadogAgent examples for bundle validation
+sed -i 's#gcr.io/datadoghq/#datadog/#g' "$RH_BUNDLE_PATH/manifests/datadog-operator.clusterserviceversion.yaml"
