@@ -129,6 +129,8 @@ const (
 	ChecksdVolumePath                  = "/checks.d"
 	ConfigVolumeName                   = "config"
 	ConfigVolumePath                   = "/etc/datadog-agent"
+	AuthVolumeName                     = "datadog-agent-auth"
+	AuthVolumePath                     = "/etc/datadog-agent/auth"
 	ProcVolumeName                     = "procdir"
 	ProcVolumePath                     = "/host/proc"
 	ProcVolumeReadOnly                 = true
@@ -190,6 +192,9 @@ const (
 	DefaultSeccompProfileName         = "localhost/system-probe"
 	SysteProbeAppArmorAnnotationKey   = "container.apparmor.security.beta.kubernetes.io/system-probe"
 	SysteProbeSeccompAnnotationKey    = "container.seccomp.security.alpha.kubernetes.io/system-probe"
+	SystemProbeOSReleaseDirVolumeName = "host-osrelease"
+	SystemProbeOSReleaseDirVolumePath = "/etc/os-release"
+	SystemProbeOSReleaseDirMountPath  = "/host/etc/os-release"
 
 	// Extra config provider names
 

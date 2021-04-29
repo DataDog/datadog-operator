@@ -844,6 +844,7 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
 		},
+		getVolumeForAuth(),
 		{
 			Name: datadoghqv1alpha1.InstallInfoVolumeName,
 			VolumeSource: corev1.VolumeSource{
@@ -953,6 +954,7 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 		if dda.Spec.Agent.SystemProbe.SecCompCustomProfileConfigMap != "" {
 			seccompConfigMapName = dda.Spec.Agent.SystemProbe.SecCompCustomProfileConfigMap
 		}
+		fileOrCreate := corev1.HostPathFileOrCreate
 		systemProbeVolumes := []corev1.Volume{
 			{
 				Name: datadoghqv1alpha1.SystemProbeAgentSecurityVolumeName,
@@ -994,6 +996,15 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 				Name: datadoghqv1alpha1.SystemProbeSocketVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
+			},
+			{
+				Name: datadoghqv1alpha1.SystemProbeOSReleaseDirVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: datadoghqv1alpha1.SystemProbeOSReleaseDirVolumePath,
+						Type: &fileOrCreate,
+					},
 				},
 			},
 		}
@@ -1092,19 +1103,17 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 		}
 	}
 
-	if isRuntimeSecurityEnabled(&dda.Spec) {
-		if dda.Spec.Agent.Security.Runtime.PoliciesDir != nil {
-			volumes = append(volumes, corev1.Volume{
-				Name: datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumeName,
-				VolumeSource: corev1.VolumeSource{
-					ConfigMap: &corev1.ConfigMapVolumeSource{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: dda.Spec.Agent.Security.Runtime.PoliciesDir.ConfigMapName,
-						},
+	if isRuntimeSecurityEnabled(&dda.Spec) && dda.Spec.Agent.Security.Runtime.PoliciesDir != nil {
+		volumes = append(volumes, corev1.Volume{
+			Name: datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: dda.Spec.Agent.Security.Runtime.PoliciesDir.ConfigMapName,
 					},
 				},
-			})
-		}
+			},
+		})
 	}
 
 	volumes = append(volumes, dda.Spec.Agent.Config.Volumes...)
@@ -1163,6 +1172,15 @@ func getVolumeForChecksd(dda *datadoghqv1alpha1.DatadogAgent) corev1.Volume {
 func getVolumeForConfig() corev1.Volume {
 	return corev1.Volume{
 		Name: datadoghqv1alpha1.ConfigVolumeName,
+		VolumeSource: corev1.VolumeSource{
+			EmptyDir: &corev1.EmptyDirVolumeSource{},
+		},
+	}
+}
+
+func getVolumeForAuth() corev1.Volume {
+	return corev1.Volume{
+		Name: datadoghqv1alpha1.AuthVolumeName,
 		VolumeSource: corev1.VolumeSource{
 			EmptyDir: &corev1.EmptyDirVolumeSource{},
 		},
@@ -1230,6 +1248,7 @@ func getVolumeMountsForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volum
 			Name:      datadoghqv1alpha1.LogDatadogVolumeName,
 			MountPath: datadoghqv1alpha1.LogDatadogVolumePath,
 		},
+		getVolumeMountForAuth(false),
 		{
 			Name:      datadoghqv1alpha1.InstallInfoVolumeName,
 			SubPath:   datadoghqv1alpha1.InstallInfoVolumeSubPath,
@@ -1339,6 +1358,14 @@ func getVolumeMountForConfig(customConfig *datadoghqv1alpha1.CustomConfigSpec) [
 	return volumeMounts
 }
 
+func getVolumeMountForAuth(readOnly bool) corev1.VolumeMount {
+	return corev1.VolumeMount{
+		Name:      datadoghqv1alpha1.AuthVolumeName,
+		MountPath: datadoghqv1alpha1.AuthVolumePath,
+		ReadOnly:  readOnly,
+	}
+}
+
 func getVolumeMountForConfd() corev1.VolumeMount {
 	return corev1.VolumeMount{
 		Name:      datadoghqv1alpha1.ConfdVolumeName,
@@ -1363,6 +1390,8 @@ func getVolumeMountsForProcessAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev
 			Name:      datadoghqv1alpha1.LogDatadogVolumeName,
 			MountPath: datadoghqv1alpha1.LogDatadogVolumePath,
 		},
+		// Add auth token volume mount
+		getVolumeMountForAuth(true),
 		{
 			Name:      datadoghqv1alpha1.CgroupsVolumeName,
 			MountPath: datadoghqv1alpha1.CgroupsVolumePath,
@@ -1432,6 +1461,8 @@ func getVolumeMountsForAPMAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Vo
 			Name:      datadoghqv1alpha1.LogDatadogVolumeName,
 			MountPath: datadoghqv1alpha1.LogDatadogVolumePath,
 		},
+		// Add auth token volume mount
+		getVolumeMountForAuth(true),
 	}
 
 	// APM UDS
@@ -1462,6 +1493,7 @@ func getVolumeMountsForSystemProbe(dda *datadoghqv1alpha1.DatadogAgent) []corev1
 			Name:      datadoghqv1alpha1.LogDatadogVolumeName,
 			MountPath: datadoghqv1alpha1.LogDatadogVolumePath,
 		},
+		getVolumeMountForAuth(true),
 		{
 			Name:      datadoghqv1alpha1.SystemProbeDebugfsVolumeName,
 			MountPath: datadoghqv1alpha1.SystemProbeDebugfsVolumePath,
@@ -1478,6 +1510,11 @@ func getVolumeMountsForSystemProbe(dda *datadoghqv1alpha1.DatadogAgent) []corev1
 		{
 			Name:      datadoghqv1alpha1.ProcVolumeName,
 			MountPath: datadoghqv1alpha1.ProcVolumePath,
+			ReadOnly:  true,
+		},
+		{
+			Name:      datadoghqv1alpha1.SystemProbeOSReleaseDirVolumeName,
+			MountPath: datadoghqv1alpha1.SystemProbeOSReleaseDirMountPath,
 			ReadOnly:  true,
 		},
 	}
@@ -1498,12 +1535,14 @@ func getVolumeMountsForSystemProbe(dda *datadoghqv1alpha1.DatadogAgent) []corev1
 		}...)
 	}
 
-	if isRuntimeSecurityEnabled(&dda.Spec) && dda.Spec.Agent.Security.Runtime.PoliciesDir != nil {
-		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumeName,
-			MountPath: datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumePath,
-			ReadOnly:  true,
-		})
+	if isRuntimeSecurityEnabled(&dda.Spec) {
+		if dda.Spec.Agent.Security.Runtime.PoliciesDir != nil {
+			volumeMounts = append(volumeMounts, corev1.VolumeMount{
+				Name:      datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumeName,
+				MountPath: datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumePath,
+				ReadOnly:  true,
+			})
+		}
 	}
 
 	return volumeMounts
@@ -1516,6 +1555,7 @@ func getVolumeMountsForSecurityAgent(dda *datadoghqv1alpha1.DatadogAgent) []core
 			Name:      datadoghqv1alpha1.LogDatadogVolumeName,
 			MountPath: datadoghqv1alpha1.LogDatadogVolumePath,
 		},
+		getVolumeMountForAuth(true),
 		{
 			Name:      datadoghqv1alpha1.ConfigVolumeName,
 			MountPath: datadoghqv1alpha1.ConfigVolumePath,
