@@ -164,16 +164,9 @@ func (r *Reconciler) updateClusterAgentDeployment(logger logr.Logger, dda *datad
 
 // newClusterAgentDeploymentFromInstance creates a Cluster Agent Deployment from a given DatadogAgent
 func newClusterAgentDeploymentFromInstance(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, selector *metav1.LabelSelector) (*appsv1.Deployment, string, error) {
-	labels := map[string]string{
-		datadoghqv1alpha1.AgentDeploymentNameLabelKey:      dda.Name,
-		datadoghqv1alpha1.AgentDeploymentComponentLabelKey: datadoghqv1alpha1.DefaultClusterAgentResourceSuffix,
-	}
-	for key, val := range dda.Labels {
-		labels[key] = val
-	}
-	for key, val := range getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda)) {
-		labels[key] = val
-	}
+	labels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
+	labels[datadoghqv1alpha1.AgentDeploymentNameLabelKey] = dda.Name
+	labels[datadoghqv1alpha1.AgentDeploymentComponentLabelKey] = datadoghqv1alpha1.DefaultClusterAgentResourceSuffix
 
 	if selector != nil {
 		for key, val := range selector.MatchLabels {
@@ -188,11 +181,7 @@ func newClusterAgentDeploymentFromInstance(logger logr.Logger, dda *datadoghqv1a
 		}
 	}
 
-	annotations := map[string]string{}
-	for key, val := range dda.Annotations {
-		annotations[key] = val
-	}
-
+	annotations := getDefaultAnnotations(dda)
 	dcaPodTemplate, err := newClusterAgentPodTemplate(logger, dda, labels, annotations)
 	if err != nil {
 		return nil, "", err

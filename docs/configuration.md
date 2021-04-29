@@ -29,7 +29,7 @@ spec:
 | Parameter | Description |
 | --------- | ----------- |
 | agent.additionalAnnotations | AdditionalAnnotations provide annotations that will be added to the Agent Pods. |
-| agent.additionalLabels | AdditionalLabels provide labels that will be added to the cluster checks runner Pods. |
+| agent.additionalLabels | AdditionalLabels provide labels that will be added to the Agent Pods. |
 | agent.apm.enabled | Enable this to enable APM and tracing, on port 8126. See also: https://github.com/DataDog/docker-dd-agent#tracing-from-the-host |
 | agent.apm.env | The Datadog Agent supports many environment variables. See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables |
 | agent.apm.hostPort | Number of port to expose on the host. If specified, this must be a valid port number, 0 < x < 65536. If HostNetwork is specified, this must match ContainerPort. Most containers do not need this. |
@@ -185,8 +185,8 @@ spec:
 | agent.systemProbe.securityContext.windowsOptions.gmsaCredentialSpecName | GMSACredentialSpecName is the name of the GMSA credential spec to use. |
 | agent.systemProbe.securityContext.windowsOptions.runAsUserName | The UserName in Windows to run the entrypoint of the container process. Defaults to the user specified in image metadata if unspecified. May also be set in PodSecurityContext. If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence. |
 | agent.useExtendedDaemonset | UseExtendedDaemonset use ExtendedDaemonset for Agent deployment. default value is false. |
-| clusterAgent.additionalAnnotations | AdditionalAnnotations provide annotations that will be added to the cluster-agent Pods. |
-| clusterAgent.additionalLabels | AdditionalLabels provide labels that will be added to the cluster checks runner Pods. |
+| clusterAgent.additionalAnnotations | AdditionalAnnotations provide annotations that will be added to the Cluster Agent Pods. |
+| clusterAgent.additionalLabels | AdditionalLabels provide labels that will be added to the Cluster Agent Pods. |
 | clusterAgent.affinity.nodeAffinity.preferredDuringSchedulingIgnoredDuringExecution | The scheduler will prefer to schedule pods to nodes that satisfy the affinity expressions specified by this field, but it may choose a node that violates one or more of the expressions. The node that is most preferred is the one with the greatest sum of weights, i.e. for each node that meets all of the scheduling requirements (resource request, requiredDuringScheduling affinity expressions, etc.), compute a sum by iterating through the elements of this field and adding "weight" to the sum if the node matches the corresponding matchExpressions; the node(s) with the highest sum are the most preferred. |
 | clusterAgent.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms | Required. A list of node selector terms. The terms are ORed. |
 | clusterAgent.affinity.podAffinity.preferredDuringSchedulingIgnoredDuringExecution | The scheduler will prefer to schedule pods to nodes that satisfy the affinity expressions specified by this field, but it may choose a node that violates one or more of the expressions. The node that is most preferred is the one with the greatest sum of weights, i.e. for each node that meets all of the scheduling requirements (resource request, requiredDuringScheduling affinity expressions, etc.), compute a sum by iterating through the elements of this field and adding "weight" to the sum if the node has pods which matches the corresponding podAffinityTerm; the node(s) with the highest sum are the most preferred. |
