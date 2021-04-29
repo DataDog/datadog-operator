@@ -59,7 +59,7 @@ spec:
                 additionalLabels:
                   additionalProperties:
                     type: string
-                  description: AdditionalLabels provide labels that will be added to the cluster checks runner Pods.
+                  description: AdditionalLabels provide labels that will be added to the Agent Pods.
                   type: object
                 apm:
                   description: Trace Agent configuration
@@ -2362,12 +2362,12 @@ spec:
                 additionalAnnotations:
                   additionalProperties:
                     type: string
-                  description: AdditionalAnnotations provide annotations that will be added to the cluster-agent Pods.
+                  description: AdditionalAnnotations provide annotations that will be added to the Cluster Agent Pods.
                   type: object
                 additionalLabels:
                   additionalProperties:
                     type: string
-                  description: AdditionalLabels provide labels that will be added to the cluster checks runner Pods.
+                  description: AdditionalLabels provide labels that will be added to the Cluster Agent Pods.
                   type: object
                 affinity:
                   description: If specified, the pod's scheduling constraints.

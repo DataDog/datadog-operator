@@ -16,7 +16,7 @@ metadata:
                 "enabled": false
               },
               "image": {
-                "name": "gcr.io/datadoghq/agent:7.26.0"
+                "name": "datadog/agent:7.26.0"
               },
               "log": {
                 "enabled": false,
@@ -49,13 +49,13 @@ metadata:
                 }
               },
               "image": {
-                "name": "gcr.io/datadoghq/cluster-agent:1.11.0"
+                "name": "datadog/cluster-agent:1.11.0"
               },
               "replicas": 2
             },
             "clusterChecksRunner": {
               "image": {
-                "name": "gcr.io/datadoghq/agent:7.26.0"
+                "name": "datadog/agent:7.26.0"
               },
               "replicas": 2
             },
@@ -103,7 +103,7 @@ metadata:
     operators.operatorframework.io/builder: operator-sdk-v1.4.0+git
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
     repository: https://github.com/DataDog/datadog-operator
-  name: datadog-operator.v0.6.0-rc.2
+  name: datadog-operator.v0.6.0-rc.3
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -487,7 +487,7 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.annotations['olm.targetNamespaces']
-                image: registry.connect.redhat.com/datadog/operator:0.6.0-rc.2
+                image: datadog/operator:0.6.0-rc.3
                 imagePullPolicy: Always
                 livenessProbe:
                   httpGet:
@@ -564,5 +564,5 @@ spec:
   maturity: alpha
   provider:
     name: Datadog
-  version: 0.6.0-rc.2
-  replaces: datadog-operator.v0.4.0
+  version: 0.6.0-rc.3
+  replaces: datadog-operator.v0.5.1
