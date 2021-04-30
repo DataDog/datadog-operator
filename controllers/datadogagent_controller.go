@@ -46,23 +46,25 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogagents/finalizers,verbs=get;list;watch;create;update;patch;delete
 
 // RBAC Management
-// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,verbs=*
-// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=*
-// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles,verbs=*
-// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=*
-// +kubebuilder:rbac:groups=roles.rbac.authorization.k8s.io,resources=clusterroles,verbs=*
-// +kubebuilder:rbac:groups=roles.rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=*
-// +kubebuilder:rbac:groups=roles.rbac.authorization.k8s.io,resources=roles,verbs=*
-// +kubebuilder:rbac:groups=roles.rbac.authorization.k8s.io,resources=rolebindings,verbs=*
-// +kubebuilder:rbac:groups=authorization.k8s.io,resources=clusterroles,verbs=*
-// +kubebuilder:rbac:groups=authorization.k8s.io,resources=clusterrolebindings,verbs=*
-// +kubebuilder:rbac:groups=authorization.k8s.io,resources=roles,verbs=*
-// +kubebuilder:rbac:groups=authorization.k8s.io,resources=rolebindings,verbs=*
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=roles.rbac.authorization.k8s.io,resources=clusterroles,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=roles.rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=roles.rbac.authorization.k8s.io,resources=roles,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=roles.rbac.authorization.k8s.io,resources=rolebindings,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=authorization.k8s.io,resources=clusterroles,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=authorization.k8s.io,resources=clusterrolebindings,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=authorization.k8s.io,resources=roles,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=authorization.k8s.io,resources=rolebindings,verbs=get;list;watch;create;update;patch;delete
 
 // Configure Admission Controller
 // +kubebuilder:rbac:groups=admissionregistration.k8s.io,resources=mutatingwebhookconfigurations,verbs=*
+// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get
 // +kubebuilder:rbac:groups=apps,resources=replicasets,verbs=get
 // +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get
+// +kubebuilder:rbac:groups=apps,resources=daemonsets,verbs=get
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get
 // +kubebuilder:rbac:groups=batch,resources=cronjobs,verbs=get
 
@@ -71,7 +73,7 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=datadoghq.com,resources=watermarkpodautoscalers,verbs=get;list;watch
 
 // Use ExtendedDaemonSet
-// +kubebuilder:rbac:groups=datadoghq.com,resources=extendeddaemonsets,verbs=*
+// +kubebuilder:rbac:groups=datadoghq.com,resources=extendeddaemonsets,verbs=get;list;watch;create;update;patch;delete
 
 // OpenShift
 // +kubebuilder:rbac:groups=quota.openshift.io,resources=clusterresourcequotas,verbs=get;list
@@ -84,17 +86,50 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups="",resources=nodes/proxy,verbs=get
 // +kubebuilder:rbac:groups="",resources=nodes/spec,verbs=get
 // +kubebuilder:rbac:groups="",resources=nodes/stats,verbs=get
-// +kubebuilder:rbac:groups="",resources=events,verbs=*
-// +kubebuilder:rbac:groups="",resources=secrets,verbs=*
-// +kubebuilder:rbac:groups="",resources=pods,verbs=*
-// +kubebuilder:rbac:groups="",resources=services,verbs=*
-// +kubebuilder:rbac:groups="",resources=endpoints,verbs=*
-// +kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=*
-// +kubebuilder:rbac:groups="",resources=configmaps,verbs=*
-// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=*
-// +kubebuilder:rbac:groups=apps,resources=daemonsets,verbs=*
-// +kubebuilder:rbac:groups=policy,resources=poddisruptionbudgets,verbs=*
-// +kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=*
+// +kubebuilder:rbac:groups="",resources=events,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=endpoints,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=apps,resources=daemonsets,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=policy,resources=poddisruptionbudgets,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=get;list;watch;create;update;patch;delete
+
+// Orchestrator explorer
+// +kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=deployments,verbs=get;list;watch
+// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch
+// +kubebuilder:rbac:groups=apps,resources=replicasets,verbs=get;list;watch
+// +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch
+// +kubebuilder:rbac:groups=apps,resources=daemonsets,verbs=get;list;watch
+// +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch
+// +kubebuilder:rbac:groups=batch,resources=cronjobs,verbs=get;list;watch
+
+// Kubernetes_state_core
+// +kubebuilder:rbac:groups="",resources=configmaps,verbs=list;watch
+// +kubebuilder:rbac:groups="",resources=endpoints,verbs=list;watch
+// +kubebuilder:rbac:groups="",resources=limitranges,verbs=list;watch
+// +kubebuilder:rbac:groups="",resources=namespaces,verbs=list;watch
+// +kubebuilder:rbac:groups="",resources=nodes,verbs=list;watch
+// +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=list;watch
+// +kubebuilder:rbac:groups="",resources=persistentvolumes,verbs=list;watch
+// +kubebuilder:rbac:groups="",resources=pods,verbs=list;watch
+// +kubebuilder:rbac:groups="",resources=resourcequotas,verbs=list;watch
+// +kubebuilder:rbac:groups="",resources=secrets,verbs=list;watch
+// +kubebuilder:rbac:groups="",resources=services,verbs=list;watch
+// +kubebuilder:rbac:groups=apps,resources=daemonsets,verbs=list;watch
+// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=list;watch
+// +kubebuilder:rbac:groups=apps,resources=replicasets,verbs=list;watch
+// +kubebuilder:rbac:groups=apps,resources=replicationcontrollers,verbs=list;watch
+// +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=list;watch
+// +kubebuilder:rbac:groups=autoscaling,resources=horizontalpodautoscalers,verbs=list;watch
+// +kubebuilder:rbac:groups=batch,resources=cronjobs,verbs=list;watch
+// +kubebuilder:rbac:groups=batch,resources=jobs,verbs=list;watch
 
 // Reconcile loop for DatadogAgent.
 func (r *DatadogAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
