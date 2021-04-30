@@ -59,6 +59,7 @@ const (
 	DDLogsConfigContainerCollectAll              = "DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL"
 	DDLogsContainerCollectUsingFiles             = "DD_LOGS_CONFIG_K8S_CONTAINER_USE_FILE"
 	DDLogsConfigOpenFilesLimit                   = "DD_LOGS_CONFIG_OPEN_FILES_LIMIT"
+	DDDogstatsdEnabled                           = "DD_USE_DOGSTATSD"
 	DDDogstatsdOriginDetection                   = "DD_DOGSTATSD_ORIGIN_DETECTION"
 	DDDogstatsdPort                              = "DD_DOGSTATSD_PORT"
 	DDDogstatsdSocket                            = "DD_DOGSTATSD_SOCKET"

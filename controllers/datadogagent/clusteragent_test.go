@@ -19,7 +19,6 @@ import (
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -52,6 +51,8 @@ func clusterAgentDefaultPodSpec() corev1.PodSpec {
 					{Name: "installinfo", ReadOnly: true, SubPath: "install_info", MountPath: "/etc/datadog-agent/install_info"},
 					{Name: "confd", ReadOnly: true, MountPath: "/conf.d"},
 				},
+				LivenessProbe:  getDefaultLivenessProbe(),
+				ReadinessProbe: getDefaultReadinessProbe(),
 			},
 		},
 		Volumes: []corev1.Volume{
@@ -223,6 +224,7 @@ func Test_newClusterAgentDeploymentFromInstance(t *testing.T) {
 						"app.kubernetes.io/part-of":     "foo",
 						"app.kubernetes.io/version":     "",
 					},
+					Annotations: map[string]string{},
 				},
 				Spec: appsv1.DeploymentSpec{
 					Template: corev1.PodTemplateSpec{
@@ -236,6 +238,7 @@ func Test_newClusterAgentDeploymentFromInstance(t *testing.T) {
 								"app.kubernetes.io/part-of":     "foo",
 								"app.kubernetes.io/version":     "",
 							},
+							Annotations: map[string]string{},
 						},
 						Spec: clusterAgentDefaultPodSpec(),
 					},
@@ -267,6 +270,7 @@ func Test_newClusterAgentDeploymentFromInstance(t *testing.T) {
 						"app.kubernetes.io/part-of":     "foo",
 						"app.kubernetes.io/version":     "",
 					},
+					Annotations: map[string]string{},
 				},
 				Spec: appsv1.DeploymentSpec{
 					Template: corev1.PodTemplateSpec{
@@ -280,6 +284,7 @@ func Test_newClusterAgentDeploymentFromInstance(t *testing.T) {
 								"app.kubernetes.io/part-of":     "foo",
 								"app.kubernetes.io/version":     "",
 							},
+							Annotations: map[string]string{},
 						},
 						Spec: clusterAgentDefaultPodSpec(),
 					},
@@ -424,6 +429,7 @@ func Test_newClusterAgentDeploymentMountKSMCore(t *testing.T) {
 					"app.kubernetes.io/part-of":     "foo",
 					"app.kubernetes.io/version":     "",
 				},
+				Annotations: map[string]string{},
 			},
 			Spec: appsv1.DeploymentSpec{
 				Template: corev1.PodTemplateSpec{
@@ -437,6 +443,7 @@ func Test_newClusterAgentDeploymentMountKSMCore(t *testing.T) {
 							"app.kubernetes.io/part-of":     "foo",
 							"app.kubernetes.io/version":     "",
 						},
+						Annotations: map[string]string{},
 					},
 					Spec: clusterAgentPodSpec,
 				},
@@ -488,6 +495,7 @@ func Test_newClusterAgentPrometheusScrapeEnabled(t *testing.T) {
 					"app.kubernetes.io/part-of":     "foo",
 					"app.kubernetes.io/version":     "",
 				},
+				Annotations: map[string]string{},
 			},
 			Spec: appsv1.DeploymentSpec{
 				Template: corev1.PodTemplateSpec{
@@ -501,6 +509,7 @@ func Test_newClusterAgentPrometheusScrapeEnabled(t *testing.T) {
 							"app.kubernetes.io/part-of":     "foo",
 							"app.kubernetes.io/version":     "",
 						},
+						Annotations: map[string]string{},
 					},
 					Spec: clusterAgentPodSpec,
 				},
@@ -565,6 +574,7 @@ func Test_newClusterAgentDeploymentFromInstance_UserVolumes(t *testing.T) {
 					"app.kubernetes.io/part-of":     "foo",
 					"app.kubernetes.io/version":     "",
 				},
+				Annotations: map[string]string{},
 			},
 			Spec: appsv1.DeploymentSpec{
 				Template: corev1.PodTemplateSpec{
@@ -578,6 +588,7 @@ func Test_newClusterAgentDeploymentFromInstance_UserVolumes(t *testing.T) {
 							"app.kubernetes.io/part-of":     "foo",
 							"app.kubernetes.io/version":     "",
 						},
+						Annotations: map[string]string{},
 					},
 					Spec: userMountsPodSpec,
 				},
@@ -639,6 +650,7 @@ func Test_newClusterAgentDeploymentFromInstance_EnvVars(t *testing.T) {
 					"app.kubernetes.io/part-of":     "foo",
 					"app.kubernetes.io/version":     "",
 				},
+				Annotations: map[string]string{},
 			},
 			Spec: appsv1.DeploymentSpec{
 				Template: corev1.PodTemplateSpec{
@@ -652,6 +664,7 @@ func Test_newClusterAgentDeploymentFromInstance_EnvVars(t *testing.T) {
 							"app.kubernetes.io/part-of":     "foo",
 							"app.kubernetes.io/version":     "",
 						},
+						Annotations: map[string]string{},
 					},
 					Spec: podSpec,
 				},
@@ -704,6 +717,7 @@ func Test_newClusterAgentDeploymentFromInstance_CustomDeploymentName(t *testing.
 					"app.kubernetes.io/version":     "",
 					"app":                           "datadog-monitoring",
 				},
+				Annotations: map[string]string{},
 			},
 			Spec: appsv1.DeploymentSpec{
 				Template: corev1.PodTemplateSpec{
@@ -718,6 +732,7 @@ func Test_newClusterAgentDeploymentFromInstance_CustomDeploymentName(t *testing.
 							"app.kubernetes.io/version":     "",
 							"app":                           "datadog-monitoring",
 						},
+						Annotations: map[string]string{},
 					},
 					Spec: deploymentNamePodSpec,
 				},
@@ -775,21 +790,6 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 			},
 		}...,
 	)
-
-	probe := &corev1.Probe{
-		Handler: corev1.Handler{
-			HTTPGet: &corev1.HTTPGetAction{
-				Path: "/healthz",
-				Port: intstr.IntOrString{
-					IntVal: metricsServerPort,
-				},
-				Scheme: corev1.URISchemeHTTPS,
-			},
-		},
-	}
-
-	metricsServerPodSpec.Containers[0].LivenessProbe = probe
-	metricsServerPodSpec.Containers[0].ReadinessProbe = probe
 
 	metricsServerAgentDeployment := test.NewDefaultedDatadogAgent("bar", "foo",
 		&test.NewDatadogAgentOptions{
@@ -851,8 +851,6 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 			},
 		}...,
 	)
-	metricsServerWithSitePodSpec.Containers[0].LivenessProbe = probe
-	metricsServerWithSitePodSpec.Containers[0].ReadinessProbe = probe
 
 	metricsServerAgentWithEndpointDeployment := test.NewDefaultedDatadogAgent("bar", "foo",
 		&test.NewDatadogAgentOptions{
@@ -897,6 +895,7 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 						"app.kubernetes.io/version":     "",
 						"app":                           "datadog-monitoring",
 					},
+					Annotations: map[string]string{},
 				},
 				Spec: appsv1.DeploymentSpec{
 					Template: corev1.PodTemplateSpec{
@@ -911,6 +910,7 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 								"app.kubernetes.io/version":     "",
 								"app":                           "datadog-monitoring",
 							},
+							Annotations: map[string]string{},
 						},
 						Spec: metricsServerPodSpec,
 					},
@@ -947,6 +947,7 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 						"app.kubernetes.io/version":     "",
 						"app":                           "datadog-monitoring",
 					},
+					Annotations: map[string]string{},
 				},
 				Spec: appsv1.DeploymentSpec{
 					Template: corev1.PodTemplateSpec{
@@ -1117,6 +1118,7 @@ func Test_newClusterAgentDeploymentFromInstance_UserProvidedSecret(t *testing.T)
 						"app.kubernetes.io/part-of":     "foo",
 						"app.kubernetes.io/version":     "",
 					},
+					Annotations: map[string]string{},
 				},
 				Spec: appsv1.DeploymentSpec{
 					Template: corev1.PodTemplateSpec{
@@ -1130,6 +1132,7 @@ func Test_newClusterAgentDeploymentFromInstance_UserProvidedSecret(t *testing.T)
 								"app.kubernetes.io/part-of":     "foo",
 								"app.kubernetes.io/version":     "",
 							},
+							Annotations: map[string]string{},
 						},
 						Spec: podSpec,
 					},
@@ -1168,6 +1171,7 @@ func Test_newClusterAgentDeploymentFromInstance_UserProvidedSecret(t *testing.T)
 						"app.kubernetes.io/part-of":     "foo",
 						"app.kubernetes.io/version":     "",
 					},
+					Annotations: map[string]string{},
 				},
 				Spec: appsv1.DeploymentSpec{
 					Template: corev1.PodTemplateSpec{
@@ -1181,6 +1185,7 @@ func Test_newClusterAgentDeploymentFromInstance_UserProvidedSecret(t *testing.T)
 								"app.kubernetes.io/part-of":     "foo",
 								"app.kubernetes.io/version":     "",
 							},
+							Annotations: map[string]string{},
 						},
 						Spec: podSpec,
 					},
@@ -1229,6 +1234,7 @@ func Test_newClusterAgentDeploymentFromInstance_Compliance(t *testing.T) {
 					"app.kubernetes.io/part-of":     "foo",
 					"app.kubernetes.io/version":     "",
 				},
+				Annotations: map[string]string{},
 			},
 			Spec: appsv1.DeploymentSpec{
 				Template: corev1.PodTemplateSpec{
@@ -1242,6 +1248,7 @@ func Test_newClusterAgentDeploymentFromInstance_Compliance(t *testing.T) {
 							"app.kubernetes.io/part-of":     "foo",
 							"app.kubernetes.io/version":     "",
 						},
+						Annotations: map[string]string{},
 					},
 					Spec: podSpec,
 				},
