@@ -357,6 +357,10 @@ func getEnvVarsForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []cor
 			Value: "false",
 		},
 		{
+			Name:  datadoghqv1alpha1.DDDogstatsdEnabled,
+			Value: "false",
+		},
+		{
 			Name:  datadoghqv1alpha1.DDEnableMetadataCollection,
 			Value: "false",
 		},

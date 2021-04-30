@@ -168,6 +168,10 @@ func clusterChecksRunnerDefaultEnvVars() []corev1.EnvVar {
 			Value: "false",
 		},
 		{
+			Name:  "DD_USE_DOGSTATSD",
+			Value: "false",
+		},
+		{
 			Name:  "DD_ENABLE_METADATA_COLLECTION",
 			Value: "false",
 		},
@@ -216,15 +220,6 @@ func (test clusterChecksRunnerDeploymentFromInstanceTest) Run(t *testing.T) {
 		cmp.Diff(got, test.want))
 }
 
-type clusterChecksRunnerDeploymentFromInstanceTestSuite []clusterChecksRunnerDeploymentFromInstanceTest
-
-func (tests clusterChecksRunnerDeploymentFromInstanceTestSuite) Run(t *testing.T) {
-	t.Helper()
-	for _, tt := range tests {
-		t.Run(tt.name, tt.Run)
-	}
-}
-
 func Test_newClusterChecksRunnerDeploymentFromInstance_UserVolumes(t *testing.T) {
 	userVolumes := []corev1.Volume{
 		{
@@ -269,7 +264,8 @@ func Test_newClusterChecksRunnerDeploymentFromInstance_UserVolumes(t *testing.T)
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: "bar",
 				Name:      "foo-cluster-checks-runner",
-				Labels: map[string]string{"agent.datadoghq.com/name": "foo",
+				Labels: map[string]string{
+					"agent.datadoghq.com/name":      "foo",
 					"agent.datadoghq.com/component": "cluster-checks-runner",
 					"app.kubernetes.io/instance":    "cluster-checks-runner",
 					"app.kubernetes.io/managed-by":  "datadog-operator",
@@ -347,7 +343,8 @@ func Test_newClusterChecksRunnerDeploymentFromInstance_EnvVars(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: "bar",
 				Name:      "foo-cluster-checks-runner",
-				Labels: map[string]string{"agent.datadoghq.com/name": "foo",
+				Labels: map[string]string{
+					"agent.datadoghq.com/name":      "foo",
 					"agent.datadoghq.com/component": "cluster-checks-runner",
 					"app.kubernetes.io/instance":    "cluster-checks-runner",
 					"app.kubernetes.io/managed-by":  "datadog-operator",
