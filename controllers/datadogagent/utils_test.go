@@ -7,6 +7,7 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/v1alpha1/test"
 	"github.com/DataDog/datadog-operator/controllers/testutils"
+	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -370,6 +371,67 @@ func Test_dsdMapperProfilesEnvVar(t *testing.T) {
 				},
 			})
 			assert.EqualValues(t, tt.want, dsdMapperProfilesEnvVar(logf.Log.WithName(t.Name()), dda))
+		})
+	}
+}
+
+func Test_mergeAnnotationsLabels(t *testing.T) {
+	type args struct {
+		previousVal map[string]string
+		newVal      map[string]string
+		filter      string
+	}
+	tests := []struct {
+		name string
+		args args
+		want map[string]string
+	}{
+		{
+			name: "basic test",
+			args: args{
+				previousVal: map[string]string{
+					"foo":               "bar",
+					"foo-datadoghq.com": "dog-bar",
+					"foo-removed":       "foo",
+					"foo.match":         "foomatch",
+				},
+				newVal: map[string]string{
+					"foo": "baz",
+				},
+				filter: "*.match",
+			},
+			want: map[string]string{
+				"foo":               "baz",
+				"foo-datadoghq.com": "dog-bar",
+				"foo.match":         "foomatch",
+			},
+		},
+		{
+			name: "no filter test",
+			args: args{
+				previousVal: map[string]string{
+					"foo":               "bar",
+					"foo-datadoghq.com": "dog-bar",
+					"foo-removed":       "foo",
+					"foo.match":         "foomatch",
+				},
+				newVal: map[string]string{
+					"foo": "baz",
+				},
+			},
+			want: map[string]string{
+				"foo":               "baz",
+				"foo-datadoghq.com": "dog-bar",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			logger := logf.Log.WithName(t.Name())
+			got := mergeAnnotationsLabels(logger, tt.args.previousVal, tt.args.newVal, tt.args.filter)
+			diff := cmp.Diff(tt.want, got)
+			assert.Empty(t, diff)
 		})
 	}
 }

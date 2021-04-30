@@ -1083,6 +1083,20 @@ func schema__api_v1alpha1_DatadogAgentSpecAgentSpec(ref common.ReferenceCallback
 							},
 						},
 					},
+					"keepLabels": {
+						SchemaProps: spec.SchemaProps{
+							Description: "KeepLabels allows the specification of labels not managed by the Operator that will be kept on Agent DaemonSet. All labels containing 'datadoghq.com' are always included. This field uses glob syntax.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"keepAnnotations": {
+						SchemaProps: spec.SchemaProps{
+							Description: "KeepAnnotations allows the specification of annotations not managed by the Operator that will be kept on Agent DaemonSet. All annotations containing 'datadoghq.com' are always included. This field uses glob syntax.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"priorityClassName": {
 						SchemaProps: spec.SchemaProps{
 							Description: "If specified, indicates the pod's priority. \"system-node-critical\" and \"system-cluster-critical\" are two special keywords which indicate the highest priorities with the former being the highest priority. Any other name must be defined by creating a PriorityClass object with that name. If not specified, the pod priority will be default or zero if there is no default.",
@@ -1273,6 +1287,20 @@ func schema__api_v1alpha1_DatadogAgentSpecClusterAgentSpec(ref common.ReferenceC
 									},
 								},
 							},
+						},
+					},
+					"keepLabels": {
+						SchemaProps: spec.SchemaProps{
+							Description: "KeepLabels allows the specification of labels not managed by the Operator that will be kept on ClusterAgent Deployment. All labels containing 'datadoghq.com' are always included. This field uses glob syntax.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"keepAnnotations": {
+						SchemaProps: spec.SchemaProps{
+							Description: "KeepAnnotations allows the specification of annotations not managed by the Operator that will be kept on ClusterAgent Deployment. All annotations containing 'datadoghq.com' are always included. This field uses glob syntax.",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"priorityClassName": {
