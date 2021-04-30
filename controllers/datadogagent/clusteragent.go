@@ -1274,14 +1274,22 @@ func buildClusterAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, age
 		rbacRules = append(rbacRules, rbacv1.PolicyRule{
 			APIGroups: []string{datadoghqv1alpha1.BatchAPIGroup},
 			Resources: []string{datadoghqv1alpha1.JobsResource},
-			Verbs:     []string{datadoghqv1alpha1.GetVerb},
+			Verbs: []string{
+				datadoghqv1alpha1.ListVerb,
+				datadoghqv1alpha1.WatchVerb,
+				datadoghqv1alpha1.GetVerb,
+			},
 		})
 
 		// CronJobs
 		rbacRules = append(rbacRules, rbacv1.PolicyRule{
 			APIGroups: []string{datadoghqv1alpha1.BatchAPIGroup},
 			Resources: []string{datadoghqv1alpha1.CronjobsResource},
-			Verbs:     []string{datadoghqv1alpha1.GetVerb},
+			Verbs: []string{
+				datadoghqv1alpha1.ListVerb,
+				datadoghqv1alpha1.WatchVerb,
+				datadoghqv1alpha1.GetVerb,
+			},
 		})
 	}
 
