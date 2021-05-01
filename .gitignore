@@ -90,5 +90,6 @@ tags
 .cover/
 # sed backup file
 *.old
+*.bak
 # goland
 .idea/
