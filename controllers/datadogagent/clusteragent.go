@@ -482,20 +482,10 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 			Name:          "metricsapi",
 			Protocol:      "TCP",
 		})
-		probe := &corev1.Probe{
-			Handler: corev1.Handler{
-				HTTPGet: &corev1.HTTPGetAction{
-					Path: "/healthz",
-					Port: intstr.IntOrString{
-						IntVal: port,
-					},
-					Scheme: corev1.URISchemeHTTPS,
-				},
-			},
-		}
-		container.LivenessProbe = probe
-		container.ReadinessProbe = probe
 	}
+
+	container.LivenessProbe = getDefaultLivenessProbe()
+	container.ReadinessProbe = getDefaultReadinessProbe()
 
 	if clusterAgentSpec.Config.Resources != nil {
 		container.Resources = *clusterAgentSpec.Config.Resources
@@ -1284,14 +1274,22 @@ func buildClusterAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, age
 		rbacRules = append(rbacRules, rbacv1.PolicyRule{
 			APIGroups: []string{datadoghqv1alpha1.BatchAPIGroup},
 			Resources: []string{datadoghqv1alpha1.JobsResource},
-			Verbs:     []string{datadoghqv1alpha1.GetVerb},
+			Verbs: []string{
+				datadoghqv1alpha1.ListVerb,
+				datadoghqv1alpha1.WatchVerb,
+				datadoghqv1alpha1.GetVerb,
+			},
 		})
 
 		// CronJobs
 		rbacRules = append(rbacRules, rbacv1.PolicyRule{
 			APIGroups: []string{datadoghqv1alpha1.BatchAPIGroup},
 			Resources: []string{datadoghqv1alpha1.CronjobsResource},
-			Verbs:     []string{datadoghqv1alpha1.GetVerb},
+			Verbs: []string{
+				datadoghqv1alpha1.ListVerb,
+				datadoghqv1alpha1.WatchVerb,
+				datadoghqv1alpha1.GetVerb,
+			},
 		})
 	}
 
