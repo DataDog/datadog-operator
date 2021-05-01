@@ -103,7 +103,7 @@ metadata:
     operators.operatorframework.io/builder: operator-sdk-v1.4.0+git
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
     repository: https://github.com/DataDog/datadog-operator
-  name: datadog-operator.v0.6.0-rc.4
+  name: datadog-operator.v0.6.0-rc.5
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -368,6 +368,13 @@ spec:
           - list
           - watch
         - apiGroups:
+          - authentication.k8s.io
+          resources:
+          - tokenreviews
+          verbs:
+          - create
+          - get
+        - apiGroups:
           - authorization.k8s.io
           resources:
           - clusterrolebindings
@@ -415,6 +422,13 @@ spec:
           - patch
           - update
           - watch
+        - apiGroups:
+          - authorization.k8s.io
+          resources:
+          - subjectaccessreviews
+          verbs:
+          - create
+          - get
         - apiGroups:
           - autoscaling
           resources:
@@ -518,6 +532,14 @@ spec:
           - datadoghq.com
           resources:
           - watermarkpodautoscalers
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - external.metrics.k8s.io
+          resources:
+          - '*'
           verbs:
           - get
           - list
@@ -697,7 +719,7 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.annotations['olm.targetNamespaces']
-                image: datadog/operator:0.6.0-rc.4
+                image: datadog/operator:0.6.0-rc.5
                 imagePullPolicy: Always
                 livenessProbe:
                   httpGet:
@@ -774,5 +796,5 @@ spec:
   maturity: alpha
   provider:
     name: Datadog
-  version: 0.6.0-rc.4
+  version: 0.6.0-rc.5
   replaces: datadog-operator.v0.5.1
