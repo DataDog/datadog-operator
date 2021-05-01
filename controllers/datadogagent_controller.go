@@ -61,16 +61,19 @@ type DatadogAgentReconciler struct {
 
 // Configure Admission Controller
 // +kubebuilder:rbac:groups=admissionregistration.k8s.io,resources=mutatingwebhookconfigurations,verbs=*
+// +kubebuilder:rbac:groups=apps,resources=daemonsets,verbs=get
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get
 // +kubebuilder:rbac:groups=apps,resources=replicasets,verbs=get
 // +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get
-// +kubebuilder:rbac:groups=apps,resources=daemonsets,verbs=get
-// +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get
+// +kubebuilder:rbac:groups=authentication.k8s.io,resources=tokenreviews,verbs=create;get
+// +kubebuilder:rbac:groups=authorization.k8s.io,resources=subjectaccessreviews,verbs=create;get
 // +kubebuilder:rbac:groups=batch,resources=cronjobs,verbs=get
+// +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get
 
 // Configure External Metrics server
 // +kubebuilder:rbac:groups=apiregistration.k8s.io,resources=apiservices,verbs=*
 // +kubebuilder:rbac:groups=datadoghq.com,resources=watermarkpodautoscalers,verbs=get;list;watch
+// +kubebuilder:rbac:groups=external.metrics.k8s.io,resources=*,verbs=get;list;watch
 
 // Use ExtendedDaemonSet
 // +kubebuilder:rbac:groups=datadoghq.com,resources=extendeddaemonsets,verbs=get;list;watch;create;update;patch;delete
