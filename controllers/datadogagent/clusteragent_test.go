@@ -101,6 +101,10 @@ func clusterAgentDefaultEnvVars() []corev1.EnvVar {
 			Value: "false",
 		},
 		{
+			Name:  "DD_HEALTH_PORT",
+			Value: "5555",
+		},
+		{
 			Name:      "DD_API_KEY",
 			ValueFrom: apiKeyValue(),
 		},
@@ -140,6 +144,10 @@ func clusterAgentWithAdmissionControllerDefaultEnvVars(serviceName string, unlab
 		{
 			Name:  "DD_COLLECT_KUBERNETES_EVENTS",
 			Value: "false",
+		},
+		{
+			Name:  "DD_HEALTH_PORT",
+			Value: "5555",
 		},
 		{
 			Name:      "DD_API_KEY",

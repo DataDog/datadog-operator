@@ -529,6 +529,10 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 			Name:  datadoghqv1alpha1.DDCollectKubeEvents,
 			Value: datadoghqv1alpha1.BoolToString(spec.ClusterAgent.Config.CollectEvents),
 		},
+		{
+			Name:  datadoghqv1alpha1.DDHealthPort,
+			Value: strconv.Itoa(int(datadoghqv1alpha1.DefaultAgentHealthPort)),
+		},
 	}
 
 	if spec.ClusterName != "" {
