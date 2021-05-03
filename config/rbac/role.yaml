@@ -323,6 +323,18 @@ rules:
   - list
   - watch
 - apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
   - datadoghq.com
   resources:
   - datadogagents
@@ -549,15 +561,3 @@ rules:
   - securitycontextconstraints
   verbs:
   - use
-- apiGroups:
-  - "coordination.k8s.io"
-  resources:
-  - leases
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - patch
-  - delete
