@@ -58,6 +58,6 @@ func newAgentSecret(name string, dda *datadoghqv1alpha1.DatadogAgent) (*corev1.S
 // needAgentSecret checks if a secret should be used or created due to the cluster agent being defined, or if any api or app key
 // is configured, AND the secret backend is not used
 func needAgentSecret(dda *datadoghqv1alpha1.DatadogAgent) bool {
-	return (dda.Spec.ClusterAgent != nil || (dda.Spec.Credentials.APIKey != "" || os.Getenv(config.DDAPIKeyEnvVar) != "") || (dda.Spec.Credentials.AppKey != "" || os.Getenv(config.DDAppKeyEnvVar) != "")) &&
+	return (dda.Spec.ClusterAgent != nil || dda.Spec.Credentials.APIKey != "" || dda.Spec.Credentials.AppKey != "") &&
 		!datadoghqv1alpha1.BoolValue(dda.Spec.Credentials.UseSecretBackend)
 }

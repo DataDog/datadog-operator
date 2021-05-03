@@ -128,16 +128,12 @@ func (r *Reconciler) cleanupSecret(namespace, name string, dda *datadoghqv1alpha
 
 func dataFromCredentials(credentials *datadoghqv1alpha1.DatadogCredentials) map[string][]byte {
 	data := make(map[string][]byte)
-	// Create secret using DatadogAgent credentials if it exists, otherwise use Datadog Operator env var
+	// Create secret using DatadogAgent credentials if it exists
 	if credentials.APIKey != "" {
 		data[datadoghqv1alpha1.DefaultAPIKeyKey] = []byte(credentials.APIKey)
-	} else if os.Getenv(config.DDAPIKeyEnvVar) != "" {
-		data[datadoghqv1alpha1.DefaultAPIKeyKey] = []byte(os.Getenv(config.DDAPIKeyEnvVar))
 	}
 	if credentials.AppKey != "" {
 		data[datadoghqv1alpha1.DefaultAPPKeyKey] = []byte(credentials.AppKey)
-	} else if os.Getenv(config.DDAppKeyEnvVar) != "" {
-		data[datadoghqv1alpha1.DefaultAPPKeyKey] = []byte(os.Getenv(config.DDAppKeyEnvVar))
 	}
 
 	return data
