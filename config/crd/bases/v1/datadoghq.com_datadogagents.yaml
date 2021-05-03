@@ -8906,8 +8906,7 @@ spec:
                   Cluster Checks Runner easily.
                 type: string
               credentials:
-                description: Configure the credentials needed to run Agents. If not
-                  set, then the credentials set in the DatadogOperator will be used.
+                description: Configure the credentials needed to run Agents.
                 properties:
                   apiKey:
                     description: 'APIKey Set this to your Datadog API key before the
@@ -9105,6 +9104,8 @@ spec:
                 description: The site of the Datadog intake to send Agent data to.
                   Set to 'datadoghq.eu' to send data to the EU site.
                 type: string
+            required:
+            - credentials
             type: object
           status:
             description: DatadogAgentStatus defines the observed state of DatadogAgent.
