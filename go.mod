@@ -8,6 +8,7 @@ require (
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
 	github.com/go-logr/logr v0.3.0
 	github.com/go-openapi/spec v0.20.3
+	github.com/gobwas/glob v0.2.3
 	github.com/google/go-cmp v0.5.2
 	github.com/hako/durafmt v0.0.0-20200710122514-c0fb7b4da026
 	github.com/mholt/archiver/v3 v3.5.0

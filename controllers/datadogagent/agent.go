@@ -211,12 +211,8 @@ func (r *Reconciler) updateExtendedDaemonSet(logger logr.Logger, dda *datadoghqv
 	// Copy possibly changed fields
 	updatedEds := eds.DeepCopy()
 	updatedEds.Spec = *newEDS.Spec.DeepCopy()
-	for k, v := range newEDS.Annotations {
-		updatedEds.Annotations[k] = v
-	}
-	for k, v := range newEDS.Labels {
-		updatedEds.Labels[k] = v
-	}
+	updatedEds.Annotations = mergeAnnotationsLabels(logger, eds.GetAnnotations(), newEDS.GetAnnotations(), dda.Spec.Agent.KeepAnnotations)
+	updatedEds.Labels = mergeAnnotationsLabels(logger, eds.GetLabels(), newEDS.GetLabels(), dda.Spec.Agent.KeepLabels)
 
 	err = r.client.Update(context.TODO(), updatedEds)
 	if err != nil {
@@ -256,12 +252,9 @@ func (r *Reconciler) updateDaemonSet(logger logr.Logger, dda *datadoghqv1alpha1.
 	// Copy possibly changed fields
 	updatedDS := ds.DeepCopy()
 	updatedDS.Spec = *newDS.Spec.DeepCopy()
-	for k, v := range newDS.Annotations {
-		updatedDS.Annotations[k] = v
-	}
-	for k, v := range newDS.Labels {
-		updatedDS.Labels[k] = v
-	}
+	updatedDS.Annotations = mergeAnnotationsLabels(logger, ds.GetAnnotations(), newDS.GetAnnotations(), dda.Spec.Agent.KeepAnnotations)
+	updatedDS.Labels = mergeAnnotationsLabels(logger, ds.GetLabels(), newDS.GetLabels(), dda.Spec.Agent.KeepLabels)
+
 	err = r.client.Update(context.TODO(), updatedDS)
 	if err != nil {
 		return reconcile.Result{}, err
