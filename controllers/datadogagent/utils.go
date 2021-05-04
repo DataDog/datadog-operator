@@ -763,6 +763,10 @@ func getEnvVarsForSecurityAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.E
 			Name:  datadoghqv1alpha1.DDComplianceConfigEnabled,
 			Value: strconv.FormatBool(complianceEnabled),
 		},
+		{
+			Name:  "HOST_ROOT",
+			Value: datadoghqv1alpha1.HostRootVolumePath,
+		},
 	}
 	if complianceEnabled {
 		if dda.Spec.Agent.Security.Compliance.CheckInterval != nil {
@@ -778,11 +782,6 @@ func getEnvVarsForSecurityAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.E
 				Value: datadoghqv1alpha1.SecurityAgentComplianceConfigDirVolumePath,
 			})
 		}
-
-		envVars = append(envVars, corev1.EnvVar{
-			Name:  "HOST_ROOT",
-			Value: datadoghqv1alpha1.HostRootVolumePath,
-		})
 	}
 
 	envVars = append(envVars, corev1.EnvVar{
@@ -1069,7 +1068,7 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 		}
 	}
 
-	if isComplianceEnabled(&dda.Spec) {
+	if isRuntimeSecurityEnabled(&dda.Spec) || isComplianceEnabled(&dda.Spec) {
 		groupVolume := corev1.Volume{
 			Name: datadoghqv1alpha1.GroupVolumeName,
 			VolumeSource: corev1.VolumeSource{
@@ -1089,7 +1088,9 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 			},
 		}
 		volumes = append(volumes, hostRootVolume)
+	}
 
+	if isComplianceEnabled(&dda.Spec) {
 		if dda.Spec.Agent.Security.Compliance.ConfigDir != nil {
 			volumes = append(volumes, corev1.Volume{
 				Name: datadoghqv1alpha1.SecurityAgentComplianceConfigDirVolumeName,
@@ -1561,6 +1562,11 @@ func getVolumeMountsForSecurityAgent(dda *datadoghqv1alpha1.DatadogAgent) []core
 			Name:      datadoghqv1alpha1.ConfigVolumeName,
 			MountPath: datadoghqv1alpha1.ConfigVolumePath,
 		},
+		{
+			Name:      datadoghqv1alpha1.HostRootVolumeName,
+			MountPath: datadoghqv1alpha1.HostRootVolumePath,
+			ReadOnly:  true,
+		},
 	}
 
 	complianceEnabled := isComplianceEnabled(&dda.Spec)
@@ -1586,11 +1592,6 @@ func getVolumeMountsForSecurityAgent(dda *datadoghqv1alpha1.DatadogAgent) []core
 			{
 				Name:      datadoghqv1alpha1.ProcVolumeName,
 				MountPath: datadoghqv1alpha1.ProcVolumePath,
-				ReadOnly:  true,
-			},
-			{
-				Name:      datadoghqv1alpha1.HostRootVolumeName,
-				MountPath: datadoghqv1alpha1.HostRootVolumePath,
 				ReadOnly:  true,
 			},
 		}...)
