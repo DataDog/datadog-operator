@@ -150,8 +150,18 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 			} else {
 				newStatus.CurrentHash = instanceSpecHash
 			}
-		} else { //nolint:gocritic
+		} else {
 			// Spec has not changed, just check if monitor state has changed (alert, warn, OK, etc.)
+			// We only do it every defaultRequeuePeriod to avoid overloading APIServer and DD
+			// controller-runtime does not support Watch with Resync per controller, so doing it manually
+			// see https://github.com/kubernetes-sigs/controller-runtime/blob/master/pkg/manager/manager.go#L108-L133
+			if instance.Status.MonitorStateLastUpdateTime != nil {
+				nextUpdateIn := defaultRequeuePeriod - now.Sub(instance.Status.MonitorStateLastUpdateTime.Time)
+				if nextUpdateIn > 0 {
+					return ctrl.Result{RequeueAfter: nextUpdateIn}, nil
+				}
+			}
+
 			if err = r.get(logger, instance, newStatus, now); err != nil {
 				logger.Error(err, "error getting monitor", "Monitor ID", instance.Status.ID)
 			}
