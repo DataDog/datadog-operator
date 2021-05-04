@@ -144,12 +144,8 @@ func (r *Reconciler) updateClusterAgentDeployment(logger logr.Logger, dda *datad
 	// Copy possibly changed fields
 	updateDca := dca.DeepCopy()
 	updateDca.Spec = *newDCA.Spec.DeepCopy()
-	for k, v := range newDCA.Annotations {
-		updateDca.Annotations[k] = v
-	}
-	for k, v := range newDCA.Labels {
-		updateDca.Labels[k] = v
-	}
+	updateDca.Annotations = mergeAnnotationsLabels(logger, dca.GetAnnotations(), newDCA.GetAnnotations(), dda.Spec.ClusterAgent.KeepAnnotations)
+	updateDca.Labels = mergeAnnotationsLabels(logger, dca.GetLabels(), newDCA.GetLabels(), dda.Spec.ClusterAgent.KeepLabels)
 
 	now := metav1.NewTime(time.Now())
 	err = r.client.Update(context.TODO(), updateDca)

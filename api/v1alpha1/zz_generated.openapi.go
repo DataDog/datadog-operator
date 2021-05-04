@@ -951,7 +951,7 @@ func schema__api_v1alpha1_DatadogAgentSpec(ref common.ReferenceCallback) common.
 				Properties: map[string]spec.Schema{
 					"credentials": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Configure the credentials needed to run Agents. If not set, then the credentials set in the DatadogOperator will be used.",
+							Description: "Configure the credentials needed to run Agents.",
 							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.AgentCredentials"),
 						},
@@ -996,6 +996,7 @@ func schema__api_v1alpha1_DatadogAgentSpec(ref common.ReferenceCallback) common.
 						},
 					},
 				},
+				Required: []string{"credentials"},
 			},
 		},
 		Dependencies: []string{
@@ -1081,6 +1082,20 @@ func schema__api_v1alpha1_DatadogAgentSpecAgentSpec(ref common.ReferenceCallback
 									},
 								},
 							},
+						},
+					},
+					"keepLabels": {
+						SchemaProps: spec.SchemaProps{
+							Description: "KeepLabels allows the specification of labels not managed by the Operator that will be kept on Agent DaemonSet. All labels containing 'datadoghq.com' are always included. This field uses glob syntax.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"keepAnnotations": {
+						SchemaProps: spec.SchemaProps{
+							Description: "KeepAnnotations allows the specification of annotations not managed by the Operator that will be kept on Agent DaemonSet. All annotations containing 'datadoghq.com' are always included. This field uses glob syntax.",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"priorityClassName": {
@@ -1273,6 +1288,20 @@ func schema__api_v1alpha1_DatadogAgentSpecClusterAgentSpec(ref common.ReferenceC
 									},
 								},
 							},
+						},
+					},
+					"keepLabels": {
+						SchemaProps: spec.SchemaProps{
+							Description: "KeepLabels allows the specification of labels not managed by the Operator that will be kept on ClusterAgent Deployment. All labels containing 'datadoghq.com' are always included. This field uses glob syntax.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"keepAnnotations": {
+						SchemaProps: spec.SchemaProps{
+							Description: "KeepAnnotations allows the specification of annotations not managed by the Operator that will be kept on ClusterAgent Deployment. All annotations containing 'datadoghq.com' are always included. This field uses glob syntax.",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"priorityClassName": {

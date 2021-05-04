@@ -35,33 +35,18 @@ func TestNewAgentSecret(t *testing.T) {
 			fields: fields{
 				DatadogAgentAPIKey: "adflkajdflkjalkcmlkdjacsf",
 				DatadogAgentAppKey: "sgfggtdhfghfghfghfgbdfdgs",
-				APIKeyEnvVar:       "",
-				AppKeyEnvVar:       "",
 			},
 			wantAPIKey: "adflkajdflkjalkcmlkdjacsf",
 			wantAppKey: "sgfggtdhfghfghfghfgbdfdgs",
 		},
 		{
-			name: "API and App keys are set in env vars",
+			name: "API and App keys are empty in the DatadogAgent",
 			fields: fields{
 				DatadogAgentAPIKey: "",
 				DatadogAgentAppKey: "",
-				APIKeyEnvVar:       "zzkjhcoiksncoiquwnzidufnq",
-				AppKeyEnvVar:       "podpogoasdkgpoqiweposdfop",
 			},
-			wantAPIKey: "zzkjhcoiksncoiquwnzidufnq",
-			wantAppKey: "podpogoasdkgpoqiweposdfop",
-		},
-		{
-			name: "API and App keys are set in both the DatadogAgent and env vars",
-			fields: fields{
-				DatadogAgentAPIKey: "adflkajdflkjalkcmlkdjacsf",
-				DatadogAgentAppKey: "sgfggtdhfghfghfghfgbdfdgs",
-				APIKeyEnvVar:       "zzkjhcoiksncoiquwnzidufnq",
-				AppKeyEnvVar:       "podpogoasdkgpoqiweposdfop",
-			},
-			wantAPIKey: "adflkajdflkjalkcmlkdjacsf",
-			wantAppKey: "sgfggtdhfghfghfghfgbdfdgs",
+			wantAPIKey: "",
+			wantAppKey: "",
 		},
 	}
 	for _, tt := range tests {

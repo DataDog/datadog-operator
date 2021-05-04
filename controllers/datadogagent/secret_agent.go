@@ -7,14 +7,12 @@ package datadogagent
 
 import (
 	"fmt"
-	"os"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
-	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/go-logr/logr"
 )
@@ -58,6 +56,6 @@ func newAgentSecret(name string, dda *datadoghqv1alpha1.DatadogAgent) (*corev1.S
 // needAgentSecret checks if a secret should be used or created due to the cluster agent being defined, or if any api or app key
 // is configured, AND the secret backend is not used
 func needAgentSecret(dda *datadoghqv1alpha1.DatadogAgent) bool {
-	return (dda.Spec.ClusterAgent != nil || (dda.Spec.Credentials.APIKey != "" || os.Getenv(config.DDAPIKeyEnvVar) != "") || (dda.Spec.Credentials.AppKey != "" || os.Getenv(config.DDAppKeyEnvVar) != "")) &&
+	return (dda.Spec.ClusterAgent != nil || dda.Spec.Credentials.APIKey != "" || dda.Spec.Credentials.AppKey != "") &&
 		!datadoghqv1alpha1.BoolValue(dda.Spec.Credentials.UseSecretBackend)
 }

@@ -8,7 +8,6 @@ package datadogagent
 import (
 	"context"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -22,7 +21,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
-	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 )
@@ -128,16 +126,12 @@ func (r *Reconciler) cleanupSecret(namespace, name string, dda *datadoghqv1alpha
 
 func dataFromCredentials(credentials *datadoghqv1alpha1.DatadogCredentials) map[string][]byte {
 	data := make(map[string][]byte)
-	// Create secret using DatadogAgent credentials if it exists, otherwise use Datadog Operator env var
+	// Create secret using DatadogAgent credentials if it exists
 	if credentials.APIKey != "" {
 		data[datadoghqv1alpha1.DefaultAPIKeyKey] = []byte(credentials.APIKey)
-	} else if os.Getenv(config.DDAPIKeyEnvVar) != "" {
-		data[datadoghqv1alpha1.DefaultAPIKeyKey] = []byte(os.Getenv(config.DDAPIKeyEnvVar))
 	}
 	if credentials.AppKey != "" {
 		data[datadoghqv1alpha1.DefaultAPPKeyKey] = []byte(credentials.AppKey)
-	} else if os.Getenv(config.DDAppKeyEnvVar) != "" {
-		data[datadoghqv1alpha1.DefaultAPPKeyKey] = []byte(os.Getenv(config.DDAppKeyEnvVar))
 	}
 
 	return data

@@ -22,6 +22,7 @@ import (
 
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	"github.com/go-logr/logr"
+	"github.com/gobwas/glob"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -1792,6 +1793,33 @@ func getDefaultLabels(dda *datadoghqv1alpha1.DatadogAgent, instanceName, version
 func getDefaultAnnotations(*datadoghqv1alpha1.DatadogAgent) map[string]string {
 	// Currently we don't have any annotation to set by default
 	return map[string]string{}
+}
+
+func mergeAnnotationsLabels(logger logr.Logger, previousVal map[string]string, newVal map[string]string, filter string) map[string]string {
+	var globFilter glob.Glob
+	var err error
+	if filter != "" {
+		globFilter, err = glob.Compile(filter)
+		if err != nil {
+			logger.Error(err, "Unable to parse glob filter for metadata/annotations - discarding everything", "filter", filter)
+		}
+	}
+
+	mergedMap := make(map[string]string, len(newVal))
+	for k, v := range newVal {
+		mergedMap[k] = v
+	}
+
+	// Copy from previous if not in new match and matches globfilter
+	for k, v := range previousVal {
+		if _, found := newVal[k]; !found {
+			if (globFilter != nil && globFilter.Match(k)) || strings.Contains(k, "datadoghq.com") {
+				mergedMap[k] = v
+			}
+		}
+	}
+
+	return mergedMap
 }
 
 var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")

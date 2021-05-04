@@ -32,9 +32,8 @@ type DatadogFeatures struct {
 // DatadogAgentSpec defines the desired state of DatadogAgent.
 // +k8s:openapi-gen=true
 type DatadogAgentSpec struct {
-	// Configure the credentials needed to run Agents. If not set, then the credentials
-	// set in the DatadogOperator will be used.
-	Credentials AgentCredentials `json:"credentials,omitempty"`
+	// Configure the credentials needed to run Agents.
+	Credentials AgentCredentials `json:"credentials"`
 
 	// Features running on the Agent and Cluster Agent.
 	// +optional
@@ -156,6 +155,14 @@ type DatadogAgentSpecAgentSpec struct {
 
 	// AdditionalLabels provide labels that will be added to the Agent Pods.
 	AdditionalLabels map[string]string `json:"additionalLabels,omitempty"`
+
+	// KeepLabels allows the specification of labels not managed by the Operator that will be kept on Agent DaemonSet.
+	// All labels containing 'datadoghq.com' are always included. This field uses glob syntax.
+	KeepLabels string `json:"keepLabels,omitempty"`
+
+	// KeepAnnotations allows the specification of annotations not managed by the Operator that will be kept on Agent DaemonSet.
+	// All annotations containing 'datadoghq.com' are always included. This field uses glob syntax.
+	KeepAnnotations string `json:"keepAnnotations,omitempty"`
 
 	// If specified, indicates the pod's priority. "system-node-critical" and "system-cluster-critical"
 	// are two special keywords which indicate the highest priorities with the former being the highest priority.
@@ -852,6 +859,14 @@ type DatadogAgentSpecClusterAgentSpec struct {
 
 	// AdditionalLabels provide labels that will be added to the Cluster Agent Pods.
 	AdditionalLabels map[string]string `json:"additionalLabels,omitempty"`
+
+	// KeepLabels allows the specification of labels not managed by the Operator that will be kept on ClusterAgent Deployment.
+	// All labels containing 'datadoghq.com' are always included. This field uses glob syntax.
+	KeepLabels string `json:"keepLabels,omitempty"`
+
+	// KeepAnnotations allows the specification of annotations not managed by the Operator that will be kept on ClusterAgent Deployment.
+	// All annotations containing 'datadoghq.com' are always included. This field uses glob syntax.
+	KeepAnnotations string `json:"keepAnnotations,omitempty"`
 
 	// If specified, indicates the pod's priority. "system-node-critical" and "system-cluster-critical"
 	// are two special keywords which indicate the highest priorities with the former being the highest priority.
