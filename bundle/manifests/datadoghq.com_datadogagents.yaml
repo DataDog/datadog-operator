@@ -64,6 +64,16 @@ spec:
                 apm:
                   description: Trace Agent configuration
                   properties:
+                    args:
+                      description: Args allows the specification of extra args to `Command` parameter
+                      items:
+                        type: string
+                      type: array
+                    command:
+                      description: Command allows the specification of custom entrypoint for Trace Agent container
+                      items:
+                        type: string
+                      type: array
                     enabled:
                       description: 'Enable this to enable APM and tracing, on port 8126. See also: https://github.com/DataDog/docker-dd-agent#tracing-from-the-host'
                       type: boolean
@@ -212,6 +222,11 @@ spec:
                 config:
                   description: Agent configuration.
                   properties:
+                    args:
+                      description: Args allows the specification of extra args to `Command` parameter
+                      items:
+                        type: string
+                      type: array
                     checksd:
                       description: Checksd configuration allowing to specify custom checks placed under /etc/datadog-agent/checks.d/ See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.
                       properties:
@@ -222,6 +237,11 @@ spec:
                     collectEvents:
                       description: 'Enables this to start event collection from the Kubernetes API. See also: https://docs.datadoghq.com/agent/kubernetes/event_collection/'
                       type: boolean
+                    command:
+                      description: Command allows the specification of custom entrypoint for the Agent container
+                      items:
+                        type: string
+                      type: array
                     confd:
                       description: Confd configuration allowing to specify config files for custom checks placed under /etc/datadog-agent/conf.d/. See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.
                       properties:
@@ -1822,6 +1842,16 @@ spec:
                 process:
                   description: Process Agent configuration
                   properties:
+                    args:
+                      description: Args allows the specification of extra args to `Command` parameter
+                      items:
+                        type: string
+                      type: array
+                    command:
+                      description: Command allows the specification of custom entrypoint for Process Agent container
+                      items:
+                        type: string
+                      type: array
                     enabled:
                       description: 'Note: /etc/passwd is automatically mounted to allow username resolution. See also: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset'
                       type: boolean
@@ -1969,6 +1999,16 @@ spec:
                 security:
                   description: Security Agent configuration
                   properties:
+                    args:
+                      description: Args allows the specification of extra args to `Command` parameter
+                      items:
+                        type: string
+                      type: array
+                    command:
+                      description: Command allows the specification of custom entrypoint for Security Agent container
+                      items:
+                        type: string
+                      type: array
                     compliance:
                       description: Compliance configuration.
                       properties:
@@ -2141,12 +2181,22 @@ spec:
                     appArmorProfileName:
                       description: AppArmorProfileName specify a apparmor profile.
                       type: string
+                    args:
+                      description: Args allows the specification of extra args to `Command` parameter
+                      items:
+                        type: string
+                      type: array
                     bpfDebugEnabled:
                       description: BPFDebugEnabled logging for kernel debug.
                       type: boolean
                     collectDNSStats:
                       description: CollectDNSStats enables DNS stat collection.
                       type: boolean
+                    command:
+                      description: Command allows the specification of custom entrypoint for System Probe container
+                      items:
+                        type: string
+                      type: array
                     conntrackEnabled:
                       description: 'ConntrackEnabled enable the system-probe agent to connect to the netlink/conntrack subsystem to add NAT information to connection data. See also: http://conntrack-tools.netfilter.org/'
                       type: boolean
@@ -2732,12 +2782,22 @@ spec:
                           description: ServiceName corresponds to the webhook service name.
                           type: string
                       type: object
+                    args:
+                      description: Args allows the specification of extra args to `Command` parameter
+                      items:
+                        type: string
+                      type: array
                     clusterChecksEnabled:
                       description: 'Enable the Cluster Checks and Endpoint Checks feature on both the cluster-agents and the daemonset. See also: https://docs.datadoghq.com/agent/cluster_agent/clusterchecks/ https://docs.datadoghq.com/agent/cluster_agent/endpointschecks/ Autodiscovery via Kube Service annotations is automatically enabled.'
                       type: boolean
                     collectEvents:
                       description: 'Enable this to start event collection from the kubernetes API. See also: https://docs.datadoghq.com/agent/cluster_agent/event_collection/'
                       type: boolean
+                    command:
+                      description: Command allows the specification of custom entrypoint for Cluster Agent container
+                      items:
+                        type: string
+                      type: array
                     confd:
                       description: Confd Provide additional cluster check configurations. Each key will become a file in /conf.d. see https://docs.datadoghq.com/agent/autodiscovery/ for more details.
                       properties:
@@ -4294,6 +4354,16 @@ spec:
                 config:
                   description: Agent configuration.
                   properties:
+                    args:
+                      description: Args allows the specification of extra args to `Command` parameter
+                      items:
+                        type: string
+                      type: array
+                    command:
+                      description: Command allows the specification of custom entrypoint for Cluster Checks Runner container
+                      items:
+                        type: string
+                      type: array
                     env:
                       description: 'The Datadog Agent supports many environment variables. See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables'
                       items:
