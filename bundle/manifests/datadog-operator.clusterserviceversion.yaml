@@ -103,7 +103,7 @@ metadata:
     operators.operatorframework.io/builder: operator-sdk-v1.4.0+git
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
     repository: https://github.com/DataDog/datadog-operator
-  name: datadog-operator.v0.6.0-rc.5
+  name: datadog-operator.v0.6.0-rc.6
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -453,6 +453,18 @@ spec:
           - list
           - watch
         - apiGroups:
+          - coordination.k8s.io
+          resources:
+          - leases
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
           - datadoghq.com
           resources:
           - datadogagents
@@ -719,7 +731,7 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.annotations['olm.targetNamespaces']
-                image: gcr.io/datadoghq/operator:0.6.0-rc.5
+                image: gcr.io/datadoghq/operator:0.6.0-rc.6
                 imagePullPolicy: Always
                 livenessProbe:
                   httpGet:
@@ -769,6 +781,18 @@ spec:
           verbs:
           - create
           - patch
+        - apiGroups:
+          - coordination.k8s.io
+          resources:
+          - leases
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - patch
+          - delete
         serviceAccountName: datadog-operator-manager
     strategy: deployment
   installModes:
@@ -796,5 +820,5 @@ spec:
   maturity: alpha
   provider:
     name: Datadog
-  version: 0.6.0-rc.5
+  version: 0.6.0-rc.6
   replaces: datadog-operator.v0.5.0

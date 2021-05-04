@@ -1777,6 +1777,12 @@ spec:
                   required:
                   - name
                   type: object
+                keepAnnotations:
+                  description: KeepAnnotations allows the specification of annotations not managed by the Operator that will be kept on Agent DaemonSet. All annotations containing 'datadoghq.com' are always included. This field uses glob syntax.
+                  type: string
+                keepLabels:
+                  description: KeepLabels allows the specification of labels not managed by the Operator that will be kept on Agent DaemonSet. All labels containing 'datadoghq.com' are always included. This field uses glob syntax.
+                  type: string
                 log:
                   description: Log Agent configuration
                   properties:
@@ -3870,6 +3876,12 @@ spec:
                   required:
                   - name
                   type: object
+                keepAnnotations:
+                  description: KeepAnnotations allows the specification of annotations not managed by the Operator that will be kept on ClusterAgent Deployment. All annotations containing 'datadoghq.com' are always included. This field uses glob syntax.
+                  type: string
+                keepLabels:
+                  description: KeepLabels allows the specification of labels not managed by the Operator that will be kept on ClusterAgent Deployment. All labels containing 'datadoghq.com' are always included. This field uses glob syntax.
+                  type: string
                 networkPolicy:
                   description: Provide Cluster Agent Network Policy configuration.
                   properties:
@@ -5412,7 +5424,7 @@ spec:
               description: Set a unique cluster name to allow scoping hosts and Cluster Checks Runner easily.
               type: string
             credentials:
-              description: Configure the credentials needed to run Agents. If not set, then the credentials set in the DatadogOperator will be used.
+              description: Configure the credentials needed to run Agents.
               properties:
                 apiKey:
                   description: 'APIKey Set this to your Datadog API key before the Agent runs. See also: https://app.datadoghq.com/account/settings#agent/kubernetes'
@@ -5558,6 +5570,8 @@ spec:
             site:
               description: The site of the Datadog intake to send Agent data to. Set to 'datadoghq.eu' to send data to the EU site.
               type: string
+          required:
+          - credentials
           type: object
         status:
           description: DatadogAgentStatus defines the observed state of DatadogAgent.
