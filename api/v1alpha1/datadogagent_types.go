@@ -325,6 +325,14 @@ type APMSpec struct {
 	// Make sure to keep requests and limits equal to keep the pods in the Guaranteed QoS class.
 	// See also: http://kubernetes.io/docs/user-guide/compute-resources/
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
+
+	// Command allows the specification of custom entrypoint for Trace Agent container
+	// +listType=atomic
+	Command []string `json:"command,omitempty"`
+
+	// Args allows the specification of extra args to `Command` parameter
+	// +listType=atomic
+	Args []string `json:"args,omitempty"`
 }
 
 // APMUnixDomainSocketSpec contains the APM Unix Domain Socket configuration.
@@ -428,6 +436,14 @@ type ProcessSpec struct {
 	// Make sure to keep requests and limits equal to keep the pods in the Guaranteed QoS class.
 	// See also: http://kubernetes.io/docs/user-guide/compute-resources/
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
+
+	// Command allows the specification of custom entrypoint for Process Agent container
+	// +listType=atomic
+	Command []string `json:"command,omitempty"`
+
+	// Args allows the specification of extra args to `Command` parameter
+	// +listType=atomic
+	Args []string `json:"args,omitempty"`
 }
 
 // KubeStateMetricsCore contains the required parameters to enable and override the configuration
@@ -555,6 +571,14 @@ type SystemProbeSpec struct {
 	// See also: http://kubernetes.io/docs/user-guide/compute-resources/
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
 
+	// Command allows the specification of custom entrypoint for System Probe container
+	// +listType=atomic
+	Command []string `json:"command,omitempty"`
+
+	// Args allows the specification of extra args to `Command` parameter
+	// +listType=atomic
+	Args []string `json:"args,omitempty"`
+
 	// You can modify the security context used to run the containers by
 	// modifying the label type.
 	// +optional
@@ -591,6 +615,14 @@ type SecuritySpec struct {
 	// Make sure to keep requests and limits equal to keep the pods in the Guaranteed QoS class.
 	// See also: http://kubernetes.io/docs/user-guide/compute-resources/
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
+
+	// Command allows the specification of custom entrypoint for Security Agent container
+	// +listType=atomic
+	Command []string `json:"command,omitempty"`
+
+	// Args allows the specification of extra args to `Command` parameter
+	// +listType=atomic
+	Args []string `json:"args,omitempty"`
 }
 
 // ComplianceSpec contains configuration for continuous compliance.
@@ -737,6 +769,14 @@ type NodeAgentConfig struct {
 	// Make sure to keep requests and limits equal to keep the pods in the Guaranteed QoS class.
 	// See also: http://kubernetes.io/docs/user-guide/compute-resources/
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
+
+	// Command allows the specification of custom entrypoint for the Agent container
+	// +listType=atomic
+	Command []string `json:"command,omitempty"`
+
+	// Args allows the specification of extra args to `Command` parameter
+	// +listType=atomic
+	Args []string `json:"args,omitempty"`
 
 	// Configure the CRI Socket.
 	CriSocket *CRISocketConfig `json:"criSocket,omitempty"`
@@ -921,6 +961,14 @@ type ClusterAgentConfig struct {
 	// Datadog cluster-agent resource requests and limits.
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
 
+	// Command allows the specification of custom entrypoint for Cluster Agent container
+	// +listType=atomic
+	Command []string `json:"command,omitempty"`
+
+	// Args allows the specification of extra args to `Command` parameter
+	// +listType=atomic
+	Args []string `json:"args,omitempty"`
+
 	// Confd Provide additional cluster check configurations. Each key will become a file in /conf.d.
 	// see https://docs.datadoghq.com/agent/autodiscovery/ for more details.
 	// +optional
@@ -1002,6 +1050,14 @@ type AdmissionControllerConfig struct {
 type ClusterChecksRunnerConfig struct {
 	// Datadog Cluster Checks Runner resource requests and limits.
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
+
+	// Command allows the specification of custom entrypoint for Cluster Checks Runner container
+	// +listType=atomic
+	Command []string `json:"command,omitempty"`
+
+	// Args allows the specification of extra args to `Command` parameter
+	// +listType=atomic
+	Args []string `json:"args,omitempty"`
 
 	// Set logging verbosity, valid log levels are:
 	// trace, debug, info, warn, error, critical, and off

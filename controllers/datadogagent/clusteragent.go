@@ -437,6 +437,8 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 				},
 				Env:          envs,
 				VolumeMounts: volumeMounts,
+				Command:      getDefaultIfEmpty(dda.Spec.ClusterAgent.Config.Command, nil),
+				Args:         getDefaultIfEmpty(dda.Spec.ClusterAgent.Config.Args, nil),
 			},
 		},
 		Affinity:          clusterAgentSpec.Affinity,

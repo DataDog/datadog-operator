@@ -253,11 +253,9 @@ func getAgentContainer(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) 
 		Name:            "agent",
 		Image:           agentSpec.Image.Name,
 		ImagePullPolicy: *agentSpec.Image.PullPolicy,
-		Command: []string{
-			"agent",
-			"run",
-		},
-		Resources: *agentSpec.Config.Resources,
+		Command:         getDefaultIfEmpty(dda.Spec.Agent.Config.Command, []string{"agent", "run"}),
+		Args:            getDefaultIfEmpty(dda.Spec.Agent.Config.Args, nil),
+		Resources:       *agentSpec.Config.Resources,
 		Ports: []corev1.ContainerPort{
 			udpPort,
 		},
@@ -289,11 +287,8 @@ func getAPMAgentContainers(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.Contai
 		Name:            "trace-agent",
 		Image:           agentSpec.Image.Name,
 		ImagePullPolicy: *agentSpec.Image.PullPolicy,
-		Command: []string{
-			"trace-agent",
-			fmt.Sprintf("--config=%s", datadoghqv1alpha1.AgentCustomConfigVolumePath),
-		},
-
+		Command:         getDefaultIfEmpty(dda.Spec.Agent.Apm.Command, []string{"trace-agent", fmt.Sprintf("--config=%s", datadoghqv1alpha1.AgentCustomConfigVolumePath)}),
+		Args:            getDefaultIfEmpty(dda.Spec.Agent.Apm.Args, nil),
 		Ports: []corev1.ContainerPort{
 			tcpPort,
 		},
@@ -319,11 +314,11 @@ func getProcessContainers(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.Contain
 		Name:            "process-agent",
 		Image:           agentSpec.Image.Name,
 		ImagePullPolicy: *agentSpec.Image.PullPolicy,
-		Command: []string{
-			"process-agent",
-			fmt.Sprintf("--config=%s", datadoghqv1alpha1.AgentCustomConfigVolumePath),
+		Command: getDefaultIfEmpty(dda.Spec.Agent.Process.Command, []string{
+			"process-agent", fmt.Sprintf("--config=%s", datadoghqv1alpha1.AgentCustomConfigVolumePath),
 			fmt.Sprintf("--sysprobe-config=%s", datadoghqv1alpha1.SystemProbeConfigVolumePath),
-		},
+		}),
+		Args:         getDefaultIfEmpty(dda.Spec.Agent.Process.Args, nil),
 		Env:          envVars,
 		VolumeMounts: getVolumeMountsForProcessAgent(dda),
 	}
@@ -341,14 +336,13 @@ func getSystemProbeContainers(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.Con
 	if err != nil {
 		return nil, err
 	}
+
 	systemProbe := corev1.Container{
 		Name:            "system-probe",
 		Image:           agentSpec.Image.Name,
 		ImagePullPolicy: *agentSpec.Image.PullPolicy,
-		Command: []string{
-			"/opt/datadog-agent/embedded/bin/system-probe",
-			fmt.Sprintf("--config=%s", datadoghqv1alpha1.SystemProbeConfigVolumePath),
-		},
+		Command:         getDefaultIfEmpty(dda.Spec.Agent.SystemProbe.Command, []string{"system-probe", fmt.Sprintf("--config=%s", datadoghqv1alpha1.SystemProbeConfigVolumePath)}),
+		Args:            getDefaultIfEmpty(dda.Spec.Agent.SystemProbe.Args, nil),
 		SecurityContext: &corev1.SecurityContext{
 			Capabilities: &corev1.Capabilities{
 				Add: []corev1.Capability{
@@ -386,11 +380,8 @@ func getSecurityAgentContainer(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.Con
 		Name:            "security-agent",
 		Image:           agentSpec.Image.Name,
 		ImagePullPolicy: *agentSpec.Image.PullPolicy,
-		Command: []string{
-			"security-agent",
-			"start",
-			fmt.Sprintf("-c=%s", datadoghqv1alpha1.AgentCustomConfigVolumePath),
-		},
+		Command:         getDefaultIfEmpty(dda.Spec.Agent.Security.Command, []string{"security-agent", "start", fmt.Sprintf("-c=%s", datadoghqv1alpha1.AgentCustomConfigVolumePath)}),
+		Args:            getDefaultIfEmpty(dda.Spec.Agent.Security.Args, nil),
 		SecurityContext: &corev1.SecurityContext{
 			Capabilities: &corev1.Capabilities{
 				Add: []corev1.Capability{"AUDIT_CONTROL", "AUDIT_READ"},
@@ -2206,4 +2197,12 @@ func envForClusterAgentConnection(dda *datadoghqv1alpha1.DatadogAgent) []corev1.
 		}
 	}
 	return []corev1.EnvVar{}
+}
+
+func getDefaultIfEmpty(val, def []string) []string {
+	if len(val) > 0 {
+		return val
+	}
+
+	return def
 }

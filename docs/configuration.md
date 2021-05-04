@@ -30,6 +30,8 @@ spec:
 | --------- | ----------- |
 | agent.additionalAnnotations | AdditionalAnnotations provide annotations that will be added to the Agent Pods. |
 | agent.additionalLabels | AdditionalLabels provide labels that will be added to the Agent Pods. |
+| agent.apm.args | Args allows the specification of extra args to `Command` parameter |
+| agent.apm.command | Command allows the specification of custom entrypoint for Trace Agent container |
 | agent.apm.enabled | Enable this to enable APM and tracing, on port 8126. See also: https://github.com/DataDog/docker-dd-agent#tracing-from-the-host |
 | agent.apm.env | The Datadog Agent supports many environment variables. See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables |
 | agent.apm.hostPort | Number of port to expose on the host. If specified, this must be a valid port number, 0 < x < 65536. If HostNetwork is specified, this must match ContainerPort. Most containers do not need this. |
@@ -38,8 +40,10 @@ spec:
 | agent.apm.unixDomainSocket.enabled | Enable APM over Unix Domain Socket See also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables |
 | agent.apm.unixDomainSocket.hostFilepath | Define the host APM socket filepath used when APM over Unix Domain Socket is enabled. (default value: /var/run/datadog/apm.sock) See also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables |
 | agent.apm.volumeMounts | Specify additional volume mounts in the APM Agent container. |
+| agent.config.args | Args allows the specification of extra args to `Command` parameter |
 | agent.config.checksd.configMapName | ConfigMapName name of a ConfigMap used to mount a directory. |
 | agent.config.collectEvents | Enables this to start event collection from the Kubernetes API. See also: https://docs.datadoghq.com/agent/kubernetes/event_collection/ |
+| agent.config.command | Command allows the specification of custom entrypoint for the Agent container |
 | agent.config.confd.configMapName | ConfigMapName name of a ConfigMap used to mount a directory. |
 | agent.config.criSocket.criSocketPath | Path to the container runtime socket (if different from Docker). This is supported starting from agent 6.6.0. |
 | agent.config.criSocket.dockerSocketPath | Path to the docker runtime socket. |
@@ -136,6 +140,8 @@ spec:
 | agent.log.tempStoragePath | This path (always mounted from the host) is used by Datadog Agent to store information about processed log files. If the Datadog Agent is restarted, it starts tailing the log files immediately. Default to `/var/lib/datadog-agent/logs` |
 | agent.networkPolicy.create | If true, create a NetworkPolicy for the current agent. |
 | agent.priorityClassName | If specified, indicates the pod's priority. "system-node-critical" and "system-cluster-critical" are two special keywords which indicate the highest priorities with the former being the highest priority. Any other name must be defined by creating a PriorityClass object with that name. If not specified, the pod priority will be default or zero if there is no default. |
+| agent.process.args | Args allows the specification of extra args to `Command` parameter |
+| agent.process.command | Command allows the specification of custom entrypoint for Process Agent container |
 | agent.process.enabled | Note: /etc/passwd is automatically mounted to allow username resolution. See also: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset |
 | agent.process.env | The Datadog Agent supports many environment variables. See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables |
 | agent.process.processCollectionEnabled | false (default): Only collect containers if available. true: collect process information as well |
@@ -144,6 +150,8 @@ spec:
 | agent.process.volumeMounts | Specify additional volume mounts in the Process Agent container. |
 | agent.rbac.create | Used to configure RBAC resources creation. |
 | agent.rbac.serviceAccountName | Used to set up the service account name to use. Ignored if the field Create is true. |
+| agent.security.args | Args allows the specification of extra args to `Command` parameter |
+| agent.security.command | Command allows the specification of custom entrypoint for Security Agent container |
 | agent.security.compliance.checkInterval | Check interval. |
 | agent.security.compliance.configDir.configMapName | ConfigMapName name of a ConfigMap used to mount a directory. |
 | agent.security.compliance.enabled | Enables continuous compliance monitoring. |
@@ -155,8 +163,10 @@ spec:
 | agent.security.runtime.syscallMonitor.enabled | Enabled enables syscall monitor |
 | agent.security.volumeMounts | Specify additional volume mounts in the Security Agent container. |
 | agent.systemProbe.appArmorProfileName | AppArmorProfileName specify a apparmor profile. |
+| agent.systemProbe.args | Args allows the specification of extra args to `Command` parameter |
 | agent.systemProbe.bpfDebugEnabled | BPFDebugEnabled logging for kernel debug. |
 | agent.systemProbe.collectDNSStats | CollectDNSStats enables DNS stat collection. |
+| agent.systemProbe.command | Command allows the specification of custom entrypoint for System Probe container |
 | agent.systemProbe.conntrackEnabled | ConntrackEnabled enable the system-probe agent to connect to the netlink/conntrack subsystem to add NAT information to connection data. See also: http://conntrack-tools.netfilter.org/ |
 | agent.systemProbe.debugPort | DebugPort Specify the port to expose pprof and expvar for system-probe agent. |
 | agent.systemProbe.enableOOMKill | EnableOOMKill enables the OOM kill eBPF-based check. |
@@ -198,8 +208,10 @@ spec:
 | clusterAgent.config.admissionController.enabled | Enable the admission controller to be able to inject APM/Dogstatsd config and standard tags (env, service, version) automatically into your pods. |
 | clusterAgent.config.admissionController.mutateUnlabelled | MutateUnlabelled enables injecting config without having the pod label 'admission.datadoghq.com/enabled="true"'. |
 | clusterAgent.config.admissionController.serviceName | ServiceName corresponds to the webhook service name. |
+| clusterAgent.config.args | Args allows the specification of extra args to `Command` parameter |
 | clusterAgent.config.clusterChecksEnabled | Enable the Cluster Checks and Endpoint Checks feature on both the cluster-agents and the daemonset. See also: https://docs.datadoghq.com/agent/cluster_agent/clusterchecks/ https://docs.datadoghq.com/agent/cluster_agent/endpointschecks/ Autodiscovery via Kube Service annotations is automatically enabled. |
 | clusterAgent.config.collectEvents | Enable this to start event collection from the kubernetes API. See also: https://docs.datadoghq.com/agent/cluster_agent/event_collection/ |
+| clusterAgent.config.command | Command allows the specification of custom entrypoint for Cluster Agent container |
 | clusterAgent.config.confd.configMapName | ConfigMapName name of a ConfigMap used to mount a directory. |
 | clusterAgent.config.env | The Datadog Agent supports many environment variables. See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables |
 | clusterAgent.config.externalMetrics.credentials.apiKey | APIKey Set this to your Datadog API key before the Agent runs. See also: https://app.datadoghq.com/account/settings#agent/kubernetes |
@@ -244,6 +256,8 @@ spec:
 | clusterChecksRunner.affinity.podAffinity.requiredDuringSchedulingIgnoredDuringExecution | If the affinity requirements specified by this field are not met at scheduling time, the pod will not be scheduled onto the node. If the affinity requirements specified by this field cease to be met at some point during pod execution (e.g. due to a pod label update), the system may or may not try to eventually evict the pod from its node. When there are multiple elements, the lists of nodes corresponding to each podAffinityTerm are intersected, i.e. all terms must be satisfied. |
 | clusterChecksRunner.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution | The scheduler will prefer to schedule pods to nodes that satisfy the anti-affinity expressions specified by this field, but it may choose a node that violates one or more of the expressions. The node that is most preferred is the one with the greatest sum of weights, i.e. for each node that meets all of the scheduling requirements (resource request, requiredDuringScheduling anti-affinity expressions, etc.), compute a sum by iterating through the elements of this field and adding "weight" to the sum if the node has pods which matches the corresponding podAffinityTerm; the node(s) with the highest sum are the most preferred. |
 | clusterChecksRunner.affinity.podAntiAffinity.requiredDuringSchedulingIgnoredDuringExecution | If the anti-affinity requirements specified by this field are not met at scheduling time, the pod will not be scheduled onto the node. If the anti-affinity requirements specified by this field cease to be met at some point during pod execution (e.g. due to a pod label update), the system may or may not try to eventually evict the pod from its node. When there are multiple elements, the lists of nodes corresponding to each podAffinityTerm are intersected, i.e. all terms must be satisfied. |
+| clusterChecksRunner.config.args | Args allows the specification of extra args to `Command` parameter |
+| clusterChecksRunner.config.command | Command allows the specification of custom entrypoint for Cluster Checks Runner container |
 | clusterChecksRunner.config.env | The Datadog Agent supports many environment variables. See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables |
 | clusterChecksRunner.config.logLevel | Set logging verbosity, valid log levels are: trace, debug, info, warn, error, critical, and off |
 | clusterChecksRunner.config.resources.limits | Limits describes the maximum amount of compute resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/ |
