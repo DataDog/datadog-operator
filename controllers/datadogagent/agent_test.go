@@ -512,6 +512,22 @@ func runtimeSecurityAgentVolumes() []corev1.Volume {
 				},
 			},
 		},
+		{
+			Name: datadoghqv1alpha1.GroupVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: datadoghqv1alpha1.GroupVolumePath,
+				},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.HostRootVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/",
+				},
+			},
+		},
 	}
 }
 
@@ -655,6 +671,11 @@ func complianceSecurityAgentMountVolume() []corev1.VolumeMount {
 			MountPath: "/etc/datadog-agent",
 		},
 		{
+			Name:      "hostroot",
+			MountPath: "/host/root",
+			ReadOnly:  true,
+		},
+		{
 			Name:      "cgroups",
 			MountPath: "/host/sys/fs/cgroup",
 			ReadOnly:  true,
@@ -672,11 +693,6 @@ func complianceSecurityAgentMountVolume() []corev1.VolumeMount {
 		{
 			Name:      "procdir",
 			MountPath: "/host/proc",
-			ReadOnly:  true,
-		},
-		{
-			Name:      "hostroot",
-			MountPath: "/host/root",
 			ReadOnly:  true,
 		},
 		{
@@ -706,6 +722,11 @@ func runtimeSecurityAgentMountVolume() []corev1.VolumeMount {
 		{
 			Name:      "config",
 			MountPath: "/etc/datadog-agent",
+		},
+		{
+			Name:      "hostroot",
+			MountPath: "/host/root",
+			ReadOnly:  true,
 		},
 		{
 			Name:      "runtimesocketdir",
@@ -874,17 +895,16 @@ func securityAgentEnvVars(compliance, runtime bool, extraEnv map[string]string) 
 			Name:  "DD_COMPLIANCE_CONFIG_ENABLED",
 			Value: strconv.FormatBool(compliance),
 		},
+		{
+			Name:  "HOST_ROOT",
+			Value: "/host/root",
+		},
 	}
 
 	if compliance {
 		if envDuration := createEnvFromExtra(extraEnv, "DD_COMPLIANCE_CONFIG_CHECK_INTERVAL"); envDuration != nil {
 			env = append(env, *envDuration)
 		}
-
-		env = append(env, corev1.EnvVar{
-			Name:  "HOST_ROOT",
-			Value: "/host/root",
-		})
 	}
 
 	env = append(env, []corev1.EnvVar{
