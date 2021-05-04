@@ -103,7 +103,7 @@ metadata:
     operators.operatorframework.io/builder: operator-sdk-v1.4.0+git
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
     repository: https://github.com/DataDog/datadog-operator
-  name: datadog-operator.v0.6.0-rc.7
+  name: datadog-operator.v0.6.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -731,7 +731,7 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.annotations['olm.targetNamespaces']
-                image: gcr.io/datadoghq/operator:0.6.0-rc.7
+                image: gcr.io/datadoghq/operator:0.6.0
                 imagePullPolicy: Always
                 livenessProbe:
                   httpGet:
@@ -820,5 +820,5 @@ spec:
   maturity: alpha
   provider:
     name: Datadog
-  version: 0.6.0-rc.7
+  version: 0.6.0
   replaces: datadog-operator.v0.5.0
