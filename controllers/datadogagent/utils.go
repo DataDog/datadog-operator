@@ -1068,7 +1068,7 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 		}
 	}
 
-	if isRuntimeSecurityEnabled(&dda.Spec) || isComplianceEnabled(&dda.Spec) {
+	if isSecurityAgentEnabled(&dda.Spec) {
 		groupVolume := corev1.Volume{
 			Name: datadoghqv1alpha1.GroupVolumeName,
 			VolumeSource: corev1.VolumeSource{
