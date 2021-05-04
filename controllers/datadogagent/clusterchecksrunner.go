@@ -277,10 +277,8 @@ func newClusterChecksRunnerPodTemplate(dda *datadoghqv1alpha1.DatadogAgent, labe
 					VolumeMounts:    volumeMounts,
 					LivenessProbe:   getDefaultLivenessProbe(),
 					ReadinessProbe:  getDefaultReadinessProbe(),
-					Command: []string{
-						"agent",
-						"run",
-					},
+					Command:         getDefaultIfEmpty(dda.Spec.ClusterChecksRunner.Config.Command, []string{"agent", "run"}),
+					Args:            getDefaultIfEmpty(dda.Spec.ClusterChecksRunner.Config.Args, nil),
 				},
 			},
 			Volumes:           getVolumesForClusterChecksRunner(dda),

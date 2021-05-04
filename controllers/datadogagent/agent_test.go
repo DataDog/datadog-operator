@@ -512,6 +512,22 @@ func runtimeSecurityAgentVolumes() []corev1.Volume {
 				},
 			},
 		},
+		{
+			Name: datadoghqv1alpha1.GroupVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: datadoghqv1alpha1.GroupVolumePath,
+				},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.HostRootVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/",
+				},
+			},
+		},
 	}
 }
 
@@ -655,6 +671,11 @@ func complianceSecurityAgentMountVolume() []corev1.VolumeMount {
 			MountPath: "/etc/datadog-agent",
 		},
 		{
+			Name:      "hostroot",
+			MountPath: "/host/root",
+			ReadOnly:  true,
+		},
+		{
 			Name:      "cgroups",
 			MountPath: "/host/sys/fs/cgroup",
 			ReadOnly:  true,
@@ -672,11 +693,6 @@ func complianceSecurityAgentMountVolume() []corev1.VolumeMount {
 		{
 			Name:      "procdir",
 			MountPath: "/host/proc",
-			ReadOnly:  true,
-		},
-		{
-			Name:      "hostroot",
-			MountPath: "/host/root",
 			ReadOnly:  true,
 		},
 		{
@@ -706,6 +722,11 @@ func runtimeSecurityAgentMountVolume() []corev1.VolumeMount {
 		{
 			Name:      "config",
 			MountPath: "/etc/datadog-agent",
+		},
+		{
+			Name:      "hostroot",
+			MountPath: "/host/root",
+			ReadOnly:  true,
 		},
 		{
 			Name:      "runtimesocketdir",
@@ -874,17 +895,16 @@ func securityAgentEnvVars(compliance, runtime bool, extraEnv map[string]string) 
 			Name:  "DD_COMPLIANCE_CONFIG_ENABLED",
 			Value: strconv.FormatBool(compliance),
 		},
+		{
+			Name:  "HOST_ROOT",
+			Value: "/host/root",
+		},
 	}
 
 	if compliance {
 		if envDuration := createEnvFromExtra(extraEnv, "DD_COMPLIANCE_CONFIG_CHECK_INTERVAL"); envDuration != nil {
 			env = append(env, *envDuration)
 		}
-
-		env = append(env, corev1.EnvVar{
-			Name:  "HOST_ROOT",
-			Value: "/host/root",
-		})
 	}
 
 	env = append(env, []corev1.EnvVar{
@@ -1103,7 +1123,7 @@ func defaultSystemProbePodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodSp
 				Image:           "gcr.io/datadoghq/agent:latest",
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Command: []string{
-					"/opt/datadog-agent/embedded/bin/system-probe",
+					"system-probe",
 					"--config=/etc/datadog-agent/system-probe.yaml",
 				},
 				SecurityContext: &corev1.SecurityContext{
@@ -1386,7 +1406,7 @@ func runtimeSecurityAgentPodSpec(extraEnv map[string]string) corev1.PodSpec {
 				Image:           "gcr.io/datadoghq/agent:latest",
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Command: []string{
-					"/opt/datadog-agent/embedded/bin/system-probe",
+					"system-probe",
 					"--config=/etc/datadog-agent/system-probe.yaml",
 				},
 				SecurityContext: &corev1.SecurityContext{
@@ -3208,6 +3228,67 @@ func Test_newExtendedDaemonSetFromInstance_KubeletConfiguration(t *testing.T) {
 						Annotations: map[string]string{},
 					},
 					Spec: customKubeletConfigPodSpec(dda.Spec.Agent.Config.Kubelet),
+				},
+				Strategy: getDefaultEDSStrategy(),
+			},
+		},
+	}
+
+	test.Run(t)
+}
+
+func Test_newExtendedDaemonSetFromInstance_ArgsCommandOverride(t *testing.T) {
+	dda := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
+		UseEDS:              true,
+		ProcessEnabled:      true,
+		ClusterAgentEnabled: true,
+	})
+
+	dda.Spec.Agent.Config.Command = []string{"my-custom-agent"}
+	dda.Spec.Agent.Config.Args = []string{"my-custom-args"}
+	dda.Spec.Agent.Process.Args = []string{"my-extra-args"}
+
+	wantSpec := defaultPodSpec(dda)
+	wantSpec.Containers[0].Command = []string{"my-custom-agent"}
+	wantSpec.Containers[0].Args = []string{"my-custom-args"}
+	wantSpec.Containers[1].Args = []string{"my-extra-args"}
+
+	test := extendedDaemonSetFromInstanceTest{
+		name:            "with custom Command/Args",
+		agentdeployment: dda,
+		wantErr:         false,
+		want: &edsdatadoghqv1alpha1.ExtendedDaemonSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "bar",
+				Name:      "foo-agent",
+				Labels: map[string]string{
+					"agent.datadoghq.com/name":      "foo",
+					"agent.datadoghq.com/component": "agent",
+					"app.kubernetes.io/instance":    "agent",
+					"app.kubernetes.io/managed-by":  "datadog-operator",
+					"app.kubernetes.io/name":        "datadog-agent-deployment",
+					"app.kubernetes.io/part-of":     "foo",
+					"app.kubernetes.io/version":     "",
+				},
+				Annotations: map[string]string{},
+			},
+			Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						GenerateName: "foo",
+						Namespace:    "bar",
+						Labels: map[string]string{
+							"agent.datadoghq.com/name":      "foo",
+							"agent.datadoghq.com/component": "agent",
+							"app.kubernetes.io/instance":    "agent",
+							"app.kubernetes.io/managed-by":  "datadog-operator",
+							"app.kubernetes.io/name":        "datadog-agent-deployment",
+							"app.kubernetes.io/part-of":     "foo",
+							"app.kubernetes.io/version":     "",
+						},
+						Annotations: map[string]string{},
+					},
+					Spec: wantSpec,
 				},
 				Strategy: getDefaultEDSStrategy(),
 			},
