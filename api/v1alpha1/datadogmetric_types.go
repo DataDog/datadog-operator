@@ -14,7 +14,7 @@ import (
 type DatadogMetricSpec struct {
 	// Query is the raw datadog query
 	Query string `json:"query,omitempty"`
-	// ExternalMetricName is reversed for internal use
+	// ExternalMetricName is reserved for internal use
 	ExternalMetricName string `json:"externalMetricName,omitempty"`
 	// MaxAge provides the max age for the metric query (overrides the default setting
 	// `external_metrics_provider.max_age`)
