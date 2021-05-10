@@ -5,6 +5,7 @@ go 1.15
 require (
 	github.com/DataDog/datadog-api-client-go v1.0.0-beta.18
 	github.com/DataDog/extendeddaemonset v0.5.1-0.20210315105301-41547d4ff09c
+	github.com/Masterminds/semver/v3 v3.1.1
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
 	github.com/go-logr/logr v0.3.0
 	github.com/go-openapi/spec v0.20.3

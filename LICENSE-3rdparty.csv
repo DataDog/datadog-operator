@@ -13,6 +13,7 @@ core,"github.com/DataDog/datadog-api-client-go/api/v1/datadog",Apache-2.0
 core,"github.com/DataDog/extendeddaemonset/api/v1alpha1",Apache-2.0
 core,"github.com/DataDog/extendeddaemonset/pkg/config",Apache-2.0
 core,"github.com/DataDog/extendeddaemonset/pkg/controller/metrics",Apache-2.0
+core,"github.com/Masterminds/semver/v3",MIT
 core,"github.com/PuerkitoBio/purell",NewBSD
 core,"github.com/PuerkitoBio/urlesc",NewBSD
 core,"github.com/andybalholm/brotli",MIT

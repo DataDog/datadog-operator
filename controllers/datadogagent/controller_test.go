@@ -623,9 +623,11 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 							ClusterAgentEnabled: false,
 							UseEDS:              false,
 							Labels:              map[string]string{"label-foo-key": "label-bar-value"},
-							NodeAgentConfig: datadoghqv1alpha1.DefaultDatadogAgentSpecAgentConfig(&datadoghqv1alpha1.NodeAgentConfig{
-								SecurityContext: &corev1.PodSecurityContext{
-									RunAsUser: datadoghqv1alpha1.NewInt64Pointer(100),
+							NodeAgentConfig: datadoghqv1alpha1.DefaultDatadogAgentSpecAgentConfig(&datadoghqv1alpha1.DatadogAgentSpecAgentSpec{
+								Config: datadoghqv1alpha1.NodeAgentConfig{
+									SecurityContext: &corev1.PodSecurityContext{
+										RunAsUser: datadoghqv1alpha1.NewInt64Pointer(100),
+									},
 								},
 							}),
 						})
