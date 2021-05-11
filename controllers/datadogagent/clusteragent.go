@@ -255,6 +255,7 @@ func (r *Reconciler) manageClusterAgentDependencies(logger logr.Logger, dda *dat
 	if shouldReturn(result, err) {
 		return result, err
 	}
+
 	result, err = r.manageKubeStateMetricsCore(logger, dda)
 	if shouldReturn(result, err) {
 		return result, err
@@ -782,6 +783,17 @@ func (r *Reconciler) manageClusterAgentRBACs(logger logr.Logger, dda *datadoghqv
 			return r.createClusterAgentRoleBinding(logger, dda, info, clusterAgentVersion)
 		}
 		return reconcile.Result{}, err
+	}
+
+	clusterAgentSuffix := "cluster-agent"
+	if isKSMCoreEnabled(dda) && !isKSMCoreClusterCheck(dda) {
+		if result, err := r.createOrUpdateKubeStateMetricsCoreRBAC(logger, dda, serviceAccountName, clusterAgentVersion, clusterAgentSuffix); err != nil {
+			return result, err
+		}
+	} else {
+		if result, err := r.cleanupKubeStateMetricsCoreRBAC(logger, dda, clusterAgentVersion, clusterAgentSuffix); err != nil {
+			return result, err
+		}
 	}
 
 	metricsProviderEnabled := isMetricsProviderEnabled(dda.Spec.ClusterAgent)

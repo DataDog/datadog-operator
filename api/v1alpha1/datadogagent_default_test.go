@@ -83,7 +83,7 @@ func TestDefaultFeatures(t *testing.T) {
 				Containers: NewBoolPointer(true),
 			},
 		},
-		KubeStateMetricsCore: &KubeStateMetricsCore{Enabled: NewBoolPointer(false)},
+		KubeStateMetricsCore: &KubeStateMetricsCore{Enabled: NewBoolPointer(false), ClusterCheck: NewBoolPointer(false)},
 		PrometheusScrape: &PrometheusScrapeConfig{
 			Enabled:          NewBoolPointer(false),
 			ServiceEndpoints: NewBoolPointer(false),

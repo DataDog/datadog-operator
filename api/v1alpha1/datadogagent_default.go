@@ -47,6 +47,7 @@ const (
 	defaultClusterChecksEnabled                          bool   = false
 	DefaultKubeStateMetricsCoreConf                      string = "kube-state-metrics-core-config"
 	defaultKubeStateMetricsCoreEnabled                   bool   = false
+	defaultKubeStateMetricsCoreClusterCheck              bool   = false
 	defaultPrometheusScrapeEnabled                       bool   = false
 	defaultPrometheusScrapeServiceEndpoints              bool   = false
 	defaultClusterAgentReplicas                          int32  = 1
@@ -216,6 +217,10 @@ func IsDefaultedKubeStateMetricsCore(ksmCore *KubeStateMetricsCore) bool {
 	}
 
 	if ksmCore.Enabled == nil {
+		return false
+	}
+
+	if ksmCore.ClusterCheck == nil {
 		return false
 	}
 
@@ -830,6 +835,10 @@ func DefaultDatadogFeatureKubeStateMetricsCore(ksmCore *KubeStateMetricsCore) *K
 
 	if ksmCore.Enabled == nil {
 		ksmCore.Enabled = NewBoolPointer(defaultKubeStateMetricsCoreEnabled)
+	}
+
+	if ksmCore.ClusterCheck == nil {
+		ksmCore.ClusterCheck = NewBoolPointer(defaultKubeStateMetricsCoreClusterCheck)
 	}
 
 	return ksmCore

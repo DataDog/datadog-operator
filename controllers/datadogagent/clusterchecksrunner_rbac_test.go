@@ -30,6 +30,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
+var kubeStateMetricsRBACName = kubeStateMetricsRBACPrefix + "check-runners"
+
 func TestReconciler_manageClusterChecksRunnerRBACs(t *testing.T) {
 	t.Helper()
 	logf.SetLogger(zap.New(zap.UseDevMode(true)))

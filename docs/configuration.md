@@ -289,10 +289,11 @@ spec:
 | credentials.appSecret.secretName | SecretName is the name of the secret. |
 | credentials.token | This needs to be at least 32 characters a-zA-z. It is a preshared key between the node agents and the cluster agent. |
 | credentials.useSecretBackend | UseSecretBackend use the Agent secret backend feature for retreiving all credentials needed by the different components: Agent, Cluster, Cluster-Checks. If `useSecretBackend: true`, other credential parameters will be ignored. default value is false. |
+| features.kubeStateMetricsCore.clusterCheck | ClusterCheck configures the Kubernetes State Metrics Core check as a cluster check. |
 | features.kubeStateMetricsCore.conf.configData | ConfigData corresponds to the configuration file content. |
 | features.kubeStateMetricsCore.conf.configMap.fileKey | FileKey corresponds to the key used in the ConfigMap.Data to store the configuration file content. |
 | features.kubeStateMetricsCore.conf.configMap.name | Name the ConfigMap name. |
-| features.kubeStateMetricsCore.enabled | Enable this to start the Kubernetes State Metrics Core check. Refer to https://github.com/DataDog/datadog-operator/blob/main/docs/kubernetes_state_metrics.md |
+| features.kubeStateMetricsCore.enabled | Enable this to start the Kubernetes State Metrics Core check. Refer to https://docs.datadoghq.com/integrations/kubernetes_state_core |
 | features.logCollection.containerCollectUsingFiles | Collect logs from files in `/var/log/pods instead` of using the container runtime API. Collecting logs from files is usually the most efficient way of collecting logs. See also: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup Default is true |
 | features.logCollection.containerLogsPath | Allows log collection from the container log path. Set to a different path if you are not using the Docker runtime. See also: https://docs.datadoghq.com/agent/kubernetes/daemonset_setup/?tab=k8sfile#create-manifest Defaults to `/var/lib/docker/containers` |
 | features.logCollection.enabled | Enable this option to activate Datadog Agent log collection. See also: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup |

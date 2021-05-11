@@ -8,10 +8,8 @@ package datadogagent
 import (
 	"context"
 
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
-	apiequality "k8s.io/apimachinery/pkg/api/equality"
-
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
+
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -61,34 +59,17 @@ func (r *Reconciler) manageClusterChecksRunnerRBACs(logger logr.Logger, dda *dat
 		return reconcile.Result{}, err
 	}
 
-	kubeStateMetricsClusterRole := &rbacv1.ClusterRole{}
-	if isKSMCoreEnabled(dda) {
-		if err := r.client.Get(context.TODO(), types.NamespacedName{Name: kubeStateMetricsRBACName}, kubeStateMetricsClusterRole); err != nil {
-			if errors.IsNotFound(err) {
-				return r.createKubeStateMetricsClusterRole(logger, dda, kubeStateMetricsRBACName, clusterChecksRunnerVersion)
-			}
-			return reconcile.Result{}, err
-		}
-
-		if result, err := r.updateIfNeededKubeStateMetricsClusterRole(logger, dda, kubeStateMetricsRBACName, clusterChecksRunnerVersion, kubeStateMetricsClusterRole); err != nil {
+	checkRunnersSuffix := "check-runners"
+	if isKSMCoreClusterCheck(dda) {
+		if result, err := r.createOrUpdateKubeStateMetricsCoreRBAC(logger, dda, serviceAccountName, clusterChecksRunnerVersion, checkRunnersSuffix); err != nil {
 			return result, err
 		}
-
-		kubeStateMetricsClusterRoleBinding := &rbacv1.ClusterRoleBinding{}
-		if err := r.client.Get(context.TODO(), types.NamespacedName{Name: kubeStateMetricsRBACName}, kubeStateMetricsClusterRoleBinding); err != nil {
-			if errors.IsNotFound(err) {
-				return r.createClusterRoleBinding(logger, dda, roleBindingInfo{
-					name:               kubeStateMetricsRBACName,
-					roleName:           kubeStateMetricsRBACName,
-					serviceAccountName: serviceAccountName,
-				}, clusterChecksRunnerVersion)
-			}
-			return reconcile.Result{}, err
-		}
-		if result, err := r.updateIfNeededKubeStateMetricsClusterRoleBinding(logger, dda, kubeStateMetricsRBACName, kubeStateMetricsRBACName, serviceAccount.Name, clusterChecksRunnerVersion, kubeStateMetricsClusterRoleBinding); err != nil {
+	} else {
+		if result, err := r.cleanupKubeStateMetricsCoreRBAC(logger, dda, clusterChecksRunnerVersion, checkRunnersSuffix); err != nil {
 			return result, err
 		}
 	}
+
 	return reconcile.Result{}, nil
 }
 
@@ -106,23 +87,5 @@ func (r *Reconciler) cleanupClusterChecksRunnerRbacResources(logger logr.Logger,
 		return result, err
 	}
 
-	return reconcile.Result{}, nil
-}
-
-func (r *Reconciler) updateIfNeededKubeStateMetricsClusterRoleBinding(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, clusterRoleBindingName, roleName, serviceAccountName, version string, clusterRoleBinding *rbacv1.ClusterRoleBinding) (reconcile.Result, error) {
-	info := roleBindingInfo{
-		name:               clusterRoleBindingName,
-		roleName:           roleName,
-		serviceAccountName: serviceAccountName,
-	}
-	newClusterRoleBinding := buildClusterRoleBinding(dda, info, version)
-	if !apiequality.Semantic.DeepEqual(newClusterRoleBinding.Subjects, clusterRoleBinding.Subjects) || !apiequality.Semantic.DeepEqual(newClusterRoleBinding.RoleRef, clusterRoleBinding.RoleRef) {
-		logger.V(1).Info("updateKubeStateMetricsClusterRoleBinding", "clusterRoleBinding.name", clusterRoleBinding.Name)
-		if err := r.client.Update(context.TODO(), newClusterRoleBinding); err != nil {
-			return reconcile.Result{}, err
-		}
-		event := buildEventInfo(newClusterRoleBinding.Name, newClusterRoleBinding.Namespace, clusterRoleKind, datadog.UpdateEvent)
-		r.recordEvent(dda, event)
-	}
 	return reconcile.Result{}, nil
 }

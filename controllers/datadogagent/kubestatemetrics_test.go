@@ -19,7 +19,7 @@ func TestBuildKubeStateMetricsCoreRBAC(t *testing.T) {
 		},
 	}
 	// verify that default RBAC is sufficient
-	rbac := buildKubeStateMetricsCoreRBAC(dda, kubeStateMetricsRBACName, "1.2.3")
+	rbac := buildKubeStateMetricsCoreRBAC(dda, kubeStateMetricsRBACPrefix, "1.2.3")
 	yamlFile, err := ioutil.ReadFile("./testdata/ksm_clusterrole.yaml")
 	require.NoError(t, err)
 	c := rbacv1.ClusterRole{}
@@ -47,7 +47,8 @@ instances:
 		Spec: datadoghqv1alpha1.DatadogAgentSpec{
 			Features: datadoghqv1alpha1.DatadogFeatures{
 				KubeStateMetricsCore: &datadoghqv1alpha1.KubeStateMetricsCore{
-					Enabled: &enabledBool,
+					Enabled:      &enabledBool,
+					ClusterCheck: &enabledBool,
 				},
 			},
 		},
@@ -56,7 +57,7 @@ instances:
 	cm, err := buildKSMCoreConfigMap(dda)
 	require.NoError(t, err)
 	require.Equal(t, fmt.Sprintf("%s-%s", dda.Name, datadoghqv1alpha1.DefaultKubeStateMetricsCoreConf), cm.Name)
-	require.Equal(t, cm.Data[ksmCoreCheckName], defaultKSMCoreConfigMap)
+	require.Equal(t, cm.Data[ksmCoreCheckName], ksmCheckConfig(true))
 
 	// override case configData
 	dda.Spec.Features.KubeStateMetricsCore.Conf = &datadoghqv1alpha1.CustomConfigSpec{

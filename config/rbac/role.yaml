@@ -138,6 +138,13 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - replicationcontrollers
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
   - resourcequotas
   verbs:
   - list
@@ -185,6 +192,13 @@ rules:
   verbs:
   - '*'
 - apiGroups:
+  - admissionregistration.k8s.io
+  resources:
+  - validatingwebhookconfigurations
+  verbs:
+  - list
+  - watch
+- apiGroups:
   - apiregistration.k8s.io
   resources:
   - apiservices
@@ -225,16 +239,19 @@ rules:
 - apiGroups:
   - apps
   resources:
-  - replicationcontrollers
+  - statefulsets
   verbs:
+  - get
   - list
   - watch
 - apiGroups:
   - apps
+  - extensions
   resources:
-  - statefulsets
+  - daemonsets
+  - deployments
+  - replicasets
   verbs:
-  - get
   - list
   - watch
 - apiGroups:
@@ -320,6 +337,13 @@ rules:
   - jobs
   verbs:
   - get
+  - list
+  - watch
+- apiGroups:
+  - certificates.k8s.io
+  resources:
+  - certificatesigningrequests
+  verbs:
   - list
   - watch
 - apiGroups:
@@ -424,6 +448,13 @@ rules:
   - '*'
   verbs:
   - get
+  - list
+  - watch
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingresses
+  verbs:
   - list
   - watch
 - apiGroups:
@@ -561,3 +592,11 @@ rules:
   - securitycontextconstraints
   verbs:
   - use
+- apiGroups:
+  - storage.k8s.io
+  resources:
+  - storageclasses
+  - volumeattachments
+  verbs:
+  - list
+  - watch

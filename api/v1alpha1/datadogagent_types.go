@@ -447,17 +447,21 @@ type ProcessSpec struct {
 }
 
 // KubeStateMetricsCore contains the required parameters to enable and override the configuration
-// of the Kubernetes State Metrics Core (aka v2.0.0) of the check.
+// of the Kubernetes State Metrics Core of the check.
 // +k8s:openapi-gen=true
 type KubeStateMetricsCore struct {
 	// Enable this to start the Kubernetes State Metrics Core check.
-	// Refer to https://github.com/DataDog/datadog-operator/blob/main/docs/kubernetes_state_metrics.md
+	// Refer to https://docs.datadoghq.com/integrations/kubernetes_state_core
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
 	// To override the configuration for the default Kubernetes State Metrics Core check.
 	// Must point to a ConfigMap containing a valid cluster check configuration.
 	Conf *CustomConfigSpec `json:"conf,omitempty"`
+
+	// ClusterCheck configures the Kubernetes State Metrics Core check as a cluster check.
+	// +optional
+	ClusterCheck *bool `json:"clusterCheck,omitempty"`
 }
 
 // OrchestratorExplorerConfig contains the orchestrator explorer configuration.

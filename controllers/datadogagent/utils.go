@@ -1838,6 +1838,10 @@ func isKSMCoreEnabled(dda *datadoghqv1alpha1.DatadogAgent) bool {
 	return datadoghqv1alpha1.BoolValue(dda.Spec.Features.KubeStateMetricsCore.Enabled)
 }
 
+func isKSMCoreClusterCheck(dda *datadoghqv1alpha1.DatadogAgent) bool {
+	return isKSMCoreEnabled(dda) && datadoghqv1alpha1.BoolValue(dda.Spec.Features.KubeStateMetricsCore.ClusterCheck)
+}
+
 func prometheusScrapeEnvVars(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) []corev1.EnvVar {
 	envVars := []corev1.EnvVar{}
 	if dda.Spec.Features.PrometheusScrape == nil {

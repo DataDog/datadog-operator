@@ -126,14 +126,16 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups="",resources=resourcequotas,verbs=list;watch
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=list;watch
 // +kubebuilder:rbac:groups="",resources=services,verbs=list;watch
-// +kubebuilder:rbac:groups=apps,resources=daemonsets,verbs=list;watch
-// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=list;watch
-// +kubebuilder:rbac:groups=apps,resources=replicasets,verbs=list;watch
-// +kubebuilder:rbac:groups=apps,resources=replicationcontrollers,verbs=list;watch
+// +kubebuilder:rbac:groups=apps;extensions,resources=daemonsets;deployments;replicasets,verbs=list;watch
+// +kubebuilder:rbac:groups="",resources=replicationcontrollers,verbs=list;watch
 // +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=list;watch
 // +kubebuilder:rbac:groups=autoscaling,resources=horizontalpodautoscalers,verbs=list;watch
 // +kubebuilder:rbac:groups=batch,resources=cronjobs,verbs=list;watch
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=list;watch
+// +kubebuilder:rbac:groups=admissionregistration.k8s.io,resources=validatingwebhookconfigurations,verbs=list;watch
+// +kubebuilder:rbac:groups=certificates.k8s.io,resources=certificatesigningrequests,verbs=list;watch
+// +kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=list;watch
+// +kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses;volumeattachments,verbs=list;watch
 
 // Reconcile loop for DatadogAgent.
 func (r *DatadogAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {

@@ -9095,6 +9095,10 @@ spec:
                   kubeStateMetricsCore:
                     description: KubeStateMetricsCore configuration.
                     properties:
+                      clusterCheck:
+                        description: ClusterCheck configures the Kubernetes State
+                          Metrics Core check as a cluster check.
+                        type: boolean
                       conf:
                         description: To override the configuration for the default
                           Kubernetes State Metrics Core check. Must point to a ConfigMap
@@ -9120,7 +9124,7 @@ spec:
                         type: object
                       enabled:
                         description: Enable this to start the Kubernetes State Metrics
-                          Core check. Refer to https://github.com/DataDog/datadog-operator/blob/main/docs/kubernetes_state_metrics.md
+                          Core check. Refer to https://docs.datadoghq.com/integrations/kubernetes_state_core
                         type: boolean
                     type: object
                   logCollection:
