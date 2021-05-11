@@ -16,7 +16,7 @@ metadata:
                 "enabled": false
               },
               "image": {
-                "name": "gcr.io/datadoghq/agent:7.26.0"
+                "name": "datadog/agent:7.26.0"
               },
               "log": {
                 "enabled": false,
@@ -35,8 +35,7 @@ metadata:
                 }
               },
               "systemProbe": {
-                "bpfDebugEnabled": false,
-                "enabled": false
+                "bpfDebugEnabled": false
               }
             },
             "clusterAgent": {
@@ -50,13 +49,13 @@ metadata:
                 }
               },
               "image": {
-                "name": "gcr.io/datadoghq/cluster-agent:1.11.0"
+                "name": "datadog/cluster-agent:1.11.0"
               },
               "replicas": 2
             },
             "clusterChecksRunner": {
               "image": {
-                "name": "gcr.io/datadoghq/agent:7.26.0"
+                "name": "datadog/agent:7.26.0"
               },
               "replicas": 2
             },
@@ -98,15 +97,19 @@ metadata:
       ]
     capabilities: Full Lifecycle
     categories: Monitoring, Logging & Tracing
-    operators.operatorframework.io/builder: operator-sdk-v1.2.0
+    description: Datadog provides a modern monitoring and analytics platform. Gather
+      metrics, logs and traces for full observability of your Kubernetes cluster with
+      Datadog Operator.
+    operators.operatorframework.io/builder: operator-sdk-v1.4.0+git
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
-  name: datadog-operator.v0.5.0
+    repository: https://github.com/DataDog/datadog-operator
+  name: datadog-operator.v0.6.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
-    - description: DatadogAgent Deployment with Datadog Operator
+    - description: DatadogAgent Deployment with Datadog Operator.
       displayName: Datadog Agent
       kind: DatadogAgent
       name: datadogagents.datadoghq.com
@@ -150,19 +153,60 @@ spec:
           resources:
           - configmaps
           verbs:
-          - '*'
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - ""
+          resources:
+          - deployments
+          verbs:
+          - get
+          - list
+          - watch
         - apiGroups:
           - ""
           resources:
           - endpoints
           verbs:
-          - '*'
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
         - apiGroups:
           - ""
           resources:
           - events
           verbs:
-          - '*'
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - ""
+          resources:
+          - limitranges
+          verbs:
+          - list
+          - watch
+        - apiGroups:
+          - ""
+          resources:
+          - namespaces
+          verbs:
+          - get
+          - list
+          - watch
         - apiGroups:
           - ""
           resources:
@@ -198,27 +242,72 @@ spec:
         - apiGroups:
           - ""
           resources:
+          - persistentvolumeclaims
+          verbs:
+          - list
+          - watch
+        - apiGroups:
+          - ""
+          resources:
+          - persistentvolumes
+          verbs:
+          - list
+          - watch
+        - apiGroups:
+          - ""
+          resources:
           - pods
           verbs:
-          - '*'
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - ""
+          resources:
+          - resourcequotas
+          verbs:
+          - list
+          - watch
         - apiGroups:
           - ""
           resources:
           - secrets
           verbs:
-          - '*'
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
         - apiGroups:
           - ""
           resources:
           - serviceaccounts
           verbs:
-          - '*'
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
         - apiGroups:
           - ""
           resources:
           - services
           verbs:
-          - '*'
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
         - apiGroups:
           - admissionregistration.k8s.io
           resources:
@@ -236,61 +325,145 @@ spec:
           resources:
           - daemonsets
           verbs:
-          - '*'
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
         - apiGroups:
           - apps
           resources:
           - deployments
           verbs:
-          - '*'
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
         - apiGroups:
           - apps
           resources:
           - replicasets
           verbs:
           - get
+          - list
+          - watch
+        - apiGroups:
+          - apps
+          resources:
+          - replicationcontrollers
+          verbs:
+          - list
+          - watch
         - apiGroups:
           - apps
           resources:
           - statefulsets
           verbs:
           - get
+          - list
+          - watch
+        - apiGroups:
+          - authentication.k8s.io
+          resources:
+          - tokenreviews
+          verbs:
+          - create
+          - get
         - apiGroups:
           - authorization.k8s.io
           resources:
           - clusterrolebindings
           verbs:
-          - '*'
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
         - apiGroups:
           - authorization.k8s.io
           resources:
           - clusterroles
           verbs:
-          - '*'
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
         - apiGroups:
           - authorization.k8s.io
           resources:
           - rolebindings
           verbs:
-          - '*'
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
         - apiGroups:
           - authorization.k8s.io
           resources:
           - roles
           verbs:
-          - '*'
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - authorization.k8s.io
+          resources:
+          - subjectaccessreviews
+          verbs:
+          - create
+          - get
+        - apiGroups:
+          - autoscaling
+          resources:
+          - horizontalpodautoscalers
+          verbs:
+          - list
+          - watch
         - apiGroups:
           - batch
           resources:
           - cronjobs
           verbs:
           - get
+          - list
+          - watch
         - apiGroups:
           - batch
           resources:
           - jobs
           verbs:
           - get
+          - list
+          - watch
+        - apiGroups:
+          - coordination.k8s.io
+          resources:
+          - leases
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
         - apiGroups:
           - datadoghq.com
           resources:
@@ -326,9 +499,47 @@ spec:
         - apiGroups:
           - datadoghq.com
           resources:
+          - datadogmonitors
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - datadoghq.com
+          resources:
+          - datadogmonitors/finalizers
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - datadoghq.com
+          resources:
+          - datadogmonitors/status
+          verbs:
+          - get
+          - patch
+          - update
+        - apiGroups:
+          - datadoghq.com
+          resources:
           - extendeddaemonsets
           verbs:
-          - '*'
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
         - apiGroups:
           - datadoghq.com
           resources:
@@ -338,17 +549,37 @@ spec:
           - list
           - watch
         - apiGroups:
+          - external.metrics.k8s.io
+          resources:
+          - '*'
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
           - networking.k8s.io
           resources:
           - networkpolicies
           verbs:
-          - '*'
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
         - apiGroups:
           - policy
           resources:
           - poddisruptionbudgets
           verbs:
-          - '*'
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
         - apiGroups:
           - quota.openshift.io
           resources:
@@ -361,49 +592,97 @@ spec:
           resources:
           - clusterrolebindings
           verbs:
-          - '*'
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
         - apiGroups:
           - rbac.authorization.k8s.io
           resources:
           - clusterroles
           verbs:
-          - '*'
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
         - apiGroups:
           - rbac.authorization.k8s.io
           resources:
           - rolebindings
           verbs:
-          - '*'
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
         - apiGroups:
           - rbac.authorization.k8s.io
           resources:
           - roles
           verbs:
-          - '*'
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
         - apiGroups:
           - roles.rbac.authorization.k8s.io
           resources:
           - clusterrolebindings
           verbs:
-          - '*'
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
         - apiGroups:
           - roles.rbac.authorization.k8s.io
           resources:
           - clusterroles
           verbs:
-          - '*'
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
         - apiGroups:
           - roles.rbac.authorization.k8s.io
           resources:
           - rolebindings
           verbs:
-          - '*'
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
         - apiGroups:
           - roles.rbac.authorization.k8s.io
           resources:
           - roles
           verbs:
-          - '*'
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
         - apiGroups:
           - security.openshift.io
           resourceNames:
@@ -452,7 +731,7 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.annotations['olm.targetNamespaces']
-                image: registry.connect.redhat.com/datadog/operator:0.5.0
+                image: datadog/operator:0.6.0
                 imagePullPolicy: Always
                 livenessProbe:
                   httpGet:
@@ -502,6 +781,18 @@ spec:
           verbs:
           - create
           - patch
+        - apiGroups:
+          - coordination.k8s.io
+          resources:
+          - leases
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+          - update
+          - patch
+          - delete
         serviceAccountName: datadog-operator-manager
     strategy: deployment
   installModes:
@@ -529,5 +820,5 @@ spec:
   maturity: alpha
   provider:
     name: Datadog
-  version: 0.5.0
-  replaces: datadog-operator.v0.4.0
+  version: 0.6.0
+  replaces: datadog-operator.v0.5.1

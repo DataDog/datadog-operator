@@ -15,7 +15,7 @@ spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
-    - description: DatadogAgent Deployment with Datadog Operator
+    - description: DatadogAgent Deployment with Datadog Operator.
       displayName: Datadog Agent
       kind: DatadogAgent
       name: datadogagents.datadoghq.com

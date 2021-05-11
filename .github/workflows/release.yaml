@@ -25,6 +25,8 @@ jobs:
           owner: ${{ github.repository_owner }}
           repo: datadog-operator
           excludes: prerelease, draft
+      - name: Patch vendor
+        run: make vendor
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v1
         with:
