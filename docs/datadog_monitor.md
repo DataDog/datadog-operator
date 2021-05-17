@@ -42,7 +42,7 @@ Here are the steps:
     apiVersion: datadoghq.com/v1alpha1
     kind: DatadogMonitor
     metadata:
-    name: datadog-monitor-test
+      name: datadog-monitor-test
     spec:
       query: "avg(last_10m):avg:system.disk.in_use{*} by {host} > 0.5"
       type: "metric alert"
