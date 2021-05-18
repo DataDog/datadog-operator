@@ -426,7 +426,7 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 		Containers: []corev1.Container{
 			{
 				Name:            "cluster-agent",
-				Image:           clusterAgentSpec.Image.Name,
+				Image:           getImage(&clusterAgentSpec.Image, dda.Spec.Registry),
 				ImagePullPolicy: *clusterAgentSpec.Image.PullPolicy,
 				Ports: []corev1.ContainerPort{
 					{

@@ -438,3 +438,71 @@ func Test_mergeAnnotationsLabels(t *testing.T) {
 		})
 	}
 }
+
+func Test_imageHasTag(t *testing.T) {
+	cases := map[string]bool{
+		"foo:bar":             true,
+		"foo/bar:baz":         true,
+		"foo/bar:baz:tar":     true,
+		"foo/bar:baz-tar":     true,
+		"foo/bar:baz_tar":     true,
+		"foo/bar:baz.tar":     true,
+		"foo/foo/bar:baz:tar": true,
+		"foo":                 false,
+		":foo":                false,
+		"foo:foo/bar":         false,
+	}
+	for tc, expected := range cases {
+		assert.Equal(t, expected, imageHasTag.MatchString(tc))
+	}
+}
+
+func Test_getImage(t *testing.T) {
+	tests := []struct {
+		name         string
+		imageSpec    *datadoghqv1alpha1.ImageConfig
+		specRegistry *string
+		want         string
+	}{
+		{
+			name: "backward compatible",
+			imageSpec: &datadoghqv1alpha1.ImageConfig{
+				Name: "gcr.io/datadoghq/agent:latest",
+			},
+			specRegistry: nil,
+			want:         "gcr.io/datadoghq/agent:latest",
+		},
+		{
+			name: "nominal case",
+			imageSpec: &datadoghqv1alpha1.ImageConfig{
+				Name: "agent",
+				Tag:  "7",
+			},
+			specRegistry: datadoghqv1alpha1.NewStringPointer("public.ecr.aws/datadog"),
+			want:         "public.ecr.aws/datadog/agent:7",
+		},
+		{
+			name: "prioritize the full path",
+			imageSpec: &datadoghqv1alpha1.ImageConfig{
+				Name: "docker.io/datadog/agent:7.28.1-rc.3",
+				Tag:  "latest",
+			},
+			specRegistry: datadoghqv1alpha1.NewStringPointer("gcr.io/datadoghq"),
+			want:         "docker.io/datadog/agent:7.28.1-rc.3",
+		},
+		{
+			name: "default registry",
+			imageSpec: &datadoghqv1alpha1.ImageConfig{
+				Name: "agent",
+				Tag:  "latest",
+			},
+			specRegistry: nil,
+			want:         "gcr.io/datadoghq/agent:latest",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, getImage(tt.imageSpec, tt.specRegistry))
+		})
+	}
+}

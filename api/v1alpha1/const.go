@@ -340,4 +340,8 @@ const (
 	ClusterRoleKind    = "ClusterRole"
 	RoleKind           = "Role"
 	ServiceAccountKind = "ServiceAccount"
+
+	// Container Registries
+
+	DefaultImageRegistry = "gcr.io/datadoghq"
 )
