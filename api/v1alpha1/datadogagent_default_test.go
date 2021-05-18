@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"sigs.k8s.io/yaml"
 )
 
 func TestDefaultConfigDogstatsd(t *testing.T) {
@@ -138,6 +139,58 @@ func TestDefaultFeatures(t *testing.T) {
 			want := tt.wantFunc()
 			if got := DefaultFeatures(tt.ft); !reflect.DeepEqual(got, want) {
 				t.Errorf("DefaultFeatures() = %v, want %v\n diff: %s", got, want, cmp.Diff(got, want))
+			}
+		})
+	}
+}
+
+func TestIsDefaultedOrchestratorExplorer(t *testing.T) {
+	tests := []struct {
+		name string
+		orc  *OrchestratorExplorerConfig
+		want bool
+	}{
+		{
+			name: "empty",
+			orc:  &OrchestratorExplorerConfig{},
+			want: false,
+		},
+		{
+			name: "enabled orchestrator explorer, no scrubbing",
+			orc: &OrchestratorExplorerConfig{
+				Enabled: NewBoolPointer(true),
+			},
+			want: false,
+		},
+		{
+			name: "disabled orchestrator",
+			orc: &OrchestratorExplorerConfig{
+				Enabled: NewBoolPointer(false),
+			},
+			want: true,
+		},
+		{
+			name: "enabled orchestrator, filled scrubbing",
+			orc: &OrchestratorExplorerConfig{
+				Enabled: NewBoolPointer(true),
+				Scrubbing: &Scrubbing{
+					Containers: NewBoolPointer(true),
+				},
+			},
+			want: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := IsDefaultedOrchestratorExplorer(tt.orc)
+			if got != tt.want {
+				yaml, err := yaml.Marshal(tt.orc)
+				if err != nil {
+					t.Fatalf("cannot marshal yaml: %s", err)
+				}
+
+				t.Errorf("got %t, want %t from OrchestratorExplorerConfig:\n%s", got, tt.want, yaml)
 			}
 		})
 	}
