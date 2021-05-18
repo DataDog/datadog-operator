@@ -194,16 +194,18 @@ func IsDefaultedOrchestratorExplorer(orc *OrchestratorExplorerConfig) bool {
 		return false
 	}
 
-	if orc.Scrubbing == nil {
-		return false
-	}
-
-	if orc.Scrubbing.Containers == nil {
-		return false
-	}
-
 	if orc.Enabled == nil {
 		return false
+	}
+
+	if BoolValue(orc.Enabled) {
+		if orc.Scrubbing == nil {
+			return false
+		}
+
+		if orc.Scrubbing.Containers == nil {
+			return false
+		}
 	}
 
 	return true
