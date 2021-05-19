@@ -1162,12 +1162,16 @@ type ImageConfig struct {
 	// Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent
 	// Use "agent" with the registry and tag configurations for <registry>/agent:<tag>
 	// Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>
-	Name string `json:"name"`
+	Name string `json:"name,omitempty"`
 
 	// Define the image version to use:
-	// To be used if the Name field doesn't correspond to a full image string.
+	// To be used if the Name field does not correspond to a full image string.
 	// +optional
-	Tag string `json:"tag"`
+	Tag string `json:"tag,omitempty"`
+
+	// Define whether the Agent image should support JMX.
+	// +optional
+	JmxEnabled bool `json:"jmxEnabled,omitempty"`
 
 	// The Kubernetes pull policy:
 	// Use Always, Never or IfNotPresent.

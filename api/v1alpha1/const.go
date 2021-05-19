@@ -344,4 +344,5 @@ const (
 	// Container Registries
 
 	DefaultImageRegistry = "gcr.io/datadoghq"
+	JMXTagSuffix         = "-jmx"
 )

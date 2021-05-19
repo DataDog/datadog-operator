@@ -27,7 +27,7 @@ func clusterChecksRunnerDefaultPodSpec() corev1.PodSpec {
 		InitContainers: []corev1.Container{
 			{
 				Name:            "init-volume",
-				Image:           "gcr.io/datadoghq/agent:latest",
+				Image:           "gcr.io/datadoghq/agent:7.28.0",
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
 				Command:         []string{"bash", "-c"},
@@ -41,7 +41,7 @@ func clusterChecksRunnerDefaultPodSpec() corev1.PodSpec {
 			},
 			{
 				Name:            "init-config",
-				Image:           "gcr.io/datadoghq/agent:latest",
+				Image:           "gcr.io/datadoghq/agent:7.28.0",
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
 				Command:         []string{"bash", "-c"},
@@ -53,7 +53,7 @@ func clusterChecksRunnerDefaultPodSpec() corev1.PodSpec {
 		Containers: []corev1.Container{
 			{
 				Name:            "cluster-checks-runner",
-				Image:           "gcr.io/datadoghq/agent:latest",
+				Image:           "gcr.io/datadoghq/agent:7.28.0",
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
 				Env:             clusterChecksRunnerDefaultEnvVars(),

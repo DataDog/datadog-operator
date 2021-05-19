@@ -80,7 +80,7 @@ func newAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent
 		annotations[key] = val
 	}
 
-	image := getImage(&dda.Spec.Agent.Image, dda.Spec.Registry)
+	image := getImage(&dda.Spec.Agent.Image, dda.Spec.Registry, true)
 	containers := []corev1.Container{}
 	agentContainer, err := getAgentContainer(logger, dda, image)
 	if err != nil {
@@ -436,10 +436,10 @@ func getInitContainers(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, 
 	return containers, nil
 }
 
-func getInitContainer(spec *datadoghqv1alpha1.DatadogAgentSpec, name string, commands []string, volumeMounts []corev1.VolumeMount, envVars []corev1.EnvVar) corev1.Container {
+func getInitContainer(spec *datadoghqv1alpha1.DatadogAgentSpec, name string, commands []string, volumeMounts []corev1.VolumeMount, envVars []corev1.EnvVar, image string) corev1.Container {
 	return corev1.Container{
 		Name:            name,
-		Image:           spec.Agent.Image.Name,
+		Image:           image,
 		ImagePullPolicy: *spec.Agent.Image.PullPolicy,
 		Resources:       *spec.Agent.Config.Resources,
 		Command:         []string{"bash", "-c"},
@@ -451,7 +451,7 @@ func getInitContainer(spec *datadoghqv1alpha1.DatadogAgentSpec, name string, com
 
 // getConfigInitContainers returns the init containers necessary to set up the
 // agent's configuration volume.
-func getConfigInitContainers(spec *datadoghqv1alpha1.DatadogAgentSpec, volumeMounts []corev1.VolumeMount, envVars []corev1.EnvVar) []corev1.Container {
+func getConfigInitContainers(spec *datadoghqv1alpha1.DatadogAgentSpec, volumeMounts []corev1.VolumeMount, envVars []corev1.EnvVar, image string) []corev1.Container {
 	configVolumeMounts := []corev1.VolumeMount{{
 		Name:      datadoghqv1alpha1.ConfigVolumeName,
 		MountPath: "/opt/datadog-agent",
@@ -478,11 +478,13 @@ func getConfigInitContainers(spec *datadoghqv1alpha1.DatadogAgentSpec, volumeMou
 				"cp -vnr /etc/datadog-agent /opt",
 				"cp -v /etc/datadog-agent-runtime-policies/* /opt/datadog-agent/runtime-security.d/",
 			}, configVolumeMounts, nil,
+			image,
 		),
 		getInitContainer(
 			spec, "init-config",
 			[]string{"for script in $(find /etc/cont-init.d/ -type f -name '*.sh' | sort) ; do bash $script ; done"},
 			volumeMounts, envVars,
+			image,
 		),
 	}
 }
@@ -2300,16 +2302,21 @@ func addBoolPointerEnVar(b *bool, varName string, varList []corev1.EnvVar) []cor
 var imageHasTag = regexp.MustCompile(`.+:[\w][\w.-]{0,127}$`)
 
 // getImage builds the image string based on ImageConfig and the registry configuration.
-func getImage(imageSpec *datadoghqv1alpha1.ImageConfig, specRegistry *string) string {
+func getImage(imageSpec *datadoghqv1alpha1.ImageConfig, registry *string, checkJMX bool) string {
 	if imageHasTag.MatchString(imageSpec.Name) {
 		// The image name corresponds to a full image string
 		return imageSpec.Name
 	}
 
-	imageSuffix := "/" + imageSpec.Name + ":" + imageSpec.Tag
-	if specRegistry != nil {
-		return *specRegistry + imageSuffix
+	image := "/" + imageSpec.Name + ":" + imageSpec.Tag
+
+	if checkJMX && imageSpec.JmxEnabled && !strings.HasSuffix(imageSpec.Tag, datadoghqv1alpha1.JMXTagSuffix) {
+		image += datadoghqv1alpha1.JMXTagSuffix
 	}
 
-	return datadoghqv1alpha1.DefaultImageRegistry + imageSuffix
+	if registry != nil {
+		return *registry + image
+	}
+
+	return datadoghqv1alpha1.DefaultImageRegistry + image
 }

@@ -126,10 +126,11 @@ spec:
 | agent.env | Environment variables for all Datadog Agents. See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables |
 | agent.hostNetwork | Host networking requested for this pod. Use the host's network namespace. If this option is set, the ports that will be used must be specified. Default to false. |
 | agent.hostPID | Use the host's pid namespace. Optional: Default to false. |
+| agent.image.jmxEnabled | Define whether the Agent image should support JMX. |
 | agent.image.name | Define the image to use: Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7 Use "datadog/dogstatsd:latest" for Standalone Datadog Agent DogStatsD6 Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent Use "agent" with the registry and tag configurations for <registry>/agent:<tag> Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag> |
 | agent.image.pullPolicy | The Kubernetes pull policy: Use Always, Never or IfNotPresent. |
 | agent.image.pullSecrets | It is possible to specify docker registry credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod |
-| agent.image.tag | Define the image version to use: To be used if the Name field doesn't correspond to a full image string. |
+| agent.image.tag | Define the image version to use: To be used if the Name field does not correspond to a full image string. |
 | agent.keepAnnotations | KeepAnnotations allows the specification of annotations not managed by the Operator that will be kept on Agent DaemonSet. All annotations containing 'datadoghq.com' are always included. This field uses glob syntax. |
 | agent.keepLabels | KeepLabels allows the specification of labels not managed by the Operator that will be kept on Agent DaemonSet. All labels containing 'datadoghq.com' are always included. This field uses glob syntax. |
 | agent.log.containerCollectUsingFiles | Collect logs from files in `/var/log/pods instead` of using the container runtime API. Collecting logs from files is usually the most efficient way of collecting logs. See also: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup Default is true |
@@ -240,10 +241,11 @@ spec:
 | clusterAgent.customConfig.configMap.fileKey | FileKey corresponds to the key used in the ConfigMap.Data to store the configuration file content. |
 | clusterAgent.customConfig.configMap.name | The name of source ConfigMap. |
 | clusterAgent.deploymentName | Name of the Cluster Agent Deployment to create or migrate from. |
+| clusterAgent.image.jmxEnabled | Define whether the Agent image should support JMX. |
 | clusterAgent.image.name | Define the image to use: Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7 Use "datadog/dogstatsd:latest" for Standalone Datadog Agent DogStatsD6 Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent Use "agent" with the registry and tag configurations for <registry>/agent:<tag> Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag> |
 | clusterAgent.image.pullPolicy | The Kubernetes pull policy: Use Always, Never or IfNotPresent. |
 | clusterAgent.image.pullSecrets | It is possible to specify docker registry credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod |
-| clusterAgent.image.tag | Define the image version to use: To be used if the Name field doesn't correspond to a full image string. |
+| clusterAgent.image.tag | Define the image version to use: To be used if the Name field does not correspond to a full image string. |
 | clusterAgent.keepAnnotations | KeepAnnotations allows the specification of annotations not managed by the Operator that will be kept on ClusterAgent Deployment. All annotations containing 'datadoghq.com' are always included. This field uses glob syntax. |
 | clusterAgent.keepLabels | KeepLabels allows the specification of labels not managed by the Operator that will be kept on ClusterAgent Deployment. All labels containing 'datadoghq.com' are always included. This field uses glob syntax. |
 | clusterAgent.networkPolicy.create | If true, create a NetworkPolicy for the current agent. |
@@ -273,10 +275,11 @@ spec:
 | clusterChecksRunner.customConfig.configMap.fileKey | FileKey corresponds to the key used in the ConfigMap.Data to store the configuration file content. |
 | clusterChecksRunner.customConfig.configMap.name | The name of source ConfigMap. |
 | clusterChecksRunner.deploymentName | Name of the cluster checks deployment to create or migrate from. |
+| clusterChecksRunner.image.jmxEnabled | Define whether the Agent image should support JMX. |
 | clusterChecksRunner.image.name | Define the image to use: Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7 Use "datadog/dogstatsd:latest" for Standalone Datadog Agent DogStatsD6 Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent Use "agent" with the registry and tag configurations for <registry>/agent:<tag> Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag> |
 | clusterChecksRunner.image.pullPolicy | The Kubernetes pull policy: Use Always, Never or IfNotPresent. |
 | clusterChecksRunner.image.pullSecrets | It is possible to specify docker registry credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod |
-| clusterChecksRunner.image.tag | Define the image version to use: To be used if the Name field doesn't correspond to a full image string. |
+| clusterChecksRunner.image.tag | Define the image version to use: To be used if the Name field does not correspond to a full image string. |
 | clusterChecksRunner.networkPolicy.create | If true, create a NetworkPolicy for the current agent. |
 | clusterChecksRunner.nodeSelector | NodeSelector is a selector which must be true for the pod to fit on a node. Selector which must match a node's labels for the pod to be scheduled on that node. More info: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/ |
 | clusterChecksRunner.priorityClassName | If specified, indicates the pod's priority. "system-node-critical" and "system-cluster-critical" are two special keywords which indicate the highest priorities with the former being the highest priority. Any other name must be defined by creating a PriorityClass object with that name. If not specified, the pod priority will be default or zero if there is no default. |

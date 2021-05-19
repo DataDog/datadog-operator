@@ -2857,6 +2857,10 @@ spec:
                   image:
                     description: The container image of the Datadog Agent.
                     properties:
+                      jmxEnabled:
+                        description: Define whether the Agent image should support
+                          JMX.
+                        type: boolean
                       name:
                         description: 'Define the image to use: Use "gcr.io/datadoghq/agent:latest"
                           for Datadog Agent 7 Use "datadog/dogstatsd:latest" for Standalone
@@ -2885,10 +2889,8 @@ spec:
                         type: array
                       tag:
                         description: 'Define the image version to use: To be used
-                          if the Name field doesn''t correspond to a full image string.'
+                          if the Name field does not correspond to a full image string.'
                         type: string
-                    required:
-                    - name
                     type: object
                   keepAnnotations:
                     description: KeepAnnotations allows the specification of annotations
@@ -6384,6 +6386,10 @@ spec:
                   image:
                     description: The container image of the Datadog Cluster Agent.
                     properties:
+                      jmxEnabled:
+                        description: Define whether the Agent image should support
+                          JMX.
+                        type: boolean
                       name:
                         description: 'Define the image to use: Use "gcr.io/datadoghq/agent:latest"
                           for Datadog Agent 7 Use "datadog/dogstatsd:latest" for Standalone
@@ -6412,10 +6418,8 @@ spec:
                         type: array
                       tag:
                         description: 'Define the image version to use: To be used
-                          if the Name field doesn''t correspond to a full image string.'
+                          if the Name field does not correspond to a full image string.'
                         type: string
-                    required:
-                    - name
                     type: object
                   keepAnnotations:
                     description: KeepAnnotations allows the specification of annotations
@@ -8948,6 +8952,10 @@ spec:
                     description: The container image of the Datadog Cluster Checks
                       Runner.
                     properties:
+                      jmxEnabled:
+                        description: Define whether the Agent image should support
+                          JMX.
+                        type: boolean
                       name:
                         description: 'Define the image to use: Use "gcr.io/datadoghq/agent:latest"
                           for Datadog Agent 7 Use "datadog/dogstatsd:latest" for Standalone
@@ -8976,10 +8984,8 @@ spec:
                         type: array
                       tag:
                         description: 'Define the image version to use: To be used
-                          if the Name field doesn''t correspond to a full image string.'
+                          if the Name field does not correspond to a full image string.'
                         type: string
-                    required:
-                    - name
                     type: object
                   networkPolicy:
                     description: Provide Cluster Checks Runner Network Policy configuration.
