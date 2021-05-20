@@ -53,6 +53,7 @@ const (
 	defaultLogsContainerCollectUsingFiles   bool   = true
 	defaultContainerLogsPath                string = "/var/lib/docker/containers"
 	defaultPodLogsPath                      string = "/var/log/pods"
+	defaultContainerSymlinksPath            string = "/var/log/containers"
 	defaultLogsTempStoragePath              string = "/var/lib/datadog-agent/logs"
 	defaultLogsOpenFilesLimit               int32  = 100
 	defaultProcessEnabled                   bool   = false
@@ -724,6 +725,11 @@ func DefaultDatadogFeatureLogCollection(ft *DatadogFeatures) *LogCollectionConfi
 	if ft.LogCollection.PodLogsPath == nil {
 		ft.LogCollection.PodLogsPath = NewStringPointer(defaultPodLogsPath)
 		logOverride.PodLogsPath = ft.LogCollection.PodLogsPath
+	}
+
+	if ft.LogCollection.ContainerSymlinksPath == nil {
+		ft.LogCollection.ContainerSymlinksPath = NewStringPointer(defaultContainerSymlinksPath)
+		logOverride.ContainerSymlinksPath = ft.LogCollection.ContainerSymlinksPath
 	}
 
 	if ft.LogCollection.TempStoragePath == nil {

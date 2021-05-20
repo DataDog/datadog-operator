@@ -1203,6 +1203,16 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 				},
 			})
 		}
+		if logConfig.ContainerSymlinksPath != nil {
+			volumes = append(volumes, corev1.Volume{
+				Name: datadoghqv1alpha1.SymlinkContainerVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: *logConfig.ContainerSymlinksPath,
+					},
+				},
+			})
+		}
 	}
 
 	if isSecurityAgentEnabled(&dda.Spec) {
@@ -1436,6 +1446,13 @@ func getVolumeMountsForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volum
 				Name:      datadoghqv1alpha1.LogContainerVolumeName,
 				MountPath: *dda.Spec.Features.LogCollection.ContainerLogsPath,
 				ReadOnly:  datadoghqv1alpha1.LogContainerVolumeReadOnly,
+			})
+		}
+		if dda.Spec.Features.LogCollection.ContainerSymlinksPath != nil {
+			volumeMounts = append(volumeMounts, corev1.VolumeMount{
+				Name:      datadoghqv1alpha1.SymlinkContainerVolumeName,
+				MountPath: *dda.Spec.Features.LogCollection.ContainerSymlinksPath,
+				ReadOnly:  datadoghqv1alpha1.SymlinkContainerVolumeReadOnly,
 			})
 		}
 	}

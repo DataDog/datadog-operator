@@ -405,6 +405,13 @@ type LogCollectionConfig struct {
 	// +optional
 	PodLogsPath *string `json:"podLogsPath,omitempty"`
 
+	// Allows the log collection to use symbolic links in this directory to
+	// validate container ID -> pod.
+	// Defaults to `/var/log/containers`
+	//
+	// +optional
+	ContainerSymlinksPath *string `json:"ContainerSymlinksPath,omitempty"`
+
 	// This path (always mounted from the host) is used by Datadog Agent to store information about processed log files.
 	// If the Datadog Agent is restarted, it starts tailing the log files immediately.
 	// Default to `/var/lib/datadog-agent/logs`
