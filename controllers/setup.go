@@ -18,6 +18,7 @@ import (
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/rest"
 )
 
 const (
@@ -43,7 +44,9 @@ var controllerStarters = map[string]starterFunc{
 // SetupControllers starts all controllers (also used by e2e tests)
 func SetupControllers(logger logr.Logger, mgr manager.Manager, options SetupOptions) error {
 	// Get some information about Kubernetes version
-	discoveryClient, err := discovery.NewDiscoveryClientForConfig(mgr.GetConfig())
+	// Never use original mgr.GetConfig(), always copy as clients might modify the configuration
+	discoveryConfig := rest.CopyConfig(mgr.GetConfig())
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(discoveryConfig)
 	if err != nil {
 		return fmt.Errorf("unable to get discovery client: %w", err)
 	}

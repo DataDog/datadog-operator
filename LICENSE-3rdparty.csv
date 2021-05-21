@@ -59,6 +59,7 @@ core,"github.com/golang/protobuf/ptypes/timestamp",NewBSD
 core,"github.com/golang/snappy",NewBSD
 core,"github.com/google/btree",Apache-2.0
 core,"github.com/google/go-cmp/cmp",NewBSD
+core,"github.com/google/go-cmp/cmp/cmpopts",NewBSD
 core,"github.com/google/go-cmp/cmp/internal/diff",NewBSD
 core,"github.com/google/go-cmp/cmp/internal/flags",NewBSD
 core,"github.com/google/go-cmp/cmp/internal/function",NewBSD

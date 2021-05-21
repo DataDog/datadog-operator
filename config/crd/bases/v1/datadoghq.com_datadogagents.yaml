@@ -3630,7 +3630,8 @@ spec:
                         type: object
                       secCompCustomProfileConfigMap:
                         description: SecCompCustomProfileConfigMap specify a pre-existing
-                          ConfigMap containing a custom SecComp profile.
+                          ConfigMap containing a custom SecComp profile. This ConfigMap
+                          must contain a file named system-probe-seccomp.json.
                         type: string
                       secCompProfileName:
                         description: SecCompProfileName specify a seccomp profile.

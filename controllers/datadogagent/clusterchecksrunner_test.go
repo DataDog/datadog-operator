@@ -8,12 +8,11 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
 	test "github.com/DataDog/datadog-operator/api/v1alpha1/test"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+	"github.com/DataDog/datadog-operator/pkg/testutils"
 
-	"github.com/google/go-cmp/cmp"
 	assert "github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -216,8 +215,9 @@ func (test clusterChecksRunnerDeploymentFromInstanceTest) Run(t *testing.T) {
 	} else {
 		assert.NoError(t, err, "newClusterChecksRunnerDeploymentFromInstance() unexpected error: %v", err)
 	}
-	assert.True(t, apiequality.Semantic.DeepEqual(got, test.want), "newClusterChecksRunnerDeploymentFromInstance() = %#v, want %#v\ndiff = %s", got, test.want,
-		cmp.Diff(got, test.want))
+
+	diff := testutils.CompareKubeResource(got, test.want)
+	assert.True(t, len(diff) == 0, diff)
 }
 
 func Test_newClusterChecksRunnerDeploymentFromInstance_UserVolumes(t *testing.T) {

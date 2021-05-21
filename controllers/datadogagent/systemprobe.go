@@ -30,11 +30,9 @@ func (r *Reconciler) manageSystemProbeDependencies(logger logr.Logger, dda *data
 		return result, err
 	}
 
-	if dda.Spec.Agent != nil && getSeccompProfileName(&dda.Spec.Agent.SystemProbe) == datadoghqv1alpha1.DefaultSeccompProfileName && dda.Spec.Agent.SystemProbe.SecCompCustomProfileConfigMap == "" {
-		result, err = r.manageConfigMap(logger, dda, getSecCompConfigMapName(dda.Name), buildSystemProbeSecCompConfigMap)
-		if shouldReturn(result, err) {
-			return result, err
-		}
+	result, err = r.manageConfigMap(logger, dda, getSecCompConfigMapName(dda), buildSystemProbeSecCompConfigMap)
+	if shouldReturn(result, err) {
+		return result, err
 	}
 
 	return reconcile.Result{}, nil
@@ -100,13 +98,13 @@ auth_token_file_path: %s
 `
 
 func buildSystemProbeSecCompConfigMap(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.ConfigMap, error) {
-	if !isSystemProbeEnabled(&dda.Spec) {
+	if !shouldCreateSeccompConfigMap(dda) {
 		return nil, nil
 	}
 
 	configMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        getSecCompConfigMapName(dda.Name),
+			Name:        getSecCompConfigMapName(dda),
 			Namespace:   dda.Namespace,
 			Labels:      getDefaultLabels(dda, dda.Name, getAgentVersion(dda)),
 			Annotations: getDefaultAnnotations(dda),
@@ -304,8 +302,22 @@ const systemProbeSecCompData = `{
 }
 `
 
-func getSecCompConfigMapName(prefix string) string {
-	return fmt.Sprintf("%s-%s", prefix, SystemProbeAgentSecurityConfigMapSuffixName)
+func shouldInstallSeccompProfileFromConfigMap(dda *datadoghqv1alpha1.DatadogAgent) bool {
+	return shouldCreateSeccompConfigMap(dda) || dda.Spec.Agent.SystemProbe.SecCompCustomProfileConfigMap != ""
+}
+
+func shouldCreateSeccompConfigMap(dda *datadoghqv1alpha1.DatadogAgent) bool {
+	return dda.Spec.Agent != nil &&
+		isSystemProbeEnabled(&dda.Spec) &&
+		getSeccompProfileName(&dda.Spec.Agent.SystemProbe) == datadoghqv1alpha1.DefaultSeccompProfileName &&
+		dda.Spec.Agent.SystemProbe.SecCompCustomProfileConfigMap == ""
+}
+
+func getSecCompConfigMapName(dda *datadoghqv1alpha1.DatadogAgent) string {
+	if dda.Spec.Agent != nil && dda.Spec.Agent.SystemProbe.SecCompCustomProfileConfigMap != "" {
+		return dda.Spec.Agent.SystemProbe.SecCompCustomProfileConfigMap
+	}
+	return fmt.Sprintf("%s-%s", dda.Name, SystemProbeAgentSecurityConfigMapSuffixName)
 }
 
 func getSystemProbeConfigConfigMapName(prefix string) string {
