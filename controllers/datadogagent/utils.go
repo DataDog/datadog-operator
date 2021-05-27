@@ -405,31 +405,29 @@ func getInitContainers(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) 
 
 	containers := getConfigInitContainers(spec, volumeMounts, envVars)
 
-	if isSystemProbeEnabled(&dda.Spec) {
-		if getSeccompProfileName(&dda.Spec.Agent.SystemProbe) == datadoghqv1alpha1.DefaultSeccompProfileName || dda.Spec.Agent.SystemProbe.SecCompCustomProfileConfigMap != "" {
-			systemProbeInit := corev1.Container{
-				Name:            "seccomp-setup",
-				Image:           spec.Agent.Image.Name,
-				ImagePullPolicy: *spec.Agent.Image.PullPolicy,
-				Resources:       *spec.Agent.Config.Resources,
-				Command: []string{
-					"cp",
-					fmt.Sprintf("%s/system-probe-seccomp.json", datadoghqv1alpha1.SystemProbeAgentSecurityVolumePath),
-					fmt.Sprintf("%s/system-probe", datadoghqv1alpha1.SystemProbeSecCompRootVolumePath),
+	if shouldInstallSeccompProfileFromConfigMap(dda) {
+		systemProbeInit := corev1.Container{
+			Name:            "seccomp-setup",
+			Image:           spec.Agent.Image.Name,
+			ImagePullPolicy: *spec.Agent.Image.PullPolicy,
+			Resources:       *spec.Agent.Config.Resources,
+			Command: []string{
+				"cp",
+				fmt.Sprintf("%s/system-probe-seccomp.json", datadoghqv1alpha1.SystemProbeAgentSecurityVolumePath),
+				fmt.Sprintf("%s/system-probe", datadoghqv1alpha1.SystemProbeSecCompRootVolumePath),
+			},
+			VolumeMounts: []corev1.VolumeMount{
+				{
+					Name:      datadoghqv1alpha1.SystemProbeAgentSecurityVolumeName,
+					MountPath: datadoghqv1alpha1.SystemProbeAgentSecurityVolumePath,
 				},
-				VolumeMounts: []corev1.VolumeMount{
-					{
-						Name:      datadoghqv1alpha1.SystemProbeAgentSecurityVolumeName,
-						MountPath: datadoghqv1alpha1.SystemProbeAgentSecurityVolumePath,
-					},
-					{
-						Name:      datadoghqv1alpha1.SystemProbeSecCompRootVolumeName,
-						MountPath: datadoghqv1alpha1.SystemProbeSecCompRootVolumePath,
-					},
+				{
+					Name:      datadoghqv1alpha1.SystemProbeSecCompRootVolumeName,
+					MountPath: datadoghqv1alpha1.SystemProbeSecCompRootVolumePath,
 				},
-			}
-			containers = append(containers, systemProbeInit)
+			},
 		}
+		containers = append(containers, systemProbeInit)
 	}
 
 	return containers, nil
@@ -941,22 +939,8 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 	}
 
 	if isSystemProbeEnabled(&dda.Spec) {
-		seccompConfigMapName := getSecCompConfigMapName(dda.Name)
-		if dda.Spec.Agent.SystemProbe.SecCompCustomProfileConfigMap != "" {
-			seccompConfigMapName = dda.Spec.Agent.SystemProbe.SecCompCustomProfileConfigMap
-		}
 		fileOrCreate := corev1.HostPathFileOrCreate
 		systemProbeVolumes := []corev1.Volume{
-			{
-				Name: datadoghqv1alpha1.SystemProbeAgentSecurityVolumeName,
-				VolumeSource: corev1.VolumeSource{
-					ConfigMap: &corev1.ConfigMapVolumeSource{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: seccompConfigMapName,
-						},
-					},
-				},
-			},
 			{
 				Name: datadoghqv1alpha1.SystemProbeConfigVolumeName,
 				VolumeSource: corev1.VolumeSource{
@@ -964,14 +948,6 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 						LocalObjectReference: corev1.LocalObjectReference{
 							Name: getSystemProbeConfigConfigMapName(dda.Name),
 						},
-					},
-				},
-			},
-			{
-				Name: datadoghqv1alpha1.SystemProbeSecCompRootVolumeName,
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: getSecCompRootPath(&dda.Spec.Agent.SystemProbe),
 					},
 				},
 			},
@@ -998,6 +974,27 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 					},
 				},
 			},
+		}
+
+		if shouldInstallSeccompProfileFromConfigMap(dda) {
+			systemProbeVolumes = append(systemProbeVolumes, corev1.Volume{
+				Name: datadoghqv1alpha1.SystemProbeAgentSecurityVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: getSecCompConfigMapName(dda),
+						},
+					},
+				},
+			})
+			systemProbeVolumes = append(systemProbeVolumes, corev1.Volume{
+				Name: datadoghqv1alpha1.SystemProbeSecCompRootVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: getSecCompRootPath(&dda.Spec.Agent.SystemProbe),
+					},
+				},
+			})
 		}
 
 		volumes = append(volumes, systemProbeVolumes...)

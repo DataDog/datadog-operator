@@ -144,7 +144,6 @@ func main() {
 		OperatorMetricsEnabled:   operatorMetricsEnabled,
 	}
 
-	// Get some information about Kubernetes version
 	if err := controllers.SetupControllers(setupLog, mgr, options); err != nil {
 		setupLog.Error(err, "Unable to start controllers")
 		os.Exit(1)

@@ -9,14 +9,13 @@ import (
 	"github.com/DataDog/datadog-operator/api/v1alpha1/test"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/orchestrator"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+	"github.com/DataDog/datadog-operator/pkg/testutils"
 
 	"github.com/go-logr/logr"
-	"github.com/google/go-cmp/cmp"
 	assert "github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
-	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -200,7 +199,9 @@ func (test clusterAgentDeploymentFromInstanceTest) Run(t *testing.T) {
 		}
 		test.want.Annotations["agent.datadoghq.com/agentspechash"] = deploymentSpecHash
 	}
-	assert.True(t, apiequality.Semantic.DeepEqual(got, test.want), "newClusterAgentDeploymentFromInstance()\ndiff = %s", cmp.Diff(got, test.want))
+
+	diff := testutils.CompareKubeResource(got, test.want)
+	assert.True(t, len(diff) == 0, diff)
 }
 
 type clusterAgentDeploymentFromInstanceTestSuite []clusterAgentDeploymentFromInstanceTest
@@ -1041,7 +1042,8 @@ func Test_newClusterAgentDeploymentFromInstance_AdmissionController(t *testing.T
 				Spec: appsv1.DeploymentSpec{
 					Template: corev1.PodTemplateSpec{
 						ObjectMeta: metav1.ObjectMeta{
-							Labels: commonLabels,
+							Labels:      commonLabels,
+							Annotations: map[string]string{},
 						},
 						Spec: admissionControllerPodSpec,
 					},
@@ -1073,7 +1075,8 @@ func Test_newClusterAgentDeploymentFromInstance_AdmissionController(t *testing.T
 				Spec: appsv1.DeploymentSpec{
 					Template: corev1.PodTemplateSpec{
 						ObjectMeta: metav1.ObjectMeta{
-							Labels: commonLabels,
+							Labels:      commonLabels,
+							Annotations: map[string]string{},
 						},
 						Spec: admissionControllerPodSpecCustom,
 					},

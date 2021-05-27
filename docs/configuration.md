@@ -175,7 +175,7 @@ spec:
 | agent.systemProbe.env | The Datadog SystemProbe supports many environment variables. See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables |
 | agent.systemProbe.resources.limits | Limits describes the maximum amount of compute resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/ |
 | agent.systemProbe.resources.requests | Requests describes the minimum amount of compute resources required. If Requests is omitted for a container, it defaults to Limits if that is explicitly specified, otherwise to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/ |
-| agent.systemProbe.secCompCustomProfileConfigMap | SecCompCustomProfileConfigMap specify a pre-existing ConfigMap containing a custom SecComp profile. |
+| agent.systemProbe.secCompCustomProfileConfigMap | SecCompCustomProfileConfigMap specify a pre-existing ConfigMap containing a custom SecComp profile. This ConfigMap must contain a file named system-probe-seccomp.json. |
 | agent.systemProbe.secCompProfileName | SecCompProfileName specify a seccomp profile. |
 | agent.systemProbe.secCompRootPath | SecCompRootPath specify the seccomp profile root directory. |
 | agent.systemProbe.securityContext.allowPrivilegeEscalation | AllowPrivilegeEscalation controls whether a process can gain more privileges than its parent process. This bool directly controls if the no_new_privs flag will be set on the container process. AllowPrivilegeEscalation is true always when the container is: 1) run as Privileged 2) has CAP_SYS_ADMIN |

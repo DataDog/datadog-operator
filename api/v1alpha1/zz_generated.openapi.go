@@ -3116,7 +3116,7 @@ func schema__api_v1alpha1_SystemProbeSpec(ref common.ReferenceCallback) common.O
 					},
 					"secCompCustomProfileConfigMap": {
 						SchemaProps: spec.SchemaProps{
-							Description: "SecCompCustomProfileConfigMap specify a pre-existing ConfigMap containing a custom SecComp profile.",
+							Description: "SecCompCustomProfileConfigMap specify a pre-existing ConfigMap containing a custom SecComp profile. This ConfigMap must contain a file named system-probe-seccomp.json.",
 							Type:        []string{"string"},
 							Format:      "",
 						},

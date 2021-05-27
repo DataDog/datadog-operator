@@ -528,6 +528,7 @@ type SystemProbeSpec struct {
 	SecCompRootPath string `json:"secCompRootPath,omitempty"`
 
 	// SecCompCustomProfileConfigMap specify a pre-existing ConfigMap containing a custom SecComp profile.
+	// This ConfigMap must contain a file named system-probe-seccomp.json.
 	// +optional
 	SecCompCustomProfileConfigMap string `json:"secCompCustomProfileConfigMap,omitempty"`
 
