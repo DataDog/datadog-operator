@@ -176,6 +176,6 @@ helm delete my-datadog-operator
 [3]: https://artifacthub.io/packages/helm/datadog/datadog-operator
 [4]: https://olm.operatorframework.io/
 [5]: https://operatorhub.io/operator/datadog-operator
-[6]: https://github.com/operator-framework/operator-lifecycle-manager/blob/main/doc/design/subscription-config.md#subscription-config
+[6]: https://github.com/operator-framework/operator-lifecycle-manager/blob/master/doc/design/subscription-config.md
 [7]: https://app.datadoghq.com/account/settings#api
 [8]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/datadog-agent-with-tolerations.yaml
