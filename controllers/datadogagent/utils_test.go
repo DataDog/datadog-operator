@@ -196,7 +196,6 @@ func Test_getVolumeMountsForSecurityAgent(t *testing.T) {
 				v1.VolumeMount{Name: "hostroot", ReadOnly: true, MountPath: "/host/root"},
 				v1.VolumeMount{Name: "runtimesocketdir", ReadOnly: true, MountPath: "/host/var/run/containerd"},
 				v1.VolumeMount{Name: "sysprobe-socket-dir", ReadOnly: true, MountPath: "/var/run/sysprobe"},
-				v1.VolumeMount{Name: "runtimepoliciesdir", ReadOnly: true, MountPath: "/etc/datadog-agent/runtime-security.d"},
 			},
 		},
 	}

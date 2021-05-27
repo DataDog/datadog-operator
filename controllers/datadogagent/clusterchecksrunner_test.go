@@ -31,7 +31,7 @@ func clusterChecksRunnerDefaultPodSpec() corev1.PodSpec {
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
 				Command:         []string{"bash", "-c"},
-				Args:            []string{"cp -r /etc/datadog-agent /opt"},
+				Args:            []string{"cp -vnr /etc/datadog-agent /opt;cp -v /etc/datadog-agent-runtime-policies/* /opt/datadog-agent/runtime-security.d/"},
 				VolumeMounts: []corev1.VolumeMount{
 					{
 						Name:      datadoghqv1alpha1.ConfigVolumeName,

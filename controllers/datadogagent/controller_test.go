@@ -758,7 +758,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, &test.NewDatadogAgentOptions{ProcessEnabled: true, SystemProbeEnabled: true, ClusterAgentEnabled: false, UseEDS: false, Labels: map[string]string{"label-foo-key": "label-bar-value"}})
 					_ = c.Create(context.TODO(), dda)
 					createAgentDependencies(c, dda)
-					configCM, _ := buildSystemProbeConfigConfiMap(dda)
+					configCM, _ := buildSystemProbeConfigConfigMap(dda)
 					_ = c.Create(context.TODO(), configCM)
 				},
 			},
@@ -2480,7 +2480,7 @@ func hasAllNodeLevelRbacResources(policyRules []rbacv1.PolicyRule) bool {
 }
 
 func createSystemProbeDependencies(c client.Client, dda *datadoghqv1alpha1.DatadogAgent) {
-	configCM, _ := buildSystemProbeConfigConfiMap(dda)
+	configCM, _ := buildSystemProbeConfigConfigMap(dda)
 	securityCM, _ := buildSystemProbeSecCompConfigMap(dda)
 	_ = c.Create(context.TODO(), configCM)
 	_ = c.Create(context.TODO(), securityCM)

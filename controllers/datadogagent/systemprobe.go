@@ -24,7 +24,7 @@ const (
 )
 
 func (r *Reconciler) manageSystemProbeDependencies(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
-	result, err := r.manageConfigMap(logger, dda, getSystemProbeConfigConfigMapName(dda), buildSystemProbeConfigConfiMap)
+	result, err := r.manageConfigMap(logger, dda, getSystemProbeConfigConfigMapName(dda), buildSystemProbeConfigConfigMap)
 	if shouldReturn(result, err) {
 		return result, err
 	}
@@ -64,7 +64,7 @@ func getSystemProbeConfigFileName(dda *datadoghqv1alpha1.DatadogAgent) string {
 	return datadoghqv1alpha1.SystemProbeConfigVolumeSubPath
 }
 
-func buildSystemProbeConfigConfiMap(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.ConfigMap, error) {
+func buildSystemProbeConfigConfigMap(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.ConfigMap, error) {
 	if !shouldCreateSystemProbeConfigConfigMap(dda) {
 		return nil, nil
 	}
