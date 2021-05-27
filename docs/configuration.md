@@ -51,7 +51,7 @@ spec:
 | agent.config.dogstatsd.dogstatsdOriginDetection | Enable origin detection for container tagging. See also: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/#using-origin-detection-for-container-tagging |
 | agent.config.dogstatsd.mapperProfiles.configData | ConfigData corresponds to the configuration file content. |
 | agent.config.dogstatsd.mapperProfiles.configMap.fileKey | FileKey corresponds to the key used in the ConfigMap.Data to store the configuration file content. |
-| agent.config.dogstatsd.mapperProfiles.configMap.name | Name the ConfigMap name. |
+| agent.config.dogstatsd.mapperProfiles.configMap.name | The name of source ConfigMap. |
 | agent.config.dogstatsd.unixDomainSocket.enabled | Enable APM over Unix Domain Socket. See also: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/ |
 | agent.config.dogstatsd.unixDomainSocket.hostFilepath | Define the host APM socket filepath used when APM over Unix Domain Socket is enabled. (default value: /var/run/datadog/statsd.sock). See also: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/ |
 | agent.config.env | The Datadog Agent supports many environment variables. See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables |
@@ -98,7 +98,7 @@ spec:
 | agent.config.volumes | Specify additional volumes in the Datadog Agent container. |
 | agent.customConfig.configData | ConfigData corresponds to the configuration file content. |
 | agent.customConfig.configMap.fileKey | FileKey corresponds to the key used in the ConfigMap.Data to store the configuration file content. |
-| agent.customConfig.configMap.name | Name the ConfigMap name. |
+| agent.customConfig.configMap.name | The name of source ConfigMap. |
 | agent.daemonsetName | Name of the Daemonset to create or migrate from. |
 | agent.deploymentStrategy.canary.autoFail.enabled |  |
 | agent.deploymentStrategy.canary.autoFail.maxRestarts | MaxRestarts defines the number of tolerable (per pod) Canary pod restarts after which the Canary deployment is autofailed. |
@@ -168,6 +168,9 @@ spec:
 | agent.systemProbe.collectDNSStats | CollectDNSStats enables DNS stat collection. |
 | agent.systemProbe.command | Command allows the specification of custom entrypoint for System Probe container |
 | agent.systemProbe.conntrackEnabled | ConntrackEnabled enable the system-probe agent to connect to the netlink/conntrack subsystem to add NAT information to connection data. See also: http://conntrack-tools.netfilter.org/ |
+| agent.systemProbe.customConfig.configData | ConfigData corresponds to the configuration file content. |
+| agent.systemProbe.customConfig.configMap.fileKey | FileKey corresponds to the key used in the ConfigMap.Data to store the configuration file content. |
+| agent.systemProbe.customConfig.configMap.name | The name of source ConfigMap. |
 | agent.systemProbe.debugPort | DebugPort Specify the port to expose pprof and expvar for system-probe agent. |
 | agent.systemProbe.enableOOMKill | EnableOOMKill enables the OOM kill eBPF-based check. |
 | agent.systemProbe.enableTCPQueueLength | EnableTCPQueueLength enables the TCP queue length eBPF-based check. |
@@ -234,7 +237,7 @@ spec:
 | clusterAgent.config.volumes | Specify additional volumes in the Datadog Cluster Agent container. |
 | clusterAgent.customConfig.configData | ConfigData corresponds to the configuration file content. |
 | clusterAgent.customConfig.configMap.fileKey | FileKey corresponds to the key used in the ConfigMap.Data to store the configuration file content. |
-| clusterAgent.customConfig.configMap.name | Name the ConfigMap name. |
+| clusterAgent.customConfig.configMap.name | The name of source ConfigMap. |
 | clusterAgent.deploymentName | Name of the Cluster Agent Deployment to create or migrate from. |
 | clusterAgent.image.name | Define the image to use: Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 6 Use "datadog/dogstatsd:latest" for Standalone Datadog Agent DogStatsD6 Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent |
 | clusterAgent.image.pullPolicy | The Kubernetes pull policy: Use Always, Never or IfNotPresent. |
@@ -266,7 +269,7 @@ spec:
 | clusterChecksRunner.config.volumes | Specify additional volumes in the Datadog Cluster Check Runner container. |
 | clusterChecksRunner.customConfig.configData | ConfigData corresponds to the configuration file content. |
 | clusterChecksRunner.customConfig.configMap.fileKey | FileKey corresponds to the key used in the ConfigMap.Data to store the configuration file content. |
-| clusterChecksRunner.customConfig.configMap.name | Name the ConfigMap name. |
+| clusterChecksRunner.customConfig.configMap.name | The name of source ConfigMap. |
 | clusterChecksRunner.deploymentName | Name of the cluster checks deployment to create or migrate from. |
 | clusterChecksRunner.image.name | Define the image to use: Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 6 Use "datadog/dogstatsd:latest" for Standalone Datadog Agent DogStatsD6 Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent |
 | clusterChecksRunner.image.pullPolicy | The Kubernetes pull policy: Use Always, Never or IfNotPresent. |
@@ -291,7 +294,7 @@ spec:
 | credentials.useSecretBackend | UseSecretBackend use the Agent secret backend feature for retreiving all credentials needed by the different components: Agent, Cluster, Cluster-Checks. If `useSecretBackend: true`, other credential parameters will be ignored. default value is false. |
 | features.kubeStateMetricsCore.conf.configData | ConfigData corresponds to the configuration file content. |
 | features.kubeStateMetricsCore.conf.configMap.fileKey | FileKey corresponds to the key used in the ConfigMap.Data to store the configuration file content. |
-| features.kubeStateMetricsCore.conf.configMap.name | Name the ConfigMap name. |
+| features.kubeStateMetricsCore.conf.configMap.name | The name of source ConfigMap. |
 | features.kubeStateMetricsCore.enabled | Enable this to start the Kubernetes State Metrics Core check. Refer to https://github.com/DataDog/datadog-operator/blob/main/docs/kubernetes_state_metrics.md |
 | features.logCollection.containerCollectUsingFiles | Collect logs from files in `/var/log/pods instead` of using the container runtime API. Collecting logs from files is usually the most efficient way of collecting logs. See also: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup Default is true |
 | features.logCollection.containerLogsPath | Allows log collection from the container log path. Set to a different path if you are not using the Docker runtime. See also: https://docs.datadoghq.com/agent/kubernetes/daemonset_setup/?tab=k8sfile#create-manifest Defaults to `/var/lib/docker/containers` |

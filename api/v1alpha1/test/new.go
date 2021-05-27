@@ -60,6 +60,7 @@ type NewDatadogAgentOptions struct {
 	ClusterAgentVolumeMounts         []corev1.VolumeMount
 	ClusterAgentEnvVars              []corev1.EnvVar
 	CustomConfig                     string
+	SystemProbeCustomConfigMapName   string
 	AgentDaemonsetName               string
 	ClusterAgentDeploymentName       string
 	ClusterChecksRunnerEnabled       bool
@@ -293,6 +294,10 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 
 			if options.SystemProbeOOMKillEnabled {
 				ad.Spec.Agent.SystemProbe.EnableOOMKill = datadoghqv1alpha1.NewBoolPointer(true)
+			}
+
+			if options.SystemProbeCustomConfigMapName != "" {
+				ad.Spec.Agent.SystemProbe.CustomConfig = &datadoghqv1alpha1.CustomConfigSpec{ConfigMap: &datadoghqv1alpha1.ConfigFileConfigMapSpec{Name: options.SystemProbeCustomConfigMapName}}
 			}
 		}
 

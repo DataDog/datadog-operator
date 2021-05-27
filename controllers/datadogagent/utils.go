@@ -500,6 +500,15 @@ func getEnvVarsForProcessAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.En
 		},
 	}
 
+	if isSystemProbeEnabled(&dda.Spec) {
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  datadoghqv1alpha1.DDSystemProbeSocketPath,
+			Value: filepath.Join(datadoghqv1alpha1.SystemProbeSocketVolumePath, "sysprobe.sock"),
+		})
+
+		envVars = addBoolEnVar(isNetworkMonitoringEnabled(&dda.Spec), datadoghqv1alpha1.DDSystemProbeNPMEnabled, envVars)
+	}
+
 	if processCollectionEnabled(dda) {
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  datadoghqv1alpha1.DDProcessAgentEnabled,
@@ -535,6 +544,47 @@ func getEnvVarsForSystemProbe(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.Env
 		return nil, err
 	}
 	envVars = append(envVars, commonEnvVars...)
+
+	envVars = append(envVars,
+		corev1.EnvVar{
+			Name:  datadoghqv1alpha1.DDSystemProbeDebugPort,
+			Value: strconv.FormatInt(int64(dda.Spec.Agent.SystemProbe.DebugPort), 10),
+		},
+		corev1.EnvVar{
+			Name:  datadoghqv1alpha1.DDSystemProbeSocketPath,
+			Value: filepath.Join(datadoghqv1alpha1.SystemProbeSocketVolumePath, "sysprobe.sock"),
+		},
+	)
+
+	// We do not set env vars to false if *bool is nil as it will override content from config file
+	envVars = addBoolPointerEnVar(dda.Spec.Agent.SystemProbe.ConntrackEnabled, datadoghqv1alpha1.DDSystemProbeConntrackEnabled, envVars)
+	envVars = addBoolPointerEnVar(dda.Spec.Agent.SystemProbe.BPFDebugEnabled, datadoghqv1alpha1.DDSystemProbeBPFDebugEnabled, envVars)
+	envVars = addBoolPointerEnVar(dda.Spec.Agent.SystemProbe.EnableTCPQueueLength, datadoghqv1alpha1.DDSystemProbeTCPQueueLengthEnabled, envVars)
+	envVars = addBoolPointerEnVar(dda.Spec.Agent.SystemProbe.EnableOOMKill, datadoghqv1alpha1.DDSystemProbeOOMKillEnabled, envVars)
+	envVars = addBoolPointerEnVar(dda.Spec.Agent.SystemProbe.CollectDNSStats, datadoghqv1alpha1.DDSystemProbeCollectDNSStatsEnabled, envVars)
+	envVars = addBoolEnVar(isNetworkMonitoringEnabled(&dda.Spec), datadoghqv1alpha1.DDSystemProbeNPMEnabled, envVars)
+	envVars = addBoolEnVar(isRuntimeSecurityEnabled(&dda.Spec), datadoghqv1alpha1.DDRuntimeSecurityConfigEnabled, envVars)
+	envVars = addBoolEnVar(isSyscallMonitorEnabled(&dda.Spec), datadoghqv1alpha1.DDRuntimeSecurityConfigSyscallMonitorEnabled, envVars)
+	// For now don't expose the remote_tagger setting to user, since it is an implementation detail.
+	envVars = addBoolEnVar(isRuntimeSecurityEnabled(&dda.Spec), datadoghqv1alpha1.DDRuntimeSecurityConfigRemoteTaggerEnabled, envVars)
+
+	if isRuntimeSecurityEnabled(&dda.Spec) {
+		envVars = append(envVars,
+			corev1.EnvVar{
+				Name:  datadoghqv1alpha1.DDRuntimeSecurityConfigSocket,
+				Value: filepath.Join(datadoghqv1alpha1.SystemProbeSocketVolumePath, "runtime-security.sock"),
+			},
+			corev1.EnvVar{
+				Name:  datadoghqv1alpha1.DDRuntimeSecurityConfigPoliciesDir,
+				Value: datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumePath,
+			},
+			corev1.EnvVar{
+				Name:  datadoghqv1alpha1.DDAuthTokenFilePath,
+				Value: filepath.Join(datadoghqv1alpha1.AuthVolumePath, "token"),
+			},
+		)
+	}
+
 	envVars = append(envVars, dda.Spec.Agent.SystemProbe.Env...)
 	return envVars, nil
 }
@@ -701,6 +751,15 @@ func getEnvVarsForAgent(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent)
 		if dsdMapperProfilesEnv := dsdMapperProfilesEnvVar(logger, dda); dsdMapperProfilesEnv != nil {
 			envVars = append(envVars, *dsdMapperProfilesEnv)
 		}
+	}
+
+	if isSystemProbeEnabled(&dda.Spec) {
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  datadoghqv1alpha1.DDSystemProbeSocketPath,
+			Value: filepath.Join(datadoghqv1alpha1.SystemProbeSocketVolumePath, "sysprobe.sock"),
+		})
+		envVars = addBoolPointerEnVar(dda.Spec.Agent.SystemProbe.EnableTCPQueueLength, datadoghqv1alpha1.DDSystemProbeTCPQueueLengthEnabled, envVars)
+		envVars = addBoolPointerEnVar(dda.Spec.Agent.SystemProbe.EnableOOMKill, datadoghqv1alpha1.DDSystemProbeOOMKillEnabled, envVars)
 	}
 
 	if spec.ClusterAgent != nil {
@@ -946,16 +1005,6 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 		fileOrCreate := corev1.HostPathFileOrCreate
 		systemProbeVolumes := []corev1.Volume{
 			{
-				Name: datadoghqv1alpha1.SystemProbeConfigVolumeName,
-				VolumeSource: corev1.VolumeSource{
-					ConfigMap: &corev1.ConfigMapVolumeSource{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: getSystemProbeConfigConfigMapName(dda.Name),
-						},
-					},
-				},
-			},
-			{
 				Name: datadoghqv1alpha1.SystemProbeDebugfsVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
@@ -978,6 +1027,19 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 					},
 				},
 			},
+		}
+
+		if shouldMountSystemProbeConfigConfigMap(dda) {
+			systemProbeVolumes = append(systemProbeVolumes, corev1.Volume{
+				Name: datadoghqv1alpha1.SystemProbeConfigVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: getSystemProbeConfigConfigMapName(dda),
+						},
+					},
+				},
+			})
 		}
 
 		if shouldInstallSeccompProfileFromConfigMap(dda) {
@@ -1303,19 +1365,20 @@ func getVolumeMountsForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volum
 	}
 
 	// SystemProbe volumes
-	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.SystemProbe.Enabled) {
-		volumeMounts = append(volumeMounts, []corev1.VolumeMount{
-			{
-				Name:      datadoghqv1alpha1.SystemProbeSocketVolumeName,
-				MountPath: datadoghqv1alpha1.SystemProbeSocketVolumePath,
-				ReadOnly:  true,
-			},
-			{
-				Name:      datadoghqv1alpha1.SystemProbeConfigVolumeName,
-				MountPath: datadoghqv1alpha1.SystemProbeConfigVolumePath,
-				SubPath:   datadoghqv1alpha1.SystemProbeConfigVolumeSubPath,
-			},
-		}...)
+	if isSystemProbeEnabled(&dda.Spec) {
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      datadoghqv1alpha1.SystemProbeSocketVolumeName,
+			MountPath: datadoghqv1alpha1.SystemProbeSocketVolumePath,
+			ReadOnly:  true,
+		})
+	}
+
+	if shouldMountSystemProbeConfigConfigMap(dda) {
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      datadoghqv1alpha1.SystemProbeConfigVolumeName,
+			MountPath: datadoghqv1alpha1.SystemProbeConfigVolumePath,
+			SubPath:   getSystemProbeConfigFileName(dda),
+		})
 	}
 
 	return append(volumeMounts, dda.Spec.Agent.Config.VolumeMounts...)
@@ -1421,19 +1484,20 @@ func getVolumeMountsForProcessAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev
 	// Cri socket volume
 	volumeMounts = append(volumeMounts, getVolumeMountForRuntimeSockets(dda.Spec.Agent.Config.CriSocket))
 
-	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.SystemProbe.Enabled) {
-		volumeMounts = append(volumeMounts, []corev1.VolumeMount{
-			{
-				Name:      datadoghqv1alpha1.SystemProbeSocketVolumeName,
-				MountPath: datadoghqv1alpha1.SystemProbeSocketVolumePath,
-				ReadOnly:  true,
-			},
-			{
-				Name:      datadoghqv1alpha1.SystemProbeConfigVolumeName,
-				MountPath: datadoghqv1alpha1.SystemProbeConfigVolumePath,
-				SubPath:   datadoghqv1alpha1.SystemProbeConfigVolumeSubPath,
-			},
-		}...)
+	if isSystemProbeEnabled(&dda.Spec) {
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      datadoghqv1alpha1.SystemProbeSocketVolumeName,
+			MountPath: datadoghqv1alpha1.SystemProbeSocketVolumePath,
+			ReadOnly:  true,
+		})
+	}
+
+	if shouldMountSystemProbeConfigConfigMap(dda) {
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      datadoghqv1alpha1.SystemProbeConfigVolumeName,
+			MountPath: datadoghqv1alpha1.SystemProbeConfigVolumePath,
+			SubPath:   getSystemProbeConfigFileName(dda),
+		})
 	}
 
 	// Add extra volume mounts
@@ -1488,11 +1552,6 @@ func getVolumeMountsForSystemProbe(dda *datadoghqv1alpha1.DatadogAgent) []corev1
 			MountPath: datadoghqv1alpha1.SystemProbeDebugfsVolumePath,
 		},
 		{
-			Name:      datadoghqv1alpha1.SystemProbeConfigVolumeName,
-			MountPath: datadoghqv1alpha1.SystemProbeConfigVolumePath,
-			SubPath:   datadoghqv1alpha1.SystemProbeConfigVolumeSubPath,
-		},
-		{
 			Name:      datadoghqv1alpha1.SystemProbeSocketVolumeName,
 			MountPath: datadoghqv1alpha1.SystemProbeSocketVolumePath,
 		},
@@ -1506,6 +1565,14 @@ func getVolumeMountsForSystemProbe(dda *datadoghqv1alpha1.DatadogAgent) []corev1
 			MountPath: datadoghqv1alpha1.SystemProbeOSReleaseDirMountPath,
 			ReadOnly:  true,
 		},
+	}
+
+	if shouldMountSystemProbeConfigConfigMap(dda) {
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      datadoghqv1alpha1.SystemProbeConfigVolumeName,
+			MountPath: datadoghqv1alpha1.SystemProbeConfigVolumePath,
+			SubPath:   getSystemProbeConfigFileName(dda),
+		})
 	}
 
 	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.SystemProbe.EnableTCPQueueLength) ||
@@ -2189,4 +2256,19 @@ func getDefaultIfEmpty(val, def []string) []string {
 	}
 
 	return def
+}
+
+func addBoolEnVar(b bool, varName string, varList []corev1.EnvVar) []corev1.EnvVar {
+	return addBoolPointerEnVar(&b, varName, varList)
+}
+
+func addBoolPointerEnVar(b *bool, varName string, varList []corev1.EnvVar) []corev1.EnvVar {
+	if b != nil {
+		varList = append(varList, corev1.EnvVar{
+			Name:  varName,
+			Value: datadoghqv1alpha1.BoolToString(b),
+		})
+	}
+
+	return varList
 }

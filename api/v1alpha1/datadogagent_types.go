@@ -559,6 +559,11 @@ type SystemProbeSpec struct {
 	// CollectDNSStats enables DNS stat collection.
 	CollectDNSStats *bool `json:"collectDNSStats,omitempty"`
 
+	// Enable custom configuration for system-probe, corresponding to the system-probe.yaml config file.
+	// This custom configuration has less priority than all settings above.
+	// +optional
+	CustomConfig *CustomConfigSpec `json:"customConfig,omitempty"`
+
 	// The Datadog SystemProbe supports many environment variables.
 	// See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables
 	//
@@ -676,7 +681,7 @@ type ConfigDirSpec struct {
 // ConfigFileConfigMapSpec contains configMap information used to store a config file.
 // +k8s:openapi-gen=true
 type ConfigFileConfigMapSpec struct {
-	// Name the ConfigMap name.
+	// The name of source ConfigMap.
 	Name string `json:"name,omitempty"`
 	// FileKey corresponds to the key used in the ConfigMap.Data to store the configuration file content.
 	FileKey string `json:"fileKey,omitempty"`
@@ -689,7 +694,7 @@ type ConfigFileConfigMapSpec struct {
 type CustomConfigSpec struct {
 	// ConfigData corresponds to the configuration file content.
 	ConfigData *string `json:"configData,omitempty"`
-	// ConfigMap name of a ConfigMap used to mount the configuration file.
+	// Enable to specify a reference to an already existing ConfigMap.
 	ConfigMap *ConfigFileConfigMapSpec `json:"configMap,omitempty"`
 }
 

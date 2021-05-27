@@ -714,7 +714,7 @@ func schema__api_v1alpha1_ConfigFileConfigMapSpec(ref common.ReferenceCallback) 
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Name the ConfigMap name.",
+							Description: "The name of source ConfigMap.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -748,7 +748,7 @@ func schema__api_v1alpha1_CustomConfigSpec(ref common.ReferenceCallback) common.
 					},
 					"configMap": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ConfigMap name of a ConfigMap used to mount the configuration file.",
+							Description: "Enable to specify a reference to an already existing ConfigMap.",
 							Ref:         ref("./api/v1alpha1.ConfigFileConfigMapSpec"),
 						},
 					},
@@ -3177,6 +3177,12 @@ func schema__api_v1alpha1_SystemProbeSpec(ref common.ReferenceCallback) common.O
 							Format:      "",
 						},
 					},
+					"customConfig": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enable custom configuration for system-probe, corresponding to the system-probe.yaml config file. This custom configuration has less priority than all settings above.",
+							Ref:         ref("./api/v1alpha1.CustomConfigSpec"),
+						},
+					},
 					"env": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
@@ -3255,6 +3261,6 @@ func schema__api_v1alpha1_SystemProbeSpec(ref common.ReferenceCallback) common.O
 			},
 		},
 		Dependencies: []string{
-			"k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.SecurityContext"},
+			"./api/v1alpha1.CustomConfigSpec", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.SecurityContext"},
 	}
 }
