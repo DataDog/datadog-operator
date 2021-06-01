@@ -6,6 +6,7 @@
 package testutils_test
 
 import (
+	"fmt"
 	"testing"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,66 +15,81 @@ import (
 // CheckObjectMeta define the function signature of a check that runs again a metav1.ObjectMeta object.
 type CheckObjectMeta func(t *testing.T, obj *metav1.ObjectMeta)
 
-// CheckNamespaceName used to check if the namespace and name are the expected value on a metav1.ObjectMeta.
-func CheckNamespaceName(ns, name string) CheckObjectMeta {
-	check := func(t *testing.T, obj *metav1.ObjectMeta) {
-		if obj.Namespace != ns || obj.Name != name {
-			t.Errorf("Wrong object NS/Name, want [%s/%s], got [%s/%s]", ns, name, obj.Namespace, obj.Name)
-		}
+// ObjetMetaCheckInterface use as ObjectMeta check interface
+type ObjetMetaCheckInterface interface {
+	Check(t *testing.T, obj *metav1.ObjectMeta) error
+}
+
+// CheckNameNamespace used to check if the namespace and name are the expected value on a metav1.ObjectMeta.
+type CheckNameNamespace struct {
+	Namespace string
+	Name      string
+}
+
+// Check used to check if the namespace and name are the expected value on a metav1.ObjectMeta.
+func (c *CheckNameNamespace) Check(t *testing.T, obj *metav1.ObjectMeta) error {
+	if obj.Namespace != c.Namespace || obj.Name != c.Name {
+		return fmt.Errorf("wrong object NS/Name, want [%s/%s], got [%s/%s]", c.Namespace, c.Name, obj.Namespace, obj.Name)
 	}
-	return check
+	return nil
 }
 
 // CheckLabelIsPresent used to check if a label (key,value) is present on a metav1.ObjectMeta object.
-func CheckLabelIsPresent(key, value string) CheckObjectMeta {
-	check := func(t *testing.T, obj *metav1.ObjectMeta) {
-		checkIsPresentInMap(t, key, value, obj.Labels, "obj.Labels")
-	}
+type CheckLabelIsPresent struct {
+	Key   string
+	Value string
+}
 
-	return check
+// Check used to check if a label (key,value) is present on a metav1.ObjectMeta object.
+func (c *CheckLabelIsPresent) Check(t *testing.T, obj *metav1.ObjectMeta) error {
+	return checkIsPresentInMap(t, c.Key, c.Value, obj.Labels, "obj.Labels")
 }
 
 // CheckAnnotationIsPresent used to check if an annotation (key,value) is present on a metav1.ObjectMeta object.
-func CheckAnnotationIsPresent(key, value string) CheckObjectMeta {
-	check := func(t *testing.T, obj *metav1.ObjectMeta) {
-		checkIsPresentInMap(t, key, value, obj.Annotations, "obj.Annotations")
-	}
-
-	return check
+type CheckAnnotationIsPresent struct {
+	Key   string
+	Value string
 }
 
-// CheckLabelIsNotPresent used to check if a label (key,value) is not present on a metav1.ObjectMeta object.
-func CheckLabelIsNotPresent(key string) CheckObjectMeta {
-	check := func(t *testing.T, obj *metav1.ObjectMeta) {
-		checkLabelIsNotPresent(t, key, obj.Labels, "obj.Labels")
-	}
-
-	return check
+// Check used to check if an annotation (key,value) is present on a metav1.ObjectMeta object.
+func (c *CheckAnnotationIsPresent) Check(t *testing.T, obj *metav1.ObjectMeta) error {
+	return checkIsPresentInMap(t, c.Key, c.Value, obj.Annotations, "obj.Annotations")
 }
 
-// CheckAnnotationsIsNotPresent used to check if an annotation (key,value) is not present on a metav1.ObjectMeta object.
-func CheckAnnotationsIsNotPresent(key string) CheckObjectMeta {
-	check := func(t *testing.T, obj *metav1.ObjectMeta) {
-		checkLabelIsNotPresent(t, key, obj.Annotations, "obj.Annotations")
-	}
-
-	return check
+// CheckLabelIsNotPresent used to check if a label key is not present on a metav1.ObjectMeta object.
+type CheckLabelIsNotPresent struct {
+	Key string
 }
 
-func checkIsPresentInMap(t *testing.T, key, value string, entries map[string]string, msgPrefix string) {
+// Check used to check if a label key is not present on a metav1.ObjectMeta object.
+func (c *CheckLabelIsNotPresent) Check(t *testing.T, obj *metav1.ObjectMeta) error {
+	return checkLabelIsNotPresent(t, c.Key, obj.Labels, "obj.Labels")
+}
+
+// CheckAnnotationsIsNotPresent used to check if a annotation key is not present on a metav1.ObjectMeta object.
+type CheckAnnotationsIsNotPresent struct {
+	Key string
+}
+
+// Check used to check if an annotation (key,value) is not present on a metav1.ObjectMeta object.
+func (c *CheckAnnotationsIsNotPresent) Check(t *testing.T, obj *metav1.ObjectMeta) error {
+	return checkLabelIsNotPresent(t, c.Key, obj.Annotations, "obj.Annotations")
+}
+
+func checkIsPresentInMap(t *testing.T, key, value string, entries map[string]string, msgPrefix string) error {
 	if val, found := entries[key]; found {
 		if val == value {
 			t.Logf("[%s] key [%s] founded with value value [%s]", msgPrefix, key, value)
-			return
+			return nil
 		}
-		t.Errorf("[%s] key %s founded, but wrong value, got [%s], want [%s]", msgPrefix, key, val, value)
+		return fmt.Errorf("[%s] key %s founded, but wrong value, got [%s], want [%s]", msgPrefix, key, val, value)
 	}
-	t.Errorf("[%s] key %s not founded", msgPrefix, key)
+	return fmt.Errorf("[%s] key %s not founded", msgPrefix, key)
 }
 
-func checkLabelIsNotPresent(t *testing.T, key string, entries map[string]string, msgPrefix string) {
+func checkLabelIsNotPresent(_ *testing.T, key string, entries map[string]string, msgPrefix string) error {
 	if value, found := entries[key]; found {
-		t.Errorf("[%s] key [%s] founded with value value [%s]", msgPrefix, key, value)
-		return
+		return fmt.Errorf("[%s] key [%s] founded with value value [%s]", msgPrefix, key, value)
 	}
+	return nil
 }

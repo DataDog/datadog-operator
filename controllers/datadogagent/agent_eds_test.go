@@ -48,15 +48,15 @@ func Test_EDSFromDefaultAgent(t *testing.T) {
 		name:            "defaulted case",
 		agentdeployment: defaultDatadogAgent,
 		checkEDSFuncs: []testutils.CheckExtendedDaemonSetFunc{
-			testutils.CheckMetadaInEDS(testutils.CheckNamespaceName("bar", "foo-agent")),
+			testutils.CheckMetadaInEDS(&testutils.CheckNameNamespace{Namespace: "bar", Name: "foo-agent"}),
 			// check labels
-			testutils.CheckMetadaInEDS(testutils.CheckLabelIsPresent("agent.datadoghq.com/name", "foo")),
-			testutils.CheckMetadaInEDS(testutils.CheckLabelIsPresent("agent.datadoghq.com/component", "agent")),
-			testutils.CheckMetadaInEDS(testutils.CheckLabelIsPresent("app.kubernetes.io/instance", "agent")),
-			testutils.CheckMetadaInEDS(testutils.CheckLabelIsPresent("app.kubernetes.io/managed-by", "datadog-operator")),
+			testutils.CheckMetadaInEDS(&testutils.CheckLabelIsPresent{Key: "agent.datadoghq.com/name", Value: "foo"}),
+			testutils.CheckMetadaInEDS(&testutils.CheckLabelIsPresent{Key: "agent.datadoghq.com/component", Value: "agent"}),
+			testutils.CheckMetadaInEDS(&testutils.CheckLabelIsPresent{Key: "app.kubernetes.io/instance", Value: "agent"}),
+			testutils.CheckMetadaInEDS(&testutils.CheckLabelIsPresent{Key: "app.kubernetes.io/managed-by", Value: "datadog-operator"}),
 			// check containers creation
-			testutils.CheckPodTemplateInEDS(testutils.CheckContainerNameIsPresentFunc("agent")),
-			testutils.CheckPodTemplateInEDS(testutils.CheckContainerNameIsPresentFunc("process-agent")),
+			testutils.CheckPodTemplateInEDS(&testutils.CheckContainerNameIsPresentFunc{Name: "agent"}),
+			testutils.CheckPodTemplateInEDS(&testutils.CheckContainerNameIsPresentFunc{Name: "process-agent"}),
 		},
 		wantErr: false,
 	}

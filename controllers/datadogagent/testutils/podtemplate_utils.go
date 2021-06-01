@@ -6,6 +6,7 @@
 package testutils_test
 
 import (
+	"fmt"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
@@ -15,19 +16,28 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/testutils"
 )
 
+// ContainerCheckInterface interface used by container checks.
+type ContainerCheckInterface interface {
+	Check(t *testing.T, container *corev1.Container) error
+}
+
+// PodTemplateSpecCheckInterface interface use by PodTemplateSpec checks.
+type PodTemplateSpecCheckInterface interface {
+	Check(t *testing.T, podTemplate *corev1.PodTemplateSpec) error
+}
+
 // CheckPodTemplateFunc define the signature of a check function against a corev1.PodTemplateSpec
 type CheckPodTemplateFunc func(t *testing.T, podTemplate *corev1.PodTemplateSpec)
 
-// CheckContainerFunc define the signature of a check function against a corev1.Container
-type CheckContainerFunc func(t *testing.T, container *corev1.Container)
-
-// CheckContainerInPodTemplate used to execute a CheckContainerFunc function again a specific container in a corev1.PodTemplateSpec
+// CheckContainerInPodTemplate used to execute a ContainerCheckInterface.Check(...) function again a specific container in a corev1.PodTemplateSpec
 // object.
-func CheckContainerInPodTemplate(containerName string, checkFunc CheckContainerFunc) CheckPodTemplateFunc {
+func CheckContainerInPodTemplate(containerName string, checkFunc ContainerCheckInterface) CheckPodTemplateFunc {
 	check := func(t *testing.T, podTemplate *corev1.PodTemplateSpec) {
 		for _, container := range podTemplate.Spec.Containers {
 			if container.Name == containerName {
-				checkFunc(t, &container)
+				if err := checkFunc.Check(t, &container); err != nil {
+					t.Error(err)
+				}
 			}
 		}
 		t.Errorf("Container %s not founded", containerName)
@@ -36,105 +46,120 @@ func CheckContainerInPodTemplate(containerName string, checkFunc CheckContainerF
 }
 
 // CheckVolumeIsPresent used to check if a corev1.Volume is present in a corev1.PodTemplateSpec object.
-func CheckVolumeIsPresent(volume *corev1.Volume) CheckPodTemplateFunc {
-	check := func(t *testing.T, podTemplate *corev1.PodTemplateSpec) {
-		for _, volumeIn := range podTemplate.Spec.Volumes {
-			if apiequality.Semantic.DeepEqual(&volume, volumeIn) {
-				t.Logf("Volume %s founded", volume.Name)
-				return
-			}
+type CheckVolumeIsPresent struct {
+	Volume *corev1.Volume
+}
+
+// Check used to check if a corev1.Volume is present in a corev1.PodTemplateSpec object.
+func (c *CheckVolumeIsPresent) Check(t *testing.T, podTemplate *corev1.PodTemplateSpec) error {
+	for _, volumeIn := range podTemplate.Spec.Volumes {
+		if apiequality.Semantic.DeepEqual(c.Volume, &volumeIn) {
+			t.Logf("Volume %s founded", c.Volume.Name)
+			return nil
 		}
-		t.Errorf("Volume %s not founded", volume.Name)
 	}
-	return check
+	return fmt.Errorf("volume %s not founded", c.Volume.Name)
 }
 
 // CheckVolumeIsNotPresent used to check if a corev1.Volume is not present in a corev1.PodTemplateSpec object.
-func CheckVolumeIsNotPresent(volume *corev1.Volume) CheckPodTemplateFunc {
-	check := func(t *testing.T, podTemplate *corev1.PodTemplateSpec) {
-		found := false
-		for _, volumeIn := range podTemplate.Spec.Volumes {
-			if diff := testutils.CompareKubeResource(&volume, volumeIn); diff == "" {
-				found = true
-				break
-			}
-		}
-		if found {
-			t.Errorf("Volume %s founded", volume.Name)
-		} else {
-			t.Errorf("Volume %s not founded", volume.Name)
+type CheckVolumeIsNotPresent struct {
+	Volume *corev1.Volume
+}
+
+// Check used to check if a corev1.Volume is not present in a corev1.PodTemplateSpec object.
+func (c *CheckVolumeIsNotPresent) Check(t *testing.T, podTemplate *corev1.PodTemplateSpec) error {
+	found := false
+	for _, volumeIn := range podTemplate.Spec.Volumes {
+		if diff := testutils.CompareKubeResource(c.Volume, &volumeIn); diff == "" {
+			found = true
+			break
 		}
 	}
-	return check
+	if found {
+		t.Logf("Volume %s founded", c.Volume.Name)
+		return nil
+	}
+	return fmt.Errorf("volume %s not founded", c.Volume.Name)
 }
 
 // CheckContainerDeepEqualIsPresent used to check if corev1.Container is equal to a container inside a corev1.PodTemplateSpec object.
-func CheckContainerDeepEqualIsPresent(container *corev1.Container) CheckPodTemplateFunc {
-	check := func(t *testing.T, podTemplate *corev1.PodTemplateSpec) {
-		for _, containerIn := range podTemplate.Spec.Containers {
-			if diff := testutils.CompareKubeResource(container, &containerIn); diff != "" {
-				t.Logf("Volume %s founded", container.Name)
-				return
-			}
+type CheckContainerDeepEqualIsPresent struct {
+	Container *corev1.Container
+}
+
+// Check used to check if corev1.Container is equal to a container inside a corev1.PodTemplateSpec object.
+func (c *CheckContainerDeepEqualIsPresent) Check(t *testing.T, podTemplate *corev1.PodTemplateSpec) error {
+	for _, containerIn := range podTemplate.Spec.Containers {
+		if diff := testutils.CompareKubeResource(c.Container, &containerIn); diff != "" {
+			t.Logf("container %s founded", c.Container.Name)
+			return nil
 		}
-		t.Errorf("Volume %s not founded", container.Name)
 	}
-	return check
+	return fmt.Errorf("container %s not founded", c.Container.Name)
 }
 
 // CheckContainerNameIsPresentFunc used to check if container name is equal to a container name
 // present in a corev1.PodTemplateSpec object.
-func CheckContainerNameIsPresentFunc(containerName string) CheckPodTemplateFunc {
-	check := func(t *testing.T, podTemplate *corev1.PodTemplateSpec) {
-		for _, containerIn := range podTemplate.Spec.Containers {
-			if containerIn.Name == containerName {
-				t.Logf("Volume %s founded", containerIn.Name)
-				return
-			}
+type CheckContainerNameIsPresentFunc struct {
+	Name string
+}
+
+// Check used to check if container name is equal to a container name
+// present in a corev1.PodTemplateSpec object.
+func (c *CheckContainerNameIsPresentFunc) Check(t *testing.T, podTemplate *corev1.PodTemplateSpec) error {
+	for _, containerIn := range podTemplate.Spec.Containers {
+		if containerIn.Name == c.Name {
+			t.Logf("container %s founded", containerIn.Name)
+			return nil
 		}
-		t.Errorf("Volume %s not founded", containerName)
 	}
-	return check
+	return fmt.Errorf("container %s not founded", c.Name)
 }
 
 // CheckEnvVarIsPresent used to check if an corev1.EnvVar is present in a corev1.Container object
-func CheckEnvVarIsPresent(envVar *corev1.EnvVar) CheckContainerFunc {
-	check := func(t *testing.T, container *corev1.Container) {
-		for _, envVarIn := range container.Env {
-			if diff := testutils.CompareKubeResource(&envVarIn, envVar); diff == "" {
-				t.Logf("EnvVar %s founded in container %s", envVar.Name, container.Name)
-				break
-			}
+type CheckEnvVarIsPresent struct {
+	EnvVar *corev1.EnvVar
+}
+
+// Check used to check if an corev1.EnvVar is present in a corev1.Container object
+func (c *CheckEnvVarIsPresent) Check(t *testing.T, container *corev1.Container) error {
+	for _, envVarIn := range container.Env {
+		if diff := testutils.CompareKubeResource(&envVarIn, c.EnvVar); diff == "" {
+			t.Logf("EnvVar %s founded in container %s", c.EnvVar.Name, container.Name)
+			return nil
 		}
-		t.Errorf("EnvVar %s not founded in container %s", envVar.Name, container.Name)
 	}
-	return check
+	return fmt.Errorf("EnvVar %s not founded in container %s", c.EnvVar.Name, container.Name)
 }
 
 // CheckEnvFromIsPresent used to check if an corev1.EnvFromSource is present in a corev1.Container object
-func CheckEnvFromIsPresent(envFrom *corev1.EnvFromSource) CheckContainerFunc {
-	check := func(t *testing.T, container *corev1.Container) {
-		for _, envVarIn := range container.EnvFrom {
-			if diff := testutils.CompareKubeResource(&envVarIn, envFrom); diff == "" {
-				t.Logf("EnvVar [%s] founded in container %s", envFrom.String(), container.Name)
-				break
-			}
+type CheckEnvFromIsPresent struct {
+	EnvFrom *corev1.EnvFromSource
+}
+
+// Check used to check if an corev1.EnvFromSource is present in a corev1.Container object
+func (c *CheckEnvFromIsPresent) Check(t *testing.T, container *corev1.Container) error {
+	for _, envVarIn := range container.EnvFrom {
+		if diff := testutils.CompareKubeResource(&envVarIn, c.EnvFrom); diff == "" {
+			t.Logf("EnvVar [%s] founded in container %s", c.EnvFrom.String(), container.Name)
+			return nil
 		}
-		t.Errorf("EnvVar [%s] not founded in container %s", envFrom.String(), container.Name)
 	}
-	return check
+	return fmt.Errorf("envVar [%s] not founded in container %s", c.EnvFrom.String(), container.Name)
 }
 
 // CheckVolumeMountIsPresent used to check if an corev1.VolumeMount is present in a corev1.Container object
-func CheckVolumeMountIsPresent(volumeMount *corev1.VolumeMount) CheckContainerFunc {
-	check := func(t *testing.T, container *corev1.Container) {
-		for _, volumeMountIn := range container.VolumeMounts {
-			if diff := testutils.CompareKubeResource(&volumeMountIn, volumeMount); diff == "" {
-				t.Logf("VolumeMount [%s] founded in container %s", volumeMount.String(), container.Name)
-				break
-			}
+type CheckVolumeMountIsPresent struct {
+	VolumeMount *corev1.VolumeMount
+}
+
+// Check used to check if an corev1.VolumeMount is present in a corev1.Container object
+func (c *CheckVolumeMountIsPresent) Check(t *testing.T, container *corev1.Container) error {
+	for _, volumeMountIn := range container.VolumeMounts {
+		if diff := testutils.CompareKubeResource(&volumeMountIn, c.VolumeMount); diff == "" {
+			t.Logf("VolumeMount [%s] founded in container %s", c.VolumeMount.String(), container.Name)
+			return nil
 		}
-		t.Errorf("EnvVar [%s] not founded in container %s", volumeMount.String(), container.Name)
 	}
-	return check
+	return fmt.Errorf("volumeMount [%s] not founded in container %s", c.VolumeMount.String(), container.Name)
 }

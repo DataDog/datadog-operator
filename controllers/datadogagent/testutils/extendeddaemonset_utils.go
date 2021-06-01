@@ -15,17 +15,21 @@ import (
 type CheckExtendedDaemonSetFunc func(t *testing.T, eds *edsdatadoghqv1alpha1.ExtendedDaemonSet)
 
 // CheckPodTemplateInEDS used to execute a CheckPodTemplateFunc function on an ExtendedDaemonSet instance
-func CheckPodTemplateInEDS(templateCheck CheckPodTemplateFunc) CheckExtendedDaemonSetFunc {
+func CheckPodTemplateInEDS(templateCheck PodTemplateSpecCheckInterface) CheckExtendedDaemonSetFunc {
 	check := func(t *testing.T, eds *edsdatadoghqv1alpha1.ExtendedDaemonSet) {
-		templateCheck(t, &eds.Spec.Template)
+		if err := templateCheck.Check(t, &eds.Spec.Template); err != nil {
+			t.Error(err)
+		}
 	}
 	return check
 }
 
 // CheckMetadaInEDS used to execute a CheckExtendedDaemonSetFunc function on an ExtendedDaemonSet instance
-func CheckMetadaInEDS(metaCheck CheckObjectMeta) CheckExtendedDaemonSetFunc {
+func CheckMetadaInEDS(metaCheck ObjetMetaCheckInterface) CheckExtendedDaemonSetFunc {
 	check := func(t *testing.T, eds *edsdatadoghqv1alpha1.ExtendedDaemonSet) {
-		metaCheck(t, &eds.ObjectMeta)
+		if err := metaCheck.Check(t, &eds.ObjectMeta); err != nil {
+			t.Error(err)
+		}
 	}
 	return check
 }
