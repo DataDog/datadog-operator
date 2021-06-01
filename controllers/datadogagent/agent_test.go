@@ -802,10 +802,6 @@ func defaultEnvVars(extraEnv map[string]string) []corev1.EnvVar {
 			Name:      "DD_API_KEY",
 			ValueFrom: apiKeyValue(),
 		},
-		{
-			Name:  "DOCKER_HOST",
-			Value: "unix:///host/var/run/docker.sock",
-		},
 	}
 
 	if ddSite := createEnvFromExtra(extraEnv, "DD_SITE"); ddSite != nil {
@@ -856,10 +852,6 @@ func defaultAPMContainerEnvVars() []corev1.EnvVar {
 			Name:      "DD_API_KEY",
 			ValueFrom: apiKeyValue(),
 		},
-		{
-			Name:  "DOCKER_HOST",
-			Value: "unix:///host/var/run/docker.sock",
-		},
 	}
 }
 
@@ -880,10 +872,6 @@ func defaultSystemProbeEnvVars() []corev1.EnvVar {
 					FieldPath: FieldPathStatusHostIP,
 				},
 			},
-		},
-		{
-			Name:  "DOCKER_HOST",
-			Value: "unix:///host/var/run/docker.sock",
 		},
 	}
 }
@@ -946,10 +934,6 @@ func securityAgentEnvVars(compliance, runtime bool, extraEnv map[string]string) 
 		{
 			Name:      "DD_API_KEY",
 			ValueFrom: apiKeyValue(),
-		},
-		{
-			Name:  "DOCKER_HOST",
-			Value: "unix:///host/var/run/docker.sock",
 		},
 	}...)
 
@@ -1416,10 +1400,6 @@ func defaultOrchestratorEnvVars(dda *datadoghqv1alpha1.DatadogAgent) []corev1.En
 			Name:      "DD_API_KEY",
 			ValueFrom: apiKeyValue(),
 		},
-		{
-			Name:  "DOCKER_HOST",
-			Value: "unix:///host/var/run/docker.sock",
-		},
 	}
 	orchestratorEnvs, _ := orchestrator.EnvVars(&explorerConfig)
 	newVars = append(newVars, orchestratorEnvs...)
@@ -1728,10 +1708,6 @@ func customKubeletConfigPodSpec(kubeletConfig *datadoghqv1alpha1.KubeletConfig) 
 		{
 			Name:      "DD_API_KEY",
 			ValueFrom: apiKeyValue(),
-		},
-		{
-			Name:  "DOCKER_HOST",
-			Value: "unix:///host/var/run/docker.sock",
 		},
 	}
 

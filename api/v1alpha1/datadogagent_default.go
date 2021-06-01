@@ -8,8 +8,10 @@ package v1alpha1
 import (
 	"fmt"
 	"path"
+	"strings"
 	"time"
 
+	"github.com/DataDog/datadog-operator/pkg/utils"
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -500,7 +502,7 @@ func DefaultDatadogAgentSpecAgent(agent *DatadogAgentSpecAgentSpec) *DatadogAgen
 	}
 
 	DefaultDatadogAgentSpecAgentImage(&agent.Image)
-	DefaultDatadogAgentSpecAgentConfig(&agent.Config)
+	DefaultDatadogAgentSpecAgentConfig(agent)
 	DefaultDatadogAgentSpecRbacConfig(&agent.Rbac)
 	agent.DeploymentStrategy = DefaultDatadogAgentSpecDatadogAgentStrategy(agent.DeploymentStrategy)
 	DefaultDatadogAgentSpecAgentApm(&agent.Apm)
@@ -534,52 +536,51 @@ func DefaultDatadogAgentSpecAgentImage(image *ImageConfig) *ImageConfig {
 
 // DefaultDatadogAgentSpecAgentConfig used to default a NodeAgentConfig
 // return the defaulted NodeAgentConfig
-func DefaultDatadogAgentSpecAgentConfig(config *NodeAgentConfig) *NodeAgentConfig {
-	if config == nil {
-		config = &NodeAgentConfig{}
+func DefaultDatadogAgentSpecAgentConfig(agent *DatadogAgentSpecAgentSpec) *NodeAgentConfig {
+	if agent.Config.LogLevel == nil {
+		agent.Config.LogLevel = NewStringPointer(DefaultLogLevel)
 	}
 
-	if config.LogLevel == nil {
-		config.LogLevel = NewStringPointer(DefaultLogLevel)
+	if agent.Config.CollectEvents == nil {
+		agent.Config.CollectEvents = NewBoolPointer(defaultCollectEvents)
 	}
 
-	if config.CollectEvents == nil {
-		config.CollectEvents = NewBoolPointer(defaultCollectEvents)
+	if agent.Config.LeaderElection == nil {
+		agent.Config.LeaderElection = NewBoolPointer(defaultLeaderElection)
 	}
 
-	if config.LeaderElection == nil {
-		config.LeaderElection = NewBoolPointer(defaultLeaderElection)
+	if agent.Config.Resources == nil {
+		agent.Config.Resources = &corev1.ResourceRequirements{}
 	}
 
-	if config.Resources == nil {
-		config.Resources = &corev1.ResourceRequirements{}
+	if agent.Config.CriSocket == nil {
+		agent.Config.CriSocket = &CRISocketConfig{}
 	}
 
-	if config.CriSocket == nil {
-		config.CriSocket = &CRISocketConfig{
-			DockerSocketPath: NewStringPointer(defaultDockerSocketPath),
+	// Don't default Docker/CRI paths with Agent >= 7.27.0
+	// Let Env AD do the work for us
+	agentTag := strings.TrimSuffix(utils.GetTagFromImageName(agent.Image.Name), "-jmx")
+	if !(agentTag == "latest" || utils.IsAboveMinVersion(agentTag, "7.27.0") || utils.IsAboveMinVersion(agentTag, "6.27.0")) {
+		if agent.Config.CriSocket.DockerSocketPath == nil && agent.Config.CriSocket.CriSocketPath == nil {
+			agent.Config.CriSocket.DockerSocketPath = NewStringPointer(defaultDockerSocketPath)
 		}
 	}
 
-	if config.CriSocket.DockerSocketPath == nil {
-		config.CriSocket.DockerSocketPath = NewStringPointer(defaultDockerSocketPath)
+	DefaultConfigDogstatsd(&agent.Config)
+
+	if agent.Config.PodLabelsAsTags == nil {
+		agent.Config.PodLabelsAsTags = map[string]string{}
 	}
 
-	DefaultConfigDogstatsd(config)
-
-	if config.PodLabelsAsTags == nil {
-		config.PodLabelsAsTags = map[string]string{}
+	if agent.Config.PodAnnotationsAsTags == nil {
+		agent.Config.PodAnnotationsAsTags = map[string]string{}
 	}
 
-	if config.PodAnnotationsAsTags == nil {
-		config.PodAnnotationsAsTags = map[string]string{}
+	if agent.Config.Tags == nil {
+		agent.Config.Tags = []string{}
 	}
 
-	if config.Tags == nil {
-		config.Tags = []string{}
-	}
-
-	return config
+	return &agent.Config
 }
 
 // DefaultConfigDogstatsd used to default Dogstatsd config in NodeAgentConfig
