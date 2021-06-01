@@ -1354,7 +1354,7 @@ func buildClusterAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, age
 
 		rbacRules = append(rbacRules, rbacv1.PolicyRule{
 			APIGroups: []string{datadoghqv1alpha1.AppsAPIGroup},
-			Resources: []string{datadoghqv1alpha1.DeploymentsResource, datadoghqv1alpha1.ReplicasetsResource},
+			Resources: []string{datadoghqv1alpha1.DeploymentsResource, datadoghqv1alpha1.ReplicasetsResource, datadoghqv1alpha1.DaemonsetsResource},
 			Verbs:     []string{datadoghqv1alpha1.GetVerb, datadoghqv1alpha1.ListVerb, datadoghqv1alpha1.WatchVerb},
 		})
 	}
