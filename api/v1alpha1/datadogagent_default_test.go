@@ -95,6 +95,7 @@ func TestDefaultFeatures(t *testing.T) {
 			ContainerCollectUsingFiles:    NewBoolPointer(true),
 			ContainerLogsPath:             NewStringPointer("/var/lib/docker/containers"),
 			PodLogsPath:                   NewStringPointer("/var/log/pods"),
+			ContainerSymlinksPath:         NewStringPointer("/var/log/containers"),
 			TempStoragePath:               NewStringPointer("/var/lib/datadog-agent/logs"),
 			OpenFilesLimit:                NewInt32Pointer(100),
 		},

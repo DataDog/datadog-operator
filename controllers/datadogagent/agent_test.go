@@ -2690,6 +2690,14 @@ func Test_newExtendedDaemonSetFromInstance_LogsEnabled(t *testing.T) {
 				},
 			},
 		},
+		{
+			Name: "symlinkcontainerpath",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/var/log/containers",
+				},
+			},
+		},
 	}
 	logsVolumeMounts := []corev1.VolumeMount{
 		{
@@ -2704,6 +2712,11 @@ func Test_newExtendedDaemonSetFromInstance_LogsEnabled(t *testing.T) {
 		{
 			Name:      "logcontainerpath",
 			MountPath: "/var/lib/docker/containers",
+			ReadOnly:  true,
+		},
+		{
+			Name:      "symlinkcontainerpath",
+			MountPath: "/var/log/containers",
 			ReadOnly:  true,
 		},
 	}
