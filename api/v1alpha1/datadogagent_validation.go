@@ -21,6 +21,12 @@ func IsValidDatadogAgent(spec *DatadogAgentSpec) error {
 				errs = append(errs, fmt.Errorf("invalid spec.agent.customConfig, err: %w", err))
 			}
 		}
+
+		if spec.Agent.SystemProbe.CustomConfig != nil {
+			if err = IsValidCustomConfigSpec(spec.Agent.SystemProbe.CustomConfig); err != nil {
+				errs = append(errs, fmt.Errorf("invalid spec.agent.systemProbe.customConfig, err: %w", err))
+			}
+		}
 	}
 
 	if spec.ClusterAgent != nil {

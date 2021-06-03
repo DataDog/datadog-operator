@@ -363,8 +363,8 @@ spec:
                                 file content.
                               type: string
                             configMap:
-                              description: ConfigMap name of a ConfigMap used to mount
-                                the configuration file.
+                              description: Enable to specify a reference to an already
+                                existing ConfigMap.
                               properties:
                                 fileKey:
                                   description: FileKey corresponds to the key used
@@ -372,7 +372,7 @@ spec:
                                     file content.
                                   type: string
                                 name:
-                                  description: Name the ConfigMap name.
+                                  description: The name of source ConfigMap.
                                   type: string
                               type: object
                           type: object
@@ -2424,15 +2424,15 @@ spec:
                         content.
                       type: string
                     configMap:
-                      description: ConfigMap name of a ConfigMap used to mount the
-                        configuration file.
+                      description: Enable to specify a reference to an already existing
+                        ConfigMap.
                       properties:
                         fileKey:
                           description: FileKey corresponds to the key used in the
                             ConfigMap.Data to store the configuration file content.
                           type: string
                         name:
-                          description: Name the ConfigMap name.
+                          description: The name of source ConfigMap.
                           type: string
                       type: object
                   type: object
@@ -3334,6 +3334,29 @@ spec:
                         to connect to the netlink/conntrack subsystem to add NAT information
                         to connection data. See also: http://conntrack-tools.netfilter.org/'
                       type: boolean
+                    customConfig:
+                      description: Enable custom configuration for system-probe, corresponding
+                        to the system-probe.yaml config file. This custom configuration
+                        has less priority than all settings above.
+                      properties:
+                        configData:
+                          description: ConfigData corresponds to the configuration
+                            file content.
+                          type: string
+                        configMap:
+                          description: Enable to specify a reference to an already
+                            existing ConfigMap.
+                          properties:
+                            fileKey:
+                              description: FileKey corresponds to the key used in
+                                the ConfigMap.Data to store the configuration file
+                                content.
+                              type: string
+                            name:
+                              description: The name of source ConfigMap.
+                              type: string
+                          type: object
+                      type: object
                     debugPort:
                       description: DebugPort Specify the port to expose pprof and
                         expvar for system-probe agent.
@@ -6116,15 +6139,15 @@ spec:
                         content.
                       type: string
                     configMap:
-                      description: ConfigMap name of a ConfigMap used to mount the
-                        configuration file.
+                      description: Enable to specify a reference to an already existing
+                        ConfigMap.
                       properties:
                         fileKey:
                           description: FileKey corresponds to the key used in the
                             ConfigMap.Data to store the configuration file content.
                           type: string
                         name:
-                          description: Name the ConfigMap name.
+                          description: The name of source ConfigMap.
                           type: string
                       type: object
                   type: object
@@ -8590,15 +8613,15 @@ spec:
                         content.
                       type: string
                     configMap:
-                      description: ConfigMap name of a ConfigMap used to mount the
-                        configuration file.
+                      description: Enable to specify a reference to an already existing
+                        ConfigMap.
                       properties:
                         fileKey:
                           description: FileKey corresponds to the key used in the
                             ConfigMap.Data to store the configuration file content.
                           type: string
                         name:
-                          description: Name the ConfigMap name.
+                          description: The name of source ConfigMap.
                           type: string
                       type: object
                   type: object
@@ -8798,8 +8821,8 @@ spec:
                             file content.
                           type: string
                         configMap:
-                          description: ConfigMap name of a ConfigMap used to mount
-                            the configuration file.
+                          description: Enable to specify a reference to an already
+                            existing ConfigMap.
                           properties:
                             fileKey:
                               description: FileKey corresponds to the key used in
@@ -8807,7 +8830,7 @@ spec:
                                 content.
                               type: string
                             name:
-                              description: Name the ConfigMap name.
+                              description: The name of source ConfigMap.
                               type: string
                           type: object
                       type: object

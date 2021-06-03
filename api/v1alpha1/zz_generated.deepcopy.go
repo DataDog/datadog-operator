@@ -2040,6 +2040,11 @@ func (in *SystemProbeSpec) DeepCopyInto(out *SystemProbeSpec) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.CustomConfig != nil {
+		in, out := &in.CustomConfig, &out.CustomConfig
+		*out = new(CustomConfigSpec)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.Env != nil {
 		in, out := &in.Env, &out.Env
 		*out = make([]v1.EnvVar, len(*in))
