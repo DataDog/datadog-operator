@@ -190,10 +190,11 @@ const (
 
 	HostCriSocketPathPrefix = "/host"
 
-	SecurityAgentRuntimePoliciesDirVolumeName  = "runtimepoliciesdir"
-	SecurityAgentRuntimePoliciesDirVolumePath  = "/etc/datadog-agent/runtime-security.d"
-	SecurityAgentComplianceConfigDirVolumeName = "compliancedir"
-	SecurityAgentComplianceConfigDirVolumePath = "/etc/datadog-agent/compliance.d"
+	SecurityAgentRuntimeCustomPoliciesVolumeName = "customruntimepolicies"
+	SecurityAgentRuntimePoliciesDirVolumeName    = "runtimepoliciesdir"
+	SecurityAgentRuntimePoliciesDirVolumePath    = "/etc/datadog-agent/runtime-security.d"
+	SecurityAgentComplianceConfigDirVolumeName   = "compliancedir"
+	SecurityAgentComplianceConfigDirVolumePath   = "/etc/datadog-agent/compliance.d"
 
 	ClusterAgentCustomConfigVolumeName    = "custom-datadog-yaml"
 	ClusterAgentCustomConfigVolumePath    = "/etc/datadog-agent/datadog-cluster.yaml"

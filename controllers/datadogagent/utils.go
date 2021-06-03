@@ -434,34 +434,54 @@ func getInitContainers(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) 
 	return containers, nil
 }
 
+func getInitContainer(spec *datadoghqv1alpha1.DatadogAgentSpec, name string, commands []string, volumeMounts []corev1.VolumeMount, envVars []corev1.EnvVar) corev1.Container {
+	return corev1.Container{
+		Name:            name,
+		Image:           spec.Agent.Image.Name,
+		ImagePullPolicy: *spec.Agent.Image.PullPolicy,
+		Resources:       *spec.Agent.Config.Resources,
+		Command:         []string{"bash", "-c"},
+		Args:            []string{strings.Join(commands, ";")},
+		VolumeMounts:    volumeMounts,
+		Env:             envVars,
+	}
+}
+
 // getConfigInitContainers returns the init containers necessary to set up the
 // agent's configuration volume.
 func getConfigInitContainers(spec *datadoghqv1alpha1.DatadogAgentSpec, volumeMounts []corev1.VolumeMount, envVars []corev1.EnvVar) []corev1.Container {
-	return []corev1.Container{
-		{
-			Name:            "init-volume",
-			Image:           spec.Agent.Image.Name,
-			ImagePullPolicy: *spec.Agent.Image.PullPolicy,
-			Resources:       *spec.Agent.Config.Resources,
-			Command:         []string{"bash", "-c"},
-			Args:            []string{"cp -r /etc/datadog-agent /opt"},
-			VolumeMounts: []corev1.VolumeMount{
-				{
-					Name:      datadoghqv1alpha1.ConfigVolumeName,
-					MountPath: "/opt/datadog-agent",
-				},
+	configVolumeMounts := []corev1.VolumeMount{{
+		Name:      datadoghqv1alpha1.ConfigVolumeName,
+		MountPath: "/opt/datadog-agent",
+	}}
+
+	if isRuntimeSecurityEnabled(spec) && spec.Agent.Security.Runtime.PoliciesDir != nil {
+		configVolumeMounts = append(
+			configVolumeMounts,
+			corev1.VolumeMount{
+				Name:      datadoghqv1alpha1.SecurityAgentRuntimeCustomPoliciesVolumeName,
+				MountPath: "/etc/datadog-agent-runtime-policies",
 			},
-		},
-		{
-			Name:            "init-config",
-			Image:           spec.Agent.Image.Name,
-			ImagePullPolicy: *spec.Agent.Image.PullPolicy,
-			Resources:       *spec.Agent.Config.Resources,
-			Command:         []string{"bash", "-c"},
-			Args:            []string{"for script in $(find /etc/cont-init.d/ -type f -name '*.sh' | sort) ; do bash $script ; done"},
-			Env:             envVars,
-			VolumeMounts:    volumeMounts,
-		},
+			corev1.VolumeMount{
+				Name:      datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumeName,
+				MountPath: "/opt/datadog-agent/runtime-security.d",
+			},
+		)
+	}
+
+	return []corev1.Container{
+		getInitContainer(
+			spec, "init-volume",
+			[]string{
+				"cp -vnr /etc/datadog-agent /opt",
+				"cp -v /etc/datadog-agent-runtime-policies/* /opt/datadog-agent/runtime-security.d/",
+			}, configVolumeMounts, nil,
+		),
+		getInitContainer(
+			spec, "init-config",
+			[]string{"for script in $(find /etc/cont-init.d/ -type f -name '*.sh' | sort) ; do bash $script ; done"},
+			volumeMounts, envVars,
+		),
 	}
 }
 
@@ -1160,16 +1180,23 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 	}
 
 	if isRuntimeSecurityEnabled(&dda.Spec) && dda.Spec.Agent.Security.Runtime.PoliciesDir != nil {
-		volumes = append(volumes, corev1.Volume{
-			Name: datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: &corev1.ConfigMapVolumeSource{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: dda.Spec.Agent.Security.Runtime.PoliciesDir.ConfigMapName,
+		volumes = append(volumes,
+			corev1.Volume{
+				Name: datadoghqv1alpha1.SecurityAgentRuntimeCustomPoliciesVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: dda.Spec.Agent.Security.Runtime.PoliciesDir.ConfigMapName,
+						},
 					},
 				},
 			},
-		})
+			corev1.Volume{
+				Name: datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
+			})
 	}
 
 	volumes = append(volumes, dda.Spec.Agent.Config.Volumes...)
@@ -1685,13 +1712,6 @@ func getVolumeMountsForSecurityAgent(dda *datadoghqv1alpha1.DatadogAgent) []core
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
 			Name:      datadoghqv1alpha1.SecurityAgentComplianceConfigDirVolumeName,
 			MountPath: datadoghqv1alpha1.SecurityAgentComplianceConfigDirVolumePath,
-			ReadOnly:  true,
-		})
-	}
-	if runtimeEnabled && dda.Spec.Agent.Security.Runtime.PoliciesDir != nil {
-		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumeName,
-			MountPath: datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumePath,
 			ReadOnly:  true,
 		})
 	}

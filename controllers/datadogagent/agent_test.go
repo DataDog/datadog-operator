@@ -1069,7 +1069,7 @@ func defaultSystemProbePodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodSp
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
 				Command:         []string{"bash", "-c"},
-				Args:            []string{"cp -r /etc/datadog-agent /opt"},
+				Args:            []string{"cp -vnr /etc/datadog-agent /opt;cp -v /etc/datadog-agent-runtime-policies/* /opt/datadog-agent/runtime-security.d/"},
 				VolumeMounts: []corev1.VolumeMount{
 					{
 						Name:      datadoghqv1alpha1.ConfigVolumeName,
@@ -1184,7 +1184,7 @@ func noSeccompInstallSystemProbeSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
 				Command:         []string{"bash", "-c"},
-				Args:            []string{"cp -r /etc/datadog-agent /opt"},
+				Args:            []string{"cp -vnr /etc/datadog-agent /opt;cp -v /etc/datadog-agent-runtime-policies/* /opt/datadog-agent/runtime-security.d/"},
 				VolumeMounts: []corev1.VolumeMount{
 					{
 						Name:      datadoghqv1alpha1.ConfigVolumeName,
@@ -1257,7 +1257,7 @@ func defaultPodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodSpec {
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
 				Command:         []string{"bash", "-c"},
-				Args:            []string{"cp -r /etc/datadog-agent /opt"},
+				Args:            []string{"cp -vnr /etc/datadog-agent /opt;cp -v /etc/datadog-agent-runtime-policies/* /opt/datadog-agent/runtime-security.d/"},
 				VolumeMounts: []corev1.VolumeMount{
 					{
 						Name:      datadoghqv1alpha1.ConfigVolumeName,
@@ -1470,7 +1470,7 @@ func runtimeSecurityAgentPodSpec(extraEnv map[string]string) corev1.PodSpec {
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
 				Command:         []string{"bash", "-c"},
-				Args:            []string{"cp -r /etc/datadog-agent /opt"},
+				Args:            []string{"cp -vnr /etc/datadog-agent /opt;cp -v /etc/datadog-agent-runtime-policies/* /opt/datadog-agent/runtime-security.d/"},
 				VolumeMounts: []corev1.VolumeMount{
 					{
 						Name:      datadoghqv1alpha1.ConfigVolumeName,
@@ -1579,7 +1579,7 @@ func complianceSecurityAgentPodSpec(extraEnv map[string]string) corev1.PodSpec {
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
 				Command:         []string{"bash", "-c"},
-				Args:            []string{"cp -r /etc/datadog-agent /opt"},
+				Args:            []string{"cp -vnr /etc/datadog-agent /opt;cp -v /etc/datadog-agent-runtime-policies/* /opt/datadog-agent/runtime-security.d/"},
 				VolumeMounts: []corev1.VolumeMount{
 					{
 						Name:      datadoghqv1alpha1.ConfigVolumeName,
@@ -1771,7 +1771,7 @@ func customKubeletConfigPodSpec(kubeletConfig *datadoghqv1alpha1.KubeletConfig) 
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
 				Command:         []string{"bash", "-c"},
-				Args:            []string{"cp -r /etc/datadog-agent /opt"},
+				Args:            []string{"cp -vnr /etc/datadog-agent /opt;cp -v /etc/datadog-agent-runtime-policies/* /opt/datadog-agent/runtime-security.d/"},
 				VolumeMounts: []corev1.VolumeMount{
 					{
 						Name:      datadoghqv1alpha1.ConfigVolumeName,
