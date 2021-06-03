@@ -1115,6 +1115,13 @@ func schema__api_v1alpha1_DatadogAgentSpec(ref common.ReferenceCallback) common.
 							Format:      "",
 						},
 					},
+					"registry": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Registry to use for all Agent images (default gcr.io/datadoghq). Use public.ecr.aws/datadog for AWS Use docker.io/datadog for DockerHub",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"credentials"},
 			},
@@ -2189,9 +2196,22 @@ func schema__api_v1alpha1_ImageConfig(ref common.ReferenceCallback) common.OpenA
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Define the image to use: Use \"gcr.io/datadoghq/agent:latest\" for Datadog Agent 6 Use \"datadog/dogstatsd:latest\" for Standalone Datadog Agent DogStatsD6 Use \"gcr.io/datadoghq/cluster-agent:latest\" for Datadog Cluster Agent",
-							Default:     "",
+							Description: "Define the image to use: Use \"gcr.io/datadoghq/agent:latest\" for Datadog Agent 7 Use \"datadog/dogstatsd:latest\" for Standalone Datadog Agent DogStatsD6 Use \"gcr.io/datadoghq/cluster-agent:latest\" for Datadog Cluster Agent Use \"agent\" with the registry and tag configurations for <registry>/agent:<tag> Use \"cluster-agent\" with the registry and tag configurations for <registry>/cluster-agent:<tag>",
 							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"tag": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Define the image version to use: To be used if the Name field does not correspond to a full image string.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"jmxEnabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Define whether the Agent image should support JMX.",
+							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},
@@ -2217,7 +2237,6 @@ func schema__api_v1alpha1_ImageConfig(ref common.ReferenceCallback) common.OpenA
 						},
 					},
 				},
-				Required: []string{"name"},
 			},
 		},
 		Dependencies: []string{

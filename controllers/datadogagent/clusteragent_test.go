@@ -35,7 +35,7 @@ func clusterAgentDefaultPodSpec() corev1.PodSpec {
 		Containers: []corev1.Container{
 			{
 				Name:            "cluster-agent",
-				Image:           "gcr.io/datadoghq/cluster-agent:latest",
+				Image:           "gcr.io/datadoghq/cluster-agent:1.12.0",
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
 				Ports: []corev1.ContainerPort{

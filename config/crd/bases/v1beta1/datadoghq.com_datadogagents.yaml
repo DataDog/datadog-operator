@@ -2757,11 +2757,16 @@ spec:
                 image:
                   description: The container image of the Datadog Agent.
                   properties:
+                    jmxEnabled:
+                      description: Define whether the Agent image should support JMX.
+                      type: boolean
                     name:
                       description: 'Define the image to use: Use "gcr.io/datadoghq/agent:latest"
-                        for Datadog Agent 6 Use "datadog/dogstatsd:latest" for Standalone
+                        for Datadog Agent 7 Use "datadog/dogstatsd:latest" for Standalone
                         Datadog Agent DogStatsD6 Use "gcr.io/datadoghq/cluster-agent:latest"
-                        for Datadog Cluster Agent'
+                        for Datadog Cluster Agent Use "agent" with the registry and
+                        tag configurations for <registry>/agent:<tag> Use "cluster-agent"
+                        with the registry and tag configurations for <registry>/cluster-agent:<tag>'
                       type: string
                     pullPolicy:
                       description: 'The Kubernetes pull policy: Use Always, Never
@@ -2781,8 +2786,10 @@ spec:
                             type: string
                         type: object
                       type: array
-                  required:
-                  - name
+                    tag:
+                      description: 'Define the image version to use: To be used if
+                        the Name field does not correspond to a full image string.'
+                      type: string
                   type: object
                 keepAnnotations:
                   description: KeepAnnotations allows the specification of annotations
@@ -6158,11 +6165,16 @@ spec:
                 image:
                   description: The container image of the Datadog Cluster Agent.
                   properties:
+                    jmxEnabled:
+                      description: Define whether the Agent image should support JMX.
+                      type: boolean
                     name:
                       description: 'Define the image to use: Use "gcr.io/datadoghq/agent:latest"
-                        for Datadog Agent 6 Use "datadog/dogstatsd:latest" for Standalone
+                        for Datadog Agent 7 Use "datadog/dogstatsd:latest" for Standalone
                         Datadog Agent DogStatsD6 Use "gcr.io/datadoghq/cluster-agent:latest"
-                        for Datadog Cluster Agent'
+                        for Datadog Cluster Agent Use "agent" with the registry and
+                        tag configurations for <registry>/agent:<tag> Use "cluster-agent"
+                        with the registry and tag configurations for <registry>/cluster-agent:<tag>'
                       type: string
                     pullPolicy:
                       description: 'The Kubernetes pull policy: Use Always, Never
@@ -6182,8 +6194,10 @@ spec:
                             type: string
                         type: object
                       type: array
-                  required:
-                  - name
+                    tag:
+                      description: 'Define the image version to use: To be used if
+                        the Name field does not correspond to a full image string.'
+                      type: string
                   type: object
                 keepAnnotations:
                   description: KeepAnnotations allows the specification of annotations
@@ -8632,11 +8646,16 @@ spec:
                 image:
                   description: The container image of the Datadog Cluster Checks Runner.
                   properties:
+                    jmxEnabled:
+                      description: Define whether the Agent image should support JMX.
+                      type: boolean
                     name:
                       description: 'Define the image to use: Use "gcr.io/datadoghq/agent:latest"
-                        for Datadog Agent 6 Use "datadog/dogstatsd:latest" for Standalone
+                        for Datadog Agent 7 Use "datadog/dogstatsd:latest" for Standalone
                         Datadog Agent DogStatsD6 Use "gcr.io/datadoghq/cluster-agent:latest"
-                        for Datadog Cluster Agent'
+                        for Datadog Cluster Agent Use "agent" with the registry and
+                        tag configurations for <registry>/agent:<tag> Use "cluster-agent"
+                        with the registry and tag configurations for <registry>/cluster-agent:<tag>'
                       type: string
                     pullPolicy:
                       description: 'The Kubernetes pull policy: Use Always, Never
@@ -8656,8 +8675,10 @@ spec:
                             type: string
                         type: object
                       type: array
-                  required:
-                  - name
+                    tag:
+                      description: 'Define the image version to use: To be used if
+                        the Name field does not correspond to a full image string.'
+                      type: string
                   type: object
                 networkPolicy:
                   description: Provide Cluster Checks Runner Network Policy configuration.
@@ -8937,6 +8958,10 @@ spec:
                       type: boolean
                   type: object
               type: object
+            registry:
+              description: Registry to use for all Agent images (default gcr.io/datadoghq).
+                Use public.ecr.aws/datadog for AWS Use docker.io/datadog for DockerHub
+              type: string
             site:
               description: The site of the Datadog intake to send Agent data to. Set
                 to 'datadoghq.eu' to send data to the EU site.

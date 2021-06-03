@@ -11,6 +11,7 @@ import (
 	"math/rand"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -79,8 +80,9 @@ func newAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent
 		annotations[key] = val
 	}
 
+	image := getImage(&dda.Spec.Agent.Image, dda.Spec.Registry, true)
 	containers := []corev1.Container{}
-	agentContainer, err := getAgentContainer(logger, dda)
+	agentContainer, err := getAgentContainer(logger, dda, image)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +91,7 @@ func newAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent
 	if isAPMEnabled(&dda.Spec) {
 		var apmContainers []corev1.Container
 
-		apmContainers, err = getAPMAgentContainers(dda)
+		apmContainers, err = getAPMAgentContainers(dda, image)
 		if err != nil {
 			return nil, err
 		}
@@ -99,7 +101,7 @@ func newAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent
 	if shouldAddProcessContainer(dda) {
 		var processContainers []corev1.Container
 
-		processContainers, err = getProcessContainers(dda)
+		processContainers, err = getProcessContainers(dda, image)
 		if err != nil {
 			return nil, err
 		}
@@ -108,7 +110,7 @@ func newAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent
 	if isSystemProbeEnabled(&dda.Spec) {
 		var systemProbeContainers []corev1.Container
 
-		systemProbeContainers, err = getSystemProbeContainers(dda)
+		systemProbeContainers, err = getSystemProbeContainers(dda, image)
 		if err != nil {
 			return nil, err
 		}
@@ -117,7 +119,7 @@ func newAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent
 	if isSecurityAgentEnabled(&dda.Spec) {
 		var securityAgentContainer *corev1.Container
 
-		securityAgentContainer, err = getSecurityAgentContainer(dda)
+		securityAgentContainer, err = getSecurityAgentContainer(dda, image)
 		if err != nil {
 			return nil, err
 		}
@@ -125,7 +127,7 @@ func newAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent
 	}
 
 	var initContainers []corev1.Container
-	initContainers, err = getInitContainers(logger, dda)
+	initContainers, err = getInitContainers(logger, dda, image)
 	if err != nil {
 		return nil, err
 	}
@@ -222,7 +224,7 @@ func isOrchestratorExplorerEnabled(dda *datadoghqv1alpha1.DatadogAgent) bool {
 	return datadoghqv1alpha1.BoolValue(dda.Spec.Features.OrchestratorExplorer.Enabled)
 }
 
-func getAgentContainer(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (*corev1.Container, error) {
+func getAgentContainer(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, image string) (*corev1.Container, error) {
 	agentSpec := dda.Spec.Agent
 	envVars, err := getEnvVarsForAgent(logger, dda)
 	if err != nil {
@@ -252,7 +254,7 @@ func getAgentContainer(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) 
 
 	agentContainer := &corev1.Container{
 		Name:            "agent",
-		Image:           agentSpec.Image.Name,
+		Image:           image,
 		ImagePullPolicy: *agentSpec.Image.PullPolicy,
 		Command:         getDefaultIfEmpty(dda.Spec.Agent.Config.Command, []string{"agent", "run"}),
 		Args:            getDefaultIfEmpty(dda.Spec.Agent.Config.Args, nil),
@@ -269,7 +271,7 @@ func getAgentContainer(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) 
 	return agentContainer, nil
 }
 
-func getAPMAgentContainers(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.Container, error) {
+func getAPMAgentContainers(dda *datadoghqv1alpha1.DatadogAgent, image string) ([]corev1.Container, error) {
 	agentSpec := dda.Spec.Agent
 	envVars, err := getEnvVarsForAPMAgent(dda)
 	if err != nil {
@@ -286,7 +288,7 @@ func getAPMAgentContainers(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.Contai
 
 	apmContainer := corev1.Container{
 		Name:            "trace-agent",
-		Image:           agentSpec.Image.Name,
+		Image:           image,
 		ImagePullPolicy: *agentSpec.Image.PullPolicy,
 		Command:         getDefaultIfEmpty(dda.Spec.Agent.Apm.Command, []string{"trace-agent", fmt.Sprintf("--config=%s", datadoghqv1alpha1.AgentCustomConfigVolumePath)}),
 		Args:            getDefaultIfEmpty(dda.Spec.Agent.Apm.Args, nil),
@@ -304,7 +306,7 @@ func getAPMAgentContainers(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.Contai
 	return []corev1.Container{apmContainer}, nil
 }
 
-func getProcessContainers(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.Container, error) {
+func getProcessContainers(dda *datadoghqv1alpha1.DatadogAgent, image string) ([]corev1.Container, error) {
 	agentSpec := dda.Spec.Agent
 	envVars, err := getEnvVarsForProcessAgent(dda)
 	if err != nil {
@@ -313,7 +315,7 @@ func getProcessContainers(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.Contain
 
 	process := corev1.Container{
 		Name:            "process-agent",
-		Image:           agentSpec.Image.Name,
+		Image:           image,
 		ImagePullPolicy: *agentSpec.Image.PullPolicy,
 		Command: getDefaultIfEmpty(dda.Spec.Agent.Process.Command, []string{
 			"process-agent", fmt.Sprintf("--config=%s", datadoghqv1alpha1.AgentCustomConfigVolumePath),
@@ -331,7 +333,7 @@ func getProcessContainers(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.Contain
 	return []corev1.Container{process}, nil
 }
 
-func getSystemProbeContainers(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.Container, error) {
+func getSystemProbeContainers(dda *datadoghqv1alpha1.DatadogAgent, image string) ([]corev1.Container, error) {
 	agentSpec := dda.Spec.Agent
 	systemProbeEnvVars, err := getEnvVarsForSystemProbe(dda)
 	if err != nil {
@@ -340,7 +342,7 @@ func getSystemProbeContainers(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.Con
 
 	systemProbe := corev1.Container{
 		Name:            "system-probe",
-		Image:           agentSpec.Image.Name,
+		Image:           image,
 		ImagePullPolicy: *agentSpec.Image.PullPolicy,
 		Command:         getDefaultIfEmpty(dda.Spec.Agent.SystemProbe.Command, []string{"system-probe", fmt.Sprintf("--config=%s", datadoghqv1alpha1.SystemProbeConfigVolumePath)}),
 		Args:            getDefaultIfEmpty(dda.Spec.Agent.SystemProbe.Args, nil),
@@ -370,7 +372,7 @@ func getSystemProbeContainers(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.Con
 	return []corev1.Container{systemProbe}, nil
 }
 
-func getSecurityAgentContainer(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.Container, error) {
+func getSecurityAgentContainer(dda *datadoghqv1alpha1.DatadogAgent, image string) (*corev1.Container, error) {
 	agentSpec := dda.Spec.Agent
 	envVars, err := getEnvVarsForSecurityAgent(dda)
 	if err != nil {
@@ -379,7 +381,7 @@ func getSecurityAgentContainer(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.Con
 
 	securityAgentContainer := &corev1.Container{
 		Name:            "security-agent",
-		Image:           agentSpec.Image.Name,
+		Image:           image,
 		ImagePullPolicy: *agentSpec.Image.PullPolicy,
 		Command:         getDefaultIfEmpty(dda.Spec.Agent.Security.Command, []string{"security-agent", "start", fmt.Sprintf("-c=%s", datadoghqv1alpha1.AgentCustomConfigVolumePath)}),
 		Args:            getDefaultIfEmpty(dda.Spec.Agent.Security.Args, nil),
@@ -396,7 +398,7 @@ func getSecurityAgentContainer(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.Con
 	return securityAgentContainer, nil
 }
 
-func getInitContainers(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.Container, error) {
+func getInitContainers(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, image string) ([]corev1.Container, error) {
 	spec := &dda.Spec
 	volumeMounts := getVolumeMountsForAgent(dda)
 	envVars, err := getEnvVarsForAgent(logger, dda)
@@ -404,7 +406,7 @@ func getInitContainers(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) 
 		return nil, err
 	}
 
-	containers := getConfigInitContainers(spec, volumeMounts, envVars)
+	containers := getConfigInitContainers(spec, volumeMounts, envVars, image)
 
 	if shouldInstallSeccompProfileFromConfigMap(dda) {
 		systemProbeInit := corev1.Container{
@@ -434,10 +436,10 @@ func getInitContainers(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) 
 	return containers, nil
 }
 
-func getInitContainer(spec *datadoghqv1alpha1.DatadogAgentSpec, name string, commands []string, volumeMounts []corev1.VolumeMount, envVars []corev1.EnvVar) corev1.Container {
+func getInitContainer(spec *datadoghqv1alpha1.DatadogAgentSpec, name string, commands []string, volumeMounts []corev1.VolumeMount, envVars []corev1.EnvVar, image string) corev1.Container {
 	return corev1.Container{
 		Name:            name,
-		Image:           spec.Agent.Image.Name,
+		Image:           image,
 		ImagePullPolicy: *spec.Agent.Image.PullPolicy,
 		Resources:       *spec.Agent.Config.Resources,
 		Command:         []string{"bash", "-c"},
@@ -449,7 +451,7 @@ func getInitContainer(spec *datadoghqv1alpha1.DatadogAgentSpec, name string, com
 
 // getConfigInitContainers returns the init containers necessary to set up the
 // agent's configuration volume.
-func getConfigInitContainers(spec *datadoghqv1alpha1.DatadogAgentSpec, volumeMounts []corev1.VolumeMount, envVars []corev1.EnvVar) []corev1.Container {
+func getConfigInitContainers(spec *datadoghqv1alpha1.DatadogAgentSpec, volumeMounts []corev1.VolumeMount, envVars []corev1.EnvVar, image string) []corev1.Container {
 	configVolumeMounts := []corev1.VolumeMount{{
 		Name:      datadoghqv1alpha1.ConfigVolumeName,
 		MountPath: "/opt/datadog-agent",
@@ -476,11 +478,13 @@ func getConfigInitContainers(spec *datadoghqv1alpha1.DatadogAgentSpec, volumeMou
 				"cp -vnr /etc/datadog-agent /opt",
 				"cp -v /etc/datadog-agent-runtime-policies/* /opt/datadog-agent/runtime-security.d/",
 			}, configVolumeMounts, nil,
+			image,
 		),
 		getInitContainer(
 			spec, "init-config",
 			[]string{"for script in $(find /etc/cont-init.d/ -type f -name '*.sh' | sort) ; do bash $script ; done"},
 			volumeMounts, envVars,
+			image,
 		),
 	}
 }
@@ -2291,4 +2295,28 @@ func addBoolPointerEnVar(b *bool, varName string, varList []corev1.EnvVar) []cor
 	}
 
 	return varList
+}
+
+// imageHasTag identifies whether an image string contains a tag suffix
+// Ref: https://github.com/distribution/distribution/blob/v2.7.1/reference/reference.go
+var imageHasTag = regexp.MustCompile(`.+:[\w][\w.-]{0,127}$`)
+
+// getImage builds the image string based on ImageConfig and the registry configuration.
+func getImage(imageSpec *datadoghqv1alpha1.ImageConfig, registry *string, checkJMX bool) string {
+	if imageHasTag.MatchString(imageSpec.Name) {
+		// The image name corresponds to a full image string
+		return imageSpec.Name
+	}
+
+	image := "/" + imageSpec.Name + ":" + imageSpec.Tag
+
+	if checkJMX && imageSpec.JmxEnabled && !strings.HasSuffix(imageSpec.Tag, datadoghqv1alpha1.JMXTagSuffix) {
+		image += datadoghqv1alpha1.JMXTagSuffix
+	}
+
+	if registry != nil {
+		return *registry + image
+	}
+
+	return datadoghqv1alpha1.DefaultImageRegistry + image
 }

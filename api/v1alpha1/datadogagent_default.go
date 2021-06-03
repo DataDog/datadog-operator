@@ -22,7 +22,10 @@ import (
 // default values
 const (
 	DefaultLogLevel                       string = "INFO"
-	defaultAgentImage                     string = "gcr.io/datadoghq/agent:latest"
+	defaultAgentImageTag                  string = "7.28.0"
+	defaultClusterAgentImageTag           string = "1.12.0"
+	defaultAgentImageName                 string = "agent"
+	defaultClusterAgentImageName          string = "cluster-agent"
 	defaultCollectEvents                  bool   = false
 	defaultLeaderElection                 bool   = false
 	defaultDockerSocketPath               string = "/var/run/docker.sock"
@@ -54,7 +57,6 @@ const (
 	defaultClusterAgentReplicas                          int32  = 1
 	defaultAgentCanaryReplicas                           int32  = 1
 	defaultClusterChecksRunnerReplicas                   int32  = 1
-	defaultClusterAgentImage                             string = "gcr.io/datadoghq/cluster-agent:latest"
 	defaultRollingUpdateMaxUnavailable                          = "10%"
 	defaultUpdateStrategy                                       = appsv1.RollingUpdateDaemonSetStrategyType
 	defaultRollingUpdateMaxPodSchedulerFailure                  = "10%"
@@ -175,6 +177,10 @@ func IsDefaultedImageConfig(imageConfig *ImageConfig) bool {
 	}
 
 	if imageConfig.Name == "" {
+		return false
+	}
+
+	if imageConfig.Tag == "" {
 		return false
 	}
 
@@ -501,7 +507,7 @@ func DefaultDatadogAgentSpecAgent(agent *DatadogAgentSpecAgentSpec) *DatadogAgen
 		agent.UseExtendedDaemonset = NewBoolPointer(false)
 	}
 
-	DefaultDatadogAgentSpecAgentImage(&agent.Image)
+	DefaultDatadogImage(&agent.Image, defaultAgentImageName, defaultAgentImageTag)
 	DefaultDatadogAgentSpecAgentConfig(agent)
 	DefaultDatadogAgentSpecRbacConfig(&agent.Rbac)
 	agent.DeploymentStrategy = DefaultDatadogAgentSpecDatadogAgentStrategy(agent.DeploymentStrategy)
@@ -512,15 +518,19 @@ func DefaultDatadogAgentSpecAgent(agent *DatadogAgentSpecAgentSpec) *DatadogAgen
 	return agent
 }
 
-// DefaultDatadogAgentSpecAgentImage used to default a ImageConfig
-// return the defaulted ImageConfig
-func DefaultDatadogAgentSpecAgentImage(image *ImageConfig) *ImageConfig {
+// DefaultDatadogImage used to default a ImageConfig for the Agent, Cluster Agent and the Cluster Check Runner.
+// Returns the defaulted ImageConfig.
+func DefaultDatadogImage(image *ImageConfig, name, tag string) *ImageConfig {
 	if image == nil {
 		image = &ImageConfig{}
 	}
 
 	if image.Name == "" {
-		image.Name = defaultAgentImage
+		image.Name = name
+	}
+
+	if image.Tag == "" {
+		image.Tag = tag
 	}
 
 	if image.PullPolicy == nil {
@@ -858,7 +868,7 @@ func DefaultDatadogFeaturePrometheusScrape(prom *PrometheusScrapeConfig) *Promet
 // DefaultDatadogAgentSpecClusterAgent used to default an DatadogAgentSpecClusterAgentSpec
 // return the defaulted DatadogAgentSpecClusterAgentSpec
 func DefaultDatadogAgentSpecClusterAgent(clusterAgent *DatadogAgentSpecClusterAgentSpec) *DatadogAgentSpecClusterAgentSpec {
-	DefaultDatadogAgentSpecClusterAgentImage(&clusterAgent.Image)
+	DefaultDatadogImage(&clusterAgent.Image, defaultClusterAgentImageName, defaultClusterAgentImageTag)
 	DefaultDatadogAgentSpecClusterAgentConfig(&clusterAgent.Config)
 	DefaultDatadogAgentSpecRbacConfig(&clusterAgent.Rbac)
 	DefaultNetworkPolicy(&clusterAgent.NetworkPolicy)
@@ -914,32 +924,10 @@ func GetKubeStateMetricsConfName(dcaConf *DatadogAgent) string {
 	return fmt.Sprintf("%s-%s", dcaConf.Name, DefaultKubeStateMetricsCoreConf)
 }
 
-// DefaultDatadogAgentSpecClusterAgentImage used to default ImageConfig for the Datadog Cluster Agent
-// return the defaulted ImageConfig
-func DefaultDatadogAgentSpecClusterAgentImage(image *ImageConfig) *ImageConfig {
-	if image == nil {
-		image = &ImageConfig{}
-	}
-
-	if image.Name == "" {
-		image.Name = defaultClusterAgentImage
-	}
-
-	if image.PullPolicy == nil {
-		image.PullPolicy = &defaultImagePullPolicy
-	}
-
-	if image.PullSecrets == nil {
-		image.PullSecrets = &[]corev1.LocalObjectReference{}
-	}
-
-	return image
-}
-
 // DefaultDatadogAgentSpecClusterChecksRunner used to default an DatadogAgentSpecClusterChecksRunnerSpec
 // return the defaulted DatadogAgentSpecClusterChecksRunnerSpec
 func DefaultDatadogAgentSpecClusterChecksRunner(clusterChecksRunner *DatadogAgentSpecClusterChecksRunnerSpec) *DatadogAgentSpecClusterChecksRunnerSpec {
-	DefaultDatadogAgentSpecClusterChecksRunnerImage(&clusterChecksRunner.Image)
+	DefaultDatadogImage(&clusterChecksRunner.Image, defaultAgentImageName, defaultAgentImageTag)
 	DefaultDatadogAgentSpecClusterChecksRunnerConfig(&clusterChecksRunner.Config)
 	DefaultDatadogAgentSpecRbacConfig(&clusterChecksRunner.Rbac)
 	DefaultNetworkPolicy(&clusterChecksRunner.NetworkPolicy)
@@ -959,28 +947,6 @@ func DefaultDatadogAgentSpecClusterChecksRunnerConfig(config *ClusterChecksRunne
 	}
 
 	return config
-}
-
-// DefaultDatadogAgentSpecClusterChecksRunnerImage used to default ImageConfig for the Datadog Cluster Agent
-// return the defaulted ImageConfig
-func DefaultDatadogAgentSpecClusterChecksRunnerImage(image *ImageConfig) *ImageConfig {
-	if image == nil {
-		image = &ImageConfig{}
-	}
-
-	if image.Name == "" {
-		image.Name = defaultAgentImage
-	}
-
-	if image.PullPolicy == nil {
-		image.PullPolicy = &defaultImagePullPolicy
-	}
-
-	if image.PullSecrets == nil {
-		image.PullSecrets = &[]corev1.LocalObjectReference{}
-	}
-
-	return image
 }
 
 // DefaultNetworkPolicy is used to default NetworkPolicy. Returns the defaulted

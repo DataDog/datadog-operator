@@ -258,7 +258,8 @@ func newClusterChecksRunnerPodTemplate(dda *datadoghqv1alpha1.DatadogAgent, labe
 	spec := &dda.Spec
 	volumeMounts := getVolumeMountsForClusterChecksRunner(dda)
 	envVars := getEnvVarsForClusterChecksRunner(dda)
-	initContainers := getConfigInitContainers(spec, volumeMounts, envVars)
+	image := getImage(&clusterChecksRunnerSpec.Image, spec.Registry, true)
+	initContainers := getConfigInitContainers(spec, volumeMounts, envVars, image)
 
 	newPodTemplate := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
@@ -271,7 +272,7 @@ func newClusterChecksRunnerPodTemplate(dda *datadoghqv1alpha1.DatadogAgent, labe
 			Containers: []corev1.Container{
 				{
 					Name:            "cluster-checks-runner",
-					Image:           clusterChecksRunnerSpec.Image.Name,
+					Image:           image,
 					ImagePullPolicy: *clusterChecksRunnerSpec.Image.PullPolicy,
 					Env:             envVars,
 					VolumeMounts:    volumeMounts,

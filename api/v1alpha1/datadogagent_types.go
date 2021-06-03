@@ -60,6 +60,12 @@ type DatadogAgentSpec struct {
 	// Set to 'datadoghq.eu' to send data to the EU site.
 	// +optional
 	Site string `json:"site,omitempty"`
+
+	// Registry to use for all Agent images (default gcr.io/datadoghq).
+	// Use public.ecr.aws/datadog for AWS
+	// Use docker.io/datadog for DockerHub
+	// +optional
+	Registry *string `json:"registry,omitempty"`
 }
 
 // DatadogCredentials is a generic structure that holds credentials to access Datadog.
@@ -1151,10 +1157,21 @@ type DatadogAgentSpecClusterChecksRunnerSpec struct {
 // +k8s:openapi-gen=true
 type ImageConfig struct {
 	// Define the image to use:
-	// Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 6
+	// Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7
 	// Use "datadog/dogstatsd:latest" for Standalone Datadog Agent DogStatsD6
 	// Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent
-	Name string `json:"name"`
+	// Use "agent" with the registry and tag configurations for <registry>/agent:<tag>
+	// Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>
+	Name string `json:"name,omitempty"`
+
+	// Define the image version to use:
+	// To be used if the Name field does not correspond to a full image string.
+	// +optional
+	Tag string `json:"tag,omitempty"`
+
+	// Define whether the Agent image should support JMX.
+	// +optional
+	JmxEnabled bool `json:"jmxEnabled,omitempty"`
 
 	// The Kubernetes pull policy:
 	// Use Always, Never or IfNotPresent.
