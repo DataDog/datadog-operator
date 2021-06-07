@@ -26,20 +26,6 @@ func clusterChecksRunnerDefaultPodSpec() corev1.PodSpec {
 		ServiceAccountName: "foo-cluster-checks-runner",
 		InitContainers: []corev1.Container{
 			{
-				Name:            "init-volume",
-				Image:           "gcr.io/datadoghq/agent:7.28.0",
-				ImagePullPolicy: corev1.PullIfNotPresent,
-				Resources:       corev1.ResourceRequirements{},
-				Command:         []string{"bash", "-c"},
-				Args:            []string{"cp -vnr /etc/datadog-agent /opt;cp -v /etc/datadog-agent-runtime-policies/* /opt/datadog-agent/runtime-security.d/"},
-				VolumeMounts: []corev1.VolumeMount{
-					{
-						Name:      datadoghqv1alpha1.ConfigVolumeName,
-						MountPath: "/opt/datadog-agent",
-					},
-				},
-			},
-			{
 				Name:            "init-config",
 				Image:           "gcr.io/datadoghq/agent:7.28.0",
 				ImagePullPolicy: corev1.PullIfNotPresent,
@@ -240,7 +226,7 @@ func Test_newClusterChecksRunnerDeploymentFromInstance_UserVolumes(t *testing.T)
 	}
 	userMountsPodSpec := clusterChecksRunnerDefaultPodSpec()
 	userMountsPodSpec.Volumes = append(userMountsPodSpec.Volumes, userVolumes...)
-	userMountsPodSpec.InitContainers[1].VolumeMounts = append(userMountsPodSpec.InitContainers[1].VolumeMounts, userVolumeMounts...)
+	userMountsPodSpec.InitContainers[0].VolumeMounts = append(userMountsPodSpec.InitContainers[0].VolumeMounts, userVolumeMounts...)
 	userMountsPodSpec.Containers[0].VolumeMounts = append(userMountsPodSpec.Containers[0].VolumeMounts, userVolumeMounts...)
 
 	envVarsAgentDeployment := test.NewDefaultedDatadogAgent(
@@ -320,7 +306,7 @@ func Test_newClusterChecksRunnerDeploymentFromInstance_EnvVars(t *testing.T) {
 		},
 	}
 	podSpec := clusterChecksRunnerDefaultPodSpec()
-	podSpec.InitContainers[1].Env = append(podSpec.InitContainers[1].Env, envVars...)
+	podSpec.InitContainers[0].Env = append(podSpec.InitContainers[0].Env, envVars...)
 	podSpec.Containers[0].Env = append(podSpec.Containers[0].Env, envVars...)
 
 	envVarsAgentDeployment := test.NewDefaultedDatadogAgent(
