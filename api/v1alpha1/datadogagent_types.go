@@ -238,6 +238,10 @@ type DatadogAgentSpecAgentSpec struct {
 	// Provide Agent Network Policy configuration
 	// +optional
 	NetworkPolicy NetworkPolicySpec `json:"networkPolicy,omitempty"`
+
+	// If specified, the pod's scheduling constraints.
+	// +optional
+	Affinity *corev1.Affinity `json:"affinity,omitempty"`
 }
 
 // RbacConfig contains RBAC configuration.

@@ -151,6 +151,7 @@ func newAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent
 			HostPID:            dda.Spec.Agent.HostPID || isComplianceEnabled(&dda.Spec),
 			DNSPolicy:          dda.Spec.Agent.DNSPolicy,
 			DNSConfig:          dda.Spec.Agent.DNSConfig,
+			Affinity:           dda.Spec.Agent.Affinity,
 		},
 	}, nil
 }

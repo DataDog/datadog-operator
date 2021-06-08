@@ -1328,12 +1328,18 @@ func schema__api_v1alpha1_DatadogAgentSpecAgentSpec(ref common.ReferenceCallback
 							Ref:         ref("./api/v1alpha1.NetworkPolicySpec"),
 						},
 					},
+					"affinity": {
+						SchemaProps: spec.SchemaProps{
+							Description: "If specified, the pod's scheduling constraints.",
+							Ref:         ref("k8s.io/api/core/v1.Affinity"),
+						},
+					},
 				},
 				Required: []string{"image"},
 			},
 		},
 		Dependencies: []string{
-			"./api/v1alpha1.APMSpec", "./api/v1alpha1.CustomConfigSpec", "./api/v1alpha1.DaemonSetDeploymentStrategy", "./api/v1alpha1.ImageConfig", "./api/v1alpha1.LogCollectionConfig", "./api/v1alpha1.NetworkPolicySpec", "./api/v1alpha1.NodeAgentConfig", "./api/v1alpha1.ProcessSpec", "./api/v1alpha1.RbacConfig", "./api/v1alpha1.SecuritySpec", "./api/v1alpha1.SystemProbeSpec", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.PodDNSConfig"},
+			"./api/v1alpha1.APMSpec", "./api/v1alpha1.CustomConfigSpec", "./api/v1alpha1.DaemonSetDeploymentStrategy", "./api/v1alpha1.ImageConfig", "./api/v1alpha1.LogCollectionConfig", "./api/v1alpha1.NetworkPolicySpec", "./api/v1alpha1.NodeAgentConfig", "./api/v1alpha1.ProcessSpec", "./api/v1alpha1.RbacConfig", "./api/v1alpha1.SecuritySpec", "./api/v1alpha1.SystemProbeSpec", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.PodDNSConfig"},
 	}
 }
 
