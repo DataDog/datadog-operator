@@ -996,21 +996,25 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 		Name: datadoghqv1alpha1.CriSocketVolumeName,
 		VolumeSource: corev1.VolumeSource{
 			HostPath: &corev1.HostPathVolumeSource{
-				Path: "",
+				Path: defaultRuntimeDir,
 			},
 		},
 	}
 
+	var userCriPath string
 	if dda.Spec.Agent.Config.CriSocket != nil {
-		if dda.Spec.Agent.Config.CriSocket.DockerSocketPath != nil {
-			runtimeVolume.VolumeSource.HostPath.Path = *dda.Spec.Agent.Config.CriSocket.DockerSocketPath
-		} else if dda.Spec.Agent.Config.CriSocket.CriSocketPath != nil {
-			runtimeVolume.VolumeSource.HostPath.Path = *dda.Spec.Agent.Config.CriSocket.CriSocketPath
+		if dda.Spec.Agent.Config.CriSocket.CriSocketPath != nil {
+			userCriPath = *dda.Spec.Agent.Config.CriSocket.CriSocketPath
+		} else if dda.Spec.Agent.Config.CriSocket.DockerSocketPath != nil {
+			userCriPath = *dda.Spec.Agent.Config.CriSocket.DockerSocketPath
 		}
 	}
-	if runtimeVolume.VolumeSource.HostPath.Path == "" {
-		runtimeVolume.VolumeSource.HostPath.Path = defaultRuntimeDir
+
+	// Always use default mount (/var/run) except if user path is not under the same path
+	if userCriPath != "" && !strings.HasPrefix(userCriPath, defaultRuntimeDir) {
+		runtimeVolume.VolumeSource.HostPath.Path = userCriPath
 	}
+
 	volumes = append(volumes, runtimeVolume)
 
 	if shouldAddProcessContainer(dda) || isComplianceEnabled(&dda.Spec) {
