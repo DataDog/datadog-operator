@@ -1001,18 +1001,12 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 		},
 	}
 
-	var userCriPath string
 	if dda.Spec.Agent.Config.CriSocket != nil {
 		if dda.Spec.Agent.Config.CriSocket.CriSocketPath != nil {
-			userCriPath = *dda.Spec.Agent.Config.CriSocket.CriSocketPath
+			runtimeVolume.VolumeSource.HostPath.Path = filepath.Dir(*dda.Spec.Agent.Config.CriSocket.CriSocketPath)
 		} else if dda.Spec.Agent.Config.CriSocket.DockerSocketPath != nil {
-			userCriPath = *dda.Spec.Agent.Config.CriSocket.DockerSocketPath
+			runtimeVolume.VolumeSource.HostPath.Path = filepath.Dir(*dda.Spec.Agent.Config.CriSocket.DockerSocketPath)
 		}
-	}
-
-	// Always use default mount (/var/run) except if user path is not under the same path
-	if userCriPath != "" && !strings.HasPrefix(userCriPath, defaultRuntimeDir) {
-		runtimeVolume.VolumeSource.HostPath.Path = userCriPath
 	}
 
 	volumes = append(volumes, runtimeVolume)
@@ -1463,10 +1457,10 @@ func getVolumeMountForChecksd() corev1.VolumeMount {
 func getVolumeMountForRuntimeSockets(criSocket *datadoghqv1alpha1.CRISocketConfig) corev1.VolumeMount {
 	var socketPath string
 	if criSocket != nil {
-		if criSocket.DockerSocketPath != nil {
-			socketPath = *criSocket.DockerSocketPath
-		} else if criSocket.CriSocketPath != nil {
+		if criSocket.CriSocketPath != nil {
 			socketPath = *criSocket.CriSocketPath
+		} else if criSocket.DockerSocketPath != nil {
+			socketPath = *criSocket.DockerSocketPath
 		}
 	}
 
