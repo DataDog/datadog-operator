@@ -201,6 +201,7 @@ spec:
 | agent.systemProbe.securityContext.windowsOptions.gmsaCredentialSpec | GMSACredentialSpec is where the GMSA admission webhook (https://github.com/kubernetes-sigs/windows-gmsa) inlines the contents of the GMSA credential spec named by the GMSACredentialSpecName field. |
 | agent.systemProbe.securityContext.windowsOptions.gmsaCredentialSpecName | GMSACredentialSpecName is the name of the GMSA credential spec to use. |
 | agent.systemProbe.securityContext.windowsOptions.runAsUserName | The UserName in Windows to run the entrypoint of the container process. Defaults to the user specified in image metadata if unspecified. May also be set in PodSecurityContext. If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence. |
+| agent.systemProbe.volumeMounts | Specify additional volume mounts in the Security Agent container. |
 | agent.useExtendedDaemonset | UseExtendedDaemonset use ExtendedDaemonset for Agent deployment. default value is false. |
 | clusterAgent.additionalAnnotations | AdditionalAnnotations provide annotations that will be added to the Cluster Agent Pods. |
 | clusterAgent.additionalLabels | AdditionalLabels provide labels that will be added to the Cluster Agent Pods. |
