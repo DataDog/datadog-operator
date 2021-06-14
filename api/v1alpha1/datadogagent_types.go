@@ -578,6 +578,13 @@ type SystemProbeSpec struct {
 	// +listMapKey=name
 	Env []corev1.EnvVar `json:"env,omitempty"`
 
+	// Specify additional volume mounts in the Security Agent container.
+	// +optional
+	// +listType=map
+	// +listMapKey=name
+	// +listMapKey=mountPath
+	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
+
 	// Datadog SystemProbe resource requests and limits.
 	// Make sure to keep requests and limits equal to keep the pods in the Guaranteed QoS class.
 	// See also: http://kubernetes.io/docs/user-guide/compute-resources/

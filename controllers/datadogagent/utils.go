@@ -1630,6 +1630,9 @@ func getVolumeMountsForSystemProbe(dda *datadoghqv1alpha1.DatadogAgent) []corev1
 		}
 	}
 
+	// Add extra volume mounts
+	volumeMounts = append(volumeMounts, dda.Spec.Agent.SystemProbe.VolumeMounts...)
+
 	return volumeMounts
 }
 
