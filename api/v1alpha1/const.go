@@ -201,9 +201,6 @@ const (
 	ClusterAgentCustomConfigVolumePath    = "/etc/datadog-agent/datadog-cluster.yaml"
 	ClusterAgentCustomConfigVolumeSubPath = "datadog-cluster.yaml"
 
-	DefaultSystemProbeSecCompRootPath = "/var/lib/kubelet/seccomp"
-	DefaultAppArmorProfileName        = "unconfined"
-	DefaultSeccompProfileName         = "localhost/system-probe"
 	SysteProbeAppArmorAnnotationKey   = "container.apparmor.security.beta.kubernetes.io/system-probe"
 	SysteProbeSeccompAnnotationKey    = "container.seccomp.security.alpha.kubernetes.io/system-probe"
 	SystemProbeOSReleaseDirVolumeName = "host-osrelease"
@@ -224,29 +221,6 @@ const (
 	KubeServicesListener              = "kube_services"
 	KubeEndpointsListener             = "kube_endpoints"
 	KubeServicesAndEndpointsListeners = "kube_services kube_endpoints"
-
-	// Liveness probe default config
-
-	DefaultLivenessProbeInitialDelaySeconds int32 = 15
-	DefaultLivenessProbePeriodSeconds       int32 = 15
-	DefaultLivenessProbeTimeoutSeconds      int32 = 5
-	DefaultLivenessProbeSuccessThreshold    int32 = 1
-	DefaultLivenessProbeFailureThreshold    int32 = 6
-	DefaultAgentHealthPort                  int32 = 5555
-	DefaultLivenessProbeHTTPPath                  = "/live"
-
-	// Readiness probe default config
-
-	DefaultReadinessProbeInitialDelaySeconds int32 = 15
-	DefaultReadinessProbePeriodSeconds       int32 = 15
-	DefaultReadinessProbeTimeoutSeconds      int32 = 5
-	DefaultReadinessProbeSuccessThreshold    int32 = 1
-	DefaultReadinessProbeFailureThreshold    int32 = 6
-	DefaultReadinessProbeHTTPPath                  = "/ready"
-
-	// APM default values
-
-	DefaultAPMAgentTCPPort int32 = 8126
 
 	// Consts used to setup Rbac config
 	// API Groups
