@@ -57,7 +57,6 @@ func (r *Reconciler) updateIfNeededConfigMap(dda *datadoghqv1alpha1.DatadogAgent
 	if err != nil {
 		return result, err
 	}
-
 	if comparison.IsSameSpecMD5Hash(hash, oldConfigMap.GetAnnotations()) {
 		return result, nil
 	}
@@ -68,13 +67,24 @@ func (r *Reconciler) updateIfNeededConfigMap(dda *datadoghqv1alpha1.DatadogAgent
 	// Copy possibly changed fields
 	updateCM := oldConfigMap.DeepCopy()
 	updateCM.Data = newConfigMap.Data
+	if len(updateCM.Annotations) == 0 {
+		updateCM.Annotations = make(map[string]string)
+	}
 	for k, v := range newConfigMap.Annotations {
 		updateCM.Annotations[k] = v
+	}
+	if len(updateCM.Labels) == 0 {
+		updateCM.Labels = make(map[string]string)
 	}
 	for k, v := range newConfigMap.Labels {
 		updateCM.Labels[k] = v
 	}
 
+	// need to update the hash in the updated configmap to avoid going through this loop everytime
+	_, err = comparison.SetMD5DatadogAgentGenerationAnnotation(&updateCM.ObjectMeta, updateCM.Data)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
 	err = r.client.Update(context.TODO(), updateCM)
 	if err != nil {
 		return reconcile.Result{}, err
