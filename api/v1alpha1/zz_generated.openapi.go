@@ -185,11 +185,17 @@ func schema__api_v1alpha1_APMSpec(ref common.ReferenceCallback) common.OpenAPIDe
 							},
 						},
 					},
+					"livenessProbe": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Configure the Liveness Probe of the APM container",
+							Ref:         ref("k8s.io/api/core/v1.Probe"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./api/v1alpha1.APMUnixDomainSocketSpec", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.VolumeMount"},
+			"./api/v1alpha1.APMUnixDomainSocketSpec", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.Probe", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.VolumeMount"},
 	}
 }
 
@@ -508,6 +514,13 @@ func schema__api_v1alpha1_ClusterAgentConfig(ref common.ReferenceCallback) commo
 							},
 						},
 					},
+					"healthPort": {
+						SchemaProps: spec.SchemaProps{
+							Description: "HealthPort of the agent container for internal liveness probe. Must be the same as the Liness/Readiness probes.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
 				},
 			},
 		},
@@ -643,11 +656,30 @@ func schema__api_v1alpha1_ClusterChecksRunnerConfig(ref common.ReferenceCallback
 							},
 						},
 					},
+					"livenessProbe": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Configure the Liveness Probe of the CLC container",
+							Ref:         ref("k8s.io/api/core/v1.Probe"),
+						},
+					},
+					"readinessProbe": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Configure the Readiness Probe of the CLC container",
+							Ref:         ref("k8s.io/api/core/v1.Probe"),
+						},
+					},
+					"healthPort": {
+						SchemaProps: spec.SchemaProps{
+							Description: "HealthPort of the agent container for internal liveness probe. Must be the same as the Liness/Readiness probes.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
+			"k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.Probe", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
 	}
 }
 
@@ -1071,8 +1103,7 @@ func schema__api_v1alpha1_DatadogAgentSpec(ref common.ReferenceCallback) common.
 				Properties: map[string]spec.Schema{
 					"credentials": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Configure the credentials needed to run Agents.",
-							Default:     map[string]interface{}{},
+							Description: "Configure the credentials needed to run Agents. If not set, then the credentials set in the DatadogOperator will be used.",
 							Ref:         ref("./api/v1alpha1.AgentCredentials"),
 						},
 					},
@@ -1086,18 +1117,21 @@ func schema__api_v1alpha1_DatadogAgentSpec(ref common.ReferenceCallback) common.
 					"agent": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The desired state of the Agent as an extended daemonset. Contains the Node Agent configuration and deployment strategy.",
+							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.DatadogAgentSpecAgentSpec"),
 						},
 					},
 					"clusterAgent": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The desired state of the Cluster Agent as a deployment.",
+							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.DatadogAgentSpecClusterAgentSpec"),
 						},
 					},
 					"clusterChecksRunner": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The desired state of the Cluster Checks Runner as a deployment.",
+							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.DatadogAgentSpecClusterChecksRunnerSpec"),
 						},
 					},
@@ -1123,7 +1157,6 @@ func schema__api_v1alpha1_DatadogAgentSpec(ref common.ReferenceCallback) common.
 						},
 					},
 				},
-				Required: []string{"credentials"},
 			},
 		},
 		Dependencies: []string{
@@ -1138,6 +1171,13 @@ func schema__api_v1alpha1_DatadogAgentSpecAgentSpec(ref common.ReferenceCallback
 				Description: "DatadogAgentSpecAgentSpec defines the desired state of the node Agent.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enabled",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 					"useExtendedDaemonset": {
 						SchemaProps: spec.SchemaProps{
 							Description: "UseExtendedDaemonset use ExtendedDaemonset for Agent deployment. default value is false.",
@@ -1148,7 +1188,6 @@ func schema__api_v1alpha1_DatadogAgentSpecAgentSpec(ref common.ReferenceCallback
 					"image": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The container image of the Datadog Agent.",
-							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.ImageConfig"),
 						},
 					},
@@ -1162,14 +1201,12 @@ func schema__api_v1alpha1_DatadogAgentSpecAgentSpec(ref common.ReferenceCallback
 					"config": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Agent configuration.",
-							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.NodeAgentConfig"),
 						},
 					},
 					"rbac": {
 						SchemaProps: spec.SchemaProps{
 							Description: "RBAC configuration of the Agent.",
-							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.RbacConfig"),
 						},
 					},
@@ -1284,7 +1321,6 @@ func schema__api_v1alpha1_DatadogAgentSpecAgentSpec(ref common.ReferenceCallback
 					"apm": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Trace Agent configuration",
-							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.APMSpec"),
 						},
 					},
@@ -1297,21 +1333,18 @@ func schema__api_v1alpha1_DatadogAgentSpecAgentSpec(ref common.ReferenceCallback
 					"process": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Process Agent configuration",
-							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.ProcessSpec"),
 						},
 					},
 					"systemProbe": {
 						SchemaProps: spec.SchemaProps{
 							Description: "SystemProbe configuration",
-							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.SystemProbeSpec"),
 						},
 					},
 					"security": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Security Agent configuration",
-							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.SecuritySpec"),
 						},
 					},
@@ -1324,7 +1357,6 @@ func schema__api_v1alpha1_DatadogAgentSpecAgentSpec(ref common.ReferenceCallback
 					"networkPolicy": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Provide Agent Network Policy configuration",
-							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.NetworkPolicySpec"),
 						},
 					},
@@ -1335,7 +1367,6 @@ func schema__api_v1alpha1_DatadogAgentSpecAgentSpec(ref common.ReferenceCallback
 						},
 					},
 				},
-				Required: []string{"image"},
 			},
 		},
 		Dependencies: []string{
@@ -1350,10 +1381,16 @@ func schema__api_v1alpha1_DatadogAgentSpecClusterAgentSpec(ref common.ReferenceC
 				Description: "DatadogAgentSpecClusterAgentSpec defines the desired state of the cluster Agent.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enabled",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 					"image": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The container image of the Datadog Cluster Agent.",
-							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.ImageConfig"),
 						},
 					},
@@ -1367,7 +1404,6 @@ func schema__api_v1alpha1_DatadogAgentSpecClusterAgentSpec(ref common.ReferenceC
 					"config": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Cluster Agent configuration.",
-							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.ClusterAgentConfig"),
 						},
 					},
@@ -1380,7 +1416,6 @@ func schema__api_v1alpha1_DatadogAgentSpecClusterAgentSpec(ref common.ReferenceC
 					"rbac": {
 						SchemaProps: spec.SchemaProps{
 							Description: "RBAC configuration of the Datadog Cluster Agent.",
-							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.RbacConfig"),
 						},
 					},
@@ -1488,12 +1523,10 @@ func schema__api_v1alpha1_DatadogAgentSpecClusterAgentSpec(ref common.ReferenceC
 					"networkPolicy": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Provide Cluster Agent Network Policy configuration.",
-							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.NetworkPolicySpec"),
 						},
 					},
 				},
-				Required: []string{"image"},
 			},
 		},
 		Dependencies: []string{
@@ -1508,10 +1541,16 @@ func schema__api_v1alpha1_DatadogAgentSpecClusterChecksRunnerSpec(ref common.Ref
 				Description: "DatadogAgentSpecClusterChecksRunnerSpec defines the desired state of the Cluster Checks Runner.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enabled",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 					"image": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The container image of the Datadog Cluster Checks Runner.",
-							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.ImageConfig"),
 						},
 					},
@@ -1525,7 +1564,6 @@ func schema__api_v1alpha1_DatadogAgentSpecClusterChecksRunnerSpec(ref common.Ref
 					"config": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Agent configuration.",
-							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.ClusterChecksRunnerConfig"),
 						},
 					},
@@ -1538,7 +1576,6 @@ func schema__api_v1alpha1_DatadogAgentSpecClusterChecksRunnerSpec(ref common.Ref
 					"rbac": {
 						SchemaProps: spec.SchemaProps{
 							Description: "RBAC configuration of the Datadog Cluster Checks Runner.",
-							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.RbacConfig"),
 						},
 					},
@@ -1632,12 +1669,10 @@ func schema__api_v1alpha1_DatadogAgentSpecClusterChecksRunnerSpec(ref common.Ref
 					"networkPolicy": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Provide Cluster Checks Runner Network Policy configuration.",
-							Default:     map[string]interface{}{},
 							Ref:         ref("./api/v1alpha1.NetworkPolicySpec"),
 						},
 					},
 				},
-				Required: []string{"image"},
 			},
 		},
 		Dependencies: []string{
@@ -1652,6 +1687,12 @@ func schema__api_v1alpha1_DatadogAgentStatus(ref common.ReferenceCallback) commo
 				Description: "DatadogAgentStatus defines the observed state of DatadogAgent.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
+					"defaultOverride": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DefaultOverride contains attributes that were not configured that the runtime defaulted.",
+							Ref:         ref("./api/v1alpha1.DatadogAgentSpec"),
+						},
+					},
 					"agent": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The actual state of the Agent as an extended daemonset.",
@@ -1696,7 +1737,7 @@ func schema__api_v1alpha1_DatadogAgentStatus(ref common.ReferenceCallback) commo
 			},
 		},
 		Dependencies: []string{
-			"./api/v1alpha1.DaemonSetStatus", "./api/v1alpha1.DatadogAgentCondition", "./api/v1alpha1.DeploymentStatus"},
+			"./api/v1alpha1.DaemonSetStatus", "./api/v1alpha1.DatadogAgentCondition", "./api/v1alpha1.DatadogAgentSpec", "./api/v1alpha1.DeploymentStatus"},
 	}
 }
 
@@ -2620,6 +2661,25 @@ func schema__api_v1alpha1_NodeAgentConfig(ref common.ReferenceCallback) common.O
 							},
 						},
 					},
+					"livenessProbe": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Configure the Liveness Probe of the Agent container",
+							Ref:         ref("k8s.io/api/core/v1.Probe"),
+						},
+					},
+					"readinessProbe": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Configure the Readiness Probe of the Agent container",
+							Ref:         ref("k8s.io/api/core/v1.Probe"),
+						},
+					},
+					"healthPort": {
+						SchemaProps: spec.SchemaProps{
+							Description: "HealthPort of the agent container for internal liveness probe. Must be the same as the Liness/Readiness probes.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
 					"criSocket": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Configure the CRI Socket.",
@@ -2668,7 +2728,7 @@ func schema__api_v1alpha1_NodeAgentConfig(ref common.ReferenceCallback) common.O
 			},
 		},
 		Dependencies: []string{
-			"./api/v1alpha1.CRISocketConfig", "./api/v1alpha1.ConfigDirSpec", "./api/v1alpha1.DogstatsdConfig", "./api/v1alpha1.KubeletConfig", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.PodSecurityContext", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
+			"./api/v1alpha1.CRISocketConfig", "./api/v1alpha1.ConfigDirSpec", "./api/v1alpha1.DogstatsdConfig", "./api/v1alpha1.KubeletConfig", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.PodSecurityContext", "k8s.io/api/core/v1.Probe", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
 	}
 }
 
