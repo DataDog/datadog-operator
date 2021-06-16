@@ -94,6 +94,31 @@ func Test_options_upgrade(t *testing.T) {
 				return nil
 			},
 		},
+		{
+			name: "no image in the spec",
+			loadFunc: func(c client.Client) *datadoghqv1alpha1.DatadogAgent {
+				dd := buildDatadogAgent("")
+				dd.Spec.ClusterAgent.Enabled = datadoghqv1alpha1.NewBoolPointer(true)
+				dd.Spec.ClusterAgent.Image = nil
+				_ = c.Create(context.TODO(), dd)
+				return dd
+			},
+			image:   "datadog/dca-custom:1.5.2",
+			wantErr: false,
+			wantFunc: func(c client.Client, image string) error {
+				dd := &datadoghqv1alpha1.DatadogAgent{}
+				if err := c.Get(context.TODO(), types.NamespacedName{Namespace: "datadog-agent", Name: "dd"}, dd); err != nil {
+					return err
+				}
+				if dd.Spec.ClusterAgent.Image == nil {
+					return fmt.Errorf("image has not been upgraded")
+				}
+				if dd.Spec.ClusterAgent.Image.Name != image {
+					return fmt.Errorf("current image: %s, wanted: %s", dd.Spec.ClusterAgent.Image.Name, image)
+				}
+				return nil
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -120,8 +145,8 @@ func buildDatadogAgent(image string) *datadoghqv1alpha1.DatadogAgent {
 			Name:      "dd",
 		},
 		Spec: datadoghqv1alpha1.DatadogAgentSpec{
-			ClusterAgent: &datadoghqv1alpha1.DatadogAgentSpecClusterAgentSpec{
-				Image: datadoghqv1alpha1.ImageConfig{
+			ClusterAgent: datadoghqv1alpha1.DatadogAgentSpecClusterAgentSpec{
+				Image: &datadoghqv1alpha1.ImageConfig{
 					Name: image,
 				},
 			},
