@@ -21,7 +21,8 @@ func (r *Reconciler) manageExternalMetricsSecret(logger logr.Logger, dda *datado
 }
 
 func newExternalMetricsSecret(name string, dda *datadoghqv1alpha1.DatadogAgent) (*corev1.Secret, error) {
-	if dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials.APIKey == "" &&
+	if dda.Spec.ClusterAgent.Config == nil || dda.Spec.ClusterAgent.Config.ExternalMetrics == nil ||
+		dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials == nil || dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials.APIKey == "" &&
 		dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials.AppKey == "" {
 		return nil, fmt.Errorf("unable to create external metrics secret, missing data in .Spec.ClusterAgent.Config.ExternalMetrics.Credentials")
 	}
@@ -44,7 +45,11 @@ func newExternalMetricsSecret(name string, dda *datadoghqv1alpha1.DatadogAgent) 
 }
 
 func needExternalMetricsSecret(dda *datadoghqv1alpha1.DatadogAgent) bool {
-	return dda.Spec.ClusterAgent != nil && dda.Spec.ClusterAgent.Config.ExternalMetrics != nil && dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials != nil &&
+	if dda.Spec.ClusterAgent.Config == nil || dda.Spec.ClusterAgent.Config.ExternalMetrics == nil || dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials == nil {
+		// If Credentials are not specified we fail downstream to have the error surfaced in the status of the DatadogAgent
+		return false
+	}
+	return isClusterAgentEnabled(dda.Spec.ClusterAgent) &&
 		(dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials.APIKey != "" || dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials.AppKey != "") &&
 		!datadoghqv1alpha1.BoolValue(dda.Spec.Credentials.UseSecretBackend)
 }
