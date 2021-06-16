@@ -10,9 +10,6 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -20,6 +17,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/tools/record"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/v1alpha1/patch"
@@ -101,26 +100,17 @@ func (r *Reconciler) internalReconcile(ctx context.Context, request reconcile.Re
 			return reconcile.Result{}, err
 		}
 	}
-
-	if !datadoghqv1alpha1.IsDefaultedDatadogAgent(instance) {
-		reqLogger.Info("Defaulting values")
-		defaultedInstance := datadoghqv1alpha1.DefaultDatadogAgent(instance)
-		err = r.client.Update(ctx, defaultedInstance)
-		if err != nil {
-			reqLogger.Error(err, "failed to update DatadogAgent")
-			return reconcile.Result{}, err
-		}
-		// DatadogAgent is now defaulted return and requeue
-		return reconcile.Result{Requeue: true}, nil
-	}
-
-	newStatus := instance.Status.DeepCopy()
-
 	if err = datadoghqv1alpha1.IsValidDatadogAgent(&instance.Spec); err != nil {
 		reqLogger.Info("Invalid spec")
-		return r.updateStatusIfNeeded(reqLogger, instance, newStatus, result, err)
+		return r.updateStatusIfNeeded(reqLogger, instance, &instance.Status, result, err)
 	}
 
+	instOverrideStatus := datadoghqv1alpha1.DefaultDatadogAgent(instance)
+	instance, result, err = r.updateOverrideIfNeeded(reqLogger, instance, instOverrideStatus, result)
+	if err != nil {
+		return result, err
+	}
+	newStatus := instance.Status.DeepCopy()
 	reconcileFuncs :=
 		[]reconcileFuncInterface{
 			r.reconcileClusterAgent,
@@ -143,6 +133,23 @@ func (r *Reconciler) internalReconcile(ctx context.Context, request reconcile.Re
 
 type reconcileFuncInterface func(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error)
 
+func (r *Reconciler) updateOverrideIfNeeded(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgent, newOverride *datadoghqv1alpha1.DatadogAgentStatus, result reconcile.Result) (*datadoghqv1alpha1.DatadogAgent, reconcile.Result, error) {
+	// We returned the most up to date instance to avoid conflict during the updateStatusIfNeeded after all the reconcile cycles.
+	updateAgentDeployment := agentdeployment.DeepCopy()
+	if !apiequality.Semantic.DeepEqual(agentdeployment.Status.DefaultOverride, newOverride) {
+		updateAgentDeployment.Status.DefaultOverride = newOverride.DefaultOverride
+		if err := r.client.Status().Update(context.TODO(), updateAgentDeployment); err != nil {
+			if apierrors.IsConflict(err) {
+				logger.V(1).Info("unable to update DatadogAgent status due to update conflict")
+				return agentdeployment, reconcile.Result{RequeueAfter: time.Second}, nil
+			}
+			logger.Error(err, "unable to update DatadogAgent status")
+			return agentdeployment, reconcile.Result{}, err
+		}
+	}
+	return updateAgentDeployment, result, nil
+}
+
 func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus, result reconcile.Result, currentError error) (reconcile.Result, error) {
 	now := metav1.NewTime(time.Now())
 	condition.UpdateDatadogAgentStatusConditionsFailure(newStatus, now, datadoghqv1alpha1.DatadogAgentConditionTypeReconcileError, currentError)
@@ -153,7 +160,6 @@ func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, agentdeployment *d
 	}
 
 	r.setMetricsForwarderStatus(logger, agentdeployment, newStatus)
-
 	if !apiequality.Semantic.DeepEqual(&agentdeployment.Status, newStatus) {
 		updateAgentDeployment := agentdeployment.DeepCopy()
 		updateAgentDeployment.Status = *newStatus

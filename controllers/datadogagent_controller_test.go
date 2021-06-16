@@ -243,8 +243,11 @@ var _ = Describe("DatadogAgent Controller", func() {
 			checkAgentUpdateOnClusterAgent(key, dcaKey, func(agent *datadoghqv1alpha1.DatadogAgent) {
 				agent.Spec.ClusterAgent.Image.Name = "datadog/cluster-agent:1.0.0"
 				agent.Spec.ClusterAgent.Config.ClusterChecksEnabled = datadoghqv1alpha1.NewBoolPointer(true)
-				agent.Spec.ClusterChecksRunner = &datadoghqv1alpha1.DatadogAgentSpecClusterChecksRunnerSpec{}
-				agent.Spec.ClusterChecksRunner.Image.Name = "datadog/agent:7.22.0"
+				agent.Spec.ClusterChecksRunner = datadoghqv1alpha1.DatadogAgentSpecClusterChecksRunnerSpec{
+					Image: &datadoghqv1alpha1.ImageConfig{
+						Name: "datadog/agent:7.22.0",
+					},
+				}
 			}, nil)
 		})
 	})

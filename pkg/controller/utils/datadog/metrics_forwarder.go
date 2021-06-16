@@ -686,7 +686,7 @@ func (mf *metricsForwarder) isEventChanFull() bool {
 }
 
 func getbaseURL(dda *datadoghqv1alpha1.DatadogAgent) string {
-	if dda.Spec.Agent != nil && dda.Spec.Agent.Config.DDUrl != nil {
+	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Enabled) && dda.Spec.Agent.Config != nil && dda.Spec.Agent.Config.DDUrl != nil {
 		return *dda.Spec.Agent.Config.DDUrl
 	} else if dda.Spec.Site != "" {
 		return fmt.Sprintf("https://api.%s", dda.Spec.Site)
