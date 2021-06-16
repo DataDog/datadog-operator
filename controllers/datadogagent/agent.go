@@ -64,7 +64,7 @@ func (r *Reconciler) reconcileAgent(logger logr.Logger, dda *datadoghqv1alpha1.D
 		ds = nil
 	}
 
-	if dda.Spec.Agent == nil {
+	if !datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Enabled) {
 		if ds != nil {
 			if err = r.deleteDaemonSet(logger, dda, ds); err != nil {
 				return result, err
@@ -303,7 +303,7 @@ func (r *Reconciler) manageAgentNetworkPolicy(logger logr.Logger, dda *datadoghq
 	policyName := fmt.Sprintf("%s-%s", dda.Name, datadoghqv1alpha1.DefaultAgentResourceSuffix)
 
 	spec := dda.Spec.Agent
-	if spec == nil || !datadoghqv1alpha1.BoolValue(spec.NetworkPolicy.Create) {
+	if !datadoghqv1alpha1.BoolValue(spec.Enabled) || spec.NetworkPolicy == nil || !datadoghqv1alpha1.BoolValue(spec.NetworkPolicy.Create) {
 		return r.cleanupNetworkPolicy(logger, dda, policyName)
 	}
 
@@ -356,17 +356,12 @@ func buildAgentNetworkPolicy(dda *datadoghqv1alpha1.DatadogAgent, name string) *
 	}
 
 	if isAPMEnabled(&dda.Spec) {
-		port := datadoghqv1alpha1.DefaultAPMAgentTCPPort
-		if dda.Spec.Agent.Apm.HostPort != nil {
-			port = *dda.Spec.Agent.Apm.HostPort
-		}
-
 		ingressRules = append(ingressRules, networkingv1.NetworkPolicyIngressRule{
 			Ports: []networkingv1.NetworkPolicyPort{
 				{
 					Port: &intstr.IntOrString{
 						Type:   intstr.Int,
-						IntVal: port,
+						IntVal: *dda.Spec.Agent.Apm.HostPort,
 					},
 					Protocol: &protocolTCP,
 				},
@@ -405,20 +400,24 @@ func newExtendedDaemonSetFromInstance(logger logr.Logger, dda *datadoghqv1alpha1
 	if err != nil {
 		return nil, "", err
 	}
+	strategy, err := getAgentDeploymentStrategy(dda)
+	if err != nil {
+		return nil, "", err
+	}
 	eds := &edsdatadoghqv1alpha1.ExtendedDaemonSet{
 		ObjectMeta: newDaemonsetObjectMetaData(dda),
 		Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
 			Selector: selector,
 			Template: *template,
 			Strategy: edsdatadoghqv1alpha1.ExtendedDaemonSetSpecStrategy{
-				Canary:             dda.Spec.Agent.DeploymentStrategy.Canary.DeepCopy(),
-				ReconcileFrequency: dda.Spec.Agent.DeploymentStrategy.ReconcileFrequency.DeepCopy(),
+				Canary:             strategy.Canary.DeepCopy(),
+				ReconcileFrequency: strategy.ReconcileFrequency.DeepCopy(),
 				RollingUpdate: edsdatadoghqv1alpha1.ExtendedDaemonSetSpecStrategyRollingUpdate{
-					MaxUnavailable:            dda.Spec.Agent.DeploymentStrategy.RollingUpdate.MaxUnavailable,
-					MaxPodSchedulerFailure:    dda.Spec.Agent.DeploymentStrategy.RollingUpdate.MaxPodSchedulerFailure,
-					MaxParallelPodCreation:    dda.Spec.Agent.DeploymentStrategy.RollingUpdate.MaxParallelPodCreation,
-					SlowStartIntervalDuration: dda.Spec.Agent.DeploymentStrategy.RollingUpdate.SlowStartIntervalDuration,
-					SlowStartAdditiveIncrease: dda.Spec.Agent.DeploymentStrategy.RollingUpdate.SlowStartAdditiveIncrease,
+					MaxUnavailable:            strategy.RollingUpdate.MaxUnavailable,
+					MaxPodSchedulerFailure:    strategy.RollingUpdate.MaxPodSchedulerFailure,
+					MaxParallelPodCreation:    strategy.RollingUpdate.MaxParallelPodCreation,
+					SlowStartIntervalDuration: strategy.RollingUpdate.SlowStartIntervalDuration,
+					SlowStartAdditiveIncrease: strategy.RollingUpdate.SlowStartAdditiveIncrease,
 				},
 			},
 		},
@@ -443,15 +442,19 @@ func newDaemonSetFromInstance(logger logr.Logger, dda *datadoghqv1alpha1.Datadog
 			MatchLabels: template.Labels,
 		}
 	}
+	strategy, err := getAgentDeploymentStrategy(dda)
+	if err != nil {
+		return nil, "", err
+	}
 	ds := &appsv1.DaemonSet{
 		ObjectMeta: newDaemonsetObjectMetaData(dda),
 		Spec: appsv1.DaemonSetSpec{
 			Selector: selector,
 			Template: *template,
 			UpdateStrategy: appsv1.DaemonSetUpdateStrategy{
-				Type: *dda.Spec.Agent.DeploymentStrategy.UpdateStrategyType,
+				Type: *strategy.UpdateStrategyType,
 				RollingUpdate: &appsv1.RollingUpdateDaemonSet{
-					MaxUnavailable: dda.Spec.Agent.DeploymentStrategy.RollingUpdate.MaxUnavailable,
+					MaxUnavailable: strategy.RollingUpdate.MaxUnavailable,
 				},
 			},
 		},
@@ -465,7 +468,7 @@ func newDaemonSetFromInstance(logger logr.Logger, dda *datadoghqv1alpha1.Datadog
 }
 
 func daemonsetName(dda *datadoghqv1alpha1.DatadogAgent) string {
-	if dda.Spec.Agent != nil && dda.Spec.Agent.DaemonsetName != "" {
+	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Enabled) && dda.Spec.Agent.DaemonsetName != "" {
 		return dda.Spec.Agent.DaemonsetName
 	}
 	return fmt.Sprintf("%s-%s", dda.Name, "agent")
@@ -491,7 +494,7 @@ func getAgentCustomConfigConfigMapName(dda *datadoghqv1alpha1.DatadogAgent) stri
 }
 
 func buildAgentConfigurationConfigMap(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.ConfigMap, error) {
-	if dda.Spec.Agent == nil {
+	if !datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Enabled) {
 		return nil, nil
 	}
 	return buildConfigurationConfigMap(dda, dda.Spec.Agent.CustomConfig, getAgentCustomConfigConfigMapName(dda), datadoghqv1alpha1.AgentCustomConfigVolumeSubPath)

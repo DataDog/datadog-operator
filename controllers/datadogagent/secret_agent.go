@@ -7,12 +7,14 @@ package datadogagent
 
 import (
 	"fmt"
+	"os"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
+	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/go-logr/logr"
 )
@@ -22,9 +24,8 @@ func (r *Reconciler) manageAgentSecret(logger logr.Logger, dda *datadoghqv1alpha
 }
 
 func newAgentSecret(name string, dda *datadoghqv1alpha1.DatadogAgent) (*corev1.Secret, error) {
-	if !((dda.Spec.Credentials.AppKeyExistingSecret == "" && dda.Spec.Credentials.APPSecret == nil) ||
-		(dda.Spec.Credentials.APIKeyExistingSecret == "" && dda.Spec.Credentials.APISecret == nil) ||
-		dda.Spec.ClusterAgent != nil) {
+	if dda.Spec.Credentials == nil || !((dda.Spec.Credentials.AppKeyExistingSecret == "" && dda.Spec.Credentials.APPSecret == nil) ||
+		(dda.Spec.Credentials.APIKeyExistingSecret == "" && dda.Spec.Credentials.APISecret == nil)) {
 		return nil, fmt.Errorf("unable to create agent secret: missing data in .spec.Credentials")
 	}
 
@@ -35,7 +36,7 @@ func newAgentSecret(name string, dda *datadoghqv1alpha1.DatadogAgent) (*corev1.S
 	// Agent credentials has two more fields
 	if dda.Spec.Credentials.Token != "" {
 		data[datadoghqv1alpha1.DefaultTokenKey] = []byte(dda.Spec.Credentials.Token)
-	} else if dda.Status.ClusterAgent != nil {
+	} else if isClusterAgentEnabled(dda.Spec.ClusterAgent) && dda.Status.ClusterAgent != nil {
 		data[datadoghqv1alpha1.DefaultTokenKey] = []byte(dda.Status.ClusterAgent.GeneratedToken)
 	}
 
@@ -49,13 +50,16 @@ func newAgentSecret(name string, dda *datadoghqv1alpha1.DatadogAgent) (*corev1.S
 		Type: corev1.SecretTypeOpaque,
 		Data: data,
 	}
-
 	return secret, nil
 }
 
 // needAgentSecret checks if a secret should be used or created due to the cluster agent being defined, or if any api or app key
 // is configured, AND the secret backend is not used
 func needAgentSecret(dda *datadoghqv1alpha1.DatadogAgent) bool {
-	return (dda.Spec.ClusterAgent != nil || dda.Spec.Credentials.APIKey != "" || dda.Spec.Credentials.AppKey != "") &&
+	if dda.Spec.Credentials == nil {
+		// If Credentials are not specified we fail downstream to have the error surfaced in the status of the DatadogAgent
+		return false
+	}
+	return (isClusterAgentEnabled(dda.Spec.ClusterAgent) || (dda.Spec.Credentials.APIKey != "" || os.Getenv(config.DDAPIKeyEnvVar) != "") || (dda.Spec.Credentials.AppKey != "" || os.Getenv(config.DDAppKeyEnvVar) != "")) &&
 		!datadoghqv1alpha1.BoolValue(dda.Spec.Credentials.UseSecretBackend)
 }

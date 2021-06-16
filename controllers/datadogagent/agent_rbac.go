@@ -19,7 +19,7 @@ import (
 
 // manageAgentRBACs creates deletes and updates the RBACs for the Agent
 func (r *Reconciler) manageAgentRBACs(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
-	if dda.Spec.Agent == nil {
+	if !datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Enabled) {
 		return r.cleanupAgentRbacResources(logger, dda)
 	}
 
