@@ -21,8 +21,6 @@ core,"github.com/beorn7/perks/quantile",MIT
 core,"github.com/cenkalti/backoff",MIT
 core,"github.com/cespare/xxhash/v2",MIT
 core,"github.com/davecgh/go-spew/spew",ISC
-core,"github.com/docker/spdystream",Apache-2.0
-core,"github.com/docker/spdystream/spdy",Apache-2.0
 core,"github.com/dsnet/compress",FreeBSD
 core,"github.com/dsnet/compress/bzip2",FreeBSD
 core,"github.com/dsnet/compress/bzip2/internal/sais",FreeBSD
@@ -95,6 +93,8 @@ core,"github.com/mailru/easyjson/jwriter",MIT
 core,"github.com/mattn/go-runewidth",MIT
 core,"github.com/matttproud/golang_protobuf_extensions/pbutil",Apache-2.0
 core,"github.com/mholt/archiver/v3",MIT
+core,"github.com/moby/spdystream",Apache-2.0
+core,"github.com/moby/spdystream/spdy",Apache-2.0
 core,"github.com/modern-go/concurrent",Apache-2.0
 core,"github.com/modern-go/reflect2",Apache-2.0
 core,"github.com/nwaples/rardecode",FreeBSD
