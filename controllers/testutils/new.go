@@ -39,15 +39,15 @@ func NewDatadogAgent(ns, name, image string, options *NewDatadogAgentOptions) *d
 	}
 
 	ad.Spec = datadoghqv1alpha1.DatadogAgentSpec{
-		Credentials: datadoghqv1alpha1.AgentCredentials{
+		Credentials: &datadoghqv1alpha1.AgentCredentials{
 			DatadogCredentials: datadoghqv1alpha1.DatadogCredentials{
 				APIKey: "",
 				AppKey: "",
 			},
 		},
-		Agent: &datadoghqv1alpha1.DatadogAgentSpecAgentSpec{
-			Image: datadoghqv1alpha1.ImageConfig{},
-			Config: datadoghqv1alpha1.NodeAgentConfig{
+		Agent: datadoghqv1alpha1.DatadogAgentSpecAgentSpec{
+			Image: &datadoghqv1alpha1.ImageConfig{},
+			Config: &datadoghqv1alpha1.NodeAgentConfig{
 				Resources: &v1.ResourceRequirements{
 					Requests: v1.ResourceList{
 						v1.ResourceCPU:    resource.MustParse("0"),
@@ -66,15 +66,15 @@ func NewDatadogAgent(ns, name, image string, options *NewDatadogAgentOptions) *d
 				LeaderElection: datadoghqv1alpha1.NewBoolPointer(true),
 			},
 			DeploymentStrategy: &datadoghqv1alpha1.DaemonSetDeploymentStrategy{},
-			Apm:                datadoghqv1alpha1.APMSpec{},
-			Process: datadoghqv1alpha1.ProcessSpec{
+			Apm:                &datadoghqv1alpha1.APMSpec{},
+			Process: &datadoghqv1alpha1.ProcessSpec{
 				Enabled:                  datadoghqv1alpha1.NewBoolPointer(false),
 				ProcessCollectionEnabled: datadoghqv1alpha1.NewBoolPointer(false),
 			},
 		},
 	}
-	ad = datadoghqv1alpha1.DefaultDatadogAgent(ad)
-	ad.Spec.Agent.Image = datadoghqv1alpha1.ImageConfig{
+	_ = datadoghqv1alpha1.DefaultDatadogAgent(ad)
+	ad.Spec.Agent.Image = &datadoghqv1alpha1.ImageConfig{
 		Name:        image,
 		PullPolicy:  &pullPolicy,
 		PullSecrets: &[]v1.LocalObjectReference{},
@@ -90,7 +90,7 @@ func NewDatadogAgent(ns, name, image string, options *NewDatadogAgentOptions) *d
 			ad.Spec.Credentials.AppKey = options.AppKey
 		}
 
-		if options.UseEDS && ad.Spec.Agent != nil {
+		if options.UseEDS && datadoghqv1alpha1.BoolValue(ad.Spec.Agent.Enabled) {
 			ad.Spec.Agent.UseExtendedDaemonset = &options.UseEDS
 		}
 
@@ -113,9 +113,9 @@ func NewDatadogAgent(ns, name, image string, options *NewDatadogAgentOptions) *d
 		}
 
 		if options.ClusterAgentEnabled {
-			ad.Spec.ClusterAgent = &datadoghqv1alpha1.DatadogAgentSpecClusterAgentSpec{
-				Config: datadoghqv1alpha1.ClusterAgentConfig{},
-				Image: datadoghqv1alpha1.ImageConfig{
+			ad.Spec.ClusterAgent = datadoghqv1alpha1.DatadogAgentSpecClusterAgentSpec{
+				Config: &datadoghqv1alpha1.ClusterAgentConfig{},
+				Image: &datadoghqv1alpha1.ImageConfig{
 					Name:        image,
 					PullPolicy:  &pullPolicy,
 					PullSecrets: &[]v1.LocalObjectReference{},
@@ -132,7 +132,7 @@ func NewDatadogAgent(ns, name, image string, options *NewDatadogAgentOptions) *d
 		}
 
 		if options.SecuritySpec != nil {
-			ad.Spec.Agent.Security = *options.SecuritySpec
+			ad.Spec.Agent.Security = options.SecuritySpec
 		} else {
 			ad.Spec.Agent.Security.VolumeMounts = options.VolumeMounts
 		}

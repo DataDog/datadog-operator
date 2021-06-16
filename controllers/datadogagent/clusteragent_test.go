@@ -50,8 +50,8 @@ func clusterAgentDefaultPodSpec() corev1.PodSpec {
 					{Name: "installinfo", ReadOnly: true, SubPath: "install_info", MountPath: "/etc/datadog-agent/install_info"},
 					{Name: "confd", ReadOnly: true, MountPath: "/conf.d"},
 				},
-				LivenessProbe:  getDefaultLivenessProbe(),
-				ReadinessProbe: getDefaultReadinessProbe(),
+				LivenessProbe:  defaultLivenessProbe(),
+				ReadinessProbe: defaultReadinessProbe(),
 			},
 		},
 		Volumes: []corev1.Volume{
@@ -104,6 +104,10 @@ func clusterAgentDefaultEnvVars() []corev1.EnvVar {
 			Value: "5555",
 		},
 		{
+			Name:  "DD_LOG_LEVEL",
+			Value: "INFO",
+		},
+		{
 			Name:      "DD_API_KEY",
 			ValueFrom: apiKeyValue(),
 		},
@@ -147,6 +151,10 @@ func clusterAgentWithAdmissionControllerDefaultEnvVars(serviceName string, unlab
 		{
 			Name:  "DD_HEALTH_PORT",
 			Value: "5555",
+		},
+		{
+			Name:  "DD_LOG_LEVEL",
+			Value: "INFO",
 		},
 		{
 			Name:      "DD_API_KEY",
@@ -324,8 +332,11 @@ func Test_newClusterAgentDeploymentFromInstance(t *testing.T) {
 						"app.kubernetes.io/name":        "datadog-agent-deployment",
 						"app.kubernetes.io/part-of":     "foo",
 						"app.kubernetes.io/version":     "",
+						//"annotations-foo-key":           "annotations-bar-value",
 					},
-					Annotations: map[string]string{},
+					Annotations: map[string]string{
+						"annotations-foo-key": "annotations-bar-value",
+					},
 				},
 				Spec: appsv1.DeploymentSpec{
 					Template: corev1.PodTemplateSpec{
@@ -339,7 +350,9 @@ func Test_newClusterAgentDeploymentFromInstance(t *testing.T) {
 								"app.kubernetes.io/part-of":     "foo",
 								"app.kubernetes.io/version":     "",
 							},
-							Annotations: map[string]string{},
+							Annotations: map[string]string{
+								"annotations-foo-key": "annotations-bar-value",
+							},
 						},
 						Spec: clusterAgentDefaultPodSpec(),
 					},

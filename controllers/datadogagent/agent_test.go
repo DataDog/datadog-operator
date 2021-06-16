@@ -792,11 +792,7 @@ func defaultEnvVars(extraEnv map[string]string) []corev1.EnvVar {
 		},
 		{
 			Name:  "DD_LOGS_CONFIG_K8S_CONTAINER_USE_FILE",
-			Value: "true",
-		},
-		{
-			Name:  "DD_LOGS_CONFIG_OPEN_FILES_LIMIT",
-			Value: "100",
+			Value: "false",
 		},
 		{
 			Name:  "DD_LOG_LEVEL",
@@ -911,6 +907,26 @@ func defaultSystemProbeEnvVars() []corev1.EnvVar {
 		},
 		{
 			Name:  datadoghqv1alpha1.DDSystemProbeNPMEnabled,
+			Value: "false",
+		},
+		{
+			Name:  datadoghqv1alpha1.DDSystemProbeConntrackEnabled,
+			Value: "false",
+		},
+		{
+			Name:  datadoghqv1alpha1.DDSystemProbeBPFDebugEnabled,
+			Value: "false",
+		},
+		{
+			Name:  datadoghqv1alpha1.DDSystemProbeCollectDNSStatsEnabled,
+			Value: "false",
+		},
+		{
+			Name:  datadoghqv1alpha1.DDSystemProbeTCPQueueLengthEnabled,
+			Value: "false",
+		},
+		{
+			Name:  datadoghqv1alpha1.DDSystemProbeOOMKillEnabled,
 			Value: "false",
 		},
 	}
@@ -1080,6 +1096,17 @@ func defaultSystemProbePodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodSp
 	}...)
 
 	agentEnvVars := addEnvVar(defaultEnvVars(nil), datadoghqv1alpha1.DDSystemProbeSocketPath, filepath.Join(datadoghqv1alpha1.SystemProbeSocketVolumePath, "sysprobe.sock"))
+	agentEnvVars = append(agentEnvVars, []corev1.EnvVar{
+		{
+			Name:  datadoghqv1alpha1.DDSystemProbeTCPQueueLengthEnabled,
+			Value: "false",
+		},
+		{
+			Name:  datadoghqv1alpha1.DDSystemProbeOOMKillEnabled,
+			Value: "false",
+		},
+	}...)
+
 	return corev1.PodSpec{
 		ServiceAccountName: "foo-agent",
 		InitContainers: []corev1.Container{
@@ -1185,6 +1212,16 @@ func noSeccompInstallSystemProbeSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1
 		},
 	}...)
 	agentEnvVars := addEnvVar(defaultEnvVars(nil), datadoghqv1alpha1.DDSystemProbeSocketPath, filepath.Join(datadoghqv1alpha1.SystemProbeSocketVolumePath, "sysprobe.sock"))
+	agentEnvVars = append(agentEnvVars, []corev1.EnvVar{
+		{
+			Name:  datadoghqv1alpha1.DDSystemProbeTCPQueueLengthEnabled,
+			Value: "false",
+		},
+		{
+			Name:  datadoghqv1alpha1.DDSystemProbeOOMKillEnabled,
+			Value: "false",
+		},
+	}...)
 
 	// Remove volumes for seccomp profile install
 	var volumes []corev1.Volume
@@ -1268,6 +1305,12 @@ func noSeccompInstallSystemProbeSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1
 }
 
 func defaultPodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodSpec {
+	cmd := []string{
+		"cp -vnr /etc/datadog-agent /opt",
+	}
+	if isRuntimeSecurityEnabled(&dda.Spec) && dda.Spec.Agent.Security.Runtime.PoliciesDir != nil {
+		cmd = append(cmd, "cp -v /etc/datadog-agent-runtime-policies/* /opt/datadog-agent/runtime-security.d/")
+	}
 	return corev1.PodSpec{
 		ServiceAccountName: "foo-agent",
 		InitContainers: []corev1.Container{
@@ -1277,7 +1320,7 @@ func defaultPodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodSpec {
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
 				Command:         []string{"bash", "-c"},
-				Args:            []string{"cp -vnr /etc/datadog-agent /opt"},
+				Args:            cmd,
 				VolumeMounts: []corev1.VolumeMount{
 					{
 						Name:      datadoghqv1alpha1.ConfigVolumeName,
@@ -1455,7 +1498,7 @@ func defaultOrchestratorEnvVars(dda *datadoghqv1alpha1.DatadogAgent) []corev1.En
 	return append(newVars, vars...)
 }
 
-func runtimeSecurityAgentPodSpec(extraEnv map[string]string) corev1.PodSpec {
+func runtimeSecurityAgentPodSpec(extraEnv map[string]string, extraDir string) corev1.PodSpec {
 	systemProbeEnv := defaultSystemProbeEnvVars()
 	systemProbeEnv = addEnvVar(systemProbeEnv, datadoghqv1alpha1.DDAuthTokenFilePath, "/etc/datadog-agent/auth/token")
 	systemProbeEnv = addEnvVar(systemProbeEnv, datadoghqv1alpha1.DDRuntimeSecurityConfigEnabled, "true")
@@ -1479,7 +1522,50 @@ func runtimeSecurityAgentPodSpec(extraEnv map[string]string) corev1.PodSpec {
 		},
 	}...)
 	agentEnvVars := addEnvVar(defaultEnvVars(extraEnv), datadoghqv1alpha1.DDSystemProbeSocketPath, filepath.Join(datadoghqv1alpha1.SystemProbeSocketVolumePath, "sysprobe.sock"))
-
+	agentEnvVars = append(agentEnvVars, []corev1.EnvVar{
+		{
+			Name:  datadoghqv1alpha1.DDSystemProbeTCPQueueLengthEnabled,
+			Value: "false",
+		},
+		{
+			Name:  datadoghqv1alpha1.DDSystemProbeOOMKillEnabled,
+			Value: "false",
+		},
+	}...)
+	command := []string{"cp -vnr /etc/datadog-agent /opt"}
+	secVolumes := []corev1.VolumeMount{
+		{
+			Name:      datadoghqv1alpha1.ConfigVolumeName,
+			MountPath: "/opt/datadog-agent",
+		}}
+	volumes := runtimeSecurityAgentVolumes()
+	if extraDir != "" {
+		command = []string{"cp -vnr /etc/datadog-agent /opt; cp -v /etc/datadog-agent-runtime-policies/* /opt/datadog-agent/runtime-security.d/"}
+		secVolumes = append(secVolumes, corev1.VolumeMount{
+			Name:      datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumeName,
+			MountPath: "/etc/datadog-agent/runtime-security.d",
+		},
+			corev1.VolumeMount{
+				Name:      datadoghqv1alpha1.SecurityAgentRuntimeCustomPoliciesVolumeName,
+				MountPath: "/etc/datadog-agent-runtime-policies",
+			})
+		volumes = append(volumes, corev1.Volume{
+			Name: datadoghqv1alpha1.SecurityAgentRuntimeCustomPoliciesVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: extraDir,
+					},
+				},
+			},
+		},
+			corev1.Volume{
+				Name: datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
+			})
+	}
 	return corev1.PodSpec{
 		ServiceAccountName: "foo-agent",
 		HostPID:            false,
@@ -1490,21 +1576,8 @@ func runtimeSecurityAgentPodSpec(extraEnv map[string]string) corev1.PodSpec {
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
 				Command:         []string{"bash", "-c"},
-				Args:            []string{"cp -vnr /etc/datadog-agent /opt;cp -v /etc/datadog-agent-runtime-policies/* /opt/datadog-agent/runtime-security.d/"},
-				VolumeMounts: []corev1.VolumeMount{
-					{
-						Name:      datadoghqv1alpha1.ConfigVolumeName,
-						MountPath: "/opt/datadog-agent",
-					},
-					{
-						Name:      datadoghqv1alpha1.SecurityAgentRuntimeCustomPoliciesVolumeName,
-						MountPath: "/etc/datadog-agent-runtime-policies",
-					},
-					{
-						Name:      datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumeName,
-						MountPath: "/opt/datadog-agent/runtime-security.d",
-					},
-				},
+				Args:            command,
+				VolumeMounts:    secVolumes,
 			},
 			{
 				Name:            "init-config",
@@ -1599,7 +1672,7 @@ func runtimeSecurityAgentPodSpec(extraEnv map[string]string) corev1.PodSpec {
 				VolumeMounts: runtimeSecurityAgentMountVolume(),
 			},
 		},
-		Volumes: runtimeSecurityAgentVolumes(),
+		Volumes: volumes,
 	}
 }
 
@@ -1765,11 +1838,7 @@ func customKubeletConfigPodSpec(kubeletConfig *datadoghqv1alpha1.KubeletConfig) 
 		},
 		{
 			Name:  "DD_LOGS_CONFIG_K8S_CONTAINER_USE_FILE",
-			Value: "true",
-		},
-		{
-			Name:  "DD_LOGS_CONFIG_OPEN_FILES_LIMIT",
-			Value: "100",
+			Value: "false",
 		},
 		{
 			Name:  "DD_LOG_LEVEL",
@@ -2749,7 +2818,6 @@ func Test_newExtendedDaemonSetFromInstance_LogsEnabled(t *testing.T) {
 			},
 		},
 	})
-
 	logsEnabledPodSpec := defaultPodSpec(dda)
 	logsVolumes := []corev1.Volume{
 		{
@@ -2797,9 +2865,12 @@ func Test_newExtendedDaemonSetFromInstance_LogsEnabled(t *testing.T) {
 	logsEnabledPodSpec.Volumes = append(logsEnabledPodSpec.Volumes, logsVolumes...)
 	logsEnabledPodSpec.Containers[0].VolumeMounts = append(logsEnabledPodSpec.Containers[0].VolumeMounts, logsVolumeMounts...)
 	logsEnabledPodSpec.Containers[0].Env = addEnvVar(logsEnabledPodSpec.Containers[0].Env, "DD_LOGS_ENABLED", "true")
-
+	logsEnabledPodSpec.Containers[0].Env = addEnvVar(logsEnabledPodSpec.Containers[0].Env, "DD_LOGS_CONFIG_K8S_CONTAINER_USE_FILE", "true")
+	logsEnabledPodSpec.Containers[0].Env = addEnvVar(logsEnabledPodSpec.Containers[0].Env, "DD_LOGS_CONFIG_OPEN_FILES_LIMIT", "100")
 	logsEnabledPodSpec.InitContainers[1].VolumeMounts = append(logsEnabledPodSpec.InitContainers[1].VolumeMounts, logsVolumeMounts...)
 	logsEnabledPodSpec.InitContainers[1].Env = addEnvVar(logsEnabledPodSpec.InitContainers[1].Env, "DD_LOGS_ENABLED", "true")
+	logsEnabledPodSpec.InitContainers[1].Env = addEnvVar(logsEnabledPodSpec.Containers[0].Env, "DD_LOGS_CONFIG_K8S_CONTAINER_USE_FILE", "true")
+	logsEnabledPodSpec.InitContainers[1].Env = addEnvVar(logsEnabledPodSpec.Containers[0].Env, "DD_LOGS_CONFIG_OPEN_FILES_LIMIT", "100")
 
 	test := extendedDaemonSetFromInstanceTest{
 		name:            "with logs enabled",
@@ -2857,7 +2928,7 @@ func Test_newExtendedDaemonSetFromInstance_clusterChecksConfig(t *testing.T) {
 	clusterChecksPodSpec.Containers[0].Env = addEnvVar(clusterChecksPodSpec.Containers[0].Env, "DD_EXTRA_CONFIG_PROVIDERS", "clusterchecks endpointschecks")
 	clusterChecksPodSpec.InitContainers[1].Env = addEnvVar(clusterChecksPodSpec.InitContainers[1].Env, "DD_EXTRA_CONFIG_PROVIDERS", "clusterchecks endpointschecks")
 
-	dda.Spec.ClusterChecksRunner = nil
+	datadoghqv1alpha1.BoolValue(dda.Spec.ClusterChecksRunner.Enabled)
 
 	test := extendedDaemonSetFromInstanceTest{
 		name:            "with cluster checks / clc runners",
@@ -3089,32 +3160,14 @@ func Test_newExtendedDaemonSetFromInstance_SystemProbe(t *testing.T) {
 	}
 
 	oomKillSpec := systemProbeExtraMountsSpec.DeepCopy()
-	oomKillSpec.Containers[0].Env = append(oomKillSpec.Containers[0].Env, corev1.EnvVar{
-		Name:  datadoghqv1alpha1.DDSystemProbeOOMKillEnabled,
-		Value: "true",
-	})
-	oomKillSpec.Containers[1].Env = append(oomKillSpec.Containers[1].Env, corev1.EnvVar{
-		Name:  datadoghqv1alpha1.DDSystemProbeOOMKillEnabled,
-		Value: "true",
-	})
-	oomKillSpec.InitContainers[1].Env = append(oomKillSpec.InitContainers[1].Env, corev1.EnvVar{
-		Name:  datadoghqv1alpha1.DDSystemProbeOOMKillEnabled,
-		Value: "true",
-	})
+	addEnvVar(oomKillSpec.Containers[0].Env, datadoghqv1alpha1.DDSystemProbeOOMKillEnabled, "true")
+	addEnvVar(oomKillSpec.Containers[1].Env, datadoghqv1alpha1.DDSystemProbeOOMKillEnabled, "true")
+	addEnvVar(oomKillSpec.InitContainers[1].Env, datadoghqv1alpha1.DDSystemProbeOOMKillEnabled, "true")
 
 	tpcQueueLengthSpec := systemProbeExtraMountsSpec.DeepCopy()
-	tpcQueueLengthSpec.Containers[0].Env = append(tpcQueueLengthSpec.Containers[0].Env, corev1.EnvVar{
-		Name:  datadoghqv1alpha1.DDSystemProbeTCPQueueLengthEnabled,
-		Value: "true",
-	})
-	tpcQueueLengthSpec.Containers[1].Env = append(tpcQueueLengthSpec.Containers[1].Env, corev1.EnvVar{
-		Name:  datadoghqv1alpha1.DDSystemProbeTCPQueueLengthEnabled,
-		Value: "true",
-	})
-	tpcQueueLengthSpec.InitContainers[1].Env = append(tpcQueueLengthSpec.InitContainers[1].Env, corev1.EnvVar{
-		Name:  datadoghqv1alpha1.DDSystemProbeTCPQueueLengthEnabled,
-		Value: "true",
-	})
+	addEnvVar(tpcQueueLengthSpec.Containers[0].Env, datadoghqv1alpha1.DDSystemProbeTCPQueueLengthEnabled, "true")
+	addEnvVar(tpcQueueLengthSpec.Containers[1].Env, datadoghqv1alpha1.DDSystemProbeTCPQueueLengthEnabled, "true")
+	addEnvVar(tpcQueueLengthSpec.InitContainers[1].Env, datadoghqv1alpha1.DDSystemProbeTCPQueueLengthEnabled, "true")
 
 	ddaOOMKill := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
 		UseEDS:                       true,
@@ -3139,6 +3192,7 @@ func Test_newExtendedDaemonSetFromInstance_SystemProbe(t *testing.T) {
 		OrchestratorExplorerDisabled:  true,
 		SystemProbeSeccompProfileName: "host-profile",
 	})
+
 	edsSeccomp := extendedDaemonSetWithSystemProbe(noSeccompInstallSystemProbeSpec(ddaSeccomp))
 	edsSeccomp.Spec.Template.Annotations["container.seccomp.security.alpha.kubernetes.io/system-probe"] = "host-profile"
 
@@ -3342,8 +3396,39 @@ func Test_newExtendedDaemonSetFromInstance_SecurityAgent_Compliance(t *testing.T
 }
 
 func Test_newExtendedDaemonSetFromInstance_SecurityAgent_Runtime(t *testing.T) {
-	securityAgentPodSpec := runtimeSecurityAgentPodSpec(nil)
-
+	securityAgentPodSpec := runtimeSecurityAgentPodSpec(nil, "foo")
+	securityAgentPodSpec.Containers[2].Env = addEnvVar(securityAgentPodSpec.Containers[2].Env, "DD_RUNTIME_SECURITY_CONFIG_POLICIES_DIR", "/etc/datadog-agent/runtime-security.d")
+	securityAgentPodSpec.Containers[0].VolumeMounts = append(securityAgentPodSpec.Containers[0].VolumeMounts, []corev1.VolumeMount{
+		{
+			Name:      datadoghqv1alpha1.SystemProbeSocketVolumeName,
+			MountPath: datadoghqv1alpha1.SystemProbeSocketVolumePath,
+			ReadOnly:  true,
+		},
+		{
+			Name:      datadoghqv1alpha1.SystemProbeConfigVolumeName,
+			MountPath: datadoghqv1alpha1.SystemProbeConfigVolumePath,
+			SubPath:   datadoghqv1alpha1.SystemProbeConfigVolumeSubPath,
+		},
+	}...)
+	securityAgentPodSpec.Containers[1].VolumeMounts = append(securityAgentPodSpec.Containers[1].VolumeMounts, []corev1.VolumeMount{
+		{
+			Name:      datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumeName,
+			MountPath: "/etc/datadog-agent/runtime-security.d",
+			ReadOnly:  true,
+		},
+	}...)
+	securityAgentPodSpec.InitContainers[1].VolumeMounts = append(securityAgentPodSpec.Containers[0].VolumeMounts, []corev1.VolumeMount{
+		{
+			Name:      datadoghqv1alpha1.SystemProbeSocketVolumeName,
+			MountPath: datadoghqv1alpha1.SystemProbeSocketVolumePath,
+			ReadOnly:  true,
+		},
+		{
+			Name:      datadoghqv1alpha1.SystemProbeConfigVolumeName,
+			MountPath: datadoghqv1alpha1.SystemProbeConfigVolumePath,
+			SubPath:   datadoghqv1alpha1.SystemProbeConfigVolumeSubPath,
+		},
+	}...)
 	dda := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
 		UseEDS:                       true,
 		ClusterAgentEnabled:          true,
@@ -3352,6 +3437,7 @@ func Test_newExtendedDaemonSetFromInstance_SecurityAgent_Runtime(t *testing.T) {
 		RuntimePoliciesDir: &datadoghqv1alpha1.ConfigDirSpec{
 			ConfigMapName: "test-runtime-policies",
 		},
+		SystemProbeEnabled:           true,
 		OrchestratorExplorerDisabled: true,
 	})
 
@@ -3534,8 +3620,13 @@ func getDefaultEDSStrategy() edsdatadoghqv1alpha1.ExtendedDaemonSetSpecStrategy 
 				IntVal: 1,
 			},
 			Duration: &metav1.Duration{
-				Duration: 10 * time.Minute,
+				Duration: 5 * time.Minute, // As ther is no NoRestartDuration specified.
 			},
+			NodeSelector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{},
+			},
+			AutoPause: edsdatadoghqv1alpha1.DefaultExtendedDaemonSetSpecStrategyCanaryAutoPause(&edsdatadoghqv1alpha1.ExtendedDaemonSetSpecStrategyCanaryAutoPause{}),
+			AutoFail:  edsdatadoghqv1alpha1.DefaultExtendedDaemonSetSpecStrategyCanaryAutoFail(&edsdatadoghqv1alpha1.ExtendedDaemonSetSpecStrategyCanaryAutoFail{}),
 		},
 		ReconcileFrequency: &metav1.Duration{
 			Duration: 10 * time.Second,
