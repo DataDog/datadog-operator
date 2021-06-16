@@ -50,17 +50,17 @@ func (r *Reconciler) manageKubeStateMetricsCore(logger logr.Logger, dda *datadog
 		return reconcile.Result{}, nil
 	}
 	// Only create the default ConfigMap if the conf is not overridden
-	return r.manageConfigMap(logger, dda, datadoghqv1alpha1.GetKubeStateMetricsConfName(dda), buildKSMCoreConfigMap)
+	return r.manageConfigMap(logger, dda, GetKubeStateMetricsConfName(dda), buildKSMCoreConfigMap)
 }
 
 func buildKSMCoreConfigMap(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.ConfigMap, error) {
 	// Only called if KSMCore is enabled
 	if dda.Spec.Features.KubeStateMetricsCore.Conf != nil {
-		return buildConfigurationConfigMap(dda, dda.Spec.Features.KubeStateMetricsCore.Conf, datadoghqv1alpha1.GetKubeStateMetricsConfName(dda), ksmCoreCheckName)
+		return buildConfigurationConfigMap(dda, dda.Spec.Features.KubeStateMetricsCore.Conf, GetKubeStateMetricsConfName(dda), ksmCoreCheckName)
 	}
 	configMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        datadoghqv1alpha1.GetKubeStateMetricsConfName(dda),
+			Name:        GetKubeStateMetricsConfName(dda),
 			Namespace:   dda.Namespace,
 			Labels:      getDefaultLabels(dda, dda.Name, getAgentVersion(dda)),
 			Annotations: getDefaultAnnotations(dda),

@@ -28,10 +28,11 @@ func (r *Reconciler) manageSystemProbeDependencies(logger logr.Logger, dda *data
 	if shouldReturn(result, err) {
 		return result, err
 	}
-
-	result, err = r.manageConfigMap(logger, dda, getSecCompConfigMapName(dda), buildSystemProbeSecCompConfigMap)
-	if shouldReturn(result, err) {
-		return result, err
+	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Enabled) && getSeccompProfileName(dda.Spec.Agent.SystemProbe) == datadoghqv1alpha1.DefaultSeccompProfileName && dda.Spec.Agent.SystemProbe.SecCompCustomProfileConfigMap == "" {
+		result, err = r.manageConfigMap(logger, dda, getSecCompConfigMapName(dda), buildSystemProbeSecCompConfigMap)
+		if shouldReturn(result, err) {
+			return result, err
+		}
 	}
 
 	return reconcile.Result{}, nil
@@ -290,14 +291,14 @@ func shouldInstallSeccompProfileFromConfigMap(dda *datadoghqv1alpha1.DatadogAgen
 }
 
 func shouldCreateSeccompConfigMap(dda *datadoghqv1alpha1.DatadogAgent) bool {
-	return dda.Spec.Agent != nil &&
+	return datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Enabled) &&
 		isSystemProbeEnabled(&dda.Spec) &&
-		getSeccompProfileName(&dda.Spec.Agent.SystemProbe) == datadoghqv1alpha1.DefaultSeccompProfileName &&
+		getSeccompProfileName(dda.Spec.Agent.SystemProbe) == datadoghqv1alpha1.DefaultSeccompProfileName &&
 		dda.Spec.Agent.SystemProbe.SecCompCustomProfileConfigMap == ""
 }
 
 func getSecCompConfigMapName(dda *datadoghqv1alpha1.DatadogAgent) string {
-	if dda.Spec.Agent != nil && dda.Spec.Agent.SystemProbe.SecCompCustomProfileConfigMap != "" {
+	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Enabled) && dda.Spec.Agent.SystemProbe.SecCompCustomProfileConfigMap != "" {
 		return dda.Spec.Agent.SystemProbe.SecCompCustomProfileConfigMap
 	}
 	return fmt.Sprintf("%s-%s", dda.Name, SystemProbeAgentSecurityConfigMapSuffixName)
