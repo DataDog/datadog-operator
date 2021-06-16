@@ -30,7 +30,7 @@ func TestDatadogAgent(t *testing.T) {
 			name: "patch logCollection",
 			da: &v1alpha1.DatadogAgent{
 				Spec: v1alpha1.DatadogAgentSpec{
-					Agent: &v1alpha1.DatadogAgentSpecAgentSpec{
+					Agent: v1alpha1.DatadogAgentSpecAgentSpec{
 						Log: &v1alpha1.LogCollectionConfig{
 							Enabled: v1alpha1.NewBoolPointer(true),
 						},
@@ -44,7 +44,7 @@ func TestDatadogAgent(t *testing.T) {
 							Enabled: v1alpha1.NewBoolPointer(true),
 						},
 					},
-					Agent: &v1alpha1.DatadogAgentSpecAgentSpec{
+					Agent: v1alpha1.DatadogAgentSpecAgentSpec{
 						Log: &v1alpha1.LogCollectionConfig{
 							Enabled: v1alpha1.NewBoolPointer(true),
 						},
@@ -62,7 +62,7 @@ func TestDatadogAgent(t *testing.T) {
 							Enabled: v1alpha1.NewBoolPointer(false),
 						},
 					},
-					Agent: &v1alpha1.DatadogAgentSpecAgentSpec{
+					Agent: v1alpha1.DatadogAgentSpecAgentSpec{
 						Log: &v1alpha1.LogCollectionConfig{
 							Enabled: v1alpha1.NewBoolPointer(true),
 						},
@@ -76,7 +76,7 @@ func TestDatadogAgent(t *testing.T) {
 							Enabled: v1alpha1.NewBoolPointer(false),
 						},
 					},
-					Agent: &v1alpha1.DatadogAgentSpecAgentSpec{
+					Agent: v1alpha1.DatadogAgentSpecAgentSpec{
 						Log: &v1alpha1.LogCollectionConfig{
 							Enabled: v1alpha1.NewBoolPointer(true),
 						},
