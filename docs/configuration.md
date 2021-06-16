@@ -41,6 +41,19 @@ spec:
 | agent.apm.enabled | Enable this to enable APM and tracing, on port 8126. See also: https://github.com/DataDog/docker-dd-agent#tracing-from-the-host |
 | agent.apm.env | The Datadog Agent supports many environment variables. See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables |
 | agent.apm.hostPort | Number of port to expose on the host. If specified, this must be a valid port number, 0 < x < 65536. If HostNetwork is specified, this must match ContainerPort. Most containers do not need this. |
+| agent.apm.livenessProbe.exec.command | Command is the command line to execute inside the container, the working directory for the command  is root ('/') in the container's filesystem. The command is simply exec'd, it is not run inside a shell, so traditional shell instructions ('|', etc) won't work. To use a shell, you need to explicitly call out to that shell. Exit status of 0 is treated as live/healthy and non-zero is unhealthy. |
+| agent.apm.livenessProbe.failureThreshold | Minimum consecutive failures for the probe to be considered failed after having succeeded. Defaults to 3. Minimum value is 1. |
+| agent.apm.livenessProbe.httpGet.host | Host name to connect to, defaults to the pod IP. You probably want to set "Host" in httpHeaders instead. |
+| agent.apm.livenessProbe.httpGet.httpHeaders | Custom headers to set in the request. HTTP allows repeated headers. |
+| agent.apm.livenessProbe.httpGet.path | Path to access on the HTTP server. |
+| agent.apm.livenessProbe.httpGet.port | Name or number of the port to access on the container. Number must be in the range 1 to 65535. Name must be an IANA_SVC_NAME. |
+| agent.apm.livenessProbe.httpGet.scheme | Scheme to use for connecting to the host. Defaults to HTTP. |
+| agent.apm.livenessProbe.initialDelaySeconds | Number of seconds after the container has started before liveness probes are initiated. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes |
+| agent.apm.livenessProbe.periodSeconds | How often (in seconds) to perform the probe. Default to 10 seconds. Minimum value is 1. |
+| agent.apm.livenessProbe.successThreshold | Minimum consecutive successes for the probe to be considered successful after having failed. Defaults to 1. Must be 1 for liveness and startup. Minimum value is 1. |
+| agent.apm.livenessProbe.tcpSocket.host | Optional: Host name to connect to, defaults to the pod IP. |
+| agent.apm.livenessProbe.tcpSocket.port | Number or name of the port to access on the container. Number must be in the range 1 to 65535. Name must be an IANA_SVC_NAME. |
+| agent.apm.livenessProbe.timeoutSeconds | Number of seconds after which the probe times out. Defaults to 1 second. Minimum value is 1. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes |
 | agent.apm.resources.limits | Limits describes the maximum amount of compute resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/ |
 | agent.apm.resources.requests | Requests describes the minimum amount of compute resources required. If Requests is omitted for a container, it defaults to Limits if that is explicitly specified, otherwise to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/ |
 | agent.apm.unixDomainSocket.enabled | Enable APM over Unix Domain Socket See also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables |
@@ -61,6 +74,7 @@ spec:
 | agent.config.dogstatsd.unixDomainSocket.enabled | Enable APM over Unix Domain Socket. See also: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/ |
 | agent.config.dogstatsd.unixDomainSocket.hostFilepath | Define the host APM socket filepath used when APM over Unix Domain Socket is enabled. (default value: /var/run/datadog/statsd.sock). See also: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/ |
 | agent.config.env | The Datadog Agent supports many environment variables. See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables |
+| agent.config.healthPort | HealthPort of the agent container for internal liveness probe. Must be the same as the Liness/Readiness probes. |
 | agent.config.hostPort | Number of port to expose on the host. If specified, this must be a valid port number, 0 < x < 65536. If HostNetwork is specified, this must match ContainerPort. Most containers do not need this. |
 | agent.config.kubelet.agentCAPath | Path (inside Agent containers) where the Kubelet CA certificate is stored Default to /var/run/host-kubelet-ca.crt if hostCAPath else /var/run/secrets/kubernetes.io/serviceaccount/ca.crt |
 | agent.config.kubelet.host.configMapKeyRef.key | The key to select. |
@@ -77,9 +91,35 @@ spec:
 | agent.config.kubelet.hostCAPath | Path (on host) where the Kubelet CA certificate is stored |
 | agent.config.kubelet.tlsVerify | Toggle kubelet TLS verification (default to true) |
 | agent.config.leaderElection | Enables leader election mechanism for event collection. |
+| agent.config.livenessProbe.exec.command | Command is the command line to execute inside the container, the working directory for the command  is root ('/') in the container's filesystem. The command is simply exec'd, it is not run inside a shell, so traditional shell instructions ('|', etc) won't work. To use a shell, you need to explicitly call out to that shell. Exit status of 0 is treated as live/healthy and non-zero is unhealthy. |
+| agent.config.livenessProbe.failureThreshold | Minimum consecutive failures for the probe to be considered failed after having succeeded. Defaults to 3. Minimum value is 1. |
+| agent.config.livenessProbe.httpGet.host | Host name to connect to, defaults to the pod IP. You probably want to set "Host" in httpHeaders instead. |
+| agent.config.livenessProbe.httpGet.httpHeaders | Custom headers to set in the request. HTTP allows repeated headers. |
+| agent.config.livenessProbe.httpGet.path | Path to access on the HTTP server. |
+| agent.config.livenessProbe.httpGet.port | Name or number of the port to access on the container. Number must be in the range 1 to 65535. Name must be an IANA_SVC_NAME. |
+| agent.config.livenessProbe.httpGet.scheme | Scheme to use for connecting to the host. Defaults to HTTP. |
+| agent.config.livenessProbe.initialDelaySeconds | Number of seconds after the container has started before liveness probes are initiated. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes |
+| agent.config.livenessProbe.periodSeconds | How often (in seconds) to perform the probe. Default to 10 seconds. Minimum value is 1. |
+| agent.config.livenessProbe.successThreshold | Minimum consecutive successes for the probe to be considered successful after having failed. Defaults to 1. Must be 1 for liveness and startup. Minimum value is 1. |
+| agent.config.livenessProbe.tcpSocket.host | Optional: Host name to connect to, defaults to the pod IP. |
+| agent.config.livenessProbe.tcpSocket.port | Number or name of the port to access on the container. Number must be in the range 1 to 65535. Name must be an IANA_SVC_NAME. |
+| agent.config.livenessProbe.timeoutSeconds | Number of seconds after which the probe times out. Defaults to 1 second. Minimum value is 1. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes |
 | agent.config.logLevel | Set logging verbosity, valid log levels are: trace, debug, info, warn, error, critical, and off |
 | agent.config.podAnnotationsAsTags | Provide a mapping of Kubernetes Annotations to Datadog Tags. <KUBERNETES_ANNOTATIONS>: <DATADOG_TAG_KEY> |
 | agent.config.podLabelsAsTags | Provide a mapping of Kubernetes Labels to Datadog Tags. <KUBERNETES_LABEL>: <DATADOG_TAG_KEY> |
+| agent.config.readinessProbe.exec.command | Command is the command line to execute inside the container, the working directory for the command  is root ('/') in the container's filesystem. The command is simply exec'd, it is not run inside a shell, so traditional shell instructions ('|', etc) won't work. To use a shell, you need to explicitly call out to that shell. Exit status of 0 is treated as live/healthy and non-zero is unhealthy. |
+| agent.config.readinessProbe.failureThreshold | Minimum consecutive failures for the probe to be considered failed after having succeeded. Defaults to 3. Minimum value is 1. |
+| agent.config.readinessProbe.httpGet.host | Host name to connect to, defaults to the pod IP. You probably want to set "Host" in httpHeaders instead. |
+| agent.config.readinessProbe.httpGet.httpHeaders | Custom headers to set in the request. HTTP allows repeated headers. |
+| agent.config.readinessProbe.httpGet.path | Path to access on the HTTP server. |
+| agent.config.readinessProbe.httpGet.port | Name or number of the port to access on the container. Number must be in the range 1 to 65535. Name must be an IANA_SVC_NAME. |
+| agent.config.readinessProbe.httpGet.scheme | Scheme to use for connecting to the host. Defaults to HTTP. |
+| agent.config.readinessProbe.initialDelaySeconds | Number of seconds after the container has started before liveness probes are initiated. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes |
+| agent.config.readinessProbe.periodSeconds | How often (in seconds) to perform the probe. Default to 10 seconds. Minimum value is 1. |
+| agent.config.readinessProbe.successThreshold | Minimum consecutive successes for the probe to be considered successful after having failed. Defaults to 1. Must be 1 for liveness and startup. Minimum value is 1. |
+| agent.config.readinessProbe.tcpSocket.host | Optional: Host name to connect to, defaults to the pod IP. |
+| agent.config.readinessProbe.tcpSocket.port | Number or name of the port to access on the container. Number must be in the range 1 to 65535. Name must be an IANA_SVC_NAME. |
+| agent.config.readinessProbe.timeoutSeconds | Number of seconds after which the probe times out. Defaults to 1 second. Minimum value is 1. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes |
 | agent.config.resources.limits | Limits describes the maximum amount of compute resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/ |
 | agent.config.resources.requests | Requests describes the minimum amount of compute resources required. If Requests is omitted for a container, it defaults to Limits if that is explicitly specified, otherwise to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/ |
 | agent.config.securityContext.fsGroup | A special supplemental group that applies to all containers in a pod. Some volume types allow the Kubelet to change the ownership of that volume to be owned by the pod:  1. The owning GID will be the FSGroup 2. The setgid bit is set (new files created in the volume will be owned by FSGroup) 3. The permission bits are OR'd with rw-rw----  If unset, the Kubelet will not modify the ownership and permissions of any volume. |
@@ -129,6 +169,7 @@ spec:
 | agent.dnsConfig.options | A list of DNS resolver options. This will be merged with the base options generated from DNSPolicy. Duplicated entries will be removed. Resolution options given in Options will override those that appear in the base DNSPolicy. |
 | agent.dnsConfig.searches | A list of DNS search domains for host-name lookup. This will be appended to the base search paths generated from DNSPolicy. Duplicated search paths will be removed. |
 | agent.dnsPolicy | Set DNS policy for the pod. Defaults to "ClusterFirst". Valid values are 'ClusterFirstWithHostNet', 'ClusterFirst', 'Default' or 'None'. DNS parameters given in DNSConfig will be merged with the policy selected with DNSPolicy. To have DNS options set along with hostNetwork, you have to specify DNS policy explicitly to 'ClusterFirstWithHostNet'. |
+| agent.enabled | Enabled |
 | agent.env | Environment variables for all Datadog Agents. See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables |
 | agent.hostNetwork | Host networking requested for this pod. Use the host's network namespace. If this option is set, the ports that will be used must be specified. Default to false. |
 | agent.hostPID | Use the host's pid namespace. Optional: Default to false. |
@@ -239,6 +280,7 @@ spec:
 | clusterAgent.config.externalMetrics.port | If specified configures the metricsProvider external metrics service port. |
 | clusterAgent.config.externalMetrics.useDatadogMetrics | Enable usage of DatadogMetrics CRD (allow to scale on arbitrary queries). |
 | clusterAgent.config.externalMetrics.wpaController | Enable informer and controller of the watermark pod autoscaler. NOTE: The WatermarkPodAutoscaler controller needs to be installed. See also: https://github.com/DataDog/watermarkpodautoscaler. |
+| clusterAgent.config.healthPort | HealthPort of the agent container for internal liveness probe. Must be the same as the Liness/Readiness probes. |
 | clusterAgent.config.logLevel | Set logging verbosity, valid log levels are: trace, debug, info, warn, error, critical, and off |
 | clusterAgent.config.resources.limits | Limits describes the maximum amount of compute resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/ |
 | clusterAgent.config.resources.requests | Requests describes the minimum amount of compute resources required. If Requests is omitted for a container, it defaults to Limits if that is explicitly specified, otherwise to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/ |
@@ -248,6 +290,7 @@ spec:
 | clusterAgent.customConfig.configMap.fileKey | FileKey corresponds to the key used in the ConfigMap.Data to store the configuration file content. |
 | clusterAgent.customConfig.configMap.name | The name of source ConfigMap. |
 | clusterAgent.deploymentName | Name of the Cluster Agent Deployment to create or migrate from. |
+| clusterAgent.enabled | Enabled |
 | clusterAgent.image.jmxEnabled | Define whether the Agent image should support JMX. |
 | clusterAgent.image.name | Define the image to use: Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7 Use "datadog/dogstatsd:latest" for Standalone Datadog Agent DogStatsD6 Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent Use "agent" with the registry and tag configurations for <registry>/agent:<tag> Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag> |
 | clusterAgent.image.pullPolicy | The Kubernetes pull policy: Use Always, Never or IfNotPresent. |
@@ -273,7 +316,34 @@ spec:
 | clusterChecksRunner.config.args | Args allows the specification of extra args to `Command` parameter |
 | clusterChecksRunner.config.command | Command allows the specification of custom entrypoint for Cluster Checks Runner container |
 | clusterChecksRunner.config.env | The Datadog Agent supports many environment variables. See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables |
+| clusterChecksRunner.config.healthPort | HealthPort of the agent container for internal liveness probe. Must be the same as the Liness/Readiness probes. |
+| clusterChecksRunner.config.livenessProbe.exec.command | Command is the command line to execute inside the container, the working directory for the command  is root ('/') in the container's filesystem. The command is simply exec'd, it is not run inside a shell, so traditional shell instructions ('|', etc) won't work. To use a shell, you need to explicitly call out to that shell. Exit status of 0 is treated as live/healthy and non-zero is unhealthy. |
+| clusterChecksRunner.config.livenessProbe.failureThreshold | Minimum consecutive failures for the probe to be considered failed after having succeeded. Defaults to 3. Minimum value is 1. |
+| clusterChecksRunner.config.livenessProbe.httpGet.host | Host name to connect to, defaults to the pod IP. You probably want to set "Host" in httpHeaders instead. |
+| clusterChecksRunner.config.livenessProbe.httpGet.httpHeaders | Custom headers to set in the request. HTTP allows repeated headers. |
+| clusterChecksRunner.config.livenessProbe.httpGet.path | Path to access on the HTTP server. |
+| clusterChecksRunner.config.livenessProbe.httpGet.port | Name or number of the port to access on the container. Number must be in the range 1 to 65535. Name must be an IANA_SVC_NAME. |
+| clusterChecksRunner.config.livenessProbe.httpGet.scheme | Scheme to use for connecting to the host. Defaults to HTTP. |
+| clusterChecksRunner.config.livenessProbe.initialDelaySeconds | Number of seconds after the container has started before liveness probes are initiated. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes |
+| clusterChecksRunner.config.livenessProbe.periodSeconds | How often (in seconds) to perform the probe. Default to 10 seconds. Minimum value is 1. |
+| clusterChecksRunner.config.livenessProbe.successThreshold | Minimum consecutive successes for the probe to be considered successful after having failed. Defaults to 1. Must be 1 for liveness and startup. Minimum value is 1. |
+| clusterChecksRunner.config.livenessProbe.tcpSocket.host | Optional: Host name to connect to, defaults to the pod IP. |
+| clusterChecksRunner.config.livenessProbe.tcpSocket.port | Number or name of the port to access on the container. Number must be in the range 1 to 65535. Name must be an IANA_SVC_NAME. |
+| clusterChecksRunner.config.livenessProbe.timeoutSeconds | Number of seconds after which the probe times out. Defaults to 1 second. Minimum value is 1. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes |
 | clusterChecksRunner.config.logLevel | Set logging verbosity, valid log levels are: trace, debug, info, warn, error, critical, and off |
+| clusterChecksRunner.config.readinessProbe.exec.command | Command is the command line to execute inside the container, the working directory for the command  is root ('/') in the container's filesystem. The command is simply exec'd, it is not run inside a shell, so traditional shell instructions ('|', etc) won't work. To use a shell, you need to explicitly call out to that shell. Exit status of 0 is treated as live/healthy and non-zero is unhealthy. |
+| clusterChecksRunner.config.readinessProbe.failureThreshold | Minimum consecutive failures for the probe to be considered failed after having succeeded. Defaults to 3. Minimum value is 1. |
+| clusterChecksRunner.config.readinessProbe.httpGet.host | Host name to connect to, defaults to the pod IP. You probably want to set "Host" in httpHeaders instead. |
+| clusterChecksRunner.config.readinessProbe.httpGet.httpHeaders | Custom headers to set in the request. HTTP allows repeated headers. |
+| clusterChecksRunner.config.readinessProbe.httpGet.path | Path to access on the HTTP server. |
+| clusterChecksRunner.config.readinessProbe.httpGet.port | Name or number of the port to access on the container. Number must be in the range 1 to 65535. Name must be an IANA_SVC_NAME. |
+| clusterChecksRunner.config.readinessProbe.httpGet.scheme | Scheme to use for connecting to the host. Defaults to HTTP. |
+| clusterChecksRunner.config.readinessProbe.initialDelaySeconds | Number of seconds after the container has started before liveness probes are initiated. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes |
+| clusterChecksRunner.config.readinessProbe.periodSeconds | How often (in seconds) to perform the probe. Default to 10 seconds. Minimum value is 1. |
+| clusterChecksRunner.config.readinessProbe.successThreshold | Minimum consecutive successes for the probe to be considered successful after having failed. Defaults to 1. Must be 1 for liveness and startup. Minimum value is 1. |
+| clusterChecksRunner.config.readinessProbe.tcpSocket.host | Optional: Host name to connect to, defaults to the pod IP. |
+| clusterChecksRunner.config.readinessProbe.tcpSocket.port | Number or name of the port to access on the container. Number must be in the range 1 to 65535. Name must be an IANA_SVC_NAME. |
+| clusterChecksRunner.config.readinessProbe.timeoutSeconds | Number of seconds after which the probe times out. Defaults to 1 second. Minimum value is 1. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes |
 | clusterChecksRunner.config.resources.limits | Limits describes the maximum amount of compute resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/ |
 | clusterChecksRunner.config.resources.requests | Requests describes the minimum amount of compute resources required. If Requests is omitted for a container, it defaults to Limits if that is explicitly specified, otherwise to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/ |
 | clusterChecksRunner.config.volumeMounts | Specify additional volume mounts in the Datadog Cluster Check Runner container. |
@@ -282,6 +352,7 @@ spec:
 | clusterChecksRunner.customConfig.configMap.fileKey | FileKey corresponds to the key used in the ConfigMap.Data to store the configuration file content. |
 | clusterChecksRunner.customConfig.configMap.name | The name of source ConfigMap. |
 | clusterChecksRunner.deploymentName | Name of the cluster checks deployment to create or migrate from. |
+| clusterChecksRunner.enabled | Enabled |
 | clusterChecksRunner.image.jmxEnabled | Define whether the Agent image should support JMX. |
 | clusterChecksRunner.image.name | Define the image to use: Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7 Use "datadog/dogstatsd:latest" for Standalone Datadog Agent DogStatsD6 Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent Use "agent" with the registry and tag configurations for <registry>/agent:<tag> Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag> |
 | clusterChecksRunner.image.pullPolicy | The Kubernetes pull policy: Use Always, Never or IfNotPresent. |
