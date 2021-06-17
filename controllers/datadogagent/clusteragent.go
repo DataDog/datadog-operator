@@ -164,6 +164,10 @@ func newClusterAgentDeploymentFromInstance(logger logr.Logger, dda *datadoghqv1a
 	labels[datadoghqv1alpha1.AgentDeploymentNameLabelKey] = dda.Name
 	labels[datadoghqv1alpha1.AgentDeploymentComponentLabelKey] = datadoghqv1alpha1.DefaultClusterAgentResourceSuffix
 
+	for key, val := range dda.Spec.ClusterAgent.AdditionalLabels {
+		labels[key] = val
+	}
+
 	if selector != nil {
 		for key, val := range selector.MatchLabels {
 			labels[key] = val
@@ -178,6 +182,10 @@ func newClusterAgentDeploymentFromInstance(logger logr.Logger, dda *datadoghqv1a
 	}
 
 	annotations := getDefaultAnnotations(dda)
+	for key, val := range dda.Spec.ClusterAgent.AdditionalAnnotations {
+		annotations[key] = val
+	}
+
 	dcaPodTemplate, err := newClusterAgentPodTemplate(logger, dda, labels, annotations)
 	if err != nil {
 		return nil, "", err

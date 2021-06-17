@@ -160,6 +160,10 @@ func newClusterChecksRunnerDeploymentFromInstance(
 	labels[datadoghqv1alpha1.AgentDeploymentNameLabelKey] = dda.Name
 	labels[datadoghqv1alpha1.AgentDeploymentComponentLabelKey] = datadoghqv1alpha1.DefaultClusterChecksRunnerResourceSuffix
 
+	for key, val := range dda.Spec.ClusterAgent.AdditionalLabels {
+		labels[key] = val
+	}
+
 	if selector != nil {
 		for key, val := range selector.MatchLabels {
 			labels[key] = val
@@ -174,6 +178,10 @@ func newClusterChecksRunnerDeploymentFromInstance(
 	}
 
 	annotations := getDefaultAnnotations(dda)
+	for key, val := range dda.Spec.ClusterAgent.AdditionalAnnotations {
+		annotations[key] = val
+	}
+
 	dca := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        getClusterChecksRunnerName(dda),
