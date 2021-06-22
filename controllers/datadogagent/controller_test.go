@@ -155,6 +155,20 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 	s.AddKnownTypes(networkingv1.SchemeGroupVersion, &networkingv1.NetworkPolicy{})
 
 	defaultRequeueDuration := 15 * time.Second
+	affinity := &corev1.Affinity{
+		PodAntiAffinity: &corev1.PodAntiAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+				{
+					LabelSelector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"foo": "bar",
+						},
+					},
+					TopologyKey: "baz",
+				},
+			},
+		},
+	}
 
 	type fields struct {
 		client   client.Client
@@ -2220,6 +2234,41 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				policySelector := labels.Set(policy.Spec.PodSelector.MatchLabels).AsSelector()
 				if !policySelector.Matches(dsLabels) {
 					return fmt.Errorf("network policy's selector %s does not match pods defined in the daemonset", policySelector)
+				}
+
+				return nil
+			},
+		},
+		{
+			name: "DatadogAgent found and defaulted, DaemonSet has Affinity",
+			fields: fields{
+				client:   fake.NewFakeClient(),
+				scheme:   s,
+				recorder: recorder,
+			},
+			args: args{
+				request: newRequest(resourcesNamespace, resourcesName),
+				loadFunc: func(c client.Client) {
+					dadOptions := &test.NewDatadogAgentOptions{}
+					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, dadOptions)
+
+					dda.Spec.Agent.Affinity = affinity
+
+					_ = c.Create(context.TODO(), dda)
+					createAgentDependencies(c, dda)
+				},
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(c client.Client) error {
+				ds := &appsv1.DaemonSet{}
+				err := c.Get(context.TODO(), newRequest(resourcesNamespace, dsName).NamespacedName, ds)
+				if err != nil {
+					return err
+				}
+
+				if !reflect.DeepEqual(ds.Spec.Template.Spec.Affinity, affinity) {
+					return fmt.Errorf("pod affinity does not match the one specified. got: %+v", ds.Spec.Template.Spec.Affinity)
 				}
 
 				return nil
