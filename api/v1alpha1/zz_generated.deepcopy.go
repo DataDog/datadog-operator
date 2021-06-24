@@ -734,7 +734,11 @@ func (in *DatadogAgentSpecAgentSpec) DeepCopyInto(out *DatadogAgentSpecAgentSpec
 		*out = new(CustomConfigSpec)
 		(*in).DeepCopyInto(*out)
 	}
-	in.NetworkPolicy.DeepCopyInto(&out.NetworkPolicy)
+	if in.NetworkPolicy != nil {
+		in, out := &in.NetworkPolicy, &out.NetworkPolicy
+		*out = new(NetworkPolicySpec)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.Affinity != nil {
 		in, out := &in.Affinity, &out.Affinity
 		*out = new(v1.Affinity)
