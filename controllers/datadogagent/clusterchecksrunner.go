@@ -389,6 +389,14 @@ func getEnvVarsForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []cor
 				},
 			},
 		},
+		{
+			Name: datadoghqv1alpha1.DDClcRunnerID,
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: FieldPathMetaName,
+				},
+			},
+		},
 	}
 
 	if spec.ClusterName != "" {
@@ -491,7 +499,8 @@ func getClusterChecksRunnerCustomConfigConfigMapName(dda *datadoghqv1alpha1.Data
 }
 
 // getPodAffinity returns the pod anti affinity of the cluster check runner pods
-// the default anti affinity ensures we don't schedule multiple cluster check runners on the same node
+// the default anti affinity prefers scheduling the runners on different nodes if possible
+// for better checks stability in case of node failure.
 func getPodAffinity(affinity *corev1.Affinity) *corev1.Affinity {
 	if affinity != nil {
 		return affinity
@@ -499,14 +508,17 @@ func getPodAffinity(affinity *corev1.Affinity) *corev1.Affinity {
 
 	return &corev1.Affinity{
 		PodAntiAffinity: &corev1.PodAntiAffinity{
-			RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+			PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
 				{
-					LabelSelector: &metav1.LabelSelector{
-						MatchLabels: map[string]string{
-							datadoghqv1alpha1.AgentDeploymentComponentLabelKey: datadoghqv1alpha1.DefaultClusterChecksRunnerResourceSuffix,
+					Weight: 50,
+					PodAffinityTerm: corev1.PodAffinityTerm{
+						LabelSelector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								datadoghqv1alpha1.AgentDeploymentComponentLabelKey: datadoghqv1alpha1.DefaultClusterChecksRunnerResourceSuffix,
+							},
 						},
+						TopologyKey: "kubernetes.io/hostname",
 					},
-					TopologyKey: "kubernetes.io/hostname",
 				},
 			},
 		},

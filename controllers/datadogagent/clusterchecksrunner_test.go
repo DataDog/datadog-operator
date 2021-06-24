@@ -180,6 +180,14 @@ func clusterChecksRunnerDefaultEnvVars() []corev1.EnvVar {
 				},
 			},
 		},
+		{
+			Name: "DD_CLC_RUNNER_ID",
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: "metadata.name",
+				},
+			},
+		},
 	}
 }
 
@@ -380,14 +388,17 @@ func Test_getPodAffinity(t *testing.T) {
 			affinity: nil,
 			want: &corev1.Affinity{
 				PodAntiAffinity: &corev1.PodAntiAffinity{
-					RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+					PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
 						{
-							LabelSelector: &metav1.LabelSelector{
-								MatchLabels: map[string]string{
-									"agent.datadoghq.com/component": "cluster-checks-runner",
+							Weight: 50,
+							PodAffinityTerm: corev1.PodAffinityTerm{
+								LabelSelector: &metav1.LabelSelector{
+									MatchLabels: map[string]string{
+										"agent.datadoghq.com/component": "cluster-checks-runner",
+									},
 								},
+								TopologyKey: "kubernetes.io/hostname",
 							},
-							TopologyKey: "kubernetes.io/hostname",
 						},
 					},
 				},
