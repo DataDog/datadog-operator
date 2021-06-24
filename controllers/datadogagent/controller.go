@@ -101,7 +101,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, request reconcile.Re
 		}
 	}
 	if err = datadoghqv1alpha1.IsValidDatadogAgent(&instance.Spec); err != nil {
-		reqLogger.Info("Invalid spec")
+		reqLogger.V(2).Info("Invalid spec", "error", err)
 		return r.updateStatusIfNeeded(reqLogger, instance, &instance.Status, result, err)
 	}
 

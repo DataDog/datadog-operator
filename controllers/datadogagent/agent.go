@@ -398,11 +398,11 @@ func buildAgentNetworkPolicy(dda *datadoghqv1alpha1.DatadogAgent, name string) *
 func newExtendedDaemonSetFromInstance(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, selector *metav1.LabelSelector) (*edsdatadoghqv1alpha1.ExtendedDaemonSet, string, error) {
 	template, err := newAgentPodTemplate(logger, dda, selector)
 	if err != nil {
-		return nil, "", err
+		return nil, "", fmt.Errorf("unable to get agent pod template when creating new EDS instance, err: %w", err)
 	}
 	strategy, err := getAgentDeploymentStrategy(dda)
 	if err != nil {
-		return nil, "", err
+		return nil, "", fmt.Errorf("unable to get Deployment strategy when creating new EDS instance, err: %w", err)
 	}
 	eds := &edsdatadoghqv1alpha1.ExtendedDaemonSet{
 		ObjectMeta: newDaemonsetObjectMetaData(dda),

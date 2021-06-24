@@ -178,9 +178,6 @@ func newClusterAgentDeploymentFromInstance(logger logr.Logger, dda *datadoghqv1a
 	}
 
 	annotations := getDefaultAnnotations(dda)
-	for key, val := range dda.Annotations {
-		annotations[key] = val
-	}
 
 	dcaPodTemplate, err := newClusterAgentPodTemplate(logger, dda, labels, annotations)
 	if err != nil {

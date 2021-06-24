@@ -332,11 +332,8 @@ func Test_newClusterAgentDeploymentFromInstance(t *testing.T) {
 						"app.kubernetes.io/name":        "datadog-agent-deployment",
 						"app.kubernetes.io/part-of":     "foo",
 						"app.kubernetes.io/version":     "",
-						//"annotations-foo-key":           "annotations-bar-value",
 					},
-					Annotations: map[string]string{
-						"annotations-foo-key": "annotations-bar-value",
-					},
+					Annotations: map[string]string{},
 				},
 				Spec: appsv1.DeploymentSpec{
 					Template: corev1.PodTemplateSpec{
@@ -350,9 +347,7 @@ func Test_newClusterAgentDeploymentFromInstance(t *testing.T) {
 								"app.kubernetes.io/part-of":     "foo",
 								"app.kubernetes.io/version":     "",
 							},
-							Annotations: map[string]string{
-								"annotations-foo-key": "annotations-bar-value",
-							},
+							Annotations: map[string]string{},
 						},
 						Spec: clusterAgentDefaultPodSpec(),
 					},

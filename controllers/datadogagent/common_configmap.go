@@ -67,13 +67,13 @@ func (r *Reconciler) updateIfNeededConfigMap(dda *datadoghqv1alpha1.DatadogAgent
 	// Copy possibly changed fields
 	updateCM := oldConfigMap.DeepCopy()
 	updateCM.Data = newConfigMap.Data
-	if len(updateCM.Annotations) == 0 {
+	if updateCM.Annotations == nil {
 		updateCM.Annotations = make(map[string]string)
 	}
 	for k, v := range newConfigMap.Annotations {
 		updateCM.Annotations[k] = v
 	}
-	if len(updateCM.Labels) == 0 {
+	if updateCM.Labels == nil {
 		updateCM.Labels = make(map[string]string)
 	}
 	for k, v := range newConfigMap.Labels {
