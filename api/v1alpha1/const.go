@@ -78,6 +78,7 @@ const (
 	DDKubeStateMetricsCoreConfigMap              = "DD_KUBE_STATE_METRICS_CORE_CONFIGMAP_NAME"
 	DDClcRunnerEnabled                           = "DD_CLC_RUNNER_ENABLED"
 	DDClcRunnerHost                              = "DD_CLC_RUNNER_HOST"
+	DDClcRunnerID                                = "DD_CLC_RUNNER_ID"
 	DDExtraConfigProviders                       = "DD_EXTRA_CONFIG_PROVIDERS"
 	DDExtraListeners                             = "DD_EXTRA_LISTENERS"
 	DDHostname                                   = "DD_HOSTNAME"
