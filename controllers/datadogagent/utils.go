@@ -458,6 +458,8 @@ func getConfigInitContainers(spec *datadoghqv1alpha1.DatadogAgentSpec, volumeMou
 		MountPath: "/opt/datadog-agent",
 	}}
 
+	copyCommands := []string{"cp -vnr /etc/datadog-agent /opt"}
+
 	if isRuntimeSecurityEnabled(spec) && spec.Agent.Security.Runtime.PoliciesDir != nil {
 		configVolumeMounts = append(
 			configVolumeMounts,
@@ -470,15 +472,13 @@ func getConfigInitContainers(spec *datadoghqv1alpha1.DatadogAgentSpec, volumeMou
 				MountPath: "/opt/datadog-agent/runtime-security.d",
 			},
 		)
+		copyCommands = append(copyCommands, "cp -v /etc/datadog-agent-runtime-policies/* /opt/datadog-agent/runtime-security.d/")
 	}
 
 	return []corev1.Container{
 		getInitContainer(
 			spec, "init-volume",
-			[]string{
-				"cp -vnr /etc/datadog-agent /opt",
-				"cp -v /etc/datadog-agent-runtime-policies/* /opt/datadog-agent/runtime-security.d/",
-			}, configVolumeMounts, nil,
+			copyCommands, configVolumeMounts, nil,
 			image,
 		),
 		getInitContainer(
