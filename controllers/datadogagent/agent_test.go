@@ -289,10 +289,10 @@ func defaultSystemProbeVolumes() []corev1.Volume {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.SystemProbeOSReleaseDirVolumeName,
+			Name: datadoghqv1alpha1.OSReleaseDirVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: datadoghqv1alpha1.SystemProbeOSReleaseDirVolumePath,
+					Path: datadoghqv1alpha1.OSReleaseDirVolumePath,
 					Type: &fileOrCreate,
 				},
 			},
@@ -503,10 +503,10 @@ func runtimeSecurityAgentVolumes() []corev1.Volume {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.SystemProbeOSReleaseDirVolumeName,
+			Name: datadoghqv1alpha1.OSReleaseDirVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: datadoghqv1alpha1.SystemProbeOSReleaseDirVolumePath,
+					Path: datadoghqv1alpha1.OSReleaseDirVolumePath,
 					Type: &fileOrCreate,
 				},
 			},

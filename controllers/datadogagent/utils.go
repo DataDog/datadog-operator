@@ -621,7 +621,7 @@ func getEnvVarsCommon(dda *datadoghqv1alpha1.DatadogAgent, needAPIKey bool) ([]c
 			Value: getLogLevel(dda),
 		},
 		{
-			Name:  datadoghqv1alpha1.KubernetesEnvvarName,
+			Name:  datadoghqv1alpha1.KubernetesEnvVarName,
 			Value: "yes",
 		},
 	}
@@ -912,6 +912,8 @@ func getEnvVarsForSecurityAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.E
 
 // getVolumesForAgent defines volumes for the Agent
 func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
+	fileOrCreate := corev1.HostPathFileOrCreate
+
 	volumes := []corev1.Volume{
 		{
 			Name: datadoghqv1alpha1.LogDatadogVolumeName,
@@ -946,6 +948,24 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: "/sys/fs/cgroup",
+				},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.OSReleaseDirVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: datadoghqv1alpha1.OSReleaseDirVolumePath,
+					Type: &fileOrCreate,
+				},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.LSBReleaseDirVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: datadoghqv1alpha1.LSBReleaseDirVolumePath,
+					Type: &fileOrCreate,
 				},
 			},
 		},
@@ -1025,7 +1045,6 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 	}
 
 	if isSystemProbeEnabled(&dda.Spec) {
-		fileOrCreate := corev1.HostPathFileOrCreate
 		systemProbeVolumes := []corev1.Volume{
 			{
 				Name: datadoghqv1alpha1.SystemProbeDebugfsVolumeName,
@@ -1039,15 +1058,6 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 				Name: datadoghqv1alpha1.SystemProbeSocketVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					EmptyDir: &corev1.EmptyDirVolumeSource{},
-				},
-			},
-			{
-				Name: datadoghqv1alpha1.SystemProbeOSReleaseDirVolumeName,
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: datadoghqv1alpha1.SystemProbeOSReleaseDirVolumePath,
-						Type: &fileOrCreate,
-					},
 				},
 			},
 		}
@@ -1353,6 +1363,16 @@ func getVolumeMountsForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volum
 			MountPath: datadoghqv1alpha1.CgroupsVolumePath,
 			ReadOnly:  datadoghqv1alpha1.CgroupsVolumeReadOnly,
 		},
+		{
+			Name:      datadoghqv1alpha1.LSBReleaseDirVolumeName,
+			MountPath: datadoghqv1alpha1.LSBReleaseDirMountPath,
+			ReadOnly:  true,
+		},
+		{
+			Name:      datadoghqv1alpha1.OSReleaseDirVolumeName,
+			MountPath: datadoghqv1alpha1.OSReleaseDirMountPath,
+			ReadOnly:  true,
+		},
 	}
 
 	// Kubelet volumeMounts
@@ -1591,8 +1611,8 @@ func getVolumeMountsForSystemProbe(dda *datadoghqv1alpha1.DatadogAgent) []corev1
 			ReadOnly:  true,
 		},
 		{
-			Name:      datadoghqv1alpha1.SystemProbeOSReleaseDirVolumeName,
-			MountPath: datadoghqv1alpha1.SystemProbeOSReleaseDirMountPath,
+			Name:      datadoghqv1alpha1.OSReleaseDirVolumeName,
+			MountPath: datadoghqv1alpha1.OSReleaseDirMountPath,
 			ReadOnly:  true,
 		},
 	}

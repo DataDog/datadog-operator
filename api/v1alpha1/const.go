@@ -122,9 +122,9 @@ const (
 	DDExternalMetricsProviderAppKey              = "DD_EXTERNAL_METRICS_PROVIDER_APP_KEY"
 	DDAuthTokenFilePath                          = "DD_AUTH_TOKEN_FILE_PATH"
 
-	// KubernetesEnvvarName Env var used by the Datadog Agent container entrypoint
+	// KubernetesEnvVarName Env var used by the Datadog Agent container entrypoint
 	// to add kubelet config provider and listener
-	KubernetesEnvvarName = "KUBERNETES"
+	KubernetesEnvVarName = "KUBERNETES"
 
 	// Datadog volume names and mount paths
 
@@ -188,6 +188,12 @@ const (
 	AgentCustomConfigVolumeSubPath     = "datadog.yaml"
 	KubeletCAVolumeName                = "kubelet-ca"
 	DefaultKubeletAgentCAPath          = "/var/run/host-kubelet-ca.crt"
+	LSBReleaseDirVolumeName            = "host-lsbrelease"
+	LSBReleaseDirVolumePath            = "/etc/lsb-release"
+	LSBReleaseDirMountPath             = "/host/etc/lsb-release"
+	OSReleaseDirVolumeName             = "host-osrelease"
+	OSReleaseDirVolumePath             = "/etc/os-release"
+	OSReleaseDirMountPath              = "/host/etc/os-release"
 
 	HostCriSocketPathPrefix = "/host"
 
@@ -206,9 +212,6 @@ const (
 	DefaultSeccompProfileName         = "localhost/system-probe"
 	SysteProbeAppArmorAnnotationKey   = "container.apparmor.security.beta.kubernetes.io/system-probe"
 	SysteProbeSeccompAnnotationKey    = "container.seccomp.security.alpha.kubernetes.io/system-probe"
-	SystemProbeOSReleaseDirVolumeName = "host-osrelease"
-	SystemProbeOSReleaseDirVolumePath = "/etc/os-release"
-	SystemProbeOSReleaseDirMountPath  = "/host/etc/os-release"
 
 	// Extra config provider names
 
