@@ -1540,7 +1540,7 @@ func runtimeSecurityAgentPodSpec(extraEnv map[string]string, extraDir string) co
 		}}
 	volumes := runtimeSecurityAgentVolumes()
 	if extraDir != "" {
-		command = []string{"cp -vnr /etc/datadog-agent /opt; cp -v /etc/datadog-agent-runtime-policies/* /opt/datadog-agent/runtime-security.d/"}
+		command = []string{"cp -vnr /etc/datadog-agent /opt;cp -v /etc/datadog-agent-runtime-policies/* /opt/datadog-agent/runtime-security.d/"}
 		secVolumes = append(secVolumes, corev1.VolumeMount{
 			Name:      datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumeName,
 			MountPath: "/etc/datadog-agent/runtime-security.d",
@@ -3396,7 +3396,7 @@ func Test_newExtendedDaemonSetFromInstance_SecurityAgent_Compliance(t *testing.T
 }
 
 func Test_newExtendedDaemonSetFromInstance_SecurityAgent_Runtime(t *testing.T) {
-	securityAgentPodSpec := runtimeSecurityAgentPodSpec(nil, "foo")
+	securityAgentPodSpec := runtimeSecurityAgentPodSpec(nil, "test-runtime-policies")
 	securityAgentPodSpec.Containers[2].Env = addEnvVar(securityAgentPodSpec.Containers[2].Env, "DD_RUNTIME_SECURITY_CONFIG_POLICIES_DIR", "/etc/datadog-agent/runtime-security.d")
 	securityAgentPodSpec.Containers[0].VolumeMounts = append(securityAgentPodSpec.Containers[0].VolumeMounts, []corev1.VolumeMount{
 		{
