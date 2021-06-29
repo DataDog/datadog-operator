@@ -527,6 +527,22 @@ func runtimeSecurityAgentVolumes() []corev1.Volume {
 				},
 			},
 		},
+		{
+			Name: datadoghqv1alpha1.SecurityAgentRuntimeCustomPoliciesVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: "test-runtime-policies",
+					},
+				},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
 	}
 }
 
@@ -900,7 +916,7 @@ func defaultSystemProbeEnvVars() []corev1.EnvVar {
 	}
 }
 
-func securityAgentEnvVars(compliance, runtime bool, extraEnv map[string]string) []corev1.EnvVar {
+func securityAgentEnvVars(compliance, runtime bool, policiesdir bool, extraEnv map[string]string) []corev1.EnvVar {
 	env := []corev1.EnvVar{
 		{
 			Name:  "DD_COMPLIANCE_CONFIG_ENABLED",
@@ -934,6 +950,10 @@ func securityAgentEnvVars(compliance, runtime bool, extraEnv map[string]string) 
 			{
 				Name:  "DD_RUNTIME_SECURITY_CONFIG_SYSCALL_MONITOR_ENABLED",
 				Value: "true",
+			},
+			{
+				Name:  "DD_RUNTIME_SECURITY_CONFIG_POLICIES_DIR",
+				Value: "/etc/datadog-agent/runtime-security.d",
 			},
 		}...)
 	}
@@ -1069,7 +1089,7 @@ func defaultSystemProbePodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodSp
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
 				Command:         []string{"bash", "-c"},
-				Args:            []string{"cp -vnr /etc/datadog-agent /opt;cp -v /etc/datadog-agent-runtime-policies/* /opt/datadog-agent/runtime-security.d/"},
+				Args:            []string{"cp -vnr /etc/datadog-agent /opt"},
 				VolumeMounts: []corev1.VolumeMount{
 					{
 						Name:      datadoghqv1alpha1.ConfigVolumeName,
@@ -1184,7 +1204,7 @@ func noSeccompInstallSystemProbeSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
 				Command:         []string{"bash", "-c"},
-				Args:            []string{"cp -vnr /etc/datadog-agent /opt;cp -v /etc/datadog-agent-runtime-policies/* /opt/datadog-agent/runtime-security.d/"},
+				Args:            []string{"cp -vnr /etc/datadog-agent /opt"},
 				VolumeMounts: []corev1.VolumeMount{
 					{
 						Name:      datadoghqv1alpha1.ConfigVolumeName,
@@ -1257,7 +1277,7 @@ func defaultPodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodSpec {
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
 				Command:         []string{"bash", "-c"},
-				Args:            []string{"cp -vnr /etc/datadog-agent /opt;cp -v /etc/datadog-agent-runtime-policies/* /opt/datadog-agent/runtime-security.d/"},
+				Args:            []string{"cp -vnr /etc/datadog-agent /opt"},
 				VolumeMounts: []corev1.VolumeMount{
 					{
 						Name:      datadoghqv1alpha1.ConfigVolumeName,
@@ -1476,6 +1496,14 @@ func runtimeSecurityAgentPodSpec(extraEnv map[string]string) corev1.PodSpec {
 						Name:      datadoghqv1alpha1.ConfigVolumeName,
 						MountPath: "/opt/datadog-agent",
 					},
+					{
+						Name:      datadoghqv1alpha1.SecurityAgentRuntimeCustomPoliciesVolumeName,
+						MountPath: "/etc/datadog-agent-runtime-policies",
+					},
+					{
+						Name:      datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumeName,
+						MountPath: "/opt/datadog-agent/runtime-security.d",
+					},
 				},
 			},
 			{
@@ -1541,9 +1569,16 @@ func runtimeSecurityAgentPodSpec(extraEnv map[string]string) corev1.PodSpec {
 						Add: []corev1.Capability{"SYS_ADMIN", "SYS_RESOURCE", "SYS_PTRACE", "NET_ADMIN", "NET_BROADCAST", "NET_RAW", "IPC_LOCK"},
 					},
 				},
-				Resources:    corev1.ResourceRequirements{},
-				Env:          systemProbeEnv,
-				VolumeMounts: defaultSystemProbeMountVolume(),
+				Resources: corev1.ResourceRequirements{},
+				Env:       systemProbeEnv,
+				VolumeMounts: append(
+					defaultSystemProbeMountVolume(),
+					corev1.VolumeMount{
+						Name:      "runtimepoliciesdir",
+						MountPath: "/etc/datadog-agent/runtime-security.d",
+						ReadOnly:  true,
+					},
+				),
 			},
 			{
 				Name:            "security-agent",
@@ -1560,7 +1595,7 @@ func runtimeSecurityAgentPodSpec(extraEnv map[string]string) corev1.PodSpec {
 					},
 				},
 				Resources:    corev1.ResourceRequirements{},
-				Env:          securityAgentEnvVars(false, true, extraEnv),
+				Env:          securityAgentEnvVars(false, true, true, extraEnv),
 				VolumeMounts: runtimeSecurityAgentMountVolume(),
 			},
 		},
@@ -1579,7 +1614,7 @@ func complianceSecurityAgentPodSpec(extraEnv map[string]string) corev1.PodSpec {
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
 				Command:         []string{"bash", "-c"},
-				Args:            []string{"cp -vnr /etc/datadog-agent /opt;cp -v /etc/datadog-agent-runtime-policies/* /opt/datadog-agent/runtime-security.d/"},
+				Args:            []string{"cp -vnr /etc/datadog-agent /opt"},
 				VolumeMounts: []corev1.VolumeMount{
 					{
 						Name:      datadoghqv1alpha1.ConfigVolumeName,
@@ -1635,7 +1670,7 @@ func complianceSecurityAgentPodSpec(extraEnv map[string]string) corev1.PodSpec {
 					},
 				},
 				Resources:    corev1.ResourceRequirements{},
-				Env:          securityAgentEnvVars(true, false, extraEnv),
+				Env:          securityAgentEnvVars(true, false, false, extraEnv),
 				VolumeMounts: complianceSecurityAgentMountVolume(),
 			},
 		},
@@ -1771,7 +1806,7 @@ func customKubeletConfigPodSpec(kubeletConfig *datadoghqv1alpha1.KubeletConfig) 
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
 				Command:         []string{"bash", "-c"},
-				Args:            []string{"cp -vnr /etc/datadog-agent /opt;cp -v /etc/datadog-agent-runtime-policies/* /opt/datadog-agent/runtime-security.d/"},
+				Args:            []string{"cp -vnr /etc/datadog-agent /opt"},
 				VolumeMounts: []corev1.VolumeMount{
 					{
 						Name:      datadoghqv1alpha1.ConfigVolumeName,
@@ -3314,6 +3349,9 @@ func Test_newExtendedDaemonSetFromInstance_SecurityAgent_Runtime(t *testing.T) {
 		ClusterAgentEnabled:          true,
 		RuntimeSecurityEnabled:       true,
 		RuntimeSyscallMonitorEnabled: true,
+		RuntimePoliciesDir: &datadoghqv1alpha1.ConfigDirSpec{
+			ConfigMapName: "test-runtime-policies",
+		},
 		OrchestratorExplorerDisabled: true,
 	})
 
