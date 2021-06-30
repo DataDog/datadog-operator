@@ -70,7 +70,10 @@ func (r *Reconciler) reconcileClusterChecksRunner(logger logr.Logger, dda *datad
 }
 
 func needClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) bool {
-	if dda.Spec.ClusterAgent != nil && dda.Spec.ClusterChecksRunner != nil && datadoghqv1alpha1.BoolValue(dda.Spec.ClusterAgent.Config.ClusterChecksEnabled) {
+	if isClusterAgentEnabled(dda.Spec.ClusterAgent) &&
+		datadoghqv1alpha1.BoolValue(dda.Spec.ClusterChecksRunner.Enabled) &&
+		dda.Spec.ClusterAgent.Config != nil &&
+		datadoghqv1alpha1.BoolValue(dda.Spec.ClusterAgent.Config.ClusterChecksEnabled) {
 		return true
 	}
 
@@ -258,7 +261,7 @@ func newClusterChecksRunnerPodTemplate(dda *datadoghqv1alpha1.DatadogAgent, labe
 	spec := &dda.Spec
 	volumeMounts := getVolumeMountsForClusterChecksRunner(dda)
 	envVars := getEnvVarsForClusterChecksRunner(dda)
-	image := getImage(&clusterChecksRunnerSpec.Image, spec.Registry, true)
+	image := getImage(clusterChecksRunnerSpec.Image, spec.Registry, true)
 
 	newPodTemplate := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
@@ -282,8 +285,8 @@ func newClusterChecksRunnerPodTemplate(dda *datadoghqv1alpha1.DatadogAgent, labe
 					ImagePullPolicy: *clusterChecksRunnerSpec.Image.PullPolicy,
 					Env:             envVars,
 					VolumeMounts:    volumeMounts,
-					LivenessProbe:   getDefaultLivenessProbe(),
-					ReadinessProbe:  getDefaultReadinessProbe(),
+					LivenessProbe:   dda.Spec.Agent.Config.LivenessProbe,
+					ReadinessProbe:  dda.Spec.Agent.Config.ReadinessProbe,
 					Command:         getDefaultIfEmpty(dda.Spec.ClusterChecksRunner.Config.Command, []string{"agent", "run"}),
 					Args:            getDefaultIfEmpty(dda.Spec.ClusterChecksRunner.Config.Args, nil),
 				},
@@ -311,7 +314,7 @@ func newClusterChecksRunnerPodTemplate(dda *datadoghqv1alpha1.DatadogAgent, labe
 }
 
 func buildClusterChecksRunnerConfigurationConfigMap(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.ConfigMap, error) {
-	if dda.Spec.ClusterChecksRunner == nil {
+	if !datadoghqv1alpha1.BoolValue(dda.Spec.ClusterChecksRunner.Enabled) {
 		return nil, nil
 	}
 	return buildConfigurationConfigMap(dda, dda.Spec.ClusterChecksRunner.CustomConfig, getClusterChecksRunnerCustomConfigConfigMapName(dda), datadoghqv1alpha1.AgentCustomConfigVolumeSubPath)
@@ -347,7 +350,7 @@ func getEnvVarsForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []cor
 		},
 		{
 			Name:  datadoghqv1alpha1.DDHealthPort,
-			Value: strconv.Itoa(int(datadoghqv1alpha1.DefaultAgentHealthPort)),
+			Value: strconv.Itoa(int(*spec.ClusterChecksRunner.Config.HealthPort)),
 		},
 		{
 			Name:  datadoghqv1alpha1.DDAPMEnabled,
@@ -413,12 +416,10 @@ func getEnvVarsForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []cor
 		})
 	}
 
-	if spec.ClusterChecksRunner.Config.LogLevel != nil {
-		envVars = append(envVars, corev1.EnvVar{
-			Name:  datadoghqv1alpha1.DDLogLevel,
-			Value: *spec.ClusterChecksRunner.Config.LogLevel,
-		})
-	}
+	envVars = append(envVars, corev1.EnvVar{
+		Name:  datadoghqv1alpha1.DDLogLevel,
+		Value: *spec.ClusterChecksRunner.Config.LogLevel,
+	})
 
 	if spec.Agent.Config.DDUrl != nil {
 		envVars = append(envVars, corev1.EnvVar{
@@ -436,7 +437,7 @@ func getClusterChecksRunnerVersion(dda *datadoghqv1alpha1.DatadogAgent) string {
 }
 
 func getClusterChecksRunnerName(dda *datadoghqv1alpha1.DatadogAgent) string {
-	if dda.Spec.ClusterChecksRunner != nil && dda.Spec.ClusterChecksRunner.DeploymentName != "" {
+	if datadoghqv1alpha1.BoolValue(dda.Spec.ClusterChecksRunner.Enabled) && dda.Spec.ClusterChecksRunner.DeploymentName != "" {
 		return dda.Spec.ClusterChecksRunner.DeploymentName
 	}
 	return fmt.Sprintf("%s-%s", dda.Name, "cluster-checks-runner")
@@ -529,7 +530,7 @@ func (r *Reconciler) manageClusterChecksRunnerNetworkPolicy(logger logr.Logger, 
 	policyName := fmt.Sprintf("%s-%s", dda.Name, datadoghqv1alpha1.DefaultClusterChecksRunnerResourceSuffix)
 
 	spec := dda.Spec.ClusterChecksRunner
-	if spec == nil || !datadoghqv1alpha1.BoolValue(spec.NetworkPolicy.Create) {
+	if !datadoghqv1alpha1.BoolValue(dda.Spec.ClusterChecksRunner.Enabled) || spec.NetworkPolicy == nil || !datadoghqv1alpha1.BoolValue(spec.NetworkPolicy.Create) {
 		return r.cleanupNetworkPolicy(logger, dda, policyName)
 	}
 
@@ -551,7 +552,7 @@ func buildClusterChecksRunnerNetworkPolicy(dda *datadoghqv1alpha1.DatadogAgent, 
 		},
 	}
 
-	if dda.Spec.ClusterAgent != nil {
+	if datadoghqv1alpha1.BoolValue(dda.Spec.ClusterChecksRunner.Enabled) {
 		egressRules = append(egressRules, networkingv1.NetworkPolicyEgressRule{
 			Ports: []networkingv1.NetworkPolicyPort{
 				{

@@ -5,6 +5,10 @@
 
 package v1alpha1
 
+import (
+	"encoding/json"
+)
+
 // NewInt32Pointer returns pointer on a new int32 value instance
 func NewInt32Pointer(i int32) *int32 {
 	return &i
@@ -41,4 +45,21 @@ func BoolToString(b *bool) string {
 	}
 
 	return "false"
+}
+
+// IsEqualStruct is a util fonction that returns whether 2 structures are the same
+// We compare the marchaled results to avoid traversing all fields and be agnostic of the struct.
+func IsEqualStruct(in interface{}, cmp interface{}) bool {
+	if in == nil {
+		return true
+	}
+	inJSON, err := json.Marshal(in)
+	if err != nil {
+		return false
+	}
+	cmpJSON, err := json.Marshal(cmp)
+	if err != nil {
+		return false
+	}
+	return string(inJSON) == string(cmpJSON)
 }

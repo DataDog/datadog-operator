@@ -98,8 +98,11 @@ func Test_options_upgrade(t *testing.T) {
 			name: "with clc runner",
 			loadFunc: func(c client.Client) *datadoghqv1alpha1.DatadogAgent {
 				dd := buildDatadogAgent("datadog/agent:7.17.1")
-				dd.Spec.ClusterChecksRunner = &datadoghqv1alpha1.DatadogAgentSpecClusterChecksRunnerSpec{}
-				dd.Spec.ClusterChecksRunner.Image.Name = "datadog/agent:7.17.1"
+				dd.Spec.ClusterChecksRunner = datadoghqv1alpha1.DatadogAgentSpecClusterChecksRunnerSpec{
+					Image: &datadoghqv1alpha1.ImageConfig{
+						Name: "datadog/agent:7.17.1",
+					},
+				}
 				_ = c.Create(context.TODO(), dd)
 				return dd
 			},
@@ -145,8 +148,8 @@ func buildDatadogAgent(image string) *datadoghqv1alpha1.DatadogAgent {
 			Name:      "dd",
 		},
 		Spec: datadoghqv1alpha1.DatadogAgentSpec{
-			Agent: &datadoghqv1alpha1.DatadogAgentSpecAgentSpec{
-				Image: datadoghqv1alpha1.ImageConfig{
+			Agent: datadoghqv1alpha1.DatadogAgentSpecAgentSpec{
+				Image: &datadoghqv1alpha1.ImageConfig{
 					Name: image,
 				},
 			},

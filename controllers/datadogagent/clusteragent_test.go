@@ -50,8 +50,8 @@ func clusterAgentDefaultPodSpec() corev1.PodSpec {
 					{Name: "installinfo", ReadOnly: true, SubPath: "install_info", MountPath: "/etc/datadog-agent/install_info"},
 					{Name: "confd", ReadOnly: true, MountPath: "/conf.d"},
 				},
-				LivenessProbe:  getDefaultLivenessProbe(),
-				ReadinessProbe: getDefaultReadinessProbe(),
+				LivenessProbe:  defaultLivenessProbe(),
+				ReadinessProbe: defaultReadinessProbe(),
 			},
 		},
 		Volumes: []corev1.Volume{
@@ -104,6 +104,10 @@ func clusterAgentDefaultEnvVars() []corev1.EnvVar {
 			Value: "5555",
 		},
 		{
+			Name:  "DD_LOG_LEVEL",
+			Value: "INFO",
+		},
+		{
 			Name:      "DD_API_KEY",
 			ValueFrom: apiKeyValue(),
 		},
@@ -147,6 +151,10 @@ func clusterAgentWithAdmissionControllerDefaultEnvVars(serviceName string, unlab
 		{
 			Name:  "DD_HEALTH_PORT",
 			Value: "5555",
+		},
+		{
+			Name:  "DD_LOG_LEVEL",
+			Value: "INFO",
 		},
 		{
 			Name:      "DD_API_KEY",

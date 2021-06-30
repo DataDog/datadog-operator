@@ -31,7 +31,7 @@ type (
 )
 
 func (r *Reconciler) manageClusterAgentPDB(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
-	cleanUpCondition := dda.Spec.ClusterAgent == nil
+	cleanUpCondition := !isClusterAgentEnabled(dda.Spec.ClusterAgent)
 	return r.managePDB(logger, dda, getClusterAgentPDBName(dda), buildClusterAgentPDB, cleanUpCondition)
 }
 

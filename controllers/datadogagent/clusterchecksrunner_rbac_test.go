@@ -48,14 +48,14 @@ func TestReconciler_manageClusterChecksRunnerRBACs(t *testing.T) {
 	ddaName := "foo"
 	ddaNamespace := "bar"
 	ddaDefaultOptions := &test.NewDatadogAgentOptions{
-		ClusterAgentEnabled:  true,
-		ClusterChecksEnabled: true,
+		ClusterAgentEnabled:        true,
+		ClusterChecksEnabled:       true,
+		ClusterChecksRunnerEnabled: true,
 		KubeStateMetricsCore: &datadoghqv1alpha1.KubeStateMetricsCore{
 			Enabled: datadoghqv1alpha1.NewBoolPointer(true),
 		},
 	}
 	ddaDefault := test.NewDefaultedDatadogAgent(ddaNamespace, ddaName, ddaDefaultOptions)
-
 	agentVersion := getAgentVersion(ddaDefault)
 	serviceAccountName := getClusterChecksRunnerServiceAccount(ddaDefault)
 	serviceAccount := buildServiceAccount(ddaDefault, serviceAccountName, agentVersion)

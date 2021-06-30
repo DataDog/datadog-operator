@@ -32,8 +32,9 @@ type DatadogFeatures struct {
 // DatadogAgentSpec defines the desired state of DatadogAgent.
 // +k8s:openapi-gen=true
 type DatadogAgentSpec struct {
-	// Configure the credentials needed to run Agents.
-	Credentials AgentCredentials `json:"credentials"`
+	// Configure the credentials needed to run Agents. If not set, then the credentials
+	// set in the DatadogOperator will be used.
+	Credentials *AgentCredentials `json:"credentials,omitempty"`
 
 	// Features running on the Agent and Cluster Agent.
 	// +optional
@@ -42,15 +43,15 @@ type DatadogAgentSpec struct {
 	// The desired state of the Agent as an extended daemonset.
 	// Contains the Node Agent configuration and deployment strategy.
 	// +optional
-	Agent *DatadogAgentSpecAgentSpec `json:"agent,omitempty"`
+	Agent DatadogAgentSpecAgentSpec `json:"agent,omitempty"`
 
 	// The desired state of the Cluster Agent as a deployment.
 	// +optional
-	ClusterAgent *DatadogAgentSpecClusterAgentSpec `json:"clusterAgent,omitempty"`
+	ClusterAgent DatadogAgentSpecClusterAgentSpec `json:"clusterAgent,omitempty"`
 
 	// The desired state of the Cluster Checks Runner as a deployment.
 	// +optional
-	ClusterChecksRunner *DatadogAgentSpecClusterChecksRunnerSpec `json:"clusterChecksRunner,omitempty"`
+	ClusterChecksRunner DatadogAgentSpecClusterChecksRunnerSpec `json:"clusterChecksRunner,omitempty"`
 
 	// Set a unique cluster name to allow scoping hosts and Cluster Checks Runner easily.
 	// +optional
@@ -136,22 +137,26 @@ type Secret struct {
 // DatadogAgentSpecAgentSpec defines the desired state of the node Agent.
 // +k8s:openapi-gen=true
 type DatadogAgentSpecAgentSpec struct {
+
+	// Enabled
+	Enabled *bool `json:"enabled,omitempty"`
+
 	// UseExtendedDaemonset use ExtendedDaemonset for Agent deployment.
 	// default value is false.
 	UseExtendedDaemonset *bool `json:"useExtendedDaemonset,omitempty"`
 
 	// The container image of the Datadog Agent.
-	Image ImageConfig `json:"image"`
+	Image *ImageConfig `json:"image,omitempty"`
 
 	// Name of the Daemonset to create or migrate from.
 	// +optional
 	DaemonsetName string `json:"daemonsetName,omitempty"`
 
 	// Agent configuration.
-	Config NodeAgentConfig `json:"config,omitempty"`
+	Config *NodeAgentConfig `json:"config,omitempty"`
 
 	// RBAC configuration of the Agent.
-	Rbac RbacConfig `json:"rbac,omitempty"`
+	Rbac *RbacConfig `json:"rbac,omitempty"`
 
 	// Update strategy configuration for the DaemonSet.
 	DeploymentStrategy *DaemonSetDeploymentStrategy `json:"deploymentStrategy,omitempty"`
@@ -212,7 +217,7 @@ type DatadogAgentSpecAgentSpec struct {
 
 	// Trace Agent configuration
 	// +optional
-	Apm APMSpec `json:"apm,omitempty"`
+	Apm *APMSpec `json:"apm,omitempty"`
 
 	// Log Agent configuration
 	// +optional
@@ -220,15 +225,15 @@ type DatadogAgentSpecAgentSpec struct {
 
 	// Process Agent configuration
 	// +optional
-	Process ProcessSpec `json:"process,omitempty"`
+	Process *ProcessSpec `json:"process,omitempty"`
 
 	// SystemProbe configuration
 	// +optional
-	SystemProbe SystemProbeSpec `json:"systemProbe,omitempty"`
+	SystemProbe *SystemProbeSpec `json:"systemProbe,omitempty"`
 
 	// Security Agent configuration
 	// +optional
-	Security SecuritySpec `json:"security,omitempty"`
+	Security *SecuritySpec `json:"security,omitempty"`
 
 	// Allow to put custom configuration for the agent, corresponding to the datadog.yaml config file.
 	// See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.
@@ -237,7 +242,7 @@ type DatadogAgentSpecAgentSpec struct {
 
 	// Provide Agent Network Policy configuration
 	// +optional
-	NetworkPolicy NetworkPolicySpec `json:"networkPolicy,omitempty"`
+	NetworkPolicy *NetworkPolicySpec `json:"networkPolicy,omitempty"`
 
 	// If specified, the pod's scheduling constraints.
 	// +optional
@@ -343,6 +348,10 @@ type APMSpec struct {
 	// Args allows the specification of extra args to `Command` parameter
 	// +listType=atomic
 	Args []string `json:"args,omitempty"`
+
+	// Configure the Liveness Probe of the APM container
+	// +optional
+	LivenessProbe *corev1.Probe `json:"livenessProbe,omitempty"`
 }
 
 // APMUnixDomainSocketSpec contains the APM Unix Domain Socket configuration.
@@ -800,6 +809,18 @@ type NodeAgentConfig struct {
 	// Args allows the specification of extra args to `Command` parameter
 	// +listType=atomic
 	Args []string `json:"args,omitempty"`
+	// Configure the Liveness Probe of the Agent container
+	// +optional
+	LivenessProbe *corev1.Probe `json:"livenessProbe,omitempty"`
+
+	// Configure the Readiness Probe of the Agent container
+	// +optional
+	ReadinessProbe *corev1.Probe `json:"readinessProbe,omitempty"`
+
+	// HealthPort of the agent container for internal liveness probe.
+	// Must be the same as the Liness/Readiness probes.
+	// +optional
+	HealthPort *int32 `json:"healthPort,omitempty"`
 
 	// Configure the CRI Socket.
 	CriSocket *CRISocketConfig `json:"criSocket,omitempty"`
@@ -897,22 +918,26 @@ type DSDUnixDomainSocketSpec struct {
 // DatadogAgentSpecClusterAgentSpec defines the desired state of the cluster Agent.
 // +k8s:openapi-gen=true
 type DatadogAgentSpecClusterAgentSpec struct {
+
+	// Enabled
+	Enabled *bool `json:"enabled,omitempty"`
+
 	// The container image of the Datadog Cluster Agent.
-	Image ImageConfig `json:"image"`
+	Image *ImageConfig `json:"image,omitempty"`
 
 	// Name of the Cluster Agent Deployment to create or migrate from.
 	// +optional
 	DeploymentName string `json:"deploymentName,omitempty"`
 
 	// Cluster Agent configuration.
-	Config ClusterAgentConfig `json:"config,omitempty"`
+	Config *ClusterAgentConfig `json:"config,omitempty"`
 
 	// Allow to put custom configuration for the agent, corresponding to the datadog-cluster.yaml config file.
 	// +optional
 	CustomConfig *CustomConfigSpec `json:"customConfig,omitempty"`
 
 	// RBAC configuration of the Datadog Cluster Agent.
-	Rbac RbacConfig `json:"rbac,omitempty"`
+	Rbac *RbacConfig `json:"rbac,omitempty"`
 
 	// Number of the Cluster Agent replicas.
 	Replicas *int32 `json:"replicas,omitempty"`
@@ -954,7 +979,7 @@ type DatadogAgentSpecClusterAgentSpec struct {
 
 	// Provide Cluster Agent Network Policy configuration.
 	// +optional
-	NetworkPolicy NetworkPolicySpec `json:"networkPolicy,omitempty"`
+	NetworkPolicy *NetworkPolicySpec `json:"networkPolicy,omitempty"`
 }
 
 // ClusterAgentConfig contains the configuration of the Cluster Agent.
@@ -1017,6 +1042,10 @@ type ClusterAgentConfig struct {
 	// +listType=map
 	// +listMapKey=name
 	Volumes []corev1.Volume `json:"volumes,omitempty"`
+
+	// HealthPort of the agent container for internal liveness probe.
+	// Must be the same as the Liness/Readiness probes.
+	HealthPort *int32 `json:"healthPort,omitempty"`
 }
 
 // ExternalMetricsConfig contains the configuration of the external metrics provider in Cluster Agent.
@@ -1024,7 +1053,7 @@ type ClusterAgentConfig struct {
 type ExternalMetricsConfig struct {
 	// Enable the metricsProvider to be able to scale based on metrics in Datadog.
 	// +optional
-	Enabled bool `json:"enabled,omitempty"`
+	Enabled *bool `json:"enabled,omitempty"`
 
 	// Enable informer and controller of the watermark pod autoscaler.
 	// NOTE: The WatermarkPodAutoscaler controller needs to be installed.
@@ -1057,7 +1086,7 @@ type AdmissionControllerConfig struct {
 	// Enable the admission controller to be able to inject APM/Dogstatsd config
 	// and standard tags (env, service, version) automatically into your pods.
 	// +optional
-	Enabled bool `json:"enabled,omitempty"`
+	Enabled *bool `json:"enabled,omitempty"`
 
 	// MutateUnlabelled enables injecting config without having the pod label 'admission.datadoghq.com/enabled="true"'.
 	// +optional
@@ -1106,20 +1135,34 @@ type ClusterChecksRunnerConfig struct {
 	// +listType=map
 	// +listMapKey=name
 	Volumes []corev1.Volume `json:"volumes,omitempty"`
+
+	// Configure the Liveness Probe of the CLC container
+	LivenessProbe *corev1.Probe `json:"livenessProbe,omitempty"`
+
+	// Configure the Readiness Probe of the CLC container
+	ReadinessProbe *corev1.Probe `json:"readinessProbe,omitempty"`
+
+	// HealthPort of the agent container for internal liveness probe.
+	// Must be the same as the Liness/Readiness probes.
+	HealthPort *int32 `json:"healthPort,omitempty"`
 }
 
 // DatadogAgentSpecClusterChecksRunnerSpec defines the desired state of the Cluster Checks Runner.
 // +k8s:openapi-gen=true
 type DatadogAgentSpecClusterChecksRunnerSpec struct {
+
+	// Enabled
+	Enabled *bool `json:"enabled,omitempty"`
+
 	// The container image of the Datadog Cluster Checks Runner.
-	Image ImageConfig `json:"image"`
+	Image *ImageConfig `json:"image,omitempty"`
 
 	// Name of the cluster checks deployment to create or migrate from.
 	// +optional
 	DeploymentName string `json:"deploymentName,omitempty"`
 
 	// Agent configuration.
-	Config ClusterChecksRunnerConfig `json:"config,omitempty"`
+	Config *ClusterChecksRunnerConfig `json:"config,omitempty"`
 
 	// Allow to put custom configuration for the agent, corresponding to the datadog.yaml config file.
 	// See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.
@@ -1127,7 +1170,7 @@ type DatadogAgentSpecClusterChecksRunnerSpec struct {
 	CustomConfig *CustomConfigSpec `json:"customConfig,omitempty"`
 
 	// RBAC configuration of the Datadog Cluster Checks Runner.
-	Rbac RbacConfig `json:"rbac,omitempty"`
+	Rbac *RbacConfig `json:"rbac,omitempty"`
 
 	// Number of the Cluster Agent replicas.
 	Replicas *int32 `json:"replicas,omitempty"`
@@ -1161,7 +1204,7 @@ type DatadogAgentSpecClusterChecksRunnerSpec struct {
 
 	// Provide Cluster Checks Runner Network Policy configuration.
 	// +optional
-	NetworkPolicy NetworkPolicySpec `json:"networkPolicy,omitempty"`
+	NetworkPolicy *NetworkPolicySpec `json:"networkPolicy,omitempty"`
 }
 
 // ImageConfig Datadog agent container image config.
@@ -1221,6 +1264,11 @@ const (
 // DatadogAgentStatus defines the observed state of DatadogAgent.
 // +k8s:openapi-gen=true
 type DatadogAgentStatus struct {
+
+	// DefaultOverride contains attributes that were not configured that the runtime defaulted.
+	// +optional
+	DefaultOverride *DatadogAgentSpec `json:"defaultOverride,omitempty"`
+
 	// The actual state of the Agent as an extended daemonset.
 	// +optional
 	Agent *DaemonSetStatus `json:"agent,omitempty"`

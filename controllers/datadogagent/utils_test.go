@@ -42,7 +42,7 @@ func TestKSMCoreGetEnvVarsForAgent(t *testing.T) {
 func generateSpec() *datadoghqv1alpha1.DatadogAgent {
 	var boolPtr bool
 	var intPtr int32
-	return &datadoghqv1alpha1.DatadogAgent{
+	dda := &datadoghqv1alpha1.DatadogAgent{
 		Spec: datadoghqv1alpha1.DatadogAgentSpec{
 			Features: datadoghqv1alpha1.DatadogFeatures{
 				KubeStateMetricsCore: &datadoghqv1alpha1.KubeStateMetricsCore{},
@@ -53,13 +53,13 @@ func generateSpec() *datadoghqv1alpha1.DatadogAgent {
 					OpenFilesLimit:                &intPtr,
 				},
 			},
-			ClusterAgent: &datadoghqv1alpha1.DatadogAgentSpecClusterAgentSpec{
+			ClusterAgent: datadoghqv1alpha1.DatadogAgentSpecClusterAgentSpec{
 				CustomConfig: &datadoghqv1alpha1.CustomConfigSpec{},
 				Affinity:     &corev1.Affinity{},
 				Replicas:     &intPtr,
 			},
-			Agent: &datadoghqv1alpha1.DatadogAgentSpecAgentSpec{
-				Config: datadoghqv1alpha1.NodeAgentConfig{
+			Agent: datadoghqv1alpha1.DatadogAgentSpecAgentSpec{
+				Config: &datadoghqv1alpha1.NodeAgentConfig{
 					PodAnnotationsAsTags: map[string]string{},
 					PodLabelsAsTags:      map[string]string{},
 					CollectEvents:        &boolPtr,
@@ -74,6 +74,8 @@ func generateSpec() *datadoghqv1alpha1.DatadogAgent {
 			},
 		},
 	}
+	_ = datadoghqv1alpha1.DefaultDatadogAgent(dda)
+	return dda
 }
 
 func Test_getLocalFilepath(t *testing.T) {

@@ -44,8 +44,8 @@ func clusterChecksRunnerDefaultPodSpec() corev1.PodSpec {
 				Resources:       corev1.ResourceRequirements{},
 				Env:             clusterChecksRunnerDefaultEnvVars(),
 				VolumeMounts:    clusterChecksRunnerDefaultVolumeMounts(),
-				LivenessProbe:   getDefaultLivenessProbe(),
-				ReadinessProbe:  getDefaultReadinessProbe(),
+				LivenessProbe:   defaultLivenessProbe(),
+				ReadinessProbe:  defaultReadinessProbe(),
 				Command:         []string{"agent", "run"},
 			},
 		},
@@ -143,6 +143,10 @@ func clusterChecksRunnerDefaultEnvVars() []corev1.EnvVar {
 		{
 			Name:  "DD_APM_ENABLED",
 			Value: "false",
+		},
+		{
+			Name:  "DD_LOG_LEVEL",
+			Value: "INFO",
 		},
 		{
 			Name:  "DD_PROCESS_AGENT_ENABLED",

@@ -6,7 +6,6 @@
 package v1alpha1
 
 import (
-	"fmt"
 	"path"
 	"strings"
 	"time"
@@ -21,29 +20,42 @@ import (
 
 // default values
 const (
-	DefaultLogLevel                       string = "INFO"
-	defaultAgentImageTag                  string = "7.28.0"
-	defaultClusterAgentImageTag           string = "1.12.0"
-	defaultAgentImageName                 string = "agent"
-	defaultClusterAgentImageName          string = "cluster-agent"
-	defaultCollectEvents                  bool   = false
-	defaultLeaderElection                 bool   = false
-	defaultDockerSocketPath               string = "/var/run/docker.sock"
-	defaultDogstatsdOriginDetection       bool   = false
-	defaultUseDogStatsDSocketVolume       bool   = false
-	defaultHostDogstatsdSocketName        string = "statsd.sock"
-	defaultHostDogstatsdSocketPath        string = "/var/run/datadog"
-	defaultApmEnabled                     bool   = false
-	defaultHostApmSocketName              string = "apm.sock"
-	defaultHostApmSocketPath              string = "/var/run/datadog"
-	defaultLogEnabled                     bool   = false
-	defaultLogsConfigContainerCollectAll  bool   = false
-	defaultLogsContainerCollectUsingFiles bool   = true
-	defaultContainerLogsPath              string = "/var/lib/docker/containers"
-	defaultPodLogsPath                    string = "/var/log/pods"
-	defaultLogsTempStoragePath            string = "/var/lib/datadog-agent/logs"
-	defaultLogsOpenFilesLimit             int32  = 100
-	defaultProcessEnabled                 bool   = false
+	defaultLogLevel                         string = "INFO"
+	defaultAgentImageTag                    string = "7.28.0"
+	defaultClusterAgentImageTag             string = "1.12.0"
+	defaultAgentImageName                   string = "agent"
+	defaultClusterAgentImageName            string = "cluster-agent"
+	defaultCollectEvents                    bool   = false
+	defaultLeaderElection                   bool   = false
+	defaultDockerSocketPath                 string = "/var/run/docker.sock"
+	defaultDogstatsdOriginDetection         bool   = false
+	defaultUseDogStatsDSocketVolume         bool   = false
+	defaultHostDogstatsdSocketName          string = "statsd.sock"
+	defaultHostDogstatsdSocketPath          string = "/var/run/datadog"
+	defaultApmEnabled                       bool   = false
+	defaultApmHostPort                      int32  = 8126
+	defaultSystemProbeEnabled               bool   = false
+	defaultSystemProbeOOMKillEnabled        bool   = false
+	defaultSystemProbeTCPQueueLengthEnabled bool   = false
+	defaultSystemProbeConntrackEnabled      bool   = false
+	defaultSystemProbeCollectDNSStats       bool   = false
+	defaultSystemProbeBPFDebugEnabled       bool   = false
+	defaultSystemProbeSecCompRootPath       string = "/var/lib/kubelet/seccomp"
+	defaultAppArmorProfileName              string = "unconfined"
+	DefaultSeccompProfileName               string = "localhost/system-probe"
+	defaultSecurityRuntimeEnabled           bool   = false
+	defaultSecurityComplianceEnabled        bool   = false
+	defaultSecuritySyscallMonitorEnabled    bool   = false
+	defaultHostApmSocketName                string = "apm.sock"
+	defaultHostApmSocketPath                string = "/var/run/datadog"
+	defaultLogEnabled                       bool   = false
+	defaultLogsConfigContainerCollectAll    bool   = false
+	defaultLogsContainerCollectUsingFiles   bool   = true
+	defaultContainerLogsPath                string = "/var/lib/docker/containers"
+	defaultPodLogsPath                      string = "/var/log/pods"
+	defaultLogsTempStoragePath              string = "/var/lib/datadog-agent/logs"
+	defaultLogsOpenFilesLimit               int32  = 100
+	defaultProcessEnabled                   bool   = false
 	// `false` defaults to live container, agent activated but no process collection
 	defaultProcessCollectionEnabled                      bool   = false
 	defaultOrchestratorExplorerEnabled                   bool   = true
@@ -55,7 +67,6 @@ const (
 	defaultPrometheusScrapeEnabled                       bool   = false
 	defaultPrometheusScrapeServiceEndpoints              bool   = false
 	defaultClusterAgentReplicas                          int32  = 1
-	defaultAgentCanaryReplicas                           int32  = 1
 	defaultClusterChecksRunnerReplicas                   int32  = 1
 	defaultRollingUpdateMaxUnavailable                          = "10%"
 	defaultUpdateStrategy                                       = appsv1.RollingUpdateDaemonSetStrategyType
@@ -63,520 +74,255 @@ const (
 	defaultRollingUpdateMaxParallelPodCreation           int32  = 250
 	defaultRollingUpdateSlowStartIntervalDuration               = 1 * time.Minute
 	defaultRollingUpdateSlowStartAdditiveIncrease               = "5"
-	defaultAgentCanaryDuratrion                                 = 10 * time.Minute
 	defaultReconcileFrequency                                   = 10 * time.Second
 	defaultRbacCreate                                           = true
 	defaultMutateUnlabelled                                     = false
 	DefaultAdmissionServiceName                                 = "datadog-admission-controller"
+	defaultAdmissionControllerEnabled                           = false
+
+	// Liveness probe default config
+	defaultLivenessProbeInitialDelaySeconds int32 = 15
+	defaultLivenessProbePeriodSeconds       int32 = 15
+	defaultLivenessProbeTimeoutSeconds      int32 = 5
+	defaultLivenessProbeSuccessThreshold    int32 = 1
+	defaultLivenessProbeFailureThreshold    int32 = 6
+	defaultAgentHealthPort                  int32 = 5555
+	defaultLivenessProbeHTTPPath                  = "/live"
+
+	// Readiness probe default config
+	defaultReadinessProbeInitialDelaySeconds int32 = 15
+	defaultReadinessProbePeriodSeconds       int32 = 15
+	defaultReadinessProbeTimeoutSeconds      int32 = 5
+	defaultReadinessProbeSuccessThreshold    int32 = 1
+	defaultReadinessProbeFailureThreshold    int32 = 6
+	defaultReadinessProbeHTTPPath                  = "/ready"
 )
 
 var defaultImagePullPolicy = corev1.PullIfNotPresent
 
-// IsDefaultedDatadogAgent used to check if an DatadogAgent was already defaulted
-// returns true if yes, else false
-func IsDefaultedDatadogAgent(ad *DatadogAgent) bool {
-	if ad.Spec.Agent != nil {
-		if ad.Spec.Agent.UseExtendedDaemonset == nil {
-			return false
-		}
-		if !IsDefaultedImageConfig(&ad.Spec.Agent.Image) {
-			return false
-		}
+// DefaultDatadogAgent defaults the DatadogAgent
+func DefaultDatadogAgent(dda *DatadogAgent) *DatadogAgentStatus {
+	// instOverrideStatus contains all the defaults from the runtime.
+	// It is published in the status of the DatadogAgent
+	dso := &DatadogAgentStatus{
+		DefaultOverride: &DatadogAgentSpec{},
+	}
 
-		if !IsDefaultedDatadogAgentSpecAgentConfig(&ad.Spec.Agent.Config) {
-			return false
-		}
+	// Cluster Agent
+	dso.DefaultOverride.ClusterAgent = *DefaultDatadogAgentSpecClusterAgent(&dda.Spec.ClusterAgent)
 
-		if !IsDefaultedDatadogAgentSpecRbacConfig(&ad.Spec.Agent.Rbac) {
-			return false
-		}
+	// Agent
+	dso.DefaultOverride.Agent = *DefaultDatadogAgentSpecAgent(&dda.Spec.Agent)
 
-		if !IsDefaultedDatadogAgentSpecDatadogAgentStrategy(ad.Spec.Agent.DeploymentStrategy) {
-			return false
-		}
+	// CLC
+	dso.DefaultOverride.ClusterChecksRunner = *DefaultDatadogAgentSpecClusterChecksRunner(&dda.Spec.ClusterChecksRunner)
 
-		if !IsDefaultedDatadogAgentSpecApm(&ad.Spec.Agent.Apm) {
-			return false
-		}
+	// Features
+	dso.DefaultOverride.Features = *DefaultFeatures(&dda.Spec.Features)
 
-		if !IsDefaultedDatadogAgentSpecLog(ad.Spec.Features.LogCollection) {
-			return false
-		}
-
-		if !IsDefaultedDatadogAgentSpecProcess(&ad.Spec.Agent.Process) {
-			return false
-		}
-
-		if !IsDefaultedNetworkPolicy(&ad.Spec.Agent.NetworkPolicy) {
-			return false
+	// Creds
+	if dda.Spec.Credentials == nil {
+		dda.Spec.Credentials = &AgentCredentials{}
+	}
+	if dda.Spec.Credentials.UseSecretBackend == nil {
+		dda.Spec.Credentials.UseSecretBackend = NewBoolPointer(false)
+		dso.DefaultOverride.Credentials = &AgentCredentials{
+			UseSecretBackend: dda.Spec.Credentials.UseSecretBackend,
 		}
 	}
 
-	if !IsDefaultedOrchestratorExplorer(ad.Spec.Features.OrchestratorExplorer) {
-		return false
-	}
-	if !IsDefaultedKubeStateMetricsCore(ad.Spec.Features.KubeStateMetricsCore) {
-		return false
-	}
-	if !IsDefaultedPrometheusScrape(ad.Spec.Features.PrometheusScrape) {
-		return false
-	}
+	// Override spec given featureset
+	FeatureOverride(&dda.Spec, dso.DefaultOverride)
 
-	if ad.Spec.ClusterAgent != nil {
-		if !IsDefaultedImageConfig(&ad.Spec.ClusterAgent.Image) {
-			return false
-		}
-
-		if !IsDefaultedDatadogAgentSpecClusterAgentConfig(&ad.Spec.ClusterAgent.Config) {
-			return false
-		}
-
-		if !IsDefaultedDatadogAgentSpecRbacConfig(&ad.Spec.ClusterAgent.Rbac) {
-			return false
-		}
-
-		if !IsDefaultedNetworkPolicy(&ad.Spec.ClusterAgent.NetworkPolicy) {
-			return false
-		}
-
-		if ad.Spec.ClusterAgent.Replicas == nil {
-			return false
-		}
-
-		if BoolValue(ad.Spec.ClusterAgent.Config.ClusterChecksEnabled) && ad.Spec.ClusterChecksRunner == nil {
-			return false
-		}
-	}
-
-	if ad.Spec.ClusterChecksRunner != nil {
-		if !IsDefaultedImageConfig(&ad.Spec.ClusterChecksRunner.Image) {
-			return false
-		}
-
-		if !IsDefaultedDatadogAgentSpecClusterChecksRunnerConfig(&ad.Spec.ClusterChecksRunner.Config) {
-			return false
-		}
-
-		if !IsDefaultedNetworkPolicy(&ad.Spec.ClusterChecksRunner.NetworkPolicy) {
-			return false
-		}
-
-		if ad.Spec.ClusterChecksRunner.Replicas == nil {
-			return false
-		}
-	}
-
-	return true
+	return dso
 }
 
-// IsDefaultedImageConfig used to check if a ImageConfig was already defaulted
-// returns true if yes, else false
-func IsDefaultedImageConfig(imageConfig *ImageConfig) bool {
-	if imageConfig == nil {
-		return false
-	}
-
-	if imageConfig.Name == "" {
-		return false
-	}
-
-	if imageConfig.Tag == "" {
-		return false
-	}
-
-	if imageConfig.PullPolicy == nil {
-		return false
-	}
-
-	if imageConfig.PullSecrets == nil {
-		return false
-	}
-
-	return true
-}
-
-// IsDefaultedOrchestratorExplorer used to check if the orchestratorExplorer feature was already defaulted
-// returns true if yes, else false
-func IsDefaultedOrchestratorExplorer(orc *OrchestratorExplorerConfig) bool {
-	if orc == nil {
-		return false
-	}
-
-	if orc.Enabled == nil {
-		return false
-	}
-
-	if BoolValue(orc.Enabled) {
-		if orc.Scrubbing == nil {
-			return false
-		}
-
-		if orc.Scrubbing.Containers == nil {
-			return false
+// FeatureOverride defaults the feature section of the DatadogAgent
+// TODO surface in the status when Overrides are not possible. Security agent requires the system probe
+func FeatureOverride(dda *DatadogAgentSpec, dso *DatadogAgentSpec) {
+	if dda.Features.NetworkMonitoring != nil && BoolValue(dda.Features.NetworkMonitoring.Enabled) {
+		// If the Network monitoring Feature is enable, enable the System Probe.
+		if !BoolValue(dda.Agent.Enabled) || dda.Agent.SystemProbe != nil {
+			dda.Agent.SystemProbe.Enabled = NewBoolPointer(true)
+			dso.Agent.SystemProbe = DefaultDatadogAgentSpecAgentSystemProbe(&dda.Agent)
+			dso.Agent.SystemProbe.Enabled = dda.Agent.SystemProbe.Enabled
 		}
 	}
-
-	return true
-}
-
-// IsDefaultedKubeStateMetricsCore check if the Kubernetes State Metrics Core has the minimal config
-func IsDefaultedKubeStateMetricsCore(ksmCore *KubeStateMetricsCore) bool {
-	if ksmCore == nil {
-		return false
-	}
-
-	if ksmCore.Enabled == nil {
-		return false
-	}
-
-	return true
-}
-
-// IsDefaultedPrometheusScrape returns whether Prometheus Scrape config is defauled
-func IsDefaultedPrometheusScrape(prom *PrometheusScrapeConfig) bool {
-	if prom == nil {
-		return false
-	}
-
-	if prom.Enabled == nil {
-		return false
-	}
-
-	if prom.ServiceEndpoints == nil {
-		return false
-	}
-
-	return true
-}
-
-// IsDefaultedDatadogAgentSpecAgentConfig used to check if a NodeAgentConfig was already defaulted
-// returns true if yes, else false
-func IsDefaultedDatadogAgentSpecAgentConfig(config *NodeAgentConfig) bool {
-	if config == nil {
-		return false
-	}
-
-	if config.LogLevel == nil {
-		return false
-	}
-
-	if config.CollectEvents == nil {
-		return false
-	}
-
-	if config.LeaderElection == nil {
-		return false
-	}
-
-	if config.Resources == nil {
-		return false
-	}
-
-	if config.CriSocket == nil {
-		return false
-	}
-
-	if !IsDefaultedDogstatsConfig(config.Dogstatsd) {
-		return false
-	}
-
-	return true
-}
-
-// IsDefaultedDogstatsConfig used to check if the dogstatsd configuration is defaulted
-func IsDefaultedDogstatsConfig(dsd *DogstatsdConfig) bool {
-	if dsd == nil {
-		return false
-	}
-
-	if dsd.DogstatsdOriginDetection == nil {
-		return false
-	}
-
-	if dsd.UnixDomainSocket == nil {
-		return false
-	}
-
-	if dsd.UnixDomainSocket.HostFilepath == nil {
-		return false
-	}
-
-	return true
-}
-
-// IsDefaultedDatadogAgentSpecRbacConfig used to check if a RbacConfig is defaulted
-// returns true if yes, else false
-func IsDefaultedDatadogAgentSpecRbacConfig(rbac *RbacConfig) bool {
-	if rbac == nil {
-		return false
-	}
-
-	if rbac.Create == nil {
-		return false
-	}
-
-	return true
-}
-
-// IsDefaultedDatadogAgentSpecDatadogAgentStrategy used to check if a
-// DaemonSetDeploymentStrategy was already defaulted
-// returns true if yes, else false
-func IsDefaultedDatadogAgentSpecDatadogAgentStrategy(strategy *DaemonSetDeploymentStrategy) bool {
-	if strategy == nil {
-		return false
-	}
-
-	if strategy.UpdateStrategyType == nil {
-		return false
-	}
-
-	if strategy.RollingUpdate.MaxUnavailable == nil {
-		return false
-	}
-
-	if strategy.RollingUpdate.MaxPodSchedulerFailure == nil {
-		return false
-	}
-
-	if strategy.RollingUpdate.MaxParallelPodCreation == nil {
-		return false
-	}
-
-	if strategy.RollingUpdate.SlowStartIntervalDuration == nil {
-		return false
-	}
-
-	if strategy.RollingUpdate.SlowStartAdditiveIncrease == nil {
-		return false
-	}
-
-	if strategy.Canary == nil {
-		return false
-	}
-
-	if strategy.Canary.Replicas == nil {
-		return false
-	}
-
-	if strategy.Canary.Duration == nil {
-		return false
-	}
-
-	return true
-}
-
-// IsDefaultedDatadogAgentSpecApm used to check if an APMSpec was already defaulted
-// returns true if yes, else false
-func IsDefaultedDatadogAgentSpecApm(apm *APMSpec) bool {
-	if apm == nil {
-		return false
-	}
-
-	if apm.Enabled == nil {
-		return false
-	}
-
-	if apm.UnixDomainSocket == nil {
-		return false
-	}
-
-	if apm.UnixDomainSocket.Enabled == nil {
-		return false
-	}
-
-	if apm.UnixDomainSocket.HostFilepath == nil {
-		return false
-	}
-
-	return true
-}
-
-// IsDefaultedDatadogAgentSpecLog used to check if an LogCollectionConfig was already defaulted
-// returns true if yes, else false
-func IsDefaultedDatadogAgentSpecLog(log *LogCollectionConfig) bool {
-	if log == nil {
-		return false
-	}
-
-	if log.Enabled == nil {
-		return false
-	}
-
-	if log.LogsConfigContainerCollectAll == nil {
-		return false
-	}
-
-	if log.ContainerCollectUsingFiles == nil {
-		return false
-	}
-
-	if log.ContainerLogsPath == nil {
-		return false
-	}
-
-	if log.PodLogsPath == nil {
-		return false
-	}
-
-	if log.TempStoragePath == nil {
-		return false
-	}
-
-	if log.OpenFilesLimit == nil {
-		return false
-	}
-
-	return true
-}
-
-// IsDefaultedDatadogAgentSpecProcess used to check if an ProcessSpec was already defaulted
-// returns true if yes, else false
-func IsDefaultedDatadogAgentSpecProcess(process *ProcessSpec) bool {
-	if process == nil {
-		return false
-	}
-
-	if process.Enabled == nil {
-		return false
-	}
-
-	if process.ProcessCollectionEnabled == nil {
-		return false
-	}
-
-	return true
-}
-
-// IsDefaultedNetworkPolicy used to check if a NetworkPolicySpec was already
-// defaulted. Returns true if yes, or false otherwise
-func IsDefaultedNetworkPolicy(policy *NetworkPolicySpec) bool {
-	if policy == nil {
-		return false
-	}
-
-	if policy.Create == nil {
-		return false
-	}
-
-	return true
-}
-
-// IsDefaultedDatadogAgentSpecClusterAgentConfig used to check if
-// a ClusterAgentConfig was already defaulted
-// returns true if yes, else false
-func IsDefaultedDatadogAgentSpecClusterAgentConfig(config *ClusterAgentConfig) bool {
-	return config != nil
-}
-
-// IsDefaultedDatadogAgentSpecClusterChecksRunnerConfig used to check if
-// a ClusterChecksRunnerConfig was already defaulted
-// returns true if yes, else false
-func IsDefaultedDatadogAgentSpecClusterChecksRunnerConfig(config *ClusterChecksRunnerConfig) bool {
-	return config != nil
-}
-
-// DefaultDatadogAgent used to default an DatadogAgent
-// return the defaulted DatadogAgent
-func DefaultDatadogAgent(ad *DatadogAgent) *DatadogAgent {
-	defaultedAD := ad.DeepCopy()
-	if defaultedAD.Spec.Agent != nil {
-		defaultedAD.Spec.Agent = DefaultDatadogAgentSpecAgent(defaultedAD.Spec.Agent)
-	}
-
-	if defaultedAD.Spec.ClusterAgent != nil {
-		defaultedAD.Spec.ClusterAgent = DefaultDatadogAgentSpecClusterAgent(defaultedAD.Spec.ClusterAgent)
-		if BoolValue(defaultedAD.Spec.ClusterAgent.Config.ClusterChecksEnabled) && ad.Spec.ClusterChecksRunner == nil {
-			defaultedAD.Spec.ClusterChecksRunner = &DatadogAgentSpecClusterChecksRunnerSpec{}
+	if dda.Features.OrchestratorExplorer != nil && BoolValue(dda.Features.OrchestratorExplorer.Enabled) {
+		if !BoolValue(dda.Agent.Enabled) || dda.Agent.Process != nil {
+			dda.Agent.Process.Enabled = NewBoolPointer(true)
+			dso.Agent.Process = DefaultDatadogAgentSpecAgentProcess(&dda.Agent)
+			dso.Agent.Process.Enabled = dda.Agent.Process.Enabled
 		}
 	}
-
-	// TODO defaulting values has to be consistent across all fields of the DatadogAgent
-	DefaultFeatures(&defaultedAD.Spec.Features)
-
-	if defaultedAD.Spec.ClusterChecksRunner != nil {
-		defaultedAD.Spec.ClusterChecksRunner = DefaultDatadogAgentSpecClusterChecksRunner(defaultedAD.Spec.ClusterChecksRunner)
-	}
-
-	return defaultedAD
 }
 
 // DefaultDatadogAgentSpecAgent used to default an DatadogAgentSpecAgentSpec
 // return the defaulted DatadogAgentSpecAgentSpec
 func DefaultDatadogAgentSpecAgent(agent *DatadogAgentSpecAgentSpec) *DatadogAgentSpecAgentSpec {
+	// If the Agent is not specified in the spec, disable it.
+	if IsEqualStruct(*agent, DatadogAgentSpecAgentSpec{}) {
+		agent.Enabled = NewBoolPointer(false)
+		return agent
+	}
+
+	if agent.Enabled == nil {
+		agent.Enabled = NewBoolPointer(true)
+	}
+
+	agentOverride := &DatadogAgentSpecAgentSpec{Enabled: agent.Enabled}
 	if agent.UseExtendedDaemonset == nil {
 		agent.UseExtendedDaemonset = NewBoolPointer(false)
+		agentOverride.UseExtendedDaemonset = agent.UseExtendedDaemonset
 	}
 
-	DefaultDatadogImage(&agent.Image, defaultAgentImageName, defaultAgentImageTag)
-	DefaultDatadogAgentSpecAgentConfig(agent)
-	DefaultDatadogAgentSpecRbacConfig(&agent.Rbac)
-	agent.DeploymentStrategy = DefaultDatadogAgentSpecDatadogAgentStrategy(agent.DeploymentStrategy)
-	DefaultDatadogAgentSpecAgentApm(&agent.Apm)
-	DefaultDatadogAgentSpecAgentProcess(&agent.Process)
-	DefaultNetworkPolicy(&agent.NetworkPolicy)
+	if img := DefaultDatadogAgentSpecAgentImage(agent, defaultAgentImageName, defaultAgentImageTag); !IsEqualStruct(*img, ImageConfig{}) {
+		agentOverride.Image = img
+	}
 
-	return agent
+	if cfg := DefaultDatadogAgentSpecAgentConfig(agent); !IsEqualStruct(*cfg, NodeAgentConfig{}) {
+		agentOverride.Config = cfg
+	}
+
+	if rbac := DefaultDatadogAgentSpecRbacConfig(agent); !IsEqualStruct(*rbac, RbacConfig{}) {
+		agentOverride.Rbac = rbac
+	}
+
+	deployStrat := DefaultDatadogAgentSpecDatadogAgentStrategy(agent)
+	if !IsEqualStruct(*deployStrat, DaemonSetDeploymentStrategy{}) {
+		agentOverride.DeploymentStrategy = deployStrat
+	}
+
+	if apm := DefaultDatadogAgentSpecAgentApm(agent); !IsEqualStruct(*apm, APMSpec{}) {
+		agentOverride.Apm = apm
+	}
+
+	if sysProb := DefaultDatadogAgentSpecAgentSystemProbe(agent); !IsEqualStruct(*sysProb, SystemProbeSpec{}) {
+		agentOverride.SystemProbe = sysProb
+	}
+
+	if sec := DefaultDatadogAgentSpecAgentSecurity(agent); !IsEqualStruct(*sec, SecuritySpec{}) {
+		agentOverride.Security = sec
+	}
+
+	if proc := DefaultDatadogAgentSpecAgentProcess(agent); !IsEqualStruct(*proc, ProcessSpec{}) {
+		agentOverride.Process = proc
+	}
+
+	if net := DefaultAgentNetworkPolicy(agent); !IsEqualStruct(*net, NetworkPolicySpec{}) {
+		agentOverride.NetworkPolicy = net
+	}
+
+	return agentOverride
 }
 
-// DefaultDatadogImage used to default a ImageConfig for the Agent, Cluster Agent and the Cluster Check Runner.
+// DefaultDatadogAgentSpecAgentImage used to default a ImageConfig for the Agent, Cluster Agent and the Cluster Check Runner.
 // Returns the defaulted ImageConfig.
-func DefaultDatadogImage(image *ImageConfig, name, tag string) *ImageConfig {
-	if image == nil {
-		image = &ImageConfig{}
+func DefaultDatadogAgentSpecAgentImage(agent *DatadogAgentSpecAgentSpec, name, tag string) *ImageConfig {
+	imgOverride := &ImageConfig{}
+	if agent.Image == nil {
+		agent.Image = &ImageConfig{}
 	}
 
-	if image.Name == "" {
-		image.Name = name
+	if agent.Image.Name == "" {
+		agent.Image.Name = name
+		imgOverride.Name = agent.Image.Name
 	}
 
-	if image.Tag == "" {
-		image.Tag = tag
+	if agent.Image.Tag == "" {
+		agent.Image.Tag = tag
+		imgOverride.Tag = agent.Image.Tag
 	}
 
-	if image.PullPolicy == nil {
-		image.PullPolicy = &defaultImagePullPolicy
+	if agent.Image.PullPolicy == nil {
+		agent.Image.PullPolicy = &defaultImagePullPolicy
+		imgOverride.PullPolicy = agent.Image.PullPolicy
 	}
 
-	if image.PullSecrets == nil {
-		image.PullSecrets = &[]corev1.LocalObjectReference{}
+	if agent.Image.PullSecrets == nil {
+		agent.Image.PullSecrets = &[]corev1.LocalObjectReference{}
 	}
 
-	return image
+	return imgOverride
+}
+
+// GetDefaultLivenessProbe creates a all defaulted LivenessProbe
+func GetDefaultLivenessProbe() *corev1.Probe {
+	livenessProbe := &corev1.Probe{
+		InitialDelaySeconds: defaultLivenessProbeInitialDelaySeconds,
+		PeriodSeconds:       defaultLivenessProbePeriodSeconds,
+		TimeoutSeconds:      defaultLivenessProbeTimeoutSeconds,
+		SuccessThreshold:    defaultLivenessProbeSuccessThreshold,
+		FailureThreshold:    defaultLivenessProbeFailureThreshold,
+	}
+	livenessProbe.HTTPGet = &corev1.HTTPGetAction{
+		Path: defaultLivenessProbeHTTPPath,
+		Port: intstr.IntOrString{
+			IntVal: defaultAgentHealthPort,
+		},
+	}
+	return livenessProbe
+}
+
+// GetDefaultReadinessProbe creates a all defaulted ReadynessProbe
+func GetDefaultReadinessProbe() *corev1.Probe {
+	readinessProbe := &corev1.Probe{
+		InitialDelaySeconds: defaultReadinessProbeInitialDelaySeconds,
+		PeriodSeconds:       defaultReadinessProbePeriodSeconds,
+		TimeoutSeconds:      defaultReadinessProbeTimeoutSeconds,
+		SuccessThreshold:    defaultReadinessProbeSuccessThreshold,
+		FailureThreshold:    defaultReadinessProbeFailureThreshold,
+	}
+	readinessProbe.HTTPGet = &corev1.HTTPGetAction{
+		Path: defaultReadinessProbeHTTPPath,
+		Port: intstr.IntOrString{
+			IntVal: defaultAgentHealthPort,
+		},
+	}
+	return readinessProbe
 }
 
 // DefaultDatadogAgentSpecAgentConfig used to default a NodeAgentConfig
 // return the defaulted NodeAgentConfig
 func DefaultDatadogAgentSpecAgentConfig(agent *DatadogAgentSpecAgentSpec) *NodeAgentConfig {
+	configOverride := &NodeAgentConfig{}
+
+	if agent.Config == nil {
+		agent.Config = &NodeAgentConfig{}
+	}
+
 	if agent.Config.LogLevel == nil {
-		agent.Config.LogLevel = NewStringPointer(DefaultLogLevel)
+		agent.Config.LogLevel = NewStringPointer(defaultLogLevel)
+		configOverride.LogLevel = agent.Config.LogLevel
 	}
 
 	if agent.Config.CollectEvents == nil {
 		agent.Config.CollectEvents = NewBoolPointer(defaultCollectEvents)
+		configOverride.CollectEvents = agent.Config.CollectEvents
 	}
 
 	if agent.Config.LeaderElection == nil {
 		agent.Config.LeaderElection = NewBoolPointer(defaultLeaderElection)
+		configOverride.LeaderElection = agent.Config.LeaderElection
+	}
+
+	// Don't default Docker/CRI paths with Agent >= 7.27.0
+	// Let Env AD do the work for us
+	// Image is defaulted prior to this function.
+	agentTag := strings.TrimSuffix(utils.GetTagFromImageName(agent.Image.Name), "-jmx")
+	if !(agentTag == "latest" || utils.IsAboveMinVersion(agentTag, "7.27.0") || utils.IsAboveMinVersion(agentTag, "6.27.0")) {
+		if socketOverride := DefaultContainerSocket(agent.Config); !IsEqualStruct(socketOverride, CRISocketConfig{}) {
+			configOverride.CriSocket = socketOverride
+		}
+	}
+
+	if dsdOverride := DefaultConfigDogstatsd(agent.Config); !IsEqualStruct(dsdOverride, DogstatsdConfig{}) {
+		configOverride.Dogstatsd = dsdOverride
 	}
 
 	if agent.Config.Resources == nil {
 		agent.Config.Resources = &corev1.ResourceRequirements{}
 	}
-
-	if agent.Config.CriSocket == nil {
-		agent.Config.CriSocket = &CRISocketConfig{}
-	}
-
-	// Don't default Docker/CRI paths with Agent >= 7.27.0
-	// Let Env AD do the work for us
-	agentTag := strings.TrimSuffix(utils.GetTagFromImageName(agent.Image.Name), "-jmx")
-	if !(agentTag == "latest" || utils.IsAboveMinVersion(agentTag, "7.27.0") || utils.IsAboveMinVersion(agentTag, "6.27.0")) {
-		if agent.Config.CriSocket.DockerSocketPath == nil && agent.Config.CriSocket.CriSocketPath == nil {
-			agent.Config.CriSocket.DockerSocketPath = NewStringPointer(defaultDockerSocketPath)
-		}
-	}
-
-	DefaultConfigDogstatsd(&agent.Config)
 
 	if agent.Config.PodLabelsAsTags == nil {
 		agent.Config.PodLabelsAsTags = map[string]string{}
@@ -590,375 +336,851 @@ func DefaultDatadogAgentSpecAgentConfig(agent *DatadogAgentSpecAgentSpec) *NodeA
 		agent.Config.Tags = []string{}
 	}
 
-	return &agent.Config
+	if agent.Config.LivenessProbe == nil {
+		// TODO make liveness probe's fields more configurable
+		agent.Config.LivenessProbe = GetDefaultLivenessProbe()
+		configOverride.LivenessProbe = agent.Config.LivenessProbe
+	}
+
+	if agent.Config.ReadinessProbe == nil {
+		// TODO make readiness probe's fields more configurable
+		agent.Config.ReadinessProbe = GetDefaultReadinessProbe()
+		configOverride.ReadinessProbe = agent.Config.ReadinessProbe
+	}
+
+	if agent.Config.HealthPort == nil {
+		agent.Config.HealthPort = NewInt32Pointer(defaultAgentHealthPort)
+		configOverride.HealthPort = agent.Config.HealthPort
+	}
+
+	return configOverride
+}
+
+// DefaultContainerSocket defaults the socket configuration for the Datadog Agent
+func DefaultContainerSocket(config *NodeAgentConfig) *CRISocketConfig {
+	if config.CriSocket == nil {
+		config.CriSocket = &CRISocketConfig{
+			DockerSocketPath: NewStringPointer(defaultDockerSocketPath),
+		}
+		return config.CriSocket
+	}
+	socketOverride := &CRISocketConfig{}
+	if config.CriSocket.DockerSocketPath == nil {
+		config.CriSocket.DockerSocketPath = NewStringPointer(defaultDockerSocketPath)
+		socketOverride.DockerSocketPath = config.CriSocket.DockerSocketPath
+	}
+	return socketOverride
 }
 
 // DefaultConfigDogstatsd used to default Dogstatsd config in NodeAgentConfig
-func DefaultConfigDogstatsd(config *NodeAgentConfig) {
+func DefaultConfigDogstatsd(config *NodeAgentConfig) *DogstatsdConfig {
+	dsdOverride := &DogstatsdConfig{}
 	if config.Dogstatsd == nil {
 		config.Dogstatsd = &DogstatsdConfig{}
 	}
 
 	if config.Dogstatsd.DogstatsdOriginDetection == nil {
 		config.Dogstatsd.DogstatsdOriginDetection = NewBoolPointer(defaultDogstatsdOriginDetection)
+		dsdOverride.DogstatsdOriginDetection = config.Dogstatsd.DogstatsdOriginDetection
 	}
 
-	config.Dogstatsd.UnixDomainSocket = DefaultConfigDogstatsdUDS(config.Dogstatsd.UnixDomainSocket)
+	if uds := DefaultConfigDogstatsdUDS(config.Dogstatsd); !IsEqualStruct(uds, DSDUnixDomainSocketSpec{}) {
+		dsdOverride.UnixDomainSocket = uds
+	}
+
+	return dsdOverride
 }
 
 // DefaultConfigDogstatsdUDS used to default DSDUnixDomainSocketSpec
 // rreturn the defaulted DSDUnixDomainSocketSpec
-func DefaultConfigDogstatsdUDS(uds *DSDUnixDomainSocketSpec) *DSDUnixDomainSocketSpec {
-	if uds == nil {
-		uds = &DSDUnixDomainSocketSpec{}
+func DefaultConfigDogstatsdUDS(dsd *DogstatsdConfig) *DSDUnixDomainSocketSpec {
+	if dsd.UnixDomainSocket == nil {
+		dsd.UnixDomainSocket = &DSDUnixDomainSocketSpec{Enabled: NewBoolPointer(defaultUseDogStatsDSocketVolume)}
+		return dsd.UnixDomainSocket
 	}
 
-	if uds.Enabled == nil {
-		uds.Enabled = NewBoolPointer(defaultUseDogStatsDSocketVolume)
+	udsOverride := &DSDUnixDomainSocketSpec{}
+	if dsd.UnixDomainSocket.Enabled == nil {
+		dsd.UnixDomainSocket.Enabled = NewBoolPointer(defaultUseDogStatsDSocketVolume)
+		udsOverride.Enabled = dsd.UnixDomainSocket.Enabled
 	}
 
-	if uds.HostFilepath == nil {
+	if !BoolValue(dsd.UnixDomainSocket.Enabled) {
+		return udsOverride
+	}
+
+	if dsd.UnixDomainSocket.HostFilepath == nil {
 		socketPath := path.Join(defaultHostDogstatsdSocketPath, defaultHostDogstatsdSocketName)
-		uds.HostFilepath = &socketPath
+		dsd.UnixDomainSocket.HostFilepath = &socketPath
+		udsOverride.HostFilepath = dsd.UnixDomainSocket.HostFilepath
 	}
-
-	return uds
+	return udsOverride
 }
 
-// DefaultDatadogAgentSpecRbacConfig used to default a RbacConfig
-// return the defaulted RbacConfig
-func DefaultDatadogAgentSpecRbacConfig(rbac *RbacConfig) *RbacConfig {
+// DefaultRbacConfig defaults the RBAC section of the DatadogAgent
+func DefaultRbacConfig(rbac *RbacConfig) *RbacConfig {
+	rbacOverride := &RbacConfig{}
 	if rbac == nil {
 		rbac = &RbacConfig{}
 	}
 
 	if rbac.Create == nil {
 		rbac.Create = NewBoolPointer(defaultRbacCreate)
+		rbacOverride.Create = rbac.Create
 	}
 
-	return rbac
+	return rbacOverride
+}
+
+// DefaultDatadogClusterCheckRunnerSpecRbacConfig used to default a RbacConfig of the Cluster Check Runner
+func DefaultDatadogClusterCheckRunnerSpecRbacConfig(clc *DatadogAgentSpecClusterChecksRunnerSpec) *RbacConfig {
+	if clc.Rbac == nil {
+		// prevent passing an empty reference
+		clc.Rbac = &RbacConfig{}
+	}
+	return DefaultRbacConfig(clc.Rbac)
+}
+
+// DefaultDatadogClusterAgentSpecRbacConfig used to default a RbacConfig of the Cluster Agent
+func DefaultDatadogClusterAgentSpecRbacConfig(dca *DatadogAgentSpecClusterAgentSpec) *RbacConfig {
+	if dca.Rbac == nil {
+		// prevent passing an empty reference
+		dca.Rbac = &RbacConfig{}
+	}
+	return DefaultRbacConfig(dca.Rbac)
+}
+
+// DefaultDatadogAgentSpecRbacConfig used to default a RbacConfig
+// return the defaulted RbacConfig
+func DefaultDatadogAgentSpecRbacConfig(agent *DatadogAgentSpecAgentSpec) *RbacConfig {
+	if agent.Rbac == nil {
+		// prevent passing an empty reference
+		agent.Rbac = &RbacConfig{}
+	}
+	return DefaultRbacConfig(agent.Rbac)
 }
 
 // DefaultDatadogAgentSpecDatadogAgentStrategy used to default a DaemonSetDeploymentStrategy
 // return the defaulted DaemonSetDeploymentStrategy
-func DefaultDatadogAgentSpecDatadogAgentStrategy(strategy *DaemonSetDeploymentStrategy) *DaemonSetDeploymentStrategy {
-	if strategy == nil {
-		strategy = &DaemonSetDeploymentStrategy{}
+func DefaultDatadogAgentSpecDatadogAgentStrategy(agent *DatadogAgentSpecAgentSpec) *DaemonSetDeploymentStrategy {
+	strategyOverride := &DaemonSetDeploymentStrategy{}
+	if agent.DeploymentStrategy == nil {
+		agent.DeploymentStrategy = &DaemonSetDeploymentStrategy{}
 	}
 
-	if strategy.UpdateStrategyType == nil {
+	if agent.DeploymentStrategy.UpdateStrategyType == nil {
 		updateStrategy := defaultUpdateStrategy
-		strategy.UpdateStrategyType = &updateStrategy
+		agent.DeploymentStrategy.UpdateStrategyType = &updateStrategy
+		strategyOverride.UpdateStrategyType = agent.DeploymentStrategy.UpdateStrategyType
 	}
 
-	if strategy.RollingUpdate.MaxUnavailable == nil {
-		strategy.RollingUpdate.MaxUnavailable = &intstr.IntOrString{
+	if agent.DeploymentStrategy.RollingUpdate.MaxUnavailable == nil {
+		agent.DeploymentStrategy.RollingUpdate.MaxUnavailable = &intstr.IntOrString{
 			Type:   intstr.String,
 			StrVal: defaultRollingUpdateMaxUnavailable,
 		}
+		strategyOverride.RollingUpdate.MaxUnavailable = agent.DeploymentStrategy.RollingUpdate.MaxUnavailable
 	}
 
-	if strategy.RollingUpdate.MaxPodSchedulerFailure == nil {
-		strategy.RollingUpdate.MaxPodSchedulerFailure = &intstr.IntOrString{
+	if agent.DeploymentStrategy.RollingUpdate.MaxPodSchedulerFailure == nil {
+		agent.DeploymentStrategy.RollingUpdate.MaxPodSchedulerFailure = &intstr.IntOrString{
 			Type:   intstr.String,
 			StrVal: defaultRollingUpdateMaxPodSchedulerFailure,
 		}
+		strategyOverride.RollingUpdate.MaxPodSchedulerFailure = agent.DeploymentStrategy.RollingUpdate.MaxPodSchedulerFailure
 	}
 
-	if strategy.RollingUpdate.MaxParallelPodCreation == nil {
-		strategy.RollingUpdate.MaxParallelPodCreation = NewInt32Pointer(defaultRollingUpdateMaxParallelPodCreation)
+	if agent.DeploymentStrategy.RollingUpdate.MaxParallelPodCreation == nil {
+		agent.DeploymentStrategy.RollingUpdate.MaxParallelPodCreation = NewInt32Pointer(defaultRollingUpdateMaxParallelPodCreation)
+		strategyOverride.RollingUpdate.MaxParallelPodCreation = agent.DeploymentStrategy.RollingUpdate.MaxParallelPodCreation
 	}
 
-	if strategy.RollingUpdate.SlowStartIntervalDuration == nil {
-		strategy.RollingUpdate.SlowStartIntervalDuration = &metav1.Duration{
+	if agent.DeploymentStrategy.RollingUpdate.SlowStartIntervalDuration == nil {
+		agent.DeploymentStrategy.RollingUpdate.SlowStartIntervalDuration = &metav1.Duration{
 			Duration: defaultRollingUpdateSlowStartIntervalDuration,
 		}
+		strategyOverride.RollingUpdate.SlowStartIntervalDuration = agent.DeploymentStrategy.RollingUpdate.SlowStartIntervalDuration
 	}
 
-	if strategy.RollingUpdate.SlowStartAdditiveIncrease == nil {
-		strategy.RollingUpdate.SlowStartAdditiveIncrease = &intstr.IntOrString{
+	if agent.DeploymentStrategy.RollingUpdate.SlowStartAdditiveIncrease == nil {
+		agent.DeploymentStrategy.RollingUpdate.SlowStartAdditiveIncrease = &intstr.IntOrString{
 			Type:   intstr.String,
 			StrVal: defaultRollingUpdateSlowStartAdditiveIncrease,
 		}
+		strategyOverride.RollingUpdate.SlowStartAdditiveIncrease = agent.DeploymentStrategy.RollingUpdate.SlowStartAdditiveIncrease
 	}
 
-	if strategy.Canary == nil {
-		strategy.Canary = &edsdatadoghqv1alpha1.ExtendedDaemonSetSpecStrategyCanary{}
+	if agent.DeploymentStrategy.Canary == nil {
+		agent.DeploymentStrategy.Canary = edsdatadoghqv1alpha1.DefaultExtendedDaemonSetSpecStrategyCanary(&edsdatadoghqv1alpha1.ExtendedDaemonSetSpecStrategyCanary{})
+		strategyOverride.Canary = agent.DeploymentStrategy.Canary
 	}
 
-	if strategy.Canary.Replicas == nil {
-		strategy.Canary.Replicas = &intstr.IntOrString{
-			IntVal: defaultAgentCanaryReplicas,
-		}
-	}
-
-	if strategy.Canary.Duration == nil {
-		strategy.Canary.Duration = &metav1.Duration{
-			Duration: defaultAgentCanaryDuratrion,
-		}
-	}
-
-	if strategy.ReconcileFrequency == nil {
-		strategy.ReconcileFrequency = &metav1.Duration{
+	if agent.DeploymentStrategy.ReconcileFrequency == nil {
+		agent.DeploymentStrategy.ReconcileFrequency = &metav1.Duration{
 			Duration: defaultReconcileFrequency,
 		}
+		strategyOverride.ReconcileFrequency = agent.DeploymentStrategy.ReconcileFrequency
 	}
 
-	return strategy
+	return strategyOverride
 }
 
 // DefaultDatadogAgentSpecAgentApm used to default an APMSpec
 // return the defaulted APMSpec
-func DefaultDatadogAgentSpecAgentApm(apm *APMSpec) *APMSpec {
-	if apm == nil {
-		apm = &APMSpec{}
+func DefaultDatadogAgentSpecAgentApm(agent *DatadogAgentSpecAgentSpec) *APMSpec {
+	if agent.Apm == nil {
+		agent.Apm = &APMSpec{Enabled: NewBoolPointer(defaultApmEnabled)}
+		return agent.Apm
 	}
 
-	if apm.Enabled == nil {
-		apm.Enabled = NewBoolPointer(defaultApmEnabled)
+	apmOverride := &APMSpec{}
+	if agent.Apm.Enabled == nil {
+		agent.Apm.Enabled = NewBoolPointer(defaultApmEnabled)
+		apmOverride.Enabled = agent.Apm.Enabled
 	}
 
-	apm.UnixDomainSocket = DefaultDatadogAgentSpecAgentApmUDS(apm.UnixDomainSocket)
+	if !BoolValue(agent.Apm.Enabled) {
+		return apmOverride
+	}
 
-	return apm
+	if agent.Apm.HostPort == nil {
+		agent.Apm.HostPort = NewInt32Pointer(defaultApmHostPort)
+		apmOverride.HostPort = agent.Apm.HostPort
+	}
+
+	if agent.Apm.LivenessProbe == nil {
+		agent.Apm.LivenessProbe = getDefaultAPMAgentLivenessProbe()
+		apmOverride.LivenessProbe = agent.Apm.LivenessProbe
+	}
+
+	if udsOverride := DefaultDatadogAgentSpecAgentApmUDS(agent.Apm); !IsEqualStruct(udsOverride, APMUnixDomainSocketSpec{}) {
+		apmOverride.UnixDomainSocket = udsOverride
+	}
+
+	return apmOverride
+}
+
+func getDefaultAPMAgentLivenessProbe() *corev1.Probe {
+	livenessProbe := &corev1.Probe{
+		InitialDelaySeconds: defaultLivenessProbeInitialDelaySeconds,
+		PeriodSeconds:       defaultLivenessProbePeriodSeconds,
+		TimeoutSeconds:      defaultLivenessProbeTimeoutSeconds,
+	}
+	livenessProbe.TCPSocket = &corev1.TCPSocketAction{
+		Port: intstr.IntOrString{
+			IntVal: defaultApmHostPort,
+		},
+	}
+	return livenessProbe
 }
 
 // DefaultDatadogAgentSpecAgentApmUDS used to default APMUnixDomainSocketSpec
 // rreturn the defaulted APMUnixDomainSocketSpec
-func DefaultDatadogAgentSpecAgentApmUDS(uds *APMUnixDomainSocketSpec) *APMUnixDomainSocketSpec {
-	if uds == nil {
-		uds = &APMUnixDomainSocketSpec{}
+func DefaultDatadogAgentSpecAgentApmUDS(apm *APMSpec) *APMUnixDomainSocketSpec {
+	if apm.UnixDomainSocket == nil {
+		apm.UnixDomainSocket = &APMUnixDomainSocketSpec{Enabled: NewBoolPointer(false)}
+		return apm.UnixDomainSocket
 	}
 
-	if uds.Enabled == nil {
-		uds.Enabled = NewBoolPointer(false)
+	udsOverride := &APMUnixDomainSocketSpec{}
+	if apm.UnixDomainSocket.Enabled == nil {
+		apm.UnixDomainSocket.Enabled = NewBoolPointer(false)
+		udsOverride.Enabled = apm.UnixDomainSocket.Enabled
 	}
 
-	if uds.HostFilepath == nil {
+	if !BoolValue(apm.UnixDomainSocket.Enabled) {
+		return udsOverride
+	}
+
+	if apm.UnixDomainSocket.HostFilepath == nil {
 		socketPath := path.Join(defaultHostApmSocketPath, defaultHostApmSocketName)
-		uds.HostFilepath = &socketPath
+		apm.UnixDomainSocket.HostFilepath = &socketPath
+		udsOverride.HostFilepath = apm.UnixDomainSocket.HostFilepath
 	}
 
-	return uds
+	return udsOverride
 }
 
-// DefaultDatadogAgentSpecLogCollection used to default an LogCollectionConfig
+// DefaultDatadogAgentSpecAgentSystemProbe defaults the System Probe
+// This method can be re-run as part of the FeatureOverride
+func DefaultDatadogAgentSpecAgentSystemProbe(agent *DatadogAgentSpecAgentSpec) *SystemProbeSpec {
+	if agent.SystemProbe == nil {
+		agent.SystemProbe = &SystemProbeSpec{Enabled: NewBoolPointer(defaultSystemProbeEnabled)}
+		return agent.SystemProbe
+	}
+
+	sysOverride := &SystemProbeSpec{}
+	if agent.SystemProbe.Enabled == nil {
+		agent.SystemProbe.Enabled = NewBoolPointer(defaultSystemProbeEnabled)
+		sysOverride.Enabled = agent.SystemProbe.Enabled
+	}
+
+	if !BoolValue(agent.SystemProbe.Enabled) {
+		return sysOverride
+	}
+
+	if agent.SystemProbe.EnableOOMKill == nil {
+		agent.SystemProbe.EnableOOMKill = NewBoolPointer(defaultSystemProbeOOMKillEnabled)
+		sysOverride.EnableOOMKill = agent.SystemProbe.EnableOOMKill
+	}
+
+	if agent.SystemProbe.EnableTCPQueueLength == nil {
+		agent.SystemProbe.EnableTCPQueueLength = NewBoolPointer(defaultSystemProbeTCPQueueLengthEnabled)
+		sysOverride.EnableTCPQueueLength = agent.SystemProbe.EnableTCPQueueLength
+	}
+
+	if agent.SystemProbe.BPFDebugEnabled == nil {
+		agent.SystemProbe.BPFDebugEnabled = NewBoolPointer(defaultSystemProbeBPFDebugEnabled)
+		sysOverride.BPFDebugEnabled = agent.SystemProbe.BPFDebugEnabled
+	}
+
+	if agent.SystemProbe.CollectDNSStats == nil {
+		agent.SystemProbe.CollectDNSStats = NewBoolPointer(defaultSystemProbeCollectDNSStats)
+		sysOverride.CollectDNSStats = agent.SystemProbe.CollectDNSStats
+	}
+
+	if agent.SystemProbe.ConntrackEnabled == nil {
+		agent.SystemProbe.ConntrackEnabled = NewBoolPointer(defaultSystemProbeConntrackEnabled)
+		sysOverride.ConntrackEnabled = agent.SystemProbe.ConntrackEnabled
+	}
+
+	if agent.SystemProbe.SecCompRootPath == "" {
+		agent.SystemProbe.SecCompRootPath = defaultSystemProbeSecCompRootPath
+		sysOverride.SecCompRootPath = agent.SystemProbe.SecCompRootPath
+	}
+
+	if agent.SystemProbe.AppArmorProfileName == "" {
+		agent.SystemProbe.AppArmorProfileName = defaultAppArmorProfileName
+		sysOverride.AppArmorProfileName = agent.SystemProbe.AppArmorProfileName
+	}
+
+	if agent.SystemProbe.SecCompProfileName == "" {
+		agent.SystemProbe.SecCompProfileName = DefaultSeccompProfileName
+		sysOverride.SecCompProfileName = agent.SystemProbe.SecCompProfileName
+	}
+	return sysOverride
+}
+
+// DefaultDatadogAgentSpecAgentSecurity defaults the Security Agent in the DatadogAgentSpec
+func DefaultDatadogAgentSpecAgentSecurity(agent *DatadogAgentSpecAgentSpec) *SecuritySpec {
+	secOverride := &SecuritySpec{}
+
+	if agent.Security == nil {
+		agent.Security = &SecuritySpec{}
+	}
+
+	if agent.Security.Compliance.Enabled == nil {
+		agent.Security.Compliance.Enabled = NewBoolPointer(defaultSecurityComplianceEnabled)
+		secOverride.Compliance.Enabled = agent.Security.Compliance.Enabled
+	}
+
+	if agent.Security.Runtime.Enabled == nil {
+		agent.Security.Runtime.Enabled = NewBoolPointer(defaultSecurityRuntimeEnabled)
+		secOverride.Runtime.Enabled = agent.Security.Runtime.Enabled
+	}
+
+	if agent.Security.Runtime.SyscallMonitor == nil {
+		agent.Security.Runtime.SyscallMonitor = &SyscallMonitorSpec{}
+		secOverride.Runtime.SyscallMonitor = agent.Security.Runtime.SyscallMonitor
+	}
+
+	if agent.Security.Runtime.SyscallMonitor.Enabled == nil {
+		agent.Security.Runtime.SyscallMonitor.Enabled = NewBoolPointer(defaultSecuritySyscallMonitorEnabled)
+		secOverride.Runtime.SyscallMonitor.Enabled = agent.Security.Runtime.SyscallMonitor.Enabled
+	}
+
+	return secOverride
+}
+
+// DefaultDatadogFeatureLogCollection used to default an LogCollectionConfig
 // return the defaulted LogCollectionConfig
-func DefaultDatadogAgentSpecLogCollection(log *LogCollectionConfig) *LogCollectionConfig {
-	if log == nil {
-		log = &LogCollectionConfig{}
+func DefaultDatadogFeatureLogCollection(ft *DatadogFeatures) *LogCollectionConfig {
+	if ft.LogCollection == nil {
+		ft.LogCollection = &LogCollectionConfig{Enabled: NewBoolPointer(defaultLogEnabled)}
+		return ft.LogCollection
 	}
 
-	if log.Enabled == nil {
-		log.Enabled = NewBoolPointer(defaultLogEnabled)
+	if ft.LogCollection.Enabled == nil {
+		ft.LogCollection.Enabled = NewBoolPointer(defaultLogEnabled)
 	}
 
-	if log.LogsConfigContainerCollectAll == nil {
-		log.LogsConfigContainerCollectAll = NewBoolPointer(defaultLogsConfigContainerCollectAll)
+	logOverride := &LogCollectionConfig{Enabled: ft.LogCollection.Enabled}
+
+	if !BoolValue(ft.LogCollection.Enabled) {
+		return logOverride
 	}
 
-	if log.ContainerCollectUsingFiles == nil {
-		log.ContainerCollectUsingFiles = NewBoolPointer(defaultLogsContainerCollectUsingFiles)
+	if ft.LogCollection.LogsConfigContainerCollectAll == nil {
+		ft.LogCollection.LogsConfigContainerCollectAll = NewBoolPointer(defaultLogsConfigContainerCollectAll)
+		logOverride.LogsConfigContainerCollectAll = ft.LogCollection.LogsConfigContainerCollectAll
 	}
 
-	if log.ContainerLogsPath == nil {
-		log.ContainerLogsPath = NewStringPointer(defaultContainerLogsPath)
+	if ft.LogCollection.ContainerCollectUsingFiles == nil {
+		ft.LogCollection.ContainerCollectUsingFiles = NewBoolPointer(defaultLogsContainerCollectUsingFiles)
+		logOverride.ContainerCollectUsingFiles = ft.LogCollection.ContainerCollectUsingFiles
 	}
 
-	if log.PodLogsPath == nil {
-		log.PodLogsPath = NewStringPointer(defaultPodLogsPath)
+	if ft.LogCollection.ContainerLogsPath == nil {
+		ft.LogCollection.ContainerLogsPath = NewStringPointer(defaultContainerLogsPath)
+		logOverride.ContainerLogsPath = ft.LogCollection.ContainerLogsPath
 	}
 
-	if log.TempStoragePath == nil {
-		log.TempStoragePath = NewStringPointer(defaultLogsTempStoragePath)
+	if ft.LogCollection.PodLogsPath == nil {
+		ft.LogCollection.PodLogsPath = NewStringPointer(defaultPodLogsPath)
+		logOverride.PodLogsPath = ft.LogCollection.PodLogsPath
 	}
 
-	if log.OpenFilesLimit == nil {
-		log.OpenFilesLimit = NewInt32Pointer(defaultLogsOpenFilesLimit)
+	if ft.LogCollection.TempStoragePath == nil {
+		ft.LogCollection.TempStoragePath = NewStringPointer(defaultLogsTempStoragePath)
+		logOverride.TempStoragePath = ft.LogCollection.TempStoragePath
 	}
 
-	return log
+	if ft.LogCollection.OpenFilesLimit == nil {
+		ft.LogCollection.OpenFilesLimit = NewInt32Pointer(defaultLogsOpenFilesLimit)
+		logOverride.OpenFilesLimit = ft.LogCollection.OpenFilesLimit
+	}
+
+	return logOverride
 }
 
 // DefaultDatadogAgentSpecAgentProcess used to default an ProcessSpec
 // return the defaulted ProcessSpec
-func DefaultDatadogAgentSpecAgentProcess(process *ProcessSpec) *ProcessSpec {
-	if process == nil {
-		process = &ProcessSpec{}
+func DefaultDatadogAgentSpecAgentProcess(agent *DatadogAgentSpecAgentSpec) *ProcessSpec {
+	if agent.Process == nil {
+		agent.Process = &ProcessSpec{Enabled: NewBoolPointer(defaultProcessEnabled)}
+		return agent.Process
 	}
 
-	if process.Enabled == nil {
-		process.Enabled = NewBoolPointer(defaultProcessEnabled)
+	processOverride := &ProcessSpec{}
+
+	if agent.Process.Enabled == nil {
+		agent.Process.Enabled = NewBoolPointer(defaultProcessEnabled)
+		processOverride.Enabled = agent.Process.Enabled
 	}
 
-	if process.ProcessCollectionEnabled == nil {
-		process.ProcessCollectionEnabled = NewBoolPointer(defaultProcessCollectionEnabled)
+	if !BoolValue(agent.Process.Enabled) {
+		return processOverride
 	}
 
-	return process
+	if agent.Process.ProcessCollectionEnabled == nil {
+		agent.Process.ProcessCollectionEnabled = NewBoolPointer(defaultProcessCollectionEnabled)
+		processOverride.ProcessCollectionEnabled = agent.Process.ProcessCollectionEnabled
+	}
+
+	return processOverride
 }
 
 // DefaultFeatures used to initialized the Features' default values if necessary
 func DefaultFeatures(ft *DatadogFeatures) *DatadogFeatures {
-	if ft == nil {
-		return &DatadogFeatures{}
+	featureOverride := &DatadogFeatures{}
+
+	if orch := DefaultDatadogFeatureOrchestratorExplorer(ft); !IsEqualStruct(*orch, OrchestratorExplorerConfig{}) {
+		featureOverride.OrchestratorExplorer = orch
 	}
 
-	ft.OrchestratorExplorer = DefaultDatadogFeatureOrchestratorExplorer(ft.OrchestratorExplorer)
-	ft.KubeStateMetricsCore = DefaultDatadogFeatureKubeStateMetricsCore(ft.KubeStateMetricsCore)
-	ft.PrometheusScrape = DefaultDatadogFeaturePrometheusScrape(ft.PrometheusScrape)
-	ft.LogCollection = DefaultDatadogAgentSpecLogCollection(ft.LogCollection)
+	if ksm := DefaultDatadogFeatureKubeStateMetricsCore(ft); !IsEqualStruct(*ksm, KubeStateMetricsCore{}) {
+		featureOverride.KubeStateMetricsCore = ksm
+	}
 
-	return ft
+	if promScrape := DefaultDatadogFeaturePrometheusScrape(ft); !IsEqualStruct(*promScrape, PrometheusScrapeConfig{}) {
+		featureOverride.PrometheusScrape = promScrape
+	}
+
+	if logColl := DefaultDatadogFeatureLogCollection(ft); !IsEqualStruct(*logColl, LogCollectionConfig{}) {
+		featureOverride.LogCollection = logColl
+	}
+
+	if net := DefaultDatadogFeatureNetworkMonitoring(ft); !IsEqualStruct(*net, NetworkMonitoringConfig{}) {
+		featureOverride.NetworkMonitoring = net
+	}
+
+	return featureOverride
 }
 
 // DefaultDatadogFeatureOrchestratorExplorer used to default an OrchestratorExplorerConfig
 // return the defaulted OrchestratorExplorerConfig
-func DefaultDatadogFeatureOrchestratorExplorer(explorerConfig *OrchestratorExplorerConfig) *OrchestratorExplorerConfig {
-	if explorerConfig == nil {
-		explorerConfig = &OrchestratorExplorerConfig{}
+func DefaultDatadogFeatureOrchestratorExplorer(ft *DatadogFeatures) *OrchestratorExplorerConfig {
+	if ft.OrchestratorExplorer == nil {
+		ft.OrchestratorExplorer = &OrchestratorExplorerConfig{Enabled: NewBoolPointer(false)}
+		return ft.OrchestratorExplorer
 	}
 
-	if explorerConfig.Enabled == nil {
-		explorerConfig.Enabled = NewBoolPointer(defaultOrchestratorExplorerEnabled)
+	if ft.OrchestratorExplorer.Enabled == nil {
+		ft.OrchestratorExplorer.Enabled = NewBoolPointer(defaultOrchestratorExplorerEnabled)
 	}
 
-	if !BoolValue(explorerConfig.Enabled) {
-		return explorerConfig
+	explorerConfigOverride := &OrchestratorExplorerConfig{Enabled: ft.OrchestratorExplorer.Enabled}
+
+	if !BoolValue(ft.OrchestratorExplorer.Enabled) {
+		return explorerConfigOverride
 	}
 
-	if explorerConfig.Scrubbing == nil || explorerConfig.Scrubbing.Containers == nil {
-		explorerConfig.Scrubbing = &Scrubbing{Containers: NewBoolPointer(defaultOrchestratorExplorerContainerScrubbingEnabled)}
+	if ft.OrchestratorExplorer.Scrubbing == nil || ft.OrchestratorExplorer.Scrubbing.Containers == nil {
+		ft.OrchestratorExplorer.Scrubbing = &Scrubbing{Containers: NewBoolPointer(defaultOrchestratorExplorerContainerScrubbingEnabled)}
+		explorerConfigOverride.Scrubbing = ft.OrchestratorExplorer.Scrubbing
 	}
 
-	return explorerConfig
+	return explorerConfigOverride
 }
 
 // DefaultDatadogFeatureKubeStateMetricsCore used to default the Kubernetes State Metrics core check
 // Disabled by default with no overridden configuration.
-func DefaultDatadogFeatureKubeStateMetricsCore(ksmCore *KubeStateMetricsCore) *KubeStateMetricsCore {
-	if ksmCore == nil {
-		ksmCore = &KubeStateMetricsCore{}
+func DefaultDatadogFeatureKubeStateMetricsCore(ft *DatadogFeatures) *KubeStateMetricsCore {
+	if ft.KubeStateMetricsCore == nil {
+		ft.KubeStateMetricsCore = &KubeStateMetricsCore{Enabled: NewBoolPointer(defaultKubeStateMetricsCoreEnabled)}
+		return ft.KubeStateMetricsCore
 	}
 
-	if ksmCore.Enabled == nil {
-		ksmCore.Enabled = NewBoolPointer(defaultKubeStateMetricsCoreEnabled)
+	if ft.KubeStateMetricsCore.Enabled == nil {
+		ft.KubeStateMetricsCore.Enabled = NewBoolPointer(defaultKubeStateMetricsCoreEnabled)
 	}
 
-	return ksmCore
+	ksmCoreOverride := &KubeStateMetricsCore{Enabled: ft.KubeStateMetricsCore.Enabled}
+	return ksmCoreOverride
 }
 
 // DefaultDatadogFeaturePrometheusScrape used to default the Prometheus Scrape config
-func DefaultDatadogFeaturePrometheusScrape(prom *PrometheusScrapeConfig) *PrometheusScrapeConfig {
-	if prom == nil {
-		prom = &PrometheusScrapeConfig{}
+func DefaultDatadogFeaturePrometheusScrape(ft *DatadogFeatures) *PrometheusScrapeConfig {
+	if ft.PrometheusScrape == nil {
+		ft.PrometheusScrape = &PrometheusScrapeConfig{Enabled: NewBoolPointer(defaultPrometheusScrapeEnabled)}
+		return ft.PrometheusScrape
 	}
 
-	if prom.Enabled == nil {
-		prom.Enabled = NewBoolPointer(defaultPrometheusScrapeEnabled)
+	if ft.PrometheusScrape.Enabled == nil {
+		ft.PrometheusScrape.Enabled = NewBoolPointer(defaultPrometheusScrapeEnabled)
 	}
 
-	if prom.ServiceEndpoints == nil {
-		prom.ServiceEndpoints = NewBoolPointer(defaultPrometheusScrapeServiceEndpoints)
+	promOverride := &PrometheusScrapeConfig{Enabled: ft.PrometheusScrape.Enabled}
+
+	if !BoolValue(ft.PrometheusScrape.Enabled) {
+		return promOverride
 	}
 
-	return prom
+	if ft.PrometheusScrape.ServiceEndpoints == nil {
+		ft.PrometheusScrape.ServiceEndpoints = NewBoolPointer(defaultPrometheusScrapeServiceEndpoints)
+		promOverride.ServiceEndpoints = ft.PrometheusScrape.ServiceEndpoints
+	}
+
+	return promOverride
+}
+
+// DefaultDatadogFeatureNetworkMonitoring used to default the NetworkMonitoring config
+func DefaultDatadogFeatureNetworkMonitoring(ft *DatadogFeatures) *NetworkMonitoringConfig {
+	if ft.NetworkMonitoring == nil {
+		ft.NetworkMonitoring = &NetworkMonitoringConfig{Enabled: NewBoolPointer(false)}
+		return ft.NetworkMonitoring
+	}
+
+	if ft.NetworkMonitoring.Enabled == nil {
+		ft.NetworkMonitoring.Enabled = NewBoolPointer(false)
+	}
+
+	netOverride := &NetworkMonitoringConfig{Enabled: ft.NetworkMonitoring.Enabled}
+
+	return netOverride
 }
 
 // DefaultDatadogAgentSpecClusterAgent used to default an DatadogAgentSpecClusterAgentSpec
-// return the defaulted DatadogAgentSpecClusterAgentSpec
+// Mutate the internal DatadogAgentSpecClusterAgent throughout the method
+// return the defaulted DatadogAgentSpecClusterAgentSpec to update the status
 func DefaultDatadogAgentSpecClusterAgent(clusterAgent *DatadogAgentSpecClusterAgentSpec) *DatadogAgentSpecClusterAgentSpec {
-	DefaultDatadogImage(&clusterAgent.Image, defaultClusterAgentImageName, defaultClusterAgentImageTag)
-	DefaultDatadogAgentSpecClusterAgentConfig(&clusterAgent.Config)
-	DefaultDatadogAgentSpecRbacConfig(&clusterAgent.Rbac)
-	DefaultNetworkPolicy(&clusterAgent.NetworkPolicy)
+	if IsEqualStruct(*clusterAgent, DatadogAgentSpecClusterAgentSpec{}) {
+		clusterAgent.Enabled = NewBoolPointer(false)
+		return clusterAgent
+	}
+
+	if clusterAgent.Enabled == nil {
+		// Cluster Agent is enabled by default unless undeclared then it is set to false.
+		clusterAgent.Enabled = NewBoolPointer(true)
+	}
+
+	clusterAgentOverride := &DatadogAgentSpecClusterAgentSpec{Enabled: clusterAgent.Enabled}
+
+	if clusterAgent.Image == nil {
+		clusterAgent.Image = &ImageConfig{}
+	}
+	if img := DefaultDatadogClusterAgentImage(clusterAgent, defaultClusterAgentImageName, defaultClusterAgentImageTag); !IsEqualStruct(*img, ImageConfig{}) {
+		clusterAgentOverride.Image = img
+	}
+
+	if cfg := DefaultDatadogAgentSpecClusterAgentConfig(clusterAgent); !IsEqualStruct(cfg, ClusterAgentConfig{}) {
+		clusterAgentOverride.Config = cfg
+	}
+
+	if rbac := DefaultDatadogClusterAgentSpecRbacConfig(clusterAgent); !IsEqualStruct(rbac, RbacConfig{}) {
+		clusterAgentOverride.Rbac = rbac
+	}
+
+	if net := DefaultClusterAgentNetworkPolicy(clusterAgent); !IsEqualStruct(net, NetworkPolicySpec{}) {
+		clusterAgentOverride.NetworkPolicy = net
+	}
 
 	if clusterAgent.Replicas == nil {
 		clusterAgent.Replicas = NewInt32Pointer(defaultClusterAgentReplicas)
+		clusterAgentOverride.Replicas = clusterAgent.Replicas
 	}
 
-	return clusterAgent
+	return clusterAgentOverride
 }
 
 // DefaultDatadogAgentSpecClusterAgentConfig used to default an ClusterAgentConfig
 // return the defaulted ClusterAgentConfig
-func DefaultDatadogAgentSpecClusterAgentConfig(config *ClusterAgentConfig) *ClusterAgentConfig {
-	if config == nil {
-		config = &ClusterAgentConfig{}
+func DefaultDatadogAgentSpecClusterAgentConfig(dca *DatadogAgentSpecClusterAgentSpec) *ClusterAgentConfig {
+	configOverride := &ClusterAgentConfig{}
+
+	if dca.Config == nil {
+		dca.Config = &ClusterAgentConfig{}
 	}
 
-	if config.ExternalMetrics != nil {
-		if config.ExternalMetrics.Port == nil {
-			config.ExternalMetrics.Port = NewInt32Pointer(defaultMetricsProviderPort)
-		}
+	if dca.Config.LogLevel == nil {
+		dca.Config.LogLevel = NewStringPointer(defaultLogLevel)
+		configOverride.LogLevel = dca.Config.LogLevel
 	}
 
-	if config.ClusterChecksEnabled == nil {
-		config.ClusterChecksEnabled = NewBoolPointer(defaultClusterChecksEnabled)
+	if extMetricsOverride := DefaultExternalMetrics(dca.Config); !IsEqualStruct(extMetricsOverride, ExternalMetricsConfig{}) {
+		configOverride.ExternalMetrics = extMetricsOverride
 	}
 
-	if config.CollectEvents == nil {
-		config.CollectEvents = NewBoolPointer(defaultCollectEvents)
+	if dca.Config.ClusterChecksEnabled == nil {
+		dca.Config.ClusterChecksEnabled = NewBoolPointer(defaultClusterChecksEnabled)
+		configOverride.ClusterChecksEnabled = dca.Config.ClusterChecksEnabled
 	}
 
-	if config.AdmissionController != nil {
-		if config.AdmissionController.MutateUnlabelled == nil {
-			NewBoolPointer(defaultMutateUnlabelled)
-		}
-		if config.AdmissionController.ServiceName == nil {
-			NewStringPointer(DefaultAdmissionServiceName)
-		}
+	if dca.Config.CollectEvents == nil {
+		dca.Config.CollectEvents = NewBoolPointer(defaultCollectEvents)
+		configOverride.CollectEvents = dca.Config.CollectEvents
+	}
+	if admCtrlOverride := DefaultAdmissionController(dca.Config); !IsEqualStruct(admCtrlOverride, AdmissionControllerConfig{}) {
+		configOverride.AdmissionController = admCtrlOverride
 	}
 
-	return config
+	if dca.Config.Resources == nil {
+		dca.Config.Resources = &corev1.ResourceRequirements{}
+	}
+
+	if dca.Config.HealthPort == nil {
+		dca.Config.HealthPort = NewInt32Pointer(defaultAgentHealthPort)
+		configOverride.HealthPort = dca.Config.HealthPort
+	}
+
+	return configOverride
 }
 
-// GetKubeStateMetricsConfName get the name of the Configmap for the KSM Core check.
-func GetKubeStateMetricsConfName(dcaConf *DatadogAgent) string {
-	// `configData` and `configMap` can't be set together.
-	// Return the default if the conf is not overridden or if it is just overridden with the ConfigData.
-	if dcaConf.Spec.Features.KubeStateMetricsCore.Conf != nil && dcaConf.Spec.Features.KubeStateMetricsCore.Conf.ConfigMap != nil {
-		return dcaConf.Spec.Features.KubeStateMetricsCore.Conf.ConfigMap.Name
+// DefaultExternalMetrics defaults the External Metrics Server's config in the Cluster Agent's config
+func DefaultExternalMetrics(conf *ClusterAgentConfig) *ExternalMetricsConfig {
+	if conf.ExternalMetrics == nil {
+		conf.ExternalMetrics = &ExternalMetricsConfig{Enabled: NewBoolPointer(false)}
+		return conf.ExternalMetrics
 	}
 
-	return fmt.Sprintf("%s-%s", dcaConf.Name, DefaultKubeStateMetricsCoreConf)
+	extMetricsOverride := &ExternalMetricsConfig{}
+	if conf.ExternalMetrics.Enabled == nil {
+		conf.ExternalMetrics.Enabled = NewBoolPointer(true)
+		extMetricsOverride.Enabled = conf.ExternalMetrics.Enabled
+	}
+
+	if conf.ExternalMetrics.Port == nil && BoolValue(conf.ExternalMetrics.Enabled) {
+		conf.ExternalMetrics.Port = NewInt32Pointer(defaultMetricsProviderPort)
+		extMetricsOverride.Port = conf.ExternalMetrics.Port
+	}
+	return extMetricsOverride
+}
+
+// DefaultAdmissionController defaults the Admission Controller's config in the Cluster Agent's config
+func DefaultAdmissionController(conf *ClusterAgentConfig) *AdmissionControllerConfig {
+	if conf.AdmissionController == nil {
+		conf.AdmissionController = &AdmissionControllerConfig{Enabled: NewBoolPointer(defaultAdmissionControllerEnabled)}
+		return conf.AdmissionController
+	}
+	admCtrlOverride := &AdmissionControllerConfig{}
+
+	if conf.AdmissionController.Enabled == nil {
+		conf.AdmissionController.Enabled = NewBoolPointer(defaultAdmissionControllerEnabled)
+		admCtrlOverride.Enabled = conf.AdmissionController.Enabled
+	}
+
+	if conf.AdmissionController.MutateUnlabelled == nil {
+		conf.AdmissionController.MutateUnlabelled = NewBoolPointer(defaultMutateUnlabelled)
+		admCtrlOverride.MutateUnlabelled = conf.AdmissionController.MutateUnlabelled
+	}
+
+	if conf.AdmissionController.ServiceName == nil {
+		conf.AdmissionController.ServiceName = NewStringPointer(DefaultAdmissionServiceName)
+		admCtrlOverride.ServiceName = conf.AdmissionController.ServiceName
+	}
+	return admCtrlOverride
+}
+
+// DefaultDatadogClusterAgentImage used to default a ImageConfig for the Agent, Cluster Agent and the Cluster Check Runner.
+// Returns the defaulted ImageConfig.
+func DefaultDatadogClusterAgentImage(dca *DatadogAgentSpecClusterAgentSpec, name, tag string) *ImageConfig {
+	imgOverride := &ImageConfig{}
+	if dca.Image == nil {
+		dca.Image = &ImageConfig{}
+	}
+
+	if dca.Image.Name == "" {
+		dca.Image.Name = name
+		imgOverride.Name = dca.Image.Name
+	}
+
+	if dca.Image.Tag == "" {
+		dca.Image.Tag = tag
+		imgOverride.Tag = dca.Image.Tag
+	}
+
+	if dca.Image.PullPolicy == nil {
+		dca.Image.PullPolicy = &defaultImagePullPolicy
+		imgOverride.PullPolicy = dca.Image.PullPolicy
+	}
+
+	if dca.Image.PullSecrets == nil {
+		dca.Image.PullSecrets = &[]corev1.LocalObjectReference{}
+	}
+
+	return imgOverride
 }
 
 // DefaultDatadogAgentSpecClusterChecksRunner used to default an DatadogAgentSpecClusterChecksRunnerSpec
 // return the defaulted DatadogAgentSpecClusterChecksRunnerSpec
 func DefaultDatadogAgentSpecClusterChecksRunner(clusterChecksRunner *DatadogAgentSpecClusterChecksRunnerSpec) *DatadogAgentSpecClusterChecksRunnerSpec {
-	DefaultDatadogImage(&clusterChecksRunner.Image, defaultAgentImageName, defaultAgentImageTag)
-	DefaultDatadogAgentSpecClusterChecksRunnerConfig(&clusterChecksRunner.Config)
-	DefaultDatadogAgentSpecRbacConfig(&clusterChecksRunner.Rbac)
-	DefaultNetworkPolicy(&clusterChecksRunner.NetworkPolicy)
+	if IsEqualStruct(clusterChecksRunner, DatadogAgentSpecClusterChecksRunnerSpec{}) {
+		clusterChecksRunner.Enabled = NewBoolPointer(false)
+		return clusterChecksRunner
+	}
+
+	if clusterChecksRunner.Enabled == nil {
+		clusterChecksRunner.Enabled = NewBoolPointer(true)
+	}
+
+	clcOverride := &DatadogAgentSpecClusterChecksRunnerSpec{Enabled: clusterChecksRunner.Enabled}
+
+	if img := DefaultDatadogAgentSpecClusterChecksRunnerImage(clusterChecksRunner, defaultAgentImageName, defaultAgentImageTag); !IsEqualStruct(img, ImageConfig{}) {
+		clcOverride.Image = img
+	}
+
+	if cfg := DefaultDatadogAgentSpecClusterChecksRunnerConfig(clusterChecksRunner); !IsEqualStruct(cfg, ClusterChecksRunnerConfig{}) {
+		clcOverride.Config = cfg
+	}
+
+	if rbac := DefaultDatadogClusterCheckRunnerSpecRbacConfig(clusterChecksRunner); !IsEqualStruct(rbac, RbacConfig{}) {
+		clcOverride.Rbac = rbac
+	}
+
+	if net := DefaultClusterCheckRunnerNetworkPolicy(clusterChecksRunner); !IsEqualStruct(net, NetworkPolicySpec{}) {
+		clcOverride.NetworkPolicy = net
+	}
 
 	if clusterChecksRunner.Replicas == nil {
 		clusterChecksRunner.Replicas = NewInt32Pointer(defaultClusterChecksRunnerReplicas)
+		clcOverride.Replicas = clusterChecksRunner.Replicas
 	}
 
-	return clusterChecksRunner
+	return clcOverride
+}
+
+// DefaultDatadogAgentSpecClusterChecksRunnerImage used to default a ImageConfig for the Agent, Cluster Agent and the Cluster Check Runner.
+// Returns the defaulted ImageConfig.
+func DefaultDatadogAgentSpecClusterChecksRunnerImage(clc *DatadogAgentSpecClusterChecksRunnerSpec, name, tag string) *ImageConfig {
+	imgOverride := &ImageConfig{}
+	if clc.Image == nil {
+		clc.Image = &ImageConfig{}
+	}
+
+	if clc.Image.Name == "" {
+		clc.Image.Name = name
+		imgOverride.Name = clc.Image.Name
+	}
+
+	if clc.Image.Tag == "" {
+		clc.Image.Tag = tag
+		imgOverride.Tag = clc.Image.Tag
+	}
+
+	if clc.Image.PullPolicy == nil {
+		clc.Image.PullPolicy = &defaultImagePullPolicy
+		imgOverride.PullPolicy = clc.Image.PullPolicy
+	}
+
+	if clc.Image.PullSecrets == nil {
+		clc.Image.PullSecrets = &[]corev1.LocalObjectReference{}
+	}
+
+	return imgOverride
 }
 
 // DefaultDatadogAgentSpecClusterChecksRunnerConfig used to default an ClusterChecksRunnerConfig
 // return the defaulted ClusterChecksRunnerConfig
-func DefaultDatadogAgentSpecClusterChecksRunnerConfig(config *ClusterChecksRunnerConfig) *ClusterChecksRunnerConfig {
-	if config == nil {
-		config = &ClusterChecksRunnerConfig{}
+func DefaultDatadogAgentSpecClusterChecksRunnerConfig(clc *DatadogAgentSpecClusterChecksRunnerSpec) *ClusterChecksRunnerConfig {
+	configOverride := &ClusterChecksRunnerConfig{}
+
+	if clc.Config == nil {
+		clc.Config = &ClusterChecksRunnerConfig{}
 	}
 
-	return config
+	if clc.Config.LogLevel == nil {
+		clc.Config.LogLevel = NewStringPointer(defaultLogLevel)
+		configOverride.LogLevel = clc.Config.LogLevel
+	}
+
+	if clc.Config.LivenessProbe == nil {
+		// TODO make liveness probe's fields more configurable
+		clc.Config.LivenessProbe = GetDefaultLivenessProbe()
+		configOverride.LivenessProbe = clc.Config.LivenessProbe
+	}
+
+	if clc.Config.ReadinessProbe == nil {
+		// TODO make readiness probe's fields more configurable
+		clc.Config.ReadinessProbe = GetDefaultReadinessProbe()
+		configOverride.ReadinessProbe = clc.Config.ReadinessProbe
+	}
+	if clc.Config.HealthPort == nil {
+		clc.Config.HealthPort = NewInt32Pointer(defaultAgentHealthPort)
+		configOverride.HealthPort = clc.Config.HealthPort
+	}
+
+	if clc.Config.Resources == nil {
+		clc.Config.Resources = &corev1.ResourceRequirements{}
+	}
+	return configOverride
 }
 
 // DefaultNetworkPolicy is used to default NetworkPolicy. Returns the defaulted
-// ImageConfig
+// NetworkPolicySpec
 func DefaultNetworkPolicy(policy *NetworkPolicySpec) *NetworkPolicySpec {
+	policyOverride := &NetworkPolicySpec{}
 	if policy == nil {
 		policy = &NetworkPolicySpec{}
 	}
 
 	if policy.Create == nil {
 		policy.Create = NewBoolPointer(false)
+		policyOverride.Create = policy.Create
 	}
 
-	return policy
+	return policyOverride
+}
+
+// DefaultAgentNetworkPolicy defaults the Network Policy for the Datadog Agent
+func DefaultAgentNetworkPolicy(agent *DatadogAgentSpecAgentSpec) *NetworkPolicySpec {
+	if agent.NetworkPolicy == nil {
+		agent.NetworkPolicy = &NetworkPolicySpec{}
+	}
+	return DefaultNetworkPolicy(agent.NetworkPolicy)
+}
+
+// DefaultClusterAgentNetworkPolicy defaults the Network Policy for the Datadog Cluster Agent
+func DefaultClusterAgentNetworkPolicy(dca *DatadogAgentSpecClusterAgentSpec) *NetworkPolicySpec {
+	if dca.NetworkPolicy == nil {
+		dca.NetworkPolicy = &NetworkPolicySpec{}
+	}
+	return DefaultNetworkPolicy(dca.NetworkPolicy)
+}
+
+// DefaultClusterCheckRunnerNetworkPolicy defaults the Network Policy for the Cluster Check Runner
+func DefaultClusterCheckRunnerNetworkPolicy(clc *DatadogAgentSpecClusterChecksRunnerSpec) *NetworkPolicySpec {
+	if clc.NetworkPolicy == nil {
+		clc.NetworkPolicy = &NetworkPolicySpec{}
+	}
+	return DefaultNetworkPolicy(clc.NetworkPolicy)
 }

@@ -28,7 +28,7 @@ func patchFeatures(oldDA, newDA *v1alpha1.DatadogAgent) bool {
 
 func patchLogFeatures(oldDA, newDA *v1alpha1.DatadogAgent) bool {
 	var patched bool
-	if oldDA.Spec.Agent == nil {
+	if v1alpha1.IsEqualStruct(oldDA.Spec.Agent, v1alpha1.DatadogAgentSpecAgentSpec{}) {
 		return patched
 	}
 	// patch only if a value is not already set

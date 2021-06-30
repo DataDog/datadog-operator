@@ -27,7 +27,7 @@ import (
 )
 
 func (r *Reconciler) manageClusterAgentService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
-	if dda.Spec.ClusterAgent == nil {
+	if !isClusterAgentEnabled(dda.Spec.ClusterAgent) {
 		return r.cleanupClusterAgentService(dda)
 	}
 
@@ -326,7 +326,7 @@ func newMetricsServerService(dda *datadoghqv1alpha1.DatadogAgent) *corev1.Servic
 			Ports: []corev1.ServicePort{
 				{
 					Protocol:   corev1.ProtocolTCP,
-					TargetPort: intstr.FromInt(int(getClusterAgentMetricsProviderPort(dda.Spec.ClusterAgent.Config))),
+					TargetPort: intstr.FromInt(int(getClusterAgentMetricsProviderPort(*dda.Spec.ClusterAgent.Config))),
 					Port:       datadoghqv1alpha1.DefaultMetricsServerServicePort,
 				},
 			},

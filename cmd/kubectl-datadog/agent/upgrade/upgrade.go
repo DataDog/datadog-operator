@@ -127,7 +127,8 @@ func (o *options) run(cmd *cobra.Command) error {
 
 // upgrade updates the agent version in the DatadogAgent object
 func (o *options) upgrade(dd v1alpha1.DatadogAgent, image string) error {
-	if dd.Spec.Agent == nil {
+	// Not relying on the runtime object (which has Agent.Enabled) as this uses the one from the APIServer
+	if v1alpha1.IsEqualStruct(dd.Spec.Agent, v1alpha1.DatadogAgentSpecAgentSpec{}) {
 		return errors.New("agent is not enabled")
 	}
 
@@ -137,7 +138,7 @@ func (o *options) upgrade(dd v1alpha1.DatadogAgent, image string) error {
 
 	dd.Spec.Agent.Image.Name = image
 
-	if dd.Spec.ClusterChecksRunner != nil {
+	if dd.Spec.ClusterChecksRunner.Image != nil {
 		dd.Spec.ClusterChecksRunner.Image.Name = image
 	}
 

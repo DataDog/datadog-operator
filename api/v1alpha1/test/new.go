@@ -21,8 +21,9 @@ import (
 
 var (
 	// apiVersion datadoghqv1alpha1 api version
-	apiVersion = fmt.Sprintf("%s/%s", datadoghqv1alpha1.GroupVersion.Group, datadoghqv1alpha1.GroupVersion.Version)
-	pullPolicy = corev1.PullIfNotPresent
+	apiVersion   = fmt.Sprintf("%s/%s", datadoghqv1alpha1.GroupVersion.Group, datadoghqv1alpha1.GroupVersion.Version)
+	pullPolicy   = corev1.PullIfNotPresent
+	defaultImage = "gcr.io/datadoghq/agent:latest"
 )
 
 // NewDatadogAgentOptions set of option for the DatadogAgent creation
@@ -103,16 +104,18 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 		},
 	}
 	ad.Spec = datadoghqv1alpha1.DatadogAgentSpec{
-		Credentials: datadoghqv1alpha1.AgentCredentials{Token: "token-foo"},
-		Agent: &datadoghqv1alpha1.DatadogAgentSpecAgentSpec{
-			Image: datadoghqv1alpha1.ImageConfig{
-				Name:       "gcr.io/datadoghq/agent:latest",
+		Credentials: &datadoghqv1alpha1.AgentCredentials{Token: "token-foo"},
+		Agent: datadoghqv1alpha1.DatadogAgentSpecAgentSpec{
+			Image: &datadoghqv1alpha1.ImageConfig{
+				Name:       defaultImage,
 				PullPolicy: &pullPolicy,
 			},
-			Config:             datadoghqv1alpha1.NodeAgentConfig{},
+			Config:             &datadoghqv1alpha1.NodeAgentConfig{},
 			DeploymentStrategy: &datadoghqv1alpha1.DaemonSetDeploymentStrategy{},
-			Apm:                datadoghqv1alpha1.APMSpec{},
-			Process: datadoghqv1alpha1.ProcessSpec{
+			Apm:                &datadoghqv1alpha1.APMSpec{},
+			Security:           &datadoghqv1alpha1.SecuritySpec{},
+			SystemProbe:        &datadoghqv1alpha1.SystemProbeSpec{},
+			Process: &datadoghqv1alpha1.ProcessSpec{
 				Enabled:                  datadoghqv1alpha1.NewBoolPointer(false),
 				ProcessCollectionEnabled: datadoghqv1alpha1.NewBoolPointer(false),
 			},
@@ -126,6 +129,8 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 
 		if options.OrchestratorExplorerDisabled {
 			ad.Spec.Features.OrchestratorExplorer = &datadoghqv1alpha1.OrchestratorExplorerConfig{Enabled: datadoghqv1alpha1.NewBoolPointer(false)}
+		} else {
+			ad.Spec.Features.OrchestratorExplorer = &datadoghqv1alpha1.OrchestratorExplorerConfig{Enabled: datadoghqv1alpha1.NewBoolPointer(true)}
 		}
 
 		if options.UseEDS {
@@ -145,7 +150,7 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 
 		ad.Spec.Agent.DaemonsetName = options.AgentDaemonsetName
 		ad.Spec.Site = options.Site
-		ad.Spec.Agent.NetworkPolicy = datadoghqv1alpha1.NetworkPolicySpec{
+		ad.Spec.Agent.NetworkPolicy = &datadoghqv1alpha1.NetworkPolicySpec{
 			Create: &options.CreateNetworkPolicy,
 		}
 
@@ -175,20 +180,21 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 			ad.Spec.Agent.Security.VolumeMounts = options.VolumeMounts
 		}
 		if options.ClusterAgentEnabled {
-			ad.Spec.ClusterAgent = &datadoghqv1alpha1.DatadogAgentSpecClusterAgentSpec{
-				Config: datadoghqv1alpha1.ClusterAgentConfig{},
-				Rbac: datadoghqv1alpha1.RbacConfig{
+			ad.Spec.ClusterAgent = datadoghqv1alpha1.DatadogAgentSpecClusterAgentSpec{
+				Enabled: datadoghqv1alpha1.NewBoolPointer(true),
+				Config:  &datadoghqv1alpha1.ClusterAgentConfig{},
+				Rbac: &datadoghqv1alpha1.RbacConfig{
 					Create: datadoghqv1alpha1.NewBoolPointer(true),
 				},
 				DeploymentName: options.ClusterAgentDeploymentName,
-				NetworkPolicy: datadoghqv1alpha1.NetworkPolicySpec{
+				NetworkPolicy: &datadoghqv1alpha1.NetworkPolicySpec{
 					Create: &options.CreateNetworkPolicy,
 				},
 			}
 
 			if options.MetricsServerEnabled {
 				externalMetricsConfig := datadoghqv1alpha1.ExternalMetricsConfig{
-					Enabled:           true,
+					Enabled:           datadoghqv1alpha1.NewBoolPointer(true),
 					UseDatadogMetrics: options.MetricsServerUseDatadogMetric,
 					WpaController:     options.MetricsServerWPAController,
 				}
@@ -210,7 +216,7 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 
 			if options.AdmissionControllerEnabled {
 				ad.Spec.ClusterAgent.Config.AdmissionController = &datadoghqv1alpha1.AdmissionControllerConfig{
-					Enabled:          true,
+					Enabled:          datadoghqv1alpha1.NewBoolPointer(true),
 					MutateUnlabelled: &options.AdmissionMutateUnlabelled,
 				}
 				if options.AdmissionServiceName != "" {
@@ -238,12 +244,13 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 		}
 
 		if options.ClusterChecksRunnerEnabled {
-			ad.Spec.ClusterChecksRunner = &datadoghqv1alpha1.DatadogAgentSpecClusterChecksRunnerSpec{
-				Config: datadoghqv1alpha1.ClusterChecksRunnerConfig{},
-				Rbac: datadoghqv1alpha1.RbacConfig{
+			ad.Spec.ClusterChecksRunner = datadoghqv1alpha1.DatadogAgentSpecClusterChecksRunnerSpec{
+				Enabled: datadoghqv1alpha1.NewBoolPointer(true),
+				Config:  &datadoghqv1alpha1.ClusterChecksRunnerConfig{},
+				Rbac: &datadoghqv1alpha1.RbacConfig{
 					Create: datadoghqv1alpha1.NewBoolPointer(true),
 				},
-				NetworkPolicy: datadoghqv1alpha1.NetworkPolicySpec{
+				NetworkPolicy: &datadoghqv1alpha1.NetworkPolicySpec{
 					Create: &options.CreateNetworkPolicy,
 				},
 			}
@@ -259,7 +266,7 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 		}
 
 		if options.NodeAgentConfig != nil {
-			ad.Spec.Agent.Config = *options.NodeAgentConfig
+			ad.Spec.Agent.Config = options.NodeAgentConfig
 		}
 
 		if options.APMEnabled {
@@ -302,7 +309,7 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 		}
 
 		if options.Creds != nil {
-			ad.Spec.Credentials = *options.Creds
+			ad.Spec.Credentials = options.Creds
 		}
 
 		if options.ClusterName != nil {
@@ -332,7 +339,15 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 		}
 
 		if options.ComplianceEnabled {
-			ad.Spec.Agent.Security.Compliance.Enabled = datadoghqv1alpha1.NewBoolPointer(true)
+			if ad.Spec.Agent.Security == nil {
+				ad.Spec.Agent.Security = &datadoghqv1alpha1.SecuritySpec{
+					Compliance: datadoghqv1alpha1.ComplianceSpec{
+						Enabled: datadoghqv1alpha1.NewBoolPointer(true),
+					},
+				}
+			} else {
+				ad.Spec.Agent.Security.Compliance.Enabled = datadoghqv1alpha1.NewBoolPointer(true)
+			}
 
 			if options.ComplianceCheckInterval.Duration != 0 {
 				ad.Spec.Agent.Security.Compliance.CheckInterval = &options.ComplianceCheckInterval
@@ -343,7 +358,15 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 		}
 
 		if options.RuntimeSecurityEnabled {
-			ad.Spec.Agent.Security.Runtime.Enabled = datadoghqv1alpha1.NewBoolPointer(true)
+			if ad.Spec.Agent.Security == nil {
+				ad.Spec.Agent.Security = &datadoghqv1alpha1.SecuritySpec{
+					Runtime: datadoghqv1alpha1.RuntimeSecuritySpec{
+						Enabled: datadoghqv1alpha1.NewBoolPointer(true),
+					},
+				}
+			} else {
+				ad.Spec.Agent.Security.Runtime.Enabled = datadoghqv1alpha1.NewBoolPointer(true)
+			}
 
 			if options.RuntimePoliciesDir != nil {
 				ad.Spec.Agent.Security.Runtime.PoliciesDir = options.RuntimePoliciesDir
@@ -356,8 +379,8 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 			}
 		}
 	}
-
-	return datadoghqv1alpha1.DefaultDatadogAgent(ad)
+	_ = datadoghqv1alpha1.DefaultDatadogAgent(ad)
+	return ad
 }
 
 // NewExtendedDaemonSetOptions set of option for the ExtendedDaemonset creation

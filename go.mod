@@ -7,7 +7,7 @@ require (
 	github.com/DataDog/extendeddaemonset v0.5.1-0.20210315105301-41547d4ff09c
 	github.com/Masterminds/semver/v3 v3.1.1
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
-	github.com/go-logr/logr v0.3.0
+	github.com/go-logr/logr v0.4.0
 	github.com/go-openapi/spec v0.20.3
 	github.com/gobwas/glob v0.2.3
 	github.com/google/go-cmp v0.5.2
@@ -25,12 +25,12 @@ require (
 	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776
 	k8s.io/api v0.20.2
 	k8s.io/apiextensions-apiserver v0.20.2
-	k8s.io/apimachinery v0.20.2
+	k8s.io/apimachinery v0.21.0
 	k8s.io/cli-runtime v0.20.2
 	k8s.io/client-go v0.20.2
-	k8s.io/klog/v2 v2.4.0
+	k8s.io/klog/v2 v2.8.0
 	k8s.io/kube-aggregator v0.20.2
-	k8s.io/kube-openapi v0.0.0-20201113171705-d219536bb9fd
+	k8s.io/kube-openapi v0.0.0-20210305001622-591a79e4bda7
 	sigs.k8s.io/controller-runtime v0.7.2
 	sigs.k8s.io/yaml v1.2.0
 )

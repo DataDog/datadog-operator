@@ -223,9 +223,9 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 							Annotations: map[string]string{"annotations-foo-key": "annotations-bar-value"},
 						},
 						Spec: datadoghqv1alpha1.DatadogAgentSpec{
-							Credentials:  datadoghqv1alpha1.AgentCredentials{Token: "token-foo"},
-							Agent:        &datadoghqv1alpha1.DatadogAgentSpecAgentSpec{},
-							ClusterAgent: &datadoghqv1alpha1.DatadogAgentSpecClusterAgentSpec{},
+							Credentials:  &datadoghqv1alpha1.AgentCredentials{Token: "token-foo"},
+							Agent:        datadoghqv1alpha1.DatadogAgentSpecAgentSpec{},
+							ClusterAgent: datadoghqv1alpha1.DatadogAgentSpecClusterAgentSpec{},
 						},
 					})
 				},
@@ -263,9 +263,9 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 							Annotations: map[string]string{"annotations-foo-key": "annotations-bar-value"},
 						},
 						Spec: datadoghqv1alpha1.DatadogAgentSpec{
-							Credentials:  datadoghqv1alpha1.AgentCredentials{Token: "token-foo"},
-							Agent:        &datadoghqv1alpha1.DatadogAgentSpecAgentSpec{},
-							ClusterAgent: &datadoghqv1alpha1.DatadogAgentSpecClusterAgentSpec{},
+							Credentials:  &datadoghqv1alpha1.AgentCredentials{Token: "token-foo"},
+							Agent:        datadoghqv1alpha1.DatadogAgentSpecAgentSpec{},
+							ClusterAgent: datadoghqv1alpha1.DatadogAgentSpecClusterAgentSpec{},
 						},
 					})
 				},
@@ -303,7 +303,6 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				if err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, datadogAgent); err != nil {
 					return err
 				}
-
 				clusterRole := &rbacv1.ClusterRole{}
 				if err := c.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesName}, clusterRole); err != nil {
 					return err
@@ -630,6 +629,14 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
 				loadFunc: func(c client.Client) {
+					agentConfig := &datadoghqv1alpha1.DatadogAgentSpecAgentSpec{
+						Config: &datadoghqv1alpha1.NodeAgentConfig{
+							SecurityContext: &corev1.PodSecurityContext{
+								RunAsUser: datadoghqv1alpha1.NewInt64Pointer(100),
+							}},
+					}
+					datadoghqv1alpha1.DefaultDatadogAgentSpecAgentImage(agentConfig, "foo", "bar")
+					datadoghqv1alpha1.DefaultDatadogAgentSpecAgentConfig(agentConfig)
 					dda := test.NewDefaultedDatadogAgent(
 						resourcesNamespace,
 						resourcesName,
@@ -637,13 +644,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 							ClusterAgentEnabled: false,
 							UseEDS:              false,
 							Labels:              map[string]string{"label-foo-key": "label-bar-value"},
-							NodeAgentConfig: datadoghqv1alpha1.DefaultDatadogAgentSpecAgentConfig(&datadoghqv1alpha1.DatadogAgentSpecAgentSpec{
-								Config: datadoghqv1alpha1.NodeAgentConfig{
-									SecurityContext: &corev1.PodSecurityContext{
-										RunAsUser: datadoghqv1alpha1.NewInt64Pointer(100),
-									},
-								},
-							}),
+							NodeAgentConfig:     agentConfig.Config,
 						})
 					_ = c.Create(context.TODO(), dda)
 					createAgentDependencies(c, dda)

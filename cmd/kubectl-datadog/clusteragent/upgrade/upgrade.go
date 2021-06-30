@@ -130,13 +130,18 @@ func (o *options) run(cmd *cobra.Command) error {
 
 // upgrade updates the cluster agent version in the DatadogAgent object.
 func (o *options) upgrade(dd v1alpha1.DatadogAgent, image string) error {
-	if dd.Spec.ClusterAgent == nil {
+	if v1alpha1.IsEqualStruct(dd.Spec.ClusterAgent, v1alpha1.DatadogAgentSpecAgentSpec{}) {
 		return errors.New("cluster agent is not enabled")
 	}
 
-	if dd.Spec.ClusterAgent.Image.Name == image {
+	if dd.Spec.ClusterAgent.Image != nil && dd.Spec.ClusterAgent.Image.Name == image {
 		return fmt.Errorf("the current image is already %s", image)
 	}
+
+	if dd.Spec.ClusterAgent.Image == nil {
+		dd.Spec.ClusterAgent.Image = &v1alpha1.ImageConfig{}
+	}
+
 	dd.Spec.ClusterAgent.Image.Name = image
 
 	return o.Client.Update(context.TODO(), &dd)
