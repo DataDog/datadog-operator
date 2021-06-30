@@ -302,6 +302,73 @@ func Test_newClusterChecksRunnerDeploymentFromInstance_UserVolumes(t *testing.T)
 	test.Run(t)
 }
 
+func Test_newClusterChecksRunnerDeploymentFromInstance_HostPort(t *testing.T) {
+	podSpec := clusterChecksRunnerDefaultPodSpec()
+	podSpec.Containers[0].Ports = append(podSpec.Containers[0].Ports, corev1.ContainerPort{
+		ContainerPort: 5552,
+		Name:          "clc-telemetry-port",
+		Protocol:      corev1.ProtocolTCP,
+	})
+	hostPortAgentDeployment := test.NewDefaultedDatadogAgent(
+		"bar",
+		"foo",
+		&test.NewDatadogAgentOptions{
+			ClusterAgentEnabled:        true,
+			ClusterChecksRunnerEnabled: true,
+			ClusterAgentHostPort:       5552,
+		},
+	)
+	hostPortClusterChecksRunnerAgentHash, _ := comparison.GenerateMD5ForSpec(hostPortAgentDeployment.Spec.ClusterChecksRunner)
+
+	test := clusterChecksRunnerDeploymentFromInstanceTest{
+		name:            "with custom hostPort",
+		agentdeployment: hostPortAgentDeployment,
+		newStatus:       &datadoghqv1alpha1.DatadogAgentStatus{},
+		wantErr:         false,
+		want: &appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "bar",
+				Name:      "foo-cluster-checks-runner",
+				Labels: map[string]string{
+					"agent.datadoghq.com/name":      "foo",
+					"agent.datadoghq.com/component": "cluster-checks-runner",
+					"app.kubernetes.io/instance":    "cluster-checks-runner",
+					"app.kubernetes.io/managed-by":  "datadog-operator",
+					"app.kubernetes.io/name":        "datadog-agent-deployment",
+					"app.kubernetes.io/part-of":     "foo",
+					"app.kubernetes.io/version":     "",
+				},
+				Annotations: map[string]string{"agent.datadoghq.com/agentspechash": hostPortClusterChecksRunnerAgentHash},
+			},
+			Spec: appsv1.DeploymentSpec{
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{
+							"agent.datadoghq.com/name":      "foo",
+							"agent.datadoghq.com/component": "cluster-checks-runner",
+							"app.kubernetes.io/instance":    "cluster-checks-runner",
+							"app.kubernetes.io/managed-by":  "datadog-operator",
+							"app.kubernetes.io/name":        "datadog-agent-deployment",
+							"app.kubernetes.io/part-of":     "foo",
+							"app.kubernetes.io/version":     "",
+						},
+						Annotations: map[string]string{"agent.datadoghq.com/agentspechash": hostPortClusterChecksRunnerAgentHash},
+					},
+					Spec: podSpec,
+				},
+				Replicas: &testClusterChecksRunnerReplicas,
+				Selector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"agent.datadoghq.com/name":      "foo",
+						"agent.datadoghq.com/component": "cluster-checks-runner",
+					},
+				},
+			},
+		},
+	}
+	test.Run(t)
+
+}
 func Test_newClusterChecksRunnerDeploymentFromInstance_EnvVars(t *testing.T) {
 	envVars := []corev1.EnvVar{
 		{

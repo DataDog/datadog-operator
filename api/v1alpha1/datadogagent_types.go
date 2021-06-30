@@ -1175,6 +1175,14 @@ type DatadogAgentSpecClusterChecksRunnerSpec struct {
 	// Number of the Cluster Agent replicas.
 	Replicas *int32 `json:"replicas,omitempty"`
 
+	// Number of port to expose on the host.
+	// If specified, this must be a valid port number, 0 < x < 65536.
+	// If HostNetwork is specified, this must match ContainerPort.
+	// Most containers do not need this.
+	//
+	// +optional
+	HostPort *int32 `json:"hostPort,omitempty"`
+
 	// AdditionalAnnotations provide annotations that will be added to the cluster checks runner Pods.
 	AdditionalAnnotations map[string]string `json:"additionalAnnotations,omitempty"`
 

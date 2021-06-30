@@ -263,6 +263,14 @@ func newClusterChecksRunnerPodTemplate(dda *datadoghqv1alpha1.DatadogAgent, labe
 	envVars := getEnvVarsForClusterChecksRunner(dda)
 	image := getImage(clusterChecksRunnerSpec.Image, spec.Registry, true)
 
+	var tcpPort corev1.ContainerPort
+	if clusterChecksRunnerSpec.HostPort != nil {
+		tcpPort = corev1.ContainerPort{
+			ContainerPort: *clusterChecksRunnerSpec.HostPort,
+			Name:          "clc-telemetry-port",
+			Protocol:      corev1.ProtocolTCP,
+		}
+	}
 	newPodTemplate := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels:      labels,
@@ -283,6 +291,7 @@ func newClusterChecksRunnerPodTemplate(dda *datadoghqv1alpha1.DatadogAgent, labe
 					Name:            "cluster-checks-runner",
 					Image:           image,
 					ImagePullPolicy: *clusterChecksRunnerSpec.Image.PullPolicy,
+					Ports:           []corev1.ContainerPort{tcpPort},
 					Env:             envVars,
 					VolumeMounts:    volumeMounts,
 					LivenessProbe:   dda.Spec.Agent.Config.LivenessProbe,

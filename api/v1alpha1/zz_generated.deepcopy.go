@@ -872,6 +872,11 @@ func (in *DatadogAgentSpecClusterChecksRunnerSpec) DeepCopyInto(out *DatadogAgen
 		*out = new(int32)
 		**out = **in
 	}
+	if in.HostPort != nil {
+		in, out := &in.HostPort, &out.HostPort
+		*out = new(int32)
+		**out = **in
+	}
 	if in.AdditionalAnnotations != nil {
 		in, out := &in.AdditionalAnnotations, &out.AdditionalAnnotations
 		*out = make(map[string]string, len(*in))

@@ -10209,6 +10209,13 @@ spec:
                   enabled:
                     description: Enabled
                     type: boolean
+                  hostPort:
+                    description: Number of port to expose on the host. If specified,
+                      this must be a valid port number, 0 < x < 65536. If HostNetwork
+                      is specified, this must match ContainerPort. Most containers
+                      do not need this.
+                    format: int32
+                    type: integer
                   image:
                     description: The container image of the Datadog Cluster Checks
                       Runner.
@@ -21268,6 +21275,13 @@ spec:
                       enabled:
                         description: Enabled
                         type: boolean
+                      hostPort:
+                        description: Number of port to expose on the host. If specified,
+                          this must be a valid port number, 0 < x < 65536. If HostNetwork
+                          is specified, this must match ContainerPort. Most containers
+                          do not need this.
+                        format: int32
+                        type: integer
                       image:
                         description: The container image of the Datadog Cluster Checks
                           Runner.

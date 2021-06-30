@@ -353,6 +353,7 @@ spec:
 | clusterChecksRunner.customConfig.configMap.name | The name of source ConfigMap. |
 | clusterChecksRunner.deploymentName | Name of the cluster checks deployment to create or migrate from. |
 | clusterChecksRunner.enabled | Enabled |
+| clusterChecksRunner.hostPort | Number of port to expose on the host. If specified, this must be a valid port number, 0 < x < 65536. If HostNetwork is specified, this must match ContainerPort. Most containers do not need this. |
 | clusterChecksRunner.image.jmxEnabled | Define whether the Agent image should support JMX. |
 | clusterChecksRunner.image.name | Define the image to use: Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7 Use "datadog/dogstatsd:latest" for Standalone Datadog Agent DogStatsD6 Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent Use "agent" with the registry and tag configurations for <registry>/agent:<tag> Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag> |
 | clusterChecksRunner.image.pullPolicy | The Kubernetes pull policy: Use Always, Never or IfNotPresent. |

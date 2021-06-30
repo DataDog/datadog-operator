@@ -1586,6 +1586,13 @@ func schema__api_v1alpha1_DatadogAgentSpecClusterChecksRunnerSpec(ref common.Ref
 							Format:      "int32",
 						},
 					},
+					"hostPort": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Number of port to expose on the host. If specified, this must be a valid port number, 0 < x < 65536. If HostNetwork is specified, this must match ContainerPort. Most containers do not need this.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
 					"additionalAnnotations": {
 						SchemaProps: spec.SchemaProps{
 							Description: "AdditionalAnnotations provide annotations that will be added to the cluster checks runner Pods.",

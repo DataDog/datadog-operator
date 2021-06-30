@@ -68,6 +68,7 @@ type NewDatadogAgentOptions struct {
 	ClusterChecksRunnerVolumes       []corev1.Volume
 	ClusterChecksRunnerVolumeMounts  []corev1.VolumeMount
 	ClusterChecksRunnerEnvVars       []corev1.EnvVar
+	ClusterAgentHostPort             int32
 	APIKeyExistingSecret             string
 	APISecret                        *datadoghqv1alpha1.Secret
 	Site                             string
@@ -262,6 +263,9 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 			}
 			if len(options.ClusterChecksRunnerVolumes) != 0 {
 				ad.Spec.ClusterChecksRunner.Config.Volumes = options.ClusterChecksRunnerVolumes
+			}
+			if options.ClusterAgentHostPort != 0 {
+				ad.Spec.ClusterChecksRunner.HostPort = datadoghqv1alpha1.NewInt32Pointer(options.ClusterAgentHostPort)
 			}
 		}
 

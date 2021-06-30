@@ -369,6 +369,20 @@ func buildAgentNetworkPolicy(dda *datadoghqv1alpha1.DatadogAgent, name string) *
 		})
 	}
 
+	if isClusterChecksEnabled(&dda.Spec) {
+		ingressRules = append(ingressRules, networkingv1.NetworkPolicyIngressRule{
+			Ports: []networkingv1.NetworkPolicyPort{
+				{
+					Port: &intstr.IntOrString{
+						Type:   intstr.Int,
+						IntVal: *dda.Spec.ClusterChecksRunner.HostPort,
+					},
+					Protocol: &protocolTCP,
+				},
+			},
+		})
+	}
+
 	policy := &networkingv1.NetworkPolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels:    getDefaultLabels(dda, name, getAgentVersion(dda)),
