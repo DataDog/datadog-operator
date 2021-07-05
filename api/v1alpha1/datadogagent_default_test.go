@@ -108,7 +108,7 @@ func TestDefaultFeatures(t *testing.T) {
 				OrchestratorExplorer: &OrchestratorExplorerConfig{
 					Enabled: NewBoolPointer(false),
 				},
-				KubeStateMetricsCore: &KubeStateMetricsCore{Enabled: NewBoolPointer(false)},
+				KubeStateMetricsCore: &KubeStateMetricsCore{Enabled: NewBoolPointer(false), ClusterCheck: NewBoolPointer(false)},
 				PrometheusScrape: &PrometheusScrapeConfig{
 					Enabled: NewBoolPointer(false),
 				},
@@ -121,7 +121,7 @@ func TestDefaultFeatures(t *testing.T) {
 				OrchestratorExplorer: &OrchestratorExplorerConfig{
 					Enabled: NewBoolPointer(false),
 				},
-				KubeStateMetricsCore: &KubeStateMetricsCore{Enabled: NewBoolPointer(false)},
+				KubeStateMetricsCore: &KubeStateMetricsCore{Enabled: NewBoolPointer(false), ClusterCheck: NewBoolPointer(false)},
 				PrometheusScrape: &PrometheusScrapeConfig{
 					Enabled: NewBoolPointer(false),
 				},
@@ -145,7 +145,7 @@ func TestDefaultFeatures(t *testing.T) {
 				OrchestratorExplorer: &OrchestratorExplorerConfig{
 					Enabled: NewBoolPointer(false),
 				},
-				KubeStateMetricsCore: &KubeStateMetricsCore{Enabled: NewBoolPointer(false)},
+				KubeStateMetricsCore: &KubeStateMetricsCore{Enabled: NewBoolPointer(false), ClusterCheck: NewBoolPointer(false)},
 				LogCollection: &LogCollectionConfig{
 					Enabled:                       NewBoolPointer(true),
 					LogsConfigContainerCollectAll: NewBoolPointer(false),
@@ -164,7 +164,7 @@ func TestDefaultFeatures(t *testing.T) {
 				OrchestratorExplorer: &OrchestratorExplorerConfig{
 					Enabled: NewBoolPointer(false),
 				},
-				KubeStateMetricsCore: &KubeStateMetricsCore{Enabled: NewBoolPointer(false)},
+				KubeStateMetricsCore: &KubeStateMetricsCore{Enabled: NewBoolPointer(false), ClusterCheck: NewBoolPointer(false)},
 				LogCollection: &LogCollectionConfig{
 					Enabled:                       NewBoolPointer(true),
 					LogsConfigContainerCollectAll: NewBoolPointer(false),
@@ -186,7 +186,7 @@ func TestDefaultFeatures(t *testing.T) {
 				OrchestratorExplorer: &OrchestratorExplorerConfig{
 					Scrubbing: &Scrubbing{Containers: NewBoolPointer(false)},
 				},
-				KubeStateMetricsCore: &KubeStateMetricsCore{Enabled: NewBoolPointer(true)},
+				KubeStateMetricsCore: &KubeStateMetricsCore{Enabled: NewBoolPointer(true), ClusterCheck: NewBoolPointer(true)},
 				LogCollection: &LogCollectionConfig{
 					LogsConfigContainerCollectAll: NewBoolPointer(false),
 					ContainerLogsPath:             NewStringPointer("/var/lib/docker/containers"),
@@ -201,7 +201,7 @@ func TestDefaultFeatures(t *testing.T) {
 				OrchestratorExplorer: &OrchestratorExplorerConfig{
 					Enabled: NewBoolPointer(true), // defaultOrchestratorExplorerEnabled
 				},
-				KubeStateMetricsCore: &KubeStateMetricsCore{Enabled: NewBoolPointer(true)},
+				KubeStateMetricsCore: &KubeStateMetricsCore{Enabled: NewBoolPointer(true), ClusterCheck: NewBoolPointer(true)},
 				LogCollection: &LogCollectionConfig{
 					Enabled: NewBoolPointer(false), // defaultLogEnabled
 				},
@@ -215,7 +215,7 @@ func TestDefaultFeatures(t *testing.T) {
 					Enabled:   NewBoolPointer(true), // defaultOrchestratorExplorerEnabled
 					Scrubbing: &Scrubbing{Containers: NewBoolPointer(false)},
 				},
-				KubeStateMetricsCore: &KubeStateMetricsCore{Enabled: NewBoolPointer(true)},
+				KubeStateMetricsCore: &KubeStateMetricsCore{Enabled: NewBoolPointer(true), ClusterCheck: NewBoolPointer(true)},
 				LogCollection: &LogCollectionConfig{
 					Enabled:                       NewBoolPointer(false),
 					LogsConfigContainerCollectAll: NewBoolPointer(false),

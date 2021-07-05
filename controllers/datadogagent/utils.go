@@ -1953,6 +1953,10 @@ func isKSMCoreEnabled(dda *datadoghqv1alpha1.DatadogAgent) bool {
 	return datadoghqv1alpha1.BoolValue(dda.Spec.Features.KubeStateMetricsCore.Enabled)
 }
 
+func isKSMCoreClusterCheck(dda *datadoghqv1alpha1.DatadogAgent) bool {
+	return isKSMCoreEnabled(dda) && datadoghqv1alpha1.BoolValue(dda.Spec.Features.KubeStateMetricsCore.ClusterCheck)
+}
+
 // GetKubeStateMetricsConfName get the name of the Configmap for the KSM Core check.
 func GetKubeStateMetricsConfName(dcaConf *datadoghqv1alpha1.DatadogAgent) string {
 	// `configData` and `configMap` can't be set together.

@@ -785,6 +785,17 @@ func (r *Reconciler) manageClusterAgentRBACs(logger logr.Logger, dda *datadoghqv
 		return reconcile.Result{}, err
 	}
 
+	clusterAgentSuffix := "cluster-agent"
+	if isKSMCoreEnabled(dda) && !isKSMCoreClusterCheck(dda) {
+		if result, err := r.createOrUpdateKubeStateMetricsCoreRBAC(logger, dda, serviceAccountName, clusterAgentVersion, clusterAgentSuffix); err != nil {
+			return result, err
+		}
+	} else {
+		if result, err := r.cleanupKubeStateMetricsCoreRBAC(logger, dda, clusterAgentSuffix); err != nil {
+			return result, err
+		}
+	}
+
 	metricsProviderEnabled := isMetricsProviderEnabled(dda.Spec.ClusterAgent)
 	// Create or delete HPA ClusterRoleBinding
 	hpaClusterRoleBindingName := getHPAClusterRoleBindingName(dda)

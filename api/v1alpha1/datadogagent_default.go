@@ -64,6 +64,7 @@ const (
 	defaultClusterChecksEnabled                          bool   = false
 	DefaultKubeStateMetricsCoreConf                      string = "kube-state-metrics-core-config"
 	defaultKubeStateMetricsCoreEnabled                   bool   = false
+	defaultKubeStateMetricsCoreClusterCheck              bool   = false
 	defaultPrometheusScrapeEnabled                       bool   = false
 	defaultPrometheusScrapeServiceEndpoints              bool   = false
 	defaultClusterAgentReplicas                          int32  = 1
@@ -827,7 +828,10 @@ func DefaultDatadogFeatureOrchestratorExplorer(ft *DatadogFeatures) *Orchestrato
 // Disabled by default with no overridden configuration.
 func DefaultDatadogFeatureKubeStateMetricsCore(ft *DatadogFeatures) *KubeStateMetricsCore {
 	if ft.KubeStateMetricsCore == nil {
-		ft.KubeStateMetricsCore = &KubeStateMetricsCore{Enabled: NewBoolPointer(defaultKubeStateMetricsCoreEnabled)}
+		ft.KubeStateMetricsCore = &KubeStateMetricsCore{
+			Enabled:      NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
+			ClusterCheck: NewBoolPointer(defaultKubeStateMetricsCoreClusterCheck),
+		}
 		return ft.KubeStateMetricsCore
 	}
 
@@ -835,7 +839,11 @@ func DefaultDatadogFeatureKubeStateMetricsCore(ft *DatadogFeatures) *KubeStateMe
 		ft.KubeStateMetricsCore.Enabled = NewBoolPointer(defaultKubeStateMetricsCoreEnabled)
 	}
 
-	ksmCoreOverride := &KubeStateMetricsCore{Enabled: ft.KubeStateMetricsCore.Enabled}
+	if ft.KubeStateMetricsCore.ClusterCheck == nil {
+		ft.KubeStateMetricsCore.ClusterCheck = NewBoolPointer(defaultKubeStateMetricsCoreClusterCheck)
+	}
+
+	ksmCoreOverride := &KubeStateMetricsCore{Enabled: ft.KubeStateMetricsCore.Enabled, ClusterCheck: ft.KubeStateMetricsCore.ClusterCheck}
 	return ksmCoreOverride
 }
 

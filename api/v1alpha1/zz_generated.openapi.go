@@ -2295,12 +2295,12 @@ func schema__api_v1alpha1_KubeStateMetricsCore(ref common.ReferenceCallback) com
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "KubeStateMetricsCore contains the required parameters to enable and override the configuration of the Kubernetes State Metrics Core (aka v2.0.0) of the check.",
+				Description: "KubeStateMetricsCore contains the required parameters to enable and override the configuration of the Kubernetes State Metrics Core check.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"enabled": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enable this to start the Kubernetes State Metrics Core check. Refer to https://github.com/DataDog/datadog-operator/blob/main/docs/kubernetes_state_metrics.md",
+							Description: "Enable this to start the Kubernetes State Metrics Core check. Refer to https://docs.datadoghq.com/integrations/kubernetes_state_core",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
@@ -2309,6 +2309,13 @@ func schema__api_v1alpha1_KubeStateMetricsCore(ref common.ReferenceCallback) com
 						SchemaProps: spec.SchemaProps{
 							Description: "To override the configuration for the default Kubernetes State Metrics Core check. Must point to a ConfigMap containing a valid cluster check configuration.",
 							Ref:         ref("./api/v1alpha1.CustomConfigSpec"),
+						},
+					},
+					"clusterCheck": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ClusterCheck configures the Kubernetes State Metrics Core check as a cluster check.",
+							Type:        []string{"boolean"},
+							Format:      "",
 						},
 					},
 				},

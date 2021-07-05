@@ -30,6 +30,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
+var kubeStateMetricsRBACName = kubeStateMetricsRBACPrefix + "check-runners"
+
 func TestReconciler_manageClusterChecksRunnerRBACs(t *testing.T) {
 	t.Helper()
 	logf.SetLogger(zap.New(zap.UseDevMode(true)))
@@ -52,7 +54,8 @@ func TestReconciler_manageClusterChecksRunnerRBACs(t *testing.T) {
 		ClusterChecksEnabled:       true,
 		ClusterChecksRunnerEnabled: true,
 		KubeStateMetricsCore: &datadoghqv1alpha1.KubeStateMetricsCore{
-			Enabled: datadoghqv1alpha1.NewBoolPointer(true),
+			Enabled:      datadoghqv1alpha1.NewBoolPointer(true),
+			ClusterCheck: datadoghqv1alpha1.NewBoolPointer(true),
 		},
 	}
 	ddaDefault := test.NewDefaultedDatadogAgent(ddaNamespace, ddaName, ddaDefaultOptions)
@@ -104,7 +107,7 @@ func TestReconciler_manageClusterChecksRunnerRBACs(t *testing.T) {
 				forwarders: forwarders,
 			},
 			want: reconcile.Result{
-				Requeue: true,
+				Requeue: false,
 			},
 			wantErr: false,
 			wantFunc: func(t *testing.T, client client.Client) {
