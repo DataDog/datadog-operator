@@ -232,9 +232,11 @@ func TestDefaultFeatures(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := DefaultFeatures(&tt.ft)
+			dda := &DatadogAgent{}
+			dda.Spec.Features = tt.ft
+			got := DefaultFeatures(dda)
 			assert.True(t, IsEqualStruct(got, tt.overrideExpected), "TestDefaultFeatures override \ndiff = %s", cmp.Diff(got, tt.overrideExpected))
-			assert.True(t, IsEqualStruct(tt.ft, tt.internalDefaulted), "TestDefaultFeatures internal \ndiff = %s", cmp.Diff(tt.ft, tt.internalDefaulted))
+			assert.True(t, IsEqualStruct(dda.Spec.Features, tt.internalDefaulted), "TestDefaultFeatures internal \ndiff = %s", cmp.Diff(dda.Spec.Features, tt.internalDefaulted))
 		})
 	}
 }
