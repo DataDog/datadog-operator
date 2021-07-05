@@ -118,7 +118,7 @@ func DefaultDatadogAgent(dda *DatadogAgent) *DatadogAgentStatus {
 	dso.DefaultOverride.ClusterChecksRunner = *DefaultDatadogAgentSpecClusterChecksRunner(&dda.Spec.ClusterChecksRunner)
 
 	// Features
-	dso.DefaultOverride.Features = *DefaultFeatures(&dda.Spec.Features)
+	dso.DefaultOverride.Features = *DefaultFeatures(dda)
 
 	// Creds
 	if dda.Spec.Credentials == nil {
@@ -770,15 +770,24 @@ func DefaultDatadogAgentSpecAgentProcess(agent *DatadogAgentSpecAgentSpec) *Proc
 	return processOverride
 }
 
+func clusterChecksRunnerEnabled(dda *DatadogAgent) bool {
+	if dda.Spec.ClusterChecksRunner.Enabled != nil {
+		return *dda.Spec.ClusterChecksRunner.Enabled
+	}
+
+	return false
+}
+
 // DefaultFeatures used to initialized the Features' default values if necessary
-func DefaultFeatures(ft *DatadogFeatures) *DatadogFeatures {
+func DefaultFeatures(dda *DatadogAgent) *DatadogFeatures {
+	ft := &dda.Spec.Features
 	featureOverride := &DatadogFeatures{}
 
 	if orch := DefaultDatadogFeatureOrchestratorExplorer(ft); !IsEqualStruct(*orch, OrchestratorExplorerConfig{}) {
 		featureOverride.OrchestratorExplorer = orch
 	}
 
-	if ksm := DefaultDatadogFeatureKubeStateMetricsCore(ft); !IsEqualStruct(*ksm, KubeStateMetricsCore{}) {
+	if ksm := DefaultDatadogFeatureKubeStateMetricsCore(ft, clusterChecksRunnerEnabled(dda)); !IsEqualStruct(*ksm, KubeStateMetricsCore{}) {
 		featureOverride.KubeStateMetricsCore = ksm
 	}
 
@@ -825,9 +834,12 @@ func DefaultDatadogFeatureOrchestratorExplorer(ft *DatadogFeatures) *Orchestrato
 
 // DefaultDatadogFeatureKubeStateMetricsCore used to default the Kubernetes State Metrics core check
 // Disabled by default with no overridden configuration.
-func DefaultDatadogFeatureKubeStateMetricsCore(ft *DatadogFeatures) *KubeStateMetricsCore {
+func DefaultDatadogFeatureKubeStateMetricsCore(ft *DatadogFeatures, withClusterChecksRunner bool) *KubeStateMetricsCore {
 	if ft.KubeStateMetricsCore == nil {
-		ft.KubeStateMetricsCore = &KubeStateMetricsCore{Enabled: NewBoolPointer(defaultKubeStateMetricsCoreEnabled)}
+		ft.KubeStateMetricsCore = &KubeStateMetricsCore{
+			Enabled:      NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
+			ClusterCheck: NewBoolPointer(withClusterChecksRunner),
+		}
 		return ft.KubeStateMetricsCore
 	}
 
@@ -835,7 +847,11 @@ func DefaultDatadogFeatureKubeStateMetricsCore(ft *DatadogFeatures) *KubeStateMe
 		ft.KubeStateMetricsCore.Enabled = NewBoolPointer(defaultKubeStateMetricsCoreEnabled)
 	}
 
-	ksmCoreOverride := &KubeStateMetricsCore{Enabled: ft.KubeStateMetricsCore.Enabled}
+	if ft.KubeStateMetricsCore.ClusterCheck == nil {
+		ft.KubeStateMetricsCore.ClusterCheck = NewBoolPointer(withClusterChecksRunner)
+	}
+
+	ksmCoreOverride := &KubeStateMetricsCore{Enabled: ft.KubeStateMetricsCore.Enabled, ClusterCheck: ft.KubeStateMetricsCore.ClusterCheck}
 	return ksmCoreOverride
 }
 

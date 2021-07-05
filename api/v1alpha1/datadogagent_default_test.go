@@ -108,7 +108,7 @@ func TestDefaultFeatures(t *testing.T) {
 				OrchestratorExplorer: &OrchestratorExplorerConfig{
 					Enabled: NewBoolPointer(false),
 				},
-				KubeStateMetricsCore: &KubeStateMetricsCore{Enabled: NewBoolPointer(false)},
+				KubeStateMetricsCore: &KubeStateMetricsCore{Enabled: NewBoolPointer(false), ClusterCheck: NewBoolPointer(false)},
 				PrometheusScrape: &PrometheusScrapeConfig{
 					Enabled: NewBoolPointer(false),
 				},
@@ -121,7 +121,7 @@ func TestDefaultFeatures(t *testing.T) {
 				OrchestratorExplorer: &OrchestratorExplorerConfig{
 					Enabled: NewBoolPointer(false),
 				},
-				KubeStateMetricsCore: &KubeStateMetricsCore{Enabled: NewBoolPointer(false)},
+				KubeStateMetricsCore: &KubeStateMetricsCore{Enabled: NewBoolPointer(false), ClusterCheck: NewBoolPointer(false)},
 				PrometheusScrape: &PrometheusScrapeConfig{
 					Enabled: NewBoolPointer(false),
 				},
@@ -145,7 +145,7 @@ func TestDefaultFeatures(t *testing.T) {
 				OrchestratorExplorer: &OrchestratorExplorerConfig{
 					Enabled: NewBoolPointer(false),
 				},
-				KubeStateMetricsCore: &KubeStateMetricsCore{Enabled: NewBoolPointer(false)},
+				KubeStateMetricsCore: &KubeStateMetricsCore{Enabled: NewBoolPointer(false), ClusterCheck: NewBoolPointer(false)},
 				LogCollection: &LogCollectionConfig{
 					Enabled:                       NewBoolPointer(true),
 					LogsConfigContainerCollectAll: NewBoolPointer(false),
@@ -164,7 +164,7 @@ func TestDefaultFeatures(t *testing.T) {
 				OrchestratorExplorer: &OrchestratorExplorerConfig{
 					Enabled: NewBoolPointer(false),
 				},
-				KubeStateMetricsCore: &KubeStateMetricsCore{Enabled: NewBoolPointer(false)},
+				KubeStateMetricsCore: &KubeStateMetricsCore{Enabled: NewBoolPointer(false), ClusterCheck: NewBoolPointer(false)},
 				LogCollection: &LogCollectionConfig{
 					Enabled:                       NewBoolPointer(true),
 					LogsConfigContainerCollectAll: NewBoolPointer(false),
@@ -186,7 +186,7 @@ func TestDefaultFeatures(t *testing.T) {
 				OrchestratorExplorer: &OrchestratorExplorerConfig{
 					Scrubbing: &Scrubbing{Containers: NewBoolPointer(false)},
 				},
-				KubeStateMetricsCore: &KubeStateMetricsCore{Enabled: NewBoolPointer(true)},
+				KubeStateMetricsCore: &KubeStateMetricsCore{Enabled: NewBoolPointer(true), ClusterCheck: NewBoolPointer(true)},
 				LogCollection: &LogCollectionConfig{
 					LogsConfigContainerCollectAll: NewBoolPointer(false),
 					ContainerLogsPath:             NewStringPointer("/var/lib/docker/containers"),
@@ -201,7 +201,7 @@ func TestDefaultFeatures(t *testing.T) {
 				OrchestratorExplorer: &OrchestratorExplorerConfig{
 					Enabled: NewBoolPointer(true), // defaultOrchestratorExplorerEnabled
 				},
-				KubeStateMetricsCore: &KubeStateMetricsCore{Enabled: NewBoolPointer(true)},
+				KubeStateMetricsCore: &KubeStateMetricsCore{Enabled: NewBoolPointer(true), ClusterCheck: NewBoolPointer(true)},
 				LogCollection: &LogCollectionConfig{
 					Enabled: NewBoolPointer(false), // defaultLogEnabled
 				},
@@ -215,7 +215,7 @@ func TestDefaultFeatures(t *testing.T) {
 					Enabled:   NewBoolPointer(true), // defaultOrchestratorExplorerEnabled
 					Scrubbing: &Scrubbing{Containers: NewBoolPointer(false)},
 				},
-				KubeStateMetricsCore: &KubeStateMetricsCore{Enabled: NewBoolPointer(true)},
+				KubeStateMetricsCore: &KubeStateMetricsCore{Enabled: NewBoolPointer(true), ClusterCheck: NewBoolPointer(true)},
 				LogCollection: &LogCollectionConfig{
 					Enabled:                       NewBoolPointer(false),
 					LogsConfigContainerCollectAll: NewBoolPointer(false),
@@ -232,9 +232,11 @@ func TestDefaultFeatures(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := DefaultFeatures(&tt.ft)
+			dda := &DatadogAgent{}
+			dda.Spec.Features = tt.ft
+			got := DefaultFeatures(dda)
 			assert.True(t, IsEqualStruct(got, tt.overrideExpected), "TestDefaultFeatures override \ndiff = %s", cmp.Diff(got, tt.overrideExpected))
-			assert.True(t, IsEqualStruct(tt.ft, tt.internalDefaulted), "TestDefaultFeatures internal \ndiff = %s", cmp.Diff(tt.ft, tt.internalDefaulted))
+			assert.True(t, IsEqualStruct(dda.Spec.Features, tt.internalDefaulted), "TestDefaultFeatures internal \ndiff = %s", cmp.Diff(dda.Spec.Features, tt.internalDefaulted))
 		})
 	}
 }
