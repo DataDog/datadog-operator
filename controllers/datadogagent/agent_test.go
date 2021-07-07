@@ -116,69 +116,6 @@ func defaultReadinessProbe() *corev1.Probe {
 	}
 }
 
-func defaultVolumes() []corev1.Volume {
-	return []corev1.Volume{
-		{
-			Name: datadoghqv1alpha1.LogDatadogVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				EmptyDir: &corev1.EmptyDirVolumeSource{},
-			},
-		},
-		{
-			Name: datadoghqv1alpha1.InstallInfoVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: &corev1.ConfigMapVolumeSource{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: "foo-install-info",
-					},
-				},
-			},
-		},
-		{
-			Name: datadoghqv1alpha1.ConfdVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				EmptyDir: &corev1.EmptyDirVolumeSource{},
-			},
-		},
-		{
-			Name: datadoghqv1alpha1.ChecksdVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				EmptyDir: &corev1.EmptyDirVolumeSource{},
-			},
-		},
-		{
-			Name: datadoghqv1alpha1.ConfigVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				EmptyDir: &corev1.EmptyDirVolumeSource{},
-			},
-		},
-		{
-			Name: datadoghqv1alpha1.ProcVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/proc",
-				},
-			},
-		},
-		{
-			Name: datadoghqv1alpha1.CgroupsVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/sys/fs/cgroup",
-				},
-			},
-		},
-		{
-			Name: "runtimesocketdir",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/var/run",
-				},
-			},
-		},
-	}
-}
-
 func defaultSystemProbeVolumes() []corev1.Volume {
 	fileOrCreate := corev1.HostPathFileOrCreate
 	return []corev1.Volume{
@@ -283,6 +220,12 @@ func defaultSystemProbeVolumes() []corev1.Volume {
 			},
 		},
 		{
+			Name: datadoghqv1alpha1.DogstatsdSocketVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
 			Name: datadoghqv1alpha1.SystemProbeSocketVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
@@ -310,6 +253,12 @@ func complianceSecurityAgentVolumes() []corev1.Volume {
 		},
 		{
 			Name: datadoghqv1alpha1.AuthVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.DogstatsdSocketVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
@@ -497,6 +446,12 @@ func runtimeSecurityAgentVolumes() []corev1.Volume {
 			},
 		},
 		{
+			Name: datadoghqv1alpha1.DogstatsdSocketVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
 			Name: datadoghqv1alpha1.SystemProbeSocketVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
@@ -557,6 +512,16 @@ func defaultMountVolume() []corev1.VolumeMount {
 			MountPath: "/etc/datadog-agent/auth",
 		},
 		{
+			Name:      "dsdsocket",
+			MountPath: "/var/run/datadog/statsd",
+			ReadOnly:  true,
+		},
+
+		{
+			Name:      "dsdsocket",
+			MountPath: "/var/run/datadog/statsd",
+		},
+		{
 			Name:      "installinfo",
 			SubPath:   "install_info",
 			MountPath: "/etc/datadog-agent/install_info",
@@ -603,6 +568,11 @@ func defaultProcessMountVolumes() []corev1.VolumeMount {
 		{
 			Name:      "datadog-agent-auth",
 			MountPath: "/etc/datadog-agent/auth",
+			ReadOnly:  true,
+		},
+		{
+			Name:      "dsdsocket",
+			MountPath: "/var/run/datadog/statsd",
 			ReadOnly:  true,
 		},
 		{
@@ -682,6 +652,11 @@ func complianceSecurityAgentMountVolume() []corev1.VolumeMount {
 			ReadOnly:  true,
 		},
 		{
+			Name:      "dsdsocket",
+			MountPath: "/var/run/datadog/statsd",
+			ReadOnly:  true,
+		},
+		{
 			Name:      "config",
 			MountPath: "/etc/datadog-agent",
 		},
@@ -735,6 +710,11 @@ func runtimeSecurityAgentMountVolume() []corev1.VolumeMount {
 			ReadOnly:  true,
 		},
 		{
+			Name:      "dsdsocket",
+			MountPath: "/var/run/datadog/statsd",
+			ReadOnly:  true,
+		},
+		{
 			Name:      "config",
 			MountPath: "/etc/datadog-agent",
 		},
@@ -783,6 +763,10 @@ func defaultEnvVars(extraEnv map[string]string) []corev1.EnvVar {
 			Value: "false",
 		},
 		{
+			Name:  "DD_DOGSTATSD_SOCKET",
+			Value: "/var/run/datadog/statsd/statsd.sock",
+		},
+		{
 			Name:  "DD_LOGS_ENABLED",
 			Value: "false",
 		},
@@ -801,6 +785,10 @@ func defaultEnvVars(extraEnv map[string]string) []corev1.EnvVar {
 		{
 			Name:  "KUBERNETES",
 			Value: "yes",
+		},
+		{
+			Name:  "DD_DOGSTATSD_SOCKET",
+			Value: "/var/run/datadog/statsd/statsd.sock",
 		},
 		{
 			Name: "DD_KUBERNETES_KUBELET_HOST",
@@ -863,6 +851,10 @@ func defaultAPMContainerEnvVars() []corev1.EnvVar {
 		{
 			Name:      "DD_API_KEY",
 			ValueFrom: apiKeyValue(),
+		},
+		{
+			Name:  "DD_DOGSTATSD_SOCKET",
+			Value: "/var/run/datadog/statsd/statsd.sock",
 		},
 	}
 }
@@ -941,6 +933,10 @@ func securityAgentEnvVars(compliance, runtime bool, policiesdir bool, extraEnv m
 		{
 			Name:  "HOST_ROOT",
 			Value: "/host/root",
+		},
+		{
+			Name:  "DD_DOGSTATSD_SOCKET",
+			Value: "/var/run/datadog/statsd/statsd.sock",
 		},
 	}
 
@@ -1058,7 +1054,11 @@ func appendDefaultAPMAgentContainer(podSpec *corev1.PodSpec) {
 				MountPath: "/etc/datadog-agent/auth",
 				ReadOnly:  true,
 			},
-
+			{
+				Name:      "dsdsocket",
+				MountPath: "/var/run/datadog/statsd",
+				ReadOnly:  true,
+			},
 			{
 				Name:      "config",
 				MountPath: "/etc/datadog-agent",
@@ -1394,6 +1394,12 @@ func defaultProcessMount() []corev1.Volume {
 			},
 		},
 		{
+			Name: datadoghqv1alpha1.DogstatsdSocketVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
 			Name: datadoghqv1alpha1.InstallInfoVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
@@ -1479,6 +1485,10 @@ func defaultOrchestratorEnvVars(dda *datadoghqv1alpha1.DatadogAgent) []corev1.En
 			Value: "yes",
 		},
 		{
+			Name:  "DD_DOGSTATSD_SOCKET",
+			Value: "/var/run/datadog/statsd/statsd.sock",
+		},
+		{
 			Name: "DD_KUBERNETES_KUBELET_HOST",
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
@@ -1537,7 +1547,8 @@ func runtimeSecurityAgentPodSpec(extraEnv map[string]string, extraDir string) co
 		{
 			Name:      datadoghqv1alpha1.ConfigVolumeName,
 			MountPath: "/opt/datadog-agent",
-		}}
+		},
+	}
 	volumes := runtimeSecurityAgentVolumes()
 	if extraDir != "" {
 		command = []string{"cp -vnr /etc/datadog-agent /opt;cp -v /etc/datadog-agent-runtime-policies/* /opt/datadog-agent/runtime-security.d/"}
@@ -1763,6 +1774,10 @@ func customKubeletConfigPodSpec(kubeletConfig *datadoghqv1alpha1.KubeletConfig) 
 			MountPath: "/etc/datadog-agent/auth",
 		},
 		{
+			Name:      "dsdsocket",
+			MountPath: "/var/run/datadog/statsd",
+		},
+		{
 			Name:      "installinfo",
 			SubPath:   "install_info",
 			MountPath: "/etc/datadog-agent/install_info",
@@ -1827,6 +1842,10 @@ func customKubeletConfigPodSpec(kubeletConfig *datadoghqv1alpha1.KubeletConfig) 
 		{
 			Name:  "DD_DOGSTATSD_ORIGIN_DETECTION",
 			Value: "false",
+		},
+		{
+			Name:  "DD_DOGSTATSD_SOCKET",
+			Value: "/var/run/datadog/statsd/statsd.sock",
 		},
 		{
 			Name:  "DD_LOGS_ENABLED",
@@ -1926,6 +1945,12 @@ func customKubeletConfigPodSpec(kubeletConfig *datadoghqv1alpha1.KubeletConfig) 
 			},
 			{
 				Name: datadoghqv1alpha1.AuthVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
+			},
+			{
+				Name: datadoghqv1alpha1.DogstatsdSocketVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},
@@ -2260,6 +2285,12 @@ func Test_newExtendedDaemonSetFromInstance_CustomConfigMaps(t *testing.T) {
 			},
 		},
 		{
+			Name: datadoghqv1alpha1.DogstatsdSocketVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
 			Name: datadoghqv1alpha1.InstallInfoVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
@@ -2393,6 +2424,12 @@ func Test_newExtendedDaemonSetFromInstance_CustomDatadogYaml(t *testing.T) {
 			},
 		},
 		{
+			Name: datadoghqv1alpha1.DogstatsdSocketVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
 			Name: datadoghqv1alpha1.InstallInfoVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
@@ -2473,6 +2510,10 @@ func Test_newExtendedDaemonSetFromInstance_CustomDatadogYaml(t *testing.T) {
 			MountPath: "/etc/datadog-agent/auth",
 		},
 		{
+			Name:      "dsdsocket",
+			MountPath: "/var/run/datadog/statsd",
+		},
+		{
 			Name:      "installinfo",
 			SubPath:   "install_info",
 			MountPath: "/etc/datadog-agent/install_info",
@@ -2522,6 +2563,11 @@ func Test_newExtendedDaemonSetFromInstance_CustomDatadogYaml(t *testing.T) {
 		{
 			Name:      "datadog-agent-auth",
 			MountPath: "/etc/datadog-agent/auth",
+			ReadOnly:  true,
+		},
+		{
+			Name:      "dsdsocket",
+			MountPath: "/var/run/datadog/statsd",
 			ReadOnly:  true,
 		},
 		{
