@@ -1581,7 +1581,7 @@ func schema__api_v1alpha1_DatadogAgentSpecClusterChecksRunnerSpec(ref common.Ref
 					},
 					"replicas": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Number of the Cluster Agent replicas.",
+							Description: "Number of the Cluster Checks Runner replicas.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},

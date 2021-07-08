@@ -27,8 +27,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-var testClusterAgentReplicas int32 = 1
-
 func clusterAgentDefaultPodSpec() corev1.PodSpec {
 	return corev1.PodSpec{
 		ServiceAccountName: "foo-cluster-agent",
@@ -259,7 +257,7 @@ func Test_newClusterAgentDeploymentFromInstance(t *testing.T) {
 						},
 						Spec: clusterAgentDefaultPodSpec(),
 					},
-					Replicas: &testClusterAgentReplicas,
+					Replicas: nil,
 					Selector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{
 							"agent.datadoghq.com/name":      "foo",
@@ -305,7 +303,7 @@ func Test_newClusterAgentDeploymentFromInstance(t *testing.T) {
 						},
 						Spec: clusterAgentDefaultPodSpec(),
 					},
-					Replicas: &testClusterAgentReplicas,
+					Replicas: nil,
 					Selector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{
 							"agent.datadoghq.com/name":      "foo",
@@ -351,7 +349,7 @@ func Test_newClusterAgentDeploymentFromInstance(t *testing.T) {
 						},
 						Spec: clusterAgentDefaultPodSpec(),
 					},
-					Replicas: &testClusterAgentReplicas,
+					Replicas: nil,
 					Selector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{
 							"agent.datadoghq.com/name":      "foo",
@@ -464,7 +462,7 @@ func Test_newClusterAgentDeploymentMountKSMCore(t *testing.T) {
 					},
 					Spec: clusterAgentPodSpec,
 				},
-				Replicas: &testClusterAgentReplicas,
+				Replicas: nil,
 				Selector: &metav1.LabelSelector{
 					MatchLabels: map[string]string{
 						"agent.datadoghq.com/name":      "foo",
@@ -530,7 +528,7 @@ func Test_newClusterAgentPrometheusScrapeEnabled(t *testing.T) {
 					},
 					Spec: clusterAgentPodSpec,
 				},
-				Replicas: &testClusterAgentReplicas,
+				Replicas: nil,
 				Selector: &metav1.LabelSelector{
 					MatchLabels: map[string]string{
 						"agent.datadoghq.com/name":      "foo",
@@ -609,7 +607,7 @@ func Test_newClusterAgentDeploymentFromInstance_UserVolumes(t *testing.T) {
 					},
 					Spec: userMountsPodSpec,
 				},
-				Replicas: &testClusterAgentReplicas,
+				Replicas: nil,
 				Selector: &metav1.LabelSelector{
 					MatchLabels: map[string]string{
 						"agent.datadoghq.com/name":      "foo",
@@ -685,7 +683,7 @@ func Test_newClusterAgentDeploymentFromInstance_EnvVars(t *testing.T) {
 					},
 					Spec: podSpec,
 				},
-				Replicas: &testClusterAgentReplicas,
+				Replicas: nil,
 				Selector: &metav1.LabelSelector{
 					MatchLabels: map[string]string{
 						"agent.datadoghq.com/name":      "foo",
@@ -753,7 +751,7 @@ func Test_newClusterAgentDeploymentFromInstance_CustomDeploymentName(t *testing.
 					},
 					Spec: deploymentNamePodSpec,
 				},
-				Replicas: &testClusterAgentReplicas,
+				Replicas: nil,
 				Selector: &metav1.LabelSelector{
 					MatchLabels: map[string]string{
 						"app": "datadog-monitoring",
@@ -931,7 +929,7 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 						},
 						Spec: metricsServerPodSpec,
 					},
-					Replicas: &testClusterAgentReplicas,
+					Replicas: nil,
 					Selector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{
 							"app": "datadog-monitoring",
@@ -983,7 +981,7 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 						},
 						Spec: metricsServerWithSitePodSpec,
 					},
-					Replicas: &testClusterAgentReplicas,
+					Replicas: nil,
 					Selector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{
 							"app": "datadog-monitoring",
@@ -1055,7 +1053,7 @@ func Test_newClusterAgentDeploymentFromInstance_AdmissionController(t *testing.T
 						},
 						Spec: admissionControllerPodSpec,
 					},
-					Replicas: &testClusterAgentReplicas,
+					Replicas: nil,
 					Selector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{
 							"app": "datadog-monitoring",
@@ -1088,7 +1086,7 @@ func Test_newClusterAgentDeploymentFromInstance_AdmissionController(t *testing.T
 						},
 						Spec: admissionControllerPodSpecCustom,
 					},
-					Replicas: &testClusterAgentReplicas,
+					Replicas: nil,
 					Selector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{
 							"app": "datadog-monitoring",
@@ -1155,7 +1153,7 @@ func Test_newClusterAgentDeploymentFromInstance_UserProvidedSecret(t *testing.T)
 						},
 						Spec: podSpec,
 					},
-					Replicas: &testClusterAgentReplicas,
+					Replicas: nil,
 					Selector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{
 							"agent.datadoghq.com/name":      "foo",
@@ -1208,7 +1206,7 @@ func Test_newClusterAgentDeploymentFromInstance_UserProvidedSecret(t *testing.T)
 						},
 						Spec: podSpec,
 					},
-					Replicas: &testClusterAgentReplicas,
+					Replicas: nil,
 					Selector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{
 							"agent.datadoghq.com/name":      "foo",
@@ -1271,11 +1269,78 @@ func Test_newClusterAgentDeploymentFromInstance_Compliance(t *testing.T) {
 					},
 					Spec: podSpec,
 				},
-				Replicas: &testClusterAgentReplicas,
+				Replicas: nil,
 				Selector: &metav1.LabelSelector{
 					MatchLabels: map[string]string{
 						"agent.datadoghq.com/name":      "foo",
 						"agent.datadoghq.com/component": "cluster-agent",
+					},
+				},
+			},
+		},
+	}
+	test.Run(t)
+}
+
+func Test_newClusterAgentDeploymentFromInstance_CustomReplicas(t *testing.T) {
+	customReplicas := int32(7)
+	deploymentNamePodSpec := clusterAgentDefaultPodSpec()
+	deploymentNamePodSpec.Affinity = nil
+
+	deploymentNameAgentDeployment := test.NewDefaultedDatadogAgent("bar", "foo",
+		&test.NewDatadogAgentOptions{
+			UseEDS:               true,
+			ClusterAgentEnabled:  true,
+			ClusterAgentReplicas: &customReplicas,
+		})
+
+	test := clusterAgentDeploymentFromInstanceTest{
+		name:            "with replicas",
+		agentdeployment: deploymentNameAgentDeployment,
+		selector: &metav1.LabelSelector{
+			MatchLabels: map[string]string{
+				"app": "datadog-monitoring",
+			},
+		},
+		newStatus: &datadoghqv1alpha1.DatadogAgentStatus{},
+		wantErr:   false,
+		want: &appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "bar",
+				Name:      "foo-cluster-agent",
+				Labels: map[string]string{
+					"agent.datadoghq.com/name":      "foo",
+					"agent.datadoghq.com/component": "cluster-agent",
+					"app.kubernetes.io/instance":    "cluster-agent",
+					"app.kubernetes.io/managed-by":  "datadog-operator",
+					"app.kubernetes.io/name":        "datadog-agent-deployment",
+					"app.kubernetes.io/part-of":     "foo",
+					"app.kubernetes.io/version":     "",
+					"app":                           "datadog-monitoring",
+				},
+				Annotations: map[string]string{},
+			},
+			Spec: appsv1.DeploymentSpec{
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{
+							"agent.datadoghq.com/name":      "foo",
+							"agent.datadoghq.com/component": "cluster-agent",
+							"app.kubernetes.io/instance":    "cluster-agent",
+							"app.kubernetes.io/managed-by":  "datadog-operator",
+							"app.kubernetes.io/name":        "datadog-agent-deployment",
+							"app.kubernetes.io/part-of":     "foo",
+							"app.kubernetes.io/version":     "",
+							"app":                           "datadog-monitoring",
+						},
+						Annotations: map[string]string{},
+					},
+					Spec: deploymentNamePodSpec,
+				},
+				Replicas: &customReplicas,
+				Selector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"app": "datadog-monitoring",
 					},
 				},
 			},
