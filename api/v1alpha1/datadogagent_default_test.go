@@ -31,12 +31,18 @@ func TestDefaultConfigDogstatsd(t *testing.T) {
 			dsd:  NodeAgentConfig{},
 			override: &DogstatsdConfig{
 				DogstatsdOriginDetection: NewBoolPointer(false), // defaultDogstatsdOriginDetection
-				UnixDomainSocket:         &DSDUnixDomainSocketSpec{Enabled: NewBoolPointer(false)},
+				UnixDomainSocket: &DSDUnixDomainSocketSpec{
+					Enabled:      NewBoolPointer(false),
+					HostFilepath: &defaultPath,
+				},
 			},
 			internal: NodeAgentConfig{
 				Dogstatsd: &DogstatsdConfig{
 					DogstatsdOriginDetection: NewBoolPointer(false),
-					UnixDomainSocket:         &DSDUnixDomainSocketSpec{Enabled: NewBoolPointer(false)},
+					UnixDomainSocket: &DSDUnixDomainSocketSpec{
+						Enabled:      NewBoolPointer(false),
+						HostFilepath: &defaultPath,
+					},
 				},
 			},
 		},
@@ -72,14 +78,16 @@ func TestDefaultConfigDogstatsd(t *testing.T) {
 			},
 			override: &DogstatsdConfig{
 				UnixDomainSocket: &DSDUnixDomainSocketSpec{
-					Enabled: NewBoolPointer(false),
+					Enabled:      NewBoolPointer(false),
+					HostFilepath: &defaultPath,
 				},
 			},
 			internal: NodeAgentConfig{
 				Dogstatsd: &DogstatsdConfig{
 					DogstatsdOriginDetection: NewBoolPointer(false),
 					UnixDomainSocket: &DSDUnixDomainSocketSpec{
-						Enabled: NewBoolPointer(false),
+						Enabled:      NewBoolPointer(false),
+						HostFilepath: &defaultPath,
 					},
 				},
 			},
@@ -440,7 +448,10 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 					// CriSocket unset as we use latest
 					Dogstatsd: &DogstatsdConfig{
 						DogstatsdOriginDetection: NewBoolPointer(false),
-						UnixDomainSocket:         &DSDUnixDomainSocketSpec{Enabled: NewBoolPointer(false)},
+						UnixDomainSocket: &DSDUnixDomainSocketSpec{
+							Enabled:      NewBoolPointer(false),
+							HostFilepath: NewStringPointer(path.Join(defaultHostDogstatsdSocketPath, defaultHostDogstatsdSocketName)),
+						},
 					},
 				},
 				DeploymentStrategy: &DaemonSetDeploymentStrategy{
@@ -487,7 +498,10 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 					HealthPort:           NewInt32Pointer(5555),
 					Dogstatsd: &DogstatsdConfig{
 						DogstatsdOriginDetection: NewBoolPointer(false),
-						UnixDomainSocket:         &DSDUnixDomainSocketSpec{Enabled: NewBoolPointer(false)},
+						UnixDomainSocket: &DSDUnixDomainSocketSpec{
+							Enabled:      NewBoolPointer(false),
+							HostFilepath: NewStringPointer(path.Join(defaultHostDogstatsdSocketPath, defaultHostDogstatsdSocketName)),
+						},
 					},
 				},
 				DeploymentStrategy: &DaemonSetDeploymentStrategy{
@@ -617,7 +631,10 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 					},
 					Dogstatsd: &DogstatsdConfig{
 						DogstatsdOriginDetection: NewBoolPointer(false),
-						UnixDomainSocket:         &DSDUnixDomainSocketSpec{Enabled: NewBoolPointer(true), HostFilepath: NewStringPointer("/var/run/datadog/statsd.sock")},
+						UnixDomainSocket: &DSDUnixDomainSocketSpec{
+							Enabled:      NewBoolPointer(true),
+							HostFilepath: NewStringPointer("/var/run/datadog/statsd.sock"),
+						},
 					},
 				},
 				Rbac: &RbacConfig{Create: NewBoolPointer(true)},

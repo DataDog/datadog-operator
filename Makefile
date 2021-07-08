@@ -90,10 +90,10 @@ docker-push: ## Push the docker image
 
 ##@ Test
 
-test: build manifests verify-license gotest ## Run unit tests and E2E tests
+test: build manifests generate fmt vet verify-license gotest ## Run unit tests and E2E tests
 
 ENVTEST_ASSETS_DIR=$(shell pwd)/testbin
-gotest: manifests generate fmt vet ## Run tests.
+gotest: ## Run tests.
 	source ${ENVTEST_ASSETS_DIR}/setup-envtest.sh; fetch_envtest_tools $(ENVTEST_ASSETS_DIR); setup_envtest_env $(ENVTEST_ASSETS_DIR); go test ./... -coverprofile cover.out
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
