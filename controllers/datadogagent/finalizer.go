@@ -53,6 +53,10 @@ func (r *Reconciler) handleFinalizer(reqLogger logr.Logger, dda *datadoghqv1alph
 }
 
 func (r *Reconciler) finalizeDad(reqLogger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) {
+	_, err := r.cleanupMetricsServerAPIService(reqLogger, dda)
+	if err != nil {
+		reqLogger.Error(err,"Could not delete Metrics Server API Service")
+	}
 	r.forwarders.Unregister(dda)
 	reqLogger.Info("Successfully finalized DatadogAgent")
 }
