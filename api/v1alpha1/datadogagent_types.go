@@ -706,6 +706,8 @@ type SyscallMonitorSpec struct {
 type ConfigDirSpec struct {
 	// ConfigMapName name of a ConfigMap used to mount a directory.
 	ConfigMapName string `json:"configMapName,omitempty"`
+	// items mapping between configMap data key and file path mount.
+	Items []corev1.KeyToPath `json:"items,omitempty"`
 }
 
 // ConfigFileConfigMapSpec contains configMap information used to store a config file.

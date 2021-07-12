@@ -139,16 +139,22 @@ func buildConfigurationConfigMap(dda *datadoghqv1alpha1.DatadogAgent, cfcm *data
 	if cfcm == nil || cfcm.ConfigData == nil {
 		return nil, nil
 	}
-	configData := *cfcm.ConfigData
-	if configData == "" {
-		return nil, nil
+
+	configMapData := make(map[string]string)
+
+	if cfcm.ConfigData != nil {
+		if len(*cfcm.ConfigData) != 0 {
+			configMapData[subPath] = *cfcm.ConfigData
+		}
 	}
 
 	// Validate that user input is valid YAML
 	// Maybe later we can implement that directly verifies against Agent configuration?
-	m := make(map[interface{}]interface{})
-	if err := yaml.Unmarshal([]byte(configData), m); err != nil {
-		return nil, fmt.Errorf("unable to parse YAML from 'customConfig.ConfigData' field: %w", err)
+	for key, configData := range configMapData {
+		m := make(map[interface{}]interface{})
+		if err := yaml.Unmarshal([]byte(configData), m); err != nil {
+			return nil, fmt.Errorf("unable to parse YAML for the file '%s' field: %w", key, err)
+		}
 	}
 
 	configMap := &corev1.ConfigMap{
@@ -158,9 +164,7 @@ func buildConfigurationConfigMap(dda *datadoghqv1alpha1.DatadogAgent, cfcm *data
 			Labels:      getDefaultLabels(dda, dda.Name, getAgentVersion(dda)),
 			Annotations: getDefaultAnnotations(dda),
 		},
-		Data: map[string]string{
-			subPath: configData,
-		},
+		Data: configMapData,
 	}
 	return configMap, nil
 }
