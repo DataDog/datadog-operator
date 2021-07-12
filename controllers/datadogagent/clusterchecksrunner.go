@@ -110,7 +110,7 @@ func updateStatusWithClusterChecksRunner(dcaw *appsv1.Deployment, newStatus *dat
 }
 
 func (r *Reconciler) updateClusterChecksRunnerDeployment(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, dep *appsv1.Deployment, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
-	newDCAW, hash, err := newClusterChecksRunnerDeploymentFromInstance(dda, dep.Spec.Selector)
+	newCLCR, hash, err := newClusterChecksRunnerDeploymentFromInstance(dda, dep.Spec.Selector)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -132,26 +132,27 @@ func (r *Reconciler) updateClusterChecksRunnerDeployment(logger logr.Logger, dda
 	if err = controllerutil.SetControllerReference(dda, dep, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
-	logger.Info("Updating an existing Cluster Checks Runner Deployment", "deployment.Namespace", newDCAW.Namespace, "deployment.Name", newDCAW.Name, "currentHash", hash)
+	logger.Info("Updating an existing Cluster Checks Runner Deployment", "deployment.Namespace", newCLCR.Namespace, "deployment.Name", newCLCR.Name, "currentHash", hash)
 
 	// Copy possibly changed fields
-	updateDca := dep.DeepCopy()
-	updateDca.Spec = *newDCAW.Spec.DeepCopy()
-	for k, v := range newDCAW.Annotations {
-		updateDca.Annotations[k] = v
+	updateCLCR := dep.DeepCopy()
+	updateCLCR.Spec = *newCLCR.Spec.DeepCopy()
+	updateCLCR.Spec.Replicas = getReplicas(dep.Spec.Replicas, updateCLCR.Spec.Replicas)
+	for k, v := range newCLCR.Annotations {
+		updateCLCR.Annotations[k] = v
 	}
-	for k, v := range newDCAW.Labels {
-		updateDca.Labels[k] = v
+	for k, v := range newCLCR.Labels {
+		updateCLCR.Labels[k] = v
 	}
 
 	now := metav1.NewTime(time.Now())
-	err = r.client.Update(context.TODO(), updateDca)
+	err = r.client.Update(context.TODO(), updateCLCR)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
-	event := buildEventInfo(updateDca.Name, updateDca.Namespace, deploymentKind, datadog.UpdateEvent)
+	event := buildEventInfo(updateCLCR.Name, updateCLCR.Namespace, deploymentKind, datadog.UpdateEvent)
 	r.recordEvent(dda, event)
-	updateStatusWithClusterChecksRunner(updateDca, newStatus, &now)
+	updateStatusWithClusterChecksRunner(updateCLCR, newStatus, &now)
 	return reconcile.Result{}, nil
 }
 

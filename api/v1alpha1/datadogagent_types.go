@@ -1176,7 +1176,7 @@ type DatadogAgentSpecClusterChecksRunnerSpec struct {
 	// RBAC configuration of the Datadog Cluster Checks Runner.
 	Rbac *RbacConfig `json:"rbac,omitempty"`
 
-	// Number of the Cluster Agent replicas.
+	// Number of the Cluster Checks Runner replicas.
 	Replicas *int32 `json:"replicas,omitempty"`
 
 	// AdditionalAnnotations provide annotations that will be added to the cluster checks runner Pods.

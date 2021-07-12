@@ -18,8 +18,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
-var testClusterChecksRunnerReplicas int32 = 1
-
 func clusterChecksRunnerDefaultPodSpec() corev1.PodSpec {
 	return corev1.PodSpec{
 		Affinity:           getPodAffinity(nil),
@@ -289,7 +287,7 @@ func Test_newClusterChecksRunnerDeploymentFromInstance_UserVolumes(t *testing.T)
 					},
 					Spec: userMountsPodSpec,
 				},
-				Replicas: &testClusterChecksRunnerReplicas,
+				Replicas: nil,
 				Selector: &metav1.LabelSelector{
 					MatchLabels: map[string]string{
 						"agent.datadoghq.com/name":      "foo",
@@ -368,7 +366,72 @@ func Test_newClusterChecksRunnerDeploymentFromInstance_EnvVars(t *testing.T) {
 					},
 					Spec: podSpec,
 				},
-				Replicas: &testClusterChecksRunnerReplicas,
+				Replicas: nil,
+				Selector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"agent.datadoghq.com/name":      "foo",
+						"agent.datadoghq.com/component": "cluster-checks-runner",
+					},
+				},
+			},
+		},
+	}
+	test.Run(t)
+}
+
+func Test_newClusterChecksRunnerDeploymentFromInstance_CustomReplicas(t *testing.T) {
+	customReplicas := int32(7)
+	podSpec := clusterChecksRunnerDefaultPodSpec()
+
+	agentDeployment := test.NewDefaultedDatadogAgent(
+		"bar",
+		"foo",
+		&test.NewDatadogAgentOptions{
+			ClusterAgentEnabled:         true,
+			ClusterChecksRunnerEnabled:  true,
+			ClusterChecksRunnerReplicas: &customReplicas,
+		},
+	)
+
+	clusterChecksRunnerAgentHash, _ := comparison.GenerateMD5ForSpec(agentDeployment.Spec.ClusterChecksRunner)
+
+	test := clusterChecksRunnerDeploymentFromInstanceTest{
+		name:            "with custom replicas",
+		agentdeployment: agentDeployment,
+		newStatus:       &datadoghqv1alpha1.DatadogAgentStatus{},
+		wantErr:         false,
+		want: &appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "bar",
+				Name:      "foo-cluster-checks-runner",
+				Labels: map[string]string{
+					"agent.datadoghq.com/name":      "foo",
+					"agent.datadoghq.com/component": "cluster-checks-runner",
+					"app.kubernetes.io/instance":    "cluster-checks-runner",
+					"app.kubernetes.io/managed-by":  "datadog-operator",
+					"app.kubernetes.io/name":        "datadog-agent-deployment",
+					"app.kubernetes.io/part-of":     "foo",
+					"app.kubernetes.io/version":     "",
+				},
+				Annotations: map[string]string{"agent.datadoghq.com/agentspechash": clusterChecksRunnerAgentHash},
+			},
+			Spec: appsv1.DeploymentSpec{
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{
+							"agent.datadoghq.com/name":      "foo",
+							"agent.datadoghq.com/component": "cluster-checks-runner",
+							"app.kubernetes.io/instance":    "cluster-checks-runner",
+							"app.kubernetes.io/managed-by":  "datadog-operator",
+							"app.kubernetes.io/name":        "datadog-agent-deployment",
+							"app.kubernetes.io/part-of":     "foo",
+							"app.kubernetes.io/version":     "",
+						},
+						Annotations: map[string]string{"agent.datadoghq.com/agentspechash": clusterChecksRunnerAgentHash},
+					},
+					Spec: podSpec,
+				},
+				Replicas: &customReplicas,
 				Selector: &metav1.LabelSelector{
 					MatchLabels: map[string]string{
 						"agent.datadoghq.com/name":      "foo",

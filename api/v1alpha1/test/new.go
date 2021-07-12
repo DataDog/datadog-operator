@@ -87,6 +87,8 @@ type NewDatadogAgentOptions struct {
 	AgentSpecAdditionalLabels        map[string]string
 	AgentSpecAdditionalAnnotations   map[string]string
 	Features                         *datadoghqv1alpha1.DatadogFeatures
+	ClusterAgentReplicas             *int32
+	ClusterChecksRunnerReplicas      *int32
 }
 
 // NewDefaultedDatadogAgent returns an initialized and defaulted DatadogAgent for testing purpose
@@ -192,6 +194,10 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 				},
 			}
 
+			if options.ClusterAgentReplicas != nil {
+				ad.Spec.ClusterAgent.Replicas = options.ClusterAgentReplicas
+			}
+
 			if options.MetricsServerEnabled {
 				externalMetricsConfig := datadoghqv1alpha1.ExternalMetricsConfig{
 					Enabled:           datadoghqv1alpha1.NewBoolPointer(true),
@@ -254,14 +260,21 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 					Create: &options.CreateNetworkPolicy,
 				},
 			}
+
 			if len(options.ClusterChecksRunnerEnvVars) != 0 {
 				ad.Spec.ClusterChecksRunner.Config.Env = options.ClusterChecksRunnerEnvVars
 			}
+
 			if len(options.ClusterChecksRunnerVolumes) != 0 {
 				ad.Spec.ClusterChecksRunner.Config.VolumeMounts = options.ClusterChecksRunnerVolumeMounts
 			}
+
 			if len(options.ClusterChecksRunnerVolumes) != 0 {
 				ad.Spec.ClusterChecksRunner.Config.Volumes = options.ClusterChecksRunnerVolumes
+			}
+
+			if options.ClusterChecksRunnerReplicas != nil {
+				ad.Spec.ClusterChecksRunner.Replicas = options.ClusterChecksRunnerReplicas
 			}
 		}
 

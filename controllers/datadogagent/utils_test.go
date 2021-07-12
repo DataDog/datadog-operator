@@ -546,3 +546,49 @@ func Test_getImage(t *testing.T) {
 		})
 	}
 }
+
+func Test_getReplicas(t *testing.T) {
+	tests := []struct {
+		name    string
+		current *int32
+		new     *int32
+		want    *int32
+	}{
+		{
+			name:    "both not nil",
+			current: datadoghqv1alpha1.NewInt32Pointer(2),
+			new:     datadoghqv1alpha1.NewInt32Pointer(3),
+			want:    datadoghqv1alpha1.NewInt32Pointer(3),
+		},
+		{
+			name:    "new is nil",
+			current: datadoghqv1alpha1.NewInt32Pointer(2),
+			new:     nil,
+			want:    datadoghqv1alpha1.NewInt32Pointer(2),
+		},
+		{
+			name:    "current is nil",
+			current: nil,
+			new:     datadoghqv1alpha1.NewInt32Pointer(3),
+			want:    datadoghqv1alpha1.NewInt32Pointer(3),
+		},
+		{
+			name:    "both nil",
+			current: nil,
+			new:     nil,
+			want:    nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := getReplicas(tt.current, tt.new)
+			assert.Equal(t, tt.want, got)
+			if got != nil {
+				// Assert the result's address and
+				// the input pointers are not equal
+				assert.NotSame(t, tt.current, got)
+				assert.NotSame(t, tt.new, got)
+			}
+		})
+	}
+}

@@ -144,6 +144,7 @@ func (r *Reconciler) updateClusterAgentDeployment(logger logr.Logger, dda *datad
 	// Copy possibly changed fields
 	updateDca := dca.DeepCopy()
 	updateDca.Spec = *newDCA.Spec.DeepCopy()
+	updateDca.Spec.Replicas = getReplicas(dca.Spec.Replicas, updateDca.Spec.Replicas)
 	updateDca.Annotations = mergeAnnotationsLabels(logger, dca.GetAnnotations(), newDCA.GetAnnotations(), dda.Spec.ClusterAgent.KeepAnnotations)
 	updateDca.Labels = mergeAnnotationsLabels(logger, dca.GetLabels(), newDCA.GetLabels(), dda.Spec.ClusterAgent.KeepLabels)
 

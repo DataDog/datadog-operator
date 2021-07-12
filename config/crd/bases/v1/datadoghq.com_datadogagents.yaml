@@ -10285,7 +10285,7 @@ spec:
                         type: string
                     type: object
                   replicas:
-                    description: Number of the Cluster Agent replicas.
+                    description: Number of the Cluster Checks Runner replicas.
                     format: int32
                     type: integer
                   tolerations:
@@ -21353,7 +21353,7 @@ spec:
                             type: string
                         type: object
                       replicas:
-                        description: Number of the Cluster Agent replicas.
+                        description: Number of the Cluster Checks Runner replicas.
                         format: int32
                         type: integer
                       tolerations:
