@@ -731,9 +731,25 @@ func schema__api_v1alpha1_ConfigDirSpec(ref common.ReferenceCallback) common.Ope
 							Format:      "",
 						},
 					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Description: "items mapping between configMap data key and file path mount.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.KeyToPath"),
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
+		Dependencies: []string{
+			"k8s.io/api/core/v1.KeyToPath"},
 	}
 }
 
