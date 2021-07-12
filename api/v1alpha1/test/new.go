@@ -33,6 +33,7 @@ type NewDatadogAgentOptions struct {
 	Status                           *datadoghqv1alpha1.DatadogAgentStatus
 	UseEDS                           bool
 	ClusterAgentEnabled              bool
+	ClusterAgentConfd                *datadoghqv1alpha1.ClusterAgentConfig
 	MetricsServerEnabled             bool
 	MetricsServerPort                int32
 	MetricsServerEndpoint            string
@@ -182,9 +183,13 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 			ad.Spec.Agent.Security.VolumeMounts = options.VolumeMounts
 		}
 		if options.ClusterAgentEnabled {
+			config := &datadoghqv1alpha1.ClusterAgentConfig{}
+			if options.ClusterAgentConfd != nil {
+				config = options.ClusterAgentConfd
+			}
 			ad.Spec.ClusterAgent = datadoghqv1alpha1.DatadogAgentSpecClusterAgentSpec{
 				Enabled: datadoghqv1alpha1.NewBoolPointer(true),
-				Config:  &datadoghqv1alpha1.ClusterAgentConfig{},
+				Config:  config,
 				Rbac: &datadoghqv1alpha1.RbacConfig{
 					Create: datadoghqv1alpha1.NewBoolPointer(true),
 				},

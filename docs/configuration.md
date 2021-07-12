@@ -61,9 +61,11 @@ spec:
 | agent.apm.volumeMounts | Specify additional volume mounts in the APM Agent container. |
 | agent.config.args | Args allows the specification of extra args to `Command` parameter |
 | agent.config.checksd.configMapName | ConfigMapName name of a ConfigMap used to mount a directory. |
+| agent.config.checksd.items | items mapping between configMap data key and file path mount. |
 | agent.config.collectEvents | Enables this to start event collection from the Kubernetes API. See also: https://docs.datadoghq.com/agent/kubernetes/event_collection/ |
 | agent.config.command | Command allows the specification of custom entrypoint for the Agent container |
 | agent.config.confd.configMapName | ConfigMapName name of a ConfigMap used to mount a directory. |
+| agent.config.confd.items | items mapping between configMap data key and file path mount. |
 | agent.config.criSocket.criSocketPath | Path to the container runtime socket (if different from Docker). This is supported starting from agent 6.6.0. |
 | agent.config.criSocket.dockerSocketPath | Path to the docker runtime socket. |
 | agent.config.ddUrl | The host of the Datadog intake server to send Agent data to, only set this option if you need the Agent to send data to a custom URL. Overrides the site setting defined in "site". |
@@ -203,12 +205,14 @@ spec:
 | agent.security.command | Command allows the specification of custom entrypoint for Security Agent container |
 | agent.security.compliance.checkInterval | Check interval. |
 | agent.security.compliance.configDir.configMapName | ConfigMapName name of a ConfigMap used to mount a directory. |
+| agent.security.compliance.configDir.items | items mapping between configMap data key and file path mount. |
 | agent.security.compliance.enabled | Enables continuous compliance monitoring. |
 | agent.security.env | The Datadog Security Agent supports many environment variables. See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables |
 | agent.security.resources.limits | Limits describes the maximum amount of compute resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/ |
 | agent.security.resources.requests | Requests describes the minimum amount of compute resources required. If Requests is omitted for a container, it defaults to Limits if that is explicitly specified, otherwise to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/ |
 | agent.security.runtime.enabled | Enables runtime security features. |
 | agent.security.runtime.policiesDir.configMapName | ConfigMapName name of a ConfigMap used to mount a directory. |
+| agent.security.runtime.policiesDir.items | items mapping between configMap data key and file path mount. |
 | agent.security.runtime.syscallMonitor.enabled | Enabled enables syscall monitor |
 | agent.security.volumeMounts | Specify additional volume mounts in the Security Agent container. |
 | agent.systemProbe.appArmorProfileName | AppArmorProfileName specify a apparmor profile. |
@@ -266,6 +270,7 @@ spec:
 | clusterAgent.config.collectEvents | Enable this to start event collection from the kubernetes API. See also: https://docs.datadoghq.com/agent/cluster_agent/event_collection/ |
 | clusterAgent.config.command | Command allows the specification of custom entrypoint for Cluster Agent container |
 | clusterAgent.config.confd.configMapName | ConfigMapName name of a ConfigMap used to mount a directory. |
+| clusterAgent.config.confd.items | items mapping between configMap data key and file path mount. |
 | clusterAgent.config.env | The Datadog Agent supports many environment variables. See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables |
 | clusterAgent.config.externalMetrics.credentials.apiKey | APIKey Set this to your Datadog API key before the Agent runs. See also: https://app.datadoghq.com/account/settings#agent/kubernetes |
 | clusterAgent.config.externalMetrics.credentials.apiKeyExistingSecret | APIKeyExistingSecret is DEPRECATED. In order to pass the API key through an existing secret, please consider "apiSecret" instead. If set, this parameter takes precedence over "apiKey". |

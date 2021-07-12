@@ -1287,6 +1287,15 @@ func getVolumeForConfd(dda *datadoghqv1alpha1.DatadogAgent) corev1.Volume {
 				},
 			},
 		}
+
+		if len(dda.Spec.Agent.Config.Confd.Items) > 0 {
+			for _, val := range dda.Spec.Agent.Config.Confd.Items {
+				source.ConfigMap.Items = append(source.ConfigMap.Items, corev1.KeyToPath{
+					Key:  val.Key,
+					Path: val.Path,
+				})
+			}
+		}
 	}
 
 	return corev1.Volume{
@@ -1346,20 +1355,11 @@ func getSeccompProfileName(spec *datadoghqv1alpha1.SystemProbeSpec) string {
 }
 
 func getVolumeFromCustomConfigSpec(cfcm *datadoghqv1alpha1.CustomConfigSpec, defaultConfigMapName, volumeName string) corev1.Volume {
-	configMapName := defaultConfigMapName
-	if cfcm.ConfigMap != nil {
-		configMapName = cfcm.ConfigMap.Name
-	}
+	confdVolumeSource := *buildVolumeSourceFromCustomConfigSpec(cfcm, defaultConfigMapName)
 
 	return corev1.Volume{
-		Name: volumeName,
-		VolumeSource: corev1.VolumeSource{
-			ConfigMap: &corev1.ConfigMapVolumeSource{
-				LocalObjectReference: corev1.LocalObjectReference{
-					Name: configMapName,
-				},
-			},
-		},
+		Name:         volumeName,
+		VolumeSource: confdVolumeSource,
 	}
 }
 

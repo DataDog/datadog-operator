@@ -296,6 +296,25 @@ func (r *Reconciler) cleanupClusterAgent(logger logr.Logger, dda *datadoghqv1alp
 	return reconcile.Result{Requeue: true}, nil
 }
 
+func buildVolumeSourceFromCustomConfigSpec(configDir *datadoghqv1alpha1.CustomConfigSpec, defaultConfigMapName string) *corev1.VolumeSource {
+	if configDir == nil {
+		return nil
+	}
+
+	cmName := defaultConfigMapName
+	if configDir.ConfigMap != nil && len(configDir.ConfigMap.Name) > 0 {
+		cmName = configDir.ConfigMap.Name
+	}
+
+	return &corev1.VolumeSource{
+		ConfigMap: &corev1.ConfigMapVolumeSource{
+			LocalObjectReference: corev1.LocalObjectReference{
+				Name: cmName,
+			},
+		},
+	}
+}
+
 // newClusterAgentPodTemplate generates a PodTemplate from a DatadogClusterAgentDeployment spec
 func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, labels, annotations map[string]string) (corev1.PodTemplateSpec, error) {
 	// copy Spec to configure the Cluster Agent Pod Template
@@ -313,7 +332,17 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 				},
 			},
 		}
+
+		if len(dda.Spec.ClusterAgent.Config.Confd.Items) > 0 {
+			for _, val := range dda.Spec.ClusterAgent.Config.Confd.Items {
+				confdVolumeSource.ConfigMap.Items = append(confdVolumeSource.ConfigMap.Items, corev1.KeyToPath{
+					Key:  val.Key,
+					Path: val.Path,
+				})
+			}
+		}
 	}
+
 	volumes := []corev1.Volume{
 		{
 			Name: datadoghqv1alpha1.InstallInfoVolumeName,
