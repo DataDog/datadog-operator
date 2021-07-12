@@ -2328,3 +2328,20 @@ func getImage(imageSpec *datadoghqv1alpha1.ImageConfig, registry *string, checkJ
 
 	return datadoghqv1alpha1.DefaultImageRegistry + image
 }
+
+// getReplicas returns the desired replicas of a
+// deployment based on the current and new replica values.
+func getReplicas(currentReplicas, newReplicas *int32) *int32 {
+	if newReplicas == nil {
+		if currentReplicas != nil {
+			// Do not overwrite the current value
+			// It's most likely managed by an autoscaler
+			return datadoghqv1alpha1.NewInt32Pointer(*currentReplicas)
+		}
+
+		// Both new and current are nil
+		return nil
+	}
+
+	return datadoghqv1alpha1.NewInt32Pointer(*newReplicas)
+}
