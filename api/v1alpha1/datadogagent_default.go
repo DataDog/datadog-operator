@@ -392,11 +392,10 @@ func DefaultConfigDogstatsd(config *NodeAgentConfig) *DogstatsdConfig {
 }
 
 // DefaultConfigDogstatsdUDS used to default DSDUnixDomainSocketSpec
-// rreturn the defaulted DSDUnixDomainSocketSpec
+// return the defaulted DSDUnixDomainSocketSpec
 func DefaultConfigDogstatsdUDS(dsd *DogstatsdConfig) *DSDUnixDomainSocketSpec {
 	if dsd.UnixDomainSocket == nil {
-		dsd.UnixDomainSocket = &DSDUnixDomainSocketSpec{Enabled: NewBoolPointer(defaultUseDogStatsDSocketVolume)}
-		return dsd.UnixDomainSocket
+		dsd.UnixDomainSocket = &DSDUnixDomainSocketSpec{}
 	}
 
 	udsOverride := &DSDUnixDomainSocketSpec{}
@@ -405,15 +404,12 @@ func DefaultConfigDogstatsdUDS(dsd *DogstatsdConfig) *DSDUnixDomainSocketSpec {
 		udsOverride.Enabled = dsd.UnixDomainSocket.Enabled
 	}
 
-	if !BoolValue(dsd.UnixDomainSocket.Enabled) {
-		return udsOverride
-	}
-
 	if dsd.UnixDomainSocket.HostFilepath == nil {
 		socketPath := path.Join(defaultHostDogstatsdSocketPath, defaultHostDogstatsdSocketName)
 		dsd.UnixDomainSocket.HostFilepath = &socketPath
 		udsOverride.HostFilepath = dsd.UnixDomainSocket.HostFilepath
 	}
+
 	return udsOverride
 }
 
