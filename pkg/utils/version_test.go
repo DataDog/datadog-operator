@@ -23,6 +23,31 @@ func TestCompareVersion(t *testing.T) {
 			expected:   true,
 		},
 		{
+			version:    "7.29.0-rc.5",
+			minVersion: "7.27.0-0",
+			expected:   true,
+		},
+		{
+			version:    "7.30.0",
+			minVersion: "7.27.1-0",
+			expected:   true,
+		},
+		{
+			version:    "7.25.0",
+			minVersion: "7.27.1-0",
+			expected:   false,
+		},
+		{
+			version:    "6.27.0",
+			minVersion: "6.28.0-0",
+			expected:   false,
+		},
+		{
+			version:    "6.28.1",
+			minVersion: "6.28.0-0",
+			expected:   true,
+		},
+		{
 			version:    "6.27.0",
 			minVersion: "6.28.0",
 			expected:   false,
