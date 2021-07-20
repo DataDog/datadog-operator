@@ -308,7 +308,9 @@ func DefaultDatadogAgentSpecAgentConfig(agent *DatadogAgentSpecAgentSpec) *NodeA
 	// Let Env AD do the work for us
 	// Image is defaulted prior to this function.
 	agentTag := strings.TrimSuffix(utils.GetTagFromImageName(agent.Image.Name), "-jmx")
-	if !(agentTag == "latest" || utils.IsAboveMinVersion(agentTag, "7.27.0") || utils.IsAboveMinVersion(agentTag, "6.27.0")) {
+	// Check against image tag + "-0"; otherwise prelease versions are not compared.
+	// (See https://github.com/Masterminds/semver#working-with-prerelease-versions)
+	if !(agentTag == "latest" || utils.IsAboveMinVersion(agentTag, "7.27.0-0") || utils.IsAboveMinVersion(agentTag, "6.27.0-0")) {
 		if socketOverride := DefaultContainerSocket(agent.Config); !IsEqualStruct(socketOverride, CRISocketConfig{}) {
 			configOverride.CriSocket = socketOverride
 		}
