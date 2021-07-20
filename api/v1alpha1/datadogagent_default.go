@@ -66,8 +66,6 @@ const (
 	defaultKubeStateMetricsCoreEnabled                   bool   = false
 	defaultPrometheusScrapeEnabled                       bool   = false
 	defaultPrometheusScrapeServiceEndpoints              bool   = false
-	defaultClusterAgentReplicas                          int32  = 1
-	defaultClusterChecksRunnerReplicas                   int32  = 1
 	defaultRollingUpdateMaxUnavailable                          = "10%"
 	defaultUpdateStrategy                                       = appsv1.RollingUpdateDaemonSetStrategyType
 	defaultRollingUpdateMaxPodSchedulerFailure                  = "10%"
@@ -927,11 +925,6 @@ func DefaultDatadogAgentSpecClusterAgent(clusterAgent *DatadogAgentSpecClusterAg
 		clusterAgentOverride.NetworkPolicy = net
 	}
 
-	if clusterAgent.Replicas == nil {
-		clusterAgent.Replicas = NewInt32Pointer(defaultClusterAgentReplicas)
-		clusterAgentOverride.Replicas = clusterAgent.Replicas
-	}
-
 	return clusterAgentOverride
 }
 
@@ -1081,11 +1074,6 @@ func DefaultDatadogAgentSpecClusterChecksRunner(clusterChecksRunner *DatadogAgen
 
 	if net := DefaultClusterCheckRunnerNetworkPolicy(clusterChecksRunner); !IsEqualStruct(net, NetworkPolicySpec{}) {
 		clcOverride.NetworkPolicy = net
-	}
-
-	if clusterChecksRunner.Replicas == nil {
-		clusterChecksRunner.Replicas = NewInt32Pointer(defaultClusterChecksRunnerReplicas)
-		clcOverride.Replicas = clusterChecksRunner.Replicas
 	}
 
 	return clcOverride

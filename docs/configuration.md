@@ -363,7 +363,7 @@ spec:
 | clusterChecksRunner.priorityClassName | If specified, indicates the pod's priority. "system-node-critical" and "system-cluster-critical" are two special keywords which indicate the highest priorities with the former being the highest priority. Any other name must be defined by creating a PriorityClass object with that name. If not specified, the pod priority will be default or zero if there is no default. |
 | clusterChecksRunner.rbac.create | Used to configure RBAC resources creation. |
 | clusterChecksRunner.rbac.serviceAccountName | Used to set up the service account name to use. Ignored if the field Create is true. |
-| clusterChecksRunner.replicas | Number of the Cluster Agent replicas. |
+| clusterChecksRunner.replicas | Number of the Cluster Checks Runner replicas. |
 | clusterChecksRunner.tolerations | If specified, the Cluster-Checks pod's tolerations. |
 | clusterName | Set a unique cluster name to allow scoping hosts and Cluster Checks Runner easily. |
 | credentials.apiKey | APIKey Set this to your Datadog API key before the Agent runs. See also: https://app.datadoghq.com/account/settings#agent/kubernetes |
