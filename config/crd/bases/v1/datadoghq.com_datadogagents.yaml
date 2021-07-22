@@ -3942,6 +3942,11 @@ spec:
                   log:
                     description: Log Agent configuration
                     properties:
+                      ContainerSymlinksPath:
+                        description: Allows the log collection to use symbolic links
+                          in this directory to validate container ID -> pod. Defaults
+                          to `/var/log/containers`
+                        type: string
                       containerCollectUsingFiles:
                         description: 'Collect logs from files in `/var/log/pods instead`
                           of using the container runtime API. Collecting logs from
@@ -10603,6 +10608,11 @@ spec:
                   logCollection:
                     description: LogCollection configuration.
                     properties:
+                      ContainerSymlinksPath:
+                        description: Allows the log collection to use symbolic links
+                          in this directory to validate container ID -> pod. Defaults
+                          to `/var/log/containers`
+                        type: string
                       containerCollectUsingFiles:
                         description: 'Collect logs from files in `/var/log/pods instead`
                           of using the container runtime API. Collecting logs from
@@ -14928,6 +14938,11 @@ spec:
                       log:
                         description: Log Agent configuration
                         properties:
+                          ContainerSymlinksPath:
+                            description: Allows the log collection to use symbolic
+                              links in this directory to validate container ID ->
+                              pod. Defaults to `/var/log/containers`
+                            type: string
                           containerCollectUsingFiles:
                             description: 'Collect logs from files in `/var/log/pods
                               instead` of using the container runtime API. Collecting
@@ -21848,6 +21863,11 @@ spec:
                       logCollection:
                         description: LogCollection configuration.
                         properties:
+                          ContainerSymlinksPath:
+                            description: Allows the log collection to use symbolic
+                              links in this directory to validate container ID ->
+                              pod. Defaults to `/var/log/containers`
+                            type: string
                           containerCollectUsingFiles:
                             description: 'Collect logs from files in `/var/log/pods
                               instead` of using the container runtime API. Collecting

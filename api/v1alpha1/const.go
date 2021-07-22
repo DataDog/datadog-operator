@@ -170,6 +170,8 @@ const (
 	LogPodVolumeReadOnly               = true
 	LogContainerVolumeName             = "logcontainerpath"
 	LogContainerVolumeReadOnly         = true
+	SymlinkContainerVolumeName         = "symlinkcontainerpath"
+	SymlinkContainerVolumeReadOnly     = true
 	SystemProbeDebugfsVolumeName       = "debugfs"
 	SystemProbeDebugfsVolumePath       = "/sys/kernel/debug"
 	SystemProbeConfigVolumeName        = "system-probe-config"

@@ -1666,6 +1666,11 @@ func (in *LogCollectionConfig) DeepCopyInto(out *LogCollectionConfig) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.ContainerSymlinksPath != nil {
+		in, out := &in.ContainerSymlinksPath, &out.ContainerSymlinksPath
+		*out = new(string)
+		**out = **in
+	}
 	if in.TempStoragePath != nil {
 		in, out := &in.TempStoragePath, &out.TempStoragePath
 		*out = new(string)

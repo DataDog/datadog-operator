@@ -2426,6 +2426,13 @@ func schema__api_v1alpha1_LogCollectionConfig(ref common.ReferenceCallback) comm
 							Format:      "",
 						},
 					},
+					"ContainerSymlinksPath": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Allows the log collection to use symbolic links in this directory to validate container ID -> pod. Defaults to `/var/log/containers`",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"tempStoragePath": {
 						SchemaProps: spec.SchemaProps{
 							Description: "This path (always mounted from the host) is used by Datadog Agent to store information about processed log files. If the Datadog Agent is restarted, it starts tailing the log files immediately. Default to `/var/lib/datadog-agent/logs`",

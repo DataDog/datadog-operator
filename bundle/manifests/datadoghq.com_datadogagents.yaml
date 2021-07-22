@@ -1825,6 +1825,9 @@ spec:
                     podLogsPath:
                       description: Allows log collection from pod log path. Defaults to `/var/log/pods`.
                       type: string
+                    containerSymlinksPath:
+                      description: Allows usage of `/var/log/containers` to confirm container ID -> pod matching. Defaults to `/var/log/containers`.
+                      type: string
                     tempStoragePath:
                       description: This path (always mounted from the host) is used by Datadog Agent to store information about processed log files. If the Datadog Agent is restarted, it starts tailing the log files immediately. Default to `/var/lib/datadog-agent/logs`
                       type: string
