@@ -1,0 +1,35 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog
+spec:
+  ClusterName: ced-test
+  credentials:
+    apiKey: <DATADOG_API_KEY>
+    appKey: <DATADOG_APP_KEY>
+  features:
+    orchestratorExplorer:
+      enabled: true
+    kubeStateMetricsCore:
+      enabled: true
+  agent:
+    image:
+      name: "gcr.io/datadoghq/agent:latest"
+  clusterAgent:
+    image:
+      name: "gcr.io/datadoghq/cluster-agent:latest"
+    config:
+      confd:
+        configMapName: cluster-agent-confd
+        items:
+        - key: test
+          path: test.d/test.yaml
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cluster-agent-confd
+data:
+  test: |-
+    init_config:
+    instances:

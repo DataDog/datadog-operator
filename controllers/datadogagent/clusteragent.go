@@ -306,12 +306,14 @@ func buildVolumeSourceFromCustomConfigSpec(configDir *datadoghqv1alpha1.CustomCo
 		cmName = configDir.ConfigMap.Name
 	}
 
-	return &corev1.VolumeSource{
-		ConfigMap: &corev1.ConfigMapVolumeSource{
-			LocalObjectReference: corev1.LocalObjectReference{
-				Name: cmName,
-			},
+	cmSource := &corev1.ConfigMapVolumeSource{
+		LocalObjectReference: corev1.LocalObjectReference{
+			Name: cmName,
 		},
+	}
+
+	return &corev1.VolumeSource{
+		ConfigMap: cmSource,
 	}
 }
 
@@ -377,7 +379,8 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 		customConfigVolumeSource := getVolumeFromCustomConfigSpec(
 			dda.Spec.ClusterAgent.CustomConfig,
 			getClusterAgentCustomConfigConfigMapName(dda),
-			datadoghqv1alpha1.AgentCustomConfigVolumeName)
+			datadoghqv1alpha1.AgentCustomConfigVolumeName,
+		)
 		volumes = append(volumes, customConfigVolumeSource)
 
 		// Custom config (datadog-cluster.yaml) volume
@@ -422,8 +425,8 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 			volumeMountKSM = getVolumeMountFromCustomConfigSpec(
 				dda.Spec.Features.KubeStateMetricsCore.Conf,
 				datadoghqv1alpha1.KubeStateMetricCoreVolumeName,
-				fmt.Sprintf("%s%s/%s", datadoghqv1alpha1.ConfigVolumePath, datadoghqv1alpha1.ConfdVolumePath, ksmCoreCheckName),
-				ksmCoreCheckName,
+				fmt.Sprintf("%s%s/%s", datadoghqv1alpha1.ConfigVolumePath, datadoghqv1alpha1.ConfdVolumePath, ksmCoreCheckFolderName),
+				"",
 			)
 		} else {
 			volKSM = corev1.Volume{
@@ -438,7 +441,8 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 			}
 			volumeMountKSM = corev1.VolumeMount{
 				Name:      datadoghqv1alpha1.KubeStateMetricCoreVolumeName,
-				MountPath: fmt.Sprintf("/etc/datadog-agent%s", datadoghqv1alpha1.ConfdVolumePath),
+				MountPath: fmt.Sprintf("%s%s/%s", datadoghqv1alpha1.ConfigVolumePath, datadoghqv1alpha1.ConfdVolumePath, ksmCoreCheckName),
+				SubPath:   ksmCoreCheckName,
 				ReadOnly:  true,
 			}
 		}

@@ -19,7 +19,8 @@ import (
 
 const (
 	kubeStateMetricsRBACPrefix = "kube-state-metrics-core-"
-	ksmCoreCheckName           = "kubernetes_state_core.yaml"
+	ksmCoreCheckName           = "kubernetes_state_core.yaml.default"
+	ksmCoreCheckFolderName     = "kubernetes_state_core.d"
 )
 
 func ksmCheckConfig(clusteCheck bool) string {
