@@ -633,7 +633,8 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						Config: &datadoghqv1alpha1.NodeAgentConfig{
 							SecurityContext: &corev1.PodSecurityContext{
 								RunAsUser: datadoghqv1alpha1.NewInt64Pointer(100),
-							}},
+							},
+						},
 					}
 					datadoghqv1alpha1.DefaultDatadogAgentSpecAgentImage(agentConfig, "foo", "bar")
 					datadoghqv1alpha1.DefaultDatadogAgentSpecAgentConfig(agentConfig)
@@ -2449,9 +2450,7 @@ func hasAllClusterLevelRbacResources(policyRules []rbacv1.PolicyRule) bool {
 	}
 	for _, policyRule := range policyRules {
 		for _, resource := range policyRule.Resources {
-			if _, found := clusterLevelResources[resource]; found {
-				delete(clusterLevelResources, resource)
-			}
+			delete(clusterLevelResources, resource)
 		}
 	}
 	return len(clusterLevelResources) == 0
@@ -2504,9 +2503,7 @@ func hasAdmissionRbacResources(policyRules []rbacv1.PolicyRule) bool {
 	}
 	for _, policyRule := range policyRules {
 		for _, resource := range policyRule.Resources {
-			if _, found := clusterLevelResources[resource]; found {
-				delete(clusterLevelResources, resource)
-			}
+			delete(clusterLevelResources, resource)
 		}
 	}
 	return len(clusterLevelResources) == 0
@@ -2521,9 +2518,7 @@ func hasAllNodeLevelRbacResources(policyRules []rbacv1.PolicyRule) bool {
 	}
 	for _, policyRule := range policyRules {
 		for _, resource := range policyRule.Resources {
-			if _, found := nodeLevelResources[resource]; found {
-				delete(nodeLevelResources, resource)
-			}
+			delete(nodeLevelResources, resource)
 		}
 	}
 	return len(nodeLevelResources) == 0

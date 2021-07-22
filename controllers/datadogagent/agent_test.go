@@ -119,6 +119,81 @@ func defaultReadinessProbe() *corev1.Probe {
 	}
 }
 
+func defaultVolumes() []corev1.Volume {
+	return []corev1.Volume{
+		{
+			Name: datadoghqv1alpha1.LogDatadogVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.AuthVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.DogstatsdSocketVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.InstallInfoVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: "foo-install-info",
+					},
+				},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.ConfdVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.ChecksdVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.ConfigVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.ProcVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/proc",
+				},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.CgroupsVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/sys/fs/cgroup",
+				},
+			},
+		},
+		{
+			Name: "runtimesocketdir",
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/var/run",
+				},
+			},
+		},
+	}
+}
+
 func defaultSystemProbeVolumes() []corev1.Volume {
 	fileOrCreate := corev1.HostPathFileOrCreate
 	return []corev1.Volume{
@@ -1546,24 +1621,28 @@ func runtimeSecurityAgentPodSpec(extraEnv map[string]string, extraDir string) co
 		},
 	}...)
 	command := []string{"cp -vnr /etc/datadog-agent /opt"}
-	secVolumes := []corev1.VolumeMount{
+
+	volumeMountsBuilder := NewVolumeMountBuilder([]corev1.VolumeMount{
 		{
 			Name:      datadoghqv1alpha1.ConfigVolumeName,
 			MountPath: "/opt/datadog-agent",
 		},
-	}
-	volumes := runtimeSecurityAgentVolumes()
+	}, nil)
+
+	volumesBuilder := NewVolumeBuilder(runtimeSecurityAgentVolumes(), nil)
 	if extraDir != "" {
 		command = []string{"cp -vnr /etc/datadog-agent /opt;cp -v /etc/datadog-agent-runtime-policies/* /opt/datadog-agent/runtime-security.d/"}
-		secVolumes = append(secVolumes, corev1.VolumeMount{
+
+		volumeMountsBuilder.Add(&corev1.VolumeMount{
 			Name:      datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumeName,
 			MountPath: "/etc/datadog-agent/runtime-security.d",
-		},
-			corev1.VolumeMount{
-				Name:      datadoghqv1alpha1.SecurityAgentRuntimeCustomPoliciesVolumeName,
-				MountPath: "/etc/datadog-agent-runtime-policies",
-			})
-		volumes = append(volumes, corev1.Volume{
+		})
+		volumeMountsBuilder.Add(&corev1.VolumeMount{
+			Name:      datadoghqv1alpha1.SecurityAgentRuntimeCustomPoliciesVolumeName,
+			MountPath: "/etc/datadog-agent-runtime-policies",
+		})
+
+		volumesBuilder.Add(&corev1.Volume{
 			Name: datadoghqv1alpha1.SecurityAgentRuntimeCustomPoliciesVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
@@ -1572,13 +1651,14 @@ func runtimeSecurityAgentPodSpec(extraEnv map[string]string, extraDir string) co
 					},
 				},
 			},
-		},
-			corev1.Volume{
-				Name: datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumeName,
-				VolumeSource: corev1.VolumeSource{
-					EmptyDir: &corev1.EmptyDirVolumeSource{},
-				},
-			})
+		})
+
+		volumesBuilder.Add(&corev1.Volume{
+			Name: datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		})
 	}
 	return corev1.PodSpec{
 		ServiceAccountName: "foo-agent",
@@ -1591,7 +1671,7 @@ func runtimeSecurityAgentPodSpec(extraEnv map[string]string, extraDir string) co
 				Resources:       corev1.ResourceRequirements{},
 				Command:         []string{"bash", "-c"},
 				Args:            command,
-				VolumeMounts:    secVolumes,
+				VolumeMounts:    volumeMountsBuilder.Build(),
 			},
 			{
 				Name:            "init-config",
@@ -1686,7 +1766,7 @@ func runtimeSecurityAgentPodSpec(extraEnv map[string]string, extraDir string) co
 				VolumeMounts: runtimeSecurityAgentMountVolume(),
 			},
 		},
-		Volumes: volumes,
+		Volumes: volumesBuilder.Build(),
 	}
 }
 
@@ -1767,60 +1847,24 @@ func complianceSecurityAgentPodSpec(extraEnv map[string]string) corev1.PodSpec {
 
 func customKubeletConfigPodSpec(kubeletConfig *datadoghqv1alpha1.KubeletConfig) corev1.PodSpec {
 	kubeletCAVolumeType := corev1.HostPathFile
-	volumeMounts := []corev1.VolumeMount{
-		{
-			Name:      "logdatadog",
-			MountPath: "/var/log/datadog",
-		},
-		{
-			Name:      "datadog-agent-auth",
-			MountPath: "/etc/datadog-agent/auth",
-		},
-		{
-			Name:      "dsdsocket",
-			MountPath: "/var/run/datadog/statsd",
-		},
-		{
-			Name:      "installinfo",
-			SubPath:   "install_info",
-			MountPath: "/etc/datadog-agent/install_info",
-			ReadOnly:  true,
-		},
-		{
-			Name:      "confd",
-			MountPath: "/conf.d",
-			ReadOnly:  true,
-		},
-		{
-			Name:      "checksd",
-			MountPath: "/checks.d",
-			ReadOnly:  true,
-		},
-		{
-			Name:      "procdir",
-			MountPath: "/host/proc",
-			ReadOnly:  true,
-		},
-		{
-			Name:      "cgroups",
-			MountPath: "/host/sys/fs/cgroup",
-			ReadOnly:  true,
-		},
-		{
-			Name:      datadoghqv1alpha1.KubeletCAVolumeName,
-			ReadOnly:  true,
-			MountPath: kubeletConfig.AgentCAPath,
-		},
-		{
-			Name:      "config",
-			MountPath: "/etc/datadog-agent",
-		},
-		{
-			Name:      "runtimesocketdir",
-			MountPath: "/host/var/run",
-			ReadOnly:  true,
+	KubeletCAVolume := corev1.Volume{
+		Name: "kubelet-ca",
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: kubeletConfig.HostCAPath,
+				Type: &kubeletCAVolumeType,
+			},
 		},
 	}
+	VolumeBuilder := NewVolumeBuilder(defaultVolumes(), nil).Add(&KubeletCAVolume)
+
+	volumeMountsBuilder := NewVolumeMountBuilder(defaultMountVolume(), nil)
+	volumeMountsBuilder.Add(&corev1.VolumeMount{
+		Name:      datadoghqv1alpha1.KubeletCAVolumeName,
+		ReadOnly:  true,
+		MountPath: kubeletConfig.AgentCAPath,
+	})
+
 	envVars := []corev1.EnvVar{
 		{
 			Name:  "DD_HEALTH_PORT",
@@ -1913,7 +1957,7 @@ func customKubeletConfigPodSpec(kubeletConfig *datadoghqv1alpha1.KubeletConfig) 
 				Command:         []string{"bash", "-c"},
 				Args:            []string{"for script in $(find /etc/cont-init.d/ -type f -name '*.sh' | sort) ; do bash $script ; done"},
 				Env:             envVars,
-				VolumeMounts:    volumeMounts,
+				VolumeMounts:    volumeMountsBuilder.Build(),
 			},
 		},
 		Containers: []corev1.Container{
@@ -1934,92 +1978,12 @@ func customKubeletConfigPodSpec(kubeletConfig *datadoghqv1alpha1.KubeletConfig) 
 					},
 				},
 				Env:            envVars,
-				VolumeMounts:   volumeMounts,
+				VolumeMounts:   volumeMountsBuilder.Build(),
 				LivenessProbe:  defaultLivenessProbe(),
 				ReadinessProbe: defaultReadinessProbe(),
 			},
 		},
-		Volumes: []corev1.Volume{
-			{
-				Name: datadoghqv1alpha1.LogDatadogVolumeName,
-				VolumeSource: corev1.VolumeSource{
-					EmptyDir: &corev1.EmptyDirVolumeSource{},
-				},
-			},
-			{
-				Name: datadoghqv1alpha1.AuthVolumeName,
-				VolumeSource: corev1.VolumeSource{
-					EmptyDir: &corev1.EmptyDirVolumeSource{},
-				},
-			},
-			{
-				Name: datadoghqv1alpha1.DogstatsdSocketVolumeName,
-				VolumeSource: corev1.VolumeSource{
-					EmptyDir: &corev1.EmptyDirVolumeSource{},
-				},
-			},
-			{
-				Name: datadoghqv1alpha1.InstallInfoVolumeName,
-				VolumeSource: corev1.VolumeSource{
-					ConfigMap: &corev1.ConfigMapVolumeSource{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: "foo-install-info",
-						},
-					},
-				},
-			},
-			{
-				Name: datadoghqv1alpha1.ConfdVolumeName,
-				VolumeSource: corev1.VolumeSource{
-					EmptyDir: &corev1.EmptyDirVolumeSource{},
-				},
-			},
-			{
-				Name: datadoghqv1alpha1.ChecksdVolumeName,
-				VolumeSource: corev1.VolumeSource{
-					EmptyDir: &corev1.EmptyDirVolumeSource{},
-				},
-			},
-			{
-				Name: datadoghqv1alpha1.ConfigVolumeName,
-				VolumeSource: corev1.VolumeSource{
-					EmptyDir: &corev1.EmptyDirVolumeSource{},
-				},
-			},
-			{
-				Name: datadoghqv1alpha1.ProcVolumeName,
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: "/proc",
-					},
-				},
-			},
-			{
-				Name: datadoghqv1alpha1.CgroupsVolumeName,
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: "/sys/fs/cgroup",
-					},
-				},
-			},
-			{
-				Name: "kubelet-ca",
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: kubeletConfig.HostCAPath,
-						Type: &kubeletCAVolumeType,
-					},
-				},
-			},
-			{
-				Name: "runtimesocketdir",
-				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: "/var/run",
-					},
-				},
-			},
-		},
+		Volumes: VolumeBuilder.Build(),
 	}
 }
 
