@@ -885,3 +885,49 @@ func TestDefaultDatadogFeatureOrchestratorExplorer(t *testing.T) {
 		})
 	}
 }
+
+func TestDefaultDatadogAgentSpecAgentApm(t *testing.T) {
+	tests := []struct {
+		input *DatadogAgentSpecAgentSpec
+		name  string
+		want  *APMSpec
+	}{
+		{
+			name: "APM not set",
+			input: &DatadogAgentSpecAgentSpec{
+				Enabled: NewBoolPointer(true),
+			},
+			want: &APMSpec{
+				Enabled: NewBoolPointer(false),
+			},
+		},
+		{
+			name: "APM not enabled",
+			input: &DatadogAgentSpecAgentSpec{
+				Apm: &APMSpec{
+					Enabled: NewBoolPointer(false),
+				},
+			},
+			want: &APMSpec{},
+		},
+		{
+			name: "APM enabled",
+			input: &DatadogAgentSpecAgentSpec{
+				Apm: &APMSpec{
+					Enabled: NewBoolPointer(true),
+				},
+			},
+			want: &APMSpec{
+				HostPort:         NewInt32Pointer(8126),
+				UnixDomainSocket: &APMUnixDomainSocketSpec{Enabled: NewBoolPointer(false)},
+				LivenessProbe:    getDefaultAPMAgentLivenessProbe(),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := DefaultDatadogAgentSpecAgentApm(tt.input)
+			assert.True(t, IsEqualStruct(got, tt.want), "TestDefaultDatadogAgentSpecAgentApm defaulting \ndiff = %s", cmp.Diff(got, tt.want))
+		})
+	}
+}
