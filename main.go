@@ -12,6 +12,7 @@ import (
 	"os"
 	goruntime "runtime"
 	"strings"
+	"time"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -74,10 +75,12 @@ func main() {
 	var metricsAddr string
 	var enableLeaderElection bool
 	var leaderElectionResourceLock string
+	var leaderElectionLeaseDuration time.Duration
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", true,
 		"Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
 	flag.StringVar(&leaderElectionResourceLock, "leader-election-resource", "configmaps", "determines which resource lock to use for leader election. option:[configmapsleases|endpointsleases|configmaps]")
+	flag.DurationVar(&leaderElectionLeaseDuration, "leader-election-lease-duration", 60*time.Second, "Define LeaseDuration as well as RenewDeadline (leaseDuration / 2) and RetryPeriod (leaseDuration / 4)")
 
 	// Custom flags
 	var printVersion, pprofActive, supportExtendedDaemonset, datadogMonitorEnabled, operatorMetricsEnabled bool
@@ -113,6 +116,9 @@ func main() {
 	secrets.SetSecretBackendCommand(secretBackendCommand)
 	secrets.SetSecretBackendArgs(secretBackendArgs)
 
+	renewDeadline := leaderElectionLeaseDuration / 2
+	retryPeriod := leaderElectionLeaseDuration / 4
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), config.ManagerOptionsWithNamespaces(setupLog, ctrl.Options{
 		Scheme:                     scheme,
 		MetricsBindAddress:         metricsAddr,
@@ -121,6 +127,9 @@ func main() {
 		LeaderElection:             enableLeaderElection,
 		LeaderElectionID:           "datadog-operator-lock",
 		LeaderElectionResourceLock: leaderElectionResourceLock,
+		LeaseDuration:              &leaderElectionLeaseDuration,
+		RenewDeadline:              &renewDeadline,
+		RetryPeriod:                &retryPeriod,
 	}))
 	if err != nil {
 		setupLog.Error(err, "Unable to start manager")
