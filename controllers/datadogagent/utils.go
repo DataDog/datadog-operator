@@ -327,6 +327,7 @@ func getAPMAgentContainers(dda *datadoghqv1alpha1.DatadogAgent, image string) ([
 		ContainerPort: *dda.Spec.Agent.Apm.HostPort,
 		Name:          "traceport",
 		Protocol:      corev1.ProtocolTCP,
+		HostPort:      *dda.Spec.Agent.Apm.HostPort,
 	}
 
 	apmContainer := corev1.Container{

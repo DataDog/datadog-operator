@@ -1120,7 +1120,7 @@ func appendDefaultAPMAgentContainer(podSpec *corev1.PodSpec) {
 		ImagePullPolicy: corev1.PullIfNotPresent,
 		Command:         []string{"trace-agent", "--config=" + agentConfigFile},
 		Resources:       corev1.ResourceRequirements{},
-		Ports:           []corev1.ContainerPort{{Name: "traceport", ContainerPort: 8126, Protocol: "TCP"}},
+		Ports:           []corev1.ContainerPort{{Name: "traceport", ContainerPort: 8126, Protocol: "TCP", HostPort: 8126}},
 		Env:             defaultAPMContainerEnvVars(),
 		VolumeMounts: []corev1.VolumeMount{
 			{
