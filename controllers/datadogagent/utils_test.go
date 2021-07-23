@@ -441,6 +441,47 @@ func Test_mergeAnnotationsLabels(t *testing.T) {
 	}
 }
 
+func Test_hasAgentSingleEntryPoint(t *testing.T) {
+	tests := []struct {
+		imageName string
+		want      bool
+	}{
+		{
+			imageName: "gcr.io/datadoghq/agent:latest",
+			want:      true,
+		},
+		{
+			imageName: "gcr.io/datadoghq/agent:7.29.0",
+			want:      false,
+		},
+		{
+			imageName: "gcr.io/datadoghq/agent:7.30.0",
+			want:      true,
+		},
+		{
+			imageName: "gcr.io/datadoghq/agent:6.29.0",
+			want:      false,
+		},
+		{
+			imageName: "gcr.io/datadoghq/agent:6.30.0",
+			want:      true,
+		},
+		{
+			imageName: "gcr.io/datadoghq/agent:6.30.0-jmx",
+			want:      true,
+		},
+		{
+			imageName: "gcr.io/datadoghq/agent:7.29.0-rc.8-jmx",
+			want:      false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.imageName, func(t *testing.T) {
+			assert.Equal(t, tt.want, hasAgentSingleEntrypoint(tt.imageName))
+		})
+	}
+}
+
 func Test_imageHasTag(t *testing.T) {
 	cases := map[string]bool{
 		"foo:bar":             true,

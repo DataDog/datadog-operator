@@ -14,7 +14,7 @@ func IsAboveMinVersion(version, minVersion string) bool {
 		return false
 	}
 
-	c, err := semver.NewConstraint(">= " + minVersion)
+	c, err := semver.NewConstraint("^" + minVersion)
 	if err != nil {
 		return false
 	}

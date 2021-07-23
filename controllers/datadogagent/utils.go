@@ -18,8 +18,9 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/orchestrator"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils"
+	cutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/utils"
 
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	"github.com/go-logr/logr"
@@ -298,17 +299,25 @@ func getAgentContainer(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, 
 		}
 	}
 
+	command, args, env := getAgentContainerEntrypoint(
+		"agent",
+		image,
+		dda.Spec.Agent.Config.Command,
+		dda.Spec.Agent.Config.Args,
+		[]string{"agent", "run"},
+		nil)
+
 	agentContainer := &corev1.Container{
 		Name:            "agent",
 		Image:           image,
 		ImagePullPolicy: *agentSpec.Image.PullPolicy,
-		Command:         getDefaultIfEmpty(dda.Spec.Agent.Config.Command, []string{"agent", "run"}),
-		Args:            getDefaultIfEmpty(dda.Spec.Agent.Config.Args, nil),
+		Command:         command,
+		Args:            args,
 		Resources:       *agentSpec.Config.Resources,
 		Ports: []corev1.ContainerPort{
 			udpPort,
 		},
-		Env:            envVars,
+		Env:            append(env, envVars...),
 		VolumeMounts:   getVolumeMountsForAgent(dda),
 		LivenessProbe:  dda.Spec.Agent.Config.LivenessProbe,
 		ReadinessProbe: dda.Spec.Agent.Config.ReadinessProbe,
@@ -329,16 +338,24 @@ func getAPMAgentContainers(dda *datadoghqv1alpha1.DatadogAgent, image string) ([
 		Protocol:      corev1.ProtocolTCP,
 	}
 
+	command, args, env := getAgentContainerEntrypoint(
+		"trace-agent",
+		image,
+		dda.Spec.Agent.Apm.Command,
+		dda.Spec.Agent.Apm.Args,
+		[]string{"trace-agent", fmt.Sprintf("--config=%s", datadoghqv1alpha1.AgentCustomConfigVolumePath)},
+		nil)
+
 	apmContainer := corev1.Container{
 		Name:            "trace-agent",
 		Image:           image,
 		ImagePullPolicy: *agentSpec.Image.PullPolicy,
-		Command:         getDefaultIfEmpty(dda.Spec.Agent.Apm.Command, []string{"trace-agent", fmt.Sprintf("--config=%s", datadoghqv1alpha1.AgentCustomConfigVolumePath)}),
-		Args:            getDefaultIfEmpty(dda.Spec.Agent.Apm.Args, nil),
+		Command:         command,
+		Args:            args,
 		Ports: []corev1.ContainerPort{
 			tcpPort,
 		},
-		Env:           envVars,
+		Env:           append(env, envVars...),
 		LivenessProbe: dda.Spec.Agent.Apm.LivenessProbe,
 		VolumeMounts:  getVolumeMountsForAPMAgent(dda),
 	}
@@ -356,17 +373,25 @@ func getProcessContainers(dda *datadoghqv1alpha1.DatadogAgent, image string) ([]
 		return nil, err
 	}
 
+	command, args, env := getAgentContainerEntrypoint(
+		"process-agent",
+		image,
+		dda.Spec.Agent.Process.Command,
+		dda.Spec.Agent.Process.Args,
+		[]string{
+			"process-agent", fmt.Sprintf("--config=%s", datadoghqv1alpha1.AgentCustomConfigVolumePath),
+			fmt.Sprintf("--sysprobe-config=%s", datadoghqv1alpha1.SystemProbeConfigVolumePath),
+		},
+		nil)
+
 	process := corev1.Container{
 		Name:            "process-agent",
 		Image:           image,
 		ImagePullPolicy: *agentSpec.Image.PullPolicy,
-		Command: getDefaultIfEmpty(dda.Spec.Agent.Process.Command, []string{
-			"process-agent", fmt.Sprintf("--config=%s", datadoghqv1alpha1.AgentCustomConfigVolumePath),
-			fmt.Sprintf("--sysprobe-config=%s", datadoghqv1alpha1.SystemProbeConfigVolumePath),
-		}),
-		Args:         getDefaultIfEmpty(dda.Spec.Agent.Process.Args, nil),
-		Env:          envVars,
-		VolumeMounts: getVolumeMountsForProcessAgent(dda),
+		Command:         command,
+		Args:            args,
+		Env:             append(env, envVars...),
+		VolumeMounts:    getVolumeMountsForProcessAgent(dda),
 	}
 
 	if agentSpec.Process.Resources != nil {
@@ -383,12 +408,20 @@ func getSystemProbeContainers(dda *datadoghqv1alpha1.DatadogAgent, image string)
 		return nil, err
 	}
 
+	command, args, env := getAgentContainerEntrypoint(
+		"system-probe",
+		image,
+		dda.Spec.Agent.SystemProbe.Command,
+		dda.Spec.Agent.SystemProbe.Args,
+		[]string{"system-probe", fmt.Sprintf("--config=%s", datadoghqv1alpha1.SystemProbeConfigVolumePath)},
+		nil)
+
 	systemProbe := corev1.Container{
 		Name:            "system-probe",
 		Image:           image,
 		ImagePullPolicy: *agentSpec.Image.PullPolicy,
-		Command:         getDefaultIfEmpty(dda.Spec.Agent.SystemProbe.Command, []string{"system-probe", fmt.Sprintf("--config=%s", datadoghqv1alpha1.SystemProbeConfigVolumePath)}),
-		Args:            getDefaultIfEmpty(dda.Spec.Agent.SystemProbe.Args, nil),
+		Command:         command,
+		Args:            args,
 		SecurityContext: &corev1.SecurityContext{
 			Capabilities: &corev1.Capabilities{
 				Add: []corev1.Capability{
@@ -402,7 +435,7 @@ func getSystemProbeContainers(dda *datadoghqv1alpha1.DatadogAgent, image string)
 				},
 			},
 		},
-		Env:          systemProbeEnvVars,
+		Env:          append(env, systemProbeEnvVars...),
 		VolumeMounts: getVolumeMountsForSystemProbe(dda),
 	}
 	if agentSpec.SystemProbe.SecurityContext != nil {
@@ -422,19 +455,27 @@ func getSecurityAgentContainer(dda *datadoghqv1alpha1.DatadogAgent, image string
 		return nil, err
 	}
 
+	command, args, env := getAgentContainerEntrypoint(
+		"security-agent",
+		image,
+		dda.Spec.Agent.Security.Command,
+		dda.Spec.Agent.Security.Args,
+		[]string{"security-agent", "start", fmt.Sprintf("-c=%s", datadoghqv1alpha1.AgentCustomConfigVolumePath)},
+		nil)
+
 	securityAgentContainer := &corev1.Container{
 		Name:            "security-agent",
 		Image:           image,
 		ImagePullPolicy: *agentSpec.Image.PullPolicy,
-		Command:         getDefaultIfEmpty(dda.Spec.Agent.Security.Command, []string{"security-agent", "start", fmt.Sprintf("-c=%s", datadoghqv1alpha1.AgentCustomConfigVolumePath)}),
-		Args:            getDefaultIfEmpty(dda.Spec.Agent.Security.Args, nil),
+		Command:         command,
+		Args:            args,
 		SecurityContext: &corev1.SecurityContext{
 			Capabilities: &corev1.Capabilities{
 				Add: []corev1.Capability{"AUDIT_CONTROL", "AUDIT_READ"},
 			},
 		},
 		Resources:    *agentSpec.Config.Resources,
-		Env:          envVars,
+		Env:          append(env, envVars...),
 		VolumeMounts: getVolumeMountsForSecurityAgent(dda),
 	}
 
@@ -452,16 +493,26 @@ func getInitContainers(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, 
 	containers := getConfigInitContainers(spec, volumeMounts, envVars, image)
 
 	if shouldInstallSeccompProfileFromConfigMap(dda) {
+		command, args, env := getAgentContainerEntrypoint(
+			"seccomp-setup",
+			image,
+			[]string{},
+			[]string{},
+			[]string{
+				"cp",
+				fmt.Sprintf("%s/system-probe-seccomp.json", datadoghqv1alpha1.SystemProbeAgentSecurityVolumePath),
+				fmt.Sprintf("%s/system-probe", datadoghqv1alpha1.SystemProbeSecCompRootVolumePath),
+			},
+			nil)
+
 		systemProbeInit := corev1.Container{
 			Name:            "seccomp-setup",
 			Image:           spec.Agent.Image.Name,
 			ImagePullPolicy: *spec.Agent.Image.PullPolicy,
 			Resources:       *spec.Agent.Config.Resources,
-			Command: []string{
-				"cp",
-				fmt.Sprintf("%s/system-probe-seccomp.json", datadoghqv1alpha1.SystemProbeAgentSecurityVolumePath),
-				fmt.Sprintf("%s/system-probe", datadoghqv1alpha1.SystemProbeSecCompRootVolumePath),
-			},
+			Command:         command,
+			Args:            args,
+			Env:             env,
 			VolumeMounts: []corev1.VolumeMount{
 				{
 					Name:      datadoghqv1alpha1.SystemProbeAgentSecurityVolumeName,
@@ -480,15 +531,23 @@ func getInitContainers(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, 
 }
 
 func getInitContainer(spec *datadoghqv1alpha1.DatadogAgentSpec, name string, commands []string, volumeMounts []corev1.VolumeMount, envVars []corev1.EnvVar, image string) corev1.Container {
+	command, args, env := getAgentContainerEntrypoint(
+		name,
+		image,
+		[]string{},
+		[]string{},
+		[]string{"bash", "-c"},
+		[]string{strings.Join(commands, ";")})
+
 	return corev1.Container{
 		Name:            name,
 		Image:           image,
 		ImagePullPolicy: *spec.Agent.Image.PullPolicy,
 		Resources:       *spec.Agent.Config.Resources,
-		Command:         []string{"bash", "-c"},
-		Args:            []string{strings.Join(commands, ";")},
+		Command:         command,
+		Args:            args,
 		VolumeMounts:    volumeMounts,
-		Env:             envVars,
+		Env:             append(env, envVars...),
 	}
 }
 
@@ -1781,7 +1840,7 @@ func getAgentServiceAccount(dda *datadoghqv1alpha1.DatadogAgent) string {
 
 // getAPIKeyFromSecret returns the Agent API key as an env var source
 func getAPIKeyFromSecret(dda *datadoghqv1alpha1.DatadogAgent) *corev1.EnvVarSource {
-	_, name, key := utils.GetAPIKeySecret(&dda.Spec.Credentials.DatadogCredentials, utils.GetDefaultCredentialsSecretName(dda))
+	_, name, key := cutils.GetAPIKeySecret(&dda.Spec.Credentials.DatadogCredentials, cutils.GetDefaultCredentialsSecretName(dda))
 	return buildEnvVarFromSecret(name, key)
 }
 
@@ -1792,7 +1851,7 @@ func getClusterAgentAuthToken(dda *datadoghqv1alpha1.DatadogAgent) *corev1.EnvVa
 
 // getAppKeyFromSecret returns the Agent API key as an env var source
 func getAppKeyFromSecret(dda *datadoghqv1alpha1.DatadogAgent) *corev1.EnvVarSource {
-	_, name, key := utils.GetAppKeySecret(&dda.Spec.Credentials.DatadogCredentials, utils.GetDefaultCredentialsSecretName(dda))
+	_, name, key := cutils.GetAppKeySecret(&dda.Spec.Credentials.DatadogCredentials, cutils.GetDefaultCredentialsSecretName(dda))
 	return buildEnvVarFromSecret(name, key)
 }
 
@@ -2288,6 +2347,32 @@ func getDefaultIfEmpty(val, def []string) []string {
 	}
 
 	return def
+}
+
+func hasAgentSingleEntrypoint(image string) bool {
+	agentTag := strings.TrimSuffix(utils.GetTagFromImageName(image), "-jmx")
+	// return false
+	return agentTag == "latest" ||
+		utils.IsAboveMinVersion(agentTag, "6.30.0") ||
+		utils.IsAboveMinVersion(agentTag, "7.30.0")
+}
+
+func getAgentContainerEntrypoint(name, image string, configCommand, configArgs, defaultCommand, defaultArgs []string) (command, args []string, env []corev1.EnvVar) {
+	if len(configCommand) == 0 && len(configArgs) == 0 && hasAgentSingleEntrypoint(image) {
+		command = nil
+		args = nil
+		env = []corev1.EnvVar{
+			{
+				Name:  "ENTRYPOINT",
+				Value: name,
+			},
+		}
+	} else {
+		command = getDefaultIfEmpty(configCommand, defaultCommand)
+		args = getDefaultIfEmpty(configArgs, defaultArgs)
+		env = []corev1.EnvVar{}
+	}
+	return
 }
 
 func addBoolEnVar(b bool, varName string, varList []corev1.EnvVar) []corev1.EnvVar {

@@ -1040,14 +1040,29 @@ func addEnvVar(currentVars []corev1.EnvVar, varName string, varValue string) []c
 }
 
 func appendDefaultAPMAgentContainer(podSpec *corev1.PodSpec) {
+	image := ""
+	var command []string
+	env := []corev1.EnvVar{}
+	if podSpec.Containers[0].Image == "gcr.io/datadoghq/agent:7.29.0" {
+		image = "gcr.io/datadoghq/agent:7.29.0"
+		command = []string{"trace-agent", "--config=" + agentConfigFile}
+	} else {
+		image = "gcr.io/datadoghq/agent:latest"
+		env = []corev1.EnvVar{
+			{
+				Name:  "ENTRYPOINT",
+				Value: "trace-agent",
+			},
+		}
+	}
 	apmContainer := corev1.Container{
 		Name:            "trace-agent",
-		Image:           "gcr.io/datadoghq/agent:latest",
+		Image:           image,
 		ImagePullPolicy: corev1.PullIfNotPresent,
-		Command:         []string{"trace-agent", "--config=" + agentConfigFile},
+		Command:         command,
 		Resources:       corev1.ResourceRequirements{},
 		Ports:           []corev1.ContainerPort{{Name: "traceport", ContainerPort: 8126, Protocol: "TCP"}},
-		Env:             defaultAPMContainerEnvVars(),
+		Env:             append(env, defaultAPMContainerEnvVars()...),
 		VolumeMounts: []corev1.VolumeMount{
 			{
 				Name:      "logdatadog",
@@ -1079,7 +1094,37 @@ func appendDefaultAPMAgentContainer(podSpec *corev1.PodSpec) {
 	}
 }
 
+func getSingleEntrypointHelpers(dda *datadoghqv1alpha1.DatadogAgent) (ifHasntSingleEntrypoint func([]string) []string, entrypointEnvVar func(string) []corev1.EnvVar) {
+	hasSingleEntrypoint := true
+	if dda.Spec.Agent.Image.Tag == "7.29.0" {
+		hasSingleEntrypoint = false
+	}
+
+	ifHasntSingleEntrypoint = func(in []string) []string {
+		if !hasSingleEntrypoint {
+			return in
+		}
+		return nil
+	}
+
+	entrypointEnvVar = func(name string) []corev1.EnvVar {
+		if hasSingleEntrypoint {
+			return []corev1.EnvVar{
+				{
+					Name:  "ENTRYPOINT",
+					Value: name,
+				},
+			}
+		}
+		return []corev1.EnvVar{}
+	}
+
+	return
+}
+
 func defaultSystemProbePodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodSpec {
+	ifHasntSingleEntrypoint, entrypointEnvVar := getSingleEntrypointHelpers(dda)
+
 	agentWithSystemProbeVolumeMounts := []corev1.VolumeMount{}
 	agentWithSystemProbeVolumeMounts = append(agentWithSystemProbeVolumeMounts, defaultMountVolume()...)
 	agentWithSystemProbeVolumeMounts = append(agentWithSystemProbeVolumeMounts, []corev1.VolumeMount{
@@ -1115,8 +1160,9 @@ func defaultSystemProbePodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodSp
 				Image:           "gcr.io/datadoghq/agent:latest",
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
-				Command:         []string{"bash", "-c"},
-				Args:            []string{"cp -vnr /etc/datadog-agent /opt"},
+				Command:         ifHasntSingleEntrypoint([]string{"bash", "-c"}),
+				Args:            ifHasntSingleEntrypoint([]string{"cp -vnr /etc/datadog-agent /opt"}),
+				Env:             entrypointEnvVar("init-volume"),
 				VolumeMounts: []corev1.VolumeMount{
 					{
 						Name:      datadoghqv1alpha1.ConfigVolumeName,
@@ -1129,9 +1175,9 @@ func defaultSystemProbePodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodSp
 				Image:           "gcr.io/datadoghq/agent:latest",
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
-				Command:         []string{"bash", "-c"},
-				Args:            []string{"for script in $(find /etc/cont-init.d/ -type f -name '*.sh' | sort) ; do bash $script ; done"},
-				Env:             agentEnvVars,
+				Command:         ifHasntSingleEntrypoint([]string{"bash", "-c"}),
+				Args:            ifHasntSingleEntrypoint([]string{"for script in $(find /etc/cont-init.d/ -type f -name '*.sh' | sort) ; do bash $script ; done"}),
+				Env:             append(entrypointEnvVar("init-config"), agentEnvVars...),
 				VolumeMounts:    agentWithSystemProbeVolumeMounts,
 			},
 			{
@@ -1139,7 +1185,8 @@ func defaultSystemProbePodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodSp
 				Image:           "gcr.io/datadoghq/agent:latest",
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
-				Command:         []string{"cp", "/etc/config/system-probe-seccomp.json", "/host/var/lib/kubelet/seccomp/system-probe"},
+				Command:         ifHasntSingleEntrypoint([]string{"cp", "/etc/config/system-probe-seccomp.json", "/host/var/lib/kubelet/seccomp/system-probe"}),
+				Env:             entrypointEnvVar("seccomp-setup"),
 				VolumeMounts: []corev1.VolumeMount{
 					{
 						Name:      datadoghqv1alpha1.SystemProbeAgentSecurityVolumeName,
@@ -1157,10 +1204,10 @@ func defaultSystemProbePodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodSp
 				Name:            "agent",
 				Image:           "gcr.io/datadoghq/agent:latest",
 				ImagePullPolicy: corev1.PullIfNotPresent,
-				Command: []string{
+				Command: ifHasntSingleEntrypoint([]string{
 					"agent",
 					"run",
-				},
+				}),
 				Resources: corev1.ResourceRequirements{},
 				Ports: []corev1.ContainerPort{
 					{
@@ -1169,7 +1216,7 @@ func defaultSystemProbePodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodSp
 						Protocol:      "UDP",
 					},
 				},
-				Env:            agentEnvVars,
+				Env:            append(entrypointEnvVar("agent"), agentEnvVars...),
 				VolumeMounts:   agentWithSystemProbeVolumeMounts,
 				LivenessProbe:  defaultLivenessProbe(),
 				ReadinessProbe: defaultReadinessProbe(),
@@ -1178,17 +1225,17 @@ func defaultSystemProbePodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodSp
 				Name:            "system-probe",
 				Image:           "gcr.io/datadoghq/agent:latest",
 				ImagePullPolicy: corev1.PullIfNotPresent,
-				Command: []string{
+				Command: ifHasntSingleEntrypoint([]string{
 					"system-probe",
 					"--config=/etc/datadog-agent/system-probe.yaml",
-				},
+				}),
 				SecurityContext: &corev1.SecurityContext{
 					Capabilities: &corev1.Capabilities{
 						Add: []corev1.Capability{"SYS_ADMIN", "SYS_RESOURCE", "SYS_PTRACE", "NET_ADMIN", "NET_BROADCAST", "NET_RAW", "IPC_LOCK"},
 					},
 				},
 				Resources:    corev1.ResourceRequirements{},
-				Env:          defaultSystemProbeEnvVars(),
+				Env:          append(entrypointEnvVar("system-probe"), defaultSystemProbeEnvVars()...),
 				VolumeMounts: defaultSystemProbeMountVolume(),
 			},
 		},
@@ -1197,6 +1244,8 @@ func defaultSystemProbePodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodSp
 }
 
 func noSeccompInstallSystemProbeSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodSpec {
+	ifHasntSingleEntrypoint, entrypointEnvVar := getSingleEntrypointHelpers(dda)
+
 	agentWithSystemProbeVolumeMounts := []corev1.VolumeMount{}
 	agentWithSystemProbeVolumeMounts = append(agentWithSystemProbeVolumeMounts, defaultMountVolume()...)
 	agentWithSystemProbeVolumeMounts = append(agentWithSystemProbeVolumeMounts, []corev1.VolumeMount{
@@ -1240,8 +1289,9 @@ func noSeccompInstallSystemProbeSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1
 				Image:           "gcr.io/datadoghq/agent:latest",
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
-				Command:         []string{"bash", "-c"},
-				Args:            []string{"cp -vnr /etc/datadog-agent /opt"},
+				Command:         ifHasntSingleEntrypoint([]string{"bash", "-c"}),
+				Args:            ifHasntSingleEntrypoint([]string{"cp -vnr /etc/datadog-agent /opt"}),
+				Env:             entrypointEnvVar("init-volume"),
 				VolumeMounts: []corev1.VolumeMount{
 					{
 						Name:      datadoghqv1alpha1.ConfigVolumeName,
@@ -1254,9 +1304,9 @@ func noSeccompInstallSystemProbeSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1
 				Image:           "gcr.io/datadoghq/agent:latest",
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
-				Command:         []string{"bash", "-c"},
-				Args:            []string{"for script in $(find /etc/cont-init.d/ -type f -name '*.sh' | sort) ; do bash $script ; done"},
-				Env:             agentEnvVars,
+				Command:         ifHasntSingleEntrypoint([]string{"bash", "-c"}),
+				Args:            ifHasntSingleEntrypoint([]string{"for script in $(find /etc/cont-init.d/ -type f -name '*.sh' | sort) ; do bash $script ; done"}),
+				Env:             append(entrypointEnvVar("init-config"), agentEnvVars...),
 				VolumeMounts:    agentWithSystemProbeVolumeMounts,
 			},
 		},
@@ -1265,10 +1315,10 @@ func noSeccompInstallSystemProbeSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1
 				Name:            "agent",
 				Image:           "gcr.io/datadoghq/agent:latest",
 				ImagePullPolicy: corev1.PullIfNotPresent,
-				Command: []string{
+				Command: ifHasntSingleEntrypoint([]string{
 					"agent",
 					"run",
-				},
+				}),
 				Resources: corev1.ResourceRequirements{},
 				Ports: []corev1.ContainerPort{
 					{
@@ -1277,7 +1327,7 @@ func noSeccompInstallSystemProbeSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1
 						Protocol:      "UDP",
 					},
 				},
-				Env:            agentEnvVars,
+				Env:            append(entrypointEnvVar("agent"), agentEnvVars...),
 				VolumeMounts:   agentWithSystemProbeVolumeMounts,
 				LivenessProbe:  defaultLivenessProbe(),
 				ReadinessProbe: defaultReadinessProbe(),
@@ -1286,17 +1336,17 @@ func noSeccompInstallSystemProbeSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1
 				Name:            "system-probe",
 				Image:           "gcr.io/datadoghq/agent:latest",
 				ImagePullPolicy: corev1.PullIfNotPresent,
-				Command: []string{
+				Command: ifHasntSingleEntrypoint([]string{
 					"system-probe",
 					"--config=/etc/datadog-agent/system-probe.yaml",
-				},
+				}),
 				SecurityContext: &corev1.SecurityContext{
 					Capabilities: &corev1.Capabilities{
 						Add: []corev1.Capability{"SYS_ADMIN", "SYS_RESOURCE", "SYS_PTRACE", "NET_ADMIN", "NET_BROADCAST", "NET_RAW", "IPC_LOCK"},
 					},
 				},
 				Resources:    corev1.ResourceRequirements{},
-				Env:          defaultSystemProbeEnvVars(),
+				Env:          append(entrypointEnvVar("system-probe"), defaultSystemProbeEnvVars()...),
 				VolumeMounts: defaultSystemProbeMountVolume(),
 			},
 		},
@@ -1305,6 +1355,8 @@ func noSeccompInstallSystemProbeSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1
 }
 
 func defaultPodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodSpec {
+	ifHasntSingleEntrypoint, entrypointEnvVar := getSingleEntrypointHelpers(dda)
+
 	cmd := []string{
 		"cp -vnr /etc/datadog-agent /opt",
 	}
@@ -1319,8 +1371,9 @@ func defaultPodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodSpec {
 				Image:           "gcr.io/datadoghq/agent:latest",
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
-				Command:         []string{"bash", "-c"},
-				Args:            cmd,
+				Command:         ifHasntSingleEntrypoint([]string{"bash", "-c"}),
+				Args:            ifHasntSingleEntrypoint(cmd),
+				Env:             entrypointEnvVar("init-volume"),
 				VolumeMounts: []corev1.VolumeMount{
 					{
 						Name:      datadoghqv1alpha1.ConfigVolumeName,
@@ -1333,9 +1386,9 @@ func defaultPodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodSpec {
 				Image:           "gcr.io/datadoghq/agent:latest",
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
-				Command:         []string{"bash", "-c"},
-				Args:            []string{"for script in $(find /etc/cont-init.d/ -type f -name '*.sh' | sort) ; do bash $script ; done"},
-				Env:             defaultEnvVars(nil),
+				Command:         ifHasntSingleEntrypoint([]string{"bash", "-c"}),
+				Args:            ifHasntSingleEntrypoint([]string{"for script in $(find /etc/cont-init.d/ -type f -name '*.sh' | sort) ; do bash $script ; done"}),
+				Env:             append(entrypointEnvVar("init-config"), defaultEnvVars(nil)...),
 				VolumeMounts:    defaultMountVolume(),
 			},
 		},
@@ -1344,10 +1397,10 @@ func defaultPodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodSpec {
 				Name:            "agent",
 				Image:           "gcr.io/datadoghq/agent:latest",
 				ImagePullPolicy: corev1.PullIfNotPresent,
-				Command: []string{
+				Command: ifHasntSingleEntrypoint([]string{
 					"agent",
 					"run",
-				},
+				}),
 				Resources: corev1.ResourceRequirements{},
 				Ports: []corev1.ContainerPort{
 					{
@@ -1356,7 +1409,7 @@ func defaultPodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodSpec {
 						Protocol:      "UDP",
 					},
 				},
-				Env:            defaultEnvVars(nil),
+				Env:            append(entrypointEnvVar("agent"), defaultEnvVars(nil)...),
 				VolumeMounts:   defaultMountVolume(),
 				LivenessProbe:  defaultLivenessProbe(),
 				ReadinessProbe: defaultReadinessProbe(),
@@ -1365,14 +1418,113 @@ func defaultPodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodSpec {
 				Name:            "process-agent",
 				Image:           "gcr.io/datadoghq/agent:latest",
 				ImagePullPolicy: corev1.PullIfNotPresent,
-				Command: []string{
+				Command: ifHasntSingleEntrypoint([]string{
 					"process-agent",
 					"--config=/etc/datadog-agent/datadog.yaml",
 					"--sysprobe-config=/etc/datadog-agent/system-probe.yaml",
-				},
+				}),
 				Resources:    corev1.ResourceRequirements{},
-				Env:          defaultOrchestratorEnvVars(dda),
+				Env:          append(entrypointEnvVar("process-agent"), defaultOrchestratorEnvVars(dda)...),
 				VolumeMounts: defaultProcessMountVolumes(),
+			},
+		},
+		Volumes: defaultProcessMount(),
+	}
+}
+
+func extraCommandPodSpec(dda *datadoghqv1alpha1.DatadogAgent, agentCommand, agentArgs, processAgentCommand, processAgentArgs []string) corev1.PodSpec {
+	ifHasntSingleEntrypoint, entrypointEnvVar := getSingleEntrypointHelpers(dda)
+
+	cmd := []string{
+		"cp -vnr /etc/datadog-agent /opt",
+	}
+	if isRuntimeSecurityEnabled(&dda.Spec) && dda.Spec.Agent.Security.Runtime.PoliciesDir != nil {
+		cmd = append(cmd, "cp -v /etc/datadog-agent-runtime-policies/* /opt/datadog-agent/runtime-security.d/")
+	}
+
+	agentEntrypointEnvVar := []corev1.EnvVar{}
+	if agentCommand == nil && agentArgs == nil {
+		agentEntrypointEnvVar = entrypointEnvVar("agent")
+	} else {
+		if agentCommand == nil {
+			agentCommand = []string{
+				"agent",
+				"run",
+			}
+		}
+	}
+
+	processAgentEntrypointEnvVar := []corev1.EnvVar{}
+	if processAgentCommand == nil && processAgentArgs == nil {
+		processAgentEntrypointEnvVar = entrypointEnvVar("process-agent")
+	} else {
+		if processAgentCommand == nil {
+			processAgentCommand = []string{
+				"process-agent",
+				"--config=/etc/datadog-agent/datadog.yaml",
+				"--sysprobe-config=/etc/datadog-agent/system-probe.yaml",
+			}
+		}
+	}
+
+	return corev1.PodSpec{
+		ServiceAccountName: "foo-agent",
+		InitContainers: []corev1.Container{
+			{
+				Name:            "init-volume",
+				Image:           "gcr.io/datadoghq/agent:latest",
+				ImagePullPolicy: corev1.PullIfNotPresent,
+				Resources:       corev1.ResourceRequirements{},
+				Command:         ifHasntSingleEntrypoint([]string{"bash", "-c"}),
+				Args:            ifHasntSingleEntrypoint(cmd),
+				Env:             entrypointEnvVar("init-volume"),
+				VolumeMounts: []corev1.VolumeMount{
+					{
+						Name:      datadoghqv1alpha1.ConfigVolumeName,
+						MountPath: "/opt/datadog-agent",
+					},
+				},
+			},
+			{
+				Name:            "init-config",
+				Image:           "gcr.io/datadoghq/agent:latest",
+				ImagePullPolicy: corev1.PullIfNotPresent,
+				Resources:       corev1.ResourceRequirements{},
+				Command:         ifHasntSingleEntrypoint([]string{"bash", "-c"}),
+				Args:            ifHasntSingleEntrypoint([]string{"for script in $(find /etc/cont-init.d/ -type f -name '*.sh' | sort) ; do bash $script ; done"}),
+				Env:             append(entrypointEnvVar("init-config"), defaultEnvVars(nil)...),
+				VolumeMounts:    defaultMountVolume(),
+			},
+		},
+		Containers: []corev1.Container{
+			{
+				Name:            "agent",
+				Image:           "gcr.io/datadoghq/agent:latest",
+				ImagePullPolicy: corev1.PullIfNotPresent,
+				Command:         agentCommand,
+				Args:            agentArgs,
+				Resources:       corev1.ResourceRequirements{},
+				Ports: []corev1.ContainerPort{
+					{
+						ContainerPort: 8125,
+						Name:          "dogstatsdport",
+						Protocol:      "UDP",
+					},
+				},
+				Env:            append(agentEntrypointEnvVar, defaultEnvVars(nil)...),
+				VolumeMounts:   defaultMountVolume(),
+				LivenessProbe:  defaultLivenessProbe(),
+				ReadinessProbe: defaultReadinessProbe(),
+			},
+			{
+				Name:            "process-agent",
+				Image:           "gcr.io/datadoghq/agent:latest",
+				ImagePullPolicy: corev1.PullIfNotPresent,
+				Command:         processAgentCommand,
+				Args:            processAgentArgs,
+				Resources:       corev1.ResourceRequirements{},
+				Env:             append(processAgentEntrypointEnvVar, defaultOrchestratorEnvVars(dda)...),
+				VolumeMounts:    defaultProcessMountVolumes(),
 			},
 		},
 		Volumes: defaultProcessMount(),
@@ -1498,7 +1650,9 @@ func defaultOrchestratorEnvVars(dda *datadoghqv1alpha1.DatadogAgent) []corev1.En
 	return append(newVars, vars...)
 }
 
-func runtimeSecurityAgentPodSpec(extraEnv map[string]string, extraDir string) corev1.PodSpec {
+func runtimeSecurityAgentPodSpec(dda *datadoghqv1alpha1.DatadogAgent, extraEnv map[string]string, extraDir string) corev1.PodSpec {
+	ifHasntSingleEntrypoint, entrypointEnvVar := getSingleEntrypointHelpers(dda)
+
 	systemProbeEnv := defaultSystemProbeEnvVars()
 	systemProbeEnv = addEnvVar(systemProbeEnv, datadoghqv1alpha1.DDAuthTokenFilePath, "/etc/datadog-agent/auth/token")
 	systemProbeEnv = addEnvVar(systemProbeEnv, datadoghqv1alpha1.DDRuntimeSecurityConfigEnabled, "true")
@@ -1575,8 +1729,9 @@ func runtimeSecurityAgentPodSpec(extraEnv map[string]string, extraDir string) co
 				Image:           "gcr.io/datadoghq/agent:latest",
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
-				Command:         []string{"bash", "-c"},
-				Args:            command,
+				Command:         ifHasntSingleEntrypoint([]string{"bash", "-c"}),
+				Args:            ifHasntSingleEntrypoint(command),
+				Env:             entrypointEnvVar("init-volume"),
 				VolumeMounts:    secVolumes,
 			},
 			{
@@ -1584,9 +1739,9 @@ func runtimeSecurityAgentPodSpec(extraEnv map[string]string, extraDir string) co
 				Image:           "gcr.io/datadoghq/agent:latest",
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
-				Command:         []string{"bash", "-c"},
-				Args:            []string{"for script in $(find /etc/cont-init.d/ -type f -name '*.sh' | sort) ; do bash $script ; done"},
-				Env:             agentEnvVars,
+				Command:         ifHasntSingleEntrypoint([]string{"bash", "-c"}),
+				Args:            ifHasntSingleEntrypoint([]string{"for script in $(find /etc/cont-init.d/ -type f -name '*.sh' | sort) ; do bash $script ; done"}),
+				Env:             append(entrypointEnvVar("init-config"), agentEnvVars...),
 				VolumeMounts:    agentWithSystemProbeVolumeMounts,
 			},
 			{
@@ -1594,7 +1749,8 @@ func runtimeSecurityAgentPodSpec(extraEnv map[string]string, extraDir string) co
 				Image:           "gcr.io/datadoghq/agent:latest",
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
-				Command:         []string{"cp", "/etc/config/system-probe-seccomp.json", "/host/var/lib/kubelet/seccomp/system-probe"},
+				Command:         ifHasntSingleEntrypoint([]string{"cp", "/etc/config/system-probe-seccomp.json", "/host/var/lib/kubelet/seccomp/system-probe"}),
+				Env:             entrypointEnvVar("seccomp-setup"),
 				VolumeMounts: []corev1.VolumeMount{
 					{
 						Name:      datadoghqv1alpha1.SystemProbeAgentSecurityVolumeName,
@@ -1612,10 +1768,10 @@ func runtimeSecurityAgentPodSpec(extraEnv map[string]string, extraDir string) co
 				Name:            "agent",
 				Image:           "gcr.io/datadoghq/agent:latest",
 				ImagePullPolicy: corev1.PullIfNotPresent,
-				Command: []string{
+				Command: ifHasntSingleEntrypoint([]string{
 					"agent",
 					"run",
-				},
+				}),
 				Resources: corev1.ResourceRequirements{},
 				Ports: []corev1.ContainerPort{
 					{
@@ -1624,7 +1780,7 @@ func runtimeSecurityAgentPodSpec(extraEnv map[string]string, extraDir string) co
 						Protocol:      "UDP",
 					},
 				},
-				Env:            agentEnvVars,
+				Env:            append(entrypointEnvVar("agent"), agentEnvVars...),
 				VolumeMounts:   agentWithSystemProbeVolumeMounts,
 				LivenessProbe:  defaultLivenessProbe(),
 				ReadinessProbe: defaultReadinessProbe(),
@@ -1633,17 +1789,17 @@ func runtimeSecurityAgentPodSpec(extraEnv map[string]string, extraDir string) co
 				Name:            "system-probe",
 				Image:           "gcr.io/datadoghq/agent:latest",
 				ImagePullPolicy: corev1.PullIfNotPresent,
-				Command: []string{
+				Command: ifHasntSingleEntrypoint([]string{
 					"system-probe",
 					"--config=/etc/datadog-agent/system-probe.yaml",
-				},
+				}),
 				SecurityContext: &corev1.SecurityContext{
 					Capabilities: &corev1.Capabilities{
 						Add: []corev1.Capability{"SYS_ADMIN", "SYS_RESOURCE", "SYS_PTRACE", "NET_ADMIN", "NET_BROADCAST", "NET_RAW", "IPC_LOCK"},
 					},
 				},
 				Resources: corev1.ResourceRequirements{},
-				Env:       systemProbeEnv,
+				Env:       append(entrypointEnvVar("system-probe"), systemProbeEnv...),
 				VolumeMounts: append(
 					defaultSystemProbeMountVolume(),
 					corev1.VolumeMount{
@@ -1657,18 +1813,18 @@ func runtimeSecurityAgentPodSpec(extraEnv map[string]string, extraDir string) co
 				Name:            "security-agent",
 				Image:           "gcr.io/datadoghq/agent:latest",
 				ImagePullPolicy: corev1.PullIfNotPresent,
-				Command: []string{
+				Command: ifHasntSingleEntrypoint([]string{
 					"security-agent",
 					"start",
 					"-c=" + agentConfigFile,
-				},
+				}),
 				SecurityContext: &corev1.SecurityContext{
 					Capabilities: &corev1.Capabilities{
 						Add: []corev1.Capability{"AUDIT_CONTROL", "AUDIT_READ"},
 					},
 				},
 				Resources:    corev1.ResourceRequirements{},
-				Env:          securityAgentEnvVars(false, true, true, extraEnv),
+				Env:          append(entrypointEnvVar("security-agent"), securityAgentEnvVars(false, true, true, extraEnv)...),
 				VolumeMounts: runtimeSecurityAgentMountVolume(),
 			},
 		},
@@ -1676,7 +1832,9 @@ func runtimeSecurityAgentPodSpec(extraEnv map[string]string, extraDir string) co
 	}
 }
 
-func complianceSecurityAgentPodSpec(extraEnv map[string]string) corev1.PodSpec {
+func complianceSecurityAgentPodSpec(dda *datadoghqv1alpha1.DatadogAgent, extraEnv map[string]string) corev1.PodSpec {
+	ifHasntSingleEntrypoint, entrypointEnvVar := getSingleEntrypointHelpers(dda)
+
 	return corev1.PodSpec{
 		ServiceAccountName: "foo-agent",
 		HostPID:            true,
@@ -1686,8 +1844,9 @@ func complianceSecurityAgentPodSpec(extraEnv map[string]string) corev1.PodSpec {
 				Image:           "gcr.io/datadoghq/agent:latest",
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
-				Command:         []string{"bash", "-c"},
-				Args:            []string{"cp -vnr /etc/datadog-agent /opt"},
+				Command:         ifHasntSingleEntrypoint([]string{"bash", "-c"}),
+				Args:            ifHasntSingleEntrypoint([]string{"cp -vnr /etc/datadog-agent /opt"}),
+				Env:             entrypointEnvVar("init-volume"),
 				VolumeMounts: []corev1.VolumeMount{
 					{
 						Name:      datadoghqv1alpha1.ConfigVolumeName,
@@ -1700,9 +1859,9 @@ func complianceSecurityAgentPodSpec(extraEnv map[string]string) corev1.PodSpec {
 				Image:           "gcr.io/datadoghq/agent:latest",
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
-				Command:         []string{"bash", "-c"},
-				Args:            []string{"for script in $(find /etc/cont-init.d/ -type f -name '*.sh' | sort) ; do bash $script ; done"},
-				Env:             defaultEnvVars(extraEnv),
+				Command:         ifHasntSingleEntrypoint([]string{"bash", "-c"}),
+				Args:            ifHasntSingleEntrypoint([]string{"for script in $(find /etc/cont-init.d/ -type f -name '*.sh' | sort) ; do bash $script ; done"}),
+				Env:             append(entrypointEnvVar("init-config"), defaultEnvVars(extraEnv)...),
 				VolumeMounts:    defaultMountVolume(),
 			},
 		},
@@ -1711,10 +1870,10 @@ func complianceSecurityAgentPodSpec(extraEnv map[string]string) corev1.PodSpec {
 				Name:            "agent",
 				Image:           "gcr.io/datadoghq/agent:latest",
 				ImagePullPolicy: corev1.PullIfNotPresent,
-				Command: []string{
+				Command: ifHasntSingleEntrypoint([]string{
 					"agent",
 					"run",
-				},
+				}),
 				Resources: corev1.ResourceRequirements{},
 				Ports: []corev1.ContainerPort{
 					{
@@ -1723,7 +1882,7 @@ func complianceSecurityAgentPodSpec(extraEnv map[string]string) corev1.PodSpec {
 						Protocol:      "UDP",
 					},
 				},
-				Env:            defaultEnvVars(extraEnv),
+				Env:            append(entrypointEnvVar("agent"), defaultEnvVars(extraEnv)...),
 				VolumeMounts:   defaultMountVolume(),
 				LivenessProbe:  defaultLivenessProbe(),
 				ReadinessProbe: defaultReadinessProbe(),
@@ -1732,18 +1891,18 @@ func complianceSecurityAgentPodSpec(extraEnv map[string]string) corev1.PodSpec {
 				Name:            "security-agent",
 				Image:           "gcr.io/datadoghq/agent:latest",
 				ImagePullPolicy: corev1.PullIfNotPresent,
-				Command: []string{
+				Command: ifHasntSingleEntrypoint([]string{
 					"security-agent",
 					"start",
 					"-c=" + agentConfigFile,
-				},
+				}),
 				SecurityContext: &corev1.SecurityContext{
 					Capabilities: &corev1.Capabilities{
 						Add: []corev1.Capability{"AUDIT_CONTROL", "AUDIT_READ"},
 					},
 				},
 				Resources:    corev1.ResourceRequirements{},
-				Env:          securityAgentEnvVars(true, false, false, extraEnv),
+				Env:          append(entrypointEnvVar("security-agent"), securityAgentEnvVars(true, false, false, extraEnv)...),
 				VolumeMounts: complianceSecurityAgentMountVolume(),
 			},
 		},
@@ -1751,7 +1910,10 @@ func complianceSecurityAgentPodSpec(extraEnv map[string]string) corev1.PodSpec {
 	}
 }
 
-func customKubeletConfigPodSpec(kubeletConfig *datadoghqv1alpha1.KubeletConfig) corev1.PodSpec {
+func customKubeletConfigPodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodSpec {
+	ifHasntSingleEntrypoint, entrypointEnvVar := getSingleEntrypointHelpers(dda)
+
+	kubeletConfig := dda.Spec.Agent.Config.Kubelet
 	kubeletCAVolumeType := corev1.HostPathFile
 	volumeMounts := []corev1.VolumeMount{
 		{
@@ -1874,8 +2036,9 @@ func customKubeletConfigPodSpec(kubeletConfig *datadoghqv1alpha1.KubeletConfig) 
 				Image:           "gcr.io/datadoghq/agent:latest",
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
-				Command:         []string{"bash", "-c"},
-				Args:            []string{"cp -vnr /etc/datadog-agent /opt"},
+				Command:         ifHasntSingleEntrypoint([]string{"bash", "-c"}),
+				Args:            ifHasntSingleEntrypoint([]string{"cp -vnr /etc/datadog-agent /opt"}),
+				Env:             entrypointEnvVar("init-volume"),
 				VolumeMounts: []corev1.VolumeMount{
 					{
 						Name:      datadoghqv1alpha1.ConfigVolumeName,
@@ -1888,9 +2051,9 @@ func customKubeletConfigPodSpec(kubeletConfig *datadoghqv1alpha1.KubeletConfig) 
 				Image:           "gcr.io/datadoghq/agent:latest",
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
-				Command:         []string{"bash", "-c"},
-				Args:            []string{"for script in $(find /etc/cont-init.d/ -type f -name '*.sh' | sort) ; do bash $script ; done"},
-				Env:             envVars,
+				Command:         ifHasntSingleEntrypoint([]string{"bash", "-c"}),
+				Args:            ifHasntSingleEntrypoint([]string{"for script in $(find /etc/cont-init.d/ -type f -name '*.sh' | sort) ; do bash $script ; done"}),
+				Env:             append(entrypointEnvVar("init-config"), envVars...),
 				VolumeMounts:    volumeMounts,
 			},
 		},
@@ -1899,10 +2062,10 @@ func customKubeletConfigPodSpec(kubeletConfig *datadoghqv1alpha1.KubeletConfig) 
 				Name:            "agent",
 				Image:           "gcr.io/datadoghq/agent:latest",
 				ImagePullPolicy: corev1.PullIfNotPresent,
-				Command: []string{
+				Command: ifHasntSingleEntrypoint([]string{
 					"agent",
 					"run",
-				},
+				}),
 				Resources: corev1.ResourceRequirements{},
 				Ports: []corev1.ContainerPort{
 					{
@@ -1911,7 +2074,7 @@ func customKubeletConfigPodSpec(kubeletConfig *datadoghqv1alpha1.KubeletConfig) 
 						Protocol:      "UDP",
 					},
 				},
-				Env:            envVars,
+				Env:            append(entrypointEnvVar("agent"), envVars...),
 				VolumeMounts:   volumeMounts,
 				LivenessProbe:  defaultLivenessProbe(),
 				ReadinessProbe: defaultReadinessProbe(),
@@ -2058,6 +2221,9 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 		Name:  datadoghqv1alpha1.DDDogstatsdPort,
 		Value: strconv.Itoa(12345),
 	})
+
+	oldDatadogAgent := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{UseEDS: true, ClusterAgentEnabled: true})
+	oldDatadogAgent.Spec.Agent.Image.Tag = "7.29.0"
 
 	tests := extendedDaemonSetFromInstanceTestSuite{
 		{
@@ -2221,6 +2387,47 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 							Annotations: make(map[string]string),
 						},
 						Spec: hostPortNetworkPodSpec,
+					},
+					Strategy: getDefaultEDSStrategy(),
+				},
+			},
+		},
+		{
+			name:            "old image not supporting single entrypoint",
+			agentdeployment: oldDatadogAgent,
+			wantErr:         false,
+			want: &edsdatadoghqv1alpha1.ExtendedDaemonSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "bar",
+					Name:      "foo-agent",
+					Labels: map[string]string{
+						"agent.datadoghq.com/name":      "foo",
+						"agent.datadoghq.com/component": "agent",
+						"app.kubernetes.io/instance":    "agent",
+						"app.kubernetes.io/managed-by":  "datadog-operator",
+						"app.kubernetes.io/name":        "datadog-agent-deployment",
+						"app.kubernetes.io/part-of":     "foo",
+						"app.kubernetes.io/version":     "",
+					},
+					Annotations: map[string]string{},
+				},
+				Spec: edsdatadoghqv1alpha1.ExtendedDaemonSetSpec{
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							GenerateName: "foo",
+							Namespace:    "bar",
+							Labels: map[string]string{
+								"agent.datadoghq.com/name":      "foo",
+								"agent.datadoghq.com/component": "agent",
+								"app.kubernetes.io/instance":    "agent",
+								"app.kubernetes.io/managed-by":  "datadog-operator",
+								"app.kubernetes.io/name":        "datadog-agent-deployment",
+								"app.kubernetes.io/part-of":     "foo",
+								"app.kubernetes.io/version":     "",
+							},
+							Annotations: make(map[string]string),
+						},
+						Spec: defaultPodSpec(defaultDatadogAgent),
 					},
 					Strategy: getDefaultEDSStrategy(),
 				},
@@ -2621,7 +2828,7 @@ func Test_ExtraParameters(t *testing.T) {
 		"DD_COMPLIANCE_CONFIG_CHECK_INTERVAL": "60000000000",
 		"DD_SITE":                             site,
 	}
-	podSpec := complianceSecurityAgentPodSpec(extraEnvs)
+	podSpec := complianceSecurityAgentPodSpec(datadogAgent, extraEnvs)
 
 	test := extendedDaemonSetFromInstanceTest{
 		name:            "with custom config (datadog.yaml)",
@@ -2869,8 +3076,8 @@ func Test_newExtendedDaemonSetFromInstance_LogsEnabled(t *testing.T) {
 	logsEnabledPodSpec.Containers[0].Env = addEnvVar(logsEnabledPodSpec.Containers[0].Env, "DD_LOGS_CONFIG_OPEN_FILES_LIMIT", "100")
 	logsEnabledPodSpec.InitContainers[1].VolumeMounts = append(logsEnabledPodSpec.InitContainers[1].VolumeMounts, logsVolumeMounts...)
 	logsEnabledPodSpec.InitContainers[1].Env = addEnvVar(logsEnabledPodSpec.InitContainers[1].Env, "DD_LOGS_ENABLED", "true")
-	logsEnabledPodSpec.InitContainers[1].Env = addEnvVar(logsEnabledPodSpec.Containers[0].Env, "DD_LOGS_CONFIG_K8S_CONTAINER_USE_FILE", "true")
-	logsEnabledPodSpec.InitContainers[1].Env = addEnvVar(logsEnabledPodSpec.Containers[0].Env, "DD_LOGS_CONFIG_OPEN_FILES_LIMIT", "100")
+	logsEnabledPodSpec.InitContainers[1].Env = addEnvVar(logsEnabledPodSpec.InitContainers[1].Env, "DD_LOGS_CONFIG_K8S_CONTAINER_USE_FILE", "true")
+	logsEnabledPodSpec.InitContainers[1].Env = addEnvVar(logsEnabledPodSpec.InitContainers[1].Env, "DD_LOGS_CONFIG_OPEN_FILES_LIMIT", "100")
 
 	test := extendedDaemonSetFromInstanceTest{
 		name:            "with logs enabled",
@@ -3340,8 +3547,6 @@ func Test_newExtendedDaemonSetFromInstance_PrometheusScrape(t *testing.T) {
 }
 
 func Test_newExtendedDaemonSetFromInstance_SecurityAgent_Compliance(t *testing.T) {
-	securityAgentPodSpec := complianceSecurityAgentPodSpec(nil)
-
 	dda := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
 		UseEDS:                       true,
 		ClusterAgentEnabled:          true,
@@ -3349,6 +3554,8 @@ func Test_newExtendedDaemonSetFromInstance_SecurityAgent_Compliance(t *testing.T
 		RuntimeSyscallMonitorEnabled: true,
 		OrchestratorExplorerDisabled: true,
 	})
+
+	securityAgentPodSpec := complianceSecurityAgentPodSpec(dda, nil)
 
 	test := extendedDaemonSetFromInstanceTest{
 		name:            "with compliance agent enabled",
@@ -3396,7 +3603,18 @@ func Test_newExtendedDaemonSetFromInstance_SecurityAgent_Compliance(t *testing.T
 }
 
 func Test_newExtendedDaemonSetFromInstance_SecurityAgent_Runtime(t *testing.T) {
-	securityAgentPodSpec := runtimeSecurityAgentPodSpec(nil, "test-runtime-policies")
+	dda := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
+		UseEDS:                       true,
+		ClusterAgentEnabled:          true,
+		RuntimeSecurityEnabled:       true,
+		RuntimeSyscallMonitorEnabled: true,
+		RuntimePoliciesDir: &datadoghqv1alpha1.ConfigDirSpec{
+			ConfigMapName: "test-runtime-policies",
+		},
+		SystemProbeEnabled:           true,
+		OrchestratorExplorerDisabled: true,
+	})
+	securityAgentPodSpec := runtimeSecurityAgentPodSpec(dda, nil, "test-runtime-policies")
 	securityAgentPodSpec.Containers[2].Env = addEnvVar(securityAgentPodSpec.Containers[2].Env, "DD_RUNTIME_SECURITY_CONFIG_POLICIES_DIR", "/etc/datadog-agent/runtime-security.d")
 	securityAgentPodSpec.Containers[0].VolumeMounts = append(securityAgentPodSpec.Containers[0].VolumeMounts, []corev1.VolumeMount{
 		{
@@ -3429,17 +3647,6 @@ func Test_newExtendedDaemonSetFromInstance_SecurityAgent_Runtime(t *testing.T) {
 			SubPath:   datadoghqv1alpha1.SystemProbeConfigVolumeSubPath,
 		},
 	}...)
-	dda := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
-		UseEDS:                       true,
-		ClusterAgentEnabled:          true,
-		RuntimeSecurityEnabled:       true,
-		RuntimeSyscallMonitorEnabled: true,
-		RuntimePoliciesDir: &datadoghqv1alpha1.ConfigDirSpec{
-			ConfigMapName: "test-runtime-policies",
-		},
-		SystemProbeEnabled:           true,
-		OrchestratorExplorerDisabled: true,
-	})
 
 	test := extendedDaemonSetFromInstanceTest{
 		name:            "with runtime security agent enabled",
@@ -3541,7 +3748,7 @@ func Test_newExtendedDaemonSetFromInstance_KubeletConfiguration(t *testing.T) {
 						},
 						Annotations: map[string]string{},
 					},
-					Spec: customKubeletConfigPodSpec(dda.Spec.Agent.Config.Kubelet),
+					Spec: customKubeletConfigPodSpec(dda),
 				},
 				Strategy: getDefaultEDSStrategy(),
 			},
@@ -3562,10 +3769,11 @@ func Test_newExtendedDaemonSetFromInstance_ArgsCommandOverride(t *testing.T) {
 	dda.Spec.Agent.Config.Args = []string{"my-custom-args"}
 	dda.Spec.Agent.Process.Args = []string{"my-extra-args"}
 
-	wantSpec := defaultPodSpec(dda)
-	wantSpec.Containers[0].Command = []string{"my-custom-agent"}
-	wantSpec.Containers[0].Args = []string{"my-custom-args"}
-	wantSpec.Containers[1].Args = []string{"my-extra-args"}
+	wantSpec := extraCommandPodSpec(dda,
+		[]string{"my-custom-agent"},
+		[]string{"my-custom-args"},
+		nil,
+		[]string{"my-extra-args"})
 
 	test := extendedDaemonSetFromInstanceTest{
 		name:            "with custom Command/Args",

@@ -32,6 +32,16 @@ func TestCompareVersion(t *testing.T) {
 			minVersion: "7.28.0",
 			expected:   false,
 		},
+		{
+			version:    "6.30.0",
+			minVersion: "7.28.0",
+			expected:   false,
+		},
+		{
+			version:    "7.28.0",
+			minVersion: "6.30.0",
+			expected:   false,
+		},
 	}
 	for _, test := range testCases {
 		t.Run(test.version, func(t *testing.T) {
