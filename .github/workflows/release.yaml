@@ -48,3 +48,7 @@ jobs:
         env:
           COMMIT_TAG: ${{steps.tag.outputs.tag}}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Update new plugin version in krew-index
+        uses: rajatjindal/krew-release-bot@v0.0.40
+        with:
+          krew_template_file: dist/datadog-plugin.yaml
