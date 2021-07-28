@@ -195,7 +195,7 @@ func Test_getVolumeMountsForSecurityAgent(t *testing.T) {
 			},
 		},
 		{
-			name: "compliance volumeMounts",
+			name: "runtime volumeMounts",
 			dda:  testutils.NewDatadogAgent("foo", "bar", "datadog/agent:7", &testutils.NewDatadogAgentOptions{SecuritySpec: securityRuntime}),
 			want: []v1.VolumeMount{
 				{Name: "logdatadog", ReadOnly: false, MountPath: "/var/log/datadog"},
@@ -203,6 +203,7 @@ func Test_getVolumeMountsForSecurityAgent(t *testing.T) {
 				{Name: "dsdsocket", ReadOnly: true, MountPath: "/var/run/datadog/statsd"},
 				{Name: "config", ReadOnly: false, MountPath: "/etc/datadog-agent"},
 				{Name: "hostroot", ReadOnly: true, MountPath: "/host/root"},
+				{Name: "runtimepoliciesdir", ReadOnly: true, MountPath: "/etc/datadog-agent/runtime-security.d"},
 				{Name: "runtimesocketdir", ReadOnly: true, MountPath: "/host/var/run/containerd"},
 				{Name: "sysprobe-socket-dir", ReadOnly: true, MountPath: "/var/run/sysprobe"},
 			},
