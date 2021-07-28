@@ -547,6 +547,10 @@ func getEnvVarsForAPMAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.EnvVar
 			Name:  datadoghqv1alpha1.DDAPMEnabled,
 			Value: strconv.FormatBool(isAPMEnabled(&dda.Spec)),
 		},
+		{
+			Name:  datadoghqv1alpha1.DDAPMNonLocalTraffic,
+			Value: strconv.FormatBool(true),
+		},
 		getEnvVarDogstatsdSocket(dda),
 	}
 

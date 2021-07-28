@@ -911,6 +911,10 @@ func defaultAPMContainerEnvVars() []corev1.EnvVar {
 			Value: "true",
 		},
 		{
+			Name:  "DD_APM_NON_LOCAL_TRAFFIC",
+			Value: "true",
+		},
+		{
 			Name:  "DD_LOG_LEVEL",
 			Value: "INFO",
 		},

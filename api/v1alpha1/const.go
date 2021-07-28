@@ -83,6 +83,7 @@ const (
 	DDExtraListeners                             = "DD_EXTRA_LISTENERS"
 	DDHostname                                   = "DD_HOSTNAME"
 	DDAPMEnabled                                 = "DD_APM_ENABLED"
+	DDAPMNonLocalTraffic                         = "DD_APM_NON_LOCAL_TRAFFIC"
 	DDPPMReceiverSocket                          = "DD_APM_RECEIVER_SOCKET"
 	DDProcessAgentEnabled                        = "DD_PROCESS_AGENT_ENABLED"
 	DDSystemProbeAgentEnabled                    = "DD_SYSTEM_PROBE_ENABLED"
