@@ -1635,7 +1635,7 @@ func runtimeSecurityAgentPodSpec(extraEnv map[string]string, extraDir string) co
 
 		volumeMountsBuilder.Add(&corev1.VolumeMount{
 			Name:      datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumeName,
-			MountPath: "/etc/datadog-agent/runtime-security.d",
+			MountPath: "/opt/datadog-agent/runtime-security.d",
 		})
 		volumeMountsBuilder.Add(&corev1.VolumeMount{
 			Name:      datadoghqv1alpha1.SecurityAgentRuntimeCustomPoliciesVolumeName,
@@ -3443,6 +3443,14 @@ func Test_newExtendedDaemonSetFromInstance_SecurityAgent_Runtime(t *testing.T) {
 			ReadOnly:  true,
 		},
 	}...)
+	securityAgentPodSpec.Containers[2].VolumeMounts = append(securityAgentPodSpec.Containers[2].VolumeMounts, []corev1.VolumeMount{
+		{
+			Name:      datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumeName,
+			MountPath: "/etc/datadog-agent/runtime-security.d",
+			ReadOnly:  true,
+		},
+	}...)
+
 	securityAgentPodSpec.InitContainers[1].VolumeMounts = append(securityAgentPodSpec.Containers[0].VolumeMounts, []corev1.VolumeMount{
 		{
 			Name:      datadoghqv1alpha1.SystemProbeSocketVolumeName,
