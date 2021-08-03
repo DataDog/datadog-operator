@@ -136,7 +136,7 @@ type reconcileFuncInterface func(logger logr.Logger, dda *datadoghqv1alpha1.Data
 func (r *Reconciler) updateOverrideIfNeeded(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgent, newOverride *datadoghqv1alpha1.DatadogAgentStatus, result reconcile.Result) (*datadoghqv1alpha1.DatadogAgent, reconcile.Result, error) {
 	// We returned the most up to date instance to avoid conflict during the updateStatusIfNeeded after all the reconcile cycles.
 	updateAgentDeployment := agentdeployment.DeepCopy()
-	if !apiequality.Semantic.DeepEqual(agentdeployment.Status.DefaultOverride, newOverride) {
+	if !apiequality.Semantic.DeepEqual(agentdeployment.Status.DefaultOverride, newOverride.DefaultOverride) {
 		updateAgentDeployment.Status.DefaultOverride = newOverride.DefaultOverride
 		if err := r.client.Status().Update(context.TODO(), updateAgentDeployment); err != nil {
 			if apierrors.IsConflict(err) {
