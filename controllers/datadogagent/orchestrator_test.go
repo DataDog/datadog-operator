@@ -17,15 +17,15 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestBuildKubeStateMetricsCoreRBAC(t *testing.T) {
+func TestBuildOrchestratorExplorerRBAC(t *testing.T) {
 	dda := &datadoghqv1alpha1.DatadogAgent{
 		ObjectMeta: v1.ObjectMeta{
 			Name: "test",
 		},
 	}
 	// verify that default RBAC is sufficient
-	rbac := buildKubeStateMetricsCoreRBAC(dda, kubeStateMetricsRBACPrefix, "1.2.3")
-	yamlFile, err := ioutil.ReadFile("./testdata/ksm_clusterrole.yaml")
+	rbac := buildOrchestratorExplorerRBAC(dda, orchestratorExplorerRBACPrefix, "1.2.3")
+	yamlFile, err := ioutil.ReadFile("./testdata/orchestrator_clusterrole.yaml")
 	require.NoError(t, err)
 	c := rbacv1.ClusterRole{}
 	err = yaml.Unmarshal(yamlFile, &c)
@@ -33,7 +33,7 @@ func TestBuildKubeStateMetricsCoreRBAC(t *testing.T) {
 	require.Equal(t, c.Rules, rbac.Rules)
 }
 
-func TestBuildKSMCoreConfigMap(t *testing.T) {
+func TestBuildOrchestratorExplorerConfigMap(t *testing.T) {
 	// test on both ConfigData and ConfigMap field set for conf is dealt with in datadog_validation.go
 	// test on mounting external ConfigMap with the field `CustomConfigSpec.ConfigMap` is tested in the clusteragent.go
 	enabledBool := true
@@ -44,6 +44,7 @@ init_config:
 instances:
   - collectors:
       - pods
+    skip_leader_election: true
 `
 	dda := &datadoghqv1alpha1.DatadogAgent{
 		ObjectMeta: v1.ObjectMeta{
@@ -51,25 +52,28 @@ instances:
 		},
 		Spec: datadoghqv1alpha1.DatadogAgentSpec{
 			Features: datadoghqv1alpha1.DatadogFeatures{
-				KubeStateMetricsCore: &datadoghqv1alpha1.KubeStateMetricsCore{
+				OrchestratorExplorer: &datadoghqv1alpha1.OrchestratorExplorerConfig{
 					Enabled:      &enabledBool,
 					ClusterCheck: &enabledBool,
 				},
 			},
 		},
 	}
-	// default case, no override
-	cm, err := buildKSMCoreConfigMap(dda)
+
+	// cluster check enabled
+	dda.Spec.Features.OrchestratorExplorer.ClusterCheck = datadoghqv1alpha1.NewBoolPointer(true)
+	cm, err := buildOrchestratorExplorerConfigMap(dda)
 	require.NoError(t, err)
-	require.Equal(t, fmt.Sprintf("%s-%s", dda.Name, datadoghqv1alpha1.DefaultKubeStateMetricsCoreConf), cm.Name)
-	require.Equal(t, cm.Data[ksmCoreCheckName], ksmCheckConfig(true))
+	require.NotNil(t, cm)
+	require.Equal(t, fmt.Sprintf("%s-%s", dda.Name, datadoghqv1alpha1.DefaultOrchestratorExplorerConf), cm.Name)
+	require.Equal(t, cm.Data[orchestratorExplorerCheckName], orchestratorExplorerCheckConfig(true))
 
 	// override case configData
-	dda.Spec.Features.KubeStateMetricsCore.Conf = &datadoghqv1alpha1.CustomConfigSpec{
+	dda.Spec.Features.OrchestratorExplorer.Conf = &datadoghqv1alpha1.CustomConfigSpec{
 		ConfigData: &overrideConf,
 	}
-	cm, err = buildKSMCoreConfigMap(dda)
+	cm, err = buildOrchestratorExplorerConfigMap(dda)
 	require.NoError(t, err)
-	require.Equal(t, fmt.Sprintf("%s-%s", dda.Name, datadoghqv1alpha1.DefaultKubeStateMetricsCoreConf), cm.Name)
-	require.Equal(t, overrideConf, cm.Data[ksmCoreCheckName])
+	require.Equal(t, fmt.Sprintf("%s-%s", dda.Name, datadoghqv1alpha1.DefaultOrchestratorExplorerConf), cm.Name)
+	require.Equal(t, overrideConf, cm.Data[orchestratorExplorerCheckName])
 }

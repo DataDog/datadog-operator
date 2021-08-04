@@ -104,7 +104,8 @@ func (r *Reconciler) createClusterRoleBinding(logger logr.Logger, dda *datadoghq
 	logger.V(1).Info("createClusterRoleBinding", "clusterRoleBinding.name", clusterRoleBinding.Name)
 	event := buildEventInfo(clusterRoleBinding.Name, clusterRoleBinding.Namespace, clusterRoleBindingKind, datadog.CreationEvent)
 	r.recordEvent(dda, event)
-	return reconcile.Result{}, r.client.Create(context.TODO(), clusterRoleBinding)
+	err := r.client.Create(context.TODO(), clusterRoleBinding)
+	return reconcile.Result{}, err
 }
 
 func (r *Reconciler) cleanupClusterRole(logger logr.Logger, client client.Client, dda *datadoghqv1alpha1.DatadogAgent, name string) (reconcile.Result, error) {

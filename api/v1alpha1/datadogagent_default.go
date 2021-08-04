@@ -61,6 +61,7 @@ const (
 	defaultProcessCollectionEnabled                      bool   = false
 	defaultOrchestratorExplorerEnabled                   bool   = true
 	defaultOrchestratorExplorerContainerScrubbingEnabled bool   = true
+	DefaultOrchestratorExplorerConf                      string = "orchestrator-explorer-config"
 	defaultMetricsProviderPort                           int32  = 8443
 	defaultClusterChecksEnabled                          bool   = false
 	DefaultKubeStateMetricsCoreConf                      string = "kube-state-metrics-core-config"
@@ -785,11 +786,13 @@ func DefaultFeatures(dda *DatadogAgent) *DatadogFeatures {
 	ft := &dda.Spec.Features
 	featureOverride := &DatadogFeatures{}
 
-	if orch := DefaultDatadogFeatureOrchestratorExplorer(ft); !IsEqualStruct(*orch, OrchestratorExplorerConfig{}) {
+	clusterCheckEnabled := clusterChecksRunnerEnabled(dda)
+
+	if orch := DefaultDatadogFeatureOrchestratorExplorer(ft, clusterCheckEnabled); !IsEqualStruct(*orch, OrchestratorExplorerConfig{}) {
 		featureOverride.OrchestratorExplorer = orch
 	}
 
-	if ksm := DefaultDatadogFeatureKubeStateMetricsCore(ft, clusterChecksRunnerEnabled(dda)); !IsEqualStruct(*ksm, KubeStateMetricsCore{}) {
+	if ksm := DefaultDatadogFeatureKubeStateMetricsCore(ft, clusterCheckEnabled); !IsEqualStruct(*ksm, KubeStateMetricsCore{}) {
 		featureOverride.KubeStateMetricsCore = ksm
 	}
 
@@ -810,27 +813,39 @@ func DefaultFeatures(dda *DatadogAgent) *DatadogFeatures {
 
 // DefaultDatadogFeatureOrchestratorExplorer used to default an OrchestratorExplorerConfig
 // return the defaulted OrchestratorExplorerConfig
-func DefaultDatadogFeatureOrchestratorExplorer(ft *DatadogFeatures) *OrchestratorExplorerConfig {
+func DefaultDatadogFeatureOrchestratorExplorer(ft *DatadogFeatures, withClusterChecksRunner bool) *OrchestratorExplorerConfig {
 	if ft.OrchestratorExplorer == nil {
-		ft.OrchestratorExplorer = &OrchestratorExplorerConfig{Enabled: NewBoolPointer(false)}
-		return ft.OrchestratorExplorer
+		ft.OrchestratorExplorer = &OrchestratorExplorerConfig{}
 	}
 
-	if ft.OrchestratorExplorer.Enabled == nil {
-		ft.OrchestratorExplorer.Enabled = NewBoolPointer(defaultOrchestratorExplorerEnabled)
+	return defaultEnabledDatadogFeatureOrchestratorExplorer(ft.OrchestratorExplorer, withClusterChecksRunner)
+}
+
+func defaultEnabledDatadogFeatureOrchestratorExplorer(config *OrchestratorExplorerConfig, withClusterChecksRunner bool) *OrchestratorExplorerConfig {
+	explorerConfigOverride := &OrchestratorExplorerConfig{}
+
+	if config.Enabled == nil {
+		config.Enabled = NewBoolPointer(defaultOrchestratorExplorerEnabled)
+		explorerConfigOverride.Enabled = config.Enabled
 	}
+	if BoolValue(config.Enabled) {
+		if config.ClusterCheck == nil {
+			config.ClusterCheck = NewBoolPointer(withClusterChecksRunner)
+			explorerConfigOverride.ClusterCheck = config.ClusterCheck
+		}
 
-	explorerConfigOverride := &OrchestratorExplorerConfig{Enabled: ft.OrchestratorExplorer.Enabled}
+		if config.Scrubbing == nil {
+			config.Scrubbing = &Scrubbing{}
+			explorerConfigOverride.Scrubbing = config.Scrubbing
+		}
 
-	if !BoolValue(ft.OrchestratorExplorer.Enabled) {
-		return explorerConfigOverride
+		if config.Scrubbing.Containers == nil {
+			config.Scrubbing.Containers = NewBoolPointer(defaultOrchestratorExplorerContainerScrubbingEnabled)
+			explorerConfigOverride.Scrubbing.Containers = config.Scrubbing.Containers
+		}
+	} else {
+		explorerConfigOverride.Enabled = NewBoolPointer(false)
 	}
-
-	if ft.OrchestratorExplorer.Scrubbing == nil || ft.OrchestratorExplorer.Scrubbing.Containers == nil {
-		ft.OrchestratorExplorer.Scrubbing = &Scrubbing{Containers: NewBoolPointer(defaultOrchestratorExplorerContainerScrubbingEnabled)}
-		explorerConfigOverride.Scrubbing = ft.OrchestratorExplorer.Scrubbing
-	}
-
 	return explorerConfigOverride
 }
 

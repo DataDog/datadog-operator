@@ -114,7 +114,9 @@ func TestDefaultFeatures(t *testing.T) {
 			ft:   DatadogFeatures{},
 			overrideExpected: &DatadogFeatures{
 				OrchestratorExplorer: &OrchestratorExplorerConfig{
-					Enabled: NewBoolPointer(false),
+					Enabled:      NewBoolPointer(true),
+					ClusterCheck: NewBoolPointer(false),
+					Scrubbing:    &Scrubbing{Containers: NewBoolPointer(true)},
 				},
 				KubeStateMetricsCore: &KubeStateMetricsCore{Enabled: NewBoolPointer(false), ClusterCheck: NewBoolPointer(false)},
 				PrometheusScrape: &PrometheusScrapeConfig{
@@ -127,7 +129,9 @@ func TestDefaultFeatures(t *testing.T) {
 			},
 			internalDefaulted: DatadogFeatures{
 				OrchestratorExplorer: &OrchestratorExplorerConfig{
-					Enabled: NewBoolPointer(false),
+					Enabled:      NewBoolPointer(true),
+					ClusterCheck: NewBoolPointer(false),
+					Scrubbing:    &Scrubbing{Containers: NewBoolPointer(true)},
 				},
 				KubeStateMetricsCore: &KubeStateMetricsCore{Enabled: NewBoolPointer(false), ClusterCheck: NewBoolPointer(false)},
 				PrometheusScrape: &PrometheusScrapeConfig{
@@ -209,9 +213,13 @@ func TestDefaultFeatures(t *testing.T) {
 			},
 			overrideExpected: &DatadogFeatures{
 				OrchestratorExplorer: &OrchestratorExplorerConfig{
-					Enabled: NewBoolPointer(true), // defaultOrchestratorExplorerEnabled
+					Enabled:      NewBoolPointer(true), // defaultOrchestratorExplorerEnabled
+					ClusterCheck: NewBoolPointer(false),
 				},
-				KubeStateMetricsCore: &KubeStateMetricsCore{Enabled: NewBoolPointer(true), ClusterCheck: NewBoolPointer(true)},
+				KubeStateMetricsCore: &KubeStateMetricsCore{
+					Enabled:      NewBoolPointer(true),
+					ClusterCheck: NewBoolPointer(true),
+				},
 				LogCollection: &LogCollectionConfig{
 					Enabled: NewBoolPointer(false), // defaultLogEnabled
 				},
@@ -222,8 +230,9 @@ func TestDefaultFeatures(t *testing.T) {
 			},
 			internalDefaulted: DatadogFeatures{
 				OrchestratorExplorer: &OrchestratorExplorerConfig{
-					Enabled:   NewBoolPointer(true), // defaultOrchestratorExplorerEnabled
-					Scrubbing: &Scrubbing{Containers: NewBoolPointer(false)},
+					Enabled:      NewBoolPointer(true), // defaultOrchestratorExplorerEnabled
+					ClusterCheck: NewBoolPointer(false),
+					Scrubbing:    &Scrubbing{Containers: NewBoolPointer(false)},
 				},
 				KubeStateMetricsCore: &KubeStateMetricsCore{Enabled: NewBoolPointer(true), ClusterCheck: NewBoolPointer(true)},
 				LogCollection: &LogCollectionConfig{
@@ -428,7 +437,7 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 			},
 		},
 		{
-			name: "sparse config",
+			name: "agent spec sparse config",
 			agent: DatadogAgentSpecAgentSpec{
 				Config: &NodeAgentConfig{},
 			},
@@ -806,19 +815,28 @@ func TestDefaultDatadogAgentSpecClusterChecksRunner(t *testing.T) {
 
 func TestDefaultDatadogFeatureOrchestratorExplorer(t *testing.T) {
 	tests := []struct {
-		name        string
-		orc         *DatadogFeatures
-		orcOverride *OrchestratorExplorerConfig
-		internal    *OrchestratorExplorerConfig
+		name         string
+		orc          *DatadogFeatures
+		clustercheck bool
+		orcOverride  *OrchestratorExplorerConfig
+		internal     *OrchestratorExplorerConfig
 	}{
 		{
 			name: "empty",
 			orc:  &DatadogFeatures{},
 			orcOverride: &OrchestratorExplorerConfig{
-				Enabled: NewBoolPointer(false),
+				Enabled:      NewBoolPointer(true),
+				ClusterCheck: NewBoolPointer(false),
+				Scrubbing: &Scrubbing{
+					Containers: NewBoolPointer(true),
+				},
 			},
 			internal: &OrchestratorExplorerConfig{
-				Enabled: NewBoolPointer(false),
+				Enabled:      NewBoolPointer(true),
+				ClusterCheck: NewBoolPointer(false),
+				Scrubbing: &Scrubbing{
+					Containers: NewBoolPointer(true),
+				},
 			},
 		},
 		{
@@ -829,13 +847,14 @@ func TestDefaultDatadogFeatureOrchestratorExplorer(t *testing.T) {
 				},
 			},
 			orcOverride: &OrchestratorExplorerConfig{
-				Enabled: NewBoolPointer(true),
+				ClusterCheck: NewBoolPointer(false),
 				Scrubbing: &Scrubbing{
 					Containers: NewBoolPointer(true),
 				},
 			},
 			internal: &OrchestratorExplorerConfig{
-				Enabled: NewBoolPointer(true),
+				Enabled:      NewBoolPointer(true),
+				ClusterCheck: NewBoolPointer(false),
 				Scrubbing: &Scrubbing{
 					Containers: NewBoolPointer(true),
 				},
@@ -866,10 +885,59 @@ func TestDefaultDatadogFeatureOrchestratorExplorer(t *testing.T) {
 				},
 			},
 			orcOverride: &OrchestratorExplorerConfig{
-				Enabled: NewBoolPointer(true),
+				Enabled:      nil,
+				ClusterCheck: NewBoolPointer(false),
 			},
 			internal: &OrchestratorExplorerConfig{
-				Enabled: NewBoolPointer(true),
+				Enabled:      NewBoolPointer(true),
+				ClusterCheck: NewBoolPointer(false),
+				Scrubbing: &Scrubbing{
+					Containers: NewBoolPointer(true),
+				},
+			},
+		},
+		{
+			name: "enabled orchestrator, enabled clustecheck",
+			orc: &DatadogFeatures{
+				OrchestratorExplorer: &OrchestratorExplorerConfig{
+					Enabled:      NewBoolPointer(true),
+					ClusterCheck: NewBoolPointer(true),
+				},
+			},
+			clustercheck: true,
+			orcOverride: &OrchestratorExplorerConfig{
+				Enabled:      nil,
+				ClusterCheck: nil,
+				Scrubbing: &Scrubbing{
+					Containers: NewBoolPointer(true),
+				},
+			},
+			internal: &OrchestratorExplorerConfig{
+				Enabled:      NewBoolPointer(true),
+				ClusterCheck: NewBoolPointer(true),
+				Scrubbing: &Scrubbing{
+					Containers: NewBoolPointer(true),
+				},
+			},
+		},
+		{
+			name: "enabled orchestrator, checkrunner enabled, clustecheck disable",
+			orc: &DatadogFeatures{
+				OrchestratorExplorer: &OrchestratorExplorerConfig{
+					Enabled:      NewBoolPointer(true),
+					ClusterCheck: NewBoolPointer(false),
+				},
+			},
+			clustercheck: true,
+			orcOverride: &OrchestratorExplorerConfig{
+				Enabled: nil,
+				Scrubbing: &Scrubbing{
+					Containers: NewBoolPointer(true),
+				},
+			},
+			internal: &OrchestratorExplorerConfig{
+				Enabled:      NewBoolPointer(true),
+				ClusterCheck: NewBoolPointer(false),
 				Scrubbing: &Scrubbing{
 					Containers: NewBoolPointer(true),
 				},
@@ -879,7 +947,7 @@ func TestDefaultDatadogFeatureOrchestratorExplorer(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := DefaultDatadogFeatureOrchestratorExplorer(tt.orc)
+			got := DefaultDatadogFeatureOrchestratorExplorer(tt.orc, tt.clustercheck)
 			assert.True(t, IsEqualStruct(got, tt.orcOverride), "TestDefaultDatadogFeatureOrchestratorExplorer override \ndiff = %s", cmp.Diff(got, tt.orcOverride))
 			assert.True(t, IsEqualStruct(tt.orc.OrchestratorExplorer, tt.internal), "TestDefaultDatadogFeatureOrchestratorExplorer internal \ndiff = %s", cmp.Diff(tt.orc.OrchestratorExplorer, tt.internal))
 		})

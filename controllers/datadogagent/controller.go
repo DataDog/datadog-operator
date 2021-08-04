@@ -101,7 +101,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, request reconcile.Re
 		}
 	}
 	if err = datadoghqv1alpha1.IsValidDatadogAgent(&instance.Spec); err != nil {
-		reqLogger.V(2).Info("Invalid spec", "error", err)
+		reqLogger.V(1).Info("Invalid spec", "error", err)
 		return r.updateStatusIfNeeded(reqLogger, instance, &instance.Status, result, err)
 	}
 
@@ -140,10 +140,10 @@ func (r *Reconciler) updateOverrideIfNeeded(logger logr.Logger, agentdeployment 
 		updateAgentDeployment.Status.DefaultOverride = newOverride.DefaultOverride
 		if err := r.client.Status().Update(context.TODO(), updateAgentDeployment); err != nil {
 			if apierrors.IsConflict(err) {
-				logger.V(1).Info("unable to update DatadogAgent status due to update conflict")
+				logger.V(1).Info("unable to update DatadogAgent status override due to update conflict", "error", err)
 				return agentdeployment, reconcile.Result{RequeueAfter: time.Second}, nil
 			}
-			logger.Error(err, "unable to update DatadogAgent status")
+			logger.Error(err, "unable to update DatadogAgent status override", "error", err)
 			return agentdeployment, reconcile.Result{}, err
 		}
 	}

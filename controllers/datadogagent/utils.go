@@ -256,13 +256,6 @@ func processCollectionEnabled(dda *datadoghqv1alpha1.DatadogAgent) bool {
 		datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Process.Enabled)
 }
 
-func isOrchestratorExplorerEnabled(dda *datadoghqv1alpha1.DatadogAgent) bool {
-	if dda.Spec.Features.OrchestratorExplorer == nil {
-		return false
-	}
-	return datadoghqv1alpha1.BoolValue(dda.Spec.Features.OrchestratorExplorer.Enabled)
-}
-
 func getAgentDeploymentStrategy(dda *datadoghqv1alpha1.DatadogAgent) (*datadoghqv1alpha1.DaemonSetDeploymentStrategy, error) {
 	if dda.Spec.Agent.DeploymentStrategy == nil {
 		return nil, fmt.Errorf("could not get a defaulted DaemonSetDeploymentStrategy")
@@ -1988,14 +1981,14 @@ func isKSMCoreClusterCheck(dda *datadoghqv1alpha1.DatadogAgent) bool {
 	return isKSMCoreEnabled(dda) && datadoghqv1alpha1.BoolValue(dda.Spec.Features.KubeStateMetricsCore.ClusterCheck)
 }
 
-// GetKubeStateMetricsConfName get the name of the Configmap for the KSM Core check.
-func GetKubeStateMetricsConfName(dcaConf *datadoghqv1alpha1.DatadogAgent) string {
+// GetConfName get the name of the Configmap for a CustomConfigSpec
+func GetConfName(dca *datadoghqv1alpha1.DatadogAgent, conf *datadoghqv1alpha1.CustomConfigSpec, defaultName string) string {
 	// `configData` and `configMap` can't be set together.
 	// Return the default if the conf is not overridden or if it is just overridden with the ConfigData.
-	if dcaConf.Spec.Features.KubeStateMetricsCore.Conf != nil && dcaConf.Spec.Features.KubeStateMetricsCore.Conf.ConfigMap != nil {
-		return dcaConf.Spec.Features.KubeStateMetricsCore.Conf.ConfigMap.Name
+	if conf != nil && conf.ConfigMap != nil {
+		return conf.ConfigMap.Name
 	}
-	return fmt.Sprintf("%s-%s", dcaConf.Name, datadoghqv1alpha1.DefaultKubeStateMetricsCoreConf)
+	return fmt.Sprintf("%s-%s", dca.Name, defaultName)
 }
 
 func prometheusScrapeEnvVars(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) []corev1.EnvVar {

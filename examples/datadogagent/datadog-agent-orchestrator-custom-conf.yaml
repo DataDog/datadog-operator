@@ -10,12 +10,11 @@ spec:
   features:
     orchestratorExplorer:
       enabled: true
-    kubeStateMetricsCore:
-      enabled: true
       conf:
         configMap:
-          name: cluster-agent-ksm-conf
+          name: orchestrator-conf
   agent:
+    enabled: true
     image:
       name: "gcr.io/datadoghq/agent:latest"
   clusterAgent:
@@ -30,41 +29,38 @@ spec:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: cluster-agent-ksm-conf
+  name: orchestrator-conf
 data:
   pods.yaml: |-
     cluster_check: true
     init_config:
     instances:
       - collectors:
-        - pods
-  nodes.yaml: |-
+          - pods
+        skip_leader_election: true
+  jobs.yaml: |-
     cluster_check: true
     init_config:
     instances:
       - collectors:
-        - nodes
+          - jobs
+          - cronjobs
+        skip_leader_election: true
+  workloads.yaml: |-
+    cluster_check: true
+    init_config:
+    instances:
+      - collectors:
+          - deployments
+          - replicasets
+          - daemonsets
+          - statefulsets
+        skip_leader_election: true
   others.yaml: |-
     cluster_check: true
     init_config:
     instances:
       - collectors:
-        - secrets
-        - services
-        - resourcequotas
-        - replicationcontrollers
-        - limitranges
-        - persistentvolumeclaims
-        - persistentvolumes
-        - namespaces
-        - endpoints
-        - daemonsets
-        - deployments
-        - replicasets
-        - statefulsets
-        - cronjobs
-        - jobs
-        - horizontalpodautoscalers
-        - poddisruptionbudgets
-        - storageclasses
-        - volumeattachments
+          - nodes
+          - services
+        skip_leader_election: true

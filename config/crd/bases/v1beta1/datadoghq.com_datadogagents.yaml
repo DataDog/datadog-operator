@@ -10318,6 +10318,33 @@ spec:
                         data as json in the form of {"https://process.agent.datadoghq.com":
                         ["apikey1", ...], ...}''.'
                       type: string
+                    clusterCheck:
+                      description: ClusterCheck configures the Orchestrator Explorer
+                        check as a cluster check.
+                      type: boolean
+                    conf:
+                      description: To override the configuration for the default Orchestrator
+                        Explorer check. Must point to a ConfigMap containing a valid
+                        cluster check configuration.
+                      properties:
+                        configData:
+                          description: ConfigData corresponds to the configuration
+                            file content.
+                          type: string
+                        configMap:
+                          description: Enable to specify a reference to an already
+                            existing ConfigMap.
+                          properties:
+                            fileKey:
+                              description: FileKey corresponds to the key used in
+                                the ConfigMap.Data to store the configuration file
+                                content.
+                              type: string
+                            name:
+                              description: The name of source ConfigMap.
+                              type: string
+                          type: object
+                      type: object
                     ddUrl:
                       description: Set this for the Datadog endpoint for the orchestrator
                         explorer
@@ -21200,6 +21227,33 @@ spec:
                             data as json in the form of {"https://process.agent.datadoghq.com":
                             ["apikey1", ...], ...}''.'
                           type: string
+                        clusterCheck:
+                          description: ClusterCheck configures the Orchestrator Explorer
+                            check as a cluster check.
+                          type: boolean
+                        conf:
+                          description: To override the configuration for the default
+                            Orchestrator Explorer check. Must point to a ConfigMap
+                            containing a valid cluster check configuration.
+                          properties:
+                            configData:
+                              description: ConfigData corresponds to the configuration
+                                file content.
+                              type: string
+                            configMap:
+                              description: Enable to specify a reference to an already
+                                existing ConfigMap.
+                              properties:
+                                fileKey:
+                                  description: FileKey corresponds to the key used
+                                    in the ConfigMap.Data to store the configuration
+                                    file content.
+                                  type: string
+                                name:
+                                  description: The name of source ConfigMap.
+                                  type: string
+                              type: object
+                          type: object
                         ddUrl:
                           description: Set this for the Datadog endpoint for the orchestrator
                             explorer

@@ -397,6 +397,10 @@ spec:
 | features.logCollection.tempStoragePath | This path (always mounted from the host) is used by Datadog Agent to store information about processed log files. If the Datadog Agent is restarted, it starts tailing the log files immediately. Default to `/var/lib/datadog-agent/logs` |
 | features.networkMonitoring.enabled |  |
 | features.orchestratorExplorer.additionalEndpoints | Additional endpoints for shipping the collected data as json in the form of {"https://process.agent.datadoghq.com": ["apikey1", ...], ...}'. |
+| features.orchestratorExplorer.clusterCheck | ClusterCheck configures the Orchestrator Explorer check as a cluster check. |
+| features.orchestratorExplorer.conf.configData | ConfigData corresponds to the configuration file content. |
+| features.orchestratorExplorer.conf.configMap.fileKey | FileKey corresponds to the key used in the ConfigMap.Data to store the configuration file content. |
+| features.orchestratorExplorer.conf.configMap.name | The name of source ConfigMap. |
 | features.orchestratorExplorer.ddUrl | Set this for the Datadog endpoint for the orchestrator explorer |
 | features.orchestratorExplorer.enabled | Enable this to activate live Kubernetes monitoring. See also: https://docs.datadoghq.com/infrastructure/livecontainers/#kubernetes-resources |
 | features.orchestratorExplorer.extraTags | Additional tags for the collected data in the form of `a b c` Difference to DD_TAGS: this is a cluster agent option that is used to define custom cluster tags |

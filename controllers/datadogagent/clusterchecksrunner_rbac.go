@@ -31,32 +31,43 @@ func (r *Reconciler) manageClusterChecksRunnerRBACs(logger logr.Logger, dda *dat
 	clusterChecksRunnerVersion := getClusterChecksRunnerVersion(dda)
 	agentVersion := getAgentVersion(dda)
 
-	// Create ClusterRoleBinding
+	// Create or update ClusterRole
+	clusterRole := &rbacv1.ClusterRole{}
+	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesName}, clusterRole); err != nil {
+		if errors.IsNotFound(err) {
+			return r.createClusterCheckRunnerClusterRole(logger, dda, rbacResourcesName, agentVersion)
+		}
+		return reconcile.Result{}, err
+	}
+	if result, err := r.updateIfNeededClusterCheckRunnerClusterRole(logger, dda, rbacResourcesName, agentVersion, clusterRole); err != nil {
+		return result, err
+	}
+
+	// Create ServiceAccount
 	serviceAccountName := getClusterChecksRunnerServiceAccount(dda)
-	roleName := getAgentRbacResourcesName(dda)
+	serviceAccount := &corev1.ServiceAccount{}
+	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: serviceAccountName, Namespace: dda.Namespace}, serviceAccount); err != nil {
+		if errors.IsNotFound(err) {
+			return r.createServiceAccount(logger, dda, serviceAccountName, agentVersion)
+		}
+		return reconcile.Result{}, err
+	}
+
+	// Create ClusterRoleBinding
 	clusterRoleBinding := &rbacv1.ClusterRoleBinding{}
 	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesName}, clusterRoleBinding); err != nil {
 		if errors.IsNotFound(err) {
 			return r.createClusterRoleBinding(logger, dda, roleBindingInfo{
 				name:               rbacResourcesName,
-				roleName:           roleName,
+				roleName:           rbacResourcesName,
 				serviceAccountName: serviceAccountName,
 			}, clusterChecksRunnerVersion)
 		}
 		return reconcile.Result{}, err
 	}
 
-	if result, err := r.udpateIfNeededAgentClusterRoleBinding(logger, dda, rbacResourcesName, roleName, serviceAccountName, agentVersion, clusterRoleBinding); err != nil {
+	if result, err := r.udpateIfNeededAgentClusterRoleBinding(logger, dda, rbacResourcesName, rbacResourcesName, serviceAccountName, agentVersion, clusterRoleBinding); err != nil {
 		return result, err
-	}
-
-	// Create ServiceAccount
-	serviceAccount := &corev1.ServiceAccount{}
-	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: serviceAccountName, Namespace: dda.Namespace}, serviceAccount); err != nil {
-		if errors.IsNotFound(err) {
-			return r.createServiceAccount(logger, dda, serviceAccountName, clusterChecksRunnerVersion)
-		}
-		return reconcile.Result{}, err
 	}
 
 	checkRunnersSuffix := "check-runners"
@@ -70,12 +81,27 @@ func (r *Reconciler) manageClusterChecksRunnerRBACs(logger logr.Logger, dda *dat
 		}
 	}
 
+	if isOrchestratorExplorerEnabled(dda) {
+		if result, err := r.createOrUpdateOrchestratorCoreRBAC(logger, dda, serviceAccountName, clusterChecksRunnerVersion, checkRunnersSuffix); err != nil {
+			return result, err
+		}
+	} else {
+		if result, err := r.cleanupOrchestratorCoreRBAC(logger, dda, checkRunnersSuffix); err != nil {
+			return result, err
+		}
+	}
+
 	return reconcile.Result{}, nil
 }
 
 // cleanupAgentRbacResources deletes ClusterRoleBindings and ServiceAccount of the Cluster Checks Runner
 func (r *Reconciler) cleanupClusterChecksRunnerRbacResources(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
 	rbacResourcesName := getClusterChecksRunnerRbacResourcesName(dda)
+
+	// Delete Cluster Role
+	if result, err := r.cleanupClusterRole(logger, r.client, dda, rbacResourcesName); err != nil {
+		return result, err
+	}
 
 	// Delete Cluster Role Binding
 	if result, err := r.cleanupClusterRoleBinding(logger, r.client, dda, rbacResourcesName); err != nil {

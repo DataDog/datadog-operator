@@ -3,7 +3,7 @@ kind: DatadogAgent
 metadata:
   name: datadog
 spec:
-  ClusterName: ced-test
+  clusterName: foo
   credentials:
     apiKey: <DATADOG_API_KEY>
     appKey: <DATADOG_APP_KEY>
