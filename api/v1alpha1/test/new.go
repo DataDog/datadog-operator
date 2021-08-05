@@ -252,6 +252,10 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 			if len(options.ClusterAgentEnvVars) != 0 {
 				ad.Spec.ClusterAgent.Config.Env = options.ClusterAgentEnvVars
 			}
+		} else {
+			ad.Spec.ClusterAgent = datadoghqv1alpha1.DatadogAgentSpecClusterAgentSpec{
+				Enabled: datadoghqv1alpha1.NewBoolPointer(false),
+			}
 		}
 
 		if options.ClusterChecksRunnerEnabled {

@@ -29,7 +29,7 @@ spec:
         - --enable-leader-election
         - --pprof
         image: controller:latest
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
         name: manager
         env:
         - name: POD_NAME

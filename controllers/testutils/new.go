@@ -17,7 +17,7 @@ import (
 type NewDatadogAgentOptions struct {
 	ExtraLabels                  map[string]string
 	ExtraAnnotations             map[string]string
-	ClusterAgentEnabled          bool
+	ClusterAgentDisabled         bool
 	OrchestratorExplorerDisabled bool
 	UseEDS                       bool
 	APIKey                       string
@@ -112,7 +112,7 @@ func NewDatadogAgent(ns, name, image string, options *NewDatadogAgentOptions) *d
 			}
 		}
 
-		if options.ClusterAgentEnabled {
+		if !options.ClusterAgentDisabled {
 			ad.Spec.ClusterAgent = datadoghqv1alpha1.DatadogAgentSpecClusterAgentSpec{
 				Config: &datadoghqv1alpha1.ClusterAgentConfig{},
 				Image: &datadoghqv1alpha1.ImageConfig{
@@ -120,6 +120,10 @@ func NewDatadogAgent(ns, name, image string, options *NewDatadogAgentOptions) *d
 					PullPolicy:  &pullPolicy,
 					PullSecrets: &[]v1.LocalObjectReference{},
 				},
+			}
+		} else {
+			ad.Spec.ClusterAgent = datadoghqv1alpha1.DatadogAgentSpecClusterAgentSpec{
+				Enabled: datadoghqv1alpha1.NewBoolPointer(false),
 			}
 		}
 

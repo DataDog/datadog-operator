@@ -262,10 +262,10 @@ func TestDefaultDatadogAgentSpecClusterAgent(t *testing.T) {
 			name: "empty field",
 			dca:  DatadogAgentSpecClusterAgentSpec{},
 			overrideExpected: &DatadogAgentSpecClusterAgentSpec{
-				Enabled: NewBoolPointer(false),
+				Enabled: NewBoolPointer(true),
 			},
 			internalDefaulted: DatadogAgentSpecClusterAgentSpec{
-				Enabled: NewBoolPointer(false),
+				Enabled: NewBoolPointer(true),
 			},
 		},
 		{

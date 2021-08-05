@@ -123,6 +123,7 @@ var _ = Describe("DatadogAgent Controller", func() {
 		It("It should create DaemonSet", func() {
 			options := &testutils.NewDatadogAgentOptions{
 				UseEDS:                       false,
+				ClusterAgentDisabled:         true,
 				APIKey:                       "xnfdsjgdjcxlg42rqmzxzvdsgjdfklg",
 				OrchestratorExplorerDisabled: true,
 			}
@@ -216,7 +217,7 @@ var _ = Describe("DatadogAgent Controller", func() {
 		}
 
 		It("It should create Deployment", func() {
-			agent := testutils.NewDatadogAgent(namespace, name, "datadog/agent:7.22.0", &testutils.NewDatadogAgentOptions{ClusterAgentEnabled: true, APIKey: "xnfdsjgdjcxlg42rqmzxzvdsgjdfklg"})
+			agent := testutils.NewDatadogAgent(namespace, name, "datadog/agent:7.22.0", &testutils.NewDatadogAgentOptions{APIKey: "xnfdsjgdjcxlg42rqmzxzvdsgjdfklg"})
 			Expect(k8sClient.Create(context.Background(), agent)).Should(Succeed())
 
 			var agentClusterAgentHash string
