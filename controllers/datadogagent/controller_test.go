@@ -46,11 +46,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-func init() {
-	const resourcesName = "foo"
-	const resourcesNamespace = "bar"
-}
-
 func TestReconcileDatadogAgent_createNewExtendedDaemonSet(t *testing.T) {
 	eventBroadcaster := record.NewBroadcaster()
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "TestReconcileDatadogAgent_createNewExtendedDaemonSet"})

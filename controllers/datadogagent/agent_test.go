@@ -1930,6 +1930,18 @@ func customKubeletConfigPodSpec(kubeletConfig *datadoghqv1alpha1.KubeletConfig) 
 			Name:      "DD_API_KEY",
 			ValueFrom: apiKeyValue(),
 		},
+		{
+			Name:      "DD_CLUSTER_AGENT_AUTH_TOKEN",
+			ValueFrom: authTokenValue(),
+		},
+		{
+			Name:  "DD_CLUSTER_AGENT_ENABLED",
+			Value: "true",
+		},
+		{
+			Name:  "DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME",
+			Value: "foo-cluster-agent",
+		},
 	}
 
 	return corev1.PodSpec{
@@ -3526,6 +3538,7 @@ func Test_newExtendedDaemonSetFromInstance_SecurityAgent_Runtime(t *testing.T) {
 func Test_newExtendedDaemonSetFromInstance_KubeletConfiguration(t *testing.T) {
 	dda := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
 		UseEDS:                       true,
+		ClusterAgentEnabled:          true,
 		OrchestratorExplorerDisabled: true,
 	})
 

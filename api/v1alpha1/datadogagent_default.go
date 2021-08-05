@@ -107,6 +107,10 @@ func DefaultDatadogAgent(dda *DatadogAgent) *DatadogAgentStatus {
 		DefaultOverride: &DatadogAgentSpec{},
 	}
 
+	// Features
+	// default features because it might have an impact on the other defaulting
+	dso.DefaultOverride.Features = *DefaultFeatures(dda)
+
 	// Cluster Agent
 	dso.DefaultOverride.ClusterAgent = *DefaultDatadogAgentSpecClusterAgent(&dda.Spec.ClusterAgent)
 
@@ -115,9 +119,6 @@ func DefaultDatadogAgent(dda *DatadogAgent) *DatadogAgentStatus {
 
 	// CLC
 	dso.DefaultOverride.ClusterChecksRunner = *DefaultDatadogAgentSpecClusterChecksRunner(&dda.Spec.ClusterChecksRunner)
-
-	// Features
-	dso.DefaultOverride.Features = *DefaultFeatures(dda)
 
 	// Creds
 	if dda.Spec.Credentials == nil {
@@ -903,7 +904,7 @@ func DefaultDatadogFeatureNetworkMonitoring(ft *DatadogFeatures) *NetworkMonitor
 // return the defaulted DatadogAgentSpecClusterAgentSpec to update the status
 func DefaultDatadogAgentSpecClusterAgent(clusterAgent *DatadogAgentSpecClusterAgentSpec) *DatadogAgentSpecClusterAgentSpec {
 	if IsEqualStruct(*clusterAgent, DatadogAgentSpecClusterAgentSpec{}) {
-		clusterAgent.Enabled = NewBoolPointer(false)
+		clusterAgent.Enabled = NewBoolPointer(true)
 		return clusterAgent
 	}
 
