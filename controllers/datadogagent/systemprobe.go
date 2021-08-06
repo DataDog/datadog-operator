@@ -40,7 +40,7 @@ func (r *Reconciler) manageSystemProbeDependencies(logger logr.Logger, dda *data
 
 func shouldCreateSystemProbeConfigConfigMap(dda *datadoghqv1alpha1.DatadogAgent) bool {
 	return isSystemProbeEnabled(&dda.Spec) &&
-		(dda.Spec.Agent.SystemProbe.CustomConfig == nil ||
+		(dda.Spec.Agent.SystemProbe == nil || dda.Spec.Agent.SystemProbe.CustomConfig == nil ||
 			dda.Spec.Agent.SystemProbe.CustomConfig.ConfigMap == nil)
 }
 
@@ -49,14 +49,15 @@ func shouldMountSystemProbeConfigConfigMap(dda *datadoghqv1alpha1.DatadogAgent) 
 }
 
 func getSystemProbeConfigConfigMapName(dda *datadoghqv1alpha1.DatadogAgent) string {
-	if dda.Spec.Agent.SystemProbe.CustomConfig != nil && dda.Spec.Agent.SystemProbe.CustomConfig.ConfigMap != nil {
+	if dda.Spec.Agent.SystemProbe != nil && dda.Spec.Agent.SystemProbe.CustomConfig != nil && dda.Spec.Agent.SystemProbe.CustomConfig.ConfigMap != nil {
 		return dda.Spec.Agent.SystemProbe.CustomConfig.ConfigMap.Name
 	}
 	return fmt.Sprintf("%s-%s", dda.Name, SystemProbeConfigMapSuffixName)
 }
 
 func getSystemProbeConfigFileName(dda *datadoghqv1alpha1.DatadogAgent) string {
-	if dda.Spec.Agent.SystemProbe.CustomConfig != nil &&
+	if dda.Spec.Agent.SystemProbe != nil &&
+		dda.Spec.Agent.SystemProbe.CustomConfig != nil &&
 		dda.Spec.Agent.SystemProbe.CustomConfig.ConfigMap != nil &&
 		dda.Spec.Agent.SystemProbe.CustomConfig.ConfigMap.FileKey != "" {
 		return dda.Spec.Agent.SystemProbe.CustomConfig.ConfigMap.FileKey
