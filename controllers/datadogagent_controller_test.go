@@ -169,7 +169,7 @@ var _ = Describe("DatadogAgent Controller", func() {
 				}, nil)
 			})
 
-			By("Disabeling OrchestratorExplorer", func() {
+			By("Disabling OrchestratorExplorer", func() {
 				checkAgentUpdateOnDaemonSet(key, dsKey, func(agent *datadoghqv1alpha1.DatadogAgent) {
 					agent.Spec.Features.OrchestratorExplorer = &datadoghqv1alpha1.OrchestratorExplorerConfig{
 						Enabled: datadoghqv1alpha1.NewBoolPointer(false),
@@ -194,7 +194,7 @@ var _ = Describe("DatadogAgent Controller", func() {
 				}, nil)
 			})
 
-			By("Disabeling Process", func() {
+			By("Disabling Process", func() {
 				checkAgentUpdateOnDaemonSet(key, dsKey, func(agent *datadoghqv1alpha1.DatadogAgent) {
 					agent.Spec.Agent.Process.Enabled = datadoghqv1alpha1.NewBoolPointer(false)
 				}, nil)
