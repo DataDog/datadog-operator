@@ -71,6 +71,8 @@ func TestReconciler_manageClusterChecksRunnerRBACs(t *testing.T) {
 	}
 	clusterRoleBinding := buildClusterRoleBinding(ddaDefault, clusterRoleBindingInfo, agentVersion)
 
+	agentClusterRoleRBAC := buildAgentClusterRole(ddaDefault, rbacResourcesName, agentVersion)
+
 	clusterRoleRBAC := buildKubeStateMetricsCoreRBAC(ddaDefault, kubeStateMetricsRBACName, agentVersion)
 
 	type fields struct {
@@ -101,7 +103,7 @@ func TestReconciler_manageClusterChecksRunnerRBACs(t *testing.T) {
 				dda:    ddaDefault,
 			},
 			fields: fields{
-				client:     fake.NewFakeClientWithScheme(s, serviceAccount, clusterRoleBinding),
+				client:     fake.NewFakeClientWithScheme(s, serviceAccount, agentClusterRoleRBAC, clusterRoleBinding),
 				scheme:     s,
 				recorder:   recorder,
 				forwarders: forwarders,
@@ -124,7 +126,7 @@ func TestReconciler_manageClusterChecksRunnerRBACs(t *testing.T) {
 				dda:    ddaDefault,
 			},
 			fields: fields{
-				client:     fake.NewFakeClientWithScheme(s, serviceAccount, clusterRoleBinding, clusterRoleRBAC),
+				client:     fake.NewFakeClientWithScheme(s, serviceAccount, agentClusterRoleRBAC, clusterRoleBinding, clusterRoleRBAC),
 				scheme:     s,
 				recorder:   recorder,
 				forwarders: forwarders,

@@ -500,6 +500,14 @@ type OrchestratorExplorerConfig struct {
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
+	// To override the configuration for the default Orchestrator Explorer check.
+	// Must point to a ConfigMap containing a valid cluster check configuration.
+	Conf *CustomConfigSpec `json:"conf,omitempty"`
+
+	// ClusterCheck configures the Orchestrator Explorer check as a cluster check.
+	// +optional
+	ClusterCheck *bool `json:"clusterCheck,omitempty"`
+
 	// +optional
 	// Option to disable scrubbing of sensitive container data (passwords, tokens, etc. ).
 	Scrubbing *Scrubbing `json:"scrubbing,omitempty"`

@@ -2776,6 +2776,19 @@ func schema__api_v1alpha1_OrchestratorExplorerConfig(ref common.ReferenceCallbac
 							Format:      "",
 						},
 					},
+					"conf": {
+						SchemaProps: spec.SchemaProps{
+							Description: "To override the configuration for the default Orchestrator Explorer check. Must point to a ConfigMap containing a valid cluster check configuration.",
+							Ref:         ref("./api/v1alpha1.CustomConfigSpec"),
+						},
+					},
+					"clusterCheck": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ClusterCheck configures the Orchestrator Explorer check as a cluster check.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 					"scrubbing": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Option to disable scrubbing of sensitive container data (passwords, tokens, etc. ).",
@@ -2820,7 +2833,7 @@ func schema__api_v1alpha1_OrchestratorExplorerConfig(ref common.ReferenceCallbac
 			},
 		},
 		Dependencies: []string{
-			"./api/v1alpha1.Scrubbing"},
+			"./api/v1alpha1.CustomConfigSpec", "./api/v1alpha1.Scrubbing"},
 	}
 }
 

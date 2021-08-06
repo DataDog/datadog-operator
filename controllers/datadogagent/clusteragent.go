@@ -263,6 +263,11 @@ func (r *Reconciler) manageClusterAgentDependencies(logger logr.Logger, dda *dat
 		return result, err
 	}
 
+	result, err = r.manageOrchestratorExplorer(logger, dda)
+	if shouldReturn(result, err) {
+		return result, err
+	}
+
 	return reconcile.Result{}, nil
 }
 
@@ -413,42 +418,29 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 	}
 
 	if isKSMCoreEnabled(dda) {
-		var volKSM corev1.Volume
-		var volumeMountKSM corev1.VolumeMount
-		if dda.Spec.Features.KubeStateMetricsCore.Conf != nil {
-			volKSM = getVolumeFromCustomConfigSpec(
-				dda.Spec.Features.KubeStateMetricsCore.Conf,
-				GetKubeStateMetricsConfName(dda),
-				datadoghqv1alpha1.KubeStateMetricCoreVolumeName,
-			)
-			// subpath only updated to Filekey if config uses configMap, default to ksmCoreCheckName for configData.
-			volumeMountKSM = getVolumeMountFromCustomConfigSpec(
-				dda.Spec.Features.KubeStateMetricsCore.Conf,
-				datadoghqv1alpha1.KubeStateMetricCoreVolumeName,
-				fmt.Sprintf("%s%s/%s", datadoghqv1alpha1.ConfigVolumePath, datadoghqv1alpha1.ConfdVolumePath, ksmCoreCheckFolderName),
-				"",
-			)
-		} else {
-			volKSM = corev1.Volume{
-				Name: datadoghqv1alpha1.KubeStateMetricCoreVolumeName,
-				VolumeSource: corev1.VolumeSource{
-					ConfigMap: &corev1.ConfigMapVolumeSource{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: GetKubeStateMetricsConfName(dda),
-						},
-					},
-				},
-			}
-			volumeMountKSM = corev1.VolumeMount{
-				Name:      datadoghqv1alpha1.KubeStateMetricCoreVolumeName,
-				MountPath: fmt.Sprintf("%s%s/%s", datadoghqv1alpha1.ConfigVolumePath, datadoghqv1alpha1.ConfdVolumePath, ksmCoreCheckName),
-				SubPath:   ksmCoreCheckName,
-				ReadOnly:  true,
-			}
-		}
+		volKSM, volumeMountKSM := getCustomConfigSpecVolumes(
+			dda.Spec.Features.KubeStateMetricsCore.Conf,
+			datadoghqv1alpha1.KubeStateMetricCoreVolumeName,
+			getKubeStateMetricsConfName(dda),
+			ksmCoreCheckFolderName,
+		)
+
 		volumes = append(volumes, volKSM)
 		volumeMounts = append(volumeMounts, volumeMountKSM)
 	}
+
+	if isOrchestratorExplorerEnabled(dda) {
+		volume, volumeMount := getCustomConfigSpecVolumes(
+			dda.Spec.Features.OrchestratorExplorer.Conf,
+			datadoghqv1alpha1.OrchestratorExplorerConfigVolumeName,
+			getOrchestratorExplorerConfName(dda),
+			orchestratorExplorerCheckFolderName,
+		)
+
+		volumes = append(volumes, volume)
+		volumeMounts = append(volumeMounts, volumeMount)
+	}
+
 	// Add other volumes
 	volumes = append(volumes, dda.Spec.ClusterAgent.Config.Volumes...)
 	volumeMounts = append(volumeMounts, dda.Spec.ClusterAgent.Config.VolumeMounts...)
@@ -526,6 +518,42 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 	}
 
 	return newPodTemplate, nil
+}
+
+func getCustomConfigSpecVolumes(customConfig *datadoghqv1alpha1.CustomConfigSpec, volumeName, defaultCMName, configFolder string) (corev1.Volume, corev1.VolumeMount) {
+	var volume corev1.Volume
+	var volumeMount corev1.VolumeMount
+	if customConfig != nil {
+		volume = getVolumeFromCustomConfigSpec(
+			customConfig,
+			defaultCMName,
+			volumeName,
+		)
+		// subpath only updated to Filekey if config uses configMap, default to ksmCoreCheckName for configData.
+		volumeMount = getVolumeMountFromCustomConfigSpec(
+			customConfig,
+			volumeName,
+			fmt.Sprintf("%s%s/%s", datadoghqv1alpha1.ConfigVolumePath, datadoghqv1alpha1.ConfdVolumePath, configFolder),
+			"",
+		)
+	} else {
+		volume = corev1.Volume{
+			Name: volumeName,
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: defaultCMName,
+					},
+				},
+			},
+		}
+		volumeMount = corev1.VolumeMount{
+			Name:      volumeName,
+			MountPath: fmt.Sprintf("%s%s/%s", datadoghqv1alpha1.ConfigVolumePath, datadoghqv1alpha1.ConfdVolumePath, configFolder),
+			ReadOnly:  true,
+		}
+	}
+	return volume, volumeMount
 }
 
 func getClusterAgentCustomConfigConfigMapName(dda *datadoghqv1alpha1.DatadogAgent) string {
@@ -687,7 +715,7 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 		})
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  datadoghqv1alpha1.DDKubeStateMetricsCoreConfigMap,
-			Value: GetKubeStateMetricsConfName(dda),
+			Value: getKubeStateMetricsConfName(dda),
 		})
 	}
 
@@ -830,6 +858,16 @@ func (r *Reconciler) manageClusterAgentRBACs(logger logr.Logger, dda *datadoghqv
 		}
 	}
 
+	if isOrchestratorExplorerEnabled(dda) && !isOrchestratorExplorerClusterCheck(dda) {
+		if result, err := r.createOrUpdateOrchestratorCoreRBAC(logger, dda, serviceAccountName, clusterAgentVersion, clusterAgentSuffix); err != nil {
+			return result, err
+		}
+	} else {
+		if result, err := r.cleanupOrchestratorCoreRBAC(logger, dda, clusterAgentSuffix); err != nil {
+			return result, err
+		}
+	}
+
 	metricsProviderEnabled := isMetricsProviderEnabled(dda.Spec.ClusterAgent)
 	// Create or delete HPA ClusterRoleBinding
 	hpaClusterRoleBindingName := getHPAClusterRoleBindingName(dda)
@@ -914,6 +952,18 @@ func (r *Reconciler) createAgentClusterRole(logger logr.Logger, dda *datadoghqv1
 	return reconcile.Result{Requeue: true}, err
 }
 
+func (r *Reconciler) createClusterCheckRunnerClusterRole(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string) (reconcile.Result, error) {
+	clusterRole := buildClusterCheckRunnerClusterRole(dda, name, agentVersion)
+	if err := SetOwnerReference(dda, clusterRole, r.scheme); err != nil {
+		return reconcile.Result{}, err
+	}
+	logger.V(1).Info("createAgentClusterRole", "clusterRole.name", clusterRole.Name)
+	event := buildEventInfo(clusterRole.Name, clusterRole.Namespace, clusterRoleKind, datadog.CreationEvent)
+	r.recordEvent(dda, event)
+	err := r.client.Create(context.TODO(), clusterRole)
+	return reconcile.Result{Requeue: true}, err
+}
+
 func (r *Reconciler) updateIfNeededClusterAgentClusterRole(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string, clusterRole *rbacv1.ClusterRole) (reconcile.Result, error) {
 	newClusterRole := buildClusterAgentClusterRole(dda, name, agentVersion)
 	if !apiequality.Semantic.DeepEqual(newClusterRole.Rules, clusterRole.Rules) {
@@ -966,6 +1016,19 @@ func (r *Reconciler) udpateIfNeededClusterAgentClusterRoleBinding(logger logr.Lo
 
 func (r *Reconciler) updateIfNeededAgentClusterRole(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string, clusterRole *rbacv1.ClusterRole) (reconcile.Result, error) {
 	newClusterRole := buildAgentClusterRole(dda, name, agentVersion)
+	if !apiequality.Semantic.DeepEqual(newClusterRole.Rules, clusterRole.Rules) {
+		logger.V(1).Info("updateAgentClusterRole", "clusterRole.name", clusterRole.Name)
+		if err := r.client.Update(context.TODO(), newClusterRole); err != nil {
+			return reconcile.Result{}, err
+		}
+		event := buildEventInfo(newClusterRole.Name, newClusterRole.Namespace, clusterRoleKind, datadog.UpdateEvent)
+		r.recordEvent(dda, event)
+	}
+	return reconcile.Result{}, nil
+}
+
+func (r *Reconciler) updateIfNeededClusterCheckRunnerClusterRole(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string, clusterRole *rbacv1.ClusterRole) (reconcile.Result, error) {
+	newClusterRole := buildClusterCheckRunnerClusterRole(dda, name, agentVersion)
 	if !apiequality.Semantic.DeepEqual(newClusterRole.Rules, clusterRole.Rules) {
 		logger.V(1).Info("updateAgentClusterRole", "clusterRole.name", clusterRole.Name)
 		if err := r.client.Update(context.TODO(), newClusterRole); err != nil {
@@ -1065,6 +1128,16 @@ func (r *Reconciler) updateIfNeededClusterAgentRoleBinding(logger logr.Logger, d
 
 // buildAgentClusterRole creates a ClusterRole object for the Agent based on its config
 func buildAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, version string) *rbacv1.ClusterRole {
+	return buildClusterRole(dda, !isClusterAgentEnabled(dda.Spec.ClusterAgent), name, version)
+}
+
+// buildClusterCheckRunnerClusterRole creates a ClusterRole object for the ClusterCheckRunner based on its config
+func buildClusterCheckRunnerClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, version string) *rbacv1.ClusterRole {
+	return buildClusterRole(dda, true, name, version)
+}
+
+// buildClusterRole creates a ClusterRole object for the Agent based on its config
+func buildClusterRole(dda *datadoghqv1alpha1.DatadogAgent, needClusterLevelRBAC bool, name, version string) *rbacv1.ClusterRole {
 	clusterRole := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels: getDefaultLabels(dda, name, version),
@@ -1103,7 +1176,7 @@ func buildAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, version st
 		},
 	}
 
-	if !isClusterAgentEnabled(dda.Spec.ClusterAgent) {
+	if needClusterLevelRBAC {
 		// Cluster Agent is disabled, the Agent needs extra permissions
 		// to collect cluster level metrics and events
 		rbacRules = append(rbacRules, getDefaultClusterAgentPolicyRules()...)

@@ -1888,6 +1888,16 @@ func (in *OrchestratorExplorerConfig) DeepCopyInto(out *OrchestratorExplorerConf
 		*out = new(bool)
 		**out = **in
 	}
+	if in.Conf != nil {
+		in, out := &in.Conf, &out.Conf
+		*out = new(CustomConfigSpec)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.ClusterCheck != nil {
+		in, out := &in.ClusterCheck, &out.ClusterCheck
+		*out = new(bool)
+		**out = **in
+	}
 	if in.Scrubbing != nil {
 		in, out := &in.Scrubbing, &out.Scrubbing
 		*out = new(Scrubbing)

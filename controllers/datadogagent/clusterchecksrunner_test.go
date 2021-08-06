@@ -147,6 +147,14 @@ func clusterChecksRunnerDefaultEnvVars() []corev1.EnvVar {
 			Value: "INFO",
 		},
 		{
+			Name:  "DD_ORCHESTRATOR_EXPLORER_CONTAINER_SCRUBBING_ENABLED",
+			Value: "true",
+		},
+		{
+			Name:  "DD_ORCHESTRATOR_EXPLORER_ENABLED",
+			Value: "true",
+		},
+		{
 			Name:  "DD_PROCESS_AGENT_ENABLED",
 			Value: "false",
 		},

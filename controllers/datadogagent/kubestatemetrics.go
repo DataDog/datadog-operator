@@ -1,3 +1,8 @@
+// Unless explicitly stated otherwise all files in this repository are licensed
+// under the Apache License Version 2.0.
+// This product includes software developed at Datadog (https://www.datadoghq.com/).
+// Copyright 2016-present Datadog, Inc.
+
 package datadogagent
 
 import (
@@ -22,6 +27,11 @@ const (
 	ksmCoreCheckName           = "kubernetes_state_core.yaml.default"
 	ksmCoreCheckFolderName     = "kubernetes_state_core.d"
 )
+
+// getKubeStateMetricsConfName get the name of the Configmap for the KSM Core check.
+func getKubeStateMetricsConfName(dda *datadoghqv1alpha1.DatadogAgent) string {
+	return GetConfName(dda, dda.Spec.Features.KubeStateMetricsCore.Conf, datadoghqv1alpha1.DefaultKubeStateMetricsCoreConf)
+}
 
 func ksmCheckConfig(clusteCheck bool) string {
 	stringVal := strconv.FormatBool(clusteCheck)
@@ -59,17 +69,17 @@ func (r *Reconciler) manageKubeStateMetricsCore(logger logr.Logger, dda *datadog
 		return reconcile.Result{}, nil
 	}
 	// Only create the default ConfigMap if the conf is not overridden
-	return r.manageConfigMap(logger, dda, GetKubeStateMetricsConfName(dda), buildKSMCoreConfigMap)
+	return r.manageConfigMap(logger, dda, getKubeStateMetricsConfName(dda), buildKSMCoreConfigMap)
 }
 
 func buildKSMCoreConfigMap(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.ConfigMap, error) {
 	// Only called if KSMCore is enabled
 	if dda.Spec.Features.KubeStateMetricsCore.Conf != nil {
-		return buildConfigurationConfigMap(dda, dda.Spec.Features.KubeStateMetricsCore.Conf, GetKubeStateMetricsConfName(dda), ksmCoreCheckName)
+		return buildConfigurationConfigMap(dda, dda.Spec.Features.KubeStateMetricsCore.Conf, getKubeStateMetricsConfName(dda), ksmCoreCheckName)
 	}
 	configMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        GetKubeStateMetricsConfName(dda),
+			Name:        getKubeStateMetricsConfName(dda),
 			Namespace:   dda.Namespace,
 			Labels:      getDefaultLabels(dda, dda.Name, getAgentVersion(dda)),
 			Annotations: getDefaultAnnotations(dda),

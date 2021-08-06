@@ -23,6 +23,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/orchestrator"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -421,6 +422,15 @@ func getEnvVarsForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []cor
 		Name:  datadoghqv1alpha1.DDLogLevel,
 		Value: *spec.ClusterChecksRunner.Config.LogLevel,
 	})
+
+	if isOrchestratorExplorerEnabled(dda) {
+		envs, _ := orchestrator.EnvVars(dda.Spec.Features.OrchestratorExplorer)
+
+		envVars = append(envVars, envs...)
+
+		// The orchestrator ckeck retrieves the cluster id from the Cluster Agent
+		envVars = append(envVars, envForClusterAgentConnection(dda)...)
+	}
 
 	if spec.Agent.Config.DDUrl != nil {
 		envVars = append(envVars, corev1.EnvVar{
