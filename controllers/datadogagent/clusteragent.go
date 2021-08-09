@@ -442,8 +442,11 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 	}
 
 	// Add other volumes
-	volumes = append(volumes, dda.Spec.ClusterAgent.Config.Volumes...)
-	volumeMounts = append(volumeMounts, dda.Spec.ClusterAgent.Config.VolumeMounts...)
+	if dda.Spec.ClusterAgent.Config != nil {
+		volumes = append(volumes, dda.Spec.ClusterAgent.Config.Volumes...)
+		volumeMounts = append(volumeMounts, dda.Spec.ClusterAgent.Config.VolumeMounts...)
+	}
+
 	envs, err := getEnvVarsForClusterAgent(logger, dda)
 	if err != nil {
 		return corev1.PodTemplateSpec{}, err
@@ -763,7 +766,10 @@ func getClusterAgentMetricsProviderPort(config datadoghqv1alpha1.ClusterAgentCon
 }
 
 func getAdmissionControllerServiceName(dda *datadoghqv1alpha1.DatadogAgent) string {
-	if isClusterAgentEnabled(dda.Spec.ClusterAgent) && dda.Spec.ClusterAgent.Config.AdmissionController != nil && dda.Spec.ClusterAgent.Config.AdmissionController.ServiceName != nil {
+	if isClusterAgentEnabled(dda.Spec.ClusterAgent) &&
+		dda.Spec.ClusterAgent.Config != nil &&
+		dda.Spec.ClusterAgent.Config.AdmissionController != nil &&
+		dda.Spec.ClusterAgent.Config.AdmissionController.ServiceName != nil {
 		return *dda.Spec.ClusterAgent.Config.AdmissionController.ServiceName
 	}
 	return datadoghqv1alpha1.DefaultAdmissionServiceName

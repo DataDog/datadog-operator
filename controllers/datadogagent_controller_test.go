@@ -125,18 +125,16 @@ var _ = Describe("DatadogAgent Controller", func() {
 				UseEDS:                       false,
 				ClusterAgentDisabled:         true,
 				APIKey:                       "xnfdsjgdjcxlg42rqmzxzvdsgjdfklg",
+				AppKey:                       "xnfdsjgdjcxlg42rqmzxzvdsgjdfklg-dsddsd",
 				OrchestratorExplorerDisabled: true,
 			}
 
-			agent := testutils.NewDatadogAgent(namespace, name, "datadog/agent:7.21.0", options)
+			agent := testutils.NewDatadogAgent(namespace, name, "", options)
 			Expect(k8sClient.Create(context.Background(), agent)).Should(Succeed())
 
 			agent = &datadoghqv1alpha1.DatadogAgent{}
 			getObjectAndCheck(agent, key, func() bool {
-				if agent.Status.Agent == nil {
-					return false
-				}
-				if agent.Status.Agent.CurrentHash == "" {
+				if agent.Status.Agent == nil || agent.Status.Agent.CurrentHash == "" {
 					return false
 				}
 				for _, condition := range agent.Status.Conditions {
@@ -195,9 +193,9 @@ var _ = Describe("DatadogAgent Controller", func() {
 				}, nil)
 			})
 
-			By("Disabling Process", func() {
+			By("Enabled Process", func() {
 				checkAgentUpdateOnDaemonSet(key, dsKey, func(agent *datadoghqv1alpha1.DatadogAgent) {
-					agent.Spec.Agent.Process.Enabled = datadoghqv1alpha1.NewBoolPointer(false)
+					agent.Spec.Agent.Process.Enabled = datadoghqv1alpha1.NewBoolPointer(true)
 				}, nil)
 			})
 		})
@@ -217,7 +215,8 @@ var _ = Describe("DatadogAgent Controller", func() {
 		}
 
 		It("It should create Deployment", func() {
-			agent := testutils.NewDatadogAgent(namespace, name, "datadog/agent:7.22.0", &testutils.NewDatadogAgentOptions{APIKey: "xnfdsjgdjcxlg42rqmzxzvdsgjdfklg"})
+			options := &testutils.NewDatadogAgentOptions{APIKey: "xnfdsjgdjcxlg42rqmzxzvdsgjdfklg", AppKey: "xnfdsjgdjcxlg42rqmzxzvdsgjdfklg-23678264"}
+			agent := testutils.NewDatadogAgent(namespace, name, "datadog/agent:7.22.0", options)
 			Expect(k8sClient.Create(context.Background(), agent)).Should(Succeed())
 
 			var agentClusterAgentHash string

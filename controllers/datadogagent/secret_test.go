@@ -25,10 +25,13 @@ func TestNewAgentSecret(t *testing.T) {
 		AppKeyEnvVar       string
 	}
 	tests := []struct {
-		name       string
-		fields     fields
-		wantAPIKey string
-		wantAppKey string
+		name         string
+		apiKeyEnvVar string
+		appKeyEnvVar string
+		fields       fields
+		wantAPIKey   string
+		wantAppKey   string
+		wantErr      bool
 	}{
 		{
 			name: "API and App keys are set in the DatadogAgent",
@@ -40,34 +43,56 @@ func TestNewAgentSecret(t *testing.T) {
 			wantAppKey: "sgfggtdhfghfghfghfgbdfdgs",
 		},
 		{
-			name: "API and App keys are empty in the DatadogAgent",
+			name: "API and App keys are empty in the DatadogAgent, but present in EnvVar",
+			fields: fields{
+				DatadogAgentAPIKey: "",
+				DatadogAgentAppKey: "",
+			},
+			apiKeyEnvVar: "adflkajdflkjalkcmlkdjacsf",
+			appKeyEnvVar: "sgfggtdhfghfghfghfgbdfdgs",
+			wantAPIKey:   "",
+			wantAppKey:   "",
+		},
+		{
+			name: "API and App keys are empty in the DatadogAgent, returns error",
 			fields: fields{
 				DatadogAgentAPIKey: "",
 				DatadogAgentAppKey: "",
 			},
 			wantAPIKey: "",
 			wantAppKey: "",
+			wantErr:    true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			os.Setenv(config.DDAPIKeyEnvVar, tt.fields.APIKeyEnvVar)
-			os.Setenv(config.DDAppKeyEnvVar, tt.fields.AppKeyEnvVar)
+			os.Setenv(config.DDAPIKeyEnvVar, tt.apiKeyEnvVar)
+			os.Setenv(config.DDAppKeyEnvVar, tt.appKeyEnvVar)
 
 			options.APIKey = tt.fields.DatadogAgentAPIKey
 			options.AppKey = tt.fields.DatadogAgentAppKey
 			dda := testutils.NewDatadogAgent("default", "test", "datadog/agent:7.24.1", options)
 
 			result, err := newAgentSecret("foo", dda)
-			if err != nil {
-				t.Errorf("newAgentSecret() failed with err: %v", err)
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("newAgentSecret() should return have been returned an error")
+				}
+			} else {
+				if err != nil {
+					t.Errorf("newAgentSecret() unexpected error, failed with err: %v", err)
+				}
+
+				if len(result.Data) > 0 {
+					if string(result.Data[datadoghqv1alpha1.DefaultAPIKeyKey]) != tt.wantAPIKey {
+						t.Errorf("newAgentSecret() API key = %v, want %v", string(result.Data[datadoghqv1alpha1.DefaultAPIKeyKey]), tt.wantAPIKey)
+					}
+					if string(result.Data[datadoghqv1alpha1.DefaultAPPKeyKey]) != tt.wantAppKey {
+						t.Errorf("newAgentSecret() App key = %v, want %v", string(result.Data[datadoghqv1alpha1.DefaultAPPKeyKey]), tt.wantAppKey)
+					}
+				}
 			}
-			if string(result.Data[datadoghqv1alpha1.DefaultAPIKeyKey]) != tt.wantAPIKey {
-				t.Errorf("newAgentSecret() API key = %v, want %v", string(result.Data[datadoghqv1alpha1.DefaultAPIKeyKey]), tt.wantAPIKey)
-			}
-			if string(result.Data[datadoghqv1alpha1.DefaultAPPKeyKey]) != tt.wantAppKey {
-				t.Errorf("newAgentSecret() App key = %v, want %v", string(result.Data[datadoghqv1alpha1.DefaultAPPKeyKey]), tt.wantAppKey)
-			}
+
 			os.Unsetenv(tt.fields.APIKeyEnvVar)
 			os.Unsetenv(tt.fields.AppKeyEnvVar)
 		})

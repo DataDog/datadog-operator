@@ -268,13 +268,13 @@ func TestDefaultDatadogAgentSpecClusterAgent(t *testing.T) {
 		internalDefaulted DatadogAgentSpecClusterAgentSpec
 	}{
 		{
-			name: "empty field",
-			dca:  DatadogAgentSpecClusterAgentSpec{},
-			overrideExpected: &DatadogAgentSpecClusterAgentSpec{
-				Enabled: NewBoolPointer(true),
+			name: "disable field",
+			dca: DatadogAgentSpecClusterAgentSpec{
+				Enabled: NewBoolPointer(false),
 			},
+			overrideExpected: &DatadogAgentSpecClusterAgentSpec{},
 			internalDefaulted: DatadogAgentSpecClusterAgentSpec{
-				Enabled: NewBoolPointer(true),
+				Enabled: NewBoolPointer(false),
 			},
 		},
 		{
@@ -366,7 +366,6 @@ func TestDefaultDatadogAgentSpecClusterAgent(t *testing.T) {
 				NetworkPolicy: &NetworkPolicySpec{Create: NewBoolPointer(true)},
 			},
 			overrideExpected: &DatadogAgentSpecClusterAgentSpec{
-				Enabled: NewBoolPointer(true),
 				Image: &ImageConfig{
 					Tag: defaultClusterAgentImageTag,
 				},
@@ -427,11 +426,11 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 		internalDefaulted DatadogAgentSpecAgentSpec
 	}{
 		{
-			name:  "empty field",
-			agent: DatadogAgentSpecAgentSpec{},
-			overrideExpected: &DatadogAgentSpecAgentSpec{
+			name: "agent disabled field",
+			agent: DatadogAgentSpecAgentSpec{
 				Enabled: NewBoolPointer(false),
 			},
+			overrideExpected: &DatadogAgentSpecAgentSpec{},
 			internalDefaulted: DatadogAgentSpecAgentSpec{
 				Enabled: NewBoolPointer(false),
 			},

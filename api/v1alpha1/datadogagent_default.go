@@ -108,6 +108,9 @@ func DefaultDatadogAgent(dda *DatadogAgent) *DatadogAgentStatus {
 		DefaultOverride: &DatadogAgentSpec{},
 	}
 
+	// Override spec given featureset
+	FeatureOverride(&dda.Spec, dso.DefaultOverride)
+
 	// Features
 	// default features because it might have an impact on the other defaulting
 	dso.DefaultOverride.Features = *DefaultFeatures(dda)
@@ -132,9 +135,6 @@ func DefaultDatadogAgent(dda *DatadogAgent) *DatadogAgentStatus {
 		}
 	}
 
-	// Override spec given featureset
-	FeatureOverride(&dda.Spec, dso.DefaultOverride)
-
 	return dso
 }
 
@@ -146,14 +146,14 @@ func FeatureOverride(dda *DatadogAgentSpec, dso *DatadogAgentSpec) {
 		if !BoolValue(dda.Agent.Enabled) || dda.Agent.SystemProbe != nil {
 			dda.Agent.SystemProbe.Enabled = NewBoolPointer(true)
 			dso.Agent.SystemProbe = DefaultDatadogAgentSpecAgentSystemProbe(&dda.Agent)
-			dso.Agent.SystemProbe.Enabled = dda.Agent.SystemProbe.Enabled
+			dso.Agent.SystemProbe.Enabled = NewBoolPointer(true)
 		}
 	}
 	if dda.Features.OrchestratorExplorer != nil && BoolValue(dda.Features.OrchestratorExplorer.Enabled) {
 		if !BoolValue(dda.Agent.Enabled) || dda.Agent.Process != nil {
 			dda.Agent.Process.Enabled = NewBoolPointer(true)
 			dso.Agent.Process = DefaultDatadogAgentSpecAgentProcess(&dda.Agent)
-			dso.Agent.Process.Enabled = dda.Agent.Process.Enabled
+			dso.Agent.Process.Enabled = NewBoolPointer(true)
 		}
 	}
 }
@@ -163,15 +163,23 @@ func FeatureOverride(dda *DatadogAgentSpec, dso *DatadogAgentSpec) {
 func DefaultDatadogAgentSpecAgent(agent *DatadogAgentSpecAgentSpec) *DatadogAgentSpecAgentSpec {
 	// If the Agent is not specified in the spec, disable it.
 	if IsEqualStruct(*agent, DatadogAgentSpecAgentSpec{}) {
-		agent.Enabled = NewBoolPointer(false)
-		return agent
+		agent.Enabled = NewBoolPointer(true)
+
+		if !BoolValue(agent.Enabled) {
+			return agent
+		}
 	}
 
+	agentOverride := &DatadogAgentSpecAgentSpec{}
 	if agent.Enabled == nil {
 		agent.Enabled = NewBoolPointer(true)
+		agentOverride.Enabled = agent.Enabled
 	}
 
-	agentOverride := &DatadogAgentSpecAgentSpec{Enabled: agent.Enabled}
+	if !BoolValue(agent.Enabled) {
+		return agentOverride
+	}
+
 	if agent.UseExtendedDaemonset == nil {
 		agent.UseExtendedDaemonset = NewBoolPointer(false)
 		agentOverride.UseExtendedDaemonset = agent.UseExtendedDaemonset
@@ -877,7 +885,6 @@ func DefaultDatadogFeatureKubeStateMetricsCore(ft *DatadogFeatures, withClusterC
 func DefaultDatadogFeaturePrometheusScrape(ft *DatadogFeatures) *PrometheusScrapeConfig {
 	if ft.PrometheusScrape == nil {
 		ft.PrometheusScrape = &PrometheusScrapeConfig{Enabled: NewBoolPointer(defaultPrometheusScrapeEnabled)}
-		return ft.PrometheusScrape
 	}
 
 	if ft.PrometheusScrape.Enabled == nil {
@@ -902,7 +909,10 @@ func DefaultDatadogFeaturePrometheusScrape(ft *DatadogFeatures) *PrometheusScrap
 func DefaultDatadogFeatureNetworkMonitoring(ft *DatadogFeatures) *NetworkMonitoringConfig {
 	if ft.NetworkMonitoring == nil {
 		ft.NetworkMonitoring = &NetworkMonitoringConfig{Enabled: NewBoolPointer(false)}
-		return ft.NetworkMonitoring
+
+		if !BoolValue(ft.NetworkMonitoring.Enabled) {
+			return ft.NetworkMonitoring
+		}
 	}
 
 	if ft.NetworkMonitoring.Enabled == nil {
@@ -920,15 +930,23 @@ func DefaultDatadogFeatureNetworkMonitoring(ft *DatadogFeatures) *NetworkMonitor
 func DefaultDatadogAgentSpecClusterAgent(clusterAgent *DatadogAgentSpecClusterAgentSpec) *DatadogAgentSpecClusterAgentSpec {
 	if IsEqualStruct(*clusterAgent, DatadogAgentSpecClusterAgentSpec{}) {
 		clusterAgent.Enabled = NewBoolPointer(true)
-		return clusterAgent
+
+		if !BoolValue(clusterAgent.Enabled) {
+			return clusterAgent
+		}
 	}
+
+	clusterAgentOverride := &DatadogAgentSpecClusterAgentSpec{}
 
 	if clusterAgent.Enabled == nil {
 		// Cluster Agent is enabled by default unless undeclared then it is set to false.
 		clusterAgent.Enabled = NewBoolPointer(true)
+		clusterAgentOverride.Enabled = clusterAgent.Enabled
 	}
 
-	clusterAgentOverride := &DatadogAgentSpecClusterAgentSpec{Enabled: clusterAgent.Enabled}
+	if !BoolValue(clusterAgent.Enabled) {
+		return clusterAgentOverride
+	}
 
 	if clusterAgent.Image == nil {
 		clusterAgent.Image = &ImageConfig{}
@@ -999,7 +1017,10 @@ func DefaultDatadogAgentSpecClusterAgentConfig(dca *DatadogAgentSpecClusterAgent
 func DefaultExternalMetrics(conf *ClusterAgentConfig) *ExternalMetricsConfig {
 	if conf.ExternalMetrics == nil {
 		conf.ExternalMetrics = &ExternalMetricsConfig{Enabled: NewBoolPointer(false)}
-		return conf.ExternalMetrics
+
+		if !BoolValue(conf.ExternalMetrics.Enabled) {
+			return conf.ExternalMetrics
+		}
 	}
 
 	extMetricsOverride := &ExternalMetricsConfig{}
@@ -1019,7 +1040,10 @@ func DefaultExternalMetrics(conf *ClusterAgentConfig) *ExternalMetricsConfig {
 func DefaultAdmissionController(conf *ClusterAgentConfig) *AdmissionControllerConfig {
 	if conf.AdmissionController == nil {
 		conf.AdmissionController = &AdmissionControllerConfig{Enabled: NewBoolPointer(defaultAdmissionControllerEnabled)}
-		return conf.AdmissionController
+
+		if !BoolValue(conf.AdmissionController.Enabled) {
+			return conf.AdmissionController
+		}
 	}
 	admCtrlOverride := &AdmissionControllerConfig{}
 
@@ -1075,7 +1099,10 @@ func DefaultDatadogClusterAgentImage(dca *DatadogAgentSpecClusterAgentSpec, name
 func DefaultDatadogAgentSpecClusterChecksRunner(clusterChecksRunner *DatadogAgentSpecClusterChecksRunnerSpec) *DatadogAgentSpecClusterChecksRunnerSpec {
 	if IsEqualStruct(clusterChecksRunner, DatadogAgentSpecClusterChecksRunnerSpec{}) {
 		clusterChecksRunner.Enabled = NewBoolPointer(false)
-		return clusterChecksRunner
+
+		if !BoolValue(clusterChecksRunner.Enabled) {
+			return clusterChecksRunner
+		}
 	}
 
 	if clusterChecksRunner.Enabled == nil {

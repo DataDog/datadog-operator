@@ -258,7 +258,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 							Annotations: map[string]string{"annotations-foo-key": "annotations-bar-value"},
 						},
 						Spec: datadoghqv1alpha1.DatadogAgentSpec{
-							Credentials:  &datadoghqv1alpha1.AgentCredentials{Token: "token-foo"},
+							Credentials:  test.DefaultCredentials(),
 							Agent:        datadoghqv1alpha1.DatadogAgentSpecAgentSpec{},
 							ClusterAgent: datadoghqv1alpha1.DatadogAgentSpecClusterAgentSpec{},
 						},
