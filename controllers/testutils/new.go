@@ -17,6 +17,7 @@ import (
 type NewDatadogAgentOptions struct {
 	ExtraLabels                  map[string]string
 	ExtraAnnotations             map[string]string
+	AgentDisabled                bool
 	ClusterAgentDisabled         bool
 	OrchestratorExplorerDisabled bool
 	UseEDS                       bool
@@ -88,6 +89,10 @@ func NewDatadogAgent(ns, name, image string, options *NewDatadogAgentOptions) *d
 
 		if options.AppKey != "" {
 			ad.Spec.Credentials.AppKey = options.AppKey
+		}
+
+		if options.AgentDisabled {
+			ad.Spec.Agent.Enabled = datadoghqv1alpha1.NewBoolPointer(false)
 		}
 
 		if options.UseEDS && datadoghqv1alpha1.BoolValue(ad.Spec.Agent.Enabled) {

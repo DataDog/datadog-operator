@@ -24,18 +24,18 @@ func (r *Reconciler) manageAgentSecret(logger logr.Logger, dda *datadoghqv1alpha
 }
 
 func newAgentSecret(name string, dda *datadoghqv1alpha1.DatadogAgent) (*corev1.Secret, error) {
-	if dda.Spec.Credentials == nil || !((dda.Spec.Credentials.AppKeyExistingSecret == "" && dda.Spec.Credentials.APPSecret == nil) ||
-		(dda.Spec.Credentials.APIKeyExistingSecret == "" && dda.Spec.Credentials.APISecret == nil)) {
-		return nil, fmt.Errorf("unable to create agent secret: missing data in .spec.Credentials")
+	if err := checkCredentials(dda); err != nil {
+		return nil, err
 	}
 
 	labels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
 	annotations := getDefaultAnnotations(dda)
 
-	data := dataFromCredentials(&dda.Spec.Credentials.DatadogCredentials)
+	creds := dda.Spec.Credentials
+	data := dataFromCredentials(&creds.DatadogCredentials)
 	// Agent credentials has two more fields
-	if dda.Spec.Credentials.Token != "" {
-		data[datadoghqv1alpha1.DefaultTokenKey] = []byte(dda.Spec.Credentials.Token)
+	if creds.Token != "" {
+		data[datadoghqv1alpha1.DefaultTokenKey] = []byte(creds.Token)
 	} else if isClusterAgentEnabled(dda.Spec.ClusterAgent) && dda.Status.ClusterAgent != nil {
 		data[datadoghqv1alpha1.DefaultTokenKey] = []byte(dda.Status.ClusterAgent.GeneratedToken)
 	}
@@ -62,4 +62,32 @@ func needAgentSecret(dda *datadoghqv1alpha1.DatadogAgent) bool {
 	}
 	return (isClusterAgentEnabled(dda.Spec.ClusterAgent) || (dda.Spec.Credentials.APIKey != "" || os.Getenv(config.DDAPIKeyEnvVar) != "") || (dda.Spec.Credentials.AppKey != "" || os.Getenv(config.DDAppKeyEnvVar) != "")) &&
 		!datadoghqv1alpha1.BoolValue(dda.Spec.Credentials.UseSecretBackend)
+}
+
+func checkCredentials(dda *datadoghqv1alpha1.DatadogAgent) error {
+	if dda.Spec.Credentials == nil {
+		return fmt.Errorf("unable to create agent secret: missing .spec.Credentials")
+	}
+
+	creds := dda.Spec.Credentials
+
+	if !checkKeyAndSecret(creds.APIKey, creds.APIKeyExistingSecret, creds.APISecret) {
+		if os.Getenv(config.DDAPIKeyEnvVar) == "" {
+			return fmt.Errorf("unable to create agent credential secret: missing Api-Key information")
+		}
+	}
+
+	if !checkKeyAndSecret(creds.AppKey, creds.AppKeyExistingSecret, creds.APPSecret) {
+		if os.Getenv(config.DDAppKeyEnvVar) == "" {
+			return fmt.Errorf("unable to create agent credential secret: missing App-Key information")
+		}
+	}
+	return nil
+}
+
+func checkKeyAndSecret(value, secretName string, secret *datadoghqv1alpha1.Secret) bool {
+	if value != "" || secretName != "" || (secret != nil && secret.SecretName != "") {
+		return true
+	}
+	return false
 }

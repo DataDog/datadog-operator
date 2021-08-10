@@ -110,6 +110,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, request reconcile.Re
 	if err != nil {
 		return result, err
 	}
+
 	newStatus := instance.Status.DeepCopy()
 	reconcileFuncs :=
 		[]reconcileFuncInterface{

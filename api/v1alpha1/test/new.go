@@ -107,7 +107,7 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 		},
 	}
 	ad.Spec = datadoghqv1alpha1.DatadogAgentSpec{
-		Credentials: &datadoghqv1alpha1.AgentCredentials{Token: "token-foo"},
+		Credentials: DefaultCredentials(),
 		Agent: datadoghqv1alpha1.DatadogAgentSpecAgentSpec{
 			Image: &datadoghqv1alpha1.ImageConfig{
 				Name:       defaultImage,
@@ -403,6 +403,17 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 	}
 	_ = datadoghqv1alpha1.DefaultDatadogAgent(ad)
 	return ad
+}
+
+// DefaultCredentials generate an AgentCredentials instance for test purpose
+func DefaultCredentials() *datadoghqv1alpha1.AgentCredentials {
+	return &datadoghqv1alpha1.AgentCredentials{
+		DatadogCredentials: datadoghqv1alpha1.DatadogCredentials{
+			APIKey: "0000000000000000000000",
+			AppKey: "0000000000000000000000",
+		},
+		Token: "token-foo",
+	}
 }
 
 // NewExtendedDaemonSetOptions set of option for the ExtendedDaemonset creation
