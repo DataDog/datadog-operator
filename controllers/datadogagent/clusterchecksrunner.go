@@ -116,10 +116,7 @@ func (r *Reconciler) updateClusterChecksRunnerDeployment(logger logr.Logger, dda
 		return reconcile.Result{}, err
 	}
 
-	var needUpdate bool
-	if !comparison.IsSameSpecMD5Hash(hash, dep.GetAnnotations()) {
-		needUpdate = true
-	}
+	needUpdate := !comparison.IsSameSpecMD5Hash(hash, dep.GetAnnotations())
 
 	updateStatusWithClusterChecksRunner(dep, newStatus, nil)
 
