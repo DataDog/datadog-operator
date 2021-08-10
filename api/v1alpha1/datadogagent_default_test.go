@@ -348,6 +348,7 @@ func TestDefaultDatadogAgentSpecClusterAgent(t *testing.T) {
 				},
 				Config: &ClusterAgentConfig{
 					ExternalMetrics: &ExternalMetricsConfig{
+						Enabled:           NewBoolPointer(true),
 						WpaController:     true,
 						UseDatadogMetrics: true,
 					},
@@ -371,8 +372,7 @@ func TestDefaultDatadogAgentSpecClusterAgent(t *testing.T) {
 				},
 				Config: &ClusterAgentConfig{
 					ExternalMetrics: &ExternalMetricsConfig{
-						Enabled: NewBoolPointer(true),
-						Port:    NewInt32Pointer(8443),
+						Port: NewInt32Pointer(8443),
 					},
 				},
 			},
@@ -716,14 +716,14 @@ func TestDefaultDatadogAgentSpecClusterChecksRunner(t *testing.T) {
 		{
 			name: "sparse conf",
 			clc: DatadogAgentSpecClusterChecksRunnerSpec{
-				Config: &ClusterChecksRunnerConfig{},
+				Enabled: NewBoolPointer(true),
+				Config:  &ClusterChecksRunnerConfig{},
 				Image: &ImageConfig{
 					Name: "gcr.io/datadog/agent:latest",
 					Tag:  defaultAgentImageTag,
 				},
 			},
 			overrideExpected: &DatadogAgentSpecClusterChecksRunnerSpec{
-				Enabled: NewBoolPointer(true),
 				Image: &ImageConfig{
 					PullPolicy: &defaultImagePullPolicy,
 				},
@@ -760,6 +760,7 @@ func TestDefaultDatadogAgentSpecClusterChecksRunner(t *testing.T) {
 		{
 			name: "some conf",
 			clc: DatadogAgentSpecClusterChecksRunnerSpec{
+				Enabled: NewBoolPointer(true),
 				Config: &ClusterChecksRunnerConfig{
 					LogLevel:   NewStringPointer("DEBUG"),
 					HealthPort: NewInt32Pointer(1664),
@@ -770,7 +771,6 @@ func TestDefaultDatadogAgentSpecClusterChecksRunner(t *testing.T) {
 				},
 			},
 			overrideExpected: &DatadogAgentSpecClusterChecksRunnerSpec{
-				Enabled: NewBoolPointer(true),
 				Image: &ImageConfig{
 					PullPolicy: &defaultImagePullPolicy,
 				},

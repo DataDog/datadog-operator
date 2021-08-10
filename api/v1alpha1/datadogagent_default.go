@@ -32,8 +32,12 @@ const (
 	defaultUseDogStatsDSocketVolume         bool   = false
 	defaultHostDogstatsdSocketName          string = "statsd.sock"
 	defaultHostDogstatsdSocketPath          string = "/var/run/datadog"
+	defaultAgentEnabled                     bool   = true
+	defaultClusterAgentEnabled              bool   = true
+	defaultClusterChecksRunnerEnabled       bool   = false
 	defaultApmEnabled                       bool   = false
 	defaultApmHostPort                      int32  = 8126
+	defaultExternalMetricsEnabled           bool   = false
 	defaultSystemProbeEnabled               bool   = false
 	defaultSystemProbeOOMKillEnabled        bool   = false
 	defaultSystemProbeTCPQueueLengthEnabled bool   = false
@@ -163,7 +167,7 @@ func FeatureOverride(dda *DatadogAgentSpec, dso *DatadogAgentSpec) {
 func DefaultDatadogAgentSpecAgent(agent *DatadogAgentSpecAgentSpec) *DatadogAgentSpecAgentSpec {
 	// If the Agent is not specified in the spec, disable it.
 	if IsEqualStruct(*agent, DatadogAgentSpecAgentSpec{}) {
-		agent.Enabled = NewBoolPointer(true)
+		agent.Enabled = NewBoolPointer(defaultAgentEnabled)
 
 		if !BoolValue(agent.Enabled) {
 			return agent
@@ -172,7 +176,7 @@ func DefaultDatadogAgentSpecAgent(agent *DatadogAgentSpecAgentSpec) *DatadogAgen
 
 	agentOverride := &DatadogAgentSpecAgentSpec{}
 	if agent.Enabled == nil {
-		agent.Enabled = NewBoolPointer(true)
+		agent.Enabled = NewBoolPointer(defaultAgentEnabled)
 		agentOverride.Enabled = agent.Enabled
 	}
 
@@ -929,7 +933,7 @@ func DefaultDatadogFeatureNetworkMonitoring(ft *DatadogFeatures) *NetworkMonitor
 // return the defaulted DatadogAgentSpecClusterAgentSpec to update the status
 func DefaultDatadogAgentSpecClusterAgent(clusterAgent *DatadogAgentSpecClusterAgentSpec) *DatadogAgentSpecClusterAgentSpec {
 	if IsEqualStruct(*clusterAgent, DatadogAgentSpecClusterAgentSpec{}) {
-		clusterAgent.Enabled = NewBoolPointer(true)
+		clusterAgent.Enabled = NewBoolPointer(defaultClusterAgentEnabled)
 
 		if !BoolValue(clusterAgent.Enabled) {
 			return clusterAgent
@@ -940,7 +944,7 @@ func DefaultDatadogAgentSpecClusterAgent(clusterAgent *DatadogAgentSpecClusterAg
 
 	if clusterAgent.Enabled == nil {
 		// Cluster Agent is enabled by default unless undeclared then it is set to false.
-		clusterAgent.Enabled = NewBoolPointer(true)
+		clusterAgent.Enabled = NewBoolPointer(defaultClusterAgentEnabled)
 		clusterAgentOverride.Enabled = clusterAgent.Enabled
 	}
 
@@ -1016,7 +1020,7 @@ func DefaultDatadogAgentSpecClusterAgentConfig(dca *DatadogAgentSpecClusterAgent
 // DefaultExternalMetrics defaults the External Metrics Server's config in the Cluster Agent's config
 func DefaultExternalMetrics(conf *ClusterAgentConfig) *ExternalMetricsConfig {
 	if conf.ExternalMetrics == nil {
-		conf.ExternalMetrics = &ExternalMetricsConfig{Enabled: NewBoolPointer(false)}
+		conf.ExternalMetrics = &ExternalMetricsConfig{Enabled: NewBoolPointer(defaultExternalMetricsEnabled)}
 
 		if !BoolValue(conf.ExternalMetrics.Enabled) {
 			return conf.ExternalMetrics
@@ -1025,7 +1029,7 @@ func DefaultExternalMetrics(conf *ClusterAgentConfig) *ExternalMetricsConfig {
 
 	extMetricsOverride := &ExternalMetricsConfig{}
 	if conf.ExternalMetrics.Enabled == nil {
-		conf.ExternalMetrics.Enabled = NewBoolPointer(true)
+		conf.ExternalMetrics.Enabled = NewBoolPointer(defaultExternalMetricsEnabled)
 		extMetricsOverride.Enabled = conf.ExternalMetrics.Enabled
 	}
 
@@ -1098,18 +1102,18 @@ func DefaultDatadogClusterAgentImage(dca *DatadogAgentSpecClusterAgentSpec, name
 // return the defaulted DatadogAgentSpecClusterChecksRunnerSpec
 func DefaultDatadogAgentSpecClusterChecksRunner(clusterChecksRunner *DatadogAgentSpecClusterChecksRunnerSpec) *DatadogAgentSpecClusterChecksRunnerSpec {
 	if IsEqualStruct(clusterChecksRunner, DatadogAgentSpecClusterChecksRunnerSpec{}) {
-		clusterChecksRunner.Enabled = NewBoolPointer(false)
+		clusterChecksRunner.Enabled = NewBoolPointer(defaultClusterChecksRunnerEnabled)
 
 		if !BoolValue(clusterChecksRunner.Enabled) {
 			return clusterChecksRunner
 		}
 	}
 
+	clcOverride := &DatadogAgentSpecClusterChecksRunnerSpec{}
 	if clusterChecksRunner.Enabled == nil {
-		clusterChecksRunner.Enabled = NewBoolPointer(true)
+		clusterChecksRunner.Enabled = NewBoolPointer(defaultClusterChecksRunnerEnabled)
+		clcOverride.Enabled = clusterChecksRunner.Enabled
 	}
-
-	clcOverride := &DatadogAgentSpecClusterChecksRunnerSpec{Enabled: clusterChecksRunner.Enabled}
 
 	if img := DefaultDatadogAgentSpecClusterChecksRunnerImage(clusterChecksRunner, defaultAgentImageName, defaultAgentImageTag); !IsEqualStruct(img, ImageConfig{}) {
 		clcOverride.Image = img
