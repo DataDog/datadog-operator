@@ -124,10 +124,7 @@ func (r *Reconciler) updateClusterAgentDeployment(logger logr.Logger, dda *datad
 		return reconcile.Result{}, err
 	}
 
-	var needUpdate bool
-	if !comparison.IsSameSpecMD5Hash(hash, dca.GetAnnotations()) {
-		needUpdate = true
-	}
+	needUpdate := !comparison.IsSameSpecMD5Hash(hash, dca.GetAnnotations())
 
 	updateStatusWithClusterAgent(dca, newStatus, nil)
 
