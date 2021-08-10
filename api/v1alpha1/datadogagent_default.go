@@ -1029,7 +1029,9 @@ func DefaultExternalMetrics(conf *ClusterAgentConfig) *ExternalMetricsConfig {
 
 	extMetricsOverride := &ExternalMetricsConfig{}
 	if conf.ExternalMetrics.Enabled == nil {
-		conf.ExternalMetrics.Enabled = NewBoolPointer(defaultExternalMetricsEnabled)
+		// default to `true` because in that case we know that other parameters are
+		// present in the `conf.ExternalMetrics` struct.
+		conf.ExternalMetrics.Enabled = NewBoolPointer(true)
 		extMetricsOverride.Enabled = conf.ExternalMetrics.Enabled
 	}
 
@@ -1111,7 +1113,9 @@ func DefaultDatadogAgentSpecClusterChecksRunner(clusterChecksRunner *DatadogAgen
 
 	clcOverride := &DatadogAgentSpecClusterChecksRunnerSpec{}
 	if clusterChecksRunner.Enabled == nil {
-		clusterChecksRunner.Enabled = NewBoolPointer(defaultClusterChecksRunnerEnabled)
+		// Default to `true` because we are in the case it means other parameters
+		// are present in the struct.
+		clusterChecksRunner.Enabled = NewBoolPointer(true)
 		clcOverride.Enabled = clusterChecksRunner.Enabled
 	}
 
