@@ -66,7 +66,7 @@ func (r *Reconciler) manageClusterChecksRunnerRBACs(logger logr.Logger, dda *dat
 		return reconcile.Result{}, err
 	}
 
-	if result, err := r.udpateIfNeededAgentClusterRoleBinding(logger, dda, rbacResourcesName, rbacResourcesName, serviceAccountName, agentVersion, clusterRoleBinding); err != nil {
+	if result, err := r.updateIfNeededClusterRoleBinding(logger, dda, rbacResourcesName, rbacResourcesName, serviceAccountName, agentVersion, clusterRoleBinding); err != nil {
 		return result, err
 	}
 

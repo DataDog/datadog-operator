@@ -820,7 +820,7 @@ func (r *Reconciler) manageClusterAgentRBACs(logger logr.Logger, dda *datadoghqv
 		}
 		return reconcile.Result{}, err
 	}
-	if result, err := r.udpateIfNeededClusterAgentClusterRoleBinding(logger, dda, rbacResourcesName, serviceAccountName, clusterAgentVersion, clusterRoleBinding); err != nil {
+	if result, err := r.updateIfNeededClusterRoleBinding(logger, dda, rbacResourcesName, rbacResourcesName, serviceAccountName, clusterAgentVersion, clusterRoleBinding); err != nil {
 		return result, err
 	}
 
@@ -993,30 +993,6 @@ func (r *Reconciler) updateIfNeededClusterAgentRole(logger logr.Logger, dda *dat
 	return reconcile.Result{}, nil
 }
 
-func (r *Reconciler) udpateIfNeededClusterAgentClusterRoleBinding(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, serviceAccountName, agentVersion string, clusterRoleBinding *rbacv1.ClusterRoleBinding) (reconcile.Result, error) {
-	info := roleBindingInfo{
-		name:               name,
-		roleName:           name,
-		serviceAccountName: serviceAccountName,
-	}
-	newClusterRoleBinding := buildClusterRoleBinding(dda, info, agentVersion)
-	if !apiequality.Semantic.DeepEqual(newClusterRoleBinding.Subjects, clusterRoleBinding.Subjects) || !apiequality.Semantic.DeepEqual(newClusterRoleBinding.RoleRef, clusterRoleBinding.RoleRef) {
-		updatedClusterRoleBinding := clusterRoleBinding.DeepCopy()
-		{
-			updatedClusterRoleBinding.Labels = newClusterRoleBinding.Labels
-			updatedClusterRoleBinding.RoleRef = newClusterRoleBinding.RoleRef
-			updatedClusterRoleBinding.Subjects = newClusterRoleBinding.Subjects
-		}
-		logger.V(1).Info("updateClusterAgentClusterRoleBinding", "clusterRoleBinding.name", updatedClusterRoleBinding.Name, "serviceAccount", serviceAccountName)
-		if err := r.client.Update(context.TODO(), updatedClusterRoleBinding); err != nil {
-			return reconcile.Result{}, err
-		}
-		event := buildEventInfo(updatedClusterRoleBinding.Name, updatedClusterRoleBinding.Namespace, clusterRoleKind, datadog.UpdateEvent)
-		r.recordEvent(dda, event)
-	}
-	return reconcile.Result{}, nil
-}
-
 func (r *Reconciler) updateIfNeededAgentClusterRole(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string, clusterRole *rbacv1.ClusterRole) (reconcile.Result, error) {
 	newClusterRole := buildAgentClusterRole(dda, name, agentVersion)
 	if !apiequality.Semantic.DeepEqual(newClusterRole.Rules, clusterRole.Rules) {
@@ -1038,30 +1014,6 @@ func (r *Reconciler) updateIfNeededClusterCheckRunnerClusterRole(logger logr.Log
 			return reconcile.Result{}, err
 		}
 		event := buildEventInfo(newClusterRole.Name, newClusterRole.Namespace, clusterRoleKind, datadog.UpdateEvent)
-		r.recordEvent(dda, event)
-	}
-	return reconcile.Result{}, nil
-}
-
-func (r *Reconciler) udpateIfNeededAgentClusterRoleBinding(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, roleName, serviceAccountName, agentVersion string, clusterRoleBinding *rbacv1.ClusterRoleBinding) (reconcile.Result, error) {
-	info := roleBindingInfo{
-		name:               name,
-		roleName:           roleName,
-		serviceAccountName: serviceAccountName,
-	}
-	newClusterRoleBinding := buildClusterRoleBinding(dda, info, agentVersion)
-	if !apiequality.Semantic.DeepEqual(newClusterRoleBinding.Subjects, clusterRoleBinding.Subjects) || !apiequality.Semantic.DeepEqual(newClusterRoleBinding.RoleRef, clusterRoleBinding.RoleRef) {
-		updatedClusterRoleBinding := clusterRoleBinding.DeepCopy()
-		{
-			updatedClusterRoleBinding.Labels = newClusterRoleBinding.Labels
-			updatedClusterRoleBinding.RoleRef = newClusterRoleBinding.RoleRef
-			updatedClusterRoleBinding.Subjects = newClusterRoleBinding.Subjects
-		}
-		logger.V(1).Info("updateAgentClusterRoleBinding", "clusterRoleBinding.name", updatedClusterRoleBinding.Name, "serviceAccount", serviceAccountName)
-		if err := r.client.Update(context.TODO(), updatedClusterRoleBinding); err != nil {
-			return reconcile.Result{}, err
-		}
-		event := buildEventInfo(updatedClusterRoleBinding.Name, newClusterRoleBinding.Namespace, clusterRoleKind, datadog.UpdateEvent)
 		r.recordEvent(dda, event)
 	}
 	return reconcile.Result{}, nil

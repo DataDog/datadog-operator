@@ -89,25 +89,6 @@ func (r *Reconciler) updateIfNeededOrchestratorExplorerClusterRole(logger logr.L
 	return reconcile.Result{}, nil
 }
 
-func (r *Reconciler) updateIfNeededOrchestratorExplorerClusterRoleBinding(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, clusterRoleBindingName, roleName, serviceAccountName, version string, clusterRoleBinding *rbacv1.ClusterRoleBinding) (reconcile.Result, error) {
-	info := roleBindingInfo{
-		name:               clusterRoleBindingName,
-		roleName:           roleName,
-		serviceAccountName: serviceAccountName,
-	}
-	newClusterRoleBinding := buildClusterRoleBinding(dda, info, version)
-	if !apiequality.Semantic.DeepEqual(newClusterRoleBinding.Subjects, clusterRoleBinding.Subjects) || !apiequality.Semantic.DeepEqual(newClusterRoleBinding.RoleRef, clusterRoleBinding.RoleRef) {
-		logger.V(1).Info("updateOrchestratorClusterRoleBinding", "clusterRoleBinding.name", clusterRoleBinding.Name)
-		if err := r.client.Update(context.TODO(), newClusterRoleBinding); err != nil {
-			return reconcile.Result{}, err
-		}
-		event := buildEventInfo(newClusterRoleBinding.Name, newClusterRoleBinding.Namespace, clusterRoleKind, datadog.UpdateEvent)
-		r.recordEvent(dda, event)
-	}
-
-	return reconcile.Result{}, nil
-}
-
 func (r *Reconciler) createOrUpdateOrchestratorCoreRBAC(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, serviceAccountName, componentVersion, nameSuffix string) (reconcile.Result, error) {
 	orchestratorRBACName := orchestratorExplorerRBACPrefix + nameSuffix
 	orchestratorClusterRole := &rbacv1.ClusterRole{}
@@ -134,7 +115,7 @@ func (r *Reconciler) createOrUpdateOrchestratorCoreRBAC(logger logr.Logger, dda 
 		return reconcile.Result{}, err
 	}
 
-	return r.updateIfNeededOrchestratorExplorerClusterRoleBinding(logger, dda, orchestratorRBACName, orchestratorRBACName, serviceAccountName, componentVersion, orchestratorClusterRoleBinding)
+	return r.updateIfNeededClusterRoleBinding(logger, dda, orchestratorRBACName, orchestratorRBACName, serviceAccountName, componentVersion, orchestratorClusterRoleBinding)
 }
 
 func (r *Reconciler) cleanupOrchestratorCoreRBAC(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, nameSuffix string) (reconcile.Result, error) {

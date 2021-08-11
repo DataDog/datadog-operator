@@ -11,6 +11,7 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -160,4 +161,27 @@ func (r *Reconciler) cleanupServiceAccount(logger logr.Logger, client client.Cli
 	event := buildEventInfo(serviceAccount.Name, serviceAccount.Namespace, serviceAccountKind, datadog.DeletionEvent)
 	r.recordEvent(dda, event)
 	return reconcile.Result{}, client.Delete(context.TODO(), serviceAccount)
+}
+
+func (r *Reconciler) updateIfNeededClusterRoleBinding(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, clusterRoleBindingName, roleName, serviceAccountName, version string, clusterRoleBinding *rbacv1.ClusterRoleBinding) (reconcile.Result, error) {
+	info := roleBindingInfo{
+		name:               clusterRoleBindingName,
+		roleName:           roleName,
+		serviceAccountName: serviceAccountName,
+	}
+	newClusterRoleBinding := buildClusterRoleBinding(dda, info, version)
+	if !apiequality.Semantic.DeepEqual(newClusterRoleBinding.Subjects, clusterRoleBinding.Subjects) || !apiequality.Semantic.DeepEqual(newClusterRoleBinding.RoleRef, clusterRoleBinding.RoleRef) {
+		logger.V(1).Info("updateIfNeededClusterRoleBinding", "clusterRoleBinding.name", clusterRoleBinding.Name, "serviceAccount", serviceAccountName, "roleName", roleName)
+		// ClusterRoleBinding can be updated, if we change the RoleRef in it, we need to delete and recreate
+		if err := r.client.Delete(context.TODO(), clusterRoleBinding); err != nil {
+			return reconcile.Result{}, err
+		}
+		if err := r.client.Create(context.TODO(), newClusterRoleBinding); err != nil {
+			return reconcile.Result{}, err
+		}
+		event := buildEventInfo(newClusterRoleBinding.Name, newClusterRoleBinding.Namespace, clusterRoleKind, datadog.UpdateEvent)
+		r.recordEvent(dda, event)
+	}
+
+	return reconcile.Result{}, nil
 }
