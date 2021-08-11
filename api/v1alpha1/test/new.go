@@ -15,6 +15,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+	"github.com/DataDog/datadog-operator/pkg/defaulting"
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 )
@@ -23,7 +24,7 @@ var (
 	// apiVersion datadoghqv1alpha1 api version
 	apiVersion   = fmt.Sprintf("%s/%s", datadoghqv1alpha1.GroupVersion.Group, datadoghqv1alpha1.GroupVersion.Version)
 	pullPolicy   = corev1.PullIfNotPresent
-	defaultImage = "gcr.io/datadoghq/agent:latest"
+	defaultImage = defaulting.GetLatestAgentImage()
 )
 
 // NewDatadogAgentOptions set of option for the DatadogAgent creation

@@ -19,6 +19,7 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/orchestrator"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
+	"github.com/DataDog/datadog-operator/pkg/defaulting"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
@@ -2342,15 +2343,15 @@ func getImage(imageSpec *datadoghqv1alpha1.ImageConfig, registry *string, checkJ
 
 	image := "/" + imageSpec.Name + ":" + imageSpec.Tag
 
-	if checkJMX && imageSpec.JmxEnabled && !strings.HasSuffix(imageSpec.Tag, datadoghqv1alpha1.JMXTagSuffix) {
-		image += datadoghqv1alpha1.JMXTagSuffix
+	if checkJMX && imageSpec.JmxEnabled && !strings.HasSuffix(imageSpec.Tag, defaulting.JMXTagSuffix) {
+		image += defaulting.JMXTagSuffix
 	}
 
 	if registry != nil {
 		return *registry + image
 	}
 
-	return datadoghqv1alpha1.DefaultImageRegistry + image
+	return defaulting.DefaultImageRegistry + image
 }
 
 // getReplicas returns the desired replicas of a

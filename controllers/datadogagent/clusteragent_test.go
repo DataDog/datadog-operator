@@ -8,6 +8,7 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/v1alpha1/test"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/orchestrator"
+	"github.com/DataDog/datadog-operator/pkg/defaulting"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
 
 	"github.com/go-logr/logr"
@@ -32,7 +33,7 @@ func clusterAgentDefaultPodSpec() v1.PodSpec {
 		Containers: []v1.Container{
 			{
 				Name:            "cluster-agent",
-				Image:           "gcr.io/datadoghq/cluster-agent:1.12.0",
+				Image:           defaulting.GetLatestClusterAgentImage(),
 				ImagePullPolicy: v1.PullIfNotPresent,
 				Resources:       v1.ResourceRequirements{},
 				Ports: []v1.ContainerPort{

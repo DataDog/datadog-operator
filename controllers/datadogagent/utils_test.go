@@ -7,6 +7,7 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/v1alpha1/test"
 	"github.com/DataDog/datadog-operator/controllers/testutils"
+	"github.com/DataDog/datadog-operator/pkg/defaulting"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
@@ -478,11 +479,11 @@ func Test_getImage(t *testing.T) {
 		{
 			name: "backward compatible",
 			imageSpec: &datadoghqv1alpha1.ImageConfig{
-				Name: "gcr.io/datadoghq/agent:latest",
+				Name: defaulting.GetLatestAgentImage(),
 			},
 			registry: nil,
 			checkJMX: false,
-			want:     "gcr.io/datadoghq/agent:latest",
+			want:     defaulting.GetLatestAgentImage(),
 		},
 		{
 			name: "nominal case",
@@ -518,12 +519,12 @@ func Test_getImage(t *testing.T) {
 			name: "add jmx",
 			imageSpec: &datadoghqv1alpha1.ImageConfig{
 				Name:       "agent",
-				Tag:        "latest",
+				Tag:        defaulting.AgentLatestVersion,
 				JmxEnabled: true,
 			},
 			registry: nil,
 			checkJMX: true,
-			want:     "gcr.io/datadoghq/agent:latest-jmx",
+			want:     defaulting.GetLatestAgentImageJMX(),
 		},
 		{
 			name: "do not duplicate jmx",

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/DataDog/datadog-operator/pkg/defaulting"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -21,8 +22,6 @@ import (
 // default values
 const (
 	defaultLogLevel                         string = "INFO"
-	defaultAgentImageTag                    string = "7.28.0"
-	defaultClusterAgentImageTag             string = "1.12.0"
 	defaultAgentImageName                   string = "agent"
 	defaultClusterAgentImageName            string = "cluster-agent"
 	defaultCollectEvents                    bool   = false
@@ -189,7 +188,7 @@ func DefaultDatadogAgentSpecAgent(agent *DatadogAgentSpecAgentSpec) *DatadogAgen
 		agentOverride.UseExtendedDaemonset = agent.UseExtendedDaemonset
 	}
 
-	if img := DefaultDatadogAgentSpecAgentImage(agent, defaultAgentImageName, defaultAgentImageTag); !IsEqualStruct(*img, ImageConfig{}) {
+	if img := DefaultDatadogAgentSpecAgentImage(agent, defaultAgentImageName, defaulting.AgentLatestVersion); !IsEqualStruct(*img, ImageConfig{}) {
 		agentOverride.Image = img
 	}
 
@@ -955,7 +954,7 @@ func DefaultDatadogAgentSpecClusterAgent(clusterAgent *DatadogAgentSpecClusterAg
 	if clusterAgent.Image == nil {
 		clusterAgent.Image = &ImageConfig{}
 	}
-	if img := DefaultDatadogClusterAgentImage(clusterAgent, defaultClusterAgentImageName, defaultClusterAgentImageTag); !IsEqualStruct(*img, ImageConfig{}) {
+	if img := DefaultDatadogClusterAgentImage(clusterAgent, defaultClusterAgentImageName, defaulting.ClusterAgentLatestVersion); !IsEqualStruct(*img, ImageConfig{}) {
 		clusterAgentOverride.Image = img
 	}
 
@@ -1119,7 +1118,7 @@ func DefaultDatadogAgentSpecClusterChecksRunner(clusterChecksRunner *DatadogAgen
 		clcOverride.Enabled = clusterChecksRunner.Enabled
 	}
 
-	if img := DefaultDatadogAgentSpecClusterChecksRunnerImage(clusterChecksRunner, defaultAgentImageName, defaultAgentImageTag); !IsEqualStruct(img, ImageConfig{}) {
+	if img := DefaultDatadogAgentSpecClusterChecksRunnerImage(clusterChecksRunner, defaultAgentImageName, defaulting.AgentLatestVersion); !IsEqualStruct(img, ImageConfig{}) {
 		clcOverride.Image = img
 	}
 
