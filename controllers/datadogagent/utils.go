@@ -80,7 +80,7 @@ func newAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent
 		annotations[key] = val
 	}
 
-	image := getImage(dda.Spec.Agent.Image, dda.Spec.Registry, true)
+	image := getImage(dda.Spec.Agent.Image, dda.Spec.Registry)
 	containers := []corev1.Container{}
 	agentContainer, err := getAgentContainer(logger, dda, image)
 	if err != nil {
@@ -2335,23 +2335,19 @@ func addBoolPointerEnVar(b *bool, varName string, varList []corev1.EnvVar) []cor
 var imageHasTag = regexp.MustCompile(`.+:[\w][\w.-]{0,127}$`)
 
 // getImage builds the image string based on ImageConfig and the registry configuration.
-func getImage(imageSpec *datadoghqv1alpha1.ImageConfig, registry *string, checkJMX bool) string {
+func getImage(imageSpec *datadoghqv1alpha1.ImageConfig, registry *string) string {
 	if imageHasTag.MatchString(imageSpec.Name) {
 		// The image name corresponds to a full image string
 		return imageSpec.Name
 	}
 
-	image := "/" + imageSpec.Name + ":" + imageSpec.Tag
-
-	if checkJMX && imageSpec.JmxEnabled && !strings.HasSuffix(imageSpec.Tag, defaulting.JMXTagSuffix) {
-		image += defaulting.JMXTagSuffix
-	}
+	img := defaulting.NewImage(imageSpec.Name, imageSpec.Tag, imageSpec.JmxEnabled)
 
 	if registry != nil {
-		return *registry + image
+		defaulting.WithRegistry(defaulting.ContainerRegistry(*registry))(img)
 	}
 
-	return defaulting.DefaultImageRegistry + image
+	return img.String()
 }
 
 // getReplicas returns the desired replicas of a

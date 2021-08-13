@@ -473,7 +473,6 @@ func Test_getImage(t *testing.T) {
 		name      string
 		imageSpec *datadoghqv1alpha1.ImageConfig
 		registry  *string
-		checkJMX  bool
 		want      string
 	}{
 		{
@@ -482,7 +481,6 @@ func Test_getImage(t *testing.T) {
 				Name: defaulting.GetLatestAgentImage(),
 			},
 			registry: nil,
-			checkJMX: false,
 			want:     defaulting.GetLatestAgentImage(),
 		},
 		{
@@ -492,7 +490,6 @@ func Test_getImage(t *testing.T) {
 				Tag:  "7",
 			},
 			registry: datadoghqv1alpha1.NewStringPointer("public.ecr.aws/datadog"),
-			checkJMX: false,
 			want:     "public.ecr.aws/datadog/agent:7",
 		},
 		{
@@ -502,7 +499,6 @@ func Test_getImage(t *testing.T) {
 				Tag:  "latest",
 			},
 			registry: datadoghqv1alpha1.NewStringPointer("gcr.io/datadoghq"),
-			checkJMX: false,
 			want:     "docker.io/datadog/agent:7.28.1-rc.3",
 		},
 		{
@@ -512,7 +508,6 @@ func Test_getImage(t *testing.T) {
 				Tag:  "latest",
 			},
 			registry: nil,
-			checkJMX: false,
 			want:     "gcr.io/datadoghq/agent:latest",
 		},
 		{
@@ -523,8 +518,17 @@ func Test_getImage(t *testing.T) {
 				JmxEnabled: true,
 			},
 			registry: nil,
-			checkJMX: true,
 			want:     defaulting.GetLatestAgentImageJMX(),
+		},
+		{
+			name: "cluster-agent",
+			imageSpec: &datadoghqv1alpha1.ImageConfig{
+				Name:       "cluster-agent",
+				Tag:        defaulting.ClusterAgentLatestVersion,
+				JmxEnabled: false,
+			},
+			registry: nil,
+			want:     defaulting.GetLatestClusterAgentImage(),
 		},
 		{
 			name: "do not duplicate jmx",
@@ -534,7 +538,6 @@ func Test_getImage(t *testing.T) {
 				JmxEnabled: true,
 			},
 			registry: nil,
-			checkJMX: true,
 			want:     "gcr.io/datadoghq/agent:latest-jmx",
 		},
 		{
@@ -545,13 +548,12 @@ func Test_getImage(t *testing.T) {
 				JmxEnabled: true,
 			},
 			registry: nil,
-			checkJMX: false,
 			want:     "gcr.io/datadoghq/agent:latest-jmx",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, getImage(tt.imageSpec, tt.registry, tt.checkJMX))
+			assert.Equal(t, tt.want, getImage(tt.imageSpec, tt.registry))
 		})
 	}
 }
