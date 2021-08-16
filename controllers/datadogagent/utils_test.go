@@ -7,6 +7,7 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
 	"github.com/DataDog/datadog-operator/api/v1alpha1/test"
 	"github.com/DataDog/datadog-operator/controllers/testutils"
+	"github.com/DataDog/datadog-operator/pkg/defaulting"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
@@ -449,40 +450,20 @@ func Test_mergeAnnotationsLabels(t *testing.T) {
 	}
 }
 
-func Test_imageHasTag(t *testing.T) {
-	cases := map[string]bool{
-		"foo:bar":             true,
-		"foo/bar:baz":         true,
-		"foo/bar:baz:tar":     true,
-		"foo/bar:baz-tar":     true,
-		"foo/bar:baz_tar":     true,
-		"foo/bar:baz.tar":     true,
-		"foo/foo/bar:baz:tar": true,
-		"foo":                 false,
-		":foo":                false,
-		"foo:foo/bar":         false,
-	}
-	for tc, expected := range cases {
-		assert.Equal(t, expected, imageHasTag.MatchString(tc))
-	}
-}
-
 func Test_getImage(t *testing.T) {
 	tests := []struct {
 		name      string
 		imageSpec *datadoghqv1alpha1.ImageConfig
 		registry  *string
-		checkJMX  bool
 		want      string
 	}{
 		{
 			name: "backward compatible",
 			imageSpec: &datadoghqv1alpha1.ImageConfig{
-				Name: "gcr.io/datadoghq/agent:latest",
+				Name: defaulting.GetLatestAgentImage(),
 			},
 			registry: nil,
-			checkJMX: false,
-			want:     "gcr.io/datadoghq/agent:latest",
+			want:     defaulting.GetLatestAgentImage(),
 		},
 		{
 			name: "nominal case",
@@ -491,7 +472,6 @@ func Test_getImage(t *testing.T) {
 				Tag:  "7",
 			},
 			registry: datadoghqv1alpha1.NewStringPointer("public.ecr.aws/datadog"),
-			checkJMX: false,
 			want:     "public.ecr.aws/datadog/agent:7",
 		},
 		{
@@ -501,7 +481,6 @@ func Test_getImage(t *testing.T) {
 				Tag:  "latest",
 			},
 			registry: datadoghqv1alpha1.NewStringPointer("gcr.io/datadoghq"),
-			checkJMX: false,
 			want:     "docker.io/datadog/agent:7.28.1-rc.3",
 		},
 		{
@@ -511,19 +490,27 @@ func Test_getImage(t *testing.T) {
 				Tag:  "latest",
 			},
 			registry: nil,
-			checkJMX: false,
 			want:     "gcr.io/datadoghq/agent:latest",
 		},
 		{
 			name: "add jmx",
 			imageSpec: &datadoghqv1alpha1.ImageConfig{
 				Name:       "agent",
-				Tag:        "latest",
+				Tag:        defaulting.AgentLatestVersion,
 				JmxEnabled: true,
 			},
 			registry: nil,
-			checkJMX: true,
-			want:     "gcr.io/datadoghq/agent:latest-jmx",
+			want:     defaulting.GetLatestAgentImageJMX(),
+		},
+		{
+			name: "cluster-agent",
+			imageSpec: &datadoghqv1alpha1.ImageConfig{
+				Name:       "cluster-agent",
+				Tag:        defaulting.ClusterAgentLatestVersion,
+				JmxEnabled: false,
+			},
+			registry: nil,
+			want:     defaulting.GetLatestClusterAgentImage(),
 		},
 		{
 			name: "do not duplicate jmx",
@@ -533,7 +520,6 @@ func Test_getImage(t *testing.T) {
 				JmxEnabled: true,
 			},
 			registry: nil,
-			checkJMX: true,
 			want:     "gcr.io/datadoghq/agent:latest-jmx",
 		},
 		{
@@ -544,13 +530,12 @@ func Test_getImage(t *testing.T) {
 				JmxEnabled: true,
 			},
 			registry: nil,
-			checkJMX: false,
 			want:     "gcr.io/datadoghq/agent:latest-jmx",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, getImage(tt.imageSpec, tt.registry, tt.checkJMX))
+			assert.Equal(t, tt.want, getImage(tt.imageSpec, tt.registry))
 		})
 	}
 }

@@ -8,6 +8,7 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
 	test "github.com/DataDog/datadog-operator/api/v1alpha1/test"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+	"github.com/DataDog/datadog-operator/pkg/defaulting"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
 
 	assert "github.com/stretchr/testify/require"
@@ -25,7 +26,7 @@ func clusterChecksRunnerDefaultPodSpec() corev1.PodSpec {
 		InitContainers: []corev1.Container{
 			{
 				Name:            "init-config",
-				Image:           "gcr.io/datadoghq/agent:7.28.0",
+				Image:           defaulting.GetLatestAgentImage(),
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
 				Command:         []string{"bash", "-c"},
@@ -37,7 +38,7 @@ func clusterChecksRunnerDefaultPodSpec() corev1.PodSpec {
 		Containers: []corev1.Container{
 			{
 				Name:            "cluster-checks-runner",
-				Image:           "gcr.io/datadoghq/agent:7.28.0",
+				Image:           defaulting.GetLatestAgentImage(),
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
 				Env:             clusterChecksRunnerDefaultEnvVars(),

@@ -3771,9 +3771,9 @@ spec:
                       description: Define whether the Agent image should support JMX.
                       type: boolean
                     name:
-                      description: 'Define the image to use: Use "gcr.io/datadoghq/agent:latest"
-                        for Datadog Agent 7 Use "datadog/dogstatsd:latest" for Standalone
-                        Datadog Agent DogStatsD6 Use "gcr.io/datadoghq/cluster-agent:latest"
+                      description: 'Define the image to use: Use "gcr.io/datadoghq/agent"
+                        for Datadog Agent 7 Use "datadog/dogstatsd" for Standalone
+                        Datadog Agent DogStatsD Use "gcr.io/datadoghq/cluster-agent"
                         for Datadog Cluster Agent Use "agent" with the registry and
                         tag configurations for <registry>/agent:<tag> Use "cluster-agent"
                         with the registry and tag configurations for <registry>/cluster-agent:<tag>'
@@ -7331,9 +7331,9 @@ spec:
                       description: Define whether the Agent image should support JMX.
                       type: boolean
                     name:
-                      description: 'Define the image to use: Use "gcr.io/datadoghq/agent:latest"
-                        for Datadog Agent 7 Use "datadog/dogstatsd:latest" for Standalone
-                        Datadog Agent DogStatsD6 Use "gcr.io/datadoghq/cluster-agent:latest"
+                      description: 'Define the image to use: Use "gcr.io/datadoghq/agent"
+                        for Datadog Agent 7 Use "datadog/dogstatsd" for Standalone
+                        Datadog Agent DogStatsD Use "gcr.io/datadoghq/cluster-agent"
                         for Datadog Cluster Agent Use "agent" with the registry and
                         tag configurations for <registry>/agent:<tag> Use "cluster-agent"
                         with the registry and tag configurations for <registry>/cluster-agent:<tag>'
@@ -10044,9 +10044,9 @@ spec:
                       description: Define whether the Agent image should support JMX.
                       type: boolean
                     name:
-                      description: 'Define the image to use: Use "gcr.io/datadoghq/agent:latest"
-                        for Datadog Agent 7 Use "datadog/dogstatsd:latest" for Standalone
-                        Datadog Agent DogStatsD6 Use "gcr.io/datadoghq/cluster-agent:latest"
+                      description: 'Define the image to use: Use "gcr.io/datadoghq/agent"
+                        for Datadog Agent 7 Use "datadog/dogstatsd" for Standalone
+                        Datadog Agent DogStatsD Use "gcr.io/datadoghq/cluster-agent"
                         for Datadog Cluster Agent Use "agent" with the registry and
                         tag configurations for <registry>/agent:<tag> Use "cluster-agent"
                         with the registry and tag configurations for <registry>/cluster-agent:<tag>'
@@ -14432,9 +14432,9 @@ spec:
                             JMX.
                           type: boolean
                         name:
-                          description: 'Define the image to use: Use "gcr.io/datadoghq/agent:latest"
-                            for Datadog Agent 7 Use "datadog/dogstatsd:latest" for
-                            Standalone Datadog Agent DogStatsD6 Use "gcr.io/datadoghq/cluster-agent:latest"
+                          description: 'Define the image to use: Use "gcr.io/datadoghq/agent"
+                            for Datadog Agent 7 Use "datadog/dogstatsd" for Standalone
+                            Datadog Agent DogStatsD Use "gcr.io/datadoghq/cluster-agent"
                             for Datadog Cluster Agent Use "agent" with the registry
                             and tag configurations for <registry>/agent:<tag> Use
                             "cluster-agent" with the registry and tag configurations
@@ -18114,9 +18114,9 @@ spec:
                             JMX.
                           type: boolean
                         name:
-                          description: 'Define the image to use: Use "gcr.io/datadoghq/agent:latest"
-                            for Datadog Agent 7 Use "datadog/dogstatsd:latest" for
-                            Standalone Datadog Agent DogStatsD6 Use "gcr.io/datadoghq/cluster-agent:latest"
+                          description: 'Define the image to use: Use "gcr.io/datadoghq/agent"
+                            for Datadog Agent 7 Use "datadog/dogstatsd" for Standalone
+                            Datadog Agent DogStatsD Use "gcr.io/datadoghq/cluster-agent"
                             for Datadog Cluster Agent Use "agent" with the registry
                             and tag configurations for <registry>/agent:<tag> Use
                             "cluster-agent" with the registry and tag configurations
@@ -20941,9 +20941,9 @@ spec:
                             JMX.
                           type: boolean
                         name:
-                          description: 'Define the image to use: Use "gcr.io/datadoghq/agent:latest"
-                            for Datadog Agent 7 Use "datadog/dogstatsd:latest" for
-                            Standalone Datadog Agent DogStatsD6 Use "gcr.io/datadoghq/cluster-agent:latest"
+                          description: 'Define the image to use: Use "gcr.io/datadoghq/agent"
+                            for Datadog Agent 7 Use "datadog/dogstatsd" for Standalone
+                            Datadog Agent DogStatsD Use "gcr.io/datadoghq/cluster-agent"
                             for Datadog Cluster Agent Use "agent" with the registry
                             and tag configurations for <registry>/agent:<tag> Use
                             "cluster-agent" with the registry and tag configurations

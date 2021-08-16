@@ -15,6 +15,7 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
 	test "github.com/DataDog/datadog-operator/api/v1alpha1/test"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/orchestrator"
+	"github.com/DataDog/datadog-operator/pkg/defaulting"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
 
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
@@ -1116,7 +1117,7 @@ func addEnvVar(currentVars []corev1.EnvVar, varName string, varValue string) []c
 func appendDefaultAPMAgentContainer(podSpec *corev1.PodSpec) {
 	apmContainer := corev1.Container{
 		Name:            "trace-agent",
-		Image:           "gcr.io/datadoghq/agent:latest",
+		Image:           defaulting.GetLatestAgentImage(),
 		ImagePullPolicy: corev1.PullIfNotPresent,
 		Command:         []string{"trace-agent", "--config=" + agentConfigFile},
 		Resources:       corev1.ResourceRequirements{},
@@ -1190,7 +1191,7 @@ func defaultSystemProbePodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodSp
 		InitContainers: []corev1.Container{
 			{
 				Name:            "init-volume",
-				Image:           "gcr.io/datadoghq/agent:latest",
+				Image:           defaulting.GetLatestAgentImage(),
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
 				Command:         []string{"bash", "-c"},
@@ -1204,7 +1205,7 @@ func defaultSystemProbePodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodSp
 			},
 			{
 				Name:            "init-config",
-				Image:           "gcr.io/datadoghq/agent:latest",
+				Image:           defaulting.GetLatestAgentImage(),
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
 				Command:         []string{"bash", "-c"},
@@ -1214,7 +1215,7 @@ func defaultSystemProbePodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodSp
 			},
 			{
 				Name:            "seccomp-setup",
-				Image:           "gcr.io/datadoghq/agent:latest",
+				Image:           defaulting.GetLatestAgentImage(),
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
 				Command:         []string{"cp", "/etc/config/system-probe-seccomp.json", "/host/var/lib/kubelet/seccomp/system-probe"},
@@ -1233,7 +1234,7 @@ func defaultSystemProbePodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodSp
 		Containers: []corev1.Container{
 			{
 				Name:            "agent",
-				Image:           "gcr.io/datadoghq/agent:latest",
+				Image:           defaulting.GetLatestAgentImage(),
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Command: []string{
 					"agent",
@@ -1254,7 +1255,7 @@ func defaultSystemProbePodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodSp
 			},
 			{
 				Name:            "system-probe",
-				Image:           "gcr.io/datadoghq/agent:latest",
+				Image:           defaulting.GetLatestAgentImage(),
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Command: []string{
 					"system-probe",
@@ -1315,7 +1316,7 @@ func noSeccompInstallSystemProbeSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1
 		InitContainers: []corev1.Container{
 			{
 				Name:            "init-volume",
-				Image:           "gcr.io/datadoghq/agent:latest",
+				Image:           defaulting.GetLatestAgentImage(),
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
 				Command:         []string{"bash", "-c"},
@@ -1329,7 +1330,7 @@ func noSeccompInstallSystemProbeSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1
 			},
 			{
 				Name:            "init-config",
-				Image:           "gcr.io/datadoghq/agent:latest",
+				Image:           defaulting.GetLatestAgentImage(),
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
 				Command:         []string{"bash", "-c"},
@@ -1341,7 +1342,7 @@ func noSeccompInstallSystemProbeSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1
 		Containers: []corev1.Container{
 			{
 				Name:            "agent",
-				Image:           "gcr.io/datadoghq/agent:latest",
+				Image:           defaulting.GetLatestAgentImage(),
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Command: []string{
 					"agent",
@@ -1362,7 +1363,7 @@ func noSeccompInstallSystemProbeSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1
 			},
 			{
 				Name:            "system-probe",
-				Image:           "gcr.io/datadoghq/agent:latest",
+				Image:           defaulting.GetLatestAgentImage(),
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Command: []string{
 					"system-probe",
@@ -1394,7 +1395,7 @@ func defaultPodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodSpec {
 		InitContainers: []corev1.Container{
 			{
 				Name:            "init-volume",
-				Image:           "gcr.io/datadoghq/agent:latest",
+				Image:           defaulting.GetLatestAgentImage(),
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
 				Command:         []string{"bash", "-c"},
@@ -1408,7 +1409,7 @@ func defaultPodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodSpec {
 			},
 			{
 				Name:            "init-config",
-				Image:           "gcr.io/datadoghq/agent:latest",
+				Image:           defaulting.GetLatestAgentImage(),
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
 				Command:         []string{"bash", "-c"},
@@ -1420,7 +1421,7 @@ func defaultPodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodSpec {
 		Containers: []corev1.Container{
 			{
 				Name:            "agent",
-				Image:           "gcr.io/datadoghq/agent:latest",
+				Image:           defaulting.GetLatestAgentImage(),
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Command: []string{
 					"agent",
@@ -1441,7 +1442,7 @@ func defaultPodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodSpec {
 			},
 			{
 				Name:            "process-agent",
-				Image:           "gcr.io/datadoghq/agent:latest",
+				Image:           defaulting.GetLatestAgentImage(),
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Command: []string{
 					"process-agent",
@@ -1666,7 +1667,7 @@ func runtimeSecurityAgentPodSpec(extraEnv map[string]string, extraDir string) co
 		InitContainers: []corev1.Container{
 			{
 				Name:            "init-volume",
-				Image:           "gcr.io/datadoghq/agent:latest",
+				Image:           defaulting.GetLatestAgentImage(),
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
 				Command:         []string{"bash", "-c"},
@@ -1675,7 +1676,7 @@ func runtimeSecurityAgentPodSpec(extraEnv map[string]string, extraDir string) co
 			},
 			{
 				Name:            "init-config",
-				Image:           "gcr.io/datadoghq/agent:latest",
+				Image:           defaulting.GetLatestAgentImage(),
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
 				Command:         []string{"bash", "-c"},
@@ -1685,7 +1686,7 @@ func runtimeSecurityAgentPodSpec(extraEnv map[string]string, extraDir string) co
 			},
 			{
 				Name:            "seccomp-setup",
-				Image:           "gcr.io/datadoghq/agent:latest",
+				Image:           defaulting.GetLatestAgentImage(),
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
 				Command:         []string{"cp", "/etc/config/system-probe-seccomp.json", "/host/var/lib/kubelet/seccomp/system-probe"},
@@ -1704,7 +1705,7 @@ func runtimeSecurityAgentPodSpec(extraEnv map[string]string, extraDir string) co
 		Containers: []corev1.Container{
 			{
 				Name:            "agent",
-				Image:           "gcr.io/datadoghq/agent:latest",
+				Image:           defaulting.GetLatestAgentImage(),
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Command: []string{
 					"agent",
@@ -1725,7 +1726,7 @@ func runtimeSecurityAgentPodSpec(extraEnv map[string]string, extraDir string) co
 			},
 			{
 				Name:            "system-probe",
-				Image:           "gcr.io/datadoghq/agent:latest",
+				Image:           defaulting.GetLatestAgentImage(),
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Command: []string{
 					"system-probe",
@@ -1749,7 +1750,7 @@ func runtimeSecurityAgentPodSpec(extraEnv map[string]string, extraDir string) co
 			},
 			{
 				Name:            "security-agent",
-				Image:           "gcr.io/datadoghq/agent:latest",
+				Image:           defaulting.GetLatestAgentImage(),
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Command: []string{
 					"security-agent",
@@ -1777,7 +1778,7 @@ func complianceSecurityAgentPodSpec(extraEnv map[string]string) corev1.PodSpec {
 		InitContainers: []corev1.Container{
 			{
 				Name:            "init-volume",
-				Image:           "gcr.io/datadoghq/agent:latest",
+				Image:           defaulting.GetLatestAgentImage(),
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
 				Command:         []string{"bash", "-c"},
@@ -1791,7 +1792,7 @@ func complianceSecurityAgentPodSpec(extraEnv map[string]string) corev1.PodSpec {
 			},
 			{
 				Name:            "init-config",
-				Image:           "gcr.io/datadoghq/agent:latest",
+				Image:           defaulting.GetLatestAgentImage(),
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
 				Command:         []string{"bash", "-c"},
@@ -1803,7 +1804,7 @@ func complianceSecurityAgentPodSpec(extraEnv map[string]string) corev1.PodSpec {
 		Containers: []corev1.Container{
 			{
 				Name:            "agent",
-				Image:           "gcr.io/datadoghq/agent:latest",
+				Image:           defaulting.GetLatestAgentImage(),
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Command: []string{
 					"agent",
@@ -1824,7 +1825,7 @@ func complianceSecurityAgentPodSpec(extraEnv map[string]string) corev1.PodSpec {
 			},
 			{
 				Name:            "security-agent",
-				Image:           "gcr.io/datadoghq/agent:latest",
+				Image:           defaulting.GetLatestAgentImage(),
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Command: []string{
 					"security-agent",
@@ -1949,7 +1950,7 @@ func customKubeletConfigPodSpec(kubeletConfig *datadoghqv1alpha1.KubeletConfig) 
 		InitContainers: []corev1.Container{
 			{
 				Name:            "init-volume",
-				Image:           "gcr.io/datadoghq/agent:latest",
+				Image:           defaulting.GetLatestAgentImage(),
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
 				Command:         []string{"bash", "-c"},
@@ -1963,7 +1964,7 @@ func customKubeletConfigPodSpec(kubeletConfig *datadoghqv1alpha1.KubeletConfig) 
 			},
 			{
 				Name:            "init-config",
-				Image:           "gcr.io/datadoghq/agent:latest",
+				Image:           defaulting.GetLatestAgentImage(),
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Resources:       corev1.ResourceRequirements{},
 				Command:         []string{"bash", "-c"},
@@ -1975,7 +1976,7 @@ func customKubeletConfigPodSpec(kubeletConfig *datadoghqv1alpha1.KubeletConfig) 
 		Containers: []corev1.Container{
 			{
 				Name:            "agent",
-				Image:           "gcr.io/datadoghq/agent:latest",
+				Image:           defaulting.GetLatestAgentImage(),
 				ImagePullPolicy: corev1.PullIfNotPresent,
 				Command: []string{
 					"agent",

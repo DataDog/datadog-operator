@@ -9,6 +9,7 @@ import (
 	"path"
 	"testing"
 
+	"github.com/DataDog/datadog-operator/pkg/defaulting"
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	"github.com/google/go-cmp/cmp"
 	assert "github.com/stretchr/testify/require"
@@ -290,7 +291,7 @@ func TestDefaultDatadogAgentSpecClusterAgent(t *testing.T) {
 				Enabled: NewBoolPointer(true),
 				Image: &ImageConfig{
 					Name:       defaultClusterAgentImageName,
-					Tag:        defaultClusterAgentImageTag,
+					Tag:        defaulting.ClusterAgentLatestVersion,
 					PullPolicy: &defaultImagePullPolicy,
 				},
 				Config: &ClusterAgentConfig{
@@ -314,7 +315,7 @@ func TestDefaultDatadogAgentSpecClusterAgent(t *testing.T) {
 				Enabled: NewBoolPointer(true),
 				Image: &ImageConfig{
 					Name:        defaultClusterAgentImageName,
-					Tag:         defaultClusterAgentImageTag,
+					Tag:         defaulting.ClusterAgentLatestVersion,
 					PullPolicy:  &defaultImagePullPolicy,
 					PullSecrets: &[]corev1.LocalObjectReference{},
 				},
@@ -368,7 +369,7 @@ func TestDefaultDatadogAgentSpecClusterAgent(t *testing.T) {
 			},
 			overrideExpected: &DatadogAgentSpecClusterAgentSpec{
 				Image: &ImageConfig{
-					Tag: defaultClusterAgentImageTag,
+					Tag: defaulting.ClusterAgentLatestVersion,
 				},
 				Config: &ClusterAgentConfig{
 					ExternalMetrics: &ExternalMetricsConfig{
@@ -380,7 +381,7 @@ func TestDefaultDatadogAgentSpecClusterAgent(t *testing.T) {
 				Enabled: NewBoolPointer(true),
 				Image: &ImageConfig{
 					Name:        "foo",
-					Tag:         defaultClusterAgentImageTag,
+					Tag:         defaulting.ClusterAgentLatestVersion,
 					PullPolicy:  (*corev1.PullPolicy)(NewStringPointer("Always")),
 					PullSecrets: &[]corev1.LocalObjectReference{},
 				},
@@ -445,7 +446,7 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 				UseExtendedDaemonset: NewBoolPointer(false),
 				Image: &ImageConfig{
 					Name:       defaultAgentImageName,
-					Tag:        defaultAgentImageTag,
+					Tag:        defaulting.AgentLatestVersion,
 					PullPolicy: &defaultImagePullPolicy,
 				},
 				Config: &NodeAgentConfig{
@@ -491,7 +492,7 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 				UseExtendedDaemonset: NewBoolPointer(false),
 				Image: &ImageConfig{
 					Name:        defaultAgentImageName,
-					Tag:         defaultAgentImageTag,
+					Tag:         defaulting.AgentLatestVersion,
 					PullPolicy:  &defaultImagePullPolicy,
 					PullSecrets: &[]corev1.LocalObjectReference{},
 				},
@@ -569,7 +570,6 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 				Enabled:              NewBoolPointer(true),
 				UseExtendedDaemonset: NewBoolPointer(false),
 				Image: &ImageConfig{
-					Tag:        defaultAgentImageTag, // TODO fix this in the patch cycle
 					PullPolicy: &defaultImagePullPolicy,
 				},
 				Config: &NodeAgentConfig{
@@ -620,7 +620,6 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 				UseExtendedDaemonset: NewBoolPointer(false),
 				Image: &ImageConfig{
 					Name:        "gcr.io/datadog/agent:6.26.0",
-					Tag:         defaultAgentImageTag,
 					PullPolicy:  &defaultImagePullPolicy,
 					PullSecrets: &[]corev1.LocalObjectReference{},
 				},
@@ -720,7 +719,7 @@ func TestDefaultDatadogAgentSpecClusterChecksRunner(t *testing.T) {
 				Config:  &ClusterChecksRunnerConfig{},
 				Image: &ImageConfig{
 					Name: "gcr.io/datadog/agent:latest",
-					Tag:  defaultAgentImageTag,
+					Tag:  defaulting.AgentLatestVersion,
 				},
 			},
 			overrideExpected: &DatadogAgentSpecClusterChecksRunnerSpec{
@@ -741,7 +740,7 @@ func TestDefaultDatadogAgentSpecClusterChecksRunner(t *testing.T) {
 				Enabled: NewBoolPointer(true),
 				Image: &ImageConfig{
 					Name:        "gcr.io/datadog/agent:latest",
-					Tag:         defaultAgentImageTag,
+					Tag:         defaulting.AgentLatestVersion,
 					PullPolicy:  &defaultImagePullPolicy,
 					PullSecrets: &[]corev1.LocalObjectReference{},
 				},
@@ -767,7 +766,7 @@ func TestDefaultDatadogAgentSpecClusterChecksRunner(t *testing.T) {
 				},
 				Image: &ImageConfig{
 					Name: "agent",
-					Tag:  defaultAgentImageTag,
+					Tag:  defaulting.AgentLatestVersion,
 				},
 			},
 			overrideExpected: &DatadogAgentSpecClusterChecksRunnerSpec{
@@ -786,7 +785,7 @@ func TestDefaultDatadogAgentSpecClusterChecksRunner(t *testing.T) {
 				Enabled: NewBoolPointer(true),
 				Image: &ImageConfig{
 					Name:        "agent",
-					Tag:         defaultAgentImageTag,
+					Tag:         defaulting.AgentLatestVersion,
 					PullPolicy:  &defaultImagePullPolicy,
 					PullSecrets: &[]corev1.LocalObjectReference{},
 				},

@@ -1232,9 +1232,9 @@ type DatadogAgentSpecClusterChecksRunnerSpec struct {
 // +k8s:openapi-gen=true
 type ImageConfig struct {
 	// Define the image to use:
-	// Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7
-	// Use "datadog/dogstatsd:latest" for Standalone Datadog Agent DogStatsD6
-	// Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent
+	// Use "gcr.io/datadoghq/agent" for Datadog Agent 7
+	// Use "datadog/dogstatsd" for Standalone Datadog Agent DogStatsD
+	// Use "gcr.io/datadoghq/cluster-agent" for Datadog Cluster Agent
 	// Use "agent" with the registry and tag configurations for <registry>/agent:<tag>
 	// Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>
 	Name string `json:"name,omitempty"`
