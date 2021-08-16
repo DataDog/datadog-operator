@@ -7,6 +7,7 @@ package defaulting
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 )
 
@@ -33,6 +34,16 @@ const (
 	agentImageName        = "agent"
 	clusterAgentImageName = "cluster-agent"
 )
+
+// imageHasTag identifies whether an image string contains a tag suffix
+// Ref: https://github.com/distribution/distribution/blob/v2.7.1/reference/reference.go
+var imageHasTag = regexp.MustCompile(`.+:[\w][\w.-]{0,127}$`)
+
+// IsImageNameContainsTag return true if the image name contains a tag
+func IsImageNameContainsTag(name string) bool {
+	// The image name corresponds to a full image string
+	return imageHasTag.MatchString(name)
+}
 
 // Image represent a container image information
 type Image struct {

@@ -450,24 +450,6 @@ func Test_mergeAnnotationsLabels(t *testing.T) {
 	}
 }
 
-func Test_imageHasTag(t *testing.T) {
-	cases := map[string]bool{
-		"foo:bar":             true,
-		"foo/bar:baz":         true,
-		"foo/bar:baz:tar":     true,
-		"foo/bar:baz-tar":     true,
-		"foo/bar:baz_tar":     true,
-		"foo/bar:baz.tar":     true,
-		"foo/foo/bar:baz:tar": true,
-		"foo":                 false,
-		":foo":                false,
-		"foo:foo/bar":         false,
-	}
-	for tc, expected := range cases {
-		assert.Equal(t, expected, imageHasTag.MatchString(tc))
-	}
-}
-
 func Test_getImage(t *testing.T) {
 	tests := []struct {
 		name      string

@@ -11,7 +11,6 @@ import (
 	"math/rand"
 	"path"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -2330,13 +2329,9 @@ func addBoolPointerEnVar(b *bool, varName string, varList []corev1.EnvVar) []cor
 	return varList
 }
 
-// imageHasTag identifies whether an image string contains a tag suffix
-// Ref: https://github.com/distribution/distribution/blob/v2.7.1/reference/reference.go
-var imageHasTag = regexp.MustCompile(`.+:[\w][\w.-]{0,127}$`)
-
 // getImage builds the image string based on ImageConfig and the registry configuration.
 func getImage(imageSpec *datadoghqv1alpha1.ImageConfig, registry *string) string {
-	if imageHasTag.MatchString(imageSpec.Name) {
+	if defaulting.IsImageNameContainsTag(imageSpec.Name) {
 		// The image name corresponds to a full image string
 		return imageSpec.Name
 	}

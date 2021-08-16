@@ -570,7 +570,6 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 				Enabled:              NewBoolPointer(true),
 				UseExtendedDaemonset: NewBoolPointer(false),
 				Image: &ImageConfig{
-					Tag:        defaulting.AgentLatestVersion, // TODO fix this in the patch cycle
 					PullPolicy: &defaultImagePullPolicy,
 				},
 				Config: &NodeAgentConfig{
@@ -621,7 +620,6 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 				UseExtendedDaemonset: NewBoolPointer(false),
 				Image: &ImageConfig{
 					Name:        "gcr.io/datadog/agent:6.26.0",
-					Tag:         defaulting.AgentLatestVersion,
 					PullPolicy:  &defaultImagePullPolicy,
 					PullSecrets: &[]corev1.LocalObjectReference{},
 				},

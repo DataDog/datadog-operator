@@ -241,7 +241,8 @@ func DefaultDatadogAgentSpecAgentImage(agent *DatadogAgentSpecAgentSpec, name, t
 		imgOverride.Name = agent.Image.Name
 	}
 
-	if agent.Image.Tag == "" {
+	// Only default Tag if not already present in the image.Name
+	if !defaulting.IsImageNameContainsTag(agent.Image.Name) && agent.Image.Tag == "" {
 		agent.Image.Tag = tag
 		imgOverride.Tag = agent.Image.Tag
 	}
@@ -1082,7 +1083,8 @@ func DefaultDatadogClusterAgentImage(dca *DatadogAgentSpecClusterAgentSpec, name
 		imgOverride.Name = dca.Image.Name
 	}
 
-	if dca.Image.Tag == "" {
+	// Only default Tag if not already present in the image.Name
+	if !defaulting.IsImageNameContainsTag(dca.Image.Name) && dca.Image.Tag == "" {
 		dca.Image.Tag = tag
 		imgOverride.Tag = dca.Image.Tag
 	}
@@ -1150,7 +1152,8 @@ func DefaultDatadogAgentSpecClusterChecksRunnerImage(clc *DatadogAgentSpecCluste
 		imgOverride.Name = clc.Image.Name
 	}
 
-	if clc.Image.Tag == "" {
+	// Only default Tag if not already present in the image.Name
+	if !defaulting.IsImageNameContainsTag(clc.Image.Name) && clc.Image.Tag == "" {
 		clc.Image.Tag = tag
 		imgOverride.Tag = clc.Image.Tag
 	}
