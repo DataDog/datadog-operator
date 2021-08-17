@@ -48,21 +48,23 @@ func NewDatadogAgent(ns, name, image string, options *NewDatadogAgentOptions) *d
 		},
 		Agent: datadoghqv1alpha1.DatadogAgentSpecAgentSpec{
 			Image: &datadoghqv1alpha1.ImageConfig{},
-			Config: &datadoghqv1alpha1.NodeAgentConfig{
-				Resources: &v1.ResourceRequirements{
-					Requests: v1.ResourceList{
-						v1.ResourceCPU:    resource.MustParse("0"),
-						v1.ResourceMemory: resource.MustParse("0"),
+			NodeAgent: &datadoghqv1alpha1.NodeAgentSpec{
+				ContainerConfig: &datadoghqv1alpha1.DatadogAgentGenericContainerConfig{
+					Resources: &v1.ResourceRequirements{
+						Requests: v1.ResourceList{
+							v1.ResourceCPU:    resource.MustParse("0"),
+							v1.ResourceMemory: resource.MustParse("0"),
+						},
+					},
+					Env: []v1.EnvVar{
+						{
+							Name:  "DD_KUBELET_TLS_VERIFY",
+							Value: "false",
+						},
 					},
 				},
 				CriSocket: &datadoghqv1alpha1.CRISocketConfig{
 					CriSocketPath: datadoghqv1alpha1.NewStringPointer("/var/run/containerd/containerd.sock"),
-				},
-				Env: []v1.EnvVar{
-					{
-						Name:  "DD_KUBELET_TLS_VERIFY",
-						Value: "false",
-					},
 				},
 				LeaderElection: datadoghqv1alpha1.NewBoolPointer(true),
 			},
@@ -132,9 +134,9 @@ func NewDatadogAgent(ns, name, image string, options *NewDatadogAgentOptions) *d
 			}
 		}
 
-		ad.Spec.Agent.Config.VolumeMounts = options.VolumeMounts
-		ad.Spec.Agent.Process.VolumeMounts = options.VolumeMounts
-		ad.Spec.Agent.Apm.VolumeMounts = options.VolumeMounts
+		ad.Spec.Agent.NodeAgent.ContainerConfig.VolumeMounts = options.VolumeMounts
+		ad.Spec.Agent.Process.ContainerConfig.VolumeMounts = options.VolumeMounts
+		ad.Spec.Agent.Apm.ContainerConfig.VolumeMounts = options.VolumeMounts
 
 		if options.CustomConfig != nil {
 			ad.Spec.Agent.CustomConfig = options.CustomConfig
@@ -143,7 +145,7 @@ func NewDatadogAgent(ns, name, image string, options *NewDatadogAgentOptions) *d
 		if options.SecuritySpec != nil {
 			ad.Spec.Agent.Security = options.SecuritySpec
 		} else {
-			ad.Spec.Agent.Security.VolumeMounts = options.VolumeMounts
+			ad.Spec.Agent.Security.ContainerConfig.VolumeMounts = options.VolumeMounts
 		}
 
 		if options.OrchestratorExplorerDisabled {

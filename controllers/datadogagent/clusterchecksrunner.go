@@ -74,7 +74,7 @@ func needClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) bool {
 	if isClusterAgentEnabled(dda.Spec.ClusterAgent) &&
 		datadoghqv1alpha1.BoolValue(dda.Spec.ClusterChecksRunner.Enabled) &&
 		dda.Spec.ClusterAgent.Config != nil &&
-		datadoghqv1alpha1.BoolValue(dda.Spec.ClusterAgent.Config.ClusterChecksEnabled) {
+		datadoghqv1alpha1.BoolValue(dda.Spec.ClusterAgent.Config.Features.ClusterChecksEnabled) {
 		return true
 	}
 
@@ -284,10 +284,10 @@ func newClusterChecksRunnerPodTemplate(dda *datadoghqv1alpha1.DatadogAgent, labe
 					ImagePullPolicy: *clusterChecksRunnerSpec.Image.PullPolicy,
 					Env:             envVars,
 					VolumeMounts:    volumeMounts,
-					LivenessProbe:   dda.Spec.Agent.Config.LivenessProbe,
-					ReadinessProbe:  dda.Spec.Agent.Config.ReadinessProbe,
-					Command:         getDefaultIfEmpty(dda.Spec.ClusterChecksRunner.Config.Command, []string{"agent", "run"}),
-					Args:            getDefaultIfEmpty(dda.Spec.ClusterChecksRunner.Config.Args, nil),
+					LivenessProbe:   dda.Spec.ClusterChecksRunner.ContainerConfig.LivenessProbe,
+					ReadinessProbe:  dda.Spec.ClusterChecksRunner.ContainerConfig.ReadinessProbe,
+					Command:         getDefaultIfEmpty(dda.Spec.ClusterChecksRunner.ContainerConfig.Command, []string{"agent", "run"}),
+					Args:            getDefaultIfEmpty(dda.Spec.ClusterChecksRunner.ContainerConfig.Args, nil),
 				},
 			},
 			Volumes:           getVolumesForClusterChecksRunner(dda),
@@ -305,8 +305,8 @@ func newClusterChecksRunnerPodTemplate(dda *datadoghqv1alpha1.DatadogAgent, labe
 		newPodTemplate.Annotations[key] = val
 	}
 
-	if clusterChecksRunnerSpec.Config.Resources != nil {
-		newPodTemplate.Spec.Containers[0].Resources = *clusterChecksRunnerSpec.Config.Resources
+	if clusterChecksRunnerSpec.ContainerConfig.Resources != nil {
+		newPodTemplate.Spec.Containers[0].Resources = *clusterChecksRunnerSpec.ContainerConfig.Resources
 	}
 
 	return newPodTemplate
@@ -349,7 +349,7 @@ func getEnvVarsForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []cor
 		},
 		{
 			Name:  datadoghqv1alpha1.DDHealthPort,
-			Value: strconv.Itoa(int(*spec.ClusterChecksRunner.Config.HealthPort)),
+			Value: strconv.Itoa(int(*spec.ClusterChecksRunner.ContainerConfig.HealthPort)),
 		},
 		{
 			Name:  datadoghqv1alpha1.DDAPMEnabled,
@@ -417,7 +417,7 @@ func getEnvVarsForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []cor
 
 	envVars = append(envVars, corev1.EnvVar{
 		Name:  datadoghqv1alpha1.DDLogLevel,
-		Value: *spec.ClusterChecksRunner.Config.LogLevel,
+		Value: *spec.ClusterChecksRunner.ContainerConfig.LogLevel,
 	})
 
 	if isOrchestratorExplorerEnabled(dda) {
@@ -429,14 +429,14 @@ func getEnvVarsForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []cor
 		envVars = append(envVars, envForClusterAgentConnection(dda)...)
 	}
 
-	if spec.Agent.Config.DDUrl != nil {
+	if spec.Agent.NodeAgent.DDUrl != nil {
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  datadoghqv1alpha1.DDddURL,
-			Value: *spec.Agent.Config.DDUrl,
+			Value: *spec.Agent.NodeAgent.DDUrl,
 		})
 	}
 
-	return append(envVars, spec.ClusterChecksRunner.Config.Env...)
+	return append(envVars, spec.ClusterChecksRunner.ContainerConfig.Env...)
 }
 
 func getClusterChecksRunnerVersion(dda *datadoghqv1alpha1.DatadogAgent) string {
@@ -478,7 +478,7 @@ func getVolumesForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []cor
 		volume := getVolumeFromCustomConfigSpec(dda.Spec.ClusterChecksRunner.CustomConfig, getClusterChecksRunnerCustomConfigConfigMapName(dda), datadoghqv1alpha1.AgentCustomConfigVolumeName)
 		volumes = append(volumes, volume)
 	}
-	return append(volumes, dda.Spec.ClusterChecksRunner.Config.Volumes...)
+	return append(volumes, dda.Spec.ClusterChecksRunner.Volumes...)
 }
 
 // getVolumeMountsForClusterChecksRunner defines volume mounts for the Cluster Checks Runner
@@ -500,7 +500,7 @@ func getVolumeMountsForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) 
 	// Add configuration volumesMount default and custom config (datadog.yaml) volume
 	volumeMounts = append(volumeMounts, getVolumeMountForConfig(dda.Spec.ClusterChecksRunner.CustomConfig)...)
 
-	return append(volumeMounts, dda.Spec.ClusterChecksRunner.Config.VolumeMounts...)
+	return append(volumeMounts, dda.Spec.ClusterChecksRunner.ContainerConfig.VolumeMounts...)
 }
 
 func getClusterChecksRunnerCustomConfigConfigMapName(dda *datadoghqv1alpha1.DatadogAgent) string {

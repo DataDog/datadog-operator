@@ -20,7 +20,7 @@ func TestKSMCoreGetEnvVarsForAgent(t *testing.T) {
 	logger := logf.Log.WithName(t.Name())
 	enabledFeature := true
 	spec := generateSpec()
-	spec.Spec.ClusterAgent.Config.ClusterChecksEnabled = &enabledFeature
+	spec.Spec.ClusterAgent.Config.Features.ClusterChecksEnabled = &enabledFeature
 	spec.Spec.Features.KubeStateMetricsCore.Enabled = &enabledFeature
 	env, err := getEnvVarsForAgent(logger, spec)
 	require.NoError(t, err)
@@ -29,7 +29,7 @@ func TestKSMCoreGetEnvVarsForAgent(t *testing.T) {
 		Value: "kubernetes_state",
 	}})
 
-	spec.Spec.Agent.Config.Env = append(spec.Spec.Agent.Config.Env, v1.EnvVar{
+	spec.Spec.Agent.NodeAgent.ContainerConfig.Env = append(spec.Spec.Agent.NodeAgent.ContainerConfig.Env, v1.EnvVar{
 		Name:  datadoghqv1alpha1.DDIgnoreAutoConf,
 		Value: "redis custom",
 	})
@@ -61,7 +61,7 @@ func generateSpec() *datadoghqv1alpha1.DatadogAgent {
 				Replicas:     &intPtr,
 			},
 			Agent: datadoghqv1alpha1.DatadogAgentSpecAgentSpec{
-				Config: &datadoghqv1alpha1.NodeAgentConfig{
+				NodeAgent: &datadoghqv1alpha1.NodeAgentSpec{
 					PodAnnotationsAsTags: map[string]string{},
 					PodLabelsAsTags:      map[string]string{},
 					CollectEvents:        &boolPtr,
@@ -379,7 +379,7 @@ func Test_dsdMapperProfilesEnvVar(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dda := test.NewDefaultedDatadogAgent("foo", "bar", &test.NewDatadogAgentOptions{
-				NodeAgentConfig: &datadoghqv1alpha1.NodeAgentConfig{
+				NodeAgentSpec: &datadoghqv1alpha1.NodeAgentSpec{
 					Dogstatsd: &datadoghqv1alpha1.DogstatsdConfig{MapperProfiles: tt.dsdMapperProfilesConf},
 				},
 			})

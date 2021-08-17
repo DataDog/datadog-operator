@@ -1140,7 +1140,7 @@ func Test_getbaseURL(t *testing.T) {
 			name: "Compute baseURL from ddUrl when Site is not defined",
 			args: args{
 				dda: test.NewDefaultedDatadogAgent("foo", "bar", &test.NewDatadogAgentOptions{
-					NodeAgentConfig: &datadoghqv1alpha1.NodeAgentConfig{
+					NodeAgentSpec: &datadoghqv1alpha1.NodeAgentSpec{
 						DDUrl: datadoghqv1alpha1.NewStringPointer("https://test.url.com"),
 					}}),
 			},
@@ -1151,7 +1151,7 @@ func Test_getbaseURL(t *testing.T) {
 			args: args{
 				dda: test.NewDefaultedDatadogAgent("foo", "bar", &test.NewDatadogAgentOptions{
 					Site: "datadoghq.eu",
-					NodeAgentConfig: &datadoghqv1alpha1.NodeAgentConfig{
+					NodeAgentSpec: &datadoghqv1alpha1.NodeAgentSpec{
 						DDUrl: datadoghqv1alpha1.NewStringPointer("https://test.url.com"),
 					}}),
 			},

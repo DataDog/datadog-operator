@@ -164,69 +164,69 @@ func FeatureOverride(dda *DatadogAgentSpec, dso *DatadogAgentSpec) {
 
 // DefaultDatadogAgentSpecAgent used to default an DatadogAgentSpecAgentSpec
 // return the defaulted DatadogAgentSpecAgentSpec
-func DefaultDatadogAgentSpecAgent(agent *DatadogAgentSpecAgentSpec) *DatadogAgentSpecAgentSpec {
+func DefaultDatadogAgentSpecAgent(daemonsetAgents *DatadogAgentSpecAgentSpec) *DatadogAgentSpecAgentSpec {
 	// If the Agent is not specified in the spec, disable it.
-	if IsEqualStruct(*agent, DatadogAgentSpecAgentSpec{}) {
-		agent.Enabled = NewBoolPointer(defaultAgentEnabled)
+	if IsEqualStruct(*daemonsetAgents, DatadogAgentSpecAgentSpec{}) {
+		daemonsetAgents.Enabled = NewBoolPointer(defaultAgentEnabled)
 
-		if !BoolValue(agent.Enabled) {
-			return agent
+		if !BoolValue(daemonsetAgents.Enabled) {
+			return daemonsetAgents
 		}
 	}
 
-	agentOverride := &DatadogAgentSpecAgentSpec{}
-	if agent.Enabled == nil {
-		agent.Enabled = NewBoolPointer(defaultAgentEnabled)
-		agentOverride.Enabled = agent.Enabled
+	daemonsetAgentsOverride := &DatadogAgentSpecAgentSpec{}
+	if daemonsetAgents.Enabled == nil {
+		daemonsetAgents.Enabled = NewBoolPointer(defaultAgentEnabled)
+		daemonsetAgentsOverride.Enabled = daemonsetAgents.Enabled
 	}
 
-	if !BoolValue(agent.Enabled) {
-		return agentOverride
+	if !BoolValue(daemonsetAgents.Enabled) {
+		return daemonsetAgentsOverride
 	}
 
-	if agent.UseExtendedDaemonset == nil {
-		agent.UseExtendedDaemonset = NewBoolPointer(false)
-		agentOverride.UseExtendedDaemonset = agent.UseExtendedDaemonset
+	if daemonsetAgents.UseExtendedDaemonset == nil {
+		daemonsetAgents.UseExtendedDaemonset = NewBoolPointer(false)
+		daemonsetAgentsOverride.UseExtendedDaemonset = daemonsetAgents.UseExtendedDaemonset
 	}
 
-	if img := DefaultDatadogAgentSpecAgentImage(agent, defaultAgentImageName, defaultAgentImageTag); !IsEqualStruct(*img, ImageConfig{}) {
-		agentOverride.Image = img
+	if img := DefaultDatadogAgentSpecAgentImage(daemonsetAgents, defaultAgentImageName, defaultAgentImageTag); !IsEqualStruct(*img, ImageConfig{}) {
+		daemonsetAgentsOverride.Image = img
 	}
 
-	if cfg := DefaultDatadogAgentSpecAgentConfig(agent); !IsEqualStruct(*cfg, NodeAgentConfig{}) {
-		agentOverride.Config = cfg
+	if cfg := DefaultDatadogAgentSpecAgentConfig(daemonsetAgents); !IsEqualStruct(*cfg, NodeAgentSpec{}) {
+		daemonsetAgentsOverride.NodeAgent = cfg
 	}
 
-	if rbac := DefaultDatadogAgentSpecRbacConfig(agent); !IsEqualStruct(*rbac, RbacConfig{}) {
-		agentOverride.Rbac = rbac
+	if rbac := DefaultDatadogAgentSpecRbacConfig(daemonsetAgents); !IsEqualStruct(*rbac, RbacConfig{}) {
+		daemonsetAgentsOverride.Rbac = rbac
 	}
 
-	deployStrat := DefaultDatadogAgentSpecDatadogAgentStrategy(agent)
+	deployStrat := DefaultDatadogAgentSpecDatadogAgentStrategy(daemonsetAgents)
 	if !IsEqualStruct(*deployStrat, DaemonSetDeploymentStrategy{}) {
-		agentOverride.DeploymentStrategy = deployStrat
+		daemonsetAgentsOverride.DeploymentStrategy = deployStrat
 	}
 
-	if apm := DefaultDatadogAgentSpecAgentApm(agent); !IsEqualStruct(*apm, APMSpec{}) {
-		agentOverride.Apm = apm
+	if apm := DefaultDatadogAgentSpecAgentApm(daemonsetAgents); !IsEqualStruct(*apm, APMSpec{}) {
+		daemonsetAgentsOverride.Apm = apm
 	}
 
-	if sysProb := DefaultDatadogAgentSpecAgentSystemProbe(agent); !IsEqualStruct(*sysProb, SystemProbeSpec{}) {
-		agentOverride.SystemProbe = sysProb
+	if sysProb := DefaultDatadogAgentSpecAgentSystemProbe(daemonsetAgents); !IsEqualStruct(*sysProb, SystemProbeSpec{}) {
+		daemonsetAgentsOverride.SystemProbe = sysProb
 	}
 
-	if sec := DefaultDatadogAgentSpecAgentSecurity(agent); !IsEqualStruct(*sec, SecuritySpec{}) {
-		agentOverride.Security = sec
+	if sec := DefaultDatadogAgentSpecAgentSecurity(daemonsetAgents); !IsEqualStruct(*sec, SecuritySpec{}) {
+		daemonsetAgentsOverride.Security = sec
 	}
 
-	if proc := DefaultDatadogAgentSpecAgentProcess(agent); !IsEqualStruct(*proc, ProcessSpec{}) {
-		agentOverride.Process = proc
+	if proc := DefaultDatadogAgentSpecAgentProcess(daemonsetAgents); !IsEqualStruct(*proc, ProcessSpec{}) {
+		daemonsetAgentsOverride.Process = proc
 	}
 
-	if net := DefaultAgentNetworkPolicy(agent); !IsEqualStruct(*net, NetworkPolicySpec{}) {
-		agentOverride.NetworkPolicy = net
+	if net := DefaultAgentNetworkPolicy(daemonsetAgents); !IsEqualStruct(*net, NetworkPolicySpec{}) {
+		daemonsetAgentsOverride.NetworkPolicy = net
 	}
 
-	return agentOverride
+	return daemonsetAgentsOverride
 }
 
 // DefaultDatadogAgentSpecAgentImage used to default a ImageConfig for the Agent, Cluster Agent and the Cluster Check Runner.
@@ -297,82 +297,82 @@ func GetDefaultReadinessProbe() *corev1.Probe {
 
 // DefaultDatadogAgentSpecAgentConfig used to default a NodeAgentConfig
 // return the defaulted NodeAgentConfig
-func DefaultDatadogAgentSpecAgentConfig(agent *DatadogAgentSpecAgentSpec) *NodeAgentConfig {
-	configOverride := &NodeAgentConfig{}
+func DefaultDatadogAgentSpecAgentConfig(agents *DatadogAgentSpecAgentSpec) *NodeAgentSpec {
+	configOverride := &NodeAgentSpec{}
 
-	if agent.Config == nil {
-		agent.Config = &NodeAgentConfig{}
+	if agents.NodeAgent == nil {
+		agents.NodeAgent = &NodeAgentSpec{}
 	}
 
-	if agent.Config.LogLevel == nil {
-		agent.Config.LogLevel = NewStringPointer(defaultLogLevel)
-		configOverride.LogLevel = agent.Config.LogLevel
+	if agents.NodeAgent.ContainerConfig.LogLevel == nil {
+		agents.NodeAgent.ContainerConfig.LogLevel = NewStringPointer(defaultLogLevel)
+		agents.NodeAgent.ContainerConfig.LogLevel = agents.NodeAgent.ContainerConfig.LogLevel
 	}
 
-	if agent.Config.CollectEvents == nil {
-		agent.Config.CollectEvents = NewBoolPointer(defaultCollectEvents)
-		configOverride.CollectEvents = agent.Config.CollectEvents
+	if agents.NodeAgent.CollectEvents == nil {
+		agents.NodeAgent.CollectEvents = NewBoolPointer(defaultCollectEvents)
+		configOverride.CollectEvents = agents.NodeAgent.CollectEvents
 	}
 
-	if agent.Config.LeaderElection == nil {
-		agent.Config.LeaderElection = NewBoolPointer(defaultLeaderElection)
-		configOverride.LeaderElection = agent.Config.LeaderElection
+	if agents.NodeAgent.LeaderElection == nil {
+		agents.NodeAgent.LeaderElection = NewBoolPointer(defaultLeaderElection)
+		configOverride.LeaderElection = agents.NodeAgent.LeaderElection
 	}
 
 	// Don't default Docker/CRI paths with Agent >= 7.27.0
 	// Let Env AD do the work for us
 	// Image is defaulted prior to this function.
-	agentTag := strings.TrimSuffix(utils.GetTagFromImageName(agent.Image.Name), "-jmx")
+	agentTag := strings.TrimSuffix(utils.GetTagFromImageName(agents.Image.Name), "-jmx")
 	// Check against image tag + "-0"; otherwise prelease versions are not compared.
 	// (See https://github.com/Masterminds/semver#working-with-prerelease-versions)
 	if !(agentTag == "latest" || utils.IsAboveMinVersion(agentTag, "7.27.0-0") || utils.IsAboveMinVersion(agentTag, "6.27.0-0")) {
-		if socketOverride := DefaultContainerSocket(agent.Config); !IsEqualStruct(socketOverride, CRISocketConfig{}) {
+		if socketOverride := DefaultContainerSocket(agents.NodeAgent); !IsEqualStruct(socketOverride, CRISocketConfig{}) {
 			configOverride.CriSocket = socketOverride
 		}
 	}
 
-	if dsdOverride := DefaultConfigDogstatsd(agent.Config); !IsEqualStruct(dsdOverride, DogstatsdConfig{}) {
+	if dsdOverride := DefaultConfigDogstatsd(agents.NodeAgent); !IsEqualStruct(dsdOverride, DogstatsdConfig{}) {
 		configOverride.Dogstatsd = dsdOverride
 	}
 
-	if agent.Config.Resources == nil {
-		agent.Config.Resources = &corev1.ResourceRequirements{}
+	if agents.NodeAgent.ContainerConfig.Resources == nil {
+		agents.NodeAgent.ContainerConfig.Resources = &corev1.ResourceRequirements{}
 	}
 
-	if agent.Config.PodLabelsAsTags == nil {
-		agent.Config.PodLabelsAsTags = map[string]string{}
+	if agents.NodeAgent.PodLabelsAsTags == nil {
+		agents.NodeAgent.PodLabelsAsTags = map[string]string{}
 	}
 
-	if agent.Config.PodAnnotationsAsTags == nil {
-		agent.Config.PodAnnotationsAsTags = map[string]string{}
+	if agents.NodeAgent.PodAnnotationsAsTags == nil {
+		agents.NodeAgent.PodAnnotationsAsTags = map[string]string{}
 	}
 
-	if agent.Config.Tags == nil {
-		agent.Config.Tags = []string{}
+	if agents.NodeAgent.Tags == nil {
+		agents.NodeAgent.Tags = []string{}
 	}
 
-	if agent.Config.LivenessProbe == nil {
+	if agents.NodeAgent.ContainerConfig.LivenessProbe == nil {
 		// TODO make liveness probe's fields more configurable
-		agent.Config.LivenessProbe = GetDefaultLivenessProbe()
-		configOverride.LivenessProbe = agent.Config.LivenessProbe
+		agents.NodeAgent.ContainerConfig.LivenessProbe = GetDefaultLivenessProbe()
+		configOverride.ContainerConfig.LivenessProbe = agents.NodeAgent.ContainerConfig.LivenessProbe
 	}
 
-	if agent.Config.ReadinessProbe == nil {
+	if agents.NodeAgent.ContainerConfig.ReadinessProbe == nil {
 		// TODO make readiness probe's fields more configurable
-		agent.Config.ReadinessProbe = GetDefaultReadinessProbe()
-		configOverride.ReadinessProbe = agent.Config.ReadinessProbe
+		agents.NodeAgent.ContainerConfig.ReadinessProbe = GetDefaultReadinessProbe()
+		configOverride.ContainerConfig.ReadinessProbe = agents.NodeAgent.ContainerConfig.ReadinessProbe
 	}
 
-	if agent.Config.HealthPort == nil {
-		agent.Config.HealthPort = NewInt32Pointer(defaultAgentHealthPort)
-		configOverride.HealthPort = agent.Config.HealthPort
+	if agents.NodeAgent.ContainerConfig.HealthPort == nil {
+		agents.NodeAgent.ContainerConfig.HealthPort = NewInt32Pointer(defaultAgentHealthPort)
+		configOverride.ContainerConfig.HealthPort = agents.NodeAgent.ContainerConfig.HealthPort
 	}
 
 	return configOverride
 }
 
 // DefaultContainerSocket defaults the socket configuration for the Datadog Agent
-func DefaultContainerSocket(config *NodeAgentConfig) *CRISocketConfig {
+func DefaultContainerSocket(config *NodeAgentSpec) *CRISocketConfig {
 	if config.CriSocket == nil {
 		config.CriSocket = &CRISocketConfig{
 			DockerSocketPath: NewStringPointer(defaultDockerSocketPath),
@@ -388,7 +388,7 @@ func DefaultContainerSocket(config *NodeAgentConfig) *CRISocketConfig {
 }
 
 // DefaultConfigDogstatsd used to default Dogstatsd config in NodeAgentConfig
-func DefaultConfigDogstatsd(config *NodeAgentConfig) *DogstatsdConfig {
+func DefaultConfigDogstatsd(config *NodeAgentSpec) *DogstatsdConfig {
 	dsdOverride := &DogstatsdConfig{}
 	if config.Dogstatsd == nil {
 		config.Dogstatsd = &DogstatsdConfig{}
@@ -473,64 +473,64 @@ func DefaultDatadogAgentSpecRbacConfig(agent *DatadogAgentSpecAgentSpec) *RbacCo
 
 // DefaultDatadogAgentSpecDatadogAgentStrategy used to default a DaemonSetDeploymentStrategy
 // return the defaulted DaemonSetDeploymentStrategy
-func DefaultDatadogAgentSpecDatadogAgentStrategy(agent *DatadogAgentSpecAgentSpec) *DaemonSetDeploymentStrategy {
+func DefaultDatadogAgentSpecDatadogAgentStrategy(agents *DatadogAgentSpecAgentSpec) *DaemonSetDeploymentStrategy {
 	strategyOverride := &DaemonSetDeploymentStrategy{}
-	if agent.DeploymentStrategy == nil {
-		agent.DeploymentStrategy = &DaemonSetDeploymentStrategy{}
+	if agents.DeploymentStrategy == nil {
+		agents.DeploymentStrategy = &DaemonSetDeploymentStrategy{}
 	}
 
-	if agent.DeploymentStrategy.UpdateStrategyType == nil {
+	if agents.DeploymentStrategy.UpdateStrategyType == nil {
 		updateStrategy := defaultUpdateStrategy
-		agent.DeploymentStrategy.UpdateStrategyType = &updateStrategy
-		strategyOverride.UpdateStrategyType = agent.DeploymentStrategy.UpdateStrategyType
+		agents.DeploymentStrategy.UpdateStrategyType = &updateStrategy
+		strategyOverride.UpdateStrategyType = agents.DeploymentStrategy.UpdateStrategyType
 	}
 
-	if agent.DeploymentStrategy.RollingUpdate.MaxUnavailable == nil {
-		agent.DeploymentStrategy.RollingUpdate.MaxUnavailable = &intstr.IntOrString{
+	if agents.DeploymentStrategy.RollingUpdate.MaxUnavailable == nil {
+		agents.DeploymentStrategy.RollingUpdate.MaxUnavailable = &intstr.IntOrString{
 			Type:   intstr.String,
 			StrVal: defaultRollingUpdateMaxUnavailable,
 		}
-		strategyOverride.RollingUpdate.MaxUnavailable = agent.DeploymentStrategy.RollingUpdate.MaxUnavailable
+		strategyOverride.RollingUpdate.MaxUnavailable = agents.DeploymentStrategy.RollingUpdate.MaxUnavailable
 	}
 
-	if agent.DeploymentStrategy.RollingUpdate.MaxPodSchedulerFailure == nil {
-		agent.DeploymentStrategy.RollingUpdate.MaxPodSchedulerFailure = &intstr.IntOrString{
+	if agents.DeploymentStrategy.RollingUpdate.MaxPodSchedulerFailure == nil {
+		agents.DeploymentStrategy.RollingUpdate.MaxPodSchedulerFailure = &intstr.IntOrString{
 			Type:   intstr.String,
 			StrVal: defaultRollingUpdateMaxPodSchedulerFailure,
 		}
-		strategyOverride.RollingUpdate.MaxPodSchedulerFailure = agent.DeploymentStrategy.RollingUpdate.MaxPodSchedulerFailure
+		strategyOverride.RollingUpdate.MaxPodSchedulerFailure = agents.DeploymentStrategy.RollingUpdate.MaxPodSchedulerFailure
 	}
 
-	if agent.DeploymentStrategy.RollingUpdate.MaxParallelPodCreation == nil {
-		agent.DeploymentStrategy.RollingUpdate.MaxParallelPodCreation = NewInt32Pointer(defaultRollingUpdateMaxParallelPodCreation)
-		strategyOverride.RollingUpdate.MaxParallelPodCreation = agent.DeploymentStrategy.RollingUpdate.MaxParallelPodCreation
+	if agents.DeploymentStrategy.RollingUpdate.MaxParallelPodCreation == nil {
+		agents.DeploymentStrategy.RollingUpdate.MaxParallelPodCreation = NewInt32Pointer(defaultRollingUpdateMaxParallelPodCreation)
+		strategyOverride.RollingUpdate.MaxParallelPodCreation = agents.DeploymentStrategy.RollingUpdate.MaxParallelPodCreation
 	}
 
-	if agent.DeploymentStrategy.RollingUpdate.SlowStartIntervalDuration == nil {
-		agent.DeploymentStrategy.RollingUpdate.SlowStartIntervalDuration = &metav1.Duration{
+	if agents.DeploymentStrategy.RollingUpdate.SlowStartIntervalDuration == nil {
+		agents.DeploymentStrategy.RollingUpdate.SlowStartIntervalDuration = &metav1.Duration{
 			Duration: defaultRollingUpdateSlowStartIntervalDuration,
 		}
-		strategyOverride.RollingUpdate.SlowStartIntervalDuration = agent.DeploymentStrategy.RollingUpdate.SlowStartIntervalDuration
+		strategyOverride.RollingUpdate.SlowStartIntervalDuration = agents.DeploymentStrategy.RollingUpdate.SlowStartIntervalDuration
 	}
 
-	if agent.DeploymentStrategy.RollingUpdate.SlowStartAdditiveIncrease == nil {
-		agent.DeploymentStrategy.RollingUpdate.SlowStartAdditiveIncrease = &intstr.IntOrString{
+	if agents.DeploymentStrategy.RollingUpdate.SlowStartAdditiveIncrease == nil {
+		agents.DeploymentStrategy.RollingUpdate.SlowStartAdditiveIncrease = &intstr.IntOrString{
 			Type:   intstr.String,
 			StrVal: defaultRollingUpdateSlowStartAdditiveIncrease,
 		}
-		strategyOverride.RollingUpdate.SlowStartAdditiveIncrease = agent.DeploymentStrategy.RollingUpdate.SlowStartAdditiveIncrease
+		strategyOverride.RollingUpdate.SlowStartAdditiveIncrease = agents.DeploymentStrategy.RollingUpdate.SlowStartAdditiveIncrease
 	}
 
-	if agent.DeploymentStrategy.Canary == nil {
-		agent.DeploymentStrategy.Canary = edsdatadoghqv1alpha1.DefaultExtendedDaemonSetSpecStrategyCanary(&edsdatadoghqv1alpha1.ExtendedDaemonSetSpecStrategyCanary{})
-		strategyOverride.Canary = agent.DeploymentStrategy.Canary
+	if agents.DeploymentStrategy.Canary == nil {
+		agents.DeploymentStrategy.Canary = edsdatadoghqv1alpha1.DefaultExtendedDaemonSetSpecStrategyCanary(&edsdatadoghqv1alpha1.ExtendedDaemonSetSpecStrategyCanary{})
+		strategyOverride.Canary = agents.DeploymentStrategy.Canary
 	}
 
-	if agent.DeploymentStrategy.ReconcileFrequency == nil {
-		agent.DeploymentStrategy.ReconcileFrequency = &metav1.Duration{
+	if agents.DeploymentStrategy.ReconcileFrequency == nil {
+		agents.DeploymentStrategy.ReconcileFrequency = &metav1.Duration{
 			Duration: defaultReconcileFrequency,
 		}
-		strategyOverride.ReconcileFrequency = agent.DeploymentStrategy.ReconcileFrequency
+		strategyOverride.ReconcileFrequency = agents.DeploymentStrategy.ReconcileFrequency
 	}
 
 	return strategyOverride
@@ -538,33 +538,33 @@ func DefaultDatadogAgentSpecDatadogAgentStrategy(agent *DatadogAgentSpecAgentSpe
 
 // DefaultDatadogAgentSpecAgentApm used to default an APMSpec
 // return the defaulted APMSpec
-func DefaultDatadogAgentSpecAgentApm(agent *DatadogAgentSpecAgentSpec) *APMSpec {
-	if agent.Apm == nil {
-		agent.Apm = &APMSpec{Enabled: NewBoolPointer(defaultApmEnabled)}
-		return agent.Apm
+func DefaultDatadogAgentSpecAgentApm(agents *DatadogAgentSpecAgentSpec) *APMSpec {
+	if agents.Apm == nil {
+		agents.Apm = &APMSpec{Enabled: NewBoolPointer(defaultApmEnabled)}
+		return agents.Apm
 	}
 
 	apmOverride := &APMSpec{}
-	if agent.Apm.Enabled == nil {
-		agent.Apm.Enabled = NewBoolPointer(defaultApmEnabled)
-		apmOverride.Enabled = agent.Apm.Enabled
+	if agents.Apm.Enabled == nil {
+		agents.Apm.Enabled = NewBoolPointer(defaultApmEnabled)
+		apmOverride.Enabled = agents.Apm.Enabled
 	}
 
-	if !BoolValue(agent.Apm.Enabled) {
+	if !BoolValue(agents.Apm.Enabled) {
 		return apmOverride
 	}
 
-	if agent.Apm.HostPort == nil {
-		agent.Apm.HostPort = NewInt32Pointer(defaultApmHostPort)
-		apmOverride.HostPort = agent.Apm.HostPort
+	if agents.Apm.HostPort == nil {
+		agents.Apm.HostPort = NewInt32Pointer(defaultApmHostPort)
+		apmOverride.HostPort = agents.Apm.HostPort
 	}
 
-	if agent.Apm.LivenessProbe == nil {
-		agent.Apm.LivenessProbe = getDefaultAPMAgentLivenessProbe()
-		apmOverride.LivenessProbe = agent.Apm.LivenessProbe
+	if agents.Apm.ContainerConfig.LivenessProbe == nil {
+		agents.Apm.ContainerConfig.LivenessProbe = getDefaultAPMAgentLivenessProbe()
+		apmOverride.ContainerConfig.LivenessProbe = agents.Apm.ContainerConfig.LivenessProbe
 	}
 
-	if udsOverride := DefaultDatadogAgentSpecAgentApmUDS(agent.Apm); !IsEqualStruct(udsOverride, APMUnixDomainSocketSpec{}) {
+	if udsOverride := DefaultDatadogAgentSpecAgentApmUDS(agents.Apm); !IsEqualStruct(udsOverride, APMUnixDomainSocketSpec{}) {
 		apmOverride.UnixDomainSocket = udsOverride
 	}
 
@@ -614,90 +614,90 @@ func DefaultDatadogAgentSpecAgentApmUDS(apm *APMSpec) *APMUnixDomainSocketSpec {
 
 // DefaultDatadogAgentSpecAgentSystemProbe defaults the System Probe
 // This method can be re-run as part of the FeatureOverride
-func DefaultDatadogAgentSpecAgentSystemProbe(agent *DatadogAgentSpecAgentSpec) *SystemProbeSpec {
-	if agent.SystemProbe == nil {
-		agent.SystemProbe = &SystemProbeSpec{Enabled: NewBoolPointer(defaultSystemProbeEnabled)}
-		return agent.SystemProbe
+func DefaultDatadogAgentSpecAgentSystemProbe(agents *DatadogAgentSpecAgentSpec) *SystemProbeSpec {
+	if agents.SystemProbe == nil {
+		agents.SystemProbe = &SystemProbeSpec{Enabled: NewBoolPointer(defaultSystemProbeEnabled)}
+		return agents.SystemProbe
 	}
 
 	sysOverride := &SystemProbeSpec{}
-	if agent.SystemProbe.Enabled == nil {
-		agent.SystemProbe.Enabled = NewBoolPointer(defaultSystemProbeEnabled)
-		sysOverride.Enabled = agent.SystemProbe.Enabled
+	if agents.SystemProbe.Enabled == nil {
+		agents.SystemProbe.Enabled = NewBoolPointer(defaultSystemProbeEnabled)
+		sysOverride.Enabled = agents.SystemProbe.Enabled
 	}
 
-	if !BoolValue(agent.SystemProbe.Enabled) {
+	if !BoolValue(agents.SystemProbe.Enabled) {
 		return sysOverride
 	}
 
-	if agent.SystemProbe.EnableOOMKill == nil {
-		agent.SystemProbe.EnableOOMKill = NewBoolPointer(defaultSystemProbeOOMKillEnabled)
-		sysOverride.EnableOOMKill = agent.SystemProbe.EnableOOMKill
+	if agents.SystemProbe.EnableOOMKill == nil {
+		agents.SystemProbe.EnableOOMKill = NewBoolPointer(defaultSystemProbeOOMKillEnabled)
+		sysOverride.EnableOOMKill = agents.SystemProbe.EnableOOMKill
 	}
 
-	if agent.SystemProbe.EnableTCPQueueLength == nil {
-		agent.SystemProbe.EnableTCPQueueLength = NewBoolPointer(defaultSystemProbeTCPQueueLengthEnabled)
-		sysOverride.EnableTCPQueueLength = agent.SystemProbe.EnableTCPQueueLength
+	if agents.SystemProbe.EnableTCPQueueLength == nil {
+		agents.SystemProbe.EnableTCPQueueLength = NewBoolPointer(defaultSystemProbeTCPQueueLengthEnabled)
+		sysOverride.EnableTCPQueueLength = agents.SystemProbe.EnableTCPQueueLength
 	}
 
-	if agent.SystemProbe.BPFDebugEnabled == nil {
-		agent.SystemProbe.BPFDebugEnabled = NewBoolPointer(defaultSystemProbeBPFDebugEnabled)
-		sysOverride.BPFDebugEnabled = agent.SystemProbe.BPFDebugEnabled
+	if agents.SystemProbe.BPFDebugEnabled == nil {
+		agents.SystemProbe.BPFDebugEnabled = NewBoolPointer(defaultSystemProbeBPFDebugEnabled)
+		sysOverride.BPFDebugEnabled = agents.SystemProbe.BPFDebugEnabled
 	}
 
-	if agent.SystemProbe.CollectDNSStats == nil {
-		agent.SystemProbe.CollectDNSStats = NewBoolPointer(defaultSystemProbeCollectDNSStats)
-		sysOverride.CollectDNSStats = agent.SystemProbe.CollectDNSStats
+	if agents.SystemProbe.CollectDNSStats == nil {
+		agents.SystemProbe.CollectDNSStats = NewBoolPointer(defaultSystemProbeCollectDNSStats)
+		sysOverride.CollectDNSStats = agents.SystemProbe.CollectDNSStats
 	}
 
-	if agent.SystemProbe.ConntrackEnabled == nil {
-		agent.SystemProbe.ConntrackEnabled = NewBoolPointer(defaultSystemProbeConntrackEnabled)
-		sysOverride.ConntrackEnabled = agent.SystemProbe.ConntrackEnabled
+	if agents.SystemProbe.ConntrackEnabled == nil {
+		agents.SystemProbe.ConntrackEnabled = NewBoolPointer(defaultSystemProbeConntrackEnabled)
+		sysOverride.ConntrackEnabled = agents.SystemProbe.ConntrackEnabled
 	}
 
-	if agent.SystemProbe.SecCompRootPath == "" {
-		agent.SystemProbe.SecCompRootPath = defaultSystemProbeSecCompRootPath
-		sysOverride.SecCompRootPath = agent.SystemProbe.SecCompRootPath
+	if agents.SystemProbe.SecCompRootPath == "" {
+		agents.SystemProbe.SecCompRootPath = defaultSystemProbeSecCompRootPath
+		sysOverride.SecCompRootPath = agents.SystemProbe.SecCompRootPath
 	}
 
-	if agent.SystemProbe.AppArmorProfileName == "" {
-		agent.SystemProbe.AppArmorProfileName = defaultAppArmorProfileName
-		sysOverride.AppArmorProfileName = agent.SystemProbe.AppArmorProfileName
+	if agents.SystemProbe.AppArmorProfileName == "" {
+		agents.SystemProbe.AppArmorProfileName = defaultAppArmorProfileName
+		sysOverride.AppArmorProfileName = agents.SystemProbe.AppArmorProfileName
 	}
 
-	if agent.SystemProbe.SecCompProfileName == "" {
-		agent.SystemProbe.SecCompProfileName = DefaultSeccompProfileName
-		sysOverride.SecCompProfileName = agent.SystemProbe.SecCompProfileName
+	if agents.SystemProbe.SecCompProfileName == "" {
+		agents.SystemProbe.SecCompProfileName = DefaultSeccompProfileName
+		sysOverride.SecCompProfileName = agents.SystemProbe.SecCompProfileName
 	}
 	return sysOverride
 }
 
 // DefaultDatadogAgentSpecAgentSecurity defaults the Security Agent in the DatadogAgentSpec
-func DefaultDatadogAgentSpecAgentSecurity(agent *DatadogAgentSpecAgentSpec) *SecuritySpec {
+func DefaultDatadogAgentSpecAgentSecurity(agents *DatadogAgentSpecAgentSpec) *SecuritySpec {
 	secOverride := &SecuritySpec{}
 
-	if agent.Security == nil {
-		agent.Security = &SecuritySpec{}
+	if agents.Security == nil {
+		agents.Security = &SecuritySpec{}
 	}
 
-	if agent.Security.Compliance.Enabled == nil {
-		agent.Security.Compliance.Enabled = NewBoolPointer(defaultSecurityComplianceEnabled)
-		secOverride.Compliance.Enabled = agent.Security.Compliance.Enabled
+	if agents.Security.Compliance.Enabled == nil {
+		agents.Security.Compliance.Enabled = NewBoolPointer(defaultSecurityComplianceEnabled)
+		secOverride.Compliance.Enabled = agents.Security.Compliance.Enabled
 	}
 
-	if agent.Security.Runtime.Enabled == nil {
-		agent.Security.Runtime.Enabled = NewBoolPointer(defaultSecurityRuntimeEnabled)
-		secOverride.Runtime.Enabled = agent.Security.Runtime.Enabled
+	if agents.Security.Runtime.Enabled == nil {
+		agents.Security.Runtime.Enabled = NewBoolPointer(defaultSecurityRuntimeEnabled)
+		secOverride.Runtime.Enabled = agents.Security.Runtime.Enabled
 	}
 
-	if agent.Security.Runtime.SyscallMonitor == nil {
-		agent.Security.Runtime.SyscallMonitor = &SyscallMonitorSpec{}
-		secOverride.Runtime.SyscallMonitor = agent.Security.Runtime.SyscallMonitor
+	if agents.Security.Runtime.SyscallMonitor == nil {
+		agents.Security.Runtime.SyscallMonitor = &SyscallMonitorSpec{}
+		secOverride.Runtime.SyscallMonitor = agents.Security.Runtime.SyscallMonitor
 	}
 
-	if agent.Security.Runtime.SyscallMonitor.Enabled == nil {
-		agent.Security.Runtime.SyscallMonitor.Enabled = NewBoolPointer(defaultSecuritySyscallMonitorEnabled)
-		secOverride.Runtime.SyscallMonitor.Enabled = agent.Security.Runtime.SyscallMonitor.Enabled
+	if agents.Security.Runtime.SyscallMonitor.Enabled == nil {
+		agents.Security.Runtime.SyscallMonitor.Enabled = NewBoolPointer(defaultSecuritySyscallMonitorEnabled)
+		secOverride.Runtime.SyscallMonitor.Enabled = agents.Security.Runtime.SyscallMonitor.Enabled
 	}
 
 	return secOverride
@@ -761,26 +761,26 @@ func DefaultDatadogFeatureLogCollection(ft *DatadogFeatures) *LogCollectionConfi
 
 // DefaultDatadogAgentSpecAgentProcess used to default an ProcessSpec
 // return the defaulted ProcessSpec
-func DefaultDatadogAgentSpecAgentProcess(agent *DatadogAgentSpecAgentSpec) *ProcessSpec {
-	if agent.Process == nil {
-		agent.Process = &ProcessSpec{Enabled: NewBoolPointer(defaultProcessEnabled)}
-		return agent.Process
+func DefaultDatadogAgentSpecAgentProcess(agents *DatadogAgentSpecAgentSpec) *ProcessSpec {
+	if agents.Process == nil {
+		agents.Process = &ProcessSpec{Enabled: NewBoolPointer(defaultProcessEnabled)}
+		return agents.Process
 	}
 
 	processOverride := &ProcessSpec{}
 
-	if agent.Process.Enabled == nil {
-		agent.Process.Enabled = NewBoolPointer(defaultProcessEnabled)
-		processOverride.Enabled = agent.Process.Enabled
+	if agents.Process.Enabled == nil {
+		agents.Process.Enabled = NewBoolPointer(defaultProcessEnabled)
+		processOverride.Enabled = agents.Process.Enabled
 	}
 
-	if !BoolValue(agent.Process.Enabled) {
+	if !BoolValue(agents.Process.Enabled) {
 		return processOverride
 	}
 
-	if agent.Process.ProcessCollectionEnabled == nil {
-		agent.Process.ProcessCollectionEnabled = NewBoolPointer(defaultProcessCollectionEnabled)
-		processOverride.ProcessCollectionEnabled = agent.Process.ProcessCollectionEnabled
+	if agents.Process.ProcessCollectionEnabled == nil {
+		agents.Process.ProcessCollectionEnabled = NewBoolPointer(defaultProcessCollectionEnabled)
+		processOverride.ProcessCollectionEnabled = agents.Process.ProcessCollectionEnabled
 	}
 
 	return processOverride
@@ -979,46 +979,46 @@ func DefaultDatadogAgentSpecClusterAgent(clusterAgent *DatadogAgentSpecClusterAg
 func DefaultDatadogAgentSpecClusterAgentConfig(dca *DatadogAgentSpecClusterAgentSpec) *ClusterAgentConfig {
 	configOverride := &ClusterAgentConfig{}
 
-	if dca.Config == nil {
+	if dca.CustomConfig == nil {
 		dca.Config = &ClusterAgentConfig{}
 	}
 
-	if dca.Config.LogLevel == nil {
-		dca.Config.LogLevel = NewStringPointer(defaultLogLevel)
-		configOverride.LogLevel = dca.Config.LogLevel
+	if dca.Config.ContainerConfig.LogLevel == nil {
+		dca.Config.ContainerConfig.LogLevel = NewStringPointer(defaultLogLevel)
+		configOverride.ContainerConfig.LogLevel = dca.Config.ContainerConfig.LogLevel
 	}
 
-	if extMetricsOverride := DefaultExternalMetrics(dca.Config); !IsEqualStruct(extMetricsOverride, ExternalMetricsConfig{}) {
-		configOverride.ExternalMetrics = extMetricsOverride
+	if extMetricsOverride := DefaultExternalMetrics(dca.Config.Features); !IsEqualStruct(extMetricsOverride, ExternalMetricsConfig{}) {
+		configOverride.Features.ExternalMetrics = extMetricsOverride
 	}
 
-	if dca.Config.ClusterChecksEnabled == nil {
-		dca.Config.ClusterChecksEnabled = NewBoolPointer(defaultClusterChecksEnabled)
-		configOverride.ClusterChecksEnabled = dca.Config.ClusterChecksEnabled
+	if dca.Config.Features.ClusterChecksEnabled == nil {
+		dca.Config.Features.ClusterChecksEnabled = NewBoolPointer(defaultClusterChecksEnabled)
+		configOverride.Features.ClusterChecksEnabled = dca.Config.Features.ClusterChecksEnabled
 	}
 
-	if dca.Config.CollectEvents == nil {
-		dca.Config.CollectEvents = NewBoolPointer(defaultCollectEvents)
-		configOverride.CollectEvents = dca.Config.CollectEvents
+	if dca.Config.Features.CollectEvents == nil {
+		dca.Config.Features.CollectEvents = NewBoolPointer(defaultCollectEvents)
+		configOverride.Features.CollectEvents = dca.Config.Features.CollectEvents
 	}
-	if admCtrlOverride := DefaultAdmissionController(dca.Config); !IsEqualStruct(admCtrlOverride, AdmissionControllerConfig{}) {
-		configOverride.AdmissionController = admCtrlOverride
-	}
-
-	if dca.Config.Resources == nil {
-		dca.Config.Resources = &corev1.ResourceRequirements{}
+	if admCtrlOverride := DefaultAdmissionController(dca.Config.Features); !IsEqualStruct(admCtrlOverride, AdmissionControllerConfig{}) {
+		configOverride.Features.AdmissionController = admCtrlOverride
 	}
 
-	if dca.Config.HealthPort == nil {
-		dca.Config.HealthPort = NewInt32Pointer(defaultAgentHealthPort)
-		configOverride.HealthPort = dca.Config.HealthPort
+	if dca.Config.ContainerConfig.Resources == nil {
+		dca.Config.ContainerConfig.Resources = &corev1.ResourceRequirements{}
+	}
+
+	if dca.Config.ContainerConfig.HealthPort == nil {
+		dca.Config.ContainerConfig.HealthPort = NewInt32Pointer(defaultAgentHealthPort)
+		configOverride.ContainerConfig.HealthPort = dca.Config.ContainerConfig.HealthPort
 	}
 
 	return configOverride
 }
 
 // DefaultExternalMetrics defaults the External Metrics Server's config in the Cluster Agent's config
-func DefaultExternalMetrics(conf *ClusterAgentConfig) *ExternalMetricsConfig {
+func DefaultExternalMetrics(conf *FeaturesConfigClusterAgent) *ExternalMetricsConfig {
 	if conf.ExternalMetrics == nil {
 		conf.ExternalMetrics = &ExternalMetricsConfig{Enabled: NewBoolPointer(defaultExternalMetricsEnabled)}
 
@@ -1043,7 +1043,7 @@ func DefaultExternalMetrics(conf *ClusterAgentConfig) *ExternalMetricsConfig {
 }
 
 // DefaultAdmissionController defaults the Admission Controller's config in the Cluster Agent's config
-func DefaultAdmissionController(conf *ClusterAgentConfig) *AdmissionControllerConfig {
+func DefaultAdmissionController(conf *FeaturesConfigClusterAgent) *AdmissionControllerConfig {
 	if conf.AdmissionController == nil {
 		conf.AdmissionController = &AdmissionControllerConfig{Enabled: NewBoolPointer(defaultAdmissionControllerEnabled)}
 
@@ -1124,7 +1124,7 @@ func DefaultDatadogAgentSpecClusterChecksRunner(clusterChecksRunner *DatadogAgen
 	}
 
 	if cfg := DefaultDatadogAgentSpecClusterChecksRunnerConfig(clusterChecksRunner); !IsEqualStruct(cfg, ClusterChecksRunnerConfig{}) {
-		clcOverride.Config = cfg
+		clcOverride.ContainerConfig = cfg
 	}
 
 	if rbac := DefaultDatadogClusterCheckRunnerSpecRbacConfig(clusterChecksRunner); !IsEqualStruct(rbac, RbacConfig{}) {
@@ -1170,36 +1170,36 @@ func DefaultDatadogAgentSpecClusterChecksRunnerImage(clc *DatadogAgentSpecCluste
 
 // DefaultDatadogAgentSpecClusterChecksRunnerConfig used to default an ClusterChecksRunnerConfig
 // return the defaulted ClusterChecksRunnerConfig
-func DefaultDatadogAgentSpecClusterChecksRunnerConfig(clc *DatadogAgentSpecClusterChecksRunnerSpec) *ClusterChecksRunnerConfig {
-	configOverride := &ClusterChecksRunnerConfig{}
+func DefaultDatadogAgentSpecClusterChecksRunnerConfig(clc *DatadogAgentSpecClusterChecksRunnerSpec) *DatadogAgentGenericContainerConfig {
+	configOverride := &DatadogAgentGenericContainerConfig{}
 
-	if clc.Config == nil {
-		clc.Config = &ClusterChecksRunnerConfig{}
+	if clc.ContainerConfig == nil {
+		clc.ContainerConfig = &DatadogAgentGenericContainerConfig{}
 	}
 
-	if clc.Config.LogLevel == nil {
-		clc.Config.LogLevel = NewStringPointer(defaultLogLevel)
-		configOverride.LogLevel = clc.Config.LogLevel
+	if clc.ContainerConfig.LogLevel == nil {
+		clc.ContainerConfig.LogLevel = NewStringPointer(defaultLogLevel)
+		configOverride.LogLevel = clc.ContainerConfig.LogLevel
 	}
 
-	if clc.Config.LivenessProbe == nil {
+	if clc.ContainerConfig.LivenessProbe == nil {
 		// TODO make liveness probe's fields more configurable
-		clc.Config.LivenessProbe = GetDefaultLivenessProbe()
-		configOverride.LivenessProbe = clc.Config.LivenessProbe
+		clc.ContainerConfig.LivenessProbe = GetDefaultLivenessProbe()
+		configOverride.LivenessProbe = clc.ContainerConfig.LivenessProbe
 	}
 
-	if clc.Config.ReadinessProbe == nil {
+	if clc.ContainerConfig.ReadinessProbe == nil {
 		// TODO make readiness probe's fields more configurable
-		clc.Config.ReadinessProbe = GetDefaultReadinessProbe()
-		configOverride.ReadinessProbe = clc.Config.ReadinessProbe
+		clc.ContainerConfig.ReadinessProbe = GetDefaultReadinessProbe()
+		configOverride.ReadinessProbe = clc.ContainerConfig.ReadinessProbe
 	}
-	if clc.Config.HealthPort == nil {
-		clc.Config.HealthPort = NewInt32Pointer(defaultAgentHealthPort)
-		configOverride.HealthPort = clc.Config.HealthPort
+	if clc.ContainerConfig.HealthPort == nil {
+		clc.ContainerConfig.HealthPort = NewInt32Pointer(defaultAgentHealthPort)
+		configOverride.HealthPort = clc.ContainerConfig.HealthPort
 	}
 
-	if clc.Config.Resources == nil {
-		clc.Config.Resources = &corev1.ResourceRequirements{}
+	if clc.ContainerConfig.Resources == nil {
+		clc.ContainerConfig.Resources = &corev1.ResourceRequirements{}
 	}
 	return configOverride
 }

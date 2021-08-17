@@ -42,7 +42,7 @@ type NewDatadogAgentOptions struct {
 	MetricsServerCredentials         *datadoghqv1alpha1.DatadogCredentials
 	ClusterChecksEnabled             bool
 	KubeStateMetricsCore             *datadoghqv1alpha1.KubeStateMetricsCore
-	NodeAgentConfig                  *datadoghqv1alpha1.NodeAgentConfig
+	NodeAgentSpec                    *datadoghqv1alpha1.NodeAgentSpec
 	APMEnabled                       bool
 	ProcessEnabled                   bool
 	ProcessCollectionEnabled         bool
@@ -113,7 +113,7 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 				Name:       defaultImage,
 				PullPolicy: &pullPolicy,
 			},
-			Config:             &datadoghqv1alpha1.NodeAgentConfig{},
+			NodeAgent:          &datadoghqv1alpha1.NodeAgentSpec{},
 			DeploymentStrategy: &datadoghqv1alpha1.DaemonSetDeploymentStrategy{},
 			Apm:                &datadoghqv1alpha1.APMSpec{},
 			Security:           &datadoghqv1alpha1.SecuritySpec{},
@@ -166,7 +166,7 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 		}
 
 		if options.HostPort != 0 {
-			ad.Spec.Agent.Config.HostPort = &options.HostPort
+			ad.Spec.Agent.NodeAgent.HostPort = &options.HostPort
 		}
 
 		if options.Status != nil {
@@ -174,13 +174,13 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 		}
 
 		if len(options.Volumes) != 0 {
-			ad.Spec.Agent.Config.Volumes = options.Volumes
+			ad.Spec.Agent.NodeAgent.Volumes = options.Volumes
 		}
 		if len(options.VolumeMounts) != 0 {
-			ad.Spec.Agent.Config.VolumeMounts = options.VolumeMounts
-			ad.Spec.Agent.Process.VolumeMounts = options.VolumeMounts
-			ad.Spec.Agent.Apm.VolumeMounts = options.VolumeMounts
-			ad.Spec.Agent.Security.VolumeMounts = options.VolumeMounts
+			ad.Spec.Agent.NodeAgent.ContainerConfig.VolumeMounts = options.VolumeMounts
+			ad.Spec.Agent.Process.ContainerConfig.VolumeMounts = options.VolumeMounts
+			ad.Spec.Agent.Apm.ContainerConfig.VolumeMounts = options.VolumeMounts
+			ad.Spec.Agent.Security.ContainerConfig.VolumeMounts = options.VolumeMounts
 		}
 		if options.ClusterAgentEnabled {
 			config := &datadoghqv1alpha1.ClusterAgentConfig{}
@@ -222,21 +222,21 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 					externalMetricsConfig.Credentials = options.MetricsServerCredentials
 				}
 
-				ad.Spec.ClusterAgent.Config.ExternalMetrics = &externalMetricsConfig
+				ad.Spec.ClusterAgent.Config.Features.ExternalMetrics = &externalMetricsConfig
 			}
 
 			if options.AdmissionControllerEnabled {
-				ad.Spec.ClusterAgent.Config.AdmissionController = &datadoghqv1alpha1.AdmissionControllerConfig{
+				ad.Spec.ClusterAgent.Config.Features.AdmissionController = &datadoghqv1alpha1.AdmissionControllerConfig{
 					Enabled:          datadoghqv1alpha1.NewBoolPointer(true),
 					MutateUnlabelled: &options.AdmissionMutateUnlabelled,
 				}
 				if options.AdmissionServiceName != "" {
-					ad.Spec.ClusterAgent.Config.AdmissionController.ServiceName = &options.AdmissionServiceName
+					ad.Spec.ClusterAgent.Config.Features.AdmissionController.ServiceName = &options.AdmissionServiceName
 				}
 			}
 
 			if options.ClusterChecksEnabled {
-				ad.Spec.ClusterAgent.Config.ClusterChecksEnabled = datadoghqv1alpha1.NewBoolPointer(true)
+				ad.Spec.ClusterAgent.Config.Features.ClusterChecksEnabled = datadoghqv1alpha1.NewBoolPointer(true)
 			}
 
 			if options.KubeStateMetricsCore != nil {
@@ -244,13 +244,13 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 			}
 
 			if len(options.ClusterAgentVolumes) != 0 {
-				ad.Spec.ClusterAgent.Config.Volumes = options.ClusterAgentVolumes
+				ad.Spec.ClusterAgent.Config.Features.Volumes = options.ClusterAgentVolumes
 			}
 			if len(options.ClusterAgentVolumeMounts) != 0 {
-				ad.Spec.ClusterAgent.Config.VolumeMounts = options.ClusterAgentVolumeMounts
+				ad.Spec.ClusterAgent.Config.ContainerConfig.VolumeMounts = options.ClusterAgentVolumeMounts
 			}
 			if len(options.ClusterAgentEnvVars) != 0 {
-				ad.Spec.ClusterAgent.Config.Env = options.ClusterAgentEnvVars
+				ad.Spec.ClusterAgent.Config.ContainerConfig.Env = options.ClusterAgentEnvVars
 			}
 		} else {
 			ad.Spec.ClusterAgent = datadoghqv1alpha1.DatadogAgentSpecClusterAgentSpec{
@@ -260,8 +260,8 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 
 		if options.ClusterChecksRunnerEnabled {
 			ad.Spec.ClusterChecksRunner = datadoghqv1alpha1.DatadogAgentSpecClusterChecksRunnerSpec{
-				Enabled: datadoghqv1alpha1.NewBoolPointer(true),
-				Config:  &datadoghqv1alpha1.ClusterChecksRunnerConfig{},
+				Enabled:         datadoghqv1alpha1.NewBoolPointer(true),
+				ContainerConfig: &datadoghqv1alpha1.DatadogAgentGenericContainerConfig{},
 				Rbac: &datadoghqv1alpha1.RbacConfig{
 					Create: datadoghqv1alpha1.NewBoolPointer(true),
 				},
@@ -271,15 +271,15 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 			}
 
 			if len(options.ClusterChecksRunnerEnvVars) != 0 {
-				ad.Spec.ClusterChecksRunner.Config.Env = options.ClusterChecksRunnerEnvVars
+				ad.Spec.ClusterChecksRunner.ContainerConfig.Env = options.ClusterChecksRunnerEnvVars
 			}
 
 			if len(options.ClusterChecksRunnerVolumes) != 0 {
-				ad.Spec.ClusterChecksRunner.Config.VolumeMounts = options.ClusterChecksRunnerVolumeMounts
+				ad.Spec.ClusterChecksRunner.ContainerConfig.VolumeMounts = options.ClusterChecksRunnerVolumeMounts
 			}
 
 			if len(options.ClusterChecksRunnerVolumes) != 0 {
-				ad.Spec.ClusterChecksRunner.Config.Volumes = options.ClusterChecksRunnerVolumes
+				ad.Spec.ClusterChecksRunner.Volumes = options.ClusterChecksRunnerVolumes
 			}
 
 			if options.ClusterChecksRunnerReplicas != nil {
@@ -287,8 +287,8 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 			}
 		}
 
-		if options.NodeAgentConfig != nil {
-			ad.Spec.Agent.Config = options.NodeAgentConfig
+		if options.NodeAgentSpec != nil {
+			ad.Spec.Agent.NodeAgent = options.NodeAgentSpec
 		}
 
 		if options.APMEnabled {
@@ -339,11 +339,11 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 		}
 
 		if options.Confd != nil {
-			ad.Spec.Agent.Config.Confd = options.Confd
+			ad.Spec.Agent.NodeAgent.Confd = options.Confd
 		}
 
 		if options.Checksd != nil {
-			ad.Spec.Agent.Config.Checksd = options.Checksd
+			ad.Spec.Agent.NodeAgent.Checksd = options.Checksd
 		}
 
 		if options.CustomConfig != "" {

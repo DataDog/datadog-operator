@@ -353,12 +353,14 @@ func Test_newClusterAgentDeploymentFromInstance(t *testing.T) {
 				&test.NewDatadogAgentOptions{
 					ClusterAgentEnabled: true,
 					ClusterAgentConfd: &datadoghqv1alpha1.ClusterAgentConfig{
-						Confd: &datadoghqv1alpha1.ConfigDirSpec{
-							ConfigMapName: "my-confd",
-							Items: []v1.KeyToPath{
-								{
-									Key:  "foo.d--foo.yaml",
-									Path: "foo.d/foo.yaml",
+						Features: &datadoghqv1alpha1.FeaturesConfigClusterAgent{
+							Confd: &datadoghqv1alpha1.ConfigDirSpec{
+								ConfigMapName: "my-confd",
+								Items: []v1.KeyToPath{
+									{
+										Key:  "foo.d--foo.yaml",
+										Path: "foo.d/foo.yaml",
+									},
 								},
 							},
 						},

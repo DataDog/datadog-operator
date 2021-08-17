@@ -328,17 +328,17 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 	confdVolumeSource := corev1.VolumeSource{
 		EmptyDir: &corev1.EmptyDirVolumeSource{},
 	}
-	if dda.Spec.ClusterAgent.Config != nil && dda.Spec.ClusterAgent.Config.Confd != nil {
+	if dda.Spec.ClusterAgent.Config != nil && dda.Spec.ClusterAgent.Config.Features.Confd != nil {
 		confdVolumeSource = corev1.VolumeSource{
 			ConfigMap: &corev1.ConfigMapVolumeSource{
 				LocalObjectReference: corev1.LocalObjectReference{
-					Name: dda.Spec.ClusterAgent.Config.Confd.ConfigMapName,
+					Name: dda.Spec.ClusterAgent.Config.Features.Confd.ConfigMapName,
 				},
 			},
 		}
 
-		if len(dda.Spec.ClusterAgent.Config.Confd.Items) > 0 {
-			for _, val := range dda.Spec.ClusterAgent.Config.Confd.Items {
+		if len(dda.Spec.ClusterAgent.Config.Features.Confd.Items) > 0 {
+			for _, val := range dda.Spec.ClusterAgent.Config.Features.Confd.Items {
 				confdVolumeSource.ConfigMap.Items = append(confdVolumeSource.ConfigMap.Items, corev1.KeyToPath{
 					Key:  val.Key,
 					Path: val.Path,
@@ -440,8 +440,8 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 
 	// Add other volumes
 	if dda.Spec.ClusterAgent.Config != nil {
-		volumes = append(volumes, dda.Spec.ClusterAgent.Config.Volumes...)
-		volumeMounts = append(volumeMounts, dda.Spec.ClusterAgent.Config.VolumeMounts...)
+		volumes = append(volumes, dda.Spec.ClusterAgent.Config.Features.Volumes...)
+		volumeMounts = append(volumeMounts, dda.Spec.ClusterAgent.Config.ContainerConfig.VolumeMounts...)
 	}
 
 	envs, err := getEnvVarsForClusterAgent(logger, dda)
@@ -465,8 +465,8 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 				},
 				Env:          envs,
 				VolumeMounts: volumeMounts,
-				Command:      getDefaultIfEmpty(dda.Spec.ClusterAgent.Config.Command, nil),
-				Args:         getDefaultIfEmpty(dda.Spec.ClusterAgent.Config.Args, nil),
+				Command:      getDefaultIfEmpty(dda.Spec.ClusterAgent.Config.ContainerConfig.Command, nil),
+				Args:         getDefaultIfEmpty(dda.Spec.ClusterAgent.Config.ContainerConfig.Args, nil),
 			},
 		},
 		Affinity:          clusterAgentSpec.Affinity,
@@ -501,7 +501,7 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 
 	container := &newPodTemplate.Spec.Containers[0]
 
-	if datadoghqv1alpha1.BoolValue(dda.Spec.ClusterAgent.Config.ExternalMetrics.Enabled) {
+	if datadoghqv1alpha1.BoolValue(dda.Spec.ClusterAgent.Config.Features.ExternalMetrics.Enabled) {
 		port := getClusterAgentMetricsProviderPort(*dda.Spec.ClusterAgent.Config)
 		container.Ports = append(container.Ports, corev1.ContainerPort{
 			ContainerPort: port,
@@ -513,8 +513,8 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 	container.LivenessProbe = datadoghqv1alpha1.GetDefaultLivenessProbe()
 	container.ReadinessProbe = datadoghqv1alpha1.GetDefaultReadinessProbe()
 
-	if clusterAgentSpec.Config.Resources != nil {
-		container.Resources = *clusterAgentSpec.Config.Resources
+	if clusterAgentSpec.Config.ContainerConfig.Resources != nil {
+		container.Resources = *clusterAgentSpec.Config.ContainerConfig.Resources
 	}
 
 	return newPodTemplate, nil
@@ -589,11 +589,11 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 		},
 		{
 			Name:  datadoghqv1alpha1.DDCollectKubeEvents,
-			Value: datadoghqv1alpha1.BoolToString(spec.ClusterAgent.Config.CollectEvents),
+			Value: datadoghqv1alpha1.BoolToString(spec.ClusterAgent.Config.Features.CollectEvents),
 		},
 		{
 			Name:  datadoghqv1alpha1.DDHealthPort,
-			Value: strconv.Itoa(int(*spec.ClusterAgent.Config.HealthPort)),
+			Value: strconv.Itoa(int(*spec.ClusterAgent.Config.ContainerConfig.HealthPort)),
 		},
 	}
 
@@ -621,16 +621,16 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 	}
 
 	// TODO We should be able to disable the agent and still configure the Endpoint for the Cluster Agent.
-	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Enabled) && spec.Agent.Config.DDUrl != nil {
+	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Enabled) && spec.Agent.NodeAgent.DDUrl != nil {
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  datadoghqv1alpha1.DDddURL,
-			Value: *spec.Agent.Config.DDUrl,
+			Value: *spec.Agent.NodeAgent.DDUrl,
 		})
 	}
 
 	envVars = append(envVars, corev1.EnvVar{
 		Name:  datadoghqv1alpha1.DDLogLevel,
-		Value: *spec.ClusterAgent.Config.LogLevel,
+		Value: *spec.ClusterAgent.Config.ContainerConfig.LogLevel,
 	})
 
 	envVars = append(envVars, corev1.EnvVar{
@@ -648,7 +648,7 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 	if isMetricsProviderEnabled(spec.ClusterAgent) {
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  datadoghqv1alpha1.DDMetricsProviderEnabled,
-			Value: strconv.FormatBool(*spec.ClusterAgent.Config.ExternalMetrics.Enabled),
+			Value: strconv.FormatBool(*spec.ClusterAgent.Config.Features.ExternalMetrics.Enabled),
 		})
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  datadoghqv1alpha1.DDMetricsProviderPort,
@@ -660,14 +660,14 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 		})
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  datadoghqv1alpha1.DDMetricsProviderUseDatadogMetric,
-			Value: strconv.FormatBool(spec.ClusterAgent.Config.ExternalMetrics.UseDatadogMetrics),
+			Value: strconv.FormatBool(spec.ClusterAgent.Config.Features.ExternalMetrics.UseDatadogMetrics),
 		})
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  datadoghqv1alpha1.DDMetricsProviderWPAController,
-			Value: strconv.FormatBool(spec.ClusterAgent.Config.ExternalMetrics.WpaController),
+			Value: strconv.FormatBool(spec.ClusterAgent.Config.Features.ExternalMetrics.WpaController),
 		})
 
-		externalMetricsEndpoint := dda.Spec.ClusterAgent.Config.ExternalMetrics.Endpoint
+		externalMetricsEndpoint := dda.Spec.ClusterAgent.Config.Features.ExternalMetrics.Endpoint
 		if externalMetricsEndpoint != nil && *externalMetricsEndpoint != "" {
 			envVars = append(envVars, corev1.EnvVar{
 				Name:  datadoghqv1alpha1.DDExternalMetricsProviderEndpoint,
@@ -676,7 +676,7 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 		}
 
 		if hasMetricsProviderCustomCredentials(spec.ClusterAgent) {
-			apiSet, secretName, secretKey := utils.GetAPIKeySecret(dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials, getDefaultExternalMetricSecretName(dda))
+			apiSet, secretName, secretKey := utils.GetAPIKeySecret(dda.Spec.ClusterAgent.Config.Features.ExternalMetrics.Credentials, getDefaultExternalMetricSecretName(dda))
 			if apiSet {
 				envVars = append(envVars, corev1.EnvVar{
 					Name:      datadoghqv1alpha1.DDExternalMetricsProviderAPIKey,
@@ -684,7 +684,7 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 				})
 			}
 
-			appSet, secretName, secretKey := utils.GetAppKeySecret(dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials, getDefaultExternalMetricSecretName(dda))
+			appSet, secretName, secretKey := utils.GetAppKeySecret(dda.Spec.ClusterAgent.Config.Features.ExternalMetrics.Credentials, getDefaultExternalMetricSecretName(dda))
 			if appSet {
 				envVars = append(envVars, corev1.EnvVar{
 					Name:      datadoghqv1alpha1.DDExternalMetricsProviderAppKey,
@@ -695,7 +695,7 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 	}
 
 	// Cluster Checks config
-	if datadoghqv1alpha1.BoolValue(spec.ClusterAgent.Config.ClusterChecksEnabled) {
+	if datadoghqv1alpha1.BoolValue(spec.ClusterAgent.Config.Features.ClusterChecksEnabled) {
 		envVars = append(envVars, []corev1.EnvVar{
 			{
 				Name:  datadoghqv1alpha1.DDExtraConfigProviders,
@@ -722,11 +722,11 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 	if isAdmissionControllerEnabled(spec.ClusterAgent) {
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  datadoghqv1alpha1.DDAdmissionControllerEnabled,
-			Value: strconv.FormatBool(*spec.ClusterAgent.Config.AdmissionController.Enabled),
+			Value: strconv.FormatBool(*spec.ClusterAgent.Config.Features.AdmissionController.Enabled),
 		})
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  datadoghqv1alpha1.DDAdmissionControllerMutateUnlabelled,
-			Value: datadoghqv1alpha1.BoolToString(spec.ClusterAgent.Config.AdmissionController.MutateUnlabelled),
+			Value: datadoghqv1alpha1.BoolToString(spec.ClusterAgent.Config.Features.AdmissionController.MutateUnlabelled),
 		})
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  datadoghqv1alpha1.DDAdmissionControllerServiceName,
@@ -745,7 +745,7 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 
 	envVars = append(envVars, prometheusScrapeEnvVars(logger, dda)...)
 
-	return append(envVars, spec.ClusterAgent.Config.Env...), nil
+	return append(envVars, spec.ClusterAgent.Config.ContainerConfig.Env...), nil
 }
 
 func getClusterAgentName(dda *datadoghqv1alpha1.DatadogAgent) string {
@@ -756,8 +756,8 @@ func getClusterAgentName(dda *datadoghqv1alpha1.DatadogAgent) string {
 }
 
 func getClusterAgentMetricsProviderPort(config datadoghqv1alpha1.ClusterAgentConfig) int32 {
-	if config.ExternalMetrics != nil {
-		return *config.ExternalMetrics.Port
+	if config.Features.ExternalMetrics != nil {
+		return *config.Features.ExternalMetrics.Port
 	}
 	return int32(datadoghqv1alpha1.DefaultMetricsServerTargetPort)
 }
@@ -765,9 +765,9 @@ func getClusterAgentMetricsProviderPort(config datadoghqv1alpha1.ClusterAgentCon
 func getAdmissionControllerServiceName(dda *datadoghqv1alpha1.DatadogAgent) string {
 	if isClusterAgentEnabled(dda.Spec.ClusterAgent) &&
 		dda.Spec.ClusterAgent.Config != nil &&
-		dda.Spec.ClusterAgent.Config.AdmissionController != nil &&
-		dda.Spec.ClusterAgent.Config.AdmissionController.ServiceName != nil {
-		return *dda.Spec.ClusterAgent.Config.AdmissionController.ServiceName
+		dda.Spec.ClusterAgent.Config.Features.AdmissionController != nil &&
+		dda.Spec.ClusterAgent.Config.Features.AdmissionController.ServiceName != nil {
+		return *dda.Spec.ClusterAgent.Config.Features.AdmissionController.ServiceName
 	}
 	return datadoghqv1alpha1.DefaultAdmissionServiceName
 }
@@ -1137,11 +1137,11 @@ func buildClusterRole(dda *datadoghqv1alpha1.DatadogAgent, needClusterLevelRBAC 
 		rbacRules = append(rbacRules, getDefaultClusterAgentPolicyRules()...)
 
 		if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Enabled) {
-			if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Config.CollectEvents) {
+			if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.NodeAgent.CollectEvents) {
 				rbacRules = append(rbacRules, getEventCollectionPolicyRule())
 			}
 
-			if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Config.LeaderElection) {
+			if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.NodeAgent.LeaderElection) {
 				rbacRules = append(rbacRules, getLeaderElectionPolicyRule()...)
 			}
 		}
@@ -1235,7 +1235,7 @@ func buildClusterAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, age
 		Verbs: []string{datadoghqv1alpha1.GetVerb},
 	})
 
-	if datadoghqv1alpha1.BoolValue(dda.Spec.ClusterAgent.Config.CollectEvents) {
+	if datadoghqv1alpha1.BoolValue(dda.Spec.ClusterAgent.Config.Features.CollectEvents) {
 		rbacRules = append(rbacRules, getEventCollectionPolicyRule())
 	}
 
@@ -1266,7 +1266,7 @@ func buildClusterAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, age
 			},
 		)
 
-		if dda.Spec.ClusterAgent.Config.ExternalMetrics.UseDatadogMetrics {
+		if dda.Spec.ClusterAgent.Config.Features.ExternalMetrics.UseDatadogMetrics {
 			rbacRules = append(rbacRules, rbacv1.PolicyRule{
 				APIGroups: []string{datadoghqv1alpha1.DatadogAPIGroup},
 				Resources: []string{datadoghqv1alpha1.DatadogMetricsResource},
@@ -1286,7 +1286,7 @@ func buildClusterAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, age
 			})
 		}
 
-		if dda.Spec.ClusterAgent.Config.ExternalMetrics.WpaController {
+		if dda.Spec.ClusterAgent.Config.Features.ExternalMetrics.WpaController {
 			rbacRules = append(rbacRules, rbacv1.PolicyRule{
 				APIGroups: []string{datadoghqv1alpha1.DatadogAPIGroup},
 				Resources: []string{datadoghqv1alpha1.WpaResource},
@@ -1543,7 +1543,7 @@ func buildClusterAgentNetworkPolicy(dda *datadoghqv1alpha1.DatadogAgent, name st
 		},
 	}
 
-	if datadoghqv1alpha1.BoolValue(dda.Spec.ClusterAgent.Config.ClusterChecksEnabled) {
+	if datadoghqv1alpha1.BoolValue(dda.Spec.ClusterAgent.Config.Features.ClusterChecksEnabled) {
 		ingressRules = append(ingressRules, networkingv1.NetworkPolicyIngressRule{
 			Ports: []networkingv1.NetworkPolicyPort{
 				{

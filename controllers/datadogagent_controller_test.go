@@ -184,10 +184,10 @@ var _ = Describe("DatadogAgent Controller", func() {
 
 			By("Update the DatadogAgent with custom conf.d and checks.d", func() {
 				checkAgentUpdateOnDaemonSet(key, dsKey, func(agent *datadoghqv1alpha1.DatadogAgent) {
-					agent.Spec.Agent.Config.Confd = &datadoghqv1alpha1.ConfigDirSpec{
+					agent.Spec.Agent.NodeAgent.Confd = &datadoghqv1alpha1.ConfigDirSpec{
 						ConfigMapName: confdConfigMapName,
 					}
-					agent.Spec.Agent.Config.Checksd = &datadoghqv1alpha1.ConfigDirSpec{
+					agent.Spec.Agent.NodeAgent.Checksd = &datadoghqv1alpha1.ConfigDirSpec{
 						ConfigMapName: checksdConfigMapName,
 					}
 				}, nil)
@@ -242,7 +242,7 @@ var _ = Describe("DatadogAgent Controller", func() {
 		It("Should update ClusterAgent", func() {
 			checkAgentUpdateOnClusterAgent(key, dcaKey, func(agent *datadoghqv1alpha1.DatadogAgent) {
 				agent.Spec.ClusterAgent.Image.Name = "datadog/cluster-agent:1.0.0"
-				agent.Spec.ClusterAgent.Config.ClusterChecksEnabled = datadoghqv1alpha1.NewBoolPointer(true)
+				agent.Spec.ClusterAgent.Config.Features.ClusterChecksEnabled = datadoghqv1alpha1.NewBoolPointer(true)
 				agent.Spec.ClusterChecksRunner = datadoghqv1alpha1.DatadogAgentSpecClusterChecksRunnerSpec{
 					Image: &datadoghqv1alpha1.ImageConfig{
 						Name: "datadog/agent:7.22.0",

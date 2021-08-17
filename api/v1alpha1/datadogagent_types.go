@@ -153,7 +153,7 @@ type DatadogAgentSpecAgentSpec struct {
 	DaemonsetName string `json:"daemonsetName,omitempty"`
 
 	// Agent configuration.
-	Config *NodeAgentConfig `json:"config,omitempty"`
+	NodeAgent *NodeAgentSpec `json:"nodeAgent,omitempty"`
 
 	// RBAC configuration of the Agent.
 	Rbac *RbacConfig `json:"rbac,omitempty"`
@@ -249,6 +249,53 @@ type DatadogAgentSpecAgentSpec struct {
 	Affinity *corev1.Affinity `json:"affinity,omitempty"`
 }
 
+// DatadogAgentGenericContainerConfig is the generic structure describing any container's common configuration.
+type DatadogAgentGenericContainerConfig struct {
+	// The Datadog Agent supports many environment variables.
+	// See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables
+	//
+	// +optional
+	// +listType=map
+	// +listMapKey=name
+	Env []corev1.EnvVar `json:"env,omitempty"`
+
+	// Specify additional volume mounts in the APM Agent container.
+	// +optional
+	// +listType=map
+	// +listMapKey=name
+	// +listMapKey=mountPath
+	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
+
+	// Make sure to keep requests and limits equal to keep the pods in the Guaranteed QoS class.
+	// See also: http://kubernetes.io/docs/user-guide/compute-resources/
+	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
+
+	// Command allows the specification of custom entrypoint for Trace Agent container
+	// +listType=atomic
+	Command []string `json:"command,omitempty"`
+
+	// Args allows the specification of extra args to `Command` parameter
+	// +listType=atomic
+	Args []string `json:"args,omitempty"`
+
+	// HealthPort of the agent container for internal liveness probe.
+	// Must be the same as the Liness/Readiness probes.
+	// +optional
+	HealthPort *int32 `json:"healthPort,omitempty"`
+
+	// Configure the Readiness Probe of the Agent container
+	// +optional
+	ReadinessProbe *corev1.Probe `json:"readinessProbe,omitempty"`
+
+	// Configure the Liveness Probe of the APM container
+	// +optional
+	LivenessProbe *corev1.Probe `json:"livenessProbe,omitempty"`
+
+	// Set logging verbosity, valid log levels are:
+	// trace, debug, info, warn, error, critical, and off
+	LogLevel *string `json:"logLevel,omitempty"`
+}
+
 // RbacConfig contains RBAC configuration.
 // +k8s:openapi-gen=true
 type RbacConfig struct {
@@ -321,37 +368,8 @@ type APMSpec struct {
 	// +optional
 	UnixDomainSocket *APMUnixDomainSocketSpec `json:"unixDomainSocket,omitempty"`
 
-	// The Datadog Agent supports many environment variables.
-	// See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables
-	//
-	// +optional
-	// +listType=map
-	// +listMapKey=name
-	Env []corev1.EnvVar `json:"env,omitempty"`
-
-	// Specify additional volume mounts in the APM Agent container.
-	// +optional
-	// +listType=map
-	// +listMapKey=name
-	// +listMapKey=mountPath
-	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
-
-	// Datadog APM Agent resource requests and limits.
-	// Make sure to keep requests and limits equal to keep the pods in the Guaranteed QoS class.
-	// See also: http://kubernetes.io/docs/user-guide/compute-resources/
-	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
-
-	// Command allows the specification of custom entrypoint for Trace Agent container
-	// +listType=atomic
-	Command []string `json:"command,omitempty"`
-
-	// Args allows the specification of extra args to `Command` parameter
-	// +listType=atomic
-	Args []string `json:"args,omitempty"`
-
-	// Configure the Liveness Probe of the APM container
-	// +optional
-	LivenessProbe *corev1.Probe `json:"livenessProbe,omitempty"`
+	// Agent config contain the basic configuration of the Datadog Process Agent's container.
+	ContainerConfig *DatadogAgentGenericContainerConfig `json:"containerConfig,omitempty"`
 }
 
 // APMUnixDomainSocketSpec contains the APM Unix Domain Socket configuration.
@@ -410,7 +428,7 @@ type LogCollectionConfig struct {
 	// Defaults to `/var/log/containers`
 	//
 	// +optional
-	ContainerSymlinksPath *string `json:"ContainerSymlinksPath,omitempty"`
+	ContainerSymlinksPath *string `json:"containerSymlinksPath,omitempty"`
 
 	// This path (always mounted from the host) is used by Datadog Agent to store information about processed log files.
 	// If the Datadog Agent is restarted, it starts tailing the log files immediately.
@@ -443,33 +461,8 @@ type ProcessSpec struct {
 	// true: collect process information as well
 	ProcessCollectionEnabled *bool `json:"processCollectionEnabled,omitempty"`
 
-	// The Datadog Agent supports many environment variables.
-	// See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables
-	//
-	// +optional
-	// +listType=map
-	// +listMapKey=name
-	Env []corev1.EnvVar `json:"env,omitempty"`
-
-	// Specify additional volume mounts in the Process Agent container.
-	// +optional
-	// +listType=map
-	// +listMapKey=name
-	// +listMapKey=mountPath
-	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
-
-	// Datadog Process Agent resource requests and limits.
-	// Make sure to keep requests and limits equal to keep the pods in the Guaranteed QoS class.
-	// See also: http://kubernetes.io/docs/user-guide/compute-resources/
-	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
-
-	// Command allows the specification of custom entrypoint for Process Agent container
-	// +listType=atomic
-	Command []string `json:"command,omitempty"`
-
-	// Args allows the specification of extra args to `Command` parameter
-	// +listType=atomic
-	Args []string `json:"args,omitempty"`
+	// Agent config contain the basic configuration of the Datadog Process Agent's container.
+	ContainerConfig *DatadogAgentGenericContainerConfig `json:"containerConfig,omitempty"`
 }
 
 // KubeStateMetricsCore contains the required parameters to enable and override the configuration
@@ -602,33 +595,8 @@ type SystemProbeSpec struct {
 	// +optional
 	CustomConfig *CustomConfigSpec `json:"customConfig,omitempty"`
 
-	// The Datadog SystemProbe supports many environment variables.
-	// See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables
-	//
-	// +optional
-	// +listType=map
-	// +listMapKey=name
-	Env []corev1.EnvVar `json:"env,omitempty"`
-
-	// Specify additional volume mounts in the Security Agent container.
-	// +optional
-	// +listType=map
-	// +listMapKey=name
-	// +listMapKey=mountPath
-	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
-
-	// Datadog SystemProbe resource requests and limits.
-	// Make sure to keep requests and limits equal to keep the pods in the Guaranteed QoS class.
-	// See also: http://kubernetes.io/docs/user-guide/compute-resources/
-	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
-
-	// Command allows the specification of custom entrypoint for System Probe container
-	// +listType=atomic
-	Command []string `json:"command,omitempty"`
-
-	// Args allows the specification of extra args to `Command` parameter
-	// +listType=atomic
-	Args []string `json:"args,omitempty"`
+	// Agent config contain the basic configuration of the Datadog System Probe container.
+	ContainerConfig *DatadogAgentGenericContainerConfig `json:"containerConfig,omitempty"`
 
 	// You can modify the security context used to run the containers by
 	// modifying the label type.
@@ -647,33 +615,8 @@ type SecuritySpec struct {
 	// +optional
 	Runtime RuntimeSecuritySpec `json:"runtime,omitempty"`
 
-	// The Datadog Security Agent supports many environment variables.
-	// See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables
-	//
-	// +optional
-	// +listType=map
-	// +listMapKey=name
-	Env []corev1.EnvVar `json:"env,omitempty"`
-
-	// Specify additional volume mounts in the Security Agent container.
-	// +optional
-	// +listType=map
-	// +listMapKey=name
-	// +listMapKey=mountPath
-	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
-
-	// Datadog Security Agent resource requests and limits.
-	// Make sure to keep requests and limits equal to keep the pods in the Guaranteed QoS class.
-	// See also: http://kubernetes.io/docs/user-guide/compute-resources/
-	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
-
-	// Command allows the specification of custom entrypoint for Security Agent container
-	// +listType=atomic
-	Command []string `json:"command,omitempty"`
-
-	// Args allows the specification of extra args to `Command` parameter
-	// +listType=atomic
-	Args []string `json:"args,omitempty"`
+	// Agent config contain the basic configuration of the Datadog Security Agent's container.
+	ContainerConfig *DatadogAgentGenericContainerConfig `json:"containerConfig,omitempty"`
 }
 
 // ComplianceSpec contains configuration for continuous compliance.
@@ -745,9 +688,9 @@ type CustomConfigSpec struct {
 	ConfigMap *ConfigFileConfigMapSpec `json:"configMap,omitempty"`
 }
 
-// NodeAgentConfig contains the configuration of the Node Agent.
+// NodeAgentSpec contains the configuration of the Node Agent.
 // +k8s:openapi-gen=true
-type NodeAgentConfig struct {
+type NodeAgentSpec struct {
 	// Pod-level SecurityContext.
 	// +optional
 	SecurityContext *corev1.PodSecurityContext `json:"securityContext,omitempty"`
@@ -757,10 +700,6 @@ type NodeAgentConfig struct {
 	// Overrides the site setting defined in "site".
 	// +optional
 	DDUrl *string `json:"ddUrl,omitempty"`
-
-	// Set logging verbosity, valid log levels are:
-	// trace, debug, info, warn, error, critical, and off
-	LogLevel *string `json:"logLevel,omitempty"`
 
 	// Confd configuration allowing to specify config files for custom checks placed under /etc/datadog-agent/conf.d/.
 	// See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.
@@ -797,51 +736,11 @@ type NodeAgentConfig struct {
 	// +optional
 	LeaderElection *bool `json:"leaderElection,omitempty"`
 
-	// The Datadog Agent supports many environment variables.
-	// See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables
-	//
-	// +optional
-	// +listType=map
-	// +listMapKey=name
-	Env []corev1.EnvVar `json:"env,omitempty"`
-
-	// Specify additional volume mounts in the Datadog Agent container.
-	// +optional
-	// +listType=map
-	// +listMapKey=name
-	// +listMapKey=mountPath
-	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
-
 	// Specify additional volumes in the Datadog Agent container.
 	// +optional
 	// +listType=map
 	// +listMapKey=name
 	Volumes []corev1.Volume `json:"volumes,omitempty"`
-
-	// Datadog Agent resource requests and limits.
-	// Make sure to keep requests and limits equal to keep the pods in the Guaranteed QoS class.
-	// See also: http://kubernetes.io/docs/user-guide/compute-resources/
-	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
-
-	// Command allows the specification of custom entrypoint for the Agent container
-	// +listType=atomic
-	Command []string `json:"command,omitempty"`
-
-	// Args allows the specification of extra args to `Command` parameter
-	// +listType=atomic
-	Args []string `json:"args,omitempty"`
-	// Configure the Liveness Probe of the Agent container
-	// +optional
-	LivenessProbe *corev1.Probe `json:"livenessProbe,omitempty"`
-
-	// Configure the Readiness Probe of the Agent container
-	// +optional
-	ReadinessProbe *corev1.Probe `json:"readinessProbe,omitempty"`
-
-	// HealthPort of the agent container for internal liveness probe.
-	// Must be the same as the Liness/Readiness probes.
-	// +optional
-	HealthPort *int32 `json:"healthPort,omitempty"`
 
 	// Configure the CRI Socket.
 	CriSocket *CRISocketConfig `json:"criSocket,omitempty"`
@@ -865,6 +764,9 @@ type NodeAgentConfig struct {
 	// KubeletConfig contains the Kubelet configuration parameters
 	// +optional
 	Kubelet *KubeletConfig `json:"kubelet,omitempty"`
+
+	// GenericContainerConfig contains the basic configuration of the Datadog Agent's container
+	ContainerConfig *DatadogAgentGenericContainerConfig `json:"containerConfig,omitempty"`
 }
 
 // KubeletConfig contains the Kubelet configuration parameters
@@ -950,7 +852,7 @@ type DatadogAgentSpecClusterAgentSpec struct {
 	// +optional
 	DeploymentName string `json:"deploymentName,omitempty"`
 
-	// Cluster Agent configuration.
+	// Cluster Agent global configuration.
 	Config *ClusterAgentConfig `json:"config,omitempty"`
 
 	// Allow to put custom configuration for the agent, corresponding to the datadog-cluster.yaml config file.
@@ -1006,6 +908,14 @@ type DatadogAgentSpecClusterAgentSpec struct {
 // ClusterAgentConfig contains the configuration of the Cluster Agent.
 // +k8s:openapi-gen=true
 type ClusterAgentConfig struct {
+	// Agent config contain the basic configuration of the Datadog Cluster Agent's container.
+	ContainerConfig *DatadogAgentGenericContainerConfig `json:"containerConfig,omitempty"`
+
+	// FeaturesConfigClusterAgent for features of the Cluster Agent
+	Features *FeaturesConfigClusterAgent `json:"features,omitempty"`
+}
+
+type FeaturesConfigClusterAgent struct {
 	ExternalMetrics *ExternalMetricsConfig `json:"externalMetrics,omitempty"`
 
 	// Configure the Admission Controller.
@@ -1023,50 +933,16 @@ type ClusterAgentConfig struct {
 	// +optional
 	CollectEvents *bool `json:"collectEvents,omitempty"`
 
-	// Set logging verbosity, valid log levels are:
-	// trace, debug, info, warn, error, critical, and off
-	LogLevel *string `json:"logLevel,omitempty"`
-
-	// Datadog cluster-agent resource requests and limits.
-	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
-
-	// Command allows the specification of custom entrypoint for Cluster Agent container
-	// +listType=atomic
-	Command []string `json:"command,omitempty"`
-
-	// Args allows the specification of extra args to `Command` parameter
-	// +listType=atomic
-	Args []string `json:"args,omitempty"`
-
-	// Confd Provide additional cluster check configurations. Each key will become a file in /conf.d.
-	// see https://docs.datadoghq.com/agent/autodiscovery/ for more details.
-	// +optional
-	Confd *ConfigDirSpec `json:"confd,omitempty"`
-
-	// The Datadog Agent supports many environment variables.
-	// See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables
-	//
-	// +optional
-	// +listType=map
-	// +listMapKey=name
-	Env []corev1.EnvVar `json:"env,omitempty"`
-
-	// Specify additional volume mounts in the Datadog Cluster Agent container.
-	// +optional
-	// +listType=map
-	// +listMapKey=name
-	// +listMapKey=mountPath
-	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
-
 	// Specify additional volumes in the Datadog Cluster Agent container.
 	// +optional
 	// +listType=map
 	// +listMapKey=name
 	Volumes []corev1.Volume `json:"volumes,omitempty"`
 
-	// HealthPort of the agent container for internal liveness probe.
-	// Must be the same as the Liness/Readiness probes.
-	HealthPort *int32 `json:"healthPort,omitempty"`
+	// Confd Provide additional cluster check configurations. Each key will become a file in /conf.d.
+	// see https://docs.datadoghq.com/agent/autodiscovery/ for more details.
+	// +optional
+	Confd *ConfigDirSpec `json:"confd,omitempty"`
 }
 
 // ExternalMetricsConfig contains the configuration of the external metrics provider in Cluster Agent.
@@ -1118,56 +994,6 @@ type AdmissionControllerConfig struct {
 	ServiceName *string `json:"serviceName,omitempty"`
 }
 
-// ClusterChecksRunnerConfig contains the configuration of the Cluster Checks Runner.
-// +k8s:openapi-gen=true
-type ClusterChecksRunnerConfig struct {
-	// Datadog Cluster Checks Runner resource requests and limits.
-	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
-
-	// Command allows the specification of custom entrypoint for Cluster Checks Runner container
-	// +listType=atomic
-	Command []string `json:"command,omitempty"`
-
-	// Args allows the specification of extra args to `Command` parameter
-	// +listType=atomic
-	Args []string `json:"args,omitempty"`
-
-	// Set logging verbosity, valid log levels are:
-	// trace, debug, info, warn, error, critical, and off
-	LogLevel *string `json:"logLevel,omitempty"`
-
-	// The Datadog Agent supports many environment variables.
-	// See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables
-	//
-	// +optional
-	// +listType=map
-	// +listMapKey=name
-	Env []corev1.EnvVar `json:"env,omitempty"`
-
-	// Specify additional volume mounts in the Datadog Cluster Check Runner container.
-	// +optional
-	// +listType=map
-	// +listMapKey=name
-	// +listMapKey=mountPath
-	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
-
-	// Specify additional volumes in the Datadog Cluster Check Runner container.
-	// +optional
-	// +listType=map
-	// +listMapKey=name
-	Volumes []corev1.Volume `json:"volumes,omitempty"`
-
-	// Configure the Liveness Probe of the CLC container
-	LivenessProbe *corev1.Probe `json:"livenessProbe,omitempty"`
-
-	// Configure the Readiness Probe of the CLC container
-	ReadinessProbe *corev1.Probe `json:"readinessProbe,omitempty"`
-
-	// HealthPort of the agent container for internal liveness probe.
-	// Must be the same as the Liness/Readiness probes.
-	HealthPort *int32 `json:"healthPort,omitempty"`
-}
-
 // DatadogAgentSpecClusterChecksRunnerSpec defines the desired state of the Cluster Checks Runner.
 // +k8s:openapi-gen=true
 type DatadogAgentSpecClusterChecksRunnerSpec struct {
@@ -1182,8 +1008,14 @@ type DatadogAgentSpecClusterChecksRunnerSpec struct {
 	// +optional
 	DeploymentName string `json:"deploymentName,omitempty"`
 
-	// Agent configuration.
-	Config *ClusterChecksRunnerConfig `json:"config,omitempty"`
+	// Agent config contain the basic configuration of the Datadog Agent's container.
+	ContainerConfig *DatadogAgentGenericContainerConfig `json:"containerConfig,omitempty"`
+
+	// Specify additional volumes in the Datadog Cluster Check Runner container.
+	// +optional
+	// +listType=map
+	// +listMapKey=name
+	Volumes []corev1.Volume `json:"volumes,omitempty"`
 
 	// Allow to put custom configuration for the agent, corresponding to the datadog.yaml config file.
 	// See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.
@@ -1226,6 +1058,21 @@ type DatadogAgentSpecClusterChecksRunnerSpec struct {
 	// Provide Cluster Checks Runner Network Policy configuration.
 	// +optional
 	NetworkPolicy *NetworkPolicySpec `json:"networkPolicy,omitempty"`
+}
+
+// ClusterChecksRunnerConfig contains the configuration of the Cluster Checks Runner.
+// TODO move the volumes to the pod spec part in DatadogAgentSpecClusterChecksRunnerSpec and expose
+// ContainerConfig there.
+// +k8s:openapi-gen=true
+type ClusterChecksRunnerConfig struct {
+	// Agent config contain the basic configuration of the Datadog Agent's container.
+	ContainerConfig *DatadogAgentGenericContainerConfig `json:"containerConfig,omitempty"`
+
+	// Specify additional volumes in the Datadog Cluster Check Runner container.
+	// +optional
+	// +listType=map
+	// +listMapKey=name
+	Volumes []corev1.Volume `json:"volumes,omitempty"`
 }
 
 // ImageConfig Datadog agent container image config.

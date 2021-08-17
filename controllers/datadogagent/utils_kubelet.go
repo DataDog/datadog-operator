@@ -16,8 +16,8 @@ func getKubeletEnvVars(dda *datadoghqv1alpha1.DatadogAgent) []corev1.EnvVar {
 
 	// Host valueFrom
 	var kubeletHostValueFrom *corev1.EnvVarSource
-	if dda.Spec.Agent.Config.Kubelet != nil && dda.Spec.Agent.Config.Kubelet.Host != nil {
-		kubeletHostValueFrom = dda.Spec.Agent.Config.Kubelet.Host
+	if dda.Spec.Agent.NodeAgent.Kubelet != nil && dda.Spec.Agent.NodeAgent.Kubelet.Host != nil {
+		kubeletHostValueFrom = dda.Spec.Agent.NodeAgent.Kubelet.Host
 	} else {
 		kubeletHostValueFrom = &corev1.EnvVarSource{
 			FieldRef: &corev1.ObjectFieldSelector{
@@ -32,15 +32,15 @@ func getKubeletEnvVars(dda *datadoghqv1alpha1.DatadogAgent) []corev1.EnvVar {
 	})
 
 	// TLS Verify
-	if dda.Spec.Agent.Config.Kubelet != nil && dda.Spec.Agent.Config.Kubelet.TLSVerify != nil {
+	if dda.Spec.Agent.NodeAgent.Kubelet != nil && dda.Spec.Agent.NodeAgent.Kubelet.TLSVerify != nil {
 		kubeletVars = append(kubeletVars, corev1.EnvVar{
 			Name:  datadoghqv1alpha1.DDKubeletTLSVerify,
-			Value: datadoghqv1alpha1.BoolToString(dda.Spec.Agent.Config.Kubelet.TLSVerify),
+			Value: datadoghqv1alpha1.BoolToString(dda.Spec.Agent.NodeAgent.Kubelet.TLSVerify),
 		})
 	}
 
 	// CA Path
-	if dda.Spec.Agent.Config.Kubelet != nil && (dda.Spec.Agent.Config.Kubelet.AgentCAPath != "" || dda.Spec.Agent.Config.Kubelet.HostCAPath != "") {
+	if dda.Spec.Agent.NodeAgent.Kubelet != nil && (dda.Spec.Agent.NodeAgent.Kubelet.AgentCAPath != "" || dda.Spec.Agent.NodeAgent.Kubelet.HostCAPath != "") {
 		kubeletVars = append(kubeletVars, corev1.EnvVar{
 			Name:  datadoghqv1alpha1.DDKubeletCAPath,
 			Value: getAgentCAPath(dda),
@@ -51,11 +51,11 @@ func getKubeletEnvVars(dda *datadoghqv1alpha1.DatadogAgent) []corev1.EnvVar {
 }
 
 func getKubeletVolumes(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
-	if dda.Spec.Agent.Config.Kubelet == nil {
+	if dda.Spec.Agent.NodeAgent.Kubelet == nil {
 		return nil
 	}
 
-	if dda.Spec.Agent.Config.Kubelet.HostCAPath != "" {
+	if dda.Spec.Agent.NodeAgent.Kubelet.HostCAPath != "" {
 		fileVolumeType := corev1.HostPathFile
 
 		return []corev1.Volume{
@@ -63,7 +63,7 @@ func getKubeletVolumes(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 				Name: datadoghqv1alpha1.KubeletCAVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
-						Path: dda.Spec.Agent.Config.Kubelet.HostCAPath,
+						Path: dda.Spec.Agent.NodeAgent.Kubelet.HostCAPath,
 						Type: &fileVolumeType,
 					},
 				},
@@ -75,11 +75,11 @@ func getKubeletVolumes(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 }
 
 func getKubeletVolumeMounts(dda *datadoghqv1alpha1.DatadogAgent) []corev1.VolumeMount {
-	if dda.Spec.Agent.Config.Kubelet == nil {
+	if dda.Spec.Agent.NodeAgent.Kubelet == nil {
 		return nil
 	}
 
-	if dda.Spec.Agent.Config.Kubelet.HostCAPath != "" {
+	if dda.Spec.Agent.NodeAgent.Kubelet.HostCAPath != "" {
 		return []corev1.VolumeMount{
 			{
 				Name:      datadoghqv1alpha1.KubeletCAVolumeName,
@@ -93,8 +93,8 @@ func getKubeletVolumeMounts(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume
 }
 
 func getAgentCAPath(dda *datadoghqv1alpha1.DatadogAgent) string {
-	if dda.Spec.Agent.Config.Kubelet != nil && dda.Spec.Agent.Config.Kubelet.AgentCAPath != "" {
-		return dda.Spec.Agent.Config.Kubelet.AgentCAPath
+	if dda.Spec.Agent.NodeAgent.Kubelet != nil && dda.Spec.Agent.NodeAgent.Kubelet.AgentCAPath != "" {
+		return dda.Spec.Agent.NodeAgent.Kubelet.AgentCAPath
 	}
 
 	return datadoghqv1alpha1.DefaultKubeletAgentCAPath

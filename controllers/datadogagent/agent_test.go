@@ -3542,7 +3542,7 @@ func Test_newExtendedDaemonSetFromInstance_KubeletConfiguration(t *testing.T) {
 		OrchestratorExplorerDisabled: true,
 	})
 
-	dda.Spec.Agent.Config.Kubelet = &datadoghqv1alpha1.KubeletConfig{
+	dda.Spec.Agent.NodeAgent.Kubelet = &datadoghqv1alpha1.KubeletConfig{
 		Host: &corev1.EnvVarSource{
 			FieldRef: &corev1.ObjectFieldSelector{
 				FieldPath: FieldPathSpecNodeName,
@@ -3588,7 +3588,7 @@ func Test_newExtendedDaemonSetFromInstance_KubeletConfiguration(t *testing.T) {
 						},
 						Annotations: map[string]string{},
 					},
-					Spec: customKubeletConfigPodSpec(dda.Spec.Agent.Config.Kubelet),
+					Spec: customKubeletConfigPodSpec(dda.Spec.Agent.NodeAgent.Kubelet),
 				},
 				Strategy: getDefaultEDSStrategy(),
 			},
@@ -3605,9 +3605,9 @@ func Test_newExtendedDaemonSetFromInstance_ArgsCommandOverride(t *testing.T) {
 		ClusterAgentEnabled: true,
 	})
 
-	dda.Spec.Agent.Config.Command = []string{"my-custom-agent"}
-	dda.Spec.Agent.Config.Args = []string{"my-custom-args"}
-	dda.Spec.Agent.Process.Args = []string{"my-extra-args"}
+	dda.Spec.Agent.NodeAgent.ContainerConfig.Command = []string{"my-custom-agent"}
+	dda.Spec.Agent.NodeAgent.ContainerConfig.Args = []string{"my-custom-args"}
+	dda.Spec.Agent.Process.ContainerConfig.Args = []string{"my-extra-args"}
 
 	wantSpec := defaultPodSpec(dda)
 	wantSpec.Containers[0].Command = []string{"my-custom-agent"}

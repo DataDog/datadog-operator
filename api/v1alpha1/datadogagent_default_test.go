@@ -22,13 +22,13 @@ func TestDefaultConfigDogstatsd(t *testing.T) {
 	defaultPath := path.Join(defaultHostDogstatsdSocketPath, defaultHostDogstatsdSocketName)
 	tests := []struct {
 		name     string
-		dsd      NodeAgentConfig
+		dsd      NodeAgentSpec
 		override *DogstatsdConfig
-		internal NodeAgentConfig
+		internal NodeAgentSpec
 	}{
 		{
 			name: "empty conf",
-			dsd:  NodeAgentConfig{},
+			dsd:  NodeAgentSpec{},
 			override: &DogstatsdConfig{
 				DogstatsdOriginDetection: NewBoolPointer(false), // defaultDogstatsdOriginDetection
 				UnixDomainSocket: &DSDUnixDomainSocketSpec{
@@ -36,7 +36,7 @@ func TestDefaultConfigDogstatsd(t *testing.T) {
 					HostFilepath: &defaultPath,
 				},
 			},
-			internal: NodeAgentConfig{
+			internal: NodeAgentSpec{
 				Dogstatsd: &DogstatsdConfig{
 					DogstatsdOriginDetection: NewBoolPointer(false),
 					UnixDomainSocket: &DSDUnixDomainSocketSpec{
@@ -48,7 +48,7 @@ func TestDefaultConfigDogstatsd(t *testing.T) {
 		},
 		{
 			name: "dogtatsd missing defaulting: DogstatsdOriginDetection",
-			dsd: NodeAgentConfig{
+			dsd: NodeAgentSpec{
 				Dogstatsd: &DogstatsdConfig{
 					UnixDomainSocket: &DSDUnixDomainSocketSpec{
 						Enabled:      NewBoolPointer(false),
@@ -59,7 +59,7 @@ func TestDefaultConfigDogstatsd(t *testing.T) {
 			override: &DogstatsdConfig{
 				DogstatsdOriginDetection: NewBoolPointer(false),
 			},
-			internal: NodeAgentConfig{
+			internal: NodeAgentSpec{
 				Dogstatsd: &DogstatsdConfig{
 					DogstatsdOriginDetection: NewBoolPointer(false),
 					UnixDomainSocket: &DSDUnixDomainSocketSpec{
@@ -71,7 +71,7 @@ func TestDefaultConfigDogstatsd(t *testing.T) {
 		},
 		{
 			name: "dogtatsd missing defaulting: UseDogStatsDSocketVolume",
-			dsd: NodeAgentConfig{
+			dsd: NodeAgentSpec{
 				Dogstatsd: &DogstatsdConfig{
 					DogstatsdOriginDetection: NewBoolPointer(false),
 				},
@@ -82,7 +82,7 @@ func TestDefaultConfigDogstatsd(t *testing.T) {
 					HostFilepath: &defaultPath,
 				},
 			},
-			internal: NodeAgentConfig{
+			internal: NodeAgentSpec{
 				Dogstatsd: &DogstatsdConfig{
 					DogstatsdOriginDetection: NewBoolPointer(false),
 					UnixDomainSocket: &DSDUnixDomainSocketSpec{
@@ -281,8 +281,10 @@ func TestDefaultDatadogAgentSpecClusterAgent(t *testing.T) {
 			name: "some config",
 			dca: DatadogAgentSpecClusterAgentSpec{
 				Config: &ClusterAgentConfig{
-					AdmissionController: &AdmissionControllerConfig{
-						Enabled: NewBoolPointer(true),
+					Features: &FeaturesConfigClusterAgent{
+						AdmissionController: &AdmissionControllerConfig{
+							Enabled: NewBoolPointer(true),
+						},
 					},
 				},
 			},
@@ -294,17 +296,21 @@ func TestDefaultDatadogAgentSpecClusterAgent(t *testing.T) {
 					PullPolicy: &defaultImagePullPolicy,
 				},
 				Config: &ClusterAgentConfig{
-					ExternalMetrics: &ExternalMetricsConfig{
-						Enabled: NewBoolPointer(false),
+					Features: &FeaturesConfigClusterAgent{
+						ExternalMetrics: &ExternalMetricsConfig{
+							Enabled: NewBoolPointer(false),
+						},
+						AdmissionController: &AdmissionControllerConfig{
+							MutateUnlabelled: NewBoolPointer(false),
+							ServiceName:      NewStringPointer("datadog-admission-controller"),
+						},
+						ClusterChecksEnabled: NewBoolPointer(false),
+						CollectEvents:        NewBoolPointer(false),
 					},
-					AdmissionController: &AdmissionControllerConfig{
-						MutateUnlabelled: NewBoolPointer(false),
-						ServiceName:      NewStringPointer("datadog-admission-controller"),
+					ContainerConfig: &DatadogAgentGenericContainerConfig{
+						LogLevel:   NewStringPointer(defaultLogLevel),
+						HealthPort: NewInt32Pointer(5555),
 					},
-					ClusterChecksEnabled: NewBoolPointer(false),
-					LogLevel:             NewStringPointer(defaultLogLevel),
-					CollectEvents:        NewBoolPointer(false),
-					HealthPort:           NewInt32Pointer(5555),
 				},
 				Rbac:          &RbacConfig{Create: NewBoolPointer(true)},
 				Replicas:      nil,
@@ -319,19 +325,23 @@ func TestDefaultDatadogAgentSpecClusterAgent(t *testing.T) {
 					PullSecrets: &[]corev1.LocalObjectReference{},
 				},
 				Config: &ClusterAgentConfig{
-					ExternalMetrics: &ExternalMetricsConfig{
-						Enabled: NewBoolPointer(false),
+					Features: &FeaturesConfigClusterAgent{
+						ExternalMetrics: &ExternalMetricsConfig{
+							Enabled: NewBoolPointer(false),
+						},
+						AdmissionController: &AdmissionControllerConfig{
+							Enabled:          NewBoolPointer(true),
+							MutateUnlabelled: NewBoolPointer(false),
+							ServiceName:      NewStringPointer("datadog-admission-controller"),
+						},
+						CollectEvents:        NewBoolPointer(false),
+						ClusterChecksEnabled: NewBoolPointer(false),
 					},
-					AdmissionController: &AdmissionControllerConfig{
-						Enabled:          NewBoolPointer(true),
-						MutateUnlabelled: NewBoolPointer(false),
-						ServiceName:      NewStringPointer("datadog-admission-controller"),
+					ContainerConfig: &DatadogAgentGenericContainerConfig{
+						Resources:  &corev1.ResourceRequirements{Limits: corev1.ResourceList{}, Requests: corev1.ResourceList{}},
+						LogLevel:   NewStringPointer(defaultLogLevel),
+						HealthPort: NewInt32Pointer(5555),
 					},
-					Resources:            &corev1.ResourceRequirements{Limits: corev1.ResourceList{}, Requests: corev1.ResourceList{}},
-					LogLevel:             NewStringPointer(defaultLogLevel),
-					ClusterChecksEnabled: NewBoolPointer(false),
-					CollectEvents:        NewBoolPointer(false),
-					HealthPort:           NewInt32Pointer(5555),
 				},
 				Rbac:          &RbacConfig{Create: NewBoolPointer(true)},
 				Replicas:      nil,
@@ -347,20 +357,24 @@ func TestDefaultDatadogAgentSpecClusterAgent(t *testing.T) {
 					PullPolicy: (*corev1.PullPolicy)(NewStringPointer("Always")),
 				},
 				Config: &ClusterAgentConfig{
-					ExternalMetrics: &ExternalMetricsConfig{
-						Enabled:           NewBoolPointer(true),
-						WpaController:     true,
-						UseDatadogMetrics: true,
+					Features: &FeaturesConfigClusterAgent{
+						ExternalMetrics: &ExternalMetricsConfig{
+							Enabled:           NewBoolPointer(true),
+							WpaController:     true,
+							UseDatadogMetrics: true,
+						},
+						AdmissionController: &AdmissionControllerConfig{
+							Enabled:          NewBoolPointer(true),
+							MutateUnlabelled: NewBoolPointer(false),
+							ServiceName:      NewStringPointer("foo"),
+						},
+						ClusterChecksEnabled: NewBoolPointer(true),
+						CollectEvents:        NewBoolPointer(false),
 					},
-					LogLevel: NewStringPointer("DEBUG"),
-					AdmissionController: &AdmissionControllerConfig{
-						Enabled:          NewBoolPointer(true),
-						MutateUnlabelled: NewBoolPointer(false),
-						ServiceName:      NewStringPointer("foo"),
+					ContainerConfig: &DatadogAgentGenericContainerConfig{
+						LogLevel:   NewStringPointer("DEBUG"),
+						HealthPort: NewInt32Pointer(5555),
 					},
-					ClusterChecksEnabled: NewBoolPointer(true),
-					CollectEvents:        NewBoolPointer(false),
-					HealthPort:           NewInt32Pointer(5555),
 				},
 				Rbac:          &RbacConfig{Create: NewBoolPointer(false)},
 				Replicas:      NewInt32Pointer(2),
@@ -371,8 +385,10 @@ func TestDefaultDatadogAgentSpecClusterAgent(t *testing.T) {
 					Tag: defaultClusterAgentImageTag,
 				},
 				Config: &ClusterAgentConfig{
-					ExternalMetrics: &ExternalMetricsConfig{
-						Port: NewInt32Pointer(8443),
+					Features: &FeaturesConfigClusterAgent{
+						ExternalMetrics: &ExternalMetricsConfig{
+							Port: NewInt32Pointer(8443),
+						},
 					},
 				},
 			},
@@ -385,22 +401,26 @@ func TestDefaultDatadogAgentSpecClusterAgent(t *testing.T) {
 					PullSecrets: &[]corev1.LocalObjectReference{},
 				},
 				Config: &ClusterAgentConfig{
-					ExternalMetrics: &ExternalMetricsConfig{
-						Enabled:           NewBoolPointer(true),
-						WpaController:     true,
-						UseDatadogMetrics: true,
-						Port:              NewInt32Pointer(8443),
+					Features: &FeaturesConfigClusterAgent{
+						ExternalMetrics: &ExternalMetricsConfig{
+							Enabled:           NewBoolPointer(true),
+							WpaController:     true,
+							UseDatadogMetrics: true,
+							Port:              NewInt32Pointer(8443),
+						},
+						AdmissionController: &AdmissionControllerConfig{
+							Enabled:          NewBoolPointer(true),
+							MutateUnlabelled: NewBoolPointer(false),
+							ServiceName:      NewStringPointer("foo"),
+						},
+						ClusterChecksEnabled: NewBoolPointer(true),
+						CollectEvents:        NewBoolPointer(false),
 					},
-					AdmissionController: &AdmissionControllerConfig{
-						Enabled:          NewBoolPointer(true),
-						MutateUnlabelled: NewBoolPointer(false),
-						ServiceName:      NewStringPointer("foo"),
+					ContainerConfig: &DatadogAgentGenericContainerConfig{
+						Resources:  &corev1.ResourceRequirements{Limits: corev1.ResourceList{}, Requests: corev1.ResourceList{}},
+						LogLevel:   NewStringPointer("DEBUG"),
+						HealthPort: NewInt32Pointer(5555),
 					},
-					Resources:            &corev1.ResourceRequirements{Limits: corev1.ResourceList{}, Requests: corev1.ResourceList{}},
-					ClusterChecksEnabled: NewBoolPointer(true),
-					CollectEvents:        NewBoolPointer(false),
-					LogLevel:             NewStringPointer("DEBUG"),
-					HealthPort:           NewInt32Pointer(5555),
 				},
 				Rbac:          &RbacConfig{Create: NewBoolPointer(false)},
 				Replicas:      NewInt32Pointer(2),
@@ -438,7 +458,7 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 		{
 			name: "agent spec sparse config",
 			agent: DatadogAgentSpecAgentSpec{
-				Config: &NodeAgentConfig{},
+				NodeAgent: &NodeAgentSpec{},
 			},
 			overrideExpected: &DatadogAgentSpecAgentSpec{
 				Enabled:              NewBoolPointer(true),
@@ -448,13 +468,15 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 					Tag:        defaultAgentImageTag,
 					PullPolicy: &defaultImagePullPolicy,
 				},
-				Config: &NodeAgentConfig{
-					LogLevel:       NewStringPointer(defaultLogLevel),
+				NodeAgent: &NodeAgentSpec{
+					ContainerConfig: &DatadogAgentGenericContainerConfig{
+						LogLevel:       NewStringPointer(defaultLogLevel),
+						LivenessProbe:  GetDefaultLivenessProbe(),
+						ReadinessProbe: GetDefaultReadinessProbe(),
+						HealthPort:     NewInt32Pointer(5555),
+					},
 					CollectEvents:  NewBoolPointer(false),
 					LeaderElection: NewBoolPointer(false),
-					LivenessProbe:  GetDefaultLivenessProbe(),
-					ReadinessProbe: GetDefaultReadinessProbe(),
-					HealthPort:     NewInt32Pointer(5555),
 					// CriSocket unset as we use latest
 					Dogstatsd: &DogstatsdConfig{
 						DogstatsdOriginDetection: NewBoolPointer(false),
@@ -495,17 +517,19 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 					PullPolicy:  &defaultImagePullPolicy,
 					PullSecrets: &[]corev1.LocalObjectReference{},
 				},
-				Config: &NodeAgentConfig{
-					LogLevel:             NewStringPointer(defaultLogLevel),
+				NodeAgent: &NodeAgentSpec{
+					ContainerConfig: &DatadogAgentGenericContainerConfig{
+						LogLevel:       NewStringPointer(defaultLogLevel),
+						LivenessProbe:  GetDefaultLivenessProbe(),
+						Resources:      &corev1.ResourceRequirements{Limits: corev1.ResourceList{}, Requests: corev1.ResourceList{}},
+						ReadinessProbe: GetDefaultReadinessProbe(),
+						HealthPort:     NewInt32Pointer(5555),
+					},
 					PodLabelsAsTags:      map[string]string{},
 					PodAnnotationsAsTags: map[string]string{},
 					Tags:                 []string{},
 					CollectEvents:        NewBoolPointer(false),
 					LeaderElection:       NewBoolPointer(false),
-					LivenessProbe:        GetDefaultLivenessProbe(),
-					Resources:            &corev1.ResourceRequirements{Limits: corev1.ResourceList{}, Requests: corev1.ResourceList{}},
-					ReadinessProbe:       GetDefaultReadinessProbe(),
-					HealthPort:           NewInt32Pointer(5555),
 					Dogstatsd: &DogstatsdConfig{
 						DogstatsdOriginDetection: NewBoolPointer(false),
 						UnixDomainSocket: &DSDUnixDomainSocketSpec{
@@ -540,7 +564,7 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 		{
 			name: "some config",
 			agent: DatadogAgentSpecAgentSpec{
-				Config: &NodeAgentConfig{
+				NodeAgent: &NodeAgentSpec{
 					DDUrl:          NewStringPointer("www.datadog.com"),
 					LeaderElection: NewBoolPointer(true),
 					Dogstatsd: &DogstatsdConfig{
@@ -572,12 +596,14 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 					Tag:        defaultAgentImageTag, // TODO fix this in the patch cycle
 					PullPolicy: &defaultImagePullPolicy,
 				},
-				Config: &NodeAgentConfig{
-					LogLevel:       NewStringPointer(defaultLogLevel),
-					CollectEvents:  NewBoolPointer(false),
-					LivenessProbe:  GetDefaultLivenessProbe(),
-					ReadinessProbe: GetDefaultReadinessProbe(),
-					HealthPort:     NewInt32Pointer(5555),
+				NodeAgent: &NodeAgentSpec{
+					ContainerConfig: &DatadogAgentGenericContainerConfig{
+						LogLevel:       NewStringPointer(defaultLogLevel),
+						LivenessProbe:  GetDefaultLivenessProbe(),
+						ReadinessProbe: GetDefaultReadinessProbe(),
+						HealthPort:     NewInt32Pointer(5555),
+					},
+					CollectEvents: NewBoolPointer(false),
 					// CRI Socket specified as we use an older image
 					CriSocket: &CRISocketConfig{
 						DockerSocketPath: NewStringPointer(defaultDockerSocketPath),
@@ -624,18 +650,20 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 					PullPolicy:  &defaultImagePullPolicy,
 					PullSecrets: &[]corev1.LocalObjectReference{},
 				},
-				Config: &NodeAgentConfig{
+				NodeAgent: &NodeAgentSpec{
+					ContainerConfig: &DatadogAgentGenericContainerConfig{
+						LogLevel:       NewStringPointer(defaultLogLevel),
+						Resources:      &corev1.ResourceRequirements{Limits: corev1.ResourceList{}, Requests: corev1.ResourceList{}},
+						LivenessProbe:  GetDefaultLivenessProbe(),
+						ReadinessProbe: GetDefaultReadinessProbe(),
+						HealthPort:     NewInt32Pointer(5555),
+					},
 					DDUrl:                NewStringPointer("www.datadog.com"),
 					LeaderElection:       NewBoolPointer(true),
-					LogLevel:             NewStringPointer(defaultLogLevel),
 					PodLabelsAsTags:      map[string]string{},
 					PodAnnotationsAsTags: map[string]string{},
 					Tags:                 []string{},
-					Resources:            &corev1.ResourceRequirements{Limits: corev1.ResourceList{}, Requests: corev1.ResourceList{}},
 					CollectEvents:        NewBoolPointer(false),
-					LivenessProbe:        GetDefaultLivenessProbe(),
-					ReadinessProbe:       GetDefaultReadinessProbe(),
-					HealthPort:           NewInt32Pointer(5555),
 					CriSocket: &CRISocketConfig{
 						DockerSocketPath: NewStringPointer(defaultDockerSocketPath),
 					},
@@ -716,8 +744,8 @@ func TestDefaultDatadogAgentSpecClusterChecksRunner(t *testing.T) {
 		{
 			name: "sparse conf",
 			clc: DatadogAgentSpecClusterChecksRunnerSpec{
-				Enabled: NewBoolPointer(true),
-				Config:  &ClusterChecksRunnerConfig{},
+				Enabled:         NewBoolPointer(true),
+				ContainerConfig: &DatadogAgentGenericContainerConfig{},
 				Image: &ImageConfig{
 					Name: "gcr.io/datadog/agent:latest",
 					Tag:  defaultAgentImageTag,
@@ -727,7 +755,7 @@ func TestDefaultDatadogAgentSpecClusterChecksRunner(t *testing.T) {
 				Image: &ImageConfig{
 					PullPolicy: &defaultImagePullPolicy,
 				},
-				Config: &ClusterChecksRunnerConfig{
+				ContainerConfig: &DatadogAgentGenericContainerConfig{
 					LogLevel:       NewStringPointer(defaultLogLevel),
 					LivenessProbe:  GetDefaultLivenessProbe(),
 					ReadinessProbe: GetDefaultReadinessProbe(),
@@ -745,7 +773,7 @@ func TestDefaultDatadogAgentSpecClusterChecksRunner(t *testing.T) {
 					PullPolicy:  &defaultImagePullPolicy,
 					PullSecrets: &[]corev1.LocalObjectReference{},
 				},
-				Config: &ClusterChecksRunnerConfig{
+				ContainerConfig: &DatadogAgentGenericContainerConfig{
 					LogLevel:       NewStringPointer(defaultLogLevel),
 					LivenessProbe:  GetDefaultLivenessProbe(),
 					ReadinessProbe: GetDefaultReadinessProbe(),
@@ -761,7 +789,7 @@ func TestDefaultDatadogAgentSpecClusterChecksRunner(t *testing.T) {
 			name: "some conf",
 			clc: DatadogAgentSpecClusterChecksRunnerSpec{
 				Enabled: NewBoolPointer(true),
-				Config: &ClusterChecksRunnerConfig{
+				ContainerConfig: &DatadogAgentGenericContainerConfig{
 					LogLevel:   NewStringPointer("DEBUG"),
 					HealthPort: NewInt32Pointer(1664),
 				},
@@ -774,7 +802,7 @@ func TestDefaultDatadogAgentSpecClusterChecksRunner(t *testing.T) {
 				Image: &ImageConfig{
 					PullPolicy: &defaultImagePullPolicy,
 				},
-				Config: &ClusterChecksRunnerConfig{
+				ContainerConfig: &DatadogAgentGenericContainerConfig{
 					LivenessProbe:  GetDefaultLivenessProbe(),
 					ReadinessProbe: GetDefaultReadinessProbe(),
 				},
@@ -790,7 +818,7 @@ func TestDefaultDatadogAgentSpecClusterChecksRunner(t *testing.T) {
 					PullPolicy:  &defaultImagePullPolicy,
 					PullSecrets: &[]corev1.LocalObjectReference{},
 				},
-				Config: &ClusterChecksRunnerConfig{
+				ContainerConfig: &DatadogAgentGenericContainerConfig{
 					LogLevel:       NewStringPointer("DEBUG"),
 					LivenessProbe:  GetDefaultLivenessProbe(),
 					ReadinessProbe: GetDefaultReadinessProbe(),
@@ -987,7 +1015,9 @@ func TestDefaultDatadogAgentSpecAgentApm(t *testing.T) {
 			want: &APMSpec{
 				HostPort:         NewInt32Pointer(8126),
 				UnixDomainSocket: &APMUnixDomainSocketSpec{Enabled: NewBoolPointer(false)},
-				LivenessProbe:    getDefaultAPMAgentLivenessProbe(),
+				ContainerConfig: &DatadogAgentGenericContainerConfig{
+					LivenessProbe: getDefaultAPMAgentLivenessProbe(),
+				},
 			},
 		},
 	}

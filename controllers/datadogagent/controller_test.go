@@ -511,22 +511,24 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						UseEDS:                       true,
 						OrchestratorExplorerDisabled: true,
 						Labels:                       map[string]string{"label-foo-key": "label-bar-value"},
-						NodeAgentConfig: &datadoghqv1alpha1.NodeAgentConfig{
-							DDUrl:    datadoghqv1alpha1.NewStringPointer("https://test.url.com"),
-							LogLevel: datadoghqv1alpha1.NewStringPointer("TRACE"),
-							Tags:     []string{"tag:test"},
-							Env: []corev1.EnvVar{
-								{
-									Name:  "env",
-									Value: "test",
+						NodeAgentSpec: &datadoghqv1alpha1.NodeAgentSpec{
+							ContainerConfig: &datadoghqv1alpha1.DatadogAgentGenericContainerConfig{
+								LogLevel: datadoghqv1alpha1.NewStringPointer("TRACE"),
+								Env: []corev1.EnvVar{
+									{
+										Name:  "env",
+										Value: "test",
+									},
+								},
+								VolumeMounts: []corev1.VolumeMount{
+									{
+										Name:      "volumeMount",
+										MountPath: "my/test/path",
+									},
 								},
 							},
-							VolumeMounts: []corev1.VolumeMount{
-								{
-									Name:      "volumeMount",
-									MountPath: "my/test/path",
-								},
-							},
+							DDUrl: datadoghqv1alpha1.NewStringPointer("https://test.url.com"),
+							Tags:  []string{"tag:test"},
 							PodLabelsAsTags: map[string]string{
 								"label": "test",
 							},
@@ -627,7 +629,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				request: newRequest(resourcesNamespace, resourcesName),
 				loadFunc: func(c client.Client) {
 					agentConfig := &datadoghqv1alpha1.DatadogAgentSpecAgentSpec{
-						Config: &datadoghqv1alpha1.NodeAgentConfig{
+						NodeAgent: &datadoghqv1alpha1.NodeAgentSpec{
 							SecurityContext: &corev1.PodSecurityContext{
 								RunAsUser: datadoghqv1alpha1.NewInt64Pointer(100),
 							},
@@ -643,7 +645,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 							UseEDS:                       false,
 							OrchestratorExplorerDisabled: true,
 							Labels:                       map[string]string{"label-foo-key": "label-bar-value"},
-							NodeAgentConfig:              agentConfig.Config,
+							NodeAgentSpec:                agentConfig.NodeAgent,
 						})
 					_ = c.Create(context.TODO(), dda)
 					createAgentDependencies(c, dda)
