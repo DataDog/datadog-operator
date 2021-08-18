@@ -103,7 +103,7 @@ metadata:
     operators.operatorframework.io/builder: operator-sdk-v1.4.0+git
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
     repository: https://github.com/DataDog/datadog-operator
-  name: datadog-operator.v0.6.0
+  name: datadog-operator.v0.7.0-rc.1
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -268,6 +268,13 @@ spec:
         - apiGroups:
           - ""
           resources:
+          - replicationcontrollers
+          verbs:
+          - list
+          - watch
+        - apiGroups:
+          - ""
+          resources:
           - resourcequotas
           verbs:
           - list
@@ -314,6 +321,13 @@ spec:
           - mutatingwebhookconfigurations
           verbs:
           - '*'
+        - apiGroups:
+          - admissionregistration.k8s.io
+          resources:
+          - validatingwebhookconfigurations
+          verbs:
+          - list
+          - watch
         - apiGroups:
           - apiregistration.k8s.io
           resources:
@@ -365,6 +379,16 @@ spec:
           - statefulsets
           verbs:
           - get
+          - list
+          - watch
+        - apiGroups:
+          - apps
+          - extensions
+          resources:
+          - daemonsets
+          - deployments
+          - replicasets
+          verbs:
           - list
           - watch
         - apiGroups:
@@ -450,6 +474,13 @@ spec:
           - jobs
           verbs:
           - get
+          - list
+          - watch
+        - apiGroups:
+          - certificates.k8s.io
+          resources:
+          - certificatesigningrequests
+          verbs:
           - list
           - watch
         - apiGroups:
@@ -559,6 +590,13 @@ spec:
         - apiGroups:
           - networking.k8s.io
           resources:
+          - ingresses
+          verbs:
+          - list
+          - watch
+        - apiGroups:
+          - networking.k8s.io
+          resources:
           - networkpolicies
           verbs:
           - create
@@ -579,6 +617,14 @@ spec:
           - list
           - patch
           - update
+          - watch
+        - apiGroups:
+          - policy
+          resources:
+          - podsecuritypolicies
+          verbs:
+          - get
+          - list
           - watch
         - apiGroups:
           - quota.openshift.io
@@ -691,6 +737,14 @@ spec:
           - securitycontextconstraints
           verbs:
           - use
+        - apiGroups:
+          - storage.k8s.io
+          resources:
+          - storageclasses
+          - volumeattachments
+          verbs:
+          - list
+          - watch
         serviceAccountName: datadog-operator-manager
       - rules:
         - apiGroups:
@@ -731,8 +785,8 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.annotations['olm.targetNamespaces']
-                image: gcr.io/datadoghq/operator:0.6.0
-                imagePullPolicy: Always
+                image: gcr.io/datadoghq/operator:0.7.0-rc.1
+                imagePullPolicy: IfNotPresent
                 livenessProbe:
                   httpGet:
                     path: /healthz/
@@ -820,5 +874,4 @@ spec:
   maturity: alpha
   provider:
     name: Datadog
-  version: 0.6.0
-  replaces: datadog-operator.v0.5.0
+  version: 0.7.0-rc.1
