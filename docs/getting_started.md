@@ -55,7 +55,7 @@ Here are the steps:
 
 1. Deploy the Datadog agent with the above configuration file:
    ```shell
-   kubectl apply -f agent_spec=/path/to/your/datadog-agent.yaml
+   kubectl apply -f /path/to/your/datadog-agent.yaml
    ```
 
 ## Cleanup
