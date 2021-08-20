@@ -34,6 +34,7 @@ const (
 // ReconcilerOptions provides options read from command line
 type ReconcilerOptions struct {
 	SupportExtendedDaemonset bool
+	SupportCilium            bool
 	OperatorMetricsEnabled   bool
 }
 

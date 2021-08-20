@@ -1263,12 +1263,31 @@ type ImageConfig struct {
 	PullSecrets *[]corev1.LocalObjectReference `json:"pullSecrets,omitempty"`
 }
 
+// NetworkPolicyFlavor specifies which flavor of Network Policy to use.
+type NetworkPolicyFlavor string
+
+const (
+	// NetworkPolicyFlavorKubernetes refers to  `networking.k8s.io/v1/NetworkPolicy`
+	NetworkPolicyFlavorKubernetes NetworkPolicyFlavor = "kubernetes"
+
+	// NetworkPolicyFlavorCilium refers to `cilium.io/v2/CiliumNetworkPolicy`
+	NetworkPolicyFlavorCilium NetworkPolicyFlavor = "cilium"
+)
+
 // NetworkPolicySpec provides Network Policy configuration for the agents.
 // +k8s:openapi-gen=true
 type NetworkPolicySpec struct {
 	// If true, create a NetworkPolicy for the current agent.
 	// +optional
 	Create *bool `json:"create,omitempty"`
+
+	// Which network policy to use. Can be `kubernetes` or `cilium`.
+	// +optional
+	Flavor NetworkPolicyFlavor `json:"flavor,omitempty"`
+
+	// Cilium selector of the DNS server entity.
+	// +optional
+	DNSSelectorEndpoints []metav1.LabelSelector `json:"dnsSelectorEndpoints,omitempty"`
 }
 
 // DatadogAgentState type representing the deployment state of the different Agent components.

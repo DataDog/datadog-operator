@@ -1226,6 +1226,25 @@ func DefaultNetworkPolicy(policy *NetworkPolicySpec) *NetworkPolicySpec {
 		policyOverride.Create = policy.Create
 	}
 
+	if *policy.Create {
+		if policy.Flavor == "" {
+			policy.Flavor = NetworkPolicyFlavorKubernetes
+			policyOverride.Flavor = policy.Flavor
+		}
+
+		if policy.Flavor == NetworkPolicyFlavorCilium && policy.DNSSelectorEndpoints == nil {
+			policy.DNSSelectorEndpoints = []metav1.LabelSelector{
+				{
+					MatchLabels: map[string]string{
+						"k8s:io.kubernetes.pod.namespace": "kube-system",
+						"k8s:k8s-app":                     "kube-dns",
+					},
+				},
+			}
+			policyOverride.DNSSelectorEndpoints = policy.DNSSelectorEndpoints
+		}
+	}
+
 	return policyOverride
 }
 

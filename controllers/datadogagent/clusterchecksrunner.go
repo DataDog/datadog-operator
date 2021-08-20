@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -24,6 +25,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/orchestrator"
+	"github.com/DataDog/datadog-operator/pkg/cilium"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
@@ -536,17 +538,32 @@ func getPodAffinity(affinity *corev1.Affinity) *corev1.Affinity {
 }
 
 func (r *Reconciler) manageClusterChecksRunnerNetworkPolicy(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
-	policyName := fmt.Sprintf("%s-%s", dda.Name, datadoghqv1alpha1.DefaultClusterChecksRunnerResourceSuffix)
-
 	spec := dda.Spec.ClusterChecksRunner
-	if !datadoghqv1alpha1.BoolValue(dda.Spec.ClusterChecksRunner.Enabled) || spec.NetworkPolicy == nil || !datadoghqv1alpha1.BoolValue(spec.NetworkPolicy.Create) {
-		return r.cleanupNetworkPolicy(logger, dda, policyName)
+	builder := clusterChecksRunnerNetworkPolicyBuilder{dda, spec.NetworkPolicy}
+	if !datadoghqv1alpha1.BoolValue(spec.Enabled) || spec.NetworkPolicy == nil || !datadoghqv1alpha1.BoolValue(spec.NetworkPolicy.Create) {
+		return r.cleanupNetworkPolicy(logger, dda, builder.Name())
 	}
 
-	return r.ensureNetworkPolicy(logger, dda, policyName, buildClusterChecksRunnerNetworkPolicy)
+	return r.ensureNetworkPolicy(logger, dda, builder)
 }
 
-func buildClusterChecksRunnerNetworkPolicy(dda *datadoghqv1alpha1.DatadogAgent, name string) *networkingv1.NetworkPolicy {
+type clusterChecksRunnerNetworkPolicyBuilder struct {
+	dda *datadoghqv1alpha1.DatadogAgent
+	np  *datadoghqv1alpha1.NetworkPolicySpec
+}
+
+func (b clusterChecksRunnerNetworkPolicyBuilder) Name() string {
+	return fmt.Sprintf("%s-%s", b.dda.Name, datadoghqv1alpha1.DefaultClusterChecksRunnerResourceSuffix)
+}
+
+func (b clusterChecksRunnerNetworkPolicyBuilder) NetworkPolicySpec() *datadoghqv1alpha1.NetworkPolicySpec {
+	return b.np
+}
+
+func (b clusterChecksRunnerNetworkPolicyBuilder) BuildKubernetesPolicy() *networkingv1.NetworkPolicy {
+	dda := b.dda
+	name := b.Name()
+
 	egressRules := []networkingv1.NetworkPolicyEgressRule{
 		// Egress to datadog intake and kubeapi server
 		{
@@ -600,13 +617,8 @@ func buildClusterChecksRunnerNetworkPolicy(dda *datadoghqv1alpha1.DatadogAgent, 
 			Namespace: dda.Namespace,
 		},
 		Spec: networkingv1.NetworkPolicySpec{
-			PodSelector: metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					kubernetes.AppKubernetesInstanceLabelKey: datadoghqv1alpha1.DefaultClusterChecksRunnerResourceSuffix,
-					kubernetes.AppKubernetesPartOfLabelKey:   NewPartOfLabelValue(dda).String(),
-				},
-			},
-			Egress: egressRules,
+			PodSelector: b.PodSelector(),
+			Egress:      egressRules,
 			PolicyTypes: []networkingv1.PolicyType{
 				networkingv1.PolicyTypeIngress,
 				networkingv1.PolicyTypeEgress,
@@ -615,4 +627,99 @@ func buildClusterChecksRunnerNetworkPolicy(dda *datadoghqv1alpha1.DatadogAgent, 
 	}
 
 	return policy
+}
+
+func (b clusterChecksRunnerNetworkPolicyBuilder) PodSelector() metav1.LabelSelector {
+	return metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			kubernetes.AppKubernetesInstanceLabelKey: datadoghqv1alpha1.DefaultClusterChecksRunnerResourceSuffix,
+			kubernetes.AppKubernetesPartOfLabelKey:   NewPartOfLabelValue(b.dda).String(),
+		},
+	}
+}
+
+func (b clusterChecksRunnerNetworkPolicyBuilder) ddFQDNs() []cilium.FQDNSelector {
+	selectors := []cilium.FQDNSelector{}
+
+	ddURL := b.dda.Spec.Agent.Config.DDUrl
+	if ddURL != nil {
+		selectors = append(selectors, cilium.FQDNSelector{
+			MatchName: strings.TrimPrefix(*ddURL, "https://"),
+		})
+	}
+
+	var site string
+	if b.dda.Spec.Site != "" {
+		site = b.dda.Spec.Site
+	} else {
+		site = defaultSite
+	}
+
+	selectors = append(selectors, []cilium.FQDNSelector{
+		{
+			MatchPattern: fmt.Sprintf("*-app.agent.%s", site),
+		},
+	}...)
+
+	return selectors
+}
+
+func (b clusterChecksRunnerNetworkPolicyBuilder) BuildCiliumPolicy() *cilium.NetworkPolicy {
+	return &cilium.NetworkPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels:    getDefaultLabels(b.dda, datadoghqv1alpha1.DefaultClusterChecksRunnerResourceSuffix, getClusterChecksRunnerVersion(b.dda)),
+			Name:      b.Name(),
+			Namespace: b.dda.Namespace,
+		},
+		Specs: []cilium.NetworkPolicySpec{
+			ciliumEgressMetadataServerRule(b),
+			ciliumEgressDNS(b),
+			{
+				Description:      "Egress to Datadog intake",
+				EndpointSelector: b.PodSelector(),
+				Egress: []cilium.EgressRule{
+					{
+						ToFQDNs: b.ddFQDNs(),
+						ToPorts: []cilium.PortRule{
+							{
+								Ports: []cilium.PortProtocol{
+									{
+										Port:     "443",
+										Protocol: cilium.ProtocolTCP,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			{
+				Description:      "Egress to cluster agent",
+				EndpointSelector: b.PodSelector(),
+				Egress: []cilium.EgressRule{
+					{
+						ToPorts: []cilium.PortRule{
+							{
+								Ports: []cilium.PortProtocol{
+									{
+										Port:     "5005",
+										Protocol: cilium.ProtocolTCP,
+									},
+								},
+							},
+						},
+						ToEndpoints: []metav1.LabelSelector{
+							{
+								MatchLabels: map[string]string{
+									kubernetes.AppKubernetesInstanceLabelKey: datadoghqv1alpha1.DefaultClusterAgentResourceSuffix,
+									kubernetes.AppKubernetesPartOfLabelKey:   fmt.Sprintf("%s-%s", b.dda.Namespace, b.dda.Name),
+								},
+							},
+						},
+					},
+				},
+			},
+			ciliumEgressChecks(b),
+		},
+	}
 }
