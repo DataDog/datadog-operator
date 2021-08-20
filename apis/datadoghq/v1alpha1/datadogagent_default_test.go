@@ -372,6 +372,7 @@ func TestDefaultDatadogAgentSpecClusterAgent(t *testing.T) {
 						Port: NewInt32Pointer(8443),
 					},
 				},
+				NetworkPolicy: &NetworkPolicySpec{Flavor: NetworkPolicyFlavorKubernetes},
 			},
 			internalDefaulted: DatadogAgentSpecClusterAgentSpec{
 				Enabled: NewBoolPointer(true),
@@ -399,9 +400,12 @@ func TestDefaultDatadogAgentSpecClusterAgent(t *testing.T) {
 					LogLevel:             NewStringPointer("DEBUG"),
 					HealthPort:           NewInt32Pointer(5555),
 				},
-				Rbac:          &RbacConfig{Create: NewBoolPointer(false)},
-				Replicas:      NewInt32Pointer(2),
-				NetworkPolicy: &NetworkPolicySpec{Create: NewBoolPointer(true)},
+				Rbac:     &RbacConfig{Create: NewBoolPointer(false)},
+				Replicas: NewInt32Pointer(2),
+				NetworkPolicy: &NetworkPolicySpec{
+					Create: NewBoolPointer(true),
+					Flavor: NetworkPolicyFlavorKubernetes,
+				},
 			},
 		},
 	}

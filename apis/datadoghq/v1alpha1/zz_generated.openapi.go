@@ -2475,9 +2475,32 @@ func schema__apis_datadoghq_v1alpha1_NetworkPolicySpec(ref common.ReferenceCallb
 							Format:      "",
 						},
 					},
+					"flavor": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Which network policy to use. Can be `kubernetes` or `cilium`.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"dnsSelectorEndpoints": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Cilium selector of the DNS server entity.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"),
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
 	}
 }
 

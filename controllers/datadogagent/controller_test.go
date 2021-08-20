@@ -18,6 +18,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	test "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1/test"
+	"github.com/DataDog/datadog-operator/pkg/cilium"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
@@ -105,6 +106,7 @@ func TestReconcileDatadogAgent_createNewExtendedDaemonSet(t *testing.T) {
 				forwarders: forwarders,
 				options: ReconcilerOptions{
 					SupportExtendedDaemonset: true,
+					SupportCilium:            true,
 				},
 			}
 			got, err := r.createNewExtendedDaemonSet(tt.args.logger, tt.args.agentdeployment, tt.args.newStatus)
@@ -2433,6 +2435,60 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				return nil
 			},
 		},
+		{
+			name: "DatadogAgent found and defaulted, Cilium network policies created",
+			fields: fields{
+				client:   fake.NewFakeClient(),
+				scheme:   s,
+				recorder: recorder,
+			},
+			args: args{
+				request: newRequest(resourcesNamespace, resourcesName),
+				loadFunc: func(c client.Client) {
+					dadOptions := &test.NewDatadogAgentOptions{
+						CreateNetworkPolicy:          true,
+						NetworkPolicyFlavor:          datadoghqv1alpha1.NetworkPolicyFlavorCilium,
+						OrchestratorExplorerDisabled: true,
+					}
+
+					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, dadOptions)
+					_ = c.Create(context.TODO(), dda)
+
+					createAgentDependencies(c, dda)
+				},
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(c client.Client) error {
+				ds := &appsv1.DaemonSet{}
+				err := c.Get(context.TODO(), newRequest(resourcesNamespace, dsName).NamespacedName, ds)
+				if err != nil {
+					return err
+				}
+
+				unstructured := emptyCiliumUnstructuredPolicy()
+				err = c.Get(context.TODO(), newRequest(resourcesNamespace, dsName).NamespacedName, unstructured)
+				if err != nil {
+					return err
+				}
+
+				policy := cilium.NetworkPolicy{}
+				err = runtime.DefaultUnstructuredConverter.FromUnstructured(unstructured.UnstructuredContent(), &policy)
+				if err != nil {
+					return err
+				}
+
+				dsLabels := labels.Set(ds.Spec.Template.Labels)
+				for _, spec := range policy.Specs {
+					policySelector := labels.Set(spec.EndpointSelector.MatchLabels).AsSelector()
+					if !policySelector.Matches(dsLabels) {
+						return fmt.Errorf("network policy's selector %s does not match pods defined in the daemonset", policySelector)
+					}
+				}
+
+				return nil
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -2445,6 +2501,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				forwarders: forwarders,
 				options: ReconcilerOptions{
 					SupportExtendedDaemonset: true,
+					SupportCilium:            true,
 				},
 			}
 			if tt.args.loadFunc != nil {

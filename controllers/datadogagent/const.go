@@ -33,6 +33,7 @@ const (
 	serviceKind             = "Service"
 	apiServiceKind          = "APIService"
 	networkPolicyKind       = "NetworkPolicy"
+	ciliumNetworkPolicyKind = "CiliumNetworkPolicy"
 
 	checkRunnersSuffix = "ccr"
 	clusterAgentSuffix = "dca"

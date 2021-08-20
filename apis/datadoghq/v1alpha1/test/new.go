@@ -86,6 +86,7 @@ type NewDatadogAgentOptions struct {
 	RuntimePoliciesDir               *datadoghqv1alpha1.ConfigDirSpec
 	SecurityContext                  *corev1.PodSecurityContext
 	CreateNetworkPolicy              bool
+	NetworkPolicyFlavor              datadoghqv1alpha1.NetworkPolicyFlavor
 	AgentSpecAdditionalLabels        map[string]string
 	AgentSpecAdditionalAnnotations   map[string]string
 	Features                         *datadoghqv1alpha1.DatadogFeatures
@@ -156,6 +157,7 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 		ad.Spec.Site = options.Site
 		ad.Spec.Agent.NetworkPolicy = &datadoghqv1alpha1.NetworkPolicySpec{
 			Create: &options.CreateNetworkPolicy,
+			Flavor: options.NetworkPolicyFlavor,
 		}
 
 		if len(options.AgentSpecAdditionalLabels) > 0 {
@@ -197,6 +199,7 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 				DeploymentName: options.ClusterAgentDeploymentName,
 				NetworkPolicy: &datadoghqv1alpha1.NetworkPolicySpec{
 					Create: &options.CreateNetworkPolicy,
+					Flavor: options.NetworkPolicyFlavor,
 				},
 			}
 
@@ -268,6 +271,7 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 				},
 				NetworkPolicy: &datadoghqv1alpha1.NetworkPolicySpec{
 					Create: &options.CreateNetworkPolicy,
+					Flavor: options.NetworkPolicyFlavor,
 				},
 			}
 

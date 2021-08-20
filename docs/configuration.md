@@ -198,6 +198,8 @@ spec:
 | agent.log.podLogsPath | Allows log collection from pod log path. Defaults to `/var/log/pods`. |
 | agent.log.tempStoragePath | This path (always mounted from the host) is used by Datadog Agent to store information about processed log files. If the Datadog Agent is restarted, it starts tailing the log files immediately. Default to `/var/lib/datadog-agent/logs` |
 | agent.networkPolicy.create | If true, create a NetworkPolicy for the current agent. |
+| agent.networkPolicy.dnsSelectorEndpoints | Cilium selector of the DNS server entity. |
+| agent.networkPolicy.flavor | Which network policy to use. Can be `kubernetes` or `cilium`. |
 | agent.priorityClassName | If specified, indicates the pod's priority. "system-node-critical" and "system-cluster-critical" are two special keywords which indicate the highest priorities with the former being the highest priority. Any other name must be defined by creating a PriorityClass object with that name. If not specified, the pod priority will be default or zero if there is no default. |
 | agent.process.args | Args allows the specification of extra args to `Command` parameter |
 | agent.process.command | Command allows the specification of custom entrypoint for Process Agent container |
@@ -312,6 +314,8 @@ spec:
 | clusterAgent.keepAnnotations | KeepAnnotations allows the specification of annotations not managed by the Operator that will be kept on ClusterAgent Deployment. All annotations containing 'datadoghq.com' are always included. This field uses glob syntax. |
 | clusterAgent.keepLabels | KeepLabels allows the specification of labels not managed by the Operator that will be kept on ClusterAgent Deployment. All labels containing 'datadoghq.com' are always included. This field uses glob syntax. |
 | clusterAgent.networkPolicy.create | If true, create a NetworkPolicy for the current agent. |
+| clusterAgent.networkPolicy.dnsSelectorEndpoints | Cilium selector of the DNS server entity. |
+| clusterAgent.networkPolicy.flavor | Which network policy to use. Can be `kubernetes` or `cilium`. |
 | clusterAgent.nodeSelector | NodeSelector is a selector which must be true for the pod to fit on a node. Selector which must match a node's labels for the pod to be scheduled on that node. More info: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/ |
 | clusterAgent.priorityClassName | If specified, indicates the pod's priority. "system-node-critical" and "system-cluster-critical" are two special keywords which indicate the highest priorities with the former being the highest priority. Any other name must be defined by creating a PriorityClass object with that name. If not specified, the pod priority will be default or zero if there is no default. |
 | clusterAgent.rbac.create | Used to configure RBAC resources creation. |
@@ -374,6 +378,8 @@ spec:
 | clusterChecksRunner.image.pullSecrets | It is possible to specify docker registry credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod |
 | clusterChecksRunner.image.tag | Define the image version to use: To be used if the Name field does not correspond to a full image string. |
 | clusterChecksRunner.networkPolicy.create | If true, create a NetworkPolicy for the current agent. |
+| clusterChecksRunner.networkPolicy.dnsSelectorEndpoints | Cilium selector of the DNS server entity. |
+| clusterChecksRunner.networkPolicy.flavor | Which network policy to use. Can be `kubernetes` or `cilium`. |
 | clusterChecksRunner.nodeSelector | NodeSelector is a selector which must be true for the pod to fit on a node. Selector which must match a node's labels for the pod to be scheduled on that node. More info: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/ |
 | clusterChecksRunner.priorityClassName | If specified, indicates the pod's priority. "system-node-critical" and "system-cluster-critical" are two special keywords which indicate the highest priorities with the former being the highest priority. Any other name must be defined by creating a PriorityClass object with that name. If not specified, the pod priority will be default or zero if there is no default. |
 | clusterChecksRunner.rbac.create | Used to configure RBAC resources creation. |
