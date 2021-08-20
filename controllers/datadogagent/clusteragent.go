@@ -923,9 +923,6 @@ func (r *Reconciler) manageClusterAgentRBACs(logger logr.Logger, dda *datadoghqv
 
 func (r *Reconciler) createClusterAgentClusterRole(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string) (reconcile.Result, error) {
 	clusterRole := buildClusterAgentClusterRole(dda, name, agentVersion)
-	if err := SetOwnerReference(dda, clusterRole, r.scheme); err != nil {
-		return reconcile.Result{}, err
-	}
 	logger.V(1).Info("createClusterAgentClusterRole", "clusterRole.name", clusterRole.Name)
 	event := buildEventInfo(clusterRole.Name, clusterRole.Namespace, clusterRoleKind, datadog.CreationEvent)
 	r.recordEvent(dda, event)
@@ -945,9 +942,6 @@ func (r *Reconciler) createClusterAgentRole(logger logr.Logger, dda *datadoghqv1
 
 func (r *Reconciler) createAgentClusterRole(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string) (reconcile.Result, error) {
 	clusterRole := buildAgentClusterRole(dda, name, agentVersion)
-	if err := SetOwnerReference(dda, clusterRole, r.scheme); err != nil {
-		return reconcile.Result{}, err
-	}
 	logger.V(1).Info("createAgentClusterRole", "clusterRole.name", clusterRole.Name)
 	event := buildEventInfo(clusterRole.Name, clusterRole.Namespace, clusterRoleKind, datadog.CreationEvent)
 	r.recordEvent(dda, event)
@@ -957,9 +951,6 @@ func (r *Reconciler) createAgentClusterRole(logger logr.Logger, dda *datadoghqv1
 
 func (r *Reconciler) createClusterCheckRunnerClusterRole(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string) (reconcile.Result, error) {
 	clusterRole := buildClusterCheckRunnerClusterRole(dda, name, agentVersion)
-	if err := SetOwnerReference(dda, clusterRole, r.scheme); err != nil {
-		return reconcile.Result{}, err
-	}
 	logger.V(1).Info("createAgentClusterRole", "clusterRole.name", clusterRole.Name)
 	event := buildEventInfo(clusterRole.Name, clusterRole.Namespace, clusterRoleKind, datadog.CreationEvent)
 	r.recordEvent(dda, event)

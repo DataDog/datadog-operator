@@ -308,9 +308,6 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				if !hasAllNodeLevelRbacResources(clusterRole.Rules) {
 					return fmt.Errorf("bad cluster role, should contain all node level rbac resources, current: %v", clusterRole.Rules)
 				}
-				if !CheckOwnerReference(datadogAgent, clusterRole) {
-					return fmt.Errorf("bad cluster role, should be owned by the datadog operator, current owners: %v", clusterRole.OwnerReferences)
-				}
 
 				return nil
 			},
@@ -352,9 +349,6 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				clusterRoleBinding := &rbacv1.ClusterRoleBinding{}
 				if err := c.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesName}, clusterRoleBinding); err != nil {
 					return err
-				}
-				if !CheckOwnerReference(datadogAgent, clusterRoleBinding) {
-					return fmt.Errorf("bad clusterRoleBinding, should be owned by the datadog operator, current owners: %v", clusterRoleBinding.OwnerReferences)
 				}
 				return nil
 			},
@@ -1255,10 +1249,6 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 					return err
 				}
 
-				if !CheckOwnerReference(datadogAgent, clusterRole) {
-					return fmt.Errorf("bad clusterRole, should be owned by the datadog operator, current owners: %v", clusterRole.OwnerReferences)
-				}
-
 				return nil
 			},
 		},
@@ -1405,10 +1395,6 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 					return err
 				}
 
-				if !CheckOwnerReference(datadogAgent, clusterRole) {
-					return fmt.Errorf("bad clusterRole, should be owned by the datadog operator, current owners: %v", clusterRole.OwnerReferences)
-				}
-
 				return nil
 			},
 		},
@@ -1463,10 +1449,6 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				datadogAgent := &datadoghqv1alpha1.DatadogAgent{}
 				if err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, datadogAgent); err != nil {
 					return err
-				}
-
-				if !CheckOwnerReference(datadogAgent, clusterRoleBinding) {
-					return fmt.Errorf("bad clusterRoleBinding, should be owned by the datadog operator, current owners: %v", clusterRoleBinding.OwnerReferences)
 				}
 
 				return nil
@@ -1545,10 +1527,6 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				datadogAgent := &datadoghqv1alpha1.DatadogAgent{}
 				if err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, datadogAgent); err != nil {
 					return err
-				}
-
-				if !CheckOwnerReference(datadogAgent, clusterRoleBinding) {
-					return fmt.Errorf("bad clusterRoleBinding, should be owned by the datadog operator, current owners: %v", clusterRoleBinding.OwnerReferences)
 				}
 
 				return nil
@@ -2041,10 +2019,6 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				datadogAgent := &datadoghqv1alpha1.DatadogAgent{}
 				if err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, datadogAgent); err != nil {
 					return err
-				}
-
-				if !CheckOwnerReference(datadogAgent, clusterRoleBinding) {
-					return fmt.Errorf("bad clusterRoleBinding, should be owned by the datadog operator, current owners: %v", clusterRoleBinding.OwnerReferences)
 				}
 
 				return nil

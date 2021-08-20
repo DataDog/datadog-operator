@@ -2,7 +2,6 @@ package datadogagent
 
 import (
 	"context"
-
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -99,9 +98,6 @@ func (r *Reconciler) createServiceAccount(logger logr.Logger, dda *datadoghqv1al
 
 func (r *Reconciler) createClusterRoleBinding(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, info roleBindingInfo, agentVersion string) (reconcile.Result, error) {
 	clusterRoleBinding := buildClusterRoleBinding(dda, info, agentVersion)
-	if err := SetOwnerReference(dda, clusterRoleBinding, r.scheme); err != nil {
-		return reconcile.Result{}, err
-	}
 	logger.V(1).Info("createClusterRoleBinding", "clusterRoleBinding.name", clusterRoleBinding.Name)
 	event := buildEventInfo(clusterRoleBinding.Name, clusterRoleBinding.Namespace, clusterRoleBindingKind, datadog.CreationEvent)
 	r.recordEvent(dda, event)
