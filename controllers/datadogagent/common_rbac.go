@@ -199,3 +199,11 @@ func isOwnerBasedOnLabels(dda *datadoghqv1alpha1.DatadogAgent, labels map[string
 	isPartOfDDA := labels[kubernetes.AppKubernetesPartOfLabelKey] == dda.Namespace+"-"+dda.Name
 	return isManagedByOperator && isPartOfDDA
 }
+
+func rbacNamesForDda(dda *datadoghqv1alpha1.DatadogAgent) []string {
+	return []string{
+		getAgentRbacResourcesName(dda),
+		getClusterAgentRbacResourcesName(dda),
+		getClusterChecksRunnerRbacResourcesName(dda),
+	}
+}
