@@ -602,7 +602,7 @@ func buildClusterChecksRunnerNetworkPolicy(dda *datadoghqv1alpha1.DatadogAgent, 
 			PodSelector: metav1.LabelSelector{
 				MatchLabels: map[string]string{
 					kubernetes.AppKubernetesInstanceLabelKey: datadoghqv1alpha1.DefaultClusterChecksRunnerResourceSuffix,
-					kubernetes.AppKubernetesPartOfLabelKey:   dda.Name,
+					kubernetes.AppKubernetesPartOfLabelKey:   dda.Namespace + "-" + dda.Name,
 				},
 			},
 			Egress: egressRules,

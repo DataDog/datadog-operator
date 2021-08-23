@@ -3,6 +3,7 @@ package datadogagent
 import (
 	"context"
 
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -99,9 +100,6 @@ func (r *Reconciler) createServiceAccount(logger logr.Logger, dda *datadoghqv1al
 
 func (r *Reconciler) createClusterRoleBinding(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, info roleBindingInfo, agentVersion string) (reconcile.Result, error) {
 	clusterRoleBinding := buildClusterRoleBinding(dda, info, agentVersion)
-	if err := SetOwnerReference(dda, clusterRoleBinding, r.scheme); err != nil {
-		return reconcile.Result{}, err
-	}
 	logger.V(1).Info("createClusterRoleBinding", "clusterRoleBinding.name", clusterRoleBinding.Name)
 	event := buildEventInfo(clusterRoleBinding.Name, clusterRoleBinding.Namespace, clusterRoleBindingKind, datadog.CreationEvent)
 	r.recordEvent(dda, event)
@@ -118,9 +116,11 @@ func (r *Reconciler) cleanupClusterRole(logger logr.Logger, client client.Client
 		}
 		return reconcile.Result{}, err
 	}
-	if !CheckOwnerReference(dda, clusterRole) {
+
+	if !isOwnerBasedOnLabels(dda, clusterRole.Labels) {
 		return reconcile.Result{}, nil
 	}
+
 	logger.V(1).Info("deleteClusterRole", "clusterRole.name", clusterRole.Name, "clusterRole.Namespace", clusterRole.Namespace)
 	event := buildEventInfo(clusterRole.Name, clusterRole.Namespace, clusterRoleKind, datadog.DeletionEvent)
 	r.recordEvent(dda, event)
@@ -136,9 +136,11 @@ func (r *Reconciler) cleanupClusterRoleBinding(logger logr.Logger, client client
 		}
 		return reconcile.Result{}, err
 	}
-	if !CheckOwnerReference(dda, clusterRoleBinding) {
+
+	if !isOwnerBasedOnLabels(dda, clusterRoleBinding.Labels) {
 		return reconcile.Result{}, nil
 	}
+
 	logger.V(1).Info("deleteClusterRoleBinding", "clusterRoleBinding.name", clusterRoleBinding.Name, "clusterRoleBinding.Namespace", clusterRoleBinding.Namespace)
 	event := buildEventInfo(clusterRoleBinding.Name, clusterRoleBinding.Namespace, clusterRoleBindingKind, datadog.DeletionEvent)
 	r.recordEvent(dda, event)
@@ -184,4 +186,24 @@ func (r *Reconciler) updateIfNeededClusterRoleBinding(logger logr.Logger, dda *d
 	}
 
 	return reconcile.Result{}, nil
+}
+
+// isOwnerBasedOnLabels returns whether a DatadogAgent is the owner of a
+// resource based on its labels.
+// DatadogAgent objects are namespace-scoped. Some resources like cluster roles
+// and cluster role bindings are not. This means that the DatadogAgent objects
+// cannot be set as owner ref for those. For those objects, we can use their
+// labels to know whether a DatadogAgent object owns them.
+func isOwnerBasedOnLabels(dda *datadoghqv1alpha1.DatadogAgent, labels map[string]string) bool {
+	isManagedByOperator := labels[kubernetes.AppKubernetesManageByLabelKey] == "datadog-operator"
+	isPartOfDDA := labels[kubernetes.AppKubernetesPartOfLabelKey] == dda.Namespace+"-"+dda.Name
+	return isManagedByOperator && isPartOfDDA
+}
+
+func rbacNamesForDda(dda *datadoghqv1alpha1.DatadogAgent) []string {
+	return []string{
+		getAgentRbacResourcesName(dda),
+		getClusterAgentRbacResourcesName(dda),
+		getClusterChecksRunnerRbacResourcesName(dda),
+	}
 }
