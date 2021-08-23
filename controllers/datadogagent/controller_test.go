@@ -308,8 +308,8 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				if !hasAllNodeLevelRbacResources(clusterRole.Rules) {
 					return fmt.Errorf("bad cluster role, should contain all node level rbac resources, current: %v", clusterRole.Rules)
 				}
-				if !CheckOwnerReference(datadogAgent, clusterRole) {
-					return fmt.Errorf("bad cluster role, should be owned by the datadog operator, current owners: %v", clusterRole.OwnerReferences)
+				if !isOwnerBasedOnLabels(datadogAgent, clusterRole.Labels) {
+					return fmt.Errorf("bad cluster role, ownership labels not properly set")
 				}
 
 				return nil
@@ -353,8 +353,8 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				if err := c.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesName}, clusterRoleBinding); err != nil {
 					return err
 				}
-				if !CheckOwnerReference(datadogAgent, clusterRoleBinding) {
-					return fmt.Errorf("bad clusterRoleBinding, should be owned by the datadog operator, current owners: %v", clusterRoleBinding.OwnerReferences)
+				if !isOwnerBasedOnLabels(datadogAgent, clusterRoleBinding.Labels) {
+					return fmt.Errorf("bad clusterRoleBinding, ownership labels not properly set")
 				}
 				return nil
 			},
@@ -1255,8 +1255,8 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 					return err
 				}
 
-				if !CheckOwnerReference(datadogAgent, clusterRole) {
-					return fmt.Errorf("bad clusterRole, should be owned by the datadog operator, current owners: %v", clusterRole.OwnerReferences)
+				if !isOwnerBasedOnLabels(datadogAgent, clusterRole.Labels) {
+					return fmt.Errorf("bad clusterRole, ownership labels not properly set")
 				}
 
 				return nil
@@ -1405,8 +1405,8 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 					return err
 				}
 
-				if !CheckOwnerReference(datadogAgent, clusterRole) {
-					return fmt.Errorf("bad clusterRole, should be owned by the datadog operator, current owners: %v", clusterRole.OwnerReferences)
+				if !isOwnerBasedOnLabels(datadogAgent, clusterRole.Labels) {
+					return fmt.Errorf("bad clusterRole, ownership labels not properly set")
 				}
 
 				return nil
@@ -1465,8 +1465,8 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 					return err
 				}
 
-				if !CheckOwnerReference(datadogAgent, clusterRoleBinding) {
-					return fmt.Errorf("bad clusterRoleBinding, should be owned by the datadog operator, current owners: %v", clusterRoleBinding.OwnerReferences)
+				if !isOwnerBasedOnLabels(datadogAgent, clusterRoleBinding.Labels) {
+					return fmt.Errorf("bad clusterRoleBinding, ownership labels not properly set")
 				}
 
 				return nil
@@ -1547,8 +1547,8 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 					return err
 				}
 
-				if !CheckOwnerReference(datadogAgent, clusterRoleBinding) {
-					return fmt.Errorf("bad clusterRoleBinding, should be owned by the datadog operator, current owners: %v", clusterRoleBinding.OwnerReferences)
+				if !isOwnerBasedOnLabels(datadogAgent, clusterRoleBinding.Labels) {
+					return fmt.Errorf("bad clusterRoleBinding, ownership labels not properly set")
 				}
 
 				return nil
@@ -2043,8 +2043,8 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 					return err
 				}
 
-				if !CheckOwnerReference(datadogAgent, clusterRoleBinding) {
-					return fmt.Errorf("bad clusterRoleBinding, should be owned by the datadog operator, current owners: %v", clusterRoleBinding.OwnerReferences)
+				if !isOwnerBasedOnLabels(datadogAgent, clusterRoleBinding.Labels) {
+					return fmt.Errorf("bad cluster role, ownership labels not properly set")
 				}
 
 				return nil
