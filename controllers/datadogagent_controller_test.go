@@ -164,7 +164,7 @@ var _ = Describe("DatadogAgent Controller", func() {
 
 			By("Activating APM", func() {
 				checkAgentUpdateOnDaemonSet(key, dsKey, func(agent *datadoghqv1alpha1.DatadogAgent) {
-					agent.Spec.Agent.Apm.Enabled = datadoghqv1alpha1.NewBoolPointer(true)
+					agent.Spec.Agent.Apm.FeatureSpec.Enabled = datadoghqv1alpha1.NewBoolPointer(true)
 				}, nil)
 			})
 

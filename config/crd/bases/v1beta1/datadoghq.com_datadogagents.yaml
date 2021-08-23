@@ -1108,30 +1108,35 @@ spec:
                             type: object
                           type: array
                       type: object
-                    enabled:
-                      description: 'Enable this to enable APM and tracing, on port
-                        8126. See also: https://github.com/DataDog/docker-dd-agent#tracing-from-the-host'
-                      type: boolean
-                    hostPort:
-                      description: Number of port to expose on the host. If specified,
-                        this must be a valid port number, 0 < x < 65536. If HostNetwork
-                        is specified, this must match ContainerPort. Most containers
-                        do not need this.
-                      format: int32
-                      type: integer
-                    unixDomainSocket:
-                      description: 'UnixDomainSocket socket configuration. See also:
-                        https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables'
+                    featureSpec:
+                      description: Contains the configuration specific to the featureset
+                        of Application Performance Monitoring
                       properties:
                         enabled:
-                          description: 'Enable APM over Unix Domain Socket See also:
-                            https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables'
+                          description: 'Enable this to enable APM and tracing, on
+                            port 8126. See also: https://github.com/DataDog/docker-dd-agent#tracing-from-the-host'
                           type: boolean
-                        hostFilepath:
-                          description: 'Define the host APM socket filepath used when
-                            APM over Unix Domain Socket is enabled. (default value:
-                            /var/run/datadog/apm.sock) See also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables'
-                          type: string
+                        hostPort:
+                          description: Number of port to expose on the host. If specified,
+                            this must be a valid port number, 0 < x < 65536. If HostNetwork
+                            is specified, this must match ContainerPort. Most containers
+                            do not need this.
+                          format: int32
+                          type: integer
+                        unixDomainSocket:
+                          description: 'UnixDomainSocket socket configuration. See
+                            also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables'
+                          properties:
+                            enabled:
+                              description: 'Enable APM over Unix Domain Socket See
+                                also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables'
+                              type: boolean
+                            hostFilepath:
+                              description: 'Define the host APM socket filepath used
+                                when APM over Unix Domain Socket is enabled. (default
+                                value: /var/run/datadog/apm.sock) See also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables'
+                              type: string
+                          type: object
                       type: object
                   type: object
                 customConfig:
@@ -11366,6 +11371,35 @@ spec:
             features:
               description: Features running on the Agent and Cluster Agent.
               properties:
+                apm:
+                  description: Application Performance Monitoring
+                  properties:
+                    enabled:
+                      description: 'Enable this to enable APM and tracing, on port
+                        8126. See also: https://github.com/DataDog/docker-dd-agent#tracing-from-the-host'
+                      type: boolean
+                    hostPort:
+                      description: Number of port to expose on the host. If specified,
+                        this must be a valid port number, 0 < x < 65536. If HostNetwork
+                        is specified, this must match ContainerPort. Most containers
+                        do not need this.
+                      format: int32
+                      type: integer
+                    unixDomainSocket:
+                      description: 'UnixDomainSocket socket configuration. See also:
+                        https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables'
+                      properties:
+                        enabled:
+                          description: 'Enable APM over Unix Domain Socket See also:
+                            https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables'
+                          type: boolean
+                        hostFilepath:
+                          description: 'Define the host APM socket filepath used when
+                            APM over Unix Domain Socket is enabled. (default value:
+                            /var/run/datadog/apm.sock) See also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables'
+                          type: string
+                      type: object
+                  type: object
                 kubeStateMetricsCore:
                   description: KubeStateMetricsCore configuration.
                   properties:
@@ -12818,30 +12852,36 @@ spec:
                                 type: object
                               type: array
                           type: object
-                        enabled:
-                          description: 'Enable this to enable APM and tracing, on
-                            port 8126. See also: https://github.com/DataDog/docker-dd-agent#tracing-from-the-host'
-                          type: boolean
-                        hostPort:
-                          description: Number of port to expose on the host. If specified,
-                            this must be a valid port number, 0 < x < 65536. If HostNetwork
-                            is specified, this must match ContainerPort. Most containers
-                            do not need this.
-                          format: int32
-                          type: integer
-                        unixDomainSocket:
-                          description: 'UnixDomainSocket socket configuration. See
-                            also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables'
+                        featureSpec:
+                          description: Contains the configuration specific to the
+                            featureset of Application Performance Monitoring
                           properties:
                             enabled:
-                              description: 'Enable APM over Unix Domain Socket See
-                                also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables'
+                              description: 'Enable this to enable APM and tracing,
+                                on port 8126. See also: https://github.com/DataDog/docker-dd-agent#tracing-from-the-host'
                               type: boolean
-                            hostFilepath:
-                              description: 'Define the host APM socket filepath used
-                                when APM over Unix Domain Socket is enabled. (default
-                                value: /var/run/datadog/apm.sock) See also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables'
-                              type: string
+                            hostPort:
+                              description: Number of port to expose on the host. If
+                                specified, this must be a valid port number, 0 < x
+                                < 65536. If HostNetwork is specified, this must match
+                                ContainerPort. Most containers do not need this.
+                              format: int32
+                              type: integer
+                            unixDomainSocket:
+                              description: 'UnixDomainSocket socket configuration.
+                                See also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables'
+                              properties:
+                                enabled:
+                                  description: 'Enable APM over Unix Domain Socket
+                                    See also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables'
+                                  type: boolean
+                                hostFilepath:
+                                  description: 'Define the host APM socket filepath
+                                    used when APM over Unix Domain Socket is enabled.
+                                    (default value: /var/run/datadog/apm.sock) See
+                                    also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables'
+                                  type: string
+                              type: object
                           type: object
                       type: object
                     customConfig:
@@ -23466,6 +23506,35 @@ spec:
                 features:
                   description: Features running on the Agent and Cluster Agent.
                   properties:
+                    apm:
+                      description: Application Performance Monitoring
+                      properties:
+                        enabled:
+                          description: 'Enable this to enable APM and tracing, on
+                            port 8126. See also: https://github.com/DataDog/docker-dd-agent#tracing-from-the-host'
+                          type: boolean
+                        hostPort:
+                          description: Number of port to expose on the host. If specified,
+                            this must be a valid port number, 0 < x < 65536. If HostNetwork
+                            is specified, this must match ContainerPort. Most containers
+                            do not need this.
+                          format: int32
+                          type: integer
+                        unixDomainSocket:
+                          description: 'UnixDomainSocket socket configuration. See
+                            also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables'
+                          properties:
+                            enabled:
+                              description: 'Enable APM over Unix Domain Socket See
+                                also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables'
+                              type: boolean
+                            hostFilepath:
+                              description: 'Define the host APM socket filepath used
+                                when APM over Unix Domain Socket is enabled. (default
+                                value: /var/run/datadog/apm.sock) See also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables'
+                              type: string
+                          type: object
+                      type: object
                     kubeStateMetricsCore:
                       description: KubeStateMetricsCore configuration.
                       properties:

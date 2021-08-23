@@ -27,6 +27,8 @@ type DatadogFeatures struct {
 	NetworkMonitoring *NetworkMonitoringConfig `json:"networkMonitoring,omitempty"`
 	// LogCollection configuration.
 	LogCollection *LogCollectionConfig `json:"logCollection,omitempty"`
+	// Application Performance Monitoring
+	APM *APMFeatureSpec `json:"apm,omitempty"`
 }
 
 // DatadogAgentSpec defines the desired state of DatadogAgent.
@@ -351,10 +353,20 @@ type DaemonSetRollingUpdateSpec struct {
 // APMSpec contains the Trace Agent configuration.
 // +k8s:openapi-gen=true
 type APMSpec struct {
+	// Contains the configuration specific to the featureset of Application Performance Monitoring
+	FeatureSpec *APMFeatureSpec `json:"featureSpec,omitempty"`
+
+	// Agent config contain the basic configuration of the Datadog Process Agent's container.
+	ContainerConfig *DatadogAgentGenericContainerConfig `json:"containerConfig,omitempty"`
+}
+
+// APMFeatureSpec contains the configuration specific to the featureset of Application Performance Monitoring
+type APMFeatureSpec struct {
 	// Enable this to enable APM and tracing, on port 8126.
 	// See also: https://github.com/DataDog/docker-dd-agent#tracing-from-the-host
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+
 	// Number of port to expose on the host.
 	// If specified, this must be a valid port number, 0 < x < 65536.
 	// If HostNetwork is specified, this must match ContainerPort.
@@ -367,9 +379,6 @@ type APMSpec struct {
 	// See also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables
 	// +optional
 	UnixDomainSocket *APMUnixDomainSocketSpec `json:"unixDomainSocket,omitempty"`
-
-	// Agent config contain the basic configuration of the Datadog Process Agent's container.
-	ContainerConfig *DatadogAgentGenericContainerConfig `json:"containerConfig,omitempty"`
 }
 
 // APMUnixDomainSocketSpec contains the APM Unix Domain Socket configuration.
@@ -915,6 +924,7 @@ type ClusterAgentConfig struct {
 	Features *FeaturesConfigClusterAgent `json:"features,omitempty"`
 }
 
+// FeaturesConfigClusterAgent contains the feature part of the Cluster Agent
 type FeaturesConfigClusterAgent struct {
 	ExternalMetrics *ExternalMetricsConfig `json:"externalMetrics,omitempty"`
 

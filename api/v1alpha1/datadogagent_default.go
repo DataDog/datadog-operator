@@ -160,6 +160,11 @@ func FeatureOverride(dda *DatadogAgentSpec, dso *DatadogAgentSpec) {
 			dso.Agent.Process.Enabled = NewBoolPointer(true)
 		}
 	}
+	if dda.Features.APM != nil {
+		dda.Agent.Apm.FeatureSpec.Enabled = dda.Features.APM.Enabled
+		dda.Agent.Apm.FeatureSpec.UnixDomainSocket = dda.Features.APM.UnixDomainSocket
+		dso.Agent.Apm = DefaultDatadogAgentSpecAgentApm(&dda.Agent)
+	}
 }
 
 // DefaultDatadogAgentSpecAgent used to default an DatadogAgentSpecAgentSpec
@@ -306,7 +311,7 @@ func DefaultDatadogAgentSpecAgentConfig(agents *DatadogAgentSpecAgentSpec) *Node
 
 	if agents.NodeAgent.ContainerConfig.LogLevel == nil {
 		agents.NodeAgent.ContainerConfig.LogLevel = NewStringPointer(defaultLogLevel)
-		agents.NodeAgent.ContainerConfig.LogLevel = agents.NodeAgent.ContainerConfig.LogLevel
+		configOverride.ContainerConfig.LogLevel = agents.NodeAgent.ContainerConfig.LogLevel
 	}
 
 	if agents.NodeAgent.CollectEvents == nil {
@@ -540,23 +545,27 @@ func DefaultDatadogAgentSpecDatadogAgentStrategy(agents *DatadogAgentSpecAgentSp
 // return the defaulted APMSpec
 func DefaultDatadogAgentSpecAgentApm(agents *DatadogAgentSpecAgentSpec) *APMSpec {
 	if agents.Apm == nil {
-		agents.Apm = &APMSpec{Enabled: NewBoolPointer(defaultApmEnabled)}
+		agents.Apm = &APMSpec{
+			FeatureSpec: &APMFeatureSpec{
+				Enabled: NewBoolPointer(defaultApmEnabled),
+			},
+		}
 		return agents.Apm
 	}
 
 	apmOverride := &APMSpec{}
-	if agents.Apm.Enabled == nil {
-		agents.Apm.Enabled = NewBoolPointer(defaultApmEnabled)
-		apmOverride.Enabled = agents.Apm.Enabled
+	if agents.Apm.FeatureSpec.Enabled == nil {
+		agents.Apm.FeatureSpec.Enabled = NewBoolPointer(defaultApmEnabled)
+		apmOverride.FeatureSpec.Enabled = agents.Apm.FeatureSpec.Enabled
 	}
 
-	if !BoolValue(agents.Apm.Enabled) {
+	if !BoolValue(agents.Apm.FeatureSpec.Enabled) {
 		return apmOverride
 	}
 
-	if agents.Apm.HostPort == nil {
-		agents.Apm.HostPort = NewInt32Pointer(defaultApmHostPort)
-		apmOverride.HostPort = agents.Apm.HostPort
+	if agents.Apm.FeatureSpec.HostPort == nil {
+		agents.Apm.FeatureSpec.HostPort = NewInt32Pointer(defaultApmHostPort)
+		apmOverride.FeatureSpec.HostPort = agents.Apm.FeatureSpec.HostPort
 	}
 
 	if agents.Apm.ContainerConfig.LivenessProbe == nil {
@@ -565,7 +574,7 @@ func DefaultDatadogAgentSpecAgentApm(agents *DatadogAgentSpecAgentSpec) *APMSpec
 	}
 
 	if udsOverride := DefaultDatadogAgentSpecAgentApmUDS(agents.Apm); !IsEqualStruct(udsOverride, APMUnixDomainSocketSpec{}) {
-		apmOverride.UnixDomainSocket = udsOverride
+		apmOverride.FeatureSpec.UnixDomainSocket = udsOverride
 	}
 
 	return apmOverride
@@ -588,25 +597,25 @@ func getDefaultAPMAgentLivenessProbe() *corev1.Probe {
 // DefaultDatadogAgentSpecAgentApmUDS used to default APMUnixDomainSocketSpec
 // rreturn the defaulted APMUnixDomainSocketSpec
 func DefaultDatadogAgentSpecAgentApmUDS(apm *APMSpec) *APMUnixDomainSocketSpec {
-	if apm.UnixDomainSocket == nil {
-		apm.UnixDomainSocket = &APMUnixDomainSocketSpec{Enabled: NewBoolPointer(false)}
-		return apm.UnixDomainSocket
+	if apm.FeatureSpec.UnixDomainSocket == nil {
+		apm.FeatureSpec.UnixDomainSocket = &APMUnixDomainSocketSpec{Enabled: NewBoolPointer(false)}
+		return apm.FeatureSpec.UnixDomainSocket
 	}
 
 	udsOverride := &APMUnixDomainSocketSpec{}
-	if apm.UnixDomainSocket.Enabled == nil {
-		apm.UnixDomainSocket.Enabled = NewBoolPointer(false)
-		udsOverride.Enabled = apm.UnixDomainSocket.Enabled
+	if apm.FeatureSpec.UnixDomainSocket.Enabled == nil {
+		apm.FeatureSpec.UnixDomainSocket.Enabled = NewBoolPointer(false)
+		udsOverride.Enabled = apm.FeatureSpec.UnixDomainSocket.Enabled
 	}
 
-	if !BoolValue(apm.UnixDomainSocket.Enabled) {
+	if !BoolValue(apm.FeatureSpec.UnixDomainSocket.Enabled) {
 		return udsOverride
 	}
 
-	if apm.UnixDomainSocket.HostFilepath == nil {
+	if apm.FeatureSpec.UnixDomainSocket.HostFilepath == nil {
 		socketPath := path.Join(defaultHostApmSocketPath, defaultHostApmSocketName)
-		apm.UnixDomainSocket.HostFilepath = &socketPath
-		udsOverride.HostFilepath = apm.UnixDomainSocket.HostFilepath
+		apm.FeatureSpec.UnixDomainSocket.HostFilepath = &socketPath
+		udsOverride.HostFilepath = apm.FeatureSpec.UnixDomainSocket.HostFilepath
 	}
 
 	return udsOverride
@@ -821,7 +830,20 @@ func DefaultFeatures(dda *DatadogAgent) *DatadogFeatures {
 		featureOverride.NetworkMonitoring = net
 	}
 
+	if apm := DefaultDatadogFeatureAPM(ft); !IsEqualStruct(*apm, APMSpec{}) {
+		featureOverride.APM = apm
+	}
 	return featureOverride
+}
+
+// DefaultDatadogFeatureAPM defaults the feature section of Application Performance Monitoring
+func DefaultDatadogFeatureAPM(ft *DatadogFeatures) *APMFeatureSpec {
+	if ft.APM == nil {
+		ft.APM = &APMFeatureSpec{}
+		return ft.APM
+	}
+	ft.APM.Enabled = NewBoolPointer(false)
+	return ft.APM
 }
 
 // DefaultDatadogFeatureOrchestratorExplorer used to default an OrchestratorExplorerConfig

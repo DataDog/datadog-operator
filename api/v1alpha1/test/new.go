@@ -292,7 +292,7 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 		}
 
 		if options.APMEnabled {
-			ad.Spec.Agent.Apm.Enabled = datadoghqv1alpha1.NewBoolPointer(true)
+			ad.Spec.Agent.Apm.FeatureSpec.Enabled = datadoghqv1alpha1.NewBoolPointer(true)
 		}
 
 		if options.ProcessEnabled {

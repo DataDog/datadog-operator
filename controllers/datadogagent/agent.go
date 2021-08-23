@@ -361,7 +361,7 @@ func buildAgentNetworkPolicy(dda *datadoghqv1alpha1.DatadogAgent, name string) *
 				{
 					Port: &intstr.IntOrString{
 						Type:   intstr.Int,
-						IntVal: *dda.Spec.Agent.Apm.HostPort,
+						IntVal: *dda.Spec.Agent.Apm.FeatureSpec.HostPort,
 					},
 					Protocol: &protocolTCP,
 				},

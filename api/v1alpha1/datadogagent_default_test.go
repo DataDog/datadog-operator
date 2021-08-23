@@ -499,7 +499,7 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 					ReconcileFrequency: &metav1.Duration{Duration: defaultReconcileFrequency},
 				},
 				Rbac:        &RbacConfig{Create: NewBoolPointer(true)},
-				Apm:         &APMSpec{Enabled: NewBoolPointer(false)},
+				Apm:         &APMSpec{FeatureSpec: &APMFeatureSpec{Enabled: NewBoolPointer(false)}},
 				Process:     &ProcessSpec{Enabled: NewBoolPointer(false)},
 				SystemProbe: &SystemProbeSpec{Enabled: NewBoolPointer(false)},
 				Security: &SecuritySpec{
@@ -551,7 +551,7 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 					ReconcileFrequency: &metav1.Duration{Duration: defaultReconcileFrequency},
 				},
 				Rbac:        &RbacConfig{Create: NewBoolPointer(true)},
-				Apm:         &APMSpec{Enabled: NewBoolPointer(false)},
+				Apm:         &APMSpec{FeatureSpec: &APMFeatureSpec{Enabled: NewBoolPointer(false)}},
 				Process:     &ProcessSpec{Enabled: NewBoolPointer(false)},
 				SystemProbe: &SystemProbeSpec{Enabled: NewBoolPointer(false)},
 				Security: &SecuritySpec{
@@ -579,7 +579,7 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 					Canary: edsdatadoghqv1alpha1.DefaultExtendedDaemonSetSpecStrategyCanary(testCanary),
 				},
 				Apm: &APMSpec{
-					HostPort: NewInt32Pointer(1664),
+					FeatureSpec: &APMFeatureSpec{HostPort: NewInt32Pointer(1664)},
 				},
 				Process: &ProcessSpec{
 					Enabled: NewBoolPointer(true),
@@ -624,7 +624,7 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 					ReconcileFrequency: &metav1.Duration{Duration: defaultReconcileFrequency},
 				},
 				Rbac:    &RbacConfig{Create: NewBoolPointer(true)},
-				Apm:     &APMSpec{Enabled: NewBoolPointer(false)},
+				Apm:     &APMSpec{FeatureSpec: &APMFeatureSpec{Enabled: NewBoolPointer(false)}},
 				Process: &ProcessSpec{ProcessCollectionEnabled: NewBoolPointer(false)},
 				SystemProbe: &SystemProbeSpec{
 					SecCompRootPath:      "/var/lib/kubelet/seccomp",
@@ -689,8 +689,10 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 					ReconcileFrequency: &metav1.Duration{Duration: defaultReconcileFrequency},
 				},
 				Apm: &APMSpec{
-					Enabled:  NewBoolPointer(false),
-					HostPort: NewInt32Pointer(1664),
+					FeatureSpec: &APMFeatureSpec{
+						Enabled:  NewBoolPointer(false),
+						HostPort: NewInt32Pointer(1664),
+					},
 				},
 				Process: &ProcessSpec{
 					Enabled:                  NewBoolPointer(true),
@@ -993,14 +995,18 @@ func TestDefaultDatadogAgentSpecAgentApm(t *testing.T) {
 				Enabled: NewBoolPointer(true),
 			},
 			want: &APMSpec{
-				Enabled: NewBoolPointer(false),
+				FeatureSpec: &APMFeatureSpec{
+					Enabled: NewBoolPointer(false),
+				},
 			},
 		},
 		{
 			name: "APM not enabled",
 			input: &DatadogAgentSpecAgentSpec{
 				Apm: &APMSpec{
-					Enabled: NewBoolPointer(false),
+					FeatureSpec: &APMFeatureSpec{
+						Enabled: NewBoolPointer(false),
+					},
 				},
 			},
 			want: &APMSpec{},
@@ -1009,12 +1015,16 @@ func TestDefaultDatadogAgentSpecAgentApm(t *testing.T) {
 			name: "APM enabled",
 			input: &DatadogAgentSpecAgentSpec{
 				Apm: &APMSpec{
-					Enabled: NewBoolPointer(true),
+					FeatureSpec: &APMFeatureSpec{
+						Enabled: NewBoolPointer(true),
+					},
 				},
 			},
 			want: &APMSpec{
-				HostPort:         NewInt32Pointer(8126),
-				UnixDomainSocket: &APMUnixDomainSocketSpec{Enabled: NewBoolPointer(false)},
+				FeatureSpec: &APMFeatureSpec{
+					HostPort:         NewInt32Pointer(8126),
+					UnixDomainSocket: &APMUnixDomainSocketSpec{Enabled: NewBoolPointer(false)},
+				},
 				ContainerConfig: &DatadogAgentGenericContainerConfig{
 					LivenessProbe: getDefaultAPMAgentLivenessProbe(),
 				},

@@ -163,17 +163,17 @@ func isClusterChecksEnabled(spec *datadoghqv1alpha1.DatadogAgentSpec) bool {
 }
 
 func isAPMEnabled(spec *datadoghqv1alpha1.DatadogAgentSpec) bool {
-	if spec.Agent.Apm == nil {
+	if spec.Agent.Apm == nil || spec.Agent.Apm.FeatureSpec == nil {
 		return false
 	}
-	return datadoghqv1alpha1.BoolValue(spec.Agent.Apm.Enabled)
+	return datadoghqv1alpha1.BoolValue(spec.Agent.Apm.FeatureSpec.Enabled)
 }
 
 func isAPMUDSEnabled(spec *datadoghqv1alpha1.DatadogAgentSpec) bool {
-	if !isAPMEnabled(spec) || spec.Agent.Apm.UnixDomainSocket == nil {
+	if !isAPMEnabled(spec) || spec.Agent.Apm.FeatureSpec.UnixDomainSocket == nil {
 		return false
 	}
-	return datadoghqv1alpha1.BoolValue(spec.Agent.Apm.UnixDomainSocket.Enabled)
+	return datadoghqv1alpha1.BoolValue(spec.Agent.Apm.FeatureSpec.UnixDomainSocket.Enabled)
 }
 
 func isSystemProbeEnabled(spec *datadoghqv1alpha1.DatadogAgentSpec) bool {
@@ -317,10 +317,10 @@ func getAPMAgentContainers(dda *datadoghqv1alpha1.DatadogAgent, image string) ([
 		return nil, err
 	}
 	tcpPort := corev1.ContainerPort{
-		ContainerPort: *dda.Spec.Agent.Apm.HostPort,
+		ContainerPort: *dda.Spec.Agent.Apm.FeatureSpec.HostPort,
 		Name:          "traceport",
 		Protocol:      corev1.ProtocolTCP,
-		HostPort:      *dda.Spec.Agent.Apm.HostPort,
+		HostPort:      *dda.Spec.Agent.Apm.FeatureSpec.HostPort,
 	}
 
 	apmContainer := corev1.Container{
@@ -544,10 +544,10 @@ func getEnvVarsForAPMAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.EnvVar
 	}
 
 	// APM Unix Domain Socket configuration
-	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Apm.UnixDomainSocket.Enabled) {
+	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Apm.FeatureSpec.UnixDomainSocket.Enabled) {
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  datadoghqv1alpha1.DDPPMReceiverSocket,
-			Value: getLocalFilepath(*dda.Spec.Agent.Apm.UnixDomainSocket.HostFilepath, localAPMSocketPath),
+			Value: getLocalFilepath(*dda.Spec.Agent.Apm.FeatureSpec.UnixDomainSocket.HostFilepath, localAPMSocketPath),
 		})
 	}
 
@@ -1033,7 +1033,7 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 	// APM volume
 	if isAPMUDSEnabled(&dda.Spec) {
 		volumeType := corev1.HostPathDirectoryOrCreate
-		hostPath := getDirFromFilepath(*dda.Spec.Agent.Apm.UnixDomainSocket.HostFilepath)
+		hostPath := getDirFromFilepath(*dda.Spec.Agent.Apm.FeatureSpec.UnixDomainSocket.HostFilepath)
 
 		dsdsocketVolume := corev1.Volume{
 			Name: datadoghqv1alpha1.APMSocketVolumeName,
@@ -1604,7 +1604,7 @@ func getVolumeMountsForAPMAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Vo
 	volumeMounts = append(volumeMounts, getVolumeMountDogstatsdSocket(true))
 
 	// APM UDS
-	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Apm.UnixDomainSocket.Enabled) {
+	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Apm.FeatureSpec.UnixDomainSocket.Enabled) {
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
 			Name:      datadoghqv1alpha1.APMSocketVolumeName,
 			MountPath: datadoghqv1alpha1.APMSocketVolumePath,
