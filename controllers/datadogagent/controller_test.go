@@ -308,6 +308,9 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				if !hasAllNodeLevelRbacResources(clusterRole.Rules) {
 					return fmt.Errorf("bad cluster role, should contain all node level rbac resources, current: %v", clusterRole.Rules)
 				}
+				if !isOwnerBasedOnLabels(datadogAgent, clusterRole.Labels) {
+					return fmt.Errorf("bad cluster role, ownership labels not properly set")
+				}
 
 				return nil
 			},
@@ -349,6 +352,9 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				clusterRoleBinding := &rbacv1.ClusterRoleBinding{}
 				if err := c.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesName}, clusterRoleBinding); err != nil {
 					return err
+				}
+				if !isOwnerBasedOnLabels(datadogAgent, clusterRoleBinding.Labels) {
+					return fmt.Errorf("bad clusterRoleBinding, ownership labels not properly set")
 				}
 				return nil
 			},
@@ -1249,6 +1255,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 					return err
 				}
 
+				if !isOwnerBasedOnLabels(datadogAgent, clusterRole.Labels) {
+					return fmt.Errorf("bad clusterRole, ownership labels not properly set")
+				}
+
 				return nil
 			},
 		},
@@ -1395,6 +1405,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 					return err
 				}
 
+				if !isOwnerBasedOnLabels(datadogAgent, clusterRole.Labels) {
+					return fmt.Errorf("bad clusterRole, ownership labels not properly set")
+				}
+
 				return nil
 			},
 		},
@@ -1449,6 +1463,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				datadogAgent := &datadoghqv1alpha1.DatadogAgent{}
 				if err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, datadogAgent); err != nil {
 					return err
+				}
+
+				if !isOwnerBasedOnLabels(datadogAgent, clusterRoleBinding.Labels) {
+					return fmt.Errorf("bad clusterRoleBinding, ownership labels not properly set")
 				}
 
 				return nil
@@ -1527,6 +1545,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				datadogAgent := &datadoghqv1alpha1.DatadogAgent{}
 				if err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, datadogAgent); err != nil {
 					return err
+				}
+
+				if !isOwnerBasedOnLabels(datadogAgent, clusterRoleBinding.Labels) {
+					return fmt.Errorf("bad clusterRoleBinding, ownership labels not properly set")
 				}
 
 				return nil
@@ -2019,6 +2041,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				datadogAgent := &datadoghqv1alpha1.DatadogAgent{}
 				if err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, datadogAgent); err != nil {
 					return err
+				}
+
+				if !isOwnerBasedOnLabels(datadogAgent, clusterRoleBinding.Labels) {
+					return fmt.Errorf("bad cluster role, ownership labels not properly set")
 				}
 
 				return nil
