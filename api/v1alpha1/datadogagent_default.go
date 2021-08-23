@@ -142,18 +142,25 @@ func DefaultDatadogAgent(dda *DatadogAgent) *DatadogAgentStatus {
 }
 
 // FeatureOverride defaults the feature section of the DatadogAgent
-// TODO surface in the status when Overrides are not possible. Security agent requires the system probe
+// TODO surface in the status when Overrides are not possible. Security agent requires the System Probe
 func FeatureOverride(dda *DatadogAgentSpec, dso *DatadogAgentSpec) {
 	if dda.Features.NetworkMonitoring != nil && BoolValue(dda.Features.NetworkMonitoring.Enabled) {
-		// If the Network monitoring Feature is enable, enable the System Probe.
-		if !BoolValue(dda.Agent.Enabled) || dda.Agent.SystemProbe != nil {
+		// If the Network Monitoring Feature is enabled, enable the System Probe.
+		if !BoolValue(dda.Agent.Enabled) {
+			if dda.Agent.SystemProbe == nil {
+				dda.Agent.SystemProbe = DefaultDatadogAgentSpecAgentSystemProbe(&dda.Agent)
+			}
 			dda.Agent.SystemProbe.Enabled = NewBoolPointer(true)
 			dso.Agent.SystemProbe = DefaultDatadogAgentSpecAgentSystemProbe(&dda.Agent)
 			dso.Agent.SystemProbe.Enabled = NewBoolPointer(true)
 		}
 	}
 	if dda.Features.OrchestratorExplorer != nil && BoolValue(dda.Features.OrchestratorExplorer.Enabled) {
-		if !BoolValue(dda.Agent.Enabled) || dda.Agent.Process != nil {
+		// If the Orchestrator Explorer Feature is enabled, enable the Process Agent.
+		if !BoolValue(dda.Agent.Enabled) {
+			if dda.Agent.Process == nil {
+				dda.Agent.Process = DefaultDatadogAgentSpecAgentProcess(&dda.Agent)
+			}
 			dda.Agent.Process.Enabled = NewBoolPointer(true)
 			dso.Agent.Process = DefaultDatadogAgentSpecAgentProcess(&dda.Agent)
 			dso.Agent.Process.Enabled = NewBoolPointer(true)
