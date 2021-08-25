@@ -1359,6 +1359,17 @@ func buildClusterAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, age
 				datadoghqv1alpha1.GetVerb,
 			},
 		})
+
+		// PV and PVC
+		rbacRules = append(rbacRules, rbacv1.PolicyRule{
+			APIGroups: []string{datadoghqv1alpha1.CoreAPIGroup},
+			Resources: []string{datadoghqv1alpha1.PersistentVolumesResource, datadoghqv1alpha1.PersistentVolumeClaimsResource},
+			Verbs: []string{
+				datadoghqv1alpha1.ListVerb,
+				datadoghqv1alpha1.WatchVerb,
+				datadoghqv1alpha1.GetVerb,
+			},
+		})
 	}
 
 	if isComplianceEnabled(&dda.Spec) {
