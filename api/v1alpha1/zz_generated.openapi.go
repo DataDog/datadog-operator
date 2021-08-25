@@ -732,6 +732,14 @@ func schema__api_v1alpha1_ConfigDirSpec(ref common.ReferenceCallback) common.Ope
 						},
 					},
 					"items": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"key",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
 						SchemaProps: spec.SchemaProps{
 							Description: "items mapping between configMap data key and file path mount.",
 							Type:        []string{"array"},
@@ -2426,7 +2434,7 @@ func schema__api_v1alpha1_LogCollectionConfig(ref common.ReferenceCallback) comm
 							Format:      "",
 						},
 					},
-					"ContainerSymlinksPath": {
+					"containerSymlinksPath": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Allows the log collection to use symbolic links in this directory to validate container ID -> pod. Defaults to `/var/log/containers`",
 							Type:        []string{"string"},
