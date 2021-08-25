@@ -153,6 +153,8 @@ func NewDatadogAgent(ns, name, image string, options *NewDatadogAgentOptions) *d
 
 			ad.Spec.Features.OrchestratorExplorer.Enabled = datadoghqv1alpha1.NewBoolPointer(false)
 		}
+		// options can have an impact on the defaulting
+		_ = datadoghqv1alpha1.DefaultDatadogAgent(ad)
 	}
 
 	return ad

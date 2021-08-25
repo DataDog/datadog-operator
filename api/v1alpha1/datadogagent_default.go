@@ -622,12 +622,18 @@ func DefaultDatadogAgentSpecAgentApmUDS(apm *APMSpec) *APMUnixDomainSocketSpec {
 // DefaultDatadogAgentSpecAgentSystemProbe defaults the System Probe
 // This method can be re-run as part of the FeatureOverride
 func DefaultDatadogAgentSpecAgentSystemProbe(agent *DatadogAgentSpecAgentSpec) *SystemProbeSpec {
+	sysOverride := &SystemProbeSpec{}
+
 	if agent.SystemProbe == nil {
 		agent.SystemProbe = &SystemProbeSpec{Enabled: NewBoolPointer(defaultSystemProbeEnabled)}
-		return agent.SystemProbe
+		sysOverride = agent.SystemProbe
 	}
 
-	sysOverride := &SystemProbeSpec{}
+	if agent.Security != nil && BoolValue(agent.Security.Runtime.Enabled) {
+		agent.SystemProbe.Enabled = agent.Security.Runtime.Enabled
+		sysOverride = agent.SystemProbe
+	}
+
 	if agent.SystemProbe.Enabled == nil {
 		agent.SystemProbe.Enabled = NewBoolPointer(defaultSystemProbeEnabled)
 		sysOverride.Enabled = agent.SystemProbe.Enabled
