@@ -1088,6 +1088,9 @@ spec:
                               - path
                               type: object
                             type: array
+                            x-kubernetes-list-map-keys:
+                            - key
+                            x-kubernetes-list-type: map
                         type: object
                       collectEvents:
                         description: 'Enables this to start event collection from
@@ -1142,6 +1145,9 @@ spec:
                               - path
                               type: object
                             type: array
+                            x-kubernetes-list-map-keys:
+                            - key
+                            x-kubernetes-list-type: map
                         type: object
                       criSocket:
                         description: Configure the CRI Socket.
@@ -3942,11 +3948,6 @@ spec:
                   log:
                     description: Log Agent configuration
                     properties:
-                      ContainerSymlinksPath:
-                        description: Allows the log collection to use symbolic links
-                          in this directory to validate container ID -> pod. Defaults
-                          to `/var/log/containers`
-                        type: string
                       containerCollectUsingFiles:
                         description: 'Collect logs from files in `/var/log/pods instead`
                           of using the container runtime API. Collecting logs from
@@ -3959,6 +3960,11 @@ spec:
                           path. Set to a different path if you are not using the Docker
                           runtime. See also: https://docs.datadoghq.com/agent/kubernetes/daemonset_setup/?tab=k8sfile#create-manifest
                           Defaults to `/var/lib/docker/containers`'
+                        type: string
+                      containerSymlinksPath:
+                        description: Allows the log collection to use symbolic links
+                          in this directory to validate container ID -> pod. Defaults
+                          to `/var/log/containers`
                         type: string
                       enabled:
                         description: 'Enable this option to activate Datadog Agent
@@ -4295,6 +4301,9 @@ spec:
                                   - path
                                   type: object
                                 type: array
+                                x-kubernetes-list-map-keys:
+                                - key
+                                x-kubernetes-list-type: map
                             type: object
                           enabled:
                             description: Enables continuous compliance monitoring.
@@ -4493,6 +4502,9 @@ spec:
                                   - path
                                   type: object
                                 type: array
+                                x-kubernetes-list-map-keys:
+                                - key
+                                x-kubernetes-list-type: map
                             type: object
                           syscallMonitor:
                             description: Syscall monitor configuration.
@@ -5701,6 +5713,9 @@ spec:
                               - path
                               type: object
                             type: array
+                            x-kubernetes-list-map-keys:
+                            - key
+                            x-kubernetes-list-type: map
                         type: object
                       env:
                         description: 'The Datadog Agent supports many environment
@@ -10608,11 +10623,6 @@ spec:
                   logCollection:
                     description: LogCollection configuration.
                     properties:
-                      ContainerSymlinksPath:
-                        description: Allows the log collection to use symbolic links
-                          in this directory to validate container ID -> pod. Defaults
-                          to `/var/log/containers`
-                        type: string
                       containerCollectUsingFiles:
                         description: 'Collect logs from files in `/var/log/pods instead`
                           of using the container runtime API. Collecting logs from
@@ -10625,6 +10635,11 @@ spec:
                           path. Set to a different path if you are not using the Docker
                           runtime. See also: https://docs.datadoghq.com/agent/kubernetes/daemonset_setup/?tab=k8sfile#create-manifest
                           Defaults to `/var/lib/docker/containers`'
+                        type: string
+                      containerSymlinksPath:
+                        description: Allows the log collection to use symbolic links
+                          in this directory to validate container ID -> pod. Defaults
+                          to `/var/log/containers`
                         type: string
                       enabled:
                         description: 'Enable this option to activate Datadog Agent
@@ -12001,6 +12016,9 @@ spec:
                                   - path
                                   type: object
                                 type: array
+                                x-kubernetes-list-map-keys:
+                                - key
+                                x-kubernetes-list-type: map
                             type: object
                           collectEvents:
                             description: 'Enables this to start event collection from
@@ -12057,6 +12075,9 @@ spec:
                                   - path
                                   type: object
                                 type: array
+                                x-kubernetes-list-map-keys:
+                                - key
+                                x-kubernetes-list-type: map
                             type: object
                           criSocket:
                             description: Configure the CRI Socket.
@@ -14965,11 +14986,6 @@ spec:
                       log:
                         description: Log Agent configuration
                         properties:
-                          ContainerSymlinksPath:
-                            description: Allows the log collection to use symbolic
-                              links in this directory to validate container ID ->
-                              pod. Defaults to `/var/log/containers`
-                            type: string
                           containerCollectUsingFiles:
                             description: 'Collect logs from files in `/var/log/pods
                               instead` of using the container runtime API. Collecting
@@ -14982,6 +14998,11 @@ spec:
                               log path. Set to a different path if you are not using
                               the Docker runtime. See also: https://docs.datadoghq.com/agent/kubernetes/daemonset_setup/?tab=k8sfile#create-manifest
                               Defaults to `/var/lib/docker/containers`'
+                            type: string
+                          containerSymlinksPath:
+                            description: Allows the log collection to use symbolic
+                              links in this directory to validate container ID ->
+                              pod. Defaults to `/var/log/containers`
                             type: string
                           enabled:
                             description: 'Enable this option to activate Datadog Agent
@@ -15325,6 +15346,9 @@ spec:
                                       - path
                                       type: object
                                     type: array
+                                    x-kubernetes-list-map-keys:
+                                    - key
+                                    x-kubernetes-list-type: map
                                 type: object
                               enabled:
                                 description: Enables continuous compliance monitoring.
@@ -15526,6 +15550,9 @@ spec:
                                       - path
                                       type: object
                                     type: array
+                                    x-kubernetes-list-map-keys:
+                                    - key
+                                    x-kubernetes-list-type: map
                                 type: object
                               syscallMonitor:
                                 description: Syscall monitor configuration.
@@ -16771,6 +16798,9 @@ spec:
                                   - path
                                   type: object
                                 type: array
+                                x-kubernetes-list-map-keys:
+                                - key
+                                x-kubernetes-list-type: map
                             type: object
                           env:
                             description: 'The Datadog Agent supports many environment
@@ -21890,11 +21920,6 @@ spec:
                       logCollection:
                         description: LogCollection configuration.
                         properties:
-                          ContainerSymlinksPath:
-                            description: Allows the log collection to use symbolic
-                              links in this directory to validate container ID ->
-                              pod. Defaults to `/var/log/containers`
-                            type: string
                           containerCollectUsingFiles:
                             description: 'Collect logs from files in `/var/log/pods
                               instead` of using the container runtime API. Collecting
@@ -21907,6 +21932,11 @@ spec:
                               log path. Set to a different path if you are not using
                               the Docker runtime. See also: https://docs.datadoghq.com/agent/kubernetes/daemonset_setup/?tab=k8sfile#create-manifest
                               Defaults to `/var/lib/docker/containers`'
+                            type: string
+                          containerSymlinksPath:
+                            description: Allows the log collection to use symbolic
+                              links in this directory to validate container ID ->
+                              pod. Defaults to `/var/log/containers`
                             type: string
                           enabled:
                             description: 'Enable this option to activate Datadog Agent
