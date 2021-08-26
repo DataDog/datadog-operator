@@ -153,7 +153,11 @@ func buildOrchestratorExplorerRBAC(dda *datadoghqv1alpha1.DatadogAgent, name, ve
 			APIGroups:     []string{datadoghqv1alpha1.CoreAPIGroup},
 			Resources:     []string{datadoghqv1alpha1.ConfigMapsResource},
 			ResourceNames: []string{datadoghqv1alpha1.DatadogClusterIDResourceName},
-			Verbs:         []string{datadoghqv1alpha1.GetVerb, datadoghqv1alpha1.CreateVerb, datadoghqv1alpha1.UpdateVerb},
+			Verbs: []string{
+				datadoghqv1alpha1.GetVerb,
+				datadoghqv1alpha1.CreateVerb,
+				datadoghqv1alpha1.UpdateVerb,
+			},
 		},
 		{
 			APIGroups: []string{datadoghqv1alpha1.CoreAPIGroup},
@@ -165,13 +169,26 @@ func buildOrchestratorExplorerRBAC(dda *datadoghqv1alpha1.DatadogAgent, name, ve
 		},
 		{
 			APIGroups: []string{datadoghqv1alpha1.AppsAPIGroup},
-			Resources: []string{datadoghqv1alpha1.DeploymentsResource, datadoghqv1alpha1.ReplicasetsResource, datadoghqv1alpha1.DaemonsetsResource, datadoghqv1alpha1.StatefulsetsResource},
+			Resources: []string{
+				datadoghqv1alpha1.DeploymentsResource,
+				datadoghqv1alpha1.ReplicasetsResource,
+				datadoghqv1alpha1.DaemonsetsResource,
+				datadoghqv1alpha1.StatefulsetsResource,
+			},
 		},
 		{
 			APIGroups: []string{datadoghqv1alpha1.BatchAPIGroup},
 			Resources: []string{
 				datadoghqv1alpha1.JobsResource,
 				datadoghqv1alpha1.CronjobsResource,
+			},
+		},
+
+		{
+			APIGroups: []string{datadoghqv1alpha1.CoreAPIGroup},
+			Resources: []string{
+				datadoghqv1alpha1.PersistentVolumesResource,
+				datadoghqv1alpha1.PersistentVolumeClaimsResource,
 			},
 		},
 	}
