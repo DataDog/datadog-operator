@@ -52,3 +52,11 @@ rules:
     verbs:
       - list
       - watch
+  - apigroups:
+      - ""
+    resources:
+      - persistentvolumes
+      - persistentvolumeclaims
+    verbs:
+      - list
+      - watch
