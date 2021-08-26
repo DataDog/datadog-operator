@@ -2447,14 +2447,14 @@ spec:
                 log:
                   description: Log Agent configuration
                   properties:
-                    ContainerSymlinksPath:
-                      description: Allows the log collection to use symbolic links in this directory to validate container ID -> pod. Defaults to `/var/log/containers`
-                      type: string
                     containerCollectUsingFiles:
                       description: 'Collect logs from files in `/var/log/pods instead` of using the container runtime API. Collecting logs from files is usually the most efficient way of collecting logs. See also: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup Default is true'
                       type: boolean
                     containerLogsPath:
                       description: 'Allows log collection from the container log path. Set to a different path if you are not using the Docker runtime. See also: https://docs.datadoghq.com/agent/kubernetes/daemonset_setup/?tab=k8sfile#create-manifest Defaults to `/var/lib/docker/containers`'
+                      type: string
+                    containerSymlinksPath:
+                      description: Allows the log collection to use symbolic links in this directory to validate container ID -> pod. Defaults to `/var/log/containers`
                       type: string
                     enabled:
                       description: 'Enable this option to activate Datadog Agent log collection. See also: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup'
@@ -6503,14 +6503,14 @@ spec:
                 logCollection:
                   description: LogCollection configuration.
                   properties:
-                    ContainerSymlinksPath:
-                      description: Allows the log collection to use symbolic links in this directory to validate container ID -> pod. Defaults to `/var/log/containers`
-                      type: string
                     containerCollectUsingFiles:
                       description: 'Collect logs from files in `/var/log/pods instead` of using the container runtime API. Collecting logs from files is usually the most efficient way of collecting logs. See also: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup Default is true'
                       type: boolean
                     containerLogsPath:
                       description: 'Allows log collection from the container log path. Set to a different path if you are not using the Docker runtime. See also: https://docs.datadoghq.com/agent/kubernetes/daemonset_setup/?tab=k8sfile#create-manifest Defaults to `/var/lib/docker/containers`'
+                      type: string
+                    containerSymlinksPath:
+                      description: Allows the log collection to use symbolic links in this directory to validate container ID -> pod. Defaults to `/var/log/containers`
                       type: string
                     enabled:
                       description: 'Enable this option to activate Datadog Agent log collection. See also: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup'
@@ -9155,14 +9155,14 @@ spec:
                     log:
                       description: Log Agent configuration
                       properties:
-                        ContainerSymlinksPath:
-                          description: Allows the log collection to use symbolic links in this directory to validate container ID -> pod. Defaults to `/var/log/containers`
-                          type: string
                         containerCollectUsingFiles:
                           description: 'Collect logs from files in `/var/log/pods instead` of using the container runtime API. Collecting logs from files is usually the most efficient way of collecting logs. See also: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup Default is true'
                           type: boolean
                         containerLogsPath:
                           description: 'Allows log collection from the container log path. Set to a different path if you are not using the Docker runtime. See also: https://docs.datadoghq.com/agent/kubernetes/daemonset_setup/?tab=k8sfile#create-manifest Defaults to `/var/lib/docker/containers`'
+                          type: string
+                        containerSymlinksPath:
+                          description: Allows the log collection to use symbolic links in this directory to validate container ID -> pod. Defaults to `/var/log/containers`
                           type: string
                         enabled:
                           description: 'Enable this option to activate Datadog Agent log collection. See also: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup'
@@ -13211,14 +13211,14 @@ spec:
                     logCollection:
                       description: LogCollection configuration.
                       properties:
-                        ContainerSymlinksPath:
-                          description: Allows the log collection to use symbolic links in this directory to validate container ID -> pod. Defaults to `/var/log/containers`
-                          type: string
                         containerCollectUsingFiles:
                           description: 'Collect logs from files in `/var/log/pods instead` of using the container runtime API. Collecting logs from files is usually the most efficient way of collecting logs. See also: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup Default is true'
                           type: boolean
                         containerLogsPath:
                           description: 'Allows log collection from the container log path. Set to a different path if you are not using the Docker runtime. See also: https://docs.datadoghq.com/agent/kubernetes/daemonset_setup/?tab=k8sfile#create-manifest Defaults to `/var/lib/docker/containers`'
+                          type: string
+                        containerSymlinksPath:
+                          description: Allows the log collection to use symbolic links in this directory to validate container ID -> pod. Defaults to `/var/log/containers`
                           type: string
                         enabled:
                           description: 'Enable this option to activate Datadog Agent log collection. See also: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup'
