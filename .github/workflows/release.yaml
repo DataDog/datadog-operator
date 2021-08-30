@@ -2,9 +2,10 @@ name: release
 on:
   push:
     branches:
-      - 'v*.*'
+      - "v[0-9]+.[0-9]+"
     tags:
-      - 'v*.*.**'
+      - "v[0-9]+.[0-9]+.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+-rc.[0-9]+"
 jobs:
   check-ref:
     runs-on: ubuntu-latest
