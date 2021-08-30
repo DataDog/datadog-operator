@@ -4,7 +4,7 @@ on:
     branches:
       - 'v*.*'
     tags:
-      - 'v*.*'
+      - 'v*.*.*'
 jobs:
   build:
     runs-on: ubuntu-latest
