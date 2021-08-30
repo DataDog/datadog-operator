@@ -4,8 +4,15 @@ on:
     branches:
       - 'v*.*'
     tags:
-      - 'v*.*.*'
+      - 'v*.*.**'
 jobs:
+  check-ref:
+    runs-on: ubuntu-latest
+    steps:
+     - name: View context attributes
+       uses: actions/github-script@v4
+       with:
+         script: console.log(context)
   build:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, '/refs/tags/v')
