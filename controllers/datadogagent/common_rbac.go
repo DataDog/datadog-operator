@@ -196,7 +196,7 @@ func (r *Reconciler) updateIfNeededClusterRoleBinding(logger logr.Logger, dda *d
 // labels to know whether a DatadogAgent object owns them.
 func isOwnerBasedOnLabels(dda *datadoghqv1alpha1.DatadogAgent, labels map[string]string) bool {
 	isManagedByOperator := labels[kubernetes.AppKubernetesManageByLabelKey] == "datadog-operator"
-	isPartOfDDA := labels[kubernetes.AppKubernetesPartOfLabelKey] == dda.Namespace+"-"+dda.Name
+	isPartOfDDA := labels[kubernetes.AppKubernetesPartOfLabelKey] == NewPartOfLabelValue(dda).String()
 	return isManagedByOperator && isPartOfDDA
 }
 

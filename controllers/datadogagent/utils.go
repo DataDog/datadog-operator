@@ -1907,7 +1907,7 @@ func getDefaultLabels(dda *datadoghqv1alpha1.DatadogAgent, instanceName, version
 	labels := make(map[string]string)
 	labels[kubernetes.AppKubernetesNameLabelKey] = "datadog-agent-deployment"
 	labels[kubernetes.AppKubernetesInstanceLabelKey] = instanceName
-	labels[kubernetes.AppKubernetesPartOfLabelKey] = dda.Namespace + "-" + dda.Name
+	labels[kubernetes.AppKubernetesPartOfLabelKey] = NewPartOfLabelValue(dda).String()
 	labels[kubernetes.AppKubernetesVersionLabelKey] = version
 	labels[kubernetes.AppKubernetesManageByLabelKey] = "datadog-operator"
 
