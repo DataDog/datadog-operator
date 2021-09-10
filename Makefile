@@ -145,7 +145,7 @@ install-tools: bin/golangci-lint bin/operator-sdk bin/yq bin/kubebuilder
 
 .PHONY: generate-openapi
 generate-openapi: bin/openapi-gen
-	./bin/openapi-gen --logtostderr=true -o "" -i ./api/v1alpha1 -O zz_generated.openapi -p ./api/v1alpha1 -h ./hack/boilerplate.go.txt -r "-"
+	./bin/openapi-gen --logtostderr=true -o "" -i ./apis/datadoghq/v1alpha1 -O zz_generated.openapi -p ./apis/datadoghq/v1alpha1 -h ./hack/boilerplate.go.txt -r "-"
 
 .PHONY: patch-crds
 patch-crds: bin/yq ## Patch-crds

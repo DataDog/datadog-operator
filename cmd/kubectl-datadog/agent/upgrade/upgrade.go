@@ -10,7 +10,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/DataDog/datadog-operator/api/v1alpha1"
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 	"github.com/DataDog/datadog-operator/pkg/plugin/common"
 

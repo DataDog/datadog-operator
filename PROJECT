@@ -7,18 +7,18 @@ resources:
   domain: com
   group: datadoghq
   kind: DatadogAgent
-  path: github.com/DataDog/datadog-operator/api/v1alpha1
+  path: github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1
   version: v1alpha1
 - domain: com
   group: datadoghq
   kind: DatadogMetric
-  path: github.com/DataDog/datadog-operator/api/v1alpha1
+  path: github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1
   version: v1alpha1
 - controller: true
   domain: com
   group: datadoghq
   kind: DatadogMonitor
-  path: github.com/DataDog/datadog-operator/api/v1alpha1
+  path: github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1
   version: v1alpha1
 version: "3"
 plugins:
