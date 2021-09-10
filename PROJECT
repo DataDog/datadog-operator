@@ -1,5 +1,8 @@
 domain: com
 layout: go.kubebuilder.io/v2
+multigroup: true
+plugins:
+  go.sdk.operatorframework.io/v2-alpha: {}
 projectName: datadog-operator
 repo: github.com/DataDog/datadog-operator
 resources:
@@ -21,5 +24,3 @@ resources:
   path: github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1
   version: v1alpha1
 version: "3"
-plugins:
-  go.sdk.operatorframework.io/v2-alpha: {}
