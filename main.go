@@ -27,7 +27,7 @@ import (
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	"github.com/DataDog/extendeddaemonset/pkg/controller/metrics"
 
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/controllers"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/debug"
@@ -36,6 +36,8 @@ import (
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+
+	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -56,6 +58,7 @@ func init() {
 
 	utilruntime.Must(datadoghqv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(edsdatadoghqv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(datadoghqv2alpha1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 

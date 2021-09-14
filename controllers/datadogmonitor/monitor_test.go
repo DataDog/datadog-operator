@@ -20,7 +20,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	datadogapiclientv1 "github.com/DataDog/datadog-api-client-go/api/v1/datadog"
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 )
 
 const dateFormat = "2006-01-02 15:04:05.999999999 -0700 MST"

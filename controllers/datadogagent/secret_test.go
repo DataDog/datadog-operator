@@ -9,7 +9,7 @@ import (
 	"os"
 	"testing"
 
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/controllers/testutils"
 	"github.com/DataDog/datadog-operator/pkg/config"
 )

@@ -9,7 +9,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/DataDog/datadog-operator/api/v1alpha1"
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/google/go-cmp/cmp"
 )
 

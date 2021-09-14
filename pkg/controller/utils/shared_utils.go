@@ -6,7 +6,7 @@
 package utils
 
 import (
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 )
 
 // GetDefaultCredentialsSecretName returns the default name for credentials secret

@@ -98,7 +98,7 @@ gotest: ## Run tests.
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
-	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.4.1)
+	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.5.0)
 
 KUSTOMIZE = $(shell pwd)/bin/kustomize
 kustomize: ## Download kustomize locally if necessary.
@@ -145,7 +145,8 @@ install-tools: bin/golangci-lint bin/operator-sdk bin/yq bin/kubebuilder
 
 .PHONY: generate-openapi
 generate-openapi: bin/openapi-gen
-	./bin/openapi-gen --logtostderr=true -o "" -i ./api/v1alpha1 -O zz_generated.openapi -p ./api/v1alpha1 -h ./hack/boilerplate.go.txt -r "-"
+	./bin/openapi-gen --logtostderr=true -o "" -i ./apis/datadoghq/v1alpha1 -O zz_generated.openapi -p ./apis/datadoghq/v1alpha1 -h ./hack/boilerplate.go.txt -r "-"
+	./bin/openapi-gen --logtostderr=true -o "" -i ./apis/datadoghq/v2alpha1 -O zz_generated.openapi -p ./apis/datadoghq/v2alpha1 -h ./hack/boilerplate.go.txt -r "-"
 
 .PHONY: patch-crds
 patch-crds: bin/yq ## Patch-crds

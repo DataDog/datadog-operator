@@ -3,8 +3,10 @@ package datadogagent
 import (
 	"context"
 	"fmt"
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
-	"github.com/DataDog/datadog-operator/api/v1alpha1/test"
+	"testing"
+
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1/test"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -16,7 +18,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"testing"
 )
 
 func Test_handleFinalizer(t *testing.T) {
