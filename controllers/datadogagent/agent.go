@@ -300,6 +300,11 @@ func (r *Reconciler) manageAgentDependencies(logger logr.Logger, dda *datadoghqv
 		return result, err
 	}
 
+	result, err = r.manageAgentService(logger, dda)
+	if utils.ShouldReturn(result, err) {
+		return result, err
+	}
+
 	return reconcile.Result{}, nil
 }
 

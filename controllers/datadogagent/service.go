@@ -15,6 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/pkg/version"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -24,6 +25,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/utils"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 )
 
@@ -146,6 +148,33 @@ func (r *Reconciler) manageAdmissionControllerService(logger logr.Logger, dda *d
 	return r.updateIfNeededAdmissionControllerService(logger, dda, service)
 }
 
+var testGitVersion string
+
+func (r *Reconciler) manageAgentService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
+	// Service Internal Traffic Policy exists in Kube 1.21 but it is enabled by default since 1.22
+	gitVersion := version.Get().GitVersion
+	if testGitVersion != "" {
+		gitVersion = testGitVersion
+	}
+
+	forceLocalServiceEnable := dda.Spec.Agent.LocalService != nil && dda.Spec.Agent.LocalService.ForceLocalServiceEnable != nil && *dda.Spec.Agent.LocalService.ForceLocalServiceEnable
+	if !utils.IsAboveMinVersion(gitVersion, "1.22-0") && !forceLocalServiceEnable {
+		return r.cleanupAgentService(dda)
+	}
+
+	serviceName := getAgentServiceName(dda)
+	service := &corev1.Service{}
+	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: dda.Namespace, Name: serviceName}, service)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return r.createAgentService(logger, dda)
+		}
+		return reconcile.Result{}, err
+	}
+
+	return r.updateIfNeededAgentService(logger, dda, service)
+}
+
 func (r *Reconciler) createMetricsServerService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
 	newService := newMetricsServerService(dda)
 	return r.createService(logger, dda, newService)
@@ -158,6 +187,11 @@ func (r *Reconciler) createMetricsServerAPIService(logger logr.Logger, dda *data
 
 func (r *Reconciler) createAdmissionControllerService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
 	newService := newAdmissionControllerService(dda)
+	return r.createService(logger, dda, newService)
+}
+
+func (r *Reconciler) createAgentService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
+	newService := newAgentService(dda)
 	return r.createService(logger, dda, newService)
 }
 
@@ -176,6 +210,11 @@ func (r *Reconciler) cleanupAdmissionControllerService(dda *datadoghqv1alpha1.Da
 	return cleanupService(r.client, serviceName, dda.Namespace, dda)
 }
 
+func (r *Reconciler) cleanupAgentService(dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
+	serviceName := getAgentServiceName(dda)
+	return cleanupService(r.client, serviceName, dda.Namespace, dda)
+}
+
 func (r *Reconciler) updateIfNeededMetricsServerService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, currentService *corev1.Service) (reconcile.Result, error) {
 	newService := newMetricsServerService(dda)
 	return r.updateIfNeededService(logger, dda, currentService, newService)
@@ -188,6 +227,11 @@ func (r *Reconciler) updateIfNeededMetricsServerAPIService(logger logr.Logger, d
 
 func (r *Reconciler) updateIfNeededAdmissionControllerService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, currentService *corev1.Service) (reconcile.Result, error) {
 	newService := newAdmissionControllerService(dda)
+	return r.updateIfNeededService(logger, dda, currentService, newService)
+}
+
+func (r *Reconciler) updateIfNeededAgentService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, currentService *corev1.Service) (reconcile.Result, error) {
+	newService := newAgentService(dda)
 	return r.updateIfNeededService(logger, dda, currentService, newService)
 }
 
@@ -392,6 +436,48 @@ func newAdmissionControllerService(dda *datadoghqv1alpha1.DatadogAgent) *corev1.
 			SessionAffinity: corev1.ServiceAffinityNone,
 		},
 	}
+	_, _ = comparison.SetMD5DatadogAgentGenerationAnnotation(&service.ObjectMeta, &service.Spec)
+
+	return service
+}
+
+func newAgentService(dda *datadoghqv1alpha1.DatadogAgent) *corev1.Service {
+	serviceInternalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
+
+	service := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        getAgentServiceName(dda),
+			Namespace:   dda.Namespace,
+			Labels:      getDefaultLabels(dda, datadoghqv1alpha1.DefaultAgentResourceSuffix, getAgentVersion(dda)),
+			Annotations: getDefaultAnnotations(dda),
+		},
+		Spec: corev1.ServiceSpec{
+			Type: corev1.ServiceTypeClusterIP,
+			Selector: map[string]string{
+				datadoghqv1alpha1.AgentDeploymentNameLabelKey:      dda.Name,
+				datadoghqv1alpha1.AgentDeploymentComponentLabelKey: datadoghqv1alpha1.DefaultAgentResourceSuffix,
+			},
+			Ports: []corev1.ServicePort{
+				{
+					Protocol:   corev1.ProtocolUDP,
+					TargetPort: intstr.FromInt(datadoghqv1alpha1.DefaultDogstatsdPort),
+					Port:       datadoghqv1alpha1.DefaultDogstatsdPort,
+				},
+			},
+			SessionAffinity:       corev1.ServiceAffinityNone,
+			InternalTrafficPolicy: &serviceInternalTrafficPolicy,
+		},
+	}
+
+	if isAPMEnabled(&dda.Spec) {
+		service.Spec.Ports = append(service.Spec.Ports,
+			corev1.ServicePort{
+				Protocol:   corev1.ProtocolTCP,
+				TargetPort: intstr.FromInt(int(*dda.Spec.Agent.Apm.HostPort)),
+				Port:       *dda.Spec.Agent.Apm.HostPort,
+			})
+	}
+
 	_, _ = comparison.SetMD5DatadogAgentGenerationAnnotation(&service.ObjectMeta, &service.Spec)
 
 	return service
