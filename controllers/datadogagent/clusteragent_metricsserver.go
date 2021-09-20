@@ -46,13 +46,18 @@ func (r *Reconciler) createHPAClusterRoleBinding(logger logr.Logger, dda *datado
 	if clusterRoleBinding == nil {
 		return reconcile.Result{}, nil
 	}
-	if err := SetOwnerReference(dda, clusterRoleBinding, r.scheme); err != nil {
-		return reconcile.Result{}, err
-	}
 	logger.V(1).Info("createClusterAgentHPARoleBinding", "clusterRoleBinding.name", clusterRoleBinding.Name)
 	event := buildEventInfo(clusterRoleBinding.Name, clusterRoleBinding.Namespace, clusterRoleBindingKind, datadog.UpdateEvent)
 	r.recordEvent(dda, event)
 	return reconcile.Result{Requeue: true}, r.client.Create(context.TODO(), clusterRoleBinding)
+}
+
+func (r *Reconciler) updateIfNeededHPAClusterRole(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string, clusterRoleBinding *rbacv1.ClusterRoleBinding) (reconcile.Result, error) {
+	newClusterRoleBinding := buildMetricsServerClusterRoleBinding(dda, name, agentVersion)
+	if newClusterRoleBinding == nil {
+		return reconcile.Result{}, nil
+	}
+	return r.updateIfNeededClusterRoleBindingRaw(logger, dda, clusterRoleBinding, newClusterRoleBinding)
 }
 
 // buildExternalMetricsReaderClusterRoleBinding creates a ClusterRoleBinding for the HPA controller to be able to read external metrics
@@ -85,9 +90,6 @@ func (r *Reconciler) createExternalMetricsReaderClusterRoleBinding(logger logr.L
 	if clusterRoleBinding == nil {
 		return reconcile.Result{}, nil
 	}
-	if err := SetOwnerReference(dda, clusterRoleBinding, r.scheme); err != nil {
-		return reconcile.Result{}, err
-	}
 	logger.V(1).Info("createExternalMetricsClusterRoleBinding", "clusterRoleBinding.name", clusterRoleBinding.Name)
 	event := buildEventInfo(clusterRoleBinding.Name, clusterRoleBinding.Namespace, clusterRoleBindingKind, datadog.UpdateEvent)
 	r.recordEvent(dda, event)
@@ -99,13 +101,18 @@ func (r *Reconciler) createExternalMetricsReaderClusterRole(logger logr.Logger, 
 	if clusterRole == nil {
 		return reconcile.Result{}, nil
 	}
-	if err := SetOwnerReference(dda, clusterRole, r.scheme); err != nil {
-		return reconcile.Result{}, err
-	}
 	logger.V(1).Info("createExternalMetricsClusterRole", "clusterRole.name", clusterRole.Name)
 	event := buildEventInfo(clusterRole.Name, clusterRole.Namespace, clusterRoleKind, datadog.CreationEvent)
 	r.recordEvent(dda, event)
 	return reconcile.Result{Requeue: true}, r.client.Create(context.TODO(), clusterRole)
+}
+
+func (r *Reconciler) updateIfNeededExternalMetricsReaderClusterRole(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string, clusterRole *rbacv1.ClusterRole) (reconcile.Result, error) {
+	newClusterRole := buildExternalMetricsReaderClusterRole(dda, name, agentVersion)
+	if newClusterRole == nil {
+		return reconcile.Result{}, nil
+	}
+	return r.updateIfNeededClusterRole(logger, dda, clusterRole, newClusterRole)
 }
 
 // buildExternalMetricsReaderClusterRole creates a ClusterRole object for access to external metrics resources

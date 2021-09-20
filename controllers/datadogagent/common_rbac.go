@@ -172,9 +172,13 @@ func (r *Reconciler) updateIfNeededClusterRoleBinding(logger logr.Logger, dda *d
 		serviceAccountName: serviceAccountName,
 	}
 	newClusterRoleBinding := buildClusterRoleBinding(dda, info, version)
-	if !apiequality.Semantic.DeepEqual(newClusterRoleBinding.Subjects, clusterRoleBinding.Subjects) || !apiequality.Semantic.DeepEqual(newClusterRoleBinding.RoleRef, clusterRoleBinding.RoleRef) {
-		logger.V(1).Info("updateIfNeededClusterRoleBinding", "clusterRoleBinding.name", clusterRoleBinding.Name, "serviceAccount", serviceAccountName, "roleName", roleName)
-		// ClusterRoleBinding can be updated, if we change the RoleRef in it, we need to delete and recreate
+	return r.updateIfNeededClusterRoleBindingRaw(logger, dda, clusterRoleBinding, newClusterRoleBinding)
+}
+
+func (r *Reconciler) updateIfNeededClusterRoleBindingRaw(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, clusterRoleBinding, newClusterRoleBinding *rbacv1.ClusterRoleBinding) (reconcile.Result, error) {
+	if !isClusterRolesBindingEqual(newClusterRoleBinding, clusterRoleBinding) {
+		logger.V(1).Info("updateIfNeededClusterRoleBinding", "clusterRoleBinding.name", clusterRoleBinding.Name)
+		// ClusterRoleBinding can't be updated, if we change the RoleRef in it, we need to delete and recreate
 		if err := r.client.Delete(context.TODO(), clusterRoleBinding); err != nil {
 			return reconcile.Result{}, err
 		}
@@ -184,7 +188,47 @@ func (r *Reconciler) updateIfNeededClusterRoleBinding(logger logr.Logger, dda *d
 		event := buildEventInfo(newClusterRoleBinding.Name, newClusterRoleBinding.Namespace, clusterRoleKind, datadog.UpdateEvent)
 		r.recordEvent(dda, event)
 	}
+	return reconcile.Result{}, nil
+}
 
+func (r *Reconciler) updateIfNeededClusterRole(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, clusterRole, newClusterRole *rbacv1.ClusterRole) (reconcile.Result, error) {
+	if !isClusterRolesEqual(newClusterRole, clusterRole) {
+		logger.V(1).Info("updateIfNeededClusterRole", "clusterRole.name", clusterRole.Name)
+		if err := r.client.Update(context.TODO(), newClusterRole); err != nil {
+			return reconcile.Result{}, err
+		}
+		event := buildEventInfo(newClusterRole.Name, newClusterRole.Namespace, clusterRoleKind, datadog.UpdateEvent)
+		r.recordEvent(dda, event)
+	}
+	return reconcile.Result{}, nil
+}
+
+func (r *Reconciler) updateIfNeededRole(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, role, newRole *rbacv1.Role) (reconcile.Result, error) {
+	if !isRolesEqual(newRole, role) {
+		logger.V(1).Info("updateIfNeededRole", "role.name", role.Name)
+		if err := r.client.Update(context.TODO(), newRole); err != nil {
+			return reconcile.Result{}, err
+		}
+		event := buildEventInfo(newRole.Name, newRole.Namespace, roleKind, datadog.UpdateEvent)
+		r.recordEvent(dda, event)
+	}
+	return reconcile.Result{}, nil
+}
+
+func (r *Reconciler) updateIfNeededRoleBinding(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, roleBinding, newRoleBinding *rbacv1.RoleBinding) (reconcile.Result, error) {
+	if !isRolesBindingEqual(newRoleBinding, roleBinding) {
+		logger.V(1).Info("updateIfNeededRoleBinding", "roleBinding.name", newRoleBinding.Name, "roleBinding.namespace", newRoleBinding.Namespace)
+		// RoleBinding can't be updated, if we change the RoleRef in it, we need to delete and recreate
+		if err := r.client.Delete(context.TODO(), roleBinding); err != nil {
+			return reconcile.Result{}, err
+		}
+		if err := r.client.Create(context.TODO(), newRoleBinding); err != nil {
+			return reconcile.Result{}, err
+		}
+
+		event := buildEventInfo(newRoleBinding.Name, newRoleBinding.Namespace, roleBindingKind, datadog.UpdateEvent)
+		r.recordEvent(dda, event)
+	}
 	return reconcile.Result{}, nil
 }
 
@@ -206,4 +250,20 @@ func rbacNamesForDda(dda *datadoghqv1alpha1.DatadogAgent) []string {
 		getClusterAgentRbacResourcesName(dda),
 		getClusterChecksRunnerRbacResourcesName(dda),
 	}
+}
+
+func isRolesEqual(a, b *rbacv1.Role) bool {
+	return apiequality.Semantic.DeepEqual(a.Rules, b.Rules) && apiequality.Semantic.DeepEqual(a.ObjectMeta.OwnerReferences, b.ObjectMeta.OwnerReferences)
+}
+
+func isRolesBindingEqual(a, b *rbacv1.RoleBinding) bool {
+	return apiequality.Semantic.DeepEqual(a.RoleRef, b.RoleRef) && apiequality.Semantic.DeepEqual(a.Subjects, b.Subjects) && apiequality.Semantic.DeepEqual(a.ObjectMeta.OwnerReferences, b.ObjectMeta.OwnerReferences)
+}
+
+func isClusterRolesEqual(a, b *rbacv1.ClusterRole) bool {
+	return apiequality.Semantic.DeepEqual(a.Rules, b.Rules) && apiequality.Semantic.DeepEqual(a.ObjectMeta.OwnerReferences, b.ObjectMeta.OwnerReferences)
+}
+
+func isClusterRolesBindingEqual(a, b *rbacv1.ClusterRoleBinding) bool {
+	return apiequality.Semantic.DeepEqual(a.RoleRef, b.RoleRef) && apiequality.Semantic.DeepEqual(a.Subjects, b.Subjects) && apiequality.Semantic.DeepEqual(a.ObjectMeta.OwnerReferences, b.ObjectMeta.OwnerReferences)
 }

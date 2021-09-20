@@ -16,7 +16,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -865,10 +864,8 @@ func (r *Reconciler) manageClusterAgentRBACs(logger logr.Logger, dda *datadoghqv
 		if result, err := r.createOrUpdateOrchestratorCoreRBAC(logger, dda, serviceAccountName, clusterAgentVersion, clusterAgentSuffix); err != nil {
 			return result, err
 		}
-	} else {
-		if result, err := r.cleanupOrchestratorCoreRBAC(logger, dda, clusterAgentSuffix); err != nil {
-			return result, err
-		}
+	} else if result, err := r.cleanupOrchestratorCoreRBAC(logger, dda, clusterAgentSuffix); err != nil {
+		return result, err
 	}
 
 	metricsProviderEnabled := isMetricsProviderEnabled(dda.Spec.ClusterAgent)
@@ -885,11 +882,12 @@ func (r *Reconciler) manageClusterAgentRBACs(logger logr.Logger, dda *datadoghqv
 		}
 	} else if !metricsProviderEnabled {
 		return r.cleanupClusterRoleBinding(logger, r.client, dda, hpaClusterRoleBindingName)
+	} else if result, err := r.updateIfNeededHPAClusterRole(logger, dda, hpaClusterRoleBindingName, clusterAgentVersion, hpaClusterRoleBinding); err != nil {
+		return result, err
 	}
 
 	// Create or delete external metrics reader ClusterRole and ClusterRoleBinding
 	metricsReaderClusterRoleName := getExternalMetricsReaderClusterRoleName(dda, r.versionInfo)
-
 	metricsReaderClusterRole := &rbacv1.ClusterRole{}
 	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: metricsReaderClusterRoleName}, metricsReaderClusterRole); err != nil {
 		if errors.IsNotFound(err) {
@@ -901,6 +899,8 @@ func (r *Reconciler) manageClusterAgentRBACs(logger logr.Logger, dda *datadoghqv
 		}
 	} else if !metricsProviderEnabled {
 		return r.cleanupClusterRole(logger, r.client, dda, metricsReaderClusterRoleName)
+	} else if result, err := r.updateIfNeededExternalMetricsReaderClusterRole(logger, dda, metricsReaderClusterRoleName, clusterAgentVersion, metricsReaderClusterRole); err != nil {
+		return result, err
 	}
 
 	metricsReaderClusterRoleBinding := &rbacv1.ClusterRoleBinding{}
@@ -960,54 +960,22 @@ func (r *Reconciler) createClusterCheckRunnerClusterRole(logger logr.Logger, dda
 
 func (r *Reconciler) updateIfNeededClusterAgentClusterRole(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string, clusterRole *rbacv1.ClusterRole) (reconcile.Result, error) {
 	newClusterRole := buildClusterAgentClusterRole(dda, name, agentVersion)
-	if !apiequality.Semantic.DeepEqual(newClusterRole.Rules, clusterRole.Rules) {
-		logger.V(1).Info("updateClusterAgentClusterRole", "clusterRole.name", clusterRole.Name)
-		if err := r.client.Update(context.TODO(), newClusterRole); err != nil {
-			return reconcile.Result{}, err
-		}
-		event := buildEventInfo(newClusterRole.Name, newClusterRole.Namespace, clusterRoleKind, datadog.UpdateEvent)
-		r.recordEvent(dda, event)
-	}
-	return reconcile.Result{}, nil
+	return r.updateIfNeededClusterRole(logger, dda, clusterRole, newClusterRole)
 }
 
 func (r *Reconciler) updateIfNeededClusterAgentRole(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string, role *rbacv1.Role) (reconcile.Result, error) {
 	newRole := buildClusterAgentRole(dda, name, agentVersion)
-	if !apiequality.Semantic.DeepEqual(newRole.Rules, role.Rules) {
-		logger.V(1).Info("updateClusterAgentRole", "role.name", newRole.Name)
-		if err := r.client.Update(context.TODO(), newRole); err != nil {
-			return reconcile.Result{}, err
-		}
-		event := buildEventInfo(newRole.Name, newRole.Namespace, roleKind, datadog.UpdateEvent)
-		r.recordEvent(dda, event)
-	}
-	return reconcile.Result{}, nil
+	return r.updateIfNeededRole(logger, dda, role, newRole)
 }
 
 func (r *Reconciler) updateIfNeededAgentClusterRole(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string, clusterRole *rbacv1.ClusterRole) (reconcile.Result, error) {
 	newClusterRole := buildAgentClusterRole(dda, name, agentVersion)
-	if !apiequality.Semantic.DeepEqual(newClusterRole.Rules, clusterRole.Rules) {
-		logger.V(1).Info("updateAgentClusterRole", "clusterRole.name", clusterRole.Name)
-		if err := r.client.Update(context.TODO(), newClusterRole); err != nil {
-			return reconcile.Result{}, err
-		}
-		event := buildEventInfo(newClusterRole.Name, newClusterRole.Namespace, clusterRoleKind, datadog.UpdateEvent)
-		r.recordEvent(dda, event)
-	}
-	return reconcile.Result{}, nil
+	return r.updateIfNeededClusterRole(logger, dda, clusterRole, newClusterRole)
 }
 
 func (r *Reconciler) updateIfNeededClusterCheckRunnerClusterRole(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string, clusterRole *rbacv1.ClusterRole) (reconcile.Result, error) {
 	newClusterRole := buildClusterCheckRunnerClusterRole(dda, name, agentVersion)
-	if !apiequality.Semantic.DeepEqual(newClusterRole.Rules, clusterRole.Rules) {
-		logger.V(1).Info("updateAgentClusterRole", "clusterRole.name", clusterRole.Name)
-		if err := r.client.Update(context.TODO(), newClusterRole); err != nil {
-			return reconcile.Result{}, err
-		}
-		event := buildEventInfo(newClusterRole.Name, newClusterRole.Namespace, clusterRoleKind, datadog.UpdateEvent)
-		r.recordEvent(dda, event)
-	}
-	return reconcile.Result{}, nil
+	return r.updateIfNeededClusterRole(logger, dda, clusterRole, newClusterRole)
 }
 
 // cleanupClusterAgentRbacResources deletes ClusterRole, ClusterRoleBindings, and ServiceAccount of the Cluster Agent
@@ -1061,15 +1029,7 @@ func (r *Reconciler) updateIfNeededClusterAgentRoleBinding(logger logr.Logger, d
 		serviceAccountName: getClusterAgentServiceAccount(dda),
 	}
 	newRoleBinding := buildRoleBinding(dda, info, agentVersion)
-	if !apiequality.Semantic.DeepEqual(newRoleBinding.RoleRef, roleBinding.RoleRef) || !apiequality.Semantic.DeepEqual(newRoleBinding.Subjects, roleBinding.Subjects) {
-		logger.V(1).Info("updateClusterAgentClusterRoleBinding", "roleBinding.name", newRoleBinding.Name, "roleBinding.namespace", newRoleBinding.Namespace, "serviceAccount", info.serviceAccountName)
-		event := buildEventInfo(newRoleBinding.Name, newRoleBinding.Namespace, roleBindingKind, datadog.UpdateEvent)
-		r.recordEvent(dda, event)
-		if err := r.client.Update(context.TODO(), newRoleBinding); err != nil {
-			return reconcile.Result{}, err
-		}
-	}
-	return reconcile.Result{}, nil
+	return r.updateIfNeededRoleBinding(logger, dda, roleBinding, newRoleBinding)
 }
 
 // buildAgentClusterRole creates a ClusterRole object for the Agent based on its config
