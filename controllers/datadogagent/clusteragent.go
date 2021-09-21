@@ -1526,7 +1526,7 @@ func buildClusterAgentNetworkPolicy(dda *datadoghqv1alpha1.DatadogAgent, name st
 					PodSelector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{
 							kubernetes.AppKubernetesInstanceLabelKey: datadoghqv1alpha1.DefaultAgentResourceSuffix,
-							kubernetes.AppKubernetesPartOfLabelKey:   dda.Namespace + "-" + dda.Name,
+							kubernetes.AppKubernetesPartOfLabelKey:   NewPartOfLabelValue(dda).String(),
 						},
 					},
 				},
@@ -1549,7 +1549,7 @@ func buildClusterAgentNetworkPolicy(dda *datadoghqv1alpha1.DatadogAgent, name st
 					PodSelector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{
 							kubernetes.AppKubernetesInstanceLabelKey: datadoghqv1alpha1.DefaultClusterChecksRunnerResourceSuffix,
-							kubernetes.AppKubernetesPartOfLabelKey:   dda.Namespace + "-" + dda.Name,
+							kubernetes.AppKubernetesPartOfLabelKey:   NewPartOfLabelValue(dda).String(),
 						},
 					},
 				},
@@ -1580,7 +1580,7 @@ func buildClusterAgentNetworkPolicy(dda *datadoghqv1alpha1.DatadogAgent, name st
 			PodSelector: metav1.LabelSelector{
 				MatchLabels: map[string]string{
 					kubernetes.AppKubernetesInstanceLabelKey: datadoghqv1alpha1.DefaultClusterAgentResourceSuffix,
-					kubernetes.AppKubernetesPartOfLabelKey:   dda.Namespace + "-" + dda.Name,
+					kubernetes.AppKubernetesPartOfLabelKey:   NewPartOfLabelValue(dda).String(),
 				},
 			},
 			Ingress: ingressRules,
