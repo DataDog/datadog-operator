@@ -379,7 +379,7 @@ func buildAgentNetworkPolicy(dda *datadoghqv1alpha1.DatadogAgent, name string) *
 			PodSelector: metav1.LabelSelector{
 				MatchLabels: map[string]string{
 					kubernetes.AppKubernetesInstanceLabelKey: datadoghqv1alpha1.DefaultAgentResourceSuffix,
-					kubernetes.AppKubernetesPartOfLabelKey:   dda.Namespace + "-" + dda.Name,
+					kubernetes.AppKubernetesPartOfLabelKey:   NewPartOfLabelValue(dda).String(),
 				},
 			},
 			Ingress: ingressRules,
