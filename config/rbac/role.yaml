@@ -432,6 +432,12 @@ rules:
 - apiGroups:
   - datadoghq.com
   resources:
+  - extendeddaemonsetreplicasets
+  verbs:
+  - get
+- apiGroups:
+  - datadoghq.com
+  resources:
   - extendeddaemonsets
   verbs:
   - create
