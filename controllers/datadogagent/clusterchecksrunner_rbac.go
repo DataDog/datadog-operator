@@ -57,7 +57,7 @@ func (r *Reconciler) manageClusterChecksRunnerRBACs(logger logr.Logger, dda *dat
 	clusterRoleBinding := &rbacv1.ClusterRoleBinding{}
 	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesName}, clusterRoleBinding); err != nil {
 		if errors.IsNotFound(err) {
-			return r.createClusterRoleBinding(logger, dda, roleBindingInfo{
+			return r.createClusterRoleBindingFromInfo(logger, dda, roleBindingInfo{
 				name:               rbacResourcesName,
 				roleName:           rbacResourcesName,
 				serviceAccountName: serviceAccountName,
@@ -99,12 +99,12 @@ func (r *Reconciler) cleanupClusterChecksRunnerRbacResources(logger logr.Logger,
 	rbacResourcesName := getClusterChecksRunnerRbacResourcesName(dda)
 
 	// Delete Cluster Role
-	if result, err := r.cleanupClusterRole(logger, r.client, dda, rbacResourcesName); err != nil {
+	if result, err := r.cleanupClusterRole(logger, dda, rbacResourcesName); err != nil {
 		return result, err
 	}
 
 	// Delete Cluster Role Binding
-	if result, err := r.cleanupClusterRoleBinding(logger, r.client, dda, rbacResourcesName); err != nil {
+	if result, err := r.cleanupClusterRoleBinding(logger, dda, rbacResourcesName); err != nil {
 		return result, err
 	}
 

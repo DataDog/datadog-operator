@@ -105,7 +105,7 @@ func (r *Reconciler) createOrUpdateOrchestratorCoreRBAC(logger logr.Logger, dda 
 	orchestratorClusterRoleBinding := &rbacv1.ClusterRoleBinding{}
 	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: orchestratorRBACName}, orchestratorClusterRoleBinding); err != nil {
 		if errors.IsNotFound(err) {
-			return r.createClusterRoleBinding(logger, dda, roleBindingInfo{
+			return r.createClusterRoleBindingFromInfo(logger, dda, roleBindingInfo{
 				name:               orchestratorRBACName,
 				roleName:           orchestratorRBACName,
 				serviceAccountName: serviceAccountName,
@@ -120,12 +120,12 @@ func (r *Reconciler) createOrUpdateOrchestratorCoreRBAC(logger logr.Logger, dda 
 func (r *Reconciler) cleanupOrchestratorCoreRBAC(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, nameSuffix string) (reconcile.Result, error) {
 	orchestratorRBACName := orchestratorExplorerRBACPrefix + nameSuffix
 
-	result, err := r.cleanupClusterRoleBinding(logger, r.client, dda, orchestratorRBACName)
+	result, err := r.cleanupClusterRoleBinding(logger, dda, orchestratorRBACName)
 	if err != nil {
 		return result, err
 	}
 
-	return r.cleanupClusterRole(logger, r.client, dda, orchestratorRBACName)
+	return r.cleanupClusterRole(logger, dda, orchestratorRBACName)
 }
 
 // buildOrchestratorExplorerRBAC generates the cluster role required for the KSM informers to query

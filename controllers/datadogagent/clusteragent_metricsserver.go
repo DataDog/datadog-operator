@@ -18,34 +18,28 @@ import (
 
 // buildMetricsServerClusterRoleBinding creates a ClusterRoleBinding for the Cluster Agent HPA metrics server
 func buildMetricsServerClusterRoleBinding(dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string) *rbacv1.ClusterRoleBinding {
-	if isMetricsProviderEnabled(dda.Spec.ClusterAgent) {
-		return &rbacv1.ClusterRoleBinding{
-			ObjectMeta: metav1.ObjectMeta{
-				Labels: getDefaultLabels(dda, name, agentVersion),
-				Name:   name,
+	return &rbacv1.ClusterRoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels: getDefaultLabels(dda, name, agentVersion),
+			Name:   name,
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: datadoghqv1alpha1.RbacAPIGroup,
+			Kind:     datadoghqv1alpha1.ClusterRoleKind,
+			Name:     "system:auth-delegator",
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:      datadoghqv1alpha1.ServiceAccountKind,
+				Name:      getClusterAgentServiceAccount(dda),
+				Namespace: dda.Namespace,
 			},
-			RoleRef: rbacv1.RoleRef{
-				APIGroup: datadoghqv1alpha1.RbacAPIGroup,
-				Kind:     datadoghqv1alpha1.ClusterRoleKind,
-				Name:     "system:auth-delegator",
-			},
-			Subjects: []rbacv1.Subject{
-				{
-					Kind:      datadoghqv1alpha1.ServiceAccountKind,
-					Name:      getClusterAgentServiceAccount(dda),
-					Namespace: dda.Namespace,
-				},
-			},
-		}
+		},
 	}
-	return nil
 }
 
 func (r *Reconciler) createHPAClusterRoleBinding(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string) (reconcile.Result, error) {
 	clusterRoleBinding := buildMetricsServerClusterRoleBinding(dda, name, agentVersion)
-	if clusterRoleBinding == nil {
-		return reconcile.Result{}, nil
-	}
 	logger.V(1).Info("createClusterAgentHPARoleBinding", "clusterRoleBinding.name", clusterRoleBinding.Name)
 	event := buildEventInfo(clusterRoleBinding.Name, clusterRoleBinding.Namespace, clusterRoleBindingKind, datadog.UpdateEvent)
 	r.recordEvent(dda, event)
@@ -54,9 +48,6 @@ func (r *Reconciler) createHPAClusterRoleBinding(logger logr.Logger, dda *datado
 
 func (r *Reconciler) updateIfNeededHPAClusterRole(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string, clusterRoleBinding *rbacv1.ClusterRoleBinding) (reconcile.Result, error) {
 	newClusterRoleBinding := buildMetricsServerClusterRoleBinding(dda, name, agentVersion)
-	if newClusterRoleBinding == nil {
-		return reconcile.Result{}, nil
-	}
 	return r.updateIfNeededClusterRoleBindingRaw(logger, dda, clusterRoleBinding, newClusterRoleBinding)
 }
 

@@ -128,7 +128,7 @@ func (r *Reconciler) createOrUpdateKubeStateMetricsCoreRBAC(logger logr.Logger, 
 	kubeStateMetricsClusterRoleBinding := &rbacv1.ClusterRoleBinding{}
 	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: kubeStateMetricsRBACName}, kubeStateMetricsClusterRoleBinding); err != nil {
 		if errors.IsNotFound(err) {
-			return r.createClusterRoleBinding(logger, dda, roleBindingInfo{
+			return r.createClusterRoleBindingFromInfo(logger, dda, roleBindingInfo{
 				name:               kubeStateMetricsRBACName,
 				roleName:           kubeStateMetricsRBACName,
 				serviceAccountName: serviceAccountName,
@@ -143,12 +143,12 @@ func (r *Reconciler) createOrUpdateKubeStateMetricsCoreRBAC(logger logr.Logger, 
 func (r *Reconciler) cleanupKubeStateMetricsCoreRBAC(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, nameSuffix string) (reconcile.Result, error) {
 	kubeStateMetricsRBACName := kubeStateMetricsRBACPrefix + nameSuffix
 
-	result, err := r.cleanupClusterRoleBinding(logger, r.client, dda, kubeStateMetricsRBACName)
+	result, err := r.cleanupClusterRoleBinding(logger, dda, kubeStateMetricsRBACName)
 	if err != nil {
 		return result, err
 	}
 
-	return r.cleanupClusterRole(logger, r.client, dda, kubeStateMetricsRBACName)
+	return r.cleanupClusterRole(logger, dda, kubeStateMetricsRBACName)
 }
 
 // buildKubeStateMetricsCoreRBAC generates the cluster role required for the KSM informers to query

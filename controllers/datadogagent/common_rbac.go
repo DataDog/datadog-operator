@@ -98,8 +98,12 @@ func (r *Reconciler) createServiceAccount(logger logr.Logger, dda *datadoghqv1al
 	return reconcile.Result{Requeue: true}, r.client.Create(context.TODO(), serviceAccount)
 }
 
-func (r *Reconciler) createClusterRoleBinding(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, info roleBindingInfo, agentVersion string) (reconcile.Result, error) {
+func (r *Reconciler) createClusterRoleBindingFromInfo(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, info roleBindingInfo, agentVersion string) (reconcile.Result, error) {
 	clusterRoleBinding := buildClusterRoleBinding(dda, info, agentVersion)
+	return r.createClusterRoleBinding(logger, dda, clusterRoleBinding)
+}
+
+func (r *Reconciler) createClusterRoleBinding(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, clusterRoleBinding *rbacv1.ClusterRoleBinding) (reconcile.Result, error) {
 	logger.V(1).Info("createClusterRoleBinding", "clusterRoleBinding.name", clusterRoleBinding.Name)
 	event := buildEventInfo(clusterRoleBinding.Name, clusterRoleBinding.Namespace, clusterRoleBindingKind, datadog.CreationEvent)
 	r.recordEvent(dda, event)
@@ -107,9 +111,9 @@ func (r *Reconciler) createClusterRoleBinding(logger logr.Logger, dda *datadoghq
 	return reconcile.Result{}, err
 }
 
-func (r *Reconciler) cleanupClusterRole(logger logr.Logger, client client.Client, dda *datadoghqv1alpha1.DatadogAgent, name string) (reconcile.Result, error) {
+func (r *Reconciler) cleanupClusterRole(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name string) (reconcile.Result, error) {
 	clusterRole := &rbacv1.ClusterRole{}
-	err := client.Get(context.TODO(), types.NamespacedName{Name: name}, clusterRole)
+	err := r.client.Get(context.TODO(), types.NamespacedName{Name: name}, clusterRole)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return reconcile.Result{}, nil
@@ -124,12 +128,12 @@ func (r *Reconciler) cleanupClusterRole(logger logr.Logger, client client.Client
 	logger.V(1).Info("deleteClusterRole", "clusterRole.name", clusterRole.Name, "clusterRole.Namespace", clusterRole.Namespace)
 	event := buildEventInfo(clusterRole.Name, clusterRole.Namespace, clusterRoleKind, datadog.DeletionEvent)
 	r.recordEvent(dda, event)
-	return reconcile.Result{}, client.Delete(context.TODO(), clusterRole)
+	return reconcile.Result{}, r.client.Delete(context.TODO(), clusterRole)
 }
 
-func (r *Reconciler) cleanupClusterRoleBinding(logger logr.Logger, client client.Client, dda *datadoghqv1alpha1.DatadogAgent, name string) (reconcile.Result, error) {
+func (r *Reconciler) cleanupClusterRoleBinding(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name string) (reconcile.Result, error) {
 	clusterRoleBinding := &rbacv1.ClusterRoleBinding{}
-	err := client.Get(context.TODO(), types.NamespacedName{Name: name}, clusterRoleBinding)
+	err := r.client.Get(context.TODO(), types.NamespacedName{Name: name}, clusterRoleBinding)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return reconcile.Result{}, nil
@@ -144,7 +148,7 @@ func (r *Reconciler) cleanupClusterRoleBinding(logger logr.Logger, client client
 	logger.V(1).Info("deleteClusterRoleBinding", "clusterRoleBinding.name", clusterRoleBinding.Name, "clusterRoleBinding.Namespace", clusterRoleBinding.Namespace)
 	event := buildEventInfo(clusterRoleBinding.Name, clusterRoleBinding.Namespace, clusterRoleBindingKind, datadog.DeletionEvent)
 	r.recordEvent(dda, event)
-	return reconcile.Result{}, client.Delete(context.TODO(), clusterRoleBinding)
+	return reconcile.Result{}, r.client.Delete(context.TODO(), clusterRoleBinding)
 }
 
 func (r *Reconciler) cleanupServiceAccount(logger logr.Logger, client client.Client, dda *datadoghqv1alpha1.DatadogAgent, name string) (reconcile.Result, error) {
@@ -163,6 +167,47 @@ func (r *Reconciler) cleanupServiceAccount(logger logr.Logger, client client.Cli
 	event := buildEventInfo(serviceAccount.Name, serviceAccount.Namespace, serviceAccountKind, datadog.DeletionEvent)
 	r.recordEvent(dda, event)
 	return reconcile.Result{}, client.Delete(context.TODO(), serviceAccount)
+}
+
+type (
+	createClusterRoleFunc       func(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, resourceName, agentVersion string) (reconcile.Result, error)
+	updateIfNeedClusterRoleFunc func(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, resourceName, agentVersion string, clusterRole *rbacv1.ClusterRole) (reconcile.Result, error)
+)
+
+func (r *Reconciler) manageClusterRole(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, clusterRoleName, agentVersion string, createFunc createClusterRoleFunc, updateFunc updateIfNeedClusterRoleFunc, shouldCleanup bool) (reconcile.Result, error) {
+	clusterRole := &rbacv1.ClusterRole{}
+	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: clusterRoleName}, clusterRole); err != nil {
+		if errors.IsNotFound(err) {
+			return createFunc(logger, dda, clusterRoleName, agentVersion)
+		} else if err != nil {
+			return reconcile.Result{}, err
+		}
+	}
+	if shouldCleanup {
+		return r.cleanupClusterRole(logger, dda, clusterRoleName)
+	}
+	return updateFunc(logger, dda, clusterRoleName, agentVersion, clusterRole)
+}
+
+type (
+	createClusterRoleBindingFunc       func(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string) (reconcile.Result, error)
+	updateIfNeedClusterRoleBindingFunc func(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string, clusterRole *rbacv1.ClusterRoleBinding) (reconcile.Result, error)
+)
+
+func (r *Reconciler) manageClusterRoleBinding(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, clusterRoleBindingName, agentVersion string, createFunc createClusterRoleBindingFunc, updateFunc updateIfNeedClusterRoleBindingFunc, shouldCleanup bool) (reconcile.Result, error) {
+	clusterRoleBinding := &rbacv1.ClusterRoleBinding{}
+	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: clusterRoleBindingName}, clusterRoleBinding); err != nil {
+		if errors.IsNotFound(err) {
+			return createFunc(logger, dda, clusterRoleBindingName, agentVersion)
+		} else if err != nil {
+			return reconcile.Result{}, err
+		}
+	}
+	if shouldCleanup {
+		return r.cleanupClusterRoleBinding(logger, dda, clusterRoleBindingName)
+	}
+
+	return updateFunc(logger, dda, clusterRoleBindingName, agentVersion, clusterRoleBinding)
 }
 
 func (r *Reconciler) updateIfNeededClusterRoleBinding(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, clusterRoleBindingName, roleName, serviceAccountName, version string, clusterRoleBinding *rbacv1.ClusterRoleBinding) (reconcile.Result, error) {
@@ -215,23 +260,6 @@ func (r *Reconciler) updateIfNeededRole(logger logr.Logger, dda *datadoghqv1alph
 	return reconcile.Result{}, nil
 }
 
-func (r *Reconciler) updateIfNeededRoleBinding(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, roleBinding, newRoleBinding *rbacv1.RoleBinding) (reconcile.Result, error) {
-	if !isRolesBindingEqual(newRoleBinding, roleBinding) {
-		logger.V(1).Info("updateIfNeededRoleBinding", "roleBinding.name", newRoleBinding.Name, "roleBinding.namespace", newRoleBinding.Namespace)
-		// RoleBinding can't be updated, if we change the RoleRef in it, we need to delete and recreate
-		if err := r.client.Delete(context.TODO(), roleBinding); err != nil {
-			return reconcile.Result{}, err
-		}
-		if err := r.client.Create(context.TODO(), newRoleBinding); err != nil {
-			return reconcile.Result{}, err
-		}
-
-		event := buildEventInfo(newRoleBinding.Name, newRoleBinding.Namespace, roleBindingKind, datadog.UpdateEvent)
-		r.recordEvent(dda, event)
-	}
-	return reconcile.Result{}, nil
-}
-
 // isOwnerBasedOnLabels returns whether a DatadogAgent is the owner of a
 // resource based on its labels.
 // DatadogAgent objects are namespace-scoped. Some resources like cluster roles
@@ -256,14 +284,14 @@ func isRolesEqual(a, b *rbacv1.Role) bool {
 	return apiequality.Semantic.DeepEqual(a.Rules, b.Rules) && apiequality.Semantic.DeepEqual(a.ObjectMeta.OwnerReferences, b.ObjectMeta.OwnerReferences)
 }
 
-func isRolesBindingEqual(a, b *rbacv1.RoleBinding) bool {
-	return apiequality.Semantic.DeepEqual(a.RoleRef, b.RoleRef) && apiequality.Semantic.DeepEqual(a.Subjects, b.Subjects) && apiequality.Semantic.DeepEqual(a.ObjectMeta.OwnerReferences, b.ObjectMeta.OwnerReferences)
-}
-
 func isClusterRolesEqual(a, b *rbacv1.ClusterRole) bool {
+	// Even if a ClusterRole should not contain DatadogAgent ownerref, we need to check it is the case to be able to remove the ownerref that might have added
+	// by a previous Operator version.
 	return apiequality.Semantic.DeepEqual(a.Rules, b.Rules) && apiequality.Semantic.DeepEqual(a.ObjectMeta.OwnerReferences, b.ObjectMeta.OwnerReferences)
 }
 
 func isClusterRolesBindingEqual(a, b *rbacv1.ClusterRoleBinding) bool {
+	// Even if a ClusterRoleBinding should not contain DatadogAgent ownerref, we need to check it is the case to be able to remove the ownerref that might have added
+	// by a previous Operator version.
 	return apiequality.Semantic.DeepEqual(a.RoleRef, b.RoleRef) && apiequality.Semantic.DeepEqual(a.Subjects, b.Subjects) && apiequality.Semantic.DeepEqual(a.ObjectMeta.OwnerReferences, b.ObjectMeta.OwnerReferences)
 }
