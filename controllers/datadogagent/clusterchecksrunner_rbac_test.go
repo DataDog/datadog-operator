@@ -30,8 +30,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-var kubeStateMetricsRBACName = kubeStateMetricsRBACPrefix + "check-runners"
-
 func TestReconciler_manageClusterChecksRunnerRBACs(t *testing.T) {
 	t.Helper()
 	logf.SetLogger(zap.New(zap.UseDevMode(true)))
@@ -73,7 +71,7 @@ func TestReconciler_manageClusterChecksRunnerRBACs(t *testing.T) {
 
 	agentClusterRoleRBAC := buildAgentClusterRole(ddaDefault, rbacResourcesName, agentVersion)
 
-	clusterRoleRBAC := buildKubeStateMetricsCoreRBAC(ddaDefault, kubeStateMetricsRBACName, agentVersion)
+	clusterRoleRBAC := buildKubeStateMetricsCoreRBAC(ddaDefault, getKubeStateMetricsRBACResourceName(ddaDefault, checkRunnersSuffix), agentVersion)
 
 	type fields struct {
 		options     ReconcilerOptions
@@ -114,6 +112,7 @@ func TestReconciler_manageClusterChecksRunnerRBACs(t *testing.T) {
 			wantErr: false,
 			wantFunc: func(t *testing.T, client client.Client) {
 				clusterRole := &rbacv1.ClusterRole{}
+				kubeStateMetricsRBACName := getKubeStateMetricsRBACResourceName(ddaDefault, checkRunnersSuffix)
 				if err := client.Get(context.TODO(), types.NamespacedName{Name: kubeStateMetricsRBACName}, clusterRole); errors.IsNotFound(err) {
 					t.Errorf("ClusterRole %s sould be present", kubeStateMetricsRBACName)
 				}
@@ -137,6 +136,7 @@ func TestReconciler_manageClusterChecksRunnerRBACs(t *testing.T) {
 			wantErr: false,
 			wantFunc: func(t *testing.T, client client.Client) {
 				clusterRoleBinding := &rbacv1.ClusterRoleBinding{}
+				kubeStateMetricsRBACName := getKubeStateMetricsRBACResourceName(ddaDefault, checkRunnersSuffix)
 				if err := client.Get(context.TODO(), types.NamespacedName{Name: kubeStateMetricsRBACName}, clusterRoleBinding); errors.IsNotFound(err) {
 					t.Errorf("ClusterRoleBinding %s sould be present", kubeStateMetricsRBACName)
 				}

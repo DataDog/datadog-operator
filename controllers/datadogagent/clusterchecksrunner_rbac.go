@@ -70,7 +70,6 @@ func (r *Reconciler) manageClusterChecksRunnerRBACs(logger logr.Logger, dda *dat
 		return result, err
 	}
 
-	checkRunnersSuffix := "check-runners"
 	if isKSMCoreClusterCheck(dda) {
 		if result, err := r.createOrUpdateKubeStateMetricsCoreRBAC(logger, dda, serviceAccountName, clusterChecksRunnerVersion, checkRunnersSuffix); err != nil {
 			return result, err

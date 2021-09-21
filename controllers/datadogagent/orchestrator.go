@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	orchestratorExplorerRBACPrefix      = "orchestrator-explorer-"
+	orchestratorExplorerRBACPrefix      = "orchestrator-explorer"
 	orchestratorExplorerCheckName       = "orchestrator.yaml"
 	orchestratorExplorerCheckFolderName = "orchestrator.d"
 )
@@ -88,8 +88,12 @@ func (r *Reconciler) updateIfNeededOrchestratorExplorerClusterRole(logger logr.L
 	return reconcile.Result{}, nil
 }
 
+func getOrchestratorRBACResourceName(dda *datadoghqv1alpha1.DatadogAgent, suffix string) string {
+	return fmt.Sprintf("%s-%s-%s-%s", dda.Namespace, dda.Name, orchestratorExplorerRBACPrefix, suffix)
+}
+
 func (r *Reconciler) createOrUpdateOrchestratorCoreRBAC(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, serviceAccountName, componentVersion, nameSuffix string) (reconcile.Result, error) {
-	orchestratorRBACName := orchestratorExplorerRBACPrefix + nameSuffix
+	orchestratorRBACName := getOrchestratorRBACResourceName(dda, nameSuffix)
 	orchestratorClusterRole := &rbacv1.ClusterRole{}
 	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: orchestratorRBACName}, orchestratorClusterRole); err != nil {
 		if errors.IsNotFound(err) {
@@ -118,7 +122,7 @@ func (r *Reconciler) createOrUpdateOrchestratorCoreRBAC(logger logr.Logger, dda 
 }
 
 func (r *Reconciler) cleanupOrchestratorCoreRBAC(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, nameSuffix string) (reconcile.Result, error) {
-	orchestratorRBACName := orchestratorExplorerRBACPrefix + nameSuffix
+	orchestratorRBACName := getOrchestratorRBACResourceName(dda, nameSuffix)
 
 	result, err := r.cleanupClusterRoleBinding(logger, dda, orchestratorRBACName)
 	if err != nil {

@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	kubeStateMetricsRBACPrefix = "kube-state-metrics-core-"
+	kubeStateMetricsRBACPrefix = "kube-state-metrics-core"
 	ksmCoreCheckName           = "kubernetes_state_core.yaml.default"
 	ksmCoreCheckFolderName     = "kubernetes_state_core.d"
 )
@@ -111,8 +111,12 @@ func (r *Reconciler) updateIfNeededKubeStateMetricsClusterRole(logger logr.Logge
 	return reconcile.Result{}, nil
 }
 
+func getKubeStateMetricsRBACResourceName(dda *datadoghqv1alpha1.DatadogAgent, suffix string) string {
+	return fmt.Sprintf("%s-%s-%s-%s", dda.Namespace, dda.Name, kubeStateMetricsRBACPrefix, suffix)
+}
+
 func (r *Reconciler) createOrUpdateKubeStateMetricsCoreRBAC(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, serviceAccountName, componentVersion, nameSuffix string) (reconcile.Result, error) {
-	kubeStateMetricsRBACName := kubeStateMetricsRBACPrefix + nameSuffix
+	kubeStateMetricsRBACName := getKubeStateMetricsRBACResourceName(dda, nameSuffix)
 	kubeStateMetricsClusterRole := &rbacv1.ClusterRole{}
 	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: kubeStateMetricsRBACName}, kubeStateMetricsClusterRole); err != nil {
 		if errors.IsNotFound(err) {
@@ -141,7 +145,7 @@ func (r *Reconciler) createOrUpdateKubeStateMetricsCoreRBAC(logger logr.Logger, 
 }
 
 func (r *Reconciler) cleanupKubeStateMetricsCoreRBAC(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, nameSuffix string) (reconcile.Result, error) {
-	kubeStateMetricsRBACName := kubeStateMetricsRBACPrefix + nameSuffix
+	kubeStateMetricsRBACName := getKubeStateMetricsRBACResourceName(dda, nameSuffix)
 
 	result, err := r.cleanupClusterRoleBinding(logger, dda, kubeStateMetricsRBACName)
 	if err != nil {

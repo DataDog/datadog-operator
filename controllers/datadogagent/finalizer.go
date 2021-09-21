@@ -58,7 +58,7 @@ func (r *Reconciler) finalizeDad(reqLogger logr.Logger, dda *datadoghqv1alpha1.D
 		reqLogger.Error(err, "Could not delete Metrics Server API Service")
 	}
 
-	for _, rbacName := range rbacNamesForDda(dda) {
+	for _, rbacName := range r.rbacNamesForDda(dda) {
 		if _, err = r.cleanupClusterRoleBinding(reqLogger, dda, rbacName); err != nil {
 			reqLogger.Error(err, "Could not delete cluster role binding", "name", rbacName)
 		}

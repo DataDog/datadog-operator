@@ -272,11 +272,20 @@ func isOwnerBasedOnLabels(dda *datadoghqv1alpha1.DatadogAgent, labels map[string
 	return isManagedByOperator && isPartOfDDA
 }
 
-func rbacNamesForDda(dda *datadoghqv1alpha1.DatadogAgent) []string {
+// rbacNamesForDda return the list of RBAC name that are used for cluster level RBAC
+func (r *Reconciler) rbacNamesForDda(dda *datadoghqv1alpha1.DatadogAgent) []string {
 	return []string{
 		getAgentRbacResourcesName(dda),
 		getClusterAgentRbacResourcesName(dda),
 		getClusterChecksRunnerRbacResourcesName(dda),
+		getHPAClusterRoleBindingName(dda),
+		getExternalMetricsReaderClusterRoleName(dda, r.versionInfo),
+		// KSM core can run on the DCA or the Runners
+		getKubeStateMetricsRBACResourceName(dda, clusterAgentSuffix),
+		getKubeStateMetricsRBACResourceName(dda, checkRunnersSuffix),
+		// Orchestrator can run on the DCA or the Runners
+		getOrchestratorRBACResourceName(dda, clusterAgentSuffix),
+		getOrchestratorRBACResourceName(dda, checkRunnersSuffix),
 	}
 }
 

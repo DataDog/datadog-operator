@@ -849,7 +849,6 @@ func (r *Reconciler) manageClusterAgentRBACs(logger logr.Logger, dda *datadoghqv
 		return reconcile.Result{}, err
 	}
 
-	clusterAgentSuffix := "cluster-agent"
 	if isKSMCoreEnabled(dda) && !isKSMCoreClusterCheck(dda) {
 		if result, err := r.createOrUpdateKubeStateMetricsCoreRBAC(logger, dda, serviceAccountName, clusterAgentVersion, clusterAgentSuffix); err != nil {
 			return result, err
