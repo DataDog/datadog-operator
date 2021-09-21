@@ -1,10 +1,16 @@
+// Unless explicitly stated otherwise all files in this repository are licensed
+// under the Apache License Version 2.0.
+// This product includes software developed at Datadog (https://www.datadoghq.com/).
+// Copyright 2016-present Datadog, Inc.
+
 package datadogagent
 
 import (
 	"strings"
 
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
 	"k8s.io/apimachinery/pkg/types"
+
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 )
 
 const (
@@ -25,7 +31,7 @@ type PartOfLabelValue struct {
 
 // NewPartOfLabelValue creates an instance of PartOfLabelValue from a
 // DatadogAgent.
-func NewPartOfLabelValue(dda *datadoghqv1alpha1.DatadogAgent) *PartOfLabelValue {
+func NewPartOfLabelValue(dda *v1alpha1.DatadogAgent) *PartOfLabelValue {
 	value := strings.ReplaceAll(dda.Namespace, partOfSplitChar, partOfEscapedSplitChar) +
 		partOfSplitChar +
 		strings.ReplaceAll(dda.Name, partOfSplitChar, partOfEscapedSplitChar)
