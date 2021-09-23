@@ -41,7 +41,7 @@ func Test_handleFinalizer(t *testing.T) {
 	}
 	reconciler := reconcilerForFinalizerTest(initialKubeObjects)
 
-	for _, resourceName := range reconciler.rbacNamesForDda(dda) {
+	for _, resourceName := range rbacNamesForDda(dda, reconciler.versionInfo) {
 		clusterRoles = append(clusterRoles, buildClusterRole(dda, true, resourceName, ""))
 		clusterRoleBindings = append(clusterRoleBindings, buildClusterRoleBinding(
 			dda, roleBindingInfo{name: resourceName}, "",

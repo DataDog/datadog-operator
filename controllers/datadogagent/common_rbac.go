@@ -16,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/version"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -273,13 +274,13 @@ func isOwnerBasedOnLabels(dda *datadoghqv1alpha1.DatadogAgent, labels map[string
 }
 
 // rbacNamesForDda return the list of RBAC name that are used for cluster level RBAC
-func (r *Reconciler) rbacNamesForDda(dda *datadoghqv1alpha1.DatadogAgent) []string {
+func rbacNamesForDda(dda *datadoghqv1alpha1.DatadogAgent, versionInfo *version.Info) []string {
 	return []string{
 		getAgentRbacResourcesName(dda),
 		getClusterAgentRbacResourcesName(dda),
 		getClusterChecksRunnerRbacResourcesName(dda),
 		getHPAClusterRoleBindingName(dda),
-		getExternalMetricsReaderClusterRoleName(dda, r.versionInfo),
+		getExternalMetricsReaderClusterRoleName(dda, versionInfo),
 		// KSM core can run on the DCA or the Runners
 		getKubeStateMetricsRBACResourceName(dda, clusterAgentSuffix),
 		getKubeStateMetricsRBACResourceName(dda, checkRunnersSuffix),
