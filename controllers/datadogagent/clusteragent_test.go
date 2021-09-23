@@ -2,6 +2,7 @@ package datadogagent
 
 import (
 	"fmt"
+	"reflect"
 	"strconv"
 	"testing"
 
@@ -29,6 +30,7 @@ import (
 
 func clusterAgentDefaultPodSpec() v1.PodSpec {
 	return v1.PodSpec{
+		Affinity:           getPodAntiAffinity(nil),
 		ServiceAccountName: "foo-cluster-agent",
 		Containers: []v1.Container{
 			{
@@ -757,7 +759,7 @@ func Test_newClusterAgentDeploymentFromInstance_EnvVars(t *testing.T) {
 func Test_newClusterAgentDeploymentFromInstance_CustomDeploymentName(t *testing.T) {
 	customDeploymentName := "custom-cluster-agent-deployment"
 	deploymentNamePodSpec := clusterAgentDefaultPodSpec()
-	deploymentNamePodSpec.Affinity = nil
+	deploymentNamePodSpec.Affinity = getPodAntiAffinity(nil)
 
 	deploymentNameAgentDeployment := test.NewDefaultedDatadogAgent("bar", "foo",
 		&test.NewDatadogAgentOptions{
@@ -1343,7 +1345,7 @@ func Test_newClusterAgentDeploymentFromInstance_Compliance(t *testing.T) {
 func Test_newClusterAgentDeploymentFromInstance_CustomReplicas(t *testing.T) {
 	customReplicas := int32(7)
 	deploymentNamePodSpec := clusterAgentDefaultPodSpec()
-	deploymentNamePodSpec.Affinity = nil
+	deploymentNamePodSpec.Affinity = getPodAntiAffinity(nil)
 
 	deploymentNameAgentDeployment := test.NewDefaultedDatadogAgent("bar", "foo",
 		&test.NewDatadogAgentOptions{
@@ -1467,6 +1469,79 @@ func TestReconcileDatadogAgent_createNewClusterAgentDeployment(t *testing.T) {
 				assert.NoError(t, err, "ReconcileDatadogAgent.createNewClusterAgentDeployment() unexpected error: %v", err)
 			}
 			assert.Equal(t, tt.want, got, "ReconcileDatadogAgent.createNewClusterAgentDeployment() unexpected result")
+		})
+	}
+}
+
+func Test_PodAntiAffinity(t *testing.T) {
+	tests := []struct {
+		name     string
+		affinity *corev1.Affinity
+		want     *corev1.Affinity
+	}{
+		{
+			name:     "no user-defined affinity - apply default",
+			affinity: nil,
+			want: &corev1.Affinity{
+				PodAntiAffinity: &corev1.PodAntiAffinity{
+					RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+						{
+							LabelSelector: &metav1.LabelSelector{
+								MatchLabels: map[string]string{
+									"agent.datadoghq.com/component": "cluster-agent",
+								},
+							},
+							TopologyKey: "kubernetes.io/hostname",
+						},
+					},
+				},
+			},
+		},
+
+		{
+			name: "user-defined affinity",
+			affinity: &corev1.Affinity{
+				PodAntiAffinity: &corev1.PodAntiAffinity{
+					PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
+						{
+							Weight: 50,
+							PodAffinityTerm: corev1.PodAffinityTerm{
+								LabelSelector: &metav1.LabelSelector{
+									MatchLabels: map[string]string{
+										"foo": "bar",
+									},
+								},
+								TopologyKey: "baz",
+							},
+						},
+					},
+				},
+			},
+			want: &corev1.Affinity{
+				PodAntiAffinity: &corev1.PodAntiAffinity{
+					PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
+						{
+							Weight: 50,
+							PodAffinityTerm: corev1.PodAffinityTerm{
+								LabelSelector: &metav1.LabelSelector{
+									MatchLabels: map[string]string{
+										"foo": "bar",
+									},
+								},
+								TopologyKey: "baz",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := getPodAntiAffinity(tt.affinity); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("getPodAntiAffinity() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }
