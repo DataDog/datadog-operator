@@ -30,12 +30,6 @@ func Test_handleFinalizer(t *testing.T) {
 
 	var clusterRoles []*rbacv1.ClusterRole
 	var clusterRoleBindings []*rbacv1.ClusterRoleBinding
-	for _, resourceName := range rbacNamesForDda(dda) {
-		clusterRoles = append(clusterRoles, buildClusterRole(dda, true, resourceName, ""))
-		clusterRoleBindings = append(clusterRoleBindings, buildClusterRoleBinding(
-			dda, roleBindingInfo{name: resourceName}, "",
-		))
-	}
 
 	initialKubeObjects := []client.Object{dda}
 	for _, clusterRole := range clusterRoles {
@@ -44,8 +38,15 @@ func Test_handleFinalizer(t *testing.T) {
 	for _, clusterRoleBinding := range clusterRoleBindings {
 		initialKubeObjects = append(initialKubeObjects, clusterRoleBinding)
 	}
-
 	reconciler := reconcilerForFinalizerTest(initialKubeObjects)
+
+	for _, resourceName := range rbacNamesForDda(dda, reconciler.versionInfo) {
+		clusterRoles = append(clusterRoles, buildClusterRole(dda, true, resourceName, ""))
+		clusterRoleBindings = append(clusterRoleBindings, buildClusterRoleBinding(
+			dda, roleBindingInfo{name: resourceName}, "",
+		))
+	}
+
 	_, err := reconciler.handleFinalizer(logf.Log.WithName("Handle Finalizer test"), dda)
 	assert.NoError(t, err)
 
@@ -81,5 +82,4 @@ func reconcilerForFinalizerTest(initialKubeObjects []client.Object) Reconciler {
 		recorder:   record.NewBroadcaster().NewRecorder(reconcilerScheme, corev1.EventSource{}),
 		forwarders: dummyManager{},
 	}
-
 }
