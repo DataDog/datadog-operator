@@ -15,7 +15,6 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -23,7 +22,7 @@ import (
 )
 
 const (
-	kubeStateMetricsRBACPrefix = "kube-state-metrics-core-"
+	kubeStateMetricsRBACPrefix = "kube-state-metrics-core"
 	ksmCoreCheckName           = "kubernetes_state_core.yaml.default"
 	ksmCoreCheckFolderName     = "kubernetes_state_core.d"
 )
@@ -101,7 +100,7 @@ func (r *Reconciler) createKubeStateMetricsClusterRole(logger logr.Logger, dda *
 
 func (r *Reconciler) updateIfNeededKubeStateMetricsClusterRole(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, version string, clusterRole *rbacv1.ClusterRole) (reconcile.Result, error) {
 	newClusterRole := buildKubeStateMetricsCoreRBAC(dda, name, version)
-	if !apiequality.Semantic.DeepEqual(newClusterRole.Rules, clusterRole.Rules) {
+	if !isClusterRolesEqual(newClusterRole, clusterRole) {
 		logger.V(1).Info("updateKubeStateMetricsClusterRole", "clusterRole.name", clusterRole.Name)
 		if err := r.client.Update(context.TODO(), newClusterRole); err != nil {
 			return reconcile.Result{}, err
@@ -112,8 +111,12 @@ func (r *Reconciler) updateIfNeededKubeStateMetricsClusterRole(logger logr.Logge
 	return reconcile.Result{}, nil
 }
 
+func getKubeStateMetricsRBACResourceName(dda *datadoghqv1alpha1.DatadogAgent, suffix string) string {
+	return fmt.Sprintf("%s-%s-%s-%s", dda.Namespace, dda.Name, kubeStateMetricsRBACPrefix, suffix)
+}
+
 func (r *Reconciler) createOrUpdateKubeStateMetricsCoreRBAC(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, serviceAccountName, componentVersion, nameSuffix string) (reconcile.Result, error) {
-	kubeStateMetricsRBACName := kubeStateMetricsRBACPrefix + nameSuffix
+	kubeStateMetricsRBACName := getKubeStateMetricsRBACResourceName(dda, nameSuffix)
 	kubeStateMetricsClusterRole := &rbacv1.ClusterRole{}
 	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: kubeStateMetricsRBACName}, kubeStateMetricsClusterRole); err != nil {
 		if errors.IsNotFound(err) {
@@ -129,7 +132,7 @@ func (r *Reconciler) createOrUpdateKubeStateMetricsCoreRBAC(logger logr.Logger, 
 	kubeStateMetricsClusterRoleBinding := &rbacv1.ClusterRoleBinding{}
 	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: kubeStateMetricsRBACName}, kubeStateMetricsClusterRoleBinding); err != nil {
 		if errors.IsNotFound(err) {
-			return r.createClusterRoleBinding(logger, dda, roleBindingInfo{
+			return r.createClusterRoleBindingFromInfo(logger, dda, roleBindingInfo{
 				name:               kubeStateMetricsRBACName,
 				roleName:           kubeStateMetricsRBACName,
 				serviceAccountName: serviceAccountName,
@@ -142,14 +145,14 @@ func (r *Reconciler) createOrUpdateKubeStateMetricsCoreRBAC(logger logr.Logger, 
 }
 
 func (r *Reconciler) cleanupKubeStateMetricsCoreRBAC(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, nameSuffix string) (reconcile.Result, error) {
-	kubeStateMetricsRBACName := kubeStateMetricsRBACPrefix + nameSuffix
+	kubeStateMetricsRBACName := getKubeStateMetricsRBACResourceName(dda, nameSuffix)
 
-	result, err := r.cleanupClusterRoleBinding(logger, r.client, dda, kubeStateMetricsRBACName)
+	result, err := r.cleanupClusterRoleBinding(logger, dda, kubeStateMetricsRBACName)
 	if err != nil {
 		return result, err
 	}
 
-	return r.cleanupClusterRole(logger, r.client, dda, kubeStateMetricsRBACName)
+	return r.cleanupClusterRole(logger, dda, kubeStateMetricsRBACName)
 }
 
 // buildKubeStateMetricsCoreRBAC generates the cluster role required for the KSM informers to query

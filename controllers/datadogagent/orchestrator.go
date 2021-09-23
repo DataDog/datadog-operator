@@ -15,7 +15,6 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -23,7 +22,7 @@ import (
 )
 
 const (
-	orchestratorExplorerRBACPrefix      = "orchestrator-explorer-"
+	orchestratorExplorerRBACPrefix      = "orchestrator-explorer"
 	orchestratorExplorerCheckName       = "orchestrator.yaml"
 	orchestratorExplorerCheckFolderName = "orchestrator.d"
 )
@@ -78,7 +77,7 @@ func (r *Reconciler) createOrchestratorExplorerClusterRole(logger logr.Logger, d
 
 func (r *Reconciler) updateIfNeededOrchestratorExplorerClusterRole(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, version string, clusterRole *rbacv1.ClusterRole) (reconcile.Result, error) {
 	newClusterRole := buildOrchestratorExplorerRBAC(dda, name, version)
-	if !apiequality.Semantic.DeepEqual(newClusterRole.Rules, clusterRole.Rules) {
+	if !isClusterRolesEqual(newClusterRole, clusterRole) {
 		logger.V(1).Info("updateOrchestratorClusterRole", "clusterRole.name", clusterRole.Name)
 		if err := r.client.Update(context.TODO(), newClusterRole); err != nil {
 			return reconcile.Result{}, err
@@ -89,8 +88,12 @@ func (r *Reconciler) updateIfNeededOrchestratorExplorerClusterRole(logger logr.L
 	return reconcile.Result{}, nil
 }
 
+func getOrchestratorRBACResourceName(dda *datadoghqv1alpha1.DatadogAgent, suffix string) string {
+	return fmt.Sprintf("%s-%s-%s-%s", dda.Namespace, dda.Name, orchestratorExplorerRBACPrefix, suffix)
+}
+
 func (r *Reconciler) createOrUpdateOrchestratorCoreRBAC(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, serviceAccountName, componentVersion, nameSuffix string) (reconcile.Result, error) {
-	orchestratorRBACName := orchestratorExplorerRBACPrefix + nameSuffix
+	orchestratorRBACName := getOrchestratorRBACResourceName(dda, nameSuffix)
 	orchestratorClusterRole := &rbacv1.ClusterRole{}
 	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: orchestratorRBACName}, orchestratorClusterRole); err != nil {
 		if errors.IsNotFound(err) {
@@ -106,7 +109,7 @@ func (r *Reconciler) createOrUpdateOrchestratorCoreRBAC(logger logr.Logger, dda 
 	orchestratorClusterRoleBinding := &rbacv1.ClusterRoleBinding{}
 	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: orchestratorRBACName}, orchestratorClusterRoleBinding); err != nil {
 		if errors.IsNotFound(err) {
-			return r.createClusterRoleBinding(logger, dda, roleBindingInfo{
+			return r.createClusterRoleBindingFromInfo(logger, dda, roleBindingInfo{
 				name:               orchestratorRBACName,
 				roleName:           orchestratorRBACName,
 				serviceAccountName: serviceAccountName,
@@ -119,14 +122,14 @@ func (r *Reconciler) createOrUpdateOrchestratorCoreRBAC(logger logr.Logger, dda 
 }
 
 func (r *Reconciler) cleanupOrchestratorCoreRBAC(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, nameSuffix string) (reconcile.Result, error) {
-	orchestratorRBACName := orchestratorExplorerRBACPrefix + nameSuffix
+	orchestratorRBACName := getOrchestratorRBACResourceName(dda, nameSuffix)
 
-	result, err := r.cleanupClusterRoleBinding(logger, r.client, dda, orchestratorRBACName)
+	result, err := r.cleanupClusterRoleBinding(logger, dda, orchestratorRBACName)
 	if err != nil {
 		return result, err
 	}
 
-	return r.cleanupClusterRole(logger, r.client, dda, orchestratorRBACName)
+	return r.cleanupClusterRole(logger, dda, orchestratorRBACName)
 }
 
 // buildOrchestratorExplorerRBAC generates the cluster role required for the KSM informers to query

@@ -68,7 +68,7 @@ func Test_cleanupClusterRole(t *testing.T) {
 			r := newReconcilerForRbacTests(fakeClient)
 
 			_, err := r.cleanupClusterRole(
-				logf.Log.WithName(tt.name), r.client, tt.dda, getAgentRbacResourcesName(tt.dda),
+				logf.Log.WithName(tt.name), tt.dda, getAgentRbacResourcesName(tt.dda),
 			)
 			assert.NoError(t, err)
 
@@ -132,7 +132,7 @@ func Test_cleanupClusterRoleBinding(t *testing.T) {
 			reconciler := newReconcilerForRbacTests(fakeClient)
 
 			_, err := reconciler.cleanupClusterRoleBinding(
-				logf.Log.WithName(tt.name), reconciler.client, tt.dda, getAgentRbacResourcesName(tt.dda),
+				logf.Log.WithName(tt.name), tt.dda, getAgentRbacResourcesName(tt.dda),
 			)
 			assert.NoError(t, err)
 

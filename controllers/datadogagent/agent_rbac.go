@@ -31,14 +31,7 @@ func (r *Reconciler) manageAgentRBACs(logger logr.Logger, dda *datadoghqv1alpha1
 	agentVersion := getAgentVersion(dda)
 
 	// Create or update ClusterRole
-	clusterRole := &rbacv1.ClusterRole{}
-	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesName}, clusterRole); err != nil {
-		if errors.IsNotFound(err) {
-			return r.createAgentClusterRole(logger, dda, rbacResourcesName, agentVersion)
-		}
-		return reconcile.Result{}, err
-	}
-	if result, err := r.updateIfNeededAgentClusterRole(logger, dda, rbacResourcesName, agentVersion, clusterRole); err != nil {
+	if result, err := r.manageClusterRole(logger, dda, rbacResourcesName, agentVersion, r.createAgentClusterRole, r.updateIfNeededAgentClusterRole, false); err != nil {
 		return result, err
 	}
 
@@ -53,19 +46,25 @@ func (r *Reconciler) manageAgentRBACs(logger logr.Logger, dda *datadoghqv1alpha1
 	}
 
 	// Create ClusterRoleBinding
-	clusterRoleBinding := &rbacv1.ClusterRoleBinding{}
-	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesName}, clusterRoleBinding); err != nil {
-		if errors.IsNotFound(err) {
-			return r.createClusterRoleBinding(logger, dda, roleBindingInfo{
-				name:               rbacResourcesName,
-				roleName:           rbacResourcesName,
-				serviceAccountName: serviceAccountName,
-			}, agentVersion)
-		}
-		return reconcile.Result{}, err
-	}
+	return r.manageClusterRoleBinding(logger, dda, rbacResourcesName, agentVersion, r.createAgentClusterRoleBinding, r.updateIfNeedAgentClusterRoleBinding, false)
+}
 
-	return r.updateIfNeededClusterRoleBinding(logger, dda, rbacResourcesName, rbacResourcesName, serviceAccountName, agentVersion, clusterRoleBinding)
+func (r *Reconciler) createAgentClusterRoleBinding(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string) (reconcile.Result, error) {
+	newClusterRoleBinding := buildAgentClusterRoleBinding(dda, name, agentVersion)
+
+	return r.createClusterRoleBinding(logger, dda, newClusterRoleBinding)
+}
+
+func (r *Reconciler) updateIfNeedAgentClusterRoleBinding(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string, clusterRoleBinding *rbacv1.ClusterRoleBinding) (reconcile.Result, error) {
+	serviceAccountName := getAgentServiceAccount(dda)
+	bindingInfo := roleBindingInfo{
+		name:               name,
+		roleName:           name,
+		serviceAccountName: serviceAccountName,
+	}
+	newClusterRoleBinding := buildClusterRoleBinding(dda, bindingInfo, agentVersion)
+
+	return r.updateIfNeededClusterRoleBindingRaw(logger, dda, clusterRoleBinding, newClusterRoleBinding)
 }
 
 // cleanupAgentRbacResources deletes ClusterRole, ClusterRoleBindings, and ServiceAccount of the Agent
@@ -73,12 +72,12 @@ func (r *Reconciler) cleanupAgentRbacResources(logger logr.Logger, dda *datadogh
 	rbacResourcesName := getAgentRbacResourcesName(dda)
 
 	// Delete ClusterRole
-	if result, err := r.cleanupClusterRole(logger, r.client, dda, rbacResourcesName); err != nil {
+	if result, err := r.cleanupClusterRole(logger, dda, rbacResourcesName); err != nil {
 		return result, err
 	}
 
 	// Delete Cluster Role Binding
-	if result, err := r.cleanupClusterRoleBinding(logger, r.client, dda, rbacResourcesName); err != nil {
+	if result, err := r.cleanupClusterRoleBinding(logger, dda, rbacResourcesName); err != nil {
 		return result, err
 	}
 
@@ -88,4 +87,15 @@ func (r *Reconciler) cleanupAgentRbacResources(logger logr.Logger, dda *datadogh
 	}
 
 	return reconcile.Result{}, nil
+}
+
+func buildAgentClusterRoleBinding(dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string) *rbacv1.ClusterRoleBinding {
+	serviceAccountName := getAgentServiceAccount(dda)
+	bindingInfo := roleBindingInfo{
+		name:               name,
+		roleName:           name,
+		serviceAccountName: serviceAccountName,
+	}
+
+	return buildClusterRoleBinding(dda, bindingInfo, agentVersion)
 }
