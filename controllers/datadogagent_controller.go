@@ -8,6 +8,7 @@ package controllers
 import (
 	"context"
 
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
@@ -15,7 +16,10 @@ import (
 	ctrlbuilder "sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -24,7 +28,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/version"
 
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
@@ -77,6 +81,7 @@ type DatadogAgentReconciler struct {
 
 // Use ExtendedDaemonSet
 // +kubebuilder:rbac:groups=datadoghq.com,resources=extendeddaemonsets,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=datadoghq.com,resources=extendeddaemonsetreplicasets,verbs=get
 
 // OpenShift
 // +kubebuilder:rbac:groups=quota.openshift.io,resources=clusterresourcequotas,verbs=get;list
@@ -116,6 +121,8 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=apps,resources=daemonsets,verbs=get;list;watch
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch
 // +kubebuilder:rbac:groups=batch,resources=cronjobs,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=list;watch
+// +kubebuilder:rbac:groups="",resources=persistentvolumes,verbs=list;watch
 
 // Kubernetes_state_core
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=list;watch
@@ -159,10 +166,15 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&rbacv1.Role{}).
 		Owns(&rbacv1.RoleBinding{}).
 		Owns(&corev1.ServiceAccount{}).
-		Owns(&rbacv1.ClusterRole{}).
-		Owns(&rbacv1.ClusterRoleBinding{}).
 		Owns(&policyv1.PodDisruptionBudget{}).
 		Owns(&networkingv1.NetworkPolicy{})
+
+	// DatadogAgent is namespaced whereas ClusterRole and ClusterRoleBinding are
+	// cluster-scoped. That means that DatadogAgent cannot be their owner, and
+	// we cannot use .Owns().
+	handlerEnqueue := handler.EnqueueRequestsFromMapFunc(enqueueIfOwnedByDatadogAgent)
+	builder.Watches(&source.Kind{Type: &rbacv1.ClusterRole{}}, handlerEnqueue)
+	builder.Watches(&source.Kind{Type: &rbacv1.ClusterRoleBinding{}}, handlerEnqueue)
 
 	if r.Options.SupportExtendedDaemonset {
 		builder = builder.Owns(&edsdatadoghqv1alpha1.ExtendedDaemonSet{})
@@ -195,4 +207,17 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.internal = internal
 
 	return nil
+}
+
+func enqueueIfOwnedByDatadogAgent(obj client.Object) []reconcile.Request {
+	labels := obj.GetLabels()
+
+	if labels[kubernetes.AppKubernetesManageByLabelKey] != "datadog-operator" {
+		return nil
+	}
+
+	partOfLabelVal := datadogagent.PartOfLabelValue{Value: labels[kubernetes.AppKubernetesPartOfLabelKey]}
+	owner := partOfLabelVal.NamespacedName()
+
+	return []reconcile.Request{{NamespacedName: owner}}
 }

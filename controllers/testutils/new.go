@@ -6,7 +6,7 @@
 package testutils
 
 import (
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -153,6 +153,8 @@ func NewDatadogAgent(ns, name, image string, options *NewDatadogAgentOptions) *d
 
 			ad.Spec.Features.OrchestratorExplorer.Enabled = datadoghqv1alpha1.NewBoolPointer(false)
 		}
+		// options can have an impact on the defaulting
+		_ = datadoghqv1alpha1.DefaultDatadogAgent(ad)
 	}
 
 	return ad

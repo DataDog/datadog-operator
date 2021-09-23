@@ -16,7 +16,7 @@ import (
 	"github.com/go-logr/logr"
 
 	datadogapiclientv1 "github.com/DataDog/datadog-api-client-go/api/v1/datadog"
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 )
 
 func buildMonitor(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) (*datadogapiclientv1.Monitor, *datadogapiclientv1.MonitorUpdateRequest) {

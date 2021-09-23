@@ -8,8 +8,8 @@ package datadogagent
 import (
 	"testing"
 
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
-	test "github.com/DataDog/datadog-operator/api/v1alpha1/test"
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	test "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1/test"
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

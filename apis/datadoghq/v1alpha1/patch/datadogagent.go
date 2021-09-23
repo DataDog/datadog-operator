@@ -5,7 +5,7 @@
 
 package patch
 
-import "github.com/DataDog/datadog-operator/api/v1alpha1"
+import "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 
 // CopyAndPatchDatadogAgent used to patch the current DatadogAgent instance to use the new fields (not deprecated).
 // This function is here to ease the migration to a new DatadogAgent CRD version.

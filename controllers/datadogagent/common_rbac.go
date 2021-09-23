@@ -7,7 +7,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -196,7 +196,7 @@ func (r *Reconciler) updateIfNeededClusterRoleBinding(logger logr.Logger, dda *d
 // labels to know whether a DatadogAgent object owns them.
 func isOwnerBasedOnLabels(dda *datadoghqv1alpha1.DatadogAgent, labels map[string]string) bool {
 	isManagedByOperator := labels[kubernetes.AppKubernetesManageByLabelKey] == "datadog-operator"
-	isPartOfDDA := labels[kubernetes.AppKubernetesPartOfLabelKey] == dda.Namespace+"-"+dda.Name
+	isPartOfDDA := labels[kubernetes.AppKubernetesPartOfLabelKey] == NewPartOfLabelValue(dda).String()
 	return isManagedByOperator && isPartOfDDA
 }
 

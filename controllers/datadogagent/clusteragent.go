@@ -24,7 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/orchestrator"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
@@ -1547,7 +1547,7 @@ func buildClusterAgentNetworkPolicy(dda *datadoghqv1alpha1.DatadogAgent, name st
 					PodSelector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{
 							kubernetes.AppKubernetesInstanceLabelKey: datadoghqv1alpha1.DefaultAgentResourceSuffix,
-							kubernetes.AppKubernetesPartOfLabelKey:   dda.Namespace + "-" + dda.Name,
+							kubernetes.AppKubernetesPartOfLabelKey:   NewPartOfLabelValue(dda).String(),
 						},
 					},
 				},
@@ -1570,7 +1570,7 @@ func buildClusterAgentNetworkPolicy(dda *datadoghqv1alpha1.DatadogAgent, name st
 					PodSelector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{
 							kubernetes.AppKubernetesInstanceLabelKey: datadoghqv1alpha1.DefaultClusterChecksRunnerResourceSuffix,
-							kubernetes.AppKubernetesPartOfLabelKey:   dda.Namespace + "-" + dda.Name,
+							kubernetes.AppKubernetesPartOfLabelKey:   NewPartOfLabelValue(dda).String(),
 						},
 					},
 				},
@@ -1601,7 +1601,7 @@ func buildClusterAgentNetworkPolicy(dda *datadoghqv1alpha1.DatadogAgent, name st
 			PodSelector: metav1.LabelSelector{
 				MatchLabels: map[string]string{
 					kubernetes.AppKubernetesInstanceLabelKey: datadoghqv1alpha1.DefaultClusterAgentResourceSuffix,
-					kubernetes.AppKubernetesPartOfLabelKey:   dda.Namespace + "-" + dda.Name,
+					kubernetes.AppKubernetesPartOfLabelKey:   NewPartOfLabelValue(dda).String(),
 				},
 			},
 			Ingress: ingressRules,

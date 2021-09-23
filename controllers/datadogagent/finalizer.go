@@ -11,7 +11,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/go-logr/logr"
 )
 

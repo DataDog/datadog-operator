@@ -21,7 +21,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/api/v1alpha1"
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -379,7 +379,7 @@ func buildAgentNetworkPolicy(dda *datadoghqv1alpha1.DatadogAgent, name string) *
 			PodSelector: metav1.LabelSelector{
 				MatchLabels: map[string]string{
 					kubernetes.AppKubernetesInstanceLabelKey: datadoghqv1alpha1.DefaultAgentResourceSuffix,
-					kubernetes.AppKubernetesPartOfLabelKey:   dda.Namespace + "-" + dda.Name,
+					kubernetes.AppKubernetesPartOfLabelKey:   NewPartOfLabelValue(dda).String(),
 				},
 			},
 			Ingress: ingressRules,
