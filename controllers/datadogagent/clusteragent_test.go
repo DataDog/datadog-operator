@@ -30,7 +30,7 @@ import (
 
 func clusterAgentDefaultPodSpec() v1.PodSpec {
 	return v1.PodSpec{
-		Affinity:           getPodAntiAffinity(nil),
+		Affinity:           getClusterAgentAffinity(nil),
 		ServiceAccountName: "foo-cluster-agent",
 		Containers: []v1.Container{
 			{
@@ -759,7 +759,7 @@ func Test_newClusterAgentDeploymentFromInstance_EnvVars(t *testing.T) {
 func Test_newClusterAgentDeploymentFromInstance_CustomDeploymentName(t *testing.T) {
 	customDeploymentName := "custom-cluster-agent-deployment"
 	deploymentNamePodSpec := clusterAgentDefaultPodSpec()
-	deploymentNamePodSpec.Affinity = getPodAntiAffinity(nil)
+	deploymentNamePodSpec.Affinity = getClusterAgentAffinity(nil)
 
 	deploymentNameAgentDeployment := test.NewDefaultedDatadogAgent("bar", "foo",
 		&test.NewDatadogAgentOptions{
@@ -1345,7 +1345,7 @@ func Test_newClusterAgentDeploymentFromInstance_Compliance(t *testing.T) {
 func Test_newClusterAgentDeploymentFromInstance_CustomReplicas(t *testing.T) {
 	customReplicas := int32(7)
 	deploymentNamePodSpec := clusterAgentDefaultPodSpec()
-	deploymentNamePodSpec.Affinity = getPodAntiAffinity(nil)
+	deploymentNamePodSpec.Affinity = getClusterAgentAffinity(nil)
 
 	deploymentNameAgentDeployment := test.NewDefaultedDatadogAgent("bar", "foo",
 		&test.NewDatadogAgentOptions{
@@ -1539,8 +1539,8 @@ func Test_PodAntiAffinity(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := getPodAntiAffinity(tt.affinity); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("getPodAntiAffinity() = %v, want %v", got, tt.want)
+			if got := getClusterAgentAffinity(tt.affinity); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("getClusterAgentAffinity() = %v, want %v", got, tt.want)
 			}
 		})
 	}

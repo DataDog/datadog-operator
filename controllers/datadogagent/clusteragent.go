@@ -469,7 +469,7 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 				Args:         getDefaultIfEmpty(dda.Spec.ClusterAgent.Config.Args, nil),
 			},
 		},
-		Affinity:          getPodAntiAffinity(clusterAgentSpec.Affinity),
+		Affinity:          getClusterAgentAffinity(clusterAgentSpec.Affinity),
 		Tolerations:       clusterAgentSpec.Tolerations,
 		PriorityClassName: dda.Spec.ClusterAgent.PriorityClassName,
 		Volumes:           volumes,
@@ -520,7 +520,11 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 	return newPodTemplate, nil
 }
 
-func getPodAntiAffinity(affinity *corev1.Affinity) *corev1.Affinity {
+// getClusterAgentAffinity returns the pod anti affinity of the cluster agent
+// the default anti affinity prefers scheduling the runners on different nodes if possible
+// for better checks stability in case of node failure.
+
+func getClusterAgentAffinity(affinity *corev1.Affinity) *corev1.Affinity {
 	if affinity != nil {
 		return affinity
 	}
