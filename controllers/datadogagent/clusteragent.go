@@ -523,7 +523,6 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 // getClusterAgentAffinity returns the pod anti affinity of the cluster agent
 // the default anti affinity prefers scheduling the runners on different nodes if possible
 // for better checks stability in case of node failure.
-
 func getClusterAgentAffinity(affinity *corev1.Affinity) *corev1.Affinity {
 	if affinity != nil {
 		return affinity
