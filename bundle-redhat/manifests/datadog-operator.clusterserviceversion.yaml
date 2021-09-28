@@ -15,9 +15,6 @@ metadata:
               "apm": {
                 "enabled": false
               },
-              "image": {
-                "name": "datadog/agent:7.26.0"
-              },
               "log": {
                 "enabled": false,
                 "logsConfigContainerCollectAll": false
@@ -48,15 +45,9 @@ metadata:
                   "enabled": false
                 }
               },
-              "image": {
-                "name": "datadog/cluster-agent:1.11.0"
-              },
               "replicas": 2
             },
             "clusterChecksRunner": {
-              "image": {
-                "name": "datadog/agent:7.26.0"
-              },
               "replicas": 2
             },
             "clusterName": "\u003cCLUSTER_NAME\u003e",
