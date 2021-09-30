@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	kubeStateMetricsRBACPrefix = "kube-state-metrics-core"
+	kubeStateMetricsRBACPrefix = "ksm-core"
 	ksmCoreCheckName           = "kubernetes_state_core.yaml.default"
 	ksmCoreCheckFolderName     = "kubernetes_state_core.d"
 )

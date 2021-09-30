@@ -34,8 +34,8 @@ const (
 	apiServiceKind          = "APIService"
 	networkPolicyKind       = "NetworkPolicy"
 
-	checkRunnersSuffix = "check-runners"
-	clusterAgentSuffix = "cluster-agent"
+	checkRunnersSuffix = "ccr"
+	clusterAgentSuffix = "dca"
 
 	// Datadog tags prefix
 	datadogTagPrefix = "tags.datadoghq.com"

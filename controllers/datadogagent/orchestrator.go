@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	orchestratorExplorerRBACPrefix      = "orchestrator-explorer"
+	orchestratorExplorerRBACPrefix      = "orch-exp"
 	orchestratorExplorerCheckName       = "orchestrator.yaml"
 	orchestratorExplorerCheckFolderName = "orchestrator.d"
 )
