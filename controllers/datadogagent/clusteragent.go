@@ -468,7 +468,7 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 				Args:         getDefaultIfEmpty(dda.Spec.ClusterAgent.Config.Args, nil),
 			},
 		},
-		Affinity:          clusterAgentSpec.Affinity,
+		Affinity:          getClusterAgentAffinity(clusterAgentSpec.Affinity),
 		Tolerations:       clusterAgentSpec.Tolerations,
 		PriorityClassName: dda.Spec.ClusterAgent.PriorityClassName,
 		Volumes:           volumes,
@@ -517,6 +517,30 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 	}
 
 	return newPodTemplate, nil
+}
+
+// getClusterAgentAffinity returns the pod anti affinity of the cluster agent
+// the default anti affinity prefers scheduling the runners on different nodes if possible
+// for better checks stability in case of node failure.
+func getClusterAgentAffinity(affinity *corev1.Affinity) *corev1.Affinity {
+	if affinity != nil {
+		return affinity
+	}
+
+	return &corev1.Affinity{
+		PodAntiAffinity: &corev1.PodAntiAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+				{
+					LabelSelector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							datadoghqv1alpha1.AgentDeploymentComponentLabelKey: datadoghqv1alpha1.DefaultClusterAgentResourceSuffix,
+						},
+					},
+					TopologyKey: "kubernetes.io/hostname",
+				},
+			},
+		},
+	}
 }
 
 func getCustomConfigSpecVolumes(customConfig *datadoghqv1alpha1.CustomConfigSpec, volumeName, defaultCMName, configFolder string) (corev1.Volume, corev1.VolumeMount) {
