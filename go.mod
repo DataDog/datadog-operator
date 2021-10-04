@@ -10,7 +10,7 @@ require (
 	github.com/go-logr/logr v0.4.0
 	github.com/go-openapi/spec v0.20.3
 	github.com/gobwas/glob v0.2.3
-	github.com/google/go-cmp v0.5.2
+	github.com/google/go-cmp v0.5.5
 	github.com/hako/durafmt v0.0.0-20200710122514-c0fb7b4da026
 	github.com/mholt/archiver/v3 v3.5.0
 	github.com/olekukonko/tablewriter v0.0.0-20170122224234-a0225b3f23b5
@@ -20,16 +20,17 @@ require (
 	github.com/spf13/cobra v1.1.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.7.0
+	github.com/ulikunitz/xz v0.5.8 // indirect
 	github.com/zorkian/go-datadog-api v2.30.0+incompatible
 	go.uber.org/zap v1.15.0
 	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776
-	k8s.io/api v0.20.2
-	k8s.io/apiextensions-apiserver v0.20.2
-	k8s.io/apimachinery v0.21.0
-	k8s.io/cli-runtime v0.20.2
-	k8s.io/client-go v0.20.2
+	k8s.io/api v0.20.11
+	k8s.io/apiextensions-apiserver v0.20.11
+	k8s.io/apimachinery v0.20.11
+	k8s.io/cli-runtime v0.20.11
+	k8s.io/client-go v0.20.11
 	k8s.io/klog/v2 v2.8.0
-	k8s.io/kube-aggregator v0.20.2
+	k8s.io/kube-aggregator v0.20.11
 	k8s.io/kube-openapi v0.0.0-20210305001622-591a79e4bda7
 	sigs.k8s.io/controller-runtime v0.7.2
 	sigs.k8s.io/yaml v1.2.0
