@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	orchestratorExplorerRBACPrefix      = "orchestrator-explorer"
+	orchestratorExplorerRBACPrefix      = "orch-exp"
 	orchestratorExplorerCheckName       = "orchestrator.yaml"
 	orchestratorExplorerCheckFolderName = "orchestrator.d"
 )
@@ -57,7 +57,7 @@ func buildOrchestratorExplorerConfigMap(dda *datadoghqv1alpha1.DatadogAgent) (*c
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        getOrchestratorExplorerConfName(dda),
 			Namespace:   dda.Namespace,
-			Labels:      getDefaultLabels(dda, dda.Name, getAgentVersion(dda)),
+			Labels:      getDefaultLabels(dda, NewPartOfLabelValue(dda).String(), getAgentVersion(dda)),
 			Annotations: getDefaultAnnotations(dda),
 		},
 		Data: map[string]string{
@@ -137,7 +137,7 @@ func (r *Reconciler) cleanupOrchestratorCoreRBAC(logger logr.Logger, dda *datado
 func buildOrchestratorExplorerRBAC(dda *datadoghqv1alpha1.DatadogAgent, name, version string) *rbacv1.ClusterRole {
 	clusterRole := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels:      getDefaultLabels(dda, name, version),
+			Labels:      getDefaultLabels(dda, NewPartOfLabelValue(dda).String(), version),
 			Annotations: getDefaultAnnotations(dda),
 			Name:        name,
 		},
