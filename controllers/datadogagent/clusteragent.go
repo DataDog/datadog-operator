@@ -1360,7 +1360,7 @@ func buildClusterAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, age
 func buildClusterAgentRole(dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string) *rbacv1.Role {
 	role := &rbacv1.Role{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels:    getDefaultLabels(dda, NewPartOfLabelValue(dda).String(), agentVersion),
+			Labels:    getDefaultLabels(dda, dda.Name, agentVersion),
 			Name:      name,
 			Namespace: dda.Namespace,
 		},
