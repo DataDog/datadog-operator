@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	kubeStateMetricsRBACPrefix = "kube-state-metrics-core"
+	kubeStateMetricsRBACPrefix = "ksm-core"
 	ksmCoreCheckName           = "kubernetes_state_core.yaml.default"
 	ksmCoreCheckFolderName     = "kubernetes_state_core.d"
 )
@@ -80,7 +80,7 @@ func buildKSMCoreConfigMap(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.ConfigM
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        getKubeStateMetricsConfName(dda),
 			Namespace:   dda.Namespace,
-			Labels:      getDefaultLabels(dda, dda.Name, getAgentVersion(dda)),
+			Labels:      getDefaultLabels(dda, NewPartOfLabelValue(dda).String(), getAgentVersion(dda)),
 			Annotations: getDefaultAnnotations(dda),
 		},
 		Data: map[string]string{
@@ -160,7 +160,7 @@ func (r *Reconciler) cleanupKubeStateMetricsCoreRBAC(logger logr.Logger, dda *da
 func buildKubeStateMetricsCoreRBAC(dda *datadoghqv1alpha1.DatadogAgent, name, version string) *rbacv1.ClusterRole {
 	clusterRole := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels:      getDefaultLabels(dda, name, version),
+			Labels:      getDefaultLabels(dda, NewPartOfLabelValue(dda).String(), version),
 			Annotations: getDefaultAnnotations(dda),
 			Name:        name,
 		},

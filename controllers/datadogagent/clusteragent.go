@@ -1036,7 +1036,7 @@ func buildClusterCheckRunnerClusterRole(dda *datadoghqv1alpha1.DatadogAgent, nam
 func buildClusterRole(dda *datadoghqv1alpha1.DatadogAgent, needClusterLevelRBAC bool, name, version string) *rbacv1.ClusterRole {
 	clusterRole := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels: getDefaultLabels(dda, name, version),
+			Labels: getDefaultLabels(dda, NewPartOfLabelValue(dda).String(), version),
 			Name:   name,
 		},
 	}
@@ -1131,7 +1131,7 @@ func getDefaultClusterAgentPolicyRules() []rbacv1.PolicyRule {
 func buildClusterRoleBinding(dda *datadoghqv1alpha1.DatadogAgent, info roleBindingInfo, agentVersion string) *rbacv1.ClusterRoleBinding {
 	return &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels: getDefaultLabels(dda, info.name, agentVersion),
+			Labels: getDefaultLabels(dda, NewPartOfLabelValue(dda).String(), agentVersion),
 			Name:   info.name,
 		},
 		RoleRef: rbacv1.RoleRef{
@@ -1153,7 +1153,7 @@ func buildClusterRoleBinding(dda *datadoghqv1alpha1.DatadogAgent, info roleBindi
 func buildClusterAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string) *rbacv1.ClusterRole {
 	clusterRole := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels: getDefaultLabels(dda, name, agentVersion),
+			Labels: getDefaultLabels(dda, NewPartOfLabelValue(dda).String(), agentVersion),
 			Name:   name,
 		},
 	}
@@ -1384,7 +1384,7 @@ func buildClusterAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, age
 func buildClusterAgentRole(dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string) *rbacv1.Role {
 	role := &rbacv1.Role{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels:    getDefaultLabels(dda, name, agentVersion),
+			Labels:    getDefaultLabels(dda, dda.Name, agentVersion),
 			Name:      name,
 			Namespace: dda.Namespace,
 		},
