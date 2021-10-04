@@ -31,7 +31,7 @@ type roleBindingInfo struct {
 func buildRoleBinding(dda *datadoghqv1alpha1.DatadogAgent, info roleBindingInfo, agentVersion string) *rbacv1.RoleBinding {
 	return &rbacv1.RoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels:    getDefaultLabels(dda, info.name, agentVersion),
+			Labels:    getDefaultLabels(dda, dda.Name, agentVersion),
 			Name:      info.name,
 			Namespace: dda.Namespace,
 		},
@@ -54,7 +54,7 @@ func buildRoleBinding(dda *datadoghqv1alpha1.DatadogAgent, info roleBindingInfo,
 func buildServiceAccount(dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string) *corev1.ServiceAccount {
 	return &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels:    getDefaultLabels(dda, name, agentVersion),
+			Labels:    getDefaultLabels(dda, dda.Name, agentVersion),
 			Name:      name,
 			Namespace: dda.Namespace,
 		},
