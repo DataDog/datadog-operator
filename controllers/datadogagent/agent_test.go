@@ -660,11 +660,6 @@ func defaultProcessMountVolumes() []corev1.VolumeMount {
 			ReadOnly:  true,
 		},
 		{
-			Name:      "passwd",
-			MountPath: "/etc/passwd",
-			ReadOnly:  true,
-		},
-		{
 			Name:      "procdir",
 			MountPath: "/host/proc",
 			ReadOnly:  true,
@@ -1530,14 +1525,6 @@ func defaultProcessMount() []corev1.Volume {
 				},
 			},
 		},
-		{
-			Name: "passwd",
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/etc/passwd",
-				},
-			},
-		},
 	}
 }
 
@@ -2330,14 +2317,6 @@ func Test_newExtendedDaemonSetFromInstance_CustomConfigMaps(t *testing.T) {
 				},
 			},
 		},
-		{
-			Name: datadoghqv1alpha1.PasswdVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/etc/passwd",
-				},
-			},
-		},
 	}
 
 	test := extendedDaemonSetFromInstanceTest{
@@ -2471,14 +2450,6 @@ func Test_newExtendedDaemonSetFromInstance_CustomDatadogYaml(t *testing.T) {
 				},
 			},
 		},
-		{
-			Name: datadoghqv1alpha1.PasswdVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/etc/passwd",
-				},
-			},
-		},
 	}
 	customConfigMapCustomDatadogYamlSpec.Containers[0].VolumeMounts = []corev1.VolumeMount{
 		{
@@ -2553,11 +2524,6 @@ func Test_newExtendedDaemonSetFromInstance_CustomDatadogYaml(t *testing.T) {
 		{
 			Name:      "cgroups",
 			MountPath: "/host/sys/fs/cgroup",
-			ReadOnly:  true,
-		},
-		{
-			Name:      "passwd",
-			MountPath: "/etc/passwd",
 			ReadOnly:  true,
 		},
 		{

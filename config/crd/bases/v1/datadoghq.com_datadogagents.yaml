@@ -2557,7 +2557,7 @@ spec:
                         type: array
                         x-kubernetes-list-type: atomic
                       enabled:
-                        description: 'Note: /etc/passwd is automatically mounted to allow username resolution. See also: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset'
+                        description: 'Enable the Process Agent container. See also: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset'
                         type: boolean
                       env:
                         description: 'The Datadog Agent supports many environment variables. See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables'
@@ -2643,7 +2643,7 @@ spec:
                         - name
                         x-kubernetes-list-type: map
                       processCollectionEnabled:
-                        description: 'false (default): Only collect containers if available. true: collect process information as well'
+                        description: 'false (default): Only collect containers if available. true: collect process information as well. Note: If enabled, /etc/passwd is automatically mounted to allow username resolution.'
                         type: boolean
                       resources:
                         description: 'Datadog Process Agent resource requests and limits. Make sure to keep requests and limits equal to keep the pods in the Guaranteed QoS class. See also: http://kubernetes.io/docs/user-guide/compute-resources/'
@@ -9416,7 +9416,7 @@ spec:
                             type: array
                             x-kubernetes-list-type: atomic
                           enabled:
-                            description: 'Note: /etc/passwd is automatically mounted to allow username resolution. See also: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset'
+                            description: 'Enable the Process Agent container. See also: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset'
                             type: boolean
                           env:
                             description: 'The Datadog Agent supports many environment variables. See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables'
@@ -9502,7 +9502,7 @@ spec:
                             - name
                             x-kubernetes-list-type: map
                           processCollectionEnabled:
-                            description: 'false (default): Only collect containers if available. true: collect process information as well'
+                            description: 'false (default): Only collect containers if available. true: collect process information as well. Note: If enabled, /etc/passwd is automatically mounted to allow username resolution.'
                             type: boolean
                           resources:
                             description: 'Datadog Process Agent resource requests and limits. Make sure to keep requests and limits equal to keep the pods in the Guaranteed QoS class. See also: http://kubernetes.io/docs/user-guide/compute-resources/'

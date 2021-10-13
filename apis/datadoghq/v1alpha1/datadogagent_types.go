@@ -433,14 +433,15 @@ type LogCollectionConfig struct {
 type ProcessSpec struct {
 	// Enable this to activate the process-agent to collection live-containers and if activated process information.
 
-	// Note: /etc/passwd is automatically mounted to allow username resolution.
+	// Enable the Process Agent container.
 	// See also: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset
 	//
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
 	// false (default): Only collect containers if available.
-	// true: collect process information as well
+	// true: collect process information as well.
+	// Note: If enabled, /etc/passwd is automatically mounted to allow username resolution.
 	ProcessCollectionEnabled *bool `json:"processCollectionEnabled,omitempty"`
 
 	// The Datadog Agent supports many environment variables.
