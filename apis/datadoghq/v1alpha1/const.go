@@ -284,6 +284,8 @@ const (
 	ServiceAccountResource              = "serviceaccounts"
 	NamespaceResource                   = "namespaces"
 	PodSecurityPolicyResource           = "podsecuritypolicies"
+	ClusterRoleResource                 = "clusterroles"
+	RoleResource                        = "roles"
 	ClusterRoleBindingResource          = "clusterrolebindings"
 	RoleBindingResource                 = "rolebindings"
 	NetworkPolicyResource               = "networkpolicies"
