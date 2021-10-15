@@ -3891,7 +3891,7 @@ spec:
                       type: array
                     enabled:
                       description: 'Enable the Process Agent container. See also:
-                        https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset'
+                        https://docs.datadoghq.com/infrastructure/process/?tab=kubernetes#installation'
                       type: boolean
                     env:
                       description: 'The Datadog Agent supports many environment variables.
@@ -4461,7 +4461,7 @@ spec:
                     enabled:
                       description: 'Enable this to activate live process monitoring.
                         Note: /etc/passwd is automatically mounted to allow username
-                        resolution. See also: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset'
+                        resolution. See also: https://docs.datadoghq.com/infrastructure/process/?tab=kubernetes#installation'
                       type: boolean
                     env:
                       description: 'The Datadog SystemProbe supports many environment
@@ -14556,7 +14556,7 @@ spec:
                           type: array
                         enabled:
                           description: 'Enable the Process Agent container. See also:
-                            https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset'
+                            https://docs.datadoghq.com/infrastructure/process/?tab=kubernetes#installation'
                           type: boolean
                         env:
                           description: 'The Datadog Agent supports many environment
@@ -15133,7 +15133,7 @@ spec:
                         enabled:
                           description: 'Enable this to activate live process monitoring.
                             Note: /etc/passwd is automatically mounted to allow username
-                            resolution. See also: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset'
+                            resolution. See also: https://docs.datadoghq.com/infrastructure/process/?tab=kubernetes#installation'
                           type: boolean
                         env:
                           description: 'The Datadog SystemProbe supports many environment

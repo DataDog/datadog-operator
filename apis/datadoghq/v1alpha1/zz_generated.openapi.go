@@ -2854,7 +2854,7 @@ func schema__apis_datadoghq_v1alpha1_ProcessSpec(ref common.ReferenceCallback) c
 				Properties: map[string]spec.Schema{
 					"enabled": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enable the Process Agent container. See also: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset",
+							Description: "Enable the Process Agent container. See also: https://docs.datadoghq.com/infrastructure/process/?tab=kubernetes#installation",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
@@ -3238,7 +3238,7 @@ func schema__apis_datadoghq_v1alpha1_SystemProbeSpec(ref common.ReferenceCallbac
 				Properties: map[string]spec.Schema{
 					"enabled": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enable this to activate live process monitoring. Note: /etc/passwd is automatically mounted to allow username resolution. See also: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset",
+							Description: "Enable this to activate live process monitoring. Note: /etc/passwd is automatically mounted to allow username resolution. See also: https://docs.datadoghq.com/infrastructure/process/?tab=kubernetes#installation",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},

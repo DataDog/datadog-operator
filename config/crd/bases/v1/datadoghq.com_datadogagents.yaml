@@ -2557,7 +2557,7 @@ spec:
                         type: array
                         x-kubernetes-list-type: atomic
                       enabled:
-                        description: 'Enable the Process Agent container. See also: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset'
+                        description: 'Enable the Process Agent container. See also: https://docs.datadoghq.com/infrastructure/process/?tab=kubernetes#installation'
                         type: boolean
                       env:
                         description: 'The Datadog Agent supports many environment variables. See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables'
@@ -3002,7 +3002,7 @@ spec:
                         description: EnableTCPQueueLength enables the TCP queue length eBPF-based check.
                         type: boolean
                       enabled:
-                        description: 'Enable this to activate live process monitoring. Note: /etc/passwd is automatically mounted to allow username resolution. See also: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset'
+                        description: 'Enable this to activate live process monitoring. Note: /etc/passwd is automatically mounted to allow username resolution. See also: https://docs.datadoghq.com/infrastructure/process/?tab=kubernetes#installation'
                         type: boolean
                       env:
                         description: 'The Datadog SystemProbe supports many environment variables. See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables'
@@ -9416,7 +9416,7 @@ spec:
                             type: array
                             x-kubernetes-list-type: atomic
                           enabled:
-                            description: 'Enable the Process Agent container. See also: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset'
+                            description: 'Enable the Process Agent container. See also: https://docs.datadoghq.com/infrastructure/process/?tab=kubernetes#installation'
                             type: boolean
                           env:
                             description: 'The Datadog Agent supports many environment variables. See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables'
@@ -9861,7 +9861,7 @@ spec:
                             description: EnableTCPQueueLength enables the TCP queue length eBPF-based check.
                             type: boolean
                           enabled:
-                            description: 'Enable this to activate live process monitoring. Note: /etc/passwd is automatically mounted to allow username resolution. See also: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset'
+                            description: 'Enable this to activate live process monitoring. Note: /etc/passwd is automatically mounted to allow username resolution. See also: https://docs.datadoghq.com/infrastructure/process/?tab=kubernetes#installation'
                             type: boolean
                           env:
                             description: 'The Datadog SystemProbe supports many environment variables. See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables'

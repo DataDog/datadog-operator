@@ -434,7 +434,7 @@ type ProcessSpec struct {
 	// Enable this to activate the process-agent to collection live-containers and if activated process information.
 
 	// Enable the Process Agent container.
-	// See also: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset
+	// See also: https://docs.datadoghq.com/infrastructure/process/?tab=kubernetes#installation
 	//
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
@@ -558,7 +558,7 @@ type NetworkMonitoringConfig struct {
 type SystemProbeSpec struct {
 	// Enable this to activate live process monitoring.
 	// Note: /etc/passwd is automatically mounted to allow username resolution.
-	// See also: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset
+	// See also: https://docs.datadoghq.com/infrastructure/process/?tab=kubernetes#installation
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
