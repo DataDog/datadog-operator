@@ -76,7 +76,7 @@ spec:
 | agent.config.dogstatsd.unixDomainSocket.enabled | Enable APM over Unix Domain Socket. See also: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/ |
 | agent.config.dogstatsd.unixDomainSocket.hostFilepath | Define the host APM socket filepath used when APM over Unix Domain Socket is enabled. (default value: /var/run/datadog/statsd.sock). See also: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/ |
 | agent.config.env | The Datadog Agent supports many environment variables. See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables |
-| agent.config.healthPort | HealthPort of the agent container for internal liveness probe. Must be the same as the Liness/Readiness probes. |
+| agent.config.healthPort | HealthPort of the Agent container for internal liveness probe. Must be the same as the Liveness/Readiness probes. |
 | agent.config.hostPort | Number of port to expose on the host. If specified, this must be a valid port number, 0 < x < 65536. If HostNetwork is specified, this must match ContainerPort. Most containers do not need this. |
 | agent.config.kubelet.agentCAPath | Path (inside Agent containers) where the Kubelet CA certificate is stored Default to /var/run/host-kubelet-ca.crt if hostCAPath else /var/run/secrets/kubernetes.io/serviceaccount/ca.crt |
 | agent.config.kubelet.host.configMapKeyRef.key | The key to select. |
@@ -267,7 +267,7 @@ spec:
 | clusterAgent.config.admissionController.mutateUnlabelled | MutateUnlabelled enables injecting config without having the pod label 'admission.datadoghq.com/enabled="true"'. |
 | clusterAgent.config.admissionController.serviceName | ServiceName corresponds to the webhook service name. |
 | clusterAgent.config.args | Args allows the specification of extra args to `Command` parameter |
-| clusterAgent.config.clusterChecksEnabled | Enable the Cluster Checks and Endpoint Checks feature on both the cluster-agents and the daemonset. See also: https://docs.datadoghq.com/agent/cluster_agent/clusterchecks/ https://docs.datadoghq.com/agent/cluster_agent/endpointschecks/ Autodiscovery via Kube Service annotations is automatically enabled. |
+| clusterAgent.config.clusterChecksEnabled | Enable the Cluster Checks and Endpoint Checks feature on both the Cluster Agent and the daemonset. See also: https://docs.datadoghq.com/agent/cluster_agent/clusterchecks/ https://docs.datadoghq.com/agent/cluster_agent/endpointschecks/ Autodiscovery via Kube Service annotations is automatically enabled. |
 | clusterAgent.config.collectEvents | Enable this to start event collection from the kubernetes API. See also: https://docs.datadoghq.com/agent/cluster_agent/event_collection/ |
 | clusterAgent.config.command | Command allows the specification of custom entrypoint for Cluster Agent container |
 | clusterAgent.config.confd.configMapName | ConfigMapName name of a ConfigMap used to mount a directory. |
@@ -286,7 +286,7 @@ spec:
 | clusterAgent.config.externalMetrics.port | If specified configures the metricsProvider external metrics service port. |
 | clusterAgent.config.externalMetrics.useDatadogMetrics | Enable usage of DatadogMetrics CRD (allow to scale on arbitrary queries). |
 | clusterAgent.config.externalMetrics.wpaController | Enable informer and controller of the watermark pod autoscaler. NOTE: The WatermarkPodAutoscaler controller needs to be installed. See also: https://github.com/DataDog/watermarkpodautoscaler. |
-| clusterAgent.config.healthPort | HealthPort of the agent container for internal liveness probe. Must be the same as the Liness/Readiness probes. |
+| clusterAgent.config.healthPort | HealthPort of the Agent container for internal liveness probe. Must be the same as the Liveness/Readiness probes. |
 | clusterAgent.config.logLevel | Set logging verbosity, valid log levels are: trace, debug, info, warn, error, critical, and off |
 | clusterAgent.config.resources.limits | Limits describes the maximum amount of compute resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/ |
 | clusterAgent.config.resources.requests | Requests describes the minimum amount of compute resources required. If Requests is omitted for a container, it defaults to Limits if that is explicitly specified, otherwise to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/ |
@@ -322,7 +322,7 @@ spec:
 | clusterChecksRunner.config.args | Args allows the specification of extra args to `Command` parameter |
 | clusterChecksRunner.config.command | Command allows the specification of custom entrypoint for Cluster Checks Runner container |
 | clusterChecksRunner.config.env | The Datadog Agent supports many environment variables. See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables |
-| clusterChecksRunner.config.healthPort | HealthPort of the agent container for internal liveness probe. Must be the same as the Liness/Readiness probes. |
+| clusterChecksRunner.config.healthPort | HealthPort of the Agent container for internal liveness probe. Must be the same as the Liveness/Readiness probes. |
 | clusterChecksRunner.config.livenessProbe.exec.command | Command is the command line to execute inside the container, the working directory for the command  is root ('/') in the container's filesystem. The command is simply exec'd, it is not run inside a shell, so traditional shell instructions ('|', etc) won't work. To use a shell, you need to explicitly call out to that shell. Exit status of 0 is treated as live/healthy and non-zero is unhealthy. |
 | clusterChecksRunner.config.livenessProbe.failureThreshold | Minimum consecutive failures for the probe to be considered failed after having succeeded. Defaults to 3. Minimum value is 1. |
 | clusterChecksRunner.config.livenessProbe.httpGet.host | Host name to connect to, defaults to the pod IP. You probably want to set "Host" in httpHeaders instead. |
