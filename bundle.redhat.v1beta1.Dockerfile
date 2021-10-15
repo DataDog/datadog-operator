@@ -4,7 +4,7 @@ FROM scratch
 LABEL operators.operatorframework.io.bundle.mediatype.v1=registry+v1
 LABEL operators.operatorframework.io.bundle.manifests.v1=manifests/
 LABEL operators.operatorframework.io.bundle.metadata.v1=metadata/
-LABEL operators.operatorframework.io.bundle.package.v1=datadog-operator
+LABEL operators.operatorframework.io.bundle.package.v1=datadog-operator-certified
 LABEL operators.operatorframework.io.bundle.channels.v1=alpha
 LABEL operators.operatorframework.io.bundle.channel.default.v1=alpha
 LABEL operators.operatorframework.io.metrics.mediatype.v1=metrics+v1
@@ -19,3 +19,7 @@ LABEL operators.operatorframework.io.test.config.v1=tests/scorecard/
 COPY bundle-v1beta1/manifests /manifests/
 COPY bundle-v1beta1/metadata /metadata/
 COPY bundle-v1beta1/tests/scorecard /tests/scorecard/
+# Specify which OpenShift version we support
+LABEL com.redhat.openshift.versions="v4.5,v4.6,v4.7,v4.8"
+# Specify that we are compatible with OpenShift <= 4.4
+LABEL com.redhat.delivery.backport=true

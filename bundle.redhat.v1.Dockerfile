@@ -16,12 +16,8 @@ LABEL operators.operatorframework.io.test.mediatype.v1=scorecard+v1
 LABEL operators.operatorframework.io.test.config.v1=tests/scorecard/
 
 # Copy files to locations specified by labels.
-COPY bundle-redhat/manifests /manifests/
-COPY bundle-redhat/metadata /metadata/
-COPY bundle-redhat/tests/scorecard /tests/scorecard/
-# RedHat OpenShift specific labels
+COPY bundle-v1/manifests /manifests/
+COPY bundle-v1/metadata /metadata/
+COPY bundle-v1/tests/scorecard /tests/scorecard/
 # Specify which OpenShift version we support
-LABEL com.redhat.openshift.versions="v4.5,v4.6,v4.7"
-LABEL com.redhat.delivery.operator.bundle=true
-# Specify that we are compatible with OpenShift <= 4.4
-LABEL com.redhat.delivery.backport=true
+LABEL com.redhat.openshift.versions="=v4.9"
