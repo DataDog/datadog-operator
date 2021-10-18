@@ -28,6 +28,7 @@ import (
 
 const (
 	defaultRequeuePeriod = 15 * time.Second
+	defaultCleanupPeriod = 1 * time.Minute
 )
 
 // ReconcilerOptions provides options read from command line
@@ -45,19 +46,24 @@ type Reconciler struct {
 	log         logr.Logger
 	recorder    record.EventRecorder
 	forwarders  datadog.MetricForwardersManager
+
+	lastCleanupExecution time.Time
+	cleanUpPeriod        time.Duration
 }
 
 // NewReconciler returns a reconciler for DatadogAgent
 func NewReconciler(options ReconcilerOptions, client client.Client, versionInfo *version.Info,
 	scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, metricForwarder datadog.MetricForwardersManager) (*Reconciler, error) {
 	return &Reconciler{
-		options:     options,
-		client:      client,
-		versionInfo: versionInfo,
-		scheme:      scheme,
-		log:         log,
-		recorder:    recorder,
-		forwarders:  metricForwarder,
+		options:              options,
+		client:               client,
+		versionInfo:          versionInfo,
+		scheme:               scheme,
+		log:                  log,
+		recorder:             recorder,
+		forwarders:           metricForwarder,
+		lastCleanupExecution: time.Now(),
+		cleanUpPeriod:        defaultCleanupPeriod,
 	}, nil
 }
 
@@ -69,6 +75,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 }
 
 func (r *Reconciler) internalReconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
+	now := time.Now()
 	reqLogger := r.log.WithValues("datadogagent", request.NamespacedName)
 	reqLogger.Info("Reconciling DatadogAgent")
 
@@ -102,7 +109,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, request reconcile.Re
 	}
 	if err = datadoghqv1alpha1.IsValidDatadogAgent(&instance.Spec); err != nil {
 		reqLogger.V(1).Info("Invalid spec", "error", err)
-		return r.updateStatusIfNeeded(reqLogger, instance, &instance.Status, result, err)
+		return r.updateStatusIfNeeded(reqLogger, now, instance, &instance.Status, result, err)
 	}
 
 	instOverrideStatus := datadoghqv1alpha1.DefaultDatadogAgent(instance)
@@ -111,7 +118,14 @@ func (r *Reconciler) internalReconcile(ctx context.Context, request reconcile.Re
 		return result, err
 	}
 
+	// copy the status to not modify the original DatadogAgentStatus
 	newStatus := instance.Status.DeepCopy()
+
+	// Cleanup Resources that are not handle anymore by the Instance, and not track by owner-ref
+	if err = r.handleDeprecatedResources(reqLogger, now, instance, newStatus); err != nil {
+		return result, err
+	}
+
 	reconcileFuncs :=
 		[]reconcileFuncInterface{
 			r.reconcileClusterAgent,
@@ -121,7 +135,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, request reconcile.Re
 	for _, reconcileFunc := range reconcileFuncs {
 		result, err = reconcileFunc(reqLogger, instance, newStatus)
 		if shouldReturn(result, err) {
-			return r.updateStatusIfNeeded(reqLogger, instance, newStatus, result, err)
+			return r.updateStatusIfNeeded(reqLogger, now, instance, newStatus, result, err)
 		}
 	}
 
@@ -129,7 +143,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, request reconcile.Re
 	if !result.Requeue && result.RequeueAfter == 0 {
 		result.RequeueAfter = defaultRequeuePeriod
 	}
-	return r.updateStatusIfNeeded(reqLogger, instance, newStatus, result, err)
+	return r.updateStatusIfNeeded(reqLogger, now, instance, newStatus, result, err)
 }
 
 type reconcileFuncInterface func(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error)
@@ -151,8 +165,8 @@ func (r *Reconciler) updateOverrideIfNeeded(logger logr.Logger, agentdeployment 
 	return updateAgentDeployment, result, nil
 }
 
-func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus, result reconcile.Result, currentError error) (reconcile.Result, error) {
-	now := metav1.NewTime(time.Now())
+func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, timeNow time.Time, agentdeployment *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus, result reconcile.Result, currentError error) (reconcile.Result, error) {
+	now := metav1.NewTime(timeNow)
 	condition.UpdateDatadogAgentStatusConditionsFailure(newStatus, now, datadoghqv1alpha1.DatadogAgentConditionTypeReconcileError, currentError)
 	if currentError == nil {
 		condition.UpdateDatadogAgentStatusConditions(newStatus, now, datadoghqv1alpha1.DatadogAgentConditionTypeActive, corev1.ConditionTrue, "DatadogAgent reconcile ok", false)

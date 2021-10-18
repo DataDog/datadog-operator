@@ -14,6 +14,22 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// GetDatadogAgentStatusCondition used to access a specific DatadogAgentCondition from a DatadogAgentStatus.
+// the option createIfNotExist allow the creation of the condition if it doesn't exist yet.
+func GetDatadogAgentStatusCondition(status *datadoghqv1alpha1.DatadogAgentStatus, conditionType datadoghqv1alpha1.DatadogAgentConditionType, now metav1.Time, createIfNotExist bool) (*datadoghqv1alpha1.DatadogAgentCondition, error) {
+	idCondition := getIndexForConditionType(status, conditionType)
+	if idCondition == -1 {
+		if createIfNotExist {
+			status.Conditions = append(status.Conditions, NewDatadogAgentStatusCondition(conditionType, corev1.ConditionUnknown, now, "", ""))
+			idCondition = len(status.Conditions) - 1
+		} else {
+			return nil, fmt.Errorf("condition not found")
+		}
+	}
+
+	return &status.Conditions[idCondition], nil
+}
+
 // UpdateDatadogAgentStatusConditionsFailure used to update the failure StatusConditions
 func UpdateDatadogAgentStatusConditionsFailure(status *datadoghqv1alpha1.DatadogAgentStatus, now metav1.Time, conditionType datadoghqv1alpha1.DatadogAgentConditionType, err error) {
 	if err != nil {

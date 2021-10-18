@@ -1404,6 +1404,8 @@ const (
 	DatadogAgentConditionTypeReconcileError DatadogAgentConditionType = "ReconcileError"
 	// DatadogAgentConditionTypeSecretError the required Secret doesn't exist.
 	DatadogAgentConditionTypeSecretError DatadogAgentConditionType = "SecretError"
+	// DatadogAgentConditionTypeResourcesCleaner the resource cleaner process has run
+	DatadogAgentConditionTypeResourcesCleaner DatadogAgentConditionType = "ResourcesCleaner"
 
 	// DatadogMetricsActive forwarding metrics and events to Datadog is active.
 	DatadogMetricsActive DatadogAgentConditionType = "ActiveDatadogMetrics"
