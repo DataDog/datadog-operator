@@ -868,7 +868,7 @@ spec:
                         - name
                         x-kubernetes-list-type: map
                       healthPort:
-                        description: HealthPort of the agent container for internal liveness probe. Must be the same as the Liness/Readiness probes.
+                        description: HealthPort of the Agent container for internal liveness probe. Must be the same as the Liveness/Readiness probes.
                         format: int32
                         type: integer
                       hostPort:
@@ -3616,7 +3616,7 @@ spec:
                         type: array
                         x-kubernetes-list-type: atomic
                       clusterChecksEnabled:
-                        description: 'Enable the Cluster Checks and Endpoint Checks feature on both the cluster-agents and the daemonset. See also: https://docs.datadoghq.com/agent/cluster_agent/clusterchecks/ https://docs.datadoghq.com/agent/cluster_agent/endpointschecks/ Autodiscovery via Kube Service annotations is automatically enabled.'
+                        description: 'Enable the Cluster Checks and Endpoint Checks feature on both the Cluster Agent and the daemonset. See also: https://docs.datadoghq.com/agent/cluster_agent/clusterchecks/ https://docs.datadoghq.com/agent/cluster_agent/endpointschecks/ Autodiscovery via Kube Service annotations is automatically enabled.'
                         type: boolean
                       collectEvents:
                         description: 'Enable this to start event collection from the kubernetes API. See also: https://docs.datadoghq.com/agent/cluster_agent/event_collection/'
@@ -3801,14 +3801,14 @@ spec:
                             type: boolean
                         type: object
                       healthPort:
-                        description: HealthPort of the agent container for internal liveness probe. Must be the same as the Liness/Readiness probes.
+                        description: HealthPort of the Agent container for internal liveness probe. Must be the same as the Liveness/Readiness probes.
                         format: int32
                         type: integer
                       logLevel:
                         description: 'Set logging verbosity, valid log levels are: trace, debug, info, warn, error, critical, and off'
                         type: string
                       resources:
-                        description: Datadog cluster-agent resource requests and limits.
+                        description: Datadog Cluster Agent resource requests and limits.
                         properties:
                           limits:
                             additionalProperties:
@@ -4769,7 +4769,7 @@ spec:
                         x-kubernetes-list-type: map
                     type: object
                   customConfig:
-                    description: Allow to put custom configuration for the agent, corresponding to the datadog-cluster.yaml config file.
+                    description: Allow to put custom configuration for the Agent, corresponding to the datadog-cluster.yaml config file.
                     properties:
                       configData:
                         description: ConfigData corresponds to the configuration file content.
@@ -5330,7 +5330,7 @@ spec:
                         - name
                         x-kubernetes-list-type: map
                       healthPort:
-                        description: HealthPort of the agent container for internal liveness probe. Must be the same as the Liness/Readiness probes.
+                        description: HealthPort of the Agent container for internal liveness probe. Must be the same as the Liveness/Readiness probes.
                         format: int32
                         type: integer
                       livenessProbe:
@@ -6468,7 +6468,7 @@ spec:
                         x-kubernetes-list-type: map
                     type: object
                   customConfig:
-                    description: Allow to put custom configuration for the agent, corresponding to the datadog.yaml config file. See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.
+                    description: Allow to put custom configuration for the Agent, corresponding to the datadog.yaml config file. See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.
                     properties:
                       configData:
                         description: ConfigData corresponds to the configuration file content.
@@ -7727,7 +7727,7 @@ spec:
                             - name
                             x-kubernetes-list-type: map
                           healthPort:
-                            description: HealthPort of the agent container for internal liveness probe. Must be the same as the Liness/Readiness probes.
+                            description: HealthPort of the Agent container for internal liveness probe. Must be the same as the Liveness/Readiness probes.
                             format: int32
                             type: integer
                           hostPort:
@@ -10475,7 +10475,7 @@ spec:
                             type: array
                             x-kubernetes-list-type: atomic
                           clusterChecksEnabled:
-                            description: 'Enable the Cluster Checks and Endpoint Checks feature on both the cluster-agents and the daemonset. See also: https://docs.datadoghq.com/agent/cluster_agent/clusterchecks/ https://docs.datadoghq.com/agent/cluster_agent/endpointschecks/ Autodiscovery via Kube Service annotations is automatically enabled.'
+                            description: 'Enable the Cluster Checks and Endpoint Checks feature on both the Cluster Agent and the daemonset. See also: https://docs.datadoghq.com/agent/cluster_agent/clusterchecks/ https://docs.datadoghq.com/agent/cluster_agent/endpointschecks/ Autodiscovery via Kube Service annotations is automatically enabled.'
                             type: boolean
                           collectEvents:
                             description: 'Enable this to start event collection from the kubernetes API. See also: https://docs.datadoghq.com/agent/cluster_agent/event_collection/'
@@ -10660,14 +10660,14 @@ spec:
                                 type: boolean
                             type: object
                           healthPort:
-                            description: HealthPort of the agent container for internal liveness probe. Must be the same as the Liness/Readiness probes.
+                            description: HealthPort of the Agent container for internal liveness probe. Must be the same as the Liveness/Readiness probes.
                             format: int32
                             type: integer
                           logLevel:
                             description: 'Set logging verbosity, valid log levels are: trace, debug, info, warn, error, critical, and off'
                             type: string
                           resources:
-                            description: Datadog cluster-agent resource requests and limits.
+                            description: Datadog Cluster Agent resource requests and limits.
                             properties:
                               limits:
                                 additionalProperties:
@@ -11628,7 +11628,7 @@ spec:
                             x-kubernetes-list-type: map
                         type: object
                       customConfig:
-                        description: Allow to put custom configuration for the agent, corresponding to the datadog-cluster.yaml config file.
+                        description: Allow to put custom configuration for the Agent, corresponding to the datadog-cluster.yaml config file.
                         properties:
                           configData:
                             description: ConfigData corresponds to the configuration file content.
@@ -12189,7 +12189,7 @@ spec:
                             - name
                             x-kubernetes-list-type: map
                           healthPort:
-                            description: HealthPort of the agent container for internal liveness probe. Must be the same as the Liness/Readiness probes.
+                            description: HealthPort of the Agent container for internal liveness probe. Must be the same as the Liveness/Readiness probes.
                             format: int32
                             type: integer
                           livenessProbe:
@@ -13327,7 +13327,7 @@ spec:
                             x-kubernetes-list-type: map
                         type: object
                       customConfig:
-                        description: Allow to put custom configuration for the agent, corresponding to the datadog.yaml config file. See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.
+                        description: Allow to put custom configuration for the Agent, corresponding to the datadog.yaml config file. See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.
                         properties:
                           configData:
                             description: ConfigData corresponds to the configuration file content.

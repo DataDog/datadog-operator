@@ -8,7 +8,6 @@ ROOT_DIR=$(git rev-parse --show-toplevel)
 YQ="$ROOT_DIR/bin/yq"
 
 v1beta1=config/crd/bases/v1beta1
-v1=config/crd/bases/v1
 
 # Remove "x-kubernetes-*" as only supported in Kubernetes 1.16+.
 # Users of Kubernetes < 1.16 need to use v1beta1, others need to use v1

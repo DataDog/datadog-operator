@@ -834,6 +834,7 @@ type NodeAgentConfig struct {
 	// Args allows the specification of extra args to `Command` parameter
 	// +listType=atomic
 	Args []string `json:"args,omitempty"`
+
 	// Configure the Liveness Probe of the Agent container
 	// +optional
 	LivenessProbe *corev1.Probe `json:"livenessProbe,omitempty"`
@@ -842,8 +843,8 @@ type NodeAgentConfig struct {
 	// +optional
 	ReadinessProbe *corev1.Probe `json:"readinessProbe,omitempty"`
 
-	// HealthPort of the agent container for internal liveness probe.
-	// Must be the same as the Liness/Readiness probes.
+	// HealthPort of the Agent container for internal liveness probe.
+	// Must be the same as the Liveness/Readiness probes.
 	// +optional
 	HealthPort *int32 `json:"healthPort,omitempty"`
 
@@ -957,7 +958,7 @@ type DatadogAgentSpecClusterAgentSpec struct {
 	// Cluster Agent configuration.
 	Config *ClusterAgentConfig `json:"config,omitempty"`
 
-	// Allow to put custom configuration for the agent, corresponding to the datadog-cluster.yaml config file.
+	// Allow to put custom configuration for the Agent, corresponding to the datadog-cluster.yaml config file.
 	// +optional
 	CustomConfig *CustomConfigSpec `json:"customConfig,omitempty"`
 
@@ -1015,7 +1016,7 @@ type ClusterAgentConfig struct {
 	// Configure the Admission Controller.
 	AdmissionController *AdmissionControllerConfig `json:"admissionController,omitempty"`
 
-	// Enable the Cluster Checks and Endpoint Checks feature on both the cluster-agents and the daemonset.
+	// Enable the Cluster Checks and Endpoint Checks feature on both the Cluster Agent and the daemonset.
 	// See also:
 	// https://docs.datadoghq.com/agent/cluster_agent/clusterchecks/
 	// https://docs.datadoghq.com/agent/cluster_agent/endpointschecks/
@@ -1031,7 +1032,7 @@ type ClusterAgentConfig struct {
 	// trace, debug, info, warn, error, critical, and off
 	LogLevel *string `json:"logLevel,omitempty"`
 
-	// Datadog cluster-agent resource requests and limits.
+	// Datadog Cluster Agent resource requests and limits.
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
 
 	// Command allows the specification of custom entrypoint for Cluster Agent container
@@ -1068,8 +1069,8 @@ type ClusterAgentConfig struct {
 	// +listMapKey=name
 	Volumes []corev1.Volume `json:"volumes,omitempty"`
 
-	// HealthPort of the agent container for internal liveness probe.
-	// Must be the same as the Liness/Readiness probes.
+	// HealthPort of the Agent container for internal liveness probe.
+	// Must be the same as the Liveness/Readiness probes.
 	HealthPort *int32 `json:"healthPort,omitempty"`
 }
 
@@ -1167,8 +1168,8 @@ type ClusterChecksRunnerConfig struct {
 	// Configure the Readiness Probe of the CLC container
 	ReadinessProbe *corev1.Probe `json:"readinessProbe,omitempty"`
 
-	// HealthPort of the agent container for internal liveness probe.
-	// Must be the same as the Liness/Readiness probes.
+	// HealthPort of the Agent container for internal liveness probe.
+	// Must be the same as the Liveness/Readiness probes.
 	HealthPort *int32 `json:"healthPort,omitempty"`
 }
 
@@ -1189,7 +1190,7 @@ type DatadogAgentSpecClusterChecksRunnerSpec struct {
 	// Agent configuration.
 	Config *ClusterChecksRunnerConfig `json:"config,omitempty"`
 
-	// Allow to put custom configuration for the agent, corresponding to the datadog.yaml config file.
+	// Allow to put custom configuration for the Agent, corresponding to the datadog.yaml config file.
 	// See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.
 	// +optional
 	CustomConfig *CustomConfigSpec `json:"customConfig,omitempty"`
@@ -1232,7 +1233,7 @@ type DatadogAgentSpecClusterChecksRunnerSpec struct {
 	NetworkPolicy *NetworkPolicySpec `json:"networkPolicy,omitempty"`
 }
 
-// ImageConfig Datadog agent container image config.
+// ImageConfig Datadog Agent container image config.
 // +k8s:openapi-gen=true
 type ImageConfig struct {
 	// Define the image to use:

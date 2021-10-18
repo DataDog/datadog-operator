@@ -376,7 +376,7 @@ func schema__apis_datadoghq_v1alpha1_ClusterAgentConfig(ref common.ReferenceCall
 					},
 					"clusterChecksEnabled": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enable the Cluster Checks and Endpoint Checks feature on both the cluster-agents and the daemonset. See also: https://docs.datadoghq.com/agent/cluster_agent/clusterchecks/ https://docs.datadoghq.com/agent/cluster_agent/endpointschecks/ Autodiscovery via Kube Service annotations is automatically enabled.",
+							Description: "Enable the Cluster Checks and Endpoint Checks feature on both the Cluster Agent and the daemonset. See also: https://docs.datadoghq.com/agent/cluster_agent/clusterchecks/ https://docs.datadoghq.com/agent/cluster_agent/endpointschecks/ Autodiscovery via Kube Service annotations is automatically enabled.",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
@@ -397,7 +397,7 @@ func schema__apis_datadoghq_v1alpha1_ClusterAgentConfig(ref common.ReferenceCall
 					},
 					"resources": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Datadog cluster-agent resource requests and limits.",
+							Description: "Datadog Cluster Agent resource requests and limits.",
 							Ref:         ref("k8s.io/api/core/v1.ResourceRequirements"),
 						},
 					},
@@ -516,7 +516,7 @@ func schema__apis_datadoghq_v1alpha1_ClusterAgentConfig(ref common.ReferenceCall
 					},
 					"healthPort": {
 						SchemaProps: spec.SchemaProps{
-							Description: "HealthPort of the agent container for internal liveness probe. Must be the same as the Liness/Readiness probes.",
+							Description: "HealthPort of the Agent container for internal liveness probe. Must be the same as the Liveness/Readiness probes.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
@@ -670,7 +670,7 @@ func schema__apis_datadoghq_v1alpha1_ClusterChecksRunnerConfig(ref common.Refere
 					},
 					"healthPort": {
 						SchemaProps: spec.SchemaProps{
-							Description: "HealthPort of the agent container for internal liveness probe. Must be the same as the Liness/Readiness probes.",
+							Description: "HealthPort of the Agent container for internal liveness probe. Must be the same as the Liveness/Readiness probes.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
@@ -1433,7 +1433,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogAgentSpecClusterAgentSpec(ref common
 					},
 					"customConfig": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Allow to put custom configuration for the agent, corresponding to the datadog-cluster.yaml config file.",
+							Description: "Allow to put custom configuration for the Agent, corresponding to the datadog-cluster.yaml config file.",
 							Ref:         ref("./apis/datadoghq/v1alpha1.CustomConfigSpec"),
 						},
 					},
@@ -1593,7 +1593,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogAgentSpecClusterChecksRunnerSpec(ref
 					},
 					"customConfig": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Allow to put custom configuration for the agent, corresponding to the datadog.yaml config file. See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.",
+							Description: "Allow to put custom configuration for the Agent, corresponding to the datadog.yaml config file. See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.",
 							Ref:         ref("./apis/datadoghq/v1alpha1.CustomConfigSpec"),
 						},
 					},
@@ -2262,7 +2262,7 @@ func schema__apis_datadoghq_v1alpha1_ImageConfig(ref common.ReferenceCallback) c
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "ImageConfig Datadog agent container image config.",
+				Description: "ImageConfig Datadog Agent container image config.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"name": {
@@ -2713,7 +2713,7 @@ func schema__apis_datadoghq_v1alpha1_NodeAgentConfig(ref common.ReferenceCallbac
 					},
 					"healthPort": {
 						SchemaProps: spec.SchemaProps{
-							Description: "HealthPort of the agent container for internal liveness probe. Must be the same as the Liness/Readiness probes.",
+							Description: "HealthPort of the Agent container for internal liveness probe. Must be the same as the Liveness/Readiness probes.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
