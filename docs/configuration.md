@@ -194,9 +194,9 @@ spec:
 | agent.priorityClassName | If specified, indicates the pod's priority. "system-node-critical" and "system-cluster-critical" are two special keywords which indicate the highest priorities with the former being the highest priority. Any other name must be defined by creating a PriorityClass object with that name. If not specified, the pod priority will be default or zero if there is no default. |
 | agent.process.args | Args allows the specification of extra args to `Command` parameter |
 | agent.process.command | Command allows the specification of custom entrypoint for Process Agent container |
-| agent.process.enabled | Note: /etc/passwd is automatically mounted to allow username resolution. See also: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset |
+| agent.process.enabled | Enable the Process Agent container. See also: https://docs.datadoghq.com/infrastructure/process/?tab=kubernetes#installation |
 | agent.process.env | The Datadog Agent supports many environment variables. See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables |
-| agent.process.processCollectionEnabled | false (default): Only collect containers if available. true: collect process information as well |
+| agent.process.processCollectionEnabled | false (default): Only collect containers if available. true: collect process information as well. Note: If enabled, /etc/passwd is automatically mounted to allow username resolution. |
 | agent.process.resources.limits | Limits describes the maximum amount of compute resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/ |
 | agent.process.resources.requests | Requests describes the minimum amount of compute resources required. If Requests is omitted for a container, it defaults to Limits if that is explicitly specified, otherwise to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/ |
 | agent.process.volumeMounts | Specify additional volume mounts in the Process Agent container. |
@@ -228,7 +228,7 @@ spec:
 | agent.systemProbe.debugPort | DebugPort Specify the port to expose pprof and expvar for system-probe agent. |
 | agent.systemProbe.enableOOMKill | EnableOOMKill enables the OOM kill eBPF-based check. |
 | agent.systemProbe.enableTCPQueueLength | EnableTCPQueueLength enables the TCP queue length eBPF-based check. |
-| agent.systemProbe.enabled | Enable this to activate live process monitoring. Note: /etc/passwd is automatically mounted to allow username resolution. See also: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset |
+| agent.systemProbe.enabled | Enable this to activate live process monitoring. Note: /etc/passwd is automatically mounted to allow username resolution. See also: https://docs.datadoghq.com/infrastructure/process/?tab=kubernetes#installation |
 | agent.systemProbe.env | The Datadog SystemProbe supports many environment variables. See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables |
 | agent.systemProbe.resources.limits | Limits describes the maximum amount of compute resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/ |
 | agent.systemProbe.resources.requests | Requests describes the minimum amount of compute resources required. If Requests is omitted for a container, it defaults to Limits if that is explicitly specified, otherwise to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/ |

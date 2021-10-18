@@ -246,6 +246,18 @@ func shouldAddProcessContainer(dda *datadoghqv1alpha1.DatadogAgent) bool {
 	return datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Process.Enabled) || isOrchestratorExplorerEnabled(dda)
 }
 
+func shouldMountPasswdVolume(dda *datadoghqv1alpha1.DatadogAgent) bool {
+	if isComplianceEnabled(&dda.Spec) {
+		return true
+	}
+
+	if dda.Spec.Agent.Process == nil {
+		return false
+	}
+
+	return *dda.Spec.Agent.Process.ProcessCollectionEnabled
+}
+
 // processCollectionEnabled
 // only collect process information if it is directly specified.
 func processCollectionEnabled(dda *datadoghqv1alpha1.DatadogAgent) bool {
@@ -1066,7 +1078,7 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 
 	volumes = append(volumes, runtimeVolume)
 
-	if shouldAddProcessContainer(dda) || isComplianceEnabled(&dda.Spec) {
+	if shouldMountPasswdVolume(dda) {
 		passwdVolume := corev1.Volume{
 			Name: datadoghqv1alpha1.PasswdVolumeName,
 			VolumeSource: corev1.VolumeSource{
@@ -1551,15 +1563,19 @@ func getVolumeMountsForProcessAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev
 			ReadOnly:  true,
 		},
 		{
-			Name:      datadoghqv1alpha1.PasswdVolumeName,
-			MountPath: datadoghqv1alpha1.PasswdVolumePath,
-			ReadOnly:  true,
-		},
-		{
 			Name:      datadoghqv1alpha1.ProcVolumeName,
 			MountPath: datadoghqv1alpha1.ProcVolumePath,
 			ReadOnly:  true,
 		},
+	}
+
+	if *dda.Spec.Agent.Process.ProcessCollectionEnabled {
+		volumeMounts = append(volumeMounts,
+			corev1.VolumeMount{
+				Name:      datadoghqv1alpha1.PasswdVolumeName,
+				MountPath: datadoghqv1alpha1.PasswdVolumePath,
+				ReadOnly:  true,
+			})
 	}
 
 	// Kubelet volumeMounts

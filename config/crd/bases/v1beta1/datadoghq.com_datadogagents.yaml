@@ -3891,8 +3891,8 @@ spec:
                         type: string
                       type: array
                     enabled:
-                      description: 'Note: /etc/passwd is automatically mounted to
-                        allow username resolution. See also: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset'
+                      description: 'Enable the Process Agent container. See also:
+                        https://docs.datadoghq.com/infrastructure/process/?tab=kubernetes#installation'
                       type: boolean
                     env:
                       description: 'The Datadog Agent supports many environment variables.
@@ -4008,7 +4008,8 @@ spec:
                       type: array
                     processCollectionEnabled:
                       description: 'false (default): Only collect containers if available.
-                        true: collect process information as well'
+                        true: collect process information as well. Note: If enabled,
+                        /etc/passwd is automatically mounted to allow username resolution.'
                       type: boolean
                     resources:
                       description: 'Datadog Process Agent resource requests and limits.
@@ -4461,7 +4462,7 @@ spec:
                     enabled:
                       description: 'Enable this to activate live process monitoring.
                         Note: /etc/passwd is automatically mounted to allow username
-                        resolution. See also: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset'
+                        resolution. See also: https://docs.datadoghq.com/infrastructure/process/?tab=kubernetes#installation'
                       type: boolean
                     env:
                       description: 'The Datadog SystemProbe supports many environment
@@ -14557,8 +14558,8 @@ spec:
                             type: string
                           type: array
                         enabled:
-                          description: 'Note: /etc/passwd is automatically mounted
-                            to allow username resolution. See also: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset'
+                          description: 'Enable the Process Agent container. See also:
+                            https://docs.datadoghq.com/infrastructure/process/?tab=kubernetes#installation'
                           type: boolean
                         env:
                           description: 'The Datadog Agent supports many environment
@@ -14675,7 +14676,9 @@ spec:
                           type: array
                         processCollectionEnabled:
                           description: 'false (default): Only collect containers if
-                            available. true: collect process information as well'
+                            available. true: collect process information as well.
+                            Note: If enabled, /etc/passwd is automatically mounted
+                            to allow username resolution.'
                           type: boolean
                         resources:
                           description: 'Datadog Process Agent resource requests and
@@ -15133,7 +15136,7 @@ spec:
                         enabled:
                           description: 'Enable this to activate live process monitoring.
                             Note: /etc/passwd is automatically mounted to allow username
-                            resolution. See also: https://docs.datadoghq.com/graphing/infrastructure/process/#kubernetes-daemonset'
+                            resolution. See also: https://docs.datadoghq.com/infrastructure/process/?tab=kubernetes#installation'
                           type: boolean
                         env:
                           description: 'The Datadog SystemProbe supports many environment
