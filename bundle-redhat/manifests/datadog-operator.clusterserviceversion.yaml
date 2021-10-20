@@ -2,6 +2,7 @@ apiVersion: operators.coreos.com/v1alpha1
 kind: ClusterServiceVersion
 metadata:
   annotations:
+    olm.skipRange: "<0.7.1"
     alm-examples: |-
       [
         {
@@ -94,7 +95,7 @@ metadata:
     operators.operatorframework.io/builder: operator-sdk-v1.4.0+git
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
     repository: https://github.com/DataDog/datadog-operator
-  name: datadog-operator.v0.7.1-rc.2
+  name: datadog-operator.v0.7.1
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -782,7 +783,7 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.annotations['olm.targetNamespaces']
-                image: datadog/operator:0.7.1-rc.2
+                image: registry.connect.redhat.com/datadog/operator:0.7.1
                 imagePullPolicy: IfNotPresent
                 livenessProbe:
                   httpGet:
@@ -871,4 +872,4 @@ spec:
   maturity: alpha
   provider:
     name: Datadog
-  version: 0.7.1-rc.2
+  version: 0.7.1
