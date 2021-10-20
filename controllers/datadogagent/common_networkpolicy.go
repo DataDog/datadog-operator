@@ -13,6 +13,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 type networkPolicyBuilder func(dda *datadoghqv1alpha1.DatadogAgent, name string) *networkingv1.NetworkPolicy
@@ -79,8 +80,7 @@ func (r *Reconciler) updateNetworkPolicy(logger logr.Logger, dda *datadoghqv1alp
 	if !apiequality.Semantic.DeepEqual(newPolicy.Spec, policy.Spec) {
 		logger.V(1).Info("createNetworkPolicy", "networkPolicy.name", policy.Name, "networkPolicy.Namespace", policy.Namespace)
 
-		err := r.client.Update(context.TODO(), newPolicy)
-		if err != nil {
+		if err := kubernetes.UpdateFromObject(context.TODO(), r.client, newPolicy, policy.ObjectMeta); err != nil {
 			return reconcile.Result{}, err
 		}
 

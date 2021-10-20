@@ -78,6 +78,19 @@ build_image_arm64:
     - IMG=$TARGET_IMAGE make docker-build-ci docker-push
     - if [ -n "$CI_COMMIT_TAG" ]; then docker tag $TARGET_IMAGE $RELEASE_IMAGE && docker push $RELEASE_IMAGE; fi
 
+build_bundle_image:
+  stage: image
+  tags: ["runner:docker", "size:large"]
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:v2718644-9ce6565-18.09.6-py3
+  variables:
+    TARGET_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-bundle
+    RELEASE_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-bundle
+  script:
+    - BUNDLE_IMG=$TARGET_IMAGE make bundle-build
+    - if [ -n "$CI_COMMIT_TAG" ]; then docker tag $TARGET_IMAGE $RELEASE_IMAGE && docker push $RELEASE_IMAGE; fi
+    - BUNDLE_IMG=$TARGET_IMAGE-redhat make bundle-redhat-build
+    - if [ -n "$CI_COMMIT_TAG" ]; then docker tag $TARGET_IMAGE-redhat $RELEASE_IMAGE-redhat && docker push $RELEASE_IMAGE-redhat; fi
+
 publish_public_main:
   stage: release
   rules:
@@ -109,6 +122,7 @@ publish_public_tag:
     IMG_DESTINATIONS_REGEX: ':v'
     IMG_DESTINATIONS_REGEX_REPL: ':'
     IMG_SIGNING: "false"
+    IMG_REGISTRIES: default,redhat-operator
 
 publish_public_latest:
   stage: release
@@ -124,6 +138,22 @@ publish_public_latest:
     IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-arm64
     IMG_DESTINATIONS: operator:latest
     IMG_SIGNING: "false"
+    IMG_REGISTRIES: default,redhat-operator
+
+publish_redhat_bundle:
+  stage: release
+  rules:
+    - if: $CI_COMMIT_TAG
+      when: manual
+    - when: never
+  trigger:
+    project: DataDog/public-images
+    branch: main
+    strategy: depend
+  variables:
+    IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-bundle-redhat
+    IMG_DESTINATIONS: operator-bundle:$CI_COMMIT_TAG
+    IMG_REGISTRIES: redhat-operator-bundle
 
 trigger_internal_image:
   stage: release

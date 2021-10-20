@@ -34,8 +34,8 @@ func (r *Reconciler) handleFinalizer(logger logr.Logger, dm *datadoghqv1alpha1.D
 			}
 		}
 
-		// Proceed in reconcile loop.
-		return ctrl.Result{}, nil
+		// Requeue until the object was properly deleted by Kuberentes
+		return ctrl.Result{Requeue: true, RequeueAfter: defaultRequeuePeriod}, nil
 	}
 
 	// Add finalizer for this resource if it doesn't already exist.

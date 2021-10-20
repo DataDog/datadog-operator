@@ -23,6 +23,7 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 )
 
@@ -271,7 +272,7 @@ func (r *Reconciler) updateIfNeededService(logger logr.Logger, dda *datadoghqv1a
 		// ClusterIP is an immutable field
 		updatedService.Spec.ClusterIP = currentService.Spec.ClusterIP
 
-		if err := r.client.Update(context.TODO(), updatedService); err != nil {
+		if err := kubernetes.UpdateFromObject(context.TODO(), r.client, newService, currentService.ObjectMeta); err != nil {
 			return reconcile.Result{}, err
 		}
 		event := buildEventInfo(updatedService.Name, updatedService.Namespace, serviceKind, datadog.UpdateEvent)
@@ -293,7 +294,7 @@ func (r *Reconciler) updateIfNeededAPIService(logger logr.Logger, dda *datadoghq
 		updatedAPIService.Annotations = newAPIService.Annotations
 		updatedAPIService.Spec = newAPIService.Spec
 
-		if err := r.client.Update(context.TODO(), updatedAPIService); err != nil {
+		if err := kubernetes.UpdateFromObject(context.TODO(), r.client, newAPIService, currentAPIService.ObjectMeta); err != nil {
 			return reconcile.Result{}, err
 		}
 		event := buildEventInfo(updatedAPIService.Name, updatedAPIService.Namespace, apiServiceKind, datadog.UpdateEvent)

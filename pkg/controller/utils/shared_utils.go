@@ -7,6 +7,7 @@ package utils
 
 import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // GetDefaultCredentialsSecretName returns the default name for credentials secret
@@ -56,4 +57,12 @@ func GetAppKeySecret(credentials *datadoghqv1alpha1.DatadogCredentials, defaultN
 	}
 
 	return false, defaultName, datadoghqv1alpha1.DefaultAPPKeyKey
+}
+
+// ShouldReturn returns if we should stop the reconcile loop based on result
+func ShouldReturn(result reconcile.Result, err error) bool {
+	if err != nil || result.Requeue || result.RequeueAfter > 0 {
+		return true
+	}
+	return false
 }

@@ -169,11 +169,13 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
 				firstAction: func(c client.Client) {
-					_ = c.Create(context.TODO(), genericDatadogMonitor())
+					err := c.Create(context.TODO(), genericDatadogMonitor())
+					assert.NoError(t, err)
 				},
 				firstReconcileCount: 2,
 				secondAction: func(c client.Client) {
-					_ = c.Delete(context.TODO(), genericDatadogMonitor())
+					err := c.Delete(context.TODO(), genericDatadogMonitor())
+					assert.NoError(t, err)
 				},
 			},
 			wantResult: reconcile.Result{Requeue: true, RequeueAfter: defaultRequeuePeriod},
@@ -287,7 +289,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 				if err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, dm); err != nil {
 					return err
 				}
-				assert.Contains(t, dm.Status.Conditions[0].Message, "error")
+				assert.Equal(t, dm.Status.Conditions[0].Type, datadoghqv1alpha1.DatadogMonitorConditionTypeError)
 				return nil
 			},
 		},

@@ -12,6 +12,7 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/go-logr/logr"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -85,7 +86,7 @@ func (r *Reconciler) updateIfNeededConfigMap(dda *datadoghqv1alpha1.DatadogAgent
 	if err != nil {
 		return reconcile.Result{}, err
 	}
-	err = r.client.Update(context.TODO(), updateCM)
+	err = kubernetes.UpdateFromObject(context.TODO(), r.client, updateCM, oldConfigMap.ObjectMeta)
 	if err != nil {
 		return reconcile.Result{}, err
 	}

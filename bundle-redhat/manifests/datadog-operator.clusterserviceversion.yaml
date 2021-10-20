@@ -91,10 +91,11 @@ metadata:
     description: Datadog provides a modern monitoring and analytics platform. Gather
       metrics, logs and traces for full observability of your Kubernetes cluster with
       Datadog Operator.
-    operators.operatorframework.io/builder: operator-sdk-v1.4.0+git
-    operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
+    operators.operatorframework.io/builder: operator-sdk-v1.13.0+git
+    operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     repository: https://github.com/DataDog/datadog-operator
-  name: datadog-operator.v0.7.0
+    containerImage: registry.connect.redhat.com/datadog/operator:0.7.1
+  name: datadog-operator.v0.7.1
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -105,6 +106,11 @@ spec:
       kind: DatadogAgent
       name: datadogagents.datadoghq.com
       version: v1alpha1
+    - description: DatadogAgent is the Schema for the datadogagents API
+      displayName: Datadog Agent
+      kind: DatadogAgent
+      name: datadogagents.datadoghq.com
+      version: v2alpha1
     - description: DatadogMetric allows autoscaling on arbitrary Datadog query
       displayName: Datadog Metric
       kind: DatadogMetric
@@ -553,6 +559,12 @@ spec:
         - apiGroups:
           - datadoghq.com
           resources:
+          - extendeddaemonsetreplicasets
+          verbs:
+          - get
+        - apiGroups:
+          - datadoghq.com
+          resources:
           - extendeddaemonsets
           verbs:
           - create
@@ -736,7 +748,7 @@ spec:
           verbs:
           - list
           - watch
-        serviceAccountName: datadog-operator-manager
+        serviceAccountName: datadog-operator-controller-manager
       - rules:
         - apiGroups:
           - security.openshift.io
@@ -776,7 +788,7 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.annotations['olm.targetNamespaces']
-                image: datadog/operator:0.7.0
+                image: registry.connect.redhat.com/datadog/operator:0.7.1
                 imagePullPolicy: IfNotPresent
                 livenessProbe:
                   httpGet:
@@ -795,7 +807,7 @@ spec:
                   requests:
                     cpu: 100m
                     memory: 250Mi
-              serviceAccountName: datadog-operator-manager
+              serviceAccountName: datadog-operator-controller-manager
               terminationGracePeriodSeconds: 10
       permissions:
       - rules:
@@ -838,7 +850,7 @@ spec:
           - update
           - patch
           - delete
-        serviceAccountName: datadog-operator-manager
+        serviceAccountName: datadog-operator-controller-manager
     strategy: deployment
   installModes:
   - supported: true
@@ -863,6 +875,7 @@ spec:
   - email: support@datadoghq.com
     name: Datadog Inc.
   maturity: alpha
+  minKubeVersion: 1.16.0
   provider:
     name: Datadog
-  version: 0.7.0
+  version: 0.7.1
