@@ -118,26 +118,14 @@ rm -rf $$TMP_DIR ;\
 }
 endef
 
-.PHONY: bundle bundle-v1 bundle-v1beta1
-bundle: bin/operator-sdk kustomize manifests bundle-v1beta1 bundle-v1
-
-bundle-v1beta1: ## Generate bundle manifests and metadata, then validate generated files.
-	sed 's/CRD_VERSION/v1beta1/g' config/crd/kustomization.yaml.tmpl > config/crd/kustomization.yaml
+.PHONY: bundle
+bundle: bin/operator-sdk kustomize manifests ## Generate bundle manifests and metadata, then validate generated files.
 	./bin/operator-sdk generate kustomize manifests -q
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
-	$(KUSTOMIZE) build config/manifests | ./bin/operator-sdk generate bundle -q --overwrite --output-dir bundle-v1beta1 --version $(VERSION) $(BUNDLE_METADATA_OPTS)
-	./hack/patch-bundle.sh v1beta1
-	./bin/operator-sdk bundle validate ./bundle-v1beta1
-	./hack/redhat-bundle.sh v1beta1
-
-bundle-v1: ## Generate bundle manifests and metadata, then validate generated files.
-	sed 's/CRD_VERSION/v1/g' config/crd/kustomization.yaml.tmpl > config/crd/kustomization.yaml
-	./bin/operator-sdk generate kustomize manifests -q
-	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
-	$(KUSTOMIZE) build config/manifests | ./bin/operator-sdk generate bundle -q --overwrite --output-dir bundle-v1 --version $(VERSION) $(BUNDLE_METADATA_OPTS)
-	./hack/patch-bundle.sh v1
-	./bin/operator-sdk bundle validate ./bundle-v1
-	./hack/redhat-bundle.sh v1
+	$(KUSTOMIZE) build config/manifests | ./bin/operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
+	./hack/patch-bundle.sh
+	./bin/operator-sdk bundle validate ./bundle
+	./hack/redhat-bundle.sh
 
 .PHONY: bundle-build
 bundle-build: ## Build the bundle image.
@@ -149,8 +137,7 @@ bundle-push:
 
 .PHONY: bundle-redhat-build
 bundle-redhat-build:
-	docker build -f bundle.redhat.v1.Dockerfile -t scan.connect.redhat.com/ospid-1125a16e-7487-49a2-93ae-f6a21920e804/operator-bundle:$(VERSION)-0 .
-	docker build -f bundle.redhat.v1beta1.Dockerfile -t scan.connect.redhat.com/ospid-1125a16e-7487-49a2-93ae-f6a21920e804/operator-bundle:$(VERSION)-1 .
+	docker build -f bundle.redhat.Dockerfile -t scan.connect.redhat.com/ospid-1125a16e-7487-49a2-93ae-f6a21920e804/operator-bundle:$(VERSION) .
 
 ##@ Datadog Custom part
 .PHONY: install-tools
