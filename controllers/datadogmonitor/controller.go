@@ -25,6 +25,7 @@ import (
 
 	datadogapiclientv1 "github.com/DataDog/datadog-api-client-go/api/v1/datadog"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	ctrUtils "github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
@@ -96,8 +97,8 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 
 	newStatus := instance.Status.DeepCopy()
 
-	if result, err = r.handleFinalizer(logger, instance); err != nil || result.Requeue {
-		return r.updateStatusIfNeeded(logger, instance, now, newStatus, err, result)
+	if result, err = r.handleFinalizer(logger, instance); ctrUtils.ShouldReturn(result, err) {
+		return result, err
 	}
 
 	// Validate the DatadogMonitor spec

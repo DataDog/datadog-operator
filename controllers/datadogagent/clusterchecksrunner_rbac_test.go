@@ -31,11 +31,10 @@ import (
 )
 
 func TestReconciler_manageClusterChecksRunnerRBACs(t *testing.T) {
-	t.Helper()
 	logf.SetLogger(zap.New(zap.UseDevMode(true)))
 	logger := logf.Log.WithName(t.Name())
 	eventBroadcaster := record.NewBroadcaster()
-	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "TestReconciler_manageClusterChecksRunnerRBACs"})
+	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: t.Name()})
 	forwarders := dummyManager{}
 
 	s := scheme.Scheme
@@ -67,6 +66,7 @@ func TestReconciler_manageClusterChecksRunnerRBACs(t *testing.T) {
 		roleName:           roleName,
 		serviceAccountName: serviceAccountName,
 	}
+
 	clusterRoleBinding := buildClusterRoleBinding(ddaDefault, clusterRoleBindingInfo, agentVersion)
 
 	agentClusterRoleRBAC := buildAgentClusterRole(ddaDefault, rbacResourcesName, agentVersion)

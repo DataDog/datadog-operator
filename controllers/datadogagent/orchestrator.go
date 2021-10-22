@@ -12,6 +12,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -79,7 +80,7 @@ func (r *Reconciler) updateIfNeededOrchestratorExplorerClusterRole(logger logr.L
 	newClusterRole := buildOrchestratorExplorerRBAC(dda, name, version)
 	if !isClusterRolesEqual(newClusterRole, clusterRole) {
 		logger.V(1).Info("updateOrchestratorClusterRole", "clusterRole.name", clusterRole.Name)
-		if err := r.client.Update(context.TODO(), newClusterRole); err != nil {
+		if err := kubernetes.UpdateFromObject(context.TODO(), r.client, newClusterRole, clusterRole.ObjectMeta); err != nil {
 			return reconcile.Result{}, err
 		}
 		event := buildEventInfo(newClusterRole.Name, newClusterRole.Namespace, clusterRoleKind, datadog.UpdateEvent)

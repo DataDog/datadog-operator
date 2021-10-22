@@ -240,7 +240,7 @@ func (r *Reconciler) updateIfNeededClusterRoleBindingRaw(logger logr.Logger, dda
 func (r *Reconciler) updateIfNeededClusterRole(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, clusterRole, newClusterRole *rbacv1.ClusterRole) (reconcile.Result, error) {
 	if !isClusterRolesEqual(newClusterRole, clusterRole) {
 		logger.V(1).Info("updateIfNeededClusterRole", "clusterRole.name", clusterRole.Name)
-		if err := r.client.Update(context.TODO(), newClusterRole); err != nil {
+		if err := kubernetes.UpdateFromObject(context.TODO(), r.client, newClusterRole, clusterRole.ObjectMeta); err != nil {
 			return reconcile.Result{}, err
 		}
 		event := buildEventInfo(newClusterRole.Name, newClusterRole.Namespace, clusterRoleKind, datadog.UpdateEvent)
@@ -252,7 +252,7 @@ func (r *Reconciler) updateIfNeededClusterRole(logger logr.Logger, dda *datadogh
 func (r *Reconciler) updateIfNeededRole(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, role, newRole *rbacv1.Role) (reconcile.Result, error) {
 	if !isRolesEqual(newRole, role) {
 		logger.V(1).Info("updateIfNeededRole", "role.name", role.Name)
-		if err := r.client.Update(context.TODO(), newRole); err != nil {
+		if err := kubernetes.UpdateFromObject(context.TODO(), r.client, newRole, role.ObjectMeta); err != nil {
 			return reconcile.Result{}, err
 		}
 		event := buildEventInfo(newRole.Name, newRole.Namespace, roleKind, datadog.UpdateEvent)

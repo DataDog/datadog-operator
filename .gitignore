@@ -1,7 +1,6 @@
 # Temporary Build Files
 build/_output
 build/_test
-config/crd/kustomization.yaml
 
 # binaries (build and tools)
 /controller

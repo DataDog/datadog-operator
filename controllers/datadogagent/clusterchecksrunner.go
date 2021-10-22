@@ -24,6 +24,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/orchestrator"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -31,7 +32,7 @@ import (
 
 func (r *Reconciler) reconcileClusterChecksRunner(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
 	result, err := r.manageClusterChecksRunnerDependencies(logger, dda, newStatus)
-	if shouldReturn(result, err) {
+	if utils.ShouldReturn(result, err) {
 		return result, err
 	}
 
@@ -144,7 +145,7 @@ func (r *Reconciler) updateClusterChecksRunnerDeployment(logger logr.Logger, dda
 	}
 
 	now := metav1.NewTime(time.Now())
-	err = r.client.Update(context.TODO(), updateCLCR)
+	err = kubernetes.UpdateFromObject(context.TODO(), r.client, updateCLCR, dep.ObjectMeta)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -195,32 +196,32 @@ func newClusterChecksRunnerDeploymentFromInstance(
 
 func (r *Reconciler) manageClusterChecksRunnerDependencies(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
 	result, err := r.manageAgentSecret(logger, dda, newStatus)
-	if shouldReturn(result, err) {
+	if utils.ShouldReturn(result, err) {
 		return result, err
 	}
 
 	result, err = r.manageClusterChecksRunnerPDB(logger, dda)
-	if shouldReturn(result, err) {
+	if utils.ShouldReturn(result, err) {
 		return result, err
 	}
 
 	result, err = r.manageConfigMap(logger, dda, getClusterChecksRunnerCustomConfigConfigMapName(dda), buildClusterChecksRunnerConfigurationConfigMap)
-	if shouldReturn(result, err) {
+	if utils.ShouldReturn(result, err) {
 		return result, err
 	}
 
 	result, err = r.manageClusterChecksRunnerRBACs(logger, dda)
-	if shouldReturn(result, err) {
+	if utils.ShouldReturn(result, err) {
 		return result, err
 	}
 
 	result, err = r.manageConfigMap(logger, dda, getInstallInfoConfigMapName(dda), buildInstallInfoConfigMap)
-	if shouldReturn(result, err) {
+	if utils.ShouldReturn(result, err) {
 		return result, err
 	}
 
 	result, err = r.manageClusterChecksRunnerNetworkPolicy(logger, dda)
-	if shouldReturn(result, err) {
+	if utils.ShouldReturn(result, err) {
 		return result, err
 	}
 

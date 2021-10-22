@@ -22,6 +22,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1/patch"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 )
@@ -87,7 +88,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, request reconcile.Re
 		return result, err
 	}
 
-	if result, err = r.handleFinalizer(reqLogger, instance); shouldReturn(result, err) {
+	if result, err = r.handleFinalizer(reqLogger, instance); utils.ShouldReturn(result, err) {
 		return result, err
 	}
 
@@ -120,7 +121,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, request reconcile.Re
 		}
 	for _, reconcileFunc := range reconcileFuncs {
 		result, err = reconcileFunc(reqLogger, instance, newStatus)
-		if shouldReturn(result, err) {
+		if utils.ShouldReturn(result, err) {
 			return r.updateStatusIfNeeded(reqLogger, instance, newStatus, result, err)
 		}
 	}

@@ -4,7 +4,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.5.0
+    controller-gen.kubebuilder.io/version: v0.6.1
   creationTimestamp: null
   name: datadogmetrics.datadoghq.com
 spec:
@@ -38,10 +38,14 @@ spec:
         description: DatadogMetric allows autoscaling on arbitrary Datadog query
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
             type: string
           metadata:
             type: object
@@ -52,7 +56,8 @@ spec:
                 description: ExternalMetricName is reserved for internal use
                 type: string
               maxAge:
-                description: MaxAge provides the max age for the metric query (overrides the default setting `external_metrics_provider.max_age`)
+                description: MaxAge provides the max age for the metric query (overrides
+                  the default setting `external_metrics_provider.max_age`)
                 type: string
               query:
                 description: Query is the raw datadog query
@@ -65,12 +70,15 @@ spec:
                 description: List of autoscalers currently using this DatadogMetric
                 type: string
               conditions:
-                description: Conditions Represents the latest available observations of a DatadogMetric's current state.
+                description: Conditions Represents the latest available observations
+                  of a DatadogMetric's current state.
                 items:
-                  description: DatadogMetricCondition describes the state of a DatadogMetric at a certain point.
+                  description: DatadogMetricCondition describes the state of a DatadogMetric
+                    at a certain point.
                   properties:
                     lastTransitionTime:
-                      description: Last time the condition transitioned from one status to another.
+                      description: Last time the condition transitioned from one status
+                        to another.
                       format: date-time
                       type: string
                     lastUpdateTime:
@@ -78,7 +86,8 @@ spec:
                       format: date-time
                       type: string
                     message:
-                      description: A human readable message indicating details about the transition.
+                      description: A human readable message indicating details about
+                        the transition.
                       type: string
                     reason:
                       description: The reason for the condition's last transition.

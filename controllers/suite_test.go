@@ -3,6 +3,9 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
+//go:build integration
+// +build integration
+
 package controllers
 
 import (
@@ -37,6 +40,7 @@ var (
 	cfg       *rest.Config
 	k8sClient client.Client
 	testEnv   *envtest.Environment
+	mgrCancel context.CancelFunc
 )
 
 func TestAPIs(t *testing.T) {
@@ -47,7 +51,7 @@ func TestAPIs(t *testing.T) {
 		[]Reporter{printer.NewlineReporter{}})
 }
 
-var _ = BeforeSuite(func(done Done) {
+var _ = BeforeSuite(func() {
 	logger := zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true))
 	logf.SetLogger(logger)
 	var err error
@@ -95,17 +99,20 @@ var _ = BeforeSuite(func(done Done) {
 	err = SetupControllers(logger, mgr, options)
 	Expect(err).ToNot(HaveOccurred())
 
+	var mgrCtx context.Context
+	mgrCtx, mgrCancel = context.WithCancel(ctrl.SetupSignalHandler())
+
 	go func() {
-		defer GinkgoRecover()
-		err = mgr.Start(ctrl.SetupSignalHandler())
+		err = mgr.Start(mgrCtx)
 		Expect(err).ToNot(HaveOccurred())
 	}()
-
-	close(done)
 }, 60)
 
 var _ = AfterSuite(func() {
 	By("tearing down the test environment")
+	if mgrCancel != nil {
+		mgrCancel()
+	}
 	err := testEnv.Stop()
 	Expect(err).ToNot(HaveOccurred())
 })

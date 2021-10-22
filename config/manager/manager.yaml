@@ -3,7 +3,7 @@ kind: Namespace
 metadata:
   labels:
     app.kubernetes.io/name: datadog-operator
-  name: datadog
+  name: system
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -57,4 +57,4 @@ spec:
             port: 8081
           periodSeconds: 10
       terminationGracePeriodSeconds: 10
-      serviceAccountName: datadog-operator-manager
+      serviceAccountName: controller-manager
