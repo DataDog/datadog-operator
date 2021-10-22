@@ -28,6 +28,12 @@ const (
 	// DDURLEnvVar is the constant for the env variable DD_URL which is the
 	// host of the Datadog intake server to send data to.
 	DDURLEnvVar = "DD_URL"
+	// DDSiteEnvVar is the constant for the env variable DD_SITE which is the
+	// site of the Datadog intake server to send data to.
+	DDSiteEnvVar = "DD_SITE"
+	// DDAPIPrefix is the constant prepended to the DD_SITE env variable
+	// to build a URL for a Datadog API client
+	DDAPIPrefix = "https://api."
 )
 
 // GetWatchNamespaces returns the Namespaces the operator should be watching for changes.

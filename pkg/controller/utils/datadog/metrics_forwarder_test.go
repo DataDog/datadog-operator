@@ -8,6 +8,7 @@ package datadog
 import (
 	"context"
 	"errors"
+	"os"
 	"reflect"
 	"sort"
 	"strings"
@@ -1116,53 +1117,116 @@ func Test_getbaseURL(t *testing.T) {
 		dda *datadoghqv1alpha1.DatadogAgent
 	}
 	tests := []struct {
-		name string
-		args args
-		want string
+		name         string
+		setEnvFunc   func()
+		args         args
+		want         string
+		resetEnvFunc func()
 	}{
 		{
-			name: "Get default baseURL",
+			name:       "Get default baseURL",
+			setEnvFunc: func() {},
 			args: args{
 				dda: test.NewDefaultedDatadogAgent("foo", "bar", &test.NewDatadogAgentOptions{}),
 			},
-			want: "https://api.datadoghq.com",
+			want:         "https://api.datadoghq.com",
+			resetEnvFunc: func() {},
 		},
 		{
-			name: "Compute baseURL from site when passing Site",
+			name:       "Compute baseURL from site when passing Site",
+			setEnvFunc: func() {},
+			args: args{
+				dda: test.NewDefaultedDatadogAgent("foo", "bar", &test.NewDatadogAgentOptions{
+					Site: "datadoghq.eu",
+				}),
+			},
+			want:         "https://api.datadoghq.eu",
+			resetEnvFunc: func() {},
+		},
+		{
+			name:       "Compute baseURL from ddUrl when Site is not defined",
+			setEnvFunc: func() {},
+			args: args{
+				dda: test.NewDefaultedDatadogAgent("foo", "bar", &test.NewDatadogAgentOptions{
+					NodeAgentConfig: &datadoghqv1alpha1.NodeAgentConfig{
+						DDUrl: datadoghqv1alpha1.NewStringPointer("https://test.url.com"),
+					}}),
+			},
+			want:         "https://test.url.com",
+			resetEnvFunc: func() {},
+		},
+		{
+			name: "Test that DDA DDUrl takes precedence over DDA Site, operator DDUrl, and operator Site",
+			setEnvFunc: func() {
+				os.Setenv("DD_URL", "https://beroringa.com")
+				os.Setenv("DD_SITE", "amatama.eu")
+			},
+			args: args{
+				dda: test.NewDefaultedDatadogAgent("foo", "bar", &test.NewDatadogAgentOptions{
+					Site: "datadoghq.eu",
+					NodeAgentConfig: &datadoghqv1alpha1.NodeAgentConfig{
+						DDUrl: datadoghqv1alpha1.NewStringPointer("https://test.url.com"),
+					}}),
+			},
+			want: "https://test.url.com",
+			resetEnvFunc: func() {
+				os.Unsetenv("DD_URL")
+				os.Unsetenv("DD_SITE")
+			},
+		},
+		{
+			name: "Test that operator DDUrl takes precendence over DDA Site and operator Site",
+			setEnvFunc: func() {
+				os.Setenv("DD_URL", "https://beroringa.com")
+				os.Setenv("DD_SITE", "amatama.eu")
+			},
+			args: args{
+				dda: test.NewDefaultedDatadogAgent("foo", "bar", &test.NewDatadogAgentOptions{
+					Site: "datadoghq.eu",
+				}),
+			},
+			want: "https://beroringa.com",
+			resetEnvFunc: func() {
+				os.Unsetenv("DD_URL")
+				os.Unsetenv("DD_SITE")
+			},
+		},
+		{
+			name: "Test that DDA Site takes precendence over operator Site",
+			setEnvFunc: func() {
+				os.Setenv("DD_SITE", "amatama.eu")
+			},
 			args: args{
 				dda: test.NewDefaultedDatadogAgent("foo", "bar", &test.NewDatadogAgentOptions{
 					Site: "datadoghq.eu",
 				}),
 			},
 			want: "https://api.datadoghq.eu",
+			resetEnvFunc: func() {
+				os.Unsetenv("DD_SITE")
+			},
 		},
 		{
-			name: "Compute baseURL from ddUrl when Site is not defined",
-			args: args{
-				dda: test.NewDefaultedDatadogAgent("foo", "bar", &test.NewDatadogAgentOptions{
-					NodeAgentConfig: &datadoghqv1alpha1.NodeAgentConfig{
-						DDUrl: datadoghqv1alpha1.NewStringPointer("https://test.url.com"),
-					}}),
+			name: "Compute operator Site",
+			setEnvFunc: func() {
+				os.Setenv("DD_SITE", "amatama.eu")
 			},
-			want: "https://test.url.com",
-		},
-		{
-			name: "Test that DDUrl takes precedence over Site",
 			args: args{
-				dda: test.NewDefaultedDatadogAgent("foo", "bar", &test.NewDatadogAgentOptions{
-					Site: "datadoghq.eu",
-					NodeAgentConfig: &datadoghqv1alpha1.NodeAgentConfig{
-						DDUrl: datadoghqv1alpha1.NewStringPointer("https://test.url.com"),
-					}}),
+				dda: test.NewDefaultedDatadogAgent("foo", "bar", &test.NewDatadogAgentOptions{}),
 			},
-			want: "https://test.url.com",
+			want: "https://api.amatama.eu",
+			resetEnvFunc: func() {
+				os.Unsetenv("DD_SITE")
+			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			tt.setEnvFunc()
 			if got := getbaseURL(tt.args.dda); got != tt.want {
 				t.Errorf("getbaseURL() = %v, want %v", got, tt.want)
 			}
+			tt.resetEnvFunc()
 		})
 	}
 }

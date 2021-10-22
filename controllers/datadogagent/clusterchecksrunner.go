@@ -8,6 +8,7 @@ package datadogagent
 import (
 	"context"
 	"fmt"
+	"os"
 	"strconv"
 	"time"
 
@@ -24,6 +25,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/orchestrator"
+	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -413,6 +415,11 @@ func getEnvVarsForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []cor
 			Name:  datadoghqv1alpha1.DDSite,
 			Value: spec.Site,
 		})
+	} else if os.Getenv(config.DDSiteEnvVar) != "" {
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  datadoghqv1alpha1.DDSite,
+			Value: os.Getenv(config.DDSiteEnvVar),
+		})
 	}
 
 	envVars = append(envVars, corev1.EnvVar{
@@ -433,6 +440,11 @@ func getEnvVarsForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []cor
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  datadoghqv1alpha1.DDddURL,
 			Value: *spec.Agent.Config.DDUrl,
+		})
+	} else if os.Getenv(config.DDURLEnvVar) != "" {
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  datadoghqv1alpha1.DDddURL,
+			Value: os.Getenv(config.DDURLEnvVar),
 		})
 	}
 

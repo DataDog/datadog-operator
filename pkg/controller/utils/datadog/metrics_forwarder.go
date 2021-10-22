@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"hash/fnv"
+	"os"
 	"reflect"
 	"sync"
 	"time"
@@ -685,11 +686,23 @@ func (mf *metricsForwarder) isEventChanFull() bool {
 	return len(mf.eventChan) == cap(mf.eventChan)
 }
 
+// getbaseURL gets the URL to send Agent data to in this order:
+//	- DDUrl from the DatadogAgent agent config
+//	- DDUrl from the operator config
+//	- Site from the DatadogAgent config
+//	- Site from the operator config
+//	- If none of the above are set, use a default base URL
 func getbaseURL(dda *datadoghqv1alpha1.DatadogAgent) string {
-	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Enabled) && dda.Spec.Agent.Config != nil && dda.Spec.Agent.Config.DDUrl != nil {
+	switch {
+	case datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Enabled) && dda.Spec.Agent.Config != nil && dda.Spec.Agent.Config.DDUrl != nil:
 		return *dda.Spec.Agent.Config.DDUrl
-	} else if dda.Spec.Site != "" {
-		return fmt.Sprintf("https://api.%s", dda.Spec.Site)
+	case os.Getenv(config.DDURLEnvVar) != "":
+		return os.Getenv(config.DDURLEnvVar)
+	case dda.Spec.Site != "":
+		return config.DDAPIPrefix + dda.Spec.Site
+	case os.Getenv(config.DDSiteEnvVar) != "":
+		return config.DDAPIPrefix + os.Getenv(config.DDSiteEnvVar)
+	default:
+		return defaultbaseURL
 	}
-	return defaultbaseURL
 }

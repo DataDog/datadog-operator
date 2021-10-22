@@ -44,7 +44,14 @@ func InitDatadogClient(creds config.Creds) (DatadogClient, error) {
 	)
 	configV1 := datadogapiclientv1.NewConfiguration()
 
-	if apiURL := os.Getenv(config.DDURLEnvVar); apiURL != "" {
+	var apiURL string
+	if os.Getenv(config.DDURLEnvVar) != "" {
+		apiURL = os.Getenv(config.DDURLEnvVar)
+	} else if os.Getenv(config.DDSiteEnvVar) != "" {
+		apiURL = config.DDAPIPrefix + os.Getenv(config.DDSiteEnvVar)
+	}
+
+	if apiURL != "" {
 		parsedAPIURL, parseErr := url.Parse(apiURL)
 		if parseErr != nil {
 			return DatadogClient{}, fmt.Errorf(`invalid API Url : %w`, parseErr)

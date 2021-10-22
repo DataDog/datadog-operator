@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand"
+	"os"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -17,6 +18,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/orchestrator"
+	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -716,6 +718,11 @@ func getEnvVarsCommon(dda *datadoghqv1alpha1.DatadogAgent, needAPIKey bool) ([]c
 			Name:  datadoghqv1alpha1.DDddURL,
 			Value: *dda.Spec.Agent.Config.DDUrl,
 		})
+	} else if os.Getenv(config.DDURLEnvVar) != "" {
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  datadoghqv1alpha1.DDddURL,
+			Value: os.Getenv(config.DDURLEnvVar),
+		})
 	}
 	if dda.Spec.Agent.Config.CriSocket != nil {
 		if dda.Spec.Agent.Config.CriSocket.CriSocketPath != nil {
@@ -738,6 +745,11 @@ func getEnvVarsCommon(dda *datadoghqv1alpha1.DatadogAgent, needAPIKey bool) ([]c
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  datadoghqv1alpha1.DDSite,
 			Value: dda.Spec.Site,
+		})
+	} else if os.Getenv(config.DDSiteEnvVar) != "" {
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  datadoghqv1alpha1.DDSite,
+			Value: os.Getenv(config.DDSiteEnvVar),
 		})
 	}
 
