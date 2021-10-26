@@ -167,7 +167,6 @@ func TestDefaultFeatures(t *testing.T) {
 					PodLogsPath:                   NewStringPointer("/var/log/pods"),
 					ContainerSymlinksPath:         NewStringPointer("/var/log/containers"),
 					TempStoragePath:               NewStringPointer("/var/lib/datadog-agent/logs"),
-					OpenFilesLimit:                NewInt32Pointer(100),
 				},
 				PrometheusScrape: &PrometheusScrapeConfig{
 					Enabled: NewBoolPointer(false),
@@ -187,7 +186,6 @@ func TestDefaultFeatures(t *testing.T) {
 					PodLogsPath:                   NewStringPointer("/var/log/pods"),
 					ContainerSymlinksPath:         NewStringPointer("/var/log/containers"),
 					TempStoragePath:               NewStringPointer("/var/lib/datadog-agent/logs"),
-					OpenFilesLimit:                NewInt32Pointer(100),
 				},
 				PrometheusScrape: &PrometheusScrapeConfig{
 					Enabled: NewBoolPointer(false),
@@ -205,7 +203,6 @@ func TestDefaultFeatures(t *testing.T) {
 				LogCollection: &LogCollectionConfig{
 					LogsConfigContainerCollectAll: NewBoolPointer(false),
 					ContainerLogsPath:             NewStringPointer("/var/lib/docker/containers"),
-					OpenFilesLimit:                NewInt32Pointer(200),
 				},
 				PrometheusScrape: &PrometheusScrapeConfig{
 					ServiceEndpoints: NewBoolPointer(true),
@@ -240,7 +237,6 @@ func TestDefaultFeatures(t *testing.T) {
 					Enabled:                       NewBoolPointer(false),
 					LogsConfigContainerCollectAll: NewBoolPointer(false),
 					ContainerLogsPath:             NewStringPointer("/var/lib/docker/containers"),
-					OpenFilesLimit:                NewInt32Pointer(200),
 				},
 				PrometheusScrape: &PrometheusScrapeConfig{
 					Enabled:          NewBoolPointer(false),

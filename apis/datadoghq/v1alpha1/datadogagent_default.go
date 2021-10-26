@@ -58,7 +58,6 @@ const (
 	defaultPodLogsPath                      string = "/var/log/pods"
 	defaultContainerSymlinksPath            string = "/var/log/containers"
 	defaultLogsTempStoragePath              string = "/var/lib/datadog-agent/logs"
-	defaultLogsOpenFilesLimit               int32  = 100
 	defaultProcessEnabled                   bool   = false
 	// `false` defaults to live container, agent activated but no process collection
 	defaultProcessCollectionEnabled                      bool   = false
@@ -762,11 +761,6 @@ func DefaultDatadogFeatureLogCollection(ft *DatadogFeatures) *LogCollectionConfi
 	if ft.LogCollection.TempStoragePath == nil {
 		ft.LogCollection.TempStoragePath = NewStringPointer(defaultLogsTempStoragePath)
 		logOverride.TempStoragePath = ft.LogCollection.TempStoragePath
-	}
-
-	if ft.LogCollection.OpenFilesLimit == nil {
-		ft.LogCollection.OpenFilesLimit = NewInt32Pointer(defaultLogsOpenFilesLimit)
-		logOverride.OpenFilesLimit = ft.LogCollection.OpenFilesLimit
 	}
 
 	return logOverride
