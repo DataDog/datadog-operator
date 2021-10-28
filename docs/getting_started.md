@@ -54,13 +54,13 @@ Here are the steps:
 
 ### Installation option
 
-The [configuration.md][5] page lists all the Datadog Agent and Cluster-Agent features and options that can be configured thanks to the DatadogAgent resource.
+The [configuration][5] page lists all the Datadog Agent and Cluster Agent features and options that can be configured with the `DatadogAgent` resource.
 
 #### Containers registry
 
 The default registry ([gcr.io/datadoghq][6]) can be change to any other registry with the option `spec.registry`.
 
-The [`datadog-agent-with-registry.yaml` example file][7] configure the operator to use the [public.ecr.aws/datadog][8] registry.
+Use the [`datadog-agent-with-registry.yaml` example file][7] to configure the operator to use the [public.ecr.aws/datadog][8] registry.
 
 ```yaml
 apiVersion: datadoghq.com/v1alpha1

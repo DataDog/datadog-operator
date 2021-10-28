@@ -1,5 +1,5 @@
 # ----------------------------------------------------------#
-# Example about how to use an existing secret to store the  #
+# An example of using an existing secret to store the  #
 # Datadog credentials                                       #
 # ----------------------------------------------------------#
 # First, create the datadog-secret with the folling command:
