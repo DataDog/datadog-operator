@@ -13,18 +13,11 @@ spec:
       conf:
         configMap:
           name: orchestrator-conf
-  agent:
-    enabled: true
-    image:
-      name: "gcr.io/datadoghq/agent:latest"
   clusterAgent:
-    image:
-      name: "gcr.io/datadoghq/cluster-agent:latest"
     config:
       clusterChecksEnabled: true
   clusterChecksRunner:
-    image:
-      name: "gcr.io/datadoghq/agent:latest"
+    enabled: true
 ---
 apiVersion: v1
 kind: ConfigMap

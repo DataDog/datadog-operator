@@ -12,12 +12,7 @@ spec:
       enabled: true
     kubeStateMetricsCore:
       enabled: true
-  agent:
-    image:
-      name: "gcr.io/datadoghq/agent:latest"
   clusterAgent:
-    image:
-      name: "gcr.io/datadoghq/cluster-agent:latest"
     config:
       confd:
         configMapName: cluster-agent-confd

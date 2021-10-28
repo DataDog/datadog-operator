@@ -1,6 +1,8 @@
 # Cluster Agent
 
-To deploy the Cluster Agent along with the Agent, update the current `DatadogAgent` resource with the [`datadog-agent-with-clusteragent.yaml` file][1]:
+By default, the Cluster Agent is deployed along with the Agent.
+
+The Cluster Agent configuration is defined in the `spec.clusterAgent` section, for example: [`datadog-agent-with-clusteragent.yaml` file][1]:
 
 ```yaml
 apiVersion: datadoghq.com/v1alpha1
@@ -18,16 +20,12 @@ spec:
 
   # Node Agent configuration
   agent:
-    image:
-      name: "gcr.io/datadoghq/agent:latest"
     config:
       tolerations:
         - operator: Exists
 
   # Cluster Agent configuration
   clusterAgent:
-    image:
-      name: "gcr.io/datadoghq/cluster-agent:latest"
     config:
       metricsProviderEnabled: true
       clusterChecksEnabled: true
