@@ -76,12 +76,6 @@ After deploying the Datadog Operator, create the `DatadogAgent` resource that tr
        appSecret:
          secretName: datadog-secret
          keyName: app-key
-     agent:
-       image:
-         name: "gcr.io/datadoghq/agent:latest"
-     clusterAgent:
-       image:
-         name: "gcr.io/datadoghq/cluster-agent:latest"
    ```
 
 1. Deploy the Datadog agent with the above configuration file:
@@ -121,14 +115,9 @@ Update your [`datadog-agent.yaml` file][8] with the following configuration to a
          secretName: datadog-secret
          keyName: app-key
      agent:
-       image:
-         name: "gcr.io/datadoghq/agent:latest"
        config:
          tolerations:
           - operator: Exists
-     clusterAgent:
-       image:
-         name: "gcr.io/datadoghq/cluster-agent:latest"
    ```
 Apply this new configuration:
 

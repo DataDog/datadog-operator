@@ -13,18 +13,16 @@ You will need to have the [Datadog Cluster Agent][2] as well as the Cluster Leve
 To enable this feature, you will need to use the option `kubeStateMetricsCore.enabled: true`, the DatadogAgent spec should look like this:
 
 ```yaml
-features:
-    kubeStateMetricsCore:
-      enabled: true
-clusterAgent:
-    image:
-      name: "datadog/cluster-agent:1.10.0"
-    config:
-[...]
-      clusterChecksEnabled: true
-clusterChecksRunner:
-    image:
-      name: "datadog/agent:7.24.0"
+spec:
+  features:
+      kubeStateMetricsCore:
+        enabled: true
+  clusterAgent:
+      config:
+  [...]
+        clusterChecksEnabled: true
+  clusterChecksRunner:
+    enabled: true
 ```
 
 By default the following collectors will be activated:
@@ -53,7 +51,8 @@ You can also customize the configuration of this check with a ConfigMap.
 If you want to maintain the ConfigMap yourself, you will need to use the field `features.kubeStateMetricsCore.conf.configMap: <name_of_your_CM>` as follows:
 
 ```yaml
-features:
+spec:
+  features:
     kubeStateMetricsCore:
       enabled: true
       conf:
@@ -127,7 +126,8 @@ Once you have created the ConfigMap (in the same namespace as the operator), mak
 You can also reference the configuration in the specification of the DatadogAgent spec as follows:
 
 ```yaml
-features:
+spec:
+  features:
     kubeStateMetricsCore:
       enabled: true
       conf: 

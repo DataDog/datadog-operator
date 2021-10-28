@@ -7,8 +7,6 @@ spec:
     apiKey: <DATADOG_API_KEY>
     appKey: <DATADOG_APP_KEY>
   agent:
-    image:
-      name: "gcr.io/datadoghq/agent:latest"
     apm:
       enabled: true
     process:
@@ -24,8 +22,6 @@ spec:
       runtime:
         enabled: false
   clusterAgent:
-    image:
-      name: "gcr.io/datadoghq/cluster-agent:latest"
     config:
       externalMetrics:
         enabled: true

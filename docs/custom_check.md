@@ -94,8 +94,6 @@ spec:
     apiKey: "<DATADOG_API_KEY>"
     appKey: "<DATADOG_APP_KEY>"
   agent:
-    image:
-      name: "gcr.io/datadoghq/agent:latest"
     config:
       confd:
         configMapName: "confd-config"
