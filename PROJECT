@@ -1,30 +1,38 @@
 domain: com
-layout: go.kubebuilder.io/v2
+layout: go.kubebuilder.io/v3
 multigroup: true
 plugins:
-  go.sdk.operatorframework.io/v2-alpha: {}
+  manifests.sdk.operatorframework.io/v2: {}
+  scorecard.sdk.operatorframework.io/v2: {}
 projectName: datadog-operator
 repo: github.com/DataDog/datadog-operator
 resources:
-- controller: true
+- api:
+    crdVersion: v1
+    namespaced: true
   domain: com
-  group: datadoghq
-  kind: DatadogAgent
-  path: github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1
-  version: v1alpha1
-- domain: com
   group: datadoghq
   kind: DatadogMetric
   path: github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1
   version: v1alpha1
-- controller: true
+- api:
+    crdVersion: v1
+    namespaced: true
   domain: com
   group: datadoghq
   kind: DatadogMonitor
   path: github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1
   version: v1alpha1
 - api:
-    crdVersion: v1beta1
+    crdVersion: v1
+    namespaced: true
+  domain: com
+  group: datadoghq
+  kind: DatadogAgent
+  path: github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
     namespaced: true
   domain: com
   group: datadoghq

@@ -7,8 +7,6 @@ spec:
     apiKey: <DATADOG_API_KEY>
     appKey: <DATADOG_APP_KEY>
   agent:
-    image:
-      name: "datadog/agent:7"
     apm:
       enabled: true
       unixDomainSocket:

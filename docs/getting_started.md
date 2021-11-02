@@ -45,18 +45,32 @@ Here are the steps:
        appSecret:
          secretName: datadog-secret
          keyName: app-key
-     agent:
-       image:
-         name: "gcr.io/datadoghq/agent:latest"
-     clusterAgent:
-       image:
-         name: "gcr.io/datadoghq/cluster-agent:latest"
    ```
 
 1. Deploy the Datadog agent with the above configuration file:
    ```shell
    kubectl apply -f /path/to/your/datadog-agent.yaml
    ```
+
+### Installation option
+
+The [configuration][5] page lists all the Datadog Agent and Cluster Agent features and options that can be configured with the `DatadogAgent` resource.
+
+#### Containers registry
+
+The default registry ([gcr.io/datadoghq][6]) can be change to any other registry with the option `spec.registry`.
+
+Use the [`datadog-agent-with-registry.yaml` example file][7] to configure the operator to use the [public.ecr.aws/datadog][8] registry.
+
+```yaml
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog
+spec:
+  registry: public.ecr.aws/datadog
+  # ...
+```
 
 ## Cleanup
 
@@ -71,3 +85,7 @@ helm delete my-datadog-operator
 [2]: https://kubernetes.io/docs/tasks/tools/install-kubectl/
 [3]: https://artifacthub.io/packages/helm/datadog/datadog-operator
 [4]: https://app.datadoghq.com/account/settings#api
+[5]: https://github.com/DataDog/datadog-operator/blob/main/docs/configuration.md
+[6]: ttps://gcr.io/datadoghq
+[7]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/datadog-agent-with-registry.yaml
+[8]: https://gallery.ecr.aws/datadog/

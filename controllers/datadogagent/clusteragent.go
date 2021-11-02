@@ -35,7 +35,7 @@ import (
 
 func (r *Reconciler) reconcileClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
 	result, err := r.manageClusterAgentDependencies(logger, dda, newStatus)
-	if shouldReturn(result, err) {
+	if utils.ShouldReturn(result, err) {
 		return result, err
 	}
 	if !isClusterAgentEnabled(dda.Spec.ClusterAgent) {
@@ -147,7 +147,7 @@ func (r *Reconciler) updateClusterAgentDeployment(logger logr.Logger, dda *datad
 	updateDca.Labels = mergeAnnotationsLabels(logger, dca.GetLabels(), newDCA.GetLabels(), dda.Spec.ClusterAgent.KeepLabels)
 
 	now := metav1.NewTime(time.Now())
-	err = r.client.Update(context.TODO(), updateDca)
+	err = kubernetes.UpdateFromObject(context.TODO(), r.client, updateDca, dca.ObjectMeta)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -202,67 +202,67 @@ func newClusterAgentDeploymentFromInstance(logger logr.Logger, dda *datadoghqv1a
 
 func (r *Reconciler) manageClusterAgentDependencies(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
 	result, err := r.manageAgentSecret(logger, dda, newStatus)
-	if shouldReturn(result, err) {
+	if utils.ShouldReturn(result, err) {
 		return result, err
 	}
 
 	result, err = r.manageExternalMetricsSecret(logger, dda, newStatus)
-	if shouldReturn(result, err) {
+	if utils.ShouldReturn(result, err) {
 		return result, err
 	}
 
 	result, err = r.manageConfigMap(logger, dda, getClusterAgentCustomConfigConfigMapName(dda), buildClusterAgentConfigurationConfigMap)
-	if shouldReturn(result, err) {
+	if utils.ShouldReturn(result, err) {
 		return result, err
 	}
 
 	result, err = r.manageClusterAgentService(logger, dda)
-	if shouldReturn(result, err) {
+	if utils.ShouldReturn(result, err) {
 		return result, err
 	}
 
 	result, err = r.manageMetricsServerService(logger, dda)
-	if shouldReturn(result, err) {
+	if utils.ShouldReturn(result, err) {
 		return result, err
 	}
 
 	result, err = r.manageMetricsServerAPIService(logger, dda)
-	if shouldReturn(result, err) {
+	if utils.ShouldReturn(result, err) {
 		return result, err
 	}
 
 	result, err = r.manageAdmissionControllerService(logger, dda)
-	if shouldReturn(result, err) {
+	if utils.ShouldReturn(result, err) {
 		return result, err
 	}
 
 	result, err = r.manageClusterAgentPDB(logger, dda)
-	if shouldReturn(result, err) {
+	if utils.ShouldReturn(result, err) {
 		return result, err
 	}
 
 	result, err = r.manageClusterAgentRBACs(logger, dda)
-	if shouldReturn(result, err) {
+	if utils.ShouldReturn(result, err) {
 		return result, err
 	}
 
 	result, err = r.manageConfigMap(logger, dda, getInstallInfoConfigMapName(dda), buildInstallInfoConfigMap)
-	if shouldReturn(result, err) {
+	if utils.ShouldReturn(result, err) {
 		return result, err
 	}
 
 	result, err = r.manageClusterAgentNetworkPolicy(logger, dda)
-	if shouldReturn(result, err) {
+	if utils.ShouldReturn(result, err) {
 		return result, err
 	}
 
 	result, err = r.manageKubeStateMetricsCore(logger, dda)
-	if shouldReturn(result, err) {
+	if utils.ShouldReturn(result, err) {
 		return result, err
 	}
 
 	result, err = r.manageOrchestratorExplorer(logger, dda)
-	if shouldReturn(result, err) {
+	if utils.ShouldReturn(result, err) {
 		return result, err
 	}
 

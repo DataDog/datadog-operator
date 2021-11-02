@@ -11,12 +11,8 @@ spec:
     prometheusScrape:
       enabled: true
   agent:
-    image:
-      name: "gcr.io/datadoghq/agent:latest"
     config:
       tolerations:
       - operator: Exists
   clusterAgent:
-    image:
-      name: "gcr.io/datadoghq/cluster-agent:latest"
     replicas: 2

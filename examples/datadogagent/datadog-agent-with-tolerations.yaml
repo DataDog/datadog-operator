@@ -6,8 +6,6 @@ spec:
   credentials:
     apiKey: <DATADOG_API_KEY>
   agent:
-    image:
-      name: "gcr.io/datadoghq/agent:latest"
     config:
       tolerations:
        - operator: Exists

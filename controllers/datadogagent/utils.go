@@ -1996,13 +1996,6 @@ func generateRandomString(n int) string {
 	return string(b)
 }
 
-func shouldReturn(result reconcile.Result, err error) bool {
-	if err != nil || result.Requeue || result.RequeueAfter > 0 {
-		return true
-	}
-	return false
-}
-
 func isKSMCoreEnabled(dda *datadoghqv1alpha1.DatadogAgent) bool {
 	if dda.Spec.Features.KubeStateMetricsCore == nil {
 		return false

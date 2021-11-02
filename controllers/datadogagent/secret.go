@@ -23,6 +23,7 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 type managedSecret struct {
@@ -96,7 +97,7 @@ func (r *Reconciler) updateIfNeededSecret(secret managedSecret, dda *datadoghqv1
 			updatedSecret.Data[key] = val
 		}
 
-		if err := r.client.Update(context.TODO(), updatedSecret); err != nil {
+		if err := kubernetes.UpdateFromObject(context.TODO(), r.client, newSecret, currentSecret.ObjectMeta); err != nil {
 			return reconcile.Result{}, err
 		}
 		event := buildEventInfo(updatedSecret.Name, updatedSecret.Namespace, secretKind, datadog.UpdateEvent)

@@ -22,12 +22,8 @@ spec:
           - send_distribution_buckets: true
             timeout: 5
   agent:
-    image:
-      name: "gcr.io/datadoghq/agent:latest"
     config:
       tolerations:
       - operator: Exists
   clusterAgent:
-    image:
-      name: "gcr.io/datadoghq/cluster-agent:latest"
     replicas: 2

@@ -14,6 +14,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	policyv1 "k8s.io/api/policy/v1beta1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -87,7 +88,7 @@ func (r *Reconciler) updateIfNeededPDB(dda *datadoghqv1alpha1.DatadogAgent, curr
 		updatedPDB.Annotations = newPDB.Annotations
 		updatedPDB.Spec = newPDB.Spec
 
-		if err := r.client.Update(context.TODO(), updatedPDB); err != nil {
+		if err := kubernetes.UpdateFromObject(context.TODO(), r.client, updatedPDB, currentPDB.ObjectMeta); err != nil {
 			return reconcile.Result{}, err
 		}
 		event := buildEventInfo(updatedPDB.Name, updatedPDB.Namespace, podDisruptionBudgetKind, datadog.UpdateEvent)

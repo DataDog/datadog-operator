@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/go-logr/logr"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -25,12 +26,12 @@ const (
 
 func (r *Reconciler) manageSystemProbeDependencies(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
 	result, err := r.manageConfigMap(logger, dda, getSystemProbeConfigConfigMapName(dda), buildSystemProbeConfigConfigMap)
-	if shouldReturn(result, err) {
+	if utils.ShouldReturn(result, err) {
 		return result, err
 	}
 	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Enabled) && getSeccompProfileName(dda.Spec.Agent.SystemProbe) == datadoghqv1alpha1.DefaultSeccompProfileName && dda.Spec.Agent.SystemProbe.SecCompCustomProfileConfigMap == "" {
 		result, err = r.manageConfigMap(logger, dda, getSecCompConfigMapName(dda), buildSystemProbeSecCompConfigMap)
-		if shouldReturn(result, err) {
+		if utils.ShouldReturn(result, err) {
 			return result, err
 		}
 	}
