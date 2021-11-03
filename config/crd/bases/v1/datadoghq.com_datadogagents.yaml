@@ -11778,10 +11778,26 @@ spec:
     storage: true
     subresources:
       status: {}
-  - name: v2alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .status.conditions[?(@.type=='Active')].status
+      name: active
+      type: string
+    - jsonPath: .status.agent.status
+      name: agent
+      type: string
+    - jsonPath: .status.clusterAgent.status
+      name: cluster-agent
+      type: string
+    - jsonPath: .status.clusterChecksRunner.status
+      name: cluster-checks-runner
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: age
+      type: date
+    name: v2alpha1
     schema:
       openAPIV3Schema:
-        description: DatadogAgent is the Schema for the datadogagents API
+        description: DatadogAgent Deployment with Datadog Operator.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -11796,15 +11812,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: DatadogAgentSpec defines the desired state of DatadogAgent
-            properties:
-              clusterName:
-                description: Set a unique cluster name to allow scoping hosts and
-                  Cluster Checks Runner easily.
-                type: string
-            type: object
-          status:
-            description: DatadogAgentStatus defines the observed state of DatadogAgent
+            description: DatadogAgentSpec defines the desired state of DatadogAgent.
             properties:
               defaultOverride:
                 description: DefaultOverride contains attributes that were not configured
