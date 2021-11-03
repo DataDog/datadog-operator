@@ -674,6 +674,9 @@ type ConfigDirSpec struct {
 	// ConfigMapName name of a ConfigMap used to mount a directory.
 	ConfigMapName string `json:"configMapName,omitempty"`
 	// items mapping between configMap data key and file path mount.
+	// +optional
+	// +listType=map
+	// +listMapKey=key
 	Items []corev1.KeyToPath `json:"items,omitempty"`
 }
 
