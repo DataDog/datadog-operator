@@ -24,6 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
+	"sigs.k8s.io/controller-runtime/pkg/internal/testing/controlplane"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
@@ -61,6 +62,13 @@ var _ = BeforeSuite(func() {
 		CRDDirectoryPaths:     []string{filepath.Join("..", "config", "crd", "bases", "v1")},
 		ErrorIfCRDPathMissing: true,
 	}
+
+	testEnv.ControlPlane.Etcd = &controlplane.Etcd{}
+	// default the args of the ETCD process
+	_ = testEnv.ControlPlane.Etcd.Configure()
+	// Add extra space to accept the CRD
+	testEnv.ControlPlane.Etcd.Args = append(testEnv.ControlPlane.Etcd.Args, "--max-request-bytes=6291456")
+
 	Expect(err).ToNot(HaveOccurred())
 
 	cfg, err = testEnv.Start()
