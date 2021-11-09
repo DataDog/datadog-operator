@@ -2871,11 +2871,9 @@ func Test_newExtendedDaemonSetFromInstance_LogsEnabled(t *testing.T) {
 	logsEnabledPodSpec.Containers[0].VolumeMounts = append(logsEnabledPodSpec.Containers[0].VolumeMounts, logsVolumeMounts...)
 	logsEnabledPodSpec.Containers[0].Env = addEnvVar(logsEnabledPodSpec.Containers[0].Env, "DD_LOGS_ENABLED", "true")
 	logsEnabledPodSpec.Containers[0].Env = addEnvVar(logsEnabledPodSpec.Containers[0].Env, "DD_LOGS_CONFIG_K8S_CONTAINER_USE_FILE", "true")
-	logsEnabledPodSpec.Containers[0].Env = addEnvVar(logsEnabledPodSpec.Containers[0].Env, "DD_LOGS_CONFIG_OPEN_FILES_LIMIT", "100")
 	logsEnabledPodSpec.InitContainers[1].VolumeMounts = append(logsEnabledPodSpec.InitContainers[1].VolumeMounts, logsVolumeMounts...)
 	logsEnabledPodSpec.InitContainers[1].Env = addEnvVar(logsEnabledPodSpec.InitContainers[1].Env, "DD_LOGS_ENABLED", "true")
 	logsEnabledPodSpec.InitContainers[1].Env = addEnvVar(logsEnabledPodSpec.Containers[0].Env, "DD_LOGS_CONFIG_K8S_CONTAINER_USE_FILE", "true")
-	logsEnabledPodSpec.InitContainers[1].Env = addEnvVar(logsEnabledPodSpec.Containers[0].Env, "DD_LOGS_CONFIG_OPEN_FILES_LIMIT", "100")
 
 	test := extendedDaemonSetFromInstanceTest{
 		name:            "with logs enabled",
