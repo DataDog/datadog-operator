@@ -15,4 +15,4 @@ $YQ m -i -a "$ROOT_DIR/bundle/manifests/datadog-operator.clusterserviceversion.y
 rm -f "$ROOT_DIR/bundle/manifests/datadog-operator-manager_v1_serviceaccount.yaml"
 
 # Remove defaultOverride section in DatadogAgent status due to the error: "datadoghq.com_datadogagents.yaml bigger than total allowed limit"
-$YQ d -i "$ROOT_DIR/bundle/manifests/datadoghq.com_datadogagents.yaml" 'spec.validation.openAPIV3Schema.properties.status.properties.defaultOverride'
+$YQ d -i "$ROOT_DIR/bundle/manifests/datadoghq.com_datadogagents.yaml" 'spec.versions[*].schema.openAPIV3Schema.properties.status.properties.defaultOverride.properties'

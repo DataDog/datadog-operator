@@ -1288,9 +1288,9 @@ const (
 // DatadogAgentStatus defines the observed state of DatadogAgent.
 // +k8s:openapi-gen=true
 type DatadogAgentStatus struct {
-
 	// DefaultOverride contains attributes that were not configured that the runtime defaulted.
 	// +optional
+	// +kubebuilder:pruning:PreserveUnknownFields
 	DefaultOverride *DatadogAgentSpec `json:"defaultOverride,omitempty"`
 
 	// The actual state of the Agent as an extended daemonset.
