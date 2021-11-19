@@ -29,6 +29,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/controllers"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/debug"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
@@ -83,10 +84,10 @@ func main() {
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", true,
 		"Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
 	flag.StringVar(&leaderElectionResourceLock, "leader-election-resource", "configmaps", "determines which resource lock to use for leader election. option:[configmapsleases|endpointsleases|configmaps]")
-	flag.DurationVar(&leaderElectionLeaseDuration, "leader-election-lease-duration", 60*time.Second, "Define LeaseDuration as well as RenewDeadline (leaseDuration / 2) and RetryPeriod (leaseDuration / 4)")
+	flag.DurationVar(&leaderElectionLeaseDuration, "leader-election-lease-duration", 10*time.Second, "Define LeaseDuration as well as RenewDeadline (leaseDuration / 2) and RetryPeriod (leaseDuration / 4)")
 
 	// Custom flags
-	var printVersion, pprofActive, supportExtendedDaemonset, datadogMonitorEnabled, operatorMetricsEnabled bool
+	var printVersion, pprofActive, supportExtendedDaemonset, datadogMonitorEnabled, operatorMetricsEnabled, autoDeploymentEnabled bool
 	var logEncoder, secretBackendCommand string
 	var secretBackendArgs stringSlice
 	flag.StringVar(&logEncoder, "logEncoder", "json", "log encoding ('json' or 'console')")
@@ -97,7 +98,8 @@ func main() {
 	flag.BoolVar(&pprofActive, "pprof", false, "Enable pprof endpoint")
 	flag.BoolVar(&supportExtendedDaemonset, "supportExtendedDaemonset", false, "Support usage of Datadog ExtendedDaemonset CRD.")
 	flag.BoolVar(&datadogMonitorEnabled, "datadogMonitorEnabled", false, "Enable the DatadogMonitor controller")
-	flag.BoolVar(&operatorMetricsEnabled, "operatorMetricsEnabled", true, "Enable sending operator metrics to Datadog")
+	flag.BoolVar(&operatorMetricsEnabled, "operatorMetricsEnabled", false, "Enable sending operator metrics to Datadog")
+	flag.BoolVar(&autoDeploymentEnabled, "autoDeploymentEnabled", true, "Enable automatic Agent deployment based on characteristics")
 
 	// Parsing flags
 	flag.Parse()
@@ -130,6 +132,7 @@ func main() {
 		LeaderElection:             enableLeaderElection,
 		LeaderElectionID:           "datadog-operator-lock",
 		LeaderElectionResourceLock: leaderElectionResourceLock,
+		LeaderElectionNamespace:    "default",
 		LeaseDuration:              &leaderElectionLeaseDuration,
 		RenewDeadline:              &renewDeadline,
 		RetryPeriod:                &retryPeriod,
@@ -154,6 +157,12 @@ func main() {
 		Creds:                    creds,
 		DatadogMonitorEnabled:    datadogMonitorEnabled,
 		OperatorMetricsEnabled:   operatorMetricsEnabled,
+	}
+
+	if autoDeploymentEnabled {
+		if err := mgr.Add(datadogagent.NewAutoDeployer(mgr, creds)); err != nil {
+			setupLog.Error(err, "Unable to start auto deployment")
+		}
 	}
 
 	if err := controllers.SetupControllers(setupLog, mgr, options); err != nil {
