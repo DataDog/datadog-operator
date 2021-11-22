@@ -11848,12 +11848,6 @@ spec:
                       description: PodTemplateOverride is used to configure the components
                         at the pod level in an agnotic way
                       properties:
-                        aabels:
-                          additionalProperties:
-                            type: string
-                          description: AdditionalLabels provide labels that will be
-                            added to the Cluster Agent Pods.
-                          type: object
                         affinity:
                           description: If specified, the pod's scheduling constraints.
                           properties:
@@ -13077,7 +13071,7 @@ spec:
                                     type: integer
                                 type: object
                               name:
-                                description: Name of the container that is overriden
+                                description: Name of the container that is overiden
                                 type: string
                               readinessProbe:
                                 description: Configure the Readiness Probe of the
@@ -13344,6 +13338,12 @@ spec:
                                 used if the Name field does not correspond to a full
                                 image string.'
                               type: string
+                          type: object
+                        labels:
+                          additionalProperties:
+                            type: string
+                          description: AdditionalLabels provide labels that will be
+                            added to the Cluster Agent Pods.
                           type: object
                         priorityClassName:
                           description: If specified, indicates the pod's priority.
@@ -15158,7 +15158,7 @@ spec:
             type: object
         type: object
     served: true
-    storage: true
+    storage: false
     subresources:
       status: {}
 status:

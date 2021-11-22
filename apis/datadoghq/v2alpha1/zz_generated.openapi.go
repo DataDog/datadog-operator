@@ -82,7 +82,7 @@ func schema__apis_datadoghq_v2alpha1_DatadogAgentGenericContainer(ref common.Ref
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Name of the container that is overriden",
+							Description: "Name of the container that is overiden",
 							Type:        []string{"string"},
 							Format:      "",
 						},

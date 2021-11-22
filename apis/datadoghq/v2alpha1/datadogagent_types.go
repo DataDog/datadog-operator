@@ -107,7 +107,7 @@ type PodTemplateOverride struct {
 	Annotations map[string]string `json:"annotations,omitempty"`
 
 	// AdditionalLabels provide labels that will be added to the Cluster Agent Pods.
-	Labels map[string]string `json:"aabels,omitempty"`
+	Labels map[string]string `json:"labels,omitempty"`
 }
 
 // DatadogAgentGenericContainer is the generic structure describing any container's common configuration.
@@ -200,7 +200,6 @@ type DatadogAgentStatus struct {
 // DatadogAgent Deployment with Datadog Operator.
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:storageversion
 // +kubebuilder:resource:path=datadogagents,shortName=dd
 // +kubebuilder:printcolumn:name="active",type="string",JSONPath=".status.conditions[?(@.type=='Active')].status"
 // +kubebuilder:printcolumn:name="agent",type="string",JSONPath=".status.agent.status"
