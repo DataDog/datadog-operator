@@ -97,7 +97,7 @@ func schema__apis_datadoghq_v2alpha1_DatadogAgentGenericContainer(ref common.Ref
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "The Datadog Agent supports many environment variables. See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables",
+							Description: "The different components (Datadog Agent, Cluster Agent, Cluster Check Runner) support many environment variables. See also: https://docs.datadoghq.com/agent/kubernetes/?tab=helm#environment-variables",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -120,7 +120,7 @@ func schema__apis_datadoghq_v2alpha1_DatadogAgentGenericContainer(ref common.Ref
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "Specify additional volume mounts in the APM Agent container.",
+							Description: "Specify additional volume mounts in the container.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -145,7 +145,7 @@ func schema__apis_datadoghq_v2alpha1_DatadogAgentGenericContainer(ref common.Ref
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "Command allows the specification of custom entrypoint for Trace Agent container",
+							Description: "Command allows the specification of custom entrypoint for container",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -187,13 +187,13 @@ func schema__apis_datadoghq_v2alpha1_DatadogAgentGenericContainer(ref common.Ref
 					},
 					"readinessProbe": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Configure the Readiness Probe of the Agent container",
+							Description: "Configure the Readiness Probe of the container",
 							Ref:         ref("k8s.io/api/core/v1.Probe"),
 						},
 					},
 					"livenessProbe": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Configure the Liveness Probe of the APM container",
+							Description: "Configure the Liveness Probe of the container",
 							Ref:         ref("k8s.io/api/core/v1.Probe"),
 						},
 					},

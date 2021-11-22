@@ -11836,17 +11836,17 @@ spec:
                 type: object
               override:
                 additionalProperties:
-                  description: 'ResourceOverride is the generic description of a component
-                    (Cluster Agent Deployment, Node Agent Daemonset...) TODO: Add
-                    the Resource type and name to allow overriding the kind of the
-                    Resource (e.g. ExtendedDaemonset)'
+                  description: 'DatadogAgentResourceOverride is the generic description
+                    of a component (Cluster Agent Deployment, Node Agent Daemonset...)
+                    TODO: Add the Resource type and name to allow overriding the kind
+                    of the Resource (e.g. ExtendedDaemonset)'
                   properties:
                     name:
                       description: Name overrides the default name for the resource
                       type: string
                     podOverride:
-                      description: PodTemplateOverride is used to configure the components
-                        at the pod level in an agnotic way
+                      description: DatadogAgentPodTemplateOverride is used to configure
+                        the components at the pod level in an agnotic way
                       properties:
                         affinity:
                           description: If specified, the pod's scheduling constraints.
@@ -12776,8 +12776,9 @@ spec:
                         annotations:
                           additionalProperties:
                             type: string
-                          description: AdditionalAnnotations provide annotations that
-                            will be added to the Cluster Agent Pods.
+                          description: Annotations provide annotations that will be
+                            added to the different components (Datadog Agent, Cluster
+                            Agent, Cluster Check Runner) Pods.
                           type: object
                         containers:
                           description: Agent config contain the basic configuration
@@ -12795,14 +12796,15 @@ spec:
                                 x-kubernetes-list-type: atomic
                               command:
                                 description: Command allows the specification of custom
-                                  entrypoint for Trace Agent container
+                                  entrypoint for container
                                 items:
                                   type: string
                                 type: array
                                 x-kubernetes-list-type: atomic
                               env:
-                                description: 'The Datadog Agent supports many environment
-                                  variables. See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables'
+                                description: 'The different components (Datadog Agent,
+                                  Cluster Agent, Cluster Check Runner) support many
+                                  environment variables. See also: https://docs.datadoghq.com/agent/kubernetes/?tab=helm#environment-variables'
                                 items:
                                   description: EnvVar represents an environment variable
                                     present in a Container.
@@ -12929,8 +12931,7 @@ spec:
                                 format: int32
                                 type: integer
                               livenessProbe:
-                                description: Configure the Liveness Probe of the APM
-                                  container
+                                description: Configure the Liveness Probe of the container
                                 properties:
                                   exec:
                                     description: One and only one of the following
@@ -13075,7 +13076,7 @@ spec:
                                 type: string
                               readinessProbe:
                                 description: Configure the Readiness Probe of the
-                                  Agent container
+                                  container
                                 properties:
                                   exec:
                                     description: One and only one of the following
@@ -13247,7 +13248,7 @@ spec:
                                 type: object
                               volumeMounts:
                                 description: Specify additional volume mounts in the
-                                  APM Agent container.
+                                  container.
                                 items:
                                   description: VolumeMount describes a mounting of
                                     a Volume within a container.
@@ -13297,8 +13298,8 @@ spec:
                             type: object
                           type: array
                         image:
-                          description: The container image of the Datadog Cluster
-                            Checks Runner.
+                          description: The container image of the different components
+                            (Datadog Agent, Cluster Agent, Cluster Check Runner).
                           properties:
                             jmxEnabled:
                               description: Define whether the Agent image should support
@@ -13343,7 +13344,8 @@ spec:
                           additionalProperties:
                             type: string
                           description: AdditionalLabels provide labels that will be
-                            added to the Cluster Agent Pods.
+                            added to the different components (Datadog Agent, Cluster
+                            Agent, Cluster Check Runner) Pods.
                           type: object
                         priorityClassName:
                           description: If specified, indicates the pod's priority.
@@ -13510,7 +13512,8 @@ spec:
                               type: object
                           type: object
                         tolerations:
-                          description: If specified, the Agent pod's tolerations.
+                          description: Configure the different components (Datadog
+                            Agent, Cluster Agent, Cluster Check Runner) tolerations.
                           items:
                             description: The pod this Toleration is attached to tolerates
                               any taint that matches the triple <key,value,effect>
@@ -13554,8 +13557,9 @@ spec:
                           type: array
                           x-kubernetes-list-type: atomic
                         volumes:
-                          description: Specify additional volumes in the Datadog Agent
-                            container.
+                          description: Specify additional volumes in the different
+                            components (Datadog Agent, Cluster Agent, Cluster Check
+                            Runner).
                           items:
                             description: Volume represents a named volume in a pod
                               that may be accessed by any container in the pod.
@@ -15145,7 +15149,7 @@ spec:
                           x-kubernetes-list-type: map
                       type: object
                   type: object
-                description: Override the confiuration of the components
+                description: Override the configuration of the components
                 type: object
             type: object
           status:

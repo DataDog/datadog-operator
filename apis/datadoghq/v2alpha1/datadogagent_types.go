@@ -10,7 +10,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// ResourceName is the name of the Component
+// ResourceName is the name of a Deployment Component
 type ResourceName string
 
 const (
@@ -32,9 +32,9 @@ type DatadogAgentSpec struct {
 	// +optional
 	Global *GlobalConfig `json:"global,omitempty"`
 
-	// Override the confiuration of the components
+	// Override the configuration of the components
 	// +optional
-	Override map[ResourceName]ResourceOverride `json:"override,omitempty"`
+	Override map[ResourceName]DatadogAgentResourceOverride `json:"override,omitempty"`
 }
 
 // DatadogFeatures are Features running on the Agent and Cluster Agent.
@@ -60,31 +60,31 @@ type GlobalConfig struct {
 	Registry *string `json:"registry,omitempty"`
 }
 
-// ResourceOverride is the generic description of a component (Cluster Agent Deployment, Node Agent Daemonset...)
+// DatadogAgentResourceOverride is the generic description of a component (Cluster Agent Deployment, Node Agent Daemonset...)
 // TODO: Add the Resource type and name to allow overriding the kind of the Resource (e.g. ExtendedDaemonset)
-type ResourceOverride struct {
-	// PodTemplateOverride is used to configure the components at the pod level in an agnotic way
-	PodTemplateOverride *PodTemplateOverride `json:"podOverride,omitempty"`
+type DatadogAgentResourceOverride struct {
+	// DatadogAgentPodTemplateOverride is used to configure the components at the pod level in an agnotic way
+	DatadogAgentPodTemplateOverride *DatadogAgentPodTemplateOverride `json:"podOverride,omitempty"`
 
 	// Name overrides the default name for the resource
 	Name string `json:"name,omitempty"`
 }
 
-// PodTemplateOverride is the generic description equivalent to a subset of the PodTemplate for a component
-type PodTemplateOverride struct {
+// DatadogAgentPodTemplateOverride is the generic description equivalent to a subset of the PodTemplate for a component
+type DatadogAgentPodTemplateOverride struct {
 	// Agent config contain the basic configuration of the Datadog Process Agent's container.
 	Containers []DatadogAgentGenericContainer `json:"containers,omitempty"`
 
-	// Specify additional volumes in the Datadog Agent container.
+	// Specify additional volumes in the different components (Datadog Agent, Cluster Agent, Cluster Check Runner).
 	// +optional
 	// +listType=map
 	// +listMapKey=name
 	Volumes []corev1.Volume `json:"volumes,omitempty"`
 
-	// The container image of the Datadog Cluster Checks Runner.
+	// The container image of the different components (Datadog Agent, Cluster Agent, Cluster Check Runner).
 	Image *ImageConfig `json:"image,omitempty"`
 
-	// If specified, the Agent pod's tolerations.
+	// Configure the different components (Datadog Agent, Cluster Agent, Cluster Check Runner) tolerations.
 	// +optional
 	// +listType=atomic
 	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
@@ -103,10 +103,10 @@ type PodTemplateOverride struct {
 	// +optional
 	Affinity *corev1.Affinity `json:"affinity,omitempty"`
 
-	// AdditionalAnnotations provide annotations that will be added to the Cluster Agent Pods.
+	// Annotations provide annotations that will be added to the different components (Datadog Agent, Cluster Agent, Cluster Check Runner) Pods.
 	Annotations map[string]string `json:"annotations,omitempty"`
 
-	// AdditionalLabels provide labels that will be added to the Cluster Agent Pods.
+	// AdditionalLabels provide labels that will be added to the different components (Datadog Agent, Cluster Agent, Cluster Check Runner) Pods.
 	Labels map[string]string `json:"labels,omitempty"`
 }
 
@@ -115,17 +115,18 @@ type PodTemplateOverride struct {
 type DatadogAgentGenericContainer struct {
 
 	// Name of the container that is overiden
+	//+optional
 	Name string `json:"name,omitempty"`
 
-	// The Datadog Agent supports many environment variables.
-	// See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables
+	// The different components (Datadog Agent, Cluster Agent, Cluster Check Runner) support many environment variables.
+	// See also: https://docs.datadoghq.com/agent/kubernetes/?tab=helm#environment-variables
 	//
 	// +optional
 	// +listType=map
 	// +listMapKey=name
 	Env []corev1.EnvVar `json:"env,omitempty"`
 
-	// Specify additional volume mounts in the APM Agent container.
+	// Specify additional volume mounts in the container.
 	// +optional
 	// +listType=map
 	// +listMapKey=name
@@ -136,7 +137,7 @@ type DatadogAgentGenericContainer struct {
 	// See also: http://kubernetes.io/docs/user-guide/compute-resources/
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
 
-	// Command allows the specification of custom entrypoint for Trace Agent container
+	// Command allows the specification of custom entrypoint for container
 	// +listType=atomic
 	Command []string `json:"command,omitempty"`
 
@@ -149,11 +150,11 @@ type DatadogAgentGenericContainer struct {
 	// +optional
 	HealthPort *int32 `json:"healthPort,omitempty"`
 
-	// Configure the Readiness Probe of the Agent container
+	// Configure the Readiness Probe of the container
 	// +optional
 	ReadinessProbe *corev1.Probe `json:"readinessProbe,omitempty"`
 
-	// Configure the Liveness Probe of the APM container
+	// Configure the Liveness Probe of the container
 	// +optional
 	LivenessProbe *corev1.Probe `json:"livenessProbe,omitempty"`
 }
