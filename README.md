@@ -51,7 +51,7 @@ See the [How to Contribute page][9].
 [7]: https://github.com/DataDog/datadog-operator/blob/main/docs/cluster_agent_setup.md
 [8]: https://github.com/DataDog/datadog-operator/blob/main/docs/secret_management.md
 [9]: https://github.com/DataDog/datadog-operator/tree/main/docs/how-to-contribute.md
-[10]: https://catalog.redhat.com/software/operators/detail/5e845a42ecb5246c09fe90b6
+[10]: https://catalog.redhat.com/software/operators/detail/5e9874986c5dcb34dfbb1a12
 [11]: https://operatorhub.io/operator/datadog-operator
 [12]: https://github.com/DataDog/datadog-operator/blob/main/docs/configuration.md
 
