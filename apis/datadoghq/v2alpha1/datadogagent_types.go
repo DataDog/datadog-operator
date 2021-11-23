@@ -18,7 +18,7 @@ const (
 	NodeAgentResourceName ResourceName = "nodeAgent"
 	// ClusterAgentResourceName is the name of the Cluster Agent
 	ClusterAgentResourceName ResourceName = "clusterAgent"
-	// ClusterCheckRunnerResourceName is the name of the Cluster Check Runner
+	// ClusterChecksRunnerResourceName is the name of the Cluster Check Runner
 	ClusterChecksRunnerResourceName ResourceName = "clusterChecksRunner"
 )
 
@@ -133,7 +133,8 @@ type DatadogAgentGenericContainer struct {
 	// +listMapKey=mountPath
 	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
 
-	// Make sure to keep requests and limits equal to keep the pods in the Guaranteed QoS class.
+	// Specify the Request and Limits of the pods
+	// To get guaranteed QoS class, specify requests and limits equal.
 	// See also: http://kubernetes.io/docs/user-guide/compute-resources/
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
 
@@ -177,7 +178,7 @@ type ImageConfig struct {
 
 	// Define whether the Agent image should support JMX.
 	// +optional
-	JmxEnabled bool `json:"jmxEnabled,omitempty"`
+	JMXEnabled bool `json:"jmxEnabled,omitempty"`
 
 	// The Kubernetes pull policy:
 	// Use Always, Never or IfNotPresent.

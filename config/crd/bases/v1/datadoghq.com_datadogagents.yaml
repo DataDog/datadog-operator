@@ -11797,7 +11797,7 @@ spec:
     name: v2alpha1
     schema:
       openAPIV3Schema:
-        description: DatadogAgent Deployment with Datadog Operator.
+        description: DatadogAgent Deployment with the Datadog Operator.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -11815,10 +11815,10 @@ spec:
             description: DatadogAgentSpec defines the desired state of DatadogAgent
             properties:
               features:
-                description: Features running on the Agent and Cluster Agent.
+                description: Features running on the Agent and Cluster Agent
                 type: object
               global:
-                description: Global settings to configure the components
+                description: Global settings to configure the agents
                 properties:
                   clusterName:
                     description: Set a unique cluster name to allow scoping hosts
@@ -11846,7 +11846,7 @@ spec:
                       type: string
                     podOverride:
                       description: DatadogAgentPodTemplateOverride is used to configure
-                        the components at the pod level in an agnotic way
+                        the components at the pod level in an agnostic way
                       properties:
                         affinity:
                           description: If specified, the pod's scheduling constraints.
@@ -12777,34 +12777,33 @@ spec:
                           additionalProperties:
                             type: string
                           description: Annotations provide annotations that will be
-                            added to the different components (Datadog Agent, Cluster
-                            Agent, Cluster Check Runner) Pods.
+                            added to the different component (Datadog Agent, Cluster
+                            Agent, Cluster Check Runner) pods.
                           type: object
                         containers:
-                          description: Agent config contain the basic configuration
-                            of the Datadog Process Agent's container.
+                          description: Configure the basic configurations for each
+                            agent container
                           items:
                             description: DatadogAgentGenericContainer is the generic
                               structure describing any container's common configuration.
                             properties:
                               args:
                                 description: Args allows the specification of extra
-                                  args to `Command` parameter
+                                  args to the `Command` parameter
                                 items:
                                   type: string
                                 type: array
                                 x-kubernetes-list-type: atomic
                               command:
-                                description: Command allows the specification of custom
-                                  entrypoint for container
+                                description: Command allows the specification of a
+                                  custom entrypoint for container
                                 items:
                                   type: string
                                 type: array
                                 x-kubernetes-list-type: atomic
                               env:
-                                description: 'The different components (Datadog Agent,
-                                  Cluster Agent, Cluster Check Runner) support many
-                                  environment variables. See also: https://docs.datadoghq.com/agent/kubernetes/?tab=helm#environment-variables'
+                                description: 'Specify additional environmental variables
+                                  in the container See also: https://docs.datadoghq.com/agent/kubernetes/?tab=helm#environment-variables'
                                 items:
                                   description: EnvVar represents an environment variable
                                     present in a Container.
@@ -12925,9 +12924,9 @@ spec:
                                 - name
                                 x-kubernetes-list-type: map
                               healthPort:
-                                description: HealthPort of the agent container for
-                                  internal liveness probe. Must be the same as the
-                                  Liness/Readiness probes.
+                                description: HealthPort of the container for the internal
+                                  liveness probe. Must be the same as the Liveness/Readiness
+                                  probes.
                                 format: int32
                                 type: integer
                               livenessProbe:
@@ -13072,7 +13071,7 @@ spec:
                                     type: integer
                                 type: object
                               name:
-                                description: Name of the container that is overiden
+                                description: Name of the container that is overridden
                                 type: string
                               readinessProbe:
                                 description: Configure the Readiness Probe of the
@@ -13217,9 +13216,9 @@ spec:
                                     type: integer
                                 type: object
                               resources:
-                                description: 'Make sure to keep requests and limits
-                                  equal to keep the pods in the Guaranteed QoS class.
-                                  See also: http://kubernetes.io/docs/user-guide/compute-resources/'
+                                description: 'Specify the Request and Limits of the
+                                  pods To get guaranteed QoS class, specify requests
+                                  and limits equal. See also: http://kubernetes.io/docs/user-guide/compute-resources/'
                                 properties:
                                   limits:
                                     additionalProperties:
@@ -13308,7 +13307,7 @@ spec:
                             name:
                               description: 'Define the image to use: Use "gcr.io/datadoghq/agent:latest"
                                 for Datadog Agent 7 Use "datadog/dogstatsd:latest"
-                                for Standalone Datadog Agent DogStatsD6 Use "gcr.io/datadoghq/cluster-agent:latest"
+                                for standalone Datadog Agent DogStatsD 7 Use "gcr.io/datadoghq/cluster-agent:latest"
                                 for Datadog Cluster Agent Use "agent" with the registry
                                 and tag configurations for <registry>/agent:<tag>
                                 Use "cluster-agent" with the registry and tag configurations
@@ -13319,7 +13318,7 @@ spec:
                                 Never or IfNotPresent.'
                               type: string
                             pullSecrets:
-                              description: It is possible to specify docker registry
+                              description: It is possible to specify Docker registry
                                 credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod
                               items:
                                 description: LocalObjectReference contains enough
@@ -13335,17 +13334,17 @@ spec:
                                 type: object
                               type: array
                             tag:
-                              description: 'Define the image version to use: To be
-                                used if the Name field does not correspond to a full
-                                image string.'
+                              description: Define the image tag to use. To be used
+                                if the Name field does not correspond to a full image
+                                string.
                               type: string
                           type: object
                         labels:
                           additionalProperties:
                             type: string
                           description: AdditionalLabels provide labels that will be
-                            added to the different components (Datadog Agent, Cluster
-                            Agent, Cluster Check Runner) Pods.
+                            added to the different component (Datadog Agent, Cluster
+                            Agent, Cluster Check Runner) pods.
                           type: object
                         priorityClassName:
                           description: If specified, indicates the pod's priority.
@@ -13512,7 +13511,7 @@ spec:
                               type: object
                           type: object
                         tolerations:
-                          description: Configure the different components (Datadog
+                          description: Configure the different component (Datadog
                             Agent, Cluster Agent, Cluster Check Runner) tolerations.
                           items:
                             description: The pod this Toleration is attached to tolerates
@@ -15149,7 +15148,7 @@ spec:
                           x-kubernetes-list-type: map
                       type: object
                   type: object
-                description: Override the configuration of the components
+                description: Override the default configurations of the agents
                 type: object
             type: object
           status:

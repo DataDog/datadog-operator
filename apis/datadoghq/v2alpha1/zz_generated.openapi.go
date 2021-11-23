@@ -30,7 +30,7 @@ func schema__apis_datadoghq_v2alpha1_DatadogAgent(ref common.ReferenceCallback) 
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DatadogAgent Deployment with Datadog Operator.",
+				Description: "DatadogAgent Deployment with the Datadog Operator.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
@@ -82,7 +82,7 @@ func schema__apis_datadoghq_v2alpha1_DatadogAgentGenericContainer(ref common.Ref
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Name of the container that is overiden",
+							Description: "Name of the container that is overridden",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -97,7 +97,7 @@ func schema__apis_datadoghq_v2alpha1_DatadogAgentGenericContainer(ref common.Ref
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "The different components (Datadog Agent, Cluster Agent, Cluster Check Runner) support many environment variables. See also: https://docs.datadoghq.com/agent/kubernetes/?tab=helm#environment-variables",
+							Description: "Specify additional environmental variables in the container See also: https://docs.datadoghq.com/agent/kubernetes/?tab=helm#environment-variables",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -134,7 +134,7 @@ func schema__apis_datadoghq_v2alpha1_DatadogAgentGenericContainer(ref common.Ref
 					},
 					"resources": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Make sure to keep requests and limits equal to keep the pods in the Guaranteed QoS class. See also: http://kubernetes.io/docs/user-guide/compute-resources/",
+							Description: "Specify the Request and Limits of the pods To get guaranteed QoS class, specify requests and limits equal. See also: http://kubernetes.io/docs/user-guide/compute-resources/",
 							Ref:         ref("k8s.io/api/core/v1.ResourceRequirements"),
 						},
 					},
@@ -145,7 +145,7 @@ func schema__apis_datadoghq_v2alpha1_DatadogAgentGenericContainer(ref common.Ref
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "Command allows the specification of custom entrypoint for container",
+							Description: "Command allows the specification of a custom entrypoint for container",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -165,7 +165,7 @@ func schema__apis_datadoghq_v2alpha1_DatadogAgentGenericContainer(ref common.Ref
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "Args allows the specification of extra args to `Command` parameter",
+							Description: "Args allows the specification of extra args to the `Command` parameter",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -180,7 +180,7 @@ func schema__apis_datadoghq_v2alpha1_DatadogAgentGenericContainer(ref common.Ref
 					},
 					"healthPort": {
 						SchemaProps: spec.SchemaProps{
-							Description: "HealthPort of the agent container for internal liveness probe. Must be the same as the Liness/Readiness probes.",
+							Description: "HealthPort of the container for the internal liveness probe. Must be the same as the Liveness/Readiness probes.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
@@ -246,14 +246,14 @@ func schema__apis_datadoghq_v2alpha1_ImageConfig(ref common.ReferenceCallback) c
 				Properties: map[string]spec.Schema{
 					"name": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Define the image to use: Use \"gcr.io/datadoghq/agent:latest\" for Datadog Agent 7 Use \"datadog/dogstatsd:latest\" for Standalone Datadog Agent DogStatsD6 Use \"gcr.io/datadoghq/cluster-agent:latest\" for Datadog Cluster Agent Use \"agent\" with the registry and tag configurations for <registry>/agent:<tag> Use \"cluster-agent\" with the registry and tag configurations for <registry>/cluster-agent:<tag>",
+							Description: "Define the image to use: Use \"gcr.io/datadoghq/agent:latest\" for Datadog Agent 7 Use \"datadog/dogstatsd:latest\" for standalone Datadog Agent DogStatsD 7 Use \"gcr.io/datadoghq/cluster-agent:latest\" for Datadog Cluster Agent Use \"agent\" with the registry and tag configurations for <registry>/agent:<tag> Use \"cluster-agent\" with the registry and tag configurations for <registry>/cluster-agent:<tag>",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"tag": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Define the image version to use: To be used if the Name field does not correspond to a full image string.",
+							Description: "Define the image tag to use. To be used if the Name field does not correspond to a full image string.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -274,7 +274,7 @@ func schema__apis_datadoghq_v2alpha1_ImageConfig(ref common.ReferenceCallback) c
 					},
 					"pullSecrets": {
 						SchemaProps: spec.SchemaProps{
-							Description: "It is possible to specify docker registry credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod",
+							Description: "It is possible to specify Docker registry credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
