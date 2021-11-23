@@ -14,25 +14,25 @@ import (
 type ResourceName string
 
 const (
-	// NodeAgentResourceName is the name of the Datadog Agent
+	// NodeAgentResourceName is the name of the Datadog Node Agent
 	NodeAgentResourceName ResourceName = "nodeAgent"
 	// ClusterAgentResourceName is the name of the Cluster Agent
 	ClusterAgentResourceName ResourceName = "clusterAgent"
 	// ClusterCheckRunnerResourceName is the name of the Cluster Check Runner
-	ClusterCheckRunnerResourceName ResourceName = "clusterCheckRunner"
+	ClusterChecksRunnerResourceName ResourceName = "clusterChecksRunner"
 )
 
 // DatadogAgentSpec defines the desired state of DatadogAgent
 type DatadogAgentSpec struct {
-	// Features running on the Agent and Cluster Agent.
+	// Features running on the Agent and Cluster Agent
 	// +optional
 	Features *DatadogFeatures `json:"features,omitempty"`
 
-	// Global settings to configure the components
+	// Global settings to configure the agents
 	// +optional
 	Global *GlobalConfig `json:"global,omitempty"`
 
-	// Override the configuration of the components
+	// Override the default configurations of the agents
 	// +optional
 	Override map[ResourceName]DatadogAgentResourceOverride `json:"override,omitempty"`
 }
@@ -63,7 +63,7 @@ type GlobalConfig struct {
 // DatadogAgentResourceOverride is the generic description of a component (Cluster Agent Deployment, Node Agent Daemonset...)
 // TODO: Add the Resource type and name to allow overriding the kind of the Resource (e.g. ExtendedDaemonset)
 type DatadogAgentResourceOverride struct {
-	// DatadogAgentPodTemplateOverride is used to configure the components at the pod level in an agnotic way
+	// DatadogAgentPodTemplateOverride is used to configure the components at the pod level in an agnostic way
 	DatadogAgentPodTemplateOverride *DatadogAgentPodTemplateOverride `json:"podOverride,omitempty"`
 
 	// Name overrides the default name for the resource
@@ -72,7 +72,7 @@ type DatadogAgentResourceOverride struct {
 
 // DatadogAgentPodTemplateOverride is the generic description equivalent to a subset of the PodTemplate for a component
 type DatadogAgentPodTemplateOverride struct {
-	// Agent config contain the basic configuration of the Datadog Process Agent's container.
+	// Configure the basic configurations for each agent container
 	Containers []DatadogAgentGenericContainer `json:"containers,omitempty"`
 
 	// Specify additional volumes in the different components (Datadog Agent, Cluster Agent, Cluster Check Runner).
@@ -84,7 +84,7 @@ type DatadogAgentPodTemplateOverride struct {
 	// The container image of the different components (Datadog Agent, Cluster Agent, Cluster Check Runner).
 	Image *ImageConfig `json:"image,omitempty"`
 
-	// Configure the different components (Datadog Agent, Cluster Agent, Cluster Check Runner) tolerations.
+	// Configure the different component (Datadog Agent, Cluster Agent, Cluster Check Runner) tolerations.
 	// +optional
 	// +listType=atomic
 	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
@@ -103,10 +103,10 @@ type DatadogAgentPodTemplateOverride struct {
 	// +optional
 	Affinity *corev1.Affinity `json:"affinity,omitempty"`
 
-	// Annotations provide annotations that will be added to the different components (Datadog Agent, Cluster Agent, Cluster Check Runner) Pods.
+	// Annotations provide annotations that will be added to the different component (Datadog Agent, Cluster Agent, Cluster Check Runner) pods.
 	Annotations map[string]string `json:"annotations,omitempty"`
 
-	// AdditionalLabels provide labels that will be added to the different components (Datadog Agent, Cluster Agent, Cluster Check Runner) Pods.
+	// AdditionalLabels provide labels that will be added to the different component (Datadog Agent, Cluster Agent, Cluster Check Runner) pods.
 	Labels map[string]string `json:"labels,omitempty"`
 }
 
@@ -114,11 +114,11 @@ type DatadogAgentPodTemplateOverride struct {
 // +k8s:openapi-gen=true
 type DatadogAgentGenericContainer struct {
 
-	// Name of the container that is overiden
+	// Name of the container that is overridden
 	//+optional
 	Name string `json:"name,omitempty"`
 
-	// The different components (Datadog Agent, Cluster Agent, Cluster Check Runner) support many environment variables.
+	// Specify additional environmental variables in the container
 	// See also: https://docs.datadoghq.com/agent/kubernetes/?tab=helm#environment-variables
 	//
 	// +optional
@@ -137,16 +137,16 @@ type DatadogAgentGenericContainer struct {
 	// See also: http://kubernetes.io/docs/user-guide/compute-resources/
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
 
-	// Command allows the specification of custom entrypoint for container
+	// Command allows the specification of a custom entrypoint for container
 	// +listType=atomic
 	Command []string `json:"command,omitempty"`
 
-	// Args allows the specification of extra args to `Command` parameter
+	// Args allows the specification of extra args to the `Command` parameter
 	// +listType=atomic
 	Args []string `json:"args,omitempty"`
 
-	// HealthPort of the agent container for internal liveness probe.
-	// Must be the same as the Liness/Readiness probes.
+	// HealthPort of the container for the internal liveness probe.
+	// Must be the same as the Liveness/Readiness probes.
 	// +optional
 	HealthPort *int32 `json:"healthPort,omitempty"`
 
@@ -164,13 +164,13 @@ type DatadogAgentGenericContainer struct {
 type ImageConfig struct {
 	// Define the image to use:
 	// Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7
-	// Use "datadog/dogstatsd:latest" for Standalone Datadog Agent DogStatsD6
+	// Use "datadog/dogstatsd:latest" for standalone Datadog Agent DogStatsD 7
 	// Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent
 	// Use "agent" with the registry and tag configurations for <registry>/agent:<tag>
 	// Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>
 	Name string `json:"name,omitempty"`
 
-	// Define the image version to use:
+	// Define the image tag to use.
 	// To be used if the Name field does not correspond to a full image string.
 	// +optional
 	Tag string `json:"tag,omitempty"`
@@ -183,7 +183,7 @@ type ImageConfig struct {
 	// Use Always, Never or IfNotPresent.
 	PullPolicy *corev1.PullPolicy `json:"pullPolicy,omitempty"`
 
-	// It is possible to specify docker registry credentials.
+	// It is possible to specify Docker registry credentials.
 	// See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod
 	// +optional
 	PullSecrets *[]corev1.LocalObjectReference `json:"pullSecrets,omitempty"`
@@ -198,7 +198,7 @@ type DatadogAgentStatus struct {
 	DefaultOverride *DatadogAgentSpec `json:"defaultOverride,omitempty"`
 }
 
-// DatadogAgent Deployment with Datadog Operator.
+// DatadogAgent Deployment with the Datadog Operator.
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:path=datadogagents,shortName=dd
