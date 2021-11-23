@@ -44,7 +44,7 @@ See the [How to Contribute page][9].
 
 [1]: https://github.com/DataDog/datadog-agent/
 [2]: https://github.com/DataDog/extendeddaemonset
-[3]: https://github.com/helm/charts/tree/main/stable/datadog
+[3]: https://github.com/DataDog/helm-charts
 [4]: https://github.com/DataDog/datadog-agent/tree/6.15.0/Dockerfiles/manifests
 [5]: https://github.com/DataDog/datadog-operator/blob/main/docs/getting_started.md
 [6]: https://github.com/DataDog/datadog-operator/blob/main/docs/custom_check.md
