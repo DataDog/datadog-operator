@@ -6,22 +6,6 @@ metadata:
   creationTimestamp: null
   name: datadogagents.datadoghq.com
 spec:
-  additionalPrinterColumns:
-  - JSONPath: .status.conditions[?(@.type=='Active')].status
-    name: active
-    type: string
-  - JSONPath: .status.agent.status
-    name: agent
-    type: string
-  - JSONPath: .status.clusterAgent.status
-    name: cluster-agent
-    type: string
-  - JSONPath: .status.clusterChecksRunner.status
-    name: cluster-checks-runner
-    type: string
-  - JSONPath: .metadata.creationTimestamp
-    name: age
-    type: date
   group: datadoghq.com
   names:
     kind: DatadogAgent
