@@ -26,6 +26,7 @@ type DatadogAgentStatus struct {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:unservedversion
 
 // DatadogAgent is the Schema for the datadogagents API
 type DatadogAgent struct {
