@@ -110,6 +110,9 @@ func DefaultDatadogAgent(dda *DatadogAgent) *DatadogAgentStatus {
 		DefaultOverride: &DatadogAgentSpec{},
 	}
 
+	// Creds
+	defaultCredentials(&dda.Spec, dso)
+
 	// Override spec given featureset
 	FeatureOverride(&dda.Spec, dso.DefaultOverride)
 
@@ -126,18 +129,36 @@ func DefaultDatadogAgent(dda *DatadogAgent) *DatadogAgentStatus {
 	// CLC
 	dso.DefaultOverride.ClusterChecksRunner = *DefaultDatadogAgentSpecClusterChecksRunner(&dda.Spec.ClusterChecksRunner)
 
-	// Creds
-	if dda.Spec.Credentials == nil {
-		dda.Spec.Credentials = &AgentCredentials{}
+	return dso
+}
+
+func defaultCredentials(ddaSpec *DatadogAgentSpec, dso *DatadogAgentStatus) {
+	if ddaSpec.Credentials == nil {
+		ddaSpec.Credentials = &AgentCredentials{}
 	}
-	if dda.Spec.Credentials.UseSecretBackend == nil {
-		dda.Spec.Credentials.UseSecretBackend = NewBoolPointer(false)
+	if ddaSpec.Credentials.UseSecretBackend == nil {
+		ddaSpec.Credentials.UseSecretBackend = NewBoolPointer(false)
+		if dso.DefaultOverride == nil {
+			dso.DefaultOverride = &DatadogAgentSpec{}
+		}
 		dso.DefaultOverride.Credentials = &AgentCredentials{
-			UseSecretBackend: dda.Spec.Credentials.UseSecretBackend,
+			UseSecretBackend: ddaSpec.Credentials.UseSecretBackend,
 		}
 	}
 
-	return dso
+	// Generate a Token for clusterAgent-Agent communication if not provided
+	if ddaSpec.Credentials.Token == "" {
+		if dso.ClusterAgent == nil {
+			dso.ClusterAgent = &DeploymentStatus{}
+		}
+		if dso.ClusterAgent.GeneratedToken == "" {
+			dso.ClusterAgent.GeneratedToken = generateRandomString(32)
+		}
+	} else if dso.ClusterAgent != nil {
+		// cleanup the generated token if after an update the user specify one
+		// in the spec.Credentials.Token
+		dso.ClusterAgent.GeneratedToken = ""
+	}
 }
 
 // FeatureOverride defaults the feature section of the DatadogAgent

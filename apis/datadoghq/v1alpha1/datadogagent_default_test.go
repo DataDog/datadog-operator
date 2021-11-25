@@ -11,6 +11,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
+
 	"github.com/google/go-cmp/cmp"
 	assert "github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
@@ -990,6 +991,71 @@ func TestDefaultDatadogAgentSpecAgentApm(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := DefaultDatadogAgentSpecAgentApm(tt.input)
 			assert.True(t, IsEqualStruct(got, tt.want), "TestDefaultDatadogAgentSpecAgentApm defaulting \ndiff = %s", cmp.Diff(got, tt.want))
+		})
+	}
+}
+
+func Test_defaultCredentials(t *testing.T) {
+	type args struct {
+		ddaSpec *DatadogAgentSpec
+		dso     *DatadogAgentStatus
+	}
+	tests := []struct {
+		name              string
+		args              args
+		wantGenerateToken bool
+	}{
+		{
+			name: "token_in_spec, should not generate a token",
+			args: args{
+				ddaSpec: &DatadogAgentSpec{
+					Credentials: &AgentCredentials{
+						Token: "foobarfoobar",
+					},
+				},
+				dso: &DatadogAgentStatus{
+					ClusterAgent: &DeploymentStatus{},
+				},
+			},
+			wantGenerateToken: false,
+		},
+		{
+			name: "no token in spec, should generate a token",
+			args: args{
+				ddaSpec: &DatadogAgentSpec{
+					Credentials: &AgentCredentials{},
+				},
+				dso: &DatadogAgentStatus{
+					ClusterAgent: &DeploymentStatus{},
+				},
+			},
+			wantGenerateToken: true,
+		},
+		{
+			name: "token in spec + previous token in status: should remove the generated token",
+			args: args{
+				ddaSpec: &DatadogAgentSpec{
+					Credentials: &AgentCredentials{
+						Token: "foobarfoobar",
+					},
+				},
+				dso: &DatadogAgentStatus{
+					ClusterAgent: &DeploymentStatus{
+						GeneratedToken: "previous_generated_token",
+					},
+				},
+			},
+			wantGenerateToken: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			defaultCredentials(tt.args.ddaSpec, tt.args.dso)
+			if tt.wantGenerateToken {
+				assert.False(t, tt.args.dso.ClusterAgent.GeneratedToken == "", "the generated token should not be empty, value:%s", tt.args.dso.ClusterAgent.GeneratedToken)
+			} else {
+				assert.False(t, tt.args.dso.ClusterAgent.GeneratedToken != "", "the generated token should be empty, value:%s", tt.args.dso.ClusterAgent.GeneratedToken)
+			}
 		})
 	}
 }

@@ -33,6 +33,7 @@ func newAgentSecret(name string, dda *datadoghqv1alpha1.DatadogAgent) (*corev1.S
 
 	creds := dda.Spec.Credentials
 	data := dataFromCredentials(&creds.DatadogCredentials)
+
 	// Agent credentials has two more fields
 	if creds.Token != "" {
 		data[datadoghqv1alpha1.DefaultTokenKey] = []byte(creds.Token)
