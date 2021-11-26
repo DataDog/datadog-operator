@@ -84,7 +84,7 @@ func buildMonitor(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) (*da
 			thresholdWindows.SetRecoveryWindow(*options.ThresholdWindows.RecoveryWindow)
 		}
 		if options.ThresholdWindows.TriggerWindow != nil {
-			thresholdWindows.SetRecoveryWindow(*options.ThresholdWindows.TriggerWindow)
+			thresholdWindows.SetTriggerWindow(*options.ThresholdWindows.TriggerWindow)
 		}
 	}
 
