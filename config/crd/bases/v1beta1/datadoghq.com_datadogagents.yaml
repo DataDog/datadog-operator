@@ -11364,7 +11364,7 @@ spec:
     served: true
     storage: true
   - name: v2alpha1
-    served: true
+    served: false
     storage: false
 status:
   acceptedNames:
