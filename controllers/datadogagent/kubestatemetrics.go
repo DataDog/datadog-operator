@@ -255,6 +255,12 @@ func buildKubeStateMetricsCoreRBAC(dda *datadoghqv1alpha1.DatadogAgent, name, ve
 				datadoghqv1alpha1.LeasesResource,
 			},
 		},
+		{
+			APIGroups: []string{datadoghqv1alpha1.AutoscalingK8sIoAPIGroup},
+			Resources: []string{
+				datadoghqv1alpha1.VPAResource,
+			},
+		},
 	}
 
 	clusterRole.Rules = rbacRules
