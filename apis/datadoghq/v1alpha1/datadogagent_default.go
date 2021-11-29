@@ -1226,7 +1226,7 @@ func DefaultNetworkPolicy(policy *NetworkPolicySpec) *NetworkPolicySpec {
 		policyOverride.Create = policy.Create
 	}
 
-	if *policy.Create {
+	if BoolValue(policy.Create) {
 		if policy.Flavor == "" {
 			policy.Flavor = NetworkPolicyFlavorKubernetes
 			policyOverride.Flavor = policy.Flavor
