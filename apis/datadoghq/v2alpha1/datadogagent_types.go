@@ -38,9 +38,155 @@ type DatadogAgentSpec struct {
 }
 
 // DatadogFeatures are Features running on the Agent and Cluster Agent.
-// TODO add the features (APM, Kubernetes State Metrics Core...)
 // +k8s:openapi-gen=true
-type DatadogFeatures struct{}
+type DatadogFeatures struct {
+	// Application-level features
+	// APM (Application Performance Monitoring) configuration
+	APM *APMFeatureConfig `json:"apm,omitempty"`
+	// Logs configuration
+	Logs *LogsFeatureConfig `json:"logs,omitempty"`
+	// Process configuration
+	Process *ProcessFeatureConfig `json:"process,omitempty"`
+	// CWS (Cloud Workload Security) configuration
+	CWS *CWSFeatureConfig `json:"cws,omitempty"`
+	// CWS (Cloud Security Posture Management) configuration
+	CSPM *CSPMFeatureConfig `json:"cspm,omitempty"`
+	// NPM (NetworkPerformanceMonitoring) configuration
+	NPM *NPMFeatureConfig `json:"npm,omitempty"`
+
+	// Cluster-level features
+	// OrchestratorExplorer check configuration
+	OrchestratorExplorer *OrchestratorExplorerFeatureConfig `json:"orchestratorExplorer,omitempty"`
+	// KubeStateMetricsCore check configuration
+	KubeStateMetricsCore *KubeStateMetricsCoreFeatureConfig `json:"kubeStateMetricsCore,omitempty"`
+	// AdmissionController configuration
+	AdmissionController *AdmissionControllerFeatureConfig `json:"admissionController,omitempty"`
+	// ExternalMetricsServer configuration
+	ExternalMetricsServer *ExternalMetricsServerFeatureConfig `json:"externalMetricsServer,omitempty"`
+	// ClusterChecksRunner configuration
+	ClusterChecksRunner *ClusterChecksRunnerFeatureConfig `json:"clusterChecksRunner,omitempty"`
+	// DatadogMonitor configuration
+	DatadogMonitor *DatadogMonitorFeatureConfig `json:"datadogMonitor,omitempty"`
+}
+
+// Configuration structs for each feature in DatadogFeatures. These options are limited to the most
+// commonly configured parameters; other parameters will use default values unless specified in the spec.
+// Note that any conflicting configuration in the DatadogAgentSpec will take precedence.
+
+// APMFeatureConfig contains APM (Application Performance Monitoring) configuration.
+// APM runs in the Trace Agent
+type APMFeatureConfig struct {
+	// Enabled enables Application Performance Monitoring
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+	// HostPort takes a port number (0 < x < 65536) to expose on the host. (Most containers do not need this.)
+	// If HostNetwork is enabled, this value must match the ContainerPort
+	// +optional
+	HostPort *int32 `json:"hostPort,omitempty"`
+}
+
+// LogsFeatureConfig contains Logs configuration.
+// Logs collection is run in the Agent
+type LogsFeatureConfig struct {
+	// Enabled enables Log Collection
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+	// ContainerCollectAll enables Log Collection from all containers
+	// +optional
+	ContainerCollectAll *bool `json:"containerCollectAll,omitempty"`
+}
+
+// TODO the names of configuration parameters are under discussion by the Process team;
+// update this section when finalized.
+// ProcessFeatureConfig contains Process monitoring configuration.
+// Process monitoring is run in the Process Agent
+type ProcessFeatureConfig struct {
+	// Enabled enables Process monitoring
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+	// ProcessCollectionEnabled enables Process Collection
+	// +optional
+	ProcessCollectionEnabled *bool `json:"processCollectionEnabled,omitempty"`
+}
+
+// CWSFeatureConfig contains CWS (Cloud Workload Security) configuration.
+// CWS runs in the Security Agent
+type CWSFeatureConfig struct {
+	// Enabled enables Cloud Workload Security
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// CSPMFeatureConfig contains CSPM (Cloud Security Posture Management) configuration.
+// CSPM runs in the Security Agent
+type CSPMFeatureConfig struct {
+	// Enabled enables Cloud Security Posture Management
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// NPMFeatureConfig contains NPM (Network Performance Monitoring) feature configuration.
+// Network Performance Monitoring runs in the System Probe
+type NPMFeatureConfig struct {
+	// Enabled enables Network Performance Monitoring
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// OrchestratorExplorerFeatureConfig contains the Orchestrator Explorer check feature configuration.
+// The Orchestrator Explorer check runs in the Process and Cluster Agents (or Cluster Check Runners)
+// See also: https://docs.datadoghq.com/infrastructure/livecontainers/#kubernetes-resources
+// +k8s:openapi-gen=true
+type OrchestratorExplorerFeatureConfig struct {
+	// Enabled enables the Orchestrator Explorer
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// KubeStateMetricsCoreFeatureConfig contains the Kube State Metrics Core check feature configuration.
+// The Kube State Metrics Core check runs in the Cluster Agent (or Cluster Check Runners)
+// See also: https://docs.datadoghq.com/integrations/kubernetes_state_core
+// +k8s:openapi-gen=true
+type KubeStateMetricsCoreFeatureConfig struct {
+	// Enabled enables Kube State Metrics Core
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// AdmissionControllerFeatureConfig contains the Admission Controller feature configuration.
+// The Admission Controller runs in the Cluster Agent
+type AdmissionControllerFeatureConfig struct {
+	// Enabled enables the Admission Controller
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+	// MutateUnlabelled enables config injection without the need of pod label 'admission.datadoghq.com/enabled="true"'
+	// +optional
+	MutateUnlabelled *bool `json:"mutateUnlabelled,omitempty"`
+}
+
+// ExternalMetricsServerFeatureConfig contains the External Metrics Server feature configuration.
+// The External Metrics Server runs in the Cluster Agent
+type ExternalMetricsServerFeatureConfig struct {
+	// Enabled enables the External Metrics Server
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// ClusterChecksRunnerFeatureConfig contains the Cluster Checks Runner feature configuration.
+// Cluster Checks Runners are specialized Agents. They are used to run Cluster Checks dispatched by the Cluster Agent
+type ClusterChecksRunnerFeatureConfig struct {
+	// Enabled enables Cluster Checks Runners to run all Cluster Checks
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// DatadogMonitorFeatureConfig contains the Datadog Monitor feature configuration.
+// DatadogMonitor is run by the Datadog Operator
+type DatadogMonitorFeatureConfig struct {
+	// Enabled enables Datadog Monitors
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
 
 // GlobalConfig is a set of parameters that are used to configure all the components of the Datadog Operator
 type GlobalConfig struct {
