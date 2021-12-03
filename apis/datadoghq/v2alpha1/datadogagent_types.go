@@ -37,158 +37,375 @@ type DatadogAgentSpec struct {
 	Override map[ResourceName]DatadogAgentResourceOverride `json:"override,omitempty"`
 }
 
-// DatadogFeatures are Features running on the Agent and Cluster Agent.
+// DatadogFeatures are features running on the Agent and Cluster Agent.
 // +k8s:openapi-gen=true
 type DatadogFeatures struct {
 	// Application-level features
-	// APM (Application Performance Monitoring) configuration
+
+	// LogCollection configuration.
+	LogCollection *LogCollectionFeatureConfig `json:"logCollection,omitempty"`
+	// ProcessCollection configuration.
+	ProcessCollection *ProcessCollectionFeatureConfig `json:"processCollection,omitempty"`
+	// ContainerCollection configuration.
+	ContainerCollection *ContainerCollectionFeatureConfig `json:"containerCollection,omitempty"`
+	// APM (Application Performance Monitoring) configuration.
 	APM *APMFeatureConfig `json:"apm,omitempty"`
-	// Logs configuration
-	Logs *LogsFeatureConfig `json:"logs,omitempty"`
-	// Process configuration
-	Process *ProcessFeatureConfig `json:"process,omitempty"`
-	// CWS (Cloud Workload Security) configuration
-	CWS *CWSFeatureConfig `json:"cws,omitempty"`
-	// CWS (Cloud Security Posture Management) configuration
+	// CSPM (Cloud Security Posture Management) configuration.
 	CSPM *CSPMFeatureConfig `json:"cspm,omitempty"`
-	// NPM (NetworkPerformanceMonitoring) configuration
+	// CWS (Cloud Workload Security) configuration.
+	CWS *CWSFeatureConfig `json:"cws,omitempty"`
+	// NPM (Network Performance Monitoring) configuration.
 	NPM *NPMFeatureConfig `json:"npm,omitempty"`
+	// USM (Universal Service Monitoring) configuration.
+	USM *USMFeatureConfig `json:"usm,omitempty"`
 
 	// Cluster-level features
-	// OrchestratorExplorer check configuration
+
+	// OrchestratorExplorer check configuration.
 	OrchestratorExplorer *OrchestratorExplorerFeatureConfig `json:"orchestratorExplorer,omitempty"`
-	// KubeStateMetricsCore check configuration
+	// KubeStateMetricsCore check configuration.
 	KubeStateMetricsCore *KubeStateMetricsCoreFeatureConfig `json:"kubeStateMetricsCore,omitempty"`
-	// AdmissionController configuration
+	// AdmissionController configuration.
 	AdmissionController *AdmissionControllerFeatureConfig `json:"admissionController,omitempty"`
-	// ExternalMetricsServer configuration
+	// ExternalMetricsServer configuration.
 	ExternalMetricsServer *ExternalMetricsServerFeatureConfig `json:"externalMetricsServer,omitempty"`
-	// ClusterChecksRunner configuration
+	// ClusterChecksRunner configuration.
 	ClusterChecksRunner *ClusterChecksRunnerFeatureConfig `json:"clusterChecksRunner,omitempty"`
-	// DatadogMonitor configuration
+	// PrometheusScrape configuration.
+	PrometheusScrape *PrometheusScrapeFeatureConfig `json:"prometheusScrape,omitempty"`
+	// DatadogMonitor configuration.
 	DatadogMonitor *DatadogMonitorFeatureConfig `json:"datadogMonitor,omitempty"`
 }
 
-// Configuration structs for each feature in DatadogFeatures. These options are limited to the most
-// commonly configured parameters; other parameters will use default values unless specified in the spec.
-// Note that any conflicting configuration in the DatadogAgentSpec will take precedence.
+// Configuration structs for each feature in DatadogFeatures. All parameters are optional and have default values when necessary.
+// Note: configuration in DatadogAgentSpec.Override takes precedence.
 
 // APMFeatureConfig contains APM (Application Performance Monitoring) configuration.
-// APM runs in the Trace Agent
+// APM runs in the Trace Agent.
 type APMFeatureConfig struct {
-	// Enabled enables Application Performance Monitoring
+	// Enabled enables Application Performance Monitoring.
+	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+
 	// HostPort takes a port number (0 < x < 65536) to expose on the host. (Most containers do not need this.)
-	// If HostNetwork is enabled, this value must match the ContainerPort
+	// If HostNetwork is enabled, this value must match the ContainerPort.
+	// Default: 8126
 	// +optional
 	HostPort *int32 `json:"hostPort,omitempty"`
+
+	// EnableUnixDomainSocket enables UDS configuration.
+	// See also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables
+	// +optional
+	EnableUnixDomainSocket *bool `json:"enableUnixDomainSocket,omitempty"`
+
+	// SocketPath defines the socket path used when APM over UDS is enabled.
+	// See also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables
+	// Default: `/var/run/datadog/apm.socket`
+	// +optional
+	SocketPath *string `json:"socketPath,omitempty"`
 }
 
-// LogsFeatureConfig contains Logs configuration.
-// Logs collection is run in the Agent
-type LogsFeatureConfig struct {
-	// Enabled enables Log Collection
+// LogCollectionFeatureConfig contains Logs configuration.
+// Logs collection is run in the Agent.
+type LogCollectionFeatureConfig struct {
+	// Enabled enables Log collection.
+	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
-	// ContainerCollectAll enables Log Collection from all containers
+
+	// ContainerCollectAll enables Log collection from all containers.
+	// Default: false
 	// +optional
 	ContainerCollectAll *bool `json:"containerCollectAll,omitempty"`
+
+	// ContainerCollectUsingFiles enables log collection from files in `/var/log/pods instead` of using the container runtime API.
+	// Collecting logs from files is usually the most efficient way of collecting logs.
+	// See also: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup
+	// Default: true
+	// +optional
+	ContainerCollectUsingFiles *bool `json:"containerCollectUsingFiles,omitempty"`
+
+	// ContainerLogsPath allows log collection from the container log path.
+	// Set to a different path if you are not using the Docker runtime.
+	// See also: https://docs.datadoghq.com/agent/kubernetes/daemonset_setup/?tab=k8sfile#create-manifest
+	// Default: `/var/lib/docker/containers`
+	// +optional
+	ContainerLogsPath *string `json:"containerLogsPath,omitempty"`
+
+	// PodLogsPath allows log collection from a pod log path.
+	// Default: `/var/log/pods`
+	// +optional
+	PodLogsPath *string `json:"podLogsPath,omitempty"`
+
+	// ContainerSymlinksPath allows log collection to use symbolic links in this directory to validate container ID -> pod.
+	// Default: `/var/log/containers`
+	// +optional
+	ContainerSymlinksPath *string `json:"containerSymlinksPath,omitempty"`
+
+	// TempStoragePath (always mounted from the host) is used by the Agent to store information about processed log files.
+	// If the Agent is restarted, it starts tailing the log files immediately.
+	// Default: `/var/lib/datadog-agent/logs`
+	// +optional
+	TempStoragePath *string `json:"tempStoragePath,omitempty"`
+
+	// OpenFilesLimit sets the maximum number of log files that the Datadog Agent tails.
+	// Increasing this limit can increase resource consumption of the Agent.
+	// See also: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup
+	// Default: 100
+	// +optional
+	OpenFilesLimit *int32 `json:"openFilesLimit,omitempty"`
 }
 
-// TODO the names of configuration parameters are under discussion by the Process team;
-// update this section when finalized.
-// ProcessFeatureConfig contains Process monitoring configuration.
-// Process monitoring is run in the Process Agent
-type ProcessFeatureConfig struct {
-	// Enabled enables Process monitoring
+// ProcessCollectionFeatureConfig contains Process Collection configuration.
+// Process Collection is run in the Process Agent.
+type ProcessCollectionFeatureConfig struct {
+	// Enabled enables Process monitoring.
+	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
-	// ProcessCollectionEnabled enables Process Collection
-	// +optional
-	ProcessCollectionEnabled *bool `json:"processCollectionEnabled,omitempty"`
 }
 
-// CWSFeatureConfig contains CWS (Cloud Workload Security) configuration.
-// CWS runs in the Security Agent
-type CWSFeatureConfig struct {
-	// Enabled enables Cloud Workload Security
+// ContainerCollectionFeatureConfig contains Container Collection configuration.
+// Container Collection is run in the Process Agent.
+type ContainerCollectionFeatureConfig struct {
+	// Enabled enables Process monitoring.
+	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // CSPMFeatureConfig contains CSPM (Cloud Security Posture Management) configuration.
-// CSPM runs in the Security Agent
+// CSPM runs in the Security Agent.
 type CSPMFeatureConfig struct {
-	// Enabled enables Cloud Security Posture Management
+	// Enabled enables Cloud Security Posture Management.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// CheckInterval defines the check interval.
+	// +optional
+	CheckInterval *metav1.Duration `json:"checkInterval,omitempty"`
+
+	// ConfigDir defines the config directory containing compliance benchmarks.
+	// +optional
+	ConfigDir *ConfigDirSpec `json:"configDir,omitempty"`
+}
+
+// CWSFeatureConfig contains CWS (Cloud Workload Security) configuration.
+// CWS runs in the Security Agent.
+type CWSFeatureConfig struct {
+	// Enabled enables Cloud Workload Security.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// ConfigDir containing security policies.
+	// +optional
+	PoliciesDir *ConfigDirSpec `json:"policiesDir,omitempty"`
+
+	// EnableSyscallMonitor enables Syscall Monitoring (recommended for troubleshooting only).
+	// Default: false
+	// +optional
+	EnableSyscallMonitor *bool `json:"enableSyscallMonitor"`
+}
+
+// ConfigDirSpec contains config file directory configuration for the security features.
+// +k8s:openapi-gen=true
+type ConfigDirSpec struct {
+	// ConfigMapName is the name of a ConfigMap used to mount a directory.
+	ConfigMapName string `json:"configMapName,omitempty"`
+
+	// Items maps a ConfigMap data key to a file path mount.
+	// +listType=map
+	// +listMapKey=key
+	// +optional
+	Items []corev1.KeyToPath `json:"items,omitempty"`
+}
+
+// NPMFeatureConfig contains NPM (Network Performance Monitoring) feature configuration.
+// Network Performance Monitoring runs in the System Probe.
+type NPMFeatureConfig struct {
+	// Enabled enables Network Performance Monitoring.
+	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 }
 
-// NPMFeatureConfig contains NPM (Network Performance Monitoring) feature configuration.
-// Network Performance Monitoring runs in the System Probe
-type NPMFeatureConfig struct {
-	// Enabled enables Network Performance Monitoring
+// USMFeatureConfig contains USM (Universal Service Monitoring) feature configuration.
+// Universal Service Monitoring runs in the System Probe.
+type USMFeatureConfig struct {
+	// Enabled enables Universal Service Monitoring.
+	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // OrchestratorExplorerFeatureConfig contains the Orchestrator Explorer check feature configuration.
-// The Orchestrator Explorer check runs in the Process and Cluster Agents (or Cluster Check Runners)
+// The Orchestrator Explorer check runs in the Process and Cluster Agents (or Cluster Check Runners).
 // See also: https://docs.datadoghq.com/infrastructure/livecontainers/#kubernetes-resources
 // +k8s:openapi-gen=true
 type OrchestratorExplorerFeatureConfig struct {
-	// Enabled enables the Orchestrator Explorer
+	// Enabled enables the Orchestrator Explorer.
+	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+
+	// Conf overrides the configuration for the default Orchestrator Explorer check.
+	// This must point to a ConfigMap containing a valid cluster check configuration.
+	// +optional
+	Conf *CustomConfigSpec `json:"conf,omitempty"`
+
+	// ScrubContainers enables scrubbing of sensitive container data (passwords, tokens, etc. ).
+	// Default: true
+	// +optional
+	ScrubContainers *bool `json:"scrubbing,omitempty"`
+
+	// Set this for the Datadog endpoint for the orchestrator explorer
+	// +optional
+	Endpoint *string `json:"endpoint,omitempty"`
+
+	// AdditionalEndpoints is used to configure shipping data to other endpoints.
+	// The data are sent as json in the form {"https://process.agent.datadoghq.com": ["apikey1", ...], ...}'.
+	// +optional
+	AdditionalEndpoints *string `json:"additionalEndpoints,omitempty"`
+
+	// Additional tags to associate with the collected data in the form of `a b c`.
+	// This is a Cluster Agent option distinct from DD_TAGS that is used in the Orchestrator Explorer.
+	// +optional
+	// +listType=set
+	ExtraTags []string `json:"extraTags,omitempty"`
 }
 
 // KubeStateMetricsCoreFeatureConfig contains the Kube State Metrics Core check feature configuration.
-// The Kube State Metrics Core check runs in the Cluster Agent (or Cluster Check Runners)
+// The Kube State Metrics Core check runs in the Cluster Agent (or Cluster Check Runners).
 // See also: https://docs.datadoghq.com/integrations/kubernetes_state_core
 // +k8s:openapi-gen=true
 type KubeStateMetricsCoreFeatureConfig struct {
-	// Enabled enables Kube State Metrics Core
+	// Enabled enables Kube State Metrics Core.
+	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+
+	// Conf overrides the configuration for the default Kubernetes State Metrics Core check.
+	// This must point to a ConfigMap containing a valid cluster check configuration.
+	// +optional
+	Conf *CustomConfigSpec `json:"conf,omitempty"`
 }
 
 // AdmissionControllerFeatureConfig contains the Admission Controller feature configuration.
-// The Admission Controller runs in the Cluster Agent
+// The Admission Controller runs in the Cluster Agent.
 type AdmissionControllerFeatureConfig struct {
-	// Enabled enables the Admission Controller
+	// Enabled enables the Admission Controller.
+	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
-	// MutateUnlabelled enables config injection without the need of pod label 'admission.datadoghq.com/enabled="true"'
+
+	// MutateUnlabelled enables config injection without the need of pod label 'admission.datadoghq.com/enabled="true"'.
+	// Default: false
 	// +optional
 	MutateUnlabelled *bool `json:"mutateUnlabelled,omitempty"`
+
+	// ServiceName corresponds to the webhook service name.
+	// +optional
+	ServiceName *string `json:"serviceName,omitempty"`
 }
 
 // ExternalMetricsServerFeatureConfig contains the External Metrics Server feature configuration.
-// The External Metrics Server runs in the Cluster Agent
+// The External Metrics Server runs in the Cluster Agent.
 type ExternalMetricsServerFeatureConfig struct {
-	// Enabled enables the External Metrics Server
+	// Enabled enables the External Metrics Server.
+	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+
+	// WPAController enables the informer and controller of the Watermark Pod Autoscaler.
+	// NOTE: The Watermark Pod Autoscaler controller needs to be installed.
+	// See also: https://github.com/DataDog/watermarkpodautoscaler.
+	// Default: false
+	// +optional
+	WPAController bool `json:"wpaController,omitempty"`
+
+	// UseDatadogMetrics enables usage of the DatadogMetrics CRD (allowing one to scale on arbitrary Datadog metric queries).
+	// Default: false
+	// +optional
+	UseDatadogMetrics bool `json:"useDatadogMetrics,omitempty"`
+
+	// Port specifies the metricsProvider External Metrics Server service port.
+	// Default: 8443
+	// +optional
+	Port *int32 `json:"port,omitempty"`
+
+	// Override the API endpoint for the External Metrics Server.
+	// Default: "https://app.datadoghq.com".
+	// +optional
+	Endpoint *string `json:"endpoint,omitempty"`
+
+	// Credentials define the Datadog credentials used by the External Metrics Server to query Datadog.
+	// If not set, the External Metrics Server uses DatadogAgentSpec.Global.Credentials
+	// +optional
+	Credentials *DatadogCredentials `json:"credentials,omitempty"`
 }
 
 // ClusterChecksRunnerFeatureConfig contains the Cluster Checks Runner feature configuration.
-// Cluster Checks Runners are specialized Agents. They are used to run Cluster Checks dispatched by the Cluster Agent
+// Cluster Checks Runners are Agents dedicated to running Cluster Checks dispatched by the Cluster Agent.
 type ClusterChecksRunnerFeatureConfig struct {
-	// Enabled enables Cluster Checks Runners to run all Cluster Checks
+	// Enabled enables Cluster Checks Runners to run all Cluster Checks.
+	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// PrometheusScrapeFeatureConfig allows configuration of the Prometheus Autodiscovery feature.
+// +k8s:openapi-gen=true
+type PrometheusScrapeFeatureConfig struct {
+	// Enable autodiscovery of pods and services exposing Prometheus metrics.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// ServiceEndpoints enables generating dedicated checks for service endpoints.
+	// Default: false
+	// +optional
+	ServiceEndpoints *bool `json:"serviceEndpoints,omitempty"`
+
+	// AdditionalConfigs allows adding advanced Prometheus check configurations with custom discovery rules.
+	// +optional
+	AdditionalConfigs *string `json:"additionalConfigs,omitempty"`
 }
 
 // DatadogMonitorFeatureConfig contains the Datadog Monitor feature configuration.
-// DatadogMonitor is run by the Datadog Operator
+// DatadogMonitor is run by the Datadog Operator.
 type DatadogMonitorFeatureConfig struct {
-	// Enabled enables Datadog Monitors
+	// Enabled enables Datadog Monitors.
+	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 }
 
-// GlobalConfig is a set of parameters that are used to configure all the components of the Datadog Operator
+// CustomConfigSpec provides a place for custom configuration of the Agent or Cluster Agent, corresponding to datadog.yaml or datadog-cluster.yaml.
+// The configuration can be provided in the ConfigData field as raw data, or referenced in a ConfigMap.
+// Note: `configData` and `configMap` cannot be set together.
+// +k8s:openapi-gen=true
+type CustomConfigSpec struct {
+	// ConfigData corresponds to the configuration file content.
+	ConfigData *string `json:"configData,omitempty"`
+
+	// ConfigMap references an existing ConfigMap with the configuration file content.
+	ConfigMap *ConfigFileConfigMapSpec `json:"configMap,omitempty"`
+}
+
+// ConfigFileConfigMapSpec contains information about a ConfigMap information used to store a configuration file.
+// +k8s:openapi-gen=true
+type ConfigFileConfigMapSpec struct {
+	// Name is the name of the ConfigMap.
+	Name string `json:"name,omitempty"`
+
+	// FileKey corresponds to the key used in ConfigMap.Data to store the configuration file content.
+	FileKey string `json:"fileKey,omitempty"`
+}
+
+// GlobalConfig is a set of parameters that are used to configure all the components of the Datadog Operator.
 type GlobalConfig struct {
 	// Set a unique cluster name to allow scoping hosts and Cluster Checks Runner easily.
 	// +optional
@@ -206,7 +423,42 @@ type GlobalConfig struct {
 	Registry *string `json:"registry,omitempty"`
 }
 
-// DatadogAgentResourceOverride is the generic description of a component (Cluster Agent Deployment, Node Agent Daemonset...)
+// DatadogCredentials is a generic structure that holds credentials to access Datadog.
+// +k8s:openapi-gen=true
+type DatadogCredentials struct {
+	// APIKey configures your Datadog API key.
+	// See also: https://app.datadoghq.com/account/settings#agent/kubernetes
+	APIKey string `json:"apiKey,omitempty"`
+
+	// APISecret references an existing Secret which stores the API key instead of creating a new one.
+	// If set, this parameter takes precedence over "APIKey".
+	// +optional
+	APISecret *Secret `json:"apiSecret,omitempty"`
+
+	// AppKey configures your Datadog application key.
+	// If you are using clusterAgent.metricsProvider.enabled = true, you must set
+	// a Datadog application key for read access to your metrics.
+	// +optional
+	AppKey string `json:"appKey,omitempty"`
+
+	// AppSecret references an existing Secret which stores the application key instead of creating a new one.
+	// If set, this parameter takes precedence over "AppKey".
+	// +optional
+	AppSecret *Secret `json:"appSecret,omitempty"`
+}
+
+// Secret contains a secret name and an included key.
+// +k8s:openapi-gen=true
+type Secret struct {
+	// SecretName is the name of the secret.
+	SecretName string `json:"secretName"`
+
+	// KeyName is the key of the secret.
+	// +optional
+	KeyName string `json:"keyName,omitempty"`
+}
+
+// DatadogAgentResourceOverride is the generic description of a component (Cluster Agent Deployment, Node Agent Daemonset, etc.).
 // TODO: Add the Resource type and name to allow overriding the kind of the Resource (e.g. ExtendedDaemonset)
 type DatadogAgentResourceOverride struct {
 	// DatadogAgentPodTemplateOverride is used to configure the components at the pod level in an agnostic way
@@ -216,7 +468,7 @@ type DatadogAgentResourceOverride struct {
 	Name string `json:"name,omitempty"`
 }
 
-// DatadogAgentPodTemplateOverride is the generic description equivalent to a subset of the PodTemplate for a component
+// DatadogAgentPodTemplateOverride is the generic description equivalent to a subset of the PodTemplate for a component.
 type DatadogAgentPodTemplateOverride struct {
 	// Configure the basic configurations for each agent container
 	Containers []DatadogAgentGenericContainer `json:"containers,omitempty"`
@@ -336,7 +588,7 @@ type ImageConfig struct {
 	PullSecrets *[]corev1.LocalObjectReference `json:"pullSecrets,omitempty"`
 }
 
-// DatadogAgentStatus defines the observed state of DatadogAgent
+// DatadogAgentStatus defines the observed state of DatadogAgent.
 // +k8s:openapi-gen=true
 type DatadogAgentStatus struct {
 
@@ -367,7 +619,7 @@ type DatadogAgent struct {
 
 //+kubebuilder:object:root=true
 
-// DatadogAgentList contains a list of DatadogAgent
+// DatadogAgentList contains a list of DatadogAgent.
 type DatadogAgentList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
