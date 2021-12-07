@@ -124,6 +124,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 	const resourcesName = "foo"
 	const resourcesNamespace = "bar"
 	const dsName = "foo-agent"
+	const svcName = "foo-agent"
 	const rbacResourcesName = "foo-agent"
 	const rbacResourcesNameClusterAgent = "foo-cluster-agent"
 	const rbacResourcesNameClusterChecksRunner = "foo-cluster-checks-runner"
@@ -2484,6 +2485,124 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 					if !policySelector.Matches(dsLabels) {
 						return fmt.Errorf("network policy's selector %s does not match pods defined in the daemonset", policySelector)
 					}
+				}
+
+				return nil
+			},
+		},
+		{
+			name: "DatadogAgent found and defaulted, Local traffic Service created",
+			fields: fields{
+				client:   fake.NewFakeClient(),
+				scheme:   s,
+				recorder: recorder,
+			},
+			args: args{
+				request: newRequest(resourcesNamespace, resourcesName),
+				loadFunc: func(c client.Client) {
+					dadOptions := &test.NewDatadogAgentOptions{
+						OrchestratorExplorerDisabled: true,
+					}
+
+					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, dadOptions)
+					_ = c.Create(context.TODO(), dda)
+
+					testGitVersion = "1.22.0"
+
+					createAgentDependencies(c, dda)
+				},
+			},
+			// want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			want:    reconcile.Result{Requeue: true},
+			wantErr: false,
+			wantFunc: func(c client.Client) error {
+				svc := &corev1.Service{}
+				err := c.Get(context.TODO(), newRequest(resourcesNamespace, svcName).NamespacedName, svc)
+				if err != nil {
+					return err
+				}
+
+				if svc.Spec.InternalTrafficPolicy == nil ||
+					*svc.Spec.InternalTrafficPolicy != corev1.ServiceInternalTrafficPolicyLocal {
+					return fmt.Errorf("The agent service doesn’t leverage internal traffic policy")
+				}
+
+				return nil
+			},
+		},
+		{
+			name: "DatadogAgent found and defaulted, Local traffic Service not created",
+			fields: fields{
+				client:   fake.NewFakeClient(),
+				scheme:   s,
+				recorder: recorder,
+			},
+			args: args{
+				request: newRequest(resourcesNamespace, resourcesName),
+				loadFunc: func(c client.Client) {
+					dadOptions := &test.NewDatadogAgentOptions{
+						OrchestratorExplorerDisabled: true,
+					}
+
+					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, dadOptions)
+					_ = c.Create(context.TODO(), dda)
+
+					testGitVersion = "1.21.0"
+
+					createAgentDependencies(c, dda)
+				},
+			},
+			// want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(c client.Client) error {
+				svc := &corev1.Service{}
+				err := c.Get(context.TODO(), newRequest(resourcesNamespace, svcName).NamespacedName, svc)
+				if err == nil || !apierrors.IsNotFound(err) {
+					return fmt.Errorf("Expected to not find service %s: %v", svcName, err)
+				}
+
+				return nil
+			},
+		},
+		{
+			name: "DatadogAgent found and defaulted, Local traffic Service forced",
+			fields: fields{
+				client:   fake.NewFakeClient(),
+				scheme:   s,
+				recorder: recorder,
+			},
+			args: args{
+				request: newRequest(resourcesNamespace, resourcesName),
+				loadFunc: func(c client.Client) {
+					dadOptions := &test.NewDatadogAgentOptions{
+						OrchestratorExplorerDisabled: true,
+					}
+
+					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, dadOptions)
+					dda.Spec.Agent.LocalService = &datadoghqv1alpha1.LocalService{
+						ForceLocalServiceEnable: datadoghqv1alpha1.NewBoolPointer(true),
+					}
+					_ = c.Create(context.TODO(), dda)
+
+					testGitVersion = "1.21.0"
+
+					createAgentDependencies(c, dda)
+				},
+			},
+			// want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			want:    reconcile.Result{Requeue: true},
+			wantErr: false,
+			wantFunc: func(c client.Client) error {
+				svc := &corev1.Service{}
+				err := c.Get(context.TODO(), newRequest(resourcesNamespace, svcName).NamespacedName, svc)
+				if err != nil {
+					return err
+				}
+
+				if svc.Spec.InternalTrafficPolicy == nil ||
+					*svc.Spec.InternalTrafficPolicy != corev1.ServiceInternalTrafficPolicyLocal {
+					return fmt.Errorf("The agent service doesn’t leverage internal traffic policy")
 				}
 
 				return nil

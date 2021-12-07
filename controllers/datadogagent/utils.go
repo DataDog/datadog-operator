@@ -1824,6 +1824,13 @@ func getAgentServiceAccount(dda *datadoghqv1alpha1.DatadogAgent) string {
 	return saDefault
 }
 
+func getAgentServiceName(dda *datadoghqv1alpha1.DatadogAgent) string {
+	if dda.Spec.Agent.LocalService != nil && dda.Spec.Agent.LocalService.OverrideName != "" {
+		return dda.Spec.Agent.LocalService.OverrideName
+	}
+	return fmt.Sprintf("%s-%s", dda.Name, datadoghqv1alpha1.DefaultAgentResourceSuffix)
+}
+
 // getAPIKeyFromSecret returns the Agent API key as an env var source
 func getAPIKeyFromSecret(dda *datadoghqv1alpha1.DatadogAgent) *corev1.EnvVarSource {
 	_, name, key := utils.GetAPIKeySecret(&dda.Spec.Credentials.DatadogCredentials, utils.GetDefaultCredentialsSecretName(dda))
