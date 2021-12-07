@@ -444,7 +444,13 @@ func (b agentNetworkPolicyBuilder) ddFQDNs() []cilium.FQDNSelector {
 			MatchPattern: fmt.Sprintf("*-app.agent.%s", site),
 		},
 		{
+			MatchName: fmt.Sprintf("api.%s", site),
+		},
+		{
 			MatchName: fmt.Sprintf("agent-intake.logs.%s", site),
+		},
+		{
+			MatchName: fmt.Sprintf("agent-http-intake.logs.%s", site),
 		},
 		{
 			MatchName: fmt.Sprintf("process.%s", site),
