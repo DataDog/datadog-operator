@@ -88,22 +88,42 @@ type APMFeatureConfig struct {
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
-	// HostPort takes a port number (0 < x < 65536) to expose on the host. (Most containers do not need this.)
+	// HostPortConfig contains host port configuration.
+	// Enabled Default: false
+	// Port Default: 8126
+	// +optional
+	HostPortConfig *HostPortConfig `json:"hostPortConfig,omitempty"`
+
+	// UnixDomainSocketConfig contains socket configuration.
+	// See also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables
+	// Enabled Default: true
+	// Path Default: `/var/run/datadog/apm.socket`
+	// +optional
+	UnixDomainSocketConfig *UnixDomainSocketConfig `json:"unixDomainSocket,omitempty"`
+}
+
+// HostPortConfig contains host port configuration.
+type HostPortConfig struct {
+	// Enabled enables host port configuration
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Port takes a port number (0 < x < 65536) to expose on the host. (Most containers do not need this.)
 	// If HostNetwork is enabled, this value must match the ContainerPort.
-	// Default: 8126
 	// +optional
-	HostPort *int32 `json:"hostPort,omitempty"`
+	Port *int32 `json:"hostPort,omitempty"`
+}
 
-	// EnableUnixDomainSocket enables UDS configuration.
-	// See also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables
+// UnixDomainSocketConfig contains the Unix Domain Socket configuration.
+// +k8s:openapi-gen=true
+type UnixDomainSocketConfig struct {
+	// Enabled enables Unix Domain Socket.
 	// +optional
-	EnableUnixDomainSocket *bool `json:"enableUnixDomainSocket,omitempty"`
+	Enabled *bool `json:"enabled,omitempty"`
 
-	// SocketPath defines the socket path used when APM over UDS is enabled.
-	// See also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables
-	// Default: `/var/run/datadog/apm.socket`
+	// Path defines the socket path used when enabled.
 	// +optional
-	SocketPath *string `json:"socketPath,omitempty"`
+	Path *string `json:"hostFilepath,omitempty"`
 }
 
 // LogCollectionFeatureConfig contains Logs configuration.
@@ -161,7 +181,7 @@ type LogCollectionFeatureConfig struct {
 // Process Collection is run in the Process Agent.
 type ProcessCollectionFeatureConfig struct {
 	// Enabled enables Process monitoring.
-	// Default: true
+	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 }
@@ -170,7 +190,7 @@ type ProcessCollectionFeatureConfig struct {
 // Container Collection is run in the Process Agent.
 type ContainerCollectionFeatureConfig struct {
 	// Enabled enables Process monitoring.
-	// Default: true
+	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 }
@@ -188,6 +208,8 @@ type CSPMFeatureConfig struct {
 	CheckInterval *metav1.Duration `json:"checkInterval,omitempty"`
 
 	// ConfigDir defines the config directory containing compliance benchmarks.
+	// The content of the ConfigMap will be merged with the benchmarks bundled with the agent.
+	// Any benchmarks with the same name as those existing in the agent will take precedence.
 	// +optional
 	ConfigDir *ConfigDirSpec `json:"configDir,omitempty"`
 }
@@ -201,8 +223,10 @@ type CWSFeatureConfig struct {
 	Enabled *bool `json:"enabled,omitempty"`
 
 	// ConfigDir containing security policies.
+	// The content of the ConfigMap will be merged with the policies bundled with the agent.
+	// Any policies with the same name as those existing in the agent will take precedence.
 	// +optional
-	PoliciesDir *ConfigDirSpec `json:"policiesDir,omitempty"`
+	ConfigDir *ConfigDirSpec `json:"configDir,omitempty"`
 
 	// EnableSyscallMonitor enables Syscall Monitoring (recommended for troubleshooting only).
 	// Default: false
@@ -224,7 +248,7 @@ type ConfigDirSpec struct {
 }
 
 // NPMFeatureConfig contains NPM (Network Performance Monitoring) feature configuration.
-// Network Performance Monitoring runs in the System Probe.
+// Network Performance Monitoring runs in the System Probe and Process Agent.
 type NPMFeatureConfig struct {
 	// Enabled enables Network Performance Monitoring.
 	// Default: false
@@ -261,20 +285,25 @@ type OrchestratorExplorerFeatureConfig struct {
 	// +optional
 	ScrubContainers *bool `json:"scrubbing,omitempty"`
 
-	// Set this for the Datadog endpoint for the orchestrator explorer
-	// +optional
-	Endpoint *string `json:"endpoint,omitempty"`
-
-	// AdditionalEndpoints is used to configure shipping data to other endpoints.
-	// The data are sent as json in the form {"https://process.agent.datadoghq.com": ["apikey1", ...], ...}'.
-	// +optional
-	AdditionalEndpoints *string `json:"additionalEndpoints,omitempty"`
-
 	// Additional tags to associate with the collected data in the form of `a b c`.
 	// This is a Cluster Agent option distinct from DD_TAGS that is used in the Orchestrator Explorer.
 	// +optional
 	// +listType=set
 	ExtraTags []string `json:"extraTags,omitempty"`
+
+	// Override the API endpoint for the Orchestrator Explorer.
+	// URL Default: "https://orchestrator.datadoghq.com".
+	// +optional
+	Endpoint *Endpoint `json:"endpoint,omitempty"`
+}
+
+// Endpoint configures an endpoint and its associated Datadog credentials.
+type Endpoint struct {
+	// URL defines the endpoint URL.
+	URL *string `json:"url,omitempty"`
+
+	// Credentials defines the Datadog credentials used by the External Metrics Server to query Datadog.
+	Credentials *DatadogCredentials `json:"credentials,omitempty"`
 }
 
 // KubeStateMetricsCoreFeatureConfig contains the Kube State Metrics Core check feature configuration.
@@ -327,7 +356,7 @@ type ExternalMetricsServerFeatureConfig struct {
 	WPAController bool `json:"wpaController,omitempty"`
 
 	// UseDatadogMetrics enables usage of the DatadogMetrics CRD (allowing one to scale on arbitrary Datadog metric queries).
-	// Default: false
+	// Default: true
 	// +optional
 	UseDatadogMetrics bool `json:"useDatadogMetrics,omitempty"`
 
@@ -337,14 +366,9 @@ type ExternalMetricsServerFeatureConfig struct {
 	Port *int32 `json:"port,omitempty"`
 
 	// Override the API endpoint for the External Metrics Server.
-	// Default: "https://app.datadoghq.com".
+	// URL Default: "https://app.datadoghq.com".
 	// +optional
-	Endpoint *string `json:"endpoint,omitempty"`
-
-	// Credentials define the Datadog credentials used by the External Metrics Server to query Datadog.
-	// If not set, the External Metrics Server uses DatadogAgentSpec.Global.Credentials
-	// +optional
-	Credentials *DatadogCredentials `json:"credentials,omitempty"`
+	Endpoint *Endpoint `json:"endpoint,omitempty"`
 }
 
 // ClusterChecksRunnerFeatureConfig contains the Cluster Checks Runner feature configuration.
@@ -364,10 +388,10 @@ type PrometheusScrapeFeatureConfig struct {
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
-	// ServiceEndpoints enables generating dedicated checks for service endpoints.
+	// EnableServiceEndpoints enables generating dedicated checks for service endpoints.
 	// Default: false
 	// +optional
-	ServiceEndpoints *bool `json:"serviceEndpoints,omitempty"`
+	EnableServiceEndpoints *bool `json:"enableServiceEndpoints,omitempty"`
 
 	// AdditionalConfigs allows adding advanced Prometheus check configurations with custom discovery rules.
 	// +optional
