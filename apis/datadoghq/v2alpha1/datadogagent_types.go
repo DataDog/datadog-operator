@@ -102,30 +102,6 @@ type APMFeatureConfig struct {
 	UnixDomainSocketConfig *UnixDomainSocketConfig `json:"unixDomainSocket,omitempty"`
 }
 
-// HostPortConfig contains host port configuration.
-type HostPortConfig struct {
-	// Enabled enables host port configuration
-	// +optional
-	Enabled *bool `json:"enabled,omitempty"`
-
-	// Port takes a port number (0 < x < 65536) to expose on the host. (Most containers do not need this.)
-	// If HostNetwork is enabled, this value must match the ContainerPort.
-	// +optional
-	Port *int32 `json:"hostPort,omitempty"`
-}
-
-// UnixDomainSocketConfig contains the Unix Domain Socket configuration.
-// +k8s:openapi-gen=true
-type UnixDomainSocketConfig struct {
-	// Enabled enables Unix Domain Socket.
-	// +optional
-	Enabled *bool `json:"enabled,omitempty"`
-
-	// Path defines the socket path used when enabled.
-	// +optional
-	Path *string `json:"hostFilepath,omitempty"`
-}
-
 // LogCollectionFeatureConfig contains Logs configuration.
 // Logs collection is run in the Agent.
 type LogCollectionFeatureConfig struct {
@@ -190,7 +166,7 @@ type ProcessCollectionFeatureConfig struct {
 // Container Collection is run in the Process Agent.
 type ContainerCollectionFeatureConfig struct {
 	// Enabled enables Process monitoring.
-	// Default: false
+	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 }
@@ -207,11 +183,11 @@ type CSPMFeatureConfig struct {
 	// +optional
 	CheckInterval *metav1.Duration `json:"checkInterval,omitempty"`
 
-	// ConfigDir defines the config directory containing compliance benchmarks.
+	// ConfigMap contains compliance benchmarks.
 	// The content of the ConfigMap will be merged with the benchmarks bundled with the agent.
 	// Any benchmarks with the same name as those existing in the agent will take precedence.
 	// +optional
-	ConfigDir *ConfigDirSpec `json:"configDir,omitempty"`
+	ConfigMap *ConfigMapConfig `json:"configDir,omitempty"`
 }
 
 // CWSFeatureConfig contains CWS (Cloud Workload Security) configuration.
@@ -222,29 +198,16 @@ type CWSFeatureConfig struct {
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
-	// ConfigDir containing security policies.
+	// ConfigMap contains security policies.
 	// The content of the ConfigMap will be merged with the policies bundled with the agent.
 	// Any policies with the same name as those existing in the agent will take precedence.
 	// +optional
-	ConfigDir *ConfigDirSpec `json:"configDir,omitempty"`
+	ConfigMap *ConfigMapConfig `json:"configDir,omitempty"`
 
 	// EnableSyscallMonitor enables Syscall Monitoring (recommended for troubleshooting only).
 	// Default: false
 	// +optional
 	EnableSyscallMonitor *bool `json:"enableSyscallMonitor"`
-}
-
-// ConfigDirSpec contains config file directory configuration for the security features.
-// +k8s:openapi-gen=true
-type ConfigDirSpec struct {
-	// ConfigMapName is the name of a ConfigMap used to mount a directory.
-	ConfigMapName string `json:"configMapName,omitempty"`
-
-	// Items maps a ConfigMap data key to a file path mount.
-	// +listType=map
-	// +listMapKey=key
-	// +optional
-	Items []corev1.KeyToPath `json:"items,omitempty"`
 }
 
 // NPMFeatureConfig contains NPM (Network Performance Monitoring) feature configuration.
@@ -278,7 +241,7 @@ type OrchestratorExplorerFeatureConfig struct {
 	// Conf overrides the configuration for the default Orchestrator Explorer check.
 	// This must point to a ConfigMap containing a valid cluster check configuration.
 	// +optional
-	Conf *CustomConfigSpec `json:"conf,omitempty"`
+	Conf *CustomConfig `json:"conf,omitempty"`
 
 	// ScrubContainers enables scrubbing of sensitive container data (passwords, tokens, etc. ).
 	// Default: true
@@ -297,15 +260,6 @@ type OrchestratorExplorerFeatureConfig struct {
 	Endpoint *Endpoint `json:"endpoint,omitempty"`
 }
 
-// Endpoint configures an endpoint and its associated Datadog credentials.
-type Endpoint struct {
-	// URL defines the endpoint URL.
-	URL *string `json:"url,omitempty"`
-
-	// Credentials defines the Datadog credentials used by the External Metrics Server to query Datadog.
-	Credentials *DatadogCredentials `json:"credentials,omitempty"`
-}
-
 // KubeStateMetricsCoreFeatureConfig contains the Kube State Metrics Core check feature configuration.
 // The Kube State Metrics Core check runs in the Cluster Agent (or Cluster Check Runners).
 // See also: https://docs.datadoghq.com/integrations/kubernetes_state_core
@@ -319,7 +273,7 @@ type KubeStateMetricsCoreFeatureConfig struct {
 	// Conf overrides the configuration for the default Kubernetes State Metrics Core check.
 	// This must point to a ConfigMap containing a valid cluster check configuration.
 	// +optional
-	Conf *CustomConfigSpec `json:"conf,omitempty"`
+	Conf *CustomConfig `json:"conf,omitempty"`
 }
 
 // AdmissionControllerFeatureConfig contains the Admission Controller feature configuration.
@@ -407,26 +361,68 @@ type DatadogMonitorFeatureConfig struct {
 	Enabled *bool `json:"enabled,omitempty"`
 }
 
-// CustomConfigSpec provides a place for custom configuration of the Agent or Cluster Agent, corresponding to datadog.yaml or datadog-cluster.yaml.
-// The configuration can be provided in the ConfigData field as raw data, or referenced in a ConfigMap.
-// Note: `configData` and `configMap` cannot be set together.
+// Generic support structs
+
+// HostPortConfig contains host port configuration.
+type HostPortConfig struct {
+	// Enabled enables host port configuration
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Port takes a port number (0 < x < 65536) to expose on the host. (Most containers do not need this.)
+	// If HostNetwork is enabled, this value must match the ContainerPort.
+	// +optional
+	Port *int32 `json:"hostPort,omitempty"`
+}
+
+// UnixDomainSocketConfig contains the Unix Domain Socket configuration.
 // +k8s:openapi-gen=true
-type CustomConfigSpec struct {
+type UnixDomainSocketConfig struct {
+	// Enabled enables Unix Domain Socket.
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Path defines the socket path used when enabled.
+	// +optional
+	Path *string `json:"hostFilepath,omitempty"`
+}
+
+// Endpoint configures an endpoint and its associated Datadog credentials.
+type Endpoint struct {
+	// URL defines the endpoint URL.
+	URL *string `json:"url,omitempty"`
+
+	// Credentials defines the Datadog credentials used by the External Metrics Server to query Datadog.
+	Credentials *DatadogCredentials `json:"credentials,omitempty"`
+}
+
+// CustomConfig provides a place for custom configuration of the Agent or Cluster Agent, corresponding to datadog.yaml or datadog-cluster.yaml.
+// The configuration can be provided in the ConfigData field as raw data, or referenced in a ConfigMap.
+// Note: `ConfigData` and `ConfigMap` cannot be set together.
+// +k8s:openapi-gen=true
+type CustomConfig struct {
 	// ConfigData corresponds to the configuration file content.
 	ConfigData *string `json:"configData,omitempty"`
 
 	// ConfigMap references an existing ConfigMap with the configuration file content.
-	ConfigMap *ConfigFileConfigMapSpec `json:"configMap,omitempty"`
+	ConfigMap *ConfigMapConfig `json:"configMap,omitempty"`
 }
 
-// ConfigFileConfigMapSpec contains information about a ConfigMap information used to store a configuration file.
-// +k8s:openapi-gen=true
-type ConfigFileConfigMapSpec struct {
+// ConfigMapConfig contains ConfigMap information used to store a configuration file.
+// Note: `FileKey` and `Items` cannot be set together.
+type ConfigMapConfig struct {
 	// Name is the name of the ConfigMap.
 	Name string `json:"name,omitempty"`
 
 	// FileKey corresponds to the key used in ConfigMap.Data to store the configuration file content.
+	// +optional
 	FileKey string `json:"fileKey,omitempty"`
+
+	// Items maps a ConfigMap data key to a file path mount.
+	// +listType=map
+	// +listMapKey=key
+	// +optional
+	Items []corev1.KeyToPath `json:"items,omitempty"`
 }
 
 // GlobalConfig is a set of parameters that are used to configure all the components of the Datadog Operator.
