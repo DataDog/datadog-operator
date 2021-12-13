@@ -246,7 +246,7 @@ type OrchestratorExplorerFeatureConfig struct {
 	// ScrubContainers enables scrubbing of sensitive container data (passwords, tokens, etc. ).
 	// Default: true
 	// +optional
-	ScrubContainers *bool `json:"scrubbing,omitempty"`
+	ScrubContainers *bool `json:"scrubContainers,omitempty"`
 
 	// Additional tags to associate with the collected data in the form of `a b c`.
 	// This is a Cluster Agent option distinct from DD_TAGS that is used in the Orchestrator Explorer.
@@ -384,7 +384,7 @@ type UnixDomainSocketConfig struct {
 
 	// Path defines the socket path used when enabled.
 	// +optional
-	Path *string `json:"hostFilepath,omitempty"`
+	Path *string `json:"path,omitempty"`
 }
 
 // Endpoint configures an endpoint and its associated Datadog credentials.
@@ -409,14 +409,9 @@ type CustomConfig struct {
 }
 
 // ConfigMapConfig contains ConfigMap information used to store a configuration file.
-// Note: `FileKey` and `Items` cannot be set together.
 type ConfigMapConfig struct {
 	// Name is the name of the ConfigMap.
 	Name string `json:"name,omitempty"`
-
-	// FileKey corresponds to the key used in ConfigMap.Data to store the configuration file content.
-	// +optional
-	FileKey string `json:"fileKey,omitempty"`
 
 	// Items maps a ConfigMap data key to a file path mount.
 	// +listType=map

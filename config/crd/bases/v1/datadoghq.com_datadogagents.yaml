@@ -11816,6 +11816,550 @@ spec:
             properties:
               features:
                 description: Features running on the Agent and Cluster Agent
+                properties:
+                  admissionController:
+                    description: AdmissionController configuration.
+                    properties:
+                      enabled:
+                        description: 'Enabled enables the Admission Controller. Default:
+                          false'
+                        type: boolean
+                      mutateUnlabelled:
+                        description: 'MutateUnlabelled enables config injection without
+                          the need of pod label ''admission.datadoghq.com/enabled="true"''.
+                          Default: false'
+                        type: boolean
+                      serviceName:
+                        description: ServiceName corresponds to the webhook service
+                          name.
+                        type: string
+                    type: object
+                  apm:
+                    description: APM (Application Performance Monitoring) configuration.
+                    properties:
+                      enabled:
+                        description: 'Enabled enables Application Performance Monitoring.
+                          Default: false'
+                        type: boolean
+                      hostPortConfig:
+                        description: 'HostPortConfig contains host port configuration.
+                          Enabled Default: false Port Default: 8126'
+                        properties:
+                          enabled:
+                            description: Enabled enables host port configuration
+                            type: boolean
+                          hostPort:
+                            description: Port takes a port number (0 < x < 65536)
+                              to expose on the host. (Most containers do not need
+                              this.) If HostNetwork is enabled, this value must match
+                              the ContainerPort.
+                            format: int32
+                            type: integer
+                        type: object
+                      unixDomainSocket:
+                        description: 'UnixDomainSocketConfig contains socket configuration.
+                          See also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables
+                          Enabled Default: true Path Default: `/var/run/datadog/apm.socket`'
+                        properties:
+                          enabled:
+                            description: Enabled enables Unix Domain Socket.
+                            type: boolean
+                          path:
+                            description: Path defines the socket path used when enabled.
+                            type: string
+                        type: object
+                    type: object
+                  clusterChecksRunner:
+                    description: ClusterChecksRunner configuration.
+                    properties:
+                      enabled:
+                        description: 'Enabled enables Cluster Checks Runners to run
+                          all Cluster Checks. Default: false'
+                        type: boolean
+                    type: object
+                  containerCollection:
+                    description: ContainerCollection configuration.
+                    properties:
+                      enabled:
+                        description: 'Enabled enables Process monitoring. Default:
+                          true'
+                        type: boolean
+                    type: object
+                  cspm:
+                    description: CSPM (Cloud Security Posture Management) configuration.
+                    properties:
+                      checkInterval:
+                        description: CheckInterval defines the check interval.
+                        type: string
+                      configDir:
+                        description: ConfigMap contains compliance benchmarks. The
+                          content of the ConfigMap will be merged with the benchmarks
+                          bundled with the agent. Any benchmarks with the same name
+                          as those existing in the agent will take precedence.
+                        properties:
+                          items:
+                            description: Items maps a ConfigMap data key to a file
+                              path mount.
+                            items:
+                              description: Maps a string key to a path within a volume.
+                              properties:
+                                key:
+                                  description: The key to project.
+                                  type: string
+                                mode:
+                                  description: 'Optional: mode bits used to set permissions
+                                    on this file. Must be an octal value between 0000
+                                    and 0777 or a decimal value between 0 and 511.
+                                    YAML accepts both octal and decimal values, JSON
+                                    requires decimal values for mode bits. If not
+                                    specified, the volume defaultMode will be used.
+                                    This might be in conflict with other options that
+                                    affect the file mode, like fsGroup, and the result
+                                    can be other mode bits set.'
+                                  format: int32
+                                  type: integer
+                                path:
+                                  description: The relative path of the file to map
+                                    the key to. May not be an absolute path. May not
+                                    contain the path element '..'. May not start with
+                                    the string '..'.
+                                  type: string
+                              required:
+                              - key
+                              - path
+                              type: object
+                            type: array
+                            x-kubernetes-list-map-keys:
+                            - key
+                            x-kubernetes-list-type: map
+                          name:
+                            description: Name is the name of the ConfigMap.
+                            type: string
+                        type: object
+                      enabled:
+                        description: 'Enabled enables Cloud Security Posture Management.
+                          Default: false'
+                        type: boolean
+                    type: object
+                  cws:
+                    description: CWS (Cloud Workload Security) configuration.
+                    properties:
+                      configDir:
+                        description: ConfigMap contains security policies. The content
+                          of the ConfigMap will be merged with the policies bundled
+                          with the agent. Any policies with the same name as those
+                          existing in the agent will take precedence.
+                        properties:
+                          items:
+                            description: Items maps a ConfigMap data key to a file
+                              path mount.
+                            items:
+                              description: Maps a string key to a path within a volume.
+                              properties:
+                                key:
+                                  description: The key to project.
+                                  type: string
+                                mode:
+                                  description: 'Optional: mode bits used to set permissions
+                                    on this file. Must be an octal value between 0000
+                                    and 0777 or a decimal value between 0 and 511.
+                                    YAML accepts both octal and decimal values, JSON
+                                    requires decimal values for mode bits. If not
+                                    specified, the volume defaultMode will be used.
+                                    This might be in conflict with other options that
+                                    affect the file mode, like fsGroup, and the result
+                                    can be other mode bits set.'
+                                  format: int32
+                                  type: integer
+                                path:
+                                  description: The relative path of the file to map
+                                    the key to. May not be an absolute path. May not
+                                    contain the path element '..'. May not start with
+                                    the string '..'.
+                                  type: string
+                              required:
+                              - key
+                              - path
+                              type: object
+                            type: array
+                            x-kubernetes-list-map-keys:
+                            - key
+                            x-kubernetes-list-type: map
+                          name:
+                            description: Name is the name of the ConfigMap.
+                            type: string
+                        type: object
+                      enableSyscallMonitor:
+                        description: 'EnableSyscallMonitor enables Syscall Monitoring
+                          (recommended for troubleshooting only). Default: false'
+                        type: boolean
+                      enabled:
+                        description: 'Enabled enables Cloud Workload Security. Default:
+                          false'
+                        type: boolean
+                    type: object
+                  datadogMonitor:
+                    description: DatadogMonitor configuration.
+                    properties:
+                      enabled:
+                        description: 'Enabled enables Datadog Monitors. Default: false'
+                        type: boolean
+                    type: object
+                  externalMetricsServer:
+                    description: ExternalMetricsServer configuration.
+                    properties:
+                      enabled:
+                        description: 'Enabled enables the External Metrics Server.
+                          Default: false'
+                        type: boolean
+                      endpoint:
+                        description: 'Override the API endpoint for the External Metrics
+                          Server. URL Default: "https://app.datadoghq.com".'
+                        properties:
+                          credentials:
+                            description: Credentials defines the Datadog credentials
+                              used by the External Metrics Server to query Datadog.
+                            properties:
+                              apiKey:
+                                description: 'APIKey configures your Datadog API key.
+                                  See also: https://app.datadoghq.com/account/settings#agent/kubernetes'
+                                type: string
+                              apiSecret:
+                                description: APISecret references an existing Secret
+                                  which stores the API key instead of creating a new
+                                  one. If set, this parameter takes precedence over
+                                  "APIKey".
+                                properties:
+                                  keyName:
+                                    description: KeyName is the key of the secret.
+                                    type: string
+                                  secretName:
+                                    description: SecretName is the name of the secret.
+                                    type: string
+                                required:
+                                - secretName
+                                type: object
+                              appKey:
+                                description: AppKey configures your Datadog application
+                                  key. If you are using clusterAgent.metricsProvider.enabled
+                                  = true, you must set a Datadog application key for
+                                  read access to your metrics.
+                                type: string
+                              appSecret:
+                                description: AppSecret references an existing Secret
+                                  which stores the application key instead of creating
+                                  a new one. If set, this parameter takes precedence
+                                  over "AppKey".
+                                properties:
+                                  keyName:
+                                    description: KeyName is the key of the secret.
+                                    type: string
+                                  secretName:
+                                    description: SecretName is the name of the secret.
+                                    type: string
+                                required:
+                                - secretName
+                                type: object
+                            type: object
+                          url:
+                            description: URL defines the endpoint URL.
+                            type: string
+                        type: object
+                      port:
+                        description: 'Port specifies the metricsProvider External
+                          Metrics Server service port. Default: 8443'
+                        format: int32
+                        type: integer
+                      useDatadogMetrics:
+                        description: 'UseDatadogMetrics enables usage of the DatadogMetrics
+                          CRD (allowing one to scale on arbitrary Datadog metric queries).
+                          Default: true'
+                        type: boolean
+                      wpaController:
+                        description: 'WPAController enables the informer and controller
+                          of the Watermark Pod Autoscaler. NOTE: The Watermark Pod
+                          Autoscaler controller needs to be installed. See also: https://github.com/DataDog/watermarkpodautoscaler.
+                          Default: false'
+                        type: boolean
+                    type: object
+                  kubeStateMetricsCore:
+                    description: KubeStateMetricsCore check configuration.
+                    properties:
+                      conf:
+                        description: Conf overrides the configuration for the default
+                          Kubernetes State Metrics Core check. This must point to
+                          a ConfigMap containing a valid cluster check configuration.
+                        properties:
+                          configData:
+                            description: ConfigData corresponds to the configuration
+                              file content.
+                            type: string
+                          configMap:
+                            description: ConfigMap references an existing ConfigMap
+                              with the configuration file content.
+                            properties:
+                              items:
+                                description: Items maps a ConfigMap data key to a
+                                  file path mount.
+                                items:
+                                  description: Maps a string key to a path within
+                                    a volume.
+                                  properties:
+                                    key:
+                                      description: The key to project.
+                                      type: string
+                                    mode:
+                                      description: 'Optional: mode bits used to set
+                                        permissions on this file. Must be an octal
+                                        value between 0000 and 0777 or a decimal value
+                                        between 0 and 511. YAML accepts both octal
+                                        and decimal values, JSON requires decimal
+                                        values for mode bits. If not specified, the
+                                        volume defaultMode will be used. This might
+                                        be in conflict with other options that affect
+                                        the file mode, like fsGroup, and the result
+                                        can be other mode bits set.'
+                                      format: int32
+                                      type: integer
+                                    path:
+                                      description: The relative path of the file to
+                                        map the key to. May not be an absolute path.
+                                        May not contain the path element '..'. May
+                                        not start with the string '..'.
+                                      type: string
+                                  required:
+                                  - key
+                                  - path
+                                  type: object
+                                type: array
+                                x-kubernetes-list-map-keys:
+                                - key
+                                x-kubernetes-list-type: map
+                              name:
+                                description: Name is the name of the ConfigMap.
+                                type: string
+                            type: object
+                        type: object
+                      enabled:
+                        description: 'Enabled enables Kube State Metrics Core. Default:
+                          true'
+                        type: boolean
+                    type: object
+                  logCollection:
+                    description: LogCollection configuration.
+                    properties:
+                      containerCollectAll:
+                        description: 'ContainerCollectAll enables Log collection from
+                          all containers. Default: false'
+                        type: boolean
+                      containerCollectUsingFiles:
+                        description: 'ContainerCollectUsingFiles enables log collection
+                          from files in `/var/log/pods instead` of using the container
+                          runtime API. Collecting logs from files is usually the most
+                          efficient way of collecting logs. See also: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup
+                          Default: true'
+                        type: boolean
+                      containerLogsPath:
+                        description: 'ContainerLogsPath allows log collection from
+                          the container log path. Set to a different path if you are
+                          not using the Docker runtime. See also: https://docs.datadoghq.com/agent/kubernetes/daemonset_setup/?tab=k8sfile#create-manifest
+                          Default: `/var/lib/docker/containers`'
+                        type: string
+                      containerSymlinksPath:
+                        description: 'ContainerSymlinksPath allows log collection
+                          to use symbolic links in this directory to validate container
+                          ID -> pod. Default: `/var/log/containers`'
+                        type: string
+                      enabled:
+                        description: 'Enabled enables Log collection. Default: false'
+                        type: boolean
+                      openFilesLimit:
+                        description: 'OpenFilesLimit sets the maximum number of log
+                          files that the Datadog Agent tails. Increasing this limit
+                          can increase resource consumption of the Agent. See also:
+                          https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup
+                          Default: 100'
+                        format: int32
+                        type: integer
+                      podLogsPath:
+                        description: 'PodLogsPath allows log collection from a pod
+                          log path. Default: `/var/log/pods`'
+                        type: string
+                      tempStoragePath:
+                        description: 'TempStoragePath (always mounted from the host)
+                          is used by the Agent to store information about processed
+                          log files. If the Agent is restarted, it starts tailing
+                          the log files immediately. Default: `/var/lib/datadog-agent/logs`'
+                        type: string
+                    type: object
+                  npm:
+                    description: NPM (Network Performance Monitoring) configuration.
+                    properties:
+                      enabled:
+                        description: 'Enabled enables Network Performance Monitoring.
+                          Default: false'
+                        type: boolean
+                    type: object
+                  orchestratorExplorer:
+                    description: OrchestratorExplorer check configuration.
+                    properties:
+                      conf:
+                        description: Conf overrides the configuration for the default
+                          Orchestrator Explorer check. This must point to a ConfigMap
+                          containing a valid cluster check configuration.
+                        properties:
+                          configData:
+                            description: ConfigData corresponds to the configuration
+                              file content.
+                            type: string
+                          configMap:
+                            description: ConfigMap references an existing ConfigMap
+                              with the configuration file content.
+                            properties:
+                              items:
+                                description: Items maps a ConfigMap data key to a
+                                  file path mount.
+                                items:
+                                  description: Maps a string key to a path within
+                                    a volume.
+                                  properties:
+                                    key:
+                                      description: The key to project.
+                                      type: string
+                                    mode:
+                                      description: 'Optional: mode bits used to set
+                                        permissions on this file. Must be an octal
+                                        value between 0000 and 0777 or a decimal value
+                                        between 0 and 511. YAML accepts both octal
+                                        and decimal values, JSON requires decimal
+                                        values for mode bits. If not specified, the
+                                        volume defaultMode will be used. This might
+                                        be in conflict with other options that affect
+                                        the file mode, like fsGroup, and the result
+                                        can be other mode bits set.'
+                                      format: int32
+                                      type: integer
+                                    path:
+                                      description: The relative path of the file to
+                                        map the key to. May not be an absolute path.
+                                        May not contain the path element '..'. May
+                                        not start with the string '..'.
+                                      type: string
+                                  required:
+                                  - key
+                                  - path
+                                  type: object
+                                type: array
+                                x-kubernetes-list-map-keys:
+                                - key
+                                x-kubernetes-list-type: map
+                              name:
+                                description: Name is the name of the ConfigMap.
+                                type: string
+                            type: object
+                        type: object
+                      enabled:
+                        description: 'Enabled enables the Orchestrator Explorer. Default:
+                          true'
+                        type: boolean
+                      endpoint:
+                        description: 'Override the API endpoint for the Orchestrator
+                          Explorer. URL Default: "https://orchestrator.datadoghq.com".'
+                        properties:
+                          credentials:
+                            description: Credentials defines the Datadog credentials
+                              used by the External Metrics Server to query Datadog.
+                            properties:
+                              apiKey:
+                                description: 'APIKey configures your Datadog API key.
+                                  See also: https://app.datadoghq.com/account/settings#agent/kubernetes'
+                                type: string
+                              apiSecret:
+                                description: APISecret references an existing Secret
+                                  which stores the API key instead of creating a new
+                                  one. If set, this parameter takes precedence over
+                                  "APIKey".
+                                properties:
+                                  keyName:
+                                    description: KeyName is the key of the secret.
+                                    type: string
+                                  secretName:
+                                    description: SecretName is the name of the secret.
+                                    type: string
+                                required:
+                                - secretName
+                                type: object
+                              appKey:
+                                description: AppKey configures your Datadog application
+                                  key. If you are using clusterAgent.metricsProvider.enabled
+                                  = true, you must set a Datadog application key for
+                                  read access to your metrics.
+                                type: string
+                              appSecret:
+                                description: AppSecret references an existing Secret
+                                  which stores the application key instead of creating
+                                  a new one. If set, this parameter takes precedence
+                                  over "AppKey".
+                                properties:
+                                  keyName:
+                                    description: KeyName is the key of the secret.
+                                    type: string
+                                  secretName:
+                                    description: SecretName is the name of the secret.
+                                    type: string
+                                required:
+                                - secretName
+                                type: object
+                            type: object
+                          url:
+                            description: URL defines the endpoint URL.
+                            type: string
+                        type: object
+                      extraTags:
+                        description: Additional tags to associate with the collected
+                          data in the form of `a b c`. This is a Cluster Agent option
+                          distinct from DD_TAGS that is used in the Orchestrator Explorer.
+                        items:
+                          type: string
+                        type: array
+                        x-kubernetes-list-type: set
+                      scrubContainers:
+                        description: 'ScrubContainers enables scrubbing of sensitive
+                          container data (passwords, tokens, etc. ). Default: true'
+                        type: boolean
+                    type: object
+                  processCollection:
+                    description: ProcessCollection configuration.
+                    properties:
+                      enabled:
+                        description: 'Enabled enables Process monitoring. Default:
+                          false'
+                        type: boolean
+                    type: object
+                  prometheusScrape:
+                    description: PrometheusScrape configuration.
+                    properties:
+                      additionalConfigs:
+                        description: AdditionalConfigs allows adding advanced Prometheus
+                          check configurations with custom discovery rules.
+                        type: string
+                      enableServiceEndpoints:
+                        description: 'EnableServiceEndpoints enables generating dedicated
+                          checks for service endpoints. Default: false'
+                        type: boolean
+                      enabled:
+                        description: 'Enable autodiscovery of pods and services exposing
+                          Prometheus metrics. Default: false'
+                        type: boolean
+                    type: object
+                  usm:
+                    description: USM (Universal Service Monitoring) configuration.
+                    properties:
+                      enabled:
+                        description: 'Enabled enables Universal Service Monitoring.
+                          Default: false'
+                        type: boolean
+                    type: object
                 type: object
               global:
                 description: Global settings to configure the agents
@@ -11837,9 +12381,9 @@ spec:
               override:
                 additionalProperties:
                   description: 'DatadogAgentResourceOverride is the generic description
-                    of a component (Cluster Agent Deployment, Node Agent Daemonset...)
-                    TODO: Add the Resource type and name to allow overriding the kind
-                    of the Resource (e.g. ExtendedDaemonset)'
+                    of a component (Cluster Agent Deployment, Node Agent Daemonset,
+                    etc.). TODO: Add the Resource type and name to allow overriding
+                    the kind of the Resource (e.g. ExtendedDaemonset)'
                   properties:
                     name:
                       description: Name overrides the default name for the resource
@@ -15152,7 +15696,7 @@ spec:
                 type: object
             type: object
           status:
-            description: DatadogAgentStatus defines the observed state of DatadogAgent
+            description: DatadogAgentStatus defines the observed state of DatadogAgent.
             properties:
               defaultOverride:
                 description: DefaultOverride contains attributes that were not configured
