@@ -12202,7 +12202,7 @@ spec:
                         properties:
                           credentials:
                             description: Credentials defines the Datadog credentials
-                              used by the External Metrics Server to query Datadog.
+                              used to submit data to/query data from Datadog.
                             properties:
                               apiKey:
                                 description: 'APIKey configures your Datadog API key.
@@ -12452,7 +12452,7 @@ spec:
                         properties:
                           credentials:
                             description: Credentials defines the Datadog credentials
-                              used by the External Metrics Server to query Datadog.
+                              used to submit data to/query data from Datadog.
                             properties:
                               apiKey:
                                 description: 'APIKey configures your Datadog API key.
@@ -12549,18 +12549,156 @@ spec:
                 description: Global settings to configure the agents
                 properties:
                   clusterName:
-                    description: Set a unique cluster name to allow scoping hosts
-                      and Cluster Checks Runner easily.
+                    description: ClusterName sets a unique cluster name for the deployment
+                      to easily scope monitoring data in the Datadog app.
                     type: string
+                  credentials:
+                    description: Credentials defines the Datadog credentials used
+                      to submit data to/query data from Datadog.
+                    properties:
+                      apiKey:
+                        description: 'APIKey configures your Datadog API key. See
+                          also: https://app.datadoghq.com/account/settings#agent/kubernetes'
+                        type: string
+                      apiSecret:
+                        description: APISecret references an existing Secret which
+                          stores the API key instead of creating a new one. If set,
+                          this parameter takes precedence over "APIKey".
+                        properties:
+                          keyName:
+                            description: KeyName is the key of the secret.
+                            type: string
+                          secretName:
+                            description: SecretName is the name of the secret.
+                            type: string
+                        required:
+                        - secretName
+                        type: object
+                      appKey:
+                        description: AppKey configures your Datadog application key.
+                          If you are using clusterAgent.metricsProvider.enabled =
+                          true, you must set a Datadog application key for read access
+                          to your metrics.
+                        type: string
+                      appSecret:
+                        description: AppSecret references an existing Secret which
+                          stores the application key instead of creating a new one.
+                          If set, this parameter takes precedence over "AppKey".
+                        properties:
+                          keyName:
+                            description: KeyName is the key of the secret.
+                            type: string
+                          secretName:
+                            description: SecretName is the name of the secret.
+                            type: string
+                        required:
+                        - secretName
+                        type: object
+                    type: object
+                  localService:
+                    description: LocalService contains configuration to customize
+                      the internal traffic policy service.
+                    properties:
+                      forceEnableLocalService:
+                        description: 'ForceEnableLocalService forces the creation
+                          of the internal traffic policy service to target the agent
+                          running on the local node. This parameter only applies to
+                          Kubernetes 1.21, where the feature is in alpha and is disabled
+                          by default. (On Kubernetes 1.22+, the feature entered beta
+                          and the internal traffic service is created by default,
+                          so this parameter is ignored.) Default: false'
+                        type: boolean
+                      nameOverride:
+                        description: NameOverride defines the name of the internal
+                          traffic service to target the agent running on the local
+                          node.
+                        type: string
+                    type: object
+                  logLevel:
+                    description: 'LogLevel sets logging verbosity. This can be overridden
+                      by container. Valid log levels are: trace, debug, info, warn,
+                      error, critical, and off. Default: ''info'''
+                    type: string
+                  networkPolicy:
+                    description: NetworkPolicy contains the network configuration.
+                    properties:
+                      create:
+                        description: Create defines whether to create a NetworkPolicy
+                          for the current deployment.
+                        type: boolean
+                      dnsSelectorEndpoints:
+                        description: DNSSelectorEndpoints defines the cilium selector
+                          of the DNS server entity.
+                        items:
+                          description: A label selector is a label query over a set
+                            of resources. The result of matchLabels and matchExpressions
+                            are ANDed. An empty label selector matches all objects.
+                            A null label selector matches no objects.
+                          properties:
+                            matchExpressions:
+                              description: matchExpressions is a list of label selector
+                                requirements. The requirements are ANDed.
+                              items:
+                                description: A label selector requirement is a selector
+                                  that contains values, a key, and an operator that
+                                  relates the key and values.
+                                properties:
+                                  key:
+                                    description: key is the label key that the selector
+                                      applies to.
+                                    type: string
+                                  operator:
+                                    description: operator represents a key's relationship
+                                      to a set of values. Valid operators are In,
+                                      NotIn, Exists and DoesNotExist.
+                                    type: string
+                                  values:
+                                    description: values is an array of string values.
+                                      If the operator is In or NotIn, the values array
+                                      must be non-empty. If the operator is Exists
+                                      or DoesNotExist, the values array must be empty.
+                                      This array is replaced during a strategic merge
+                                      patch.
+                                    items:
+                                      type: string
+                                    type: array
+                                required:
+                                - key
+                                - operator
+                                type: object
+                              type: array
+                            matchLabels:
+                              additionalProperties:
+                                type: string
+                              description: matchLabels is a map of {key,value} pairs.
+                                A single {key,value} in the matchLabels map is equivalent
+                                to an element of matchExpressions, whose key field
+                                is "key", the operator is "In", and the values array
+                                contains only "value". The requirements are ANDed.
+                              type: object
+                          type: object
+                        type: array
+                      flavor:
+                        description: Flavor defines Which network policy to use.
+                        type: string
+                    type: object
                   registry:
-                    description: Registry to use for all Agent images (default gcr.io/datadoghq).
-                      Use public.ecr.aws/datadog for AWS Use docker.io/datadog for
-                      DockerHub
+                    description: 'Registry is the image registry to use for all Agent
+                      images. Use ''public.ecr.aws/datadog'' for AWS ECR. Use ''docker.io/datadog''
+                      for DockerHub. Default: ''gcr.io/datadoghq'''
                     type: string
                   site:
-                    description: The site of the Datadog intake to send Agent data
+                    description: Site is the Datadog intake site Agent data are sent
                       to. Set to 'datadoghq.eu' to send data to the EU site.
                     type: string
+                  tags:
+                    description: 'Tags contains a list of tags to attach to every
+                      metric, event and service check collected. Learn more about
+                      tagging: https://docs.datadoghq.com/tagging/'
+                    items:
+                      type: string
+                    type: array
+                    x-kubernetes-list-type: set
                 type: object
               override:
                 additionalProperties:
@@ -14066,6 +14204,112 @@ spec:
                                 if the Name field does not correspond to a full image
                                 string.
                               type: string
+                          type: object
+                        kubelet:
+                          description: Kubelet contains the kubelet configuration
+                            parameters.
+                          properties:
+                            agentCAPath:
+                              description: 'AgentCAPath is the container path where
+                                the kubelet CA certificate is stored. Default: ''/var/run/host-kubelet-ca.crt''
+                                if hostCAPath is set, else ''/var/run/secrets/kubernetes.io/serviceaccount/ca.crt'''
+                              type: string
+                            host:
+                              description: Host overrides the host used to contact
+                                kubelet API (default to status.hostIP).
+                              properties:
+                                configMapKeyRef:
+                                  description: Selects a key of a ConfigMap.
+                                  properties:
+                                    key:
+                                      description: The key to select.
+                                      type: string
+                                    name:
+                                      description: 'Name of the referent. More info:
+                                        https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                        TODO: Add other useful fields. apiVersion,
+                                        kind, uid?'
+                                      type: string
+                                    optional:
+                                      description: Specify whether the ConfigMap or
+                                        its key must be defined
+                                      type: boolean
+                                  required:
+                                  - key
+                                  type: object
+                                fieldRef:
+                                  description: 'Selects a field of the pod: supports
+                                    metadata.name, metadata.namespace, `metadata.labels[''<KEY>'']`,
+                                    `metadata.annotations[''<KEY>'']`, spec.nodeName,
+                                    spec.serviceAccountName, status.hostIP, status.podIP,
+                                    status.podIPs.'
+                                  properties:
+                                    apiVersion:
+                                      description: Version of the schema the FieldPath
+                                        is written in terms of, defaults to "v1".
+                                      type: string
+                                    fieldPath:
+                                      description: Path of the field to select in
+                                        the specified API version.
+                                      type: string
+                                  required:
+                                  - fieldPath
+                                  type: object
+                                resourceFieldRef:
+                                  description: 'Selects a resource of the container:
+                                    only resources limits and requests (limits.cpu,
+                                    limits.memory, limits.ephemeral-storage, requests.cpu,
+                                    requests.memory and requests.ephemeral-storage)
+                                    are currently supported.'
+                                  properties:
+                                    containerName:
+                                      description: 'Container name: required for volumes,
+                                        optional for env vars'
+                                      type: string
+                                    divisor:
+                                      anyOf:
+                                      - type: integer
+                                      - type: string
+                                      description: Specifies the output format of
+                                        the exposed resources, defaults to "1"
+                                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                      x-kubernetes-int-or-string: true
+                                    resource:
+                                      description: 'Required: resource to select'
+                                      type: string
+                                  required:
+                                  - resource
+                                  type: object
+                                secretKeyRef:
+                                  description: Selects a key of a secret in the pod's
+                                    namespace
+                                  properties:
+                                    key:
+                                      description: The key of the secret to select
+                                        from.  Must be a valid secret key.
+                                      type: string
+                                    name:
+                                      description: 'Name of the referent. More info:
+                                        https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                                        TODO: Add other useful fields. apiVersion,
+                                        kind, uid?'
+                                      type: string
+                                    optional:
+                                      description: Specify whether the Secret or its
+                                        key must be defined
+                                      type: boolean
+                                  required:
+                                  - key
+                                  type: object
+                              type: object
+                            hostCAPath:
+                              description: HostCAPath is the host path where the kubelet
+                                CA certificate is stored.
+                              type: string
+                            tlsVerify:
+                              description: 'TLSVerify toggles kubelet TLS verification.
+                                Default: true'
+                              type: boolean
                           type: object
                         labels:
                           additionalProperties:
