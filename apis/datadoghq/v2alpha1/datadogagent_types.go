@@ -392,7 +392,7 @@ type Endpoint struct {
 	// URL defines the endpoint URL.
 	URL *string `json:"url,omitempty"`
 
-	// Credentials defines the Datadog credentials used by the External Metrics Server to query Datadog.
+	// Credentials defines the Datadog credentials used to submit data to/query data from Datadog.
 	Credentials *DatadogCredentials `json:"credentials,omitempty"`
 }
 
@@ -422,20 +422,44 @@ type ConfigMapConfig struct {
 
 // GlobalConfig is a set of parameters that are used to configure all the components of the Datadog Operator.
 type GlobalConfig struct {
-	// Set a unique cluster name to allow scoping hosts and Cluster Checks Runner easily.
+	// Credentials defines the Datadog credentials used to submit data to/query data from Datadog.
+	Credentials *DatadogCredentials `json:"credentials,omitempty"`
+
+	// ClusterName sets a unique cluster name for the deployment to easily scope monitoring data in the Datadog app.
 	// +optional
 	ClusterName string `json:"clusterName,omitempty"`
 
-	// The site of the Datadog intake to send Agent data to.
+	// Site is the Datadog intake site Agent data are sent to.
 	// Set to 'datadoghq.eu' to send data to the EU site.
+	// Default: 'datadoghq.com'
 	// +optional
 	Site string `json:"site,omitempty"`
 
-	// Registry to use for all Agent images (default gcr.io/datadoghq).
-	// Use public.ecr.aws/datadog for AWS
-	// Use docker.io/datadog for DockerHub
+	// Registry is the image registry to use for all Agent images.
+	// Use 'public.ecr.aws/datadog' for AWS ECR.
+	// Use 'docker.io/datadog' for DockerHub.
+	// Default: 'gcr.io/datadoghq'
 	// +optional
 	Registry *string `json:"registry,omitempty"`
+
+	// LogLevel sets logging verbosity. This can be overridden by container.
+	// Valid log levels are: trace, debug, info, warn, error, critical, and off.
+	// Default: 'info'
+	LogLevel *string `json:"logLevel,omitempty"`
+
+	// Tags contains a list of tags to attach to every metric, event and service check collected.
+	// Learn more about tagging: https://docs.datadoghq.com/tagging/
+	// +optional
+	// +listType=set
+	Tags []string `json:"tags,omitempty"`
+
+	// NetworkPolicy contains the network configuration.
+	// +optional
+	NetworkPolicy *NetworkPolicyConfig `json:"networkPolicy,omitempty"`
+
+	// LocalService contains configuration to customize the internal traffic policy service.
+	// +optional
+	LocalService *LocalService `json:"localService,omitempty"`
 }
 
 // DatadogCredentials is a generic structure that holds credentials to access Datadog.
@@ -471,6 +495,48 @@ type Secret struct {
 	// KeyName is the key of the secret.
 	// +optional
 	KeyName string `json:"keyName,omitempty"`
+}
+
+// NetworkPolicyFlavor specifies which flavor of Network Policy to use.
+type NetworkPolicyFlavor string
+
+const (
+	// NetworkPolicyFlavorKubernetes refers to  `networking.k8s.io/v1/NetworkPolicy`
+	NetworkPolicyFlavorKubernetes NetworkPolicyFlavor = "kubernetes"
+
+	// NetworkPolicyFlavorCilium refers to `cilium.io/v2/CiliumNetworkPolicy`
+	NetworkPolicyFlavorCilium NetworkPolicyFlavor = "cilium"
+)
+
+// NetworkPolicyConfig provides Network Policy configuration for the agents.
+// +k8s:openapi-gen=true
+type NetworkPolicyConfig struct {
+	// Create defines whether to create a NetworkPolicy for the current deployment.
+	// +optional
+	Create *bool `json:"create,omitempty"`
+
+	// Flavor defines Which network policy to use.
+	// +optional
+	Flavor NetworkPolicyFlavor `json:"flavor,omitempty"`
+
+	// DNSSelectorEndpoints defines the cilium selector of the DNS server entity.
+	// +optional
+	DNSSelectorEndpoints []metav1.LabelSelector `json:"dnsSelectorEndpoints,omitempty"`
+}
+
+// LocalService provides the internal traffic policy service configuration.
+// +k8s:openapi-gen=true
+type LocalService struct {
+	// NameOverride defines the name of the internal traffic service to target the agent running on the local node.
+	// +optional
+	NameOverride string `json:"nameOverride,omitempty"`
+
+	// ForceEnableLocalService forces the creation of the internal traffic policy service to target the agent running on the local node.
+	// This parameter only applies to Kubernetes 1.21, where the feature is in alpha and is disabled by default.
+	// (On Kubernetes 1.22+, the feature entered beta and the internal traffic service is created by default, so this parameter is ignored.)
+	// Default: false
+	// +optional
+	ForceEnableLocalService *bool `json:"forceEnableLocalService,omitempty"`
 }
 
 // DatadogAgentResourceOverride is the generic description of a component (Cluster Agent Deployment, Node Agent Daemonset, etc.).
@@ -521,6 +587,32 @@ type DatadogAgentPodTemplateOverride struct {
 
 	// AdditionalLabels provide labels that will be added to the different component (Datadog Agent, Cluster Agent, Cluster Check Runner) pods.
 	Labels map[string]string `json:"labels,omitempty"`
+
+	// Kubelet contains the kubelet configuration parameters.
+	// +optional
+	Kubelet *KubeletConfig `json:"kubelet,omitempty"`
+}
+
+// KubeletConfig contains the kubelet configuration parameters.
+// +k8s:openapi-gen=true
+type KubeletConfig struct {
+	// Host overrides the host used to contact kubelet API (default to status.hostIP).
+	// +optional
+	Host *corev1.EnvVarSource `json:"host,omitempty"`
+
+	// TLSVerify toggles kubelet TLS verification.
+	// Default: true
+	// +optional
+	TLSVerify *bool `json:"tlsVerify,omitempty"`
+
+	// HostCAPath is the host path where the kubelet CA certificate is stored.
+	// +optional
+	HostCAPath string `json:"hostCAPath,omitempty"`
+
+	// AgentCAPath is the container path where the kubelet CA certificate is stored.
+	// Default: '/var/run/host-kubelet-ca.crt' if hostCAPath is set, else '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt'
+	// +optional
+	AgentCAPath string `json:"agentCAPath,omitempty"`
 }
 
 // DatadogAgentGenericContainer is the generic structure describing any container's common configuration.
