@@ -431,6 +431,7 @@ type GlobalConfig struct {
 
 	// Site is the Datadog intake site Agent data are sent to.
 	// Set to 'datadoghq.eu' to send data to the EU site.
+	// Default: 'datadoghq.com'
 	// +optional
 	Site string `json:"site,omitempty"`
 

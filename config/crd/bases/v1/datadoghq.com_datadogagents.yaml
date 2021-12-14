@@ -12688,8 +12688,9 @@ spec:
                       for DockerHub. Default: ''gcr.io/datadoghq'''
                     type: string
                   site:
-                    description: Site is the Datadog intake site Agent data are sent
-                      to. Set to 'datadoghq.eu' to send data to the EU site.
+                    description: 'Site is the Datadog intake site Agent data are sent
+                      to. Set to ''datadoghq.eu'' to send data to the EU site. Default:
+                      ''datadoghq.com'''
                     type: string
                   tags:
                     description: 'Tags contains a list of tags to attach to every
