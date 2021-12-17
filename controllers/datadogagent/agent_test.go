@@ -1258,7 +1258,7 @@ func defaultSystemProbePodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodSp
 				},
 				SecurityContext: &corev1.SecurityContext{
 					Capabilities: &corev1.Capabilities{
-						Add: []corev1.Capability{"SYS_ADMIN", "SYS_RESOURCE", "SYS_PTRACE", "NET_ADMIN", "NET_BROADCAST", "NET_RAW", "IPC_LOCK"},
+						Add: []corev1.Capability{"SYS_ADMIN", "SYS_RESOURCE", "SYS_PTRACE", "NET_ADMIN", "NET_BROADCAST", "NET_RAW", "IPC_LOCK", "SYS_CHOWN"},
 					},
 				},
 				Resources:    corev1.ResourceRequirements{},
@@ -1366,7 +1366,7 @@ func noSeccompInstallSystemProbeSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1
 				},
 				SecurityContext: &corev1.SecurityContext{
 					Capabilities: &corev1.Capabilities{
-						Add: []corev1.Capability{"SYS_ADMIN", "SYS_RESOURCE", "SYS_PTRACE", "NET_ADMIN", "NET_BROADCAST", "NET_RAW", "IPC_LOCK"},
+						Add: []corev1.Capability{"SYS_ADMIN", "SYS_RESOURCE", "SYS_PTRACE", "NET_ADMIN", "NET_BROADCAST", "NET_RAW", "IPC_LOCK", "SYS_CHOWN"},
 					},
 				},
 				Resources:    corev1.ResourceRequirements{},
@@ -1721,7 +1721,7 @@ func runtimeSecurityAgentPodSpec(extraEnv map[string]string, extraDir string) co
 				},
 				SecurityContext: &corev1.SecurityContext{
 					Capabilities: &corev1.Capabilities{
-						Add: []corev1.Capability{"SYS_ADMIN", "SYS_RESOURCE", "SYS_PTRACE", "NET_ADMIN", "NET_BROADCAST", "NET_RAW", "IPC_LOCK"},
+						Add: []corev1.Capability{"SYS_ADMIN", "SYS_RESOURCE", "SYS_PTRACE", "NET_ADMIN", "NET_BROADCAST", "NET_RAW", "IPC_LOCK", "SYS_CHOWN"},
 					},
 				},
 				Resources: corev1.ResourceRequirements{},
