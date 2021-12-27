@@ -154,8 +154,9 @@ func FeatureOverride(dda *DatadogAgentSpec, dso *DatadogAgentSpec) {
 			dso.Agent.SystemProbe.Enabled = NewBoolPointer(true)
 		}
 	}
-	if dda.Features.OrchestratorExplorer != nil && BoolValue(dda.Features.OrchestratorExplorer.Enabled) {
-		// If the Orchestrator Explorer Feature is enabled, enable the Process Agent.
+	if dda.Features.NetworkMonitoring != nil && BoolValue(dda.Features.NetworkMonitoring.Enabled) ||
+		dda.Features.OrchestratorExplorer != nil && BoolValue(dda.Features.OrchestratorExplorer.Enabled) {
+		// If the Network Monitoring or the Orchestrator Explorer Feature is enabled, enable the Process Agent.
 		if !BoolValue(dda.Agent.Enabled) {
 			if dda.Agent.Process == nil {
 				dda.Agent.Process = DefaultDatadogAgentSpecAgentProcess(&dda.Agent)
