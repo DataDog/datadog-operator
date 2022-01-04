@@ -43,17 +43,6 @@ func (r *Reconciler) reconcileClusterAgent(logger logr.Logger, dda *datadoghqv1a
 		return result, err
 	}
 
-	// Generate a Token for clusterAgent-Agent communication if not provided
-	if dda.Spec.Credentials.Token == "" {
-		if newStatus.ClusterAgent == nil {
-			newStatus.ClusterAgent = &datadoghqv1alpha1.DeploymentStatus{}
-		}
-		if newStatus.ClusterAgent.GeneratedToken == "" {
-			newStatus.ClusterAgent.GeneratedToken = generateRandomString(32)
-			return reconcile.Result{}, nil
-		}
-	}
-
 	if newStatus.ClusterAgent != nil &&
 		newStatus.ClusterAgent.DeploymentName != "" &&
 		newStatus.ClusterAgent.DeploymentName != getClusterAgentName(dda) {
