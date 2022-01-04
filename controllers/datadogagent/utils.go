@@ -16,6 +16,7 @@ import (
 	"time"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/orchestrator"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
@@ -159,56 +160,56 @@ func isClusterChecksEnabled(spec *datadoghqv1alpha1.DatadogAgentSpec) bool {
 	if spec.ClusterAgent.Config == nil {
 		return false
 	}
-	return datadoghqv1alpha1.BoolValue(spec.ClusterAgent.Config.ClusterChecksEnabled)
+	return apiutils.BoolValue(spec.ClusterAgent.Config.ClusterChecksEnabled)
 }
 
 func isAPMEnabled(spec *datadoghqv1alpha1.DatadogAgentSpec) bool {
 	if spec.Agent.Apm == nil {
 		return false
 	}
-	return datadoghqv1alpha1.BoolValue(spec.Agent.Apm.Enabled)
+	return apiutils.BoolValue(spec.Agent.Apm.Enabled)
 }
 
 func isAPMUDSEnabled(spec *datadoghqv1alpha1.DatadogAgentSpec) bool {
 	if !isAPMEnabled(spec) || spec.Agent.Apm.UnixDomainSocket == nil {
 		return false
 	}
-	return datadoghqv1alpha1.BoolValue(spec.Agent.Apm.UnixDomainSocket.Enabled)
+	return apiutils.BoolValue(spec.Agent.Apm.UnixDomainSocket.Enabled)
 }
 
 func isSystemProbeEnabled(spec *datadoghqv1alpha1.DatadogAgentSpec) bool {
 	if spec.Agent.SystemProbe == nil {
 		return false
 	}
-	return datadoghqv1alpha1.BoolValue(spec.Agent.SystemProbe.Enabled)
+	return apiutils.BoolValue(spec.Agent.SystemProbe.Enabled)
 }
 
 func isNetworkMonitoringEnabled(spec *datadoghqv1alpha1.DatadogAgentSpec) bool {
 	if spec.Features.NetworkMonitoring == nil {
 		return false
 	}
-	return datadoghqv1alpha1.BoolValue(spec.Features.NetworkMonitoring.Enabled)
+	return apiutils.BoolValue(spec.Features.NetworkMonitoring.Enabled)
 }
 
 func isComplianceEnabled(spec *datadoghqv1alpha1.DatadogAgentSpec) bool {
 	if spec.Agent.Security == nil {
 		return false
 	}
-	return datadoghqv1alpha1.BoolValue(spec.Agent.Security.Compliance.Enabled)
+	return apiutils.BoolValue(spec.Agent.Security.Compliance.Enabled)
 }
 
 func isRuntimeSecurityEnabled(spec *datadoghqv1alpha1.DatadogAgentSpec) bool {
 	if spec.Agent.Security == nil {
 		return false
 	}
-	return datadoghqv1alpha1.BoolValue(spec.Agent.Security.Runtime.Enabled)
+	return apiutils.BoolValue(spec.Agent.Security.Runtime.Enabled)
 }
 
 func isSecurityAgentEnabled(spec *datadoghqv1alpha1.DatadogAgentSpec) bool {
 	if spec.Agent.Security == nil {
 		return false
 	}
-	return datadoghqv1alpha1.BoolValue(spec.Agent.Security.Compliance.Enabled) || datadoghqv1alpha1.BoolValue(spec.Agent.Security.Runtime.Enabled)
+	return apiutils.BoolValue(spec.Agent.Security.Compliance.Enabled) || apiutils.BoolValue(spec.Agent.Security.Runtime.Enabled)
 }
 
 func isSyscallMonitorEnabled(spec *datadoghqv1alpha1.DatadogAgentSpec) bool {
@@ -218,7 +219,7 @@ func isSyscallMonitorEnabled(spec *datadoghqv1alpha1.DatadogAgentSpec) bool {
 	if spec.Agent.Security.Runtime.SyscallMonitor == nil {
 		return false
 	}
-	return datadoghqv1alpha1.BoolValue(spec.Agent.Security.Runtime.SyscallMonitor.Enabled)
+	return apiutils.BoolValue(spec.Agent.Security.Runtime.SyscallMonitor.Enabled)
 }
 
 func isDogstatsdConfigured(spec *datadoghqv1alpha1.DatadogAgentSpec) bool {
@@ -232,7 +233,7 @@ func isDogstatsdUDSEnabled(spec *datadoghqv1alpha1.DatadogAgentSpec) bool {
 	if !isDogstatsdConfigured(spec) || spec.Agent.Config.Dogstatsd.UnixDomainSocket == nil {
 		return false
 	}
-	return datadoghqv1alpha1.BoolValue(spec.Agent.Config.Dogstatsd.UnixDomainSocket.Enabled)
+	return apiutils.BoolValue(spec.Agent.Config.Dogstatsd.UnixDomainSocket.Enabled)
 }
 
 // shouldAddProcessContainer returns whether the process container should be added.
@@ -243,7 +244,7 @@ func shouldAddProcessContainer(dda *datadoghqv1alpha1.DatadogAgent) bool {
 	if dda.Spec.Agent.Process == nil {
 		return false
 	}
-	return datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Process.Enabled) || isOrchestratorExplorerEnabled(dda)
+	return apiutils.BoolValue(dda.Spec.Agent.Process.Enabled) || isOrchestratorExplorerEnabled(dda)
 }
 
 func shouldMountPasswdVolume(dda *datadoghqv1alpha1.DatadogAgent) bool {
@@ -264,8 +265,8 @@ func processCollectionEnabled(dda *datadoghqv1alpha1.DatadogAgent) bool {
 	if dda.Spec.Agent.Process == nil {
 		return false
 	}
-	return datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Process.ProcessCollectionEnabled) &&
-		datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Process.Enabled)
+	return apiutils.BoolValue(dda.Spec.Agent.Process.ProcessCollectionEnabled) &&
+		apiutils.BoolValue(dda.Spec.Agent.Process.Enabled)
 }
 
 func getAgentDeploymentStrategy(dda *datadoghqv1alpha1.DatadogAgent) (*datadoghqv1alpha1.DaemonSetDeploymentStrategy, error) {
@@ -571,7 +572,7 @@ func getEnvVarsForAPMAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.EnvVar
 	}
 
 	// APM Unix Domain Socket configuration
-	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Apm.UnixDomainSocket.Enabled) {
+	if apiutils.BoolValue(dda.Spec.Agent.Apm.UnixDomainSocket.Enabled) {
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  datadoghqv1alpha1.DDPPMReceiverSocket,
 			Value: getLocalFilepath(*dda.Spec.Agent.Apm.UnixDomainSocket.HostFilepath, localAPMSocketPath),
@@ -767,15 +768,15 @@ func getEnvVarsForLogCollection(logSpec *datadoghqv1alpha1.LogCollectionConfig) 
 	envVars := []corev1.EnvVar{
 		{
 			Name:  datadoghqv1alpha1.DDLogsEnabled,
-			Value: strconv.FormatBool(datadoghqv1alpha1.BoolValue(logSpec.Enabled)),
+			Value: strconv.FormatBool(apiutils.BoolValue(logSpec.Enabled)),
 		},
 		{
 			Name:  datadoghqv1alpha1.DDLogsConfigContainerCollectAll,
-			Value: strconv.FormatBool(datadoghqv1alpha1.BoolValue(logSpec.LogsConfigContainerCollectAll)),
+			Value: strconv.FormatBool(apiutils.BoolValue(logSpec.LogsConfigContainerCollectAll)),
 		},
 		{
 			Name:  datadoghqv1alpha1.DDLogsContainerCollectUsingFiles,
-			Value: strconv.FormatBool(datadoghqv1alpha1.BoolValue(logSpec.ContainerCollectUsingFiles)),
+			Value: strconv.FormatBool(apiutils.BoolValue(logSpec.ContainerCollectUsingFiles)),
 		},
 	}
 	if logSpec.OpenFilesLimit != nil {
@@ -861,8 +862,8 @@ func getEnvVarsForAgent(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent)
 
 	if isClusterAgentEnabled(dda.Spec.ClusterAgent) {
 		clusterEnv := envForClusterAgentConnection(dda)
-		if spec.ClusterAgent.Config != nil && datadoghqv1alpha1.BoolValue(spec.ClusterAgent.Config.ClusterChecksEnabled) {
-			if !datadoghqv1alpha1.BoolValue(dda.Spec.ClusterChecksRunner.Enabled) {
+		if spec.ClusterAgent.Config != nil && apiutils.BoolValue(spec.ClusterAgent.Config.ClusterChecksEnabled) {
+			if !apiutils.BoolValue(dda.Spec.ClusterChecksRunner.Enabled) {
 				clusterEnv = append(clusterEnv, corev1.EnvVar{
 					Name:  datadoghqv1alpha1.DDExtraConfigProviders,
 					Value: datadoghqv1alpha1.ClusterAndEndpointsConfigPoviders,
@@ -1169,8 +1170,8 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 
 		volumes = append(volumes, systemProbeVolumes...)
 
-		if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.SystemProbe.EnableTCPQueueLength) ||
-			datadoghqv1alpha1.BoolValue(dda.Spec.Agent.SystemProbe.EnableOOMKill) {
+		if apiutils.BoolValue(dda.Spec.Agent.SystemProbe.EnableTCPQueueLength) ||
+			apiutils.BoolValue(dda.Spec.Agent.SystemProbe.EnableOOMKill) {
 			volumes = append(volumes, []corev1.Volume{
 				{
 					Name: datadoghqv1alpha1.SystemProbeLibModulesVolumeName,
@@ -1193,7 +1194,7 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 	}
 
 	logConfig := dda.Spec.Features.LogCollection
-	if logConfig != nil && datadoghqv1alpha1.BoolValue(logConfig.Enabled) {
+	if logConfig != nil && apiutils.BoolValue(logConfig.Enabled) {
 		if logConfig.TempStoragePath != nil {
 			volumes = append(volumes, corev1.Volume{
 				Name: datadoghqv1alpha1.PointerVolumeName,
@@ -1449,7 +1450,7 @@ func getVolumeMountsForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volum
 	volumeMounts = append(volumeMounts, getVolumeMountDogstatsdSocket(false))
 
 	// Log volumes
-	if datadoghqv1alpha1.BoolValue(dda.Spec.Features.LogCollection.Enabled) {
+	if apiutils.BoolValue(dda.Spec.Features.LogCollection.Enabled) {
 		volumeMounts = append(volumeMounts, []corev1.VolumeMount{
 			{
 				Name:      datadoghqv1alpha1.PointerVolumeName,
@@ -1648,7 +1649,7 @@ func getVolumeMountsForAPMAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Vo
 	volumeMounts = append(volumeMounts, getVolumeMountDogstatsdSocket(true))
 
 	// APM UDS
-	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Apm.UnixDomainSocket.Enabled) {
+	if apiutils.BoolValue(dda.Spec.Agent.Apm.UnixDomainSocket.Enabled) {
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
 			Name:      datadoghqv1alpha1.APMSocketVolumeName,
 			MountPath: datadoghqv1alpha1.APMSocketVolumePath,
@@ -1704,8 +1705,8 @@ func getVolumeMountsForSystemProbe(dda *datadoghqv1alpha1.DatadogAgent) []corev1
 		})
 	}
 
-	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.SystemProbe.EnableTCPQueueLength) ||
-		datadoghqv1alpha1.BoolValue(dda.Spec.Agent.SystemProbe.EnableOOMKill) {
+	if apiutils.BoolValue(dda.Spec.Agent.SystemProbe.EnableTCPQueueLength) ||
+		apiutils.BoolValue(dda.Spec.Agent.SystemProbe.EnableOOMKill) {
 		volumeMounts = append(volumeMounts, []corev1.VolumeMount{
 			{
 				Name:      datadoghqv1alpha1.SystemProbeLibModulesVolumeName,
@@ -1838,7 +1839,7 @@ func getAgentVersion(dda *datadoghqv1alpha1.DatadogAgent) string {
 
 func getAgentServiceAccount(dda *datadoghqv1alpha1.DatadogAgent) string {
 	saDefault := fmt.Sprintf("%s-agent", dda.Name)
-	if !datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Enabled) {
+	if !apiutils.BoolValue(dda.Spec.Agent.Enabled) {
 		return saDefault
 	}
 	if dda.Spec.Agent.Rbac != nil && dda.Spec.Agent.Rbac.ServiceAccountName != nil {
@@ -1945,7 +1946,7 @@ func getExternalMetricsReaderClusterRoleName(dda *datadoghqv1alpha1.DatadogAgent
 func getClusterChecksRunnerServiceAccount(dda *datadoghqv1alpha1.DatadogAgent) string {
 	saDefault := fmt.Sprintf("%s-%s", dda.Name, datadoghqv1alpha1.DefaultClusterChecksRunnerResourceSuffix)
 
-	if !datadoghqv1alpha1.BoolValue(dda.Spec.ClusterChecksRunner.Enabled) {
+	if !apiutils.BoolValue(dda.Spec.ClusterChecksRunner.Enabled) {
 		return saDefault
 	}
 	if dda.Spec.ClusterChecksRunner.Rbac.ServiceAccountName != nil {
@@ -2008,11 +2009,11 @@ func isKSMCoreEnabled(dda *datadoghqv1alpha1.DatadogAgent) bool {
 	if dda.Spec.Features.KubeStateMetricsCore == nil {
 		return false
 	}
-	return datadoghqv1alpha1.BoolValue(dda.Spec.Features.KubeStateMetricsCore.Enabled)
+	return apiutils.BoolValue(dda.Spec.Features.KubeStateMetricsCore.Enabled)
 }
 
 func isKSMCoreClusterCheck(dda *datadoghqv1alpha1.DatadogAgent) bool {
-	return isKSMCoreEnabled(dda) && datadoghqv1alpha1.BoolValue(dda.Spec.Features.KubeStateMetricsCore.ClusterCheck)
+	return isKSMCoreEnabled(dda) && apiutils.BoolValue(dda.Spec.Features.KubeStateMetricsCore.ClusterCheck)
 }
 
 // GetConfName get the name of the Configmap for a CustomConfigSpec
@@ -2028,15 +2029,15 @@ func GetConfName(dca *datadoghqv1alpha1.DatadogAgent, conf *datadoghqv1alpha1.Cu
 func prometheusScrapeEnvVars(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) []corev1.EnvVar {
 	envVars := []corev1.EnvVar{}
 
-	if datadoghqv1alpha1.BoolValue(dda.Spec.Features.PrometheusScrape.Enabled) {
+	if apiutils.BoolValue(dda.Spec.Features.PrometheusScrape.Enabled) {
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  datadoghqv1alpha1.DDPrometheusScrapeEnabled,
-			Value: datadoghqv1alpha1.BoolToString(dda.Spec.Features.PrometheusScrape.Enabled),
+			Value: apiutils.BoolToString(dda.Spec.Features.PrometheusScrape.Enabled),
 		})
 
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  datadoghqv1alpha1.DDPrometheusScrapeServiceEndpoints,
-			Value: datadoghqv1alpha1.BoolToString(dda.Spec.Features.PrometheusScrape.ServiceEndpoints),
+			Value: apiutils.BoolToString(dda.Spec.Features.PrometheusScrape.ServiceEndpoints),
 		})
 
 		if dda.Spec.Features.PrometheusScrape.AdditionalConfigs != nil {
@@ -2085,7 +2086,7 @@ func dsdMapperProfilesEnvVar(logger logr.Logger, dda *datadoghqv1alpha1.DatadogA
 }
 
 func isClusterAgentEnabled(spec datadoghqv1alpha1.DatadogAgentSpecClusterAgentSpec) bool {
-	return datadoghqv1alpha1.BoolValue(spec.Enabled)
+	return apiutils.BoolValue(spec.Enabled)
 }
 
 func isMetricsProviderEnabled(spec datadoghqv1alpha1.DatadogAgentSpecClusterAgentSpec) bool {
@@ -2095,7 +2096,7 @@ func isMetricsProviderEnabled(spec datadoghqv1alpha1.DatadogAgentSpecClusterAgen
 	if spec.Config == nil || spec.Config.ExternalMetrics == nil {
 		return false
 	}
-	return datadoghqv1alpha1.BoolValue(spec.Config.ExternalMetrics.Enabled)
+	return apiutils.BoolValue(spec.Config.ExternalMetrics.Enabled)
 }
 
 func hasMetricsProviderCustomCredentials(spec datadoghqv1alpha1.DatadogAgentSpecClusterAgentSpec) bool {
@@ -2106,14 +2107,14 @@ func isAdmissionControllerEnabled(spec datadoghqv1alpha1.DatadogAgentSpecCluster
 	if spec.Config == nil || spec.Config.AdmissionController == nil {
 		return false
 	}
-	return datadoghqv1alpha1.BoolValue(spec.Config.AdmissionController.Enabled)
+	return apiutils.BoolValue(spec.Config.AdmissionController.Enabled)
 }
 
 func isCreateRBACEnabled(config *datadoghqv1alpha1.RbacConfig) bool {
 	if config == nil {
 		return false
 	}
-	return datadoghqv1alpha1.BoolValue(config.Create)
+	return apiutils.BoolValue(config.Create)
 }
 
 func updateDaemonSetStatus(ds *appsv1.DaemonSet, dsStatus *datadoghqv1alpha1.DaemonSetStatus, updateTime *metav1.Time) *datadoghqv1alpha1.DaemonSetStatus {
@@ -2356,7 +2357,7 @@ func addBoolPointerEnVar(b *bool, varName string, varList []corev1.EnvVar) []cor
 	if b != nil {
 		varList = append(varList, corev1.EnvVar{
 			Name:  varName,
-			Value: datadoghqv1alpha1.BoolToString(b),
+			Value: apiutils.BoolToString(b),
 		})
 	}
 
@@ -2386,12 +2387,12 @@ func getReplicas(currentReplicas, newReplicas *int32) *int32 {
 		if currentReplicas != nil {
 			// Do not overwrite the current value
 			// It's most likely managed by an autoscaler
-			return datadoghqv1alpha1.NewInt32Pointer(*currentReplicas)
+			return apiutils.NewInt32Pointer(*currentReplicas)
 		}
 
 		// Both new and current are nil
 		return nil
 	}
 
-	return datadoghqv1alpha1.NewInt32Pointer(*newReplicas)
+	return apiutils.NewInt32Pointer(*newReplicas)
 }

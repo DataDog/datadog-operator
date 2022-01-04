@@ -6,6 +6,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1/test"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/testutils"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 
@@ -119,7 +120,7 @@ func Test_getVolumeMountsForSecurityAgent(t *testing.T) {
 
 	securityCompliance := &datadoghqv1alpha1.SecuritySpec{
 		Compliance: datadoghqv1alpha1.ComplianceSpec{
-			Enabled: datadoghqv1alpha1.NewBoolPointer(true),
+			Enabled: apiutils.NewBoolPointer(true),
 			ConfigDir: &datadoghqv1alpha1.ConfigDirSpec{
 				ConfigMapName: "compliance-cm",
 			},
@@ -127,7 +128,7 @@ func Test_getVolumeMountsForSecurityAgent(t *testing.T) {
 	}
 	securityRuntime := &datadoghqv1alpha1.SecuritySpec{
 		Runtime: datadoghqv1alpha1.RuntimeSecuritySpec{
-			Enabled: datadoghqv1alpha1.NewBoolPointer(true),
+			Enabled: apiutils.NewBoolPointer(true),
 			PoliciesDir: &datadoghqv1alpha1.ConfigDirSpec{
 				ConfigMapName: "runtime-cm",
 			},
@@ -230,8 +231,8 @@ func Test_prometheusScrapeEnvVars(t *testing.T) {
 		{
 			name: "Enabled + Service endpoints disabled",
 			promConfig: &datadoghqv1alpha1.PrometheusScrapeConfig{
-				Enabled:          datadoghqv1alpha1.NewBoolPointer(true),
-				ServiceEndpoints: datadoghqv1alpha1.NewBoolPointer(false),
+				Enabled:          apiutils.NewBoolPointer(true),
+				ServiceEndpoints: apiutils.NewBoolPointer(false),
 			},
 			want: []v1.EnvVar{
 				{Name: "DD_PROMETHEUS_SCRAPE_ENABLED", Value: "true"},
@@ -241,8 +242,8 @@ func Test_prometheusScrapeEnvVars(t *testing.T) {
 		{
 			name: "Enabled + Service endpoints enabled",
 			promConfig: &datadoghqv1alpha1.PrometheusScrapeConfig{
-				Enabled:          datadoghqv1alpha1.NewBoolPointer(true),
-				ServiceEndpoints: datadoghqv1alpha1.NewBoolPointer(true),
+				Enabled:          apiutils.NewBoolPointer(true),
+				ServiceEndpoints: apiutils.NewBoolPointer(true),
 			},
 			want: []v1.EnvVar{
 				{Name: "DD_PROMETHEUS_SCRAPE_ENABLED", Value: "true"},
@@ -252,16 +253,16 @@ func Test_prometheusScrapeEnvVars(t *testing.T) {
 		{
 			name: "Disabled + Service endpoints enabled",
 			promConfig: &datadoghqv1alpha1.PrometheusScrapeConfig{
-				Enabled:          datadoghqv1alpha1.NewBoolPointer(false),
-				ServiceEndpoints: datadoghqv1alpha1.NewBoolPointer(true),
+				Enabled:          apiutils.NewBoolPointer(false),
+				ServiceEndpoints: apiutils.NewBoolPointer(true),
 			},
 			want: []v1.EnvVar{},
 		},
 		{
 			name: "Additional config",
 			promConfig: &datadoghqv1alpha1.PrometheusScrapeConfig{
-				Enabled: datadoghqv1alpha1.NewBoolPointer(true),
-				AdditionalConfigs: datadoghqv1alpha1.NewStringPointer(`- configurations:
+				Enabled: apiutils.NewBoolPointer(true),
+				AdditionalConfigs: apiutils.NewStringPointer(`- configurations:
   - timeout: 5
     send_distribution_buckets: true
   autodiscovery:
@@ -281,8 +282,8 @@ func Test_prometheusScrapeEnvVars(t *testing.T) {
 		{
 			name: "Invalid additional config",
 			promConfig: &datadoghqv1alpha1.PrometheusScrapeConfig{
-				Enabled:           datadoghqv1alpha1.NewBoolPointer(true),
-				AdditionalConfigs: datadoghqv1alpha1.NewStringPointer(","),
+				Enabled:           apiutils.NewBoolPointer(true),
+				AdditionalConfigs: apiutils.NewStringPointer(","),
 			},
 			want: []v1.EnvVar{
 				{Name: "DD_PROMETHEUS_SCRAPE_ENABLED", Value: "true"},
@@ -317,7 +318,7 @@ func Test_dsdMapperProfilesEnvVar(t *testing.T) {
 		{
 			name: "YAML conf data",
 			dsdMapperProfilesConf: &datadoghqv1alpha1.CustomConfigSpec{
-				ConfigData: datadoghqv1alpha1.NewStringPointer(`- name: my_custom_metric_profile
+				ConfigData: apiutils.NewStringPointer(`- name: my_custom_metric_profile
   prefix: custom_metric.
   mappings:
     - match: 'custom_metric.process.*.*'
@@ -335,7 +336,7 @@ func Test_dsdMapperProfilesEnvVar(t *testing.T) {
 		{
 			name: "JSON conf data",
 			dsdMapperProfilesConf: &datadoghqv1alpha1.CustomConfigSpec{
-				ConfigData: datadoghqv1alpha1.NewStringPointer(`[{"mappings":[{"match":"custom_metric.process.*.*","match_type":"wildcard","name":"custom_metric.process.prod.$1.live","tags":{"tag_key_2":"$2"}}],"name":"my_custom_metric_profile","prefix":"custom_metric."}]`),
+				ConfigData: apiutils.NewStringPointer(`[{"mappings":[{"match":"custom_metric.process.*.*","match_type":"wildcard","name":"custom_metric.process.prod.$1.live","tags":{"tag_key_2":"$2"}}],"name":"my_custom_metric_profile","prefix":"custom_metric."}]`),
 			},
 			want: &v1.EnvVar{
 				Name:  "DD_DOGSTATSD_MAPPER_PROFILES",
@@ -358,7 +359,7 @@ func Test_dsdMapperProfilesEnvVar(t *testing.T) {
 		{
 			name: "conf data + config map",
 			dsdMapperProfilesConf: &datadoghqv1alpha1.CustomConfigSpec{
-				ConfigData: datadoghqv1alpha1.NewStringPointer("foo: bar"),
+				ConfigData: apiutils.NewStringPointer("foo: bar"),
 				ConfigMap: &datadoghqv1alpha1.ConfigFileConfigMapSpec{
 					Name:    "dsd-config",
 					FileKey: "config",
@@ -372,7 +373,7 @@ func Test_dsdMapperProfilesEnvVar(t *testing.T) {
 		{
 			name: "invalid conf data",
 			dsdMapperProfilesConf: &datadoghqv1alpha1.CustomConfigSpec{
-				ConfigData: datadoghqv1alpha1.NewStringPointer(","),
+				ConfigData: apiutils.NewStringPointer(","),
 			},
 			want: nil,
 		},
@@ -471,7 +472,7 @@ func Test_getImage(t *testing.T) {
 				Name: "agent",
 				Tag:  "7",
 			},
-			registry: datadoghqv1alpha1.NewStringPointer("public.ecr.aws/datadog"),
+			registry: apiutils.NewStringPointer("public.ecr.aws/datadog"),
 			want:     "public.ecr.aws/datadog/agent:7",
 		},
 		{
@@ -480,7 +481,7 @@ func Test_getImage(t *testing.T) {
 				Name: "docker.io/datadog/agent:7.28.1-rc.3",
 				Tag:  "latest",
 			},
-			registry: datadoghqv1alpha1.NewStringPointer("gcr.io/datadoghq"),
+			registry: apiutils.NewStringPointer("gcr.io/datadoghq"),
 			want:     "docker.io/datadog/agent:7.28.1-rc.3",
 		},
 		{
@@ -549,21 +550,21 @@ func Test_getReplicas(t *testing.T) {
 	}{
 		{
 			name:    "both not nil",
-			current: datadoghqv1alpha1.NewInt32Pointer(2),
-			new:     datadoghqv1alpha1.NewInt32Pointer(3),
-			want:    datadoghqv1alpha1.NewInt32Pointer(3),
+			current: apiutils.NewInt32Pointer(2),
+			new:     apiutils.NewInt32Pointer(3),
+			want:    apiutils.NewInt32Pointer(3),
 		},
 		{
 			name:    "new is nil",
-			current: datadoghqv1alpha1.NewInt32Pointer(2),
+			current: apiutils.NewInt32Pointer(2),
 			new:     nil,
-			want:    datadoghqv1alpha1.NewInt32Pointer(2),
+			want:    apiutils.NewInt32Pointer(2),
 		},
 		{
 			name:    "current is nil",
 			current: nil,
-			new:     datadoghqv1alpha1.NewInt32Pointer(3),
-			want:    datadoghqv1alpha1.NewInt32Pointer(3),
+			new:     apiutils.NewInt32Pointer(3),
+			want:    apiutils.NewInt32Pointer(3),
 		},
 		{
 			name:    "both nil",

@@ -25,6 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/orchestrator"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
@@ -491,7 +492,7 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 
 	container := &newPodTemplate.Spec.Containers[0]
 
-	if datadoghqv1alpha1.BoolValue(dda.Spec.ClusterAgent.Config.ExternalMetrics.Enabled) {
+	if apiutils.BoolValue(dda.Spec.ClusterAgent.Config.ExternalMetrics.Enabled) {
 		port := getClusterAgentMetricsProviderPort(*dda.Spec.ClusterAgent.Config)
 		container.Ports = append(container.Ports, corev1.ContainerPort{
 			ContainerPort: port,
@@ -603,7 +604,7 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 		},
 		{
 			Name:  datadoghqv1alpha1.DDCollectKubeEvents,
-			Value: datadoghqv1alpha1.BoolToString(spec.ClusterAgent.Config.CollectEvents),
+			Value: apiutils.BoolToString(spec.ClusterAgent.Config.CollectEvents),
 		},
 		{
 			Name:  datadoghqv1alpha1.DDHealthPort,
@@ -635,7 +636,7 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 	}
 
 	// TODO We should be able to disable the agent and still configure the Endpoint for the Cluster Agent.
-	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Enabled) && spec.Agent.Config.DDUrl != nil {
+	if apiutils.BoolValue(dda.Spec.Agent.Enabled) && spec.Agent.Config.DDUrl != nil {
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  datadoghqv1alpha1.DDddURL,
 			Value: *spec.Agent.Config.DDUrl,
@@ -709,7 +710,7 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 	}
 
 	// Cluster Checks config
-	if datadoghqv1alpha1.BoolValue(spec.ClusterAgent.Config.ClusterChecksEnabled) {
+	if apiutils.BoolValue(spec.ClusterAgent.Config.ClusterChecksEnabled) {
 		envVars = append(envVars, []corev1.EnvVar{
 			{
 				Name:  datadoghqv1alpha1.DDExtraConfigProviders,
@@ -740,7 +741,7 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 		})
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  datadoghqv1alpha1.DDAdmissionControllerMutateUnlabelled,
-			Value: datadoghqv1alpha1.BoolToString(spec.ClusterAgent.Config.AdmissionController.MutateUnlabelled),
+			Value: apiutils.BoolToString(spec.ClusterAgent.Config.AdmissionController.MutateUnlabelled),
 		})
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  datadoghqv1alpha1.DDAdmissionControllerServiceName,
@@ -1068,12 +1069,12 @@ func buildClusterRole(dda *datadoghqv1alpha1.DatadogAgent, needClusterLevelRBAC 
 		// to collect cluster level metrics and events
 		rbacRules = append(rbacRules, getDefaultClusterAgentPolicyRules()...)
 
-		if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Enabled) {
-			if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Config.CollectEvents) {
+		if apiutils.BoolValue(dda.Spec.Agent.Enabled) {
+			if apiutils.BoolValue(dda.Spec.Agent.Config.CollectEvents) {
 				rbacRules = append(rbacRules, getEventCollectionPolicyRule())
 			}
 
-			if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Config.LeaderElection) {
+			if apiutils.BoolValue(dda.Spec.Agent.Config.LeaderElection) {
 				rbacRules = append(rbacRules, getLeaderElectionPolicyRule()...)
 			}
 		}
@@ -1167,7 +1168,7 @@ func buildClusterAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, age
 		Verbs: []string{datadoghqv1alpha1.GetVerb},
 	})
 
-	if datadoghqv1alpha1.BoolValue(dda.Spec.ClusterAgent.Config.CollectEvents) {
+	if apiutils.BoolValue(dda.Spec.ClusterAgent.Config.CollectEvents) {
 		rbacRules = append(rbacRules, getEventCollectionPolicyRule())
 	}
 
@@ -1428,7 +1429,7 @@ func buildClusterAgentRole(dda *datadoghqv1alpha1.DatadogAgent, name, agentVersi
 func (r *Reconciler) manageClusterAgentNetworkPolicy(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
 	spec := dda.Spec.ClusterAgent
 	builder := clusterAgentNetworkPolicyBuilder{dda, spec.NetworkPolicy}
-	if !datadoghqv1alpha1.BoolValue(spec.Enabled) || spec.NetworkPolicy == nil || !datadoghqv1alpha1.BoolValue(spec.NetworkPolicy.Create) {
+	if !apiutils.BoolValue(spec.Enabled) || spec.NetworkPolicy == nil || !apiutils.BoolValue(spec.NetworkPolicy.Create) {
 		return r.cleanupNetworkPolicy(logger, dda, builder.Name())
 	}
 
@@ -1491,7 +1492,7 @@ func (b clusterAgentNetworkPolicyBuilder) BuildKubernetesPolicy() *networkingv1.
 		},
 	}
 
-	if datadoghqv1alpha1.BoolValue(dda.Spec.ClusterAgent.Config.ClusterChecksEnabled) {
+	if apiutils.BoolValue(dda.Spec.ClusterAgent.Config.ClusterChecksEnabled) {
 		ingressRules = append(ingressRules, networkingv1.NetworkPolicyIngressRule{
 			Ports: []networkingv1.NetworkPolicyPort{
 				{
@@ -1684,7 +1685,7 @@ func (b clusterAgentNetworkPolicyBuilder) BuildCiliumPolicy() *cilium.NetworkPol
 		b.ciliumIngressAgent(),
 	}
 
-	if datadoghqv1alpha1.BoolValue(b.dda.Spec.ClusterAgent.Config.ClusterChecksEnabled) {
+	if apiutils.BoolValue(b.dda.Spec.ClusterAgent.Config.ClusterChecksEnabled) {
 		specs = append(specs, cilium.NetworkPolicySpec{
 			Description:      "Ingress from cluster workers",
 			EndpointSelector: b.PodSelector(),
@@ -1713,7 +1714,7 @@ func (b clusterAgentNetworkPolicyBuilder) BuildCiliumPolicy() *cilium.NetworkPol
 		})
 	}
 
-	if datadoghqv1alpha1.BoolValue(b.dda.Spec.ClusterAgent.Config.ExternalMetrics.Enabled) {
+	if apiutils.BoolValue(b.dda.Spec.ClusterAgent.Config.ExternalMetrics.Enabled) {
 		specs = append(specs, cilium.NetworkPolicySpec{
 			Description:      "Ingress from API server for external metrics",
 			EndpointSelector: b.PodSelector(),

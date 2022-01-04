@@ -24,6 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/orchestrator"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
@@ -75,9 +76,9 @@ func (r *Reconciler) reconcileClusterChecksRunner(logger logr.Logger, dda *datad
 
 func needClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) bool {
 	if isClusterAgentEnabled(dda.Spec.ClusterAgent) &&
-		datadoghqv1alpha1.BoolValue(dda.Spec.ClusterChecksRunner.Enabled) &&
+		apiutils.BoolValue(dda.Spec.ClusterChecksRunner.Enabled) &&
 		dda.Spec.ClusterAgent.Config != nil &&
-		datadoghqv1alpha1.BoolValue(dda.Spec.ClusterAgent.Config.ClusterChecksEnabled) {
+		apiutils.BoolValue(dda.Spec.ClusterAgent.Config.ClusterChecksEnabled) {
 		return true
 	}
 
@@ -316,7 +317,7 @@ func newClusterChecksRunnerPodTemplate(dda *datadoghqv1alpha1.DatadogAgent, labe
 }
 
 func buildClusterChecksRunnerConfigurationConfigMap(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.ConfigMap, error) {
-	if !datadoghqv1alpha1.BoolValue(dda.Spec.ClusterChecksRunner.Enabled) {
+	if !apiutils.BoolValue(dda.Spec.ClusterChecksRunner.Enabled) {
 		return nil, nil
 	}
 	return buildConfigurationConfigMap(dda, dda.Spec.ClusterChecksRunner.CustomConfig, getClusterChecksRunnerCustomConfigConfigMapName(dda), datadoghqv1alpha1.AgentCustomConfigVolumeSubPath)
@@ -448,7 +449,7 @@ func getClusterChecksRunnerVersion(dda *datadoghqv1alpha1.DatadogAgent) string {
 }
 
 func getClusterChecksRunnerName(dda *datadoghqv1alpha1.DatadogAgent) string {
-	if datadoghqv1alpha1.BoolValue(dda.Spec.ClusterChecksRunner.Enabled) && dda.Spec.ClusterChecksRunner.DeploymentName != "" {
+	if apiutils.BoolValue(dda.Spec.ClusterChecksRunner.Enabled) && dda.Spec.ClusterChecksRunner.DeploymentName != "" {
 		return dda.Spec.ClusterChecksRunner.DeploymentName
 	}
 	return fmt.Sprintf("%s-%s", dda.Name, "cluster-checks-runner")
@@ -540,7 +541,7 @@ func getPodAffinity(affinity *corev1.Affinity) *corev1.Affinity {
 func (r *Reconciler) manageClusterChecksRunnerNetworkPolicy(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
 	spec := dda.Spec.ClusterChecksRunner
 	builder := clusterChecksRunnerNetworkPolicyBuilder{dda, spec.NetworkPolicy}
-	if !datadoghqv1alpha1.BoolValue(spec.Enabled) || spec.NetworkPolicy == nil || !datadoghqv1alpha1.BoolValue(spec.NetworkPolicy.Create) {
+	if !apiutils.BoolValue(spec.Enabled) || spec.NetworkPolicy == nil || !apiutils.BoolValue(spec.NetworkPolicy.Create) {
 		return r.cleanupNetworkPolicy(logger, dda, builder.Name())
 	}
 
@@ -578,7 +579,7 @@ func (b clusterChecksRunnerNetworkPolicyBuilder) BuildKubernetesPolicy() *networ
 		},
 	}
 
-	if datadoghqv1alpha1.BoolValue(dda.Spec.ClusterChecksRunner.Enabled) {
+	if apiutils.BoolValue(dda.Spec.ClusterChecksRunner.Enabled) {
 		egressRules = append(egressRules, networkingv1.NetworkPolicyEgressRule{
 			Ports: []networkingv1.NetworkPolicyPort{
 				{

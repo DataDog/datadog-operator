@@ -7,6 +7,7 @@ package datadogagent
 
 import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 
 	corev1 "k8s.io/api/core/v1"
 )
@@ -35,7 +36,7 @@ func getKubeletEnvVars(dda *datadoghqv1alpha1.DatadogAgent) []corev1.EnvVar {
 	if dda.Spec.Agent.Config.Kubelet != nil && dda.Spec.Agent.Config.Kubelet.TLSVerify != nil {
 		kubeletVars = append(kubeletVars, corev1.EnvVar{
 			Name:  datadoghqv1alpha1.DDKubeletTLSVerify,
-			Value: datadoghqv1alpha1.BoolToString(dda.Spec.Agent.Config.Kubelet.TLSVerify),
+			Value: apiutils.BoolToString(dda.Spec.Agent.Config.Kubelet.TLSVerify),
 		})
 	}
 

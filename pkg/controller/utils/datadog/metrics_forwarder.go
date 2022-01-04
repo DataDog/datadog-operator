@@ -15,6 +15,7 @@ import (
 	"time"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
@@ -686,7 +687,7 @@ func (mf *metricsForwarder) isEventChanFull() bool {
 }
 
 func getbaseURL(dda *datadoghqv1alpha1.DatadogAgent) string {
-	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Enabled) && dda.Spec.Agent.Config != nil && dda.Spec.Agent.Config.DDUrl != nil {
+	if apiutils.BoolValue(dda.Spec.Agent.Enabled) && dda.Spec.Agent.Config != nil && dda.Spec.Agent.Config.DDUrl != nil {
 		return *dda.Spec.Agent.Config.DDUrl
 	} else if dda.Spec.Site != "" {
 		return fmt.Sprintf("https://api.%s", dda.Spec.Site)
