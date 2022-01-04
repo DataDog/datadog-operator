@@ -365,6 +365,12 @@ func complianceSecurityAgentVolumes() []corev1.Volume {
 			},
 		},
 		{
+			Name: datadoghqv1alpha1.SecurityAgentComplianceConfigDirVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
 			Name: datadoghqv1alpha1.ConfigVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},

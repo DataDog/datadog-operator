@@ -508,6 +508,21 @@ func getConfigInitContainers(spec *datadoghqv1alpha1.DatadogAgentSpec, volumeMou
 
 	copyCommands := []string{"cp -vnr /etc/datadog-agent /opt"}
 
+	if isComplianceEnabled(spec) && spec.Agent.Security.Compliance.ConfigDir != nil {
+		configVolumeMounts = append(
+			configVolumeMounts,
+			corev1.VolumeMount{
+				Name:      datadoghqv1alpha1.SecurityAgentComplianceCustomConfigDirVolumeName,
+				MountPath: "/etc/datadog-agent-compliance-benchmarks",
+			},
+			corev1.VolumeMount{
+				Name:      datadoghqv1alpha1.SecurityAgentComplianceConfigDirVolumeName,
+				MountPath: "/opt/datadog-agent/compliance.d",
+			},
+		)
+		copyCommands = append(copyCommands, "cp -v /etc/datadog-agent-compliance-benchmarks/* /opt/datadog-agent/compliance.d/")
+	}
+
 	if isRuntimeSecurityEnabled(spec) && spec.Agent.Security.Runtime.PoliciesDir != nil {
 		configVolumeMounts = append(
 			configVolumeMounts,
@@ -1244,8 +1259,16 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 	}
 
 	if isComplianceEnabled(&dda.Spec) {
+		volumes = append(volumes,
+			corev1.Volume{
+				Name: datadoghqv1alpha1.SecurityAgentComplianceConfigDirVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
+			})
+
 		if dda.Spec.Agent.Security.Compliance.ConfigDir != nil {
-			volumes = append(volumes, getVolumeFromConfigDirSpec(datadoghqv1alpha1.SecurityAgentComplianceConfigDirVolumeName, dda.Spec.Agent.Security.Compliance.ConfigDir))
+			volumes = append(volumes, getVolumeFromConfigDirSpec(datadoghqv1alpha1.SecurityAgentComplianceCustomConfigDirVolumeName, dda.Spec.Agent.Security.Compliance.ConfigDir))
 		}
 	}
 
