@@ -12,6 +12,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	test "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1/test"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 
 	"github.com/go-logr/logr"
@@ -51,8 +52,8 @@ func TestReconciler_manageClusterChecksRunnerRBACs(t *testing.T) {
 		ClusterChecksEnabled:       true,
 		ClusterChecksRunnerEnabled: true,
 		KubeStateMetricsCore: &datadoghqv1alpha1.KubeStateMetricsCore{
-			Enabled:      datadoghqv1alpha1.NewBoolPointer(true),
-			ClusterCheck: datadoghqv1alpha1.NewBoolPointer(true),
+			Enabled:      apiutils.NewBoolPointer(true),
+			ClusterCheck: apiutils.NewBoolPointer(true),
 		},
 	}
 	ddaDefault := test.NewDefaultedDatadogAgent(ddaNamespace, ddaName, ddaDefaultOptions)

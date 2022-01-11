@@ -14,6 +14,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	test "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1/test"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/orchestrator"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
@@ -1543,8 +1544,8 @@ func defaultOrchestratorEnvVars(dda *datadoghqv1alpha1.DatadogAgent) []corev1.En
 	}
 
 	explorerConfig := datadoghqv1alpha1.OrchestratorExplorerConfig{
-		Enabled:   datadoghqv1alpha1.NewBoolPointer(true),
-		Scrubbing: &datadoghqv1alpha1.Scrubbing{Containers: datadoghqv1alpha1.NewBoolPointer(true)},
+		Enabled:   apiutils.NewBoolPointer(true),
+		Scrubbing: &datadoghqv1alpha1.Scrubbing{Containers: apiutils.NewBoolPointer(true)},
 	}
 
 	vars := []corev1.EnvVar{
@@ -1914,7 +1915,7 @@ func customKubeletConfigPodSpec(kubeletConfig *datadoghqv1alpha1.KubeletConfig) 
 		},
 		{
 			Name:  "DD_KUBELET_TLS_VERIFY",
-			Value: datadoghqv1alpha1.BoolToString(kubeletConfig.TLSVerify),
+			Value: apiutils.BoolToString(kubeletConfig.TLSVerify),
 		},
 		{
 			Name:  "DD_KUBELET_CLIENT_CA",
@@ -2812,7 +2813,7 @@ func Test_newExtendedDaemonSetFromInstance_LogsEnabled(t *testing.T) {
 		ClusterAgentEnabled: true,
 		Features: &datadoghqv1alpha1.DatadogFeatures{
 			LogCollection: &datadoghqv1alpha1.LogCollectionConfig{
-				Enabled: datadoghqv1alpha1.NewBoolPointer(true),
+				Enabled: apiutils.NewBoolPointer(true),
 			},
 		},
 	})
@@ -2937,7 +2938,7 @@ func Test_newExtendedDaemonSetFromInstance_clusterChecksConfig(t *testing.T) {
 	clusterChecksPodSpec.Containers[0].Env = addEnvVar(clusterChecksPodSpec.Containers[0].Env, "DD_EXTRA_CONFIG_PROVIDERS", "clusterchecks endpointschecks")
 	clusterChecksPodSpec.InitContainers[1].Env = addEnvVar(clusterChecksPodSpec.InitContainers[1].Env, "DD_EXTRA_CONFIG_PROVIDERS", "clusterchecks endpointschecks")
 
-	datadoghqv1alpha1.BoolValue(dda.Spec.ClusterChecksRunner.Enabled)
+	apiutils.BoolValue(dda.Spec.ClusterChecksRunner.Enabled)
 
 	test := extendedDaemonSetFromInstanceTest{
 		name:            "with cluster checks / clc runners",
@@ -3290,10 +3291,10 @@ func Test_newExtendedDaemonSetFromInstance_PrometheusScrape(t *testing.T) {
 		UseEDS:              true,
 		ClusterAgentEnabled: true,
 		Features: &datadoghqv1alpha1.DatadogFeatures{
-			OrchestratorExplorer: &datadoghqv1alpha1.OrchestratorExplorerConfig{Enabled: datadoghqv1alpha1.NewBoolPointer(true)},
+			OrchestratorExplorer: &datadoghqv1alpha1.OrchestratorExplorerConfig{Enabled: apiutils.NewBoolPointer(true)},
 			PrometheusScrape: &datadoghqv1alpha1.PrometheusScrapeConfig{
-				Enabled:          datadoghqv1alpha1.NewBoolPointer(true),
-				ServiceEndpoints: datadoghqv1alpha1.NewBoolPointer(true),
+				Enabled:          apiutils.NewBoolPointer(true),
+				ServiceEndpoints: apiutils.NewBoolPointer(true),
 			},
 		},
 	})
@@ -3313,10 +3314,10 @@ func Test_newExtendedDaemonSetFromInstance_PrometheusScrape(t *testing.T) {
 		UseEDS:              true,
 		ClusterAgentEnabled: true,
 		Features: &datadoghqv1alpha1.DatadogFeatures{
-			OrchestratorExplorer: &datadoghqv1alpha1.OrchestratorExplorerConfig{Enabled: datadoghqv1alpha1.NewBoolPointer(true)},
+			OrchestratorExplorer: &datadoghqv1alpha1.OrchestratorExplorerConfig{Enabled: apiutils.NewBoolPointer(true)},
 			PrometheusScrape: &datadoghqv1alpha1.PrometheusScrapeConfig{
-				Enabled:           datadoghqv1alpha1.NewBoolPointer(true),
-				ServiceEndpoints:  datadoghqv1alpha1.NewBoolPointer(false),
+				Enabled:           apiutils.NewBoolPointer(true),
+				ServiceEndpoints:  apiutils.NewBoolPointer(false),
 				AdditionalConfigs: &additionalConfig,
 			},
 		},
@@ -3519,7 +3520,7 @@ func Test_newExtendedDaemonSetFromInstance_KubeletConfiguration(t *testing.T) {
 				FieldPath: FieldPathSpecNodeName,
 			},
 		},
-		TLSVerify:   datadoghqv1alpha1.NewBoolPointer(false),
+		TLSVerify:   apiutils.NewBoolPointer(false),
 		HostCAPath:  "/foo/bar/kubeletca.crt",
 		AgentCAPath: "/agent/foo/bar/ca.crt",
 	}

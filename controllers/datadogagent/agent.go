@@ -24,6 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
@@ -68,7 +69,7 @@ func (r *Reconciler) reconcileAgent(logger logr.Logger, dda *datadoghqv1alpha1.D
 		ds = nil
 	}
 
-	if !datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Enabled) {
+	if !apiutils.BoolValue(dda.Spec.Agent.Enabled) {
 		if ds != nil {
 			if err = r.deleteDaemonSet(logger, dda, ds); err != nil {
 				return result, err
@@ -83,7 +84,7 @@ func (r *Reconciler) reconcileAgent(logger logr.Logger, dda *datadoghqv1alpha1.D
 		return result, err
 	}
 
-	if r.options.SupportExtendedDaemonset && datadoghqv1alpha1.BoolValue(dda.Spec.Agent.UseExtendedDaemonset) {
+	if r.options.SupportExtendedDaemonset && apiutils.BoolValue(dda.Spec.Agent.UseExtendedDaemonset) {
 		if ds != nil {
 			// TODO manage properly the migration from DS to EDS
 			err = r.deleteDaemonSet(logger, dda, ds)
@@ -311,7 +312,7 @@ func (r *Reconciler) manageAgentDependencies(logger logr.Logger, dda *datadoghqv
 func (r *Reconciler) manageAgentNetworkPolicy(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
 	spec := dda.Spec.Agent
 	builder := agentNetworkPolicyBuilder{dda, spec.NetworkPolicy}
-	if !datadoghqv1alpha1.BoolValue(spec.Enabled) || spec.NetworkPolicy == nil || !datadoghqv1alpha1.BoolValue(spec.NetworkPolicy.Create) {
+	if !apiutils.BoolValue(spec.Enabled) || spec.NetworkPolicy == nil || !apiutils.BoolValue(spec.NetworkPolicy.Create) {
 		return r.cleanupNetworkPolicy(logger, dda, builder.Name())
 	}
 
@@ -698,7 +699,7 @@ func newDaemonSetFromInstance(logger logr.Logger, dda *datadoghqv1alpha1.Datadog
 }
 
 func daemonsetName(dda *datadoghqv1alpha1.DatadogAgent) string {
-	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Enabled) && dda.Spec.Agent.DaemonsetName != "" {
+	if apiutils.BoolValue(dda.Spec.Agent.Enabled) && dda.Spec.Agent.DaemonsetName != "" {
 		return dda.Spec.Agent.DaemonsetName
 	}
 	return fmt.Sprintf("%s-%s", dda.Name, "agent")
@@ -724,7 +725,7 @@ func getAgentCustomConfigConfigMapName(dda *datadoghqv1alpha1.DatadogAgent) stri
 }
 
 func buildAgentConfigurationConfigMap(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.ConfigMap, error) {
-	if !datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Enabled) {
+	if !apiutils.BoolValue(dda.Spec.Agent.Enabled) {
 		return nil, nil
 	}
 	return buildConfigurationConfigMap(dda, dda.Spec.Agent.CustomConfig, getAgentCustomConfigConfigMapName(dda), datadoghqv1alpha1.AgentCustomConfigVolumeSubPath)

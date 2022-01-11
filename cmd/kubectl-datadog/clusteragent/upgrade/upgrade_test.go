@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -99,7 +100,7 @@ func Test_options_upgrade(t *testing.T) {
 			name: "no image in the spec",
 			loadFunc: func(c client.Client) *datadoghqv1alpha1.DatadogAgent {
 				dd := buildDatadogAgent("")
-				dd.Spec.ClusterAgent.Enabled = datadoghqv1alpha1.NewBoolPointer(true)
+				dd.Spec.ClusterAgent.Enabled = apiutils.NewBoolPointer(true)
 				dd.Spec.ClusterAgent.Image = nil
 				_ = c.Create(context.TODO(), dd)
 				return dd

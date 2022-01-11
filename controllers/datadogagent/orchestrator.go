@@ -11,6 +11,7 @@ import (
 	"strconv"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/go-logr/logr"
@@ -219,12 +220,12 @@ func getOrchestratorExplorerConfName(dda *datadoghqv1alpha1.DatadogAgent) string
 }
 
 func isOrchestratorExplorerClusterCheck(dda *datadoghqv1alpha1.DatadogAgent) bool {
-	return isOrchestratorExplorerEnabled(dda) && datadoghqv1alpha1.BoolValue(dda.Spec.Features.OrchestratorExplorer.ClusterCheck)
+	return isOrchestratorExplorerEnabled(dda) && apiutils.BoolValue(dda.Spec.Features.OrchestratorExplorer.ClusterCheck)
 }
 
 func isOrchestratorExplorerEnabled(dda *datadoghqv1alpha1.DatadogAgent) bool {
 	if dda.Spec.Features.OrchestratorExplorer == nil {
 		return false
 	}
-	return datadoghqv1alpha1.BoolValue(dda.Spec.Features.OrchestratorExplorer.Enabled)
+	return apiutils.BoolValue(dda.Spec.Features.OrchestratorExplorer.Enabled)
 }

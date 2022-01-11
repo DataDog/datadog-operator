@@ -7,6 +7,7 @@ package testutils
 
 import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -56,7 +57,7 @@ func NewDatadogAgent(ns, name, image string, options *NewDatadogAgentOptions) *d
 					},
 				},
 				CriSocket: &datadoghqv1alpha1.CRISocketConfig{
-					CriSocketPath: datadoghqv1alpha1.NewStringPointer("/var/run/containerd/containerd.sock"),
+					CriSocketPath: apiutils.NewStringPointer("/var/run/containerd/containerd.sock"),
 				},
 				Env: []v1.EnvVar{
 					{
@@ -64,13 +65,13 @@ func NewDatadogAgent(ns, name, image string, options *NewDatadogAgentOptions) *d
 						Value: "false",
 					},
 				},
-				LeaderElection: datadoghqv1alpha1.NewBoolPointer(true),
+				LeaderElection: apiutils.NewBoolPointer(true),
 			},
 			DeploymentStrategy: &datadoghqv1alpha1.DaemonSetDeploymentStrategy{},
 			Apm:                &datadoghqv1alpha1.APMSpec{},
 			Process: &datadoghqv1alpha1.ProcessSpec{
-				Enabled:                  datadoghqv1alpha1.NewBoolPointer(false),
-				ProcessCollectionEnabled: datadoghqv1alpha1.NewBoolPointer(false),
+				Enabled:                  apiutils.NewBoolPointer(false),
+				ProcessCollectionEnabled: apiutils.NewBoolPointer(false),
 			},
 		},
 	}
@@ -80,7 +81,7 @@ func NewDatadogAgent(ns, name, image string, options *NewDatadogAgentOptions) *d
 		PullPolicy:  &pullPolicy,
 		PullSecrets: &[]v1.LocalObjectReference{},
 	}
-	ad.Spec.Agent.Rbac.Create = datadoghqv1alpha1.NewBoolPointer(true)
+	ad.Spec.Agent.Rbac.Create = apiutils.NewBoolPointer(true)
 
 	if options != nil {
 		if options.APIKey != "" {
@@ -92,10 +93,10 @@ func NewDatadogAgent(ns, name, image string, options *NewDatadogAgentOptions) *d
 		}
 
 		if options.AgentDisabled {
-			ad.Spec.Agent.Enabled = datadoghqv1alpha1.NewBoolPointer(false)
+			ad.Spec.Agent.Enabled = apiutils.NewBoolPointer(false)
 		}
 
-		if options.UseEDS && datadoghqv1alpha1.BoolValue(ad.Spec.Agent.Enabled) {
+		if options.UseEDS && apiutils.BoolValue(ad.Spec.Agent.Enabled) {
 			ad.Spec.Agent.UseExtendedDaemonset = &options.UseEDS
 		}
 
@@ -128,7 +129,7 @@ func NewDatadogAgent(ns, name, image string, options *NewDatadogAgentOptions) *d
 			}
 		} else {
 			ad.Spec.ClusterAgent = datadoghqv1alpha1.DatadogAgentSpecClusterAgentSpec{
-				Enabled: datadoghqv1alpha1.NewBoolPointer(false),
+				Enabled: apiutils.NewBoolPointer(false),
 			}
 		}
 
@@ -151,7 +152,7 @@ func NewDatadogAgent(ns, name, image string, options *NewDatadogAgentOptions) *d
 				ad.Spec.Features.OrchestratorExplorer = &datadoghqv1alpha1.OrchestratorExplorerConfig{}
 			}
 
-			ad.Spec.Features.OrchestratorExplorer.Enabled = datadoghqv1alpha1.NewBoolPointer(false)
+			ad.Spec.Features.OrchestratorExplorer.Enabled = apiutils.NewBoolPointer(false)
 		}
 		// options can have an impact on the defaulting
 		_ = datadoghqv1alpha1.DefaultDatadogAgent(ad)

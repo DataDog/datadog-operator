@@ -18,6 +18,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	test "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1/test"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
@@ -515,8 +516,8 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						OrchestratorExplorerDisabled: true,
 						Labels:                       map[string]string{"label-foo-key": "label-bar-value"},
 						NodeAgentConfig: &datadoghqv1alpha1.NodeAgentConfig{
-							DDUrl:    datadoghqv1alpha1.NewStringPointer("https://test.url.com"),
-							LogLevel: datadoghqv1alpha1.NewStringPointer("TRACE"),
+							DDUrl:    apiutils.NewStringPointer("https://test.url.com"),
+							LogLevel: apiutils.NewStringPointer("TRACE"),
 							Tags:     []string{"tag:test"},
 							Env: []corev1.EnvVar{
 								{
@@ -536,8 +537,8 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 							PodAnnotationsAsTags: map[string]string{
 								"annotation": "test",
 							},
-							CollectEvents:  datadoghqv1alpha1.NewBoolPointer(true),
-							LeaderElection: datadoghqv1alpha1.NewBoolPointer(true),
+							CollectEvents:  apiutils.NewBoolPointer(true),
+							LeaderElection: apiutils.NewBoolPointer(true),
 						},
 					})
 					_ = c.Create(context.TODO(), dda)
@@ -632,7 +633,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 					agentConfig := &datadoghqv1alpha1.DatadogAgentSpecAgentSpec{
 						Config: &datadoghqv1alpha1.NodeAgentConfig{
 							SecurityContext: &corev1.PodSecurityContext{
-								RunAsUser: datadoghqv1alpha1.NewInt64Pointer(100),
+								RunAsUser: apiutils.NewInt64Pointer(100),
 							},
 						},
 					}
@@ -1673,7 +1674,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 
 					dcaOptions := &test.NewDeploymentOptions{
 						Labels:                 map[string]string{"label-foo-key": "label-bar-value"},
-						ForceAvailableReplicas: datadoghqv1alpha1.NewInt32Pointer(1),
+						ForceAvailableReplicas: apiutils.NewInt32Pointer(1),
 					}
 					dca := test.NewClusterAgentDeployment(resourcesNamespace, resourcesName, dcaOptions)
 
@@ -1735,7 +1736,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 
 					dcaOptions := &test.NewDeploymentOptions{
 						Labels:                 map[string]string{"label-foo-key": "label-bar-value"},
-						ForceAvailableReplicas: datadoghqv1alpha1.NewInt32Pointer(1),
+						ForceAvailableReplicas: apiutils.NewInt32Pointer(1),
 					}
 					dca := test.NewClusterAgentDeployment(resourcesNamespace, resourcesName, dcaOptions)
 
@@ -1829,7 +1830,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 
 					dcaOptions := &test.NewDeploymentOptions{
 						Labels:                 map[string]string{"label-foo-key": "label-bar-value"},
-						ForceAvailableReplicas: datadoghqv1alpha1.NewInt32Pointer(0),
+						ForceAvailableReplicas: apiutils.NewInt32Pointer(0),
 					}
 					dca := test.NewClusterAgentDeployment(resourcesNamespace, resourcesName, dcaOptions)
 
@@ -1889,7 +1890,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 
 					dcaOptions := &test.NewDeploymentOptions{
 						Labels:                 dcaLabels,
-						ForceAvailableReplicas: datadoghqv1alpha1.NewInt32Pointer(1),
+						ForceAvailableReplicas: apiutils.NewInt32Pointer(1),
 					}
 					dca := test.NewClusterAgentDeployment(resourcesNamespace, resourcesName, dcaOptions)
 
@@ -1950,7 +1951,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 
 					dcaOptions := &test.NewDeploymentOptions{
 						Labels:                 dcaLabels,
-						ForceAvailableReplicas: datadoghqv1alpha1.NewInt32Pointer(1),
+						ForceAvailableReplicas: apiutils.NewInt32Pointer(1),
 					}
 					dca := test.NewClusterAgentDeployment(resourcesNamespace, resourcesName, dcaOptions)
 
@@ -2013,7 +2014,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 
 					dcaOptions := &test.NewDeploymentOptions{
 						Labels:                 dcaLabels,
-						ForceAvailableReplicas: datadoghqv1alpha1.NewInt32Pointer(1),
+						ForceAvailableReplicas: apiutils.NewInt32Pointer(1),
 					}
 					dca := test.NewClusterAgentDeployment(resourcesNamespace, resourcesName, dcaOptions)
 
@@ -2082,7 +2083,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 
 					dcaOptions := &test.NewDeploymentOptions{
 						Labels:                 dcaLabels,
-						ForceAvailableReplicas: datadoghqv1alpha1.NewInt32Pointer(1),
+						ForceAvailableReplicas: apiutils.NewInt32Pointer(1),
 					}
 					dca := test.NewClusterAgentDeployment(resourcesNamespace, resourcesName, dcaOptions)
 
@@ -2156,7 +2157,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 
 					dcaOptions := &test.NewDeploymentOptions{
 						Labels:                 dcaLabels,
-						ForceAvailableReplicas: datadoghqv1alpha1.NewInt32Pointer(1),
+						ForceAvailableReplicas: apiutils.NewInt32Pointer(1),
 					}
 					dca := test.NewClusterAgentDeployment(resourcesNamespace, resourcesName, dcaOptions)
 
@@ -2402,7 +2403,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 
 					dcaOptions := &test.NewDeploymentOptions{
 						Labels:                 map[string]string{"label-foo-key": "label-bar-value"},
-						ForceAvailableReplicas: datadoghqv1alpha1.NewInt32Pointer(1),
+						ForceAvailableReplicas: apiutils.NewInt32Pointer(1),
 					}
 					dca := test.NewClusterAgentDeployment(resourcesNamespace, resourcesName, dcaOptions)
 					_ = c.Create(context.TODO(), dca)
@@ -2581,7 +2582,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 
 					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, dadOptions)
 					dda.Spec.Agent.LocalService = &datadoghqv1alpha1.LocalService{
-						ForceLocalServiceEnable: datadoghqv1alpha1.NewBoolPointer(true),
+						ForceLocalServiceEnable: apiutils.NewBoolPointer(true),
 					}
 					_ = c.Create(context.TODO(), dda)
 

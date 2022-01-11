@@ -14,6 +14,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/go-logr/logr"
@@ -62,7 +63,7 @@ func needAgentSecret(dda *datadoghqv1alpha1.DatadogAgent) bool {
 		return false
 	}
 	return (isClusterAgentEnabled(dda.Spec.ClusterAgent) || (dda.Spec.Credentials.APIKey != "" || os.Getenv(config.DDAPIKeyEnvVar) != "") || (dda.Spec.Credentials.AppKey != "" || os.Getenv(config.DDAppKeyEnvVar) != "")) &&
-		!datadoghqv1alpha1.BoolValue(dda.Spec.Credentials.UseSecretBackend)
+		!apiutils.BoolValue(dda.Spec.Credentials.UseSecretBackend)
 }
 
 func checkCredentials(dda *datadoghqv1alpha1.DatadogAgent) error {

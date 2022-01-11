@@ -8,6 +8,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1/test"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/orchestrator"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
@@ -163,7 +164,7 @@ func clusterAgentWithAdmissionControllerDefaultEnvVars(serviceName string, unlab
 	})
 	builder.Add(&v1.EnvVar{
 		Name:  "DD_ADMISSION_CONTROLLER_MUTATE_UNLABELLED",
-		Value: datadoghqv1alpha1.BoolToString(&unlabelled),
+		Value: apiutils.BoolToString(&unlabelled),
 	})
 	builder.Add(&v1.EnvVar{
 		Name:  "DD_ADMISSION_CONTROLLER_SERVICE_NAME",
@@ -543,8 +544,8 @@ func Test_newClusterAgentPrometheusScrapeEnabled(t *testing.T) {
 		&test.NewDatadogAgentOptions{
 			ClusterAgentEnabled: true,
 			Features: &datadoghqv1alpha1.DatadogFeatures{
-				OrchestratorExplorer: &datadoghqv1alpha1.OrchestratorExplorerConfig{Enabled: datadoghqv1alpha1.NewBoolPointer(true)},
-				PrometheusScrape:     &datadoghqv1alpha1.PrometheusScrapeConfig{Enabled: datadoghqv1alpha1.NewBoolPointer(true), ServiceEndpoints: datadoghqv1alpha1.NewBoolPointer(true)},
+				OrchestratorExplorer: &datadoghqv1alpha1.OrchestratorExplorerConfig{Enabled: apiutils.NewBoolPointer(true)},
+				PrometheusScrape:     &datadoghqv1alpha1.PrometheusScrapeConfig{Enabled: apiutils.NewBoolPointer(true), ServiceEndpoints: apiutils.NewBoolPointer(true)},
 			},
 		},
 	)
