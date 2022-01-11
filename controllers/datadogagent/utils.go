@@ -406,6 +406,7 @@ func getSystemProbeContainers(dda *datadoghqv1alpha1.DatadogAgent, image string)
 					"NET_BROADCAST",
 					"NET_RAW",
 					"IPC_LOCK",
+					"CHOWN",
 				},
 			},
 		},
