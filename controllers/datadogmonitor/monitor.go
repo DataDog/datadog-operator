@@ -139,13 +139,11 @@ func buildMonitor(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) (*da
 		o.SetTimeoutH(*options.TimeoutH)
 	}
 
-	m := datadogapiclientv1.NewMonitor()
+	m := datadogapiclientv1.NewMonitor(query, monitorType)
 	{
-		m.SetType(monitorType)
 		m.SetName(name)
 		m.SetMessage(msg)
 		m.SetPriority(priority)
-		m.SetQuery(query)
 		m.SetOptions(o)
 	}
 
@@ -168,7 +166,11 @@ func buildMonitor(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) (*da
 }
 
 func getMonitor(auth context.Context, client *datadogapiclientv1.APIClient, monitorID int) (datadogapiclientv1.Monitor, error) {
-	m, _, err := client.MonitorsApi.GetMonitor(auth, int64(monitorID)).GroupStates("all").Execute()
+	groupStates := "all"
+	optionalParams := datadogapiclientv1.GetMonitorOptionalParameters{
+		GroupStates: &groupStates,
+	}
+	m, _, err := client.MonitorsApi.GetMonitor(auth, int64(monitorID), optionalParams)
 	if err != nil {
 		return datadogapiclientv1.Monitor{}, translateClientError(err, "error getting monitor")
 	}
@@ -178,7 +180,7 @@ func getMonitor(auth context.Context, client *datadogapiclientv1.APIClient, moni
 
 func validateMonitor(auth context.Context, logger logr.Logger, client *datadogapiclientv1.APIClient, dm *datadoghqv1alpha1.DatadogMonitor) error {
 	m, _ := buildMonitor(logger, dm)
-	if _, _, err := client.MonitorsApi.ValidateMonitor(auth).Body(*m).Execute(); err != nil {
+	if _, _, err := client.MonitorsApi.ValidateMonitor(auth, *m); err != nil {
 		return translateClientError(err, "error validating monitor")
 	}
 
@@ -187,7 +189,7 @@ func validateMonitor(auth context.Context, logger logr.Logger, client *datadogap
 
 func createMonitor(auth context.Context, logger logr.Logger, client *datadogapiclientv1.APIClient, dm *datadoghqv1alpha1.DatadogMonitor) (datadogapiclientv1.Monitor, error) {
 	m, _ := buildMonitor(logger, dm)
-	mCreated, _, err := client.MonitorsApi.CreateMonitor(auth).Body(*m).Execute()
+	mCreated, _, err := client.MonitorsApi.CreateMonitor(auth, *m)
 	if err != nil {
 		return datadogapiclientv1.Monitor{}, translateClientError(err, "error creating monitor")
 	}
@@ -198,7 +200,7 @@ func createMonitor(auth context.Context, logger logr.Logger, client *datadogapic
 func updateMonitor(auth context.Context, logger logr.Logger, client *datadogapiclientv1.APIClient, dm *datadoghqv1alpha1.DatadogMonitor) (datadogapiclientv1.Monitor, error) {
 	_, u := buildMonitor(logger, dm)
 
-	mUpdated, _, err := client.MonitorsApi.UpdateMonitor(auth, int64(dm.Status.ID)).Body(*u).Execute()
+	mUpdated, _, err := client.MonitorsApi.UpdateMonitor(auth, int64(dm.Status.ID), *u)
 	if err != nil {
 		return datadogapiclientv1.Monitor{}, translateClientError(err, "error updating monitor")
 	}
@@ -209,7 +211,11 @@ func updateMonitor(auth context.Context, logger logr.Logger, client *datadogapic
 }
 
 func deleteMonitor(auth context.Context, client *datadogapiclientv1.APIClient, monitorID int) error {
-	if _, _, err := client.MonitorsApi.DeleteMonitor(auth, int64(monitorID)).Execute(); err != nil {
+	force := "false"
+	optionalParams := datadogapiclientv1.DeleteMonitorOptionalParameters{
+		Force: &force,
+	}
+	if _, _, err := client.MonitorsApi.DeleteMonitor(auth, int64(monitorID), optionalParams); err != nil {
 		return translateClientError(err, "error deleting monitor")
 	}
 
