@@ -35,6 +35,7 @@ func Test_buildMonitor(t *testing.T) {
 	timeoutH := int64(2)
 	critThreshold := "0.05"
 	warnThreshold := "0.02"
+	priority := int64(3)
 
 	dm := &datadoghqv1alpha1.DatadogMonitor{
 		Spec: datadoghqv1alpha1.DatadogMonitorSpec{
@@ -42,7 +43,7 @@ func Test_buildMonitor(t *testing.T) {
 			Type:     "metric alert",
 			Name:     "Test monitor",
 			Message:  "Something went wrong",
-			Priority: 3,
+			Priority: priority,
 			Tags: []string{
 				"env:staging",
 				"kube_namespace:test",
@@ -68,23 +69,23 @@ func Test_buildMonitor(t *testing.T) {
 
 	monitor, monitorUR := buildMonitor(testLogger, dm)
 
-	assert.Equal(t, dm.Spec.Query, *monitor.Query, "discrepancy found in parameter: Query")
-	assert.Equal(t, dm.Spec.Query, *monitorUR.Query, "discrepancy found in parameter: Query")
+	assert.Equal(t, dm.Spec.Query, monitor.GetQuery(), "discrepancy found in parameter: Query")
+	assert.Equal(t, dm.Spec.Query, monitorUR.GetQuery(), "discrepancy found in parameter: Query")
 
-	assert.Equal(t, string(dm.Spec.Type), string(*monitor.Type), "discrepancy found in parameter: Type")
-	assert.Equal(t, string(dm.Spec.Type), string(*monitorUR.Type), "discrepancy found in parameter: Type")
+	assert.Equal(t, string(dm.Spec.Type), string(monitor.GetType()), "discrepancy found in parameter: Type")
+	assert.Equal(t, string(dm.Spec.Type), string(monitorUR.GetType()), "discrepancy found in parameter: Type")
 
-	assert.Equal(t, dm.Spec.Name, *monitor.Name, "discrepancy found in parameter: Name")
-	assert.Equal(t, dm.Spec.Name, *monitorUR.Name, "discrepancy found in parameter: Name")
+	assert.Equal(t, dm.Spec.Name, monitor.GetName(), "discrepancy found in parameter: Name")
+	assert.Equal(t, dm.Spec.Name, monitorUR.GetName(), "discrepancy found in parameter: Name")
 
-	assert.Equal(t, dm.Spec.Message, *monitor.Message, "discrepancy found in parameter: Message")
-	assert.Equal(t, dm.Spec.Message, *monitorUR.Message, "discrepancy found in parameter: Message")
+	assert.Equal(t, dm.Spec.Message, monitor.GetMessage(), "discrepancy found in parameter: Message")
+	assert.Equal(t, dm.Spec.Message, monitorUR.GetMessage(), "discrepancy found in parameter: Message")
 
-	assert.Equal(t, dm.Spec.Priority, *monitor.Priority, "discrepancy found in parameter: Priority")
-	assert.Equal(t, dm.Spec.Priority, *monitorUR.Priority, "discrepancy found in parameter: Priority")
+	assert.Equal(t, dm.Spec.Priority, monitor.GetPriority(), "discrepancy found in parameter: Priority")
+	assert.Equal(t, dm.Spec.Priority, monitorUR.GetPriority(), "discrepancy found in parameter: Priority")
 
-	assert.Equal(t, dm.Spec.Tags, *monitor.Tags, "discrepancy found in parameter: Tags")
-	assert.Equal(t, dm.Spec.Tags, *monitorUR.Tags, "discrepancy found in parameter: Tags")
+	assert.Equal(t, dm.Spec.Tags, monitor.GetTags(), "discrepancy found in parameter: Tags")
+	assert.Equal(t, dm.Spec.Tags, monitorUR.GetTags(), "discrepancy found in parameter: Tags")
 
 	assert.Equal(t, *dm.Spec.Options.EvaluationDelay, monitor.Options.GetEvaluationDelay(), "discrepancy found in parameter: EvaluationDelay")
 	assert.Equal(t, *dm.Spec.Options.EvaluationDelay, monitorUR.Options.GetEvaluationDelay(), "discrepancy found in parameter: EvaluationDelay")
@@ -121,13 +122,13 @@ func Test_buildMonitor(t *testing.T) {
 	assert.Equal(t, critVal, (&apiMonitorURThresholds).GetCritical(), "discrepancy found in parameter: Threshold.Critical")
 
 	// Also make sure tags are sorted
-	assert.Equal(t, "env:staging", (*monitor.Tags)[0], "tags are not properly sorted")
-	assert.Equal(t, "kube_cluster:test.staging", (*monitor.Tags)[1], "tags are not properly sorted")
-	assert.Equal(t, "kube_namespace:test", (*monitor.Tags)[2], "tags are not properly sorted")
+	assert.Equal(t, "env:staging", (monitor.GetTags())[0], "tags are not properly sorted")
+	assert.Equal(t, "kube_cluster:test.staging", (monitor.GetTags())[1], "tags are not properly sorted")
+	assert.Equal(t, "kube_namespace:test", (monitor.GetTags())[2], "tags are not properly sorted")
 
-	assert.Equal(t, "env:staging", (*monitorUR.Tags)[0], "tags are not properly sorted")
-	assert.Equal(t, "kube_cluster:test.staging", (*monitorUR.Tags)[1], "tags are not properly sorted")
-	assert.Equal(t, "kube_namespace:test", (*monitorUR.Tags)[2], "tags are not properly sorted")
+	assert.Equal(t, "env:staging", (monitorUR.GetTags())[0], "tags are not properly sorted")
+	assert.Equal(t, "kube_cluster:test.staging", (monitorUR.GetTags())[1], "tags are not properly sorted")
+	assert.Equal(t, "kube_namespace:test", (monitorUR.GetTags())[2], "tags are not properly sorted")
 }
 
 func Test_getMonitor(t *testing.T) {
@@ -212,11 +213,11 @@ func Test_createMonitor(t *testing.T) {
 	monitor, err := createMonitor(testAuth, testLogger, client, dm)
 	assert.Nil(t, err)
 
-	assert.Equal(t, dm.Spec.Query, *monitor.Query, "discrepancy found in parameter: Query")
-	assert.Equal(t, string(dm.Spec.Type), string(*monitor.Type), "discrepancy found in parameter: Type")
-	assert.Equal(t, dm.Spec.Name, *monitor.Name, "discrepancy found in parameter: Name")
-	assert.Equal(t, dm.Spec.Message, *monitor.Message, "discrepancy found in parameter: Message")
-	assert.Equal(t, dm.Spec.Tags, *monitor.Tags, "discrepancy found in parameter: Tags")
+	assert.Equal(t, dm.Spec.Query, monitor.GetQuery(), "discrepancy found in parameter: Query")
+	assert.Equal(t, string(dm.Spec.Type), string(monitor.GetType()), "discrepancy found in parameter: Type")
+	assert.Equal(t, dm.Spec.Name, monitor.GetName(), "discrepancy found in parameter: Name")
+	assert.Equal(t, dm.Spec.Message, monitor.GetMessage(), "discrepancy found in parameter: Message")
+	assert.Equal(t, dm.Spec.Tags, monitor.GetTags(), "discrepancy found in parameter: Tags")
 }
 
 func Test_updateMonitor(t *testing.T) {
@@ -255,11 +256,11 @@ func Test_updateMonitor(t *testing.T) {
 	monitor, err := updateMonitor(testAuth, testLogger, client, dm)
 	assert.Nil(t, err)
 
-	assert.Equal(t, dm.Spec.Query, *monitor.Query, "discrepancy found in parameter: Query")
-	assert.Equal(t, string(dm.Spec.Type), string(*monitor.Type), "discrepancy found in parameter: Type")
-	assert.Equal(t, dm.Spec.Name, *monitor.Name, "discrepancy found in parameter: Name")
-	assert.Equal(t, dm.Spec.Message, *monitor.Message, "discrepancy found in parameter: Message")
-	assert.Equal(t, dm.Spec.Tags, *monitor.Tags, "discrepancy found in parameter: Tags")
+	assert.Equal(t, dm.Spec.Query, monitor.GetQuery(), "discrepancy found in parameter: Query")
+	assert.Equal(t, string(dm.Spec.Type), string(monitor.GetType()), "discrepancy found in parameter: Type")
+	assert.Equal(t, dm.Spec.Name, monitor.GetName(), "discrepancy found in parameter: Name")
+	assert.Equal(t, dm.Spec.Message, monitor.GetMessage(), "discrepancy found in parameter: Message")
+	assert.Equal(t, dm.Spec.Tags, monitor.GetTags(), "discrepancy found in parameter: Tags")
 
 }
 
@@ -303,9 +304,9 @@ func genericMonitor(mId int) datadogapiclientv1.Monitor {
 		Message:  &msg,
 		Modified: &now,
 		Name:     &name,
-		Query:    &query,
+		Query:    query,
 		Tags:     &tags,
-		Type:     &mType,
+		Type:     mType,
 	}
 }
 
