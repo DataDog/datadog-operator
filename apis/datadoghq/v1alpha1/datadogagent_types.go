@@ -247,6 +247,10 @@ type DatadogAgentSpecAgentSpec struct {
 	// If specified, the pod's scheduling constraints.
 	// +optional
 	Affinity *corev1.Affinity `json:"affinity,omitempty"`
+
+	// Options to customize the internal traffic policy service
+	// +optional
+	LocalService *LocalService `json:"localService,omitempty"`
 }
 
 // RbacConfig contains RBAC configuration.
@@ -1263,12 +1267,44 @@ type ImageConfig struct {
 	PullSecrets *[]corev1.LocalObjectReference `json:"pullSecrets,omitempty"`
 }
 
+// NetworkPolicyFlavor specifies which flavor of Network Policy to use.
+type NetworkPolicyFlavor string
+
+const (
+	// NetworkPolicyFlavorKubernetes refers to  `networking.k8s.io/v1/NetworkPolicy`
+	NetworkPolicyFlavorKubernetes NetworkPolicyFlavor = "kubernetes"
+
+	// NetworkPolicyFlavorCilium refers to `cilium.io/v2/CiliumNetworkPolicy`
+	NetworkPolicyFlavorCilium NetworkPolicyFlavor = "cilium"
+)
+
 // NetworkPolicySpec provides Network Policy configuration for the agents.
 // +k8s:openapi-gen=true
 type NetworkPolicySpec struct {
 	// If true, create a NetworkPolicy for the current agent.
 	// +optional
 	Create *bool `json:"create,omitempty"`
+
+	// Which network policy to use. Can be `kubernetes` or `cilium`.
+	// +optional
+	Flavor NetworkPolicyFlavor `json:"flavor,omitempty"`
+
+	// Cilium selector of the DNS server entity.
+	// +optional
+	DNSSelectorEndpoints []metav1.LabelSelector `json:"dnsSelectorEndpoints,omitempty"`
+}
+
+// LocalService provides internal traffic policy service configuration
+// +k8s:openapi-gen=true
+type LocalService struct {
+	// Name of the internal traffic service to target the agent running on the local node
+	// +optional
+	OverrideName string `json:"overrideName,omitempty"`
+
+	// Force the creation of the internal traffic policy service to target the agent running on the local node.
+	// By default, the internal traffic service is created only on Kubernetes 1.22+ where the feature became beta and enabled by default.
+	// This option allows to force the creation of the internal traffic service on kubernetes 1.21 where the feature was alpha and required a feature gate to be explicitly enabled.
+	ForceLocalServiceEnable *bool `json:"forceLocalServiceEnable,omitempty"`
 }
 
 // DatadogAgentState type representing the deployment state of the different Agent components.
@@ -1290,9 +1326,9 @@ const (
 // DatadogAgentStatus defines the observed state of DatadogAgent.
 // +k8s:openapi-gen=true
 type DatadogAgentStatus struct {
-
 	// DefaultOverride contains attributes that were not configured that the runtime defaulted.
 	// +optional
+	// +kubebuilder:pruning:PreserveUnknownFields
 	DefaultOverride *DatadogAgentSpec `json:"defaultOverride,omitempty"`
 
 	// The actual state of the Agent as an extended daemonset.

@@ -9,6 +9,7 @@ import (
 	"context"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -19,7 +20,7 @@ import (
 
 // manageAgentRBACs creates deletes and updates the RBACs for the Agent
 func (r *Reconciler) manageAgentRBACs(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
-	if !datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Enabled) {
+	if !apiutils.BoolValue(dda.Spec.Agent.Enabled) {
 		return r.cleanupAgentRbacResources(logger, dda)
 	}
 

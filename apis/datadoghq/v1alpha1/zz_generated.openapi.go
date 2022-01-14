@@ -52,6 +52,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./apis/datadoghq/v1alpha1.ImageConfig":                             schema__apis_datadoghq_v1alpha1_ImageConfig(ref),
 		"./apis/datadoghq/v1alpha1.KubeStateMetricsCore":                    schema__apis_datadoghq_v1alpha1_KubeStateMetricsCore(ref),
 		"./apis/datadoghq/v1alpha1.KubeletConfig":                           schema__apis_datadoghq_v1alpha1_KubeletConfig(ref),
+		"./apis/datadoghq/v1alpha1.LocalService":                            schema__apis_datadoghq_v1alpha1_LocalService(ref),
 		"./apis/datadoghq/v1alpha1.LogCollectionConfig":                     schema__apis_datadoghq_v1alpha1_LogCollectionConfig(ref),
 		"./apis/datadoghq/v1alpha1.NetworkPolicySpec":                       schema__apis_datadoghq_v1alpha1_NetworkPolicySpec(ref),
 		"./apis/datadoghq/v1alpha1.NodeAgentConfig":                         schema__apis_datadoghq_v1alpha1_NodeAgentConfig(ref),
@@ -1390,11 +1391,17 @@ func schema__apis_datadoghq_v1alpha1_DatadogAgentSpecAgentSpec(ref common.Refere
 							Ref:         ref("k8s.io/api/core/v1.Affinity"),
 						},
 					},
+					"localService": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Options to customize the internal traffic policy service",
+							Ref:         ref("./apis/datadoghq/v1alpha1.LocalService"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v1alpha1.APMSpec", "./apis/datadoghq/v1alpha1.CustomConfigSpec", "./apis/datadoghq/v1alpha1.DaemonSetDeploymentStrategy", "./apis/datadoghq/v1alpha1.ImageConfig", "./apis/datadoghq/v1alpha1.LogCollectionConfig", "./apis/datadoghq/v1alpha1.NetworkPolicySpec", "./apis/datadoghq/v1alpha1.NodeAgentConfig", "./apis/datadoghq/v1alpha1.ProcessSpec", "./apis/datadoghq/v1alpha1.RbacConfig", "./apis/datadoghq/v1alpha1.SecuritySpec", "./apis/datadoghq/v1alpha1.SystemProbeSpec", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.PodDNSConfig"},
+			"./apis/datadoghq/v1alpha1.APMSpec", "./apis/datadoghq/v1alpha1.CustomConfigSpec", "./apis/datadoghq/v1alpha1.DaemonSetDeploymentStrategy", "./apis/datadoghq/v1alpha1.ImageConfig", "./apis/datadoghq/v1alpha1.LocalService", "./apis/datadoghq/v1alpha1.LogCollectionConfig", "./apis/datadoghq/v1alpha1.NetworkPolicySpec", "./apis/datadoghq/v1alpha1.NodeAgentConfig", "./apis/datadoghq/v1alpha1.ProcessSpec", "./apis/datadoghq/v1alpha1.RbacConfig", "./apis/datadoghq/v1alpha1.SecuritySpec", "./apis/datadoghq/v1alpha1.SystemProbeSpec", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.PodDNSConfig"},
 	}
 }
 
@@ -2392,6 +2399,33 @@ func schema__apis_datadoghq_v1alpha1_KubeletConfig(ref common.ReferenceCallback)
 	}
 }
 
+func schema__apis_datadoghq_v1alpha1_LocalService(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "LocalService provides internal traffic policy service configuration",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"overrideName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name of the internal traffic service to target the agent running on the local node",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"forceLocalServiceEnable": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Force the creation of the internal traffic policy service to target the agent running on the local node. By default, the internal traffic service is created only on Kubernetes 1.22+ where the feature became beta and enabled by default. This option allows to force the creation of the internal traffic service on kubernetes 1.21 where the feature was alpha and required a feature gate to be explicitly enabled.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 func schema__apis_datadoghq_v1alpha1_LogCollectionConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -2475,9 +2509,32 @@ func schema__apis_datadoghq_v1alpha1_NetworkPolicySpec(ref common.ReferenceCallb
 							Format:      "",
 						},
 					},
+					"flavor": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Which network policy to use. Can be `kubernetes` or `cilium`.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"dnsSelectorEndpoints": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Cilium selector of the DNS server entity.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"),
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
 	}
 }
 

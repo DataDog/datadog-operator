@@ -11,6 +11,7 @@ import (
 	"fmt"
 
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 	"github.com/DataDog/datadog-operator/pkg/plugin/common"
 
@@ -129,7 +130,7 @@ func (o *options) run(cmd *cobra.Command) error {
 // upgrade updates the agent version in the DatadogAgent object
 func (o *options) upgrade(dd v1alpha1.DatadogAgent, image string) error {
 	// Not relying on the runtime object (which has Agent.Enabled) as this uses the one from the APIServer
-	if v1alpha1.IsEqualStruct(dd.Spec.Agent, v1alpha1.DatadogAgentSpecAgentSpec{}) {
+	if apiutils.IsEqualStruct(dd.Spec.Agent, v1alpha1.DatadogAgentSpecAgentSpec{}) {
 		return errors.New("agent is not enabled")
 	}
 

@@ -12,9 +12,748 @@
 package v2alpha1
 
 import (
+	spec "github.com/go-openapi/spec"
 	common "k8s.io/kube-openapi/pkg/common"
 )
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
-	return map[string]common.OpenAPIDefinition{}
+	return map[string]common.OpenAPIDefinition{
+		"./apis/datadoghq/v2alpha1.CustomConfig":                      schema__apis_datadoghq_v2alpha1_CustomConfig(ref),
+		"./apis/datadoghq/v2alpha1.DatadogAgent":                      schema__apis_datadoghq_v2alpha1_DatadogAgent(ref),
+		"./apis/datadoghq/v2alpha1.DatadogAgentGenericContainer":      schema__apis_datadoghq_v2alpha1_DatadogAgentGenericContainer(ref),
+		"./apis/datadoghq/v2alpha1.DatadogAgentStatus":                schema__apis_datadoghq_v2alpha1_DatadogAgentStatus(ref),
+		"./apis/datadoghq/v2alpha1.DatadogCredentials":                schema__apis_datadoghq_v2alpha1_DatadogCredentials(ref),
+		"./apis/datadoghq/v2alpha1.DatadogFeatures":                   schema__apis_datadoghq_v2alpha1_DatadogFeatures(ref),
+		"./apis/datadoghq/v2alpha1.ImageConfig":                       schema__apis_datadoghq_v2alpha1_ImageConfig(ref),
+		"./apis/datadoghq/v2alpha1.KubeStateMetricsCoreFeatureConfig": schema__apis_datadoghq_v2alpha1_KubeStateMetricsCoreFeatureConfig(ref),
+		"./apis/datadoghq/v2alpha1.KubeletConfig":                     schema__apis_datadoghq_v2alpha1_KubeletConfig(ref),
+		"./apis/datadoghq/v2alpha1.LocalService":                      schema__apis_datadoghq_v2alpha1_LocalService(ref),
+		"./apis/datadoghq/v2alpha1.NetworkPolicyConfig":               schema__apis_datadoghq_v2alpha1_NetworkPolicyConfig(ref),
+		"./apis/datadoghq/v2alpha1.OrchestratorExplorerFeatureConfig": schema__apis_datadoghq_v2alpha1_OrchestratorExplorerFeatureConfig(ref),
+		"./apis/datadoghq/v2alpha1.PrometheusScrapeFeatureConfig":     schema__apis_datadoghq_v2alpha1_PrometheusScrapeFeatureConfig(ref),
+		"./apis/datadoghq/v2alpha1.Secret":                            schema__apis_datadoghq_v2alpha1_Secret(ref),
+		"./apis/datadoghq/v2alpha1.UnixDomainSocketConfig":            schema__apis_datadoghq_v2alpha1_UnixDomainSocketConfig(ref),
+	}
+}
+
+func schema__apis_datadoghq_v2alpha1_CustomConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "CustomConfig provides a place for custom configuration of the Agent or Cluster Agent, corresponding to datadog.yaml or datadog-cluster.yaml. The configuration can be provided in the ConfigData field as raw data, or referenced in a ConfigMap. Note: `ConfigData` and `ConfigMap` cannot be set together.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"configData": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ConfigData corresponds to the configuration file content.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"configMap": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ConfigMap references an existing ConfigMap with the configuration file content.",
+							Ref:         ref("./apis/datadoghq/v2alpha1.ConfigMapConfig"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"./apis/datadoghq/v2alpha1.ConfigMapConfig"},
+	}
+}
+
+func schema__apis_datadoghq_v2alpha1_DatadogAgent(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogAgent Deployment with the Datadog Operator.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("./apis/datadoghq/v2alpha1.DatadogAgentSpec"),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("./apis/datadoghq/v2alpha1.DatadogAgentStatus"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"./apis/datadoghq/v2alpha1.DatadogAgentSpec", "./apis/datadoghq/v2alpha1.DatadogAgentStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema__apis_datadoghq_v2alpha1_DatadogAgentGenericContainer(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogAgentGenericContainer is the generic structure describing any container's common configuration.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name of the container that is overridden",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"env": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"name",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Specify additional environmental variables in the container See also: https://docs.datadoghq.com/agent/kubernetes/?tab=helm#environment-variables",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.EnvVar"),
+									},
+								},
+							},
+						},
+					},
+					"volumeMounts": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"name",
+									"mountPath",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Specify additional volume mounts in the container.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.VolumeMount"),
+									},
+								},
+							},
+						},
+					},
+					"resources": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Specify the Request and Limits of the pods To get guaranteed QoS class, specify requests and limits equal. See also: http://kubernetes.io/docs/user-guide/compute-resources/",
+							Ref:         ref("k8s.io/api/core/v1.ResourceRequirements"),
+						},
+					},
+					"command": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Command allows the specification of a custom entrypoint for container",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"args": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Args allows the specification of extra args to the `Command` parameter",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"healthPort": {
+						SchemaProps: spec.SchemaProps{
+							Description: "HealthPort of the container for the internal liveness probe. Must be the same as the Liveness/Readiness probes.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"readinessProbe": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Configure the Readiness Probe of the container",
+							Ref:         ref("k8s.io/api/core/v1.Probe"),
+						},
+					},
+					"livenessProbe": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Configure the Liveness Probe of the container",
+							Ref:         ref("k8s.io/api/core/v1.Probe"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.Probe", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.VolumeMount"},
+	}
+}
+
+func schema__apis_datadoghq_v2alpha1_DatadogAgentStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogAgentStatus defines the observed state of DatadogAgent.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"defaultOverride": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DefaultOverride contains attributes that were not configured that the runtime defaulted.",
+							Ref:         ref("./apis/datadoghq/v2alpha1.DatadogAgentSpec"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"./apis/datadoghq/v2alpha1.DatadogAgentSpec"},
+	}
+}
+
+func schema__apis_datadoghq_v2alpha1_DatadogCredentials(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogCredentials is a generic structure that holds credentials to access Datadog.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"apiKey": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIKey configures your Datadog API key. See also: https://app.datadoghq.com/account/settings#agent/kubernetes",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiSecret": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APISecret references an existing Secret which stores the API key instead of creating a new one. If set, this parameter takes precedence over \"APIKey\".",
+							Ref:         ref("./apis/datadoghq/v2alpha1.Secret"),
+						},
+					},
+					"appKey": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AppKey configures your Datadog application key. If you are using clusterAgent.metricsProvider.enabled = true, you must set a Datadog application key for read access to your metrics.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"appSecret": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AppSecret references an existing Secret which stores the application key instead of creating a new one. If set, this parameter takes precedence over \"AppKey\".",
+							Ref:         ref("./apis/datadoghq/v2alpha1.Secret"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"./apis/datadoghq/v2alpha1.Secret"},
+	}
+}
+
+func schema__apis_datadoghq_v2alpha1_DatadogFeatures(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogFeatures are features running on the Agent and Cluster Agent.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"logCollection": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LogCollection configuration.",
+							Ref:         ref("./apis/datadoghq/v2alpha1.LogCollectionFeatureConfig"),
+						},
+					},
+					"processCollection": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ProcessCollection configuration.",
+							Ref:         ref("./apis/datadoghq/v2alpha1.ProcessCollectionFeatureConfig"),
+						},
+					},
+					"containerCollection": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ContainerCollection configuration.",
+							Ref:         ref("./apis/datadoghq/v2alpha1.ContainerCollectionFeatureConfig"),
+						},
+					},
+					"apm": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APM (Application Performance Monitoring) configuration.",
+							Ref:         ref("./apis/datadoghq/v2alpha1.APMFeatureConfig"),
+						},
+					},
+					"cspm": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CSPM (Cloud Security Posture Management) configuration.",
+							Ref:         ref("./apis/datadoghq/v2alpha1.CSPMFeatureConfig"),
+						},
+					},
+					"cws": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CWS (Cloud Workload Security) configuration.",
+							Ref:         ref("./apis/datadoghq/v2alpha1.CWSFeatureConfig"),
+						},
+					},
+					"npm": {
+						SchemaProps: spec.SchemaProps{
+							Description: "NPM (Network Performance Monitoring) configuration.",
+							Ref:         ref("./apis/datadoghq/v2alpha1.NPMFeatureConfig"),
+						},
+					},
+					"usm": {
+						SchemaProps: spec.SchemaProps{
+							Description: "USM (Universal Service Monitoring) configuration.",
+							Ref:         ref("./apis/datadoghq/v2alpha1.USMFeatureConfig"),
+						},
+					},
+					"orchestratorExplorer": {
+						SchemaProps: spec.SchemaProps{
+							Description: "OrchestratorExplorer check configuration.",
+							Ref:         ref("./apis/datadoghq/v2alpha1.OrchestratorExplorerFeatureConfig"),
+						},
+					},
+					"kubeStateMetricsCore": {
+						SchemaProps: spec.SchemaProps{
+							Description: "KubeStateMetricsCore check configuration.",
+							Ref:         ref("./apis/datadoghq/v2alpha1.KubeStateMetricsCoreFeatureConfig"),
+						},
+					},
+					"admissionController": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AdmissionController configuration.",
+							Ref:         ref("./apis/datadoghq/v2alpha1.AdmissionControllerFeatureConfig"),
+						},
+					},
+					"externalMetricsServer": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ExternalMetricsServer configuration.",
+							Ref:         ref("./apis/datadoghq/v2alpha1.ExternalMetricsServerFeatureConfig"),
+						},
+					},
+					"clusterChecksRunner": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ClusterChecksRunner configuration.",
+							Ref:         ref("./apis/datadoghq/v2alpha1.ClusterChecksRunnerFeatureConfig"),
+						},
+					},
+					"prometheusScrape": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PrometheusScrape configuration.",
+							Ref:         ref("./apis/datadoghq/v2alpha1.PrometheusScrapeFeatureConfig"),
+						},
+					},
+					"datadogMonitor": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DatadogMonitor configuration.",
+							Ref:         ref("./apis/datadoghq/v2alpha1.DatadogMonitorFeatureConfig"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"./apis/datadoghq/v2alpha1.APMFeatureConfig", "./apis/datadoghq/v2alpha1.AdmissionControllerFeatureConfig", "./apis/datadoghq/v2alpha1.CSPMFeatureConfig", "./apis/datadoghq/v2alpha1.CWSFeatureConfig", "./apis/datadoghq/v2alpha1.ClusterChecksRunnerFeatureConfig", "./apis/datadoghq/v2alpha1.ContainerCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.DatadogMonitorFeatureConfig", "./apis/datadoghq/v2alpha1.ExternalMetricsServerFeatureConfig", "./apis/datadoghq/v2alpha1.KubeStateMetricsCoreFeatureConfig", "./apis/datadoghq/v2alpha1.LogCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.NPMFeatureConfig", "./apis/datadoghq/v2alpha1.OrchestratorExplorerFeatureConfig", "./apis/datadoghq/v2alpha1.ProcessCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.PrometheusScrapeFeatureConfig", "./apis/datadoghq/v2alpha1.USMFeatureConfig"},
+	}
+}
+
+func schema__apis_datadoghq_v2alpha1_ImageConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ImageConfig Datadog agent container image config.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Define the image to use: Use \"gcr.io/datadoghq/agent:latest\" for Datadog Agent 7 Use \"datadog/dogstatsd:latest\" for standalone Datadog Agent DogStatsD 7 Use \"gcr.io/datadoghq/cluster-agent:latest\" for Datadog Cluster Agent Use \"agent\" with the registry and tag configurations for <registry>/agent:<tag> Use \"cluster-agent\" with the registry and tag configurations for <registry>/cluster-agent:<tag>",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"tag": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Define the image tag to use. To be used if the Name field does not correspond to a full image string.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"jmxEnabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Define whether the Agent image should support JMX.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"pullPolicy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The Kubernetes pull policy: Use Always, Never or IfNotPresent.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"pullSecrets": {
+						SchemaProps: spec.SchemaProps{
+							Description: "It is possible to specify Docker registry credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/api/core/v1.LocalObjectReference"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/api/core/v1.LocalObjectReference"},
+	}
+}
+
+func schema__apis_datadoghq_v2alpha1_KubeStateMetricsCoreFeatureConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "KubeStateMetricsCoreFeatureConfig contains the Kube State Metrics Core check feature configuration. The Kube State Metrics Core check runs in the Cluster Agent (or Cluster Check Runners). See also: https://docs.datadoghq.com/integrations/kubernetes_state_core",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enabled enables Kube State Metrics Core. Default: true",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"conf": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Conf overrides the configuration for the default Kubernetes State Metrics Core check. This must point to a ConfigMap containing a valid cluster check configuration.",
+							Ref:         ref("./apis/datadoghq/v2alpha1.CustomConfig"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"./apis/datadoghq/v2alpha1.CustomConfig"},
+	}
+}
+
+func schema__apis_datadoghq_v2alpha1_KubeletConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "KubeletConfig contains the kubelet configuration parameters.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"host": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Host overrides the host used to contact kubelet API (default to status.hostIP).",
+							Ref:         ref("k8s.io/api/core/v1.EnvVarSource"),
+						},
+					},
+					"tlsVerify": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TLSVerify toggles kubelet TLS verification. Default: true",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"hostCAPath": {
+						SchemaProps: spec.SchemaProps{
+							Description: "HostCAPath is the host path where the kubelet CA certificate is stored.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"agentCAPath": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AgentCAPath is the container path where the kubelet CA certificate is stored. Default: '/var/run/host-kubelet-ca.crt' if hostCAPath is set, else '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt'",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/api/core/v1.EnvVarSource"},
+	}
+}
+
+func schema__apis_datadoghq_v2alpha1_LocalService(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "LocalService provides the internal traffic policy service configuration.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"nameOverride": {
+						SchemaProps: spec.SchemaProps{
+							Description: "NameOverride defines the name of the internal traffic service to target the agent running on the local node.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"forceEnableLocalService": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ForceEnableLocalService forces the creation of the internal traffic policy service to target the agent running on the local node. This parameter only applies to Kubernetes 1.21, where the feature is in alpha and is disabled by default. (On Kubernetes 1.22+, the feature entered beta and the internal traffic service is created by default, so this parameter is ignored.) Default: false",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema__apis_datadoghq_v2alpha1_NetworkPolicyConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "NetworkPolicyConfig provides Network Policy configuration for the agents.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"create": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Create defines whether to create a NetworkPolicy for the current deployment.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"flavor": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Flavor defines Which network policy to use.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"dnsSelectorEndpoints": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DNSSelectorEndpoints defines the cilium selector of the DNS server entity.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.LabelSelector"},
+	}
+}
+
+func schema__apis_datadoghq_v2alpha1_OrchestratorExplorerFeatureConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "OrchestratorExplorerFeatureConfig contains the Orchestrator Explorer check feature configuration. The Orchestrator Explorer check runs in the Process and Cluster Agents (or Cluster Check Runners). See also: https://docs.datadoghq.com/infrastructure/livecontainers/#kubernetes-resources",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enabled enables the Orchestrator Explorer. Default: true",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"conf": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Conf overrides the configuration for the default Orchestrator Explorer check. This must point to a ConfigMap containing a valid cluster check configuration.",
+							Ref:         ref("./apis/datadoghq/v2alpha1.CustomConfig"),
+						},
+					},
+					"scrubContainers": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ScrubContainers enables scrubbing of sensitive container data (passwords, tokens, etc. ). Default: true",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"extraTags": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "set",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Additional tags to associate with the collected data in the form of `a b c`. This is a Cluster Agent option distinct from DD_TAGS that is used in the Orchestrator Explorer.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"endpoint": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Override the API endpoint for the Orchestrator Explorer. URL Default: \"https://orchestrator.datadoghq.com\".",
+							Ref:         ref("./apis/datadoghq/v2alpha1.Endpoint"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"./apis/datadoghq/v2alpha1.CustomConfig", "./apis/datadoghq/v2alpha1.Endpoint"},
+	}
+}
+
+func schema__apis_datadoghq_v2alpha1_PrometheusScrapeFeatureConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "PrometheusScrapeFeatureConfig allows configuration of the Prometheus Autodiscovery feature.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enable autodiscovery of pods and services exposing Prometheus metrics. Default: false",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"enableServiceEndpoints": {
+						SchemaProps: spec.SchemaProps{
+							Description: "EnableServiceEndpoints enables generating dedicated checks for service endpoints. Default: false",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"additionalConfigs": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AdditionalConfigs allows adding advanced Prometheus check configurations with custom discovery rules.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema__apis_datadoghq_v2alpha1_Secret(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Secret contains a secret name and an included key.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"secretName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SecretName is the name of the secret.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"keyName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "KeyName is the key of the secret.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"secretName"},
+			},
+		},
+	}
+}
+
+func schema__apis_datadoghq_v2alpha1_UnixDomainSocketConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "UnixDomainSocketConfig contains the Unix Domain Socket configuration.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enabled enables Unix Domain Socket.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"path": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Path defines the socket path used when enabled.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
 }

@@ -9,8 +9,10 @@ import (
 	"path"
 	"testing"
 
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
+
 	"github.com/google/go-cmp/cmp"
 	assert "github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
@@ -31,17 +33,17 @@ func TestDefaultConfigDogstatsd(t *testing.T) {
 			name: "empty conf",
 			dsd:  NodeAgentConfig{},
 			override: &DogstatsdConfig{
-				DogstatsdOriginDetection: NewBoolPointer(false), // defaultDogstatsdOriginDetection
+				DogstatsdOriginDetection: apiutils.NewBoolPointer(false), // defaultDogstatsdOriginDetection
 				UnixDomainSocket: &DSDUnixDomainSocketSpec{
-					Enabled:      NewBoolPointer(false),
+					Enabled:      apiutils.NewBoolPointer(false),
 					HostFilepath: &defaultPath,
 				},
 			},
 			internal: NodeAgentConfig{
 				Dogstatsd: &DogstatsdConfig{
-					DogstatsdOriginDetection: NewBoolPointer(false),
+					DogstatsdOriginDetection: apiutils.NewBoolPointer(false),
 					UnixDomainSocket: &DSDUnixDomainSocketSpec{
-						Enabled:      NewBoolPointer(false),
+						Enabled:      apiutils.NewBoolPointer(false),
 						HostFilepath: &defaultPath,
 					},
 				},
@@ -52,19 +54,19 @@ func TestDefaultConfigDogstatsd(t *testing.T) {
 			dsd: NodeAgentConfig{
 				Dogstatsd: &DogstatsdConfig{
 					UnixDomainSocket: &DSDUnixDomainSocketSpec{
-						Enabled:      NewBoolPointer(false),
+						Enabled:      apiutils.NewBoolPointer(false),
 						HostFilepath: &defaultPath,
 					},
 				},
 			},
 			override: &DogstatsdConfig{
-				DogstatsdOriginDetection: NewBoolPointer(false),
+				DogstatsdOriginDetection: apiutils.NewBoolPointer(false),
 			},
 			internal: NodeAgentConfig{
 				Dogstatsd: &DogstatsdConfig{
-					DogstatsdOriginDetection: NewBoolPointer(false),
+					DogstatsdOriginDetection: apiutils.NewBoolPointer(false),
 					UnixDomainSocket: &DSDUnixDomainSocketSpec{
-						Enabled:      NewBoolPointer(false),
+						Enabled:      apiutils.NewBoolPointer(false),
 						HostFilepath: &defaultPath,
 					},
 				},
@@ -74,20 +76,20 @@ func TestDefaultConfigDogstatsd(t *testing.T) {
 			name: "dogtatsd missing defaulting: UseDogStatsDSocketVolume",
 			dsd: NodeAgentConfig{
 				Dogstatsd: &DogstatsdConfig{
-					DogstatsdOriginDetection: NewBoolPointer(false),
+					DogstatsdOriginDetection: apiutils.NewBoolPointer(false),
 				},
 			},
 			override: &DogstatsdConfig{
 				UnixDomainSocket: &DSDUnixDomainSocketSpec{
-					Enabled:      NewBoolPointer(false),
+					Enabled:      apiutils.NewBoolPointer(false),
 					HostFilepath: &defaultPath,
 				},
 			},
 			internal: NodeAgentConfig{
 				Dogstatsd: &DogstatsdConfig{
-					DogstatsdOriginDetection: NewBoolPointer(false),
+					DogstatsdOriginDetection: apiutils.NewBoolPointer(false),
 					UnixDomainSocket: &DSDUnixDomainSocketSpec{
-						Enabled:      NewBoolPointer(false),
+						Enabled:      apiutils.NewBoolPointer(false),
 						HostFilepath: &defaultPath,
 					},
 				},
@@ -97,8 +99,8 @@ func TestDefaultConfigDogstatsd(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := DefaultConfigDogstatsd(&tt.dsd)
-			assert.True(t, IsEqualStruct(got, tt.override), "TestDefaultFeatures override \ndiff = %s", cmp.Diff(got, tt.override))
-			assert.True(t, IsEqualStruct(tt.dsd, tt.internal), "TestDefaultFeatures internal \ndiff = %s", cmp.Diff(tt.dsd, tt.internal))
+			assert.True(t, apiutils.IsEqualStruct(got, tt.override), "TestDefaultFeatures override \ndiff = %s", cmp.Diff(got, tt.override))
+			assert.True(t, apiutils.IsEqualStruct(tt.dsd, tt.internal), "TestDefaultFeatures internal \ndiff = %s", cmp.Diff(tt.dsd, tt.internal))
 		})
 	}
 }
@@ -115,134 +117,134 @@ func TestDefaultFeatures(t *testing.T) {
 			ft:   DatadogFeatures{},
 			overrideExpected: &DatadogFeatures{
 				OrchestratorExplorer: &OrchestratorExplorerConfig{
-					Enabled:      NewBoolPointer(true),
-					ClusterCheck: NewBoolPointer(false),
-					Scrubbing:    &Scrubbing{Containers: NewBoolPointer(true)},
+					Enabled:      apiutils.NewBoolPointer(true),
+					ClusterCheck: apiutils.NewBoolPointer(false),
+					Scrubbing:    &Scrubbing{Containers: apiutils.NewBoolPointer(true)},
 				},
-				KubeStateMetricsCore: &KubeStateMetricsCore{Enabled: NewBoolPointer(false), ClusterCheck: NewBoolPointer(false)},
+				KubeStateMetricsCore: &KubeStateMetricsCore{Enabled: apiutils.NewBoolPointer(false), ClusterCheck: apiutils.NewBoolPointer(false)},
 				PrometheusScrape: &PrometheusScrapeConfig{
-					Enabled: NewBoolPointer(false),
+					Enabled: apiutils.NewBoolPointer(false),
 				},
 				LogCollection: &LogCollectionConfig{
-					Enabled: NewBoolPointer(false),
+					Enabled: apiutils.NewBoolPointer(false),
 				},
-				NetworkMonitoring: &NetworkMonitoringConfig{Enabled: NewBoolPointer(false)},
+				NetworkMonitoring: &NetworkMonitoringConfig{Enabled: apiutils.NewBoolPointer(false)},
 			},
 			internalDefaulted: DatadogFeatures{
 				OrchestratorExplorer: &OrchestratorExplorerConfig{
-					Enabled:      NewBoolPointer(true),
-					ClusterCheck: NewBoolPointer(false),
-					Scrubbing:    &Scrubbing{Containers: NewBoolPointer(true)},
+					Enabled:      apiutils.NewBoolPointer(true),
+					ClusterCheck: apiutils.NewBoolPointer(false),
+					Scrubbing:    &Scrubbing{Containers: apiutils.NewBoolPointer(true)},
 				},
-				KubeStateMetricsCore: &KubeStateMetricsCore{Enabled: NewBoolPointer(false), ClusterCheck: NewBoolPointer(false)},
+				KubeStateMetricsCore: &KubeStateMetricsCore{Enabled: apiutils.NewBoolPointer(false), ClusterCheck: apiutils.NewBoolPointer(false)},
 				PrometheusScrape: &PrometheusScrapeConfig{
-					Enabled: NewBoolPointer(false),
+					Enabled: apiutils.NewBoolPointer(false),
 				},
 				LogCollection: &LogCollectionConfig{
-					Enabled: NewBoolPointer(false),
+					Enabled: apiutils.NewBoolPointer(false),
 				},
-				NetworkMonitoring: &NetworkMonitoringConfig{Enabled: NewBoolPointer(false)},
+				NetworkMonitoring: &NetworkMonitoringConfig{Enabled: apiutils.NewBoolPointer(false)},
 			},
 		},
 		{
 			name: "sparse config",
 			ft: DatadogFeatures{
 				OrchestratorExplorer: &OrchestratorExplorerConfig{
-					Enabled: NewBoolPointer(false),
+					Enabled: apiutils.NewBoolPointer(false),
 				},
 				LogCollection: &LogCollectionConfig{
-					Enabled: NewBoolPointer(true),
+					Enabled: apiutils.NewBoolPointer(true),
 				},
 			},
 			overrideExpected: &DatadogFeatures{
 				OrchestratorExplorer: &OrchestratorExplorerConfig{
-					Enabled: NewBoolPointer(false),
+					Enabled: apiutils.NewBoolPointer(false),
 				},
-				KubeStateMetricsCore: &KubeStateMetricsCore{Enabled: NewBoolPointer(false), ClusterCheck: NewBoolPointer(false)},
+				KubeStateMetricsCore: &KubeStateMetricsCore{Enabled: apiutils.NewBoolPointer(false), ClusterCheck: apiutils.NewBoolPointer(false)},
 				LogCollection: &LogCollectionConfig{
-					Enabled:                       NewBoolPointer(true),
-					LogsConfigContainerCollectAll: NewBoolPointer(false),
-					ContainerCollectUsingFiles:    NewBoolPointer(true),
-					ContainerLogsPath:             NewStringPointer("/var/lib/docker/containers"),
-					PodLogsPath:                   NewStringPointer("/var/log/pods"),
-					ContainerSymlinksPath:         NewStringPointer("/var/log/containers"),
-					TempStoragePath:               NewStringPointer("/var/lib/datadog-agent/logs"),
+					Enabled:                       apiutils.NewBoolPointer(true),
+					LogsConfigContainerCollectAll: apiutils.NewBoolPointer(false),
+					ContainerCollectUsingFiles:    apiutils.NewBoolPointer(true),
+					ContainerLogsPath:             apiutils.NewStringPointer("/var/lib/docker/containers"),
+					PodLogsPath:                   apiutils.NewStringPointer("/var/log/pods"),
+					ContainerSymlinksPath:         apiutils.NewStringPointer("/var/log/containers"),
+					TempStoragePath:               apiutils.NewStringPointer("/var/lib/datadog-agent/logs"),
 				},
 				PrometheusScrape: &PrometheusScrapeConfig{
-					Enabled: NewBoolPointer(false),
+					Enabled: apiutils.NewBoolPointer(false),
 				},
-				NetworkMonitoring: &NetworkMonitoringConfig{Enabled: NewBoolPointer(false)},
+				NetworkMonitoring: &NetworkMonitoringConfig{Enabled: apiutils.NewBoolPointer(false)},
 			},
 			internalDefaulted: DatadogFeatures{
 				OrchestratorExplorer: &OrchestratorExplorerConfig{
-					Enabled: NewBoolPointer(false),
+					Enabled: apiutils.NewBoolPointer(false),
 				},
-				KubeStateMetricsCore: &KubeStateMetricsCore{Enabled: NewBoolPointer(false), ClusterCheck: NewBoolPointer(false)},
+				KubeStateMetricsCore: &KubeStateMetricsCore{Enabled: apiutils.NewBoolPointer(false), ClusterCheck: apiutils.NewBoolPointer(false)},
 				LogCollection: &LogCollectionConfig{
-					Enabled:                       NewBoolPointer(true),
-					LogsConfigContainerCollectAll: NewBoolPointer(false),
-					ContainerCollectUsingFiles:    NewBoolPointer(true),
-					ContainerLogsPath:             NewStringPointer("/var/lib/docker/containers"),
-					PodLogsPath:                   NewStringPointer("/var/log/pods"),
-					ContainerSymlinksPath:         NewStringPointer("/var/log/containers"),
-					TempStoragePath:               NewStringPointer("/var/lib/datadog-agent/logs"),
+					Enabled:                       apiutils.NewBoolPointer(true),
+					LogsConfigContainerCollectAll: apiutils.NewBoolPointer(false),
+					ContainerCollectUsingFiles:    apiutils.NewBoolPointer(true),
+					ContainerLogsPath:             apiutils.NewStringPointer("/var/lib/docker/containers"),
+					PodLogsPath:                   apiutils.NewStringPointer("/var/log/pods"),
+					ContainerSymlinksPath:         apiutils.NewStringPointer("/var/log/containers"),
+					TempStoragePath:               apiutils.NewStringPointer("/var/lib/datadog-agent/logs"),
 				},
 				PrometheusScrape: &PrometheusScrapeConfig{
-					Enabled: NewBoolPointer(false),
+					Enabled: apiutils.NewBoolPointer(false),
 				},
-				NetworkMonitoring: &NetworkMonitoringConfig{Enabled: NewBoolPointer(false)},
+				NetworkMonitoring: &NetworkMonitoringConfig{Enabled: apiutils.NewBoolPointer(false)},
 			},
 		},
 		{
 			name: "some config",
 			ft: DatadogFeatures{
 				OrchestratorExplorer: &OrchestratorExplorerConfig{
-					Scrubbing: &Scrubbing{Containers: NewBoolPointer(false)},
+					Scrubbing: &Scrubbing{Containers: apiutils.NewBoolPointer(false)},
 				},
-				KubeStateMetricsCore: &KubeStateMetricsCore{Enabled: NewBoolPointer(true), ClusterCheck: NewBoolPointer(true)},
+				KubeStateMetricsCore: &KubeStateMetricsCore{Enabled: apiutils.NewBoolPointer(true), ClusterCheck: apiutils.NewBoolPointer(true)},
 				LogCollection: &LogCollectionConfig{
-					LogsConfigContainerCollectAll: NewBoolPointer(false),
-					ContainerLogsPath:             NewStringPointer("/var/lib/docker/containers"),
+					LogsConfigContainerCollectAll: apiutils.NewBoolPointer(false),
+					ContainerLogsPath:             apiutils.NewStringPointer("/var/lib/docker/containers"),
 				},
 				PrometheusScrape: &PrometheusScrapeConfig{
-					ServiceEndpoints: NewBoolPointer(true),
+					ServiceEndpoints: apiutils.NewBoolPointer(true),
 				},
-				NetworkMonitoring: &NetworkMonitoringConfig{Enabled: NewBoolPointer(true)},
+				NetworkMonitoring: &NetworkMonitoringConfig{Enabled: apiutils.NewBoolPointer(true)},
 			},
 			overrideExpected: &DatadogFeatures{
 				OrchestratorExplorer: &OrchestratorExplorerConfig{
-					Enabled:      NewBoolPointer(true), // defaultOrchestratorExplorerEnabled
-					ClusterCheck: NewBoolPointer(false),
+					Enabled:      apiutils.NewBoolPointer(true), // defaultOrchestratorExplorerEnabled
+					ClusterCheck: apiutils.NewBoolPointer(false),
 				},
 				KubeStateMetricsCore: &KubeStateMetricsCore{
-					Enabled:      NewBoolPointer(true),
-					ClusterCheck: NewBoolPointer(true),
+					Enabled:      apiutils.NewBoolPointer(true),
+					ClusterCheck: apiutils.NewBoolPointer(true),
 				},
 				LogCollection: &LogCollectionConfig{
-					Enabled: NewBoolPointer(false), // defaultLogEnabled
+					Enabled: apiutils.NewBoolPointer(false), // defaultLogEnabled
 				},
 				PrometheusScrape: &PrometheusScrapeConfig{
-					Enabled: NewBoolPointer(false), // defaultPrometheusScrapeEnabled
+					Enabled: apiutils.NewBoolPointer(false), // defaultPrometheusScrapeEnabled
 				},
-				NetworkMonitoring: &NetworkMonitoringConfig{Enabled: NewBoolPointer(true)},
+				NetworkMonitoring: &NetworkMonitoringConfig{Enabled: apiutils.NewBoolPointer(true)},
 			},
 			internalDefaulted: DatadogFeatures{
 				OrchestratorExplorer: &OrchestratorExplorerConfig{
-					Enabled:      NewBoolPointer(true), // defaultOrchestratorExplorerEnabled
-					ClusterCheck: NewBoolPointer(false),
-					Scrubbing:    &Scrubbing{Containers: NewBoolPointer(false)},
+					Enabled:      apiutils.NewBoolPointer(true), // defaultOrchestratorExplorerEnabled
+					ClusterCheck: apiutils.NewBoolPointer(false),
+					Scrubbing:    &Scrubbing{Containers: apiutils.NewBoolPointer(false)},
 				},
-				KubeStateMetricsCore: &KubeStateMetricsCore{Enabled: NewBoolPointer(true), ClusterCheck: NewBoolPointer(true)},
+				KubeStateMetricsCore: &KubeStateMetricsCore{Enabled: apiutils.NewBoolPointer(true), ClusterCheck: apiutils.NewBoolPointer(true)},
 				LogCollection: &LogCollectionConfig{
-					Enabled:                       NewBoolPointer(false),
-					LogsConfigContainerCollectAll: NewBoolPointer(false),
-					ContainerLogsPath:             NewStringPointer("/var/lib/docker/containers"),
+					Enabled:                       apiutils.NewBoolPointer(false),
+					LogsConfigContainerCollectAll: apiutils.NewBoolPointer(false),
+					ContainerLogsPath:             apiutils.NewStringPointer("/var/lib/docker/containers"),
 				},
 				PrometheusScrape: &PrometheusScrapeConfig{
-					Enabled:          NewBoolPointer(false),
-					ServiceEndpoints: NewBoolPointer(true),
+					Enabled:          apiutils.NewBoolPointer(false),
+					ServiceEndpoints: apiutils.NewBoolPointer(true),
 				},
-				NetworkMonitoring: &NetworkMonitoringConfig{Enabled: NewBoolPointer(true)},
+				NetworkMonitoring: &NetworkMonitoringConfig{Enabled: apiutils.NewBoolPointer(true)},
 			},
 		},
 	}
@@ -251,8 +253,8 @@ func TestDefaultFeatures(t *testing.T) {
 			dda := &DatadogAgent{}
 			dda.Spec.Features = tt.ft
 			got := DefaultFeatures(dda)
-			assert.True(t, IsEqualStruct(got, tt.overrideExpected), "TestDefaultFeatures override \ndiff = %s", cmp.Diff(got, tt.overrideExpected))
-			assert.True(t, IsEqualStruct(dda.Spec.Features, tt.internalDefaulted), "TestDefaultFeatures internal \ndiff = %s", cmp.Diff(dda.Spec.Features, tt.internalDefaulted))
+			assert.True(t, apiutils.IsEqualStruct(got, tt.overrideExpected), "TestDefaultFeatures override \ndiff = %s", cmp.Diff(got, tt.overrideExpected))
+			assert.True(t, apiutils.IsEqualStruct(dda.Spec.Features, tt.internalDefaulted), "TestDefaultFeatures internal \ndiff = %s", cmp.Diff(dda.Spec.Features, tt.internalDefaulted))
 		})
 	}
 }
@@ -267,11 +269,11 @@ func TestDefaultDatadogAgentSpecClusterAgent(t *testing.T) {
 		{
 			name: "disable field",
 			dca: DatadogAgentSpecClusterAgentSpec{
-				Enabled: NewBoolPointer(false),
+				Enabled: apiutils.NewBoolPointer(false),
 			},
 			overrideExpected: &DatadogAgentSpecClusterAgentSpec{},
 			internalDefaulted: DatadogAgentSpecClusterAgentSpec{
-				Enabled: NewBoolPointer(false),
+				Enabled: apiutils.NewBoolPointer(false),
 			},
 		},
 		{
@@ -279,12 +281,12 @@ func TestDefaultDatadogAgentSpecClusterAgent(t *testing.T) {
 			dca: DatadogAgentSpecClusterAgentSpec{
 				Config: &ClusterAgentConfig{
 					AdmissionController: &AdmissionControllerConfig{
-						Enabled: NewBoolPointer(true),
+						Enabled: apiutils.NewBoolPointer(true),
 					},
 				},
 			},
 			overrideExpected: &DatadogAgentSpecClusterAgentSpec{
-				Enabled: NewBoolPointer(true),
+				Enabled: apiutils.NewBoolPointer(true),
 				Image: &ImageConfig{
 					Name:       defaultClusterAgentImageName,
 					Tag:        defaulting.ClusterAgentLatestVersion,
@@ -292,23 +294,23 @@ func TestDefaultDatadogAgentSpecClusterAgent(t *testing.T) {
 				},
 				Config: &ClusterAgentConfig{
 					ExternalMetrics: &ExternalMetricsConfig{
-						Enabled: NewBoolPointer(false),
+						Enabled: apiutils.NewBoolPointer(false),
 					},
 					AdmissionController: &AdmissionControllerConfig{
-						MutateUnlabelled: NewBoolPointer(false),
-						ServiceName:      NewStringPointer("datadog-admission-controller"),
+						MutateUnlabelled: apiutils.NewBoolPointer(false),
+						ServiceName:      apiutils.NewStringPointer("datadog-admission-controller"),
 					},
-					ClusterChecksEnabled: NewBoolPointer(false),
-					LogLevel:             NewStringPointer(defaultLogLevel),
-					CollectEvents:        NewBoolPointer(false),
-					HealthPort:           NewInt32Pointer(5555),
+					ClusterChecksEnabled: apiutils.NewBoolPointer(false),
+					LogLevel:             apiutils.NewStringPointer(defaultLogLevel),
+					CollectEvents:        apiutils.NewBoolPointer(false),
+					HealthPort:           apiutils.NewInt32Pointer(5555),
 				},
-				Rbac:          &RbacConfig{Create: NewBoolPointer(true)},
+				Rbac:          &RbacConfig{Create: apiutils.NewBoolPointer(true)},
 				Replicas:      nil,
-				NetworkPolicy: &NetworkPolicySpec{Create: NewBoolPointer(false)},
+				NetworkPolicy: &NetworkPolicySpec{Create: apiutils.NewBoolPointer(false)},
 			},
 			internalDefaulted: DatadogAgentSpecClusterAgentSpec{
-				Enabled: NewBoolPointer(true),
+				Enabled: apiutils.NewBoolPointer(true),
 				Image: &ImageConfig{
 					Name:        defaultClusterAgentImageName,
 					Tag:         defaulting.ClusterAgentLatestVersion,
@@ -317,51 +319,51 @@ func TestDefaultDatadogAgentSpecClusterAgent(t *testing.T) {
 				},
 				Config: &ClusterAgentConfig{
 					ExternalMetrics: &ExternalMetricsConfig{
-						Enabled: NewBoolPointer(false),
+						Enabled: apiutils.NewBoolPointer(false),
 					},
 					AdmissionController: &AdmissionControllerConfig{
-						Enabled:          NewBoolPointer(true),
-						MutateUnlabelled: NewBoolPointer(false),
-						ServiceName:      NewStringPointer("datadog-admission-controller"),
+						Enabled:          apiutils.NewBoolPointer(true),
+						MutateUnlabelled: apiutils.NewBoolPointer(false),
+						ServiceName:      apiutils.NewStringPointer("datadog-admission-controller"),
 					},
 					Resources:            &corev1.ResourceRequirements{Limits: corev1.ResourceList{}, Requests: corev1.ResourceList{}},
-					LogLevel:             NewStringPointer(defaultLogLevel),
-					ClusterChecksEnabled: NewBoolPointer(false),
-					CollectEvents:        NewBoolPointer(false),
-					HealthPort:           NewInt32Pointer(5555),
+					LogLevel:             apiutils.NewStringPointer(defaultLogLevel),
+					ClusterChecksEnabled: apiutils.NewBoolPointer(false),
+					CollectEvents:        apiutils.NewBoolPointer(false),
+					HealthPort:           apiutils.NewInt32Pointer(5555),
 				},
-				Rbac:          &RbacConfig{Create: NewBoolPointer(true)},
+				Rbac:          &RbacConfig{Create: apiutils.NewBoolPointer(true)},
 				Replicas:      nil,
-				NetworkPolicy: &NetworkPolicySpec{Create: NewBoolPointer(false)},
+				NetworkPolicy: &NetworkPolicySpec{Create: apiutils.NewBoolPointer(false)},
 			},
 		},
 		{
 			name: "almost full config",
 			dca: DatadogAgentSpecClusterAgentSpec{
-				Enabled: NewBoolPointer(true),
+				Enabled: apiutils.NewBoolPointer(true),
 				Image: &ImageConfig{
 					Name:       "foo",
-					PullPolicy: (*corev1.PullPolicy)(NewStringPointer("Always")),
+					PullPolicy: (*corev1.PullPolicy)(apiutils.NewStringPointer("Always")),
 				},
 				Config: &ClusterAgentConfig{
 					ExternalMetrics: &ExternalMetricsConfig{
-						Enabled:           NewBoolPointer(true),
+						Enabled:           apiutils.NewBoolPointer(true),
 						WpaController:     true,
 						UseDatadogMetrics: true,
 					},
-					LogLevel: NewStringPointer("DEBUG"),
+					LogLevel: apiutils.NewStringPointer("DEBUG"),
 					AdmissionController: &AdmissionControllerConfig{
-						Enabled:          NewBoolPointer(true),
-						MutateUnlabelled: NewBoolPointer(false),
-						ServiceName:      NewStringPointer("foo"),
+						Enabled:          apiutils.NewBoolPointer(true),
+						MutateUnlabelled: apiutils.NewBoolPointer(false),
+						ServiceName:      apiutils.NewStringPointer("foo"),
 					},
-					ClusterChecksEnabled: NewBoolPointer(true),
-					CollectEvents:        NewBoolPointer(false),
-					HealthPort:           NewInt32Pointer(5555),
+					ClusterChecksEnabled: apiutils.NewBoolPointer(true),
+					CollectEvents:        apiutils.NewBoolPointer(false),
+					HealthPort:           apiutils.NewInt32Pointer(5555),
 				},
-				Rbac:          &RbacConfig{Create: NewBoolPointer(false)},
-				Replicas:      NewInt32Pointer(2),
-				NetworkPolicy: &NetworkPolicySpec{Create: NewBoolPointer(true)},
+				Rbac:          &RbacConfig{Create: apiutils.NewBoolPointer(false)},
+				Replicas:      apiutils.NewInt32Pointer(2),
+				NetworkPolicy: &NetworkPolicySpec{Create: apiutils.NewBoolPointer(true)},
 			},
 			overrideExpected: &DatadogAgentSpecClusterAgentSpec{
 				Image: &ImageConfig{
@@ -369,47 +371,51 @@ func TestDefaultDatadogAgentSpecClusterAgent(t *testing.T) {
 				},
 				Config: &ClusterAgentConfig{
 					ExternalMetrics: &ExternalMetricsConfig{
-						Port: NewInt32Pointer(8443),
+						Port: apiutils.NewInt32Pointer(8443),
 					},
 				},
+				NetworkPolicy: &NetworkPolicySpec{Flavor: NetworkPolicyFlavorKubernetes},
 			},
 			internalDefaulted: DatadogAgentSpecClusterAgentSpec{
-				Enabled: NewBoolPointer(true),
+				Enabled: apiutils.NewBoolPointer(true),
 				Image: &ImageConfig{
 					Name:        "foo",
 					Tag:         defaulting.ClusterAgentLatestVersion,
-					PullPolicy:  (*corev1.PullPolicy)(NewStringPointer("Always")),
+					PullPolicy:  (*corev1.PullPolicy)(apiutils.NewStringPointer("Always")),
 					PullSecrets: &[]corev1.LocalObjectReference{},
 				},
 				Config: &ClusterAgentConfig{
 					ExternalMetrics: &ExternalMetricsConfig{
-						Enabled:           NewBoolPointer(true),
+						Enabled:           apiutils.NewBoolPointer(true),
 						WpaController:     true,
 						UseDatadogMetrics: true,
-						Port:              NewInt32Pointer(8443),
+						Port:              apiutils.NewInt32Pointer(8443),
 					},
 					AdmissionController: &AdmissionControllerConfig{
-						Enabled:          NewBoolPointer(true),
-						MutateUnlabelled: NewBoolPointer(false),
-						ServiceName:      NewStringPointer("foo"),
+						Enabled:          apiutils.NewBoolPointer(true),
+						MutateUnlabelled: apiutils.NewBoolPointer(false),
+						ServiceName:      apiutils.NewStringPointer("foo"),
 					},
 					Resources:            &corev1.ResourceRequirements{Limits: corev1.ResourceList{}, Requests: corev1.ResourceList{}},
-					ClusterChecksEnabled: NewBoolPointer(true),
-					CollectEvents:        NewBoolPointer(false),
-					LogLevel:             NewStringPointer("DEBUG"),
-					HealthPort:           NewInt32Pointer(5555),
+					ClusterChecksEnabled: apiutils.NewBoolPointer(true),
+					CollectEvents:        apiutils.NewBoolPointer(false),
+					LogLevel:             apiutils.NewStringPointer("DEBUG"),
+					HealthPort:           apiutils.NewInt32Pointer(5555),
 				},
-				Rbac:          &RbacConfig{Create: NewBoolPointer(false)},
-				Replicas:      NewInt32Pointer(2),
-				NetworkPolicy: &NetworkPolicySpec{Create: NewBoolPointer(true)},
+				Rbac:     &RbacConfig{Create: apiutils.NewBoolPointer(false)},
+				Replicas: apiutils.NewInt32Pointer(2),
+				NetworkPolicy: &NetworkPolicySpec{
+					Create: apiutils.NewBoolPointer(true),
+					Flavor: NetworkPolicyFlavorKubernetes,
+				},
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := DefaultDatadogAgentSpecClusterAgent(&tt.dca)
-			assert.True(t, IsEqualStruct(got, tt.overrideExpected), "TestDefaultDatadogAgentSpecClusterAgent override \ndiff = %s", cmp.Diff(got, tt.overrideExpected))
-			assert.True(t, IsEqualStruct(tt.dca, tt.internalDefaulted), "TestDefaultDatadogAgentSpecClusterAgent internal \ndiff = %s", cmp.Diff(tt.dca, tt.internalDefaulted))
+			assert.True(t, apiutils.IsEqualStruct(got, tt.overrideExpected), "TestDefaultDatadogAgentSpecClusterAgent override \ndiff = %s", cmp.Diff(got, tt.overrideExpected))
+			assert.True(t, apiutils.IsEqualStruct(tt.dca, tt.internalDefaulted), "TestDefaultDatadogAgentSpecClusterAgent internal \ndiff = %s", cmp.Diff(tt.dca, tt.internalDefaulted))
 		})
 	}
 }
@@ -425,11 +431,11 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 		{
 			name: "agent disabled field",
 			agent: DatadogAgentSpecAgentSpec{
-				Enabled: NewBoolPointer(false),
+				Enabled: apiutils.NewBoolPointer(false),
 			},
 			overrideExpected: &DatadogAgentSpecAgentSpec{},
 			internalDefaulted: DatadogAgentSpecAgentSpec{
-				Enabled: NewBoolPointer(false),
+				Enabled: apiutils.NewBoolPointer(false),
 			},
 		},
 		{
@@ -438,54 +444,54 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 				Config: &NodeAgentConfig{},
 			},
 			overrideExpected: &DatadogAgentSpecAgentSpec{
-				Enabled:              NewBoolPointer(true),
-				UseExtendedDaemonset: NewBoolPointer(false),
+				Enabled:              apiutils.NewBoolPointer(true),
+				UseExtendedDaemonset: apiutils.NewBoolPointer(false),
 				Image: &ImageConfig{
 					Name:       defaultAgentImageName,
 					Tag:        defaulting.AgentLatestVersion,
 					PullPolicy: &defaultImagePullPolicy,
 				},
 				Config: &NodeAgentConfig{
-					LogLevel:       NewStringPointer(defaultLogLevel),
-					CollectEvents:  NewBoolPointer(false),
-					LeaderElection: NewBoolPointer(false),
+					LogLevel:       apiutils.NewStringPointer(defaultLogLevel),
+					CollectEvents:  apiutils.NewBoolPointer(false),
+					LeaderElection: apiutils.NewBoolPointer(false),
 					LivenessProbe:  GetDefaultLivenessProbe(),
 					ReadinessProbe: GetDefaultReadinessProbe(),
-					HealthPort:     NewInt32Pointer(5555),
+					HealthPort:     apiutils.NewInt32Pointer(5555),
 					// CriSocket unset as we use latest
 					Dogstatsd: &DogstatsdConfig{
-						DogstatsdOriginDetection: NewBoolPointer(false),
+						DogstatsdOriginDetection: apiutils.NewBoolPointer(false),
 						UnixDomainSocket: &DSDUnixDomainSocketSpec{
-							Enabled:      NewBoolPointer(false),
-							HostFilepath: NewStringPointer(path.Join(defaultHostDogstatsdSocketPath, defaultHostDogstatsdSocketName)),
+							Enabled:      apiutils.NewBoolPointer(false),
+							HostFilepath: apiutils.NewStringPointer(path.Join(defaultHostDogstatsdSocketPath, defaultHostDogstatsdSocketName)),
 						},
 					},
 				},
 				DeploymentStrategy: &DaemonSetDeploymentStrategy{
-					UpdateStrategyType: (*appsv1.DaemonSetUpdateStrategyType)(NewStringPointer("RollingUpdate")),
+					UpdateStrategyType: (*appsv1.DaemonSetUpdateStrategyType)(apiutils.NewStringPointer("RollingUpdate")),
 					RollingUpdate: DaemonSetRollingUpdateSpec{
 						MaxUnavailable:            &intstr.IntOrString{Type: intstr.String, StrVal: defaultRollingUpdateMaxUnavailable},
 						MaxPodSchedulerFailure:    &intstr.IntOrString{Type: intstr.String, StrVal: defaultRollingUpdateMaxPodSchedulerFailure},
-						MaxParallelPodCreation:    NewInt32Pointer(defaultRollingUpdateMaxParallelPodCreation),
+						MaxParallelPodCreation:    apiutils.NewInt32Pointer(defaultRollingUpdateMaxParallelPodCreation),
 						SlowStartIntervalDuration: &metav1.Duration{Duration: defaultRollingUpdateSlowStartIntervalDuration},
 						SlowStartAdditiveIncrease: &intstr.IntOrString{Type: intstr.String, StrVal: defaultRollingUpdateSlowStartAdditiveIncrease},
 					},
 					Canary:             edsdatadoghqv1alpha1.DefaultExtendedDaemonSetSpecStrategyCanary(testCanary),
 					ReconcileFrequency: &metav1.Duration{Duration: defaultReconcileFrequency},
 				},
-				Rbac:        &RbacConfig{Create: NewBoolPointer(true)},
-				Apm:         &APMSpec{Enabled: NewBoolPointer(false)},
-				Process:     &ProcessSpec{Enabled: NewBoolPointer(false)},
-				SystemProbe: &SystemProbeSpec{Enabled: NewBoolPointer(false)},
+				Rbac:        &RbacConfig{Create: apiutils.NewBoolPointer(true)},
+				Apm:         &APMSpec{Enabled: apiutils.NewBoolPointer(false)},
+				Process:     &ProcessSpec{Enabled: apiutils.NewBoolPointer(false)},
+				SystemProbe: &SystemProbeSpec{Enabled: apiutils.NewBoolPointer(false)},
 				Security: &SecuritySpec{
-					Compliance: ComplianceSpec{Enabled: NewBoolPointer(false)},
-					Runtime:    RuntimeSecuritySpec{Enabled: NewBoolPointer(false), SyscallMonitor: &SyscallMonitorSpec{Enabled: NewBoolPointer(false)}},
+					Compliance: ComplianceSpec{Enabled: apiutils.NewBoolPointer(false)},
+					Runtime:    RuntimeSecuritySpec{Enabled: apiutils.NewBoolPointer(false), SyscallMonitor: &SyscallMonitorSpec{Enabled: apiutils.NewBoolPointer(false)}},
 				},
-				NetworkPolicy: &NetworkPolicySpec{Create: NewBoolPointer(false)},
+				NetworkPolicy: &NetworkPolicySpec{Create: apiutils.NewBoolPointer(false)},
 			},
 			internalDefaulted: DatadogAgentSpecAgentSpec{
-				Enabled:              NewBoolPointer(true),
-				UseExtendedDaemonset: NewBoolPointer(false),
+				Enabled:              apiutils.NewBoolPointer(true),
+				UseExtendedDaemonset: apiutils.NewBoolPointer(false),
 				Image: &ImageConfig{
 					Name:        defaultAgentImageName,
 					Tag:         defaulting.AgentLatestVersion,
@@ -493,56 +499,56 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 					PullSecrets: &[]corev1.LocalObjectReference{},
 				},
 				Config: &NodeAgentConfig{
-					LogLevel:             NewStringPointer(defaultLogLevel),
+					LogLevel:             apiutils.NewStringPointer(defaultLogLevel),
 					PodLabelsAsTags:      map[string]string{},
 					PodAnnotationsAsTags: map[string]string{},
 					Tags:                 []string{},
-					CollectEvents:        NewBoolPointer(false),
-					LeaderElection:       NewBoolPointer(false),
+					CollectEvents:        apiutils.NewBoolPointer(false),
+					LeaderElection:       apiutils.NewBoolPointer(false),
 					LivenessProbe:        GetDefaultLivenessProbe(),
 					Resources:            &corev1.ResourceRequirements{Limits: corev1.ResourceList{}, Requests: corev1.ResourceList{}},
 					ReadinessProbe:       GetDefaultReadinessProbe(),
-					HealthPort:           NewInt32Pointer(5555),
+					HealthPort:           apiutils.NewInt32Pointer(5555),
 					Dogstatsd: &DogstatsdConfig{
-						DogstatsdOriginDetection: NewBoolPointer(false),
+						DogstatsdOriginDetection: apiutils.NewBoolPointer(false),
 						UnixDomainSocket: &DSDUnixDomainSocketSpec{
-							Enabled:      NewBoolPointer(false),
-							HostFilepath: NewStringPointer(path.Join(defaultHostDogstatsdSocketPath, defaultHostDogstatsdSocketName)),
+							Enabled:      apiutils.NewBoolPointer(false),
+							HostFilepath: apiutils.NewStringPointer(path.Join(defaultHostDogstatsdSocketPath, defaultHostDogstatsdSocketName)),
 						},
 					},
 				},
 				DeploymentStrategy: &DaemonSetDeploymentStrategy{
-					UpdateStrategyType: (*appsv1.DaemonSetUpdateStrategyType)(NewStringPointer("RollingUpdate")),
+					UpdateStrategyType: (*appsv1.DaemonSetUpdateStrategyType)(apiutils.NewStringPointer("RollingUpdate")),
 					RollingUpdate: DaemonSetRollingUpdateSpec{
 						MaxUnavailable:            &intstr.IntOrString{Type: intstr.String, StrVal: defaultRollingUpdateMaxUnavailable},
 						MaxPodSchedulerFailure:    &intstr.IntOrString{Type: intstr.String, StrVal: defaultRollingUpdateMaxPodSchedulerFailure},
-						MaxParallelPodCreation:    NewInt32Pointer(defaultRollingUpdateMaxParallelPodCreation),
+						MaxParallelPodCreation:    apiutils.NewInt32Pointer(defaultRollingUpdateMaxParallelPodCreation),
 						SlowStartIntervalDuration: &metav1.Duration{Duration: defaultRollingUpdateSlowStartIntervalDuration},
 						SlowStartAdditiveIncrease: &intstr.IntOrString{Type: intstr.String, StrVal: defaultRollingUpdateSlowStartAdditiveIncrease},
 					},
 					Canary:             edsdatadoghqv1alpha1.DefaultExtendedDaemonSetSpecStrategyCanary(testCanary),
 					ReconcileFrequency: &metav1.Duration{Duration: defaultReconcileFrequency},
 				},
-				Rbac:        &RbacConfig{Create: NewBoolPointer(true)},
-				Apm:         &APMSpec{Enabled: NewBoolPointer(false)},
-				Process:     &ProcessSpec{Enabled: NewBoolPointer(false)},
-				SystemProbe: &SystemProbeSpec{Enabled: NewBoolPointer(false)},
+				Rbac:        &RbacConfig{Create: apiutils.NewBoolPointer(true)},
+				Apm:         &APMSpec{Enabled: apiutils.NewBoolPointer(false)},
+				Process:     &ProcessSpec{Enabled: apiutils.NewBoolPointer(false)},
+				SystemProbe: &SystemProbeSpec{Enabled: apiutils.NewBoolPointer(false)},
 				Security: &SecuritySpec{
-					Compliance: ComplianceSpec{Enabled: NewBoolPointer(false)},
-					Runtime:    RuntimeSecuritySpec{Enabled: NewBoolPointer(false), SyscallMonitor: &SyscallMonitorSpec{Enabled: NewBoolPointer(false)}},
+					Compliance: ComplianceSpec{Enabled: apiutils.NewBoolPointer(false)},
+					Runtime:    RuntimeSecuritySpec{Enabled: apiutils.NewBoolPointer(false), SyscallMonitor: &SyscallMonitorSpec{Enabled: apiutils.NewBoolPointer(false)}},
 				},
-				NetworkPolicy: &NetworkPolicySpec{Create: NewBoolPointer(false)},
+				NetworkPolicy: &NetworkPolicySpec{Create: apiutils.NewBoolPointer(false)},
 			},
 		},
 		{
 			name: "some config",
 			agent: DatadogAgentSpecAgentSpec{
 				Config: &NodeAgentConfig{
-					DDUrl:          NewStringPointer("www.datadog.com"),
-					LeaderElection: NewBoolPointer(true),
+					DDUrl:          apiutils.NewStringPointer("www.datadog.com"),
+					LeaderElection: apiutils.NewBoolPointer(true),
 					Dogstatsd: &DogstatsdConfig{
-						DogstatsdOriginDetection: NewBoolPointer(false),
-						UnixDomainSocket:         &DSDUnixDomainSocketSpec{Enabled: NewBoolPointer(true)},
+						DogstatsdOriginDetection: apiutils.NewBoolPointer(false),
+						UnixDomainSocket:         &DSDUnixDomainSocketSpec{Enabled: apiutils.NewBoolPointer(true)},
 					},
 				},
 				Image: &ImageConfig{
@@ -552,103 +558,103 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 					Canary: edsdatadoghqv1alpha1.DefaultExtendedDaemonSetSpecStrategyCanary(testCanary),
 				},
 				Apm: &APMSpec{
-					HostPort: NewInt32Pointer(1664),
+					HostPort: apiutils.NewInt32Pointer(1664),
 				},
 				Process: &ProcessSpec{
-					Enabled: NewBoolPointer(true),
+					Enabled: apiutils.NewBoolPointer(true),
 				},
 				SystemProbe: &SystemProbeSpec{
-					Enabled:         NewBoolPointer(true),
-					BPFDebugEnabled: NewBoolPointer(true),
+					Enabled:         apiutils.NewBoolPointer(true),
+					BPFDebugEnabled: apiutils.NewBoolPointer(true),
 				},
 			},
 			overrideExpected: &DatadogAgentSpecAgentSpec{
-				Enabled:              NewBoolPointer(true),
-				UseExtendedDaemonset: NewBoolPointer(false),
+				Enabled:              apiutils.NewBoolPointer(true),
+				UseExtendedDaemonset: apiutils.NewBoolPointer(false),
 				Image: &ImageConfig{
 					PullPolicy: &defaultImagePullPolicy,
 				},
 				Config: &NodeAgentConfig{
-					LogLevel:       NewStringPointer(defaultLogLevel),
-					CollectEvents:  NewBoolPointer(false),
+					LogLevel:       apiutils.NewStringPointer(defaultLogLevel),
+					CollectEvents:  apiutils.NewBoolPointer(false),
 					LivenessProbe:  GetDefaultLivenessProbe(),
 					ReadinessProbe: GetDefaultReadinessProbe(),
-					HealthPort:     NewInt32Pointer(5555),
+					HealthPort:     apiutils.NewInt32Pointer(5555),
 					// CRI Socket specified as we use an older image
 					CriSocket: &CRISocketConfig{
-						DockerSocketPath: NewStringPointer(defaultDockerSocketPath),
+						DockerSocketPath: apiutils.NewStringPointer(defaultDockerSocketPath),
 					},
 					Dogstatsd: &DogstatsdConfig{
-						UnixDomainSocket: &DSDUnixDomainSocketSpec{HostFilepath: NewStringPointer("/var/run/datadog/statsd.sock")},
+						UnixDomainSocket: &DSDUnixDomainSocketSpec{HostFilepath: apiutils.NewStringPointer("/var/run/datadog/statsd.sock")},
 					},
 				},
 				DeploymentStrategy: &DaemonSetDeploymentStrategy{
-					UpdateStrategyType: (*appsv1.DaemonSetUpdateStrategyType)(NewStringPointer("RollingUpdate")),
+					UpdateStrategyType: (*appsv1.DaemonSetUpdateStrategyType)(apiutils.NewStringPointer("RollingUpdate")),
 					RollingUpdate: DaemonSetRollingUpdateSpec{
 						MaxUnavailable:            &intstr.IntOrString{Type: intstr.String, StrVal: defaultRollingUpdateMaxUnavailable},
 						MaxPodSchedulerFailure:    &intstr.IntOrString{Type: intstr.String, StrVal: defaultRollingUpdateMaxPodSchedulerFailure},
-						MaxParallelPodCreation:    NewInt32Pointer(defaultRollingUpdateMaxParallelPodCreation),
+						MaxParallelPodCreation:    apiutils.NewInt32Pointer(defaultRollingUpdateMaxParallelPodCreation),
 						SlowStartIntervalDuration: &metav1.Duration{Duration: defaultRollingUpdateSlowStartIntervalDuration},
 						SlowStartAdditiveIncrease: &intstr.IntOrString{Type: intstr.String, StrVal: defaultRollingUpdateSlowStartAdditiveIncrease},
 					},
 					ReconcileFrequency: &metav1.Duration{Duration: defaultReconcileFrequency},
 				},
-				Rbac:    &RbacConfig{Create: NewBoolPointer(true)},
-				Apm:     &APMSpec{Enabled: NewBoolPointer(false)},
-				Process: &ProcessSpec{ProcessCollectionEnabled: NewBoolPointer(false)},
+				Rbac:    &RbacConfig{Create: apiutils.NewBoolPointer(true)},
+				Apm:     &APMSpec{Enabled: apiutils.NewBoolPointer(false)},
+				Process: &ProcessSpec{ProcessCollectionEnabled: apiutils.NewBoolPointer(false)},
 				SystemProbe: &SystemProbeSpec{
 					SecCompRootPath:      "/var/lib/kubelet/seccomp",
 					SecCompProfileName:   "localhost/system-probe",
 					AppArmorProfileName:  "unconfined",
-					ConntrackEnabled:     NewBoolPointer(false),
-					EnableTCPQueueLength: NewBoolPointer(false),
-					EnableOOMKill:        NewBoolPointer(false),
-					CollectDNSStats:      NewBoolPointer(false),
+					ConntrackEnabled:     apiutils.NewBoolPointer(false),
+					EnableTCPQueueLength: apiutils.NewBoolPointer(false),
+					EnableOOMKill:        apiutils.NewBoolPointer(false),
+					CollectDNSStats:      apiutils.NewBoolPointer(false),
 				},
 				Security: &SecuritySpec{
-					Compliance: ComplianceSpec{Enabled: NewBoolPointer(false)},
-					Runtime:    RuntimeSecuritySpec{Enabled: NewBoolPointer(false), SyscallMonitor: &SyscallMonitorSpec{Enabled: NewBoolPointer(false)}},
+					Compliance: ComplianceSpec{Enabled: apiutils.NewBoolPointer(false)},
+					Runtime:    RuntimeSecuritySpec{Enabled: apiutils.NewBoolPointer(false), SyscallMonitor: &SyscallMonitorSpec{Enabled: apiutils.NewBoolPointer(false)}},
 				},
-				NetworkPolicy: &NetworkPolicySpec{Create: NewBoolPointer(false)},
+				NetworkPolicy: &NetworkPolicySpec{Create: apiutils.NewBoolPointer(false)},
 			},
 			internalDefaulted: DatadogAgentSpecAgentSpec{
-				Enabled:              NewBoolPointer(true),
-				UseExtendedDaemonset: NewBoolPointer(false),
+				Enabled:              apiutils.NewBoolPointer(true),
+				UseExtendedDaemonset: apiutils.NewBoolPointer(false),
 				Image: &ImageConfig{
 					Name:        "gcr.io/datadog/agent:6.26.0",
 					PullPolicy:  &defaultImagePullPolicy,
 					PullSecrets: &[]corev1.LocalObjectReference{},
 				},
 				Config: &NodeAgentConfig{
-					DDUrl:                NewStringPointer("www.datadog.com"),
-					LeaderElection:       NewBoolPointer(true),
-					LogLevel:             NewStringPointer(defaultLogLevel),
+					DDUrl:                apiutils.NewStringPointer("www.datadog.com"),
+					LeaderElection:       apiutils.NewBoolPointer(true),
+					LogLevel:             apiutils.NewStringPointer(defaultLogLevel),
 					PodLabelsAsTags:      map[string]string{},
 					PodAnnotationsAsTags: map[string]string{},
 					Tags:                 []string{},
 					Resources:            &corev1.ResourceRequirements{Limits: corev1.ResourceList{}, Requests: corev1.ResourceList{}},
-					CollectEvents:        NewBoolPointer(false),
+					CollectEvents:        apiutils.NewBoolPointer(false),
 					LivenessProbe:        GetDefaultLivenessProbe(),
 					ReadinessProbe:       GetDefaultReadinessProbe(),
-					HealthPort:           NewInt32Pointer(5555),
+					HealthPort:           apiutils.NewInt32Pointer(5555),
 					CriSocket: &CRISocketConfig{
-						DockerSocketPath: NewStringPointer(defaultDockerSocketPath),
+						DockerSocketPath: apiutils.NewStringPointer(defaultDockerSocketPath),
 					},
 					Dogstatsd: &DogstatsdConfig{
-						DogstatsdOriginDetection: NewBoolPointer(false),
+						DogstatsdOriginDetection: apiutils.NewBoolPointer(false),
 						UnixDomainSocket: &DSDUnixDomainSocketSpec{
-							Enabled:      NewBoolPointer(true),
-							HostFilepath: NewStringPointer("/var/run/datadog/statsd.sock"),
+							Enabled:      apiutils.NewBoolPointer(true),
+							HostFilepath: apiutils.NewStringPointer("/var/run/datadog/statsd.sock"),
 						},
 					},
 				},
-				Rbac: &RbacConfig{Create: NewBoolPointer(true)},
+				Rbac: &RbacConfig{Create: apiutils.NewBoolPointer(true)},
 				DeploymentStrategy: &DaemonSetDeploymentStrategy{
-					UpdateStrategyType: (*appsv1.DaemonSetUpdateStrategyType)(NewStringPointer("RollingUpdate")),
+					UpdateStrategyType: (*appsv1.DaemonSetUpdateStrategyType)(apiutils.NewStringPointer("RollingUpdate")),
 					RollingUpdate: DaemonSetRollingUpdateSpec{
 						MaxUnavailable:            &intstr.IntOrString{Type: intstr.String, StrVal: defaultRollingUpdateMaxUnavailable},
 						MaxPodSchedulerFailure:    &intstr.IntOrString{Type: intstr.String, StrVal: defaultRollingUpdateMaxPodSchedulerFailure},
-						MaxParallelPodCreation:    NewInt32Pointer(defaultRollingUpdateMaxParallelPodCreation),
+						MaxParallelPodCreation:    apiutils.NewInt32Pointer(defaultRollingUpdateMaxParallelPodCreation),
 						SlowStartIntervalDuration: &metav1.Duration{Duration: defaultRollingUpdateSlowStartIntervalDuration},
 						SlowStartAdditiveIncrease: &intstr.IntOrString{Type: intstr.String, StrVal: defaultRollingUpdateSlowStartAdditiveIncrease},
 					},
@@ -656,37 +662,37 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 					ReconcileFrequency: &metav1.Duration{Duration: defaultReconcileFrequency},
 				},
 				Apm: &APMSpec{
-					Enabled:  NewBoolPointer(false),
-					HostPort: NewInt32Pointer(1664),
+					Enabled:  apiutils.NewBoolPointer(false),
+					HostPort: apiutils.NewInt32Pointer(1664),
 				},
 				Process: &ProcessSpec{
-					Enabled:                  NewBoolPointer(true),
-					ProcessCollectionEnabled: NewBoolPointer(false),
+					Enabled:                  apiutils.NewBoolPointer(true),
+					ProcessCollectionEnabled: apiutils.NewBoolPointer(false),
 				},
 				SystemProbe: &SystemProbeSpec{
-					Enabled:              NewBoolPointer(true),
-					BPFDebugEnabled:      NewBoolPointer(true),
+					Enabled:              apiutils.NewBoolPointer(true),
+					BPFDebugEnabled:      apiutils.NewBoolPointer(true),
 					SecCompRootPath:      "/var/lib/kubelet/seccomp",
 					SecCompProfileName:   "localhost/system-probe",
 					AppArmorProfileName:  "unconfined",
-					ConntrackEnabled:     NewBoolPointer(false),
-					EnableTCPQueueLength: NewBoolPointer(false),
-					EnableOOMKill:        NewBoolPointer(false),
-					CollectDNSStats:      NewBoolPointer(false),
+					ConntrackEnabled:     apiutils.NewBoolPointer(false),
+					EnableTCPQueueLength: apiutils.NewBoolPointer(false),
+					EnableOOMKill:        apiutils.NewBoolPointer(false),
+					CollectDNSStats:      apiutils.NewBoolPointer(false),
 				},
 				Security: &SecuritySpec{
-					Compliance: ComplianceSpec{Enabled: NewBoolPointer(false)},
-					Runtime:    RuntimeSecuritySpec{Enabled: NewBoolPointer(false), SyscallMonitor: &SyscallMonitorSpec{Enabled: NewBoolPointer(false)}},
+					Compliance: ComplianceSpec{Enabled: apiutils.NewBoolPointer(false)},
+					Runtime:    RuntimeSecuritySpec{Enabled: apiutils.NewBoolPointer(false), SyscallMonitor: &SyscallMonitorSpec{Enabled: apiutils.NewBoolPointer(false)}},
 				},
-				NetworkPolicy: &NetworkPolicySpec{Create: NewBoolPointer(false)},
+				NetworkPolicy: &NetworkPolicySpec{Create: apiutils.NewBoolPointer(false)},
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := DefaultDatadogAgentSpecAgent(&tt.agent)
-			assert.True(t, IsEqualStruct(got, tt.overrideExpected), "TestDefaultDatadogAgentSpecAgent override \ndiff = %s", cmp.Diff(got, tt.overrideExpected))
-			assert.True(t, IsEqualStruct(tt.agent, tt.internalDefaulted), "TestDefaultDatadogAgentSpecAgent internal \ndiff = %s", cmp.Diff(tt.agent, tt.internalDefaulted))
+			assert.True(t, apiutils.IsEqualStruct(got, tt.overrideExpected), "TestDefaultDatadogAgentSpecAgent override \ndiff = %s", cmp.Diff(got, tt.overrideExpected))
+			assert.True(t, apiutils.IsEqualStruct(tt.agent, tt.internalDefaulted), "TestDefaultDatadogAgentSpecAgent internal \ndiff = %s", cmp.Diff(tt.agent, tt.internalDefaulted))
 		})
 	}
 }
@@ -702,16 +708,16 @@ func TestDefaultDatadogAgentSpecClusterChecksRunner(t *testing.T) {
 			name: "empty conf",
 			clc:  DatadogAgentSpecClusterChecksRunnerSpec{},
 			overrideExpected: &DatadogAgentSpecClusterChecksRunnerSpec{
-				Enabled: NewBoolPointer(false),
+				Enabled: apiutils.NewBoolPointer(false),
 			},
 			internalDefaulted: DatadogAgentSpecClusterChecksRunnerSpec{
-				Enabled: NewBoolPointer(false),
+				Enabled: apiutils.NewBoolPointer(false),
 			},
 		},
 		{
 			name: "sparse conf",
 			clc: DatadogAgentSpecClusterChecksRunnerSpec{
-				Enabled: NewBoolPointer(true),
+				Enabled: apiutils.NewBoolPointer(true),
 				Config:  &ClusterChecksRunnerConfig{},
 				Image: &ImageConfig{
 					Name: "gcr.io/datadog/agent:latest",
@@ -723,17 +729,17 @@ func TestDefaultDatadogAgentSpecClusterChecksRunner(t *testing.T) {
 					PullPolicy: &defaultImagePullPolicy,
 				},
 				Config: &ClusterChecksRunnerConfig{
-					LogLevel:       NewStringPointer(defaultLogLevel),
+					LogLevel:       apiutils.NewStringPointer(defaultLogLevel),
 					LivenessProbe:  GetDefaultLivenessProbe(),
 					ReadinessProbe: GetDefaultReadinessProbe(),
-					HealthPort:     NewInt32Pointer(5555),
+					HealthPort:     apiutils.NewInt32Pointer(5555),
 				},
-				Rbac:          &RbacConfig{Create: NewBoolPointer(true)},
+				Rbac:          &RbacConfig{Create: apiutils.NewBoolPointer(true)},
 				Replicas:      nil,
-				NetworkPolicy: &NetworkPolicySpec{Create: NewBoolPointer(false)},
+				NetworkPolicy: &NetworkPolicySpec{Create: apiutils.NewBoolPointer(false)},
 			},
 			internalDefaulted: DatadogAgentSpecClusterChecksRunnerSpec{
-				Enabled: NewBoolPointer(true),
+				Enabled: apiutils.NewBoolPointer(true),
 				Image: &ImageConfig{
 					Name:        "gcr.io/datadog/agent:latest",
 					Tag:         defaulting.AgentLatestVersion,
@@ -741,24 +747,24 @@ func TestDefaultDatadogAgentSpecClusterChecksRunner(t *testing.T) {
 					PullSecrets: &[]corev1.LocalObjectReference{},
 				},
 				Config: &ClusterChecksRunnerConfig{
-					LogLevel:       NewStringPointer(defaultLogLevel),
+					LogLevel:       apiutils.NewStringPointer(defaultLogLevel),
 					LivenessProbe:  GetDefaultLivenessProbe(),
 					ReadinessProbe: GetDefaultReadinessProbe(),
-					HealthPort:     NewInt32Pointer(5555),
+					HealthPort:     apiutils.NewInt32Pointer(5555),
 					Resources:      &corev1.ResourceRequirements{Limits: corev1.ResourceList{}, Requests: corev1.ResourceList{}},
 				},
-				Rbac:          &RbacConfig{Create: NewBoolPointer(true)},
+				Rbac:          &RbacConfig{Create: apiutils.NewBoolPointer(true)},
 				Replicas:      nil,
-				NetworkPolicy: &NetworkPolicySpec{Create: NewBoolPointer(false)},
+				NetworkPolicy: &NetworkPolicySpec{Create: apiutils.NewBoolPointer(false)},
 			},
 		},
 		{
 			name: "some conf",
 			clc: DatadogAgentSpecClusterChecksRunnerSpec{
-				Enabled: NewBoolPointer(true),
+				Enabled: apiutils.NewBoolPointer(true),
 				Config: &ClusterChecksRunnerConfig{
-					LogLevel:   NewStringPointer("DEBUG"),
-					HealthPort: NewInt32Pointer(1664),
+					LogLevel:   apiutils.NewStringPointer("DEBUG"),
+					HealthPort: apiutils.NewInt32Pointer(1664),
 				},
 				Image: &ImageConfig{
 					Name: "agent",
@@ -773,12 +779,12 @@ func TestDefaultDatadogAgentSpecClusterChecksRunner(t *testing.T) {
 					LivenessProbe:  GetDefaultLivenessProbe(),
 					ReadinessProbe: GetDefaultReadinessProbe(),
 				},
-				Rbac:          &RbacConfig{Create: NewBoolPointer(true)},
+				Rbac:          &RbacConfig{Create: apiutils.NewBoolPointer(true)},
 				Replicas:      nil,
-				NetworkPolicy: &NetworkPolicySpec{Create: NewBoolPointer(false)},
+				NetworkPolicy: &NetworkPolicySpec{Create: apiutils.NewBoolPointer(false)},
 			},
 			internalDefaulted: DatadogAgentSpecClusterChecksRunnerSpec{
-				Enabled: NewBoolPointer(true),
+				Enabled: apiutils.NewBoolPointer(true),
 				Image: &ImageConfig{
 					Name:        "agent",
 					Tag:         defaulting.AgentLatestVersion,
@@ -786,23 +792,23 @@ func TestDefaultDatadogAgentSpecClusterChecksRunner(t *testing.T) {
 					PullSecrets: &[]corev1.LocalObjectReference{},
 				},
 				Config: &ClusterChecksRunnerConfig{
-					LogLevel:       NewStringPointer("DEBUG"),
+					LogLevel:       apiutils.NewStringPointer("DEBUG"),
 					LivenessProbe:  GetDefaultLivenessProbe(),
 					ReadinessProbe: GetDefaultReadinessProbe(),
-					HealthPort:     NewInt32Pointer(1664),
+					HealthPort:     apiutils.NewInt32Pointer(1664),
 					Resources:      &corev1.ResourceRequirements{Limits: corev1.ResourceList{}, Requests: corev1.ResourceList{}},
 				},
-				Rbac:          &RbacConfig{Create: NewBoolPointer(true)},
+				Rbac:          &RbacConfig{Create: apiutils.NewBoolPointer(true)},
 				Replicas:      nil,
-				NetworkPolicy: &NetworkPolicySpec{Create: NewBoolPointer(false)},
+				NetworkPolicy: &NetworkPolicySpec{Create: apiutils.NewBoolPointer(false)},
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := DefaultDatadogAgentSpecClusterChecksRunner(&tt.clc)
-			assert.True(t, IsEqualStruct(got, tt.overrideExpected), "TestDefaultDatadogAgentSpecClusterChecksRunner override \ndiff = %s", cmp.Diff(got, tt.overrideExpected))
-			assert.True(t, IsEqualStruct(tt.clc, tt.internalDefaulted), "TestDefaultDatadogAgentSpecClusterChecksRunner internal \ndiff = %s", cmp.Diff(tt.clc, tt.internalDefaulted))
+			assert.True(t, apiutils.IsEqualStruct(got, tt.overrideExpected), "TestDefaultDatadogAgentSpecClusterChecksRunner override \ndiff = %s", cmp.Diff(got, tt.overrideExpected))
+			assert.True(t, apiutils.IsEqualStruct(tt.clc, tt.internalDefaulted), "TestDefaultDatadogAgentSpecClusterChecksRunner internal \ndiff = %s", cmp.Diff(tt.clc, tt.internalDefaulted))
 		})
 	}
 }
@@ -819,17 +825,17 @@ func TestDefaultDatadogFeatureOrchestratorExplorer(t *testing.T) {
 			name: "empty",
 			orc:  &DatadogFeatures{},
 			orcOverride: &OrchestratorExplorerConfig{
-				Enabled:      NewBoolPointer(true),
-				ClusterCheck: NewBoolPointer(false),
+				Enabled:      apiutils.NewBoolPointer(true),
+				ClusterCheck: apiutils.NewBoolPointer(false),
 				Scrubbing: &Scrubbing{
-					Containers: NewBoolPointer(true),
+					Containers: apiutils.NewBoolPointer(true),
 				},
 			},
 			internal: &OrchestratorExplorerConfig{
-				Enabled:      NewBoolPointer(true),
-				ClusterCheck: NewBoolPointer(false),
+				Enabled:      apiutils.NewBoolPointer(true),
+				ClusterCheck: apiutils.NewBoolPointer(false),
 				Scrubbing: &Scrubbing{
-					Containers: NewBoolPointer(true),
+					Containers: apiutils.NewBoolPointer(true),
 				},
 			},
 		},
@@ -837,20 +843,20 @@ func TestDefaultDatadogFeatureOrchestratorExplorer(t *testing.T) {
 			name: "enabled orchestrator explorer, no scrubbing specified",
 			orc: &DatadogFeatures{
 				OrchestratorExplorer: &OrchestratorExplorerConfig{
-					Enabled: NewBoolPointer(true),
+					Enabled: apiutils.NewBoolPointer(true),
 				},
 			},
 			orcOverride: &OrchestratorExplorerConfig{
-				ClusterCheck: NewBoolPointer(false),
+				ClusterCheck: apiutils.NewBoolPointer(false),
 				Scrubbing: &Scrubbing{
-					Containers: NewBoolPointer(true),
+					Containers: apiutils.NewBoolPointer(true),
 				},
 			},
 			internal: &OrchestratorExplorerConfig{
-				Enabled:      NewBoolPointer(true),
-				ClusterCheck: NewBoolPointer(false),
+				Enabled:      apiutils.NewBoolPointer(true),
+				ClusterCheck: apiutils.NewBoolPointer(false),
 				Scrubbing: &Scrubbing{
-					Containers: NewBoolPointer(true),
+					Containers: apiutils.NewBoolPointer(true),
 				},
 			},
 		},
@@ -858,35 +864,35 @@ func TestDefaultDatadogFeatureOrchestratorExplorer(t *testing.T) {
 			name: "disabled orchestrator",
 			orc: &DatadogFeatures{
 				OrchestratorExplorer: &OrchestratorExplorerConfig{
-					Enabled: NewBoolPointer(false),
+					Enabled: apiutils.NewBoolPointer(false),
 				},
 			},
 			orcOverride: &OrchestratorExplorerConfig{
-				Enabled: NewBoolPointer(false),
+				Enabled: apiutils.NewBoolPointer(false),
 			},
 			internal: &OrchestratorExplorerConfig{
-				Enabled: NewBoolPointer(false),
+				Enabled: apiutils.NewBoolPointer(false),
 			},
 		},
 		{
 			name: "enabled orchestrator, filled scrubbing",
 			orc: &DatadogFeatures{
 				OrchestratorExplorer: &OrchestratorExplorerConfig{
-					Enabled: NewBoolPointer(true),
+					Enabled: apiutils.NewBoolPointer(true),
 					Scrubbing: &Scrubbing{
-						Containers: NewBoolPointer(true),
+						Containers: apiutils.NewBoolPointer(true),
 					},
 				},
 			},
 			orcOverride: &OrchestratorExplorerConfig{
 				Enabled:      nil,
-				ClusterCheck: NewBoolPointer(false),
+				ClusterCheck: apiutils.NewBoolPointer(false),
 			},
 			internal: &OrchestratorExplorerConfig{
-				Enabled:      NewBoolPointer(true),
-				ClusterCheck: NewBoolPointer(false),
+				Enabled:      apiutils.NewBoolPointer(true),
+				ClusterCheck: apiutils.NewBoolPointer(false),
 				Scrubbing: &Scrubbing{
-					Containers: NewBoolPointer(true),
+					Containers: apiutils.NewBoolPointer(true),
 				},
 			},
 		},
@@ -894,8 +900,8 @@ func TestDefaultDatadogFeatureOrchestratorExplorer(t *testing.T) {
 			name: "enabled orchestrator, enabled clustecheck",
 			orc: &DatadogFeatures{
 				OrchestratorExplorer: &OrchestratorExplorerConfig{
-					Enabled:      NewBoolPointer(true),
-					ClusterCheck: NewBoolPointer(true),
+					Enabled:      apiutils.NewBoolPointer(true),
+					ClusterCheck: apiutils.NewBoolPointer(true),
 				},
 			},
 			clustercheck: true,
@@ -903,14 +909,14 @@ func TestDefaultDatadogFeatureOrchestratorExplorer(t *testing.T) {
 				Enabled:      nil,
 				ClusterCheck: nil,
 				Scrubbing: &Scrubbing{
-					Containers: NewBoolPointer(true),
+					Containers: apiutils.NewBoolPointer(true),
 				},
 			},
 			internal: &OrchestratorExplorerConfig{
-				Enabled:      NewBoolPointer(true),
-				ClusterCheck: NewBoolPointer(true),
+				Enabled:      apiutils.NewBoolPointer(true),
+				ClusterCheck: apiutils.NewBoolPointer(true),
 				Scrubbing: &Scrubbing{
-					Containers: NewBoolPointer(true),
+					Containers: apiutils.NewBoolPointer(true),
 				},
 			},
 		},
@@ -918,22 +924,22 @@ func TestDefaultDatadogFeatureOrchestratorExplorer(t *testing.T) {
 			name: "enabled orchestrator, checkrunner enabled, clustecheck disable",
 			orc: &DatadogFeatures{
 				OrchestratorExplorer: &OrchestratorExplorerConfig{
-					Enabled:      NewBoolPointer(true),
-					ClusterCheck: NewBoolPointer(false),
+					Enabled:      apiutils.NewBoolPointer(true),
+					ClusterCheck: apiutils.NewBoolPointer(false),
 				},
 			},
 			clustercheck: true,
 			orcOverride: &OrchestratorExplorerConfig{
 				Enabled: nil,
 				Scrubbing: &Scrubbing{
-					Containers: NewBoolPointer(true),
+					Containers: apiutils.NewBoolPointer(true),
 				},
 			},
 			internal: &OrchestratorExplorerConfig{
-				Enabled:      NewBoolPointer(true),
-				ClusterCheck: NewBoolPointer(false),
+				Enabled:      apiutils.NewBoolPointer(true),
+				ClusterCheck: apiutils.NewBoolPointer(false),
 				Scrubbing: &Scrubbing{
-					Containers: NewBoolPointer(true),
+					Containers: apiutils.NewBoolPointer(true),
 				},
 			},
 		},
@@ -942,8 +948,8 @@ func TestDefaultDatadogFeatureOrchestratorExplorer(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := DefaultDatadogFeatureOrchestratorExplorer(tt.orc, tt.clustercheck)
-			assert.True(t, IsEqualStruct(got, tt.orcOverride), "TestDefaultDatadogFeatureOrchestratorExplorer override \ndiff = %s", cmp.Diff(got, tt.orcOverride))
-			assert.True(t, IsEqualStruct(tt.orc.OrchestratorExplorer, tt.internal), "TestDefaultDatadogFeatureOrchestratorExplorer internal \ndiff = %s", cmp.Diff(tt.orc.OrchestratorExplorer, tt.internal))
+			assert.True(t, apiutils.IsEqualStruct(got, tt.orcOverride), "TestDefaultDatadogFeatureOrchestratorExplorer override \ndiff = %s", cmp.Diff(got, tt.orcOverride))
+			assert.True(t, apiutils.IsEqualStruct(tt.orc.OrchestratorExplorer, tt.internal), "TestDefaultDatadogFeatureOrchestratorExplorer internal \ndiff = %s", cmp.Diff(tt.orc.OrchestratorExplorer, tt.internal))
 		})
 	}
 }
@@ -957,17 +963,17 @@ func TestDefaultDatadogAgentSpecAgentApm(t *testing.T) {
 		{
 			name: "APM not set",
 			input: &DatadogAgentSpecAgentSpec{
-				Enabled: NewBoolPointer(true),
+				Enabled: apiutils.NewBoolPointer(true),
 			},
 			want: &APMSpec{
-				Enabled: NewBoolPointer(false),
+				Enabled: apiutils.NewBoolPointer(false),
 			},
 		},
 		{
 			name: "APM not enabled",
 			input: &DatadogAgentSpecAgentSpec{
 				Apm: &APMSpec{
-					Enabled: NewBoolPointer(false),
+					Enabled: apiutils.NewBoolPointer(false),
 				},
 			},
 			want: &APMSpec{},
@@ -976,12 +982,12 @@ func TestDefaultDatadogAgentSpecAgentApm(t *testing.T) {
 			name: "APM enabled",
 			input: &DatadogAgentSpecAgentSpec{
 				Apm: &APMSpec{
-					Enabled: NewBoolPointer(true),
+					Enabled: apiutils.NewBoolPointer(true),
 				},
 			},
 			want: &APMSpec{
-				HostPort:         NewInt32Pointer(8126),
-				UnixDomainSocket: &APMUnixDomainSocketSpec{Enabled: NewBoolPointer(false)},
+				HostPort:         apiutils.NewInt32Pointer(8126),
+				UnixDomainSocket: &APMUnixDomainSocketSpec{Enabled: apiutils.NewBoolPointer(false)},
 				LivenessProbe:    getDefaultAPMAgentLivenessProbe(),
 			},
 		},
@@ -989,7 +995,72 @@ func TestDefaultDatadogAgentSpecAgentApm(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := DefaultDatadogAgentSpecAgentApm(tt.input)
-			assert.True(t, IsEqualStruct(got, tt.want), "TestDefaultDatadogAgentSpecAgentApm defaulting \ndiff = %s", cmp.Diff(got, tt.want))
+			assert.True(t, apiutils.IsEqualStruct(got, tt.want), "TestDefaultDatadogAgentSpecAgentApm defaulting \ndiff = %s", cmp.Diff(got, tt.want))
+		})
+	}
+}
+
+func Test_defaultCredentials(t *testing.T) {
+	type args struct {
+		ddaSpec *DatadogAgentSpec
+		dso     *DatadogAgentStatus
+	}
+	tests := []struct {
+		name              string
+		args              args
+		wantGenerateToken bool
+	}{
+		{
+			name: "token_in_spec, should not generate a token",
+			args: args{
+				ddaSpec: &DatadogAgentSpec{
+					Credentials: &AgentCredentials{
+						Token: "foobarfoobar",
+					},
+				},
+				dso: &DatadogAgentStatus{
+					ClusterAgent: &DeploymentStatus{},
+				},
+			},
+			wantGenerateToken: false,
+		},
+		{
+			name: "no token in spec, should generate a token",
+			args: args{
+				ddaSpec: &DatadogAgentSpec{
+					Credentials: &AgentCredentials{},
+				},
+				dso: &DatadogAgentStatus{
+					ClusterAgent: &DeploymentStatus{},
+				},
+			},
+			wantGenerateToken: true,
+		},
+		{
+			name: "token in spec + previous token in status: should remove the generated token",
+			args: args{
+				ddaSpec: &DatadogAgentSpec{
+					Credentials: &AgentCredentials{
+						Token: "foobarfoobar",
+					},
+				},
+				dso: &DatadogAgentStatus{
+					ClusterAgent: &DeploymentStatus{
+						GeneratedToken: "previous_generated_token",
+					},
+				},
+			},
+			wantGenerateToken: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			defaultCredentials(tt.args.ddaSpec, tt.args.dso)
+			if tt.wantGenerateToken {
+				assert.False(t, tt.args.dso.ClusterAgent.GeneratedToken == "", "the generated token should not be empty, value:%s", tt.args.dso.ClusterAgent.GeneratedToken)
+			} else {
+				assert.False(t, tt.args.dso.ClusterAgent.GeneratedToken != "", "the generated token should be empty, value:%s", tt.args.dso.ClusterAgent.GeneratedToken)
+			}
 		})
 	}
 }
