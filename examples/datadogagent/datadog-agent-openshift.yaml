@@ -20,9 +20,6 @@ spec:
           user: system_u
       criSocket:
         criSocketPath: /var/run/crio/crio.sock
-      env:
-      - name: DD_KUBELET_TLS_VERIFY
-        value: "false"
     log:
       enabled: true
     apm:
