@@ -2517,6 +2517,11 @@ func schema__apis_datadoghq_v1alpha1_NetworkPolicySpec(ref common.ReferenceCallb
 						},
 					},
 					"dnsSelectorEndpoints": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
 						SchemaProps: spec.SchemaProps{
 							Description: "Cilium selector of the DNS server entity.",
 							Type:        []string{"array"},

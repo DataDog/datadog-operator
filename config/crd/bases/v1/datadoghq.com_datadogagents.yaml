@@ -4364,6 +4364,7 @@ spec:
                               type: object
                           type: object
                         type: array
+                        x-kubernetes-list-type: atomic
                       flavor:
                         description: Which network policy to use. Can be `kubernetes`
                           or `cilium`.
@@ -8316,6 +8317,7 @@ spec:
                               type: object
                           type: object
                         type: array
+                        x-kubernetes-list-type: atomic
                       flavor:
                         description: Which network policy to use. Can be `kubernetes`
                           or `cilium`.
@@ -11442,6 +11444,7 @@ spec:
                               type: object
                           type: object
                         type: array
+                        x-kubernetes-list-type: atomic
                       flavor:
                         description: Which network policy to use. Can be `kubernetes`
                           or `cilium`.
@@ -12678,6 +12681,7 @@ spec:
                               type: object
                           type: object
                         type: array
+                        x-kubernetes-list-type: atomic
                       flavor:
                         description: Flavor defines Which network policy to use.
                         type: string

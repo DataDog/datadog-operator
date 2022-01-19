@@ -521,6 +521,7 @@ type NetworkPolicyConfig struct {
 
 	// DNSSelectorEndpoints defines the cilium selector of the DNS server entity.
 	// +optional
+	// +listType=atomic
 	DNSSelectorEndpoints []metav1.LabelSelector `json:"dnsSelectorEndpoints,omitempty"`
 }
 
