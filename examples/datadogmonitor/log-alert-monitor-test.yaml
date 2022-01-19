@@ -1,0 +1,21 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogMonitor
+metadata:
+  name: datadog-log-alert-test
+  namespace: datadog
+spec:
+  query: "logs(\"source:nagios AND status:error\").index(\"default\").rollup(\"count\").last(\"1h\") > 5"
+  type: "log alert"
+  name: "Test log alert made from DatadogMonitor"
+  message: "1-2-3 testing"
+  tags:
+    - "test:datadog"
+  priority: 5
+  options:
+    evaluationDelay: 300
+    includeTags: true
+    locked: false
+    newHostDelay: 300
+    notifyNoData: true
+    noDataTimeframe: 30
+    renotifyInterval: 1440

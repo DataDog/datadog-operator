@@ -132,8 +132,8 @@ func Test_buildMonitor(t *testing.T) {
 }
 
 func Test_getMonitor(t *testing.T) {
-	mId := 12345
-	expectedMonitor := genericMonitor(mId)
+	mID := 12345
+	expectedMonitor := genericMonitor(mID)
 	jsonMonitor, _ := expectedMonitor.MarshalJSON()
 	httpServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -146,25 +146,13 @@ func Test_getMonitor(t *testing.T) {
 	client := datadogapiclientv1.NewAPIClient(testConfig)
 	testAuth := setupTestAuth(httpServer.URL)
 
-	val, err := getMonitor(testAuth, client, mId)
+	val, err := getMonitor(testAuth, client, mID)
 	assert.Nil(t, err)
 	assert.Equal(t, expectedMonitor, val)
 }
 
 func Test_validateMonitor(t *testing.T) {
-	dm := &datadoghqv1alpha1.DatadogMonitor{
-		Spec: datadoghqv1alpha1.DatadogMonitorSpec{
-			Query:   "avg(last_10m):avg:system.disk.in_use{*} by {host} > 0.05",
-			Type:    "metric alert",
-			Name:    "Test monitor",
-			Message: "Something went wrong",
-			Tags: []string{
-				"env:staging",
-				"kube_namespace:test",
-				"kube_cluster:test.staging",
-			},
-		},
-	}
+	dm := genericDatadogMonitor()
 
 	httpServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -281,10 +269,10 @@ func Test_deleteMonitor(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-func genericMonitor(mId int) datadogapiclientv1.Monitor {
+func genericMonitor(mID int) datadogapiclientv1.Monitor {
 	rawNow := time.Now()
 	now, _ := time.Parse(dateFormat, strings.Split(rawNow.String(), " m=")[0])
-	mId64 := int64(mId)
+	mID64 := int64(mID)
 	msg := "Something went wrong"
 	name := "Test monitor"
 	handle := "test_user"
@@ -300,7 +288,7 @@ func genericMonitor(mId int) datadogapiclientv1.Monitor {
 		Creator: &datadogapiclientv1.Creator{
 			Handle: &handle,
 		},
-		Id:       &mId64,
+		Id:       &mID64,
 		Message:  &msg,
 		Modified: &now,
 		Name:     &name,

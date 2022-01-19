@@ -40,9 +40,17 @@ const (
 )
 
 var supportedMonitorTypes = map[string]bool{
-	string(datadogapiclientv1.MONITORTYPE_METRIC_ALERT):  true,
-	string(datadogapiclientv1.MONITORTYPE_QUERY_ALERT):   true,
-	string(datadogapiclientv1.MONITORTYPE_SERVICE_CHECK): true,
+	string(datadogapiclientv1.MONITORTYPE_METRIC_ALERT):          true,
+	string(datadogapiclientv1.MONITORTYPE_QUERY_ALERT):           true,
+	string(datadogapiclientv1.MONITORTYPE_SERVICE_CHECK):         true,
+	string(datadogapiclientv1.MONITORTYPE_EVENT_ALERT):           true,
+	string(datadogapiclientv1.MONITORTYPE_LOG_ALERT):             true,
+	string(datadogapiclientv1.MONITORTYPE_PROCESS_ALERT):         true,
+	string(datadogapiclientv1.MONITORTYPE_RUM_ALERT):             true,
+	string(datadogapiclientv1.MONITORTYPE_TRACE_ANALYTICS_ALERT): true,
+	string(datadogapiclientv1.MONITORTYPE_SLO_ALERT):             true,
+	string(datadogapiclientv1.MONITORTYPE_EVENT_V2_ALERT):        true,
+	string(datadogapiclientv1.MONITORTYPE_AUDIT_ALERT):           true,
 }
 
 // Reconciler reconciles a DatadogMonitor object
@@ -134,7 +142,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 			newStatus.CurrentHash = instanceSpecHash
 		} else {
 			err = fmt.Errorf("monitor type %v not supported", instance.Spec.Type)
-			logger.Error(err, "for the alpha version, only metric alert, query alert, and service check type monitors are supported")
+			logger.Error(err, "error creating monitor")
 
 			return r.updateStatusIfNeeded(logger, instance, now, newStatus, err, result)
 		}

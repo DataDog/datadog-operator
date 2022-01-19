@@ -38,6 +38,22 @@ const (
 	DatadogMonitorTypeQuery DatadogMonitorType = "query alert"
 	// DatadogMonitorTypeService is the service check monitor type
 	DatadogMonitorTypeService DatadogMonitorType = "service check"
+	// DatadogMonitorTypeEvent is the event alert monitor type
+	DatadogMonitorTypeEvent DatadogMonitorType = "event alert"
+	// DatadogMonitorTypeLog is the log alert monitor type
+	DatadogMonitorTypeLog DatadogMonitorType = "log alert"
+	// DatadogMonitorTypeProcess is the process alert monitor type
+	DatadogMonitorTypeProcess DatadogMonitorType = "process alert"
+	// DatadogMonitorTypeRUM is the rum alert monitor type
+	DatadogMonitorTypeRUM DatadogMonitorType = "rum alert"
+	// DatadogMonitorTypeTraceAnalytics is the trace-analytics alert monitor type
+	DatadogMonitorTypeTraceAnalytics DatadogMonitorType = "trace-analytics alert"
+	// DatadogMonitorTypeSLO is the slo alert monitor type
+	DatadogMonitorTypeSLO DatadogMonitorType = "slo alert"
+	// DatadogMonitorTypeEventV2 is the event-v2 alert monitor type
+	DatadogMonitorTypeEventV2 DatadogMonitorType = "event-v2 alert"
+	// DatadogMonitorTypeAudit is the audit alert monitor type
+	DatadogMonitorTypeAudit DatadogMonitorType = "audit alert"
 	// DatadogMonitorTypeComposite is the composite alert monitor type
 	DatadogMonitorTypeComposite DatadogMonitorType = "composite"
 )
