@@ -50,11 +50,11 @@ spec:
         cpu: "500m"
 ```
 
-### Add Datadog credential to the operator
+### Add Datadog credentials to the Operator
 
-For some usecase (example: `DatadogMonitors` support), the operator requires to have access to a Datadog API and APP keys.
+The Datadog Operator requires access to your API and application keys to add a `DatadogMonitor`. 
 
-Create a secret that contains this two keys. In the following example the secret keys are `api-key` and `app-key`.
+1. Create a secret that contains both keys. In the example below, the secret keys are `api-key` and `app-key`.
 
 ```
 export DD_API_KEY=<replace-by-your-api-key>
@@ -63,7 +63,7 @@ export DD_APP_KEY=<replace-by-your-app-key>
 kubectl create secret generic datadog-secret --from-literal api-key=$DD_API_KEY --from-literal app-key=$DD_APP_KEY
 ```
 
-Add the references to the secret in the Datadog-Operator Subscription resource instance. 
+2. Add references to the secret in the Datadog-Operator Subscription resource instance. 
 
 ```yaml
 apiVersion: operators.coreos.com/v1alpha1
@@ -86,13 +86,13 @@ spec:
       - name: DD_APP_KEY
         valueFrom:
           secretKeyRef: 
-            key: api-ky
+            key: app-key
             name: datadog-secret
 ```
 
-**Note**: several config overrides can be added on the `spec.config` section; example: `env` + `resources`
+**Note**: You can add configuration overrides in the `spec.config` section. For example, override `env` and `resources`.
 
-## Deploy the Datadog Agents with the operator
+## Deploy the Datadog Agents with the Operator
 
 After deploying the Datadog Operator, create the `DatadogAgent` resource that triggers the Datadog Agent's deployment in your Kubernetes cluster. By creating this resource, the Agent will be deployed as a `DaemonSet` on every `Node` of your cluster.
 
