@@ -2433,6 +2433,162 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				return nil
 			},
 		},
+		{
+			name: "DatadogAgent found and defaulted, override site and ddurl from DatadogAgent spec",
+			fields: fields{
+				client:   fake.NewFakeClient(),
+				scheme:   s,
+				recorder: recorder,
+			},
+			args: args{
+				request: newRequest(resourcesNamespace, resourcesName),
+				loadFunc: func(c client.Client) {
+					dadOptions := &test.NewDatadogAgentOptions{
+						Labels:                       map[string]string{"label-foo-key": "label-bar-value"},
+						Status:                       &datadoghqv1alpha1.DatadogAgentStatus{},
+						ClusterAgentEnabled:          true,
+						ClusterChecksEnabled:         true,
+						ClusterChecksRunnerEnabled:   true,
+						OrchestratorExplorerDisabled: true,
+						Site:                         "foo.site",
+						NodeAgentConfig: &datadoghqv1alpha1.NodeAgentConfig{
+							DDUrl: datadoghqv1alpha1.NewStringPointer("https://foo.ddurl"),
+						},
+					}
+					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, dadOptions)
+					_ = c.Create(context.TODO(), dda)
+
+					commonDCAlabels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
+					dcaLabels := map[string]string{"label-foo-key": "label-bar-value"}
+					for k, v := range commonDCAlabels {
+						dcaLabels[k] = v
+					}
+
+					dcaOptions := &test.NewDeploymentOptions{
+						Labels:                 dcaLabels,
+						ForceAvailableReplicas: datadoghqv1alpha1.NewInt32Pointer(1),
+					}
+					dca := test.NewClusterAgentDeployment(resourcesNamespace, resourcesName, dcaOptions)
+
+					_ = c.Create(context.TODO(), dda)
+					_ = c.Create(context.TODO(), dca)
+					_ = c.Create(context.TODO(), test.NewSecret(resourcesNamespace, "foo", &test.NewSecretOptions{Labels: commonDCAlabels, Data: map[string][]byte{
+						"token": []byte(base64.StdEncoding.EncodeToString([]byte("token-foo"))),
+					}}))
+
+					createClusterAgentDependencies(c, dda)
+					createAgentDependencies(c, dda)
+					createClusterChecksRunnerDependencies(c, dda, true)
+				},
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(c client.Client) error {
+				ds := &appsv1.DaemonSet{}
+				if err := c.Get(context.TODO(), newRequest(resourcesNamespace, dsName).NamespacedName, ds); err != nil {
+					return err
+				}
+				dca := &appsv1.Deployment{}
+				if err := c.Get(context.TODO(), newRequest(resourcesNamespace, rbacResourcesNameClusterAgent).NamespacedName, dca); err != nil {
+					return err
+				}
+				dcaw := &appsv1.Deployment{}
+				if err := c.Get(context.TODO(), newRequest(resourcesNamespace, rbacResourcesNameClusterChecksRunner).NamespacedName, dcaw); err != nil {
+					return err
+				}
+
+				var containerList []corev1.Container
+				containerList = append(containerList, ds.Spec.Template.Spec.Containers...)
+				containerList = append(containerList, dca.Spec.Template.Spec.Containers...)
+				containerList = append(containerList, dcaw.Spec.Template.Spec.Containers...)
+
+				for _, container := range containerList {
+					if !containsEnv(container.Env, "DD_DD_URL", "https://foo.ddurl") {
+						return fmt.Errorf("container %s is using the wrong DD_DD_URL value", container.Name)
+					}
+					if !containsEnv(container.Env, "DD_SITE", "foo.site") {
+						return fmt.Errorf("container %s is using the wrong DD_SITE value", container.Name)
+					}
+				}
+				return nil
+			},
+		},
+		{
+			name: "DatadogAgent found and defaulted, use site and ddurl from reconciler options",
+			fields: fields{
+				client:   fake.NewFakeClient(),
+				scheme:   s,
+				recorder: recorder,
+			},
+			args: args{
+				request: newRequest(resourcesNamespace, resourcesName),
+				loadFunc: func(c client.Client) {
+					dadOptions := &test.NewDatadogAgentOptions{
+						Labels:                       map[string]string{"label-foo-key": "label-bar-value"},
+						Status:                       &datadoghqv1alpha1.DatadogAgentStatus{},
+						ClusterAgentEnabled:          true,
+						ClusterChecksEnabled:         true,
+						ClusterChecksRunnerEnabled:   true,
+						OrchestratorExplorerDisabled: true,
+					}
+					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, dadOptions)
+					_ = c.Create(context.TODO(), dda)
+
+					commonDCAlabels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
+					dcaLabels := map[string]string{"label-foo-key": "label-bar-value"}
+					for k, v := range commonDCAlabels {
+						dcaLabels[k] = v
+					}
+
+					dcaOptions := &test.NewDeploymentOptions{
+						Labels:                 dcaLabels,
+						ForceAvailableReplicas: datadoghqv1alpha1.NewInt32Pointer(1),
+					}
+					dca := test.NewClusterAgentDeployment(resourcesNamespace, resourcesName, dcaOptions)
+
+					_ = c.Create(context.TODO(), dda)
+					_ = c.Create(context.TODO(), dca)
+					_ = c.Create(context.TODO(), test.NewSecret(resourcesNamespace, "foo", &test.NewSecretOptions{Labels: commonDCAlabels, Data: map[string][]byte{
+						"token": []byte(base64.StdEncoding.EncodeToString([]byte("token-foo"))),
+					}}))
+
+					createClusterAgentDependencies(c, dda)
+					createAgentDependencies(c, dda)
+					createClusterChecksRunnerDependencies(c, dda, true)
+				},
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(c client.Client) error {
+				ds := &appsv1.DaemonSet{}
+				if err := c.Get(context.TODO(), newRequest(resourcesNamespace, dsName).NamespacedName, ds); err != nil {
+					return err
+				}
+				dca := &appsv1.Deployment{}
+				if err := c.Get(context.TODO(), newRequest(resourcesNamespace, rbacResourcesNameClusterAgent).NamespacedName, dca); err != nil {
+					return err
+				}
+				dcaw := &appsv1.Deployment{}
+				if err := c.Get(context.TODO(), newRequest(resourcesNamespace, rbacResourcesNameClusterChecksRunner).NamespacedName, dcaw); err != nil {
+					return err
+				}
+
+				var containerList []corev1.Container
+				containerList = append(containerList, ds.Spec.Template.Spec.Containers...)
+				containerList = append(containerList, dca.Spec.Template.Spec.Containers...)
+				containerList = append(containerList, dcaw.Spec.Template.Spec.Containers...)
+
+				for _, container := range containerList {
+					if !containsEnv(container.Env, "DD_DD_URL", "https://bar.ddurl") {
+						return fmt.Errorf("container %s is using the wrong DD_DD_URL value", container.Name)
+					}
+					if !containsEnv(container.Env, "DD_SITE", "bar.site") {
+						return fmt.Errorf("container %s is using the wrong DD_SITE value", container.Name)
+					}
+				}
+				return nil
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -2445,6 +2601,8 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				forwarders: forwarders,
 				options: ReconcilerOptions{
 					SupportExtendedDaemonset: true,
+					Site:                     "bar.site",
+					DDUrl:                    "https://bar.ddurl",
 				},
 			}
 			if tt.args.loadFunc != nil {

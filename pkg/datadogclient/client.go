@@ -45,10 +45,10 @@ func InitDatadogClient(creds config.Creds) (DatadogClient, error) {
 	configV1 := datadogapiclientv1.NewConfiguration()
 
 	var apiURL string
-	if os.Getenv(config.DDURLEnvVar) != "" {
-		apiURL = os.Getenv(config.DDURLEnvVar)
-	} else if os.Getenv(config.DDSiteEnvVar) != "" {
-		apiURL = config.DDAPIPrefix + os.Getenv(config.DDSiteEnvVar)
+	if ddURL := os.Getenv(config.DDURLEnvVar); ddURL != "" {
+		apiURL = ddURL
+	} else if site := os.Getenv(config.DDSiteEnvVar); site != "" {
+		apiURL = config.DDAPIPrefix + site
 	}
 
 	if apiURL != "" {

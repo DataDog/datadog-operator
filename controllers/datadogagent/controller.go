@@ -35,6 +35,8 @@ const (
 type ReconcilerOptions struct {
 	SupportExtendedDaemonset bool
 	OperatorMetricsEnabled   bool
+	Site                     string
+	DDUrl                    string
 }
 
 // Reconciler is the internal reconciler for Datadog Agent
@@ -110,6 +112,17 @@ func (r *Reconciler) internalReconcile(ctx context.Context, request reconcile.Re
 	instance, result, err = r.updateOverrideIfNeeded(reqLogger, instance, instOverrideStatus, result)
 	if err != nil {
 		return result, err
+	}
+
+	if site := r.options.Site; site != "" {
+		if instance.Spec.Site == "" {
+			instance.Spec.Site = site
+		}
+	}
+	if ddURL := r.options.DDUrl; ddURL != "" {
+		if instance.Spec.Agent.Config.DDUrl == nil {
+			instance.Spec.Agent.Config.DDUrl = datadoghqv1alpha1.NewStringPointer(ddURL)
+		}
 	}
 
 	newStatus := instance.Status.DeepCopy()

@@ -1158,8 +1158,8 @@ func Test_getbaseURL(t *testing.T) {
 		{
 			name: "Test that DDA DDUrl takes precedence over DDA Site, operator DDUrl, and operator Site",
 			setEnvFunc: func() {
-				os.Setenv("DD_URL", "https://beroringa.com")
-				os.Setenv("DD_SITE", "amatama.eu")
+				os.Setenv("DD_URL", "https://foo.com")
+				os.Setenv("DD_SITE", "datadog.eu")
 			},
 			args: args{
 				dda: test.NewDefaultedDatadogAgent("foo", "bar", &test.NewDatadogAgentOptions{
@@ -1177,15 +1177,15 @@ func Test_getbaseURL(t *testing.T) {
 		{
 			name: "Test that operator DDUrl takes precendence over DDA Site and operator Site",
 			setEnvFunc: func() {
-				os.Setenv("DD_URL", "https://beroringa.com")
-				os.Setenv("DD_SITE", "amatama.eu")
+				os.Setenv("DD_URL", "https://foo.com")
+				os.Setenv("DD_SITE", "datadog.eu")
 			},
 			args: args{
 				dda: test.NewDefaultedDatadogAgent("foo", "bar", &test.NewDatadogAgentOptions{
 					Site: "datadoghq.eu",
 				}),
 			},
-			want: "https://beroringa.com",
+			want: "https://foo.com",
 			resetEnvFunc: func() {
 				os.Unsetenv("DD_URL")
 				os.Unsetenv("DD_SITE")
@@ -1194,7 +1194,7 @@ func Test_getbaseURL(t *testing.T) {
 		{
 			name: "Test that DDA Site takes precendence over operator Site",
 			setEnvFunc: func() {
-				os.Setenv("DD_SITE", "amatama.eu")
+				os.Setenv("DD_SITE", "datadog.eu")
 			},
 			args: args{
 				dda: test.NewDefaultedDatadogAgent("foo", "bar", &test.NewDatadogAgentOptions{
@@ -1209,12 +1209,12 @@ func Test_getbaseURL(t *testing.T) {
 		{
 			name: "Compute operator Site",
 			setEnvFunc: func() {
-				os.Setenv("DD_SITE", "amatama.eu")
+				os.Setenv("DD_SITE", "datadog.eu")
 			},
 			args: args{
 				dda: test.NewDefaultedDatadogAgent("foo", "bar", &test.NewDatadogAgentOptions{}),
 			},
-			want: "https://api.amatama.eu",
+			want: "https://api.datadog.eu",
 			resetEnvFunc: func() {
 				os.Unsetenv("DD_SITE")
 			},

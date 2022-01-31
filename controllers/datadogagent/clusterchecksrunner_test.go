@@ -258,7 +258,7 @@ func Test_newClusterChecksRunnerDeploymentFromInstance_UserVolumes(t *testing.T)
 			ClusterChecksRunnerVolumeMounts: userVolumeMounts,
 		},
 	)
-	envVarsClusterChecksRunnerAgentHash, _ := comparison.GenerateMD5ForSpec(envVarsAgentDeployment.Spec.ClusterChecksRunner)
+	envVarsClusterChecksRunnerAgentHash, _ := comparison.GenerateMD5ForSpec(envVarsAgentDeployment.Spec)
 
 	test := clusterChecksRunnerDeploymentFromInstanceTest{
 		name:            "with user volumes",
@@ -337,7 +337,7 @@ func Test_newClusterChecksRunnerDeploymentFromInstance_EnvVars(t *testing.T) {
 			ClusterChecksRunnerEnvVars: envVars,
 		},
 	)
-	envVarsClusterChecksRunnerAgentHash, _ := comparison.GenerateMD5ForSpec(envVarsAgentDeployment.Spec.ClusterChecksRunner)
+	envVarsClusterChecksRunnerAgentHash, _ := comparison.GenerateMD5ForSpec(envVarsAgentDeployment.Spec)
 
 	test := clusterChecksRunnerDeploymentFromInstanceTest{
 		name:            "with extra env vars",
@@ -402,7 +402,7 @@ func Test_newClusterChecksRunnerDeploymentFromInstance_CustomReplicas(t *testing
 		},
 	)
 
-	clusterChecksRunnerAgentHash, _ := comparison.GenerateMD5ForSpec(agentDeployment.Spec.ClusterChecksRunner)
+	clusterChecksRunnerAgentHash, _ := comparison.GenerateMD5ForSpec(agentDeployment.Spec)
 
 	test := clusterChecksRunnerDeploymentFromInstanceTest{
 		name:            "with custom replicas",

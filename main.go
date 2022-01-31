@@ -87,10 +87,12 @@ func main() {
 
 	// Custom flags
 	var printVersion, pprofActive, supportExtendedDaemonset, datadogMonitorEnabled, operatorMetricsEnabled bool
-	var logEncoder, secretBackendCommand string
+	var logEncoder, secretBackendCommand, site, ddurl string
 	var secretBackendArgs stringSlice
 	flag.StringVar(&logEncoder, "logEncoder", "json", "log encoding ('json' or 'console')")
 	flag.StringVar(&secretBackendCommand, "secretBackendCommand", "", "Secret backend command")
+	flag.StringVar(&site, "site", "", "Site of the Datadog intake to send Agent data to")
+	flag.StringVar(&ddurl, "ddurl", "", "Host of the Datadog intake server to send metrics to")
 	flag.Var(&secretBackendArgs, "secretBackendArgs", "Space separated arguments of the secret backend command")
 	logLevel := zap.LevelFlag("loglevel", zapcore.InfoLevel, "Set log level")
 	flag.BoolVar(&printVersion, "version", false, "Print version and exit")
@@ -154,6 +156,8 @@ func main() {
 		Creds:                    creds,
 		DatadogMonitorEnabled:    datadogMonitorEnabled,
 		OperatorMetricsEnabled:   operatorMetricsEnabled,
+		Site:                     site,
+		DDUrl:                    ddurl,
 	}
 
 	if err := controllers.SetupControllers(setupLog, mgr, options); err != nil {

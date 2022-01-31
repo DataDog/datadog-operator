@@ -693,16 +693,14 @@ func (mf *metricsForwarder) isEventChanFull() bool {
 //	- Site from the operator config
 //	- If none of the above are set, use a default base URL
 func getbaseURL(dda *datadoghqv1alpha1.DatadogAgent) string {
-	switch {
-	case datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Enabled) && dda.Spec.Agent.Config != nil && dda.Spec.Agent.Config.DDUrl != nil:
+	if dda.Spec.Agent.Config != nil && dda.Spec.Agent.Config.DDUrl != nil {
 		return *dda.Spec.Agent.Config.DDUrl
-	case os.Getenv(config.DDURLEnvVar) != "":
-		return os.Getenv(config.DDURLEnvVar)
-	case dda.Spec.Site != "":
+	} else if ddURL := os.Getenv(config.DDURLEnvVar); ddURL != "" {
+		return ddURL
+	} else if dda.Spec.Site != "" {
 		return config.DDAPIPrefix + dda.Spec.Site
-	case os.Getenv(config.DDSiteEnvVar) != "":
-		return config.DDAPIPrefix + os.Getenv(config.DDSiteEnvVar)
-	default:
-		return defaultbaseURL
+	} else if site := os.Getenv(config.DDSiteEnvVar); site != "" {
+		return config.DDAPIPrefix + site
 	}
+	return defaultbaseURL
 }
