@@ -194,11 +194,12 @@ const (
 
 	HostCriSocketPathPrefix = "/host"
 
-	SecurityAgentRuntimeCustomPoliciesVolumeName = "customruntimepolicies"
-	SecurityAgentRuntimePoliciesDirVolumeName    = "runtimepoliciesdir"
-	SecurityAgentRuntimePoliciesDirVolumePath    = "/etc/datadog-agent/runtime-security.d"
-	SecurityAgentComplianceConfigDirVolumeName   = "compliancedir"
-	SecurityAgentComplianceConfigDirVolumePath   = "/etc/datadog-agent/compliance.d"
+	SecurityAgentRuntimeCustomPoliciesVolumeName     = "customruntimepolicies"
+	SecurityAgentRuntimePoliciesDirVolumeName        = "runtimepoliciesdir"
+	SecurityAgentRuntimePoliciesDirVolumePath        = "/etc/datadog-agent/runtime-security.d"
+	SecurityAgentComplianceCustomConfigDirVolumeName = "customcompliancebenchmarks"
+	SecurityAgentComplianceConfigDirVolumeName       = "compliancedir"
+	SecurityAgentComplianceConfigDirVolumePath       = "/etc/datadog-agent/compliance.d"
 
 	ClusterAgentCustomConfigVolumeName    = "custom-datadog-yaml"
 	ClusterAgentCustomConfigVolumePath    = "/etc/datadog-agent/datadog-cluster.yaml"
@@ -228,20 +229,21 @@ const (
 	// Consts used to setup Rbac config
 	// API Groups
 
-	CoreAPIGroup           = ""
-	ExtensionsAPIGroup     = "extensions"
-	OpenShiftQuotaAPIGroup = "quota.openshift.io"
-	RbacAPIGroup           = "rbac.authorization.k8s.io"
-	AutoscalingAPIGroup    = "autoscaling"
-	CertificatesAPIGroup   = "certificates.k8s.io"
-	StorageAPIGroup        = "storage.k8s.io"
-	CoordinationAPIGroup   = "coordination.k8s.io"
-	DatadogAPIGroup        = "datadoghq.com"
-	AdmissionAPIGroup      = "admissionregistration.k8s.io"
-	AppsAPIGroup           = "apps"
-	BatchAPIGroup          = "batch"
-	PolicyAPIGroup         = "policy"
-	NetworkingAPIGroup     = "networking.k8s.io"
+	CoreAPIGroup             = ""
+	ExtensionsAPIGroup       = "extensions"
+	OpenShiftQuotaAPIGroup   = "quota.openshift.io"
+	RbacAPIGroup             = "rbac.authorization.k8s.io"
+	AutoscalingAPIGroup      = "autoscaling"
+	CertificatesAPIGroup     = "certificates.k8s.io"
+	StorageAPIGroup          = "storage.k8s.io"
+	CoordinationAPIGroup     = "coordination.k8s.io"
+	DatadogAPIGroup          = "datadoghq.com"
+	AdmissionAPIGroup        = "admissionregistration.k8s.io"
+	AppsAPIGroup             = "apps"
+	BatchAPIGroup            = "batch"
+	PolicyAPIGroup           = "policy"
+	NetworkingAPIGroup       = "networking.k8s.io"
+	AutoscalingK8sIoAPIGroup = "autoscaling.k8s.io"
 
 	// Resources
 
@@ -288,6 +290,7 @@ const (
 	RoleBindingResource                 = "rolebindings"
 	NetworkPolicyResource               = "networkpolicies"
 	IngressesResource                   = "ingresses"
+	VPAResource                         = "verticalpodautoscalers"
 
 	// Resource names
 

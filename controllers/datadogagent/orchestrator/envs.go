@@ -7,6 +7,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 )
 
 // Datadog orchestrator related env var names
@@ -24,12 +25,12 @@ func EnvVars(orc *datadoghqv1alpha1.OrchestratorExplorerConfig) ([]corev1.EnvVar
 	var envVars []corev1.EnvVar
 	envVars = append(envVars, corev1.EnvVar{
 		Name:  DDOrchestratorExplorerEnabled,
-		Value: strconv.FormatBool(datadoghqv1alpha1.BoolValue(orc.Enabled)),
+		Value: strconv.FormatBool(apiutils.BoolValue(orc.Enabled)),
 	})
 	// Scrubbing is defaulted to true beforehand in case it is nil
 	envVars = append(envVars, corev1.EnvVar{
 		Name:  DDOrchestratorExplorerContainerScrubbingEnabled,
-		Value: strconv.FormatBool(datadoghqv1alpha1.BoolValue(orc.Scrubbing.Containers)),
+		Value: strconv.FormatBool(apiutils.BoolValue(orc.Scrubbing.Containers)),
 	})
 
 	if orc.DDUrl != nil {

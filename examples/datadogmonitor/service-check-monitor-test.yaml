@@ -1,0 +1,24 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogMonitor
+metadata:
+  name: datadog-service-check-test
+  namespace: datadog
+spec:
+  query: "\"kubernetes.kubelet.check\".over(\"*\").by(\"host\").last(2).count_by_status()"
+  type: "service check"
+  name: "Test service check made from DatadogMonitor"
+  message: "1-2-3 testing"
+  tags:
+    - "test:datadog"
+  priority: 5
+  options:
+    evaluationDelay: 300
+    includeTags: true
+    locked: false
+    newHostDelay: 300
+    notifyNoData: true
+    noDataTimeframe: 30
+    renotifyInterval: 1440
+    thresholds:
+      critical: "0.5"
+      warning: "0.28"

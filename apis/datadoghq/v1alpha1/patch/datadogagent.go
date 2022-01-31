@@ -5,7 +5,10 @@
 
 package patch
 
-import "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+import (
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+)
 
 // CopyAndPatchDatadogAgent used to patch the current DatadogAgent instance to use the new fields (not deprecated).
 // This function is here to ease the migration to a new DatadogAgent CRD version.
@@ -28,7 +31,7 @@ func patchFeatures(oldDA, newDA *v1alpha1.DatadogAgent) bool {
 
 func patchLogFeatures(oldDA, newDA *v1alpha1.DatadogAgent) bool {
 	var patched bool
-	if v1alpha1.IsEqualStruct(oldDA.Spec.Agent, v1alpha1.DatadogAgentSpecAgentSpec{}) {
+	if apiutils.IsEqualStruct(oldDA.Spec.Agent, v1alpha1.DatadogAgentSpecAgentSpec{}) {
 		return patched
 	}
 	// patch only if a value is not already set

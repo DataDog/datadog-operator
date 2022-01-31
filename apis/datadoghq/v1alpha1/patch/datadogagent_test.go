@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -32,7 +34,7 @@ func TestDatadogAgent(t *testing.T) {
 				Spec: v1alpha1.DatadogAgentSpec{
 					Agent: v1alpha1.DatadogAgentSpecAgentSpec{
 						Log: &v1alpha1.LogCollectionConfig{
-							Enabled: v1alpha1.NewBoolPointer(true),
+							Enabled: apiutils.NewBoolPointer(true),
 						},
 					},
 				},
@@ -41,12 +43,12 @@ func TestDatadogAgent(t *testing.T) {
 				Spec: v1alpha1.DatadogAgentSpec{
 					Features: v1alpha1.DatadogFeatures{
 						LogCollection: &v1alpha1.LogCollectionConfig{
-							Enabled: v1alpha1.NewBoolPointer(true),
+							Enabled: apiutils.NewBoolPointer(true),
 						},
 					},
 					Agent: v1alpha1.DatadogAgentSpecAgentSpec{
 						Log: &v1alpha1.LogCollectionConfig{
-							Enabled: v1alpha1.NewBoolPointer(true),
+							Enabled: apiutils.NewBoolPointer(true),
 						},
 					},
 				},
@@ -59,12 +61,12 @@ func TestDatadogAgent(t *testing.T) {
 				Spec: v1alpha1.DatadogAgentSpec{
 					Features: v1alpha1.DatadogFeatures{
 						LogCollection: &v1alpha1.LogCollectionConfig{
-							Enabled: v1alpha1.NewBoolPointer(false),
+							Enabled: apiutils.NewBoolPointer(false),
 						},
 					},
 					Agent: v1alpha1.DatadogAgentSpecAgentSpec{
 						Log: &v1alpha1.LogCollectionConfig{
-							Enabled: v1alpha1.NewBoolPointer(true),
+							Enabled: apiutils.NewBoolPointer(true),
 						},
 					},
 				},
@@ -73,12 +75,12 @@ func TestDatadogAgent(t *testing.T) {
 				Spec: v1alpha1.DatadogAgentSpec{
 					Features: v1alpha1.DatadogFeatures{
 						LogCollection: &v1alpha1.LogCollectionConfig{
-							Enabled: v1alpha1.NewBoolPointer(false),
+							Enabled: apiutils.NewBoolPointer(false),
 						},
 					},
 					Agent: v1alpha1.DatadogAgentSpecAgentSpec{
 						Log: &v1alpha1.LogCollectionConfig{
-							Enabled: v1alpha1.NewBoolPointer(true),
+							Enabled: apiutils.NewBoolPointer(true),
 						},
 					},
 				},

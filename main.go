@@ -86,7 +86,8 @@ func main() {
 	flag.DurationVar(&leaderElectionLeaseDuration, "leader-election-lease-duration", 60*time.Second, "Define LeaseDuration as well as RenewDeadline (leaseDuration / 2) and RetryPeriod (leaseDuration / 4)")
 
 	// Custom flags
-	var printVersion, pprofActive, supportExtendedDaemonset, datadogMonitorEnabled, operatorMetricsEnabled bool
+
+	var printVersion, pprofActive, supportExtendedDaemonset, supportCilium, datadogMonitorEnabled, operatorMetricsEnabled bool
 	var logEncoder, secretBackendCommand, site, ddurl string
 	var secretBackendArgs stringSlice
 	flag.StringVar(&logEncoder, "logEncoder", "json", "log encoding ('json' or 'console')")
@@ -98,6 +99,7 @@ func main() {
 	flag.BoolVar(&printVersion, "version", false, "Print version and exit")
 	flag.BoolVar(&pprofActive, "pprof", false, "Enable pprof endpoint")
 	flag.BoolVar(&supportExtendedDaemonset, "supportExtendedDaemonset", false, "Support usage of Datadog ExtendedDaemonset CRD.")
+	flag.BoolVar(&supportCilium, "supportCilium", false, "Support usage of Cilium network policies.")
 	flag.BoolVar(&datadogMonitorEnabled, "datadogMonitorEnabled", false, "Enable the DatadogMonitor controller")
 	flag.BoolVar(&operatorMetricsEnabled, "operatorMetricsEnabled", true, "Enable sending operator metrics to Datadog")
 
@@ -153,6 +155,7 @@ func main() {
 
 	options := controllers.SetupOptions{
 		SupportExtendedDaemonset: supportExtendedDaemonset,
+		SupportCilium:            supportCilium,
 		Creds:                    creds,
 		DatadogMonitorEnabled:    datadogMonitorEnabled,
 		OperatorMetricsEnabled:   operatorMetricsEnabled,

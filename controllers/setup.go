@@ -29,6 +29,7 @@ const (
 // SetupOptions defines options for setting up controllers to ease testing
 type SetupOptions struct {
 	SupportExtendedDaemonset bool
+	SupportCilium            bool
 	Creds                    config.Creds
 	DatadogMonitorEnabled    bool
 	OperatorMetricsEnabled   bool
@@ -76,6 +77,7 @@ func startDatadogAgent(logger logr.Logger, mgr manager.Manager, vInfo *version.I
 		Recorder:    mgr.GetEventRecorderFor(agentControllerName),
 		Options: datadogagent.ReconcilerOptions{
 			SupportExtendedDaemonset: options.SupportExtendedDaemonset,
+			SupportCilium:            options.SupportCilium,
 			OperatorMetricsEnabled:   options.OperatorMetricsEnabled,
 			Site:                     options.Site,
 			DDUrl:                    options.DDUrl,

@@ -17,6 +17,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	test "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1/test"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 
 	"github.com/stretchr/testify/mock"
@@ -465,7 +466,8 @@ func TestReconcileDatadogAgent_getCredsFromDatadogAgent(t *testing.T) {
 								APIKey: "foundApiKey",
 								AppKey: "foundAppKey",
 							},
-						}}),
+						},
+					}),
 			},
 			wantAPIKey: "foundApiKey",
 			wantAPPKey: "foundAppKey",
@@ -485,7 +487,8 @@ func TestReconcileDatadogAgent_getCredsFromDatadogAgent(t *testing.T) {
 							DatadogCredentials: datadoghqv1alpha1.DatadogCredentials{
 								APIKey: "foundApiKey",
 							},
-						}}),
+						},
+					}),
 			},
 			wantAPIKey: "",
 			wantAPPKey: "",
@@ -510,7 +513,8 @@ func TestReconcileDatadogAgent_getCredsFromDatadogAgent(t *testing.T) {
 									KeyName:    "application_key",
 								},
 							},
-						}}),
+						},
+					}),
 				loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
 					secret := &corev1.Secret{
 						ObjectMeta: metav1.ObjectMeta{
@@ -552,7 +556,8 @@ func TestReconcileDatadogAgent_getCredsFromDatadogAgent(t *testing.T) {
 								APIKeyExistingSecret: "datadog-creds",
 								AppKeyExistingSecret: "datadog-creds",
 							},
-						}}),
+						},
+					}),
 				loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
 					secret := &corev1.Secret{
 						ObjectMeta: metav1.ObjectMeta{
@@ -586,7 +591,8 @@ func TestReconcileDatadogAgent_getCredsFromDatadogAgent(t *testing.T) {
 									SecretName: "datadog-creds",
 								},
 							},
-						}}),
+						},
+					}),
 				loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
 					secret := &corev1.Secret{
 						ObjectMeta: metav1.ObjectMeta{
@@ -617,7 +623,8 @@ func TestReconcileDatadogAgent_getCredsFromDatadogAgent(t *testing.T) {
 								APIKey:               "foundApiKey",
 								AppKeyExistingSecret: "datadog-creds",
 							},
-						}}),
+						},
+					}),
 				loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
 					secret := &corev1.Secret{
 						ObjectMeta: metav1.ObjectMeta{
@@ -648,7 +655,8 @@ func TestReconcileDatadogAgent_getCredsFromDatadogAgent(t *testing.T) {
 								APIKey: "ENC[ApiKey]",
 								AppKey: "ENC[AppKey]",
 							},
-						}}),
+						},
+					}),
 				loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
 					m.cleanSecretsCache()
 					m.creds.Store("ENC[ApiKey]", "cachedApiKey")
@@ -679,7 +687,8 @@ func TestReconcileDatadogAgent_getCredsFromDatadogAgent(t *testing.T) {
 								APIKey: "ENC[ApiKey]",
 								AppKey: "ENC[AppKey]",
 							},
-						}}),
+						},
+					}),
 				loadFunc: func(m *metricsForwarder, d *secrets.DummyDecryptor) {
 					m.cleanSecretsCache()
 					d.On("Decrypt", []string{"ENC[ApiKey]", "ENC[AppKey]"}).Once()
@@ -768,7 +777,7 @@ func TestMetricsForwarder_setTags(t *testing.T) {
 			name: "with clustername",
 			dda: test.NewDefaultedDatadogAgent("foo", "bar",
 				&test.NewDatadogAgentOptions{
-					ClusterName: datadoghqv1alpha1.NewStringPointer("testcluster"),
+					ClusterName: apiutils.NewStringPointer("testcluster"),
 				}),
 			want: []string{
 				"cluster_name:testcluster",
@@ -778,7 +787,7 @@ func TestMetricsForwarder_setTags(t *testing.T) {
 			name: "with clustername and labels",
 			dda: test.NewDefaultedDatadogAgent("foo", "bar",
 				&test.NewDatadogAgentOptions{
-					ClusterName: datadoghqv1alpha1.NewStringPointer("testcluster"),
+					ClusterName: apiutils.NewStringPointer("testcluster"),
 					Labels: map[string]string{
 						"firstKey":  "firstValue",
 						"secondKey": "secondValue",
@@ -1149,8 +1158,9 @@ func Test_getbaseURL(t *testing.T) {
 			args: args{
 				dda: test.NewDefaultedDatadogAgent("foo", "bar", &test.NewDatadogAgentOptions{
 					NodeAgentConfig: &datadoghqv1alpha1.NodeAgentConfig{
-						DDUrl: datadoghqv1alpha1.NewStringPointer("https://test.url.com"),
-					}}),
+						DDUrl: apiutils.NewStringPointer("https://test.url.com"),
+					},
+				}),
 			},
 			want:         "https://test.url.com",
 			resetEnvFunc: func() {},
@@ -1165,8 +1175,9 @@ func Test_getbaseURL(t *testing.T) {
 				dda: test.NewDefaultedDatadogAgent("foo", "bar", &test.NewDatadogAgentOptions{
 					Site: "datadoghq.eu",
 					NodeAgentConfig: &datadoghqv1alpha1.NodeAgentConfig{
-						DDUrl: datadoghqv1alpha1.NewStringPointer("https://test.url.com"),
-					}}),
+						DDUrl: apiutils.NewStringPointer("https://test.url.com"),
+					},
+				}),
 			},
 			want: "https://test.url.com",
 			resetEnvFunc: func() {

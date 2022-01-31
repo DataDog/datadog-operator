@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -61,7 +62,7 @@ instances:
 	}
 
 	// cluster check enabled
-	dda.Spec.Features.OrchestratorExplorer.ClusterCheck = datadoghqv1alpha1.NewBoolPointer(true)
+	dda.Spec.Features.OrchestratorExplorer.ClusterCheck = apiutils.NewBoolPointer(true)
 	cm, err := buildOrchestratorExplorerConfigMap(dda)
 	require.NoError(t, err)
 	require.NotNil(t, cm)

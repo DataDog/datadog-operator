@@ -8,6 +8,8 @@ package datadogagent
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -22,6 +24,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
@@ -65,7 +69,7 @@ func (r *Reconciler) reconcileAgent(logger logr.Logger, dda *datadoghqv1alpha1.D
 		ds = nil
 	}
 
-	if !datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Enabled) {
+	if !apiutils.BoolValue(dda.Spec.Agent.Enabled) {
 		if ds != nil {
 			if err = r.deleteDaemonSet(logger, dda, ds); err != nil {
 				return result, err
@@ -80,7 +84,7 @@ func (r *Reconciler) reconcileAgent(logger logr.Logger, dda *datadoghqv1alpha1.D
 		return result, err
 	}
 
-	if r.options.SupportExtendedDaemonset && datadoghqv1alpha1.BoolValue(dda.Spec.Agent.UseExtendedDaemonset) {
+	if r.options.SupportExtendedDaemonset && apiutils.BoolValue(dda.Spec.Agent.UseExtendedDaemonset) {
 		if ds != nil {
 			// TODO manage properly the migration from DS to EDS
 			err = r.deleteDaemonSet(logger, dda, ds)
@@ -297,21 +301,41 @@ func (r *Reconciler) manageAgentDependencies(logger logr.Logger, dda *datadoghqv
 		return result, err
 	}
 
+	result, err = r.manageAgentService(logger, dda)
+	if utils.ShouldReturn(result, err) {
+		return result, err
+	}
+
 	return reconcile.Result{}, nil
 }
 
 func (r *Reconciler) manageAgentNetworkPolicy(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
-	policyName := fmt.Sprintf("%s-%s", dda.Name, datadoghqv1alpha1.DefaultAgentResourceSuffix)
-
 	spec := dda.Spec.Agent
-	if !datadoghqv1alpha1.BoolValue(spec.Enabled) || spec.NetworkPolicy == nil || !datadoghqv1alpha1.BoolValue(spec.NetworkPolicy.Create) {
-		return r.cleanupNetworkPolicy(logger, dda, policyName)
+	builder := agentNetworkPolicyBuilder{dda, spec.NetworkPolicy}
+	if !apiutils.BoolValue(spec.Enabled) || spec.NetworkPolicy == nil || !apiutils.BoolValue(spec.NetworkPolicy.Create) {
+		return r.cleanupNetworkPolicy(logger, dda, builder.Name())
 	}
 
-	return r.ensureNetworkPolicy(logger, dda, policyName, buildAgentNetworkPolicy)
+	return r.ensureNetworkPolicy(logger, dda, builder)
 }
 
-func buildAgentNetworkPolicy(dda *datadoghqv1alpha1.DatadogAgent, name string) *networkingv1.NetworkPolicy {
+type agentNetworkPolicyBuilder struct {
+	dda *datadoghqv1alpha1.DatadogAgent
+	np  *datadoghqv1alpha1.NetworkPolicySpec
+}
+
+func (b agentNetworkPolicyBuilder) Name() string {
+	return fmt.Sprintf("%s-%s", b.dda.Name, datadoghqv1alpha1.DefaultAgentResourceSuffix)
+}
+
+func (b agentNetworkPolicyBuilder) NetworkPolicySpec() *datadoghqv1alpha1.NetworkPolicySpec {
+	return b.np
+}
+
+func (b agentNetworkPolicyBuilder) BuildKubernetesPolicy() *networkingv1.NetworkPolicy {
+	dda := b.dda
+	name := b.Name()
+
 	egressRules := []networkingv1.NetworkPolicyEgressRule{
 		// Egress to datadog intake and
 		// kubeapi server
@@ -377,14 +401,9 @@ func buildAgentNetworkPolicy(dda *datadoghqv1alpha1.DatadogAgent, name string) *
 			Namespace: dda.Namespace,
 		},
 		Spec: networkingv1.NetworkPolicySpec{
-			PodSelector: metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					kubernetes.AppKubernetesInstanceLabelKey: datadoghqv1alpha1.DefaultAgentResourceSuffix,
-					kubernetes.AppKubernetesPartOfLabelKey:   NewPartOfLabelValue(dda).String(),
-				},
-			},
-			Ingress: ingressRules,
-			Egress:  egressRules,
+			PodSelector: b.PodSelector(),
+			Ingress:     ingressRules,
+			Egress:      egressRules,
 			PolicyTypes: []networkingv1.PolicyType{
 				networkingv1.PolicyTypeIngress,
 				networkingv1.PolicyTypeEgress,
@@ -393,6 +412,217 @@ func buildAgentNetworkPolicy(dda *datadoghqv1alpha1.DatadogAgent, name string) *
 	}
 
 	return policy
+}
+
+func (b agentNetworkPolicyBuilder) PodSelector() metav1.LabelSelector {
+	return metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			kubernetes.AppKubernetesInstanceLabelKey: datadoghqv1alpha1.DefaultAgentResourceSuffix,
+			kubernetes.AppKubernetesPartOfLabelKey:   NewPartOfLabelValue(b.dda).String(),
+		},
+	}
+}
+
+func (b agentNetworkPolicyBuilder) ddFQDNs() []cilium.FQDNSelector {
+	selectors := []cilium.FQDNSelector{}
+
+	ddURL := b.dda.Spec.Agent.Config.DDUrl
+	if ddURL != nil {
+		selectors = append(selectors, cilium.FQDNSelector{
+			MatchName: strings.TrimPrefix(*ddURL, "https://"),
+		})
+	}
+
+	var site string
+	if b.dda.Spec.Site != "" {
+		site = b.dda.Spec.Site
+	} else {
+		site = defaultSite
+	}
+
+	selectors = append(selectors, []cilium.FQDNSelector{
+		{
+			MatchPattern: fmt.Sprintf("*-app.agent.%s", site),
+		},
+		{
+			MatchName: fmt.Sprintf("api.%s", site),
+		},
+		{
+			MatchName: fmt.Sprintf("agent-intake.logs.%s", site),
+		},
+		{
+			MatchName: fmt.Sprintf("agent-http-intake.logs.%s", site),
+		},
+		{
+			MatchName: fmt.Sprintf("process.%s", site),
+		},
+		{
+			MatchName: fmt.Sprintf("orchestrator.%s", site),
+		},
+	}...)
+
+	return selectors
+}
+
+func (b agentNetworkPolicyBuilder) BuildCiliumPolicy() *cilium.NetworkPolicy {
+	specs := []cilium.NetworkPolicySpec{
+		{
+			Description:      "Egress to ECS agent port 51678",
+			EndpointSelector: b.PodSelector(),
+			Egress: []cilium.EgressRule{
+				{
+					ToEntities: []cilium.Entity{cilium.EntityHost},
+					ToPorts: []cilium.PortRule{
+						{
+							Ports: []cilium.PortProtocol{
+								{
+									Port:     "51678",
+									Protocol: cilium.ProtocolTCP,
+								},
+							},
+						},
+					},
+				},
+				{
+					ToCIDR: []string{"169.254.0.0/16"},
+					ToPorts: []cilium.PortRule{
+						{
+							Ports: []cilium.PortProtocol{
+								{
+									Port:     "51678",
+									Protocol: cilium.ProtocolTCP,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			Description:      "Egress to ntp",
+			EndpointSelector: b.PodSelector(),
+			Egress: []cilium.EgressRule{
+				{
+					ToPorts: []cilium.PortRule{
+						{
+							Ports: []cilium.PortProtocol{
+								{
+									Port:     "123",
+									Protocol: cilium.ProtocolUDP,
+								},
+							},
+						},
+					},
+					ToFQDNs: []cilium.FQDNSelector{
+						{
+							MatchPattern: "*.datadog.pool.ntp.org",
+						},
+					},
+				},
+			},
+		},
+		ciliumEgressMetadataServerRule(b),
+		ciliumEgressDNS(b),
+		{
+			Description:      "Egress to Datadog intake",
+			EndpointSelector: b.PodSelector(),
+			Egress: []cilium.EgressRule{
+				{
+					ToFQDNs: b.ddFQDNs(),
+					ToPorts: []cilium.PortRule{
+						{
+							Ports: []cilium.PortProtocol{
+								{
+									Port:     "443",
+									Protocol: cilium.ProtocolTCP,
+								},
+								{
+									Port:     "10516",
+									Protocol: cilium.ProtocolTCP,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			Description:      "Egress to kubelet",
+			EndpointSelector: b.PodSelector(),
+			Egress: []cilium.EgressRule{
+				{
+					ToEntities: []cilium.Entity{
+						cilium.EntityHost,
+					},
+					ToPorts: []cilium.PortRule{
+						{
+							Ports: []cilium.PortProtocol{
+								{
+									Port:     "10250",
+									Protocol: cilium.ProtocolTCP,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			Description:      "Ingress for dogstatsd",
+			EndpointSelector: b.PodSelector(),
+			Ingress: []cilium.IngressRule{
+				{
+					FromEndpoints: []metav1.LabelSelector{
+						{},
+					},
+					ToPorts: []cilium.PortRule{
+						{
+							Ports: []cilium.PortProtocol{
+								{
+									Port:     strconv.Itoa(datadoghqv1alpha1.DefaultDogstatsdPort),
+									Protocol: cilium.ProtocolUDP,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		ciliumEgressChecks(b),
+	}
+
+	if isAPMEnabled(&b.dda.Spec) {
+		specs = append(specs, cilium.NetworkPolicySpec{
+			Description:      "Ingress for APM trace",
+			EndpointSelector: b.PodSelector(),
+			Ingress: []cilium.IngressRule{
+				{
+					FromEndpoints: []metav1.LabelSelector{
+						{},
+					},
+					ToPorts: []cilium.PortRule{
+						{
+							Ports: []cilium.PortProtocol{
+								{
+									Port:     strconv.Itoa(int(*b.dda.Spec.Agent.Apm.HostPort)),
+									Protocol: cilium.ProtocolUDP,
+								},
+							},
+						},
+					},
+				},
+			},
+		})
+	}
+
+	return &cilium.NetworkPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels:    getDefaultLabels(b.dda, b.Name(), getAgentVersion(b.dda)),
+			Name:      b.Name(),
+			Namespace: b.dda.Namespace,
+		},
+		Specs: specs,
+	}
 }
 
 // newExtendedDaemonSetFromInstance creates an ExtendedDaemonSet from a given DatadogAgent
@@ -469,7 +699,7 @@ func newDaemonSetFromInstance(logger logr.Logger, dda *datadoghqv1alpha1.Datadog
 }
 
 func daemonsetName(dda *datadoghqv1alpha1.DatadogAgent) string {
-	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Enabled) && dda.Spec.Agent.DaemonsetName != "" {
+	if apiutils.BoolValue(dda.Spec.Agent.Enabled) && dda.Spec.Agent.DaemonsetName != "" {
 		return dda.Spec.Agent.DaemonsetName
 	}
 	return fmt.Sprintf("%s-%s", dda.Name, "agent")
@@ -495,7 +725,7 @@ func getAgentCustomConfigConfigMapName(dda *datadoghqv1alpha1.DatadogAgent) stri
 }
 
 func buildAgentConfigurationConfigMap(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.ConfigMap, error) {
-	if !datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Enabled) {
+	if !apiutils.BoolValue(dda.Spec.Agent.Enabled) {
 		return nil, nil
 	}
 	return buildConfigurationConfigMap(dda, dda.Spec.Agent.CustomConfig, getAgentCustomConfigConfigMapName(dda), datadoghqv1alpha1.AgentCustomConfigVolumeSubPath)

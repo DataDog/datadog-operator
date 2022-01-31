@@ -13,6 +13,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/go-logr/logr"
 )
 
@@ -51,7 +52,7 @@ func needExternalMetricsSecret(dda *datadoghqv1alpha1.DatadogAgent) bool {
 	}
 	return isClusterAgentEnabled(dda.Spec.ClusterAgent) &&
 		(dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials.APIKey != "" || dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials.AppKey != "") &&
-		!datadoghqv1alpha1.BoolValue(dda.Spec.Credentials.UseSecretBackend)
+		!apiutils.BoolValue(dda.Spec.Credentials.UseSecretBackend)
 }
 
 func getDefaultExternalMetricSecretName(dda *datadoghqv1alpha1.DatadogAgent) string {

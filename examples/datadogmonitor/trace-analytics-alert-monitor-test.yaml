@@ -1,0 +1,21 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogMonitor
+metadata:
+  name: datadog-trace-analytics-alert-test
+  namespace: datadog
+spec:
+  query: "trace-analytics(\"env:prod operation_name:pylons.request\").rollup(\"count\").by(\"*\").last(\"5m\") > 100"
+  type: "trace-analytics alert"
+  name: "Test trace-analytics alert made from DatadogMonitor"
+  message: "1-2-3 testing"
+  tags:
+    - "test:datadog"
+  priority: 5
+  options:
+    evaluationDelay: 300
+    includeTags: true
+    locked: false
+    newHostDelay: 300
+    notifyNoData: true
+    noDataTimeframe: 30
+    renotifyInterval: 1440

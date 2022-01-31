@@ -331,6 +331,13 @@ rules:
   - list
   - watch
 - apiGroups:
+  - autoscaling.k8s.io
+  resources:
+  - verticalpodautoscalers
+  verbs:
+  - list
+  - watch
+- apiGroups:
   - batch
   resources:
   - cronjobs
@@ -352,6 +359,18 @@ rules:
   - certificatesigningrequests
   verbs:
   - list
+  - watch
+- apiGroups:
+  - cilium.io
+  resources:
+  - ciliumnetworkpolicies
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
   - watch
 - apiGroups:
   - coordination.k8s.io

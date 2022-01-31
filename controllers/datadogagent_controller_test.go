@@ -22,6 +22,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/testutils"
 	// +kubebuilder:scaffold:imports
 )
@@ -167,21 +168,21 @@ var _ = Describe("DatadogAgent Controller", func() {
 
 			By("Activating APM", func() {
 				checkAgentUpdateOnDaemonSet(key, dsKey, func(agent *datadoghqv1alpha1.DatadogAgent) {
-					agent.Spec.Agent.Apm.Enabled = datadoghqv1alpha1.NewBoolPointer(true)
+					agent.Spec.Agent.Apm.Enabled = apiutils.NewBoolPointer(true)
 				}, nil)
 			})
 
 			By("Disabling OrchestratorExplorer", func() {
 				checkAgentUpdateOnDaemonSet(key, dsKey, func(agent *datadoghqv1alpha1.DatadogAgent) {
 					agent.Spec.Features.OrchestratorExplorer = &datadoghqv1alpha1.OrchestratorExplorerConfig{
-						Enabled: datadoghqv1alpha1.NewBoolPointer(false),
+						Enabled: apiutils.NewBoolPointer(false),
 					}
 				}, nil)
 			})
 
 			By("Activating System Probe", func() {
 				checkAgentUpdateOnDaemonSet(key, dsKey, func(agent *datadoghqv1alpha1.DatadogAgent) {
-					agent.Spec.Agent.SystemProbe.Enabled = datadoghqv1alpha1.NewBoolPointer(true)
+					agent.Spec.Agent.SystemProbe.Enabled = apiutils.NewBoolPointer(true)
 				}, nil)
 			})
 
@@ -198,7 +199,7 @@ var _ = Describe("DatadogAgent Controller", func() {
 
 			By("Enabled Process", func() {
 				checkAgentUpdateOnDaemonSet(key, dsKey, func(agent *datadoghqv1alpha1.DatadogAgent) {
-					agent.Spec.Agent.Process.Enabled = datadoghqv1alpha1.NewBoolPointer(true)
+					agent.Spec.Agent.Process.Enabled = apiutils.NewBoolPointer(true)
 				}, nil)
 			})
 		})
@@ -245,7 +246,7 @@ var _ = Describe("DatadogAgent Controller", func() {
 		It("Should update ClusterAgent", func() {
 			checkAgentUpdateOnClusterAgent(key, dcaKey, func(agent *datadoghqv1alpha1.DatadogAgent) {
 				agent.Spec.ClusterAgent.Image.Name = "datadog/cluster-agent:1.0.0"
-				agent.Spec.ClusterAgent.Config.ClusterChecksEnabled = datadoghqv1alpha1.NewBoolPointer(true)
+				agent.Spec.ClusterAgent.Config.ClusterChecksEnabled = apiutils.NewBoolPointer(true)
 				agent.Spec.ClusterChecksRunner = datadoghqv1alpha1.DatadogAgentSpecClusterChecksRunnerSpec{
 					Image: &datadoghqv1alpha1.ImageConfig{
 						Name: "datadog/agent:7.22.0",

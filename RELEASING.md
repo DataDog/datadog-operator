@@ -28,4 +28,35 @@
 ## Other PRs to create
 
 - Create krew PR for the plugin on https://github.com/kubernetes-sigs/krew-index to update the `datadog.yaml` artifact. (See [kubernetes-sigs/krew-index#727](https://github.com/kubernetes-sigs/krew-index/pull/727) as an example).
-- Create PRs on https://github.com/operator-framework/community-operators for `community` and `upstream` operator.
+- Create PRs on https://github.com/redhat-openshift-ecosystem/community-operators-prod for `OpenShift Community` and https://github.com/k8s-operatorhub/community-operators for `Kubernetes OperatorHub`.
+
+## Testing the generating bundle
+
+### Using `operator-sdk`
+
+Testing the delivery can be done locally by using `kind` and the generated (or published) Docker bundle:
+
+```
+# When using a local image
+# kind load docker-image <image-name>
+./bin/operator-sdk olm install # If not already installed in your cluster.
+./bin/operator-sdk run bundle docker.io/datadog/operator-bundle:0.7.1
+```
+
+### Reproducing upstream CI
+
+The Ansible playbook used to test operators in `Kubernetes OperatorHub` can easily be played on its own.
+Documentation is available at: https://k8s-operatorhub.github.io/community-operators/operator-test-suite
+
+To test the Operator itself, the `kiwi` test suite is the most useful one but you can replay any of them.
+
+Here is a small how-to to run this from scratch on an empty Ubuntu VM:
+```
+sudo apt update && sudo apt install ansible docker.io
+sudo usermod -a -G docker ubuntu
+# Close and re-open connection
+sudo sysctl net/netfilter/nf_conntrack_max=131072 # Fix startup issues in `kube-proxy`
+git clone https://github.com/k8s-operatorhub/community-operators.git
+cd community-operators
+OPP_AUTO_PACKAGEMANIFEST_CLUSTER_VERSION_LABEL=1 OPP_PRODUCTION_TYPE=k8s bash <(curl -sL https://raw.githubusercontent.com/redhat-openshift-ecosystem/community-operators-pipeline/ci/latest/ci/scripts/opp.sh) <suite_name, ex: kiwi> <operator_path, ex: operators/datadog-operator/0.7.1>
+```

@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -24,7 +25,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/orchestrator"
+	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
@@ -39,17 +42,6 @@ func (r *Reconciler) reconcileClusterAgent(logger logr.Logger, dda *datadoghqv1a
 	if !isClusterAgentEnabled(dda.Spec.ClusterAgent) {
 		result, err = r.cleanupClusterAgent(logger, dda, newStatus)
 		return result, err
-	}
-
-	// Generate a Token for clusterAgent-Agent communication if not provided
-	if dda.Spec.Credentials.Token == "" {
-		if newStatus.ClusterAgent == nil {
-			newStatus.ClusterAgent = &datadoghqv1alpha1.DeploymentStatus{}
-		}
-		if newStatus.ClusterAgent.GeneratedToken == "" {
-			newStatus.ClusterAgent.GeneratedToken = generateRandomString(32)
-			return reconcile.Result{}, nil
-		}
 	}
 
 	if newStatus.ClusterAgent != nil &&
@@ -500,7 +492,7 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 
 	container := &newPodTemplate.Spec.Containers[0]
 
-	if datadoghqv1alpha1.BoolValue(dda.Spec.ClusterAgent.Config.ExternalMetrics.Enabled) {
+	if apiutils.BoolValue(dda.Spec.ClusterAgent.Config.ExternalMetrics.Enabled) {
 		port := getClusterAgentMetricsProviderPort(*dda.Spec.ClusterAgent.Config)
 		container.Ports = append(container.Ports, corev1.ContainerPort{
 			ContainerPort: port,
@@ -612,7 +604,7 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 		},
 		{
 			Name:  datadoghqv1alpha1.DDCollectKubeEvents,
-			Value: datadoghqv1alpha1.BoolToString(spec.ClusterAgent.Config.CollectEvents),
+			Value: apiutils.BoolToString(spec.ClusterAgent.Config.CollectEvents),
 		},
 		{
 			Name:  datadoghqv1alpha1.DDHealthPort,
@@ -644,7 +636,7 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 	}
 
 	// TODO We should be able to disable the agent and still configure the Endpoint for the Cluster Agent.
-	if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Enabled) && spec.Agent.Config.DDUrl != nil {
+	if apiutils.BoolValue(dda.Spec.Agent.Enabled) && spec.Agent.Config.DDUrl != nil {
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  datadoghqv1alpha1.DDddURL,
 			Value: *spec.Agent.Config.DDUrl,
@@ -718,7 +710,7 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 	}
 
 	// Cluster Checks config
-	if datadoghqv1alpha1.BoolValue(spec.ClusterAgent.Config.ClusterChecksEnabled) {
+	if apiutils.BoolValue(spec.ClusterAgent.Config.ClusterChecksEnabled) {
 		envVars = append(envVars, []corev1.EnvVar{
 			{
 				Name:  datadoghqv1alpha1.DDExtraConfigProviders,
@@ -749,7 +741,7 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 		})
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  datadoghqv1alpha1.DDAdmissionControllerMutateUnlabelled,
-			Value: datadoghqv1alpha1.BoolToString(spec.ClusterAgent.Config.AdmissionController.MutateUnlabelled),
+			Value: apiutils.BoolToString(spec.ClusterAgent.Config.AdmissionController.MutateUnlabelled),
 		})
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  datadoghqv1alpha1.DDAdmissionControllerServiceName,
@@ -1077,12 +1069,12 @@ func buildClusterRole(dda *datadoghqv1alpha1.DatadogAgent, needClusterLevelRBAC 
 		// to collect cluster level metrics and events
 		rbacRules = append(rbacRules, getDefaultClusterAgentPolicyRules()...)
 
-		if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Enabled) {
-			if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Config.CollectEvents) {
+		if apiutils.BoolValue(dda.Spec.Agent.Enabled) {
+			if apiutils.BoolValue(dda.Spec.Agent.Config.CollectEvents) {
 				rbacRules = append(rbacRules, getEventCollectionPolicyRule())
 			}
 
-			if datadoghqv1alpha1.BoolValue(dda.Spec.Agent.Config.LeaderElection) {
+			if apiutils.BoolValue(dda.Spec.Agent.Config.LeaderElection) {
 				rbacRules = append(rbacRules, getLeaderElectionPolicyRule()...)
 			}
 		}
@@ -1176,7 +1168,7 @@ func buildClusterAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, age
 		Verbs: []string{datadoghqv1alpha1.GetVerb},
 	})
 
-	if datadoghqv1alpha1.BoolValue(dda.Spec.ClusterAgent.Config.CollectEvents) {
+	if apiutils.BoolValue(dda.Spec.ClusterAgent.Config.CollectEvents) {
 		rbacRules = append(rbacRules, getEventCollectionPolicyRule())
 	}
 
@@ -1435,16 +1427,32 @@ func buildClusterAgentRole(dda *datadoghqv1alpha1.DatadogAgent, name, agentVersi
 }
 
 func (r *Reconciler) manageClusterAgentNetworkPolicy(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
-	policyName := fmt.Sprintf("%s-%s", dda.Name, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix)
 	spec := dda.Spec.ClusterAgent
-	if !datadoghqv1alpha1.BoolValue(spec.Enabled) || spec.NetworkPolicy == nil || !datadoghqv1alpha1.BoolValue(spec.NetworkPolicy.Create) {
-		return r.cleanupNetworkPolicy(logger, dda, policyName)
+	builder := clusterAgentNetworkPolicyBuilder{dda, spec.NetworkPolicy}
+	if !apiutils.BoolValue(spec.Enabled) || spec.NetworkPolicy == nil || !apiutils.BoolValue(spec.NetworkPolicy.Create) {
+		return r.cleanupNetworkPolicy(logger, dda, builder.Name())
 	}
 
-	return r.ensureNetworkPolicy(logger, dda, policyName, buildClusterAgentNetworkPolicy)
+	return r.ensureNetworkPolicy(logger, dda, builder)
 }
 
-func buildClusterAgentNetworkPolicy(dda *datadoghqv1alpha1.DatadogAgent, name string) *networkingv1.NetworkPolicy {
+type clusterAgentNetworkPolicyBuilder struct {
+	dda *datadoghqv1alpha1.DatadogAgent
+	np  *datadoghqv1alpha1.NetworkPolicySpec
+}
+
+func (b clusterAgentNetworkPolicyBuilder) Name() string {
+	return fmt.Sprintf("%s-%s", b.dda.Name, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix)
+}
+
+func (b clusterAgentNetworkPolicyBuilder) NetworkPolicySpec() *datadoghqv1alpha1.NetworkPolicySpec {
+	return b.np
+}
+
+func (b clusterAgentNetworkPolicyBuilder) BuildKubernetesPolicy() *networkingv1.NetworkPolicy {
+	dda := b.dda
+	name := b.Name()
+
 	egressRules := []networkingv1.NetworkPolicyEgressRule{
 		// Egress to datadog intake and
 		// kubeapi server
@@ -1484,7 +1492,7 @@ func buildClusterAgentNetworkPolicy(dda *datadoghqv1alpha1.DatadogAgent, name st
 		},
 	}
 
-	if datadoghqv1alpha1.BoolValue(dda.Spec.ClusterAgent.Config.ClusterChecksEnabled) {
+	if apiutils.BoolValue(dda.Spec.ClusterAgent.Config.ClusterChecksEnabled) {
 		ingressRules = append(ingressRules, networkingv1.NetworkPolicyIngressRule{
 			Ports: []networkingv1.NetworkPolicyPort{
 				{
@@ -1527,14 +1535,9 @@ func buildClusterAgentNetworkPolicy(dda *datadoghqv1alpha1.DatadogAgent, name st
 			Namespace: dda.Namespace,
 		},
 		Spec: networkingv1.NetworkPolicySpec{
-			PodSelector: metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					kubernetes.AppKubernetesInstanceLabelKey: datadoghqv1alpha1.DefaultClusterAgentResourceSuffix,
-					kubernetes.AppKubernetesPartOfLabelKey:   NewPartOfLabelValue(dda).String(),
-				},
-			},
-			Ingress: ingressRules,
-			Egress:  egressRules,
+			PodSelector: b.PodSelector(),
+			Ingress:     ingressRules,
+			Egress:      egressRules,
 			PolicyTypes: []networkingv1.PolicyType{
 				networkingv1.PolicyTypeIngress,
 				networkingv1.PolicyTypeEgress,
@@ -1542,4 +1545,203 @@ func buildClusterAgentNetworkPolicy(dda *datadoghqv1alpha1.DatadogAgent, name st
 		},
 	}
 	return policy
+}
+
+func (b clusterAgentNetworkPolicyBuilder) PodSelector() metav1.LabelSelector {
+	return metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			kubernetes.AppKubernetesInstanceLabelKey: datadoghqv1alpha1.DefaultClusterAgentResourceSuffix,
+			kubernetes.AppKubernetesPartOfLabelKey:   NewPartOfLabelValue(b.dda).String(),
+		},
+	}
+}
+
+func (b clusterAgentNetworkPolicyBuilder) ddFQDNs() []cilium.FQDNSelector {
+	selectors := []cilium.FQDNSelector{}
+
+	ddURL := b.dda.Spec.Agent.Config.DDUrl
+	if ddURL != nil {
+		selectors = append(selectors, cilium.FQDNSelector{
+			MatchName: strings.TrimPrefix(*ddURL, "https://"),
+		})
+	}
+
+	var site string
+	if b.dda.Spec.Site != "" {
+		site = b.dda.Spec.Site
+	} else {
+		site = defaultSite
+	}
+
+	selectors = append(selectors, []cilium.FQDNSelector{
+		{
+			MatchPattern: fmt.Sprintf("*-app.agent.%s", site),
+		},
+		{
+			MatchName: fmt.Sprintf("orchestrator.%s", site),
+		},
+	}...)
+
+	return selectors
+}
+
+func (b clusterAgentNetworkPolicyBuilder) ciliumIngressAgent() cilium.NetworkPolicySpec {
+	ingress := cilium.IngressRule{
+		ToPorts: []cilium.PortRule{
+			{
+				Ports: []cilium.PortProtocol{
+					{
+						Port:     "5000",
+						Protocol: cilium.ProtocolTCP,
+					},
+					{
+						Port:     "5005",
+						Protocol: cilium.ProtocolTCP,
+					},
+				},
+			},
+		},
+	}
+
+	if b.dda.Spec.Agent.HostNetwork {
+		ingress.FromEntities = []cilium.Entity{
+			cilium.EntityHost,
+			cilium.EntityRemoteNode,
+		}
+	} else {
+		ingress.FromEndpoints = []metav1.LabelSelector{
+			{
+				MatchLabels: map[string]string{
+					kubernetes.AppKubernetesInstanceLabelKey: datadoghqv1alpha1.DefaultAgentResourceSuffix,
+					kubernetes.AppKubernetesPartOfLabelKey:   fmt.Sprintf("%s-%s", b.dda.Namespace, b.dda.Name),
+				},
+			},
+		}
+	}
+
+	return cilium.NetworkPolicySpec{
+		Description:      "Ingress from agent",
+		EndpointSelector: b.PodSelector(),
+		Ingress:          []cilium.IngressRule{ingress},
+	}
+}
+
+func (b clusterAgentNetworkPolicyBuilder) BuildCiliumPolicy() *cilium.NetworkPolicy {
+	specs := []cilium.NetworkPolicySpec{
+		ciliumEgressMetadataServerRule(b),
+		ciliumEgressDNS(b),
+		{
+			Description:      "Egress to Datadog intake",
+			EndpointSelector: b.PodSelector(),
+			Egress: []cilium.EgressRule{
+				{
+					ToFQDNs: b.ddFQDNs(),
+					ToPorts: []cilium.PortRule{
+						{
+							Ports: []cilium.PortProtocol{
+								{
+									Port:     "443",
+									Protocol: cilium.ProtocolTCP,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			Description: "Egress to Kube API Server",
+			Egress: []cilium.EgressRule{
+				{
+					// ToServices works only for endpoints
+					// outside of the cluster This section
+					// handles the case where the control
+					// plane is outside of the cluster.
+					ToServices: []cilium.Service{
+						{
+							K8sService: &cilium.K8sServiceNamespace{
+								Namespace:   "default",
+								ServiceName: "kubernetes",
+							},
+						},
+					},
+					ToEntities: []cilium.Entity{
+						cilium.EntityHost,
+						cilium.EntityRemoteNode,
+					},
+					ToPorts: []cilium.PortRule{
+						{
+							Ports: []cilium.PortProtocol{
+								{
+									Port:     "443",
+									Protocol: cilium.ProtocolTCP,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		b.ciliumIngressAgent(),
+	}
+
+	if apiutils.BoolValue(b.dda.Spec.ClusterAgent.Config.ClusterChecksEnabled) {
+		specs = append(specs, cilium.NetworkPolicySpec{
+			Description:      "Ingress from cluster workers",
+			EndpointSelector: b.PodSelector(),
+			Ingress: []cilium.IngressRule{
+				{
+					FromEndpoints: []metav1.LabelSelector{
+						{
+							MatchLabels: map[string]string{
+								kubernetes.AppKubernetesInstanceLabelKey: datadoghqv1alpha1.DefaultClusterChecksRunnerResourceSuffix,
+								kubernetes.AppKubernetesPartOfLabelKey:   fmt.Sprintf("%s-%s", b.dda.Namespace, b.dda.Name),
+							},
+						},
+					},
+					ToPorts: []cilium.PortRule{
+						{
+							Ports: []cilium.PortProtocol{
+								{
+									Port:     "5005",
+									Protocol: cilium.ProtocolTCP,
+								},
+							},
+						},
+					},
+				},
+			},
+		})
+	}
+
+	if apiutils.BoolValue(b.dda.Spec.ClusterAgent.Config.ExternalMetrics.Enabled) {
+		specs = append(specs, cilium.NetworkPolicySpec{
+			Description:      "Ingress from API server for external metrics",
+			EndpointSelector: b.PodSelector(),
+			Ingress: []cilium.IngressRule{
+				{
+					FromEntities: []cilium.Entity{cilium.EntityWorld},
+					ToPorts: []cilium.PortRule{
+						{
+							Ports: []cilium.PortProtocol{
+								{
+									Port:     strconv.Itoa(int(*b.dda.Spec.ClusterAgent.Config.ExternalMetrics.Port)),
+									Protocol: cilium.ProtocolTCP,
+								},
+							},
+						},
+					},
+				},
+			},
+		})
+	}
+
+	return &cilium.NetworkPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels:    getDefaultLabels(b.dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(b.dda)),
+			Name:      b.Name(),
+			Namespace: b.dda.Namespace,
+		},
+		Specs: specs,
+	}
 }

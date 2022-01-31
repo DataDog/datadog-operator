@@ -10,7 +10,9 @@ import (
 
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/go-logr/logr"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlbuilder "sigs.k8s.io/controller-runtime/pkg/builder"
@@ -83,6 +85,9 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=datadoghq.com,resources=extendeddaemonsets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=datadoghq.com,resources=extendeddaemonsetreplicasets,verbs=get
 
+// Use CiliumNetworkPolicy
+// +kubebuilder:rbac:groups=cilium.io,resources=ciliumnetworkpolicies,verbs=get;list;watch;create;update;patch;delete
+
 // OpenShift
 // +kubebuilder:rbac:groups=quota.openshift.io,resources=clusterresourcequotas,verbs=get;list
 // +kubebuilder:rbac:groups=security.openshift.io,resources=securitycontextconstraints,resourceNames=restricted,verbs=use
@@ -150,6 +155,7 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=certificates.k8s.io,resources=certificatesigningrequests,verbs=list;watch
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=list;watch
 // +kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses;volumeattachments,verbs=list;watch
+// +kubebuilder:rbac:groups=autoscaling.k8s.io,resources=verticalpodautoscalers,verbs=list;watch
 
 // Reconcile loop for DatadogAgent.
 func (r *DatadogAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -178,6 +184,16 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	if r.Options.SupportExtendedDaemonset {
 		builder = builder.Owns(&edsdatadoghqv1alpha1.ExtendedDaemonSet{})
+	}
+
+	if r.Options.SupportCilium {
+		policy := &unstructured.Unstructured{}
+		policy.SetGroupVersionKind(schema.GroupVersionKind{
+			Group:   "cilium.io",
+			Version: "v2",
+			Kind:    "CiliumNetworkPolicy",
+		})
+		builder = builder.Owns(policy)
 	}
 
 	var metricForwarder datadog.MetricForwardersManager

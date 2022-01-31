@@ -18,6 +18,8 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	test "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1/test"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
@@ -105,6 +107,7 @@ func TestReconcileDatadogAgent_createNewExtendedDaemonSet(t *testing.T) {
 				forwarders: forwarders,
 				options: ReconcilerOptions{
 					SupportExtendedDaemonset: true,
+					SupportCilium:            true,
 				},
 			}
 			got, err := r.createNewExtendedDaemonSet(tt.args.logger, tt.args.agentdeployment, tt.args.newStatus)
@@ -122,6 +125,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 	const resourcesName = "foo"
 	const resourcesNamespace = "bar"
 	const dsName = "foo-agent"
+	const svcName = "foo-agent"
 	const rbacResourcesName = "foo-agent"
 	const rbacResourcesNameClusterAgent = "foo-cluster-agent"
 	const rbacResourcesNameClusterChecksRunner = "foo-cluster-checks-runner"
@@ -512,8 +516,8 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						OrchestratorExplorerDisabled: true,
 						Labels:                       map[string]string{"label-foo-key": "label-bar-value"},
 						NodeAgentConfig: &datadoghqv1alpha1.NodeAgentConfig{
-							DDUrl:    datadoghqv1alpha1.NewStringPointer("https://test.url.com"),
-							LogLevel: datadoghqv1alpha1.NewStringPointer("TRACE"),
+							DDUrl:    apiutils.NewStringPointer("https://test.url.com"),
+							LogLevel: apiutils.NewStringPointer("TRACE"),
 							Tags:     []string{"tag:test"},
 							Env: []corev1.EnvVar{
 								{
@@ -533,8 +537,8 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 							PodAnnotationsAsTags: map[string]string{
 								"annotation": "test",
 							},
-							CollectEvents:  datadoghqv1alpha1.NewBoolPointer(true),
-							LeaderElection: datadoghqv1alpha1.NewBoolPointer(true),
+							CollectEvents:  apiutils.NewBoolPointer(true),
+							LeaderElection: apiutils.NewBoolPointer(true),
 						},
 					})
 					_ = c.Create(context.TODO(), dda)
@@ -629,7 +633,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 					agentConfig := &datadoghqv1alpha1.DatadogAgentSpecAgentSpec{
 						Config: &datadoghqv1alpha1.NodeAgentConfig{
 							SecurityContext: &corev1.PodSecurityContext{
-								RunAsUser: datadoghqv1alpha1.NewInt64Pointer(100),
+								RunAsUser: apiutils.NewInt64Pointer(100),
 							},
 						},
 					}
@@ -1670,7 +1674,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 
 					dcaOptions := &test.NewDeploymentOptions{
 						Labels:                 map[string]string{"label-foo-key": "label-bar-value"},
-						ForceAvailableReplicas: datadoghqv1alpha1.NewInt32Pointer(1),
+						ForceAvailableReplicas: apiutils.NewInt32Pointer(1),
 					}
 					dca := test.NewClusterAgentDeployment(resourcesNamespace, resourcesName, dcaOptions)
 
@@ -1732,7 +1736,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 
 					dcaOptions := &test.NewDeploymentOptions{
 						Labels:                 map[string]string{"label-foo-key": "label-bar-value"},
-						ForceAvailableReplicas: datadoghqv1alpha1.NewInt32Pointer(1),
+						ForceAvailableReplicas: apiutils.NewInt32Pointer(1),
 					}
 					dca := test.NewClusterAgentDeployment(resourcesNamespace, resourcesName, dcaOptions)
 
@@ -1826,7 +1830,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 
 					dcaOptions := &test.NewDeploymentOptions{
 						Labels:                 map[string]string{"label-foo-key": "label-bar-value"},
-						ForceAvailableReplicas: datadoghqv1alpha1.NewInt32Pointer(0),
+						ForceAvailableReplicas: apiutils.NewInt32Pointer(0),
 					}
 					dca := test.NewClusterAgentDeployment(resourcesNamespace, resourcesName, dcaOptions)
 
@@ -1886,7 +1890,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 
 					dcaOptions := &test.NewDeploymentOptions{
 						Labels:                 dcaLabels,
-						ForceAvailableReplicas: datadoghqv1alpha1.NewInt32Pointer(1),
+						ForceAvailableReplicas: apiutils.NewInt32Pointer(1),
 					}
 					dca := test.NewClusterAgentDeployment(resourcesNamespace, resourcesName, dcaOptions)
 
@@ -1947,7 +1951,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 
 					dcaOptions := &test.NewDeploymentOptions{
 						Labels:                 dcaLabels,
-						ForceAvailableReplicas: datadoghqv1alpha1.NewInt32Pointer(1),
+						ForceAvailableReplicas: apiutils.NewInt32Pointer(1),
 					}
 					dca := test.NewClusterAgentDeployment(resourcesNamespace, resourcesName, dcaOptions)
 
@@ -2010,7 +2014,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 
 					dcaOptions := &test.NewDeploymentOptions{
 						Labels:                 dcaLabels,
-						ForceAvailableReplicas: datadoghqv1alpha1.NewInt32Pointer(1),
+						ForceAvailableReplicas: apiutils.NewInt32Pointer(1),
 					}
 					dca := test.NewClusterAgentDeployment(resourcesNamespace, resourcesName, dcaOptions)
 
@@ -2079,7 +2083,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 
 					dcaOptions := &test.NewDeploymentOptions{
 						Labels:                 dcaLabels,
-						ForceAvailableReplicas: datadoghqv1alpha1.NewInt32Pointer(1),
+						ForceAvailableReplicas: apiutils.NewInt32Pointer(1),
 					}
 					dca := test.NewClusterAgentDeployment(resourcesNamespace, resourcesName, dcaOptions)
 
@@ -2153,7 +2157,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 
 					dcaOptions := &test.NewDeploymentOptions{
 						Labels:                 dcaLabels,
-						ForceAvailableReplicas: datadoghqv1alpha1.NewInt32Pointer(1),
+						ForceAvailableReplicas: apiutils.NewInt32Pointer(1),
 					}
 					dca := test.NewClusterAgentDeployment(resourcesNamespace, resourcesName, dcaOptions)
 
@@ -2399,7 +2403,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 
 					dcaOptions := &test.NewDeploymentOptions{
 						Labels:                 map[string]string{"label-foo-key": "label-bar-value"},
-						ForceAvailableReplicas: datadoghqv1alpha1.NewInt32Pointer(1),
+						ForceAvailableReplicas: apiutils.NewInt32Pointer(1),
 					}
 					dca := test.NewClusterAgentDeployment(resourcesNamespace, resourcesName, dcaOptions)
 					_ = c.Create(context.TODO(), dca)
@@ -2428,6 +2432,178 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				policySelector := labels.Set(policy.Spec.PodSelector.MatchLabels).AsSelector()
 				if !policySelector.Matches(dcaLabels) {
 					return fmt.Errorf("network policy's selector %s does not match pods defined in the daemonset", policySelector)
+				}
+
+				return nil
+			},
+		},
+		{
+			name: "DatadogAgent found and defaulted, Cilium network policies created",
+			fields: fields{
+				client:   fake.NewFakeClient(),
+				scheme:   s,
+				recorder: recorder,
+			},
+			args: args{
+				request: newRequest(resourcesNamespace, resourcesName),
+				loadFunc: func(c client.Client) {
+					dadOptions := &test.NewDatadogAgentOptions{
+						CreateNetworkPolicy:          true,
+						NetworkPolicyFlavor:          datadoghqv1alpha1.NetworkPolicyFlavorCilium,
+						OrchestratorExplorerDisabled: true,
+					}
+
+					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, dadOptions)
+					_ = c.Create(context.TODO(), dda)
+
+					createAgentDependencies(c, dda)
+				},
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(c client.Client) error {
+				ds := &appsv1.DaemonSet{}
+				err := c.Get(context.TODO(), newRequest(resourcesNamespace, dsName).NamespacedName, ds)
+				if err != nil {
+					return err
+				}
+
+				unstructured := emptyCiliumUnstructuredPolicy()
+				err = c.Get(context.TODO(), newRequest(resourcesNamespace, dsName).NamespacedName, unstructured)
+				if err != nil {
+					return err
+				}
+
+				policy := cilium.NetworkPolicy{}
+				err = runtime.DefaultUnstructuredConverter.FromUnstructured(unstructured.UnstructuredContent(), &policy)
+				if err != nil {
+					return err
+				}
+
+				dsLabels := labels.Set(ds.Spec.Template.Labels)
+				for _, spec := range policy.Specs {
+					policySelector := labels.Set(spec.EndpointSelector.MatchLabels).AsSelector()
+					if !policySelector.Matches(dsLabels) {
+						return fmt.Errorf("network policy's selector %s does not match pods defined in the daemonset", policySelector)
+					}
+				}
+
+				return nil
+			},
+		},
+		{
+			name: "DatadogAgent found and defaulted, Local traffic Service created",
+			fields: fields{
+				client:   fake.NewFakeClient(),
+				scheme:   s,
+				recorder: recorder,
+			},
+			args: args{
+				request: newRequest(resourcesNamespace, resourcesName),
+				loadFunc: func(c client.Client) {
+					dadOptions := &test.NewDatadogAgentOptions{
+						OrchestratorExplorerDisabled: true,
+					}
+
+					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, dadOptions)
+					_ = c.Create(context.TODO(), dda)
+
+					testGitVersion = "1.22.0"
+
+					createAgentDependencies(c, dda)
+				},
+			},
+			// want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			want:    reconcile.Result{Requeue: true},
+			wantErr: false,
+			wantFunc: func(c client.Client) error {
+				svc := &corev1.Service{}
+				err := c.Get(context.TODO(), newRequest(resourcesNamespace, svcName).NamespacedName, svc)
+				if err != nil {
+					return err
+				}
+
+				if svc.Spec.InternalTrafficPolicy == nil ||
+					*svc.Spec.InternalTrafficPolicy != corev1.ServiceInternalTrafficPolicyLocal {
+					return fmt.Errorf("The agent service doesn’t leverage internal traffic policy")
+				}
+
+				return nil
+			},
+		},
+		{
+			name: "DatadogAgent found and defaulted, Local traffic Service not created",
+			fields: fields{
+				client:   fake.NewFakeClient(),
+				scheme:   s,
+				recorder: recorder,
+			},
+			args: args{
+				request: newRequest(resourcesNamespace, resourcesName),
+				loadFunc: func(c client.Client) {
+					dadOptions := &test.NewDatadogAgentOptions{
+						OrchestratorExplorerDisabled: true,
+					}
+
+					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, dadOptions)
+					_ = c.Create(context.TODO(), dda)
+
+					testGitVersion = "1.21.0"
+
+					createAgentDependencies(c, dda)
+				},
+			},
+			// want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(c client.Client) error {
+				svc := &corev1.Service{}
+				err := c.Get(context.TODO(), newRequest(resourcesNamespace, svcName).NamespacedName, svc)
+				if err == nil || !apierrors.IsNotFound(err) {
+					return fmt.Errorf("Expected to not find service %s: %v", svcName, err)
+				}
+
+				return nil
+			},
+		},
+		{
+			name: "DatadogAgent found and defaulted, Local traffic Service forced",
+			fields: fields{
+				client:   fake.NewFakeClient(),
+				scheme:   s,
+				recorder: recorder,
+			},
+			args: args{
+				request: newRequest(resourcesNamespace, resourcesName),
+				loadFunc: func(c client.Client) {
+					dadOptions := &test.NewDatadogAgentOptions{
+						OrchestratorExplorerDisabled: true,
+					}
+
+					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, dadOptions)
+					dda.Spec.Agent.LocalService = &datadoghqv1alpha1.LocalService{
+						ForceLocalServiceEnable: apiutils.NewBoolPointer(true),
+					}
+					_ = c.Create(context.TODO(), dda)
+
+					testGitVersion = "1.21.0"
+
+					createAgentDependencies(c, dda)
+				},
+			},
+			// want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			want:    reconcile.Result{Requeue: true},
+			wantErr: false,
+			wantFunc: func(c client.Client) error {
+				svc := &corev1.Service{}
+				err := c.Get(context.TODO(), newRequest(resourcesNamespace, svcName).NamespacedName, svc)
+				if err != nil {
+					return err
+				}
+
+				if svc.Spec.InternalTrafficPolicy == nil ||
+					*svc.Spec.InternalTrafficPolicy != corev1.ServiceInternalTrafficPolicyLocal {
+					return fmt.Errorf("The agent service doesn’t leverage internal traffic policy")
 				}
 
 				return nil
@@ -2601,6 +2777,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				forwarders: forwarders,
 				options: ReconcilerOptions{
 					SupportExtendedDaemonset: true,
+					SupportCilium:            true,
 					Site:                     "bar.site",
 					DDUrl:                    "https://bar.ddurl",
 				},

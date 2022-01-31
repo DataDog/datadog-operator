@@ -3,10 +3,11 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package v1alpha1
+package utils
 
 import (
 	"encoding/json"
+	"math/rand"
 )
 
 // NewInt32Pointer returns pointer on a new int32 value instance
@@ -62,4 +63,15 @@ func IsEqualStruct(in interface{}, cmp interface{}) bool {
 		return false
 	}
 	return string(inJSON) == string(cmpJSON)
+}
+
+var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+
+// GenerateRandomString use to generate random string with a define size
+func GenerateRandomString(n int) string {
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = letterRunes[rand.Intn(len(letterRunes))]
+	}
+	return string(b)
 }

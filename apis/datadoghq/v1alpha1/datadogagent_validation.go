@@ -8,6 +8,7 @@ package v1alpha1
 import (
 	"fmt"
 
+	"github.com/DataDog/datadog-operator/apis/utils"
 	utilserrors "k8s.io/apimachinery/pkg/util/errors"
 )
 
@@ -15,7 +16,7 @@ import (
 func IsValidDatadogAgent(spec *DatadogAgentSpec) error {
 	var errs []error
 	var err error
-	if BoolValue(spec.Agent.Enabled) {
+	if utils.BoolValue(spec.Agent.Enabled) {
 		if spec.Agent.CustomConfig != nil {
 			if err = IsValidCustomConfigSpec(spec.Agent.CustomConfig); err != nil {
 				errs = append(errs, fmt.Errorf("invalid spec.agent.customConfig, err: %w", err))
@@ -29,7 +30,7 @@ func IsValidDatadogAgent(spec *DatadogAgentSpec) error {
 		}
 	}
 
-	if BoolValue(spec.ClusterAgent.Enabled) {
+	if utils.BoolValue(spec.ClusterAgent.Enabled) {
 		if spec.ClusterAgent.CustomConfig != nil {
 			if err = IsValidCustomConfigSpec(spec.ClusterAgent.CustomConfig); err != nil {
 				errs = append(errs, fmt.Errorf("invalid spec.clusterAgent.customConfig, err: %w", err))
@@ -37,7 +38,7 @@ func IsValidDatadogAgent(spec *DatadogAgentSpec) error {
 		}
 	}
 
-	if BoolValue(spec.ClusterChecksRunner.Enabled) {
+	if utils.BoolValue(spec.ClusterChecksRunner.Enabled) {
 		if spec.ClusterChecksRunner.CustomConfig != nil {
 			if err = IsValidCustomConfigSpec(spec.ClusterChecksRunner.CustomConfig); err != nil {
 				errs = append(errs, fmt.Errorf("invalid spec.clusterChecksRunner.customConfig, err: %w", err))

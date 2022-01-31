@@ -1,0 +1,23 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogMonitor
+metadata:
+  name: datadog-slo-alert-test
+  namespace: datadog
+spec:
+  query: "error_budget(\"slo-hash-id\").over(\"7d\") > 10"
+  type: "slo alert"
+  name: "Test slo alert made from DatadogMonitor"
+  message: "1-2-3 testing"
+  tags:
+    - "test:datadog"
+  priority: 5
+  options:
+    evaluationDelay: 300
+    includeTags: true
+    locked: false
+    newHostDelay: 300
+    notifyNoData: true
+    noDataTimeframe: 30
+    renotifyInterval: 1440
+    thresholds:
+      critical: "10"
