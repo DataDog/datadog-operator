@@ -244,6 +244,7 @@ const (
 	PolicyAPIGroup           = "policy"
 	NetworkingAPIGroup       = "networking.k8s.io"
 	AutoscalingK8sIoAPIGroup = "autoscaling.k8s.io"
+	AuthorizationAPIGroup    = "authorization.k8s.io"
 
 	// Resources
 
@@ -291,6 +292,7 @@ const (
 	NetworkPolicyResource               = "networkpolicies"
 	IngressesResource                   = "ingresses"
 	VPAResource                         = "verticalpodautoscalers"
+	SubjectAccessReviewResource         = "subjectaccessreviews"
 
 	// Resource names
 
