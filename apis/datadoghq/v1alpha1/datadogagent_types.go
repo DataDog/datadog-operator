@@ -6,6 +6,7 @@
 package v1alpha1
 
 import (
+	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -86,7 +87,7 @@ type DatadogCredentials struct {
 	// APISecret Use existing Secret which stores API key instead of creating a new one.
 	// If set, this parameter takes precedence over "apiKey" and "apiKeyExistingSecret".
 	// +optional
-	APISecret *Secret `json:"apiSecret,omitempty"`
+	APISecret *commonv1.SecretConfig `json:"apiSecret,omitempty"`
 
 	// If you are using clusterAgent.metricsProvider.enabled = true, you must set
 	// a Datadog application key for read access to your metrics.
@@ -103,7 +104,7 @@ type DatadogCredentials struct {
 	// APPSecret Use existing Secret which stores API key instead of creating a new one.
 	// If set, this parameter takes precedence over "apiKey" and "appKeyExistingSecret".
 	// +optional
-	APPSecret *Secret `json:"appSecret,omitempty"`
+	APPSecret *commonv1.SecretConfig `json:"appSecret,omitempty"`
 }
 
 // AgentCredentials contains credentials values to configure the Agent.
@@ -122,21 +123,9 @@ type AgentCredentials struct {
 	UseSecretBackend *bool `json:"useSecretBackend,omitempty"`
 }
 
-// Secret contains a secret name and an included key.
-// +k8s:openapi-gen=true
-type Secret struct {
-	// SecretName is the name of the secret.
-	SecretName string `json:"secretName"`
-
-	// KeyName is the key of the secret to use.
-	// +optional
-	KeyName string `json:"keyName,omitempty"`
-}
-
 // DatadogAgentSpecAgentSpec defines the desired state of the node Agent.
 // +k8s:openapi-gen=true
 type DatadogAgentSpecAgentSpec struct {
-
 	// Enabled
 	Enabled *bool `json:"enabled,omitempty"`
 
@@ -145,7 +134,7 @@ type DatadogAgentSpecAgentSpec struct {
 	UseExtendedDaemonset *bool `json:"useExtendedDaemonset,omitempty"`
 
 	// The container image of the Datadog Agent.
-	Image *ImageConfig `json:"image,omitempty"`
+	Image *commonv1.AgentImageConfig `json:"image,omitempty"`
 
 	// Name of the Daemonset to create or migrate from.
 	// +optional
@@ -872,28 +861,7 @@ type NodeAgentConfig struct {
 
 	// KubeletConfig contains the Kubelet configuration parameters
 	// +optional
-	Kubelet *KubeletConfig `json:"kubelet,omitempty"`
-}
-
-// KubeletConfig contains the Kubelet configuration parameters
-// +k8s:openapi-gen=true
-type KubeletConfig struct {
-	// Override host used to contact Kubelet API (default to status.hostIP)
-	// +optional
-	Host *corev1.EnvVarSource `json:"host,omitempty"`
-
-	// Toggle kubelet TLS verification (default to true)
-	// +optional
-	TLSVerify *bool `json:"tlsVerify,omitempty"`
-
-	// Path (on host) where the Kubelet CA certificate is stored
-	// +optional
-	HostCAPath string `json:"hostCAPath,omitempty"`
-
-	// Path (inside Agent containers) where the Kubelet CA certificate is stored
-	// Default to /var/run/host-kubelet-ca.crt if hostCAPath else /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
-	// +optional
-	AgentCAPath string `json:"agentCAPath,omitempty"`
+	Kubelet *commonv1.KubeletConfig `json:"kubelet,omitempty"`
 }
 
 // CRISocketConfig contains the CRI socket configuration parameters.
@@ -947,12 +915,11 @@ type DSDUnixDomainSocketSpec struct {
 // DatadogAgentSpecClusterAgentSpec defines the desired state of the cluster Agent.
 // +k8s:openapi-gen=true
 type DatadogAgentSpecClusterAgentSpec struct {
-
 	// Enabled
 	Enabled *bool `json:"enabled,omitempty"`
 
 	// The container image of the Datadog Cluster Agent.
-	Image *ImageConfig `json:"image,omitempty"`
+	Image *commonv1.AgentImageConfig `json:"image,omitempty"`
 
 	// Name of the Cluster Agent Deployment to create or migrate from.
 	// +optional
@@ -1192,12 +1159,11 @@ type ClusterChecksRunnerConfig struct {
 // DatadogAgentSpecClusterChecksRunnerSpec defines the desired state of the Cluster Checks Runner.
 // +k8s:openapi-gen=true
 type DatadogAgentSpecClusterChecksRunnerSpec struct {
-
 	// Enabled
 	Enabled *bool `json:"enabled,omitempty"`
 
 	// The container image of the Datadog Cluster Checks Runner.
-	Image *ImageConfig `json:"image,omitempty"`
+	Image *commonv1.AgentImageConfig `json:"image,omitempty"`
 
 	// Name of the cluster checks deployment to create or migrate from.
 	// +optional
@@ -1247,36 +1213,6 @@ type DatadogAgentSpecClusterChecksRunnerSpec struct {
 	// Provide Cluster Checks Runner Network Policy configuration.
 	// +optional
 	NetworkPolicy *NetworkPolicySpec `json:"networkPolicy,omitempty"`
-}
-
-// ImageConfig Datadog Agent container image config.
-// +k8s:openapi-gen=true
-type ImageConfig struct {
-	// Define the image to use:
-	// Use "gcr.io/datadoghq/agent" for Datadog Agent 7
-	// Use "datadog/dogstatsd" for Standalone Datadog Agent DogStatsD
-	// Use "gcr.io/datadoghq/cluster-agent" for Datadog Cluster Agent
-	// Use "agent" with the registry and tag configurations for <registry>/agent:<tag>
-	// Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>
-	Name string `json:"name,omitempty"`
-
-	// Define the image version to use:
-	// To be used if the Name field does not correspond to a full image string.
-	// +optional
-	Tag string `json:"tag,omitempty"`
-
-	// Define whether the Agent image should support JMX.
-	// +optional
-	JmxEnabled bool `json:"jmxEnabled,omitempty"`
-
-	// The Kubernetes pull policy:
-	// Use Always, Never or IfNotPresent.
-	PullPolicy *corev1.PullPolicy `json:"pullPolicy,omitempty"`
-
-	// It is possible to specify docker registry credentials.
-	// See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod
-	// +optional
-	PullSecrets *[]corev1.LocalObjectReference `json:"pullSecrets,omitempty"`
 }
 
 // NetworkPolicyFlavor specifies which flavor of Network Policy to use.

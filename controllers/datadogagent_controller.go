@@ -8,11 +8,17 @@ package controllers
 import (
 	"context"
 
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/go-logr/logr"
+
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
+	policyv1 "k8s.io/api/policy/v1beta1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlbuilder "sigs.k8s.io/controller-runtime/pkg/builder"
@@ -23,16 +29,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
-	networkingv1 "k8s.io/api/networking/v1"
-	policyv1 "k8s.io/api/policy/v1beta1"
-	rbacv1 "k8s.io/api/rbac/v1"
-	"k8s.io/apimachinery/pkg/version"
-
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 )
 
@@ -205,9 +205,10 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	var metricForwarder datadog.MetricForwardersManager
+	var builderOptions []ctrlbuilder.ForOption
 	if r.Options.OperatorMetricsEnabled {
 		metricForwarder = datadog.NewForwardersManager(r.Client)
-		builder = builder.For(&datadoghqv1alpha1.DatadogAgent{}, ctrlbuilder.WithPredicates(predicate.Funcs{
+		builderOptions = append(builderOptions, ctrlbuilder.WithPredicates(predicate.Funcs{
 			// On `DatadogAgent` object creation, we register a metrics forwarder for it.
 			CreateFunc: func(e event.CreateEvent) bool {
 				metricForwarder.Register(e.Object)
@@ -215,12 +216,9 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				return true
 			},
 		}))
-	} else {
-		metricForwarder = nil
-		builder = builder.For(&datadoghqv1alpha1.DatadogAgent{})
 	}
 
-	if err := builder.Complete(r); err != nil {
+	if err := builder.For(&datadoghqv1alpha1.DatadogAgent{}, builderOptions...).Complete(r); err != nil {
 		return err
 	}
 

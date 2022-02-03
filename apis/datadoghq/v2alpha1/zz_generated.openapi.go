@@ -25,14 +25,13 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./apis/datadoghq/v2alpha1.DatadogAgentStatus":                schema__apis_datadoghq_v2alpha1_DatadogAgentStatus(ref),
 		"./apis/datadoghq/v2alpha1.DatadogCredentials":                schema__apis_datadoghq_v2alpha1_DatadogCredentials(ref),
 		"./apis/datadoghq/v2alpha1.DatadogFeatures":                   schema__apis_datadoghq_v2alpha1_DatadogFeatures(ref),
-		"./apis/datadoghq/v2alpha1.ImageConfig":                       schema__apis_datadoghq_v2alpha1_ImageConfig(ref),
+		"./apis/datadoghq/v2alpha1.DogstatsdConfig":                   schema__apis_datadoghq_v2alpha1_DogstatsdConfig(ref),
+		"./apis/datadoghq/v2alpha1.EventCollectionConfig":             schema__apis_datadoghq_v2alpha1_EventCollectionConfig(ref),
 		"./apis/datadoghq/v2alpha1.KubeStateMetricsCoreFeatureConfig": schema__apis_datadoghq_v2alpha1_KubeStateMetricsCoreFeatureConfig(ref),
-		"./apis/datadoghq/v2alpha1.KubeletConfig":                     schema__apis_datadoghq_v2alpha1_KubeletConfig(ref),
 		"./apis/datadoghq/v2alpha1.LocalService":                      schema__apis_datadoghq_v2alpha1_LocalService(ref),
 		"./apis/datadoghq/v2alpha1.NetworkPolicyConfig":               schema__apis_datadoghq_v2alpha1_NetworkPolicyConfig(ref),
 		"./apis/datadoghq/v2alpha1.OrchestratorExplorerFeatureConfig": schema__apis_datadoghq_v2alpha1_OrchestratorExplorerFeatureConfig(ref),
 		"./apis/datadoghq/v2alpha1.PrometheusScrapeFeatureConfig":     schema__apis_datadoghq_v2alpha1_PrometheusScrapeFeatureConfig(ref),
-		"./apis/datadoghq/v2alpha1.Secret":                            schema__apis_datadoghq_v2alpha1_Secret(ref),
 		"./apis/datadoghq/v2alpha1.UnixDomainSocketConfig":            schema__apis_datadoghq_v2alpha1_UnixDomainSocketConfig(ref),
 	}
 }
@@ -54,14 +53,14 @@ func schema__apis_datadoghq_v2alpha1_CustomConfig(ref common.ReferenceCallback) 
 					"configMap": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ConfigMap references an existing ConfigMap with the configuration file content.",
-							Ref:         ref("./apis/datadoghq/v2alpha1.ConfigMapConfig"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/common/v1.ConfigMapConfig"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v2alpha1.ConfigMapConfig"},
+			"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1.ConfigMapConfig"},
 	}
 }
 
@@ -122,6 +121,13 @@ func schema__apis_datadoghq_v2alpha1_DatadogAgentGenericContainer(ref common.Ref
 					"name": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Name of the container that is overridden",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"logLevel": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LogLevel sets logging verbosity (overrides global setting) Valid log levels are: trace, debug, info, warn, error, critical, and off. Default: 'info'",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -236,11 +242,24 @@ func schema__apis_datadoghq_v2alpha1_DatadogAgentGenericContainer(ref common.Ref
 							Ref:         ref("k8s.io/api/core/v1.Probe"),
 						},
 					},
+					"securityContext": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Container-level SecurityContext.",
+							Ref:         ref("k8s.io/api/core/v1.SecurityContext"),
+						},
+					},
+					"appArmorProfileName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "AppArmorProfileName specify a apparmor profile.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.Probe", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.VolumeMount"},
+			"k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.Probe", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.SecurityContext", "k8s.io/api/core/v1.VolumeMount"},
 	}
 }
 
@@ -282,7 +301,7 @@ func schema__apis_datadoghq_v2alpha1_DatadogCredentials(ref common.ReferenceCall
 					"apiSecret": {
 						SchemaProps: spec.SchemaProps{
 							Description: "APISecret references an existing Secret which stores the API key instead of creating a new one. If set, this parameter takes precedence over \"APIKey\".",
-							Ref:         ref("./apis/datadoghq/v2alpha1.Secret"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/common/v1.SecretConfig"),
 						},
 					},
 					"appKey": {
@@ -295,14 +314,14 @@ func schema__apis_datadoghq_v2alpha1_DatadogCredentials(ref common.ReferenceCall
 					"appSecret": {
 						SchemaProps: spec.SchemaProps{
 							Description: "AppSecret references an existing Secret which stores the application key instead of creating a new one. If set, this parameter takes precedence over \"AppKey\".",
-							Ref:         ref("./apis/datadoghq/v2alpha1.Secret"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/common/v1.SecretConfig"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v2alpha1.Secret"},
+			"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1.SecretConfig"},
 	}
 }
 
@@ -319,16 +338,28 @@ func schema__apis_datadoghq_v2alpha1_DatadogFeatures(ref common.ReferenceCallbac
 							Ref:         ref("./apis/datadoghq/v2alpha1.LogCollectionFeatureConfig"),
 						},
 					},
-					"processCollection": {
+					"liveProcessCollection": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ProcessCollection configuration.",
-							Ref:         ref("./apis/datadoghq/v2alpha1.ProcessCollectionFeatureConfig"),
+							Description: "LiveProcessCollection configuration.",
+							Ref:         ref("./apis/datadoghq/v2alpha1.LiveProcessCollectionFeatureConfig"),
 						},
 					},
-					"containerCollection": {
+					"liveContainerCollection": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ContainerCollection configuration.",
-							Ref:         ref("./apis/datadoghq/v2alpha1.ContainerCollectionFeatureConfig"),
+							Description: "LiveContainerCollection configuration.",
+							Ref:         ref("./apis/datadoghq/v2alpha1.LiveContainerCollectionFeatureConfig"),
+						},
+					},
+					"oomKill": {
+						SchemaProps: spec.SchemaProps{
+							Description: "OOMKill configuration.",
+							Ref:         ref("./apis/datadoghq/v2alpha1.OOMKillFeatureConfig"),
+						},
+					},
+					"tcpQueueLength": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TCPQueueLength configuration.",
+							Ref:         ref("./apis/datadoghq/v2alpha1.TCPQueueLengthFeatureConfig"),
 						},
 					},
 					"apm": {
@@ -361,6 +392,18 @@ func schema__apis_datadoghq_v2alpha1_DatadogFeatures(ref common.ReferenceCallbac
 							Ref:         ref("./apis/datadoghq/v2alpha1.USMFeatureConfig"),
 						},
 					},
+					"dogstatsd": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Dogstatsd configuration.",
+							Ref:         ref("./apis/datadoghq/v2alpha1.DogstatsdConfig"),
+						},
+					},
+					"eventCollection": {
+						SchemaProps: spec.SchemaProps{
+							Description: "EventCollection configuration.",
+							Ref:         ref("./apis/datadoghq/v2alpha1.EventCollectionConfig"),
+						},
+					},
 					"orchestratorExplorer": {
 						SchemaProps: spec.SchemaProps{
 							Description: "OrchestratorExplorer check configuration.",
@@ -385,10 +428,10 @@ func schema__apis_datadoghq_v2alpha1_DatadogFeatures(ref common.ReferenceCallbac
 							Ref:         ref("./apis/datadoghq/v2alpha1.ExternalMetricsServerFeatureConfig"),
 						},
 					},
-					"clusterChecksRunner": {
+					"clusterChecks": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ClusterChecksRunner configuration.",
-							Ref:         ref("./apis/datadoghq/v2alpha1.ClusterChecksRunnerFeatureConfig"),
+							Description: "ClusterChecks configuration.",
+							Ref:         ref("./apis/datadoghq/v2alpha1.ClusterChecksFeatureConfig"),
 						},
 					},
 					"prometheusScrape": {
@@ -407,64 +450,66 @@ func schema__apis_datadoghq_v2alpha1_DatadogFeatures(ref common.ReferenceCallbac
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v2alpha1.APMFeatureConfig", "./apis/datadoghq/v2alpha1.AdmissionControllerFeatureConfig", "./apis/datadoghq/v2alpha1.CSPMFeatureConfig", "./apis/datadoghq/v2alpha1.CWSFeatureConfig", "./apis/datadoghq/v2alpha1.ClusterChecksRunnerFeatureConfig", "./apis/datadoghq/v2alpha1.ContainerCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.DatadogMonitorFeatureConfig", "./apis/datadoghq/v2alpha1.ExternalMetricsServerFeatureConfig", "./apis/datadoghq/v2alpha1.KubeStateMetricsCoreFeatureConfig", "./apis/datadoghq/v2alpha1.LogCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.NPMFeatureConfig", "./apis/datadoghq/v2alpha1.OrchestratorExplorerFeatureConfig", "./apis/datadoghq/v2alpha1.ProcessCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.PrometheusScrapeFeatureConfig", "./apis/datadoghq/v2alpha1.USMFeatureConfig"},
+			"./apis/datadoghq/v2alpha1.APMFeatureConfig", "./apis/datadoghq/v2alpha1.AdmissionControllerFeatureConfig", "./apis/datadoghq/v2alpha1.CSPMFeatureConfig", "./apis/datadoghq/v2alpha1.CWSFeatureConfig", "./apis/datadoghq/v2alpha1.ClusterChecksFeatureConfig", "./apis/datadoghq/v2alpha1.DatadogMonitorFeatureConfig", "./apis/datadoghq/v2alpha1.DogstatsdConfig", "./apis/datadoghq/v2alpha1.EventCollectionConfig", "./apis/datadoghq/v2alpha1.ExternalMetricsServerFeatureConfig", "./apis/datadoghq/v2alpha1.KubeStateMetricsCoreFeatureConfig", "./apis/datadoghq/v2alpha1.LiveContainerCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.LiveProcessCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.LogCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.NPMFeatureConfig", "./apis/datadoghq/v2alpha1.OOMKillFeatureConfig", "./apis/datadoghq/v2alpha1.OrchestratorExplorerFeatureConfig", "./apis/datadoghq/v2alpha1.PrometheusScrapeFeatureConfig", "./apis/datadoghq/v2alpha1.TCPQueueLengthFeatureConfig", "./apis/datadoghq/v2alpha1.USMFeatureConfig"},
 	}
 }
 
-func schema__apis_datadoghq_v2alpha1_ImageConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema__apis_datadoghq_v2alpha1_DogstatsdConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "ImageConfig Datadog agent container image config.",
+				Description: "DogstatsdConfig contains the Dogstatsd configuration parameters.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"name": {
+					"originDetectionEnabled": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Define the image to use: Use \"gcr.io/datadoghq/agent:latest\" for Datadog Agent 7 Use \"datadog/dogstatsd:latest\" for standalone Datadog Agent DogStatsD 7 Use \"gcr.io/datadoghq/cluster-agent:latest\" for Datadog Cluster Agent Use \"agent\" with the registry and tag configurations for <registry>/agent:<tag> Use \"cluster-agent\" with the registry and tag configurations for <registry>/cluster-agent:<tag>",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"tag": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Define the image tag to use. To be used if the Name field does not correspond to a full image string.",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"jmxEnabled": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Define whether the Agent image should support JMX.",
+							Description: "OriginDetectionEnabled enables origin detection for container tagging. See also: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/#using-origin-detection-for-container-tagging",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},
-					"pullPolicy": {
+					"hostPortConfig": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The Kubernetes pull policy: Use Always, Never or IfNotPresent.",
-							Type:        []string{"string"},
-							Format:      "",
+							Description: "HostPortConfig contains host port configuration. Enabled Default: true Port Default: 8125",
+							Ref:         ref("./apis/datadoghq/v2alpha1.HostPortConfig"),
 						},
 					},
-					"pullSecrets": {
+					"unixDomainSocketConfig": {
 						SchemaProps: spec.SchemaProps{
-							Description: "It is possible to specify Docker registry credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: map[string]interface{}{},
-										Ref:     ref("k8s.io/api/core/v1.LocalObjectReference"),
-									},
-								},
-							},
+							Description: "UnixDomainSocketConfig contains socket configuration. See also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables Enabled Default: true Path Default: `/var/run/datadog/apm.socket`",
+							Ref:         ref("./apis/datadoghq/v2alpha1.UnixDomainSocketConfig"),
+						},
+					},
+					"mapperProfiles": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Configure the Dogstasd Mapper Profiles. Can be passed as raw data or via a json encoded string in a config map. See also: https://docs.datadoghq.com/developers/dogstatsd/dogstatsd_mapper/",
+							Ref:         ref("./apis/datadoghq/v2alpha1.CustomConfig"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"k8s.io/api/core/v1.LocalObjectReference"},
+			"./apis/datadoghq/v2alpha1.CustomConfig", "./apis/datadoghq/v2alpha1.HostPortConfig", "./apis/datadoghq/v2alpha1.UnixDomainSocketConfig"},
+	}
+}
+
+func schema__apis_datadoghq_v2alpha1_EventCollectionConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "EventCollectionConfig contains the Event Collection configuration.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"collectKubernetesEvents": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
+				},
+			},
+		},
 	}
 }
 
@@ -493,48 +538,6 @@ func schema__apis_datadoghq_v2alpha1_KubeStateMetricsCoreFeatureConfig(ref commo
 		},
 		Dependencies: []string{
 			"./apis/datadoghq/v2alpha1.CustomConfig"},
-	}
-}
-
-func schema__apis_datadoghq_v2alpha1_KubeletConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "KubeletConfig contains the kubelet configuration parameters.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"host": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Host overrides the host used to contact kubelet API (default to status.hostIP).",
-							Ref:         ref("k8s.io/api/core/v1.EnvVarSource"),
-						},
-					},
-					"tlsVerify": {
-						SchemaProps: spec.SchemaProps{
-							Description: "TLSVerify toggles kubelet TLS verification. Default: true",
-							Type:        []string{"boolean"},
-							Format:      "",
-						},
-					},
-					"hostCAPath": {
-						SchemaProps: spec.SchemaProps{
-							Description: "HostCAPath is the host path where the kubelet CA certificate is stored.",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"agentCAPath": {
-						SchemaProps: spec.SchemaProps{
-							Description: "AgentCAPath is the container path where the kubelet CA certificate is stored. Default: '/var/run/host-kubelet-ca.crt' if hostCAPath is set, else '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt'",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-				},
-			},
-		},
-		Dependencies: []string{
-			"k8s.io/api/core/v1.EnvVarSource"},
 	}
 }
 
@@ -703,35 +706,6 @@ func schema__apis_datadoghq_v2alpha1_PrometheusScrapeFeatureConfig(ref common.Re
 						},
 					},
 				},
-			},
-		},
-	}
-}
-
-func schema__apis_datadoghq_v2alpha1_Secret(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "Secret contains a secret name and an included key.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"secretName": {
-						SchemaProps: spec.SchemaProps{
-							Description: "SecretName is the name of the secret.",
-							Default:     "",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"keyName": {
-						SchemaProps: spec.SchemaProps{
-							Description: "KeyName is the key of the secret.",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-				},
-				Required: []string{"secretName"},
 			},
 		},
 	}

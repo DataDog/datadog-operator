@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/orchestrator"
@@ -2413,13 +2414,13 @@ func addBoolPointerEnVar(b *bool, varName string, varList []corev1.EnvVar) []cor
 }
 
 // getImage builds the image string based on ImageConfig and the registry configuration.
-func getImage(imageSpec *datadoghqv1alpha1.ImageConfig, registry *string) string {
+func getImage(imageSpec *commonv1.AgentImageConfig, registry *string) string {
 	if defaulting.IsImageNameContainsTag(imageSpec.Name) {
 		// The image name corresponds to a full image string
 		return imageSpec.Name
 	}
 
-	img := defaulting.NewImage(imageSpec.Name, imageSpec.Tag, imageSpec.JmxEnabled)
+	img := defaulting.NewImage(imageSpec.Name, imageSpec.Tag, imageSpec.JMXEnabled)
 
 	if registry != nil {
 		defaulting.WithRegistry(defaulting.ContainerRegistry(*registry))(img)

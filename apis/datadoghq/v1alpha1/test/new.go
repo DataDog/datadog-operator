@@ -13,6 +13,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
@@ -72,7 +73,7 @@ type NewDatadogAgentOptions struct {
 	ClusterChecksRunnerVolumeMounts  []corev1.VolumeMount
 	ClusterChecksRunnerEnvVars       []corev1.EnvVar
 	APIKeyExistingSecret             string
-	APISecret                        *datadoghqv1alpha1.Secret
+	APISecret                        *commonv1.SecretConfig
 	Site                             string
 	HostPort                         int32
 	HostNetwork                      bool
@@ -113,7 +114,7 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 	ad.Spec = datadoghqv1alpha1.DatadogAgentSpec{
 		Credentials: DefaultCredentials(),
 		Agent: datadoghqv1alpha1.DatadogAgentSpecAgentSpec{
-			Image: &datadoghqv1alpha1.ImageConfig{
+			Image: &commonv1.AgentImageConfig{
 				Name:       defaultImage,
 				PullPolicy: &pullPolicy,
 			},

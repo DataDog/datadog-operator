@@ -21,6 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/testutils"
@@ -91,7 +92,10 @@ func checkAgentUpdateOnObject(agentKey, objKey types.NamespacedName, obj client.
 func checkAgentUpdateOnDaemonSet(agentKey, dsKey types.NamespacedName, updateAgent func(agent *datadoghqv1alpha1.DatadogAgent), check func(agent *datadoghqv1alpha1.DatadogAgent) bool) {
 	obj := &appsv1.DaemonSet{}
 	checkAgentUpdateOnObject(agentKey, dsKey, obj, func(agent *datadoghqv1alpha1.DatadogAgent) string {
-		return agent.Status.Agent.CurrentHash
+		if agent.Status.Agent != nil {
+			return agent.Status.Agent.CurrentHash
+		}
+		return ""
 	}, func() string {
 		return obj.Annotations[datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey]
 	}, updateAgent, check)
@@ -100,7 +104,10 @@ func checkAgentUpdateOnDaemonSet(agentKey, dsKey types.NamespacedName, updateAge
 func checkAgentUpdateOnClusterAgent(agentKey, dsKey types.NamespacedName, updateAgent func(agent *datadoghqv1alpha1.DatadogAgent), check func(agent *datadoghqv1alpha1.DatadogAgent) bool) {
 	obj := &appsv1.Deployment{}
 	checkAgentUpdateOnObject(agentKey, dsKey, obj, func(agent *datadoghqv1alpha1.DatadogAgent) string {
-		return agent.Status.ClusterAgent.CurrentHash
+		if agent.Status.ClusterAgent != nil {
+			return agent.Status.ClusterAgent.CurrentHash
+		}
+		return ""
 	}, func() string {
 		return obj.Annotations[datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey]
 	}, updateAgent, check)
@@ -108,9 +115,6 @@ func checkAgentUpdateOnClusterAgent(agentKey, dsKey types.NamespacedName, update
 
 // This test may take ~30s to run, check you go test timeout
 var _ = Describe("DatadogAgent Controller", func() {
-	// intString2 := intstr.FromInt(2)
-	// intString10 := intstr.FromInt(10)
-
 	Context("Initial deployment", func() {
 		namespace := "default"
 		name := "foo"
@@ -248,7 +252,7 @@ var _ = Describe("DatadogAgent Controller", func() {
 				agent.Spec.ClusterAgent.Image.Name = "datadog/cluster-agent:1.0.0"
 				agent.Spec.ClusterAgent.Config.ClusterChecksEnabled = apiutils.NewBoolPointer(true)
 				agent.Spec.ClusterChecksRunner = datadoghqv1alpha1.DatadogAgentSpecClusterChecksRunnerSpec{
-					Image: &datadoghqv1alpha1.ImageConfig{
+					Image: &commonv1.AgentImageConfig{
 						Name: "datadog/agent:7.22.0",
 					},
 				}

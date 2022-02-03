@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"testing"
 
+	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
@@ -454,13 +455,13 @@ func Test_mergeAnnotationsLabels(t *testing.T) {
 func Test_getImage(t *testing.T) {
 	tests := []struct {
 		name      string
-		imageSpec *datadoghqv1alpha1.ImageConfig
+		imageSpec *commonv1.AgentImageConfig
 		registry  *string
 		want      string
 	}{
 		{
 			name: "backward compatible",
-			imageSpec: &datadoghqv1alpha1.ImageConfig{
+			imageSpec: &commonv1.AgentImageConfig{
 				Name: defaulting.GetLatestAgentImage(),
 			},
 			registry: nil,
@@ -468,7 +469,7 @@ func Test_getImage(t *testing.T) {
 		},
 		{
 			name: "nominal case",
-			imageSpec: &datadoghqv1alpha1.ImageConfig{
+			imageSpec: &commonv1.AgentImageConfig{
 				Name: "agent",
 				Tag:  "7",
 			},
@@ -477,7 +478,7 @@ func Test_getImage(t *testing.T) {
 		},
 		{
 			name: "prioritize the full path",
-			imageSpec: &datadoghqv1alpha1.ImageConfig{
+			imageSpec: &commonv1.AgentImageConfig{
 				Name: "docker.io/datadog/agent:7.28.1-rc.3",
 				Tag:  "latest",
 			},
@@ -486,7 +487,7 @@ func Test_getImage(t *testing.T) {
 		},
 		{
 			name: "default registry",
-			imageSpec: &datadoghqv1alpha1.ImageConfig{
+			imageSpec: &commonv1.AgentImageConfig{
 				Name: "agent",
 				Tag:  "latest",
 			},
@@ -495,40 +496,40 @@ func Test_getImage(t *testing.T) {
 		},
 		{
 			name: "add jmx",
-			imageSpec: &datadoghqv1alpha1.ImageConfig{
+			imageSpec: &commonv1.AgentImageConfig{
 				Name:       "agent",
 				Tag:        defaulting.AgentLatestVersion,
-				JmxEnabled: true,
+				JMXEnabled: true,
 			},
 			registry: nil,
 			want:     defaulting.GetLatestAgentImageJMX(),
 		},
 		{
 			name: "cluster-agent",
-			imageSpec: &datadoghqv1alpha1.ImageConfig{
+			imageSpec: &commonv1.AgentImageConfig{
 				Name:       "cluster-agent",
 				Tag:        defaulting.ClusterAgentLatestVersion,
-				JmxEnabled: false,
+				JMXEnabled: false,
 			},
 			registry: nil,
 			want:     defaulting.GetLatestClusterAgentImage(),
 		},
 		{
 			name: "do not duplicate jmx",
-			imageSpec: &datadoghqv1alpha1.ImageConfig{
+			imageSpec: &commonv1.AgentImageConfig{
 				Name:       "agent",
 				Tag:        "latest-jmx",
-				JmxEnabled: true,
+				JMXEnabled: true,
 			},
 			registry: nil,
 			want:     "gcr.io/datadoghq/agent:latest-jmx",
 		},
 		{
 			name: "do not add jmx",
-			imageSpec: &datadoghqv1alpha1.ImageConfig{
+			imageSpec: &commonv1.AgentImageConfig{
 				Name:       "agent",
 				Tag:        "latest-jmx",
-				JmxEnabled: true,
+				JMXEnabled: true,
 			},
 			registry: nil,
 			want:     "gcr.io/datadoghq/agent:latest-jmx",
