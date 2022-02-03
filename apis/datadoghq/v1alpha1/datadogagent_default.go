@@ -793,7 +793,10 @@ func DefaultDatadogFeatureLogCollection(ft *DatadogFeatures) *LogCollectionConfi
 // return the defaulted ProcessSpec
 func DefaultDatadogAgentSpecAgentProcess(agent *DatadogAgentSpecAgentSpec) *ProcessSpec {
 	if agent.Process == nil {
-		agent.Process = &ProcessSpec{Enabled: apiutils.NewBoolPointer(defaultProcessEnabled)}
+		agent.Process = &ProcessSpec{
+			Enabled:                  apiutils.NewBoolPointer(defaultProcessEnabled),
+			ProcessCollectionEnabled: apiutils.NewBoolPointer(defaultProcessCollectionEnabled),
+		}
 		return agent.Process
 	}
 
