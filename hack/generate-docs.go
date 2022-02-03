@@ -13,11 +13,10 @@ import (
 )
 
 const (
-	crdFile       = "config/crd/bases/v1/datadoghq.com_datadogagents.yaml"
-	targetVersion = "v1alpha1"
-	headerFile    = "hack/generate-docs/header.markdown"
-	footerFile    = "hack/generate-docs/footer.markdown"
-	docsFile      = "docs/configuration.md"
+	crdFile    = "config/crd/bases/v1/datadoghq.com_datadogagents.yaml"
+	headerFile = "hack/generate-docs/header.markdown"
+	footerFile = "hack/generate-docs/footer.markdown"
+	docsFile   = "docs/configuration.$VERSION.md"
 )
 
 type parameterDoc struct {
@@ -36,21 +35,19 @@ func main() {
 		panic(fmt.Sprintf("cannot unmarshal yaml CRD: %s", err))
 	}
 
-	var props map[string]apiextensions.JSONSchemaProps
 	for _, crdVersion := range crd.Spec.Versions {
-		if crdVersion.Name == targetVersion {
-			props = crdVersion.Schema.OpenAPIV3Schema.Properties["spec"].Properties
-			break
-		}
+		generateDoc(header, footer, crdVersion.Schema.OpenAPIV3Schema.Properties["spec"].Properties, strings.Replace(docsFile, "$VERSION", crdVersion.Name, 1))
 	}
+}
 
+func generateDoc(header, footer []byte, props map[string]apiextensions.JSONSchemaProps, docsFile string) {
 	docs := getParameterDocs([]string{}, props)
 
 	sort.Slice(docs, func(i, j int) bool {
 		return docs[i].name < docs[j].name
 	})
 
-	f, err := os.OpenFile(docsFile, os.O_TRUNC|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(docsFile, os.O_TRUNC|os.O_WRONLY|os.O_CREATE, 0o644)
 	if err != nil {
 		panic(fmt.Sprintf("cannot write to file: %s", err))
 	}
