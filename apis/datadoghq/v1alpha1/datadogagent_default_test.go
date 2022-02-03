@@ -481,7 +481,7 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 				},
 				Rbac:        &RbacConfig{Create: apiutils.NewBoolPointer(true)},
 				Apm:         &APMSpec{Enabled: apiutils.NewBoolPointer(false)},
-				Process:     &ProcessSpec{Enabled: apiutils.NewBoolPointer(false)},
+				Process:     &ProcessSpec{Enabled: apiutils.NewBoolPointer(false), ProcessCollectionEnabled: apiutils.NewBoolPointer(false)},
 				SystemProbe: &SystemProbeSpec{Enabled: apiutils.NewBoolPointer(false)},
 				Security: &SecuritySpec{
 					Compliance: ComplianceSpec{Enabled: apiutils.NewBoolPointer(false)},
@@ -531,7 +531,7 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 				},
 				Rbac:        &RbacConfig{Create: apiutils.NewBoolPointer(true)},
 				Apm:         &APMSpec{Enabled: apiutils.NewBoolPointer(false)},
-				Process:     &ProcessSpec{Enabled: apiutils.NewBoolPointer(false)},
+				Process:     &ProcessSpec{Enabled: apiutils.NewBoolPointer(false), ProcessCollectionEnabled: apiutils.NewBoolPointer(false)},
 				SystemProbe: &SystemProbeSpec{Enabled: apiutils.NewBoolPointer(false)},
 				Security: &SecuritySpec{
 					Compliance: ComplianceSpec{Enabled: apiutils.NewBoolPointer(false)},
