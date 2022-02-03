@@ -886,17 +886,17 @@ func (r *Reconciler) manageClusterAgentRBACs(logger logr.Logger, dda *datadoghqv
 	metricsProviderEnabled := isMetricsProviderEnabled(dda.Spec.ClusterAgent)
 	// Create or delete HPA ClusterRoleBinding
 	hpaClusterRoleBindingName := getHPAClusterRoleBindingName(dda)
-	if result, err := r.manageClusterRoleBinding(logger, dda, hpaClusterRoleBindingName, clusterAgentVersion, r.createHPAClusterRoleBinding, r.updateIfNeededHPAClusterRole, metricsProviderEnabled); err != nil {
+	if result, err := r.manageClusterRoleBinding(logger, dda, hpaClusterRoleBindingName, clusterAgentVersion, r.createHPAClusterRoleBinding, r.updateIfNeededHPAClusterRole, !metricsProviderEnabled); err != nil {
 		return result, err
 	}
 
 	// Create or delete external metrics reader ClusterRole and ClusterRoleBinding
 	metricsReaderClusterRoleName := getExternalMetricsReaderClusterRoleName(dda, r.versionInfo)
-	if result, err := r.manageClusterRole(logger, dda, metricsReaderClusterRoleName, clusterAgentVersion, r.createExternalMetricsReaderClusterRole, r.updateIfNeededExternalMetricsReaderClusterRole, metricsProviderEnabled); err != nil {
+	if result, err := r.manageClusterRole(logger, dda, metricsReaderClusterRoleName, clusterAgentVersion, r.createExternalMetricsReaderClusterRole, r.updateIfNeededExternalMetricsReaderClusterRole, !metricsProviderEnabled); err != nil {
 		return result, err
 	}
 
-	if result, err := r.manageClusterRoleBinding(logger, dda, metricsReaderClusterRoleName, clusterAgentVersion, r.createExternalMetricsReaderClusterRoleBinding, r.updateIfNeededClusterAgentClusterRoleBinding, metricsProviderEnabled); err != nil {
+	if result, err := r.manageClusterRoleBinding(logger, dda, metricsReaderClusterRoleName, clusterAgentVersion, r.createExternalMetricsReaderClusterRoleBinding, r.updateIfNeededClusterAgentClusterRoleBinding, !metricsProviderEnabled); err != nil {
 		return result, err
 	}
 
