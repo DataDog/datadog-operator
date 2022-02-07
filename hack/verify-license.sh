@@ -1,12 +1,8 @@
-#!/bin/bash
-
-set -o errexit
-set -o nounset
-set -o pipefail
-set -e
+#!/usr/bin/env bash
+set -euo pipefail
 
 ROOT=$(git rev-parse --show-toplevel)
-cd $ROOT
+cd "$ROOT"
 
 make license 2>&1
 
@@ -22,7 +18,7 @@ DIFF=$(git ls-files docs/ --exclude-standard --others)
 if [[ "${DIFF}x" != "x" ]]
 then
     echo "License removed:" >&2
-    echo ${DIFF} >&2
+    echo "${DIFF}" >&2
     exit 2
 fi
 exit 0
