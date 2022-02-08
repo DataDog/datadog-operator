@@ -1291,6 +1291,7 @@ type NetworkPolicySpec struct {
 
 	// Cilium selector of the DNS server entity.
 	// +optional
+	// +listType=atomic
 	DNSSelectorEndpoints []metav1.LabelSelector `json:"dnsSelectorEndpoints,omitempty"`
 }
 
