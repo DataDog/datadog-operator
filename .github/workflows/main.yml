@@ -27,9 +27,8 @@ jobs:
     - name: run unit tests and E2E tests (fake cluster)
       run: |
         make test
-    - uses: codecov/codecov-action@v1
+    - uses: codecov/codecov-action@v2
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: cover.out
         flags: unittests
-        yml: .codecov.yml
