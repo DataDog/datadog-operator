@@ -31,3 +31,4 @@ sed -i 's/operators.operatorframework.io.bundle.package.v1: datadog-operator/ope
 
 # Patch CSV
 sed -i 's#image: gcr.io/datadoghq/operator:#image: registry.connect.redhat.com/datadog/operator:#g' "$RH_BUNDLE_PATH/manifests/datadog-operator.clusterserviceversion.yaml"
+sed -i 's#containerImage: gcr.io/datadoghq/operator:#containerImage: registry.connect.redhat.com/datadog/operator:#g' "$RH_BUNDLE_PATH/manifests/datadog-operator.clusterserviceversion.yaml"
