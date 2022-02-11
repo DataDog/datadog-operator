@@ -1001,65 +1001,63 @@ func TestDefaultDatadogAgentSpecAgentApm(t *testing.T) {
 }
 
 func Test_defaultCredentials(t *testing.T) {
-	type args struct {
-		ddaSpec *DatadogAgentSpec
-		dso     *DatadogAgentStatus
-	}
 	tests := []struct {
-		name              string
-		args              args
-		wantGenerateToken bool
+		name                      string
+		tokenInSpec               string
+		defaultedToken            string
+		expectsDefaultedToken     bool
+		expectsSameDefaultedToken bool
 	}{
 		{
-			name: "token_in_spec, should not generate a token",
-			args: args{
-				ddaSpec: &DatadogAgentSpec{
-					Credentials: &AgentCredentials{
-						Token: "foobarfoobar",
-					},
-				},
-				dso: &DatadogAgentStatus{
-					ClusterAgent: &DeploymentStatus{},
-				},
-			},
-			wantGenerateToken: false,
+			name:                  "token in spec",
+			tokenInSpec:           "a_token",
+			defaultedToken:        "",
+			expectsDefaultedToken: false,
 		},
 		{
-			name: "no token in spec, should generate a token",
-			args: args{
-				ddaSpec: &DatadogAgentSpec{
-					Credentials: &AgentCredentials{},
-				},
-				dso: &DatadogAgentStatus{
-					ClusterAgent: &DeploymentStatus{},
-				},
-			},
-			wantGenerateToken: true,
+			name:                      "no token in spec and not defaulted",
+			tokenInSpec:               "",
+			defaultedToken:            "",
+			expectsDefaultedToken:     true,
+			expectsSameDefaultedToken: false,
 		},
 		{
-			name: "token in spec + previous token in status: should remove the generated token",
-			args: args{
-				ddaSpec: &DatadogAgentSpec{
-					Credentials: &AgentCredentials{
-						Token: "foobarfoobar",
-					},
-				},
-				dso: &DatadogAgentStatus{
-					ClusterAgent: &DeploymentStatus{
-						GeneratedToken: "previous_generated_token",
-					},
-				},
-			},
-			wantGenerateToken: false,
+			name:                      "no token in spec, but already defaulted",
+			tokenInSpec:               "",
+			defaultedToken:            "a_defaulted_token",
+			expectsDefaultedToken:     true,
+			expectsSameDefaultedToken: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			defaultCredentials(tt.args.ddaSpec, tt.args.dso)
-			if tt.wantGenerateToken {
-				assert.False(t, tt.args.dso.ClusterAgent.GeneratedToken == "", "the generated token should not be empty, value:%s", tt.args.dso.ClusterAgent.GeneratedToken)
-			} else {
-				assert.False(t, tt.args.dso.ClusterAgent.GeneratedToken != "", "the generated token should be empty, value:%s", tt.args.dso.ClusterAgent.GeneratedToken)
+			dda := DatadogAgent{
+				Spec: DatadogAgentSpec{
+					Credentials: &AgentCredentials{
+						Token: tt.tokenInSpec,
+					},
+				},
+				Status: DatadogAgentStatus{
+					DefaultOverride: &DatadogAgentSpec{
+						Credentials: &AgentCredentials{
+							Token: tt.defaultedToken,
+						},
+					},
+				},
+			}
+
+			ddaStatus := DatadogAgentStatus{}
+
+			defaultCredentials(&dda, &ddaStatus)
+
+			if tt.expectsDefaultedToken {
+				assert.NotEmpty(t, ddaStatus.DefaultOverride.Credentials.Token)
+			} else if ddaStatus.DefaultOverride != nil && ddaStatus.DefaultOverride.Credentials != nil {
+				assert.Empty(t, ddaStatus.DefaultOverride.Credentials.Token)
+			}
+
+			if tt.expectsSameDefaultedToken {
+				assert.Equal(t, tt.defaultedToken, ddaStatus.DefaultOverride.Credentials.Token)
 			}
 		})
 	}

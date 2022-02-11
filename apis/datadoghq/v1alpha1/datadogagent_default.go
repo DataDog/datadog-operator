@@ -112,7 +112,7 @@ func DefaultDatadogAgent(dda *DatadogAgent) *DatadogAgentStatus {
 	}
 
 	// Creds
-	defaultCredentials(&dda.Spec, dso)
+	defaultCredentials(dda, dso)
 
 	// Override spec given featureset
 	FeatureOverride(&dda.Spec, dso.DefaultOverride)
@@ -133,32 +133,46 @@ func DefaultDatadogAgent(dda *DatadogAgent) *DatadogAgentStatus {
 	return dso
 }
 
-func defaultCredentials(ddaSpec *DatadogAgentSpec, dso *DatadogAgentStatus) {
-	if ddaSpec.Credentials == nil {
-		ddaSpec.Credentials = &AgentCredentials{}
+func defaultCredentials(dda *DatadogAgent, dso *DatadogAgentStatus) {
+	if dda.Spec.Credentials == nil {
+		dda.Spec.Credentials = &AgentCredentials{}
 	}
-	if ddaSpec.Credentials.UseSecretBackend == nil {
-		ddaSpec.Credentials.UseSecretBackend = apiutils.NewBoolPointer(false)
+
+	if dda.Spec.Credentials.UseSecretBackend == nil {
+		dda.Spec.Credentials.UseSecretBackend = apiutils.NewBoolPointer(false)
 		if dso.DefaultOverride == nil {
 			dso.DefaultOverride = &DatadogAgentSpec{}
 		}
 		dso.DefaultOverride.Credentials = &AgentCredentials{
-			UseSecretBackend: ddaSpec.Credentials.UseSecretBackend,
+			UseSecretBackend: dda.Spec.Credentials.UseSecretBackend,
 		}
 	}
 
-	// Generate a Token for clusterAgent-Agent communication if not provided
-	if ddaSpec.Credentials.Token == "" {
-		if dso.ClusterAgent == nil {
-			dso.ClusterAgent = &DeploymentStatus{}
-		}
-		if dso.ClusterAgent.GeneratedToken == "" {
-			dso.ClusterAgent.GeneratedToken = apiutils.GenerateRandomString(32)
-		}
-	} else if dso.ClusterAgent != nil {
-		// cleanup the generated token if after an update the user specify one
-		// in the spec.Credentials.Token
-		dso.ClusterAgent.GeneratedToken = ""
+	defaultClusterAgentToken(dda, dso)
+}
+
+func defaultClusterAgentToken(dda *DatadogAgent, dso *DatadogAgentStatus) {
+	// Token provided in the spec. No need to generate one.
+	if dda.Spec.Credentials.Token != "" {
+		return
+	}
+
+	tokenAlreadyDefaulted := dda.Status.DefaultOverride != nil &&
+		dda.Status.DefaultOverride.Credentials != nil &&
+		dda.Status.DefaultOverride.Credentials.Token != ""
+
+	if dso.DefaultOverride == nil {
+		dso.DefaultOverride = &DatadogAgentSpec{}
+	}
+
+	if dso.DefaultOverride.Credentials == nil {
+		dso.DefaultOverride.Credentials = &AgentCredentials{}
+	}
+
+	if tokenAlreadyDefaulted {
+		dso.DefaultOverride.Credentials.Token = dda.Status.DefaultOverride.Credentials.Token
+	} else {
+		dso.DefaultOverride.Credentials.Token = apiutils.GenerateRandomString(32)
 	}
 }
 
