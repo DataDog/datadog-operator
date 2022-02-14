@@ -292,12 +292,21 @@ func newClusterChecksRunnerPodTemplate(dda *datadoghqv1alpha1.DatadogAgent, labe
 					ReadinessProbe:  dda.Spec.Agent.Config.ReadinessProbe,
 					Command:         getDefaultIfEmpty(dda.Spec.ClusterChecksRunner.Config.Command, []string{"agent", "run"}),
 					Args:            getDefaultIfEmpty(dda.Spec.ClusterChecksRunner.Config.Args, nil),
+					SecurityContext: &corev1.SecurityContext{
+						ReadOnlyRootFilesystem:   apiutils.NewBoolPointer(true),
+						AllowPrivilegeEscalation: apiutils.NewBoolPointer(false),
+					},
 				},
 			},
 			Volumes:           getVolumesForClusterChecksRunner(dda),
 			Affinity:          getPodAffinity(clusterChecksRunnerSpec.Affinity),
 			Tolerations:       clusterChecksRunnerSpec.Tolerations,
 			PriorityClassName: clusterChecksRunnerSpec.PriorityClassName,
+			SecurityContext: &corev1.PodSecurityContext{
+				RunAsNonRoot: apiutils.NewBoolPointer(true),
+				// 101 is the UID of user `dd-agent` in the official datadog agent image
+				RunAsUser: apiutils.NewInt64Pointer(101),
+			},
 		},
 	}
 
@@ -311,6 +320,10 @@ func newClusterChecksRunnerPodTemplate(dda *datadoghqv1alpha1.DatadogAgent, labe
 
 	if clusterChecksRunnerSpec.Config.Resources != nil {
 		newPodTemplate.Spec.Containers[0].Resources = *clusterChecksRunnerSpec.Config.Resources
+	}
+
+	if clusterChecksRunnerSpec.Config.SecurityContext != nil {
+		newPodTemplate.Spec.SecurityContext = clusterChecksRunnerSpec.Config.SecurityContext.DeepCopy()
 	}
 
 	return newPodTemplate

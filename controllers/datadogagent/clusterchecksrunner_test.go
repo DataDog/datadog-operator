@@ -7,6 +7,8 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	test "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1/test"
+	"github.com/DataDog/datadog-operator/apis/utils"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
@@ -14,6 +16,7 @@ import (
 	assert "github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -46,9 +49,17 @@ func clusterChecksRunnerDefaultPodSpec() corev1.PodSpec {
 				LivenessProbe:   defaultLivenessProbe(),
 				ReadinessProbe:  defaultReadinessProbe(),
 				Command:         []string{"agent", "run"},
+				SecurityContext: &v1.SecurityContext{
+					ReadOnlyRootFilesystem:   apiutils.NewBoolPointer(true),
+					AllowPrivilegeEscalation: apiutils.NewBoolPointer(false),
+				},
 			},
 		},
 		Volumes: clusterChecksRunnerDefaultVolumes(),
+		SecurityContext: &v1.PodSecurityContext{
+			RunAsNonRoot: apiutils.NewBoolPointer(true),
+			RunAsUser:    apiutils.NewInt64Pointer(101),
+		},
 	}
 }
 
@@ -519,4 +530,73 @@ func Test_getPodAffinity(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_newClusterChecksRunnerDeploymentFromInstance_CustomSecurityContext(t *testing.T) {
+	podSpec := clusterChecksRunnerDefaultPodSpec()
+	podSpec.SecurityContext = &v1.PodSecurityContext{
+		RunAsGroup: utils.NewInt64Pointer(42),
+	}
+
+	agentDeployment := test.NewDefaultedDatadogAgent(
+		"bar",
+		"foo",
+		&test.NewDatadogAgentOptions{
+			ClusterAgentEnabled:        true,
+			ClusterChecksRunnerEnabled: true,
+		},
+	)
+	agentDeployment.Spec.ClusterChecksRunner.Config.SecurityContext = &v1.PodSecurityContext{
+		RunAsGroup: utils.NewInt64Pointer(42),
+	}
+
+	clusterChecksRunnerAgentHash, _ := comparison.GenerateMD5ForSpec(agentDeployment.Spec.ClusterChecksRunner)
+
+	test := clusterChecksRunnerDeploymentFromInstanceTest{
+		name:            "with custom security context",
+		agentdeployment: agentDeployment,
+		newStatus:       &datadoghqv1alpha1.DatadogAgentStatus{},
+		wantErr:         false,
+		want: &appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "bar",
+				Name:      "foo-cluster-checks-runner",
+				Labels: map[string]string{
+					"agent.datadoghq.com/name":      "foo",
+					"agent.datadoghq.com/component": "cluster-checks-runner",
+					"app.kubernetes.io/instance":    "cluster-checks-runner",
+					"app.kubernetes.io/managed-by":  "datadog-operator",
+					"app.kubernetes.io/name":        "datadog-agent-deployment",
+					"app.kubernetes.io/part-of":     "bar-foo",
+					"app.kubernetes.io/version":     "",
+				},
+				Annotations: map[string]string{"agent.datadoghq.com/agentspechash": clusterChecksRunnerAgentHash},
+			},
+			Spec: appsv1.DeploymentSpec{
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{
+							"agent.datadoghq.com/name":      "foo",
+							"agent.datadoghq.com/component": "cluster-checks-runner",
+							"app.kubernetes.io/instance":    "cluster-checks-runner",
+							"app.kubernetes.io/managed-by":  "datadog-operator",
+							"app.kubernetes.io/name":        "datadog-agent-deployment",
+							"app.kubernetes.io/part-of":     "bar-foo",
+							"app.kubernetes.io/version":     "",
+						},
+						Annotations: map[string]string{"agent.datadoghq.com/agentspechash": clusterChecksRunnerAgentHash},
+					},
+					Spec: podSpec,
+				},
+				Replicas: nil,
+				Selector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"agent.datadoghq.com/name":      "foo",
+						"agent.datadoghq.com/component": "cluster-checks-runner",
+					},
+				},
+			},
+		},
+	}
+	test.Run(t)
 }

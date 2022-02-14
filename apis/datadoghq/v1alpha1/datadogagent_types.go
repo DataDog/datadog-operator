@@ -1015,6 +1015,10 @@ type DatadogAgentSpecClusterAgentSpec struct {
 // ClusterAgentConfig contains the configuration of the Cluster Agent.
 // +k8s:openapi-gen=true
 type ClusterAgentConfig struct {
+	// Pod-level SecurityContext.
+	// +optional
+	SecurityContext *corev1.PodSecurityContext `json:"securityContext,omitempty"`
+
 	ExternalMetrics *ExternalMetricsConfig `json:"externalMetrics,omitempty"`
 
 	// Configure the Admission Controller.
@@ -1130,6 +1134,10 @@ type AdmissionControllerConfig struct {
 // ClusterChecksRunnerConfig contains the configuration of the Cluster Checks Runner.
 // +k8s:openapi-gen=true
 type ClusterChecksRunnerConfig struct {
+	// Pod-level SecurityContext.
+	// +optional
+	SecurityContext *corev1.PodSecurityContext `json:"securityContext,omitempty"`
+
 	// Datadog Cluster Checks Runner resource requests and limits.
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
 

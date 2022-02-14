@@ -458,12 +458,21 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 				VolumeMounts: volumeMounts,
 				Command:      getDefaultIfEmpty(dda.Spec.ClusterAgent.Config.Command, nil),
 				Args:         getDefaultIfEmpty(dda.Spec.ClusterAgent.Config.Args, nil),
+				SecurityContext: &corev1.SecurityContext{
+					ReadOnlyRootFilesystem:   apiutils.NewBoolPointer(true),
+					AllowPrivilegeEscalation: apiutils.NewBoolPointer(false),
+				},
 			},
 		},
 		Affinity:          getClusterAgentAffinity(clusterAgentSpec.Affinity),
 		Tolerations:       clusterAgentSpec.Tolerations,
 		PriorityClassName: dda.Spec.ClusterAgent.PriorityClassName,
 		Volumes:           volumes,
+		SecurityContext: &corev1.PodSecurityContext{
+			RunAsNonRoot: apiutils.NewBoolPointer(true),
+			// 101 is the UID of user `dd-agent` in the official datadog cluster agent image
+			RunAsUser: apiutils.NewInt64Pointer(101),
+		},
 	}
 
 	newPodTemplate := corev1.PodTemplateSpec{
@@ -506,6 +515,10 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 
 	if clusterAgentSpec.Config.Resources != nil {
 		container.Resources = *clusterAgentSpec.Config.Resources
+	}
+
+	if clusterAgentSpec.Config.SecurityContext != nil {
+		newPodTemplate.Spec.SecurityContext = clusterAgentSpec.Config.SecurityContext.DeepCopy()
 	}
 
 	return newPodTemplate, nil
