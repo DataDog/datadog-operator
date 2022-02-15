@@ -18,6 +18,8 @@ LDFLAGS=-w -s -X ${BUILDINFOPKG}.Commit=${GIT_COMMIT} -X ${BUILDINFOPKG}.Version
 CHANNELS=alpha
 DEFAULT_CHANNEL=alpha
 GOARCH?=amd64
+PLATFORM=$(shell uname -s)-$(shell uname -m)
+ROOT=$(dir $(abspath $(firstword $(MAKEFILE_LIST))))
 
 # Default bundle image tag
 BUNDLE_IMG ?= controller-bundle:$(VERSION)
@@ -59,78 +61,32 @@ endif
 
 ##@ Development
 
+.PHONY: all
 all: build test ## Build test
 
+.PHONY: build
 build: manager kubectl-datadog ## Builds manager + kubectl plugin
 
+.PHONY: fmt
 fmt: ## Run go fmt against code
 	go fmt ./...
 
+.PHONY: vet
 vet: ## Run go vet against code
 	go vet ./...
 
-##@ Deploy
+##@ Tools
+CONTROLLER_GEN = bin/$(PLATFORM)/controller-gen
+$(CONTROLLER_GEN): Makefile  ## Download controller-gen locally if necessary.
+	$(call go-get-tool,$@,sigs.k8s.io/controller-tools/cmd/controller-gen@v0.6.1)
 
-manager: generate lint ## Build manager binary
-	go build -ldflags '${LDFLAGS}' -o bin/manager main.go
+KUSTOMIZE = bin/$(PLATFORM)/kustomize
+$(KUSTOMIZE): Makefile  ## Download kustomize locally if necessary.
+	$(call go-get-tool,$@,sigs.k8s.io/kustomize/kustomize/v3@v3.8.7)
 
-run: generate lint manifests ## Run against the configured Kubernetes cluster in ~/.kube/config
-	go run ./main.go
-
-install: manifests kustomize ## Install CRDs into a cluster
-	$(KUSTOMIZE) build config/crd | kubectl apply --force-conflicts --server-side -f -
-
-uninstall: manifests kustomize ## Uninstall CRDs from a cluster
-	$(KUSTOMIZE) build config/crd | kubectl delete -f -
-
-deploy: manifests kustomize ## Deploy controller in the configured Kubernetes cluster in ~/.kube/config
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default | kubectl apply --force-conflicts --server-side -f -
-
-undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/default | kubectl delete -f -
-
-manifests: generate-manifests patch-crds ## Generate manifestcd s e.g. CRD, RBAC etc.
-
-generate-manifests: controller-gen
-	$(CONTROLLER_GEN) $(CRD_OPTIONS),crdVersions=v1 rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases/v1
-	$(CONTROLLER_GEN) $(CRD_OPTIONS),crdVersions=v1beta1 rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases/v1beta1
-
-generate: controller-gen generate-openapi generate-docs ## Generate code
-	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
-
-generate-docs: manifests
-	go run ./hack/generate-docs.go
-
-docker-build: generate docker-build-ci ## Build the docker image
-
-docker-build-ci:
-	docker build . -t ${IMG} --build-arg LDFLAGS="${LDFLAGS}" --build-arg GOARCH="${GOARCH}"
-
-docker-push: ## Push the docker image
-	docker push ${IMG}
-
-##@ Test
-
-test: build manifests generate fmt vet verify-license gotest integration-tests ## Run unit tests and E2E tests
-
-gotest:
-	go test ./... -coverprofile cover.out
-
-integration-tests: envtest ## Run tests.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test --tags=integration github.com/DataDog/datadog-operator/controllers -coverprofile cover.out
-
-CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
-controller-gen: ## Download controller-gen locally if necessary.
-	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.6.1)
-
-KUSTOMIZE = $(shell pwd)/bin/kustomize
-kustomize: ## Download kustomize locally if necessary.
-	$(call go-get-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v3@v3.8.7)
-
-ENVTEST = $(shell pwd)/bin/setup-envtest
-envtest: ## Download envtest-setup locally if necessary.
-	$(call go-get-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest@latest)
+ENVTEST = bin/$(PLATFORM)/setup-envtest
+$(ENVTEST): Makefile ## Download envtest-setup locally if necessary.
+	$(call go-get-tool,$@,sigs.k8s.io/controller-runtime/tools/setup-envtest@latest)
 
 # go-get-tool will 'go get' any package $2 and install it to $1.
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
@@ -141,19 +97,86 @@ TMP_DIR=$$(mktemp -d) ;\
 cd $$TMP_DIR ;\
 go mod init tmp ;\
 echo "Downloading $(2)" ;\
-GOBIN=$(PROJECT_DIR)/bin go get $(2) ;\
+GOBIN=$(PROJECT_DIR)/bin/$(PLATFORM) go get $(2) ;\
 rm -rf $$TMP_DIR ;\
 }
 endef
 
+##@ Deploy
+
+.PHONY: manager
+manager: generate lint ## Build manager binary
+	go build -ldflags '${LDFLAGS}' -o bin/$(PLATFORM)/manager main.go
+
+.PHONY: run
+run: generate lint manifests ## Run against the configured Kubernetes cluster in ~/.kube/config
+	go run ./main.go
+
+.PHONY: install
+install: manifests $(KUSTOMIZE) ## Install CRDs into a cluster
+	$(KUSTOMIZE) build config/crd | kubectl apply --force-conflicts --server-side -f -
+
+.PHONY: uninstall
+uninstall: manifests $(KUSTOMIZE) ## Uninstall CRDs from a cluster
+	$(KUSTOMIZE) build config/crd | kubectl delete -f -
+
+.PHONY: deploy
+deploy: manifests $(KUSTOMIZE) ## Deploy controller in the configured Kubernetes cluster in ~/.kube/config
+	cd config/manager && $(ROOT)/$(KUSTOMIZE) edit set image controller=${IMG}
+	$(KUSTOMIZE) build config/default | kubectl apply --force-conflicts --server-side -f -
+
+.PHONY: undeploy
+undeploy: $(KUSTOMIZE) ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
+	$(KUSTOMIZE) build config/default | kubectl delete -f -
+
+.PHONY: manifests
+manifests: generate-manifests patch-crds ## Generate manifestcd s e.g. CRD, RBAC etc.
+
+.PHONY: generate-manifests
+generate-manifests: $(CONTROLLER_GEN)
+	$(CONTROLLER_GEN) $(CRD_OPTIONS),crdVersions=v1 rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases/v1
+	$(CONTROLLER_GEN) $(CRD_OPTIONS),crdVersions=v1beta1 rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases/v1beta1
+
+.PHONY: generate
+generate: $(CONTROLLER_GEN) generate-openapi generate-docs ## Generate code
+	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+
+.PHONY: generate-docs
+generate-docs: manifests
+	go run ./hack/generate-docs.go
+
+.PHONY: docker-build
+docker-build: generate docker-build-ci ## Build the docker image
+
+.PHONY: docker-build-ci
+docker-build-ci:
+	docker build . -t ${IMG} --build-arg LDFLAGS="${LDFLAGS}" --build-arg GOARCH="${GOARCH}"
+
+.PHONY: docker-push
+docker-push: ## Push the docker image
+	docker push ${IMG}
+
+##@ Test
+
+.PHONY: test
+test: build manifests generate fmt vet verify-license gotest integration-tests ## Run unit tests and E2E tests
+
+.PHONY: gotest
+gotest:
+	go test ./... -coverprofile cover.out
+
+.PHONY: integration-tests
+integration-tests: $(ENVTEST) ## Run tests.
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test --tags=integration github.com/DataDog/datadog-operator/controllers -coverprofile cover.out
+
 .PHONY: bundle
-bundle: bin/operator-sdk kustomize manifests ## Generate bundle manifests and metadata, then validate generated files.
-	./bin/operator-sdk generate kustomize manifests -q
-	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
-	$(KUSTOMIZE) build config/manifests | ./bin/operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
-	./hack/patch-bundle.sh
-	./bin/operator-sdk bundle validate ./bundle
-	./hack/redhat-bundle.sh
+bundle: bin/$(PLATFORM)/operator-sdk $(KUSTOMIZE) manifests ## Generate bundle manifests and metadata, then validate generated files.
+	bin/$(PLATFORM)/operator-sdk generate kustomize manifests -q
+	cd config/manager && $(ROOT)/$(KUSTOMIZE) edit set image controller=$(IMG)
+	$(KUSTOMIZE) build config/manifests | bin/$(PLATFORM)/operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
+	hack/patch-bundle.sh
+	bin/$(PLATFORM)/operator-sdk bundle validate ./bundle
+	hack/redhat-bundle.sh
 
 .PHONY: bundle-build
 bundle-build: ## Build the bundle image.
@@ -210,28 +233,28 @@ catalog-push: ## Push a catalog image.
 
 ##@ Datadog Custom part
 .PHONY: install-tools
-install-tools: bin/golangci-lint bin/operator-sdk bin/yq
+install-tools: bin/$(PLATFORM)/golangci-lint bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq
 
 .PHONY: generate-openapi
-generate-openapi: bin/openapi-gen
-	./bin/openapi-gen --logtostderr=true -o "" -i ./apis/datadoghq/v1alpha1 -O zz_generated.openapi -p ./apis/datadoghq/v1alpha1 -h ./hack/boilerplate.go.txt -r "-"
-	./bin/openapi-gen --logtostderr=true -o "" -i ./apis/datadoghq/v2alpha1 -O zz_generated.openapi -p ./apis/datadoghq/v2alpha1 -h ./hack/boilerplate.go.txt -r "-"
+generate-openapi: bin/$(PLATFORM)/openapi-gen
+	bin/$(PLATFORM)/openapi-gen --logtostderr=true -o "" -i ./apis/datadoghq/v1alpha1 -O zz_generated.openapi -p ./apis/datadoghq/v1alpha1 -h ./hack/boilerplate.go.txt -r "-"
+	bin/$(PLATFORM)/openapi-gen --logtostderr=true -o "" -i ./apis/datadoghq/v2alpha1 -O zz_generated.openapi -p ./apis/datadoghq/v2alpha1 -h ./hack/boilerplate.go.txt -r "-"
 
 .PHONY: patch-crds
-patch-crds: bin/yq ## Patch-crds
-	./hack/patch-crds.sh
+patch-crds: bin/$(PLATFORM)/yq ## Patch-crds
+	hack/patch-crds.sh
 
 .PHONY: lint
-lint: vendor bin/golangci-lint fmt vet ## Lint
-	./bin/golangci-lint run ./...
+lint: vendor bin/$(PLATFORM)/golangci-lint fmt vet ## Lint
+	bin/$(PLATFORM)/golangci-lint run ./...
 
 .PHONY: license
-license: bin/wwhrd vendor
-	./hack/license.sh
+license: bin/$(PLATFORM)/wwhrd vendor
+	hack/license.sh
 
 .PHONY: verify-license
-verify-license: bin/wwhrd vendor ## Verify licenses
-	./hack/verify-license.sh
+verify-license: bin/$(PLATFORM)/wwhrd vendor ## Verify licenses
+	hack/verify-license.sh
 
 .PHONY: tidy
 tidy: ## Run go tidy
@@ -244,20 +267,22 @@ vendor: ## Run go vendor
 kubectl-datadog: lint
 	go build -ldflags '${LDFLAGS}' -o bin/kubectl-datadog ./cmd/kubectl-datadog/main.go
 
-bin/openapi-gen:
-	go build -o ./bin/openapi-gen k8s.io/kube-openapi/cmd/openapi-gen
+bin/$(PLATFORM)/openapi-gen: vendor/k8s.io/kube-openapi/cmd/openapi-gen/openapi-gen.go
+	go build -o bin/$(PLATFORM)/openapi-gen k8s.io/kube-openapi/cmd/openapi-gen
 
-bin/yq:
-	./hack/install-yq.sh 3.3.0
+vendor/k8s.io/kube-openapi/cmd/openapi-gen/openapi-gen.go: vendor
 
-bin/golangci-lint:
-	hack/golangci-lint.sh v1.38.0
+bin/$(PLATFORM)/yq: Makefile
+	hack/install-yq.sh 3.3.0
 
-bin/operator-sdk:
-	./hack/install-operator-sdk.sh v1.13.1
+bin/$(PLATFORM)/golangci-lint: Makefile
+	hack/golangci-lint.sh -b "bin/$(PLATFORM)" v1.38.0
 
-bin/wwhrd:
-	./hack/install-wwhrd.sh 0.2.4
+bin/$(PLATFORM)/operator-sdk: Makefile
+	hack/install-operator-sdk.sh v1.13.1
+
+bin/$(PLATFORM)/wwhrd: Makefile
+	hack/install-wwhrd.sh 0.2.4
 
 .DEFAULT_GOAL := help
 .PHONY: help

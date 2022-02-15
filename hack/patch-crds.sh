@@ -1,11 +1,8 @@
 #!/usr/bin/env bash
-
-set -o errexit
-set -o nounset
-set -o pipefail
+set -euo pipefail
 
 ROOT_DIR=$(git rev-parse --show-toplevel)
-YQ="$ROOT_DIR/bin/yq"
+YQ="$ROOT_DIR/bin/$(uname -s)-$(uname -m)/yq"
 
 v1beta1=config/crd/bases/v1beta1
 v1=config/crd/bases/v1
@@ -15,11 +12,11 @@ v1=config/crd/bases/v1
 #
 # Cannot use directly yq -d .. 'spec.validation.openAPIV3Schema.properties.**.x-kubernetes-*'
 # as for some reason, yq takes several minutes to execute this command
-for crd in $(ls "$ROOT_DIR/$v1beta1")
+for crd in "$ROOT_DIR/$v1beta1"/*.yaml
 do
-  for path in $($YQ r "$ROOT_DIR/$v1beta1/$crd" 'spec.validation.openAPIV3Schema.properties.**.x-kubernetes-*' --printMode p)
+  for path in $($YQ r "$crd" 'spec.validation.openAPIV3Schema.properties.**.x-kubernetes-*' --printMode p)
   do
-    $YQ d -i "$ROOT_DIR/$v1beta1/$crd" $path
+    $YQ d -i "$crd" $path
   done
 done
 
