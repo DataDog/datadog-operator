@@ -172,7 +172,13 @@ func defaultClusterAgentToken(dda *DatadogAgent, dso *DatadogAgentStatus) {
 	if tokenAlreadyDefaulted {
 		dso.DefaultOverride.Credentials.Token = dda.Status.DefaultOverride.Credentials.Token
 	} else {
-		dso.DefaultOverride.Credentials.Token = apiutils.GenerateRandomString(32)
+		// For backwards-compatibility, if the token is already in the status
+		// use it.
+		if dso.ClusterAgent != nil && dso.ClusterAgent.GeneratedToken != "" {
+			dso.DefaultOverride.Credentials.Token = dso.ClusterAgent.GeneratedToken
+		} else {
+			dso.DefaultOverride.Credentials.Token = apiutils.GenerateRandomString(32)
+		}
 	}
 }
 
