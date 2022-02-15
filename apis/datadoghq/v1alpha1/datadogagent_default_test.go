@@ -1062,3 +1062,45 @@ func Test_defaultCredentials(t *testing.T) {
 		})
 	}
 }
+
+func TestDefaultedClusterAgentToken(t *testing.T) {
+	tests := []struct {
+		name          string
+		ddaStatus     *DatadogAgentStatus
+		expectedToken string
+	}{
+		{
+			name: "status without default overrides",
+			ddaStatus: &DatadogAgentStatus{
+				DefaultOverride: nil,
+			},
+			expectedToken: "",
+		},
+		{
+			name: "status with overrides but no overridden credentials",
+			ddaStatus: &DatadogAgentStatus{
+				DefaultOverride: &DatadogAgentSpec{
+					Credentials: nil,
+				},
+			},
+			expectedToken: "",
+		},
+		{
+			name: "status with defaulted token",
+			ddaStatus: &DatadogAgentStatus{
+				DefaultOverride: &DatadogAgentSpec{
+					Credentials: &AgentCredentials{
+						Token: "some_token",
+					},
+				},
+			},
+			expectedToken: "some_token",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expectedToken, DefaultedClusterAgentToken(tt.ddaStatus))
+		})
+	}
+}

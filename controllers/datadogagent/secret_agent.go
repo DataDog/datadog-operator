@@ -39,8 +39,9 @@ func newAgentSecret(name string, dda *datadoghqv1alpha1.DatadogAgent) (*corev1.S
 	if creds.Token != "" {
 		data[datadoghqv1alpha1.DefaultTokenKey] = []byte(creds.Token)
 	} else if isClusterAgentEnabled(dda.Spec.ClusterAgent) {
-		if dda.Status.DefaultOverride != nil && dda.Status.DefaultOverride.Credentials != nil && dda.Status.DefaultOverride.Credentials.Token != "" {
-			data[datadoghqv1alpha1.DefaultTokenKey] = []byte(dda.Status.DefaultOverride.Credentials.Token)
+		defaultedToken := datadoghqv1alpha1.DefaultedClusterAgentToken(&dda.Status)
+		if defaultedToken != "" {
+			data[datadoghqv1alpha1.DefaultTokenKey] = []byte(defaultedToken)
 		}
 	}
 
