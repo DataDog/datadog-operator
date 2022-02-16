@@ -77,3 +77,10 @@ rules:
     verbs:
       - list
       - watch
+  - apigroups:
+      - "networking.k8s.io"
+    resources:
+      - ingresses
+    verbs:
+      - list
+      - watch
