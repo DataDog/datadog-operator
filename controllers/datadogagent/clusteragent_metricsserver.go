@@ -87,6 +87,16 @@ func (r *Reconciler) createExternalMetricsReaderClusterRoleBinding(logger logr.L
 	return reconcile.Result{Requeue: true}, r.client.Create(context.TODO(), clusterRoleBinding)
 }
 
+func (r *Reconciler) updateIfNeededExternalMetricsReaderClusterRoleBinding(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string, clusterRoleBinding *rbacv1.ClusterRoleBinding) (reconcile.Result, error) {
+	newClusterRoleBinding := buildExternalMetricsReaderClusterRoleBinding(dda, name, agentVersion)
+
+	if newClusterRoleBinding == nil {
+		return reconcile.Result{}, nil
+	}
+
+	return r.updateIfNeededClusterRoleBindingRaw(logger, dda, clusterRoleBinding, newClusterRoleBinding)
+}
+
 func (r *Reconciler) createExternalMetricsReaderClusterRole(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string) (reconcile.Result, error) {
 	clusterRole := buildExternalMetricsReaderClusterRole(dda, name, agentVersion)
 	if clusterRole == nil {
