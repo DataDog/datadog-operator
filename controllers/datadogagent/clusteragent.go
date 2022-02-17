@@ -896,7 +896,7 @@ func (r *Reconciler) manageClusterAgentRBACs(logger logr.Logger, dda *datadoghqv
 		return result, err
 	}
 
-	if result, err := r.manageClusterRoleBinding(logger, dda, metricsReaderClusterRoleName, clusterAgentVersion, r.createExternalMetricsReaderClusterRoleBinding, r.updateIfNeededClusterAgentClusterRoleBinding, !metricsProviderEnabled); err != nil {
+	if result, err := r.manageClusterRoleBinding(logger, dda, metricsReaderClusterRoleName, clusterAgentVersion, r.createExternalMetricsReaderClusterRoleBinding, r.updateIfNeededExternalMetricsReaderClusterRoleBinding, !metricsProviderEnabled); err != nil {
 		return result, err
 	}
 
@@ -1002,16 +1002,6 @@ func (r *Reconciler) createClusterAgentRoleBinding(logger logr.Logger, dda *data
 	event := buildEventInfo(roleBinding.Name, roleBinding.Namespace, roleBindingKind, datadog.CreationEvent)
 	r.recordEvent(dda, event)
 	return reconcile.Result{}, r.client.Create(context.TODO(), roleBinding)
-}
-
-func (r *Reconciler) updateIfNeededClusterAgentClusterRoleBinding(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string, clusterRoleBinding *rbacv1.ClusterRoleBinding) (reconcile.Result, error) {
-	info := roleBindingInfo{
-		name:               name,
-		roleName:           getClusterAgentRbacResourcesName(dda),
-		serviceAccountName: getClusterAgentServiceAccount(dda),
-	}
-	newRoleBinding := buildClusterRoleBinding(dda, info, agentVersion)
-	return r.updateIfNeededClusterRoleBindingRaw(logger, dda, clusterRoleBinding, newRoleBinding)
 }
 
 // buildAgentClusterRole creates a ClusterRole object for the Agent based on its config
