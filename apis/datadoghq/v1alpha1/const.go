@@ -191,19 +191,4 @@ const (
 	KubeServicesListener              = "kube_services"
 	KubeEndpointsListener             = "kube_endpoints"
 	KubeServicesAndEndpointsListeners = "kube_services kube_endpoints"
-
-	// Resource names
-
-	DatadogTokenResourceName           = "datadogtoken"
-	DatadogLeaderElectionResourceName  = "datadog-leader-election"
-	DatadogCustomMetricsResourceName   = "datadog-custom-metrics"
-	DatadogClusterIDResourceName       = "datadog-cluster-id"
-	ExtensionAPIServerAuthResourceName = "extension-apiserver-authentication"
-	KubeSystemResourceName             = "kube-system"
-
-	// Rbac resource kinds
-
-	ClusterRoleKind    = "ClusterRole"
-	RoleKind           = "Role"
-	ServiceAccountKind = "ServiceAccount"
 )

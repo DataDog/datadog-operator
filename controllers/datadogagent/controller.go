@@ -30,6 +30,9 @@ import (
 
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
+
+	// Use to register the ksm core feature
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/kubernetesstatecore"
 )
 
 const (
@@ -139,11 +142,15 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, 
 	// -----------------------
 	// Manage dependencies
 	// -----------------------
-	depsStore := dependencies.NewStore(&dependencies.StoreOptions{SupportCilium: r.options.SupportCilium})
-	rbacManager := feature.NewResourcesManagers(depsStore)
+	storeOptions := &dependencies.StoreOptions{
+		SupportCilium: r.options.SupportCilium,
+		Logger:        logger,
+	}
+	depsStore := dependencies.NewStore(storeOptions)
+	resourcesManager := feature.NewResourcesManagers(depsStore)
 	var errs []error
 	for _, feat := range features {
-		if featErr := feat.ManageDependencies(rbacManager); err != nil {
+		if featErr := feat.ManageDependencies(resourcesManager); err != nil {
 			errs = append(errs, featErr)
 		}
 	}
