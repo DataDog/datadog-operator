@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/common"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/kubernetesstatecore"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -288,9 +289,12 @@ func rbacNamesForDda(dda *datadoghqv1alpha1.DatadogAgent, versionInfo *version.I
 		getClusterChecksRunnerRbacResourcesName(dda),
 		getHPAClusterRoleBindingName(dda),
 		getExternalMetricsReaderClusterRoleName(dda, versionInfo),
+		// kubestatemetrics_core can run on the DCA and the Runners
+		kubernetesstatecore.GetKubeStateMetricsRBACResourceName(dda, common.ClusterAgentSuffix),
+		kubernetesstatecore.GetKubeStateMetricsRBACResourceName(dda, common.CheckRunnersSuffix),
 		// Orchestrator can run on the DCA or the Runners
-		getOrchestratorRBACResourceName(dda, clusterAgentSuffix),
-		getOrchestratorRBACResourceName(dda, checkRunnersSuffix),
+		getOrchestratorRBACResourceName(dda, common.ClusterAgentSuffix),
+		getOrchestratorRBACResourceName(dda, common.CheckRunnersSuffix),
 	}
 }
 

@@ -13,6 +13,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/pkg/equality"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/go-logr/logr"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
@@ -42,6 +43,7 @@ func NewStore(options *StoreOptions) *Store {
 	}
 	if options != nil {
 		store.supportCilium = options.SupportCilium
+		store.logger = options.Logger
 	}
 
 	return store
@@ -54,11 +56,15 @@ type Store struct {
 	mutex sync.RWMutex
 
 	supportCilium bool
+
+	logger logr.Logger
 }
 
 // StoreOptions use to provide to NewStore() function some Store creation options.
 type StoreOptions struct {
 	SupportCilium bool
+
+	Logger logr.Logger
 }
 
 // AddOrUpdate used to add or update an object in the Store
@@ -77,7 +83,6 @@ func (ds *Store) AddOrUpdate(kind kubernetes.ObjectKind, obj client.Object) {
 		obj.SetLabels(map[string]string{})
 	}
 	obj.GetLabels()[operatorStoreLabelKey] = "true"
-
 	ds.deps[kind][id] = obj
 }
 
@@ -139,7 +144,8 @@ func (ds *Store) Apply(ctx context.Context, k8sClient client.Client) []error {
 			objAPIServer := kubernetes.ObjectFromKind(kind)
 			err := k8sClient.Get(ctx, objNSName, objAPIServer)
 			if err != nil && apierrors.IsNotFound(err) {
-				objsToCreate = append(objsToCreate, objStore)
+				ds.logger.V(2).Info("dependencies.store Add object to create", "obj.namespace", objStore.GetNamespace(), "obj.name", objStore.GetName(), "obj.kind", kind)
+				objsToCreate = append(objsToCreate, ds.deps[kind][objID])
 				continue
 			} else if err != nil {
 				errs = append(errs, err)
@@ -147,23 +153,28 @@ func (ds *Store) Apply(ctx context.Context, k8sClient client.Client) []error {
 			}
 
 			if !equality.IsEqualObject(kind, objStore, objAPIServer) {
-				objsToUpdate = append(objsToUpdate, objStore)
+				ds.logger.V(2).Info("dependencies.store Add object to update", "obj.namespace", objStore.GetNamespace(), "obj.name", objStore.GetName(), "obj.kind", kind)
+				objsToUpdate = append(objsToUpdate, ds.deps[kind][objID])
+				continue
 			}
 		}
 	}
 
+	ds.logger.V(2).Info("dependencies.store objsToCreate", "nb", len(objsToCreate))
 	for _, obj := range objsToCreate {
 		if err := k8sClient.Create(ctx, obj); err != nil {
+			ds.logger.Error(err, "dependencies.store Create", "obj.namespace", obj.GetNamespace(), "obj.name", obj.GetName())
 			errs = append(errs, err)
 		}
 	}
 
+	ds.logger.V(2).Info("dependencies.store objsToUpdate", "nb", len(objsToUpdate))
 	for _, obj := range objsToUpdate {
 		if err := k8sClient.Update(ctx, obj); err != nil {
+			ds.logger.Error(err, "dependencies.store Update", "obj.namespace", obj.GetNamespace(), "obj.name", obj.GetName())
 			errs = append(errs, err)
 		}
 	}
-
 	return errs
 }
 

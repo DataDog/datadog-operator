@@ -13,8 +13,11 @@ const (
 	ClusterAgentSuffix = "dca"
 )
 
+// ContainerName Container name type
+type ContainerName string
+
 // container names
 const (
-	ClusterAgentContainerName = "cluster-agent"
-	AgentContainerName        = "agent"
+	ClusterAgentContainerName ContainerName = "cluster-agent"
+	AgentContainerName        ContainerName = "agent"
 )

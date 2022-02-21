@@ -261,11 +261,6 @@ func (r *Reconciler) manageClusterAgentDependencies(logger logr.Logger, dda *dat
 		return result, err
 	}
 
-	result, err = r.manageKubeStateMetricsCore(logger, dda)
-	if utils.ShouldReturn(result, err) {
-		return result, err
-	}
-
 	result, err = r.manageOrchestratorExplorer(logger, dda)
 	if utils.ShouldReturn(result, err) {
 		return result, err
@@ -411,18 +406,6 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 				ReadOnly:  true,
 			})
 		}
-	}
-
-	if isKSMCoreEnabled(dda) {
-		volKSM, volumeMountKSM := getCustomConfigSpecVolumes(
-			dda.Spec.Features.KubeStateMetricsCore.Conf,
-			apicommon.KubeStateMetricCoreVolumeName,
-			getKubeStateMetricsConfName(dda),
-			ksmCoreCheckFolderName,
-		)
-
-		volumes = append(volumes, volKSM)
-		volumeMounts = append(volumeMounts, volumeMountKSM)
 	}
 
 	if isOrchestratorExplorerEnabled(dda) {
@@ -744,17 +727,6 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 		}...)
 	}
 
-	if isKSMCoreEnabled(dda) {
-		envVars = append(envVars, corev1.EnvVar{
-			Name:  apicommon.DDKubeStateMetricsCoreEnabled,
-			Value: "true",
-		})
-		envVars = append(envVars, corev1.EnvVar{
-			Name:  apicommon.DDKubeStateMetricsCoreConfigMap,
-			Value: getKubeStateMetricsConfName(dda),
-		})
-	}
-
 	if isAdmissionControllerEnabled(spec.ClusterAgent) {
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  datadoghqv1alpha1.DDAdmissionControllerEnabled,
@@ -896,21 +868,11 @@ func (r *Reconciler) manageClusterAgentRBACs(logger logr.Logger, dda *datadoghqv
 		return reconcile.Result{}, err
 	}
 
-	if isKSMCoreEnabled(dda) && !isKSMCoreClusterCheck(dda) {
-		if result, err := r.createOrUpdateKubeStateMetricsCoreRBAC(logger, dda, serviceAccountName, clusterAgentVersion, clusterAgentSuffix); err != nil {
-			return result, err
-		}
-	} else {
-		if result, err := r.cleanupKubeStateMetricsCoreRBAC(logger, dda, clusterAgentSuffix); err != nil {
-			return result, err
-		}
-	}
-
 	if isOrchestratorExplorerEnabled(dda) && !isOrchestratorExplorerClusterCheck(dda) {
-		if result, err := r.createOrUpdateOrchestratorCoreRBAC(logger, dda, serviceAccountName, clusterAgentVersion, clusterAgentSuffix); err != nil {
+		if result, err := r.createOrUpdateOrchestratorCoreRBAC(logger, dda, serviceAccountName, clusterAgentVersion, common.ClusterAgentSuffix); err != nil {
 			return result, err
 		}
-	} else if result, err := r.cleanupOrchestratorCoreRBAC(logger, dda, clusterAgentSuffix); err != nil {
+	} else if result, err := r.cleanupOrchestratorCoreRBAC(logger, dda, common.ClusterAgentSuffix); err != nil {
 		return result, err
 	}
 
