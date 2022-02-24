@@ -12,6 +12,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -116,7 +117,7 @@ func (r *Reconciler) cleanupPDB(dda *datadoghqv1alpha1.DatadogAgent, pdbName str
 }
 
 func buildClusterAgentPDB(dda *datadoghqv1alpha1.DatadogAgent) *policyv1.PodDisruptionBudget {
-	labels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
+	labels := getDefaultLabels(dda, apicommon.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
 	annotations := getDefaultAnnotations(dda)
 	metadata := metav1.ObjectMeta{
 		Name:        getClusterAgentPDBName(dda),
@@ -125,15 +126,15 @@ func buildClusterAgentPDB(dda *datadoghqv1alpha1.DatadogAgent) *policyv1.PodDisr
 		Annotations: annotations,
 	}
 	matchLabels := map[string]string{
-		datadoghqv1alpha1.AgentDeploymentNameLabelKey:      dda.Name,
-		datadoghqv1alpha1.AgentDeploymentComponentLabelKey: datadoghqv1alpha1.DefaultClusterAgentResourceSuffix,
+		apicommon.AgentDeploymentNameLabelKey:      dda.Name,
+		apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultClusterAgentResourceSuffix,
 	}
 
 	return buildPDB(metadata, matchLabels, pdbMinAvailableInstances)
 }
 
 func buildClusterChecksRunnerPDB(dda *datadoghqv1alpha1.DatadogAgent) *policyv1.PodDisruptionBudget {
-	labels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterChecksRunnerResourceSuffix, getAgentVersion(dda))
+	labels := getDefaultLabels(dda, apicommon.DefaultClusterChecksRunnerResourceSuffix, getAgentVersion(dda))
 	annotations := getDefaultAnnotations(dda)
 	metadata := metav1.ObjectMeta{
 		Name:        getClusterChecksRunnerPDBName(dda),
@@ -142,8 +143,8 @@ func buildClusterChecksRunnerPDB(dda *datadoghqv1alpha1.DatadogAgent) *policyv1.
 		Annotations: annotations,
 	}
 	matchLabels := map[string]string{
-		datadoghqv1alpha1.AgentDeploymentNameLabelKey:      dda.Name,
-		datadoghqv1alpha1.AgentDeploymentComponentLabelKey: datadoghqv1alpha1.DefaultClusterChecksRunnerResourceSuffix,
+		apicommon.AgentDeploymentNameLabelKey:      dda.Name,
+		apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultClusterChecksRunnerResourceSuffix,
 	}
 
 	return buildPDB(metadata, matchLabels, pdbMinAvailableInstances)

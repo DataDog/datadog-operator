@@ -11,8 +11,10 @@ import (
 	"strconv"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -75,7 +77,7 @@ func (r *Reconciler) manageKubeStateMetricsCore(logger logr.Logger, dda *datadog
 func buildKSMCoreConfigMap(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.ConfigMap, error) {
 	// Only called if KSMCore is enabled
 	if dda.Spec.Features.KubeStateMetricsCore.Conf != nil {
-		return buildConfigurationConfigMap(dda, dda.Spec.Features.KubeStateMetricsCore.Conf, getKubeStateMetricsConfName(dda), ksmCoreCheckName)
+		return buildConfigurationConfigMap(dda, datadoghqv1alpha1.ConvertCustomConfig(dda.Spec.Features.KubeStateMetricsCore.Conf), getKubeStateMetricsConfName(dda), ksmCoreCheckName)
 	}
 	configMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -169,104 +171,104 @@ func buildKubeStateMetricsCoreRBAC(dda *datadoghqv1alpha1.DatadogAgent, name, ve
 
 	rbacRules := []rbacv1.PolicyRule{
 		{
-			APIGroups: []string{datadoghqv1alpha1.CoreAPIGroup},
+			APIGroups: []string{rbac.CoreAPIGroup},
 			Resources: []string{
-				datadoghqv1alpha1.ConfigMapsResource,
-				datadoghqv1alpha1.EndpointsResource,
-				datadoghqv1alpha1.EventsResource,
-				datadoghqv1alpha1.LimitRangesResource,
-				datadoghqv1alpha1.NamespaceResource,
-				datadoghqv1alpha1.NodesResource,
-				datadoghqv1alpha1.PersistentVolumeClaimsResource,
-				datadoghqv1alpha1.PersistentVolumesResource,
-				datadoghqv1alpha1.PodsResource,
-				datadoghqv1alpha1.ReplicationControllersResource,
-				datadoghqv1alpha1.ResourceQuotasResource,
-				datadoghqv1alpha1.SecretsResource,
-				datadoghqv1alpha1.ServicesResource,
+				rbac.ConfigMapsResource,
+				rbac.EndpointsResource,
+				rbac.EventsResource,
+				rbac.LimitRangesResource,
+				rbac.NamespaceResource,
+				rbac.NodesResource,
+				rbac.PersistentVolumeClaimsResource,
+				rbac.PersistentVolumesResource,
+				rbac.PodsResource,
+				rbac.ReplicationControllersResource,
+				rbac.ResourceQuotasResource,
+				rbac.SecretsResource,
+				rbac.ServicesResource,
 			},
 		},
 		{
-			APIGroups: []string{datadoghqv1alpha1.ExtensionsAPIGroup},
+			APIGroups: []string{rbac.ExtensionsAPIGroup},
 			Resources: []string{
-				datadoghqv1alpha1.DaemonsetsResource,
-				datadoghqv1alpha1.DeploymentsResource,
-				datadoghqv1alpha1.ReplicasetsResource,
+				rbac.DaemonsetsResource,
+				rbac.DeploymentsResource,
+				rbac.ReplicasetsResource,
 			},
 		},
 		{
-			APIGroups: []string{datadoghqv1alpha1.AppsAPIGroup},
+			APIGroups: []string{rbac.AppsAPIGroup},
 			Resources: []string{
-				datadoghqv1alpha1.DaemonsetsResource,
-				datadoghqv1alpha1.DeploymentsResource,
-				datadoghqv1alpha1.ReplicasetsResource,
-				datadoghqv1alpha1.StatefulsetsResource,
+				rbac.DaemonsetsResource,
+				rbac.DeploymentsResource,
+				rbac.ReplicasetsResource,
+				rbac.StatefulsetsResource,
 			},
 		},
 		{
-			APIGroups: []string{datadoghqv1alpha1.BatchAPIGroup},
+			APIGroups: []string{rbac.BatchAPIGroup},
 			Resources: []string{
-				datadoghqv1alpha1.CronjobsResource,
-				datadoghqv1alpha1.JobsResource,
+				rbac.CronjobsResource,
+				rbac.JobsResource,
 			},
 		},
 		{
-			APIGroups: []string{datadoghqv1alpha1.AutoscalingAPIGroup},
+			APIGroups: []string{rbac.AutoscalingAPIGroup},
 			Resources: []string{
-				datadoghqv1alpha1.HorizontalPodAutoscalersRecource,
+				rbac.HorizontalPodAutoscalersRecource,
 			},
 		},
 		{
-			APIGroups: []string{datadoghqv1alpha1.PolicyAPIGroup},
+			APIGroups: []string{rbac.PolicyAPIGroup},
 			Resources: []string{
-				datadoghqv1alpha1.PodDisruptionBudgetsResource,
+				rbac.PodDisruptionBudgetsResource,
 			},
 		},
 		{
-			APIGroups: []string{datadoghqv1alpha1.CertificatesAPIGroup},
+			APIGroups: []string{rbac.CertificatesAPIGroup},
 			Resources: []string{
-				datadoghqv1alpha1.CertificatesSigningRequestsResource,
+				rbac.CertificatesSigningRequestsResource,
 			},
 		},
 		{
-			APIGroups: []string{datadoghqv1alpha1.StorageAPIGroup},
+			APIGroups: []string{rbac.StorageAPIGroup},
 			Resources: []string{
-				datadoghqv1alpha1.StorageClassesResource,
-				datadoghqv1alpha1.VolumeAttachments,
+				rbac.StorageClassesResource,
+				rbac.VolumeAttachments,
 			},
 		},
 		{
-			APIGroups: []string{datadoghqv1alpha1.AdmissionAPIGroup},
+			APIGroups: []string{rbac.AdmissionAPIGroup},
 			Resources: []string{
-				datadoghqv1alpha1.MutatingConfigResource,
-				datadoghqv1alpha1.ValidatingConfigResource,
+				rbac.MutatingConfigResource,
+				rbac.ValidatingConfigResource,
 			},
 		},
 		{
-			APIGroups: []string{datadoghqv1alpha1.NetworkingAPIGroup},
+			APIGroups: []string{rbac.NetworkingAPIGroup},
 			Resources: []string{
-				datadoghqv1alpha1.IngressesResource,
-				datadoghqv1alpha1.NetworkPolicyResource,
+				rbac.IngressesResource,
+				rbac.NetworkPolicyResource,
 			},
 		},
 		{
-			APIGroups: []string{datadoghqv1alpha1.CoordinationAPIGroup},
+			APIGroups: []string{rbac.CoordinationAPIGroup},
 			Resources: []string{
-				datadoghqv1alpha1.LeasesResource,
+				rbac.LeasesResource,
 			},
 		},
 		{
-			APIGroups: []string{datadoghqv1alpha1.AutoscalingK8sIoAPIGroup},
+			APIGroups: []string{rbac.AutoscalingK8sIoAPIGroup},
 			Resources: []string{
-				datadoghqv1alpha1.VPAResource,
+				rbac.VPAResource,
 			},
 		},
 	}
 
 	clusterRole.Rules = rbacRules
 	commonVerbs := []string{
-		datadoghqv1alpha1.ListVerb,
-		datadoghqv1alpha1.WatchVerb,
+		rbac.ListVerb,
+		rbac.WatchVerb,
 	}
 
 	for i := range clusterRole.Rules {
@@ -274,4 +276,15 @@ func buildKubeStateMetricsCoreRBAC(dda *datadoghqv1alpha1.DatadogAgent, name, ve
 	}
 
 	return clusterRole
+}
+
+func isKSMCoreEnabled(dda *datadoghqv1alpha1.DatadogAgent) bool {
+	if dda.Spec.Features.KubeStateMetricsCore == nil {
+		return false
+	}
+	return apiutils.BoolValue(dda.Spec.Features.KubeStateMetricsCore.Enabled)
+}
+
+func isKSMCoreClusterCheck(dda *datadoghqv1alpha1.DatadogAgent) bool {
+	return isKSMCoreEnabled(dda) && apiutils.BoolValue(dda.Spec.Features.KubeStateMetricsCore.ClusterCheck)
 }

@@ -7,16 +7,16 @@ package datadogagent
 
 import (
 	"context"
-	"fmt"
 
+	"github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/configmap"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/go-logr/logr"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/yaml"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -136,32 +136,10 @@ func (r *Reconciler) cleanupConfigMap(logger logr.Logger, dda *datadoghqv1alpha1
 	return reconcile.Result{}, r.client.Delete(context.TODO(), configmap)
 }
 
-func buildConfigurationConfigMap(dda *datadoghqv1alpha1.DatadogAgent, cfcm *datadoghqv1alpha1.CustomConfigSpec, configMapName, subPath string) (*corev1.ConfigMap, error) {
+func buildConfigurationConfigMap(owner metav1.Object, cfcm *common.CustomConfig, configMapName, subPath string) (*corev1.ConfigMap, error) {
 	if cfcm == nil || cfcm.ConfigData == nil {
 		return nil, nil
 	}
-	configData := *cfcm.ConfigData
-	if configData == "" {
-		return nil, nil
-	}
 
-	// Validate that user input is valid YAML
-	// Maybe later we can implement that directly verifies against Agent configuration?
-	m := make(map[interface{}]interface{})
-	if err := yaml.Unmarshal([]byte(configData), m); err != nil {
-		return nil, fmt.Errorf("unable to parse YAML from 'customConfig.ConfigData' field: %w", err)
-	}
-
-	configMap := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        configMapName,
-			Namespace:   dda.Namespace,
-			Labels:      getDefaultLabels(dda, dda.Name, getAgentVersion(dda)),
-			Annotations: getDefaultAnnotations(dda),
-		},
-		Data: map[string]string{
-			subPath: configData,
-		},
-	}
-	return configMap, nil
+	return configmap.BuildConfiguration(owner, cfcm.ConfigData, configMapName, subPath)
 }

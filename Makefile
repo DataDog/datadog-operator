@@ -104,8 +104,14 @@ endef
 ##@ Deploy
 
 .PHONY: manager
-manager: generate lint ## Build manager binary
+manager: generate lint managergobuild ## Build manager binary
 	go build -ldflags '${LDFLAGS}' -o bin/$(PLATFORM)/manager main.go
+managergobuild: ## Builds only manager go binary
+	go build -ldflags '${LDFLAGS}' -o bin/$(PLATFORM)/manager main.go
+
+##@ Deploy
+
+manager: generate lint managergobuild ## Build manager binary
 
 .PHONY: run
 run: generate lint manifests ## Run against the configured Kubernetes cluster in ~/.kube/config
@@ -275,7 +281,7 @@ bin/$(PLATFORM)/yq: Makefile
 	hack/install-yq.sh 3.3.0
 
 bin/$(PLATFORM)/golangci-lint: Makefile
-	hack/golangci-lint.sh -b "bin/$(PLATFORM)" v1.38.0
+	hack/golangci-lint.sh -b "bin/$(PLATFORM)" v1.45.2
 
 bin/$(PLATFORM)/operator-sdk: Makefile
 	hack/install-operator-sdk.sh v1.13.1

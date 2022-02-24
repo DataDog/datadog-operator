@@ -19,31 +19,6 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-func TestKSMCoreGetEnvVarsForAgent(t *testing.T) {
-	logger := logf.Log.WithName(t.Name())
-	enabledFeature := true
-	spec := generateSpec()
-	spec.Spec.ClusterAgent.Config.ClusterChecksEnabled = &enabledFeature
-	spec.Spec.Features.KubeStateMetricsCore.Enabled = &enabledFeature
-	env, err := getEnvVarsForAgent(logger, spec)
-	require.NoError(t, err)
-	require.Subset(t, env, []v1.EnvVar{{
-		Name:  datadoghqv1alpha1.DDIgnoreAutoConf,
-		Value: "kubernetes_state",
-	}})
-
-	spec.Spec.Agent.Config.Env = append(spec.Spec.Agent.Config.Env, v1.EnvVar{
-		Name:  datadoghqv1alpha1.DDIgnoreAutoConf,
-		Value: "redis custom",
-	})
-	env, err = getEnvVarsForAgent(logger, spec)
-	require.NoError(t, err)
-	require.Subset(t, env, []v1.EnvVar{{
-		Name:  datadoghqv1alpha1.DDIgnoreAutoConf,
-		Value: "redis custom kubernetes_state",
-	}})
-}
-
 func generateSpec() *datadoghqv1alpha1.DatadogAgent {
 	var boolPtr bool
 	var intPtr int32
