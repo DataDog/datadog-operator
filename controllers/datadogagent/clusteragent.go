@@ -886,17 +886,17 @@ func (r *Reconciler) manageClusterAgentRBACs(logger logr.Logger, dda *datadoghqv
 	metricsProviderEnabled := isMetricsProviderEnabled(dda.Spec.ClusterAgent)
 	// Create or delete HPA ClusterRoleBinding
 	hpaClusterRoleBindingName := getHPAClusterRoleBindingName(dda)
-	if result, err := r.manageClusterRoleBinding(logger, dda, hpaClusterRoleBindingName, clusterAgentVersion, r.createHPAClusterRoleBinding, r.updateIfNeededHPAClusterRole, metricsProviderEnabled); err != nil {
+	if result, err := r.manageClusterRoleBinding(logger, dda, hpaClusterRoleBindingName, clusterAgentVersion, r.createHPAClusterRoleBinding, r.updateIfNeededHPAClusterRole, !metricsProviderEnabled); err != nil {
 		return result, err
 	}
 
 	// Create or delete external metrics reader ClusterRole and ClusterRoleBinding
 	metricsReaderClusterRoleName := getExternalMetricsReaderClusterRoleName(dda, r.versionInfo)
-	if result, err := r.manageClusterRole(logger, dda, metricsReaderClusterRoleName, clusterAgentVersion, r.createExternalMetricsReaderClusterRole, r.updateIfNeededExternalMetricsReaderClusterRole, metricsProviderEnabled); err != nil {
+	if result, err := r.manageClusterRole(logger, dda, metricsReaderClusterRoleName, clusterAgentVersion, r.createExternalMetricsReaderClusterRole, r.updateIfNeededExternalMetricsReaderClusterRole, !metricsProviderEnabled); err != nil {
 		return result, err
 	}
 
-	if result, err := r.manageClusterRoleBinding(logger, dda, metricsReaderClusterRoleName, clusterAgentVersion, r.createExternalMetricsReaderClusterRoleBinding, r.updateIfNeededClusterAgentClusterRoleBinding, metricsProviderEnabled); err != nil {
+	if result, err := r.manageClusterRoleBinding(logger, dda, metricsReaderClusterRoleName, clusterAgentVersion, r.createExternalMetricsReaderClusterRoleBinding, r.updateIfNeededExternalMetricsReaderClusterRoleBinding, !metricsProviderEnabled); err != nil {
 		return result, err
 	}
 
@@ -1002,16 +1002,6 @@ func (r *Reconciler) createClusterAgentRoleBinding(logger logr.Logger, dda *data
 	event := buildEventInfo(roleBinding.Name, roleBinding.Namespace, roleBindingKind, datadog.CreationEvent)
 	r.recordEvent(dda, event)
 	return reconcile.Result{}, r.client.Create(context.TODO(), roleBinding)
-}
-
-func (r *Reconciler) updateIfNeededClusterAgentClusterRoleBinding(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string, clusterRoleBinding *rbacv1.ClusterRoleBinding) (reconcile.Result, error) {
-	info := roleBindingInfo{
-		name:               name,
-		roleName:           getClusterAgentRbacResourcesName(dda),
-		serviceAccountName: getClusterAgentServiceAccount(dda),
-	}
-	newRoleBinding := buildClusterRoleBinding(dda, info, agentVersion)
-	return r.updateIfNeededClusterRoleBindingRaw(logger, dda, clusterRoleBinding, newRoleBinding)
 }
 
 // buildAgentClusterRole creates a ClusterRole object for the Agent based on its config
@@ -1196,6 +1186,19 @@ func buildClusterAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, age
 					datadoghqv1alpha1.ListVerb,
 					datadoghqv1alpha1.WatchVerb,
 				},
+			},
+			rbacv1.PolicyRule{
+				APIGroups: []string{datadoghqv1alpha1.AuthorizationAPIGroup},
+				Resources: []string{datadoghqv1alpha1.SubjectAccessReviewResource},
+				Verbs: []string{
+					datadoghqv1alpha1.CreateVerb,
+					datadoghqv1alpha1.GetVerb,
+				},
+			},
+			rbacv1.PolicyRule{
+				APIGroups: []string{datadoghqv1alpha1.CoreAPIGroup},
+				Resources: []string{datadoghqv1alpha1.EventsResource},
+				Verbs:     []string{datadoghqv1alpha1.CreateVerb},
 			},
 		)
 

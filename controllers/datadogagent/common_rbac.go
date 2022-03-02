@@ -176,6 +176,10 @@ type (
 )
 
 func (r *Reconciler) manageClusterRole(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, clusterRoleName, agentVersion string, createFunc createClusterRoleFunc, updateFunc updateIfNeedClusterRoleFunc, shouldCleanup bool) (reconcile.Result, error) {
+	if shouldCleanup {
+		return r.cleanupClusterRole(logger, dda, clusterRoleName)
+	}
+
 	clusterRole := &rbacv1.ClusterRole{}
 	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: clusterRoleName}, clusterRole); err != nil {
 		if errors.IsNotFound(err) {
@@ -184,9 +188,7 @@ func (r *Reconciler) manageClusterRole(logger logr.Logger, dda *datadoghqv1alpha
 			return reconcile.Result{}, err
 		}
 	}
-	if shouldCleanup {
-		return r.cleanupClusterRole(logger, dda, clusterRoleName)
-	}
+
 	return updateFunc(logger, dda, clusterRoleName, agentVersion, clusterRole)
 }
 
@@ -196,6 +198,10 @@ type (
 )
 
 func (r *Reconciler) manageClusterRoleBinding(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, clusterRoleBindingName, agentVersion string, createFunc createClusterRoleBindingFunc, updateFunc updateIfNeedClusterRoleBindingFunc, shouldCleanup bool) (reconcile.Result, error) {
+	if shouldCleanup {
+		return r.cleanupClusterRoleBinding(logger, dda, clusterRoleBindingName)
+	}
+
 	clusterRoleBinding := &rbacv1.ClusterRoleBinding{}
 	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: clusterRoleBindingName}, clusterRoleBinding); err != nil {
 		if errors.IsNotFound(err) {
@@ -203,9 +209,6 @@ func (r *Reconciler) manageClusterRoleBinding(logger logr.Logger, dda *datadoghq
 		} else if err != nil {
 			return reconcile.Result{}, err
 		}
-	}
-	if shouldCleanup {
-		return r.cleanupClusterRoleBinding(logger, dda, clusterRoleBindingName)
 	}
 
 	return updateFunc(logger, dda, clusterRoleBindingName, agentVersion, clusterRoleBinding)

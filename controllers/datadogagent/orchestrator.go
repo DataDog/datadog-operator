@@ -196,6 +196,25 @@ func buildOrchestratorExplorerRBAC(dda *datadoghqv1alpha1.DatadogAgent, name, ve
 				datadoghqv1alpha1.PersistentVolumeClaimsResource,
 			},
 		},
+		{
+			APIGroups: []string{datadoghqv1alpha1.CoreAPIGroup},
+			Resources: []string{
+				datadoghqv1alpha1.ServiceAccountResource,
+			},
+		},
+		{
+			APIGroups: []string{datadoghqv1alpha1.RbacAPIGroup},
+			Resources: []string{
+				datadoghqv1alpha1.RoleResource,
+				datadoghqv1alpha1.RoleBindingResource,
+				datadoghqv1alpha1.ClusterRoleResource,
+				datadoghqv1alpha1.ClusterRoleBindingResource,
+			},
+		},
+		{
+			APIGroups: []string{datadoghqv1alpha1.NetworkingAPIGroup},
+			Resources: []string{datadoghqv1alpha1.IngressesResource},
+		},
 	}
 
 	clusterRole.Rules = rbacRules

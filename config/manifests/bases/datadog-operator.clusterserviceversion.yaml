@@ -17,7 +17,7 @@ spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
-    - description: DatadogAgent is the Schema for the datadogagents API
+    - description: DatadogAgent Deployment with the Datadog Operator.
       displayName: Datadog Agent
       kind: DatadogAgent
       name: datadogagents.datadoghq.com

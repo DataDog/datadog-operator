@@ -80,6 +80,8 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=apiregistration.k8s.io,resources=apiservices,verbs=*
 // +kubebuilder:rbac:groups=datadoghq.com,resources=watermarkpodautoscalers,verbs=get;list;watch
 // +kubebuilder:rbac:groups=external.metrics.k8s.io,resources=*,verbs=get;list;watch
+// +kubebuilder:rbac:groups=datadoghq.com,resources=datadogmetrics,verbs=list;watch;create;delete
+// +kubebuilder:rbac:groups=datadoghq.com,resources=datadogmetrics/status,verbs=update
 
 // Use ExtendedDaemonSet
 // +kubebuilder:rbac:groups=datadoghq.com,resources=extendeddaemonsets,verbs=get;list;watch;create;update;patch;delete
@@ -128,6 +130,12 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=batch,resources=cronjobs,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=list;watch
 // +kubebuilder:rbac:groups="",resources=persistentvolumes,verbs=list;watch
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles,verbs=list;watch
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=list;watch
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,verbs=list;watch
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=list;watch
+// +kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=list;watch
+// +kubebuilder:rbac:groups="networking.k8s.io",resources=ingresses,verbs=list;watch
 
 // Kubernetes_state_core
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=list;watch

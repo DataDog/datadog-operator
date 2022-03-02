@@ -60,3 +60,27 @@ rules:
     verbs:
       - list
       - watch
+  - apigroups:
+      - ""
+    resources:
+        - serviceaccounts
+    verbs:
+        - list
+        - watch
+  - apigroups:
+      - "rbac.authorization.k8s.io"
+    resources:
+      - roles
+      - rolebindings
+      - clusterroles
+      - clusterrolebindings
+    verbs:
+      - list
+      - watch
+  - apigroups:
+      - "networking.k8s.io"
+    resources:
+      - ingresses
+    verbs:
+      - list
+      - watch

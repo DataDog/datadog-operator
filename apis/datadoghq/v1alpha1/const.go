@@ -244,6 +244,7 @@ const (
 	PolicyAPIGroup           = "policy"
 	NetworkingAPIGroup       = "networking.k8s.io"
 	AutoscalingK8sIoAPIGroup = "autoscaling.k8s.io"
+	AuthorizationAPIGroup    = "authorization.k8s.io"
 
 	// Resources
 
@@ -286,11 +287,14 @@ const (
 	ServiceAccountResource              = "serviceaccounts"
 	NamespaceResource                   = "namespaces"
 	PodSecurityPolicyResource           = "podsecuritypolicies"
+	ClusterRoleResource                 = "clusterroles"
+	RoleResource                        = "roles"
 	ClusterRoleBindingResource          = "clusterrolebindings"
 	RoleBindingResource                 = "rolebindings"
 	NetworkPolicyResource               = "networkpolicies"
 	IngressesResource                   = "ingresses"
 	VPAResource                         = "verticalpodautoscalers"
+	SubjectAccessReviewResource         = "subjectaccessreviews"
 
 	// Resource names
 
