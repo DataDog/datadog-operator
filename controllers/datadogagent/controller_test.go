@@ -2628,7 +2628,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						OrchestratorExplorerDisabled: true,
 						Site:                         "foo.site",
 						NodeAgentConfig: &datadoghqv1alpha1.NodeAgentConfig{
-							DDUrl: datadoghqv1alpha1.NewStringPointer("https://foo.ddurl"),
+							DDUrl: apiutils.NewStringPointer("https://foo.ddurl"),
 						},
 					}
 					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, dadOptions)
@@ -2642,7 +2642,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 
 					dcaOptions := &test.NewDeploymentOptions{
 						Labels:                 dcaLabels,
-						ForceAvailableReplicas: datadoghqv1alpha1.NewInt32Pointer(1),
+						ForceAvailableReplicas: apiutils.NewInt32Pointer(1),
 					}
 					dca := test.NewClusterAgentDeployment(resourcesNamespace, resourcesName, dcaOptions)
 
@@ -2718,7 +2718,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 
 					dcaOptions := &test.NewDeploymentOptions{
 						Labels:                 dcaLabels,
-						ForceAvailableReplicas: datadoghqv1alpha1.NewInt32Pointer(1),
+						ForceAvailableReplicas: apiutils.NewInt32Pointer(1),
 					}
 					dca := test.NewClusterAgentDeployment(resourcesNamespace, resourcesName, dcaOptions)
 

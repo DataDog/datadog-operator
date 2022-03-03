@@ -22,6 +22,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1/patch"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
@@ -122,7 +123,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, request reconcile.Re
 	}
 	if ddURL := r.options.DDUrl; ddURL != "" {
 		if instance.Spec.Agent.Config.DDUrl == nil {
-			instance.Spec.Agent.Config.DDUrl = datadoghqv1alpha1.NewStringPointer(ddURL)
+			instance.Spec.Agent.Config.DDUrl = apiutils.NewStringPointer(ddURL)
 		}
 	}
 
