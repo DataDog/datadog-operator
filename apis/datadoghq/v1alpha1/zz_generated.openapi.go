@@ -364,6 +364,12 @@ func schema__apis_datadoghq_v1alpha1_ClusterAgentConfig(ref common.ReferenceCall
 				Description: "ClusterAgentConfig contains the configuration of the Cluster Agent.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
+					"securityContext": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Pod-level SecurityContext.",
+							Ref:         ref("k8s.io/api/core/v1.PodSecurityContext"),
+						},
+					},
 					"externalMetrics": {
 						SchemaProps: spec.SchemaProps{
 							Ref: ref("./apis/datadoghq/v1alpha1.ExternalMetricsConfig"),
@@ -526,7 +532,7 @@ func schema__apis_datadoghq_v1alpha1_ClusterAgentConfig(ref common.ReferenceCall
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v1alpha1.AdmissionControllerConfig", "./apis/datadoghq/v1alpha1.ConfigDirSpec", "./apis/datadoghq/v1alpha1.ExternalMetricsConfig", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
+			"./apis/datadoghq/v1alpha1.AdmissionControllerConfig", "./apis/datadoghq/v1alpha1.ConfigDirSpec", "./apis/datadoghq/v1alpha1.ExternalMetricsConfig", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.PodSecurityContext", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
 	}
 }
 
@@ -537,6 +543,12 @@ func schema__apis_datadoghq_v1alpha1_ClusterChecksRunnerConfig(ref common.Refere
 				Description: "ClusterChecksRunnerConfig contains the configuration of the Cluster Checks Runner.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
+					"securityContext": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Pod-level SecurityContext.",
+							Ref:         ref("k8s.io/api/core/v1.PodSecurityContext"),
+						},
+					},
 					"resources": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Datadog Cluster Checks Runner resource requests and limits.",
@@ -680,7 +692,7 @@ func schema__apis_datadoghq_v1alpha1_ClusterChecksRunnerConfig(ref common.Refere
 			},
 		},
 		Dependencies: []string{
-			"k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.Probe", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
+			"k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.PodSecurityContext", "k8s.io/api/core/v1.Probe", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
 	}
 }
 

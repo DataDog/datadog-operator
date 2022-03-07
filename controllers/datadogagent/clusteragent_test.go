@@ -8,6 +8,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1/test"
+	"github.com/DataDog/datadog-operator/apis/utils"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/orchestrator"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
@@ -54,6 +55,10 @@ func clusterAgentDefaultPodSpec() v1.PodSpec {
 				},
 				LivenessProbe:  defaultLivenessProbe(),
 				ReadinessProbe: defaultReadinessProbe(),
+				SecurityContext: &v1.SecurityContext{
+					ReadOnlyRootFilesystem:   apiutils.NewBoolPointer(true),
+					AllowPrivilegeEscalation: apiutils.NewBoolPointer(false),
+				},
 			},
 		},
 		Volumes: []v1.Volume{
@@ -81,6 +86,10 @@ func clusterAgentDefaultPodSpec() v1.PodSpec {
 					},
 				},
 			},
+		},
+		SecurityContext: &v1.PodSecurityContext{
+			RunAsNonRoot: apiutils.NewBoolPointer(true),
+			RunAsUser:    apiutils.NewInt64Pointer(101),
 		},
 	}
 }
@@ -1545,4 +1554,70 @@ func Test_PodAntiAffinity(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_newClusterAgentDeploymentFromInstance_CustomSecurityContext(t *testing.T) {
+	podSpec := clusterAgentDefaultPodSpec()
+	podSpec.SecurityContext = &v1.PodSecurityContext{
+		RunAsGroup: utils.NewInt64Pointer(42),
+	}
+
+	agentDeployment := test.NewDefaultedDatadogAgent(
+		"bar",
+		"foo",
+		&test.NewDatadogAgentOptions{
+			ClusterAgentEnabled: true,
+		},
+	)
+	agentDeployment.Spec.ClusterAgent.Config.SecurityContext = &v1.PodSecurityContext{
+		RunAsGroup: utils.NewInt64Pointer(42),
+	}
+
+	test := clusterAgentDeploymentFromInstanceTest{
+		name:            "with custom security context",
+		agentdeployment: agentDeployment,
+		newStatus:       &datadoghqv1alpha1.DatadogAgentStatus{},
+		wantErr:         false,
+		want: &appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "bar",
+				Name:      "foo-cluster-agent",
+				Labels: map[string]string{
+					"agent.datadoghq.com/name":      "foo",
+					"agent.datadoghq.com/component": "cluster-agent",
+					"app.kubernetes.io/instance":    "cluster-agent",
+					"app.kubernetes.io/managed-by":  "datadog-operator",
+					"app.kubernetes.io/name":        "datadog-agent-deployment",
+					"app.kubernetes.io/part-of":     "bar-foo",
+					"app.kubernetes.io/version":     "",
+				},
+				Annotations: map[string]string{},
+			},
+			Spec: appsv1.DeploymentSpec{
+				Template: v1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{
+							"agent.datadoghq.com/name":      "foo",
+							"agent.datadoghq.com/component": "cluster-agent",
+							"app.kubernetes.io/instance":    "cluster-agent",
+							"app.kubernetes.io/managed-by":  "datadog-operator",
+							"app.kubernetes.io/name":        "datadog-agent-deployment",
+							"app.kubernetes.io/part-of":     "bar-foo",
+							"app.kubernetes.io/version":     "",
+						},
+						Annotations: map[string]string{},
+					},
+					Spec: podSpec,
+				},
+				Replicas: nil,
+				Selector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						"agent.datadoghq.com/name":      "foo",
+						"agent.datadoghq.com/component": "cluster-agent",
+					},
+				},
+			},
+		},
+	}
+	test.Run(t)
 }
