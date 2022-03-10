@@ -124,16 +124,3 @@ func (r *Reconciler) cleanupSecret(namespace, name string, dda *datadoghqv1alpha
 
 	return reconcile.Result{}, err
 }
-
-func dataFromCredentials(credentials *datadoghqv1alpha1.DatadogCredentials) map[string][]byte {
-	data := make(map[string][]byte)
-	// Create secret using DatadogAgent credentials if it exists
-	if credentials.APIKey != "" {
-		data[datadoghqv1alpha1.DefaultAPIKeyKey] = []byte(credentials.APIKey)
-	}
-	if credentials.AppKey != "" {
-		data[datadoghqv1alpha1.DefaultAPPKeyKey] = []byte(credentials.AppKey)
-	}
-
-	return data
-}

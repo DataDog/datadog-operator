@@ -37,7 +37,7 @@ func extractHandle(str string) (string, error) {
 		return str[4 : len(str)-1], nil
 	}
 
-	return "", fmt.Errorf("wrong format, want ENC[<hanlde>], got: %s", str)
+	return "", fmt.Errorf("wrong format, want ENC[<handle>], got: %s", str)
 }
 
 // encFormat puts a given secret handle in a ENC[<handle>] format

@@ -11897,9 +11897,7 @@ spec:
                   useSecretBackend:
                     description: 'UseSecretBackend use the Agent secret backend feature
                       for retreiving all credentials needed by the different components:
-                      Agent, Cluster, Cluster-Checks. If `useSecretBackend: true`,
-                      other credential parameters will be ignored. default value is
-                      false.'
+                      Agent, Cluster, Cluster-Checks. default value is false.'
                     type: boolean
                 type: object
               features:

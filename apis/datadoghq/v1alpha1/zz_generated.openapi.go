@@ -317,7 +317,7 @@ func schema__apis_datadoghq_v1alpha1_AgentCredentials(ref common.ReferenceCallba
 					},
 					"useSecretBackend": {
 						SchemaProps: spec.SchemaProps{
-							Description: "UseSecretBackend use the Agent secret backend feature for retreiving all credentials needed by the different components: Agent, Cluster, Cluster-Checks. If `useSecretBackend: true`, other credential parameters will be ignored. default value is false.",
+							Description: "UseSecretBackend use the Agent secret backend feature for retreiving all credentials needed by the different components: Agent, Cluster, Cluster-Checks. default value is false.",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},

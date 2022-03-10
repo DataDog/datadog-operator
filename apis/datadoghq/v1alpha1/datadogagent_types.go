@@ -118,7 +118,6 @@ type AgentCredentials struct {
 
 	// UseSecretBackend use the Agent secret backend feature for retreiving all credentials needed by
 	// the different components: Agent, Cluster, Cluster-Checks.
-	// If `useSecretBackend: true`, other credential parameters will be ignored.
 	// default value is false.
 	UseSecretBackend *bool `json:"useSecretBackend,omitempty"`
 }

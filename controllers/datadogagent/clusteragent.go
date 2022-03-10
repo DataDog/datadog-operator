@@ -32,6 +32,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/secrets"
 )
 
 func (r *Reconciler) reconcileClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
@@ -604,10 +605,6 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 			Value: getClusterAgentServiceName(dda),
 		},
 		{
-			Name:      datadoghqv1alpha1.DDClusterAgentAuthToken,
-			ValueFrom: getClusterAgentAuthToken(dda),
-		},
-		{
 			Name:  datadoghqv1alpha1.DDLeaderElection,
 			Value: "true",
 		},
@@ -623,6 +620,20 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 			Name:  datadoghqv1alpha1.DDHealthPort,
 			Value: strconv.Itoa(int(*spec.ClusterAgent.Config.HealthPort)),
 		},
+	}
+
+	// This triggers use of the secret backend.
+	// Otherwise, read from the default or configured secret
+	if secrets.IsEnc(dda.Spec.Credentials.Token) {
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  datadoghqv1alpha1.DDClusterAgentAuthToken,
+			Value: dda.Spec.Credentials.Token,
+		})
+	} else {
+		envVars = append(envVars, corev1.EnvVar{
+			Name:      datadoghqv1alpha1.DDClusterAgentAuthToken,
+			ValueFrom: getClusterAgentAuthToken(dda),
+		})
 	}
 
 	if spec.ClusterName != "" {
@@ -661,10 +672,19 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 		Value: *spec.ClusterAgent.Config.LogLevel,
 	})
 
-	envVars = append(envVars, corev1.EnvVar{
-		Name:      datadoghqv1alpha1.DDAPIKey,
-		ValueFrom: getAPIKeyFromSecret(dda),
-	})
+	// This triggers use of the secret backend.
+	// Otherwise, read from the default or configured secret
+	if secrets.IsEnc(dda.Spec.Credentials.DatadogCredentials.APIKey) {
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  datadoghqv1alpha1.DDAPIKey,
+			Value: dda.Spec.Credentials.DatadogCredentials.APIKey,
+		})
+	} else {
+		envVars = append(envVars, corev1.EnvVar{
+			Name:      datadoghqv1alpha1.DDAPIKey,
+			ValueFrom: getAPIKeyFromSecret(dda),
+		})
+	}
 
 	if spec.Site != "" {
 		envVars = append(envVars, corev1.EnvVar{
@@ -704,20 +724,38 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 		}
 
 		if hasMetricsProviderCustomCredentials(spec.ClusterAgent) {
-			apiSet, secretName, secretKey := utils.GetAPIKeySecret(dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials, getDefaultExternalMetricSecretName(dda))
-			if apiSet {
+			// This triggers use of the secret backend.
+			// Otherwise, read from the default or configured secret
+			if secrets.IsEnc(dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials.APIKey) {
 				envVars = append(envVars, corev1.EnvVar{
-					Name:      datadoghqv1alpha1.DDExternalMetricsProviderAPIKey,
-					ValueFrom: buildEnvVarFromSecret(secretName, secretKey),
+					Name:  datadoghqv1alpha1.DDExternalMetricsProviderAPIKey,
+					Value: dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials.APIKey,
 				})
+			} else {
+				apiSet, secretName, secretKey := utils.GetAPIKeySecret(dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials, getDefaultExternalMetricSecretName(dda))
+				if apiSet {
+					envVars = append(envVars, corev1.EnvVar{
+						Name:      datadoghqv1alpha1.DDExternalMetricsProviderAPIKey,
+						ValueFrom: buildEnvVarFromSecret(secretName, secretKey),
+					})
+				}
 			}
 
-			appSet, secretName, secretKey := utils.GetAppKeySecret(dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials, getDefaultExternalMetricSecretName(dda))
-			if appSet {
+			// This triggers use of the secret backend.
+			// Otherwise, read from the default or configured secret
+			if secrets.IsEnc(dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials.AppKey) {
 				envVars = append(envVars, corev1.EnvVar{
-					Name:      datadoghqv1alpha1.DDExternalMetricsProviderAppKey,
-					ValueFrom: buildEnvVarFromSecret(secretName, secretKey),
+					Name:  datadoghqv1alpha1.DDExternalMetricsProviderAppKey,
+					Value: dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials.AppKey,
 				})
+			} else {
+				appSet, secretName, secretKey := utils.GetAppKeySecret(dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials, getDefaultExternalMetricSecretName(dda))
+				if appSet {
+					envVars = append(envVars, corev1.EnvVar{
+						Name:      datadoghqv1alpha1.DDExternalMetricsProviderAppKey,
+						ValueFrom: buildEnvVarFromSecret(secretName, secretKey),
+					})
+				}
 			}
 		}
 	}

@@ -8,13 +8,13 @@ package datadogagent
 import (
 	"fmt"
 
+	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
-	"github.com/go-logr/logr"
 )
 
 func (r *Reconciler) manageExternalMetricsSecret(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
@@ -22,12 +22,6 @@ func (r *Reconciler) manageExternalMetricsSecret(logger logr.Logger, dda *datado
 }
 
 func newExternalMetricsSecret(name string, dda *datadoghqv1alpha1.DatadogAgent) (*corev1.Secret, error) {
-	if dda.Spec.ClusterAgent.Config == nil || dda.Spec.ClusterAgent.Config.ExternalMetrics == nil ||
-		dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials == nil || dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials.APIKey == "" &&
-		dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials.AppKey == "" {
-		return nil, fmt.Errorf("unable to create external metrics secret, missing data in .Spec.ClusterAgent.Config.ExternalMetrics.Credentials")
-	}
-
 	labels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
 	annotations := getDefaultAnnotations(dda)
 
@@ -39,20 +33,30 @@ func newExternalMetricsSecret(name string, dda *datadoghqv1alpha1.DatadogAgent) 
 			Annotations: annotations,
 		},
 		Type: corev1.SecretTypeOpaque,
-		Data: dataFromCredentials(dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials),
+		Data: getKeysFromCredentials(dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials),
 	}
 
 	return secret, nil
 }
 
 func needExternalMetricsSecret(dda *datadoghqv1alpha1.DatadogAgent) bool {
-	if dda.Spec.ClusterAgent.Config == nil || dda.Spec.ClusterAgent.Config.ExternalMetrics == nil || dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials == nil {
-		// If Credentials are not specified we fail downstream to have the error surfaced in the status of the DatadogAgent
+	// If the External Metrics Server is not enabled or the ExternalMetrics.Credentials don't contain API and app keys, we don't need a secret
+	if !isClusterAgentEnabled(dda.Spec.ClusterAgent) ||
+		dda.Spec.ClusterAgent.Config == nil ||
+		dda.Spec.ClusterAgent.Config.ExternalMetrics == nil ||
+		!*dda.Spec.ClusterAgent.Config.ExternalMetrics.Enabled ||
+		dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials == nil ||
+		(dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials.APIKey == "" && dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials.AppKey == "") {
 		return false
 	}
-	return isClusterAgentEnabled(dda.Spec.ClusterAgent) &&
-		(dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials.APIKey != "" || dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials.AppKey != "") &&
-		!apiutils.BoolValue(dda.Spec.Credentials.UseSecretBackend)
+
+	// If API key and app key don't need a new secret, then don't create one.
+	if checkAPIKeySufficiency(dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials, apiutils.BoolValue(dda.Spec.Credentials.UseSecretBackend), datadoghqv1alpha1.DDExternalMetricsProviderAPIKey) &&
+		checkAppKeySufficiency(dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials, apiutils.BoolValue(dda.Spec.Credentials.UseSecretBackend), datadoghqv1alpha1.DDExternalMetricsProviderAPIKey) {
+		return false
+	}
+
+	return true
 }
 
 func getDefaultExternalMetricSecretName(dda *datadoghqv1alpha1.DatadogAgent) string {
