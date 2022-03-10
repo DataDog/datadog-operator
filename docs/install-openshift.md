@@ -49,22 +49,22 @@ The following contains the simplest configuration:
        appSecret:
          secretName: datadog-secret
          keyName: app-key
-      agent:
-        rbac:
-          serviceAccountName: datadog-agent-scc
-        config:
-          securityContext:
-            runAsUser: 0
-            seLinuxOptions:
-              level: s0
-              role: system_r
-              type: spc_t
-              user: system_u
-          criSocket:
-            criSocketPath: /var/run/crio/crio.sock
-          env:
-          - name: DD_KUBELET_TLS_VERIFY
-            value: "false"
+     agent:
+       rbac:
+         serviceAccountName: datadog-agent-scc
+       config:
+         securityContext:
+           runAsUser: 0
+           seLinuxOptions:
+             level: s0
+             role: system_r
+             type: spc_t
+             user: system_u
+         criSocket:
+           criSocketPath: /var/run/crio/crio.sock
+         env:
+         - name: DD_KUBELET_TLS_VERIFY
+           value: "false"
    ```
 
 3. Deploy the Datadog Agent with the configuration file above:
