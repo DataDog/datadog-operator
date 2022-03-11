@@ -353,6 +353,7 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 			Name:         datadoghqv1alpha1.ConfdVolumeName,
 			VolumeSource: confdVolumeSource,
 		},
+		getVolumeForLogs(),
 	}
 	volumeMounts := []corev1.VolumeMount{
 		{
@@ -366,6 +367,7 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 			MountPath: datadoghqv1alpha1.ConfdVolumePath,
 			ReadOnly:  true,
 		},
+		getVolumeMountForLogs(),
 	}
 
 	if dda.Spec.ClusterAgent.CustomConfig != nil {
