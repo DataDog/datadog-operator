@@ -32,18 +32,18 @@ func getKeysFromCredentials(credentials *datadoghqv1alpha1.DatadogCredentials) m
 // 2. the secret backend should be used (from the credentials key), or
 // 3. the corresponding env var is defined (whether in ENC format or not)
 // If any of these is true, the secret is not needed for that particular key.
-func checkAPIKeySufficiency(creds *datadoghqv1alpha1.DatadogCredentials, useSecretBackend bool, envVar string) bool {
+func checkAPIKeySufficiency(creds *datadoghqv1alpha1.DatadogCredentials, useSecretBackend bool, envVarName string) bool {
 	return ((creds.APISecret != nil && creds.APISecret.SecretName != "") ||
 		creds.APIKeyExistingSecret != "" ||
 		(secrets.IsEnc(creds.APIKey) && useSecretBackend) ||
-		os.Getenv(envVar) != "")
+		os.Getenv(envVarName) != "")
 }
 
-func checkAppKeySufficiency(creds *datadoghqv1alpha1.DatadogCredentials, useSecretBackend bool, envVar string) bool {
+func checkAppKeySufficiency(creds *datadoghqv1alpha1.DatadogCredentials, useSecretBackend bool, envVarName string) bool {
 	return ((creds.APPSecret != nil && creds.APPSecret.SecretName != "") ||
 		creds.AppKeyExistingSecret != "" ||
 		(secrets.IsEnc(creds.AppKey) && useSecretBackend) ||
-		os.Getenv(envVar) != "")
+		os.Getenv(envVarName) != "")
 }
 
 // Check if the token should come from the secret backend.

@@ -18,11 +18,11 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 )
 
-func (r *Reconciler) manageAgentSecret(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
-	return r.manageSecret(logger, managedSecret{name: utils.GetDefaultCredentialsSecretName(dda), requireFunc: needAgentSecret, createFunc: newAgentSecret}, dda, newStatus)
+func (r *Reconciler) manageAgentSecret(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
+	return r.manageSecret(logger, managedSecret{name: utils.GetDefaultCredentialsSecretName(dda), requireFunc: needAgentSecret, createFunc: newAgentSecret}, dda)
 }
 
-func newAgentSecret(name string, dda *datadoghqv1alpha1.DatadogAgent) (*corev1.Secret, error) {
+func newAgentSecret(name string, dda *datadoghqv1alpha1.DatadogAgent) *corev1.Secret {
 	labels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
 	annotations := getDefaultAnnotations(dda)
 
@@ -48,12 +48,12 @@ func newAgentSecret(name string, dda *datadoghqv1alpha1.DatadogAgent) (*corev1.S
 		Type: corev1.SecretTypeOpaque,
 		Data: data,
 	}
-	return secret, nil
+	return secret
 }
 
 // needAgentSecret checks if a secret should be used or created.
 func needAgentSecret(dda *datadoghqv1alpha1.DatadogAgent) bool {
-	// If credentials are not specified, there is nothing to create a secret from.
+	// If credentials is nil, there is nothing to create a secret from.
 	if dda.Spec.Credentials == nil {
 		return false
 	}

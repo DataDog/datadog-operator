@@ -17,11 +17,11 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 )
 
-func (r *Reconciler) manageExternalMetricsSecret(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
-	return r.manageSecret(logger, managedSecret{name: getDefaultExternalMetricSecretName(dda), requireFunc: needExternalMetricsSecret, createFunc: newExternalMetricsSecret}, dda, newStatus)
+func (r *Reconciler) manageExternalMetricsSecret(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
+	return r.manageSecret(logger, managedSecret{name: getDefaultExternalMetricSecretName(dda), requireFunc: needExternalMetricsSecret, createFunc: newExternalMetricsSecret}, dda)
 }
 
-func newExternalMetricsSecret(name string, dda *datadoghqv1alpha1.DatadogAgent) (*corev1.Secret, error) {
+func newExternalMetricsSecret(name string, dda *datadoghqv1alpha1.DatadogAgent) *corev1.Secret {
 	labels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
 	annotations := getDefaultAnnotations(dda)
 
@@ -36,7 +36,7 @@ func newExternalMetricsSecret(name string, dda *datadoghqv1alpha1.DatadogAgent) 
 		Data: getKeysFromCredentials(dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials),
 	}
 
-	return secret, nil
+	return secret
 }
 
 func needExternalMetricsSecret(dda *datadoghqv1alpha1.DatadogAgent) bool {

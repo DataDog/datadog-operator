@@ -7,8 +7,6 @@ package datadogagent
 
 import (
 	"context"
-	"fmt"
-	"time"
 
 	"github.com/go-logr/logr"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -17,11 +15,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
@@ -29,25 +25,20 @@ import (
 type managedSecret struct {
 	name        string
 	requireFunc func(dda *datadoghqv1alpha1.DatadogAgent) bool
-	createFunc  func(name string, dda *datadoghqv1alpha1.DatadogAgent) (*corev1.Secret, error)
+	createFunc  func(name string, dda *datadoghqv1alpha1.DatadogAgent) *corev1.Secret
 }
 
-func (r *Reconciler) manageSecret(logger logr.Logger, secret managedSecret, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
+func (r *Reconciler) manageSecret(logger logr.Logger, secret managedSecret, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
 	if !secret.requireFunc(dda) {
 		result, err := r.cleanupSecret(dda.Namespace, secret.name, dda)
 		return result, err
 	}
 
-	now := metav1.NewTime(time.Now())
 	secretObj := &corev1.Secret{}
 	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: dda.Namespace, Name: secret.name}, secretObj)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			s, errCreate := secret.createFunc(secret.name, dda)
-			if errCreate != nil {
-				condition.UpdateDatadogAgentStatusConditions(newStatus, now, datadoghqv1alpha1.DatadogAgentConditionTypeSecretError, corev1.ConditionTrue, fmt.Sprintf("%v", err), false)
-				return reconcile.Result{}, fmt.Errorf("cannot create secret %s, err: %w", secret.name, errCreate)
-			}
+			s := secret.createFunc(secret.name, dda)
 
 			return r.createSecret(logger, s, dda)
 		}
@@ -77,10 +68,7 @@ func (r *Reconciler) updateIfNeededSecret(secret managedSecret, dda *datadoghqv1
 		return reconcile.Result{}, nil
 	}
 
-	newSecret, err := secret.createFunc(secret.name, dda)
-	if err != nil {
-		return reconcile.Result{}, err
-	}
+	newSecret := secret.createFunc(secret.name, dda)
 
 	result := reconcile.Result{}
 	if !(apiequality.Semantic.DeepEqual(newSecret.Data, currentSecret.Data) &&

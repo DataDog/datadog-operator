@@ -35,7 +35,7 @@ import (
 )
 
 func (r *Reconciler) reconcileClusterChecksRunner(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
-	result, err := r.manageClusterChecksRunnerDependencies(logger, dda, newStatus)
+	result, err := r.manageClusterChecksRunnerDependencies(logger, dda)
 	if utils.ShouldReturn(result, err) {
 		return result, err
 	}
@@ -198,8 +198,8 @@ func newClusterChecksRunnerDeploymentFromInstance(
 	return dca, hash, err
 }
 
-func (r *Reconciler) manageClusterChecksRunnerDependencies(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
-	result, err := r.manageAgentSecret(logger, dda, newStatus)
+func (r *Reconciler) manageClusterChecksRunnerDependencies(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
+	result, err := r.manageAgentSecret(logger, dda)
 	if utils.ShouldReturn(result, err) {
 		return result, err
 	}
