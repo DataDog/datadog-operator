@@ -31,7 +31,6 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
-	"github.com/DataDog/datadog-operator/pkg/secrets"
 )
 
 func (r *Reconciler) reconcileClusterChecksRunner(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
@@ -411,33 +410,15 @@ func getEnvVarsForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []cor
 		},
 	}
 
-	// This triggers use of the secret backend.
-	// Otherwise, read from the default or configured secret
-	if secrets.IsEnc(dda.Spec.Credentials.DatadogCredentials.APIKey) {
-		envVars = append(envVars, corev1.EnvVar{
-			Name:  datadoghqv1alpha1.DDAPIKey,
-			Value: dda.Spec.Credentials.DatadogCredentials.APIKey,
-		})
-	} else {
-		envVars = append(envVars, corev1.EnvVar{
-			Name:      datadoghqv1alpha1.DDAPIKey,
-			ValueFrom: getAPIKeyFromSecret(dda),
-		})
-	}
+	envVars = append(envVars, corev1.EnvVar{
+		Name:      datadoghqv1alpha1.DDAPIKey,
+		ValueFrom: getAPIKeyFromSecret(dda),
+	})
 
-	// This triggers use of the secret backend.
-	// Otherwise, read from the default or configured secret
-	if secrets.IsEnc(dda.Spec.Credentials.Token) {
-		envVars = append(envVars, corev1.EnvVar{
-			Name:  datadoghqv1alpha1.DDClusterAgentAuthToken,
-			Value: dda.Spec.Credentials.Token,
-		})
-	} else {
-		envVars = append(envVars, corev1.EnvVar{
-			Name:      datadoghqv1alpha1.DDClusterAgentAuthToken,
-			ValueFrom: getClusterAgentAuthToken(dda),
-		})
-	}
+	envVars = append(envVars, corev1.EnvVar{
+		Name:      datadoghqv1alpha1.DDClusterAgentAuthToken,
+		ValueFrom: getClusterAgentAuthToken(dda),
+	})
 
 	if spec.ClusterName != "" {
 		envVars = append(envVars, corev1.EnvVar{

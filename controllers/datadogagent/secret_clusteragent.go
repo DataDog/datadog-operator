@@ -14,7 +14,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
-	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 )
 
 func (r *Reconciler) manageExternalMetricsSecret(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
@@ -51,8 +50,8 @@ func needExternalMetricsSecret(dda *datadoghqv1alpha1.DatadogAgent) bool {
 	}
 
 	// If API key and app key don't need a new secret, then don't create one.
-	if checkAPIKeySufficiency(dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials, apiutils.BoolValue(dda.Spec.Credentials.UseSecretBackend), datadoghqv1alpha1.DDExternalMetricsProviderAPIKey) &&
-		checkAppKeySufficiency(dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials, apiutils.BoolValue(dda.Spec.Credentials.UseSecretBackend), datadoghqv1alpha1.DDExternalMetricsProviderAPIKey) {
+	if checkAPIKeySufficiency(dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials, datadoghqv1alpha1.DDExternalMetricsProviderAPIKey) &&
+		checkAppKeySufficiency(dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials, datadoghqv1alpha1.DDExternalMetricsProviderAPIKey) {
 		return false
 	}
 

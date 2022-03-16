@@ -12,10 +12,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
-	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
-	"github.com/DataDog/datadog-operator/pkg/secrets"
 )
 
 func (r *Reconciler) manageAgentSecret(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
@@ -29,7 +27,7 @@ func newAgentSecret(name string, dda *datadoghqv1alpha1.DatadogAgent) *corev1.Se
 	creds := dda.Spec.Credentials
 	data := getKeysFromCredentials(&creds.DatadogCredentials)
 
-	if creds.Token != "" && !secrets.IsEnc(creds.Token) {
+	if creds.Token != "" {
 		data[datadoghqv1alpha1.DefaultTokenKey] = []byte(creds.Token)
 	} else if isClusterAgentEnabled(dda.Spec.ClusterAgent) {
 		defaultedToken := datadoghqv1alpha1.DefaultedClusterAgentToken(&dda.Status)
@@ -59,9 +57,9 @@ func needAgentSecret(dda *datadoghqv1alpha1.DatadogAgent) bool {
 	}
 
 	// If API key, app key _and_ token don't need a new secret, then don't create one.
-	if checkAPIKeySufficiency(&dda.Spec.Credentials.DatadogCredentials, apiutils.BoolValue(dda.Spec.Credentials.UseSecretBackend), config.DDAPIKeyEnvVar) &&
-		checkAppKeySufficiency(&dda.Spec.Credentials.DatadogCredentials, apiutils.BoolValue(dda.Spec.Credentials.UseSecretBackend), config.DDAppKeyEnvVar) &&
-		isClusterAgentEnabled(dda.Spec.ClusterAgent) && checkTokenSufficiency(dda.Spec.Credentials) {
+	if checkAPIKeySufficiency(&dda.Spec.Credentials.DatadogCredentials, config.DDAPIKeyEnvVar) &&
+		checkAppKeySufficiency(&dda.Spec.Credentials.DatadogCredentials, config.DDAppKeyEnvVar) &&
+		!isClusterAgentEnabled(dda.Spec.ClusterAgent) {
 		return false
 	}
 

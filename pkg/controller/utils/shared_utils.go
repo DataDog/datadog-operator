@@ -9,7 +9,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
-	"github.com/DataDog/datadog-operator/pkg/secrets"
 )
 
 // GetDefaultCredentialsSecretName returns the default name for credentials secret
@@ -32,7 +31,7 @@ func GetAPIKeySecret(credentials *datadoghqv1alpha1.DatadogCredentials, defaultN
 		return true, credentials.APIKeyExistingSecret, datadoghqv1alpha1.DefaultAPIKeyKey
 	}
 
-	if credentials.APIKey != "" && !secrets.IsEnc(credentials.APIKey) {
+	if credentials.APIKey != "" {
 		return true, defaultName, datadoghqv1alpha1.DefaultAPIKeyKey
 	}
 
@@ -54,7 +53,7 @@ func GetAppKeySecret(credentials *datadoghqv1alpha1.DatadogCredentials, defaultN
 		return true, credentials.AppKeyExistingSecret, datadoghqv1alpha1.DefaultAPPKeyKey
 	}
 
-	if credentials.AppKey != "" && !secrets.IsEnc(credentials.AppKey) {
+	if credentials.AppKey != "" {
 		return true, defaultName, datadoghqv1alpha1.DefaultAPPKeyKey
 	}
 

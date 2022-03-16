@@ -73,9 +73,9 @@ func Test_newAgentSecret(t *testing.T) {
 				appKey: "ENC[app_key]",
 				token:  "ENC[token]",
 			},
-			wantAPIKey: "",
-			wantAppKey: "",
-			wantToken:  "",
+			wantAPIKey: "ENC[api_key]",
+			wantAppKey: "ENC[app_key]",
+			wantToken:  "ENC[token]",
 		},
 	}
 	for _, tt := range tests {
@@ -130,10 +130,9 @@ func Test_newAgentSecret(t *testing.T) {
 func Test_needAgentSecret(t *testing.T) {
 
 	type fields struct {
-		APIKey           string
-		appKey           string
-		token            string
-		useSecretBackend bool
+		APIKey string
+		appKey string
+		token  string
 	}
 	tests := []struct {
 		name           string
@@ -153,12 +152,11 @@ func Test_needAgentSecret(t *testing.T) {
 		{
 			name: "API key, App key, and token use secret backend",
 			fields: fields{
-				APIKey:           "ENC[api_key]",
-				appKey:           "ENC[app_key]",
-				token:            "ENC[token]",
-				useSecretBackend: true,
+				APIKey: "ENC[api_key]",
+				appKey: "ENC[app_key]",
+				token:  "ENC[token]",
 			},
-			want: false,
+			want: true,
 		},
 		{
 			name:           "Nil credentials",
@@ -176,10 +174,9 @@ func Test_needAgentSecret(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 
 			options := &testutils.NewDatadogAgentOptions{
-				APIKey:           tt.fields.APIKey,
-				AppKey:           tt.fields.appKey,
-				Token:            tt.fields.token,
-				UseSecretBackend: tt.fields.useSecretBackend,
+				APIKey: tt.fields.APIKey,
+				AppKey: tt.fields.appKey,
+				Token:  tt.fields.token,
 			}
 
 			dda := testutils.NewDatadogAgent("default", "test", "datadog/agent:7.24.1", options)
@@ -353,10 +350,15 @@ func Test_getKeysFromCredentials(t *testing.T) {
 			wantFunc: func() map[string][]byte { return map[string][]byte{} },
 		},
 		{
-			name:     "API and app keys are formatted for the secret backend",
-			APIKey:   "ENC[api_key]",
-			appKey:   "ENC[app_key]",
-			wantFunc: func() map[string][]byte { return map[string][]byte{} },
+			name:   "API and app keys are formatted for the secret backend",
+			APIKey: "ENC[api_key]",
+			appKey: "ENC[app_key]",
+			wantFunc: func() map[string][]byte {
+				wantMap := make(map[string][]byte)
+				wantMap[datadoghqv1alpha1.DefaultAPIKeyKey] = []byte("ENC[api_key]")
+				wantMap[datadoghqv1alpha1.DefaultAPPKeyKey] = []byte("ENC[app_key]")
+				return wantMap
+			},
 		},
 		{
 			name:   "API and app keys are set",
@@ -390,11 +392,10 @@ func Test_checkAPIKeySufficiency(t *testing.T) {
 	apiKeyValue := "adflkajdflkjalkcmlkdjacsf"
 
 	tests := []struct {
-		name             string
-		credentials      *datadoghqv1alpha1.DatadogCredentials
-		useSecretBackend bool
-		envVarName       string
-		want             bool
+		name        string
+		credentials *datadoghqv1alpha1.DatadogCredentials
+		envVarName  string
+		want        bool
 	}{
 		{
 			name: "APISecret is used",
@@ -418,8 +419,7 @@ func Test_checkAPIKeySufficiency(t *testing.T) {
 			credentials: &datadoghqv1alpha1.DatadogCredentials{
 				APIKey: "ENC[api_key]",
 			},
-			useSecretBackend: true,
-			want:             true,
+			want: false,
 		},
 		{
 			name:        "envvar is used",
@@ -428,7 +428,7 @@ func Test_checkAPIKeySufficiency(t *testing.T) {
 			want:        true,
 		},
 		{
-			name: "envvar is used",
+			name: "credential is set",
 			credentials: &datadoghqv1alpha1.DatadogCredentials{
 				APIKey: apiKeyValue,
 			},
@@ -441,7 +441,7 @@ func Test_checkAPIKeySufficiency(t *testing.T) {
 			if tt.envVarName != "" {
 				os.Setenv(tt.envVarName, apiKeyValue)
 			}
-			result := checkAPIKeySufficiency(tt.credentials, tt.useSecretBackend, tt.envVarName)
+			result := checkAPIKeySufficiency(tt.credentials, tt.envVarName)
 			if result != tt.want {
 				t.Errorf("checkAPIKeySufficiency() result is %v but want %v", result, tt.want)
 			}
@@ -456,11 +456,10 @@ func Test_checkAppKeySufficiency(t *testing.T) {
 	appKeyValue := "sgfggtdhfghfghfghfgbdfdgs"
 
 	tests := []struct {
-		name             string
-		credentials      *datadoghqv1alpha1.DatadogCredentials
-		useSecretBackend bool
-		envVarName       string
-		want             bool
+		name        string
+		credentials *datadoghqv1alpha1.DatadogCredentials
+		envVarName  string
+		want        bool
 	}{
 		{
 			name: "APPSecret is used",
@@ -484,8 +483,7 @@ func Test_checkAppKeySufficiency(t *testing.T) {
 			credentials: &datadoghqv1alpha1.DatadogCredentials{
 				AppKey: "ENC[api_key]",
 			},
-			useSecretBackend: true,
-			want:             true,
+			want: false,
 		},
 		{
 			name:        "envvar is used",
@@ -494,7 +492,7 @@ func Test_checkAppKeySufficiency(t *testing.T) {
 			want:        true,
 		},
 		{
-			name: "envvar is used",
+			name: "credential is set",
 			credentials: &datadoghqv1alpha1.DatadogCredentials{
 				AppKey: appKeyValue,
 			},
@@ -507,53 +505,12 @@ func Test_checkAppKeySufficiency(t *testing.T) {
 			if tt.envVarName != "" {
 				os.Setenv(tt.envVarName, appKeyValue)
 			}
-			result := checkAppKeySufficiency(tt.credentials, tt.useSecretBackend, tt.envVarName)
+			result := checkAppKeySufficiency(tt.credentials, tt.envVarName)
 			if result != tt.want {
 				t.Errorf("checkAppKeySufficiency() result is %v but want %v", result, tt.want)
 			}
 			if tt.envVarName != "" {
 				os.Unsetenv(tt.envVarName)
-			}
-		})
-	}
-}
-
-func Test_checkTokenSufficiency(t *testing.T) {
-	tests := []struct {
-		name        string
-		credentials *datadoghqv1alpha1.AgentCredentials
-		want        bool
-	}{
-		{
-			name: "token uses secret backend",
-			credentials: &datadoghqv1alpha1.AgentCredentials{
-				Token:            "ENC[token]",
-				UseSecretBackend: apiutils.NewBoolPointer(true),
-			},
-			want: true,
-		},
-		{
-			name: "secret backend is not enabled",
-			credentials: &datadoghqv1alpha1.AgentCredentials{
-				Token:            "ENC[token]",
-				UseSecretBackend: apiutils.NewBoolPointer(false),
-			},
-			want: false,
-		},
-		{
-			name: "token is set",
-			credentials: &datadoghqv1alpha1.AgentCredentials{
-				Token: "iamamoderatelylongtoken",
-			},
-			want: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := checkTokenSufficiency(tt.credentials)
-			if result != tt.want {
-				t.Errorf("checkTokenSufficiency() result is %v but want %v", result, tt.want)
 			}
 		})
 	}
