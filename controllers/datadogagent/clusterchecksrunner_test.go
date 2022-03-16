@@ -56,10 +56,10 @@ func clusterChecksRunnerDefaultPodSpec() corev1.PodSpec {
 			},
 		},
 		Volumes: clusterChecksRunnerDefaultVolumes(),
-		SecurityContext: &v1.PodSecurityContext{
-			RunAsNonRoot: apiutils.NewBoolPointer(true),
-			RunAsUser:    apiutils.NewInt64Pointer(101),
-		},
+		// To be uncommented when the agent Dockerfile will be updated to use a non-root user by default
+		// SecurityContext: &v1.PodSecurityContext{
+		// 	RunAsNonRoot: apiutils.NewBoolPointer(true),
+		// },
 	}
 }
 

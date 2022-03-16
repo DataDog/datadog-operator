@@ -1267,6 +1267,7 @@ func defaultSystemProbePodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodSp
 					Capabilities: &corev1.Capabilities{
 						Add: []corev1.Capability{"SYS_ADMIN", "SYS_RESOURCE", "SYS_PTRACE", "NET_ADMIN", "NET_BROADCAST", "NET_RAW", "IPC_LOCK", "CHOWN"},
 					},
+					RunAsUser: apiutils.NewInt64Pointer(0),
 				},
 				Resources:    corev1.ResourceRequirements{},
 				Env:          defaultSystemProbeEnvVars(),
@@ -1274,6 +1275,9 @@ func defaultSystemProbePodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodSp
 			},
 		},
 		Volumes: defaultSystemProbeVolumes(),
+		SecurityContext: &corev1.PodSecurityContext{
+			RunAsUser: apiutils.NewInt64Pointer(0),
+		},
 	}
 }
 
@@ -1375,6 +1379,7 @@ func noSeccompInstallSystemProbeSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1
 					Capabilities: &corev1.Capabilities{
 						Add: []corev1.Capability{"SYS_ADMIN", "SYS_RESOURCE", "SYS_PTRACE", "NET_ADMIN", "NET_BROADCAST", "NET_RAW", "IPC_LOCK", "CHOWN"},
 					},
+					RunAsUser: apiutils.NewInt64Pointer(0),
 				},
 				Resources:    corev1.ResourceRequirements{},
 				Env:          defaultSystemProbeEnvVars(),
@@ -1382,6 +1387,9 @@ func noSeccompInstallSystemProbeSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1
 			},
 		},
 		Volumes: volumes,
+		SecurityContext: &corev1.PodSecurityContext{
+			RunAsUser: apiutils.NewInt64Pointer(0),
+		},
 	}
 }
 
@@ -1457,6 +1465,9 @@ func defaultPodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodSpec {
 			},
 		},
 		Volumes: defaultProcessMount(),
+		SecurityContext: &corev1.PodSecurityContext{
+			RunAsUser: apiutils.NewInt64Pointer(0),
+		},
 	}
 }
 
@@ -1730,6 +1741,7 @@ func runtimeSecurityAgentPodSpec(extraEnv map[string]string, extraDir string) co
 					Capabilities: &corev1.Capabilities{
 						Add: []corev1.Capability{"SYS_ADMIN", "SYS_RESOURCE", "SYS_PTRACE", "NET_ADMIN", "NET_BROADCAST", "NET_RAW", "IPC_LOCK", "CHOWN"},
 					},
+					RunAsUser: apiutils.NewInt64Pointer(0),
 				},
 				Resources: corev1.ResourceRequirements{},
 				Env:       systemProbeEnv,
@@ -1755,6 +1767,7 @@ func runtimeSecurityAgentPodSpec(extraEnv map[string]string, extraDir string) co
 					Capabilities: &corev1.Capabilities{
 						Add: []corev1.Capability{"AUDIT_CONTROL", "AUDIT_READ"},
 					},
+					RunAsUser: apiutils.NewInt64Pointer(0),
 				},
 				Resources:    corev1.ResourceRequirements{},
 				Env:          securityAgentEnvVars(false, true, true, extraEnv),
@@ -1762,6 +1775,9 @@ func runtimeSecurityAgentPodSpec(extraEnv map[string]string, extraDir string) co
 			},
 		},
 		Volumes: volumesBuilder.Build(),
+		SecurityContext: &corev1.PodSecurityContext{
+			RunAsUser: apiutils.NewInt64Pointer(0),
+		},
 	}
 }
 
@@ -1830,6 +1846,7 @@ func complianceSecurityAgentPodSpec(extraEnv map[string]string) corev1.PodSpec {
 					Capabilities: &corev1.Capabilities{
 						Add: []corev1.Capability{"AUDIT_CONTROL", "AUDIT_READ"},
 					},
+					RunAsUser: apiutils.NewInt64Pointer(0),
 				},
 				Resources:    corev1.ResourceRequirements{},
 				Env:          securityAgentEnvVars(true, false, false, extraEnv),
@@ -1837,6 +1854,9 @@ func complianceSecurityAgentPodSpec(extraEnv map[string]string) corev1.PodSpec {
 			},
 		},
 		Volumes: complianceSecurityAgentVolumes(),
+		SecurityContext: &corev1.PodSecurityContext{
+			RunAsUser: apiutils.NewInt64Pointer(0),
+		},
 	}
 }
 
@@ -1991,6 +2011,9 @@ func customKubeletConfigPodSpec(kubeletConfig *datadoghqv1alpha1.KubeletConfig) 
 			},
 		},
 		Volumes: VolumeBuilder.Build(),
+		SecurityContext: &corev1.PodSecurityContext{
+			RunAsUser: apiutils.NewInt64Pointer(0),
+		},
 	}
 }
 
