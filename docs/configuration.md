@@ -430,7 +430,7 @@ spec:
 | credentials.appSecret.keyName | KeyName is the key of the secret to use. |
 | credentials.appSecret.secretName | SecretName is the name of the secret. |
 | credentials.token | This needs to be at least 32 characters a-zA-z. It is a preshared key between the node agents and the cluster agent. |
-| credentials.useSecretBackend | UseSecretBackend use the Agent secret backend feature for retreiving all credentials needed by the different components: Agent, Cluster, Cluster-Checks. If `useSecretBackend: true`, other credential parameters will be ignored. default value is false. |
+| credentials.useSecretBackend | UseSecretBackend use the Agent secret backend feature for retreiving all credentials needed by the different components: Agent, Cluster, Cluster-Checks. default value is false. |
 | features.kubeStateMetricsCore.clusterCheck | ClusterCheck configures the Kubernetes State Metrics Core check as a cluster check. |
 | features.kubeStateMetricsCore.conf.configData | ConfigData corresponds to the configuration file content. |
 | features.kubeStateMetricsCore.conf.configMap.fileKey | FileKey corresponds to the key used in the ConfigMap.Data to store the configuration file content. |

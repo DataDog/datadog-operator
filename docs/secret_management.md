@@ -1,12 +1,12 @@
-# Secrets Management for the API and APP keys
+# Secrets Management for the API and App keys
 
-Datadog Operator can be configured to retrieve the Datadog credentials using secrets for enhanced security. There are three methods you can choose from to set it up
+Datadog Operator can be configured to retrieve Datadog credentials using secrets for enhanced security. There are three methods you can choose from to set it up:
 
-## 1. Plain credentials in `DatadogAgent` resource
+## 1. Configure plain credentials in `DatadogAgent` resource
 
-This is the simplest way to provide the credentials to the agents. This method is recommended for testing purposes only.
+This is the simplest way to provide credentials to the agents. This method is recommended for testing purposes only.
 
-Add credentials to the Agent:
+Directly add the API and App keys to the DatadogAgent spec:
 
 ```yaml
 apiVersion: datadoghq.com/v1alpha1
@@ -20,11 +20,11 @@ spec:
   # ...
 ```
 
-The credentials provided here will be stored in a Secret created by the Operator. By setting properly the `RBAC` on the `DatadogAgent` CRD, it is possible to limit who is able to see those credentials.
+The credentials provided here will be stored in a Secret created by the Operator. By properly setting the `RBAC` on the `DatadogAgent` CRD, one can limit who is able to see those credentials.
 
 ## 2. Use secret(s) references
 
-Another solution is to provide the name of the secret(s) that store the credentials:
+Another solution is to provide the name of the secret(s) that contains the credentials:
 
 ```yaml
 apiVersion: datadoghq.com/v1alpha1
@@ -33,18 +33,22 @@ metadata:
   name: datadog
 spec:
   credentials:
-    apiKeyExistingSecret: "my-api-key-secret"
-    appKeyExistingSecret: "my-app-key-secret"
+    apiSecret:
+      secretName: "test-api-secret"
+      keyName: "api_key"
+    appSecret:
+      secretName: "test-app-secret"
+      keyName: "app_key"
   # ...
 ```
 
-Create the secret before deploying the Datadog Agent, or the deployment fails.
+Create the secret(s) before applying the DatadogAgent manifest, or the deployment will fail.
 
 ```yaml
 apiVersion: v1
 kind: Secret
 metadata:
-  name: my-api-key-secret
+  name: test-api-secret
 data:
   api_key: <api-key>
 
@@ -52,12 +56,10 @@ data:
 apiVersion: v1
 kind: Secret
 metadata:
-  name: my-app-key-secret
+  name: test-app-secret
 data:
   app_key: <app-key>
 ```
-
-The data keys used in the secret(s) are important. for the "API key" the key inside the secret should be `api_key`, and for the "APP key" it is `app_key`.
 
 **Note:**
 
@@ -68,23 +70,23 @@ It is possible to use the same secret to store both credentials:
     apiVersion: v1
     kind: Secret
     metadata:
-      name: my-credentials
+      name: test-secret
     data:
       api_key: <api-key>
       app_key: <app-key>
     ```
 
-## 3. Use the Secret backend feature
+## 3. Use the secret backend feature
 
-The Datatog Operator is compatible with the ["Secret backend" feature][1] implemented.
+The Datatog Operator is compatible with the ["secret backend" feature][1] implemented.
 
-### How Deploy the Datadog-Operator with the secret backend activated
+### How to deploy the Datadog-Operator with the "secret backend" activated
 
 #### Custom secret backend
 
-The first step is to create a container image from the `datadog/operator` that contains the secret backend command.
+The first step is to create a `datadog/operator` container image that contains the secret backend command.
 
-The following Dockerfile example takes the `datadog/operator:latest` image as the base image and copies the `my-secret-backend.sh` script file.
+If you'd like to build your own, the following Dockerfile example takes the `datadog/operator:latest` image as the base image and copies the `my-secret-backend.sh` script file.
 
 ```Dockerfile
 FROM datadog/operator:latest
@@ -93,29 +95,28 @@ RUN chmod 755 /my-secret-backend.sh
 ```
 
 ```console
-$ docker build -t datadog-operator-with-secret-be:latest .
+$ docker build -t datadog-operator-with-secret-backend:latest .
 success
 ```
 
-Then, during the installation or the update of the "Datadog Operator" deployment the value parameter: `.Values.secretBackend.command` should be set with the secret backend command path (inside the container).
-Also don't forget to use the "custom" Datadog Operator container image.
+Then, install or update the Datadog Operator deployment with the `.Values.secretBackend.command` parameter set to the secret backend command path (inside the container). Don't forget to update the image if using a custom one.
 
 ```console
-$ helm [install|upgrade] dd-operator --set "secretBackend.command=/my-secret-backend.sh" --set "image.repository=datadog-operator-with-secret-be" ./chart/datadog-operator
+$ helm [install|upgrade] dd-operator --set "secretBackend.command=/my-secret-backend.sh" --set "image.repository=datadog-operator-with-secret-backend" ./chart/datadog-operator
 success
 ```
 
 #### Using the secret helper
 
-Kubernetes supports exposing secrets as files inside a pod, we provide a helper script in the Datadog Operator image to read the secrets from files.
+Kubernetes supports exposing secrets as files inside a pod, and we provide a helper script in the Datadog Operator image to read the secrets from files.
 
-Install or the update of the Datadog Operator deployment, the value parameters `.Values.secretBackend.command` should be set to `/readsecret.sh` and `.Values.secretBackend.arguments` set to `/etc/secret-volume` if your secrets are mounted in `/etc/secret-volume`.
+First, mount the secret in the Operator container, for instance at `/etc/secret-volume`. Then install or update the Datadog Operator deployment with the `.Values.secretBackend.command` parameter set to `/readsecret.sh` and the `.Values.secretBackend.arguments` parameter set to `/etc/secret-volume`.
 
 **Note:** This secret helper requires Datadog Operator v0.5.0+
 
-### How deploy agents using the secret backend feature with DatadogAgent
+### How to deploy the agent components using the secret backend feature with DatadogAgent
 
-To activate the secret backend feature in the `DatadogAgent` configuration, the `spec.credentials.useSecretBackend` parameter should be set to `true`.
+If using a custom script, create a Datadog Agent (or Cluster Agent) image following the example for the Datadog Operator above. Then, to activate the secret backend feature in the `DatadogAgent` configuration, the `spec.credentials.useSecretBackend` parameter should be set to `true`.
 
 ```yaml
 apiVersion: datadoghq.com/v1alpha1
@@ -130,7 +131,7 @@ spec:
   # ...
 ```
 
-Then inside the `spec.agent` configuration part, the secret backend command can be specified by adding a new environment variable: "DD_SECRET_BACKEND_COMMAND".
+Then inside the `spec.agent` configuration, the secret backend command can be specified by adding a new environment variable: "DD_SECRET_BACKEND_COMMAND".
 
 ```yaml
 apiVersion: datadoghq.com/v1alpha1
@@ -169,9 +170,57 @@ spec:
         value: "/my-secret-backend.sh"
 ```
 
+As in the Datadog Operator, the Datadog Agent image includes a helper function `readsecret.sh` that can be used to read mounted secrets. After creating the secret and setting the volume mount (in any container that requires it), set the `DD_SECRET_BACKEND_COMMAND` and `DD_SECRET_BACKEND_ARGUMENTS` environmental variables.
+
+For instance, to use the secret backend for the Agent and Cluster Agent, create a secret called "test-secret":
+
+`kubectl create secret generic test-secret --from-literal=api_key='<api-key>' --from-literal=app_key='<app-key>'`
+
+And then set the DatadogAgent spec:
+
+```yaml
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog
+spec:
+  credentials:
+    apiKey: ENC[api_key]
+    appKey: ENC[app_key]
+    useSecretBackend: true
+  agent:
+    env:
+      - name: DD_SECRET_BACKEND_COMMAND
+        value: "/readsecret.sh"
+      - name: DD_SECRET_BACKEND_ARGUMENTS
+        value: "/etc/secret-volume"
+    config:
+      volumes:
+        - name: secret-volume
+          secret:
+            secretName: test-secret
+      volumeMounts:
+        - name: secret-volume
+          mountPath: /etc/secret-volume
+  clusterAgent:
+    enabled: true
+    config:
+      env:
+        - name: DD_SECRET_BACKEND_COMMAND
+          value: "/readsecret.sh"
+        - name: DD_SECRET_BACKEND_ARGUMENTS
+          value: "/etc/secret-volume"
+      volumes:
+        - name: secret-volume
+          secret:
+            secretName: test-secret
+      volumeMounts:
+        - name: secret-volume
+          mountPath: /etc/secret-volume
+```
+
 **Remarks:**
 
-* Like for the "Datadog Operator", the "Agent" and "Cluster Agent" container images need to contain the "secret backend" command.
 * For the "Agent" and "Cluster Agent", others options exist to configure secret backend command:
 
   * **DD_SECRET_BACKEND_ARGUMENTS**: those arguments will be specified to the command when the agent executes the secret backend command.

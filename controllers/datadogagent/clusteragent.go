@@ -35,7 +35,7 @@ import (
 )
 
 func (r *Reconciler) reconcileClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
-	result, err := r.manageClusterAgentDependencies(logger, dda, newStatus)
+	result, err := r.manageClusterAgentDependencies(logger, dda)
 	if utils.ShouldReturn(result, err) {
 		return result, err
 	}
@@ -190,13 +190,13 @@ func newClusterAgentDeploymentFromInstance(logger logr.Logger, dda *datadoghqv1a
 	return dca, hash, err
 }
 
-func (r *Reconciler) manageClusterAgentDependencies(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
-	result, err := r.manageAgentSecret(logger, dda, newStatus)
+func (r *Reconciler) manageClusterAgentDependencies(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
+	result, err := r.manageAgentSecret(logger, dda)
 	if utils.ShouldReturn(result, err) {
 		return result, err
 	}
 
-	result, err = r.manageExternalMetricsSecret(logger, dda, newStatus)
+	result, err = r.manageExternalMetricsSecret(logger, dda)
 	if utils.ShouldReturn(result, err) {
 		return result, err
 	}
@@ -606,10 +606,6 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 			Value: getClusterAgentServiceName(dda),
 		},
 		{
-			Name:      datadoghqv1alpha1.DDClusterAgentAuthToken,
-			ValueFrom: getClusterAgentAuthToken(dda),
-		},
-		{
 			Name:  datadoghqv1alpha1.DDLeaderElection,
 			Value: "true",
 		},
@@ -626,6 +622,11 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 			Value: strconv.Itoa(int(*spec.ClusterAgent.Config.HealthPort)),
 		},
 	}
+
+	envVars = append(envVars, corev1.EnvVar{
+		Name:      datadoghqv1alpha1.DDClusterAgentAuthToken,
+		ValueFrom: getClusterAgentAuthToken(dda),
+	})
 
 	if spec.ClusterName != "" {
 		envVars = append(envVars, corev1.EnvVar{

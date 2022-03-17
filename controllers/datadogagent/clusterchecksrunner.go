@@ -34,7 +34,7 @@ import (
 )
 
 func (r *Reconciler) reconcileClusterChecksRunner(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
-	result, err := r.manageClusterChecksRunnerDependencies(logger, dda, newStatus)
+	result, err := r.manageClusterChecksRunnerDependencies(logger, dda)
 	if utils.ShouldReturn(result, err) {
 		return result, err
 	}
@@ -197,8 +197,8 @@ func newClusterChecksRunnerDeploymentFromInstance(
 	return dca, hash, err
 }
 
-func (r *Reconciler) manageClusterChecksRunnerDependencies(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
-	result, err := r.manageAgentSecret(logger, dda, newStatus)
+func (r *Reconciler) manageClusterChecksRunnerDependencies(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
+	result, err := r.manageAgentSecret(logger, dda)
 	if utils.ShouldReturn(result, err) {
 		return result, err
 	}
@@ -341,10 +341,6 @@ func getEnvVarsForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []cor
 	spec := &dda.Spec
 	envVars := []corev1.EnvVar{
 		{
-			Name:      datadoghqv1alpha1.DDAPIKey,
-			ValueFrom: getAPIKeyFromSecret(dda),
-		},
-		{
 			Name:  datadoghqv1alpha1.DDClusterChecksEnabled,
 			Value: "true",
 		},
@@ -355,10 +351,6 @@ func getEnvVarsForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []cor
 		{
 			Name:  datadoghqv1alpha1.DDClusterAgentKubeServiceName,
 			Value: getClusterAgentServiceName(dda),
-		},
-		{
-			Name:      datadoghqv1alpha1.DDClusterAgentAuthToken,
-			ValueFrom: getClusterAgentAuthToken(dda),
 		},
 		{
 			Name:  datadoghqv1alpha1.DDExtraConfigProviders,
@@ -417,6 +409,16 @@ func getEnvVarsForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []cor
 			},
 		},
 	}
+
+	envVars = append(envVars, corev1.EnvVar{
+		Name:      datadoghqv1alpha1.DDAPIKey,
+		ValueFrom: getAPIKeyFromSecret(dda),
+	})
+
+	envVars = append(envVars, corev1.EnvVar{
+		Name:      datadoghqv1alpha1.DDClusterAgentAuthToken,
+		ValueFrom: getClusterAgentAuthToken(dda),
+	})
 
 	if spec.ClusterName != "" {
 		envVars = append(envVars, corev1.EnvVar{

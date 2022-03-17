@@ -974,11 +974,12 @@ func getEnvVarsForSecurityAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.E
 				Name:  datadoghqv1alpha1.DDClusterAgentKubeServiceName,
 				Value: getClusterAgentServiceName(dda),
 			},
-			{
-				Name:      datadoghqv1alpha1.DDClusterAgentAuthToken,
-				ValueFrom: getClusterAgentAuthToken(dda),
-			},
 		}
+
+		clusterEnv = append(clusterEnv, corev1.EnvVar{
+			Name:      datadoghqv1alpha1.DDClusterAgentAuthToken,
+			ValueFrom: getClusterAgentAuthToken(dda),
+		})
 		envVars = append(envVars, clusterEnv...)
 	}
 	if spec.Agent.Config != nil {
@@ -2321,7 +2322,7 @@ func getMonitoredObj(req reconcile.Request) namespacedName {
 // envForClusterAgentConnection returns the environment variables required to connect to the Cluster Agent
 func envForClusterAgentConnection(dda *datadoghqv1alpha1.DatadogAgent) []corev1.EnvVar {
 	if isClusterAgentEnabled(dda.Spec.ClusterAgent) {
-		return []corev1.EnvVar{
+		envVars := []corev1.EnvVar{
 			{
 				Name:  datadoghqv1alpha1.DDClusterAgentEnabled,
 				Value: strconv.FormatBool(true),
@@ -2330,11 +2331,13 @@ func envForClusterAgentConnection(dda *datadoghqv1alpha1.DatadogAgent) []corev1.
 				Name:  datadoghqv1alpha1.DDClusterAgentKubeServiceName,
 				Value: getClusterAgentServiceName(dda),
 			},
-			{
-				Name:      datadoghqv1alpha1.DDClusterAgentAuthToken,
-				ValueFrom: getClusterAgentAuthToken(dda),
-			},
 		}
+
+		envVars = append(envVars, corev1.EnvVar{
+			Name:      datadoghqv1alpha1.DDClusterAgentAuthToken,
+			ValueFrom: getClusterAgentAuthToken(dda),
+		})
+		return envVars
 	}
 	return []corev1.EnvVar{}
 }

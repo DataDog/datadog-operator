@@ -24,6 +24,7 @@ type NewDatadogAgentOptions struct {
 	UseEDS                       bool
 	APIKey                       string
 	AppKey                       string
+	Token                        string
 	CustomConfig                 *datadoghqv1alpha1.CustomConfigSpec
 	SecuritySpec                 *datadoghqv1alpha1.SecuritySpec
 	VolumeMounts                 []v1.VolumeMount
@@ -90,6 +91,10 @@ func NewDatadogAgent(ns, name, image string, options *NewDatadogAgentOptions) *d
 
 		if options.AppKey != "" {
 			ad.Spec.Credentials.AppKey = options.AppKey
+		}
+
+		if options.Token != "" {
+			ad.Spec.Credentials.Token = options.Token
 		}
 
 		if options.AgentDisabled {
