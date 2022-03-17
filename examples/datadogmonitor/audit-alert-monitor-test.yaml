@@ -1,3 +1,4 @@
+# Note: this monitor type requires Datadog Operator v0.8+
 apiVersion: datadoghq.com/v1alpha1
 kind: DatadogMonitor
 metadata:
