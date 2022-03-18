@@ -45,6 +45,7 @@ const (
 const (
 	DatadogHost                                  = "DATADOG_HOST"
 	DDAPIKey                                     = "DD_API_KEY"
+	DDSecretBackendCommand                       = "DD_SECRET_BACKEND_COMMAND"
 	DDClusterName                                = "DD_CLUSTER_NAME"
 	DDSite                                       = "DD_SITE"
 	DDddURL                                      = "DD_DD_URL"
