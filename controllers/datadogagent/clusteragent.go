@@ -763,10 +763,10 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 			Name:  datadoghqv1alpha1.DDAdmissionControllerServiceName,
 			Value: getAdmissionControllerServiceName(dda),
 		})
-		if spec.ClusterAgent.Config.AdmissionController.ConfigInjectionMode != nil {
+		if spec.ClusterAgent.Config.AdmissionController.AgentCommunicationMode != nil {
 			envVars = append(envVars, corev1.EnvVar{
 				Name:  datadoghqv1alpha1.DDAdmissionControllerInjectConfigMode,
-				Value: *spec.ClusterAgent.Config.AdmissionController.ConfigInjectionMode,
+				Value: *spec.ClusterAgent.Config.AdmissionController.AgentCommunicationMode,
 			})
 		}
 		envVars = append(envVars, corev1.EnvVar{

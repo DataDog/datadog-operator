@@ -255,9 +255,9 @@ func schema__apis_datadoghq_v1alpha1_AdmissionControllerConfig(ref common.Refere
 							Format:      "",
 						},
 					},
-					"configInjectionMode": {
+					"agentCommunicationMode": {
 						SchemaProps: spec.SchemaProps{
-							Description: "configInjectionMode corresponds to the kind of configuration to be injected. It can be \"hostip\", \"service\" or \"socket\".",
+							Description: "agentCommunicationMode corresponds to the mode used by the Datadog application libraries to communicate with the Agent. It can be \"hostip\", \"service\" or \"socket\".",
 							Type:        []string{"string"},
 							Format:      "",
 						},

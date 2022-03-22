@@ -125,8 +125,8 @@ func (in *AdmissionControllerConfig) DeepCopyInto(out *AdmissionControllerConfig
 		*out = new(string)
 		**out = **in
 	}
-	if in.ConfigInjectionMode != nil {
-		in, out := &in.ConfigInjectionMode, &out.ConfigInjectionMode
+	if in.AgentCommunicationMode != nil {
+		in, out := &in.AgentCommunicationMode, &out.AgentCommunicationMode
 		*out = new(string)
 		**out = **in
 	}

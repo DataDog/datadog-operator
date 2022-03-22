@@ -1129,10 +1129,10 @@ type AdmissionControllerConfig struct {
 	// +optional
 	ServiceName *string `json:"serviceName,omitempty"`
 
-	// configInjectionMode corresponds to the kind of configuration to be injected.
+	// agentCommunicationMode corresponds to the mode used by the Datadog application libraries to communicate with the Agent.
 	// It can be "hostip", "service" or "socket".
 	// +optional
-	ConfigInjectionMode *string `json:"configInjectionMode,omitempty"`
+	AgentCommunicationMode *string `json:"agentCommunicationMode,omitempty"`
 }
 
 // ClusterChecksRunnerConfig contains the configuration of the Cluster Checks Runner.

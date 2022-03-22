@@ -1110,7 +1110,7 @@ func Test_newClusterAgentDeploymentFromInstance_AdmissionController(t *testing.T
 			AdmissionControllerEnabled: true,
 			AdmissionMutateUnlabelled:  true,
 			AdmissionServiceName:       "custom-service-name",
-			AdmissionInjectionMode:     "service",
+			AdmissionCommunicationMode: "service",
 		})
 
 	agentService = getAgentServiceName(admissionControllerDatadogAgentCustom)

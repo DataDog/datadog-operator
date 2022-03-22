@@ -6252,10 +6252,10 @@ spec:
                       admissionController:
                         description: Configure the Admission Controller.
                         properties:
-                          configInjectionMode:
-                            description: configInjectionMode corresponds to the kind
-                              of configuration to be injected. It can be "hostip",
-                              "service" or "socket".
+                          agentCommunicationMode:
+                            description: agentCommunicationMode corresponds to the
+                              mode used by the Datadog application libraries to communicate
+                              with the Agent. It can be "hostip", "service" or "socket".
                             type: string
                           enabled:
                             description: Enable the admission controller to be able
@@ -12320,10 +12320,10 @@ spec:
                   admissionController:
                     description: AdmissionController configuration.
                     properties:
-                      configInjectionMode:
-                        description: configInjectionMode corresponds to the kind of
-                          configuration to be injected. It can be "hostip", "service"
-                          or "socket".
+                      agentCommunicationMode:
+                        description: agentCommunicationMode corresponds to the mode
+                          used by the Datadog application libraries to communicate
+                          with the Agent. It can be "hostip", "service" or "socket".
                         type: string
                       enabled:
                         description: 'Enabled enables the Admission Controller. Default:
