@@ -79,6 +79,7 @@ type NewDatadogAgentOptions struct {
 	AdmissionControllerEnabled       bool
 	AdmissionMutateUnlabelled        bool
 	AdmissionServiceName             string
+	AdmissionInjectionMode           string
 	ComplianceEnabled                bool
 	ComplianceCheckInterval          metav1.Duration
 	ComplianceConfigDir              *datadoghqv1alpha1.ConfigDirSpec
@@ -237,6 +238,9 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 				}
 				if options.AdmissionServiceName != "" {
 					ad.Spec.ClusterAgent.Config.AdmissionController.ServiceName = &options.AdmissionServiceName
+				}
+				if options.AdmissionInjectionMode != "" {
+					ad.Spec.ClusterAgent.Config.AdmissionController.ConfigInjectionMode = &options.AdmissionInjectionMode
 				}
 			}
 

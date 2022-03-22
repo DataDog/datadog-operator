@@ -292,6 +292,11 @@ type AdmissionControllerFeatureConfig struct {
 	// ServiceName corresponds to the webhook service name.
 	// +optional
 	ServiceName *string `json:"serviceName,omitempty"`
+
+	// configInjectionMode corresponds to the kind of configuration to be injected.
+	// It can be "hostip", "service" or "socket".
+	// +optional
+	ConfigInjectionMode *string `json:"configInjectionMode,omitempty"`
 }
 
 // ExternalMetricsServerFeatureConfig contains the External Metrics Server feature configuration.

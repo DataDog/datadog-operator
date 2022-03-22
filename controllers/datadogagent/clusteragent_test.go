@@ -172,7 +172,7 @@ func clusterAgentDefaultEnvVars() []v1.EnvVar {
 	}
 }
 
-func clusterAgentWithAdmissionControllerDefaultEnvVars(serviceName string, unlabelled bool) []v1.EnvVar {
+func clusterAgentWithAdmissionControllerDefaultEnvVars(webhookService, agentService string, mode *string, unlabelled bool) []v1.EnvVar {
 	builder := NewEnvVarsBuilder(clusterAgentDefaultEnvVars(), nil)
 	builder.Add(&v1.EnvVar{
 		Name:  "DD_ADMISSION_CONTROLLER_ENABLED",
@@ -184,7 +184,17 @@ func clusterAgentWithAdmissionControllerDefaultEnvVars(serviceName string, unlab
 	})
 	builder.Add(&v1.EnvVar{
 		Name:  "DD_ADMISSION_CONTROLLER_SERVICE_NAME",
-		Value: serviceName,
+		Value: webhookService,
+	})
+	if mode != nil {
+		builder.Add(&v1.EnvVar{
+			Name:  "DD_ADMISSION_CONTROLLER_INJECT_CONFIG_MODE",
+			Value: *mode,
+		})
+	}
+	builder.Add(&v1.EnvVar{
+		Name:  "DD_ADMISSION_CONTROLLER_INJECT_CONFIG_LOCAL_SERVICE_NAME",
+		Value: agentService,
 	})
 
 	return builder.Build()
@@ -1083,18 +1093,15 @@ func Test_newClusterAgentDeploymentFromInstance_AdmissionController(t *testing.T
 		"app":                           "datadog-monitoring",
 	}
 
-	admissionControllerPodSpec := clusterAgentDefaultPodSpec()
-	admissionControllerPodSpec.Containers[0].Env = clusterAgentWithAdmissionControllerDefaultEnvVars("datadog-admission-controller", false)
-
 	admissionControllerDatadogAgent := test.NewDefaultedDatadogAgent("bar", "foo",
 		&test.NewDatadogAgentOptions{
 			UseEDS:                     true,
 			ClusterAgentEnabled:        true,
 			AdmissionControllerEnabled: true,
 		})
-
-	admissionControllerPodSpecCustom := clusterAgentDefaultPodSpec()
-	admissionControllerPodSpecCustom.Containers[0].Env = clusterAgentWithAdmissionControllerDefaultEnvVars("custom-service-name", true)
+	agentService := getAgentServiceName(admissionControllerDatadogAgent)
+	admissionControllerPodSpec := clusterAgentDefaultPodSpec()
+	admissionControllerPodSpec.Containers[0].Env = clusterAgentWithAdmissionControllerDefaultEnvVars("datadog-admission-controller", agentService, nil, false)
 
 	admissionControllerDatadogAgentCustom := test.NewDefaultedDatadogAgent("bar", "foo",
 		&test.NewDatadogAgentOptions{
@@ -1103,7 +1110,12 @@ func Test_newClusterAgentDeploymentFromInstance_AdmissionController(t *testing.T
 			AdmissionControllerEnabled: true,
 			AdmissionMutateUnlabelled:  true,
 			AdmissionServiceName:       "custom-service-name",
+			AdmissionInjectionMode:     "service",
 		})
+
+	agentService = getAgentServiceName(admissionControllerDatadogAgentCustom)
+	admissionControllerPodSpecCustom := clusterAgentDefaultPodSpec()
+	admissionControllerPodSpecCustom.Containers[0].Env = clusterAgentWithAdmissionControllerDefaultEnvVars("custom-service-name", agentService, apiutils.NewStringPointer("service"), true)
 
 	tests := clusterAgentDeploymentFromInstanceTestSuite{
 		{

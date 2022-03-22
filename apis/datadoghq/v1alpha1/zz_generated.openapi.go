@@ -255,6 +255,13 @@ func schema__apis_datadoghq_v1alpha1_AdmissionControllerConfig(ref common.Refere
 							Format:      "",
 						},
 					},
+					"configInjectionMode": {
+						SchemaProps: spec.SchemaProps{
+							Description: "configInjectionMode corresponds to the kind of configuration to be injected. It can be \"hostip\", \"service\" or \"socket\".",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},

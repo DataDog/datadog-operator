@@ -106,6 +106,8 @@ const (
 	DDAdmissionControllerInjectConfig            = "DD_ADMISSION_CONTROLLER_INJECT_CONFIG_ENABLED"
 	DDAdmissionControllerInjectTags              = "DD_ADMISSION_CONTROLLER_INJECT_TAGS_ENABLED"
 	DDAdmissionControllerServiceName             = "DD_ADMISSION_CONTROLLER_SERVICE_NAME"
+	DDAdmissionControllerInjectConfigMode        = "DD_ADMISSION_CONTROLLER_INJECT_CONFIG_MODE"
+	DDAdmissionControllerLocalServiceName        = "DD_ADMISSION_CONTROLLER_INJECT_CONFIG_LOCAL_SERVICE_NAME"
 	DDComplianceConfigEnabled                    = "DD_COMPLIANCE_CONFIG_ENABLED"
 	DDComplianceConfigCheckInterval              = "DD_COMPLIANCE_CONFIG_CHECK_INTERVAL"
 	DDComplianceConfigDir                        = "DD_COMPLIANCE_CONFIG_DIR"
