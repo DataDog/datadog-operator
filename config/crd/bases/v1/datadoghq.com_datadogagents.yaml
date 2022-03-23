@@ -6255,7 +6255,7 @@ spec:
                           agentCommunicationMode:
                             description: agentCommunicationMode corresponds to the
                               mode used by the Datadog application libraries to communicate
-                              with the Agent. It can be "hostip", "service" or "socket".
+                              with the Agent. It can be "hostip", "service", or "socket".
                             type: string
                           enabled:
                             description: Enable the admission controller to be able
@@ -12323,7 +12323,7 @@ spec:
                       agentCommunicationMode:
                         description: agentCommunicationMode corresponds to the mode
                           used by the Datadog application libraries to communicate
-                          with the Agent. It can be "hostip", "service" or "socket".
+                          with the Agent. It can be "hostip", "service", or "socket".
                         type: string
                       enabled:
                         description: 'Enabled enables the Admission Controller. Default:
