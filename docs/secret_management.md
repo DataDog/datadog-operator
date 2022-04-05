@@ -219,7 +219,7 @@ spec:
           mountPath: /etc/secret-volume
 ```
 
-The Datadog Agent also includes a script that can be used to read secrets from files mounted from Kubernetes secrets, or directly from Kubernetes secrets. This script can be used by setting `DD_SECRET_BACKEND_COMMAND` to `/readsecret_multiple_providers.sh`. A simple example of how to configure the DatadogAgent spec is provided below. For more details, see the [documentation][2].
+The Datadog Agent also includes a script that can be used to read secrets from files mounted from Kubernetes secrets, or directly from Kubernetes secrets. This script can be used by setting `DD_SECRET_BACKEND_COMMAND` to `/readsecret_multiple_providers.sh`. An example of how to configure the DatadogAgent spec is provided below. For more details, see [Secrets Management][2].
 
 ```yaml
 apiVersion: datadoghq.com/v1alpha1
