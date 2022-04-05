@@ -1387,6 +1387,23 @@ func getVolumeMountForLogs() corev1.VolumeMount {
 	}
 }
 
+func getVolumeForTmp() corev1.Volume {
+	return corev1.Volume{
+		Name: datadoghqv1alpha1.TmpVolumeName,
+		VolumeSource: corev1.VolumeSource{
+			EmptyDir: &corev1.EmptyDirVolumeSource{},
+		},
+	}
+}
+
+func getVolumeMountForTmp() corev1.VolumeMount {
+	return corev1.VolumeMount{
+		Name:      datadoghqv1alpha1.TmpVolumeName,
+		MountPath: datadoghqv1alpha1.TmpVolumePath,
+		ReadOnly:  false,
+	}
+}
+
 func getSecCompRootPath(spec *datadoghqv1alpha1.SystemProbeSpec) string {
 	return spec.SecCompRootPath
 }

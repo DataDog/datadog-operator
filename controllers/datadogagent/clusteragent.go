@@ -354,6 +354,15 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 			VolumeSource: confdVolumeSource,
 		},
 		getVolumeForLogs(),
+
+		// /tmp is needed because some versions of the DCA (at least until
+		// 1.19.0) write to it.
+		// In some code paths, the klog lib writes to /tmp instead of using the
+		// standard datadog logs path.
+		// In some envs like Openshift, when running as non-root, the pod will
+		// not have permissions to write on /tmp, that's why we need to mount
+		// it with write perms.
+		getVolumeForTmp(),
 	}
 	volumeMounts := []corev1.VolumeMount{
 		{
@@ -368,6 +377,7 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 			ReadOnly:  true,
 		},
 		getVolumeMountForLogs(),
+		getVolumeMountForTmp(),
 	}
 
 	if dda.Spec.ClusterAgent.CustomConfig != nil {
