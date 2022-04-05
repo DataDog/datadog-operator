@@ -292,6 +292,11 @@ type AdmissionControllerFeatureConfig struct {
 	// ServiceName corresponds to the webhook service name.
 	// +optional
 	ServiceName *string `json:"serviceName,omitempty"`
+
+	// agentCommunicationMode corresponds to the mode used by the Datadog application libraries to communicate with the Agent.
+	// It can be "hostip", "service", or "socket".
+	// +optional
+	AgentCommunicationMode *string `json:"agentCommunicationMode,omitempty"`
 }
 
 // ExternalMetricsServerFeatureConfig contains the External Metrics Server feature configuration.

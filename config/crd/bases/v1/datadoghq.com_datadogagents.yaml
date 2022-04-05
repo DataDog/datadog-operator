@@ -6252,6 +6252,11 @@ spec:
                       admissionController:
                         description: Configure the Admission Controller.
                         properties:
+                          agentCommunicationMode:
+                            description: agentCommunicationMode corresponds to the
+                              mode used by the Datadog application libraries to communicate
+                              with the Agent. It can be "hostip", "service", or "socket".
+                            type: string
                           enabled:
                             description: Enable the admission controller to be able
                               to inject APM/Dogstatsd config and standard tags (env,
@@ -12315,6 +12320,11 @@ spec:
                   admissionController:
                     description: AdmissionController configuration.
                     properties:
+                      agentCommunicationMode:
+                        description: agentCommunicationMode corresponds to the mode
+                          used by the Datadog application libraries to communicate
+                          with the Agent. It can be "hostip", "service", or "socket".
+                        type: string
                       enabled:
                         description: 'Enabled enables the Admission Controller. Default:
                           false'

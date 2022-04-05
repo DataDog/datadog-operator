@@ -255,6 +255,13 @@ func schema__apis_datadoghq_v1alpha1_AdmissionControllerConfig(ref common.Refere
 							Format:      "",
 						},
 					},
+					"agentCommunicationMode": {
+						SchemaProps: spec.SchemaProps{
+							Description: "agentCommunicationMode corresponds to the mode used by the Datadog application libraries to communicate with the Agent. It can be \"hostip\", \"service\", or \"socket\".",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 			},
 		},
