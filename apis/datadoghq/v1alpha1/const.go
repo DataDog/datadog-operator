@@ -132,6 +132,8 @@ const (
 
 	LogDatadogVolumeName                 = "logdatadog"
 	LogDatadogVolumePath                 = "/var/log/datadog"
+	TmpVolumeName                        = "tmp"
+	TmpVolumePath                        = "/tmp"
 	APMSocketVolumeName                  = "apmsocket"
 	APMSocketVolumePath                  = "/var/run/datadog/apm"
 	InstallInfoVolumeName                = "installinfo"

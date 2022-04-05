@@ -76,6 +76,11 @@ func clusterChecksRunnerDefaultVolumeMounts() []corev1.VolumeMount {
 			ReadOnly:  false,
 		},
 		{
+			Name:      datadoghqv1alpha1.TmpVolumeName,
+			MountPath: datadoghqv1alpha1.TmpVolumePath,
+			ReadOnly:  false,
+		},
+		{
 			Name:      "installinfo",
 			SubPath:   "install_info",
 			MountPath: "/etc/datadog-agent/install_info",
@@ -108,6 +113,12 @@ func clusterChecksRunnerDefaultVolumes() []corev1.Volume {
 		},
 		{
 			Name: datadoghqv1alpha1.LogDatadogVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
+			Name: datadoghqv1alpha1.TmpVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},

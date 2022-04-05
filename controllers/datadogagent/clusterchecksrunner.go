@@ -476,6 +476,15 @@ func getVolumesForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []cor
 		getVolumeForChecksd(dda),
 		getVolumeForConfig(),
 		getVolumeForLogs(),
+
+		// /tmp is needed because some versions of the DCA (at least until
+		// 1.19.0) write to it.
+		// In some code paths, the klog lib writes to /tmp instead of using the
+		// standard datadog logs path.
+		// In some envs like Openshift, when running as non-root, the pod will
+		// not have permissions to write on /tmp, that's why we need to mount
+		// it with write perms.
+		getVolumeForTmp(),
 		{
 			Name: datadoghqv1alpha1.InstallInfoVolumeName,
 			VolumeSource: corev1.VolumeSource{
@@ -506,6 +515,7 @@ func getVolumeMountsForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) 
 	volumeMounts := []corev1.VolumeMount{
 		getVolumeMountForChecksd(),
 		getVolumeMountForLogs(),
+		getVolumeMountForTmp(),
 		{
 			Name:      datadoghqv1alpha1.InstallInfoVolumeName,
 			SubPath:   datadoghqv1alpha1.InstallInfoVolumeSubPath,

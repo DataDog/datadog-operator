@@ -53,6 +53,7 @@ func clusterAgentDefaultPodSpec() v1.PodSpec {
 					{Name: "confd", ReadOnly: true, MountPath: "/conf.d"},
 					{Name: "orchestrator-explorer-config", ReadOnly: true, MountPath: "/etc/datadog-agent/conf.d/orchestrator.d"},
 					{Name: "logdatadog", ReadOnly: false, MountPath: "/var/log/datadog"},
+					{Name: "tmp", ReadOnly: false, MountPath: "/tmp"},
 				},
 				LivenessProbe:  defaultLivenessProbe(),
 				ReadinessProbe: defaultReadinessProbe(),
@@ -89,6 +90,12 @@ func clusterAgentDefaultPodSpec() v1.PodSpec {
 			},
 			{
 				Name: "logdatadog",
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
+			},
+			{
+				Name: "tmp",
 				VolumeSource: corev1.VolumeSource{
 					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},
