@@ -119,25 +119,39 @@ func (r *Reconciler) updateIfNeededExternalMetricsReaderClusterRole(logger logr.
 // buildExternalMetricsReaderClusterRole creates a ClusterRole object for access to external metrics resources
 func buildExternalMetricsReaderClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string) *rbacv1.ClusterRole {
 	if isMetricsProviderEnabled(dda.Spec.ClusterAgent) {
-		return &rbacv1.ClusterRole{
+		clusterRole := &rbacv1.ClusterRole{
 			ObjectMeta: metav1.ObjectMeta{
-				Labels: getDefaultLabels(dda, name, agentVersion),
+				Labels: getDefaultLabels(dda, NewPartOfLabelValue(dda).String(), agentVersion),
 				Name:   name,
 			},
-			Rules: []rbacv1.PolicyRule{
-				{
-					APIGroups: []string{
-						"external.metrics.k8s.io",
-					},
-					Resources: []string{"*"},
-					Verbs: []string{
-						datadoghqv1alpha1.GetVerb,
-						datadoghqv1alpha1.ListVerb,
-						datadoghqv1alpha1.WatchVerb,
-					},
+		}
+
+		rbacRules := []rbacv1.PolicyRule{
+			{
+				APIGroups: []string{
+					"external.metrics.k8s.io",
+				},
+				Resources: []string{"*"},
+				Verbs: []string{
+					datadoghqv1alpha1.GetVerb,
+					datadoghqv1alpha1.ListVerb,
+					datadoghqv1alpha1.WatchVerb,
 				},
 			},
 		}
+
+		// If the secret backend uses the provided `/readsecret_multiple_providers.sh` script, then we need to add secrets GET permissions
+		if *dda.Spec.Credentials.UseSecretBackend &&
+			checkSecretBackendMultipleProvidersUsed(dda.Spec.ClusterAgent.Config.Env) {
+			rbacRules = append(rbacRules, rbacv1.PolicyRule{
+				APIGroups: []string{datadoghqv1alpha1.CoreAPIGroup},
+				Resources: []string{datadoghqv1alpha1.SecretsResource},
+				Verbs:     []string{datadoghqv1alpha1.GetVerb},
+			})
+		}
+
+		clusterRole.Rules = rbacRules
+		return clusterRole
 	}
 	return nil
 }

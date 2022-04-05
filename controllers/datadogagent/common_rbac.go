@@ -20,6 +20,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
+const secretBackendMultipleProvidersScript = "/readsecret_multiple_providers.sh"
+
 // roleBindingInfo contains the required information to build a Cluster Role Binding
 type roleBindingInfo struct {
 	name               string
@@ -307,4 +309,13 @@ func isClusterRolesBindingEqual(a, b *rbacv1.ClusterRoleBinding) bool {
 	// Even if a ClusterRoleBinding should not contain DatadogAgent ownerref, we need to check it is the case to be able to remove the ownerref that might have added
 	// by a previous Operator version.
 	return apiequality.Semantic.DeepEqual(a.RoleRef, b.RoleRef) && apiequality.Semantic.DeepEqual(a.Subjects, b.Subjects) && apiequality.Semantic.DeepEqual(a.ObjectMeta.OwnerReferences, b.ObjectMeta.OwnerReferences)
+}
+
+func checkSecretBackendMultipleProvidersUsed(envVarList []corev1.EnvVar) bool {
+	for _, envVar := range envVarList {
+		if envVar.Name == datadoghqv1alpha1.DDSecretBackendCommand && envVar.Value == secretBackendMultipleProvidersScript {
+			return true
+		}
+	}
+	return false
 }

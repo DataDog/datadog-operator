@@ -161,3 +161,75 @@ func newReconcilerForRbacTests(client client.Client) *Reconciler {
 		recorder: recorder,
 	}
 }
+
+func Test_checkSecretBackendMultipleProvidersUsed(t *testing.T) {
+
+	tests := []struct {
+		name       string
+		envVarList []corev1.EnvVar
+		want       bool
+	}{
+		{
+			name: "Secret backend multiple providers script is found",
+			envVarList: []corev1.EnvVar{
+				{
+					Name:  "EnvVar1",
+					Value: "Value1",
+				},
+				{
+					Name:  "EnvVar2",
+					Value: "Value2",
+				},
+				{
+					Name:  "DD_SECRET_BACKEND_COMMAND",
+					Value: "/readsecret_multiple_providers.sh",
+				},
+			},
+			want: true,
+		},
+		{
+			name: "Script does not match",
+			envVarList: []corev1.EnvVar{
+				{
+					Name:  "EnvVar1",
+					Value: "Value1",
+				},
+				{
+					Name:  "EnvVar2",
+					Value: "Value2",
+				},
+				{
+					Name:  "DD_SECRET_BACKEND_COMMAND",
+					Value: "/readsecret.sh",
+				},
+			},
+			want: false,
+		},
+		{
+			name: "EnvVar name does not match",
+			envVarList: []corev1.EnvVar{
+				{
+					Name:  "EnvVar1",
+					Value: "Value1",
+				},
+				{
+					Name:  "EnvVar2",
+					Value: "Value2",
+				},
+				{
+					Name:  "DD_SECRET_BACKEND_COMMANDD",
+					Value: "/readsecret_multiple_providers.sh",
+				},
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := checkSecretBackendMultipleProvidersUsed(tt.envVarList)
+			if result != tt.want {
+				t.Errorf("checkEnvVarMatchesValue() result is %v but want %v", result, tt.want)
+			}
+		})
+	}
+}

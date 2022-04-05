@@ -219,6 +219,24 @@ spec:
           mountPath: /etc/secret-volume
 ```
 
+The Datadog Agent also includes a script that can be used to read secrets from files mounted from Kubernetes secrets, or directly from Kubernetes secrets. This script can be used by setting `DD_SECRET_BACKEND_COMMAND` to `/readsecret_multiple_providers.sh`. An example of how to configure the DatadogAgent spec is provided below. For more details, see [Secrets Management][2].
+
+```yaml
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog
+spec:
+  credentials:
+    apiKey: ENC[k8s_secret@default/test-secret/api_key]
+    appKey: ENC[k8s_secret@default/test-secret/app_key]
+    useSecretBackend: true
+  agent:
+    env:
+      - name: DD_SECRET_BACKEND_COMMAND
+        value: "/readsecret_multiple_providers.sh"
+```
+
 **Remarks:**
 
 * For the "Agent" and "Cluster Agent", others options exist to configure secret backend command:
@@ -228,3 +246,4 @@ spec:
   * **DD_SECRET_BACKEND_TIMEOUT**: secret backend execution timeout in second. The default value is 5 seconds.
 
 [1]: https://docs.datadoghq.com/agent/guide/secrets-management
+[2]: https://docs.datadoghq.com/agent/guide/secrets-management/?tab=linux#script-for-reading-from-multiple-secret-providers

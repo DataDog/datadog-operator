@@ -1090,6 +1090,18 @@ func buildClusterRole(dda *datadoghqv1alpha1.DatadogAgent, needClusterLevelRBAC 
 		},
 	}
 
+	// If the secret backend uses the provided `/readsecret_multiple_providers.sh` script, then we need to add secrets GET permissions
+	if *dda.Spec.Credentials.UseSecretBackend &&
+		(checkSecretBackendMultipleProvidersUsed(dda.Spec.Agent.Env) || checkSecretBackendMultipleProvidersUsed(dda.Spec.Agent.Config.Env) ||
+			checkSecretBackendMultipleProvidersUsed(dda.Spec.Agent.Apm.Env) || checkSecretBackendMultipleProvidersUsed(dda.Spec.Agent.Process.Env) ||
+			checkSecretBackendMultipleProvidersUsed(dda.Spec.Agent.SystemProbe.Env) || checkSecretBackendMultipleProvidersUsed(dda.Spec.Agent.Security.Env)) {
+		rbacRules = append(rbacRules, rbacv1.PolicyRule{
+			APIGroups: []string{datadoghqv1alpha1.CoreAPIGroup},
+			Resources: []string{datadoghqv1alpha1.SecretsResource},
+			Verbs:     []string{datadoghqv1alpha1.GetVerb},
+		})
+	}
+
 	if needClusterLevelRBAC {
 		// Cluster Agent is disabled, the Agent needs extra permissions
 		// to collect cluster level metrics and events
@@ -1196,6 +1208,16 @@ func buildClusterAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, age
 
 	if apiutils.BoolValue(dda.Spec.ClusterAgent.Config.CollectEvents) {
 		rbacRules = append(rbacRules, getEventCollectionPolicyRule())
+	}
+
+	// If the secret backend uses the provided `/readsecret_multiple_providers.sh` script, then we need to add secrets GET permissions
+	if *dda.Spec.Credentials.UseSecretBackend &&
+		checkSecretBackendMultipleProvidersUsed(dda.Spec.ClusterAgent.Config.Env) {
+		rbacRules = append(rbacRules, rbacv1.PolicyRule{
+			APIGroups: []string{datadoghqv1alpha1.CoreAPIGroup},
+			Resources: []string{datadoghqv1alpha1.SecretsResource},
+			Verbs:     []string{datadoghqv1alpha1.GetVerb},
+		})
 	}
 
 	if isMetricsProviderEnabled(dda.Spec.ClusterAgent) {
