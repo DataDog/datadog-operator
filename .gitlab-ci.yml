@@ -1,4 +1,4 @@
-image: registry.ddbuild.io/golang:1.16.3-buster
+image: registry.ddbuild.io/images/mirror/golang:1.17
 variables:
   GO111MODULE: "on"
   PROJECTNAME: "datadog-operator"
