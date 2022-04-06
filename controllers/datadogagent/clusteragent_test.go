@@ -101,10 +101,10 @@ func clusterAgentDefaultPodSpec() v1.PodSpec {
 				},
 			},
 		},
-		SecurityContext: &v1.PodSecurityContext{
-			RunAsNonRoot: apiutils.NewBoolPointer(true),
-			RunAsUser:    apiutils.NewInt64Pointer(101),
-		},
+		// To be uncommented when the cluster-agent Dockerfile will be updated to use a non-root user by default
+		// SecurityContext: &v1.PodSecurityContext{
+		// 	RunAsNonRoot: apiutils.NewBoolPointer(true),
+		// },
 	}
 }
 

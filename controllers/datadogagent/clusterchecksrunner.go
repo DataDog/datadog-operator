@@ -302,11 +302,10 @@ func newClusterChecksRunnerPodTemplate(dda *datadoghqv1alpha1.DatadogAgent, labe
 			Affinity:          getPodAffinity(clusterChecksRunnerSpec.Affinity),
 			Tolerations:       clusterChecksRunnerSpec.Tolerations,
 			PriorityClassName: clusterChecksRunnerSpec.PriorityClassName,
-			SecurityContext: &corev1.PodSecurityContext{
-				RunAsNonRoot: apiutils.NewBoolPointer(true),
-				// 101 is the UID of user `dd-agent` in the official datadog agent image
-				RunAsUser: apiutils.NewInt64Pointer(101),
-			},
+			// To be uncommented when the agent Dockerfile will be updated to use a non-root user by default
+			// SecurityContext: &corev1.PodSecurityContext{
+			// 	RunAsNonRoot: apiutils.NewBoolPointer(true),
+			// },
 		},
 	}
 

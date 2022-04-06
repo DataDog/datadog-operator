@@ -132,7 +132,7 @@ func newAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent
 		return nil, err
 	}
 
-	return &corev1.PodTemplateSpec{
+	podTemplate := &corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: dda.Name,
 			Namespace:    dda.Namespace,
@@ -140,7 +140,10 @@ func newAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent
 			Annotations:  annotations,
 		},
 		Spec: corev1.PodSpec{
-			SecurityContext:    dda.Spec.Agent.Config.SecurityContext,
+			// Force root user for when the agent Dockerfile will be updated to use a non-root user by default
+			SecurityContext: &corev1.PodSecurityContext{
+				RunAsUser: apiutils.NewInt64Pointer(0),
+			},
 			ServiceAccountName: getAgentServiceAccount(dda),
 			InitContainers:     initContainers,
 			Containers:         containers,
@@ -153,7 +156,13 @@ func newAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent
 			DNSConfig:          dda.Spec.Agent.DNSConfig,
 			Affinity:           dda.Spec.Agent.Affinity,
 		},
-	}, nil
+	}
+
+	if dda.Spec.Agent.Config.SecurityContext != nil {
+		podTemplate.Spec.SecurityContext = dda.Spec.Agent.Config.SecurityContext
+	}
+
+	return podTemplate, nil
 }
 
 func isClusterChecksEnabled(spec *datadoghqv1alpha1.DatadogAgentSpec) bool {
@@ -409,6 +418,8 @@ func getSystemProbeContainers(dda *datadoghqv1alpha1.DatadogAgent, image string)
 					"CHOWN",
 				},
 			},
+			// Force root user for when the agent Dockerfile will be updated to use a non-root user by default
+			RunAsUser: apiutils.NewInt64Pointer(0),
 		},
 		Env:          systemProbeEnvVars,
 		VolumeMounts: getVolumeMountsForSystemProbe(dda),
@@ -440,6 +451,8 @@ func getSecurityAgentContainer(dda *datadoghqv1alpha1.DatadogAgent, image string
 			Capabilities: &corev1.Capabilities{
 				Add: []corev1.Capability{"AUDIT_CONTROL", "AUDIT_READ"},
 			},
+			// Force root user for when the agent Dockerfile will be updated to use a non-root user by default
+			RunAsUser: apiutils.NewInt64Pointer(0),
 		},
 		Resources:    *agentSpec.Config.Resources,
 		Env:          envVars,
