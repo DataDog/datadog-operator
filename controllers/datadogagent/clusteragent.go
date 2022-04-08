@@ -354,6 +354,7 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 			VolumeSource: confdVolumeSource,
 		},
 		getVolumeForLogs(),
+		getVolumeForCertificates(),
 
 		// /tmp is needed because some versions of the DCA (at least until
 		// 1.19.0) write to it.
@@ -377,6 +378,7 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 			ReadOnly:  true,
 		},
 		getVolumeMountForLogs(),
+		getVolumeMountForCertificates(),
 		getVolumeMountForTmp(),
 	}
 
