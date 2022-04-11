@@ -265,7 +265,7 @@ func shouldMountPasswdVolume(dda *datadoghqv1alpha1.DatadogAgent) bool {
 		return false
 	}
 
-	return *dda.Spec.Agent.Process.ProcessCollectionEnabled
+	return apiutils.BoolValue(dda.Spec.Agent.Process.ProcessCollectionEnabled)
 }
 
 // processCollectionEnabled
@@ -1648,7 +1648,7 @@ func getVolumeMountsForProcessAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev
 		},
 	}
 
-	if *dda.Spec.Agent.Process.ProcessCollectionEnabled {
+	if apiutils.BoolValue(dda.Spec.Agent.Process.ProcessCollectionEnabled) {
 		volumeMounts = append(volumeMounts,
 			corev1.VolumeMount{
 				Name:      datadoghqv1alpha1.PasswdVolumeName,
