@@ -39,6 +39,10 @@ const (
 	DefaultAdmissionControllerTargetPort = 8000
 	// DefaultDogstatsdPort default dogstatsd port
 	DefaultDogstatsdPort = 8125
+	// DefaultDogstatsdPortName default dogstatsd port name
+	DefaultDogstatsdPortName = "dogstatsd"
+	// DefaultApmPortName default apm port name
+	DefaultApmPortName = "apm"
 )
 
 // Datadog env var names

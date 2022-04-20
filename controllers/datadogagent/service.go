@@ -462,6 +462,7 @@ func newAgentService(dda *datadoghqv1alpha1.DatadogAgent) *corev1.Service {
 					Protocol:   corev1.ProtocolUDP,
 					TargetPort: intstr.FromInt(datadoghqv1alpha1.DefaultDogstatsdPort),
 					Port:       datadoghqv1alpha1.DefaultDogstatsdPort,
+					Name:       datadoghqv1alpha1.DefaultDogstatsdPortName,
 				},
 			},
 			SessionAffinity:       corev1.ServiceAffinityNone,
@@ -475,6 +476,7 @@ func newAgentService(dda *datadoghqv1alpha1.DatadogAgent) *corev1.Service {
 				Protocol:   corev1.ProtocolTCP,
 				TargetPort: intstr.FromInt(int(*dda.Spec.Agent.Apm.HostPort)),
 				Port:       *dda.Spec.Agent.Apm.HostPort,
+				Name:       datadoghqv1alpha1.DefaultApmPortName,
 			})
 	}
 
