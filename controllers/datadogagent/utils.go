@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/orchestrator"
@@ -803,6 +804,58 @@ func getEnvVarsForLogCollection(logSpec *datadoghqv1alpha1.LogCollectionConfig) 
 	return envVars
 }
 
+// getEnvVarsForMetadataAsTags gathers the various labels, annotations, namespaces, ...AsTags NodeAgentConfigs
+// and converts into the respective environment variables
+func getEnvVarsForMetadataAsTags(agentConfig *datadoghqv1alpha1.NodeAgentConfig) ([]corev1.EnvVar, error) {
+	envVars := []corev1.EnvVar{}
+
+	if agentConfig.NodeLabelsAsTags != nil {
+		nodeLabelsAsTags, err := json.Marshal(agentConfig.NodeLabelsAsTags)
+		if err != nil {
+			return nil, err
+		}
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  datadoghqv1alpha1.DDNodeLabelsAsTags,
+			Value: string(nodeLabelsAsTags),
+		})
+	}
+
+	if agentConfig.PodLabelsAsTags != nil {
+		podLabelsAsTags, err := json.Marshal(agentConfig.PodLabelsAsTags)
+		if err != nil {
+			return nil, err
+		}
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  datadoghqv1alpha1.DDPodLabelsAsTags,
+			Value: string(podLabelsAsTags),
+		})
+	}
+
+	if agentConfig.PodAnnotationsAsTags != nil {
+		podAnnotationsAsTags, err := json.Marshal(agentConfig.PodAnnotationsAsTags)
+		if err != nil {
+			return nil, err
+		}
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  datadoghqv1alpha1.DDPodAnnotationsAsTags,
+			Value: string(podAnnotationsAsTags),
+		})
+	}
+
+	if agentConfig.NamespaceLabelsAsTags != nil {
+		namespaceLabelsAsTags, err := json.Marshal(agentConfig.NamespaceLabelsAsTags)
+		if err != nil {
+			return nil, err
+		}
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  datadoghqv1alpha1.DDNamespaceLabelsAsTags,
+			Value: string(namespaceLabelsAsTags),
+		})
+	}
+
+	return envVars, nil
+}
+
 // getEnvVarsForAgent converts Agent Config into container env vars
 func getEnvVarsForAgent(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.EnvVar, error) {
 	spec := dda.Spec
@@ -810,26 +863,10 @@ func getEnvVarsForAgent(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent)
 	var envVars []corev1.EnvVar
 	config := dda.Spec.Agent.Config
 	if config != nil {
-		podLabelsAsTags, err := json.Marshal(spec.Agent.Config.PodLabelsAsTags)
-		if err != nil {
-			return nil, err
-		}
-		podAnnotationsAsTags, err := json.Marshal(spec.Agent.Config.PodAnnotationsAsTags)
-		if err != nil {
-			return nil, err
-		}
 		envVars = []corev1.EnvVar{
 			{
 				Name:  datadoghqv1alpha1.DDHealthPort,
 				Value: strconv.Itoa(int(*spec.Agent.Config.HealthPort)),
-			},
-			{
-				Name:  datadoghqv1alpha1.DDPodLabelsAsTags,
-				Value: string(podLabelsAsTags),
-			},
-			{
-				Name:  datadoghqv1alpha1.DDPodAnnotationsAsTags,
-				Value: string(podAnnotationsAsTags),
 			},
 			{
 				Name:  datadoghqv1alpha1.DDCollectKubeEvents,
@@ -840,6 +877,11 @@ func getEnvVarsForAgent(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent)
 				Value: strconv.FormatBool(*spec.Agent.Config.LeaderElection),
 			},
 		}
+		metadataAsTagsEnv, err := getEnvVarsForMetadataAsTags(spec.Agent.Config)
+		if err != nil {
+			return nil, err
+		}
+		envVars = append(envVars, metadataAsTagsEnv...)
 	}
 	envVars = append(envVars, getEnvVarsForLogCollection(spec.Features.LogCollection)...)
 	commonEnvVars, err := getEnvVarsCommon(dda, true)
@@ -2413,13 +2455,13 @@ func addBoolPointerEnVar(b *bool, varName string, varList []corev1.EnvVar) []cor
 }
 
 // getImage builds the image string based on ImageConfig and the registry configuration.
-func getImage(imageSpec *datadoghqv1alpha1.ImageConfig, registry *string) string {
+func getImage(imageSpec *commonv1.AgentImageConfig, registry *string) string {
 	if defaulting.IsImageNameContainsTag(imageSpec.Name) {
 		// The image name corresponds to a full image string
 		return imageSpec.Name
 	}
 
-	img := defaulting.NewImage(imageSpec.Name, imageSpec.Tag, imageSpec.JmxEnabled)
+	img := defaulting.NewImage(imageSpec.Name, imageSpec.Tag, imageSpec.JMXEnabled)
 
 	if registry != nil {
 		defaulting.WithRegistry(defaulting.ContainerRegistry(*registry))(img)

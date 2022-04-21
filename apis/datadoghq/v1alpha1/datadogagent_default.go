@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 	"github.com/DataDog/datadog-operator/pkg/utils"
@@ -250,7 +251,7 @@ func DefaultDatadogAgentSpecAgent(agent *DatadogAgentSpecAgentSpec) *DatadogAgen
 		agentOverride.UseExtendedDaemonset = agent.UseExtendedDaemonset
 	}
 
-	if img := DefaultDatadogAgentSpecAgentImage(agent, defaultAgentImageName, defaulting.AgentLatestVersion); !apiutils.IsEqualStruct(*img, ImageConfig{}) {
+	if img := DefaultDatadogAgentSpecAgentImage(agent, defaultAgentImageName, defaulting.AgentLatestVersion); !apiutils.IsEqualStruct(*img, commonv1.AgentImageConfig{}) {
 		agentOverride.Image = img
 	}
 
@@ -292,10 +293,10 @@ func DefaultDatadogAgentSpecAgent(agent *DatadogAgentSpecAgentSpec) *DatadogAgen
 
 // DefaultDatadogAgentSpecAgentImage used to default a ImageConfig for the Agent, Cluster Agent and the Cluster Check Runner.
 // Returns the defaulted ImageConfig.
-func DefaultDatadogAgentSpecAgentImage(agent *DatadogAgentSpecAgentSpec, name, tag string) *ImageConfig {
-	imgOverride := &ImageConfig{}
+func DefaultDatadogAgentSpecAgentImage(agent *DatadogAgentSpecAgentSpec, name, tag string) *commonv1.AgentImageConfig {
+	imgOverride := &commonv1.AgentImageConfig{}
 	if agent.Image == nil {
-		agent.Image = &ImageConfig{}
+		agent.Image = &commonv1.AgentImageConfig{}
 	}
 
 	if agent.Image.Name == "" {
@@ -399,14 +400,6 @@ func DefaultDatadogAgentSpecAgentConfig(agent *DatadogAgentSpecAgentSpec) *NodeA
 
 	if agent.Config.Resources == nil {
 		agent.Config.Resources = &corev1.ResourceRequirements{}
-	}
-
-	if agent.Config.PodLabelsAsTags == nil {
-		agent.Config.PodLabelsAsTags = map[string]string{}
-	}
-
-	if agent.Config.PodAnnotationsAsTags == nil {
-		agent.Config.PodAnnotationsAsTags = map[string]string{}
 	}
 
 	if agent.Config.Tags == nil {
@@ -1019,9 +1012,9 @@ func DefaultDatadogAgentSpecClusterAgent(clusterAgent *DatadogAgentSpecClusterAg
 	}
 
 	if clusterAgent.Image == nil {
-		clusterAgent.Image = &ImageConfig{}
+		clusterAgent.Image = &commonv1.AgentImageConfig{}
 	}
-	if img := DefaultDatadogClusterAgentImage(clusterAgent, defaultClusterAgentImageName, defaulting.ClusterAgentLatestVersion); !apiutils.IsEqualStruct(*img, ImageConfig{}) {
+	if img := DefaultDatadogClusterAgentImage(clusterAgent, defaultClusterAgentImageName, defaulting.ClusterAgentLatestVersion); !apiutils.IsEqualStruct(*img, commonv1.AgentImageConfig{}) {
 		clusterAgentOverride.Image = img
 	}
 
@@ -1138,10 +1131,10 @@ func DefaultAdmissionController(conf *ClusterAgentConfig) *AdmissionControllerCo
 
 // DefaultDatadogClusterAgentImage used to default a ImageConfig for the Agent, Cluster Agent and the Cluster Check Runner.
 // Returns the defaulted ImageConfig.
-func DefaultDatadogClusterAgentImage(dca *DatadogAgentSpecClusterAgentSpec, name, tag string) *ImageConfig {
-	imgOverride := &ImageConfig{}
+func DefaultDatadogClusterAgentImage(dca *DatadogAgentSpecClusterAgentSpec, name, tag string) *commonv1.AgentImageConfig {
+	imgOverride := &commonv1.AgentImageConfig{}
 	if dca.Image == nil {
-		dca.Image = &ImageConfig{}
+		dca.Image = &commonv1.AgentImageConfig{}
 	}
 
 	if dca.Image.Name == "" {
@@ -1186,7 +1179,7 @@ func DefaultDatadogAgentSpecClusterChecksRunner(clusterChecksRunner *DatadogAgen
 		clcOverride.Enabled = clusterChecksRunner.Enabled
 	}
 
-	if img := DefaultDatadogAgentSpecClusterChecksRunnerImage(clusterChecksRunner, defaultAgentImageName, defaulting.AgentLatestVersion); !apiutils.IsEqualStruct(img, ImageConfig{}) {
+	if img := DefaultDatadogAgentSpecClusterChecksRunnerImage(clusterChecksRunner, defaultAgentImageName, defaulting.AgentLatestVersion); !apiutils.IsEqualStruct(img, commonv1.AgentImageConfig{}) {
 		clcOverride.Image = img
 	}
 
@@ -1207,10 +1200,10 @@ func DefaultDatadogAgentSpecClusterChecksRunner(clusterChecksRunner *DatadogAgen
 
 // DefaultDatadogAgentSpecClusterChecksRunnerImage used to default a ImageConfig for the Agent, Cluster Agent and the Cluster Check Runner.
 // Returns the defaulted ImageConfig.
-func DefaultDatadogAgentSpecClusterChecksRunnerImage(clc *DatadogAgentSpecClusterChecksRunnerSpec, name, tag string) *ImageConfig {
-	imgOverride := &ImageConfig{}
+func DefaultDatadogAgentSpecClusterChecksRunnerImage(clc *DatadogAgentSpecClusterChecksRunnerSpec, name, tag string) *commonv1.AgentImageConfig {
+	imgOverride := &commonv1.AgentImageConfig{}
 	if clc.Image == nil {
-		clc.Image = &ImageConfig{}
+		clc.Image = &commonv1.AgentImageConfig{}
 	}
 
 	if clc.Image.Name == "" {

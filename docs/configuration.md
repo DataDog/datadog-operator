@@ -83,7 +83,7 @@ spec:
 | agent.config.env | The Datadog Agent supports many environment variables. See also: https://docs.datadoghq.com/agent/docker/?tab=standard#environment-variables |
 | agent.config.healthPort | HealthPort of the Agent container for internal liveness probe. Must be the same as the Liveness/Readiness probes. |
 | agent.config.hostPort | Number of port to expose on the host. If specified, this must be a valid port number, 0 < x < 65536. If HostNetwork is specified, this must match ContainerPort. Most containers do not need this. |
-| agent.config.kubelet.agentCAPath | Path (inside Agent containers) where the Kubelet CA certificate is stored Default to /var/run/host-kubelet-ca.crt if hostCAPath else /var/run/secrets/kubernetes.io/serviceaccount/ca.crt |
+| agent.config.kubelet.agentCAPath | AgentCAPath is the container path where the kubelet CA certificate is stored. Default: '/var/run/host-kubelet-ca.crt' if hostCAPath is set, else '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt' |
 | agent.config.kubelet.host.configMapKeyRef.key | The key to select. |
 | agent.config.kubelet.host.configMapKeyRef.name | Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names TODO: Add other useful fields. apiVersion, kind, uid? |
 | agent.config.kubelet.host.configMapKeyRef.optional | Specify whether the ConfigMap or its key must be defined |
@@ -95,8 +95,8 @@ spec:
 | agent.config.kubelet.host.secretKeyRef.key | The key of the secret to select from.  Must be a valid secret key. |
 | agent.config.kubelet.host.secretKeyRef.name | Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names TODO: Add other useful fields. apiVersion, kind, uid? |
 | agent.config.kubelet.host.secretKeyRef.optional | Specify whether the Secret or its key must be defined |
-| agent.config.kubelet.hostCAPath | Path (on host) where the Kubelet CA certificate is stored |
-| agent.config.kubelet.tlsVerify | Toggle kubelet TLS verification (default to true) |
+| agent.config.kubelet.hostCAPath | HostCAPath is the host path where the kubelet CA certificate is stored. |
+| agent.config.kubelet.tlsVerify | TLSVerify toggles kubelet TLS verification. Default: true |
 | agent.config.leaderElection | Enables leader election mechanism for event collection. |
 | agent.config.livenessProbe.exec.command | Command is the command line to execute inside the container, the working directory for the command  is root ('/') in the container's filesystem. The command is simply exec'd, it is not run inside a shell, so traditional shell instructions ('|', etc) won't work. To use a shell, you need to explicitly call out to that shell. Exit status of 0 is treated as live/healthy and non-zero is unhealthy. |
 | agent.config.livenessProbe.failureThreshold | Minimum consecutive failures for the probe to be considered failed after having succeeded. Defaults to 3. Minimum value is 1. |
@@ -113,8 +113,10 @@ spec:
 | agent.config.livenessProbe.terminationGracePeriodSeconds | Optional duration in seconds the pod needs to terminate gracefully upon probe failure. The grace period is the duration in seconds after the processes running in the pod are sent a termination signal and the time when the processes are forcibly halted with a kill signal. Set this value longer than the expected cleanup time for your process. If this value is nil, the pod's terminationGracePeriodSeconds will be used. Otherwise, this value overrides the value provided by the pod spec. Value must be non-negative integer. The value zero indicates stop immediately via the kill signal (no opportunity to shut down). This is an alpha field and requires enabling ProbeTerminationGracePeriod feature gate. |
 | agent.config.livenessProbe.timeoutSeconds | Number of seconds after which the probe times out. Defaults to 1 second. Minimum value is 1. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes |
 | agent.config.logLevel | Set logging verbosity, valid log levels are: trace, debug, info, warn, error, critical, and off |
-| agent.config.podAnnotationsAsTags | Provide a mapping of Kubernetes Annotations to Datadog Tags. <KUBERNETES_ANNOTATIONS>: <DATADOG_TAG_KEY> |
-| agent.config.podLabelsAsTags | Provide a mapping of Kubernetes Labels to Datadog Tags. <KUBERNETES_LABEL>: <DATADOG_TAG_KEY> |
+| agent.config.namespaceLabelsAsTags | Provide a mapping of Kubernetes Namespace Labels to Datadog Tags. <KUBERNETES_LABEL>: <DATADOG_TAG_KEY> |
+| agent.config.nodeLabelsAsTags | Provide a mapping of Kubernetes Node Labels to Datadog Tags. <KUBERNETES_LABEL>: <DATADOG_TAG_KEY> |
+| agent.config.podAnnotationsAsTags | Provide a mapping of Kubernetes Pod Annotations to Datadog Tags. <KUBERNETES_ANNOTATIONS>: <DATADOG_TAG_KEY> |
+| agent.config.podLabelsAsTags | Provide a mapping of Kubernetes Pod Labels to Datadog Tags. <KUBERNETES_LABEL>: <DATADOG_TAG_KEY> |
 | agent.config.readinessProbe.exec.command | Command is the command line to execute inside the container, the working directory for the command  is root ('/') in the container's filesystem. The command is simply exec'd, it is not run inside a shell, so traditional shell instructions ('|', etc) won't work. To use a shell, you need to explicitly call out to that shell. Exit status of 0 is treated as live/healthy and non-zero is unhealthy. |
 | agent.config.readinessProbe.failureThreshold | Minimum consecutive failures for the probe to be considered failed after having succeeded. Defaults to 3. Minimum value is 1. |
 | agent.config.readinessProbe.httpGet.host | Host name to connect to, defaults to the pod IP. You probably want to set "Host" in httpHeaders instead. |
@@ -183,10 +185,10 @@ spec:
 | agent.hostNetwork | Host networking requested for this pod. Use the host's network namespace. If this option is set, the ports that will be used must be specified. Default to false. |
 | agent.hostPID | Use the host's pid namespace. Optional: Default to false. |
 | agent.image.jmxEnabled | Define whether the Agent image should support JMX. |
-| agent.image.name | Define the image to use: Use "gcr.io/datadoghq/agent" for Datadog Agent 7 Use "datadog/dogstatsd" for Standalone Datadog Agent DogStatsD Use "gcr.io/datadoghq/cluster-agent" for Datadog Cluster Agent Use "agent" with the registry and tag configurations for <registry>/agent:<tag> Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag> |
+| agent.image.name | Define the image to use: Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7. Use "datadog/dogstatsd:latest" for standalone Datadog Agent DogStatsD 7. Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent. Use "agent" with the registry and tag configurations for <registry>/agent:<tag>. Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>. |
 | agent.image.pullPolicy | The Kubernetes pull policy: Use Always, Never or IfNotPresent. |
-| agent.image.pullSecrets | It is possible to specify docker registry credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod |
-| agent.image.tag | Define the image version to use: To be used if the Name field does not correspond to a full image string. |
+| agent.image.pullSecrets | It is possible to specify Docker registry credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod |
+| agent.image.tag | Define the image tag to use. To be used if the Name field does not correspond to a full image string. |
 | agent.keepAnnotations | KeepAnnotations allows the specification of annotations not managed by the Operator that will be kept on Agent DaemonSet. All annotations containing 'datadoghq.com' are always included. This field uses glob syntax. |
 | agent.keepLabels | KeepLabels allows the specification of labels not managed by the Operator that will be kept on Agent DaemonSet. All labels containing 'datadoghq.com' are always included. This field uses glob syntax. |
 | agent.localService.forceLocalServiceEnable | Force the creation of the internal traffic policy service to target the agent running on the local node. By default, the internal traffic service is created only on Kubernetes 1.22+ where the feature became beta and enabled by default. This option allows to force the creation of the internal traffic service on kubernetes 1.21 where the feature was alpha and required a feature gate to be explicitly enabled. |
@@ -326,10 +328,10 @@ spec:
 | clusterAgent.deploymentName | Name of the Cluster Agent Deployment to create or migrate from. |
 | clusterAgent.enabled | Enabled |
 | clusterAgent.image.jmxEnabled | Define whether the Agent image should support JMX. |
-| clusterAgent.image.name | Define the image to use: Use "gcr.io/datadoghq/agent" for Datadog Agent 7 Use "datadog/dogstatsd" for Standalone Datadog Agent DogStatsD Use "gcr.io/datadoghq/cluster-agent" for Datadog Cluster Agent Use "agent" with the registry and tag configurations for <registry>/agent:<tag> Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag> |
+| clusterAgent.image.name | Define the image to use: Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7. Use "datadog/dogstatsd:latest" for standalone Datadog Agent DogStatsD 7. Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent. Use "agent" with the registry and tag configurations for <registry>/agent:<tag>. Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>. |
 | clusterAgent.image.pullPolicy | The Kubernetes pull policy: Use Always, Never or IfNotPresent. |
-| clusterAgent.image.pullSecrets | It is possible to specify docker registry credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod |
-| clusterAgent.image.tag | Define the image version to use: To be used if the Name field does not correspond to a full image string. |
+| clusterAgent.image.pullSecrets | It is possible to specify Docker registry credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod |
+| clusterAgent.image.tag | Define the image tag to use. To be used if the Name field does not correspond to a full image string. |
 | clusterAgent.keepAnnotations | KeepAnnotations allows the specification of annotations not managed by the Operator that will be kept on ClusterAgent Deployment. All annotations containing 'datadoghq.com' are always included. This field uses glob syntax. |
 | clusterAgent.keepLabels | KeepLabels allows the specification of labels not managed by the Operator that will be kept on ClusterAgent Deployment. All labels containing 'datadoghq.com' are always included. This field uses glob syntax. |
 | clusterAgent.networkPolicy.create | If true, create a NetworkPolicy for the current agent. |
@@ -408,10 +410,10 @@ spec:
 | clusterChecksRunner.deploymentName | Name of the cluster checks deployment to create or migrate from. |
 | clusterChecksRunner.enabled | Enabled |
 | clusterChecksRunner.image.jmxEnabled | Define whether the Agent image should support JMX. |
-| clusterChecksRunner.image.name | Define the image to use: Use "gcr.io/datadoghq/agent" for Datadog Agent 7 Use "datadog/dogstatsd" for Standalone Datadog Agent DogStatsD Use "gcr.io/datadoghq/cluster-agent" for Datadog Cluster Agent Use "agent" with the registry and tag configurations for <registry>/agent:<tag> Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag> |
+| clusterChecksRunner.image.name | Define the image to use: Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7. Use "datadog/dogstatsd:latest" for standalone Datadog Agent DogStatsD 7. Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent. Use "agent" with the registry and tag configurations for <registry>/agent:<tag>. Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>. |
 | clusterChecksRunner.image.pullPolicy | The Kubernetes pull policy: Use Always, Never or IfNotPresent. |
-| clusterChecksRunner.image.pullSecrets | It is possible to specify docker registry credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod |
-| clusterChecksRunner.image.tag | Define the image version to use: To be used if the Name field does not correspond to a full image string. |
+| clusterChecksRunner.image.pullSecrets | It is possible to specify Docker registry credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod |
+| clusterChecksRunner.image.tag | Define the image tag to use. To be used if the Name field does not correspond to a full image string. |
 | clusterChecksRunner.networkPolicy.create | If true, create a NetworkPolicy for the current agent. |
 | clusterChecksRunner.networkPolicy.dnsSelectorEndpoints | Cilium selector of the DNS server entity. |
 | clusterChecksRunner.networkPolicy.flavor | Which network policy to use. Can be `kubernetes` or `cilium`. |

@@ -15,7 +15,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/client-go/pkg/version"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -152,7 +151,10 @@ var testGitVersion string
 
 func (r *Reconciler) manageAgentService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
 	// Service Internal Traffic Policy exists in Kube 1.21 but it is enabled by default since 1.22
-	gitVersion := version.Get().GitVersion
+	gitVersion := ""
+	if r.versionInfo != nil {
+		gitVersion = r.versionInfo.GitVersion
+	}
 	if testGitVersion != "" {
 		gitVersion = testGitVersion
 	}
@@ -462,6 +464,7 @@ func newAgentService(dda *datadoghqv1alpha1.DatadogAgent) *corev1.Service {
 					Protocol:   corev1.ProtocolUDP,
 					TargetPort: intstr.FromInt(datadoghqv1alpha1.DefaultDogstatsdPort),
 					Port:       datadoghqv1alpha1.DefaultDogstatsdPort,
+					Name:       datadoghqv1alpha1.DefaultDogstatsdPortName,
 				},
 			},
 			SessionAffinity:       corev1.ServiceAffinityNone,
@@ -475,6 +478,7 @@ func newAgentService(dda *datadoghqv1alpha1.DatadogAgent) *corev1.Service {
 				Protocol:   corev1.ProtocolTCP,
 				TargetPort: intstr.FromInt(int(*dda.Spec.Agent.Apm.HostPort)),
 				Port:       *dda.Spec.Agent.Apm.HostPort,
+				Name:       datadoghqv1alpha1.DefaultApmPortName,
 			})
 	}
 

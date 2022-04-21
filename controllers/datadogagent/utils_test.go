@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"testing"
 
+	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
@@ -454,13 +455,13 @@ func Test_mergeAnnotationsLabels(t *testing.T) {
 func Test_getImage(t *testing.T) {
 	tests := []struct {
 		name      string
-		imageSpec *datadoghqv1alpha1.ImageConfig
+		imageSpec *commonv1.AgentImageConfig
 		registry  *string
 		want      string
 	}{
 		{
 			name: "backward compatible",
-			imageSpec: &datadoghqv1alpha1.ImageConfig{
+			imageSpec: &commonv1.AgentImageConfig{
 				Name: defaulting.GetLatestAgentImage(),
 			},
 			registry: nil,
@@ -468,7 +469,7 @@ func Test_getImage(t *testing.T) {
 		},
 		{
 			name: "nominal case",
-			imageSpec: &datadoghqv1alpha1.ImageConfig{
+			imageSpec: &commonv1.AgentImageConfig{
 				Name: "agent",
 				Tag:  "7",
 			},
@@ -477,7 +478,7 @@ func Test_getImage(t *testing.T) {
 		},
 		{
 			name: "prioritize the full path",
-			imageSpec: &datadoghqv1alpha1.ImageConfig{
+			imageSpec: &commonv1.AgentImageConfig{
 				Name: "docker.io/datadog/agent:7.28.1-rc.3",
 				Tag:  "latest",
 			},
@@ -486,7 +487,7 @@ func Test_getImage(t *testing.T) {
 		},
 		{
 			name: "default registry",
-			imageSpec: &datadoghqv1alpha1.ImageConfig{
+			imageSpec: &commonv1.AgentImageConfig{
 				Name: "agent",
 				Tag:  "latest",
 			},
@@ -495,40 +496,40 @@ func Test_getImage(t *testing.T) {
 		},
 		{
 			name: "add jmx",
-			imageSpec: &datadoghqv1alpha1.ImageConfig{
+			imageSpec: &commonv1.AgentImageConfig{
 				Name:       "agent",
 				Tag:        defaulting.AgentLatestVersion,
-				JmxEnabled: true,
+				JMXEnabled: true,
 			},
 			registry: nil,
 			want:     defaulting.GetLatestAgentImageJMX(),
 		},
 		{
 			name: "cluster-agent",
-			imageSpec: &datadoghqv1alpha1.ImageConfig{
+			imageSpec: &commonv1.AgentImageConfig{
 				Name:       "cluster-agent",
 				Tag:        defaulting.ClusterAgentLatestVersion,
-				JmxEnabled: false,
+				JMXEnabled: false,
 			},
 			registry: nil,
 			want:     defaulting.GetLatestClusterAgentImage(),
 		},
 		{
 			name: "do not duplicate jmx",
-			imageSpec: &datadoghqv1alpha1.ImageConfig{
+			imageSpec: &commonv1.AgentImageConfig{
 				Name:       "agent",
 				Tag:        "latest-jmx",
-				JmxEnabled: true,
+				JMXEnabled: true,
 			},
 			registry: nil,
 			want:     "gcr.io/datadoghq/agent:latest-jmx",
 		},
 		{
 			name: "do not add jmx",
-			imageSpec: &datadoghqv1alpha1.ImageConfig{
+			imageSpec: &commonv1.AgentImageConfig{
 				Name:       "agent",
 				Tag:        "latest-jmx",
-				JmxEnabled: true,
+				JMXEnabled: true,
 			},
 			registry: nil,
 			want:     "gcr.io/datadoghq/agent:latest-jmx",
@@ -583,6 +584,87 @@ func Test_getReplicas(t *testing.T) {
 				assert.NotSame(t, tt.current, got)
 				assert.NotSame(t, tt.new, got)
 			}
+		})
+	}
+}
+
+func Test_getEnvVarsForMetadataAsTags(t *testing.T) {
+	singleMapping := map[string]string{"key1": "value1"}
+	singleMappingString := `{"key1":"value1"}`
+	multipleMapping := map[string]string{"key1": "value1", "key2": "value2", "key3": "value3"}
+	multipleMappingString := `{"key1":"value1","key2":"value2","key3":"value3"}`
+
+	tests := []struct {
+		name   string
+		config datadoghqv1alpha1.NodeAgentConfig
+		want   []v1.EnvVar
+	}{
+		{
+			name:   "No mappings provided",
+			config: datadoghqv1alpha1.NodeAgentConfig{},
+			want:   []v1.EnvVar{},
+		},
+		{
+			name: "Single mapping",
+			config: datadoghqv1alpha1.NodeAgentConfig{
+				NamespaceLabelsAsTags: singleMapping,
+				NodeLabelsAsTags:      singleMapping,
+				PodLabelsAsTags:       singleMapping,
+				PodAnnotationsAsTags:  singleMapping,
+			},
+			want: []v1.EnvVar{
+				{
+					Name:  datadoghqv1alpha1.DDNodeLabelsAsTags,
+					Value: singleMappingString,
+				},
+				{
+					Name:  datadoghqv1alpha1.DDPodLabelsAsTags,
+					Value: singleMappingString,
+				},
+				{
+					Name:  datadoghqv1alpha1.DDPodAnnotationsAsTags,
+					Value: singleMappingString,
+				},
+				{
+					Name:  datadoghqv1alpha1.DDNamespaceLabelsAsTags,
+					Value: singleMappingString,
+				},
+			},
+		},
+		{
+			name: "Multiple mappings",
+			config: datadoghqv1alpha1.NodeAgentConfig{
+				NamespaceLabelsAsTags: multipleMapping,
+				NodeLabelsAsTags:      multipleMapping,
+				PodLabelsAsTags:       multipleMapping,
+				PodAnnotationsAsTags:  multipleMapping,
+			},
+			want: []v1.EnvVar{
+				{
+					Name:  datadoghqv1alpha1.DDNodeLabelsAsTags,
+					Value: multipleMappingString,
+				},
+				{
+					Name:  datadoghqv1alpha1.DDPodLabelsAsTags,
+					Value: multipleMappingString,
+				},
+				{
+					Name:  datadoghqv1alpha1.DDPodAnnotationsAsTags,
+					Value: multipleMappingString,
+				},
+				{
+					Name:  datadoghqv1alpha1.DDNamespaceLabelsAsTags,
+					Value: multipleMappingString,
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			env, err := getEnvVarsForMetadataAsTags(&tt.config)
+			require.NoError(t, err)
+			require.EqualValues(t, tt.want, env)
 		})
 	}
 }

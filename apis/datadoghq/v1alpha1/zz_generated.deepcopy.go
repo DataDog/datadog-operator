@@ -11,9 +11,10 @@
 package v1alpha1
 
 import (
+	v1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	apiv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -39,21 +40,21 @@ func (in *APMSpec) DeepCopyInto(out *APMSpec) {
 	}
 	if in.Env != nil {
 		in, out := &in.Env, &out.Env
-		*out = make([]v1.EnvVar, len(*in))
+		*out = make([]corev1.EnvVar, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
 	if in.VolumeMounts != nil {
 		in, out := &in.VolumeMounts, &out.VolumeMounts
-		*out = make([]v1.VolumeMount, len(*in))
+		*out = make([]corev1.VolumeMount, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
 	if in.Resources != nil {
 		in, out := &in.Resources, &out.Resources
-		*out = new(v1.ResourceRequirements)
+		*out = new(corev1.ResourceRequirements)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.Command != nil {
@@ -68,7 +69,7 @@ func (in *APMSpec) DeepCopyInto(out *APMSpec) {
 	}
 	if in.LivenessProbe != nil {
 		in, out := &in.LivenessProbe, &out.LivenessProbe
-		*out = new(v1.Probe)
+		*out = new(corev1.Probe)
 		(*in).DeepCopyInto(*out)
 	}
 }
@@ -194,7 +195,7 @@ func (in *ClusterAgentConfig) DeepCopyInto(out *ClusterAgentConfig) {
 	*out = *in
 	if in.SecurityContext != nil {
 		in, out := &in.SecurityContext, &out.SecurityContext
-		*out = new(v1.PodSecurityContext)
+		*out = new(corev1.PodSecurityContext)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.ExternalMetrics != nil {
@@ -224,7 +225,7 @@ func (in *ClusterAgentConfig) DeepCopyInto(out *ClusterAgentConfig) {
 	}
 	if in.Resources != nil {
 		in, out := &in.Resources, &out.Resources
-		*out = new(v1.ResourceRequirements)
+		*out = new(corev1.ResourceRequirements)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.Command != nil {
@@ -244,21 +245,21 @@ func (in *ClusterAgentConfig) DeepCopyInto(out *ClusterAgentConfig) {
 	}
 	if in.Env != nil {
 		in, out := &in.Env, &out.Env
-		*out = make([]v1.EnvVar, len(*in))
+		*out = make([]corev1.EnvVar, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
 	if in.VolumeMounts != nil {
 		in, out := &in.VolumeMounts, &out.VolumeMounts
-		*out = make([]v1.VolumeMount, len(*in))
+		*out = make([]corev1.VolumeMount, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
 	if in.Volumes != nil {
 		in, out := &in.Volumes, &out.Volumes
-		*out = make([]v1.Volume, len(*in))
+		*out = make([]corev1.Volume, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
@@ -285,12 +286,12 @@ func (in *ClusterChecksRunnerConfig) DeepCopyInto(out *ClusterChecksRunnerConfig
 	*out = *in
 	if in.SecurityContext != nil {
 		in, out := &in.SecurityContext, &out.SecurityContext
-		*out = new(v1.PodSecurityContext)
+		*out = new(corev1.PodSecurityContext)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.Resources != nil {
 		in, out := &in.Resources, &out.Resources
-		*out = new(v1.ResourceRequirements)
+		*out = new(corev1.ResourceRequirements)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.Command != nil {
@@ -310,33 +311,33 @@ func (in *ClusterChecksRunnerConfig) DeepCopyInto(out *ClusterChecksRunnerConfig
 	}
 	if in.Env != nil {
 		in, out := &in.Env, &out.Env
-		*out = make([]v1.EnvVar, len(*in))
+		*out = make([]corev1.EnvVar, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
 	if in.VolumeMounts != nil {
 		in, out := &in.VolumeMounts, &out.VolumeMounts
-		*out = make([]v1.VolumeMount, len(*in))
+		*out = make([]corev1.VolumeMount, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
 	if in.Volumes != nil {
 		in, out := &in.Volumes, &out.Volumes
-		*out = make([]v1.Volume, len(*in))
+		*out = make([]corev1.Volume, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
 	if in.LivenessProbe != nil {
 		in, out := &in.LivenessProbe, &out.LivenessProbe
-		*out = new(v1.Probe)
+		*out = new(corev1.Probe)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.ReadinessProbe != nil {
 		in, out := &in.ReadinessProbe, &out.ReadinessProbe
-		*out = new(v1.Probe)
+		*out = new(corev1.Probe)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.HealthPort != nil {
@@ -391,7 +392,7 @@ func (in *ConfigDirSpec) DeepCopyInto(out *ConfigDirSpec) {
 	*out = *in
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
-		*out = make([]v1.KeyToPath, len(*in))
+		*out = make([]corev1.KeyToPath, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
@@ -683,7 +684,7 @@ func (in *DatadogAgentSpecAgentSpec) DeepCopyInto(out *DatadogAgentSpecAgentSpec
 	}
 	if in.Image != nil {
 		in, out := &in.Image, &out.Image
-		*out = new(ImageConfig)
+		*out = new(v1.AgentImageConfig)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.Config != nil {
@@ -717,12 +718,12 @@ func (in *DatadogAgentSpecAgentSpec) DeepCopyInto(out *DatadogAgentSpecAgentSpec
 	}
 	if in.DNSConfig != nil {
 		in, out := &in.DNSConfig, &out.DNSConfig
-		*out = new(v1.PodDNSConfig)
+		*out = new(corev1.PodDNSConfig)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.Env != nil {
 		in, out := &in.Env, &out.Env
-		*out = make([]v1.EnvVar, len(*in))
+		*out = make([]corev1.EnvVar, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
@@ -764,7 +765,7 @@ func (in *DatadogAgentSpecAgentSpec) DeepCopyInto(out *DatadogAgentSpecAgentSpec
 	}
 	if in.Affinity != nil {
 		in, out := &in.Affinity, &out.Affinity
-		*out = new(v1.Affinity)
+		*out = new(corev1.Affinity)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.LocalService != nil {
@@ -794,7 +795,7 @@ func (in *DatadogAgentSpecClusterAgentSpec) DeepCopyInto(out *DatadogAgentSpecCl
 	}
 	if in.Image != nil {
 		in, out := &in.Image, &out.Image
-		*out = new(ImageConfig)
+		*out = new(v1.AgentImageConfig)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.Config != nil {
@@ -833,12 +834,12 @@ func (in *DatadogAgentSpecClusterAgentSpec) DeepCopyInto(out *DatadogAgentSpecCl
 	}
 	if in.Affinity != nil {
 		in, out := &in.Affinity, &out.Affinity
-		*out = new(v1.Affinity)
+		*out = new(corev1.Affinity)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.Tolerations != nil {
 		in, out := &in.Tolerations, &out.Tolerations
-		*out = make([]v1.Toleration, len(*in))
+		*out = make([]corev1.Toleration, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
@@ -877,7 +878,7 @@ func (in *DatadogAgentSpecClusterChecksRunnerSpec) DeepCopyInto(out *DatadogAgen
 	}
 	if in.Image != nil {
 		in, out := &in.Image, &out.Image
-		*out = new(ImageConfig)
+		*out = new(v1.AgentImageConfig)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.Config != nil {
@@ -916,12 +917,12 @@ func (in *DatadogAgentSpecClusterChecksRunnerSpec) DeepCopyInto(out *DatadogAgen
 	}
 	if in.Affinity != nil {
 		in, out := &in.Affinity, &out.Affinity
-		*out = new(v1.Affinity)
+		*out = new(corev1.Affinity)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.Tolerations != nil {
 		in, out := &in.Tolerations, &out.Tolerations
-		*out = make([]v1.Toleration, len(*in))
+		*out = make([]corev1.Toleration, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
@@ -997,12 +998,12 @@ func (in *DatadogCredentials) DeepCopyInto(out *DatadogCredentials) {
 	*out = *in
 	if in.APISecret != nil {
 		in, out := &in.APISecret, &out.APISecret
-		*out = new(Secret)
+		*out = new(v1.SecretConfig)
 		**out = **in
 	}
 	if in.APPSecret != nil {
 		in, out := &in.APPSecret, &out.APPSecret
-		*out = new(Secret)
+		*out = new(v1.SecretConfig)
 		**out = **in
 	}
 }
@@ -1576,35 +1577,6 @@ func (in *ExternalMetricsConfig) DeepCopy() *ExternalMetricsConfig {
 }
 
 // DeepCopyInto is an autogenerated deepcopy function, copying the receiver, writing into out. in must be non-nil.
-func (in *ImageConfig) DeepCopyInto(out *ImageConfig) {
-	*out = *in
-	if in.PullPolicy != nil {
-		in, out := &in.PullPolicy, &out.PullPolicy
-		*out = new(v1.PullPolicy)
-		**out = **in
-	}
-	if in.PullSecrets != nil {
-		in, out := &in.PullSecrets, &out.PullSecrets
-		*out = new([]v1.LocalObjectReference)
-		if **in != nil {
-			in, out := *in, *out
-			*out = make([]v1.LocalObjectReference, len(*in))
-			copy(*out, *in)
-		}
-	}
-}
-
-// DeepCopy is an autogenerated deepcopy function, copying the receiver, creating a new ImageConfig.
-func (in *ImageConfig) DeepCopy() *ImageConfig {
-	if in == nil {
-		return nil
-	}
-	out := new(ImageConfig)
-	in.DeepCopyInto(out)
-	return out
-}
-
-// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, writing into out. in must be non-nil.
 func (in *KubeStateMetricsCore) DeepCopyInto(out *KubeStateMetricsCore) {
 	*out = *in
 	if in.Enabled != nil {
@@ -1630,31 +1602,6 @@ func (in *KubeStateMetricsCore) DeepCopy() *KubeStateMetricsCore {
 		return nil
 	}
 	out := new(KubeStateMetricsCore)
-	in.DeepCopyInto(out)
-	return out
-}
-
-// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, writing into out. in must be non-nil.
-func (in *KubeletConfig) DeepCopyInto(out *KubeletConfig) {
-	*out = *in
-	if in.Host != nil {
-		in, out := &in.Host, &out.Host
-		*out = new(v1.EnvVarSource)
-		(*in).DeepCopyInto(*out)
-	}
-	if in.TLSVerify != nil {
-		in, out := &in.TLSVerify, &out.TLSVerify
-		*out = new(bool)
-		**out = **in
-	}
-}
-
-// DeepCopy is an autogenerated deepcopy function, copying the receiver, creating a new KubeletConfig.
-func (in *KubeletConfig) DeepCopy() *KubeletConfig {
-	if in == nil {
-		return nil
-	}
-	out := new(KubeletConfig)
 	in.DeepCopyInto(out)
 	return out
 }
@@ -1786,7 +1733,7 @@ func (in *NodeAgentConfig) DeepCopyInto(out *NodeAgentConfig) {
 	*out = *in
 	if in.SecurityContext != nil {
 		in, out := &in.SecurityContext, &out.SecurityContext
-		*out = new(v1.PodSecurityContext)
+		*out = new(corev1.PodSecurityContext)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.DDUrl != nil {
@@ -1808,6 +1755,20 @@ func (in *NodeAgentConfig) DeepCopyInto(out *NodeAgentConfig) {
 		in, out := &in.Checksd, &out.Checksd
 		*out = new(ConfigDirSpec)
 		(*in).DeepCopyInto(*out)
+	}
+	if in.NamespaceLabelsAsTags != nil {
+		in, out := &in.NamespaceLabelsAsTags, &out.NamespaceLabelsAsTags
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
+	if in.NodeLabelsAsTags != nil {
+		in, out := &in.NodeLabelsAsTags, &out.NodeLabelsAsTags
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
 	}
 	if in.PodLabelsAsTags != nil {
 		in, out := &in.PodLabelsAsTags, &out.PodLabelsAsTags
@@ -1840,28 +1801,28 @@ func (in *NodeAgentConfig) DeepCopyInto(out *NodeAgentConfig) {
 	}
 	if in.Env != nil {
 		in, out := &in.Env, &out.Env
-		*out = make([]v1.EnvVar, len(*in))
+		*out = make([]corev1.EnvVar, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
 	if in.VolumeMounts != nil {
 		in, out := &in.VolumeMounts, &out.VolumeMounts
-		*out = make([]v1.VolumeMount, len(*in))
+		*out = make([]corev1.VolumeMount, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
 	if in.Volumes != nil {
 		in, out := &in.Volumes, &out.Volumes
-		*out = make([]v1.Volume, len(*in))
+		*out = make([]corev1.Volume, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
 	if in.Resources != nil {
 		in, out := &in.Resources, &out.Resources
-		*out = new(v1.ResourceRequirements)
+		*out = new(corev1.ResourceRequirements)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.Command != nil {
@@ -1876,12 +1837,12 @@ func (in *NodeAgentConfig) DeepCopyInto(out *NodeAgentConfig) {
 	}
 	if in.LivenessProbe != nil {
 		in, out := &in.LivenessProbe, &out.LivenessProbe
-		*out = new(v1.Probe)
+		*out = new(corev1.Probe)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.ReadinessProbe != nil {
 		in, out := &in.ReadinessProbe, &out.ReadinessProbe
-		*out = new(v1.Probe)
+		*out = new(corev1.Probe)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.HealthPort != nil {
@@ -1901,7 +1862,7 @@ func (in *NodeAgentConfig) DeepCopyInto(out *NodeAgentConfig) {
 	}
 	if in.Tolerations != nil {
 		in, out := &in.Tolerations, &out.Tolerations
-		*out = make([]v1.Toleration, len(*in))
+		*out = make([]corev1.Toleration, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
@@ -1913,7 +1874,7 @@ func (in *NodeAgentConfig) DeepCopyInto(out *NodeAgentConfig) {
 	}
 	if in.Kubelet != nil {
 		in, out := &in.Kubelet, &out.Kubelet
-		*out = new(KubeletConfig)
+		*out = new(v1.KubeletConfig)
 		(*in).DeepCopyInto(*out)
 	}
 }
@@ -1993,21 +1954,21 @@ func (in *ProcessSpec) DeepCopyInto(out *ProcessSpec) {
 	}
 	if in.Env != nil {
 		in, out := &in.Env, &out.Env
-		*out = make([]v1.EnvVar, len(*in))
+		*out = make([]corev1.EnvVar, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
 	if in.VolumeMounts != nil {
 		in, out := &in.VolumeMounts, &out.VolumeMounts
-		*out = make([]v1.VolumeMount, len(*in))
+		*out = make([]corev1.VolumeMount, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
 	if in.Resources != nil {
 		in, out := &in.Resources, &out.Resources
-		*out = new(v1.ResourceRequirements)
+		*out = new(corev1.ResourceRequirements)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.Command != nil {
@@ -2138,42 +2099,27 @@ func (in *Scrubbing) DeepCopy() *Scrubbing {
 }
 
 // DeepCopyInto is an autogenerated deepcopy function, copying the receiver, writing into out. in must be non-nil.
-func (in *Secret) DeepCopyInto(out *Secret) {
-	*out = *in
-}
-
-// DeepCopy is an autogenerated deepcopy function, copying the receiver, creating a new Secret.
-func (in *Secret) DeepCopy() *Secret {
-	if in == nil {
-		return nil
-	}
-	out := new(Secret)
-	in.DeepCopyInto(out)
-	return out
-}
-
-// DeepCopyInto is an autogenerated deepcopy function, copying the receiver, writing into out. in must be non-nil.
 func (in *SecuritySpec) DeepCopyInto(out *SecuritySpec) {
 	*out = *in
 	in.Compliance.DeepCopyInto(&out.Compliance)
 	in.Runtime.DeepCopyInto(&out.Runtime)
 	if in.Env != nil {
 		in, out := &in.Env, &out.Env
-		*out = make([]v1.EnvVar, len(*in))
+		*out = make([]corev1.EnvVar, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
 	if in.VolumeMounts != nil {
 		in, out := &in.VolumeMounts, &out.VolumeMounts
-		*out = make([]v1.VolumeMount, len(*in))
+		*out = make([]corev1.VolumeMount, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
 	if in.Resources != nil {
 		in, out := &in.Resources, &out.Resources
-		*out = new(v1.ResourceRequirements)
+		*out = new(corev1.ResourceRequirements)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.Command != nil {
@@ -2258,21 +2204,21 @@ func (in *SystemProbeSpec) DeepCopyInto(out *SystemProbeSpec) {
 	}
 	if in.Env != nil {
 		in, out := &in.Env, &out.Env
-		*out = make([]v1.EnvVar, len(*in))
+		*out = make([]corev1.EnvVar, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
 	if in.VolumeMounts != nil {
 		in, out := &in.VolumeMounts, &out.VolumeMounts
-		*out = make([]v1.VolumeMount, len(*in))
+		*out = make([]corev1.VolumeMount, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
 	if in.Resources != nil {
 		in, out := &in.Resources, &out.Resources
-		*out = new(v1.ResourceRequirements)
+		*out = new(corev1.ResourceRequirements)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.Command != nil {
@@ -2287,7 +2233,7 @@ func (in *SystemProbeSpec) DeepCopyInto(out *SystemProbeSpec) {
 	}
 	if in.SecurityContext != nil {
 		in, out := &in.SecurityContext, &out.SecurityContext
-		*out = new(v1.SecurityContext)
+		*out = new(corev1.SecurityContext)
 		(*in).DeepCopyInto(*out)
 	}
 }

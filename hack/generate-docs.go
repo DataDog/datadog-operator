@@ -13,10 +13,11 @@ import (
 )
 
 const (
-	crdFile    = "config/crd/bases/v1beta1/datadoghq.com_datadogagents.yaml"
-	headerFile = "hack/generate-docs/header.markdown"
-	footerFile = "hack/generate-docs/footer.markdown"
-	docsFile   = "docs/configuration.md"
+	crdFile       = "config/crd/bases/v1/datadoghq.com_datadogagents.yaml"
+	targetVersion = "v1alpha1"
+	headerFile    = "hack/generate-docs/header.markdown"
+	footerFile    = "hack/generate-docs/footer.markdown"
+	docsFile      = "docs/configuration.md"
 )
 
 type parameterDoc struct {
@@ -35,7 +36,14 @@ func main() {
 		panic(fmt.Sprintf("cannot unmarshal yaml CRD: %s", err))
 	}
 
-	props := crd.Spec.Validation.OpenAPIV3Schema.Properties["spec"].Properties
+	var props map[string]apiextensions.JSONSchemaProps
+	for _, crdVersion := range crd.Spec.Versions {
+		if crdVersion.Name == targetVersion {
+			props = crdVersion.Schema.OpenAPIV3Schema.Properties["spec"].Properties
+			break
+		}
+	}
+
 	docs := getParameterDocs([]string{}, props)
 
 	sort.Slice(docs, func(i, j int) bool {
