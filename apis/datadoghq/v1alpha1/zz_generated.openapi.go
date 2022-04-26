@@ -66,7 +66,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_APMSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_apis_datadoghq_v1alpha1_APMSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -90,7 +90,7 @@ func schema__apis_datadoghq_v1alpha1_APMSpec(ref common.ReferenceCallback) commo
 					"unixDomainSocket": {
 						SchemaProps: spec.SchemaProps{
 							Description: "UnixDomainSocket socket configuration. See also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables",
-							Ref:         ref("./apis/datadoghq/v1alpha1.APMUnixDomainSocketSpec"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.APMUnixDomainSocketSpec"),
 						},
 					},
 					"env": {
@@ -194,11 +194,11 @@ func schema__apis_datadoghq_v1alpha1_APMSpec(ref common.ReferenceCallback) commo
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v1alpha1.APMUnixDomainSocketSpec", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.Probe", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.VolumeMount"},
+			"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.APMUnixDomainSocketSpec", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.Probe", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.VolumeMount"},
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_APMUnixDomainSocketSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_apis_datadoghq_v1alpha1_APMUnixDomainSocketSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -225,7 +225,7 @@ func schema__apis_datadoghq_v1alpha1_APMUnixDomainSocketSpec(ref common.Referenc
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_AdmissionControllerConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_apis_datadoghq_v1alpha1_AdmissionControllerConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -266,7 +266,7 @@ func schema__apis_datadoghq_v1alpha1_AdmissionControllerConfig(ref common.Refere
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_AgentCredentials(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_apis_datadoghq_v1alpha1_AgentCredentials(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -335,7 +335,7 @@ func schema__apis_datadoghq_v1alpha1_AgentCredentials(ref common.ReferenceCallba
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_CRISocketConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_apis_datadoghq_v1alpha1_CRISocketConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -362,7 +362,7 @@ func schema__apis_datadoghq_v1alpha1_CRISocketConfig(ref common.ReferenceCallbac
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_ClusterAgentConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_apis_datadoghq_v1alpha1_ClusterAgentConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -377,13 +377,13 @@ func schema__apis_datadoghq_v1alpha1_ClusterAgentConfig(ref common.ReferenceCall
 					},
 					"externalMetrics": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("./apis/datadoghq/v1alpha1.ExternalMetricsConfig"),
+							Ref: ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.ExternalMetricsConfig"),
 						},
 					},
 					"admissionController": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Configure the Admission Controller.",
-							Ref:         ref("./apis/datadoghq/v1alpha1.AdmissionControllerConfig"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.AdmissionControllerConfig"),
 						},
 					},
 					"clusterChecksEnabled": {
@@ -456,7 +456,7 @@ func schema__apis_datadoghq_v1alpha1_ClusterAgentConfig(ref common.ReferenceCall
 					"confd": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Confd Provide additional cluster check configurations. Each key will become a file in /conf.d. see https://docs.datadoghq.com/agent/autodiscovery/ for more details.",
-							Ref:         ref("./apis/datadoghq/v1alpha1.ConfigDirSpec"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.ConfigDirSpec"),
 						},
 					},
 					"env": {
@@ -537,11 +537,11 @@ func schema__apis_datadoghq_v1alpha1_ClusterAgentConfig(ref common.ReferenceCall
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v1alpha1.AdmissionControllerConfig", "./apis/datadoghq/v1alpha1.ConfigDirSpec", "./apis/datadoghq/v1alpha1.ExternalMetricsConfig", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.PodSecurityContext", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
+			"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.AdmissionControllerConfig", "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.ConfigDirSpec", "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.ExternalMetricsConfig", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.PodSecurityContext", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_ClusterChecksRunnerConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_apis_datadoghq_v1alpha1_ClusterChecksRunnerConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -701,7 +701,7 @@ func schema__apis_datadoghq_v1alpha1_ClusterChecksRunnerConfig(ref common.Refere
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_ComplianceSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_apis_datadoghq_v1alpha1_ComplianceSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -724,18 +724,18 @@ func schema__apis_datadoghq_v1alpha1_ComplianceSpec(ref common.ReferenceCallback
 					"configDir": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Config dir containing compliance benchmarks.",
-							Ref:         ref("./apis/datadoghq/v1alpha1.ConfigDirSpec"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.ConfigDirSpec"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v1alpha1.ConfigDirSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.Duration"},
+			"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.ConfigDirSpec", "k8s.io/apimachinery/pkg/apis/meta/v1.Duration"},
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_ConfigDirSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_apis_datadoghq_v1alpha1_ConfigDirSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -779,7 +779,7 @@ func schema__apis_datadoghq_v1alpha1_ConfigDirSpec(ref common.ReferenceCallback)
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_ConfigFileConfigMapSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_apis_datadoghq_v1alpha1_ConfigFileConfigMapSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -806,7 +806,7 @@ func schema__apis_datadoghq_v1alpha1_ConfigFileConfigMapSpec(ref common.Referenc
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_CustomConfigSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_apis_datadoghq_v1alpha1_CustomConfigSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -823,18 +823,18 @@ func schema__apis_datadoghq_v1alpha1_CustomConfigSpec(ref common.ReferenceCallba
 					"configMap": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Enable to specify a reference to an already existing ConfigMap.",
-							Ref:         ref("./apis/datadoghq/v1alpha1.ConfigFileConfigMapSpec"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.ConfigFileConfigMapSpec"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v1alpha1.ConfigFileConfigMapSpec"},
+			"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.ConfigFileConfigMapSpec"},
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_DSDUnixDomainSocketSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_apis_datadoghq_v1alpha1_DSDUnixDomainSocketSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -861,7 +861,7 @@ func schema__apis_datadoghq_v1alpha1_DSDUnixDomainSocketSpec(ref common.Referenc
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_DaemonSetDeploymentStrategy(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_apis_datadoghq_v1alpha1_DaemonSetDeploymentStrategy(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -879,7 +879,7 @@ func schema__apis_datadoghq_v1alpha1_DaemonSetDeploymentStrategy(ref common.Refe
 						SchemaProps: spec.SchemaProps{
 							Description: "Configure the rolling updater strategy of the DaemonSet or the ExtendedDaemonSet.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("./apis/datadoghq/v1alpha1.DaemonSetRollingUpdateSpec"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.DaemonSetRollingUpdateSpec"),
 						},
 					},
 					"canary": {
@@ -898,11 +898,11 @@ func schema__apis_datadoghq_v1alpha1_DaemonSetDeploymentStrategy(ref common.Refe
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v1alpha1.DaemonSetRollingUpdateSpec", "github.com/DataDog/extendeddaemonset/api/v1alpha1.ExtendedDaemonSetSpecStrategyCanary", "k8s.io/apimachinery/pkg/apis/meta/v1.Duration"},
+			"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.DaemonSetRollingUpdateSpec", "github.com/DataDog/extendeddaemonset/api/v1alpha1.ExtendedDaemonSetSpecStrategyCanary", "k8s.io/apimachinery/pkg/apis/meta/v1.Duration"},
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_DaemonSetRollingUpdateSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_apis_datadoghq_v1alpha1_DaemonSetRollingUpdateSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -948,7 +948,7 @@ func schema__apis_datadoghq_v1alpha1_DaemonSetRollingUpdateSpec(ref common.Refer
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_DaemonSetStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_apis_datadoghq_v1alpha1_DaemonSetStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -1029,7 +1029,7 @@ func schema__apis_datadoghq_v1alpha1_DaemonSetStatus(ref common.ReferenceCallbac
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_DatadogAgent(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_apis_datadoghq_v1alpha1_DatadogAgent(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -1059,24 +1059,24 @@ func schema__apis_datadoghq_v1alpha1_DatadogAgent(ref common.ReferenceCallback) 
 					"spec": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("./apis/datadoghq/v1alpha1.DatadogAgentSpec"),
+							Ref:     ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.DatadogAgentSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("./apis/datadoghq/v1alpha1.DatadogAgentStatus"),
+							Ref:     ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.DatadogAgentStatus"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v1alpha1.DatadogAgentSpec", "./apis/datadoghq/v1alpha1.DatadogAgentStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.DatadogAgentSpec", "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.DatadogAgentStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_DatadogAgentCondition(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_apis_datadoghq_v1alpha1_DatadogAgentCondition(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -1136,7 +1136,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogAgentCondition(ref common.ReferenceC
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_DatadogAgentSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_apis_datadoghq_v1alpha1_DatadogAgentSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -1146,35 +1146,35 @@ func schema__apis_datadoghq_v1alpha1_DatadogAgentSpec(ref common.ReferenceCallba
 					"credentials": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Configure the credentials needed to run Agents. If not set, then the credentials set in the DatadogOperator will be used.",
-							Ref:         ref("./apis/datadoghq/v1alpha1.AgentCredentials"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.AgentCredentials"),
 						},
 					},
 					"features": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Features running on the Agent and Cluster Agent.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("./apis/datadoghq/v1alpha1.DatadogFeatures"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.DatadogFeatures"),
 						},
 					},
 					"agent": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The desired state of the Agent as an extended daemonset. Contains the Node Agent configuration and deployment strategy.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("./apis/datadoghq/v1alpha1.DatadogAgentSpecAgentSpec"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.DatadogAgentSpecAgentSpec"),
 						},
 					},
 					"clusterAgent": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The desired state of the Cluster Agent as a deployment.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("./apis/datadoghq/v1alpha1.DatadogAgentSpecClusterAgentSpec"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.DatadogAgentSpecClusterAgentSpec"),
 						},
 					},
 					"clusterChecksRunner": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The desired state of the Cluster Checks Runner as a deployment.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("./apis/datadoghq/v1alpha1.DatadogAgentSpecClusterChecksRunnerSpec"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.DatadogAgentSpecClusterChecksRunnerSpec"),
 						},
 					},
 					"clusterName": {
@@ -1202,11 +1202,11 @@ func schema__apis_datadoghq_v1alpha1_DatadogAgentSpec(ref common.ReferenceCallba
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v1alpha1.AgentCredentials", "./apis/datadoghq/v1alpha1.DatadogAgentSpecAgentSpec", "./apis/datadoghq/v1alpha1.DatadogAgentSpecClusterAgentSpec", "./apis/datadoghq/v1alpha1.DatadogAgentSpecClusterChecksRunnerSpec", "./apis/datadoghq/v1alpha1.DatadogFeatures"},
+			"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.AgentCredentials", "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.DatadogAgentSpecAgentSpec", "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.DatadogAgentSpecClusterAgentSpec", "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.DatadogAgentSpecClusterChecksRunnerSpec", "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.DatadogFeatures"},
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_DatadogAgentSpecAgentSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_apis_datadoghq_v1alpha1_DatadogAgentSpecAgentSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -1243,19 +1243,19 @@ func schema__apis_datadoghq_v1alpha1_DatadogAgentSpecAgentSpec(ref common.Refere
 					"config": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Agent configuration.",
-							Ref:         ref("./apis/datadoghq/v1alpha1.NodeAgentConfig"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.NodeAgentConfig"),
 						},
 					},
 					"rbac": {
 						SchemaProps: spec.SchemaProps{
 							Description: "RBAC configuration of the Agent.",
-							Ref:         ref("./apis/datadoghq/v1alpha1.RbacConfig"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.RbacConfig"),
 						},
 					},
 					"deploymentStrategy": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Update strategy configuration for the DaemonSet.",
-							Ref:         ref("./apis/datadoghq/v1alpha1.DaemonSetDeploymentStrategy"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.DaemonSetDeploymentStrategy"),
 						},
 					},
 					"additionalAnnotations": {
@@ -1363,43 +1363,43 @@ func schema__apis_datadoghq_v1alpha1_DatadogAgentSpecAgentSpec(ref common.Refere
 					"apm": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Trace Agent configuration",
-							Ref:         ref("./apis/datadoghq/v1alpha1.APMSpec"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.APMSpec"),
 						},
 					},
 					"log": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Log Agent configuration",
-							Ref:         ref("./apis/datadoghq/v1alpha1.LogCollectionConfig"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.LogCollectionConfig"),
 						},
 					},
 					"process": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Process Agent configuration",
-							Ref:         ref("./apis/datadoghq/v1alpha1.ProcessSpec"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.ProcessSpec"),
 						},
 					},
 					"systemProbe": {
 						SchemaProps: spec.SchemaProps{
 							Description: "SystemProbe configuration",
-							Ref:         ref("./apis/datadoghq/v1alpha1.SystemProbeSpec"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.SystemProbeSpec"),
 						},
 					},
 					"security": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Security Agent configuration",
-							Ref:         ref("./apis/datadoghq/v1alpha1.SecuritySpec"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.SecuritySpec"),
 						},
 					},
 					"customConfig": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Allow to put custom configuration for the agent, corresponding to the datadog.yaml config file. See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.",
-							Ref:         ref("./apis/datadoghq/v1alpha1.CustomConfigSpec"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.CustomConfigSpec"),
 						},
 					},
 					"networkPolicy": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Provide Agent Network Policy configuration",
-							Ref:         ref("./apis/datadoghq/v1alpha1.NetworkPolicySpec"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.NetworkPolicySpec"),
 						},
 					},
 					"affinity": {
@@ -1411,7 +1411,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogAgentSpecAgentSpec(ref common.Refere
 					"localService": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Options to customize the internal traffic policy service",
-							Ref:         ref("./apis/datadoghq/v1alpha1.LocalService"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.LocalService"),
 						},
 					},
 				},
@@ -1422,7 +1422,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogAgentSpecAgentSpec(ref common.Refere
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_DatadogAgentSpecClusterAgentSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_apis_datadoghq_v1alpha1_DatadogAgentSpecClusterAgentSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -1452,19 +1452,19 @@ func schema__apis_datadoghq_v1alpha1_DatadogAgentSpecClusterAgentSpec(ref common
 					"config": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Cluster Agent configuration.",
-							Ref:         ref("./apis/datadoghq/v1alpha1.ClusterAgentConfig"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.ClusterAgentConfig"),
 						},
 					},
 					"customConfig": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Allow to put custom configuration for the Agent, corresponding to the datadog-cluster.yaml config file.",
-							Ref:         ref("./apis/datadoghq/v1alpha1.CustomConfigSpec"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.CustomConfigSpec"),
 						},
 					},
 					"rbac": {
 						SchemaProps: spec.SchemaProps{
 							Description: "RBAC configuration of the Datadog Cluster Agent.",
-							Ref:         ref("./apis/datadoghq/v1alpha1.RbacConfig"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.RbacConfig"),
 						},
 					},
 					"replicas": {
@@ -1571,7 +1571,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogAgentSpecClusterAgentSpec(ref common
 					"networkPolicy": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Provide Cluster Agent Network Policy configuration.",
-							Ref:         ref("./apis/datadoghq/v1alpha1.NetworkPolicySpec"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.NetworkPolicySpec"),
 						},
 					},
 				},
@@ -1582,7 +1582,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogAgentSpecClusterAgentSpec(ref common
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_DatadogAgentSpecClusterChecksRunnerSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_apis_datadoghq_v1alpha1_DatadogAgentSpecClusterChecksRunnerSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -1612,19 +1612,19 @@ func schema__apis_datadoghq_v1alpha1_DatadogAgentSpecClusterChecksRunnerSpec(ref
 					"config": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Agent configuration.",
-							Ref:         ref("./apis/datadoghq/v1alpha1.ClusterChecksRunnerConfig"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.ClusterChecksRunnerConfig"),
 						},
 					},
 					"customConfig": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Allow to put custom configuration for the Agent, corresponding to the datadog.yaml config file. See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.",
-							Ref:         ref("./apis/datadoghq/v1alpha1.CustomConfigSpec"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.CustomConfigSpec"),
 						},
 					},
 					"rbac": {
 						SchemaProps: spec.SchemaProps{
 							Description: "RBAC configuration of the Datadog Cluster Checks Runner.",
-							Ref:         ref("./apis/datadoghq/v1alpha1.RbacConfig"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.RbacConfig"),
 						},
 					},
 					"replicas": {
@@ -1717,7 +1717,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogAgentSpecClusterChecksRunnerSpec(ref
 					"networkPolicy": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Provide Cluster Checks Runner Network Policy configuration.",
-							Ref:         ref("./apis/datadoghq/v1alpha1.NetworkPolicySpec"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.NetworkPolicySpec"),
 						},
 					},
 				},
@@ -1728,7 +1728,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogAgentSpecClusterChecksRunnerSpec(ref
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_DatadogAgentStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_apis_datadoghq_v1alpha1_DatadogAgentStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -1738,25 +1738,25 @@ func schema__apis_datadoghq_v1alpha1_DatadogAgentStatus(ref common.ReferenceCall
 					"defaultOverride": {
 						SchemaProps: spec.SchemaProps{
 							Description: "DefaultOverride contains attributes that were not configured that the runtime defaulted.",
-							Ref:         ref("./apis/datadoghq/v1alpha1.DatadogAgentSpec"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.DatadogAgentSpec"),
 						},
 					},
 					"agent": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The actual state of the Agent as an extended daemonset.",
-							Ref:         ref("./apis/datadoghq/v1alpha1.DaemonSetStatus"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.DaemonSetStatus"),
 						},
 					},
 					"clusterAgent": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The actual state of the Cluster Agent as a deployment.",
-							Ref:         ref("./apis/datadoghq/v1alpha1.DeploymentStatus"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.DeploymentStatus"),
 						},
 					},
 					"clusterChecksRunner": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The actual state of the Cluster Checks Runner as a deployment.",
-							Ref:         ref("./apis/datadoghq/v1alpha1.DeploymentStatus"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.DeploymentStatus"),
 						},
 					},
 					"conditions": {
@@ -1775,7 +1775,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogAgentStatus(ref common.ReferenceCall
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
 										Default: map[string]interface{}{},
-										Ref:     ref("./apis/datadoghq/v1alpha1.DatadogAgentCondition"),
+										Ref:     ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.DatadogAgentCondition"),
 									},
 								},
 							},
@@ -1785,11 +1785,11 @@ func schema__apis_datadoghq_v1alpha1_DatadogAgentStatus(ref common.ReferenceCall
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v1alpha1.DaemonSetStatus", "./apis/datadoghq/v1alpha1.DatadogAgentCondition", "./apis/datadoghq/v1alpha1.DatadogAgentSpec", "./apis/datadoghq/v1alpha1.DeploymentStatus"},
+			"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.DaemonSetStatus", "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.DatadogAgentCondition", "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.DatadogAgentSpec", "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.DeploymentStatus"},
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_DatadogCredentials(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_apis_datadoghq_v1alpha1_DatadogCredentials(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -1844,7 +1844,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogCredentials(ref common.ReferenceCall
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_DatadogFeatures(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_apis_datadoghq_v1alpha1_DatadogFeatures(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -1854,42 +1854,42 @@ func schema__apis_datadoghq_v1alpha1_DatadogFeatures(ref common.ReferenceCallbac
 					"orchestratorExplorer": {
 						SchemaProps: spec.SchemaProps{
 							Description: "OrchestratorExplorer configuration.",
-							Ref:         ref("./apis/datadoghq/v1alpha1.OrchestratorExplorerConfig"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.OrchestratorExplorerConfig"),
 						},
 					},
 					"kubeStateMetricsCore": {
 						SchemaProps: spec.SchemaProps{
 							Description: "KubeStateMetricsCore configuration.",
-							Ref:         ref("./apis/datadoghq/v1alpha1.KubeStateMetricsCore"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.KubeStateMetricsCore"),
 						},
 					},
 					"prometheusScrape": {
 						SchemaProps: spec.SchemaProps{
 							Description: "PrometheusScrape configuration.",
-							Ref:         ref("./apis/datadoghq/v1alpha1.PrometheusScrapeConfig"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.PrometheusScrapeConfig"),
 						},
 					},
 					"networkMonitoring": {
 						SchemaProps: spec.SchemaProps{
 							Description: "NetworkMonitoring configuration.",
-							Ref:         ref("./apis/datadoghq/v1alpha1.NetworkMonitoringConfig"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.NetworkMonitoringConfig"),
 						},
 					},
 					"logCollection": {
 						SchemaProps: spec.SchemaProps{
 							Description: "LogCollection configuration.",
-							Ref:         ref("./apis/datadoghq/v1alpha1.LogCollectionConfig"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.LogCollectionConfig"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v1alpha1.KubeStateMetricsCore", "./apis/datadoghq/v1alpha1.LogCollectionConfig", "./apis/datadoghq/v1alpha1.NetworkMonitoringConfig", "./apis/datadoghq/v1alpha1.OrchestratorExplorerConfig", "./apis/datadoghq/v1alpha1.PrometheusScrapeConfig"},
+			"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.KubeStateMetricsCore", "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.LogCollectionConfig", "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.NetworkMonitoringConfig", "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.OrchestratorExplorerConfig", "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.PrometheusScrapeConfig"},
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_DatadogMetric(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_apis_datadoghq_v1alpha1_DatadogMetric(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -1919,24 +1919,24 @@ func schema__apis_datadoghq_v1alpha1_DatadogMetric(ref common.ReferenceCallback)
 					"spec": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("./apis/datadoghq/v1alpha1.DatadogMetricSpec"),
+							Ref:     ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.DatadogMetricSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("./apis/datadoghq/v1alpha1.DatadogMetricStatus"),
+							Ref:     ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.DatadogMetricStatus"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v1alpha1.DatadogMetricSpec", "./apis/datadoghq/v1alpha1.DatadogMetricStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.DatadogMetricSpec", "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.DatadogMetricStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_DatadogMetricCondition(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_apis_datadoghq_v1alpha1_DatadogMetricCondition(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -1996,7 +1996,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogMetricCondition(ref common.Reference
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_DatadogMonitor(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_apis_datadoghq_v1alpha1_DatadogMonitor(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -2026,24 +2026,24 @@ func schema__apis_datadoghq_v1alpha1_DatadogMonitor(ref common.ReferenceCallback
 					"spec": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("./apis/datadoghq/v1alpha1.DatadogMonitorSpec"),
+							Ref:     ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.DatadogMonitorSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
-							Ref:     ref("./apis/datadoghq/v1alpha1.DatadogMonitorStatus"),
+							Ref:     ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.DatadogMonitorStatus"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v1alpha1.DatadogMonitorSpec", "./apis/datadoghq/v1alpha1.DatadogMonitorStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.DatadogMonitorSpec", "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.DatadogMonitorStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_DatadogMonitorCondition(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_apis_datadoghq_v1alpha1_DatadogMonitorCondition(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -2103,7 +2103,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogMonitorCondition(ref common.Referenc
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_DeploymentStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_apis_datadoghq_v1alpha1_DeploymentStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -2192,7 +2192,7 @@ func schema__apis_datadoghq_v1alpha1_DeploymentStatus(ref common.ReferenceCallba
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_DogstatsdConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_apis_datadoghq_v1alpha1_DogstatsdConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -2209,24 +2209,24 @@ func schema__apis_datadoghq_v1alpha1_DogstatsdConfig(ref common.ReferenceCallbac
 					"unixDomainSocket": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Configure the Dogstatsd Unix Domain Socket. See also: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/",
-							Ref:         ref("./apis/datadoghq/v1alpha1.DSDUnixDomainSocketSpec"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.DSDUnixDomainSocketSpec"),
 						},
 					},
 					"mapperProfiles": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Configure the Dogstasd Mapper Profiles. Can be passed as raw data or via a json encoded string in a config map. See also: https://docs.datadoghq.com/developers/dogstatsd/dogstatsd_mapper/",
-							Ref:         ref("./apis/datadoghq/v1alpha1.CustomConfigSpec"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.CustomConfigSpec"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v1alpha1.CustomConfigSpec", "./apis/datadoghq/v1alpha1.DSDUnixDomainSocketSpec"},
+			"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.CustomConfigSpec", "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.DSDUnixDomainSocketSpec"},
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_ExternalMetricsConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_apis_datadoghq_v1alpha1_ExternalMetricsConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -2271,14 +2271,14 @@ func schema__apis_datadoghq_v1alpha1_ExternalMetricsConfig(ref common.ReferenceC
 					"credentials": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Datadog credentials used by external metrics server to query Datadog. If not set, the external metrics server uses the global .spec.Credentials",
-							Ref:         ref("./apis/datadoghq/v1alpha1.DatadogCredentials"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.DatadogCredentials"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v1alpha1.DatadogCredentials"},
+			"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.DatadogCredentials"},
 	}
 }
 
@@ -2299,7 +2299,7 @@ func schema__apis_datadoghq_v1alpha1_KubeStateMetricsCore(ref common.ReferenceCa
 					"conf": {
 						SchemaProps: spec.SchemaProps{
 							Description: "To override the configuration for the default Kubernetes State Metrics Core check. Must point to a ConfigMap containing a valid cluster check configuration.",
-							Ref:         ref("./apis/datadoghq/v1alpha1.CustomConfigSpec"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.CustomConfigSpec"),
 						},
 					},
 					"clusterCheck": {
@@ -2313,7 +2313,7 @@ func schema__apis_datadoghq_v1alpha1_KubeStateMetricsCore(ref common.ReferenceCa
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v1alpha1.CustomConfigSpec"},
+			"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.CustomConfigSpec"},
 	}
 }
 
@@ -2344,7 +2344,7 @@ func schema__apis_datadoghq_v1alpha1_LocalService(ref common.ReferenceCallback) 
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_LogCollectionConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_apis_datadoghq_v1alpha1_LogCollectionConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -2413,7 +2413,7 @@ func schema__apis_datadoghq_v1alpha1_LogCollectionConfig(ref common.ReferenceCal
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_NetworkPolicySpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_apis_datadoghq_v1alpha1_NetworkPolicySpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -2461,7 +2461,7 @@ func schema__apis_datadoghq_v1alpha1_NetworkPolicySpec(ref common.ReferenceCallb
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_NodeAgentConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_apis_datadoghq_v1alpha1_NodeAgentConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -2491,13 +2491,13 @@ func schema__apis_datadoghq_v1alpha1_NodeAgentConfig(ref common.ReferenceCallbac
 					"confd": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Confd configuration allowing to specify config files for custom checks placed under /etc/datadog-agent/conf.d/. See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.",
-							Ref:         ref("./apis/datadoghq/v1alpha1.ConfigDirSpec"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.ConfigDirSpec"),
 						},
 					},
 					"checksd": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Checksd configuration allowing to specify custom checks placed under /etc/datadog-agent/checks.d/ See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.",
-							Ref:         ref("./apis/datadoghq/v1alpha1.ConfigDirSpec"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.ConfigDirSpec"),
 						},
 					},
 					"podLabelsAsTags": {
@@ -2701,13 +2701,13 @@ func schema__apis_datadoghq_v1alpha1_NodeAgentConfig(ref common.ReferenceCallbac
 					"criSocket": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Configure the CRI Socket.",
-							Ref:         ref("./apis/datadoghq/v1alpha1.CRISocketConfig"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.CRISocketConfig"),
 						},
 					},
 					"dogstatsd": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Configure Dogstatsd.",
-							Ref:         ref("./apis/datadoghq/v1alpha1.DogstatsdConfig"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.DogstatsdConfig"),
 						},
 					},
 					"tolerations": {
@@ -2750,7 +2750,7 @@ func schema__apis_datadoghq_v1alpha1_NodeAgentConfig(ref common.ReferenceCallbac
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_OrchestratorExplorerConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_apis_datadoghq_v1alpha1_OrchestratorExplorerConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -2767,7 +2767,7 @@ func schema__apis_datadoghq_v1alpha1_OrchestratorExplorerConfig(ref common.Refer
 					"conf": {
 						SchemaProps: spec.SchemaProps{
 							Description: "To override the configuration for the default Orchestrator Explorer check. Must point to a ConfigMap containing a valid cluster check configuration.",
-							Ref:         ref("./apis/datadoghq/v1alpha1.CustomConfigSpec"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.CustomConfigSpec"),
 						},
 					},
 					"clusterCheck": {
@@ -2780,7 +2780,7 @@ func schema__apis_datadoghq_v1alpha1_OrchestratorExplorerConfig(ref common.Refer
 					"scrubbing": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Option to disable scrubbing of sensitive container data (passwords, tokens, etc. ).",
-							Ref:         ref("./apis/datadoghq/v1alpha1.Scrubbing"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.Scrubbing"),
 						},
 					},
 					"additionalEndpoints": {
@@ -2821,11 +2821,11 @@ func schema__apis_datadoghq_v1alpha1_OrchestratorExplorerConfig(ref common.Refer
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v1alpha1.CustomConfigSpec", "./apis/datadoghq/v1alpha1.Scrubbing"},
+			"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.CustomConfigSpec", "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.Scrubbing"},
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_ProcessSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_apis_datadoghq_v1alpha1_ProcessSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -2945,7 +2945,7 @@ func schema__apis_datadoghq_v1alpha1_ProcessSpec(ref common.ReferenceCallback) c
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_PrometheusScrapeConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_apis_datadoghq_v1alpha1_PrometheusScrapeConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -2979,7 +2979,7 @@ func schema__apis_datadoghq_v1alpha1_PrometheusScrapeConfig(ref common.Reference
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_RbacConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_apis_datadoghq_v1alpha1_RbacConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -3006,7 +3006,7 @@ func schema__apis_datadoghq_v1alpha1_RbacConfig(ref common.ReferenceCallback) co
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_RuntimeSecuritySpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_apis_datadoghq_v1alpha1_RuntimeSecuritySpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -3023,20 +3023,20 @@ func schema__apis_datadoghq_v1alpha1_RuntimeSecuritySpec(ref common.ReferenceCal
 					"policiesDir": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ConfigDir containing security policies.",
-							Ref:         ref("./apis/datadoghq/v1alpha1.ConfigDirSpec"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.ConfigDirSpec"),
 						},
 					},
 					"syscallMonitor": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Syscall monitor configuration.",
-							Ref:         ref("./apis/datadoghq/v1alpha1.SyscallMonitorSpec"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.SyscallMonitorSpec"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v1alpha1.ConfigDirSpec", "./apis/datadoghq/v1alpha1.SyscallMonitorSpec"},
+			"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.ConfigDirSpec", "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.SyscallMonitorSpec"},
 	}
 }
 
@@ -3051,14 +3051,14 @@ func schema__apis_datadoghq_v1alpha1_SecuritySpec(ref common.ReferenceCallback) 
 						SchemaProps: spec.SchemaProps{
 							Description: "Compliance configuration.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("./apis/datadoghq/v1alpha1.ComplianceSpec"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.ComplianceSpec"),
 						},
 					},
 					"runtime": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Runtime security configuration.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("./apis/datadoghq/v1alpha1.RuntimeSecuritySpec"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.RuntimeSecuritySpec"),
 						},
 					},
 					"env": {
@@ -3156,11 +3156,11 @@ func schema__apis_datadoghq_v1alpha1_SecuritySpec(ref common.ReferenceCallback) 
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v1alpha1.ComplianceSpec", "./apis/datadoghq/v1alpha1.RuntimeSecuritySpec", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.VolumeMount"},
+			"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.ComplianceSpec", "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.RuntimeSecuritySpec", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.VolumeMount"},
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_SyscallMonitorSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_apis_datadoghq_v1alpha1_SyscallMonitorSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -3180,7 +3180,7 @@ func schema__apis_datadoghq_v1alpha1_SyscallMonitorSpec(ref common.ReferenceCall
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_SystemProbeSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_datadog_operator_apis_datadoghq_v1alpha1_SystemProbeSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
@@ -3267,7 +3267,7 @@ func schema__apis_datadoghq_v1alpha1_SystemProbeSpec(ref common.ReferenceCallbac
 					"customConfig": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Enable custom configuration for system-probe, corresponding to the system-probe.yaml config file. This custom configuration has less priority than all settings above.",
-							Ref:         ref("./apis/datadoghq/v1alpha1.CustomConfigSpec"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.CustomConfigSpec"),
 						},
 					},
 					"env": {
@@ -3371,6 +3371,6 @@ func schema__apis_datadoghq_v1alpha1_SystemProbeSpec(ref common.ReferenceCallbac
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v1alpha1.CustomConfigSpec", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.SecurityContext", "k8s.io/api/core/v1.VolumeMount"},
+			"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1.CustomConfigSpec", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.SecurityContext", "k8s.io/api/core/v1.VolumeMount"},
 	}
 }
