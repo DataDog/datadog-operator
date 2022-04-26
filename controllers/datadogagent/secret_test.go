@@ -13,6 +13,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/testutils"
@@ -20,7 +21,6 @@ import (
 
 // Test_newAgentSecret tests that the credentials are stored in the secret in an expected hierarchy
 func Test_newAgentSecret(t *testing.T) {
-
 	type fields struct {
 		APIKey string
 		appKey string
@@ -80,7 +80,6 @@ func Test_newAgentSecret(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
 			options := &testutils.NewDatadogAgentOptions{
 				APIKey: tt.fields.APIKey,
 				AppKey: tt.fields.appKey,
@@ -128,7 +127,6 @@ func Test_newAgentSecret(t *testing.T) {
 }
 
 func Test_needAgentSecret(t *testing.T) {
-
 	type fields struct {
 		APIKey string
 		appKey string
@@ -172,7 +170,6 @@ func Test_needAgentSecret(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
 			options := &testutils.NewDatadogAgentOptions{
 				APIKey: tt.fields.APIKey,
 				AppKey: tt.fields.appKey,
@@ -196,11 +193,9 @@ func Test_needAgentSecret(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func Test_newExternalMetricsSecret(t *testing.T) {
-
 	name := "test-external-metrics"
 	ns := "default"
 	dda := testutils.NewDatadogAgent(ns, name, "datadog/agent:7.24.1", &testutils.NewDatadogAgentOptions{})
@@ -231,7 +226,6 @@ func Test_newExternalMetricsSecret(t *testing.T) {
 }
 
 func Test_needExternalMetricsSecret(t *testing.T) {
-
 	tests := []struct {
 		name             string
 		clusterAgentSpec datadoghqv1alpha1.DatadogAgentSpecClusterAgentSpec
@@ -336,7 +330,6 @@ func Test_needExternalMetricsSecret(t *testing.T) {
 }
 
 func Test_getKeysFromCredentials(t *testing.T) {
-
 	tests := []struct {
 		name     string
 		APIKey   string
@@ -400,7 +393,7 @@ func Test_checkAPIKeySufficiency(t *testing.T) {
 		{
 			name: "APISecret is used",
 			credentials: &datadoghqv1alpha1.DatadogCredentials{
-				APISecret: &datadoghqv1alpha1.Secret{
+				APISecret: &commonv1.SecretConfig{
 					SecretName: "test-secret",
 					KeyName:    "api_key",
 				},
@@ -464,7 +457,7 @@ func Test_checkAppKeySufficiency(t *testing.T) {
 		{
 			name: "APPSecret is used",
 			credentials: &datadoghqv1alpha1.DatadogCredentials{
-				APPSecret: &datadoghqv1alpha1.Secret{
+				APPSecret: &commonv1.SecretConfig{
 					SecretName: "test-secret",
 					KeyName:    "app_key",
 				},
