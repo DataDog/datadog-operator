@@ -55,6 +55,8 @@ const (
 	DDddURL                                      = "DD_DD_URL"
 	DDHealthPort                                 = "DD_HEALTH_PORT"
 	DDLogLevel                                   = "DD_LOG_LEVEL"
+	DDNamespaceLabelsAsTags                      = "DD_KUBERNETES_NAMESPACE_LABELS_AS_TAGS"
+	DDNodeLabelsAsTags                           = "DD_KUBERNETES_NODE_LABELS_AS_TAGS"
 	DDPodLabelsAsTags                            = "DD_KUBERNETES_POD_LABELS_AS_TAGS"
 	DDPodAnnotationsAsTags                       = "DD_KUBERNETES_POD_ANNOTATIONS_AS_TAGS"
 	DDTags                                       = "DD_TAGS"
