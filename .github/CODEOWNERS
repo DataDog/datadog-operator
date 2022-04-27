@@ -3,7 +3,7 @@
 # and another the rest of the directory.
 
 # All your base
-*                   @DataDog/container-integrations
+*                   @DataDog/container-integrations @DataDog/container-ecosystems
 
 # Documentation
 README.md             @DataDog/documentation @DataDog/container-integrations
