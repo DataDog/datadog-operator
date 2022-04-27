@@ -768,12 +768,22 @@ type NodeAgentConfig struct {
 	// +optional
 	Checksd *ConfigDirSpec `json:"checksd,omitempty"`
 
-	// Provide a mapping of Kubernetes Labels to Datadog Tags.
+	// Provide a mapping of Kubernetes Namespace Labels to Datadog Tags.
+	// <KUBERNETES_LABEL>: <DATADOG_TAG_KEY>
+	// +optional
+	NamespaceLabelsAsTags map[string]string `json:"namespaceLabelsAsTags,omitempty"`
+
+	// Provide a mapping of Kubernetes Node Labels to Datadog Tags.
+	// <KUBERNETES_LABEL>: <DATADOG_TAG_KEY>
+	// +optional
+	NodeLabelsAsTags map[string]string `json:"nodeLabelsAsTags,omitempty"`
+
+	// Provide a mapping of Kubernetes Pod Labels to Datadog Tags.
 	// <KUBERNETES_LABEL>: <DATADOG_TAG_KEY>
 	// +optional
 	PodLabelsAsTags map[string]string `json:"podLabelsAsTags,omitempty"`
 
-	// Provide a mapping of Kubernetes Annotations to Datadog Tags.
+	// Provide a mapping of Kubernetes Pod Annotations to Datadog Tags.
 	// <KUBERNETES_ANNOTATIONS>: <DATADOG_TAG_KEY>
 	// +optional
 	PodAnnotationsAsTags map[string]string `json:"podAnnotationsAsTags,omitempty"`

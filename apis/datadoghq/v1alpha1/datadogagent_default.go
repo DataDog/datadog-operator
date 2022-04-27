@@ -402,14 +402,6 @@ func DefaultDatadogAgentSpecAgentConfig(agent *DatadogAgentSpecAgentSpec) *NodeA
 		agent.Config.Resources = &corev1.ResourceRequirements{}
 	}
 
-	if agent.Config.PodLabelsAsTags == nil {
-		agent.Config.PodLabelsAsTags = map[string]string{}
-	}
-
-	if agent.Config.PodAnnotationsAsTags == nil {
-		agent.Config.PodAnnotationsAsTags = map[string]string{}
-	}
-
 	if agent.Config.Tags == nil {
 		agent.Config.Tags = []string{}
 	}

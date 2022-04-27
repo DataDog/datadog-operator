@@ -825,14 +825,6 @@ func defaultEnvVars(extraEnv map[string]string) []corev1.EnvVar {
 			Value: "5555",
 		},
 		{
-			Name:  "DD_KUBERNETES_POD_LABELS_AS_TAGS",
-			Value: "{}",
-		},
-		{
-			Name:  "DD_KUBERNETES_POD_ANNOTATIONS_AS_TAGS",
-			Value: "{}",
-		},
-		{
 			Name:  "DD_COLLECT_KUBERNETES_EVENTS",
 			Value: "false",
 		},
@@ -1885,14 +1877,6 @@ func customKubeletConfigPodSpec(kubeletConfig *commonv1.KubeletConfig) corev1.Po
 		{
 			Name:  "DD_HEALTH_PORT",
 			Value: "5555",
-		},
-		{
-			Name:  "DD_KUBERNETES_POD_LABELS_AS_TAGS",
-			Value: "{}",
-		},
-		{
-			Name:  "DD_KUBERNETES_POD_ANNOTATIONS_AS_TAGS",
-			Value: "{}",
 		},
 		{
 			Name:  "DD_COLLECT_KUBERNETES_EVENTS",
