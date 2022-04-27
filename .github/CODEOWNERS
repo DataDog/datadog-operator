@@ -6,5 +6,5 @@
 *                   @DataDog/container-integrations @DataDog/container-ecosystems
 
 # Documentation
-README.md             @DataDog/documentation @DataDog/container-integrations
-/docs/                @DataDog/documentation @DataDog/container-integrations
+README.md             @DataDog/documentation @DataDog/container-integrations @DataDog/container-ecosystems
+/docs/                @DataDog/documentation @DataDog/container-integrations @DataDog/container-ecosystems
