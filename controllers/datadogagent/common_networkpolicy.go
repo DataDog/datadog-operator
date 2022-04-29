@@ -11,7 +11,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -71,7 +70,7 @@ func (r *Reconciler) ensureNetworkPolicy(logger logr.Logger, dda *datadoghqv1alp
 			return reconcile.Result{}, fmt.Errorf("cilium network policy support is not enabled in the operator")
 		}
 
-		policy := emptyCiliumUnstructuredPolicy()
+		policy := cilium.EmptyCiliumUnstructuredPolicy()
 		err = r.client.Get(context.TODO(), types.NamespacedName{Name: policyName, Namespace: dda.Namespace}, policy)
 		if err != nil {
 			if errors.IsNotFound(err) {
@@ -138,7 +137,7 @@ func (r *Reconciler) cleanupKubernetesNetworkPolicy(logger logr.Logger, dda *dat
 }
 
 func (r *Reconciler) cleanupCiliumNetworkPolicy(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name string) error {
-	policy := emptyCiliumUnstructuredPolicy()
+	policy := cilium.EmptyCiliumUnstructuredPolicy()
 	err := r.client.Get(context.TODO(), types.NamespacedName{Name: name, Namespace: dda.Namespace}, policy)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -203,12 +202,12 @@ func (r *Reconciler) createCiliumNetworkPolicy(logger logr.Logger, dda *datadogh
 	event := buildEventInfo(policy.GetName(), policy.GetNamespace(), ciliumNetworkPolicyKind, datadog.CreationEvent)
 	r.recordEvent(dda, event)
 
-	unstructured := &unstructured.Unstructured{}
+	unstructured := cilium.EmptyCiliumUnstructuredPolicy()
 	unstructured.Object, err = runtime.DefaultUnstructuredConverter.ToUnstructured(policy)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
-	unstructured.SetGroupVersionKind(ciliumGroupVersionKind())
+	unstructured.SetGroupVersionKind(cilium.GroupVersionCiliumNetworkPolicyKind())
 
 	return reconcile.Result{}, r.client.Create(context.TODO(), unstructured)
 }
@@ -229,9 +228,9 @@ func (r *Reconciler) updateCiliumNetworkPolicy(logger logr.Logger, dda *datadogh
 	if !apiequality.Semantic.DeepEqual(newUnstructured["specs"], policy.Object["specs"]) {
 		logger.V(1).Info("updateNetworkPolicy", "networkPolicy.name", policy.GetName(), "networkPolicy.Namespace", policy.GetNamespace(), "networkPolicy.Flavor", datadoghqv1alpha1.NetworkPolicyFlavorCilium)
 
-		newUnstructuredPolicy := &unstructured.Unstructured{}
+		newUnstructuredPolicy := cilium.EmptyCiliumUnstructuredPolicy()
 		newUnstructuredPolicy.Object = newUnstructured
-		newUnstructuredPolicy.SetGroupVersionKind(ciliumGroupVersionKind())
+		newUnstructuredPolicy.SetGroupVersionKind(cilium.GroupVersionCiliumNetworkPolicyKind())
 		newUnstructuredPolicy.SetResourceVersion(policy.GetResourceVersion())
 
 		err := r.client.Update(context.TODO(), newUnstructuredPolicy)
@@ -244,21 +243,6 @@ func (r *Reconciler) updateCiliumNetworkPolicy(logger logr.Logger, dda *datadogh
 	}
 
 	return reconcile.Result{}, nil
-}
-
-func ciliumGroupVersionKind() schema.GroupVersionKind {
-	return schema.GroupVersionKind{
-		Group:   "cilium.io",
-		Version: "v2",
-		Kind:    "CiliumNetworkPolicy",
-	}
-}
-
-func emptyCiliumUnstructuredPolicy() *unstructured.Unstructured {
-	policy := &unstructured.Unstructured{}
-	policy.SetGroupVersionKind(ciliumGroupVersionKind())
-
-	return policy
 }
 
 func ciliumEgressMetadataServerRule(b networkPolicyBuilder) cilium.NetworkPolicySpec {

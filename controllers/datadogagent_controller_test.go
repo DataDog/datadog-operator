@@ -21,6 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
@@ -52,7 +53,8 @@ func checkAgentUpdateOnObject(agentKey, objKey types.NamespacedName, obj client.
 	getAgentHash func(agent *datadoghqv1alpha1.DatadogAgent) string,
 	getAnnotationHash func() string,
 	updateAgent func(agent *datadoghqv1alpha1.DatadogAgent),
-	check func(agent *datadoghqv1alpha1.DatadogAgent) bool) {
+	check func(agent *datadoghqv1alpha1.DatadogAgent) bool,
+) {
 	var beforeHash string
 	var agent *datadoghqv1alpha1.DatadogAgent
 
@@ -97,7 +99,7 @@ func checkAgentUpdateOnDaemonSet(agentKey, dsKey types.NamespacedName, updateAge
 		}
 		return ""
 	}, func() string {
-		return obj.Annotations[datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey]
+		return obj.Annotations[apicommon.MD5AgentDeploymentAnnotationKey]
 	}, updateAgent, check)
 }
 
@@ -109,7 +111,7 @@ func checkAgentUpdateOnClusterAgent(agentKey, dsKey types.NamespacedName, update
 		}
 		return ""
 	}, func() string {
-		return obj.Annotations[datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey]
+		return obj.Annotations[apicommon.MD5AgentDeploymentAnnotationKey]
 	}, updateAgent, check)
 }
 
@@ -243,7 +245,7 @@ var _ = Describe("DatadogAgent Controller", func() {
 
 			clusterAgent := &appsv1.Deployment{}
 			getObjectAndCheck(clusterAgent, dcaKey, func() bool {
-				return clusterAgent.Annotations[datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey] == agentClusterAgentHash
+				return clusterAgent.Annotations[apicommon.MD5AgentDeploymentAnnotationKey] == agentClusterAgentHash
 			})
 		})
 

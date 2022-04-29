@@ -3,7 +3,9 @@ package datadogagent
 import (
 	"context"
 
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/common"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -38,13 +40,13 @@ func buildRoleBinding(dda *datadoghqv1alpha1.DatadogAgent, info roleBindingInfo,
 			Namespace: dda.Namespace,
 		},
 		RoleRef: rbacv1.RoleRef{
-			APIGroup: datadoghqv1alpha1.RbacAPIGroup,
-			Kind:     datadoghqv1alpha1.RoleKind,
+			APIGroup: rbac.RbacAPIGroup,
+			Kind:     rbac.RoleKind,
 			Name:     info.roleName,
 		},
 		Subjects: []rbacv1.Subject{
 			{
-				Kind:      datadoghqv1alpha1.ServiceAccountKind,
+				Kind:      rbac.ServiceAccountKind,
 				Name:      info.serviceAccountName,
 				Namespace: dda.Namespace,
 			},
@@ -66,10 +68,10 @@ func buildServiceAccount(dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion
 // getEventCollectionPolicyRule returns the policy rule for event collection
 func getEventCollectionPolicyRule() rbacv1.PolicyRule {
 	return rbacv1.PolicyRule{
-		APIGroups:     []string{datadoghqv1alpha1.CoreAPIGroup},
-		Resources:     []string{datadoghqv1alpha1.ConfigMapsResource},
-		ResourceNames: []string{datadoghqv1alpha1.DatadogTokenResourceName},
-		Verbs:         []string{datadoghqv1alpha1.GetVerb, datadoghqv1alpha1.UpdateVerb},
+		APIGroups:     []string{rbac.CoreAPIGroup},
+		Resources:     []string{rbac.ConfigMapsResource},
+		ResourceNames: []string{common.DatadogTokenResourceName},
+		Verbs:         []string{rbac.GetVerb, rbac.UpdateVerb},
 	}
 }
 
@@ -77,15 +79,15 @@ func getEventCollectionPolicyRule() rbacv1.PolicyRule {
 func getLeaderElectionPolicyRule() []rbacv1.PolicyRule {
 	return []rbacv1.PolicyRule{
 		{
-			APIGroups:     []string{datadoghqv1alpha1.CoreAPIGroup},
-			Resources:     []string{datadoghqv1alpha1.ConfigMapsResource},
-			ResourceNames: []string{datadoghqv1alpha1.DatadogLeaderElectionResourceName},
-			Verbs:         []string{datadoghqv1alpha1.GetVerb, datadoghqv1alpha1.UpdateVerb},
+			APIGroups:     []string{rbac.CoreAPIGroup},
+			Resources:     []string{rbac.ConfigMapsResource},
+			ResourceNames: []string{common.DatadogLeaderElectionResourceName},
+			Verbs:         []string{rbac.GetVerb, rbac.UpdateVerb},
 		},
 		{
-			APIGroups: []string{datadoghqv1alpha1.CoreAPIGroup},
-			Resources: []string{datadoghqv1alpha1.ConfigMapsResource},
-			Verbs:     []string{datadoghqv1alpha1.CreateVerb},
+			APIGroups: []string{rbac.CoreAPIGroup},
+			Resources: []string{rbac.ConfigMapsResource},
+			Verbs:     []string{rbac.CreateVerb},
 		},
 	}
 }
@@ -286,9 +288,6 @@ func rbacNamesForDda(dda *datadoghqv1alpha1.DatadogAgent, versionInfo *version.I
 		getClusterChecksRunnerRbacResourcesName(dda),
 		getHPAClusterRoleBindingName(dda),
 		getExternalMetricsReaderClusterRoleName(dda, versionInfo),
-		// KSM core can run on the DCA or the Runners
-		getKubeStateMetricsRBACResourceName(dda, clusterAgentSuffix),
-		getKubeStateMetricsRBACResourceName(dda, checkRunnersSuffix),
 		// Orchestrator can run on the DCA or the Runners
 		getOrchestratorRBACResourceName(dda, clusterAgentSuffix),
 		getOrchestratorRBACResourceName(dda, checkRunnersSuffix),

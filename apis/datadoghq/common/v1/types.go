@@ -31,6 +31,17 @@ type ConfigMapConfig struct {
 	Items []corev1.KeyToPath `json:"items,omitempty"`
 }
 
+// CustomConfig Allow to put custom configuration for the agent
+// +kubebuilder:object:generate=true
+type CustomConfig struct {
+	// ConfigData corresponds to the configuration file content.
+	// +optional
+	ConfigData *string
+	// Enable to specify a reference to an already existing ConfigMap.
+	// +optional
+	ConfigMap *ConfigMapConfig
+}
+
 // KubeletConfig contains the kubelet configuration parameters.
 // +kubebuilder:object:generate=true
 type KubeletConfig struct {

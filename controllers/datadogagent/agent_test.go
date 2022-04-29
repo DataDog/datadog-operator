@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	test "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1/test"
@@ -153,7 +154,7 @@ func defaultVolumes() []corev1.Volume {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.ConfdVolumeName,
+			Name: apicommon.ConfdVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
@@ -165,7 +166,7 @@ func defaultVolumes() []corev1.Volume {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.ConfigVolumeName,
+			Name: apicommon.ConfigVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
@@ -223,7 +224,7 @@ func defaultSystemProbeVolumes() []corev1.Volume {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.ConfdVolumeName,
+			Name: apicommon.ConfdVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
@@ -235,7 +236,7 @@ func defaultSystemProbeVolumes() []corev1.Volume {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.ConfigVolumeName,
+			Name: apicommon.ConfigVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
@@ -355,7 +356,7 @@ func complianceSecurityAgentVolumes() []corev1.Volume {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.ConfdVolumeName,
+			Name: apicommon.ConfdVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
@@ -373,7 +374,7 @@ func complianceSecurityAgentVolumes() []corev1.Volume {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.ConfigVolumeName,
+			Name: apicommon.ConfigVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
@@ -455,7 +456,7 @@ func runtimeSecurityAgentVolumes() []corev1.Volume {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.ConfdVolumeName,
+			Name: apicommon.ConfdVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
@@ -467,7 +468,7 @@ func runtimeSecurityAgentVolumes() []corev1.Volume {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.ConfigVolumeName,
+			Name: apicommon.ConfigVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
@@ -889,7 +890,7 @@ func defaultEnvVars(extraEnv map[string]string) []corev1.EnvVar {
 		},
 		{
 			Name:  "DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME",
-			Value: fmt.Sprintf("%s-%s", testDdaName, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix),
+			Value: fmt.Sprintf("%s-%s", testDdaName, apicommon.DefaultClusterAgentResourceSuffix),
 		},
 		{
 			Name:      "DD_CLUSTER_AGENT_AUTH_TOKEN",
@@ -1078,7 +1079,7 @@ func securityAgentEnvVars(compliance, runtime bool, policiesdir bool, extraEnv m
 		},
 		{
 			Name:  "DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME",
-			Value: fmt.Sprintf("%s-%s", testDdaName, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix),
+			Value: fmt.Sprintf("%s-%s", testDdaName, apicommon.DefaultClusterAgentResourceSuffix),
 		},
 		{
 			Name:      "DD_CLUSTER_AGENT_AUTH_TOKEN",
@@ -1193,7 +1194,7 @@ func defaultSystemProbePodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodSp
 				Args:            []string{"cp -vnr /etc/datadog-agent /opt"},
 				VolumeMounts: []corev1.VolumeMount{
 					{
-						Name:      datadoghqv1alpha1.ConfigVolumeName,
+						Name:      apicommon.ConfigVolumeName,
 						MountPath: "/opt/datadog-agent",
 					},
 				},
@@ -1322,7 +1323,7 @@ func noSeccompInstallSystemProbeSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1
 				Args:            []string{"cp -vnr /etc/datadog-agent /opt"},
 				VolumeMounts: []corev1.VolumeMount{
 					{
-						Name:      datadoghqv1alpha1.ConfigVolumeName,
+						Name:      apicommon.ConfigVolumeName,
 						MountPath: "/opt/datadog-agent",
 					},
 				},
@@ -1405,7 +1406,7 @@ func defaultPodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodSpec {
 				Args:            cmd,
 				VolumeMounts: []corev1.VolumeMount{
 					{
-						Name:      datadoghqv1alpha1.ConfigVolumeName,
+						Name:      apicommon.ConfigVolumeName,
 						MountPath: "/opt/datadog-agent",
 					},
 				},
@@ -1495,7 +1496,7 @@ func defaultProcessMount() []corev1.Volume {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.ConfdVolumeName,
+			Name: apicommon.ConfdVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
@@ -1507,7 +1508,7 @@ func defaultProcessMount() []corev1.Volume {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.ConfigVolumeName,
+			Name: apicommon.ConfigVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
@@ -1623,7 +1624,7 @@ func runtimeSecurityAgentPodSpec(extraEnv map[string]string, extraDir string) co
 
 	volumeMountsBuilder := NewVolumeMountBuilder([]corev1.VolumeMount{
 		{
-			Name:      datadoghqv1alpha1.ConfigVolumeName,
+			Name:      apicommon.ConfigVolumeName,
 			MountPath: "/opt/datadog-agent",
 		},
 	}, nil)
@@ -1788,7 +1789,7 @@ func complianceSecurityAgentPodSpec(extraEnv map[string]string) corev1.PodSpec {
 				Args:            []string{"cp -vnr /etc/datadog-agent /opt"},
 				VolumeMounts: []corev1.VolumeMount{
 					{
-						Name:      datadoghqv1alpha1.ConfigVolumeName,
+						Name:      apicommon.ConfigVolumeName,
 						MountPath: "/opt/datadog-agent",
 					},
 				},
@@ -1956,7 +1957,7 @@ func customKubeletConfigPodSpec(kubeletConfig *commonv1.KubeletConfig) corev1.Po
 				Args:            []string{"cp -vnr /etc/datadog-agent /opt"},
 				VolumeMounts: []corev1.VolumeMount{
 					{
-						Name:      datadoghqv1alpha1.ConfigVolumeName,
+						Name:      apicommon.ConfigVolumeName,
 						MountPath: "/opt/datadog-agent",
 					},
 				},
@@ -2022,7 +2023,7 @@ func (test extendedDaemonSetFromInstanceTest) Run(t *testing.T) {
 	}
 
 	// Remove the generated hash before comparison because it is not easy generate it in the test definition.
-	delete(got.Annotations, datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey)
+	delete(got.Annotations, apicommon.MD5AgentDeploymentAnnotationKey)
 
 	diff := testutils.CompareKubeResource(got, test.want)
 	assert.True(t, len(diff) == 0, diff)
@@ -2045,10 +2046,10 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 		&test.NewDatadogAgentOptions{
 			UseEDS:              true,
 			ClusterAgentEnabled: true,
-			HostPort:            datadoghqv1alpha1.DefaultDogstatsdPort,
+			HostPort:            apicommon.DefaultDogstatsdPort,
 		})
 	hostPortPodSpec := defaultPodSpec(hostPortAgent)
-	hostPortPodSpec.Containers[0].Ports[0].HostPort = datadoghqv1alpha1.DefaultDogstatsdPort
+	hostPortPodSpec.Containers[0].Ports[0].HostPort = apicommon.DefaultDogstatsdPort
 
 	// Create a Datadog Agent with a custom host port and host network set to true
 	hostPortNetworkAgent := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
@@ -2283,7 +2284,7 @@ func Test_newExtendedDaemonSetFromInstance_CustomConfigMaps(t *testing.T) {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.ConfdVolumeName,
+			Name: apicommon.ConfdVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
 					LocalObjectReference: corev1.LocalObjectReference{
@@ -2303,7 +2304,7 @@ func Test_newExtendedDaemonSetFromInstance_CustomConfigMaps(t *testing.T) {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.ConfigVolumeName,
+			Name: apicommon.ConfigVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
@@ -2414,7 +2415,7 @@ func Test_newExtendedDaemonSetFromInstance_CustomDatadogYaml(t *testing.T) {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.ConfdVolumeName,
+			Name: apicommon.ConfdVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
@@ -2426,7 +2427,7 @@ func Test_newExtendedDaemonSetFromInstance_CustomDatadogYaml(t *testing.T) {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.ConfigVolumeName,
+			Name: apicommon.ConfigVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
