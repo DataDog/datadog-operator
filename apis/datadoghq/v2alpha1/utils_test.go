@@ -9,7 +9,6 @@ import (
 	"reflect"
 	"testing"
 
-	common "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -21,7 +20,7 @@ func TestConvertCustomConfig(t *testing.T) {
 	tests := []struct {
 		name   string
 		config *CustomConfig
-		want   *common.CustomConfig
+		want   *commonv1.CustomConfig
 	}{
 		{
 			name:   "nil customConfig",
@@ -33,7 +32,7 @@ func TestConvertCustomConfig(t *testing.T) {
 			config: &CustomConfig{
 				ConfigData: &fakeData,
 			},
-			want: &common.CustomConfig{
+			want: &commonv1.CustomConfig{
 				ConfigData: &fakeData,
 			},
 		},
@@ -50,7 +49,7 @@ func TestConvertCustomConfig(t *testing.T) {
 					},
 				},
 			},
-			want: &common.CustomConfig{
+			want: &commonv1.CustomConfig{
 				ConfigMap: &commonv1.ConfigMapConfig{
 					Name: cmName,
 					Items: []corev1.KeyToPath{

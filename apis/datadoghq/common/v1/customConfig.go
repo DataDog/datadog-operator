@@ -9,17 +9,7 @@ import (
 	"fmt"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 )
-
-// CustomConfig Allow to put custom configuration for the agent
-type CustomConfig struct {
-	// ConfigData corresponds to the configuration file content.
-	ConfigData *string
-	// Enable to specify a reference to an already existing ConfigMap.
-	ConfigMap *commonv1.ConfigMapConfig
-}
 
 // GetConfName get the name of the Configmap for a CustomConfigSpec
 func GetConfName(owner metav1.Object, conf *CustomConfig, defaultName string) string {

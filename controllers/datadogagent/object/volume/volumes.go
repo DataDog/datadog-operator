@@ -11,10 +11,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
+	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 )
 
 // GetCustomConfigSpecVolumes use to generate the corev1.Volume and corev1.VolumeMount corresponding to a CustomConfig.
-func GetCustomConfigSpecVolumes(customConfig *apicommon.CustomConfig, volumeName, defaultCMName, configFolder string) (corev1.Volume, corev1.VolumeMount) {
+func GetCustomConfigSpecVolumes(customConfig *apicommonv1.CustomConfig, volumeName, defaultCMName, configFolder string) (corev1.Volume, corev1.VolumeMount) {
 	var volume corev1.Volume
 	var volumeMount corev1.VolumeMount
 	if customConfig != nil {
@@ -51,7 +52,7 @@ func GetCustomConfigSpecVolumes(customConfig *apicommon.CustomConfig, volumeName
 }
 
 // GetVolumeFromCustomConfigSpec return a corev1.Volume corresponding to a CustomConfig.
-func GetVolumeFromCustomConfigSpec(cfcm *apicommon.CustomConfig, defaultConfigMapName, volumeName string) corev1.Volume {
+func GetVolumeFromCustomConfigSpec(cfcm *apicommonv1.CustomConfig, defaultConfigMapName, volumeName string) corev1.Volume {
 	confdVolumeSource := *buildVolumeSourceFromCustomConfigSpec(cfcm, defaultConfigMapName)
 
 	return corev1.Volume{
@@ -61,7 +62,7 @@ func GetVolumeFromCustomConfigSpec(cfcm *apicommon.CustomConfig, defaultConfigMa
 }
 
 // GetVolumeMountFromCustomConfigSpec return a corev1.Volume corresponding to a CustomConfig.
-func GetVolumeMountFromCustomConfigSpec(cfcm *apicommon.CustomConfig, volumeName, volumePath, defaultSubPath string) corev1.VolumeMount {
+func GetVolumeMountFromCustomConfigSpec(cfcm *apicommonv1.CustomConfig, volumeName, volumePath, defaultSubPath string) corev1.VolumeMount {
 	subPath := defaultSubPath
 	if cfcm.ConfigMap != nil && len(cfcm.ConfigMap.Items) > 0 {
 		subPath = cfcm.ConfigMap.Items[0].Path
@@ -75,7 +76,7 @@ func GetVolumeMountFromCustomConfigSpec(cfcm *apicommon.CustomConfig, volumeName
 	}
 }
 
-func buildVolumeSourceFromCustomConfigSpec(configDir *apicommon.CustomConfig, defaultConfigMapName string) *corev1.VolumeSource {
+func buildVolumeSourceFromCustomConfigSpec(configDir *apicommonv1.CustomConfig, defaultConfigMapName string) *corev1.VolumeSource {
 	if configDir == nil {
 		return nil
 	}

@@ -8,7 +8,7 @@ package datadogagent
 import (
 	"context"
 
-	"github.com/DataDog/datadog-operator/apis/datadoghq/common"
+	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/configmap"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
@@ -136,7 +136,7 @@ func (r *Reconciler) cleanupConfigMap(logger logr.Logger, dda *datadoghqv1alpha1
 	return reconcile.Result{}, r.client.Delete(context.TODO(), configmap)
 }
 
-func buildConfigurationConfigMap(owner metav1.Object, cfcm *common.CustomConfig, configMapName, subPath string) (*corev1.ConfigMap, error) {
+func buildConfigurationConfigMap(owner metav1.Object, cfcm *commonv1.CustomConfig, configMapName, subPath string) (*corev1.ConfigMap, error) {
 	if cfcm == nil || cfcm.ConfigData == nil {
 		return nil, nil
 	}

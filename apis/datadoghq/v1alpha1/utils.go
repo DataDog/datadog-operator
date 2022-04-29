@@ -57,7 +57,7 @@ func isClusterAgentEnabled(spec DatadogAgentSpecClusterAgentSpec) bool {
 }
 
 // ConvertCustomConfig use to convert a CustomConfigSpec to a common.CustomConfig.
-func ConvertCustomConfig(config *CustomConfigSpec) *common.CustomConfig {
+func ConvertCustomConfig(config *CustomConfigSpec) *commonv1.CustomConfig {
 	if config == nil {
 		return nil
 	}
@@ -74,7 +74,7 @@ func ConvertCustomConfig(config *CustomConfigSpec) *common.CustomConfig {
 			},
 		}
 	}
-	return &common.CustomConfig{
+	return &commonv1.CustomConfig{
 		ConfigData: config.ConfigData,
 		ConfigMap:  configMap,
 	}

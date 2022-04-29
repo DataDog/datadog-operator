@@ -41,7 +41,7 @@ func GetClusterChecksRunnerServiceAccount(dda *DatadogAgent) string {
 }
 
 // ConvertCustomConfig use to convert a CustomConfig to a common.CustomConfig.
-func ConvertCustomConfig(config *CustomConfig) *common.CustomConfig {
+func ConvertCustomConfig(config *CustomConfig) *commonv1.CustomConfig {
 	if config == nil {
 		return nil
 	}
@@ -52,7 +52,7 @@ func ConvertCustomConfig(config *CustomConfig) *common.CustomConfig {
 			Items: config.ConfigMap.Items,
 		}
 	}
-	return &common.CustomConfig{
+	return &commonv1.CustomConfig{
 		ConfigData: config.ConfigData,
 		ConfigMap:  configMap,
 	}
