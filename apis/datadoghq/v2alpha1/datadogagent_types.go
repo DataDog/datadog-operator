@@ -17,10 +17,10 @@ type ComponentName string
 const (
 	// NodeAgentComponentName is the name of the Datadog Node Agent
 	NodeAgentComponentName ComponentName = "nodeAgent"
-	// ClusterAgentResourceName is the name of the Cluster Agent
-	ClusterAgentResourceName ComponentName = "clusterAgent"
-	// ClusterChecksRunnerResourceName is the name of the Cluster Check Runner
-	ClusterChecksRunnerResourceName ComponentName = "clusterChecksRunner"
+	// ClusterAgentComponentName is the name of the Cluster Agent
+	ClusterAgentComponentName ComponentName = "clusterAgent"
+	// ClusterChecksRunnerComponentName is the name of the Cluster Check Runner
+	ClusterChecksRunnerComponentName ComponentName = "clusterChecksRunner"
 )
 
 // DatadogAgentSpec defines the desired state of DatadogAgent
