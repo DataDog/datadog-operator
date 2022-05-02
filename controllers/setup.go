@@ -12,6 +12,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/DataDog/datadog-operator/controllers/datadogagent"
+	"github.com/DataDog/datadog-operator/controllers/datadogmonitor"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 
@@ -100,5 +101,8 @@ func startDatadogMonitor(logger logr.Logger, mgr manager.Manager, vInfo *version
 		Log:         ctrl.Log.WithName("controllers").WithName(monitorControllerName),
 		Scheme:      mgr.GetScheme(),
 		Recorder:    mgr.GetEventRecorderFor(monitorControllerName),
+		Options: datadogmonitor.ReconcilerOptions{
+			OperatorMetricsEnabled: options.OperatorMetricsEnabled,
+		},
 	}).SetupWithManager(mgr)
 }

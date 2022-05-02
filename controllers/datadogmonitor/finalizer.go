@@ -34,7 +34,7 @@ func (r *Reconciler) handleFinalizer(logger logr.Logger, dm *datadoghqv1alpha1.D
 			}
 		}
 
-		// Requeue until the object was properly deleted by Kuberentes
+		// Requeue until the object was properly deleted by Kubernetes
 		return ctrl.Result{Requeue: true, RequeueAfter: defaultRequeuePeriod}, nil
 	}
 
@@ -47,7 +47,7 @@ func (r *Reconciler) handleFinalizer(logger logr.Logger, dm *datadoghqv1alpha1.D
 		return ctrl.Result{Requeue: true, RequeueAfter: defaultRequeuePeriod}, nil
 	}
 
-	// Proceed in reconcile loop.
+	// Terminate the reconcile loop.
 	return ctrl.Result{}, nil
 }
 
@@ -62,6 +62,9 @@ func (r *Reconciler) finalizeDatadogMonitor(logger logr.Logger, dm *datadoghqv1a
 		logger.Info("Successfully finalized DatadogMonitor", "Monitor ID", fmt.Sprint(dm.Status.ID))
 		event := buildEventInfo(dm.Name, dm.Namespace, datadog.DeletionEvent)
 		r.recordEvent(dm, event)
+
+		// Stop Metric Forwarder once monitor has been successfully deleted
+		r.forwarders.Unregister(dm)
 	}
 }
 

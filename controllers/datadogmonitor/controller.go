@@ -53,8 +53,14 @@ var supportedMonitorTypes = map[string]bool{
 	string(datadogapiclientv1.MONITORTYPE_AUDIT_ALERT):           true,
 }
 
+// ReconcilerOptions provides options read from command line
+type ReconcilerOptions struct {
+	OperatorMetricsEnabled bool
+}
+
 // Reconciler reconciles a DatadogMonitor object
 type Reconciler struct {
+	options       ReconcilerOptions
 	client        client.Client
 	datadogClient *datadogapiclientv1.APIClient
 	datadogAuth   context.Context
@@ -62,11 +68,13 @@ type Reconciler struct {
 	log           logr.Logger
 	scheme        *runtime.Scheme
 	recorder      record.EventRecorder
+	forwarders    datadog.MetricForwardersManager
 }
 
 // NewReconciler returns a new Reconciler object
-func NewReconciler(client client.Client, ddClient datadogclient.DatadogClient, versionInfo *version.Info, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder) (*Reconciler, error) {
+func NewReconciler(options ReconcilerOptions, client client.Client, ddClient datadogclient.DatadogClient, versionInfo *version.Info, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, metricForwarder datadog.MetricForwardersManager) (*Reconciler, error) {
 	return &Reconciler{
+		options:       options,
 		client:        client,
 		datadogClient: ddClient.Client,
 		datadogAuth:   ddClient.Auth,
@@ -74,12 +82,15 @@ func NewReconciler(client client.Client, ddClient datadogclient.DatadogClient, v
 		scheme:        scheme,
 		log:           log,
 		recorder:      recorder,
+		forwarders:    metricForwarder,
 	}, nil
 }
 
 // Reconcile is similar to reconciler.Reconcile interface, but taking a context
 func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
-	return r.internalReconcile(ctx, request)
+	resp, err := r.internalReconcile(ctx, request)
+	r.metricsForwarderProcessError(request, err)
+	return resp, err
 }
 
 // Reconcile loop for DatadogMonitor
@@ -256,9 +267,9 @@ func (r *Reconciler) get(logger logr.Logger, datadogMonitor *datadoghqv1alpha1.D
 	return nil
 }
 
-func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, datadogMonitor *datadoghqv1alpha1.DatadogMonitor, now metav1.Time, status *datadoghqv1alpha1.DatadogMonitorStatus, currentErr error, result ctrl.Result) (ctrl.Result, error) {
+func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, datadogMonitor *datadoghqv1alpha1.DatadogMonitor, now metav1.Time, status *datadoghqv1alpha1.DatadogMonitorStatus, currentError error, result ctrl.Result) (ctrl.Result, error) {
 	// Update Error and Active conditions
-	condition.SetErrorActiveConditions(status, now, currentErr)
+	condition.SetErrorActiveConditions(status, now, currentError)
 
 	if !apiequality.Semantic.DeepEqual(&datadogMonitor.Status, status) {
 		datadogMonitor.Status = *status
@@ -368,4 +379,30 @@ func isSupportedMonitorType(monitorType datadoghqv1alpha1.DatadogMonitorType) bo
 
 func isTriggered(groupStatus string) bool {
 	return groupStatus == string(datadoghqv1alpha1.DatadogMonitorStateAlert) || groupStatus == string(datadoghqv1alpha1.DatadogMonitorStateWarn) || groupStatus == string(datadoghqv1alpha1.DatadogMonitorStateNoData)
+}
+
+// metricsForwarderProcessError convert the reconciler errors into metrics if metrics forwarder is enabled
+func (r *Reconciler) metricsForwarderProcessError(req reconcile.Request, err error) {
+	if r.options.OperatorMetricsEnabled {
+		r.forwarders.ProcessError(getMonitoredObj(req), err)
+	}
+}
+
+// namespacedName implements the datadog.MonitoredObject interface
+// used to convert reconcile.Request into datadog.MonitoredObject
+type namespacedName struct {
+	reconcile.Request
+}
+
+func (nsn namespacedName) GetNamespace() string {
+	return nsn.Namespace
+}
+
+func (nsn namespacedName) GetName() string {
+	return nsn.Name
+}
+
+// getMonitoredObj returns a namespacedName from a reconcile.Request object
+func getMonitoredObj(req reconcile.Request) namespacedName {
+	return namespacedName{req}
 }

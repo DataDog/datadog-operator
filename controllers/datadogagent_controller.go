@@ -36,6 +36,8 @@ import (
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 )
 
+const kindDatadogAgent = "DatadogAgent"
+
 // DatadogAgentReconciler reconciles a DatadogAgent object.
 type DatadogAgentReconciler struct {
 	client.Client
@@ -209,10 +211,10 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	if r.Options.OperatorMetricsEnabled {
 		metricForwarder = datadog.NewForwardersManager(r.Client)
 		builderOptions = append(builderOptions, ctrlbuilder.WithPredicates(predicate.Funcs{
-			// On `DatadogAgent` object creation, we register a metrics forwarder for it.
+			// On `DatadogAgent` controller creation, we register a metrics forwarder for it.
 			CreateFunc: func(e event.CreateEvent) bool {
-				metricForwarder.Register(e.Object)
-
+				// On brand new object creation the event's Object's Kind is "" so can't rely on it here
+				metricForwarder.Register(e.Object, kindDatadogAgent)
 				return true
 			},
 		}))

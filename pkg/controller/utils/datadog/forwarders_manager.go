@@ -17,7 +17,7 @@ import (
 
 // MetricForwardersManager defines interface for metrics forwarding
 type MetricForwardersManager interface {
-	Register(MonitoredObject)
+	Register(MonitoredObject, string)
 	Unregister(MonitoredObject)
 	ProcessError(MonitoredObject, error)
 	ProcessEvent(MonitoredObject, Event)
@@ -53,14 +53,15 @@ func (f *ForwardersManager) Start(stop <-chan struct{}) error {
 	return nil
 }
 
-// Register starts a new metricsForwarder if a new MonitoredObject is detected
-func (f *ForwardersManager) Register(obj MonitoredObject) {
+// Register starts a new metricsForwarder for a specified objectKind (DatadogAgent, DatadogMonitor)
+// if a new MonitoredObject is detected
+func (f *ForwardersManager) Register(obj MonitoredObject, objectKind string) {
 	f.Lock()
 	defer f.Unlock()
 	id := getObjID(obj) // nolint: ifshort
 	if _, found := f.forwarders[id]; !found {
-		log.Info("New Datadog metrics forwarder registred", "ID", id)
-		f.forwarders[id] = newMetricsForwarder(f.k8sClient, f.decryptor, obj)
+		log.Info("New Datadog metrics forwarder registred for", "ID", id, "Kind", objectKind)
+		f.forwarders[id] = newMetricsForwarder(f.k8sClient, f.decryptor, obj, objectKind)
 		f.wg.Add(1)
 		go f.forwarders[id].start(&f.wg)
 	}
@@ -83,8 +84,8 @@ func (f *ForwardersManager) ProcessError(obj MonitoredObject, reconcileErr error
 	id := getObjID(obj)
 	forwarder, err := f.getForwarder(id)
 	if err != nil {
-		log.Error(err, "cannot process error")
-
+		// Forwarder may be unregistered during last few reconcile loops before deletion
+		log.V(1).Info("Cannot find metrics forwarder", "ID", id)
 		return
 	}
 	if forwarder.isErrChanFull() {
