@@ -132,7 +132,7 @@ func (f *ksmFeature) ManageDependencies(managers feature.ResourcesManagers) erro
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *ksmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
-	// Manage KSM config in confimap
+	// Manage KSM config in configmap
 	vol, volMount := volume.GetCustomConfigSpecVolumes(
 		f.customConfig,
 		apicommon.KubeStateMetricCoreVolumeName,
