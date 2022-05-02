@@ -360,10 +360,10 @@ func (mf *metricsForwarder) getCredentials() (string, string, error) {
 		dda, err := mf.getDatadogAgent()
 		if err != nil {
 			mf.logger.Info("Cannot get DatadogAgent to get Datadog credentials, will retry with Operator Configuration")
-			apiKey, appKey, err := mf.getCredsFromOperator()
-			if err != nil {
-				mf.logger.Error(err, "Cannot get credentials from Operator Configuration")
-				return "", "", err
+			apiKey, appKey, credErr := mf.getCredsFromOperator()
+			if credErr != nil {
+				mf.logger.Error(credErr, "Cannot get credentials from Operator Configuration")
+				return "", "", credErr
 			}
 			return apiKey, appKey, nil
 		}

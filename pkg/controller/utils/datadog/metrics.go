@@ -27,7 +27,7 @@ const (
 	monitorSuccessValue        = 1.0
 	monitorFailureValue        = 0.0
 	monitorMetricFormat        = "monitor.%s"
-	monitorIdTagFormat         = "monitor_id:%d"
+	monitorIDTagFormat         = "monitor_id:%d"
 	monitorStateTagFormat      = "monitor_state:%s"
 	monitorSyncStatusTagFormat = "monitor_sync_status:%s"
 	reconcileSuccessValue      = 1.0
@@ -40,7 +40,8 @@ const (
 // Entryway for processing the metrics for the specified object of the metricsForwarder,
 // will route accordingly based on the objectKind and namespacedName reference
 func (mf *metricsForwarder) processMetrics() error {
-	if mf.objectKind == kindDatadogMonitor {
+	switch mf.objectKind {
+	case kindDatadogMonitor:
 		mf.logger.V(1).Info("Handling DatadogMonitor Metrics")
 		ddm, err := mf.getDatadogMonitor()
 		if err != nil {
@@ -52,7 +53,7 @@ func (mf *metricsForwarder) processMetrics() error {
 			mf.logger.Error(err, "Error collecting metrics for DatdogMonitor status")
 			return err
 		}
-	} else if mf.objectKind == kindDatadogAgent {
+	case kindDatadogAgent:
 		mf.logger.Info("Handling DatadogAgent Metrics")
 		dda, err := mf.getDatadogAgent()
 		if err != nil {
@@ -66,8 +67,8 @@ func (mf *metricsForwarder) processMetrics() error {
 			mf.logger.Error(err, "Error collecting metrics for DatadogAgent status")
 			return err
 		}
-	} else {
-		return errors.New("can't process metrics, object has no set Kind")
+	default:
+		return errors.New("can't process metrics, Metrics Forwarder has no set Kind")
 	}
 
 	// Report the status of the reconciler at the same periodic interal
@@ -148,7 +149,7 @@ func (mf *metricsForwarder) sendMonitorStatus(status *datadoghqv1alpha1.DatadogM
 
 	tags := []string{}
 	if status.ID != 0 {
-		tags = append(tags, fmt.Sprintf(monitorIdTagFormat, status.ID))
+		tags = append(tags, fmt.Sprintf(monitorIDTagFormat, status.ID))
 	}
 	if status.MonitorState != "" {
 		tags = append(tags, fmt.Sprintf(monitorStateTagFormat, status.MonitorState))
