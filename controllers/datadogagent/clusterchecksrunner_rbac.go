@@ -71,16 +71,6 @@ func (r *Reconciler) manageClusterChecksRunnerRBACs(logger logr.Logger, dda *dat
 		return result, err
 	}
 
-	if isKSMCoreClusterCheck(dda) {
-		if result, err := r.createOrUpdateKubeStateMetricsCoreRBAC(logger, dda, serviceAccountName, clusterChecksRunnerVersion, checkRunnersSuffix); err != nil {
-			return result, err
-		}
-	} else {
-		if result, err := r.cleanupKubeStateMetricsCoreRBAC(logger, dda, checkRunnersSuffix); err != nil {
-			return result, err
-		}
-	}
-
 	if isOrchestratorExplorerEnabled(dda) {
 		if result, err := r.createOrUpdateOrchestratorCoreRBAC(logger, dda, serviceAccountName, clusterChecksRunnerVersion, checkRunnersSuffix); err != nil {
 			return result, err

@@ -12,8 +12,11 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/common"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
+
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -53,7 +56,7 @@ instances:
 func buildOrchestratorExplorerConfigMap(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.ConfigMap, error) {
 	// Only called if OrchestratorExplorer or OrchestratorExplorer.ClusterCheck is enabled.
 	if dda.Spec.Features.OrchestratorExplorer.Conf != nil {
-		return buildConfigurationConfigMap(dda, dda.Spec.Features.OrchestratorExplorer.Conf, getOrchestratorExplorerConfName(dda), orchestratorExplorerCheckName)
+		return buildConfigurationConfigMap(dda, datadoghqv1alpha1.ConvertCustomConfig(dda.Spec.Features.OrchestratorExplorer.Conf), getOrchestratorExplorerConfName(dda), orchestratorExplorerCheckName)
 	}
 	configMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -148,79 +151,79 @@ func buildOrchestratorExplorerRBAC(dda *datadoghqv1alpha1.DatadogAgent, name, ve
 	rbacRules := []rbacv1.PolicyRule{
 		// To get the kube-system namespace UID and generate a cluster ID
 		{
-			APIGroups:     []string{datadoghqv1alpha1.CoreAPIGroup},
-			Resources:     []string{datadoghqv1alpha1.NamespaceResource},
-			ResourceNames: []string{datadoghqv1alpha1.KubeSystemResourceName},
-			Verbs:         []string{datadoghqv1alpha1.GetVerb},
+			APIGroups:     []string{rbac.CoreAPIGroup},
+			Resources:     []string{rbac.NamespaceResource},
+			ResourceNames: []string{common.KubeSystemResourceName},
+			Verbs:         []string{rbac.GetVerb},
 		},
 		// To create the cluster-id configmap
 		{
-			APIGroups:     []string{datadoghqv1alpha1.CoreAPIGroup},
-			Resources:     []string{datadoghqv1alpha1.ConfigMapsResource},
-			ResourceNames: []string{datadoghqv1alpha1.DatadogClusterIDResourceName},
+			APIGroups:     []string{rbac.CoreAPIGroup},
+			Resources:     []string{rbac.ConfigMapsResource},
+			ResourceNames: []string{common.DatadogClusterIDResourceName},
 			Verbs: []string{
-				datadoghqv1alpha1.GetVerb,
-				datadoghqv1alpha1.CreateVerb,
-				datadoghqv1alpha1.UpdateVerb,
+				rbac.GetVerb,
+				rbac.CreateVerb,
+				rbac.UpdateVerb,
 			},
 		},
 		{
-			APIGroups: []string{datadoghqv1alpha1.CoreAPIGroup},
+			APIGroups: []string{rbac.CoreAPIGroup},
 			Resources: []string{
-				datadoghqv1alpha1.PodsResource,
-				datadoghqv1alpha1.ServicesResource,
-				datadoghqv1alpha1.NodesResource,
+				rbac.PodsResource,
+				rbac.ServicesResource,
+				rbac.NodesResource,
 			},
 		},
 		{
-			APIGroups: []string{datadoghqv1alpha1.AppsAPIGroup},
+			APIGroups: []string{rbac.AppsAPIGroup},
 			Resources: []string{
-				datadoghqv1alpha1.DeploymentsResource,
-				datadoghqv1alpha1.ReplicasetsResource,
-				datadoghqv1alpha1.DaemonsetsResource,
-				datadoghqv1alpha1.StatefulsetsResource,
+				rbac.DeploymentsResource,
+				rbac.ReplicasetsResource,
+				rbac.DaemonsetsResource,
+				rbac.StatefulsetsResource,
 			},
 		},
 		{
-			APIGroups: []string{datadoghqv1alpha1.BatchAPIGroup},
+			APIGroups: []string{rbac.BatchAPIGroup},
 			Resources: []string{
-				datadoghqv1alpha1.JobsResource,
-				datadoghqv1alpha1.CronjobsResource,
+				rbac.JobsResource,
+				rbac.CronjobsResource,
 			},
 		},
 
 		{
-			APIGroups: []string{datadoghqv1alpha1.CoreAPIGroup},
+			APIGroups: []string{rbac.CoreAPIGroup},
 			Resources: []string{
-				datadoghqv1alpha1.PersistentVolumesResource,
-				datadoghqv1alpha1.PersistentVolumeClaimsResource,
+				rbac.PersistentVolumesResource,
+				rbac.PersistentVolumeClaimsResource,
 			},
 		},
 		{
-			APIGroups: []string{datadoghqv1alpha1.CoreAPIGroup},
+			APIGroups: []string{rbac.CoreAPIGroup},
 			Resources: []string{
-				datadoghqv1alpha1.ServiceAccountResource,
+				rbac.ServiceAccountResource,
 			},
 		},
 		{
-			APIGroups: []string{datadoghqv1alpha1.RbacAPIGroup},
+			APIGroups: []string{rbac.RbacAPIGroup},
 			Resources: []string{
-				datadoghqv1alpha1.RoleResource,
-				datadoghqv1alpha1.RoleBindingResource,
-				datadoghqv1alpha1.ClusterRoleResource,
-				datadoghqv1alpha1.ClusterRoleBindingResource,
+				rbac.RoleResource,
+				rbac.RoleBindingResource,
+				rbac.ClusterRoleResource,
+				rbac.ClusterRoleBindingResource,
 			},
 		},
 		{
-			APIGroups: []string{datadoghqv1alpha1.NetworkingAPIGroup},
-			Resources: []string{datadoghqv1alpha1.IngressesResource},
+			APIGroups: []string{rbac.NetworkingAPIGroup},
+			Resources: []string{rbac.IngressesResource},
 		},
 	}
 
 	clusterRole.Rules = rbacRules
 	defaultVerbs := []string{
-		datadoghqv1alpha1.ListVerb,
-		datadoghqv1alpha1.WatchVerb,
+		rbac.ListVerb,
+		rbac.WatchVerb,
 	}
 
 	for i := range clusterRole.Rules {

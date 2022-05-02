@@ -1,5 +1,6 @@
 domain: com
-layout: go.kubebuilder.io/v3
+layout:
+- go.kubebuilder.io/v3
 multigroup: true
 plugins:
   manifests.sdk.operatorframework.io/v2: {}
@@ -39,4 +40,7 @@ resources:
   kind: DatadogAgent
   path: github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1
   version: v2alpha1
+  webhooks:
+    conversion: true
+    webhookVersion: v1
 version: "3"

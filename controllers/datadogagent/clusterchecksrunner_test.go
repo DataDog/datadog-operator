@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"testing"
 
+	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	test "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1/test"
 	"github.com/DataDog/datadog-operator/apis/utils"
@@ -88,11 +89,11 @@ func clusterChecksRunnerDefaultVolumeMounts() []corev1.VolumeMount {
 		},
 		{
 			Name:      "remove-corechecks",
-			MountPath: fmt.Sprintf("%s/%s", datadoghqv1alpha1.ConfigVolumePath, "conf.d"),
+			MountPath: fmt.Sprintf("%s/%s", apicommon.ConfigVolumePath, "conf.d"),
 		},
 		{
-			Name:      datadoghqv1alpha1.ConfigVolumeName,
-			MountPath: datadoghqv1alpha1.ConfigVolumePath,
+			Name:      apicommon.ConfigVolumeName,
+			MountPath: apicommon.ConfigVolumePath,
 		},
 	}
 }
@@ -106,7 +107,7 @@ func clusterChecksRunnerDefaultVolumes() []corev1.Volume {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.ConfigVolumeName,
+			Name: apicommon.ConfigVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
@@ -158,7 +159,7 @@ func clusterChecksRunnerDefaultEnvVars() []corev1.EnvVar {
 		},
 		{
 			Name:  "DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME",
-			Value: fmt.Sprintf("%s-%s", testDdaName, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix),
+			Value: fmt.Sprintf("%s-%s", testDdaName, apicommon.DefaultClusterAgentResourceSuffix),
 		},
 		{
 			Name:      "DD_CLUSTER_AGENT_AUTH_TOKEN",

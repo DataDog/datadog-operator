@@ -81,7 +81,7 @@ func buildSystemProbeConfigConfigMap(dda *datadoghqv1alpha1.DatadogAgent) (*core
 		}
 	}
 
-	return buildConfigurationConfigMap(dda, customConfig, getSystemProbeConfigConfigMapName(dda), getSystemProbeConfigFileName(dda))
+	return buildConfigurationConfigMap(dda, datadoghqv1alpha1.ConvertCustomConfig(customConfig), getSystemProbeConfigConfigMapName(dda), getSystemProbeConfigFileName(dda))
 }
 
 func buildSystemProbeSecCompConfigMap(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.ConfigMap, error) {

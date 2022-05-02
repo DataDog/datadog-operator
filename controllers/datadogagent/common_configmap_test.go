@@ -19,7 +19,7 @@ func Test_buildConfigurationConfigMap(t *testing.T) {
 	defaultDda := test.NewDefaultedDatadogAgent("bar", "foo", nil)
 
 	ddaWithConfigData := defaultDda.DeepCopy()
-	dataContent := "blobdata"
+	dataContent := "config: data"
 	ddaWithConfigData.Spec.Agent.CustomConfig = &datadoghqv1alpha1.CustomConfigSpec{
 		ConfigData: &dataContent,
 	}
@@ -88,7 +88,7 @@ func Test_buildConfigurationConfigMap(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := buildConfigurationConfigMap(tt.args.dda, tt.args.cfcm, tt.args.configMapName, tt.args.subPath)
+			got, err := buildConfigurationConfigMap(tt.args.dda, datadoghqv1alpha1.ConvertCustomConfig(tt.args.cfcm), tt.args.configMapName, tt.args.subPath)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("buildConfigurationConfigMap() error = %v, wantErr %v", err, tt.wantErr)
 				return
