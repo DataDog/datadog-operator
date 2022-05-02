@@ -273,7 +273,7 @@ func (in *DatadogAgentComponentOverride) DeepCopyInto(out *DatadogAgentComponent
 	}
 	if in.Containers != nil {
 		in, out := &in.Containers, &out.Containers
-		*out = make(map[AgentContainerName]*DatadogAgentGenericContainer, len(*in))
+		*out = make(map[commonv1.AgentContainerName]*DatadogAgentGenericContainer, len(*in))
 		for key, val := range *in {
 			var outVal *DatadogAgentGenericContainer
 			if val == nil {

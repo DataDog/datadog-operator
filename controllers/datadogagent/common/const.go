@@ -12,12 +12,3 @@ const (
 	CheckRunnersSuffix = "ccr"
 	ClusterAgentSuffix = "dca"
 )
-
-// ContainerName Container name type
-type ContainerName string
-
-// container names
-const (
-	ClusterAgentContainerName ContainerName = "cluster-agent"
-	AgentContainerName        ContainerName = "agent"
-)

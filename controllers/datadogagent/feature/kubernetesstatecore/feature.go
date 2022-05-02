@@ -24,13 +24,13 @@ import (
 )
 
 func init() {
-	err := feature.Register(feature.KubernetesStateCoreIDType, buildKSMfeature)
+	err := feature.Register(feature.KubernetesStateCoreIDType, buildKSMFeature)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func buildKSMfeature(options *feature.Options) feature.Feature {
+func buildKSMFeature(options *feature.Options) feature.Feature {
 	ksmFeat := &ksmFeature{
 		rbacSuffix: common.ClusterAgentSuffix,
 	}
@@ -113,7 +113,7 @@ func (f *ksmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) bool {
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *ksmFeature) ManageDependencies(managers feature.ResourcesManagers) error {
+func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	// Manage the Check Configuration in a configmap
 	configCM, err := f.buildKSMCoreConfigMap()
 	if err != nil {
@@ -140,7 +140,7 @@ func (f *ksmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 		ksmCoreCheckFolderName,
 	)
 
-	managers.Volume().AddVolumeToContainer(&vol, &volMount, common.ClusterAgentContainerName)
+	managers.Volume().AddVolumeToContainer(&vol, &volMount, apicommonv1.ClusterAgentContainerName)
 
 	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
 		Name:  apicommon.DDKubeStateMetricsCoreEnabled,
@@ -164,11 +164,11 @@ func (f *ksmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 		Value: "kubernetes_state",
 	}
 
-	return managers.EnvVar().AddEnvVarToContainerWithMergeFunc(common.AgentContainerName, ignoreAutoConf, merger.AppendToValueEnvVarMergeFunction)
+	return managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommonv1.CoreAgentContainerName, ignoreAutoConf, merger.AppendToValueEnvVarMergeFunction)
 }
 
-// ManageClusterCheckRunnerAgent allows a feature to configure the ClusterCheckRunnerAgent's corev1.PodTemplateSpec
+// ManageClusterChecksRunner allows a feature to configure the ClusterCheckRunnerAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *ksmFeature) ManageClusterCheckRunnerAgent(managers feature.PodTemplateManagers) error {
+func (f *ksmFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	return nil
 }

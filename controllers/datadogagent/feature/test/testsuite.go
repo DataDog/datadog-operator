@@ -88,7 +88,7 @@ func runTest(t *testing.T, tt FeatureTest, buildFunc feature.BuildFunc) {
 	if tt.StoreInitFunc != nil {
 		tt.StoreInitFunc(store)
 	}
-	depsManager := feature.NewResourcesManagers(store)
+	depsManager := feature.NewResourceManagers(store)
 
 	if err := f.ManageDependencies(depsManager); (err != nil) != tt.WantManageDependenciesErr {
 		t.Errorf("feature.ManageDependencies() error = %v, wantErr %v", err, tt.WantManageDependenciesErr)
@@ -114,7 +114,7 @@ func runTest(t *testing.T, tt FeatureTest, buildFunc feature.BuildFunc) {
 
 	if tt.ClusterCheckRunner != nil {
 		tplManager := tt.ClusterCheckRunner.CreateFunc(t)
-		_ = f.ManageClusterCheckRunnerAgent(tplManager)
+		_ = f.ManageClusterChecksRunner(tplManager)
 		tt.ClusterCheckRunner.WantFunc(t, tplManager)
 	}
 }

@@ -27,16 +27,16 @@ type Feature interface {
 	ConfigureV1(dda *v1alpha1.DatadogAgent) bool
 	// ManageDependencies allows a feature to manage its dependencies.
 	// Feature's dependencies should be added in the store.
-	ManageDependencies(managers ResourcesManagers) error
+	ManageDependencies(managers ResourceManagers) error
 	// ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 	// It should do nothing if the feature doesn't need to configure it.
 	ManageClusterAgent(managers PodTemplateManagers) error
 	// ManageNodeAget allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 	// It should do nothing if the feature doesn't need to configure it.
 	ManageNodeAgent(managers PodTemplateManagers) error
-	// ManageClusterCheckRunnerAgent allows a feature to configure the ClusterCheckRunnerAgent's corev1.PodTemplateSpec
+	// ManageClusterChecksRunner allows a feature to configure the ClusterCheckRunnerAgent's corev1.PodTemplateSpec
 	// It should do nothing if the feature doesn't need to configure it.
-	ManageClusterCheckRunnerAgent(managers PodTemplateManagers) error
+	ManageClusterChecksRunner(managers PodTemplateManagers) error
 }
 
 // Options option that can be pass to the Interface.Configure function
@@ -50,30 +50,30 @@ type Options struct {
 // It returns the Feature interface.
 type BuildFunc func(options *Options) Feature
 
-// ResourcesManagers used to access the different resources manager.
-type ResourcesManagers interface {
+// ResourceManagers used to access the different resources manager.
+type ResourceManagers interface {
 	Store() dependencies.StoreClient
 	RBACManager() merger.RBACManager
 }
 
-// NewResourcesManagers return new instance of the ResourcesManagers interface
-func NewResourcesManagers(store dependencies.StoreClient) ResourcesManagers {
-	return &resourcesManagersImpl{
+// NewResourceManagers return new instance of the ResourceManagers interface
+func NewResourceManagers(store dependencies.StoreClient) ResourceManagers {
+	return &resourceManagersImpl{
 		store: store,
 		rbac:  merger.NewRBACManager(store),
 	}
 }
 
-type resourcesManagersImpl struct {
+type resourceManagersImpl struct {
 	store dependencies.StoreClient
 	rbac  merger.RBACManager
 }
 
-func (impl *resourcesManagersImpl) Store() dependencies.StoreClient {
+func (impl *resourceManagersImpl) Store() dependencies.StoreClient {
 	return impl.store
 }
 
-func (impl *resourcesManagersImpl) RBACManager() merger.RBACManager {
+func (impl *resourceManagersImpl) RBACManager() merger.RBACManager {
 	return impl.rbac
 }
 
