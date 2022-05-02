@@ -81,6 +81,7 @@ type metricsForwarder struct {
 
 // delegatedAPI is used for testing purpose, it serves for mocking the Datadog API
 type delegatedAPI interface {
+	delegatedSendMonitorMetric(float64, string, []string) error
 	delegatedSendDeploymentMetric(float64, string, []string) error
 	delegatedSendReconcileMetric(float64, []string) error
 	delegatedSendEvent(string, EventType) error

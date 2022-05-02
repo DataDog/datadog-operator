@@ -160,20 +160,31 @@ func (mf *metricsForwarder) sendMonitorStatus(status *datadoghqv1alpha1.DatadogM
 	// Status Condition
 	if status.Conditions != nil {
 		for _, condition := range status.Conditions {
-			metricName := fmt.Sprintf(monitorMetricFormat, strings.ToLower(string(condition.Type)))
+			metricName := strings.ToLower(string(condition.Type))
 			metricValue := monitorFailureValue
 			if condition.Status == "True" {
 				metricValue = monitorSuccessValue
 			}
 
-			if err := mf.gauge(metricName, metricValue, tags); err != nil {
+			if err := mf.sendMonitorMetric(metricValue, metricName, tags); err != nil {
 				// Continue through remaining conditions
-				mf.logger.Error(err, "Error reporting metric", "metricName", metricName, "tags", tags)
+				mf.logger.Error(err, "Error reporting metric", "metricName", metricName, "metricValue", metricValue, "tags", tags)
 			}
 		}
 	}
 
 	return nil
+}
+
+// sendMonitorMetric is a generic method used to forward component monitor metrics to Datadog
+func (mf *metricsForwarder) sendMonitorMetric(metricValue float64, component string, tags []string) error {
+	return mf.delegator.delegatedSendMonitorMetric(metricValue, component, tags)
+}
+
+// delegatedSendMonitorMetric is separated from sendDeploymentMetric to facilitate mocking the Datadog API
+func (mf *metricsForwarder) delegatedSendMonitorMetric(metricValue float64, component string, tags []string) error {
+	metricName := fmt.Sprintf(monitorMetricFormat, component)
+	return mf.gauge(metricName, metricValue, tags)
 }
 
 // Gets the last error for the reconciler and sends a metric up. The reconcile errors are sent to the
