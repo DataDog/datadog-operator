@@ -27,8 +27,8 @@ func (c *fakeMetricsForwarder) delegatedSendDeploymentMetric(metricValue float64
 	return nil
 }
 
-func (c *fakeMetricsForwarder) delegatedSendReconcileMetric(metricValue float64, tags []string) error {
-	c.Called(metricValue, tags)
+func (c *fakeMetricsForwarder) delegatedSendReconcileMetric(metricValue float64, component string, tags []string) error {
+	c.Called(metricValue, component, tags)
 	return nil
 }
 
@@ -46,6 +46,7 @@ func TestMetricsForwarder_sendStatusMetrics(t *testing.T) {
 	mf := &metricsForwarder{
 		namespacedName: nsn,
 		delegator:      fmf,
+		objectKind:     "DatadogAgent",
 	}
 	mf.initGlobalTags()
 
@@ -88,7 +89,7 @@ func TestMetricsForwarder_sendStatusMetrics(t *testing.T) {
 			name: "agent only, available",
 			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
-				f.On("delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running"})
+				f.On("delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "cr_kind:datadogagent", "state:Running"})
 				mf.delegator = f
 				return mf, f
 			},
@@ -101,7 +102,7 @@ func TestMetricsForwarder_sendStatusMetrics(t *testing.T) {
 			},
 			wantErr: false,
 			wantFunc: func(f *fakeMetricsForwarder) error {
-				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running"}) {
+				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "cr_kind:datadogagent", "state:Running"}) {
 					return errors.New("Function not called")
 				}
 				if !f.AssertNumberOfCalls(t, "delegatedSendDeploymentMetric", 1) {
@@ -114,7 +115,7 @@ func TestMetricsForwarder_sendStatusMetrics(t *testing.T) {
 			name: "agent only, available + tags not empty",
 			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
-				f.On("delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "cluster_name:testcluster", "state:Running"})
+				f.On("delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "cr_kind:datadogagent", "cluster_name:testcluster", "state:Running"})
 				mf.delegator = f
 				mf.tags = []string{"cluster_name:testcluster"}
 				return mf, f
@@ -128,7 +129,7 @@ func TestMetricsForwarder_sendStatusMetrics(t *testing.T) {
 			},
 			wantErr: false,
 			wantFunc: func(f *fakeMetricsForwarder) error {
-				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "cluster_name:testcluster", "state:Running"}) {
+				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "cr_kind:datadogagent", "cluster_name:testcluster", "state:Running"}) {
 					return errors.New("Function not called")
 				}
 				if !f.AssertNumberOfCalls(t, "delegatedSendDeploymentMetric", 1) {
@@ -141,7 +142,7 @@ func TestMetricsForwarder_sendStatusMetrics(t *testing.T) {
 			name: "agent only, not available",
 			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
-				f.On("delegatedSendDeploymentMetric", 0.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Failed"})
+				f.On("delegatedSendDeploymentMetric", 0.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "cr_kind:datadogagent", "state:Failed"})
 				mf.delegator = f
 				mf.tags = []string{}
 				return mf, f
@@ -155,7 +156,7 @@ func TestMetricsForwarder_sendStatusMetrics(t *testing.T) {
 			},
 			wantErr: false,
 			wantFunc: func(f *fakeMetricsForwarder) error {
-				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 0.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Failed"}) {
+				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 0.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "cr_kind:datadogagent", "state:Failed"}) {
 					return errors.New("Function not called")
 				}
 				if !f.AssertNumberOfCalls(t, "delegatedSendDeploymentMetric", 1) {
@@ -168,9 +169,9 @@ func TestMetricsForwarder_sendStatusMetrics(t *testing.T) {
 			name: "all components, all available",
 			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
-				f.On("delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running"})
-				f.On("delegatedSendDeploymentMetric", 1.0, "clusteragent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running"})
-				f.On("delegatedSendDeploymentMetric", 1.0, "clustercheckrunner", []string{"cr_namespace:foo", "cr_name:bar", "state:Running"})
+				f.On("delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "cr_kind:datadogagent", "state:Running"})
+				f.On("delegatedSendDeploymentMetric", 1.0, "clusteragent", []string{"cr_namespace:foo", "cr_name:bar", "cr_kind:datadogagent", "state:Running"})
+				f.On("delegatedSendDeploymentMetric", 1.0, "clustercheckrunner", []string{"cr_namespace:foo", "cr_name:bar", "cr_kind:datadogagent", "state:Running"})
 				mf.delegator = f
 				return mf, f
 			},
@@ -193,13 +194,13 @@ func TestMetricsForwarder_sendStatusMetrics(t *testing.T) {
 			},
 			wantErr: false,
 			wantFunc: func(f *fakeMetricsForwarder) error {
-				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running"}) {
+				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "cr_kind:datadogagent", "state:Running"}) {
 					return errors.New("Function not called")
 				}
-				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "clusteragent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running"}) {
+				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "clusteragent", []string{"cr_namespace:foo", "cr_name:bar", "cr_kind:datadogagent", "state:Running"}) {
 					return errors.New("Function not called")
 				}
-				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "clustercheckrunner", []string{"cr_namespace:foo", "cr_name:bar", "state:Running"}) {
+				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "clustercheckrunner", []string{"cr_namespace:foo", "cr_name:bar", "cr_kind:datadogagent", "state:Running"}) {
 					return errors.New("Function not called")
 				}
 				if !f.AssertNumberOfCalls(t, "delegatedSendDeploymentMetric", 3) {
@@ -212,8 +213,8 @@ func TestMetricsForwarder_sendStatusMetrics(t *testing.T) {
 			name: "agent and clusteragent, clusteragent not available",
 			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
-				f.On("delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running"})
-				f.On("delegatedSendDeploymentMetric", 0.0, "clusteragent", []string{"cr_namespace:foo", "cr_name:bar", "state:Progressing"})
+				f.On("delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "cr_kind:datadogagent", "state:Running"})
+				f.On("delegatedSendDeploymentMetric", 0.0, "clusteragent", []string{"cr_namespace:foo", "cr_name:bar", "cr_kind:datadogagent", "state:Progressing"})
 				mf.delegator = f
 				return mf, f
 			},
@@ -231,10 +232,10 @@ func TestMetricsForwarder_sendStatusMetrics(t *testing.T) {
 			},
 			wantErr: false,
 			wantFunc: func(f *fakeMetricsForwarder) error {
-				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running"}) {
+				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "cr_kind:datadogagent", "state:Running"}) {
 					return errors.New("Function not called")
 				}
-				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 0.0, "clusteragent", []string{"cr_namespace:foo", "cr_name:bar", "state:Progressing"}) {
+				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 0.0, "clusteragent", []string{"cr_namespace:foo", "cr_name:bar", "cr_kind:datadogagent", "state:Progressing"}) {
 					return errors.New("Function not called")
 				}
 				if !f.AssertNumberOfCalls(t, "delegatedSendDeploymentMetric", 2) {
@@ -247,9 +248,9 @@ func TestMetricsForwarder_sendStatusMetrics(t *testing.T) {
 			name: "all components, clustercheckrunner not available",
 			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
-				f.On("delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running"})
-				f.On("delegatedSendDeploymentMetric", 1.0, "clusteragent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running"})
-				f.On("delegatedSendDeploymentMetric", 0.0, "clustercheckrunner", []string{"cr_namespace:foo", "cr_name:bar", "state:Running"})
+				f.On("delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "cr_kind:datadogagent", "state:Running"})
+				f.On("delegatedSendDeploymentMetric", 1.0, "clusteragent", []string{"cr_namespace:foo", "cr_name:bar", "cr_kind:datadogagent", "state:Running"})
+				f.On("delegatedSendDeploymentMetric", 0.0, "clustercheckrunner", []string{"cr_namespace:foo", "cr_name:bar", "cr_kind:datadogagent", "state:Running"})
 				mf.delegator = f
 				return mf, f
 			},
@@ -272,13 +273,13 @@ func TestMetricsForwarder_sendStatusMetrics(t *testing.T) {
 			},
 			wantErr: false,
 			wantFunc: func(f *fakeMetricsForwarder) error {
-				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running"}) {
+				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "cr_kind:datadogagent", "state:Running"}) {
 					return errors.New("Function not called")
 				}
-				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "clusteragent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running"}) {
+				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "clusteragent", []string{"cr_namespace:foo", "cr_name:bar", "cr_kind:datadogagent", "state:Running"}) {
 					return errors.New("Function not called")
 				}
-				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 0.0, "clustercheckrunner", []string{"cr_namespace:foo", "cr_name:bar", "state:Running"}) {
+				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 0.0, "clustercheckrunner", []string{"cr_namespace:foo", "cr_name:bar", "cr_kind:datadogagent", "state:Running"}) {
 					return errors.New("Function not called")
 				}
 				if !f.AssertNumberOfCalls(t, "delegatedSendDeploymentMetric", 3) {
@@ -473,6 +474,7 @@ func Test_metricsForwarder_processReconcileError(t *testing.T) {
 	}
 	mf := &metricsForwarder{
 		namespacedName: nsn,
+		objectKind:     "DatadogAgent",
 	}
 	mf.initGlobalTags()
 
@@ -487,7 +489,7 @@ func Test_metricsForwarder_processReconcileError(t *testing.T) {
 			name: "last error init value, new unknown error => send unsucess metric",
 			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
-				f.On("delegatedSendReconcileMetric", 0.0, []string{"cr_namespace:foo", "cr_name:bar", "reconcile_err:err_msg"}).Once()
+				f.On("delegatedSendReconcileMetric", 1.0, "reconcile.error", []string{"reason:err_msg"}).Once()
 				mf.delegator = f
 				mf.lastReconcileErr = errInitValue
 				return mf, f
@@ -503,7 +505,7 @@ func Test_metricsForwarder_processReconcileError(t *testing.T) {
 			name: "last error init value, new auth error => send unsucess metric",
 			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
-				f.On("delegatedSendReconcileMetric", 0.0, []string{"cr_namespace:foo", "cr_name:bar", "reconcile_err:Unauthorized"}).Once()
+				f.On("delegatedSendReconcileMetric", 1.0, "reconcile.error", []string{"reason:Unauthorized"}).Once()
 				mf.delegator = f
 				mf.lastReconcileErr = errInitValue
 				return mf, f
@@ -519,7 +521,7 @@ func Test_metricsForwarder_processReconcileError(t *testing.T) {
 			name: "last error init value, new error is nil => send success metric",
 			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
-				f.On("delegatedSendReconcileMetric", 1.0, []string{"cr_namespace:foo", "cr_name:bar", "reconcile_err:null"}).Once()
+				f.On("delegatedSendReconcileMetric", 1.0, "reconcile.success", []string{}).Once()
 				mf.delegator = f
 				mf.lastReconcileErr = errInitValue
 				return mf, f
@@ -570,11 +572,11 @@ func Test_metricsForwarder_processReconcileError(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dd, f := tt.loadFunc()
-			if err := dd.processReconcileError(tt.err); (err != nil) != tt.wantErr {
+			mf, fakeForwarder := tt.loadFunc()
+			if err := mf.processReconcileError(tt.err); (err != nil) != tt.wantErr {
 				t.Errorf("metricsForwarder.processReconcileError() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			if err := tt.wantFunc(f); err != nil {
+			if err := tt.wantFunc(fakeForwarder); err != nil {
 				t.Errorf("metricsForwarder.processReconcileError() wantFunc validation error: %v", err)
 			}
 		})
@@ -587,29 +589,33 @@ func Test_metricsForwarder_prepareReconcileMetric(t *testing.T) {
 	tests := []struct {
 		name         string
 		reconcileErr error
-		want         float64
-		want1        []string
+		wantName     string
+		wantVal      float64
+		wantTags     []string
 		wantErr      bool
 	}{
 		{
-			name:         "lastReconcileErr init value",
+			name:         "lastReconcileErr handling for when its errInitValue",
 			reconcileErr: errInitValue,
-			want:         0.0,
-			want1:        nil,
+			wantName:     "",
+			wantVal:      0,
+			wantTags:     nil,
 			wantErr:      true,
 		},
 		{
-			name:         "lastReconcileErr nil",
+			name:         "lastReconcileErr is nil",
 			reconcileErr: nil,
-			want:         1.0,
-			want1:        []string{"gtagkey:gtagvalue", "tagkey:tagvalue", "reconcile_err:null"},
+			wantName:     "reconcile.success",
+			wantVal:      1.0,
+			wantTags:     []string{},
 			wantErr:      false,
 		},
 		{
 			name:         "lastReconcileErr updated and not nil",
 			reconcileErr: apierrors.NewUnauthorized("Auth error"),
-			want:         0.0,
-			want1:        []string{"gtagkey:gtagvalue", "tagkey:tagvalue", "reconcile_err:Unauthorized"},
+			wantName:     "reconcile.error",
+			wantVal:      1.0,
+			wantTags:     []string{"reason:Unauthorized"},
 			wantErr:      false,
 		},
 	}
@@ -619,16 +625,20 @@ func Test_metricsForwarder_prepareReconcileMetric(t *testing.T) {
 				globalTags: defaultGlobalTags,
 				tags:       defaultTags,
 			}
-			got, got1, err := mf.prepareReconcileMetric(tt.reconcileErr)
+			metricName, metricValue, tags, err := mf.prepareReconcileMetric(tt.reconcileErr)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("metricsForwarder.prepareReconcileMetric() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if got != tt.want {
-				t.Errorf("metricsForwarder.prepareReconcileMetric() got = %v, want %v", got, tt.want)
+
+			if metricName != tt.wantName {
+				t.Errorf("metricsForwarder.prepareReconcileMetric() metricName = %v, want %v", metricName, tt.wantName)
 			}
-			if !reflect.DeepEqual(got1, tt.want1) {
-				t.Errorf("metricsForwarder.prepareReconcileMetric() got1 = %v, want %v", got1, tt.want1)
+			if metricValue != tt.wantVal {
+				t.Errorf("metricsForwarder.prepareReconcileMetric() metricValue = %v, want %v", metricValue, tt.wantVal)
+			}
+			if !reflect.DeepEqual(tags, tt.wantTags) {
+				t.Errorf("metricsForwarder.prepareReconcileMetric() tags = %v, want %v", tags, tt.wantTags)
 			}
 		})
 	}

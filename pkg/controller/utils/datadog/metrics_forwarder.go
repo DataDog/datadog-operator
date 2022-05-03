@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"hash/fnv"
+	"strings"
 	"sync"
 	"time"
 
@@ -38,6 +39,7 @@ const (
 	clusterNameTagFormat        = "cluster_name:%s"
 	crNsTagFormat               = "cr_namespace:%s"
 	crNameTagFormat             = "cr_name:%s"
+	crKindTagFormat             = "cr_kind:%s"
 	datadogOperatorSourceType   = "datadog_operator"
 	defaultbaseURL              = "https://api.datadoghq.com"
 )
@@ -83,7 +85,7 @@ type metricsForwarder struct {
 type delegatedAPI interface {
 	delegatedSendMonitorMetric(float64, string, []string) error
 	delegatedSendDeploymentMetric(float64, string, []string) error
-	delegatedSendReconcileMetric(float64, []string) error
+	delegatedSendReconcileMetric(float64, string, []string) error
 	delegatedSendEvent(string, EventType) error
 	delegatedValidateCreds(string, string) (*api.Client, error)
 }
@@ -285,8 +287,7 @@ func (mf *metricsForwarder) tagsWithExtraTag(tagFormat, tag string) []string {
 func (mf *metricsForwarder) gauge(metricName string, metricValue float64, tags []string) error {
 	ts := float64(time.Now().Unix())
 	fullMetricName := fmt.Sprintf(baseMetricFormat, mf.metricsPrefix, metricName)
-	fullTags := append(mf.globalTags, mf.tags...)
-	fullTags = append(fullTags, tags...)
+	fullTags := append(append(mf.globalTags, mf.tags...), tags...)
 	metric := []api.Metric{
 		{
 			Metric: api.String(fullMetricName),
@@ -319,11 +320,26 @@ func (mf *metricsForwarder) updateTags(dda *datadoghqv1alpha1.DatadogAgent) {
 	mf.tags = tags
 }
 
+// updateTags updates tags of the DatadogMonitor
+func (mf *metricsForwarder) updateMonitorTags(ddm *datadoghqv1alpha1.DatadogMonitor) {
+	if ddm == nil {
+		mf.tags = []string{}
+		return
+	}
+	tags := []string{}
+
+	for labelKey, labelValue := range ddm.GetLabels() {
+		tags = append(tags, fmt.Sprintf("%s:%s", labelKey, labelValue))
+	}
+	mf.tags = tags
+}
+
 // initGlobalTags defines the Custom Resource namespace and name tags
 func (mf *metricsForwarder) initGlobalTags() {
 	mf.globalTags = append(mf.globalTags, []string{
 		fmt.Sprintf(crNsTagFormat, mf.namespacedName.Namespace),
 		fmt.Sprintf(crNameTagFormat, mf.namespacedName.Name),
+		fmt.Sprintf(crKindTagFormat, strings.ToLower(mf.objectKind)),
 	}...)
 }
 

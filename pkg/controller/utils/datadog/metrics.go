@@ -30,10 +30,10 @@ const (
 	monitorIDTagFormat         = "monitor_id:%d"
 	monitorStateTagFormat      = "monitor_state:%s"
 	monitorSyncStatusTagFormat = "monitor_sync_status:%s"
-	reconcileSuccessValue      = 1.0
-	reconcileFailureValue      = 0.0
-	reconcileErrTagFormat      = "reconcile_err:%s"
-	reconcileMetricFormat      = "reconcile.success"
+	reconcileValue             = 1.0
+	reconcileErrTagFormat      = "reason:%s"
+	reconcileMetricSuccess     = "reconcile.success"
+	reconcileMetricFailure     = "reconcile.error"
 	stateTagFormat             = "state:%s"
 )
 
@@ -48,6 +48,7 @@ func (mf *metricsForwarder) processMetrics() error {
 			mf.logger.Error(err, "Error getting DatadogMonitor for metric collection")
 			return err
 		}
+		mf.updateMonitorTags(ddm)
 
 		if err := mf.sendMonitorStatus(&ddm.Status); err != nil {
 			mf.logger.Error(err, "Error collecting metrics for DatdogMonitor status")
@@ -195,12 +196,12 @@ func (mf *metricsForwarder) processReconcileMetric() error {
 	reconcileErr := mf.getLastReconcileError()
 	var metricValue float64
 	var tags []string
-	metricValue, tags, err := mf.prepareReconcileMetric(reconcileErr)
+	metricName, metricValue, tags, err := mf.prepareReconcileMetric(reconcileErr)
 	if err != nil {
 		mf.logger.Error(err, "cannot prepare reconcile metric")
 		return err
 	}
-	if err = mf.sendReconcileMetric(metricValue, tags); err != nil {
+	if err = mf.sendReconcileMetric(metricValue, metricName, tags); err != nil {
 		mf.logger.Error(err, "cannot send reconcile errors metric to Datadog")
 		return err
 	}
@@ -220,37 +221,35 @@ func (mf *metricsForwarder) processReconcileError(reconcileErr error) error {
 	mf.setLastReconcileError(reconcileErr)
 
 	// Prepare and send reconcile metric
-	metricValue, tags, err := mf.prepareReconcileMetric(reconcileErr)
+	metricName, metricValue, tags, err := mf.prepareReconcileMetric(reconcileErr)
 	if err != nil {
 		return err
 	}
-	return mf.sendReconcileMetric(metricValue, tags)
+	return mf.sendReconcileMetric(metricValue, metricName, tags)
 }
 
 // prepareReconcileMetric returns the corresponding metric value and tags for the last reconcile error metric
 // returns an error if lastReconcileErr still equals the init value
-func (mf *metricsForwarder) prepareReconcileMetric(reconcileErr error) (float64, []string, error) {
+func (mf *metricsForwarder) prepareReconcileMetric(reconcileErr error) (string, float64, []string, error) {
 	var metricValue float64
-	var tags []string
+	tags := []string{}
 
 	if errors.Is(reconcileErr, errInitValue) {
 		// Metrics forwarder didn't receive any reconcile error
 		// lastReconcileErr has never been updated
-		return metricValue, nil, errors.New("last reconcile error not updated")
+		return "", metricValue, nil, errors.New("last reconcile error not updated")
 	}
 
-	if reconcileErr == nil {
-		metricValue = reconcileSuccessValue
-		tags = mf.tagsWithExtraTag(reconcileErrTagFormat, "null")
-	} else {
-		metricValue = reconcileFailureValue
+	metricName := reconcileMetricSuccess
+	if reconcileErr != nil {
+		metricName = reconcileMetricFailure
 		reason := string(apierrors.ReasonForError(reconcileErr))
 		if reason == "" {
 			reason = reconcileErr.Error()
 		}
-		tags = mf.tagsWithExtraTag(reconcileErrTagFormat, reason)
+		tags = append(tags, fmt.Sprintf(reconcileErrTagFormat, reason))
 	}
-	return metricValue, tags, nil
+	return metricName, reconcileValue, tags, nil
 }
 
 // getLastReconcileError provides thread-safe read access to lastReconcileErr
@@ -268,11 +267,11 @@ func (mf *metricsForwarder) setLastReconcileError(newErr error) {
 }
 
 // sendReconcileMetric is used to forward reconcile metrics to Datadog
-func (mf *metricsForwarder) sendReconcileMetric(metricValue float64, tags []string) error {
-	return mf.delegator.delegatedSendReconcileMetric(metricValue, tags)
+func (mf *metricsForwarder) sendReconcileMetric(metricValue float64, component string, tags []string) error {
+	return mf.delegator.delegatedSendReconcileMetric(metricValue, component, tags)
 }
 
 // delegatedSendReconcileMetric is separated from sendReconcileMetric to facilitate mocking the Datadog API
-func (mf *metricsForwarder) delegatedSendReconcileMetric(metricValue float64, tags []string) error {
-	return mf.gauge(reconcileMetricFormat, metricValue, tags)
+func (mf *metricsForwarder) delegatedSendReconcileMetric(metricValue float64, metricName string, tags []string) error {
+	return mf.gauge(metricName, metricValue, tags)
 }
