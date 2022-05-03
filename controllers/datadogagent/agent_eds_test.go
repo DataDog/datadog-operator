@@ -3,6 +3,7 @@ package datadogagent
 import (
 	"testing"
 
+	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	test "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1/test"
 	assert "github.com/stretchr/testify/require"
@@ -34,7 +35,7 @@ func (test extendeddaemonsetFromInstanceTest) Run(t *testing.T) {
 	}
 
 	// Remove the generated hash before comparison because it is not easy generate it in the test definition.
-	delete(got.Annotations, datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey)
+	delete(got.Annotations, apicommon.MD5AgentDeploymentAnnotationKey)
 
 	for _, checkFunc := range test.checkEDSFuncs {
 		checkFunc(t, got)

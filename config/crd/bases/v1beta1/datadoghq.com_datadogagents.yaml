@@ -1855,17 +1855,29 @@ spec:
                         description: 'Set logging verbosity, valid log levels are:
                           trace, debug, info, warn, error, critical, and off'
                         type: string
+                      namespaceLabelsAsTags:
+                        additionalProperties:
+                          type: string
+                        description: 'Provide a mapping of Kubernetes Namespace Labels
+                          to Datadog Tags. <KUBERNETES_LABEL>: <DATADOG_TAG_KEY>'
+                        type: object
+                      nodeLabelsAsTags:
+                        additionalProperties:
+                          type: string
+                        description: 'Provide a mapping of Kubernetes Node Labels
+                          to Datadog Tags. <KUBERNETES_LABEL>: <DATADOG_TAG_KEY>'
+                        type: object
                       podAnnotationsAsTags:
                         additionalProperties:
                           type: string
-                        description: 'Provide a mapping of Kubernetes Annotations
+                        description: 'Provide a mapping of Kubernetes Pod Annotations
                           to Datadog Tags. <KUBERNETES_ANNOTATIONS>: <DATADOG_TAG_KEY>'
                         type: object
                       podLabelsAsTags:
                         additionalProperties:
                           type: string
-                        description: 'Provide a mapping of Kubernetes Labels to Datadog
-                          Tags. <KUBERNETES_LABEL>: <DATADOG_TAG_KEY>'
+                        description: 'Provide a mapping of Kubernetes Pod Labels to
+                          Datadog Tags. <KUBERNETES_LABEL>: <DATADOG_TAG_KEY>'
                         type: object
                       readinessProbe:
                         description: Configure the Readiness Probe of the Agent container
@@ -14128,17 +14140,29 @@ spec:
                               are: trace, debug, info, warn, error, critical, and
                               off'
                             type: string
+                          namespaceLabelsAsTags:
+                            additionalProperties:
+                              type: string
+                            description: 'Provide a mapping of Kubernetes Namespace
+                              Labels to Datadog Tags. <KUBERNETES_LABEL>: <DATADOG_TAG_KEY>'
+                            type: object
+                          nodeLabelsAsTags:
+                            additionalProperties:
+                              type: string
+                            description: 'Provide a mapping of Kubernetes Node Labels
+                              to Datadog Tags. <KUBERNETES_LABEL>: <DATADOG_TAG_KEY>'
+                            type: object
                           podAnnotationsAsTags:
                             additionalProperties:
                               type: string
-                            description: 'Provide a mapping of Kubernetes Annotations
+                            description: 'Provide a mapping of Kubernetes Pod Annotations
                               to Datadog Tags. <KUBERNETES_ANNOTATIONS>: <DATADOG_TAG_KEY>'
                             type: object
                           podLabelsAsTags:
                             additionalProperties:
                               type: string
-                            description: 'Provide a mapping of Kubernetes Labels to
-                              Datadog Tags. <KUBERNETES_LABEL>: <DATADOG_TAG_KEY>'
+                            description: 'Provide a mapping of Kubernetes Pod Labels
+                              to Datadog Tags. <KUBERNETES_LABEL>: <DATADOG_TAG_KEY>'
                             type: object
                           readinessProbe:
                             description: Configure the Readiness Probe of the Agent

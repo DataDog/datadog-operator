@@ -10,14 +10,14 @@ resources:
 patchesStrategicMerge:
 # [WEBHOOK] To enable webhook, uncomment all the sections with [WEBHOOK] prefix.
 # patches here are for enabling the conversion webhook for each CRD
-#- patches/webhook_in_datadogagents.yaml
+- patches/webhook_in_datadogagents.yaml
 #- patches/webhook_in_datadogmetrics.yaml
 #- patches/webhook_in_datadogmonitors.yaml
 # +kubebuilder:scaffold:crdkustomizewebhookpatch
 
 # [CERTMANAGER] To enable webhook, uncomment all the sections with [CERTMANAGER] prefix.
 # patches here are for enabling the CA injection for each CRD
-#- patches/cainjection_in_datadogagents.yaml
+- patches/cainjection_in_datadogagents.yaml
 #- patches/cainjection_in_datadogmetrics.yaml
 #- patches/cainjection_in_datadogmonitors.yaml
 # +kubebuilder:scaffold:crdkustomizecainjectionpatch

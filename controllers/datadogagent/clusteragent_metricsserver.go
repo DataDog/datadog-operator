@@ -10,6 +10,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 	"github.com/go-logr/logr"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,13 +25,13 @@ func buildMetricsServerClusterRoleBinding(dda *datadoghqv1alpha1.DatadogAgent, n
 			Name:   name,
 		},
 		RoleRef: rbacv1.RoleRef{
-			APIGroup: datadoghqv1alpha1.RbacAPIGroup,
-			Kind:     datadoghqv1alpha1.ClusterRoleKind,
+			APIGroup: rbac.RbacAPIGroup,
+			Kind:     rbac.ClusterRoleKind,
 			Name:     "system:auth-delegator",
 		},
 		Subjects: []rbacv1.Subject{
 			{
-				Kind:      datadoghqv1alpha1.ServiceAccountKind,
+				Kind:      rbac.ServiceAccountKind,
 				Name:      getClusterAgentServiceAccount(dda),
 				Namespace: dda.Namespace,
 			},
@@ -60,13 +61,13 @@ func buildExternalMetricsReaderClusterRoleBinding(dda *datadoghqv1alpha1.Datadog
 				Name:   name,
 			},
 			RoleRef: rbacv1.RoleRef{
-				APIGroup: datadoghqv1alpha1.RbacAPIGroup,
-				Kind:     datadoghqv1alpha1.ClusterRoleKind,
+				APIGroup: rbac.RbacAPIGroup,
+				Kind:     rbac.ClusterRoleKind,
 				Name:     name, // Cluster role has the same name as its binding
 			},
 			Subjects: []rbacv1.Subject{
 				{
-					Kind:      datadoghqv1alpha1.ServiceAccountKind,
+					Kind:      rbac.ServiceAccountKind,
 					Name:      "horizontal-pod-autoscaler",
 					Namespace: "kube-system",
 				},
@@ -133,9 +134,9 @@ func buildExternalMetricsReaderClusterRole(dda *datadoghqv1alpha1.DatadogAgent, 
 				},
 				Resources: []string{"*"},
 				Verbs: []string{
-					datadoghqv1alpha1.GetVerb,
-					datadoghqv1alpha1.ListVerb,
-					datadoghqv1alpha1.WatchVerb,
+					rbac.GetVerb,
+					rbac.ListVerb,
+					rbac.WatchVerb,
 				},
 			},
 		}
@@ -144,9 +145,9 @@ func buildExternalMetricsReaderClusterRole(dda *datadoghqv1alpha1.DatadogAgent, 
 		if *dda.Spec.Credentials.UseSecretBackend &&
 			checkSecretBackendMultipleProvidersUsed(dda.Spec.ClusterAgent.Config.Env) {
 			rbacRules = append(rbacRules, rbacv1.PolicyRule{
-				APIGroups: []string{datadoghqv1alpha1.CoreAPIGroup},
-				Resources: []string{datadoghqv1alpha1.SecretsResource},
-				Verbs:     []string{datadoghqv1alpha1.GetVerb},
+				APIGroups: []string{rbac.CoreAPIGroup},
+				Resources: []string{rbac.SecretsResource},
+				Verbs:     []string{rbac.GetVerb},
 			})
 		}
 

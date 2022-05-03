@@ -16,12 +16,14 @@ import (
 	"github.com/pkg/errors"
 	assert "github.com/stretchr/testify/require"
 
+	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	test "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 
 	"github.com/go-logr/logr"
@@ -150,6 +152,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 	s.AddKnownTypes(rbacv1.SchemeGroupVersion, &rbacv1.Role{})
 	s.AddKnownTypes(rbacv1.SchemeGroupVersion, &rbacv1.RoleBinding{})
 	s.AddKnownTypes(policyv1.SchemeGroupVersion, &policyv1.PodDisruptionBudget{})
+	s.AddKnownTypes(apiregistrationv1.SchemeGroupVersion, &apiregistrationv1.APIServiceList{})
 	s.AddKnownTypes(apiregistrationv1.SchemeGroupVersion, &apiregistrationv1.APIService{})
 	s.AddKnownTypes(networkingv1.SchemeGroupVersion, &networkingv1.NetworkPolicy{})
 
@@ -284,7 +287,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				loadFunc: func(c client.Client) {
 					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, &test.NewDatadogAgentOptions{UseEDS: true, OrchestratorExplorerDisabled: true, Labels: map[string]string{"label-foo-key": "label-bar-value"}})
 					_ = c.Create(context.TODO(), dda)
-					labels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultAgentResourceSuffix, getAgentVersion(dda))
+					labels := getDefaultLabels(dda, apicommon.DefaultAgentResourceSuffix, getAgentVersion(dda))
 					_ = c.Create(context.TODO(), test.NewSecret(resourcesNamespace, "foo", &test.NewSecretOptions{Labels: labels, Data: map[string][]byte{
 						"api-key": []byte(base64.StdEncoding.EncodeToString([]byte("api-foo"))),
 						"app-key": []byte(base64.StdEncoding.EncodeToString([]byte("app-foo"))),
@@ -333,7 +336,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 					_ = c.Create(context.TODO(), dda)
 					_ = c.Create(context.TODO(), buildAgentClusterRole(dda, getAgentRbacResourcesName(dda), getAgentVersion(dda)))
 					_ = c.Create(context.TODO(), buildServiceAccount(dda, getAgentRbacResourcesName(dda), getAgentVersion(dda)))
-					labels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultAgentResourceSuffix, getAgentVersion(dda))
+					labels := getDefaultLabels(dda, apicommon.DefaultAgentResourceSuffix, getAgentVersion(dda))
 					_ = c.Create(context.TODO(), test.NewSecret(resourcesNamespace, "foo", &test.NewSecretOptions{Labels: labels, Data: map[string][]byte{
 						"api-key": []byte(base64.StdEncoding.EncodeToString([]byte("api-foo"))),
 						"app-key": []byte(base64.StdEncoding.EncodeToString([]byte("app-foo"))),
@@ -383,7 +386,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						roleName:           resourceName,
 						serviceAccountName: resourceName,
 					}, version))
-					labels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultAgentResourceSuffix, getAgentVersion(dda))
+					labels := getDefaultLabels(dda, apicommon.DefaultAgentResourceSuffix, getAgentVersion(dda))
 					_ = c.Create(context.TODO(), test.NewSecret(resourcesNamespace, "foo", &test.NewSecretOptions{Labels: labels, Data: map[string][]byte{
 						"api-key": []byte(base64.StdEncoding.EncodeToString([]byte("api-foo"))),
 						"app-key": []byte(base64.StdEncoding.EncodeToString([]byte("app-foo"))),
@@ -903,7 +906,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 					createAgentDependencies(c, ad)
 					edsOptions := &test.NewExtendedDaemonSetOptions{
 						Labels:      map[string]string{"label-foo-key": "label-bar-value"},
-						Annotations: map[string]string{string(datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey): adHash},
+						Annotations: map[string]string{string(apicommon.MD5AgentDeploymentAnnotationKey): adHash},
 					}
 					eds := test.NewExtendedDaemonSet(resourcesNamespace, resourcesName, edsOptions)
 
@@ -947,7 +950,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 
 					edsOptions := &test.NewExtendedDaemonSetOptions{
 						Labels:      map[string]string{"label-foo-key": "label-bar-value"},
-						Annotations: map[string]string{datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey: "outdated-hash"},
+						Annotations: map[string]string{apicommon.MD5AgentDeploymentAnnotationKey: "outdated-hash"},
 					}
 					eds := test.NewExtendedDaemonSet(resourcesNamespace, resourcesName, edsOptions)
 
@@ -968,7 +971,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				if eds.OwnerReferences == nil || len(eds.OwnerReferences) != 1 {
 					return fmt.Errorf("eds bad owner references, should be: '[Kind DatadogAgent - Name foo]', current: %v", eds.OwnerReferences)
 				}
-				if hash := eds.Annotations[datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey]; hash == "outdated-hash" {
+				if hash := eds.Annotations[apicommon.MD5AgentDeploymentAnnotationKey]; hash == "outdated-hash" {
 					return errors.New("eds hash not updated")
 				}
 
@@ -992,7 +995,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 					}
 					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, options)
 					_ = c.Create(context.TODO(), dda)
-					commonDCAlabels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
+					commonDCAlabels := getDefaultLabels(dda, apicommon.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
 					_ = c.Create(context.TODO(), test.NewSecret(resourcesNamespace, "foo", &test.NewSecretOptions{Labels: commonDCAlabels, Data: map[string][]byte{
 						"token": []byte(base64.StdEncoding.EncodeToString([]byte("token-foo"))),
 					}}))
@@ -1021,7 +1024,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				loadFunc: func(c client.Client) {
 					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, &test.NewDatadogAgentOptions{Labels: map[string]string{"label-foo-key": "label-bar-value"}, ClusterAgentEnabled: true, MetricsServerEnabled: true})
 					_ = c.Create(context.TODO(), dda)
-					commonDCAlabels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
+					commonDCAlabels := getDefaultLabels(dda, apicommon.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
 					_ = c.Create(context.TODO(), test.NewSecret(resourcesNamespace, "foo", &test.NewSecretOptions{Labels: commonDCAlabels, Data: map[string][]byte{
 						"token": []byte(base64.StdEncoding.EncodeToString([]byte("token-foo"))),
 					}}))
@@ -1029,14 +1032,14 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						Spec: &corev1.ServiceSpec{
 							Type: corev1.ServiceTypeClusterIP,
 							Selector: map[string]string{
-								datadoghqv1alpha1.AgentDeploymentNameLabelKey:      resourcesName,
-								datadoghqv1alpha1.AgentDeploymentComponentLabelKey: "cluster-agent",
+								apicommon.AgentDeploymentNameLabelKey:      resourcesName,
+								apicommon.AgentDeploymentComponentLabelKey: "cluster-agent",
 							},
 							Ports: []corev1.ServicePort{
 								{
 									Protocol:   corev1.ProtocolTCP,
-									TargetPort: intstr.FromInt(datadoghqv1alpha1.DefaultClusterAgentServicePort),
-									Port:       datadoghqv1alpha1.DefaultClusterAgentServicePort,
+									TargetPort: intstr.FromInt(apicommon.DefaultClusterAgentServicePort),
+									Port:       apicommon.DefaultClusterAgentServicePort,
 								},
 							},
 							SessionAffinity: corev1.ServiceAffinityNone,
@@ -1070,7 +1073,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				loadFunc: func(c client.Client) {
 					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, &test.NewDatadogAgentOptions{Labels: map[string]string{"label-foo-key": "label-bar-value"}, ClusterAgentEnabled: true, AdmissionControllerEnabled: true})
 					_ = c.Create(context.TODO(), dda)
-					commonDCAlabels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
+					commonDCAlabels := getDefaultLabels(dda, apicommon.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
 					_ = c.Create(context.TODO(), test.NewSecret(resourcesNamespace, "foo", &test.NewSecretOptions{Labels: commonDCAlabels, Data: map[string][]byte{
 						"token": []byte(base64.StdEncoding.EncodeToString([]byte("token-foo"))),
 					}}))
@@ -1078,14 +1081,14 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						Spec: &corev1.ServiceSpec{
 							Type: corev1.ServiceTypeClusterIP,
 							Selector: map[string]string{
-								datadoghqv1alpha1.AgentDeploymentNameLabelKey:      resourcesName,
-								datadoghqv1alpha1.AgentDeploymentComponentLabelKey: "cluster-agent",
+								apicommon.AgentDeploymentNameLabelKey:      resourcesName,
+								apicommon.AgentDeploymentComponentLabelKey: "cluster-agent",
 							},
 							Ports: []corev1.ServicePort{
 								{
 									Protocol:   corev1.ProtocolTCP,
-									TargetPort: intstr.FromInt(datadoghqv1alpha1.DefaultClusterAgentServicePort),
-									Port:       datadoghqv1alpha1.DefaultClusterAgentServicePort,
+									TargetPort: intstr.FromInt(apicommon.DefaultClusterAgentServicePort),
+									Port:       apicommon.DefaultClusterAgentServicePort,
 								},
 							},
 							SessionAffinity: corev1.ServiceAffinityNone,
@@ -1124,7 +1127,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 					}
 					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, options)
 					_ = c.Create(context.TODO(), dda)
-					commonDCAlabels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
+					commonDCAlabels := getDefaultLabels(dda, apicommon.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
 					_ = c.Create(context.TODO(), test.NewSecret(resourcesNamespace, "foo", &test.NewSecretOptions{Labels: commonDCAlabels, Data: map[string][]byte{
 						"token": []byte(base64.StdEncoding.EncodeToString([]byte("token-foo"))),
 					}}))
@@ -1157,7 +1160,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				loadFunc: func(c client.Client) {
 					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, &test.NewDatadogAgentOptions{Labels: map[string]string{"label-foo-key": "label-bar-value"}, ClusterAgentEnabled: true})
 					_ = c.Create(context.TODO(), dda)
-					commonDCAlabels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
+					commonDCAlabels := getDefaultLabels(dda, apicommon.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
 					_ = c.Create(context.TODO(), test.NewSecret(resourcesNamespace, "foo", &test.NewSecretOptions{Labels: commonDCAlabels, Data: map[string][]byte{
 						"token": []byte(base64.StdEncoding.EncodeToString([]byte("token-foo"))),
 					}}))
@@ -1165,14 +1168,14 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						Spec: &corev1.ServiceSpec{
 							Type: corev1.ServiceTypeClusterIP,
 							Selector: map[string]string{
-								datadoghqv1alpha1.AgentDeploymentNameLabelKey:      resourcesName,
-								datadoghqv1alpha1.AgentDeploymentComponentLabelKey: "cluster-agent",
+								apicommon.AgentDeploymentNameLabelKey:      resourcesName,
+								apicommon.AgentDeploymentComponentLabelKey: "cluster-agent",
 							},
 							Ports: []corev1.ServicePort{
 								{
 									Protocol:   corev1.ProtocolTCP,
-									TargetPort: intstr.FromInt(datadoghqv1alpha1.DefaultClusterAgentServicePort),
-									Port:       datadoghqv1alpha1.DefaultClusterAgentServicePort,
+									TargetPort: intstr.FromInt(apicommon.DefaultClusterAgentServicePort),
+									Port:       apicommon.DefaultClusterAgentServicePort,
 								},
 							},
 							SessionAffinity: corev1.ServiceAffinityNone,
@@ -1215,7 +1218,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				loadFunc: func(c client.Client) {
 					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, &test.NewDatadogAgentOptions{Labels: map[string]string{"label-foo-key": "label-bar-value"}, ClusterAgentEnabled: true})
 					_ = c.Create(context.TODO(), dda)
-					commonDCAlabels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
+					commonDCAlabels := getDefaultLabels(dda, apicommon.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
 					_ = c.Create(context.TODO(), test.NewSecret(resourcesNamespace, "foo", &test.NewSecretOptions{Labels: commonDCAlabels, Data: map[string][]byte{
 						"token": []byte(base64.StdEncoding.EncodeToString([]byte("token-foo"))),
 					}}))
@@ -1224,14 +1227,14 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						Spec: &corev1.ServiceSpec{
 							Type: corev1.ServiceTypeClusterIP,
 							Selector: map[string]string{
-								datadoghqv1alpha1.AgentDeploymentNameLabelKey:      resourcesName,
-								datadoghqv1alpha1.AgentDeploymentComponentLabelKey: "cluster-agent",
+								apicommon.AgentDeploymentNameLabelKey:      resourcesName,
+								apicommon.AgentDeploymentComponentLabelKey: "cluster-agent",
 							},
 							Ports: []corev1.ServicePort{
 								{
 									Protocol:   corev1.ProtocolTCP,
-									TargetPort: intstr.FromInt(datadoghqv1alpha1.DefaultClusterAgentServicePort),
-									Port:       datadoghqv1alpha1.DefaultClusterAgentServicePort,
+									TargetPort: intstr.FromInt(apicommon.DefaultClusterAgentServicePort),
+									Port:       apicommon.DefaultClusterAgentServicePort,
 								},
 							},
 							SessionAffinity: corev1.ServiceAffinityNone,
@@ -1278,7 +1281,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				loadFunc: func(c client.Client) {
 					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, &test.NewDatadogAgentOptions{Labels: map[string]string{"label-foo-key": "label-bar-value"}, ClusterAgentEnabled: true, MetricsServerEnabled: true, MetricsServerWPAController: true})
 					_ = c.Create(context.TODO(), dda)
-					commonDCAlabels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
+					commonDCAlabels := getDefaultLabels(dda, apicommon.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
 					_ = c.Create(context.TODO(), test.NewSecret(resourcesNamespace, "foo", &test.NewSecretOptions{Labels: commonDCAlabels, Data: map[string][]byte{
 						"token": []byte(base64.StdEncoding.EncodeToString([]byte("token-foo"))),
 					}}))
@@ -1289,14 +1292,14 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						Spec: &corev1.ServiceSpec{
 							Type: corev1.ServiceTypeClusterIP,
 							Selector: map[string]string{
-								datadoghqv1alpha1.AgentDeploymentNameLabelKey:      resourcesName,
-								datadoghqv1alpha1.AgentDeploymentComponentLabelKey: "cluster-agent",
+								apicommon.AgentDeploymentNameLabelKey:      resourcesName,
+								apicommon.AgentDeploymentComponentLabelKey: "cluster-agent",
 							},
 							Ports: []corev1.ServicePort{
 								{
 									Protocol:   corev1.ProtocolTCP,
-									TargetPort: intstr.FromInt(datadoghqv1alpha1.DefaultMetricsServerTargetPort),
-									Port:       datadoghqv1alpha1.DefaultMetricsServerServicePort,
+									TargetPort: intstr.FromInt(apicommon.DefaultMetricsServerTargetPort),
+									Port:       apicommon.DefaultMetricsServerServicePort,
 								},
 							},
 							SessionAffinity: corev1.ServiceAffinityNone,
@@ -1340,7 +1343,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				loadFunc: func(c client.Client) {
 					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, &test.NewDatadogAgentOptions{Labels: map[string]string{"label-foo-key": "label-bar-value"}, ClusterAgentEnabled: true, AdmissionControllerEnabled: true})
 					_ = c.Create(context.TODO(), dda)
-					commonDCAlabels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
+					commonDCAlabels := getDefaultLabels(dda, apicommon.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
 					_ = c.Create(context.TODO(), test.NewSecret(resourcesNamespace, "foo", &test.NewSecretOptions{Labels: commonDCAlabels, Data: map[string][]byte{
 						"token": []byte(base64.StdEncoding.EncodeToString([]byte("token-foo"))),
 					}}))
@@ -1349,14 +1352,14 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						Spec: &corev1.ServiceSpec{
 							Type: corev1.ServiceTypeClusterIP,
 							Selector: map[string]string{
-								datadoghqv1alpha1.AgentDeploymentNameLabelKey:      resourcesName,
-								datadoghqv1alpha1.AgentDeploymentComponentLabelKey: "cluster-agent",
+								apicommon.AgentDeploymentNameLabelKey:      resourcesName,
+								apicommon.AgentDeploymentComponentLabelKey: "cluster-agent",
 							},
 							Ports: []corev1.ServicePort{
 								{
 									Protocol:   corev1.ProtocolTCP,
-									TargetPort: intstr.FromInt(datadoghqv1alpha1.DefaultClusterAgentServicePort),
-									Port:       datadoghqv1alpha1.DefaultClusterAgentServicePort,
+									TargetPort: intstr.FromInt(apicommon.DefaultClusterAgentServicePort),
+									Port:       apicommon.DefaultClusterAgentServicePort,
 								},
 							},
 							SessionAffinity: corev1.ServiceAffinityNone,
@@ -1366,8 +1369,8 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						Spec: &corev1.ServiceSpec{
 							Type: corev1.ServiceTypeClusterIP,
 							Selector: map[string]string{
-								datadoghqv1alpha1.AgentDeploymentNameLabelKey:      resourcesName,
-								datadoghqv1alpha1.AgentDeploymentComponentLabelKey: "cluster-agent",
+								apicommon.AgentDeploymentNameLabelKey:      resourcesName,
+								apicommon.AgentDeploymentComponentLabelKey: "cluster-agent",
 							},
 							Ports: []corev1.ServicePort{
 								{
@@ -1428,7 +1431,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				loadFunc: func(c client.Client) {
 					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, &test.NewDatadogAgentOptions{Labels: map[string]string{"label-foo-key": "label-bar-value"}, ClusterAgentEnabled: true})
 					_ = c.Create(context.TODO(), dda)
-					commonDCAlabels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
+					commonDCAlabels := getDefaultLabels(dda, apicommon.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
 					_ = c.Create(context.TODO(), test.NewSecret(resourcesNamespace, "foo", &test.NewSecretOptions{Labels: commonDCAlabels, Data: map[string][]byte{
 						"token": []byte(base64.StdEncoding.EncodeToString([]byte("token-foo"))),
 					}}))
@@ -1436,14 +1439,14 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						Spec: &corev1.ServiceSpec{
 							Type: corev1.ServiceTypeClusterIP,
 							Selector: map[string]string{
-								datadoghqv1alpha1.AgentDeploymentNameLabelKey:      resourcesName,
-								datadoghqv1alpha1.AgentDeploymentComponentLabelKey: "cluster-agent",
+								apicommon.AgentDeploymentNameLabelKey:      resourcesName,
+								apicommon.AgentDeploymentComponentLabelKey: "cluster-agent",
 							},
 							Ports: []corev1.ServicePort{
 								{
 									Protocol:   corev1.ProtocolTCP,
-									TargetPort: intstr.FromInt(datadoghqv1alpha1.DefaultClusterAgentServicePort),
-									Port:       datadoghqv1alpha1.DefaultClusterAgentServicePort,
+									TargetPort: intstr.FromInt(apicommon.DefaultClusterAgentServicePort),
+									Port:       apicommon.DefaultClusterAgentServicePort,
 								},
 							},
 							SessionAffinity: corev1.ServiceAffinityNone,
@@ -1488,7 +1491,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				loadFunc: func(c client.Client) {
 					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, &test.NewDatadogAgentOptions{Labels: map[string]string{"label-foo-key": "label-bar-value"}, ClusterAgentEnabled: true, MetricsServerEnabled: true})
 					_ = c.Create(context.TODO(), dda)
-					commonDCAlabels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
+					commonDCAlabels := getDefaultLabels(dda, apicommon.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
 					_ = c.Create(context.TODO(), test.NewSecret(resourcesNamespace, "foo", &test.NewSecretOptions{Labels: commonDCAlabels, Data: map[string][]byte{
 						"token": []byte(base64.StdEncoding.EncodeToString([]byte("token-foo"))),
 					}}))
@@ -1499,14 +1502,14 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						Spec: &corev1.ServiceSpec{
 							Type: corev1.ServiceTypeClusterIP,
 							Selector: map[string]string{
-								datadoghqv1alpha1.AgentDeploymentNameLabelKey:      resourcesName,
-								datadoghqv1alpha1.AgentDeploymentComponentLabelKey: "cluster-agent",
+								apicommon.AgentDeploymentNameLabelKey:      resourcesName,
+								apicommon.AgentDeploymentComponentLabelKey: "cluster-agent",
 							},
 							Ports: []corev1.ServicePort{
 								{
 									Protocol:   corev1.ProtocolTCP,
-									TargetPort: intstr.FromInt(datadoghqv1alpha1.DefaultMetricsServerTargetPort),
-									Port:       datadoghqv1alpha1.DefaultMetricsServerServicePort,
+									TargetPort: intstr.FromInt(apicommon.DefaultMetricsServerTargetPort),
+									Port:       apicommon.DefaultMetricsServerServicePort,
 								},
 							},
 							SessionAffinity: corev1.ServiceAffinityNone,
@@ -1516,7 +1519,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 					dcaExternalMetricsService.Labels = commonDCAlabels
 					_ = c.Create(context.TODO(), dcaExternalMetricsService)
 
-					port := int32(datadoghqv1alpha1.DefaultMetricsServerServicePort)
+					port := int32(apicommon.DefaultMetricsServerServicePort)
 					dcaExternalMetricsAPIService := test.NewAPIService("", "v1beta1.external.metrics.k8s.io", &test.NewAPIServiceOptions{
 						Spec: &apiregistrationv1.APIServiceSpec{
 							Service: &apiregistrationv1.ServiceReference{
@@ -1570,7 +1573,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				loadFunc: func(c client.Client) {
 					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, &test.NewDatadogAgentOptions{Labels: map[string]string{"label-foo-key": "label-bar-value"}, ClusterAgentEnabled: true, MetricsServerEnabled: false})
 					_ = c.Create(context.TODO(), dda)
-					commonDCAlabels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
+					commonDCAlabels := getDefaultLabels(dda, apicommon.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
 					_ = c.Create(context.TODO(), test.NewSecret(resourcesNamespace, "foo", &test.NewSecretOptions{Labels: commonDCAlabels, Data: map[string][]byte{
 						"token": []byte(base64.StdEncoding.EncodeToString([]byte("token-foo"))),
 					}}))
@@ -1578,14 +1581,14 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						Spec: &corev1.ServiceSpec{
 							Type: corev1.ServiceTypeClusterIP,
 							Selector: map[string]string{
-								datadoghqv1alpha1.AgentDeploymentNameLabelKey:      resourcesName,
-								datadoghqv1alpha1.AgentDeploymentComponentLabelKey: "cluster-agent",
+								apicommon.AgentDeploymentNameLabelKey:      resourcesName,
+								apicommon.AgentDeploymentComponentLabelKey: "cluster-agent",
 							},
 							Ports: []corev1.ServicePort{
 								{
 									Protocol:   corev1.ProtocolTCP,
-									TargetPort: intstr.FromInt(datadoghqv1alpha1.DefaultClusterAgentServicePort),
-									Port:       datadoghqv1alpha1.DefaultClusterAgentServicePort,
+									TargetPort: intstr.FromInt(apicommon.DefaultClusterAgentServicePort),
+									Port:       apicommon.DefaultClusterAgentServicePort,
 								},
 							},
 							SessionAffinity: corev1.ServiceAffinityNone,
@@ -1598,14 +1601,14 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						Spec: &corev1.ServiceSpec{
 							Type: corev1.ServiceTypeClusterIP,
 							Selector: map[string]string{
-								datadoghqv1alpha1.AgentDeploymentNameLabelKey:      resourcesName,
-								datadoghqv1alpha1.AgentDeploymentComponentLabelKey: "cluster-agent",
+								apicommon.AgentDeploymentNameLabelKey:      resourcesName,
+								apicommon.AgentDeploymentComponentLabelKey: "cluster-agent",
 							},
 							Ports: []corev1.ServicePort{
 								{
 									Protocol:   corev1.ProtocolTCP,
-									TargetPort: intstr.FromInt(datadoghqv1alpha1.DefaultMetricsServerTargetPort),
-									Port:       datadoghqv1alpha1.DefaultMetricsServerServicePort,
+									TargetPort: intstr.FromInt(apicommon.DefaultMetricsServerTargetPort),
+									Port:       apicommon.DefaultMetricsServerServicePort,
 								},
 							},
 							SessionAffinity: corev1.ServiceAffinityNone,
@@ -1665,7 +1668,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 
 					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, dadOptions)
 					_ = c.Create(context.TODO(), dda)
-					commonDCAlabels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
+					commonDCAlabels := getDefaultLabels(dda, apicommon.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
 					_ = c.Create(context.TODO(), test.NewSecret(resourcesNamespace, "foo", &test.NewSecretOptions{Labels: commonDCAlabels, Data: map[string][]byte{
 						"token": []byte(base64.StdEncoding.EncodeToString([]byte("token-foo"))),
 					}}))
@@ -1727,7 +1730,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 
 					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, dadOptions)
 					_ = c.Create(context.TODO(), dda)
-					commonDCAlabels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
+					commonDCAlabels := getDefaultLabels(dda, apicommon.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
 					_ = c.Create(context.TODO(), test.NewSecret(resourcesNamespace, "foo", &test.NewSecretOptions{Labels: commonDCAlabels, Data: map[string][]byte{
 						"token": []byte(base64.StdEncoding.EncodeToString([]byte("token-foo"))),
 					}}))
@@ -1821,7 +1824,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 
 					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, dadOptions)
 					_ = c.Create(context.TODO(), dda)
-					commonDCAlabels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
+					commonDCAlabels := getDefaultLabels(dda, apicommon.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
 					_ = c.Create(context.TODO(), test.NewSecret(resourcesNamespace, "foo", &test.NewSecretOptions{Labels: commonDCAlabels, Data: map[string][]byte{
 						"token": []byte(base64.StdEncoding.EncodeToString([]byte("token-foo"))),
 					}}))
@@ -1882,7 +1885,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, dadOptions)
 					_ = c.Create(context.TODO(), dda)
 
-					commonDCAlabels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
+					commonDCAlabels := getDefaultLabels(dda, apicommon.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
 					dcaLabels := map[string]string{"label-foo-key": "label-bar-value"}
 					for k, v := range commonDCAlabels {
 						dcaLabels[k] = v
@@ -1943,7 +1946,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, dadOptions)
 					_ = c.Create(context.TODO(), dda)
 
-					commonDCAlabels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
+					commonDCAlabels := getDefaultLabels(dda, apicommon.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
 					dcaLabels := map[string]string{"label-foo-key": "label-bar-value"}
 					for k, v := range commonDCAlabels {
 						dcaLabels[k] = v
@@ -2006,7 +2009,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, dadOptions)
 					_ = c.Create(context.TODO(), dda)
 
-					commonDCAlabels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
+					commonDCAlabels := getDefaultLabels(dda, apicommon.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
 					dcaLabels := map[string]string{"label-foo-key": "label-bar-value"}
 					for k, v := range commonDCAlabels {
 						dcaLabels[k] = v
@@ -2075,7 +2078,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, dadOptions)
 					_ = c.Create(context.TODO(), dda)
 
-					commonDCAlabels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
+					commonDCAlabels := getDefaultLabels(dda, apicommon.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
 					dcaLabels := map[string]string{"label-foo-key": "label-bar-value"}
 					for k, v := range commonDCAlabels {
 						dcaLabels[k] = v
@@ -2149,7 +2152,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, dadOptions)
 					_ = c.Create(context.TODO(), dda)
 
-					commonDCAlabels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
+					commonDCAlabels := getDefaultLabels(dda, apicommon.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
 					dcaLabels := map[string]string{"label-foo-key": "label-bar-value"}
 					for k, v := range commonDCAlabels {
 						dcaLabels[k] = v
@@ -2213,14 +2216,14 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, dadOptions)
 					_ = c.Create(context.TODO(), dda)
 
-					commonDCAlabels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
+					commonDCAlabels := getDefaultLabels(dda, apicommon.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
 					dcaLabels := map[string]string{"label-foo-key": "label-bar-value"}
 					for k, v := range commonDCAlabels {
 						dcaLabels[k] = v
 					}
 					dcaOptions := &test.NewDeploymentOptions{
 						Labels:      dcaLabels,
-						Annotations: map[string]string{datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey: "outdated-hash"},
+						Annotations: map[string]string{apicommon.MD5AgentDeploymentAnnotationKey: "outdated-hash"},
 					}
 					dca := test.NewClusterAgentDeployment(resourcesNamespace, "foo-cluster-agent", dcaOptions)
 
@@ -2241,8 +2244,8 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				if err := c.Get(context.TODO(), newRequest(resourcesNamespace, "foo-cluster-agent").NamespacedName, dca); err != nil {
 					return err
 				}
-				if dca.Annotations[datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey] == "outdated-hash" || dca.Annotations[datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey] == "" {
-					return fmt.Errorf("dca bad hash, should be updated, current: %s", dca.Annotations[datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey])
+				if dca.Annotations[apicommon.MD5AgentDeploymentAnnotationKey] == "outdated-hash" || dca.Annotations[apicommon.MD5AgentDeploymentAnnotationKey] == "" {
+					return fmt.Errorf("dca bad hash, should be updated, current: %s", dca.Annotations[apicommon.MD5AgentDeploymentAnnotationKey])
 				}
 				if dca.OwnerReferences == nil || len(dca.OwnerReferences) != 1 {
 					return fmt.Errorf("dca bad owner references, should be: '[Kind DatadogAgent - Name foo]', current: %v", dca.OwnerReferences)
@@ -2468,7 +2471,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 					return err
 				}
 
-				unstructured := emptyCiliumUnstructuredPolicy()
+				unstructured := cilium.EmptyCiliumUnstructuredPolicy()
 				err = c.Get(context.TODO(), newRequest(resourcesNamespace, dsName).NamespacedName, unstructured)
 				if err != nil {
 					return err
@@ -2690,9 +2693,9 @@ func hasAllClusterLevelRbacResources(policyRules []rbacv1.PolicyRule) bool {
 
 func hasWpaRbacs(policyRules []rbacv1.PolicyRule) bool {
 	requiredVerbs := []string{
-		datadoghqv1alpha1.ListVerb,
-		datadoghqv1alpha1.WatchVerb,
-		datadoghqv1alpha1.GetVerb,
+		rbac.ListVerb,
+		rbac.WatchVerb,
+		rbac.GetVerb,
 	}
 
 	for _, policyRule := range policyRules {
@@ -2774,7 +2777,7 @@ func createAgentDependencies(c client.Client, dda *datadoghqv1alpha1.DatadogAgen
 	}, version))
 	_ = c.Create(context.TODO(), buildServiceAccount(dda, getAgentServiceAccount(dda), version))
 
-	labels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultAgentResourceSuffix, getAgentVersion(dda))
+	labels := getDefaultLabels(dda, apicommon.DefaultAgentResourceSuffix, getAgentVersion(dda))
 	_ = c.Create(context.TODO(), test.NewSecret(dda.ObjectMeta.Namespace, "foo", &test.NewSecretOptions{Labels: labels, Data: map[string][]byte{
 		"api-key": []byte(base64.StdEncoding.EncodeToString([]byte("api-foo"))),
 		"app-key": []byte(base64.StdEncoding.EncodeToString([]byte("app-foo"))),
@@ -2807,21 +2810,21 @@ func createClusterAgentDependencies(c client.Client, dda *datadoghqv1alpha1.Data
 		Spec: &corev1.ServiceSpec{
 			Type: corev1.ServiceTypeClusterIP,
 			Selector: map[string]string{
-				datadoghqv1alpha1.AgentDeploymentNameLabelKey:      resourcesName,
-				datadoghqv1alpha1.AgentDeploymentComponentLabelKey: "cluster-agent",
+				apicommon.AgentDeploymentNameLabelKey:      resourcesName,
+				apicommon.AgentDeploymentComponentLabelKey: "cluster-agent",
 			},
 			Ports: []corev1.ServicePort{
 				{
 					Protocol:   corev1.ProtocolTCP,
-					TargetPort: intstr.FromInt(datadoghqv1alpha1.DefaultClusterAgentServicePort),
-					Port:       datadoghqv1alpha1.DefaultClusterAgentServicePort,
+					TargetPort: intstr.FromInt(apicommon.DefaultClusterAgentServicePort),
+					Port:       apicommon.DefaultClusterAgentServicePort,
 				},
 			},
 			SessionAffinity: corev1.ServiceAffinityNone,
 		},
 	})
 	_, _ = comparison.SetMD5DatadogAgentGenerationAnnotation(&dcaService.ObjectMeta, dcaService.Spec)
-	dcaService.Labels = getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
+	dcaService.Labels = getDefaultLabels(dda, apicommon.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
 	_ = c.Create(context.TODO(), dcaService)
 
 	installinfoCM, _ := buildInstallInfoConfigMap(dda)

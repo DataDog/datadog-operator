@@ -15,9 +15,11 @@ import (
 	"strings"
 	"time"
 
+	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	objectvolume "github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/orchestrator"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
@@ -58,8 +60,8 @@ func getAuthTokenSecretName(dda *datadoghqv1alpha1.DatadogAgent) string {
 func newAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, selector *metav1.LabelSelector) (*corev1.PodTemplateSpec, error) {
 	// copy Agent Spec to configure Agent Pod Template
 	labels := getDefaultLabels(dda, "agent", getAgentVersion(dda))
-	labels[datadoghqv1alpha1.AgentDeploymentNameLabelKey] = dda.Name
-	labels[datadoghqv1alpha1.AgentDeploymentComponentLabelKey] = "agent"
+	labels[apicommon.AgentDeploymentNameLabelKey] = dda.Name
+	labels[apicommon.AgentDeploymentComponentLabelKey] = "agent"
 
 	for key, val := range dda.Spec.Agent.AdditionalLabels {
 		labels[key] = val
@@ -294,7 +296,7 @@ func getAgentContainer(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, 
 	}
 
 	udpPort := corev1.ContainerPort{
-		ContainerPort: datadoghqv1alpha1.DefaultDogstatsdPort,
+		ContainerPort: apicommon.DefaultDogstatsdPort,
 		Name:          "dogstatsdport",
 		Protocol:      corev1.ProtocolUDP,
 	}
@@ -518,7 +520,7 @@ func getInitContainer(spec *datadoghqv1alpha1.DatadogAgentSpec, name string, com
 // agent's configuration volume.
 func getConfigInitContainers(spec *datadoghqv1alpha1.DatadogAgentSpec, volumeMounts []corev1.VolumeMount, envVars []corev1.EnvVar, image string) []corev1.Container {
 	configVolumeMounts := []corev1.VolumeMount{{
-		Name:      datadoghqv1alpha1.ConfigVolumeName,
+		Name:      apicommon.ConfigVolumeName,
 		MountPath: "/opt/datadog-agent",
 	}}
 
@@ -804,6 +806,58 @@ func getEnvVarsForLogCollection(logSpec *datadoghqv1alpha1.LogCollectionConfig) 
 	return envVars
 }
 
+// getEnvVarsForMetadataAsTags gathers the various labels, annotations, namespaces, ...AsTags NodeAgentConfigs
+// and converts into the respective environment variables
+func getEnvVarsForMetadataAsTags(agentConfig *datadoghqv1alpha1.NodeAgentConfig) ([]corev1.EnvVar, error) {
+	envVars := []corev1.EnvVar{}
+
+	if agentConfig.NodeLabelsAsTags != nil {
+		nodeLabelsAsTags, err := json.Marshal(agentConfig.NodeLabelsAsTags)
+		if err != nil {
+			return nil, err
+		}
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  datadoghqv1alpha1.DDNodeLabelsAsTags,
+			Value: string(nodeLabelsAsTags),
+		})
+	}
+
+	if agentConfig.PodLabelsAsTags != nil {
+		podLabelsAsTags, err := json.Marshal(agentConfig.PodLabelsAsTags)
+		if err != nil {
+			return nil, err
+		}
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  datadoghqv1alpha1.DDPodLabelsAsTags,
+			Value: string(podLabelsAsTags),
+		})
+	}
+
+	if agentConfig.PodAnnotationsAsTags != nil {
+		podAnnotationsAsTags, err := json.Marshal(agentConfig.PodAnnotationsAsTags)
+		if err != nil {
+			return nil, err
+		}
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  datadoghqv1alpha1.DDPodAnnotationsAsTags,
+			Value: string(podAnnotationsAsTags),
+		})
+	}
+
+	if agentConfig.NamespaceLabelsAsTags != nil {
+		namespaceLabelsAsTags, err := json.Marshal(agentConfig.NamespaceLabelsAsTags)
+		if err != nil {
+			return nil, err
+		}
+		envVars = append(envVars, corev1.EnvVar{
+			Name:  datadoghqv1alpha1.DDNamespaceLabelsAsTags,
+			Value: string(namespaceLabelsAsTags),
+		})
+	}
+
+	return envVars, nil
+}
+
 // getEnvVarsForAgent converts Agent Config into container env vars
 func getEnvVarsForAgent(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.EnvVar, error) {
 	spec := dda.Spec
@@ -811,26 +865,10 @@ func getEnvVarsForAgent(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent)
 	var envVars []corev1.EnvVar
 	config := dda.Spec.Agent.Config
 	if config != nil {
-		podLabelsAsTags, err := json.Marshal(spec.Agent.Config.PodLabelsAsTags)
-		if err != nil {
-			return nil, err
-		}
-		podAnnotationsAsTags, err := json.Marshal(spec.Agent.Config.PodAnnotationsAsTags)
-		if err != nil {
-			return nil, err
-		}
 		envVars = []corev1.EnvVar{
 			{
 				Name:  datadoghqv1alpha1.DDHealthPort,
 				Value: strconv.Itoa(int(*spec.Agent.Config.HealthPort)),
-			},
-			{
-				Name:  datadoghqv1alpha1.DDPodLabelsAsTags,
-				Value: string(podLabelsAsTags),
-			},
-			{
-				Name:  datadoghqv1alpha1.DDPodAnnotationsAsTags,
-				Value: string(podAnnotationsAsTags),
 			},
 			{
 				Name:  datadoghqv1alpha1.DDCollectKubeEvents,
@@ -841,6 +879,11 @@ func getEnvVarsForAgent(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent)
 				Value: strconv.FormatBool(*spec.Agent.Config.LeaderElection),
 			},
 		}
+		metadataAsTagsEnv, err := getEnvVarsForMetadataAsTags(spec.Agent.Config)
+		if err != nil {
+			return nil, err
+		}
+		envVars = append(envVars, metadataAsTagsEnv...)
 	}
 	envVars = append(envVars, getEnvVarsForLogCollection(spec.Features.LogCollection)...)
 	commonEnvVars, err := getEnvVarsCommon(dda, true)
@@ -888,22 +931,6 @@ func getEnvVarsForAgent(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent)
 					Name:  datadoghqv1alpha1.DDExtraConfigProviders,
 					Value: datadoghqv1alpha1.EndpointsChecksConfigProvider,
 				})
-			}
-			// Remove ksm v1 conf if the cluster checks are enabled and the ksm core is enabled
-			if isKSMCoreEnabled(dda) {
-				ignoreAutoConfMutated := false
-				for i, e := range spec.Agent.Config.Env {
-					if e.Name == datadoghqv1alpha1.DDIgnoreAutoConf {
-						spec.Agent.Config.Env[i].Value = fmt.Sprintf("%s kubernetes_state", e.Value)
-						ignoreAutoConfMutated = true
-					}
-				}
-				if !ignoreAutoConfMutated {
-					envVars = append(envVars, corev1.EnvVar{
-						Name:  datadoghqv1alpha1.DDIgnoreAutoConf,
-						Value: "kubernetes_state",
-					})
-				}
 			}
 		}
 		envVars = append(envVars, clusterEnv...)
@@ -1043,7 +1070,7 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 	volumes = append(volumes, getKubeletVolumes(dda)...)
 
 	if dda.Spec.Agent.CustomConfig != nil {
-		volume := getVolumeFromCustomConfigSpec(dda.Spec.Agent.CustomConfig, getAgentCustomConfigConfigMapName(dda), datadoghqv1alpha1.AgentCustomConfigVolumeName)
+		volume := objectvolume.GetVolumeFromCustomConfigSpec(datadoghqv1alpha1.ConvertCustomConfig(dda.Spec.Agent.CustomConfig), getAgentCustomConfigConfigMapName(dda), datadoghqv1alpha1.AgentCustomConfigVolumeName)
 		volumes = append(volumes, volume)
 	}
 
@@ -1314,7 +1341,7 @@ func getLocalFilepath(filePath, localPath string) string {
 }
 
 func getVolumeForConfd(dda *datadoghqv1alpha1.DatadogAgent) corev1.Volume {
-	return getVolumeFromConfigDirSpec(datadoghqv1alpha1.ConfdVolumeName, dda.Spec.Agent.Config.Confd)
+	return getVolumeFromConfigDirSpec(apicommon.ConfdVolumeName, dda.Spec.Agent.Config.Confd)
 }
 
 func getVolumeFromConfigDirSpec(volumeName string, conf *datadoghqv1alpha1.ConfigDirSpec) corev1.Volume {
@@ -1368,7 +1395,7 @@ func getVolumeForChecksd(dda *datadoghqv1alpha1.DatadogAgent) corev1.Volume {
 
 func getVolumeForConfig() corev1.Volume {
 	return corev1.Volume{
-		Name: datadoghqv1alpha1.ConfigVolumeName,
+		Name: apicommon.ConfigVolumeName,
 		VolumeSource: corev1.VolumeSource{
 			EmptyDir: &corev1.EmptyDirVolumeSource{},
 		},
@@ -1445,15 +1472,6 @@ func getAppArmorProfileName(spec *datadoghqv1alpha1.SystemProbeSpec) string {
 
 func getSeccompProfileName(spec *datadoghqv1alpha1.SystemProbeSpec) string {
 	return spec.SecCompProfileName
-}
-
-func getVolumeFromCustomConfigSpec(cfcm *datadoghqv1alpha1.CustomConfigSpec, defaultConfigMapName, volumeName string) corev1.Volume {
-	confdVolumeSource := *buildVolumeSourceFromCustomConfigSpec(cfcm, defaultConfigMapName)
-
-	return corev1.Volume{
-		Name:         volumeName,
-		VolumeSource: confdVolumeSource,
-	}
 }
 
 func getVolumeMountFromCustomConfigSpec(cfcm *datadoghqv1alpha1.CustomConfigSpec, volumeName, volumePath, defaultSubPath string) corev1.VolumeMount {
@@ -1560,8 +1578,8 @@ func getVolumeMountsForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volum
 func getVolumeMountForConfig(customConfig *datadoghqv1alpha1.CustomConfigSpec) []corev1.VolumeMount {
 	volumeMounts := []corev1.VolumeMount{
 		{
-			Name:      datadoghqv1alpha1.ConfigVolumeName,
-			MountPath: datadoghqv1alpha1.ConfigVolumePath,
+			Name:      apicommon.ConfigVolumeName,
+			MountPath: apicommon.ConfigVolumePath,
 		},
 	}
 
@@ -1584,8 +1602,8 @@ func getVolumeMountForAuth(readOnly bool) corev1.VolumeMount {
 
 func getVolumeMountForConfd() corev1.VolumeMount {
 	return corev1.VolumeMount{
-		Name:      datadoghqv1alpha1.ConfdVolumeName,
-		MountPath: datadoghqv1alpha1.ConfdVolumePath,
+		Name:      apicommon.ConfdVolumeName,
+		MountPath: apicommon.ConfdVolumePath,
 		ReadOnly:  true,
 	}
 }
@@ -1792,8 +1810,8 @@ func getVolumeMountsForSecurityAgent(dda *datadoghqv1alpha1.DatadogAgent) []core
 		getVolumeMountForAuth(true),
 		getVolumeMountDogstatsdSocket(true),
 		{
-			Name:      datadoghqv1alpha1.ConfigVolumeName,
-			MountPath: datadoghqv1alpha1.ConfigVolumePath,
+			Name:      apicommon.ConfigVolumeName,
+			MountPath: apicommon.ConfigVolumePath,
 		},
 		{
 			Name:      datadoghqv1alpha1.HostRootVolumeName,
@@ -1879,7 +1897,7 @@ func getVolumeMountsForSecurityAgent(dda *datadoghqv1alpha1.DatadogAgent) []core
 	return volumeMounts
 }
 
-func getAgentVersion(dda *datadoghqv1alpha1.DatadogAgent) string {
+func getAgentVersion(dda metav1.Object) string {
 	// TODO implement this method
 	return ""
 }
@@ -1899,7 +1917,7 @@ func getAgentServiceName(dda *datadoghqv1alpha1.DatadogAgent) string {
 	if dda.Spec.Agent.LocalService != nil && dda.Spec.Agent.LocalService.OverrideName != "" {
 		return dda.Spec.Agent.LocalService.OverrideName
 	}
-	return fmt.Sprintf("%s-%s", dda.Name, datadoghqv1alpha1.DefaultAgentResourceSuffix)
+	return fmt.Sprintf("%s-%s", dda.Name, apicommon.DefaultAgentResourceSuffix)
 }
 
 // getAPIKeyFromSecret returns the Agent API key as an env var source
@@ -1910,7 +1928,7 @@ func getAPIKeyFromSecret(dda *datadoghqv1alpha1.DatadogAgent) *corev1.EnvVarSour
 
 // getClusterAgentAuthToken returns the Cluster Agent auth token as an env var source
 func getClusterAgentAuthToken(dda *datadoghqv1alpha1.DatadogAgent) *corev1.EnvVarSource {
-	return buildEnvVarFromSecret(getAuthTokenSecretName(dda), datadoghqv1alpha1.DefaultTokenKey)
+	return buildEnvVarFromSecret(getAuthTokenSecretName(dda), apicommon.DefaultTokenKey)
 }
 
 // getAppKeyFromSecret returns the Agent API key as an env var source
@@ -1931,11 +1949,11 @@ func buildEnvVarFromSecret(name, key string) *corev1.EnvVarSource {
 }
 
 func getClusterAgentServiceName(dda *datadoghqv1alpha1.DatadogAgent) string {
-	return fmt.Sprintf("%s-%s", dda.Name, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix)
+	return fmt.Sprintf("%s-%s", dda.Name, apicommon.DefaultClusterAgentResourceSuffix)
 }
 
 func getClusterAgentServiceAccount(dda *datadoghqv1alpha1.DatadogAgent) string {
-	saDefault := fmt.Sprintf("%s-%s", dda.Name, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix)
+	saDefault := fmt.Sprintf("%s-%s", dda.Name, apicommon.DefaultClusterAgentResourceSuffix)
 	if !isClusterAgentEnabled(dda.Spec.ClusterAgent) {
 		return saDefault
 	}
@@ -1951,15 +1969,15 @@ func getClusterAgentVersion(dda *datadoghqv1alpha1.DatadogAgent) string {
 }
 
 func getClusterAgentPDBName(dda *datadoghqv1alpha1.DatadogAgent) string {
-	return fmt.Sprintf("%s-%s", dda.Name, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix)
+	return fmt.Sprintf("%s-%s", dda.Name, apicommon.DefaultClusterAgentResourceSuffix)
 }
 
 func getClusterChecksRunnerPDBName(dda *datadoghqv1alpha1.DatadogAgent) string {
-	return fmt.Sprintf("%s-%s", dda.Name, datadoghqv1alpha1.DefaultClusterChecksRunnerResourceSuffix)
+	return fmt.Sprintf("%s-%s", dda.Name, apicommon.DefaultClusterChecksRunnerResourceSuffix)
 }
 
 func getMetricsServerServiceName(dda *datadoghqv1alpha1.DatadogAgent) string {
-	return fmt.Sprintf("%s-%s", dda.Name, datadoghqv1alpha1.DefaultMetricsServerResourceSuffix)
+	return fmt.Sprintf("%s-%s", dda.Name, apicommon.DefaultMetricsServerResourceSuffix)
 }
 
 func getMetricsServerAPIServiceName() string {
@@ -1967,15 +1985,15 @@ func getMetricsServerAPIServiceName() string {
 }
 
 func getClusterAgentRbacResourcesName(dda *datadoghqv1alpha1.DatadogAgent) string {
-	return fmt.Sprintf("%s-%s", dda.Name, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix)
+	return fmt.Sprintf("%s-%s", dda.Name, apicommon.DefaultClusterAgentResourceSuffix)
 }
 
 func getAgentRbacResourcesName(dda *datadoghqv1alpha1.DatadogAgent) string {
-	return fmt.Sprintf("%s-%s", dda.Name, datadoghqv1alpha1.DefaultAgentResourceSuffix)
+	return fmt.Sprintf("%s-%s", dda.Name, apicommon.DefaultAgentResourceSuffix)
 }
 
 func getClusterChecksRunnerRbacResourcesName(dda *datadoghqv1alpha1.DatadogAgent) string {
-	return fmt.Sprintf("%s-%s", dda.Name, datadoghqv1alpha1.DefaultClusterChecksRunnerResourceSuffix)
+	return fmt.Sprintf("%s-%s", dda.Name, apicommon.DefaultClusterChecksRunnerResourceSuffix)
 }
 
 func getHPAClusterRoleBindingName(dda *datadoghqv1alpha1.DatadogAgent) string {
@@ -1991,7 +2009,7 @@ func getExternalMetricsReaderClusterRoleName(dda *datadoghqv1alpha1.DatadogAgent
 }
 
 func getClusterChecksRunnerServiceAccount(dda *datadoghqv1alpha1.DatadogAgent) string {
-	saDefault := fmt.Sprintf("%s-%s", dda.Name, datadoghqv1alpha1.DefaultClusterChecksRunnerResourceSuffix)
+	saDefault := fmt.Sprintf("%s-%s", dda.Name, apicommon.DefaultClusterChecksRunnerResourceSuffix)
 
 	if !apiutils.BoolValue(dda.Spec.ClusterChecksRunner.Enabled) {
 		return saDefault
@@ -2052,25 +2070,14 @@ func mergeAnnotationsLabels(logger logr.Logger, previousVal map[string]string, n
 	return mergedMap
 }
 
-func isKSMCoreEnabled(dda *datadoghqv1alpha1.DatadogAgent) bool {
-	if dda.Spec.Features.KubeStateMetricsCore == nil {
-		return false
-	}
-	return apiutils.BoolValue(dda.Spec.Features.KubeStateMetricsCore.Enabled)
-}
-
-func isKSMCoreClusterCheck(dda *datadoghqv1alpha1.DatadogAgent) bool {
-	return isKSMCoreEnabled(dda) && apiutils.BoolValue(dda.Spec.Features.KubeStateMetricsCore.ClusterCheck)
-}
-
 // GetConfName get the name of the Configmap for a CustomConfigSpec
-func GetConfName(dca *datadoghqv1alpha1.DatadogAgent, conf *datadoghqv1alpha1.CustomConfigSpec, defaultName string) string {
+func GetConfName(dca metav1.Object, conf *datadoghqv1alpha1.CustomConfigSpec, defaultName string) string {
 	// `configData` and `configMap` can't be set together.
 	// Return the default if the conf is not overridden or if it is just overridden with the ConfigData.
 	if conf != nil && conf.ConfigMap != nil {
 		return conf.ConfigMap.Name
 	}
-	return fmt.Sprintf("%s-%s", dca.Name, defaultName)
+	return fmt.Sprintf("%s-%s", dca.GetName(), defaultName)
 }
 
 func prometheusScrapeEnvVars(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) []corev1.EnvVar {

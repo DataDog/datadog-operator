@@ -5,46 +5,6 @@
 
 package v1alpha1
 
-const (
-	// AgentDeploymentNameLabelKey label key use to link a Resource to a DatadogAgent
-	AgentDeploymentNameLabelKey = "agent.datadoghq.com/name"
-	// AgentDeploymentComponentLabelKey label key use to know with component is it
-	AgentDeploymentComponentLabelKey = "agent.datadoghq.com/component"
-	// MD5AgentDeploymentAnnotationKey annotation key used on a Resource in order to identify which AgentDeployment have been used to generate it.
-	MD5AgentDeploymentAnnotationKey = "agent.datadoghq.com/agentspechash"
-
-	// DefaultAgentResourceSuffix use as suffix for agent resource naming
-	DefaultAgentResourceSuffix = "agent"
-	// DefaultClusterAgentResourceSuffix use as suffix for cluster-agent resource naming
-	DefaultClusterAgentResourceSuffix = "cluster-agent"
-	// DefaultClusterChecksRunnerResourceSuffix use as suffix for cluster-checks-runner resource naming
-	DefaultClusterChecksRunnerResourceSuffix = "cluster-checks-runner"
-	// DefaultMetricsServerResourceSuffix use as suffix for cluster-agent metrics-server resource naming
-	DefaultMetricsServerResourceSuffix = "cluster-agent-metrics-server"
-	// DefaultAPPKeyKey default app-key key (use in secret for instance).
-	DefaultAPPKeyKey = "app_key"
-	// DefaultAPIKeyKey default api-key key (use in secret for instance).
-	DefaultAPIKeyKey = "api_key"
-	// DefaultTokenKey default token key (use in secret for instance).
-	DefaultTokenKey = "token"
-	// DefaultClusterAgentServicePort default cluster-agent service port
-	DefaultClusterAgentServicePort = 5005
-	// DefaultMetricsServerServicePort default metrics-server port
-	DefaultMetricsServerServicePort = 443
-	// DefaultMetricsServerTargetPort default metrics-server pod port
-	DefaultMetricsServerTargetPort = int(defaultMetricsProviderPort)
-	// DefaultAdmissionControllerServicePort default admission controller service port
-	DefaultAdmissionControllerServicePort = 443
-	// DefaultAdmissionControllerTargetPort default admission controller pod port
-	DefaultAdmissionControllerTargetPort = 8000
-	// DefaultDogstatsdPort default dogstatsd port
-	DefaultDogstatsdPort = 8125
-	// DefaultDogstatsdPortName default dogstatsd port name
-	DefaultDogstatsdPortName = "dogstatsd"
-	// DefaultApmPortName default apm port name
-	DefaultApmPortName = "apm"
-)
-
 // Datadog env var names
 const (
 	DatadogHost                                  = "DATADOG_HOST"
@@ -55,6 +15,8 @@ const (
 	DDddURL                                      = "DD_DD_URL"
 	DDHealthPort                                 = "DD_HEALTH_PORT"
 	DDLogLevel                                   = "DD_LOG_LEVEL"
+	DDNamespaceLabelsAsTags                      = "DD_KUBERNETES_NAMESPACE_LABELS_AS_TAGS"
+	DDNodeLabelsAsTags                           = "DD_KUBERNETES_NODE_LABELS_AS_TAGS"
 	DDPodLabelsAsTags                            = "DD_KUBERNETES_POD_LABELS_AS_TAGS"
 	DDPodAnnotationsAsTags                       = "DD_KUBERNETES_POD_ANNOTATIONS_AS_TAGS"
 	DDTags                                       = "DD_TAGS"
@@ -78,9 +40,6 @@ const (
 	DDMetricsProviderWPAController               = "DD_EXTERNAL_METRICS_PROVIDER_WPA_CONTROLLER"
 	DDAppKey                                     = "DD_APP_KEY"
 	DDClusterChecksEnabled                       = "DD_CLUSTER_CHECKS_ENABLED"
-	DDIgnoreAutoConf                             = "DD_IGNORE_AUTOCONF"
-	DDKubeStateMetricsCoreEnabled                = "DD_KUBE_STATE_METRICS_CORE_ENABLED"
-	DDKubeStateMetricsCoreConfigMap              = "DD_KUBE_STATE_METRICS_CORE_CONFIGMAP_NAME"
 	DDClcRunnerEnabled                           = "DD_CLC_RUNNER_ENABLED"
 	DDClcRunnerHost                              = "DD_CLC_RUNNER_HOST"
 	DDClcRunnerID                                = "DD_CLC_RUNNER_ID"
@@ -135,24 +94,21 @@ const (
 
 	// Datadog volume names and mount paths
 
-	LogDatadogVolumeName                 = "logdatadog"
-	LogDatadogVolumePath                 = "/var/log/datadog"
-	TmpVolumeName                        = "tmp"
-	TmpVolumePath                        = "/tmp"
-	CertificatesVolumeName               = "certificates"
-	CertificatesVolumePath               = "/etc/datadog-agent/certificates"
-	APMSocketVolumeName                  = "apmsocket"
-	APMSocketVolumePath                  = "/var/run/datadog/apm"
-	InstallInfoVolumeName                = "installinfo"
-	InstallInfoVolumeSubPath             = "install_info"
-	InstallInfoVolumePath                = "/etc/datadog-agent/install_info"
-	InstallInfoVolumeReadOnly            = true
-	ConfdVolumeName                      = "confd"
-	ConfdVolumePath                      = "/conf.d"
-	ChecksdVolumeName                    = "checksd"
-	ChecksdVolumePath                    = "/checks.d"
-	ConfigVolumeName                     = "config"
-	ConfigVolumePath                     = "/etc/datadog-agent"
+	LogDatadogVolumeName      = "logdatadog"
+	LogDatadogVolumePath      = "/var/log/datadog"
+	TmpVolumeName             = "tmp"
+	TmpVolumePath             = "/tmp"
+	CertificatesVolumeName    = "certificates"
+	CertificatesVolumePath    = "/etc/datadog-agent/certificates"
+	APMSocketVolumeName       = "apmsocket"
+	APMSocketVolumePath       = "/var/run/datadog/apm"
+	InstallInfoVolumeName     = "installinfo"
+	InstallInfoVolumeSubPath  = "install_info"
+	InstallInfoVolumePath     = "/etc/datadog-agent/install_info"
+	InstallInfoVolumeReadOnly = true
+	ChecksdVolumeName         = "checksd"
+	ChecksdVolumePath         = "/checks.d"
+
 	AuthVolumeName                       = "datadog-agent-auth"
 	AuthVolumePath                       = "/etc/datadog-agent/auth"
 	ProcVolumeName                       = "procdir"
@@ -173,7 +129,6 @@ const (
 	CriSocketVolumeReadOnly              = true
 	DogstatsdSocketVolumeName            = "dsdsocket"
 	DogstatsdSocketVolumePath            = "/var/run/datadog/statsd"
-	KubeStateMetricCoreVolumeName        = "ksm-core-config"
 	PointerVolumeName                    = "pointerdir"
 	PointerVolumePath                    = "/opt/datadog-agent/run"
 	LogPodVolumeName                     = "logpodpath"
@@ -237,76 +192,6 @@ const (
 	KubeEndpointsListener             = "kube_endpoints"
 	KubeServicesAndEndpointsListeners = "kube_services kube_endpoints"
 
-	// Consts used to setup Rbac config
-	// API Groups
-
-	CoreAPIGroup             = ""
-	ExtensionsAPIGroup       = "extensions"
-	OpenShiftQuotaAPIGroup   = "quota.openshift.io"
-	RbacAPIGroup             = "rbac.authorization.k8s.io"
-	AutoscalingAPIGroup      = "autoscaling"
-	CertificatesAPIGroup     = "certificates.k8s.io"
-	StorageAPIGroup          = "storage.k8s.io"
-	CoordinationAPIGroup     = "coordination.k8s.io"
-	DatadogAPIGroup          = "datadoghq.com"
-	AdmissionAPIGroup        = "admissionregistration.k8s.io"
-	AppsAPIGroup             = "apps"
-	BatchAPIGroup            = "batch"
-	PolicyAPIGroup           = "policy"
-	NetworkingAPIGroup       = "networking.k8s.io"
-	AutoscalingK8sIoAPIGroup = "autoscaling.k8s.io"
-	AuthorizationAPIGroup    = "authorization.k8s.io"
-
-	// Resources
-
-	ServicesResource                    = "services"
-	EventsResource                      = "events"
-	EndpointsResource                   = "endpoints"
-	PodsResource                        = "pods"
-	NodesResource                       = "nodes"
-	ComponentStatusesResource           = "componentstatuses"
-	CertificatesSigningRequestsResource = "certificatesigningrequests"
-	ConfigMapsResource                  = "configmaps"
-	ResourceQuotasResource              = "resourcequotas"
-	ReplicationControllersResource      = "replicationcontrollers"
-	LimitRangesResource                 = "limitranges"
-	PersistentVolumeClaimsResource      = "persistentvolumeclaims"
-	PersistentVolumesResource           = "persistentvolumes"
-	LeasesResource                      = "leases"
-	ClusterResourceQuotasResource       = "clusterresourcequotas"
-	NodeMetricsResource                 = "nodes/metrics"
-	NodeSpecResource                    = "nodes/spec"
-	NodeProxyResource                   = "nodes/proxy"
-	NodeStats                           = "nodes/stats"
-	HorizontalPodAutoscalersRecource    = "horizontalpodautoscalers"
-	DatadogMetricsResource              = "datadogmetrics"
-	DatadogMetricsStatusResource        = "datadogmetrics/status"
-	WpaResource                         = "watermarkpodautoscalers"
-	MutatingConfigResource              = "mutatingwebhookconfigurations"
-	ValidatingConfigResource            = "validatingwebhookconfigurations"
-	SecretsResource                     = "secrets"
-	PodDisruptionBudgetsResource        = "poddisruptionbudgets"
-	ReplicasetsResource                 = "replicasets"
-	DeploymentsResource                 = "deployments"
-	StatefulsetsResource                = "statefulsets"
-	DaemonsetsResource                  = "daemonsets"
-	JobsResource                        = "jobs"
-	CronjobsResource                    = "cronjobs"
-	StorageClassesResource              = "storageclasses"
-	VolumeAttachments                   = "volumeattachments"
-	ExtendedDaemonSetReplicaSetResource = "extendeddaemonsetreplicasets"
-	ServiceAccountResource              = "serviceaccounts"
-	NamespaceResource                   = "namespaces"
-	PodSecurityPolicyResource           = "podsecuritypolicies"
-	ClusterRoleResource                 = "clusterroles"
-	RoleResource                        = "roles"
-	ClusterRoleBindingResource          = "clusterrolebindings"
-	RoleBindingResource                 = "rolebindings"
-	NetworkPolicyResource               = "networkpolicies"
-	IngressesResource                   = "ingresses"
-	VPAResource                         = "verticalpodautoscalers"
-	SubjectAccessReviewResource         = "subjectaccessreviews"
-
 	// Resource names
 
 	DatadogTokenResourceName           = "datadogtoken"
@@ -315,21 +200,6 @@ const (
 	DatadogClusterIDResourceName       = "datadog-cluster-id"
 	ExtensionAPIServerAuthResourceName = "extension-apiserver-authentication"
 	KubeSystemResourceName             = "kube-system"
-
-	// Non resource URLs
-
-	VersionURL = "/version"
-	HealthzURL = "/healthz"
-	MetricsURL = "/metrics"
-
-	// Verbs
-
-	GetVerb    = "get"
-	ListVerb   = "list"
-	WatchVerb  = "watch"
-	UpdateVerb = "update"
-	CreateVerb = "create"
-	DeleteVerb = "delete"
 
 	// Rbac resource kinds
 

@@ -1756,6 +1756,20 @@ func (in *NodeAgentConfig) DeepCopyInto(out *NodeAgentConfig) {
 		*out = new(ConfigDirSpec)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.NamespaceLabelsAsTags != nil {
+		in, out := &in.NamespaceLabelsAsTags, &out.NamespaceLabelsAsTags
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
+	if in.NodeLabelsAsTags != nil {
+		in, out := &in.NodeLabelsAsTags, &out.NodeLabelsAsTags
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	if in.PodLabelsAsTags != nil {
 		in, out := &in.PodLabelsAsTags, &out.PodLabelsAsTags
 		*out = make(map[string]string, len(*in))
