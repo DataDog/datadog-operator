@@ -135,10 +135,11 @@ func reconcilerOptionsToFeatureOptions(opts *ReconcilerOptions, logger logr.Logg
 func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, instance *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
 	var result reconcile.Result
 
-	features, err := feature.BuildFeaturesV1(instance, reconcilerOptionsToFeatureOptions(&r.options, logger))
+	features, requiredComponents, err := feature.BuildFeaturesV1(instance, reconcilerOptionsToFeatureOptions(&r.options, logger))
 	if err != nil {
 		return result, fmt.Errorf("unable to build features, err: %w", err)
 	}
+	logger.Info("requiredComponents status:", "agent", requiredComponents.Agent, "cluster-agent", requiredComponents.ClusterAgent, "cluster-check-runner", requiredComponents.ClusterCheckRunner)
 
 	// -----------------------
 	// Manage dependencies

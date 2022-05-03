@@ -231,7 +231,7 @@ func (test clusterAgentDeploymentFromInstanceTest) Run(t *testing.T) {
 	t.Helper()
 	logf.SetLogger(zap.New(zap.UseDevMode(true)))
 	logger := logf.Log.WithName(t.Name())
-	features, err := feature.BuildFeaturesV1(test.agentdeployment, &feature.Options{Logger: logger})
+	features, _, err := feature.BuildFeaturesV1(test.agentdeployment, &feature.Options{Logger: logger})
 	assert.NoError(t, err, "BuildFeaturesV1 error")
 	got, _, err := newClusterAgentDeploymentFromInstance(logger, features, test.agentdeployment, test.selector)
 	if test.wantErr {
