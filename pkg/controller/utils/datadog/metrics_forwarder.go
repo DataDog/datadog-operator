@@ -227,12 +227,8 @@ func (mf *metricsForwarder) forwardMetrics() error {
 		return err
 	}
 
-	if err = mf.processMetrics(); err != nil {
-		// Specific error is already logged within processMetrics and then passed back up
-		return err
-	}
-
-	return nil
+	// Any error is already logged within processMetrics and then passed back up
+	return mf.processMetrics()
 }
 
 // initAPIClient initializes and validates the Datadog API client
