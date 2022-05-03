@@ -8,6 +8,7 @@ package feature
 import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/merger"
 
@@ -16,15 +17,57 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+// ComponentsEnabled use to know which component need to be enabled for the feature
+// If set to:
+//   * true: the feature needs the corresponding component.
+//   * false: the corresponding component needs to ne disabled for this feature.
+//   * nil: the feature doesn't need the corresponding component.
+type ComponentsEnabled struct {
+	ClusterAgent       *bool
+	Agent              *bool
+	ClusterCheckRunner *bool
+}
+
+// IsEnabled return true if the Feature need to be enabled
+func (cc *ComponentsEnabled) IsEnabled() bool {
+	return apiutils.BoolValue(cc.ClusterAgent) || apiutils.BoolValue(cc.Agent) || apiutils.BoolValue(cc.ClusterCheckRunner)
+}
+
+// Merge use to merge 2 ComponentsEnabled
+// merge priority: false > true > nil
+// *
+func (cc *ComponentsEnabled) Merge(new *ComponentsEnabled) *ComponentsEnabled {
+	cc.ClusterAgent = merge(cc.ClusterAgent, new.ClusterAgent)
+	cc.Agent = merge(cc.Agent, new.Agent)
+	cc.ClusterCheckRunner = merge(cc.ClusterCheckRunner, new.ClusterCheckRunner)
+	return cc
+}
+
+func merge(a, b *bool) *bool {
+	trueValue := true
+	falseValue := false
+	if a == nil && b == nil {
+		return nil
+	} else if a == nil && b != nil {
+		return b
+	} else if b == nil && a != nil {
+		return a
+	}
+	if !apiutils.BoolValue(a) || !apiutils.BoolValue(b) {
+		return &falseValue
+	}
+	return &trueValue
+}
+
 // Feature Feature interface
 // It returns `true` if the Feature is used, else it return `false`.
 type Feature interface {
 	// Configure use to configure the internal of a Feature
 	// It should return `true` if the feature is enabled, else `false`.
-	Configure(dda *v2alpha1.DatadogAgent) bool
+	Configure(dda *v2alpha1.DatadogAgent) ComponentsEnabled
 	// ConfigureV1 use to configure the internal of a Feature from v1alpha1.DatadogAgent
 	// It should return `true` if the feature is enabled, else `false`.
-	ConfigureV1(dda *v1alpha1.DatadogAgent) bool
+	ConfigureV1(dda *v1alpha1.DatadogAgent) ComponentsEnabled
 	// ManageDependencies allows a feature to manage its dependencies.
 	// Feature's dependencies should be added in the store.
 	ManageDependencies(managers ResourceManagers) error

@@ -57,7 +57,7 @@ type ksmFeature struct {
 }
 
 // Configure use to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) bool {
+func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.ComponentsEnabled {
 	f.owner = dda
 	if dda.Spec.Features.KubeStateMetricsCore != nil && apiutils.BoolValue(dda.Spec.Features.KubeStateMetricsCore.Enabled) {
 		f.enable = true
@@ -79,11 +79,14 @@ func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) bool {
 		}
 	}
 
-	return f.enable
+	return feature.ComponentsEnabled{
+		ClusterAgent:       &f.enable,
+		ClusterCheckRunner: &f.clusterChecksEnabled,
+	}
 }
 
 // ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
-func (f *ksmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) bool {
+func (f *ksmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) feature.ComponentsEnabled {
 	f.owner = dda
 
 	if dda.Spec.Features.KubeStateMetricsCore != nil {
@@ -108,7 +111,10 @@ func (f *ksmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) bool {
 		f.configConfigMapName = apicommonv1.GetConfName(dda, f.customConfig, apicommon.DefaultKubeStateMetricsCoreConf)
 	}
 
-	return f.enable
+	return feature.ComponentsEnabled{
+		ClusterAgent:       &f.enable,
+		ClusterCheckRunner: &f.clusterChecksEnabled,
+	}
 }
 
 // ManageDependencies allows a feature to manage its dependencies.

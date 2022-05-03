@@ -31,11 +31,12 @@ func Register(id IDType, buildFunc BuildFunc) error {
 }
 
 // BuildFeatures use to build a list features depending of the v1alpha1.DatadogAgent instance
-func BuildFeatures(dda *v2alpha1.DatadogAgent, options *Options) ([]Feature, error) {
+func BuildFeatures(dda *v2alpha1.DatadogAgent, options *Options) ([]Feature, ComponentsEnabled, error) {
 	builderMutex.RLock()
 	defer builderMutex.RUnlock()
 
 	var output []Feature
+	var componentsEnabled ComponentsEnabled
 
 	// to always return in feature in the same order we need to sort the map keys
 	sortedkeys := make([]IDType, 0, len(featureBuilders))
@@ -48,21 +49,24 @@ func BuildFeatures(dda *v2alpha1.DatadogAgent, options *Options) ([]Feature, err
 
 	for _, id := range sortedkeys {
 		feat := featureBuilders[id](options)
+		config := feat.Configure(dda)
 		// only add feat to the output if the feature is enabled
-		if enabled := feat.Configure(dda); enabled {
+		if config.IsEnabled() {
 			output = append(output, feat)
 		}
+		componentsEnabled.Merge(&config)
 	}
 
-	return output, nil
+	return output, componentsEnabled, nil
 }
 
 // BuildFeaturesV1 use to build a list features depending of the v1alpha1.DatadogAgent instance
-func BuildFeaturesV1(dda *v1alpha1.DatadogAgent, options *Options) ([]Feature, error) {
+func BuildFeaturesV1(dda *v1alpha1.DatadogAgent, options *Options) ([]Feature, ComponentsEnabled, error) {
 	builderMutex.RLock()
 	defer builderMutex.RUnlock()
 
 	var output []Feature
+	var componentsEnabled ComponentsEnabled
 
 	// to always return in feature in the same order we need to sort the map keys
 	sortedkeys := make([]IDType, 0, len(featureBuilders))
@@ -77,12 +81,14 @@ func BuildFeaturesV1(dda *v1alpha1.DatadogAgent, options *Options) ([]Feature, e
 		feat := featureBuilders[id](options)
 		options.Logger.Info("test", "feature", id)
 		// only add feat to the output if the feature is enabled
-		if enabled := feat.ConfigureV1(dda); enabled {
+		config := feat.ConfigureV1(dda)
+		if config.IsEnabled() {
 			output = append(output, feat)
 		}
+		componentsEnabled.Merge(&config)
 	}
 
-	return output, nil
+	return output, componentsEnabled, nil
 }
 
 var (

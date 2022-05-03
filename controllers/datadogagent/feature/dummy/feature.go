@@ -29,12 +29,12 @@ const (
 
 type dummyFeature struct{}
 
-func (f *dummyFeature) Configure(dda *v2alpha1.DatadogAgent) bool {
-	return false
+func (f *dummyFeature) Configure(dda *v2alpha1.DatadogAgent) feature.ComponentConfigure {
+	return feature.ComponentConfigure{}
 }
 
-func (f *dummyFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) bool {
-	return false
+func (f *dummyFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) feature.ComponentConfigure {
+	return feature.ComponentConfigure{}
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
