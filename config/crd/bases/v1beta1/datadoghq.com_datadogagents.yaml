@@ -25002,7 +25002,7 @@ spec:
                         type: boolean
                     type: object
                   dogstatsd:
-                    description: Dogstatsd configuration.
+                    description: DogStatsD configuration.
                     properties:
                       hostPortConfig:
                         description: 'HostPortConfig contains host port configuration.
@@ -25081,7 +25081,7 @@ spec:
                       unixDomainSocketConfig:
                         description: 'UnixDomainSocketConfig contains socket configuration.
                           See also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables
-                          Enabled Default: true Path Default: `/var/run/datadog/apm.socket`'
+                          Enabled Default: true Path Default: `/var/run/datadog/dsd.socket`'
                         properties:
                           enabled:
                             description: Enabled enables Unix Domain Socket.
@@ -25095,6 +25095,8 @@ spec:
                     description: EventCollection configuration.
                     properties:
                       collectKubernetesEvents:
+                        description: 'CollectKubernetesEvents enables Kubernetes event
+                          collection Default: true'
                         type: boolean
                     type: object
                   externalMetricsServer:
@@ -25154,6 +25156,10 @@ spec:
                                 required:
                                 - secretName
                                 type: object
+                              token:
+                                description: Token is the token for communication
+                                  between the NodeAgent and ClusterAgent
+                                type: string
                             type: object
                           url:
                             description: URL defines the endpoint URL.
@@ -25309,14 +25315,14 @@ spec:
                         description: 'CollectDNSStats enables DNS stat collection.
                           Default: false'
                         type: boolean
-                      enabled:
-                        description: 'Enabled enables Network Performance Monitoring.
-                          Default: false'
-                        type: boolean
-                      useConntrack:
-                        description: 'ConntrackEnabled enable the system-probe agent
+                      enableConntrack:
+                        description: 'EnableConntrack enable the system-probe agent
                           to connect to the netlink/conntrack subsystem to add NAT
                           information to connection data. See also: http://conntrack-tools.netfilter.org/
+                          Default: false'
+                        type: boolean
+                      enabled:
+                        description: 'Enabled enables Network Performance Monitoring.
                           Default: false'
                         type: boolean
                     type: object
@@ -25440,6 +25446,10 @@ spec:
                                 required:
                                 - secretName
                                 type: object
+                              token:
+                                description: Token is the token for communication
+                                  between the NodeAgent and ClusterAgent
+                                type: string
                             type: object
                           url:
                             description: URL defines the endpoint URL.
@@ -25540,6 +25550,10 @@ spec:
                         required:
                         - secretName
                         type: object
+                      token:
+                        description: Token is the token for communication between
+                          the NodeAgent and ClusterAgent
+                        type: string
                     type: object
                   criSocketPath:
                     description: Path to the container runtime socket (if different
@@ -25596,6 +25610,10 @@ spec:
                             required:
                             - secretName
                             type: object
+                          token:
+                            description: Token is the token for communication between
+                              the NodeAgent and ClusterAgent
+                            type: string
                         type: object
                       url:
                         description: URL defines the endpoint URL.
@@ -27433,6 +27451,9 @@ spec:
                         with priority given to custom configuration. WARNING: It''s
                         thus possible to override values set in the `DatadogAgent`.'
                       type: object
+                    disabled:
+                      description: Disabled force disables a component.
+                      type: boolean
                     env:
                       description: 'Specify additional environmental variables for
                         all containers in this component Priority is Container > Component
@@ -29729,7 +29750,7 @@ spec:
                             type: boolean
                         type: object
                       dogstatsd:
-                        description: Dogstatsd configuration.
+                        description: DogStatsD configuration.
                         properties:
                           hostPortConfig:
                             description: 'HostPortConfig contains host port configuration.
@@ -29809,7 +29830,7 @@ spec:
                           unixDomainSocketConfig:
                             description: 'UnixDomainSocketConfig contains socket configuration.
                               See also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables
-                              Enabled Default: true Path Default: `/var/run/datadog/apm.socket`'
+                              Enabled Default: true Path Default: `/var/run/datadog/dsd.socket`'
                             properties:
                               enabled:
                                 description: Enabled enables Unix Domain Socket.
@@ -29824,6 +29845,8 @@ spec:
                         description: EventCollection configuration.
                         properties:
                           collectKubernetesEvents:
+                            description: 'CollectKubernetesEvents enables Kubernetes
+                              event collection Default: true'
                             type: boolean
                         type: object
                       externalMetricsServer:
@@ -29885,6 +29908,10 @@ spec:
                                     required:
                                     - secretName
                                     type: object
+                                  token:
+                                    description: Token is the token for communication
+                                      between the NodeAgent and ClusterAgent
+                                    type: string
                                 type: object
                               url:
                                 description: URL defines the endpoint URL.
@@ -30044,15 +30071,15 @@ spec:
                             description: 'CollectDNSStats enables DNS stat collection.
                               Default: false'
                             type: boolean
-                          enabled:
-                            description: 'Enabled enables Network Performance Monitoring.
-                              Default: false'
-                            type: boolean
-                          useConntrack:
-                            description: 'ConntrackEnabled enable the system-probe
+                          enableConntrack:
+                            description: 'EnableConntrack enable the system-probe
                               agent to connect to the netlink/conntrack subsystem
                               to add NAT information to connection data. See also:
                               http://conntrack-tools.netfilter.org/ Default: false'
+                            type: boolean
+                          enabled:
+                            description: 'Enabled enables Network Performance Monitoring.
+                              Default: false'
                             type: boolean
                         type: object
                       oomKill:
@@ -30178,6 +30205,10 @@ spec:
                                     required:
                                     - secretName
                                     type: object
+                                  token:
+                                    description: Token is the token for communication
+                                      between the NodeAgent and ClusterAgent
+                                    type: string
                                 type: object
                               url:
                                 description: URL defines the endpoint URL.
@@ -30282,6 +30313,10 @@ spec:
                             required:
                             - secretName
                             type: object
+                          token:
+                            description: Token is the token for communication between
+                              the NodeAgent and ClusterAgent
+                            type: string
                         type: object
                       criSocketPath:
                         description: Path to the container runtime socket (if different
@@ -30342,6 +30377,10 @@ spec:
                                 required:
                                 - secretName
                                 type: object
+                              token:
+                                description: Token is the token for communication
+                                  between the NodeAgent and ClusterAgent
+                                type: string
                             type: object
                           url:
                             description: URL defines the endpoint URL.
@@ -32271,6 +32310,9 @@ spec:
                             configuration. WARNING: It''s thus possible to override
                             values set in the `DatadogAgent`.'
                           type: object
+                        disabled:
+                          description: Disabled force disables a component.
+                          type: boolean
                         env:
                           description: 'Specify additional environmental variables
                             for all containers in this component Priority is Container

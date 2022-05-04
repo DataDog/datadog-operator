@@ -55,7 +55,7 @@ func convertDatadogAgentSpec(src *DatadogAgentSpecAgentSpec, dst *v2alpha1.Datad
 		if src.Config.CollectEvents != nil {
 			features := getV2Features(dst)
 			if features.EventCollection == nil {
-				features.EventCollection = &v2alpha1.EventCollectionConfig{}
+				features.EventCollection = &v2alpha1.EventCollectionFeatureConfig{}
 			}
 
 			features.EventCollection.CollectKubernetesEvents = src.Config.CollectEvents
@@ -104,15 +104,15 @@ func convertDatadogAgentSpec(src *DatadogAgentSpecAgentSpec, dst *v2alpha1.Datad
 
 		if src.Config.Dogstatsd != nil {
 			features := getV2Features(dst)
-			if features.Dogstatsd == nil {
-				features.Dogstatsd = &v2alpha1.DogstatsdConfig{}
+			if features.DogStatsD == nil {
+				features.DogStatsD = &v2alpha1.DogStatsDFeatureConfig{}
 			}
 
-			features.Dogstatsd.OriginDetectionEnabled = src.Config.Dogstatsd.DogstatsdOriginDetection
-			features.Dogstatsd.MapperProfiles = convertConfigMapConfig(src.Config.Dogstatsd.MapperProfiles)
+			features.DogStatsD.OriginDetectionEnabled = src.Config.Dogstatsd.DogstatsdOriginDetection
+			features.DogStatsD.MapperProfiles = convertConfigMapConfig(src.Config.Dogstatsd.MapperProfiles)
 
 			if src.Config.Dogstatsd.UnixDomainSocket != nil {
-				features.Dogstatsd.UnixDomainSocketConfig = &v2alpha1.UnixDomainSocketConfig{
+				features.DogStatsD.UnixDomainSocketConfig = &v2alpha1.UnixDomainSocketConfig{
 					Enabled: src.Config.Dogstatsd.UnixDomainSocket.Enabled,
 					Path:    src.Config.Dogstatsd.UnixDomainSocket.HostFilepath,
 				}
@@ -330,7 +330,7 @@ func convertSystemProbeSpec(src *SystemProbeSpec, dst *v2alpha1.DatadogAgent) {
 	// TODO: BPFDebugEnabled, DebugPort skipped as not sure if should be exposed.
 
 	setBooleanPtrOR(src.Enabled, &features.NPM.Enabled)
-	features.NPM.UseConntrack = src.ConntrackEnabled
+	features.NPM.EnableConntrack = src.ConntrackEnabled
 	features.NPM.CollectDNSStats = src.CollectDNSStats
 
 	if src.EnableTCPQueueLength != nil {

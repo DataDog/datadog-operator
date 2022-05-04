@@ -44,7 +44,7 @@ func convertClusterAgentSpec(src *DatadogAgentSpecClusterAgentSpec, dst *v2alpha
 		if src.Config.CollectEvents != nil {
 			features := getV2Features(dst)
 			if features.EventCollection == nil {
-				features.EventCollection = &v2alpha1.EventCollectionConfig{}
+				features.EventCollection = &v2alpha1.EventCollectionFeatureConfig{}
 			}
 
 			setBooleanPtrOR(src.Config.CollectEvents, &features.EventCollection.CollectKubernetesEvents)

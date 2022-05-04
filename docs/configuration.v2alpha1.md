@@ -60,7 +60,7 @@ spec:
 | features.dogstatsd.originDetectionEnabled | OriginDetectionEnabled enables origin detection for container tagging. See also: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/#using-origin-detection-for-container-tagging |
 | features.dogstatsd.unixDomainSocketConfig.enabled | Enabled enables Unix Domain Socket. |
 | features.dogstatsd.unixDomainSocketConfig.path | Path defines the socket path used when enabled. |
-| features.eventCollection.collectKubernetesEvents |  |
+| features.eventCollection.collectKubernetesEvents | CollectKubernetesEvents enables Kubernetes event collection Default: true |
 | features.externalMetricsServer.enabled | Enabled enables the External Metrics Server. Default: false |
 | features.externalMetricsServer.endpoint.credentials.apiKey | APIKey configures your Datadog API key. See also: https://app.datadoghq.com/account/settings#agent/kubernetes |
 | features.externalMetricsServer.endpoint.credentials.apiSecret.keyName | KeyName is the key of the secret to use. |
@@ -68,6 +68,7 @@ spec:
 | features.externalMetricsServer.endpoint.credentials.appKey | AppKey configures your Datadog application key. If you are using clusterAgent.metricsProvider.enabled = true, you must set a Datadog application key for read access to your metrics. |
 | features.externalMetricsServer.endpoint.credentials.appSecret.keyName | KeyName is the key of the secret to use. |
 | features.externalMetricsServer.endpoint.credentials.appSecret.secretName | SecretName is the name of the secret. |
+| features.externalMetricsServer.endpoint.credentials.token | Token is the token for communication between the NodeAgent and ClusterAgent |
 | features.externalMetricsServer.endpoint.url | URL defines the endpoint URL. |
 | features.externalMetricsServer.port | Port specifies the metricsProvider External Metrics Server service port. Default: 8443 |
 | features.externalMetricsServer.useDatadogMetrics | UseDatadogMetrics enables usage of the DatadogMetrics CRD (allowing one to scale on arbitrary Datadog metric queries). Default: true |
@@ -87,8 +88,8 @@ spec:
 | features.logCollection.podLogsPath | PodLogsPath allows log collection from a pod log path. Default: `/var/log/pods` |
 | features.logCollection.tempStoragePath | TempStoragePath (always mounted from the host) is used by the Agent to store information about processed log files. If the Agent is restarted, it starts tailing the log files immediately. Default: `/var/lib/datadog-agent/logs` |
 | features.npm.collectDNSStats | CollectDNSStats enables DNS stat collection. Default: false |
+| features.npm.enableConntrack | EnableConntrack enable the system-probe agent to connect to the netlink/conntrack subsystem to add NAT information to connection data. See also: http://conntrack-tools.netfilter.org/ Default: false |
 | features.npm.enabled | Enabled enables Network Performance Monitoring. Default: false |
-| features.npm.useConntrack | ConntrackEnabled enable the system-probe agent to connect to the netlink/conntrack subsystem to add NAT information to connection data. See also: http://conntrack-tools.netfilter.org/ Default: false |
 | features.oomKill.enabled | Enables the OOMKill eBPF-based check. Default: false |
 | features.orchestratorExplorer.conf.configData | ConfigData corresponds to the configuration file content. |
 | features.orchestratorExplorer.conf.configMap.items | Items maps a ConfigMap data key to a file path mount. |
@@ -100,6 +101,7 @@ spec:
 | features.orchestratorExplorer.endpoint.credentials.appKey | AppKey configures your Datadog application key. If you are using clusterAgent.metricsProvider.enabled = true, you must set a Datadog application key for read access to your metrics. |
 | features.orchestratorExplorer.endpoint.credentials.appSecret.keyName | KeyName is the key of the secret to use. |
 | features.orchestratorExplorer.endpoint.credentials.appSecret.secretName | SecretName is the name of the secret. |
+| features.orchestratorExplorer.endpoint.credentials.token | Token is the token for communication between the NodeAgent and ClusterAgent |
 | features.orchestratorExplorer.endpoint.url | URL defines the endpoint URL. |
 | features.orchestratorExplorer.extraTags | Additional tags to associate with the collected data in the form of `a b c`. This is a Cluster Agent option distinct from DD_TAGS that is used in the Orchestrator Explorer. |
 | features.orchestratorExplorer.scrubContainers | ScrubContainers enables scrubbing of sensitive container data (passwords, tokens, etc. ). Default: true |
@@ -115,6 +117,7 @@ spec:
 | global.credentials.appKey | AppKey configures your Datadog application key. If you are using clusterAgent.metricsProvider.enabled = true, you must set a Datadog application key for read access to your metrics. |
 | global.credentials.appSecret.keyName | KeyName is the key of the secret to use. |
 | global.credentials.appSecret.secretName | SecretName is the name of the secret. |
+| global.credentials.token | Token is the token for communication between the NodeAgent and ClusterAgent |
 | global.criSocketPath | Path to the container runtime socket (if different from Docker). |
 | global.dockerSocketPath | Path to the docker runtime socket. |
 | global.endpoint.credentials.apiKey | APIKey configures your Datadog API key. See also: https://app.datadoghq.com/account/settings#agent/kubernetes |
@@ -123,6 +126,7 @@ spec:
 | global.endpoint.credentials.appKey | AppKey configures your Datadog application key. If you are using clusterAgent.metricsProvider.enabled = true, you must set a Datadog application key for read access to your metrics. |
 | global.endpoint.credentials.appSecret.keyName | KeyName is the key of the secret to use. |
 | global.endpoint.credentials.appSecret.secretName | SecretName is the name of the secret. |
+| global.endpoint.credentials.token | Token is the token for communication between the NodeAgent and ClusterAgent |
 | global.endpoint.url | URL defines the endpoint URL. |
 | global.kubelet.agentCAPath | AgentCAPath is the container path where the kubelet CA certificate is stored. Default: '/var/run/host-kubelet-ca.crt' if hostCAPath is set, else '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt' |
 | global.kubelet.host.configMapKeyRef.key | The key to select. |

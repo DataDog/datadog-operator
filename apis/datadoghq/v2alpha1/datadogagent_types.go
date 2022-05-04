@@ -63,13 +63,13 @@ type DatadogFeatures struct {
 	NPM *NPMFeatureConfig `json:"npm,omitempty"`
 	// USM (Universal Service Monitoring) configuration.
 	USM *USMFeatureConfig `json:"usm,omitempty"`
-	// Dogstatsd configuration.
-	Dogstatsd *DogstatsdConfig `json:"dogstatsd,omitempty"`
+	// DogStatsD configuration.
+	DogStatsD *DogStatsDFeatureConfig `json:"dogstatsd,omitempty"`
 
 	// Cluster-level features
 
 	// EventCollection configuration.
-	EventCollection *EventCollectionConfig `json:"eventCollection,omitempty"`
+	EventCollection *EventCollectionFeatureConfig `json:"eventCollection,omitempty"`
 	// OrchestratorExplorer check configuration.
 	OrchestratorExplorer *OrchestratorExplorerFeatureConfig `json:"orchestratorExplorer,omitempty"`
 	// KubeStateMetricsCore check configuration.
@@ -243,11 +243,11 @@ type NPMFeatureConfig struct {
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
-	// ConntrackEnabled enable the system-probe agent to connect to the netlink/conntrack subsystem to add NAT information to connection data.
+	// EnableConntrack enable the system-probe agent to connect to the netlink/conntrack subsystem to add NAT information to connection data.
 	// See also: http://conntrack-tools.netfilter.org/
 	// Default: false
 	// +optional
-	UseConntrack *bool `json:"useConntrack,omitempty"`
+	EnableConntrack *bool `json:"enableConntrack,omitempty"`
 
 	// CollectDNSStats enables DNS stat collection.
 	// Default: false
@@ -264,9 +264,9 @@ type USMFeatureConfig struct {
 	Enabled *bool `json:"enabled,omitempty"`
 }
 
-// DogstatsdConfig contains the Dogstatsd configuration parameters.
+// DogStatsDFeatureConfig contains the DogStatsD configuration parameters.
 // +k8s:openapi-gen=true
-type DogstatsdConfig struct {
+type DogStatsDFeatureConfig struct {
 	// OriginDetectionEnabled enables origin detection for container tagging.
 	// See also: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/#using-origin-detection-for-container-tagging
 	// +optional
@@ -281,7 +281,7 @@ type DogstatsdConfig struct {
 	// UnixDomainSocketConfig contains socket configuration.
 	// See also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables
 	// Enabled Default: true
-	// Path Default: `/var/run/datadog/apm.socket`
+	// Path Default: `/var/run/datadog/dsd.socket`
 	// +optional
 	UnixDomainSocketConfig *UnixDomainSocketConfig `json:"unixDomainSocketConfig,omitempty"`
 
@@ -292,9 +292,11 @@ type DogstatsdConfig struct {
 	MapperProfiles *CustomConfig `json:"mapperProfiles,omitempty"`
 }
 
-// EventCollectionConfig contains the Event Collection configuration.
+// EventCollectionFeatureConfig contains the Event Collection configuration.
 // +k8s:openapi-gen=true
-type EventCollectionConfig struct {
+type EventCollectionFeatureConfig struct {
+	// CollectKubernetesEvents enables Kubernetes event collection
+	// Default: true
 	CollectKubernetesEvents *bool `json:"collectKubernetesEvents,omitempty"`
 }
 
@@ -582,6 +584,18 @@ type DatadogCredentials struct {
 	// If set, this parameter takes precedence over "AppKey".
 	// +optional
 	AppSecret *commonv1.SecretConfig `json:"appSecret,omitempty"`
+
+	// Token is the token for communication between the NodeAgent and ClusterAgent
+	Token *string `json:"token,omitempty"`
+}
+
+// SecretBackendConfig provides configuration for the secret backend.
+type SecretBackendConfig struct {
+	// Command defines the secret backend command to use
+	Command *string `json:"command,omitempty"`
+
+	// Args defines the list of arguments to pass to the command
+	Args []string `json:"args,omitempty"`
 }
 
 // NetworkPolicyFlavor specifies which flavor of Network Policy to use.
@@ -770,6 +784,10 @@ type DatadogAgentComponentOverride struct {
 	// SecCompProfileName specify a seccomp profile.
 	// +optional
 	SecCompProfileName *string `json:"secCompProfileName,omitempty"`
+
+	// Disabled force disables a component.
+	// +optional
+	Disabled *bool `json:"disabled,omitempty"`
 }
 
 // DatadogAgentGenericContainer is the generic structure describing any container's common configuration.
