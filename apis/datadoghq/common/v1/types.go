@@ -63,3 +63,25 @@ type KubeletConfig struct {
 	// +optional
 	AgentCAPath string `json:"agentCAPath,omitempty"`
 }
+
+// AgentContainerName is the name of a container inside an Agent component
+type AgentContainerName string
+
+const (
+	// CoreAgentContainerName is the name of the Core Agent container
+	CoreAgentContainerName AgentContainerName = "agent"
+	// TraceAgentContainerName is the name of the Trace Agent container
+	TraceAgentContainerName AgentContainerName = "trace-agent"
+	// ProcessAgentContainerName is the name of the Process Agent container
+	ProcessAgentContainerName AgentContainerName = "process-agent"
+	// SecurityAgentContainerName is the name of the Security Agent container
+	SecurityAgentContainerName AgentContainerName = "security-agent"
+	// SystemProbeContainerName is the name of the System Probe container
+	SystemProbeContainerName AgentContainerName = "system-probe"
+
+	// ClusterAgentContainerName is the name of the Cluster Agent container
+	ClusterAgentContainerName AgentContainerName = "cluster-agent"
+
+	// ClusterChecksRunnersContainerName is the name of the Agent container in Cluster Checks Runners
+	ClusterChecksRunnersContainerName AgentContainerName = "agent"
+)

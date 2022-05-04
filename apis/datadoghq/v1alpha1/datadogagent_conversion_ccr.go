@@ -6,6 +6,7 @@
 package v1alpha1
 
 import (
+	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 )
 
@@ -33,7 +34,7 @@ func convertCCRSpec(src *DatadogAgentSpecClusterChecksRunnerSpec, dst *v2alpha1.
 
 	if src.Config != nil {
 		if src.Config.LogLevel != nil {
-			getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.ClusterChecksRunnerComponentName), v2alpha1.ClusterChecksRunnersContainerName).LogLevel = src.Config.LogLevel
+			getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.ClusterChecksRunnerComponentName), commonv1.ClusterChecksRunnersContainerName).LogLevel = src.Config.LogLevel
 		}
 
 		if src.Config.SecurityContext != nil {
@@ -41,23 +42,23 @@ func convertCCRSpec(src *DatadogAgentSpecClusterChecksRunnerSpec, dst *v2alpha1.
 		}
 
 		if src.Config.Resources != nil {
-			getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.ClusterChecksRunnerComponentName), v2alpha1.ClusterChecksRunnersContainerName).Resources = src.Config.Resources
+			getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.ClusterChecksRunnerComponentName), commonv1.ClusterChecksRunnersContainerName).Resources = src.Config.Resources
 		}
 
 		if src.Config.Command != nil {
-			getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.ClusterChecksRunnerComponentName), v2alpha1.ClusterChecksRunnersContainerName).Command = src.Config.Command
+			getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.ClusterChecksRunnerComponentName), commonv1.ClusterChecksRunnersContainerName).Command = src.Config.Command
 		}
 
 		if src.Config.Args != nil {
-			getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.ClusterChecksRunnerComponentName), v2alpha1.ClusterChecksRunnersContainerName).Args = src.Config.Args
+			getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.ClusterChecksRunnerComponentName), commonv1.ClusterChecksRunnersContainerName).Args = src.Config.Args
 		}
 
 		if src.Config.Env != nil {
-			getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.ClusterChecksRunnerComponentName), v2alpha1.ClusterChecksRunnersContainerName).Env = src.Config.Env
+			getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.ClusterChecksRunnerComponentName), commonv1.ClusterChecksRunnersContainerName).Env = src.Config.Env
 		}
 
 		if src.Config.VolumeMounts != nil {
-			getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.ClusterChecksRunnerComponentName), v2alpha1.ClusterChecksRunnersContainerName).VolumeMounts = src.Config.VolumeMounts
+			getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.ClusterChecksRunnerComponentName), commonv1.ClusterChecksRunnersContainerName).VolumeMounts = src.Config.VolumeMounts
 		}
 
 		if src.Config.Volumes != nil {
@@ -65,7 +66,7 @@ func convertCCRSpec(src *DatadogAgentSpecClusterChecksRunnerSpec, dst *v2alpha1.
 		}
 
 		if src.Config.HealthPort != nil {
-			getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.ClusterChecksRunnerComponentName), v2alpha1.ClusterChecksRunnersContainerName).HealthPort = src.Config.HealthPort
+			getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.ClusterChecksRunnerComponentName), commonv1.ClusterChecksRunnersContainerName).HealthPort = src.Config.HealthPort
 		}
 	}
 

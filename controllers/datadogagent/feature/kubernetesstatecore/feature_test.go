@@ -9,10 +9,10 @@ import (
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
+	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/common"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/test"
@@ -76,7 +76,7 @@ func Test_ksmFeature_Configure(t *testing.T) {
 
 	ksmAgentNodeWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
-		agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[common.AgentContainerName]
+		agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
 
 		want := []*corev1.EnvVar{
 			{
@@ -132,5 +132,5 @@ func Test_ksmFeature_Configure(t *testing.T) {
 		},
 	}
 
-	tests.Run(t, buildKSMfeature)
+	tests.Run(t, buildKSMFeature)
 }

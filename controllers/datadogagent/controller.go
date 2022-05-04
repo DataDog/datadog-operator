@@ -59,7 +59,8 @@ type Reconciler struct {
 
 // NewReconciler returns a reconciler for DatadogAgent
 func NewReconciler(options ReconcilerOptions, client client.Client, versionInfo *version.Info,
-	scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, metricForwarder datadog.MetricForwardersManager) (*Reconciler, error) {
+	scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, metricForwarder datadog.MetricForwardersManager,
+) (*Reconciler, error) {
 	return &Reconciler{
 		options:     options,
 		client:      client,
@@ -147,7 +148,7 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, 
 		Logger:        logger,
 	}
 	depsStore := dependencies.NewStore(storeOptions)
-	resourcesManager := feature.NewResourcesManagers(depsStore)
+	resourcesManager := feature.NewResourceManagers(depsStore)
 	var errs []error
 	for _, feat := range features {
 		if featErr := feat.ManageDependencies(resourcesManager); err != nil {
@@ -163,12 +164,11 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, 
 	// -----------------------
 
 	newStatus := instance.Status.DeepCopy()
-	reconcileFuncs :=
-		[]reconcileFuncInterface{
-			r.reconcileClusterAgent,
-			r.reconcileClusterChecksRunner,
-			r.reconcileAgent,
-		}
+	reconcileFuncs := []reconcileFuncInterface{
+		r.reconcileClusterAgent,
+		r.reconcileClusterChecksRunner,
+		r.reconcileAgent,
+	}
 	for _, reconcileFunc := range reconcileFuncs {
 		result, err = reconcileFunc(logger, features, instance, newStatus)
 		if utils.ShouldReturn(result, err) {

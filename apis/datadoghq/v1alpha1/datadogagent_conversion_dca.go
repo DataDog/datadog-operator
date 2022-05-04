@@ -6,6 +6,7 @@
 package v1alpha1
 
 import (
+	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 )
 
@@ -51,19 +52,19 @@ func convertClusterAgentSpec(src *DatadogAgentSpecClusterAgentSpec, dst *v2alpha
 		}
 
 		if src.Config.LogLevel != nil {
-			getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.ClusterAgentComponentName), v2alpha1.ClusterAgentContainerName).LogLevel = src.Config.LogLevel
+			getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.ClusterAgentComponentName), commonv1.ClusterAgentContainerName).LogLevel = src.Config.LogLevel
 		}
 
 		if src.Config.Resources != nil {
-			getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.ClusterAgentComponentName), v2alpha1.ClusterAgentContainerName).Resources = src.Config.Resources
+			getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.ClusterAgentComponentName), commonv1.ClusterAgentContainerName).Resources = src.Config.Resources
 		}
 
 		if src.Config.Command != nil {
-			getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.ClusterAgentComponentName), v2alpha1.ClusterAgentContainerName).Command = src.Config.Command
+			getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.ClusterAgentComponentName), commonv1.ClusterAgentContainerName).Command = src.Config.Command
 		}
 
 		if src.Config.Args != nil {
-			getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.ClusterAgentComponentName), v2alpha1.ClusterAgentContainerName).Args = src.Config.Args
+			getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.ClusterAgentComponentName), commonv1.ClusterAgentContainerName).Args = src.Config.Args
 		}
 
 		if src.Config.Confd != nil {
@@ -71,11 +72,11 @@ func convertClusterAgentSpec(src *DatadogAgentSpecClusterAgentSpec, dst *v2alpha
 		}
 
 		if src.Config.Env != nil {
-			getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.ClusterAgentComponentName), v2alpha1.ClusterAgentContainerName).Env = src.Config.Env
+			getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.ClusterAgentComponentName), commonv1.ClusterAgentContainerName).Env = src.Config.Env
 		}
 
 		if src.Config.VolumeMounts != nil {
-			getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.ClusterAgentComponentName), v2alpha1.ClusterAgentContainerName).VolumeMounts = src.Config.VolumeMounts
+			getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.ClusterAgentComponentName), commonv1.ClusterAgentContainerName).VolumeMounts = src.Config.VolumeMounts
 		}
 
 		if src.Config.Volumes != nil {
@@ -83,7 +84,7 @@ func convertClusterAgentSpec(src *DatadogAgentSpecClusterAgentSpec, dst *v2alpha
 		}
 
 		if src.Config.HealthPort != nil {
-			getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.ClusterAgentComponentName), v2alpha1.ClusterAgentContainerName).HealthPort = src.Config.HealthPort
+			getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.ClusterAgentComponentName), commonv1.ClusterAgentContainerName).HealthPort = src.Config.HealthPort
 		}
 	}
 

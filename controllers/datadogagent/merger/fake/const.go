@@ -1,8 +1,8 @@
 package fake
 
-import common "github.com/DataDog/datadog-operator/controllers/datadogagent/common"
+import commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 
 const (
 	// AllContainers all containers container name
-	AllContainers common.ContainerName = "all"
+	AllContainers commonv1.AgentContainerName = "all"
 )
