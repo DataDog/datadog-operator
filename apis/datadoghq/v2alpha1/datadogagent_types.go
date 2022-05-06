@@ -64,7 +64,7 @@ type DatadogFeatures struct {
 	// USM (Universal Service Monitoring) configuration.
 	USM *USMFeatureConfig `json:"usm,omitempty"`
 	// DogStatsD configuration.
-	DogStatsD *DogStatsDFeatureConfig `json:"dogstatsd,omitempty"`
+	DogStatsD *DogStatsDFeatureConfig `json:"dogStatsD,omitempty"`
 
 	// Cluster-level features
 
@@ -243,7 +243,7 @@ type NPMFeatureConfig struct {
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
-	// EnableConntrack enable the system-probe agent to connect to the netlink/conntrack subsystem to add NAT information to connection data.
+	// EnableConntrack enables the system-probe agent to connect to the netlink/conntrack subsystem to add NAT information to connection data.
 	// See also: http://conntrack-tools.netfilter.org/
 	// Default: false
 	// +optional
@@ -295,7 +295,7 @@ type DogStatsDFeatureConfig struct {
 // EventCollectionFeatureConfig contains the Event Collection configuration.
 // +k8s:openapi-gen=true
 type EventCollectionFeatureConfig struct {
-	// CollectKubernetesEvents enables Kubernetes event collection
+	// CollectKubernetesEvents enables Kubernetes event collection.
 	// Default: true
 	CollectKubernetesEvents *bool `json:"collectKubernetesEvents,omitempty"`
 }

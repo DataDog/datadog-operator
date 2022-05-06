@@ -399,7 +399,7 @@ func schema__apis_datadoghq_v2alpha1_DatadogFeatures(ref common.ReferenceCallbac
 							Ref:         ref("./apis/datadoghq/v2alpha1.USMFeatureConfig"),
 						},
 					},
-					"dogstatsd": {
+					"dogStatsD": {
 						SchemaProps: spec.SchemaProps{
 							Description: "DogStatsD configuration.",
 							Ref:         ref("./apis/datadoghq/v2alpha1.DogStatsDFeatureConfig"),
@@ -510,7 +510,7 @@ func schema__apis_datadoghq_v2alpha1_EventCollectionFeatureConfig(ref common.Ref
 				Properties: map[string]spec.Schema{
 					"collectKubernetesEvents": {
 						SchemaProps: spec.SchemaProps{
-							Description: "CollectKubernetesEvents enables Kubernetes event collection Default: true",
+							Description: "CollectKubernetesEvents enables Kubernetes event collection. Default: true",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},

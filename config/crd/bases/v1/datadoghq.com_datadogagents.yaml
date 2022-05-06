@@ -12518,7 +12518,7 @@ spec:
                         description: 'Enabled enables Datadog Monitors. Default: false'
                         type: boolean
                     type: object
-                  dogstatsd:
+                  dogStatsD:
                     description: DogStatsD configuration.
                     properties:
                       hostPortConfig:
@@ -12613,7 +12613,7 @@ spec:
                     properties:
                       collectKubernetesEvents:
                         description: 'CollectKubernetesEvents enables Kubernetes event
-                          collection Default: true'
+                          collection. Default: true'
                         type: boolean
                     type: object
                   externalMetricsServer:
@@ -12833,7 +12833,7 @@ spec:
                           Default: false'
                         type: boolean
                       enableConntrack:
-                        description: 'EnableConntrack enable the system-probe agent
+                        description: 'EnableConntrack enables the system-probe agent
                           to connect to the netlink/conntrack subsystem to add NAT
                           information to connection data. See also: http://conntrack-tools.netfilter.org/
                           Default: false'

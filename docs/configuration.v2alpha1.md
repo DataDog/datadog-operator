@@ -52,15 +52,15 @@ spec:
 | features.cws.enabled | Enabled enables Cloud Workload Security. Default: false |
 | features.cws.syscallMonitorEnabled | SyscallMonitorEnabled enables Syscall Monitoring (recommended for troubleshooting only). Default: false |
 | features.datadogMonitor.enabled | Enabled enables Datadog Monitors. Default: false |
-| features.dogstatsd.hostPortConfig.enabled | Enabled enables host port configuration |
-| features.dogstatsd.hostPortConfig.hostPort | Port takes a port number (0 < x < 65536) to expose on the host. (Most containers do not need this.) If HostNetwork is enabled, this value must match the ContainerPort. |
-| features.dogstatsd.mapperProfiles.configData | ConfigData corresponds to the configuration file content. |
-| features.dogstatsd.mapperProfiles.configMap.items | Items maps a ConfigMap data key to a file path mount. |
-| features.dogstatsd.mapperProfiles.configMap.name | Name is the name of the ConfigMap. |
-| features.dogstatsd.originDetectionEnabled | OriginDetectionEnabled enables origin detection for container tagging. See also: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/#using-origin-detection-for-container-tagging |
-| features.dogstatsd.unixDomainSocketConfig.enabled | Enabled enables Unix Domain Socket. |
-| features.dogstatsd.unixDomainSocketConfig.path | Path defines the socket path used when enabled. |
-| features.eventCollection.collectKubernetesEvents | CollectKubernetesEvents enables Kubernetes event collection Default: true |
+| features.dogStatsD.hostPortConfig.enabled | Enabled enables host port configuration |
+| features.dogStatsD.hostPortConfig.hostPort | Port takes a port number (0 < x < 65536) to expose on the host. (Most containers do not need this.) If HostNetwork is enabled, this value must match the ContainerPort. |
+| features.dogStatsD.mapperProfiles.configData | ConfigData corresponds to the configuration file content. |
+| features.dogStatsD.mapperProfiles.configMap.items | Items maps a ConfigMap data key to a file path mount. |
+| features.dogStatsD.mapperProfiles.configMap.name | Name is the name of the ConfigMap. |
+| features.dogStatsD.originDetectionEnabled | OriginDetectionEnabled enables origin detection for container tagging. See also: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/#using-origin-detection-for-container-tagging |
+| features.dogStatsD.unixDomainSocketConfig.enabled | Enabled enables Unix Domain Socket. |
+| features.dogStatsD.unixDomainSocketConfig.path | Path defines the socket path used when enabled. |
+| features.eventCollection.collectKubernetesEvents | CollectKubernetesEvents enables Kubernetes event collection. Default: true |
 | features.externalMetricsServer.enabled | Enabled enables the External Metrics Server. Default: false |
 | features.externalMetricsServer.endpoint.credentials.apiKey | APIKey configures your Datadog API key. See also: https://app.datadoghq.com/account/settings#agent/kubernetes |
 | features.externalMetricsServer.endpoint.credentials.apiSecret.keyName | KeyName is the key of the secret to use. |
@@ -88,7 +88,7 @@ spec:
 | features.logCollection.podLogsPath | PodLogsPath allows log collection from a pod log path. Default: `/var/log/pods` |
 | features.logCollection.tempStoragePath | TempStoragePath (always mounted from the host) is used by the Agent to store information about processed log files. If the Agent is restarted, it starts tailing the log files immediately. Default: `/var/lib/datadog-agent/logs` |
 | features.npm.collectDNSStats | CollectDNSStats enables DNS stat collection. Default: false |
-| features.npm.enableConntrack | EnableConntrack enable the system-probe agent to connect to the netlink/conntrack subsystem to add NAT information to connection data. See also: http://conntrack-tools.netfilter.org/ Default: false |
+| features.npm.enableConntrack | EnableConntrack enables the system-probe agent to connect to the netlink/conntrack subsystem to add NAT information to connection data. See also: http://conntrack-tools.netfilter.org/ Default: false |
 | features.npm.enabled | Enabled enables Network Performance Monitoring. Default: false |
 | features.oomKill.enabled | Enables the OOMKill eBPF-based check. Default: false |
 | features.orchestratorExplorer.conf.configData | ConfigData corresponds to the configuration file content. |

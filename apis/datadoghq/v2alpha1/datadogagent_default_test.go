@@ -6,10 +6,10 @@
 package v2alpha1
 
 import (
-	"reflect"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/google/go-cmp/cmp"
+	assert "github.com/stretchr/testify/require"
 
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 )
@@ -19,74 +19,38 @@ const (
 	valueTrue  = true
 )
 
-func Test_defaultCredentials(t *testing.T) {
-	notEmptyString := "notEmpty"
-
-	clusterAgentEnabled := make(map[ComponentName]*DatadogAgentComponentOverride)
-	clusterAgentEnabled[ClusterAgentComponentName] = &DatadogAgentComponentOverride{
-		Disabled: apiutils.NewBoolPointer(valueFalse),
-	}
-
-	clusterAgentDisabled := make(map[ComponentName]*DatadogAgentComponentOverride)
-	clusterAgentDisabled[ClusterAgentComponentName] = &DatadogAgentComponentOverride{
-		Disabled: apiutils.NewBoolPointer(valueTrue),
-	}
-
+func Test_defaultGlobal(t *testing.T) {
 	tests := []struct {
-		name           string
-		ddaSpec        *DatadogAgentSpec
-		wantEmptyToken bool
+		name    string
+		ddaSpec *DatadogAgentSpec
+		want    *DatadogAgentSpec
 	}{
 		{
-			name: "test cluster agent is enabled (by default) but no token set",
+			name: "global is nil",
 			ddaSpec: &DatadogAgentSpec{
+				Global: nil,
+			},
+			want: &DatadogAgentSpec{
 				Global: &GlobalConfig{
-					Credentials: &DatadogCredentials{},
+					Site:     apiutils.NewStringPointer(defaultSite),
+					Registry: apiutils.NewStringPointer(defaultRegistry),
+					LogLevel: apiutils.NewStringPointer(defaultLogLevel),
 				},
 			},
-			wantEmptyToken: false,
-		},
-		{
-			name: "test cluster agent is enabled (explicitly) but no token set",
-			ddaSpec: &DatadogAgentSpec{
-				Global: &GlobalConfig{
-					Credentials: &DatadogCredentials{},
-				},
-				Override: clusterAgentEnabled,
-			},
-			wantEmptyToken: false,
-		},
-		{
-			name: "test cluster agent is enabled (explicitly), and token is set",
-			ddaSpec: &DatadogAgentSpec{
-				Global: &GlobalConfig{
-					Credentials: &DatadogCredentials{
-						Token: apiutils.NewStringPointer(notEmptyString),
-					},
-				},
-				Override: clusterAgentEnabled,
-			},
-			wantEmptyToken: false,
-		},
-		{
-			name: "test cluster agent is disabled",
-			ddaSpec: &DatadogAgentSpec{
-				Global: &GlobalConfig{
-					Credentials: &DatadogCredentials{},
-				},
-				Override: clusterAgentDisabled,
-			},
-			wantEmptyToken: true,
 		},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			defaultCredentials(tt.ddaSpec)
-			if tt.wantEmptyToken {
-				assert.Empty(t, tt.ddaSpec.Global.Credentials.Token)
-			} else {
-				assert.NotEmpty(t, tt.ddaSpec.Global.Credentials.Token)
+			defaultGlobalConfig(tt.ddaSpec)
+
+			if *tt.ddaSpec.Global.Site != *tt.want.Global.Site {
+				t.Errorf("defaultGlobalConfig() Site = %v, want %v", *tt.ddaSpec.Global.Site, *tt.want.Global.Site)
+			}
+			if *tt.ddaSpec.Global.Registry != *tt.want.Global.Registry {
+				t.Errorf("defaultGlobalConfig() Registry = %v, want %v", *tt.ddaSpec.Global.Registry, *tt.want.Global.Registry)
+			}
+			if *tt.ddaSpec.Global.LogLevel != *tt.want.Global.LogLevel {
+				t.Errorf("defaultGlobalConfig() LogLevel = %v, want %v", *tt.ddaSpec.Global.LogLevel, *tt.want.Global.LogLevel)
 			}
 		})
 	}
@@ -106,53 +70,16 @@ func Test_defaultFeatures(t *testing.T) {
 			},
 			want: &DatadogAgentSpec{
 				Features: &DatadogFeatures{
-					LogCollection: &LogCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLogCollectionEnabled),
-						// These are not set because the default is Enabled = false
-						// ContainerCollectUsingFiles: apiutils.NewBoolPointer(defaultLogContainerCollectUsingFiles),
-						// ContainerLogsPath:          apiutils.NewStringPointer(defaultLogContainerLogsPath),
-						// PodLogsPath:                apiutils.NewStringPointer(defaultLogPodLogsPath),
-						// ContainerSymlinksPath:      apiutils.NewStringPointer(defaultLogContainerSymlinksPath),
-						// TempStoragePath:            apiutils.NewStringPointer(defaultLogTempStoragePath),
-					},
-					LiveProcessCollection: &LiveProcessCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLiveProcessCollectionEnabled),
-					},
 					LiveContainerCollection: &LiveContainerCollectionFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
 					},
-					OOMKill: &OOMKillFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultOOMKillEnabled),
-					},
-					TCPQueueLength: &TCPQueueLengthFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultTCPQueueLengthEnabled),
-					},
-					APM: &APMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
-						// These are not set because the default is Enabled = false
-						// HostPortConfig: &HostPortConfig{
-						// 	Enabled: apiutils.NewBoolPointer(defaultAPMHostPortEnabled),
-						// 	Port:    apiutils.NewInt32Pointer(defaultAPMHostPort),
-						// },
-						// UnixDomainSocketConfig: &UnixDomainSocketConfig{
-						// 	Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
-						// 	Path:    apiutils.NewStringPointer(defaultAPMSocketPath),
-						// },
-					},
-					CSPM: &CSPMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
-					},
-					CWS: &CWSFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultCWSEnabled),
-					},
-					NPM: &NPMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultNPMEnabled),
-						// These are not set because the default is Enabled = false
-						// EnableConntrack: apiutils.NewBoolPointer(defaultNPMEnableConntrack),
-						// CollectDNSStats: apiutils.NewBoolPointer(defaultNPMCollectDNSStats),
-					},
-					USM: &USMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultUSMEnabled),
+					DogStatsD: &DogStatsDFeatureConfig{
+						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogStatsDOriginDetectionEnabled),
+						HostPortConfig:         &HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogStatsDHostPortEnabled)},
+						UnixDomainSocketConfig: &UnixDomainSocketConfig{
+							Enabled: apiutils.NewBoolPointer(defaultDogStatsDUseSocketVolume),
+							Path:    apiutils.NewStringPointer(defaultDogStatsDSocketPath),
+						},
 					},
 					EventCollection: &EventCollectionFeatureConfig{
 						CollectKubernetesEvents: apiutils.NewBoolPointer(defaultCollectKubernetesEvents),
@@ -165,29 +92,13 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					KubeStateMetricsCore: &KubeStateMetricsCoreFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
-						// This is not set because the default is Enabled = false
-						// Conf: &CustomConfig{
-						// 	ConfigData: apiutils.NewStringPointer(defaultKubeStateMetricsCoreConf),
-						// },
-					},
-					AdmissionController: &AdmissionControllerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
-					},
-					ExternalMetricsServer: &ExternalMetricsServerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultExternalMetricsServerEnabled),
-						// These are not set because the default is Enabled = false
-						// UseDatadogMetrics: apiutils.NewBoolPointer(defaultDatadogMetricsEnabled),
-						// Port:              apiutils.NewInt32Pointer(defaultMetricsProviderPort),
+						Conf: &CustomConfig{
+							ConfigData: apiutils.NewStringPointer(defaultKubeStateMetricsCoreConf),
+						},
 					},
 					ClusterChecks: &ClusterChecksFeatureConfig{
 						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
 						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
-					},
-					PrometheusScrape: &PrometheusScrapeFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
-					},
-					DatadogMonitor: &DatadogMonitorFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultDatadogMonitorEnabled),
 					},
 				},
 			},
@@ -284,6 +195,14 @@ func Test_defaultFeatures(t *testing.T) {
 					USM: &USMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueFalse),
 					},
+					DogStatsD: &DogStatsDFeatureConfig{
+						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogStatsDOriginDetectionEnabled),
+						HostPortConfig:         &HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogStatsDHostPortEnabled)},
+						UnixDomainSocketConfig: &UnixDomainSocketConfig{
+							Enabled: apiutils.NewBoolPointer(defaultDogStatsDUseSocketVolume),
+							Path:    apiutils.NewStringPointer(defaultDogStatsDSocketPath),
+						},
+					},
 					EventCollection: &EventCollectionFeatureConfig{
 						CollectKubernetesEvents: apiutils.NewBoolPointer(valueFalse),
 					},
@@ -330,44 +249,16 @@ func Test_defaultFeatures(t *testing.T) {
 						ContainerSymlinksPath:      apiutils.NewStringPointer(defaultLogContainerSymlinksPath),
 						TempStoragePath:            apiutils.NewStringPointer(defaultLogTempStoragePath),
 					},
-					LiveProcessCollection: &LiveProcessCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLiveProcessCollectionEnabled),
-					},
 					LiveContainerCollection: &LiveContainerCollectionFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
 					},
-					OOMKill: &OOMKillFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultOOMKillEnabled),
-					},
-					TCPQueueLength: &TCPQueueLengthFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultTCPQueueLengthEnabled),
-					},
-					APM: &APMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
-						// These are not set because the default is Enabled = false
-						// HostPortConfig: &HostPortConfig{
-						// 	Enabled: apiutils.NewBoolPointer(defaultAPMHostPortEnabled),
-						// 	Port:    apiutils.NewInt32Pointer(defaultAPMHostPort),
-						// },
-						// UnixDomainSocketConfig: &UnixDomainSocketConfig{
-						// 	Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
-						// 	Path:    apiutils.NewStringPointer(defaultAPMSocketPath),
-						// },
-					},
-					CSPM: &CSPMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
-					},
-					CWS: &CWSFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultCWSEnabled),
-					},
-					NPM: &NPMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultNPMEnabled),
-						// These are not set because the default is Enabled = false
-						// EnableConntrack: apiutils.NewBoolPointer(defaultNPMEnableConntrack),
-						// CollectDNSStats: apiutils.NewBoolPointer(defaultNPMCollectDNSStats),
-					},
-					USM: &USMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultUSMEnabled),
+					DogStatsD: &DogStatsDFeatureConfig{
+						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogStatsDOriginDetectionEnabled),
+						HostPortConfig:         &HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogStatsDHostPortEnabled)},
+						UnixDomainSocketConfig: &UnixDomainSocketConfig{
+							Enabled: apiutils.NewBoolPointer(defaultDogStatsDUseSocketVolume),
+							Path:    apiutils.NewStringPointer(defaultDogStatsDSocketPath),
+						},
 					},
 					EventCollection: &EventCollectionFeatureConfig{
 						CollectKubernetesEvents: apiutils.NewBoolPointer(defaultCollectKubernetesEvents),
@@ -380,29 +271,13 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					KubeStateMetricsCore: &KubeStateMetricsCoreFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
-						// This is not set because the default is Enabled = false
-						// Conf: &CustomConfig{
-						// 	ConfigData: apiutils.NewStringPointer(defaultKubeStateMetricsCoreConf),
-						// },
-					},
-					AdmissionController: &AdmissionControllerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
-					},
-					ExternalMetricsServer: &ExternalMetricsServerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultExternalMetricsServerEnabled),
-						// These are not set because the default is Enabled = false
-						// UseDatadogMetrics: apiutils.NewBoolPointer(defaultDatadogMetricsEnabled),
-						// Port:              apiutils.NewInt32Pointer(defaultMetricsProviderPort),
+						Conf: &CustomConfig{
+							ConfigData: apiutils.NewStringPointer(defaultKubeStateMetricsCoreConf),
+						},
 					},
 					ClusterChecks: &ClusterChecksFeatureConfig{
 						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
 						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
-					},
-					PrometheusScrape: &PrometheusScrapeFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
-					},
-					DatadogMonitor: &DatadogMonitorFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultDatadogMonitorEnabled),
 					},
 				},
 			},
@@ -418,26 +293,8 @@ func Test_defaultFeatures(t *testing.T) {
 			},
 			want: &DatadogAgentSpec{
 				Features: &DatadogFeatures{
-					LogCollection: &LogCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLogCollectionEnabled),
-						// These are not set because the default is Enabled = false
-						// ContainerCollectUsingFiles: apiutils.NewBoolPointer(defaultLogContainerCollectUsingFiles),
-						// ContainerLogsPath:          apiutils.NewStringPointer(defaultLogContainerLogsPath),
-						// PodLogsPath:                apiutils.NewStringPointer(defaultLogPodLogsPath),
-						// ContainerSymlinksPath:      apiutils.NewStringPointer(defaultLogContainerSymlinksPath),
-						// TempStoragePath:            apiutils.NewStringPointer(defaultLogTempStoragePath),
-					},
-					LiveProcessCollection: &LiveProcessCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLiveProcessCollectionEnabled),
-					},
 					LiveContainerCollection: &LiveContainerCollectionFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
-					},
-					OOMKill: &OOMKillFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultOOMKillEnabled),
-					},
-					TCPQueueLength: &TCPQueueLengthFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultTCPQueueLengthEnabled),
 					},
 					APM: &APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueTrue),
@@ -450,20 +307,13 @@ func Test_defaultFeatures(t *testing.T) {
 							Path:    apiutils.NewStringPointer(defaultAPMSocketPath),
 						},
 					},
-					CSPM: &CSPMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
-					},
-					CWS: &CWSFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultCWSEnabled),
-					},
-					NPM: &NPMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultNPMEnabled),
-						// These are not set because the default is Enabled = false
-						// EnableConntrack: apiutils.NewBoolPointer(defaultNPMEnableConntrack),
-						// CollectDNSStats: apiutils.NewBoolPointer(defaultNPMCollectDNSStats),
-					},
-					USM: &USMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultUSMEnabled),
+					DogStatsD: &DogStatsDFeatureConfig{
+						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogStatsDOriginDetectionEnabled),
+						HostPortConfig:         &HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogStatsDHostPortEnabled)},
+						UnixDomainSocketConfig: &UnixDomainSocketConfig{
+							Enabled: apiutils.NewBoolPointer(defaultDogStatsDUseSocketVolume),
+							Path:    apiutils.NewStringPointer(defaultDogStatsDSocketPath),
+						},
 					},
 					EventCollection: &EventCollectionFeatureConfig{
 						CollectKubernetesEvents: apiutils.NewBoolPointer(defaultCollectKubernetesEvents),
@@ -476,29 +326,13 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					KubeStateMetricsCore: &KubeStateMetricsCoreFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
-						// This is not set because the default is Enabled = false
-						// Conf: &CustomConfig{
-						// 	ConfigData: apiutils.NewStringPointer(defaultKubeStateMetricsCoreConf),
-						// },
-					},
-					AdmissionController: &AdmissionControllerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
-					},
-					ExternalMetricsServer: &ExternalMetricsServerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultExternalMetricsServerEnabled),
-						// These are not set because the default is Enabled = false
-						// UseDatadogMetrics: apiutils.NewBoolPointer(defaultDatadogMetricsEnabled),
-						// Port:              apiutils.NewInt32Pointer(defaultMetricsProviderPort),
+						Conf: &CustomConfig{
+							ConfigData: apiutils.NewStringPointer(defaultKubeStateMetricsCoreConf),
+						},
 					},
 					ClusterChecks: &ClusterChecksFeatureConfig{
 						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
 						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
-					},
-					PrometheusScrape: &PrometheusScrapeFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
-					},
-					DatadogMonitor: &DatadogMonitorFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultDatadogMonitorEnabled),
 					},
 				},
 			},
@@ -514,52 +348,21 @@ func Test_defaultFeatures(t *testing.T) {
 			},
 			want: &DatadogAgentSpec{
 				Features: &DatadogFeatures{
-					LogCollection: &LogCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLogCollectionEnabled),
-						// These are not set because the default is Enabled = false
-						// ContainerCollectUsingFiles: apiutils.NewBoolPointer(defaultLogContainerCollectUsingFiles),
-						// ContainerLogsPath:          apiutils.NewStringPointer(defaultLogContainerLogsPath),
-						// PodLogsPath:                apiutils.NewStringPointer(defaultLogPodLogsPath),
-						// ContainerSymlinksPath:      apiutils.NewStringPointer(defaultLogContainerSymlinksPath),
-						// TempStoragePath:            apiutils.NewStringPointer(defaultLogTempStoragePath),
-					},
-					LiveProcessCollection: &LiveProcessCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLiveProcessCollectionEnabled),
-					},
 					LiveContainerCollection: &LiveContainerCollectionFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
-					},
-					OOMKill: &OOMKillFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultOOMKillEnabled),
-					},
-					TCPQueueLength: &TCPQueueLengthFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultTCPQueueLengthEnabled),
-					},
-					APM: &APMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
-						// These are not set because the default is Enabled = false
-						// HostPortConfig: &HostPortConfig{
-						// 	Enabled: apiutils.NewBoolPointer(defaultAPMHostPortEnabled),
-						// 	Port:    apiutils.NewInt32Pointer(defaultAPMHostPort),
-						// },
-						// UnixDomainSocketConfig: &UnixDomainSocketConfig{
-						// 	Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
-						// 	Path:    apiutils.NewStringPointer(defaultAPMSocketPath),
-						// },
-					},
-					CSPM: &CSPMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
-					},
-					CWS: &CWSFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultCWSEnabled),
 					},
 					NPM: &NPMFeatureConfig{
 						Enabled:         apiutils.NewBoolPointer(valueTrue),
 						EnableConntrack: apiutils.NewBoolPointer(defaultNPMEnableConntrack),
 						CollectDNSStats: apiutils.NewBoolPointer(defaultNPMCollectDNSStats),
 					},
-					USM: &USMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultUSMEnabled),
+					DogStatsD: &DogStatsDFeatureConfig{
+						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogStatsDOriginDetectionEnabled),
+						HostPortConfig:         &HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogStatsDHostPortEnabled)},
+						UnixDomainSocketConfig: &UnixDomainSocketConfig{
+							Enabled: apiutils.NewBoolPointer(defaultDogStatsDUseSocketVolume),
+							Path:    apiutils.NewStringPointer(defaultDogStatsDSocketPath),
+						},
 					},
 					EventCollection: &EventCollectionFeatureConfig{
 						CollectKubernetesEvents: apiutils.NewBoolPointer(defaultCollectKubernetesEvents),
@@ -572,125 +375,13 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					KubeStateMetricsCore: &KubeStateMetricsCoreFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
-						// This is not set because the default is Enabled = false
-						// Conf: &CustomConfig{
-						// 	ConfigData: apiutils.NewStringPointer(defaultKubeStateMetricsCoreConf),
-						// },
-					},
-					AdmissionController: &AdmissionControllerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
-					},
-					ExternalMetricsServer: &ExternalMetricsServerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultExternalMetricsServerEnabled),
-						// These are not set because the default is Enabled = false
-						// UseDatadogMetrics: apiutils.NewBoolPointer(defaultDatadogMetricsEnabled),
-						// Port:              apiutils.NewInt32Pointer(defaultMetricsProviderPort),
-					},
-					ClusterChecks: &ClusterChecksFeatureConfig{
-						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
-						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
-					},
-					PrometheusScrape: &PrometheusScrapeFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
-					},
-					DatadogMonitor: &DatadogMonitorFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultDatadogMonitorEnabled),
-					},
-				},
-			},
-		},
-		{
-			name: "KubeStateMetricsCore is enabled",
-			ddaSpec: &DatadogAgentSpec{
-				Features: &DatadogFeatures{
-					KubeStateMetricsCore: &KubeStateMetricsCoreFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueTrue),
-					},
-				},
-			},
-			want: &DatadogAgentSpec{
-				Features: &DatadogFeatures{
-					LogCollection: &LogCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLogCollectionEnabled),
-						// These are not set because the default is Enabled = false
-						// ContainerCollectUsingFiles: apiutils.NewBoolPointer(defaultLogContainerCollectUsingFiles),
-						// ContainerLogsPath:          apiutils.NewStringPointer(defaultLogContainerLogsPath),
-						// PodLogsPath:                apiutils.NewStringPointer(defaultLogPodLogsPath),
-						// ContainerSymlinksPath:      apiutils.NewStringPointer(defaultLogContainerSymlinksPath),
-						// TempStoragePath:            apiutils.NewStringPointer(defaultLogTempStoragePath),
-					},
-					LiveProcessCollection: &LiveProcessCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLiveProcessCollectionEnabled),
-					},
-					LiveContainerCollection: &LiveContainerCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
-					},
-					OOMKill: &OOMKillFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultOOMKillEnabled),
-					},
-					TCPQueueLength: &TCPQueueLengthFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultTCPQueueLengthEnabled),
-					},
-					APM: &APMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
-						// These are not set because the default is Enabled = false
-						// HostPortConfig: &HostPortConfig{
-						// 	Enabled: apiutils.NewBoolPointer(defaultAPMHostPortEnabled),
-						// 	Port:    apiutils.NewInt32Pointer(defaultAPMHostPort),
-						// },
-						// UnixDomainSocketConfig: &UnixDomainSocketConfig{
-						// 	Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
-						// 	Path:    apiutils.NewStringPointer(defaultAPMSocketPath),
-						// },
-					},
-					CSPM: &CSPMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
-					},
-					CWS: &CWSFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultCWSEnabled),
-					},
-					NPM: &NPMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultNPMEnabled),
-						// These are not set because the default is Enabled = false
-						// EnableConntrack: apiutils.NewBoolPointer(defaultNPMEnableConntrack),
-						// CollectDNSStats: apiutils.NewBoolPointer(defaultNPMCollectDNSStats),
-					},
-					USM: &USMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultUSMEnabled),
-					},
-					EventCollection: &EventCollectionFeatureConfig{
-						CollectKubernetesEvents: apiutils.NewBoolPointer(defaultCollectKubernetesEvents),
-					},
-					OrchestratorExplorer: &OrchestratorExplorerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultOrchestratorExplorerEnabled),
-						Conf: &CustomConfig{
-							ConfigData: apiutils.NewStringPointer(DefaultOrchestratorExplorerConf),
-						},
-					},
-					KubeStateMetricsCore: &KubeStateMetricsCoreFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueTrue),
 						Conf: &CustomConfig{
 							ConfigData: apiutils.NewStringPointer(defaultKubeStateMetricsCoreConf),
 						},
 					},
-					AdmissionController: &AdmissionControllerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
-					},
-					ExternalMetricsServer: &ExternalMetricsServerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultExternalMetricsServerEnabled),
-						// These are not set because the default is Enabled = false
-						// UseDatadogMetrics: apiutils.NewBoolPointer(defaultDatadogMetricsEnabled),
-						// Port:              apiutils.NewInt32Pointer(defaultMetricsProviderPort),
-					},
 					ClusterChecks: &ClusterChecksFeatureConfig{
 						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
 						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
-					},
-					PrometheusScrape: &PrometheusScrapeFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
-					},
-					DatadogMonitor: &DatadogMonitorFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultDatadogMonitorEnabled),
 					},
 				},
 			},
@@ -706,53 +397,16 @@ func Test_defaultFeatures(t *testing.T) {
 			},
 			want: &DatadogAgentSpec{
 				Features: &DatadogFeatures{
-					LogCollection: &LogCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLogCollectionEnabled),
-						// These are not set because the default is Enabled = false
-						// ContainerCollectUsingFiles: apiutils.NewBoolPointer(defaultLogContainerCollectUsingFiles),
-						// ContainerLogsPath:          apiutils.NewStringPointer(defaultLogContainerLogsPath),
-						// PodLogsPath:                apiutils.NewStringPointer(defaultLogPodLogsPath),
-						// ContainerSymlinksPath:      apiutils.NewStringPointer(defaultLogContainerSymlinksPath),
-						// TempStoragePath:            apiutils.NewStringPointer(defaultLogTempStoragePath),
-					},
-					LiveProcessCollection: &LiveProcessCollectionFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultLiveProcessCollectionEnabled),
-					},
 					LiveContainerCollection: &LiveContainerCollectionFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
 					},
-					OOMKill: &OOMKillFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultOOMKillEnabled),
-					},
-					TCPQueueLength: &TCPQueueLengthFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultTCPQueueLengthEnabled),
-					},
-					APM: &APMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
-						// These are not set because the default is Enabled = false
-						// HostPortConfig: &HostPortConfig{
-						// 	Enabled: apiutils.NewBoolPointer(defaultAPMHostPortEnabled),
-						// 	Port:    apiutils.NewInt32Pointer(defaultAPMHostPort),
-						// },
-						// UnixDomainSocketConfig: &UnixDomainSocketConfig{
-						// 	Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
-						// 	Path:    apiutils.NewStringPointer(defaultAPMSocketPath),
-						// },
-					},
-					CSPM: &CSPMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
-					},
-					CWS: &CWSFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultCWSEnabled),
-					},
-					NPM: &NPMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultNPMEnabled),
-						// These are not set because the default is Enabled = false
-						// EnableConntrack: apiutils.NewBoolPointer(defaultNPMEnableConntrack),
-						// CollectDNSStats: apiutils.NewBoolPointer(defaultNPMCollectDNSStats),
-					},
-					USM: &USMFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultUSMEnabled),
+					DogStatsD: &DogStatsDFeatureConfig{
+						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogStatsDOriginDetectionEnabled),
+						HostPortConfig:         &HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogStatsDHostPortEnabled)},
+						UnixDomainSocketConfig: &UnixDomainSocketConfig{
+							Enabled: apiutils.NewBoolPointer(defaultDogStatsDUseSocketVolume),
+							Path:    apiutils.NewStringPointer(defaultDogStatsDSocketPath),
+						},
 					},
 					EventCollection: &EventCollectionFeatureConfig{
 						CollectKubernetesEvents: apiutils.NewBoolPointer(defaultCollectKubernetesEvents),
@@ -765,13 +419,9 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					KubeStateMetricsCore: &KubeStateMetricsCoreFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
-						// This is not set because the default is Enabled = false
-						// Conf: &CustomConfig{
-						// 	ConfigData: apiutils.NewStringPointer(defaultKubeStateMetricsCoreConf),
-						// },
-					},
-					AdmissionController: &AdmissionControllerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						Conf: &CustomConfig{
+							ConfigData: apiutils.NewStringPointer(defaultKubeStateMetricsCoreConf),
+						},
 					},
 					ExternalMetricsServer: &ExternalMetricsServerFeatureConfig{
 						Enabled:           apiutils.NewBoolPointer(valueTrue),
@@ -782,12 +432,6 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
 						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
 					},
-					PrometheusScrape: &PrometheusScrapeFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
-					},
-					DatadogMonitor: &DatadogMonitorFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultDatadogMonitorEnabled),
-					},
 				},
 			},
 		},
@@ -797,77 +441,7 @@ func Test_defaultFeatures(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			defaultFeaturesConfig(tt.ddaSpec)
 
-			if !reflect.DeepEqual(*tt.ddaSpec.Features.LogCollection, *tt.want.Features.LogCollection) {
-				t.Errorf("defaultFeatures() LogCollection = %v, want %v", *tt.ddaSpec.Features.LogCollection, *tt.want.Features.LogCollection)
-			}
-
-			if !reflect.DeepEqual(*tt.ddaSpec.Features.LiveProcessCollection, *tt.want.Features.LiveProcessCollection) {
-				t.Errorf("defaultFeatures() LiveProcessCollection = %v, want %v", *tt.ddaSpec.Features.LiveProcessCollection, *tt.want.Features.LiveProcessCollection)
-			}
-
-			if !reflect.DeepEqual(*tt.ddaSpec.Features.LiveContainerCollection, *tt.want.Features.LiveContainerCollection) {
-				t.Errorf("defaultFeatures() LiveContainerCollection = %v, want %v", *tt.ddaSpec.Features.LiveContainerCollection, *tt.want.Features.LiveContainerCollection)
-			}
-
-			if !reflect.DeepEqual(*tt.ddaSpec.Features.OOMKill, *tt.want.Features.OOMKill) {
-				t.Errorf("defaultFeatures() OOMKill = %v, want %v", *tt.ddaSpec.Features.OOMKill, *tt.want.Features.OOMKill)
-			}
-
-			if !reflect.DeepEqual(*tt.ddaSpec.Features.TCPQueueLength, *tt.want.Features.TCPQueueLength) {
-				t.Errorf("defaultFeatures() TCPQueueLength = %v, want %v", *tt.ddaSpec.Features.TCPQueueLength, *tt.want.Features.TCPQueueLength)
-			}
-
-			if !reflect.DeepEqual(*tt.ddaSpec.Features.APM, *tt.want.Features.APM) {
-				t.Errorf("defaultFeatures() APM = %v, want %v", *tt.ddaSpec.Features.APM, *tt.want.Features.APM)
-			}
-
-			if !reflect.DeepEqual(*tt.ddaSpec.Features.CSPM, *tt.want.Features.CSPM) {
-				t.Errorf("defaultFeatures() CSPM = %v, want %v", *tt.ddaSpec.Features.CSPM, *tt.want.Features.CSPM)
-			}
-
-			if !reflect.DeepEqual(*tt.ddaSpec.Features.CWS, *tt.want.Features.CWS) {
-				t.Errorf("defaultFeatures() CWS = %v, want %v", *tt.ddaSpec.Features.CWS, *tt.want.Features.CWS)
-			}
-
-			if !reflect.DeepEqual(*tt.ddaSpec.Features.NPM, *tt.want.Features.NPM) {
-				t.Errorf("defaultFeatures() NPM = %v, want %v", *tt.ddaSpec.Features.NPM, *tt.want.Features.NPM)
-			}
-
-			if !reflect.DeepEqual(*tt.ddaSpec.Features.USM, *tt.want.Features.USM) {
-				t.Errorf("defaultFeatures() USM = %v, want %v", *tt.ddaSpec.Features.USM, *tt.want.Features.USM)
-			}
-
-			if !reflect.DeepEqual(*tt.ddaSpec.Features.EventCollection, *tt.want.Features.EventCollection) {
-				t.Errorf("defaultFeatures() EventCollection = %v, want %v", *tt.ddaSpec.Features.EventCollection, *tt.want.Features.EventCollection)
-			}
-
-			if !reflect.DeepEqual(*tt.ddaSpec.Features.OrchestratorExplorer, *tt.want.Features.OrchestratorExplorer) {
-				t.Errorf("defaultFeatures() OrchestratorExplorer = %v, want %v", *tt.ddaSpec.Features.OrchestratorExplorer, *tt.want.Features.OrchestratorExplorer)
-			}
-
-			if !reflect.DeepEqual(*tt.ddaSpec.Features.KubeStateMetricsCore, *tt.want.Features.KubeStateMetricsCore) {
-				t.Errorf("defaultFeatures() KubeStateMetricsCore = %v, want %v", *tt.ddaSpec.Features.KubeStateMetricsCore, *tt.want.Features.KubeStateMetricsCore)
-			}
-
-			if !reflect.DeepEqual(*tt.ddaSpec.Features.AdmissionController, *tt.want.Features.AdmissionController) {
-				t.Errorf("defaultFeatures() AdmissionController = %v, want %v", *tt.ddaSpec.Features.AdmissionController, *tt.want.Features.AdmissionController)
-			}
-
-			if !reflect.DeepEqual(*tt.ddaSpec.Features.ExternalMetricsServer, *tt.want.Features.ExternalMetricsServer) {
-				t.Errorf("defaultFeatures() ExternalMetricsServer = %v, want %v", *tt.ddaSpec.Features.ExternalMetricsServer, *tt.want.Features.ExternalMetricsServer)
-			}
-
-			if !reflect.DeepEqual(*tt.ddaSpec.Features.ClusterChecks, *tt.want.Features.ClusterChecks) {
-				t.Errorf("defaultFeatures() ClusterChecks = %v, want %v", *tt.ddaSpec.Features.ClusterChecks, *tt.want.Features.ClusterChecks)
-			}
-
-			if !reflect.DeepEqual(*tt.ddaSpec.Features.PrometheusScrape, *tt.want.Features.PrometheusScrape) {
-				t.Errorf("defaultFeatures() PrometheusScrape = %v, want %v", *tt.ddaSpec.Features.PrometheusScrape, *tt.want.Features.PrometheusScrape)
-			}
-
-			if !reflect.DeepEqual(*tt.ddaSpec.Features.DatadogMonitor, *tt.want.Features.DatadogMonitor) {
-				t.Errorf("defaultFeatures() DatadogMonitor = %v, want %v", *tt.ddaSpec.Features.DatadogMonitor, *tt.want.Features.DatadogMonitor)
-			}
+			assert.True(t, apiutils.IsEqualStruct(tt.ddaSpec.Features, tt.want.Features), "defaultFeatures() \ndiff = %s", cmp.Diff(tt.ddaSpec.Features, tt.want.Features))
 		})
 	}
 }

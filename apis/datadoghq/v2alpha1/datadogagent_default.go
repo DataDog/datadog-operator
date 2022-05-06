@@ -12,36 +12,38 @@ import (
 // Default configuration values. These are the recommended settings for monitoring with Datadog in Kubernetes.
 // Note: many default values are set in the Datadog Agent and deliberately not set by the Operator.
 const (
-	defaultClusterName = "datadog-monitoring"
+	defaultSite     string = "datadoghq.com"
+	defaultRegistry string = "gcr.io/datadoghq"
+	defaultLogLevel string = "info"
 
-	defaultLogCollectionEnabled          bool   = false
+	// defaultLogCollectionEnabled          bool   = false
 	defaultLogContainerCollectUsingFiles bool   = true
 	defaultLogContainerLogsPath          string = "/var/lib/docker/containers"
 	defaultLogPodLogsPath                string = "/var/log/pods"
 	defaultLogContainerSymlinksPath      string = "/var/log/containers"
 	defaultLogTempStoragePath            string = "/var/lib/datadog-agent/logs"
 
-	defaultLiveProcessCollectionEnabled   bool = false
+	// defaultLiveProcessCollectionEnabled   bool = false
 	defaultLiveContainerCollectionEnabled bool = true
 
-	defaultOOMKillEnabled        bool = true
-	defaultTCPQueueLengthEnabled bool = false
+	// defaultOOMKillEnabled        bool = false
+	// defaultTCPQueueLengthEnabled bool = false
 
-	defaultAPMEnabled         bool   = false
+	// defaultAPMEnabled         bool   = false
 	defaultAPMHostPortEnabled bool   = false
 	defaultAPMHostPort        int32  = 8126
 	defaultAPMSocketEnabled   bool   = true
 	defaultAPMSocketPath      string = "/var/run/datadog/apm.sock"
 
-	defaultCSPMEnabled              bool = false
-	defaultCWSEnabled               bool = false
+	// defaultCSPMEnabled              bool = false
+	// defaultCWSEnabled               bool = false
 	defaultCWSSyscallMonitorEnabled bool = false
 
-	defaultNPMEnabled         bool = false
+	// defaultNPMEnabled         bool = false
 	defaultNPMEnableConntrack bool = true
 	defaultNPMCollectDNSStats bool = true
 
-	defaultUSMEnabled bool = false
+	// defaultUSMEnabled bool = false
 
 	defaultDogStatsDOriginDetectionEnabled bool   = false
 	defaultDogStatsDHostPortEnabled        bool   = false
@@ -51,27 +53,27 @@ const (
 
 	defaultCollectKubernetesEvents bool = true
 
-	defaultAdmissionControllerEnabled          bool = false
+	// defaultAdmissionControllerEnabled          bool = false
 	defaultAdmissionControllerMutateUnlabelled bool = false
 
 	defaultOrchestratorExplorerEnabled bool   = true
 	DefaultOrchestratorExplorerConf    string = "orchestrator-explorer-config"
 
-	defaultExternalMetricsServerEnabled bool = false
-	defaultDatadogMetricsEnabled        bool = true
+	// defaultExternalMetricsServerEnabled bool = false
+	defaultDatadogMetricsEnabled bool = true
 	// Cluster Agent versions < 1.20 should use 443
 	defaultMetricsProviderPort int32 = 8443
 
-	defaultKubeStateMetricsCoreEnabled bool   = false
+	defaultKubeStateMetricsCoreEnabled bool   = true
 	defaultKubeStateMetricsCoreConf    string = "kube-state-metrics-core-config"
 
 	defaultClusterChecksEnabled    bool = true
 	defaultUseClusterChecksRunners bool = true
 
-	defaultPrometheusScrapeEnabled                bool = false
+	// defaultPrometheusScrapeEnabled                bool = false
 	defaultPrometheusScrapeEnableServiceEndpoints bool = false
 
-	defaultDatadogMonitorEnabled bool = false
+	// defaultDatadogMonitorEnabled bool = false
 )
 
 // DefaultDatadogAgent defaults the DatadogAgentSpec GlobalConfig and Features.
@@ -83,22 +85,20 @@ func DefaultDatadogAgent(dda *DatadogAgent) {
 
 // defaultGlobalConfig sets default values in DatadogAgentSpec.Global.
 func defaultGlobalConfig(ddaSpec *DatadogAgentSpec) {
-	if ddaSpec.Global.ClusterName == nil {
-		defaultClusterNameCopy := defaultClusterName
-		ddaSpec.Global.ClusterName = &defaultClusterNameCopy
+	if ddaSpec.Global == nil {
+		ddaSpec.Global = &GlobalConfig{}
 	}
 
-	defaultCredentials(ddaSpec)
-}
-
-// defaultCredentials sets default values Credentials in the DatadogAgentSpec
-func defaultCredentials(ddaSpec *DatadogAgentSpec) {
-	if _, ok := ddaSpec.Override[ClusterAgentComponentName]; ok && *ddaSpec.Override[ClusterAgentComponentName].Disabled {
-		return
+	if ddaSpec.Global.Site == nil {
+		ddaSpec.Global.Site = apiutils.NewStringPointer(defaultSite)
 	}
 
-	if ddaSpec.Global.Credentials.Token == nil {
-		ddaSpec.Global.Credentials.Token = apiutils.NewStringPointer(apiutils.GenerateRandomString(32))
+	if ddaSpec.Global.Registry == nil {
+		ddaSpec.Global.Registry = apiutils.NewStringPointer(defaultRegistry)
+	}
+
+	if ddaSpec.Global.LogLevel == nil {
+		ddaSpec.Global.LogLevel = apiutils.NewStringPointer(defaultLogLevel)
 	}
 }
 
@@ -110,12 +110,7 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 	}
 
 	// LogsCollection Feature
-	if ddaSpec.Features.LogCollection == nil {
-		ddaSpec.Features.LogCollection = &LogCollectionFeatureConfig{
-			Enabled: apiutils.NewBoolPointer(defaultLogCollectionEnabled),
-		}
-	}
-	if *ddaSpec.Features.LogCollection.Enabled {
+	if ddaSpec.Features.LogCollection != nil && *ddaSpec.Features.LogCollection.Enabled {
 		if ddaSpec.Features.LogCollection.ContainerCollectUsingFiles == nil {
 			ddaSpec.Features.LogCollection.ContainerCollectUsingFiles = apiutils.NewBoolPointer(defaultLogContainerCollectUsingFiles)
 		}
@@ -133,13 +128,6 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 		}
 	}
 
-	// ProcessCollection Feature
-	if ddaSpec.Features.LiveProcessCollection == nil {
-		ddaSpec.Features.LiveProcessCollection = &LiveProcessCollectionFeatureConfig{
-			Enabled: apiutils.NewBoolPointer(defaultLiveProcessCollectionEnabled),
-		}
-	}
-
 	// ContainerCollection Feature
 	if ddaSpec.Features.LiveContainerCollection == nil {
 		ddaSpec.Features.LiveContainerCollection = &LiveContainerCollectionFeatureConfig{
@@ -147,28 +135,8 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 		}
 	}
 
-	// OOMKill Feature
-	if ddaSpec.Features.OOMKill == nil {
-		ddaSpec.Features.OOMKill = &OOMKillFeatureConfig{
-			Enabled: apiutils.NewBoolPointer(defaultOOMKillEnabled),
-		}
-	}
-
-	// TCPQueueLength Feature
-	if ddaSpec.Features.TCPQueueLength == nil {
-		ddaSpec.Features.TCPQueueLength = &TCPQueueLengthFeatureConfig{
-			Enabled: apiutils.NewBoolPointer(defaultTCPQueueLengthEnabled),
-		}
-	}
-
 	// APM Feature
-	if ddaSpec.Features.APM == nil {
-		ddaSpec.Features.APM = &APMFeatureConfig{
-			Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
-		}
-	}
-
-	if *ddaSpec.Features.APM.Enabled {
+	if ddaSpec.Features.APM != nil && *ddaSpec.Features.APM.Enabled {
 		if ddaSpec.Features.APM.HostPortConfig == nil {
 			ddaSpec.Features.APM.HostPortConfig = &HostPortConfig{}
 		}
@@ -194,43 +162,18 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 		}
 	}
 
-	// CSPM (Cloud Security Posture Management) Feature
-	if ddaSpec.Features.CSPM == nil {
-		ddaSpec.Features.CSPM = &CSPMFeatureConfig{
-			Enabled: apiutils.NewBoolPointer(defaultCSPMEnabled),
-		}
-	}
-
 	// CWS (Cloud Workload Security) Feature
-	if ddaSpec.Features.CWS == nil {
-		ddaSpec.Features.CWS = &CWSFeatureConfig{
-			Enabled: apiutils.NewBoolPointer(defaultCWSEnabled),
-		}
-	}
-
-	if *ddaSpec.Features.CWS.Enabled {
+	if ddaSpec.Features.CWS != nil && *ddaSpec.Features.CWS.Enabled {
 		ddaSpec.Features.CWS.SyscallMonitorEnabled = apiutils.NewBoolPointer(defaultCWSSyscallMonitorEnabled)
 	}
 
 	// NPM (Network Performance Monitoring) Feature
-	if ddaSpec.Features.NPM == nil {
-		ddaSpec.Features.NPM = &NPMFeatureConfig{
-			Enabled: apiutils.NewBoolPointer(defaultNPMEnabled),
-		}
-	}
-	if *ddaSpec.Features.NPM.Enabled {
+	if ddaSpec.Features.NPM != nil && *ddaSpec.Features.NPM.Enabled {
 		if ddaSpec.Features.NPM.EnableConntrack == nil {
 			ddaSpec.Features.NPM.EnableConntrack = apiutils.NewBoolPointer(defaultNPMEnableConntrack)
 		}
 		if ddaSpec.Features.NPM.CollectDNSStats == nil {
 			ddaSpec.Features.NPM.CollectDNSStats = apiutils.NewBoolPointer(defaultNPMCollectDNSStats)
-		}
-	}
-
-	// USM (Universal Service Monitoring) Feature
-	if ddaSpec.Features.USM == nil {
-		ddaSpec.Features.USM = &USMFeatureConfig{
-			Enabled: apiutils.NewBoolPointer(defaultUSMEnabled),
 		}
 	}
 
@@ -305,24 +248,12 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 	}
 
 	// AdmissionController Feature
-	if ddaSpec.Features.AdmissionController == nil {
-		ddaSpec.Features.AdmissionController = &AdmissionControllerFeatureConfig{
-			Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
-		}
-	}
-
-	if *ddaSpec.Features.AdmissionController.Enabled {
+	if ddaSpec.Features.AdmissionController != nil && *ddaSpec.Features.AdmissionController.Enabled {
 		ddaSpec.Features.AdmissionController.MutateUnlabelled = apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled)
 	}
 
 	// ExternalMetricsServer Feature
-	if ddaSpec.Features.ExternalMetricsServer == nil {
-		ddaSpec.Features.ExternalMetricsServer = &ExternalMetricsServerFeatureConfig{
-			Enabled: apiutils.NewBoolPointer(defaultExternalMetricsServerEnabled),
-		}
-	}
-
-	if *ddaSpec.Features.ExternalMetricsServer.Enabled {
+	if ddaSpec.Features.ExternalMetricsServer != nil && *ddaSpec.Features.ExternalMetricsServer.Enabled {
 		if ddaSpec.Features.ExternalMetricsServer.UseDatadogMetrics == nil {
 			ddaSpec.Features.ExternalMetricsServer.UseDatadogMetrics = apiutils.NewBoolPointer(defaultDatadogMetricsEnabled)
 		}
@@ -343,20 +274,7 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 	}
 
 	// PrometheusScrape Feature
-	if ddaSpec.Features.PrometheusScrape == nil {
-		ddaSpec.Features.PrometheusScrape = &PrometheusScrapeFeatureConfig{
-			Enabled: apiutils.NewBoolPointer(defaultPrometheusScrapeEnabled),
-		}
-	}
-
-	if *ddaSpec.Features.PrometheusScrape.Enabled {
+	if ddaSpec.Features.PrometheusScrape != nil && *ddaSpec.Features.PrometheusScrape.Enabled {
 		ddaSpec.Features.PrometheusScrape.EnableServiceEndpoints = apiutils.NewBoolPointer(defaultPrometheusScrapeEnableServiceEndpoints)
-	}
-
-	// DatadogMonitor Feature
-	if ddaSpec.Features.DatadogMonitor == nil {
-		ddaSpec.Features.DatadogMonitor = &DatadogMonitorFeatureConfig{
-			Enabled: apiutils.NewBoolPointer(defaultDatadogMonitorEnabled),
-		}
 	}
 }
