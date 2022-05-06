@@ -13,6 +13,8 @@ const (
 	KubernetesStateCoreIDType IDType = iota
 	// OrchestratorExplorerIDType Orchestrator Explorer feature.
 	OrchestratorExplorerIDType
+	// TCPQueueLengthIDType TCP Queue length check feature
+	TCPQueueLengthIDType
 	// DummyIDType Dummt feature.
 	DummyIDType
 )
