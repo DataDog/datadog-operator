@@ -16,7 +16,7 @@ type ContainerRegistry string
 
 const (
 	// AgentLatestVersion correspond to the latest stable agent release
-	AgentLatestVersion = "7.35.0"
+	AgentLatestVersion = "7.35.2"
 	// ClusterAgentLatestVersion correspond to the latest stable cluster-agent release
 	ClusterAgentLatestVersion = "1.19.0"
 
