@@ -80,8 +80,8 @@ func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 	}
 
 	return feature.RequiredComponents{
-		ClusterAgent:       feature.RequiredComponent{Required: &f.enable},
-		ClusterCheckRunner: feature.RequiredComponent{Required: &f.clusterChecksEnabled},
+		ClusterAgent:       feature.RequiredComponent{IsRequired: &f.enable},
+		ClusterCheckRunner: feature.RequiredComponent{IsRequired: &f.clusterChecksEnabled},
 	}
 }
 
@@ -112,8 +112,8 @@ func (f *ksmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) feature.RequiredCom
 	}
 
 	return feature.RequiredComponents{
-		ClusterAgent:       feature.RequiredComponent{Required: &f.enable},
-		ClusterCheckRunner: feature.RequiredComponent{Required: &f.clusterChecksEnabled},
+		ClusterAgent:       feature.RequiredComponent{IsRequired: &f.enable},
+		ClusterCheckRunner: feature.RequiredComponent{IsRequired: &f.clusterChecksEnabled},
 	}
 }
 

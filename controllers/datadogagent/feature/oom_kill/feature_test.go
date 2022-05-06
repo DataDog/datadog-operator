@@ -29,7 +29,7 @@ func Test_oomKillFeature_Configure(t *testing.T) {
 	ddav1OOMKillDisabled := v1alpha1.DatadogAgent{
 		Spec: v1alpha1.DatadogAgentSpec{
 			Agent: v1alpha1.DatadogAgentSpecAgentSpec{
-				SystemProbe: v1alpha1.SystemProbeSpec{
+				SystemProbe: &v1alpha1.SystemProbeSpec{
 					EnableOOMKill: apiutils.NewBoolPointer(false),
 				},
 			},
@@ -41,18 +41,18 @@ func Test_oomKillFeature_Configure(t *testing.T) {
 		ddav1OOMKillEnabled.Spec.Agent.SystemProbe.EnableOOMKill = apiutils.NewBoolPointer(true)
 	}
 
-	ddav2OOMKillDisable := v2alpha1.DatadogAgent{
+	ddav2OOMKillDisabled := v2alpha1.DatadogAgent{
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
-				oomKillFeat: &v2alpha1.OOMKillFeatureConfig{
+				OOMKill: &v2alpha1.OOMKillFeatureConfig{
 					Enabled: apiutils.NewBoolPointer(false),
 				},
 			},
 		},
 	}
-	ddav2OOMKillEnable := ddav2OOMKillDisable.DeepCopy()
+	ddav2OOMKillEnabled := ddav2OOMKillDisabled.DeepCopy()
 	{
-		ddav2OOMKillEnable.Spec.Features.OOMKill.Enabled = apiutils.NewBoolPointer(true)
+		ddav2OOMKillEnabled.Spec.Features.OOMKill.Enabled = apiutils.NewBoolPointer(true)
 	}
 
 	oomKillAgentNodeWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
@@ -72,11 +72,8 @@ func Test_oomKillFeature_Configure(t *testing.T) {
 			},
 		}
 
-		systemProbeVolumeMounts := mgr.VolumeManager.VolumeMountByC[apicommonv1.SystemProbeContainerName]
+		systemProbeVolumeMounts := mgr.VolumeMgr.VolumeMountByC[apicommonv1.SystemProbeContainerName]
 		assert.True(t, apiutils.IsEqualStruct(systemProbeVolumeMounts, wantVolumeMounts), "System Probe volume mounts \ndiff = %s", cmp.Diff(systemProbeVolumeMounts, wantVolumeMounts))
-
-		agentVolumeMounts := mgr.VolumeManager.VolumeMountByC[apicommonv1.CoreAgentContainerName]
-		assert.True(t, apiutils.IsEqualStruct(agentVolumeMounts, wantVolumeMounts), "Agent volume mounts \ndiff = %s", cmp.Diff(agentVolumeMounts, wantVolumeMounts))
 
 		// check volumes
 		wantVolumes := []corev1.Volume{
@@ -98,11 +95,8 @@ func Test_oomKillFeature_Configure(t *testing.T) {
 			},
 		}
 
-		systemProbeVolumes := mgr.VolumeManager.VolumeByC[apicommonv1.SystemProbeContainerName]
-		assert.True(t, apiutils.IsEqualStruct(systemProbeVolumes, wantVolumes), "System Probe volume \ndiff = %s", cmp.Diff(systemProbeVolumes, wantVolumes))
-
-		agentVolumes := mgr.VolumeManager.VolumeByC[apicommonv1.CoreAgentContainerName]
-		assert.True(t, apiutils.IsEqualStruct(agentVolumes, wantVolumes), "Agent volume \ndiff = %s", cmp.Diff(agentVolumes, wantVolumes))
+		volumes := mgr.VolumeMgr.Volumes
+		assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))
 
 		// check env vars
 		wantEnvVars := []*corev1.EnvVar{

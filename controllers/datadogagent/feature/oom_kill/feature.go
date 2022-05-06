@@ -37,25 +37,29 @@ type oomKillFeature struct {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *oomKillFeature) Configure(dda *v2alpha1.DatadogAgent) bool {
+func (f *oomKillFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredComponents {
 	f.owner = dda
 
 	if dda.Spec.Features.OOMKill != nil && apiutils.BoolValue(dda.Spec.Features.OOMKill.Enabled) {
 		f.enable = true
 	}
 
-	return f.enable
+	return feature.RequiredComponents{
+		Agent: feature.RequiredComponent{IsRequired: &f.enable},
+	}
 }
 
 // ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
-func (f *oomKillFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) bool {
+func (f *oomKillFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) feature.RequiredComponents {
 	f.owner = dda
 
-	if dda.Spec.Agent.SystemProbe != nil && dda.Spec.Agent.SystemProbe.EnableOOMKill {
+	if dda.Spec.Agent.SystemProbe != nil && *dda.Spec.Agent.SystemProbe.EnableOOMKill {
 		f.enable = true
 	}
 
-	return f.enable
+	return feature.RequiredComponents{
+		Agent: feature.RequiredComponent{IsRequired: &f.enable},
+	}
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
