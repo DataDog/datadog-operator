@@ -83,8 +83,10 @@ type PodTemplateManagers interface {
 	PodTemplateSpec() *corev1.PodTemplateSpec
 	// EnvVar used to access EnvVarManager that allows to manage the Environment variable defined in the PodTemplateSpec.
 	EnvVar() merger.EnvVarManager
-	// EnvVar used to access VolumeManager that allows to manage the Volume and VolumeMount defined in the PodTemplateSpec.
+	// Volume used to access VolumeManager that allows to manage the Volume and VolumeMount defined in the PodTemplateSpec.
 	Volume() merger.VolumeManager
+	// Ports used to access PortManager that allows to manage the Ports defined in the PodTemplateSpec.
+	Port() merger.PortManager
 }
 
 // NewPodTemplateManagers use to create a new instance of PodTemplateManagers from
@@ -94,6 +96,7 @@ func NewPodTemplateManagers(podTmpl *corev1.PodTemplateSpec) PodTemplateManagers
 		podTmpl:       podTmpl,
 		envVarManager: merger.NewEnvVarManager(podTmpl),
 		volumeManager: merger.NewVolumeManager(podTmpl),
+		portManager:   merger.NewPortManager(podTmpl),
 	}
 }
 
@@ -101,6 +104,7 @@ type podTemplateManagerImpl struct {
 	podTmpl       *corev1.PodTemplateSpec
 	envVarManager merger.EnvVarManager
 	volumeManager merger.VolumeManager
+	portManager   merger.PortManager
 }
 
 func (impl *podTemplateManagerImpl) PodTemplateSpec() *corev1.PodTemplateSpec {
@@ -113,4 +117,8 @@ func (impl *podTemplateManagerImpl) EnvVar() merger.EnvVarManager {
 
 func (impl *podTemplateManagerImpl) Volume() merger.VolumeManager {
 	return impl.volumeManager
+}
+
+func (impl *podTemplateManagerImpl) Port() merger.PortManager {
+	return impl.portManager
 }
