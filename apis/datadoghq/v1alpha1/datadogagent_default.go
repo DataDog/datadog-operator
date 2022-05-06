@@ -69,7 +69,6 @@ const (
 	DefaultOrchestratorExplorerConf                      string = "orchestrator-explorer-config"
 	defaultMetricsProviderPort                           int32  = 8443
 	defaultClusterChecksEnabled                          bool   = false
-	DefaultKubeStateMetricsCoreConf                      string = "kube-state-metrics-core-config"
 	defaultKubeStateMetricsCoreEnabled                   bool   = false
 	defaultPrometheusScrapeEnabled                       bool   = false
 	defaultPrometheusScrapeServiceEndpoints              bool   = false

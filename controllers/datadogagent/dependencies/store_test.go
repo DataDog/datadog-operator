@@ -19,6 +19,7 @@ import (
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 func Test_buildID(t *testing.T) {
@@ -186,8 +187,10 @@ func TestStore_AddOrUpdate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			logger := logf.Log.WithName(t.Name())
 			ds := &Store{
-				deps: tt.fields.deps,
+				deps:   tt.fields.deps,
+				logger: logger,
 			}
 			ds.AddOrUpdate(tt.args.kind, tt.args.obj)
 			tt.validationFunc(t, ds)
@@ -268,8 +271,10 @@ func TestStore_Get(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			logger := logf.Log.WithName(t.Name())
 			ds := &Store{
-				deps: tt.fields.deps,
+				deps:   tt.fields.deps,
+				logger: logger,
 			}
 			got, gotExist := ds.Get(tt.args.kind, tt.args.namespace, tt.args.name)
 			if !reflect.DeepEqual(got, tt.want) {
@@ -359,7 +364,8 @@ func TestStore_Apply(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ds := &Store{
-				deps: tt.fields.deps,
+				deps:   tt.fields.deps,
+				logger: logf.Log.WithName(t.Name()),
 			}
 			got := ds.Apply(tt.args.ctx, tt.args.k8sClient)
 			assert.EqualValues(t, tt.want, got, "Store.Apply() = %v, want %v", got, tt.want)
@@ -446,7 +452,8 @@ func TestStore_Cleanup(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ds := &Store{
-				deps: tt.fields.deps,
+				deps:   tt.fields.deps,
+				logger: logf.Log.WithName(t.Name()),
 			}
 			got := ds.Cleanup(tt.args.ctx, tt.args.k8sClient, tt.args.ddaNs, tt.args.ddaName)
 			assert.EqualValues(t, tt.want, got, "Store.Cleanup() = %v, want %v", got, tt.want)

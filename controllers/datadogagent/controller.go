@@ -30,6 +30,9 @@ import (
 
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
+
+	// Use to register the ksm core feature
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/kubernetesstatecore"
 )
 
 const (
@@ -56,7 +59,8 @@ type Reconciler struct {
 
 // NewReconciler returns a reconciler for DatadogAgent
 func NewReconciler(options ReconcilerOptions, client client.Client, versionInfo *version.Info,
-	scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, metricForwarder datadog.MetricForwardersManager) (*Reconciler, error) {
+	scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, metricForwarder datadog.MetricForwardersManager,
+) (*Reconciler, error) {
 	return &Reconciler{
 		options:     options,
 		client:      client,
@@ -131,19 +135,24 @@ func reconcilerOptionsToFeatureOptions(opts *ReconcilerOptions, logger logr.Logg
 func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, instance *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
 	var result reconcile.Result
 
-	features, err := feature.BuildFeaturesV1(instance, reconcilerOptionsToFeatureOptions(&r.options, logger))
+	features, requiredComponents, err := feature.BuildFeaturesV1(instance, reconcilerOptionsToFeatureOptions(&r.options, logger))
 	if err != nil {
 		return result, fmt.Errorf("unable to build features, err: %w", err)
 	}
+	logger.Info("requiredComponents status:", "agent", requiredComponents.Agent, "cluster-agent", requiredComponents.ClusterAgent, "cluster-check-runner", requiredComponents.ClusterCheckRunner)
 
 	// -----------------------
 	// Manage dependencies
 	// -----------------------
-	depsStore := dependencies.NewStore(&dependencies.StoreOptions{SupportCilium: r.options.SupportCilium})
-	rbacManager := feature.NewResourcesManagers(depsStore)
+	storeOptions := &dependencies.StoreOptions{
+		SupportCilium: r.options.SupportCilium,
+		Logger:        logger,
+	}
+	depsStore := dependencies.NewStore(storeOptions)
+	resourcesManager := feature.NewResourceManagers(depsStore)
 	var errs []error
 	for _, feat := range features {
-		if featErr := feat.ManageDependencies(rbacManager); err != nil {
+		if featErr := feat.ManageDependencies(resourcesManager); err != nil {
 			errs = append(errs, featErr)
 		}
 	}
@@ -156,12 +165,11 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, 
 	// -----------------------
 
 	newStatus := instance.Status.DeepCopy()
-	reconcileFuncs :=
-		[]reconcileFuncInterface{
-			r.reconcileClusterAgent,
-			r.reconcileClusterChecksRunner,
-			r.reconcileAgent,
-		}
+	reconcileFuncs := []reconcileFuncInterface{
+		r.reconcileClusterAgent,
+		r.reconcileClusterChecksRunner,
+		r.reconcileAgent,
+	}
 	for _, reconcileFunc := range reconcileFuncs {
 		result, err = reconcileFunc(logger, features, instance, newStatus)
 		if utils.ShouldReturn(result, err) {

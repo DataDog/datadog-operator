@@ -8,6 +8,7 @@ package merger
 import (
 	"fmt"
 
+	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -16,13 +17,13 @@ type VolumeManager interface {
 	// Add the volume to the PodTemplate and add the volumeMount to every containers present in the PodTemplate.
 	AddVolume(volume *corev1.Volume, volumeMount *corev1.VolumeMount)
 	// Add the volume to the PodTemplate and add the volumeMount to container matching the containerName.
-	AddVolumeToContainer(volume *corev1.Volume, volumeMount *corev1.VolumeMount, containerName string)
+	AddVolumeToContainer(volume *corev1.Volume, volumeMount *corev1.VolumeMount, containerName commonv1.AgentContainerName)
 	// Add the volume to the PodTemplate and add the volumeMount to every containers present in the PodTemplate.
 	// Provide merge functions if the merge is specific.
 	AddVolumeWithMergeFunc(volume *corev1.Volume, volumeMount *corev1.VolumeMount, volumeMergeFunc VolumeMergeFunction, volumeMountMergeFunc VolumeMountMergeFunction) error
 	// Add the volume to the PodTemplate and add the volumeMount to container matching the containerName.
 	// Provide merge functions if the merge is specific.
-	AddVolumeToContainerWithMergeFunc(volume *corev1.Volume, volumeMount *corev1.VolumeMount, containerName string, volumeMergeFunc VolumeMergeFunction, volumeMountMergeFunc VolumeMountMergeFunction) error
+	AddVolumeToContainerWithMergeFunc(volume *corev1.Volume, volumeMount *corev1.VolumeMount, containerName commonv1.AgentContainerName, volumeMergeFunc VolumeMergeFunction, volumeMountMergeFunc VolumeMountMergeFunction) error
 }
 
 // NewVolumeManager returns a new instance of the VolumeManager
@@ -40,7 +41,7 @@ func (impl *volumeManagerImpl) AddVolume(volume *corev1.Volume, volumeMount *cor
 	_ = impl.AddVolumeWithMergeFunc(volume, volumeMount, DefaultVolumeMergeFunction, DefaultVolumeMountMergeFunction)
 }
 
-func (impl *volumeManagerImpl) AddVolumeToContainer(volume *corev1.Volume, volumeMount *corev1.VolumeMount, containerName string) {
+func (impl *volumeManagerImpl) AddVolumeToContainer(volume *corev1.Volume, volumeMount *corev1.VolumeMount, containerName commonv1.AgentContainerName) {
 	_ = impl.AddVolumeToContainerWithMergeFunc(volume, volumeMount, containerName, DefaultVolumeMergeFunction, DefaultVolumeMountMergeFunction)
 }
 
@@ -58,13 +59,13 @@ func (impl *volumeManagerImpl) AddVolumeWithMergeFunc(volume *corev1.Volume, vol
 	return nil
 }
 
-func (impl *volumeManagerImpl) AddVolumeToContainerWithMergeFunc(volume *corev1.Volume, volumeMount *corev1.VolumeMount, containerName string, volumeMergeFunc VolumeMergeFunction, volumeMountMergeFunc VolumeMountMergeFunction) error {
+func (impl *volumeManagerImpl) AddVolumeToContainerWithMergeFunc(volume *corev1.Volume, volumeMount *corev1.VolumeMount, containerName commonv1.AgentContainerName, volumeMergeFunc VolumeMergeFunction, volumeMountMergeFunc VolumeMountMergeFunction) error {
 	_, err := AddVolumeToPod(&impl.podTmpl.Spec, volume, volumeMergeFunc)
 	if err != nil {
 		return err
 	}
 	for id := range impl.podTmpl.Spec.Containers {
-		if impl.podTmpl.Spec.Containers[id].Name == containerName {
+		if impl.podTmpl.Spec.Containers[id].Name == string(containerName) {
 			_, err = AddVolumeMountToContainer(&impl.podTmpl.Spec.Containers[id], volumeMount, DefaultVolumeMountMergeFunction)
 			if err != nil {
 				return err

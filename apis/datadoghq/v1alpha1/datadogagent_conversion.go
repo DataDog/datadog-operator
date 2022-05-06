@@ -233,13 +233,13 @@ func getV2TemplateOverride(dst *v2alpha1.DatadogAgentSpec, component v2alpha1.Co
 	return override
 }
 
-func getV2Container(comp *v2alpha1.DatadogAgentComponentOverride, containerName v2alpha1.AgentContainerName) *v2alpha1.DatadogAgentGenericContainer {
+func getV2Container(comp *v2alpha1.DatadogAgentComponentOverride, containerName commonv1.AgentContainerName) *v2alpha1.DatadogAgentGenericContainer {
 	if cont := comp.Containers[containerName]; cont != nil {
 		return cont
 	}
 
 	if comp.Containers == nil {
-		comp.Containers = make(map[v2alpha1.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer)
+		comp.Containers = make(map[commonv1.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer)
 	}
 
 	cont := &v2alpha1.DatadogAgentGenericContainer{}
