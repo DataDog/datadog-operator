@@ -10,6 +10,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/common"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -72,11 +73,11 @@ func (r *Reconciler) manageClusterChecksRunnerRBACs(logger logr.Logger, dda *dat
 	}
 
 	if isOrchestratorExplorerEnabled(dda) {
-		if result, err := r.createOrUpdateOrchestratorCoreRBAC(logger, dda, serviceAccountName, clusterChecksRunnerVersion, checkRunnersSuffix); err != nil {
+		if result, err := r.createOrUpdateOrchestratorCoreRBAC(logger, dda, serviceAccountName, clusterChecksRunnerVersion, common.CheckRunnersSuffix); err != nil {
 			return result, err
 		}
 	} else {
-		if result, err := r.cleanupOrchestratorCoreRBAC(logger, dda, checkRunnersSuffix); err != nil {
+		if result, err := r.cleanupOrchestratorCoreRBAC(logger, dda, common.CheckRunnersSuffix); err != nil {
 			return result, err
 		}
 	}

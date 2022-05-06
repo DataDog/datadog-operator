@@ -62,7 +62,7 @@ func convertDatadogAgentSpec(src *DatadogAgentSpecAgentSpec, dst *v2alpha1.Datad
 		}
 
 		if src.Config.Env != nil {
-			getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), v2alpha1.CoreAgentContainerName).Env = src.Config.Env
+			getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), commonv1.CoreAgentContainerName).Env = src.Config.Env
 		}
 
 		if src.Config.Volumes != nil {
@@ -70,31 +70,31 @@ func convertDatadogAgentSpec(src *DatadogAgentSpecAgentSpec, dst *v2alpha1.Datad
 		}
 
 		if src.Config.VolumeMounts != nil {
-			getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), v2alpha1.CoreAgentContainerName).VolumeMounts = src.Config.VolumeMounts
+			getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), commonv1.CoreAgentContainerName).VolumeMounts = src.Config.VolumeMounts
 		}
 
 		if src.Config.Resources != nil {
-			getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), v2alpha1.CoreAgentContainerName).Resources = src.Config.Resources
+			getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), commonv1.CoreAgentContainerName).Resources = src.Config.Resources
 		}
 
 		if src.Config.Command != nil {
-			getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), v2alpha1.CoreAgentContainerName).Command = src.Config.Command
+			getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), commonv1.CoreAgentContainerName).Command = src.Config.Command
 		}
 
 		if src.Config.Args != nil {
-			getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), v2alpha1.CoreAgentContainerName).Args = src.Config.Args
+			getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), commonv1.CoreAgentContainerName).Args = src.Config.Args
 		}
 
 		if src.Config.LivenessProbe != nil {
-			getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), v2alpha1.CoreAgentContainerName).LivenessProbe = src.Config.LivenessProbe
+			getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), commonv1.CoreAgentContainerName).LivenessProbe = src.Config.LivenessProbe
 		}
 
 		if src.Config.ReadinessProbe != nil {
-			getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), v2alpha1.CoreAgentContainerName).ReadinessProbe = src.Config.ReadinessProbe
+			getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), commonv1.CoreAgentContainerName).ReadinessProbe = src.Config.ReadinessProbe
 		}
 
 		if src.Config.HealthPort != nil {
-			getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), v2alpha1.CoreAgentContainerName).HealthPort = src.Config.HealthPort
+			getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), commonv1.CoreAgentContainerName).HealthPort = src.Config.HealthPort
 		}
 
 		if src.Config.CriSocket != nil {
@@ -224,27 +224,27 @@ func convertAPMSpec(src *APMSpec, dst *v2alpha1.DatadogAgent) {
 	}
 
 	if src.Env != nil {
-		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), v2alpha1.TraceAgentContainerName).Env = src.Env
+		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), commonv1.TraceAgentContainerName).Env = src.Env
 	}
 
 	if src.VolumeMounts != nil {
-		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), v2alpha1.TraceAgentContainerName).VolumeMounts = src.VolumeMounts
+		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), commonv1.TraceAgentContainerName).VolumeMounts = src.VolumeMounts
 	}
 
 	if src.Resources != nil {
-		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), v2alpha1.TraceAgentContainerName).Resources = src.Resources
+		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), commonv1.TraceAgentContainerName).Resources = src.Resources
 	}
 
 	if src.Command != nil {
-		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), v2alpha1.TraceAgentContainerName).Command = src.Command
+		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), commonv1.TraceAgentContainerName).Command = src.Command
 	}
 
 	if src.Args != nil {
-		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), v2alpha1.TraceAgentContainerName).Args = src.Args
+		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), commonv1.TraceAgentContainerName).Args = src.Args
 	}
 
 	if src.LivenessProbe != nil {
-		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), v2alpha1.TraceAgentContainerName).LivenessProbe = src.LivenessProbe
+		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), commonv1.TraceAgentContainerName).LivenessProbe = src.LivenessProbe
 	}
 }
 
@@ -297,23 +297,23 @@ func convertProcessSpec(src *ProcessSpec, dst *v2alpha1.DatadogAgent) {
 	features.LiveContainerCollection.Enabled = src.Enabled
 
 	if src.Env != nil {
-		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), v2alpha1.ProcessAgentContainerName).Env = src.Env
+		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), commonv1.ProcessAgentContainerName).Env = src.Env
 	}
 
 	if src.VolumeMounts != nil {
-		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), v2alpha1.ProcessAgentContainerName).VolumeMounts = src.VolumeMounts
+		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), commonv1.ProcessAgentContainerName).VolumeMounts = src.VolumeMounts
 	}
 
 	if src.Resources != nil {
-		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), v2alpha1.ProcessAgentContainerName).Resources = src.Resources
+		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), commonv1.ProcessAgentContainerName).Resources = src.Resources
 	}
 
 	if src.Command != nil {
-		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), v2alpha1.ProcessAgentContainerName).Command = src.Command
+		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), commonv1.ProcessAgentContainerName).Command = src.Command
 	}
 
 	if src.Args != nil {
-		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), v2alpha1.ProcessAgentContainerName).Args = src.Args
+		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), commonv1.ProcessAgentContainerName).Args = src.Args
 	}
 }
 
@@ -346,23 +346,23 @@ func convertSystemProbeSpec(src *SystemProbeSpec, dst *v2alpha1.DatadogAgent) {
 	}
 
 	if src.Env != nil {
-		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), v2alpha1.SystemProbeContainerName).Env = src.Env
+		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), commonv1.SystemProbeContainerName).Env = src.Env
 	}
 
 	if src.VolumeMounts != nil {
-		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), v2alpha1.SystemProbeContainerName).VolumeMounts = src.VolumeMounts
+		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), commonv1.SystemProbeContainerName).VolumeMounts = src.VolumeMounts
 	}
 
 	if src.Resources != nil {
-		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), v2alpha1.SystemProbeContainerName).Resources = src.Resources
+		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), commonv1.SystemProbeContainerName).Resources = src.Resources
 	}
 
 	if src.Command != nil {
-		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), v2alpha1.SystemProbeContainerName).Command = src.Command
+		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), commonv1.SystemProbeContainerName).Command = src.Command
 	}
 
 	if src.Args != nil {
-		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), v2alpha1.SystemProbeContainerName).Args = src.Args
+		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), commonv1.SystemProbeContainerName).Args = src.Args
 	}
 
 	// System-probe specific fields
@@ -383,7 +383,7 @@ func convertSystemProbeSpec(src *SystemProbeSpec, dst *v2alpha1.DatadogAgent) {
 	}
 
 	if src.AppArmorProfileName != "" {
-		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), v2alpha1.SystemProbeContainerName).AppArmorProfileName = &src.AppArmorProfileName
+		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), commonv1.SystemProbeContainerName).AppArmorProfileName = &src.AppArmorProfileName
 	}
 
 	if src.CustomConfig != nil {
@@ -396,7 +396,7 @@ func convertSystemProbeSpec(src *SystemProbeSpec, dst *v2alpha1.DatadogAgent) {
 	}
 
 	if src.SecurityContext != nil {
-		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), v2alpha1.SystemProbeContainerName).SecurityContext = src.SecurityContext
+		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), commonv1.SystemProbeContainerName).SecurityContext = src.SecurityContext
 	}
 }
 
@@ -434,22 +434,22 @@ func convertSecurityAgentSpec(src *SecuritySpec, dst *v2alpha1.DatadogAgent) {
 	}
 
 	if src.Env != nil {
-		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), v2alpha1.SecurityAgentContainerName).Env = src.Env
+		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), commonv1.SecurityAgentContainerName).Env = src.Env
 	}
 
 	if src.VolumeMounts != nil {
-		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), v2alpha1.SecurityAgentContainerName).VolumeMounts = src.VolumeMounts
+		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), commonv1.SecurityAgentContainerName).VolumeMounts = src.VolumeMounts
 	}
 
 	if src.Resources != nil {
-		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), v2alpha1.SecurityAgentContainerName).Resources = src.Resources
+		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), commonv1.SecurityAgentContainerName).Resources = src.Resources
 	}
 
 	if src.Command != nil {
-		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), v2alpha1.SecurityAgentContainerName).Command = src.Command
+		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), commonv1.SecurityAgentContainerName).Command = src.Command
 	}
 
 	if src.Args != nil {
-		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), v2alpha1.SecurityAgentContainerName).Args = src.Args
+		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), commonv1.SecurityAgentContainerName).Args = src.Args
 	}
 }

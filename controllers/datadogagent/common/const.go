@@ -12,9 +12,3 @@ const (
 	CheckRunnersSuffix = "ccr"
 	ClusterAgentSuffix = "dca"
 )
-
-// container names
-const (
-	ClusterAgentContainerName = "cluster-agent"
-	AgentContainerName        = "agent"
-)
