@@ -6,8 +6,10 @@
 package feature
 
 import (
+	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/merger"
 
@@ -16,15 +18,95 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+// RequiredComponents use to know which component need to be enabled for the feature
+type RequiredComponents struct {
+	ClusterAgent       RequiredComponent
+	Agent              RequiredComponent
+	ClusterCheckRunner RequiredComponent
+}
+
+// IsEnabled return true if the Feature need to be enabled
+func (rc *RequiredComponents) IsEnabled() bool {
+	return rc.ClusterAgent.IsEnabled() || rc.Agent.IsEnabled() || rc.ClusterCheckRunner.IsEnabled()
+}
+
+// Merge use to merge 2 RequiredComponents
+// merge priority: false > true > nil
+// *
+func (rc *RequiredComponents) Merge(in *RequiredComponents) *RequiredComponents {
+	rc.ClusterAgent.Merge(&in.ClusterAgent)
+	rc.Agent.Merge(&in.Agent)
+	rc.ClusterCheckRunner.Merge(&in.ClusterCheckRunner)
+	return rc
+}
+
+// RequiredComponent use to know how if a component is required and which containers are required.
+// If set Required to:
+//   * true: the feature needs the corresponding component.
+//   * false: the corresponding component needs to ne disabled for this feature.
+//   * nil: the feature doesn't need the corresponding component.
+type RequiredComponent struct {
+	Required           *bool
+	RequiredContainers []apicommonv1.AgentContainerName
+}
+
+// IsEnabled return true if the Feature need the current RequiredComponent
+func (rc *RequiredComponent) IsEnabled() bool {
+	return apiutils.BoolValue(rc.Required) || len(rc.RequiredContainers) > 0
+}
+
+// Merge use to merge 2 RequiredComponents
+// merge priority: false > true > nil
+// *
+func (rc *RequiredComponent) Merge(in *RequiredComponent) *RequiredComponent {
+	rc.Required = merge(rc.Required, in.Required)
+	rc.RequiredContainers = mergeSlices(rc.RequiredContainers, in.RequiredContainers)
+	return rc
+}
+
+func merge(a, b *bool) *bool {
+	trueValue := true
+	falseValue := false
+	if a == nil && b == nil {
+		return nil
+	} else if a == nil && b != nil {
+		return b
+	} else if b == nil && a != nil {
+		return a
+	}
+	if !apiutils.BoolValue(a) || !apiutils.BoolValue(b) {
+		return &falseValue
+	}
+	return &trueValue
+}
+
+func mergeSlices(a, b []apicommonv1.AgentContainerName) []apicommonv1.AgentContainerName {
+	out := a
+	for _, containerB := range b {
+		found := false
+		for _, containerA := range a {
+			if containerA == containerB {
+				found = true
+				break
+			}
+		}
+		if !found {
+			out = append(out, containerB)
+		}
+	}
+
+	return out
+}
+
 // Feature Feature interface
 // It returns `true` if the Feature is used, else it return `false`.
 type Feature interface {
 	// Configure use to configure the internal of a Feature
 	// It should return `true` if the feature is enabled, else `false`.
-	Configure(dda *v2alpha1.DatadogAgent) bool
+	Configure(dda *v2alpha1.DatadogAgent) RequiredComponents
 	// ConfigureV1 use to configure the internal of a Feature from v1alpha1.DatadogAgent
 	// It should return `true` if the feature is enabled, else `false`.
-	ConfigureV1(dda *v1alpha1.DatadogAgent) bool
+	ConfigureV1(dda *v1alpha1.DatadogAgent) RequiredComponents
 	// ManageDependencies allows a feature to manage its dependencies.
 	// Feature's dependencies should be added in the store.
 	ManageDependencies(managers ResourceManagers) error

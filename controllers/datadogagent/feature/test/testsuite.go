@@ -65,7 +65,7 @@ func runTest(t *testing.T, tt FeatureTest, buildFunc feature.BuildFunc) {
 	})
 
 	// check feature Configure function
-	var gotConfigure bool
+	var gotConfigure feature.RequiredComponents
 	if tt.DDAv2 != nil {
 		gotConfigure = f.Configure(tt.DDAv2)
 	} else if tt.DDAv1 != nil {
@@ -74,11 +74,11 @@ func runTest(t *testing.T, tt FeatureTest, buildFunc feature.BuildFunc) {
 		t.Fatal("No DatadogAgent CRD provided")
 	}
 
-	if gotConfigure != tt.WantConfigure {
+	if gotConfigure.IsEnabled() != tt.WantConfigure {
 		t.Errorf("ksmFeature.Configure() = %v, want %v", gotConfigure, tt.WantConfigure)
 	}
 
-	if !gotConfigure {
+	if !gotConfigure.IsEnabled() {
 		// If the feature is now enable return now
 		return
 	}
