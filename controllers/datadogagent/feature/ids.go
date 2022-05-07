@@ -13,6 +13,8 @@ const (
 	KubernetesStateCoreIDType IDType = iota
 	// OrchestratorExplorerIDType Orchestrator Explorer feature.
 	OrchestratorExplorerIDType
+	// LiveProcessIDType Live Process feature.
+	LiveProcessIDType
 	// DummyIDType Dummt feature.
 	DummyIDType
 )
