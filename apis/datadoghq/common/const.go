@@ -57,4 +57,8 @@ const (
 	ConfigVolumeName              = "config"
 	ConfigVolumePath              = "/etc/datadog-agent"
 	KubeStateMetricCoreVolumeName = "ksm-core-config"
+
+	HostRootVolumeName = "hostroot"
+	HostRootHostPath   = "/"
+	HostRootMountPath  = "/host/root"
 )

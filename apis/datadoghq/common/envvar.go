@@ -10,4 +10,5 @@ const (
 	DDIgnoreAutoConf                = "DD_IGNORE_AUTOCONF"
 	DDKubeStateMetricsCoreEnabled   = "DD_KUBE_STATE_METRICS_CORE_ENABLED"
 	DDKubeStateMetricsCoreConfigMap = "DD_KUBE_STATE_METRICS_CORE_CONFIGMAP_NAME"
+	DDHostRootEnvVar                = "HOST_ROOT"
 )
