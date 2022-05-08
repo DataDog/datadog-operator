@@ -29,12 +29,25 @@ func (_m *VolumeManager) AddVolumeToContainer(volume *v1.Volume, volumeMount *v1
 	_m.VolumeMountByC[containerName] = append(_m.VolumeMountByC[containerName], volumeMount)
 }
 
-// AddVolumeToContainerWithMergeFunc provides a mock function with given fields: volume, volumeMount, containerName, volumeMergeFunc, volumeMountMergeFunc
-func (_m *VolumeManager) AddVolumeToContainerWithMergeFunc(volume *v1.Volume, volumeMount *v1.VolumeMount, containerName commonv1.AgentContainerName, volumeMergeFunc merger.VolumeMergeFunction, volumeMountMergeFunc merger.VolumeMountMergeFunction) error {
+// AddVolumeToContainers provides a mock function with given fields: volume, volumeMount, containerNames
+func (_m *VolumeManager) AddVolumeToContainers(volume *v1.Volume, volumeMount *v1.VolumeMount, containerNames []commonv1.AgentContainerName) {
+	_m.Volumes = append(_m.Volumes, volume)
+	for _, c := range containerNames {
+		_m.VolumeMountByC[c] = append(_m.VolumeMountByC[c], volumeMount)
+	}
+}
+
+// AddVolumeToContainersWithMergeFunc provides a mock function with given fields: volume, volumeMount, containerNames, volumeMergeFunc, volumeMountMergeFunc
+func (_m *VolumeManager) AddVolumeToContainersWithMergeFunc(volume *v1.Volume, volumeMount *v1.VolumeMount, containerNames []commonv1.AgentContainerName, volumeMergeFunc merger.VolumeMergeFunction, volumeMountMergeFunc merger.VolumeMountMergeFunction) error {
 	if err := _m.volumeMerge(volume, volumeMergeFunc); err != nil {
 		return err
 	}
-	return _m.volumeMountMerge(containerName, volumeMount, volumeMountMergeFunc)
+	for _, cName := range containerNames {
+		if err := _m.volumeMountMerge(cName, volumeMount, volumeMountMergeFunc); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (_m *VolumeManager) volumeMerge(volume *v1.Volume, volumeMergeFunc merger.VolumeMergeFunction) error {
@@ -81,7 +94,7 @@ func (_m *VolumeManager) volumeMountMerge(containerName commonv1.AgentContainerN
 
 // AddVolumeWithMergeFunc provides a mock function with given fields: volume, volumeMount, volumeMergeFunc, volumeMountMergeFunc
 func (_m *VolumeManager) AddVolumeWithMergeFunc(volume *v1.Volume, volumeMount *v1.VolumeMount, volumeMergeFunc merger.VolumeMergeFunction, volumeMountMergeFunc merger.VolumeMountMergeFunction) error {
-	return _m.AddVolumeToContainerWithMergeFunc(volume, volumeMount, AllContainers, volumeMergeFunc, volumeMountMergeFunc)
+	return _m.AddVolumeToContainersWithMergeFunc(volume, volumeMount, []commonv1.AgentContainerName{AllContainers}, volumeMergeFunc, volumeMountMergeFunc)
 }
 
 // NewFakeVolumeManager creates a new instance of VolumeManager. It also registers the testing.TB interface on the mock and a cleanup function to assert the mocks expectations.

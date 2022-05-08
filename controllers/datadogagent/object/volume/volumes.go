@@ -14,6 +14,28 @@ import (
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 )
 
+// GetVolumes creates a corev1.Volume and corev1.VolumeMount corresponding to a host path.
+func GetVolumes(volumeName, hostPath, mountPath string) (corev1.Volume, corev1.VolumeMount) {
+	var volume corev1.Volume
+	var volumeMount corev1.VolumeMount
+
+	volume = corev1.Volume{
+		Name: volumeName,
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: hostPath,
+			},
+		},
+	}
+	volumeMount = corev1.VolumeMount{
+		Name:      volumeName,
+		MountPath: mountPath,
+		ReadOnly:  true,
+	}
+
+	return volume, volumeMount
+}
+
 // GetCustomConfigSpecVolumes use to generate the corev1.Volume and corev1.VolumeMount corresponding to a CustomConfig.
 func GetCustomConfigSpecVolumes(customConfig *apicommonv1.CustomConfig, volumeName, defaultCMName, configFolder string) (corev1.Volume, corev1.VolumeMount) {
 	var volume corev1.Volume
