@@ -10,4 +10,9 @@ const (
 	DDIgnoreAutoConf                = "DD_IGNORE_AUTOCONF"
 	DDKubeStateMetricsCoreEnabled   = "DD_KUBE_STATE_METRICS_CORE_ENABLED"
 	DDKubeStateMetricsCoreConfigMap = "DD_KUBE_STATE_METRICS_CORE_CONFIGMAP_NAME"
+
+	DDLogsEnabled                    = "DD_LOGS_ENABLED"
+	DDLogsConfigContainerCollectAll  = "DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL"
+	DDLogsContainerCollectUsingFiles = "DD_LOGS_CONFIG_K8S_CONTAINER_USE_FILE"
+	DDLogsConfigOpenFilesLimit       = "DD_LOGS_CONFIG_OPEN_FILES_LIMIT"
 )
