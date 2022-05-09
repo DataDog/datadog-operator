@@ -7,12 +7,12 @@ package oomkill
 
 import (
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 
+	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
@@ -33,13 +33,10 @@ func buildOOMKillFeature(options *feature.Options) feature.Feature {
 
 type oomKillFeature struct {
 	enable bool
-	owner  metav1.Object
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *oomKillFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredComponents {
-	f.owner = dda
-
 	if dda.Spec.Features.OOMKill != nil && apiutils.BoolValue(dda.Spec.Features.OOMKill.Enabled) {
 		f.enable = true
 	}
@@ -51,8 +48,6 @@ func (f *oomKillFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 
 // ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
 func (f *oomKillFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) feature.RequiredComponents {
-	f.owner = dda
-
 	if dda.Spec.Agent.SystemProbe != nil && *dda.Spec.Agent.SystemProbe.EnableOOMKill {
 		f.enable = true
 	}
@@ -78,15 +73,15 @@ func (f *oomKillFeature) ManageClusterAgent(managers feature.PodTemplateManagers
 // It should do nothing if the feature doesn't need to configure it.
 func (f *oomKillFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	// modules volume mount
-	modulesVol, modulesVolMount := volume.GetVolumes(modulesVolumeName, modulesVolumePath, modulesVolumePath)
+	modulesVol, modulesVolMount := volume.GetVolumes(apicommon.ModulesVolumeName, apicommon.ModulesVolumePath, apicommon.ModulesVolumePath)
 	managers.Volume().AddVolumeToContainer(&modulesVol, &modulesVolMount, apicommonv1.SystemProbeContainerName)
 
 	// src volume mount
-	srcVol, srcVolMount := volume.GetVolumes(srcVolumeName, srcVolumePath, srcVolumePath)
+	srcVol, srcVolMount := volume.GetVolumes(apicommon.SrcVolumeName, apicommon.SrcVolumePath, apicommon.SrcVolumePath)
 	managers.Volume().AddVolumeToContainer(&srcVol, &srcVolMount, apicommonv1.SystemProbeContainerName)
 
 	enableEnvVar := &corev1.EnvVar{
-		Name:  DDEnableOOMKillEnvVar,
+		Name:  apicommon.DDEnableOOMKillEnvVar,
 		Value: "true",
 	}
 

@@ -8,6 +8,7 @@ package oomkill
 import (
 	"testing"
 
+	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
@@ -15,6 +16,7 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/test"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -61,13 +63,13 @@ func Test_oomKillFeature_Configure(t *testing.T) {
 		// check volume mounts
 		wantVolumeMounts := []corev1.VolumeMount{
 			{
-				Name:      modulesVolumeName,
-				MountPath: modulesVolumePath,
+				Name:      apicommon.ModulesVolumeName,
+				MountPath: apicommon.ModulesVolumePath,
 				ReadOnly:  true,
 			},
 			{
-				Name:      srcVolumeName,
-				MountPath: srcVolumePath,
+				Name:      apicommon.SrcVolumeName,
+				MountPath: apicommon.SrcVolumePath,
 				ReadOnly:  true,
 			},
 		}
@@ -78,18 +80,18 @@ func Test_oomKillFeature_Configure(t *testing.T) {
 		// check volumes
 		wantVolumes := []corev1.Volume{
 			{
-				Name: modulesVolumeName,
+				Name: apicommon.ModulesVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
-						Path: modulesVolumePath,
+						Path: apicommon.ModulesVolumePath,
 					},
 				},
 			},
 			{
-				Name: srcVolumeName,
+				Name: apicommon.SrcVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
-						Path: srcVolumePath,
+						Path: apicommon.SrcVolumePath,
 					},
 				},
 			},
@@ -101,7 +103,7 @@ func Test_oomKillFeature_Configure(t *testing.T) {
 		// check env vars
 		wantEnvVars := []*corev1.EnvVar{
 			{
-				Name:  DDEnableOOMKillEnvVar,
+				Name:  apicommon.DDEnableOOMKillEnvVar,
 				Value: "true",
 			},
 		}
