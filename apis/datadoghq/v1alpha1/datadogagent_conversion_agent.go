@@ -104,15 +104,15 @@ func convertDatadogAgentSpec(src *DatadogAgentSpecAgentSpec, dst *v2alpha1.Datad
 
 		if src.Config.Dogstatsd != nil {
 			features := getV2Features(dst)
-			if features.DogStatsD == nil {
-				features.DogStatsD = &v2alpha1.DogStatsDFeatureConfig{}
+			if features.Dogstatsd == nil {
+				features.Dogstatsd = &v2alpha1.DogstatsdFeatureConfig{}
 			}
 
-			features.DogStatsD.OriginDetectionEnabled = src.Config.Dogstatsd.DogstatsdOriginDetection
-			features.DogStatsD.MapperProfiles = convertConfigMapConfig(src.Config.Dogstatsd.MapperProfiles)
+			features.Dogstatsd.OriginDetectionEnabled = src.Config.Dogstatsd.DogstatsdOriginDetection
+			features.Dogstatsd.MapperProfiles = convertConfigMapConfig(src.Config.Dogstatsd.MapperProfiles)
 
 			if src.Config.Dogstatsd.UnixDomainSocket != nil {
-				features.DogStatsD.UnixDomainSocketConfig = &v2alpha1.UnixDomainSocketConfig{
+				features.Dogstatsd.UnixDomainSocketConfig = &v2alpha1.UnixDomainSocketConfig{
 					Enabled: src.Config.Dogstatsd.UnixDomainSocket.Enabled,
 					Path:    src.Config.Dogstatsd.UnixDomainSocket.HostFilepath,
 				}

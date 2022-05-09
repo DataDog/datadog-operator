@@ -52,14 +52,14 @@ spec:
 | features.cws.enabled | Enabled enables Cloud Workload Security. Default: false |
 | features.cws.syscallMonitorEnabled | SyscallMonitorEnabled enables Syscall Monitoring (recommended for troubleshooting only). Default: false |
 | features.datadogMonitor.enabled | Enabled enables Datadog Monitors. Default: false |
-| features.dogStatsD.hostPortConfig.enabled | Enabled enables host port configuration |
-| features.dogStatsD.hostPortConfig.hostPort | Port takes a port number (0 < x < 65536) to expose on the host. (Most containers do not need this.) If HostNetwork is enabled, this value must match the ContainerPort. |
-| features.dogStatsD.mapperProfiles.configData | ConfigData corresponds to the configuration file content. |
-| features.dogStatsD.mapperProfiles.configMap.items | Items maps a ConfigMap data key to a file path mount. |
-| features.dogStatsD.mapperProfiles.configMap.name | Name is the name of the ConfigMap. |
-| features.dogStatsD.originDetectionEnabled | OriginDetectionEnabled enables origin detection for container tagging. See also: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/#using-origin-detection-for-container-tagging |
-| features.dogStatsD.unixDomainSocketConfig.enabled | Enabled enables Unix Domain Socket. |
-| features.dogStatsD.unixDomainSocketConfig.path | Path defines the socket path used when enabled. |
+| features.dogstatsd.hostPortConfig.enabled | Enabled enables host port configuration |
+| features.dogstatsd.hostPortConfig.hostPort | Port takes a port number (0 < x < 65536) to expose on the host. (Most containers do not need this.) If HostNetwork is enabled, this value must match the ContainerPort. |
+| features.dogstatsd.mapperProfiles.configData | ConfigData corresponds to the configuration file content. |
+| features.dogstatsd.mapperProfiles.configMap.items | Items maps a ConfigMap data key to a file path mount. |
+| features.dogstatsd.mapperProfiles.configMap.name | Name is the name of the ConfigMap. |
+| features.dogstatsd.originDetectionEnabled | OriginDetectionEnabled enables origin detection for container tagging. See also: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/#using-origin-detection-for-container-tagging |
+| features.dogstatsd.unixDomainSocketConfig.enabled | Enabled enables Unix Domain Socket. |
+| features.dogstatsd.unixDomainSocketConfig.path | Path defines the socket path used when enabled. |
 | features.eventCollection.collectKubernetesEvents | CollectKubernetesEvents enables Kubernetes event collection. Default: true |
 | features.externalMetricsServer.enabled | Enabled enables the External Metrics Server. Default: false |
 | features.externalMetricsServer.endpoint.credentials.apiKey | APIKey configures your Datadog API key. See also: https://app.datadoghq.com/account/settings#agent/kubernetes |
@@ -68,7 +68,6 @@ spec:
 | features.externalMetricsServer.endpoint.credentials.appKey | AppKey configures your Datadog application key. If you are using clusterAgent.metricsProvider.enabled = true, you must set a Datadog application key for read access to your metrics. |
 | features.externalMetricsServer.endpoint.credentials.appSecret.keyName | KeyName is the key of the secret to use. |
 | features.externalMetricsServer.endpoint.credentials.appSecret.secretName | SecretName is the name of the secret. |
-| features.externalMetricsServer.endpoint.credentials.token | Token is the token for communication between the NodeAgent and ClusterAgent |
 | features.externalMetricsServer.endpoint.url | URL defines the endpoint URL. |
 | features.externalMetricsServer.port | Port specifies the metricsProvider External Metrics Server service port. Default: 8443 |
 | features.externalMetricsServer.useDatadogMetrics | UseDatadogMetrics enables usage of the DatadogMetrics CRD (allowing one to scale on arbitrary Datadog metric queries). Default: true |
@@ -101,7 +100,6 @@ spec:
 | features.orchestratorExplorer.endpoint.credentials.appKey | AppKey configures your Datadog application key. If you are using clusterAgent.metricsProvider.enabled = true, you must set a Datadog application key for read access to your metrics. |
 | features.orchestratorExplorer.endpoint.credentials.appSecret.keyName | KeyName is the key of the secret to use. |
 | features.orchestratorExplorer.endpoint.credentials.appSecret.secretName | SecretName is the name of the secret. |
-| features.orchestratorExplorer.endpoint.credentials.token | Token is the token for communication between the NodeAgent and ClusterAgent |
 | features.orchestratorExplorer.endpoint.url | URL defines the endpoint URL. |
 | features.orchestratorExplorer.extraTags | Additional tags to associate with the collected data in the form of `a b c`. This is a Cluster Agent option distinct from DD_TAGS that is used in the Orchestrator Explorer. |
 | features.orchestratorExplorer.scrubContainers | ScrubContainers enables scrubbing of sensitive container data (passwords, tokens, etc. ). Default: true |
@@ -117,7 +115,6 @@ spec:
 | global.credentials.appKey | AppKey configures your Datadog application key. If you are using clusterAgent.metricsProvider.enabled = true, you must set a Datadog application key for read access to your metrics. |
 | global.credentials.appSecret.keyName | KeyName is the key of the secret to use. |
 | global.credentials.appSecret.secretName | SecretName is the name of the secret. |
-| global.credentials.token | Token is the token for communication between the NodeAgent and ClusterAgent |
 | global.criSocketPath | Path to the container runtime socket (if different from Docker). |
 | global.dockerSocketPath | Path to the docker runtime socket. |
 | global.endpoint.credentials.apiKey | APIKey configures your Datadog API key. See also: https://app.datadoghq.com/account/settings#agent/kubernetes |
@@ -126,7 +123,6 @@ spec:
 | global.endpoint.credentials.appKey | AppKey configures your Datadog application key. If you are using clusterAgent.metricsProvider.enabled = true, you must set a Datadog application key for read access to your metrics. |
 | global.endpoint.credentials.appSecret.keyName | KeyName is the key of the secret to use. |
 | global.endpoint.credentials.appSecret.secretName | SecretName is the name of the secret. |
-| global.endpoint.credentials.token | Token is the token for communication between the NodeAgent and ClusterAgent |
 | global.endpoint.url | URL defines the endpoint URL. |
 | global.kubelet.agentCAPath | AgentCAPath is the container path where the kubelet CA certificate is stored. Default: '/var/run/host-kubelet-ca.crt' if hostCAPath is set, else '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt' |
 | global.kubelet.host.configMapKeyRef.key | The key to select. |
@@ -153,6 +149,7 @@ spec:
 | global.registry | Registry is the image registry to use for all Agent images. Use 'public.ecr.aws/datadog' for AWS ECR. Use 'docker.io/datadog' for DockerHub. Default: 'gcr.io/datadoghq' |
 | global.site | Site is the Datadog intake site Agent data are sent to. Set to 'datadoghq.eu' to send data to the EU site. Default: 'datadoghq.com' |
 | global.tags | Tags contains a list of tags to attach to every metric, event and service check collected. Learn more about tagging: https://docs.datadoghq.com/tagging/ |
+| global.token | Token is the token for communication between the NodeAgent and ClusterAgent |
 | override | Override the default configurations of the agents |
 
 [1]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/datadog-agent-all.yaml

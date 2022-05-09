@@ -12518,8 +12518,8 @@ spec:
                         description: 'Enabled enables Datadog Monitors. Default: false'
                         type: boolean
                     type: object
-                  dogStatsD:
-                    description: DogStatsD configuration.
+                  dogstatsd:
+                    description: Dogstatsd configuration.
                     properties:
                       hostPortConfig:
                         description: 'HostPortConfig contains host port configuration.
@@ -12673,10 +12673,6 @@ spec:
                                 required:
                                 - secretName
                                 type: object
-                              token:
-                                description: Token is the token for communication
-                                  between the NodeAgent and ClusterAgent
-                                type: string
                             type: object
                           url:
                             description: URL defines the endpoint URL.
@@ -12963,10 +12959,6 @@ spec:
                                 required:
                                 - secretName
                                 type: object
-                              token:
-                                description: Token is the token for communication
-                                  between the NodeAgent and ClusterAgent
-                                type: string
                             type: object
                           url:
                             description: URL defines the endpoint URL.
@@ -13067,10 +13059,6 @@ spec:
                         required:
                         - secretName
                         type: object
-                      token:
-                        description: Token is the token for communication between
-                          the NodeAgent and ClusterAgent
-                        type: string
                     type: object
                   criSocketPath:
                     description: Path to the container runtime socket (if different
@@ -13127,10 +13115,6 @@ spec:
                             required:
                             - secretName
                             type: object
-                          token:
-                            description: Token is the token for communication between
-                              the NodeAgent and ClusterAgent
-                            type: string
                         type: object
                       url:
                         description: URL defines the endpoint URL.
@@ -13354,6 +13338,10 @@ spec:
                       type: string
                     type: array
                     x-kubernetes-list-type: set
+                  token:
+                    description: Token is the token for communication between the
+                      NodeAgent and ClusterAgent
+                    type: string
                 type: object
               override:
                 additionalProperties:

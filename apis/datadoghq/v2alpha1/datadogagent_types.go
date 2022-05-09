@@ -63,8 +63,8 @@ type DatadogFeatures struct {
 	NPM *NPMFeatureConfig `json:"npm,omitempty"`
 	// USM (Universal Service Monitoring) configuration.
 	USM *USMFeatureConfig `json:"usm,omitempty"`
-	// DogStatsD configuration.
-	DogStatsD *DogStatsDFeatureConfig `json:"dogStatsD,omitempty"`
+	// Dogstatsd configuration.
+	Dogstatsd *DogstatsdFeatureConfig `json:"dogstatsd,omitempty"`
 
 	// Cluster-level features
 
@@ -264,9 +264,9 @@ type USMFeatureConfig struct {
 	Enabled *bool `json:"enabled,omitempty"`
 }
 
-// DogStatsDFeatureConfig contains the DogStatsD configuration parameters.
+// DogstatsdFeatureConfig contains the Dogstatsd configuration parameters.
 // +k8s:openapi-gen=true
-type DogStatsDFeatureConfig struct {
+type DogstatsdFeatureConfig struct {
 	// OriginDetectionEnabled enables origin detection for container tagging.
 	// See also: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/#using-origin-detection-for-container-tagging
 	// +optional
@@ -497,6 +497,9 @@ type GlobalConfig struct {
 	// Credentials defines the Datadog credentials used to submit data to/query data from Datadog.
 	Credentials *DatadogCredentials `json:"credentials,omitempty"`
 
+	// Token is the token for communication between the NodeAgent and ClusterAgent
+	Token *string `json:"token,omitempty"`
+
 	// ClusterName sets a unique cluster name for the deployment to easily scope monitoring data in the Datadog app.
 	// +optional
 	ClusterName *string `json:"clusterName,omitempty"`
@@ -584,9 +587,6 @@ type DatadogCredentials struct {
 	// If set, this parameter takes precedence over "AppKey".
 	// +optional
 	AppSecret *commonv1.SecretConfig `json:"appSecret,omitempty"`
-
-	// Token is the token for communication between the NodeAgent and ClusterAgent
-	Token *string `json:"token,omitempty"`
 }
 
 // SecretBackendConfig provides configuration for the secret backend.

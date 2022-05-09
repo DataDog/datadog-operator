@@ -21,7 +21,7 @@ spec:
       enabled: true
     cws:
       enabled: false
-    dogStatsD:
+    dogstatsd:
       originDetectionEnabled: true
       unixDomainSocketConfig:
         enabled: true

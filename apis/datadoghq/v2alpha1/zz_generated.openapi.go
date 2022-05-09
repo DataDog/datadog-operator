@@ -25,7 +25,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./apis/datadoghq/v2alpha1.DatadogAgentStatus":                schema__apis_datadoghq_v2alpha1_DatadogAgentStatus(ref),
 		"./apis/datadoghq/v2alpha1.DatadogCredentials":                schema__apis_datadoghq_v2alpha1_DatadogCredentials(ref),
 		"./apis/datadoghq/v2alpha1.DatadogFeatures":                   schema__apis_datadoghq_v2alpha1_DatadogFeatures(ref),
-		"./apis/datadoghq/v2alpha1.DogStatsDFeatureConfig":            schema__apis_datadoghq_v2alpha1_DogStatsDFeatureConfig(ref),
+		"./apis/datadoghq/v2alpha1.DogstatsdFeatureConfig":            schema__apis_datadoghq_v2alpha1_DogstatsdFeatureConfig(ref),
 		"./apis/datadoghq/v2alpha1.EventCollectionFeatureConfig":      schema__apis_datadoghq_v2alpha1_EventCollectionFeatureConfig(ref),
 		"./apis/datadoghq/v2alpha1.KubeStateMetricsCoreFeatureConfig": schema__apis_datadoghq_v2alpha1_KubeStateMetricsCoreFeatureConfig(ref),
 		"./apis/datadoghq/v2alpha1.LocalService":                      schema__apis_datadoghq_v2alpha1_LocalService(ref),
@@ -317,13 +317,6 @@ func schema__apis_datadoghq_v2alpha1_DatadogCredentials(ref common.ReferenceCall
 							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/common/v1.SecretConfig"),
 						},
 					},
-					"token": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Token is the token for communication between the NodeAgent and ClusterAgent",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
 				},
 			},
 		},
@@ -399,10 +392,10 @@ func schema__apis_datadoghq_v2alpha1_DatadogFeatures(ref common.ReferenceCallbac
 							Ref:         ref("./apis/datadoghq/v2alpha1.USMFeatureConfig"),
 						},
 					},
-					"dogStatsD": {
+					"dogstatsd": {
 						SchemaProps: spec.SchemaProps{
-							Description: "DogStatsD configuration.",
-							Ref:         ref("./apis/datadoghq/v2alpha1.DogStatsDFeatureConfig"),
+							Description: "Dogstatsd configuration.",
+							Ref:         ref("./apis/datadoghq/v2alpha1.DogstatsdFeatureConfig"),
 						},
 					},
 					"eventCollection": {
@@ -457,15 +450,15 @@ func schema__apis_datadoghq_v2alpha1_DatadogFeatures(ref common.ReferenceCallbac
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v2alpha1.APMFeatureConfig", "./apis/datadoghq/v2alpha1.AdmissionControllerFeatureConfig", "./apis/datadoghq/v2alpha1.CSPMFeatureConfig", "./apis/datadoghq/v2alpha1.CWSFeatureConfig", "./apis/datadoghq/v2alpha1.ClusterChecksFeatureConfig", "./apis/datadoghq/v2alpha1.DatadogMonitorFeatureConfig", "./apis/datadoghq/v2alpha1.DogStatsDFeatureConfig", "./apis/datadoghq/v2alpha1.EventCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.ExternalMetricsServerFeatureConfig", "./apis/datadoghq/v2alpha1.KubeStateMetricsCoreFeatureConfig", "./apis/datadoghq/v2alpha1.LiveContainerCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.LiveProcessCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.LogCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.NPMFeatureConfig", "./apis/datadoghq/v2alpha1.OOMKillFeatureConfig", "./apis/datadoghq/v2alpha1.OrchestratorExplorerFeatureConfig", "./apis/datadoghq/v2alpha1.PrometheusScrapeFeatureConfig", "./apis/datadoghq/v2alpha1.TCPQueueLengthFeatureConfig", "./apis/datadoghq/v2alpha1.USMFeatureConfig"},
+			"./apis/datadoghq/v2alpha1.APMFeatureConfig", "./apis/datadoghq/v2alpha1.AdmissionControllerFeatureConfig", "./apis/datadoghq/v2alpha1.CSPMFeatureConfig", "./apis/datadoghq/v2alpha1.CWSFeatureConfig", "./apis/datadoghq/v2alpha1.ClusterChecksFeatureConfig", "./apis/datadoghq/v2alpha1.DatadogMonitorFeatureConfig", "./apis/datadoghq/v2alpha1.DogstatsdFeatureConfig", "./apis/datadoghq/v2alpha1.EventCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.ExternalMetricsServerFeatureConfig", "./apis/datadoghq/v2alpha1.KubeStateMetricsCoreFeatureConfig", "./apis/datadoghq/v2alpha1.LiveContainerCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.LiveProcessCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.LogCollectionFeatureConfig", "./apis/datadoghq/v2alpha1.NPMFeatureConfig", "./apis/datadoghq/v2alpha1.OOMKillFeatureConfig", "./apis/datadoghq/v2alpha1.OrchestratorExplorerFeatureConfig", "./apis/datadoghq/v2alpha1.PrometheusScrapeFeatureConfig", "./apis/datadoghq/v2alpha1.TCPQueueLengthFeatureConfig", "./apis/datadoghq/v2alpha1.USMFeatureConfig"},
 	}
 }
 
-func schema__apis_datadoghq_v2alpha1_DogStatsDFeatureConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema__apis_datadoghq_v2alpha1_DogstatsdFeatureConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DogStatsDFeatureConfig contains the DogStatsD configuration parameters.",
+				Description: "DogstatsdFeatureConfig contains the Dogstatsd configuration parameters.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"originDetectionEnabled": {

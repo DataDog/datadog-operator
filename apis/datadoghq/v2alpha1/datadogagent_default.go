@@ -45,11 +45,11 @@ const (
 
 	// defaultUSMEnabled bool = false
 
-	defaultDogStatsDOriginDetectionEnabled bool   = false
-	defaultDogStatsDHostPortEnabled        bool   = false
-	defaultDogStatsDPort                   int32  = 8125
-	defaultDogStatsDUseSocketVolume        bool   = false
-	defaultDogStatsDSocketPath             string = "/var/run/datadog/dsd.socket"
+	defaultDogstatsdOriginDetectionEnabled bool   = false
+	defaultDogstatsdHostPortEnabled        bool   = false
+	defaultDogstatsdPort                   int32  = 8125
+	defaultDogstatsdUseSocketVolume        bool   = false
+	defaultDogstatsdSocketPath             string = "/var/run/datadog/dsd.socket"
 
 	defaultCollectKubernetesEvents bool = true
 
@@ -178,34 +178,34 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 	}
 
 	// Dogstatd Feature
-	if ddaSpec.Features.DogStatsD == nil {
-		ddaSpec.Features.DogStatsD = &DogStatsDFeatureConfig{}
+	if ddaSpec.Features.Dogstatsd == nil {
+		ddaSpec.Features.Dogstatsd = &DogstatsdFeatureConfig{}
 	}
 
-	if ddaSpec.Features.DogStatsD.OriginDetectionEnabled == nil {
-		ddaSpec.Features.DogStatsD.OriginDetectionEnabled = apiutils.NewBoolPointer(defaultDogStatsDOriginDetectionEnabled)
+	if ddaSpec.Features.Dogstatsd.OriginDetectionEnabled == nil {
+		ddaSpec.Features.Dogstatsd.OriginDetectionEnabled = apiutils.NewBoolPointer(defaultDogstatsdOriginDetectionEnabled)
 	}
 
-	if ddaSpec.Features.DogStatsD.HostPortConfig == nil {
-		ddaSpec.Features.DogStatsD.HostPortConfig = &HostPortConfig{
-			Enabled: apiutils.NewBoolPointer(defaultDogStatsDHostPortEnabled),
+	if ddaSpec.Features.Dogstatsd.HostPortConfig == nil {
+		ddaSpec.Features.Dogstatsd.HostPortConfig = &HostPortConfig{
+			Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled),
 		}
 	}
 
-	if *ddaSpec.Features.DogStatsD.HostPortConfig.Enabled {
-		ddaSpec.Features.DogStatsD.HostPortConfig.Port = apiutils.NewInt32Pointer(defaultDogStatsDPort)
+	if *ddaSpec.Features.Dogstatsd.HostPortConfig.Enabled {
+		ddaSpec.Features.Dogstatsd.HostPortConfig.Port = apiutils.NewInt32Pointer(defaultDogstatsdPort)
 	}
 
-	if ddaSpec.Features.DogStatsD.UnixDomainSocketConfig == nil {
-		ddaSpec.Features.DogStatsD.UnixDomainSocketConfig = &UnixDomainSocketConfig{}
+	if ddaSpec.Features.Dogstatsd.UnixDomainSocketConfig == nil {
+		ddaSpec.Features.Dogstatsd.UnixDomainSocketConfig = &UnixDomainSocketConfig{}
 	}
 
-	if ddaSpec.Features.DogStatsD.UnixDomainSocketConfig.Enabled == nil {
-		ddaSpec.Features.DogStatsD.UnixDomainSocketConfig.Enabled = apiutils.NewBoolPointer(defaultDogStatsDUseSocketVolume)
+	if ddaSpec.Features.Dogstatsd.UnixDomainSocketConfig.Enabled == nil {
+		ddaSpec.Features.Dogstatsd.UnixDomainSocketConfig.Enabled = apiutils.NewBoolPointer(defaultDogstatsdUseSocketVolume)
 	}
 
-	if ddaSpec.Features.DogStatsD.UnixDomainSocketConfig.Path == nil {
-		ddaSpec.Features.DogStatsD.UnixDomainSocketConfig.Path = apiutils.NewStringPointer(defaultDogStatsDSocketPath)
+	if ddaSpec.Features.Dogstatsd.UnixDomainSocketConfig.Path == nil {
+		ddaSpec.Features.Dogstatsd.UnixDomainSocketConfig.Path = apiutils.NewStringPointer(defaultDogstatsdSocketPath)
 	}
 
 	// Cluster-level features
