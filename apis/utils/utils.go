@@ -48,6 +48,11 @@ func BoolToString(b *bool) string {
 	return "false"
 }
 
+// StringToBool return true if s == "true", else false
+func StringToBool(s string) bool {
+	return s == "true"
+}
+
 // IsEqualStruct is a util fonction that returns whether 2 structures are the same
 // We compare the marchaled results to avoid traversing all fields and be agnostic of the struct.
 func IsEqualStruct(in interface{}, cmp interface{}) bool {
