@@ -11,6 +11,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -67,22 +68,22 @@ func buildServiceAccount(dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion
 }
 
 // getEventCollectionPolicyRule returns the policy rule for event collection
-func getEventCollectionPolicyRule() rbacv1.PolicyRule {
+func getEventCollectionPolicyRule(dda *datadoghqv1alpha1.DatadogAgent) rbacv1.PolicyRule {
 	return rbacv1.PolicyRule{
 		APIGroups:     []string{rbac.CoreAPIGroup},
 		Resources:     []string{rbac.ConfigMapsResource},
-		ResourceNames: []string{common.DatadogTokenResourceName},
+		ResourceNames: []string{utils.GetDatadogTokenResourceName(dda)},
 		Verbs:         []string{rbac.GetVerb, rbac.UpdateVerb},
 	}
 }
 
 // getLeaderElectionPolicyRule returns the policy rules for leader election
-func getLeaderElectionPolicyRule() []rbacv1.PolicyRule {
+func getLeaderElectionPolicyRule(dda *datadoghqv1alpha1.DatadogAgent) []rbacv1.PolicyRule {
 	return []rbacv1.PolicyRule{
 		{
 			APIGroups:     []string{rbac.CoreAPIGroup},
 			Resources:     []string{rbac.ConfigMapsResource},
-			ResourceNames: []string{common.DatadogLeaderElectionResourceName},
+			ResourceNames: []string{utils.GetDatadogLeaderElectionResourceName(dda)},
 			Verbs:         []string{rbac.GetVerb, rbac.UpdateVerb},
 		},
 		{

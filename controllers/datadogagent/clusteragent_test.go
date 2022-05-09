@@ -160,6 +160,10 @@ func clusterAgentDefaultEnvVars() []v1.EnvVar {
 			Value: "true",
 		},
 		{
+			Name:  "DD_LEASE_NAME",
+			Value: fmt.Sprintf("%s-leader-election", testDdaName),
+		},
+		{
 			Name:  "DD_COMPLIANCE_CONFIG_ENABLED",
 			Value: "false",
 		},
@@ -186,6 +190,10 @@ func clusterAgentDefaultEnvVars() []v1.EnvVar {
 		{
 			Name:  "DD_ORCHESTRATOR_EXPLORER_CONTAINER_SCRUBBING_ENABLED",
 			Value: "true",
+		},
+		{
+			Name:  "DD_CLUSTER_AGENT_TOKEN_NAME",
+			Value: fmt.Sprintf("%stoken", testDdaName),
 		},
 	}
 }
@@ -505,7 +513,6 @@ func Test_newClusterAgentDeploymentMountKSMCore(t *testing.T) {
 	clusterAgentPodSpec := clusterAgentDefaultPodSpec()
 	clusterAgentPodSpec.Volumes = append(clusterAgentPodSpec.Volumes, userVolumes...)
 	clusterAgentPodSpec.Containers[0].VolumeMounts = append(clusterAgentPodSpec.Containers[0].VolumeMounts, userVolumeMounts...)
-	clusterAgentPodSpec.Containers[0].Env = clusterAgentPodSpec.Containers[0].Env[:len(clusterAgentPodSpec.Containers[0].Env)-2]
 	envVars := []v1.EnvVar{
 		{
 			Name:  apicommon.DDKubeStateMetricsCoreEnabled,
@@ -879,7 +886,6 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 		Protocol:      "TCP",
 	})
 
-	metricsServerPodSpec.Containers[0].Env = metricsServerPodSpec.Containers[0].Env[:len(metricsServerPodSpec.Containers[0].Env)-2]
 	metricsServerPodSpec.Containers[0].Env = append(metricsServerPodSpec.Containers[0].Env,
 		[]v1.EnvVar{
 			{
@@ -928,7 +934,6 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 		Protocol:      "TCP",
 	})
 
-	metricsServerWithSitePodSpec.Containers[0].Env = metricsServerWithSitePodSpec.Containers[0].Env[:len(metricsServerWithSitePodSpec.Containers[0].Env)-2]
 	metricsServerWithSitePodSpec.Containers[0].Env = append(metricsServerWithSitePodSpec.Containers[0].Env,
 		[]v1.EnvVar{
 			{

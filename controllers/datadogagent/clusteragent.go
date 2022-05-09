@@ -598,6 +598,10 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 			Value: "true",
 		},
 		{
+			Name:  datadoghqv1alpha1.DDLeaseName,
+			Value: utils.GetDatadogLeaderElectionResourceName(dda),
+		},
+		{
 			Name:  datadoghqv1alpha1.DDComplianceConfigEnabled,
 			Value: strconv.FormatBool(complianceEnabled),
 		},
@@ -608,6 +612,10 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 		{
 			Name:  datadoghqv1alpha1.DDHealthPort,
 			Value: strconv.Itoa(int(*spec.ClusterAgent.Config.HealthPort)),
+		},
+		{
+			Name:  datadoghqv1alpha1.DDClusterAgentTokenName,
+			Value: utils.GetDatadogTokenResourceName(dda),
 		},
 	}
 
@@ -1062,15 +1070,15 @@ func buildClusterRole(dda *datadoghqv1alpha1.DatadogAgent, needClusterLevelRBAC 
 	if needClusterLevelRBAC {
 		// Cluster Agent is disabled, the Agent needs extra permissions
 		// to collect cluster level metrics and events
-		rbacRules = append(rbacRules, getDefaultClusterAgentPolicyRules()...)
+		rbacRules = append(rbacRules, getDefaultClusterAgentPolicyRules(dda)...)
 
 		if apiutils.BoolValue(dda.Spec.Agent.Enabled) {
 			if apiutils.BoolValue(dda.Spec.Agent.Config.CollectEvents) {
-				rbacRules = append(rbacRules, getEventCollectionPolicyRule())
+				rbacRules = append(rbacRules, getEventCollectionPolicyRule(dda))
 			}
 
 			if apiutils.BoolValue(dda.Spec.Agent.Config.LeaderElection) {
-				rbacRules = append(rbacRules, getLeaderElectionPolicyRule()...)
+				rbacRules = append(rbacRules, getLeaderElectionPolicyRule(dda)...)
 			}
 		}
 	}
@@ -1082,7 +1090,7 @@ func buildClusterRole(dda *datadoghqv1alpha1.DatadogAgent, needClusterLevelRBAC 
 
 // getDefaultClusterAgentPolicyRules returns the default policy rules for the Cluster Agent
 // Can be used by the Agent if the Cluster Agent is disabled
-func getDefaultClusterAgentPolicyRules() []rbacv1.PolicyRule {
+func getDefaultClusterAgentPolicyRules(dda *datadoghqv1alpha1.DatadogAgent) []rbacv1.PolicyRule {
 	return append([]rbacv1.PolicyRule{
 		{
 			APIGroups: []string{rbac.CoreAPIGroup},
@@ -1111,7 +1119,7 @@ func getDefaultClusterAgentPolicyRules() []rbacv1.PolicyRule {
 			NonResourceURLs: []string{rbac.VersionURL, rbac.HealthzURL},
 			Verbs:           []string{rbac.GetVerb},
 		},
-	}, getLeaderElectionPolicyRule()...)
+	}, getLeaderElectionPolicyRule(dda)...)
 }
 
 // buildClusterRoleBinding creates a ClusterRoleBinding object
@@ -1145,7 +1153,7 @@ func buildClusterAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, age
 		},
 	}
 
-	rbacRules := getDefaultClusterAgentPolicyRules()
+	rbacRules := getDefaultClusterAgentPolicyRules(dda)
 
 	rbacRules = append(rbacRules, rbacv1.PolicyRule{
 		// Horizontal Pod Autoscaling
@@ -1164,7 +1172,7 @@ func buildClusterAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, age
 	})
 
 	if apiutils.BoolValue(dda.Spec.ClusterAgent.Config.CollectEvents) {
-		rbacRules = append(rbacRules, getEventCollectionPolicyRule())
+		rbacRules = append(rbacRules, getEventCollectionPolicyRule(dda))
 	}
 
 	// If the secret backend uses the provided `/readsecret_multiple_providers.sh` script, then we need to add secrets GET permissions
@@ -1400,7 +1408,7 @@ func buildClusterAgentRole(dda *datadoghqv1alpha1.DatadogAgent, name, agentVersi
 		},
 	}
 
-	rbacRules := getLeaderElectionPolicyRule()
+	rbacRules := getLeaderElectionPolicyRule(dda)
 
 	rbacRules = append(rbacRules, rbacv1.PolicyRule{
 		APIGroups: []string{rbac.CoreAPIGroup},
