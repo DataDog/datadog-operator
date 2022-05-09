@@ -1,14 +1,16 @@
-# Custom Check
+# Custom Checks with Datadog Operator
 
-To configure one of Datadog's 400+ integrations, leverage the [Agent Autodiscovery feature][1]. But if you want to run a custom check, the `DatadogAgent` resource can be configured to provide custom checks (`checks.d`) and their configuration files (`conf.d`) at initialization time. A `ConfigMap` resource needs to be configured for each of these settings before the `DatadogAgent` resource using them is created.
+This page discusses [custom checks][4]. To configure a [Datadog Integration][3], use the [Agent Autodiscovery feature][1]. 
 
-Below is an example of configuring these `ConfigMaps` for a single check `hello` that submits the `hello.world` metrics to Datadog. See the [Introduction to Integrations][2] to learn what is a check in the Datadog ecosystem.
+The `DatadogAgent` resource can be configured to provide custom checks (`checks.d`) and their configuration files (`conf.d`) at initialization time. A `ConfigMap` resource needs to be configured for each of these settings before the `DatadogAgent` resource using them is created.
+
+Below is an example of configuring these `ConfigMaps` for a single check `hello` that submits a `hello.world` metric to Datadog. See [Introduction to Integrations][2] to learn about checks in the Datadog ecosystem.
 
 ## Create the check files
 
-A check needs a configuration file `hello.yaml` and a script file `hello.py`:
+This check needs a configuration file `hello.yaml` and a script file `hello.py`:
 
-1. Create the **`hello.yaml`** with the following content:
+1. Create **`hello.yaml`** with the following content:
 
    ```yaml
    init_config:
@@ -16,7 +18,7 @@ A check needs a configuration file `hello.yaml` and a script file `hello.py`:
    instances: [{}]
    ```
 
-2. Create the **`hello.py`** with the following content:
+2. Create **`hello.py`** with the following content:
 
    ```python
    from datadog_checks.base import AgentCheck
@@ -29,7 +31,7 @@ A check needs a configuration file `hello.yaml` and a script file `hello.py`:
 
 ## Create the check ConfigMaps
 
-Once the `hello` check files are created, create the associated `ConfigMaps`:
+Once you have created the `hello` check files, create the associated `ConfigMaps`:
 
 1. Create the ConfigMap for the custom check YAML configuration file `hello.yaml`:
 
@@ -82,7 +84,7 @@ Once the `hello` check files are created, create the associated `ConfigMaps`:
 
 ## Configure the Agent
 
-Once the `ConfigMaps` are configured, a `DatadogAgent` resource can be created to use them with the following chart:
+Once you have configured the `ConfigMaps` , you can create a `DatadogAgent` resource to use them with the following chart:
 
 ```yaml
 apiVersion: datadoghq.com/v1alpha1
@@ -101,13 +103,13 @@ spec:
         configMapName: "checksd-config"
 ```
 
-**Note**: Any ConfigMaps you create need to be in the same `DD_NAMESPACE` as the `DatadogAgent` resource.
+**Note**: Any ConfigMaps you create must be in the same `DD_NAMESPACE` as the `DatadogAgent` resource.
 
 This deploys the Datadog Agent with your custom check.
 
 ### Multiple checks
 
-In order to populate `ConfigMaps` with the content of multiple checks or their respective configurations files, the following approach can be used:
+To populate `ConfigMaps` with the content of multiple checks or their respective configuration files, you can use the following approach:
 
 - Populating all check configuration files:
 
@@ -125,7 +127,9 @@ In order to populate `ConfigMaps` with the content of multiple checks or their r
 
 ## Providing additional volumes
 
-Additional user-configured volumes can be mounted in either the node or Cluster Agent containers by setting the `volumes` and `volumeMounts` properties. Find below an example of using a volume to mount a secret:
+Additional user-configured volumes can be mounted in either the Node or Cluster Agent containers by setting the `volumes` and `volumeMounts` properties. 
+
+The following is an example of using a volume to mount a secret:
 
 ```yaml
 apiVersion: datadoghq.com/v1alpha1
@@ -151,3 +155,5 @@ spec:
 
 [1]: https://docs.datadoghq.com/agent/autodiscovery/
 [2]: https://docs.datadoghq.com/getting_started/integrations/
+[3]: https://docs.datadoghq.com/integrations/
+[4]: https://docs.datadoghq.com/developers/custom_checks
