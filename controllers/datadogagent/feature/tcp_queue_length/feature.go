@@ -7,7 +7,6 @@ package tcpqueuelength
 
 import (
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
@@ -34,13 +33,10 @@ func buildTCPQueueLengthFeature(options *feature.Options) feature.Feature {
 
 type tcpQueueLengthFeature struct {
 	enable bool
-	owner  metav1.Object
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *tcpQueueLengthFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	f.owner = dda
-
 	if dda.Spec.Features.TCPQueueLength != nil && apiutils.BoolValue(dda.Spec.Features.TCPQueueLength.Enabled) {
 		f.enable = true
 		reqComp.Agent = feature.RequiredComponent{
@@ -54,8 +50,6 @@ func (f *tcpQueueLengthFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp f
 
 // ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
 func (f *tcpQueueLengthFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	f.owner = dda
-
 	if dda.Spec.Agent.SystemProbe != nil && *dda.Spec.Agent.SystemProbe.EnableTCPQueueLength {
 		f.enable = true
 		reqComp.Agent = feature.RequiredComponent{
