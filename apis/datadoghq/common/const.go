@@ -73,4 +73,11 @@ const (
 
 	SysprobeSocketVolumeName = "sysprobe-socket-dir"
 	SysprobeSocketVolumePath = "/var/run/sysprobe"
+
+	ModulesVolumeName = "modules"
+	// same path on host and container
+	ModulesVolumePath = "/lib/modules"
+	SrcVolumeName     = "src"
+	// same path on host and container
+	SrcVolumePath = "/usr/src"
 )
