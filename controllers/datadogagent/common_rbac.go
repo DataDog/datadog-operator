@@ -70,10 +70,13 @@ func buildServiceAccount(dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion
 // getEventCollectionPolicyRule returns the policy rule for event collection
 func getEventCollectionPolicyRule(dda *datadoghqv1alpha1.DatadogAgent) rbacv1.PolicyRule {
 	return rbacv1.PolicyRule{
-		APIGroups:     []string{rbac.CoreAPIGroup},
-		Resources:     []string{rbac.ConfigMapsResource},
-		ResourceNames: []string{utils.GetDatadogTokenResourceName(dda)},
-		Verbs:         []string{rbac.GetVerb, rbac.UpdateVerb},
+		APIGroups: []string{rbac.CoreAPIGroup},
+		Resources: []string{rbac.ConfigMapsResource},
+		ResourceNames: []string{
+			common.DatadogTokenOldResourceName, // Kept for backward compatibility with agent <7.37.0
+			utils.GetDatadogTokenResourceName(dda),
+		},
+		Verbs: []string{rbac.GetVerb, rbac.UpdateVerb},
 	}
 }
 
@@ -81,10 +84,13 @@ func getEventCollectionPolicyRule(dda *datadoghqv1alpha1.DatadogAgent) rbacv1.Po
 func getLeaderElectionPolicyRule(dda *datadoghqv1alpha1.DatadogAgent) []rbacv1.PolicyRule {
 	return []rbacv1.PolicyRule{
 		{
-			APIGroups:     []string{rbac.CoreAPIGroup},
-			Resources:     []string{rbac.ConfigMapsResource},
-			ResourceNames: []string{utils.GetDatadogLeaderElectionResourceName(dda)},
-			Verbs:         []string{rbac.GetVerb, rbac.UpdateVerb},
+			APIGroups: []string{rbac.CoreAPIGroup},
+			Resources: []string{rbac.ConfigMapsResource},
+			ResourceNames: []string{
+				common.DatadogLeaderElectionOldResourceName, // Kept for backward compatibility with agent <7.37.0
+				utils.GetDatadogLeaderElectionResourceName(dda),
+			},
+			Verbs: []string{rbac.GetVerb, rbac.UpdateVerb},
 		},
 		{
 			APIGroups: []string{rbac.CoreAPIGroup},
