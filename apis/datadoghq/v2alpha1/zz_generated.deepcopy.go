@@ -842,8 +842,8 @@ func (in *GlobalConfig) DeepCopyInto(out *GlobalConfig) {
 		*out = new(DatadogCredentials)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.Token != nil {
-		in, out := &in.Token, &out.Token
+	if in.ClusterAgentToken != nil {
+		in, out := &in.ClusterAgentToken, &out.ClusterAgentToken
 		*out = new(string)
 		**out = **in
 	}

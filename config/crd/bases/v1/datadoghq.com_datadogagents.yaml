@@ -13013,6 +13013,10 @@ spec:
               global:
                 description: Global settings to configure the agents
                 properties:
+                  clusterAgentToken:
+                    description: ClusterAgentToken is the token for communication
+                      between the NodeAgent and ClusterAgent
+                    type: string
                   clusterName:
                     description: ClusterName sets a unique cluster name for the deployment
                       to easily scope monitoring data in the Datadog app.
@@ -13338,10 +13342,6 @@ spec:
                       type: string
                     type: array
                     x-kubernetes-list-type: set
-                  token:
-                    description: Token is the token for communication between the
-                      NodeAgent and ClusterAgent
-                    type: string
                 type: object
               override:
                 additionalProperties:

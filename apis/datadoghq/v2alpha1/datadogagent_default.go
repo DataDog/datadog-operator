@@ -111,24 +111,18 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 
 	// LogsCollection Feature
 	if ddaSpec.Features.LogCollection != nil && *ddaSpec.Features.LogCollection.Enabled {
-		if ddaSpec.Features.LogCollection.ContainerCollectUsingFiles == nil {
-			ddaSpec.Features.LogCollection.ContainerCollectUsingFiles = apiutils.NewBoolPointer(defaultLogContainerCollectUsingFiles)
-		}
-		if ddaSpec.Features.LogCollection.ContainerLogsPath == nil {
-			ddaSpec.Features.LogCollection.ContainerLogsPath = apiutils.NewStringPointer(defaultLogContainerLogsPath)
-		}
-		if ddaSpec.Features.LogCollection.PodLogsPath == nil {
-			ddaSpec.Features.LogCollection.PodLogsPath = apiutils.NewStringPointer(defaultLogPodLogsPath)
-		}
-		if ddaSpec.Features.LogCollection.ContainerSymlinksPath == nil {
-			ddaSpec.Features.LogCollection.ContainerSymlinksPath = apiutils.NewStringPointer(defaultLogContainerSymlinksPath)
-		}
-		if ddaSpec.Features.LogCollection.TempStoragePath == nil {
-			ddaSpec.Features.LogCollection.TempStoragePath = apiutils.NewStringPointer(defaultLogTempStoragePath)
-		}
+		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.LogCollection.ContainerCollectUsingFiles, defaultLogContainerCollectUsingFiles)
+
+		apiutils.DefaultStringIfUnset(&ddaSpec.Features.LogCollection.ContainerLogsPath, defaultLogContainerLogsPath)
+
+		apiutils.DefaultStringIfUnset(&ddaSpec.Features.LogCollection.PodLogsPath, defaultLogPodLogsPath)
+
+		apiutils.DefaultStringIfUnset(&ddaSpec.Features.LogCollection.ContainerSymlinksPath, defaultLogContainerSymlinksPath)
+
+		apiutils.DefaultStringIfUnset(&ddaSpec.Features.LogCollection.TempStoragePath, defaultLogTempStoragePath)
 	}
 
-	// ContainerCollection Feature
+	// LiveContainerCollection Feature
 	if ddaSpec.Features.LiveContainerCollection == nil {
 		ddaSpec.Features.LiveContainerCollection = &LiveContainerCollectionFeatureConfig{
 			Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
@@ -141,40 +135,29 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 			ddaSpec.Features.APM.HostPortConfig = &HostPortConfig{}
 		}
 
-		if ddaSpec.Features.APM.HostPortConfig.Enabled == nil {
-			ddaSpec.Features.APM.HostPortConfig.Enabled = apiutils.NewBoolPointer(defaultAPMHostPortEnabled)
-		}
+		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.APM.HostPortConfig.Enabled, defaultAPMHostPortEnabled)
 
-		if ddaSpec.Features.APM.HostPortConfig.Port == nil {
-			ddaSpec.Features.APM.HostPortConfig.Port = apiutils.NewInt32Pointer(defaultAPMHostPort)
-		}
+		apiutils.DefaultInt32IfUnset(&ddaSpec.Features.APM.HostPortConfig.Port, defaultAPMHostPort)
 
 		if ddaSpec.Features.APM.UnixDomainSocketConfig == nil {
 			ddaSpec.Features.APM.UnixDomainSocketConfig = &UnixDomainSocketConfig{}
 		}
 
-		if ddaSpec.Features.APM.UnixDomainSocketConfig.Enabled == nil {
-			ddaSpec.Features.APM.UnixDomainSocketConfig.Enabled = apiutils.NewBoolPointer(defaultAPMSocketEnabled)
-		}
+		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.APM.UnixDomainSocketConfig.Enabled, defaultAPMSocketEnabled)
 
-		if ddaSpec.Features.APM.UnixDomainSocketConfig.Path == nil {
-			ddaSpec.Features.APM.UnixDomainSocketConfig.Path = apiutils.NewStringPointer(defaultAPMSocketPath)
-		}
+		apiutils.DefaultStringIfUnset(&ddaSpec.Features.APM.UnixDomainSocketConfig.Path, defaultAPMSocketPath)
 	}
 
 	// CWS (Cloud Workload Security) Feature
 	if ddaSpec.Features.CWS != nil && *ddaSpec.Features.CWS.Enabled {
-		ddaSpec.Features.CWS.SyscallMonitorEnabled = apiutils.NewBoolPointer(defaultCWSSyscallMonitorEnabled)
+		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.CWS.SyscallMonitorEnabled, defaultCWSSyscallMonitorEnabled)
 	}
 
 	// NPM (Network Performance Monitoring) Feature
 	if ddaSpec.Features.NPM != nil && *ddaSpec.Features.NPM.Enabled {
-		if ddaSpec.Features.NPM.EnableConntrack == nil {
-			ddaSpec.Features.NPM.EnableConntrack = apiutils.NewBoolPointer(defaultNPMEnableConntrack)
-		}
-		if ddaSpec.Features.NPM.CollectDNSStats == nil {
-			ddaSpec.Features.NPM.CollectDNSStats = apiutils.NewBoolPointer(defaultNPMCollectDNSStats)
-		}
+		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.NPM.EnableConntrack, defaultNPMEnableConntrack)
+
+		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.NPM.CollectDNSStats, defaultNPMCollectDNSStats)
 	}
 
 	// Dogstatd Feature
@@ -182,9 +165,7 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 		ddaSpec.Features.Dogstatsd = &DogstatsdFeatureConfig{}
 	}
 
-	if ddaSpec.Features.Dogstatsd.OriginDetectionEnabled == nil {
-		ddaSpec.Features.Dogstatsd.OriginDetectionEnabled = apiutils.NewBoolPointer(defaultDogstatsdOriginDetectionEnabled)
-	}
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.Dogstatsd.OriginDetectionEnabled, defaultDogstatsdOriginDetectionEnabled)
 
 	if ddaSpec.Features.Dogstatsd.HostPortConfig == nil {
 		ddaSpec.Features.Dogstatsd.HostPortConfig = &HostPortConfig{
@@ -193,20 +174,16 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 	}
 
 	if *ddaSpec.Features.Dogstatsd.HostPortConfig.Enabled {
-		ddaSpec.Features.Dogstatsd.HostPortConfig.Port = apiutils.NewInt32Pointer(defaultDogstatsdPort)
+		apiutils.DefaultInt32IfUnset(&ddaSpec.Features.Dogstatsd.HostPortConfig.Port, defaultDogstatsdPort)
 	}
 
 	if ddaSpec.Features.Dogstatsd.UnixDomainSocketConfig == nil {
 		ddaSpec.Features.Dogstatsd.UnixDomainSocketConfig = &UnixDomainSocketConfig{}
 	}
 
-	if ddaSpec.Features.Dogstatsd.UnixDomainSocketConfig.Enabled == nil {
-		ddaSpec.Features.Dogstatsd.UnixDomainSocketConfig.Enabled = apiutils.NewBoolPointer(defaultDogstatsdUseSocketVolume)
-	}
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.Dogstatsd.UnixDomainSocketConfig.Enabled, defaultDogstatsdUseSocketVolume)
 
-	if ddaSpec.Features.Dogstatsd.UnixDomainSocketConfig.Path == nil {
-		ddaSpec.Features.Dogstatsd.UnixDomainSocketConfig.Path = apiutils.NewStringPointer(defaultDogstatsdSocketPath)
-	}
+	apiutils.DefaultStringIfUnset(&ddaSpec.Features.Dogstatsd.UnixDomainSocketConfig.Path, defaultDogstatsdSocketPath)
 
 	// Cluster-level features
 
@@ -249,17 +226,14 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 
 	// AdmissionController Feature
 	if ddaSpec.Features.AdmissionController != nil && *ddaSpec.Features.AdmissionController.Enabled {
-		ddaSpec.Features.AdmissionController.MutateUnlabelled = apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled)
+		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.AdmissionController.MutateUnlabelled, defaultAdmissionControllerMutateUnlabelled)
 	}
 
 	// ExternalMetricsServer Feature
 	if ddaSpec.Features.ExternalMetricsServer != nil && *ddaSpec.Features.ExternalMetricsServer.Enabled {
-		if ddaSpec.Features.ExternalMetricsServer.UseDatadogMetrics == nil {
-			ddaSpec.Features.ExternalMetricsServer.UseDatadogMetrics = apiutils.NewBoolPointer(defaultDatadogMetricsEnabled)
-		}
-		if ddaSpec.Features.ExternalMetricsServer.Port == nil {
-			ddaSpec.Features.ExternalMetricsServer.Port = apiutils.NewInt32Pointer(defaultMetricsProviderPort)
-		}
+		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ExternalMetricsServer.UseDatadogMetrics, defaultDatadogMetricsEnabled)
+
+		apiutils.DefaultInt32IfUnset(&ddaSpec.Features.ExternalMetricsServer.Port, defaultMetricsProviderPort)
 	}
 
 	// ClusterChecks Feature
@@ -270,11 +244,11 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 	}
 
 	if *ddaSpec.Features.ClusterChecks.Enabled {
-		ddaSpec.Features.ClusterChecks.UseClusterChecksRunners = apiutils.NewBoolPointer(defaultUseClusterChecksRunners)
+		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ClusterChecks.UseClusterChecksRunners, defaultUseClusterChecksRunners)
 	}
 
 	// PrometheusScrape Feature
 	if ddaSpec.Features.PrometheusScrape != nil && *ddaSpec.Features.PrometheusScrape.Enabled {
-		ddaSpec.Features.PrometheusScrape.EnableServiceEndpoints = apiutils.NewBoolPointer(defaultPrometheusScrapeEnableServiceEndpoints)
+		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.PrometheusScrape.EnableServiceEndpoints, defaultPrometheusScrapeEnableServiceEndpoints)
 	}
 }

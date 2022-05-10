@@ -57,7 +57,6 @@ func Test_defaultGlobal(t *testing.T) {
 }
 
 func Test_defaultFeatures(t *testing.T) {
-	// falsePointer := apiutils.NewBoolPointer(valueFalse)
 	tests := []struct {
 		name    string
 		ddaSpec *DatadogAgentSpec
