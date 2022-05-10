@@ -15,6 +15,10 @@ const (
 	OrchestratorExplorerIDType
 	// USMIDType USM feature.
 	USMIDType
-	// DummyIDType Dummt feature.
+	// OOMKillIDType OOM Kill check feature
+	OOMKillIDType
+	// TCPQueueLengthIDType TCP Queue length check feature
+	TCPQueueLengthIDType
+	// DummyIDType Dummy feature.
 	DummyIDType
 )

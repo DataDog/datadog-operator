@@ -61,4 +61,11 @@ const (
 	HostRootVolumeName = "hostroot"
 	HostRootHostPath   = "/"
 	HostRootMountPath  = "/host/root"
+
+	ModulesVolumeName = "modules"
+	// same path on host and container
+	ModulesVolumePath = "/lib/modules"
+	SrcVolumeName     = "src"
+	// same path on host and container
+	SrcVolumePath = "/usr/src"
 )
