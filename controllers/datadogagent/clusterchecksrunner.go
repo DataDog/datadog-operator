@@ -26,6 +26,8 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	objectvolume "github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/orchestrator"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
@@ -163,43 +165,14 @@ func (r *Reconciler) updateClusterChecksRunnerDeployment(logger logr.Logger, dda
 }
 
 // newClusterChecksRunnerDeploymentFromInstance creates a Cluster Agent Deployment from a given DatadogAgent
-func newClusterChecksRunnerDeploymentFromInstance(
-	dda *datadoghqv1alpha1.DatadogAgent,
-	selector *metav1.LabelSelector,
-) (*appsv1.Deployment, string, error) {
-	labels := getDefaultLabels(dda, apicommon.DefaultClusterChecksRunnerResourceSuffix, getClusterChecksRunnerVersion(dda))
-	labels[apicommon.AgentDeploymentNameLabelKey] = dda.Name
-	labels[apicommon.AgentDeploymentComponentLabelKey] = apicommon.DefaultClusterChecksRunnerResourceSuffix
+func newClusterChecksRunnerDeploymentFromInstance(dda *datadoghqv1alpha1.DatadogAgent, selector *metav1.LabelSelector) (*appsv1.Deployment, string, error) {
+	clc := component.NewDeployment(dda, apicommon.DefaultClusterChecksRunnerResourceSuffix, getClusterChecksRunnerName(dda), getClusterChecksRunnerVersion(dda), selector)
 
-	if selector != nil {
-		for key, val := range selector.MatchLabels {
-			labels[key] = val
-		}
-	} else {
-		selector = &metav1.LabelSelector{
-			MatchLabels: map[string]string{
-				apicommon.AgentDeploymentNameLabelKey:      dda.Name,
-				apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultClusterChecksRunnerResourceSuffix,
-			},
-		}
-	}
+	clc.Spec.Template = newClusterChecksRunnerPodTemplate(dda, clc.GetLabels(), clc.GetAnnotations())
+	clc.Spec.Replicas = dda.Spec.ClusterChecksRunner.Replicas
 
-	annotations := getDefaultAnnotations(dda)
-	dca := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        getClusterChecksRunnerName(dda),
-			Namespace:   dda.Namespace,
-			Labels:      labels,
-			Annotations: annotations,
-		},
-		Spec: appsv1.DeploymentSpec{
-			Template: newClusterChecksRunnerPodTemplate(dda, labels, annotations),
-			Replicas: dda.Spec.ClusterChecksRunner.Replicas,
-			Selector: selector,
-		},
-	}
-	hash, err := comparison.SetMD5DatadogAgentGenerationAnnotation(&dca.ObjectMeta, dda.Spec.ClusterChecksRunner)
-	return dca, hash, err
+	hash, err := comparison.SetMD5DatadogAgentGenerationAnnotation(&clc.ObjectMeta, dda.Spec.ClusterChecksRunner)
+	return clc, hash, err
 }
 
 func (r *Reconciler) manageClusterChecksRunnerDependencies(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
@@ -223,7 +196,7 @@ func (r *Reconciler) manageClusterChecksRunnerDependencies(logger logr.Logger, d
 		return result, err
 	}
 
-	result, err = r.manageConfigMap(logger, dda, getInstallInfoConfigMapName(dda), buildInstallInfoConfigMap)
+	result, err = r.manageConfigMap(logger, dda, component.GetInstallInfoConfigMapName(dda), buildInstallInfoConfigMap)
 	if utils.ShouldReturn(result, err) {
 		return result, err
 	}
@@ -353,15 +326,15 @@ func getEnvVarsForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []cor
 			Value: "true",
 		},
 		{
-			Name:  datadoghqv1alpha1.DDClusterAgentKubeServiceName,
-			Value: getClusterAgentServiceName(dda),
+			Name:  apicommon.DDClusterAgentKubeServiceName,
+			Value: component.GetClusterAgentServiceName(dda),
 		},
 		{
 			Name:  datadoghqv1alpha1.DDExtraConfigProviders,
 			Value: datadoghqv1alpha1.ClusterChecksConfigProvider,
 		},
 		{
-			Name:  datadoghqv1alpha1.DDHealthPort,
+			Name:  apicommon.DDHealthPort,
 			Value: strconv.Itoa(int(*spec.ClusterChecksRunner.Config.HealthPort)),
 		},
 		{
@@ -478,8 +451,8 @@ func getClusterChecksRunnerName(dda *datadoghqv1alpha1.DatadogAgent) string {
 func getVolumesForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 	volumes := []corev1.Volume{
 		getVolumeForChecksd(dda),
-		getVolumeForConfig(),
-		getVolumeForLogs(),
+		component.GetVolumeForConfig(),
+		component.GetVolumeForLogs(),
 
 		// /tmp is needed because some versions of the DCA (at least until
 		// 1.19.0) write to it.
@@ -488,17 +461,8 @@ func getVolumesForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []cor
 		// In some envs like Openshift, when running as non-root, the pod will
 		// not have permissions to write on /tmp, that's why we need to mount
 		// it with write perms.
-		getVolumeForTmp(),
-		{
-			Name: datadoghqv1alpha1.InstallInfoVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: &corev1.ConfigMapVolumeSource{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: getInstallInfoConfigMapName(dda),
-					},
-				},
-			},
-		},
+		component.GetVolumeForTmp(),
+		component.GetVolumeInstallInfo(dda),
 		{
 			Name: "remove-corechecks",
 			VolumeSource: corev1.VolumeSource{
@@ -518,14 +482,9 @@ func getVolumesForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []cor
 func getVolumeMountsForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []corev1.VolumeMount {
 	volumeMounts := []corev1.VolumeMount{
 		getVolumeMountForChecksd(),
-		getVolumeMountForLogs(),
-		getVolumeMountForTmp(),
-		{
-			Name:      datadoghqv1alpha1.InstallInfoVolumeName,
-			SubPath:   datadoghqv1alpha1.InstallInfoVolumeSubPath,
-			MountPath: datadoghqv1alpha1.InstallInfoVolumePath,
-			ReadOnly:  datadoghqv1alpha1.InstallInfoVolumeReadOnly,
-		},
+		component.GetVolumeMountForLogs(),
+		component.GetVolumeMountForTmp(),
+		component.GetVolumeMountForInstallInfo(),
 		{
 			Name:      "remove-corechecks",
 			MountPath: fmt.Sprintf("%s/%s", apicommon.ConfigVolumePath, "conf.d"),
@@ -644,7 +603,7 @@ func (b clusterChecksRunnerNetworkPolicyBuilder) BuildKubernetesPolicy() *networ
 
 	policy := &networkingv1.NetworkPolicy{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels:    getDefaultLabels(dda, apicommon.DefaultClusterChecksRunnerResourceSuffix, getClusterChecksRunnerVersion(dda)),
+			Labels:    object.GetDefaultLabels(dda, apicommon.DefaultClusterChecksRunnerResourceSuffix, getClusterChecksRunnerVersion(dda)),
 			Name:      name,
 			Namespace: dda.Namespace,
 		},
@@ -665,7 +624,7 @@ func (b clusterChecksRunnerNetworkPolicyBuilder) PodSelector() metav1.LabelSelec
 	return metav1.LabelSelector{
 		MatchLabels: map[string]string{
 			kubernetes.AppKubernetesInstanceLabelKey: apicommon.DefaultClusterChecksRunnerResourceSuffix,
-			kubernetes.AppKubernetesPartOfLabelKey:   NewPartOfLabelValue(b.dda).String(),
+			kubernetes.AppKubernetesPartOfLabelKey:   object.NewPartOfLabelValue(b.dda).String(),
 		},
 	}
 }
@@ -699,7 +658,7 @@ func (b clusterChecksRunnerNetworkPolicyBuilder) ddFQDNs() []cilium.FQDNSelector
 func (b clusterChecksRunnerNetworkPolicyBuilder) BuildCiliumPolicy() *cilium.NetworkPolicy {
 	return &cilium.NetworkPolicy{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels:    getDefaultLabels(b.dda, apicommon.DefaultClusterChecksRunnerResourceSuffix, getClusterChecksRunnerVersion(b.dda)),
+			Labels:    object.GetDefaultLabels(b.dda, apicommon.DefaultClusterChecksRunnerResourceSuffix, getClusterChecksRunnerVersion(b.dda)),
 			Name:      b.Name(),
 			Namespace: b.dda.Namespace,
 		},

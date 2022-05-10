@@ -22,6 +22,8 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -34,7 +36,7 @@ func (r *Reconciler) manageClusterAgentService(logger logr.Logger, dda *datadogh
 		return r.cleanupClusterAgentService(dda)
 	}
 
-	serviceName := getClusterAgentServiceName(dda)
+	serviceName := component.GetClusterAgentServiceName(dda)
 	service := &corev1.Service{}
 	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: dda.Namespace, Name: serviceName}, service)
 	if err != nil {
@@ -58,17 +60,17 @@ func (r *Reconciler) updateIfNeededClusterAgentService(logger logr.Logger, dda *
 }
 
 func (r *Reconciler) cleanupClusterAgentService(dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
-	serviceName := getClusterAgentServiceName(dda)
+	serviceName := component.GetClusterAgentServiceName(dda)
 	return cleanupService(r.client, serviceName, dda.Namespace, dda)
 }
 
 func newClusterAgentService(dda *datadoghqv1alpha1.DatadogAgent) *corev1.Service {
-	labels := getDefaultLabels(dda, apicommon.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
-	annotations := getDefaultAnnotations(dda)
+	labels := object.GetDefaultLabels(dda, apicommon.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
+	annotations := object.GetDefaultAnnotations(dda)
 
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        getClusterAgentServiceName(dda),
+			Name:        component.GetClusterAgentServiceName(dda),
 			Namespace:   dda.Namespace,
 			Labels:      labels,
 			Annotations: annotations,
@@ -355,8 +357,8 @@ func (r *Reconciler) updateIfNeededAPIService(logger logr.Logger, dda *datadoghq
 }
 
 func newMetricsServerService(dda *datadoghqv1alpha1.DatadogAgent) *corev1.Service {
-	labels := getDefaultLabels(dda, apicommon.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
-	annotations := getDefaultAnnotations(dda)
+	labels := object.GetDefaultLabels(dda, apicommon.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
+	annotations := object.GetDefaultAnnotations(dda)
 
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -387,8 +389,8 @@ func newMetricsServerService(dda *datadoghqv1alpha1.DatadogAgent) *corev1.Servic
 }
 
 func newMetricsServerAPIService(dda *datadoghqv1alpha1.DatadogAgent) *apiregistrationv1.APIService {
-	labels := getDefaultLabels(dda, apicommon.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
-	annotations := getDefaultAnnotations(dda)
+	labels := object.GetDefaultLabels(dda, apicommon.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
+	annotations := object.GetDefaultAnnotations(dda)
 
 	port := int32(apicommon.DefaultMetricsServerServicePort)
 	apiService := &apiregistrationv1.APIService{
@@ -420,8 +422,8 @@ func newAdmissionControllerService(dda *datadoghqv1alpha1.DatadogAgent) *corev1.
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        getAdmissionControllerServiceName(dda),
 			Namespace:   dda.Namespace,
-			Labels:      getDefaultLabels(dda, apicommon.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda)),
-			Annotations: getDefaultAnnotations(dda),
+			Labels:      object.GetDefaultLabels(dda, apicommon.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda)),
+			Annotations: object.GetDefaultAnnotations(dda),
 		},
 		Spec: corev1.ServiceSpec{
 			Type: corev1.ServiceTypeClusterIP,
@@ -451,8 +453,8 @@ func newAgentService(dda *datadoghqv1alpha1.DatadogAgent) *corev1.Service {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        getAgentServiceName(dda),
 			Namespace:   dda.Namespace,
-			Labels:      getDefaultLabels(dda, apicommon.DefaultAgentResourceSuffix, getAgentVersion(dda)),
-			Annotations: getDefaultAnnotations(dda),
+			Labels:      object.GetDefaultLabels(dda, apicommon.DefaultAgentResourceSuffix, getAgentVersion(dda)),
+			Annotations: object.GetDefaultAnnotations(dda),
 		},
 		Spec: corev1.ServiceSpec{
 			Type: corev1.ServiceTypeClusterIP,

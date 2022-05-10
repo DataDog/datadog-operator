@@ -11,4 +11,7 @@ const (
 	DDKubeStateMetricsCoreEnabled   = "DD_KUBE_STATE_METRICS_CORE_ENABLED"
 	DDKubeStateMetricsCoreConfigMap = "DD_KUBE_STATE_METRICS_CORE_CONFIGMAP_NAME"
 	DDEnableOOMKillEnvVar           = "DD_SYSTEM_PROBE_CONFIG_ENABLE_OOM_KILL"
+	DDLeaderElection                = "DD_LEADER_ELECTION"
+	DDClusterAgentKubeServiceName   = "DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME"
+	DDHealthPort                    = "DD_HEALTH_PORT"
 )

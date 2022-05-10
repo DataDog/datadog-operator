@@ -48,6 +48,23 @@ const (
 	DefaultMetricsProviderPort int32 = 8443
 	// DefaultKubeStateMetricsCoreConf default ksm core ConfigMap name
 	DefaultKubeStateMetricsCoreConf string = "kube-state-metrics-core-config"
+
+	// Liveness probe default config
+	DefaultLivenessProbeInitialDelaySeconds int32 = 15
+	DefaultLivenessProbePeriodSeconds       int32 = 15
+	DefaultLivenessProbeTimeoutSeconds      int32 = 5
+	DefaultLivenessProbeSuccessThreshold    int32 = 1
+	DefaultLivenessProbeFailureThreshold    int32 = 6
+	DefaultAgentHealthPort                  int32 = 5555
+	DefaultLivenessProbeHTTPPath                  = "/live"
+
+	// Readiness probe default config
+	DefaultReadinessProbeInitialDelaySeconds int32 = 15
+	DefaultReadinessProbePeriodSeconds       int32 = 15
+	DefaultReadinessProbeTimeoutSeconds      int32 = 5
+	DefaultReadinessProbeSuccessThreshold    int32 = 1
+	DefaultReadinessProbeFailureThreshold    int32 = 6
+	DefaultReadinessProbeHTTPPath                  = "/ready"
 )
 
 // Datadog volume names and mount paths
@@ -62,5 +79,17 @@ const (
 	ModulesVolumePath = "/lib/modules"
 	SrcVolumeName     = "src"
 	// same path on host and container
-	SrcVolumePath = "/usr/src"
+	SrcVolumePath             = "/usr/src"
+	LogDatadogVolumeName      = "logdatadog"
+	LogDatadogVolumePath      = "/var/log/datadog"
+	TmpVolumeName             = "tmp"
+	TmpVolumePath             = "/tmp"
+	CertificatesVolumeName    = "certificates"
+	CertificatesVolumePath    = "/etc/datadog-agent/certificates"
+	AuthVolumeName            = "datadog-agent-auth"
+	AuthVolumePath            = "/etc/datadog-agent/auth"
+	InstallInfoVolumeName     = "installinfo"
+	InstallInfoVolumeSubPath  = "install_info"
+	InstallInfoVolumePath     = "/etc/datadog-agent/install_info"
+	InstallInfoVolumeReadOnly = true
 )
