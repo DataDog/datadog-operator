@@ -36,25 +36,29 @@ type oomKillFeature struct {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *oomKillFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredComponents {
+func (f *oomKillFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	if dda.Spec.Features.OOMKill != nil && apiutils.BoolValue(dda.Spec.Features.OOMKill.Enabled) {
 		f.enable = true
+		reqComp.Agent = feature.RequiredComponent{
+			IsRequired: &f.enable,
+			Containers: []apicommonv1.AgentContainerName{apicommonv1.CoreAgentContainerName, apicommonv1.SystemProbeContainerName},
+		}
 	}
 
-	return feature.RequiredComponents{
-		Agent: feature.RequiredComponent{IsRequired: &f.enable},
-	}
+	return reqComp
 }
 
 // ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
-func (f *oomKillFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) feature.RequiredComponents {
+func (f *oomKillFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	if dda.Spec.Agent.SystemProbe != nil && *dda.Spec.Agent.SystemProbe.EnableOOMKill {
 		f.enable = true
+		reqComp.Agent = feature.RequiredComponent{
+			IsRequired: &f.enable,
+			Containers: []apicommonv1.AgentContainerName{apicommonv1.CoreAgentContainerName, apicommonv1.SystemProbeContainerName},
+		}
 	}
 
-	return feature.RequiredComponents{
-		Agent: feature.RequiredComponent{IsRequired: &f.enable},
-	}
+	return reqComp
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
