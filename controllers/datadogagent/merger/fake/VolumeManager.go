@@ -50,6 +50,14 @@ func (_m *VolumeManager) AddVolumeToContainersWithMergeFunc(volume *v1.Volume, v
 	return nil
 }
 
+// AddVolumeToContainerWithMergeFunc provides a mock function with given fields: volume, volumeMount, containerName, volumeMergeFunc, volumeMountMergeFunc
+func (_m *VolumeManager) AddVolumeToContainerWithMergeFunc(volume *v1.Volume, volumeMount *v1.VolumeMount, containerName commonv1.AgentContainerName, volumeMergeFunc merger.VolumeMergeFunction, volumeMountMergeFunc merger.VolumeMountMergeFunction) error {
+	if err := _m.volumeMerge(volume, volumeMergeFunc); err != nil {
+		return err
+	}
+	return _m.volumeMountMerge(containerName, volumeMount, volumeMountMergeFunc)
+}
+
 func (_m *VolumeManager) volumeMerge(volume *v1.Volume, volumeMergeFunc merger.VolumeMergeFunction) error {
 	found := false
 	idFound := 0

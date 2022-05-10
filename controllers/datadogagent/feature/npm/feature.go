@@ -7,7 +7,6 @@ package npm
 
 import (
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
@@ -34,19 +33,17 @@ func buildNPMFeature(options *feature.Options) feature.Feature {
 
 type npmFeature struct {
 	enable bool
-	owner  metav1.Object
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *npmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	f.owner = dda
-
 	if dda.Spec.Features.NPM != nil && apiutils.BoolValue(dda.Spec.Features.NPM.Enabled) {
 		f.enable = true
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
-				Required: &f.enable,
-				RequiredContainers: []apicommonv1.AgentContainerName{
+				IsRequired: &f.enable,
+				Containers: []apicommonv1.AgentContainerName{
+					apicommonv1.CoreAgentContainerName,
 					apicommonv1.ProcessAgentContainerName,
 					apicommonv1.SystemProbeContainerName,
 				},
@@ -59,14 +56,13 @@ func (f *npmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 
 // ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
 func (f *npmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	f.owner = dda
-
 	if dda.Spec.Features.NetworkMonitoring != nil && *dda.Spec.Features.NetworkMonitoring.Enabled {
 		f.enable = true
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
-				Required: &f.enable,
-				RequiredContainers: []apicommonv1.AgentContainerName{
+				IsRequired: &f.enable,
+				Containers: []apicommonv1.AgentContainerName{
+					apicommonv1.CoreAgentContainerName,
 					apicommonv1.ProcessAgentContainerName,
 					apicommonv1.SystemProbeContainerName,
 				},

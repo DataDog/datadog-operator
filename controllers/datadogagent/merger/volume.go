@@ -25,7 +25,10 @@ type VolumeManager interface {
 	AddVolumeWithMergeFunc(volume *corev1.Volume, volumeMount *corev1.VolumeMount, volumeMergeFunc VolumeMergeFunction, volumeMountMergeFunc VolumeMountMergeFunction) error
 	// Add the volume to the PodTemplate and add the volumeMount to container matching the containerName.
 	// Provide merge functions if the merge is specific.
-	AddVolumeToContainersWithMergeFunc(volume *corev1.Volume, volumeMount *corev1.VolumeMount, containerName []commonv1.AgentContainerName, volumeMergeFunc VolumeMergeFunction, volumeMountMergeFunc VolumeMountMergeFunction) error
+	AddVolumeToContainerWithMergeFunc(volume *corev1.Volume, volumeMount *corev1.VolumeMount, containerName commonv1.AgentContainerName, volumeMergeFunc VolumeMergeFunction, volumeMountMergeFunc VolumeMountMergeFunction) error
+	// Add the volume to the PodTemplate and add the volumeMount to container matching the containerNames.
+	// Provide merge functions if the merge is specific.
+	AddVolumeToContainersWithMergeFunc(volume *corev1.Volume, volumeMount *corev1.VolumeMount, containerNames []commonv1.AgentContainerName, volumeMergeFunc VolumeMergeFunction, volumeMountMergeFunc VolumeMountMergeFunction) error
 }
 
 // NewVolumeManager returns a new instance of the VolumeManager
@@ -70,17 +73,29 @@ func (impl *volumeManagerImpl) AddVolumeToContainersWithMergeFunc(volume *corev1
 	if err != nil {
 		return err
 	}
-	// convert container names to map
-	cNameMap := make(map[string]bool)
-	for _, cName := range containerNames {
-		cNameMap[string(cName)] = true
+
+	for _, containerName := range containerNames {
+		if err := impl.AddVolumeToContainerWithMergeFunc(volume, volumeMount, containerName, volumeMergeFunc, volumeMountMergeFunc); err != nil {
+			return err
+		}
 	}
+
+	return nil
+}
+
+func (impl *volumeManagerImpl) AddVolumeToContainerWithMergeFunc(volume *corev1.Volume, volumeMount *corev1.VolumeMount, containerName commonv1.AgentContainerName, volumeMergeFunc VolumeMergeFunction, volumeMountMergeFunc VolumeMountMergeFunction) error {
+	_, err := AddVolumeToPod(&impl.podTmpl.Spec, volume, volumeMergeFunc)
+	if err != nil {
+		return err
+	}
+
 	for id := range impl.podTmpl.Spec.Containers {
-		if _, ok := cNameMap[impl.podTmpl.Spec.Containers[id].Name]; ok {
+		if impl.podTmpl.Spec.Containers[id].Name == string(containerName) {
 			_, err = AddVolumeMountToContainer(&impl.podTmpl.Spec.Containers[id], volumeMount, DefaultVolumeMountMergeFunction)
 			if err != nil {
 				return err
 			}
+			return nil
 		}
 	}
 	return nil
