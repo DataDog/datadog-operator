@@ -55,7 +55,7 @@ func convertDatadogAgentSpec(src *DatadogAgentSpecAgentSpec, dst *v2alpha1.Datad
 		if src.Config.CollectEvents != nil {
 			features := getV2Features(dst)
 			if features.EventCollection == nil {
-				features.EventCollection = &v2alpha1.EventCollectionConfig{}
+				features.EventCollection = &v2alpha1.EventCollectionFeatureConfig{}
 			}
 
 			features.EventCollection.CollectKubernetesEvents = src.Config.CollectEvents
@@ -105,7 +105,7 @@ func convertDatadogAgentSpec(src *DatadogAgentSpecAgentSpec, dst *v2alpha1.Datad
 		if src.Config.Dogstatsd != nil {
 			features := getV2Features(dst)
 			if features.Dogstatsd == nil {
-				features.Dogstatsd = &v2alpha1.DogstatsdConfig{}
+				features.Dogstatsd = &v2alpha1.DogstatsdFeatureConfig{}
 			}
 
 			features.Dogstatsd.OriginDetectionEnabled = src.Config.Dogstatsd.DogstatsdOriginDetection
@@ -330,7 +330,7 @@ func convertSystemProbeSpec(src *SystemProbeSpec, dst *v2alpha1.DatadogAgent) {
 	// TODO: BPFDebugEnabled, DebugPort skipped as not sure if should be exposed.
 
 	setBooleanPtrOR(src.Enabled, &features.NPM.Enabled)
-	features.NPM.UseConntrack = src.ConntrackEnabled
+	features.NPM.EnableConntrack = src.ConntrackEnabled
 	features.NPM.CollectDNSStats = src.CollectDNSStats
 
 	if src.EnableTCPQueueLength != nil {
