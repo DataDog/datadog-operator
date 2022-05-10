@@ -13,6 +13,7 @@ import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 
+	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
@@ -37,29 +38,33 @@ type tcpQueueLengthFeature struct {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *tcpQueueLengthFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredComponents {
+func (f *tcpQueueLengthFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda
 
 	if dda.Spec.Features.TCPQueueLength != nil && apiutils.BoolValue(dda.Spec.Features.TCPQueueLength.Enabled) {
 		f.enable = true
+		reqComp.Agent = feature.RequiredComponent{
+			IsRequired: &f.enable,
+			Containers: []apicommonv1.AgentContainerName{apicommonv1.CoreAgentContainerName, apicommonv1.SystemProbeContainerName},
+		}
 	}
 
-	return feature.RequiredComponents{
-		Agent: feature.RequiredComponent{Required: &f.enable},
-	}
+	return reqComp
 }
 
 // ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
-func (f *tcpQueueLengthFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) feature.RequiredComponents {
+func (f *tcpQueueLengthFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda
 
 	if dda.Spec.Agent.SystemProbe != nil && *dda.Spec.Agent.SystemProbe.EnableTCPQueueLength {
 		f.enable = true
+		reqComp.Agent = feature.RequiredComponent{
+			IsRequired: &f.enable,
+			Containers: []apicommonv1.AgentContainerName{apicommonv1.CoreAgentContainerName, apicommonv1.SystemProbeContainerName},
+		}
 	}
 
-	return feature.RequiredComponents{
-		Agent: feature.RequiredComponent{Required: &f.enable},
-	}
+	return reqComp
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
@@ -78,15 +83,15 @@ func (f *tcpQueueLengthFeature) ManageClusterAgent(managers feature.PodTemplateM
 // It should do nothing if the feature doesn't need to configure it.
 func (f *tcpQueueLengthFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	// modules volume mount
-	modulesVol, modulesVolMount := volume.GetVolumes(modulesVolumeName, modulesVolumePath, modulesVolumePath)
+	modulesVol, modulesVolMount := volume.GetVolumes(apicommon.ModulesVolumeName, apicommon.ModulesVolumePath, apicommon.ModulesVolumePath)
 	managers.Volume().AddVolumeToContainer(&modulesVol, &modulesVolMount, apicommonv1.SystemProbeContainerName)
 
 	// src volume mount
-	srcVol, srcVolMount := volume.GetVolumes(srcVolumeName, srcVolumePath, srcVolumePath)
+	srcVol, srcVolMount := volume.GetVolumes(apicommon.SrcVolumeName, apicommon.SrcVolumePath, apicommon.SrcVolumePath)
 	managers.Volume().AddVolumeToContainer(&srcVol, &srcVolMount, apicommonv1.SystemProbeContainerName)
 
 	enableEnvVar := &corev1.EnvVar{
-		Name:  DDEnableTCPQueueLengthEnvVar,
+		Name:  apicommon.DDEnableTCPQueueLengthEnvVar,
 		Value: "true",
 	}
 
