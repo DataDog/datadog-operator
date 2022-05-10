@@ -524,5 +524,4 @@ func Test_DogStatsDFeature_Configure(t *testing.T) {
 	}
 
 	tests.Run(t, buildDogStatsDFeature)
-
 }

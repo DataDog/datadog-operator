@@ -224,7 +224,6 @@ func (f *dogStatsDFeature) ManageNodeAgent(managers feature.PodTemplateManagers)
 				ValueFrom: &corev1.EnvVarSource{ConfigMapKeyRef: &cmSelector},
 			})
 		}
-
 	}
 	return nil
 }
