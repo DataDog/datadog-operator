@@ -9,8 +9,10 @@ package feature
 type IDType int
 
 const (
+	// DogStatsDIDType Dogstatsd check feature.
+	DogStatsDIDType IDType = iota
 	// KubernetesStateCoreIDType Kubernetes state core check feature.
-	KubernetesStateCoreIDType IDType = iota
+	KubernetesStateCoreIDType
 	// OrchestratorExplorerIDType Orchestrator Explorer feature.
 	OrchestratorExplorerIDType
 	// DummyIDType Dummt feature.

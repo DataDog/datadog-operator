@@ -57,4 +57,9 @@ const (
 	ConfigVolumeName              = "config"
 	ConfigVolumePath              = "/etc/datadog-agent"
 	KubeStateMetricCoreVolumeName = "ksm-core-config"
+
+	DogStatsDHostPortName     = "dogstatsdport"
+	DogStatsDHostPortHostPort = 8125
+	DogStatsDUDSSocketName    = "dsdsocket"
+	DogStatsDUDSHostFilepath  = "/var/run/datadog/statsd.sock"
 )

@@ -96,3 +96,25 @@ func buildVolumeSourceFromCustomConfigSpec(configDir *apicommonv1.CustomConfig, 
 		ConfigMap: cmSource,
 	}
 }
+
+// GetVolumes creates a corev1.Volume and corev1.VolumeMount corresponding to a host path.
+func GetVolumes(volumeName string, hostPath string, mountPath string, readOnly bool) (corev1.Volume, corev1.VolumeMount) {
+	var volume corev1.Volume
+	var volumeMount corev1.VolumeMount
+
+	volume = corev1.Volume{
+		Name: volumeName,
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: hostPath,
+			},
+		},
+	}
+	volumeMount = corev1.VolumeMount{
+		Name:      volumeName,
+		MountPath: mountPath,
+		ReadOnly:  readOnly,
+	}
+
+	return volume, volumeMount
+}

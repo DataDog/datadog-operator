@@ -10,4 +10,9 @@ const (
 	DDIgnoreAutoConf                = "DD_IGNORE_AUTOCONF"
 	DDKubeStateMetricsCoreEnabled   = "DD_KUBE_STATE_METRICS_CORE_ENABLED"
 	DDKubeStateMetricsCoreConfigMap = "DD_KUBE_STATE_METRICS_CORE_CONFIGMAP_NAME"
+
+	DDDogStatsDNonLocalTraffic = "DD_DOGSTATSD_NON_LOCAL_TRAFFIC"
+	DDDogStatsDSocket          = "DD_DOGSTATSD_SOCKET"
+	DDDogstatsdOriginDetection = "DD_DOGSTATSD_ORIGIN_DETECTION"
+	DDDogstatsdMapperProfiles  = "DD_DOGSTATSD_MAPPER_PROFILES"
 )
