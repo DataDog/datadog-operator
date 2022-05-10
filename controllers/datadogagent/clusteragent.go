@@ -283,12 +283,11 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 	volumes := []corev1.Volume{}
 	volumeMounts := []corev1.VolumeMount{}
 
+	volumeManager := merger.NewVolumeManager(&newPodTemplate)
+
 	// confd volumes configuration
-	confdVolumeSource := corev1.VolumeSource{
-		EmptyDir: &corev1.EmptyDirVolumeSource{},
-	}
 	if dda.Spec.ClusterAgent.Config != nil && dda.Spec.ClusterAgent.Config.Confd != nil {
-		confdVolumeSource = corev1.VolumeSource{
+		confdVolumeSource := corev1.VolumeSource{
 			ConfigMap: &corev1.ConfigMapVolumeSource{
 				LocalObjectReference: corev1.LocalObjectReference{
 					Name: dda.Spec.ClusterAgent.Config.Confd.ConfigMapName,
@@ -304,6 +303,16 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 				})
 			}
 		}
+		confdVolumeMount := corev1.VolumeMount{
+			Name:      apicommon.ConfdVolumeName,
+			MountPath: apicommon.ConfdVolumePath,
+			ReadOnly:  true,
+		}
+		confdVolume := corev1.Volume{
+			Name:         apicommon.ConfdVolumeName,
+			VolumeSource: confdVolumeSource,
+		}
+		volumeManager.AddVolume(&confdVolume, &confdVolumeMount)
 	}
 
 	if dda.Spec.ClusterAgent.CustomConfig != nil {
@@ -377,8 +386,10 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 	newPodTemplate.Spec.ServiceAccountName = getClusterAgentServiceAccount(dda)
 	newPodTemplate.Spec.Tolerations = clusterAgentSpec.Tolerations
 	newPodTemplate.Spec.PriorityClassName = dda.Spec.ClusterAgent.PriorityClassName
-	newPodTemplate.Spec.Volumes = append(newPodTemplate.Spec.Volumes, volumes...)
+
 	newPodTemplate.Spec.Affinity = getClusterAgentAffinity(dda.Spec.ClusterAgent.Affinity)
+
+	newPodTemplate.Spec.Volumes = append(newPodTemplate.Spec.Volumes, volumes...)
 
 	container := &newPodTemplate.Spec.Containers[0]
 	{
@@ -660,10 +671,11 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 }
 
 func getClusterAgentName(dda *datadoghqv1alpha1.DatadogAgent) string {
+	name := component.GetClusterAgentName(dda)
 	if isClusterAgentEnabled(dda.Spec.ClusterAgent) && dda.Spec.ClusterAgent.DeploymentName != "" {
-		return dda.Spec.ClusterAgent.DeploymentName
+		name = dda.Spec.ClusterAgent.DeploymentName
 	}
-	return fmt.Sprintf("%s-%s", dda.Name, "cluster-agent")
+	return name
 }
 
 func getClusterAgentMetricsProviderPort(config datadoghqv1alpha1.ClusterAgentConfig) int32 {
@@ -1394,7 +1406,7 @@ func (b clusterAgentNetworkPolicyBuilder) BuildKubernetesPolicy() *networkingv1.
 				{
 					PodSelector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{
-							kubernetes.AppKubernetesInstanceLabelKey: apicommon.DefaultAgentResourceSuffix,
+							kubernetes.AppKubernetesInstanceLabelKey: daemonsetName(b.dda),
 							kubernetes.AppKubernetesPartOfLabelKey:   object.NewPartOfLabelValue(dda).String(),
 						},
 					},
@@ -1417,7 +1429,7 @@ func (b clusterAgentNetworkPolicyBuilder) BuildKubernetesPolicy() *networkingv1.
 				{
 					PodSelector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{
-							kubernetes.AppKubernetesInstanceLabelKey: apicommon.DefaultClusterChecksRunnerResourceSuffix,
+							kubernetes.AppKubernetesInstanceLabelKey: getClusterChecksRunnerName(b.dda),
 							kubernetes.AppKubernetesPartOfLabelKey:   object.NewPartOfLabelValue(dda).String(),
 						},
 					},
@@ -1461,7 +1473,7 @@ func (b clusterAgentNetworkPolicyBuilder) BuildKubernetesPolicy() *networkingv1.
 func (b clusterAgentNetworkPolicyBuilder) PodSelector() metav1.LabelSelector {
 	return metav1.LabelSelector{
 		MatchLabels: map[string]string{
-			kubernetes.AppKubernetesInstanceLabelKey: apicommon.DefaultClusterAgentResourceSuffix,
+			kubernetes.AppKubernetesInstanceLabelKey: getClusterAgentName(b.dda),
 			kubernetes.AppKubernetesPartOfLabelKey:   object.NewPartOfLabelValue(b.dda).String(),
 		},
 	}
@@ -1523,7 +1535,7 @@ func (b clusterAgentNetworkPolicyBuilder) ciliumIngressAgent() cilium.NetworkPol
 		ingress.FromEndpoints = []metav1.LabelSelector{
 			{
 				MatchLabels: map[string]string{
-					kubernetes.AppKubernetesInstanceLabelKey: apicommon.DefaultAgentResourceSuffix,
+					kubernetes.AppKubernetesInstanceLabelKey: daemonsetName(b.dda),
 					kubernetes.AppKubernetesPartOfLabelKey:   fmt.Sprintf("%s-%s", b.dda.Namespace, b.dda.Name),
 				},
 			},
@@ -1605,7 +1617,7 @@ func (b clusterAgentNetworkPolicyBuilder) BuildCiliumPolicy() *cilium.NetworkPol
 					FromEndpoints: []metav1.LabelSelector{
 						{
 							MatchLabels: map[string]string{
-								kubernetes.AppKubernetesInstanceLabelKey: apicommon.DefaultClusterChecksRunnerResourceSuffix,
+								kubernetes.AppKubernetesInstanceLabelKey: getClusterChecksRunnerName(b.dda),
 								kubernetes.AppKubernetesPartOfLabelKey:   fmt.Sprintf("%s-%s", b.dda.Namespace, b.dda.Name),
 							},
 						},
@@ -1649,7 +1661,7 @@ func (b clusterAgentNetworkPolicyBuilder) BuildCiliumPolicy() *cilium.NetworkPol
 
 	return &cilium.NetworkPolicy{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels:    object.GetDefaultLabels(b.dda, apicommon.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(b.dda)),
+			Labels:    object.GetDefaultLabels(b.dda, getClusterAgentName(b.dda), getClusterAgentVersion(b.dda)),
 			Name:      b.Name(),
 			Namespace: b.dda.Namespace,
 		},

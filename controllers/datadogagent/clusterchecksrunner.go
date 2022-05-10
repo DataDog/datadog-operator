@@ -441,10 +441,11 @@ func getClusterChecksRunnerVersion(dda *datadoghqv1alpha1.DatadogAgent) string {
 }
 
 func getClusterChecksRunnerName(dda *datadoghqv1alpha1.DatadogAgent) string {
+	name := fmt.Sprintf("%s-%s", dda.Name, "cluster-checks-runner")
 	if apiutils.BoolValue(dda.Spec.ClusterChecksRunner.Enabled) && dda.Spec.ClusterChecksRunner.DeploymentName != "" {
-		return dda.Spec.ClusterChecksRunner.DeploymentName
+		name = dda.Spec.ClusterChecksRunner.DeploymentName
 	}
-	return fmt.Sprintf("%s-%s", dda.Name, "cluster-checks-runner")
+	return name
 }
 
 // getVolumesForClusterChecksRunner defines volumes for the Cluster Checks Runner
@@ -623,7 +624,7 @@ func (b clusterChecksRunnerNetworkPolicyBuilder) BuildKubernetesPolicy() *networ
 func (b clusterChecksRunnerNetworkPolicyBuilder) PodSelector() metav1.LabelSelector {
 	return metav1.LabelSelector{
 		MatchLabels: map[string]string{
-			kubernetes.AppKubernetesInstanceLabelKey: apicommon.DefaultClusterChecksRunnerResourceSuffix,
+			kubernetes.AppKubernetesInstanceLabelKey: getClusterChecksRunnerName(b.dda),
 			kubernetes.AppKubernetesPartOfLabelKey:   object.NewPartOfLabelValue(b.dda).String(),
 		},
 	}

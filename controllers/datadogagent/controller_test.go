@@ -2378,7 +2378,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				dcaLabels := labels.Set(dca.Spec.Template.Labels)
 				policySelector := labels.Set(policy.Spec.PodSelector.MatchLabels).AsSelector()
 				if !policySelector.Matches(dcaLabels) {
-					return fmt.Errorf("network policy's selector %s does not match pods defined in the daemonset", policySelector)
+					return fmt.Errorf("network policy's selector %s does not match pods defined in the dca deployment, labels: %#v", policySelector, dcaLabels)
 				}
 
 				return nil
@@ -2435,7 +2435,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				dcaLabels := labels.Set(dca.Spec.Template.Labels)
 				policySelector := labels.Set(policy.Spec.PodSelector.MatchLabels).AsSelector()
 				if !policySelector.Matches(dcaLabels) {
-					return fmt.Errorf("network policy's selector %s does not match pods defined in the daemonset", policySelector)
+					return fmt.Errorf("network policy's selector %s does not match pods defined in the runner deployment", policySelector)
 				}
 
 				return nil

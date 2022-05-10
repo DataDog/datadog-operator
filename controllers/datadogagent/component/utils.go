@@ -138,3 +138,8 @@ func GetVolumeMountForInstallInfo() corev1.VolumeMount {
 func GetClusterAgentServiceName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultClusterAgentResourceSuffix)
 }
+
+// GetClusterAgentName return the Cluster-Agent service name based on the DatadogAgent name
+func GetClusterAgentName(dda metav1.Object) string {
+	return fmt.Sprintf("%s-%s", dda.GetName(), "cluster-agent")
+}
