@@ -11,6 +11,10 @@ const (
 	DDKubeStateMetricsCoreEnabled   = "DD_KUBE_STATE_METRICS_CORE_ENABLED"
 	DDKubeStateMetricsCoreConfigMap = "DD_KUBE_STATE_METRICS_CORE_CONFIGMAP_NAME"
 	DDHostRootEnvVar                = "HOST_ROOT"
+	DDSystemProbeNPMEnabledEnvVar   = "DD_SYSTEM_PROBE_NETWORK_ENABLED"
+	DDSystemProbeEnabledEnvVar      = "DD_SYSTEM_PROBE_ENABLED"
+	DDProcessAgentEnabledEnvVar     = "DD_PROCESS_AGENT_ENABLED"
+	DDSystemProbeSocketEnvVar       = "DD_SYSPROBE_SOCKET"
 	DDEnableOOMKillEnvVar           = "DD_SYSTEM_PROBE_CONFIG_ENABLE_OOM_KILL"
 	DDEnableTCPQueueLengthEnvVar    = "DD_SYSTEM_PROBE_CONFIG_ENABLE_TCP_QUEUE_LENGTH"
 )
