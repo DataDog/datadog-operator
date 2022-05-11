@@ -65,8 +65,10 @@ const (
 	// same path on host and container
 	SrcVolumePath = "/usr/src"
 
-	DogStatsDHostPortName     = "dogstatsdport"
-	DogStatsDHostPortHostPort = 8125
-	DogStatsDUDSSocketName    = "dsdsocket"
-	DogStatsDUDSHostFilepath  = "/var/run/datadog/statsd.sock"
+	DogStatsDHostPortName            = "dogstatsdport"
+	DogStatsDHostPortHostPort        = 8125
+	DogStatsDUDSSocketName           = "dsdsocket"
+	DogStatsDUDSHostFilepathV1       = "/var/run/datadog/statsd.sock"
+	DogStatsDUDSHostFilepathV2       = "/var/run/datadog/dsd.socket"
+	DogStatsDUDSHostFilepathReadOnly = true
 )

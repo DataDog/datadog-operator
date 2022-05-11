@@ -7,7 +7,6 @@ package dogstatsd
 
 import (
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
@@ -42,95 +41,63 @@ type dogStatsDFeature struct {
 
 	originDetectionEnabled bool
 	mapperProfiles         *apicommonv1.CustomConfig
-
-	owner metav1.Object
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *dogStatsDFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	f.owner = dda
-
-	if dda.Spec.Features.Dogstatsd != nil {
-		if dda.Spec.Features.Dogstatsd.HostPortConfig != nil {
-			if apiutils.BoolValue(dda.Spec.Features.Dogstatsd.HostPortConfig.Enabled) {
-				f.hostPortEnabled = true
-			}
-			if dda.Spec.Features.Dogstatsd.HostPortConfig.Port != nil {
-				f.hostPortHostPort = *dda.Spec.Features.Dogstatsd.HostPortConfig.Port
-			} else {
-				f.hostPortHostPort = apicommon.DogStatsDHostPortHostPort
-			}
-		}
-		if dda.Spec.Features.Dogstatsd.UnixDomainSocketConfig != nil {
-			if apiutils.BoolValue(dda.Spec.Features.Dogstatsd.UnixDomainSocketConfig.Enabled) {
-				f.udsEnabled = true
-			}
-			if dda.Spec.Features.Dogstatsd.UnixDomainSocketConfig.Path != nil {
-				f.udsHostFilepath = *dda.Spec.Features.Dogstatsd.UnixDomainSocketConfig.Path
-			} else {
-				f.udsHostFilepath = apicommon.DogStatsDUDSHostFilepath
-			}
-		}
-		if apiutils.BoolValue(dda.Spec.Features.Dogstatsd.OriginDetectionEnabled) {
-			f.originDetectionEnabled = true
-		}
-		if dda.Spec.Features.Dogstatsd.MapperProfiles != nil {
-			f.mapperProfiles = v2alpha1.ConvertCustomConfig(dda.Spec.Features.Dogstatsd.MapperProfiles)
-		}
+	dogstatsd := dda.Spec.Features.Dogstatsd
+	if apiutils.BoolValue(dogstatsd.HostPortConfig.Enabled) {
+		f.hostPortEnabled = true
 	}
-
+	if dogstatsd.HostPortConfig.Port != nil {
+		f.hostPortHostPort = *dogstatsd.HostPortConfig.Port
+	}
+	if apiutils.BoolValue(dogstatsd.UnixDomainSocketConfig.Enabled) {
+		f.udsEnabled = true
+	}
+	f.udsHostFilepath = *dogstatsd.UnixDomainSocketConfig.Path
+	if apiutils.BoolValue(dogstatsd.OriginDetectionEnabled) {
+		f.originDetectionEnabled = true
+	}
+	if dogstatsd.MapperProfiles != nil {
+		f.mapperProfiles = v2alpha1.ConvertCustomConfig(dogstatsd.MapperProfiles)
+	}
 	reqComp = feature.RequiredComponents{
 		Agent: feature.RequiredComponent{
-			RequiredContainers: []apicommonv1.AgentContainerName{
+			Containers: []apicommonv1.AgentContainerName{
 				apicommonv1.CoreAgentContainerName,
 			},
 		},
 	}
-
 	return reqComp
 }
 
 // ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
 func (f *dogStatsDFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	f.owner = dda
-
-	if dda != nil {
-		f.hostPortEnabled = true
-		if dda.Spec.Agent.Config != nil {
-			if dda.Spec.Agent.Config.HostPort != nil {
-				f.hostPortHostPort = *dda.Spec.Agent.Config.HostPort
-			} else {
-				f.hostPortHostPort = apicommon.DogStatsDHostPortHostPort
-			}
-			if dda.Spec.Agent.Config.Dogstatsd != nil {
-				if dda.Spec.Agent.Config.Dogstatsd.UnixDomainSocket != nil {
-					if apiutils.BoolValue(dda.Spec.Agent.Config.Dogstatsd.UnixDomainSocket.Enabled) {
-						f.udsEnabled = true
-					}
-					if dda.Spec.Agent.Config.Dogstatsd.UnixDomainSocket.HostFilepath != nil {
-						f.udsHostFilepath = *dda.Spec.Agent.Config.Dogstatsd.UnixDomainSocket.HostFilepath
-					} else {
-						f.udsHostFilepath = apicommon.DogStatsDUDSHostFilepath
-					}
-				}
-				if apiutils.BoolValue(dda.Spec.Agent.Config.Dogstatsd.DogstatsdOriginDetection) {
-					f.originDetectionEnabled = true
-				}
-				if dda.Spec.Agent.Config.Dogstatsd.MapperProfiles != nil {
-					f.mapperProfiles = v1alpha1.ConvertCustomConfig(dda.Spec.Agent.Config.Dogstatsd.MapperProfiles)
-				}
-			}
-		}
+	config := dda.Spec.Agent.Config
+	f.hostPortEnabled = true
+	if config.HostPort != nil {
+		f.hostPortHostPort = *config.HostPort
 	}
-
+	if apiutils.BoolValue(config.Dogstatsd.UnixDomainSocket.Enabled) {
+		f.udsEnabled = true
+	}
+	if config.Dogstatsd.UnixDomainSocket.HostFilepath != nil {
+		f.udsHostFilepath = *config.Dogstatsd.UnixDomainSocket.HostFilepath
+	}
+	if apiutils.BoolValue(config.Dogstatsd.DogstatsdOriginDetection) {
+		f.originDetectionEnabled = true
+	}
+	if config.Dogstatsd.MapperProfiles != nil {
+		f.mapperProfiles = v1alpha1.ConvertCustomConfig(config.Dogstatsd.MapperProfiles)
+	}
 	reqComp = feature.RequiredComponents{
 		Agent: feature.RequiredComponent{
-			RequiredContainers: []apicommonv1.AgentContainerName{
+			Containers: []apicommonv1.AgentContainerName{
 				apicommonv1.CoreAgentContainerName,
 			},
 		},
 	}
-
 	return reqComp
 }
 
@@ -151,20 +118,26 @@ func (f *dogStatsDFeature) ManageClusterAgent(managers feature.PodTemplateManage
 func (f *dogStatsDFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	// udp
 	if f.hostPortEnabled {
-		if f.hostPortHostPort == 0 {
-			f.hostPortHostPort = apicommon.DogStatsDHostPortHostPort
+		if f.hostPortHostPort != 0 {
+			managers.Port().AddPortToContainer(apicommonv1.CoreAgentContainerName, &corev1.ContainerPort{
+				Name:          apicommon.DogStatsDHostPortName,
+				HostPort:      f.hostPortHostPort,
+				ContainerPort: apicommon.DogStatsDHostPortHostPort,
+				Protocol:      corev1.ProtocolUDP,
+			})
+		} else {
+			managers.Port().AddPortToContainer(apicommonv1.CoreAgentContainerName, &corev1.ContainerPort{
+				Name:          apicommon.DogStatsDHostPortName,
+				HostPort:      apicommon.DogStatsDHostPortHostPort,
+				ContainerPort: apicommon.DogStatsDHostPortHostPort,
+				Protocol:      corev1.ProtocolUDP,
+			})
 		}
-		managers.Port().AddPortToContainer(apicommonv1.CoreAgentContainerName, &corev1.ContainerPort{
-			Name:          apicommon.DogStatsDHostPortName,
-			HostPort:      f.hostPortHostPort,
-			ContainerPort: apicommon.DogStatsDHostPortHostPort,
-			Protocol:      corev1.ProtocolUDP,
-		})
 		managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
 			Name:  apicommon.DDDogStatsDNonLocalTraffic,
 			Value: "true",
 		})
-
+		// only add if uds origin detection is not enabled to prevent duplicates
 		if f.originDetectionEnabled && !f.udsEnabled {
 			managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
 				Name:  apicommon.DDDogstatsdOriginDetection,
@@ -175,22 +148,12 @@ func (f *dogStatsDFeature) ManageNodeAgent(managers feature.PodTemplateManagers)
 
 	// uds
 	if f.udsEnabled {
-		var socketVol corev1.Volume
-		var socketVolMount corev1.VolumeMount
-		var udsHostFilePath string
-		if f.udsHostFilepath != "" {
-			socketVol, socketVolMount = volume.GetVolumes(apicommon.DogStatsDUDSSocketName, f.udsHostFilepath, f.udsHostFilepath, true)
-			udsHostFilePath = f.udsHostFilepath
-		} else {
-			socketVol, socketVolMount = volume.GetVolumes(apicommon.DogStatsDUDSSocketName, apicommon.DogStatsDUDSHostFilepath, apicommon.DogStatsDUDSHostFilepath, true)
-			udsHostFilePath = apicommon.DogStatsDUDSHostFilepath
-		}
+		socketVol, socketVolMount := volume.GetVolumes(apicommon.DogStatsDUDSSocketName, f.udsHostFilepath, f.udsHostFilepath, apicommon.DogStatsDUDSHostFilepathReadOnly)
 		managers.Volume().AddVolumeToContainer(&socketVol, &socketVolMount, apicommonv1.CoreAgentContainerName)
 		managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
 			Name:  apicommon.DDDogStatsDSocket,
-			Value: udsHostFilePath,
+			Value: f.udsHostFilepath,
 		})
-
 		if f.originDetectionEnabled {
 			managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
 				Name:  apicommon.DDDogstatsdOriginDetection,
