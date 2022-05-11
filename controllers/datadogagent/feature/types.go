@@ -46,21 +46,21 @@ func (rc *RequiredComponents) Merge(in *RequiredComponents) *RequiredComponents 
 //   * false: the corresponding component needs to ne disabled for this feature.
 //   * nil: the feature doesn't need the corresponding component.
 type RequiredComponent struct {
-	Required           *bool
-	RequiredContainers []apicommonv1.AgentContainerName
+	IsRequired *bool
+	Containers []apicommonv1.AgentContainerName
 }
 
 // IsEnabled return true if the Feature need the current RequiredComponent
 func (rc *RequiredComponent) IsEnabled() bool {
-	return apiutils.BoolValue(rc.Required) || len(rc.RequiredContainers) > 0
+	return apiutils.BoolValue(rc.IsRequired) || len(rc.Containers) > 0
 }
 
 // Merge use to merge 2 RequiredComponents
 // merge priority: false > true > nil
 // *
 func (rc *RequiredComponent) Merge(in *RequiredComponent) *RequiredComponent {
-	rc.Required = merge(rc.Required, in.Required)
-	rc.RequiredContainers = mergeSlices(rc.RequiredContainers, in.RequiredContainers)
+	rc.IsRequired = merge(rc.IsRequired, in.IsRequired)
+	rc.Containers = mergeSlices(rc.Containers, in.Containers)
 	return rc
 }
 

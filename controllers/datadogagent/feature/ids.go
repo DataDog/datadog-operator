@@ -15,6 +15,10 @@ const (
 	KubernetesStateCoreIDType
 	// OrchestratorExplorerIDType Orchestrator Explorer feature.
 	OrchestratorExplorerIDType
-	// DummyIDType Dummt feature.
+	// OOMKillIDType OOM Kill check feature
+	OOMKillIDType
+	// TCPQueueLengthIDType TCP Queue length check feature
+	TCPQueueLengthIDType
+	// DummyIDType Dummy feature.
 	DummyIDType
 )
