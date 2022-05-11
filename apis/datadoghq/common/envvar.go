@@ -15,7 +15,7 @@ const (
 	DDProcessAgentEnabledEnvVar     = "DD_PROCESS_AGENT_ENABLED"
 	DDSystemProbeSocketEnvVar       = "DD_SYSPROBE_SOCKET"
 	DDEnableOOMKillEnvVar           = "DD_SYSTEM_PROBE_CONFIG_ENABLE_OOM_KILL"
-  DDEnableTCPQueueLengthEnvVar    = "DD_SYSTEM_PROBE_CONFIG_ENABLE_TCP_QUEUE_LENGTH"
+	DDEnableTCPQueueLengthEnvVar    = "DD_SYSTEM_PROBE_CONFIG_ENABLE_TCP_QUEUE_LENGTH"
 	DDLeaderElection                = "DD_LEADER_ELECTION"
 	DDClusterAgentKubeServiceName   = "DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME"
 	DDHealthPort                    = "DD_HEALTH_PORT"
