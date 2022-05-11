@@ -13,6 +13,8 @@ const (
 	KubernetesStateCoreIDType IDType = iota
 	// OrchestratorExplorerIDType Orchestrator Explorer feature.
 	OrchestratorExplorerIDType
+	// NPMIDType NPM feature.
+	NPMIDType
 	// OOMKillIDType OOM Kill check feature
 	OOMKillIDType
 	// TCPQueueLengthIDType TCP Queue length check feature
