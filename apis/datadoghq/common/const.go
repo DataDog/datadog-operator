@@ -58,18 +58,25 @@ const (
 	ConfigVolumePath              = "/etc/datadog-agent"
 	KubeStateMetricCoreVolumeName = "ksm-core-config"
 
+	ModulesVolumeName = "modules"
+	// same path on host and container
+	ModulesVolumePath = "/lib/modules"
+	SrcVolumeName     = "src"
+	// same path on host and container
+	SrcVolumePath = "/usr/src"
+
 	PointerVolumeName     = "pointerdir"
 	PointerVolumePath     = "/opt/datadog-agent/run"
 	LogTempStoragePath    = "/var/lib/datadog-agent/logs"
 	PointerVolumeReadOnly = false
 
-	LogPodVolumeName     = "logpodpath"
-	LogPodVolumePath     = "/var/log/pods"
-	LogPodVolumeReadOnly = true
+	PodLogVolumeName     = "logpodpath"
+	PodLogVolumePath     = "/var/log/pods"
+	PodLogVolumeReadOnly = true
 
-	LogContainerVolumeName     = "logcontainerpath"
-	LogContainerVolumePath     = "/var/lib/docker/containers"
-	LogContainerVolumeReadOnly = true
+	ContainerLogVolumeName     = "logcontainerpath"
+	ContainerLogVolumePath     = "/var/lib/docker/containers"
+	ContainerLogVolumeReadOnly = true
 
 	SymlinkContainerVolumeName     = "symlinkcontainerpath"
 	SymlinkContainerVolumePath     = "/var/log/containers"

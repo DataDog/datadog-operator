@@ -11,6 +11,9 @@ const (
 	DDKubeStateMetricsCoreEnabled   = "DD_KUBE_STATE_METRICS_CORE_ENABLED"
 	DDKubeStateMetricsCoreConfigMap = "DD_KUBE_STATE_METRICS_CORE_CONFIGMAP_NAME"
 
+	DDEnableOOMKillEnvVar        = "DD_SYSTEM_PROBE_CONFIG_ENABLE_OOM_KILL"
+	DDEnableTCPQueueLengthEnvVar = "DD_SYSTEM_PROBE_CONFIG_ENABLE_TCP_QUEUE_LENGTH"
+
 	DDLogsEnabled                    = "DD_LOGS_ENABLED"
 	DDLogsConfigContainerCollectAll  = "DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL"
 	DDLogsContainerCollectUsingFiles = "DD_LOGS_CONFIG_K8S_CONTAINER_USE_FILE"

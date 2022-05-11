@@ -28,18 +28,23 @@ func createEmptyFakeManager(t testing.TB) feature.PodTemplateManagers {
 
 func Test_LogCollectionFeature_Configure(t *testing.T) {
 	// v1alpha1
+	ddav1Disabled := &v1alpha1.DatadogAgent{}
 	ddav1LogCollectionDisabled := v1alpha1.DatadogAgent{
+		Spec: *v1alpha1.DefaultDatadogAgent(ddav1Disabled).DefaultOverride,
+	}
+
+	ddav1Enabled := &v1alpha1.DatadogAgent{
 		Spec: v1alpha1.DatadogAgentSpec{
 			Features: v1alpha1.DatadogFeatures{
 				LogCollection: &v1alpha1.LogCollectionConfig{
-					Enabled: apiutils.NewBoolPointer(false),
+					Enabled: apiutils.NewBoolPointer(true),
 				},
 			},
 		},
 	}
-
-	ddav1LogCollectionEnabled := ddav1LogCollectionDisabled.DeepCopy()
-	ddav1LogCollectionEnabled.Spec.Features.LogCollection.Enabled = apiutils.NewBoolPointer(true)
+	ddav1LogCollectionEnabled := v1alpha1.DatadogAgent{
+		Spec: *v1alpha1.DefaultDatadogAgent(ddav1Enabled).DefaultOverride,
+	}
 
 	ddav1ContainerCollectAllEnabled := ddav1LogCollectionEnabled.DeepCopy()
 	ddav1ContainerCollectAllEnabled.Spec.Features.LogCollection.LogsConfigContainerCollectAll = apiutils.NewBoolPointer(true)
@@ -57,18 +62,19 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 	ddav1CustomVolumes.Spec.Features.LogCollection.TempStoragePath = apiutils.NewStringPointer("/custom/temp/storage")
 
 	// v2alpha1
-	ddav2LogCollectionDisabled := v2alpha1.DatadogAgent{
+	ddav2LogCollectionDisabled := &v2alpha1.DatadogAgent{}
+	v2alpha1.DefaultDatadogAgent(ddav2LogCollectionDisabled)
+
+	ddav2LogCollectionEnabled := &v2alpha1.DatadogAgent{
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				LogCollection: &v2alpha1.LogCollectionFeatureConfig{
-					Enabled: apiutils.NewBoolPointer(false),
+					Enabled: apiutils.NewBoolPointer(true),
 				},
 			},
 		},
 	}
-
-	ddav2LogCollectionEnabled := ddav2LogCollectionDisabled.DeepCopy()
-	ddav2LogCollectionEnabled.Spec.Features.LogCollection.Enabled = apiutils.NewBoolPointer(true)
+	v2alpha1.DefaultDatadogAgent(ddav2LogCollectionEnabled)
 
 	ddav2ContainerCollectAllEnabled := ddav2LogCollectionEnabled.DeepCopy()
 	ddav2ContainerCollectAllEnabled.Spec.Features.LogCollection.ContainerCollectAll = apiutils.NewBoolPointer(true)
@@ -90,22 +96,22 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 		{
 			Name:      apicommon.PointerVolumeName,
 			MountPath: apicommon.PointerVolumePath,
-			ReadOnly:  false, // TODO: pointer needs to be ReadWrite
+			ReadOnly:  apicommon.PointerVolumeReadOnly,
 		},
 		{
-			Name:      apicommon.LogPodVolumeName,
-			MountPath: apicommon.LogPodVolumePath,
-			ReadOnly:  true,
+			Name:      apicommon.PodLogVolumeName,
+			MountPath: apicommon.PodLogVolumePath,
+			ReadOnly:  apicommon.PodLogVolumeReadOnly,
 		},
 		{
-			Name:      apicommon.LogContainerVolumeName,
-			MountPath: apicommon.LogContainerVolumePath,
-			ReadOnly:  true,
+			Name:      apicommon.ContainerLogVolumeName,
+			MountPath: apicommon.ContainerLogVolumePath,
+			ReadOnly:  apicommon.ContainerLogVolumeReadOnly,
 		},
 		{
 			Name:      apicommon.SymlinkContainerVolumeName,
 			MountPath: apicommon.SymlinkContainerVolumePath,
-			ReadOnly:  true,
+			ReadOnly:  apicommon.SymlinkContainerVolumeReadOnly,
 		},
 	}
 
@@ -120,18 +126,18 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 			},
 		},
 		{
-			Name: apicommon.LogPodVolumeName,
+			Name: apicommon.PodLogVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: apicommon.LogPodVolumePath,
+					Path: apicommon.PodLogVolumePath,
 				},
 			},
 		},
 		{
-			Name: apicommon.LogContainerVolumeName,
+			Name: apicommon.ContainerLogVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: apicommon.LogContainerVolumePath,
+					Path: apicommon.ContainerLogVolumePath,
 				},
 			},
 		},
@@ -156,7 +162,7 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 		},
 		{
 			Name:          "v1alpha1 log collection enabled",
-			DDAv1:         ddav1LogCollectionEnabled,
+			DDAv1:         &ddav1LogCollectionEnabled,
 			WantConfigure: true,
 			Agent: &test.ComponentTest{
 				CreateFunc: createEmptyFakeManager,
@@ -179,10 +185,6 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 						{
 							Name:  apicommon.DDLogsContainerCollectUsingFiles,
 							Value: "true",
-						},
-						{
-							Name:  apicommon.DDLogsConfigOpenFilesLimit,
-							Value: "100",
 						},
 					}
 					assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantEnvVars))
@@ -215,10 +217,6 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 							Name:  apicommon.DDLogsContainerCollectUsingFiles,
 							Value: "true",
 						},
-						{
-							Name:  apicommon.DDLogsConfigOpenFilesLimit,
-							Value: "100",
-						},
 					}
 					assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantEnvVars))
 				},
@@ -249,10 +247,6 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 						{
 							Name:  apicommon.DDLogsContainerCollectUsingFiles,
 							Value: "false",
-						},
-						{
-							Name:  apicommon.DDLogsConfigOpenFilesLimit,
-							Value: "100",
 						},
 					}
 					assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantEnvVars))
@@ -307,22 +301,22 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 						{
 							Name:      apicommon.PointerVolumeName,
 							MountPath: apicommon.PointerVolumePath,
-							ReadOnly:  false, // TODO: pointer needs to be ReadWrite
+							ReadOnly:  apicommon.PointerVolumeReadOnly,
 						},
 						{
-							Name:      apicommon.LogPodVolumeName,
+							Name:      apicommon.PodLogVolumeName,
 							MountPath: "/custom/pod/logs",
-							ReadOnly:  true,
+							ReadOnly:  apicommon.PodLogVolumeReadOnly,
 						},
 						{
-							Name:      apicommon.LogContainerVolumeName,
+							Name:      apicommon.ContainerLogVolumeName,
 							MountPath: "/custom/container/logs",
-							ReadOnly:  true,
+							ReadOnly:  apicommon.ContainerLogVolumeReadOnly,
 						},
 						{
 							Name:      apicommon.SymlinkContainerVolumeName,
 							MountPath: "/custom/symlink",
-							ReadOnly:  true,
+							ReadOnly:  apicommon.SymlinkContainerVolumeReadOnly,
 						},
 					}
 					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantCustomVolumeMounts), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantCustomVolumeMounts))
@@ -337,7 +331,7 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 							},
 						},
 						{
-							Name: apicommon.LogPodVolumeName,
+							Name: apicommon.PodLogVolumeName,
 							VolumeSource: corev1.VolumeSource{
 								HostPath: &corev1.HostPathVolumeSource{
 									Path: "/custom/pod/logs",
@@ -345,7 +339,7 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 							},
 						},
 						{
-							Name: apicommon.LogContainerVolumeName,
+							Name: apicommon.ContainerLogVolumeName,
 							VolumeSource: corev1.VolumeSource{
 								HostPath: &corev1.HostPathVolumeSource{
 									Path: "/custom/container/logs",
@@ -375,10 +369,6 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 						{
 							Name:  apicommon.DDLogsContainerCollectUsingFiles,
 							Value: "true",
-						},
-						{
-							Name:  apicommon.DDLogsConfigOpenFilesLimit,
-							Value: "100",
 						},
 					}
 					assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantEnvVars))
@@ -419,10 +409,6 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 							Name:  apicommon.DDLogsContainerCollectUsingFiles,
 							Value: "true",
 						},
-						{
-							Name:  apicommon.DDLogsConfigOpenFilesLimit,
-							Value: "100",
-						},
 					}
 					assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantEnvVars))
 				},
@@ -454,10 +440,6 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 							Name:  apicommon.DDLogsContainerCollectUsingFiles,
 							Value: "true",
 						},
-						{
-							Name:  apicommon.DDLogsConfigOpenFilesLimit,
-							Value: "100",
-						},
 					}
 					assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantEnvVars))
 				},
@@ -488,10 +470,6 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 						{
 							Name:  apicommon.DDLogsContainerCollectUsingFiles,
 							Value: "false",
-						},
-						{
-							Name:  apicommon.DDLogsConfigOpenFilesLimit,
-							Value: "100",
 						},
 					}
 					assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantEnvVars))
@@ -546,22 +524,22 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 						{
 							Name:      apicommon.PointerVolumeName,
 							MountPath: apicommon.PointerVolumePath,
-							ReadOnly:  false, // TODO: pointer needs to be ReadWrite
+							ReadOnly:  apicommon.PointerVolumeReadOnly,
 						},
 						{
-							Name:      apicommon.LogPodVolumeName,
+							Name:      apicommon.PodLogVolumeName,
 							MountPath: "/custom/pod/logs",
-							ReadOnly:  true,
+							ReadOnly:  apicommon.PodLogVolumeReadOnly,
 						},
 						{
-							Name:      apicommon.LogContainerVolumeName,
+							Name:      apicommon.ContainerLogVolumeName,
 							MountPath: "/custom/container/logs",
-							ReadOnly:  true,
+							ReadOnly:  apicommon.ContainerLogVolumeReadOnly,
 						},
 						{
 							Name:      apicommon.SymlinkContainerVolumeName,
 							MountPath: "/custom/symlink",
-							ReadOnly:  true,
+							ReadOnly:  apicommon.SymlinkContainerVolumeReadOnly,
 						},
 					}
 					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMounts), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMounts))
@@ -576,7 +554,7 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 							},
 						},
 						{
-							Name: apicommon.LogPodVolumeName,
+							Name: apicommon.PodLogVolumeName,
 							VolumeSource: corev1.VolumeSource{
 								HostPath: &corev1.HostPathVolumeSource{
 									Path: "/custom/pod/logs",
@@ -584,7 +562,7 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 							},
 						},
 						{
-							Name: apicommon.LogContainerVolumeName,
+							Name: apicommon.ContainerLogVolumeName,
 							VolumeSource: corev1.VolumeSource{
 								HostPath: &corev1.HostPathVolumeSource{
 									Path: "/custom/container/logs",
@@ -614,10 +592,6 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 						{
 							Name:  apicommon.DDLogsContainerCollectUsingFiles,
 							Value: "true",
-						},
-						{
-							Name:  apicommon.DDLogsConfigOpenFilesLimit,
-							Value: "100",
 						},
 					}
 					assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantEnvVars))
