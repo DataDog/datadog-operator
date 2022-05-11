@@ -75,7 +75,7 @@ func runTest(t *testing.T, tt FeatureTest, buildFunc feature.BuildFunc) {
 	}
 
 	if gotConfigure.IsEnabled() != tt.WantConfigure {
-		t.Errorf("ksmFeature.Configure() = %v, want %v", gotConfigure, tt.WantConfigure)
+		t.Errorf("feature.Configure() = %v, want %v", gotConfigure, tt.WantConfigure)
 	}
 
 	if !gotConfigure.IsEnabled() {

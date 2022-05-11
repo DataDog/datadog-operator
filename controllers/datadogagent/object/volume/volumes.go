@@ -36,6 +36,26 @@ func GetVolumes(volumeName, hostPath, mountPath string) (corev1.Volume, corev1.V
 	return volume, volumeMount
 }
 
+// GetVolumesEmptyDir creates a corev1.Volume (with an empty dir) and corev1.VolumeMount.
+func GetVolumesEmptyDir(volumeName, mountPath string) (corev1.Volume, corev1.VolumeMount) {
+	var volume corev1.Volume
+	var volumeMount corev1.VolumeMount
+
+	volume = corev1.Volume{
+		Name: volumeName,
+		VolumeSource: corev1.VolumeSource{
+			EmptyDir: &corev1.EmptyDirVolumeSource{},
+		},
+	}
+	volumeMount = corev1.VolumeMount{
+		Name:      volumeName,
+		MountPath: mountPath,
+		ReadOnly:  true,
+	}
+
+	return volume, volumeMount
+}
+
 // GetCustomConfigSpecVolumes use to generate the corev1.Volume and corev1.VolumeMount corresponding to a CustomConfig.
 func GetCustomConfigSpecVolumes(customConfig *apicommonv1.CustomConfig, volumeName, defaultCMName, configFolder string) (corev1.Volume, corev1.VolumeMount) {
 	var volume corev1.Volume

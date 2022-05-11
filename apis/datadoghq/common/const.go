@@ -48,8 +48,14 @@ const (
 	DefaultMetricsProviderPort int32 = 8443
 	// DefaultKubeStateMetricsCoreConf default ksm core ConfigMap name
 	DefaultKubeStateMetricsCoreConf string = "kube-state-metrics-core-config"
-	// DefaultSysprobeSocketPath default system probe socket path
-	DefaultSysprobeSocketPath = "/var/run/sysprobe/sysprobe.sock"
+	// DefaultSystemProbeSocketPath default System Probe socket path
+	DefaultSystemProbeSocketPath string = "/var/run/sysprobe/sysprobe.sock"
+)
+
+// Annotations
+const (
+	SystemProbeAppArmorAnnotationKey   = "container.apparmor.security.beta.kubernetes.io/system-probe"
+	SystemProbeAppArmorAnnotationValue = "unconfined"
 )
 
 // Datadog volume names and mount paths
@@ -72,11 +78,12 @@ const (
 	CgroupsHostPath   = "/sys/fs/cgroup"
 	CgroupsMountPath  = "/host/sys/fs/cgroup"
 
-	DebugfsVolumeName = "debugfs"
-	DebugfsVolumePath = "/sys/kernel/debug"
+	SystemProbeSocketVolumeName = "sysprobe-socket-dir"
+	SystemProbeSocketVolumePath = "/var/run/sysprobe"
 
-	SysprobeSocketVolumeName = "sysprobe-socket-dir"
-	SysprobeSocketVolumePath = "/var/run/sysprobe"
+	DebugfsVolumeName = "debugfs"
+	// same path on host and container
+	DebugfsPath = "/sys/kernel/debug"
 
 	ModulesVolumeName = "modules"
 	// same path on host and container
