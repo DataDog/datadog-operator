@@ -48,6 +48,8 @@ const (
 	DefaultMetricsProviderPort int32 = 8443
 	// DefaultKubeStateMetricsCoreConf default ksm core ConfigMap name
 	DefaultKubeStateMetricsCoreConf string = "kube-state-metrics-core-config"
+	// DefaultSysprobeSocketPath default system probe socket path
+	DefaultSysprobeSocketPath = "/var/run/sysprobe/sysprobe.sock"
 )
 
 // Datadog volume names and mount paths
@@ -57,7 +59,22 @@ const (
 	ConfigVolumeName              = "config"
 	ConfigVolumePath              = "/etc/datadog-agent"
 	KubeStateMetricCoreVolumeName = "ksm-core-config"
-	ModulesVolumeName             = "modules"
+
+	ProcdirVolumeName = "procdir"
+	ProcdirHostPath   = "/proc"
+	ProcdirMountPath  = "/host/proc"
+
+	CgroupsVolumeName = "cgroups"
+	CgroupsHostPath   = "/sys/fs/cgroup"
+	CgroupsMountPath  = "/host/sys/fs/cgroup"
+
+	DebugfsVolumeName = "debugfs"
+	DebugfsVolumePath = "/sys/kernel/debug"
+
+	SysprobeSocketVolumeName = "sysprobe-socket-dir"
+	SysprobeSocketVolumePath = "/var/run/sysprobe"
+
+	ModulesVolumeName = "modules"
 	// same path on host and container
 	ModulesVolumePath = "/lib/modules"
 	SrcVolumeName     = "src"
