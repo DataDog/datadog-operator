@@ -13,6 +13,7 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 )
@@ -22,8 +23,8 @@ func (r *Reconciler) manageAgentSecret(logger logr.Logger, dda *datadoghqv1alpha
 }
 
 func newAgentSecret(name string, dda *datadoghqv1alpha1.DatadogAgent) *corev1.Secret {
-	labels := getDefaultLabels(dda, apicommon.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
-	annotations := getDefaultAnnotations(dda)
+	labels := object.GetDefaultLabels(dda, apicommon.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
+	annotations := object.GetDefaultAnnotations(dda)
 
 	creds := dda.Spec.Credentials
 	data := getKeysFromCredentials(&creds.DatadogCredentials)

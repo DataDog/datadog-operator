@@ -10,12 +10,14 @@ import (
 	"strings"
 	"time"
 
+	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
+
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -83,23 +85,6 @@ const (
 	defaultMutateUnlabelled                                     = false
 	DefaultAdmissionServiceName                                 = "datadog-admission-controller"
 	defaultAdmissionControllerEnabled                           = false
-
-	// Liveness probe default config
-	defaultLivenessProbeInitialDelaySeconds int32 = 15
-	defaultLivenessProbePeriodSeconds       int32 = 15
-	defaultLivenessProbeTimeoutSeconds      int32 = 5
-	defaultLivenessProbeSuccessThreshold    int32 = 1
-	defaultLivenessProbeFailureThreshold    int32 = 6
-	defaultAgentHealthPort                  int32 = 5555
-	defaultLivenessProbeHTTPPath                  = "/live"
-
-	// Readiness probe default config
-	defaultReadinessProbeInitialDelaySeconds int32 = 15
-	defaultReadinessProbePeriodSeconds       int32 = 15
-	defaultReadinessProbeTimeoutSeconds      int32 = 5
-	defaultReadinessProbeSuccessThreshold    int32 = 1
-	defaultReadinessProbeFailureThreshold    int32 = 6
-	defaultReadinessProbeHTTPPath                  = "/ready"
 )
 
 var defaultImagePullPolicy = corev1.PullIfNotPresent
@@ -310,16 +295,16 @@ func DefaultDatadogAgentSpecAgentImage(agent *DatadogAgentSpecAgentSpec, name, t
 // GetDefaultLivenessProbe creates a all defaulted LivenessProbe
 func GetDefaultLivenessProbe() *corev1.Probe {
 	livenessProbe := &corev1.Probe{
-		InitialDelaySeconds: defaultLivenessProbeInitialDelaySeconds,
-		PeriodSeconds:       defaultLivenessProbePeriodSeconds,
-		TimeoutSeconds:      defaultLivenessProbeTimeoutSeconds,
-		SuccessThreshold:    defaultLivenessProbeSuccessThreshold,
-		FailureThreshold:    defaultLivenessProbeFailureThreshold,
+		InitialDelaySeconds: apicommon.DefaultLivenessProbeInitialDelaySeconds,
+		PeriodSeconds:       apicommon.DefaultLivenessProbePeriodSeconds,
+		TimeoutSeconds:      apicommon.DefaultLivenessProbeTimeoutSeconds,
+		SuccessThreshold:    apicommon.DefaultLivenessProbeSuccessThreshold,
+		FailureThreshold:    apicommon.DefaultLivenessProbeFailureThreshold,
 	}
 	livenessProbe.HTTPGet = &corev1.HTTPGetAction{
-		Path: defaultLivenessProbeHTTPPath,
+		Path: apicommon.DefaultLivenessProbeHTTPPath,
 		Port: intstr.IntOrString{
-			IntVal: defaultAgentHealthPort,
+			IntVal: apicommon.DefaultAgentHealthPort,
 		},
 	}
 	return livenessProbe
@@ -328,16 +313,16 @@ func GetDefaultLivenessProbe() *corev1.Probe {
 // GetDefaultReadinessProbe creates a all defaulted ReadynessProbe
 func GetDefaultReadinessProbe() *corev1.Probe {
 	readinessProbe := &corev1.Probe{
-		InitialDelaySeconds: defaultReadinessProbeInitialDelaySeconds,
-		PeriodSeconds:       defaultReadinessProbePeriodSeconds,
-		TimeoutSeconds:      defaultReadinessProbeTimeoutSeconds,
-		SuccessThreshold:    defaultReadinessProbeSuccessThreshold,
-		FailureThreshold:    defaultReadinessProbeFailureThreshold,
+		InitialDelaySeconds: apicommon.DefaultReadinessProbeInitialDelaySeconds,
+		PeriodSeconds:       apicommon.DefaultReadinessProbePeriodSeconds,
+		TimeoutSeconds:      apicommon.DefaultReadinessProbeTimeoutSeconds,
+		SuccessThreshold:    apicommon.DefaultReadinessProbeSuccessThreshold,
+		FailureThreshold:    apicommon.DefaultReadinessProbeFailureThreshold,
 	}
 	readinessProbe.HTTPGet = &corev1.HTTPGetAction{
-		Path: defaultReadinessProbeHTTPPath,
+		Path: apicommon.DefaultReadinessProbeHTTPPath,
 		Port: intstr.IntOrString{
-			IntVal: defaultAgentHealthPort,
+			IntVal: apicommon.DefaultAgentHealthPort,
 		},
 	}
 	return readinessProbe
@@ -404,7 +389,7 @@ func DefaultDatadogAgentSpecAgentConfig(agent *DatadogAgentSpecAgentSpec) *NodeA
 	}
 
 	if agent.Config.HealthPort == nil {
-		agent.Config.HealthPort = apiutils.NewInt32Pointer(defaultAgentHealthPort)
+		agent.Config.HealthPort = apiutils.NewInt32Pointer(apicommon.DefaultAgentHealthPort)
 		configOverride.HealthPort = agent.Config.HealthPort
 	}
 
@@ -613,9 +598,9 @@ func DefaultDatadogAgentSpecAgentApm(agent *DatadogAgentSpecAgentSpec) *APMSpec 
 
 func getDefaultAPMAgentLivenessProbe() *corev1.Probe {
 	livenessProbe := &corev1.Probe{
-		InitialDelaySeconds: defaultLivenessProbeInitialDelaySeconds,
-		PeriodSeconds:       defaultLivenessProbePeriodSeconds,
-		TimeoutSeconds:      defaultLivenessProbeTimeoutSeconds,
+		InitialDelaySeconds: apicommon.DefaultLivenessProbeInitialDelaySeconds,
+		PeriodSeconds:       apicommon.DefaultLivenessProbePeriodSeconds,
+		TimeoutSeconds:      apicommon.DefaultLivenessProbeTimeoutSeconds,
 	}
 	livenessProbe.TCPSocket = &corev1.TCPSocketAction{
 		Port: intstr.IntOrString{
@@ -1054,7 +1039,7 @@ func DefaultDatadogAgentSpecClusterAgentConfig(dca *DatadogAgentSpecClusterAgent
 	}
 
 	if dca.Config.HealthPort == nil {
-		dca.Config.HealthPort = apiutils.NewInt32Pointer(defaultAgentHealthPort)
+		dca.Config.HealthPort = apiutils.NewInt32Pointer(apicommon.DefaultAgentHealthPort)
 		configOverride.HealthPort = dca.Config.HealthPort
 	}
 
@@ -1240,7 +1225,7 @@ func DefaultDatadogAgentSpecClusterChecksRunnerConfig(clc *DatadogAgentSpecClust
 		configOverride.ReadinessProbe = clc.Config.ReadinessProbe
 	}
 	if clc.Config.HealthPort == nil {
-		clc.Config.HealthPort = apiutils.NewInt32Pointer(defaultAgentHealthPort)
+		clc.Config.HealthPort = apiutils.NewInt32Pointer(apicommon.DefaultAgentHealthPort)
 		configOverride.HealthPort = clc.Config.HealthPort
 	}
 
