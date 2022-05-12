@@ -48,7 +48,7 @@ const (
 	DefaultMetricsProviderPort int32 = 8443
 	// DefaultKubeStateMetricsCoreConf default ksm core ConfigMap name
 	DefaultKubeStateMetricsCoreConf string = "kube-state-metrics-core-config"
-  	// DefaultSysprobeSocketPath default system probe socket path
+	// DefaultSysprobeSocketPath default system probe socket path
 	DefaultSysprobeSocketPath = "/var/run/sysprobe/sysprobe.sock"
 
 	// Liveness probe default config
