@@ -73,7 +73,7 @@ func (f *prometheusScrapeFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp
 func (f *prometheusScrapeFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	prometheusScrape := dda.Spec.Features.PrometheusScrape
 
-	if prometheusScrape != nil && apiutils.BoolValue(prometheusScrape.Enabled) {
+	if apiutils.BoolValue(prometheusScrape.Enabled) {
 		f.enable = true
 		f.enableServiceEndpoints = apiutils.BoolValue(prometheusScrape.ServiceEndpoints)
 		if prometheusScrape.AdditionalConfigs != nil {
