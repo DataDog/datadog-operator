@@ -77,11 +77,11 @@ func (f *oomKillFeature) ManageClusterAgent(managers feature.PodTemplateManagers
 // It should do nothing if the feature doesn't need to configure it.
 func (f *oomKillFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	// modules volume mount
-	modulesVol, modulesVolMount := volume.GetVolumes(apicommon.ModulesVolumeName, apicommon.ModulesVolumePath, apicommon.ModulesVolumePath)
+	modulesVol, modulesVolMount := volume.GetVolumes(apicommon.ModulesVolumeName, apicommon.ModulesVolumePath, apicommon.ModulesVolumePath, true)
 	managers.Volume().AddVolumeToContainer(&modulesVol, &modulesVolMount, apicommonv1.SystemProbeContainerName)
 
 	// src volume mount
-	srcVol, srcVolMount := volume.GetVolumes(apicommon.SrcVolumeName, apicommon.SrcVolumePath, apicommon.SrcVolumePath)
+	srcVol, srcVolMount := volume.GetVolumes(apicommon.SrcVolumeName, apicommon.SrcVolumePath, apicommon.SrcVolumePath, true)
 	managers.Volume().AddVolumeToContainer(&srcVol, &srcVolMount, apicommonv1.SystemProbeContainerName)
 
 	enableEnvVar := &corev1.EnvVar{
