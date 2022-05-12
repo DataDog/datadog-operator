@@ -44,6 +44,7 @@ type ReconcilerOptions struct {
 	SupportExtendedDaemonset bool
 	SupportCilium            bool
 	OperatorMetricsEnabled   bool
+	V2Enabled                bool
 }
 
 // Reconciler is the internal reconciler for Datadog Agent
@@ -74,7 +75,15 @@ func NewReconciler(options ReconcilerOptions, client client.Client, versionInfo 
 
 // Reconcile is similar to reconciler.Reconcile interface, but taking a context
 func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
-	resp, err := r.internalReconcile(ctx, request)
+	var resp reconcile.Result
+	var err error
+
+	if r.options.V2Enabled {
+		resp, err = r.internalReconcileV2(ctx, request)
+	} else {
+		resp, err = r.internalReconcile(ctx, request)
+	}
+
 	r.metricsForwarderProcessError(request, err)
 	return resp, err
 }
@@ -98,7 +107,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, request reconcile.Re
 		return result, err
 	}
 
-	if result, err = r.handleFinalizer(reqLogger, instance); utils.ShouldReturn(result, err) {
+	if result, err = r.handleFinalizer(reqLogger, instance, r.finalizeDadV1); utils.ShouldReturn(result, err) {
 		return result, err
 	}
 

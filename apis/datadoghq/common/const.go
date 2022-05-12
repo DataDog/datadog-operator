@@ -28,6 +28,8 @@ const (
 	DefaultAPIKeyKey = "api_key"
 	// DefaultTokenKey default token key (use in secret for instance).
 	DefaultTokenKey = "token"
+	// DefaultClusterAgentReplicas default cluster-agent deployment replicas
+	DefaultClusterAgentReplicas = 1
 	// DefaultClusterAgentServicePort default cluster-agent service port
 	DefaultClusterAgentServicePort = 5005
 	// DefaultMetricsServerServicePort default metrics-server port
@@ -67,6 +69,10 @@ const (
 	DefaultReadinessProbeSuccessThreshold    int32 = 1
 	DefaultReadinessProbeFailureThreshold    int32 = 6
 	DefaultReadinessProbeHTTPPath                  = "/ready"
+
+	// Default Image name
+	DefaultAgentImageName        string = "agent"
+	DefaultClusterAgentImageName string = "cluster-agent"
 )
 
 // Annotations

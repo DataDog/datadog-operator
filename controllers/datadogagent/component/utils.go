@@ -143,3 +143,9 @@ func GetClusterAgentServiceName(dda metav1.Object) string {
 func GetClusterAgentName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", dda.GetName(), "cluster-agent")
 }
+
+// GetClusterAgentVersion return the Cluster-Agent version based on the DatadogAgent info
+func GetClusterAgentVersion(dda metav1.Object) string {
+	// Todo implement this function
+	return ""
+}

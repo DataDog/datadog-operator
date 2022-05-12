@@ -835,9 +835,10 @@ type DatadogAgentGenericContainer struct {
 // DatadogAgentStatus defines the observed state of DatadogAgent.
 // +k8s:openapi-gen=true
 type DatadogAgentStatus struct {
-	// DefaultOverride contains attributes that were not configured that the runtime defaulted.
-	// +optional
-	DefaultOverride *DatadogAgentSpec `json:"defaultOverride,omitempty"`
+	// Conditions Represents the latest available observations of a DatadogAgent's current state.
+	// +listType=map
+	// +listMapKey=type
+	Conditions []metav1.Condition `json:"conditions"`
 }
 
 // DatadogAgent Deployment with the Datadog Operator.

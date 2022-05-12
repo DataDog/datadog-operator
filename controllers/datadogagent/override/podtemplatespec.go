@@ -14,7 +14,7 @@ import (
 
 // PodTemplateSpec use to override a corev1.PodTemplateSpec with a 2alpha1.DatadogAgentPodTemplateOverride.
 func PodTemplateSpec(podTemplateSpec *corev1.PodTemplateSpec, override *v2alpha1.DatadogAgentComponentOverride) (*corev1.PodTemplateSpec, error) {
-	// TODO(clamoriniere): implement OverridePodTemplate
+	// TODO(operator-ga): implement OverridePodTemplate
 
 	var errs []error
 	// Loop over container
