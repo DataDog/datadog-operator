@@ -65,20 +65,16 @@ const (
 	// same path on host and container
 	SrcVolumePath = "/usr/src"
 
-	PointerVolumeName     = "pointerdir"
-	PointerVolumePath     = "/opt/datadog-agent/run"
-	LogTempStoragePath    = "/var/lib/datadog-agent/logs"
-	PointerVolumeReadOnly = false
+	PointerVolumeName  = "pointerdir"
+	PointerVolumePath  = "/opt/datadog-agent/run"
+	LogTempStoragePath = "/var/lib/datadog-agent/logs"
 
-	PodLogVolumeName     = "logpodpath"
-	PodLogVolumePath     = "/var/log/pods"
-	PodLogVolumeReadOnly = true
+	PodLogVolumeName = "logpodpath"
+	PodLogVolumePath = "/var/log/pods"
 
-	ContainerLogVolumeName     = "logcontainerpath"
-	ContainerLogVolumePath     = "/var/lib/docker/containers"
-	ContainerLogVolumeReadOnly = true
+	ContainerLogVolumeName = "logcontainerpath"
+	ContainerLogVolumePath = "/var/lib/docker/containers"
 
-	SymlinkContainerVolumeName     = "symlinkcontainerpath"
-	SymlinkContainerVolumePath     = "/var/log/containers"
-	SymlinkContainerVolumeReadOnly = true
+	SymlinkContainerVolumeName = "symlinkcontainerpath"
+	SymlinkContainerVolumePath = "/var/log/containers"
 )

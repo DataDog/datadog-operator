@@ -96,22 +96,22 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 		{
 			Name:      apicommon.PointerVolumeName,
 			MountPath: apicommon.PointerVolumePath,
-			ReadOnly:  apicommon.PointerVolumeReadOnly,
+			ReadOnly:  false,
 		},
 		{
 			Name:      apicommon.PodLogVolumeName,
 			MountPath: apicommon.PodLogVolumePath,
-			ReadOnly:  apicommon.PodLogVolumeReadOnly,
+			ReadOnly:  true,
 		},
 		{
 			Name:      apicommon.ContainerLogVolumeName,
 			MountPath: apicommon.ContainerLogVolumePath,
-			ReadOnly:  apicommon.ContainerLogVolumeReadOnly,
+			ReadOnly:  true,
 		},
 		{
 			Name:      apicommon.SymlinkContainerVolumeName,
 			MountPath: apicommon.SymlinkContainerVolumePath,
-			ReadOnly:  apicommon.SymlinkContainerVolumeReadOnly,
+			ReadOnly:  true,
 		},
 	}
 
@@ -301,22 +301,22 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 						{
 							Name:      apicommon.PointerVolumeName,
 							MountPath: apicommon.PointerVolumePath,
-							ReadOnly:  apicommon.PointerVolumeReadOnly,
+							ReadOnly:  false,
 						},
 						{
 							Name:      apicommon.PodLogVolumeName,
 							MountPath: "/custom/pod/logs",
-							ReadOnly:  apicommon.PodLogVolumeReadOnly,
+							ReadOnly:  true,
 						},
 						{
 							Name:      apicommon.ContainerLogVolumeName,
 							MountPath: "/custom/container/logs",
-							ReadOnly:  apicommon.ContainerLogVolumeReadOnly,
+							ReadOnly:  true,
 						},
 						{
 							Name:      apicommon.SymlinkContainerVolumeName,
 							MountPath: "/custom/symlink",
-							ReadOnly:  apicommon.SymlinkContainerVolumeReadOnly,
+							ReadOnly:  true,
 						},
 					}
 					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantCustomVolumeMounts), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantCustomVolumeMounts))
@@ -524,22 +524,22 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 						{
 							Name:      apicommon.PointerVolumeName,
 							MountPath: apicommon.PointerVolumePath,
-							ReadOnly:  apicommon.PointerVolumeReadOnly,
+							ReadOnly:  false,
 						},
 						{
 							Name:      apicommon.PodLogVolumeName,
 							MountPath: "/custom/pod/logs",
-							ReadOnly:  apicommon.PodLogVolumeReadOnly,
+							ReadOnly:  true,
 						},
 						{
 							Name:      apicommon.ContainerLogVolumeName,
 							MountPath: "/custom/container/logs",
-							ReadOnly:  apicommon.ContainerLogVolumeReadOnly,
+							ReadOnly:  true,
 						},
 						{
 							Name:      apicommon.SymlinkContainerVolumeName,
 							MountPath: "/custom/symlink",
-							ReadOnly:  apicommon.SymlinkContainerVolumeReadOnly,
+							ReadOnly:  true,
 						},
 					}
 					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMounts), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMounts))
