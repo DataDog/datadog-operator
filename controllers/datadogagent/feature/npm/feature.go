@@ -89,19 +89,19 @@ func (f *npmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 // It should do nothing if the feature doesn't need to configure it.
 func (f *npmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	// procdir volume mount
-	procdirVol, procdirVolMount := volume.GetVolumes(apicommon.ProcdirVolumeName, apicommon.ProcdirHostPath, apicommon.ProcdirMountPath)
+	procdirVol, procdirVolMount := volume.GetVolumes(apicommon.ProcdirVolumeName, apicommon.ProcdirHostPath, apicommon.ProcdirMountPath, true)
 	managers.Volume().AddVolumeToContainers(&procdirVol, &procdirVolMount, []apicommonv1.AgentContainerName{apicommonv1.ProcessAgentContainerName, apicommonv1.SystemProbeContainerName})
 
 	// cgroups volume mount
-	cgroupsVol, cgroupsVolMount := volume.GetVolumes(apicommon.CgroupsVolumeName, apicommon.CgroupsHostPath, apicommon.CgroupsMountPath)
+	cgroupsVol, cgroupsVolMount := volume.GetVolumes(apicommon.CgroupsVolumeName, apicommon.CgroupsHostPath, apicommon.CgroupsMountPath, true)
 	managers.Volume().AddVolumeToContainers(&cgroupsVol, &cgroupsVolMount, []apicommonv1.AgentContainerName{apicommonv1.ProcessAgentContainerName, apicommonv1.SystemProbeContainerName})
 
 	// debugfs volume mount
-	debugfsVol, debugfsVolMount := volume.GetVolumes(apicommon.DebugfsVolumeName, apicommon.DebugfsVolumePath, apicommon.DebugfsVolumePath)
+	debugfsVol, debugfsVolMount := volume.GetVolumes(apicommon.DebugfsVolumeName, apicommon.DebugfsVolumePath, apicommon.DebugfsVolumePath, true)
 	managers.Volume().AddVolumeToContainers(&debugfsVol, &debugfsVolMount, []apicommonv1.AgentContainerName{apicommonv1.ProcessAgentContainerName, apicommonv1.SystemProbeContainerName})
 
 	// socket volume mount
-	socketVol, socketVolMount := volume.GetVolumes(apicommon.SysprobeSocketVolumeName, apicommon.SysprobeSocketVolumePath, apicommon.SysprobeSocketVolumePath)
+	socketVol, socketVolMount := volume.GetVolumes(apicommon.SysprobeSocketVolumeName, apicommon.SysprobeSocketVolumePath, apicommon.SysprobeSocketVolumePath, true)
 	managers.Volume().AddVolumeToContainers(&socketVol, &socketVolMount, []apicommonv1.AgentContainerName{apicommonv1.ProcessAgentContainerName, apicommonv1.SystemProbeContainerName})
 
 	// env vars
