@@ -15,6 +15,8 @@ const (
 	OrchestratorExplorerIDType
 	// LogCollectionIDType Log Collection check feature
 	LogCollectionIDType
+	// NPMIDType NPM feature.
+	NPMIDType
 	// OOMKillIDType OOM Kill check feature
 	OOMKillIDType
 	// TCPQueueLengthIDType TCP Queue length check feature

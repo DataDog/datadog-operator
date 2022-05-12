@@ -31,6 +31,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
@@ -238,7 +239,7 @@ func enqueueIfOwnedByDatadogAgent(obj client.Object) []reconcile.Request {
 		return nil
 	}
 
-	partOfLabelVal := datadogagent.PartOfLabelValue{Value: labels[kubernetes.AppKubernetesPartOfLabelKey]}
+	partOfLabelVal := object.PartOfLabelValue{Value: labels[kubernetes.AppKubernetesPartOfLabelKey]}
 	owner := partOfLabelVal.NamespacedName()
 
 	return []reconcile.Request{{NamespacedName: owner}}
