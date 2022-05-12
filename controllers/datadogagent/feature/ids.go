@@ -13,8 +13,16 @@ const (
 	KubernetesStateCoreIDType IDType = iota
 	// OrchestratorExplorerIDType Orchestrator Explorer feature.
 	OrchestratorExplorerIDType
+	// LogCollectionIDType Log Collection check feature
+	LogCollectionIDType
+	// NPMIDType NPM feature.
+	NPMIDType
 	// CSPMIDType CSPM feature.
 	CSPMIDType
-	// DummyIDType Dummt feature.
+	// OOMKillIDType OOM Kill check feature
+	OOMKillIDType
+	// TCPQueueLengthIDType TCP Queue length check feature
+	TCPQueueLengthIDType
+	// DummyIDType Dummy feature.
 	DummyIDType
 )

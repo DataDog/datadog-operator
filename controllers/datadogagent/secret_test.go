@@ -18,6 +18,7 @@ import (
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/controllers/testutils"
 )
 
@@ -210,7 +211,7 @@ func Test_newExternalMetricsSecret(t *testing.T) {
 	}
 	result := newExternalMetricsSecret(name, dda)
 
-	labels := getDefaultLabels(dda, common.DefaultClusterAgentResourceSuffix, "")
+	labels := object.GetDefaultLabels(dda, common.DefaultClusterAgentResourceSuffix, "")
 	wantSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        name,

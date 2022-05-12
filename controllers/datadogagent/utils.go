@@ -19,11 +19,13 @@ import (
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
+	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	objectvolume "github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/orchestrator"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	"github.com/go-logr/logr"
@@ -59,7 +61,7 @@ func getAuthTokenSecretName(dda *datadoghqv1alpha1.DatadogAgent) string {
 // newAgentPodTemplate generates a PodTemplate from a DatadogAgent spec
 func newAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, selector *metav1.LabelSelector) (*corev1.PodTemplateSpec, error) {
 	// copy Agent Spec to configure Agent Pod Template
-	labels := getDefaultLabels(dda, "agent", getAgentVersion(dda))
+	labels := object.GetDefaultLabels(dda, "agent", getAgentVersion(dda))
 	labels[apicommon.AgentDeploymentNameLabelKey] = dda.Name
 	labels[apicommon.AgentDeploymentComponentLabelKey] = "agent"
 
@@ -73,7 +75,7 @@ func newAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent
 		}
 	}
 
-	annotations := getDefaultAnnotations(dda)
+	annotations := object.GetDefaultAnnotations(dda)
 	if isSystemProbeEnabled(&dda.Spec) {
 		annotations[datadoghqv1alpha1.SysteProbeAppArmorAnnotationKey] = getAppArmorProfileName(dda.Spec.Agent.SystemProbe)
 		annotations[datadoghqv1alpha1.SysteProbeSeccompAnnotationKey] = getSeccompProfileName(dda.Spec.Agent.SystemProbe)
@@ -695,7 +697,7 @@ func getEnvVarsForSystemProbe(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.Env
 			},
 			corev1.EnvVar{
 				Name:  datadoghqv1alpha1.DDAuthTokenFilePath,
-				Value: filepath.Join(datadoghqv1alpha1.AuthVolumePath, "token"),
+				Value: filepath.Join(apicommon.AuthVolumePath, "token"),
 			},
 		)
 	}
@@ -867,7 +869,7 @@ func getEnvVarsForAgent(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent)
 	if config != nil {
 		envVars = []corev1.EnvVar{
 			{
-				Name:  datadoghqv1alpha1.DDHealthPort,
+				Name:  apicommon.DDHealthPort,
 				Value: strconv.Itoa(int(*spec.Agent.Config.HealthPort)),
 			},
 			{
@@ -875,7 +877,7 @@ func getEnvVarsForAgent(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent)
 				Value: strconv.FormatBool(*spec.Agent.Config.CollectEvents),
 			},
 			{
-				Name:  datadoghqv1alpha1.DDLeaderElection,
+				Name:  apicommon.DDLeaderElection,
 				Value: strconv.FormatBool(*spec.Agent.Config.LeaderElection),
 			},
 		}
@@ -1012,8 +1014,8 @@ func getEnvVarsForSecurityAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.E
 				Value: strconv.FormatBool(true),
 			},
 			{
-				Name:  datadoghqv1alpha1.DDClusterAgentKubeServiceName,
-				Value: getClusterAgentServiceName(dda),
+				Name:  apicommon.DDClusterAgentKubeServiceName,
+				Value: component.GetClusterAgentServiceName(dda),
 			},
 		}
 
@@ -1033,21 +1035,21 @@ func getEnvVarsForSecurityAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.E
 // getVolumesForAgent defines volumes for the Agent
 func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 	volumes := []corev1.Volume{
-		getVolumeForLogs(),
-		getVolumeForAuth(),
+		component.GetVolumeForLogs(),
+		component.GetVolumeForAuth(),
 		{
-			Name: datadoghqv1alpha1.InstallInfoVolumeName,
+			Name: apicommon.InstallInfoVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
 					LocalObjectReference: corev1.LocalObjectReference{
-						Name: getInstallInfoConfigMapName(dda),
+						Name: component.GetInstallInfoConfigMapName(dda),
 					},
 				},
 			},
 		},
 		getVolumeForConfd(dda),
 		getVolumeForChecksd(dda),
-		getVolumeForConfig(),
+		component.GetVolumeForConfig(),
 		{
 			Name: datadoghqv1alpha1.ProcVolumeName,
 			VolumeSource: corev1.VolumeSource{
@@ -1393,75 +1395,6 @@ func getVolumeForChecksd(dda *datadoghqv1alpha1.DatadogAgent) corev1.Volume {
 	}
 }
 
-func getVolumeForConfig() corev1.Volume {
-	return corev1.Volume{
-		Name: apicommon.ConfigVolumeName,
-		VolumeSource: corev1.VolumeSource{
-			EmptyDir: &corev1.EmptyDirVolumeSource{},
-		},
-	}
-}
-
-func getVolumeForAuth() corev1.Volume {
-	return corev1.Volume{
-		Name: datadoghqv1alpha1.AuthVolumeName,
-		VolumeSource: corev1.VolumeSource{
-			EmptyDir: &corev1.EmptyDirVolumeSource{},
-		},
-	}
-}
-
-func getVolumeForLogs() corev1.Volume {
-	return corev1.Volume{
-		Name: datadoghqv1alpha1.LogDatadogVolumeName,
-		VolumeSource: corev1.VolumeSource{
-			EmptyDir: &corev1.EmptyDirVolumeSource{},
-		},
-	}
-}
-
-func getVolumeMountForLogs() corev1.VolumeMount {
-	return corev1.VolumeMount{
-		Name:      datadoghqv1alpha1.LogDatadogVolumeName,
-		MountPath: datadoghqv1alpha1.LogDatadogVolumePath,
-		ReadOnly:  false,
-	}
-}
-
-func getVolumeForTmp() corev1.Volume {
-	return corev1.Volume{
-		Name: datadoghqv1alpha1.TmpVolumeName,
-		VolumeSource: corev1.VolumeSource{
-			EmptyDir: &corev1.EmptyDirVolumeSource{},
-		},
-	}
-}
-
-func getVolumeMountForTmp() corev1.VolumeMount {
-	return corev1.VolumeMount{
-		Name:      datadoghqv1alpha1.TmpVolumeName,
-		MountPath: datadoghqv1alpha1.TmpVolumePath,
-		ReadOnly:  false,
-	}
-}
-
-func getVolumeForCertificates() corev1.Volume {
-	return corev1.Volume{
-		Name: datadoghqv1alpha1.CertificatesVolumeName,
-		VolumeSource: corev1.VolumeSource{
-			EmptyDir: &corev1.EmptyDirVolumeSource{},
-		},
-	}
-}
-
-func getVolumeMountForCertificates() corev1.VolumeMount {
-	return corev1.VolumeMount{
-		Name:      datadoghqv1alpha1.CertificatesVolumeName,
-		MountPath: datadoghqv1alpha1.CertificatesVolumePath,
-		ReadOnly:  false,
-	}
-}
-
 func getSecCompRootPath(spec *datadoghqv1alpha1.SystemProbeSpec) string {
 	return spec.SecCompRootPath
 }
@@ -1492,14 +1425,9 @@ func getVolumeMountFromCustomConfigSpec(cfcm *datadoghqv1alpha1.CustomConfigSpec
 func getVolumeMountsForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.VolumeMount {
 	// Default mounted volumes
 	volumeMounts := []corev1.VolumeMount{
-		getVolumeMountForLogs(),
+		component.GetVolumeMountForLogs(),
 		getVolumeMountForAuth(false),
-		{
-			Name:      datadoghqv1alpha1.InstallInfoVolumeName,
-			SubPath:   datadoghqv1alpha1.InstallInfoVolumeSubPath,
-			MountPath: datadoghqv1alpha1.InstallInfoVolumePath,
-			ReadOnly:  datadoghqv1alpha1.InstallInfoVolumeReadOnly,
-		},
+		component.GetVolumeMountForInstallInfo(),
 		getVolumeMountForConfd(),
 		getVolumeMountForChecksd(),
 		{
@@ -1594,8 +1522,8 @@ func getVolumeMountForConfig(customConfig *datadoghqv1alpha1.CustomConfigSpec) [
 
 func getVolumeMountForAuth(readOnly bool) corev1.VolumeMount {
 	return corev1.VolumeMount{
-		Name:      datadoghqv1alpha1.AuthVolumeName,
-		MountPath: datadoghqv1alpha1.AuthVolumePath,
+		Name:      apicommon.AuthVolumeName,
+		MountPath: apicommon.AuthVolumePath,
 		ReadOnly:  readOnly,
 	}
 }
@@ -1651,7 +1579,7 @@ func getVolumeMountForRuntimeSockets(criSocket *datadoghqv1alpha1.CRISocketConfi
 func getVolumeMountsForProcessAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.VolumeMount {
 	// Default mounted volumes
 	volumeMounts := []corev1.VolumeMount{
-		getVolumeMountForLogs(),
+		component.GetVolumeMountForLogs(),
 		// Add auth token volume mount
 		getVolumeMountForAuth(true),
 		getVolumeMountDogstatsdSocket(true),
@@ -1711,7 +1639,7 @@ func getVolumeMountsForProcessAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev
 func getVolumeMountsForAPMAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.VolumeMount {
 	// Default mounted volumes
 	volumeMounts := []corev1.VolumeMount{
-		getVolumeMountForLogs(),
+		component.GetVolumeMountForLogs(),
 		// Add auth token volume mount
 		getVolumeMountForAuth(true),
 	}
@@ -1743,7 +1671,7 @@ func getVolumeMountsForAPMAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Vo
 func getVolumeMountsForSystemProbe(dda *datadoghqv1alpha1.DatadogAgent) []corev1.VolumeMount {
 	// Default mounted volumes
 	volumeMounts := []corev1.VolumeMount{
-		getVolumeMountForLogs(),
+		component.GetVolumeMountForLogs(),
 		getVolumeMountForAuth(true),
 		{
 			Name:      datadoghqv1alpha1.SystemProbeDebugfsVolumeName,
@@ -1806,7 +1734,7 @@ func getVolumeMountsForSystemProbe(dda *datadoghqv1alpha1.DatadogAgent) []corev1
 // getVolumeMountsForSecurityAgent defines mounted volumes for the Security Agent
 func getVolumeMountsForSecurityAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.VolumeMount {
 	volumeMounts := []corev1.VolumeMount{
-		getVolumeMountForLogs(),
+		component.GetVolumeMountForLogs(),
 		getVolumeMountForAuth(true),
 		getVolumeMountDogstatsdSocket(true),
 		{
@@ -1948,12 +1876,8 @@ func buildEnvVarFromSecret(name, key string) *corev1.EnvVarSource {
 	}
 }
 
-func getClusterAgentServiceName(dda *datadoghqv1alpha1.DatadogAgent) string {
-	return fmt.Sprintf("%s-%s", dda.Name, apicommon.DefaultClusterAgentResourceSuffix)
-}
-
 func getClusterAgentServiceAccount(dda *datadoghqv1alpha1.DatadogAgent) string {
-	saDefault := fmt.Sprintf("%s-%s", dda.Name, apicommon.DefaultClusterAgentResourceSuffix)
+	saDefault := componentdca.GetDefaultServiceAccountName(dda)
 	if !isClusterAgentEnabled(dda.Spec.ClusterAgent) {
 		return saDefault
 	}
@@ -2018,29 +1942,6 @@ func getClusterChecksRunnerServiceAccount(dda *datadoghqv1alpha1.DatadogAgent) s
 		return *dda.Spec.ClusterChecksRunner.Rbac.ServiceAccountName
 	}
 	return saDefault
-}
-
-func getDefaultLabels(dda *datadoghqv1alpha1.DatadogAgent, instanceName, version string) map[string]string {
-	labels := make(map[string]string)
-	labels[kubernetes.AppKubernetesNameLabelKey] = "datadog-agent-deployment"
-	labels[kubernetes.AppKubernetesInstanceLabelKey] = instanceName
-	labels[kubernetes.AppKubernetesPartOfLabelKey] = NewPartOfLabelValue(dda).String()
-	labels[kubernetes.AppKubernetesVersionLabelKey] = version
-	labels[kubernetes.AppKubernetesManageByLabelKey] = "datadog-operator"
-
-	// Copy Datadog labels from DDA Labels
-	for k, v := range dda.Labels {
-		if strings.HasPrefix(k, datadogTagPrefix) {
-			labels[k] = v
-		}
-	}
-
-	return labels
-}
-
-func getDefaultAnnotations(*datadoghqv1alpha1.DatadogAgent) map[string]string {
-	// Currently we don't have any annotation to set by default
-	return map[string]string{}
 }
 
 func mergeAnnotationsLabels(logger logr.Logger, previousVal map[string]string, newVal map[string]string, filter string) map[string]string {
@@ -2383,8 +2284,8 @@ func envForClusterAgentConnection(dda *datadoghqv1alpha1.DatadogAgent) []corev1.
 				Value: strconv.FormatBool(true),
 			},
 			{
-				Name:  datadoghqv1alpha1.DDClusterAgentKubeServiceName,
-				Value: getClusterAgentServiceName(dda),
+				Name:  apicommon.DDClusterAgentKubeServiceName,
+				Value: component.GetClusterAgentServiceName(dda),
 			},
 		}
 

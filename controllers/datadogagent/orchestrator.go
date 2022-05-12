@@ -13,6 +13,7 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/common"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
@@ -62,8 +63,8 @@ func buildOrchestratorExplorerConfigMap(dda *datadoghqv1alpha1.DatadogAgent) (*c
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        getOrchestratorExplorerConfName(dda),
 			Namespace:   dda.Namespace,
-			Labels:      getDefaultLabels(dda, NewPartOfLabelValue(dda).String(), getAgentVersion(dda)),
-			Annotations: getDefaultAnnotations(dda),
+			Labels:      object.GetDefaultLabels(dda, object.NewPartOfLabelValue(dda).String(), getAgentVersion(dda)),
+			Annotations: object.GetDefaultAnnotations(dda),
 		},
 		Data: map[string]string{
 			orchestratorExplorerCheckName: orchestratorExplorerCheckConfig(*dda.Spec.Features.OrchestratorExplorer.ClusterCheck),
@@ -142,8 +143,8 @@ func (r *Reconciler) cleanupOrchestratorCoreRBAC(logger logr.Logger, dda *datado
 func buildOrchestratorExplorerRBAC(dda *datadoghqv1alpha1.DatadogAgent, name, version string) *rbacv1.ClusterRole {
 	clusterRole := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels:      getDefaultLabels(dda, NewPartOfLabelValue(dda).String(), version),
-			Annotations: getDefaultAnnotations(dda),
+			Labels:      object.GetDefaultLabels(dda, object.NewPartOfLabelValue(dda).String(), version),
+			Annotations: object.GetDefaultAnnotations(dda),
 			Name:        name,
 		},
 	}

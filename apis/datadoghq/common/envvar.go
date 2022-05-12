@@ -7,8 +7,24 @@ package common
 
 // Datadog env var names
 const (
-	DDIgnoreAutoConf                = "DD_IGNORE_AUTOCONF"
-	DDKubeStateMetricsCoreEnabled   = "DD_KUBE_STATE_METRICS_CORE_ENABLED"
-	DDKubeStateMetricsCoreConfigMap = "DD_KUBE_STATE_METRICS_CORE_CONFIGMAP_NAME"
-	DDComplianceEnabledEnvVar       = "DD_COMPLIANCE_CONFIG_ENABLED"
+	DDIgnoreAutoConf                 = "DD_IGNORE_AUTOCONF"
+	DDKubeStateMetricsCoreEnabled    = "DD_KUBE_STATE_METRICS_CORE_ENABLED"
+	DDKubeStateMetricsCoreConfigMap  = "DD_KUBE_STATE_METRICS_CORE_CONFIGMAP_NAME"
+	DDIgnoreAutoConf                 = "DD_IGNORE_AUTOCONF"
+	DDKubeStateMetricsCoreEnabled    = "DD_KUBE_STATE_METRICS_CORE_ENABLED"
+	DDKubeStateMetricsCoreConfigMap  = "DD_KUBE_STATE_METRICS_CORE_CONFIGMAP_NAME"
+	DDSystemProbeNPMEnabledEnvVar    = "DD_SYSTEM_PROBE_NETWORK_ENABLED"
+	DDSystemProbeEnabledEnvVar       = "DD_SYSTEM_PROBE_ENABLED"
+	DDProcessAgentEnabledEnvVar      = "DD_PROCESS_AGENT_ENABLED"
+	DDSystemProbeSocketEnvVar        = "DD_SYSPROBE_SOCKET"
+	DDComplianceEnabledEnvVar        = "DD_COMPLIANCE_CONFIG_ENABLED"
+	DDEnableOOMKillEnvVar            = "DD_SYSTEM_PROBE_CONFIG_ENABLE_OOM_KILL"
+	DDEnableTCPQueueLengthEnvVar     = "DD_SYSTEM_PROBE_CONFIG_ENABLE_TCP_QUEUE_LENGTH"
+	DDLeaderElection                 = "DD_LEADER_ELECTION"
+	DDClusterAgentKubeServiceName    = "DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME"
+	DDHealthPort                     = "DD_HEALTH_PORT"
+	DDLogsEnabled                    = "DD_LOGS_ENABLED"
+	DDLogsConfigContainerCollectAll  = "DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL"
+	DDLogsContainerCollectUsingFiles = "DD_LOGS_CONFIG_K8S_CONTAINER_USE_FILE"
+	DDLogsConfigOpenFilesLimit       = "DD_LOGS_CONFIG_OPEN_FILES_LIMIT"
 )

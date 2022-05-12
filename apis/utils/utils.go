@@ -51,6 +51,26 @@ func BoolToString(b *bool) string {
 // StringToBool return true if s == "true", else false
 func StringToBool(s string) bool {
 	return s == "true"
+
+// DefaultBooleanIfUnset sets default value d of a boolean if unset
+func DefaultBooleanIfUnset(valPtr **bool, d bool) {
+	if *valPtr == nil {
+		*valPtr = &d
+	}
+}
+
+// DefaultInt32IfUnset sets default value d of an int32 if unset
+func DefaultInt32IfUnset(valPtr **int32, d int32) {
+	if *valPtr == nil {
+		*valPtr = &d
+	}
+}
+
+// DefaultStringIfUnset sets default value d of a string if unset
+func DefaultStringIfUnset(valPtr **string, d string) {
+	if *valPtr == nil {
+		*valPtr = &d
+	}
 }
 
 // IsEqualStruct is a util fonction that returns whether 2 structures are the same
