@@ -22,7 +22,7 @@ const (
 	DDTags                                       = "DD_TAGS"
 	DDCollectKubeEvents                          = "DD_COLLECT_KUBERNETES_EVENTS"
 	DDLeaderElection                             = "DD_LEADER_ELECTION"
-	DDLeaseName                                  = "DD_LEASE_NAME"
+	DDLeaderLeaseName                            = "DD_LEADER_LEASE_NAME"
 	DDLogsEnabled                                = "DD_LOGS_ENABLED"
 	DDLogsConfigContainerCollectAll              = "DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL"
 	DDLogsContainerCollectUsingFiles             = "DD_LOGS_CONFIG_K8S_CONTAINER_USE_FILE"

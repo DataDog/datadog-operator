@@ -160,7 +160,7 @@ func clusterAgentDefaultEnvVars() []v1.EnvVar {
 			Value: "true",
 		},
 		{
-			Name:  "DD_LEASE_NAME",
+			Name:  "DD_LEADER_LEASE_NAME",
 			Value: fmt.Sprintf("%s-leader-election", testDdaName),
 		},
 		{

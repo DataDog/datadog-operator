@@ -879,7 +879,7 @@ func getEnvVarsForAgent(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent)
 				Value: strconv.FormatBool(*spec.Agent.Config.LeaderElection),
 			},
 			{
-				Name:  datadoghqv1alpha1.DDLeaseName,
+				Name:  datadoghqv1alpha1.DDLeaderLeaseName,
 				Value: utils.GetDatadogLeaderElectionResourceName(dda),
 			},
 		}
