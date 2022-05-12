@@ -139,13 +139,29 @@ func GetClusterAgentServiceName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultClusterAgentResourceSuffix)
 }
 
-// GetClusterAgentName return the Cluster-Agent service name based on the DatadogAgent name
+// GetClusterAgentName return the Cluster-Agent name based on the DatadogAgent name
 func GetClusterAgentName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), "cluster-agent")
+	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultClusterAgentResourceSuffix)
 }
 
 // GetClusterAgentVersion return the Cluster-Agent version based on the DatadogAgent info
 func GetClusterAgentVersion(dda metav1.Object) string {
 	// Todo implement this function
 	return ""
+}
+
+// GetAgentName return the Agent name based on the DatadogAgent info
+func GetAgentName(dda metav1.Object) string {
+	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultAgentResourceSuffix)
+}
+
+// GetAgentVersion return the Agent version based on the DatadogAgent info
+func GetAgentVersion(dda metav1.Object) string {
+	// TODO implement this method
+	return ""
+}
+
+// GetClusterCheckRunnerName return the Cluster-Check-Runner name based on the DatadogAgent name
+func GetClusterCheckRunnerName(dda metav1.Object) string {
+	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultClusterChecksRunnerResourceSuffix)
 }
