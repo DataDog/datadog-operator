@@ -19,6 +19,8 @@ const (
 	NPMIDType
 	// CSPMIDType CSPM feature.
 	CSPMIDType
+	// USMIDType USM feature.
+	USMIDType
 	// OOMKillIDType OOM Kill check feature
 	OOMKillIDType
 	// TCPQueueLengthIDType TCP Queue length check feature

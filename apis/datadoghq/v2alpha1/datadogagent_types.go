@@ -257,7 +257,7 @@ type NPMFeatureConfig struct {
 }
 
 // USMFeatureConfig contains USM (Universal Service Monitoring) feature configuration.
-// Universal Service Monitoring runs in the System Probe.
+// Universal Service Monitoring runs in the Process Agent and System Probe.
 type USMFeatureConfig struct {
 	// Enabled enables Universal Service Monitoring.
 	// Default: false

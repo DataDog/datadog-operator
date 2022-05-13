@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package npm
+package usm
 
 import (
 	corev1 "k8s.io/api/core/v1"
@@ -19,25 +19,25 @@ import (
 )
 
 func init() {
-	err := feature.Register(feature.NPMIDType, buildNPMFeature)
+	err := feature.Register(feature.USMIDType, buildUSMFeature)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func buildNPMFeature(options *feature.Options) feature.Feature {
-	npmFeat := &npmFeature{}
+func buildUSMFeature(options *feature.Options) feature.Feature {
+	usmFeat := &usmFeature{}
 
-	return npmFeat
+	return usmFeat
 }
 
-type npmFeature struct {
+type usmFeature struct {
 	enable bool
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *npmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	if dda.Spec.Features.NPM != nil && apiutils.BoolValue(dda.Spec.Features.NPM.Enabled) {
+func (f *usmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
+	if dda.Spec.Features.USM != nil && apiutils.BoolValue(dda.Spec.Features.USM.Enabled) {
 		f.enable = true
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
@@ -55,9 +55,21 @@ func (f *npmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 }
 
 // ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
-func (f *npmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	if dda.Spec.Features.NetworkMonitoring != nil && *dda.Spec.Features.NetworkMonitoring.Enabled {
+func (f *usmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
+	if dda.Spec.Agent.SystemProbe == nil {
+		return reqComp
+	}
+
+	enabledEnvVarIsSet := false
+	for _, envVar := range dda.Spec.Agent.SystemProbe.Env {
+		if envVar.Name == apicommon.DDSystemProbeServiceMonitoringEnabled && envVar.Value == "true" {
+			enabledEnvVarIsSet = true
+		}
+	}
+
+	if dda.Spec.Agent.SystemProbe != nil && *dda.Spec.Agent.SystemProbe.Enabled && enabledEnvVarIsSet {
 		f.enable = true
+
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
 				IsRequired: &f.enable,
@@ -75,19 +87,19 @@ func (f *npmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.Re
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *npmFeature) ManageDependencies(managers feature.ResourceManagers) error {
+func (f *usmFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	return nil
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *npmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+func (f *usmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *npmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+func (f *usmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	// annotations
 	managers.Annotation().AddAnnotation(apicommon.SystemProbeAppArmorAnnotationKey, apicommon.SystemProbeAppArmorAnnotationValue)
 
@@ -104,59 +116,41 @@ func (f *npmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 	}
 	managers.SecurityContext().AddCapabilitiesToContainer(capabilities, apicommonv1.SystemProbeContainerName)
 
-	// procdir volume mount
-	procdirVol, procdirVolMount := volume.GetVolumes(apicommon.ProcdirVolumeName, apicommon.ProcdirHostPath, apicommon.ProcdirMountPath, true)
-	managers.Volume().AddVolumeToContainers(&procdirVol, &procdirVolMount, []apicommonv1.AgentContainerName{apicommonv1.ProcessAgentContainerName, apicommonv1.SystemProbeContainerName})
+	// volume mounts
+	procdirVol, procdirMount := volume.GetVolumes(apicommon.ProcdirVolumeName, apicommon.ProcdirHostPath, apicommon.ProcdirMountPath, true)
+	managers.Volume().AddVolumeToContainer(&procdirVol, &procdirMount, apicommonv1.SystemProbeContainerName)
 
-	// cgroups volume mount
-	cgroupsVol, cgroupsVolMount := volume.GetVolumes(apicommon.CgroupsVolumeName, apicommon.CgroupsHostPath, apicommon.CgroupsMountPath, true)
-	managers.Volume().AddVolumeToContainers(&cgroupsVol, &cgroupsVolMount, []apicommonv1.AgentContainerName{apicommonv1.ProcessAgentContainerName, apicommonv1.SystemProbeContainerName})
+	cgroupsVol, cgroupsMount := volume.GetVolumes(apicommon.CgroupsVolumeName, apicommon.CgroupsHostPath, apicommon.CgroupsMountPath, true)
+	managers.Volume().AddVolumeToContainer(&cgroupsVol, &cgroupsMount, apicommonv1.SystemProbeContainerName)
 
-	// debugfs volume mount
-	debugfsVol, debugfsVolMount := volume.GetVolumes(apicommon.DebugfsVolumeName, apicommon.DebugfsPath, apicommon.DebugfsPath, true)
-	managers.Volume().AddVolumeToContainers(&debugfsVol, &debugfsVolMount, []apicommonv1.AgentContainerName{apicommonv1.ProcessAgentContainerName, apicommonv1.SystemProbeContainerName})
+	debugfsVol, debugfsMount := volume.GetVolumes(apicommon.DebugfsVolumeName, apicommon.DebugfsPath, apicommon.DebugfsPath, true)
+	managers.Volume().AddVolumeToContainer(&debugfsVol, &debugfsMount, apicommonv1.SystemProbeContainerName)
 
-	// socket volume mount
-	socketVol, socketVolMount := volume.GetVolumesEmptyDir(apicommon.SystemProbeSocketVolumeName, apicommon.SystemProbeSocketVolumePath)
+	socketDirVol, socketDirMount := volume.GetVolumesEmptyDir(apicommon.SystemProbeSocketVolumeName, apicommon.SystemProbeSocketVolumePath)
 	managers.Volume().AddVolumeToContainers(
-		&socketVol,
-		&socketVolMount,
+		&socketDirVol,
+		&socketDirMount,
 		[]apicommonv1.AgentContainerName{
 			apicommonv1.CoreAgentContainerName,
 			apicommonv1.ProcessAgentContainerName,
 			apicommonv1.SystemProbeContainerName,
-		})
+		},
+	)
 
-	// env vars
-	enableEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDSystemProbeNPMEnabledEnvVar,
+	// env vars for System Probe and Process Agent
+	enabledEnvVar := &corev1.EnvVar{
+		Name:  apicommon.DDSystemProbeServiceMonitoringEnabled,
 		Value: "true",
 	}
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, enableEnvVar)
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, enableEnvVar)
+	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, enabledEnvVar)
+	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, enabledEnvVar)
 
-	sysProbeEnableEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDSystemProbeEnabledEnvVar,
-		Value: "true",
-	}
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, sysProbeEnableEnvVar)
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, sysProbeEnableEnvVar)
-
-	socketEnvVar := &corev1.EnvVar{
+	sysProbeSocketEnvVar := &corev1.EnvVar{
 		Name:  apicommon.DDSystemProbeSocket,
 		Value: apicommon.DefaultSystemProbeSocketPath,
 	}
-
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, socketEnvVar)
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, socketEnvVar)
-
-	processEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDProcessAgentEnabledEnvVar,
-		Value: "true",
-	}
-
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, processEnvVar)
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, processEnvVar)
+	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, sysProbeSocketEnvVar)
+	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, sysProbeSocketEnvVar)
 
 	// env vars for Process Agent only
 	sysProbeExternalEnvVar := &corev1.EnvVar{
@@ -170,6 +164,6 @@ func (f *npmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *npmFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
+func (f *usmFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	return nil
 }

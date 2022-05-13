@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package npm
+package usm
 
 import (
 	"testing"
@@ -26,37 +26,44 @@ func createEmptyFakeManager(t testing.TB) feature.PodTemplateManagers {
 	return mgr
 }
 
-func Test_npmFeature_Configure(t *testing.T) {
-	ddav1NPMDisabled := v1alpha1.DatadogAgent{
+func Test_usmFeature_Configure(t *testing.T) {
+	ddav1USMDisabled := v1alpha1.DatadogAgent{
 		Spec: v1alpha1.DatadogAgentSpec{
-			Features: v1alpha1.DatadogFeatures{
-				NetworkMonitoring: &v1alpha1.NetworkMonitoringConfig{
+			Agent: v1alpha1.DatadogAgentSpecAgentSpec{
+				SystemProbe: &v1alpha1.SystemProbeSpec{
 					Enabled: apiutils.NewBoolPointer(false),
 				},
 			},
 		},
 	}
 
-	ddav1NPMEnabled := ddav1NPMDisabled.DeepCopy()
+	ddav1USMEnabled := ddav1USMDisabled.DeepCopy()
 	{
-		ddav1NPMEnabled.Spec.Features.NetworkMonitoring.Enabled = apiutils.NewBoolPointer(true)
+		ddav1USMEnabled.Spec.Agent.SystemProbe.Enabled = apiutils.NewBoolPointer(true)
+		ddav1USMEnabled.Spec.Agent.SystemProbe.Env = append(
+			ddav1USMEnabled.Spec.Agent.SystemProbe.Env,
+			corev1.EnvVar{
+				Name:  apicommon.DDSystemProbeServiceMonitoringEnabled,
+				Value: "true",
+			},
+		)
 	}
 
-	ddav2NPMDisabled := v2alpha1.DatadogAgent{
+	ddav2USMDisabled := v2alpha1.DatadogAgent{
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
-				NPM: &v2alpha1.NPMFeatureConfig{
+				USM: &v2alpha1.USMFeatureConfig{
 					Enabled: apiutils.NewBoolPointer(false),
 				},
 			},
 		},
 	}
-	ddav2NPMEnabled := ddav2NPMDisabled.DeepCopy()
+	ddav2USMEnabled := ddav2USMDisabled.DeepCopy()
 	{
-		ddav2NPMEnabled.Spec.Features.NPM.Enabled = apiutils.NewBoolPointer(true)
+		ddav2USMEnabled.Spec.Features.USM.Enabled = apiutils.NewBoolPointer(true)
 	}
 
-	npmAgentNodeWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+	usmAgentNodeWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
 
 		// check annotations
@@ -103,11 +110,8 @@ func Test_npmFeature_Configure(t *testing.T) {
 			},
 		}
 
-		processAgentMounts := mgr.VolumeMgr.VolumeMountByC[apicommonv1.ProcessAgentContainerName]
-		assert.True(t, apiutils.IsEqualStruct(processAgentMounts, wantVolumeMounts), "Process Agent volume mounts \ndiff = %s", cmp.Diff(processAgentMounts, wantVolumeMounts))
-
-		sysProbeAgentMounts := mgr.VolumeMgr.VolumeMountByC[apicommonv1.SystemProbeContainerName]
-		assert.True(t, apiutils.IsEqualStruct(sysProbeAgentMounts, wantVolumeMounts), "System Probe volume mounts \ndiff = %s", cmp.Diff(sysProbeAgentMounts, wantVolumeMounts))
+		sysProbeMounts := mgr.VolumeMgr.VolumeMountByC[apicommonv1.SystemProbeContainerName]
+		assert.True(t, apiutils.IsEqualStruct(sysProbeMounts, wantVolumeMounts), "System Probe volume mounts \ndiff = %s", cmp.Diff(sysProbeMounts, wantVolumeMounts))
 
 		coreWantVolumeMounts := []corev1.VolumeMount{
 			{
@@ -118,6 +122,16 @@ func Test_npmFeature_Configure(t *testing.T) {
 		}
 		coreAgentMounts := mgr.VolumeMgr.VolumeMountByC[apicommonv1.CoreAgentContainerName]
 		assert.True(t, apiutils.IsEqualStruct(coreAgentMounts, coreWantVolumeMounts), "Core Agent volume mounts \ndiff = %s", cmp.Diff(coreAgentMounts, coreWantVolumeMounts))
+
+		processWantVolumeMounts := []corev1.VolumeMount{
+			{
+				Name:      apicommon.SystemProbeSocketVolumeName,
+				MountPath: apicommon.SystemProbeSocketVolumePath,
+				ReadOnly:  true,
+			},
+		}
+		processAgentMounts := mgr.VolumeMgr.VolumeMountByC[apicommonv1.ProcessAgentContainerName]
+		assert.True(t, apiutils.IsEqualStruct(processAgentMounts, processWantVolumeMounts), "Process Agent volume mounts \ndiff = %s", cmp.Diff(processAgentMounts, processWantVolumeMounts))
 
 		// check volumes
 		wantVolumes := []corev1.Volume{
@@ -157,35 +171,19 @@ func Test_npmFeature_Configure(t *testing.T) {
 		assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))
 
 		// check env vars
-		sysProbeWantEnvVars := []*corev1.EnvVar{
+		wantEnvVars := []*corev1.EnvVar{
 			{
-				Name:  apicommon.DDSystemProbeNPMEnabledEnvVar,
-				Value: "true",
-			},
-			{
-				Name:  apicommon.DDSystemProbeEnabledEnvVar,
+				Name:  apicommon.DDSystemProbeServiceMonitoringEnabled,
 				Value: "true",
 			},
 			{
 				Name:  apicommon.DDSystemProbeSocket,
 				Value: apicommon.DefaultSystemProbeSocketPath,
 			},
-			{
-				Name:  apicommon.DDProcessAgentEnabledEnvVar,
-				Value: "true",
-			},
 		}
+
 		systemProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.SystemProbeContainerName]
-		assert.True(t, apiutils.IsEqualStruct(systemProbeEnvVars, sysProbeWantEnvVars), "System Probe envvars \ndiff = %s", cmp.Diff(systemProbeEnvVars, sysProbeWantEnvVars))
-
-		processWantEnvVars := append(sysProbeWantEnvVars, &corev1.EnvVar{
-			Name:  apicommon.DDSystemProbeExternal,
-			Value: "true",
-		})
-
-		processAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ProcessAgentContainerName]
-		assert.True(t, apiutils.IsEqualStruct(processAgentEnvVars, processWantEnvVars), "Process Agent envvars \ndiff = %s", cmp.Diff(processAgentEnvVars, processWantEnvVars))
-
+		assert.True(t, apiutils.IsEqualStruct(systemProbeEnvVars, wantEnvVars), "System Probe envvars \ndiff = %s", cmp.Diff(systemProbeEnvVars, wantEnvVars))
 	}
 
 	tests := test.FeatureTestSuite{
@@ -193,37 +191,37 @@ func Test_npmFeature_Configure(t *testing.T) {
 		// v1alpha1.DatadogAgent //
 		///////////////////////////
 		{
-			Name:          "v1alpha1 NPM not enabled",
-			DDAv1:         ddav1NPMDisabled.DeepCopy(),
+			Name:          "v1alpha1 USM not enabled",
+			DDAv1:         ddav1USMDisabled.DeepCopy(),
 			WantConfigure: false,
 		},
 		{
-			Name:          "v1alpha1 NPM enabled",
-			DDAv1:         ddav1NPMEnabled,
+			Name:          "v1alpha1 USM enabled",
+			DDAv1:         ddav1USMEnabled,
 			WantConfigure: true,
 			Agent: &test.ComponentTest{
 				CreateFunc: createEmptyFakeManager,
-				WantFunc:   npmAgentNodeWantFunc,
+				WantFunc:   usmAgentNodeWantFunc,
 			},
 		},
 		// ///////////////////////////
 		// // v2alpha1.DatadogAgent //
 		// ///////////////////////////
 		{
-			Name:          "v2alpha1 NPM not enabled",
-			DDAv2:         ddav2NPMDisabled.DeepCopy(),
+			Name:          "v2alpha1 USM not enabled",
+			DDAv2:         ddav2USMDisabled.DeepCopy(),
 			WantConfigure: false,
 		},
 		{
-			Name:          "v2alpha1 NPM enabled",
-			DDAv2:         ddav2NPMEnabled,
+			Name:          "v2alpha1 USM enabled",
+			DDAv2:         ddav2USMEnabled,
 			WantConfigure: true,
 			Agent: &test.ComponentTest{
 				CreateFunc: createEmptyFakeManager,
-				WantFunc:   npmAgentNodeWantFunc,
+				WantFunc:   usmAgentNodeWantFunc,
 			},
 		},
 	}
 
-	tests.Run(t, buildNPMFeature)
+	tests.Run(t, buildUSMFeature)
 }

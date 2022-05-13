@@ -168,14 +168,16 @@ func (impl *resourceManagersImpl) PodSecurityManager() merger.PodSecurityManager
 
 // PodTemplateManagers used to access the different PodTemplateSpec manager.
 type PodTemplateManagers interface {
-	// PodTemplateSpec used to access directly to the PodTemplateSpec.
+	// PodTemplateSpec used to access directly the PodTemplateSpec.
 	PodTemplateSpec() *corev1.PodTemplateSpec
-	// EnvVar used to access EnvVarManager that allows to manage the Environment variable defined in the PodTemplateSpec.
+	// EnvVar used to access the EnvVarManager to manage the Environment variable defined in the PodTemplateSpec.
 	EnvVar() merger.EnvVarManager
-	// Volume used to access VolumeManager that allows to manage the Volume and VolumeMount defined in the PodTemplateSpec.
+	// Volume used to access the VolumeManager to manage the Volume and VolumeMount defined in the PodTemplateSpec.
 	Volume() merger.VolumeManager
-	// SecurityContext used to access SecurityContextManager that allows to manage container Security Context defined in the PodTemplateSpec.
+	// SecurityContext is used to access the SecurityContextManager to manage container Security Context defined in the PodTemplateSpec.
 	SecurityContext() merger.SecurityContextManager
+	// Annotation is used access the AnnotationManager to manage PodTemplateSpec annotations.
+	Annotation() merger.AnnotationManager
 }
 
 // NewPodTemplateManagers use to create a new instance of PodTemplateManagers from
@@ -186,6 +188,7 @@ func NewPodTemplateManagers(podTmpl *corev1.PodTemplateSpec) PodTemplateManagers
 		envVarManager:          merger.NewEnvVarManager(podTmpl),
 		volumeManager:          merger.NewVolumeManager(podTmpl),
 		securityContextManager: merger.NewSecurityContextManager(podTmpl),
+		annotationManager:      merger.NewAnnotationManager(podTmpl),
 	}
 }
 
@@ -194,6 +197,7 @@ type podTemplateManagerImpl struct {
 	envVarManager          merger.EnvVarManager
 	volumeManager          merger.VolumeManager
 	securityContextManager merger.SecurityContextManager
+	annotationManager      merger.AnnotationManager
 }
 
 func (impl *podTemplateManagerImpl) PodTemplateSpec() *corev1.PodTemplateSpec {
@@ -210,4 +214,8 @@ func (impl *podTemplateManagerImpl) Volume() merger.VolumeManager {
 
 func (impl *podTemplateManagerImpl) SecurityContext() merger.SecurityContextManager {
 	return impl.securityContextManager
+}
+
+func (impl *podTemplateManagerImpl) Annotation() merger.AnnotationManager {
+	return impl.annotationManager
 }
