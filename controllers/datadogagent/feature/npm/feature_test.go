@@ -140,7 +140,7 @@ func Test_npmFeature_Configure(t *testing.T) {
 			},
 			{
 				Name:  apicommon.DDSystemProbeSocketEnvVar,
-				Value: apicommon.DefaultSysprobeSocketPath,
+				Value: apicommon.DefaultSystemProbeSocketPath,
 			},
 			{
 				Name:  apicommon.DDProcessAgentEnabledEnvVar,

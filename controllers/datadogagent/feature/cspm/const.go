@@ -12,16 +12,17 @@ import (
 )
 
 const (
-	cspmRBACPrefix = "cspm"
+	cspmRBACPrefix       = "cspm"
+	cspmConfigVolumeName = "complianceconfigdir"
+	cspmConfigVolumePath = "/etc/datadog-agent/compliance.d"
 )
 
-// CELENE FIX ME
-func getSCCName() string {
-	return "datadog-agent"
+func getSCCName(owner metav1.Object) string {
+	return fmt.Sprintf("%s-%s", owner.GetNamespace(), owner.GetName())
 }
 
-func getPSPName() string {
-	return "datadog-agent"
+func getPSPName(owner metav1.Object) string {
+	return fmt.Sprintf("%s-%s", owner.GetNamespace(), owner.GetName())
 }
 
 // getRBACResourceName return the RBAC resources name

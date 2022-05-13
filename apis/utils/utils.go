@@ -48,10 +48,6 @@ func BoolToString(b *bool) string {
 	return "false"
 }
 
-// StringToBool return true if s == "true", else false
-func StringToBool(s string) bool {
-	return s == "true"
-
 // DefaultBooleanIfUnset sets default value d of a boolean if unset
 func DefaultBooleanIfUnset(valPtr **bool, d bool) {
 	if *valPtr == nil {

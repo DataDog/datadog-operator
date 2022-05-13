@@ -121,7 +121,7 @@ func (f *npmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 
 	socketEnvVar := &corev1.EnvVar{
 		Name:  apicommon.DDSystemProbeSocketEnvVar,
-		Value: apicommon.DefaultSysprobeSocketPath,
+		Value: apicommon.DefaultSystemProbeSocketPath,
 	}
 
 	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, socketEnvVar)

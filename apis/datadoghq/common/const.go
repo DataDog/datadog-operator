@@ -48,8 +48,8 @@ const (
 	DefaultMetricsProviderPort int32 = 8443
 	// DefaultKubeStateMetricsCoreConf default ksm core ConfigMap name
 	DefaultKubeStateMetricsCoreConf string = "kube-state-metrics-core-config"
-	// DefaultSysprobeSocketPath default system probe socket path
-	DefaultSysprobeSocketPath = "/var/run/sysprobe/sysprobe.sock"
+	// DefaultSystemProbeSocketPath default system probe socket path
+	DefaultSystemProbeSocketPath = "/var/run/sysprobe/sysprobe.sock"
 
 	// Liveness probe default config
 	DefaultLivenessProbeInitialDelaySeconds int32 = 15
@@ -106,9 +106,11 @@ const (
 	ModulesVolumeName = "modules"
 	// same path on host and container
 	ModulesVolumePath = "/lib/modules"
-	SrcVolumeName     = "src"
+
+	SrcVolumeName = "src"
 	// same path on host and container
-	SrcVolumePath              = "/usr/src"
+	SrcVolumePath = "/usr/src"
+
 	LogDatadogVolumeName       = "logdatadog"
 	LogDatadogVolumePath       = "/var/log/datadog"
 	TmpVolumeName              = "tmp"

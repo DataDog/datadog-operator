@@ -136,22 +136,22 @@ type BuildFunc func(options *Options) Feature
 type ResourceManagers interface {
 	Store() dependencies.StoreClient
 	RBACManager() merger.RBACManager
-	SecurityManager() merger.SecurityManager
+	PodSecurityManager() merger.PodSecurityManager
 }
 
 // NewResourceManagers return new instance of the ResourceManagers interface
 func NewResourceManagers(store dependencies.StoreClient) ResourceManagers {
 	return &resourceManagersImpl{
-		store:    store,
-		rbac:     merger.NewRBACManager(store),
-		security: merger.NewSecurityManager(store),
+		store:       store,
+		rbac:        merger.NewRBACManager(store),
+		podSecurity: merger.NewPodSecurityManager(store),
 	}
 }
 
 type resourceManagersImpl struct {
-	store    dependencies.StoreClient
-	rbac     merger.RBACManager
-	security merger.SecurityManager
+	store       dependencies.StoreClient
+	rbac        merger.RBACManager
+	podSecurity merger.PodSecurityManager
 }
 
 func (impl *resourceManagersImpl) Store() dependencies.StoreClient {
@@ -162,8 +162,8 @@ func (impl *resourceManagersImpl) RBACManager() merger.RBACManager {
 	return impl.rbac
 }
 
-func (impl *resourceManagersImpl) SecurityManager() merger.SecurityManager {
-	return impl.security
+func (impl *resourceManagersImpl) PodSecurityManager() merger.PodSecurityManager {
+	return impl.podSecurity
 }
 
 // PodTemplateManagers used to access the different PodTemplateSpec manager.
@@ -172,24 +172,28 @@ type PodTemplateManagers interface {
 	PodTemplateSpec() *corev1.PodTemplateSpec
 	// EnvVar used to access EnvVarManager that allows to manage the Environment variable defined in the PodTemplateSpec.
 	EnvVar() merger.EnvVarManager
-	// EnvVar used to access VolumeManager that allows to manage the Volume and VolumeMount defined in the PodTemplateSpec.
+	// Volume used to access VolumeManager that allows to manage the Volume and VolumeMount defined in the PodTemplateSpec.
 	Volume() merger.VolumeManager
+	// SecurityContext used to access SecurityContextManager that allows to manage container Security Context defined in the PodTemplateSpec.
+	SecurityContext() merger.SecurityContextManager
 }
 
 // NewPodTemplateManagers use to create a new instance of PodTemplateManagers from
 // a corev1.PodTemplateSpec argument
 func NewPodTemplateManagers(podTmpl *corev1.PodTemplateSpec) PodTemplateManagers {
 	return &podTemplateManagerImpl{
-		podTmpl:       podTmpl,
-		envVarManager: merger.NewEnvVarManager(podTmpl),
-		volumeManager: merger.NewVolumeManager(podTmpl),
+		podTmpl:                podTmpl,
+		envVarManager:          merger.NewEnvVarManager(podTmpl),
+		volumeManager:          merger.NewVolumeManager(podTmpl),
+		securityContextManager: merger.NewSecurityContextManager(podTmpl),
 	}
 }
 
 type podTemplateManagerImpl struct {
-	podTmpl       *corev1.PodTemplateSpec
-	envVarManager merger.EnvVarManager
-	volumeManager merger.VolumeManager
+	podTmpl                *corev1.PodTemplateSpec
+	envVarManager          merger.EnvVarManager
+	volumeManager          merger.VolumeManager
+	securityContextManager merger.SecurityContextManager
 }
 
 func (impl *podTemplateManagerImpl) PodTemplateSpec() *corev1.PodTemplateSpec {
@@ -202,4 +206,8 @@ func (impl *podTemplateManagerImpl) EnvVar() merger.EnvVarManager {
 
 func (impl *podTemplateManagerImpl) Volume() merger.VolumeManager {
 	return impl.volumeManager
+}
+
+func (impl *podTemplateManagerImpl) SecurityContext() merger.SecurityContextManager {
+	return impl.securityContextManager
 }

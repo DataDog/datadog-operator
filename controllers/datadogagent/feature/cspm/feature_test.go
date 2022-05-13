@@ -7,6 +7,10 @@ package cspm
 
 import (
 	"testing"
+	"time"
+
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
@@ -16,10 +20,8 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/test"
-	// mergerfake "github.com/DataDog/datadog-operator/controllers/datadogagent/merger/fake"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
-	corev1 "k8s.io/api/core/v1"
 )
 
 func createEmptyFakeManager(t testing.TB) feature.PodTemplateManagers {
@@ -43,6 +45,16 @@ func Test_cspmFeature_Configure(t *testing.T) {
 	ddav1CSPMEnabled := ddav1CSPMDisabled.DeepCopy()
 	{
 		ddav1CSPMEnabled.Spec.Agent.Security.Compliance.Enabled = apiutils.NewBoolPointer(true)
+		ddav1CSPMEnabled.Spec.Agent.Security.Compliance.ConfigDir = &v1alpha1.ConfigDirSpec{
+			ConfigMapName: "custom_test",
+			Items: []corev1.KeyToPath{
+				{
+					Key:  "key1",
+					Path: "some/path",
+				},
+			},
+		}
+		ddav1CSPMEnabled.Spec.Agent.Security.Compliance.CheckInterval = &metav1.Duration{Duration: 20 * time.Minute}
 	}
 
 	ddav2CSPMDisabled := v2alpha1.DatadogAgent{
@@ -57,6 +69,16 @@ func Test_cspmFeature_Configure(t *testing.T) {
 	ddav2CSPMEnabled := ddav2CSPMDisabled.DeepCopy()
 	{
 		ddav2CSPMEnabled.Spec.Features.CSPM.Enabled = apiutils.NewBoolPointer(true)
+		ddav2CSPMEnabled.Spec.Features.CSPM.CustomBenchmarks = &apicommonv1.ConfigMapConfig{
+			Name: "custom_test",
+			Items: []corev1.KeyToPath{
+				{
+					Key:  "key1",
+					Path: "some/path",
+				},
+			},
+		}
+		ddav2CSPMEnabled.Spec.Features.CSPM.CheckInterval = &metav1.Duration{Duration: 20 * time.Minute}
 	}
 
 	cspmClusterAgentWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
@@ -65,27 +87,68 @@ func Test_cspmFeature_Configure(t *testing.T) {
 
 		want := []*corev1.EnvVar{
 			{
-				Name:  apicommon.DDComplianceEnabledEnvVar,
+				Name:  apicommon.DDComplianceEnabled,
 				Value: "true",
+			},
+			{
+				Name:  apicommon.DDComplianceCheckInterval,
+				Value: "1200000000000",
 			},
 		}
 		assert.True(t, apiutils.IsEqualStruct(dcaEnvVars, want), "DCA envvars \ndiff = %s", cmp.Diff(dcaEnvVars, want))
+
+		wantVolumeMounts := []corev1.VolumeMount{
+			{
+				Name:      cspmConfigVolumeName,
+				MountPath: cspmConfigVolumePath,
+				SubPath:   "some/path",
+				ReadOnly:  true,
+			},
+		}
+
+		volumeMounts := mgr.VolumeMgr.VolumeMountByC[apicommonv1.ClusterAgentContainerName]
+		assert.True(t, apiutils.IsEqualStruct(volumeMounts, wantVolumeMounts), "Cluster Agent volume mounts \ndiff = %s", cmp.Diff(volumeMounts, wantVolumeMounts))
+
+		wantVolumes := []corev1.Volume{
+			{
+				Name: cspmConfigVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: "custom_test",
+						},
+					},
+				},
+			},
+		}
+		volumes := mgr.VolumeMgr.Volumes
+		assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Cluster Agent volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))
 	}
 
 	cspmAgentNodeWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
-		securityAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.SecurityAgentContainerName]
 
 		want := []*corev1.EnvVar{
 			{
-				Name:  apicommon.DDComplianceEnabledEnvVar,
+				Name:  apicommon.DDComplianceEnabled,
 				Value: "true",
 			},
+			{
+				Name:  apicommon.DDComplianceCheckInterval,
+				Value: "1200000000000",
+			},
 		}
+		securityAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.SecurityAgentContainerName]
 		assert.True(t, apiutils.IsEqualStruct(securityAgentEnvVars, want), "Agent envvars \ndiff = %s", cmp.Diff(securityAgentEnvVars, want))
 
 		// check volume mounts
 		wantVolumeMounts := []corev1.VolumeMount{
+			{
+				Name:      cspmConfigVolumeName,
+				MountPath: cspmConfigVolumePath,
+				SubPath:   "some/path",
+				ReadOnly:  true,
+			},
 			{
 				Name:      apicommon.CgroupsVolumeName,
 				MountPath: apicommon.CgroupsMountPath,
@@ -118,6 +181,16 @@ func Test_cspmFeature_Configure(t *testing.T) {
 
 		// check volumes
 		wantVolumes := []corev1.Volume{
+			{
+				Name: cspmConfigVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: "custom_test",
+						},
+					},
+				},
+			},
 			{
 				Name: apicommon.CgroupsVolumeName,
 				VolumeSource: corev1.VolumeSource{

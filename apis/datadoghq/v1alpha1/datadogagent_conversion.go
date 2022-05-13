@@ -188,7 +188,8 @@ func convertConfigMapConfig(src *CustomConfigSpec) *v2alpha1.CustomConfig {
 	return dstConfig
 }
 
-func convertConfigDirSpec(src *ConfigDirSpec) *v2alpha1.CustomConfig {
+// ConvertConfigDirSpec converts v1alpha1.ConfigDirSpec to v2alpha1.CustomConfig
+func ConvertConfigDirSpec(src *ConfigDirSpec) *v2alpha1.CustomConfig {
 	if src == nil {
 		return nil
 	}
