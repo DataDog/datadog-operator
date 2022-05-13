@@ -17,8 +17,6 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
-
-	"sigs.k8s.io/yaml"
 )
 
 func init() {
@@ -118,7 +116,7 @@ func (f *prometheusScrapeFeature) ManageClusterAgent(managers feature.PodTemplat
 	if f.additionalConfigs != "" {
 		managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
 			Name:  apicommon.DDPrometheusScrapeChecks,
-			Value: yamlToJSONAdditionalConfigs(f.additionalConfigs),
+			Value: apiutils.YAMLToJSONString(f.additionalConfigs),
 		})
 	}
 
@@ -139,7 +137,7 @@ func (f *prometheusScrapeFeature) ManageNodeAgent(managers feature.PodTemplateMa
 	if f.additionalConfigs != "" {
 		managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
 			Name:  apicommon.DDPrometheusScrapeChecks,
-			Value: yamlToJSONAdditionalConfigs(f.additionalConfigs),
+			Value: apiutils.YAMLToJSONString(f.additionalConfigs),
 		})
 	}
 
@@ -150,12 +148,4 @@ func (f *prometheusScrapeFeature) ManageNodeAgent(managers feature.PodTemplateMa
 // It should do nothing if the feature doesn't need to configure it.
 func (f *prometheusScrapeFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	return nil
-}
-
-func yamlToJSONAdditionalConfigs(yamlConfigs string) string {
-	jsonValue, err := yaml.YAMLToJSON([]byte(yamlConfigs))
-	if err != nil {
-		return ""
-	}
-	return string(jsonValue)
 }
