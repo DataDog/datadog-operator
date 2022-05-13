@@ -48,7 +48,7 @@ const (
 	DefaultMetricsProviderPort int32 = 8443
 	// DefaultKubeStateMetricsCoreConf default ksm core ConfigMap name
 	DefaultKubeStateMetricsCoreConf string = "kube-state-metrics-core-config"
-  	// DefaultSysprobeSocketPath default system probe socket path
+	// DefaultSysprobeSocketPath default system probe socket path
 	DefaultSysprobeSocketPath = "/var/run/sysprobe/sysprobe.sock"
 
 	// Liveness probe default config
@@ -118,9 +118,9 @@ const (
 	ContainerLogVolumePath     = "/var/lib/docker/containers"
 	SymlinkContainerVolumeName = "symlinkcontainerpath"
 	SymlinkContainerVolumePath = "/var/log/containers"
-	DogStatsDHostPortName      = "dogstatsdport"
-	DogStatsDHostPortHostPort  = 8125
-	DogStatsDUDSSocketName     = "dsdsocket"
-	DogStatsDUDSHostFilepathV1 = "/var/run/datadog/statsd.sock"
-	DogStatsDUDSHostFilepathV2 = "/var/run/datadog/dsd.socket"
+	DogstatsdHostPortName      = "dogstatsdport"
+	DogstatsdHostPortHostPort  = 8125
+	DogstatsdUDSSocketName     = "dsdsocket"
+	DogstatsdUDSHostFilepathV1 = "/var/run/datadog/statsd.sock"
+	DogstatsdUDSHostFilepathV2 = "/var/run/datadog/dsd.socket"
 )

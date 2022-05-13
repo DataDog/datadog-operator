@@ -8,6 +8,8 @@ package utils
 import (
 	"encoding/json"
 	"math/rand"
+
+	"sigs.k8s.io/yaml"
 )
 
 // NewInt32Pointer returns pointer on a new int32 value instance
@@ -95,4 +97,13 @@ func GenerateRandomString(n int) string {
 		b[i] = letterRunes[rand.Intn(len(letterRunes))]
 	}
 	return string(b)
+}
+
+// YAMLToJSONString converts a YAML string to a JSON string
+func YAMLToJSONString(yamlConfigs string) string {
+	jsonValue, err := yaml.YAMLToJSON([]byte(yamlConfigs))
+	if err != nil {
+		return ""
+	}
+	return string(jsonValue)
 }

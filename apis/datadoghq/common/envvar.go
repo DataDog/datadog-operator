@@ -23,8 +23,8 @@ const (
 	DDLogsConfigContainerCollectAll  = "DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL"
 	DDLogsContainerCollectUsingFiles = "DD_LOGS_CONFIG_K8S_CONTAINER_USE_FILE"
 	DDLogsConfigOpenFilesLimit       = "DD_LOGS_CONFIG_OPEN_FILES_LIMIT"
-	DDDogStatsDNonLocalTraffic       = "DD_DOGSTATSD_NON_LOCAL_TRAFFIC"
-	DDDogStatsDSocket                = "DD_DOGSTATSD_SOCKET"
+	DDDogstatsdNonLocalTraffic       = "DD_DOGSTATSD_NON_LOCAL_TRAFFIC"
+	DDDogstatsdSocket                = "DD_DOGSTATSD_SOCKET"
 	DDDogstatsdOriginDetection       = "DD_DOGSTATSD_ORIGIN_DETECTION"
 	DDDogstatsdMapperProfiles        = "DD_DOGSTATSD_MAPPER_PROFILES"
 )

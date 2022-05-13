@@ -26,7 +26,7 @@ func createEmptyFakeManager(t testing.TB) feature.PodTemplateManagers {
 	return mgr
 }
 
-func Test_DogStatsDFeature_Configure(t *testing.T) {
+func Test_DogstatsdFeature_Configure(t *testing.T) {
 	customMapperProfilesConf := `- name: 'profile_name'
   prefix: 'profile_prefix'
   mappings:
@@ -37,66 +37,73 @@ func Test_DogStatsDFeature_Configure(t *testing.T) {
 
 	// v1alpha1
 	ddav1Enabled := &v1alpha1.DatadogAgent{}
-	ddav1DogStatsDEnabled := v1alpha1.DatadogAgent{
+	ddav1DogstatsdEnabled := v1alpha1.DatadogAgent{
 		Spec: *v1alpha1.DefaultDatadogAgent(ddav1Enabled).DefaultOverride,
 	}
 
-	ddav1DogStatsDCustomHostPort := ddav1DogStatsDEnabled.DeepCopy()
-	ddav1DogStatsDCustomHostPort.Spec.Agent.Config.HostPort = apiutils.NewInt32Pointer(1234)
+	ddav1DogstatsdCustomHostPort := ddav1DogstatsdEnabled.DeepCopy()
+	ddav1DogstatsdCustomHostPort.Spec.Agent.Config.HostPort = apiutils.NewInt32Pointer(1234)
 
-	ddav1DogStatsDUDPOriginDetection := ddav1DogStatsDEnabled.DeepCopy()
-	ddav1DogStatsDUDPOriginDetection.Spec.Agent.Config.Dogstatsd.DogstatsdOriginDetection = apiutils.NewBoolPointer(true)
+	ddav1DogstatsdUDPOriginDetection := ddav1DogstatsdEnabled.DeepCopy()
+	ddav1DogstatsdUDPOriginDetection.Spec.Agent.Config.Dogstatsd.DogstatsdOriginDetection = apiutils.NewBoolPointer(true)
 
-	ddav1DogStatsDUDSEnabled := ddav1DogStatsDEnabled.DeepCopy()
-	ddav1DogStatsDUDSEnabled.Spec.Agent.Config.Dogstatsd.UnixDomainSocket.Enabled = apiutils.NewBoolPointer(true)
+	ddav1DogstatsdUDSEnabled := ddav1DogstatsdEnabled.DeepCopy()
+	ddav1DogstatsdUDSEnabled.Spec.Agent.Config.Dogstatsd.UnixDomainSocket.Enabled = apiutils.NewBoolPointer(true)
 
-	ddav1DogStatsDUDSCustomHostFilepath := ddav1DogStatsDUDSEnabled.DeepCopy()
-	ddav1DogStatsDUDSCustomHostFilepath.Spec.Agent.Config.Dogstatsd.UnixDomainSocket.HostFilepath = apiutils.NewStringPointer("/custom/host/filepath")
+	ddav1DogstatsdUDSCustomHostFilepath := ddav1DogstatsdUDSEnabled.DeepCopy()
+	ddav1DogstatsdUDSCustomHostFilepath.Spec.Agent.Config.Dogstatsd.UnixDomainSocket.HostFilepath = apiutils.NewStringPointer("/custom/host/filepath")
 
-	ddav1DogStatsDUDSOriginDetection := ddav1DogStatsDUDSEnabled.DeepCopy()
-	ddav1DogStatsDUDSOriginDetection.Spec.Agent.Config.Dogstatsd.DogstatsdOriginDetection = apiutils.NewBoolPointer(true)
+	ddav1DogstatsdUDSOriginDetection := ddav1DogstatsdUDSEnabled.DeepCopy()
+	ddav1DogstatsdUDSOriginDetection.Spec.Agent.Config.Dogstatsd.DogstatsdOriginDetection = apiutils.NewBoolPointer(true)
 
-	ddav1DogStatsDMapperProfiles := ddav1DogStatsDUDSEnabled.DeepCopy()
-	ddav1DogStatsDMapperProfiles.Spec.Agent.Config.Dogstatsd.MapperProfiles = &v1alpha1.CustomConfigSpec{ConfigData: &customMapperProfilesConf}
+	ddav1DogstatsdMapperProfiles := ddav1DogstatsdUDSEnabled.DeepCopy()
+	ddav1DogstatsdMapperProfiles.Spec.Agent.Config.Dogstatsd.MapperProfiles = &v1alpha1.CustomConfigSpec{ConfigData: &customMapperProfilesConf}
 
 	// v2alpha1
-	ddav2DogStatsDDisabled := &v2alpha1.DatadogAgent{}
-	v2alpha1.DefaultDatadogAgent(ddav2DogStatsDDisabled)
+	ddav2DogstatsdDisabled := &v2alpha1.DatadogAgent{}
+	v2alpha1.DefaultDatadogAgent(ddav2DogstatsdDisabled)
 
-	ddav2DogStatsDEnabled := ddav2DogStatsDDisabled.DeepCopy()
-	ddav2DogStatsDEnabled.Spec.Features.Dogstatsd.HostPortConfig.Enabled = apiutils.NewBoolPointer(true)
+	ddav2DogstatsdEnabled := ddav2DogstatsdDisabled.DeepCopy()
+	ddav2DogstatsdEnabled.Spec.Features.Dogstatsd.HostPortConfig.Enabled = apiutils.NewBoolPointer(true)
+	v2alpha1.DefaultDatadogAgent(ddav2DogstatsdEnabled)
 
-	ddav2DogStatsDCustomHostPort := ddav2DogStatsDEnabled.DeepCopy()
-	ddav2DogStatsDCustomHostPort.Spec.Features.Dogstatsd.HostPortConfig.Port = apiutils.NewInt32Pointer(1234)
+	ddav2DogstatsdCustomHostPort := ddav2DogstatsdEnabled.DeepCopy()
+	ddav2DogstatsdCustomHostPort.Spec.Features.Dogstatsd.HostPortConfig.Port = apiutils.NewInt32Pointer(1234)
+	v2alpha1.DefaultDatadogAgent(ddav2DogstatsdCustomHostPort)
 
-	ddav2DogStatsDUDPOriginDetection := ddav2DogStatsDEnabled.DeepCopy()
-	ddav2DogStatsDUDPOriginDetection.Spec.Features.Dogstatsd.OriginDetectionEnabled = apiutils.NewBoolPointer(true)
+	ddav2DogstatsdUDPOriginDetection := ddav2DogstatsdEnabled.DeepCopy()
+	ddav2DogstatsdUDPOriginDetection.Spec.Features.Dogstatsd.OriginDetectionEnabled = apiutils.NewBoolPointer(true)
+	v2alpha1.DefaultDatadogAgent(ddav2DogstatsdUDPOriginDetection)
 
-	ddav2DogStatsDUDSEnabled := ddav2DogStatsDDisabled.DeepCopy()
-	ddav2DogStatsDUDSEnabled.Spec.Features.Dogstatsd.UnixDomainSocketConfig.Enabled = apiutils.NewBoolPointer(true)
+	ddav2DogstatsdUDSEnabled := ddav2DogstatsdDisabled.DeepCopy()
+	ddav2DogstatsdUDSEnabled.Spec.Features.Dogstatsd.UnixDomainSocketConfig.Enabled = apiutils.NewBoolPointer(true)
+	v2alpha1.DefaultDatadogAgent(ddav2DogstatsdUDSEnabled)
 
-	ddav2DogStatsDUDSCustomHostFilepath := ddav2DogStatsDUDSEnabled.DeepCopy()
-	ddav2DogStatsDUDSCustomHostFilepath.Spec.Features.Dogstatsd.UnixDomainSocketConfig.Path = apiutils.NewStringPointer("/custom/host/filepath")
+	ddav2DogstatsdUDSCustomHostFilepath := ddav2DogstatsdUDSEnabled.DeepCopy()
+	ddav2DogstatsdUDSCustomHostFilepath.Spec.Features.Dogstatsd.UnixDomainSocketConfig.Path = apiutils.NewStringPointer("/custom/host/filepath")
+	v2alpha1.DefaultDatadogAgent(ddav2DogstatsdUDSCustomHostFilepath)
 
-	ddav2DogStatsDUDSOriginDetection := ddav2DogStatsDUDSEnabled.DeepCopy()
-	ddav2DogStatsDUDSOriginDetection.Spec.Features.Dogstatsd.OriginDetectionEnabled = apiutils.NewBoolPointer(true)
+	ddav2DogstatsdUDSOriginDetection := ddav2DogstatsdUDSEnabled.DeepCopy()
+	ddav2DogstatsdUDSOriginDetection.Spec.Features.Dogstatsd.OriginDetectionEnabled = apiutils.NewBoolPointer(true)
+	v2alpha1.DefaultDatadogAgent(ddav2DogstatsdUDSOriginDetection)
 
-	ddav2DogStatsDMapperProfiles := ddav2DogStatsDUDSEnabled.DeepCopy()
-	ddav2DogStatsDMapperProfiles.Spec.Features.Dogstatsd.MapperProfiles = &v2alpha1.CustomConfig{ConfigData: &customMapperProfilesConf}
+	ddav2DogstatsdMapperProfiles := ddav2DogstatsdUDSEnabled.DeepCopy()
+	ddav2DogstatsdMapperProfiles.Spec.Features.Dogstatsd.MapperProfiles = &v2alpha1.CustomConfig{ConfigData: &customMapperProfilesConf}
+	v2alpha1.DefaultDatadogAgent(ddav2DogstatsdMapperProfiles)
 
 	// v1alpha1 default uds volume mount
 	wantVolumeMountsV1 := []corev1.VolumeMount{
 		{
-			Name:      apicommon.DogStatsDUDSSocketName,
-			MountPath: apicommon.DogStatsDUDSHostFilepathV1,
+			Name:      apicommon.DogstatsdUDSSocketName,
+			MountPath: apicommon.DogstatsdUDSHostFilepathV1,
 			ReadOnly:  true,
 		},
 	}
 	// v2alpha1 default uds volume mount
 	wantVolumeMountsV2 := []corev1.VolumeMount{
 		{
-			Name:      apicommon.DogStatsDUDSSocketName,
-			MountPath: apicommon.DogStatsDUDSHostFilepathV2,
+			Name:      apicommon.DogstatsdUDSSocketName,
+			MountPath: apicommon.DogstatsdUDSHostFilepathV2,
 			ReadOnly:  true,
 		},
 	}
@@ -104,10 +111,10 @@ func Test_DogStatsDFeature_Configure(t *testing.T) {
 	// v1alpha1 default uds volume
 	wantVolumesV1 := []corev1.Volume{
 		{
-			Name: apicommon.DogStatsDUDSSocketName,
+			Name: apicommon.DogstatsdUDSSocketName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: apicommon.DogStatsDUDSHostFilepathV1,
+					Path: apicommon.DogstatsdUDSHostFilepathV1,
 				},
 			},
 		},
@@ -116,10 +123,10 @@ func Test_DogStatsDFeature_Configure(t *testing.T) {
 	// v2alpha1 default uds volume
 	wantVolumesV2 := []corev1.Volume{
 		{
-			Name: apicommon.DogStatsDUDSSocketName,
+			Name: apicommon.DogstatsdUDSSocketName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: apicommon.DogStatsDUDSHostFilepathV2,
+					Path: apicommon.DogstatsdUDSHostFilepathV2,
 				},
 			},
 		},
@@ -128,7 +135,7 @@ func Test_DogStatsDFeature_Configure(t *testing.T) {
 	// default udp envvar
 	wantUDPEnvVars := []*corev1.EnvVar{
 		{
-			Name:  apicommon.DDDogStatsDNonLocalTraffic,
+			Name:  apicommon.DDDogstatsdNonLocalTraffic,
 			Value: "true",
 		},
 	}
@@ -136,16 +143,16 @@ func Test_DogStatsDFeature_Configure(t *testing.T) {
 	// v1alpha1 default uds envvar
 	wantUDSEnvVarsV1 := []*corev1.EnvVar{
 		{
-			Name:  apicommon.DDDogStatsDSocket,
-			Value: apicommon.DogStatsDUDSHostFilepathV1,
+			Name:  apicommon.DDDogstatsdSocket,
+			Value: apicommon.DogstatsdUDSHostFilepathV1,
 		},
 	}
 
 	// v2alpha1 default uds envvar
 	wantUDSEnvVarsV2 := []*corev1.EnvVar{
 		{
-			Name:  apicommon.DDDogStatsDSocket,
-			Value: apicommon.DogStatsDUDSHostFilepathV2,
+			Name:  apicommon.DDDogstatsdSocket,
+			Value: apicommon.DogstatsdUDSHostFilepathV2,
 		},
 	}
 
@@ -163,16 +170,25 @@ func Test_DogStatsDFeature_Configure(t *testing.T) {
 
 	// custom uds filepath envvar
 	customFilepathEnvVar := corev1.EnvVar{
-		Name:  apicommon.DDDogStatsDSocket,
+		Name:  apicommon.DDDogstatsdSocket,
 		Value: "/custom/host/filepath",
 	}
 
-	// default udp port
-	wantPorts := []*corev1.ContainerPort{
+	// v1alpha1 default udp port
+	wantPortsV1 := []*corev1.ContainerPort{
 		{
-			Name:          apicommon.DogStatsDHostPortName,
-			HostPort:      apicommon.DogStatsDHostPortHostPort,
-			ContainerPort: apicommon.DogStatsDHostPortHostPort,
+			Name:          apicommon.DogstatsdHostPortName,
+			ContainerPort: apicommon.DogstatsdHostPortHostPort,
+			Protocol:      corev1.ProtocolUDP,
+		},
+	}
+
+	// v2alpha1 default udp port
+	wantPortsV2 := []*corev1.ContainerPort{
+		{
+			Name:          apicommon.DogstatsdHostPortName,
+			HostPort:      apicommon.DogstatsdHostPortHostPort,
+			ContainerPort: apicommon.DogstatsdHostPortHostPort,
 			Protocol:      corev1.ProtocolUDP,
 		},
 	}
@@ -183,7 +199,7 @@ func Test_DogStatsDFeature_Configure(t *testing.T) {
 		///////////////////////////
 		{
 			Name:          "v1alpha1 dogstatsd udp enabled",
-			DDAv1:         ddav1DogStatsDEnabled.DeepCopy(),
+			DDAv1:         &ddav1DogstatsdEnabled,
 			WantConfigure: true,
 			Agent: &test.ComponentTest{
 				CreateFunc: createEmptyFakeManager,
@@ -196,13 +212,13 @@ func Test_DogStatsDFeature_Configure(t *testing.T) {
 					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantUDPEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantUDPEnvVars))
 					coreAgentPorts := mgr.PortMgr.PortsByC[apicommonv1.CoreAgentContainerName]
-					assert.True(t, apiutils.IsEqualStruct(coreAgentPorts, wantPorts), "Agent ports \ndiff = %s", cmp.Diff(coreAgentPorts, wantPorts))
+					assert.True(t, apiutils.IsEqualStruct(coreAgentPorts, wantPortsV1), "Agent ports \ndiff = %s", cmp.Diff(coreAgentPorts, wantPortsV1))
 				},
 			},
 		},
 		{
 			Name:          "v1alpha1 udp custom host port",
-			DDAv1:         ddav1DogStatsDCustomHostPort.DeepCopy(),
+			DDAv1:         ddav1DogstatsdCustomHostPort,
 			WantConfigure: true,
 			Agent: &test.ComponentTest{
 				CreateFunc: createEmptyFakeManager,
@@ -217,9 +233,9 @@ func Test_DogStatsDFeature_Configure(t *testing.T) {
 					coreAgentPorts := mgr.PortMgr.PortsByC[apicommonv1.CoreAgentContainerName]
 					customPorts := []*corev1.ContainerPort{
 						{
-							Name:          apicommon.DogStatsDHostPortName,
+							Name:          apicommon.DogstatsdHostPortName,
 							HostPort:      1234,
-							ContainerPort: apicommon.DogStatsDHostPortHostPort,
+							ContainerPort: apicommon.DogstatsdHostPortHostPort,
 							Protocol:      corev1.ProtocolUDP,
 						},
 					}
@@ -229,7 +245,7 @@ func Test_DogStatsDFeature_Configure(t *testing.T) {
 		},
 		{
 			Name:          "v1alpha1 udp origin detection enabled",
-			DDAv1:         ddav1DogStatsDUDPOriginDetection.DeepCopy(),
+			DDAv1:         ddav1DogstatsdUDPOriginDetection.DeepCopy(),
 			WantConfigure: true,
 			Agent: &test.ComponentTest{
 				CreateFunc: createEmptyFakeManager,
@@ -243,13 +259,13 @@ func Test_DogStatsDFeature_Configure(t *testing.T) {
 					customEnvVars := append(wantUDPEnvVars, &originDetectionEnvVar)
 					assert.True(t, apiutils.IsEqualStruct(agentEnvVars, customEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, customEnvVars))
 					coreAgentPorts := mgr.PortMgr.PortsByC[apicommonv1.CoreAgentContainerName]
-					assert.True(t, apiutils.IsEqualStruct(coreAgentPorts, wantPorts), "Agent ports \ndiff = %s", cmp.Diff(coreAgentPorts, wantPorts))
+					assert.True(t, apiutils.IsEqualStruct(coreAgentPorts, wantPortsV1), "Agent ports \ndiff = %s", cmp.Diff(coreAgentPorts, wantPortsV1))
 				},
 			},
 		},
 		{
 			Name:          "v1alpha1 uds enabled",
-			DDAv1:         ddav1DogStatsDUDSEnabled.DeepCopy(),
+			DDAv1:         ddav1DogstatsdUDSEnabled.DeepCopy(),
 			WantConfigure: true,
 			Agent: &test.ComponentTest{
 				CreateFunc: createEmptyFakeManager,
@@ -263,13 +279,13 @@ func Test_DogStatsDFeature_Configure(t *testing.T) {
 					customEnvVars := append(wantUDPEnvVars, wantUDSEnvVarsV1...)
 					assert.True(t, apiutils.IsEqualStruct(agentEnvVars, customEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, customEnvVars))
 					coreAgentPorts := mgr.PortMgr.PortsByC[apicommonv1.CoreAgentContainerName]
-					assert.True(t, apiutils.IsEqualStruct(coreAgentPorts, wantPorts), "Agent ports \ndiff = %s", cmp.Diff(coreAgentPorts, wantPorts))
+					assert.True(t, apiutils.IsEqualStruct(coreAgentPorts, wantPortsV1), "Agent ports \ndiff = %s", cmp.Diff(coreAgentPorts, wantPortsV1))
 				},
 			},
 		},
 		{
 			Name:          "v1alpha1 uds custom host filepath",
-			DDAv1:         ddav1DogStatsDUDSCustomHostFilepath,
+			DDAv1:         ddav1DogstatsdUDSCustomHostFilepath,
 			WantConfigure: true,
 			Agent: &test.ComponentTest{
 				CreateFunc: createEmptyFakeManager,
@@ -278,7 +294,7 @@ func Test_DogStatsDFeature_Configure(t *testing.T) {
 					coreAgentVolumeMounts := mgr.VolumeMgr.VolumeMountByC[apicommonv1.CoreAgentContainerName]
 					customVolumeMounts := []corev1.VolumeMount{
 						{
-							Name:      apicommon.DogStatsDUDSSocketName,
+							Name:      apicommon.DogstatsdUDSSocketName,
 							MountPath: "/custom/host/filepath",
 							ReadOnly:  true,
 						},
@@ -287,7 +303,7 @@ func Test_DogStatsDFeature_Configure(t *testing.T) {
 					volumes := mgr.VolumeMgr.Volumes
 					customVolumes := []corev1.Volume{
 						{
-							Name: apicommon.DogStatsDUDSSocketName,
+							Name: apicommon.DogstatsdUDSSocketName,
 							VolumeSource: corev1.VolumeSource{
 								HostPath: &corev1.HostPathVolumeSource{
 									Path: "/custom/host/filepath",
@@ -300,13 +316,13 @@ func Test_DogStatsDFeature_Configure(t *testing.T) {
 					customEnvVars := append(wantUDPEnvVars, &customFilepathEnvVar)
 					assert.True(t, apiutils.IsEqualStruct(agentEnvVars, customEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, customEnvVars))
 					coreAgentPorts := mgr.PortMgr.PortsByC[apicommonv1.CoreAgentContainerName]
-					assert.True(t, apiutils.IsEqualStruct(coreAgentPorts, wantPorts), "Agent ports \ndiff = %s", cmp.Diff(coreAgentPorts, wantPorts))
+					assert.True(t, apiutils.IsEqualStruct(coreAgentPorts, wantPortsV1), "Agent ports \ndiff = %s", cmp.Diff(coreAgentPorts, wantPortsV1))
 				},
 			},
 		},
 		{
 			Name:          "v1alpha1 uds origin detection",
-			DDAv1:         ddav1DogStatsDUDSOriginDetection,
+			DDAv1:         ddav1DogstatsdUDSOriginDetection,
 			WantConfigure: true,
 			Agent: &test.ComponentTest{
 				CreateFunc: createEmptyFakeManager,
@@ -321,14 +337,14 @@ func Test_DogStatsDFeature_Configure(t *testing.T) {
 					customEnvVars = append(customEnvVars, &originDetectionEnvVar)
 					assert.True(t, apiutils.IsEqualStruct(agentEnvVars, customEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, customEnvVars))
 					coreAgentPorts := mgr.PortMgr.PortsByC[apicommonv1.CoreAgentContainerName]
-					assert.True(t, apiutils.IsEqualStruct(coreAgentPorts, wantPorts), "Agent ports \ndiff = %s", cmp.Diff(coreAgentPorts, wantPorts))
+					assert.True(t, apiutils.IsEqualStruct(coreAgentPorts, wantPortsV1), "Agent ports \ndiff = %s", cmp.Diff(coreAgentPorts, wantPortsV1))
 					assert.True(t, mgr.Tpl.Spec.HostPID, "Host PID \ndiff = %s", cmp.Diff(mgr.Tpl.Spec.HostPID, true))
 				},
 			},
 		},
 		{
 			Name:          "v1alpha1 mapper profiles",
-			DDAv1:         ddav1DogStatsDMapperProfiles,
+			DDAv1:         ddav1DogstatsdMapperProfiles,
 			WantConfigure: true,
 			Agent: &test.ComponentTest{
 				CreateFunc: createEmptyFakeManager,
@@ -343,7 +359,7 @@ func Test_DogStatsDFeature_Configure(t *testing.T) {
 					customEnvVars = append(customEnvVars, &mapperProfilesEnvVar)
 					assert.True(t, apiutils.IsEqualStruct(agentEnvVars, customEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, customEnvVars))
 					coreAgentPorts := mgr.PortMgr.PortsByC[apicommonv1.CoreAgentContainerName]
-					assert.True(t, apiutils.IsEqualStruct(coreAgentPorts, wantPorts), "Agent ports \ndiff = %s", cmp.Diff(coreAgentPorts, wantPorts))
+					assert.True(t, apiutils.IsEqualStruct(coreAgentPorts, wantPortsV1), "Agent ports \ndiff = %s", cmp.Diff(coreAgentPorts, wantPortsV1))
 				},
 			},
 		},
@@ -352,7 +368,7 @@ func Test_DogStatsDFeature_Configure(t *testing.T) {
 		///////////////////////////
 		{
 			Name:          "v2alpha1 dogstatsd udp enabled",
-			DDAv2:         ddav2DogStatsDEnabled.DeepCopy(),
+			DDAv2:         ddav2DogstatsdEnabled,
 			WantConfigure: true,
 			Agent: &test.ComponentTest{
 				CreateFunc: createEmptyFakeManager,
@@ -365,13 +381,13 @@ func Test_DogStatsDFeature_Configure(t *testing.T) {
 					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantUDPEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantUDPEnvVars))
 					coreAgentPorts := mgr.PortMgr.PortsByC[apicommonv1.CoreAgentContainerName]
-					assert.True(t, apiutils.IsEqualStruct(coreAgentPorts, wantPorts), "Agent ports \ndiff = %s", cmp.Diff(coreAgentPorts, wantPorts))
+					assert.True(t, apiutils.IsEqualStruct(coreAgentPorts, wantPortsV2), "Agent ports \ndiff = %s", cmp.Diff(coreAgentPorts, wantPortsV2))
 				},
 			},
 		},
 		{
 			Name:          "v2alpha1 udp custom host port",
-			DDAv2:         ddav2DogStatsDCustomHostPort.DeepCopy(),
+			DDAv2:         ddav2DogstatsdCustomHostPort.DeepCopy(),
 			WantConfigure: true,
 			Agent: &test.ComponentTest{
 				CreateFunc: createEmptyFakeManager,
@@ -386,9 +402,9 @@ func Test_DogStatsDFeature_Configure(t *testing.T) {
 					coreAgentPorts := mgr.PortMgr.PortsByC[apicommonv1.CoreAgentContainerName]
 					customPorts := []*corev1.ContainerPort{
 						{
-							Name:          apicommon.DogStatsDHostPortName,
+							Name:          apicommon.DogstatsdHostPortName,
 							HostPort:      1234,
-							ContainerPort: apicommon.DogStatsDHostPortHostPort,
+							ContainerPort: apicommon.DogstatsdHostPortHostPort,
 							Protocol:      corev1.ProtocolUDP,
 						},
 					}
@@ -398,7 +414,7 @@ func Test_DogStatsDFeature_Configure(t *testing.T) {
 		},
 		{
 			Name:          "v2alpha1 udp origin detection enabled",
-			DDAv2:         ddav2DogStatsDUDPOriginDetection.DeepCopy(),
+			DDAv2:         ddav2DogstatsdUDPOriginDetection.DeepCopy(),
 			WantConfigure: true,
 			Agent: &test.ComponentTest{
 				CreateFunc: createEmptyFakeManager,
@@ -412,13 +428,13 @@ func Test_DogStatsDFeature_Configure(t *testing.T) {
 					customEnvVars := append(wantUDPEnvVars, &originDetectionEnvVar)
 					assert.True(t, apiutils.IsEqualStruct(agentEnvVars, customEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, customEnvVars))
 					coreAgentPorts := mgr.PortMgr.PortsByC[apicommonv1.CoreAgentContainerName]
-					assert.True(t, apiutils.IsEqualStruct(coreAgentPorts, wantPorts), "Agent ports \ndiff = %s", cmp.Diff(coreAgentPorts, wantPorts))
+					assert.True(t, apiutils.IsEqualStruct(coreAgentPorts, wantPortsV2), "Agent ports \ndiff = %s", cmp.Diff(coreAgentPorts, wantPortsV2))
 				},
 			},
 		},
 		{
 			Name:          "v2alpha1 uds enabled",
-			DDAv2:         ddav2DogStatsDUDSEnabled.DeepCopy(),
+			DDAv2:         ddav2DogstatsdUDSEnabled.DeepCopy(),
 			WantConfigure: true,
 			Agent: &test.ComponentTest{
 				CreateFunc: createEmptyFakeManager,
@@ -437,7 +453,7 @@ func Test_DogStatsDFeature_Configure(t *testing.T) {
 		},
 		{
 			Name:          "v2alpha1 uds custom host filepath",
-			DDAv2:         ddav2DogStatsDUDSCustomHostFilepath,
+			DDAv2:         ddav2DogstatsdUDSCustomHostFilepath,
 			WantConfigure: true,
 			Agent: &test.ComponentTest{
 				CreateFunc: createEmptyFakeManager,
@@ -446,7 +462,7 @@ func Test_DogStatsDFeature_Configure(t *testing.T) {
 					coreAgentVolumeMounts := mgr.VolumeMgr.VolumeMountByC[apicommonv1.CoreAgentContainerName]
 					customVolumeMounts := []corev1.VolumeMount{
 						{
-							Name:      apicommon.DogStatsDUDSSocketName,
+							Name:      apicommon.DogstatsdUDSSocketName,
 							MountPath: "/custom/host/filepath",
 							ReadOnly:  true,
 						},
@@ -455,7 +471,7 @@ func Test_DogStatsDFeature_Configure(t *testing.T) {
 					volumes := mgr.VolumeMgr.Volumes
 					customVolumes := []corev1.Volume{
 						{
-							Name: apicommon.DogStatsDUDSSocketName,
+							Name: apicommon.DogstatsdUDSSocketName,
 							VolumeSource: corev1.VolumeSource{
 								HostPath: &corev1.HostPathVolumeSource{
 									Path: "/custom/host/filepath",
@@ -474,7 +490,7 @@ func Test_DogStatsDFeature_Configure(t *testing.T) {
 		},
 		{
 			Name:          "v2alpha1 uds origin detection",
-			DDAv2:         ddav2DogStatsDUDSOriginDetection,
+			DDAv2:         ddav2DogstatsdUDSOriginDetection,
 			WantConfigure: true,
 			Agent: &test.ComponentTest{
 				CreateFunc: createEmptyFakeManager,
@@ -495,7 +511,7 @@ func Test_DogStatsDFeature_Configure(t *testing.T) {
 		},
 		{
 			Name:          "v2alpha1 mapper profiles",
-			DDAv2:         ddav2DogStatsDMapperProfiles,
+			DDAv2:         ddav2DogstatsdMapperProfiles,
 			WantConfigure: true,
 			Agent: &test.ComponentTest{
 				CreateFunc: createEmptyFakeManager,
@@ -515,5 +531,5 @@ func Test_DogStatsDFeature_Configure(t *testing.T) {
 		},
 	}
 
-	tests.Run(t, buildDogStatsDFeature)
+	tests.Run(t, buildDogstatsdFeature)
 }

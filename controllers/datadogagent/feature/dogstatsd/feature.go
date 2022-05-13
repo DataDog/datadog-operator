@@ -11,7 +11,6 @@ import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
-	"sigs.k8s.io/yaml"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
@@ -20,19 +19,19 @@ import (
 )
 
 func init() {
-	err := feature.Register(feature.DogStatsDIDType, buildDogStatsDFeature)
+	err := feature.Register(feature.DogstatsdIDType, buildDogstatsdFeature)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func buildDogStatsDFeature(options *feature.Options) feature.Feature {
-	dogStatsDFeat := &dogStatsDFeature{}
+func buildDogstatsdFeature(options *feature.Options) feature.Feature {
+	dogstatsdFeat := &dogstatsdFeature{}
 
-	return dogStatsDFeat
+	return dogstatsdFeat
 }
 
-type dogStatsDFeature struct {
+type dogstatsdFeature struct {
 	hostPortEnabled  bool
 	hostPortHostPort int32
 
@@ -44,12 +43,10 @@ type dogStatsDFeature struct {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *dogStatsDFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
+func (f *dogstatsdFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	dogstatsd := dda.Spec.Features.Dogstatsd
 	if apiutils.BoolValue(dogstatsd.HostPortConfig.Enabled) {
 		f.hostPortEnabled = true
-	}
-	if dogstatsd.HostPortConfig.Port != nil {
 		f.hostPortHostPort = *dogstatsd.HostPortConfig.Port
 	}
 	if apiutils.BoolValue(dogstatsd.UnixDomainSocketConfig.Enabled) {
@@ -64,6 +61,7 @@ func (f *dogStatsDFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp featur
 	}
 	reqComp = feature.RequiredComponents{
 		Agent: feature.RequiredComponent{
+			IsRequired: f.isDogstatsdEnabled(),
 			Containers: []apicommonv1.AgentContainerName{
 				apicommonv1.CoreAgentContainerName,
 			},
@@ -73,7 +71,7 @@ func (f *dogStatsDFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp featur
 }
 
 // ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
-func (f *dogStatsDFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
+func (f *dogstatsdFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	config := dda.Spec.Agent.Config
 	f.hostPortEnabled = true
 	if config.HostPort != nil {
@@ -93,6 +91,7 @@ func (f *dogStatsDFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feat
 	}
 	reqComp = feature.RequiredComponents{
 		Agent: feature.RequiredComponent{
+			IsRequired: &f.hostPortEnabled,
 			Containers: []apicommonv1.AgentContainerName{
 				apicommonv1.CoreAgentContainerName,
 			},
@@ -103,63 +102,60 @@ func (f *dogStatsDFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feat
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *dogStatsDFeature) ManageDependencies(managers feature.ResourceManagers) error {
+func (f *dogstatsdFeature) ManageDependencies(managers feature.ResourceManagers) error {
 	return nil
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *dogStatsDFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+func (f *dogstatsdFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	return nil
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *dogStatsDFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+func (f *dogstatsdFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	// udp
 	if f.hostPortEnabled {
+		// f.hostPortHostPort will be 0 if not set in v1alpha1
+		// f.hostPortHostPort will default to 8125 in v2alpha1
 		if f.hostPortHostPort != 0 {
 			managers.Port().AddPortToContainer(apicommonv1.CoreAgentContainerName, &corev1.ContainerPort{
-				Name:          apicommon.DogStatsDHostPortName,
+				Name:          apicommon.DogstatsdHostPortName,
 				HostPort:      f.hostPortHostPort,
-				ContainerPort: apicommon.DogStatsDHostPortHostPort,
+				ContainerPort: apicommon.DogstatsdHostPortHostPort,
 				Protocol:      corev1.ProtocolUDP,
 			})
 		} else {
+			// do not set HostPort if not explicitly set (only for v1alpha1)
 			managers.Port().AddPortToContainer(apicommonv1.CoreAgentContainerName, &corev1.ContainerPort{
-				Name:          apicommon.DogStatsDHostPortName,
-				HostPort:      apicommon.DogStatsDHostPortHostPort,
-				ContainerPort: apicommon.DogStatsDHostPortHostPort,
+				Name:          apicommon.DogstatsdHostPortName,
+				ContainerPort: apicommon.DogstatsdHostPortHostPort,
 				Protocol:      corev1.ProtocolUDP,
 			})
 		}
 		managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDDogStatsDNonLocalTraffic,
+			Name:  apicommon.DDDogstatsdNonLocalTraffic,
 			Value: "true",
 		})
-		// only add if uds origin detection is not enabled to prevent duplicates
-		if f.originDetectionEnabled && !f.udsEnabled {
-			managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
-				Name:  apicommon.DDDogstatsdOriginDetection,
-				Value: "true",
-			})
-		}
 	}
 
 	// uds
 	if f.udsEnabled {
-		socketVol, socketVolMount := volume.GetVolumes(apicommon.DogStatsDUDSSocketName, f.udsHostFilepath, f.udsHostFilepath, apicommon.DogStatsDUDSHostFilepathReadOnly)
+		socketVol, socketVolMount := volume.GetVolumes(apicommon.DogstatsdUDSSocketName, f.udsHostFilepath, f.udsHostFilepath, true)
 		managers.Volume().AddVolumeToContainer(&socketVol, &socketVolMount, apicommonv1.CoreAgentContainerName)
 		managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDDogStatsDSocket,
+			Name:  apicommon.DDDogstatsdSocket,
 			Value: f.udsHostFilepath,
 		})
-		if f.originDetectionEnabled {
-			managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
-				Name:  apicommon.DDDogstatsdOriginDetection,
-				Value: "true",
-			})
-			// set hostPID
+	}
+
+	if f.originDetectionEnabled {
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
+			Name:  apicommon.DDDogstatsdOriginDetection,
+			Value: "true",
+		})
+		if f.udsEnabled {
 			managers.PodTemplateSpec().Spec.HostPID = true
 		}
 	}
@@ -168,12 +164,10 @@ func (f *dogStatsDFeature) ManageNodeAgent(managers feature.PodTemplateManagers)
 	if f.mapperProfiles != nil {
 		// configdata
 		if f.mapperProfiles.ConfigData != nil {
-			if jsonValue, err := yaml.YAMLToJSON([]byte(*f.mapperProfiles.ConfigData)); err == nil {
-				managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
-					Name:  apicommon.DDDogstatsdMapperProfiles,
-					Value: string(jsonValue),
-				})
-			}
+			managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
+				Name:  apicommon.DDDogstatsdMapperProfiles,
+				Value: apiutils.YAMLToJSONString(*f.mapperProfiles.ConfigData),
+			})
 			// ignore configmap if configdata is set
 			return nil
 		}
@@ -188,11 +182,17 @@ func (f *dogStatsDFeature) ManageNodeAgent(managers feature.PodTemplateManagers)
 			})
 		}
 	}
+
 	return nil
 }
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *dogStatsDFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
+func (f *dogstatsdFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	return nil
+}
+
+func (f *dogstatsdFeature) isDogstatsdEnabled() *bool {
+	enabled := f.hostPortEnabled || f.udsEnabled
+	return &enabled
 }
