@@ -17,6 +17,8 @@ const (
 	LogCollectionIDType
 	// NPMIDType NPM feature.
 	NPMIDType
+	// USMIDType USM feature.
+	USMIDType
 	// OOMKillIDType OOM Kill check feature
 	OOMKillIDType
 	// TCPQueueLengthIDType TCP Queue length check feature
