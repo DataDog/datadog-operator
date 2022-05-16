@@ -64,9 +64,12 @@ func (rc *RequiredComponent) Merge(in *RequiredComponent) *RequiredComponent {
 	return rc
 }
 
+const (
+	trueValue  bool = true
+	falseValue bool = false
+)
+
 func merge(a, b *bool) *bool {
-	trueValue := true
-	falseValue := false
 	if a == nil && b == nil {
 		return nil
 	} else if a == nil && b != nil {
@@ -75,9 +78,13 @@ func merge(a, b *bool) *bool {
 		return a
 	}
 	if !apiutils.BoolValue(a) || !apiutils.BoolValue(b) {
-		return &falseValue
+		return newBoolPointer(falseValue)
 	}
-	return &trueValue
+	return newBoolPointer(trueValue)
+}
+
+func newBoolPointer(v bool) *bool {
+	return &v
 }
 
 func mergeSlices(a, b []apicommonv1.AgentContainerName) []apicommonv1.AgentContainerName {

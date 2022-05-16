@@ -19,21 +19,21 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, features []feature.Fea
 
 	// Start by creating the Default Cluster-Agent deployment
 	daemonset := componentagent.NewDefaultAgentDaemonset(dda)
+	podManagers := feature.NewPodTemplateManagers(&daemonset.Spec.Template)
 
 	// Set Global setting on the default deployment
-	daemonset.Spec.Template = *override.ApplyGlobalSettings(&daemonset.Spec.Template, dda.Spec.Global)
+	daemonset.Spec.Template = *override.ApplyGlobalSettings(podManagers, dda.Spec.Global)
 
 	// Apply features changes on the Deployment.Spec.Template
 	for _, feat := range features {
-		podManager := feature.NewPodTemplateManagers(&daemonset.Spec.Template)
-		if errFeat := feat.ManageNodeAgent(podManager); errFeat != nil {
+		if errFeat := feat.ManageNodeAgent(podManagers); errFeat != nil {
 			return result, errFeat
 		}
 	}
 
 	// If Override is define for the cluster-check-runner component, apply the override on the PodTemplateSpec, it will cascade to container.
 	if _, ok := dda.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName]; ok {
-		_, err = override.PodTemplateSpec(&daemonset.Spec.Template, dda.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName])
+		_, err = override.PodTemplateSpec(podManagers, dda.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName])
 		if err != nil {
 			return result, err
 		}
@@ -43,7 +43,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, features []feature.Fea
 	return r.createOrUpdateDaemonset(daemonsetLogger, dda, daemonset, newStatus, updateStatusV2WithAgent)
 }
 
-func updateStatusV2WithAgent(newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, message string) {
+func updateStatusV2WithAgent(newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
 	// TODO(operator-ga): update status with DCA deployment information
-	datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(newStatus, updateTime, datadoghqv2alpha1.ClusterCheckRunnerReconcileConditionType, status, message, true)
+	datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(newStatus, updateTime, datadoghqv2alpha1.AgentReconcileConditionType, status, reason, message, true)
 }

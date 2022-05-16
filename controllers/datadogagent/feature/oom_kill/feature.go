@@ -50,7 +50,7 @@ func (f *oomKillFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.
 
 // ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
 func (f *oomKillFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	if dda.Spec.Agent.SystemProbe != nil && *dda.Spec.Agent.SystemProbe.EnableOOMKill {
+	if dda.Spec.Agent.SystemProbe != nil && apiutils.BoolValue(dda.Spec.Agent.SystemProbe.EnableOOMKill) {
 		f.enable = true
 		reqComp.Agent = feature.RequiredComponent{
 			IsRequired: &f.enable,

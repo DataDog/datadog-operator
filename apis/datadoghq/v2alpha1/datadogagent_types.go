@@ -836,6 +836,7 @@ type DatadogAgentGenericContainer struct {
 // +k8s:openapi-gen=true
 type DatadogAgentStatus struct {
 	// Conditions Represents the latest available observations of a DatadogAgent's current state.
+	// +optional
 	// +listType=map
 	// +listMapKey=type
 	Conditions []metav1.Condition `json:"conditions"`

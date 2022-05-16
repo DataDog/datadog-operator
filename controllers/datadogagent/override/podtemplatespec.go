@@ -10,16 +10,17 @@ import (
 	"k8s.io/apimachinery/pkg/util/errors"
 
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 )
 
 // PodTemplateSpec use to override a corev1.PodTemplateSpec with a 2alpha1.DatadogAgentPodTemplateOverride.
-func PodTemplateSpec(podTemplateSpec *corev1.PodTemplateSpec, override *v2alpha1.DatadogAgentComponentOverride) (*corev1.PodTemplateSpec, error) {
+func PodTemplateSpec(manager feature.PodTemplateManagers, override *v2alpha1.DatadogAgentComponentOverride) (*corev1.PodTemplateSpec, error) {
 	// TODO(operator-ga): implement OverridePodTemplate
 
 	var errs []error
 	// Loop over container
 	for _, container := range override.Containers {
-		if _, err := Container(podTemplateSpec, container); err != nil {
+		if _, err := Container(manager, container); err != nil {
 			errs = append(errs, err)
 		}
 	}

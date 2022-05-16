@@ -20,6 +20,13 @@ func NewDefaultClusterAgentDeployment(dda metav1.Object) *appsv1.Deployment {
 	deployment := component.NewDeployment(dda, apicommon.DefaultClusterAgentResourceSuffix, component.GetClusterAgentName(dda), component.GetClusterAgentVersion(dda), nil)
 
 	podTemplate := NewDefaultClusterAgentPodTemplateSpec(dda)
+	for key, val := range deployment.GetLabels() {
+		podTemplate.Labels[key] = val
+	}
+
+	for key, val := range deployment.GetAnnotations() {
+		podTemplate.Annotations[key] = val
+	}
 	deployment.Spec.Template = *podTemplate
 	deployment.Spec.Replicas = apiutils.NewInt32Pointer(apicommon.DefaultClusterAgentReplicas)
 

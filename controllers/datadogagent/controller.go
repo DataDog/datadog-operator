@@ -31,8 +31,13 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 
-	// Use to register the ksm core feature
+	// Use to register features
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/dummy"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/enabledefault"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/kubernetesstatecore"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/npm"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/oom_kill"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/tcp_queue_length"
 )
 
 const (

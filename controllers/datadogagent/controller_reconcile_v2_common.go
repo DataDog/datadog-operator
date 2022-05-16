@@ -18,7 +18,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-type updateStatusComponentFunc func(newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, message string)
+type updateStatusComponentFunc func(newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string)
 
 func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, deployment *appsv1.Deployment, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateStatusFunc updateStatusComponentFunc) (reconcile.Result, error) {
 	logger := parentLogger.WithValues("deployment.Namespace", deployment.Namespace, "deployment.Name", deployment.Name)
@@ -62,6 +62,8 @@ func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, dda *dat
 		needUpdate := !comparison.IsSameSpecMD5Hash(hash, currentDeployment.GetAnnotations())
 		if !needUpdate {
 			// no need to update to stop here the process
+			now := metav1.NewTime(time.Now())
+			updateStatusFunc(newStatus, now, metav1.ConditionTrue, "deployment_up_to_date", "Deployment up-to-date")
 			return reconcile.Result{}, nil
 		}
 
@@ -81,22 +83,23 @@ func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, dda *dat
 		now := metav1.NewTime(time.Now())
 		err = kubernetes.UpdateFromObject(context.TODO(), r.client, updateDeployment, currentDeployment.ObjectMeta)
 		if err != nil {
+			updateStatusFunc(newStatus, now, metav1.ConditionFalse, "create_failed", "Unable to Update Deployment")
 			return reconcile.Result{}, err
 		}
 		event := buildEventInfo(updateDeployment.Name, updateDeployment.Namespace, deploymentKind, datadog.UpdateEvent)
 		r.recordEvent(dda, event)
-		updateStatusFunc(newStatus, now, metav1.ConditionTrue, "Deployment updated")
+		updateStatusFunc(newStatus, now, metav1.ConditionTrue, "deployment_updated", "Deployment updated")
 	} else {
 		now := metav1.NewTime(time.Now())
 
 		err = r.client.Create(context.TODO(), deployment)
 		if err != nil {
-			updateStatusFunc(newStatus, now, metav1.ConditionFalse, "Unable to create Deployment")
+			updateStatusFunc(newStatus, now, metav1.ConditionFalse, "create_failed", "Unable to create Deployment")
 			return reconcile.Result{}, err
 		}
 		event := buildEventInfo(deployment.Name, deployment.Namespace, deploymentKind, datadog.CreationEvent)
 		r.recordEvent(dda, event)
-		updateStatusFunc(newStatus, now, metav1.ConditionTrue, "Deployment created")
+		updateStatusFunc(newStatus, now, metav1.ConditionTrue, "create_succeed", "Deployment created")
 	}
 
 	logger.Info("Creating Deployment")
@@ -149,7 +152,7 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 			return reconcile.Result{}, nil
 		}
 
-		logger.Info("Updating Deployment")
+		logger.Info("Updating Daemonset")
 
 		// TODO: these parameter can be added to the override.PodTemplateSpec. (it exist in v1alpha)
 		keepAnnotationsFilter := ""
@@ -168,18 +171,18 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 		}
 		event := buildEventInfo(updateDaemonset.Name, updateDaemonset.Namespace, deploymentKind, datadog.UpdateEvent)
 		r.recordEvent(dda, event)
-		updateStatusFunc(newStatus, now, metav1.ConditionTrue, "Daemonset updated")
+		updateStatusFunc(newStatus, now, metav1.ConditionTrue, "Daemonset_updated", "Daemonset updated")
 	} else {
 		now := metav1.NewTime(time.Now())
 
 		err = r.client.Create(context.TODO(), daemonset)
 		if err != nil {
-			updateStatusFunc(newStatus, now, metav1.ConditionFalse, "Unable to create Daemonset")
+			updateStatusFunc(newStatus, now, metav1.ConditionFalse, "create_failed", "Unable to create Daemonset")
 			return reconcile.Result{}, err
 		}
 		event := buildEventInfo(daemonset.Name, daemonset.Namespace, daemonSetKind, datadog.CreationEvent)
 		r.recordEvent(dda, event)
-		updateStatusFunc(newStatus, now, metav1.ConditionTrue, "Daemonset created")
+		updateStatusFunc(newStatus, now, metav1.ConditionTrue, "create_success", "Daemonset created")
 	}
 
 	logger.Info("Creating Daemonset")

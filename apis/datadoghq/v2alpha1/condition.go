@@ -7,33 +7,34 @@ import (
 )
 
 // UpdateDatadogAgentStatusConditionsFailure used to update the failure StatusConditions
-func UpdateDatadogAgentStatusConditionsFailure(status *DatadogAgentStatus, now metav1.Time, conditionType string, err error) {
+func UpdateDatadogAgentStatusConditionsFailure(status *DatadogAgentStatus, now metav1.Time, conditionType, reason, message string, err error) {
 	if err != nil {
-		UpdateDatadogAgentStatusConditions(status, now, conditionType, metav1.ConditionTrue, fmt.Sprintf("%v", err), false)
+		UpdateDatadogAgentStatusConditions(status, now, conditionType, metav1.ConditionTrue, reason, fmt.Sprintf("msg:%s, err:%v", message, err), true)
 	} else {
-		UpdateDatadogAgentStatusConditions(status, now, conditionType, metav1.ConditionFalse, "", false)
+		UpdateDatadogAgentStatusConditions(status, now, conditionType, metav1.ConditionFalse, reason, message, true)
 	}
 }
 
 // UpdateDatadogAgentStatusConditions used to update a specific string in conditions
-func UpdateDatadogAgentStatusConditions(status *DatadogAgentStatus, now metav1.Time, t string, conditionStatus metav1.ConditionStatus, desc string, writeFalseIfNotExist bool) {
+func UpdateDatadogAgentStatusConditions(status *DatadogAgentStatus, now metav1.Time, t string, conditionStatus metav1.ConditionStatus, reason, message string, writeFalseIfNotExist bool) {
 	idConditionComplete := getIndexForConditionType(status, t)
 	if idConditionComplete >= 0 {
-		UpdateDatadogAgentStatusCondition(status.Conditions[idConditionComplete], now, t, conditionStatus, desc)
+		UpdateDatadogAgentStatusCondition(status.Conditions[idConditionComplete], now, t, conditionStatus, reason, message)
 	} else if conditionStatus == metav1.ConditionTrue || writeFalseIfNotExist {
 		// Only add if the condition is True
-		status.Conditions = append(status.Conditions, NewDatadogAgentStatusCondition(t, conditionStatus, now, "", desc))
+		status.Conditions = append(status.Conditions, NewDatadogAgentStatusCondition(t, conditionStatus, now, reason, message))
 	}
 }
 
 // UpdateDatadogAgentStatusCondition used to update a specific string
-func UpdateDatadogAgentStatusCondition(condition metav1.Condition, now metav1.Time, t string, conditionStatus metav1.ConditionStatus, desc string) metav1.Condition {
+func UpdateDatadogAgentStatusCondition(condition metav1.Condition, now metav1.Time, t string, conditionStatus metav1.ConditionStatus, reason, message string) metav1.Condition {
 	if condition.Status != conditionStatus {
 		condition.LastTransitionTime = now
 		condition.Status = conditionStatus
 	}
 	condition.LastTransitionTime = now
-	condition.Message = desc
+	condition.Message = message
+	condition.Reason = reason
 
 	return condition
 }

@@ -17,21 +17,21 @@ func (r *Reconciler) reconcileV2ClusterCheckRunner(logger logr.Logger, features 
 
 	// Start by creating the Default Cluster-Agent deployment
 	deployment := componentclc.NewDefaultClusterCheckRunnerDeployment(dda)
+	podManagers := feature.NewPodTemplateManagers(&deployment.Spec.Template)
 
 	// Set Global setting on the default deployment
-	deployment.Spec.Template = *override.ApplyGlobalSettings(&deployment.Spec.Template, dda.Spec.Global)
+	deployment.Spec.Template = *override.ApplyGlobalSettings(podManagers, dda.Spec.Global)
 
 	// Apply features changes on the Deployment.Spec.Template
 	for _, feat := range features {
-		podManager := feature.NewPodTemplateManagers(&deployment.Spec.Template)
-		if errFeat := feat.ManageClusterChecksRunner(podManager); errFeat != nil {
+		if errFeat := feat.ManageClusterChecksRunner(podManagers); errFeat != nil {
 			return result, errFeat
 		}
 	}
 
 	// If Override is define for the cluster-check-runner component, apply the override on the PodTemplateSpec, it will cascade to container.
 	if _, ok := dda.Spec.Override[datadoghqv2alpha1.ClusterChecksRunnerComponentName]; ok {
-		_, err = override.PodTemplateSpec(&deployment.Spec.Template, dda.Spec.Override[datadoghqv2alpha1.ClusterChecksRunnerComponentName])
+		_, err = override.PodTemplateSpec(podManagers, dda.Spec.Override[datadoghqv2alpha1.ClusterChecksRunnerComponentName])
 		if err != nil {
 			return result, err
 		}
@@ -41,7 +41,7 @@ func (r *Reconciler) reconcileV2ClusterCheckRunner(logger logr.Logger, features 
 	return r.createOrUpdateDeployment(deploymentLogger, dda, deployment, newStatus, updateStatusV2WithClusterCheckRunner)
 }
 
-func updateStatusV2WithClusterCheckRunner(newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, message string) {
+func updateStatusV2WithClusterCheckRunner(newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
 	// TODO(operator-ga): update status with DCA deployment information
-	datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(newStatus, updateTime, datadoghqv2alpha1.ClusterCheckRunnerReconcileConditionType, status, message, true)
+	datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(newStatus, updateTime, datadoghqv2alpha1.ClusterCheckRunnerReconcileConditionType, status, reason, message, true)
 }

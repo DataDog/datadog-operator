@@ -17,21 +17,21 @@ func (r *Reconciler) reconcileV2ClusterAgent(logger logr.Logger, features []feat
 
 	// Start by creating the Default Cluster-Agent deployment
 	deployment := componentdca.NewDefaultClusterAgentDeployment(dda)
+	podManagers := feature.NewPodTemplateManagers(&deployment.Spec.Template)
 
 	// Set Global setting on the default deployment
-	deployment.Spec.Template = *override.ApplyGlobalSettings(&deployment.Spec.Template, dda.Spec.Global)
+	deployment.Spec.Template = *override.ApplyGlobalSettings(podManagers, dda.Spec.Global)
 
 	// Apply features changes on the Deployment.Spec.Template
 	for _, feat := range features {
-		podManager := feature.NewPodTemplateManagers(&deployment.Spec.Template)
-		if errFeat := feat.ManageClusterAgent(podManager); errFeat != nil {
+		if errFeat := feat.ManageClusterAgent(podManagers); errFeat != nil {
 			return result, errFeat
 		}
 	}
 
 	// If Override is define for the cluster-agent component, apply the override on the PodTemplateSpec, it will cascade to container.
 	if _, ok := dda.Spec.Override[datadoghqv2alpha1.ClusterAgentComponentName]; ok {
-		_, err = override.PodTemplateSpec(&deployment.Spec.Template, dda.Spec.Override[datadoghqv2alpha1.ClusterAgentComponentName])
+		_, err = override.PodTemplateSpec(podManagers, dda.Spec.Override[datadoghqv2alpha1.ClusterAgentComponentName])
 		if err != nil {
 			return result, err
 		}
@@ -41,7 +41,7 @@ func (r *Reconciler) reconcileV2ClusterAgent(logger logr.Logger, features []feat
 	return r.createOrUpdateDeployment(deploymentLogger, dda, deployment, newStatus, updateStatusV2WithClusterAgent)
 }
 
-func updateStatusV2WithClusterAgent(newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, message string) {
+func updateStatusV2WithClusterAgent(newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
 	// TODO(operator-ga): update status with DCA deployment information
-	datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(newStatus, updateTime, datadoghqv2alpha1.ClusterAgentReconcileConditionType, status, message, true)
+	datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(newStatus, updateTime, datadoghqv2alpha1.ClusterAgentReconcileConditionType, status, reason, message, true)
 }

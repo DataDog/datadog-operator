@@ -79,10 +79,15 @@ func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 		}
 	}
 
-	return feature.RequiredComponents{
-		ClusterAgent:       feature.RequiredComponent{IsRequired: &f.enable},
-		ClusterCheckRunner: feature.RequiredComponent{IsRequired: &f.clusterChecksEnabled},
+	output := feature.RequiredComponents{}
+	if f.enable {
+		output.ClusterAgent = feature.RequiredComponent{IsRequired: &f.enable}
+		if f.clusterChecksEnabled {
+			output.ClusterCheckRunner = feature.RequiredComponent{IsRequired: &f.clusterChecksEnabled}
+		}
 	}
+
+	return output
 }
 
 // ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
@@ -111,10 +116,15 @@ func (f *ksmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) feature.RequiredCom
 		f.configConfigMapName = apicommonv1.GetConfName(dda, f.customConfig, apicommon.DefaultKubeStateMetricsCoreConf)
 	}
 
-	return feature.RequiredComponents{
-		ClusterAgent:       feature.RequiredComponent{IsRequired: &f.enable},
-		ClusterCheckRunner: feature.RequiredComponent{IsRequired: &f.clusterChecksEnabled},
+	output := feature.RequiredComponents{}
+	if f.enable {
+		output.ClusterAgent = feature.RequiredComponent{IsRequired: &f.enable}
+		if f.clusterChecksEnabled {
+			output.ClusterCheckRunner = feature.RequiredComponent{IsRequired: &f.clusterChecksEnabled}
+		}
 	}
+
+	return output
 }
 
 // ManageDependencies allows a feature to manage its dependencies.

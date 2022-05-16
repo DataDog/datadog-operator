@@ -15,6 +15,14 @@ func NewDefaultClusterCheckRunnerDeployment(dda metav1.Object) *appsv1.Deploymen
 	deployment := component.NewDeployment(dda, apicommon.DefaultClusterChecksRunnerResourceSuffix, component.GetClusterCheckRunnerName(dda), component.GetAgentVersion(dda), nil)
 
 	podTemplate := NewDefaultClusterCheckRunnerPodTemplateSpec(dda)
+	for key, val := range deployment.GetLabels() {
+		podTemplate.Labels[key] = val
+	}
+
+	for key, val := range deployment.GetAnnotations() {
+		podTemplate.Annotations[key] = val
+	}
+
 	deployment.Spec.Template = *podTemplate
 	deployment.Spec.Replicas = apiutils.NewInt32Pointer(apicommon.DefaultClusterAgentReplicas)
 

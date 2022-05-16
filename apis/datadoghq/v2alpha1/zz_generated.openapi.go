@@ -293,7 +293,6 @@ func schema__apis_datadoghq_v2alpha1_DatadogAgentStatus(ref common.ReferenceCall
 						},
 					},
 				},
-				Required: []string{"conditions"},
 			},
 		},
 		Dependencies: []string{

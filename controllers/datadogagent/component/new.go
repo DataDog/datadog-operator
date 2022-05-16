@@ -12,8 +12,8 @@ import (
 )
 
 // NewDeployment use to generate the skeleton of a new deployment based on few information
-func NewDeployment(owner metav1.Object, componentKind, componentName, version string, selector *metav1.LabelSelector) *appsv1.Deployment {
-	labels, annotations, selector := getdefaultInfo(owner, componentKind, componentName, version, selector)
+func NewDeployment(owner metav1.Object, componentKind, componentName, version string, inputSelector *metav1.LabelSelector) *appsv1.Deployment {
+	labels, annotations, selector := getDefaultMetadata(owner, componentKind, componentName, version, inputSelector)
 
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -32,7 +32,7 @@ func NewDeployment(owner metav1.Object, componentKind, componentName, version st
 
 // NewDaemonset use to generate the skeleton of a new daemonset based on few information
 func NewDaemonset(owner metav1.Object, componentKind, componentName, version string, selector *metav1.LabelSelector) *appsv1.DaemonSet {
-	labels, annotations, selector := getdefaultInfo(owner, componentKind, componentName, version, selector)
+	labels, annotations, selector := getDefaultMetadata(owner, componentKind, componentName, version, selector)
 
 	daemonset := &appsv1.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
@@ -50,7 +50,7 @@ func NewDaemonset(owner metav1.Object, componentKind, componentName, version str
 
 // NewExtendedDaemonset use to generate the skeleton of a new extended daemonset based on few information
 func NewExtendedDaemonset(owner metav1.Object, componentKind, componentName, version string, selector *metav1.LabelSelector) *edsv1alpha1.ExtendedDaemonSet {
-	labels, annotations, selector := getdefaultInfo(owner, componentKind, componentName, version, selector)
+	labels, annotations, selector := getDefaultMetadata(owner, componentKind, componentName, version, selector)
 
 	daemonset := &edsv1alpha1.ExtendedDaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
@@ -78,7 +78,7 @@ func defaultEDSStrategy() edsv1alpha1.ExtendedDaemonSetSpecStrategy {
 	}
 }
 
-func getdefaultInfo(owner metav1.Object, componentKind, componentName, version string, selector *metav1.LabelSelector) (map[string]string, map[string]string, *metav1.LabelSelector) {
+func getDefaultMetadata(owner metav1.Object, componentKind, componentName, version string, selector *metav1.LabelSelector) (map[string]string, map[string]string, *metav1.LabelSelector) {
 	labels := getDefaultLabels(owner, componentKind, componentName, version)
 	annotations := object.GetDefaultAnnotations(owner)
 
