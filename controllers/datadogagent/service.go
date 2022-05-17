@@ -20,7 +20,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -33,7 +36,7 @@ func (r *Reconciler) manageClusterAgentService(logger logr.Logger, dda *datadogh
 		return r.cleanupClusterAgentService(dda)
 	}
 
-	serviceName := getClusterAgentServiceName(dda)
+	serviceName := component.GetClusterAgentServiceName(dda)
 	service := &corev1.Service{}
 	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: dda.Namespace, Name: serviceName}, service)
 	if err != nil {
@@ -57,17 +60,17 @@ func (r *Reconciler) updateIfNeededClusterAgentService(logger logr.Logger, dda *
 }
 
 func (r *Reconciler) cleanupClusterAgentService(dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
-	serviceName := getClusterAgentServiceName(dda)
+	serviceName := component.GetClusterAgentServiceName(dda)
 	return cleanupService(r.client, serviceName, dda.Namespace, dda)
 }
 
 func newClusterAgentService(dda *datadoghqv1alpha1.DatadogAgent) *corev1.Service {
-	labels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
-	annotations := getDefaultAnnotations(dda)
+	labels := object.GetDefaultLabels(dda, apicommon.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
+	annotations := object.GetDefaultAnnotations(dda)
 
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        getClusterAgentServiceName(dda),
+			Name:        component.GetClusterAgentServiceName(dda),
 			Namespace:   dda.Namespace,
 			Labels:      labels,
 			Annotations: annotations,
@@ -75,14 +78,14 @@ func newClusterAgentService(dda *datadoghqv1alpha1.DatadogAgent) *corev1.Service
 		Spec: corev1.ServiceSpec{
 			Type: corev1.ServiceTypeClusterIP,
 			Selector: map[string]string{
-				datadoghqv1alpha1.AgentDeploymentNameLabelKey:      dda.Name,
-				datadoghqv1alpha1.AgentDeploymentComponentLabelKey: datadoghqv1alpha1.DefaultClusterAgentResourceSuffix,
+				apicommon.AgentDeploymentNameLabelKey:      dda.Name,
+				apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultClusterAgentResourceSuffix,
 			},
 			Ports: []corev1.ServicePort{
 				{
 					Protocol:   corev1.ProtocolTCP,
-					TargetPort: intstr.FromInt(datadoghqv1alpha1.DefaultClusterAgentServicePort),
-					Port:       datadoghqv1alpha1.DefaultClusterAgentServicePort,
+					TargetPort: intstr.FromInt(apicommon.DefaultClusterAgentServicePort),
+					Port:       apicommon.DefaultClusterAgentServicePort,
 				},
 			},
 			SessionAffinity: corev1.ServiceAffinityNone,
@@ -309,7 +312,7 @@ func (r *Reconciler) cleanupAPIService(logger logr.Logger, name string, dda *dat
 
 func (r *Reconciler) updateIfNeededService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, currentService, newService *corev1.Service) (reconcile.Result, error) {
 	result := reconcile.Result{}
-	hash := newService.Annotations[datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey]
+	hash := newService.Annotations[apicommon.MD5AgentDeploymentAnnotationKey]
 	if !comparison.IsSameSpecMD5Hash(hash, currentService.GetAnnotations()) {
 		updatedService := currentService.DeepCopy()
 		updatedService.Labels = newService.Labels
@@ -333,7 +336,7 @@ func (r *Reconciler) updateIfNeededService(logger logr.Logger, dda *datadoghqv1a
 
 func (r *Reconciler) updateIfNeededAPIService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, currentAPIService, newAPIService *apiregistrationv1.APIService) (reconcile.Result, error) {
 	result := reconcile.Result{}
-	hash := newAPIService.Annotations[datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey]
+	hash := newAPIService.Annotations[apicommon.MD5AgentDeploymentAnnotationKey]
 	if !comparison.IsSameSpecMD5Hash(hash, currentAPIService.GetAnnotations()) {
 		updatedAPIService := currentAPIService.DeepCopy()
 		updatedAPIService.Labels = newAPIService.Labels
@@ -354,8 +357,8 @@ func (r *Reconciler) updateIfNeededAPIService(logger logr.Logger, dda *datadoghq
 }
 
 func newMetricsServerService(dda *datadoghqv1alpha1.DatadogAgent) *corev1.Service {
-	labels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
-	annotations := getDefaultAnnotations(dda)
+	labels := object.GetDefaultLabels(dda, apicommon.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
+	annotations := object.GetDefaultAnnotations(dda)
 
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -367,14 +370,14 @@ func newMetricsServerService(dda *datadoghqv1alpha1.DatadogAgent) *corev1.Servic
 		Spec: corev1.ServiceSpec{
 			Type: corev1.ServiceTypeClusterIP,
 			Selector: map[string]string{
-				datadoghqv1alpha1.AgentDeploymentNameLabelKey:      dda.Name,
-				datadoghqv1alpha1.AgentDeploymentComponentLabelKey: datadoghqv1alpha1.DefaultClusterAgentResourceSuffix,
+				apicommon.AgentDeploymentNameLabelKey:      dda.Name,
+				apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultClusterAgentResourceSuffix,
 			},
 			Ports: []corev1.ServicePort{
 				{
 					Protocol:   corev1.ProtocolTCP,
 					TargetPort: intstr.FromInt(int(getClusterAgentMetricsProviderPort(*dda.Spec.ClusterAgent.Config))),
-					Port:       datadoghqv1alpha1.DefaultMetricsServerServicePort,
+					Port:       apicommon.DefaultMetricsServerServicePort,
 				},
 			},
 			SessionAffinity: corev1.ServiceAffinityNone,
@@ -386,10 +389,10 @@ func newMetricsServerService(dda *datadoghqv1alpha1.DatadogAgent) *corev1.Servic
 }
 
 func newMetricsServerAPIService(dda *datadoghqv1alpha1.DatadogAgent) *apiregistrationv1.APIService {
-	labels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
-	annotations := getDefaultAnnotations(dda)
+	labels := object.GetDefaultLabels(dda, apicommon.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
+	annotations := object.GetDefaultAnnotations(dda)
 
-	port := int32(datadoghqv1alpha1.DefaultMetricsServerServicePort)
+	port := int32(apicommon.DefaultMetricsServerServicePort)
 	apiService := &apiregistrationv1.APIService{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        getMetricsServerAPIServiceName(),
@@ -419,20 +422,20 @@ func newAdmissionControllerService(dda *datadoghqv1alpha1.DatadogAgent) *corev1.
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        getAdmissionControllerServiceName(dda),
 			Namespace:   dda.Namespace,
-			Labels:      getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda)),
-			Annotations: getDefaultAnnotations(dda),
+			Labels:      object.GetDefaultLabels(dda, apicommon.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda)),
+			Annotations: object.GetDefaultAnnotations(dda),
 		},
 		Spec: corev1.ServiceSpec{
 			Type: corev1.ServiceTypeClusterIP,
 			Selector: map[string]string{
-				datadoghqv1alpha1.AgentDeploymentNameLabelKey:      dda.Name,
-				datadoghqv1alpha1.AgentDeploymentComponentLabelKey: datadoghqv1alpha1.DefaultClusterAgentResourceSuffix,
+				apicommon.AgentDeploymentNameLabelKey:      dda.Name,
+				apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultClusterAgentResourceSuffix,
 			},
 			Ports: []corev1.ServicePort{
 				{
 					Protocol:   corev1.ProtocolTCP,
-					TargetPort: intstr.FromInt(datadoghqv1alpha1.DefaultAdmissionControllerTargetPort),
-					Port:       datadoghqv1alpha1.DefaultAdmissionControllerServicePort,
+					TargetPort: intstr.FromInt(apicommon.DefaultAdmissionControllerTargetPort),
+					Port:       apicommon.DefaultAdmissionControllerServicePort,
 				},
 			},
 			SessionAffinity: corev1.ServiceAffinityNone,
@@ -450,21 +453,21 @@ func newAgentService(dda *datadoghqv1alpha1.DatadogAgent) *corev1.Service {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        getAgentServiceName(dda),
 			Namespace:   dda.Namespace,
-			Labels:      getDefaultLabels(dda, datadoghqv1alpha1.DefaultAgentResourceSuffix, getAgentVersion(dda)),
-			Annotations: getDefaultAnnotations(dda),
+			Labels:      object.GetDefaultLabels(dda, apicommon.DefaultAgentResourceSuffix, getAgentVersion(dda)),
+			Annotations: object.GetDefaultAnnotations(dda),
 		},
 		Spec: corev1.ServiceSpec{
 			Type: corev1.ServiceTypeClusterIP,
 			Selector: map[string]string{
-				datadoghqv1alpha1.AgentDeploymentNameLabelKey:      dda.Name,
-				datadoghqv1alpha1.AgentDeploymentComponentLabelKey: datadoghqv1alpha1.DefaultAgentResourceSuffix,
+				apicommon.AgentDeploymentNameLabelKey:      dda.Name,
+				apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
 			},
 			Ports: []corev1.ServicePort{
 				{
 					Protocol:   corev1.ProtocolUDP,
-					TargetPort: intstr.FromInt(datadoghqv1alpha1.DefaultDogstatsdPort),
-					Port:       datadoghqv1alpha1.DefaultDogstatsdPort,
-					Name:       datadoghqv1alpha1.DefaultDogstatsdPortName,
+					TargetPort: intstr.FromInt(apicommon.DefaultDogstatsdPort),
+					Port:       apicommon.DefaultDogstatsdPort,
+					Name:       apicommon.DefaultDogstatsdPortName,
 				},
 			},
 			SessionAffinity:       corev1.ServiceAffinityNone,
@@ -478,7 +481,7 @@ func newAgentService(dda *datadoghqv1alpha1.DatadogAgent) *corev1.Service {
 				Protocol:   corev1.ProtocolTCP,
 				TargetPort: intstr.FromInt(int(*dda.Spec.Agent.Apm.HostPort)),
 				Port:       *dda.Spec.Agent.Apm.HostPort,
-				Name:       datadoghqv1alpha1.DefaultApmPortName,
+				Name:       apicommon.DefaultApmPortName,
 			})
 	}
 

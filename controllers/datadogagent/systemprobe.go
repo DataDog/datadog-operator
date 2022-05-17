@@ -10,6 +10,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/go-logr/logr"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -81,7 +82,7 @@ func buildSystemProbeConfigConfigMap(dda *datadoghqv1alpha1.DatadogAgent) (*core
 		}
 	}
 
-	return buildConfigurationConfigMap(dda, customConfig, getSystemProbeConfigConfigMapName(dda), getSystemProbeConfigFileName(dda))
+	return buildConfigurationConfigMap(dda, datadoghqv1alpha1.ConvertCustomConfig(customConfig), getSystemProbeConfigConfigMapName(dda), getSystemProbeConfigFileName(dda))
 }
 
 func buildSystemProbeSecCompConfigMap(dda *datadoghqv1alpha1.DatadogAgent) (*corev1.ConfigMap, error) {
@@ -93,8 +94,8 @@ func buildSystemProbeSecCompConfigMap(dda *datadoghqv1alpha1.DatadogAgent) (*cor
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        getSecCompConfigMapName(dda),
 			Namespace:   dda.Namespace,
-			Labels:      getDefaultLabels(dda, dda.Name, getAgentVersion(dda)),
-			Annotations: getDefaultAnnotations(dda),
+			Labels:      object.GetDefaultLabels(dda, dda.Name, getAgentVersion(dda)),
+			Annotations: object.GetDefaultAnnotations(dda),
 		},
 		Data: map[string]string{
 			"system-probe-seccomp.json": systemProbeSecCompData,

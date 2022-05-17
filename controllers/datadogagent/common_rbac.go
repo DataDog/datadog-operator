@@ -3,7 +3,11 @@ package datadogagent
 import (
 	"context"
 
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/common"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/kubernetesstatecore"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -33,18 +37,18 @@ type roleBindingInfo struct {
 func buildRoleBinding(dda *datadoghqv1alpha1.DatadogAgent, info roleBindingInfo, agentVersion string) *rbacv1.RoleBinding {
 	return &rbacv1.RoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels:    getDefaultLabels(dda, dda.Name, agentVersion),
+			Labels:    object.GetDefaultLabels(dda, dda.Name, agentVersion),
 			Name:      info.name,
 			Namespace: dda.Namespace,
 		},
 		RoleRef: rbacv1.RoleRef{
-			APIGroup: datadoghqv1alpha1.RbacAPIGroup,
-			Kind:     datadoghqv1alpha1.RoleKind,
+			APIGroup: rbac.RbacAPIGroup,
+			Kind:     rbac.RoleKind,
 			Name:     info.roleName,
 		},
 		Subjects: []rbacv1.Subject{
 			{
-				Kind:      datadoghqv1alpha1.ServiceAccountKind,
+				Kind:      rbac.ServiceAccountKind,
 				Name:      info.serviceAccountName,
 				Namespace: dda.Namespace,
 			},
@@ -56,7 +60,7 @@ func buildRoleBinding(dda *datadoghqv1alpha1.DatadogAgent, info roleBindingInfo,
 func buildServiceAccount(dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string) *corev1.ServiceAccount {
 	return &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels:    getDefaultLabels(dda, dda.Name, agentVersion),
+			Labels:    object.GetDefaultLabels(dda, dda.Name, agentVersion),
 			Name:      name,
 			Namespace: dda.Namespace,
 		},
@@ -66,10 +70,10 @@ func buildServiceAccount(dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion
 // getEventCollectionPolicyRule returns the policy rule for event collection
 func getEventCollectionPolicyRule() rbacv1.PolicyRule {
 	return rbacv1.PolicyRule{
-		APIGroups:     []string{datadoghqv1alpha1.CoreAPIGroup},
-		Resources:     []string{datadoghqv1alpha1.ConfigMapsResource},
-		ResourceNames: []string{datadoghqv1alpha1.DatadogTokenResourceName},
-		Verbs:         []string{datadoghqv1alpha1.GetVerb, datadoghqv1alpha1.UpdateVerb},
+		APIGroups:     []string{rbac.CoreAPIGroup},
+		Resources:     []string{rbac.ConfigMapsResource},
+		ResourceNames: []string{common.DatadogTokenResourceName},
+		Verbs:         []string{rbac.GetVerb, rbac.UpdateVerb},
 	}
 }
 
@@ -77,15 +81,15 @@ func getEventCollectionPolicyRule() rbacv1.PolicyRule {
 func getLeaderElectionPolicyRule() []rbacv1.PolicyRule {
 	return []rbacv1.PolicyRule{
 		{
-			APIGroups:     []string{datadoghqv1alpha1.CoreAPIGroup},
-			Resources:     []string{datadoghqv1alpha1.ConfigMapsResource},
-			ResourceNames: []string{datadoghqv1alpha1.DatadogLeaderElectionResourceName},
-			Verbs:         []string{datadoghqv1alpha1.GetVerb, datadoghqv1alpha1.UpdateVerb},
+			APIGroups:     []string{rbac.CoreAPIGroup},
+			Resources:     []string{rbac.ConfigMapsResource},
+			ResourceNames: []string{common.DatadogLeaderElectionResourceName},
+			Verbs:         []string{rbac.GetVerb, rbac.UpdateVerb},
 		},
 		{
-			APIGroups: []string{datadoghqv1alpha1.CoreAPIGroup},
-			Resources: []string{datadoghqv1alpha1.ConfigMapsResource},
-			Verbs:     []string{datadoghqv1alpha1.CreateVerb},
+			APIGroups: []string{rbac.CoreAPIGroup},
+			Resources: []string{rbac.ConfigMapsResource},
+			Verbs:     []string{rbac.CreateVerb},
 		},
 	}
 }
@@ -274,7 +278,7 @@ func (r *Reconciler) updateIfNeededRole(logger logr.Logger, dda *datadoghqv1alph
 // labels to know whether a DatadogAgent object owns them.
 func isOwnerBasedOnLabels(dda *datadoghqv1alpha1.DatadogAgent, labels map[string]string) bool {
 	isManagedByOperator := labels[kubernetes.AppKubernetesManageByLabelKey] == "datadog-operator"
-	isPartOfDDA := labels[kubernetes.AppKubernetesPartOfLabelKey] == NewPartOfLabelValue(dda).String()
+	isPartOfDDA := labels[kubernetes.AppKubernetesPartOfLabelKey] == object.NewPartOfLabelValue(dda).String()
 	return isManagedByOperator && isPartOfDDA
 }
 
@@ -286,12 +290,12 @@ func rbacNamesForDda(dda *datadoghqv1alpha1.DatadogAgent, versionInfo *version.I
 		getClusterChecksRunnerRbacResourcesName(dda),
 		getHPAClusterRoleBindingName(dda),
 		getExternalMetricsReaderClusterRoleName(dda, versionInfo),
-		// KSM core can run on the DCA or the Runners
-		getKubeStateMetricsRBACResourceName(dda, clusterAgentSuffix),
-		getKubeStateMetricsRBACResourceName(dda, checkRunnersSuffix),
+		// kubestatemetrics_core can run on the DCA and the Runners
+		kubernetesstatecore.GetKubeStateMetricsRBACResourceName(dda, common.ClusterAgentSuffix),
+		kubernetesstatecore.GetKubeStateMetricsRBACResourceName(dda, common.CheckRunnersSuffix),
 		// Orchestrator can run on the DCA or the Runners
-		getOrchestratorRBACResourceName(dda, clusterAgentSuffix),
-		getOrchestratorRBACResourceName(dda, checkRunnersSuffix),
+		getOrchestratorRBACResourceName(dda, common.ClusterAgentSuffix),
+		getOrchestratorRBACResourceName(dda, common.CheckRunnersSuffix),
 	}
 }
 

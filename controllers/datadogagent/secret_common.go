@@ -8,6 +8,7 @@ package datadogagent
 import (
 	"os"
 
+	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 )
 
@@ -16,10 +17,10 @@ func getKeysFromCredentials(credentials *datadoghqv1alpha1.DatadogCredentials) m
 	data := make(map[string][]byte)
 	// Create secret using DatadogAgent credentials if it exists
 	if credentials.APIKey != "" {
-		data[datadoghqv1alpha1.DefaultAPIKeyKey] = []byte(credentials.APIKey)
+		data[apicommon.DefaultAPIKeyKey] = []byte(credentials.APIKey)
 	}
 	if credentials.AppKey != "" {
-		data[datadoghqv1alpha1.DefaultAPPKeyKey] = []byte(credentials.AppKey)
+		data[apicommon.DefaultAPPKeyKey] = []byte(credentials.AppKey)
 	}
 
 	return data

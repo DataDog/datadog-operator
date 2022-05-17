@@ -34,10 +34,4 @@ const (
 	apiServiceKind          = "APIService"
 	networkPolicyKind       = "NetworkPolicy"
 	ciliumNetworkPolicyKind = "CiliumNetworkPolicy"
-
-	checkRunnersSuffix = "ccr"
-	clusterAgentSuffix = "dca"
-
-	// Datadog tags prefix
-	datadogTagPrefix = "tags.datadoghq.com"
 )

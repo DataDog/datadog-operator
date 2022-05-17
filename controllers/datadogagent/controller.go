@@ -7,6 +7,7 @@ package datadogagent
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -15,6 +16,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -25,6 +27,12 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
+
+	// Use to register the ksm core feature
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/kubernetesstatecore"
 )
 
 const (
@@ -51,7 +59,8 @@ type Reconciler struct {
 
 // NewReconciler returns a reconciler for DatadogAgent
 func NewReconciler(options ReconcilerOptions, client client.Client, versionInfo *version.Info,
-	scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, metricForwarder datadog.MetricForwardersManager) (*Reconciler, error) {
+	scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, metricForwarder datadog.MetricForwardersManager,
+) (*Reconciler, error) {
 	return &Reconciler{
 		options:     options,
 		client:      client,
@@ -113,28 +122,75 @@ func (r *Reconciler) internalReconcile(ctx context.Context, request reconcile.Re
 		return result, err
 	}
 
+	return r.reconcileInstance(ctx, reqLogger, instance)
+}
+
+func reconcilerOptionsToFeatureOptions(opts *ReconcilerOptions, logger logr.Logger) *feature.Options {
+	return &feature.Options{
+		SupportExtendedDaemonset: opts.SupportExtendedDaemonset,
+		Logger:                   logger,
+	}
+}
+
+func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, instance *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
+	var result reconcile.Result
+
+	features, requiredComponents, err := feature.BuildFeaturesV1(instance, reconcilerOptionsToFeatureOptions(&r.options, logger))
+	if err != nil {
+		return result, fmt.Errorf("unable to build features, err: %w", err)
+	}
+	logger.Info("requiredComponents status:", "agent", requiredComponents.Agent, "cluster-agent", requiredComponents.ClusterAgent, "cluster-check-runner", requiredComponents.ClusterCheckRunner)
+
+	// -----------------------
+	// Manage dependencies
+	// -----------------------
+	storeOptions := &dependencies.StoreOptions{
+		SupportCilium: r.options.SupportCilium,
+		Logger:        logger,
+	}
+	depsStore := dependencies.NewStore(storeOptions)
+	resourcesManager := feature.NewResourceManagers(depsStore)
+	var errs []error
+	for _, feat := range features {
+		if featErr := feat.ManageDependencies(resourcesManager); err != nil {
+			errs = append(errs, featErr)
+		}
+	}
+	// Now create/update dependencies
+	errs = append(errs, depsStore.Apply(ctx, r.client)...)
+	if len(errs) > 0 {
+		logger.V(2).Info("Dependencies apply error", "errs", errs)
+		return result, errors.NewAggregate(errs)
+	}
+	// -----------------------
+
 	newStatus := instance.Status.DeepCopy()
-	reconcileFuncs :=
-		[]reconcileFuncInterface{
-			r.reconcileClusterAgent,
-			r.reconcileClusterChecksRunner,
-			r.reconcileAgent,
-		}
+	reconcileFuncs := []reconcileFuncInterface{
+		r.reconcileClusterAgent,
+		r.reconcileClusterChecksRunner,
+		r.reconcileAgent,
+	}
 	for _, reconcileFunc := range reconcileFuncs {
-		result, err = reconcileFunc(reqLogger, instance, newStatus)
+		result, err = reconcileFunc(logger, features, instance, newStatus)
 		if utils.ShouldReturn(result, err) {
-			return r.updateStatusIfNeeded(reqLogger, instance, newStatus, result, err)
+			return r.updateStatusIfNeeded(logger, instance, newStatus, result, err)
 		}
+	}
+
+	// Cleanup unused dependencies
+	// Run it after the deployments reconcile
+	if errs = depsStore.Cleanup(ctx, r.client, instance.Namespace, instance.Name); len(errs) > 0 {
+		return result, errors.NewAggregate(errs)
 	}
 
 	// Always requeue
 	if !result.Requeue && result.RequeueAfter == 0 {
 		result.RequeueAfter = defaultRequeuePeriod
 	}
-	return r.updateStatusIfNeeded(reqLogger, instance, newStatus, result, err)
+	return r.updateStatusIfNeeded(logger, instance, newStatus, result, err)
 }
 
-type reconcileFuncInterface func(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error)
+type reconcileFuncInterface func(logger logr.Logger, features []feature.Feature, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error)
 
 func (r *Reconciler) updateOverrideIfNeeded(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgent, newOverride *datadoghqv1alpha1.DatadogAgentStatus, result reconcile.Result) (*datadoghqv1alpha1.DatadogAgent, reconcile.Result, error) {
 	// We returned the most up to date instance to avoid conflict during the updateStatusIfNeeded after all the reconcile cycles.

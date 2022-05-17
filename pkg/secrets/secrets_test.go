@@ -20,14 +20,14 @@ func TestSecretBackend_execCommand(t *testing.T) {
 	}{
 		{
 			name:    "nominal case",
-			cmd:     "./test/decryptor/dummy_decryptor.py",
+			cmd:     "./testdata/decryptor/dummy_decryptor.py",
 			payload: "{\"version\": \"1\", \"secrets\": [\"api_key\", \"app_key\"]}",
 			want:    []byte("{\"api_key\": {\"value\": \"decrypted_api_key\"}, \"app_key\": {\"value\": \"decrypted_app_key\"}}"),
 			wantErr: false,
 		},
 		{
 			name:    "secret backend returns error",
-			cmd:     "./test/notfound/decryptor",
+			cmd:     "./testdata/notfound/decryptor",
 			payload: "{\"version\": \"1\", \"secrets\": [\"api_key\", \"app_key\"]}",
 			want:    nil,
 			wantErr: true,
@@ -62,7 +62,7 @@ func TestSecretBackend_Decrypt(t *testing.T) {
 	}{
 		{
 			name: "exec secret backend command",
-			cmd:  "./test/decryptor/dummy_decryptor.py",
+			cmd:  "./testdata/decryptor/dummy_decryptor.py",
 			encrypted: []string{
 				"ENC[api_key]",
 				"ENC[app_key]",
@@ -75,7 +75,7 @@ func TestSecretBackend_Decrypt(t *testing.T) {
 		},
 		{
 			name: "secret backend command cannot decrypt",
-			cmd:  "./test/decryptor/dummy_decryptor.py",
+			cmd:  "./testdata/decryptor/dummy_decryptor.py",
 			encrypted: []string{
 				"ENC[api_key_error]",
 				"ENC[app_key]",
@@ -95,7 +95,7 @@ func TestSecretBackend_Decrypt(t *testing.T) {
 		},
 		{
 			name: "secret backend binary not found",
-			cmd:  "./test/notfound/dummy_decryptor.py",
+			cmd:  "./testdata/notfound/dummy_decryptor.py",
 			encrypted: []string{
 				"ENC[api_key]",
 				"ENC[app_key]",
@@ -133,7 +133,7 @@ func TestSecretBackend_fetchSecret(t *testing.T) {
 	}{
 		{
 			name: "nominal case",
-			cmd:  "./test/decryptor/dummy_decryptor.py",
+			cmd:  "./testdata/decryptor/dummy_decryptor.py",
 			encrypted: []string{
 				"ENC[api_key]",
 				"ENC[app_key]",
@@ -146,7 +146,7 @@ func TestSecretBackend_fetchSecret(t *testing.T) {
 		},
 		{
 			name: "error decrypting a secret",
-			cmd:  "./test/decryptor/dummy_decryptor.py",
+			cmd:  "./testdata/decryptor/dummy_decryptor.py",
 			encrypted: []string{
 				"ENC[api_key]",
 				"ENC[app_key_error]",
@@ -156,7 +156,7 @@ func TestSecretBackend_fetchSecret(t *testing.T) {
 		},
 		{
 			name: "secret not found",
-			cmd:  "./test/decryptor/dummy_decryptor.py",
+			cmd:  "./testdata/decryptor/dummy_decryptor.py",
 			encrypted: []string{
 				"ENC[api_key]",
 				"ENC[app_key_ignore]",

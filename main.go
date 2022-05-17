@@ -28,6 +28,7 @@ import (
 	"github.com/DataDog/extendeddaemonset/pkg/controller/metrics"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/controllers"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/debug"
@@ -36,8 +37,6 @@ import (
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-
-	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -86,7 +85,7 @@ func main() {
 	flag.DurationVar(&leaderElectionLeaseDuration, "leader-election-lease-duration", 60*time.Second, "Define LeaseDuration as well as RenewDeadline (leaseDuration / 2) and RetryPeriod (leaseDuration / 4)")
 
 	// Custom flags
-	var printVersion, pprofActive, supportExtendedDaemonset, supportCilium, datadogMonitorEnabled, operatorMetricsEnabled bool
+	var printVersion, pprofActive, supportExtendedDaemonset, supportCilium, datadogMonitorEnabled, operatorMetricsEnabled, webhookEnabled bool
 	var logEncoder, secretBackendCommand string
 	var secretBackendArgs stringSlice
 	flag.StringVar(&logEncoder, "logEncoder", "json", "log encoding ('json' or 'console')")
@@ -99,6 +98,7 @@ func main() {
 	flag.BoolVar(&supportCilium, "supportCilium", false, "Support usage of Cilium network policies.")
 	flag.BoolVar(&datadogMonitorEnabled, "datadogMonitorEnabled", false, "Enable the DatadogMonitor controller")
 	flag.BoolVar(&operatorMetricsEnabled, "operatorMetricsEnabled", true, "Enable sending operator metrics to Datadog")
+	flag.BoolVar(&webhookEnabled, "webhookEnabled", true, "Enable CRD conversion webhook.")
 
 	// Parsing flags
 	flag.Parse()
@@ -158,9 +158,16 @@ func main() {
 		OperatorMetricsEnabled:   operatorMetricsEnabled,
 	}
 
-	if err := controllers.SetupControllers(setupLog, mgr, options); err != nil {
+	if err = controllers.SetupControllers(setupLog, mgr, options); err != nil {
 		setupLog.Error(err, "Unable to start controllers")
 		os.Exit(1)
+	}
+
+	if webhookEnabled {
+		if err = (&datadoghqv2alpha1.DatadogAgent{}).SetupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create webhook", "webhook", "DatadogAgent")
+			os.Exit(1)
+		}
 	}
 
 	// +kubebuilder:scaffold:builder

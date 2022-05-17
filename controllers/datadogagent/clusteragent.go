@@ -24,17 +24,29 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/common"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/merger"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
+	objectvolume "github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/orchestrator"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	"github.com/DataDog/datadog-operator/pkg/extendeddaemonset"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
+
+	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
+
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 )
 
-func (r *Reconciler) reconcileClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
+func (r *Reconciler) reconcileClusterAgent(logger logr.Logger, features []feature.Feature, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
 	result, err := r.manageClusterAgentDependencies(logger, dda)
 	if utils.ShouldReturn(result, err) {
 		return result, err
@@ -62,12 +74,12 @@ func (r *Reconciler) reconcileClusterAgent(logger logr.Logger, dda *datadoghqv1a
 			if errors.IsNotFound(err) {
 				logger.Info("the ClusterAgent deployment is not found", "name", nsName.Name, "namespace", nsName.Namespace)
 				// Create and attach a ClusterAgentDeployment
-				return r.createNewClusterAgentDeployment(logger, dda, newStatus)
+				return r.createNewClusterAgentDeployment(logger, features, dda, newStatus)
 			}
 			return reconcile.Result{}, err
 		}
 
-		if result, err = r.updateClusterAgentDeployment(logger, dda, clusterAgentDeployment, newStatus); err != nil {
+		if result, err = r.updateClusterAgentDeployment(logger, features, dda, clusterAgentDeployment, newStatus); err != nil {
 			return result, err
 		}
 
@@ -80,8 +92,8 @@ func (r *Reconciler) reconcileClusterAgent(logger logr.Logger, dda *datadoghqv1a
 	return reconcile.Result{}, nil
 }
 
-func (r *Reconciler) createNewClusterAgentDeployment(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
-	newDCA, hash, err := newClusterAgentDeploymentFromInstance(logger, dda, nil)
+func (r *Reconciler) createNewClusterAgentDeployment(logger logr.Logger, features []feature.Feature, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
+	newDCA, hash, err := newClusterAgentDeploymentFromInstance(logger, features, dda, nil)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -109,8 +121,8 @@ func updateStatusWithClusterAgent(dca *appsv1.Deployment, newStatus *datadoghqv1
 	newStatus.ClusterAgent = updateDeploymentStatus(dca, newStatus.ClusterAgent, updateTime)
 }
 
-func (r *Reconciler) updateClusterAgentDeployment(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, dca *appsv1.Deployment, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
-	newDCA, hash, err := newClusterAgentDeploymentFromInstance(logger, dda, dca.Spec.Selector)
+func (r *Reconciler) updateClusterAgentDeployment(logger logr.Logger, features []feature.Feature, dda *datadoghqv1alpha1.DatadogAgent, dca *appsv1.Deployment, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
+	newDCA, hash, err := newClusterAgentDeploymentFromInstance(logger, features, dda, dca.Spec.Selector)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -148,44 +160,24 @@ func (r *Reconciler) updateClusterAgentDeployment(logger logr.Logger, dda *datad
 }
 
 // newClusterAgentDeploymentFromInstance creates a Cluster Agent Deployment from a given DatadogAgent
-func newClusterAgentDeploymentFromInstance(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, selector *metav1.LabelSelector) (*appsv1.Deployment, string, error) {
-	labels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
-	labels[datadoghqv1alpha1.AgentDeploymentNameLabelKey] = dda.Name
-	labels[datadoghqv1alpha1.AgentDeploymentComponentLabelKey] = datadoghqv1alpha1.DefaultClusterAgentResourceSuffix
+func newClusterAgentDeploymentFromInstance(logger logr.Logger, features []feature.Feature, dda *datadoghqv1alpha1.DatadogAgent, selector *metav1.LabelSelector) (*appsv1.Deployment, string, error) {
+	dca := component.NewDeployment(dda, apicommon.DefaultClusterAgentResourceSuffix, getClusterAgentName(dda), getClusterAgentVersion(dda), selector)
 
-	if selector != nil {
-		for key, val := range selector.MatchLabels {
-			labels[key] = val
-		}
-	} else {
-		selector = &metav1.LabelSelector{
-			MatchLabels: map[string]string{
-				datadoghqv1alpha1.AgentDeploymentNameLabelKey:      dda.Name,
-				datadoghqv1alpha1.AgentDeploymentComponentLabelKey: datadoghqv1alpha1.DefaultClusterAgentResourceSuffix,
-			},
-		}
-	}
-
-	annotations := getDefaultAnnotations(dda)
-
-	dcaPodTemplate, err := newClusterAgentPodTemplate(logger, dda, labels, annotations)
+	dcaPodTemplate, err := newClusterAgentPodTemplate(logger, dda, dca.GetLabels(), dca.GetAnnotations())
 	if err != nil {
 		return nil, "", err
 	}
 
-	dca := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        getClusterAgentName(dda),
-			Namespace:   dda.Namespace,
-			Labels:      labels,
-			Annotations: annotations,
-		},
-		Spec: appsv1.DeploymentSpec{
-			Template: dcaPodTemplate,
-			Replicas: dda.Spec.ClusterAgent.Replicas,
-			Selector: selector,
-		},
+	dca.Spec.Template = dcaPodTemplate
+	dca.Spec.Replicas = dda.Spec.ClusterAgent.Replicas
+
+	for _, feat := range features {
+		podManager := feature.NewPodTemplateManagers(&dca.Spec.Template)
+		if errFeat := feat.ManageClusterAgent(podManager); errFeat != nil {
+			return nil, "", err
+		}
 	}
+
 	hash, err := comparison.SetMD5DatadogAgentGenerationAnnotation(&dca.ObjectMeta, dca.Spec)
 	return dca, hash, err
 }
@@ -236,17 +228,12 @@ func (r *Reconciler) manageClusterAgentDependencies(logger logr.Logger, dda *dat
 		return result, err
 	}
 
-	result, err = r.manageConfigMap(logger, dda, getInstallInfoConfigMapName(dda), buildInstallInfoConfigMap)
+	result, err = r.manageConfigMap(logger, dda, component.GetInstallInfoConfigMapName(dda), buildInstallInfoConfigMap)
 	if utils.ShouldReturn(result, err) {
 		return result, err
 	}
 
 	result, err = r.manageClusterAgentNetworkPolicy(logger, dda)
-	if utils.ShouldReturn(result, err) {
-		return result, err
-	}
-
-	result, err = r.manageKubeStateMetricsCore(logger, dda)
 	if utils.ShouldReturn(result, err) {
 		return result, err
 	}
@@ -263,7 +250,7 @@ func buildClusterAgentConfigurationConfigMap(dda *datadoghqv1alpha1.DatadogAgent
 	if !isClusterAgentEnabled(dda.Spec.ClusterAgent) {
 		return nil, nil
 	}
-	return buildConfigurationConfigMap(dda, dda.Spec.ClusterAgent.CustomConfig, getClusterAgentCustomConfigConfigMapName(dda), datadoghqv1alpha1.ClusterAgentCustomConfigVolumeSubPath)
+	return buildConfigurationConfigMap(dda, datadoghqv1alpha1.ConvertCustomConfig(dda.Spec.ClusterAgent.CustomConfig), getClusterAgentCustomConfigConfigMapName(dda), datadoghqv1alpha1.ClusterAgentCustomConfigVolumeSubPath)
 }
 
 func (r *Reconciler) cleanupClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
@@ -289,38 +276,18 @@ func (r *Reconciler) cleanupClusterAgent(logger logr.Logger, dda *datadoghqv1alp
 	return reconcile.Result{Requeue: true}, nil
 }
 
-func buildVolumeSourceFromCustomConfigSpec(configDir *datadoghqv1alpha1.CustomConfigSpec, defaultConfigMapName string) *corev1.VolumeSource {
-	if configDir == nil {
-		return nil
-	}
-
-	cmName := defaultConfigMapName
-	if configDir.ConfigMap != nil && len(configDir.ConfigMap.Name) > 0 {
-		cmName = configDir.ConfigMap.Name
-	}
-
-	cmSource := &corev1.ConfigMapVolumeSource{
-		LocalObjectReference: corev1.LocalObjectReference{
-			Name: cmName,
-		},
-	}
-
-	return &corev1.VolumeSource{
-		ConfigMap: cmSource,
-	}
-}
-
 // newClusterAgentPodTemplate generates a PodTemplate from a DatadogClusterAgentDeployment spec
 func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, labels, annotations map[string]string) (corev1.PodTemplateSpec, error) {
-	// copy Spec to configure the Cluster Agent Pod Template
-	clusterAgentSpec := dda.Spec.ClusterAgent.DeepCopy()
+	newPodTemplate := *componentdca.NewDefaultClusterAgentPodTemplateSpec(dda)
+
+	volumes := []corev1.Volume{}
+	volumeMounts := []corev1.VolumeMount{}
+
+	volumeManager := merger.NewVolumeManager(&newPodTemplate)
 
 	// confd volumes configuration
-	confdVolumeSource := corev1.VolumeSource{
-		EmptyDir: &corev1.EmptyDirVolumeSource{},
-	}
 	if dda.Spec.ClusterAgent.Config != nil && dda.Spec.ClusterAgent.Config.Confd != nil {
-		confdVolumeSource = corev1.VolumeSource{
+		confdVolumeSource := corev1.VolumeSource{
 			ConfigMap: &corev1.ConfigMapVolumeSource{
 				LocalObjectReference: corev1.LocalObjectReference{
 					Name: dda.Spec.ClusterAgent.Config.Confd.ConfigMapName,
@@ -336,63 +303,29 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 				})
 			}
 		}
-	}
-
-	volumes := []corev1.Volume{
-		{
-			Name: datadoghqv1alpha1.InstallInfoVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: &corev1.ConfigMapVolumeSource{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: getInstallInfoConfigMapName(dda),
-					},
-				},
-			},
-		},
-		{
-			Name:         datadoghqv1alpha1.ConfdVolumeName,
+		confdVolumeMount := corev1.VolumeMount{
+			Name:      apicommon.ConfdVolumeName,
+			MountPath: apicommon.ConfdVolumePath,
+			ReadOnly:  true,
+		}
+		confdVolume := corev1.Volume{
+			Name:         apicommon.ConfdVolumeName,
 			VolumeSource: confdVolumeSource,
-		},
-		getVolumeForLogs(),
-		getVolumeForCertificates(),
-
-		// /tmp is needed because some versions of the DCA (at least until
-		// 1.19.0) write to it.
-		// In some code paths, the klog lib writes to /tmp instead of using the
-		// standard datadog logs path.
-		// In some envs like Openshift, when running as non-root, the pod will
-		// not have permissions to write on /tmp, that's why we need to mount
-		// it with write perms.
-		getVolumeForTmp(),
-	}
-	volumeMounts := []corev1.VolumeMount{
-		{
-			Name:      "installinfo",
-			SubPath:   "install_info",
-			MountPath: "/etc/datadog-agent/install_info",
-			ReadOnly:  true,
-		},
-		{
-			Name:      datadoghqv1alpha1.ConfdVolumeName,
-			MountPath: datadoghqv1alpha1.ConfdVolumePath,
-			ReadOnly:  true,
-		},
-		getVolumeMountForLogs(),
-		getVolumeMountForCertificates(),
-		getVolumeMountForTmp(),
+		}
+		volumeManager.AddVolume(&confdVolume, &confdVolumeMount)
 	}
 
 	if dda.Spec.ClusterAgent.CustomConfig != nil {
-		customConfigVolumeSource := getVolumeFromCustomConfigSpec(
-			dda.Spec.ClusterAgent.CustomConfig,
+		customConfigVolumeSource := objectvolume.GetVolumeFromCustomConfigSpec(
+			datadoghqv1alpha1.ConvertCustomConfig(dda.Spec.ClusterAgent.CustomConfig),
 			getClusterAgentCustomConfigConfigMapName(dda),
 			datadoghqv1alpha1.AgentCustomConfigVolumeName,
 		)
 		volumes = append(volumes, customConfigVolumeSource)
 
 		// Custom config (datadog-cluster.yaml) volume
-		volumeMount := getVolumeMountFromCustomConfigSpec(
-			dda.Spec.ClusterAgent.CustomConfig,
+		volumeMount := objectvolume.GetVolumeMountFromCustomConfigSpec(
+			datadoghqv1alpha1.ConvertCustomConfig(dda.Spec.ClusterAgent.CustomConfig),
 			datadoghqv1alpha1.ClusterAgentCustomConfigVolumeName,
 			datadoghqv1alpha1.ClusterAgentCustomConfigVolumePath,
 			datadoghqv1alpha1.ClusterAgentCustomConfigVolumeSubPath)
@@ -419,18 +352,6 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 		}
 	}
 
-	if isKSMCoreEnabled(dda) {
-		volKSM, volumeMountKSM := getCustomConfigSpecVolumes(
-			dda.Spec.Features.KubeStateMetricsCore.Conf,
-			datadoghqv1alpha1.KubeStateMetricCoreVolumeName,
-			getKubeStateMetricsConfName(dda),
-			ksmCoreCheckFolderName,
-		)
-
-		volumes = append(volumes, volKSM)
-		volumeMounts = append(volumeMounts, volumeMountKSM)
-	}
-
 	if isOrchestratorExplorerEnabled(dda) {
 		volume, volumeMount := getCustomConfigSpecVolumes(
 			dda.Spec.Features.OrchestratorExplorer.Conf,
@@ -454,46 +375,33 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 		return corev1.PodTemplateSpec{}, err
 	}
 
-	podSpec := corev1.PodSpec{
-		ServiceAccountName: getClusterAgentServiceAccount(dda),
-		Containers: []corev1.Container{
-			{
-				Name:            "cluster-agent",
-				Image:           getImage(clusterAgentSpec.Image, dda.Spec.Registry),
-				ImagePullPolicy: *clusterAgentSpec.Image.PullPolicy,
-				Ports: []corev1.ContainerPort{
-					{
-						ContainerPort: 5005,
-						Name:          "agentport",
-						Protocol:      "TCP",
-					},
-				},
-				Env:          envs,
-				VolumeMounts: volumeMounts,
-				Command:      getDefaultIfEmpty(dda.Spec.ClusterAgent.Config.Command, nil),
-				Args:         getDefaultIfEmpty(dda.Spec.ClusterAgent.Config.Args, nil),
-				SecurityContext: &corev1.SecurityContext{
-					ReadOnlyRootFilesystem:   apiutils.NewBoolPointer(true),
-					AllowPrivilegeEscalation: apiutils.NewBoolPointer(false),
-				},
-			},
-		},
-		Affinity:          getClusterAgentAffinity(clusterAgentSpec.Affinity),
-		Tolerations:       clusterAgentSpec.Tolerations,
-		PriorityClassName: dda.Spec.ClusterAgent.PriorityClassName,
-		Volumes:           volumes,
-		// To be uncommented when the cluster-agent Dockerfile will be updated to use a non-root user by default
-		// SecurityContext: &corev1.PodSecurityContext{
-		// 	RunAsNonRoot: apiutils.NewBoolPointer(true),
-		// },
+	envManager := merger.NewEnvVarManager(&newPodTemplate)
+	for id := range envs {
+		envManager.AddEnvVar(&envs[id])
 	}
 
-	newPodTemplate := corev1.PodTemplateSpec{
-		ObjectMeta: metav1.ObjectMeta{
-			Labels:      make(map[string]string),
-			Annotations: make(map[string]string),
-		},
-		Spec: podSpec,
+	// copy Spec to configure the Cluster Agent Pod Template
+	clusterAgentSpec := dda.Spec.ClusterAgent.DeepCopy()
+
+	newPodTemplate.Spec.ServiceAccountName = getClusterAgentServiceAccount(dda)
+	newPodTemplate.Spec.Tolerations = clusterAgentSpec.Tolerations
+	newPodTemplate.Spec.PriorityClassName = dda.Spec.ClusterAgent.PriorityClassName
+
+	newPodTemplate.Spec.Affinity = getClusterAgentAffinity(dda.Spec.ClusterAgent.Affinity)
+
+	newPodTemplate.Spec.Volumes = append(newPodTemplate.Spec.Volumes, volumes...)
+
+	container := &newPodTemplate.Spec.Containers[0]
+	{
+		container.Image = getImage(clusterAgentSpec.Image, dda.Spec.Registry)
+		if clusterAgentSpec.Image.PullPolicy != nil {
+			container.ImagePullPolicy = *clusterAgentSpec.Image.PullPolicy
+		}
+		container.Command = getDefaultIfEmpty(dda.Spec.ClusterAgent.Config.Command, nil)
+		container.Args = getDefaultIfEmpty(dda.Spec.ClusterAgent.Config.Args, nil)
+		container.Env = append(container.Env, envs...)
+
+		container.VolumeMounts = append(container.VolumeMounts, volumeMounts...)
 	}
 
 	for key, val := range labels {
@@ -511,8 +419,6 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 	for key, val := range dda.Spec.ClusterAgent.AdditionalAnnotations {
 		newPodTemplate.Annotations[key] = val
 	}
-
-	container := &newPodTemplate.Spec.Containers[0]
 
 	if apiutils.BoolValue(dda.Spec.ClusterAgent.Config.ExternalMetrics.Enabled) {
 		port := getClusterAgentMetricsProviderPort(*dda.Spec.ClusterAgent.Config)
@@ -545,36 +451,23 @@ func getClusterAgentAffinity(affinity *corev1.Affinity) *corev1.Affinity {
 		return affinity
 	}
 
-	return &corev1.Affinity{
-		PodAntiAffinity: &corev1.PodAntiAffinity{
-			RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
-				{
-					LabelSelector: &metav1.LabelSelector{
-						MatchLabels: map[string]string{
-							datadoghqv1alpha1.AgentDeploymentComponentLabelKey: datadoghqv1alpha1.DefaultClusterAgentResourceSuffix,
-						},
-					},
-					TopologyKey: "kubernetes.io/hostname",
-				},
-			},
-		},
-	}
+	return componentdca.DefaultAffinity()
 }
 
 func getCustomConfigSpecVolumes(customConfig *datadoghqv1alpha1.CustomConfigSpec, volumeName, defaultCMName, configFolder string) (corev1.Volume, corev1.VolumeMount) {
 	var volume corev1.Volume
 	var volumeMount corev1.VolumeMount
 	if customConfig != nil {
-		volume = getVolumeFromCustomConfigSpec(
-			customConfig,
+		volume = objectvolume.GetVolumeFromCustomConfigSpec(
+			datadoghqv1alpha1.ConvertCustomConfig(customConfig),
 			defaultCMName,
 			volumeName,
 		)
 		// subpath only updated to Filekey if config uses configMap, default to ksmCoreCheckName for configData.
-		volumeMount = getVolumeMountFromCustomConfigSpec(
-			customConfig,
+		volumeMount = objectvolume.GetVolumeMountFromCustomConfigSpec(
+			datadoghqv1alpha1.ConvertCustomConfig(customConfig),
 			volumeName,
-			fmt.Sprintf("%s%s/%s", datadoghqv1alpha1.ConfigVolumePath, datadoghqv1alpha1.ConfdVolumePath, configFolder),
+			fmt.Sprintf("%s%s/%s", apicommon.ConfigVolumePath, apicommon.ConfdVolumePath, configFolder),
 			"",
 		)
 	} else {
@@ -590,7 +483,7 @@ func getCustomConfigSpecVolumes(customConfig *datadoghqv1alpha1.CustomConfigSpec
 		}
 		volumeMount = corev1.VolumeMount{
 			Name:      volumeName,
-			MountPath: fmt.Sprintf("%s%s/%s", datadoghqv1alpha1.ConfigVolumePath, datadoghqv1alpha1.ConfdVolumePath, configFolder),
+			MountPath: fmt.Sprintf("%s%s/%s", apicommon.ConfigVolumePath, apicommon.ConfdVolumePath, configFolder),
 			ReadOnly:  true,
 		}
 	}
@@ -613,24 +506,12 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 			Value: strconv.FormatBool(isClusterChecksEnabled(&dda.Spec)),
 		},
 		{
-			Name:  datadoghqv1alpha1.DDClusterAgentKubeServiceName,
-			Value: getClusterAgentServiceName(dda),
-		},
-		{
-			Name:  datadoghqv1alpha1.DDLeaderElection,
-			Value: "true",
-		},
-		{
 			Name:  datadoghqv1alpha1.DDComplianceConfigEnabled,
 			Value: strconv.FormatBool(complianceEnabled),
 		},
 		{
 			Name:  datadoghqv1alpha1.DDCollectKubeEvents,
 			Value: apiutils.BoolToString(spec.ClusterAgent.Config.CollectEvents),
-		},
-		{
-			Name:  datadoghqv1alpha1.DDHealthPort,
-			Value: strconv.Itoa(int(*spec.ClusterAgent.Config.HealthPort)),
 		},
 	}
 
@@ -750,17 +631,6 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 		}...)
 	}
 
-	if isKSMCoreEnabled(dda) {
-		envVars = append(envVars, corev1.EnvVar{
-			Name:  datadoghqv1alpha1.DDKubeStateMetricsCoreEnabled,
-			Value: "true",
-		})
-		envVars = append(envVars, corev1.EnvVar{
-			Name:  datadoghqv1alpha1.DDKubeStateMetricsCoreConfigMap,
-			Value: getKubeStateMetricsConfName(dda),
-		})
-	}
-
 	if isAdmissionControllerEnabled(spec.ClusterAgent) {
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  datadoghqv1alpha1.DDAdmissionControllerEnabled,
@@ -801,17 +671,18 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 }
 
 func getClusterAgentName(dda *datadoghqv1alpha1.DatadogAgent) string {
+	name := component.GetClusterAgentName(dda)
 	if isClusterAgentEnabled(dda.Spec.ClusterAgent) && dda.Spec.ClusterAgent.DeploymentName != "" {
-		return dda.Spec.ClusterAgent.DeploymentName
+		name = dda.Spec.ClusterAgent.DeploymentName
 	}
-	return fmt.Sprintf("%s-%s", dda.Name, "cluster-agent")
+	return name
 }
 
 func getClusterAgentMetricsProviderPort(config datadoghqv1alpha1.ClusterAgentConfig) int32 {
 	if config.ExternalMetrics != nil {
 		return *config.ExternalMetrics.Port
 	}
-	return int32(datadoghqv1alpha1.DefaultMetricsServerTargetPort)
+	return int32(apicommon.DefaultMetricsServerTargetPort)
 }
 
 func getAdmissionControllerServiceName(dda *datadoghqv1alpha1.DatadogAgent) string {
@@ -902,21 +773,11 @@ func (r *Reconciler) manageClusterAgentRBACs(logger logr.Logger, dda *datadoghqv
 		return reconcile.Result{}, err
 	}
 
-	if isKSMCoreEnabled(dda) && !isKSMCoreClusterCheck(dda) {
-		if result, err := r.createOrUpdateKubeStateMetricsCoreRBAC(logger, dda, serviceAccountName, clusterAgentVersion, clusterAgentSuffix); err != nil {
-			return result, err
-		}
-	} else {
-		if result, err := r.cleanupKubeStateMetricsCoreRBAC(logger, dda, clusterAgentSuffix); err != nil {
-			return result, err
-		}
-	}
-
 	if isOrchestratorExplorerEnabled(dda) && !isOrchestratorExplorerClusterCheck(dda) {
-		if result, err := r.createOrUpdateOrchestratorCoreRBAC(logger, dda, serviceAccountName, clusterAgentVersion, clusterAgentSuffix); err != nil {
+		if result, err := r.createOrUpdateOrchestratorCoreRBAC(logger, dda, serviceAccountName, clusterAgentVersion, common.ClusterAgentSuffix); err != nil {
 			return result, err
 		}
-	} else if result, err := r.cleanupOrchestratorCoreRBAC(logger, dda, clusterAgentSuffix); err != nil {
+	} else if result, err := r.cleanupOrchestratorCoreRBAC(logger, dda, common.ClusterAgentSuffix); err != nil {
 		return result, err
 	}
 
@@ -1055,7 +916,7 @@ func buildClusterCheckRunnerClusterRole(dda *datadoghqv1alpha1.DatadogAgent, nam
 func buildClusterRole(dda *datadoghqv1alpha1.DatadogAgent, needClusterLevelRBAC bool, name, version string) *rbacv1.ClusterRole {
 	clusterRole := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels: getDefaultLabels(dda, NewPartOfLabelValue(dda).String(), version),
+			Labels: object.GetDefaultLabels(dda, object.NewPartOfLabelValue(dda).String(), version),
 			Name:   name,
 		},
 	}
@@ -1063,31 +924,31 @@ func buildClusterRole(dda *datadoghqv1alpha1.DatadogAgent, needClusterLevelRBAC 
 	rbacRules := []rbacv1.PolicyRule{
 		{
 			// Get /metrics permissions
-			NonResourceURLs: []string{datadoghqv1alpha1.MetricsURL},
-			Verbs:           []string{datadoghqv1alpha1.GetVerb},
+			NonResourceURLs: []string{rbac.MetricsURL},
+			Verbs:           []string{rbac.GetVerb},
 		},
 		{
 			// Kubelet connectivity
-			APIGroups: []string{datadoghqv1alpha1.CoreAPIGroup},
+			APIGroups: []string{rbac.CoreAPIGroup},
 			Resources: []string{
-				datadoghqv1alpha1.NodeMetricsResource,
-				datadoghqv1alpha1.NodeSpecResource,
-				datadoghqv1alpha1.NodeProxyResource,
-				datadoghqv1alpha1.NodeStats,
+				rbac.NodeMetricsResource,
+				rbac.NodeSpecResource,
+				rbac.NodeProxyResource,
+				rbac.NodeStats,
 			},
-			Verbs: []string{datadoghqv1alpha1.GetVerb},
+			Verbs: []string{rbac.GetVerb},
 		},
 		{
 			// Leader election check
-			APIGroups: []string{datadoghqv1alpha1.CoreAPIGroup},
-			Resources: []string{datadoghqv1alpha1.EndpointsResource},
-			Verbs:     []string{datadoghqv1alpha1.GetVerb},
+			APIGroups: []string{rbac.CoreAPIGroup},
+			Resources: []string{rbac.EndpointsResource},
+			Verbs:     []string{rbac.GetVerb},
 		},
 		{
 			// Leader election check
-			APIGroups: []string{datadoghqv1alpha1.CoordinationAPIGroup},
-			Resources: []string{datadoghqv1alpha1.LeasesResource},
-			Verbs:     []string{datadoghqv1alpha1.GetVerb},
+			APIGroups: []string{rbac.CoordinationAPIGroup},
+			Resources: []string{rbac.LeasesResource},
+			Verbs:     []string{rbac.GetVerb},
 		},
 	}
 
@@ -1097,9 +958,9 @@ func buildClusterRole(dda *datadoghqv1alpha1.DatadogAgent, needClusterLevelRBAC 
 			checkSecretBackendMultipleProvidersUsed(dda.Spec.Agent.Apm.Env) || checkSecretBackendMultipleProvidersUsed(dda.Spec.Agent.Process.Env) ||
 			checkSecretBackendMultipleProvidersUsed(dda.Spec.Agent.SystemProbe.Env) || checkSecretBackendMultipleProvidersUsed(dda.Spec.Agent.Security.Env)) {
 		rbacRules = append(rbacRules, rbacv1.PolicyRule{
-			APIGroups: []string{datadoghqv1alpha1.CoreAPIGroup},
-			Resources: []string{datadoghqv1alpha1.SecretsResource},
-			Verbs:     []string{datadoghqv1alpha1.GetVerb},
+			APIGroups: []string{rbac.CoreAPIGroup},
+			Resources: []string{rbac.SecretsResource},
+			Verbs:     []string{rbac.GetVerb},
 		})
 	}
 
@@ -1129,31 +990,31 @@ func buildClusterRole(dda *datadoghqv1alpha1.DatadogAgent, needClusterLevelRBAC 
 func getDefaultClusterAgentPolicyRules() []rbacv1.PolicyRule {
 	return append([]rbacv1.PolicyRule{
 		{
-			APIGroups: []string{datadoghqv1alpha1.CoreAPIGroup},
+			APIGroups: []string{rbac.CoreAPIGroup},
 			Resources: []string{
-				datadoghqv1alpha1.ServicesResource,
-				datadoghqv1alpha1.EventsResource,
-				datadoghqv1alpha1.EndpointsResource,
-				datadoghqv1alpha1.PodsResource,
-				datadoghqv1alpha1.NodesResource,
-				datadoghqv1alpha1.ComponentStatusesResource,
-				datadoghqv1alpha1.ConfigMapsResource,
-				datadoghqv1alpha1.NamespaceResource,
+				rbac.ServicesResource,
+				rbac.EventsResource,
+				rbac.EndpointsResource,
+				rbac.PodsResource,
+				rbac.NodesResource,
+				rbac.ComponentStatusesResource,
+				rbac.ConfigMapsResource,
+				rbac.NamespaceResource,
 			},
 			Verbs: []string{
-				datadoghqv1alpha1.GetVerb,
-				datadoghqv1alpha1.ListVerb,
-				datadoghqv1alpha1.WatchVerb,
+				rbac.GetVerb,
+				rbac.ListVerb,
+				rbac.WatchVerb,
 			},
 		},
 		{
-			APIGroups: []string{datadoghqv1alpha1.OpenShiftQuotaAPIGroup},
-			Resources: []string{datadoghqv1alpha1.ClusterResourceQuotasResource},
-			Verbs:     []string{datadoghqv1alpha1.GetVerb, datadoghqv1alpha1.ListVerb},
+			APIGroups: []string{rbac.OpenShiftQuotaAPIGroup},
+			Resources: []string{rbac.ClusterResourceQuotasResource},
+			Verbs:     []string{rbac.GetVerb, rbac.ListVerb},
 		},
 		{
-			NonResourceURLs: []string{datadoghqv1alpha1.VersionURL, datadoghqv1alpha1.HealthzURL},
-			Verbs:           []string{datadoghqv1alpha1.GetVerb},
+			NonResourceURLs: []string{rbac.VersionURL, rbac.HealthzURL},
+			Verbs:           []string{rbac.GetVerb},
 		},
 	}, getLeaderElectionPolicyRule()...)
 }
@@ -1162,17 +1023,17 @@ func getDefaultClusterAgentPolicyRules() []rbacv1.PolicyRule {
 func buildClusterRoleBinding(dda *datadoghqv1alpha1.DatadogAgent, info roleBindingInfo, agentVersion string) *rbacv1.ClusterRoleBinding {
 	return &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels: getDefaultLabels(dda, NewPartOfLabelValue(dda).String(), agentVersion),
+			Labels: object.GetDefaultLabels(dda, object.NewPartOfLabelValue(dda).String(), agentVersion),
 			Name:   info.name,
 		},
 		RoleRef: rbacv1.RoleRef{
-			APIGroup: datadoghqv1alpha1.RbacAPIGroup,
-			Kind:     datadoghqv1alpha1.ClusterRoleKind,
+			APIGroup: rbac.RbacAPIGroup,
+			Kind:     rbac.ClusterRoleKind,
 			Name:     info.roleName,
 		},
 		Subjects: []rbacv1.Subject{
 			{
-				Kind:      datadoghqv1alpha1.ServiceAccountKind,
+				Kind:      rbac.ServiceAccountKind,
 				Name:      info.serviceAccountName,
 				Namespace: dda.Namespace,
 			},
@@ -1184,7 +1045,7 @@ func buildClusterRoleBinding(dda *datadoghqv1alpha1.DatadogAgent, info roleBindi
 func buildClusterAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string) *rbacv1.ClusterRole {
 	clusterRole := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels: getDefaultLabels(dda, NewPartOfLabelValue(dda).String(), agentVersion),
+			Labels: object.GetDefaultLabels(dda, object.NewPartOfLabelValue(dda).String(), agentVersion),
 			Name:   name,
 		},
 	}
@@ -1193,18 +1054,18 @@ func buildClusterAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, age
 
 	rbacRules = append(rbacRules, rbacv1.PolicyRule{
 		// Horizontal Pod Autoscaling
-		APIGroups: []string{datadoghqv1alpha1.AutoscalingAPIGroup},
-		Resources: []string{datadoghqv1alpha1.HorizontalPodAutoscalersRecource},
-		Verbs:     []string{datadoghqv1alpha1.ListVerb, datadoghqv1alpha1.WatchVerb},
+		APIGroups: []string{rbac.AutoscalingAPIGroup},
+		Resources: []string{rbac.HorizontalPodAutoscalersRecource},
+		Verbs:     []string{rbac.ListVerb, rbac.WatchVerb},
 	})
 
 	rbacRules = append(rbacRules, rbacv1.PolicyRule{
-		APIGroups: []string{datadoghqv1alpha1.CoreAPIGroup},
-		Resources: []string{datadoghqv1alpha1.NamespaceResource},
+		APIGroups: []string{rbac.CoreAPIGroup},
+		Resources: []string{rbac.NamespaceResource},
 		ResourceNames: []string{
-			datadoghqv1alpha1.KubeSystemResourceName,
+			common.KubeSystemResourceName,
 		},
-		Verbs: []string{datadoghqv1alpha1.GetVerb},
+		Verbs: []string{rbac.GetVerb},
 	})
 
 	if apiutils.BoolValue(dda.Spec.ClusterAgent.Config.CollectEvents) {
@@ -1215,80 +1076,80 @@ func buildClusterAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, age
 	if *dda.Spec.Credentials.UseSecretBackend &&
 		checkSecretBackendMultipleProvidersUsed(dda.Spec.ClusterAgent.Config.Env) {
 		rbacRules = append(rbacRules, rbacv1.PolicyRule{
-			APIGroups: []string{datadoghqv1alpha1.CoreAPIGroup},
-			Resources: []string{datadoghqv1alpha1.SecretsResource},
-			Verbs:     []string{datadoghqv1alpha1.GetVerb},
+			APIGroups: []string{rbac.CoreAPIGroup},
+			Resources: []string{rbac.SecretsResource},
+			Verbs:     []string{rbac.GetVerb},
 		})
 	}
 
 	if isMetricsProviderEnabled(dda.Spec.ClusterAgent) {
 		rbacRules = append(rbacRules,
 			rbacv1.PolicyRule{
-				APIGroups: []string{datadoghqv1alpha1.CoreAPIGroup},
-				Resources: []string{datadoghqv1alpha1.ConfigMapsResource},
+				APIGroups: []string{rbac.CoreAPIGroup},
+				Resources: []string{rbac.ConfigMapsResource},
 				ResourceNames: []string{
-					datadoghqv1alpha1.DatadogCustomMetricsResourceName,
+					common.DatadogCustomMetricsResourceName,
 				},
 				Verbs: []string{
-					datadoghqv1alpha1.GetVerb,
-					datadoghqv1alpha1.UpdateVerb,
+					rbac.GetVerb,
+					rbac.UpdateVerb,
 				},
 			},
 			rbacv1.PolicyRule{
-				APIGroups: []string{datadoghqv1alpha1.CoreAPIGroup},
-				Resources: []string{datadoghqv1alpha1.ConfigMapsResource},
+				APIGroups: []string{rbac.CoreAPIGroup},
+				Resources: []string{rbac.ConfigMapsResource},
 				ResourceNames: []string{
-					datadoghqv1alpha1.ExtensionAPIServerAuthResourceName,
+					common.ExtensionAPIServerAuthResourceName,
 				},
 				Verbs: []string{
-					datadoghqv1alpha1.GetVerb,
-					datadoghqv1alpha1.ListVerb,
-					datadoghqv1alpha1.WatchVerb,
+					rbac.GetVerb,
+					rbac.ListVerb,
+					rbac.WatchVerb,
 				},
 			},
 			rbacv1.PolicyRule{
-				APIGroups: []string{datadoghqv1alpha1.AuthorizationAPIGroup},
-				Resources: []string{datadoghqv1alpha1.SubjectAccessReviewResource},
+				APIGroups: []string{rbac.AuthorizationAPIGroup},
+				Resources: []string{rbac.SubjectAccessReviewResource},
 				Verbs: []string{
-					datadoghqv1alpha1.CreateVerb,
-					datadoghqv1alpha1.GetVerb,
+					rbac.CreateVerb,
+					rbac.GetVerb,
 				},
 			},
 			rbacv1.PolicyRule{
-				APIGroups: []string{datadoghqv1alpha1.CoreAPIGroup},
-				Resources: []string{datadoghqv1alpha1.EventsResource},
-				Verbs:     []string{datadoghqv1alpha1.CreateVerb},
+				APIGroups: []string{rbac.CoreAPIGroup},
+				Resources: []string{rbac.EventsResource},
+				Verbs:     []string{rbac.CreateVerb},
 			},
 		)
 
 		if dda.Spec.ClusterAgent.Config.ExternalMetrics.UseDatadogMetrics {
 			rbacRules = append(rbacRules, rbacv1.PolicyRule{
-				APIGroups: []string{datadoghqv1alpha1.DatadogAPIGroup},
-				Resources: []string{datadoghqv1alpha1.DatadogMetricsResource},
+				APIGroups: []string{rbac.DatadogAPIGroup},
+				Resources: []string{rbac.DatadogMetricsResource},
 				Verbs: []string{
-					datadoghqv1alpha1.ListVerb,
-					datadoghqv1alpha1.WatchVerb,
-					datadoghqv1alpha1.CreateVerb,
-					datadoghqv1alpha1.DeleteVerb,
+					rbac.ListVerb,
+					rbac.WatchVerb,
+					rbac.CreateVerb,
+					rbac.DeleteVerb,
 				},
 			})
 
 			// Specific update rule for status subresource
 			rbacRules = append(rbacRules, rbacv1.PolicyRule{
-				APIGroups: []string{datadoghqv1alpha1.DatadogAPIGroup},
-				Resources: []string{datadoghqv1alpha1.DatadogMetricsStatusResource},
-				Verbs:     []string{datadoghqv1alpha1.UpdateVerb},
+				APIGroups: []string{rbac.DatadogAPIGroup},
+				Resources: []string{rbac.DatadogMetricsStatusResource},
+				Verbs:     []string{rbac.UpdateVerb},
 			})
 		}
 
 		if dda.Spec.ClusterAgent.Config.ExternalMetrics.WpaController {
 			rbacRules = append(rbacRules, rbacv1.PolicyRule{
-				APIGroups: []string{datadoghqv1alpha1.DatadogAPIGroup},
-				Resources: []string{datadoghqv1alpha1.WpaResource},
+				APIGroups: []string{rbac.DatadogAPIGroup},
+				Resources: []string{rbac.WpaResource},
 				Verbs: []string{
-					datadoghqv1alpha1.ListVerb,
-					datadoghqv1alpha1.WatchVerb,
-					datadoghqv1alpha1.GetVerb,
+					rbac.ListVerb,
+					rbac.WatchVerb,
+					rbac.GetVerb,
 				},
 			})
 		}
@@ -1297,70 +1158,70 @@ func buildClusterAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, age
 	if isAdmissionControllerEnabled(dda.Spec.ClusterAgent) {
 		// MutatingWebhooksConfigs
 		rbacRules = append(rbacRules, rbacv1.PolicyRule{
-			APIGroups: []string{datadoghqv1alpha1.AdmissionAPIGroup},
-			Resources: []string{datadoghqv1alpha1.MutatingConfigResource},
+			APIGroups: []string{rbac.AdmissionAPIGroup},
+			Resources: []string{rbac.MutatingConfigResource},
 			Verbs: []string{
-				datadoghqv1alpha1.GetVerb,
-				datadoghqv1alpha1.ListVerb,
-				datadoghqv1alpha1.WatchVerb,
-				datadoghqv1alpha1.CreateVerb,
-				datadoghqv1alpha1.UpdateVerb,
+				rbac.GetVerb,
+				rbac.ListVerb,
+				rbac.WatchVerb,
+				rbac.CreateVerb,
+				rbac.UpdateVerb,
 			},
 		})
 
 		// Secrets
 		rbacRules = append(rbacRules, rbacv1.PolicyRule{
-			APIGroups: []string{datadoghqv1alpha1.CoreAPIGroup},
-			Resources: []string{datadoghqv1alpha1.SecretsResource},
+			APIGroups: []string{rbac.CoreAPIGroup},
+			Resources: []string{rbac.SecretsResource},
 			Verbs: []string{
-				datadoghqv1alpha1.GetVerb,
-				datadoghqv1alpha1.ListVerb,
-				datadoghqv1alpha1.WatchVerb,
-				datadoghqv1alpha1.CreateVerb,
-				datadoghqv1alpha1.UpdateVerb,
+				rbac.GetVerb,
+				rbac.ListVerb,
+				rbac.WatchVerb,
+				rbac.CreateVerb,
+				rbac.UpdateVerb,
 			},
 		})
 
 		// ExtendedDaemonsetReplicaSets
 		rbacRules = append(rbacRules, rbacv1.PolicyRule{
-			APIGroups: []string{datadoghqv1alpha1.GroupVersion.Group},
+			APIGroups: []string{extendeddaemonset.GroupVersion.Group},
 			Resources: []string{
-				datadoghqv1alpha1.ExtendedDaemonSetReplicaSetResource,
+				rbac.ExtendedDaemonSetReplicaSetResource,
 			},
-			Verbs: []string{datadoghqv1alpha1.GetVerb},
+			Verbs: []string{rbac.GetVerb},
 		})
 
 		// Deployments, Replicasets, Statefulsets, Daemonsets,
 		rbacRules = append(rbacRules, rbacv1.PolicyRule{
-			APIGroups: []string{datadoghqv1alpha1.AppsAPIGroup},
+			APIGroups: []string{rbac.AppsAPIGroup},
 			Resources: []string{
-				datadoghqv1alpha1.DeploymentsResource,
-				datadoghqv1alpha1.ReplicasetsResource,
-				datadoghqv1alpha1.StatefulsetsResource,
-				datadoghqv1alpha1.DaemonsetsResource,
+				rbac.DeploymentsResource,
+				rbac.ReplicasetsResource,
+				rbac.StatefulsetsResource,
+				rbac.DaemonsetsResource,
 			},
-			Verbs: []string{datadoghqv1alpha1.GetVerb},
+			Verbs: []string{rbac.GetVerb},
 		})
 
 		// Jobs
 		rbacRules = append(rbacRules, rbacv1.PolicyRule{
-			APIGroups: []string{datadoghqv1alpha1.BatchAPIGroup},
-			Resources: []string{datadoghqv1alpha1.JobsResource},
+			APIGroups: []string{rbac.BatchAPIGroup},
+			Resources: []string{rbac.JobsResource},
 			Verbs: []string{
-				datadoghqv1alpha1.ListVerb,
-				datadoghqv1alpha1.WatchVerb,
-				datadoghqv1alpha1.GetVerb,
+				rbac.ListVerb,
+				rbac.WatchVerb,
+				rbac.GetVerb,
 			},
 		})
 
 		// CronJobs
 		rbacRules = append(rbacRules, rbacv1.PolicyRule{
-			APIGroups: []string{datadoghqv1alpha1.BatchAPIGroup},
-			Resources: []string{datadoghqv1alpha1.CronjobsResource},
+			APIGroups: []string{rbac.BatchAPIGroup},
+			Resources: []string{rbac.CronjobsResource},
 			Verbs: []string{
-				datadoghqv1alpha1.ListVerb,
-				datadoghqv1alpha1.WatchVerb,
-				datadoghqv1alpha1.GetVerb,
+				rbac.ListVerb,
+				rbac.WatchVerb,
+				rbac.GetVerb,
 			},
 		})
 	}
@@ -1368,40 +1229,40 @@ func buildClusterAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, age
 	if isComplianceEnabled(&dda.Spec) {
 		// ServiceAccounts and Namespaces
 		rbacRules = append(rbacRules, rbacv1.PolicyRule{
-			APIGroups: []string{datadoghqv1alpha1.CoreAPIGroup},
-			Resources: []string{datadoghqv1alpha1.ServiceAccountResource, datadoghqv1alpha1.NamespaceResource},
+			APIGroups: []string{rbac.CoreAPIGroup},
+			Resources: []string{rbac.ServiceAccountResource, rbac.NamespaceResource},
 			Verbs: []string{
-				datadoghqv1alpha1.ListVerb,
+				rbac.ListVerb,
 			},
 		})
 
 		// PodSecurityPolicies
 		rbacRules = append(rbacRules, rbacv1.PolicyRule{
-			APIGroups: []string{datadoghqv1alpha1.PolicyAPIGroup},
-			Resources: []string{datadoghqv1alpha1.PodSecurityPolicyResource},
+			APIGroups: []string{rbac.PolicyAPIGroup},
+			Resources: []string{rbac.PodSecurityPolicyResource},
 			Verbs: []string{
-				datadoghqv1alpha1.ListVerb,
-				datadoghqv1alpha1.GetVerb,
-				datadoghqv1alpha1.ListVerb,
-				datadoghqv1alpha1.WatchVerb,
+				rbac.ListVerb,
+				rbac.GetVerb,
+				rbac.ListVerb,
+				rbac.WatchVerb,
 			},
 		})
 
 		// ClusterRoleBindings and RoleBindings
 		rbacRules = append(rbacRules, rbacv1.PolicyRule{
-			APIGroups: []string{datadoghqv1alpha1.RbacAPIGroup},
-			Resources: []string{datadoghqv1alpha1.ClusterRoleBindingResource, datadoghqv1alpha1.RoleBindingResource},
+			APIGroups: []string{rbac.RbacAPIGroup},
+			Resources: []string{rbac.ClusterRoleBindingResource, rbac.RoleBindingResource},
 			Verbs: []string{
-				datadoghqv1alpha1.ListVerb,
+				rbac.ListVerb,
 			},
 		})
 
 		// NetworkPolicies
 		rbacRules = append(rbacRules, rbacv1.PolicyRule{
-			APIGroups: []string{datadoghqv1alpha1.NetworkingAPIGroup},
-			Resources: []string{datadoghqv1alpha1.NetworkPolicyResource},
+			APIGroups: []string{rbac.NetworkingAPIGroup},
+			Resources: []string{rbac.NetworkPolicyResource},
 			Verbs: []string{
-				datadoghqv1alpha1.ListVerb,
+				rbac.ListVerb,
 			},
 		})
 	}
@@ -1409,23 +1270,23 @@ func buildClusterAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, age
 	if isOrchestratorExplorerEnabled(dda) {
 		// To get the kube-system namespace UID and generate a cluster ID
 		rbacRules = append(rbacRules, rbacv1.PolicyRule{
-			APIGroups:     []string{datadoghqv1alpha1.CoreAPIGroup},
-			Resources:     []string{datadoghqv1alpha1.NamespaceResource},
-			ResourceNames: []string{datadoghqv1alpha1.KubeSystemResourceName},
-			Verbs:         []string{datadoghqv1alpha1.GetVerb},
+			APIGroups:     []string{rbac.CoreAPIGroup},
+			Resources:     []string{rbac.NamespaceResource},
+			ResourceNames: []string{common.KubeSystemResourceName},
+			Verbs:         []string{rbac.GetVerb},
 		})
 		// To create the cluster-id configmap
 		rbacRules = append(rbacRules, rbacv1.PolicyRule{
-			APIGroups:     []string{datadoghqv1alpha1.CoreAPIGroup},
-			Resources:     []string{datadoghqv1alpha1.ConfigMapsResource},
-			ResourceNames: []string{datadoghqv1alpha1.DatadogClusterIDResourceName},
-			Verbs:         []string{datadoghqv1alpha1.GetVerb, datadoghqv1alpha1.CreateVerb, datadoghqv1alpha1.UpdateVerb},
+			APIGroups:     []string{rbac.CoreAPIGroup},
+			Resources:     []string{rbac.ConfigMapsResource},
+			ResourceNames: []string{common.DatadogClusterIDResourceName},
+			Verbs:         []string{rbac.GetVerb, rbac.CreateVerb, rbac.UpdateVerb},
 		})
 
 		rbacRules = append(rbacRules, rbacv1.PolicyRule{
-			APIGroups: []string{datadoghqv1alpha1.AppsAPIGroup},
-			Resources: []string{datadoghqv1alpha1.DeploymentsResource, datadoghqv1alpha1.ReplicasetsResource, datadoghqv1alpha1.DaemonsetsResource, datadoghqv1alpha1.StatefulsetsResource},
-			Verbs:     []string{datadoghqv1alpha1.GetVerb, datadoghqv1alpha1.ListVerb, datadoghqv1alpha1.WatchVerb},
+			APIGroups: []string{rbac.AppsAPIGroup},
+			Resources: []string{rbac.DeploymentsResource, rbac.ReplicasetsResource, rbac.DaemonsetsResource, rbac.StatefulsetsResource},
+			Verbs:     []string{rbac.GetVerb, rbac.ListVerb, rbac.WatchVerb},
 		})
 	}
 
@@ -1438,7 +1299,7 @@ func buildClusterAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, age
 func buildClusterAgentRole(dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string) *rbacv1.Role {
 	role := &rbacv1.Role{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels:    getDefaultLabels(dda, dda.Name, agentVersion),
+			Labels:    object.GetDefaultLabels(dda, dda.Name, agentVersion),
 			Name:      name,
 			Namespace: dda.Namespace,
 		},
@@ -1447,37 +1308,37 @@ func buildClusterAgentRole(dda *datadoghqv1alpha1.DatadogAgent, name, agentVersi
 	rbacRules := getLeaderElectionPolicyRule()
 
 	rbacRules = append(rbacRules, rbacv1.PolicyRule{
-		APIGroups: []string{datadoghqv1alpha1.CoreAPIGroup},
-		Resources: []string{datadoghqv1alpha1.ConfigMapsResource},
+		APIGroups: []string{rbac.CoreAPIGroup},
+		Resources: []string{rbac.ConfigMapsResource},
 		ResourceNames: []string{
-			datadoghqv1alpha1.DatadogClusterIDResourceName,
+			common.DatadogClusterIDResourceName,
 		},
-		Verbs: []string{datadoghqv1alpha1.GetVerb, datadoghqv1alpha1.UpdateVerb, datadoghqv1alpha1.CreateVerb},
+		Verbs: []string{rbac.GetVerb, rbac.UpdateVerb, rbac.CreateVerb},
 	})
 
 	if isMetricsProviderEnabled(dda.Spec.ClusterAgent) {
 		rbacRules = append(rbacRules,
 			rbacv1.PolicyRule{
-				APIGroups: []string{datadoghqv1alpha1.CoreAPIGroup},
-				Resources: []string{datadoghqv1alpha1.ConfigMapsResource},
+				APIGroups: []string{rbac.CoreAPIGroup},
+				Resources: []string{rbac.ConfigMapsResource},
 				ResourceNames: []string{
-					datadoghqv1alpha1.DatadogCustomMetricsResourceName,
+					common.DatadogCustomMetricsResourceName,
 				},
 				Verbs: []string{
-					datadoghqv1alpha1.GetVerb,
-					datadoghqv1alpha1.UpdateVerb,
+					rbac.GetVerb,
+					rbac.UpdateVerb,
 				},
 			},
 			rbacv1.PolicyRule{
-				APIGroups: []string{datadoghqv1alpha1.CoreAPIGroup},
-				Resources: []string{datadoghqv1alpha1.ConfigMapsResource},
+				APIGroups: []string{rbac.CoreAPIGroup},
+				Resources: []string{rbac.ConfigMapsResource},
 				ResourceNames: []string{
-					datadoghqv1alpha1.ExtensionAPIServerAuthResourceName,
+					common.ExtensionAPIServerAuthResourceName,
 				},
 				Verbs: []string{
-					datadoghqv1alpha1.GetVerb,
-					datadoghqv1alpha1.ListVerb,
-					datadoghqv1alpha1.WatchVerb,
+					rbac.GetVerb,
+					rbac.ListVerb,
+					rbac.WatchVerb,
 				},
 			},
 		)
@@ -1504,7 +1365,7 @@ type clusterAgentNetworkPolicyBuilder struct {
 }
 
 func (b clusterAgentNetworkPolicyBuilder) Name() string {
-	return fmt.Sprintf("%s-%s", b.dda.Name, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix)
+	return fmt.Sprintf("%s-%s", b.dda.Name, apicommon.DefaultClusterAgentResourceSuffix)
 }
 
 func (b clusterAgentNetworkPolicyBuilder) NetworkPolicySpec() *datadoghqv1alpha1.NetworkPolicySpec {
@@ -1537,7 +1398,7 @@ func (b clusterAgentNetworkPolicyBuilder) BuildKubernetesPolicy() *networkingv1.
 				{
 					Port: &intstr.IntOrString{
 						Type:   intstr.Int,
-						IntVal: datadoghqv1alpha1.DefaultClusterAgentServicePort,
+						IntVal: apicommon.DefaultClusterAgentServicePort,
 					},
 				},
 			},
@@ -1545,8 +1406,8 @@ func (b clusterAgentNetworkPolicyBuilder) BuildKubernetesPolicy() *networkingv1.
 				{
 					PodSelector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{
-							kubernetes.AppKubernetesInstanceLabelKey: datadoghqv1alpha1.DefaultAgentResourceSuffix,
-							kubernetes.AppKubernetesPartOfLabelKey:   NewPartOfLabelValue(dda).String(),
+							kubernetes.AppKubernetesInstanceLabelKey: daemonsetName(b.dda),
+							kubernetes.AppKubernetesPartOfLabelKey:   object.NewPartOfLabelValue(dda).String(),
 						},
 					},
 				},
@@ -1560,7 +1421,7 @@ func (b clusterAgentNetworkPolicyBuilder) BuildKubernetesPolicy() *networkingv1.
 				{
 					Port: &intstr.IntOrString{
 						Type:   intstr.Int,
-						IntVal: datadoghqv1alpha1.DefaultClusterAgentServicePort,
+						IntVal: apicommon.DefaultClusterAgentServicePort,
 					},
 				},
 			},
@@ -1568,8 +1429,8 @@ func (b clusterAgentNetworkPolicyBuilder) BuildKubernetesPolicy() *networkingv1.
 				{
 					PodSelector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{
-							kubernetes.AppKubernetesInstanceLabelKey: datadoghqv1alpha1.DefaultClusterChecksRunnerResourceSuffix,
-							kubernetes.AppKubernetesPartOfLabelKey:   NewPartOfLabelValue(dda).String(),
+							kubernetes.AppKubernetesInstanceLabelKey: getClusterChecksRunnerName(b.dda),
+							kubernetes.AppKubernetesPartOfLabelKey:   object.NewPartOfLabelValue(dda).String(),
 						},
 					},
 				},
@@ -1583,7 +1444,7 @@ func (b clusterAgentNetworkPolicyBuilder) BuildKubernetesPolicy() *networkingv1.
 				{
 					Port: &intstr.IntOrString{
 						Type:   intstr.Int,
-						IntVal: int32(datadoghqv1alpha1.DefaultMetricsServerTargetPort),
+						IntVal: int32(apicommon.DefaultMetricsServerTargetPort),
 					},
 				},
 			},
@@ -1592,7 +1453,7 @@ func (b clusterAgentNetworkPolicyBuilder) BuildKubernetesPolicy() *networkingv1.
 
 	policy := &networkingv1.NetworkPolicy{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels:    getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda)),
+			Labels:    object.GetDefaultLabels(dda, apicommon.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda)),
 			Name:      name,
 			Namespace: dda.Namespace,
 		},
@@ -1612,8 +1473,8 @@ func (b clusterAgentNetworkPolicyBuilder) BuildKubernetesPolicy() *networkingv1.
 func (b clusterAgentNetworkPolicyBuilder) PodSelector() metav1.LabelSelector {
 	return metav1.LabelSelector{
 		MatchLabels: map[string]string{
-			kubernetes.AppKubernetesInstanceLabelKey: datadoghqv1alpha1.DefaultClusterAgentResourceSuffix,
-			kubernetes.AppKubernetesPartOfLabelKey:   NewPartOfLabelValue(b.dda).String(),
+			kubernetes.AppKubernetesInstanceLabelKey: getClusterAgentName(b.dda),
+			kubernetes.AppKubernetesPartOfLabelKey:   object.NewPartOfLabelValue(b.dda).String(),
 		},
 	}
 }
@@ -1674,7 +1535,7 @@ func (b clusterAgentNetworkPolicyBuilder) ciliumIngressAgent() cilium.NetworkPol
 		ingress.FromEndpoints = []metav1.LabelSelector{
 			{
 				MatchLabels: map[string]string{
-					kubernetes.AppKubernetesInstanceLabelKey: datadoghqv1alpha1.DefaultAgentResourceSuffix,
+					kubernetes.AppKubernetesInstanceLabelKey: daemonsetName(b.dda),
 					kubernetes.AppKubernetesPartOfLabelKey:   fmt.Sprintf("%s-%s", b.dda.Namespace, b.dda.Name),
 				},
 			},
@@ -1756,7 +1617,7 @@ func (b clusterAgentNetworkPolicyBuilder) BuildCiliumPolicy() *cilium.NetworkPol
 					FromEndpoints: []metav1.LabelSelector{
 						{
 							MatchLabels: map[string]string{
-								kubernetes.AppKubernetesInstanceLabelKey: datadoghqv1alpha1.DefaultClusterChecksRunnerResourceSuffix,
+								kubernetes.AppKubernetesInstanceLabelKey: getClusterChecksRunnerName(b.dda),
 								kubernetes.AppKubernetesPartOfLabelKey:   fmt.Sprintf("%s-%s", b.dda.Namespace, b.dda.Name),
 							},
 						},
@@ -1800,7 +1661,7 @@ func (b clusterAgentNetworkPolicyBuilder) BuildCiliumPolicy() *cilium.NetworkPol
 
 	return &cilium.NetworkPolicy{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels:    getDefaultLabels(b.dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(b.dda)),
+			Labels:    object.GetDefaultLabels(b.dda, getClusterAgentName(b.dda), getClusterAgentVersion(b.dda)),
 			Name:      b.Name(),
 			Namespace: b.dda.Namespace,
 		},
