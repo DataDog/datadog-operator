@@ -59,31 +59,28 @@ type ksmFeature struct {
 // Configure use to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredComponents {
 	f.owner = dda
+	var output feature.RequiredComponents
+
 	if dda.Spec.Features.KubeStateMetricsCore != nil && apiutils.BoolValue(dda.Spec.Features.KubeStateMetricsCore.Enabled) {
 		f.enable = true
+		output.ClusterAgent.IsRequired = &f.enable
 
 		if dda.Spec.Features.KubeStateMetricsCore.Conf != nil {
 			f.customConfig = v2alpha1.ConvertCustomConfig(dda.Spec.Features.KubeStateMetricsCore.Conf)
 		}
 
 		f.configConfigMapName = apicommonv1.GetConfName(dda, f.customConfig, apicommon.DefaultKubeStateMetricsCoreConf)
-	}
 
-	if dda.Spec.Features.ClusterChecks != nil && apiutils.BoolValue(dda.Spec.Features.ClusterChecks.Enabled) {
-		f.clusterChecksEnabled = true
-		if apiutils.BoolValue(dda.Spec.Features.ClusterChecks.UseClusterChecksRunners) {
-			f.rbacSuffix = common.CheckRunnersSuffix
-			f.serviceAccountName = v2alpha1.GetClusterChecksRunnerServiceAccount(dda)
-		} else {
-			f.serviceAccountName = v2alpha1.GetClusterAgentServiceAccount(dda)
-		}
-	}
+		if dda.Spec.Features.ClusterChecks != nil && apiutils.BoolValue(dda.Spec.Features.ClusterChecks.Enabled) {
+			f.clusterChecksEnabled = true
+			output.ClusterCheckRunner.IsRequired = &f.clusterChecksEnabled
 
-	output := feature.RequiredComponents{}
-	if f.enable {
-		output.ClusterAgent = feature.RequiredComponent{IsRequired: &f.enable}
-		if f.clusterChecksEnabled {
-			output.ClusterCheckRunner = feature.RequiredComponent{IsRequired: &f.clusterChecksEnabled}
+			if apiutils.BoolValue(dda.Spec.Features.ClusterChecks.UseClusterChecksRunners) {
+				f.rbacSuffix = common.CheckRunnersSuffix
+				f.serviceAccountName = v2alpha1.GetClusterChecksRunnerServiceAccount(dda)
+			} else {
+				f.serviceAccountName = v2alpha1.GetClusterAgentServiceAccount(dda)
+			}
 		}
 	}
 
@@ -93,18 +90,18 @@ func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 // ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
 func (f *ksmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) feature.RequiredComponents {
 	f.owner = dda
+	var output feature.RequiredComponents
 
-	if dda.Spec.Features.KubeStateMetricsCore != nil {
-		if apiutils.BoolValue(dda.Spec.Features.KubeStateMetricsCore.Enabled) {
-			f.enable = true
-		}
+	if dda.Spec.Features.KubeStateMetricsCore != nil && apiutils.BoolValue(dda.Spec.Features.KubeStateMetricsCore.Enabled) {
+		f.enable = true
+		output.ClusterAgent.IsRequired = &f.enable
 
 		if dda.Spec.ClusterAgent.Config != nil && apiutils.BoolValue(dda.Spec.ClusterAgent.Config.ClusterChecksEnabled) {
-			if apiutils.BoolValue(dda.Spec.Features.KubeStateMetricsCore.ClusterCheck) {
-				f.clusterChecksEnabled = true
-				f.rbacSuffix = common.CheckRunnersSuffix
-				f.serviceAccountName = v1alpha1.GetClusterChecksRunnerServiceAccount(dda)
-			}
+			f.clusterChecksEnabled = true
+			f.rbacSuffix = common.CheckRunnersSuffix
+			f.serviceAccountName = v1alpha1.GetClusterChecksRunnerServiceAccount(dda)
+
+			output.ClusterCheckRunner.IsRequired = &f.clusterChecksEnabled
 		} else {
 			f.serviceAccountName = v1alpha1.GetClusterAgentServiceAccount(dda)
 		}
@@ -114,14 +111,6 @@ func (f *ksmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) feature.RequiredCom
 		}
 
 		f.configConfigMapName = apicommonv1.GetConfName(dda, f.customConfig, apicommon.DefaultKubeStateMetricsCoreConf)
-	}
-
-	output := feature.RequiredComponents{}
-	if f.enable {
-		output.ClusterAgent = feature.RequiredComponent{IsRequired: &f.enable}
-		if f.clusterChecksEnabled {
-			output.ClusterCheckRunner = feature.RequiredComponent{IsRequired: &f.clusterChecksEnabled}
-		}
 	}
 
 	return output

@@ -9,6 +9,7 @@ import (
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/apis/utils"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/merger"
@@ -64,11 +65,6 @@ func (rc *RequiredComponent) Merge(in *RequiredComponent) *RequiredComponent {
 	return rc
 }
 
-const (
-	trueValue  bool = true
-	falseValue bool = false
-)
-
 func merge(a, b *bool) *bool {
 	if a == nil && b == nil {
 		return nil
@@ -78,13 +74,9 @@ func merge(a, b *bool) *bool {
 		return a
 	}
 	if !apiutils.BoolValue(a) || !apiutils.BoolValue(b) {
-		return newBoolPointer(falseValue)
+		return utils.NewBoolPointer(false)
 	}
-	return newBoolPointer(trueValue)
-}
-
-func newBoolPointer(v bool) *bool {
-	return &v
+	return utils.NewBoolPointer(true)
 }
 
 func mergeSlices(a, b []apicommonv1.AgentContainerName) []apicommonv1.AgentContainerName {
