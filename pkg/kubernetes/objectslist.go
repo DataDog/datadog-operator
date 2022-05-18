@@ -15,7 +15,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	ciliumv1 "github.com/DataDog/datadog-operator/pkg/cilium/v1"
-	securityv1 "github.com/openshift/api/security/v1"
 )
 
 // ObjectListFromKind returns the corresponding object list from a kind
@@ -49,8 +48,8 @@ func ObjectListFromKind(kind ObjectKind) client.ObjectList {
 		return &policyv1.PodSecurityPolicyList{}
 	case CiliumNetworkPoliciesKind:
 		return ciliumv1.EmptyCiliumUnstructuredListPolicy()
-	case SecurityContextConstraintsKind:
-		return &securityv1.SecurityContextConstraintsList{}
+		// case SecurityContextConstraintsKind:
+		// 	return &securityv1.SecurityContextConstraintsList{}
 	}
 
 	return nil

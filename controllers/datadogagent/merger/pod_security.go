@@ -6,10 +6,7 @@
 package merger
 
 import (
-	"fmt"
-
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
 	securityv1 "github.com/openshift/api/security/v1"
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
@@ -40,28 +37,32 @@ type podSecurityManagerImpl struct {
 	store dependencies.StoreClient
 }
 
-func (m *podSecurityManagerImpl) GetSecurityContextConstraints(namespace string, sccName string) (*securityv1.SecurityContextConstraints, error) {
-	obj, _ := m.store.GetOrCreate(kubernetes.SecurityContextConstraintsKind, namespace, sccName)
-	scc, ok := obj.(*securityv1.SecurityContextConstraints)
-	if !ok {
-		return nil, fmt.Errorf("unable to get from the store the SecurityContextConstraints %s", sccName)
-	}
-	return scc, nil
+func (m *podSecurityManagerImpl) GetSecurityContextConstraints(namespace string, sccName string) (scc *securityv1.SecurityContextConstraints, err error) {
+	// TODO
+	// obj, _ := m.store.GetOrCreate(kubernetes.SecurityContextConstraintsKind, namespace, sccName)
+	// scc, ok := obj.(*securityv1.SecurityContextConstraints)
+	// if !ok {
+	// 	return nil, fmt.Errorf("unable to get from the store the SecurityContextConstraints %s", sccName)
+	// }
+	return scc, err
 }
 
 func (m *podSecurityManagerImpl) UpdateSecurityContextConstraints(scc *securityv1.SecurityContextConstraints) {
-	m.store.AddOrUpdate(kubernetes.SecurityContextConstraintsKind, scc)
+	// TODO
+	// m.store.AddOrUpdate(kubernetes.SecurityContextConstraintsKind, scc)
 }
 
-func (m *podSecurityManagerImpl) GetPodSecurityPolicy(namespace string, pspName string) (*policyv1beta1.PodSecurityPolicy, error) {
-	obj, _ := m.store.GetOrCreate(kubernetes.PodSecurityPoliciesKind, namespace, pspName)
-	psp, ok := obj.(*policyv1beta1.PodSecurityPolicy)
-	if !ok {
-		return nil, fmt.Errorf("unable to get from the store the PodSecurityPolicy %s", pspName)
-	}
-	return psp, nil
+func (m *podSecurityManagerImpl) GetPodSecurityPolicy(namespace string, pspName string) (psp *policyv1beta1.PodSecurityPolicy, err error) {
+	// TODO
+	// obj, _ := m.store.GetOrCreate(kubernetes.PodSecurityPoliciesKind, namespace, pspName)
+	// psp, ok := obj.(*policyv1beta1.PodSecurityPolicy)
+	// if !ok {
+	// 	return nil, fmt.Errorf("unable to get from the store the PodSecurityPolicy %s", pspName)
+	// }
+	return psp, err
 }
 
 func (m *podSecurityManagerImpl) UpdatePodSecurityPolicy(psp *policyv1beta1.PodSecurityPolicy) {
-	m.store.AddOrUpdate(kubernetes.PodSecurityPoliciesKind, psp)
+	// TODO
+	// m.store.AddOrUpdate(kubernetes.PodSecurityPoliciesKind, psp)
 }

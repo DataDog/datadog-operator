@@ -40,7 +40,10 @@ type cspmFeature struct {
 	checkInterval      string
 	configMapConfig    *apicommonv1.ConfigMapConfig
 	configMapName      string
-	owner              metav1.Object
+	createSCC          bool
+	createPSP          bool
+
+	owner metav1.Object
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
@@ -59,6 +62,8 @@ func (f *cspmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 			f.configMapName = dda.Spec.Features.CSPM.CustomBenchmarks.Name
 			f.configMapConfig = dda.Spec.Features.CSPM.CustomBenchmarks
 		}
+
+		// TODO add settings to configure f.createSCC and f.createPSP
 
 		reqComp = feature.RequiredComponents{
 			ClusterAgent: feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)},
@@ -108,23 +113,27 @@ func (f *cspmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.R
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
 func (f *cspmFeature) ManageDependencies(managers feature.ResourceManagers) error {
-	// Manage SecurityContextConstraints
-	sccName := getSCCName(f.owner)
-	scc, err := managers.PodSecurityManager().GetSecurityContextConstraints(f.owner.GetNamespace(), sccName)
-	if err != nil {
-		return err
+	if f.createSCC {
+		// Manage SecurityContextConstraints
+		sccName := getSCCName(f.owner)
+		scc, err := managers.PodSecurityManager().GetSecurityContextConstraints(f.owner.GetNamespace(), sccName)
+		if err != nil {
+			return err
+		}
+		scc.AllowHostPID = true
+		managers.PodSecurityManager().UpdateSecurityContextConstraints(scc)
 	}
-	scc.AllowHostPID = true
-	managers.PodSecurityManager().UpdateSecurityContextConstraints(scc)
 
-	// Manage PodSecurityPolicy
-	pspName := getPSPName(f.owner)
-	psp, err := managers.PodSecurityManager().GetPodSecurityPolicy(f.owner.GetNamespace(), pspName)
-	if err != nil {
-		return err
+	if f.createPSP {
+		// Manage PodSecurityPolicy
+		pspName := getPSPName(f.owner)
+		psp, err := managers.PodSecurityManager().GetPodSecurityPolicy(f.owner.GetNamespace(), pspName)
+		if err != nil {
+			return err
+		}
+		psp.Spec.HostPID = true
+		managers.PodSecurityManager().UpdatePodSecurityPolicy(psp)
 	}
-	psp.Spec.HostPID = true
-	managers.PodSecurityManager().UpdatePodSecurityPolicy(psp)
 
 	// Manage RBAC
 	rbacName := getRBACResourceName(f.owner)
