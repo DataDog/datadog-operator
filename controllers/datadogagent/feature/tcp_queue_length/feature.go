@@ -50,7 +50,7 @@ func (f *tcpQueueLengthFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp f
 
 // ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
 func (f *tcpQueueLengthFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	if dda.Spec.Agent.SystemProbe != nil && *dda.Spec.Agent.SystemProbe.EnableTCPQueueLength {
+	if dda.Spec.Agent.SystemProbe != nil && apiutils.BoolValue(dda.Spec.Agent.SystemProbe.EnableTCPQueueLength) {
 		f.enable = true
 		reqComp.Agent = feature.RequiredComponent{
 			IsRequired: &f.enable,

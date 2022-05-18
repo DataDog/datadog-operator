@@ -48,7 +48,7 @@ func Test_handleFinalizer(t *testing.T) {
 		))
 	}
 
-	_, err := reconciler.handleFinalizer(logf.Log.WithName("Handle Finalizer test"), dda)
+	_, err := reconciler.handleFinalizer(logf.Log.WithName("Handle Finalizer test"), dda, reconciler.finalizeDadV1)
 	assert.NoError(t, err)
 
 	// Check that the cluster roles associated with the Datadog Agent have been deleted

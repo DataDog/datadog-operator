@@ -58,7 +58,7 @@ func TestDatadogAgentConversion(t *testing.T) {
 			assert.NoError(t, err)
 
 			agentV2 := &v2alpha1.DatadogAgent{}
-			assert.NoError(t, convertTo(agentV1, agentV2))
+			assert.NoError(t, ConvertTo(agentV1, agentV2))
 
 			if tc.expectedFilename != "" {
 				expectedV2 := &v2alpha1.DatadogAgent{}

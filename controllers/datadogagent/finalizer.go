@@ -8,10 +8,11 @@ package datadogagent
 import (
 	"context"
 
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/go-logr/logr"
 )
 
@@ -19,7 +20,9 @@ const (
 	datadogAgentFinalizer = "finalizer.agent.datadoghq.com"
 )
 
-func (r *Reconciler) handleFinalizer(reqLogger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
+type finalizerDadFunc func(reqLogger logr.Logger, dda client.Object)
+
+func (r *Reconciler) handleFinalizer(reqLogger logr.Logger, dda client.Object, finalizerDad finalizerDadFunc) (reconcile.Result, error) {
 	// Check if the DatadogAgent instance is marked to be deleted, which is
 	// indicated by the deletion timestamp being set.
 	isDadMarkedToBeDeleted := dda.GetDeletionTimestamp() != nil
@@ -28,7 +31,7 @@ func (r *Reconciler) handleFinalizer(reqLogger logr.Logger, dda *datadoghqv1alph
 			// Run finalization logic for datadogAgentFinalizer. If the
 			// finalization logic fails, don't remove the finalizer so
 			// that we can retry during the next reconciliation.
-			r.finalizeDad(reqLogger, dda)
+			finalizerDad(reqLogger, dda)
 
 			// Remove datadogAgentFinalizer. Once all finalizers have been
 			// removed, the object will be deleted.
@@ -52,7 +55,8 @@ func (r *Reconciler) handleFinalizer(reqLogger logr.Logger, dda *datadoghqv1alph
 	return reconcile.Result{}, nil
 }
 
-func (r *Reconciler) finalizeDad(reqLogger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) {
+func (r *Reconciler) finalizeDadV1(reqLogger logr.Logger, obj client.Object) {
+	dda := obj.(*datadoghqv1alpha1.DatadogAgent)
 	_, err := r.cleanupMetricsServerAPIService(reqLogger, dda)
 	if err != nil {
 		reqLogger.Error(err, "Could not delete Metrics Server API Service")
@@ -72,7 +76,7 @@ func (r *Reconciler) finalizeDad(reqLogger logr.Logger, dda *datadoghqv1alpha1.D
 	reqLogger.Info("Successfully finalized DatadogAgent")
 }
 
-func (r *Reconciler) addFinalizer(reqLogger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) error {
+func (r *Reconciler) addFinalizer(reqLogger logr.Logger, dda client.Object) error {
 	reqLogger.Info("Adding Finalizer for the DatadogAgent")
 	dda.SetFinalizers(append(dda.GetFinalizers(), datadogAgentFinalizer))
 

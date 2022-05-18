@@ -270,17 +270,33 @@ func schema__apis_datadoghq_v2alpha1_DatadogAgentStatus(ref common.ReferenceCall
 				Description: "DatadogAgentStatus defines the observed state of DatadogAgent.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"defaultOverride": {
+					"conditions": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"type",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
 						SchemaProps: spec.SchemaProps{
-							Description: "DefaultOverride contains attributes that were not configured that the runtime defaulted.",
-							Ref:         ref("./apis/datadoghq/v2alpha1.DatadogAgentSpec"),
+							Description: "Conditions Represents the latest available observations of a DatadogAgent's current state.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.Condition"),
+									},
+								},
+							},
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v2alpha1.DatadogAgentSpec"},
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Condition"},
 	}
 }
 
