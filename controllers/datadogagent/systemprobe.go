@@ -149,6 +149,7 @@ const systemProbeSecCompData = `{
 			"fchownat",
 			"fcntl",
 			"fcntl64",
+			"flock",
 			"fstat",
 			"fstat64",
 			"fstatfs",
@@ -213,6 +214,8 @@ const systemProbeSecCompData = `{
 			"recvmmsg",
 			"recvmsg",
 			"rename",
+			"renameat",
+			"renameat2",
 			"restart_syscall",
 			"rmdir",
 			"rt_sigaction",
@@ -238,6 +241,7 @@ const systemProbeSecCompData = `{
 			"setgid32",
 			"setgroups",
 			"setgroups32",
+			"setitimer",
 			"setns",
 			"setrlimit",
 			"setsid",
@@ -253,6 +257,7 @@ const systemProbeSecCompData = `{
 			"stat64",
 			"statfs",
 			"sysinfo",
+			"symlinkat",
 			"tgkill",
 			"umask",
 			"uname",
@@ -283,6 +288,22 @@ const systemProbeSecCompData = `{
 			}
 		],
 		"comment": "",
+		"includes": {},
+		"excludes": {}
+		},
+		{
+		"names": [
+			"kill"
+		],
+		"action": "SCMP_ACT_ALLOW",
+		"args": [
+			{
+			"index": 1,
+			"value": 0,
+			"op": "SCMP_CMP_EQ"
+			}
+		],
+		"comment": "allow process detection via kill",
 		"includes": {},
 		"excludes": {}
 		}
