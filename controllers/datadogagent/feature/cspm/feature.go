@@ -144,13 +144,15 @@ func (f *cspmFeature) ManageDependencies(managers feature.ResourceManagers) erro
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *cspmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
-	cmVol, cmVolMount := volume.GetConfigMapVolumes(
-		f.configMapConfig,
-		f.configMapName,
-		cspmConfigVolumeName,
-		cspmConfigVolumePath,
-	)
-	managers.Volume().AddVolumeToContainer(&cmVol, &cmVolMount, apicommonv1.ClusterAgentContainerName)
+	if f.configMapConfig != nil && f.configMapName != "" {
+		cmVol, cmVolMount := volume.GetConfigMapVolumes(
+			f.configMapConfig,
+			f.configMapName,
+			cspmConfigVolumeName,
+			cspmConfigVolumePath,
+		)
+		managers.Volume().AddVolumeToContainer(&cmVol, &cmVolMount, apicommonv1.ClusterAgentContainerName)
+	}
 
 	enabledEnvVar := &corev1.EnvVar{
 		Name:  apicommon.DDComplianceEnabled,
@@ -172,6 +174,7 @@ func (f *cspmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) e
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+	// security context capabilities
 	capabilities := []corev1.Capability{
 		"AUDIT_CONTROL",
 		"AUDIT_READ",
@@ -179,13 +182,15 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) erro
 	managers.SecurityContext().AddCapabilitiesToContainer(capabilities, apicommonv1.SecurityAgentContainerName)
 
 	// configmap volume mount
-	cmVol, cmVolMount := volume.GetConfigMapVolumes(
-		f.configMapConfig,
-		f.configMapName,
-		cspmConfigVolumeName,
-		cspmConfigVolumePath,
-	)
-	managers.Volume().AddVolumeToContainer(&cmVol, &cmVolMount, apicommonv1.SecurityAgentContainerName)
+	if f.configMapConfig != nil && f.configMapName != "" {
+		cmVol, cmVolMount := volume.GetConfigMapVolumes(
+			f.configMapConfig,
+			f.configMapName,
+			cspmConfigVolumeName,
+			cspmConfigVolumePath,
+		)
+		managers.Volume().AddVolumeToContainer(&cmVol, &cmVolMount, apicommonv1.SecurityAgentContainerName)
+	}
 
 	// cgroups volume mount
 	cgroupsVol, cgroupsVolMount := volume.GetVolumes(apicommon.CgroupsVolumeName, apicommon.CgroupsHostPath, apicommon.CgroupsMountPath, true)
@@ -213,6 +218,12 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) erro
 		Value: "true",
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SecurityAgentContainerName, enabledEnvVar)
+
+	hostRootEnvVar := &corev1.EnvVar{
+		Name:  apicommon.DDHostRootEnvVar,
+		Value: apicommon.HostRootMountPath,
+	}
+	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SecurityAgentContainerName, hostRootEnvVar)
 
 	if f.checkInterval != "" {
 		intervalEnvVar := &corev1.EnvVar{

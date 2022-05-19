@@ -134,6 +134,10 @@ func Test_cspmFeature_Configure(t *testing.T) {
 				Value: "true",
 			},
 			{
+				Name:  apicommon.DDHostRootEnvVar,
+				Value: apicommon.HostRootMountPath,
+			},
+			{
 				Name:  apicommon.DDComplianceCheckInterval,
 				Value: "1200000000000",
 			},

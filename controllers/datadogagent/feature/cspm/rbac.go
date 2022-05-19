@@ -41,7 +41,6 @@ func getRBACPolicyRules() []rbacv1.PolicyRule {
 			APIGroups: []string{rbac.NetworkingAPIGroup},
 			Resources: []string{
 				rbac.NetworkPolicyResource,
-				rbac.RoleBindingResource,
 			},
 			Verbs: []string{rbac.ListVerb},
 		},
