@@ -35,9 +35,12 @@ import (
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/dummy"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/enabledefault"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/kubernetesstatecore"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/logcollection"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/npm"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/oom_kill"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/prometheus_scrape"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/tcp_queue_length"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/usm"
 )
 
 const (
