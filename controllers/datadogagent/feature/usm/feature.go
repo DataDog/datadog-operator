@@ -31,17 +31,14 @@ func buildUSMFeature(options *feature.Options) feature.Feature {
 	return usmFeat
 }
 
-type usmFeature struct {
-	enable bool
-}
+type usmFeature struct{}
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *usmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	if dda.Spec.Features.USM != nil && apiutils.BoolValue(dda.Spec.Features.USM.Enabled) {
-		f.enable = true
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
-				IsRequired: &f.enable,
+				IsRequired: apiutils.NewBoolPointer(true),
 				Containers: []apicommonv1.AgentContainerName{
 					apicommonv1.CoreAgentContainerName,
 					apicommonv1.ProcessAgentContainerName,
@@ -68,11 +65,9 @@ func (f *usmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.Re
 	}
 
 	if dda.Spec.Agent.SystemProbe != nil && *dda.Spec.Agent.SystemProbe.Enabled && enabledEnvVarIsSet {
-		f.enable = true
-
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
-				IsRequired: &f.enable,
+				IsRequired: apiutils.NewBoolPointer(true),
 				Containers: []apicommonv1.AgentContainerName{
 					apicommonv1.CoreAgentContainerName,
 					apicommonv1.ProcessAgentContainerName,
@@ -87,7 +82,7 @@ func (f *usmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.Re
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *usmFeature) ManageDependencies(managers feature.ResourceManagers) error {
+func (f *usmFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
 	return nil
 }
 

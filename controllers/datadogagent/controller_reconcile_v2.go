@@ -100,7 +100,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	var errs []error
 	for id, feat := range features {
 		logger.Info("Dependency ManageDependencies", "featureID", id)
-		if featErr := feat.ManageDependencies(resourcesManager); err != nil {
+		if featErr := feat.ManageDependencies(resourcesManager, requiredComponents); err != nil {
 			errs = append(errs, featErr)
 		}
 	}

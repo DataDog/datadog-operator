@@ -170,7 +170,7 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, 
 	resourcesManager := feature.NewResourceManagers(depsStore)
 	var errs []error
 	for _, feat := range features {
-		if featErr := feat.ManageDependencies(resourcesManager); err != nil {
+		if featErr := feat.ManageDependencies(resourcesManager, requiredComponents); err != nil {
 			errs = append(errs, featErr)
 		}
 	}

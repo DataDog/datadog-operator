@@ -28,8 +28,9 @@ type FeatureTest struct {
 	DDAv1   *v1alpha1.DatadogAgent
 	Options *Options
 	// Dependencies Store
-	StoreOption   *dependencies.StoreOptions
-	StoreInitFunc func(store dependencies.StoreClient)
+	StoreOption        *dependencies.StoreOptions
+	StoreInitFunc      func(store dependencies.StoreClient)
+	RequiredComponents feature.RequiredComponents
 	// Test configuration
 	Agent              *ComponentTest
 	ClusterAgent       *ComponentTest
@@ -90,7 +91,7 @@ func runTest(t *testing.T, tt FeatureTest, buildFunc feature.BuildFunc) {
 	}
 	depsManager := feature.NewResourceManagers(store)
 
-	if err := f.ManageDependencies(depsManager); (err != nil) != tt.WantManageDependenciesErr {
+	if err := f.ManageDependencies(depsManager, tt.RequiredComponents); (err != nil) != tt.WantManageDependenciesErr {
 		t.Errorf("feature.ManageDependencies() error = %v, wantErr %v", err, tt.WantManageDependenciesErr)
 		return
 	}
