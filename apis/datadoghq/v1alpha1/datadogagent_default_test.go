@@ -9,6 +9,7 @@ import (
 	"path"
 	"testing"
 
+	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
@@ -471,14 +472,14 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 				DeploymentStrategy: &DaemonSetDeploymentStrategy{
 					UpdateStrategyType: (*appsv1.DaemonSetUpdateStrategyType)(apiutils.NewStringPointer("RollingUpdate")),
 					RollingUpdate: DaemonSetRollingUpdateSpec{
-						MaxUnavailable:            &intstr.IntOrString{Type: intstr.String, StrVal: defaultRollingUpdateMaxUnavailable},
-						MaxPodSchedulerFailure:    &intstr.IntOrString{Type: intstr.String, StrVal: defaultRollingUpdateMaxPodSchedulerFailure},
-						MaxParallelPodCreation:    apiutils.NewInt32Pointer(defaultRollingUpdateMaxParallelPodCreation),
-						SlowStartIntervalDuration: &metav1.Duration{Duration: defaultRollingUpdateSlowStartIntervalDuration},
-						SlowStartAdditiveIncrease: &intstr.IntOrString{Type: intstr.String, StrVal: defaultRollingUpdateSlowStartAdditiveIncrease},
+						MaxUnavailable:            &intstr.IntOrString{Type: intstr.String, StrVal: apicommon.DefaultRollingUpdateMaxUnavailable},
+						MaxPodSchedulerFailure:    &intstr.IntOrString{Type: intstr.String, StrVal: apicommon.DefaultRollingUpdateMaxPodSchedulerFailure},
+						MaxParallelPodCreation:    apiutils.NewInt32Pointer(apicommon.DefaultRollingUpdateMaxParallelPodCreation),
+						SlowStartIntervalDuration: &metav1.Duration{Duration: apicommon.DefaultRollingUpdateSlowStartIntervalDuration},
+						SlowStartAdditiveIncrease: &intstr.IntOrString{Type: intstr.String, StrVal: apicommon.DefaultRollingUpdateSlowStartAdditiveIncrease},
 					},
 					Canary:             edsdatadoghqv1alpha1.DefaultExtendedDaemonSetSpecStrategyCanary(testCanary),
-					ReconcileFrequency: &metav1.Duration{Duration: defaultReconcileFrequency},
+					ReconcileFrequency: &metav1.Duration{Duration: apicommon.DefaultReconcileFrequency},
 				},
 				Rbac:        &RbacConfig{Create: apiutils.NewBoolPointer(true)},
 				Apm:         &APMSpec{Enabled: apiutils.NewBoolPointer(false)},
@@ -521,14 +522,14 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 				DeploymentStrategy: &DaemonSetDeploymentStrategy{
 					UpdateStrategyType: (*appsv1.DaemonSetUpdateStrategyType)(apiutils.NewStringPointer("RollingUpdate")),
 					RollingUpdate: DaemonSetRollingUpdateSpec{
-						MaxUnavailable:            &intstr.IntOrString{Type: intstr.String, StrVal: defaultRollingUpdateMaxUnavailable},
-						MaxPodSchedulerFailure:    &intstr.IntOrString{Type: intstr.String, StrVal: defaultRollingUpdateMaxPodSchedulerFailure},
-						MaxParallelPodCreation:    apiutils.NewInt32Pointer(defaultRollingUpdateMaxParallelPodCreation),
-						SlowStartIntervalDuration: &metav1.Duration{Duration: defaultRollingUpdateSlowStartIntervalDuration},
-						SlowStartAdditiveIncrease: &intstr.IntOrString{Type: intstr.String, StrVal: defaultRollingUpdateSlowStartAdditiveIncrease},
+						MaxUnavailable:            &intstr.IntOrString{Type: intstr.String, StrVal: apicommon.DefaultRollingUpdateMaxUnavailable},
+						MaxPodSchedulerFailure:    &intstr.IntOrString{Type: intstr.String, StrVal: apicommon.DefaultRollingUpdateMaxPodSchedulerFailure},
+						MaxParallelPodCreation:    apiutils.NewInt32Pointer(apicommon.DefaultRollingUpdateMaxParallelPodCreation),
+						SlowStartIntervalDuration: &metav1.Duration{Duration: apicommon.DefaultRollingUpdateSlowStartIntervalDuration},
+						SlowStartAdditiveIncrease: &intstr.IntOrString{Type: intstr.String, StrVal: apicommon.DefaultRollingUpdateSlowStartAdditiveIncrease},
 					},
 					Canary:             edsdatadoghqv1alpha1.DefaultExtendedDaemonSetSpecStrategyCanary(testCanary),
-					ReconcileFrequency: &metav1.Duration{Duration: defaultReconcileFrequency},
+					ReconcileFrequency: &metav1.Duration{Duration: apicommon.DefaultReconcileFrequency},
 				},
 				Rbac:        &RbacConfig{Create: apiutils.NewBoolPointer(true)},
 				Apm:         &APMSpec{Enabled: apiutils.NewBoolPointer(false)},
@@ -592,13 +593,13 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 				DeploymentStrategy: &DaemonSetDeploymentStrategy{
 					UpdateStrategyType: (*appsv1.DaemonSetUpdateStrategyType)(apiutils.NewStringPointer("RollingUpdate")),
 					RollingUpdate: DaemonSetRollingUpdateSpec{
-						MaxUnavailable:            &intstr.IntOrString{Type: intstr.String, StrVal: defaultRollingUpdateMaxUnavailable},
-						MaxPodSchedulerFailure:    &intstr.IntOrString{Type: intstr.String, StrVal: defaultRollingUpdateMaxPodSchedulerFailure},
-						MaxParallelPodCreation:    apiutils.NewInt32Pointer(defaultRollingUpdateMaxParallelPodCreation),
-						SlowStartIntervalDuration: &metav1.Duration{Duration: defaultRollingUpdateSlowStartIntervalDuration},
-						SlowStartAdditiveIncrease: &intstr.IntOrString{Type: intstr.String, StrVal: defaultRollingUpdateSlowStartAdditiveIncrease},
+						MaxUnavailable:            &intstr.IntOrString{Type: intstr.String, StrVal: apicommon.DefaultRollingUpdateMaxUnavailable},
+						MaxPodSchedulerFailure:    &intstr.IntOrString{Type: intstr.String, StrVal: apicommon.DefaultRollingUpdateMaxPodSchedulerFailure},
+						MaxParallelPodCreation:    apiutils.NewInt32Pointer(apicommon.DefaultRollingUpdateMaxParallelPodCreation),
+						SlowStartIntervalDuration: &metav1.Duration{Duration: apicommon.DefaultRollingUpdateSlowStartIntervalDuration},
+						SlowStartAdditiveIncrease: &intstr.IntOrString{Type: intstr.String, StrVal: apicommon.DefaultRollingUpdateSlowStartAdditiveIncrease},
 					},
-					ReconcileFrequency: &metav1.Duration{Duration: defaultReconcileFrequency},
+					ReconcileFrequency: &metav1.Duration{Duration: apicommon.DefaultReconcileFrequency},
 				},
 				Rbac:    &RbacConfig{Create: apiutils.NewBoolPointer(true)},
 				Apm:     &APMSpec{Enabled: apiutils.NewBoolPointer(false)},
@@ -653,14 +654,14 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 				DeploymentStrategy: &DaemonSetDeploymentStrategy{
 					UpdateStrategyType: (*appsv1.DaemonSetUpdateStrategyType)(apiutils.NewStringPointer("RollingUpdate")),
 					RollingUpdate: DaemonSetRollingUpdateSpec{
-						MaxUnavailable:            &intstr.IntOrString{Type: intstr.String, StrVal: defaultRollingUpdateMaxUnavailable},
-						MaxPodSchedulerFailure:    &intstr.IntOrString{Type: intstr.String, StrVal: defaultRollingUpdateMaxPodSchedulerFailure},
-						MaxParallelPodCreation:    apiutils.NewInt32Pointer(defaultRollingUpdateMaxParallelPodCreation),
-						SlowStartIntervalDuration: &metav1.Duration{Duration: defaultRollingUpdateSlowStartIntervalDuration},
-						SlowStartAdditiveIncrease: &intstr.IntOrString{Type: intstr.String, StrVal: defaultRollingUpdateSlowStartAdditiveIncrease},
+						MaxUnavailable:            &intstr.IntOrString{Type: intstr.String, StrVal: apicommon.DefaultRollingUpdateMaxUnavailable},
+						MaxPodSchedulerFailure:    &intstr.IntOrString{Type: intstr.String, StrVal: apicommon.DefaultRollingUpdateMaxPodSchedulerFailure},
+						MaxParallelPodCreation:    apiutils.NewInt32Pointer(apicommon.DefaultRollingUpdateMaxParallelPodCreation),
+						SlowStartIntervalDuration: &metav1.Duration{Duration: apicommon.DefaultRollingUpdateSlowStartIntervalDuration},
+						SlowStartAdditiveIncrease: &intstr.IntOrString{Type: intstr.String, StrVal: apicommon.DefaultRollingUpdateSlowStartAdditiveIncrease},
 					},
 					Canary:             edsdatadoghqv1alpha1.DefaultExtendedDaemonSetSpecStrategyCanary(testCanary),
-					ReconcileFrequency: &metav1.Duration{Duration: defaultReconcileFrequency},
+					ReconcileFrequency: &metav1.Duration{Duration: apicommon.DefaultReconcileFrequency},
 				},
 				Apm: &APMSpec{
 					Enabled:  apiutils.NewBoolPointer(false),

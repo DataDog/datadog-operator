@@ -257,7 +257,7 @@ type NPMFeatureConfig struct {
 }
 
 // USMFeatureConfig contains USM (Universal Service Monitoring) feature configuration.
-// Universal Service Monitoring runs in the System Probe.
+// Universal Service Monitoring runs in the Process Agent and System Probe.
 type USMFeatureConfig struct {
 	// Enabled enables Universal Service Monitoring.
 	// Default: false
@@ -835,9 +835,11 @@ type DatadogAgentGenericContainer struct {
 // DatadogAgentStatus defines the observed state of DatadogAgent.
 // +k8s:openapi-gen=true
 type DatadogAgentStatus struct {
-	// DefaultOverride contains attributes that were not configured that the runtime defaulted.
+	// Conditions Represents the latest available observations of a DatadogAgent's current state.
 	// +optional
-	DefaultOverride *DatadogAgentSpec `json:"defaultOverride,omitempty"`
+	// +listType=map
+	// +listMapKey=type
+	Conditions []metav1.Condition `json:"conditions"`
 }
 
 // DatadogAgent Deployment with the Datadog Operator.

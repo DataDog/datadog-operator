@@ -1,9 +1,15 @@
+// Unless explicitly stated otherwise all files in this repository are licensed
+// under the Apache License Version 2.0.
+// This product includes software developed at Datadog (https://www.datadoghq.com/).
+// Copyright 2016-present Datadog, Inc.
+
 package clusteragent
 
 import (
 	"fmt"
 	"strconv"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -11,7 +17,26 @@ import (
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
+	"github.com/DataDog/datadog-operator/pkg/defaulting"
 )
+
+// NewDefaultClusterAgentDeployment return a new default cluster-agent deployment
+func NewDefaultClusterAgentDeployment(dda metav1.Object) *appsv1.Deployment {
+	deployment := component.NewDeployment(dda, apicommon.DefaultClusterAgentResourceSuffix, component.GetClusterAgentName(dda), component.GetClusterAgentVersion(dda), nil)
+
+	podTemplate := NewDefaultClusterAgentPodTemplateSpec(dda)
+	for key, val := range deployment.GetLabels() {
+		podTemplate.Labels[key] = val
+	}
+
+	for key, val := range deployment.GetAnnotations() {
+		podTemplate.Annotations[key] = val
+	}
+	deployment.Spec.Template = *podTemplate
+	deployment.Spec.Replicas = apiutils.NewInt32Pointer(apicommon.DefaultClusterAgentReplicas)
+
+	return deployment
+}
 
 // NewDefaultClusterAgentPodTemplateSpec return a default PodTemplateSpec for the cluster-agent deployment
 func NewDefaultClusterAgentPodTemplateSpec(dda metav1.Object) *corev1.PodTemplateSpec {
@@ -60,9 +85,8 @@ func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []c
 		ServiceAccountName: GetDefaultServiceAccountName(dda),
 		Containers: []corev1.Container{
 			{
-				Name: string(apicommonv1.ClusterAgentContainerName),
-				// Image:           getImage(clusterAgentSpec.Image, dda.Spec.Registry),
-				// ImagePullPolicy: *clusterAgentSpec.Image.PullPolicy,
+				Name:  string(apicommonv1.ClusterAgentContainerName),
+				Image: fmt.Sprintf("%s:%s", apicommon.DefaultClusterAgentImageName, defaulting.ClusterAgentLatestVersion),
 				Ports: []corev1.ContainerPort{
 					{
 						ContainerPort: 5005,

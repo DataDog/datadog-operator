@@ -65,8 +65,6 @@ func (rc *RequiredComponent) Merge(in *RequiredComponent) *RequiredComponent {
 }
 
 func merge(a, b *bool) *bool {
-	trueValue := true
-	falseValue := false
 	if a == nil && b == nil {
 		return nil
 	} else if a == nil && b != nil {
@@ -75,9 +73,9 @@ func merge(a, b *bool) *bool {
 		return a
 	}
 	if !apiutils.BoolValue(a) || !apiutils.BoolValue(b) {
-		return &falseValue
+		return apiutils.NewBoolPointer(false)
 	}
-	return &trueValue
+	return apiutils.NewBoolPointer(true)
 }
 
 func mergeSlices(a, b []apicommonv1.AgentContainerName) []apicommonv1.AgentContainerName {
@@ -161,28 +159,36 @@ func (impl *resourceManagersImpl) RBACManager() merger.RBACManager {
 
 // PodTemplateManagers used to access the different PodTemplateSpec manager.
 type PodTemplateManagers interface {
-	// PodTemplateSpec used to access directly to the PodTemplateSpec.
+	// PodTemplateSpec used to access directly the PodTemplateSpec.
 	PodTemplateSpec() *corev1.PodTemplateSpec
-	// EnvVar used to access EnvVarManager that allows to manage the Environment variable defined in the PodTemplateSpec.
+	// EnvVar used to access the EnvVarManager to manage the Environment variable defined in the PodTemplateSpec.
 	EnvVar() merger.EnvVarManager
-	// EnvVar used to access VolumeManager that allows to manage the Volume and VolumeMount defined in the PodTemplateSpec.
+	// Volume used to access the VolumeManager to manage the Volume and VolumeMount defined in the PodTemplateSpec.
 	Volume() merger.VolumeManager
+	// SecurityContext is used to access the SecurityContextManager to manage container Security Context defined in the PodTemplateSpec.
+	SecurityContext() merger.SecurityContextManager
+	// Annotation is used access the AnnotationManager to manage PodTemplateSpec annotations.
+	Annotation() merger.AnnotationManager
 }
 
 // NewPodTemplateManagers use to create a new instance of PodTemplateManagers from
 // a corev1.PodTemplateSpec argument
 func NewPodTemplateManagers(podTmpl *corev1.PodTemplateSpec) PodTemplateManagers {
 	return &podTemplateManagerImpl{
-		podTmpl:       podTmpl,
-		envVarManager: merger.NewEnvVarManager(podTmpl),
-		volumeManager: merger.NewVolumeManager(podTmpl),
+		podTmpl:                podTmpl,
+		envVarManager:          merger.NewEnvVarManager(podTmpl),
+		volumeManager:          merger.NewVolumeManager(podTmpl),
+		securityContextManager: merger.NewSecurityContextManager(podTmpl),
+		annotationManager:      merger.NewAnnotationManager(podTmpl),
 	}
 }
 
 type podTemplateManagerImpl struct {
-	podTmpl       *corev1.PodTemplateSpec
-	envVarManager merger.EnvVarManager
-	volumeManager merger.VolumeManager
+	podTmpl                *corev1.PodTemplateSpec
+	envVarManager          merger.EnvVarManager
+	volumeManager          merger.VolumeManager
+	securityContextManager merger.SecurityContextManager
+	annotationManager      merger.AnnotationManager
 }
 
 func (impl *podTemplateManagerImpl) PodTemplateSpec() *corev1.PodTemplateSpec {
@@ -195,4 +201,12 @@ func (impl *podTemplateManagerImpl) EnvVar() merger.EnvVarManager {
 
 func (impl *podTemplateManagerImpl) Volume() merger.VolumeManager {
 	return impl.volumeManager
+}
+
+func (impl *podTemplateManagerImpl) SecurityContext() merger.SecurityContextManager {
+	return impl.securityContextManager
+}
+
+func (impl *podTemplateManagerImpl) Annotation() merger.AnnotationManager {
+	return impl.annotationManager
 }

@@ -85,7 +85,7 @@ func main() {
 	flag.DurationVar(&leaderElectionLeaseDuration, "leader-election-lease-duration", 60*time.Second, "Define LeaseDuration as well as RenewDeadline (leaseDuration / 2) and RetryPeriod (leaseDuration / 4)")
 
 	// Custom flags
-	var printVersion, pprofActive, supportExtendedDaemonset, supportCilium, datadogMonitorEnabled, operatorMetricsEnabled, webhookEnabled bool
+	var printVersion, pprofActive, supportExtendedDaemonset, supportCilium, datadogMonitorEnabled, operatorMetricsEnabled, webhookEnabled, v2APIEnabled bool
 	var logEncoder, secretBackendCommand string
 	var secretBackendArgs stringSlice
 	flag.StringVar(&logEncoder, "logEncoder", "json", "log encoding ('json' or 'console')")
@@ -98,6 +98,7 @@ func main() {
 	flag.BoolVar(&supportCilium, "supportCilium", false, "Support usage of Cilium network policies.")
 	flag.BoolVar(&datadogMonitorEnabled, "datadogMonitorEnabled", false, "Enable the DatadogMonitor controller")
 	flag.BoolVar(&operatorMetricsEnabled, "operatorMetricsEnabled", true, "Enable sending operator metrics to Datadog")
+	flag.BoolVar(&v2APIEnabled, "v2APIEnabled", false, "Enable the v2 api")
 	flag.BoolVar(&webhookEnabled, "webhookEnabled", true, "Enable CRD conversion webhook.")
 
 	// Parsing flags
@@ -156,6 +157,7 @@ func main() {
 		Creds:                    creds,
 		DatadogMonitorEnabled:    datadogMonitorEnabled,
 		OperatorMetricsEnabled:   operatorMetricsEnabled,
+		V2APIEnabled:             v2APIEnabled,
 	}
 
 	if err = controllers.SetupControllers(setupLog, mgr, options); err != nil {

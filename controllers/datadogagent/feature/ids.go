@@ -9,14 +9,18 @@ package feature
 type IDType int
 
 const (
+	// DefaultIDType enable default component feature.
+	DefaultIDType IDType = iota
 	// KubernetesStateCoreIDType Kubernetes state core check feature.
-	KubernetesStateCoreIDType IDType = iota
+	KubernetesStateCoreIDType
 	// OrchestratorExplorerIDType Orchestrator Explorer feature.
 	OrchestratorExplorerIDType
 	// LogCollectionIDType Log Collection feature
 	LogCollectionIDType
 	// NPMIDType NPM feature.
 	NPMIDType
+	// USMIDType USM feature.
+	USMIDType
 	// OOMKillIDType OOM Kill check feature
 	OOMKillIDType
 	// PrometheusScrapeIDType Prometheus Scrape feature
