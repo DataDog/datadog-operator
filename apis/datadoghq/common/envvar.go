@@ -28,4 +28,7 @@ const (
 	DDLogsConfigContainerCollectAll       = "DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL"
 	DDLogsContainerCollectUsingFiles      = "DD_LOGS_CONFIG_K8S_CONTAINER_USE_FILE"
 	DDLogsConfigOpenFilesLimit            = "DD_LOGS_CONFIG_OPEN_FILES_LIMIT"
+  DDPrometheusScrapeEnabled             = "DD_PROMETHEUS_SCRAPE_ENABLED"
+	DDPrometheusScrapeServiceEndpoints    = "DD_PROMETHEUS_SCRAPE_SERVICE_ENDPOINTS"
+	DDPrometheusScrapeChecks              = "DD_PROMETHEUS_SCRAPE_CHECKS"
 )

@@ -8,6 +8,8 @@ package utils
 import (
 	"encoding/json"
 	"math/rand"
+
+	"sigs.k8s.io/yaml"
 )
 
 // NewInt32Pointer returns pointer on a new int32 value instance
@@ -69,8 +71,8 @@ func DefaultStringIfUnset(valPtr **string, d string) {
 	}
 }
 
-// IsEqualStruct is a util fonction that returns whether 2 structures are the same
-// We compare the marchaled results to avoid traversing all fields and be agnostic of the struct.
+// IsEqualStruct is a util function that returns whether 2 structures are the same
+// We compare the marshaled results to avoid traversing all fields and be agnostic of the struct.
 func IsEqualStruct(in interface{}, cmp interface{}) bool {
 	if in == nil {
 		return true
@@ -95,4 +97,13 @@ func GenerateRandomString(n int) string {
 		b[i] = letterRunes[rand.Intn(len(letterRunes))]
 	}
 	return string(b)
+}
+
+// YAMLToJSONString converts a YAML string to a JSON string
+func YAMLToJSONString(yamlConfigs string) string {
+	jsonValue, err := yaml.YAMLToJSON([]byte(yamlConfigs))
+	if err != nil {
+		return ""
+	}
+	return string(jsonValue)
 }

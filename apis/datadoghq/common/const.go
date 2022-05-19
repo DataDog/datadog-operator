@@ -5,6 +5,12 @@
 
 package common
 
+import (
+	"time"
+
+	appsv1 "k8s.io/api/apps/v1"
+)
+
 // Datadog const value
 const (
 	// AgentDeploymentNameLabelKey label key use to link a Resource to a DatadogAgent
@@ -28,6 +34,8 @@ const (
 	DefaultAPIKeyKey = "api_key"
 	// DefaultTokenKey default token key (use in secret for instance).
 	DefaultTokenKey = "token"
+	// DefaultClusterAgentReplicas default cluster-agent deployment replicas
+	DefaultClusterAgentReplicas = 1
 	// DefaultClusterAgentServicePort default cluster-agent service port
 	DefaultClusterAgentServicePort = 5005
 	// DefaultMetricsServerServicePort default metrics-server port
@@ -67,6 +75,19 @@ const (
 	DefaultReadinessProbeSuccessThreshold    int32 = 1
 	DefaultReadinessProbeFailureThreshold    int32 = 6
 	DefaultReadinessProbeHTTPPath                  = "/ready"
+
+	// Default Image name
+	DefaultAgentImageName        string = "agent"
+	DefaultClusterAgentImageName string = "cluster-agent"
+
+	// ExtendedDaemonset defaulting
+	DefaultRollingUpdateMaxUnavailable                  = "10%"
+	DefaultUpdateStrategy                               = appsv1.RollingUpdateDaemonSetStrategyType
+	DefaultRollingUpdateMaxPodSchedulerFailure          = "10%"
+	DefaultRollingUpdateMaxParallelPodCreation    int32 = 250
+	DefaultRollingUpdateSlowStartIntervalDuration       = 1 * time.Minute
+	DefaultRollingUpdateSlowStartAdditiveIncrease       = "5"
+	DefaultReconcileFrequency                           = 10 * time.Second
 )
 
 // Annotations

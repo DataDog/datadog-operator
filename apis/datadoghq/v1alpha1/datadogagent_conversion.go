@@ -20,7 +20,7 @@ import (
 func (src *DatadogAgent) ConvertTo(dst conversion.Hub) error {
 	ddaV2 := dst.(*v2alpha1.DatadogAgent)
 
-	if err := convertTo(src, ddaV2); err != nil {
+	if err := ConvertTo(src, ddaV2); err != nil {
 		return fmt.Errorf("unable to convert DatadogAgent %s/%s to version: %v, err: %w", src.Namespace, src.Name, dst.GetObjectKind().GroupVersionKind().Version, err)
 	}
 
@@ -33,7 +33,8 @@ func (dst *DatadogAgent) ConvertFrom(src conversion.Hub) error { //nolint
 	return fmt.Errorf("convert from v2alpha1 to %s is not implemented", src.GetObjectKind().GroupVersionKind().Version)
 }
 
-func convertTo(src *DatadogAgent, dst *v2alpha1.DatadogAgent) error {
+// ConvertTo use to convert v1alpha1.DatadogAgent to v2alpha1.DatadogAgent
+func ConvertTo(src *DatadogAgent, dst *v2alpha1.DatadogAgent) error {
 	// Copying ObjectMeta as a whole
 	dst.ObjectMeta = src.ObjectMeta
 

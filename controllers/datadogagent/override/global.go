@@ -6,14 +6,16 @@
 package override
 
 import (
-	corev1 "k8s.io/api/core/v1"
-
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
+	corev1 "k8s.io/api/core/v1"
 )
 
-// Container use to override a corev1.Container with a 2alpha1.DatadogAgentGenericContainer.
-func Container(manager feature.PodTemplateManagers, override *v2alpha1.DatadogAgentGenericContainer) (*corev1.Container, error) {
-	// TODO(operator-ga): implement OverrideContainer
-	return nil, nil
+// ApplyGlobalSettings use to apply global setting to a PodTemplateSpec
+func ApplyGlobalSettings(manager feature.PodTemplateManagers, config *v2alpha1.GlobalConfig) *corev1.PodTemplateSpec {
+	// TODO(operator-ga): implement ApplyGlobalSettings
+
+	// set image registry
+
+	return manager.PodTemplateSpec()
 }

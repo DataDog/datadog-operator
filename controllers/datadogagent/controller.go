@@ -31,8 +31,16 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 
-	// Use to register the ksm core feature
+	// Use to register features
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/dummy"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/enabledefault"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/kubernetesstatecore"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/logcollection"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/npm"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/oom_kill"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/prometheus_scrape"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/tcp_queue_length"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/usm"
 )
 
 const (
@@ -44,6 +52,7 @@ type ReconcilerOptions struct {
 	SupportExtendedDaemonset bool
 	SupportCilium            bool
 	OperatorMetricsEnabled   bool
+	V2Enabled                bool
 }
 
 // Reconciler is the internal reconciler for Datadog Agent
@@ -74,7 +83,15 @@ func NewReconciler(options ReconcilerOptions, client client.Client, versionInfo 
 
 // Reconcile is similar to reconciler.Reconcile interface, but taking a context
 func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
-	resp, err := r.internalReconcile(ctx, request)
+	var resp reconcile.Result
+	var err error
+
+	if r.options.V2Enabled {
+		resp, err = r.internalReconcileV2(ctx, request)
+	} else {
+		resp, err = r.internalReconcile(ctx, request)
+	}
+
 	r.metricsForwarderProcessError(request, err)
 	return resp, err
 }
@@ -98,7 +115,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, request reconcile.Re
 		return result, err
 	}
 
-	if result, err = r.handleFinalizer(reqLogger, instance); utils.ShouldReturn(result, err) {
+	if result, err = r.handleFinalizer(reqLogger, instance, r.finalizeDadV1); utils.ShouldReturn(result, err) {
 		return result, err
 	}
 
