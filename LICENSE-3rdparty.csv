@@ -138,6 +138,7 @@ core,"github.com/onsi/gomega/matchers/support/goraph/edge",MIT
 core,"github.com/onsi/gomega/matchers/support/goraph/node",MIT
 core,"github.com/onsi/gomega/matchers/support/goraph/util",MIT
 core,"github.com/onsi/gomega/types",MIT
+core,"github.com/openshift/api/security/v1",Apache-2.0
 core,"github.com/peterbourgon/diskv",MIT
 core,"github.com/pierrec/lz4/v4",NewBSD
 core,"github.com/pierrec/lz4/v4/internal/lz4block",NewBSD

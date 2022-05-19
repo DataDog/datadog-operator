@@ -108,6 +108,14 @@ const (
 	HostRootHostPath   = "/"
 	HostRootMountPath  = "/host/root"
 
+	GroupVolumeName = "group"
+	GroupHostPath   = "/etc/group"
+	GroupMountPath  = "/etc/group"
+
+	PasswdVolumeName = "passwd"
+	PasswdHostPath   = "/etc/passwd"
+	PasswdMountPath  = "/etc/passwd"
+
 	ProcdirVolumeName = "procdir"
 	ProcdirHostPath   = "/proc"
 	ProcdirMountPath  = "/host/proc"
@@ -126,9 +134,11 @@ const (
 	ModulesVolumeName = "modules"
 	// same path on host and container
 	ModulesVolumePath = "/lib/modules"
-	SrcVolumeName     = "src"
+
+	SrcVolumeName = "src"
 	// same path on host and container
-	SrcVolumePath              = "/usr/src"
+	SrcVolumePath = "/usr/src"
+
 	LogDatadogVolumeName       = "logdatadog"
 	LogDatadogVolumePath       = "/var/log/datadog"
 	TmpVolumeName              = "tmp"

@@ -19,6 +19,8 @@ const (
 	LogCollectionIDType
 	// NPMIDType NPM feature.
 	NPMIDType
+	// CSPMIDType CSPM feature.
+	CSPMIDType
 	// USMIDType USM feature.
 	USMIDType
 	// OOMKillIDType OOM Kill check feature

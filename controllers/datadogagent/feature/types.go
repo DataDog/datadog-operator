@@ -134,19 +134,22 @@ type BuildFunc func(options *Options) Feature
 type ResourceManagers interface {
 	Store() dependencies.StoreClient
 	RBACManager() merger.RBACManager
+	PodSecurityManager() merger.PodSecurityManager
 }
 
 // NewResourceManagers return new instance of the ResourceManagers interface
 func NewResourceManagers(store dependencies.StoreClient) ResourceManagers {
 	return &resourceManagersImpl{
-		store: store,
-		rbac:  merger.NewRBACManager(store),
+		store:       store,
+		rbac:        merger.NewRBACManager(store),
+		podSecurity: merger.NewPodSecurityManager(store),
 	}
 }
 
 type resourceManagersImpl struct {
-	store dependencies.StoreClient
-	rbac  merger.RBACManager
+	store       dependencies.StoreClient
+	rbac        merger.RBACManager
+	podSecurity merger.PodSecurityManager
 }
 
 func (impl *resourceManagersImpl) Store() dependencies.StoreClient {
@@ -155,6 +158,10 @@ func (impl *resourceManagersImpl) Store() dependencies.StoreClient {
 
 func (impl *resourceManagersImpl) RBACManager() merger.RBACManager {
 	return impl.rbac
+}
+
+func (impl *resourceManagersImpl) PodSecurityManager() merger.PodSecurityManager {
+	return impl.podSecurity
 }
 
 // PodTemplateManagers used to access the different PodTemplateSpec manager.

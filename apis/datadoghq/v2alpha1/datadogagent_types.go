@@ -198,7 +198,7 @@ type TCPQueueLengthFeatureConfig struct {
 }
 
 // CSPMFeatureConfig contains CSPM (Cloud Security Posture Management) configuration.
-// CSPM runs in the Security Agent.
+// CSPM runs in the Security Agent and Cluster Agent.
 type CSPMFeatureConfig struct {
 	// Enabled enables Cloud Security Posture Management.
 	// Default: false
