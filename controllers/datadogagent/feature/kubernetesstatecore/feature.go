@@ -43,7 +43,6 @@ func buildKSMFeature(options *feature.Options) feature.Feature {
 }
 
 type ksmFeature struct {
-	enable               bool
 	clusterChecksEnabled bool
 
 	rbacSuffix         string
@@ -62,8 +61,7 @@ func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 	var output feature.RequiredComponents
 
 	if dda.Spec.Features.KubeStateMetricsCore != nil && apiutils.BoolValue(dda.Spec.Features.KubeStateMetricsCore.Enabled) {
-		f.enable = true
-		output.ClusterAgent.IsRequired = &f.enable
+		output.ClusterAgent.IsRequired = apiutils.NewBoolPointer(true)
 
 		if dda.Spec.Features.KubeStateMetricsCore.Conf != nil {
 			f.customConfig = v2alpha1.ConvertCustomConfig(dda.Spec.Features.KubeStateMetricsCore.Conf)
@@ -93,8 +91,7 @@ func (f *ksmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) feature.RequiredCom
 	var output feature.RequiredComponents
 
 	if dda.Spec.Features.KubeStateMetricsCore != nil && apiutils.BoolValue(dda.Spec.Features.KubeStateMetricsCore.Enabled) {
-		f.enable = true
-		output.ClusterAgent.IsRequired = &f.enable
+		output.ClusterAgent.IsRequired = apiutils.NewBoolPointer(true)
 
 		if dda.Spec.ClusterAgent.Config != nil && apiutils.BoolValue(dda.Spec.ClusterAgent.Config.ClusterChecksEnabled) && apiutils.BoolValue(dda.Spec.Features.KubeStateMetricsCore.ClusterCheck) {
 			f.clusterChecksEnabled = true

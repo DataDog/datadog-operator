@@ -34,7 +34,6 @@ func buildLogCollectionFeature(options *feature.Options) feature.Feature {
 }
 
 type logCollectionFeature struct {
-	enable                     bool
 	containerCollectAll        bool
 	containerCollectUsingFiles bool
 	containerLogsPath          string
@@ -49,7 +48,6 @@ func (f *logCollectionFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp fe
 	logCollection := dda.Spec.Features.LogCollection
 
 	if logCollection != nil && apiutils.BoolValue(logCollection.Enabled) {
-		f.enable = true
 		if logCollection.ContainerCollectAll != nil {
 			// fallback to agent default if not set
 			f.containerCollectAll = apiutils.BoolValue(logCollection.ContainerCollectAll)
@@ -65,7 +63,7 @@ func (f *logCollectionFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp fe
 
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
-				IsRequired: &f.enable,
+				IsRequired: apiutils.NewBoolPointer(true),
 				Containers: []apicommonv1.AgentContainerName{
 					apicommonv1.CoreAgentContainerName,
 				},
@@ -80,7 +78,6 @@ func (f *logCollectionFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp 
 	logCollection := dda.Spec.Features.LogCollection
 
 	if apiutils.BoolValue(logCollection.Enabled) {
-		f.enable = true
 		if apiutils.BoolValue(logCollection.LogsConfigContainerCollectAll) {
 			f.containerCollectAll = true
 		}
@@ -97,7 +94,7 @@ func (f *logCollectionFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp 
 
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
-				IsRequired: &f.enable,
+				IsRequired: apiutils.NewBoolPointer(true),
 				Containers: []apicommonv1.AgentContainerName{
 					apicommonv1.CoreAgentContainerName,
 				},

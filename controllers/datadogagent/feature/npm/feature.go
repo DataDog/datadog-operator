@@ -31,17 +31,14 @@ func buildNPMFeature(options *feature.Options) feature.Feature {
 	return npmFeat
 }
 
-type npmFeature struct {
-	enable bool
-}
+type npmFeature struct{}
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *npmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	if dda.Spec.Features.NPM != nil && apiutils.BoolValue(dda.Spec.Features.NPM.Enabled) {
-		f.enable = true
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
-				IsRequired: &f.enable,
+				IsRequired: apiutils.NewBoolPointer(true),
 				Containers: []apicommonv1.AgentContainerName{
 					apicommonv1.CoreAgentContainerName,
 					apicommonv1.ProcessAgentContainerName,
@@ -57,10 +54,9 @@ func (f *npmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 // ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
 func (f *npmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	if dda.Spec.Features.NetworkMonitoring != nil && *dda.Spec.Features.NetworkMonitoring.Enabled {
-		f.enable = true
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
-				IsRequired: &f.enable,
+				IsRequired: apiutils.NewBoolPointer(true),
 				Containers: []apicommonv1.AgentContainerName{
 					apicommonv1.CoreAgentContainerName,
 					apicommonv1.ProcessAgentContainerName,

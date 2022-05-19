@@ -33,7 +33,6 @@ func buildPrometheusScrapeFeature(options *feature.Options) feature.Feature {
 }
 
 type prometheusScrapeFeature struct {
-	enable                 bool
 	enableServiceEndpoints bool
 	additionalConfigs      string
 }
@@ -43,20 +42,19 @@ func (f *prometheusScrapeFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp
 	prometheusScrape := dda.Spec.Features.PrometheusScrape
 
 	if prometheusScrape != nil && apiutils.BoolValue(prometheusScrape.Enabled) {
-		f.enable = true
 		f.enableServiceEndpoints = apiutils.BoolValue(prometheusScrape.EnableServiceEndpoints)
 		if prometheusScrape.AdditionalConfigs != nil {
 			f.additionalConfigs = *prometheusScrape.AdditionalConfigs
 		}
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
-				IsRequired: &f.enable,
+				IsRequired: apiutils.NewBoolPointer(true),
 				Containers: []apicommonv1.AgentContainerName{
 					apicommonv1.CoreAgentContainerName,
 				},
 			},
 			ClusterAgent: feature.RequiredComponent{
-				IsRequired: &f.enable,
+				IsRequired: apiutils.NewBoolPointer(true),
 				Containers: []apicommonv1.AgentContainerName{
 					apicommonv1.ClusterAgentContainerName,
 				},
@@ -72,20 +70,19 @@ func (f *prometheusScrapeFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqCo
 	prometheusScrape := dda.Spec.Features.PrometheusScrape
 
 	if apiutils.BoolValue(prometheusScrape.Enabled) {
-		f.enable = true
 		f.enableServiceEndpoints = apiutils.BoolValue(prometheusScrape.ServiceEndpoints)
 		if prometheusScrape.AdditionalConfigs != nil {
 			f.additionalConfigs = *prometheusScrape.AdditionalConfigs
 		}
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
-				IsRequired: &f.enable,
+				IsRequired: apiutils.NewBoolPointer(true),
 				Containers: []apicommonv1.AgentContainerName{
 					apicommonv1.CoreAgentContainerName,
 				},
 			},
 			ClusterAgent: feature.RequiredComponent{
-				IsRequired: &f.enable,
+				IsRequired: apiutils.NewBoolPointer(true),
 				Containers: []apicommonv1.AgentContainerName{
 					apicommonv1.ClusterAgentContainerName,
 				},
