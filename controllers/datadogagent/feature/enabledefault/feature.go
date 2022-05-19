@@ -50,7 +50,7 @@ func (f *defaultFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) feature.Require
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *defaultFeature) ManageDependencies(managers feature.ResourceManagers) error {
+func (f *defaultFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
 	return nil
 }
 

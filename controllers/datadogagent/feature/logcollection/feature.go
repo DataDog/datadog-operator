@@ -109,7 +109,7 @@ func (f *logCollectionFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp 
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *logCollectionFeature) ManageDependencies(managers feature.ResourceManagers) error {
+func (f *logCollectionFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
 	return nil
 }
 

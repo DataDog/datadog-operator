@@ -121,7 +121,7 @@ func (f *ksmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) feature.RequiredCom
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers) error {
+func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
 	// Manage the Check Configuration in a configmap
 	configCM, err := f.buildKSMCoreConfigMap()
 	if err != nil {

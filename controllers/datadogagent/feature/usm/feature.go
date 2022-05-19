@@ -87,7 +87,7 @@ func (f *usmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.Re
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *usmFeature) ManageDependencies(managers feature.ResourceManagers) error {
+func (f *usmFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
 	return nil
 }
 

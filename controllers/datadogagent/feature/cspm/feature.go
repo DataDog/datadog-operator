@@ -112,7 +112,7 @@ func (f *cspmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.R
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *cspmFeature) ManageDependencies(managers feature.ResourceManagers) error {
+func (f *cspmFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
 	if f.createSCC {
 		// Manage SecurityContextConstraints
 		sccName := getSCCName(f.owner)
