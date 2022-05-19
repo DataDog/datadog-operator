@@ -73,11 +73,11 @@ func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 
 		if dda.Spec.Features.ClusterChecks != nil && apiutils.BoolValue(dda.Spec.Features.ClusterChecks.Enabled) {
 			f.clusterChecksEnabled = true
-			output.ClusterCheckRunner.IsRequired = &f.clusterChecksEnabled
 
 			if apiutils.BoolValue(dda.Spec.Features.ClusterChecks.UseClusterChecksRunners) {
 				f.rbacSuffix = common.CheckRunnersSuffix
 				f.serviceAccountName = v2alpha1.GetClusterChecksRunnerServiceAccount(dda)
+				output.ClusterCheckRunner.IsRequired = apiutils.NewBoolPointer(true)
 			} else {
 				f.serviceAccountName = v2alpha1.GetClusterAgentServiceAccount(dda)
 			}
@@ -96,12 +96,15 @@ func (f *ksmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) feature.RequiredCom
 		f.enable = true
 		output.ClusterAgent.IsRequired = &f.enable
 
-		if dda.Spec.ClusterAgent.Config != nil && apiutils.BoolValue(dda.Spec.ClusterAgent.Config.ClusterChecksEnabled) {
+		if dda.Spec.ClusterAgent.Config != nil && apiutils.BoolValue(dda.Spec.ClusterAgent.Config.ClusterChecksEnabled) && apiutils.BoolValue(dda.Spec.Features.KubeStateMetricsCore.ClusterCheck) {
 			f.clusterChecksEnabled = true
-			f.rbacSuffix = common.CheckRunnersSuffix
-			f.serviceAccountName = v1alpha1.GetClusterChecksRunnerServiceAccount(dda)
 
-			output.ClusterCheckRunner.IsRequired = &f.clusterChecksEnabled
+			if apiutils.BoolValue(dda.Spec.ClusterChecksRunner.Enabled) {
+				output.ClusterCheckRunner.IsRequired = apiutils.NewBoolPointer(true)
+
+				f.rbacSuffix = common.CheckRunnersSuffix
+				f.serviceAccountName = v1alpha1.GetClusterChecksRunnerServiceAccount(dda)
+			}
 		} else {
 			f.serviceAccountName = v1alpha1.GetClusterAgentServiceAccount(dda)
 		}
