@@ -166,7 +166,7 @@ func GetAgentVersion(dda metav1.Object) string {
 	return ""
 }
 
-// GetClusterCheckRunnerName return the Cluster-Check-Runner name based on the DatadogAgent name
-func GetClusterCheckRunnerName(dda metav1.Object) string {
+// GetClusterChecksRunnerName return the Cluster-Check-Runner name based on the DatadogAgent name
+func GetClusterChecksRunnerName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultClusterChecksRunnerResourceSuffix)
 }

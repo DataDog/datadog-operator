@@ -829,8 +829,8 @@ func (r *Reconciler) createAgentClusterRole(logger logr.Logger, dda *datadoghqv1
 	return reconcile.Result{Requeue: true}, err
 }
 
-func (r *Reconciler) createClusterCheckRunnerClusterRole(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string) (reconcile.Result, error) {
-	clusterRole := buildClusterCheckRunnerClusterRole(dda, name, agentVersion)
+func (r *Reconciler) createClusterChecksRunnerClusterRole(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string) (reconcile.Result, error) {
+	clusterRole := buildClusterChecksRunnerClusterRole(dda, name, agentVersion)
 	logger.V(1).Info("createAgentClusterRole", "clusterRole.name", clusterRole.Name)
 	event := buildEventInfo(clusterRole.Name, clusterRole.Namespace, clusterRoleKind, datadog.CreationEvent)
 	r.recordEvent(dda, event)
@@ -853,8 +853,8 @@ func (r *Reconciler) updateIfNeededAgentClusterRole(logger logr.Logger, dda *dat
 	return r.updateIfNeededClusterRole(logger, dda, clusterRole, newClusterRole)
 }
 
-func (r *Reconciler) updateIfNeededClusterCheckRunnerClusterRole(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string, clusterRole *rbacv1.ClusterRole) (reconcile.Result, error) {
-	newClusterRole := buildClusterCheckRunnerClusterRole(dda, name, agentVersion)
+func (r *Reconciler) updateIfNeededClusterChecksRunnerClusterRole(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string, clusterRole *rbacv1.ClusterRole) (reconcile.Result, error) {
+	newClusterRole := buildClusterChecksRunnerClusterRole(dda, name, agentVersion)
 	return r.updateIfNeededClusterRole(logger, dda, clusterRole, newClusterRole)
 }
 
@@ -907,8 +907,8 @@ func buildAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, version st
 	return buildClusterRole(dda, !isClusterAgentEnabled(dda.Spec.ClusterAgent), name, version)
 }
 
-// buildClusterCheckRunnerClusterRole creates a ClusterRole object for the ClusterCheckRunner based on its config
-func buildClusterCheckRunnerClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, version string) *rbacv1.ClusterRole {
+// buildClusterChecksRunnerClusterRole creates a ClusterRole object for the ClusterChecksRunner based on its config
+func buildClusterChecksRunnerClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, version string) *rbacv1.ClusterRole {
 	return buildClusterRole(dda, true, name, version)
 }
 

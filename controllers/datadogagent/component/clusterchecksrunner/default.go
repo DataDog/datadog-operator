@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package clustercheckrunner
+package clusterchecksrunner
 
 import (
 	appsv1 "k8s.io/api/apps/v1"
@@ -15,11 +15,11 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 )
 
-// NewDefaultClusterCheckRunnerDeployment return a new default cluster-check-runner deployment
-func NewDefaultClusterCheckRunnerDeployment(dda metav1.Object) *appsv1.Deployment {
-	deployment := component.NewDeployment(dda, apicommon.DefaultClusterChecksRunnerResourceSuffix, component.GetClusterCheckRunnerName(dda), component.GetAgentVersion(dda), nil)
+// NewDefaultClusterChecksRunnerDeployment return a new default cluster-check-runner deployment
+func NewDefaultClusterChecksRunnerDeployment(dda metav1.Object) *appsv1.Deployment {
+	deployment := component.NewDeployment(dda, apicommon.DefaultClusterChecksRunnerResourceSuffix, component.GetClusterChecksRunnerName(dda), component.GetAgentVersion(dda), nil)
 
-	podTemplate := NewDefaultClusterCheckRunnerPodTemplateSpec(dda)
+	podTemplate := NewDefaultClusterChecksRunnerPodTemplateSpec(dda)
 	for key, val := range deployment.GetLabels() {
 		podTemplate.Labels[key] = val
 	}
@@ -34,9 +34,9 @@ func NewDefaultClusterCheckRunnerDeployment(dda metav1.Object) *appsv1.Deploymen
 	return deployment
 }
 
-// NewDefaultClusterCheckRunnerPodTemplateSpec return a default cluster-check-runner for the cluster-agent deployment
-func NewDefaultClusterCheckRunnerPodTemplateSpec(dda metav1.Object) *corev1.PodTemplateSpec {
-	// TODO(operator-ga): implement NewDefaultClusterCheckRunnerPodTemplateSpec function
+// NewDefaultClusterChecksRunnerPodTemplateSpec return a default cluster-check-runner for the cluster-agent deployment
+func NewDefaultClusterChecksRunnerPodTemplateSpec(dda metav1.Object) *corev1.PodTemplateSpec {
+	// TODO(operator-ga): implement NewDefaultClusterChecksRunnerPodTemplateSpec function
 	template := &corev1.PodTemplateSpec{}
 
 	return template

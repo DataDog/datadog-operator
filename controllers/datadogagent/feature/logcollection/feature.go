@@ -161,7 +161,7 @@ func (f *logCollectionFeature) ManageNodeAgent(managers feature.PodTemplateManag
 	return nil
 }
 
-// ManageClusterChecksRunner allows a feature to configure the ClusterCheckRunnerAgent's corev1.PodTemplateSpec
+// ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunnerAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *logCollectionFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	return nil

@@ -75,9 +75,9 @@ func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 			f.clusterChecksEnabled = true
 
 			if apiutils.BoolValue(dda.Spec.Features.ClusterChecks.UseClusterChecksRunners) {
-				f.rbacSuffix = common.CheckRunnersSuffix
+				f.rbacSuffix = common.ChecksRunnerSuffix
 				f.serviceAccountName = v2alpha1.GetClusterChecksRunnerServiceAccount(dda)
-				output.ClusterCheckRunner.IsRequired = apiutils.NewBoolPointer(true)
+				output.ClusterChecksRunner.IsRequired = apiutils.NewBoolPointer(true)
 			} else {
 				f.serviceAccountName = v2alpha1.GetClusterAgentServiceAccount(dda)
 			}
@@ -100,9 +100,9 @@ func (f *ksmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) feature.RequiredCom
 			f.clusterChecksEnabled = true
 
 			if apiutils.BoolValue(dda.Spec.ClusterChecksRunner.Enabled) {
-				output.ClusterCheckRunner.IsRequired = apiutils.NewBoolPointer(true)
+				output.ClusterChecksRunner.IsRequired = apiutils.NewBoolPointer(true)
 
-				f.rbacSuffix = common.CheckRunnersSuffix
+				f.rbacSuffix = common.ChecksRunnerSuffix
 				f.serviceAccountName = v1alpha1.GetClusterChecksRunnerServiceAccount(dda)
 			}
 		} else {
@@ -175,7 +175,7 @@ func (f *ksmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 	return managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommonv1.CoreAgentContainerName, ignoreAutoConf, merger.AppendToValueEnvVarMergeFunction)
 }
 
-// ManageClusterChecksRunner allows a feature to configure the ClusterCheckRunnerAgent's corev1.PodTemplateSpec
+// ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunnerAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *ksmFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	return nil
