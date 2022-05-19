@@ -31,4 +31,5 @@ const (
 	DDPrometheusScrapeEnabled             = "DD_PROMETHEUS_SCRAPE_ENABLED"
 	DDPrometheusScrapeServiceEndpoints    = "DD_PROMETHEUS_SCRAPE_SERVICE_ENDPOINTS"
 	DDPrometheusScrapeChecks              = "DD_PROMETHEUS_SCRAPE_CHECKS"
+	DDCollectKubernetesEvents             = "DD_COLLECT_KUBERNETES_EVENTS"
 )
