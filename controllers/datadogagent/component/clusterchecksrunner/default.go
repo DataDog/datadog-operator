@@ -15,7 +15,7 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 )
 
-// NewDefaultClusterChecksRunnerDeployment return a new default cluster-check-runner deployment
+// NewDefaultClusterChecksRunnerDeployment return a new default cluster-checks-runner deployment
 func NewDefaultClusterChecksRunnerDeployment(dda metav1.Object) *appsv1.Deployment {
 	deployment := component.NewDeployment(dda, apicommon.DefaultClusterChecksRunnerResourceSuffix, component.GetClusterChecksRunnerName(dda), component.GetAgentVersion(dda), nil)
 
@@ -34,7 +34,7 @@ func NewDefaultClusterChecksRunnerDeployment(dda metav1.Object) *appsv1.Deployme
 	return deployment
 }
 
-// NewDefaultClusterChecksRunnerPodTemplateSpec return a default cluster-check-runner for the cluster-agent deployment
+// NewDefaultClusterChecksRunnerPodTemplateSpec return a default cluster-checks-runner for the cluster-agent deployment
 func NewDefaultClusterChecksRunnerPodTemplateSpec(dda metav1.Object) *corev1.PodTemplateSpec {
 	// TODO(operator-ga): implement NewDefaultClusterChecksRunnerPodTemplateSpec function
 	template := &corev1.PodTemplateSpec{}

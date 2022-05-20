@@ -2106,7 +2106,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 
 					_ = c.Create(context.TODO(), buildClusterRoleBinding(dda, roleBindingInfo{
 						name:               rbacResourcesNameClusterChecksRunner,
-						roleName:           "foo-cluster-check-runner",
+						roleName:           "foo-cluster-checks-runner",
 						serviceAccountName: rbacResourcesNameClusterChecksRunner,
 					}, version))
 				},
