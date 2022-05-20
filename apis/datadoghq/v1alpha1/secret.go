@@ -35,7 +35,7 @@ func CheckAPIKeySufficiency(creds *DatadogCredentials, envVarName string) bool {
 		os.Getenv(envVarName) != "")
 }
 
-// CheckAPIKeySufficiency use to check for the APP key if:
+// CheckAppKeySufficiency use to check for the APP key if:
 // 1. an existing secret is defined, or
 // 2. the corresponding env var is defined (whether in ENC format or not)
 // If either of these is true, the secret is not needed for that particular key.
