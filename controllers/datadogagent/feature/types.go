@@ -135,6 +135,7 @@ type ResourceManagers interface {
 	Store() dependencies.StoreClient
 	RBACManager() merger.RBACManager
 	PodSecurityManager() merger.PodSecurityManager
+	SecretManager() merger.SecretManager
 }
 
 // NewResourceManagers return new instance of the ResourceManagers interface
@@ -143,6 +144,7 @@ func NewResourceManagers(store dependencies.StoreClient) ResourceManagers {
 		store:       store,
 		rbac:        merger.NewRBACManager(store),
 		podSecurity: merger.NewPodSecurityManager(store),
+		secret:      merger.NewSecretManager(store),
 	}
 }
 
@@ -150,6 +152,7 @@ type resourceManagersImpl struct {
 	store       dependencies.StoreClient
 	rbac        merger.RBACManager
 	podSecurity merger.PodSecurityManager
+	secret      merger.SecretManager
 }
 
 func (impl *resourceManagersImpl) Store() dependencies.StoreClient {
@@ -162,6 +165,10 @@ func (impl *resourceManagersImpl) RBACManager() merger.RBACManager {
 
 func (impl *resourceManagersImpl) PodSecurityManager() merger.PodSecurityManager {
 	return impl.podSecurity
+}
+
+func (impl *resourceManagersImpl) SecretManager() merger.SecretManager {
+	return impl.secret
 }
 
 // PodTemplateManagers used to access the different PodTemplateSpec manager.
