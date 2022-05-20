@@ -7,7 +7,7 @@ package datadogagent
 
 import (
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
-	componentclc "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clustercheckrunner"
+	componentccr "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusterchecksrunner"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/override"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -16,12 +16,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-func (r *Reconciler) reconcileV2ClusterCheckRunner(logger logr.Logger, features []feature.Feature, dda *datadoghqv2alpha1.DatadogAgent, newStatus *datadoghqv2alpha1.DatadogAgentStatus) (reconcile.Result, error) {
+func (r *Reconciler) reconcileV2ClusterChecksRunner(logger logr.Logger, features []feature.Feature, dda *datadoghqv2alpha1.DatadogAgent, newStatus *datadoghqv2alpha1.DatadogAgentStatus) (reconcile.Result, error) {
 	var result reconcile.Result
 	var err error
 
 	// Start by creating the Default Cluster-Agent deployment
-	deployment := componentclc.NewDefaultClusterCheckRunnerDeployment(dda)
+	deployment := componentccr.NewDefaultClusterChecksRunnerDeployment(dda)
 	podManagers := feature.NewPodTemplateManagers(&deployment.Spec.Template)
 
 	// Set Global setting on the default deployment
@@ -34,7 +34,7 @@ func (r *Reconciler) reconcileV2ClusterCheckRunner(logger logr.Logger, features 
 		}
 	}
 
-	// If Override is define for the cluster-check-runner component, apply the override on the PodTemplateSpec, it will cascade to container.
+	// If Override is define for the cluster-checks-runner component, apply the override on the PodTemplateSpec, it will cascade to container.
 	if _, ok := dda.Spec.Override[datadoghqv2alpha1.ClusterChecksRunnerComponentName]; ok {
 		_, err = override.PodTemplateSpec(podManagers, dda.Spec.Override[datadoghqv2alpha1.ClusterChecksRunnerComponentName])
 		if err != nil {
@@ -42,11 +42,11 @@ func (r *Reconciler) reconcileV2ClusterCheckRunner(logger logr.Logger, features 
 		}
 	}
 
-	deploymentLogger := logger.WithValues("component", datadoghqv2alpha1.ClusterCheckRunnerReconcileConditionType)
-	return r.createOrUpdateDeployment(deploymentLogger, dda, deployment, newStatus, updateStatusV2WithClusterCheckRunner)
+	deploymentLogger := logger.WithValues("component", datadoghqv2alpha1.ClusterChecksRunnerReconcileConditionType)
+	return r.createOrUpdateDeployment(deploymentLogger, dda, deployment, newStatus, updateStatusV2WithClusterChecksRunner)
 }
 
-func updateStatusV2WithClusterCheckRunner(newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
+func updateStatusV2WithClusterChecksRunner(newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
 	// TODO(operator-ga): update status with DCA deployment information
-	datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(newStatus, updateTime, datadoghqv2alpha1.ClusterCheckRunnerReconcileConditionType, status, reason, message, true)
+	datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(newStatus, updateTime, datadoghqv2alpha1.ClusterChecksRunnerReconcileConditionType, status, reason, message, true)
 }

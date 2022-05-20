@@ -64,7 +64,7 @@ func (f *defaultFeature) ManageClusterAgent(managers feature.PodTemplateManagers
 // It should do nothing if the feature doesn't need to configure it.
 func (f *defaultFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error { return nil }
 
-// ManageClusterChecksRunner allows a feature to configure the ClusterCheckRunnerAgent's corev1.PodTemplateSpec
+// ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunnerAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *defaultFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	return nil

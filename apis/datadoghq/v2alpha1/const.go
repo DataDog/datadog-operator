@@ -6,8 +6,8 @@ const (
 	ClusterAgentReconcileConditionType = "ClusterAgentReconcile"
 	// AgentReconcileConditionType ReconcileConditionType for Agent component
 	AgentReconcileConditionType = "AgentReconcile"
-	// ClusterCheckRunnerReconcileConditionType ReconcileConditionType for Cluster Check Runner component
-	ClusterCheckRunnerReconcileConditionType = "ClusterCheckRunnerReconcile"
+	// ClusterChecksRunnerReconcileConditionType ReconcileConditionType for Cluster Checks Runner component
+	ClusterChecksRunnerReconcileConditionType = "ClusterChecksRunnerReconcile"
 	// DatadogAgentReconcileErrorConditionType  ReconcileConditionType for DatadogAgent reconcile error
 	DatadogAgentReconcileErrorConditionType = "DatadogAgentReconcileError"
 )

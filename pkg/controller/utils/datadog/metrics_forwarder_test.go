@@ -191,7 +191,7 @@ func TestMetricsForwarder_sendStatusMetrics(t *testing.T) {
 				f := &fakeMetricsForwarder{}
 				f.On("delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running"})
 				f.On("delegatedSendDeploymentMetric", 1.0, "clusteragent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running"})
-				f.On("delegatedSendDeploymentMetric", 1.0, "clustercheckrunner", []string{"cr_namespace:foo", "cr_name:bar", "state:Running"})
+				f.On("delegatedSendDeploymentMetric", 1.0, "clusterchecksrunner", []string{"cr_namespace:foo", "cr_name:bar", "state:Running"})
 				mf.delegator = f
 				return mf, f
 			},
@@ -220,7 +220,7 @@ func TestMetricsForwarder_sendStatusMetrics(t *testing.T) {
 				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "clusteragent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running"}) {
 					return errors.New("Function not called")
 				}
-				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "clustercheckrunner", []string{"cr_namespace:foo", "cr_name:bar", "state:Running"}) {
+				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "clusterchecksrunner", []string{"cr_namespace:foo", "cr_name:bar", "state:Running"}) {
 					return errors.New("Function not called")
 				}
 				if !f.AssertNumberOfCalls(t, "delegatedSendDeploymentMetric", 3) {
@@ -265,12 +265,12 @@ func TestMetricsForwarder_sendStatusMetrics(t *testing.T) {
 			},
 		},
 		{
-			name: "all components, clustercheckrunner not available",
+			name: "all components, clusterchecksrunner not available",
 			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
 				f.On("delegatedSendDeploymentMetric", 1.0, "agent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running"})
 				f.On("delegatedSendDeploymentMetric", 1.0, "clusteragent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running"})
-				f.On("delegatedSendDeploymentMetric", 0.0, "clustercheckrunner", []string{"cr_namespace:foo", "cr_name:bar", "state:Running"})
+				f.On("delegatedSendDeploymentMetric", 0.0, "clusterchecksrunner", []string{"cr_namespace:foo", "cr_name:bar", "state:Running"})
 				mf.delegator = f
 				return mf, f
 			},
@@ -299,7 +299,7 @@ func TestMetricsForwarder_sendStatusMetrics(t *testing.T) {
 				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 1.0, "clusteragent", []string{"cr_namespace:foo", "cr_name:bar", "state:Running"}) {
 					return errors.New("Function not called")
 				}
-				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 0.0, "clustercheckrunner", []string{"cr_namespace:foo", "cr_name:bar", "state:Running"}) {
+				if !f.AssertCalled(t, "delegatedSendDeploymentMetric", 0.0, "clusterchecksrunner", []string{"cr_namespace:foo", "cr_name:bar", "state:Running"}) {
 					return errors.New("Function not called")
 				}
 				if !f.AssertNumberOfCalls(t, "delegatedSendDeploymentMetric", 3) {

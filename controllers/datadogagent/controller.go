@@ -157,7 +157,7 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, 
 	if err != nil {
 		return result, fmt.Errorf("unable to build features, err: %w", err)
 	}
-	logger.Info("requiredComponents status:", "agent", requiredComponents.Agent, "cluster-agent", requiredComponents.ClusterAgent, "cluster-check-runner", requiredComponents.ClusterCheckRunner)
+	logger.Info("requiredComponents status:", "agent", requiredComponents.Agent, "cluster-agent", requiredComponents.ClusterAgent, "cluster-checks-runner", requiredComponents.ClusterChecksRunner)
 
 	// -----------------------
 	// Manage dependencies

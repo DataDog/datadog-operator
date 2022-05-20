@@ -899,7 +899,7 @@ func TestDefaultDatadogFeatureOrchestratorExplorer(t *testing.T) {
 			},
 		},
 		{
-			name: "enabled orchestrator, enabled clustecheck",
+			name: "enabled orchestrator, enabled clustercheck",
 			orc: &DatadogFeatures{
 				OrchestratorExplorer: &OrchestratorExplorerConfig{
 					Enabled:      apiutils.NewBoolPointer(true),
@@ -923,7 +923,7 @@ func TestDefaultDatadogFeatureOrchestratorExplorer(t *testing.T) {
 			},
 		},
 		{
-			name: "enabled orchestrator, checkrunner enabled, clustecheck disable",
+			name: "enabled orchestrator, checksrunner enabled, clustercheck disabled",
 			orc: &DatadogFeatures{
 				OrchestratorExplorer: &OrchestratorExplorerConfig{
 					Enabled:      apiutils.NewBoolPointer(true),

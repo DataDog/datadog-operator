@@ -20,14 +20,14 @@ import (
 
 // RequiredComponents use to know which component need to be enabled for the feature
 type RequiredComponents struct {
-	ClusterAgent       RequiredComponent
-	Agent              RequiredComponent
-	ClusterCheckRunner RequiredComponent
+	ClusterAgent        RequiredComponent
+	Agent               RequiredComponent
+	ClusterChecksRunner RequiredComponent
 }
 
 // IsEnabled return true if the Feature need to be enabled
 func (rc *RequiredComponents) IsEnabled() bool {
-	return rc.ClusterAgent.IsEnabled() || rc.Agent.IsEnabled() || rc.ClusterCheckRunner.IsEnabled()
+	return rc.ClusterAgent.IsEnabled() || rc.Agent.IsEnabled() || rc.ClusterChecksRunner.IsEnabled()
 }
 
 // Merge use to merge 2 RequiredComponents
@@ -36,7 +36,7 @@ func (rc *RequiredComponents) IsEnabled() bool {
 func (rc *RequiredComponents) Merge(in *RequiredComponents) *RequiredComponents {
 	rc.ClusterAgent.Merge(&in.ClusterAgent)
 	rc.Agent.Merge(&in.Agent)
-	rc.ClusterCheckRunner.Merge(&in.ClusterCheckRunner)
+	rc.ClusterChecksRunner.Merge(&in.ClusterChecksRunner)
 	return rc
 }
 
@@ -114,7 +114,7 @@ type Feature interface {
 	// ManageNodeAget allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 	// It should do nothing if the feature doesn't need to configure it.
 	ManageNodeAgent(managers PodTemplateManagers) error
-	// ManageClusterChecksRunner allows a feature to configure the ClusterCheckRunnerAgent's corev1.PodTemplateSpec
+	// ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunnerAgent's corev1.PodTemplateSpec
 	// It should do nothing if the feature doesn't need to configure it.
 	ManageClusterChecksRunner(managers PodTemplateManagers) error
 }

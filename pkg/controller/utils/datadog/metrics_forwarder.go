@@ -45,7 +45,7 @@ const (
 	crNameTagFormat             = "cr_name:%s"
 	agentName                   = "agent"
 	clusteragentName            = "clusteragent"
-	clustercheckrunnerName      = "clustercheckrunner"
+	clusterchecksrunnerName     = "clusterchecksrunner"
 	reconcileSuccessValue       = 1.0
 	reconcileFailureValue       = 0.0
 	reconcileMetricFormat       = "%s.reconcile.success"
@@ -413,7 +413,7 @@ func (mf *metricsForwarder) sendStatusMetrics(status *datadoghqv1alpha1.DatadogA
 			metricValue = deploymentFailureValue
 		}
 		tags := mf.tagsWithExtraTag(stateTagFormat, status.ClusterChecksRunner.State)
-		if err := mf.sendDeploymentMetric(metricValue, clustercheckrunnerName, tags); err != nil {
+		if err := mf.sendDeploymentMetric(metricValue, clusterchecksrunnerName, tags); err != nil {
 			return err
 		}
 	}
