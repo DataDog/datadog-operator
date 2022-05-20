@@ -28,7 +28,7 @@ func GetKeysFromCredentials(credentials *DatadogCredentials) map[string][]byte {
 // CheckAPIKeySufficiency use to check for the API key if:
 // 1. an existing secret is defined, or
 // 2. the corresponding env var is defined (whether in ENC format or not)
-// If either of these is true, the secret is not needed for that particular key.
+// If either of these is true, the secret is not needed.
 func CheckAPIKeySufficiency(creds *DatadogCredentials, envVarName string) bool {
 	return ((creds.APISecret != nil && creds.APISecret.SecretName != "") ||
 		creds.APIKeyExistingSecret != "" ||
@@ -38,7 +38,7 @@ func CheckAPIKeySufficiency(creds *DatadogCredentials, envVarName string) bool {
 // CheckAppKeySufficiency use to check for the APP key if:
 // 1. an existing secret is defined, or
 // 2. the corresponding env var is defined (whether in ENC format or not)
-// If either of these is true, the secret is not needed for that particular key.
+// If either of these is true, the secret is not needed.
 func CheckAppKeySufficiency(creds *DatadogCredentials, envVarName string) bool {
 	return ((creds.APPSecret != nil && creds.APPSecret.SecretName != "") ||
 		creds.AppKeyExistingSecret != "" ||
