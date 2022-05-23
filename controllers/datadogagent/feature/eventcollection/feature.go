@@ -65,7 +65,7 @@ func (f *eventCollectionFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqCom
 
 	if *config.LeaderElection {
 		// cluster agent
-		if apiutils.BoolValue(dcaConfig.CollectEvents) {
+		if dcaConfig != nil && apiutils.BoolValue(dcaConfig.CollectEvents) {
 			f.serviceAccountName = v1alpha1.GetClusterAgentServiceAccount(dda)
 			f.rbacSuffix = common.ClusterAgentSuffix
 
