@@ -13,13 +13,16 @@ import (
 )
 
 // getRBACRules generates the rbac rules required for EventCollection
-func getRBACPolicyRules() []rbacv1.PolicyRule {
+func getRBACPolicyRules(tokenResourceName string) []rbacv1.PolicyRule {
 	rbacRules := []rbacv1.PolicyRule{
 		{
-			APIGroups:     []string{rbac.CoreAPIGroup},
-			Resources:     []string{rbac.ConfigMapsResource},
-			ResourceNames: []string{common.DatadogTokenResourceName},
-			Verbs:         []string{rbac.GetVerb, rbac.UpdateVerb},
+			APIGroups: []string{rbac.CoreAPIGroup},
+			Resources: []string{rbac.ConfigMapsResource},
+			ResourceNames: []string{
+				common.DatadogTokenResourceName, // agent <7.37 token reource name
+				tokenResourceName,
+			},
+			Verbs: []string{rbac.GetVerb, rbac.UpdateVerb},
 		},
 	}
 
@@ -27,13 +30,16 @@ func getRBACPolicyRules() []rbacv1.PolicyRule {
 }
 
 // getLeaderElectionRBACPolicyRules generates the rbac rules required for leader election
-func getLeaderElectionRBACPolicyRules() []rbacv1.PolicyRule {
+func getLeaderElectionRBACPolicyRules(leaderElectionResourceName string) []rbacv1.PolicyRule {
 	rbacRules := []rbacv1.PolicyRule{
 		{
-			APIGroups:     []string{rbac.CoreAPIGroup},
-			Resources:     []string{rbac.ConfigMapsResource},
-			ResourceNames: []string{common.DatadogLeaderElectionResourceName}, // leader election token
-			Verbs:         []string{rbac.GetVerb, rbac.UpdateVerb},
+			APIGroups: []string{rbac.CoreAPIGroup},
+			Resources: []string{rbac.ConfigMapsResource},
+			ResourceNames: []string{
+				common.DatadogLeaderElectionResourceName, // agent <7.37 leader election resource name
+				leaderElectionResourceName,
+			},
+			Verbs: []string{rbac.GetVerb, rbac.UpdateVerb},
 		},
 		{ // To create the leader election token
 			APIGroups: []string{rbac.CoreAPIGroup},

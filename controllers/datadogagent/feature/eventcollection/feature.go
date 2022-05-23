@@ -17,6 +17,7 @@ import (
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	common "github.com/DataDog/datadog-operator/controllers/datadogagent/common"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 )
 
 func init() {
@@ -33,8 +34,6 @@ func buildEventCollectionFeature(options *feature.Options) feature.Feature {
 }
 
 type eventCollectionFeature struct {
-	nodeAgentEnable    bool
-	clusterAgentEnable bool
 	serviceAccountName string
 	rbacSuffix         string
 	owner              metav1.Object
@@ -47,7 +46,6 @@ func (f *eventCollectionFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp 
 	// v2alpha1 configures event collection using the cluster agent only
 	// leader election is enabled by default
 	if dda.Spec.Features.EventCollection != nil && apiutils.BoolValue(dda.Spec.Features.EventCollection.CollectKubernetesEvents) {
-		f.clusterAgentEnable = true
 		f.serviceAccountName = v2alpha1.GetClusterAgentServiceAccount(dda)
 		f.rbacSuffix = common.ClusterAgentSuffix
 
@@ -67,8 +65,7 @@ func (f *eventCollectionFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqCom
 
 	if *config.LeaderElection {
 		// cluster agent
-		if *dcaConfig.CollectEvents {
-			f.clusterAgentEnable = true
+		if apiutils.BoolValue(dcaConfig.CollectEvents) {
 			f.serviceAccountName = v1alpha1.GetClusterAgentServiceAccount(dda)
 			f.rbacSuffix = common.ClusterAgentSuffix
 
@@ -79,8 +76,7 @@ func (f *eventCollectionFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqCom
 		}
 
 		// node agent
-		if *config.CollectEvents {
-			f.nodeAgentEnable = true
+		if apiutils.BoolValue(config.CollectEvents) {
 			f.serviceAccountName = v1alpha1.GetAgentServiceAccount(dda)
 			f.rbacSuffix = common.NodeAgentSuffix
 
@@ -100,14 +96,16 @@ func (f *eventCollectionFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqCom
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *eventCollectionFeature) ManageDependencies(managers feature.ResourceManagers) error {
+func (f *eventCollectionFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
 	// Manage RBAC
 	rbacName := getRBACResourceName(f.owner, f.rbacSuffix)
-	managers.RBACManager().AddClusterPolicyRules("", rbacName, f.serviceAccountName, getRBACPolicyRules())
+	tokenResourceName := utils.GetDatadogTokenResourceName(f.owner.GetName())
+	managers.RBACManager().AddClusterPolicyRules("", rbacName, f.serviceAccountName, getRBACPolicyRules(tokenResourceName))
 
 	// hardcoding leader election RBAC for now
 	// can look into separating this out later if this needs to be configurable for other features
-	managers.RBACManager().AddClusterPolicyRules("", rbacName, f.serviceAccountName, getLeaderElectionRBACPolicyRules())
+	leaderElectionResourceName := utils.GetDatadogLeaderElectionResourceName(f.owner.GetName())
+	managers.RBACManager().AddClusterPolicyRules("", rbacName, f.serviceAccountName, getLeaderElectionRBACPolicyRules(leaderElectionResourceName))
 
 	return nil
 }
@@ -125,6 +123,16 @@ func (f *eventCollectionFeature) ManageClusterAgent(managers feature.PodTemplate
 		Value: "true",
 	})
 
+	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
+		Name:  apicommon.DDLeaderLeaseName,
+		Value: utils.GetDatadogLeaderElectionResourceName(f.owner.GetName()),
+	})
+
+	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
+		Name:  apicommon.DDClusterAgentTokenName,
+		Value: utils.GetDatadogTokenResourceName(f.owner.GetName()),
+	})
+
 	return nil
 }
 
@@ -139,6 +147,16 @@ func (f *eventCollectionFeature) ManageNodeAgent(managers feature.PodTemplateMan
 	managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
 		Name:  apicommon.DDLeaderElection,
 		Value: "true",
+	})
+
+	managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
+		Name:  apicommon.DDLeaderLeaseName,
+		Value: utils.GetDatadogLeaderElectionResourceName(f.owner.GetName()),
+	})
+
+	managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
+		Name:  apicommon.DDClusterAgentTokenName,
+		Value: utils.GetDatadogTokenResourceName(f.owner.GetName()),
 	})
 
 	return nil

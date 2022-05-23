@@ -6,6 +6,8 @@
 package utils
 
 import (
+	"fmt"
+
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
@@ -67,4 +69,14 @@ func ShouldReturn(result reconcile.Result, err error) bool {
 		return true
 	}
 	return false
+}
+
+// GetDatadogLeaderElectionResourceName returns the name of the ConfigMap used by the cluster agent to elect a leader
+func GetDatadogLeaderElectionResourceName(ddaName string) string {
+	return fmt.Sprintf("%s-leader-election", ddaName)
+}
+
+// GetDatadogTokenResourceName returns the name of the ConfigMap used by the cluster agent to store token
+func GetDatadogTokenResourceName(ddaName string) string {
+	return fmt.Sprintf("%stoken", ddaName)
 }

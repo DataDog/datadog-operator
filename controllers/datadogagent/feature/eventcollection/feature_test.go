@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
@@ -41,6 +42,9 @@ func Test_eventCollectionFeature_Configure(t *testing.T) {
 	}
 
 	ddav1EventCollectionAgentEnabled := v1alpha1.DatadogAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "ddaNode",
+		},
 		Spec: v1alpha1.DatadogAgentSpec{
 			Agent: v1alpha1.DatadogAgentSpecAgentSpec{
 				Config: &v1alpha1.NodeAgentConfig{
@@ -57,6 +61,9 @@ func Test_eventCollectionFeature_Configure(t *testing.T) {
 	}
 
 	ddav1EventCollectionDCAEnabled := v1alpha1.DatadogAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "ddaDCA",
+		},
 		Spec: v1alpha1.DatadogAgentSpec{
 			Agent: v1alpha1.DatadogAgentSpecAgentSpec{
 				Config: &v1alpha1.NodeAgentConfig{
@@ -83,6 +90,7 @@ func Test_eventCollectionFeature_Configure(t *testing.T) {
 	}
 	ddav2EventCollectionEnabled := ddav2EventCollectionDisabled.DeepCopy()
 	{
+		ddav2EventCollectionEnabled.Name = "ddaDCA"
 		ddav2EventCollectionEnabled.Spec.Features.EventCollection.CollectKubernetesEvents = apiutils.NewBoolPointer(true)
 	}
 
@@ -98,6 +106,14 @@ func Test_eventCollectionFeature_Configure(t *testing.T) {
 			{
 				Name:  apicommon.DDLeaderElection,
 				Value: "true",
+			},
+			{
+				Name:  apicommon.DDLeaderLeaseName,
+				Value: "ddaDCA-leader-election",
+			},
+			{
+				Name:  apicommon.DDClusterAgentTokenName,
+				Value: "ddaDCAtoken",
 			},
 		}
 		assert.True(t, apiutils.IsEqualStruct(dcaEnvVars, want), "DCA envvars \ndiff = %s", cmp.Diff(dcaEnvVars, want))
@@ -115,6 +131,14 @@ func Test_eventCollectionFeature_Configure(t *testing.T) {
 			{
 				Name:  apicommon.DDLeaderElection,
 				Value: "true",
+			},
+			{
+				Name:  apicommon.DDLeaderLeaseName,
+				Value: "ddaNode-leader-election",
+			},
+			{
+				Name:  apicommon.DDClusterAgentTokenName,
+				Value: "ddaNodetoken",
 			},
 		}
 		coreAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
