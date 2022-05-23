@@ -32,9 +32,9 @@ type FeatureTest struct {
 	StoreInitFunc      func(store dependencies.StoreClient)
 	RequiredComponents feature.RequiredComponents
 	// Test configuration
-	Agent              *ComponentTest
-	ClusterAgent       *ComponentTest
-	ClusterCheckRunner *ComponentTest
+	Agent               *ComponentTest
+	ClusterAgent        *ComponentTest
+	ClusterChecksRunner *ComponentTest
 	// Want
 	WantConfigure             bool
 	WantManageDependenciesErr bool
@@ -44,7 +44,7 @@ type FeatureTest struct {
 // Options use to provide some option to the test.
 type Options struct{}
 
-// ComponentTest use to configure how to test a component (Cluster-Agent, Agent, ClusterCheckRunner)
+// ComponentTest use to configure how to test a component (Cluster-Agent, Agent, ClusterChecksRunner)
 type ComponentTest struct {
 	CreateFunc func(testing.TB) feature.PodTemplateManagers
 	WantFunc   func(testing.TB, feature.PodTemplateManagers)
@@ -113,9 +113,9 @@ func runTest(t *testing.T, tt FeatureTest, buildFunc feature.BuildFunc) {
 		tt.Agent.WantFunc(t, tplManager)
 	}
 
-	if tt.ClusterCheckRunner != nil {
-		tplManager := tt.ClusterCheckRunner.CreateFunc(t)
+	if tt.ClusterChecksRunner != nil {
+		tplManager := tt.ClusterChecksRunner.CreateFunc(t)
 		_ = f.ManageClusterChecksRunner(tplManager)
-		tt.ClusterCheckRunner.WantFunc(t, tplManager)
+		tt.ClusterChecksRunner.WantFunc(t, tplManager)
 	}
 }

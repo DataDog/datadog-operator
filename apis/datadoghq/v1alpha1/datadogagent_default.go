@@ -459,8 +459,8 @@ func DefaultRbacConfig(rbac *RbacConfig) *RbacConfig {
 	return rbacOverride
 }
 
-// DefaultDatadogClusterCheckRunnerSpecRbacConfig used to default a RbacConfig of the Cluster Check Runner
-func DefaultDatadogClusterCheckRunnerSpecRbacConfig(clc *DatadogAgentSpecClusterChecksRunnerSpec) *RbacConfig {
+// DefaultDatadogClusterChecksRunnerSpecRbacConfig used to default a RbacConfig of the Cluster Check Runner
+func DefaultDatadogClusterChecksRunnerSpecRbacConfig(clc *DatadogAgentSpecClusterChecksRunnerSpec) *RbacConfig {
 	if clc.Rbac == nil {
 		// prevent passing an empty reference
 		clc.Rbac = &RbacConfig{}
@@ -1148,11 +1148,11 @@ func DefaultDatadogAgentSpecClusterChecksRunner(clusterChecksRunner *DatadogAgen
 		clcOverride.Config = cfg
 	}
 
-	if rbac := DefaultDatadogClusterCheckRunnerSpecRbacConfig(clusterChecksRunner); !apiutils.IsEqualStruct(rbac, RbacConfig{}) {
+	if rbac := DefaultDatadogClusterChecksRunnerSpecRbacConfig(clusterChecksRunner); !apiutils.IsEqualStruct(rbac, RbacConfig{}) {
 		clcOverride.Rbac = rbac
 	}
 
-	if net := DefaultClusterCheckRunnerNetworkPolicy(clusterChecksRunner); !apiutils.IsEqualStruct(net, NetworkPolicySpec{}) {
+	if net := DefaultClusterChecksRunnerNetworkPolicy(clusterChecksRunner); !apiutils.IsEqualStruct(net, NetworkPolicySpec{}) {
 		clcOverride.NetworkPolicy = net
 	}
 
@@ -1277,8 +1277,8 @@ func DefaultClusterAgentNetworkPolicy(dca *DatadogAgentSpecClusterAgentSpec) *Ne
 	return DefaultNetworkPolicy(dca.NetworkPolicy)
 }
 
-// DefaultClusterCheckRunnerNetworkPolicy defaults the Network Policy for the Cluster Check Runner
-func DefaultClusterCheckRunnerNetworkPolicy(clc *DatadogAgentSpecClusterChecksRunnerSpec) *NetworkPolicySpec {
+// DefaultClusterChecksRunnerNetworkPolicy defaults the Network Policy for the Cluster Check Runner
+func DefaultClusterChecksRunnerNetworkPolicy(clc *DatadogAgentSpecClusterChecksRunnerSpec) *NetworkPolicySpec {
 	if clc.NetworkPolicy == nil {
 		clc.NetworkPolicy = &NetworkPolicySpec{}
 	}

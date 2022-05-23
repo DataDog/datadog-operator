@@ -2034,7 +2034,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 					resourceName := getClusterChecksRunnerRbacResourcesName(dda)
 					version := getAgentVersion(dda)
 
-					_ = c.Create(context.TODO(), buildClusterCheckRunnerClusterRole(dda, resourceName, version))
+					_ = c.Create(context.TODO(), buildClusterChecksRunnerClusterRole(dda, resourceName, version))
 					_ = c.Create(context.TODO(), buildServiceAccount(dda, getClusterChecksRunnerServiceAccount(dda), version))
 				},
 			},
@@ -2102,11 +2102,11 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 
 					version := getClusterChecksRunnerVersion(dda)
 					resourceName := getClusterChecksRunnerRbacResourcesName(dda)
-					_ = c.Create(context.TODO(), buildClusterCheckRunnerClusterRole(dda, resourceName, version))
+					_ = c.Create(context.TODO(), buildClusterChecksRunnerClusterRole(dda, resourceName, version))
 
 					_ = c.Create(context.TODO(), buildClusterRoleBinding(dda, roleBindingInfo{
 						name:               rbacResourcesNameClusterChecksRunner,
-						roleName:           "foo-cluster-check-runner",
+						roleName:           "foo-cluster-checks-runner",
 						serviceAccountName: rbacResourcesNameClusterChecksRunner,
 					}, version))
 				},
@@ -2867,7 +2867,7 @@ func createClusterChecksRunnerRBAC(c client.Client, dda *datadoghqv1alpha1.Datad
 	resourceName := getClusterChecksRunnerRbacResourcesName(dda)
 	version := getAgentVersion(dda)
 
-	_ = c.Create(context.TODO(), buildClusterCheckRunnerClusterRole(dda, resourceName, version))
+	_ = c.Create(context.TODO(), buildClusterChecksRunnerClusterRole(dda, resourceName, version))
 	_ = c.Create(context.TODO(), buildClusterRoleBinding(dda, roleBindingInfo{
 		name:               resourceName,
 		roleName:           resourceName,

@@ -15,6 +15,6 @@ const (
 	KubeSystemResourceName             = "kube-system"
 
 	NodeAgentSuffix    = "node"
-	CheckRunnersSuffix = "ccr"
+	ChecksRunnerSuffix = "ccr"
 	ClusterAgentSuffix = "dca"
 )

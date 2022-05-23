@@ -20,14 +20,14 @@ import (
 
 // RequiredComponents use to know which component need to be enabled for the feature
 type RequiredComponents struct {
-	ClusterAgent       RequiredComponent
-	Agent              RequiredComponent
-	ClusterCheckRunner RequiredComponent
+	ClusterAgent        RequiredComponent
+	Agent               RequiredComponent
+	ClusterChecksRunner RequiredComponent
 }
 
 // IsEnabled return true if the Feature need to be enabled
 func (rc *RequiredComponents) IsEnabled() bool {
-	return rc.ClusterAgent.IsEnabled() || rc.Agent.IsEnabled() || rc.ClusterCheckRunner.IsEnabled()
+	return rc.ClusterAgent.IsEnabled() || rc.Agent.IsEnabled() || rc.ClusterChecksRunner.IsEnabled()
 }
 
 // Merge use to merge 2 RequiredComponents
@@ -36,7 +36,7 @@ func (rc *RequiredComponents) IsEnabled() bool {
 func (rc *RequiredComponents) Merge(in *RequiredComponents) *RequiredComponents {
 	rc.ClusterAgent.Merge(&in.ClusterAgent)
 	rc.Agent.Merge(&in.Agent)
-	rc.ClusterCheckRunner.Merge(&in.ClusterCheckRunner)
+	rc.ClusterChecksRunner.Merge(&in.ClusterChecksRunner)
 	return rc
 }
 
@@ -114,7 +114,7 @@ type Feature interface {
 	// ManageNodeAget allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 	// It should do nothing if the feature doesn't need to configure it.
 	ManageNodeAgent(managers PodTemplateManagers) error
-	// ManageClusterChecksRunner allows a feature to configure the ClusterCheckRunnerAgent's corev1.PodTemplateSpec
+	// ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunnerAgent's corev1.PodTemplateSpec
 	// It should do nothing if the feature doesn't need to configure it.
 	ManageClusterChecksRunner(managers PodTemplateManagers) error
 }
@@ -135,6 +135,7 @@ type ResourceManagers interface {
 	Store() dependencies.StoreClient
 	RBACManager() merger.RBACManager
 	PodSecurityManager() merger.PodSecurityManager
+	SecretManager() merger.SecretManager
 }
 
 // NewResourceManagers return new instance of the ResourceManagers interface
@@ -143,6 +144,7 @@ func NewResourceManagers(store dependencies.StoreClient) ResourceManagers {
 		store:       store,
 		rbac:        merger.NewRBACManager(store),
 		podSecurity: merger.NewPodSecurityManager(store),
+		secret:      merger.NewSecretManager(store),
 	}
 }
 
@@ -150,6 +152,7 @@ type resourceManagersImpl struct {
 	store       dependencies.StoreClient
 	rbac        merger.RBACManager
 	podSecurity merger.PodSecurityManager
+	secret      merger.SecretManager
 }
 
 func (impl *resourceManagersImpl) Store() dependencies.StoreClient {
@@ -162,6 +165,10 @@ func (impl *resourceManagersImpl) RBACManager() merger.RBACManager {
 
 func (impl *resourceManagersImpl) PodSecurityManager() merger.PodSecurityManager {
 	return impl.podSecurity
+}
+
+func (impl *resourceManagersImpl) SecretManager() merger.SecretManager {
+	return impl.secret
 }
 
 // PodTemplateManagers used to access the different PodTemplateSpec manager.

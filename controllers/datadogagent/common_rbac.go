@@ -292,10 +292,10 @@ func rbacNamesForDda(dda *datadoghqv1alpha1.DatadogAgent, versionInfo *version.I
 		getExternalMetricsReaderClusterRoleName(dda, versionInfo),
 		// kubestatemetrics_core can run on the DCA and the Runners
 		kubernetesstatecore.GetKubeStateMetricsRBACResourceName(dda, common.ClusterAgentSuffix),
-		kubernetesstatecore.GetKubeStateMetricsRBACResourceName(dda, common.CheckRunnersSuffix),
+		kubernetesstatecore.GetKubeStateMetricsRBACResourceName(dda, common.ChecksRunnerSuffix),
 		// Orchestrator can run on the DCA or the Runners
 		getOrchestratorRBACResourceName(dda, common.ClusterAgentSuffix),
-		getOrchestratorRBACResourceName(dda, common.CheckRunnersSuffix),
+		getOrchestratorRBACResourceName(dda, common.ChecksRunnerSuffix),
 	}
 }
 
