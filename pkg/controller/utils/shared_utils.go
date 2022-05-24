@@ -63,8 +63,5 @@ func GetAppKeySecret(credentials *datadoghqv1alpha1.DatadogCredentials, defaultN
 
 // ShouldReturn returns if we should stop the reconcile loop based on result
 func ShouldReturn(result reconcile.Result, err error) bool {
-	if err != nil || result.Requeue || result.RequeueAfter > 0 {
-		return true
-	}
-	return false
+	return err != nil || result.Requeue || result.RequeueAfter > 0
 }
