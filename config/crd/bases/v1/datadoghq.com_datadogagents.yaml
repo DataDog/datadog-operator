@@ -371,7 +371,7 @@ spec:
                                         field. null selector and null or empty namespaces
                                         list means "this pod's namespace". An empty
                                         selector ({}) matches all namespaces. This
-                                        field is alpha-level and is only honored when
+                                        field is beta-level and is only honored when
                                         PodAffinityNamespaceSelector feature is enabled.
                                       properties:
                                         matchExpressions:
@@ -533,7 +533,7 @@ spec:
                                     field and the ones listed in the namespaces field.
                                     null selector and null or empty namespaces list
                                     means "this pod's namespace". An empty selector
-                                    ({}) matches all namespaces. This field is alpha-level
+                                    ({}) matches all namespaces. This field is beta-level
                                     and is only honored when PodAffinityNamespaceSelector
                                     feature is enabled.
                                   properties:
@@ -695,7 +695,7 @@ spec:
                                         field. null selector and null or empty namespaces
                                         list means "this pod's namespace". An empty
                                         selector ({}) matches all namespaces. This
-                                        field is alpha-level and is only honored when
+                                        field is beta-level and is only honored when
                                         PodAffinityNamespaceSelector feature is enabled.
                                       properties:
                                         matchExpressions:
@@ -857,7 +857,7 @@ spec:
                                     field and the ones listed in the namespaces field.
                                     null selector and null or empty namespaces list
                                     means "this pod's namespace". An empty selector
-                                    ({}) matches all namespaces. This field is alpha-level
+                                    ({}) matches all namespaces. This field is beta-level
                                     and is only honored when PodAffinityNamespaceSelector
                                     feature is enabled.
                                   properties:
@@ -967,14 +967,15 @@ spec:
                               type: string
                             value:
                               description: 'Variable references $(VAR_NAME) are expanded
-                                using the previous defined environment variables in
-                                the container and any service environment variables.
+                                using the previously defined environment variables
+                                in the container and any service environment variables.
                                 If a variable cannot be resolved, the reference in
-                                the input string will be unchanged. The $(VAR_NAME)
-                                syntax can be escaped with a double $$, ie: $$(VAR_NAME).
-                                Escaped references will never be expanded, regardless
-                                of whether the variable exists or not. Defaults to
-                                "".'
+                                the input string will be unchanged. Double $$ are
+                                reduced to a single $, which allows for escaping the
+                                $(VAR_NAME) syntax: i.e. "$$(VAR_NAME)" will produce
+                                the string literal "$(VAR_NAME)". Escaped references
+                                will never be expanded, regardless of whether the
+                                variable exists or not. Defaults to "".'
                               type: string
                             valueFrom:
                               description: Source for the environment variable's value.
@@ -1082,8 +1083,7 @@ spec:
                         description: Configure the Liveness Probe of the APM container
                         properties:
                           exec:
-                            description: One and only one of the following should
-                              be specified. Exec specifies the action to take.
+                            description: Exec specifies the action to take.
                             properties:
                               command:
                                 description: Command is the command line to execute
@@ -1104,6 +1104,25 @@ spec:
                               to 3. Minimum value is 1.
                             format: int32
                             type: integer
+                          grpc:
+                            description: GRPC specifies an action involving a GRPC
+                              port. This is an alpha field and requires enabling GRPCContainerProbe
+                              feature gate.
+                            properties:
+                              port:
+                                description: Port number of the gRPC service. Number
+                                  must be in the range 1 to 65535.
+                                format: int32
+                                type: integer
+                              service:
+                                description: "Service is the name of the service to
+                                  place in the gRPC HealthCheckRequest (see https://github.com/grpc/grpc/blob/master/doc/health-checking.md).
+                                  \n If this is not specified, the default behavior
+                                  is defined by gRPC."
+                                type: string
+                            required:
+                            - port
+                            type: object
                           httpGet:
                             description: HTTPGet specifies the http request to perform.
                             properties:
@@ -1167,9 +1186,8 @@ spec:
                             format: int32
                             type: integer
                           tcpSocket:
-                            description: 'TCPSocket specifies an action involving
-                              a TCP port. TCP hooks not yet supported TODO: implement
-                              a realistic TCP lifecycle hook'
+                            description: TCPSocket specifies an action involving a
+                              TCP port.
                             properties:
                               host:
                                 description: 'Optional: Host name to connect to, defaults
@@ -1198,9 +1216,10 @@ spec:
                               Otherwise, this value overrides the value provided by
                               the pod spec. Value must be non-negative integer. The
                               value zero indicates stop immediately via the kill signal
-                              (no opportunity to shut down). This is an alpha field
+                              (no opportunity to shut down). This is a beta field
                               and requires enabling ProbeTerminationGracePeriod feature
-                              gate.
+                              gate. Minimum value is 1. spec.terminationGracePeriodSeconds
+                              is used if unset.
                             format: int64
                             type: integer
                           timeoutSeconds:
@@ -1489,14 +1508,15 @@ spec:
                               type: string
                             value:
                               description: 'Variable references $(VAR_NAME) are expanded
-                                using the previous defined environment variables in
-                                the container and any service environment variables.
+                                using the previously defined environment variables
+                                in the container and any service environment variables.
                                 If a variable cannot be resolved, the reference in
-                                the input string will be unchanged. The $(VAR_NAME)
-                                syntax can be escaped with a double $$, ie: $$(VAR_NAME).
-                                Escaped references will never be expanded, regardless
-                                of whether the variable exists or not. Defaults to
-                                "".'
+                                the input string will be unchanged. Double $$ are
+                                reduced to a single $, which allows for escaping the
+                                $(VAR_NAME) syntax: i.e. "$$(VAR_NAME)" will produce
+                                the string literal "$(VAR_NAME)". Escaped references
+                                will never be expanded, regardless of whether the
+                                variable exists or not. Defaults to "".'
                               type: string
                             valueFrom:
                               description: Source for the environment variable's value.
@@ -1719,8 +1739,7 @@ spec:
                         description: Configure the Liveness Probe of the Agent container
                         properties:
                           exec:
-                            description: One and only one of the following should
-                              be specified. Exec specifies the action to take.
+                            description: Exec specifies the action to take.
                             properties:
                               command:
                                 description: Command is the command line to execute
@@ -1741,6 +1760,25 @@ spec:
                               to 3. Minimum value is 1.
                             format: int32
                             type: integer
+                          grpc:
+                            description: GRPC specifies an action involving a GRPC
+                              port. This is an alpha field and requires enabling GRPCContainerProbe
+                              feature gate.
+                            properties:
+                              port:
+                                description: Port number of the gRPC service. Number
+                                  must be in the range 1 to 65535.
+                                format: int32
+                                type: integer
+                              service:
+                                description: "Service is the name of the service to
+                                  place in the gRPC HealthCheckRequest (see https://github.com/grpc/grpc/blob/master/doc/health-checking.md).
+                                  \n If this is not specified, the default behavior
+                                  is defined by gRPC."
+                                type: string
+                            required:
+                            - port
+                            type: object
                           httpGet:
                             description: HTTPGet specifies the http request to perform.
                             properties:
@@ -1804,9 +1842,8 @@ spec:
                             format: int32
                             type: integer
                           tcpSocket:
-                            description: 'TCPSocket specifies an action involving
-                              a TCP port. TCP hooks not yet supported TODO: implement
-                              a realistic TCP lifecycle hook'
+                            description: TCPSocket specifies an action involving a
+                              TCP port.
                             properties:
                               host:
                                 description: 'Optional: Host name to connect to, defaults
@@ -1835,9 +1872,10 @@ spec:
                               Otherwise, this value overrides the value provided by
                               the pod spec. Value must be non-negative integer. The
                               value zero indicates stop immediately via the kill signal
-                              (no opportunity to shut down). This is an alpha field
+                              (no opportunity to shut down). This is a beta field
                               and requires enabling ProbeTerminationGracePeriod feature
-                              gate.
+                              gate. Minimum value is 1. spec.terminationGracePeriodSeconds
+                              is used if unset.
                             format: int64
                             type: integer
                           timeoutSeconds:
@@ -1879,8 +1917,7 @@ spec:
                         description: Configure the Readiness Probe of the Agent container
                         properties:
                           exec:
-                            description: One and only one of the following should
-                              be specified. Exec specifies the action to take.
+                            description: Exec specifies the action to take.
                             properties:
                               command:
                                 description: Command is the command line to execute
@@ -1901,6 +1938,25 @@ spec:
                               to 3. Minimum value is 1.
                             format: int32
                             type: integer
+                          grpc:
+                            description: GRPC specifies an action involving a GRPC
+                              port. This is an alpha field and requires enabling GRPCContainerProbe
+                              feature gate.
+                            properties:
+                              port:
+                                description: Port number of the gRPC service. Number
+                                  must be in the range 1 to 65535.
+                                format: int32
+                                type: integer
+                              service:
+                                description: "Service is the name of the service to
+                                  place in the gRPC HealthCheckRequest (see https://github.com/grpc/grpc/blob/master/doc/health-checking.md).
+                                  \n If this is not specified, the default behavior
+                                  is defined by gRPC."
+                                type: string
+                            required:
+                            - port
+                            type: object
                           httpGet:
                             description: HTTPGet specifies the http request to perform.
                             properties:
@@ -1964,9 +2020,8 @@ spec:
                             format: int32
                             type: integer
                           tcpSocket:
-                            description: 'TCPSocket specifies an action involving
-                              a TCP port. TCP hooks not yet supported TODO: implement
-                              a realistic TCP lifecycle hook'
+                            description: TCPSocket specifies an action involving a
+                              TCP port.
                             properties:
                               host:
                                 description: 'Optional: Host name to connect to, defaults
@@ -1995,9 +2050,10 @@ spec:
                               Otherwise, this value overrides the value provided by
                               the pod spec. Value must be non-negative integer. The
                               value zero indicates stop immediately via the kill signal
-                              (no opportunity to shut down). This is an alpha field
+                              (no opportunity to shut down). This is a beta field
                               and requires enabling ProbeTerminationGracePeriod feature
-                              gate.
+                              gate. Minimum value is 1. spec.terminationGracePeriodSeconds
+                              is used if unset.
                             format: int64
                             type: integer
                           timeoutSeconds:
@@ -2048,7 +2104,8 @@ spec:
                               in the volume will be owned by FSGroup) 3. The permission
                               bits are OR'd with rw-rw---- \n If unset, the Kubelet
                               will not modify the ownership and permissions of any
-                              volume."
+                              volume. Note that this field cannot be set when spec.os.name
+                              is windows."
                             format: int64
                             type: integer
                           fsGroupChangePolicy:
@@ -2059,14 +2116,16 @@ spec:
                               permissions). It will have no effect on ephemeral volume
                               types such as: secret, configmaps and emptydir. Valid
                               values are "OnRootMismatch" and "Always". If not specified,
-                              "Always" is used.'
+                              "Always" is used. Note that this field cannot be set
+                              when spec.os.name is windows.'
                             type: string
                           runAsGroup:
                             description: The GID to run the entrypoint of the container
                               process. Uses runtime default if unset. May also be
                               set in SecurityContext.  If set in both SecurityContext
                               and PodSecurityContext, the value specified in SecurityContext
-                              takes precedence for that container.
+                              takes precedence for that container. Note that this
+                              field cannot be set when spec.os.name is windows.
                             format: int64
                             type: integer
                           runAsNonRoot:
@@ -2085,7 +2144,8 @@ spec:
                               if unspecified. May also be set in SecurityContext.  If
                               set in both SecurityContext and PodSecurityContext,
                               the value specified in SecurityContext takes precedence
-                              for that container.
+                              for that container. Note that this field cannot be set
+                              when spec.os.name is windows.
                             format: int64
                             type: integer
                           seLinuxOptions:
@@ -2094,7 +2154,8 @@ spec:
                               allocate a random SELinux context for each container.  May
                               also be set in SecurityContext.  If set in both SecurityContext
                               and PodSecurityContext, the value specified in SecurityContext
-                              takes precedence for that container.
+                              takes precedence for that container. Note that this
+                              field cannot be set when spec.os.name is windows.
                             properties:
                               level:
                                 description: Level is SELinux level label that applies
@@ -2115,7 +2176,8 @@ spec:
                             type: object
                           seccompProfile:
                             description: The seccomp options to use by the containers
-                              in this pod.
+                              in this pod. Note that this field cannot be set when
+                              spec.os.name is windows.
                             properties:
                               localhostProfile:
                                 description: localhostProfile indicates a profile
@@ -2140,7 +2202,8 @@ spec:
                             description: A list of groups applied to the first process
                               run in each container, in addition to the container's
                               primary GID.  If unspecified, no groups will be added
-                              to any container.
+                              to any container. Note that this field cannot be set
+                              when spec.os.name is windows.
                             items:
                               format: int64
                               type: integer
@@ -2148,7 +2211,8 @@ spec:
                           sysctls:
                             description: Sysctls hold a list of namespaced sysctls
                               used for the pod. Pods with unsupported sysctls (by
-                              the container runtime) might fail to launch.
+                              the container runtime) might fail to launch. Note that
+                              this field cannot be set when spec.os.name is windows.
                             items:
                               description: Sysctl defines a kernel parameter to be
                                 set
@@ -2169,7 +2233,8 @@ spec:
                               all containers. If unspecified, the options within a
                               container's SecurityContext will be used. If set in
                               both SecurityContext and PodSecurityContext, the value
-                              specified in SecurityContext takes precedence.
+                              specified in SecurityContext takes precedence. Note
+                              that this field cannot be set when spec.os.name is linux.
                             properties:
                               gmsaCredentialSpec:
                                 description: GMSACredentialSpec is where the GMSA
@@ -2181,6 +2246,19 @@ spec:
                                 description: GMSACredentialSpecName is the name of
                                   the GMSA credential spec to use.
                                 type: string
+                              hostProcess:
+                                description: HostProcess determines if a container
+                                  should be run as a 'Host Process' container. This
+                                  field is alpha-level and will only be honored by
+                                  components that enable the WindowsHostProcessContainers
+                                  feature flag. Setting this field without the feature
+                                  flag will result in errors when validating the Pod.
+                                  All of a Pod's containers must have the same effective
+                                  HostProcess value (it is not allowed to have a mix
+                                  of HostProcess containers and non-HostProcess containers).  In
+                                  addition, if HostProcess is true then HostNetwork
+                                  must also be set to true.
+                                type: boolean
                               runAsUserName:
                                 description: The UserName in Windows to run the entrypoint
                                   of the container process. Defaults to the user specified
@@ -2719,9 +2797,7 @@ spec:
                                 to be used that way - see the documentation of the
                                 driver for more information. \n A pod can use both
                                 types of ephemeral volumes and persistent volumes
-                                at the same time. \n This is a beta feature and only
-                                available when the GenericEphemeralVolume feature
-                                gate is enabled."
+                                at the same time."
                               properties:
                                 volumeClaimTemplate:
                                   description: "Will be used to create a stand-alone
@@ -2772,15 +2848,64 @@ spec:
                                             specify either: * An existing VolumeSnapshot
                                             object (snapshot.storage.k8s.io/VolumeSnapshot)
                                             * An existing PVC (PersistentVolumeClaim)
-                                            * An existing custom resource that implements
-                                            data population (Alpha) In order to use
-                                            custom resource types that implement data
-                                            population, the AnyVolumeDataSource feature
-                                            gate must be enabled. If the provisioner
-                                            or an external controller can support
-                                            the specified data source, it will create
-                                            a new volume based on the contents of
-                                            the specified data source.'
+                                            If the provisioner or an external controller
+                                            can support the specified data source,
+                                            it will create a new volume based on the
+                                            contents of the specified data source.
+                                            If the AnyVolumeDataSource feature gate
+                                            is enabled, this field will always have
+                                            the same contents as the DataSourceRef
+                                            field.'
+                                          properties:
+                                            apiGroup:
+                                              description: APIGroup is the group for
+                                                the resource being referenced. If
+                                                APIGroup is not specified, the specified
+                                                Kind must be in the core API group.
+                                                For any other third-party types, APIGroup
+                                                is required.
+                                              type: string
+                                            kind:
+                                              description: Kind is the type of resource
+                                                being referenced
+                                              type: string
+                                            name:
+                                              description: Name is the name of resource
+                                                being referenced
+                                              type: string
+                                          required:
+                                          - kind
+                                          - name
+                                          type: object
+                                        dataSourceRef:
+                                          description: 'Specifies the object from
+                                            which to populate the volume with data,
+                                            if a non-empty volume is desired. This
+                                            may be any local object from a non-empty
+                                            API group (non core object) or a PersistentVolumeClaim
+                                            object. When this field is specified,
+                                            volume binding will only succeed if the
+                                            type of the specified object matches some
+                                            installed volume populator or dynamic
+                                            provisioner. This field will replace the
+                                            functionality of the DataSource field
+                                            and as such if both fields are non-empty,
+                                            they must have the same value. For backwards
+                                            compatibility, both fields (DataSource
+                                            and DataSourceRef) will be set to the
+                                            same value automatically if one of them
+                                            is empty and the other is non-empty. There
+                                            are two important differences between
+                                            DataSource and DataSourceRef: * While
+                                            DataSource only allows two specific types
+                                            of objects, DataSourceRef   allows any
+                                            non-core object, as well as PersistentVolumeClaim
+                                            objects. * While DataSource ignores disallowed
+                                            values (dropping them), DataSourceRef   preserves
+                                            all values, and generates an error if
+                                            a disallowed value is   specified. (Alpha)
+                                            Using this field requires the AnyVolumeDataSource
+                                            feature gate to be enabled.'
                                           properties:
                                             apiGroup:
                                               description: APIGroup is the group for
@@ -2804,8 +2929,13 @@ spec:
                                           type: object
                                         resources:
                                           description: 'Resources represents the minimum
-                                            resources the volume should have. More
-                                            info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#resources'
+                                            resources the volume should have. If RecoverVolumeExpansionFailure
+                                            feature is enabled users are allowed to
+                                            specify resource requirements that are
+                                            lower than previous value but must still
+                                            be higher than capacity recorded in the
+                                            status field of the claim. More info:
+                                            https://kubernetes.io/docs/concepts/storage/persistent-volumes#resources'
                                           properties:
                                             limits:
                                               additionalProperties:
@@ -3884,18 +4014,27 @@ spec:
                               defines the canary deployment AutoFail parameters of
                               the ExtendedDaemonSet.
                             properties:
+                              canaryTimeout:
+                                description: CanaryTimeout defines the maximum duration
+                                  of a Canary, after which the Canary deployment is
+                                  autofailed. This is a safeguard against lengthy
+                                  Canary pauses. There is no default value.
+                                type: string
                               enabled:
+                                description: Enabled enables AutoFail. Default value
+                                  is true.
                                 type: boolean
                               maxRestarts:
                                 description: MaxRestarts defines the number of tolerable
                                   (per pod) Canary pod restarts after which the Canary
-                                  deployment is autofailed.
+                                  deployment is autofailed. Default value is 5.
                                 format: int32
                                 type: integer
                               maxRestartsDuration:
                                 description: MaxRestartsDuration defines the maximum
                                   duration of tolerable Canary pod restarts after
-                                  which the Canary deployment is autofailed.
+                                  which the Canary deployment is autofailed. There
+                                  is no default value.
                                 type: string
                             type: object
                           autoPause:
@@ -3904,17 +4043,20 @@ spec:
                               the ExtendedDaemonSet.
                             properties:
                               enabled:
+                                description: Enabled enables AutoPause. Default value
+                                  is true.
                                 type: boolean
                               maxRestarts:
                                 description: MaxRestarts defines the number of tolerable
                                   (per pod) Canary pod restarts after which the Canary
-                                  deployment is autopaused.
+                                  deployment is autopaused. Default value is 2.
                                 format: int32
                                 type: integer
                               maxSlowStartDuration:
                                 description: MaxSlowStartDuration defines the maximum
                                   slow start duration for a pod (stuck in Creating
-                                  state) after which the. Canary deployment is autopaused
+                                  state) after which the Canary deployment is autopaused.
+                                  There is no default value.
                                 type: string
                             type: object
                           duration:
@@ -3981,6 +4123,14 @@ spec:
                             - type: integer
                             - type: string
                             x-kubernetes-int-or-string: true
+                          validationMode:
+                            description: ValidationMode used to configure how a canary
+                              deployment is validated. Possible values are 'auto'
+                              (default) and 'manual'
+                            enum:
+                            - auto
+                            - manual
+                            type: string
                         type: object
                       reconcileFrequency:
                         description: The reconcile frequency of the ExtendDaemonSet.
@@ -4093,13 +4243,14 @@ spec:
                           type: string
                         value:
                           description: 'Variable references $(VAR_NAME) are expanded
-                            using the previous defined environment variables in the
-                            container and any service environment variables. If a
-                            variable cannot be resolved, the reference in the input
-                            string will be unchanged. The $(VAR_NAME) syntax can be
-                            escaped with a double $$, ie: $$(VAR_NAME). Escaped references
-                            will never be expanded, regardless of whether the variable
-                            exists or not. Defaults to "".'
+                            using the previously defined environment variables in
+                            the container and any service environment variables. If
+                            a variable cannot be resolved, the reference in the input
+                            string will be unchanged. Double $$ are reduced to a single
+                            $, which allows for escaping the $(VAR_NAME) syntax: i.e.
+                            "$$(VAR_NAME)" will produce the string literal "$(VAR_NAME)".
+                            Escaped references will never be expanded, regardless
+                            of whether the variable exists or not. Defaults to "".'
                           type: string
                         valueFrom:
                           description: Source for the environment variable's value.
@@ -4424,14 +4575,15 @@ spec:
                               type: string
                             value:
                               description: 'Variable references $(VAR_NAME) are expanded
-                                using the previous defined environment variables in
-                                the container and any service environment variables.
+                                using the previously defined environment variables
+                                in the container and any service environment variables.
                                 If a variable cannot be resolved, the reference in
-                                the input string will be unchanged. The $(VAR_NAME)
-                                syntax can be escaped with a double $$, ie: $$(VAR_NAME).
-                                Escaped references will never be expanded, regardless
-                                of whether the variable exists or not. Defaults to
-                                "".'
+                                the input string will be unchanged. Double $$ are
+                                reduced to a single $, which allows for escaping the
+                                $(VAR_NAME) syntax: i.e. "$$(VAR_NAME)" will produce
+                                the string literal "$(VAR_NAME)". Escaped references
+                                will never be expanded, regardless of whether the
+                                variable exists or not. Defaults to "".'
                               type: string
                             valueFrom:
                               description: Source for the environment variable's value.
@@ -4706,14 +4858,15 @@ spec:
                               type: string
                             value:
                               description: 'Variable references $(VAR_NAME) are expanded
-                                using the previous defined environment variables in
-                                the container and any service environment variables.
+                                using the previously defined environment variables
+                                in the container and any service environment variables.
                                 If a variable cannot be resolved, the reference in
-                                the input string will be unchanged. The $(VAR_NAME)
-                                syntax can be escaped with a double $$, ie: $$(VAR_NAME).
-                                Escaped references will never be expanded, regardless
-                                of whether the variable exists or not. Defaults to
-                                "".'
+                                the input string will be unchanged. Double $$ are
+                                reduced to a single $, which allows for escaping the
+                                $(VAR_NAME) syntax: i.e. "$$(VAR_NAME)" will produce
+                                the string literal "$(VAR_NAME)". Escaped references
+                                will never be expanded, regardless of whether the
+                                variable exists or not. Defaults to "".'
                               type: string
                             valueFrom:
                               description: Source for the environment variable's value.
@@ -5031,14 +5184,15 @@ spec:
                               type: string
                             value:
                               description: 'Variable references $(VAR_NAME) are expanded
-                                using the previous defined environment variables in
-                                the container and any service environment variables.
+                                using the previously defined environment variables
+                                in the container and any service environment variables.
                                 If a variable cannot be resolved, the reference in
-                                the input string will be unchanged. The $(VAR_NAME)
-                                syntax can be escaped with a double $$, ie: $$(VAR_NAME).
-                                Escaped references will never be expanded, regardless
-                                of whether the variable exists or not. Defaults to
-                                "".'
+                                the input string will be unchanged. Double $$ are
+                                reduced to a single $, which allows for escaping the
+                                $(VAR_NAME) syntax: i.e. "$$(VAR_NAME)" will produce
+                                the string literal "$(VAR_NAME)". Escaped references
+                                will never be expanded, regardless of whether the
+                                variable exists or not. Defaults to "".'
                               type: string
                             valueFrom:
                               description: Source for the environment variable's value.
@@ -5186,12 +5340,14 @@ spec:
                               This bool directly controls if the no_new_privs flag
                               will be set on the container process. AllowPrivilegeEscalation
                               is true always when the container is: 1) run as Privileged
-                              2) has CAP_SYS_ADMIN'
+                              2) has CAP_SYS_ADMIN Note that this field cannot be
+                              set when spec.os.name is windows.'
                             type: boolean
                           capabilities:
                             description: The capabilities to add/drop when running
                               containers. Defaults to the default set of capabilities
-                              granted by the container runtime.
+                              granted by the container runtime. Note that this field
+                              cannot be set when spec.os.name is windows.
                             properties:
                               add:
                                 description: Added capabilities
@@ -5211,25 +5367,29 @@ spec:
                           privileged:
                             description: Run container in privileged mode. Processes
                               in privileged containers are essentially equivalent
-                              to root on the host. Defaults to false.
+                              to root on the host. Defaults to false. Note that this
+                              field cannot be set when spec.os.name is windows.
                             type: boolean
                           procMount:
                             description: procMount denotes the type of proc mount
                               to use for the containers. The default is DefaultProcMount
                               which uses the container runtime defaults for readonly
                               paths and masked paths. This requires the ProcMountType
-                              feature flag to be enabled.
+                              feature flag to be enabled. Note that this field cannot
+                              be set when spec.os.name is windows.
                             type: string
                           readOnlyRootFilesystem:
                             description: Whether this container has a read-only root
-                              filesystem. Default is false.
+                              filesystem. Default is false. Note that this field cannot
+                              be set when spec.os.name is windows.
                             type: boolean
                           runAsGroup:
                             description: The GID to run the entrypoint of the container
                               process. Uses runtime default if unset. May also be
                               set in PodSecurityContext.  If set in both SecurityContext
                               and PodSecurityContext, the value specified in SecurityContext
-                              takes precedence.
+                              takes precedence. Note that this field cannot be set
+                              when spec.os.name is windows.
                             format: int64
                             type: integer
                           runAsNonRoot:
@@ -5248,6 +5408,8 @@ spec:
                               if unspecified. May also be set in PodSecurityContext.  If
                               set in both SecurityContext and PodSecurityContext,
                               the value specified in SecurityContext takes precedence.
+                              Note that this field cannot be set when spec.os.name
+                              is windows.
                             format: int64
                             type: integer
                           seLinuxOptions:
@@ -5256,7 +5418,8 @@ spec:
                               allocate a random SELinux context for each container.  May
                               also be set in PodSecurityContext.  If set in both SecurityContext
                               and PodSecurityContext, the value specified in SecurityContext
-                              takes precedence.
+                              takes precedence. Note that this field cannot be set
+                              when spec.os.name is windows.
                             properties:
                               level:
                                 description: Level is SELinux level label that applies
@@ -5279,6 +5442,8 @@ spec:
                             description: The seccomp options to use by this container.
                               If seccomp options are provided at both the pod & container
                               level, the container options override the pod options.
+                              Note that this field cannot be set when spec.os.name
+                              is windows.
                             properties:
                               localhostProfile:
                                 description: localhostProfile indicates a profile
@@ -5304,7 +5469,8 @@ spec:
                               all containers. If unspecified, the options from the
                               PodSecurityContext will be used. If set in both SecurityContext
                               and PodSecurityContext, the value specified in SecurityContext
-                              takes precedence.
+                              takes precedence. Note that this field cannot be set
+                              when spec.os.name is linux.
                             properties:
                               gmsaCredentialSpec:
                                 description: GMSACredentialSpec is where the GMSA
@@ -5316,6 +5482,19 @@ spec:
                                 description: GMSACredentialSpecName is the name of
                                   the GMSA credential spec to use.
                                 type: string
+                              hostProcess:
+                                description: HostProcess determines if a container
+                                  should be run as a 'Host Process' container. This
+                                  field is alpha-level and will only be honored by
+                                  components that enable the WindowsHostProcessContainers
+                                  feature flag. Setting this field without the feature
+                                  flag will result in errors when validating the Pod.
+                                  All of a Pod's containers must have the same effective
+                                  HostProcess value (it is not allowed to have a mix
+                                  of HostProcess containers and non-HostProcess containers).  In
+                                  addition, if HostProcess is true then HostNetwork
+                                  must also be set to true.
+                                type: boolean
                               runAsUserName:
                                 description: The UserName in Windows to run the entrypoint
                                   of the container process. Defaults to the user specified
@@ -5696,7 +5875,7 @@ spec:
                                         field. null selector and null or empty namespaces
                                         list means "this pod's namespace". An empty
                                         selector ({}) matches all namespaces. This
-                                        field is alpha-level and is only honored when
+                                        field is beta-level and is only honored when
                                         PodAffinityNamespaceSelector feature is enabled.
                                       properties:
                                         matchExpressions:
@@ -5858,7 +6037,7 @@ spec:
                                     field and the ones listed in the namespaces field.
                                     null selector and null or empty namespaces list
                                     means "this pod's namespace". An empty selector
-                                    ({}) matches all namespaces. This field is alpha-level
+                                    ({}) matches all namespaces. This field is beta-level
                                     and is only honored when PodAffinityNamespaceSelector
                                     feature is enabled.
                                   properties:
@@ -6020,7 +6199,7 @@ spec:
                                         field. null selector and null or empty namespaces
                                         list means "this pod's namespace". An empty
                                         selector ({}) matches all namespaces. This
-                                        field is alpha-level and is only honored when
+                                        field is beta-level and is only honored when
                                         PodAffinityNamespaceSelector feature is enabled.
                                       properties:
                                         matchExpressions:
@@ -6182,7 +6361,7 @@ spec:
                                     field and the ones listed in the namespaces field.
                                     null selector and null or empty namespaces list
                                     means "this pod's namespace". An empty selector
-                                    ({}) matches all namespaces. This field is alpha-level
+                                    ({}) matches all namespaces. This field is beta-level
                                     and is only honored when PodAffinityNamespaceSelector
                                     feature is enabled.
                                   properties:
@@ -6367,14 +6546,15 @@ spec:
                               type: string
                             value:
                               description: 'Variable references $(VAR_NAME) are expanded
-                                using the previous defined environment variables in
-                                the container and any service environment variables.
+                                using the previously defined environment variables
+                                in the container and any service environment variables.
                                 If a variable cannot be resolved, the reference in
-                                the input string will be unchanged. The $(VAR_NAME)
-                                syntax can be escaped with a double $$, ie: $$(VAR_NAME).
-                                Escaped references will never be expanded, regardless
-                                of whether the variable exists or not. Defaults to
-                                "".'
+                                the input string will be unchanged. Double $$ are
+                                reduced to a single $, which allows for escaping the
+                                $(VAR_NAME) syntax: i.e. "$$(VAR_NAME)" will produce
+                                the string literal "$(VAR_NAME)". Escaped references
+                                will never be expanded, regardless of whether the
+                                variable exists or not. Defaults to "".'
                               type: string
                             valueFrom:
                               description: Source for the environment variable's value.
@@ -6605,7 +6785,8 @@ spec:
                               in the volume will be owned by FSGroup) 3. The permission
                               bits are OR'd with rw-rw---- \n If unset, the Kubelet
                               will not modify the ownership and permissions of any
-                              volume."
+                              volume. Note that this field cannot be set when spec.os.name
+                              is windows."
                             format: int64
                             type: integer
                           fsGroupChangePolicy:
@@ -6616,14 +6797,16 @@ spec:
                               permissions). It will have no effect on ephemeral volume
                               types such as: secret, configmaps and emptydir. Valid
                               values are "OnRootMismatch" and "Always". If not specified,
-                              "Always" is used.'
+                              "Always" is used. Note that this field cannot be set
+                              when spec.os.name is windows.'
                             type: string
                           runAsGroup:
                             description: The GID to run the entrypoint of the container
                               process. Uses runtime default if unset. May also be
                               set in SecurityContext.  If set in both SecurityContext
                               and PodSecurityContext, the value specified in SecurityContext
-                              takes precedence for that container.
+                              takes precedence for that container. Note that this
+                              field cannot be set when spec.os.name is windows.
                             format: int64
                             type: integer
                           runAsNonRoot:
@@ -6642,7 +6825,8 @@ spec:
                               if unspecified. May also be set in SecurityContext.  If
                               set in both SecurityContext and PodSecurityContext,
                               the value specified in SecurityContext takes precedence
-                              for that container.
+                              for that container. Note that this field cannot be set
+                              when spec.os.name is windows.
                             format: int64
                             type: integer
                           seLinuxOptions:
@@ -6651,7 +6835,8 @@ spec:
                               allocate a random SELinux context for each container.  May
                               also be set in SecurityContext.  If set in both SecurityContext
                               and PodSecurityContext, the value specified in SecurityContext
-                              takes precedence for that container.
+                              takes precedence for that container. Note that this
+                              field cannot be set when spec.os.name is windows.
                             properties:
                               level:
                                 description: Level is SELinux level label that applies
@@ -6672,7 +6857,8 @@ spec:
                             type: object
                           seccompProfile:
                             description: The seccomp options to use by the containers
-                              in this pod.
+                              in this pod. Note that this field cannot be set when
+                              spec.os.name is windows.
                             properties:
                               localhostProfile:
                                 description: localhostProfile indicates a profile
@@ -6697,7 +6883,8 @@ spec:
                             description: A list of groups applied to the first process
                               run in each container, in addition to the container's
                               primary GID.  If unspecified, no groups will be added
-                              to any container.
+                              to any container. Note that this field cannot be set
+                              when spec.os.name is windows.
                             items:
                               format: int64
                               type: integer
@@ -6705,7 +6892,8 @@ spec:
                           sysctls:
                             description: Sysctls hold a list of namespaced sysctls
                               used for the pod. Pods with unsupported sysctls (by
-                              the container runtime) might fail to launch.
+                              the container runtime) might fail to launch. Note that
+                              this field cannot be set when spec.os.name is windows.
                             items:
                               description: Sysctl defines a kernel parameter to be
                                 set
@@ -6726,7 +6914,8 @@ spec:
                               all containers. If unspecified, the options within a
                               container's SecurityContext will be used. If set in
                               both SecurityContext and PodSecurityContext, the value
-                              specified in SecurityContext takes precedence.
+                              specified in SecurityContext takes precedence. Note
+                              that this field cannot be set when spec.os.name is linux.
                             properties:
                               gmsaCredentialSpec:
                                 description: GMSACredentialSpec is where the GMSA
@@ -6738,6 +6927,19 @@ spec:
                                 description: GMSACredentialSpecName is the name of
                                   the GMSA credential spec to use.
                                 type: string
+                              hostProcess:
+                                description: HostProcess determines if a container
+                                  should be run as a 'Host Process' container. This
+                                  field is alpha-level and will only be honored by
+                                  components that enable the WindowsHostProcessContainers
+                                  feature flag. Setting this field without the feature
+                                  flag will result in errors when validating the Pod.
+                                  All of a Pod's containers must have the same effective
+                                  HostProcess value (it is not allowed to have a mix
+                                  of HostProcess containers and non-HostProcess containers).  In
+                                  addition, if HostProcess is true then HostNetwork
+                                  must also be set to true.
+                                type: boolean
                               runAsUserName:
                                 description: The UserName in Windows to run the entrypoint
                                   of the container process. Defaults to the user specified
@@ -7225,9 +7427,7 @@ spec:
                                 to be used that way - see the documentation of the
                                 driver for more information. \n A pod can use both
                                 types of ephemeral volumes and persistent volumes
-                                at the same time. \n This is a beta feature and only
-                                available when the GenericEphemeralVolume feature
-                                gate is enabled."
+                                at the same time."
                               properties:
                                 volumeClaimTemplate:
                                   description: "Will be used to create a stand-alone
@@ -7278,15 +7478,64 @@ spec:
                                             specify either: * An existing VolumeSnapshot
                                             object (snapshot.storage.k8s.io/VolumeSnapshot)
                                             * An existing PVC (PersistentVolumeClaim)
-                                            * An existing custom resource that implements
-                                            data population (Alpha) In order to use
-                                            custom resource types that implement data
-                                            population, the AnyVolumeDataSource feature
-                                            gate must be enabled. If the provisioner
-                                            or an external controller can support
-                                            the specified data source, it will create
-                                            a new volume based on the contents of
-                                            the specified data source.'
+                                            If the provisioner or an external controller
+                                            can support the specified data source,
+                                            it will create a new volume based on the
+                                            contents of the specified data source.
+                                            If the AnyVolumeDataSource feature gate
+                                            is enabled, this field will always have
+                                            the same contents as the DataSourceRef
+                                            field.'
+                                          properties:
+                                            apiGroup:
+                                              description: APIGroup is the group for
+                                                the resource being referenced. If
+                                                APIGroup is not specified, the specified
+                                                Kind must be in the core API group.
+                                                For any other third-party types, APIGroup
+                                                is required.
+                                              type: string
+                                            kind:
+                                              description: Kind is the type of resource
+                                                being referenced
+                                              type: string
+                                            name:
+                                              description: Name is the name of resource
+                                                being referenced
+                                              type: string
+                                          required:
+                                          - kind
+                                          - name
+                                          type: object
+                                        dataSourceRef:
+                                          description: 'Specifies the object from
+                                            which to populate the volume with data,
+                                            if a non-empty volume is desired. This
+                                            may be any local object from a non-empty
+                                            API group (non core object) or a PersistentVolumeClaim
+                                            object. When this field is specified,
+                                            volume binding will only succeed if the
+                                            type of the specified object matches some
+                                            installed volume populator or dynamic
+                                            provisioner. This field will replace the
+                                            functionality of the DataSource field
+                                            and as such if both fields are non-empty,
+                                            they must have the same value. For backwards
+                                            compatibility, both fields (DataSource
+                                            and DataSourceRef) will be set to the
+                                            same value automatically if one of them
+                                            is empty and the other is non-empty. There
+                                            are two important differences between
+                                            DataSource and DataSourceRef: * While
+                                            DataSource only allows two specific types
+                                            of objects, DataSourceRef   allows any
+                                            non-core object, as well as PersistentVolumeClaim
+                                            objects. * While DataSource ignores disallowed
+                                            values (dropping them), DataSourceRef   preserves
+                                            all values, and generates an error if
+                                            a disallowed value is   specified. (Alpha)
+                                            Using this field requires the AnyVolumeDataSource
+                                            feature gate to be enabled.'
                                           properties:
                                             apiGroup:
                                               description: APIGroup is the group for
@@ -7310,8 +7559,13 @@ spec:
                                           type: object
                                         resources:
                                           description: 'Resources represents the minimum
-                                            resources the volume should have. More
-                                            info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#resources'
+                                            resources the volume should have. If RecoverVolumeExpansionFailure
+                                            feature is enabled users are allowed to
+                                            specify resource requirements that are
+                                            lower than previous value but must still
+                                            be higher than capacity recorded in the
+                                            status field of the claim. More info:
+                                            https://kubernetes.io/docs/concepts/storage/persistent-volumes#resources'
                                           properties:
                                             limits:
                                               additionalProperties:
@@ -8887,7 +9141,7 @@ spec:
                                         field. null selector and null or empty namespaces
                                         list means "this pod's namespace". An empty
                                         selector ({}) matches all namespaces. This
-                                        field is alpha-level and is only honored when
+                                        field is beta-level and is only honored when
                                         PodAffinityNamespaceSelector feature is enabled.
                                       properties:
                                         matchExpressions:
@@ -9049,7 +9303,7 @@ spec:
                                     field and the ones listed in the namespaces field.
                                     null selector and null or empty namespaces list
                                     means "this pod's namespace". An empty selector
-                                    ({}) matches all namespaces. This field is alpha-level
+                                    ({}) matches all namespaces. This field is beta-level
                                     and is only honored when PodAffinityNamespaceSelector
                                     feature is enabled.
                                   properties:
@@ -9211,7 +9465,7 @@ spec:
                                         field. null selector and null or empty namespaces
                                         list means "this pod's namespace". An empty
                                         selector ({}) matches all namespaces. This
-                                        field is alpha-level and is only honored when
+                                        field is beta-level and is only honored when
                                         PodAffinityNamespaceSelector feature is enabled.
                                       properties:
                                         matchExpressions:
@@ -9373,7 +9627,7 @@ spec:
                                     field and the ones listed in the namespaces field.
                                     null selector and null or empty namespaces list
                                     means "this pod's namespace". An empty selector
-                                    ({}) matches all namespaces. This field is alpha-level
+                                    ({}) matches all namespaces. This field is beta-level
                                     and is only honored when PodAffinityNamespaceSelector
                                     feature is enabled.
                                   properties:
@@ -9479,14 +9733,15 @@ spec:
                               type: string
                             value:
                               description: 'Variable references $(VAR_NAME) are expanded
-                                using the previous defined environment variables in
-                                the container and any service environment variables.
+                                using the previously defined environment variables
+                                in the container and any service environment variables.
                                 If a variable cannot be resolved, the reference in
-                                the input string will be unchanged. The $(VAR_NAME)
-                                syntax can be escaped with a double $$, ie: $$(VAR_NAME).
-                                Escaped references will never be expanded, regardless
-                                of whether the variable exists or not. Defaults to
-                                "".'
+                                the input string will be unchanged. Double $$ are
+                                reduced to a single $, which allows for escaping the
+                                $(VAR_NAME) syntax: i.e. "$$(VAR_NAME)" will produce
+                                the string literal "$(VAR_NAME)". Escaped references
+                                will never be expanded, regardless of whether the
+                                variable exists or not. Defaults to "".'
                               type: string
                             valueFrom:
                               description: Source for the environment variable's value.
@@ -9593,8 +9848,7 @@ spec:
                         description: Configure the Liveness Probe of the CLC container
                         properties:
                           exec:
-                            description: One and only one of the following should
-                              be specified. Exec specifies the action to take.
+                            description: Exec specifies the action to take.
                             properties:
                               command:
                                 description: Command is the command line to execute
@@ -9615,6 +9869,25 @@ spec:
                               to 3. Minimum value is 1.
                             format: int32
                             type: integer
+                          grpc:
+                            description: GRPC specifies an action involving a GRPC
+                              port. This is an alpha field and requires enabling GRPCContainerProbe
+                              feature gate.
+                            properties:
+                              port:
+                                description: Port number of the gRPC service. Number
+                                  must be in the range 1 to 65535.
+                                format: int32
+                                type: integer
+                              service:
+                                description: "Service is the name of the service to
+                                  place in the gRPC HealthCheckRequest (see https://github.com/grpc/grpc/blob/master/doc/health-checking.md).
+                                  \n If this is not specified, the default behavior
+                                  is defined by gRPC."
+                                type: string
+                            required:
+                            - port
+                            type: object
                           httpGet:
                             description: HTTPGet specifies the http request to perform.
                             properties:
@@ -9678,9 +9951,8 @@ spec:
                             format: int32
                             type: integer
                           tcpSocket:
-                            description: 'TCPSocket specifies an action involving
-                              a TCP port. TCP hooks not yet supported TODO: implement
-                              a realistic TCP lifecycle hook'
+                            description: TCPSocket specifies an action involving a
+                              TCP port.
                             properties:
                               host:
                                 description: 'Optional: Host name to connect to, defaults
@@ -9709,9 +9981,10 @@ spec:
                               Otherwise, this value overrides the value provided by
                               the pod spec. Value must be non-negative integer. The
                               value zero indicates stop immediately via the kill signal
-                              (no opportunity to shut down). This is an alpha field
+                              (no opportunity to shut down). This is a beta field
                               and requires enabling ProbeTerminationGracePeriod feature
-                              gate.
+                              gate. Minimum value is 1. spec.terminationGracePeriodSeconds
+                              is used if unset.
                             format: int64
                             type: integer
                           timeoutSeconds:
@@ -9729,8 +10002,7 @@ spec:
                         description: Configure the Readiness Probe of the CLC container
                         properties:
                           exec:
-                            description: One and only one of the following should
-                              be specified. Exec specifies the action to take.
+                            description: Exec specifies the action to take.
                             properties:
                               command:
                                 description: Command is the command line to execute
@@ -9751,6 +10023,25 @@ spec:
                               to 3. Minimum value is 1.
                             format: int32
                             type: integer
+                          grpc:
+                            description: GRPC specifies an action involving a GRPC
+                              port. This is an alpha field and requires enabling GRPCContainerProbe
+                              feature gate.
+                            properties:
+                              port:
+                                description: Port number of the gRPC service. Number
+                                  must be in the range 1 to 65535.
+                                format: int32
+                                type: integer
+                              service:
+                                description: "Service is the name of the service to
+                                  place in the gRPC HealthCheckRequest (see https://github.com/grpc/grpc/blob/master/doc/health-checking.md).
+                                  \n If this is not specified, the default behavior
+                                  is defined by gRPC."
+                                type: string
+                            required:
+                            - port
+                            type: object
                           httpGet:
                             description: HTTPGet specifies the http request to perform.
                             properties:
@@ -9814,9 +10105,8 @@ spec:
                             format: int32
                             type: integer
                           tcpSocket:
-                            description: 'TCPSocket specifies an action involving
-                              a TCP port. TCP hooks not yet supported TODO: implement
-                              a realistic TCP lifecycle hook'
+                            description: TCPSocket specifies an action involving a
+                              TCP port.
                             properties:
                               host:
                                 description: 'Optional: Host name to connect to, defaults
@@ -9845,9 +10135,10 @@ spec:
                               Otherwise, this value overrides the value provided by
                               the pod spec. Value must be non-negative integer. The
                               value zero indicates stop immediately via the kill signal
-                              (no opportunity to shut down). This is an alpha field
+                              (no opportunity to shut down). This is a beta field
                               and requires enabling ProbeTerminationGracePeriod feature
-                              gate.
+                              gate. Minimum value is 1. spec.terminationGracePeriodSeconds
+                              is used if unset.
                             format: int64
                             type: integer
                           timeoutSeconds:
@@ -9897,7 +10188,8 @@ spec:
                               in the volume will be owned by FSGroup) 3. The permission
                               bits are OR'd with rw-rw---- \n If unset, the Kubelet
                               will not modify the ownership and permissions of any
-                              volume."
+                              volume. Note that this field cannot be set when spec.os.name
+                              is windows."
                             format: int64
                             type: integer
                           fsGroupChangePolicy:
@@ -9908,14 +10200,16 @@ spec:
                               permissions). It will have no effect on ephemeral volume
                               types such as: secret, configmaps and emptydir. Valid
                               values are "OnRootMismatch" and "Always". If not specified,
-                              "Always" is used.'
+                              "Always" is used. Note that this field cannot be set
+                              when spec.os.name is windows.'
                             type: string
                           runAsGroup:
                             description: The GID to run the entrypoint of the container
                               process. Uses runtime default if unset. May also be
                               set in SecurityContext.  If set in both SecurityContext
                               and PodSecurityContext, the value specified in SecurityContext
-                              takes precedence for that container.
+                              takes precedence for that container. Note that this
+                              field cannot be set when spec.os.name is windows.
                             format: int64
                             type: integer
                           runAsNonRoot:
@@ -9934,7 +10228,8 @@ spec:
                               if unspecified. May also be set in SecurityContext.  If
                               set in both SecurityContext and PodSecurityContext,
                               the value specified in SecurityContext takes precedence
-                              for that container.
+                              for that container. Note that this field cannot be set
+                              when spec.os.name is windows.
                             format: int64
                             type: integer
                           seLinuxOptions:
@@ -9943,7 +10238,8 @@ spec:
                               allocate a random SELinux context for each container.  May
                               also be set in SecurityContext.  If set in both SecurityContext
                               and PodSecurityContext, the value specified in SecurityContext
-                              takes precedence for that container.
+                              takes precedence for that container. Note that this
+                              field cannot be set when spec.os.name is windows.
                             properties:
                               level:
                                 description: Level is SELinux level label that applies
@@ -9964,7 +10260,8 @@ spec:
                             type: object
                           seccompProfile:
                             description: The seccomp options to use by the containers
-                              in this pod.
+                              in this pod. Note that this field cannot be set when
+                              spec.os.name is windows.
                             properties:
                               localhostProfile:
                                 description: localhostProfile indicates a profile
@@ -9989,7 +10286,8 @@ spec:
                             description: A list of groups applied to the first process
                               run in each container, in addition to the container's
                               primary GID.  If unspecified, no groups will be added
-                              to any container.
+                              to any container. Note that this field cannot be set
+                              when spec.os.name is windows.
                             items:
                               format: int64
                               type: integer
@@ -9997,7 +10295,8 @@ spec:
                           sysctls:
                             description: Sysctls hold a list of namespaced sysctls
                               used for the pod. Pods with unsupported sysctls (by
-                              the container runtime) might fail to launch.
+                              the container runtime) might fail to launch. Note that
+                              this field cannot be set when spec.os.name is windows.
                             items:
                               description: Sysctl defines a kernel parameter to be
                                 set
@@ -10018,7 +10317,8 @@ spec:
                               all containers. If unspecified, the options within a
                               container's SecurityContext will be used. If set in
                               both SecurityContext and PodSecurityContext, the value
-                              specified in SecurityContext takes precedence.
+                              specified in SecurityContext takes precedence. Note
+                              that this field cannot be set when spec.os.name is linux.
                             properties:
                               gmsaCredentialSpec:
                                 description: GMSACredentialSpec is where the GMSA
@@ -10030,6 +10330,19 @@ spec:
                                 description: GMSACredentialSpecName is the name of
                                   the GMSA credential spec to use.
                                 type: string
+                              hostProcess:
+                                description: HostProcess determines if a container
+                                  should be run as a 'Host Process' container. This
+                                  field is alpha-level and will only be honored by
+                                  components that enable the WindowsHostProcessContainers
+                                  feature flag. Setting this field without the feature
+                                  flag will result in errors when validating the Pod.
+                                  All of a Pod's containers must have the same effective
+                                  HostProcess value (it is not allowed to have a mix
+                                  of HostProcess containers and non-HostProcess containers).  In
+                                  addition, if HostProcess is true then HostNetwork
+                                  must also be set to true.
+                                type: boolean
                               runAsUserName:
                                 description: The UserName in Windows to run the entrypoint
                                   of the container process. Defaults to the user specified
@@ -10517,9 +10830,7 @@ spec:
                                 to be used that way - see the documentation of the
                                 driver for more information. \n A pod can use both
                                 types of ephemeral volumes and persistent volumes
-                                at the same time. \n This is a beta feature and only
-                                available when the GenericEphemeralVolume feature
-                                gate is enabled."
+                                at the same time."
                               properties:
                                 volumeClaimTemplate:
                                   description: "Will be used to create a stand-alone
@@ -10570,15 +10881,64 @@ spec:
                                             specify either: * An existing VolumeSnapshot
                                             object (snapshot.storage.k8s.io/VolumeSnapshot)
                                             * An existing PVC (PersistentVolumeClaim)
-                                            * An existing custom resource that implements
-                                            data population (Alpha) In order to use
-                                            custom resource types that implement data
-                                            population, the AnyVolumeDataSource feature
-                                            gate must be enabled. If the provisioner
-                                            or an external controller can support
-                                            the specified data source, it will create
-                                            a new volume based on the contents of
-                                            the specified data source.'
+                                            If the provisioner or an external controller
+                                            can support the specified data source,
+                                            it will create a new volume based on the
+                                            contents of the specified data source.
+                                            If the AnyVolumeDataSource feature gate
+                                            is enabled, this field will always have
+                                            the same contents as the DataSourceRef
+                                            field.'
+                                          properties:
+                                            apiGroup:
+                                              description: APIGroup is the group for
+                                                the resource being referenced. If
+                                                APIGroup is not specified, the specified
+                                                Kind must be in the core API group.
+                                                For any other third-party types, APIGroup
+                                                is required.
+                                              type: string
+                                            kind:
+                                              description: Kind is the type of resource
+                                                being referenced
+                                              type: string
+                                            name:
+                                              description: Name is the name of resource
+                                                being referenced
+                                              type: string
+                                          required:
+                                          - kind
+                                          - name
+                                          type: object
+                                        dataSourceRef:
+                                          description: 'Specifies the object from
+                                            which to populate the volume with data,
+                                            if a non-empty volume is desired. This
+                                            may be any local object from a non-empty
+                                            API group (non core object) or a PersistentVolumeClaim
+                                            object. When this field is specified,
+                                            volume binding will only succeed if the
+                                            type of the specified object matches some
+                                            installed volume populator or dynamic
+                                            provisioner. This field will replace the
+                                            functionality of the DataSource field
+                                            and as such if both fields are non-empty,
+                                            they must have the same value. For backwards
+                                            compatibility, both fields (DataSource
+                                            and DataSourceRef) will be set to the
+                                            same value automatically if one of them
+                                            is empty and the other is non-empty. There
+                                            are two important differences between
+                                            DataSource and DataSourceRef: * While
+                                            DataSource only allows two specific types
+                                            of objects, DataSourceRef   allows any
+                                            non-core object, as well as PersistentVolumeClaim
+                                            objects. * While DataSource ignores disallowed
+                                            values (dropping them), DataSourceRef   preserves
+                                            all values, and generates an error if
+                                            a disallowed value is   specified. (Alpha)
+                                            Using this field requires the AnyVolumeDataSource
+                                            feature gate to be enabled.'
                                           properties:
                                             apiGroup:
                                               description: APIGroup is the group for
@@ -10602,8 +10962,13 @@ spec:
                                           type: object
                                         resources:
                                           description: 'Resources represents the minimum
-                                            resources the volume should have. More
-                                            info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#resources'
+                                            resources the volume should have. If RecoverVolumeExpansionFailure
+                                            feature is enabled users are allowed to
+                                            specify resource requirements that are
+                                            lower than previous value but must still
+                                            be higher than capacity recorded in the
+                                            status field of the claim. More info:
+                                            https://kubernetes.io/docs/concepts/storage/persistent-volumes#resources'
                                           properties:
                                             limits:
                                               additionalProperties:
@@ -13652,7 +14017,7 @@ spec:
                                           in the namespaces field. null selector and
                                           null or empty namespaces list means "this
                                           pod's namespace". An empty selector ({})
-                                          matches all namespaces. This field is alpha-level
+                                          matches all namespaces. This field is beta-level
                                           and is only honored when PodAffinityNamespaceSelector
                                           feature is enabled.
                                         properties:
@@ -13819,7 +14184,7 @@ spec:
                                       field. null selector and null or empty namespaces
                                       list means "this pod's namespace". An empty
                                       selector ({}) matches all namespaces. This field
-                                      is alpha-level and is only honored when PodAffinityNamespaceSelector
+                                      is beta-level and is only honored when PodAffinityNamespaceSelector
                                       feature is enabled.
                                     properties:
                                       matchExpressions:
@@ -13982,7 +14347,7 @@ spec:
                                           in the namespaces field. null selector and
                                           null or empty namespaces list means "this
                                           pod's namespace". An empty selector ({})
-                                          matches all namespaces. This field is alpha-level
+                                          matches all namespaces. This field is beta-level
                                           and is only honored when PodAffinityNamespaceSelector
                                           feature is enabled.
                                         properties:
@@ -14149,7 +14514,7 @@ spec:
                                       field. null selector and null or empty namespaces
                                       list means "this pod's namespace". An empty
                                       selector ({}) matches all namespaces. This field
-                                      is alpha-level and is only honored when PodAffinityNamespaceSelector
+                                      is beta-level and is only honored when PodAffinityNamespaceSelector
                                       feature is enabled.
                                     properties:
                                       matchExpressions:
@@ -14268,14 +14633,16 @@ spec:
                                   type: string
                                 value:
                                   description: 'Variable references $(VAR_NAME) are
-                                    expanded using the previous defined environment
+                                    expanded using the previously defined environment
                                     variables in the container and any service environment
                                     variables. If a variable cannot be resolved, the
                                     reference in the input string will be unchanged.
-                                    The $(VAR_NAME) syntax can be escaped with a double
-                                    $$, ie: $$(VAR_NAME). Escaped references will
-                                    never be expanded, regardless of whether the variable
-                                    exists or not. Defaults to "".'
+                                    Double $$ are reduced to a single $, which allows
+                                    for escaping the $(VAR_NAME) syntax: i.e. "$$(VAR_NAME)"
+                                    will produce the string literal "$(VAR_NAME)".
+                                    Escaped references will never be expanded, regardless
+                                    of whether the variable exists or not. Defaults
+                                    to "".'
                                   type: string
                                 valueFrom:
                                   description: Source for the environment variable's
@@ -14383,8 +14750,7 @@ spec:
                             description: Configure the Liveness Probe of the container
                             properties:
                               exec:
-                                description: One and only one of the following should
-                                  be specified. Exec specifies the action to take.
+                                description: Exec specifies the action to take.
                                 properties:
                                   command:
                                     description: Command is the command line to execute
@@ -14406,6 +14772,26 @@ spec:
                                   Defaults to 3. Minimum value is 1.
                                 format: int32
                                 type: integer
+                              grpc:
+                                description: GRPC specifies an action involving a
+                                  GRPC port. This is an alpha field and requires enabling
+                                  GRPCContainerProbe feature gate.
+                                properties:
+                                  port:
+                                    description: Port number of the gRPC service.
+                                      Number must be in the range 1 to 65535.
+                                    format: int32
+                                    type: integer
+                                  service:
+                                    description: "Service is the name of the service
+                                      to place in the gRPC HealthCheckRequest (see
+                                      https://github.com/grpc/grpc/blob/master/doc/health-checking.md).
+                                      \n If this is not specified, the default behavior
+                                      is defined by gRPC."
+                                    type: string
+                                required:
+                                - port
+                                type: object
                               httpGet:
                                 description: HTTPGet specifies the http request to
                                   perform.
@@ -14470,9 +14856,8 @@ spec:
                                 format: int32
                                 type: integer
                               tcpSocket:
-                                description: 'TCPSocket specifies an action involving
-                                  a TCP port. TCP hooks not yet supported TODO: implement
-                                  a realistic TCP lifecycle hook'
+                                description: TCPSocket specifies an action involving
+                                  a TCP port.
                                 properties:
                                   host:
                                     description: 'Optional: Host name to connect to,
@@ -14502,8 +14887,9 @@ spec:
                                   value provided by the pod spec. Value must be non-negative
                                   integer. The value zero indicates stop immediately
                                   via the kill signal (no opportunity to shut down).
-                                  This is an alpha field and requires enabling ProbeTerminationGracePeriod
-                                  feature gate.
+                                  This is a beta field and requires enabling ProbeTerminationGracePeriod
+                                  feature gate. Minimum value is 1. spec.terminationGracePeriodSeconds
+                                  is used if unset.
                                 format: int64
                                 type: integer
                               timeoutSeconds:
@@ -14525,8 +14911,7 @@ spec:
                             description: Configure the Readiness Probe of the container
                             properties:
                               exec:
-                                description: One and only one of the following should
-                                  be specified. Exec specifies the action to take.
+                                description: Exec specifies the action to take.
                                 properties:
                                   command:
                                     description: Command is the command line to execute
@@ -14548,6 +14933,26 @@ spec:
                                   Defaults to 3. Minimum value is 1.
                                 format: int32
                                 type: integer
+                              grpc:
+                                description: GRPC specifies an action involving a
+                                  GRPC port. This is an alpha field and requires enabling
+                                  GRPCContainerProbe feature gate.
+                                properties:
+                                  port:
+                                    description: Port number of the gRPC service.
+                                      Number must be in the range 1 to 65535.
+                                    format: int32
+                                    type: integer
+                                  service:
+                                    description: "Service is the name of the service
+                                      to place in the gRPC HealthCheckRequest (see
+                                      https://github.com/grpc/grpc/blob/master/doc/health-checking.md).
+                                      \n If this is not specified, the default behavior
+                                      is defined by gRPC."
+                                    type: string
+                                required:
+                                - port
+                                type: object
                               httpGet:
                                 description: HTTPGet specifies the http request to
                                   perform.
@@ -14612,9 +15017,8 @@ spec:
                                 format: int32
                                 type: integer
                               tcpSocket:
-                                description: 'TCPSocket specifies an action involving
-                                  a TCP port. TCP hooks not yet supported TODO: implement
-                                  a realistic TCP lifecycle hook'
+                                description: TCPSocket specifies an action involving
+                                  a TCP port.
                                 properties:
                                   host:
                                     description: 'Optional: Host name to connect to,
@@ -14644,8 +15048,9 @@ spec:
                                   value provided by the pod spec. Value must be non-negative
                                   integer. The value zero indicates stop immediately
                                   via the kill signal (no opportunity to shut down).
-                                  This is an alpha field and requires enabling ProbeTerminationGracePeriod
-                                  feature gate.
+                                  This is a beta field and requires enabling ProbeTerminationGracePeriod
+                                  feature gate. Minimum value is 1. spec.terminationGracePeriodSeconds
+                                  is used if unset.
                                 format: int64
                                 type: integer
                               timeoutSeconds:
@@ -14693,12 +15098,14 @@ spec:
                                   process. This bool directly controls if the no_new_privs
                                   flag will be set on the container process. AllowPrivilegeEscalation
                                   is true always when the container is: 1) run as
-                                  Privileged 2) has CAP_SYS_ADMIN'
+                                  Privileged 2) has CAP_SYS_ADMIN Note that this field
+                                  cannot be set when spec.os.name is windows.'
                                 type: boolean
                               capabilities:
                                 description: The capabilities to add/drop when running
                                   containers. Defaults to the default set of capabilities
-                                  granted by the container runtime.
+                                  granted by the container runtime. Note that this
+                                  field cannot be set when spec.os.name is windows.
                                 properties:
                                   add:
                                     description: Added capabilities
@@ -14718,18 +15125,21 @@ spec:
                               privileged:
                                 description: Run container in privileged mode. Processes
                                   in privileged containers are essentially equivalent
-                                  to root on the host. Defaults to false.
+                                  to root on the host. Defaults to false. Note that
+                                  this field cannot be set when spec.os.name is windows.
                                 type: boolean
                               procMount:
                                 description: procMount denotes the type of proc mount
                                   to use for the containers. The default is DefaultProcMount
                                   which uses the container runtime defaults for readonly
                                   paths and masked paths. This requires the ProcMountType
-                                  feature flag to be enabled.
+                                  feature flag to be enabled. Note that this field
+                                  cannot be set when spec.os.name is windows.
                                 type: string
                               readOnlyRootFilesystem:
                                 description: Whether this container has a read-only
-                                  root filesystem. Default is false.
+                                  root filesystem. Default is false. Note that this
+                                  field cannot be set when spec.os.name is windows.
                                 type: boolean
                               runAsGroup:
                                 description: The GID to run the entrypoint of the
@@ -14737,6 +15147,8 @@ spec:
                                   May also be set in PodSecurityContext.  If set in
                                   both SecurityContext and PodSecurityContext, the
                                   value specified in SecurityContext takes precedence.
+                                  Note that this field cannot be set when spec.os.name
+                                  is windows.
                                 format: int64
                                 type: integer
                               runAsNonRoot:
@@ -14755,7 +15167,8 @@ spec:
                                   image metadata if unspecified. May also be set in
                                   PodSecurityContext.  If set in both SecurityContext
                                   and PodSecurityContext, the value specified in SecurityContext
-                                  takes precedence.
+                                  takes precedence. Note that this field cannot be
+                                  set when spec.os.name is windows.
                                 format: int64
                                 type: integer
                               seLinuxOptions:
@@ -14765,6 +15178,8 @@ spec:
                                   container.  May also be set in PodSecurityContext.  If
                                   set in both SecurityContext and PodSecurityContext,
                                   the value specified in SecurityContext takes precedence.
+                                  Note that this field cannot be set when spec.os.name
+                                  is windows.
                                 properties:
                                   level:
                                     description: Level is SELinux level label that
@@ -14787,7 +15202,8 @@ spec:
                                 description: The seccomp options to use by this container.
                                   If seccomp options are provided at both the pod
                                   & container level, the container options override
-                                  the pod options.
+                                  the pod options. Note that this field cannot be
+                                  set when spec.os.name is windows.
                                 properties:
                                   localhostProfile:
                                     description: localhostProfile indicates a profile
@@ -14813,7 +15229,9 @@ spec:
                                   to all containers. If unspecified, the options from
                                   the PodSecurityContext will be used. If set in both
                                   SecurityContext and PodSecurityContext, the value
-                                  specified in SecurityContext takes precedence.
+                                  specified in SecurityContext takes precedence. Note
+                                  that this field cannot be set when spec.os.name
+                                  is linux.
                                 properties:
                                   gmsaCredentialSpec:
                                     description: GMSACredentialSpec is where the GMSA
@@ -14825,6 +15243,20 @@ spec:
                                     description: GMSACredentialSpecName is the name
                                       of the GMSA credential spec to use.
                                     type: string
+                                  hostProcess:
+                                    description: HostProcess determines if a container
+                                      should be run as a 'Host Process' container.
+                                      This field is alpha-level and will only be honored
+                                      by components that enable the WindowsHostProcessContainers
+                                      feature flag. Setting this field without the
+                                      feature flag will result in errors when validating
+                                      the Pod. All of a Pod's containers must have
+                                      the same effective HostProcess value (it is
+                                      not allowed to have a mix of HostProcess containers
+                                      and non-HostProcess containers).  In addition,
+                                      if HostProcess is true then HostNetwork must
+                                      also be set to true.
+                                    type: boolean
                                   runAsUserName:
                                     description: The UserName in Windows to run the
                                       entrypoint of the container process. Defaults
@@ -14973,13 +15405,15 @@ spec:
                             type: string
                           value:
                             description: 'Variable references $(VAR_NAME) are expanded
-                              using the previous defined environment variables in
+                              using the previously defined environment variables in
                               the container and any service environment variables.
                               If a variable cannot be resolved, the reference in the
-                              input string will be unchanged. The $(VAR_NAME) syntax
-                              can be escaped with a double $$, ie: $$(VAR_NAME). Escaped
-                              references will never be expanded, regardless of whether
-                              the variable exists or not. Defaults to "".'
+                              input string will be unchanged. Double $$ are reduced
+                              to a single $, which allows for escaping the $(VAR_NAME)
+                              syntax: i.e. "$$(VAR_NAME)" will produce the string
+                              literal "$(VAR_NAME)". Escaped references will never
+                              be expanded, regardless of whether the variable exists
+                              or not. Defaults to "".'
                             type: string
                           valueFrom:
                             description: Source for the environment variable's value.
@@ -15338,7 +15772,8 @@ spec:
                             The setgid bit is set (new files created in the volume
                             will be owned by FSGroup) 3. The permission bits are OR'd
                             with rw-rw---- \n If unset, the Kubelet will not modify
-                            the ownership and permissions of any volume."
+                            the ownership and permissions of any volume. Note that
+                            this field cannot be set when spec.os.name is windows."
                           format: int64
                           type: integer
                         fsGroupChangePolicy:
@@ -15349,14 +15784,16 @@ spec:
                             It will have no effect on ephemeral volume types such
                             as: secret, configmaps and emptydir. Valid values are
                             "OnRootMismatch" and "Always". If not specified, "Always"
-                            is used.'
+                            is used. Note that this field cannot be set when spec.os.name
+                            is windows.'
                           type: string
                         runAsGroup:
                           description: The GID to run the entrypoint of the container
                             process. Uses runtime default if unset. May also be set
                             in SecurityContext.  If set in both SecurityContext and
                             PodSecurityContext, the value specified in SecurityContext
-                            takes precedence for that container.
+                            takes precedence for that container. Note that this field
+                            cannot be set when spec.os.name is windows.
                           format: int64
                           type: integer
                         runAsNonRoot:
@@ -15375,7 +15812,8 @@ spec:
                             if unspecified. May also be set in SecurityContext.  If
                             set in both SecurityContext and PodSecurityContext, the
                             value specified in SecurityContext takes precedence for
-                            that container.
+                            that container. Note that this field cannot be set when
+                            spec.os.name is windows.
                           format: int64
                           type: integer
                         seLinuxOptions:
@@ -15384,7 +15822,8 @@ spec:
                             random SELinux context for each container.  May also be
                             set in SecurityContext.  If set in both SecurityContext
                             and PodSecurityContext, the value specified in SecurityContext
-                            takes precedence for that container.
+                            takes precedence for that container. Note that this field
+                            cannot be set when spec.os.name is windows.
                           properties:
                             level:
                               description: Level is SELinux level label that applies
@@ -15405,7 +15844,8 @@ spec:
                           type: object
                         seccompProfile:
                           description: The seccomp options to use by the containers
-                            in this pod.
+                            in this pod. Note that this field cannot be set when spec.os.name
+                            is windows.
                           properties:
                             localhostProfile:
                               description: localhostProfile indicates a profile defined
@@ -15430,7 +15870,8 @@ spec:
                           description: A list of groups applied to the first process
                             run in each container, in addition to the container's
                             primary GID.  If unspecified, no groups will be added
-                            to any container.
+                            to any container. Note that this field cannot be set when
+                            spec.os.name is windows.
                           items:
                             format: int64
                             type: integer
@@ -15438,7 +15879,8 @@ spec:
                         sysctls:
                           description: Sysctls hold a list of namespaced sysctls used
                             for the pod. Pods with unsupported sysctls (by the container
-                            runtime) might fail to launch.
+                            runtime) might fail to launch. Note that this field cannot
+                            be set when spec.os.name is windows.
                           items:
                             description: Sysctl defines a kernel parameter to be set
                             properties:
@@ -15458,7 +15900,8 @@ spec:
                             containers. If unspecified, the options within a container's
                             SecurityContext will be used. If set in both SecurityContext
                             and PodSecurityContext, the value specified in SecurityContext
-                            takes precedence.
+                            takes precedence. Note that this field cannot be set when
+                            spec.os.name is linux.
                           properties:
                             gmsaCredentialSpec:
                               description: GMSACredentialSpec is where the GMSA admission
@@ -15470,6 +15913,19 @@ spec:
                               description: GMSACredentialSpecName is the name of the
                                 GMSA credential spec to use.
                               type: string
+                            hostProcess:
+                              description: HostProcess determines if a container should
+                                be run as a 'Host Process' container. This field is
+                                alpha-level and will only be honored by components
+                                that enable the WindowsHostProcessContainers feature
+                                flag. Setting this field without the feature flag
+                                will result in errors when validating the Pod. All
+                                of a Pod's containers must have the same effective
+                                HostProcess value (it is not allowed to have a mix
+                                of HostProcess containers and non-HostProcess containers).  In
+                                addition, if HostProcess is true then HostNetwork
+                                must also be set to true.
+                              type: boolean
                             runAsUserName:
                               description: The UserName in Windows to run the entrypoint
                                 of the container process. Defaults to the user specified
@@ -15950,9 +16406,7 @@ spec:
                               if the CSI driver is meant to be used that way - see
                               the documentation of the driver for more information.
                               \n A pod can use both types of ephemeral volumes and
-                              persistent volumes at the same time. \n This is a beta
-                              feature and only available when the GenericEphemeralVolume
-                              feature gate is enabled."
+                              persistent volumes at the same time."
                             properties:
                               volumeClaimTemplate:
                                 description: "Will be used to create a stand-alone
@@ -16002,15 +16456,61 @@ spec:
                                           either: * An existing VolumeSnapshot object
                                           (snapshot.storage.k8s.io/VolumeSnapshot)
                                           * An existing PVC (PersistentVolumeClaim)
-                                          * An existing custom resource that implements
-                                          data population (Alpha) In order to use
-                                          custom resource types that implement data
-                                          population, the AnyVolumeDataSource feature
-                                          gate must be enabled. If the provisioner
-                                          or an external controller can support the
-                                          specified data source, it will create a
-                                          new volume based on the contents of the
-                                          specified data source.'
+                                          If the provisioner or an external controller
+                                          can support the specified data source, it
+                                          will create a new volume based on the contents
+                                          of the specified data source. If the AnyVolumeDataSource
+                                          feature gate is enabled, this field will
+                                          always have the same contents as the DataSourceRef
+                                          field.'
+                                        properties:
+                                          apiGroup:
+                                            description: APIGroup is the group for
+                                              the resource being referenced. If APIGroup
+                                              is not specified, the specified Kind
+                                              must be in the core API group. For any
+                                              other third-party types, APIGroup is
+                                              required.
+                                            type: string
+                                          kind:
+                                            description: Kind is the type of resource
+                                              being referenced
+                                            type: string
+                                          name:
+                                            description: Name is the name of resource
+                                              being referenced
+                                            type: string
+                                        required:
+                                        - kind
+                                        - name
+                                        type: object
+                                      dataSourceRef:
+                                        description: 'Specifies the object from which
+                                          to populate the volume with data, if a non-empty
+                                          volume is desired. This may be any local
+                                          object from a non-empty API group (non core
+                                          object) or a PersistentVolumeClaim object.
+                                          When this field is specified, volume binding
+                                          will only succeed if the type of the specified
+                                          object matches some installed volume populator
+                                          or dynamic provisioner. This field will
+                                          replace the functionality of the DataSource
+                                          field and as such if both fields are non-empty,
+                                          they must have the same value. For backwards
+                                          compatibility, both fields (DataSource and
+                                          DataSourceRef) will be set to the same value
+                                          automatically if one of them is empty and
+                                          the other is non-empty. There are two important
+                                          differences between DataSource and DataSourceRef:
+                                          * While DataSource only allows two specific
+                                          types of objects, DataSourceRef   allows
+                                          any non-core object, as well as PersistentVolumeClaim
+                                          objects. * While DataSource ignores disallowed
+                                          values (dropping them), DataSourceRef   preserves
+                                          all values, and generates an error if a
+                                          disallowed value is   specified. (Alpha)
+                                          Using this field requires the AnyVolumeDataSource
+                                          feature gate to be enabled.'
                                         properties:
                                           apiGroup:
                                             description: APIGroup is the group for
@@ -16034,8 +16534,12 @@ spec:
                                         type: object
                                       resources:
                                         description: 'Resources represents the minimum
-                                          resources the volume should have. More info:
-                                          https://kubernetes.io/docs/concepts/storage/persistent-volumes#resources'
+                                          resources the volume should have. If RecoverVolumeExpansionFailure
+                                          feature is enabled users are allowed to
+                                          specify resource requirements that are lower
+                                          than previous value but must still be higher
+                                          than capacity recorded in the status field
+                                          of the claim. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#resources'
                                         properties:
                                           limits:
                                             additionalProperties:
