@@ -7,6 +7,9 @@ variables:
   DOCKER_REGISTRY_LOGIN_SSM_KEY: docker_hub_login
   DOCKER_REGISTRY_PWD_SSM_KEY: docker_hub_pwd
   DOCKER_REGISTRY_URL: docker.io
+  RH_PARTNER_SCAN_OPERATOR_TOKEN_SSM_KEY: redhat_operator_token
+  RH_PARTNER_SCAN_REGISTRY: scan.connect.redhat.com
+  RH_PARTNER_API_KEY_SSM_KEY: redhat_api_key
 
 cache: &global_cache
   key: ${CI_COMMIT_REF_SLUG}
@@ -18,7 +21,9 @@ stages:
   - build
   - test
   - image
+  - test-image
   - release
+  - post-release
 
 build:
   stage: build
@@ -91,6 +96,19 @@ build_bundle_image:
     - BUNDLE_IMG=$TARGET_IMAGE-redhat make bundle-redhat-build
     - if [ -n "$CI_COMMIT_TAG" ]; then docker tag $TARGET_IMAGE-redhat $RELEASE_IMAGE-redhat && docker push $RELEASE_IMAGE-redhat; fi
 
+preflight_redhat_image_amd64:
+  stage: test-image
+  rules:
+    - if: $CI_COMMIT_TAG
+      when: on_success
+    - when: never
+  tags: ["runner:docker", "size:large"]
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:v2718644-9ce6565-18.09.6-py3
+  variables:
+    TARGET_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-amd64
+  script:
+    - IMG=$TARGET_IMAGE make preflight-redhat-container
+
 publish_public_main:
   stage: release
   rules:
@@ -122,7 +140,39 @@ publish_public_tag:
     IMG_DESTINATIONS_REGEX: ':v'
     IMG_DESTINATIONS_REGEX_REPL: ':'
     IMG_SIGNING: "false"
-    IMG_REGISTRIES: default,redhat-operator
+
+# RedHat does not support multi-arch images
+publish_redhat_public_tag:
+  stage: release
+  rules:
+    - if: $CI_COMMIT_TAG
+      when: manual
+    - when: never
+  trigger:
+    project: DataDog/public-images
+    branch: main
+    strategy: depend
+  variables:
+    IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64
+    IMG_DESTINATIONS: operator:$CI_COMMIT_TAG
+    IMG_DESTINATIONS_REGEX: ':v'
+    IMG_DESTINATIONS_REGEX_REPL: ':'
+    IMG_REGISTRIES: redhat-operator
+
+submit_preflight_redhat_public_tag:
+  stage: post-release
+  needs:
+    - "publish_redhat_public_tag"
+  tags: ["runner:docker", "size:large"]
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:v2718644-9ce6565-18.09.6-py3
+  variables:
+    RH_PARTNER_PROJECT_ID: 5e7c8ebc1c86a3163d1a69be
+    RH_PARTNER_SCAN_REGISTRY_PATH: /ospid-e18c96b6-0524-4c5c-8ada-ce2fca845c8c/operator
+  script:
+    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$RH_PARTNER_SCAN_OPERATOR_TOKEN_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "unused" --password-stdin "$RH_PARTNER_SCAN_REGISTRY"
+    - RH_PARTNER_API_TOKEN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$RH_PARTNER_API_KEY_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
+    - IMG=${RH_PARTNER_SCAN_REGISTRY}/${RH_PARTNER_SCAN_REGISTRY_PATH}:${CI_COMMIT_TAG:1}
+    - make preflight-redhat-container-submit
 
 publish_public_latest:
   stage: release
@@ -138,22 +188,6 @@ publish_public_latest:
     IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64,$BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-arm64
     IMG_DESTINATIONS: operator:latest
     IMG_SIGNING: "false"
-    IMG_REGISTRIES: default,redhat-operator
-
-publish_redhat_bundle:
-  stage: release
-  rules:
-    - if: $CI_COMMIT_TAG
-      when: manual
-    - when: never
-  trigger:
-    project: DataDog/public-images
-    branch: main
-    strategy: depend
-  variables:
-    IMG_SOURCES: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-bundle-redhat
-    IMG_DESTINATIONS: operator-bundle:$CI_COMMIT_TAG
-    IMG_REGISTRIES: redhat-operator-bundle
 
 trigger_internal_image:
   stage: release

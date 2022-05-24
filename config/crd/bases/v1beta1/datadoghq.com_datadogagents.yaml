@@ -6,6 +6,22 @@ metadata:
   creationTimestamp: null
   name: datadogagents.datadoghq.com
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .status.conditions[?(@.type=='Active')].status
+    name: active
+    type: string
+  - JSONPath: .status.agent.status
+    name: agent
+    type: string
+  - JSONPath: .status.clusterAgent.status
+    name: cluster-agent
+    type: string
+  - JSONPath: .status.clusterChecksRunner.status
+    name: cluster-checks-runner
+    type: string
+  - JSONPath: .metadata.creationTimestamp
+    name: age
+    type: date
   group: datadoghq.com
   names:
     kind: DatadogAgent
@@ -16,6 +32,8 @@ spec:
     singular: datadogagent
   preserveUnknownFields: false
   scope: Namespaced
+  subresources:
+    status: {}
   validation:
     openAPIV3Schema:
       description: DatadogAgent Deployment with Datadog Operator.
@@ -11867,9 +11885,6 @@ spec:
   - name: v1alpha1
     served: true
     storage: true
-  - name: v2alpha1
-    served: false
-    storage: false
 status:
   acceptedNames:
     kind: ""
