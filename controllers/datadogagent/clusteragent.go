@@ -429,8 +429,8 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 		})
 	}
 
-	container.LivenessProbe = datadoghqv1alpha1.GetDefaultLivenessProbe()
-	container.ReadinessProbe = datadoghqv1alpha1.GetDefaultReadinessProbe()
+	container.LivenessProbe = apicommon.GetDefaultLivenessProbe()
+	container.ReadinessProbe = apicommon.GetDefaultReadinessProbe()
 
 	if clusterAgentSpec.Config.Resources != nil {
 		container.Resources = *clusterAgentSpec.Config.Resources
@@ -502,7 +502,7 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 
 	envVars := []corev1.EnvVar{
 		{
-			Name:  datadoghqv1alpha1.DDClusterChecksEnabled,
+			Name:  apicommon.DDClusterChecksEnabled,
 			Value: strconv.FormatBool(isClusterChecksEnabled(&dda.Spec)),
 		},
 		{
@@ -621,7 +621,7 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 	if apiutils.BoolValue(spec.ClusterAgent.Config.ClusterChecksEnabled) {
 		envVars = append(envVars, []corev1.EnvVar{
 			{
-				Name:  datadoghqv1alpha1.DDExtraConfigProviders,
+				Name:  apicommon.DDExtraConfigProviders,
 				Value: datadoghqv1alpha1.KubeServicesAndEndpointsConfigProviders,
 			},
 			{

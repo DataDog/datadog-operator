@@ -38,6 +38,8 @@ const (
 	DefaultClusterAgentReplicas = 1
 	// DefaultClusterAgentServicePort default cluster-agent service port
 	DefaultClusterAgentServicePort = 5005
+	// DefaultClusterChecksRunnerReplicas default cluster checks runner deployment replicas
+	DefaultClusterChecksRunnerReplicas = 1
 	// DefaultMetricsServerServicePort default metrics-server port
 	DefaultMetricsServerServicePort = 443
 	// DefaultMetricsServerTargetPort default metrics-server pod port
@@ -160,4 +162,18 @@ const (
 	ContainerLogVolumePath     = "/var/lib/docker/containers"
 	SymlinkContainerVolumeName = "symlinkcontainerpath"
 	SymlinkContainerVolumePath = "/var/log/containers"
+)
+
+const (
+	// FieldPathSpecNodeName used as FieldPath for selecting the NodeName
+	FieldPathSpecNodeName = "spec.nodeName"
+
+	// FieldPathStatusHostIP used as FieldPath to retrieve the host ip
+	FieldPathStatusHostIP = "status.hostIP"
+
+	// FieldPathStatusPodIP used as FieldPath to retrieve the pod ip
+	FieldPathStatusPodIP = "status.podIP"
+
+	// FieldPathMetaName used as FieldPath to retrieve the pod name
+	FieldPathMetaName = "metadata.name"
 )

@@ -213,7 +213,7 @@ func clusterChecksRunnerDefaultEnvVars() []corev1.EnvVar {
 			Name: "DD_CLC_RUNNER_HOST",
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
-					FieldPath: "status.podIP",
+					FieldPath: apicommon.FieldPathStatusPodIP,
 				},
 			},
 		},
@@ -221,7 +221,7 @@ func clusterChecksRunnerDefaultEnvVars() []corev1.EnvVar {
 			Name: datadoghqv1alpha1.DDHostname,
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
-					FieldPath: FieldPathSpecNodeName,
+					FieldPath: apicommon.FieldPathSpecNodeName,
 				},
 			},
 		},
@@ -229,7 +229,7 @@ func clusterChecksRunnerDefaultEnvVars() []corev1.EnvVar {
 			Name: "DD_CLC_RUNNER_ID",
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
-					FieldPath: "metadata.name",
+					FieldPath: apicommon.FieldPathMetaName,
 				},
 			},
 		},

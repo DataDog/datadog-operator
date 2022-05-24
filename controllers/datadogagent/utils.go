@@ -584,7 +584,7 @@ func getEnvVarDogstatsdSocket(dda *datadoghqv1alpha1.DatadogAgent) corev1.EnvVar
 func getEnvVarsForAPMAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.EnvVar, error) {
 	envVars := []corev1.EnvVar{
 		{
-			Name:  datadoghqv1alpha1.DDAPMEnabled,
+			Name:  apicommon.DDAPMEnabled,
 			Value: strconv.FormatBool(isAPMEnabled(&dda.Spec)),
 		},
 		getEnvVarDogstatsdSocket(dda),
@@ -628,7 +628,7 @@ func getEnvVarsForProcessAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.En
 
 	if processCollectionEnabled(dda) {
 		envVars = append(envVars, corev1.EnvVar{
-			Name:  datadoghqv1alpha1.DDProcessAgentEnabled,
+			Name:  apicommon.DDProcessAgentEnabled,
 			Value: "true",
 		})
 	}
@@ -713,7 +713,7 @@ func getEnvVarsCommon(dda *datadoghqv1alpha1.DatadogAgent, needAPIKey bool) ([]c
 			Value: getLogLevel(dda),
 		},
 		{
-			Name:  datadoghqv1alpha1.KubernetesEnvvarName,
+			Name:  apicommon.KubernetesEnvVar,
 			Value: "yes",
 		},
 	}
@@ -925,12 +925,12 @@ func getEnvVarsForAgent(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent)
 		if spec.ClusterAgent.Config != nil && apiutils.BoolValue(spec.ClusterAgent.Config.ClusterChecksEnabled) {
 			if !apiutils.BoolValue(dda.Spec.ClusterChecksRunner.Enabled) {
 				clusterEnv = append(clusterEnv, corev1.EnvVar{
-					Name:  datadoghqv1alpha1.DDExtraConfigProviders,
+					Name:  apicommon.DDExtraConfigProviders,
 					Value: datadoghqv1alpha1.ClusterAndEndpointsConfigPoviders,
 				})
 			} else {
 				clusterEnv = append(clusterEnv, corev1.EnvVar{
-					Name:  datadoghqv1alpha1.DDExtraConfigProviders,
+					Name:  apicommon.DDExtraConfigProviders,
 					Value: datadoghqv1alpha1.EndpointsChecksConfigProvider,
 				})
 			}
@@ -1010,7 +1010,7 @@ func getEnvVarsForSecurityAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.E
 	if isClusterAgentEnabled(dda.Spec.ClusterAgent) {
 		clusterEnv := []corev1.EnvVar{
 			{
-				Name:  datadoghqv1alpha1.DDClusterAgentEnabled,
+				Name:  apicommon.DDClusterAgentEnabled,
 				Value: strconv.FormatBool(true),
 			},
 			{
@@ -2280,7 +2280,7 @@ func envForClusterAgentConnection(dda *datadoghqv1alpha1.DatadogAgent) []corev1.
 	if isClusterAgentEnabled(dda.Spec.ClusterAgent) {
 		envVars := []corev1.EnvVar{
 			{
-				Name:  datadoghqv1alpha1.DDClusterAgentEnabled,
+				Name:  apicommon.DDClusterAgentEnabled,
 				Value: strconv.FormatBool(true),
 			},
 			{

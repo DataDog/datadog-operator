@@ -24,28 +24,19 @@ const (
 	DDLogsConfigContainerCollectAll              = "DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL"
 	DDLogsContainerCollectUsingFiles             = "DD_LOGS_CONFIG_K8S_CONTAINER_USE_FILE"
 	DDLogsConfigOpenFilesLimit                   = "DD_LOGS_CONFIG_OPEN_FILES_LIMIT"
-	DDDogstatsdEnabled                           = "DD_USE_DOGSTATSD"
 	DDDogstatsdOriginDetection                   = "DD_DOGSTATSD_ORIGIN_DETECTION"
 	DDDogstatsdPort                              = "DD_DOGSTATSD_PORT"
 	DDDogstatsdSocket                            = "DD_DOGSTATSD_SOCKET"
 	DDDogstatsdMapperProfiles                    = "DD_DOGSTATSD_MAPPER_PROFILES"
-	DDClusterAgentEnabled                        = "DD_CLUSTER_AGENT_ENABLED"
 	DDClusterAgentAuthToken                      = "DD_CLUSTER_AGENT_AUTH_TOKEN"
 	DDMetricsProviderEnabled                     = "DD_EXTERNAL_METRICS_PROVIDER_ENABLED"
 	DDMetricsProviderPort                        = "DD_EXTERNAL_METRICS_PROVIDER_PORT"
 	DDMetricsProviderUseDatadogMetric            = "DD_EXTERNAL_METRICS_PROVIDER_USE_DATADOGMETRIC_CRD"
 	DDMetricsProviderWPAController               = "DD_EXTERNAL_METRICS_PROVIDER_WPA_CONTROLLER"
 	DDAppKey                                     = "DD_APP_KEY"
-	DDClusterChecksEnabled                       = "DD_CLUSTER_CHECKS_ENABLED"
-	DDClcRunnerEnabled                           = "DD_CLC_RUNNER_ENABLED"
-	DDClcRunnerHost                              = "DD_CLC_RUNNER_HOST"
-	DDClcRunnerID                                = "DD_CLC_RUNNER_ID"
-	DDExtraConfigProviders                       = "DD_EXTRA_CONFIG_PROVIDERS"
 	DDExtraListeners                             = "DD_EXTRA_LISTENERS"
 	DDHostname                                   = "DD_HOSTNAME"
-	DDAPMEnabled                                 = "DD_APM_ENABLED"
 	DDPPMReceiverSocket                          = "DD_APM_RECEIVER_SOCKET"
-	DDProcessAgentEnabled                        = "DD_PROCESS_AGENT_ENABLED"
 	DDSystemProbeAgentEnabled                    = "DD_SYSTEM_PROBE_ENABLED"
 	DDSystemProbeSocketPath                      = "DD_SYSPROBE_SOCKET"
 	DDSystemProbeCollectDNSStatsEnabled          = "DD_COLLECT_DNS_STATS"
@@ -56,7 +47,6 @@ const (
 	DDSystemProbeBPFDebugEnabled                 = DDSystemProbeEnvPrefix + "BPF_DEBUG"
 	DDSystemProbeTCPQueueLengthEnabled           = DDSystemProbeEnvPrefix + "ENABLE_TCP_QUEUE_LENGTH"
 	DDSystemProbeOOMKillEnabled                  = DDSystemProbeEnvPrefix + "ENABLE_OOM_KILL"
-	DDEnableMetadataCollection                   = "DD_ENABLE_METADATA_COLLECTION"
 	DDKubeletHost                                = "DD_KUBERNETES_KUBELET_HOST"
 	DDKubeletTLSVerify                           = "DD_KUBELET_TLS_VERIFY"
 	DDKubeletCAPath                              = "DD_KUBELET_CLIENT_CA"
@@ -84,10 +74,6 @@ const (
 	DDExternalMetricsProviderAPIKey              = "DD_EXTERNAL_METRICS_PROVIDER_API_KEY"
 	DDExternalMetricsProviderAppKey              = "DD_EXTERNAL_METRICS_PROVIDER_APP_KEY"
 	DDAuthTokenFilePath                          = "DD_AUTH_TOKEN_FILE_PATH"
-
-	// KubernetesEnvvarName Env var used by the Datadog Agent container entrypoint
-	// to add kubelet config provider and listener
-	KubernetesEnvvarName = "KUBERNETES"
 
 	// Datadog volume names and mount paths
 
@@ -173,7 +159,6 @@ const (
 	KubeServicesConfigProvider              = "kube_services"
 	KubeEndpointsConfigProvider             = "kube_endpoints"
 	KubeServicesAndEndpointsConfigProviders = "kube_services kube_endpoints"
-	ClusterChecksConfigProvider             = "clusterchecks"
 	EndpointsChecksConfigProvider           = "endpointschecks"
 	ClusterAndEndpointsConfigPoviders       = "clusterchecks endpointschecks"
 

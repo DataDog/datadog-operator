@@ -34,6 +34,16 @@ func GetVolumeForConfd() corev1.Volume {
 	}
 }
 
+// GetVolumeForRmCorechecks return the volume that contains the agent confd config files
+func GetVolumeForRmCorechecks() corev1.Volume {
+	return corev1.Volume{
+		Name: "remove-corechecks",
+		VolumeSource: corev1.VolumeSource{
+			EmptyDir: &corev1.EmptyDirVolumeSource{},
+		},
+	}
+}
+
 // GetVolumeForAuth return the Volume container authentication information
 func GetVolumeForAuth() corev1.Volume {
 	return corev1.Volume{
@@ -73,12 +83,28 @@ func GetInstallInfoConfigMapName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-install-info", dda.GetName())
 }
 
+// GetVolumeMountForConfig return the VolumeMount that contains the agent config
+func GetVolumeMountForConfig() corev1.VolumeMount {
+	return corev1.VolumeMount{
+		Name:      apicommon.ConfigVolumeName,
+		MountPath: apicommon.ConfigVolumePath,
+	}
+}
+
 // GetVolumeMountForConfd return the VolumeMount that contains the agent confd config files
 func GetVolumeMountForConfd() corev1.VolumeMount {
 	return corev1.VolumeMount{
 		Name:      apicommon.ConfdVolumeName,
 		MountPath: apicommon.ConfdVolumePath,
 		ReadOnly:  true,
+	}
+}
+
+// GetVolumeMountForRmCorechecks return the VolumeMount that contains the agent confd config files
+func GetVolumeMountForRmCorechecks() corev1.VolumeMount {
+	return corev1.VolumeMount{
+		Name:      "remove-corechecks",
+		MountPath: fmt.Sprintf("%s/%s", apicommon.ConfigVolumePath, "conf.d"),
 	}
 }
 
