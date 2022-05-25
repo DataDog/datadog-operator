@@ -20,14 +20,14 @@ import (
 
 // RequiredComponents use to know which component need to be enabled for the feature
 type RequiredComponents struct {
-	ClusterAgent       RequiredComponent
-	Agent              RequiredComponent
-	ClusterCheckRunner RequiredComponent
+	ClusterAgent        RequiredComponent
+	Agent               RequiredComponent
+	ClusterChecksRunner RequiredComponent
 }
 
 // IsEnabled return true if the Feature need to be enabled
 func (rc *RequiredComponents) IsEnabled() bool {
-	return rc.ClusterAgent.IsEnabled() || rc.Agent.IsEnabled() || rc.ClusterCheckRunner.IsEnabled()
+	return rc.ClusterAgent.IsEnabled() || rc.Agent.IsEnabled() || rc.ClusterChecksRunner.IsEnabled()
 }
 
 // Merge use to merge 2 RequiredComponents
@@ -36,7 +36,7 @@ func (rc *RequiredComponents) IsEnabled() bool {
 func (rc *RequiredComponents) Merge(in *RequiredComponents) *RequiredComponents {
 	rc.ClusterAgent.Merge(&in.ClusterAgent)
 	rc.Agent.Merge(&in.Agent)
-	rc.ClusterCheckRunner.Merge(&in.ClusterCheckRunner)
+	rc.ClusterChecksRunner.Merge(&in.ClusterChecksRunner)
 	return rc
 }
 
@@ -65,8 +65,6 @@ func (rc *RequiredComponent) Merge(in *RequiredComponent) *RequiredComponent {
 }
 
 func merge(a, b *bool) *bool {
-	trueValue := true
-	falseValue := false
 	if a == nil && b == nil {
 		return nil
 	} else if a == nil && b != nil {
@@ -75,9 +73,9 @@ func merge(a, b *bool) *bool {
 		return a
 	}
 	if !apiutils.BoolValue(a) || !apiutils.BoolValue(b) {
-		return &falseValue
+		return apiutils.NewBoolPointer(false)
 	}
-	return &trueValue
+	return apiutils.NewBoolPointer(true)
 }
 
 func mergeSlices(a, b []apicommonv1.AgentContainerName) []apicommonv1.AgentContainerName {
@@ -109,14 +107,14 @@ type Feature interface {
 	ConfigureV1(dda *v1alpha1.DatadogAgent) RequiredComponents
 	// ManageDependencies allows a feature to manage its dependencies.
 	// Feature's dependencies should be added in the store.
-	ManageDependencies(managers ResourceManagers) error
+	ManageDependencies(managers ResourceManagers, components RequiredComponents) error
 	// ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 	// It should do nothing if the feature doesn't need to configure it.
 	ManageClusterAgent(managers PodTemplateManagers) error
 	// ManageNodeAget allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 	// It should do nothing if the feature doesn't need to configure it.
 	ManageNodeAgent(managers PodTemplateManagers) error
-	// ManageClusterChecksRunner allows a feature to configure the ClusterCheckRunnerAgent's corev1.PodTemplateSpec
+	// ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunnerAgent's corev1.PodTemplateSpec
 	// It should do nothing if the feature doesn't need to configure it.
 	ManageClusterChecksRunner(managers PodTemplateManagers) error
 }
@@ -136,19 +134,25 @@ type BuildFunc func(options *Options) Feature
 type ResourceManagers interface {
 	Store() dependencies.StoreClient
 	RBACManager() merger.RBACManager
+	PodSecurityManager() merger.PodSecurityManager
+	SecretManager() merger.SecretManager
 }
 
 // NewResourceManagers return new instance of the ResourceManagers interface
 func NewResourceManagers(store dependencies.StoreClient) ResourceManagers {
 	return &resourceManagersImpl{
-		store: store,
-		rbac:  merger.NewRBACManager(store),
+		store:       store,
+		rbac:        merger.NewRBACManager(store),
+		podSecurity: merger.NewPodSecurityManager(store),
+		secret:      merger.NewSecretManager(store),
 	}
 }
 
 type resourceManagersImpl struct {
-	store dependencies.StoreClient
-	rbac  merger.RBACManager
+	store       dependencies.StoreClient
+	rbac        merger.RBACManager
+	podSecurity merger.PodSecurityManager
+	secret      merger.SecretManager
 }
 
 func (impl *resourceManagersImpl) Store() dependencies.StoreClient {
@@ -159,14 +163,26 @@ func (impl *resourceManagersImpl) RBACManager() merger.RBACManager {
 	return impl.rbac
 }
 
+func (impl *resourceManagersImpl) PodSecurityManager() merger.PodSecurityManager {
+	return impl.podSecurity
+}
+
+func (impl *resourceManagersImpl) SecretManager() merger.SecretManager {
+	return impl.secret
+}
+
 // PodTemplateManagers used to access the different PodTemplateSpec manager.
 type PodTemplateManagers interface {
-	// PodTemplateSpec used to access directly to the PodTemplateSpec.
+	// PodTemplateSpec used to access directly the PodTemplateSpec.
 	PodTemplateSpec() *corev1.PodTemplateSpec
-	// EnvVar used to access EnvVarManager that allows to manage the Environment variable defined in the PodTemplateSpec.
+	// EnvVar used to access the EnvVarManager to manage the Environment variable defined in the PodTemplateSpec.
 	EnvVar() merger.EnvVarManager
-	// EnvVar used to access VolumeManager that allows to manage the Volume and VolumeMount defined in the PodTemplateSpec.
+	// Volume used to access the VolumeManager to manage the Volume and VolumeMount defined in the PodTemplateSpec.
 	Volume() merger.VolumeManager
+	// SecurityContext is used to access the SecurityContextManager to manage container Security Context defined in the PodTemplateSpec.
+	SecurityContext() merger.SecurityContextManager
+	// Annotation is used access the AnnotationManager to manage PodTemplateSpec annotations.
+	Annotation() merger.AnnotationManager
 	// Ports used to access PortManager that allows to manage the Ports defined in the PodTemplateSpec.
 	Port() merger.PortManager
 }
@@ -175,18 +191,22 @@ type PodTemplateManagers interface {
 // a corev1.PodTemplateSpec argument
 func NewPodTemplateManagers(podTmpl *corev1.PodTemplateSpec) PodTemplateManagers {
 	return &podTemplateManagerImpl{
-		podTmpl:       podTmpl,
-		envVarManager: merger.NewEnvVarManager(podTmpl),
-		volumeManager: merger.NewVolumeManager(podTmpl),
-		portManager:   merger.NewPortManager(podTmpl),
+		podTmpl:                podTmpl,
+		envVarManager:          merger.NewEnvVarManager(podTmpl),
+		volumeManager:          merger.NewVolumeManager(podTmpl),
+		securityContextManager: merger.NewSecurityContextManager(podTmpl),
+		annotationManager:      merger.NewAnnotationManager(podTmpl),
+		portManager:            merger.NewPortManager(podTmpl),
 	}
 }
 
 type podTemplateManagerImpl struct {
-	podTmpl       *corev1.PodTemplateSpec
-	envVarManager merger.EnvVarManager
-	volumeManager merger.VolumeManager
-	portManager   merger.PortManager
+	podTmpl                *corev1.PodTemplateSpec
+	envVarManager          merger.EnvVarManager
+	volumeManager          merger.VolumeManager
+	securityContextManager merger.SecurityContextManager
+	annotationManager      merger.AnnotationManager
+	portManager            merger.PortManager
 }
 
 func (impl *podTemplateManagerImpl) PodTemplateSpec() *corev1.PodTemplateSpec {
@@ -199,6 +219,14 @@ func (impl *podTemplateManagerImpl) EnvVar() merger.EnvVarManager {
 
 func (impl *podTemplateManagerImpl) Volume() merger.VolumeManager {
 	return impl.volumeManager
+}
+
+func (impl *podTemplateManagerImpl) SecurityContext() merger.SecurityContextManager {
+	return impl.securityContextManager
+}
+
+func (impl *podTemplateManagerImpl) Annotation() merger.AnnotationManager {
+	return impl.annotationManager
 }
 
 func (impl *podTemplateManagerImpl) Port() merger.PortManager {

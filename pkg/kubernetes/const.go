@@ -52,6 +52,8 @@ const (
 	PodSecurityPoliciesKind = "podsecuritypolicies"
 	// CiliumNetworkPoliciesKind CiliumNetworkPolicies resource kind
 	CiliumNetworkPoliciesKind = "ciliumnetworkpolicies"
+	// SecurityContextConstraintsKind SecurityContextConstraints resource kind
+	// SecurityContextConstraintsKind = "securitycontextconstraints"
 )
 
 // GetResourcesKind return the list of all possible ObjectKind supported as DatadogAgent dependencies
@@ -70,6 +72,7 @@ func GetResourcesKind(withCiliumResources bool) []ObjectKind {
 		PodDisruptionBudgetsKind,
 		NetworkPoliciesKind,
 		PodSecurityPoliciesKind,
+		// SecurityContextConstraintsKind,
 	}
 
 	if withCiliumResources {

@@ -27,7 +27,7 @@ func newAgentSecret(name string, dda *datadoghqv1alpha1.DatadogAgent) *corev1.Se
 	annotations := object.GetDefaultAnnotations(dda)
 
 	creds := dda.Spec.Credentials
-	data := getKeysFromCredentials(&creds.DatadogCredentials)
+	data := datadoghqv1alpha1.GetKeysFromCredentials(&creds.DatadogCredentials)
 
 	if creds.Token != "" {
 		data[apicommon.DefaultTokenKey] = []byte(creds.Token)
@@ -59,8 +59,8 @@ func needAgentSecret(dda *datadoghqv1alpha1.DatadogAgent) bool {
 	}
 
 	// If API key, app key _and_ token don't need a new secret, then don't create one.
-	if checkAPIKeySufficiency(&dda.Spec.Credentials.DatadogCredentials, config.DDAPIKeyEnvVar) &&
-		checkAppKeySufficiency(&dda.Spec.Credentials.DatadogCredentials, config.DDAppKeyEnvVar) &&
+	if datadoghqv1alpha1.CheckAPIKeySufficiency(&dda.Spec.Credentials.DatadogCredentials, config.DDAPIKeyEnvVar) &&
+		datadoghqv1alpha1.CheckAppKeySufficiency(&dda.Spec.Credentials.DatadogCredentials, config.DDAppKeyEnvVar) &&
 		!isClusterAgentEnabled(dda.Spec.ClusterAgent) {
 		return false
 	}

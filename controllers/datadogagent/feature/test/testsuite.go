@@ -28,12 +28,13 @@ type FeatureTest struct {
 	DDAv1   *v1alpha1.DatadogAgent
 	Options *Options
 	// Dependencies Store
-	StoreOption   *dependencies.StoreOptions
-	StoreInitFunc func(store dependencies.StoreClient)
+	StoreOption        *dependencies.StoreOptions
+	StoreInitFunc      func(store dependencies.StoreClient)
+	RequiredComponents feature.RequiredComponents
 	// Test configuration
-	Agent              *ComponentTest
-	ClusterAgent       *ComponentTest
-	ClusterCheckRunner *ComponentTest
+	Agent               *ComponentTest
+	ClusterAgent        *ComponentTest
+	ClusterChecksRunner *ComponentTest
 	// Want
 	WantConfigure             bool
 	WantManageDependenciesErr bool
@@ -43,7 +44,7 @@ type FeatureTest struct {
 // Options use to provide some option to the test.
 type Options struct{}
 
-// ComponentTest use to configure how to test a component (Cluster-Agent, Agent, ClusterCheckRunner)
+// ComponentTest use to configure how to test a component (Cluster-Agent, Agent, ClusterChecksRunner)
 type ComponentTest struct {
 	CreateFunc func(testing.TB) feature.PodTemplateManagers
 	WantFunc   func(testing.TB, feature.PodTemplateManagers)
@@ -75,7 +76,7 @@ func runTest(t *testing.T, tt FeatureTest, buildFunc feature.BuildFunc) {
 	}
 
 	if gotConfigure.IsEnabled() != tt.WantConfigure {
-		t.Errorf("ksmFeature.Configure() = %v, want %v", gotConfigure, tt.WantConfigure)
+		t.Errorf("feature.Configure() = %v, want %v", gotConfigure, tt.WantConfigure)
 	}
 
 	if !gotConfigure.IsEnabled() {
@@ -90,7 +91,7 @@ func runTest(t *testing.T, tt FeatureTest, buildFunc feature.BuildFunc) {
 	}
 	depsManager := feature.NewResourceManagers(store)
 
-	if err := f.ManageDependencies(depsManager); (err != nil) != tt.WantManageDependenciesErr {
+	if err := f.ManageDependencies(depsManager, tt.RequiredComponents); (err != nil) != tt.WantManageDependenciesErr {
 		t.Errorf("feature.ManageDependencies() error = %v, wantErr %v", err, tt.WantManageDependenciesErr)
 		return
 	}
@@ -112,9 +113,9 @@ func runTest(t *testing.T, tt FeatureTest, buildFunc feature.BuildFunc) {
 		tt.Agent.WantFunc(t, tplManager)
 	}
 
-	if tt.ClusterCheckRunner != nil {
-		tplManager := tt.ClusterCheckRunner.CreateFunc(t)
+	if tt.ClusterChecksRunner != nil {
+		tplManager := tt.ClusterChecksRunner.CreateFunc(t)
 		_ = f.ManageClusterChecksRunner(tplManager)
-		tt.ClusterCheckRunner.WantFunc(t, tplManager)
+		tt.ClusterChecksRunner.WantFunc(t, tplManager)
 	}
 }

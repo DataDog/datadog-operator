@@ -68,7 +68,7 @@ func convertClusterAgentSpec(src *DatadogAgentSpecClusterAgentSpec, dst *v2alpha
 		}
 
 		if src.Config.Confd != nil {
-			getV2TemplateOverride(&dst.Spec, v2alpha1.ClusterAgentComponentName).ExtraConfd = convertConfigDirSpec(src.Config.Confd)
+			getV2TemplateOverride(&dst.Spec, v2alpha1.ClusterAgentComponentName).ExtraConfd = ConvertConfigDirSpec(src.Config.Confd)
 		}
 
 		if src.Config.Env != nil {

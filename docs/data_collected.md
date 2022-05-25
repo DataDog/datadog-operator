@@ -8,7 +8,7 @@ The Datadog Operator sends metrics and events to Datadog to monitor the Datadog 
 | -------------------------------------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | `datadog.operator.agent.deployment.success`              | gauge       | `1` if the desired number of Agent replicas equals the number of available Agent pods, `0` otherwise.                               |
 | `datadog.operator.clusteragent.deployment.success`       | gauge       | `1` if the desired number of Cluster Agent replicas equals the number of available Cluster Agent pods, `0` otherwise.               |
-| `datadog.operator.clustercheckrunner.deployment.success` | gauge       | `1` if the desired number of Cluster Check Runner replicas equals the number of available Cluster Check Runner pods, `0` otherwise. |
+| `datadog.operator.clusterchecksrunner.deployment.success` | gauge       | `1` if the desired number of Cluster Check Runner replicas equals the number of available Cluster Check Runner pods, `0` otherwise. |
 | `datadog.operator.reconcile.success`                     | gauge       | `1` if the last recorded reconcile error is null, `0` otherwise. The `reconcile_err` tag describes the last recorded error.         |
 
 **Note:** The [Datadog API and app keys][1] are required to forward metrics to Datadog. They must be provided in the `credentials` field in the Custom Resource definition.

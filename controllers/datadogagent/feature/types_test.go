@@ -58,6 +58,12 @@ func Test_merge(t *testing.T) {
 			b:    &trueValue,
 			want: &trueValue,
 		},
+		{
+			name: "a true, b nil",
+			a:    &trueValue,
+			b:    nil,
+			want: &trueValue,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -120,6 +126,58 @@ func Test_mergeSlices(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := mergeSlices(tt.a, tt.b); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("mergeSlices() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestRequiredComponent_IsEnabled(t *testing.T) {
+	trueValue := true
+	falseValue := false
+
+	type fields struct {
+		IsRequired *bool
+		Containers []apicommonv1.AgentContainerName
+	}
+
+	tests := []struct {
+		name   string
+		fields fields
+		want   bool
+	}{
+		{
+			name: "isEnabled == false, empty",
+			fields: fields{
+				IsRequired: nil,
+				Containers: nil,
+			},
+			want: false,
+		},
+		{
+			name: "isEnabled == true",
+			fields: fields{
+				IsRequired: &trueValue,
+				Containers: nil,
+			},
+			want: true,
+		},
+		{
+			name: "isEnabled == false",
+			fields: fields{
+				IsRequired: &falseValue,
+				Containers: nil,
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rc := &RequiredComponent{
+				IsRequired: tt.fields.IsRequired,
+				Containers: tt.fields.Containers,
+			}
+			if got := rc.IsEnabled(); got != tt.want {
+				t.Errorf("RequiredComponent.IsEnabled() = %v, want %v", got, tt.want)
 			}
 		})
 	}

@@ -59,6 +59,26 @@ func Test_npmFeature_Configure(t *testing.T) {
 	npmAgentNodeWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
 
+		// check annotations
+		wantAnnotations := make(map[string]string)
+		wantAnnotations[apicommon.SystemProbeAppArmorAnnotationKey] = apicommon.SystemProbeAppArmorAnnotationValue
+		annotations := mgr.AnnotationMgr.Annotations
+		assert.True(t, apiutils.IsEqualStruct(annotations, wantAnnotations), "Annotations \ndiff = %s", cmp.Diff(annotations, wantAnnotations))
+
+		// check security context capabilities
+		wantCapabilities := []corev1.Capability{
+			"SYS_ADMIN",
+			"SYS_RESOURCE",
+			"SYS_PTRACE",
+			"NET_ADMIN",
+			"NET_BROADCAST",
+			"NET_RAW",
+			"IPC_LOCK",
+			"CHOWN",
+		}
+		sysProbeCapabilities := mgr.SecurityContextMgr.CapabilitiesByC[apicommonv1.SystemProbeContainerName]
+		assert.True(t, apiutils.IsEqualStruct(sysProbeCapabilities, wantCapabilities), "System Probe security context capabilities \ndiff = %s", cmp.Diff(sysProbeCapabilities, wantCapabilities))
+
 		// check volume mounts
 		wantVolumeMounts := []corev1.VolumeMount{
 			{
@@ -73,12 +93,12 @@ func Test_npmFeature_Configure(t *testing.T) {
 			},
 			{
 				Name:      apicommon.DebugfsVolumeName,
-				MountPath: apicommon.DebugfsVolumePath,
+				MountPath: apicommon.DebugfsPath,
 				ReadOnly:  true,
 			},
 			{
-				Name:      apicommon.SysprobeSocketVolumeName,
-				MountPath: apicommon.SysprobeSocketVolumePath,
+				Name:      apicommon.SystemProbeSocketVolumeName,
+				MountPath: apicommon.SystemProbeSocketVolumePath,
 				ReadOnly:  true,
 			},
 		}
@@ -88,6 +108,16 @@ func Test_npmFeature_Configure(t *testing.T) {
 
 		sysProbeAgentMounts := mgr.VolumeMgr.VolumeMountByC[apicommonv1.SystemProbeContainerName]
 		assert.True(t, apiutils.IsEqualStruct(sysProbeAgentMounts, wantVolumeMounts), "System Probe volume mounts \ndiff = %s", cmp.Diff(sysProbeAgentMounts, wantVolumeMounts))
+
+		coreWantVolumeMounts := []corev1.VolumeMount{
+			{
+				Name:      apicommon.SystemProbeSocketVolumeName,
+				MountPath: apicommon.SystemProbeSocketVolumePath,
+				ReadOnly:  true,
+			},
+		}
+		coreAgentMounts := mgr.VolumeMgr.VolumeMountByC[apicommonv1.CoreAgentContainerName]
+		assert.True(t, apiutils.IsEqualStruct(coreAgentMounts, coreWantVolumeMounts), "Core Agent volume mounts \ndiff = %s", cmp.Diff(coreAgentMounts, coreWantVolumeMounts))
 
 		// check volumes
 		wantVolumes := []corev1.Volume{
@@ -111,16 +141,14 @@ func Test_npmFeature_Configure(t *testing.T) {
 				Name: apicommon.DebugfsVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
-						Path: apicommon.DebugfsVolumePath,
+						Path: apicommon.DebugfsPath,
 					},
 				},
 			},
 			{
-				Name: apicommon.SysprobeSocketVolumeName,
+				Name: apicommon.SystemProbeSocketVolumeName,
 				VolumeSource: corev1.VolumeSource{
-					HostPath: &corev1.HostPathVolumeSource{
-						Path: apicommon.SysprobeSocketVolumePath,
-					},
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},
 			},
 		}
@@ -129,7 +157,7 @@ func Test_npmFeature_Configure(t *testing.T) {
 		assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))
 
 		// check env vars
-		wantEnvVars := []*corev1.EnvVar{
+		sysProbeWantEnvVars := []*corev1.EnvVar{
 			{
 				Name:  apicommon.DDSystemProbeNPMEnabledEnvVar,
 				Value: "true",
@@ -139,19 +167,25 @@ func Test_npmFeature_Configure(t *testing.T) {
 				Value: "true",
 			},
 			{
-				Name:  apicommon.DDSystemProbeSocketEnvVar,
-				Value: apicommon.DefaultSysprobeSocketPath,
+				Name:  apicommon.DDSystemProbeSocket,
+				Value: apicommon.DefaultSystemProbeSocketPath,
 			},
 			{
 				Name:  apicommon.DDProcessAgentEnabledEnvVar,
 				Value: "true",
 			},
 		}
-		processAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ProcessAgentContainerName]
-		assert.True(t, apiutils.IsEqualStruct(processAgentEnvVars, wantEnvVars), "Process Agent envvars \ndiff = %s", cmp.Diff(processAgentEnvVars, wantEnvVars))
-
 		systemProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.SystemProbeContainerName]
-		assert.True(t, apiutils.IsEqualStruct(systemProbeEnvVars, wantEnvVars), "System Probe envvars \ndiff = %s", cmp.Diff(systemProbeEnvVars, wantEnvVars))
+		assert.True(t, apiutils.IsEqualStruct(systemProbeEnvVars, sysProbeWantEnvVars), "System Probe envvars \ndiff = %s", cmp.Diff(systemProbeEnvVars, sysProbeWantEnvVars))
+
+		processWantEnvVars := append(sysProbeWantEnvVars, &corev1.EnvVar{
+			Name:  apicommon.DDSystemProbeExternal,
+			Value: "true",
+		})
+
+		processAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ProcessAgentContainerName]
+		assert.True(t, apiutils.IsEqualStruct(processAgentEnvVars, processWantEnvVars), "Process Agent envvars \ndiff = %s", cmp.Diff(processAgentEnvVars, processWantEnvVars))
+
 	}
 
 	tests := test.FeatureTestSuite{

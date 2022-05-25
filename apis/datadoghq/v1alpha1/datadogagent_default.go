@@ -8,7 +8,6 @@ package v1alpha1
 import (
 	"path"
 	"strings"
-	"time"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
@@ -18,7 +17,6 @@ import (
 
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -74,13 +72,6 @@ const (
 	defaultKubeStateMetricsCoreEnabled                   bool   = false
 	defaultPrometheusScrapeEnabled                       bool   = false
 	defaultPrometheusScrapeServiceEndpoints              bool   = false
-	defaultRollingUpdateMaxUnavailable                          = "10%"
-	defaultUpdateStrategy                                       = appsv1.RollingUpdateDaemonSetStrategyType
-	defaultRollingUpdateMaxPodSchedulerFailure                  = "10%"
-	defaultRollingUpdateMaxParallelPodCreation           int32  = 250
-	defaultRollingUpdateSlowStartIntervalDuration               = 1 * time.Minute
-	defaultRollingUpdateSlowStartAdditiveIncrease               = "5"
-	defaultReconcileFrequency                                   = 10 * time.Second
 	defaultRbacCreate                                           = true
 	defaultMutateUnlabelled                                     = false
 	DefaultAdmissionServiceName                                 = "datadog-admission-controller"
@@ -468,8 +459,8 @@ func DefaultRbacConfig(rbac *RbacConfig) *RbacConfig {
 	return rbacOverride
 }
 
-// DefaultDatadogClusterCheckRunnerSpecRbacConfig used to default a RbacConfig of the Cluster Check Runner
-func DefaultDatadogClusterCheckRunnerSpecRbacConfig(clc *DatadogAgentSpecClusterChecksRunnerSpec) *RbacConfig {
+// DefaultDatadogClusterChecksRunnerSpecRbacConfig used to default a RbacConfig of the Cluster Check Runner
+func DefaultDatadogClusterChecksRunnerSpecRbacConfig(clc *DatadogAgentSpecClusterChecksRunnerSpec) *RbacConfig {
 	if clc.Rbac == nil {
 		// prevent passing an empty reference
 		clc.Rbac = &RbacConfig{}
@@ -505,7 +496,7 @@ func DefaultDatadogAgentSpecDatadogAgentStrategy(agent *DatadogAgentSpecAgentSpe
 	}
 
 	if agent.DeploymentStrategy.UpdateStrategyType == nil {
-		updateStrategy := defaultUpdateStrategy
+		updateStrategy := apicommon.DefaultUpdateStrategy
 		agent.DeploymentStrategy.UpdateStrategyType = &updateStrategy
 		strategyOverride.UpdateStrategyType = agent.DeploymentStrategy.UpdateStrategyType
 	}
@@ -513,7 +504,7 @@ func DefaultDatadogAgentSpecDatadogAgentStrategy(agent *DatadogAgentSpecAgentSpe
 	if agent.DeploymentStrategy.RollingUpdate.MaxUnavailable == nil {
 		agent.DeploymentStrategy.RollingUpdate.MaxUnavailable = &intstr.IntOrString{
 			Type:   intstr.String,
-			StrVal: defaultRollingUpdateMaxUnavailable,
+			StrVal: apicommon.DefaultRollingUpdateMaxUnavailable,
 		}
 		strategyOverride.RollingUpdate.MaxUnavailable = agent.DeploymentStrategy.RollingUpdate.MaxUnavailable
 	}
@@ -521,19 +512,19 @@ func DefaultDatadogAgentSpecDatadogAgentStrategy(agent *DatadogAgentSpecAgentSpe
 	if agent.DeploymentStrategy.RollingUpdate.MaxPodSchedulerFailure == nil {
 		agent.DeploymentStrategy.RollingUpdate.MaxPodSchedulerFailure = &intstr.IntOrString{
 			Type:   intstr.String,
-			StrVal: defaultRollingUpdateMaxPodSchedulerFailure,
+			StrVal: apicommon.DefaultRollingUpdateMaxPodSchedulerFailure,
 		}
 		strategyOverride.RollingUpdate.MaxPodSchedulerFailure = agent.DeploymentStrategy.RollingUpdate.MaxPodSchedulerFailure
 	}
 
 	if agent.DeploymentStrategy.RollingUpdate.MaxParallelPodCreation == nil {
-		agent.DeploymentStrategy.RollingUpdate.MaxParallelPodCreation = apiutils.NewInt32Pointer(defaultRollingUpdateMaxParallelPodCreation)
+		agent.DeploymentStrategy.RollingUpdate.MaxParallelPodCreation = apiutils.NewInt32Pointer(apicommon.DefaultRollingUpdateMaxParallelPodCreation)
 		strategyOverride.RollingUpdate.MaxParallelPodCreation = agent.DeploymentStrategy.RollingUpdate.MaxParallelPodCreation
 	}
 
 	if agent.DeploymentStrategy.RollingUpdate.SlowStartIntervalDuration == nil {
 		agent.DeploymentStrategy.RollingUpdate.SlowStartIntervalDuration = &metav1.Duration{
-			Duration: defaultRollingUpdateSlowStartIntervalDuration,
+			Duration: apicommon.DefaultRollingUpdateSlowStartIntervalDuration,
 		}
 		strategyOverride.RollingUpdate.SlowStartIntervalDuration = agent.DeploymentStrategy.RollingUpdate.SlowStartIntervalDuration
 	}
@@ -541,7 +532,7 @@ func DefaultDatadogAgentSpecDatadogAgentStrategy(agent *DatadogAgentSpecAgentSpe
 	if agent.DeploymentStrategy.RollingUpdate.SlowStartAdditiveIncrease == nil {
 		agent.DeploymentStrategy.RollingUpdate.SlowStartAdditiveIncrease = &intstr.IntOrString{
 			Type:   intstr.String,
-			StrVal: defaultRollingUpdateSlowStartAdditiveIncrease,
+			StrVal: apicommon.DefaultRollingUpdateSlowStartAdditiveIncrease,
 		}
 		strategyOverride.RollingUpdate.SlowStartAdditiveIncrease = agent.DeploymentStrategy.RollingUpdate.SlowStartAdditiveIncrease
 	}
@@ -553,7 +544,7 @@ func DefaultDatadogAgentSpecDatadogAgentStrategy(agent *DatadogAgentSpecAgentSpe
 
 	if agent.DeploymentStrategy.ReconcileFrequency == nil {
 		agent.DeploymentStrategy.ReconcileFrequency = &metav1.Duration{
-			Duration: defaultReconcileFrequency,
+			Duration: apicommon.DefaultReconcileFrequency,
 		}
 		strategyOverride.ReconcileFrequency = agent.DeploymentStrategy.ReconcileFrequency
 	}
@@ -1157,11 +1148,11 @@ func DefaultDatadogAgentSpecClusterChecksRunner(clusterChecksRunner *DatadogAgen
 		clcOverride.Config = cfg
 	}
 
-	if rbac := DefaultDatadogClusterCheckRunnerSpecRbacConfig(clusterChecksRunner); !apiutils.IsEqualStruct(rbac, RbacConfig{}) {
+	if rbac := DefaultDatadogClusterChecksRunnerSpecRbacConfig(clusterChecksRunner); !apiutils.IsEqualStruct(rbac, RbacConfig{}) {
 		clcOverride.Rbac = rbac
 	}
 
-	if net := DefaultClusterCheckRunnerNetworkPolicy(clusterChecksRunner); !apiutils.IsEqualStruct(net, NetworkPolicySpec{}) {
+	if net := DefaultClusterChecksRunnerNetworkPolicy(clusterChecksRunner); !apiutils.IsEqualStruct(net, NetworkPolicySpec{}) {
 		clcOverride.NetworkPolicy = net
 	}
 
@@ -1286,8 +1277,8 @@ func DefaultClusterAgentNetworkPolicy(dca *DatadogAgentSpecClusterAgentSpec) *Ne
 	return DefaultNetworkPolicy(dca.NetworkPolicy)
 }
 
-// DefaultClusterCheckRunnerNetworkPolicy defaults the Network Policy for the Cluster Check Runner
-func DefaultClusterCheckRunnerNetworkPolicy(clc *DatadogAgentSpecClusterChecksRunnerSpec) *NetworkPolicySpec {
+// DefaultClusterChecksRunnerNetworkPolicy defaults the Network Policy for the Cluster Check Runner
+func DefaultClusterChecksRunnerNetworkPolicy(clc *DatadogAgentSpecClusterChecksRunnerSpec) *NetworkPolicySpec {
 	if clc.NetworkPolicy == nil {
 		clc.NetworkPolicy = &NetworkPolicySpec{}
 	}

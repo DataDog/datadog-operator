@@ -31,17 +31,14 @@ func buildNPMFeature(options *feature.Options) feature.Feature {
 	return npmFeat
 }
 
-type npmFeature struct {
-	enable bool
-}
+type npmFeature struct{}
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *npmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	if dda.Spec.Features.NPM != nil && apiutils.BoolValue(dda.Spec.Features.NPM.Enabled) {
-		f.enable = true
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
-				IsRequired: &f.enable,
+				IsRequired: apiutils.NewBoolPointer(true),
 				Containers: []apicommonv1.AgentContainerName{
 					apicommonv1.CoreAgentContainerName,
 					apicommonv1.ProcessAgentContainerName,
@@ -57,10 +54,9 @@ func (f *npmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 // ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
 func (f *npmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	if dda.Spec.Features.NetworkMonitoring != nil && *dda.Spec.Features.NetworkMonitoring.Enabled {
-		f.enable = true
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
-				IsRequired: &f.enable,
+				IsRequired: apiutils.NewBoolPointer(true),
 				Containers: []apicommonv1.AgentContainerName{
 					apicommonv1.CoreAgentContainerName,
 					apicommonv1.ProcessAgentContainerName,
@@ -75,7 +71,7 @@ func (f *npmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.Re
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *npmFeature) ManageDependencies(managers feature.ResourceManagers) error {
+func (f *npmFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
 	return nil
 }
 
@@ -88,6 +84,22 @@ func (f *npmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *npmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+	// annotations
+	managers.Annotation().AddAnnotation(apicommon.SystemProbeAppArmorAnnotationKey, apicommon.SystemProbeAppArmorAnnotationValue)
+
+	// security context capabilities
+	capabilities := []corev1.Capability{
+		"SYS_ADMIN",
+		"SYS_RESOURCE",
+		"SYS_PTRACE",
+		"NET_ADMIN",
+		"NET_BROADCAST",
+		"NET_RAW",
+		"IPC_LOCK",
+		"CHOWN",
+	}
+	managers.SecurityContext().AddCapabilitiesToContainer(capabilities, apicommonv1.SystemProbeContainerName)
+
 	// procdir volume mount
 	procdirVol, procdirVolMount := volume.GetVolumes(apicommon.ProcdirVolumeName, apicommon.ProcdirHostPath, apicommon.ProcdirMountPath, true)
 	managers.Volume().AddVolumeToContainers(&procdirVol, &procdirVolMount, []apicommonv1.AgentContainerName{apicommonv1.ProcessAgentContainerName, apicommonv1.SystemProbeContainerName})
@@ -97,12 +109,19 @@ func (f *npmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 	managers.Volume().AddVolumeToContainers(&cgroupsVol, &cgroupsVolMount, []apicommonv1.AgentContainerName{apicommonv1.ProcessAgentContainerName, apicommonv1.SystemProbeContainerName})
 
 	// debugfs volume mount
-	debugfsVol, debugfsVolMount := volume.GetVolumes(apicommon.DebugfsVolumeName, apicommon.DebugfsVolumePath, apicommon.DebugfsVolumePath, true)
+	debugfsVol, debugfsVolMount := volume.GetVolumes(apicommon.DebugfsVolumeName, apicommon.DebugfsPath, apicommon.DebugfsPath, true)
 	managers.Volume().AddVolumeToContainers(&debugfsVol, &debugfsVolMount, []apicommonv1.AgentContainerName{apicommonv1.ProcessAgentContainerName, apicommonv1.SystemProbeContainerName})
 
 	// socket volume mount
-	socketVol, socketVolMount := volume.GetVolumes(apicommon.SysprobeSocketVolumeName, apicommon.SysprobeSocketVolumePath, apicommon.SysprobeSocketVolumePath, true)
-	managers.Volume().AddVolumeToContainers(&socketVol, &socketVolMount, []apicommonv1.AgentContainerName{apicommonv1.ProcessAgentContainerName, apicommonv1.SystemProbeContainerName})
+	socketVol, socketVolMount := volume.GetVolumesEmptyDir(apicommon.SystemProbeSocketVolumeName, apicommon.SystemProbeSocketVolumePath)
+	managers.Volume().AddVolumeToContainers(
+		&socketVol,
+		&socketVolMount,
+		[]apicommonv1.AgentContainerName{
+			apicommonv1.CoreAgentContainerName,
+			apicommonv1.ProcessAgentContainerName,
+			apicommonv1.SystemProbeContainerName,
+		})
 
 	// env vars
 	enableEnvVar := &corev1.EnvVar{
@@ -120,8 +139,8 @@ func (f *npmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, sysProbeEnableEnvVar)
 
 	socketEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDSystemProbeSocketEnvVar,
-		Value: apicommon.DefaultSysprobeSocketPath,
+		Name:  apicommon.DDSystemProbeSocket,
+		Value: apicommon.DefaultSystemProbeSocketPath,
 	}
 
 	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, socketEnvVar)
@@ -134,6 +153,13 @@ func (f *npmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 
 	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, processEnvVar)
 	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, processEnvVar)
+
+	// env vars for Process Agent only
+	sysProbeExternalEnvVar := &corev1.EnvVar{
+		Name:  apicommon.DDSystemProbeExternal,
+		Value: "true",
+	}
+	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, sysProbeExternalEnvVar)
 
 	return nil
 }

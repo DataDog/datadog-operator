@@ -5,6 +5,12 @@
 
 package common
 
+import (
+	"time"
+
+	appsv1 "k8s.io/api/apps/v1"
+)
+
 // Datadog const value
 const (
 	// AgentDeploymentNameLabelKey label key use to link a Resource to a DatadogAgent
@@ -28,6 +34,8 @@ const (
 	DefaultAPIKeyKey = "api_key"
 	// DefaultTokenKey default token key (use in secret for instance).
 	DefaultTokenKey = "token"
+	// DefaultClusterAgentReplicas default cluster-agent deployment replicas
+	DefaultClusterAgentReplicas = 1
 	// DefaultClusterAgentServicePort default cluster-agent service port
 	DefaultClusterAgentServicePort = 5005
 	// DefaultMetricsServerServicePort default metrics-server port
@@ -48,8 +56,8 @@ const (
 	DefaultMetricsProviderPort int32 = 8443
 	// DefaultKubeStateMetricsCoreConf default ksm core ConfigMap name
 	DefaultKubeStateMetricsCoreConf string = "kube-state-metrics-core-config"
-	// DefaultSysprobeSocketPath default system probe socket path
-	DefaultSysprobeSocketPath = "/var/run/sysprobe/sysprobe.sock"
+	// DefaultSystemProbeSocketPath default System Probe socket path
+	DefaultSystemProbeSocketPath string = "/var/run/sysprobe/sysprobe.sock"
 
 	// Liveness probe default config
 	DefaultLivenessProbeInitialDelaySeconds int32 = 15
@@ -67,6 +75,25 @@ const (
 	DefaultReadinessProbeSuccessThreshold    int32 = 1
 	DefaultReadinessProbeFailureThreshold    int32 = 6
 	DefaultReadinessProbeHTTPPath                  = "/ready"
+
+	// Default Image name
+	DefaultAgentImageName        string = "agent"
+	DefaultClusterAgentImageName string = "cluster-agent"
+
+	// ExtendedDaemonset defaulting
+	DefaultRollingUpdateMaxUnavailable                  = "10%"
+	DefaultUpdateStrategy                               = appsv1.RollingUpdateDaemonSetStrategyType
+	DefaultRollingUpdateMaxPodSchedulerFailure          = "10%"
+	DefaultRollingUpdateMaxParallelPodCreation    int32 = 250
+	DefaultRollingUpdateSlowStartIntervalDuration       = 1 * time.Minute
+	DefaultRollingUpdateSlowStartAdditiveIncrease       = "5"
+	DefaultReconcileFrequency                           = 10 * time.Second
+)
+
+// Annotations
+const (
+	SystemProbeAppArmorAnnotationKey   = "container.apparmor.security.beta.kubernetes.io/system-probe"
+	SystemProbeAppArmorAnnotationValue = "unconfined"
 )
 
 // Datadog volume names and mount paths
@@ -77,6 +104,18 @@ const (
 	ConfigVolumePath              = "/etc/datadog-agent"
 	KubeStateMetricCoreVolumeName = "ksm-core-config"
 
+	HostRootVolumeName = "hostroot"
+	HostRootHostPath   = "/"
+	HostRootMountPath  = "/host/root"
+
+	GroupVolumeName = "group"
+	GroupHostPath   = "/etc/group"
+	GroupMountPath  = "/etc/group"
+
+	PasswdVolumeName = "passwd"
+	PasswdHostPath   = "/etc/passwd"
+	PasswdMountPath  = "/etc/passwd"
+
 	ProcdirVolumeName = "procdir"
 	ProcdirHostPath   = "/proc"
 	ProcdirMountPath  = "/host/proc"
@@ -85,18 +124,21 @@ const (
 	CgroupsHostPath   = "/sys/fs/cgroup"
 	CgroupsMountPath  = "/host/sys/fs/cgroup"
 
-	DebugfsVolumeName = "debugfs"
-	DebugfsVolumePath = "/sys/kernel/debug"
+	SystemProbeSocketVolumeName = "sysprobe-socket-dir"
+	SystemProbeSocketVolumePath = "/var/run/sysprobe"
 
-	SysprobeSocketVolumeName = "sysprobe-socket-dir"
-	SysprobeSocketVolumePath = "/var/run/sysprobe"
+	DebugfsVolumeName = "debugfs"
+	// same path on host and container
+	DebugfsPath = "/sys/kernel/debug"
 
 	ModulesVolumeName = "modules"
 	// same path on host and container
 	ModulesVolumePath = "/lib/modules"
-	SrcVolumeName     = "src"
+
+	SrcVolumeName = "src"
 	// same path on host and container
-	SrcVolumePath              = "/usr/src"
+	SrcVolumePath = "/usr/src"
+
 	LogDatadogVolumeName       = "logdatadog"
 	LogDatadogVolumePath       = "/var/log/datadog"
 	TmpVolumeName              = "tmp"

@@ -41,11 +41,11 @@ func convertDatadogAgentSpec(src *DatadogAgentSpecAgentSpec, dst *v2alpha1.Datad
 		// src.Config.LogLevel not forwarded as setting is not at the same level (NodeAgent POD in v1, Container in v2)
 
 		if src.Config.Confd != nil {
-			getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName).ExtraConfd = convertConfigDirSpec(src.Config.Confd)
+			getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName).ExtraConfd = ConvertConfigDirSpec(src.Config.Confd)
 		}
 
 		if src.Config.Checksd != nil {
-			getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName).ExtraChecksd = convertConfigDirSpec(src.Config.Checksd)
+			getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName).ExtraChecksd = ConvertConfigDirSpec(src.Config.Checksd)
 		}
 
 		if src.Config.Tags != nil {

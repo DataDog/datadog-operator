@@ -9,18 +9,26 @@ package feature
 type IDType int
 
 const (
+	// DefaultIDType enable default component feature.
+	DefaultIDType IDType = iota
 	// DogstatsdIDType Dogstatsd check feature.
-	DogstatsdIDType IDType = iota
+	DogstatsdIDType
 	// KubernetesStateCoreIDType Kubernetes state core check feature.
 	KubernetesStateCoreIDType
 	// OrchestratorExplorerIDType Orchestrator Explorer feature.
 	OrchestratorExplorerIDType
-	// LogCollectionIDType Log Collection check feature
+	// LogCollectionIDType Log Collection feature
 	LogCollectionIDType
 	// NPMIDType NPM feature.
 	NPMIDType
+	// CSPMIDType CSPM feature.
+	CSPMIDType
+	// USMIDType USM feature.
+	USMIDType
 	// OOMKillIDType OOM Kill check feature
 	OOMKillIDType
+	// PrometheusScrapeIDType Prometheus Scrape feature
+	PrometheusScrapeIDType
 	// TCPQueueLengthIDType TCP Queue length check feature
 	TCPQueueLengthIDType
 	// DummyIDType Dummy feature.

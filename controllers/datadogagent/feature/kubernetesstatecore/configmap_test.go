@@ -68,7 +68,6 @@ instances:
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			f := &ksmFeature{
-				enable:               tt.fields.enable,
 				clusterChecksEnabled: tt.fields.clusterChecksEnabled,
 				rbacSuffix:           tt.fields.rbacSuffix,
 				serviceAccountName:   tt.fields.serviceAccountName,
