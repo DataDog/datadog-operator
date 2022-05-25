@@ -77,7 +77,7 @@ func defaultLivenessProbe() *corev1.Probe {
 		TimeoutSeconds:      5,
 		SuccessThreshold:    1,
 		FailureThreshold:    6,
-		Handler: corev1.Handler{
+		ProbeHandler: corev1.ProbeHandler{
 			HTTPGet: &corev1.HTTPGetAction{
 				Path: "/live",
 				Port: intstr.IntOrString{
@@ -95,7 +95,7 @@ func defaultAPMAgentLivenessProbe() *corev1.Probe {
 		TimeoutSeconds:      5,
 		SuccessThreshold:    0,
 		FailureThreshold:    0,
-		Handler: corev1.Handler{
+		ProbeHandler: corev1.ProbeHandler{
 			TCPSocket: &corev1.TCPSocketAction{
 				Port: intstr.IntOrString{
 					IntVal: 8126,
@@ -112,7 +112,7 @@ func defaultReadinessProbe() *corev1.Probe {
 		TimeoutSeconds:      5,
 		SuccessThreshold:    1,
 		FailureThreshold:    6,
-		Handler: corev1.Handler{
+		ProbeHandler: corev1.ProbeHandler{
 			HTTPGet: &corev1.HTTPGetAction{
 				Path: "/ready",
 				Port: intstr.IntOrString{
@@ -3648,13 +3648,17 @@ func getDefaultEDSStrategy() edsdatadoghqv1alpha1.ExtendedDaemonSetSpecStrategy 
 				IntVal: 1,
 			},
 			Duration: &metav1.Duration{
-				Duration: 5 * time.Minute, // As ther is no NoRestartDuration specified.
+				Duration: 10 * time.Minute,
+			},
+			NoRestartsDuration: &metav1.Duration{
+				Duration: 5 * time.Minute,
 			},
 			NodeSelector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{},
 			},
-			AutoPause: edsdatadoghqv1alpha1.DefaultExtendedDaemonSetSpecStrategyCanaryAutoPause(&edsdatadoghqv1alpha1.ExtendedDaemonSetSpecStrategyCanaryAutoPause{}),
-			AutoFail:  edsdatadoghqv1alpha1.DefaultExtendedDaemonSetSpecStrategyCanaryAutoFail(&edsdatadoghqv1alpha1.ExtendedDaemonSetSpecStrategyCanaryAutoFail{}),
+			AutoPause:      edsdatadoghqv1alpha1.DefaultExtendedDaemonSetSpecStrategyCanaryAutoPause(&edsdatadoghqv1alpha1.ExtendedDaemonSetSpecStrategyCanaryAutoPause{}),
+			AutoFail:       edsdatadoghqv1alpha1.DefaultExtendedDaemonSetSpecStrategyCanaryAutoFail(&edsdatadoghqv1alpha1.ExtendedDaemonSetSpecStrategyCanaryAutoFail{}),
+			ValidationMode: edsdatadoghqv1alpha1.ExtendedDaemonSetSpecStrategyCanaryValidationModeAuto,
 		},
 		ReconcileFrequency: &metav1.Duration{
 			Duration: 10 * time.Second,

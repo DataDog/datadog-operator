@@ -538,7 +538,10 @@ func DefaultDatadogAgentSpecDatadogAgentStrategy(agent *DatadogAgentSpecAgentSpe
 	}
 
 	if agent.DeploymentStrategy.Canary == nil {
-		agent.DeploymentStrategy.Canary = edsdatadoghqv1alpha1.DefaultExtendedDaemonSetSpecStrategyCanary(&edsdatadoghqv1alpha1.ExtendedDaemonSetSpecStrategyCanary{})
+		agent.DeploymentStrategy.Canary = edsdatadoghqv1alpha1.DefaultExtendedDaemonSetSpecStrategyCanary(
+			&edsdatadoghqv1alpha1.ExtendedDaemonSetSpecStrategyCanary{},
+			edsdatadoghqv1alpha1.ExtendedDaemonSetSpecStrategyCanaryValidationModeAuto,
+		)
 		strategyOverride.Canary = agent.DeploymentStrategy.Canary
 	}
 

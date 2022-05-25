@@ -223,6 +223,8 @@ func (r *Reconciler) updateOverrideIfNeeded(logger logr.Logger, agentdeployment 
 			logger.Error(err, "unable to update DatadogAgent status override", "error", err)
 			return agentdeployment, reconcile.Result{}, err
 		}
+		// Restore the Spec as it can be changed by Status().Update()
+		updateAgentDeployment.Spec = agentdeployment.Spec
 	}
 	return updateAgentDeployment, result, nil
 }

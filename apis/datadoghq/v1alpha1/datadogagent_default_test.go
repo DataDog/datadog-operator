@@ -478,7 +478,7 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 						SlowStartIntervalDuration: &metav1.Duration{Duration: apicommon.DefaultRollingUpdateSlowStartIntervalDuration},
 						SlowStartAdditiveIncrease: &intstr.IntOrString{Type: intstr.String, StrVal: apicommon.DefaultRollingUpdateSlowStartAdditiveIncrease},
 					},
-					Canary:             edsdatadoghqv1alpha1.DefaultExtendedDaemonSetSpecStrategyCanary(testCanary),
+					Canary:             edsdatadoghqv1alpha1.DefaultExtendedDaemonSetSpecStrategyCanary(testCanary, edsdatadoghqv1alpha1.ExtendedDaemonSetSpecStrategyCanaryValidationModeAuto),
 					ReconcileFrequency: &metav1.Duration{Duration: apicommon.DefaultReconcileFrequency},
 				},
 				Rbac:        &RbacConfig{Create: apiutils.NewBoolPointer(true)},
@@ -528,7 +528,7 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 						SlowStartIntervalDuration: &metav1.Duration{Duration: apicommon.DefaultRollingUpdateSlowStartIntervalDuration},
 						SlowStartAdditiveIncrease: &intstr.IntOrString{Type: intstr.String, StrVal: apicommon.DefaultRollingUpdateSlowStartAdditiveIncrease},
 					},
-					Canary:             edsdatadoghqv1alpha1.DefaultExtendedDaemonSetSpecStrategyCanary(testCanary),
+					Canary:             edsdatadoghqv1alpha1.DefaultExtendedDaemonSetSpecStrategyCanary(testCanary, edsdatadoghqv1alpha1.ExtendedDaemonSetSpecStrategyCanaryValidationModeAuto),
 					ReconcileFrequency: &metav1.Duration{Duration: apicommon.DefaultReconcileFrequency},
 				},
 				Rbac:        &RbacConfig{Create: apiutils.NewBoolPointer(true)},
@@ -557,7 +557,7 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 					Name: "gcr.io/datadog/agent:6.26.0",
 				},
 				DeploymentStrategy: &DaemonSetDeploymentStrategy{
-					Canary: edsdatadoghqv1alpha1.DefaultExtendedDaemonSetSpecStrategyCanary(testCanary),
+					Canary: edsdatadoghqv1alpha1.DefaultExtendedDaemonSetSpecStrategyCanary(testCanary, edsdatadoghqv1alpha1.ExtendedDaemonSetSpecStrategyCanaryValidationModeAuto),
 				},
 				Apm: &APMSpec{
 					HostPort: apiutils.NewInt32Pointer(1664),
@@ -660,7 +660,7 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 						SlowStartIntervalDuration: &metav1.Duration{Duration: apicommon.DefaultRollingUpdateSlowStartIntervalDuration},
 						SlowStartAdditiveIncrease: &intstr.IntOrString{Type: intstr.String, StrVal: apicommon.DefaultRollingUpdateSlowStartAdditiveIncrease},
 					},
-					Canary:             edsdatadoghqv1alpha1.DefaultExtendedDaemonSetSpecStrategyCanary(testCanary),
+					Canary:             edsdatadoghqv1alpha1.DefaultExtendedDaemonSetSpecStrategyCanary(testCanary, edsdatadoghqv1alpha1.ExtendedDaemonSetSpecStrategyCanaryValidationModeAuto),
 					ReconcileFrequency: &metav1.Duration{Duration: apicommon.DefaultReconcileFrequency},
 				},
 				Apm: &APMSpec{
