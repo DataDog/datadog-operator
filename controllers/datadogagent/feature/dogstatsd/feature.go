@@ -6,6 +6,8 @@
 package dogstatsd
 
 import (
+	"strconv"
+
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
@@ -38,6 +40,7 @@ type dogstatsdFeature struct {
 	udsEnabled      bool
 	udsHostFilepath string
 
+	useHostNetwork         bool
 	originDetectionEnabled bool
 	mapperProfiles         *apicommonv1.CustomConfig
 }
@@ -49,6 +52,7 @@ func (f *dogstatsdFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp featur
 		f.hostPortEnabled = true
 		f.hostPortHostPort = *dogstatsd.HostPortConfig.Port
 	}
+	// UDS is enabled by default
 	if apiutils.BoolValue(dogstatsd.UnixDomainSocketConfig.Enabled) {
 		f.udsEnabled = true
 	}
@@ -56,12 +60,13 @@ func (f *dogstatsdFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp featur
 	if apiutils.BoolValue(dogstatsd.OriginDetectionEnabled) {
 		f.originDetectionEnabled = true
 	}
+	f.useHostNetwork = v2alpha1.IsHostNetworkEnabled(dda)
 	if dogstatsd.MapperProfiles != nil {
 		f.mapperProfiles = v2alpha1.ConvertCustomConfig(dogstatsd.MapperProfiles)
 	}
 	reqComp = feature.RequiredComponents{
 		Agent: feature.RequiredComponent{
-			IsRequired: f.isDogstatsdEnabled(),
+			IsRequired: apiutils.NewBoolPointer(true),
 			Containers: []apicommonv1.AgentContainerName{
 				apicommonv1.CoreAgentContainerName,
 			},
@@ -73,8 +78,8 @@ func (f *dogstatsdFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp featur
 // ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
 func (f *dogstatsdFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	config := dda.Spec.Agent.Config
-	f.hostPortEnabled = true
 	if config.HostPort != nil {
+		f.hostPortEnabled = true
 		f.hostPortHostPort = *config.HostPort
 	}
 	if apiutils.BoolValue(config.Dogstatsd.UnixDomainSocket.Enabled) {
@@ -86,12 +91,13 @@ func (f *dogstatsdFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feat
 	if apiutils.BoolValue(config.Dogstatsd.DogstatsdOriginDetection) {
 		f.originDetectionEnabled = true
 	}
+	f.useHostNetwork = v1alpha1.IsHostNetworkEnabled(dda)
 	if config.Dogstatsd.MapperProfiles != nil {
 		f.mapperProfiles = v1alpha1.ConvertCustomConfig(config.Dogstatsd.MapperProfiles)
 	}
 	reqComp = feature.RequiredComponents{
 		Agent: feature.RequiredComponent{
-			IsRequired: &f.hostPortEnabled,
+			IsRequired: apiutils.NewBoolPointer(true),
 			Containers: []apicommonv1.AgentContainerName{
 				apicommonv1.CoreAgentContainerName,
 			},
@@ -116,29 +122,31 @@ func (f *dogstatsdFeature) ManageClusterAgent(managers feature.PodTemplateManage
 // It should do nothing if the feature doesn't need to configure it.
 func (f *dogstatsdFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	// udp
+	dogstatsdPort := &corev1.ContainerPort{
+		Name:          apicommon.DogstatsdHostPortName,
+		ContainerPort: apicommon.DogstatsdHostPortHostPort,
+		Protocol:      corev1.ProtocolUDP,
+	}
 	if f.hostPortEnabled {
-		// f.hostPortHostPort will be 0 if not set in v1alpha1
+		// f.hostPortHostPort will be 0 if HostPort is not set in v1alpha1
 		// f.hostPortHostPort will default to 8125 in v2alpha1
 		if f.hostPortHostPort != 0 {
-			managers.Port().AddPortToContainer(apicommonv1.CoreAgentContainerName, &corev1.ContainerPort{
-				Name:          apicommon.DogstatsdHostPortName,
-				HostPort:      f.hostPortHostPort,
-				ContainerPort: apicommon.DogstatsdHostPortHostPort,
-				Protocol:      corev1.ProtocolUDP,
-			})
-		} else {
-			// do not set HostPort if not explicitly set (only for v1alpha1)
-			managers.Port().AddPortToContainer(apicommonv1.CoreAgentContainerName, &corev1.ContainerPort{
-				Name:          apicommon.DogstatsdHostPortName,
-				ContainerPort: apicommon.DogstatsdHostPortHostPort,
-				Protocol:      corev1.ProtocolUDP,
-			})
+			dogstatsdPort.HostPort = f.hostPortHostPort
+			// if using host network, host port should be set and needs to match container port
+			if f.useHostNetwork {
+				dogstatsdPort.ContainerPort = f.hostPortHostPort
+				managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
+					Name:  apicommon.DDDogstatsdPort,
+					Value: strconv.FormatInt(int64(f.hostPortHostPort), 10),
+				})
+			}
 		}
 		managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
 			Name:  apicommon.DDDogstatsdNonLocalTraffic,
 			Value: "true",
 		})
 	}
+	managers.Port().AddPortToContainer(apicommonv1.CoreAgentContainerName, dogstatsdPort)
 
 	// uds
 	if f.udsEnabled {
@@ -190,9 +198,4 @@ func (f *dogstatsdFeature) ManageNodeAgent(managers feature.PodTemplateManagers)
 // It should do nothing if the feature doesn't need to configure it.
 func (f *dogstatsdFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	return nil
-}
-
-func (f *dogstatsdFeature) isDogstatsdEnabled() *bool {
-	enabled := f.hostPortEnabled || f.udsEnabled
-	return &enabled
 }

@@ -10,6 +10,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -56,4 +57,14 @@ func ConvertCustomConfig(config *CustomConfig) *commonv1.CustomConfig {
 		ConfigData: config.ConfigData,
 		ConfigMap:  configMap,
 	}
+}
+
+// IsHostNetworkEnabled returns whether the pod should use the host's network namespace
+func IsHostNetworkEnabled(dda *DatadogAgent) bool {
+	for _, val := range dda.Spec.Override {
+		if apiutils.BoolValue(val.HostNetwork) {
+			return true
+		}
+	}
+	return false
 }

@@ -76,7 +76,7 @@ func Test_defaultFeatures(t *testing.T) {
 						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogstatsdOriginDetectionEnabled),
 						HostPortConfig:         &HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
 						UnixDomainSocketConfig: &UnixDomainSocketConfig{
-							Enabled: apiutils.NewBoolPointer(defaultDogstatsdUseSocketVolume),
+							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
 							Path:    apiutils.NewStringPointer(defaultDogstatsdSocketPath),
 						},
 					},
@@ -198,7 +198,7 @@ func Test_defaultFeatures(t *testing.T) {
 						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogstatsdOriginDetectionEnabled),
 						HostPortConfig:         &HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
 						UnixDomainSocketConfig: &UnixDomainSocketConfig{
-							Enabled: apiutils.NewBoolPointer(defaultDogstatsdUseSocketVolume),
+							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
 							Path:    apiutils.NewStringPointer(defaultDogstatsdSocketPath),
 						},
 					},
@@ -255,7 +255,7 @@ func Test_defaultFeatures(t *testing.T) {
 						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogstatsdOriginDetectionEnabled),
 						HostPortConfig:         &HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
 						UnixDomainSocketConfig: &UnixDomainSocketConfig{
-							Enabled: apiutils.NewBoolPointer(defaultDogstatsdUseSocketVolume),
+							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
 							Path:    apiutils.NewStringPointer(defaultDogstatsdSocketPath),
 						},
 					},
@@ -310,7 +310,7 @@ func Test_defaultFeatures(t *testing.T) {
 						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogstatsdOriginDetectionEnabled),
 						HostPortConfig:         &HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
 						UnixDomainSocketConfig: &UnixDomainSocketConfig{
-							Enabled: apiutils.NewBoolPointer(defaultDogstatsdUseSocketVolume),
+							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
 							Path:    apiutils.NewStringPointer(defaultDogstatsdSocketPath),
 						},
 					},
@@ -359,7 +359,7 @@ func Test_defaultFeatures(t *testing.T) {
 						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogstatsdOriginDetectionEnabled),
 						HostPortConfig:         &HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
 						UnixDomainSocketConfig: &UnixDomainSocketConfig{
-							Enabled: apiutils.NewBoolPointer(defaultDogstatsdUseSocketVolume),
+							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
 							Path:    apiutils.NewStringPointer(defaultDogstatsdSocketPath),
 						},
 					},
@@ -403,7 +403,7 @@ func Test_defaultFeatures(t *testing.T) {
 						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogstatsdOriginDetectionEnabled),
 						HostPortConfig:         &HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
 						UnixDomainSocketConfig: &UnixDomainSocketConfig{
-							Enabled: apiutils.NewBoolPointer(defaultDogstatsdUseSocketVolume),
+							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
 							Path:    apiutils.NewStringPointer(defaultDogstatsdSocketPath),
 						},
 					},

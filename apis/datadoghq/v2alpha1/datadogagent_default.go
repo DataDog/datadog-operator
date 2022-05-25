@@ -48,7 +48,7 @@ const (
 	defaultDogstatsdOriginDetectionEnabled bool   = false
 	defaultDogstatsdHostPortEnabled        bool   = false
 	defaultDogstatsdPort                   int32  = 8125
-	defaultDogstatsdUseSocketVolume        bool   = false
+	defaultDogstatsdSocketEnabled          bool   = true
 	defaultDogstatsdSocketPath             string = "/var/run/datadog/dsd.socket"
 
 	defaultCollectKubernetesEvents bool = true
@@ -181,7 +181,7 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 		ddaSpec.Features.Dogstatsd.UnixDomainSocketConfig = &UnixDomainSocketConfig{}
 	}
 
-	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.Dogstatsd.UnixDomainSocketConfig.Enabled, defaultDogstatsdUseSocketVolume)
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.Dogstatsd.UnixDomainSocketConfig.Enabled, defaultDogstatsdSocketEnabled)
 
 	apiutils.DefaultStringIfUnset(&ddaSpec.Features.Dogstatsd.UnixDomainSocketConfig.Path, defaultDogstatsdSocketPath)
 

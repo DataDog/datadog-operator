@@ -464,6 +464,7 @@ type HostPortConfig struct {
 // +k8s:openapi-gen=true
 type UnixDomainSocketConfig struct {
 	// Enabled enables Unix Domain Socket.
+	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 

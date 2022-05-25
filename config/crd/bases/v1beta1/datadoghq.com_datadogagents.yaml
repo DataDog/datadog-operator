@@ -24862,7 +24862,8 @@ spec:
                           Enabled Default: true Path Default: `/var/run/datadog/apm.socket`'
                         properties:
                           enabled:
-                            description: Enabled enables Unix Domain Socket.
+                            description: 'Enabled enables Unix Domain Socket. Default:
+                              true'
                             type: boolean
                           path:
                             description: Path defines the socket path used when enabled.
@@ -25084,7 +25085,8 @@ spec:
                           Enabled Default: true Path Default: `/var/run/datadog/dsd.socket`'
                         properties:
                           enabled:
-                            description: Enabled enables Unix Domain Socket.
+                            description: 'Enabled enables Unix Domain Socket. Default:
+                              true'
                             type: boolean
                           path:
                             description: Path defines the socket path used when enabled.
@@ -29592,7 +29594,8 @@ spec:
                               Enabled Default: true Path Default: `/var/run/datadog/apm.socket`'
                             properties:
                               enabled:
-                                description: Enabled enables Unix Domain Socket.
+                                description: 'Enabled enables Unix Domain Socket.
+                                  Default: true'
                                 type: boolean
                               path:
                                 description: Path defines the socket path used when
@@ -29821,7 +29824,8 @@ spec:
                               Enabled Default: true Path Default: `/var/run/datadog/dsd.socket`'
                             properties:
                               enabled:
-                                description: Enabled enables Unix Domain Socket.
+                                description: 'Enabled enables Unix Domain Socket.
+                                  Default: true'
                                 type: boolean
                               path:
                                 description: Path defines the socket path used when

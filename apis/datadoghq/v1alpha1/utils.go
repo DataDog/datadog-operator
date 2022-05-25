@@ -79,3 +79,8 @@ func ConvertCustomConfig(config *CustomConfigSpec) *commonv1.CustomConfig {
 		ConfigMap:  configMap,
 	}
 }
+
+// IsHostNetworkEnabled returns whether the pod should use the host's network namespace
+func IsHostNetworkEnabled(dda *DatadogAgent) bool {
+	return apiutils.BoolValue(&dda.Spec.Agent.HostNetwork)
+}
