@@ -78,6 +78,30 @@ func GetVolumeInstallInfo(owner metav1.Object) corev1.Volume {
 	}
 }
 
+// GetVolumeForProc returns the volume with /proc
+func GetVolumeForProc() corev1.Volume {
+	return corev1.Volume{
+		Name: apicommon.ProcdirVolumeName,
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: apicommon.ProcdirHostPath,
+			},
+		},
+	}
+}
+
+// GetVolumeForCgroups returns the volume that contains the cgroup directory
+func GetVolumeForCgroups() corev1.Volume {
+	return corev1.Volume{
+		Name: apicommon.CgroupsVolumeName,
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: "/sys/fs/cgroup",
+			},
+		},
+	}
+}
+
 // GetInstallInfoConfigMapName return the InstallInfo config map name base on the dda name
 func GetInstallInfoConfigMapName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-install-info", dda.GetName())
@@ -105,6 +129,14 @@ func GetVolumeMountForRmCorechecks() corev1.VolumeMount {
 	return corev1.VolumeMount{
 		Name:      "remove-corechecks",
 		MountPath: fmt.Sprintf("%s/%s", apicommon.ConfigVolumePath, "conf.d"),
+	}
+}
+
+// GetVolumeMountForAuth returns the VolumeMount that contains the authentication information
+func GetVolumeMountForAuth() corev1.VolumeMount {
+	return corev1.VolumeMount{
+		Name:      apicommon.AuthVolumeName,
+		MountPath: apicommon.AuthVolumePath,
 	}
 }
 
@@ -162,6 +194,24 @@ func GetVolumeMountForInstallInfo() corev1.VolumeMount {
 		MountPath: apicommon.InstallInfoVolumePath,
 		SubPath:   apicommon.InstallInfoVolumeSubPath,
 		ReadOnly:  apicommon.InstallInfoVolumeReadOnly,
+	}
+}
+
+// GetVolumeMountForProc returns the VolumeMount that contains /proc
+func GetVolumeMountForProc() corev1.VolumeMount {
+	return corev1.VolumeMount{
+		Name:      apicommon.ProcdirVolumeName,
+		MountPath: apicommon.ProcdirMountPath,
+		ReadOnly:  true,
+	}
+}
+
+// GetVolumeMountForCgroups returns the VolumeMount that contains the cgroups info
+func GetVolumeMountForCgroups() corev1.VolumeMount {
+	return corev1.VolumeMount{
+		Name:      apicommon.CgroupsVolumeName,
+		MountPath: apicommon.CgroupsMountPath,
+		ReadOnly:  true,
 	}
 }
 
