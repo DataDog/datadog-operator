@@ -6,6 +6,6 @@
 package object
 
 const (
-	// Datadog tags prefix
-	datadogTagPrefix = "tags.datadoghq.com"
+	// DatadogTagPrefix Datadog tags prefix
+	DatadogTagPrefix = "tags.datadoghq.com"
 )

@@ -8,15 +8,15 @@ package v1alpha1
 import (
 	"path"
 	"strings"
-	"time"
 
+	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
-	appsv1 "k8s.io/api/apps/v1"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -72,34 +72,10 @@ const (
 	defaultKubeStateMetricsCoreEnabled                   bool   = false
 	defaultPrometheusScrapeEnabled                       bool   = false
 	defaultPrometheusScrapeServiceEndpoints              bool   = false
-	defaultRollingUpdateMaxUnavailable                          = "10%"
-	defaultUpdateStrategy                                       = appsv1.RollingUpdateDaemonSetStrategyType
-	defaultRollingUpdateMaxPodSchedulerFailure                  = "10%"
-	defaultRollingUpdateMaxParallelPodCreation           int32  = 250
-	defaultRollingUpdateSlowStartIntervalDuration               = 1 * time.Minute
-	defaultRollingUpdateSlowStartAdditiveIncrease               = "5"
-	defaultReconcileFrequency                                   = 10 * time.Second
 	defaultRbacCreate                                           = true
 	defaultMutateUnlabelled                                     = false
 	DefaultAdmissionServiceName                                 = "datadog-admission-controller"
 	defaultAdmissionControllerEnabled                           = false
-
-	// Liveness probe default config
-	defaultLivenessProbeInitialDelaySeconds int32 = 15
-	defaultLivenessProbePeriodSeconds       int32 = 15
-	defaultLivenessProbeTimeoutSeconds      int32 = 5
-	defaultLivenessProbeSuccessThreshold    int32 = 1
-	defaultLivenessProbeFailureThreshold    int32 = 6
-	defaultAgentHealthPort                  int32 = 5555
-	defaultLivenessProbeHTTPPath                  = "/live"
-
-	// Readiness probe default config
-	defaultReadinessProbeInitialDelaySeconds int32 = 15
-	defaultReadinessProbePeriodSeconds       int32 = 15
-	defaultReadinessProbeTimeoutSeconds      int32 = 5
-	defaultReadinessProbeSuccessThreshold    int32 = 1
-	defaultReadinessProbeFailureThreshold    int32 = 6
-	defaultReadinessProbeHTTPPath                  = "/ready"
 )
 
 var defaultImagePullPolicy = corev1.PullIfNotPresent
@@ -310,16 +286,16 @@ func DefaultDatadogAgentSpecAgentImage(agent *DatadogAgentSpecAgentSpec, name, t
 // GetDefaultLivenessProbe creates a all defaulted LivenessProbe
 func GetDefaultLivenessProbe() *corev1.Probe {
 	livenessProbe := &corev1.Probe{
-		InitialDelaySeconds: defaultLivenessProbeInitialDelaySeconds,
-		PeriodSeconds:       defaultLivenessProbePeriodSeconds,
-		TimeoutSeconds:      defaultLivenessProbeTimeoutSeconds,
-		SuccessThreshold:    defaultLivenessProbeSuccessThreshold,
-		FailureThreshold:    defaultLivenessProbeFailureThreshold,
+		InitialDelaySeconds: apicommon.DefaultLivenessProbeInitialDelaySeconds,
+		PeriodSeconds:       apicommon.DefaultLivenessProbePeriodSeconds,
+		TimeoutSeconds:      apicommon.DefaultLivenessProbeTimeoutSeconds,
+		SuccessThreshold:    apicommon.DefaultLivenessProbeSuccessThreshold,
+		FailureThreshold:    apicommon.DefaultLivenessProbeFailureThreshold,
 	}
 	livenessProbe.HTTPGet = &corev1.HTTPGetAction{
-		Path: defaultLivenessProbeHTTPPath,
+		Path: apicommon.DefaultLivenessProbeHTTPPath,
 		Port: intstr.IntOrString{
-			IntVal: defaultAgentHealthPort,
+			IntVal: apicommon.DefaultAgentHealthPort,
 		},
 	}
 	return livenessProbe
@@ -328,16 +304,16 @@ func GetDefaultLivenessProbe() *corev1.Probe {
 // GetDefaultReadinessProbe creates a all defaulted ReadynessProbe
 func GetDefaultReadinessProbe() *corev1.Probe {
 	readinessProbe := &corev1.Probe{
-		InitialDelaySeconds: defaultReadinessProbeInitialDelaySeconds,
-		PeriodSeconds:       defaultReadinessProbePeriodSeconds,
-		TimeoutSeconds:      defaultReadinessProbeTimeoutSeconds,
-		SuccessThreshold:    defaultReadinessProbeSuccessThreshold,
-		FailureThreshold:    defaultReadinessProbeFailureThreshold,
+		InitialDelaySeconds: apicommon.DefaultReadinessProbeInitialDelaySeconds,
+		PeriodSeconds:       apicommon.DefaultReadinessProbePeriodSeconds,
+		TimeoutSeconds:      apicommon.DefaultReadinessProbeTimeoutSeconds,
+		SuccessThreshold:    apicommon.DefaultReadinessProbeSuccessThreshold,
+		FailureThreshold:    apicommon.DefaultReadinessProbeFailureThreshold,
 	}
 	readinessProbe.HTTPGet = &corev1.HTTPGetAction{
-		Path: defaultReadinessProbeHTTPPath,
+		Path: apicommon.DefaultReadinessProbeHTTPPath,
 		Port: intstr.IntOrString{
-			IntVal: defaultAgentHealthPort,
+			IntVal: apicommon.DefaultAgentHealthPort,
 		},
 	}
 	return readinessProbe
@@ -404,7 +380,7 @@ func DefaultDatadogAgentSpecAgentConfig(agent *DatadogAgentSpecAgentSpec) *NodeA
 	}
 
 	if agent.Config.HealthPort == nil {
-		agent.Config.HealthPort = apiutils.NewInt32Pointer(defaultAgentHealthPort)
+		agent.Config.HealthPort = apiutils.NewInt32Pointer(apicommon.DefaultAgentHealthPort)
 		configOverride.HealthPort = agent.Config.HealthPort
 	}
 
@@ -483,8 +459,8 @@ func DefaultRbacConfig(rbac *RbacConfig) *RbacConfig {
 	return rbacOverride
 }
 
-// DefaultDatadogClusterCheckRunnerSpecRbacConfig used to default a RbacConfig of the Cluster Check Runner
-func DefaultDatadogClusterCheckRunnerSpecRbacConfig(clc *DatadogAgentSpecClusterChecksRunnerSpec) *RbacConfig {
+// DefaultDatadogClusterChecksRunnerSpecRbacConfig used to default a RbacConfig of the Cluster Check Runner
+func DefaultDatadogClusterChecksRunnerSpecRbacConfig(clc *DatadogAgentSpecClusterChecksRunnerSpec) *RbacConfig {
 	if clc.Rbac == nil {
 		// prevent passing an empty reference
 		clc.Rbac = &RbacConfig{}
@@ -520,7 +496,7 @@ func DefaultDatadogAgentSpecDatadogAgentStrategy(agent *DatadogAgentSpecAgentSpe
 	}
 
 	if agent.DeploymentStrategy.UpdateStrategyType == nil {
-		updateStrategy := defaultUpdateStrategy
+		updateStrategy := apicommon.DefaultUpdateStrategy
 		agent.DeploymentStrategy.UpdateStrategyType = &updateStrategy
 		strategyOverride.UpdateStrategyType = agent.DeploymentStrategy.UpdateStrategyType
 	}
@@ -528,7 +504,7 @@ func DefaultDatadogAgentSpecDatadogAgentStrategy(agent *DatadogAgentSpecAgentSpe
 	if agent.DeploymentStrategy.RollingUpdate.MaxUnavailable == nil {
 		agent.DeploymentStrategy.RollingUpdate.MaxUnavailable = &intstr.IntOrString{
 			Type:   intstr.String,
-			StrVal: defaultRollingUpdateMaxUnavailable,
+			StrVal: apicommon.DefaultRollingUpdateMaxUnavailable,
 		}
 		strategyOverride.RollingUpdate.MaxUnavailable = agent.DeploymentStrategy.RollingUpdate.MaxUnavailable
 	}
@@ -536,19 +512,19 @@ func DefaultDatadogAgentSpecDatadogAgentStrategy(agent *DatadogAgentSpecAgentSpe
 	if agent.DeploymentStrategy.RollingUpdate.MaxPodSchedulerFailure == nil {
 		agent.DeploymentStrategy.RollingUpdate.MaxPodSchedulerFailure = &intstr.IntOrString{
 			Type:   intstr.String,
-			StrVal: defaultRollingUpdateMaxPodSchedulerFailure,
+			StrVal: apicommon.DefaultRollingUpdateMaxPodSchedulerFailure,
 		}
 		strategyOverride.RollingUpdate.MaxPodSchedulerFailure = agent.DeploymentStrategy.RollingUpdate.MaxPodSchedulerFailure
 	}
 
 	if agent.DeploymentStrategy.RollingUpdate.MaxParallelPodCreation == nil {
-		agent.DeploymentStrategy.RollingUpdate.MaxParallelPodCreation = apiutils.NewInt32Pointer(defaultRollingUpdateMaxParallelPodCreation)
+		agent.DeploymentStrategy.RollingUpdate.MaxParallelPodCreation = apiutils.NewInt32Pointer(apicommon.DefaultRollingUpdateMaxParallelPodCreation)
 		strategyOverride.RollingUpdate.MaxParallelPodCreation = agent.DeploymentStrategy.RollingUpdate.MaxParallelPodCreation
 	}
 
 	if agent.DeploymentStrategy.RollingUpdate.SlowStartIntervalDuration == nil {
 		agent.DeploymentStrategy.RollingUpdate.SlowStartIntervalDuration = &metav1.Duration{
-			Duration: defaultRollingUpdateSlowStartIntervalDuration,
+			Duration: apicommon.DefaultRollingUpdateSlowStartIntervalDuration,
 		}
 		strategyOverride.RollingUpdate.SlowStartIntervalDuration = agent.DeploymentStrategy.RollingUpdate.SlowStartIntervalDuration
 	}
@@ -556,7 +532,7 @@ func DefaultDatadogAgentSpecDatadogAgentStrategy(agent *DatadogAgentSpecAgentSpe
 	if agent.DeploymentStrategy.RollingUpdate.SlowStartAdditiveIncrease == nil {
 		agent.DeploymentStrategy.RollingUpdate.SlowStartAdditiveIncrease = &intstr.IntOrString{
 			Type:   intstr.String,
-			StrVal: defaultRollingUpdateSlowStartAdditiveIncrease,
+			StrVal: apicommon.DefaultRollingUpdateSlowStartAdditiveIncrease,
 		}
 		strategyOverride.RollingUpdate.SlowStartAdditiveIncrease = agent.DeploymentStrategy.RollingUpdate.SlowStartAdditiveIncrease
 	}
@@ -568,7 +544,7 @@ func DefaultDatadogAgentSpecDatadogAgentStrategy(agent *DatadogAgentSpecAgentSpe
 
 	if agent.DeploymentStrategy.ReconcileFrequency == nil {
 		agent.DeploymentStrategy.ReconcileFrequency = &metav1.Duration{
-			Duration: defaultReconcileFrequency,
+			Duration: apicommon.DefaultReconcileFrequency,
 		}
 		strategyOverride.ReconcileFrequency = agent.DeploymentStrategy.ReconcileFrequency
 	}
@@ -613,9 +589,9 @@ func DefaultDatadogAgentSpecAgentApm(agent *DatadogAgentSpecAgentSpec) *APMSpec 
 
 func getDefaultAPMAgentLivenessProbe() *corev1.Probe {
 	livenessProbe := &corev1.Probe{
-		InitialDelaySeconds: defaultLivenessProbeInitialDelaySeconds,
-		PeriodSeconds:       defaultLivenessProbePeriodSeconds,
-		TimeoutSeconds:      defaultLivenessProbeTimeoutSeconds,
+		InitialDelaySeconds: apicommon.DefaultLivenessProbeInitialDelaySeconds,
+		PeriodSeconds:       apicommon.DefaultLivenessProbePeriodSeconds,
+		TimeoutSeconds:      apicommon.DefaultLivenessProbeTimeoutSeconds,
 	}
 	livenessProbe.TCPSocket = &corev1.TCPSocketAction{
 		Port: intstr.IntOrString{
@@ -1054,7 +1030,7 @@ func DefaultDatadogAgentSpecClusterAgentConfig(dca *DatadogAgentSpecClusterAgent
 	}
 
 	if dca.Config.HealthPort == nil {
-		dca.Config.HealthPort = apiutils.NewInt32Pointer(defaultAgentHealthPort)
+		dca.Config.HealthPort = apiutils.NewInt32Pointer(apicommon.DefaultAgentHealthPort)
 		configOverride.HealthPort = dca.Config.HealthPort
 	}
 
@@ -1172,11 +1148,11 @@ func DefaultDatadogAgentSpecClusterChecksRunner(clusterChecksRunner *DatadogAgen
 		clcOverride.Config = cfg
 	}
 
-	if rbac := DefaultDatadogClusterCheckRunnerSpecRbacConfig(clusterChecksRunner); !apiutils.IsEqualStruct(rbac, RbacConfig{}) {
+	if rbac := DefaultDatadogClusterChecksRunnerSpecRbacConfig(clusterChecksRunner); !apiutils.IsEqualStruct(rbac, RbacConfig{}) {
 		clcOverride.Rbac = rbac
 	}
 
-	if net := DefaultClusterCheckRunnerNetworkPolicy(clusterChecksRunner); !apiutils.IsEqualStruct(net, NetworkPolicySpec{}) {
+	if net := DefaultClusterChecksRunnerNetworkPolicy(clusterChecksRunner); !apiutils.IsEqualStruct(net, NetworkPolicySpec{}) {
 		clcOverride.NetworkPolicy = net
 	}
 
@@ -1240,7 +1216,7 @@ func DefaultDatadogAgentSpecClusterChecksRunnerConfig(clc *DatadogAgentSpecClust
 		configOverride.ReadinessProbe = clc.Config.ReadinessProbe
 	}
 	if clc.Config.HealthPort == nil {
-		clc.Config.HealthPort = apiutils.NewInt32Pointer(defaultAgentHealthPort)
+		clc.Config.HealthPort = apiutils.NewInt32Pointer(apicommon.DefaultAgentHealthPort)
 		configOverride.HealthPort = clc.Config.HealthPort
 	}
 
@@ -1301,8 +1277,8 @@ func DefaultClusterAgentNetworkPolicy(dca *DatadogAgentSpecClusterAgentSpec) *Ne
 	return DefaultNetworkPolicy(dca.NetworkPolicy)
 }
 
-// DefaultClusterCheckRunnerNetworkPolicy defaults the Network Policy for the Cluster Check Runner
-func DefaultClusterCheckRunnerNetworkPolicy(clc *DatadogAgentSpecClusterChecksRunnerSpec) *NetworkPolicySpec {
+// DefaultClusterChecksRunnerNetworkPolicy defaults the Network Policy for the Cluster Check Runner
+func DefaultClusterChecksRunnerNetworkPolicy(clc *DatadogAgentSpecClusterChecksRunnerSpec) *NetworkPolicySpec {
 	if clc.NetworkPolicy == nil {
 		clc.NetworkPolicy = &NetworkPolicySpec{}
 	}

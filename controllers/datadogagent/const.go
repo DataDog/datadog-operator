@@ -34,7 +34,4 @@ const (
 	apiServiceKind          = "APIService"
 	networkPolicyKind       = "NetworkPolicy"
 	ciliumNetworkPolicyKind = "CiliumNetworkPolicy"
-
-	// Datadog tags prefix
-	datadogTagPrefix = "tags.datadoghq.com"
 )

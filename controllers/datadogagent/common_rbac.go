@@ -5,6 +5,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/common"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/kubernetesstatecore"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -37,7 +38,7 @@ type roleBindingInfo struct {
 func buildRoleBinding(dda *datadoghqv1alpha1.DatadogAgent, info roleBindingInfo, agentVersion string) *rbacv1.RoleBinding {
 	return &rbacv1.RoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels:    getDefaultLabels(dda, dda.Name, agentVersion),
+			Labels:    object.GetDefaultLabels(dda, dda.Name, agentVersion),
 			Name:      info.name,
 			Namespace: dda.Namespace,
 		},
@@ -60,7 +61,7 @@ func buildRoleBinding(dda *datadoghqv1alpha1.DatadogAgent, info roleBindingInfo,
 func buildServiceAccount(dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string) *corev1.ServiceAccount {
 	return &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels:    getDefaultLabels(dda, dda.Name, agentVersion),
+			Labels:    object.GetDefaultLabels(dda, dda.Name, agentVersion),
 			Name:      name,
 			Namespace: dda.Namespace,
 		},
@@ -284,7 +285,7 @@ func (r *Reconciler) updateIfNeededRole(logger logr.Logger, dda *datadoghqv1alph
 // labels to know whether a DatadogAgent object owns them.
 func isOwnerBasedOnLabels(dda *datadoghqv1alpha1.DatadogAgent, labels map[string]string) bool {
 	isManagedByOperator := labels[kubernetes.AppKubernetesManageByLabelKey] == "datadog-operator"
-	isPartOfDDA := labels[kubernetes.AppKubernetesPartOfLabelKey] == NewPartOfLabelValue(dda).String()
+	isPartOfDDA := labels[kubernetes.AppKubernetesPartOfLabelKey] == object.NewPartOfLabelValue(dda).String()
 	return isManagedByOperator && isPartOfDDA
 }
 
@@ -298,10 +299,10 @@ func rbacNamesForDda(dda *datadoghqv1alpha1.DatadogAgent, versionInfo *version.I
 		getExternalMetricsReaderClusterRoleName(dda, versionInfo),
 		// kubestatemetrics_core can run on the DCA and the Runners
 		kubernetesstatecore.GetKubeStateMetricsRBACResourceName(dda, common.ClusterAgentSuffix),
-		kubernetesstatecore.GetKubeStateMetricsRBACResourceName(dda, common.CheckRunnersSuffix),
+		kubernetesstatecore.GetKubeStateMetricsRBACResourceName(dda, common.ChecksRunnerSuffix),
 		// Orchestrator can run on the DCA or the Runners
 		getOrchestratorRBACResourceName(dda, common.ClusterAgentSuffix),
-		getOrchestratorRBACResourceName(dda, common.CheckRunnersSuffix),
+		getOrchestratorRBACResourceName(dda, common.ChecksRunnerSuffix),
 	}
 }
 

@@ -9,6 +9,7 @@ import (
 	"context"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 	"github.com/go-logr/logr"
@@ -21,7 +22,7 @@ import (
 func buildMetricsServerClusterRoleBinding(dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string) *rbacv1.ClusterRoleBinding {
 	return &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels: getDefaultLabels(dda, name, agentVersion),
+			Labels: object.GetDefaultLabels(dda, name, agentVersion),
 			Name:   name,
 		},
 		RoleRef: rbacv1.RoleRef{
@@ -57,7 +58,7 @@ func buildExternalMetricsReaderClusterRoleBinding(dda *datadoghqv1alpha1.Datadog
 	if isMetricsProviderEnabled(dda.Spec.ClusterAgent) {
 		return &rbacv1.ClusterRoleBinding{
 			ObjectMeta: metav1.ObjectMeta{
-				Labels: getDefaultLabels(dda, name, agentVersion),
+				Labels: object.GetDefaultLabels(dda, name, agentVersion),
 				Name:   name,
 			},
 			RoleRef: rbacv1.RoleRef{
@@ -122,7 +123,7 @@ func buildExternalMetricsReaderClusterRole(dda *datadoghqv1alpha1.DatadogAgent, 
 	if isMetricsProviderEnabled(dda.Spec.ClusterAgent) {
 		clusterRole := &rbacv1.ClusterRole{
 			ObjectMeta: metav1.ObjectMeta{
-				Labels: getDefaultLabels(dda, NewPartOfLabelValue(dda).String(), agentVersion),
+				Labels: object.GetDefaultLabels(dda, object.NewPartOfLabelValue(dda).String(), agentVersion),
 				Name:   name,
 			},
 		}

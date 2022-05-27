@@ -18,6 +18,7 @@ import (
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/controllers/testutils"
 )
 
@@ -210,7 +211,7 @@ func Test_newExternalMetricsSecret(t *testing.T) {
 	}
 	result := newExternalMetricsSecret(name, dda)
 
-	labels := getDefaultLabels(dda, common.DefaultClusterAgentResourceSuffix, "")
+	labels := object.GetDefaultLabels(dda, common.DefaultClusterAgentResourceSuffix, "")
 	wantSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        name,
@@ -219,7 +220,7 @@ func Test_newExternalMetricsSecret(t *testing.T) {
 			Annotations: map[string]string{},
 		},
 		Type: corev1.SecretTypeOpaque,
-		Data: getKeysFromCredentials(dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials),
+		Data: datadoghqv1alpha1.GetKeysFromCredentials(dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials),
 	}
 
 	if !reflect.DeepEqual(result, wantSecret) {
@@ -374,7 +375,7 @@ func Test_getKeysFromCredentials(t *testing.T) {
 				APIKey: tt.APIKey,
 				AppKey: tt.appKey,
 			}
-			result := getKeysFromCredentials(creds)
+			result := datadoghqv1alpha1.GetKeysFromCredentials(creds)
 			wantMap := tt.wantFunc()
 			if !reflect.DeepEqual(result, wantMap) {
 				t.Errorf("getKeysFromCredentials() result is %v but want %v", result, wantMap)
@@ -436,7 +437,7 @@ func Test_checkAPIKeySufficiency(t *testing.T) {
 			if tt.envVarName != "" {
 				os.Setenv(tt.envVarName, apiKeyValue)
 			}
-			result := checkAPIKeySufficiency(tt.credentials, tt.envVarName)
+			result := datadoghqv1alpha1.CheckAPIKeySufficiency(tt.credentials, tt.envVarName)
 			if result != tt.want {
 				t.Errorf("checkAPIKeySufficiency() result is %v but want %v", result, tt.want)
 			}
@@ -500,7 +501,7 @@ func Test_checkAppKeySufficiency(t *testing.T) {
 			if tt.envVarName != "" {
 				os.Setenv(tt.envVarName, appKeyValue)
 			}
-			result := checkAppKeySufficiency(tt.credentials, tt.envVarName)
+			result := datadoghqv1alpha1.CheckAppKeySufficiency(tt.credentials, tt.envVarName)
 			if result != tt.want {
 				t.Errorf("checkAppKeySufficiency() result is %v but want %v", result, tt.want)
 			}

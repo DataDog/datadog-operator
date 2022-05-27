@@ -9,10 +9,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 )
 
 // Container use to override a corev1.Container with a 2alpha1.DatadogAgentGenericContainer.
-func Container(podTemplateSpec *corev1.PodTemplateSpec, override *v2alpha1.DatadogAgentGenericContainer) (*corev1.Container, error) {
-	// TODO(clamoriniere): implement OverrideContainer
+func Container(manager feature.PodTemplateManagers, override *v2alpha1.DatadogAgentGenericContainer) (*corev1.Container, error) {
+	// TODO(operator-ga): implement OverrideContainer
 	return nil, nil
 }

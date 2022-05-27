@@ -65,12 +65,12 @@ type DatadogFeatures struct {
 	// USM (Universal Service Monitoring) configuration.
 	USM *USMFeatureConfig `json:"usm,omitempty"`
 	// Dogstatsd configuration.
-	Dogstatsd *DogstatsdConfig `json:"dogstatsd,omitempty"`
+	Dogstatsd *DogstatsdFeatureConfig `json:"dogstatsd,omitempty"`
 
 	// Cluster-level features
 
 	// EventCollection configuration.
-	EventCollection *EventCollectionConfig `json:"eventCollection,omitempty"`
+	EventCollection *EventCollectionFeatureConfig `json:"eventCollection,omitempty"`
 	// OrchestratorExplorer check configuration.
 	OrchestratorExplorer *OrchestratorExplorerFeatureConfig `json:"orchestratorExplorer,omitempty"`
 	// KubeStateMetricsCore check configuration.
@@ -198,7 +198,7 @@ type TCPQueueLengthFeatureConfig struct {
 }
 
 // CSPMFeatureConfig contains CSPM (Cloud Security Posture Management) configuration.
-// CSPM runs in the Security Agent.
+// CSPM runs in the Security Agent and Cluster Agent.
 type CSPMFeatureConfig struct {
 	// Enabled enables Cloud Security Posture Management.
 	// Default: false
@@ -244,11 +244,11 @@ type NPMFeatureConfig struct {
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
-	// ConntrackEnabled enable the system-probe agent to connect to the netlink/conntrack subsystem to add NAT information to connection data.
+	// EnableConntrack enables the system-probe agent to connect to the netlink/conntrack subsystem to add NAT information to connection data.
 	// See also: http://conntrack-tools.netfilter.org/
 	// Default: false
 	// +optional
-	UseConntrack *bool `json:"useConntrack,omitempty"`
+	EnableConntrack *bool `json:"enableConntrack,omitempty"`
 
 	// CollectDNSStats enables DNS stat collection.
 	// Default: false
@@ -257,7 +257,7 @@ type NPMFeatureConfig struct {
 }
 
 // USMFeatureConfig contains USM (Universal Service Monitoring) feature configuration.
-// Universal Service Monitoring runs in the System Probe.
+// Universal Service Monitoring runs in the Process Agent and System Probe.
 type USMFeatureConfig struct {
 	// Enabled enables Universal Service Monitoring.
 	// Default: false
@@ -265,9 +265,9 @@ type USMFeatureConfig struct {
 	Enabled *bool `json:"enabled,omitempty"`
 }
 
-// DogstatsdConfig contains the Dogstatsd configuration parameters.
+// DogstatsdFeatureConfig contains the Dogstatsd configuration parameters.
 // +k8s:openapi-gen=true
-type DogstatsdConfig struct {
+type DogstatsdFeatureConfig struct {
 	// OriginDetectionEnabled enables origin detection for container tagging.
 	// See also: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/#using-origin-detection-for-container-tagging
 	// +optional
@@ -282,7 +282,7 @@ type DogstatsdConfig struct {
 	// UnixDomainSocketConfig contains socket configuration.
 	// See also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables
 	// Enabled Default: true
-	// Path Default: `/var/run/datadog/apm.socket`
+	// Path Default: `/var/run/datadog/dsd.socket`
 	// +optional
 	UnixDomainSocketConfig *UnixDomainSocketConfig `json:"unixDomainSocketConfig,omitempty"`
 
@@ -293,9 +293,11 @@ type DogstatsdConfig struct {
 	MapperProfiles *CustomConfig `json:"mapperProfiles,omitempty"`
 }
 
-// EventCollectionConfig contains the Event Collection configuration.
+// EventCollectionFeatureConfig contains the Event Collection configuration.
 // +k8s:openapi-gen=true
-type EventCollectionConfig struct {
+type EventCollectionFeatureConfig struct {
+	// CollectKubernetesEvents enables Kubernetes event collection.
+	// Default: true
 	CollectKubernetesEvents *bool `json:"collectKubernetesEvents,omitempty"`
 }
 
@@ -496,6 +498,9 @@ type GlobalConfig struct {
 	// Credentials defines the Datadog credentials used to submit data to/query data from Datadog.
 	Credentials *DatadogCredentials `json:"credentials,omitempty"`
 
+	// ClusterAgentToken is the token for communication between the NodeAgent and ClusterAgent
+	ClusterAgentToken *string `json:"clusterAgentToken,omitempty"`
+
 	// ClusterName sets a unique cluster name for the deployment to easily scope monitoring data in the Datadog app.
 	// +optional
 	ClusterName *string `json:"clusterName,omitempty"`
@@ -583,6 +588,15 @@ type DatadogCredentials struct {
 	// If set, this parameter takes precedence over "AppKey".
 	// +optional
 	AppSecret *commonv1.SecretConfig `json:"appSecret,omitempty"`
+}
+
+// SecretBackendConfig provides configuration for the secret backend.
+type SecretBackendConfig struct {
+	// Command defines the secret backend command to use
+	Command *string `json:"command,omitempty"`
+
+	// Args defines the list of arguments to pass to the command
+	Args []string `json:"args,omitempty"`
 }
 
 // NetworkPolicyFlavor specifies which flavor of Network Policy to use.
@@ -749,6 +763,10 @@ type DatadogAgentComponentOverride struct {
 	// SecCompProfileName specify a seccomp profile.
 	// +optional
 	SecCompProfileName *string `json:"secCompProfileName,omitempty"`
+
+	// Disabled force disables a component.
+	// +optional
+	Disabled *bool `json:"disabled,omitempty"`
 }
 
 // DatadogAgentGenericContainer is the generic structure describing any container's common configuration.
@@ -817,9 +835,11 @@ type DatadogAgentGenericContainer struct {
 // DatadogAgentStatus defines the observed state of DatadogAgent.
 // +k8s:openapi-gen=true
 type DatadogAgentStatus struct {
-	// DefaultOverride contains attributes that were not configured that the runtime defaulted.
+	// Conditions Represents the latest available observations of a DatadogAgent's current state.
 	// +optional
-	DefaultOverride *DatadogAgentSpec `json:"defaultOverride,omitempty"`
+	// +listType=map
+	// +listMapKey=type
+	Conditions []metav1.Condition `json:"conditions"`
 }
 
 // DatadogAgent Deployment with the Datadog Operator.

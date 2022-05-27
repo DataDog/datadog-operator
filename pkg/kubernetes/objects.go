@@ -48,6 +48,8 @@ func ObjectFromKind(kind ObjectKind) client.Object {
 		return &policyv1.PodSecurityPolicy{}
 	case CiliumNetworkPoliciesKind:
 		return ciliumv1.EmptyCiliumUnstructuredPolicy()
+		// case SecurityContextConstraintsKind:
+		// 	return &securityv1.SecurityContextConstraints{}
 	}
 
 	return nil

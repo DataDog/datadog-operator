@@ -39,7 +39,7 @@ func (f *dummyFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) feature.RequiredC
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *dummyFeature) ManageDependencies(managers feature.ResourceManagers) error {
+func (f *dummyFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
 	return nil
 }
 
@@ -58,7 +58,7 @@ func (f *dummyFeature) ManageClusterAgent(managers feature.PodTemplateManagers) 
 // It should do nothing if the feature doesn't need to configure it.
 func (f *dummyFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error { return nil }
 
-// ManageClusterChecksRunner allows a feature to configure the ClusterCheckRunnerAgent's corev1.PodTemplateSpec
+// ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunnerAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *dummyFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	return nil
