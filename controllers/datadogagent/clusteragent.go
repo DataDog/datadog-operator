@@ -506,8 +506,8 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 			Value: strconv.FormatBool(isClusterChecksEnabled(&dda.Spec)),
 		},
 		{
-			Name:  datadoghqv1alpha1.DDClusterAgentKubeServiceName,
-			Value: getClusterAgentServiceName(dda),
+			Name:  apicommon.DDClusterAgentKubeServiceName,
+			Value: component.GetClusterAgentServiceName(dda),
 		},
 		{
 			Name:  datadoghqv1alpha1.DDLeaderElection,
@@ -526,7 +526,7 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 			Value: apiutils.BoolToString(spec.ClusterAgent.Config.CollectEvents),
 		},
 		{
-			Name:  datadoghqv1alpha1.DDHealthPort,
+			Name:  apicommon.DDHealthPort,
 			Value: strconv.Itoa(int(*spec.ClusterAgent.Config.HealthPort)),
 		},
 		{
