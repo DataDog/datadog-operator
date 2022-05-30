@@ -29,14 +29,14 @@ func getKubeletEnvVars(dda *datadoghqv1alpha1.DatadogAgent) []corev1.EnvVar {
 	}
 
 	kubeletVars = append(kubeletVars, corev1.EnvVar{
-		Name:      datadoghqv1alpha1.DDKubeletHost,
+		Name:      apicommon.DDKubeletHost,
 		ValueFrom: kubeletHostValueFrom,
 	})
 
 	// TLS Verify
 	if dda.Spec.Agent.Config.Kubelet != nil && dda.Spec.Agent.Config.Kubelet.TLSVerify != nil {
 		kubeletVars = append(kubeletVars, corev1.EnvVar{
-			Name:  datadoghqv1alpha1.DDKubeletTLSVerify,
+			Name:  apicommon.DDKubeletTLSVerify,
 			Value: apiutils.BoolToString(dda.Spec.Agent.Config.Kubelet.TLSVerify),
 		})
 	}
@@ -44,7 +44,7 @@ func getKubeletEnvVars(dda *datadoghqv1alpha1.DatadogAgent) []corev1.EnvVar {
 	// CA Path
 	if dda.Spec.Agent.Config.Kubelet != nil && (dda.Spec.Agent.Config.Kubelet.AgentCAPath != "" || dda.Spec.Agent.Config.Kubelet.HostCAPath != "") {
 		kubeletVars = append(kubeletVars, corev1.EnvVar{
-			Name:  datadoghqv1alpha1.DDKubeletCAPath,
+			Name:  apicommon.DDKubeletCAPath,
 			Value: getAgentCAPath(dda),
 		})
 	}

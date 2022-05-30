@@ -35,6 +35,10 @@ type npmFeature struct{}
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *npmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
+	if dda.Spec.Features == nil {
+		return
+	}
+
 	if dda.Spec.Features.NPM != nil && apiutils.BoolValue(dda.Spec.Features.NPM.Enabled) {
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
@@ -135,7 +139,7 @@ func (f *npmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, enableEnvVar)
 
 	sysProbeEnableEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDSystemProbeEnabledEnvVar,
+		Name:  apicommon.DDSystemProbeEnabled,
 		Value: "true",
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, sysProbeEnableEnvVar)

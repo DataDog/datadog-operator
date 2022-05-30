@@ -181,6 +181,9 @@ func (r *Reconciler) updateStatusIfNeededV2(logger logr.Logger, agentdeployment 
 func (r *Reconciler) finalizeDadV2(reqLogger logr.Logger, obj client.Object) {
 	dda := obj.(*datadoghqv2alpha1.DatadogAgent)
 
-	r.forwarders.Unregister(dda)
+	if r.options.OperatorMetricsEnabled {
+		r.forwarders.Unregister(dda)
+	}
+
 	reqLogger.Info("Successfully finalized DatadogAgent")
 }

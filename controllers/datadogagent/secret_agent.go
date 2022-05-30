@@ -15,11 +15,10 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/config"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 )
 
 func (r *Reconciler) manageAgentSecret(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
-	return r.manageSecret(logger, managedSecret{name: utils.GetDefaultCredentialsSecretName(dda), requireFunc: needAgentSecret, createFunc: newAgentSecret}, dda)
+	return r.manageSecret(logger, managedSecret{name: datadoghqv1alpha1.GetDefaultCredentialsSecretName(dda), requireFunc: needAgentSecret, createFunc: newAgentSecret}, dda)
 }
 
 func newAgentSecret(name string, dda *datadoghqv1alpha1.DatadogAgent) *corev1.Secret {

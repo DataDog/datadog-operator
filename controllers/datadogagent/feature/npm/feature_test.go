@@ -163,7 +163,7 @@ func Test_npmFeature_Configure(t *testing.T) {
 				Value: "true",
 			},
 			{
-				Name:  apicommon.DDSystemProbeEnabledEnvVar,
+				Name:  apicommon.DDSystemProbeEnabled,
 				Value: "true",
 			},
 			{
@@ -185,7 +185,6 @@ func Test_npmFeature_Configure(t *testing.T) {
 
 		processAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ProcessAgentContainerName]
 		assert.True(t, apiutils.IsEqualStruct(processAgentEnvVars, processWantEnvVars), "Process Agent envvars \ndiff = %s", cmp.Diff(processAgentEnvVars, processWantEnvVars))
-
 	}
 
 	tests := test.FeatureTestSuite{

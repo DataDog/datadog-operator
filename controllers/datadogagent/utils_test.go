@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"testing"
 
+	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1/test"
@@ -589,19 +590,19 @@ func Test_getEnvVarsForMetadataAsTags(t *testing.T) {
 			},
 			want: []v1.EnvVar{
 				{
-					Name:  datadoghqv1alpha1.DDNodeLabelsAsTags,
+					Name:  apicommon.DDNodeLabelsAsTags,
 					Value: singleMappingString,
 				},
 				{
-					Name:  datadoghqv1alpha1.DDPodLabelsAsTags,
+					Name:  apicommon.DDPodLabelsAsTags,
 					Value: singleMappingString,
 				},
 				{
-					Name:  datadoghqv1alpha1.DDPodAnnotationsAsTags,
+					Name:  apicommon.DDPodAnnotationsAsTags,
 					Value: singleMappingString,
 				},
 				{
-					Name:  datadoghqv1alpha1.DDNamespaceLabelsAsTags,
+					Name:  apicommon.DDNamespaceLabelsAsTags,
 					Value: singleMappingString,
 				},
 			},
@@ -616,19 +617,19 @@ func Test_getEnvVarsForMetadataAsTags(t *testing.T) {
 			},
 			want: []v1.EnvVar{
 				{
-					Name:  datadoghqv1alpha1.DDNodeLabelsAsTags,
+					Name:  apicommon.DDNodeLabelsAsTags,
 					Value: multipleMappingString,
 				},
 				{
-					Name:  datadoghqv1alpha1.DDPodLabelsAsTags,
+					Name:  apicommon.DDPodLabelsAsTags,
 					Value: multipleMappingString,
 				},
 				{
-					Name:  datadoghqv1alpha1.DDPodAnnotationsAsTags,
+					Name:  apicommon.DDPodAnnotationsAsTags,
 					Value: multipleMappingString,
 				},
 				{
-					Name:  datadoghqv1alpha1.DDNamespaceLabelsAsTags,
+					Name:  apicommon.DDNamespaceLabelsAsTags,
 					Value: multipleMappingString,
 				},
 			},

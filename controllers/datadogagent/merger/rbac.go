@@ -12,11 +12,13 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 
+	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 )
 
 // RBACManager use to manage RBAC resources.
 type RBACManager interface {
+	AddServiceAccount(namespace string, name string) error
 	AddPolicyRules(namespace string, roleName string, saName string, policies []rbacv1.PolicyRule) error
 	AddClusterPolicyRules(namespace string, roleName string, saName string, policies []rbacv1.PolicyRule) error
 }
@@ -32,6 +34,18 @@ func NewRBACManager(store dependencies.StoreClient) RBACManager {
 // rbacManagerImpl use to manage RBAC resources.
 type rbacManagerImpl struct {
 	store dependencies.StoreClient
+}
+
+// AddServiceAccount use to create a ServiceAccount
+func (m *rbacManagerImpl) AddServiceAccount(namespace string, name string) error {
+	obj, _ := m.store.GetOrCreate(kubernetes.ServiceAccountsKind, namespace, name)
+	sa, ok := obj.(*corev1.ServiceAccount)
+	if !ok {
+		return fmt.Errorf("unable to get from the store the ServiceAccount %s/%s", namespace, name)
+	}
+
+	m.store.AddOrUpdate(kubernetes.ServiceAccountsKind, sa)
+	return nil
 }
 
 // AddPolicyRules use to add PolicyRules to a Role. It also create the RoleBinding.
@@ -54,7 +68,7 @@ func (m *rbacManagerImpl) AddPolicyRules(namespace string, roleName string, saNa
 
 	roleBinding.RoleRef = rbacv1.RoleRef{
 		APIGroup: rbac.RbacAPIGroup,
-		Kind:     rbac.ClusterRoleKind,
+		Kind:     rbac.RoleKind,
 		Name:     roleName,
 	}
 	found := false

@@ -50,7 +50,7 @@ type cspmFeature struct {
 func (f *cspmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda
 
-	if dda.Spec.Features.CSPM != nil && apiutils.BoolValue(dda.Spec.Features.CSPM.Enabled) {
+	if dda.Spec.Features != nil && dda.Spec.Features.CSPM != nil && apiutils.BoolValue(dda.Spec.Features.CSPM.Enabled) {
 		f.enable = true
 		f.serviceAccountName = v2alpha1.GetClusterAgentServiceAccount(dda)
 

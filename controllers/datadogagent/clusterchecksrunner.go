@@ -27,6 +27,7 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
+	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	objectvolume "github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/orchestrator"
@@ -327,7 +328,7 @@ func getEnvVarsForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []cor
 		},
 		{
 			Name:  apicommon.DDClusterAgentKubeServiceName,
-			Value: component.GetClusterAgentServiceName(dda),
+			Value: componentdca.GetClusterAgentServiceName(dda),
 		},
 		{
 			Name:  apicommon.DDExtraConfigProviders,
@@ -370,7 +371,7 @@ func getEnvVarsForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []cor
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.DDHostname,
+			Name: apicommon.DDHostname,
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
 					FieldPath: apicommon.FieldPathSpecNodeName,
@@ -388,31 +389,31 @@ func getEnvVarsForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []cor
 	}
 
 	envVars = append(envVars, corev1.EnvVar{
-		Name:      datadoghqv1alpha1.DDAPIKey,
+		Name:      apicommon.DDAPIKey,
 		ValueFrom: getAPIKeyFromSecret(dda),
 	})
 
 	envVars = append(envVars, corev1.EnvVar{
-		Name:      datadoghqv1alpha1.DDClusterAgentAuthToken,
+		Name:      apicommon.DDClusterAgentAuthToken,
 		ValueFrom: getClusterAgentAuthToken(dda),
 	})
 
 	if spec.ClusterName != "" {
 		envVars = append(envVars, corev1.EnvVar{
-			Name:  datadoghqv1alpha1.DDClusterName,
+			Name:  apicommon.DDClusterName,
 			Value: spec.ClusterName,
 		})
 	}
 
 	if spec.Site != "" {
 		envVars = append(envVars, corev1.EnvVar{
-			Name:  datadoghqv1alpha1.DDSite,
+			Name:  apicommon.DDSite,
 			Value: spec.Site,
 		})
 	}
 
 	envVars = append(envVars, corev1.EnvVar{
-		Name:  datadoghqv1alpha1.DDLogLevel,
+		Name:  apicommon.DDLogLevel,
 		Value: *spec.ClusterChecksRunner.Config.LogLevel,
 	})
 
@@ -427,7 +428,7 @@ func getEnvVarsForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []cor
 
 	if spec.Agent.Config.DDUrl != nil {
 		envVars = append(envVars, corev1.EnvVar{
-			Name:  datadoghqv1alpha1.DDddURL,
+			Name:  apicommon.DDddURL,
 			Value: *spec.Agent.Config.DDUrl,
 		})
 	}

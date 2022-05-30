@@ -81,6 +81,7 @@ const (
 	// Default Image name
 	DefaultAgentImageName        string = "agent"
 	DefaultClusterAgentImageName string = "cluster-agent"
+	DefaultImageRegistry         string = "gcr.io/datadoghq"
 
 	// ExtendedDaemonset defaulting
 	DefaultRollingUpdateMaxUnavailable                  = "10%"

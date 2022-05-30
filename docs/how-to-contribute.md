@@ -3,11 +3,13 @@
 This project uses the `go module`. Be sure to have it activated with: `export GO111MODULE=on`.
 
 To list the available `make` commands, run:
+
 ```shell
 make help
 ```
 
 Some important commands:
+
 ```shell
 $ make build
 CGO_ENABLED=0 go build -i -installsuffix cgo -ldflags '-w' -o controller ./cmd/manager/main.go

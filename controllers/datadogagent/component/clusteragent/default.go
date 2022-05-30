@@ -11,18 +11,22 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/common"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 )
 
 // NewDefaultClusterAgentDeployment return a new default cluster-agent deployment
 func NewDefaultClusterAgentDeployment(dda metav1.Object) *appsv1.Deployment {
-	deployment := component.NewDeployment(dda, apicommon.DefaultClusterAgentResourceSuffix, component.GetClusterAgentName(dda), component.GetClusterAgentVersion(dda), nil)
+	deployment := component.NewDeployment(dda, apicommon.DefaultClusterAgentResourceSuffix, GetClusterAgentName(dda), GetClusterAgentVersion(dda), nil)
 
 	podTemplate := NewDefaultClusterAgentPodTemplateSpec(dda)
 	for key, val := range deployment.GetLabels() {
@@ -86,7 +90,7 @@ func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []c
 		Containers: []corev1.Container{
 			{
 				Name:  string(apicommonv1.ClusterAgentContainerName),
-				Image: fmt.Sprintf("%s:%s", apicommon.DefaultClusterAgentImageName, defaulting.ClusterAgentLatestVersion),
+				Image: fmt.Sprintf("%s/%s:%s", apicommon.DefaultImageRegistry, apicommon.DefaultClusterAgentImageName, defaulting.ClusterAgentLatestVersion),
 				Ports: []corev1.ContainerPort{
 					{
 						ContainerPort: 5005,
@@ -118,7 +122,7 @@ func defaultEnvVars(dda metav1.Object) []corev1.EnvVar {
 	envVars := []corev1.EnvVar{
 		{
 			Name:  apicommon.DDClusterAgentKubeServiceName,
-			Value: component.GetClusterAgentServiceName(dda),
+			Value: GetClusterAgentServiceName(dda),
 		},
 		{
 			Name:  apicommon.DDLeaderElection,
@@ -149,6 +153,91 @@ func DefaultAffinity() *corev1.Affinity {
 					TopologyKey: "kubernetes.io/hostname",
 				},
 			},
+		},
+	}
+}
+
+// GetDefaultClusterAgentRolePolicyRules returns the default policy rules for the Cluster Agent
+// Can be used by the Agent if the Cluster Agent is disabled
+func GetDefaultClusterAgentRolePolicyRules(dda metav1.Object) []rbacv1.PolicyRule {
+	rules := []rbacv1.PolicyRule{}
+
+	rules = append(rules, GetLeaderElectionPolicyRule(dda)...)
+	rules = append(rules, rbacv1.PolicyRule{
+		APIGroups: []string{rbac.CoreAPIGroup},
+		Resources: []string{rbac.ConfigMapsResource},
+		ResourceNames: []string{
+			common.DatadogClusterIDResourceName,
+		},
+		Verbs: []string{rbac.GetVerb, rbac.UpdateVerb, rbac.CreateVerb},
+	})
+	return rules
+}
+
+// GetDefaultClusterAgentClusterRolePolicyRules returns the default policy rules for the Cluster Agent
+// Can be used by the Agent if the Cluster Agent is disabled
+func GetDefaultClusterAgentClusterRolePolicyRules(dda metav1.Object) []rbacv1.PolicyRule {
+	return []rbacv1.PolicyRule{
+		{
+			APIGroups: []string{rbac.CoreAPIGroup},
+			Resources: []string{
+				rbac.ServicesResource,
+				rbac.EventsResource,
+				rbac.EndpointsResource,
+				rbac.PodsResource,
+				rbac.NodesResource,
+				rbac.ComponentStatusesResource,
+				rbac.ConfigMapsResource,
+				rbac.NamespaceResource,
+			},
+			Verbs: []string{
+				rbac.GetVerb,
+				rbac.ListVerb,
+				rbac.WatchVerb,
+			},
+		},
+		{
+			APIGroups: []string{rbac.OpenShiftQuotaAPIGroup},
+			Resources: []string{rbac.ClusterResourceQuotasResource},
+			Verbs:     []string{rbac.GetVerb, rbac.ListVerb},
+		},
+		{
+			NonResourceURLs: []string{rbac.VersionURL, rbac.HealthzURL},
+			Verbs:           []string{rbac.GetVerb},
+		},
+		{
+			// Horizontal Pod Autoscaling
+			APIGroups: []string{rbac.AutoscalingAPIGroup},
+			Resources: []string{rbac.HorizontalPodAutoscalersRecource},
+			Verbs:     []string{rbac.ListVerb, rbac.WatchVerb},
+		},
+		{
+			APIGroups: []string{rbac.CoreAPIGroup},
+			Resources: []string{rbac.NamespaceResource},
+			ResourceNames: []string{
+				common.KubeSystemResourceName,
+			},
+			Verbs: []string{rbac.GetVerb},
+		},
+	}
+}
+
+// GetLeaderElectionPolicyRule returns the policy rules for leader election
+func GetLeaderElectionPolicyRule(dda metav1.Object) []rbacv1.PolicyRule {
+	return []rbacv1.PolicyRule{
+		{
+			APIGroups: []string{rbac.CoreAPIGroup},
+			Resources: []string{rbac.ConfigMapsResource},
+			ResourceNames: []string{
+				common.DatadogLeaderElectionOldResourceName, // Kept for backward compatibility with agent <7.37.0
+				utils.GetDatadogLeaderElectionResourceName(dda),
+			},
+			Verbs: []string{rbac.GetVerb, rbac.UpdateVerb},
+		},
+		{
+			APIGroups: []string{rbac.CoreAPIGroup},
+			Resources: []string{rbac.ConfigMapsResource},
+			Verbs:     []string{rbac.CreateVerb},
 		},
 	}
 }

@@ -17,6 +17,7 @@ import (
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
+	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 )
 
@@ -127,7 +128,7 @@ func defaultEnvVars(dda metav1.Object) []corev1.EnvVar {
 	envVars := []corev1.EnvVar{
 		{
 			Name:  apicommon.DDClusterAgentKubeServiceName,
-			Value: component.GetClusterAgentServiceName(dda),
+			Value: componentdca.GetClusterAgentServiceName(dda),
 		},
 		{
 			Name:  apicommon.DDClusterChecksEnabled,
