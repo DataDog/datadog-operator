@@ -113,17 +113,19 @@ func (f *usmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 
 	// volume mounts
 	procdirVol, procdirMount := volume.GetVolumes(apicommon.ProcdirVolumeName, apicommon.ProcdirHostPath, apicommon.ProcdirMountPath, true)
-	managers.Volume().AddVolumeToContainer(&procdirVol, &procdirMount, apicommonv1.SystemProbeContainerName)
+	managers.VolumeMount().AddVolumeMountToContainer(&procdirMount, apicommonv1.SystemProbeContainerName)
+	managers.Volume().AddVolume(&procdirVol)
 
 	cgroupsVol, cgroupsMount := volume.GetVolumes(apicommon.CgroupsVolumeName, apicommon.CgroupsHostPath, apicommon.CgroupsMountPath, true)
-	managers.Volume().AddVolumeToContainer(&cgroupsVol, &cgroupsMount, apicommonv1.SystemProbeContainerName)
+	managers.VolumeMount().AddVolumeMountToContainer(&cgroupsMount, apicommonv1.SystemProbeContainerName)
+	managers.Volume().AddVolume(&cgroupsVol)
 
 	debugfsVol, debugfsMount := volume.GetVolumes(apicommon.DebugfsVolumeName, apicommon.DebugfsPath, apicommon.DebugfsPath, true)
-	managers.Volume().AddVolumeToContainer(&debugfsVol, &debugfsMount, apicommonv1.SystemProbeContainerName)
+	managers.VolumeMount().AddVolumeMountToContainer(&debugfsMount, apicommonv1.SystemProbeContainerName)
+	managers.Volume().AddVolume(&debugfsVol)
 
 	socketDirVol, socketDirMount := volume.GetVolumesEmptyDir(apicommon.SystemProbeSocketVolumeName, apicommon.SystemProbeSocketVolumePath)
-	managers.Volume().AddVolumeToContainers(
-		&socketDirVol,
+	managers.VolumeMount().AddVolumeMountToContainers(
 		&socketDirMount,
 		[]apicommonv1.AgentContainerName{
 			apicommonv1.CoreAgentContainerName,
@@ -131,6 +133,7 @@ func (f *usmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 			apicommonv1.SystemProbeContainerName,
 		},
 	)
+	managers.Volume().AddVolume(&socketDirVol)
 
 	// env vars for System Probe and Process Agent
 	enabledEnvVar := &corev1.EnvVar{

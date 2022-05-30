@@ -533,6 +533,7 @@ func Test_newClusterAgentDeploymentMountKSMCore(t *testing.T) {
 			KubeStateMetricsCore: &ksmCore,
 		},
 	)
+
 	testDCA := clusterAgentDeploymentFromInstanceTest{
 		name:            "with KSM core check custom conf volumes and mounts",
 		agentdeployment: clusterAgentDeployment,

@@ -284,6 +284,7 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 	volumeMounts := []corev1.VolumeMount{}
 
 	volumeManager := merger.NewVolumeManager(&newPodTemplate)
+	volumeMountManager := merger.NewVolumeMountManager(&newPodTemplate)
 
 	// confd volumes configuration
 	if dda.Spec.ClusterAgent.Config != nil && dda.Spec.ClusterAgent.Config.Confd != nil {
@@ -312,7 +313,8 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 			Name:         apicommon.ConfdVolumeName,
 			VolumeSource: confdVolumeSource,
 		}
-		volumeManager.AddVolume(&confdVolume, &confdVolumeMount)
+		volumeManager.AddVolume(&confdVolume)
+		volumeMountManager.AddVolumeMount(&confdVolumeMount)
 	}
 
 	if dda.Spec.ClusterAgent.CustomConfig != nil {

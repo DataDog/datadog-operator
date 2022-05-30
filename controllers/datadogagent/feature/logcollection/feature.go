@@ -121,19 +121,23 @@ func (f *logCollectionFeature) ManageClusterAgent(managers feature.PodTemplateMa
 func (f *logCollectionFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	// pointerdir volume mount
 	pointerVol, pointerVolMount := volume.GetVolumes(apicommon.PointerVolumeName, f.tempStoragePath, apicommon.PointerVolumePath, false)
-	managers.Volume().AddVolumeToContainer(&pointerVol, &pointerVolMount, apicommonv1.CoreAgentContainerName)
+	managers.VolumeMount().AddVolumeMountToContainer(&pointerVolMount, apicommonv1.CoreAgentContainerName)
+	managers.Volume().AddVolume(&pointerVol)
 
 	// pod logs volume mount
 	podLogVol, podLogVolMount := volume.GetVolumes(apicommon.PodLogVolumeName, f.podLogsPath, f.podLogsPath, true)
-	managers.Volume().AddVolumeToContainer(&podLogVol, &podLogVolMount, apicommonv1.CoreAgentContainerName)
+	managers.VolumeMount().AddVolumeMountToContainer(&podLogVolMount, apicommonv1.CoreAgentContainerName)
+	managers.Volume().AddVolume(&podLogVol)
 
 	// container logs volume mount
 	containerLogVol, containerLogVolMount := volume.GetVolumes(apicommon.ContainerLogVolumeName, f.containerLogsPath, f.containerLogsPath, true)
-	managers.Volume().AddVolumeToContainer(&containerLogVol, &containerLogVolMount, apicommonv1.CoreAgentContainerName)
+	managers.VolumeMount().AddVolumeMountToContainer(&containerLogVolMount, apicommonv1.CoreAgentContainerName)
+	managers.Volume().AddVolume(&containerLogVol)
 
 	// symlink volume mount
 	symlinkVol, symlinkVolMount := volume.GetVolumes(apicommon.SymlinkContainerVolumeName, f.containerSymlinksPath, f.containerSymlinksPath, true)
-	managers.Volume().AddVolumeToContainer(&symlinkVol, &symlinkVolMount, apicommonv1.CoreAgentContainerName)
+	managers.VolumeMount().AddVolumeMountToContainer(&symlinkVolMount, apicommonv1.CoreAgentContainerName)
+	managers.Volume().AddVolume(&symlinkVol)
 
 	// envvars
 	managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{

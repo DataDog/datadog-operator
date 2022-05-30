@@ -177,8 +177,10 @@ type PodTemplateManagers interface {
 	PodTemplateSpec() *corev1.PodTemplateSpec
 	// EnvVar used to access the EnvVarManager to manage the Environment variable defined in the PodTemplateSpec.
 	EnvVar() merger.EnvVarManager
-	// Volume used to access the VolumeManager to manage the Volume and VolumeMount defined in the PodTemplateSpec.
+	// Volume used to access the VolumeManager to manage the Volume defined in the PodTemplateSpec.
 	Volume() merger.VolumeManager
+	// VolumeMount used to access the VolumeMountManager to manage the VolumeMount defined in the PodTemplateSpec.
+	VolumeMount() merger.VolumeMountManager
 	// SecurityContext is used to access the SecurityContextManager to manage container Security Context defined in the PodTemplateSpec.
 	SecurityContext() merger.SecurityContextManager
 	// Annotation is used access the AnnotationManager to manage PodTemplateSpec annotations.
@@ -192,6 +194,7 @@ func NewPodTemplateManagers(podTmpl *corev1.PodTemplateSpec) PodTemplateManagers
 		podTmpl:                podTmpl,
 		envVarManager:          merger.NewEnvVarManager(podTmpl),
 		volumeManager:          merger.NewVolumeManager(podTmpl),
+		volumeMountManager:     merger.NewVolumeMountManager(podTmpl),
 		securityContextManager: merger.NewSecurityContextManager(podTmpl),
 		annotationManager:      merger.NewAnnotationManager(podTmpl),
 	}
@@ -201,6 +204,7 @@ type podTemplateManagerImpl struct {
 	podTmpl                *corev1.PodTemplateSpec
 	envVarManager          merger.EnvVarManager
 	volumeManager          merger.VolumeManager
+	volumeMountManager     merger.VolumeMountManager
 	securityContextManager merger.SecurityContextManager
 	annotationManager      merger.AnnotationManager
 }
@@ -215,6 +219,10 @@ func (impl *podTemplateManagerImpl) EnvVar() merger.EnvVarManager {
 
 func (impl *podTemplateManagerImpl) Volume() merger.VolumeManager {
 	return impl.volumeManager
+}
+
+func (impl *podTemplateManagerImpl) VolumeMount() merger.VolumeMountManager {
+	return impl.volumeMountManager
 }
 
 func (impl *podTemplateManagerImpl) SecurityContext() merger.SecurityContextManager {

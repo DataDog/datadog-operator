@@ -74,11 +74,13 @@ func (f *tcpQueueLengthFeature) ManageClusterAgent(managers feature.PodTemplateM
 func (f *tcpQueueLengthFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	// modules volume mount
 	modulesVol, modulesVolMount := volume.GetVolumes(apicommon.ModulesVolumeName, apicommon.ModulesVolumePath, apicommon.ModulesVolumePath, true)
-	managers.Volume().AddVolumeToContainer(&modulesVol, &modulesVolMount, apicommonv1.SystemProbeContainerName)
+	managers.VolumeMount().AddVolumeMountToContainer(&modulesVolMount, apicommonv1.SystemProbeContainerName)
+	managers.Volume().AddVolume(&modulesVol)
 
 	// src volume mount
 	srcVol, srcVolMount := volume.GetVolumes(apicommon.SrcVolumeName, apicommon.SrcVolumePath, apicommon.SrcVolumePath, true)
-	managers.Volume().AddVolumeToContainer(&srcVol, &srcVolMount, apicommonv1.SystemProbeContainerName)
+	managers.VolumeMount().AddVolumeMountToContainer(&srcVolMount, apicommonv1.SystemProbeContainerName)
+	managers.Volume().AddVolume(&srcVol)
 
 	enableEnvVar := &corev1.EnvVar{
 		Name:  apicommon.DDEnableTCPQueueLengthEnvVar,

@@ -145,7 +145,8 @@ func (f *ksmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 		ksmCoreCheckFolderName,
 	)
 
-	managers.Volume().AddVolumeToContainer(&vol, &volMount, apicommonv1.ClusterAgentContainerName)
+	managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommonv1.ClusterAgentContainerName)
+	managers.Volume().AddVolume(&vol)
 
 	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
 		Name:  apicommon.DDKubeStateMetricsCoreEnabled,
