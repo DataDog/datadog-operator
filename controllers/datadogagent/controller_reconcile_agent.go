@@ -6,6 +6,7 @@
 package datadogagent
 
 import (
+	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	componentagent "github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
@@ -16,14 +17,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-func (r *Reconciler) reconcileV2Agent(logger logr.Logger, features []feature.Feature, dda *datadoghqv2alpha1.DatadogAgent, newStatus *datadoghqv2alpha1.DatadogAgentStatus) (reconcile.Result, error) {
+func (r *Reconciler) reconcileV2Agent(logger logr.Logger, features []feature.Feature, dda *datadoghqv2alpha1.DatadogAgent, newStatus *datadoghqv2alpha1.DatadogAgentStatus, requiredContainers []common.AgentContainerName) (reconcile.Result, error) {
 	var result reconcile.Result
 	var err error
 
 	// TODO for now only support Daemonset (not EDS)
 
 	// Start by creating the Default Cluster-Agent deployment
-	daemonset := componentagent.NewDefaultAgentDaemonset(dda)
+	daemonset := componentagent.NewDefaultAgentDaemonset(dda, requiredContainers)
 	podManagers := feature.NewPodTemplateManagers(&daemonset.Spec.Template)
 
 	// Set Global setting on the default deployment

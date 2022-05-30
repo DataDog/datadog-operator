@@ -141,6 +141,9 @@ const (
 	// same path on host and container
 	SrcVolumePath = "/usr/src"
 
+	AgentCustomConfigVolumePath = "/etc/datadog-agent/datadog.yaml"
+	SystemProbeConfigVolumePath = "/etc/datadog-agent/system-probe.yaml"
+
 	LogDatadogVolumeName       = "logdatadog"
 	LogDatadogVolumePath       = "/var/log/datadog"
 	TmpVolumeName              = "tmp"
@@ -162,6 +165,8 @@ const (
 	ContainerLogVolumePath     = "/var/lib/docker/containers"
 	SymlinkContainerVolumeName = "symlinkcontainerpath"
 	SymlinkContainerVolumePath = "/var/log/containers"
+	DogstatsdSocketVolumeName  = "dsdsocket"
+	DogstatsdSocketVolumePath  = "/var/run/datadog/statsd"
 )
 
 const (
