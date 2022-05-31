@@ -9,7 +9,6 @@ import (
 	"path"
 	"testing"
 
-	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
@@ -288,7 +287,7 @@ func TestDefaultDatadogAgentSpecClusterAgent(t *testing.T) {
 			},
 			overrideExpected: &DatadogAgentSpecClusterAgentSpec{
 				Enabled: apiutils.NewBoolPointer(true),
-				Image: &commonv1.AgentImageConfig{
+				Image: &ImageConfig{
 					Name:       defaultClusterAgentImageName,
 					Tag:        defaulting.ClusterAgentLatestVersion,
 					PullPolicy: &defaultImagePullPolicy,
@@ -312,7 +311,7 @@ func TestDefaultDatadogAgentSpecClusterAgent(t *testing.T) {
 			},
 			internalDefaulted: DatadogAgentSpecClusterAgentSpec{
 				Enabled: apiutils.NewBoolPointer(true),
-				Image: &commonv1.AgentImageConfig{
+				Image: &ImageConfig{
 					Name:        defaultClusterAgentImageName,
 					Tag:         defaulting.ClusterAgentLatestVersion,
 					PullPolicy:  &defaultImagePullPolicy,
@@ -342,7 +341,7 @@ func TestDefaultDatadogAgentSpecClusterAgent(t *testing.T) {
 			name: "almost full config",
 			dca: DatadogAgentSpecClusterAgentSpec{
 				Enabled: apiutils.NewBoolPointer(true),
-				Image: &commonv1.AgentImageConfig{
+				Image: &ImageConfig{
 					Name:       "foo",
 					PullPolicy: (*corev1.PullPolicy)(apiutils.NewStringPointer("Always")),
 				},
@@ -367,7 +366,7 @@ func TestDefaultDatadogAgentSpecClusterAgent(t *testing.T) {
 				NetworkPolicy: &NetworkPolicySpec{Create: apiutils.NewBoolPointer(true)},
 			},
 			overrideExpected: &DatadogAgentSpecClusterAgentSpec{
-				Image: &commonv1.AgentImageConfig{
+				Image: &ImageConfig{
 					Tag: defaulting.ClusterAgentLatestVersion,
 				},
 				Config: &ClusterAgentConfig{
@@ -379,7 +378,7 @@ func TestDefaultDatadogAgentSpecClusterAgent(t *testing.T) {
 			},
 			internalDefaulted: DatadogAgentSpecClusterAgentSpec{
 				Enabled: apiutils.NewBoolPointer(true),
-				Image: &commonv1.AgentImageConfig{
+				Image: &ImageConfig{
 					Name:        "foo",
 					Tag:         defaulting.ClusterAgentLatestVersion,
 					PullPolicy:  (*corev1.PullPolicy)(apiutils.NewStringPointer("Always")),
@@ -447,7 +446,7 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 			overrideExpected: &DatadogAgentSpecAgentSpec{
 				Enabled:              apiutils.NewBoolPointer(true),
 				UseExtendedDaemonset: apiutils.NewBoolPointer(false),
-				Image: &commonv1.AgentImageConfig{
+				Image: &ImageConfig{
 					Name:       defaultAgentImageName,
 					Tag:        defaulting.AgentLatestVersion,
 					PullPolicy: &defaultImagePullPolicy,
@@ -493,7 +492,7 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 			internalDefaulted: DatadogAgentSpecAgentSpec{
 				Enabled:              apiutils.NewBoolPointer(true),
 				UseExtendedDaemonset: apiutils.NewBoolPointer(false),
-				Image: &commonv1.AgentImageConfig{
+				Image: &ImageConfig{
 					Name:        defaultAgentImageName,
 					Tag:         defaulting.AgentLatestVersion,
 					PullPolicy:  &defaultImagePullPolicy,
@@ -552,7 +551,7 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 						UnixDomainSocket:         &DSDUnixDomainSocketSpec{Enabled: apiutils.NewBoolPointer(true)},
 					},
 				},
-				Image: &commonv1.AgentImageConfig{
+				Image: &ImageConfig{
 					Name: "gcr.io/datadog/agent:6.26.0",
 				},
 				DeploymentStrategy: &DaemonSetDeploymentStrategy{
@@ -572,7 +571,7 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 			overrideExpected: &DatadogAgentSpecAgentSpec{
 				Enabled:              apiutils.NewBoolPointer(true),
 				UseExtendedDaemonset: apiutils.NewBoolPointer(false),
-				Image: &commonv1.AgentImageConfig{
+				Image: &ImageConfig{
 					PullPolicy: &defaultImagePullPolicy,
 				},
 				Config: &NodeAgentConfig{
@@ -621,7 +620,7 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 			internalDefaulted: DatadogAgentSpecAgentSpec{
 				Enabled:              apiutils.NewBoolPointer(true),
 				UseExtendedDaemonset: apiutils.NewBoolPointer(false),
-				Image: &commonv1.AgentImageConfig{
+				Image: &ImageConfig{
 					Name:        "gcr.io/datadog/agent:6.26.0",
 					PullPolicy:  &defaultImagePullPolicy,
 					PullSecrets: &[]corev1.LocalObjectReference{},
@@ -720,13 +719,13 @@ func TestDefaultDatadogAgentSpecClusterChecksRunner(t *testing.T) {
 			clc: DatadogAgentSpecClusterChecksRunnerSpec{
 				Enabled: apiutils.NewBoolPointer(true),
 				Config:  &ClusterChecksRunnerConfig{},
-				Image: &commonv1.AgentImageConfig{
+				Image: &ImageConfig{
 					Name: "gcr.io/datadog/agent:latest",
 					Tag:  defaulting.AgentLatestVersion,
 				},
 			},
 			overrideExpected: &DatadogAgentSpecClusterChecksRunnerSpec{
-				Image: &commonv1.AgentImageConfig{
+				Image: &ImageConfig{
 					PullPolicy: &defaultImagePullPolicy,
 				},
 				Config: &ClusterChecksRunnerConfig{
@@ -741,7 +740,7 @@ func TestDefaultDatadogAgentSpecClusterChecksRunner(t *testing.T) {
 			},
 			internalDefaulted: DatadogAgentSpecClusterChecksRunnerSpec{
 				Enabled: apiutils.NewBoolPointer(true),
-				Image: &commonv1.AgentImageConfig{
+				Image: &ImageConfig{
 					Name:        "gcr.io/datadog/agent:latest",
 					Tag:         defaulting.AgentLatestVersion,
 					PullPolicy:  &defaultImagePullPolicy,
@@ -767,13 +766,13 @@ func TestDefaultDatadogAgentSpecClusterChecksRunner(t *testing.T) {
 					LogLevel:   apiutils.NewStringPointer("DEBUG"),
 					HealthPort: apiutils.NewInt32Pointer(1664),
 				},
-				Image: &commonv1.AgentImageConfig{
+				Image: &ImageConfig{
 					Name: "agent",
 					Tag:  defaulting.AgentLatestVersion,
 				},
 			},
 			overrideExpected: &DatadogAgentSpecClusterChecksRunnerSpec{
-				Image: &commonv1.AgentImageConfig{
+				Image: &ImageConfig{
 					PullPolicy: &defaultImagePullPolicy,
 				},
 				Config: &ClusterChecksRunnerConfig{
@@ -786,7 +785,7 @@ func TestDefaultDatadogAgentSpecClusterChecksRunner(t *testing.T) {
 			},
 			internalDefaulted: DatadogAgentSpecClusterChecksRunnerSpec{
 				Enabled: apiutils.NewBoolPointer(true),
-				Image: &commonv1.AgentImageConfig{
+				Image: &ImageConfig{
 					Name:        "agent",
 					Tag:         defaulting.AgentLatestVersion,
 					PullPolicy:  &defaultImagePullPolicy,

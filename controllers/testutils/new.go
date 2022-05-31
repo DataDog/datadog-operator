@@ -6,7 +6,6 @@
 package testutils
 
 import (
-	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 
@@ -50,7 +49,7 @@ func NewDatadogAgent(ns, name, image string, options *NewDatadogAgentOptions) *d
 			},
 		},
 		Agent: datadoghqv1alpha1.DatadogAgentSpecAgentSpec{
-			Image: &commonv1.AgentImageConfig{},
+			Image: &datadoghqv1alpha1.ImageConfig{},
 			Config: &datadoghqv1alpha1.NodeAgentConfig{
 				Resources: &v1.ResourceRequirements{
 					Requests: v1.ResourceList{
@@ -78,7 +77,7 @@ func NewDatadogAgent(ns, name, image string, options *NewDatadogAgentOptions) *d
 		},
 	}
 	_ = datadoghqv1alpha1.DefaultDatadogAgent(ad)
-	ad.Spec.Agent.Image = &commonv1.AgentImageConfig{
+	ad.Spec.Agent.Image = &datadoghqv1alpha1.ImageConfig{
 		Name:        image,
 		PullPolicy:  &pullPolicy,
 		PullSecrets: &[]v1.LocalObjectReference{},
@@ -127,7 +126,7 @@ func NewDatadogAgent(ns, name, image string, options *NewDatadogAgentOptions) *d
 		if !options.ClusterAgentDisabled {
 			ad.Spec.ClusterAgent = datadoghqv1alpha1.DatadogAgentSpecClusterAgentSpec{
 				Config: &datadoghqv1alpha1.ClusterAgentConfig{},
-				Image: &commonv1.AgentImageConfig{
+				Image: &datadoghqv1alpha1.ImageConfig{
 					Name:        image,
 					PullPolicy:  &pullPolicy,
 					PullSecrets: &[]v1.LocalObjectReference{},

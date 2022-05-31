@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 
-	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
@@ -142,7 +141,7 @@ func (o *options) upgrade(dd v1alpha1.DatadogAgent, image string) error {
 	}
 
 	if dd.Spec.ClusterAgent.Image == nil {
-		dd.Spec.ClusterAgent.Image = &commonv1.AgentImageConfig{}
+		dd.Spec.ClusterAgent.Image = &v1alpha1.ImageConfig{}
 	}
 
 	dd.Spec.ClusterAgent.Image.Name = image

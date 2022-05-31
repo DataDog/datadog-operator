@@ -10,7 +10,6 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	test "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1/test"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -20,7 +19,7 @@ func Test_buildConfigurationConfigMap(t *testing.T) {
 	defaultDda := test.NewDefaultedDatadogAgent("bar", "foo", nil)
 
 	ddaWithConfigData := defaultDda.DeepCopy()
-	dataContent := "config: data"
+	dataContent := "blobdata"
 	ddaWithConfigData.Spec.Agent.CustomConfig = &datadoghqv1alpha1.CustomConfigSpec{
 		ConfigData: &dataContent,
 	}
@@ -66,8 +65,8 @@ func Test_buildConfigurationConfigMap(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:        "foo",
 					Namespace:   "bar",
-					Labels:      object.GetDefaultLabels(ddaWithConfigData, ddaWithConfigData.Name, getAgentVersion(ddaWithConfigData)),
-					Annotations: object.GetDefaultAnnotations(ddaWithConfigData),
+					Labels:      getDefaultLabels(ddaWithConfigData, ddaWithConfigData.Name, getAgentVersion(ddaWithConfigData)),
+					Annotations: getDefaultAnnotations(ddaWithConfigData),
 				},
 				Data: map[string]string{
 					"datadog.yaml": dataContent,
@@ -89,7 +88,7 @@ func Test_buildConfigurationConfigMap(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := buildConfigurationConfigMap(tt.args.dda, datadoghqv1alpha1.ConvertCustomConfig(tt.args.cfcm), tt.args.configMapName, tt.args.subPath)
+			got, err := buildConfigurationConfigMap(tt.args.dda, tt.args.cfcm, tt.args.configMapName, tt.args.subPath)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("buildConfigurationConfigMap() error = %v, wantErr %v", err, tt.wantErr)
 				return

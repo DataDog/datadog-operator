@@ -47,7 +47,8 @@ BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 # Image URL to use all building/pushing image targets
 IMG ?= gcr.io/datadoghq/operator:$(IMG_VERSION)
 
-CRD_OPTIONS ?= "crd:preserveUnknownFields=false"
+# Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
+CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.20
 
@@ -104,14 +105,8 @@ endef
 ##@ Deploy
 
 .PHONY: manager
-manager: generate lint managergobuild ## Build manager binary
+manager: generate lint ## Build manager binary
 	go build -ldflags '${LDFLAGS}' -o bin/$(PLATFORM)/manager main.go
-managergobuild: ## Builds only manager go binary
-	go build -ldflags '${LDFLAGS}' -o bin/$(PLATFORM)/manager main.go
-
-##@ Deploy
-
-manager: generate lint managergobuild ## Build manager binary
 
 .PHONY: run
 run: generate lint manifests ## Run against the configured Kubernetes cluster in ~/.kube/config
@@ -139,8 +134,8 @@ manifests: generate-manifests patch-crds ## Generate manifestcd s e.g. CRD, RBAC
 
 .PHONY: generate-manifests
 generate-manifests: $(CONTROLLER_GEN)
-	$(CONTROLLER_GEN) $(CRD_OPTIONS),crdVersions=v1 rbac:roleName=manager-role webhook paths="./apis/..." output:crd:artifacts:config=config/crd/bases/v1
-	$(CONTROLLER_GEN) $(CRD_OPTIONS),crdVersions=v1beta1 rbac:roleName=manager-role webhook paths="./apis/..." output:crd:artifacts:config=config/crd/bases/v1beta1
+	$(CONTROLLER_GEN) $(CRD_OPTIONS),crdVersions=v1 rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases/v1
+	$(CONTROLLER_GEN) $(CRD_OPTIONS),crdVersions=v1beta1 rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases/v1beta1
 
 .PHONY: generate
 generate: $(CONTROLLER_GEN) generate-openapi generate-docs ## Generate code
@@ -281,7 +276,7 @@ bin/$(PLATFORM)/yq: Makefile
 	hack/install-yq.sh 3.3.0
 
 bin/$(PLATFORM)/golangci-lint: Makefile
-	hack/golangci-lint.sh -b "bin/$(PLATFORM)" v1.45.2
+	hack/golangci-lint.sh -b "bin/$(PLATFORM)" v1.38.0
 
 bin/$(PLATFORM)/operator-sdk: Makefile
 	hack/install-operator-sdk.sh v1.13.1

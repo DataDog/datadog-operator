@@ -13,10 +13,10 @@ import (
 )
 
 const (
-	crdFile    = "config/crd/bases/v1/datadoghq.com_datadogagents.yaml"
+	crdFile    = "config/crd/bases/v1beta1/datadoghq.com_datadogagents.yaml"
 	headerFile = "hack/generate-docs/header.markdown"
 	footerFile = "hack/generate-docs/footer.markdown"
-	docsFile   = "docs/configuration.$VERSION.md"
+	docsFile   = "docs/configuration.md"
 )
 
 type parameterDoc struct {
@@ -35,19 +35,14 @@ func main() {
 		panic(fmt.Sprintf("cannot unmarshal yaml CRD: %s", err))
 	}
 
-	for _, crdVersion := range crd.Spec.Versions {
-		generateDoc(header, footer, crdVersion.Schema.OpenAPIV3Schema.Properties["spec"].Properties, strings.Replace(docsFile, "$VERSION", crdVersion.Name, 1))
-	}
-}
-
-func generateDoc(header, footer []byte, props map[string]apiextensions.JSONSchemaProps, docsFile string) {
+	props := crd.Spec.Validation.OpenAPIV3Schema.Properties["spec"].Properties
 	docs := getParameterDocs([]string{}, props)
 
 	sort.Slice(docs, func(i, j int) bool {
 		return docs[i].name < docs[j].name
 	})
 
-	f, err := os.OpenFile(docsFile, os.O_TRUNC|os.O_WRONLY|os.O_CREATE, 0o644)
+	f, err := os.OpenFile(docsFile, os.O_TRUNC|os.O_WRONLY, 0644)
 	if err != nil {
 		panic(fmt.Sprintf("cannot write to file: %s", err))
 	}

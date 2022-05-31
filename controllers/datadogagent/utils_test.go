@@ -4,7 +4,6 @@ import (
 	"reflect"
 	"testing"
 
-	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
@@ -18,6 +17,31 @@ import (
 	v1 "k8s.io/api/core/v1"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
+
+func TestKSMCoreGetEnvVarsForAgent(t *testing.T) {
+	logger := logf.Log.WithName(t.Name())
+	enabledFeature := true
+	spec := generateSpec()
+	spec.Spec.ClusterAgent.Config.ClusterChecksEnabled = &enabledFeature
+	spec.Spec.Features.KubeStateMetricsCore.Enabled = &enabledFeature
+	env, err := getEnvVarsForAgent(logger, spec)
+	require.NoError(t, err)
+	require.Subset(t, env, []v1.EnvVar{{
+		Name:  datadoghqv1alpha1.DDIgnoreAutoConf,
+		Value: "kubernetes_state",
+	}})
+
+	spec.Spec.Agent.Config.Env = append(spec.Spec.Agent.Config.Env, v1.EnvVar{
+		Name:  datadoghqv1alpha1.DDIgnoreAutoConf,
+		Value: "redis custom",
+	})
+	env, err = getEnvVarsForAgent(logger, spec)
+	require.NoError(t, err)
+	require.Subset(t, env, []v1.EnvVar{{
+		Name:  datadoghqv1alpha1.DDIgnoreAutoConf,
+		Value: "redis custom kubernetes_state",
+	}})
+}
 
 func generateSpec() *datadoghqv1alpha1.DatadogAgent {
 	var boolPtr bool
@@ -430,13 +454,13 @@ func Test_mergeAnnotationsLabels(t *testing.T) {
 func Test_getImage(t *testing.T) {
 	tests := []struct {
 		name      string
-		imageSpec *commonv1.AgentImageConfig
+		imageSpec *datadoghqv1alpha1.ImageConfig
 		registry  *string
 		want      string
 	}{
 		{
 			name: "backward compatible",
-			imageSpec: &commonv1.AgentImageConfig{
+			imageSpec: &datadoghqv1alpha1.ImageConfig{
 				Name: defaulting.GetLatestAgentImage(),
 			},
 			registry: nil,
@@ -444,7 +468,7 @@ func Test_getImage(t *testing.T) {
 		},
 		{
 			name: "nominal case",
-			imageSpec: &commonv1.AgentImageConfig{
+			imageSpec: &datadoghqv1alpha1.ImageConfig{
 				Name: "agent",
 				Tag:  "7",
 			},
@@ -453,7 +477,7 @@ func Test_getImage(t *testing.T) {
 		},
 		{
 			name: "prioritize the full path",
-			imageSpec: &commonv1.AgentImageConfig{
+			imageSpec: &datadoghqv1alpha1.ImageConfig{
 				Name: "docker.io/datadog/agent:7.28.1-rc.3",
 				Tag:  "latest",
 			},
@@ -462,7 +486,7 @@ func Test_getImage(t *testing.T) {
 		},
 		{
 			name: "default registry",
-			imageSpec: &commonv1.AgentImageConfig{
+			imageSpec: &datadoghqv1alpha1.ImageConfig{
 				Name: "agent",
 				Tag:  "latest",
 			},
@@ -471,40 +495,40 @@ func Test_getImage(t *testing.T) {
 		},
 		{
 			name: "add jmx",
-			imageSpec: &commonv1.AgentImageConfig{
+			imageSpec: &datadoghqv1alpha1.ImageConfig{
 				Name:       "agent",
 				Tag:        defaulting.AgentLatestVersion,
-				JMXEnabled: true,
+				JmxEnabled: true,
 			},
 			registry: nil,
 			want:     defaulting.GetLatestAgentImageJMX(),
 		},
 		{
 			name: "cluster-agent",
-			imageSpec: &commonv1.AgentImageConfig{
+			imageSpec: &datadoghqv1alpha1.ImageConfig{
 				Name:       "cluster-agent",
 				Tag:        defaulting.ClusterAgentLatestVersion,
-				JMXEnabled: false,
+				JmxEnabled: false,
 			},
 			registry: nil,
 			want:     defaulting.GetLatestClusterAgentImage(),
 		},
 		{
 			name: "do not duplicate jmx",
-			imageSpec: &commonv1.AgentImageConfig{
+			imageSpec: &datadoghqv1alpha1.ImageConfig{
 				Name:       "agent",
 				Tag:        "latest-jmx",
-				JMXEnabled: true,
+				JmxEnabled: true,
 			},
 			registry: nil,
 			want:     "gcr.io/datadoghq/agent:latest-jmx",
 		},
 		{
 			name: "do not add jmx",
-			imageSpec: &commonv1.AgentImageConfig{
+			imageSpec: &datadoghqv1alpha1.ImageConfig{
 				Name:       "agent",
 				Tag:        "latest-jmx",
-				JMXEnabled: true,
+				JmxEnabled: true,
 			},
 			registry: nil,
 			want:     "gcr.io/datadoghq/agent:latest-jmx",

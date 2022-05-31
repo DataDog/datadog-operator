@@ -14,7 +14,6 @@ import (
 	"sync"
 	"testing"
 
-	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	test "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
@@ -504,11 +503,11 @@ func TestReconcileDatadogAgent_getCredsFromDatadogAgent(t *testing.T) {
 					&test.NewDatadogAgentOptions{
 						Creds: &datadoghqv1alpha1.AgentCredentials{
 							DatadogCredentials: datadoghqv1alpha1.DatadogCredentials{
-								APISecret: &commonv1.SecretConfig{
+								APISecret: &datadoghqv1alpha1.Secret{
 									SecretName: "datadog-creds-api",
 									KeyName:    "datadog_api_key",
 								},
-								APPSecret: &commonv1.SecretConfig{
+								APPSecret: &datadoghqv1alpha1.Secret{
 									SecretName: "datadog-creds-app",
 									KeyName:    "application_key",
 								},
@@ -587,7 +586,7 @@ func TestReconcileDatadogAgent_getCredsFromDatadogAgent(t *testing.T) {
 						Creds: &datadoghqv1alpha1.AgentCredentials{
 							DatadogCredentials: datadoghqv1alpha1.DatadogCredentials{
 								APIKey: "foundApiKey",
-								APPSecret: &commonv1.SecretConfig{
+								APPSecret: &datadoghqv1alpha1.Secret{
 									SecretName: "datadog-creds",
 								},
 							},

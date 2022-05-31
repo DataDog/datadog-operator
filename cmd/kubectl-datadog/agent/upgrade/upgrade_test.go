@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"testing"
 
-	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 
@@ -101,7 +100,7 @@ func Test_options_upgrade(t *testing.T) {
 			loadFunc: func(c client.Client) *datadoghqv1alpha1.DatadogAgent {
 				dd := buildDatadogAgent("datadog/agent:7.17.1")
 				dd.Spec.ClusterChecksRunner = datadoghqv1alpha1.DatadogAgentSpecClusterChecksRunnerSpec{
-					Image: &commonv1.AgentImageConfig{
+					Image: &datadoghqv1alpha1.ImageConfig{
 						Name: "datadog/agent:7.17.1",
 					},
 				}
@@ -151,7 +150,7 @@ func buildDatadogAgent(image string) *datadoghqv1alpha1.DatadogAgent {
 		},
 		Spec: datadoghqv1alpha1.DatadogAgentSpec{
 			Agent: datadoghqv1alpha1.DatadogAgentSpecAgentSpec{
-				Image: &commonv1.AgentImageConfig{
+				Image: &datadoghqv1alpha1.ImageConfig{
 					Name: image,
 				},
 			},

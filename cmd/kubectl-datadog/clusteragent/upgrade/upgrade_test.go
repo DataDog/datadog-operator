@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"testing"
 
-	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
@@ -149,7 +148,7 @@ func buildDatadogAgent(image string) *datadoghqv1alpha1.DatadogAgent {
 		},
 		Spec: datadoghqv1alpha1.DatadogAgentSpec{
 			ClusterAgent: datadoghqv1alpha1.DatadogAgentSpecClusterAgentSpec{
-				Image: &commonv1.AgentImageConfig{
+				Image: &datadoghqv1alpha1.ImageConfig{
 					Name: image,
 				},
 			},

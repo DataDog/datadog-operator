@@ -13,17 +13,14 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/DataDog/datadog-operator/apis/datadoghq/common"
-	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
-	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/controllers/testutils"
 )
 
 // Test_newAgentSecret tests that the credentials are stored in the secret in an expected hierarchy
 func Test_newAgentSecret(t *testing.T) {
+
 	type fields struct {
 		APIKey string
 		appKey string
@@ -83,6 +80,7 @@ func Test_newAgentSecret(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+
 			options := &testutils.NewDatadogAgentOptions{
 				APIKey: tt.fields.APIKey,
 				AppKey: tt.fields.appKey,
@@ -96,9 +94,9 @@ func Test_newAgentSecret(t *testing.T) {
 
 			result := newAgentSecret("foo", dda)
 
-			if val, ok := result.Data[apicommon.DefaultAPIKeyKey]; ok {
+			if val, ok := result.Data[datadoghqv1alpha1.DefaultAPIKeyKey]; ok {
 				if string(val) != tt.wantAPIKey {
-					t.Errorf("newAgentSecret() API key = %v, want %v", string(result.Data[apicommon.DefaultAPIKeyKey]), tt.wantAPIKey)
+					t.Errorf("newAgentSecret() API key = %v, want %v", string(result.Data[datadoghqv1alpha1.DefaultAPIKeyKey]), tt.wantAPIKey)
 				}
 			} else {
 				if tt.wantAPIKey != "" {
@@ -106,9 +104,9 @@ func Test_newAgentSecret(t *testing.T) {
 				}
 			}
 
-			if val, ok := result.Data[apicommon.DefaultAPPKeyKey]; ok {
+			if val, ok := result.Data[datadoghqv1alpha1.DefaultAPPKeyKey]; ok {
 				if string(val) != tt.wantAppKey {
-					t.Errorf("newAgentSecret() App key = %v, want %v", string(result.Data[apicommon.DefaultAPPKeyKey]), tt.wantAPIKey)
+					t.Errorf("newAgentSecret() App key = %v, want %v", string(result.Data[datadoghqv1alpha1.DefaultAPPKeyKey]), tt.wantAPIKey)
 				}
 			} else {
 				if tt.wantAppKey != "" {
@@ -116,9 +114,9 @@ func Test_newAgentSecret(t *testing.T) {
 				}
 			}
 
-			if val, ok := result.Data[apicommon.DefaultTokenKey]; ok {
+			if val, ok := result.Data[datadoghqv1alpha1.DefaultTokenKey]; ok {
 				if string(val) != tt.wantToken && tt.wantToken != "<GENERATED>" {
-					t.Errorf("newAgentSecret() token key = %v, want %v", string(result.Data[apicommon.DefaultTokenKey]), tt.wantAPIKey)
+					t.Errorf("newAgentSecret() token key = %v, want %v", string(result.Data[datadoghqv1alpha1.DefaultTokenKey]), tt.wantAPIKey)
 				}
 			} else {
 				if tt.wantToken != "" {
@@ -130,6 +128,7 @@ func Test_newAgentSecret(t *testing.T) {
 }
 
 func Test_needAgentSecret(t *testing.T) {
+
 	type fields struct {
 		APIKey string
 		appKey string
@@ -173,6 +172,7 @@ func Test_needAgentSecret(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+
 			options := &testutils.NewDatadogAgentOptions{
 				APIKey: tt.fields.APIKey,
 				AppKey: tt.fields.appKey,
@@ -196,9 +196,11 @@ func Test_needAgentSecret(t *testing.T) {
 			}
 		})
 	}
+
 }
 
 func Test_newExternalMetricsSecret(t *testing.T) {
+
 	name := "test-external-metrics"
 	ns := "default"
 	dda := testutils.NewDatadogAgent(ns, name, "datadog/agent:7.24.1", &testutils.NewDatadogAgentOptions{})
@@ -211,7 +213,7 @@ func Test_newExternalMetricsSecret(t *testing.T) {
 	}
 	result := newExternalMetricsSecret(name, dda)
 
-	labels := object.GetDefaultLabels(dda, common.DefaultClusterAgentResourceSuffix, "")
+	labels := getDefaultLabels(dda, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix, "")
 	wantSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        name,
@@ -229,6 +231,7 @@ func Test_newExternalMetricsSecret(t *testing.T) {
 }
 
 func Test_needExternalMetricsSecret(t *testing.T) {
+
 	tests := []struct {
 		name             string
 		clusterAgentSpec datadoghqv1alpha1.DatadogAgentSpecClusterAgentSpec
@@ -333,6 +336,7 @@ func Test_needExternalMetricsSecret(t *testing.T) {
 }
 
 func Test_getKeysFromCredentials(t *testing.T) {
+
 	tests := []struct {
 		name     string
 		APIKey   string
@@ -351,8 +355,8 @@ func Test_getKeysFromCredentials(t *testing.T) {
 			appKey: "ENC[app_key]",
 			wantFunc: func() map[string][]byte {
 				wantMap := make(map[string][]byte)
-				wantMap[apicommon.DefaultAPIKeyKey] = []byte("ENC[api_key]")
-				wantMap[apicommon.DefaultAPPKeyKey] = []byte("ENC[app_key]")
+				wantMap[datadoghqv1alpha1.DefaultAPIKeyKey] = []byte("ENC[api_key]")
+				wantMap[datadoghqv1alpha1.DefaultAPPKeyKey] = []byte("ENC[app_key]")
 				return wantMap
 			},
 		},
@@ -362,8 +366,8 @@ func Test_getKeysFromCredentials(t *testing.T) {
 			appKey: "sgfggtdhfghfghfghfgbdfdgs",
 			wantFunc: func() map[string][]byte {
 				wantMap := make(map[string][]byte)
-				wantMap[apicommon.DefaultAPIKeyKey] = []byte("adflkajdflkjalkcmlkdjacsf")
-				wantMap[apicommon.DefaultAPPKeyKey] = []byte("sgfggtdhfghfghfghfgbdfdgs")
+				wantMap[datadoghqv1alpha1.DefaultAPIKeyKey] = []byte("adflkajdflkjalkcmlkdjacsf")
+				wantMap[datadoghqv1alpha1.DefaultAPPKeyKey] = []byte("sgfggtdhfghfghfghfgbdfdgs")
 				return wantMap
 			},
 		},
@@ -396,7 +400,7 @@ func Test_checkAPIKeySufficiency(t *testing.T) {
 		{
 			name: "APISecret is used",
 			credentials: &datadoghqv1alpha1.DatadogCredentials{
-				APISecret: &commonv1.SecretConfig{
+				APISecret: &datadoghqv1alpha1.Secret{
 					SecretName: "test-secret",
 					KeyName:    "api_key",
 				},
@@ -460,7 +464,7 @@ func Test_checkAppKeySufficiency(t *testing.T) {
 		{
 			name: "APPSecret is used",
 			credentials: &datadoghqv1alpha1.DatadogCredentials{
-				APPSecret: &commonv1.SecretConfig{
+				APPSecret: &datadoghqv1alpha1.Secret{
 					SecretName: "test-secret",
 					KeyName:    "app_key",
 				},

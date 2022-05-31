@@ -21,8 +21,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
-	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/testutils"
@@ -53,8 +51,7 @@ func checkAgentUpdateOnObject(agentKey, objKey types.NamespacedName, obj client.
 	getAgentHash func(agent *datadoghqv1alpha1.DatadogAgent) string,
 	getAnnotationHash func() string,
 	updateAgent func(agent *datadoghqv1alpha1.DatadogAgent),
-	check func(agent *datadoghqv1alpha1.DatadogAgent) bool,
-) {
+	check func(agent *datadoghqv1alpha1.DatadogAgent) bool) {
 	var beforeHash string
 	var agent *datadoghqv1alpha1.DatadogAgent
 
@@ -94,29 +91,26 @@ func checkAgentUpdateOnObject(agentKey, objKey types.NamespacedName, obj client.
 func checkAgentUpdateOnDaemonSet(agentKey, dsKey types.NamespacedName, updateAgent func(agent *datadoghqv1alpha1.DatadogAgent), check func(agent *datadoghqv1alpha1.DatadogAgent) bool) {
 	obj := &appsv1.DaemonSet{}
 	checkAgentUpdateOnObject(agentKey, dsKey, obj, func(agent *datadoghqv1alpha1.DatadogAgent) string {
-		if agent.Status.Agent != nil {
-			return agent.Status.Agent.CurrentHash
-		}
-		return ""
+		return agent.Status.Agent.CurrentHash
 	}, func() string {
-		return obj.Annotations[apicommon.MD5AgentDeploymentAnnotationKey]
+		return obj.Annotations[datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey]
 	}, updateAgent, check)
 }
 
 func checkAgentUpdateOnClusterAgent(agentKey, dsKey types.NamespacedName, updateAgent func(agent *datadoghqv1alpha1.DatadogAgent), check func(agent *datadoghqv1alpha1.DatadogAgent) bool) {
 	obj := &appsv1.Deployment{}
 	checkAgentUpdateOnObject(agentKey, dsKey, obj, func(agent *datadoghqv1alpha1.DatadogAgent) string {
-		if agent.Status.ClusterAgent != nil {
-			return agent.Status.ClusterAgent.CurrentHash
-		}
-		return ""
+		return agent.Status.ClusterAgent.CurrentHash
 	}, func() string {
-		return obj.Annotations[apicommon.MD5AgentDeploymentAnnotationKey]
+		return obj.Annotations[datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey]
 	}, updateAgent, check)
 }
 
 // This test may take ~30s to run, check you go test timeout
 var _ = Describe("DatadogAgent Controller", func() {
+	// intString2 := intstr.FromInt(2)
+	// intString10 := intstr.FromInt(10)
+
 	Context("Initial deployment", func() {
 		namespace := "default"
 		name := "foo"
@@ -245,7 +239,7 @@ var _ = Describe("DatadogAgent Controller", func() {
 
 			clusterAgent := &appsv1.Deployment{}
 			getObjectAndCheck(clusterAgent, dcaKey, func() bool {
-				return clusterAgent.Annotations[apicommon.MD5AgentDeploymentAnnotationKey] == agentClusterAgentHash
+				return clusterAgent.Annotations[datadoghqv1alpha1.MD5AgentDeploymentAnnotationKey] == agentClusterAgentHash
 			})
 		})
 
@@ -254,7 +248,7 @@ var _ = Describe("DatadogAgent Controller", func() {
 				agent.Spec.ClusterAgent.Image.Name = "datadog/cluster-agent:1.0.0"
 				agent.Spec.ClusterAgent.Config.ClusterChecksEnabled = apiutils.NewBoolPointer(true)
 				agent.Spec.ClusterChecksRunner = datadoghqv1alpha1.DatadogAgentSpecClusterChecksRunnerSpec{
-					Image: &commonv1.AgentImageConfig{
+					Image: &datadoghqv1alpha1.ImageConfig{
 						Name: "datadog/agent:7.22.0",
 					},
 				}

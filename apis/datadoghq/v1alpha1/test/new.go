@@ -13,13 +13,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
-	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
-
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 )
@@ -75,7 +72,7 @@ type NewDatadogAgentOptions struct {
 	ClusterChecksRunnerVolumeMounts  []corev1.VolumeMount
 	ClusterChecksRunnerEnvVars       []corev1.EnvVar
 	APIKeyExistingSecret             string
-	APISecret                        *commonv1.SecretConfig
+	APISecret                        *datadoghqv1alpha1.Secret
 	Site                             string
 	HostPort                         int32
 	HostNetwork                      bool
@@ -116,7 +113,7 @@ func NewDefaultedDatadogAgent(ns, name string, options *NewDatadogAgentOptions) 
 	ad.Spec = datadoghqv1alpha1.DatadogAgentSpec{
 		Credentials: DefaultCredentials(),
 		Agent: datadoghqv1alpha1.DatadogAgentSpecAgentSpec{
-			Image: &commonv1.AgentImageConfig{
+			Image: &datadoghqv1alpha1.ImageConfig{
 				Name:       defaultImage,
 				PullPolicy: &pullPolicy,
 			},
@@ -494,7 +491,7 @@ func NewClusterAgentDeployment(ns, name string, options *NewDeploymentOptions) *
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:   ns,
-			Name:        fmt.Sprintf("%s-%s", name, apicommon.DefaultClusterAgentResourceSuffix),
+			Name:        fmt.Sprintf("%s-%s", name, datadoghqv1alpha1.DefaultClusterAgentResourceSuffix),
 			Labels:      map[string]string{},
 			Annotations: map[string]string{},
 		},

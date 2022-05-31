@@ -9,9 +9,7 @@ import (
 	"context"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 	"github.com/go-logr/logr"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,17 +20,17 @@ import (
 func buildMetricsServerClusterRoleBinding(dda *datadoghqv1alpha1.DatadogAgent, name, agentVersion string) *rbacv1.ClusterRoleBinding {
 	return &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels: object.GetDefaultLabels(dda, name, agentVersion),
+			Labels: getDefaultLabels(dda, name, agentVersion),
 			Name:   name,
 		},
 		RoleRef: rbacv1.RoleRef{
-			APIGroup: rbac.RbacAPIGroup,
-			Kind:     rbac.ClusterRoleKind,
+			APIGroup: datadoghqv1alpha1.RbacAPIGroup,
+			Kind:     datadoghqv1alpha1.ClusterRoleKind,
 			Name:     "system:auth-delegator",
 		},
 		Subjects: []rbacv1.Subject{
 			{
-				Kind:      rbac.ServiceAccountKind,
+				Kind:      datadoghqv1alpha1.ServiceAccountKind,
 				Name:      getClusterAgentServiceAccount(dda),
 				Namespace: dda.Namespace,
 			},
@@ -58,17 +56,17 @@ func buildExternalMetricsReaderClusterRoleBinding(dda *datadoghqv1alpha1.Datadog
 	if isMetricsProviderEnabled(dda.Spec.ClusterAgent) {
 		return &rbacv1.ClusterRoleBinding{
 			ObjectMeta: metav1.ObjectMeta{
-				Labels: object.GetDefaultLabels(dda, name, agentVersion),
+				Labels: getDefaultLabels(dda, name, agentVersion),
 				Name:   name,
 			},
 			RoleRef: rbacv1.RoleRef{
-				APIGroup: rbac.RbacAPIGroup,
-				Kind:     rbac.ClusterRoleKind,
+				APIGroup: datadoghqv1alpha1.RbacAPIGroup,
+				Kind:     datadoghqv1alpha1.ClusterRoleKind,
 				Name:     name, // Cluster role has the same name as its binding
 			},
 			Subjects: []rbacv1.Subject{
 				{
-					Kind:      rbac.ServiceAccountKind,
+					Kind:      datadoghqv1alpha1.ServiceAccountKind,
 					Name:      "horizontal-pod-autoscaler",
 					Namespace: "kube-system",
 				},
@@ -123,7 +121,7 @@ func buildExternalMetricsReaderClusterRole(dda *datadoghqv1alpha1.DatadogAgent, 
 	if isMetricsProviderEnabled(dda.Spec.ClusterAgent) {
 		clusterRole := &rbacv1.ClusterRole{
 			ObjectMeta: metav1.ObjectMeta{
-				Labels: object.GetDefaultLabels(dda, object.NewPartOfLabelValue(dda).String(), agentVersion),
+				Labels: getDefaultLabels(dda, NewPartOfLabelValue(dda).String(), agentVersion),
 				Name:   name,
 			},
 		}
@@ -135,9 +133,9 @@ func buildExternalMetricsReaderClusterRole(dda *datadoghqv1alpha1.DatadogAgent, 
 				},
 				Resources: []string{"*"},
 				Verbs: []string{
-					rbac.GetVerb,
-					rbac.ListVerb,
-					rbac.WatchVerb,
+					datadoghqv1alpha1.GetVerb,
+					datadoghqv1alpha1.ListVerb,
+					datadoghqv1alpha1.WatchVerb,
 				},
 			},
 		}
@@ -146,9 +144,9 @@ func buildExternalMetricsReaderClusterRole(dda *datadoghqv1alpha1.DatadogAgent, 
 		if *dda.Spec.Credentials.UseSecretBackend &&
 			checkSecretBackendMultipleProvidersUsed(dda.Spec.ClusterAgent.Config.Env) {
 			rbacRules = append(rbacRules, rbacv1.PolicyRule{
-				APIGroups: []string{rbac.CoreAPIGroup},
-				Resources: []string{rbac.SecretsResource},
-				Verbs:     []string{rbac.GetVerb},
+				APIGroups: []string{datadoghqv1alpha1.CoreAPIGroup},
+				Resources: []string{datadoghqv1alpha1.SecretsResource},
+				Verbs:     []string{datadoghqv1alpha1.GetVerb},
 			})
 		}
 
