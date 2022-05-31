@@ -14,6 +14,7 @@ const (
 	ExtensionAPIServerAuthResourceName   = "extension-apiserver-authentication"
 	KubeSystemResourceName               = "kube-system"
 
+	NodeAgentSuffix    = "node"
 	ChecksRunnerSuffix = "ccr"
 	ClusterAgentSuffix = "dca"
 )
