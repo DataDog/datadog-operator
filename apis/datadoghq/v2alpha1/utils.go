@@ -60,10 +60,10 @@ func ConvertCustomConfig(config *CustomConfig) *commonv1.CustomConfig {
 }
 
 // IsHostNetworkEnabled returns whether the pod should use the host's network namespace
-func IsHostNetworkEnabled(dda *DatadogAgent) bool {
-	for _, val := range dda.Spec.Override {
-		if apiutils.BoolValue(val.HostNetwork) {
-			return true
+func IsHostNetworkEnabled(dda *DatadogAgent, component ComponentName) bool {
+	if dda.Spec.Override != nil {
+		if c, ok := dda.Spec.Override[component]; ok {
+			return apiutils.BoolValue(c.HostNetwork)
 		}
 	}
 	return false

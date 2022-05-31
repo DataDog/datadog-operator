@@ -737,7 +737,7 @@ func schema__apis_datadoghq_v2alpha1_UnixDomainSocketConfig(ref common.Reference
 				Properties: map[string]spec.Schema{
 					"enabled": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Enabled enables Unix Domain Socket.",
+							Description: "Enabled enables Unix Domain Socket. Default: true",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},

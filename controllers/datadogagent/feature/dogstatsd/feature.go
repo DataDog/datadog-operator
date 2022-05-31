@@ -60,7 +60,7 @@ func (f *dogstatsdFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp featur
 	if apiutils.BoolValue(dogstatsd.OriginDetectionEnabled) {
 		f.originDetectionEnabled = true
 	}
-	f.useHostNetwork = v2alpha1.IsHostNetworkEnabled(dda)
+	f.useHostNetwork = v2alpha1.IsHostNetworkEnabled(dda, v2alpha1.NodeAgentComponentName)
 	if dogstatsd.MapperProfiles != nil {
 		f.mapperProfiles = v2alpha1.ConvertCustomConfig(dogstatsd.MapperProfiles)
 	}
@@ -136,6 +136,7 @@ func (f *dogstatsdFeature) ManageNodeAgent(managers feature.PodTemplateManagers)
 			if f.useHostNetwork {
 				dogstatsdPort.ContainerPort = f.hostPortHostPort
 				managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
+					// defaults to 8125 in datadog-agent code
 					Name:  apicommon.DDDogstatsdPort,
 					Value: strconv.FormatInt(int64(f.hostPortHostPort), 10),
 				})

@@ -451,6 +451,7 @@ type DatadogMonitorFeatureConfig struct {
 // HostPortConfig contains host port configuration.
 type HostPortConfig struct {
 	// Enabled enables host port configuration
+	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
