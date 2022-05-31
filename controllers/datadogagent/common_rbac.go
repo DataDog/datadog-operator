@@ -75,7 +75,7 @@ func getEventCollectionPolicyRule(dda *datadoghqv1alpha1.DatadogAgent) rbacv1.Po
 		Resources: []string{rbac.ConfigMapsResource},
 		ResourceNames: []string{
 			common.DatadogTokenOldResourceName, // Kept for backward compatibility with agent <7.37.0
-			utils.GetDatadogTokenResourceName(dda),
+			utils.GetDatadogTokenResourceName(dda.Name),
 		},
 		Verbs: []string{rbac.GetVerb, rbac.UpdateVerb},
 	}
@@ -89,7 +89,7 @@ func getLeaderElectionPolicyRule(dda *datadoghqv1alpha1.DatadogAgent) []rbacv1.P
 			Resources: []string{rbac.ConfigMapsResource},
 			ResourceNames: []string{
 				common.DatadogLeaderElectionOldResourceName, // Kept for backward compatibility with agent <7.37.0
-				utils.GetDatadogLeaderElectionResourceName(dda),
+				utils.GetDatadogLeaderElectionResourceName(dda.Name),
 			},
 			Verbs: []string{rbac.GetVerb, rbac.UpdateVerb},
 		},

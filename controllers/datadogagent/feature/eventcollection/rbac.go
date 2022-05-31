@@ -19,7 +19,7 @@ func getRBACPolicyRules(tokenResourceName string) []rbacv1.PolicyRule {
 			APIGroups: []string{rbac.CoreAPIGroup},
 			Resources: []string{rbac.ConfigMapsResource},
 			ResourceNames: []string{
-				common.DatadogTokenResourceName, // agent <7.37 token reource name
+				common.DatadogTokenOldResourceName, // agent <7.37 token reource name
 				tokenResourceName,
 			},
 			Verbs: []string{rbac.GetVerb, rbac.UpdateVerb},
@@ -36,7 +36,7 @@ func getLeaderElectionRBACPolicyRules(leaderElectionResourceName string) []rbacv
 			APIGroups: []string{rbac.CoreAPIGroup},
 			Resources: []string{rbac.ConfigMapsResource},
 			ResourceNames: []string{
-				common.DatadogLeaderElectionResourceName, // agent <7.37 leader election resource name
+				common.DatadogLeaderElectionOldResourceName, // agent <7.37 leader election resource name
 				leaderElectionResourceName,
 			},
 			Verbs: []string{rbac.GetVerb, rbac.UpdateVerb},

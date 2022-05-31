@@ -515,7 +515,7 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 		},
 		{
 			Name:  datadoghqv1alpha1.DDLeaderLeaseName,
-			Value: utils.GetDatadogLeaderElectionResourceName(dda),
+			Value: utils.GetDatadogLeaderElectionResourceName(dda.Name),
 		},
 		{
 			Name:  datadoghqv1alpha1.DDComplianceConfigEnabled,
@@ -531,7 +531,7 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 		},
 		{
 			Name:  datadoghqv1alpha1.DDClusterAgentTokenName,
-			Value: utils.GetDatadogTokenResourceName(dda),
+			Value: utils.GetDatadogTokenResourceName(dda.Name),
 		},
 	}
 
