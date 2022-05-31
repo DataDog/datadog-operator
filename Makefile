@@ -20,6 +20,7 @@ DEFAULT_CHANNEL=alpha
 GOARCH?=amd64
 PLATFORM=$(shell uname -s)-$(shell uname -m)
 ROOT=$(dir $(abspath $(firstword $(MAKEFILE_LIST))))
+KUSTOMIZE_CONFIG?=config/default
 
 # Default bundle image tag
 BUNDLE_IMG ?= controller-bundle:$(VERSION)
@@ -129,11 +130,11 @@ uninstall: manifests $(KUSTOMIZE) ## Uninstall CRDs from a cluster
 .PHONY: deploy
 deploy: manifests $(KUSTOMIZE) ## Deploy controller in the configured Kubernetes cluster in ~/.kube/config
 	cd config/manager && $(ROOT)/$(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default | kubectl apply --force-conflicts --server-side -f -
+	$(KUSTOMIZE) build $(KUSTOMIZE_CONFIG)| kubectl apply --force-conflicts --server-side -f -
 
 .PHONY: undeploy
 undeploy: $(KUSTOMIZE) ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/default | kubectl delete -f -
+	$(KUSTOMIZE) build $(KUSTOMIZE_CONFIG) | kubectl delete -f -
 
 .PHONY: manifests
 manifests: generate-manifests patch-crds ## Generate manifestcd s e.g. CRD, RBAC etc.
