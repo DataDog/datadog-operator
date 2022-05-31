@@ -65,10 +65,17 @@ func GetAppKeySecret(credentials *datadoghqv1alpha1.DatadogCredentials, defaultN
 
 // ShouldReturn returns if we should stop the reconcile loop based on result
 func ShouldReturn(result reconcile.Result, err error) bool {
-	if err != nil || result.Requeue || result.RequeueAfter > 0 {
-		return true
-	}
-	return false
+	return err != nil || result.Requeue || result.RequeueAfter > 0
+}
+
+// GetDatadogLeaderElectionResourceName returns the name of the ConfigMap used by the cluster agent to elect a leader
+func GetDatadogLeaderElectionResourceName(dda *datadoghqv1alpha1.DatadogAgent) string {
+	return fmt.Sprintf("%s-leader-election", dda.Name)
+}
+
+// GetDatadogTokenResourceName returns the name of the ConfigMap used by the cluster agent to store token
+func GetDatadogTokenResourceName(dda *datadoghqv1alpha1.DatadogAgent) string {
+	return fmt.Sprintf("%stoken", dda.Name)
 }
 
 // GetDatadogLeaderElectionResourceName returns the name of the ConfigMap used by the cluster agent to elect a leader

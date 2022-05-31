@@ -2,6 +2,7 @@ image: registry.ddbuild.io/images/mirror/golang:1.17.6-bullseye
 variables:
   GO111MODULE: "on"
   PROJECTNAME: "datadog-operator"
+  PROJECTNAME_CHECK: "datadog-operator-check"
   GOPATH: "$CI_PROJECT_DIR/.cache"
   BUILD_DOCKER_REGISTRY: "486234852809.dkr.ecr.us-east-1.amazonaws.com/ci"
   DOCKER_REGISTRY_LOGIN_SSM_KEY: docker_hub_login
@@ -48,7 +49,7 @@ generate_code:
     - make generate manifests
     - git diff --exit-code
 
-build_image_amd64:
+build_operator_image_amd64:
   stage: image
   tags: ["runner:docker", "size:large"]
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:v2718644-9ce6565-18.09.6-py3
@@ -60,10 +61,10 @@ build_image_amd64:
     # DockerHub login for build to limit rate limit when pulling base images
     - DOCKER_REGISTRY_LOGIN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_LOGIN_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
     - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin "$DOCKER_REGISTRY_URL"
-    - IMG=$TARGET_IMAGE make docker-build-ci docker-push
+    - IMG=$TARGET_IMAGE make docker-build-ci docker-push-ci
     - if [ -n "$CI_COMMIT_TAG" ]; then docker tag $TARGET_IMAGE $RELEASE_IMAGE && docker push $RELEASE_IMAGE; fi
 
-build_image_arm64:
+build_operator_image_arm64:
   stage: image
   tags: ["runner:docker-arm", "platform:arm64"]
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:v2718787-3888eda-18.09.6-arm64-py3
@@ -75,7 +76,37 @@ build_image_arm64:
     # DockerHub login for build to limit rate limit when pulling base images
     - DOCKER_REGISTRY_LOGIN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_LOGIN_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
     - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin "$DOCKER_REGISTRY_URL"
-    - IMG=$TARGET_IMAGE make docker-build-ci docker-push
+    - IMG=$TARGET_IMAGE make docker-build-ci docker-push-ci
+    - if [ -n "$CI_COMMIT_TAG" ]; then docker tag $TARGET_IMAGE $RELEASE_IMAGE && docker push $RELEASE_IMAGE; fi
+
+build_operator_check_image_amd64:
+  stage: image
+  tags: ["runner:docker", "size:large"]
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:v2718644-9ce6565-18.09.6-py3
+  variables:
+    GOARCH: amd64
+    TARGET_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME_CHECK:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-amd64
+    RELEASE_IMAGE: $@DOCKER_REGISTRY/$PROJECTNAME_CHECK:$CI_COMMIT_TAG-amd64
+  script:
+    # DockerHub login for build to limit rate limit when pulling base images
+    - DOCKER_REGISTRY_LOGIN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_LOGIN_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
+    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin "$DOCKER_REGISTRY_URL"
+    - IMG_CHECK=$TARGET_IMAGE make docker-build-check-ci docker-push-check-ci
+    - if [ -n "$CI_COMMIT_TAG" ]; then docker tag $TARGET_IMAGE $RELEASE_IMAGE && docker push $RELEASE_IMAGE; fi
+
+build_operator_check_image_arm64:
+  stage: image
+  tags: ["runner:docker-arm", "platform:arm64"]
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:v2718787-3888eda-18.09.6-arm64-py3
+  variables:
+    GOARCH: arm64
+    TARGET_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME_CHECK:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-arm64
+    RELEASE_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME_CHECK:$CI_COMMIT_TAG-arm64
+  script:
+    # DockerHub login for build to limit rate limit when pulling base images
+    - DOCKER_REGISTRY_LOGIN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_LOGIN_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
+    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin "$DOCKER_REGISTRY_URL"
+    - IMG_CHECK=$TARGET_IMAGE make docker-build-check-ci docker-push-check-ci
     - if [ -n "$CI_COMMIT_TAG" ]; then docker tag $TARGET_IMAGE $RELEASE_IMAGE && docker push $RELEASE_IMAGE; fi
 
 build_bundle_image:
@@ -155,7 +186,7 @@ publish_redhat_bundle:
     IMG_DESTINATIONS: operator-bundle:$CI_COMMIT_TAG
     IMG_REGISTRIES: redhat-operator-bundle
 
-trigger_internal_image:
+trigger_internal_operator_image:
   stage: release
   rules:
     - if: $CI_COMMIT_TAG
@@ -167,6 +198,24 @@ trigger_internal_image:
   variables:
     IMAGE_VERSION: tmpl-v1
     IMAGE_NAME: datadog-operator
+    RELEASE_TAG: ${CI_COMMIT_REF_SLUG}
+    BUILD_TAG: ${CI_COMMIT_REF_SLUG}
+    TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
+    RELEASE_STAGING: "true"
+    RELEASE_PROD: "true"
+
+trigger_internal_operator_check_image:
+  stage: release
+  rules:
+    - if: $CI_COMMIT_TAG
+    - when: never
+  trigger:
+    project: DataDog/images
+    branch: master
+    strategy: depend
+  variables:
+    IMAGE_VERSION: tmpl-v1
+    IMAGE_NAME: $PROJECTNAME_CHECK
     RELEASE_TAG: ${CI_COMMIT_REF_SLUG}
     BUILD_TAG: ${CI_COMMIT_REF_SLUG}
     TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
