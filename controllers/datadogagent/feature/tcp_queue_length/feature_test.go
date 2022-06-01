@@ -74,7 +74,7 @@ func Test_tcpQueueLengthFeature_Configure(t *testing.T) {
 			},
 		}
 
-		systemProbeVolumeMounts := mgr.VolumeMgr.VolumeMountByC[apicommonv1.SystemProbeContainerName]
+		systemProbeVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.SystemProbeContainerName]
 		assert.True(t, apiutils.IsEqualStruct(systemProbeVolumeMounts, wantVolumeMounts), "System Probe volume mounts \ndiff = %s", cmp.Diff(systemProbeVolumeMounts, wantVolumeMounts))
 
 		// check volumes

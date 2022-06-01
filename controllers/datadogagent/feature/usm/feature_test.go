@@ -110,7 +110,7 @@ func Test_usmFeature_Configure(t *testing.T) {
 			},
 		}
 
-		sysProbeMounts := mgr.VolumeMgr.VolumeMountByC[apicommonv1.SystemProbeContainerName]
+		sysProbeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.SystemProbeContainerName]
 		assert.True(t, apiutils.IsEqualStruct(sysProbeMounts, wantVolumeMounts), "System Probe volume mounts \ndiff = %s", cmp.Diff(sysProbeMounts, wantVolumeMounts))
 
 		coreWantVolumeMounts := []corev1.VolumeMount{
@@ -120,7 +120,7 @@ func Test_usmFeature_Configure(t *testing.T) {
 				ReadOnly:  true,
 			},
 		}
-		coreAgentMounts := mgr.VolumeMgr.VolumeMountByC[apicommonv1.CoreAgentContainerName]
+		coreAgentMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 		assert.True(t, apiutils.IsEqualStruct(coreAgentMounts, coreWantVolumeMounts), "Core Agent volume mounts \ndiff = %s", cmp.Diff(coreAgentMounts, coreWantVolumeMounts))
 
 		processWantVolumeMounts := []corev1.VolumeMount{
@@ -130,7 +130,7 @@ func Test_usmFeature_Configure(t *testing.T) {
 				ReadOnly:  true,
 			},
 		}
-		processAgentMounts := mgr.VolumeMgr.VolumeMountByC[apicommonv1.ProcessAgentContainerName]
+		processAgentMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.ProcessAgentContainerName]
 		assert.True(t, apiutils.IsEqualStruct(processAgentMounts, processWantVolumeMounts), "Process Agent volume mounts \ndiff = %s", cmp.Diff(processAgentMounts, processWantVolumeMounts))
 
 		// check volumes

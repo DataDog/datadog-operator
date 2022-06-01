@@ -46,6 +46,7 @@ BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 
 # Image URL to use all building/pushing image targets
 IMG ?= gcr.io/datadoghq/operator:$(IMG_VERSION)
+IMG_CHECK ?= gcr.io/datadoghq/operator-check:latest
 
 CRD_OPTIONS ?= "crd:preserveUnknownFields=false"
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
@@ -150,16 +151,29 @@ generate: $(CONTROLLER_GEN) generate-openapi generate-docs ## Generate code
 generate-docs: manifests
 	go run ./hack/generate-docs.go
 
+# Build the docker images
 .PHONY: docker-build
-docker-build: generate docker-build-ci ## Build the docker image
+docker-build: generate docker-build-ci docker-build-check-ci
 
 .PHONY: docker-build-ci
 docker-build-ci:
 	docker build . -t ${IMG} --build-arg LDFLAGS="${LDFLAGS}" --build-arg GOARCH="${GOARCH}"
 
+.PHONY: docker-build-check-ci
+docker-build-check-ci:
+	docker build . -t ${IMG_CHECK} -f check-operator.Dockerfile --build-arg LDFLAGS="${LDFLAGS}" --build-arg GOARCH="${GOARCH}"
+
+# Push the docker images
 .PHONY: docker-push
-docker-push: ## Push the docker image
+docker-push: docker-push-ci docker-push-check-ci
+
+.PHONY: docker-push-ci
+docker-push-ci:
 	docker push ${IMG}
+
+.PHONY: docker-push-check-ci
+docker-push-check-ci:
+	docker push ${IMG_CHECK}
 
 ##@ Test
 
@@ -271,6 +285,10 @@ vendor: ## Run go vendor
 
 kubectl-datadog: lint
 	go build -ldflags '${LDFLAGS}' -o bin/kubectl-datadog ./cmd/kubectl-datadog/main.go
+
+.PHONY: check-operator
+check-operator: fmt vet lint
+	go build -ldflags '${LDFLAGS}' -o bin/check-operator ./cmd/check-operator/main.go
 
 bin/$(PLATFORM)/openapi-gen: vendor/k8s.io/kube-openapi/cmd/openapi-gen/openapi-gen.go
 	go build -o bin/$(PLATFORM)/openapi-gen k8s.io/kube-openapi/cmd/openapi-gen

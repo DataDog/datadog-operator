@@ -105,7 +105,7 @@ func TestAddVolumeMountToContainer(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Logf("description: %s", tt.description)
-			got, err := AddVolumeMountToContainer(tt.args.container, tt.args.volumemount, tt.args.mergeFunc)
+			got, err := AddVolumeMountToContainerWithMergeFunc(tt.args.container, tt.args.volumemount, tt.args.mergeFunc)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("AddVolumeMountToContainer() error = %v, wantErr %v", err, tt.wantErr)
 				return

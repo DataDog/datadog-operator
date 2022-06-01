@@ -14,6 +14,7 @@ type PodTemplateManagers struct {
 	Tpl                v1.PodTemplateSpec
 	EnvVarMgr          *mergerfake.EnvVarManager
 	VolumeMgr          *mergerfake.VolumeManager
+	VolumeMountMgr     *mergerfake.VolumeMountManager
 	SecurityContextMgr *mergerfake.SecurityContextManager
 	AnnotationMgr      *mergerfake.AnnotationManager
 }
@@ -33,6 +34,11 @@ func (_m *PodTemplateManagers) Volume() merger.VolumeManager {
 	return _m.VolumeMgr
 }
 
+// VolumeMount provides a mock function with given fields:
+func (_m *PodTemplateManagers) VolumeMount() merger.VolumeMountManager {
+	return _m.VolumeMountMgr
+}
+
 // SecurityContext provides a mock function with given fields:
 func (_m *PodTemplateManagers) SecurityContext() merger.SecurityContextManager {
 	return _m.SecurityContextMgr
@@ -48,6 +54,7 @@ func NewPodTemplateManagers(t testing.TB) *PodTemplateManagers {
 	return &PodTemplateManagers{
 		EnvVarMgr:          mergerfake.NewFakeEnvVarManager(t),
 		VolumeMgr:          mergerfake.NewFakeVolumeManager(t),
+		VolumeMountMgr:     mergerfake.NewFakeVolumeMountManager(t),
 		SecurityContextMgr: mergerfake.NewFakeSecurityContextManager(t),
 		AnnotationMgr:      mergerfake.NewFakeAnnotationManager(t),
 	}

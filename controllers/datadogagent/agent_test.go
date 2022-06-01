@@ -834,6 +834,10 @@ func defaultEnvVars(extraEnv map[string]string) []corev1.EnvVar {
 			Value: "false",
 		},
 		{
+			Name:  "DD_LEADER_LEASE_NAME",
+			Value: fmt.Sprintf("%s-leader-election", testDdaName),
+		},
+		{
 			Name:  "DD_DOGSTATSD_ORIGIN_DETECTION",
 			Value: "false",
 		},
@@ -1886,6 +1890,10 @@ func customKubeletConfigPodSpec(kubeletConfig *commonv1.KubeletConfig) corev1.Po
 		{
 			Name:  "DD_LEADER_ELECTION",
 			Value: "false",
+		},
+		{
+			Name:  "DD_LEADER_LEASE_NAME",
+			Value: fmt.Sprintf("%s-leader-election", testDdaName),
 		},
 		{
 			Name:  "DD_DOGSTATSD_ORIGIN_DETECTION",
