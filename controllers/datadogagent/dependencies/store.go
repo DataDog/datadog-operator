@@ -11,6 +11,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/equality"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/go-logr/logr"
@@ -19,6 +21,7 @@ import (
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -44,6 +47,8 @@ func NewStore(options *StoreOptions) *Store {
 	if options != nil {
 		store.supportCilium = options.SupportCilium
 		store.logger = options.Logger
+		store.scheme = options.Scheme
+		store.owner = options.Owner
 	}
 
 	return store
@@ -57,13 +62,17 @@ type Store struct {
 
 	supportCilium bool
 
+	scheme *runtime.Scheme
 	logger logr.Logger
+	owner  metav1.Object
 }
 
 // StoreOptions use to provide to NewStore() function some Store creation options.
 type StoreOptions struct {
 	SupportCilium bool
 
+	Scheme *runtime.Scheme
+	Owner  metav1.Object
 	Logger logr.Logger
 }
 
@@ -83,6 +92,25 @@ func (ds *Store) AddOrUpdate(kind kubernetes.ObjectKind, obj client.Object) {
 		obj.SetLabels(map[string]string{})
 	}
 	obj.GetLabels()[operatorStoreLabelKey] = "true"
+
+	defaultLabels := object.GetDefaultLabels(ds.owner, ds.owner.GetName(), component.GetAgentVersion(ds.owner))
+	for key, val := range defaultLabels {
+		obj.GetLabels()[key] = val
+	}
+	defaultAnnotations := object.GetDefaultAnnotations(ds.owner)
+	if obj.GetAnnotations() == nil {
+		obj.SetAnnotations(map[string]string{})
+	}
+	for key, val := range defaultAnnotations {
+		obj.GetAnnotations()[key] = val
+	}
+
+	ds.logger.Info("CEDTEST:", "kind", kind, "name", obj.GetName())
+	// Ownerref should not be added to cluster level objects
+	if kind != kubernetes.ClusterRoleBindingKind && kind != kubernetes.ClusterRolesKind {
+		_ = object.SetOwnerReference(ds.owner, obj, ds.scheme)
+	}
+
 	ds.deps[kind][id] = obj
 }
 

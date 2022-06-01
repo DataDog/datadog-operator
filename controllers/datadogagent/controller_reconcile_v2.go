@@ -94,6 +94,8 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	storeOptions := &dependencies.StoreOptions{
 		SupportCilium: r.options.SupportCilium,
 		Logger:        logger,
+		Scheme:        r.scheme,
+		Owner:         instance,
 	}
 	depsStore := dependencies.NewStore(storeOptions)
 	resourcesManager := feature.NewResourceManagers(depsStore)

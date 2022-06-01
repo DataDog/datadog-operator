@@ -118,6 +118,15 @@ func TestStore_AddOrUpdate(t *testing.T) {
 		},
 	}
 
+	owner := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "bar",
+			Name:      "dda-foo",
+		},
+	}
+
+	schemeTest := scheme.Scheme
+
 	type fields struct {
 		deps map[kubernetes.ObjectKind]map[string]client.Object
 	}
@@ -190,6 +199,8 @@ func TestStore_AddOrUpdate(t *testing.T) {
 			logger := logf.Log.WithName(t.Name())
 			ds := &Store{
 				deps:   tt.fields.deps,
+				owner:  owner,
+				scheme: schemeTest,
 				logger: logger,
 			}
 			ds.AddOrUpdate(tt.args.kind, tt.args.obj)
@@ -333,7 +344,6 @@ func TestStore_Apply(t *testing.T) {
 		{
 			name: "one ConfigMap to apply",
 			fields: fields{
-
 				deps: map[kubernetes.ObjectKind]map[string]client.Object{
 					kubernetes.ConfigMapKind: {
 						"bar/foo": dummyConfigMap1.DeepCopy(),
@@ -348,7 +358,6 @@ func TestStore_Apply(t *testing.T) {
 		{
 			name: "one ConfigMap to update",
 			fields: fields{
-
 				deps: map[kubernetes.ObjectKind]map[string]client.Object{
 					kubernetes.ConfigMapKind: {
 						"bar/foo": dummyConfigMap1bis.DeepCopy(),

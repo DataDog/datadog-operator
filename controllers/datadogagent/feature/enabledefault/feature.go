@@ -32,7 +32,18 @@ func init() {
 }
 
 func buildDefaultFeature(options *feature.Options) feature.Feature {
-	return &defaultFeature{}
+	return &defaultFeature{
+		credentialsInfo: credentialsInfo{
+			secretCreation: secretInfo{
+				data: make(map[string]string),
+			},
+		},
+		dcaTokenInfo: dcaTokenInfo{
+			secretCreation: secretInfo{
+				data: make(map[string]string),
+			},
+		},
+	}
 }
 
 type defaultFeature struct {
