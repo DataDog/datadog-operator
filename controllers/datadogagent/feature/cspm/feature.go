@@ -151,7 +151,8 @@ func (f *cspmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) e
 			cspmConfigVolumeName,
 			cspmConfigVolumePath,
 		)
-		managers.Volume().AddVolumeToContainer(&cmVol, &cmVolMount, apicommonv1.ClusterAgentContainerName)
+		managers.VolumeMount().AddVolumeMountToContainer(&cmVolMount, apicommonv1.ClusterAgentContainerName)
+		managers.Volume().AddVolume(&cmVol)
 	}
 
 	enabledEnvVar := &corev1.EnvVar{
@@ -181,6 +182,9 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) erro
 	}
 	managers.SecurityContext().AddCapabilitiesToContainer(capabilities, apicommonv1.SecurityAgentContainerName)
 
+	volMountMgr := managers.VolumeMount()
+	VolMgr := managers.Volume()
+
 	// configmap volume mount
 	if f.configMapConfig != nil && f.configMapName != "" {
 		cmVol, cmVolMount := volume.GetConfigMapVolumes(
@@ -189,28 +193,34 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) erro
 			cspmConfigVolumeName,
 			cspmConfigVolumePath,
 		)
-		managers.Volume().AddVolumeToContainer(&cmVol, &cmVolMount, apicommonv1.SecurityAgentContainerName)
+		volMountMgr.AddVolumeMountToContainer(&cmVolMount, apicommonv1.SecurityAgentContainerName)
+		VolMgr.AddVolume(&cmVol)
 	}
 
 	// cgroups volume mount
 	cgroupsVol, cgroupsVolMount := volume.GetVolumes(apicommon.CgroupsVolumeName, apicommon.CgroupsHostPath, apicommon.CgroupsMountPath, true)
-	managers.Volume().AddVolumeToContainer(&cgroupsVol, &cgroupsVolMount, apicommonv1.SecurityAgentContainerName)
+	volMountMgr.AddVolumeMountToContainer(&cgroupsVolMount, apicommonv1.SecurityAgentContainerName)
+	VolMgr.AddVolume(&cgroupsVol)
 
 	// passwd volume mount
 	passwdVol, passwdVolMount := volume.GetVolumes(apicommon.PasswdVolumeName, apicommon.PasswdHostPath, apicommon.PasswdMountPath, true)
-	managers.Volume().AddVolumeToContainer(&passwdVol, &passwdVolMount, apicommonv1.SecurityAgentContainerName)
+	volMountMgr.AddVolumeMountToContainer(&passwdVolMount, apicommonv1.SecurityAgentContainerName)
+	VolMgr.AddVolume(&passwdVol)
 
 	// procdir volume mount
 	procdirVol, procdirVolMount := volume.GetVolumes(apicommon.ProcdirVolumeName, apicommon.ProcdirHostPath, apicommon.ProcdirMountPath, true)
-	managers.Volume().AddVolumeToContainer(&procdirVol, &procdirVolMount, apicommonv1.SecurityAgentContainerName)
+	volMountMgr.AddVolumeMountToContainer(&procdirVolMount, apicommonv1.SecurityAgentContainerName)
+	VolMgr.AddVolume(&procdirVol)
 
 	// host root volume mount
 	hostRootVol, hostRootVolMount := volume.GetVolumes(apicommon.HostRootVolumeName, apicommon.HostRootHostPath, apicommon.HostRootMountPath, true)
-	managers.Volume().AddVolumeToContainer(&hostRootVol, &hostRootVolMount, apicommonv1.SecurityAgentContainerName)
+	volMountMgr.AddVolumeMountToContainer(&hostRootVolMount, apicommonv1.SecurityAgentContainerName)
+	VolMgr.AddVolume(&hostRootVol)
 
 	// group volume mount
 	groupVol, groupVolMount := volume.GetVolumes(apicommon.GroupVolumeName, apicommon.GroupHostPath, apicommon.GroupMountPath, true)
-	managers.Volume().AddVolumeToContainer(&groupVol, &groupVolMount, apicommonv1.SecurityAgentContainerName)
+	volMountMgr.AddVolumeMountToContainer(&groupVolMount, apicommonv1.SecurityAgentContainerName)
+	VolMgr.AddVolume(&groupVol)
 
 	// env vars
 	enabledEnvVar := &corev1.EnvVar{

@@ -106,7 +106,7 @@ func Test_cspmFeature_Configure(t *testing.T) {
 			},
 		}
 
-		volumeMounts := mgr.VolumeMgr.VolumeMountByC[apicommonv1.ClusterAgentContainerName]
+		volumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.ClusterAgentContainerName]
 		assert.True(t, apiutils.IsEqualStruct(volumeMounts, wantVolumeMounts), "Cluster Agent volume mounts \ndiff = %s", cmp.Diff(volumeMounts, wantVolumeMounts))
 
 		wantVolumes := []corev1.Volume{
@@ -180,7 +180,7 @@ func Test_cspmFeature_Configure(t *testing.T) {
 			},
 		}
 
-		securityAgentVolumeMounts := mgr.VolumeMgr.VolumeMountByC[apicommonv1.SecurityAgentContainerName]
+		securityAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.SecurityAgentContainerName]
 		assert.True(t, apiutils.IsEqualStruct(securityAgentVolumeMounts, wantVolumeMounts), "Security Agent volume mounts \ndiff = %s", cmp.Diff(securityAgentVolumeMounts, wantVolumeMounts))
 
 		// check volumes
