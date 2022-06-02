@@ -86,13 +86,6 @@ func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []c
 		ServiceAccountName: GetDefaultServiceAccountName(dda),
 		InitContainers: []corev1.Container{
 			{
-				Name:         "init-volume",
-				Image:        fmt.Sprintf("%s:%s", apicommon.DefaultAgentImageName, defaulting.AgentLatestVersion),
-				Command:      []string{"bash", "-c"},
-				Args:         []string{"cp -r /etc/datadog-agent /opt"},
-				VolumeMounts: volumeMounts,
-			},
-			{
 				Name:    "init-config",
 				Image:   fmt.Sprintf("%s:%s", apicommon.DefaultAgentImageName, defaulting.AgentLatestVersion),
 				Command: []string{"bash", "-c"},
