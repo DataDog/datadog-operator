@@ -34,13 +34,13 @@ Note: `IMG` currently defaults to: `datadog/datadog-operator:latest`
 
 ## \[TMP\] how to test `v2alpha`
 
-* Install `cert-manager` needed for the webhook
+* Install `cert-manager` needed for the webhook.
 
 ```shell
 kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.8.0/cert-manager.yaml
 ```
 
-* Deploy with `v2alpha1` enable and configured as storage version.
+* Deploy with `v2alpha1` enabled and configured as the storage version.
 
 ```console
 KUSTOMIZE_CONFIG=config/test-v2 make deploy
