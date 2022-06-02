@@ -125,7 +125,9 @@ func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers, compo
 		return err
 	}
 	if configCM != nil {
-		managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, configCM)
+		if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, configCM); err != nil {
+			return err
+		}
 	}
 
 	// Manager RBAC permission

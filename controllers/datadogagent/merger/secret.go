@@ -43,6 +43,5 @@ func (m *secretManagerImpl) AddSecret(secretNamespace, secretName, key, value st
 	}
 	secret.Data[key] = []byte(value)
 
-	m.store.AddOrUpdate(kubernetes.SecretsKind, secret)
-	return nil
+	return m.store.AddOrUpdate(kubernetes.SecretsKind, secret)
 }

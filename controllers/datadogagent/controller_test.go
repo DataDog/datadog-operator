@@ -348,7 +348,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 					_ = c.Create(context.TODO(), installinfoCM)
 				},
 			},
-			want:    reconcile.Result{Requeue: true},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
 			wantErr: false,
 			wantFunc: func(c client.Client) error {
 				datadogAgent := &datadoghqv1alpha1.DatadogAgent{}
@@ -398,7 +398,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 					_ = c.Create(context.TODO(), installinfoCM)
 				},
 			},
-			want:    reconcile.Result{Requeue: false, RequeueAfter: defaultRequeueDuration},
+			want:    reconcile.Result{Requeue: true},
 			wantErr: false,
 			wantFunc: func(c client.Client) error {
 				rbacResourcesName := "foo-agent"

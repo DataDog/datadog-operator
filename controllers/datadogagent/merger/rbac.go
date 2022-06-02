@@ -44,8 +44,7 @@ func (m *rbacManagerImpl) AddServiceAccount(namespace string, name string) error
 		return fmt.Errorf("unable to get from the store the ServiceAccount %s/%s", namespace, name)
 	}
 
-	m.store.AddOrUpdate(kubernetes.ServiceAccountsKind, sa)
-	return nil
+	return m.store.AddOrUpdate(kubernetes.ServiceAccountsKind, sa)
 }
 
 // AddPolicyRules use to add PolicyRules to a Role. It also create the RoleBinding.
@@ -58,7 +57,9 @@ func (m *rbacManagerImpl) AddPolicyRules(namespace string, roleName string, saNa
 
 	// TODO: can be improve by checking if the policies don't already existe.
 	role.Rules = append(role.Rules, policies...)
-	m.store.AddOrUpdate(kubernetes.RolesKind, role)
+	if err := m.store.AddOrUpdate(kubernetes.RolesKind, role); err != nil {
+		return err
+	}
 
 	bindingObj, _ := m.store.GetOrCreate(kubernetes.RoleBindingKind, namespace, roleName)
 	roleBinding, ok := bindingObj.(*rbacv1.RoleBinding)
@@ -85,7 +86,9 @@ func (m *rbacManagerImpl) AddPolicyRules(namespace string, roleName string, saNa
 			Namespace: namespace,
 		})
 	}
-	m.store.AddOrUpdate(kubernetes.RoleBindingKind, roleBinding)
+	if err := m.store.AddOrUpdate(kubernetes.RoleBindingKind, roleBinding); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -100,7 +103,9 @@ func (m *rbacManagerImpl) AddClusterPolicyRules(namespace string, roleName strin
 
 	// TODO: can be improve by checking if the policies don't already existe.
 	clusterRole.Rules = append(clusterRole.Rules, policies...)
-	m.store.AddOrUpdate(kubernetes.ClusterRolesKind, clusterRole)
+	if err := m.store.AddOrUpdate(kubernetes.ClusterRolesKind, clusterRole); err != nil {
+		return err
+	}
 
 	bindingObj, _ := m.store.GetOrCreate(kubernetes.ClusterRoleBindingKind, "", roleName)
 	clusterRoleBinding, ok := bindingObj.(*rbacv1.ClusterRoleBinding)
@@ -127,7 +132,9 @@ func (m *rbacManagerImpl) AddClusterPolicyRules(namespace string, roleName strin
 			Namespace: namespace,
 		})
 	}
-	m.store.AddOrUpdate(kubernetes.ClusterRoleBindingKind, clusterRoleBinding)
+	if err := m.store.AddOrUpdate(kubernetes.ClusterRoleBindingKind, clusterRoleBinding); err != nil {
+		return err
+	}
 
 	return nil
 }

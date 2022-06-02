@@ -34,21 +34,21 @@ const (
 
 // StoreClient dependencies store client interface
 type StoreClient interface {
-	AddOrUpdate(kind kubernetes.ObjectKind, obj client.Object)
+	AddOrUpdate(kind kubernetes.ObjectKind, obj client.Object) error
 	Get(kind kubernetes.ObjectKind, namespace, name string) (client.Object, bool)
 	GetOrCreate(kind kubernetes.ObjectKind, namespace, name string) (client.Object, bool)
 }
 
 // NewStore returns a new Store instance
-func NewStore(options *StoreOptions) *Store {
+func NewStore(owner metav1.Object, options *StoreOptions) *Store {
 	store := &Store{
-		deps: make(map[kubernetes.ObjectKind]map[string]client.Object),
+		deps:  make(map[kubernetes.ObjectKind]map[string]client.Object),
+		owner: owner,
 	}
 	if options != nil {
 		store.supportCilium = options.SupportCilium
 		store.logger = options.Logger
 		store.scheme = options.Scheme
-		store.owner = options.Owner
 	}
 
 	return store
@@ -72,14 +72,13 @@ type StoreOptions struct {
 	SupportCilium bool
 
 	Scheme *runtime.Scheme
-	Owner  metav1.Object
 	Logger logr.Logger
 }
 
 // AddOrUpdate used to add or update an object in the Store
 // kind correspond to the object kind, and id can be `namespace/name` identifier of just
 // `name` if we are talking about a cluster scope object like `ClusterRole`.
-func (ds *Store) AddOrUpdate(kind kubernetes.ObjectKind, obj client.Object) {
+func (ds *Store) AddOrUpdate(kind kubernetes.ObjectKind, obj client.Object) error {
 	ds.mutex.Lock()
 	defer ds.mutex.Unlock()
 
@@ -93,32 +92,41 @@ func (ds *Store) AddOrUpdate(kind kubernetes.ObjectKind, obj client.Object) {
 	}
 	obj.GetLabels()[operatorStoreLabelKey] = "true"
 
-	defaultLabels := object.GetDefaultLabels(ds.owner, ds.owner.GetName(), component.GetAgentVersion(ds.owner))
-	for key, val := range defaultLabels {
-		obj.GetLabels()[key] = val
-	}
-	defaultAnnotations := object.GetDefaultAnnotations(ds.owner)
-	if obj.GetAnnotations() == nil {
-		obj.SetAnnotations(map[string]string{})
-	}
-	for key, val := range defaultAnnotations {
-		obj.GetAnnotations()[key] = val
-	}
+	if ds.owner != nil {
+		defaultLabels := object.GetDefaultLabels(ds.owner, ds.owner.GetName(), component.GetAgentVersion(ds.owner))
+		if len(defaultLabels) > 0 {
+			for key, val := range defaultLabels {
+				obj.GetLabels()[key] = val
+			}
+		}
 
-	ds.logger.Info("CEDTEST:", "kind", kind, "name", obj.GetName())
-	// Ownerref should not be added to cluster level objects
-	if kind != kubernetes.ClusterRoleBindingKind && kind != kubernetes.ClusterRolesKind {
-		_ = object.SetOwnerReference(ds.owner, obj, ds.scheme)
+		defaultAnnotations := object.GetDefaultAnnotations(ds.owner)
+		if len(defaultAnnotations) > 0 {
+			if obj.GetAnnotations() == nil {
+				obj.SetAnnotations(map[string]string{})
+			}
+			for key, val := range defaultAnnotations {
+				obj.GetAnnotations()[key] = val
+			}
+		}
+
+		// Owner-reference should not be added to cluster level objects
+		if kind != kubernetes.ClusterRoleBindingKind && kind != kubernetes.ClusterRolesKind {
+			if err := object.SetOwnerReference(ds.owner, obj, ds.scheme); err != nil {
+				return fmt.Errorf("store.AddOrUpdate, %w", err)
+			}
+		}
 	}
 
 	ds.deps[kind][id] = obj
+	return nil
 }
 
 // AddOrUpdateStore used to add or update an object in the Store
 // kind correspond to the object kind, and id can be `namespace/name` identifier of just
 // `name` if we are talking about a cluster scope object like `ClusterRole`.
 func (ds *Store) AddOrUpdateStore(kind kubernetes.ObjectKind, obj client.Object) *Store {
-	ds.AddOrUpdate(kind, obj)
+	_ = ds.AddOrUpdate(kind, obj)
 	return ds
 }
 
