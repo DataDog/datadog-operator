@@ -283,42 +283,6 @@ func DefaultDatadogAgentSpecAgentImage(agent *DatadogAgentSpecAgentSpec, name, t
 	return imgOverride
 }
 
-// GetDefaultLivenessProbe creates a all defaulted LivenessProbe
-func GetDefaultLivenessProbe() *corev1.Probe {
-	livenessProbe := &corev1.Probe{
-		InitialDelaySeconds: apicommon.DefaultLivenessProbeInitialDelaySeconds,
-		PeriodSeconds:       apicommon.DefaultLivenessProbePeriodSeconds,
-		TimeoutSeconds:      apicommon.DefaultLivenessProbeTimeoutSeconds,
-		SuccessThreshold:    apicommon.DefaultLivenessProbeSuccessThreshold,
-		FailureThreshold:    apicommon.DefaultLivenessProbeFailureThreshold,
-	}
-	livenessProbe.HTTPGet = &corev1.HTTPGetAction{
-		Path: apicommon.DefaultLivenessProbeHTTPPath,
-		Port: intstr.IntOrString{
-			IntVal: apicommon.DefaultAgentHealthPort,
-		},
-	}
-	return livenessProbe
-}
-
-// GetDefaultReadinessProbe creates a all defaulted ReadynessProbe
-func GetDefaultReadinessProbe() *corev1.Probe {
-	readinessProbe := &corev1.Probe{
-		InitialDelaySeconds: apicommon.DefaultReadinessProbeInitialDelaySeconds,
-		PeriodSeconds:       apicommon.DefaultReadinessProbePeriodSeconds,
-		TimeoutSeconds:      apicommon.DefaultReadinessProbeTimeoutSeconds,
-		SuccessThreshold:    apicommon.DefaultReadinessProbeSuccessThreshold,
-		FailureThreshold:    apicommon.DefaultReadinessProbeFailureThreshold,
-	}
-	readinessProbe.HTTPGet = &corev1.HTTPGetAction{
-		Path: apicommon.DefaultReadinessProbeHTTPPath,
-		Port: intstr.IntOrString{
-			IntVal: apicommon.DefaultAgentHealthPort,
-		},
-	}
-	return readinessProbe
-}
-
 // DefaultDatadogAgentSpecAgentConfig used to default a NodeAgentConfig
 // return the defaulted NodeAgentConfig
 func DefaultDatadogAgentSpecAgentConfig(agent *DatadogAgentSpecAgentSpec) *NodeAgentConfig {
@@ -369,13 +333,13 @@ func DefaultDatadogAgentSpecAgentConfig(agent *DatadogAgentSpecAgentSpec) *NodeA
 
 	if agent.Config.LivenessProbe == nil {
 		// TODO make liveness probe's fields more configurable
-		agent.Config.LivenessProbe = GetDefaultLivenessProbe()
+		agent.Config.LivenessProbe = apicommon.GetDefaultLivenessProbe()
 		configOverride.LivenessProbe = agent.Config.LivenessProbe
 	}
 
 	if agent.Config.ReadinessProbe == nil {
 		// TODO make readiness probe's fields more configurable
-		agent.Config.ReadinessProbe = GetDefaultReadinessProbe()
+		agent.Config.ReadinessProbe = apicommon.GetDefaultReadinessProbe()
 		configOverride.ReadinessProbe = agent.Config.ReadinessProbe
 	}
 
@@ -1209,13 +1173,13 @@ func DefaultDatadogAgentSpecClusterChecksRunnerConfig(clc *DatadogAgentSpecClust
 
 	if clc.Config.LivenessProbe == nil {
 		// TODO make liveness probe's fields more configurable
-		clc.Config.LivenessProbe = GetDefaultLivenessProbe()
+		clc.Config.LivenessProbe = apicommon.GetDefaultLivenessProbe()
 		configOverride.LivenessProbe = clc.Config.LivenessProbe
 	}
 
 	if clc.Config.ReadinessProbe == nil {
 		// TODO make readiness probe's fields more configurable
-		clc.Config.ReadinessProbe = GetDefaultReadinessProbe()
+		clc.Config.ReadinessProbe = apicommon.GetDefaultReadinessProbe()
 		configOverride.ReadinessProbe = clc.Config.ReadinessProbe
 	}
 	if clc.Config.HealthPort == nil {

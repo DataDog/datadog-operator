@@ -6,6 +6,7 @@
 package datadogagent
 
 import (
+	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 
@@ -22,7 +23,7 @@ func getKubeletEnvVars(dda *datadoghqv1alpha1.DatadogAgent) []corev1.EnvVar {
 	} else {
 		kubeletHostValueFrom = &corev1.EnvVarSource{
 			FieldRef: &corev1.ObjectFieldSelector{
-				FieldPath: FieldPathStatusHostIP,
+				FieldPath: apicommon.FieldPathStatusHostIP,
 			},
 		}
 	}

@@ -873,7 +873,7 @@ func defaultEnvVars(extraEnv map[string]string) []corev1.EnvVar {
 			Name: "DD_KUBERNETES_KUBELET_HOST",
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
-					FieldPath: FieldPathStatusHostIP,
+					FieldPath: apicommon.FieldPathStatusHostIP,
 				},
 			},
 		},
@@ -923,7 +923,7 @@ func defaultAPMContainerEnvVars() []corev1.EnvVar {
 			Name: "DD_KUBERNETES_KUBELET_HOST",
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
-					FieldPath: FieldPathStatusHostIP,
+					FieldPath: apicommon.FieldPathStatusHostIP,
 				},
 			},
 		},
@@ -952,7 +952,7 @@ func defaultSystemProbeEnvVars() []corev1.EnvVar {
 			Name: "DD_KUBERNETES_KUBELET_HOST",
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
-					FieldPath: FieldPathStatusHostIP,
+					FieldPath: apicommon.FieldPathStatusHostIP,
 				},
 			},
 		},
@@ -1062,7 +1062,7 @@ func securityAgentEnvVars(compliance, runtime bool, policiesdir bool, extraEnv m
 			Name: "DD_KUBERNETES_KUBELET_HOST",
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
-					FieldPath: FieldPathStatusHostIP,
+					FieldPath: apicommon.FieldPathStatusHostIP,
 				},
 			},
 		},
@@ -1574,7 +1574,7 @@ func defaultOrchestratorEnvVars(dda *datadoghqv1alpha1.DatadogAgent) []corev1.En
 			Name: "DD_KUBERNETES_KUBELET_HOST",
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
-					FieldPath: FieldPathStatusHostIP,
+					FieldPath: apicommon.FieldPathStatusHostIP,
 				},
 			},
 		},
@@ -3534,7 +3534,7 @@ func Test_newExtendedDaemonSetFromInstance_KubeletConfiguration(t *testing.T) {
 	dda.Spec.Agent.Config.Kubelet = &commonv1.KubeletConfig{
 		Host: &corev1.EnvVarSource{
 			FieldRef: &corev1.ObjectFieldSelector{
-				FieldPath: FieldPathSpecNodeName,
+				FieldPath: apicommon.FieldPathSpecNodeName,
 			},
 		},
 		TLSVerify:   apiutils.NewBoolPointer(false),
