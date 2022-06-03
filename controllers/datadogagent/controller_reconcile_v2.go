@@ -125,7 +125,8 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	}
 
 	if requiredComponents.Agent.IsEnabled() {
-		result, err = r.reconcileV2Agent(logger, features, instance, newStatus)
+		requiredContainers := requiredComponents.Agent.Containers
+		result, err = r.reconcileV2Agent(logger, features, instance, newStatus, requiredContainers)
 		if utils.ShouldReturn(result, err) {
 			return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err)
 		}

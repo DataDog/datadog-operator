@@ -138,7 +138,7 @@ func defaultVolumes() []corev1.Volume {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.DogstatsdSocketVolumeName,
+			Name: apicommon.DogstatsdSocketVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
@@ -302,7 +302,7 @@ func defaultSystemProbeVolumes() []corev1.Volume {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.DogstatsdSocketVolumeName,
+			Name: apicommon.DogstatsdSocketVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
@@ -340,7 +340,7 @@ func complianceSecurityAgentVolumes() []corev1.Volume {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.DogstatsdSocketVolumeName,
+			Name: apicommon.DogstatsdSocketVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
@@ -420,7 +420,7 @@ func complianceSecurityAgentVolumes() []corev1.Volume {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.HostRootVolumeName,
+			Name: apicommon.HostRootVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: "/",
@@ -534,7 +534,7 @@ func runtimeSecurityAgentVolumes() []corev1.Volume {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.DogstatsdSocketVolumeName,
+			Name: apicommon.DogstatsdSocketVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
@@ -563,7 +563,7 @@ func runtimeSecurityAgentVolumes() []corev1.Volume {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.HostRootVolumeName,
+			Name: apicommon.HostRootVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: "/",
@@ -1484,7 +1484,7 @@ func defaultProcessMount() []corev1.Volume {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.DogstatsdSocketVolumeName,
+			Name: apicommon.DogstatsdSocketVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
@@ -2276,7 +2276,7 @@ func Test_newExtendedDaemonSetFromInstance_CustomConfigMaps(t *testing.T) {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.DogstatsdSocketVolumeName,
+			Name: apicommon.DogstatsdSocketVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
@@ -2407,7 +2407,7 @@ func Test_newExtendedDaemonSetFromInstance_CustomDatadogYaml(t *testing.T) {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.DogstatsdSocketVolumeName,
+			Name: apicommon.DogstatsdSocketVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
@@ -3433,7 +3433,7 @@ func Test_newExtendedDaemonSetFromInstance_SecurityAgent_Runtime(t *testing.T) {
 		},
 		{
 			Name:      datadoghqv1alpha1.SystemProbeConfigVolumeName,
-			MountPath: datadoghqv1alpha1.SystemProbeConfigVolumePath,
+			MountPath: apicommon.SystemProbeConfigVolumePath,
 			SubPath:   datadoghqv1alpha1.SystemProbeConfigVolumeSubPath,
 		},
 	}...)
@@ -3460,7 +3460,7 @@ func Test_newExtendedDaemonSetFromInstance_SecurityAgent_Runtime(t *testing.T) {
 		},
 		{
 			Name:      datadoghqv1alpha1.SystemProbeConfigVolumeName,
-			MountPath: datadoghqv1alpha1.SystemProbeConfigVolumePath,
+			MountPath: apicommon.SystemProbeConfigVolumePath,
 			SubPath:   datadoghqv1alpha1.SystemProbeConfigVolumeSubPath,
 		},
 	}...)

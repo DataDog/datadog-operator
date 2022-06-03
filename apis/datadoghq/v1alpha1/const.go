@@ -98,8 +98,6 @@ const (
 	PasswdVolumePath                     = "/etc/passwd"
 	GroupVolumeName                      = "group"
 	GroupVolumePath                      = "/etc/group"
-	HostRootVolumeName                   = "hostroot"
-	HostRootVolumePath                   = "/host/root"
 	CgroupsVolumeName                    = "cgroups"
 	CgroupsVolumePath                    = "/host/sys/fs/cgroup"
 	CgroupsVolumeReadOnly                = true
@@ -107,8 +105,6 @@ const (
 	SystemProbeSocketVolumePath          = "/var/run/sysprobe"
 	CriSocketVolumeName                  = "runtimesocketdir"
 	CriSocketVolumeReadOnly              = true
-	DogstatsdSocketVolumeName            = "dsdsocket"
-	DogstatsdSocketVolumePath            = "/var/run/datadog/statsd"
 	PointerVolumeName                    = "pointerdir"
 	PointerVolumePath                    = "/opt/datadog-agent/run"
 	LogPodVolumeName                     = "logpodpath"
@@ -121,7 +117,6 @@ const (
 	SystemProbeDebugfsVolumeName         = "debugfs"
 	SystemProbeDebugfsVolumePath         = "/sys/kernel/debug"
 	SystemProbeConfigVolumeName          = "system-probe-config"
-	SystemProbeConfigVolumePath          = "/etc/datadog-agent/system-probe.yaml"
 	SystemProbeConfigVolumeSubPath       = "system-probe.yaml"
 	SystemProbeAgentSecurityVolumeName   = "datadog-agent-security"
 	SystemProbeAgentSecurityVolumePath   = "/etc/config"
@@ -132,7 +127,6 @@ const (
 	SystemProbeUsrSrcVolumeName          = "src"
 	SystemProbeUsrSrcVolumePath          = "/usr/src"
 	AgentCustomConfigVolumeName          = "custom-datadog-yaml"
-	AgentCustomConfigVolumePath          = "/etc/datadog-agent/datadog.yaml"
 	AgentCustomConfigVolumeSubPath       = "datadog.yaml"
 	KubeletCAVolumeName                  = "kubelet-ca"
 	DefaultKubeletAgentCAPath            = "/var/run/host-kubelet-ca.crt"

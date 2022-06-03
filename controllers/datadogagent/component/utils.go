@@ -102,6 +102,16 @@ func GetVolumeForCgroups() corev1.Volume {
 	}
 }
 
+// GetVolumeForDogstatsd returns the volume with the Dogstatsd socket
+func GetVolumeForDogstatsd() corev1.Volume {
+	return corev1.Volume{
+		Name: apicommon.DogstatsdSocketVolumeName,
+		VolumeSource: corev1.VolumeSource{
+			EmptyDir: &corev1.EmptyDirVolumeSource{},
+		},
+	}
+}
+
 // GetInstallInfoConfigMapName return the InstallInfo config map name base on the dda name
 func GetInstallInfoConfigMapName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-install-info", dda.GetName())
@@ -137,6 +147,7 @@ func GetVolumeMountForAuth() corev1.VolumeMount {
 	return corev1.VolumeMount{
 		Name:      apicommon.AuthVolumeName,
 		MountPath: apicommon.AuthVolumePath,
+		ReadOnly:  true,
 	}
 }
 
@@ -212,6 +223,15 @@ func GetVolumeMountForCgroups() corev1.VolumeMount {
 		Name:      apicommon.CgroupsVolumeName,
 		MountPath: apicommon.CgroupsMountPath,
 		ReadOnly:  true,
+	}
+}
+
+// GetVolumeMountForDogstatsdSocket returns the VolumeMount with the Dogstatsd socket
+func GetVolumeMountForDogstatsdSocket(readOnly bool) corev1.VolumeMount {
+	return corev1.VolumeMount{
+		Name:      apicommon.DogstatsdSocketVolumeName,
+		MountPath: apicommon.DogstatsdSocketVolumePath,
+		ReadOnly:  readOnly,
 	}
 }
 

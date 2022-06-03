@@ -354,7 +354,7 @@ func getAPMAgentContainers(dda *datadoghqv1alpha1.DatadogAgent, image string) ([
 		Name:            "trace-agent",
 		Image:           image,
 		ImagePullPolicy: *agentSpec.Image.PullPolicy,
-		Command:         getDefaultIfEmpty(dda.Spec.Agent.Apm.Command, []string{"trace-agent", fmt.Sprintf("--config=%s", datadoghqv1alpha1.AgentCustomConfigVolumePath)}),
+		Command:         getDefaultIfEmpty(dda.Spec.Agent.Apm.Command, []string{"trace-agent", fmt.Sprintf("--config=%s", apicommon.AgentCustomConfigVolumePath)}),
 		Args:            getDefaultIfEmpty(dda.Spec.Agent.Apm.Args, nil),
 		Ports: []corev1.ContainerPort{
 			tcpPort,
@@ -382,8 +382,8 @@ func getProcessContainers(dda *datadoghqv1alpha1.DatadogAgent, image string) ([]
 		Image:           image,
 		ImagePullPolicy: *agentSpec.Image.PullPolicy,
 		Command: getDefaultIfEmpty(dda.Spec.Agent.Process.Command, []string{
-			"process-agent", fmt.Sprintf("--config=%s", datadoghqv1alpha1.AgentCustomConfigVolumePath),
-			fmt.Sprintf("--sysprobe-config=%s", datadoghqv1alpha1.SystemProbeConfigVolumePath),
+			"process-agent", fmt.Sprintf("--config=%s", apicommon.AgentCustomConfigVolumePath),
+			fmt.Sprintf("--sysprobe-config=%s", apicommon.SystemProbeConfigVolumePath),
 		}),
 		Args:         getDefaultIfEmpty(dda.Spec.Agent.Process.Args, nil),
 		Env:          envVars,
@@ -408,7 +408,7 @@ func getSystemProbeContainers(dda *datadoghqv1alpha1.DatadogAgent, image string)
 		Name:            "system-probe",
 		Image:           image,
 		ImagePullPolicy: *agentSpec.Image.PullPolicy,
-		Command:         getDefaultIfEmpty(dda.Spec.Agent.SystemProbe.Command, []string{"system-probe", fmt.Sprintf("--config=%s", datadoghqv1alpha1.SystemProbeConfigVolumePath)}),
+		Command:         getDefaultIfEmpty(dda.Spec.Agent.SystemProbe.Command, []string{"system-probe", fmt.Sprintf("--config=%s", apicommon.SystemProbeConfigVolumePath)}),
 		Args:            getDefaultIfEmpty(dda.Spec.Agent.SystemProbe.Args, nil),
 		SecurityContext: &corev1.SecurityContext{
 			Capabilities: &corev1.Capabilities{
@@ -450,7 +450,7 @@ func getSecurityAgentContainer(dda *datadoghqv1alpha1.DatadogAgent, image string
 		Name:            "security-agent",
 		Image:           image,
 		ImagePullPolicy: *agentSpec.Image.PullPolicy,
-		Command:         getDefaultIfEmpty(dda.Spec.Agent.Security.Command, []string{"security-agent", "start", fmt.Sprintf("-c=%s", datadoghqv1alpha1.AgentCustomConfigVolumePath)}),
+		Command:         getDefaultIfEmpty(dda.Spec.Agent.Security.Command, []string{"security-agent", "start", fmt.Sprintf("-c=%s", apicommon.AgentCustomConfigVolumePath)}),
 		Args:            getDefaultIfEmpty(dda.Spec.Agent.Security.Args, nil),
 		SecurityContext: &corev1.SecurityContext{
 			Capabilities: &corev1.Capabilities{
@@ -961,7 +961,7 @@ func getEnvVarsForSecurityAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.E
 		},
 		{
 			Name:  "HOST_ROOT",
-			Value: datadoghqv1alpha1.HostRootVolumePath,
+			Value: apicommon.HostRootMountPath,
 		},
 		getEnvVarDogstatsdSocket(dda),
 	}
@@ -1082,7 +1082,7 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 
 	// Dogstatsd volume
 	dsdsocketVolume := corev1.Volume{
-		Name: datadoghqv1alpha1.DogstatsdSocketVolumeName,
+		Name: apicommon.DogstatsdSocketVolumeName,
 	}
 	if isDogstatsdUDSEnabled(&dda.Spec) {
 		volumeType := corev1.HostPathDirectoryOrCreate
@@ -1293,7 +1293,7 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 		volumes = append(volumes, groupVolume)
 
 		hostRootVolume := corev1.Volume{
-			Name: datadoghqv1alpha1.HostRootVolumeName,
+			Name: apicommon.HostRootVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: "/",
@@ -1499,7 +1499,7 @@ func getVolumeMountsForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volum
 	if shouldMountSystemProbeConfigConfigMap(dda) {
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
 			Name:      datadoghqv1alpha1.SystemProbeConfigVolumeName,
-			MountPath: datadoghqv1alpha1.SystemProbeConfigVolumePath,
+			MountPath: apicommon.SystemProbeConfigVolumePath,
 			SubPath:   getSystemProbeConfigFileName(dda),
 		})
 	}
@@ -1517,7 +1517,7 @@ func getVolumeMountForConfig(customConfig *datadoghqv1alpha1.CustomConfigSpec) [
 
 	// Custom config (datadog.yaml) volume
 	if customConfig != nil {
-		volumeMount := getVolumeMountFromCustomConfigSpec(customConfig, datadoghqv1alpha1.AgentCustomConfigVolumeName, datadoghqv1alpha1.AgentCustomConfigVolumePath, datadoghqv1alpha1.AgentCustomConfigVolumeSubPath)
+		volumeMount := getVolumeMountFromCustomConfigSpec(customConfig, datadoghqv1alpha1.AgentCustomConfigVolumeName, apicommon.AgentCustomConfigVolumePath, datadoghqv1alpha1.AgentCustomConfigVolumeSubPath)
 		volumeMounts = append(volumeMounts, volumeMount)
 	}
 
@@ -1550,8 +1550,8 @@ func getVolumeMountForChecksd() corev1.VolumeMount {
 
 func getVolumeMountDogstatsdSocket(readOnly bool) corev1.VolumeMount {
 	return corev1.VolumeMount{
-		Name:      datadoghqv1alpha1.DogstatsdSocketVolumeName,
-		MountPath: datadoghqv1alpha1.DogstatsdSocketVolumePath,
+		Name:      apicommon.DogstatsdSocketVolumeName,
+		MountPath: apicommon.DogstatsdSocketVolumePath,
 		ReadOnly:  readOnly,
 	}
 }
@@ -1628,7 +1628,7 @@ func getVolumeMountsForProcessAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev
 	if shouldMountSystemProbeConfigConfigMap(dda) {
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
 			Name:      datadoghqv1alpha1.SystemProbeConfigVolumeName,
-			MountPath: datadoghqv1alpha1.SystemProbeConfigVolumePath,
+			MountPath: apicommon.SystemProbeConfigVolumePath,
 			SubPath:   getSystemProbeConfigFileName(dda),
 		})
 	}
@@ -1700,7 +1700,7 @@ func getVolumeMountsForSystemProbe(dda *datadoghqv1alpha1.DatadogAgent) []corev1
 	if shouldMountSystemProbeConfigConfigMap(dda) {
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
 			Name:      datadoghqv1alpha1.SystemProbeConfigVolumeName,
-			MountPath: datadoghqv1alpha1.SystemProbeConfigVolumePath,
+			MountPath: apicommon.SystemProbeConfigVolumePath,
 			SubPath:   getSystemProbeConfigFileName(dda),
 		})
 	}
@@ -1746,8 +1746,8 @@ func getVolumeMountsForSecurityAgent(dda *datadoghqv1alpha1.DatadogAgent) []core
 			MountPath: apicommon.ConfigVolumePath,
 		},
 		{
-			Name:      datadoghqv1alpha1.HostRootVolumeName,
-			MountPath: datadoghqv1alpha1.HostRootVolumePath,
+			Name:      apicommon.HostRootVolumeName,
+			MountPath: apicommon.HostRootMountPath,
 			ReadOnly:  true,
 		},
 	}
@@ -1791,7 +1791,7 @@ func getVolumeMountsForSecurityAgent(dda *datadoghqv1alpha1.DatadogAgent) []core
 	spec := dda.Spec
 
 	if spec.Agent.CustomConfig != nil {
-		volumeMount := getVolumeMountFromCustomConfigSpec(spec.Agent.CustomConfig, datadoghqv1alpha1.AgentCustomConfigVolumeName, datadoghqv1alpha1.AgentCustomConfigVolumePath, datadoghqv1alpha1.AgentCustomConfigVolumeSubPath)
+		volumeMount := getVolumeMountFromCustomConfigSpec(spec.Agent.CustomConfig, datadoghqv1alpha1.AgentCustomConfigVolumeName, apicommon.AgentCustomConfigVolumePath, datadoghqv1alpha1.AgentCustomConfigVolumeSubPath)
 		volumeMounts = append(volumeMounts, volumeMount)
 	}
 
@@ -1805,7 +1805,7 @@ func getVolumeMountsForSecurityAgent(dda *datadoghqv1alpha1.DatadogAgent) []core
 		// Additional mount for runtime socket under hostroot
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
 			Name:      datadoghqv1alpha1.CriSocketVolumeName,
-			MountPath: strings.Replace(runtimeVolume.MountPath, datadoghqv1alpha1.HostCriSocketPathPrefix, datadoghqv1alpha1.HostRootVolumePath, 1),
+			MountPath: strings.Replace(runtimeVolume.MountPath, datadoghqv1alpha1.HostCriSocketPathPrefix, apicommon.HostRootMountPath, 1),
 			ReadOnly:  true,
 		})
 	}
