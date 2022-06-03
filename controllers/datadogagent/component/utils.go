@@ -251,6 +251,11 @@ func GetClusterAgentVersion(dda metav1.Object) string {
 	return ""
 }
 
+// GetAgentServiceName return the Agent service name based on the DatadogAgent name
+func GetAgentServiceName(dda metav1.Object) string {
+	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultAgentResourceSuffix)
+}
+
 // GetAgentName return the Agent name based on the DatadogAgent info
 func GetAgentName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultAgentResourceSuffix)

@@ -35,6 +35,7 @@ const (
 	DDCollectKubernetesEvents             = "DD_COLLECT_KUBERNETES_EVENTS"
 	DDLeaderLeaseName                     = "DD_LEADER_LEASE_NAME"
 	DDClusterAgentTokenName               = "DD_CLUSTER_AGENT_TOKEN_NAME"
+<<<<<<< HEAD
 	DDClusterAgentEnabled                 = "DD_CLUSTER_AGENT_ENABLED"
 	DDClusterChecksEnabled                = "DD_CLUSTER_CHECKS_ENABLED"
 	DDCLCRunnerEnabled                    = "DD_CLC_RUNNER_ENABLED"
@@ -44,6 +45,18 @@ const (
 	DDEnableMetadataCollection            = "DD_ENABLE_METADATA_COLLECTION"
 	DDDogstatsdEnabled                    = "DD_USE_DOGSTATSD"
 	DDHostname                            = "DD_HOSTNAME"
+	DDClusterName                         = "DD_CLUSTER_NAME"
+	DDSite                                = "DD_SITE"
+	DDddURL                               = "DD_DD_URL"
+	DDLogLevel                            = "DD_LOG_LEVEL"
+	DDTags                                = "DD_TAGS"
+	DDPodLabelsAsTags                     = "DD_KUBERNETES_POD_LABELS_AS_TAGS"
+	DDPodAnnotationsAsTags                = "DD_KUBERNETES_POD_ANNOTATIONS_AS_TAGS"
+	DDDockerHost                          = "DOCKER_HOST"
+	DDCriSocketPath                       = "DD_CRI_SOCKET_PATH"
+	DDKubeletHost                         = "DD_KUBERNETES_KUBELET_HOST"
+	DDKubeletTLSVerify                    = "DD_KUBELET_TLS_VERIFY"
+	DDKubeletCAPath                       = "DD_KUBELET_CLIENT_CA"
 
 	// KubernetesEnvvarName Env var used by the Datadog Agent container entrypoint
 	// to add kubelet config provider and listener

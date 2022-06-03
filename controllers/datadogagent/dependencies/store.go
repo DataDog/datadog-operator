@@ -21,6 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/version"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -34,6 +35,7 @@ type StoreClient interface {
 	AddOrUpdate(kind kubernetes.ObjectKind, obj client.Object)
 	Get(kind kubernetes.ObjectKind, namespace, name string) (client.Object, bool)
 	GetOrCreate(kind kubernetes.ObjectKind, namespace, name string) (client.Object, bool)
+	GetVersionInfo() string
 }
 
 // NewStore returns a new Store instance
@@ -43,6 +45,7 @@ func NewStore(options *StoreOptions) *Store {
 	}
 	if options != nil {
 		store.supportCilium = options.SupportCilium
+		store.versionInfo = options.VersionInfo
 		store.logger = options.Logger
 	}
 
@@ -56,6 +59,7 @@ type Store struct {
 	mutex sync.RWMutex
 
 	supportCilium bool
+	versionInfo   *version.Info
 
 	logger logr.Logger
 }
@@ -63,6 +67,7 @@ type Store struct {
 // StoreOptions use to provide to NewStore() function some Store creation options.
 type StoreOptions struct {
 	SupportCilium bool
+	VersionInfo   *version.Info
 
 	Logger logr.Logger
 }
@@ -205,6 +210,11 @@ func (ds *Store) Cleanup(ctx context.Context, k8sClient client.Client, ddaNs, dd
 	}
 
 	return errs
+}
+
+// GetVersionInfo returns the Kubernetes version
+func (ds *Store) GetVersionInfo() string {
+	return ds.versionInfo.GitVersion
 }
 
 func listObjectToDelete(objList client.ObjectList, cacheObjects map[string]client.Object) ([]client.Object, error) {

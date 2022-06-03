@@ -20,6 +20,9 @@ const (
 	// MD5AgentDeploymentAnnotationKey annotation key used on a Resource in order to identify which AgentDeployment have been used to generate it.
 	MD5AgentDeploymentAnnotationKey = "agent.datadoghq.com/agentspechash"
 
+	// FieldPathStatusHostIP used as FieldPath to retrieve the host ip
+	FieldPathStatusHostIP = "status.hostIP"
+
 	// DefaultAgentResourceSuffix use as suffix for agent resource naming
 	DefaultAgentResourceSuffix = "agent"
 	// DefaultClusterAgentResourceSuffix use as suffix for cluster-agent resource naming
@@ -167,6 +170,10 @@ const (
 	SymlinkContainerVolumePath = "/var/log/containers"
 	DogstatsdSocketVolumeName  = "dsdsocket"
 	DogstatsdSocketVolumePath  = "/var/run/datadog/statsd"
+	HostCriSocketPathPrefix    = "/host"
+	CriSocketVolumeName        = "runtimesocketdir"
+	DefaultKubeletAgentCAPath  = "/var/run/host-kubelet-ca.crt"
+	KubeletCAVolumeName        = "kubelet-ca"
 )
 
 const (

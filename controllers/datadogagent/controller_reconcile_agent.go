@@ -17,7 +17,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-func (r *Reconciler) reconcileV2Agent(logger logr.Logger, features []feature.Feature, dda *datadoghqv2alpha1.DatadogAgent, newStatus *datadoghqv2alpha1.DatadogAgentStatus, requiredContainers []common.AgentContainerName) (reconcile.Result, error) {
+func (r *Reconciler) reconcileV2Agent(logger logr.Logger, features []feature.Feature, dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, newStatus *datadoghqv2alpha1.DatadogAgentStatus, requiredContainers []common.AgentContainerName) (reconcile.Result, error) {
 	var result reconcile.Result
 	var err error
 
@@ -28,7 +28,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, features []feature.Fea
 	podManagers := feature.NewPodTemplateManagers(&daemonset.Spec.Template)
 
 	// Set Global setting on the default deployment
-	daemonset.Spec.Template = *override.ApplyGlobalSettings(podManagers, dda.Spec.Global)
+	daemonset.Spec.Template = *override.ApplyGlobalSettings(podManagers, dda, resourcesManager)
 
 	// Apply features changes on the Deployment.Spec.Template
 	for _, feat := range features {
