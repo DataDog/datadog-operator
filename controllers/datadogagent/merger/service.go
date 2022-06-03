@@ -18,13 +18,13 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-// ServiceManager use to manage service resources.
+// ServiceManager is used to manage service resources.
 type ServiceManager interface {
 	AddService(name, namespace string, selector map[string]string, ports []corev1.ServicePort, internalTrafficPolicy *corev1.ServiceInternalTrafficPolicyType) error
 	BuildAgentLocalService(dda metav1.Object, nameOverride string) error
 }
 
-// NewServiceManager return new ServiceManager instance
+// NewServiceManager returns a new ServiceManager instance
 func NewServiceManager(store dependencies.StoreClient) ServiceManager {
 	manager := &serviceManagerImpl{
 		store: store,
@@ -32,12 +32,12 @@ func NewServiceManager(store dependencies.StoreClient) ServiceManager {
 	return manager
 }
 
-// serviceManagerImpl use to manage service resources.
+// serviceManagerImpl is used to manage service resources.
 type serviceManagerImpl struct {
 	store dependencies.StoreClient
 }
 
-// create service
+// AddService creates or updates service
 func (m *serviceManagerImpl) AddService(name, namespace string, selector map[string]string, ports []corev1.ServicePort, internalTrafficPolicy *corev1.ServiceInternalTrafficPolicyType) error {
 	obj, _ := m.store.GetOrCreate(kubernetes.ServicesKind, namespace, name)
 	service, ok := obj.(*corev1.Service)
@@ -54,7 +54,7 @@ func (m *serviceManagerImpl) AddService(name, namespace string, selector map[str
 	return nil
 }
 
-// agent local service
+// BuildAgentLocalService creates a local service for the node agent
 func (m *serviceManagerImpl) BuildAgentLocalService(dda metav1.Object, nameOverride string) error {
 	var serviceName string
 	if nameOverride != "" {
@@ -67,7 +67,6 @@ func (m *serviceManagerImpl) BuildAgentLocalService(dda metav1.Object, nameOverr
 		apicommon.AgentDeploymentNameLabelKey:      dda.GetName(),
 		apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
 	}
-	// put in dogstatsd feature??
 	ports := []corev1.ServicePort{
 		{
 			Protocol:   corev1.ProtocolUDP,

@@ -18,7 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-// NetworkPolicyManager use to manage network policy resources.
+// NetworkPolicyManager is used to manage network policy resources.
 type NetworkPolicyManager interface {
 	AddKubernetesNetworkPolicy(name, namespace string, podSelector metav1.LabelSelector, policyTypes []netv1.PolicyType, ingress []netv1.NetworkPolicyIngressRule, egress []netv1.NetworkPolicyEgressRule) error
 	BuildAgentKubernetesNetworkPolicy(dda metav1.Object) error
@@ -26,7 +26,7 @@ type NetworkPolicyManager interface {
 	BuildCCRKubernetesNetworkPolicy(dda metav1.Object) error
 }
 
-// NewNetworkPolicyManager return new NetworkPolicyManager instance
+// NewNetworkPolicyManager returns a new NetworkPolicyManager instance
 func NewNetworkPolicyManager(store dependencies.StoreClient) NetworkPolicyManager {
 	manager := &networkPolicyManagerImpl{
 		store: store,
@@ -34,12 +34,12 @@ func NewNetworkPolicyManager(store dependencies.StoreClient) NetworkPolicyManage
 	return manager
 }
 
-// networkPolicyManagerImpl use to manage RBAC resources.
+// networkPolicyManagerImpl is used to manage network policy resources.
 type networkPolicyManagerImpl struct {
 	store dependencies.StoreClient
 }
 
-// create kubernetes network policy
+// AddKubernetesNetworkPolicy creates or updates a kubernetes network policy
 func (m *networkPolicyManagerImpl) AddKubernetesNetworkPolicy(name, namespace string, podSelector metav1.LabelSelector, policyTypes []netv1.PolicyType, ingress []netv1.NetworkPolicyIngressRule, egress []netv1.NetworkPolicyEgressRule) error {
 	obj, _ := m.store.GetOrCreate(kubernetes.NetworkPoliciesKind, namespace, name)
 	policy, ok := obj.(*netv1.NetworkPolicy)
@@ -56,7 +56,7 @@ func (m *networkPolicyManagerImpl) AddKubernetesNetworkPolicy(name, namespace st
 	return nil
 }
 
-// node agent kubernetes network policy
+// BuildAgentKubernetesNetworkPolicy creates the base node agent kubernetes network policy
 func (m *networkPolicyManagerImpl) BuildAgentKubernetesNetworkPolicy(dda metav1.Object) error {
 	policyName := dda.GetName() + common.DefaultAgentResourceSuffix
 	podSelector := metav1.LabelSelector{
@@ -102,7 +102,7 @@ func (m *networkPolicyManagerImpl) BuildAgentKubernetesNetworkPolicy(dda metav1.
 	return m.AddKubernetesNetworkPolicy(policyName, dda.GetNamespace(), podSelector, policyTypes, ingress, egress)
 }
 
-// BuildDCAKubernetesNetworkPolicy
+// BuildDCAKubernetesNetworkPolicy creates the base cluster agent kubernetes network policy
 func (m *networkPolicyManagerImpl) BuildDCAKubernetesNetworkPolicy(dda metav1.Object) error {
 	policyName := dda.GetName() + common.DefaultClusterAgentResourceSuffix
 	podSelector := metav1.LabelSelector{
@@ -155,12 +155,12 @@ func (m *networkPolicyManagerImpl) BuildDCAKubernetesNetworkPolicy(dda metav1.Ob
 	}
 
 	// add clusterchecks ingress, port, podselector in clusterchecks feature
-	// add metricsprovider ingress, port in clusterchecks feature
+	// add metricsprovider ingress, port in metricsprovider feature
 
 	return m.AddKubernetesNetworkPolicy(policyName, dda.GetNamespace(), podSelector, policyTypes, ingress, egress)
 }
 
-// BuildCCRKubernetesNetworkPolicy
+// BuildCCRKubernetesNetworkPolicy creates the base cluster checks runner kubernetes network policy
 func (m *networkPolicyManagerImpl) BuildCCRKubernetesNetworkPolicy(dda metav1.Object) error {
 	policyName := dda.GetName() + common.DefaultClusterAgentResourceSuffix
 	podSelector := metav1.LabelSelector{

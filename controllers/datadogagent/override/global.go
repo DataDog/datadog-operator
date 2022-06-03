@@ -23,17 +23,6 @@ import (
 // ApplyGlobalSettings use to apply global setting to a PodTemplateSpec
 func ApplyGlobalSettings(manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers) *corev1.PodTemplateSpec {
 	config := dda.Spec.Global
-	// func ApplyGlobalSettings(manager feature.PodTemplateManagers, config *v2alpha1.GlobalConfig) *corev1.PodTemplateSpec {
-	// TODO(operator-ga): implement ApplyGlobalSettings
-
-	// manager = defaulted pod template (can be agent, dca, ccr)
-	// config = dda.Spec.Global -> dda configuration from the manifest
-
-	// Credentials defines the Datadog credentials used to submit data to/query data from Datadog.
-	// TODO
-
-	// ClusterAgentToken is the token for communication between the NodeAgent and ClusterAgent
-	// TODO
 
 	// ClusterName sets a unique cluster name for the deployment to easily scope monitoring data in the Datadog app.
 	if *config.ClusterName != "" {
@@ -52,7 +41,6 @@ func ApplyGlobalSettings(manager feature.PodTemplateManagers, dda *v2alpha1.Data
 	}
 
 	// Endpoint is the Datadog intake URL the Agent data are sent to.
-	// ** config.Endpoint.Credentials
 	if config.Endpoint != nil && *config.Endpoint.URL != "" {
 		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
 			Name:  apicommon.DDddURL,
@@ -81,9 +69,6 @@ func ApplyGlobalSettings(manager feature.PodTemplateManagers, dda *v2alpha1.Data
 	// Tags contains a list of tags to attach to every metric, event and service check collected.
 	if config.Tags != nil {
 		tags, _ := json.Marshal(config.Tags)
-		// if err != nil {
-		// 	return err
-		// }
 		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
 			Name:  apicommon.DDTags,
 			Value: string(tags),
@@ -93,9 +78,6 @@ func ApplyGlobalSettings(manager feature.PodTemplateManagers, dda *v2alpha1.Data
 	// Provide a mapping of Kubernetes Labels to Datadog Tags.
 	if config.PodLabelsAsTags != nil {
 		podLabelsAsTags, _ := json.Marshal(config.PodLabelsAsTags)
-		// if err != nil {
-		// 	return err
-		// }
 		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
 			Name:  apicommon.DDPodLabelsAsTags,
 			Value: string(podLabelsAsTags),
@@ -105,9 +87,6 @@ func ApplyGlobalSettings(manager feature.PodTemplateManagers, dda *v2alpha1.Data
 	// Provide a mapping of Kubernetes Annotations to Datadog Tags.
 	if config.PodAnnotationsAsTags != nil {
 		podAnnotationsAsTags, _ := json.Marshal(config.PodAnnotationsAsTags)
-		// if err != nil {
-		// 	return err
-		// }
 		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
 			Name:  apicommon.DDPodAnnotationsAsTags,
 			Value: string(podAnnotationsAsTags),
@@ -152,7 +131,6 @@ func ApplyGlobalSettings(manager feature.PodTemplateManagers, dda *v2alpha1.Data
 	}
 
 	// Kubelet contains the kubelet configuration parameters.
-	// host
 	if config.Kubelet != nil {
 		var kubeletHostValueFrom *corev1.EnvVarSource
 		if config.Kubelet.Host != nil {
@@ -161,7 +139,6 @@ func ApplyGlobalSettings(manager feature.PodTemplateManagers, dda *v2alpha1.Data
 			kubeletHostValueFrom = &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
 					FieldPath: apicommon.FieldPathStatusHostIP,
-					// FieldPath: datadogagent.FieldPathStatusHostIP,
 				},
 			}
 		}
@@ -178,7 +155,6 @@ func ApplyGlobalSettings(manager feature.PodTemplateManagers, dda *v2alpha1.Data
 			})
 		}
 
-		// agentcapath
 		if config.Kubelet.AgentCAPath != "" || config.Kubelet.HostCAPath != "" {
 			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
 				Name:  apicommon.DDKubeletCAPath,
