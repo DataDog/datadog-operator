@@ -35,7 +35,6 @@ const (
 	DDCollectKubernetesEvents             = "DD_COLLECT_KUBERNETES_EVENTS"
 	DDLeaderLeaseName                     = "DD_LEADER_LEASE_NAME"
 	DDClusterAgentTokenName               = "DD_CLUSTER_AGENT_TOKEN_NAME"
-<<<<<<< HEAD
 	DDClusterAgentEnabled                 = "DD_CLUSTER_AGENT_ENABLED"
 	DDClusterChecksEnabled                = "DD_CLUSTER_CHECKS_ENABLED"
 	DDCLCRunnerEnabled                    = "DD_CLC_RUNNER_ENABLED"
