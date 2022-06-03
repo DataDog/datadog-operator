@@ -122,9 +122,9 @@ func ApplyGlobalSettings(manager feature.PodTemplateManagers, dda *v2alpha1.Data
 		if config.LocalService != nil {
 			if apiutils.BoolValue(config.LocalService.ForceEnableLocalService) || utils.IsAboveMinVersion(gitVersion, "1.22-0") {
 				if config.LocalService.NameOverride != nil {
-					resourcesManager.ServiceManager().BuildAgentLocalService(dda, *config.LocalService.NameOverride)
+					_ = resourcesManager.ServiceManager().BuildAgentLocalService(dda, *config.LocalService.NameOverride)
 				} else {
-					resourcesManager.ServiceManager().BuildAgentLocalService(dda, "")
+					_ = resourcesManager.ServiceManager().BuildAgentLocalService(dda, "")
 				}
 			}
 		}
