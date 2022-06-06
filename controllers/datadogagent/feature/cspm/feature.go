@@ -156,14 +156,14 @@ func (f *cspmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) e
 	}
 
 	enabledEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDComplianceEnabled,
+		Name:  apicommon.DDComplianceConfigEnabled,
 		Value: "true",
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, enabledEnvVar)
 
 	if f.checkInterval != "" {
 		intervalEnvVar := &corev1.EnvVar{
-			Name:  apicommon.DDComplianceCheckInterval,
+			Name:  apicommon.DDComplianceConfigCheckInterval,
 			Value: f.checkInterval,
 		}
 		managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, intervalEnvVar)
@@ -224,7 +224,7 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) erro
 
 	// env vars
 	enabledEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDComplianceEnabled,
+		Name:  apicommon.DDComplianceConfigEnabled,
 		Value: "true",
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SecurityAgentContainerName, enabledEnvVar)
@@ -237,7 +237,7 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) erro
 
 	if f.checkInterval != "" {
 		intervalEnvVar := &corev1.EnvVar{
-			Name:  apicommon.DDComplianceCheckInterval,
+			Name:  apicommon.DDComplianceConfigCheckInterval,
 			Value: f.checkInterval,
 		}
 		managers.EnvVar().AddEnvVarToContainer(apicommonv1.SecurityAgentContainerName, intervalEnvVar)

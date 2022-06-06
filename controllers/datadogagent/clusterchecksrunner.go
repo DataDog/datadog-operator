@@ -359,11 +359,11 @@ func getEnvVarsForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []cor
 			Value: "false",
 		},
 		{
-			Name:  apicommon.DDCLCRunnerEnabled,
+			Name:  apicommon.DDClcRunnerEnabled,
 			Value: "true",
 		},
 		{
-			Name: apicommon.DDCLCRunnerHost,
+			Name: apicommon.DDClcRunnerHost,
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
 					FieldPath: apicommon.FieldPathStatusPodIP,
@@ -379,7 +379,7 @@ func getEnvVarsForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []cor
 			},
 		},
 		{
-			Name: apicommon.DDCLCRunnerID,
+			Name: apicommon.DDClcRunnerID,
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
 					FieldPath: apicommon.FieldPathMetaName,

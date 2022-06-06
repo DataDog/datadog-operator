@@ -523,7 +523,7 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 			Value: strconv.FormatBool(complianceEnabled),
 		},
 		{
-			Name:  apicommon.DDCollectKubeEvents,
+			Name:  apicommon.DDCollectKubernetesEvents,
 			Value: apiutils.BoolToString(spec.ClusterAgent.Config.CollectEvents),
 		},
 		{

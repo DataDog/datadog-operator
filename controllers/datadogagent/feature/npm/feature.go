@@ -132,7 +132,7 @@ func (f *npmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 
 	// env vars
 	enableEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDSystemProbeNPMEnabledEnvVar,
+		Name:  apicommon.DDSystemProbeNPMEnabled,
 		Value: "true",
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, enableEnvVar)

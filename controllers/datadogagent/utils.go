@@ -873,7 +873,7 @@ func getEnvVarsForAgent(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent)
 				Value: strconv.Itoa(int(*spec.Agent.Config.HealthPort)),
 			},
 			{
-				Name:  apicommon.DDCollectKubeEvents,
+				Name:  apicommon.DDCollectKubernetesEvents,
 				Value: strconv.FormatBool(*spec.Agent.Config.CollectEvents),
 			},
 			{

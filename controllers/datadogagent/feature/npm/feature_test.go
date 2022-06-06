@@ -159,7 +159,7 @@ func Test_npmFeature_Configure(t *testing.T) {
 		// check env vars
 		sysProbeWantEnvVars := []*corev1.EnvVar{
 			{
-				Name:  apicommon.DDSystemProbeNPMEnabledEnvVar,
+				Name:  apicommon.DDSystemProbeNPMEnabled,
 				Value: "true",
 			},
 			{

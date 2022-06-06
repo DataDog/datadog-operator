@@ -87,11 +87,11 @@ func Test_cspmFeature_Configure(t *testing.T) {
 
 		want := []*corev1.EnvVar{
 			{
-				Name:  apicommon.DDComplianceEnabled,
+				Name:  apicommon.DDComplianceConfigEnabled,
 				Value: "true",
 			},
 			{
-				Name:  apicommon.DDComplianceCheckInterval,
+				Name:  apicommon.DDComplianceConfigCheckInterval,
 				Value: "1200000000000",
 			},
 		}
@@ -130,7 +130,7 @@ func Test_cspmFeature_Configure(t *testing.T) {
 
 		want := []*corev1.EnvVar{
 			{
-				Name:  apicommon.DDComplianceEnabled,
+				Name:  apicommon.DDComplianceConfigEnabled,
 				Value: "true",
 			},
 			{
@@ -138,7 +138,7 @@ func Test_cspmFeature_Configure(t *testing.T) {
 				Value: apicommon.HostRootMountPath,
 			},
 			{
-				Name:  apicommon.DDComplianceCheckInterval,
+				Name:  apicommon.DDComplianceConfigCheckInterval,
 				Value: "1200000000000",
 			},
 		}
