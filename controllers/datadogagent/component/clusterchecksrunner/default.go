@@ -17,6 +17,7 @@ import (
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
+	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 )
 
@@ -127,7 +128,7 @@ func defaultEnvVars(dda metav1.Object) []corev1.EnvVar {
 	envVars := []corev1.EnvVar{
 		{
 			Name:  apicommon.DDClusterAgentKubeServiceName,
-			Value: component.GetClusterAgentServiceName(dda),
+			Value: componentdca.GetClusterAgentServiceName(dda),
 		},
 		{
 			Name:  apicommon.DDClusterChecksEnabled,
@@ -154,11 +155,11 @@ func defaultEnvVars(dda metav1.Object) []corev1.EnvVar {
 			Value: "false",
 		},
 		{
-			Name:  apicommon.DDCLCRunnerEnabled,
+			Name:  apicommon.DDClcRunnerEnabled,
 			Value: "true",
 		},
 		{
-			Name: apicommon.DDCLCRunnerHost,
+			Name: apicommon.DDClcRunnerHost,
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
 					FieldPath: apicommon.FieldPathStatusPodIP,
@@ -166,7 +167,7 @@ func defaultEnvVars(dda metav1.Object) []corev1.EnvVar {
 			},
 		},
 		{
-			Name: apicommon.DDCLCRunnerID,
+			Name: apicommon.DDClcRunnerID,
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
 					FieldPath: apicommon.FieldPathMetaName,

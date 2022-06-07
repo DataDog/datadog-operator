@@ -60,7 +60,7 @@ func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 	f.owner = dda
 	var output feature.RequiredComponents
 
-	if dda.Spec.Features.KubeStateMetricsCore != nil && apiutils.BoolValue(dda.Spec.Features.KubeStateMetricsCore.Enabled) {
+	if dda.Spec.Features != nil && dda.Spec.Features.KubeStateMetricsCore != nil && apiutils.BoolValue(dda.Spec.Features.KubeStateMetricsCore.Enabled) {
 		output.ClusterAgent.IsRequired = apiutils.NewBoolPointer(true)
 
 		if dda.Spec.Features.KubeStateMetricsCore.Conf != nil {
@@ -125,7 +125,9 @@ func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers, compo
 		return err
 	}
 	if configCM != nil {
-		managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, configCM)
+		if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, configCM); err != nil {
+			return err
+		}
 	}
 
 	// Manager RBAC permission

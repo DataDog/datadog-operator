@@ -12,11 +12,13 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 
+	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 )
 
 // RBACManager use to manage RBAC resources.
 type RBACManager interface {
+	AddServiceAccount(namespace string, name string) error
 	AddPolicyRules(namespace string, roleName string, saName string, policies []rbacv1.PolicyRule) error
 	AddClusterPolicyRules(namespace string, roleName string, saName string, policies []rbacv1.PolicyRule) error
 }
@@ -34,6 +36,17 @@ type rbacManagerImpl struct {
 	store dependencies.StoreClient
 }
 
+// AddServiceAccount use to create a ServiceAccount
+func (m *rbacManagerImpl) AddServiceAccount(namespace string, name string) error {
+	obj, _ := m.store.GetOrCreate(kubernetes.ServiceAccountsKind, namespace, name)
+	sa, ok := obj.(*corev1.ServiceAccount)
+	if !ok {
+		return fmt.Errorf("unable to get from the store the ServiceAccount %s/%s", namespace, name)
+	}
+
+	return m.store.AddOrUpdate(kubernetes.ServiceAccountsKind, sa)
+}
+
 // AddPolicyRules use to add PolicyRules to a Role. It also create the RoleBinding.
 func (m *rbacManagerImpl) AddPolicyRules(namespace string, roleName string, saName string, policies []rbacv1.PolicyRule) error {
 	obj, _ := m.store.GetOrCreate(kubernetes.RolesKind, namespace, roleName)
@@ -44,7 +57,9 @@ func (m *rbacManagerImpl) AddPolicyRules(namespace string, roleName string, saNa
 
 	// TODO: can be improve by checking if the policies don't already existe.
 	role.Rules = append(role.Rules, policies...)
-	m.store.AddOrUpdate(kubernetes.RolesKind, role)
+	if err := m.store.AddOrUpdate(kubernetes.RolesKind, role); err != nil {
+		return err
+	}
 
 	bindingObj, _ := m.store.GetOrCreate(kubernetes.RoleBindingKind, namespace, roleName)
 	roleBinding, ok := bindingObj.(*rbacv1.RoleBinding)
@@ -54,7 +69,7 @@ func (m *rbacManagerImpl) AddPolicyRules(namespace string, roleName string, saNa
 
 	roleBinding.RoleRef = rbacv1.RoleRef{
 		APIGroup: rbac.RbacAPIGroup,
-		Kind:     rbac.ClusterRoleKind,
+		Kind:     rbac.RoleKind,
 		Name:     roleName,
 	}
 	found := false
@@ -71,7 +86,9 @@ func (m *rbacManagerImpl) AddPolicyRules(namespace string, roleName string, saNa
 			Namespace: namespace,
 		})
 	}
-	m.store.AddOrUpdate(kubernetes.RoleBindingKind, roleBinding)
+	if err := m.store.AddOrUpdate(kubernetes.RoleBindingKind, roleBinding); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -86,7 +103,9 @@ func (m *rbacManagerImpl) AddClusterPolicyRules(namespace string, roleName strin
 
 	// TODO: can be improve by checking if the policies don't already existe.
 	clusterRole.Rules = append(clusterRole.Rules, policies...)
-	m.store.AddOrUpdate(kubernetes.ClusterRolesKind, clusterRole)
+	if err := m.store.AddOrUpdate(kubernetes.ClusterRolesKind, clusterRole); err != nil {
+		return err
+	}
 
 	bindingObj, _ := m.store.GetOrCreate(kubernetes.ClusterRoleBindingKind, "", roleName)
 	clusterRoleBinding, ok := bindingObj.(*rbacv1.ClusterRoleBinding)
@@ -113,7 +132,9 @@ func (m *rbacManagerImpl) AddClusterPolicyRules(namespace string, roleName strin
 			Namespace: namespace,
 		})
 	}
-	m.store.AddOrUpdate(kubernetes.ClusterRoleBindingKind, clusterRoleBinding)
+	if err := m.store.AddOrUpdate(kubernetes.ClusterRoleBindingKind, clusterRoleBinding); err != nil {
+		return err
+	}
 
 	return nil
 }
