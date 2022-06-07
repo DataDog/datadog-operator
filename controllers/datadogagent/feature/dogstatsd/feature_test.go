@@ -205,10 +205,10 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 				CreateFunc: createEmptyFakeManager,
 				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
-					coreAgentVolumeMounts := mgr.VolumeMgr.VolumeMountByC[apicommonv1.CoreAgentContainerName]
+					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, []*corev1.VolumeMount(nil)), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, []*corev1.VolumeMount(nil)))
 					volumes := mgr.VolumeMgr.Volumes
-					assert.True(t, apiutils.IsEqualStruct(volumes, []*corev1.Volume(nil)), "Volumes \ndiff = %s", cmp.Diff(volumes, []*corev1.Volume(nil)))
+					assert.True(t, apiutils.IsEqualStruct(volumes, []*corev1.Volume{}), "Volumes \ndiff = %s", cmp.Diff(volumes, []*corev1.Volume{}))
 					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(agentEnvVars, []*corev1.EnvVar(nil)), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, []*corev1.EnvVar(nil)))
 					coreAgentPorts := mgr.PortMgr.PortsByC[apicommonv1.CoreAgentContainerName]
@@ -224,10 +224,10 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 				CreateFunc: createEmptyFakeManager,
 				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
-					coreAgentVolumeMounts := mgr.VolumeMgr.VolumeMountByC[apicommonv1.CoreAgentContainerName]
+					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, []*corev1.VolumeMount(nil)), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, []*corev1.VolumeMount(nil)))
 					volumes := mgr.VolumeMgr.Volumes
-					assert.True(t, apiutils.IsEqualStruct(volumes, []*corev1.Volume(nil)), "Volumes \ndiff = %s", cmp.Diff(volumes, []*corev1.Volume(nil)))
+					assert.True(t, apiutils.IsEqualStruct(volumes, []*corev1.Volume{}), "Volumes \ndiff = %s", cmp.Diff(volumes, []*corev1.Volume{}))
 					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantUDPEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantUDPEnvVars))
 					coreAgentPorts := mgr.PortMgr.PortsByC[apicommonv1.CoreAgentContainerName]
@@ -251,10 +251,10 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 				CreateFunc: createEmptyFakeManager,
 				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
-					coreAgentVolumeMounts := mgr.VolumeMgr.VolumeMountByC[apicommonv1.CoreAgentContainerName]
+					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, []*corev1.VolumeMount(nil)), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, []*corev1.VolumeMount(nil)))
 					volumes := mgr.VolumeMgr.Volumes
-					assert.True(t, apiutils.IsEqualStruct(volumes, []*corev1.Volume(nil)), "Volumes \ndiff = %s", cmp.Diff(volumes, []*corev1.Volume(nil)))
+					assert.True(t, apiutils.IsEqualStruct(volumes, []*corev1.Volume{}), "Volumes \ndiff = %s", cmp.Diff(volumes, []*corev1.Volume{}))
 					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
 					customEnvVars := append([]*corev1.EnvVar{}, &originDetectionEnvVar)
 					assert.True(t, apiutils.IsEqualStruct(agentEnvVars, customEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, customEnvVars))
@@ -271,7 +271,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 				CreateFunc: createEmptyFakeManager,
 				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
-					coreAgentVolumeMounts := mgr.VolumeMgr.VolumeMountByC[apicommonv1.CoreAgentContainerName]
+					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMountsV1), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMountsV1))
 					volumes := mgr.VolumeMgr.Volumes
 					assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumesV1), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumesV1))
@@ -290,7 +290,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 				CreateFunc: createEmptyFakeManager,
 				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
-					coreAgentVolumeMounts := mgr.VolumeMgr.VolumeMountByC[apicommonv1.CoreAgentContainerName]
+					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					customVolumeMounts := []corev1.VolumeMount{
 						{
 							Name:      apicommon.DogstatsdUDSSocketName,
@@ -327,7 +327,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 				CreateFunc: createEmptyFakeManager,
 				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
-					coreAgentVolumeMounts := mgr.VolumeMgr.VolumeMountByC[apicommonv1.CoreAgentContainerName]
+					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMountsV1), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMountsV1))
 					volumes := mgr.VolumeMgr.Volumes
 					assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumesV1), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumesV1))
@@ -348,7 +348,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 				CreateFunc: createEmptyFakeManager,
 				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
-					coreAgentVolumeMounts := mgr.VolumeMgr.VolumeMountByC[apicommonv1.CoreAgentContainerName]
+					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMountsV1), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMountsV1))
 					volumes := mgr.VolumeMgr.Volumes
 					assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumesV1), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumesV1))
@@ -371,7 +371,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 				CreateFunc: createEmptyFakeManager,
 				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
-					coreAgentVolumeMounts := mgr.VolumeMgr.VolumeMountByC[apicommonv1.CoreAgentContainerName]
+					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMountsV2), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMountsV2))
 					volumes := mgr.VolumeMgr.Volumes
 					assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumesV2), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumesV2))
@@ -391,7 +391,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 				CreateFunc: createEmptyFakeManager,
 				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
-					coreAgentVolumeMounts := mgr.VolumeMgr.VolumeMountByC[apicommonv1.CoreAgentContainerName]
+					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMountsV2), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMountsV2))
 					volumes := mgr.VolumeMgr.Volumes
 					assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumesV2), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumesV2))
@@ -419,7 +419,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 				CreateFunc: createEmptyFakeManager,
 				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
-					coreAgentVolumeMounts := mgr.VolumeMgr.VolumeMountByC[apicommonv1.CoreAgentContainerName]
+					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMountsV2), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMountsV2))
 					volumes := mgr.VolumeMgr.Volumes
 					assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumesV2), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumesV2))
@@ -440,10 +440,10 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 				CreateFunc: createEmptyFakeManager,
 				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
-					coreAgentVolumeMounts := mgr.VolumeMgr.VolumeMountByC[apicommonv1.CoreAgentContainerName]
+					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, []*corev1.Volume(nil)), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, []*corev1.VolumeMount(nil)))
 					volumes := mgr.VolumeMgr.Volumes
-					assert.True(t, apiutils.IsEqualStruct(volumes, []*corev1.Volume(nil)), "Volumes \ndiff = %s", cmp.Diff(volumes, []*corev1.Volume(nil)))
+					assert.True(t, apiutils.IsEqualStruct(volumes, []*corev1.Volume{}), "Volumes \ndiff = %s", cmp.Diff(volumes, []*corev1.Volume{}))
 					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(agentEnvVars, agentEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, agentEnvVars))
 					coreAgentPorts := mgr.PortMgr.PortsByC[apicommonv1.CoreAgentContainerName]
@@ -459,7 +459,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 				CreateFunc: createEmptyFakeManager,
 				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
-					coreAgentVolumeMounts := mgr.VolumeMgr.VolumeMountByC[apicommonv1.CoreAgentContainerName]
+					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					customVolumeMounts := []corev1.VolumeMount{
 						{
 							Name:      apicommon.DogstatsdUDSSocketName,
@@ -496,7 +496,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 				CreateFunc: createEmptyFakeManager,
 				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
-					coreAgentVolumeMounts := mgr.VolumeMgr.VolumeMountByC[apicommonv1.CoreAgentContainerName]
+					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMountsV2), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMountsV2))
 					volumes := mgr.VolumeMgr.Volumes
 					assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumesV2), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumesV2))
@@ -517,7 +517,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 				CreateFunc: createEmptyFakeManager,
 				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
-					coreAgentVolumeMounts := mgr.VolumeMgr.VolumeMountByC[apicommonv1.CoreAgentContainerName]
+					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMountsV2), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMountsV2))
 					volumes := mgr.VolumeMgr.Volumes
 					assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumesV2), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumesV2))
