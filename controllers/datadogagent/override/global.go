@@ -12,10 +12,38 @@ import (
 )
 
 // ApplyGlobalSettings use to apply global setting to a PodTemplateSpec
-func ApplyGlobalSettings(manager feature.PodTemplateManagers, config *v2alpha1.GlobalConfig) *corev1.PodTemplateSpec {
+func ApplyGlobalSettings(manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers) *corev1.PodTemplateSpec {
+	config := dda.Spec.Global
 	// TODO(operator-ga): implement ApplyGlobalSettings
 
 	// set image registry
+	// NetworkPolicy contains the network configuration.
+	if config.NetworkPolicy != nil {
+		if apiutils.BoolValue(config.NetworkPolicy.Create) {
+			switch config.NetworkPolicy.Flavor {
+			case v2alpha1.NetworkPolicyFlavorCilium:
+				resourcesManager.CiliumPolicyManager().SetDDASite(*config.Site)
+				if config.Endpoint != nil && *config.Endpoint.URL != "" {
+					resourcesManager.CiliumPolicyManager().SetDDAURL(*config.Endpoint.URL)
+				}
+				if _, ok := dda.Spec.Override[datadoghqv2alpha1.ClusterAgentComponentName]; ok {
+					resourcesManager.CiliumPolicyManager().SetHostNetwork(*dda.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName].HostNetwork)
+				}
+				if config.NetworkPolicy.DNSSelectorEndpoints != nil {
+					resourcesManager.CiliumPolicyManager().SetDNSSelectorEndpoints(config.NetworkPolicy.DNSSelectorEndpoints)
+				}
+				// node agent
+				_ = resourcesManager.CiliumPolicyManager().BuildAgentCiliumPolicy(dda)
+				// dca
+				_ = resourcesManager.CiliumPolicyManager().BuildDCACiliumPolicy(dda)
+				// ccr
+				if apiutils.BoolValue(dda.Spec.Features.ClusterChecks.UseClusterChecksRunners) {
+					_ = resourcesManager.CiliumPolicyManager().BuildCCRCiliumPolicy(dda)
+				}
+			}
+		}
+	}
+	
 
 	return manager.PodTemplateSpec()
 }

@@ -266,3 +266,9 @@ func GetAgentVersion(dda metav1.Object) string {
 func GetClusterChecksRunnerName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultClusterChecksRunnerResourceSuffix)
 }
+
+// GetClusterChecksRunnerVersion return the Agent version based on the DatadogAgent info
+func GetClusterChecksRunnerVersion(dda metav1.Object) string {
+	// TODO implement this method
+	return ""
+}
