@@ -185,6 +185,8 @@ type PodTemplateManagers interface {
 	SecurityContext() merger.SecurityContextManager
 	// Annotation is used access the AnnotationManager to manage PodTemplateSpec annotations.
 	Annotation() merger.AnnotationManager
+	// Ports used to access PortManager that allows to manage the Ports defined in the PodTemplateSpec.
+	Port() merger.PortManager
 }
 
 // NewPodTemplateManagers use to create a new instance of PodTemplateManagers from
@@ -197,6 +199,7 @@ func NewPodTemplateManagers(podTmpl *corev1.PodTemplateSpec) PodTemplateManagers
 		volumeMountManager:     merger.NewVolumeMountManager(podTmpl),
 		securityContextManager: merger.NewSecurityContextManager(podTmpl),
 		annotationManager:      merger.NewAnnotationManager(podTmpl),
+		portManager:            merger.NewPortManager(podTmpl),
 	}
 }
 
@@ -207,6 +210,7 @@ type podTemplateManagerImpl struct {
 	volumeMountManager     merger.VolumeMountManager
 	securityContextManager merger.SecurityContextManager
 	annotationManager      merger.AnnotationManager
+	portManager            merger.PortManager
 }
 
 func (impl *podTemplateManagerImpl) PodTemplateSpec() *corev1.PodTemplateSpec {
@@ -231,4 +235,8 @@ func (impl *podTemplateManagerImpl) SecurityContext() merger.SecurityContextMana
 
 func (impl *podTemplateManagerImpl) Annotation() merger.AnnotationManager {
 	return impl.annotationManager
+}
+
+func (impl *podTemplateManagerImpl) Port() merger.PortManager {
+	return impl.portManager
 }
