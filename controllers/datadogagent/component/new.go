@@ -75,7 +75,7 @@ func NewExtendedDaemonset(owner metav1.Object, componentKind, componentName, ver
 
 func defaultEDSStrategy() edsv1alpha1.ExtendedDaemonSetSpecStrategy {
 	return edsv1alpha1.ExtendedDaemonSetSpecStrategy{
-		Canary:        edsv1alpha1.DefaultExtendedDaemonSetSpecStrategyCanary(nil),
+		Canary:        edsv1alpha1.DefaultExtendedDaemonSetSpecStrategyCanary(nil, edsv1alpha1.ExtendedDaemonSetSpecStrategyCanaryValidationModeAuto),
 		RollingUpdate: *edsv1alpha1.DefaultExtendedDaemonSetSpecStrategyRollingUpdate(nil),
 		ReconcileFrequency: &metav1.Duration{
 			Duration: apicommon.DefaultReconcileFrequency,

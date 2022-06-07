@@ -3,7 +3,9 @@ package datadogagent
 import (
 	"context"
 
+	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/common"
+	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/kubernetesstatecore"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -78,26 +80,6 @@ func getEventCollectionPolicyRule(dda *datadoghqv1alpha1.DatadogAgent) rbacv1.Po
 			utils.GetDatadogTokenResourceName(dda),
 		},
 		Verbs: []string{rbac.GetVerb, rbac.UpdateVerb},
-	}
-}
-
-// getLeaderElectionPolicyRule returns the policy rules for leader election
-func getLeaderElectionPolicyRule(dda *datadoghqv1alpha1.DatadogAgent) []rbacv1.PolicyRule {
-	return []rbacv1.PolicyRule{
-		{
-			APIGroups: []string{rbac.CoreAPIGroup},
-			Resources: []string{rbac.ConfigMapsResource},
-			ResourceNames: []string{
-				common.DatadogLeaderElectionOldResourceName, // Kept for backward compatibility with agent <7.37.0
-				utils.GetDatadogLeaderElectionResourceName(dda),
-			},
-			Verbs: []string{rbac.GetVerb, rbac.UpdateVerb},
-		},
-		{
-			APIGroups: []string{rbac.CoreAPIGroup},
-			Resources: []string{rbac.ConfigMapsResource},
-			Verbs:     []string{rbac.CreateVerb},
-		},
 	}
 }
 
@@ -293,7 +275,7 @@ func isOwnerBasedOnLabels(dda *datadoghqv1alpha1.DatadogAgent, labels map[string
 func rbacNamesForDda(dda *datadoghqv1alpha1.DatadogAgent, versionInfo *version.Info) []string {
 	return []string{
 		getAgentRbacResourcesName(dda),
-		getClusterAgentRbacResourcesName(dda),
+		componentdca.GetClusterAgentRbacResourcesName(dda),
 		getClusterChecksRunnerRbacResourcesName(dda),
 		getHPAClusterRoleBindingName(dda),
 		getExternalMetricsReaderClusterRoleName(dda, versionInfo),
@@ -324,7 +306,7 @@ func isClusterRolesBindingEqual(a, b *rbacv1.ClusterRoleBinding) bool {
 
 func checkSecretBackendMultipleProvidersUsed(envVarList []corev1.EnvVar) bool {
 	for _, envVar := range envVarList {
-		if envVar.Name == datadoghqv1alpha1.DDSecretBackendCommand && envVar.Value == secretBackendMultipleProvidersScript {
+		if envVar.Name == apicommon.DDSecretBackendCommand && envVar.Value == secretBackendMultipleProvidersScript {
 			return true
 		}
 	}

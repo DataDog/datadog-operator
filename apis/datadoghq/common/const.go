@@ -38,6 +38,8 @@ const (
 	DefaultClusterAgentReplicas = 1
 	// DefaultClusterAgentServicePort default cluster-agent service port
 	DefaultClusterAgentServicePort = 5005
+	// DefaultClusterChecksRunnerReplicas default cluster checks runner deployment replicas
+	DefaultClusterChecksRunnerReplicas = 1
 	// DefaultMetricsServerServicePort default metrics-server port
 	DefaultMetricsServerServicePort = 443
 	// DefaultMetricsServerTargetPort default metrics-server pod port
@@ -79,6 +81,7 @@ const (
 	// Default Image name
 	DefaultAgentImageName        string = "agent"
 	DefaultClusterAgentImageName string = "cluster-agent"
+	DefaultImageRegistry         string = "gcr.io/datadoghq"
 
 	// ExtendedDaemonset defaulting
 	DefaultRollingUpdateMaxUnavailable                  = "10%"
@@ -139,6 +142,9 @@ const (
 	// same path on host and container
 	SrcVolumePath = "/usr/src"
 
+	AgentCustomConfigVolumePath = "/etc/datadog-agent/datadog.yaml"
+	SystemProbeConfigVolumePath = "/etc/datadog-agent/system-probe.yaml"
+
 	LogDatadogVolumeName       = "logdatadog"
 	LogDatadogVolumePath       = "/var/log/datadog"
 	TmpVolumeName              = "tmp"
@@ -165,4 +171,20 @@ const (
 	DogstatsdUDSSocketName     = "dsdsocket"
 	DogstatsdUDSHostFilepathV1 = "/var/run/datadog/statsd.sock"
 	DogstatsdUDSHostFilepathV2 = "/var/run/datadog/dsd.socket"
+	DogstatsdSocketVolumeName  = "dsdsocket"
+	DogstatsdSocketVolumePath  = "/var/run/datadog/statsd"
+)
+
+const (
+	// FieldPathSpecNodeName used as FieldPath for selecting the NodeName
+	FieldPathSpecNodeName = "spec.nodeName"
+
+	// FieldPathStatusHostIP used as FieldPath to retrieve the host ip
+	FieldPathStatusHostIP = "status.hostIP"
+
+	// FieldPathStatusPodIP used as FieldPath to retrieve the pod ip
+	FieldPathStatusPodIP = "status.podIP"
+
+	// FieldPathMetaName used as FieldPath to retrieve the pod name
+	FieldPathMetaName = "metadata.name"
 )

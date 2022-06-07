@@ -168,7 +168,7 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 				CreateFunc: createEmptyFakeManager,
 				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
-					coreAgentVolumeMounts := mgr.VolumeMgr.VolumeMountByC[apicommonv1.CoreAgentContainerName]
+					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMounts), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMounts))
 					volumes := mgr.VolumeMgr.Volumes
 					assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))
@@ -199,7 +199,7 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 				CreateFunc: createEmptyFakeManager,
 				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
-					coreAgentVolumeMounts := mgr.VolumeMgr.VolumeMountByC[apicommonv1.CoreAgentContainerName]
+					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMounts), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMounts))
 					volumes := mgr.VolumeMgr.Volumes
 					assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))
@@ -230,7 +230,7 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 				CreateFunc: createEmptyFakeManager,
 				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
-					coreAgentVolumeMounts := mgr.VolumeMgr.VolumeMountByC[apicommonv1.CoreAgentContainerName]
+					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMounts), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMounts))
 					volumes := mgr.VolumeMgr.Volumes
 					assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))
@@ -261,7 +261,7 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 				CreateFunc: createEmptyFakeManager,
 				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
-					coreAgentVolumeMounts := mgr.VolumeMgr.VolumeMountByC[apicommonv1.CoreAgentContainerName]
+					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMounts), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMounts))
 					volumes := mgr.VolumeMgr.Volumes
 					assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))
@@ -296,7 +296,7 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 				CreateFunc: createEmptyFakeManager,
 				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
-					coreAgentVolumeMounts := mgr.VolumeMgr.VolumeMountByC[apicommonv1.CoreAgentContainerName]
+					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					wantCustomVolumeMounts := []corev1.VolumeMount{
 						{
 							Name:      apicommon.PointerVolumeName,
@@ -391,7 +391,7 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 				CreateFunc: createEmptyFakeManager,
 				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
-					coreAgentVolumeMounts := mgr.VolumeMgr.VolumeMountByC[apicommonv1.CoreAgentContainerName]
+					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMounts), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMounts))
 					volumes := mgr.VolumeMgr.Volumes
 					assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))
@@ -422,7 +422,7 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 				CreateFunc: createEmptyFakeManager,
 				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
-					coreAgentVolumeMounts := mgr.VolumeMgr.VolumeMountByC[apicommonv1.CoreAgentContainerName]
+					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMounts), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMounts))
 					volumes := mgr.VolumeMgr.Volumes
 					assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))
@@ -453,7 +453,7 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 				CreateFunc: createEmptyFakeManager,
 				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
-					coreAgentVolumeMounts := mgr.VolumeMgr.VolumeMountByC[apicommonv1.CoreAgentContainerName]
+					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMounts), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMounts))
 					volumes := mgr.VolumeMgr.Volumes
 					assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))
@@ -484,7 +484,7 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 				CreateFunc: createEmptyFakeManager,
 				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
-					coreAgentVolumeMounts := mgr.VolumeMgr.VolumeMountByC[apicommonv1.CoreAgentContainerName]
+					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMounts), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMounts))
 					volumes := mgr.VolumeMgr.Volumes
 					assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))
@@ -519,7 +519,7 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 				CreateFunc: createEmptyFakeManager,
 				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
-					coreAgentVolumeMounts := mgr.VolumeMgr.VolumeMountByC[apicommonv1.CoreAgentContainerName]
+					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					wantVolumeMounts := []corev1.VolumeMount{
 						{
 							Name:      apicommon.PointerVolumeName,

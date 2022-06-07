@@ -11,13 +11,15 @@ type IDType int
 const (
 	// DefaultIDType enable default component feature.
 	DefaultIDType IDType = iota
-	// DogstatsdIDType Dogstatsd check feature.
+	// DogstatsdIDType Dogstatsd feature.
 	DogstatsdIDType
+	// EventCollectionIDType Event Collection feature.
+	EventCollectionIDType
 	// KubernetesStateCoreIDType Kubernetes state core check feature.
 	KubernetesStateCoreIDType
 	// OrchestratorExplorerIDType Orchestrator Explorer feature.
 	OrchestratorExplorerIDType
-	// LogCollectionIDType Log Collection feature
+	// LogCollectionIDType Log Collection feature.
 	LogCollectionIDType
 	// NPMIDType NPM feature.
 	NPMIDType

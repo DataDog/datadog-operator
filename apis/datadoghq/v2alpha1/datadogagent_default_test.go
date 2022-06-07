@@ -11,6 +11,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	assert "github.com/stretchr/testify/require"
 
+	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 )
 
@@ -33,7 +34,7 @@ func Test_defaultGlobal(t *testing.T) {
 			want: &DatadogAgentSpec{
 				Global: &GlobalConfig{
 					Site:     apiutils.NewStringPointer(defaultSite),
-					Registry: apiutils.NewStringPointer(defaultRegistry),
+					Registry: apiutils.NewStringPointer(apicommon.DefaultImageRegistry),
 					LogLevel: apiutils.NewStringPointer(defaultLogLevel),
 				},
 			},

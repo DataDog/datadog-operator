@@ -34,6 +34,16 @@ func GetVolumeForConfd() corev1.Volume {
 	}
 }
 
+// GetVolumeForRmCorechecks return the volume that contains the agent confd config files
+func GetVolumeForRmCorechecks() corev1.Volume {
+	return corev1.Volume{
+		Name: "remove-corechecks",
+		VolumeSource: corev1.VolumeSource{
+			EmptyDir: &corev1.EmptyDirVolumeSource{},
+		},
+	}
+}
+
 // GetVolumeForAuth return the Volume container authentication information
 func GetVolumeForAuth() corev1.Volume {
 	return corev1.Volume{
@@ -68,9 +78,51 @@ func GetVolumeInstallInfo(owner metav1.Object) corev1.Volume {
 	}
 }
 
+// GetVolumeForProc returns the volume with /proc
+func GetVolumeForProc() corev1.Volume {
+	return corev1.Volume{
+		Name: apicommon.ProcdirVolumeName,
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: apicommon.ProcdirHostPath,
+			},
+		},
+	}
+}
+
+// GetVolumeForCgroups returns the volume that contains the cgroup directory
+func GetVolumeForCgroups() corev1.Volume {
+	return corev1.Volume{
+		Name: apicommon.CgroupsVolumeName,
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: "/sys/fs/cgroup",
+			},
+		},
+	}
+}
+
+// GetVolumeForDogstatsd returns the volume with the Dogstatsd socket
+func GetVolumeForDogstatsd() corev1.Volume {
+	return corev1.Volume{
+		Name: apicommon.DogstatsdSocketVolumeName,
+		VolumeSource: corev1.VolumeSource{
+			EmptyDir: &corev1.EmptyDirVolumeSource{},
+		},
+	}
+}
+
 // GetInstallInfoConfigMapName return the InstallInfo config map name base on the dda name
 func GetInstallInfoConfigMapName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-install-info", dda.GetName())
+}
+
+// GetVolumeMountForConfig return the VolumeMount that contains the agent config
+func GetVolumeMountForConfig() corev1.VolumeMount {
+	return corev1.VolumeMount{
+		Name:      apicommon.ConfigVolumeName,
+		MountPath: apicommon.ConfigVolumePath,
+	}
 }
 
 // GetVolumeMountForConfd return the VolumeMount that contains the agent confd config files
@@ -78,6 +130,23 @@ func GetVolumeMountForConfd() corev1.VolumeMount {
 	return corev1.VolumeMount{
 		Name:      apicommon.ConfdVolumeName,
 		MountPath: apicommon.ConfdVolumePath,
+		ReadOnly:  true,
+	}
+}
+
+// GetVolumeMountForRmCorechecks return the VolumeMount that contains the agent confd config files
+func GetVolumeMountForRmCorechecks() corev1.VolumeMount {
+	return corev1.VolumeMount{
+		Name:      "remove-corechecks",
+		MountPath: fmt.Sprintf("%s/%s", apicommon.ConfigVolumePath, "conf.d"),
+	}
+}
+
+// GetVolumeMountForAuth returns the VolumeMount that contains the authentication information
+func GetVolumeMountForAuth() corev1.VolumeMount {
+	return corev1.VolumeMount{
+		Name:      apicommon.AuthVolumeName,
+		MountPath: apicommon.AuthVolumePath,
 		ReadOnly:  true,
 	}
 }
@@ -139,6 +208,33 @@ func GetVolumeMountForInstallInfo() corev1.VolumeMount {
 	}
 }
 
+// GetVolumeMountForProc returns the VolumeMount that contains /proc
+func GetVolumeMountForProc() corev1.VolumeMount {
+	return corev1.VolumeMount{
+		Name:      apicommon.ProcdirVolumeName,
+		MountPath: apicommon.ProcdirMountPath,
+		ReadOnly:  true,
+	}
+}
+
+// GetVolumeMountForCgroups returns the VolumeMount that contains the cgroups info
+func GetVolumeMountForCgroups() corev1.VolumeMount {
+	return corev1.VolumeMount{
+		Name:      apicommon.CgroupsVolumeName,
+		MountPath: apicommon.CgroupsMountPath,
+		ReadOnly:  true,
+	}
+}
+
+// GetVolumeMountForDogstatsdSocket returns the VolumeMount with the Dogstatsd socket
+func GetVolumeMountForDogstatsdSocket(readOnly bool) corev1.VolumeMount {
+	return corev1.VolumeMount{
+		Name:      apicommon.DogstatsdSocketVolumeName,
+		MountPath: apicommon.DogstatsdSocketVolumePath,
+		ReadOnly:  readOnly,
+	}
+}
+
 // GetClusterAgentServiceName return the Cluster-Agent service name based on the DatadogAgent name
 func GetClusterAgentServiceName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultClusterAgentResourceSuffix)
@@ -169,4 +265,24 @@ func GetAgentVersion(dda metav1.Object) string {
 // GetClusterChecksRunnerName return the Cluster-Checks-Runner name based on the DatadogAgent name
 func GetClusterChecksRunnerName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultClusterChecksRunnerResourceSuffix)
+}
+
+// BuildEnvVarFromSource return an *corev1.EnvVar from a Env Var name and *corev1.EnvVarSource
+func BuildEnvVarFromSource(name string, source *corev1.EnvVarSource) *corev1.EnvVar {
+	return &corev1.EnvVar{
+		Name:      name,
+		ValueFrom: source,
+	}
+}
+
+// BuildEnvVarFromSecret return an corev1.EnvVarSource correspond to a secret reference
+func BuildEnvVarFromSecret(name, key string) *corev1.EnvVarSource {
+	return &corev1.EnvVarSource{
+		SecretKeyRef: &corev1.SecretKeySelector{
+			LocalObjectReference: corev1.LocalObjectReference{
+				Name: name,
+			},
+			Key: key,
+		},
+	}
 }

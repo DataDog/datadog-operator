@@ -10,10 +10,12 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	assert "github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
@@ -118,6 +120,16 @@ func TestStore_AddOrUpdate(t *testing.T) {
 		},
 	}
 
+	owner := &v2alpha1.DatadogAgent{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "bar",
+			Name:      "foo",
+		},
+	}
+
+	testScheme := runtime.NewScheme()
+	testScheme.AddKnownTypes(v2alpha1.GroupVersion, &v2alpha1.DatadogAgent{})
+
 	type fields struct {
 		deps map[kubernetes.ObjectKind]map[string]client.Object
 	}
@@ -130,6 +142,7 @@ func TestStore_AddOrUpdate(t *testing.T) {
 		fields         fields
 		args           args
 		validationFunc func(t *testing.T, store *Store)
+		wantErr        bool
 	}{
 		{
 			name: "add to an empty store",
@@ -190,9 +203,14 @@ func TestStore_AddOrUpdate(t *testing.T) {
 			logger := logf.Log.WithName(t.Name())
 			ds := &Store{
 				deps:   tt.fields.deps,
+				owner:  owner,
+				scheme: testScheme,
 				logger: logger,
 			}
-			ds.AddOrUpdate(tt.args.kind, tt.args.obj)
+			gotErr := ds.AddOrUpdate(tt.args.kind, tt.args.obj)
+			if gotErr != nil && tt.wantErr == false {
+				t.Errorf("Store.AddOrUpdate() gotErr = %v, wantErr %v", gotErr, tt.wantErr)
+			}
 			tt.validationFunc(t, ds)
 		})
 	}
@@ -333,7 +351,6 @@ func TestStore_Apply(t *testing.T) {
 		{
 			name: "one ConfigMap to apply",
 			fields: fields{
-
 				deps: map[kubernetes.ObjectKind]map[string]client.Object{
 					kubernetes.ConfigMapKind: {
 						"bar/foo": dummyConfigMap1.DeepCopy(),
@@ -348,7 +365,6 @@ func TestStore_Apply(t *testing.T) {
 		{
 			name: "one ConfigMap to update",
 			fields: fields{
-
 				deps: map[kubernetes.ObjectKind]map[string]client.Object{
 					kubernetes.ConfigMapKind: {
 						"bar/foo": dummyConfigMap1bis.DeepCopy(),

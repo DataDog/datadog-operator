@@ -540,6 +540,7 @@ func Test_newClusterAgentDeploymentMountKSMCore(t *testing.T) {
 			KubeStateMetricsCore: &ksmCore,
 		},
 	)
+
 	testDCA := clusterAgentDeploymentFromInstanceTest{
 		name:            "with KSM core check custom conf volumes and mounts",
 		agentdeployment: clusterAgentDeployment,
@@ -901,11 +902,11 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 				ValueFrom: appKeyValue(),
 			},
 			{
-				Name:  datadoghqv1alpha1.DDMetricsProviderUseDatadogMetric,
+				Name:  apicommon.DDMetricsProviderUseDatadogMetric,
 				Value: "false",
 			},
 			{
-				Name:  datadoghqv1alpha1.DDMetricsProviderWPAController,
+				Name:  apicommon.DDMetricsProviderWPAController,
 				Value: "false",
 			},
 			{
@@ -949,23 +950,23 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 				ValueFrom: appKeyValue(),
 			},
 			{
-				Name:  datadoghqv1alpha1.DDMetricsProviderUseDatadogMetric,
+				Name:  apicommon.DDMetricsProviderUseDatadogMetric,
 				Value: "true",
 			},
 			{
-				Name:  datadoghqv1alpha1.DDMetricsProviderWPAController,
+				Name:  apicommon.DDMetricsProviderWPAController,
 				Value: "true",
 			},
 			{
-				Name:  datadoghqv1alpha1.DDExternalMetricsProviderEndpoint,
+				Name:  apicommon.DDExternalMetricsProviderEndpoint,
 				Value: "https://app.datadoghq.eu",
 			},
 			{
-				Name:      datadoghqv1alpha1.DDExternalMetricsProviderAPIKey,
+				Name:      apicommon.DDExternalMetricsProviderAPIKey,
 				ValueFrom: buildEnvVarFromSecret("foo-metrics-server", "api_key"),
 			},
 			{
-				Name:      datadoghqv1alpha1.DDExternalMetricsProviderAppKey,
+				Name:      apicommon.DDExternalMetricsProviderAppKey,
 				ValueFrom: buildEnvVarFromSecret("extmetrics-app-key-secret-name", "appkey"),
 			},
 			{

@@ -11,6 +11,55 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 )
 
+// GetDefaultCredentialsSecretName returns the default name for credentials secret
+func GetDefaultCredentialsSecretName(dda *DatadogAgent) string {
+	return dda.Name
+}
+
+// GetAPIKeySecret returns the API key secret name and the key inside the secret
+// returns <is_set>, secretName, secretKey
+func GetAPIKeySecret(credentials *DatadogCredentials, defaultName string) (bool, string, string) {
+	if credentials.APISecret != nil {
+		if credentials.APISecret.KeyName != "" {
+			return true, credentials.APISecret.SecretName, credentials.APISecret.KeyName
+		}
+
+		return true, credentials.APISecret.SecretName, apicommon.DefaultAPIKeyKey
+	}
+
+	if credentials.APIKeyExistingSecret != "" {
+		return true, credentials.APIKeyExistingSecret, apicommon.DefaultAPIKeyKey
+	}
+
+	if credentials.APIKey != "" {
+		return true, defaultName, apicommon.DefaultAPIKeyKey
+	}
+
+	return false, defaultName, apicommon.DefaultAPIKeyKey
+}
+
+// GetAppKeySecret returns the APP key secret name and the key inside the secret
+// returns <is_set>, secretName, secretKey
+func GetAppKeySecret(credentials *DatadogCredentials, defaultName string) (bool, string, string) {
+	if credentials.APPSecret != nil {
+		if credentials.APPSecret.KeyName != "" {
+			return true, credentials.APPSecret.SecretName, credentials.APPSecret.KeyName
+		}
+
+		return true, credentials.APPSecret.SecretName, apicommon.DefaultAPPKeyKey
+	}
+
+	if credentials.AppKeyExistingSecret != "" {
+		return true, credentials.AppKeyExistingSecret, apicommon.DefaultAPPKeyKey
+	}
+
+	if credentials.AppKey != "" {
+		return true, defaultName, apicommon.DefaultAPPKeyKey
+	}
+
+	return false, defaultName, apicommon.DefaultAPPKeyKey
+}
+
 // GetKeysFromCredentials returns any key data that need to be stored in a new secret
 func GetKeysFromCredentials(credentials *DatadogCredentials) map[string][]byte {
 	data := make(map[string][]byte)

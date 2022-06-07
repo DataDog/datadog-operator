@@ -27,6 +27,7 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
+	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	objectvolume "github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/orchestrator"
@@ -318,101 +319,101 @@ func getEnvVarsForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []cor
 	spec := &dda.Spec
 	envVars := []corev1.EnvVar{
 		{
-			Name:  datadoghqv1alpha1.DDClusterChecksEnabled,
+			Name:  apicommon.DDClusterChecksEnabled,
 			Value: "true",
 		},
 		{
-			Name:  datadoghqv1alpha1.DDClusterAgentEnabled,
+			Name:  apicommon.DDClusterAgentEnabled,
 			Value: "true",
 		},
 		{
 			Name:  apicommon.DDClusterAgentKubeServiceName,
-			Value: component.GetClusterAgentServiceName(dda),
+			Value: componentdca.GetClusterAgentServiceName(dda),
 		},
 		{
-			Name:  datadoghqv1alpha1.DDExtraConfigProviders,
-			Value: datadoghqv1alpha1.ClusterChecksConfigProvider,
+			Name:  apicommon.DDExtraConfigProviders,
+			Value: apicommon.ClusterChecksConfigProvider,
 		},
 		{
 			Name:  apicommon.DDHealthPort,
 			Value: strconv.Itoa(int(*spec.ClusterChecksRunner.Config.HealthPort)),
 		},
 		{
-			Name:  datadoghqv1alpha1.DDAPMEnabled,
+			Name:  apicommon.DDAPMEnabled,
 			Value: "false",
 		},
 		{
-			Name:  datadoghqv1alpha1.DDProcessAgentEnabled,
+			Name:  apicommon.DDProcessAgentEnabled,
 			Value: "false",
 		},
 		{
-			Name:  datadoghqv1alpha1.DDLogsEnabled,
+			Name:  apicommon.DDLogsEnabled,
 			Value: "false",
 		},
 		{
-			Name:  datadoghqv1alpha1.DDDogstatsdEnabled,
+			Name:  apicommon.DDDogstatsdEnabled,
 			Value: "false",
 		},
 		{
-			Name:  datadoghqv1alpha1.DDEnableMetadataCollection,
+			Name:  apicommon.DDEnableMetadataCollection,
 			Value: "false",
 		},
 		{
-			Name:  datadoghqv1alpha1.DDClcRunnerEnabled,
+			Name:  apicommon.DDClcRunnerEnabled,
 			Value: "true",
 		},
 		{
-			Name: datadoghqv1alpha1.DDClcRunnerHost,
+			Name: apicommon.DDClcRunnerHost,
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
-					FieldPath: FieldPathStatusPodIP,
+					FieldPath: apicommon.FieldPathStatusPodIP,
 				},
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.DDHostname,
+			Name: apicommon.DDHostname,
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
-					FieldPath: FieldPathSpecNodeName,
+					FieldPath: apicommon.FieldPathSpecNodeName,
 				},
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.DDClcRunnerID,
+			Name: apicommon.DDClcRunnerID,
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
-					FieldPath: FieldPathMetaName,
+					FieldPath: apicommon.FieldPathMetaName,
 				},
 			},
 		},
 	}
 
 	envVars = append(envVars, corev1.EnvVar{
-		Name:      datadoghqv1alpha1.DDAPIKey,
+		Name:      apicommon.DDAPIKey,
 		ValueFrom: getAPIKeyFromSecret(dda),
 	})
 
 	envVars = append(envVars, corev1.EnvVar{
-		Name:      datadoghqv1alpha1.DDClusterAgentAuthToken,
+		Name:      apicommon.DDClusterAgentAuthToken,
 		ValueFrom: getClusterAgentAuthToken(dda),
 	})
 
 	if spec.ClusterName != "" {
 		envVars = append(envVars, corev1.EnvVar{
-			Name:  datadoghqv1alpha1.DDClusterName,
+			Name:  apicommon.DDClusterName,
 			Value: spec.ClusterName,
 		})
 	}
 
 	if spec.Site != "" {
 		envVars = append(envVars, corev1.EnvVar{
-			Name:  datadoghqv1alpha1.DDSite,
+			Name:  apicommon.DDSite,
 			Value: spec.Site,
 		})
 	}
 
 	envVars = append(envVars, corev1.EnvVar{
-		Name:  datadoghqv1alpha1.DDLogLevel,
+		Name:  apicommon.DDLogLevel,
 		Value: *spec.ClusterChecksRunner.Config.LogLevel,
 	})
 
@@ -427,7 +428,7 @@ func getEnvVarsForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []cor
 
 	if spec.Agent.Config.DDUrl != nil {
 		envVars = append(envVars, corev1.EnvVar{
-			Name:  datadoghqv1alpha1.DDddURL,
+			Name:  apicommon.DDddURL,
 			Value: *spec.Agent.Config.DDUrl,
 		})
 	}
@@ -464,12 +465,7 @@ func getVolumesForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []cor
 		// it with write perms.
 		component.GetVolumeForTmp(),
 		component.GetVolumeInstallInfo(dda),
-		{
-			Name: "remove-corechecks",
-			VolumeSource: corev1.VolumeSource{
-				EmptyDir: &corev1.EmptyDirVolumeSource{},
-			},
-		},
+		component.GetVolumeForRmCorechecks(),
 	}
 
 	if dda.Spec.ClusterChecksRunner.CustomConfig != nil {
@@ -486,10 +482,7 @@ func getVolumeMountsForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) 
 		component.GetVolumeMountForLogs(),
 		component.GetVolumeMountForTmp(),
 		component.GetVolumeMountForInstallInfo(),
-		{
-			Name:      "remove-corechecks",
-			MountPath: fmt.Sprintf("%s/%s", apicommon.ConfigVolumePath, "conf.d"),
-		},
+		component.GetVolumeMountForRmCorechecks(),
 	}
 
 	// Add configuration volumesMount default and custom config (datadog.yaml) volume

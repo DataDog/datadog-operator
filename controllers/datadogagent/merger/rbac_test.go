@@ -8,10 +8,13 @@ package merger
 import (
 	"testing"
 
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+
 	rbacv1 "k8s.io/api/rbac/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 func TestRBACManager_AddPolicyRules(t *testing.T) {
@@ -54,6 +57,19 @@ func TestRBACManager_AddPolicyRules(t *testing.T) {
 		},
 	}
 
+	testScheme := runtime.NewScheme()
+	testScheme.AddKnownTypes(v2alpha1.GroupVersion, &v2alpha1.DatadogAgent{})
+	storeOptions := &dependencies.StoreOptions{
+		Scheme: testScheme,
+	}
+
+	owner := &v2alpha1.DatadogAgent{
+		ObjectMeta: v1.ObjectMeta{
+			Namespace: ns,
+			Name:      name,
+		},
+	}
+
 	type args struct {
 		namespace string
 		roleName  string
@@ -69,7 +85,7 @@ func TestRBACManager_AddPolicyRules(t *testing.T) {
 	}{
 		{
 			name:  "empty store",
-			store: dependencies.NewStore(nil),
+			store: dependencies.NewStore(owner, storeOptions),
 			args: args{
 				namespace: ns,
 				saName:    name + "sa",
@@ -91,7 +107,7 @@ func TestRBACManager_AddPolicyRules(t *testing.T) {
 		},
 		{
 			name:  "another Role already exist",
-			store: dependencies.NewStore(nil).AddOrUpdateStore(kubernetes.RolesKind, role1),
+			store: dependencies.NewStore(owner, storeOptions).AddOrUpdateStore(kubernetes.RolesKind, role1),
 			args: args{
 				namespace: ns,
 				saName:    name + "sa",
@@ -113,7 +129,7 @@ func TestRBACManager_AddPolicyRules(t *testing.T) {
 		},
 		{
 			name:  "update existing Role",
-			store: dependencies.NewStore(nil).AddOrUpdateStore(kubernetes.RolesKind, role2),
+			store: dependencies.NewStore(owner, storeOptions).AddOrUpdateStore(kubernetes.RolesKind, role2),
 			args: args{
 				namespace: ns,
 				saName:    name + "sa",
@@ -174,6 +190,20 @@ func TestRBACManager_AddClusterPolicyRules(t *testing.T) {
 			rule1,
 		},
 	}
+
+	testScheme := runtime.NewScheme()
+	testScheme.AddKnownTypes(v2alpha1.GroupVersion, &v2alpha1.DatadogAgent{})
+	storeOptions := &dependencies.StoreOptions{
+		Scheme: testScheme,
+	}
+
+	owner := &v2alpha1.DatadogAgent{
+		ObjectMeta: v1.ObjectMeta{
+			Namespace: ns,
+			Name:      name,
+		},
+	}
+
 	type fields struct {
 		store dependencies.StoreClient
 	}
@@ -192,7 +222,7 @@ func TestRBACManager_AddClusterPolicyRules(t *testing.T) {
 	}{
 		{
 			name:  "empty store",
-			store: dependencies.NewStore(nil),
+			store: dependencies.NewStore(owner, storeOptions),
 			args: args{
 				namespace: ns,
 				saName:    name + "sa",
@@ -214,7 +244,7 @@ func TestRBACManager_AddClusterPolicyRules(t *testing.T) {
 		},
 		{
 			name:  "another ClusterRole already exist",
-			store: dependencies.NewStore(nil).AddOrUpdateStore(kubernetes.RolesKind, role1),
+			store: dependencies.NewStore(owner, storeOptions).AddOrUpdateStore(kubernetes.RolesKind, role1),
 			args: args{
 				namespace: ns,
 				saName:    name + "sa",

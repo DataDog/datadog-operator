@@ -33,6 +33,14 @@ func GetClusterAgentServiceAccount(dda *DatadogAgent) string {
 	return saDefault
 }
 
+// GetAgentServiceAccount returns the agent service account name
+func GetAgentServiceAccount(dda *DatadogAgent) string {
+	saDefault := fmt.Sprintf("%s-%s", dda.Name, common.DefaultAgentResourceSuffix)
+
+	// Todo: implement the support of override
+	return saDefault
+}
+
 // GetClusterChecksRunnerServiceAccount return the cluster-checks-runner service account name
 func GetClusterChecksRunnerServiceAccount(dda *DatadogAgent) string {
 	saDefault := fmt.Sprintf("%s-%s", dda.Name, common.DefaultClusterChecksRunnerResourceSuffix)

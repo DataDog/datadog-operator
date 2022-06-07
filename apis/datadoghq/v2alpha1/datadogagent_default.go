@@ -6,6 +6,7 @@
 package v2alpha1
 
 import (
+	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 )
 
@@ -13,7 +14,6 @@ import (
 // Note: many default values are set in the Datadog Agent and deliberately not set by the Operator.
 const (
 	defaultSite     string = "datadoghq.com"
-	defaultRegistry string = "gcr.io/datadoghq"
 	defaultLogLevel string = "info"
 
 	// defaultLogCollectionEnabled          bool   = false
@@ -94,7 +94,7 @@ func defaultGlobalConfig(ddaSpec *DatadogAgentSpec) {
 	}
 
 	if ddaSpec.Global.Registry == nil {
-		ddaSpec.Global.Registry = apiutils.NewStringPointer(defaultRegistry)
+		ddaSpec.Global.Registry = apiutils.NewStringPointer(apicommon.DefaultImageRegistry)
 	}
 
 	if ddaSpec.Global.LogLevel == nil {

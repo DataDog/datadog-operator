@@ -8,15 +8,31 @@ package merger
 import (
 	"testing"
 
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 func Test_secretManagerImpl_AddSecret(t *testing.T) {
 	secretNs := "foo"
 	secretName := "bar"
+
+	owner := &v2alpha1.DatadogAgent{
+		ObjectMeta: v1.ObjectMeta{
+			Namespace: secretNs,
+			Name:      secretName,
+		},
+	}
+
+	testScheme := runtime.NewScheme()
+	testScheme.AddKnownTypes(v2alpha1.GroupVersion, &v2alpha1.DatadogAgent{})
+	storeOptions := &dependencies.StoreOptions{
+		Scheme: testScheme,
+	}
 
 	secret1 := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -43,7 +59,7 @@ func Test_secretManagerImpl_AddSecret(t *testing.T) {
 	}{
 		{
 			name:  "empty Store",
-			store: dependencies.NewStore(nil),
+			store: dependencies.NewStore(owner, storeOptions),
 			args: args{
 				secretNamespace: secretNs,
 				secretName:      secretName,
@@ -59,7 +75,7 @@ func Test_secretManagerImpl_AddSecret(t *testing.T) {
 		},
 		{
 			name:  "secret already exist",
-			store: dependencies.NewStore(nil).AddOrUpdateStore(kubernetes.SecretsKind, secret1),
+			store: dependencies.NewStore(owner, storeOptions).AddOrUpdateStore(kubernetes.SecretsKind, secret1),
 			args: args{
 				secretNamespace: secretNs,
 				secretName:      secretName,
@@ -69,9 +85,12 @@ func Test_secretManagerImpl_AddSecret(t *testing.T) {
 			wantErr: false,
 			validateFunc: func(t *testing.T, store *dependencies.Store) {
 				obj, found := store.Get(kubernetes.SecretsKind, secretNs, secretName)
-				secret, _ := obj.(*corev1.Secret)
+				secret, ok := obj.(*corev1.Secret)
+				if !ok {
+					t.Fatalf("unable to cast the obj to a Secret %s/%s", secretNs, secretName)
+				}
 				if !found {
-					t.Errorf("missing Secret %s/%s", secretNs, secretName)
+					t.Fatalf("missing Secret %s/%s", secretNs, secretName)
 				}
 				if _, ok := secret.Data["key1"]; !ok {
 					t.Errorf("default key1 not found in Secret %s/%s", secretNs, secretName)

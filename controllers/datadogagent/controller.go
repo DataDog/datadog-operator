@@ -35,6 +35,7 @@ import (
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/cspm"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/dummy"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/enabledefault"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/eventcollection"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/kubernetesstatecore"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/logcollection"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/npm"
@@ -165,8 +166,9 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, 
 	storeOptions := &dependencies.StoreOptions{
 		SupportCilium: r.options.SupportCilium,
 		Logger:        logger,
+		Scheme:        r.scheme,
 	}
-	depsStore := dependencies.NewStore(storeOptions)
+	depsStore := dependencies.NewStore(instance, storeOptions)
 	resourcesManager := feature.NewResourceManagers(depsStore)
 	var errs []error
 	for _, feat := range features {
@@ -223,6 +225,8 @@ func (r *Reconciler) updateOverrideIfNeeded(logger logr.Logger, agentdeployment 
 			logger.Error(err, "unable to update DatadogAgent status override", "error", err)
 			return agentdeployment, reconcile.Result{}, err
 		}
+		// Restore the Spec as it can be changed by Status().Update()
+		updateAgentDeployment.Spec = agentdeployment.Spec
 	}
 	return updateAgentDeployment, result, nil
 }

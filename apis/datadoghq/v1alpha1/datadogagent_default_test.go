@@ -457,8 +457,8 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 					LogLevel:       apiutils.NewStringPointer(defaultLogLevel),
 					CollectEvents:  apiutils.NewBoolPointer(false),
 					LeaderElection: apiutils.NewBoolPointer(false),
-					LivenessProbe:  GetDefaultLivenessProbe(),
-					ReadinessProbe: GetDefaultReadinessProbe(),
+					LivenessProbe:  apicommon.GetDefaultLivenessProbe(),
+					ReadinessProbe: apicommon.GetDefaultReadinessProbe(),
 					HealthPort:     apiutils.NewInt32Pointer(5555),
 					// CriSocket unset as we use latest
 					Dogstatsd: &DogstatsdConfig{
@@ -478,7 +478,7 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 						SlowStartIntervalDuration: &metav1.Duration{Duration: apicommon.DefaultRollingUpdateSlowStartIntervalDuration},
 						SlowStartAdditiveIncrease: &intstr.IntOrString{Type: intstr.String, StrVal: apicommon.DefaultRollingUpdateSlowStartAdditiveIncrease},
 					},
-					Canary:             edsdatadoghqv1alpha1.DefaultExtendedDaemonSetSpecStrategyCanary(testCanary),
+					Canary:             edsdatadoghqv1alpha1.DefaultExtendedDaemonSetSpecStrategyCanary(testCanary, edsdatadoghqv1alpha1.ExtendedDaemonSetSpecStrategyCanaryValidationModeAuto),
 					ReconcileFrequency: &metav1.Duration{Duration: apicommon.DefaultReconcileFrequency},
 				},
 				Rbac:        &RbacConfig{Create: apiutils.NewBoolPointer(true)},
@@ -507,9 +507,9 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 					Tags:                 []string{},
 					CollectEvents:        apiutils.NewBoolPointer(false),
 					LeaderElection:       apiutils.NewBoolPointer(false),
-					LivenessProbe:        GetDefaultLivenessProbe(),
+					LivenessProbe:        apicommon.GetDefaultLivenessProbe(),
 					Resources:            &corev1.ResourceRequirements{Limits: corev1.ResourceList{}, Requests: corev1.ResourceList{}},
-					ReadinessProbe:       GetDefaultReadinessProbe(),
+					ReadinessProbe:       apicommon.GetDefaultReadinessProbe(),
 					HealthPort:           apiutils.NewInt32Pointer(5555),
 					Dogstatsd: &DogstatsdConfig{
 						DogstatsdOriginDetection: apiutils.NewBoolPointer(false),
@@ -528,7 +528,7 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 						SlowStartIntervalDuration: &metav1.Duration{Duration: apicommon.DefaultRollingUpdateSlowStartIntervalDuration},
 						SlowStartAdditiveIncrease: &intstr.IntOrString{Type: intstr.String, StrVal: apicommon.DefaultRollingUpdateSlowStartAdditiveIncrease},
 					},
-					Canary:             edsdatadoghqv1alpha1.DefaultExtendedDaemonSetSpecStrategyCanary(testCanary),
+					Canary:             edsdatadoghqv1alpha1.DefaultExtendedDaemonSetSpecStrategyCanary(testCanary, edsdatadoghqv1alpha1.ExtendedDaemonSetSpecStrategyCanaryValidationModeAuto),
 					ReconcileFrequency: &metav1.Duration{Duration: apicommon.DefaultReconcileFrequency},
 				},
 				Rbac:        &RbacConfig{Create: apiutils.NewBoolPointer(true)},
@@ -557,7 +557,7 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 					Name: "gcr.io/datadog/agent:6.26.0",
 				},
 				DeploymentStrategy: &DaemonSetDeploymentStrategy{
-					Canary: edsdatadoghqv1alpha1.DefaultExtendedDaemonSetSpecStrategyCanary(testCanary),
+					Canary: edsdatadoghqv1alpha1.DefaultExtendedDaemonSetSpecStrategyCanary(testCanary, edsdatadoghqv1alpha1.ExtendedDaemonSetSpecStrategyCanaryValidationModeAuto),
 				},
 				Apm: &APMSpec{
 					HostPort: apiutils.NewInt32Pointer(1664),
@@ -579,8 +579,8 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 				Config: &NodeAgentConfig{
 					LogLevel:       apiutils.NewStringPointer(defaultLogLevel),
 					CollectEvents:  apiutils.NewBoolPointer(false),
-					LivenessProbe:  GetDefaultLivenessProbe(),
-					ReadinessProbe: GetDefaultReadinessProbe(),
+					LivenessProbe:  apicommon.GetDefaultLivenessProbe(),
+					ReadinessProbe: apicommon.GetDefaultReadinessProbe(),
 					HealthPort:     apiutils.NewInt32Pointer(5555),
 					// CRI Socket specified as we use an older image
 					CriSocket: &CRISocketConfig{
@@ -636,8 +636,8 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 					Tags:                 []string{},
 					Resources:            &corev1.ResourceRequirements{Limits: corev1.ResourceList{}, Requests: corev1.ResourceList{}},
 					CollectEvents:        apiutils.NewBoolPointer(false),
-					LivenessProbe:        GetDefaultLivenessProbe(),
-					ReadinessProbe:       GetDefaultReadinessProbe(),
+					LivenessProbe:        apicommon.GetDefaultLivenessProbe(),
+					ReadinessProbe:       apicommon.GetDefaultReadinessProbe(),
 					HealthPort:           apiutils.NewInt32Pointer(5555),
 					CriSocket: &CRISocketConfig{
 						DockerSocketPath: apiutils.NewStringPointer(defaultDockerSocketPath),
@@ -660,7 +660,7 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 						SlowStartIntervalDuration: &metav1.Duration{Duration: apicommon.DefaultRollingUpdateSlowStartIntervalDuration},
 						SlowStartAdditiveIncrease: &intstr.IntOrString{Type: intstr.String, StrVal: apicommon.DefaultRollingUpdateSlowStartAdditiveIncrease},
 					},
-					Canary:             edsdatadoghqv1alpha1.DefaultExtendedDaemonSetSpecStrategyCanary(testCanary),
+					Canary:             edsdatadoghqv1alpha1.DefaultExtendedDaemonSetSpecStrategyCanary(testCanary, edsdatadoghqv1alpha1.ExtendedDaemonSetSpecStrategyCanaryValidationModeAuto),
 					ReconcileFrequency: &metav1.Duration{Duration: apicommon.DefaultReconcileFrequency},
 				},
 				Apm: &APMSpec{
@@ -732,8 +732,8 @@ func TestDefaultDatadogAgentSpecClusterChecksRunner(t *testing.T) {
 				},
 				Config: &ClusterChecksRunnerConfig{
 					LogLevel:       apiutils.NewStringPointer(defaultLogLevel),
-					LivenessProbe:  GetDefaultLivenessProbe(),
-					ReadinessProbe: GetDefaultReadinessProbe(),
+					LivenessProbe:  apicommon.GetDefaultLivenessProbe(),
+					ReadinessProbe: apicommon.GetDefaultReadinessProbe(),
 					HealthPort:     apiutils.NewInt32Pointer(5555),
 				},
 				Rbac:          &RbacConfig{Create: apiutils.NewBoolPointer(true)},
@@ -750,8 +750,8 @@ func TestDefaultDatadogAgentSpecClusterChecksRunner(t *testing.T) {
 				},
 				Config: &ClusterChecksRunnerConfig{
 					LogLevel:       apiutils.NewStringPointer(defaultLogLevel),
-					LivenessProbe:  GetDefaultLivenessProbe(),
-					ReadinessProbe: GetDefaultReadinessProbe(),
+					LivenessProbe:  apicommon.GetDefaultLivenessProbe(),
+					ReadinessProbe: apicommon.GetDefaultReadinessProbe(),
 					HealthPort:     apiutils.NewInt32Pointer(5555),
 					Resources:      &corev1.ResourceRequirements{Limits: corev1.ResourceList{}, Requests: corev1.ResourceList{}},
 				},
@@ -778,8 +778,8 @@ func TestDefaultDatadogAgentSpecClusterChecksRunner(t *testing.T) {
 					PullPolicy: &defaultImagePullPolicy,
 				},
 				Config: &ClusterChecksRunnerConfig{
-					LivenessProbe:  GetDefaultLivenessProbe(),
-					ReadinessProbe: GetDefaultReadinessProbe(),
+					LivenessProbe:  apicommon.GetDefaultLivenessProbe(),
+					ReadinessProbe: apicommon.GetDefaultReadinessProbe(),
 				},
 				Rbac:          &RbacConfig{Create: apiutils.NewBoolPointer(true)},
 				Replicas:      nil,
@@ -795,8 +795,8 @@ func TestDefaultDatadogAgentSpecClusterChecksRunner(t *testing.T) {
 				},
 				Config: &ClusterChecksRunnerConfig{
 					LogLevel:       apiutils.NewStringPointer("DEBUG"),
-					LivenessProbe:  GetDefaultLivenessProbe(),
-					ReadinessProbe: GetDefaultReadinessProbe(),
+					LivenessProbe:  apicommon.GetDefaultLivenessProbe(),
+					ReadinessProbe: apicommon.GetDefaultReadinessProbe(),
 					HealthPort:     apiutils.NewInt32Pointer(1664),
 					Resources:      &corev1.ResourceRequirements{Limits: corev1.ResourceList{}, Requests: corev1.ResourceList{}},
 				},
