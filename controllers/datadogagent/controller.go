@@ -166,8 +166,9 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, 
 	storeOptions := &dependencies.StoreOptions{
 		SupportCilium: r.options.SupportCilium,
 		Logger:        logger,
+		Scheme:        r.scheme,
 	}
-	depsStore := dependencies.NewStore(storeOptions)
+	depsStore := dependencies.NewStore(instance, storeOptions)
 	resourcesManager := feature.NewResourceManagers(depsStore)
 	var errs []error
 	for _, feat := range features {

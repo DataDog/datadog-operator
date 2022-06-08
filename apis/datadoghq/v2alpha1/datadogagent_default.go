@@ -6,6 +6,7 @@
 package v2alpha1
 
 import (
+	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 )
 
@@ -13,7 +14,6 @@ import (
 // Note: many default values are set in the Datadog Agent and deliberately not set by the Operator.
 const (
 	defaultSite     string = "datadoghq.com"
-	defaultRegistry string = "gcr.io/datadoghq"
 	defaultLogLevel string = "info"
 
 	// defaultLogCollectionEnabled          bool   = false
@@ -48,7 +48,7 @@ const (
 	defaultDogstatsdOriginDetectionEnabled bool   = false
 	defaultDogstatsdHostPortEnabled        bool   = false
 	defaultDogstatsdPort                   int32  = 8125
-	defaultDogstatsdUseSocketVolume        bool   = false
+	defaultDogstatsdSocketEnabled          bool   = true
 	defaultDogstatsdSocketPath             string = "/var/run/datadog/dsd.socket"
 
 	defaultCollectKubernetesEvents bool = true
@@ -94,7 +94,7 @@ func defaultGlobalConfig(ddaSpec *DatadogAgentSpec) {
 	}
 
 	if ddaSpec.Global.Registry == nil {
-		ddaSpec.Global.Registry = apiutils.NewStringPointer(defaultRegistry)
+		ddaSpec.Global.Registry = apiutils.NewStringPointer(apicommon.DefaultImageRegistry)
 	}
 
 	if ddaSpec.Global.LogLevel == nil {
@@ -181,7 +181,7 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 		ddaSpec.Features.Dogstatsd.UnixDomainSocketConfig = &UnixDomainSocketConfig{}
 	}
 
-	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.Dogstatsd.UnixDomainSocketConfig.Enabled, defaultDogstatsdUseSocketVolume)
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.Dogstatsd.UnixDomainSocketConfig.Enabled, defaultDogstatsdSocketEnabled)
 
 	apiutils.DefaultStringIfUnset(&ddaSpec.Features.Dogstatsd.UnixDomainSocketConfig.Path, defaultDogstatsdSocketPath)
 

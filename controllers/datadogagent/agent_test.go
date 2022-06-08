@@ -957,47 +957,47 @@ func defaultSystemProbeEnvVars() []corev1.EnvVar {
 			},
 		},
 		{
-			Name:  datadoghqv1alpha1.DDRuntimeSecurityConfigEnabled,
+			Name:  apicommon.DDRuntimeSecurityConfigEnabled,
 			Value: "false",
 		},
 		{
-			Name:  datadoghqv1alpha1.DDRuntimeSecurityConfigRemoteTaggerEnabled,
+			Name:  apicommon.DDRuntimeSecurityConfigRemoteTaggerEnabled,
 			Value: "false",
 		},
 		{
-			Name:  datadoghqv1alpha1.DDRuntimeSecurityConfigSyscallMonitorEnabled,
+			Name:  apicommon.DDRuntimeSecurityConfigSyscallMonitorEnabled,
 			Value: "false",
 		},
 		{
-			Name:  datadoghqv1alpha1.DDSystemProbeDebugPort,
+			Name:  apicommon.DDSystemProbeDebugPort,
 			Value: "0",
 		},
 		{
-			Name:  datadoghqv1alpha1.DDSystemProbeSocketPath,
+			Name:  apicommon.DDSystemProbeSocket,
 			Value: "/var/run/sysprobe/sysprobe.sock",
 		},
 		{
-			Name:  datadoghqv1alpha1.DDSystemProbeNPMEnabled,
+			Name:  apicommon.DDSystemProbeNPMEnabled,
 			Value: "false",
 		},
 		{
-			Name:  datadoghqv1alpha1.DDSystemProbeConntrackEnabled,
+			Name:  apicommon.DDSystemProbeConntrackEnabled,
 			Value: "false",
 		},
 		{
-			Name:  datadoghqv1alpha1.DDSystemProbeBPFDebugEnabled,
+			Name:  apicommon.DDSystemProbeBPFDebugEnabled,
 			Value: "false",
 		},
 		{
-			Name:  datadoghqv1alpha1.DDSystemProbeCollectDNSStatsEnabled,
+			Name:  apicommon.DDSystemProbeCollectDNSStatsEnabled,
 			Value: "false",
 		},
 		{
-			Name:  datadoghqv1alpha1.DDSystemProbeTCPQueueLengthEnabled,
+			Name:  apicommon.DDSystemProbeTCPQueueLengthEnabled,
 			Value: "false",
 		},
 		{
-			Name:  datadoghqv1alpha1.DDSystemProbeOOMKillEnabled,
+			Name:  apicommon.DDSystemProbeOOMKillEnabled,
 			Value: "false",
 		},
 	}
@@ -1174,14 +1174,14 @@ func defaultSystemProbePodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodSp
 		},
 	}...)
 
-	agentEnvVars := addEnvVar(defaultEnvVars(nil), datadoghqv1alpha1.DDSystemProbeSocketPath, filepath.Join(datadoghqv1alpha1.SystemProbeSocketVolumePath, "sysprobe.sock"))
+	agentEnvVars := addEnvVar(defaultEnvVars(nil), apicommon.DDSystemProbeSocket, filepath.Join(datadoghqv1alpha1.SystemProbeSocketVolumePath, "sysprobe.sock"))
 	agentEnvVars = append(agentEnvVars, []corev1.EnvVar{
 		{
-			Name:  datadoghqv1alpha1.DDSystemProbeTCPQueueLengthEnabled,
+			Name:  apicommon.DDSystemProbeTCPQueueLengthEnabled,
 			Value: "false",
 		},
 		{
-			Name:  datadoghqv1alpha1.DDSystemProbeOOMKillEnabled,
+			Name:  apicommon.DDSystemProbeOOMKillEnabled,
 			Value: "false",
 		},
 	}...)
@@ -1294,14 +1294,14 @@ func noSeccompInstallSystemProbeSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1
 			SubPath:   "system-probe.yaml",
 		},
 	}...)
-	agentEnvVars := addEnvVar(defaultEnvVars(nil), datadoghqv1alpha1.DDSystemProbeSocketPath, filepath.Join(datadoghqv1alpha1.SystemProbeSocketVolumePath, "sysprobe.sock"))
+	agentEnvVars := addEnvVar(defaultEnvVars(nil), apicommon.DDSystemProbeSocket, filepath.Join(datadoghqv1alpha1.SystemProbeSocketVolumePath, "sysprobe.sock"))
 	agentEnvVars = append(agentEnvVars, []corev1.EnvVar{
 		{
-			Name:  datadoghqv1alpha1.DDSystemProbeTCPQueueLengthEnabled,
+			Name:  apicommon.DDSystemProbeTCPQueueLengthEnabled,
 			Value: "false",
 		},
 		{
-			Name:  datadoghqv1alpha1.DDSystemProbeOOMKillEnabled,
+			Name:  apicommon.DDSystemProbeOOMKillEnabled,
 			Value: "false",
 		},
 	}...)
@@ -1592,12 +1592,12 @@ func defaultOrchestratorEnvVars(dda *datadoghqv1alpha1.DatadogAgent) []corev1.En
 
 func runtimeSecurityAgentPodSpec(extraEnv map[string]string, extraDir string) corev1.PodSpec {
 	systemProbeEnv := defaultSystemProbeEnvVars()
-	systemProbeEnv = addEnvVar(systemProbeEnv, datadoghqv1alpha1.DDAuthTokenFilePath, "/etc/datadog-agent/auth/token")
-	systemProbeEnv = addEnvVar(systemProbeEnv, datadoghqv1alpha1.DDRuntimeSecurityConfigEnabled, "true")
-	systemProbeEnv = addEnvVar(systemProbeEnv, datadoghqv1alpha1.DDRuntimeSecurityConfigPoliciesDir, "/etc/datadog-agent/runtime-security.d")
-	systemProbeEnv = addEnvVar(systemProbeEnv, datadoghqv1alpha1.DDRuntimeSecurityConfigRemoteTaggerEnabled, "true")
-	systemProbeEnv = addEnvVar(systemProbeEnv, datadoghqv1alpha1.DDRuntimeSecurityConfigSocket, "/var/run/sysprobe/runtime-security.sock")
-	systemProbeEnv = addEnvVar(systemProbeEnv, datadoghqv1alpha1.DDRuntimeSecurityConfigSyscallMonitorEnabled, "true")
+	systemProbeEnv = addEnvVar(systemProbeEnv, apicommon.DDAuthTokenFilePath, "/etc/datadog-agent/auth/token")
+	systemProbeEnv = addEnvVar(systemProbeEnv, apicommon.DDRuntimeSecurityConfigEnabled, "true")
+	systemProbeEnv = addEnvVar(systemProbeEnv, apicommon.DDRuntimeSecurityConfigPoliciesDir, "/etc/datadog-agent/runtime-security.d")
+	systemProbeEnv = addEnvVar(systemProbeEnv, apicommon.DDRuntimeSecurityConfigRemoteTaggerEnabled, "true")
+	systemProbeEnv = addEnvVar(systemProbeEnv, apicommon.DDRuntimeSecurityConfigSocket, "/var/run/sysprobe/runtime-security.sock")
+	systemProbeEnv = addEnvVar(systemProbeEnv, apicommon.DDRuntimeSecurityConfigSyscallMonitorEnabled, "true")
 
 	agentWithSystemProbeVolumeMounts := []corev1.VolumeMount{}
 	agentWithSystemProbeVolumeMounts = append(agentWithSystemProbeVolumeMounts, defaultMountVolume()...)
@@ -1613,14 +1613,14 @@ func runtimeSecurityAgentPodSpec(extraEnv map[string]string, extraDir string) co
 			SubPath:   "system-probe.yaml",
 		},
 	}...)
-	agentEnvVars := addEnvVar(defaultEnvVars(extraEnv), datadoghqv1alpha1.DDSystemProbeSocketPath, filepath.Join(datadoghqv1alpha1.SystemProbeSocketVolumePath, "sysprobe.sock"))
+	agentEnvVars := addEnvVar(defaultEnvVars(extraEnv), apicommon.DDSystemProbeSocket, filepath.Join(datadoghqv1alpha1.SystemProbeSocketVolumePath, "sysprobe.sock"))
 	agentEnvVars = append(agentEnvVars, []corev1.EnvVar{
 		{
-			Name:  datadoghqv1alpha1.DDSystemProbeTCPQueueLengthEnabled,
+			Name:  apicommon.DDSystemProbeTCPQueueLengthEnabled,
 			Value: "false",
 		},
 		{
-			Name:  datadoghqv1alpha1.DDSystemProbeOOMKillEnabled,
+			Name:  apicommon.DDSystemProbeOOMKillEnabled,
 			Value: "false",
 		},
 	}...)
@@ -2071,7 +2071,7 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 	hostPortNetworkPodSpec.Containers[0].Ports[0].ContainerPort = 12345
 	hostPortNetworkPodSpec.Containers[0].Ports[0].HostPort = 12345
 	hostPortNetworkPodSpec.Containers[0].Env = append(hostPortNetworkPodSpec.Containers[0].Env, corev1.EnvVar{
-		Name:  datadoghqv1alpha1.DDDogstatsdPort,
+		Name:  apicommon.DDDogstatsdPort,
 		Value: strconv.Itoa(12345),
 	})
 
@@ -3187,14 +3187,14 @@ func Test_newExtendedDaemonSetFromInstance_SystemProbe(t *testing.T) {
 	}
 
 	oomKillSpec := systemProbeExtraMountsSpec.DeepCopy()
-	addEnvVar(oomKillSpec.Containers[0].Env, datadoghqv1alpha1.DDSystemProbeOOMKillEnabled, "true")
-	addEnvVar(oomKillSpec.Containers[1].Env, datadoghqv1alpha1.DDSystemProbeOOMKillEnabled, "true")
-	addEnvVar(oomKillSpec.InitContainers[1].Env, datadoghqv1alpha1.DDSystemProbeOOMKillEnabled, "true")
+	addEnvVar(oomKillSpec.Containers[0].Env, apicommon.DDSystemProbeOOMKillEnabled, "true")
+	addEnvVar(oomKillSpec.Containers[1].Env, apicommon.DDSystemProbeOOMKillEnabled, "true")
+	addEnvVar(oomKillSpec.InitContainers[1].Env, apicommon.DDSystemProbeOOMKillEnabled, "true")
 
 	tpcQueueLengthSpec := systemProbeExtraMountsSpec.DeepCopy()
-	addEnvVar(tpcQueueLengthSpec.Containers[0].Env, datadoghqv1alpha1.DDSystemProbeTCPQueueLengthEnabled, "true")
-	addEnvVar(tpcQueueLengthSpec.Containers[1].Env, datadoghqv1alpha1.DDSystemProbeTCPQueueLengthEnabled, "true")
-	addEnvVar(tpcQueueLengthSpec.InitContainers[1].Env, datadoghqv1alpha1.DDSystemProbeTCPQueueLengthEnabled, "true")
+	addEnvVar(tpcQueueLengthSpec.Containers[0].Env, apicommon.DDSystemProbeTCPQueueLengthEnabled, "true")
+	addEnvVar(tpcQueueLengthSpec.Containers[1].Env, apicommon.DDSystemProbeTCPQueueLengthEnabled, "true")
+	addEnvVar(tpcQueueLengthSpec.InitContainers[1].Env, apicommon.DDSystemProbeTCPQueueLengthEnabled, "true")
 
 	ddaOOMKill := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
 		UseEDS:                       true,

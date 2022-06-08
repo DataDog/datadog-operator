@@ -272,3 +272,23 @@ func GetClusterChecksRunnerVersion(dda metav1.Object) string {
 	// TODO implement this method
 	return ""
 }
+
+// BuildEnvVarFromSource return an *corev1.EnvVar from a Env Var name and *corev1.EnvVarSource
+func BuildEnvVarFromSource(name string, source *corev1.EnvVarSource) *corev1.EnvVar {
+	return &corev1.EnvVar{
+		Name:      name,
+		ValueFrom: source,
+	}
+}
+
+// BuildEnvVarFromSecret return an corev1.EnvVarSource correspond to a secret reference
+func BuildEnvVarFromSecret(name, key string) *corev1.EnvVarSource {
+	return &corev1.EnvVarSource{
+		SecretKeyRef: &corev1.SecretKeySelector{
+			LocalObjectReference: corev1.LocalObjectReference{
+				Name: name,
+			},
+			Key: key,
+		},
+	}
+}

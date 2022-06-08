@@ -37,9 +37,9 @@ spec:
 | features.admissionController.mutateUnlabelled | MutateUnlabelled enables config injection without the need of pod label 'admission.datadoghq.com/enabled="true"'. Default: false |
 | features.admissionController.serviceName | ServiceName corresponds to the webhook service name. |
 | features.apm.enabled | Enabled enables Application Performance Monitoring. Default: false |
-| features.apm.hostPortConfig.enabled | Enabled enables host port configuration |
+| features.apm.hostPortConfig.enabled | Enabled enables host port configuration Default: false |
 | features.apm.hostPortConfig.hostPort | Port takes a port number (0 < x < 65536) to expose on the host. (Most containers do not need this.) If HostNetwork is enabled, this value must match the ContainerPort. |
-| features.apm.unixDomainSocketConfig.enabled | Enabled enables Unix Domain Socket. |
+| features.apm.unixDomainSocketConfig.enabled | Enabled enables Unix Domain Socket. Default: true |
 | features.apm.unixDomainSocketConfig.path | Path defines the socket path used when enabled. |
 | features.clusterChecks.enabled | Enables Cluster Checks scheduling in the Cluster Agent. Default: true |
 | features.clusterChecks.useClusterChecksRunners | Enabled enables Cluster Checks Runners to run all Cluster Checks. Default: false |
@@ -52,13 +52,13 @@ spec:
 | features.cws.enabled | Enabled enables Cloud Workload Security. Default: false |
 | features.cws.syscallMonitorEnabled | SyscallMonitorEnabled enables Syscall Monitoring (recommended for troubleshooting only). Default: false |
 | features.datadogMonitor.enabled | Enabled enables Datadog Monitors. Default: false |
-| features.dogstatsd.hostPortConfig.enabled | Enabled enables host port configuration |
+| features.dogstatsd.hostPortConfig.enabled | Enabled enables host port configuration Default: false |
 | features.dogstatsd.hostPortConfig.hostPort | Port takes a port number (0 < x < 65536) to expose on the host. (Most containers do not need this.) If HostNetwork is enabled, this value must match the ContainerPort. |
 | features.dogstatsd.mapperProfiles.configData | ConfigData corresponds to the configuration file content. |
 | features.dogstatsd.mapperProfiles.configMap.items | Items maps a ConfigMap data key to a file path mount. |
 | features.dogstatsd.mapperProfiles.configMap.name | Name is the name of the ConfigMap. |
 | features.dogstatsd.originDetectionEnabled | OriginDetectionEnabled enables origin detection for container tagging. See also: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/#using-origin-detection-for-container-tagging |
-| features.dogstatsd.unixDomainSocketConfig.enabled | Enabled enables Unix Domain Socket. |
+| features.dogstatsd.unixDomainSocketConfig.enabled | Enabled enables Unix Domain Socket. Default: true |
 | features.dogstatsd.unixDomainSocketConfig.path | Path defines the socket path used when enabled. |
 | features.eventCollection.collectKubernetesEvents | CollectKubernetesEvents enables Kubernetes event collection. Default: true |
 | features.externalMetricsServer.enabled | Enabled enables the External Metrics Server. Default: false |

@@ -12728,7 +12728,8 @@ spec:
                           Enabled Default: false Port Default: 8126'
                         properties:
                           enabled:
-                            description: Enabled enables host port configuration
+                            description: 'Enabled enables host port configuration
+                              Default: false'
                             type: boolean
                           hostPort:
                             description: Port takes a port number (0 < x < 65536)
@@ -12744,7 +12745,8 @@ spec:
                           Enabled Default: true Path Default: `/var/run/datadog/apm.socket`'
                         properties:
                           enabled:
-                            description: Enabled enables Unix Domain Socket.
+                            description: 'Enabled enables Unix Domain Socket. Default:
+                              true'
                             type: boolean
                           path:
                             description: Path defines the socket path used when enabled.
@@ -12891,7 +12893,8 @@ spec:
                           Enabled Default: true Port Default: 8125'
                         properties:
                           enabled:
-                            description: Enabled enables host port configuration
+                            description: 'Enabled enables host port configuration
+                              Default: false'
                             type: boolean
                           hostPort:
                             description: Port takes a port number (0 < x < 65536)
@@ -12966,7 +12969,8 @@ spec:
                           Enabled Default: true Path Default: `/var/run/datadog/dsd.socket`'
                         properties:
                           enabled:
-                            description: Enabled enables Unix Domain Socket.
+                            description: 'Enabled enables Unix Domain Socket. Default:
+                              true'
                             type: boolean
                           path:
                             description: Path defines the socket path used when enabled.

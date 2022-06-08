@@ -94,8 +94,9 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	storeOptions := &dependencies.StoreOptions{
 		SupportCilium: r.options.SupportCilium,
 		Logger:        logger,
+		Scheme:        r.scheme,
 	}
-	depsStore := dependencies.NewStore(storeOptions)
+	depsStore := dependencies.NewStore(instance, storeOptions)
 	resourcesManager := feature.NewResourceManagers(depsStore)
 	var errs []error
 	for id, feat := range features {
@@ -181,6 +182,9 @@ func (r *Reconciler) updateStatusIfNeededV2(logger logr.Logger, agentdeployment 
 func (r *Reconciler) finalizeDadV2(reqLogger logr.Logger, obj client.Object) {
 	dda := obj.(*datadoghqv2alpha1.DatadogAgent)
 
-	r.forwarders.Unregister(dda)
+	if r.options.OperatorMetricsEnabled {
+		r.forwarders.Unregister(dda)
+	}
+
 	reqLogger.Info("Successfully finalized DatadogAgent")
 }

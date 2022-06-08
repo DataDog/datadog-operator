@@ -14,10 +14,9 @@ import (
 	"sync"
 	"time"
 
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/pkg/config"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 
@@ -85,7 +84,7 @@ type metricsForwarder struct {
 	decryptor           secrets.Decryptor
 	creds               sync.Map
 	baseURL             string
-	status              *datadoghqv1alpha1.DatadogAgentCondition
+	status              *v1alpha1.DatadogAgentCondition
 	credsManager        *config.CredentialManager
 	sync.Mutex
 }
@@ -185,13 +184,13 @@ func (mf *metricsForwarder) stop() {
 	close(mf.stopChan)
 }
 
-func (mf *metricsForwarder) getStatus() *datadoghqv1alpha1.DatadogAgentCondition {
+func (mf *metricsForwarder) getStatus() *v1alpha1.DatadogAgentCondition {
 	mf.Lock()
 	defer mf.Unlock()
 	return mf.status
 }
 
-func (mf *metricsForwarder) setStatus(newStatus *datadoghqv1alpha1.DatadogAgentCondition) {
+func (mf *metricsForwarder) setStatus(newStatus *v1alpha1.DatadogAgentCondition) {
 	mf.Lock()
 	defer mf.Unlock()
 	mf.status = newStatus
@@ -373,7 +372,7 @@ func (mf *metricsForwarder) delegatedValidateCreds(apiKey, appKey string) (*api.
 
 // sendStatusMetrics forwards metrics for each component deployment (agent, clusteragent, clustercheck runner)
 // based on the status of DatadogAgent
-func (mf *metricsForwarder) sendStatusMetrics(status *datadoghqv1alpha1.DatadogAgentStatus) error {
+func (mf *metricsForwarder) sendStatusMetrics(status *v1alpha1.DatadogAgentStatus) error {
 	if status == nil {
 		return errors.New("nil status")
 	}
@@ -452,7 +451,7 @@ func (mf *metricsForwarder) delegatedSendDeploymentMetric(metricValue float64, c
 }
 
 // updateTags updates tags of the DatadogAgent
-func (mf *metricsForwarder) updateTags(dda *datadoghqv1alpha1.DatadogAgent) {
+func (mf *metricsForwarder) updateTags(dda *v1alpha1.DatadogAgent) {
 	if dda == nil {
 		mf.tags = []string{}
 		return
@@ -486,8 +485,8 @@ func hashKeys(apiKey, appKey string) uint64 {
 }
 
 // getDatadogAgent retrieves the DatadogAgent using Get client method
-func (mf *metricsForwarder) getDatadogAgent() (*datadoghqv1alpha1.DatadogAgent, error) {
-	dda := &datadoghqv1alpha1.DatadogAgent{}
+func (mf *metricsForwarder) getDatadogAgent() (*v1alpha1.DatadogAgent, error) {
+	dda := &v1alpha1.DatadogAgent{}
 	err := mf.k8sClient.Get(context.TODO(), mf.namespacedName, dda)
 
 	return dda, err
@@ -495,7 +494,7 @@ func (mf *metricsForwarder) getDatadogAgent() (*datadoghqv1alpha1.DatadogAgent, 
 
 // getCredentials returns the Datadog API Key and APP Key, it returns an error if one key is missing
 // getCredentials tries to get the credentials from the CRD, then from operator configuration
-func (mf *metricsForwarder) getCredentials(dda *datadoghqv1alpha1.DatadogAgent) (string, string, error) {
+func (mf *metricsForwarder) getCredentials(dda *v1alpha1.DatadogAgent) (string, string, error) {
 	apiKey, appKey, err := mf.getCredsFromDatadogAgent(dda)
 	if err != nil {
 		if errors.Is(err, ErrEmptyAPIKey) || errors.Is(err, ErrEmptyAPPKey) {
@@ -510,14 +509,14 @@ func (mf *metricsForwarder) getCredentials(dda *datadoghqv1alpha1.DatadogAgent) 
 	return apiKey, appKey, err
 }
 
-func (mf *metricsForwarder) getCredsFromDatadogAgent(dda *datadoghqv1alpha1.DatadogAgent) (string, string, error) {
+func (mf *metricsForwarder) getCredsFromDatadogAgent(dda *v1alpha1.DatadogAgent) (string, string, error) {
 	var err error
 	apiKey, appKey := "", ""
 
 	if dda.Spec.Credentials.APIKey != "" {
 		apiKey = dda.Spec.Credentials.APIKey
 	} else {
-		_, secretName, secretKeyName := utils.GetAPIKeySecret(&dda.Spec.Credentials.DatadogCredentials, utils.GetDefaultCredentialsSecretName(dda))
+		_, secretName, secretKeyName := v1alpha1.GetAPIKeySecret(&dda.Spec.Credentials.DatadogCredentials, v1alpha1.GetDefaultCredentialsSecretName(dda))
 		apiKey, err = mf.getKeyFromSecret(dda, secretName, secretKeyName)
 		if err != nil {
 			return "", "", err
@@ -527,7 +526,7 @@ func (mf *metricsForwarder) getCredsFromDatadogAgent(dda *datadoghqv1alpha1.Data
 	if dda.Spec.Credentials.AppKey != "" {
 		appKey = dda.Spec.Credentials.AppKey
 	} else {
-		_, secretName, secretKeyName := utils.GetAppKeySecret(&dda.Spec.Credentials.DatadogCredentials, utils.GetDefaultCredentialsSecretName(dda))
+		_, secretName, secretKeyName := v1alpha1.GetAppKeySecret(&dda.Spec.Credentials.DatadogCredentials, v1alpha1.GetDefaultCredentialsSecretName(dda))
 		appKey, err = mf.getKeyFromSecret(dda, secretName, secretKeyName)
 		if err != nil {
 			return "", "", err
@@ -603,7 +602,7 @@ func (mf *metricsForwarder) cleanSecretsCache() {
 }
 
 // getKeyFromSecret used to retrieve an api or app key from a secret object
-func (mf *metricsForwarder) getKeyFromSecret(dda *datadoghqv1alpha1.DatadogAgent, secretName string, dataKey string) (string, error) {
+func (mf *metricsForwarder) getKeyFromSecret(dda *v1alpha1.DatadogAgent, secretName string, dataKey string) (string, error) {
 	secret := &corev1.Secret{}
 	err := mf.k8sClient.Get(context.TODO(), types.NamespacedName{Namespace: dda.Namespace, Name: secretName}, secret)
 	if err != nil {
@@ -624,10 +623,10 @@ func (mf *metricsForwarder) updateStatusIfNeeded(err error) {
 	}
 
 	if oldStatus := mf.getStatus(); oldStatus == nil {
-		newStatus := condition.NewDatadogAgentStatusCondition(datadoghqv1alpha1.DatadogMetricsActive, conditionStatus, now, "", description)
+		newStatus := condition.NewDatadogAgentStatusCondition(v1alpha1.DatadogMetricsActive, conditionStatus, now, "", description)
 		mf.setStatus(&newStatus)
 	} else {
-		mf.setStatus(condition.UpdateDatadogAgentStatusCondition(oldStatus, now, datadoghqv1alpha1.DatadogMetricsActive, conditionStatus, description))
+		mf.setStatus(condition.UpdateDatadogAgentStatusCondition(oldStatus, now, v1alpha1.DatadogMetricsActive, conditionStatus, description))
 	}
 }
 
@@ -686,7 +685,7 @@ func (mf *metricsForwarder) isEventChanFull() bool {
 	return len(mf.eventChan) == cap(mf.eventChan)
 }
 
-func getbaseURL(dda *datadoghqv1alpha1.DatadogAgent) string {
+func getbaseURL(dda *v1alpha1.DatadogAgent) string {
 	if apiutils.BoolValue(dda.Spec.Agent.Enabled) && dda.Spec.Agent.Config != nil && dda.Spec.Agent.Config.DDUrl != nil {
 		return *dda.Spec.Agent.Config.DDUrl
 	} else if dda.Spec.Site != "" {

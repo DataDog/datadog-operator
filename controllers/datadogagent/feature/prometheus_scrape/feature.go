@@ -39,6 +39,10 @@ type prometheusScrapeFeature struct {
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *prometheusScrapeFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
+	if dda.Spec.Features == nil {
+		return
+	}
+
 	prometheusScrape := dda.Spec.Features.PrometheusScrape
 
 	if prometheusScrape != nil && apiutils.BoolValue(prometheusScrape.Enabled) {

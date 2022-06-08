@@ -451,6 +451,7 @@ type DatadogMonitorFeatureConfig struct {
 // HostPortConfig contains host port configuration.
 type HostPortConfig struct {
 	// Enabled enables host port configuration
+	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
@@ -464,6 +465,7 @@ type HostPortConfig struct {
 // +k8s:openapi-gen=true
 type UnixDomainSocketConfig struct {
 	// Enabled enables Unix Domain Socket.
+	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 

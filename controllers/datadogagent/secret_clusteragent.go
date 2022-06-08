@@ -52,8 +52,8 @@ func needExternalMetricsSecret(dda *datadoghqv1alpha1.DatadogAgent) bool {
 	}
 
 	// If API key and app key don't need a new secret, then don't create one.
-	if datadoghqv1alpha1.CheckAPIKeySufficiency(dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials, datadoghqv1alpha1.DDExternalMetricsProviderAPIKey) &&
-		datadoghqv1alpha1.CheckAppKeySufficiency(dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials, datadoghqv1alpha1.DDExternalMetricsProviderAPIKey) {
+	if datadoghqv1alpha1.CheckAPIKeySufficiency(dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials, apicommon.DDExternalMetricsProviderAPIKey) &&
+		datadoghqv1alpha1.CheckAppKeySufficiency(dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials, apicommon.DDExternalMetricsProviderAPIKey) {
 		return false
 	}
 

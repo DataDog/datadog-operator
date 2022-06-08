@@ -102,14 +102,14 @@ func (f *eventCollectionFeature) ManageDependencies(managers feature.ResourceMan
 
 	// hardcoding leader election RBAC for now
 	// can look into separating this out later if this needs to be configurable for other features
-	leaderElectionResourceName := utils.GetDatadogLeaderElectionResourceName(f.owner.GetName())
+	leaderElectionResourceName := utils.GetDatadogLeaderElectionResourceName(f.owner)
 	err := managers.RBACManager().AddClusterPolicyRules("", rbacName, f.serviceAccountName, getLeaderElectionRBACPolicyRules(leaderElectionResourceName))
 	if err != nil {
 		return err
 	}
 
 	// event collection RBAC
-	tokenResourceName := utils.GetDatadogTokenResourceName(f.owner.GetName())
+	tokenResourceName := utils.GetDatadogTokenResourceName(f.owner)
 	return managers.RBACManager().AddClusterPolicyRules("", rbacName, f.serviceAccountName, getRBACPolicyRules(tokenResourceName))
 }
 
@@ -128,12 +128,12 @@ func (f *eventCollectionFeature) ManageClusterAgent(managers feature.PodTemplate
 
 	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
 		Name:  apicommon.DDLeaderLeaseName,
-		Value: utils.GetDatadogLeaderElectionResourceName(f.owner.GetName()),
+		Value: utils.GetDatadogLeaderElectionResourceName(f.owner),
 	})
 
 	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
 		Name:  apicommon.DDClusterAgentTokenName,
-		Value: utils.GetDatadogTokenResourceName(f.owner.GetName()),
+		Value: utils.GetDatadogTokenResourceName(f.owner),
 	})
 
 	return nil
@@ -154,12 +154,12 @@ func (f *eventCollectionFeature) ManageNodeAgent(managers feature.PodTemplateMan
 
 	managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
 		Name:  apicommon.DDLeaderLeaseName,
-		Value: utils.GetDatadogLeaderElectionResourceName(f.owner.GetName()),
+		Value: utils.GetDatadogLeaderElectionResourceName(f.owner),
 	})
 
 	managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
 		Name:  apicommon.DDClusterAgentTokenName,
-		Value: utils.GetDatadogTokenResourceName(f.owner.GetName()),
+		Value: utils.GetDatadogTokenResourceName(f.owner),
 	})
 
 	return nil
