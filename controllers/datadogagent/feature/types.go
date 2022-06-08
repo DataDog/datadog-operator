@@ -136,6 +136,7 @@ type ResourceManagers interface {
 	RBACManager() merger.RBACManager
 	PodSecurityManager() merger.PodSecurityManager
 	SecretManager() merger.SecretManager
+	CiliumPolicyManager() merger.CiliumPolicyManager
 }
 
 // NewResourceManagers return new instance of the ResourceManagers interface
@@ -145,6 +146,7 @@ func NewResourceManagers(store dependencies.StoreClient) ResourceManagers {
 		rbac:        merger.NewRBACManager(store),
 		podSecurity: merger.NewPodSecurityManager(store),
 		secret:      merger.NewSecretManager(store),
+		cilium:      merger.NewCiliumPolicyManager(store),
 	}
 }
 
@@ -153,6 +155,7 @@ type resourceManagersImpl struct {
 	rbac        merger.RBACManager
 	podSecurity merger.PodSecurityManager
 	secret      merger.SecretManager
+	cilium      merger.CiliumPolicyManager
 }
 
 func (impl *resourceManagersImpl) Store() dependencies.StoreClient {
@@ -169,6 +172,10 @@ func (impl *resourceManagersImpl) PodSecurityManager() merger.PodSecurityManager
 
 func (impl *resourceManagersImpl) SecretManager() merger.SecretManager {
 	return impl.secret
+}
+
+func (impl *resourceManagersImpl) CiliumPolicyManager() merger.CiliumPolicyManager {
+	return impl.cilium
 }
 
 // PodTemplateManagers used to access the different PodTemplateSpec manager.

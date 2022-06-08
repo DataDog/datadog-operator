@@ -7,6 +7,8 @@ package override
 
 import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -26,8 +28,8 @@ func ApplyGlobalSettings(manager feature.PodTemplateManagers, dda *v2alpha1.Data
 				if config.Endpoint != nil && *config.Endpoint.URL != "" {
 					resourcesManager.CiliumPolicyManager().SetDDAURL(*config.Endpoint.URL)
 				}
-				if _, ok := dda.Spec.Override[datadoghqv2alpha1.ClusterAgentComponentName]; ok {
-					resourcesManager.CiliumPolicyManager().SetHostNetwork(*dda.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName].HostNetwork)
+				if _, ok := dda.Spec.Override[v2alpha1.ClusterAgentComponentName]; ok {
+					resourcesManager.CiliumPolicyManager().SetHostNetwork(*dda.Spec.Override[v2alpha1.NodeAgentComponentName].HostNetwork)
 				}
 				if config.NetworkPolicy.DNSSelectorEndpoints != nil {
 					resourcesManager.CiliumPolicyManager().SetDNSSelectorEndpoints(config.NetworkPolicy.DNSSelectorEndpoints)
@@ -43,7 +45,6 @@ func ApplyGlobalSettings(manager feature.PodTemplateManagers, dda *v2alpha1.Data
 			}
 		}
 	}
-	
 
 	return manager.PodTemplateSpec()
 }

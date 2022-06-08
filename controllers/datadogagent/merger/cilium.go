@@ -10,8 +10,6 @@ import (
 	"strconv"
 	"strings"
 
-	ciliumv2 "github.com/cilium/cilium/pkg/k8s/apis/cilium.io/v2"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -28,13 +26,14 @@ import (
 type CiliumPolicyManager interface {
 	CreateCiliumPolicy(name, namespace string, policySpecs []cilium.NetworkPolicySpec) error
 	BuildAgentCiliumPolicy(dda metav1.Object) error
-	BuildDCACiliumPolicy(dda metav1.Object, ddaSpec corev1.PodTemplateSpec) error
+	BuildDCACiliumPolicy(dda metav1.Object) error
 	BuildCCRCiliumPolicy(dda metav1.Object) error
 	SetDDASite(site string)
 	SetDDAURL(url string)
 	SetHostNetwork(hostNetwork bool)
 	SetDNSSelectorEndpoints(dnsSelectorEndpoints []metav1.LabelSelector)
-	ciliumIngressAgent(podSelector metav1.LabelSelector, dda metav1.Object, ddaSpec corev1.PodTemplateSpec) cilium.NetworkPolicySpec
+	ciliumIngressAgent(podSelector metav1.LabelSelector, dda metav1.Object) cilium.NetworkPolicySpec
+	ciliumEgressDNS(podSelector metav1.LabelSelector) cilium.NetworkPolicySpec
 }
 
 // NewCiliumPolicyManager returns a new CiliumPolicyManager instance
@@ -51,7 +50,7 @@ type ciliumPolicyManagerImpl struct {
 
 	site                 string
 	ddURL                string
-	hostNetwork          bool // default -> global -> override
+	hostNetwork          bool
 	dnsSelectorEndpoints []metav1.LabelSelector
 }
 
@@ -74,7 +73,7 @@ func (m *ciliumPolicyManagerImpl) SetDNSSelectorEndpoints(dnsSelectorEndpoints [
 // AddCiliumPolicies creates or updates multiple cilium network policies
 func (m *ciliumPolicyManagerImpl) CreateCiliumPolicy(name, namespace string, policySpecs []cilium.NetworkPolicySpec) error {
 	obj, _ := m.store.GetOrCreate(kubernetes.CiliumNetworkPoliciesKind, namespace, name)
-	_, ok := obj.(*ciliumv2.CiliumNetworkPolicy)
+	_, ok := obj.(*unstructured.Unstructured)
 	if !ok {
 		return fmt.Errorf("unable to get from the store the CiliumPolicy %s", name)
 	}
@@ -94,15 +93,7 @@ func (m *ciliumPolicyManagerImpl) CreateCiliumPolicy(name, namespace string, pol
 		return err
 	}
 	unstructured.SetGroupVersionKind(cilium.GroupVersionCiliumNetworkPolicyKind())
-	// err = runtime.DefaultUnstructuredConverter.FromUnstructured(unstructured.Object, &policy)
-	// if err != nil {
-	// 	return err
-	// }
-	// policy = unstructured
-
-	m.store.AddOrUpdate(kubernetes.CiliumNetworkPoliciesKind, unstructured)
-
-	return nil
+	return m.store.AddOrUpdate(kubernetes.CiliumNetworkPoliciesKind, unstructured)
 }
 
 // BuildAgentCiliumPolicy creates the base node agent kubernetes cilium policy
@@ -172,7 +163,7 @@ func (m *ciliumPolicyManagerImpl) BuildAgentCiliumPolicy(dda metav1.Object) erro
 			},
 		},
 		ciliumEgressMetadataServerRule(podSelector),
-		// ciliumEgressDNS(podSelector, ddaSpec.Global.NetworkPolicy.DNSSelectorEndpoints),
+		m.ciliumEgressDNS(podSelector),
 		{
 			Description:      "Egress to Datadog intake",
 			EndpointSelector: podSelector,
@@ -261,8 +252,7 @@ func (m *ciliumPolicyManagerImpl) BuildAgentCiliumPolicy(dda metav1.Object) erro
 }
 
 // BuildDCACiliumPolicy creates the base cluster agent cilium policy
-// func (m *ciliumPolicyManagerImpl) BuildDCACiliumPolicy(dda metav1.Object) error {
-func (m *ciliumPolicyManagerImpl) BuildDCACiliumPolicy(dda metav1.Object, ddaSpec corev1.PodTemplateSpec) error {
+func (m *ciliumPolicyManagerImpl) BuildDCACiliumPolicy(dda metav1.Object) error {
 	policyName := component.GetClusterAgentName(dda)
 	podSelector := metav1.LabelSelector{
 		MatchLabels: map[string]string{
@@ -272,7 +262,7 @@ func (m *ciliumPolicyManagerImpl) BuildDCACiliumPolicy(dda metav1.Object, ddaSpe
 	}
 	policySpecs := []cilium.NetworkPolicySpec{
 		ciliumEgressMetadataServerRule(podSelector),
-		// ciliumEgressDNS(podSelector, ddaSpec.Spec.Global.NetworkPolicy.DNSSelectorEndpoints),
+		m.ciliumEgressDNS(podSelector),
 		{
 			Description:      "Egress to Datadog intake",
 			EndpointSelector: podSelector,
@@ -325,7 +315,7 @@ func (m *ciliumPolicyManagerImpl) BuildDCACiliumPolicy(dda metav1.Object, ddaSpe
 				},
 			},
 		},
-		m.ciliumIngressAgent(podSelector, dda, ddaSpec),
+		m.ciliumIngressAgent(podSelector, dda),
 	}
 
 	return m.CreateCiliumPolicy(policyName, dda.GetNamespace(), policySpecs)
@@ -342,7 +332,7 @@ func (m *ciliumPolicyManagerImpl) BuildCCRCiliumPolicy(dda metav1.Object) error 
 	}
 	policySpecs := []cilium.NetworkPolicySpec{
 		ciliumEgressMetadataServerRule(podSelector),
-		// ciliumEgressDNS(podSelector, ddaSpec.Global.NetworkPolicy.DNSSelectorEndpoints),
+		m.ciliumEgressDNS(podSelector),
 		{
 			Description:      "Egress to Datadog intake",
 			EndpointSelector: podSelector,
@@ -377,7 +367,6 @@ func (m *ciliumPolicyManagerImpl) BuildCCRCiliumPolicy(dda metav1.Object) error 
 							},
 						},
 					},
-					// ToEndpoints: append([]metav1.LabelSelector{}, podSelector),
 					ToEndpoints: []metav1.LabelSelector{
 						{
 							MatchLabels: map[string]string{
@@ -390,13 +379,11 @@ func (m *ciliumPolicyManagerImpl) BuildCCRCiliumPolicy(dda metav1.Object) error 
 			},
 		},
 		ciliumEgressChecks(podSelector),
-		// },
 	}
 
 	return m.CreateCiliumPolicy(policyName, dda.GetNamespace(), policySpecs)
 }
 
-// ccr
 func ciliumEgressMetadataServerRule(podSelector metav1.LabelSelector) cilium.NetworkPolicySpec {
 	return cilium.NetworkPolicySpec{
 		Description:      "Egress to metadata server",
@@ -419,13 +406,13 @@ func ciliumEgressMetadataServerRule(podSelector metav1.LabelSelector) cilium.Net
 	}
 }
 
-func ciliumEgressDNS(podSelector metav1.LabelSelector, dnsSelectorEndpoints []metav1.LabelSelector) cilium.NetworkPolicySpec {
+func (m *ciliumPolicyManagerImpl) ciliumEgressDNS(podSelector metav1.LabelSelector) cilium.NetworkPolicySpec {
 	return cilium.NetworkPolicySpec{
 		Description:      "Egress to DNS",
 		EndpointSelector: podSelector,
 		Egress: []cilium.EgressRule{
 			{
-				ToEndpoints: dnsSelectorEndpoints, // dns endpoints from dda spec
+				ToEndpoints: m.dnsSelectorEndpoints,
 				ToPorts: []cilium.PortRule{
 					{
 						Ports: []cilium.PortProtocol{
@@ -457,7 +444,6 @@ func ciliumEgressDNS(podSelector metav1.LabelSelector, dnsSelectorEndpoints []me
 //
 // In order to not ask end-users to inject NetworkPolicy on the agent in the
 // agent namespace, the agent must be allowed to probe any pod.
-// ccr
 func ciliumEgressChecks(podSelector metav1.LabelSelector) cilium.NetworkPolicySpec {
 	return cilium.NetworkPolicySpec{
 		Description:      "Egress to anything for checks",
@@ -479,7 +465,6 @@ func ciliumEgressChecks(podSelector metav1.LabelSelector) cilium.NetworkPolicySp
 	}
 }
 
-// ccr, dca, agent
 func (m *ciliumPolicyManagerImpl) defaultDDFQDNs() []cilium.FQDNSelector {
 	selectors := []cilium.FQDNSelector{}
 	if m.ddURL != "" {
@@ -497,8 +482,7 @@ func (m *ciliumPolicyManagerImpl) defaultDDFQDNs() []cilium.FQDNSelector {
 	return selectors
 }
 
-// dca
-func (m *ciliumPolicyManagerImpl) ciliumIngressAgent(podSelector metav1.LabelSelector, dda metav1.Object, ddaSpec corev1.PodTemplateSpec) cilium.NetworkPolicySpec {
+func (m *ciliumPolicyManagerImpl) ciliumIngressAgent(podSelector metav1.LabelSelector, dda metav1.Object) cilium.NetworkPolicySpec {
 	ingress := cilium.IngressRule{
 		ToPorts: []cilium.PortRule{
 			{
