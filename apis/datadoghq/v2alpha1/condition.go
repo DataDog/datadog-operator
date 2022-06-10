@@ -3,7 +3,27 @@ package v2alpha1
 import (
 	"fmt"
 
+	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
+
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+// DatadogAgentState type representing the deployment state of the different Agent components.
+type DatadogAgentState string
+
+const (
+	// DatadogAgentStateProgressing the deployment is running properly.
+	DatadogAgentStateProgressing DatadogAgentState = "Progressing"
+	// DatadogAgentStateRunning the deployment is running properly.
+	DatadogAgentStateRunning DatadogAgentState = "Running"
+	// DatadogAgentStateUpdating the deployment is currently under a rolling update.
+	DatadogAgentStateUpdating DatadogAgentState = "Updating"
+	// DatadogAgentStateCanary the deployment is currently under a canary testing (EDS only).
+	DatadogAgentStateCanary DatadogAgentState = "Canary"
+	// DatadogAgentStateFailed the current state of the deployment is considered as Failed.
+	DatadogAgentStateFailed DatadogAgentState = "Failed"
 )
 
 // UpdateDatadogAgentStatusConditionsFailure used to update the failure StatusConditions
@@ -74,4 +94,52 @@ func getIndexForConditionType(status *DatadogAgentStatus, t string) int {
 	}
 
 	return idCondition
+}
+
+// UpdateDeploymentStatus updates a deployment's DeploymentStatus
+func UpdateDeploymentStatus(dep *appsv1.Deployment, depStatus *DeploymentStatus, updateTime *metav1.Time) *DeploymentStatus {
+	if depStatus == nil {
+		depStatus = &DeploymentStatus{}
+	}
+	if dep == nil {
+		depStatus.State = string(DatadogAgentStateFailed)
+		depStatus.Status = string(DatadogAgentStateFailed)
+		return depStatus
+	}
+
+	if hash, ok := dep.Annotations[apicommon.MD5AgentDeploymentAnnotationKey]; ok {
+		depStatus.CurrentHash = hash
+	}
+	if updateTime != nil {
+		depStatus.LastUpdate = updateTime
+	}
+	depStatus.Replicas = dep.Status.Replicas
+	depStatus.UpdatedReplicas = dep.Status.UpdatedReplicas
+	depStatus.AvailableReplicas = dep.Status.AvailableReplicas
+	depStatus.UnavailableReplicas = dep.Status.UnavailableReplicas
+	depStatus.ReadyReplicas = dep.Status.ReadyReplicas
+
+	// Deciding on deployment status based on Deployment status
+	var deploymentState DatadogAgentState
+	for _, condition := range dep.Status.Conditions {
+		if condition.Type == appsv1.DeploymentReplicaFailure && condition.Status == corev1.ConditionTrue {
+			deploymentState = DatadogAgentStateFailed
+		}
+	}
+
+	if deploymentState == "" {
+		switch {
+		case depStatus.UpdatedReplicas != depStatus.Replicas:
+			deploymentState = DatadogAgentStateUpdating
+		case depStatus.ReadyReplicas == 0:
+			deploymentState = DatadogAgentStateProgressing
+		default:
+			deploymentState = DatadogAgentStateRunning
+		}
+	}
+
+	depStatus.State = fmt.Sprintf("%v", deploymentState)
+	depStatus.Status = fmt.Sprintf("%v (%d/%d/%d)", deploymentState, depStatus.Replicas, depStatus.ReadyReplicas, depStatus.UpdatedReplicas)
+	depStatus.DeploymentName = dep.ObjectMeta.Name
+	return depStatus
 }

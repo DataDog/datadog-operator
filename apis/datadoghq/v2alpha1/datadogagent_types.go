@@ -842,6 +842,54 @@ type DatadogAgentStatus struct {
 	// +listType=map
 	// +listMapKey=type
 	Conditions []metav1.Condition `json:"conditions"`
+	// The actual state of the Cluster Agent as a deployment.
+	// +optional
+	ClusterAgent *DeploymentStatus `json:"clusterAgent,omitempty"`
+	// The actual state of the Cluster Checks Runner as a deployment.
+	// +optional
+	ClusterChecksRunner *DeploymentStatus `json:"clusterChecksRunner,omitempty"`
+}
+
+// DeploymentStatus type representing a Deployment status.
+// +k8s:openapi-gen=true
+type DeploymentStatus struct {
+	// Total number of non-terminated pods targeted by this deployment (their labels match the selector).
+	// +optional
+	Replicas int32 `json:"replicas,omitempty"`
+
+	// Total number of non-terminated pods targeted by this deployment that have the desired template spec.
+	// +optional
+	UpdatedReplicas int32 `json:"updatedReplicas,omitempty"`
+
+	// Total number of ready pods targeted by this deployment.
+	// +optional
+	ReadyReplicas int32 `json:"readyReplicas,omitempty"`
+
+	// Total number of available pods (ready for at least minReadySeconds) targeted by this deployment.
+	// +optional
+	AvailableReplicas int32 `json:"availableReplicas,omitempty"`
+
+	// Total number of unavailable pods targeted by this deployment. This is the total number of
+	// pods that are still required for the deployment to have 100% available capacity. They may
+	// either be pods that are running but not yet available or pods that still have not been created.
+	// +optional
+	UnavailableReplicas int32 `json:"unavailableReplicas,omitempty"`
+
+	LastUpdate  *metav1.Time `json:"lastUpdate,omitempty"`
+	CurrentHash string       `json:"currentHash,omitempty"`
+
+	// GeneratedToken corresponds to the generated token if any token was provided in the Credential configuration when ClusterAgent is
+	// enabled.
+	// +optional
+	GeneratedToken string `json:"generatedToken,omitempty"`
+
+	// Status corresponds to the ClusterAgent deployment computed status.
+	Status string `json:"status,omitempty"`
+	// State corresponds to the ClusterAgent deployment state.
+	State string `json:"state,omitempty"`
+
+	// DeploymentName corresponds to the name of the Cluster Agent Deployment.
+	DeploymentName string `json:"deploymentName,omitempty"`
 }
 
 // DatadogAgent Deployment with the Datadog Operator.

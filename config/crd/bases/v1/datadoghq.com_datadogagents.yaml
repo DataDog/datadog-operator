@@ -17560,6 +17560,112 @@ spec:
           status:
             description: DatadogAgentStatus defines the observed state of DatadogAgent.
             properties:
+              clusterAgent:
+                description: The actual state of the Cluster Agent as a deployment.
+                properties:
+                  availableReplicas:
+                    description: Total number of available pods (ready for at least
+                      minReadySeconds) targeted by this deployment.
+                    format: int32
+                    type: integer
+                  currentHash:
+                    type: string
+                  deploymentName:
+                    description: DeploymentName corresponds to the name of the Cluster
+                      Agent Deployment.
+                    type: string
+                  generatedToken:
+                    description: GeneratedToken corresponds to the generated token
+                      if any token was provided in the Credential configuration when
+                      ClusterAgent is enabled.
+                    type: string
+                  lastUpdate:
+                    format: date-time
+                    type: string
+                  readyReplicas:
+                    description: Total number of ready pods targeted by this deployment.
+                    format: int32
+                    type: integer
+                  replicas:
+                    description: Total number of non-terminated pods targeted by this
+                      deployment (their labels match the selector).
+                    format: int32
+                    type: integer
+                  state:
+                    description: State corresponds to the ClusterAgent deployment
+                      state.
+                    type: string
+                  status:
+                    description: Status corresponds to the ClusterAgent deployment
+                      computed status.
+                    type: string
+                  unavailableReplicas:
+                    description: Total number of unavailable pods targeted by this
+                      deployment. This is the total number of pods that are still
+                      required for the deployment to have 100% available capacity.
+                      They may either be pods that are running but not yet available
+                      or pods that still have not been created.
+                    format: int32
+                    type: integer
+                  updatedReplicas:
+                    description: Total number of non-terminated pods targeted by this
+                      deployment that have the desired template spec.
+                    format: int32
+                    type: integer
+                type: object
+              clusterChecksRunner:
+                description: The actual state of the Cluster Checks Runner as a deployment.
+                properties:
+                  availableReplicas:
+                    description: Total number of available pods (ready for at least
+                      minReadySeconds) targeted by this deployment.
+                    format: int32
+                    type: integer
+                  currentHash:
+                    type: string
+                  deploymentName:
+                    description: DeploymentName corresponds to the name of the Cluster
+                      Agent Deployment.
+                    type: string
+                  generatedToken:
+                    description: GeneratedToken corresponds to the generated token
+                      if any token was provided in the Credential configuration when
+                      ClusterAgent is enabled.
+                    type: string
+                  lastUpdate:
+                    format: date-time
+                    type: string
+                  readyReplicas:
+                    description: Total number of ready pods targeted by this deployment.
+                    format: int32
+                    type: integer
+                  replicas:
+                    description: Total number of non-terminated pods targeted by this
+                      deployment (their labels match the selector).
+                    format: int32
+                    type: integer
+                  state:
+                    description: State corresponds to the ClusterAgent deployment
+                      state.
+                    type: string
+                  status:
+                    description: Status corresponds to the ClusterAgent deployment
+                      computed status.
+                    type: string
+                  unavailableReplicas:
+                    description: Total number of unavailable pods targeted by this
+                      deployment. This is the total number of pods that are still
+                      required for the deployment to have 100% available capacity.
+                      They may either be pods that are running but not yet available
+                      or pods that still have not been created.
+                    format: int32
+                    type: integer
+                  updatedReplicas:
+                    description: Total number of non-terminated pods targeted by this
+                      deployment that have the desired template spec.
+                    format: int32
+                    type: integer
+                type: object
               conditions:
                 description: Conditions Represents the latest available observations
                   of a DatadogAgent's current state.
