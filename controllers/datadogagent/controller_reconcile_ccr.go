@@ -13,6 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/go-logr/logr"
+	appsv1 "k8s.io/api/apps/v1"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -46,7 +47,7 @@ func (r *Reconciler) reconcileV2ClusterChecksRunner(logger logr.Logger, features
 	return r.createOrUpdateDeployment(deploymentLogger, dda, deployment, newStatus, updateStatusV2WithClusterChecksRunner)
 }
 
-func updateStatusV2WithClusterChecksRunner(newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
-	// TODO(operator-ga): update status with DCA deployment information
+func updateStatusV2WithClusterChecksRunner(deployment *appsv1.Deployment, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
+	newStatus.ClusterAgent = datadoghqv2alpha1.UpdateDeploymentStatus(deployment, newStatus.ClusterChecksRunner, &updateTime)
 	datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(newStatus, updateTime, datadoghqv2alpha1.ClusterChecksRunnerReconcileConditionType, status, reason, message, true)
 }
