@@ -24,7 +24,7 @@ import (
 )
 
 type updateDepStatusComponentFunc func(deployment *appsv1.Deployment, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string)
-type updateDSStatusComponentFunc func(newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string)
+type updateDSStatusComponentFunc func(daemonset *appsv1.DaemonSet, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string)
 
 func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, deployment *appsv1.Deployment, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateStatusFunc updateDepStatusComponentFunc) (reconcile.Result, error) {
 	logger := parentLogger.WithValues("deployment.Namespace", deployment.Namespace, "deployment.Name", deployment.Name)
@@ -124,14 +124,14 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 		return reconcile.Result{}, err
 	}
 
-	// From here the PodTemplateSpec should be ready, we can generate the hash that will be use to compare this deployment with the current (if exist).
+	// From here the PodTemplateSpec should be ready, we can generate the hash that will be use to compare this daemonset with the current (if exist).
 	var hash string
 	hash, err = comparison.SetMD5DatadogAgentGenerationAnnotation(&daemonset.ObjectMeta, daemonset.Spec)
 	if err != nil {
 		return result, err
 	}
 
-	// Get the current deployment and compare
+	// Get the current daemonset and compare
 	nsName := types.NamespacedName{
 		Name:      daemonset.GetName(),
 		Namespace: daemonset.GetNamespace(),
@@ -177,18 +177,18 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 		}
 		event := buildEventInfo(updateDaemonset.Name, updateDaemonset.Namespace, deploymentKind, datadog.UpdateEvent)
 		r.recordEvent(dda, event)
-		updateStatusFunc(newStatus, now, metav1.ConditionTrue, "Daemonset_updated", "Daemonset updated")
+		updateStatusFunc(updateDaemonset, newStatus, now, metav1.ConditionTrue, "Daemonset_updated", "Daemonset updated")
 	} else {
 		now := metav1.NewTime(time.Now())
 
 		err = r.client.Create(context.TODO(), daemonset)
 		if err != nil {
-			updateStatusFunc(newStatus, now, metav1.ConditionFalse, "create_failed", "Unable to create Daemonset")
+			updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, "create_failed", "Unable to create Daemonset")
 			return reconcile.Result{}, err
 		}
 		event := buildEventInfo(daemonset.Name, daemonset.Namespace, daemonSetKind, datadog.CreationEvent)
 		r.recordEvent(dda, event)
-		updateStatusFunc(newStatus, now, metav1.ConditionTrue, "create_success", "Daemonset created")
+		updateStatusFunc(daemonset, newStatus, now, metav1.ConditionTrue, "create_success", "Daemonset created")
 	}
 
 	logger.Info("Creating Daemonset")
