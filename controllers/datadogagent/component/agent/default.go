@@ -66,7 +66,7 @@ func getDefaultServiceAccountName(dda metav1.Object) string {
 }
 
 func agentImage() string {
-	return fmt.Sprintf("%s:%s", apicommon.DefaultAgentImageName, defaulting.AgentLatestVersion)
+	return fmt.Sprintf("%s/%s:%s", apicommon.DefaultImageRegistry, apicommon.DefaultAgentImageName, defaulting.AgentLatestVersion)
 }
 
 func agentContainers(requiredContainers []common.AgentContainerName) []corev1.Container {
