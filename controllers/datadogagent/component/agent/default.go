@@ -24,8 +24,9 @@ import (
 
 // NewDefaultAgentDaemonset return a new default agent DaemonSet
 func NewDefaultAgentDaemonset(dda metav1.Object, requiredContainers []common.AgentContainerName) *appsv1.DaemonSet {
-	podTemplate := NewDefaultAgentPodTemplateSpec(dda, requiredContainers)
 	daemonset := component.NewDaemonset(dda, apicommon.DefaultAgentResourceSuffix, component.GetAgentName(dda), component.GetAgentVersion(dda), nil)
+	podTemplate := NewDefaultAgentPodTemplateSpec(dda, requiredContainers, daemonset.GetLabels())
+
 	daemonset.Spec.Template = *podTemplate
 	return daemonset
 }
@@ -33,15 +34,15 @@ func NewDefaultAgentDaemonset(dda metav1.Object, requiredContainers []common.Age
 // NewDefaultAgentExtendedDaemonset return a new default agent DaemonSet
 func NewDefaultAgentExtendedDaemonset(dda metav1.Object, requiredContainers []common.AgentContainerName) *edsv1alpha1.ExtendedDaemonSet {
 	edsDaemonset := component.NewExtendedDaemonset(dda, apicommon.DefaultAgentResourceSuffix, component.GetAgentName(dda), component.GetAgentVersion(dda), nil)
-	edsDaemonset.Spec.Template = *NewDefaultAgentPodTemplateSpec(dda, requiredContainers)
+	edsDaemonset.Spec.Template = *NewDefaultAgentPodTemplateSpec(dda, requiredContainers, edsDaemonset.GetLabels())
 	return edsDaemonset
 }
 
 // NewDefaultAgentPodTemplateSpec return a default node agent for the cluster-agent deployment
-func NewDefaultAgentPodTemplateSpec(dda metav1.Object, requiredContainers []common.AgentContainerName) *corev1.PodTemplateSpec {
+func NewDefaultAgentPodTemplateSpec(dda metav1.Object, requiredContainers []common.AgentContainerName, labels map[string]string) *corev1.PodTemplateSpec {
 	return &corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
-			Labels:      make(map[string]string),
+			Labels:      labels,
 			Annotations: make(map[string]string),
 		},
 		Spec: corev1.PodSpec{
