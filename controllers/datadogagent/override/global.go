@@ -8,13 +8,14 @@ package override
 import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
-
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
+
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // ApplyGlobalSettings use to apply global setting to a PodTemplateSpec
-func ApplyGlobalSettings(manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers) *corev1.PodTemplateSpec {
+func ApplyGlobalSettings(manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, componentName v2alpha1.ComponentName) *corev1.PodTemplateSpec {
 	config := dda.Spec.Global
 	// TODO(operator-ga): implement ApplyGlobalSettings
 
@@ -24,23 +25,23 @@ func ApplyGlobalSettings(manager feature.PodTemplateManagers, dda *v2alpha1.Data
 		if apiutils.BoolValue(config.NetworkPolicy.Create) {
 			switch config.NetworkPolicy.Flavor {
 			case v2alpha1.NetworkPolicyFlavorCilium:
-				resourcesManager.CiliumPolicyManager().SetDDASite(*config.Site)
+				var ddURL string
+				var dnsSelectorEndpoints []metav1.LabelSelector
 				if config.Endpoint != nil && *config.Endpoint.URL != "" {
-					resourcesManager.CiliumPolicyManager().SetDDAURL(*config.Endpoint.URL)
-				}
-				if _, ok := dda.Spec.Override[v2alpha1.ClusterAgentComponentName]; ok {
-					resourcesManager.CiliumPolicyManager().SetHostNetwork(*dda.Spec.Override[v2alpha1.NodeAgentComponentName].HostNetwork)
+					ddURL = *config.Endpoint.URL
 				}
 				if config.NetworkPolicy.DNSSelectorEndpoints != nil {
-					resourcesManager.CiliumPolicyManager().SetDNSSelectorEndpoints(config.NetworkPolicy.DNSSelectorEndpoints)
+					dnsSelectorEndpoints = config.NetworkPolicy.DNSSelectorEndpoints
 				}
-				// node agent
-				_ = resourcesManager.CiliumPolicyManager().BuildAgentCiliumPolicy(dda)
-				// dca
-				_ = resourcesManager.CiliumPolicyManager().BuildDCACiliumPolicy(dda)
-				// ccr
-				if apiutils.BoolValue(dda.Spec.Features.ClusterChecks.UseClusterChecksRunners) {
-					_ = resourcesManager.CiliumPolicyManager().BuildCCRCiliumPolicy(dda)
+				resourcesManager.CiliumPolicyManager().SetupCiliumManager(*config.Site, ddURL, v2alpha1.IsHostNetworkEnabled(dda, v2alpha1.ClusterAgentComponentName), dnsSelectorEndpoints)
+
+				switch componentName {
+				case v2alpha1.NodeAgentComponentName:
+					_ = resourcesManager.CiliumPolicyManager().BuildCiliumPolicy(dda, v2alpha1.NodeAgentComponentName)
+				case v2alpha1.ClusterAgentComponentName:
+					_ = resourcesManager.CiliumPolicyManager().BuildCiliumPolicy(dda, v2alpha1.ClusterAgentComponentName)
+				case v2alpha1.ClusterChecksRunnerComponentName:
+					_ = resourcesManager.CiliumPolicyManager().BuildCiliumPolicy(dda, v2alpha1.ClusterChecksRunnerComponentName)
 				}
 			}
 		}
