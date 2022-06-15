@@ -11,8 +11,10 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
+	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
@@ -53,9 +55,9 @@ func NewDefaultAgentPodTemplateSpec(dda metav1.Object, requiredContainers []comm
 			ServiceAccountName: getDefaultServiceAccountName(dda),
 			InitContainers: []corev1.Container{
 				initVolumeContainer(),
-				initConfigContainer(),
+				initConfigContainer(dda),
 			},
-			Containers: agentContainers(requiredContainers),
+			Containers: agentContainers(dda, requiredContainers),
 			Volumes:    volumesForAgent(dda),
 		},
 	}
@@ -69,40 +71,40 @@ func agentImage() string {
 	return fmt.Sprintf("%s/%s:%s", apicommon.DefaultImageRegistry, apicommon.DefaultAgentImageName, defaulting.AgentLatestVersion)
 }
 
-func agentContainers(requiredContainers []common.AgentContainerName) []corev1.Container {
-	containers := []corev1.Container{coreAgentContainer()}
+func agentContainers(dda metav1.Object, requiredContainers []common.AgentContainerName) []corev1.Container {
+	containers := []corev1.Container{coreAgentContainer(dda)}
 
 	for _, containerName := range requiredContainers {
 		switch containerName {
 		case common.CoreAgentContainerName:
 			// Nothing to do. It's always required.
 		case common.TraceAgentContainerName:
-			containers = append(containers, traceAgentContainer())
+			containers = append(containers, traceAgentContainer(dda))
 		case common.ProcessAgentContainerName:
-			containers = append(containers, processAgentContainer())
+			containers = append(containers, processAgentContainer(dda))
 		case common.SecurityAgentContainerName:
-			containers = append(containers, securityAgentContainer())
+			containers = append(containers, securityAgentContainer(dda))
 		case common.SystemProbeContainerName:
-			containers = append(containers, systemProbeContainer())
+			containers = append(containers, systemProbeContainer(dda))
 		}
 	}
 
 	return containers
 }
 
-func coreAgentContainer() corev1.Container {
+func coreAgentContainer(dda metav1.Object) corev1.Container {
 	return corev1.Container{
 		Name:           string(common.CoreAgentContainerName),
 		Image:          agentImage(),
 		Command:        []string{"agent", "run"},
-		Env:            envVarsForCoreAgent(),
+		Env:            envVarsForCoreAgent(dda),
 		VolumeMounts:   volumeMountsForCoreAgent(),
 		LivenessProbe:  apicommon.GetDefaultLivenessProbe(),
 		ReadinessProbe: apicommon.GetDefaultReadinessProbe(),
 	}
 }
 
-func traceAgentContainer() corev1.Container {
+func traceAgentContainer(dda metav1.Object) corev1.Container {
 	return corev1.Container{
 		Name:  string(common.TraceAgentContainerName),
 		Image: agentImage(),
@@ -110,14 +112,14 @@ func traceAgentContainer() corev1.Container {
 			"trace-agent",
 			fmt.Sprintf("--config=%s", apicommon.AgentCustomConfigVolumePath),
 		},
-		Env:            commonEnvVars(),
+		Env:            commonEnvVars(dda),
 		VolumeMounts:   volumeMountsForTraceAgent(),
 		LivenessProbe:  apicommon.GetDefaultLivenessProbe(),
 		ReadinessProbe: apicommon.GetDefaultReadinessProbe(),
 	}
 }
 
-func processAgentContainer() corev1.Container {
+func processAgentContainer(dda metav1.Object) corev1.Container {
 	return corev1.Container{
 		Name:  string(common.ProcessAgentContainerName),
 		Image: agentImage(),
@@ -125,14 +127,14 @@ func processAgentContainer() corev1.Container {
 			"process-agent", fmt.Sprintf("--config=%s", apicommon.AgentCustomConfigVolumePath),
 			fmt.Sprintf("--sysprobe-config=%s", apicommon.SystemProbeConfigVolumePath),
 		},
-		Env:            commonEnvVars(),
+		Env:            commonEnvVars(dda),
 		VolumeMounts:   volumeMountsForProcessAgent(),
 		LivenessProbe:  apicommon.GetDefaultLivenessProbe(),
 		ReadinessProbe: apicommon.GetDefaultReadinessProbe(),
 	}
 }
 
-func securityAgentContainer() corev1.Container {
+func securityAgentContainer(dda metav1.Object) corev1.Container {
 	return corev1.Container{
 		Name:  string(common.SecurityAgentContainerName),
 		Image: agentImage(),
@@ -140,14 +142,14 @@ func securityAgentContainer() corev1.Container {
 			"security-agent",
 			"start", fmt.Sprintf("-c=%s", apicommon.AgentCustomConfigVolumePath),
 		},
-		Env:            envVarsForSecurityAgent(),
+		Env:            envVarsForSecurityAgent(dda),
 		VolumeMounts:   volumeMountsForSecurityAgent(),
 		LivenessProbe:  apicommon.GetDefaultLivenessProbe(),
 		ReadinessProbe: apicommon.GetDefaultReadinessProbe(),
 	}
 }
 
-func systemProbeContainer() corev1.Container {
+func systemProbeContainer(dda metav1.Object) corev1.Container {
 	return corev1.Container{
 		Name:  string(common.SystemProbeContainerName),
 		Image: agentImage(),
@@ -155,7 +157,7 @@ func systemProbeContainer() corev1.Container {
 			"system-probe",
 			fmt.Sprintf("--config=%s", apicommon.SystemProbeConfigVolumePath),
 		},
-		Env:            commonEnvVars(),
+		Env:            commonEnvVars(dda),
 		VolumeMounts:   volumeMountsForSystemProbe(),
 		LivenessProbe:  apicommon.GetDefaultLivenessProbe(),
 		ReadinessProbe: apicommon.GetDefaultReadinessProbe(),
@@ -177,7 +179,7 @@ func initVolumeContainer() corev1.Container {
 	}
 }
 
-func initConfigContainer() corev1.Container {
+func initConfigContainer(dda metav1.Object) corev1.Container {
 	return corev1.Container{
 		Name:    "init-config",
 		Image:   agentImage(),
@@ -186,20 +188,32 @@ func initConfigContainer() corev1.Container {
 			"for script in $(find /etc/cont-init.d/ -type f -name '*.sh' | sort) ; do bash $script ; done",
 		},
 		VolumeMounts: volumeMountsForCoreAgent(),
-		Env:          envVarsForCoreAgent(),
+		Env:          envVarsForCoreAgent(dda),
 	}
 }
 
-func commonEnvVars() []corev1.EnvVar {
+func commonEnvVars(dda metav1.Object) []corev1.EnvVar {
 	return []corev1.EnvVar{
 		{
 			Name:  apicommon.KubernetesEnvVar,
 			Value: "yes",
 		},
+		{
+			Name:  apicommon.DDClusterAgentEnabled,
+			Value: strconv.FormatBool(true),
+		},
+		{
+			Name:  apicommon.DDClusterAgentKubeServiceName,
+			Value: componentdca.GetClusterAgentServiceName(dda),
+		},
+		{
+			Name:  apicommon.DDClusterAgentTokenName,
+			Value: v2alpha1.GetDefaultDCATokenSecretName(dda),
+		},
 	}
 }
 
-func envVarsForCoreAgent() []corev1.EnvVar {
+func envVarsForCoreAgent(dda metav1.Object) []corev1.EnvVar {
 	envs := []corev1.EnvVar{
 		{
 			Name:  apicommon.DDHealthPort,
@@ -211,10 +225,10 @@ func envVarsForCoreAgent() []corev1.EnvVar {
 		},
 	}
 
-	return append(envs, commonEnvVars()...)
+	return append(envs, commonEnvVars(dda)...)
 }
 
-func envVarsForSecurityAgent() []corev1.EnvVar {
+func envVarsForSecurityAgent(dda metav1.Object) []corev1.EnvVar {
 	envs := []corev1.EnvVar{
 		{
 			Name:  "HOST_ROOT",
@@ -222,7 +236,7 @@ func envVarsForSecurityAgent() []corev1.EnvVar {
 		},
 	}
 
-	return append(envs, commonEnvVars()...)
+	return append(envs, commonEnvVars(dda)...)
 }
 
 func volumesForAgent(dda metav1.Object) []corev1.Volume {
