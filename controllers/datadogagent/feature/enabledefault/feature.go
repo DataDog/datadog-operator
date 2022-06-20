@@ -309,7 +309,25 @@ func (f *defaultFeature) clusterChecksRunnerDependencies(managers feature.Resour
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *defaultFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
-	// Add API/APP and Token secret envvar
+	f.addDefaultCommonEnvs(managers)
+	return nil
+}
+
+// ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
+// It should do nothing if the feature doesn't need to configure it.
+func (f *defaultFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+	f.addDefaultCommonEnvs(managers)
+	return nil
+}
+
+// ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunnerAgent's corev1.PodTemplateSpec
+// It should do nothing if the feature doesn't need to configure it.
+func (f *defaultFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
+	f.addDefaultCommonEnvs(managers)
+	return nil
+}
+
+func (f *defaultFeature) addDefaultCommonEnvs(managers feature.PodTemplateManagers) {
 	if f.dcaTokenInfo.token.SecretName != "" {
 		tokenEnvVar := component.BuildEnvVarFromSource(apicommon.DDClusterAgentAuthToken, component.BuildEnvVarFromSecret(f.dcaTokenInfo.token.SecretName, f.dcaTokenInfo.token.SecretKey))
 		managers.EnvVar().AddEnvVar(tokenEnvVar)
@@ -319,22 +337,11 @@ func (f *defaultFeature) ManageClusterAgent(managers feature.PodTemplateManagers
 		apiKeyEnvVar := component.BuildEnvVarFromSource(apicommon.DDAPIKey, component.BuildEnvVarFromSecret(f.credentialsInfo.apiKey.SecretName, f.credentialsInfo.apiKey.SecretKey))
 		managers.EnvVar().AddEnvVar(apiKeyEnvVar)
 	}
+
 	if f.credentialsInfo.appKey.SecretName != "" {
 		appKeyEnvVar := component.BuildEnvVarFromSource(apicommon.DDAppKey, component.BuildEnvVarFromSecret(f.credentialsInfo.appKey.SecretName, f.credentialsInfo.appKey.SecretKey))
 		managers.EnvVar().AddEnvVar(appKeyEnvVar)
 	}
-
-	return nil
-}
-
-// ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
-// It should do nothing if the feature doesn't need to configure it.
-func (f *defaultFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error { return nil }
-
-// ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunnerAgent's corev1.PodTemplateSpec
-// It should do nothing if the feature doesn't need to configure it.
-func (f *defaultFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
-	return nil
 }
 
 func buildInstallInfoConfigMap(dda metav1.Object) *corev1.ConfigMap {
