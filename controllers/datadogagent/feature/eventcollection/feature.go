@@ -109,7 +109,7 @@ func (f *eventCollectionFeature) ManageDependencies(managers feature.ResourceMan
 	}
 
 	// event collection RBAC
-	tokenResourceName := utils.GetDatadogTokenResourceName(f.owner)
+	tokenResourceName := v2alpha1.GetDefaultDCATokenSecretName(f.owner)
 	return managers.RBACManager().AddClusterPolicyRules("", rbacName, f.serviceAccountName, getRBACPolicyRules(tokenResourceName))
 }
 
@@ -133,7 +133,7 @@ func (f *eventCollectionFeature) ManageClusterAgent(managers feature.PodTemplate
 
 	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
 		Name:  apicommon.DDClusterAgentTokenName,
-		Value: utils.GetDatadogTokenResourceName(f.owner),
+		Value: v2alpha1.GetDefaultDCATokenSecretName(f.owner),
 	})
 
 	return nil
@@ -159,7 +159,7 @@ func (f *eventCollectionFeature) ManageNodeAgent(managers feature.PodTemplateMan
 
 	managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
 		Name:  apicommon.DDClusterAgentTokenName,
-		Value: utils.GetDatadogTokenResourceName(f.owner),
+		Value: v2alpha1.GetDefaultDCATokenSecretName(f.owner),
 	})
 
 	return nil

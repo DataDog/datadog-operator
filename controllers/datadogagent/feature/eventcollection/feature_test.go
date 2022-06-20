@@ -113,7 +113,7 @@ func Test_eventCollectionFeature_Configure(t *testing.T) {
 			},
 			{
 				Name:  apicommon.DDClusterAgentTokenName,
-				Value: "ddaDCAtoken",
+				Value: "ddaDCA-token",
 			},
 		}
 		assert.True(t, apiutils.IsEqualStruct(dcaEnvVars, want), "DCA envvars \ndiff = %s", cmp.Diff(dcaEnvVars, want))
@@ -138,7 +138,7 @@ func Test_eventCollectionFeature_Configure(t *testing.T) {
 			},
 			{
 				Name:  apicommon.DDClusterAgentTokenName,
-				Value: "ddaNodetoken",
+				Value: "ddaNode-token",
 			},
 		}
 		coreAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
