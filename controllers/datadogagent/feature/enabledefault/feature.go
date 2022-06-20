@@ -290,6 +290,11 @@ func (f *defaultFeature) clusterAgentDependencies(managers feature.ResourceManag
 		}
 	}
 
+	dcaService := componentdca.GetClusterAgentService(f.owner)
+	if err := managers.Store().AddOrUpdate(kubernetes.ServicesKind, dcaService); err != nil {
+		return err
+	}
+
 	return errors.NewAggregate(errs)
 }
 
