@@ -6,6 +6,7 @@
 package v2alpha1
 
 import (
+	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 )
 
@@ -75,7 +76,7 @@ const (
 
 	// defaultDatadogMonitorEnabled bool = false
 
-	defaultKubeletAgentCAPath = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+	defaultKubeletAgentCAPath            = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
 	defaultKubeletAgentCAPathHostPathSet = "/var/run/host-kubelet-ca.crt"
 )
 
@@ -104,7 +105,11 @@ func defaultGlobalConfig(ddaSpec *DatadogAgentSpec) {
 		ddaSpec.Global.LogLevel = apiutils.NewStringPointer(defaultLogLevel)
 	}
 
-	if ddaSpec.Global.Kubelet.AgentCAPath == "" {
+	if ddaSpec.Global.Kubelet == nil {
+		ddaSpec.Global.Kubelet = &commonv1.KubeletConfig{
+			AgentCAPath: defaultKubeletAgentCAPath,
+		}
+	} else if ddaSpec.Global.Kubelet.AgentCAPath == "" {
 		if ddaSpec.Global.Kubelet.HostCAPath == "" {
 			ddaSpec.Global.Kubelet.AgentCAPath = defaultKubeletAgentCAPathHostPathSet
 		} else {

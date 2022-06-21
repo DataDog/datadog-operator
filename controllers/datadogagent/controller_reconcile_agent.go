@@ -28,7 +28,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, features []feature.Fea
 	podManagers := feature.NewPodTemplateManagers(&daemonset.Spec.Template)
 
 	// Set Global setting on the default deployment
-	daemonset.Spec.Template = *override.ApplyGlobalSettings(podManagers, dda, resourcesManager)
+	daemonset.Spec.Template = *override.ApplyGlobalSettings(podManagers, dda, resourcesManager, datadoghqv2alpha1.NodeAgentComponentName)
 
 	// Apply features changes on the Deployment.Spec.Template
 	for _, feat := range features {
