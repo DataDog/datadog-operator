@@ -12,7 +12,6 @@ import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -262,7 +261,7 @@ func (f *defaultFeature) agentDependencies(managers feature.ResourceManagers, co
 	}
 
 	// ClusterRole creation
-	if err := managers.RBACManager().AddClusterPolicyRules(f.namespace, agent.GetAgentRbacResourcesName(f.owner), f.agent.serviceAccountName, agent.GetDefaultAgentClusterRolePolicyRules()); err != nil {
+	if err := managers.RBACManager().AddClusterPolicyRules(f.namespace, getAgentRoleName(f.owner), f.agent.serviceAccountName, getDefaultAgentClusterRolePolicyRules()); err != nil {
 		errs = append(errs, err)
 	}
 

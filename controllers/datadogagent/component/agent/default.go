@@ -16,10 +16,7 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
-	rbacv1 "k8s.io/api/rbac/v1"
-
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -306,30 +303,4 @@ func volumeMountsForSystemProbe() []corev1.VolumeMount {
 		component.GetVolumeMountForLogs(),
 		component.GetVolumeMountForAuth(),
 	}
-}
-
-// GetDefaultAgentClusterRolePolicyRules returns the default policy rules for
-// the Agent
-func GetDefaultAgentClusterRolePolicyRules() []rbacv1.PolicyRule {
-	// TODO (operator-ga):: this only adds the policy for the Kubelet. Check if we need others.
-	return []rbacv1.PolicyRule{GetKubeletPolicyRule()}
-}
-
-// GetKubeletPolicyRule returns the policy rule for Kubelet
-func GetKubeletPolicyRule() rbacv1.PolicyRule {
-	return rbacv1.PolicyRule{
-		APIGroups: []string{rbac.CoreAPIGroup},
-		Resources: []string{
-			rbac.NodeMetricsResource,
-			rbac.NodeSpecResource,
-			rbac.NodeProxyResource,
-			rbac.NodeStats,
-		},
-		Verbs: []string{rbac.GetVerb},
-	}
-}
-
-// GetAgentRbacResourcesName return the Cluster-Agent RBAC resource name
-func GetAgentRbacResourcesName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultAgentResourceSuffix)
 }
