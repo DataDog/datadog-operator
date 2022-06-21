@@ -14,7 +14,11 @@ import (
 type DatadogAgentState string
 
 const (
+<<<<<<< HEAD
 	// DatadogAgentStateProgressing the deployment is running properly.
+=======
+	// DatadogAgentStateProgressing the deployment is progressing.
+>>>>>>> main
 	DatadogAgentStateProgressing DatadogAgentState = "Progressing"
 	// DatadogAgentStateRunning the deployment is running properly.
 	DatadogAgentStateRunning DatadogAgentState = "Running"
@@ -143,6 +147,7 @@ func UpdateDeploymentStatus(dep *appsv1.Deployment, depStatus *DeploymentStatus,
 	depStatus.DeploymentName = dep.ObjectMeta.Name
 	return depStatus
 }
+<<<<<<< HEAD
 
 // UpdateDaemonSetStatus updates a daemonset's DaemonSetStatus
 func UpdateDaemonSetStatus(ds *appsv1.DaemonSet, dsStatus *DaemonSetStatus, updateTime *metav1.Time) *DaemonSetStatus {
@@ -181,3 +186,5 @@ func UpdateDaemonSetStatus(ds *appsv1.DaemonSet, dsStatus *DaemonSetStatus, upda
 	dsStatus.DaemonsetName = ds.ObjectMeta.Name
 	return dsStatus
 }
+=======
+>>>>>>> main

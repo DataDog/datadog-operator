@@ -45,7 +45,7 @@ func (f *eventCollectionFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp 
 
 	// v2alpha1 configures event collection using the cluster agent only
 	// leader election is enabled by default
-	if dda.Spec.Features.EventCollection != nil && apiutils.BoolValue(dda.Spec.Features.EventCollection.CollectKubernetesEvents) {
+	if dda.Spec.Features != nil && dda.Spec.Features.EventCollection != nil && apiutils.BoolValue(dda.Spec.Features.EventCollection.CollectKubernetesEvents) {
 		f.serviceAccountName = v2alpha1.GetClusterAgentServiceAccount(dda)
 		f.rbacSuffix = common.ClusterAgentSuffix
 
@@ -109,7 +109,7 @@ func (f *eventCollectionFeature) ManageDependencies(managers feature.ResourceMan
 	}
 
 	// event collection RBAC
-	tokenResourceName := utils.GetDatadogTokenResourceName(f.owner)
+	tokenResourceName := v2alpha1.GetDefaultDCATokenSecretName(f.owner)
 	return managers.RBACManager().AddClusterPolicyRules("", rbacName, f.serviceAccountName, getRBACPolicyRules(tokenResourceName))
 }
 
@@ -133,7 +133,7 @@ func (f *eventCollectionFeature) ManageClusterAgent(managers feature.PodTemplate
 
 	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
 		Name:  apicommon.DDClusterAgentTokenName,
-		Value: utils.GetDatadogTokenResourceName(f.owner),
+		Value: v2alpha1.GetDefaultDCATokenSecretName(f.owner),
 	})
 
 	return nil
@@ -159,7 +159,7 @@ func (f *eventCollectionFeature) ManageNodeAgent(managers feature.PodTemplateMan
 
 	managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
 		Name:  apicommon.DDClusterAgentTokenName,
-		Value: utils.GetDatadogTokenResourceName(f.owner),
+		Value: v2alpha1.GetDefaultDCATokenSecretName(f.owner),
 	})
 
 	return nil
