@@ -20,12 +20,18 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+const (
+	// Service Internal Traffic Policy exists in Kube 1.21 but it is enabled by default since 1.22
+	minLocalServiceVersion        = "1.21-0"
+	minDefaultLocalServiceVersion = "1.22-0"
+)
+
 // ApplyGlobalSettings use to apply global setting to a PodTemplateSpec
-func ApplyGlobalSettings(manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers) *corev1.PodTemplateSpec {
+func ApplyGlobalSettings(manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, componentName v2alpha1.ComponentName) *corev1.PodTemplateSpec {
 	config := dda.Spec.Global
 
 	// ClusterName sets a unique cluster name for the deployment to easily scope monitoring data in the Datadog app.
-	if *config.ClusterName != "" {
+	if config.ClusterName != nil {
 		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
 			Name:  apicommon.DDClusterName,
 			Value: *config.ClusterName,
@@ -33,15 +39,13 @@ func ApplyGlobalSettings(manager feature.PodTemplateManagers, dda *v2alpha1.Data
 	}
 
 	// Site is the Datadog intake site Agent data are sent to.
-	if *config.Site != "" {
-		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-			Name:  apicommon.DDSite,
-			Value: *config.Site,
-		})
-	}
+	manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+		Name:  apicommon.DDSite,
+		Value: *config.Site,
+	})
 
 	// Endpoint is the Datadog intake URL the Agent data are sent to.
-	if config.Endpoint != nil && *config.Endpoint.URL != "" {
+	if config.Endpoint != nil && config.Endpoint.URL != nil {
 		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
 			Name:  apicommon.DDddURL,
 			Value: *config.Endpoint.URL,
@@ -49,22 +53,18 @@ func ApplyGlobalSettings(manager feature.PodTemplateManagers, dda *v2alpha1.Data
 	}
 
 	// Registry is the image registry to use for all Agent images.
-	if *config.Registry != "" {
-		for _, c := range manager.PodTemplateSpec().Spec.InitContainers {
-			c.Image = *config.Registry
-		}
-		for _, c := range manager.PodTemplateSpec().Spec.Containers {
-			c.Image = *config.Registry
-		}
+	for _, c := range manager.PodTemplateSpec().Spec.InitContainers {
+		c.Image = *config.Registry
+	}
+	for _, c := range manager.PodTemplateSpec().Spec.Containers {
+		c.Image = *config.Registry
 	}
 
 	// LogLevel sets logging verbosity. This can be overridden by container.
-	if *config.LogLevel != "" {
-		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-			Name:  apicommon.DDLogLevel,
-			Value: *config.LogLevel,
-		})
-	}
+	manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+		Name:  apicommon.DDLogLevel,
+		Value: *config.LogLevel,
+	})
 
 	// Tags contains a list of tags to attach to every metric, event and service check collected.
 	if config.Tags != nil {
@@ -98,13 +98,13 @@ func ApplyGlobalSettings(manager feature.PodTemplateManagers, dda *v2alpha1.Data
 		if apiutils.BoolValue(config.NetworkPolicy.Create) {
 			switch config.NetworkPolicy.Flavor {
 			case v2alpha1.NetworkPolicyFlavorKubernetes:
-				// node agent
-				_ = resourcesManager.NetworkPolicyManager().BuildAgentKubernetesNetworkPolicy(dda)
-				// dca
-				_ = resourcesManager.NetworkPolicyManager().BuildDCAKubernetesNetworkPolicy(dda)
-				// ccr
-				if apiutils.BoolValue(dda.Spec.Features.ClusterChecks.UseClusterChecksRunners) {
-					_ = resourcesManager.NetworkPolicyManager().BuildCCRKubernetesNetworkPolicy(dda)
+				switch componentName {
+				case v2alpha1.NodeAgentComponentName:
+					_ = resourcesManager.NetworkPolicyManager().BuildKubernetesNetworkPolicy(dda, v2alpha1.NodeAgentComponentName)
+				case v2alpha1.ClusterAgentComponentName:
+					_ = resourcesManager.NetworkPolicyManager().BuildKubernetesNetworkPolicy(dda, v2alpha1.ClusterAgentComponentName)
+				case v2alpha1.ClusterChecksRunnerComponentName:
+					_ = resourcesManager.NetworkPolicyManager().BuildKubernetesNetworkPolicy(dda, v2alpha1.ClusterChecksRunnerComponentName)
 				}
 			case v2alpha1.NetworkPolicyFlavorCilium:
 				// TODO
@@ -117,10 +117,9 @@ func ApplyGlobalSettings(manager feature.PodTemplateManagers, dda *v2alpha1.Data
 
 	// LocalService contains configuration to customize the internal traffic policy service.
 	gitVersion := resourcesManager.Store().GetVersionInfo()
-	// Service Internal Traffic Policy exists in Kube 1.21 but it is enabled by default since 1.22
-	if utils.IsAboveMinVersion(gitVersion, "1.21-0") {
+	if utils.IsAboveMinVersion(gitVersion, minLocalServiceVersion) {
 		if config.LocalService != nil {
-			if apiutils.BoolValue(config.LocalService.ForceEnableLocalService) || utils.IsAboveMinVersion(gitVersion, "1.22-0") {
+			if apiutils.BoolValue(config.LocalService.ForceEnableLocalService) || utils.IsAboveMinVersion(gitVersion, minDefaultLocalServiceVersion) {
 				if config.LocalService.NameOverride != nil {
 					_ = resourcesManager.ServiceManager().BuildAgentLocalService(dda, *config.LocalService.NameOverride)
 				} else {
@@ -147,30 +146,27 @@ func ApplyGlobalSettings(manager feature.PodTemplateManagers, dda *v2alpha1.Data
 			ValueFrom: kubeletHostValueFrom,
 		})
 
-		// tlsverify defaults to true in agent code
-		if !*config.Kubelet.TLSVerify {
+		if config.Kubelet.TLSVerify != nil {
 			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
 				Name:  apicommon.DDKubeletTLSVerify,
-				Value: "false",
+				Value: apiutils.BoolToString(config.Kubelet.TLSVerify),
 			})
 		}
 
-		if config.Kubelet.AgentCAPath != "" || config.Kubelet.HostCAPath != "" {
-			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-				Name:  apicommon.DDKubeletCAPath,
-				Value: getAgentCAPath(config.Kubelet),
-			})
-		}
+		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+			Name:  apicommon.DDKubeletCAPath,
+			Value: config.Kubelet.AgentCAPath,
+		})
 
 		if config.Kubelet.HostCAPath != "" {
-			kubeletVol, kubeletVolMount := volume.GetVolumes(apicommon.KubeletCAVolumeName, config.Kubelet.HostCAPath, getAgentCAPath(config.Kubelet), true)
+			kubeletVol, kubeletVolMount := volume.GetVolumes(apicommon.KubeletCAVolumeName, config.Kubelet.HostCAPath, config.Kubelet.AgentCAPath, true)
 			manager.VolumeMount().AddVolumeMountToContainers(&kubeletVolMount, getContainerList(manager))
 			manager.Volume().AddVolume(&kubeletVol)
 		}
 	}
 
 	// Path to the docker runtime socket.
-	if *config.DockerSocketPath != "" {
+	if config.DockerSocketPath != nil {
 		dockerMountPath := filepath.Join(apicommon.HostCriSocketPathPrefix, *config.DockerSocketPath)
 		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
 			Name:  apicommon.DDDockerHost,
@@ -182,7 +178,7 @@ func ApplyGlobalSettings(manager feature.PodTemplateManagers, dda *v2alpha1.Data
 	}
 
 	// Path to the container runtime socket (if different from Docker).
-	if *config.CriSocketPath != "" {
+	if config.CriSocketPath != nil {
 		criSocketMountPath := filepath.Join(apicommon.HostCriSocketPathPrefix, *config.CriSocketPath)
 		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
 			Name:  apicommon.DDCriSocketPath,
@@ -205,13 +201,4 @@ func getContainerList(manager feature.PodTemplateManagers) []apicommonv1.AgentCo
 		contList = append(contList, apicommonv1.AgentContainerName(c.Name))
 	}
 	return contList
-}
-
-func getAgentCAPath(kubeletConfig *apicommonv1.KubeletConfig) string {
-	if kubeletConfig.AgentCAPath != "" {
-		return kubeletConfig.AgentCAPath
-	}
-	// host path is set, use `/var/run/host-kubelet-ca.crt`
-	return apicommon.DefaultKubeletAgentCAPath
-	// if nothing is set, agent code defaults to `/var/run/secrets/kubernetes.io/serviceaccount/ca.crt`
 }

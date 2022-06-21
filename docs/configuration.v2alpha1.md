@@ -138,7 +138,7 @@ spec:
 | global.kubelet.host.secretKeyRef.name | Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names TODO: Add other useful fields. apiVersion, kind, uid? |
 | global.kubelet.host.secretKeyRef.optional | Specify whether the Secret or its key must be defined |
 | global.kubelet.hostCAPath | HostCAPath is the host path where the kubelet CA certificate is stored. |
-| global.kubelet.tlsVerify | TLSVerify toggles kubelet TLS verification. Default: true |
+| global.kubelet.tlsVerify | TLSVerify toggles kubelet TLS verification. Default: true (set in datadog-agent) |
 | global.localService.forceEnableLocalService | ForceEnableLocalService forces the creation of the internal traffic policy service to target the agent running on the local node. This parameter only applies to Kubernetes 1.21, where the feature is in alpha and is disabled by default. (On Kubernetes 1.22+, the feature entered beta and the internal traffic service is created by default, so this parameter is ignored.) Default: false |
 | global.localService.nameOverride | NameOverride defines the name of the internal traffic service to target the agent running on the local node. |
 | global.logLevel | LogLevel sets logging verbosity. This can be overridden by container. Valid log levels are: trace, debug, info, warn, error, critical, and off. Default: 'info' |

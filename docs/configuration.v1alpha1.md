@@ -98,7 +98,7 @@ spec:
 | agent.config.kubelet.host.secretKeyRef.name | Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names TODO: Add other useful fields. apiVersion, kind, uid? |
 | agent.config.kubelet.host.secretKeyRef.optional | Specify whether the Secret or its key must be defined |
 | agent.config.kubelet.hostCAPath | HostCAPath is the host path where the kubelet CA certificate is stored. |
-| agent.config.kubelet.tlsVerify | TLSVerify toggles kubelet TLS verification. Default: true |
+| agent.config.kubelet.tlsVerify | TLSVerify toggles kubelet TLS verification. Default: true (set in datadog-agent) |
 | agent.config.leaderElection | Enables leader election mechanism for event collection. |
 | agent.config.livenessProbe.exec.command | Command is the command line to execute inside the container, the working directory for the command  is root ('/') in the container's filesystem. The command is simply exec'd, it is not run inside a shell, so traditional shell instructions ('|', etc) won't work. To use a shell, you need to explicitly call out to that shell. Exit status of 0 is treated as live/healthy and non-zero is unhealthy. |
 | agent.config.livenessProbe.failureThreshold | Minimum consecutive failures for the probe to be considered failed after having succeeded. Defaults to 3. Minimum value is 1. |

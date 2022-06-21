@@ -9,6 +9,8 @@ import (
 	"fmt"
 
 	"github.com/DataDog/datadog-operator/apis/datadoghq/common"
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -21,9 +23,7 @@ import (
 // NetworkPolicyManager is used to manage network policy resources.
 type NetworkPolicyManager interface {
 	AddKubernetesNetworkPolicy(name, namespace string, podSelector metav1.LabelSelector, policyTypes []netv1.PolicyType, ingress []netv1.NetworkPolicyIngressRule, egress []netv1.NetworkPolicyEgressRule) error
-	BuildAgentKubernetesNetworkPolicy(dda metav1.Object) error
-	BuildDCAKubernetesNetworkPolicy(dda metav1.Object) error
-	BuildCCRKubernetesNetworkPolicy(dda metav1.Object) error
+	BuildKubernetesNetworkPolicy(dda metav1.Object, componentName v2alpha1.ComponentName) error
 }
 
 // NewNetworkPolicyManager returns a new NetworkPolicyManager instance
@@ -57,32 +57,21 @@ func (m *networkPolicyManagerImpl) AddKubernetesNetworkPolicy(name, namespace st
 }
 
 // BuildAgentKubernetesNetworkPolicy creates the base node agent kubernetes network policy
-func (m *networkPolicyManagerImpl) BuildAgentKubernetesNetworkPolicy(dda metav1.Object) error {
-	policyName := dda.GetName() + common.DefaultAgentResourceSuffix
-	podSelector := metav1.LabelSelector{
-		MatchLabels: map[string]string{
-			kubernetes.AppKubernetesInstanceLabelKey: common.DefaultAgentResourceSuffix,
-			kubernetes.AppKubernetesPartOfLabelKey:   object.NewPartOfLabelValue(dda).String(),
-		},
-	}
+func (m *networkPolicyManagerImpl) BuildKubernetesNetworkPolicy(dda metav1.Object, componentName v2alpha1.ComponentName) error {
+	policyName, podSelector := getPolicyMetadata(dda, componentName)
+	ddaName := dda.GetName()
+	ddaNamespace := dda.GetNamespace()
+
 	policyTypes := []netv1.PolicyType{
 		netv1.PolicyTypeIngress,
 		netv1.PolicyTypeEgress,
 	}
-	egress := []netv1.NetworkPolicyEgressRule{
-		// Egress to datadog intake and
-		// kubeapi server
-		{
-			Ports: []netv1.NetworkPolicyPort{
-				{
-					Port: &intstr.IntOrString{
-						Type:   intstr.Int,
-						IntVal: 443,
-					},
-				},
-			},
-		},
 
+	var egress []netv1.NetworkPolicyEgressRule
+	var ingress []netv1.NetworkPolicyIngressRule
+
+	switch componentName {
+	case v2alpha1.NodeAgentComponentName:
 		// The agents are susceptible to connect to any pod that would
 		// be annotated with auto-discovery annotations.
 		//
@@ -93,126 +82,101 @@ func (m *networkPolicyManagerImpl) BuildAgentKubernetesNetworkPolicy(dda metav1.
 		// In order to not ask end-users to inject NetworkPolicy on the
 		// agent in the agent namespace, the agent must be allowed to
 		// probe any pod.
-		{},
-	}
-
-	ingress := []netv1.NetworkPolicyIngressRule{}
-	// add ingress for dogstatsd/apm in dogstatsd/apm feature
-
-	return m.AddKubernetesNetworkPolicy(policyName, dda.GetNamespace(), podSelector, policyTypes, ingress, egress)
-}
-
-// BuildDCAKubernetesNetworkPolicy creates the base cluster agent kubernetes network policy
-func (m *networkPolicyManagerImpl) BuildDCAKubernetesNetworkPolicy(dda metav1.Object) error {
-	policyName := dda.GetName() + common.DefaultClusterAgentResourceSuffix
-	podSelector := metav1.LabelSelector{
-		MatchLabels: map[string]string{
-			kubernetes.AppKubernetesInstanceLabelKey: common.DefaultClusterAgentResourceSuffix,
-			kubernetes.AppKubernetesPartOfLabelKey:   object.NewPartOfLabelValue(dda).String(),
-		},
-	}
-	policyTypes := []netv1.PolicyType{
-		netv1.PolicyTypeIngress,
-		netv1.PolicyTypeEgress,
-	}
-	egress := []netv1.NetworkPolicyEgressRule{
-		// Egress to datadog intake and
-		// kubeapi server
-		{
-			Ports: []netv1.NetworkPolicyPort{
-				{
-					Port: &intstr.IntOrString{
-						Type:   intstr.Int,
-						IntVal: 443,
-					},
-				},
+		egress = []netv1.NetworkPolicyEgressRule{
+			{
+				Ports: append([]netv1.NetworkPolicyPort{}, ddIntakePort()),
 			},
-		},
-	}
-
-	ingress := []netv1.NetworkPolicyIngressRule{
-		// Ingress for the node agents
-		{
-			Ports: []netv1.NetworkPolicyPort{
-				{
-					Port: &intstr.IntOrString{
-						Type:   intstr.Int,
-						IntVal: common.DefaultClusterAgentServicePort,
-					},
-				},
+		}
+		ingress = []netv1.NetworkPolicyIngressRule{}
+	case v2alpha1.ClusterAgentComponentName:
+		egress = []netv1.NetworkPolicyEgressRule{
+			{
+				Ports: append([]netv1.NetworkPolicyPort{}, ddIntakePort()),
 			},
-			From: []netv1.NetworkPolicyPeer{
-				{
-					PodSelector: &metav1.LabelSelector{
-						MatchLabels: map[string]string{
-							kubernetes.AppKubernetesInstanceLabelKey: dda.GetName(),
-							kubernetes.AppKubernetesPartOfLabelKey:   dda.GetName() + "-" + dda.GetNamespace(),
+		}
+		ingress = []netv1.NetworkPolicyIngressRule{
+			// Ingress for the node agents
+			{
+				Ports: append([]netv1.NetworkPolicyPort{}, dcaServicePort()),
+				From: []netv1.NetworkPolicyPeer{
+					{
+						PodSelector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								kubernetes.AppKubernetesInstanceLabelKey: ddaName,
+								kubernetes.AppKubernetesPartOfLabelKey:   ddaName + "-" + ddaNamespace,
+							},
 						},
 					},
 				},
 			},
-		},
-	}
-
-	// add clusterchecks ingress, port, podselector in clusterchecks feature
-	// add metricsprovider ingress, port in metricsprovider feature
-
-	return m.AddKubernetesNetworkPolicy(policyName, dda.GetNamespace(), podSelector, policyTypes, ingress, egress)
-}
-
-// BuildCCRKubernetesNetworkPolicy creates the base cluster checks runner kubernetes network policy
-func (m *networkPolicyManagerImpl) BuildCCRKubernetesNetworkPolicy(dda metav1.Object) error {
-	policyName := dda.GetName() + common.DefaultClusterAgentResourceSuffix
-	podSelector := metav1.LabelSelector{
-		MatchLabels: map[string]string{
-			kubernetes.AppKubernetesInstanceLabelKey: common.DefaultClusterChecksRunnerResourceSuffix,
-			kubernetes.AppKubernetesPartOfLabelKey:   object.NewPartOfLabelValue(dda).String(),
-		},
-	}
-	policyTypes := []netv1.PolicyType{
-		netv1.PolicyTypeIngress,
-		netv1.PolicyTypeEgress,
-	}
-	ingress := []netv1.NetworkPolicyIngressRule{}
-	egress := []netv1.NetworkPolicyEgressRule{
-		// Egress to datadog intake and kubeapi server
-		{
-			Ports: []netv1.NetworkPolicyPort{
-				{
-					Port: &intstr.IntOrString{
-						Type:   intstr.Int,
-						IntVal: 443,
-					},
-				},
-				{
-					Port: &intstr.IntOrString{
-						Type:   intstr.Int,
-						IntVal: common.DefaultClusterAgentServicePort,
-					},
-				},
-			},
-			To: []netv1.NetworkPolicyPeer{
-				{
-					PodSelector: &metav1.LabelSelector{
-						MatchLabels: map[string]string{
-							"app": policyName,
+		}
+	case v2alpha1.ClusterChecksRunnerComponentName:
+		// The cluster check runners are susceptible to connect to any service
+		// that would be annotated with auto-discovery annotations.
+		//
+		// When a user wants to add a check on one of its service, he needs to
+		// * annotate its service
+		// * add an ingress policy from the CLC on its own pod
+		// In order to not ask end-users to inject NetworkPolicy on the agent in
+		// the agent namespace, the agent must be allowed to probe any service.
+		egress = []netv1.NetworkPolicyEgressRule{
+			{
+				Ports: append([]netv1.NetworkPolicyPort{}, ddIntakePort(), dcaServicePort()),
+				To: []netv1.NetworkPolicyPeer{
+					{
+						PodSelector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								"app": policyName,
+							},
 						},
 					},
 				},
 			},
-		},
+		}
+		ingress = []netv1.NetworkPolicyIngressRule{}
 	}
 
-	// The cluster check runners are susceptible to connect to any service
-	// that would be annotated with auto-discovery annotations.
-	//
-	// When a user wants to add a check on one of its service, he needs to
-	// * annotate its service
-	// * add an ingress policy from the CLC on its own pod
-	// In order to not ask end-users to inject NetworkPolicy on the agent in
-	// the agent namespace, the agent must be allowed to probe any service.
-
-	return m.AddKubernetesNetworkPolicy(policyName, dda.GetNamespace(), podSelector, policyTypes, ingress, egress)
+	return m.AddKubernetesNetworkPolicy(policyName, ddaNamespace, podSelector, policyTypes, ingress, egress)
 }
 
-// TODO: create cilium network policy
+func getPolicyMetadata(dda metav1.Object, componentName v2alpha1.ComponentName) (policyName string, podSelector metav1.LabelSelector) {
+	var suffix string
+	switch componentName {
+	case v2alpha1.NodeAgentComponentName:
+		policyName = component.GetAgentName(dda)
+		suffix = common.DefaultAgentResourceSuffix
+	case v2alpha1.ClusterAgentComponentName:
+		policyName = component.GetClusterAgentName(dda)
+		suffix = common.DefaultClusterAgentResourceSuffix
+	case v2alpha1.ClusterChecksRunnerComponentName:
+		policyName = component.GetClusterChecksRunnerName(dda)
+		suffix = common.DefaultClusterChecksRunnerResourceSuffix
+	}
+	podSelector = metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			kubernetes.AppKubernetesInstanceLabelKey: suffix,
+			kubernetes.AppKubernetesPartOfLabelKey:   object.NewPartOfLabelValue(dda).String(),
+		},
+	}
+	return policyName, podSelector
+}
+
+// datadog intake and kubeapi server port
+func ddIntakePort() netv1.NetworkPolicyPort {
+	return netv1.NetworkPolicyPort{
+		Port: &intstr.IntOrString{
+			Type:   intstr.Int,
+			IntVal: 443,
+		},
+	}
+}
+
+// cluster agent service port
+func dcaServicePort() netv1.NetworkPolicyPort {
+	return netv1.NetworkPolicyPort{
+		Port: &intstr.IntOrString{
+			Type:   intstr.Int,
+			IntVal: common.DefaultClusterAgentServicePort,
+		},
+	}
+}
