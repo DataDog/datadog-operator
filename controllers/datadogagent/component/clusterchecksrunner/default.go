@@ -82,13 +82,17 @@ func GetDefaultServiceAccountName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultClusterAgentResourceSuffix)
 }
 
+func clusterChecksRunnerImage() string {
+	return fmt.Sprintf("%s/%s:%s", apicommon.DefaultImageRegistry, apicommon.DefaultAgentImageName, defaulting.AgentLatestVersion)
+}
+
 func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount, envVars []corev1.EnvVar) corev1.PodSpec {
 	podSpec := corev1.PodSpec{
 		ServiceAccountName: GetDefaultServiceAccountName(dda),
 		InitContainers: []corev1.Container{
 			{
 				Name:    "init-config",
-				Image:   fmt.Sprintf("%s:%s", apicommon.DefaultAgentImageName, defaulting.AgentLatestVersion),
+				Image:   clusterChecksRunnerImage(),
 				Command: []string{"bash", "-c"},
 				Args: []string{
 					"for script in $(find /etc/cont-init.d/ -type f -name '*.sh' | sort) ; do bash $script ; done",
@@ -99,7 +103,7 @@ func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []c
 		Containers: []corev1.Container{
 			{
 				Name:         string(apicommonv1.ClusterChecksRunnersContainerName),
-				Image:        fmt.Sprintf("%s:%s", apicommon.DefaultAgentImageName, defaulting.AgentLatestVersion),
+				Image:        clusterChecksRunnerImage(),
 				Env:          envVars,
 				VolumeMounts: volumeMounts,
 				Command:      []string{"bash", "-c"},
