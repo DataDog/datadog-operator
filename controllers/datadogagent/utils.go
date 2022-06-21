@@ -1721,7 +1721,7 @@ func getVolumeMountsForSystemProbe(dda *datadoghqv1alpha1.DatadogAgent) []corev1
 		}...)
 	}
 
-	if isRuntimeSecurityEnabled(&dda.Spec) {
+	if isRuntimeSecurityEnabled(&dda.Spec) && dda.Spec.Agent.Security.Runtime.PoliciesDir != nil {
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
 			Name:      datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumeName,
 			MountPath: datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumePath,
