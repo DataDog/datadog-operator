@@ -23,9 +23,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-type updateStatusComponentFunc func(newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string)
+type updateDepStatusComponentFunc func(deployment *appsv1.Deployment, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string)
+type updateDSStatusComponentFunc func(newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string)
 
-func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, deployment *appsv1.Deployment, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateStatusFunc updateStatusComponentFunc) (reconcile.Result, error) {
+func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, deployment *appsv1.Deployment, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateStatusFunc updateDepStatusComponentFunc) (reconcile.Result, error) {
 	logger := parentLogger.WithValues("deployment.Namespace", deployment.Namespace, "deployment.Name", deployment.Name)
 
 	var result reconcile.Result
@@ -68,7 +69,7 @@ func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, dda *dat
 		if !needUpdate {
 			// no need to update to stop here the process
 			now := metav1.NewTime(time.Now())
-			updateStatusFunc(newStatus, now, metav1.ConditionTrue, "deployment_up_to_date", "Deployment up-to-date")
+			updateStatusFunc(currentDeployment, newStatus, now, metav1.ConditionTrue, "deployment_up_to_date", "Deployment up-to-date")
 			return reconcile.Result{}, nil
 		}
 
@@ -88,23 +89,23 @@ func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, dda *dat
 		now := metav1.NewTime(time.Now())
 		err = kubernetes.UpdateFromObject(context.TODO(), r.client, updateDeployment, currentDeployment.ObjectMeta)
 		if err != nil {
-			updateStatusFunc(newStatus, now, metav1.ConditionFalse, "create_failed", "Unable to Update Deployment")
+			updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, "create_failed", "Unable to Update Deployment")
 			return reconcile.Result{}, err
 		}
 		event := buildEventInfo(updateDeployment.Name, updateDeployment.Namespace, deploymentKind, datadog.UpdateEvent)
 		r.recordEvent(dda, event)
-		updateStatusFunc(newStatus, now, metav1.ConditionTrue, "deployment_updated", "Deployment updated")
+		updateStatusFunc(updateDeployment, newStatus, now, metav1.ConditionTrue, "deployment_updated", "Deployment updated")
 	} else {
 		now := metav1.NewTime(time.Now())
 
 		err = r.client.Create(context.TODO(), deployment)
 		if err != nil {
-			updateStatusFunc(newStatus, now, metav1.ConditionFalse, "create_failed", "Unable to create Deployment")
+			updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, "create_failed", "Unable to create Deployment")
 			return reconcile.Result{}, err
 		}
 		event := buildEventInfo(deployment.Name, deployment.Namespace, deploymentKind, datadog.CreationEvent)
 		r.recordEvent(dda, event)
-		updateStatusFunc(newStatus, now, metav1.ConditionTrue, "create_succeed", "Deployment created")
+		updateStatusFunc(deployment, newStatus, now, metav1.ConditionTrue, "create_succeed", "Deployment created")
 	}
 
 	logger.Info("Creating Deployment")
@@ -112,7 +113,7 @@ func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, dda *dat
 	return result, err
 }
 
-func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, daemonset *appsv1.DaemonSet, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateStatusFunc updateStatusComponentFunc) (reconcile.Result, error) {
+func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, daemonset *appsv1.DaemonSet, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateStatusFunc updateDSStatusComponentFunc) (reconcile.Result, error) {
 	logger := parentLogger.WithValues("daemonset.Namespace", daemonset.Namespace, "daemonset.Name", daemonset.Name)
 
 	var result reconcile.Result
