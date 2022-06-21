@@ -14,7 +14,7 @@ import (
 type DatadogAgentState string
 
 const (
-	// DatadogAgentStateProgressing the deployment is running properly.
+	// DatadogAgentStateProgressing the deployment is progressing.
 	DatadogAgentStateProgressing DatadogAgentState = "Progressing"
 	// DatadogAgentStateRunning the deployment is running properly.
 	DatadogAgentStateRunning DatadogAgentState = "Running"
