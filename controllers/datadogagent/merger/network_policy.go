@@ -59,7 +59,6 @@ func (m *networkPolicyManagerImpl) AddKubernetesNetworkPolicy(name, namespace st
 // BuildAgentKubernetesNetworkPolicy creates the base node agent kubernetes network policy
 func (m *networkPolicyManagerImpl) BuildKubernetesNetworkPolicy(dda metav1.Object, componentName v2alpha1.ComponentName) error {
 	policyName, podSelector := getPolicyMetadata(dda, componentName)
-	ddaName := dda.GetName()
 	ddaNamespace := dda.GetNamespace()
 
 	policyTypes := []netv1.PolicyType{
@@ -89,23 +88,47 @@ func (m *networkPolicyManagerImpl) BuildKubernetesNetworkPolicy(dda metav1.Objec
 		}
 		ingress = []netv1.NetworkPolicyIngressRule{}
 	case v2alpha1.ClusterAgentComponentName:
+		_, nodeAgentPodSelector := getPolicyMetadata(dda, v2alpha1.NodeAgentComponentName)
 		egress = []netv1.NetworkPolicyEgressRule{
 			{
 				Ports: append([]netv1.NetworkPolicyPort{}, ddIntakePort()),
 			},
+			// Egress to other cluster agents
+			{
+				Ports: append([]netv1.NetworkPolicyPort{}, dcaServicePort()),
+				To: []netv1.NetworkPolicyPeer{
+					{
+						PodSelector: &podSelector,
+					},
+				},
+			},
 		}
 		ingress = []netv1.NetworkPolicyIngressRule{
-			// Ingress for the node agents
+			// Ingress from the node agents (for the metadata provider) and other cluster agents
 			{
 				Ports: append([]netv1.NetworkPolicyPort{}, dcaServicePort()),
 				From: []netv1.NetworkPolicyPeer{
 					{
-						PodSelector: &metav1.LabelSelector{
-							MatchLabels: map[string]string{
-								kubernetes.AppKubernetesInstanceLabelKey: ddaName,
-								kubernetes.AppKubernetesPartOfLabelKey:   ddaName + "-" + ddaNamespace,
-							},
+						PodSelector: &nodeAgentPodSelector,
+					},
+					{
+						PodSelector: &podSelector,
+					},
+				},
+			},
+			// Ingress from the node agents (for the prometheus check)
+			{
+				Ports: []netv1.NetworkPolicyPort{
+					{
+						Port: &intstr.IntOrString{
+							Type:   intstr.Int,
+							IntVal: 5000,
 						},
+					},
+				},
+				From: []netv1.NetworkPolicyPeer{
+					{
+						PodSelector: &nodeAgentPodSelector,
 					},
 				},
 			},
