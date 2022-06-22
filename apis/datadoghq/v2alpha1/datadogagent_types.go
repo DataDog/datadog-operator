@@ -842,12 +842,33 @@ type DatadogAgentStatus struct {
 	// +listType=map
 	// +listMapKey=type
 	Conditions []metav1.Condition `json:"conditions"`
+	// The actual state of the Agent as an extended daemonset.
+	// +optional
+	Agent *DaemonSetStatus `json:"agent,omitempty"`
 	// The actual state of the Cluster Agent as a deployment.
 	// +optional
 	ClusterAgent *DeploymentStatus `json:"clusterAgent,omitempty"`
 	// The actual state of the Cluster Checks Runner as a deployment.
 	// +optional
 	ClusterChecksRunner *DeploymentStatus `json:"clusterChecksRunner,omitempty"`
+}
+
+// DaemonSetStatus defines the observed state of Agent running as DaemonSet.
+// +k8s:openapi-gen=true
+type DaemonSetStatus struct {
+	Desired   int32 `json:"desired"`
+	Current   int32 `json:"current"`
+	Ready     int32 `json:"ready"`
+	Available int32 `json:"available"`
+	UpToDate  int32 `json:"upToDate"`
+
+	Status      string       `json:"status,omitempty"`
+	State       string       `json:"state,omitempty"`
+	LastUpdate  *metav1.Time `json:"lastUpdate,omitempty"`
+	CurrentHash string       `json:"currentHash,omitempty"`
+
+	// DaemonsetName corresponds to the name of the created DaemonSet.
+	DaemonsetName string `json:"daemonsetName,omitempty"`
 }
 
 // DeploymentStatus type representing a Deployment status.
