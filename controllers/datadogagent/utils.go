@@ -1317,20 +1317,16 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 		}
 	}
 
-	if isRuntimeSecurityEnabled(&dda.Spec) {
+	if isRuntimeSecurityEnabled(&dda.Spec) && dda.Spec.Agent.Security.Runtime.PoliciesDir != nil {
 		volumes = append(volumes,
 			corev1.Volume{
 				Name: datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},
-			})
-
-		if dda.Spec.Agent.Security.Runtime.PoliciesDir != nil {
-			volumes = append(volumes,
-				getVolumeFromConfigDirSpec(datadoghqv1alpha1.SecurityAgentRuntimeCustomPoliciesVolumeName, dda.Spec.Agent.Security.Runtime.PoliciesDir),
-			)
-		}
+			},
+			getVolumeFromConfigDirSpec(datadoghqv1alpha1.SecurityAgentRuntimeCustomPoliciesVolumeName, dda.Spec.Agent.Security.Runtime.PoliciesDir),
+		)
 	}
 
 	volumes = append(volumes, dda.Spec.Agent.Config.Volumes...)
@@ -1780,7 +1776,7 @@ func getVolumeMountsForSecurityAgent(dda *datadoghqv1alpha1.DatadogAgent) []core
 		}...)
 	}
 
-	if runtimeEnabled {
+	if runtimeEnabled && dda.Spec.Agent.Security.Runtime.PoliciesDir != nil {
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
 			Name:      datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumeName,
 			MountPath: datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumePath,
