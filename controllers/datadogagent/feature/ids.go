@@ -25,7 +25,9 @@ const (
 	NPMIDType
 	// CSPMIDType CSPM feature.
 	CSPMIDType
-	// USMIDType USM feature.
+	// CWSIDType USM feature.
+	CWSIDType
+	// USMIDType CWS feature.
 	USMIDType
 	// OOMKillIDType OOM Kill check feature
 	OOMKillIDType
