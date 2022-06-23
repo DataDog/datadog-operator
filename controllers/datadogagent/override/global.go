@@ -66,139 +66,141 @@ func ApplyGlobalSettings(manager feature.PodTemplateManagers, dda *v2alpha1.Data
 		Value: *config.LogLevel,
 	})
 
-	// Tags contains a list of tags to attach to every metric, event and service check collected.
-	if config.Tags != nil {
-		tags, _ := json.Marshal(config.Tags)
-		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-			Name:  apicommon.DDTags,
-			Value: string(tags),
-		})
-	}
-
-	// Provide a mapping of Kubernetes Labels to Datadog Tags.
-	if config.PodLabelsAsTags != nil {
-		podLabelsAsTags, _ := json.Marshal(config.PodLabelsAsTags)
-		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-			Name:  apicommon.DDPodLabelsAsTags,
-			Value: string(podLabelsAsTags),
-		})
-	}
-
-	// Provide a mapping of Kubernetes Annotations to Datadog Tags.
-	if config.PodAnnotationsAsTags != nil {
-		podAnnotationsAsTags, _ := json.Marshal(config.PodAnnotationsAsTags)
-		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-			Name:  apicommon.DDPodAnnotationsAsTags,
-			Value: string(podAnnotationsAsTags),
-		})
-	}
-
 	// NetworkPolicy contains the network configuration.
 	if config.NetworkPolicy != nil {
 		if apiutils.BoolValue(config.NetworkPolicy.Create) {
 			switch config.NetworkPolicy.Flavor {
 			case v2alpha1.NetworkPolicyFlavorKubernetes:
-				switch componentName {
-				case v2alpha1.NodeAgentComponentName:
-					_ = resourcesManager.NetworkPolicyManager().BuildKubernetesNetworkPolicy(dda, v2alpha1.NodeAgentComponentName)
-				case v2alpha1.ClusterAgentComponentName:
-					_ = resourcesManager.NetworkPolicyManager().BuildKubernetesNetworkPolicy(dda, v2alpha1.ClusterAgentComponentName)
-				case v2alpha1.ClusterChecksRunnerComponentName:
-					_ = resourcesManager.NetworkPolicyManager().BuildKubernetesNetworkPolicy(dda, v2alpha1.ClusterChecksRunnerComponentName)
-				}
+				_ = resourcesManager.NetworkPolicyManager().BuildKubernetesNetworkPolicy(dda, componentName)
 			case v2alpha1.NetworkPolicyFlavorCilium:
 				// TODO
-				// node agent
-				// dca
-				// ccr
 			}
 		}
 	}
 
-	// LocalService contains configuration to customize the internal traffic policy service.
-	gitVersion := resourcesManager.Store().GetVersionInfo()
-	if utils.IsAboveMinVersion(gitVersion, minLocalServiceVersion) {
-		if config.LocalService != nil {
-			if apiutils.BoolValue(config.LocalService.ForceEnableLocalService) || utils.IsAboveMinVersion(gitVersion, minDefaultLocalServiceVersion) {
-				if config.LocalService.NameOverride != nil {
-					_ = resourcesManager.ServiceManager().BuildAgentLocalService(dda, *config.LocalService.NameOverride)
-				} else {
-					_ = resourcesManager.ServiceManager().BuildAgentLocalService(dda, "")
-				}
-			}
-		}
-	}
-
-	// Kubelet contains the kubelet configuration parameters.
-	if config.Kubelet != nil {
-		var kubeletHostValueFrom *corev1.EnvVarSource
-		if config.Kubelet.Host != nil {
-			kubeletHostValueFrom = config.Kubelet.Host
-		} else {
-			kubeletHostValueFrom = &corev1.EnvVarSource{
-				FieldRef: &corev1.ObjectFieldSelector{
-					FieldPath: apicommon.FieldPathStatusHostIP,
-				},
-			}
-		}
-		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-			Name:      apicommon.DDKubeletHost,
-			ValueFrom: kubeletHostValueFrom,
-		})
-
-		if config.Kubelet.TLSVerify != nil {
+	if componentName == v2alpha1.NodeAgentComponentName {
+		// Tags contains a list of tags to attach to every metric, event and service check collected.
+		if config.Tags != nil {
+			tags, _ := json.Marshal(config.Tags)
 			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-				Name:  apicommon.DDKubeletTLSVerify,
-				Value: apiutils.BoolToString(config.Kubelet.TLSVerify),
+				Name:  apicommon.DDTags,
+				Value: string(tags),
 			})
 		}
 
-		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-			Name:  apicommon.DDKubeletCAPath,
-			Value: config.Kubelet.AgentCAPath,
-		})
+		// Provide a mapping of Kubernetes Labels to Datadog Tags.
+		if config.PodLabelsAsTags != nil {
+			podLabelsAsTags, _ := json.Marshal(config.PodLabelsAsTags)
+			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+				Name:  apicommon.DDPodLabelsAsTags,
+				Value: string(podLabelsAsTags),
+			})
+		}
 
-		if config.Kubelet.HostCAPath != "" {
-			kubeletVol, kubeletVolMount := volume.GetVolumes(apicommon.KubeletCAVolumeName, config.Kubelet.HostCAPath, config.Kubelet.AgentCAPath, true)
-			manager.VolumeMount().AddVolumeMountToContainers(&kubeletVolMount, getContainerList(manager))
-			manager.Volume().AddVolume(&kubeletVol)
+		// Provide a mapping of Kubernetes Annotations to Datadog Tags.
+		if config.PodAnnotationsAsTags != nil {
+			podAnnotationsAsTags, _ := json.Marshal(config.PodAnnotationsAsTags)
+			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+				Name:  apicommon.DDPodAnnotationsAsTags,
+				Value: string(podAnnotationsAsTags),
+			})
+		}
+
+		// LocalService contains configuration to customize the internal traffic policy service.
+		gitVersion := resourcesManager.Store().GetVersionInfo()
+		if utils.IsAboveMinVersion(gitVersion, minLocalServiceVersion) {
+			if config.LocalService != nil {
+				if apiutils.BoolValue(config.LocalService.ForceEnableLocalService) || utils.IsAboveMinVersion(gitVersion, minDefaultLocalServiceVersion) {
+					if config.LocalService.NameOverride != nil {
+						_ = resourcesManager.ServiceManager().BuildAgentLocalService(dda, *config.LocalService.NameOverride)
+					} else {
+						_ = resourcesManager.ServiceManager().BuildAgentLocalService(dda, "")
+					}
+				}
+			}
+		}
+
+		// Kubelet contains the kubelet configuration parameters.
+		if config.Kubelet != nil {
+			var kubeletHostValueFrom *corev1.EnvVarSource
+			if config.Kubelet.Host != nil {
+				kubeletHostValueFrom = config.Kubelet.Host
+			} else {
+				kubeletHostValueFrom = &corev1.EnvVarSource{
+					FieldRef: &corev1.ObjectFieldSelector{
+						FieldPath: apicommon.FieldPathStatusHostIP,
+					},
+				}
+			}
+			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+				Name:      apicommon.DDKubeletHost,
+				ValueFrom: kubeletHostValueFrom,
+			})
+
+			if config.Kubelet.TLSVerify != nil {
+				manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+					Name:  apicommon.DDKubeletTLSVerify,
+					Value: apiutils.BoolToString(config.Kubelet.TLSVerify),
+				})
+			}
+
+			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+				Name:  apicommon.DDKubeletCAPath,
+				Value: config.Kubelet.AgentCAPath,
+			})
+
+			if config.Kubelet.HostCAPath != "" {
+				kubeletVol, kubeletVolMount := volume.GetVolumes(apicommon.KubeletCAVolumeName, config.Kubelet.HostCAPath, config.Kubelet.AgentCAPath, true)
+				manager.VolumeMount().AddVolumeMountToContainers(
+					&kubeletVolMount,
+					[]apicommonv1.AgentContainerName{
+						apicommonv1.CoreAgentContainerName,
+						apicommonv1.ProcessAgentContainerName,
+						apicommonv1.TraceAgentContainerName,
+					},
+				)
+				manager.Volume().AddVolume(&kubeletVol)
+			}
+		}
+
+		// Path to the docker runtime socket.
+		if config.DockerSocketPath != nil {
+			dockerMountPath := filepath.Join(apicommon.HostCriSocketPathPrefix, *config.DockerSocketPath)
+			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+				Name:  apicommon.DDDockerHost,
+				Value: "unix://" + dockerMountPath,
+			})
+			dockerVol, dockerVolMount := volume.GetVolumes(apicommon.CriSocketVolumeName, *config.DockerSocketPath, dockerMountPath, true)
+			manager.VolumeMount().AddVolumeMountToContainers(
+				&dockerVolMount,
+				[]apicommonv1.AgentContainerName{
+					apicommonv1.CoreAgentContainerName,
+					apicommonv1.ProcessAgentContainerName,
+					apicommonv1.SecurityAgentContainerName,
+				},
+			)
+			manager.Volume().AddVolume(&dockerVol)
+		}
+
+		// Path to the container runtime socket (if different from Docker).
+		if config.CriSocketPath != nil {
+			criSocketMountPath := filepath.Join(apicommon.HostCriSocketPathPrefix, *config.CriSocketPath)
+			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+				Name:  apicommon.DDCriSocketPath,
+				Value: criSocketMountPath,
+			})
+			criVol, criVolMount := volume.GetVolumes(apicommon.CriSocketVolumeName, *config.CriSocketPath, criSocketMountPath, true)
+			manager.VolumeMount().AddVolumeMountToContainers(
+				&criVolMount,
+				[]apicommonv1.AgentContainerName{
+					apicommonv1.CoreAgentContainerName,
+					apicommonv1.ProcessAgentContainerName,
+					apicommonv1.SecurityAgentContainerName,
+				},
+			)
+			manager.Volume().AddVolume(&criVol)
 		}
 	}
 
-	// Path to the docker runtime socket.
-	if config.DockerSocketPath != nil {
-		dockerMountPath := filepath.Join(apicommon.HostCriSocketPathPrefix, *config.DockerSocketPath)
-		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-			Name:  apicommon.DDDockerHost,
-			Value: "unix://" + dockerMountPath,
-		})
-		dockerVol, dockerVolMount := volume.GetVolumes(apicommon.CriSocketVolumeName, *config.DockerSocketPath, dockerMountPath, true)
-		manager.VolumeMount().AddVolumeMountToContainers(&dockerVolMount, getContainerList(manager))
-		manager.Volume().AddVolume(&dockerVol)
-	}
-
-	// Path to the container runtime socket (if different from Docker).
-	if config.CriSocketPath != nil {
-		criSocketMountPath := filepath.Join(apicommon.HostCriSocketPathPrefix, *config.CriSocketPath)
-		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-			Name:  apicommon.DDCriSocketPath,
-			Value: criSocketMountPath,
-		})
-		criVol, criVolMount := volume.GetVolumes(apicommon.CriSocketVolumeName, *config.CriSocketPath, criSocketMountPath, true)
-		manager.VolumeMount().AddVolumeMountToContainers(&criVolMount, getContainerList(manager))
-		manager.Volume().AddVolume(&criVol)
-	}
-
 	return manager.PodTemplateSpec()
-}
-
-func getContainerList(manager feature.PodTemplateManagers) []apicommonv1.AgentContainerName {
-	contList := []apicommonv1.AgentContainerName{}
-	for _, c := range manager.PodTemplateSpec().Spec.InitContainers {
-		contList = append(contList, apicommonv1.AgentContainerName(c.Name))
-	}
-	for _, c := range manager.PodTemplateSpec().Spec.Containers {
-		contList = append(contList, apicommonv1.AgentContainerName(c.Name))
-	}
-	return contList
 }
