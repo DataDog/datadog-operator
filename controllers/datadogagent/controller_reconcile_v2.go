@@ -22,6 +22,7 @@ import (
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/override"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 )
 
@@ -97,14 +98,21 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 		Scheme:        r.scheme,
 	}
 	depsStore := dependencies.NewStore(instance, storeOptions)
-	resourcesManager := feature.NewResourceManagers(depsStore)
+	resourceManagers := feature.NewResourceManagers(depsStore)
+
 	var errs []error
+
+	// Set up dependencies required by enabled features
 	for id, feat := range features {
 		logger.Info("Dependency ManageDependencies", "featureID", id)
-		if featErr := feat.ManageDependencies(resourcesManager, requiredComponents); err != nil {
+		if featErr := feat.ManageDependencies(resourceManagers, requiredComponents); err != nil {
 			errs = append(errs, featErr)
 		}
 	}
+
+	// Examine user configuration to override any external dependencies (e.g. RBACs)
+	errs = append(errs, override.Dependencies(resourceManagers, instance.Spec.Override, instance.Namespace)...)
+
 	// Now create/update dependencies
 	errs = append(errs, depsStore.Apply(ctx, r.client)...)
 	if len(errs) > 0 {
