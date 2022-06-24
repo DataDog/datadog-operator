@@ -99,19 +99,22 @@ func (m *ciliumPolicyManagerImpl) BuildCiliumPolicy(dda metav1.Object, component
 			egressChecks(podSelector),
 		}
 	case v2alpha1.ClusterAgentComponentName:
+		_, nodeAgentPodSelector := getPolicyMetadata(dda, v2alpha1.NodeAgentComponentName)
 		policySpecs = []cilium.NetworkPolicySpec{
 			egressMetadataServerRule(podSelector),
 			egressDNS(podSelector, m.dnsSelectorEndpoints),
 			egressDCADatadogIntake(podSelector, m.site, m.ddURL),
 			egressKubeAPIServer(),
-			ciliumIngressAgent(podSelector, dda, m.hostNetwork),
+			ingressAgent(podSelector, dda, m.hostNetwork),
+			ingressDCA(podSelector, nodeAgentPodSelector),
+			egressDCA(podSelector, nodeAgentPodSelector),
 		}
 	case v2alpha1.ClusterChecksRunnerComponentName:
 		policySpecs = []cilium.NetworkPolicySpec{
 			egressMetadataServerRule(podSelector),
 			egressDNS(podSelector, m.dnsSelectorEndpoints),
 			egressCCRDatadogIntake(podSelector, m.site, m.ddURL),
-			egressDCA(podSelector, dda),
+			egressCCRToDCA(podSelector, dda),
 			egressChecks(podSelector),
 		}
 	}
@@ -452,7 +455,7 @@ func egressKubeAPIServer() cilium.NetworkPolicySpec {
 	}
 }
 
-func egressDCA(podSelector metav1.LabelSelector, dda metav1.Object) cilium.NetworkPolicySpec {
+func egressCCRToDCA(podSelector metav1.LabelSelector, dda metav1.Object) cilium.NetworkPolicySpec {
 	return cilium.NetworkPolicySpec{
 		Description:      "Egress to cluster agent",
 		EndpointSelector: podSelector,
@@ -498,7 +501,7 @@ func defaultDDFQDNs(site, ddURL string) []cilium.FQDNSelector {
 	return selectors
 }
 
-func ciliumIngressAgent(podSelector metav1.LabelSelector, dda metav1.Object, hostNetwork bool) cilium.NetworkPolicySpec {
+func ingressAgent(podSelector metav1.LabelSelector, dda metav1.Object, hostNetwork bool) cilium.NetworkPolicySpec {
 	ingress := cilium.IngressRule{
 		ToPorts: []cilium.PortRule{
 			{
@@ -536,5 +539,53 @@ func ciliumIngressAgent(podSelector metav1.LabelSelector, dda metav1.Object, hos
 		Description:      "Ingress from agent",
 		EndpointSelector: podSelector,
 		Ingress:          []cilium.IngressRule{ingress},
+	}
+}
+
+func ingressDCA(podSelector metav1.LabelSelector, nodeAgentPodSelector metav1.LabelSelector) cilium.NetworkPolicySpec {
+	return cilium.NetworkPolicySpec{
+		Description:      "Ingress from cluster agent",
+		EndpointSelector: podSelector,
+		Ingress: []cilium.IngressRule{
+			{
+				FromEndpoints: []metav1.LabelSelector{
+					nodeAgentPodSelector,
+				},
+				ToPorts: []cilium.PortRule{
+					{
+						Ports: []cilium.PortProtocol{
+							{
+								Port:     "5005",
+								Protocol: cilium.ProtocolTCP,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func egressDCA(podSelector metav1.LabelSelector, nodeAgentPodSelector metav1.LabelSelector) cilium.NetworkPolicySpec {
+	return cilium.NetworkPolicySpec{
+		Description:      "Egress to cluster agent",
+		EndpointSelector: podSelector,
+		Egress: []cilium.EgressRule{
+			{
+				ToEndpoints: []metav1.LabelSelector{
+					nodeAgentPodSelector,
+				},
+				ToPorts: []cilium.PortRule{
+					{
+						Ports: []cilium.PortProtocol{
+							{
+								Port:     "5005",
+								Protocol: cilium.ProtocolTCP,
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 }

@@ -34,15 +34,7 @@ func ApplyGlobalSettings(manager feature.PodTemplateManagers, dda *v2alpha1.Data
 					dnsSelectorEndpoints = config.NetworkPolicy.DNSSelectorEndpoints
 				}
 				resourcesManager.CiliumPolicyManager().SetupCiliumManager(*config.Site, ddURL, v2alpha1.IsHostNetworkEnabled(dda, v2alpha1.ClusterAgentComponentName), dnsSelectorEndpoints)
-
-				switch componentName {
-				case v2alpha1.NodeAgentComponentName:
-					_ = resourcesManager.CiliumPolicyManager().BuildCiliumPolicy(dda, v2alpha1.NodeAgentComponentName)
-				case v2alpha1.ClusterAgentComponentName:
-					_ = resourcesManager.CiliumPolicyManager().BuildCiliumPolicy(dda, v2alpha1.ClusterAgentComponentName)
-				case v2alpha1.ClusterChecksRunnerComponentName:
-					_ = resourcesManager.CiliumPolicyManager().BuildCiliumPolicy(dda, v2alpha1.ClusterChecksRunnerComponentName)
-				}
+				_ = resourcesManager.CiliumPolicyManager().BuildCiliumPolicy(dda, componentName)
 			}
 		}
 	}
