@@ -47,6 +47,10 @@ Here are the steps:
          keyName: app-key
    ```
 
+1. Refer to the ['Datadog Agent examples subfolder'](https://github.com/DataDog/datadog-operator/tree/main/examples/datadogagent)] and select an appropriate Datadog Agent configuration file.
+
+NOTE: If the Kubernetes cluster that you are deploying the Datadog Agent (as an Operator) to is behind a proxy server, the recommended Datadog Agent configuration file to use will be `datadog-agent-all-with-prox.yaml`
+
 1. Deploy the Datadog agent with the above configuration file:
    ```shell
    kubectl apply -f /path/to/your/datadog-agent.yaml
