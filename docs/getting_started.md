@@ -47,7 +47,7 @@ Here are the steps:
          keyName: app-key
    ```
 
-1. Refer to the ['Datadog Agent examples subfolder'](https://github.com/DataDog/datadog-operator/tree/main/examples/datadogagent)] and select an appropriate Datadog Agent configuration file.
+1. Refer to the [`Datadog Agent examples subfolder`](https://github.com/DataDog/datadog-operator/tree/main/examples/datadogagent)] and select an appropriate Datadog Agent configuration file.
 
 1. Deploy the Datadog agent with the above configuration file:
    ```shell
