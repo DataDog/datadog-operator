@@ -47,7 +47,7 @@ Here are the steps:
          keyName: app-key
    ```
 
-1. Refer to the [`Datadog Agent examples subfolder`](https://github.com/DataDog/datadog-operator/tree/main/examples/datadogagent) and select an appropriate Datadog Agent configuration file.
+1. Refer to the [`Datadog Agent examples subfolder`][5]and select an appropriate Datadog Agent configuration file.
 
 1. Deploy the Datadog agent with the above configuration file:
    ```shell
@@ -58,13 +58,13 @@ NOTE: If the Kubernetes cluster that you are deploying the Datadog Agent (as an 
 
 ### Installation option
 
-The [configuration][5] page lists all the Datadog Agent and Cluster Agent features and options that can be configured with the `DatadogAgent` resource.
+The [configuration][6] page lists all the Datadog Agent and Cluster Agent features and options that can be configured with the `DatadogAgent` resource.
 
 #### Containers registry
 
-The default registry ([gcr.io/datadoghq][6]) can be change to any other registry with the option `spec.registry`.
+The default registry ([gcr.io/datadoghq][7]) can be change to any other registry with the option `spec.registry`.
 
-Use the [`datadog-agent-with-registry.yaml` example file][7] to configure the operator to use the [public.ecr.aws/datadog][8] registry.
+Use the [`datadog-agent-with-registry.yaml` example file][8] to configure the operator to use the [public.ecr.aws/datadog][9] registry.
 
 ```yaml
 apiVersion: datadoghq.com/v1alpha1
@@ -89,7 +89,8 @@ helm delete my-datadog-operator
 [2]: https://kubernetes.io/docs/tasks/tools/install-kubectl/
 [3]: https://artifacthub.io/packages/helm/datadog/datadog-operator
 [4]: https://app.datadoghq.com/account/settings#api
-[5]: https://github.com/DataDog/datadog-operator/blob/main/docs/configuration.md
-[6]: ttps://gcr.io/datadoghq
-[7]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/datadog-agent-with-registry.yaml
-[8]: https://gallery.ecr.aws/datadog/
+[5]: https://github.com/DataDog/datadog-operator/tree/main/examples/datadogagent
+[6]: https://github.com/DataDog/datadog-operator/blob/main/docs/configuration.md
+[7]: ttps://gcr.io/datadoghq
+[8]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/datadog-agent-with-registry.yaml
+[9]: https://gallery.ecr.aws/datadog/
