@@ -54,7 +54,7 @@ Here are the steps:
    kubectl apply -f /path/to/your/datadog-agent.yaml
    ```
 
-**NOTE** If the Kubernetes cluster that you are deploying the Datadog Agent (as an Operator) to is behind a proxy server, the recommended Datadog Agent configuration file to use will be `datadog-agent-all-with-proxy.yaml`.
+**NOTE** If the Kubernetes cluster that you are deploying the Datadog Agent (as an Operator) to is behind a proxy server, the recommended Datadog Agent configuration file to use is `datadog-agent-all-with-proxy.yaml`.
 
 ### Installation option
 
