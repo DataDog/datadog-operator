@@ -190,12 +190,17 @@ integration-tests: $(ENVTEST) ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test --tags=integration github.com/DataDog/datadog-operator/controllers -coverprofile cover.out
 
 .PHONY: bundle
-bundle: bin/$(PLATFORM)/operator-sdk $(KUSTOMIZE) manifests ## Generate bundle manifests and metadata, then validate generated files.
+bundle: bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq $(KUSTOMIZE) manifests ## Generate bundle manifests and metadata, then validate generated files.
 	bin/$(PLATFORM)/operator-sdk generate kustomize manifests -q
 	cd config/manager && $(ROOT)/$(KUSTOMIZE) edit set image controller=$(IMG)
 	$(KUSTOMIZE) build config/manifests | bin/$(PLATFORM)/operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
 	hack/patch-bundle.sh
 	bin/$(PLATFORM)/operator-sdk bundle validate ./bundle
+
+# Require Skopeo installed
+# And to download token from https://console.redhat.com/openshift/downloads#tool-pull-secret saved to ~/.redhat/auths.json
+.PHONY: bundle-redhat
+bundle-redhat: bin/$(PLATFORM)/operator-manifest-tools
 	hack/redhat-bundle.sh
 
 .PHONY: bundle-build
@@ -260,6 +265,15 @@ generate-openapi: bin/$(PLATFORM)/openapi-gen
 	bin/$(PLATFORM)/openapi-gen --logtostderr=true -o "" -i ./apis/datadoghq/v1alpha1 -O zz_generated.openapi -p ./apis/datadoghq/v1alpha1 -h ./hack/boilerplate.go.txt -r "-"
 	bin/$(PLATFORM)/openapi-gen --logtostderr=true -o "" -i ./apis/datadoghq/v2alpha1 -O zz_generated.openapi -p ./apis/datadoghq/v2alpha1 -h ./hack/boilerplate.go.txt -r "-"
 
+.PHONY: preflight-redhat-container
+preflight-redhat-container: bin/$(PLATFORM)/preflight
+	bin/$(PLATFORM)/preflight check container ${IMG}
+
+# Runs only on Linux and requires `docker login` to scan.connect.redhat.com
+.PHONY: preflight-redhat-container-submit
+preflight-redhat-container-submit: bin/$(PLATFORM)/preflight
+	bin/$(PLATFORM)/preflight check container ${IMG} --submit --pyxis-api-token=${RH_PARTNER_API_TOKEN} --certification-project-id=${RH_PARTNER_PROJECT_ID} -d ~/.docker/config.json
+
 .PHONY: patch-crds
 patch-crds: bin/$(PLATFORM)/yq ## Patch-crds
 	hack/patch-crds.sh
@@ -307,6 +321,12 @@ bin/$(PLATFORM)/operator-sdk: Makefile
 
 bin/$(PLATFORM)/wwhrd: Makefile
 	hack/install-wwhrd.sh 0.2.4
+
+bin/$(PLATFORM)/operator-manifest-tools: Makefile
+	hack/install-operator-manifest-tools.sh 0.2.0
+
+bin/$(PLATFORM)/preflight: Makefile
+	hack/install-openshift-preflight.sh 1.2.1
 
 .DEFAULT_GOAL := help
 .PHONY: help
