@@ -95,6 +95,7 @@ metadata:
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     repository: https://github.com/DataDog/datadog-operator
     containerImage: gcr.io/datadoghq/operator:0.8.1-rc.1
+    olm.skipRange: <0.8.1-rc.1
   name: datadog-operator.v0.8.1-rc.1
   namespace: placeholder
 spec:

@@ -3,6 +3,8 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
+// nolint
+// +kubebuilder:skip
 package v2alpha1
 
 import (
@@ -624,7 +626,6 @@ type KubeletConfig struct {
 // DatadogAgentGenericContainer is the generic structure describing any container's common configuration.
 // +k8s:openapi-gen=true
 type DatadogAgentGenericContainer struct {
-
 	// Name of the container that is overridden
 	//+optional
 	Name string `json:"name,omitempty"`
@@ -704,7 +705,6 @@ type ImageConfig struct {
 // DatadogAgentStatus defines the observed state of DatadogAgent.
 // +k8s:openapi-gen=true
 type DatadogAgentStatus struct {
-
 	// DefaultOverride contains attributes that were not configured that the runtime defaulted.
 	// +optional
 	DefaultOverride *DatadogAgentSpec `json:"defaultOverride,omitempty"`
