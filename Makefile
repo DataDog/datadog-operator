@@ -187,10 +187,6 @@ bundle-redhat: bin/$(PLATFORM)/operator-manifest-tools
 bundle-build: ## Build the bundle image.
 	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
 
-.PHONY: bundle-redhat-build
-bundle-redhat-build:
-	docker build -f bundle.redhat.Dockerfile -t $(BUNDLE_IMG) .
-
 .PHONY: bundle-push
 bundle-push:
 	docker push $(BUNDLE_IMG)

@@ -93,8 +93,6 @@ build_bundle_image:
   script:
     - BUNDLE_IMG=$TARGET_IMAGE make bundle-build
     - if [ -n "$CI_COMMIT_TAG" ]; then docker tag $TARGET_IMAGE $RELEASE_IMAGE && docker push $RELEASE_IMAGE; fi
-    - BUNDLE_IMG=$TARGET_IMAGE-redhat make bundle-redhat-build
-    - if [ -n "$CI_COMMIT_TAG" ]; then docker tag $TARGET_IMAGE-redhat $RELEASE_IMAGE-redhat && docker push $RELEASE_IMAGE-redhat; fi
 
 preflight_redhat_image_amd64:
   stage: test-image
@@ -159,21 +157,6 @@ publish_redhat_public_tag:
     IMG_DESTINATIONS_REGEX_REPL: ':'
     IMG_REGISTRIES: redhat-operator
 
-submit_preflight_redhat_public_tag:
-  stage: post-release
-  needs:
-    - "publish_redhat_public_tag"
-  tags: ["runner:docker", "size:large"]
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:v2718644-9ce6565-18.09.6-py3
-  variables:
-    RH_PARTNER_PROJECT_ID: 5e7c8ebc1c86a3163d1a69be
-    RH_PARTNER_SCAN_REGISTRY_PATH: /ospid-e18c96b6-0524-4c5c-8ada-ce2fca845c8c/operator
-  script:
-    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$RH_PARTNER_SCAN_OPERATOR_TOKEN_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "unused" --password-stdin "$RH_PARTNER_SCAN_REGISTRY"
-    - RH_PARTNER_API_TOKEN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$RH_PARTNER_API_KEY_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
-    - IMG=${RH_PARTNER_SCAN_REGISTRY}/${RH_PARTNER_SCAN_REGISTRY_PATH}:${CI_COMMIT_TAG:1}
-    - make preflight-redhat-container-submit
-
 publish_public_latest:
   stage: release
   rules:
@@ -206,3 +189,22 @@ trigger_internal_image:
     TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
     RELEASE_STAGING: "true"
     RELEASE_PROD: "true"
+
+submit_preflight_redhat_public_tag:
+  stage: post-release
+  rules:
+    - if: $CI_COMMIT_TAG
+      when: manual
+    - when: never
+  needs:
+    - "publish_redhat_public_tag"
+  tags: ["runner:docker", "size:large"]
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:v2718644-9ce6565-18.09.6-py3
+  variables:
+    RH_PARTNER_PROJECT_ID: 5e7c8ebc1c86a3163d1a69be
+    RH_PARTNER_SCAN_REGISTRY_PATH: /ospid-e18c96b6-0524-4c5c-8ada-ce2fca845c8c/operator
+  script:
+    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$RH_PARTNER_SCAN_OPERATOR_TOKEN_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "unused" --password-stdin "$RH_PARTNER_SCAN_REGISTRY"
+    - RH_PARTNER_API_TOKEN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$RH_PARTNER_API_KEY_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
+    - IMG=${RH_PARTNER_SCAN_REGISTRY}/${RH_PARTNER_SCAN_REGISTRY_PATH}:${CI_COMMIT_TAG:1}
+    - make preflight-redhat-container-submit
