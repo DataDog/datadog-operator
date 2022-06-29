@@ -101,7 +101,7 @@ preflight_redhat_image_amd64:
       when: on_success
     - when: never
   tags: ["runner:docker", "size:large"]
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:v2718644-9ce6565-18.09.6-py3
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:v7284591-9d865ea-20.10.13
   variables:
     TARGET_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-amd64
   script:
@@ -199,7 +199,7 @@ submit_preflight_redhat_public_tag:
   needs:
     - "publish_redhat_public_tag"
   tags: ["runner:docker", "size:large"]
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:v2718644-9ce6565-18.09.6-py3
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:v7284591-9d865ea-20.10.13
   variables:
     RH_PARTNER_PROJECT_ID: 5e7c8ebc1c86a3163d1a69be
     RH_PARTNER_SCAN_REGISTRY_PATH: /ospid-e18c96b6-0524-4c5c-8ada-ce2fca845c8c/operator
