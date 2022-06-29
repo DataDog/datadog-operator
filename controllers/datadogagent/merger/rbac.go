@@ -20,8 +20,11 @@ import (
 // RBACManager use to manage RBAC resources.
 type RBACManager interface {
 	AddServiceAccount(namespace string, name string) error
+	AddServiceAccountByComponent(namespace, name, component string) error
 	AddPolicyRules(namespace string, roleName string, saName string, policies []rbacv1.PolicyRule) error
+	AddPolicyRulesByComponent(namespace string, roleName string, saName string, policies []rbacv1.PolicyRule, component string) error
 	AddClusterPolicyRules(namespace string, roleName string, saName string, policies []rbacv1.PolicyRule) error
+	AddClusterPolicyRulesByComponent(namespace string, roleName string, saName string, policies []rbacv1.PolicyRule, component string) error
 	DeleteServiceAccountByComponent(component, namespace string) error
 	DeleteRoleByComponent(component, namespace string) error
 	DeleteClusterRoleByComponent(component, namespace string) error
@@ -53,6 +56,12 @@ func (m *rbacManagerImpl) AddServiceAccount(namespace string, name string) error
 	}
 
 	return m.store.AddOrUpdate(kubernetes.ServiceAccountsKind, sa)
+}
+
+// AddServiceAccountByComponent is used to create a ServiceAccount and associate it with a component
+func (m *rbacManagerImpl) AddServiceAccountByComponent(namespace, name, component string) error {
+	m.serviceAccountByComponent[component] = append(m.serviceAccountByComponent[component], name)
+	return m.AddServiceAccount(namespace, name)
 }
 
 // DeleteServiceAccount use to remove a ServiceAccount from the store
@@ -116,6 +125,12 @@ func (m *rbacManagerImpl) AddPolicyRules(namespace string, roleName string, saNa
 	}
 
 	return nil
+}
+
+// AddPolicyRulesByComponent is used to add PolicyRules to a Role, create a RoleBinding, and associate them with a component
+func (m *rbacManagerImpl) AddPolicyRulesByComponent(namespace string, roleName string, saName string, policies []rbacv1.PolicyRule, component string) error {
+	m.roleByComponent[component] = append(m.roleByComponent[component], roleName)
+	return m.AddPolicyRules(namespace, roleName, saName, policies)
 }
 
 // DeleteRole is used to delete a Role and RoleBinding.
@@ -184,6 +199,12 @@ func (m *rbacManagerImpl) AddClusterPolicyRules(namespace string, roleName strin
 	}
 
 	return nil
+}
+
+// AddClusterPolicyRulesByComponent use to add PolicyRules to a ClusterRole. It also create the ClusterRoleBinding.
+func (m *rbacManagerImpl) AddClusterPolicyRulesByComponent(namespace string, roleName string, saName string, policies []rbacv1.PolicyRule, component string) error {
+	m.clusterRoleByComponent[component] = append(m.clusterRoleByComponent[component], roleName)
+	return m.AddClusterPolicyRules(namespace, roleName, saName, policies)
 }
 
 // DeleteClusterRole is used to delete a ClusterRole and ClusterRoleBinding.
