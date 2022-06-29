@@ -47,11 +47,11 @@ type defaultFeature struct {
 	namespace string
 	owner     metav1.Object
 
-	credentialsInfo    credentialsInfo
-	dcaTokenInfo       dcaTokenInfo
-	clusterAgent       clusterAgentConfig
-	agent              agentConfig
-	clusterCheckRunner clusterCheckRunnerConfig
+	credentialsInfo     credentialsInfo
+	dcaTokenInfo        dcaTokenInfo
+	clusterAgent        clusterAgentConfig
+	agent               agentConfig
+	clusterChecksRunner clusterChecksRunnerConfig
 }
 
 type credentialsInfo struct {
@@ -84,7 +84,7 @@ type agentConfig struct {
 	serviceAccountName string
 }
 
-type clusterCheckRunnerConfig struct {
+type clusterChecksRunnerConfig struct {
 	serviceAccountName string
 }
 
@@ -95,7 +95,7 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 
 	f.clusterAgent.serviceAccountName = v2alpha1.GetClusterAgentServiceAccount(dda)
 	f.agent.serviceAccountName = v2alpha1.GetAgentServiceAccount(dda)
-	f.clusterCheckRunner.serviceAccountName = v2alpha1.GetClusterChecksRunnerServiceAccount(dda)
+	f.clusterChecksRunner.serviceAccountName = v2alpha1.GetClusterChecksRunnerServiceAccount(dda)
 
 	if dda.Spec.Global != nil {
 		if dda.Spec.Global.Credentials != nil {
@@ -162,7 +162,7 @@ func (f *defaultFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) feature.Require
 
 		f.clusterAgent.serviceAccountName = v1alpha1.GetClusterAgentServiceAccount(dda)
 		f.agent.serviceAccountName = v1alpha1.GetAgentServiceAccount(dda)
-		f.clusterCheckRunner.serviceAccountName = v1alpha1.GetClusterChecksRunnerServiceAccount(dda)
+		f.clusterChecksRunner.serviceAccountName = v1alpha1.GetClusterChecksRunnerServiceAccount(dda)
 
 		// get info about credential
 		// If API key, app key _and_ token don't need a new secret, then don't create one.
@@ -301,8 +301,8 @@ func (f *defaultFeature) clusterChecksRunnerDependencies(managers feature.Resour
 	_ = component
 	var errs []error
 	// serviceAccount
-	if f.clusterCheckRunner.serviceAccountName != "" {
-		if err := managers.RBACManager().AddServiceAccountByComponent(f.namespace, f.clusterCheckRunner.serviceAccountName, string(v2alpha1.ClusterChecksRunnerComponentName)); err != nil {
+	if f.clusterChecksRunner.serviceAccountName != "" {
+		if err := managers.RBACManager().AddServiceAccountByComponent(f.namespace, f.clusterChecksRunner.serviceAccountName, string(v2alpha1.ClusterChecksRunnerComponentName)); err != nil {
 			errs = append(errs, err)
 		}
 	}
