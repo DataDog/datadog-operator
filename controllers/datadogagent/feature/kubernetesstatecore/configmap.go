@@ -68,6 +68,7 @@ instances:
     - namespaces
     - persistentvolumeclaims
     - persistentvolumes
+    - ingresses
     telemetry: true
     skip_leader_election: %s
 `, stringVal, stringVal)
