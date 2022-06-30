@@ -136,7 +136,7 @@ func (f *orchestratorExplorerFeature) ManageDependencies(managers feature.Resour
 	// Manager RBAC permission
 	rbacName := GetOrchestratorExplorerRBACResourceName(f.owner, f.rbacSuffix)
 
-	return managers.RBACManager().AddClusterPolicyRules("", rbacName, f.serviceAccountName, getRBACPolicyRules())
+	return managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), rbacName, f.serviceAccountName, getRBACPolicyRules())
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
