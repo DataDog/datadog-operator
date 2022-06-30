@@ -26169,58 +26169,7 @@ spec:
                       endpoint:
                         description: 'Override the API endpoint for the Orchestrator
                           Explorer. URL Default: "https://orchestrator.datadoghq.com".'
-                        properties:
-                          credentials:
-                            description: Credentials defines the Datadog credentials
-                              used to submit data to/query data from Datadog.
-                            properties:
-                              apiKey:
-                                description: 'APIKey configures your Datadog API key.
-                                  See also: https://app.datadoghq.com/account/settings#agent/kubernetes'
-                                type: string
-                              apiSecret:
-                                description: APISecret references an existing Secret
-                                  which stores the API key instead of creating a new
-                                  one. If set, this parameter takes precedence over
-                                  "APIKey".
-                                properties:
-                                  keyName:
-                                    description: KeyName is the key of the secret
-                                      to use.
-                                    type: string
-                                  secretName:
-                                    description: SecretName is the name of the secret.
-                                    type: string
-                                required:
-                                - secretName
-                                type: object
-                              appKey:
-                                description: AppKey configures your Datadog application
-                                  key. If you are using clusterAgent.metricsProvider.enabled
-                                  = true, you must set a Datadog application key for
-                                  read access to your metrics.
-                                type: string
-                              appSecret:
-                                description: AppSecret references an existing Secret
-                                  which stores the application key instead of creating
-                                  a new one. If set, this parameter takes precedence
-                                  over "AppKey".
-                                properties:
-                                  keyName:
-                                    description: KeyName is the key of the secret
-                                      to use.
-                                    type: string
-                                  secretName:
-                                    description: SecretName is the name of the secret.
-                                    type: string
-                                required:
-                                - secretName
-                                type: object
-                            type: object
-                          url:
-                            description: URL defines the endpoint URL.
-                            type: string
-                        type: object
+                        type: string
                       extraTags:
                         description: Additional tags to associate with the collected
                           data in the form of `a b c`. This is a Cluster Agent option

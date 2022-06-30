@@ -101,9 +101,7 @@ func convertFeatures(src DatadogFeatures, dst *v2alpha1.DatadogAgent) {
 		}
 
 		if src.OrchestratorExplorer.DDUrl != nil {
-			dstFeatures.OrchestratorExplorer.Endpoint = &v2alpha1.Endpoint{
-				URL: src.OrchestratorExplorer.DDUrl,
-			}
+			dstFeatures.OrchestratorExplorer.DDUrl = src.OrchestratorExplorer.DDUrl
 		}
 		// TODO: Handle src ClusterChecks + AdditionalEndpoints, seems to be missing from V2
 	}

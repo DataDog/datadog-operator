@@ -1253,10 +1253,10 @@ func (in *OrchestratorExplorerFeatureConfig) DeepCopyInto(out *OrchestratorExplo
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
-	if in.Endpoint != nil {
-		in, out := &in.Endpoint, &out.Endpoint
-		*out = new(Endpoint)
-		(*in).DeepCopyInto(*out)
+	if in.DDUrl != nil {
+		in, out := &in.DDUrl, &out.DDUrl
+		*out = new(string)
+		**out = **in
 	}
 }
 
