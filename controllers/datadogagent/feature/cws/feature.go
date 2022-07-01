@@ -48,7 +48,7 @@ func (f *cwsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 			f.syscallMonitorEnabled = true
 		}
 
-		if cws.CustomPolicies != nil {
+		if cws.CustomPolicies != nil && cws.CustomPolicies.Name != "" {
 			f.configMapName = cws.CustomPolicies.Name
 			f.configMapConfig = cws.CustomPolicies
 		}
@@ -76,7 +76,7 @@ func (f *cwsFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.Re
 			f.syscallMonitorEnabled = true
 		}
 
-		if runtime.PoliciesDir != nil {
+		if runtime.PoliciesDir != nil && runtime.PoliciesDir.ConfigMapName != "" {
 			f.configMapName = runtime.PoliciesDir.ConfigMapName
 			f.configMapConfig = v1alpha1.ConvertConfigDirSpec(runtime.PoliciesDir).ConfigMap
 		}

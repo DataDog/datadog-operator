@@ -33,6 +33,7 @@ import (
 
 	// Use to register features
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/cspm"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/cws"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/dummy"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/enabledefault"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/eventcollection"
