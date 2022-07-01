@@ -263,7 +263,7 @@ generate-openapi: bin/$(PLATFORM)/openapi-gen
 
 .PHONY: preflight-redhat-container
 preflight-redhat-container: bin/$(PLATFORM)/preflight
-	bin/$(PLATFORM)/preflight check container ${IMG}
+	bin/$(PLATFORM)/preflight check container ${IMG} -d ~/.docker/config.json
 
 # Runs only on Linux and requires `docker login` to scan.connect.redhat.com
 .PHONY: preflight-redhat-container-submit

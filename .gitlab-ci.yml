@@ -125,6 +125,7 @@ build_bundle_image:
     - BUNDLE_IMG=$TARGET_IMAGE make bundle-build
     - if [ -n "$CI_COMMIT_TAG" ]; then docker tag $TARGET_IMAGE $RELEASE_IMAGE && docker push $RELEASE_IMAGE; fi
 
+
 preflight_redhat_image_amd64:
   stage: test-image
   rules:
@@ -132,10 +133,13 @@ preflight_redhat_image_amd64:
       when: on_success
     - when: never
   tags: ["runner:docker", "size:large"]
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:v2718644-9ce6565-18.09.6-py3
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:v7284591-9d865ea-20.10.13
   variables:
     TARGET_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-amd64
   script:
+    - apt-get update && apt-get -y install --no-install-recommends build-essential git awscli && apt-get -y clean && rm -rf /var/lib/apt/lists/*
+    - DOCKER_REGISTRY_LOGIN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_LOGIN_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
+    - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin "$DOCKER_REGISTRY_URL"
     - IMG=$TARGET_IMAGE make preflight-redhat-container
 
 publish_public_main:
@@ -248,11 +252,12 @@ submit_preflight_redhat_public_tag:
   needs:
     - "publish_redhat_public_tag"
   tags: ["runner:docker", "size:large"]
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:v2718644-9ce6565-18.09.6-py3
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:v7284591-9d865ea-20.10.13
   variables:
     RH_PARTNER_PROJECT_ID: 5e7c8ebc1c86a3163d1a69be
     RH_PARTNER_SCAN_REGISTRY_PATH: /ospid-e18c96b6-0524-4c5c-8ada-ce2fca845c8c/operator
   script:
+    - apt-get update && apt-get -y install --no-install-recommends build-essential git awscli && apt-get -y clean && rm -rf /var/lib/apt/lists/*
     - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$RH_PARTNER_SCAN_OPERATOR_TOKEN_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "unused" --password-stdin "$RH_PARTNER_SCAN_REGISTRY"
     - RH_PARTNER_API_TOKEN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$RH_PARTNER_API_KEY_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
     - IMG=${RH_PARTNER_SCAN_REGISTRY}/${RH_PARTNER_SCAN_REGISTRY_PATH}:${CI_COMMIT_TAG:1}
