@@ -93,8 +93,8 @@ spec:
 | features.orchestratorExplorer.conf.configData | ConfigData corresponds to the configuration file content. |
 | features.orchestratorExplorer.conf.configMap.items | Items maps a ConfigMap data key to a file path mount. |
 | features.orchestratorExplorer.conf.configMap.name | Name is the name of the ConfigMap. |
-| features.orchestratorExplorer.enabled | Enabled enables the Orchestrator Explorer. Default: true |
 | features.orchestratorExplorer.ddUrl | Override the API endpoint for the Orchestrator Explorer. URL Default: "https://orchestrator.datadoghq.com". |
+| features.orchestratorExplorer.enabled | Enabled enables the Orchestrator Explorer. Default: true |
 | features.orchestratorExplorer.extraTags | Additional tags to associate with the collected data in the form of `a b c`. This is a Cluster Agent option distinct from DD_TAGS that is used in the Orchestrator Explorer. |
 | features.orchestratorExplorer.scrubContainers | ScrubContainers enables scrubbing of sensitive container data (passwords, tokens, etc. ). Default: true |
 | features.prometheusScrape.additionalConfigs | AdditionalConfigs allows adding advanced Prometheus check configurations with custom discovery rules. |

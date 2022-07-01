@@ -26162,14 +26162,14 @@ spec:
                                 type: string
                             type: object
                         type: object
+                      ddUrl:
+                        description: 'Override the API endpoint for the Orchestrator
+                          Explorer. URL Default: "https://orchestrator.datadoghq.com".'
+                        type: string
                       enabled:
                         description: 'Enabled enables the Orchestrator Explorer. Default:
                           true'
                         type: boolean
-                      endpoint:
-                        description: 'Override the API endpoint for the Orchestrator
-                          Explorer. URL Default: "https://orchestrator.datadoghq.com".'
-                        type: string
                       extraTags:
                         description: Additional tags to associate with the collected
                           data in the form of `a b c`. This is a Cluster Agent option
