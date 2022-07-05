@@ -77,6 +77,9 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, request reconcile.
 		}
 	*/
 
+	// Set default values for GlobalConfig and Features
+	datadoghqv2alpha1.DefaultDatadogAgent(instance)
+
 	return r.reconcileInstanceV2(ctx, reqLogger, instance)
 }
 
