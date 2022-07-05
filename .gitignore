@@ -1,6 +1,11 @@
 # Temporary Build Files
 build/_output
 build/_test
+/artifacts
+/references.json
+/replacements.json
+/bundle-redhat
+/bundle-redhat-mp
 
 # binaries (build and tools)
 /controller
