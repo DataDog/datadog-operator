@@ -67,6 +67,7 @@ func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 			f.customConfig = v2alpha1.ConvertCustomConfig(dda.Spec.Features.KubeStateMetricsCore.Conf)
 		}
 
+		f.serviceAccountName = v2alpha1.GetClusterAgentServiceAccount(dda)
 		f.configConfigMapName = apicommonv1.GetConfName(dda, f.customConfig, apicommon.DefaultKubeStateMetricsCoreConf)
 
 		if dda.Spec.Features.ClusterChecks != nil && apiutils.BoolValue(dda.Spec.Features.ClusterChecks.Enabled) {
@@ -76,8 +77,6 @@ func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 				f.rbacSuffix = common.ChecksRunnerSuffix
 				f.serviceAccountName = v2alpha1.GetClusterChecksRunnerServiceAccount(dda)
 				output.ClusterChecksRunner.IsRequired = apiutils.NewBoolPointer(true)
-			} else {
-				f.serviceAccountName = v2alpha1.GetClusterAgentServiceAccount(dda)
 			}
 		}
 	}
@@ -133,7 +132,7 @@ func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers, compo
 	// Manager RBAC permission
 	rbacName := GetKubeStateMetricsRBACResourceName(f.owner, f.rbacSuffix)
 
-	return managers.RBACManager().AddClusterPolicyRules("", rbacName, f.serviceAccountName, getRBACPolicyRules())
+	return managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), rbacName, f.serviceAccountName, getRBACPolicyRules())
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec

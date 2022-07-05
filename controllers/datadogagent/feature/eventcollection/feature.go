@@ -103,14 +103,14 @@ func (f *eventCollectionFeature) ManageDependencies(managers feature.ResourceMan
 	// hardcoding leader election RBAC for now
 	// can look into separating this out later if this needs to be configurable for other features
 	leaderElectionResourceName := utils.GetDatadogLeaderElectionResourceName(f.owner)
-	err := managers.RBACManager().AddClusterPolicyRules("", rbacName, f.serviceAccountName, getLeaderElectionRBACPolicyRules(leaderElectionResourceName))
+	err := managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), rbacName, f.serviceAccountName, getLeaderElectionRBACPolicyRules(leaderElectionResourceName))
 	if err != nil {
 		return err
 	}
 
 	// event collection RBAC
 	tokenResourceName := v2alpha1.GetDefaultDCATokenSecretName(f.owner)
-	return managers.RBACManager().AddClusterPolicyRules("", rbacName, f.serviceAccountName, getRBACPolicyRules(tokenResourceName))
+	return managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), rbacName, f.serviceAccountName, getRBACPolicyRules(tokenResourceName))
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
