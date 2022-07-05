@@ -33,7 +33,10 @@ type RBACManager interface {
 // NewRBACManager return new RBACManager instance
 func NewRBACManager(store dependencies.StoreClient) RBACManager {
 	manager := &rbacManagerImpl{
-		store: store,
+		store:                     store,
+		serviceAccountByComponent: make(map[string][]string),
+		roleByComponent:           make(map[string][]string),
+		clusterRoleByComponent:    make(map[string][]string),
 	}
 	return manager
 }
