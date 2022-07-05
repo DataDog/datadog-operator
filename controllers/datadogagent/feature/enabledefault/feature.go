@@ -44,8 +44,7 @@ func buildDefaultFeature(options *feature.Options) feature.Feature {
 }
 
 type defaultFeature struct {
-	namespace string
-	owner     metav1.Object
+	owner metav1.Object
 
 	credentialsInfo     credentialsInfo
 	dcaTokenInfo        dcaTokenInfo
@@ -90,7 +89,6 @@ type clusterChecksRunnerConfig struct {
 
 func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredComponents {
 	trueValue := true
-	f.namespace = dda.Namespace
 	f.owner = dda
 
 	f.clusterAgent.serviceAccountName = v2alpha1.GetClusterAgentServiceAccount(dda)
@@ -210,13 +208,13 @@ func (f *defaultFeature) ManageDependencies(managers feature.ResourceManagers, c
 	// manage credential secret
 	if f.credentialsInfo.secretCreation.createSecret {
 		for key, value := range f.credentialsInfo.secretCreation.data {
-			if err := managers.SecretManager().AddSecret(f.namespace, f.credentialsInfo.secretCreation.name, key, value); err != nil {
+			if err := managers.SecretManager().AddSecret(f.owner.GetNamespace(), f.credentialsInfo.secretCreation.name, key, value); err != nil {
 				errs = append(errs, err)
 			}
 		}
 		if components.ClusterAgent.IsEnabled() && f.dcaTokenInfo.secretCreation.createSecret {
 			for key, value := range f.credentialsInfo.secretCreation.data {
-				if err := managers.SecretManager().AddSecret(f.namespace, f.dcaTokenInfo.secretCreation.name, key, value); err != nil {
+				if err := managers.SecretManager().AddSecret(f.owner.GetNamespace(), f.dcaTokenInfo.secretCreation.name, key, value); err != nil {
 					errs = append(errs, err)
 				}
 			}
@@ -255,13 +253,13 @@ func (f *defaultFeature) agentDependencies(managers feature.ResourceManagers, co
 	var errs []error
 	// serviceAccount
 	if f.agent.serviceAccountName != "" {
-		if err := managers.RBACManager().AddServiceAccountByComponent(f.namespace, f.agent.serviceAccountName, string(v2alpha1.NodeAgentComponentName)); err != nil {
+		if err := managers.RBACManager().AddServiceAccountByComponent(f.owner.GetNamespace(), f.agent.serviceAccountName, string(v2alpha1.NodeAgentComponentName)); err != nil {
 			errs = append(errs, err)
 		}
 	}
 
 	// ClusterRole creation
-	if err := managers.RBACManager().AddClusterPolicyRules(f.namespace, getAgentRoleName(f.owner), f.agent.serviceAccountName, getDefaultAgentClusterRolePolicyRules()); err != nil {
+	if err := managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), getAgentRoleName(f.owner), f.agent.serviceAccountName, getDefaultAgentClusterRolePolicyRules()); err != nil {
 		errs = append(errs, err)
 	}
 
@@ -274,17 +272,17 @@ func (f *defaultFeature) clusterAgentDependencies(managers feature.ResourceManag
 	// serviceAccount
 	if f.clusterAgent.serviceAccountName != "" {
 		// Service Account creation
-		if err := managers.RBACManager().AddServiceAccountByComponent(f.namespace, f.clusterAgent.serviceAccountName, string(v2alpha1.ClusterAgentComponentName)); err != nil {
+		if err := managers.RBACManager().AddServiceAccountByComponent(f.owner.GetNamespace(), f.clusterAgent.serviceAccountName, string(v2alpha1.ClusterAgentComponentName)); err != nil {
 			errs = append(errs, err)
 		}
 
 		// Role Creation
-		if err := managers.RBACManager().AddPolicyRulesByComponent(f.namespace, componentdca.GetClusterAgentRbacResourcesName(f.owner), f.clusterAgent.serviceAccountName, componentdca.GetDefaultClusterAgentRolePolicyRules(f.owner), string(v2alpha1.ClusterAgentComponentName)); err != nil {
+		if err := managers.RBACManager().AddPolicyRulesByComponent(f.owner.GetNamespace(), componentdca.GetClusterAgentRbacResourcesName(f.owner), f.clusterAgent.serviceAccountName, componentdca.GetDefaultClusterAgentRolePolicyRules(f.owner), string(v2alpha1.ClusterAgentComponentName)); err != nil {
 			errs = append(errs, err)
 		}
 
 		// ClusterRole creation
-		if err := managers.RBACManager().AddClusterPolicyRulesByComponent(f.namespace, componentdca.GetClusterAgentRbacResourcesName(f.owner), f.clusterAgent.serviceAccountName, componentdca.GetDefaultClusterAgentClusterRolePolicyRules(f.owner), string(v2alpha1.ClusterAgentComponentName)); err != nil {
+		if err := managers.RBACManager().AddClusterPolicyRulesByComponent(f.owner.GetNamespace(), componentdca.GetClusterAgentRbacResourcesName(f.owner), f.clusterAgent.serviceAccountName, componentdca.GetDefaultClusterAgentClusterRolePolicyRules(f.owner), string(v2alpha1.ClusterAgentComponentName)); err != nil {
 			errs = append(errs, err)
 		}
 	}
@@ -302,7 +300,7 @@ func (f *defaultFeature) clusterChecksRunnerDependencies(managers feature.Resour
 	var errs []error
 	// serviceAccount
 	if f.clusterChecksRunner.serviceAccountName != "" {
-		if err := managers.RBACManager().AddServiceAccountByComponent(f.namespace, f.clusterChecksRunner.serviceAccountName, string(v2alpha1.ClusterChecksRunnerComponentName)); err != nil {
+		if err := managers.RBACManager().AddServiceAccountByComponent(f.owner.GetNamespace(), f.clusterChecksRunner.serviceAccountName, string(v2alpha1.ClusterChecksRunnerComponentName)); err != nil {
 			errs = append(errs, err)
 		}
 	}
