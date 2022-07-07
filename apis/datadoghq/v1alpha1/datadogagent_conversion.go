@@ -30,7 +30,7 @@ func (src *DatadogAgent) ConvertTo(dst conversion.Hub) error {
 // ConvertFrom converts a v2alpha1 (Hub) to v1alpha1 (local)
 // Not implemented
 func (dst *DatadogAgent) ConvertFrom(src conversion.Hub) error { //nolint
-	return fmt.Errorf("convert from v2alpha1 to %s is not implemented", src.GetObjectKind().GroupVersionKind().Version)
+	return fmt.Errorf("convert from v2alpha1 to %s is not implemented", dst.GetObjectKind().GroupVersionKind().Version)
 }
 
 // ConvertTo use to convert v1alpha1.DatadogAgent to v2alpha1.DatadogAgent
