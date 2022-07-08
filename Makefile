@@ -179,7 +179,7 @@ docker-push-check-ci:
 ##@ Test
 
 .PHONY: test
-test: build manifests generate fmt vet verify-license gotest integration-tests ## Run unit tests and E2E tests
+test: build manifests generate fmt vet verify-license gotest integration-tests integration-tests-v2 ## Run unit tests and E2E tests
 
 .PHONY: gotest
 gotest:
@@ -188,6 +188,10 @@ gotest:
 .PHONY: integration-tests
 integration-tests: $(ENVTEST) ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test --tags=integration github.com/DataDog/datadog-operator/controllers -coverprofile cover.out
+
+.PHONY: integration-tests-v2
+integration-tests-v2: $(ENVTEST) ## Run tests with reconciler V2
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test --tags=integration_v2 github.com/DataDog/datadog-operator/controllers -coverprofile cover_v2.out
 
 .PHONY: bundle
 bundle: bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq $(KUSTOMIZE) manifests ## Generate bundle manifests and metadata, then validate generated files.
