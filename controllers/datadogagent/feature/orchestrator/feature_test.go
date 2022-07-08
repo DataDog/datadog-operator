@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
+	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
@@ -44,7 +45,7 @@ func Test_orchestratorExplorerFeature_Configure(t *testing.T) {
 			Containers: apiutils.NewBoolPointer(true),
 		}
 		ddav1OrchestratorEnable.Spec.Features.OrchestratorExplorer.ExtraTags = []string{"a:z", "b:y", "c:x"}
-		ddav1OrchestratorEnable.Spec.Features.OrchestratorExplorer.DDUrl = apiutils.NewStringPointer("foo.bar")
+		ddav1OrchestratorEnable.Spec.Features.OrchestratorExplorer.DDUrl = apiutils.NewStringPointer("https://foo.bar")
 
 	}
 
@@ -62,7 +63,7 @@ func Test_orchestratorExplorerFeature_Configure(t *testing.T) {
 		ddav2OrchestratorEnable.Spec.Features.OrchestratorExplorer.Enabled = apiutils.NewBoolPointer(true)
 		ddav2OrchestratorEnable.Spec.Features.OrchestratorExplorer.ScrubContainers = apiutils.NewBoolPointer(true)
 		ddav2OrchestratorEnable.Spec.Features.OrchestratorExplorer.ExtraTags = []string{"a:z", "b:y", "c:x"}
-		ddav2OrchestratorEnable.Spec.Features.OrchestratorExplorer.DDUrl = apiutils.NewStringPointer("foo.bar")
+		ddav2OrchestratorEnable.Spec.Features.OrchestratorExplorer.DDUrl = apiutils.NewStringPointer("https://foo.bar")
 	}
 
 	orchestratorClusterAgentWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
@@ -84,10 +85,35 @@ func Test_orchestratorExplorerFeature_Configure(t *testing.T) {
 			},
 			{
 				Name:  apicommon.DDOrchestratorExplorerDDUrl,
-				Value: "foo.bar",
+				Value: "https://foo.bar",
 			},
 		}
 		assert.True(t, apiutils.IsEqualStruct(dcaEnvVars, want), "DCA envvars \ndiff = %s", cmp.Diff(dcaEnvVars, want))
+	}
+
+	orchestratorNodeAgentWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+		mgr := mgrInterface.(*fake.PodTemplateManagers)
+		agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ProcessAgentContainerName]
+
+		want := []*corev1.EnvVar{
+			{
+				Name:  apicommon.DDOrchestratorExplorerEnabled,
+				Value: "true",
+			},
+			{
+				Name:  apicommon.DDOrchestratorExplorerContainerScrubbingEnabled,
+				Value: "true",
+			},
+			{
+				Name:  apicommon.DDOrchestratorExplorerExtraTags,
+				Value: `["a:z","b:y","c:x"]`,
+			},
+			{
+				Name:  apicommon.DDOrchestratorExplorerDDUrl,
+				Value: "https://foo.bar",
+			},
+		}
+		assert.True(t, apiutils.IsEqualStruct(agentEnvVars, want), "Process agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, want))
 	}
 
 	tests := test.FeatureTestSuite{
@@ -95,34 +121,42 @@ func Test_orchestratorExplorerFeature_Configure(t *testing.T) {
 		// v1Alpha1.DatadogAgent
 		//////////////////////////
 		{
-			Name:          "v1alpha1 orchestrator not enable",
+			Name:          "v1alpha1 orchestrator not enabled",
 			DDAv1:         ddav1OrchestratorDisable.DeepCopy(),
 			WantConfigure: false,
 		},
 		{
-			Name:          "v1alpha1 orchestrator not enable",
+			Name:          "v1alpha1 orchestrator enabled",
 			DDAv1:         ddav1OrchestratorEnable,
 			WantConfigure: true,
 			ClusterAgent: &test.ComponentTest{
 				CreateFunc: createEmptyFakeManager,
 				WantFunc:   orchestratorClusterAgentWantFunc,
 			},
+			Agent: &test.ComponentTest{
+				CreateFunc: createEmptyFakeManager,
+				WantFunc:   orchestratorNodeAgentWantFunc,
+			},
 		},
 		//////////////////////////
 		// v2Alpha1.DatadogAgent
 		//////////////////////////
 		{
-			Name:          "v2alpha1 orchestrator not enable",
+			Name:          "v2alpha1 orchestrator not enabled",
 			DDAv2:         ddav2OrchestratorDisable.DeepCopy(),
 			WantConfigure: false,
 		},
 		{
-			Name:          "v2alpha1 orchestrator not enable",
+			Name:          "v2alpha1 orchestrator enabled",
 			DDAv2:         ddav2OrchestratorEnable,
 			WantConfigure: true,
 			ClusterAgent: &test.ComponentTest{
 				CreateFunc: createEmptyFakeManager,
 				WantFunc:   orchestratorClusterAgentWantFunc,
+			},
+			Agent: &test.ComponentTest{
+				CreateFunc: createEmptyFakeManager,
+				WantFunc:   orchestratorNodeAgentWantFunc,
 			},
 		},
 	}

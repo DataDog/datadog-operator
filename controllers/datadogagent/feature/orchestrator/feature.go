@@ -6,9 +6,6 @@
 package orchestrator
 
 import (
-	"encoding/json"
-
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
@@ -57,6 +54,10 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 
 	if orchestrator != nil && apiutils.BoolValue(orchestrator.Enabled) {
 		reqComp.ClusterAgent.IsRequired = apiutils.NewBoolPointer(true)
+		reqComp.Agent = feature.RequiredComponent{
+			IsRequired: apiutils.NewBoolPointer(true),
+			Containers: []apicommonv1.AgentContainerName{apicommonv1.ProcessAgentContainerName},
+		}
 
 		if orchestrator.Conf != nil {
 			f.customConfig = v2alpha1.ConvertCustomConfig(orchestrator.Conf)
@@ -64,7 +65,10 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 		f.configConfigMapName = apicommonv1.GetConfName(dda, f.customConfig, apicommon.DefaultOrchestratorExplorerConf)
 		f.scrubContainers = apiutils.BoolValue(orchestrator.ScrubContainers)
 		f.extraTags = orchestrator.ExtraTags
-		f.ddURL = *orchestrator.DDUrl
+		if orchestrator.DDUrl != nil {
+			f.ddURL = *orchestrator.DDUrl
+		}
+		f.serviceAccountName = v2alpha1.GetClusterAgentServiceAccount(dda)
 
 		if v2alpha1.IsClusterChecksEnabled(dda) {
 			f.clusterChecksEnabled = true
@@ -73,8 +77,6 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 				f.rbacSuffix = common.ChecksRunnerSuffix
 				f.serviceAccountName = v2alpha1.GetClusterChecksRunnerServiceAccount(dda)
 				reqComp.ClusterChecksRunner.IsRequired = apiutils.NewBoolPointer(true)
-			} else {
-				f.serviceAccountName = v2alpha1.GetClusterAgentServiceAccount(dda)
 			}
 		}
 	}
@@ -89,6 +91,10 @@ func (f *orchestratorExplorerFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (r
 
 	if orchestrator != nil && apiutils.BoolValue(orchestrator.Enabled) {
 		reqComp.ClusterAgent.IsRequired = apiutils.NewBoolPointer(true)
+		reqComp.Agent = feature.RequiredComponent{
+			IsRequired: apiutils.NewBoolPointer(true),
+			Containers: []apicommonv1.AgentContainerName{apicommonv1.ProcessAgentContainerName},
+		}
 
 		if orchestrator.Conf != nil {
 			f.customConfig = v1alpha1.ConvertCustomConfig(orchestrator.Conf)
@@ -101,6 +107,7 @@ func (f *orchestratorExplorerFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (r
 		if orchestrator.DDUrl != nil {
 			f.ddURL = *orchestrator.DDUrl
 		}
+		f.serviceAccountName = v1alpha1.GetClusterAgentServiceAccount(dda)
 
 		if v1alpha1.IsClusterChecksEnabled(dda) && apiutils.BoolValue(orchestrator.ClusterCheck) {
 			f.clusterChecksEnabled = true
@@ -111,8 +118,6 @@ func (f *orchestratorExplorerFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (r
 				f.rbacSuffix = common.ChecksRunnerSuffix
 				f.serviceAccountName = v1alpha1.GetClusterChecksRunnerServiceAccount(dda)
 			}
-		} else {
-			f.serviceAccountName = v1alpha1.GetClusterAgentServiceAccount(dda)
 		}
 	}
 
@@ -153,32 +158,8 @@ func (f *orchestratorExplorerFeature) ManageClusterAgent(managers feature.PodTem
 	managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommonv1.ClusterAgentContainerName)
 	managers.Volume().AddVolume(&vol)
 
-	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
-		Name:  apicommon.DDOrchestratorExplorerEnabled,
-		Value: "true",
-	})
-
-	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
-		Name:  apicommon.DDOrchestratorExplorerContainerScrubbingEnabled,
-		Value: apiutils.BoolToString(&f.scrubContainers),
-	})
-
-	if len(f.extraTags) > 0 {
-		tags, err := json.Marshal(f.extraTags)
-		if err != nil {
-			return err
-		}
-		managers.EnvVar().AddEnvVar(&corev1.EnvVar{
-			Name:  apicommon.DDOrchestratorExplorerExtraTags,
-			Value: string(tags),
-		})
-	}
-
-	if f.ddURL != "" {
-		managers.EnvVar().AddEnvVar(&corev1.EnvVar{
-			Name:  apicommon.DDOrchestratorExplorerDDUrl,
-			Value: f.ddURL,
-		})
+	for _, env := range f.getEnvVars() {
+		managers.EnvVar().AddEnvVar(env)
 	}
 
 	return nil
@@ -187,6 +168,10 @@ func (f *orchestratorExplorerFeature) ManageClusterAgent(managers feature.PodTem
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *orchestratorExplorerFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+	for _, env := range f.getEnvVars() {
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, env)
+	}
+
 	return nil
 }
 

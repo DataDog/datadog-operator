@@ -72,7 +72,7 @@ const (
 	DDNodeLabelsAsTags                              = "DD_KUBERNETES_NODE_LABELS_AS_TAGS"
 	DDOrchestratorExplorerEnabled                   = "DD_ORCHESTRATOR_EXPLORER_ENABLED"
 	DDOrchestratorExplorerExtraTags                 = "DD_ORCHESTRATOR_EXPLORER_EXTRA_TAGS"
-	DDOrchestratorExplorerDDUrl                     = "DD_ORCHESTRATOR_EXPLORER_DD_URL"
+	DDOrchestratorExplorerDDUrl                     = "DD_ORCHESTRATOR_EXPLORER_ORCHESTRATOR_DD_URL"
 	DDOrchestratorExplorerAdditionalEndpoints       = "DD_ORCHESTRATOR_ADDITIONAL_ENDPOINTS"
 	DDOrchestratorExplorerContainerScrubbingEnabled = "DD_ORCHESTRATOR_EXPLORER_CONTAINER_SCRUBBING_ENABLED"
 	DDPodAnnotationsAsTags                          = "DD_KUBERNETES_POD_ANNOTATIONS_AS_TAGS"
