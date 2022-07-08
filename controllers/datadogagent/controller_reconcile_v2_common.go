@@ -154,7 +154,13 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 		// check if same hash
 		needUpdate := !comparison.IsSameSpecMD5Hash(hash, currentDaemonset.GetAnnotations())
 		if !needUpdate {
-			// no need to update to stop here the process
+			// Even if the DaemonSet is still the same, it's status might have
+			// changed (for example, the number of pods ready). This call is
+			// needed to keep the agent status updated.
+			now := metav1.NewTime(time.Now())
+			newStatus.Agent = datadoghqv2alpha1.UpdateDaemonSetStatus(currentDaemonset, newStatus.Agent, &now)
+
+			// no need to update the DaemonSet to stop here the process
 			return reconcile.Result{}, nil
 		}
 
