@@ -21,7 +21,6 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
@@ -130,16 +129,13 @@ var _ = AfterSuite(func() {
 
 // Applies the patch defined in config/test-v2/storagev2_in_datadogagents.yaml
 func patchCRDsForV2() error {
+	crdKey := client.ObjectKey{
+		Namespace: "default",
+		Name:      "datadogagents.datadoghq.com",
+	}
+
 	crd := v1.CustomResourceDefinition{}
-	err := k8sClient.Get(
-		context.TODO(),
-		client.ObjectKey{
-			Namespace: "default",
-			Name:      "datadogagents.datadoghq.com",
-		},
-		&crd,
-	)
-	if err != nil {
+	if err := k8sClient.Get(context.TODO(), crdKey, &crd); err != nil {
 		return err
 	}
 
@@ -148,5 +144,16 @@ func patchCRDsForV2() error {
 	crd.Spec.Versions[1].Storage = true
 	crd.Spec.Versions[1].Served = true
 
-	return k8sClient.Update(context.TODO(), &crd)
+	if err := k8sClient.Update(context.TODO(), &crd); err != nil {
+		return err
+	}
+
+	// Wait until the CRD is accessible. Otherwise, we might get errors when
+	// trying to create objects of this type.
+	Eventually(func() bool {
+		err := k8sClient.Get(context.Background(), crdKey, &crd)
+		return err == nil
+	}, timeout, interval).Should(BeTrue())
+
+	return nil
 }
