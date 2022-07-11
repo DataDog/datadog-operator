@@ -108,7 +108,7 @@ func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []c
 				VolumeMounts: volumeMounts,
 				Command:      []string{"bash", "-c"},
 				Args: []string{
-					"rm -rf /etc/datadog-agent/conf.d && touch /etc/datadog-agent/datadog.yaml && exec agent run",
+					"agent run",
 				},
 				LivenessProbe:  apicommon.GetDefaultLivenessProbe(),
 				ReadinessProbe: apicommon.GetDefaultReadinessProbe(),
