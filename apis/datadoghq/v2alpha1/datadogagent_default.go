@@ -56,8 +56,9 @@ const (
 	// defaultAdmissionControllerEnabled          bool = false
 	defaultAdmissionControllerMutateUnlabelled bool = false
 
-	defaultOrchestratorExplorerEnabled bool   = true
-	DefaultOrchestratorExplorerConf    string = "orchestrator-explorer-config"
+	defaultOrchestratorExplorerEnabled         bool   = true
+	defaultOrchestratorExplorerScrubContainers bool   = true
+	DefaultOrchestratorExplorerConf            string = "orchestrator-explorer-config"
 
 	// defaultExternalMetricsServerEnabled bool = false
 	defaultDatadogMetricsEnabled bool = true
@@ -202,6 +203,7 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 	}
 
 	if *ddaSpec.Features.OrchestratorExplorer.Enabled {
+		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.OrchestratorExplorer.ScrubContainers, defaultOrchestratorExplorerScrubContainers)
 		if ddaSpec.Features.OrchestratorExplorer.Conf == nil {
 			ddaSpec.Features.OrchestratorExplorer.Conf = &CustomConfig{
 				ConfigData: apiutils.NewStringPointer(DefaultOrchestratorExplorerConf),

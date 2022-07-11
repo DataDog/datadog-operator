@@ -85,7 +85,8 @@ func Test_defaultFeatures(t *testing.T) {
 						CollectKubernetesEvents: apiutils.NewBoolPointer(defaultCollectKubernetesEvents),
 					},
 					OrchestratorExplorer: &OrchestratorExplorerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultOrchestratorExplorerEnabled),
+						Enabled:         apiutils.NewBoolPointer(defaultOrchestratorExplorerEnabled),
+						ScrubContainers: apiutils.NewBoolPointer(defaultOrchestratorExplorerScrubContainers),
 						Conf: &CustomConfig{
 							ConfigData: apiutils.NewStringPointer(DefaultOrchestratorExplorerConf),
 						},
@@ -264,7 +265,8 @@ func Test_defaultFeatures(t *testing.T) {
 						CollectKubernetesEvents: apiutils.NewBoolPointer(defaultCollectKubernetesEvents),
 					},
 					OrchestratorExplorer: &OrchestratorExplorerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultOrchestratorExplorerEnabled),
+						Enabled:         apiutils.NewBoolPointer(defaultOrchestratorExplorerEnabled),
+						ScrubContainers: apiutils.NewBoolPointer(defaultOrchestratorExplorerScrubContainers),
 						Conf: &CustomConfig{
 							ConfigData: apiutils.NewStringPointer(DefaultOrchestratorExplorerConf),
 						},
@@ -319,7 +321,8 @@ func Test_defaultFeatures(t *testing.T) {
 						CollectKubernetesEvents: apiutils.NewBoolPointer(defaultCollectKubernetesEvents),
 					},
 					OrchestratorExplorer: &OrchestratorExplorerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultOrchestratorExplorerEnabled),
+						Enabled:         apiutils.NewBoolPointer(defaultOrchestratorExplorerEnabled),
+						ScrubContainers: apiutils.NewBoolPointer(defaultOrchestratorExplorerScrubContainers),
 						Conf: &CustomConfig{
 							ConfigData: apiutils.NewStringPointer(DefaultOrchestratorExplorerConf),
 						},
@@ -368,7 +371,8 @@ func Test_defaultFeatures(t *testing.T) {
 						CollectKubernetesEvents: apiutils.NewBoolPointer(defaultCollectKubernetesEvents),
 					},
 					OrchestratorExplorer: &OrchestratorExplorerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultOrchestratorExplorerEnabled),
+						Enabled:         apiutils.NewBoolPointer(defaultOrchestratorExplorerEnabled),
+						ScrubContainers: apiutils.NewBoolPointer(defaultOrchestratorExplorerScrubContainers),
 						Conf: &CustomConfig{
 							ConfigData: apiutils.NewStringPointer(DefaultOrchestratorExplorerConf),
 						},
@@ -412,7 +416,8 @@ func Test_defaultFeatures(t *testing.T) {
 						CollectKubernetesEvents: apiutils.NewBoolPointer(defaultCollectKubernetesEvents),
 					},
 					OrchestratorExplorer: &OrchestratorExplorerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultOrchestratorExplorerEnabled),
+						Enabled:         apiutils.NewBoolPointer(defaultOrchestratorExplorerEnabled),
+						ScrubContainers: apiutils.NewBoolPointer(defaultOrchestratorExplorerScrubContainers),
 						Conf: &CustomConfig{
 							ConfigData: apiutils.NewStringPointer(DefaultOrchestratorExplorerConf),
 						},
