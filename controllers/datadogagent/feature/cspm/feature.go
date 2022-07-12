@@ -138,7 +138,7 @@ func (f *cspmFeature) ManageDependencies(managers feature.ResourceManagers, comp
 	// Manage RBAC
 	rbacName := getRBACResourceName(f.owner)
 
-	return managers.RBACManager().AddClusterPolicyRules("", rbacName, f.serviceAccountName, getRBACPolicyRules())
+	return managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), rbacName, f.serviceAccountName, getRBACPolicyRules())
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec

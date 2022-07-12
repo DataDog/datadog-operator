@@ -37,6 +37,7 @@ type StoreClient interface {
 	AddOrUpdate(kind kubernetes.ObjectKind, obj client.Object) error
 	Get(kind kubernetes.ObjectKind, namespace, name string) (client.Object, bool)
 	GetOrCreate(kind kubernetes.ObjectKind, namespace, name string) (client.Object, bool)
+	Delete(kind kubernetes.ObjectKind, namespace string, name string) bool
 }
 
 // NewStore returns a new Store instance
@@ -164,6 +165,22 @@ func (ds *Store) GetOrCreate(kind kubernetes.ObjectKind, namespace, name string)
 	obj.SetName(name)
 	obj.SetNamespace(namespace)
 	return obj, found
+}
+
+// Delete deletes an item from the store by kind, namespace and name.
+func (ds *Store) Delete(kind kubernetes.ObjectKind, namespace string, name string) bool {
+	ds.mutex.RLock()
+	defer ds.mutex.RUnlock()
+
+	if _, found := ds.deps[kind]; !found {
+		return false
+	}
+	id := buildID(namespace, name)
+	if _, found := ds.deps[kind][id]; found {
+		delete(ds.deps[kind], id)
+		return true
+	}
+	return false
 }
 
 // Apply use to create/update resources in the api-server
