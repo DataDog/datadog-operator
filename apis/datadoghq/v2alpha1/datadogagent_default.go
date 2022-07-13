@@ -214,14 +214,6 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 		}
 	}
 
-	if *ddaSpec.Features.KubeStateMetricsCore.Enabled {
-		if ddaSpec.Features.KubeStateMetricsCore.Conf == nil {
-			ddaSpec.Features.KubeStateMetricsCore.Conf = &CustomConfig{
-				ConfigData: apiutils.NewStringPointer(defaultKubeStateMetricsCoreConf),
-			}
-		}
-	}
-
 	// AdmissionController Feature
 	if ddaSpec.Features.AdmissionController != nil && *ddaSpec.Features.AdmissionController.Enabled {
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.AdmissionController.MutateUnlabelled, defaultAdmissionControllerMutateUnlabelled)
