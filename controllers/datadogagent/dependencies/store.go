@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/go-logr/logr"
 
+	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -198,16 +199,23 @@ func (ds *Store) Apply(ctx context.Context, k8sClient client.Client) []error {
 			err := k8sClient.Get(ctx, objNSName, objAPIServer)
 			if err != nil && apierrors.IsNotFound(err) {
 				ds.logger.V(2).Info("dependencies.store Add object to create", "obj.namespace", objStore.GetNamespace(), "obj.name", objStore.GetName(), "obj.kind", kind)
-				objsToCreate = append(objsToCreate, ds.deps[kind][objID])
+				objsToCreate = append(objsToCreate, objStore)
 				continue
 			} else if err != nil {
 				errs = append(errs, err)
 				continue
 			}
 
+			// ServicesKind is a special case; the cluster IPs are immutable and resource version must be set.
+			if kind == kubernetes.ServicesKind {
+				objStore.(*v1.Service).Spec.ClusterIP = objAPIServer.(*v1.Service).Spec.ClusterIP
+				objStore.(*v1.Service).Spec.ClusterIPs = objAPIServer.(*v1.Service).Spec.ClusterIPs
+				objStore.SetResourceVersion(objAPIServer.GetResourceVersion())
+			}
+
 			if !equality.IsEqualObject(kind, objStore, objAPIServer) {
 				ds.logger.V(2).Info("dependencies.store Add object to update", "obj.namespace", objStore.GetNamespace(), "obj.name", objStore.GetName(), "obj.kind", kind)
-				objsToUpdate = append(objsToUpdate, ds.deps[kind][objID])
+				objsToUpdate = append(objsToUpdate, objStore)
 				continue
 			}
 		}
