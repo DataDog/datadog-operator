@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package enabledefault
+package agent
 
 import (
 	"fmt"
@@ -14,11 +14,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func getAgentRoleName(dda metav1.Object) string {
+// GetAgentRoleName returns the name of the role for the Agent
+func GetAgentRoleName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultAgentResourceSuffix)
 }
 
-func getDefaultAgentClusterRolePolicyRules() []rbacv1.PolicyRule {
+// GetDefaultAgentClusterRolePolicyRules returns the default policy rules for the Agent cluster role
+func GetDefaultAgentClusterRolePolicyRules() []rbacv1.PolicyRule {
 	return []rbacv1.PolicyRule{
 		getMetricsEndpointPolicyRule(),
 		getKubeletPolicyRule(),
