@@ -19,8 +19,19 @@ func getAgentRoleName(dda metav1.Object) string {
 }
 
 func getDefaultAgentClusterRolePolicyRules() []rbacv1.PolicyRule {
-	// TODO (operator-ga):: this only adds the policy for the Kubelet. Check if we need others.
-	return []rbacv1.PolicyRule{getKubeletPolicyRule()}
+	return []rbacv1.PolicyRule{
+		getMetricsEndpointPolicyRule(),
+		getKubeletPolicyRule(),
+		getEndpointsPolicyRule(),
+		getLeaderElectionPolicyRule(),
+	}
+}
+
+func getMetricsEndpointPolicyRule() rbacv1.PolicyRule {
+	return rbacv1.PolicyRule{
+		NonResourceURLs: []string{rbac.MetricsURL},
+		Verbs:           []string{rbac.GetVerb},
+	}
 }
 
 func getKubeletPolicyRule() rbacv1.PolicyRule {
@@ -33,5 +44,21 @@ func getKubeletPolicyRule() rbacv1.PolicyRule {
 			rbac.NodeStats,
 		},
 		Verbs: []string{rbac.GetVerb},
+	}
+}
+
+func getEndpointsPolicyRule() rbacv1.PolicyRule {
+	return rbacv1.PolicyRule{
+		APIGroups: []string{rbac.CoreAPIGroup},
+		Resources: []string{rbac.EndpointsResource},
+		Verbs:     []string{rbac.GetVerb},
+	}
+}
+
+func getLeaderElectionPolicyRule() rbacv1.PolicyRule {
+	return rbacv1.PolicyRule{
+		APIGroups: []string{rbac.CoordinationAPIGroup},
+		Resources: []string{rbac.LeasesResource},
+		Verbs:     []string{rbac.GetVerb},
 	}
 }
