@@ -64,8 +64,7 @@ const (
 	// Cluster Agent versions < 1.20 should use 443
 	defaultMetricsProviderPort int32 = 8443
 
-	defaultKubeStateMetricsCoreEnabled bool   = true
-	defaultKubeStateMetricsCoreConf    string = "kube-state-metrics-core-config"
+	defaultKubeStateMetricsCoreEnabled bool = true
 
 	defaultClusterChecksEnabled    bool = true
 	defaultUseClusterChecksRunners bool = true
@@ -211,14 +210,6 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 	if ddaSpec.Features.KubeStateMetricsCore == nil {
 		ddaSpec.Features.KubeStateMetricsCore = &KubeStateMetricsCoreFeatureConfig{
 			Enabled: apiutils.NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
-		}
-	}
-
-	if *ddaSpec.Features.KubeStateMetricsCore.Enabled {
-		if ddaSpec.Features.KubeStateMetricsCore.Conf == nil {
-			ddaSpec.Features.KubeStateMetricsCore.Conf = &CustomConfig{
-				ConfigData: apiutils.NewStringPointer(defaultKubeStateMetricsCoreConf),
-			}
 		}
 	}
 

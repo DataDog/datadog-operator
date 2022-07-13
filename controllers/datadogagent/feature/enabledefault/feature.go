@@ -312,6 +312,12 @@ func (f *defaultFeature) clusterChecksRunnerDependencies(managers feature.Resour
 // It should do nothing if the feature doesn't need to configure it.
 func (f *defaultFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	f.addDefaultCommonEnvs(managers)
+
+	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+		Name:  apicommon.DDClusterChecksEnabled,
+		Value: "true",
+	})
+
 	return nil
 }
 
@@ -326,6 +332,12 @@ func (f *defaultFeature) ManageNodeAgent(managers feature.PodTemplateManagers) e
 // It should do nothing if the feature doesn't need to configure it.
 func (f *defaultFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	f.addDefaultCommonEnvs(managers)
+
+	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+		Name:  apicommon.DDClusterChecksEnabled,
+		Value: "true",
+	})
+
 	return nil
 }
 
