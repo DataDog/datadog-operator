@@ -64,8 +64,7 @@ const (
 	// Cluster Agent versions < 1.20 should use 443
 	defaultMetricsProviderPort int32 = 8443
 
-	defaultKubeStateMetricsCoreEnabled bool   = true
-	defaultKubeStateMetricsCoreConf    string = "kube-state-metrics-core-config"
+	defaultKubeStateMetricsCoreEnabled bool = true
 
 	defaultClusterChecksEnabled    bool = true
 	defaultUseClusterChecksRunners bool = true
