@@ -72,8 +72,6 @@ const (
 
 	// defaultPrometheusScrapeEnabled                bool = false
 	defaultPrometheusScrapeEnableServiceEndpoints bool = false
-
-	// defaultDatadogMonitorEnabled bool = false
 )
 
 // DefaultDatadogAgent defaults the DatadogAgentSpec GlobalConfig and Features.

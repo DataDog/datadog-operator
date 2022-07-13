@@ -78,9 +78,10 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, request reconcile.
 	*/
 
 	// Set default values for GlobalConfig and Features
-	datadoghqv2alpha1.DefaultDatadogAgent(instance)
+	instanceCopy := instance.DeepCopy()
+	datadoghqv2alpha1.DefaultDatadogAgent(instanceCopy)
 
-	return r.reconcileInstanceV2(ctx, reqLogger, instance)
+	return r.reconcileInstanceV2(ctx, reqLogger, instanceCopy)
 }
 
 func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger, instance *datadoghqv2alpha1.DatadogAgent) (reconcile.Result, error) {
