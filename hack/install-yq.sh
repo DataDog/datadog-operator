@@ -3,7 +3,8 @@ set -euo pipefail
 
 PLATFORM="$(uname -s)-$(uname -m)"
 ROOT=$(git rev-parse --show-toplevel)
-BINARY="yq_$(uname)_amd64"
+ARCH=$(go env GOARCH)
+BINARY="yq_$(uname)_$ARCH"
 
 if [[ $# -ne 1 ]]; then
   echo "usage: bin/install-yq.sh <version>"
