@@ -30,7 +30,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
@@ -218,8 +220,14 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		}))
 	}
 
-	if err := builder.For(&datadoghqv1alpha1.DatadogAgent{}, builderOptions...).Complete(r); err != nil {
-		return err
+	if r.Options.V2Enabled {
+		if err := builder.For(&datadoghqv2alpha1.DatadogAgent{}, builderOptions...).Complete(r); err != nil {
+			return err
+		}
+	} else {
+		if err := builder.For(&datadoghqv1alpha1.DatadogAgent{}, builderOptions...).Complete(r); err != nil {
+			return err
+		}
 	}
 
 	internal, err := datadogagent.NewReconciler(r.Options, r.Client, r.VersionInfo, r.Scheme, r.Log, r.Recorder, metricForwarder)
@@ -238,7 +246,7 @@ func enqueueIfOwnedByDatadogAgent(obj client.Object) []reconcile.Request {
 		return nil
 	}
 
-	partOfLabelVal := datadogagent.PartOfLabelValue{Value: labels[kubernetes.AppKubernetesPartOfLabelKey]}
+	partOfLabelVal := object.PartOfLabelValue{Value: labels[kubernetes.AppKubernetesPartOfLabelKey]}
 	owner := partOfLabelVal.NamespacedName()
 
 	return []reconcile.Request{{NamespacedName: owner}}

@@ -6,6 +6,17 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
+	policyv1 "k8s.io/api/policy/v1beta1"
+	rbacv1 "k8s.io/api/rbac/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+
+	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
+	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
+
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
@@ -28,12 +39,13 @@ type FeatureTest struct {
 	DDAv1   *v1alpha1.DatadogAgent
 	Options *Options
 	// Dependencies Store
-	StoreOption   *dependencies.StoreOptions
-	StoreInitFunc func(store dependencies.StoreClient)
+	StoreOption        *dependencies.StoreOptions
+	StoreInitFunc      func(store dependencies.StoreClient)
+	RequiredComponents feature.RequiredComponents
 	// Test configuration
-	Agent              *ComponentTest
-	ClusterAgent       *ComponentTest
-	ClusterCheckRunner *ComponentTest
+	Agent               *ComponentTest
+	ClusterAgent        *ComponentTest
+	ClusterChecksRunner *ComponentTest
 	// Want
 	WantConfigure             bool
 	WantManageDependenciesErr bool
@@ -43,7 +55,7 @@ type FeatureTest struct {
 // Options use to provide some option to the test.
 type Options struct{}
 
-// ComponentTest use to configure how to test a component (Cluster-Agent, Agent, ClusterCheckRunner)
+// ComponentTest use to configure how to test a component (Cluster-Agent, Agent, ClusterChecksRunner)
 type ComponentTest struct {
 	CreateFunc func(testing.TB) feature.PodTemplateManagers
 	WantFunc   func(testing.TB, feature.PodTemplateManagers)
@@ -56,6 +68,33 @@ func (suite FeatureTestSuite) Run(t *testing.T, buildFunc feature.BuildFunc) {
 	}
 }
 
+// testScheme return a runtime.Scheme for testing purpose
+func testScheme(isV2 bool) *runtime.Scheme {
+	s := runtime.NewScheme()
+	s.AddKnownTypes(edsdatadoghqv1alpha1.GroupVersion, &edsdatadoghqv1alpha1.ExtendedDaemonSet{})
+	s.AddKnownTypes(appsv1.SchemeGroupVersion, &appsv1.DaemonSet{})
+	s.AddKnownTypes(appsv1.SchemeGroupVersion, &appsv1.Deployment{})
+	s.AddKnownTypes(corev1.SchemeGroupVersion, &corev1.Secret{})
+	s.AddKnownTypes(corev1.SchemeGroupVersion, &corev1.ServiceAccount{})
+	s.AddKnownTypes(corev1.SchemeGroupVersion, &corev1.ConfigMap{})
+	s.AddKnownTypes(rbacv1.SchemeGroupVersion, &rbacv1.ClusterRoleBinding{})
+	s.AddKnownTypes(rbacv1.SchemeGroupVersion, &rbacv1.ClusterRole{})
+	s.AddKnownTypes(rbacv1.SchemeGroupVersion, &rbacv1.Role{})
+	s.AddKnownTypes(rbacv1.SchemeGroupVersion, &rbacv1.RoleBinding{})
+	s.AddKnownTypes(policyv1.SchemeGroupVersion, &policyv1.PodDisruptionBudget{})
+	s.AddKnownTypes(apiregistrationv1.SchemeGroupVersion, &apiregistrationv1.APIServiceList{})
+	s.AddKnownTypes(apiregistrationv1.SchemeGroupVersion, &apiregistrationv1.APIService{})
+	s.AddKnownTypes(networkingv1.SchemeGroupVersion, &networkingv1.NetworkPolicy{})
+
+	if isV2 {
+		s.AddKnownTypes(v2alpha1.GroupVersion, &v2alpha1.DatadogAgent{})
+	} else {
+		s.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.DatadogAgent{})
+	}
+
+	return s
+}
+
 func runTest(t *testing.T, tt FeatureTest, buildFunc feature.BuildFunc) {
 	logf.SetLogger(zap.New(zap.UseDevMode(true)))
 	logger := logf.Log.WithName(tt.Name)
@@ -66,16 +105,21 @@ func runTest(t *testing.T, tt FeatureTest, buildFunc feature.BuildFunc) {
 
 	// check feature Configure function
 	var gotConfigure feature.RequiredComponents
+	var dda metav1.Object
+	var isV2 bool
 	if tt.DDAv2 != nil {
 		gotConfigure = f.Configure(tt.DDAv2)
+		dda = tt.DDAv2
+		isV2 = true
 	} else if tt.DDAv1 != nil {
 		gotConfigure = f.ConfigureV1(tt.DDAv1)
+		dda = tt.DDAv1
 	} else {
 		t.Fatal("No DatadogAgent CRD provided")
 	}
 
 	if gotConfigure.IsEnabled() != tt.WantConfigure {
-		t.Errorf("ksmFeature.Configure() = %v, want %v", gotConfigure, tt.WantConfigure)
+		t.Errorf("feature.Configure() = %v, want %v", gotConfigure, tt.WantConfigure)
 	}
 
 	if !gotConfigure.IsEnabled() {
@@ -83,14 +127,23 @@ func runTest(t *testing.T, tt FeatureTest, buildFunc feature.BuildFunc) {
 		return
 	}
 
+	if tt.StoreOption == nil {
+		tt.StoreOption = &dependencies.StoreOptions{
+			Logger: logger,
+		}
+	}
+	if tt.StoreOption.Scheme == nil {
+		tt.StoreOption.Scheme = testScheme(isV2)
+	}
+
 	// dependencies
-	store := dependencies.NewStore(tt.StoreOption)
+	store := dependencies.NewStore(dda, tt.StoreOption)
 	if tt.StoreInitFunc != nil {
 		tt.StoreInitFunc(store)
 	}
 	depsManager := feature.NewResourceManagers(store)
 
-	if err := f.ManageDependencies(depsManager); (err != nil) != tt.WantManageDependenciesErr {
+	if err := f.ManageDependencies(depsManager, tt.RequiredComponents); (err != nil) != tt.WantManageDependenciesErr {
 		t.Errorf("feature.ManageDependencies() error = %v, wantErr %v", err, tt.WantManageDependenciesErr)
 		return
 	}
@@ -112,9 +165,9 @@ func runTest(t *testing.T, tt FeatureTest, buildFunc feature.BuildFunc) {
 		tt.Agent.WantFunc(t, tplManager)
 	}
 
-	if tt.ClusterCheckRunner != nil {
-		tplManager := tt.ClusterCheckRunner.CreateFunc(t)
+	if tt.ClusterChecksRunner != nil {
+		tplManager := tt.ClusterChecksRunner.CreateFunc(t)
 		_ = f.ManageClusterChecksRunner(tplManager)
-		tt.ClusterCheckRunner.WantFunc(t, tplManager)
+		tt.ClusterChecksRunner.WantFunc(t, tplManager)
 	}
 }

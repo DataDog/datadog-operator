@@ -25,7 +25,7 @@ func GetDefaultLabels(dda metav1.Object, instanceName, version string) map[strin
 
 	// Copy Datadog labels from DDA Labels
 	for k, v := range dda.GetLabels() {
-		if strings.HasPrefix(k, datadogTagPrefix) {
+		if strings.HasPrefix(k, DatadogTagPrefix) {
 			labels[k] = v
 		}
 	}

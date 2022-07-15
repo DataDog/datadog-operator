@@ -11,14 +11,18 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/equality"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/go-logr/logr"
 
+	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -31,19 +35,22 @@ const (
 
 // StoreClient dependencies store client interface
 type StoreClient interface {
-	AddOrUpdate(kind kubernetes.ObjectKind, obj client.Object)
+	AddOrUpdate(kind kubernetes.ObjectKind, obj client.Object) error
 	Get(kind kubernetes.ObjectKind, namespace, name string) (client.Object, bool)
 	GetOrCreate(kind kubernetes.ObjectKind, namespace, name string) (client.Object, bool)
+	Delete(kind kubernetes.ObjectKind, namespace string, name string) bool
 }
 
 // NewStore returns a new Store instance
-func NewStore(options *StoreOptions) *Store {
+func NewStore(owner metav1.Object, options *StoreOptions) *Store {
 	store := &Store{
-		deps: make(map[kubernetes.ObjectKind]map[string]client.Object),
+		deps:  make(map[kubernetes.ObjectKind]map[string]client.Object),
+		owner: owner,
 	}
 	if options != nil {
 		store.supportCilium = options.SupportCilium
 		store.logger = options.Logger
+		store.scheme = options.Scheme
 	}
 
 	return store
@@ -57,20 +64,23 @@ type Store struct {
 
 	supportCilium bool
 
+	scheme *runtime.Scheme
 	logger logr.Logger
+	owner  metav1.Object
 }
 
 // StoreOptions use to provide to NewStore() function some Store creation options.
 type StoreOptions struct {
 	SupportCilium bool
 
+	Scheme *runtime.Scheme
 	Logger logr.Logger
 }
 
 // AddOrUpdate used to add or update an object in the Store
 // kind correspond to the object kind, and id can be `namespace/name` identifier of just
 // `name` if we are talking about a cluster scope object like `ClusterRole`.
-func (ds *Store) AddOrUpdate(kind kubernetes.ObjectKind, obj client.Object) {
+func (ds *Store) AddOrUpdate(kind kubernetes.ObjectKind, obj client.Object) error {
 	ds.mutex.Lock()
 	defer ds.mutex.Unlock()
 
@@ -83,14 +93,42 @@ func (ds *Store) AddOrUpdate(kind kubernetes.ObjectKind, obj client.Object) {
 		obj.SetLabels(map[string]string{})
 	}
 	obj.GetLabels()[operatorStoreLabelKey] = "true"
+
+	if ds.owner != nil {
+		defaultLabels := object.GetDefaultLabels(ds.owner, ds.owner.GetName(), component.GetAgentVersion(ds.owner))
+		if len(defaultLabels) > 0 {
+			for key, val := range defaultLabels {
+				obj.GetLabels()[key] = val
+			}
+		}
+
+		defaultAnnotations := object.GetDefaultAnnotations(ds.owner)
+		if len(defaultAnnotations) > 0 {
+			if obj.GetAnnotations() == nil {
+				obj.SetAnnotations(map[string]string{})
+			}
+			for key, val := range defaultAnnotations {
+				obj.GetAnnotations()[key] = val
+			}
+		}
+
+		// Owner-reference should not be added to cluster level objects
+		if kind != kubernetes.ClusterRoleBindingKind && kind != kubernetes.ClusterRolesKind {
+			if err := object.SetOwnerReference(ds.owner, obj, ds.scheme); err != nil {
+				return fmt.Errorf("store.AddOrUpdate, %w", err)
+			}
+		}
+	}
+
 	ds.deps[kind][id] = obj
+	return nil
 }
 
 // AddOrUpdateStore used to add or update an object in the Store
 // kind correspond to the object kind, and id can be `namespace/name` identifier of just
 // `name` if we are talking about a cluster scope object like `ClusterRole`.
 func (ds *Store) AddOrUpdateStore(kind kubernetes.ObjectKind, obj client.Object) *Store {
-	ds.AddOrUpdate(kind, obj)
+	_ = ds.AddOrUpdate(kind, obj)
 	return ds
 }
 
@@ -130,6 +168,22 @@ func (ds *Store) GetOrCreate(kind kubernetes.ObjectKind, namespace, name string)
 	return obj, found
 }
 
+// Delete deletes an item from the store by kind, namespace and name.
+func (ds *Store) Delete(kind kubernetes.ObjectKind, namespace string, name string) bool {
+	ds.mutex.RLock()
+	defer ds.mutex.RUnlock()
+
+	if _, found := ds.deps[kind]; !found {
+		return false
+	}
+	id := buildID(namespace, name)
+	if _, found := ds.deps[kind][id]; found {
+		delete(ds.deps[kind], id)
+		return true
+	}
+	return false
+}
+
 // Apply use to create/update resources in the api-server
 func (ds *Store) Apply(ctx context.Context, k8sClient client.Client) []error {
 	ds.mutex.RLock()
@@ -145,16 +199,23 @@ func (ds *Store) Apply(ctx context.Context, k8sClient client.Client) []error {
 			err := k8sClient.Get(ctx, objNSName, objAPIServer)
 			if err != nil && apierrors.IsNotFound(err) {
 				ds.logger.V(2).Info("dependencies.store Add object to create", "obj.namespace", objStore.GetNamespace(), "obj.name", objStore.GetName(), "obj.kind", kind)
-				objsToCreate = append(objsToCreate, ds.deps[kind][objID])
+				objsToCreate = append(objsToCreate, objStore)
 				continue
 			} else if err != nil {
 				errs = append(errs, err)
 				continue
 			}
 
+			// ServicesKind is a special case; the cluster IPs are immutable and resource version must be set.
+			if kind == kubernetes.ServicesKind {
+				objStore.(*v1.Service).Spec.ClusterIP = objAPIServer.(*v1.Service).Spec.ClusterIP
+				objStore.(*v1.Service).Spec.ClusterIPs = objAPIServer.(*v1.Service).Spec.ClusterIPs
+				objStore.SetResourceVersion(objAPIServer.GetResourceVersion())
+			}
+
 			if !equality.IsEqualObject(kind, objStore, objAPIServer) {
 				ds.logger.V(2).Info("dependencies.store Add object to update", "obj.namespace", objStore.GetNamespace(), "obj.name", objStore.GetName(), "obj.kind", kind)
-				objsToUpdate = append(objsToUpdate, ds.deps[kind][objID])
+				objsToUpdate = append(objsToUpdate, objStore)
 				continue
 			}
 		}

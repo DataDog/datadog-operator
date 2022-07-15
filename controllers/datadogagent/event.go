@@ -7,8 +7,8 @@ package datadogagent
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/controllers/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 )
@@ -20,7 +20,7 @@ func buildEventInfo(name, ns, kind string, eventType datadog.EventType) utils.Ev
 
 // recordEvent wraps the manager event recorder
 // recordEvent calls the metric forwarders to send Datadog events
-func (r *Reconciler) recordEvent(dda *datadoghqv1alpha1.DatadogAgent, info utils.EventInfo) {
+func (r *Reconciler) recordEvent(dda client.Object, info utils.EventInfo) {
 	r.recorder.Event(dda, corev1.EventTypeNormal, info.GetReason(), info.GetMessage())
 	if r.options.OperatorMetricsEnabled {
 		r.forwarders.ProcessEvent(dda, info.GetDDEvent())

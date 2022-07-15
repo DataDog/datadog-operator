@@ -6,18 +6,6 @@
 package datadogagent
 
 const (
-	// FieldPathSpecNodeName used as FieldPath for selecting the NodeName
-	FieldPathSpecNodeName = "spec.nodeName"
-
-	// FieldPathStatusHostIP used as FieldPath to retrieve the host ip
-	FieldPathStatusHostIP = "status.hostIP"
-
-	// FieldPathStatusPodIP used as FieldPath to retrieve the pod ip
-	FieldPathStatusPodIP = "status.podIP"
-
-	// FieldPathMetaName used as FieldPath to retrieve the pod name
-	FieldPathMetaName = "metadata.name"
-
 	// kind names definition
 	extendedDaemonSetKind   = "ExtendedDaemonSet"
 	daemonSetKind           = "DaemonSet"
@@ -34,7 +22,4 @@ const (
 	apiServiceKind          = "APIService"
 	networkPolicyKind       = "NetworkPolicy"
 	ciliumNetworkPolicyKind = "CiliumNetworkPolicy"
-
-	// Datadog tags prefix
-	datadogTagPrefix = "tags.datadoghq.com"
 )

@@ -43,7 +43,6 @@ func buildKSMFeature(options *feature.Options) feature.Feature {
 }
 
 type ksmFeature struct {
-	enable               bool
 	clusterChecksEnabled bool
 
 	rbacSuffix         string
@@ -59,45 +58,47 @@ type ksmFeature struct {
 // Configure use to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredComponents {
 	f.owner = dda
-	if dda.Spec.Features.KubeStateMetricsCore != nil && apiutils.BoolValue(dda.Spec.Features.KubeStateMetricsCore.Enabled) {
-		f.enable = true
+	var output feature.RequiredComponents
+
+	if dda.Spec.Features != nil && dda.Spec.Features.KubeStateMetricsCore != nil && apiutils.BoolValue(dda.Spec.Features.KubeStateMetricsCore.Enabled) {
+		output.ClusterAgent.IsRequired = apiutils.NewBoolPointer(true)
 
 		if dda.Spec.Features.KubeStateMetricsCore.Conf != nil {
 			f.customConfig = v2alpha1.ConvertCustomConfig(dda.Spec.Features.KubeStateMetricsCore.Conf)
 		}
 
+		f.serviceAccountName = v2alpha1.GetClusterAgentServiceAccount(dda)
 		f.configConfigMapName = apicommonv1.GetConfName(dda, f.customConfig, apicommon.DefaultKubeStateMetricsCoreConf)
-	}
 
-	if dda.Spec.Features.ClusterChecks != nil && apiutils.BoolValue(dda.Spec.Features.ClusterChecks.Enabled) {
-		f.clusterChecksEnabled = true
-		if apiutils.BoolValue(dda.Spec.Features.ClusterChecks.UseClusterChecksRunners) {
-			f.rbacSuffix = common.CheckRunnersSuffix
-			f.serviceAccountName = v2alpha1.GetClusterChecksRunnerServiceAccount(dda)
-		} else {
-			f.serviceAccountName = v2alpha1.GetClusterAgentServiceAccount(dda)
+		if dda.Spec.Features.ClusterChecks != nil && apiutils.BoolValue(dda.Spec.Features.ClusterChecks.Enabled) {
+			f.clusterChecksEnabled = true
+
+			if apiutils.BoolValue(dda.Spec.Features.ClusterChecks.UseClusterChecksRunners) {
+				f.rbacSuffix = common.ChecksRunnerSuffix
+				f.serviceAccountName = v2alpha1.GetClusterChecksRunnerServiceAccount(dda)
+				output.ClusterChecksRunner.IsRequired = apiutils.NewBoolPointer(true)
+			}
 		}
 	}
 
-	return feature.RequiredComponents{
-		ClusterAgent:       feature.RequiredComponent{Required: &f.enable},
-		ClusterCheckRunner: feature.RequiredComponent{Required: &f.clusterChecksEnabled},
-	}
+	return output
 }
 
 // ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
 func (f *ksmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) feature.RequiredComponents {
 	f.owner = dda
+	var output feature.RequiredComponents
 
-	if dda.Spec.Features.KubeStateMetricsCore != nil {
-		if apiutils.BoolValue(dda.Spec.Features.KubeStateMetricsCore.Enabled) {
-			f.enable = true
-		}
+	if dda.Spec.Features.KubeStateMetricsCore != nil && apiutils.BoolValue(dda.Spec.Features.KubeStateMetricsCore.Enabled) {
+		output.ClusterAgent.IsRequired = apiutils.NewBoolPointer(true)
 
-		if dda.Spec.ClusterAgent.Config != nil && apiutils.BoolValue(dda.Spec.ClusterAgent.Config.ClusterChecksEnabled) {
-			if apiutils.BoolValue(dda.Spec.Features.KubeStateMetricsCore.ClusterCheck) {
-				f.clusterChecksEnabled = true
-				f.rbacSuffix = common.CheckRunnersSuffix
+		if dda.Spec.ClusterAgent.Config != nil && apiutils.BoolValue(dda.Spec.ClusterAgent.Config.ClusterChecksEnabled) && apiutils.BoolValue(dda.Spec.Features.KubeStateMetricsCore.ClusterCheck) {
+			f.clusterChecksEnabled = true
+
+			if apiutils.BoolValue(dda.Spec.ClusterChecksRunner.Enabled) {
+				output.ClusterChecksRunner.IsRequired = apiutils.NewBoolPointer(true)
+
+				f.rbacSuffix = common.ChecksRunnerSuffix
 				f.serviceAccountName = v1alpha1.GetClusterChecksRunnerServiceAccount(dda)
 			}
 		} else {
@@ -111,28 +112,27 @@ func (f *ksmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) feature.RequiredCom
 		f.configConfigMapName = apicommonv1.GetConfName(dda, f.customConfig, apicommon.DefaultKubeStateMetricsCoreConf)
 	}
 
-	return feature.RequiredComponents{
-		ClusterAgent:       feature.RequiredComponent{Required: &f.enable},
-		ClusterCheckRunner: feature.RequiredComponent{Required: &f.clusterChecksEnabled},
-	}
+	return output
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
-func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers) error {
+func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
 	// Manage the Check Configuration in a configmap
 	configCM, err := f.buildKSMCoreConfigMap()
 	if err != nil {
 		return err
 	}
 	if configCM != nil {
-		managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, configCM)
+		if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, configCM); err != nil {
+			return err
+		}
 	}
 
 	// Manager RBAC permission
 	rbacName := GetKubeStateMetricsRBACResourceName(f.owner, f.rbacSuffix)
 
-	return managers.RBACManager().AddClusterPolicyRules("", rbacName, f.serviceAccountName, getRBACPolicyRules())
+	return managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), rbacName, f.serviceAccountName, getRBACPolicyRules())
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
@@ -146,7 +146,8 @@ func (f *ksmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 		ksmCoreCheckFolderName,
 	)
 
-	managers.Volume().AddVolumeToContainer(&vol, &volMount, apicommonv1.ClusterAgentContainerName)
+	managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommonv1.ClusterAgentContainerName)
+	managers.Volume().AddVolume(&vol)
 
 	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
 		Name:  apicommon.DDKubeStateMetricsCoreEnabled,
@@ -173,7 +174,7 @@ func (f *ksmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 	return managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommonv1.CoreAgentContainerName, ignoreAutoConf, merger.AppendToValueEnvVarMergeFunction)
 }
 
-// ManageClusterChecksRunner allows a feature to configure the ClusterCheckRunnerAgent's corev1.PodTemplateSpec
+// ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunnerAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *ksmFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	return nil

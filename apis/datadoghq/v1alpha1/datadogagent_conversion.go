@@ -20,7 +20,7 @@ import (
 func (src *DatadogAgent) ConvertTo(dst conversion.Hub) error {
 	ddaV2 := dst.(*v2alpha1.DatadogAgent)
 
-	if err := convertTo(src, ddaV2); err != nil {
+	if err := ConvertTo(src, ddaV2); err != nil {
 		return fmt.Errorf("unable to convert DatadogAgent %s/%s to version: %v, err: %w", src.Namespace, src.Name, dst.GetObjectKind().GroupVersionKind().Version, err)
 	}
 
@@ -30,10 +30,15 @@ func (src *DatadogAgent) ConvertTo(dst conversion.Hub) error {
 // ConvertFrom converts a v2alpha1 (Hub) to v1alpha1 (local)
 // Not implemented
 func (dst *DatadogAgent) ConvertFrom(src conversion.Hub) error { //nolint
-	return fmt.Errorf("convert from v2alpha1 to %s is not implemented", src.GetObjectKind().GroupVersionKind().Version)
+	// TODO (operator-ga): uncomment the next line when we find out why this
+	// method is called every second. For now, just return nil to avoid spamming
+	// the logs.
+	// return fmt.Errorf("convert from v2alpha1 to %s is not implemented", dst.GetObjectKind().GroupVersionKind().Version)
+	return nil
 }
 
-func convertTo(src *DatadogAgent, dst *v2alpha1.DatadogAgent) error {
+// ConvertTo use to convert v1alpha1.DatadogAgent to v2alpha1.DatadogAgent
+func ConvertTo(src *DatadogAgent, dst *v2alpha1.DatadogAgent) error {
 	// Copying ObjectMeta as a whole
 	dst.ObjectMeta = src.ObjectMeta
 
@@ -188,7 +193,8 @@ func convertConfigMapConfig(src *CustomConfigSpec) *v2alpha1.CustomConfig {
 	return dstConfig
 }
 
-func convertConfigDirSpec(src *ConfigDirSpec) *v2alpha1.CustomConfig {
+// ConvertConfigDirSpec converts v1alpha1.ConfigDirSpec to v2alpha1.CustomConfig
+func ConvertConfigDirSpec(src *ConfigDirSpec) *v2alpha1.CustomConfig {
 	if src == nil {
 		return nil
 	}

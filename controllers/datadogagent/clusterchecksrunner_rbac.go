@@ -37,11 +37,11 @@ func (r *Reconciler) manageClusterChecksRunnerRBACs(logger logr.Logger, dda *dat
 	clusterRole := &rbacv1.ClusterRole{}
 	if err := r.client.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesName}, clusterRole); err != nil {
 		if errors.IsNotFound(err) {
-			return r.createClusterCheckRunnerClusterRole(logger, dda, rbacResourcesName, agentVersion)
+			return r.createClusterChecksRunnerClusterRole(logger, dda, rbacResourcesName, agentVersion)
 		}
 		return reconcile.Result{}, err
 	}
-	if result, err := r.updateIfNeededClusterCheckRunnerClusterRole(logger, dda, rbacResourcesName, agentVersion, clusterRole); err != nil {
+	if result, err := r.updateIfNeededClusterChecksRunnerClusterRole(logger, dda, rbacResourcesName, agentVersion, clusterRole); err != nil {
 		return result, err
 	}
 
@@ -73,11 +73,11 @@ func (r *Reconciler) manageClusterChecksRunnerRBACs(logger logr.Logger, dda *dat
 	}
 
 	if isOrchestratorExplorerEnabled(dda) {
-		if result, err := r.createOrUpdateOrchestratorCoreRBAC(logger, dda, serviceAccountName, clusterChecksRunnerVersion, common.CheckRunnersSuffix); err != nil {
+		if result, err := r.createOrUpdateOrchestratorCoreRBAC(logger, dda, serviceAccountName, clusterChecksRunnerVersion, common.ChecksRunnerSuffix); err != nil {
 			return result, err
 		}
 	} else {
-		if result, err := r.cleanupOrchestratorCoreRBAC(logger, dda, common.CheckRunnersSuffix); err != nil {
+		if result, err := r.cleanupOrchestratorCoreRBAC(logger, dda, common.ChecksRunnerSuffix); err != nil {
 			return result, err
 		}
 	}

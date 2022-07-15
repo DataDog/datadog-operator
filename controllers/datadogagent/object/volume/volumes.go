@@ -15,7 +15,7 @@ import (
 )
 
 // GetVolumes creates a corev1.Volume and corev1.VolumeMount corresponding to a host path.
-func GetVolumes(volumeName, hostPath, mountPath string) (corev1.Volume, corev1.VolumeMount) {
+func GetVolumes(volumeName, hostPath, mountPath string, readOnly bool) (corev1.Volume, corev1.VolumeMount) {
 	var volume corev1.Volume
 	var volumeMount corev1.VolumeMount
 
@@ -25,6 +25,26 @@ func GetVolumes(volumeName, hostPath, mountPath string) (corev1.Volume, corev1.V
 			HostPath: &corev1.HostPathVolumeSource{
 				Path: hostPath,
 			},
+		},
+	}
+	volumeMount = corev1.VolumeMount{
+		Name:      volumeName,
+		MountPath: mountPath,
+		ReadOnly:  readOnly,
+	}
+
+	return volume, volumeMount
+}
+
+// GetVolumesEmptyDir creates a corev1.Volume (with an empty dir) and corev1.VolumeMount.
+func GetVolumesEmptyDir(volumeName, mountPath string) (corev1.Volume, corev1.VolumeMount) {
+	var volume corev1.Volume
+	var volumeMount corev1.VolumeMount
+
+	volume = corev1.Volume{
+		Name: volumeName,
+		VolumeSource: corev1.VolumeSource{
+			EmptyDir: &corev1.EmptyDirVolumeSource{},
 		},
 	}
 	volumeMount = corev1.VolumeMount{
@@ -103,9 +123,57 @@ func buildVolumeSourceFromCustomConfigSpec(configDir *apicommonv1.CustomConfig, 
 		return nil
 	}
 
+	return buildVolumeSourceFromConfigMapConfig(configDir.ConfigMap, defaultConfigMapName)
+}
+
+// GetConfigMapVolumes use to generate the corev1.Volume and corev1.VolumeMount corresponding to a ConfigMapConfig.
+func GetConfigMapVolumes(configMap *apicommonv1.ConfigMapConfig, defaultCMName, volumeName, volumePath string) (corev1.Volume, corev1.VolumeMount) {
+	var volume corev1.Volume
+	var volumeMount corev1.VolumeMount
+	volume = GetVolumeFromConfigMapConfig(
+		configMap,
+		defaultCMName,
+		volumeName,
+	)
+
+	volumeMount = GetVolumeMountFromConfigMapConfig(
+		configMap,
+		volumeName,
+		volumePath,
+		"",
+	)
+	return volume, volumeMount
+}
+
+// GetVolumeFromConfigMapConfig return a corev1.Volume corresponding to a ConfigMapConfig.
+func GetVolumeFromConfigMapConfig(configMap *apicommonv1.ConfigMapConfig, defaultConfigMapName, volumeName string) corev1.Volume {
+	confdVolumeSource := *buildVolumeSourceFromConfigMapConfig(configMap, defaultConfigMapName)
+
+	return corev1.Volume{
+		Name:         volumeName,
+		VolumeSource: confdVolumeSource,
+	}
+}
+
+// GetVolumeMountFromConfigMapConfig return a corev1.Volume corresponding to a ConfigMapConfig.
+func GetVolumeMountFromConfigMapConfig(configMap *apicommonv1.ConfigMapConfig, volumeName, volumePath, defaultSubPath string) corev1.VolumeMount {
+	subPath := defaultSubPath
+	if configMap != nil && len(configMap.Items) > 0 {
+		subPath = configMap.Items[0].Path
+	}
+
+	return corev1.VolumeMount{
+		Name:      volumeName,
+		MountPath: volumePath,
+		SubPath:   subPath,
+		ReadOnly:  true,
+	}
+}
+
+func buildVolumeSourceFromConfigMapConfig(configMap *apicommonv1.ConfigMapConfig, defaultConfigMapName string) *corev1.VolumeSource {
 	cmName := defaultConfigMapName
-	if configDir.ConfigMap != nil && len(configDir.ConfigMap.Name) > 0 {
-		cmName = configDir.ConfigMap.Name
+	if configMap != nil && len(configMap.Name) > 0 {
+		cmName = configMap.Name
 	}
 
 	cmSource := &corev1.ConfigMapVolumeSource{

@@ -31,8 +31,19 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 
-	// Use to register the ksm core feature
+	// Use to register features
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/cspm"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/dogstatsd"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/dummy"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/enabledefault"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/eventcollection"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/kubernetesstatecore"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/logcollection"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/npm"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/oom_kill"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/prometheus_scrape"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/tcp_queue_length"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/usm"
 )
 
 const (
@@ -44,6 +55,7 @@ type ReconcilerOptions struct {
 	SupportExtendedDaemonset bool
 	SupportCilium            bool
 	OperatorMetricsEnabled   bool
+	V2Enabled                bool
 }
 
 // Reconciler is the internal reconciler for Datadog Agent
@@ -74,7 +86,15 @@ func NewReconciler(options ReconcilerOptions, client client.Client, versionInfo 
 
 // Reconcile is similar to reconciler.Reconcile interface, but taking a context
 func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
-	resp, err := r.internalReconcile(ctx, request)
+	var resp reconcile.Result
+	var err error
+
+	if r.options.V2Enabled {
+		resp, err = r.internalReconcileV2(ctx, request)
+	} else {
+		resp, err = r.internalReconcile(ctx, request)
+	}
+
 	r.metricsForwarderProcessError(request, err)
 	return resp, err
 }
@@ -98,7 +118,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, request reconcile.Re
 		return result, err
 	}
 
-	if result, err = r.handleFinalizer(reqLogger, instance); utils.ShouldReturn(result, err) {
+	if result, err = r.handleFinalizer(reqLogger, instance, r.finalizeDadV1); utils.ShouldReturn(result, err) {
 		return result, err
 	}
 
@@ -139,7 +159,7 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, 
 	if err != nil {
 		return result, fmt.Errorf("unable to build features, err: %w", err)
 	}
-	logger.Info("requiredComponents status:", "agent", requiredComponents.Agent, "cluster-agent", requiredComponents.ClusterAgent, "cluster-check-runner", requiredComponents.ClusterCheckRunner)
+	logger.Info("requiredComponents status:", "agent", requiredComponents.Agent, "cluster-agent", requiredComponents.ClusterAgent, "cluster-checks-runner", requiredComponents.ClusterChecksRunner)
 
 	// -----------------------
 	// Manage dependencies
@@ -147,12 +167,13 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, 
 	storeOptions := &dependencies.StoreOptions{
 		SupportCilium: r.options.SupportCilium,
 		Logger:        logger,
+		Scheme:        r.scheme,
 	}
-	depsStore := dependencies.NewStore(storeOptions)
+	depsStore := dependencies.NewStore(instance, storeOptions)
 	resourcesManager := feature.NewResourceManagers(depsStore)
 	var errs []error
 	for _, feat := range features {
-		if featErr := feat.ManageDependencies(resourcesManager); err != nil {
+		if featErr := feat.ManageDependencies(resourcesManager, requiredComponents); err != nil {
 			errs = append(errs, featErr)
 		}
 	}
@@ -205,6 +226,8 @@ func (r *Reconciler) updateOverrideIfNeeded(logger logr.Logger, agentdeployment 
 			logger.Error(err, "unable to update DatadogAgent status override", "error", err)
 			return agentdeployment, reconcile.Result{}, err
 		}
+		// Restore the Spec as it can be changed by Status().Update()
+		updateAgentDeployment.Spec = agentdeployment.Spec
 	}
 	return updateAgentDeployment, result, nil
 }

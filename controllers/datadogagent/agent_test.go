@@ -77,7 +77,7 @@ func defaultLivenessProbe() *corev1.Probe {
 		TimeoutSeconds:      5,
 		SuccessThreshold:    1,
 		FailureThreshold:    6,
-		Handler: corev1.Handler{
+		ProbeHandler: corev1.ProbeHandler{
 			HTTPGet: &corev1.HTTPGetAction{
 				Path: "/live",
 				Port: intstr.IntOrString{
@@ -95,7 +95,7 @@ func defaultAPMAgentLivenessProbe() *corev1.Probe {
 		TimeoutSeconds:      5,
 		SuccessThreshold:    0,
 		FailureThreshold:    0,
-		Handler: corev1.Handler{
+		ProbeHandler: corev1.ProbeHandler{
 			TCPSocket: &corev1.TCPSocketAction{
 				Port: intstr.IntOrString{
 					IntVal: 8126,
@@ -112,7 +112,7 @@ func defaultReadinessProbe() *corev1.Probe {
 		TimeoutSeconds:      5,
 		SuccessThreshold:    1,
 		FailureThreshold:    6,
-		Handler: corev1.Handler{
+		ProbeHandler: corev1.ProbeHandler{
 			HTTPGet: &corev1.HTTPGetAction{
 				Path: "/ready",
 				Port: intstr.IntOrString{
@@ -132,19 +132,19 @@ func defaultVolumes() []corev1.Volume {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.AuthVolumeName,
+			Name: apicommon.AuthVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.DogstatsdSocketVolumeName,
+			Name: apicommon.DogstatsdSocketVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.InstallInfoVolumeName,
+			Name: apicommon.InstallInfoVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
 					LocalObjectReference: corev1.LocalObjectReference{
@@ -208,13 +208,13 @@ func defaultSystemProbeVolumes() []corev1.Volume {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.AuthVolumeName,
+			Name: apicommon.AuthVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.InstallInfoVolumeName,
+			Name: apicommon.InstallInfoVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
 					LocalObjectReference: corev1.LocalObjectReference{
@@ -302,7 +302,7 @@ func defaultSystemProbeVolumes() []corev1.Volume {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.DogstatsdSocketVolumeName,
+			Name: apicommon.DogstatsdSocketVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
@@ -334,19 +334,19 @@ func complianceSecurityAgentVolumes() []corev1.Volume {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.AuthVolumeName,
+			Name: apicommon.AuthVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.DogstatsdSocketVolumeName,
+			Name: apicommon.DogstatsdSocketVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.InstallInfoVolumeName,
+			Name: apicommon.InstallInfoVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
 					LocalObjectReference: corev1.LocalObjectReference{
@@ -420,7 +420,7 @@ func complianceSecurityAgentVolumes() []corev1.Volume {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.HostRootVolumeName,
+			Name: apicommon.HostRootVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: "/",
@@ -440,13 +440,13 @@ func runtimeSecurityAgentVolumes() []corev1.Volume {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.AuthVolumeName,
+			Name: apicommon.AuthVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.InstallInfoVolumeName,
+			Name: apicommon.InstallInfoVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
 					LocalObjectReference: corev1.LocalObjectReference{
@@ -534,7 +534,7 @@ func runtimeSecurityAgentVolumes() []corev1.Volume {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.DogstatsdSocketVolumeName,
+			Name: apicommon.DogstatsdSocketVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
@@ -563,7 +563,7 @@ func runtimeSecurityAgentVolumes() []corev1.Volume {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.HostRootVolumeName,
+			Name: apicommon.HostRootVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: "/",
@@ -834,6 +834,10 @@ func defaultEnvVars(extraEnv map[string]string) []corev1.EnvVar {
 			Value: "false",
 		},
 		{
+			Name:  "DD_LEADER_LEASE_NAME",
+			Value: fmt.Sprintf("%s-leader-election", testDdaName),
+		},
+		{
 			Name:  "DD_DOGSTATSD_ORIGIN_DETECTION",
 			Value: "false",
 		},
@@ -869,7 +873,7 @@ func defaultEnvVars(extraEnv map[string]string) []corev1.EnvVar {
 			Name: "DD_KUBERNETES_KUBELET_HOST",
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
-					FieldPath: FieldPathStatusHostIP,
+					FieldPath: apicommon.FieldPathStatusHostIP,
 				},
 			},
 		},
@@ -919,7 +923,7 @@ func defaultAPMContainerEnvVars() []corev1.EnvVar {
 			Name: "DD_KUBERNETES_KUBELET_HOST",
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
-					FieldPath: FieldPathStatusHostIP,
+					FieldPath: apicommon.FieldPathStatusHostIP,
 				},
 			},
 		},
@@ -948,52 +952,52 @@ func defaultSystemProbeEnvVars() []corev1.EnvVar {
 			Name: "DD_KUBERNETES_KUBELET_HOST",
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
-					FieldPath: FieldPathStatusHostIP,
+					FieldPath: apicommon.FieldPathStatusHostIP,
 				},
 			},
 		},
 		{
-			Name:  datadoghqv1alpha1.DDRuntimeSecurityConfigEnabled,
+			Name:  apicommon.DDRuntimeSecurityConfigEnabled,
 			Value: "false",
 		},
 		{
-			Name:  datadoghqv1alpha1.DDRuntimeSecurityConfigRemoteTaggerEnabled,
+			Name:  apicommon.DDRuntimeSecurityConfigRemoteTaggerEnabled,
 			Value: "false",
 		},
 		{
-			Name:  datadoghqv1alpha1.DDRuntimeSecurityConfigSyscallMonitorEnabled,
+			Name:  apicommon.DDRuntimeSecurityConfigSyscallMonitorEnabled,
 			Value: "false",
 		},
 		{
-			Name:  datadoghqv1alpha1.DDSystemProbeDebugPort,
+			Name:  apicommon.DDSystemProbeDebugPort,
 			Value: "0",
 		},
 		{
-			Name:  datadoghqv1alpha1.DDSystemProbeSocketPath,
+			Name:  apicommon.DDSystemProbeSocket,
 			Value: "/var/run/sysprobe/sysprobe.sock",
 		},
 		{
-			Name:  datadoghqv1alpha1.DDSystemProbeNPMEnabled,
+			Name:  apicommon.DDSystemProbeNPMEnabled,
 			Value: "false",
 		},
 		{
-			Name:  datadoghqv1alpha1.DDSystemProbeConntrackEnabled,
+			Name:  apicommon.DDSystemProbeConntrackEnabled,
 			Value: "false",
 		},
 		{
-			Name:  datadoghqv1alpha1.DDSystemProbeBPFDebugEnabled,
+			Name:  apicommon.DDSystemProbeBPFDebugEnabled,
 			Value: "false",
 		},
 		{
-			Name:  datadoghqv1alpha1.DDSystemProbeCollectDNSStatsEnabled,
+			Name:  apicommon.DDSystemProbeCollectDNSStatsEnabled,
 			Value: "false",
 		},
 		{
-			Name:  datadoghqv1alpha1.DDSystemProbeTCPQueueLengthEnabled,
+			Name:  apicommon.DDSystemProbeTCPQueueLengthEnabled,
 			Value: "false",
 		},
 		{
-			Name:  datadoghqv1alpha1.DDSystemProbeOOMKillEnabled,
+			Name:  apicommon.DDSystemProbeOOMKillEnabled,
 			Value: "false",
 		},
 	}
@@ -1058,7 +1062,7 @@ func securityAgentEnvVars(compliance, runtime bool, policiesdir bool, extraEnv m
 			Name: "DD_KUBERNETES_KUBELET_HOST",
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
-					FieldPath: FieldPathStatusHostIP,
+					FieldPath: apicommon.FieldPathStatusHostIP,
 				},
 			},
 		},
@@ -1170,14 +1174,14 @@ func defaultSystemProbePodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodSp
 		},
 	}...)
 
-	agentEnvVars := addEnvVar(defaultEnvVars(nil), datadoghqv1alpha1.DDSystemProbeSocketPath, filepath.Join(datadoghqv1alpha1.SystemProbeSocketVolumePath, "sysprobe.sock"))
+	agentEnvVars := addEnvVar(defaultEnvVars(nil), apicommon.DDSystemProbeSocket, filepath.Join(datadoghqv1alpha1.SystemProbeSocketVolumePath, "sysprobe.sock"))
 	agentEnvVars = append(agentEnvVars, []corev1.EnvVar{
 		{
-			Name:  datadoghqv1alpha1.DDSystemProbeTCPQueueLengthEnabled,
+			Name:  apicommon.DDSystemProbeTCPQueueLengthEnabled,
 			Value: "false",
 		},
 		{
-			Name:  datadoghqv1alpha1.DDSystemProbeOOMKillEnabled,
+			Name:  apicommon.DDSystemProbeOOMKillEnabled,
 			Value: "false",
 		},
 	}...)
@@ -1290,14 +1294,14 @@ func noSeccompInstallSystemProbeSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1
 			SubPath:   "system-probe.yaml",
 		},
 	}...)
-	agentEnvVars := addEnvVar(defaultEnvVars(nil), datadoghqv1alpha1.DDSystemProbeSocketPath, filepath.Join(datadoghqv1alpha1.SystemProbeSocketVolumePath, "sysprobe.sock"))
+	agentEnvVars := addEnvVar(defaultEnvVars(nil), apicommon.DDSystemProbeSocket, filepath.Join(datadoghqv1alpha1.SystemProbeSocketVolumePath, "sysprobe.sock"))
 	agentEnvVars = append(agentEnvVars, []corev1.EnvVar{
 		{
-			Name:  datadoghqv1alpha1.DDSystemProbeTCPQueueLengthEnabled,
+			Name:  apicommon.DDSystemProbeTCPQueueLengthEnabled,
 			Value: "false",
 		},
 		{
-			Name:  datadoghqv1alpha1.DDSystemProbeOOMKillEnabled,
+			Name:  apicommon.DDSystemProbeOOMKillEnabled,
 			Value: "false",
 		},
 	}...)
@@ -1474,19 +1478,19 @@ func defaultProcessMount() []corev1.Volume {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.AuthVolumeName,
+			Name: apicommon.AuthVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.DogstatsdSocketVolumeName,
+			Name: apicommon.DogstatsdSocketVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.InstallInfoVolumeName,
+			Name: apicommon.InstallInfoVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
 					LocalObjectReference: corev1.LocalObjectReference{
@@ -1570,7 +1574,7 @@ func defaultOrchestratorEnvVars(dda *datadoghqv1alpha1.DatadogAgent) []corev1.En
 			Name: "DD_KUBERNETES_KUBELET_HOST",
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
-					FieldPath: FieldPathStatusHostIP,
+					FieldPath: apicommon.FieldPathStatusHostIP,
 				},
 			},
 		},
@@ -1588,12 +1592,12 @@ func defaultOrchestratorEnvVars(dda *datadoghqv1alpha1.DatadogAgent) []corev1.En
 
 func runtimeSecurityAgentPodSpec(extraEnv map[string]string, extraDir string) corev1.PodSpec {
 	systemProbeEnv := defaultSystemProbeEnvVars()
-	systemProbeEnv = addEnvVar(systemProbeEnv, datadoghqv1alpha1.DDAuthTokenFilePath, "/etc/datadog-agent/auth/token")
-	systemProbeEnv = addEnvVar(systemProbeEnv, datadoghqv1alpha1.DDRuntimeSecurityConfigEnabled, "true")
-	systemProbeEnv = addEnvVar(systemProbeEnv, datadoghqv1alpha1.DDRuntimeSecurityConfigPoliciesDir, "/etc/datadog-agent/runtime-security.d")
-	systemProbeEnv = addEnvVar(systemProbeEnv, datadoghqv1alpha1.DDRuntimeSecurityConfigRemoteTaggerEnabled, "true")
-	systemProbeEnv = addEnvVar(systemProbeEnv, datadoghqv1alpha1.DDRuntimeSecurityConfigSocket, "/var/run/sysprobe/runtime-security.sock")
-	systemProbeEnv = addEnvVar(systemProbeEnv, datadoghqv1alpha1.DDRuntimeSecurityConfigSyscallMonitorEnabled, "true")
+	systemProbeEnv = addEnvVar(systemProbeEnv, apicommon.DDAuthTokenFilePath, "/etc/datadog-agent/auth/token")
+	systemProbeEnv = addEnvVar(systemProbeEnv, apicommon.DDRuntimeSecurityConfigEnabled, "true")
+	systemProbeEnv = addEnvVar(systemProbeEnv, apicommon.DDRuntimeSecurityConfigPoliciesDir, "/etc/datadog-agent/runtime-security.d")
+	systemProbeEnv = addEnvVar(systemProbeEnv, apicommon.DDRuntimeSecurityConfigRemoteTaggerEnabled, "true")
+	systemProbeEnv = addEnvVar(systemProbeEnv, apicommon.DDRuntimeSecurityConfigSocket, "/var/run/sysprobe/runtime-security.sock")
+	systemProbeEnv = addEnvVar(systemProbeEnv, apicommon.DDRuntimeSecurityConfigSyscallMonitorEnabled, "true")
 
 	agentWithSystemProbeVolumeMounts := []corev1.VolumeMount{}
 	agentWithSystemProbeVolumeMounts = append(agentWithSystemProbeVolumeMounts, defaultMountVolume()...)
@@ -1609,14 +1613,14 @@ func runtimeSecurityAgentPodSpec(extraEnv map[string]string, extraDir string) co
 			SubPath:   "system-probe.yaml",
 		},
 	}...)
-	agentEnvVars := addEnvVar(defaultEnvVars(extraEnv), datadoghqv1alpha1.DDSystemProbeSocketPath, filepath.Join(datadoghqv1alpha1.SystemProbeSocketVolumePath, "sysprobe.sock"))
+	agentEnvVars := addEnvVar(defaultEnvVars(extraEnv), apicommon.DDSystemProbeSocket, filepath.Join(datadoghqv1alpha1.SystemProbeSocketVolumePath, "sysprobe.sock"))
 	agentEnvVars = append(agentEnvVars, []corev1.EnvVar{
 		{
-			Name:  datadoghqv1alpha1.DDSystemProbeTCPQueueLengthEnabled,
+			Name:  apicommon.DDSystemProbeTCPQueueLengthEnabled,
 			Value: "false",
 		},
 		{
-			Name:  datadoghqv1alpha1.DDSystemProbeOOMKillEnabled,
+			Name:  apicommon.DDSystemProbeOOMKillEnabled,
 			Value: "false",
 		},
 	}...)
@@ -1888,6 +1892,10 @@ func customKubeletConfigPodSpec(kubeletConfig *commonv1.KubeletConfig) corev1.Po
 			Value: "false",
 		},
 		{
+			Name:  "DD_LEADER_LEASE_NAME",
+			Value: fmt.Sprintf("%s-leader-election", testDdaName),
+		},
+		{
 			Name:  "DD_DOGSTATSD_ORIGIN_DETECTION",
 			Value: "false",
 		},
@@ -2063,7 +2071,7 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 	hostPortNetworkPodSpec.Containers[0].Ports[0].ContainerPort = 12345
 	hostPortNetworkPodSpec.Containers[0].Ports[0].HostPort = 12345
 	hostPortNetworkPodSpec.Containers[0].Env = append(hostPortNetworkPodSpec.Containers[0].Env, corev1.EnvVar{
-		Name:  datadoghqv1alpha1.DDDogstatsdPort,
+		Name:  apicommon.DDDogstatsdPort,
 		Value: strconv.Itoa(12345),
 	})
 
@@ -2262,19 +2270,19 @@ func Test_newExtendedDaemonSetFromInstance_CustomConfigMaps(t *testing.T) {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.AuthVolumeName,
+			Name: apicommon.AuthVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.DogstatsdSocketVolumeName,
+			Name: apicommon.DogstatsdSocketVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.InstallInfoVolumeName,
+			Name: apicommon.InstallInfoVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
 					LocalObjectReference: corev1.LocalObjectReference{
@@ -2393,19 +2401,19 @@ func Test_newExtendedDaemonSetFromInstance_CustomDatadogYaml(t *testing.T) {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.AuthVolumeName,
+			Name: apicommon.AuthVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.DogstatsdSocketVolumeName,
+			Name: apicommon.DogstatsdSocketVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.InstallInfoVolumeName,
+			Name: apicommon.InstallInfoVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
 					LocalObjectReference: corev1.LocalObjectReference{
@@ -3179,14 +3187,14 @@ func Test_newExtendedDaemonSetFromInstance_SystemProbe(t *testing.T) {
 	}
 
 	oomKillSpec := systemProbeExtraMountsSpec.DeepCopy()
-	addEnvVar(oomKillSpec.Containers[0].Env, datadoghqv1alpha1.DDSystemProbeOOMKillEnabled, "true")
-	addEnvVar(oomKillSpec.Containers[1].Env, datadoghqv1alpha1.DDSystemProbeOOMKillEnabled, "true")
-	addEnvVar(oomKillSpec.InitContainers[1].Env, datadoghqv1alpha1.DDSystemProbeOOMKillEnabled, "true")
+	addEnvVar(oomKillSpec.Containers[0].Env, apicommon.DDSystemProbeOOMKillEnabled, "true")
+	addEnvVar(oomKillSpec.Containers[1].Env, apicommon.DDSystemProbeOOMKillEnabled, "true")
+	addEnvVar(oomKillSpec.InitContainers[1].Env, apicommon.DDSystemProbeOOMKillEnabled, "true")
 
 	tpcQueueLengthSpec := systemProbeExtraMountsSpec.DeepCopy()
-	addEnvVar(tpcQueueLengthSpec.Containers[0].Env, datadoghqv1alpha1.DDSystemProbeTCPQueueLengthEnabled, "true")
-	addEnvVar(tpcQueueLengthSpec.Containers[1].Env, datadoghqv1alpha1.DDSystemProbeTCPQueueLengthEnabled, "true")
-	addEnvVar(tpcQueueLengthSpec.InitContainers[1].Env, datadoghqv1alpha1.DDSystemProbeTCPQueueLengthEnabled, "true")
+	addEnvVar(tpcQueueLengthSpec.Containers[0].Env, apicommon.DDSystemProbeTCPQueueLengthEnabled, "true")
+	addEnvVar(tpcQueueLengthSpec.Containers[1].Env, apicommon.DDSystemProbeTCPQueueLengthEnabled, "true")
+	addEnvVar(tpcQueueLengthSpec.InitContainers[1].Env, apicommon.DDSystemProbeTCPQueueLengthEnabled, "true")
 
 	ddaOOMKill := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
 		UseEDS:                       true,
@@ -3425,7 +3433,7 @@ func Test_newExtendedDaemonSetFromInstance_SecurityAgent_Runtime(t *testing.T) {
 		},
 		{
 			Name:      datadoghqv1alpha1.SystemProbeConfigVolumeName,
-			MountPath: datadoghqv1alpha1.SystemProbeConfigVolumePath,
+			MountPath: apicommon.SystemProbeConfigVolumePath,
 			SubPath:   datadoghqv1alpha1.SystemProbeConfigVolumeSubPath,
 		},
 	}...)
@@ -3452,7 +3460,7 @@ func Test_newExtendedDaemonSetFromInstance_SecurityAgent_Runtime(t *testing.T) {
 		},
 		{
 			Name:      datadoghqv1alpha1.SystemProbeConfigVolumeName,
-			MountPath: datadoghqv1alpha1.SystemProbeConfigVolumePath,
+			MountPath: apicommon.SystemProbeConfigVolumePath,
 			SubPath:   datadoghqv1alpha1.SystemProbeConfigVolumeSubPath,
 		},
 	}...)
@@ -3526,7 +3534,7 @@ func Test_newExtendedDaemonSetFromInstance_KubeletConfiguration(t *testing.T) {
 	dda.Spec.Agent.Config.Kubelet = &commonv1.KubeletConfig{
 		Host: &corev1.EnvVarSource{
 			FieldRef: &corev1.ObjectFieldSelector{
-				FieldPath: FieldPathSpecNodeName,
+				FieldPath: apicommon.FieldPathSpecNodeName,
 			},
 		},
 		TLSVerify:   apiutils.NewBoolPointer(false),
@@ -3648,13 +3656,17 @@ func getDefaultEDSStrategy() edsdatadoghqv1alpha1.ExtendedDaemonSetSpecStrategy 
 				IntVal: 1,
 			},
 			Duration: &metav1.Duration{
-				Duration: 5 * time.Minute, // As ther is no NoRestartDuration specified.
+				Duration: 10 * time.Minute,
+			},
+			NoRestartsDuration: &metav1.Duration{
+				Duration: 5 * time.Minute,
 			},
 			NodeSelector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{},
 			},
-			AutoPause: edsdatadoghqv1alpha1.DefaultExtendedDaemonSetSpecStrategyCanaryAutoPause(&edsdatadoghqv1alpha1.ExtendedDaemonSetSpecStrategyCanaryAutoPause{}),
-			AutoFail:  edsdatadoghqv1alpha1.DefaultExtendedDaemonSetSpecStrategyCanaryAutoFail(&edsdatadoghqv1alpha1.ExtendedDaemonSetSpecStrategyCanaryAutoFail{}),
+			AutoPause:      edsdatadoghqv1alpha1.DefaultExtendedDaemonSetSpecStrategyCanaryAutoPause(&edsdatadoghqv1alpha1.ExtendedDaemonSetSpecStrategyCanaryAutoPause{}),
+			AutoFail:       edsdatadoghqv1alpha1.DefaultExtendedDaemonSetSpecStrategyCanaryAutoFail(&edsdatadoghqv1alpha1.ExtendedDaemonSetSpecStrategyCanaryAutoFail{}),
+			ValidationMode: edsdatadoghqv1alpha1.ExtendedDaemonSetSpecStrategyCanaryValidationModeAuto,
 		},
 		ReconcileFrequency: &metav1.Duration{
 			Duration: 10 * time.Second,

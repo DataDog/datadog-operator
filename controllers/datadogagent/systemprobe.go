@@ -10,6 +10,7 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/go-logr/logr"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -93,8 +94,8 @@ func buildSystemProbeSecCompConfigMap(dda *datadoghqv1alpha1.DatadogAgent) (*cor
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        getSecCompConfigMapName(dda),
 			Namespace:   dda.Namespace,
-			Labels:      getDefaultLabels(dda, dda.Name, getAgentVersion(dda)),
-			Annotations: getDefaultAnnotations(dda),
+			Labels:      object.GetDefaultLabels(dda, dda.Name, getAgentVersion(dda)),
+			Annotations: object.GetDefaultAnnotations(dda),
 		},
 		Data: map[string]string{
 			"system-probe-seccomp.json": systemProbeSecCompData,
@@ -148,6 +149,7 @@ const systemProbeSecCompData = `{
 			"fchownat",
 			"fcntl",
 			"fcntl64",
+			"flock",
 			"fstat",
 			"fstat64",
 			"fstatfs",
@@ -212,6 +214,8 @@ const systemProbeSecCompData = `{
 			"recvmmsg",
 			"recvmsg",
 			"rename",
+			"renameat",
+			"renameat2",
 			"restart_syscall",
 			"rmdir",
 			"rt_sigaction",
@@ -237,6 +241,7 @@ const systemProbeSecCompData = `{
 			"setgid32",
 			"setgroups",
 			"setgroups32",
+			"setitimer",
 			"setns",
 			"setrlimit",
 			"setsid",
@@ -252,6 +257,7 @@ const systemProbeSecCompData = `{
 			"stat64",
 			"statfs",
 			"sysinfo",
+			"symlinkat",
 			"tgkill",
 			"umask",
 			"uname",
@@ -282,6 +288,22 @@ const systemProbeSecCompData = `{
 			}
 		],
 		"comment": "",
+		"includes": {},
+		"excludes": {}
+		},
+		{
+		"names": [
+			"kill"
+		],
+		"action": "SCMP_ACT_ALLOW",
+		"args": [
+			{
+			"index": 1,
+			"value": 0,
+			"op": "SCMP_CMP_EQ"
+			}
+		],
+		"comment": "allow process detection via kill",
 		"includes": {},
 		"excludes": {}
 		}
