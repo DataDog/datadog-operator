@@ -81,6 +81,7 @@ const (
 	// Default Image name
 	DefaultAgentImageName        string = "agent"
 	DefaultClusterAgentImageName string = "cluster-agent"
+	DefaultImageRegistry         string = "gcr.io/datadoghq"
 
 	// ExtendedDaemonset defaulting
 	DefaultRollingUpdateMaxUnavailable                  = "10%"
@@ -165,6 +166,11 @@ const (
 	ContainerLogVolumePath     = "/var/lib/docker/containers"
 	SymlinkContainerVolumeName = "symlinkcontainerpath"
 	SymlinkContainerVolumePath = "/var/log/containers"
+	DogstatsdHostPortName      = "dogstatsdport"
+	DogstatsdHostPortHostPort  = 8125
+	DogstatsdUDSSocketName     = "dsdsocket"
+	DogstatsdUDSHostFilepathV1 = "/var/run/datadog/statsd.sock"
+	DogstatsdUDSHostFilepathV2 = "/var/run/datadog/dsd.socket"
 	DogstatsdSocketVolumeName  = "dsdsocket"
 	DogstatsdSocketVolumePath  = "/var/run/datadog/statsd"
 	HostCriSocketPathPrefix    = "/host"

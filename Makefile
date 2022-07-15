@@ -17,9 +17,10 @@ DATE=$(shell date +%Y-%m-%d/%H:%M:%S )
 LDFLAGS=-w -s -X ${BUILDINFOPKG}.Commit=${GIT_COMMIT} -X ${BUILDINFOPKG}.Version=${VERSION} -X ${BUILDINFOPKG}.BuildTime=${DATE}
 CHANNELS=alpha
 DEFAULT_CHANNEL=alpha
-GOARCH?=amd64
+GOARCH?=
 PLATFORM=$(shell uname -s)-$(shell uname -m)
 ROOT=$(dir $(abspath $(firstword $(MAKEFILE_LIST))))
+KUSTOMIZE_CONFIG?=config/default
 
 # Default bundle image tag
 BUNDLE_IMG ?= controller-bundle:$(VERSION)
@@ -97,7 +98,7 @@ TMP_DIR=$$(mktemp -d) ;\
 cd $$TMP_DIR ;\
 go mod init tmp ;\
 echo "Downloading $(2)" ;\
-GOBIN=$(PROJECT_DIR)/bin/$(PLATFORM) go get $(2) ;\
+GOBIN=$(PROJECT_DIR)/bin/$(PLATFORM) go install $(2) ;\
 rm -rf $$TMP_DIR ;\
 }
 endef
@@ -129,11 +130,11 @@ uninstall: manifests $(KUSTOMIZE) ## Uninstall CRDs from a cluster
 .PHONY: deploy
 deploy: manifests $(KUSTOMIZE) ## Deploy controller in the configured Kubernetes cluster in ~/.kube/config
 	cd config/manager && $(ROOT)/$(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default | kubectl apply --force-conflicts --server-side -f -
+	$(KUSTOMIZE) build $(KUSTOMIZE_CONFIG) | kubectl apply --force-conflicts --server-side -f -
 
 .PHONY: undeploy
 undeploy: $(KUSTOMIZE) ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/default | kubectl delete -f -
+	$(KUSTOMIZE) build $(KUSTOMIZE_CONFIG) | kubectl delete -f -
 
 .PHONY: manifests
 manifests: generate-manifests patch-crds ## Generate manifestcd s e.g. CRD, RBAC etc.
@@ -178,7 +179,7 @@ docker-push-check-ci:
 ##@ Test
 
 .PHONY: test
-test: build manifests generate fmt vet verify-license gotest integration-tests ## Run unit tests and E2E tests
+test: build manifests generate fmt vet verify-license gotest integration-tests integration-tests-v2 ## Run unit tests and E2E tests
 
 .PHONY: gotest
 gotest:
@@ -188,22 +189,27 @@ gotest:
 integration-tests: $(ENVTEST) ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test --tags=integration github.com/DataDog/datadog-operator/controllers -coverprofile cover.out
 
+.PHONY: integration-tests-v2
+integration-tests-v2: $(ENVTEST) ## Run tests with reconciler V2
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test --tags=integration_v2 github.com/DataDog/datadog-operator/controllers -coverprofile cover_v2.out
+
 .PHONY: bundle
-bundle: bin/$(PLATFORM)/operator-sdk $(KUSTOMIZE) manifests ## Generate bundle manifests and metadata, then validate generated files.
+bundle: bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq $(KUSTOMIZE) manifests ## Generate bundle manifests and metadata, then validate generated files.
 	bin/$(PLATFORM)/operator-sdk generate kustomize manifests -q
 	cd config/manager && $(ROOT)/$(KUSTOMIZE) edit set image controller=$(IMG)
 	$(KUSTOMIZE) build config/manifests | bin/$(PLATFORM)/operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
 	hack/patch-bundle.sh
 	bin/$(PLATFORM)/operator-sdk bundle validate ./bundle
+
+# Require Skopeo installed
+# And to download token from https://console.redhat.com/openshift/downloads#tool-pull-secret saved to ~/.redhat/auths.json
+.PHONY: bundle-redhat
+bundle-redhat: bin/$(PLATFORM)/operator-manifest-tools
 	hack/redhat-bundle.sh
 
 .PHONY: bundle-build
 bundle-build: ## Build the bundle image.
 	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
-
-.PHONY: bundle-redhat-build
-bundle-redhat-build:
-	docker build -f bundle.redhat.Dockerfile -t $(BUNDLE_IMG) .
 
 .PHONY: bundle-push
 bundle-push:
@@ -259,6 +265,15 @@ generate-openapi: bin/$(PLATFORM)/openapi-gen
 	bin/$(PLATFORM)/openapi-gen --logtostderr=true -o "" -i ./apis/datadoghq/v1alpha1 -O zz_generated.openapi -p ./apis/datadoghq/v1alpha1 -h ./hack/boilerplate.go.txt -r "-"
 	bin/$(PLATFORM)/openapi-gen --logtostderr=true -o "" -i ./apis/datadoghq/v2alpha1 -O zz_generated.openapi -p ./apis/datadoghq/v2alpha1 -h ./hack/boilerplate.go.txt -r "-"
 
+.PHONY: preflight-redhat-container
+preflight-redhat-container: bin/$(PLATFORM)/preflight
+	bin/$(PLATFORM)/preflight check container ${IMG} -d ~/.docker/config.json
+
+# Runs only on Linux and requires `docker login` to scan.connect.redhat.com
+.PHONY: preflight-redhat-container-submit
+preflight-redhat-container-submit: bin/$(PLATFORM)/preflight
+	bin/$(PLATFORM)/preflight check container ${IMG} --submit --pyxis-api-token=${RH_PARTNER_API_TOKEN} --certification-project-id=${RH_PARTNER_PROJECT_ID} -d ~/.docker/config.json
+
 .PHONY: patch-crds
 patch-crds: bin/$(PLATFORM)/yq ## Patch-crds
 	hack/patch-crds.sh
@@ -306,6 +321,12 @@ bin/$(PLATFORM)/operator-sdk: Makefile
 
 bin/$(PLATFORM)/wwhrd: Makefile
 	hack/install-wwhrd.sh 0.2.4
+
+bin/$(PLATFORM)/operator-manifest-tools: Makefile
+	hack/install-operator-manifest-tools.sh 0.2.0
+
+bin/$(PLATFORM)/preflight: Makefile
+	hack/install-openshift-preflight.sh 1.2.1
 
 .DEFAULT_GOAL := help
 .PHONY: help

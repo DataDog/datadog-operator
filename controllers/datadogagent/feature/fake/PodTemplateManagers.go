@@ -17,6 +17,7 @@ type PodTemplateManagers struct {
 	VolumeMountMgr     *mergerfake.VolumeMountManager
 	SecurityContextMgr *mergerfake.SecurityContextManager
 	AnnotationMgr      *mergerfake.AnnotationManager
+	PortMgr            *mergerfake.PortManager
 }
 
 // EnvVar provides a mock function with given fields:
@@ -49,6 +50,11 @@ func (_m *PodTemplateManagers) Annotation() merger.AnnotationManager {
 	return _m.AnnotationMgr
 }
 
+// Port provides a mock function with given fields:
+func (_m *PodTemplateManagers) Port() merger.PortManager {
+	return _m.PortMgr
+}
+
 // NewPodTemplateManagers creates a new instance of PodTemplateManagers. It also registers the testing.TB interface on the mock and a cleanup function to assert the mocks expectations.
 func NewPodTemplateManagers(t testing.TB) *PodTemplateManagers {
 	return &PodTemplateManagers{
@@ -57,5 +63,6 @@ func NewPodTemplateManagers(t testing.TB) *PodTemplateManagers {
 		VolumeMountMgr:     mergerfake.NewFakeVolumeMountManager(t),
 		SecurityContextMgr: mergerfake.NewFakeSecurityContextManager(t),
 		AnnotationMgr:      mergerfake.NewFakeAnnotationManager(t),
+		PortMgr:            mergerfake.NewFakePortManager(t),
 	}
 }

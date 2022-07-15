@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -29,6 +30,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/common"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
+	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/merger"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	objectvolume "github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
@@ -40,8 +42,6 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/extendeddaemonset"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
-
-	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
 
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 )
@@ -509,22 +509,22 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 		},
 		{
 			Name:  apicommon.DDClusterAgentKubeServiceName,
-			Value: component.GetClusterAgentServiceName(dda),
+			Value: componentdca.GetClusterAgentServiceName(dda),
 		},
 		{
-			Name:  datadoghqv1alpha1.DDLeaderElection,
+			Name:  apicommon.DDLeaderElection,
 			Value: "true",
 		},
 		{
-			Name:  datadoghqv1alpha1.DDLeaderLeaseName,
-			Value: utils.GetDatadogLeaderElectionResourceName(dda.Name),
+			Name:  apicommon.DDLeaderLeaseName,
+			Value: utils.GetDatadogLeaderElectionResourceName(dda),
 		},
 		{
-			Name:  datadoghqv1alpha1.DDComplianceConfigEnabled,
+			Name:  apicommon.DDComplianceConfigEnabled,
 			Value: strconv.FormatBool(complianceEnabled),
 		},
 		{
-			Name:  datadoghqv1alpha1.DDCollectKubeEvents,
+			Name:  apicommon.DDCollectKubernetesEvents,
 			Value: apiutils.BoolToString(spec.ClusterAgent.Config.CollectEvents),
 		},
 		{
@@ -532,19 +532,19 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 			Value: strconv.Itoa(int(*spec.ClusterAgent.Config.HealthPort)),
 		},
 		{
-			Name:  datadoghqv1alpha1.DDClusterAgentTokenName,
-			Value: utils.GetDatadogTokenResourceName(dda.Name),
+			Name:  apicommon.DDClusterAgentTokenName,
+			Value: utils.GetDatadogTokenResourceName(dda),
 		},
 	}
 
 	envVars = append(envVars, corev1.EnvVar{
-		Name:      datadoghqv1alpha1.DDClusterAgentAuthToken,
+		Name:      apicommon.DDClusterAgentAuthToken,
 		ValueFrom: getClusterAgentAuthToken(dda),
 	})
 
 	if spec.ClusterName != "" {
 		envVars = append(envVars, corev1.EnvVar{
-			Name:  datadoghqv1alpha1.DDClusterName,
+			Name:  apicommon.DDClusterName,
 			Value: spec.ClusterName,
 		})
 	}
@@ -552,14 +552,14 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 	if complianceEnabled {
 		if dda.Spec.Agent.Security.Compliance.CheckInterval != nil {
 			envVars = append(envVars, corev1.EnvVar{
-				Name:  datadoghqv1alpha1.DDComplianceConfigCheckInterval,
+				Name:  apicommon.DDComplianceConfigCheckInterval,
 				Value: strconv.FormatInt(dda.Spec.Agent.Security.Compliance.CheckInterval.Nanoseconds(), 10),
 			})
 		}
 
 		if dda.Spec.Agent.Security.Compliance.ConfigDir != nil {
 			envVars = append(envVars, corev1.EnvVar{
-				Name:  datadoghqv1alpha1.DDComplianceConfigDir,
+				Name:  apicommon.DDComplianceConfigDir,
 				Value: datadoghqv1alpha1.SecurityAgentComplianceConfigDirVolumePath,
 			})
 		}
@@ -568,71 +568,71 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 	// TODO We should be able to disable the agent and still configure the Endpoint for the Cluster Agent.
 	if apiutils.BoolValue(dda.Spec.Agent.Enabled) && spec.Agent.Config.DDUrl != nil {
 		envVars = append(envVars, corev1.EnvVar{
-			Name:  datadoghqv1alpha1.DDddURL,
+			Name:  apicommon.DDddURL,
 			Value: *spec.Agent.Config.DDUrl,
 		})
 	}
 
 	envVars = append(envVars, corev1.EnvVar{
-		Name:  datadoghqv1alpha1.DDLogLevel,
+		Name:  apicommon.DDLogLevel,
 		Value: *spec.ClusterAgent.Config.LogLevel,
 	})
 
 	envVars = append(envVars, corev1.EnvVar{
-		Name:      datadoghqv1alpha1.DDAPIKey,
+		Name:      apicommon.DDAPIKey,
 		ValueFrom: getAPIKeyFromSecret(dda),
 	})
 
 	if spec.Site != "" {
 		envVars = append(envVars, corev1.EnvVar{
-			Name:  datadoghqv1alpha1.DDSite,
+			Name:  apicommon.DDSite,
 			Value: spec.Site,
 		})
 	}
 
 	if isMetricsProviderEnabled(spec.ClusterAgent) {
 		envVars = append(envVars, corev1.EnvVar{
-			Name:  datadoghqv1alpha1.DDMetricsProviderEnabled,
+			Name:  apicommon.DDMetricsProviderEnabled,
 			Value: strconv.FormatBool(*spec.ClusterAgent.Config.ExternalMetrics.Enabled),
 		})
 		envVars = append(envVars, corev1.EnvVar{
-			Name:  datadoghqv1alpha1.DDMetricsProviderPort,
+			Name:  apicommon.DDMetricsProviderPort,
 			Value: strconv.Itoa(int(getClusterAgentMetricsProviderPort(*spec.ClusterAgent.Config))),
 		})
 		envVars = append(envVars, corev1.EnvVar{
-			Name:      datadoghqv1alpha1.DDAppKey,
+			Name:      apicommon.DDAppKey,
 			ValueFrom: getAppKeyFromSecret(dda),
 		})
 		envVars = append(envVars, corev1.EnvVar{
-			Name:  datadoghqv1alpha1.DDMetricsProviderUseDatadogMetric,
+			Name:  apicommon.DDMetricsProviderUseDatadogMetric,
 			Value: strconv.FormatBool(spec.ClusterAgent.Config.ExternalMetrics.UseDatadogMetrics),
 		})
 		envVars = append(envVars, corev1.EnvVar{
-			Name:  datadoghqv1alpha1.DDMetricsProviderWPAController,
+			Name:  apicommon.DDMetricsProviderWPAController,
 			Value: strconv.FormatBool(spec.ClusterAgent.Config.ExternalMetrics.WpaController),
 		})
 
 		externalMetricsEndpoint := dda.Spec.ClusterAgent.Config.ExternalMetrics.Endpoint
 		if externalMetricsEndpoint != nil && *externalMetricsEndpoint != "" {
 			envVars = append(envVars, corev1.EnvVar{
-				Name:  datadoghqv1alpha1.DDExternalMetricsProviderEndpoint,
+				Name:  apicommon.DDExternalMetricsProviderEndpoint,
 				Value: *externalMetricsEndpoint,
 			})
 		}
 
 		if hasMetricsProviderCustomCredentials(spec.ClusterAgent) {
-			apiSet, secretName, secretKey := utils.GetAPIKeySecret(dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials, getDefaultExternalMetricSecretName(dda))
+			apiSet, secretName, secretKey := datadoghqv1alpha1.GetAPIKeySecret(dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials, getDefaultExternalMetricSecretName(dda))
 			if apiSet {
 				envVars = append(envVars, corev1.EnvVar{
-					Name:      datadoghqv1alpha1.DDExternalMetricsProviderAPIKey,
+					Name:      apicommon.DDExternalMetricsProviderAPIKey,
 					ValueFrom: buildEnvVarFromSecret(secretName, secretKey),
 				})
 			}
 
-			appSet, secretName, secretKey := utils.GetAppKeySecret(dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials, getDefaultExternalMetricSecretName(dda))
+			appSet, secretName, secretKey := datadoghqv1alpha1.GetAppKeySecret(dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials, getDefaultExternalMetricSecretName(dda))
 			if appSet {
 				envVars = append(envVars, corev1.EnvVar{
-					Name:      datadoghqv1alpha1.DDExternalMetricsProviderAppKey,
+					Name:      apicommon.DDExternalMetricsProviderAppKey,
 					ValueFrom: buildEnvVarFromSecret(secretName, secretKey),
 				})
 			}
@@ -647,7 +647,7 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 				Value: datadoghqv1alpha1.KubeServicesAndEndpointsConfigProviders,
 			},
 			{
-				Name:  datadoghqv1alpha1.DDExtraListeners,
+				Name:  apicommon.DDExtraListeners,
 				Value: datadoghqv1alpha1.KubeServicesAndEndpointsListeners,
 			},
 		}...)
@@ -655,25 +655,25 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 
 	if isAdmissionControllerEnabled(spec.ClusterAgent) {
 		envVars = append(envVars, corev1.EnvVar{
-			Name:  datadoghqv1alpha1.DDAdmissionControllerEnabled,
+			Name:  apicommon.DDAdmissionControllerEnabled,
 			Value: strconv.FormatBool(*spec.ClusterAgent.Config.AdmissionController.Enabled),
 		})
 		envVars = append(envVars, corev1.EnvVar{
-			Name:  datadoghqv1alpha1.DDAdmissionControllerMutateUnlabelled,
+			Name:  apicommon.DDAdmissionControllerMutateUnlabelled,
 			Value: apiutils.BoolToString(spec.ClusterAgent.Config.AdmissionController.MutateUnlabelled),
 		})
 		envVars = append(envVars, corev1.EnvVar{
-			Name:  datadoghqv1alpha1.DDAdmissionControllerServiceName,
+			Name:  apicommon.DDAdmissionControllerServiceName,
 			Value: getAdmissionControllerServiceName(dda),
 		})
 		if spec.ClusterAgent.Config.AdmissionController.AgentCommunicationMode != nil {
 			envVars = append(envVars, corev1.EnvVar{
-				Name:  datadoghqv1alpha1.DDAdmissionControllerInjectConfigMode,
+				Name:  apicommon.DDAdmissionControllerInjectConfigMode,
 				Value: *spec.ClusterAgent.Config.AdmissionController.AgentCommunicationMode,
 			})
 		}
 		envVars = append(envVars, corev1.EnvVar{
-			Name:  datadoghqv1alpha1.DDAdmissionControllerLocalServiceName,
+			Name:  apicommon.DDAdmissionControllerLocalServiceName,
 			Value: getAgentServiceName(dda),
 		})
 	}
@@ -693,7 +693,7 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 }
 
 func getClusterAgentName(dda *datadoghqv1alpha1.DatadogAgent) string {
-	name := component.GetClusterAgentName(dda)
+	name := componentdca.GetClusterAgentName(dda)
 	if isClusterAgentEnabled(dda.Spec.ClusterAgent) && dda.Spec.ClusterAgent.DeploymentName != "" {
 		name = dda.Spec.ClusterAgent.DeploymentName
 	}
@@ -739,7 +739,7 @@ func (r *Reconciler) manageClusterAgentRBACs(logger logr.Logger, dda *datadoghqv
 		return reconcile.Result{}, err
 	}
 
-	rbacResourcesName := getClusterAgentRbacResourcesName(dda)
+	rbacResourcesName := componentdca.GetClusterAgentRbacResourcesName(dda)
 
 	// Create or update ClusterRole
 	clusterRole := &rbacv1.ClusterRole{}
@@ -882,7 +882,7 @@ func (r *Reconciler) updateIfNeededClusterChecksRunnerClusterRole(logger logr.Lo
 
 // cleanupClusterAgentRbacResources deletes ClusterRole, ClusterRoleBindings, and ServiceAccount of the Cluster Agent
 func (r *Reconciler) cleanupClusterAgentRbacResources(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
-	rbacResourcesName := getClusterAgentRbacResourcesName(dda)
+	rbacResourcesName := componentdca.GetClusterAgentRbacResourcesName(dda)
 	// Delete ClusterRole
 	if result, err := r.cleanupClusterRole(logger, dda, rbacResourcesName); err != nil {
 		return result, err
@@ -943,36 +943,7 @@ func buildClusterRole(dda *datadoghqv1alpha1.DatadogAgent, needClusterLevelRBAC 
 		},
 	}
 
-	rbacRules := []rbacv1.PolicyRule{
-		{
-			// Get /metrics permissions
-			NonResourceURLs: []string{rbac.MetricsURL},
-			Verbs:           []string{rbac.GetVerb},
-		},
-		{
-			// Kubelet connectivity
-			APIGroups: []string{rbac.CoreAPIGroup},
-			Resources: []string{
-				rbac.NodeMetricsResource,
-				rbac.NodeSpecResource,
-				rbac.NodeProxyResource,
-				rbac.NodeStats,
-			},
-			Verbs: []string{rbac.GetVerb},
-		},
-		{
-			// Leader election check
-			APIGroups: []string{rbac.CoreAPIGroup},
-			Resources: []string{rbac.EndpointsResource},
-			Verbs:     []string{rbac.GetVerb},
-		},
-		{
-			// Leader election check
-			APIGroups: []string{rbac.CoordinationAPIGroup},
-			Resources: []string{rbac.LeasesResource},
-			Verbs:     []string{rbac.GetVerb},
-		},
-	}
+	rbacRules := agent.GetDefaultAgentClusterRolePolicyRules()
 
 	// If the secret backend uses the provided `/readsecret_multiple_providers.sh` script, then we need to add secrets GET permissions
 	if *dda.Spec.Credentials.UseSecretBackend &&
@@ -989,7 +960,7 @@ func buildClusterRole(dda *datadoghqv1alpha1.DatadogAgent, needClusterLevelRBAC 
 	if needClusterLevelRBAC {
 		// Cluster Agent is disabled, the Agent needs extra permissions
 		// to collect cluster level metrics and events
-		rbacRules = append(rbacRules, getDefaultClusterAgentPolicyRules(dda)...)
+		rbacRules = append(rbacRules, componentdca.GetDefaultClusterAgentClusterRolePolicyRules(dda)...)
 
 		if apiutils.BoolValue(dda.Spec.Agent.Enabled) {
 			if apiutils.BoolValue(dda.Spec.Agent.Config.CollectEvents) {
@@ -997,7 +968,7 @@ func buildClusterRole(dda *datadoghqv1alpha1.DatadogAgent, needClusterLevelRBAC 
 			}
 
 			if apiutils.BoolValue(dda.Spec.Agent.Config.LeaderElection) {
-				rbacRules = append(rbacRules, getLeaderElectionPolicyRule(dda)...)
+				rbacRules = append(rbacRules, componentdca.GetLeaderElectionPolicyRule(dda)...)
 			}
 		}
 	}
@@ -1005,40 +976,6 @@ func buildClusterRole(dda *datadoghqv1alpha1.DatadogAgent, needClusterLevelRBAC 
 	clusterRole.Rules = rbacRules
 
 	return clusterRole
-}
-
-// getDefaultClusterAgentPolicyRules returns the default policy rules for the Cluster Agent
-// Can be used by the Agent if the Cluster Agent is disabled
-func getDefaultClusterAgentPolicyRules(dda *datadoghqv1alpha1.DatadogAgent) []rbacv1.PolicyRule {
-	return append([]rbacv1.PolicyRule{
-		{
-			APIGroups: []string{rbac.CoreAPIGroup},
-			Resources: []string{
-				rbac.ServicesResource,
-				rbac.EventsResource,
-				rbac.EndpointsResource,
-				rbac.PodsResource,
-				rbac.NodesResource,
-				rbac.ComponentStatusesResource,
-				rbac.ConfigMapsResource,
-				rbac.NamespaceResource,
-			},
-			Verbs: []string{
-				rbac.GetVerb,
-				rbac.ListVerb,
-				rbac.WatchVerb,
-			},
-		},
-		{
-			APIGroups: []string{rbac.OpenShiftQuotaAPIGroup},
-			Resources: []string{rbac.ClusterResourceQuotasResource},
-			Verbs:     []string{rbac.GetVerb, rbac.ListVerb},
-		},
-		{
-			NonResourceURLs: []string{rbac.VersionURL, rbac.HealthzURL},
-			Verbs:           []string{rbac.GetVerb},
-		},
-	}, getLeaderElectionPolicyRule(dda)...)
 }
 
 // buildClusterRoleBinding creates a ClusterRoleBinding object
@@ -1072,23 +1009,7 @@ func buildClusterAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, age
 		},
 	}
 
-	rbacRules := getDefaultClusterAgentPolicyRules(dda)
-
-	rbacRules = append(rbacRules, rbacv1.PolicyRule{
-		// Horizontal Pod Autoscaling
-		APIGroups: []string{rbac.AutoscalingAPIGroup},
-		Resources: []string{rbac.HorizontalPodAutoscalersRecource},
-		Verbs:     []string{rbac.ListVerb, rbac.WatchVerb},
-	})
-
-	rbacRules = append(rbacRules, rbacv1.PolicyRule{
-		APIGroups: []string{rbac.CoreAPIGroup},
-		Resources: []string{rbac.NamespaceResource},
-		ResourceNames: []string{
-			common.KubeSystemResourceName,
-		},
-		Verbs: []string{rbac.GetVerb},
-	})
+	rbacRules := componentdca.GetDefaultClusterAgentClusterRolePolicyRules(dda)
 
 	if apiutils.BoolValue(dda.Spec.ClusterAgent.Config.CollectEvents) {
 		rbacRules = append(rbacRules, getEventCollectionPolicyRule(dda))
@@ -1327,7 +1248,7 @@ func buildClusterAgentRole(dda *datadoghqv1alpha1.DatadogAgent, name, agentVersi
 		},
 	}
 
-	rbacRules := getLeaderElectionPolicyRule(dda)
+	rbacRules := componentdca.GetLeaderElectionPolicyRule(dda)
 
 	rbacRules = append(rbacRules, rbacv1.PolicyRule{
 		APIGroups: []string{rbac.CoreAPIGroup},

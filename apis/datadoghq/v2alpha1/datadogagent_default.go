@@ -7,6 +7,7 @@ package v2alpha1
 
 import (
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
+	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 )
 
@@ -14,7 +15,6 @@ import (
 // Note: many default values are set in the Datadog Agent and deliberately not set by the Operator.
 const (
 	defaultSite     string = "datadoghq.com"
-	defaultRegistry string = "gcr.io/datadoghq"
 	defaultLogLevel string = "info"
 
 	// defaultLogCollectionEnabled          bool   = false
@@ -49,7 +49,7 @@ const (
 	defaultDogstatsdOriginDetectionEnabled bool   = false
 	defaultDogstatsdHostPortEnabled        bool   = false
 	defaultDogstatsdPort                   int32  = 8125
-	defaultDogstatsdUseSocketVolume        bool   = false
+	defaultDogstatsdSocketEnabled          bool   = true
 	defaultDogstatsdSocketPath             string = "/var/run/datadog/dsd.socket"
 
 	defaultCollectKubernetesEvents bool = true
@@ -65,19 +65,21 @@ const (
 	// Cluster Agent versions < 1.20 should use 443
 	defaultMetricsProviderPort int32 = 8443
 
-	defaultKubeStateMetricsCoreEnabled bool   = true
-	defaultKubeStateMetricsCoreConf    string = "kube-state-metrics-core-config"
+	defaultKubeStateMetricsCoreEnabled bool = true
 
 	defaultClusterChecksEnabled    bool = true
 	defaultUseClusterChecksRunners bool = true
 
 	// defaultPrometheusScrapeEnabled                bool = false
 	defaultPrometheusScrapeEnableServiceEndpoints bool = false
+<<<<<<< HEAD
 
 	// defaultDatadogMonitorEnabled bool = false
 
 	defaultKubeletAgentCAPath            = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
 	defaultKubeletAgentCAPathHostPathSet = "/var/run/host-kubelet-ca.crt"
+=======
+>>>>>>> main
 )
 
 // DefaultDatadogAgent defaults the DatadogAgentSpec GlobalConfig and Features.
@@ -98,7 +100,7 @@ func defaultGlobalConfig(ddaSpec *DatadogAgentSpec) {
 	}
 
 	if ddaSpec.Global.Registry == nil {
-		ddaSpec.Global.Registry = apiutils.NewStringPointer(defaultRegistry)
+		ddaSpec.Global.Registry = apiutils.NewStringPointer(apicommon.DefaultImageRegistry)
 	}
 
 	if ddaSpec.Global.LogLevel == nil {
@@ -197,7 +199,7 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 		ddaSpec.Features.Dogstatsd.UnixDomainSocketConfig = &UnixDomainSocketConfig{}
 	}
 
-	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.Dogstatsd.UnixDomainSocketConfig.Enabled, defaultDogstatsdUseSocketVolume)
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.Dogstatsd.UnixDomainSocketConfig.Enabled, defaultDogstatsdSocketEnabled)
 
 	apiutils.DefaultStringIfUnset(&ddaSpec.Features.Dogstatsd.UnixDomainSocketConfig.Path, defaultDogstatsdSocketPath)
 
@@ -229,14 +231,6 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 	if ddaSpec.Features.KubeStateMetricsCore == nil {
 		ddaSpec.Features.KubeStateMetricsCore = &KubeStateMetricsCoreFeatureConfig{
 			Enabled: apiutils.NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
-		}
-	}
-
-	if *ddaSpec.Features.KubeStateMetricsCore.Enabled {
-		if ddaSpec.Features.KubeStateMetricsCore.Conf == nil {
-			ddaSpec.Features.KubeStateMetricsCore.Conf = &CustomConfig{
-				ConfigData: apiutils.NewStringPointer(defaultKubeStateMetricsCoreConf),
-			}
 		}
 	}
 

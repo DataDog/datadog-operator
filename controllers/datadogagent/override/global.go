@@ -26,6 +26,7 @@ const (
 	minDefaultLocalServiceVersion = "1.22-0"
 )
 
+<<<<<<< HEAD
 // ApplyGlobalSettings use to apply global setting to a PodTemplateSpec
 func ApplyGlobalSettings(manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, componentName v2alpha1.ComponentName) *corev1.PodTemplateSpec {
 	config := dda.Spec.Global
@@ -201,6 +202,16 @@ func ApplyGlobalSettings(manager feature.PodTemplateManagers, dda *v2alpha1.Data
 			manager.Volume().AddVolume(&criVol)
 		}
 	}
+=======
+	if config != nil && config.Kubelet != nil && config.Kubelet.TLSVerify != nil {
+		manager.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
+			Name:  apicommon.DDKubeletTLSVerify,
+			Value: apiutils.BoolToString(config.Kubelet.TLSVerify),
+		})
+	}
+
+	// set image registry
+>>>>>>> main
 
 	return manager.PodTemplateSpec()
 }

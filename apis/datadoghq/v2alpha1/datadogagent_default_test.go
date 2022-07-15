@@ -11,6 +11,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	assert "github.com/stretchr/testify/require"
 
+	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 )
 
@@ -33,7 +34,7 @@ func Test_defaultGlobal(t *testing.T) {
 			want: &DatadogAgentSpec{
 				Global: &GlobalConfig{
 					Site:     apiutils.NewStringPointer(defaultSite),
-					Registry: apiutils.NewStringPointer(defaultRegistry),
+					Registry: apiutils.NewStringPointer(apicommon.DefaultImageRegistry),
 					LogLevel: apiutils.NewStringPointer(defaultLogLevel),
 				},
 			},
@@ -76,7 +77,7 @@ func Test_defaultFeatures(t *testing.T) {
 						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogstatsdOriginDetectionEnabled),
 						HostPortConfig:         &HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
 						UnixDomainSocketConfig: &UnixDomainSocketConfig{
-							Enabled: apiutils.NewBoolPointer(defaultDogstatsdUseSocketVolume),
+							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
 							Path:    apiutils.NewStringPointer(defaultDogstatsdSocketPath),
 						},
 					},
@@ -91,9 +92,6 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					KubeStateMetricsCore: &KubeStateMetricsCoreFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
-						Conf: &CustomConfig{
-							ConfigData: apiutils.NewStringPointer(defaultKubeStateMetricsCoreConf),
-						},
 					},
 					ClusterChecks: &ClusterChecksFeatureConfig{
 						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
@@ -198,7 +196,7 @@ func Test_defaultFeatures(t *testing.T) {
 						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogstatsdOriginDetectionEnabled),
 						HostPortConfig:         &HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
 						UnixDomainSocketConfig: &UnixDomainSocketConfig{
-							Enabled: apiutils.NewBoolPointer(defaultDogstatsdUseSocketVolume),
+							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
 							Path:    apiutils.NewStringPointer(defaultDogstatsdSocketPath),
 						},
 					},
@@ -255,7 +253,7 @@ func Test_defaultFeatures(t *testing.T) {
 						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogstatsdOriginDetectionEnabled),
 						HostPortConfig:         &HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
 						UnixDomainSocketConfig: &UnixDomainSocketConfig{
-							Enabled: apiutils.NewBoolPointer(defaultDogstatsdUseSocketVolume),
+							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
 							Path:    apiutils.NewStringPointer(defaultDogstatsdSocketPath),
 						},
 					},
@@ -270,9 +268,6 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					KubeStateMetricsCore: &KubeStateMetricsCoreFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
-						Conf: &CustomConfig{
-							ConfigData: apiutils.NewStringPointer(defaultKubeStateMetricsCoreConf),
-						},
 					},
 					ClusterChecks: &ClusterChecksFeatureConfig{
 						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
@@ -310,7 +305,7 @@ func Test_defaultFeatures(t *testing.T) {
 						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogstatsdOriginDetectionEnabled),
 						HostPortConfig:         &HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
 						UnixDomainSocketConfig: &UnixDomainSocketConfig{
-							Enabled: apiutils.NewBoolPointer(defaultDogstatsdUseSocketVolume),
+							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
 							Path:    apiutils.NewStringPointer(defaultDogstatsdSocketPath),
 						},
 					},
@@ -325,9 +320,6 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					KubeStateMetricsCore: &KubeStateMetricsCoreFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
-						Conf: &CustomConfig{
-							ConfigData: apiutils.NewStringPointer(defaultKubeStateMetricsCoreConf),
-						},
 					},
 					ClusterChecks: &ClusterChecksFeatureConfig{
 						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
@@ -359,7 +351,7 @@ func Test_defaultFeatures(t *testing.T) {
 						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogstatsdOriginDetectionEnabled),
 						HostPortConfig:         &HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
 						UnixDomainSocketConfig: &UnixDomainSocketConfig{
-							Enabled: apiutils.NewBoolPointer(defaultDogstatsdUseSocketVolume),
+							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
 							Path:    apiutils.NewStringPointer(defaultDogstatsdSocketPath),
 						},
 					},
@@ -374,9 +366,6 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					KubeStateMetricsCore: &KubeStateMetricsCoreFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
-						Conf: &CustomConfig{
-							ConfigData: apiutils.NewStringPointer(defaultKubeStateMetricsCoreConf),
-						},
 					},
 					ClusterChecks: &ClusterChecksFeatureConfig{
 						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
@@ -403,7 +392,7 @@ func Test_defaultFeatures(t *testing.T) {
 						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogstatsdOriginDetectionEnabled),
 						HostPortConfig:         &HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
 						UnixDomainSocketConfig: &UnixDomainSocketConfig{
-							Enabled: apiutils.NewBoolPointer(defaultDogstatsdUseSocketVolume),
+							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
 							Path:    apiutils.NewStringPointer(defaultDogstatsdSocketPath),
 						},
 					},
@@ -418,9 +407,6 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					KubeStateMetricsCore: &KubeStateMetricsCoreFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
-						Conf: &CustomConfig{
-							ConfigData: apiutils.NewStringPointer(defaultKubeStateMetricsCoreConf),
-						},
 					},
 					ExternalMetricsServer: &ExternalMetricsServerFeatureConfig{
 						Enabled:           apiutils.NewBoolPointer(valueTrue),

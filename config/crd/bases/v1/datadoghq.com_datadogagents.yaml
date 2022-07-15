@@ -12728,7 +12728,8 @@ spec:
                           Enabled Default: false Port Default: 8126'
                         properties:
                           enabled:
-                            description: Enabled enables host port configuration
+                            description: 'Enabled enables host port configuration
+                              Default: false'
                             type: boolean
                           hostPort:
                             description: Port takes a port number (0 < x < 65536)
@@ -12744,7 +12745,8 @@ spec:
                           Enabled Default: true Path Default: `/var/run/datadog/apm.socket`'
                         properties:
                           enabled:
-                            description: Enabled enables Unix Domain Socket.
+                            description: 'Enabled enables Unix Domain Socket. Default:
+                              true'
                             type: boolean
                           path:
                             description: Path defines the socket path used when enabled.
@@ -12891,7 +12893,8 @@ spec:
                           Enabled Default: true Port Default: 8125'
                         properties:
                           enabled:
-                            description: Enabled enables host port configuration
+                            description: 'Enabled enables host port configuration
+                              Default: false'
                             type: boolean
                           hostPort:
                             description: Port takes a port number (0 < x < 65536)
@@ -12966,7 +12969,8 @@ spec:
                           Enabled Default: true Path Default: `/var/run/datadog/dsd.socket`'
                         properties:
                           enabled:
-                            description: Enabled enables Unix Domain Socket.
+                            description: 'Enabled enables Unix Domain Socket. Default:
+                              true'
                             type: boolean
                           path:
                             description: Path defines the socket path used when enabled.
@@ -17556,6 +17560,150 @@ spec:
           status:
             description: DatadogAgentStatus defines the observed state of DatadogAgent.
             properties:
+              agent:
+                description: The actual state of the Agent as an extended daemonset.
+                properties:
+                  available:
+                    format: int32
+                    type: integer
+                  current:
+                    format: int32
+                    type: integer
+                  currentHash:
+                    type: string
+                  daemonsetName:
+                    description: DaemonsetName corresponds to the name of the created
+                      DaemonSet.
+                    type: string
+                  desired:
+                    format: int32
+                    type: integer
+                  lastUpdate:
+                    format: date-time
+                    type: string
+                  ready:
+                    format: int32
+                    type: integer
+                  state:
+                    type: string
+                  status:
+                    type: string
+                  upToDate:
+                    format: int32
+                    type: integer
+                required:
+                - available
+                - current
+                - desired
+                - ready
+                - upToDate
+                type: object
+              clusterAgent:
+                description: The actual state of the Cluster Agent as a deployment.
+                properties:
+                  availableReplicas:
+                    description: Total number of available pods (ready for at least
+                      minReadySeconds) targeted by this deployment.
+                    format: int32
+                    type: integer
+                  currentHash:
+                    type: string
+                  deploymentName:
+                    description: DeploymentName corresponds to the name of the Cluster
+                      Agent Deployment.
+                    type: string
+                  generatedToken:
+                    description: GeneratedToken corresponds to the generated token
+                      if any token was provided in the Credential configuration when
+                      ClusterAgent is enabled.
+                    type: string
+                  lastUpdate:
+                    format: date-time
+                    type: string
+                  readyReplicas:
+                    description: Total number of ready pods targeted by this deployment.
+                    format: int32
+                    type: integer
+                  replicas:
+                    description: Total number of non-terminated pods targeted by this
+                      deployment (their labels match the selector).
+                    format: int32
+                    type: integer
+                  state:
+                    description: State corresponds to the ClusterAgent deployment
+                      state.
+                    type: string
+                  status:
+                    description: Status corresponds to the ClusterAgent deployment
+                      computed status.
+                    type: string
+                  unavailableReplicas:
+                    description: Total number of unavailable pods targeted by this
+                      deployment. This is the total number of pods that are still
+                      required for the deployment to have 100% available capacity.
+                      They may either be pods that are running but not yet available
+                      or pods that still have not been created.
+                    format: int32
+                    type: integer
+                  updatedReplicas:
+                    description: Total number of non-terminated pods targeted by this
+                      deployment that have the desired template spec.
+                    format: int32
+                    type: integer
+                type: object
+              clusterChecksRunner:
+                description: The actual state of the Cluster Checks Runner as a deployment.
+                properties:
+                  availableReplicas:
+                    description: Total number of available pods (ready for at least
+                      minReadySeconds) targeted by this deployment.
+                    format: int32
+                    type: integer
+                  currentHash:
+                    type: string
+                  deploymentName:
+                    description: DeploymentName corresponds to the name of the Cluster
+                      Agent Deployment.
+                    type: string
+                  generatedToken:
+                    description: GeneratedToken corresponds to the generated token
+                      if any token was provided in the Credential configuration when
+                      ClusterAgent is enabled.
+                    type: string
+                  lastUpdate:
+                    format: date-time
+                    type: string
+                  readyReplicas:
+                    description: Total number of ready pods targeted by this deployment.
+                    format: int32
+                    type: integer
+                  replicas:
+                    description: Total number of non-terminated pods targeted by this
+                      deployment (their labels match the selector).
+                    format: int32
+                    type: integer
+                  state:
+                    description: State corresponds to the ClusterAgent deployment
+                      state.
+                    type: string
+                  status:
+                    description: Status corresponds to the ClusterAgent deployment
+                      computed status.
+                    type: string
+                  unavailableReplicas:
+                    description: Total number of unavailable pods targeted by this
+                      deployment. This is the total number of pods that are still
+                      required for the deployment to have 100% available capacity.
+                      They may either be pods that are running but not yet available
+                      or pods that still have not been created.
+                    format: int32
+                    type: integer
+                  updatedReplicas:
+                    description: Total number of non-terminated pods targeted by this
+                      deployment that have the desired template spec.
+                    format: int32
+                    type: integer
+                type: object
               conditions:
                 description: Conditions Represents the latest available observations
                   of a DatadogAgent's current state.

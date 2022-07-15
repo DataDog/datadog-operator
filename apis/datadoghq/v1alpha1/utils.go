@@ -27,10 +27,13 @@ func GetConfName(owner metav1.Object, conf *CustomConfigSpec, defaultName string
 	return fmt.Sprintf("%s-%s", owner.GetName(), defaultName)
 }
 
-// GetAgentServiceAccount returns the node agent serviceAccountName
+// GetAgentServiceAccount returns the agent serviceAccountName
 func GetAgentServiceAccount(dda *DatadogAgent) string {
 	saDefault := fmt.Sprintf("%s-%s", dda.Name, common.DefaultAgentResourceSuffix)
 
+	if dda.Spec.Agent.Rbac != nil && dda.Spec.Agent.Rbac.ServiceAccountName != nil {
+		return *dda.Spec.Agent.Rbac.ServiceAccountName
+	}
 	return saDefault
 }
 
@@ -85,4 +88,9 @@ func ConvertCustomConfig(config *CustomConfigSpec) *commonv1.CustomConfig {
 		ConfigData: config.ConfigData,
 		ConfigMap:  configMap,
 	}
+}
+
+// IsHostNetworkEnabled returns whether the pod should use the host's network namespace
+func IsHostNetworkEnabled(dda *DatadogAgent) bool {
+	return apiutils.BoolValue(&dda.Spec.Agent.HostNetwork)
 }
