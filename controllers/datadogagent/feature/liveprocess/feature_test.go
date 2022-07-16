@@ -8,6 +8,7 @@ package liveprocess
 import (
 	"testing"
 
+	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
@@ -61,22 +62,22 @@ func Test_liveProcessFeature_Configure(t *testing.T) {
 		// check volume mounts
 		wantVolumeMounts := []corev1.VolumeMount{
 			{
-				Name:      passwdVolumeName,
-				MountPath: passwdVolumePath,
+				Name:      apicommon.PasswdVolumeName,
+				MountPath: apicommon.PasswdMountPath,
 				ReadOnly:  true,
 			},
 		}
 
-		processAgentMounts := mgr.VolumeMgr.VolumeMountByC[apicommonv1.ProcessAgentContainerName]
+		processAgentMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.ProcessAgentContainerName]
 		assert.True(t, apiutils.IsEqualStruct(processAgentMounts, wantVolumeMounts), "Process Agent volume mounts \ndiff = %s", cmp.Diff(processAgentMounts, wantVolumeMounts))
 
 		// check volumes
 		wantVolumes := []corev1.Volume{
 			{
-				Name: passwdVolumeName,
+				Name: apicommon.PasswdVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
-						Path: passwdVolumePath,
+						Path: apicommon.PasswdHostPath,
 					},
 				},
 			},
@@ -88,7 +89,7 @@ func Test_liveProcessFeature_Configure(t *testing.T) {
 		// check env vars
 		wantEnvVars := []*corev1.EnvVar{
 			{
-				Name:  DDProcessAgentEnabledEnvVar,
+				Name:  apicommon.DDProcessAgentEnabled,
 				Value: "true",
 			},
 		}

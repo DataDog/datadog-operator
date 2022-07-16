@@ -228,6 +228,51 @@ func Test_defaultFeatures(t *testing.T) {
 			},
 		},
 		{
+			name: "liveProcess is enabled",
+			ddaSpec: &DatadogAgentSpec{
+				Features: &DatadogFeatures{
+					LiveProcessCollection: &LiveProcessCollectionFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(valueTrue),
+					},
+				},
+			},
+			want: &DatadogAgentSpec{
+				Features: &DatadogFeatures{
+					LiveProcessCollection: &LiveProcessCollectionFeatureConfig{
+						Enabled:               apiutils.NewBoolPointer(valueTrue),
+						ScrubProcessArguments: apiutils.NewBoolPointer(valueTrue),
+					},
+					LiveContainerCollection: &LiveContainerCollectionFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
+					},
+					Dogstatsd: &DogstatsdFeatureConfig{
+						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogstatsdOriginDetectionEnabled),
+						HostPortConfig:         &HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
+						UnixDomainSocketConfig: &UnixDomainSocketConfig{
+							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
+							Path:    apiutils.NewStringPointer(defaultDogstatsdSocketPath),
+						},
+					},
+					EventCollection: &EventCollectionFeatureConfig{
+						CollectKubernetesEvents: apiutils.NewBoolPointer(defaultCollectKubernetesEvents),
+					},
+					OrchestratorExplorer: &OrchestratorExplorerFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultOrchestratorExplorerEnabled),
+						Conf: &CustomConfig{
+							ConfigData: apiutils.NewStringPointer(DefaultOrchestratorExplorerConf),
+						},
+					},
+					KubeStateMetricsCore: &KubeStateMetricsCoreFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
+					},
+					ClusterChecks: &ClusterChecksFeatureConfig{
+						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
+						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
+					},
+				},
+			},
+		},
+		{
 			name: "logCollection is enabled",
 			ddaSpec: &DatadogAgentSpec{
 				Features: &DatadogFeatures{
