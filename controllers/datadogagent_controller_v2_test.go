@@ -62,6 +62,22 @@ var _ = Describe("V2 Controller - DatadogAgent Deployment", func() {
 		})
 	})
 
+	Context("with cluster checks enabled", func() {
+		BeforeEach(func() {
+			name = "with-cluster-checks"
+			agent = testutils.NewDatadogAgentWithClusterChecks(namespace, name)
+			createAgent(&agent)
+		})
+
+		AfterEach(func() {
+			deleteAgent(&agent)
+		})
+
+		It("should deploy successfully", func() {
+			checkAgentDeployment(namespace, name)
+		})
+	})
+
 	Context("with CSPM enabled", func() {
 		BeforeEach(func() {
 			name = "with-cspm"

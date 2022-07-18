@@ -27,6 +27,20 @@ func NewDatadogAgentWithoutFeatures(namespace string, name string) v2alpha1.Data
 	return newDatadogAgentWithFeatures(namespace, name, nil)
 }
 
+// NewDatadogAgentWithClusterChecks returns an agent with cluster checks enabled
+func NewDatadogAgentWithClusterChecks(namespace string, name string) v2alpha1.DatadogAgent {
+	return newDatadogAgentWithFeatures(
+		namespace,
+		name,
+		&v2alpha1.DatadogFeatures{
+			ClusterChecks: &v2alpha1.ClusterChecksFeatureConfig{
+				Enabled:                 apiutils.NewBoolPointer(true),
+				UseClusterChecksRunners: apiutils.NewBoolPointer(true),
+			},
+		},
+	)
+}
+
 // NewDatadogAgentWithCSPM returns an agent with CSPM enabled
 func NewDatadogAgentWithCSPM(namespace string, name string) v2alpha1.DatadogAgent {
 	return newDatadogAgentWithFeatures(
