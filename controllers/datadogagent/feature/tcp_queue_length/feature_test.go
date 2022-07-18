@@ -22,11 +22,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-func createEmptyFakeManager(t testing.TB) feature.PodTemplateManagers {
-	mgr := fake.NewPodTemplateManagers(t)
-	return mgr
-}
-
 func Test_tcpQueueLengthFeature_Configure(t *testing.T) {
 	ddav1TCPQLDisabled := v1alpha1.DatadogAgent{
 		Spec: v1alpha1.DatadogAgentSpec{
@@ -127,10 +122,7 @@ func Test_tcpQueueLengthFeature_Configure(t *testing.T) {
 			Name:          "v1alpha1 tcp queue length enabled",
 			DDAv1:         ddav1TCPQLEnabled,
 			WantConfigure: true,
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc:   tcpQueueLengthAgentNodeWantFunc,
-			},
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(tcpQueueLengthAgentNodeWantFunc),
 		},
 		///////////////////////////
 		// v2alpha1.DatadogAgent //
@@ -144,10 +136,7 @@ func Test_tcpQueueLengthFeature_Configure(t *testing.T) {
 			Name:          "v2alpha1 tcp queue length enabled",
 			DDAv2:         ddav2TCPQLEnabled,
 			WantConfigure: true,
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc:   tcpQueueLengthAgentNodeWantFunc,
-			},
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(tcpQueueLengthAgentNodeWantFunc),
 		},
 	}
 
