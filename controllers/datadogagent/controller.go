@@ -32,6 +32,7 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 
 	// Use to register features
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/clusterchecks"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/cspm"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/dogstatsd"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/dummy"
