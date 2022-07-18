@@ -26,7 +26,6 @@ const (
 	minDefaultLocalServiceVersion = "1.22-0"
 )
 
-<<<<<<< HEAD
 // ApplyGlobalSettings use to apply global setting to a PodTemplateSpec
 func ApplyGlobalSettings(manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, componentName v2alpha1.ComponentName) *corev1.PodTemplateSpec {
 	config := dda.Spec.Global
@@ -110,13 +109,11 @@ func ApplyGlobalSettings(manager feature.PodTemplateManagers, dda *v2alpha1.Data
 		// LocalService contains configuration to customize the internal traffic policy service.
 		gitVersion := resourcesManager.Store().GetVersionInfo()
 		if utils.IsAboveMinVersion(gitVersion, minLocalServiceVersion) {
-			if config.LocalService != nil {
-				if apiutils.BoolValue(config.LocalService.ForceEnableLocalService) || utils.IsAboveMinVersion(gitVersion, minDefaultLocalServiceVersion) {
-					if config.LocalService.NameOverride != nil {
-						_ = resourcesManager.ServiceManager().BuildAgentLocalService(dda, *config.LocalService.NameOverride)
-					} else {
-						_ = resourcesManager.ServiceManager().BuildAgentLocalService(dda, "")
-					}
+			if utils.IsAboveMinVersion(gitVersion, minDefaultLocalServiceVersion) || (config.LocalService != nil && apiutils.BoolValue(config.LocalService.ForceEnableLocalService)) {
+				if config.LocalService != nil && config.LocalService.NameOverride != nil {
+					_ = resourcesManager.ServiceManager().BuildAgentLocalService(dda, *config.LocalService.NameOverride)
+				} else {
+					_ = resourcesManager.ServiceManager().BuildAgentLocalService(dda, "")
 				}
 			}
 		}
@@ -168,7 +165,7 @@ func ApplyGlobalSettings(manager feature.PodTemplateManagers, dda *v2alpha1.Data
 		if config.DockerSocketPath != nil {
 			dockerMountPath := filepath.Join(apicommon.HostCriSocketPathPrefix, *config.DockerSocketPath)
 			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-				Name:  apicommon.DDDockerHost,
+				Name:  apicommon.DockerHost,
 				Value: "unix://" + dockerMountPath,
 			})
 			dockerVol, dockerVolMount := volume.GetVolumes(apicommon.CriSocketVolumeName, *config.DockerSocketPath, dockerMountPath, true)
@@ -202,16 +199,6 @@ func ApplyGlobalSettings(manager feature.PodTemplateManagers, dda *v2alpha1.Data
 			manager.Volume().AddVolume(&criVol)
 		}
 	}
-=======
-	if config != nil && config.Kubelet != nil && config.Kubelet.TLSVerify != nil {
-		manager.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
-			Name:  apicommon.DDKubeletTLSVerify,
-			Value: apiutils.BoolToString(config.Kubelet.TLSVerify),
-		})
-	}
-
-	// set image registry
->>>>>>> main
 
 	return manager.PodTemplateSpec()
 }

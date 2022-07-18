@@ -6,8 +6,8 @@
 package v2alpha1
 
 import (
-	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
+	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 )
 
@@ -72,14 +72,11 @@ const (
 
 	// defaultPrometheusScrapeEnabled                bool = false
 	defaultPrometheusScrapeEnableServiceEndpoints bool = false
-<<<<<<< HEAD
 
 	// defaultDatadogMonitorEnabled bool = false
 
 	defaultKubeletAgentCAPath            = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
 	defaultKubeletAgentCAPathHostPathSet = "/var/run/host-kubelet-ca.crt"
-=======
->>>>>>> main
 )
 
 // DefaultDatadogAgent defaults the DatadogAgentSpec GlobalConfig and Features.
@@ -112,7 +109,7 @@ func defaultGlobalConfig(ddaSpec *DatadogAgentSpec) {
 			AgentCAPath: defaultKubeletAgentCAPath,
 		}
 	} else if ddaSpec.Global.Kubelet.AgentCAPath == "" {
-		if ddaSpec.Global.Kubelet.HostCAPath == "" {
+		if ddaSpec.Global.Kubelet.HostCAPath != "" {
 			ddaSpec.Global.Kubelet.AgentCAPath = defaultKubeletAgentCAPathHostPathSet
 		} else {
 			ddaSpec.Global.Kubelet.AgentCAPath = defaultKubeletAgentCAPath

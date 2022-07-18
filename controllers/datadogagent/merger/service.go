@@ -20,7 +20,7 @@ import (
 
 // ServiceManager is used to manage service resources.
 type ServiceManager interface {
-	AddService(name, namespace string, selector map[string]string, ports []corev1.ServicePort, internalTrafficPolicy *corev1.ServiceInternalTrafficPolicyType) error
+	AddService(name, namespace string, spec *corev1.ServiceSpec) error
 	BuildAgentLocalService(dda metav1.Object, nameOverride string) error
 }
 
@@ -38,20 +38,15 @@ type serviceManagerImpl struct {
 }
 
 // AddService creates or updates service
-func (m *serviceManagerImpl) AddService(name, namespace string, selector map[string]string, ports []corev1.ServicePort, internalTrafficPolicy *corev1.ServiceInternalTrafficPolicyType) error {
+func (m *serviceManagerImpl) AddService(name, namespace string, spec *corev1.ServiceSpec) error {
 	obj, _ := m.store.GetOrCreate(kubernetes.ServicesKind, namespace, name)
 	service, ok := obj.(*corev1.Service)
 	if !ok {
 		return fmt.Errorf("unable to get from the store the Service %s", name)
 	}
+	service.Spec = *spec
 
-	service.Spec.Ports = append(service.Spec.Ports, ports...)
-	service.Spec.Selector = selector
-	service.Spec.Type = corev1.ServiceTypeClusterIP
-	service.Spec.InternalTrafficPolicy = internalTrafficPolicy
-	m.store.AddOrUpdate(kubernetes.ServicesKind, service)
-
-	return nil
+	return m.store.AddOrUpdate(kubernetes.ServicesKind, service)
 }
 
 // BuildAgentLocalService creates a local service for the node agent
@@ -63,17 +58,23 @@ func (m *serviceManagerImpl) BuildAgentLocalService(dda metav1.Object, nameOverr
 		serviceName = component.GetAgentServiceName(dda)
 	}
 	serviceInternalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
-	selector := map[string]string{
-		apicommon.AgentDeploymentNameLabelKey:      dda.GetName(),
-		apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
-	}
-	ports := []corev1.ServicePort{
-		{
-			Protocol:   corev1.ProtocolUDP,
-			TargetPort: intstr.FromInt(apicommon.DefaultDogstatsdPort),
-			Port:       apicommon.DefaultDogstatsdPort,
-			Name:       apicommon.DefaultDogstatsdPortName,
+
+	spec := &corev1.ServiceSpec{
+		Type: corev1.ServiceTypeClusterIP,
+		Selector: map[string]string{
+			apicommon.AgentDeploymentNameLabelKey:      dda.GetName(),
+			apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
 		},
+		Ports: []corev1.ServicePort{
+			{
+				Protocol:   corev1.ProtocolUDP,
+				TargetPort: intstr.FromInt(apicommon.DefaultDogstatsdPort),
+				Port:       apicommon.DefaultDogstatsdPort,
+				Name:       apicommon.DefaultDogstatsdPortName,
+			},
+		},
+		InternalTrafficPolicy: &serviceInternalTrafficPolicy,
 	}
-	return m.AddService(serviceName, dda.GetNamespace(), selector, ports, &serviceInternalTrafficPolicy)
+
+	return m.AddService(serviceName, dda.GetNamespace(), spec)
 }

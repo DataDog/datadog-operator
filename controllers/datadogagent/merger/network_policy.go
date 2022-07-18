@@ -51,9 +51,7 @@ func (m *networkPolicyManagerImpl) AddKubernetesNetworkPolicy(name, namespace st
 	policy.Spec.PolicyTypes = append(policy.Spec.PolicyTypes, policyTypes...)
 	policy.Spec.Ingress = append(policy.Spec.Ingress, ingress...)
 	policy.Spec.Egress = append(policy.Spec.Egress, egress...)
-	m.store.AddOrUpdate(kubernetes.NetworkPoliciesKind, policy)
-
-	return nil
+	return m.store.AddOrUpdate(kubernetes.NetworkPoliciesKind, policy)
 }
 
 // BuildAgentKubernetesNetworkPolicy creates the base node agent kubernetes network policy
