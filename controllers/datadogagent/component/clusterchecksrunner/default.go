@@ -135,10 +135,6 @@ func defaultEnvVars(dda metav1.Object) []corev1.EnvVar {
 			Value: componentdca.GetClusterAgentServiceName(dda),
 		},
 		{
-			Name:  apicommon.DDClusterChecksEnabled,
-			Value: "true",
-		},
-		{
 			Name:  apicommon.DDClusterAgentEnabled,
 			Value: "true",
 		},
@@ -149,10 +145,6 @@ func defaultEnvVars(dda metav1.Object) []corev1.EnvVar {
 		{
 			Name:  apicommon.KubernetesEnvVar,
 			Value: "yes",
-		},
-		{
-			Name:  apicommon.DDExtraConfigProviders,
-			Value: apicommon.ClusterChecksConfigProvider,
 		},
 		{
 			Name:  apicommon.DDEnableMetadataCollection,
