@@ -22,11 +22,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-func createEmptyFakeManager(t testing.TB) feature.PodTemplateManagers {
-	mgr := fake.NewPodTemplateManagers(t)
-	return mgr
-}
-
 func Test_oomKillFeature_Configure(t *testing.T) {
 	ddav1OOMKillDisabled := v1alpha1.DatadogAgent{
 		Spec: v1alpha1.DatadogAgentSpec{
@@ -127,10 +122,7 @@ func Test_oomKillFeature_Configure(t *testing.T) {
 			Name:          "v1alpha1 oom kill enabled",
 			DDAv1:         ddav1OOMKillEnabled,
 			WantConfigure: true,
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc:   oomKillAgentNodeWantFunc,
-			},
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(oomKillAgentNodeWantFunc),
 		},
 		///////////////////////////
 		// v2alpha1.DatadogAgent //
@@ -144,10 +136,7 @@ func Test_oomKillFeature_Configure(t *testing.T) {
 			Name:          "v2alpha1 oom kill enabled",
 			DDAv2:         ddav2OOMKillEnabled,
 			WantConfigure: true,
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc:   oomKillAgentNodeWantFunc,
-			},
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(oomKillAgentNodeWantFunc),
 		},
 	}
 

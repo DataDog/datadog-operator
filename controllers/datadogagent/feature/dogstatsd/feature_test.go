@@ -21,11 +21,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-func createEmptyFakeManager(t testing.TB) feature.PodTemplateManagers {
-	mgr := fake.NewPodTemplateManagers(t)
-	return mgr
-}
-
 func Test_DogstatsdFeature_Configure(t *testing.T) {
 	customMapperProfilesConf := `- name: 'profile_name'
   prefix: 'profile_prefix'
@@ -201,9 +196,8 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 			Name:          "v1alpha1 dogstatsd udp enabled",
 			DDAv1:         &ddav1DogstatsdEnabled,
 			WantConfigure: true,
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, []*corev1.VolumeMount(nil)), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, []*corev1.VolumeMount(nil)))
@@ -214,15 +208,14 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 					coreAgentPorts := mgr.PortMgr.PortsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentPorts, wantContainerPorts), "Agent ports \ndiff = %s", cmp.Diff(coreAgentPorts, wantContainerPorts))
 				},
-			},
+			),
 		},
 		{
 			Name:          "v1alpha1 udp custom host port",
 			DDAv1:         ddav1DogstatsdCustomHostPort,
 			WantConfigure: true,
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, []*corev1.VolumeMount(nil)), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, []*corev1.VolumeMount(nil)))
@@ -241,15 +234,14 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 					}
 					assert.True(t, apiutils.IsEqualStruct(coreAgentPorts, customPorts), "Agent ports \ndiff = %s", cmp.Diff(coreAgentPorts, customPorts))
 				},
-			},
+			),
 		},
 		{
 			Name:          "v1alpha1 udp origin detection enabled",
 			DDAv1:         ddav1DogstatsdUDPOriginDetection.DeepCopy(),
 			WantConfigure: true,
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, []*corev1.VolumeMount(nil)), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, []*corev1.VolumeMount(nil)))
@@ -261,15 +253,14 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 					coreAgentPorts := mgr.PortMgr.PortsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentPorts, wantContainerPorts), "Agent ports \ndiff = %s", cmp.Diff(coreAgentPorts, wantContainerPorts))
 				},
-			},
+			),
 		},
 		{
 			Name:          "v1alpha1 uds enabled",
 			DDAv1:         ddav1DogstatsdUDSEnabled.DeepCopy(),
 			WantConfigure: true,
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMountsV1), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMountsV1))
@@ -280,15 +271,14 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 					coreAgentPorts := mgr.PortMgr.PortsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentPorts, wantContainerPorts), "Agent ports \ndiff = %s", cmp.Diff(coreAgentPorts, wantContainerPorts))
 				},
-			},
+			),
 		},
 		{
 			Name:          "v1alpha1 uds custom host filepath",
 			DDAv1:         ddav1DogstatsdUDSCustomHostFilepath,
 			WantConfigure: true,
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					customVolumeMounts := []corev1.VolumeMount{
@@ -317,15 +307,14 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 					coreAgentPorts := mgr.PortMgr.PortsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentPorts, wantContainerPorts), "Agent ports \ndiff = %s", cmp.Diff(coreAgentPorts, wantContainerPorts))
 				},
-			},
+			),
 		},
 		{
 			Name:          "v1alpha1 uds origin detection",
 			DDAv1:         ddav1DogstatsdUDSOriginDetection,
 			WantConfigure: true,
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMountsV1), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMountsV1))
@@ -338,15 +327,14 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 					assert.True(t, apiutils.IsEqualStruct(coreAgentPorts, wantContainerPorts), "Agent ports \ndiff = %s", cmp.Diff(coreAgentPorts, wantContainerPorts))
 					assert.True(t, mgr.Tpl.Spec.HostPID, "Host PID \ndiff = %s", cmp.Diff(mgr.Tpl.Spec.HostPID, true))
 				},
-			},
+			),
 		},
 		{
 			Name:          "v1alpha1 mapper profiles",
 			DDAv1:         ddav1DogstatsdMapperProfiles,
 			WantConfigure: true,
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMountsV1), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMountsV1))
@@ -358,7 +346,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 					coreAgentPorts := mgr.PortMgr.PortsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentPorts, wantContainerPorts), "Agent ports \ndiff = %s", cmp.Diff(coreAgentPorts, wantContainerPorts))
 				},
-			},
+			),
 		},
 		///////////////////////////
 		// v2alpha1.DatadogAgent //
@@ -367,9 +355,8 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 			Name:          "v2alpha1 dogstatsd udp hostport enabled",
 			DDAv2:         ddav2DogstatsdHostPortEnabled,
 			WantConfigure: true,
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMountsV2), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMountsV2))
@@ -381,15 +368,14 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 					coreAgentPorts := mgr.PortMgr.PortsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentPorts, wantHostPorts), "Agent ports \ndiff = %s", cmp.Diff(coreAgentPorts, wantHostPorts))
 				},
-			},
+			),
 		},
 		{
 			Name:          "v2alpha1 udp custom host port",
 			DDAv2:         ddav2DogstatsdCustomHostPort.DeepCopy(),
 			WantConfigure: true,
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMountsV2), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMountsV2))
@@ -409,15 +395,14 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 					}
 					assert.True(t, apiutils.IsEqualStruct(coreAgentPorts, customPorts), "Agent ports \ndiff = %s", cmp.Diff(coreAgentPorts, customPorts))
 				},
-			},
+			),
 		},
 		{
 			Name:          "v2alpha1 udp origin detection enabled",
 			DDAv2:         ddav2DogstatsdUDPOriginDetection.DeepCopy(),
 			WantConfigure: true,
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMountsV2), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMountsV2))
@@ -430,15 +415,14 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 					coreAgentPorts := mgr.PortMgr.PortsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentPorts, wantHostPorts), "Agent ports \ndiff = %s", cmp.Diff(coreAgentPorts, wantHostPorts))
 				},
-			},
+			),
 		},
 		{
 			Name:          "v2alpha1 uds disabled",
 			DDAv2:         ddav2DogstatsdUDSDisabled.DeepCopy(),
 			WantConfigure: true,
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, []*corev1.Volume(nil)), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, []*corev1.VolumeMount(nil)))
@@ -449,15 +433,14 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 					coreAgentPorts := mgr.PortMgr.PortsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentPorts, wantContainerPorts), "Agent ports \ndiff = %s", cmp.Diff(coreAgentPorts, wantContainerPorts))
 				},
-			},
+			),
 		},
 		{
 			Name:          "v2alpha1 uds custom host filepath",
 			DDAv2:         ddav2DogstatsdUDSCustomHostFilepath,
 			WantConfigure: true,
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					customVolumeMounts := []corev1.VolumeMount{
@@ -486,15 +469,14 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 					coreAgentPorts := mgr.PortMgr.PortsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentPorts, wantContainerPorts), "Agent ports \ndiff = %s", cmp.Diff(coreAgentPorts, wantContainerPorts))
 				},
-			},
+			),
 		},
 		{
 			Name:          "v2alpha1 uds origin detection",
 			DDAv2:         ddav2DogstatsdUDSOriginDetection,
 			WantConfigure: true,
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMountsV2), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMountsV2))
@@ -507,15 +489,14 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 					assert.True(t, apiutils.IsEqualStruct(coreAgentPorts, wantContainerPorts), "Agent ports \ndiff = %s", cmp.Diff(coreAgentPorts, wantContainerPorts))
 					assert.True(t, mgr.Tpl.Spec.HostPID, "Host PID \ndiff = %s", cmp.Diff(mgr.Tpl.Spec.HostPID, true))
 				},
-			},
+			),
 		},
 		{
 			Name:          "v2alpha1 mapper profiles",
 			DDAv2:         ddav2DogstatsdMapperProfiles,
 			WantConfigure: true,
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMountsV2), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMountsV2))
@@ -527,7 +508,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 					coreAgentPorts := mgr.PortMgr.PortsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentPorts, wantContainerPorts), "Agent ports \ndiff = %s", cmp.Diff(coreAgentPorts, wantContainerPorts))
 				},
-			},
+			),
 		},
 	}
 
