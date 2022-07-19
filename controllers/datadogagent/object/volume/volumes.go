@@ -37,7 +37,7 @@ func GetVolumes(volumeName, hostPath, mountPath string, readOnly bool) (corev1.V
 }
 
 // GetVolumesEmptyDir creates a corev1.Volume (with an empty dir) and corev1.VolumeMount.
-func GetVolumesEmptyDir(volumeName, mountPath string) (corev1.Volume, corev1.VolumeMount) {
+func GetVolumesEmptyDir(volumeName, mountPath string, readOnly bool) (corev1.Volume, corev1.VolumeMount) {
 	var volume corev1.Volume
 	var volumeMount corev1.VolumeMount
 
@@ -50,7 +50,7 @@ func GetVolumesEmptyDir(volumeName, mountPath string) (corev1.Volume, corev1.Vol
 	volumeMount = corev1.VolumeMount{
 		Name:      volumeName,
 		MountPath: mountPath,
-		ReadOnly:  true,
+		ReadOnly:  readOnly,
 	}
 
 	return volume, volumeMount

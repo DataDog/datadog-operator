@@ -89,20 +89,27 @@ func Test_npmFeature_Configure(t *testing.T) {
 			{
 				Name:      apicommon.DebugfsVolumeName,
 				MountPath: apicommon.DebugfsPath,
-				ReadOnly:  true,
-			},
-			{
-				Name:      apicommon.SystemProbeSocketVolumeName,
-				MountPath: apicommon.SystemProbeSocketVolumePath,
-				ReadOnly:  true,
+				ReadOnly:  false,
 			},
 		}
 
+		wantProcessAgentVolMounts := append(wantVolumeMounts, corev1.VolumeMount{
+			Name:      apicommon.SystemProbeSocketVolumeName,
+			MountPath: apicommon.SystemProbeSocketVolumePath,
+			ReadOnly:  true,
+		})
+
+		wantSystemProbeAgentVolMounts := append(wantVolumeMounts, corev1.VolumeMount{
+			Name:      apicommon.SystemProbeSocketVolumeName,
+			MountPath: apicommon.SystemProbeSocketVolumePath,
+			ReadOnly:  false,
+		})
+
 		processAgentMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.ProcessAgentContainerName]
-		assert.True(t, apiutils.IsEqualStruct(processAgentMounts, wantVolumeMounts), "Process Agent volume mounts \ndiff = %s", cmp.Diff(processAgentMounts, wantVolumeMounts))
+		assert.True(t, apiutils.IsEqualStruct(processAgentMounts, wantProcessAgentVolMounts), "Process Agent volume mounts \ndiff = %s", cmp.Diff(processAgentMounts, wantVolumeMounts))
 
 		sysProbeAgentMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.SystemProbeContainerName]
-		assert.True(t, apiutils.IsEqualStruct(sysProbeAgentMounts, wantVolumeMounts), "System Probe volume mounts \ndiff = %s", cmp.Diff(sysProbeAgentMounts, wantVolumeMounts))
+		assert.True(t, apiutils.IsEqualStruct(sysProbeAgentMounts, wantSystemProbeAgentVolMounts), "System Probe volume mounts \ndiff = %s", cmp.Diff(sysProbeAgentMounts, wantVolumeMounts))
 
 		coreWantVolumeMounts := []corev1.VolumeMount{
 			{
