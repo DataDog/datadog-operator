@@ -94,6 +94,22 @@ var _ = Describe("V2 Controller - DatadogAgent Deployment", func() {
 		})
 	})
 
+	Context("with CWS enabled", func() {
+		BeforeEach(func() {
+			name = "with-cws"
+			agent = testutils.NewDatadogAgentWithCWS(namespace, name)
+			createAgent(&agent)
+		})
+
+		AfterEach(func() {
+			deleteAgent(&agent)
+		})
+
+		It("should deploy successfully", func() {
+			checkAgentDeployment(namespace, name)
+		})
+	})
+
 	Context("with Dogstatsd enabled", func() {
 		BeforeEach(func() {
 			name = "with-dogstatsd"
