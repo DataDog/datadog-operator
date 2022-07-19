@@ -930,12 +930,12 @@ func getEnvVarsForAgent(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent)
 			if !apiutils.BoolValue(dda.Spec.ClusterChecksRunner.Enabled) {
 				clusterEnv = append(clusterEnv, corev1.EnvVar{
 					Name:  apicommon.DDExtraConfigProviders,
-					Value: datadoghqv1alpha1.ClusterAndEndpointsConfigPoviders,
+					Value: apicommon.ClusterAndEndpointsConfigProviders,
 				})
 			} else {
 				clusterEnv = append(clusterEnv, corev1.EnvVar{
 					Name:  apicommon.DDExtraConfigProviders,
-					Value: datadoghqv1alpha1.EndpointsChecksConfigProvider,
+					Value: apicommon.EndpointsChecksConfigProvider,
 				})
 			}
 		}

@@ -35,6 +35,8 @@ const (
 	PrometheusScrapeIDType
 	// TCPQueueLengthIDType TCP Queue length check feature
 	TCPQueueLengthIDType
+	// ClusterChecksIDType Cluster checks feature
+	ClusterChecksIDType
 	// DummyIDType Dummy feature.
 	DummyIDType
 )

@@ -3,6 +3,7 @@ package test
 import (
 	"testing"
 
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
@@ -59,6 +60,27 @@ type Options struct{}
 type ComponentTest struct {
 	CreateFunc func(testing.TB) feature.PodTemplateManagers
 	WantFunc   func(testing.TB, feature.PodTemplateManagers)
+}
+
+// NewDefaultComponentTest returns a default ComponentTest
+func NewDefaultComponentTest() *ComponentTest {
+	return &ComponentTest{
+		CreateFunc: func(t testing.TB) feature.PodTemplateManagers {
+			return fake.NewPodTemplateManagers(t)
+		},
+	}
+}
+
+// WithCreateFunc sets CreateFunc
+func (ct *ComponentTest) WithCreateFunc(f func(testing.TB) feature.PodTemplateManagers) *ComponentTest {
+	ct.CreateFunc = f
+	return ct
+}
+
+// WithWantFunc sets WantFunc
+func (ct *ComponentTest) WithWantFunc(f func(testing.TB, feature.PodTemplateManagers)) *ComponentTest {
+	ct.WantFunc = f
+	return ct
 }
 
 // Run use to run the Feature test suite.

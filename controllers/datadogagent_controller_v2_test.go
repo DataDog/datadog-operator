@@ -13,99 +13,273 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/controllers/testutils"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	v1 "k8s.io/api/core/v1"
-	controllerruntime "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	appsv1 "k8s.io/api/apps/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
-	timeout  = time.Second * 30
-	interval = time.Second * 2
+	timeout  = 10 * time.Second
+	interval = 100 * time.Millisecond
 )
 
-var _ = Describe("DatadogAgent Controller - V2", func() {
-	Context("Basic deployment", func() {
-		namespace := "default"
-		name := "foo"
-		key := types.NamespacedName{
-			Namespace: namespace,
-			Name:      name,
-		}
+// These tests verify that a DatadogAgent deployment is successful.
+//
+// The function that checks if a deployment is successful is
+// checkAgentDeployment(). At the moment, it checks these things:
+// 	- The DatadogAgent status contains information about the agent and the DCA.
+//  - The Agent DaemonSet has been deployed.
+//  - The DCA Deployment has been deployed.
+//
+// These tests allow us to catch errors like the operator trying to create an
+// invalid Kubernetes resource (RBAC, deployment without a name, etc.). However,
+// these tests don't use a container runtime by default (they run with
+// USE_EXISTING_CLUSTER=false). Therefore, these tests are not useful to catch
+// errors that crash containers and keep them in "CrashLoopBackOff" state.
+var _ = Describe("V2 Controller - DatadogAgent Deployment", func() {
+	namespace := "default"
+	agent := v2alpha1.DatadogAgent{}
+	var name string
 
-		It("should create a DaemonSet for the agent and a deployment for the DCA", func() {
-			agent := newDatadogAgent(namespace, name)
-			Expect(k8sClient.Create(context.Background(), agent)).Should(Succeed())
+	Context("with no features enabled", func() {
+		BeforeEach(func() {
+			name = "basic"
+			agent = testutils.NewDatadogAgentWithoutFeatures(namespace, name)
+			createAgent(&agent)
+		})
 
-			agent = &v2alpha1.DatadogAgent{}
-			getObjectAndCheck(agent, key, func() bool {
-				return agent.Status.Agent != nil && agent.Status.ClusterAgent != nil
-			})
+		AfterEach(func() {
+			deleteAgent(&agent)
+		})
 
-			daemonSet := &appsv1.DaemonSet{}
-			daemonSetKey := types.NamespacedName{
-				Namespace: namespace,
-				Name:      fmt.Sprintf("%s-%s", name, "agent"),
-			}
+		It("should deploy successfully", func() {
+			checkAgentDeployment(namespace, name)
+		})
+	})
 
-			getObjectAndCheck(daemonSet, daemonSetKey, func() bool {
-				// We just verify that it exists
-				return true
-			})
+	Context("with cluster checks enabled", func() {
+		BeforeEach(func() {
+			name = "with-cluster-checks"
+			agent = testutils.NewDatadogAgentWithClusterChecks(namespace, name)
+			createAgent(&agent)
+		})
 
-			deployment := &appsv1.Deployment{}
-			deploymentKey := types.NamespacedName{
-				Namespace: namespace,
-				Name:      fmt.Sprintf("%s-%s", name, "cluster-agent"),
-			}
-			getObjectAndCheck(deployment, deploymentKey, func() bool {
-				// We just verify that it exists
-				return true
-			})
+		AfterEach(func() {
+			deleteAgent(&agent)
+		})
+
+		It("should deploy successfully", func() {
+			checkAgentDeployment(namespace, name)
+		})
+	})
+
+	Context("with CSPM enabled", func() {
+		BeforeEach(func() {
+			name = "with-cspm"
+			agent = testutils.NewDatadogAgentWithCSPM(namespace, name)
+			createAgent(&agent)
+		})
+
+		AfterEach(func() {
+			deleteAgent(&agent)
+		})
+
+		It("should deploy successfully", func() {
+			checkAgentDeployment(namespace, name)
+		})
+	})
+
+	Context("with Dogstatsd enabled", func() {
+		BeforeEach(func() {
+			name = "with-dogstatsd"
+			agent = testutils.NewDatadogAgentWithDogstatsd(namespace, name)
+			createAgent(&agent)
+		})
+
+		AfterEach(func() {
+			deleteAgent(&agent)
+		})
+
+		It("should deploy successfully", func() {
+			checkAgentDeployment(namespace, name)
+		})
+	})
+
+	Context("with event collection", func() {
+		BeforeEach(func() {
+			name = "with-event-collection"
+			agent = testutils.NewDatadogAgentWithEventCollection(namespace, name)
+			createAgent(&agent)
+		})
+
+		AfterEach(func() {
+			deleteAgent(&agent)
+		})
+
+		It("should deploy successfully", func() {
+			checkAgentDeployment(namespace, name)
+		})
+	})
+
+	Context("with KSM core", func() {
+		BeforeEach(func() {
+			name = "with-ksm"
+			agent = testutils.NewDatadogAgentWithKSM(namespace, name)
+			createAgent(&agent)
+		})
+
+		AfterEach(func() {
+			deleteAgent(&agent)
+		})
+
+		It("should deploy successfully", func() {
+			checkAgentDeployment(namespace, name)
+		})
+	})
+
+	Context("with log collection", func() {
+		BeforeEach(func() {
+			name = "with-log-collection"
+			agent = testutils.NewDatadogAgentWithLogCollection(namespace, name)
+			createAgent(&agent)
+		})
+
+		AfterEach(func() {
+			deleteAgent(&agent)
+		})
+
+		It("should deploy successfully", func() {
+			checkAgentDeployment(namespace, name)
+		})
+	})
+
+	Context("with NPM", func() {
+		BeforeEach(func() {
+			name = "with-npm"
+			agent = testutils.NewDatadogAgentWithNPM(namespace, name)
+			createAgent(&agent)
+		})
+
+		AfterEach(func() {
+			deleteAgent(&agent)
+		})
+
+		It("should deploy successfully", func() {
+			checkAgentDeployment(namespace, name)
+		})
+	})
+
+	Context("with OOM Kill", func() {
+		BeforeEach(func() {
+			name = "with-oom-kill"
+			agent = testutils.NewDatadogAgentWithOOMKill(namespace, name)
+			createAgent(&agent)
+		})
+
+		AfterEach(func() {
+			deleteAgent(&agent)
+		})
+
+		It("should deploy successfully", func() {
+			checkAgentDeployment(namespace, name)
+		})
+	})
+
+	Context("with Prometheus scrape", func() {
+		BeforeEach(func() {
+			name = "with-prometheus-scrape"
+			agent = testutils.NewDatadogAgentWithPrometheusScrape(namespace, name)
+			createAgent(&agent)
+		})
+
+		AfterEach(func() {
+			deleteAgent(&agent)
+		})
+
+		It("should deploy successfully", func() {
+			checkAgentDeployment(namespace, name)
+		})
+	})
+
+	Context("with TCP queue length", func() {
+		BeforeEach(func() {
+			name = "with-tcp-queue-length"
+			agent = testutils.NewDatadogAgentWithTCPQueueLength(namespace, name)
+			createAgent(&agent)
+		})
+
+		AfterEach(func() {
+			deleteAgent(&agent)
+		})
+
+		It("should deploy successfully", func() {
+			checkAgentDeployment(namespace, name)
+		})
+	})
+
+	Context("with USM", func() {
+		BeforeEach(func() {
+			name = "with-usm"
+			agent = testutils.NewDatadogAgentWithUSM(namespace, name)
+			createAgent(&agent)
+		})
+
+		AfterEach(func() {
+			deleteAgent(&agent)
+		})
+
+		It("should deploy successfully", func() {
+			checkAgentDeployment(namespace, name)
 		})
 	})
 })
 
-func newDatadogAgent(namespace string, name string) *v2alpha1.DatadogAgent {
-	credentialsSecret := v1.Secret{
-		ObjectMeta: controllerruntime.ObjectMeta{
-			Namespace: "default",
-			Name:      "datadog-secret",
-		},
-		StringData: map[string]string{
-			"api-key": "my-api-key",
-			"app-key": "my-app-key",
-		},
-	}
-	err := k8sClient.Create(context.TODO(), &credentialsSecret)
-	Expect(err).ToNot(HaveOccurred())
+func checkAgentDeployment(namespace string, name string) {
+	checkAgentStatus(namespace, name)
+	checkAgentDaemonSet(namespace, name)
+	checkDCADeployment(namespace, name)
+}
 
-	return &v2alpha1.DatadogAgent{
-		ObjectMeta: controllerruntime.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
-		Spec: v2alpha1.DatadogAgentSpec{
-			Global: &v2alpha1.GlobalConfig{
-				Credentials: &v2alpha1.DatadogCredentials{
-					APISecret: &common.SecretConfig{
-						SecretName: "datadog-secret",
-						KeyName:    "api-key",
-					},
-					AppSecret: &common.SecretConfig{
-						SecretName: "datadog-secret",
-						KeyName:    "app-key",
-					},
-				},
-			},
-		},
+func checkAgentStatus(namespace string, ddaName string) {
+	key := types.NamespacedName{
+		Namespace: namespace,
+		Name:      ddaName,
 	}
+
+	agent := &v2alpha1.DatadogAgent{}
+	getObjectAndCheck(agent, key, func() bool {
+		return agent.Status.Agent != nil && agent.Status.ClusterAgent != nil
+	})
+}
+
+func checkAgentDaemonSet(namespace string, ddaName string) {
+	daemonSet := &appsv1.DaemonSet{}
+	daemonSetKey := types.NamespacedName{
+		Namespace: namespace,
+		Name:      fmt.Sprintf("%s-%s", ddaName, "agent"),
+	}
+
+	getObjectAndCheck(daemonSet, daemonSetKey, func() bool {
+		// We just verify that it exists
+		return true
+	})
+}
+
+func checkDCADeployment(namespace string, ddaName string) {
+	deployment := &appsv1.Deployment{}
+	deploymentKey := types.NamespacedName{
+		Namespace: namespace,
+		Name:      fmt.Sprintf("%s-%s", ddaName, "cluster-agent"),
+	}
+	getObjectAndCheck(deployment, deploymentKey, func() bool {
+		// We just verify that it exists
+		return true
+	})
 }
 
 func getObjectAndCheck(obj client.Object, key types.NamespacedName, check func() bool) {
@@ -117,5 +291,31 @@ func getObjectAndCheck(obj client.Object, key types.NamespacedName, check func()
 		}
 
 		return check()
+	}, timeout, interval).Should(BeTrue())
+}
+
+// createAgent creates an agent and waits until it is accessible
+func createAgent(agent *v2alpha1.DatadogAgent) {
+	Expect(k8sClient.Create(context.TODO(), agent)).Should(Succeed())
+
+	Eventually(func() bool {
+		err := k8sClient.Get(context.Background(), types.NamespacedName{
+			Namespace: agent.Namespace,
+			Name:      agent.Name,
+		}, agent)
+		return err == nil
+	}, timeout, interval).Should(BeTrue())
+}
+
+// deleteAgent deletes an agent and waits until it is no longer accessible
+func deleteAgent(agent *v2alpha1.DatadogAgent) {
+	_ = k8sClient.Delete(context.TODO(), agent)
+
+	Eventually(func() bool {
+		err := k8sClient.Get(context.Background(), types.NamespacedName{
+			Namespace: agent.Namespace,
+			Name:      agent.Name,
+		}, agent)
+		return err != nil && errors.IsNotFound(err)
 	}, timeout, interval).Should(BeTrue())
 }

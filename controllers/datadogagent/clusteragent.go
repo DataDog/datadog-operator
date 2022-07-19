@@ -644,11 +644,11 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 		envVars = append(envVars, []corev1.EnvVar{
 			{
 				Name:  apicommon.DDExtraConfigProviders,
-				Value: datadoghqv1alpha1.KubeServicesAndEndpointsConfigProviders,
+				Value: apicommon.KubeServicesAndEndpointsConfigProviders,
 			},
 			{
 				Name:  apicommon.DDExtraListeners,
-				Value: datadoghqv1alpha1.KubeServicesAndEndpointsListeners,
+				Value: apicommon.KubeServicesAndEndpointsListeners,
 			},
 		}...)
 	}

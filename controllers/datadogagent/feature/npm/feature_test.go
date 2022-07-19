@@ -21,11 +21,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-func createEmptyFakeManager(t testing.TB) feature.PodTemplateManagers {
-	mgr := fake.NewPodTemplateManagers(t)
-	return mgr
-}
-
 func Test_npmFeature_Configure(t *testing.T) {
 	ddav1NPMDisabled := v1alpha1.DatadogAgent{
 		Spec: v1alpha1.DatadogAgentSpec{
@@ -207,10 +202,7 @@ func Test_npmFeature_Configure(t *testing.T) {
 			Name:          "v1alpha1 NPM enabled",
 			DDAv1:         ddav1NPMEnabled,
 			WantConfigure: true,
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc:   npmAgentNodeWantFunc,
-			},
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(npmAgentNodeWantFunc),
 		},
 		// ///////////////////////////
 		// // v2alpha1.DatadogAgent //
@@ -224,10 +216,7 @@ func Test_npmFeature_Configure(t *testing.T) {
 			Name:          "v2alpha1 NPM enabled",
 			DDAv2:         ddav2NPMEnabled,
 			WantConfigure: true,
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc:   npmAgentNodeWantFunc,
-			},
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(npmAgentNodeWantFunc),
 		},
 	}
 

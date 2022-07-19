@@ -24,11 +24,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func createEmptyFakeManager(t testing.TB) feature.PodTemplateManagers {
-	mgr := fake.NewPodTemplateManagers(t)
-	return mgr
-}
-
 func Test_cspmFeature_Configure(t *testing.T) {
 	ddav1CSPMDisabled := v1alpha1.DatadogAgent{
 		Spec: v1alpha1.DatadogAgentSpec{
@@ -254,14 +249,8 @@ func Test_cspmFeature_Configure(t *testing.T) {
 			Name:          "v1alpha1 CSPM enabled",
 			DDAv1:         ddav1CSPMEnabled,
 			WantConfigure: true,
-			ClusterAgent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc:   cspmClusterAgentWantFunc,
-			},
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc:   cspmAgentNodeWantFunc,
-			},
+			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(cspmClusterAgentWantFunc),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(cspmAgentNodeWantFunc),
 		},
 		//////////////////////////
 		// v2Alpha1.DatadogAgent
@@ -275,14 +264,8 @@ func Test_cspmFeature_Configure(t *testing.T) {
 			Name:          "v2alpha1 CSPM enabled",
 			DDAv2:         ddav2CSPMEnabled,
 			WantConfigure: true,
-			ClusterAgent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc:   cspmClusterAgentWantFunc,
-			},
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc:   cspmAgentNodeWantFunc,
-			},
+			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(cspmClusterAgentWantFunc),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(cspmAgentNodeWantFunc),
 		},
 	}
 

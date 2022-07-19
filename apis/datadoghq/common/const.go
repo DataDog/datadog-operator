@@ -91,6 +91,11 @@ const (
 	DefaultRollingUpdateSlowStartIntervalDuration       = 1 * time.Minute
 	DefaultRollingUpdateSlowStartAdditiveIncrease       = "5"
 	DefaultReconcileFrequency                           = 10 * time.Second
+
+	KubeServicesAndEndpointsConfigProviders = "kube_services kube_endpoints"
+	KubeServicesAndEndpointsListeners       = "kube_services kube_endpoints"
+	EndpointsChecksConfigProvider           = "endpointschecks"
+	ClusterAndEndpointsConfigProviders      = "clusterchecks endpointschecks"
 )
 
 // Annotations
