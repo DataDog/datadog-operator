@@ -12,7 +12,7 @@ import (
 
 // SecurityContextManager use to add Security Context settings to containers.
 type SecurityContextManager interface {
-	// Add capabilities to a container in the PodTemplate.
+	// AddCapabilitiesToContainer Adds capabilities to a container in the PodTemplate.
 	AddCapabilitiesToContainer(capabilities []corev1.Capability, containerName commonv1.AgentContainerName)
 }
 
