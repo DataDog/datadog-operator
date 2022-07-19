@@ -78,18 +78,4 @@ const (
 	SystemProbeOSReleaseDirVolumeName = "host-osrelease"
 	SystemProbeOSReleaseDirVolumePath = "/etc/os-release"
 	SystemProbeOSReleaseDirMountPath  = "/host/etc/os-release"
-
-	// Extra config provider names
-
-	KubeServicesConfigProvider              = "kube_services"
-	KubeEndpointsConfigProvider             = "kube_endpoints"
-	KubeServicesAndEndpointsConfigProviders = "kube_services kube_endpoints"
-	EndpointsChecksConfigProvider           = "endpointschecks"
-	ClusterAndEndpointsConfigPoviders       = "clusterchecks endpointschecks"
-
-	// Extra listeners
-
-	KubeServicesListener              = "kube_services"
-	KubeEndpointsListener             = "kube_endpoints"
-	KubeServicesAndEndpointsListeners = "kube_services kube_endpoints"
 )
