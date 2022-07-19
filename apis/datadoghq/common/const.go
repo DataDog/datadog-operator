@@ -127,12 +127,20 @@ const (
 	CgroupsHostPath   = "/sys/fs/cgroup"
 	CgroupsMountPath  = "/host/sys/fs/cgroup"
 
+	SystemProbeOSReleaseDirVolumeName = "host-osrelease"
+	SystemProbeOSReleaseDirVolumePath = "/etc/os-release"
+	SystemProbeOSReleaseDirMountPath  = "/host/etc/os-release"
+
 	SystemProbeSocketVolumeName = "sysprobe-socket-dir"
 	SystemProbeSocketVolumePath = "/var/run/sysprobe"
 
 	DebugfsVolumeName = "debugfs"
 	// same path on host and container
 	DebugfsPath = "/sys/kernel/debug"
+
+	SecurityfsVolumeName = "securityfs"
+	SecurityfsVolumePath = "/sys/kernel/security"
+	SecurityfsMountPath  = "/host/sys/kernel/security"
 
 	ModulesVolumeName = "modules"
 	// same path on host and container

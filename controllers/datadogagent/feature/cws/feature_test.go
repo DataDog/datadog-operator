@@ -84,7 +84,43 @@ func Test_cwsFeature_Configure(t *testing.T) {
 	cwsAgentNodeWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
 
-		want := []*corev1.EnvVar{
+		// check security context capabilities
+		wantCapabilities := []corev1.Capability{
+			"SYS_ADMIN",
+			"SYS_RESOURCE",
+			"SYS_PTRACE",
+			"NET_ADMIN",
+			"NET_BROADCAST",
+			"NET_RAW",
+			"IPC_LOCK",
+			"CHOWN",
+		}
+		sysProbeCapabilities := mgr.SecurityContextMgr.CapabilitiesByC[apicommonv1.SystemProbeContainerName]
+		assert.True(t, apiutils.IsEqualStruct(sysProbeCapabilities, wantCapabilities), "System Probe security context capabilities \ndiff = %s", cmp.Diff(sysProbeCapabilities, wantCapabilities))
+
+		securityWant := []*corev1.EnvVar{
+			{
+				Name:  apicommon.DDRuntimeSecurityConfigEnabled,
+				Value: "true",
+			},
+			{
+				Name:  apicommon.DDRuntimeSecurityConfigSocket,
+				Value: "/var/run/sysprobe/runtime-security.sock",
+			},
+			{
+				Name:  apicommon.DDRuntimeSecurityConfigSyscallMonitorEnabled,
+				Value: "true",
+			},
+			{
+				Name:  apicommon.DDHostRootEnvVar,
+				Value: apicommon.HostRootMountPath,
+			},
+			{
+				Name:  apicommon.DDRuntimeSecurityConfigPoliciesDir,
+				Value: apicommon.SecurityAgentRuntimePoliciesDirVolumePath,
+			},
+		}
+		sysProbeWant := []*corev1.EnvVar{
 			{
 				Name:  apicommon.DDRuntimeSecurityConfigEnabled,
 				Value: "true",
@@ -101,18 +137,28 @@ func Test_cwsFeature_Configure(t *testing.T) {
 				Name:  apicommon.DDRuntimeSecurityConfigPoliciesDir,
 				Value: apicommon.SecurityAgentRuntimePoliciesDirVolumePath,
 			},
-		}
-		sysProbeWant := &corev1.EnvVar{
-			Name:  apicommon.DDAuthTokenFilePath,
-			Value: "/etc/datadog-agent/auth/token",
+			{
+				Name:  apicommon.DDAuthTokenFilePath,
+				Value: "/etc/datadog-agent/auth/token",
+			},
 		}
 		securityAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.SecurityAgentContainerName]
-		assert.True(t, apiutils.IsEqualStruct(securityAgentEnvVars, want), "Security agent envvars \ndiff = %s", cmp.Diff(securityAgentEnvVars, want))
+		assert.True(t, apiutils.IsEqualStruct(securityAgentEnvVars, securityWant), "Security agent envvars \ndiff = %s", cmp.Diff(securityAgentEnvVars, securityWant))
 		sysProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.SystemProbeContainerName]
-		assert.True(t, apiutils.IsEqualStruct(sysProbeEnvVars, append(want, sysProbeWant)), "System probe envvars \ndiff = %s", cmp.Diff(sysProbeEnvVars, append(want, sysProbeWant)))
+		assert.True(t, apiutils.IsEqualStruct(sysProbeEnvVars, sysProbeWant), "System probe envvars \ndiff = %s", cmp.Diff(sysProbeEnvVars, sysProbeWant))
 
 		// check volume mounts
-		wantVolumeMounts := []corev1.VolumeMount{
+		securityWantVolumeMount := []corev1.VolumeMount{
+			{
+				Name:      apicommon.SystemProbeSocketVolumeName,
+				MountPath: apicommon.SystemProbeSocketVolumePath,
+				ReadOnly:  true,
+			},
+			{
+				Name:      apicommon.HostRootVolumeName,
+				MountPath: apicommon.HostRootMountPath,
+				ReadOnly:  true,
+			},
 			{
 				Name:      apicommon.SecurityAgentRuntimeCustomPoliciesVolumeName,
 				MountPath: apicommon.SecurityAgentRuntimeCustomPoliciesVolumePath,
@@ -125,19 +171,124 @@ func Test_cwsFeature_Configure(t *testing.T) {
 				ReadOnly:  true,
 			},
 		}
-		securityWantVolumeMount := corev1.VolumeMount{
-			Name:      apicommon.SystemProbeSocketVolumeName,
-			MountPath: apicommon.SystemProbeSocketVolumePath,
-			ReadOnly:  true,
+		sysprobeWantVolumeMount := []corev1.VolumeMount{
+			{
+				Name:      apicommon.DebugfsVolumeName,
+				MountPath: apicommon.DebugfsPath,
+				ReadOnly:  false,
+			},
+			{
+				Name:      apicommon.SecurityfsVolumeName,
+				MountPath: apicommon.SecurityfsMountPath,
+				ReadOnly:  true,
+			},
+			{
+				Name:      apicommon.SystemProbeSocketVolumeName,
+				MountPath: apicommon.SystemProbeSocketVolumePath,
+				ReadOnly:  false,
+			},
+			{
+				Name:      apicommon.ProcdirVolumeName,
+				MountPath: apicommon.ProcdirMountPath,
+				ReadOnly:  true,
+			},
+			{
+				Name:      apicommon.PasswdVolumeName,
+				MountPath: apicommon.PasswdMountPath,
+				ReadOnly:  true,
+			},
+			{
+				Name:      apicommon.GroupVolumeName,
+				MountPath: apicommon.GroupMountPath,
+				ReadOnly:  true,
+			},
+			{
+				Name:      apicommon.SystemProbeOSReleaseDirVolumeName,
+				MountPath: apicommon.SystemProbeOSReleaseDirMountPath,
+				ReadOnly:  true,
+			},
+			{
+				Name:      apicommon.SecurityAgentRuntimeCustomPoliciesVolumeName,
+				MountPath: apicommon.SecurityAgentRuntimeCustomPoliciesVolumePath,
+				SubPath:   "some/path",
+				ReadOnly:  true,
+			},
+			{
+				Name:      apicommon.SecurityAgentRuntimePoliciesDirVolumeName,
+				MountPath: apicommon.SecurityAgentRuntimePoliciesDirVolumePath,
+				ReadOnly:  true,
+			},
 		}
 
 		securityAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.SecurityAgentContainerName]
-		assert.True(t, apiutils.IsEqualStruct(securityAgentVolumeMounts, append(wantVolumeMounts, securityWantVolumeMount)), "Security Agent volume mounts \ndiff = %s", cmp.Diff(securityAgentVolumeMounts, append(wantVolumeMounts, securityWantVolumeMount)))
+		assert.True(t, apiutils.IsEqualStruct(securityAgentVolumeMounts, securityWantVolumeMount), "Security Agent volume mounts \ndiff = %s", cmp.Diff(securityAgentVolumeMounts, securityWantVolumeMount))
 		sysProbeVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.SystemProbeContainerName]
-		assert.True(t, apiutils.IsEqualStruct(sysProbeVolumeMounts, wantVolumeMounts), "System probe volume mounts \ndiff = %s", cmp.Diff(sysProbeVolumeMounts, wantVolumeMounts))
+		assert.True(t, apiutils.IsEqualStruct(sysProbeVolumeMounts, sysprobeWantVolumeMount), "System probe volume mounts \ndiff = %s", cmp.Diff(sysProbeVolumeMounts, sysprobeWantVolumeMount))
 
 		// check volumes
 		wantVolumes := []corev1.Volume{
+			{
+				Name: apicommon.DebugfsVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: apicommon.DebugfsPath,
+					},
+				},
+			},
+			{
+				Name: apicommon.SecurityfsVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: apicommon.SecurityfsVolumePath,
+					},
+				},
+			},
+			{
+				Name: apicommon.SystemProbeSocketVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
+			},
+			{
+				Name: apicommon.ProcdirVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: apicommon.ProcdirHostPath,
+					},
+				},
+			},
+			{
+				Name: apicommon.PasswdVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: apicommon.PasswdHostPath,
+					},
+				},
+			},
+			{
+				Name: apicommon.GroupVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: apicommon.GroupHostPath,
+					},
+				},
+			},
+			{
+				Name: apicommon.SystemProbeOSReleaseDirVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: apicommon.SystemProbeOSReleaseDirVolumePath,
+					},
+				},
+			},
+			{
+				Name: apicommon.HostRootVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: apicommon.HostRootHostPath,
+					},
+				},
+			},
 			{
 				Name: apicommon.SecurityAgentRuntimeCustomPoliciesVolumeName,
 				VolumeSource: corev1.VolumeSource{
@@ -150,12 +301,6 @@ func Test_cwsFeature_Configure(t *testing.T) {
 			},
 			{
 				Name: apicommon.SecurityAgentRuntimePoliciesDirVolumeName,
-				VolumeSource: corev1.VolumeSource{
-					EmptyDir: &corev1.EmptyDirVolumeSource{},
-				},
-			},
-			{
-				Name: apicommon.SystemProbeSocketVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},

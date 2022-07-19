@@ -35,7 +35,6 @@ func buildCWSFeature(options *feature.Options) feature.Feature {
 
 type cwsFeature struct {
 	configMapConfig       *apicommonv1.ConfigMapConfig
-	configMapName         string
 	syscallMonitorEnabled bool
 }
 
@@ -44,12 +43,9 @@ func (f *cwsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 	if dda.Spec.Features != nil && dda.Spec.Features.CWS != nil && apiutils.BoolValue(dda.Spec.Features.CWS.Enabled) {
 		cws := dda.Spec.Features.CWS
 
-		if apiutils.BoolValue(cws.SyscallMonitorEnabled) {
-			f.syscallMonitorEnabled = true
-		}
+		f.syscallMonitorEnabled = apiutils.BoolValue(cws.SyscallMonitorEnabled)
 
 		if cws.CustomPolicies != nil && cws.CustomPolicies.Name != "" {
-			f.configMapName = cws.CustomPolicies.Name
 			f.configMapConfig = cws.CustomPolicies
 		}
 
@@ -77,7 +73,6 @@ func (f *cwsFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.Re
 		}
 
 		if runtime.PoliciesDir != nil && runtime.PoliciesDir.ConfigMapName != "" {
-			f.configMapName = runtime.PoliciesDir.ConfigMapName
 			f.configMapConfig = v1alpha1.ConvertConfigDirSpec(runtime.PoliciesDir).ConfigMap
 		}
 
@@ -110,6 +105,23 @@ func (f *cwsFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+	// annotations
+	managers.Annotation().AddAnnotation(apicommon.SystemProbeAppArmorAnnotationKey, apicommon.SystemProbeAppArmorAnnotationValue)
+
+	// security context capabilities
+	capabilities := []corev1.Capability{
+		"SYS_ADMIN",
+		"SYS_RESOURCE",
+		"SYS_PTRACE",
+		"NET_ADMIN",
+		"NET_BROADCAST",
+		"NET_RAW",
+		"IPC_LOCK",
+		"CHOWN",
+	}
+	managers.SecurityContext().AddCapabilitiesToContainer(capabilities, apicommonv1.SystemProbeContainerName)
+
+	// envvars
 	enabledEnvVar := &corev1.EnvVar{
 		Name:  apicommon.DDRuntimeSecurityConfigEnabled,
 		Value: "true",
@@ -145,29 +157,74 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, authTokenPathEnvVar)
 
+	hostRootEnvVar := &corev1.EnvVar{
+		Name:  apicommon.DDHostRootEnvVar,
+		Value: apicommon.HostRootMountPath,
+	}
+	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SecurityAgentContainerName, hostRootEnvVar)
+
 	volMountMgr := managers.VolumeMount()
-	VolMgr := managers.Volume()
+	volMgr := managers.Volume()
+
+	// debugfs volume mount
+	debugfsVol, debugfsVolMount := volume.GetVolumes(apicommon.DebugfsVolumeName, apicommon.DebugfsPath, apicommon.DebugfsPath, false)
+	volMountMgr.AddVolumeMountToContainer(&debugfsVolMount, apicommonv1.SystemProbeContainerName)
+	volMgr.AddVolume(&debugfsVol)
+
+	// securityfs volume mount
+	securityfsVol, securityfsVolMount := volume.GetVolumes(apicommon.SecurityfsVolumeName, apicommon.SecurityfsVolumePath, apicommon.SecurityfsMountPath, true)
+	volMountMgr.AddVolumeMountToContainer(&securityfsVolMount, apicommonv1.SystemProbeContainerName)
+	volMgr.AddVolume(&securityfsVol)
+
+	// socket volume mount (needs write perms for the system probe container but not the others)
+	socketVol, socketVolMount := volume.GetVolumesEmptyDir(apicommon.SystemProbeSocketVolumeName, apicommon.SystemProbeSocketVolumePath, false)
+	volMountMgr.AddVolumeMountToContainer(&socketVolMount, apicommonv1.SystemProbeContainerName)
+
+	_, socketVolMountReadOnly := volume.GetVolumesEmptyDir(apicommon.SystemProbeSocketVolumeName, apicommon.SystemProbeSocketVolumePath, true)
+	managers.VolumeMount().AddVolumeMountToContainer(&socketVolMountReadOnly, apicommonv1.SecurityAgentContainerName)
+	volMgr.AddVolume(&socketVol)
+
+	// procdir volume mount
+	procdirVol, procdirVolMount := volume.GetVolumes(apicommon.ProcdirVolumeName, apicommon.ProcdirHostPath, apicommon.ProcdirMountPath, true)
+	volMountMgr.AddVolumeMountToContainer(&procdirVolMount, apicommonv1.SystemProbeContainerName)
+	volMgr.AddVolume(&procdirVol)
+
+	// passwd volume mount
+	passwdVol, passwdVolMount := volume.GetVolumes(apicommon.PasswdVolumeName, apicommon.PasswdHostPath, apicommon.PasswdMountPath, true)
+	volMountMgr.AddVolumeMountToContainer(&passwdVolMount, apicommonv1.SystemProbeContainerName)
+	volMgr.AddVolume(&passwdVol)
+
+	// group volume mount
+	groupVol, groupVolMount := volume.GetVolumes(apicommon.GroupVolumeName, apicommon.GroupHostPath, apicommon.GroupMountPath, true)
+	volMountMgr.AddVolumeMountToContainer(&groupVolMount, apicommonv1.SystemProbeContainerName)
+	volMgr.AddVolume(&groupVol)
+
+	// osRelease volume mount
+	osReleaseVol, osReleaseVolMount := volume.GetVolumes(apicommon.SystemProbeOSReleaseDirVolumeName, apicommon.SystemProbeOSReleaseDirVolumePath, apicommon.SystemProbeOSReleaseDirMountPath, true)
+	volMountMgr.AddVolumeMountToContainer(&osReleaseVolMount, apicommonv1.SystemProbeContainerName)
+	volMgr.AddVolume(&osReleaseVol)
+
+	// hostroot volume mount
+	hostrootVol, hostrootVolMount := volume.GetVolumes(apicommon.HostRootVolumeName, apicommon.HostRootHostPath, apicommon.HostRootMountPath, true)
+	volMountMgr.AddVolumeMountToContainer(&hostrootVolMount, apicommonv1.SecurityAgentContainerName)
+	volMgr.AddVolume(&hostrootVol)
 
 	// custom runtime policies
-	if f.configMapConfig != nil && f.configMapName != "" {
+	if f.configMapConfig != nil {
 		cmVol, cmVolMount := volume.GetConfigMapVolumes(
 			f.configMapConfig,
-			f.configMapName,
+			f.configMapConfig.Name,
 			apicommon.SecurityAgentRuntimeCustomPoliciesVolumeName,
 			apicommon.SecurityAgentRuntimeCustomPoliciesVolumePath,
 		)
 		volMountMgr.AddVolumeMountToContainers(&cmVolMount, []apicommonv1.AgentContainerName{apicommonv1.SecurityAgentContainerName, apicommonv1.SystemProbeContainerName})
-		VolMgr.AddVolume(&cmVol)
+		volMgr.AddVolume(&cmVol)
 
 		managers.EnvVar().AddEnvVarToContainer(apicommonv1.SecurityAgentContainerName, policiesDirEnvVar)
 
-		policiesVol, policiesVolMount := volume.GetVolumesEmptyDir(apicommon.SecurityAgentRuntimePoliciesDirVolumeName, apicommon.SecurityAgentRuntimePoliciesDirVolumePath)
+		policiesVol, policiesVolMount := volume.GetVolumesEmptyDir(apicommon.SecurityAgentRuntimePoliciesDirVolumeName, apicommon.SecurityAgentRuntimePoliciesDirVolumePath, true)
 		volMountMgr.AddVolumeMountToContainers(&policiesVolMount, []apicommonv1.AgentContainerName{apicommonv1.SecurityAgentContainerName, apicommonv1.SystemProbeContainerName})
-		VolMgr.AddVolume(&policiesVol)
-
-		socketDirVol, socketDirMount := volume.GetVolumesEmptyDir(apicommon.SystemProbeSocketVolumeName, apicommon.SystemProbeSocketVolumePath)
-		volMountMgr.AddVolumeMountToContainer(&socketDirMount, apicommonv1.SecurityAgentContainerName)
-		managers.Volume().AddVolume(&socketDirVol)
+		volMgr.AddVolume(&policiesVol)
 	}
 
 	return nil
