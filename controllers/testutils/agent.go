@@ -57,6 +57,20 @@ func NewDatadogAgentWithCSPM(namespace string, name string) v2alpha1.DatadogAgen
 	)
 }
 
+// NewDatadogAgentWithCWS returns an agent with CWS enabled
+func NewDatadogAgentWithCWS(namespace string, name string) v2alpha1.DatadogAgent {
+	return newDatadogAgentWithFeatures(
+		namespace,
+		name,
+		&v2alpha1.DatadogFeatures{
+			CWS: &v2alpha1.CWSFeatureConfig{
+				Enabled:               apiutils.NewBoolPointer(true),
+				SyscallMonitorEnabled: apiutils.NewBoolPointer(true),
+			},
+		},
+	)
+}
+
 // NewDatadogAgentWithDogstatsd returns an agent with Dogstatsd enabled
 func NewDatadogAgentWithDogstatsd(namespace string, name string) v2alpha1.DatadogAgent {
 	return newDatadogAgentWithFeatures(
