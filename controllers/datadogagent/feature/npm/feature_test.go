@@ -21,11 +21,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-func createEmptyFakeManager(t testing.TB) feature.PodTemplateManagers {
-	mgr := fake.NewPodTemplateManagers(t)
-	return mgr
-}
-
 func Test_npmFeature_Configure(t *testing.T) {
 	ddav1NPMDisabled := v1alpha1.DatadogAgent{
 		Spec: v1alpha1.DatadogAgentSpec{
@@ -94,20 +89,27 @@ func Test_npmFeature_Configure(t *testing.T) {
 			{
 				Name:      apicommon.DebugfsVolumeName,
 				MountPath: apicommon.DebugfsPath,
-				ReadOnly:  true,
-			},
-			{
-				Name:      apicommon.SystemProbeSocketVolumeName,
-				MountPath: apicommon.SystemProbeSocketVolumePath,
-				ReadOnly:  true,
+				ReadOnly:  false,
 			},
 		}
 
+		wantProcessAgentVolMounts := append(wantVolumeMounts, corev1.VolumeMount{
+			Name:      apicommon.SystemProbeSocketVolumeName,
+			MountPath: apicommon.SystemProbeSocketVolumePath,
+			ReadOnly:  true,
+		})
+
+		wantSystemProbeAgentVolMounts := append(wantVolumeMounts, corev1.VolumeMount{
+			Name:      apicommon.SystemProbeSocketVolumeName,
+			MountPath: apicommon.SystemProbeSocketVolumePath,
+			ReadOnly:  false,
+		})
+
 		processAgentMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.ProcessAgentContainerName]
-		assert.True(t, apiutils.IsEqualStruct(processAgentMounts, wantVolumeMounts), "Process Agent volume mounts \ndiff = %s", cmp.Diff(processAgentMounts, wantVolumeMounts))
+		assert.True(t, apiutils.IsEqualStruct(processAgentMounts, wantProcessAgentVolMounts), "Process Agent volume mounts \ndiff = %s", cmp.Diff(processAgentMounts, wantProcessAgentVolMounts))
 
 		sysProbeAgentMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.SystemProbeContainerName]
-		assert.True(t, apiutils.IsEqualStruct(sysProbeAgentMounts, wantVolumeMounts), "System Probe volume mounts \ndiff = %s", cmp.Diff(sysProbeAgentMounts, wantVolumeMounts))
+		assert.True(t, apiutils.IsEqualStruct(sysProbeAgentMounts, wantSystemProbeAgentVolMounts), "System Probe volume mounts \ndiff = %s", cmp.Diff(sysProbeAgentMounts, wantSystemProbeAgentVolMounts))
 
 		coreWantVolumeMounts := []corev1.VolumeMount{
 			{
@@ -200,10 +202,7 @@ func Test_npmFeature_Configure(t *testing.T) {
 			Name:          "v1alpha1 NPM enabled",
 			DDAv1:         ddav1NPMEnabled,
 			WantConfigure: true,
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc:   npmAgentNodeWantFunc,
-			},
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(npmAgentNodeWantFunc),
 		},
 		// ///////////////////////////
 		// // v2alpha1.DatadogAgent //
@@ -217,10 +216,7 @@ func Test_npmFeature_Configure(t *testing.T) {
 			Name:          "v2alpha1 NPM enabled",
 			DDAv2:         ddav2NPMEnabled,
 			WantConfigure: true,
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc:   npmAgentNodeWantFunc,
-			},
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(npmAgentNodeWantFunc),
 		},
 	}
 

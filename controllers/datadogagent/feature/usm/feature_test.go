@@ -21,11 +21,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-func createEmptyFakeManager(t testing.TB) feature.PodTemplateManagers {
-	mgr := fake.NewPodTemplateManagers(t)
-	return mgr
-}
-
 func Test_usmFeature_Configure(t *testing.T) {
 	ddav1USMDisabled := v1alpha1.DatadogAgent{
 		Spec: v1alpha1.DatadogAgentSpec{
@@ -101,12 +96,12 @@ func Test_usmFeature_Configure(t *testing.T) {
 			{
 				Name:      apicommon.DebugfsVolumeName,
 				MountPath: apicommon.DebugfsPath,
-				ReadOnly:  true,
+				ReadOnly:  false,
 			},
 			{
 				Name:      apicommon.SystemProbeSocketVolumeName,
 				MountPath: apicommon.SystemProbeSocketVolumePath,
-				ReadOnly:  true,
+				ReadOnly:  false,
 			},
 		}
 
@@ -199,10 +194,7 @@ func Test_usmFeature_Configure(t *testing.T) {
 			Name:          "v1alpha1 USM enabled",
 			DDAv1:         ddav1USMEnabled,
 			WantConfigure: true,
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc:   usmAgentNodeWantFunc,
-			},
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(usmAgentNodeWantFunc),
 		},
 		// ///////////////////////////
 		// // v2alpha1.DatadogAgent //
@@ -216,10 +208,7 @@ func Test_usmFeature_Configure(t *testing.T) {
 			Name:          "v2alpha1 USM enabled",
 			DDAv2:         ddav2USMEnabled,
 			WantConfigure: true,
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc:   usmAgentNodeWantFunc,
-			},
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(usmAgentNodeWantFunc),
 		},
 	}
 

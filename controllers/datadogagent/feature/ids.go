@@ -25,6 +25,8 @@ const (
 	NPMIDType
 	// CSPMIDType CSPM feature.
 	CSPMIDType
+	// CWSIDType CWS feature.
+	CWSIDType
 	// USMIDType USM feature.
 	USMIDType
 	// OOMKillIDType OOM Kill check feature
@@ -35,6 +37,8 @@ const (
 	PrometheusScrapeIDType
 	// TCPQueueLengthIDType TCP Queue length check feature
 	TCPQueueLengthIDType
+	// ClusterChecksIDType Cluster checks feature
+	ClusterChecksIDType
 	// DummyIDType Dummy feature.
 	DummyIDType
 )

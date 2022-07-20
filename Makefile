@@ -17,7 +17,7 @@ DATE=$(shell date +%Y-%m-%d/%H:%M:%S )
 LDFLAGS=-w -s -X ${BUILDINFOPKG}.Commit=${GIT_COMMIT} -X ${BUILDINFOPKG}.Version=${VERSION} -X ${BUILDINFOPKG}.BuildTime=${DATE}
 CHANNELS=alpha
 DEFAULT_CHANNEL=alpha
-GOARCH?=amd64
+GOARCH?=
 PLATFORM=$(shell uname -s)-$(shell uname -m)
 ROOT=$(dir $(abspath $(firstword $(MAKEFILE_LIST))))
 KUSTOMIZE_CONFIG?=config/default
@@ -98,7 +98,7 @@ TMP_DIR=$$(mktemp -d) ;\
 cd $$TMP_DIR ;\
 go mod init tmp ;\
 echo "Downloading $(2)" ;\
-GOBIN=$(PROJECT_DIR)/bin/$(PLATFORM) go get $(2) ;\
+GOBIN=$(PROJECT_DIR)/bin/$(PLATFORM) go install $(2) ;\
 rm -rf $$TMP_DIR ;\
 }
 endef
@@ -130,7 +130,7 @@ uninstall: manifests $(KUSTOMIZE) ## Uninstall CRDs from a cluster
 .PHONY: deploy
 deploy: manifests $(KUSTOMIZE) ## Deploy controller in the configured Kubernetes cluster in ~/.kube/config
 	cd config/manager && $(ROOT)/$(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build $(KUSTOMIZE_CONFIG)| kubectl apply --force-conflicts --server-side -f -
+	$(KUSTOMIZE) build $(KUSTOMIZE_CONFIG) | kubectl apply --force-conflicts --server-side -f -
 
 .PHONY: undeploy
 undeploy: $(KUSTOMIZE) ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
@@ -179,7 +179,7 @@ docker-push-check-ci:
 ##@ Test
 
 .PHONY: test
-test: build manifests generate fmt vet verify-license gotest integration-tests ## Run unit tests and E2E tests
+test: build manifests generate fmt vet verify-license gotest integration-tests integration-tests-v2 ## Run unit tests and E2E tests
 
 .PHONY: gotest
 gotest:
@@ -188,6 +188,10 @@ gotest:
 .PHONY: integration-tests
 integration-tests: $(ENVTEST) ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test --tags=integration github.com/DataDog/datadog-operator/controllers -coverprofile cover.out
+
+.PHONY: integration-tests-v2
+integration-tests-v2: $(ENVTEST) ## Run tests with reconciler V2
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test --tags=integration_v2 github.com/DataDog/datadog-operator/controllers -coverprofile cover_v2.out
 
 .PHONY: bundle
 bundle: bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq $(KUSTOMIZE) manifests ## Generate bundle manifests and metadata, then validate generated files.

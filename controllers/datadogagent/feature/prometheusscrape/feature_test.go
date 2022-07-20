@@ -21,11 +21,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-func createEmptyFakeManager(t testing.TB) feature.PodTemplateManagers {
-	mgr := fake.NewPodTemplateManagers(t)
-	return mgr
-}
-
 func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 	yamlConfigs := `
 - 
@@ -107,9 +102,8 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 			Name:          "v1alpha1 Prometheus scrape enabled",
 			DDAv1:         ddav1PrometheusScrapeEnabled,
 			WantConfigure: true,
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					wantEnvVars := []*corev1.EnvVar{
 						{
@@ -124,10 +118,9 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 					coreAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentEnvVars, wantEnvVars), "Core Agent envvars \ndiff = %s", cmp.Diff(coreAgentEnvVars, wantEnvVars))
 				},
-			},
-			ClusterAgent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			),
+			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					dcaEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ClusterAgentContainerName]
 					want := []*corev1.EnvVar{
@@ -142,15 +135,14 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 					}
 					assert.True(t, apiutils.IsEqualStruct(dcaEnvVars, want), "DCA envvars \ndiff = %s", cmp.Diff(dcaEnvVars, want))
 				},
-			},
+			),
 		},
 		{
 			Name:          "v1alpha1 Prometheus scrape service endpoints enabled",
 			DDAv1:         ddav1PrometheusScrapeServiceEndpoints,
 			WantConfigure: true,
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					wantEnvVars := []*corev1.EnvVar{
 						{
@@ -165,10 +157,9 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 					coreAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentEnvVars, wantEnvVars), "Core Agent envvars \ndiff = %s", cmp.Diff(coreAgentEnvVars, wantEnvVars))
 				},
-			},
-			ClusterAgent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			),
+			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					dcaEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ClusterAgentContainerName]
 					want := []*corev1.EnvVar{
@@ -183,15 +174,14 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 					}
 					assert.True(t, apiutils.IsEqualStruct(dcaEnvVars, want), "DCA envvars \ndiff = %s", cmp.Diff(dcaEnvVars, want))
 				},
-			},
+			),
 		},
 		{
 			Name:          "v1alpha1 Prometheus scrape additional configs",
 			DDAv1:         ddav1PrometheusScrapeAdditionalConfigs,
 			WantConfigure: true,
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					wantEnvVars := []*corev1.EnvVar{
 						{
@@ -210,10 +200,9 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 					coreAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentEnvVars, wantEnvVars), "Core Agent envvars \ndiff = %s", cmp.Diff(coreAgentEnvVars, wantEnvVars))
 				},
-			},
-			ClusterAgent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			),
+			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					dcaEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ClusterAgentContainerName]
 					want := []*corev1.EnvVar{
@@ -232,7 +221,7 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 					}
 					assert.True(t, apiutils.IsEqualStruct(dcaEnvVars, want), "DCA envvars \ndiff = %s", cmp.Diff(dcaEnvVars, want))
 				},
-			},
+			),
 		},
 		// ///////////////////////////
 		// // v2alpha1.DatadogAgent //
@@ -246,9 +235,8 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 			Name:          "v2alpha1 Prometheus scrape enabled",
 			DDAv2:         ddav2PrometheusScrapeEnabled,
 			WantConfigure: true,
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					wantEnvVars := []*corev1.EnvVar{
 						{
@@ -263,10 +251,9 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 					coreAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentEnvVars, wantEnvVars), "Core Agent envvars \ndiff = %s", cmp.Diff(coreAgentEnvVars, wantEnvVars))
 				},
-			},
-			ClusterAgent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			),
+			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					dcaEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ClusterAgentContainerName]
 					want := []*corev1.EnvVar{
@@ -281,15 +268,14 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 					}
 					assert.True(t, apiutils.IsEqualStruct(dcaEnvVars, want), "DCA envvars \ndiff = %s", cmp.Diff(dcaEnvVars, want))
 				},
-			},
+			),
 		},
 		{
 			Name:          "v2alpha1 Prometheus scrape service endpoints enabled",
 			DDAv2:         ddav2PrometheusScrapeServiceEndpoints,
 			WantConfigure: true,
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					wantEnvVars := []*corev1.EnvVar{
 						{
@@ -304,10 +290,9 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 					coreAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentEnvVars, wantEnvVars), "Core Agent envvars \ndiff = %s", cmp.Diff(coreAgentEnvVars, wantEnvVars))
 				},
-			},
-			ClusterAgent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			),
+			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					dcaEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ClusterAgentContainerName]
 					want := []*corev1.EnvVar{
@@ -322,15 +307,14 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 					}
 					assert.True(t, apiutils.IsEqualStruct(dcaEnvVars, want), "DCA envvars \ndiff = %s", cmp.Diff(dcaEnvVars, want))
 				},
-			},
+			),
 		},
 		{
 			Name:          "v2alpha1 Prometheus scrape additional configs",
 			DDAv2:         ddav2PrometheusScrapeAdditionalConfigs,
 			WantConfigure: true,
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					wantEnvVars := []*corev1.EnvVar{
 						{
@@ -349,10 +333,9 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 					coreAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentEnvVars, wantEnvVars), "Core Agent envvars \ndiff = %s", cmp.Diff(coreAgentEnvVars, wantEnvVars))
 				},
-			},
-			ClusterAgent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			),
+			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					dcaEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ClusterAgentContainerName]
 					want := []*corev1.EnvVar{
@@ -371,7 +354,7 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 					}
 					assert.True(t, apiutils.IsEqualStruct(dcaEnvVars, want), "DCA envvars \ndiff = %s", cmp.Diff(dcaEnvVars, want))
 				},
-			},
+			),
 		},
 	}
 

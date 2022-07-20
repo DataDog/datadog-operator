@@ -12,6 +12,7 @@ import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -259,7 +260,7 @@ func (f *defaultFeature) agentDependencies(managers feature.ResourceManagers, co
 	}
 
 	// ClusterRole creation
-	if err := managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), getAgentRoleName(f.owner), f.agent.serviceAccountName, getDefaultAgentClusterRolePolicyRules()); err != nil {
+	if err := managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), agent.GetAgentRoleName(f.owner), f.agent.serviceAccountName, agent.GetDefaultAgentClusterRolePolicyRules()); err != nil {
 		errs = append(errs, err)
 	}
 
@@ -312,6 +313,7 @@ func (f *defaultFeature) clusterChecksRunnerDependencies(managers feature.Resour
 // It should do nothing if the feature doesn't need to configure it.
 func (f *defaultFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	f.addDefaultCommonEnvs(managers)
+
 	return nil
 }
 
@@ -326,6 +328,7 @@ func (f *defaultFeature) ManageNodeAgent(managers feature.PodTemplateManagers) e
 // It should do nothing if the feature doesn't need to configure it.
 func (f *defaultFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	f.addDefaultCommonEnvs(managers)
+
 	return nil
 }
 

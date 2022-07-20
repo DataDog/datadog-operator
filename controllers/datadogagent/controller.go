@@ -32,17 +32,20 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 
 	// Use to register features
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/clusterchecks"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/cspm"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/cws"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/dogstatsd"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/dummy"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/enabledefault"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/eventcollection"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/kubernetesstatecore"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/logcollection"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/npm"
-	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/oom_kill"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/oomkill"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/orchestrator"
-	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/prometheus_scrape"
-	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/tcp_queue_length"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/prometheusscrape"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/tcpqueuelength"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/usm"
 )
 

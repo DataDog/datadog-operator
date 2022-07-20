@@ -93,9 +93,6 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					KubeStateMetricsCore: &KubeStateMetricsCoreFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
-						Conf: &CustomConfig{
-							ConfigData: apiutils.NewStringPointer(defaultKubeStateMetricsCoreConf),
-						},
 					},
 					ClusterChecks: &ClusterChecksFeatureConfig{
 						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
@@ -273,9 +270,6 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					KubeStateMetricsCore: &KubeStateMetricsCoreFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
-						Conf: &CustomConfig{
-							ConfigData: apiutils.NewStringPointer(defaultKubeStateMetricsCoreConf),
-						},
 					},
 					ClusterChecks: &ClusterChecksFeatureConfig{
 						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
@@ -329,9 +323,6 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					KubeStateMetricsCore: &KubeStateMetricsCoreFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
-						Conf: &CustomConfig{
-							ConfigData: apiutils.NewStringPointer(defaultKubeStateMetricsCoreConf),
-						},
 					},
 					ClusterChecks: &ClusterChecksFeatureConfig{
 						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
@@ -379,9 +370,6 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					KubeStateMetricsCore: &KubeStateMetricsCoreFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
-						Conf: &CustomConfig{
-							ConfigData: apiutils.NewStringPointer(defaultKubeStateMetricsCoreConf),
-						},
 					},
 					ClusterChecks: &ClusterChecksFeatureConfig{
 						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
@@ -424,9 +412,6 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					KubeStateMetricsCore: &KubeStateMetricsCoreFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
-						Conf: &CustomConfig{
-							ConfigData: apiutils.NewStringPointer(defaultKubeStateMetricsCoreConf),
-						},
 					},
 					ExternalMetricsServer: &ExternalMetricsServerFeatureConfig{
 						Enabled:           apiutils.NewBoolPointer(valueTrue),
