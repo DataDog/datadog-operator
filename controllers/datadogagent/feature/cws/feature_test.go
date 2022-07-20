@@ -22,11 +22,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func createEmptyFakeManager(t testing.TB) feature.PodTemplateManagers {
-	mgr := fake.NewPodTemplateManagers(t)
-	return mgr
-}
-
 func Test_cwsFeature_Configure(t *testing.T) {
 	ddav1CWSDisabled := v1alpha1.DatadogAgent{
 		Spec: v1alpha1.DatadogAgentSpec{
@@ -324,10 +319,7 @@ func Test_cwsFeature_Configure(t *testing.T) {
 			Name:          "v1alpha1 CWS enabled",
 			DDAv1:         ddav1CWSEnabled,
 			WantConfigure: true,
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc:   cwsAgentNodeWantFunc,
-			},
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(cwsAgentNodeWantFunc),
 		},
 		//////////////////////////
 		// v2Alpha1.DatadogAgent
@@ -341,10 +333,7 @@ func Test_cwsFeature_Configure(t *testing.T) {
 			Name:          "v2alpha1 CWS enabled",
 			DDAv2:         ddav2CWSEnabled,
 			WantConfigure: true,
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc:   cwsAgentNodeWantFunc,
-			},
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(cwsAgentNodeWantFunc),
 		},
 	}
 
