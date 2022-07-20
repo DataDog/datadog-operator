@@ -85,10 +85,8 @@ func Test_defaultFeatures(t *testing.T) {
 						CollectKubernetesEvents: apiutils.NewBoolPointer(defaultCollectKubernetesEvents),
 					},
 					OrchestratorExplorer: &OrchestratorExplorerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultOrchestratorExplorerEnabled),
-						Conf: &CustomConfig{
-							ConfigData: apiutils.NewStringPointer(DefaultOrchestratorExplorerConf),
-						},
+						Enabled:         apiutils.NewBoolPointer(defaultOrchestratorExplorerEnabled),
+						ScrubContainers: apiutils.NewBoolPointer(defaultOrchestratorExplorerScrubContainers),
 					},
 					KubeStateMetricsCore: &KubeStateMetricsCoreFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
@@ -261,10 +259,8 @@ func Test_defaultFeatures(t *testing.T) {
 						CollectKubernetesEvents: apiutils.NewBoolPointer(defaultCollectKubernetesEvents),
 					},
 					OrchestratorExplorer: &OrchestratorExplorerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultOrchestratorExplorerEnabled),
-						Conf: &CustomConfig{
-							ConfigData: apiutils.NewStringPointer(DefaultOrchestratorExplorerConf),
-						},
+						Enabled:         apiutils.NewBoolPointer(defaultOrchestratorExplorerEnabled),
+						ScrubContainers: apiutils.NewBoolPointer(defaultOrchestratorExplorerScrubContainers),
 					},
 					KubeStateMetricsCore: &KubeStateMetricsCoreFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
@@ -313,10 +309,8 @@ func Test_defaultFeatures(t *testing.T) {
 						CollectKubernetesEvents: apiutils.NewBoolPointer(defaultCollectKubernetesEvents),
 					},
 					OrchestratorExplorer: &OrchestratorExplorerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultOrchestratorExplorerEnabled),
-						Conf: &CustomConfig{
-							ConfigData: apiutils.NewStringPointer(DefaultOrchestratorExplorerConf),
-						},
+						Enabled:         apiutils.NewBoolPointer(defaultOrchestratorExplorerEnabled),
+						ScrubContainers: apiutils.NewBoolPointer(defaultOrchestratorExplorerScrubContainers),
 					},
 					KubeStateMetricsCore: &KubeStateMetricsCoreFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
@@ -359,10 +353,8 @@ func Test_defaultFeatures(t *testing.T) {
 						CollectKubernetesEvents: apiutils.NewBoolPointer(defaultCollectKubernetesEvents),
 					},
 					OrchestratorExplorer: &OrchestratorExplorerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultOrchestratorExplorerEnabled),
-						Conf: &CustomConfig{
-							ConfigData: apiutils.NewStringPointer(DefaultOrchestratorExplorerConf),
-						},
+						Enabled:         apiutils.NewBoolPointer(defaultOrchestratorExplorerEnabled),
+						ScrubContainers: apiutils.NewBoolPointer(defaultOrchestratorExplorerScrubContainers),
 					},
 					KubeStateMetricsCore: &KubeStateMetricsCoreFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
@@ -400,10 +392,8 @@ func Test_defaultFeatures(t *testing.T) {
 						CollectKubernetesEvents: apiutils.NewBoolPointer(defaultCollectKubernetesEvents),
 					},
 					OrchestratorExplorer: &OrchestratorExplorerFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(defaultOrchestratorExplorerEnabled),
-						Conf: &CustomConfig{
-							ConfigData: apiutils.NewStringPointer(DefaultOrchestratorExplorerConf),
-						},
+						Enabled:         apiutils.NewBoolPointer(defaultOrchestratorExplorerEnabled),
+						ScrubContainers: apiutils.NewBoolPointer(defaultOrchestratorExplorerScrubContainers),
 					},
 					KubeStateMetricsCore: &KubeStateMetricsCoreFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultKubeStateMetricsCoreEnabled),

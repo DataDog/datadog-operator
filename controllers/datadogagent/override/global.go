@@ -17,12 +17,20 @@ import (
 // ApplyGlobalSettings use to apply global setting to a PodTemplateSpec
 func ApplyGlobalSettings(manager feature.PodTemplateManagers, config *v2alpha1.GlobalConfig) *corev1.PodTemplateSpec {
 	// TODO(operator-ga): implement ApplyGlobalSettings
+	if config != nil && config.ClusterName != nil {
+		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+			Name:  apicommon.DDClusterName,
+			Value: *config.ClusterName,
+		})
+	}
 
 	if config != nil && config.Kubelet != nil && config.Kubelet.TLSVerify != nil {
-		manager.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
+		kubeletEnvVar := &corev1.EnvVar{
 			Name:  apicommon.DDKubeletTLSVerify,
 			Value: apiutils.BoolToString(config.Kubelet.TLSVerify),
-		})
+		}
+		manager.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, kubeletEnvVar)
+		manager.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, kubeletEnvVar)
 	}
 
 	// set image registry

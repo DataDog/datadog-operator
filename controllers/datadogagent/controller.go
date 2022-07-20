@@ -43,6 +43,7 @@ import (
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/logcollection"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/npm"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/oomkill"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/orchestratorexplorer"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/prometheusscrape"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/tcpqueuelength"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/usm"

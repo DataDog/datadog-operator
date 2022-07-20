@@ -56,8 +56,8 @@ const (
 	// defaultAdmissionControllerEnabled          bool = false
 	defaultAdmissionControllerMutateUnlabelled bool = false
 
-	defaultOrchestratorExplorerEnabled bool   = true
-	DefaultOrchestratorExplorerConf    string = "orchestrator-explorer-config"
+	defaultOrchestratorExplorerEnabled         bool = true
+	defaultOrchestratorExplorerScrubContainers bool = true
 
 	// defaultExternalMetricsServerEnabled bool = false
 	defaultDatadogMetricsEnabled bool = true
@@ -199,11 +199,7 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 	}
 
 	if *ddaSpec.Features.OrchestratorExplorer.Enabled {
-		if ddaSpec.Features.OrchestratorExplorer.Conf == nil {
-			ddaSpec.Features.OrchestratorExplorer.Conf = &CustomConfig{
-				ConfigData: apiutils.NewStringPointer(DefaultOrchestratorExplorerConf),
-			}
-		}
+		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.OrchestratorExplorer.ScrubContainers, defaultOrchestratorExplorerScrubContainers)
 	}
 
 	// KubeStateMetricsCore check Feature
