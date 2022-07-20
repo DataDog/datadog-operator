@@ -22,11 +22,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-func createEmptyFakeManager(t testing.TB) feature.PodTemplateManagers {
-	mgr := fake.NewPodTemplateManagers(t)
-	return mgr
-}
-
 func Test_orchestratorExplorerFeature_Configure(t *testing.T) {
 	ddav1OrchestratorExplorerDisable := v1alpha1.DatadogAgent{
 		Spec: v1alpha1.DatadogAgentSpec{
