@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package orchestrator
+package orchestratorexplorer
 
 import (
 	"testing"
@@ -28,7 +28,7 @@ func createEmptyFakeManager(t testing.TB) feature.PodTemplateManagers {
 }
 
 func Test_orchestratorExplorerFeature_Configure(t *testing.T) {
-	ddav1OrchestratorDisable := v1alpha1.DatadogAgent{
+	ddav1OrchestratorExplorerDisable := v1alpha1.DatadogAgent{
 		Spec: v1alpha1.DatadogAgentSpec{
 			Features: v1alpha1.DatadogFeatures{
 				OrchestratorExplorer: &v1alpha1.OrchestratorExplorerConfig{
@@ -38,18 +38,18 @@ func Test_orchestratorExplorerFeature_Configure(t *testing.T) {
 		},
 	}
 
-	ddav1OrchestratorEnable := ddav1OrchestratorDisable.DeepCopy()
+	ddav1OrchestratorExplorerEnable := ddav1OrchestratorExplorerDisable.DeepCopy()
 	{
-		ddav1OrchestratorEnable.Spec.Features.OrchestratorExplorer.Enabled = apiutils.NewBoolPointer(true)
-		ddav1OrchestratorEnable.Spec.Features.OrchestratorExplorer.Scrubbing = &v1alpha1.Scrubbing{
+		ddav1OrchestratorExplorerEnable.Spec.Features.OrchestratorExplorer.Enabled = apiutils.NewBoolPointer(true)
+		ddav1OrchestratorExplorerEnable.Spec.Features.OrchestratorExplorer.Scrubbing = &v1alpha1.Scrubbing{
 			Containers: apiutils.NewBoolPointer(true),
 		}
-		ddav1OrchestratorEnable.Spec.Features.OrchestratorExplorer.ExtraTags = []string{"a:z", "b:y", "c:x"}
-		ddav1OrchestratorEnable.Spec.Features.OrchestratorExplorer.DDUrl = apiutils.NewStringPointer("https://foo.bar")
+		ddav1OrchestratorExplorerEnable.Spec.Features.OrchestratorExplorer.ExtraTags = []string{"a:z", "b:y", "c:x"}
+		ddav1OrchestratorExplorerEnable.Spec.Features.OrchestratorExplorer.DDUrl = apiutils.NewStringPointer("https://foo.bar")
 
 	}
 
-	ddav2OrchestratorDisable := v2alpha1.DatadogAgent{
+	ddav2OrchestratorExplorerDisable := v2alpha1.DatadogAgent{
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				OrchestratorExplorer: &v2alpha1.OrchestratorExplorerFeatureConfig{
@@ -58,15 +58,15 @@ func Test_orchestratorExplorerFeature_Configure(t *testing.T) {
 			},
 		},
 	}
-	ddav2OrchestratorEnable := ddav2OrchestratorDisable.DeepCopy()
+	ddav2OrchestratorExplorerEnable := ddav2OrchestratorExplorerDisable.DeepCopy()
 	{
-		ddav2OrchestratorEnable.Spec.Features.OrchestratorExplorer.Enabled = apiutils.NewBoolPointer(true)
-		ddav2OrchestratorEnable.Spec.Features.OrchestratorExplorer.ScrubContainers = apiutils.NewBoolPointer(true)
-		ddav2OrchestratorEnable.Spec.Features.OrchestratorExplorer.ExtraTags = []string{"a:z", "b:y", "c:x"}
-		ddav2OrchestratorEnable.Spec.Features.OrchestratorExplorer.DDUrl = apiutils.NewStringPointer("https://foo.bar")
+		ddav2OrchestratorExplorerEnable.Spec.Features.OrchestratorExplorer.Enabled = apiutils.NewBoolPointer(true)
+		ddav2OrchestratorExplorerEnable.Spec.Features.OrchestratorExplorer.ScrubContainers = apiutils.NewBoolPointer(true)
+		ddav2OrchestratorExplorerEnable.Spec.Features.OrchestratorExplorer.ExtraTags = []string{"a:z", "b:y", "c:x"}
+		ddav2OrchestratorExplorerEnable.Spec.Features.OrchestratorExplorer.DDUrl = apiutils.NewStringPointer("https://foo.bar")
 	}
 
-	orchestratorClusterAgentWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+	orchestratorExplorerClusterAgentWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
 		dcaEnvVars := mgr.EnvVarMgr.EnvVarsByC[mergerfake.AllContainers]
 
@@ -91,7 +91,7 @@ func Test_orchestratorExplorerFeature_Configure(t *testing.T) {
 		assert.True(t, apiutils.IsEqualStruct(dcaEnvVars, want), "DCA envvars \ndiff = %s", cmp.Diff(dcaEnvVars, want))
 	}
 
-	orchestratorNodeAgentWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+	orchestratorExplorerNodeAgentWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
 		agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ProcessAgentContainerName]
 
@@ -121,43 +121,31 @@ func Test_orchestratorExplorerFeature_Configure(t *testing.T) {
 		// v1Alpha1.DatadogAgent
 		//////////////////////////
 		{
-			Name:          "v1alpha1 orchestrator not enabled",
-			DDAv1:         ddav1OrchestratorDisable.DeepCopy(),
+			Name:          "v1alpha1 orchestrator explorer not enabled",
+			DDAv1:         ddav1OrchestratorExplorerDisable.DeepCopy(),
 			WantConfigure: false,
 		},
 		{
-			Name:          "v1alpha1 orchestrator enabled",
-			DDAv1:         ddav1OrchestratorEnable,
+			Name:          "v1alpha1 orchestrator explorer enabled",
+			DDAv1:         ddav1OrchestratorExplorerEnable,
 			WantConfigure: true,
-			ClusterAgent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc:   orchestratorClusterAgentWantFunc,
-			},
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc:   orchestratorNodeAgentWantFunc,
-			},
+			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(orchestratorExplorerClusterAgentWantFunc),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(orchestratorExplorerNodeAgentWantFunc),
 		},
 		//////////////////////////
 		// v2Alpha1.DatadogAgent
 		//////////////////////////
 		{
-			Name:          "v2alpha1 orchestrator not enabled",
-			DDAv2:         ddav2OrchestratorDisable.DeepCopy(),
+			Name:          "v2alpha1 orchestrator explorer not enabled",
+			DDAv2:         ddav2OrchestratorExplorerDisable.DeepCopy(),
 			WantConfigure: false,
 		},
 		{
-			Name:          "v2alpha1 orchestrator enabled",
-			DDAv2:         ddav2OrchestratorEnable,
+			Name:          "v2alpha1 orchestrator explorer enabled",
+			DDAv2:         ddav2OrchestratorExplorerEnable,
 			WantConfigure: true,
-			ClusterAgent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc:   orchestratorClusterAgentWantFunc,
-			},
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc:   orchestratorNodeAgentWantFunc,
-			},
+			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(orchestratorExplorerClusterAgentWantFunc),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(orchestratorExplorerNodeAgentWantFunc),
 		},
 	}
 

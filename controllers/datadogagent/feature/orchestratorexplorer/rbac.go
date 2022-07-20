@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package orchestrator
+package orchestratorexplorer
 
 import (
 	rbacv1 "k8s.io/api/rbac/v1"

@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-package orchestrator
+package orchestratorexplorer
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -21,7 +21,7 @@ import (
 )
 
 func init() {
-	err := feature.Register(feature.OrchestratorIDType, buildOrchestratorExplorerFeature)
+	err := feature.Register(feature.OrchestratorExplorerIDType, buildOrchestratorExplorerFeature)
 	if err != nil {
 		panic(err)
 	}
@@ -50,23 +50,23 @@ type orchestratorExplorerFeature struct {
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda
-	orchestrator := dda.Spec.Features.OrchestratorExplorer
+	orchestratorExplorer := dda.Spec.Features.OrchestratorExplorer
 
-	if orchestrator != nil && apiutils.BoolValue(orchestrator.Enabled) {
+	if orchestratorExplorer != nil && apiutils.BoolValue(orchestratorExplorer.Enabled) {
 		reqComp.ClusterAgent.IsRequired = apiutils.NewBoolPointer(true)
 		reqComp.Agent = feature.RequiredComponent{
 			IsRequired: apiutils.NewBoolPointer(true),
-			Containers: []apicommonv1.AgentContainerName{apicommonv1.ProcessAgentContainerName},
+			Containers: []apicommonv1.AgentContainerName{apicommonv1.CoreAgentContainerName, apicommonv1.ProcessAgentContainerName},
 		}
 
-		if orchestrator.Conf != nil {
-			f.customConfig = v2alpha1.ConvertCustomConfig(orchestrator.Conf)
+		if orchestratorExplorer.Conf != nil {
+			f.customConfig = v2alpha1.ConvertCustomConfig(orchestratorExplorer.Conf)
 		}
 		f.configConfigMapName = apicommonv1.GetConfName(dda, f.customConfig, apicommon.DefaultOrchestratorExplorerConf)
-		f.scrubContainers = apiutils.BoolValue(orchestrator.ScrubContainers)
-		f.extraTags = orchestrator.ExtraTags
-		if orchestrator.DDUrl != nil {
-			f.ddURL = *orchestrator.DDUrl
+		f.scrubContainers = apiutils.BoolValue(orchestratorExplorer.ScrubContainers)
+		f.extraTags = orchestratorExplorer.ExtraTags
+		if orchestratorExplorer.DDUrl != nil {
+			f.ddURL = *orchestratorExplorer.DDUrl
 		}
 		f.serviceAccountName = v2alpha1.GetClusterAgentServiceAccount(dda)
 
@@ -87,29 +87,29 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 // ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
 func (f *orchestratorExplorerFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda
-	orchestrator := dda.Spec.Features.OrchestratorExplorer
+	orchestratorExplorer := dda.Spec.Features.OrchestratorExplorer
 
-	if orchestrator != nil && apiutils.BoolValue(orchestrator.Enabled) {
+	if orchestratorExplorer != nil && apiutils.BoolValue(orchestratorExplorer.Enabled) {
 		reqComp.ClusterAgent.IsRequired = apiutils.NewBoolPointer(true)
 		reqComp.Agent = feature.RequiredComponent{
 			IsRequired: apiutils.NewBoolPointer(true),
-			Containers: []apicommonv1.AgentContainerName{apicommonv1.ProcessAgentContainerName},
+			Containers: []apicommonv1.AgentContainerName{apicommonv1.CoreAgentContainerName, apicommonv1.ProcessAgentContainerName},
 		}
 
-		if orchestrator.Conf != nil {
-			f.customConfig = v1alpha1.ConvertCustomConfig(orchestrator.Conf)
+		if orchestratorExplorer.Conf != nil {
+			f.customConfig = v1alpha1.ConvertCustomConfig(orchestratorExplorer.Conf)
 		}
 		f.configConfigMapName = apicommonv1.GetConfName(dda, f.customConfig, apicommon.DefaultOrchestratorExplorerConf)
-		if orchestrator.Scrubbing != nil {
-			f.scrubContainers = apiutils.BoolValue(orchestrator.Scrubbing.Containers)
+		if orchestratorExplorer.Scrubbing != nil {
+			f.scrubContainers = apiutils.BoolValue(orchestratorExplorer.Scrubbing.Containers)
 		}
-		f.extraTags = orchestrator.ExtraTags
-		if orchestrator.DDUrl != nil {
-			f.ddURL = *orchestrator.DDUrl
+		f.extraTags = orchestratorExplorer.ExtraTags
+		if orchestratorExplorer.DDUrl != nil {
+			f.ddURL = *orchestratorExplorer.DDUrl
 		}
 		f.serviceAccountName = v1alpha1.GetClusterAgentServiceAccount(dda)
 
-		if v1alpha1.IsClusterChecksEnabled(dda) && apiutils.BoolValue(orchestrator.ClusterCheck) {
+		if v1alpha1.IsClusterChecksEnabled(dda) && apiutils.BoolValue(orchestratorExplorer.ClusterCheck) {
 			f.clusterChecksEnabled = true
 
 			if v1alpha1.IsCCREnabled(dda) {

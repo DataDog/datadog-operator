@@ -31,8 +31,6 @@ const (
 	USMIDType
 	// OOMKillIDType OOM Kill check feature
 	OOMKillIDType
-	// OrchestratorIDType Orchestrator Explorer check
-	OrchestratorIDType
 	// PrometheusScrapeIDType Prometheus Scrape feature
 	PrometheusScrapeIDType
 	// TCPQueueLengthIDType TCP Queue length check feature
