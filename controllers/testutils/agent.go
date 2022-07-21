@@ -153,6 +153,20 @@ func NewDatadogAgentWithOOMKill(namespace string, name string) v2alpha1.DatadogA
 	)
 }
 
+// NewDatadogAgentWithOrchestratorExplorer returns an agent with the
+// orchestrator explorer enabled
+func NewDatadogAgentWithOrchestratorExplorer(namespace string, name string) v2alpha1.DatadogAgent {
+	return newDatadogAgentWithFeatures(
+		namespace,
+		name,
+		&v2alpha1.DatadogFeatures{
+			OrchestratorExplorer: &v2alpha1.OrchestratorExplorerFeatureConfig{
+				Enabled: apiutils.NewBoolPointer(true),
+			},
+		},
+	)
+}
+
 // NewDatadogAgentWithPrometheusScrape returns an agent with Prometheus scraping enabled
 func NewDatadogAgentWithPrometheusScrape(namespace string, name string) v2alpha1.DatadogAgent {
 	return newDatadogAgentWithFeatures(
