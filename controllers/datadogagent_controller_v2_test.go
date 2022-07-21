@@ -206,6 +206,22 @@ var _ = Describe("V2 Controller - DatadogAgent Deployment", func() {
 		})
 	})
 
+	Context("with orchestrator explorer", func() {
+		BeforeEach(func() {
+			name = "with-orchestrator-explorer"
+			agent = testutils.NewDatadogAgentWithOrchestratorExplorer(namespace, name)
+			createAgent(&agent)
+		})
+
+		AfterEach(func() {
+			deleteAgent(&agent)
+		})
+
+		It("should deploy successfully", func() {
+			checkAgentDeployment(namespace, name)
+		})
+	})
+
 	Context("with Prometheus scrape", func() {
 		BeforeEach(func() {
 			name = "with-prometheus-scrape"
