@@ -6,6 +6,7 @@
 package oomkill
 
 import (
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
@@ -72,6 +73,9 @@ func (f *oomKillFeature) ManageClusterAgent(managers feature.PodTemplateManagers
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *oomKillFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+	// security context capabilities
+	managers.SecurityContext().AddCapabilitiesToContainer(agent.DefaultCapabilitiesForSystemProbe(), apicommonv1.SystemProbeContainerName)
+
 	// modules volume mount
 	modulesVol, modulesVolMount := volume.GetVolumes(apicommon.ModulesVolumeName, apicommon.ModulesVolumePath, apicommon.ModulesVolumePath, true)
 	managers.VolumeMount().AddVolumeMountToContainer(&modulesVolMount, apicommonv1.SystemProbeContainerName)

@@ -13,6 +13,7 @@ import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/test"
@@ -54,6 +55,15 @@ func Test_tcpQueueLengthFeature_Configure(t *testing.T) {
 
 	tcpQueueLengthAgentNodeWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+		// check security context capabilities
+		sysProbeCapabilities := mgr.SecurityContextMgr.CapabilitiesByC[apicommonv1.SystemProbeContainerName]
+		assert.True(
+			t,
+			apiutils.IsEqualStruct(sysProbeCapabilities, agent.DefaultCapabilitiesForSystemProbe()),
+			"System Probe security context capabilities \ndiff = %s",
+			cmp.Diff(sysProbeCapabilities, agent.DefaultCapabilitiesForSystemProbe()),
+		)
 
 		// check volume mounts
 		wantVolumeMounts := []corev1.VolumeMount{
