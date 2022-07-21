@@ -86,6 +86,11 @@ func (f *oomKillFeature) ManageNodeAgent(managers feature.PodTemplateManagers) e
 	managers.VolumeMount().AddVolumeMountToContainer(&srcVolMount, apicommonv1.SystemProbeContainerName)
 	managers.Volume().AddVolume(&srcVol)
 
+	// debugfs volume mount
+	debugfsVol, debugfsVolMount := volume.GetVolumes(apicommon.DebugfsVolumeName, apicommon.DebugfsPath, apicommon.DebugfsPath, false)
+	managers.Volume().AddVolume(&debugfsVol)
+	managers.VolumeMount().AddVolumeMountToContainers(&debugfsVolMount, []apicommonv1.AgentContainerName{apicommonv1.ProcessAgentContainerName, apicommonv1.SystemProbeContainerName})
+
 	enableEnvVar := &corev1.EnvVar{
 		Name:  apicommon.DDEnableOOMKillEnvVar,
 		Value: "true",

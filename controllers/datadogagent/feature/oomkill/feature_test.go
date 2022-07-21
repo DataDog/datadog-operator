@@ -77,6 +77,11 @@ func Test_oomKillFeature_Configure(t *testing.T) {
 				MountPath: apicommon.SrcVolumePath,
 				ReadOnly:  true,
 			},
+			{
+				Name:      apicommon.DebugfsVolumeName,
+				MountPath: apicommon.DebugfsPath,
+				ReadOnly:  false,
+			},
 		}
 
 		systemProbeVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.SystemProbeContainerName]
@@ -97,6 +102,14 @@ func Test_oomKillFeature_Configure(t *testing.T) {
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
 						Path: apicommon.SrcVolumePath,
+					},
+				},
+			},
+			{
+				Name: apicommon.DebugfsVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: apicommon.DebugfsPath,
 					},
 				},
 			},
