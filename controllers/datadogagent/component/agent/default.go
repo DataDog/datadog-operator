@@ -61,6 +61,21 @@ func NewDefaultAgentPodTemplateSpec(dda metav1.Object, requiredContainers []comm
 	}
 }
 
+// DefaultCapabilitiesForSystemProbe returns the default Security Context
+// Capabilities for the System Probe container
+func DefaultCapabilitiesForSystemProbe() []corev1.Capability {
+	return []corev1.Capability{
+		"SYS_ADMIN",
+		"SYS_RESOURCE",
+		"SYS_PTRACE",
+		"NET_ADMIN",
+		"NET_BROADCAST",
+		"NET_RAW",
+		"IPC_LOCK",
+		"CHOWN",
+	}
+}
+
 func getDefaultServiceAccountName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultAgentResourceSuffix)
 }

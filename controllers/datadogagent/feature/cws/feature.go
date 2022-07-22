@@ -8,6 +8,7 @@ package cws
 import (
 	"path/filepath"
 
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
@@ -109,17 +110,7 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 	managers.Annotation().AddAnnotation(apicommon.SystemProbeAppArmorAnnotationKey, apicommon.SystemProbeAppArmorAnnotationValue)
 
 	// security context capabilities
-	capabilities := []corev1.Capability{
-		"SYS_ADMIN",
-		"SYS_RESOURCE",
-		"SYS_PTRACE",
-		"NET_ADMIN",
-		"NET_BROADCAST",
-		"NET_RAW",
-		"IPC_LOCK",
-		"CHOWN",
-	}
-	managers.SecurityContext().AddCapabilitiesToContainer(capabilities, apicommonv1.SystemProbeContainerName)
+	managers.SecurityContext().AddCapabilitiesToContainer(agent.DefaultCapabilitiesForSystemProbe(), apicommonv1.SystemProbeContainerName)
 
 	// envvars
 	enabledEnvVar := &corev1.EnvVar{

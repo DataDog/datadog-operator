@@ -8,6 +8,7 @@ package cws
 import (
 	"testing"
 
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	corev1 "k8s.io/api/core/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
@@ -80,18 +81,8 @@ func Test_cwsFeature_Configure(t *testing.T) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
 
 		// check security context capabilities
-		wantCapabilities := []corev1.Capability{
-			"SYS_ADMIN",
-			"SYS_RESOURCE",
-			"SYS_PTRACE",
-			"NET_ADMIN",
-			"NET_BROADCAST",
-			"NET_RAW",
-			"IPC_LOCK",
-			"CHOWN",
-		}
 		sysProbeCapabilities := mgr.SecurityContextMgr.CapabilitiesByC[apicommonv1.SystemProbeContainerName]
-		assert.True(t, apiutils.IsEqualStruct(sysProbeCapabilities, wantCapabilities), "System Probe security context capabilities \ndiff = %s", cmp.Diff(sysProbeCapabilities, wantCapabilities))
+		assert.True(t, apiutils.IsEqualStruct(sysProbeCapabilities, agent.DefaultCapabilitiesForSystemProbe()), "System Probe security context capabilities \ndiff = %s", cmp.Diff(sysProbeCapabilities, agent.DefaultCapabilitiesForSystemProbe()))
 
 		securityWant := []*corev1.EnvVar{
 			{
