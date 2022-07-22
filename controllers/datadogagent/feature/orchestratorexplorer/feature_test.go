@@ -81,79 +81,41 @@ func Test_orchestratorExplorerFeature_Configure(t *testing.T) {
 		}
 	}
 
+	expectedOrchestratorEnvs := []*corev1.EnvVar{
+		{
+			Name:  apicommon.DDOrchestratorExplorerEnabled,
+			Value: "true",
+		},
+		{
+			Name:  apicommon.DDOrchestratorExplorerContainerScrubbingEnabled,
+			Value: "true",
+		},
+		{
+			Name:  apicommon.DDOrchestratorExplorerExtraTags,
+			Value: `["a:z","b:y","c:x"]`,
+		},
+		{
+			Name:  apicommon.DDOrchestratorExplorerDDUrl,
+			Value: "https://foo.bar",
+		},
+	}
+
 	orchestratorExplorerClusterAgentWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
 		dcaEnvVars := mgr.EnvVarMgr.EnvVarsByC[mergerfake.AllContainers]
-
-		want := []*corev1.EnvVar{
-			{
-				Name:  apicommon.DDOrchestratorExplorerEnabled,
-				Value: "true",
-			},
-			{
-				Name:  apicommon.DDOrchestratorExplorerContainerScrubbingEnabled,
-				Value: "true",
-			},
-			{
-				Name:  apicommon.DDOrchestratorExplorerExtraTags,
-				Value: `["a:z","b:y","c:x"]`,
-			},
-			{
-				Name:  apicommon.DDOrchestratorExplorerDDUrl,
-				Value: "https://foo.bar",
-			},
-		}
-		assert.True(t, apiutils.IsEqualStruct(dcaEnvVars, want), "DCA envvars \ndiff = %s", cmp.Diff(dcaEnvVars, want))
+		assert.True(t, apiutils.IsEqualStruct(dcaEnvVars, expectedOrchestratorEnvs), "DCA envvars \ndiff = %s", cmp.Diff(dcaEnvVars, expectedOrchestratorEnvs))
 	}
 
 	orchestratorExplorerNodeAgentWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
 		agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ProcessAgentContainerName]
-
-		want := []*corev1.EnvVar{
-			{
-				Name:  apicommon.DDOrchestratorExplorerEnabled,
-				Value: "true",
-			},
-			{
-				Name:  apicommon.DDOrchestratorExplorerContainerScrubbingEnabled,
-				Value: "true",
-			},
-			{
-				Name:  apicommon.DDOrchestratorExplorerExtraTags,
-				Value: `["a:z","b:y","c:x"]`,
-			},
-			{
-				Name:  apicommon.DDOrchestratorExplorerDDUrl,
-				Value: "https://foo.bar",
-			},
-		}
-		assert.True(t, apiutils.IsEqualStruct(agentEnvVars, want), "Process agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, want))
+		assert.True(t, apiutils.IsEqualStruct(agentEnvVars, expectedOrchestratorEnvs), "Process agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, expectedOrchestratorEnvs))
 	}
 
 	orchestratorExplorerClusterChecksRunnerWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
 		runnerEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ClusterChecksRunnersContainerName]
-
-		want := []*corev1.EnvVar{
-			{
-				Name:  apicommon.DDOrchestratorExplorerEnabled,
-				Value: "true",
-			},
-			{
-				Name:  apicommon.DDOrchestratorExplorerContainerScrubbingEnabled,
-				Value: "true",
-			},
-			{
-				Name:  apicommon.DDOrchestratorExplorerExtraTags,
-				Value: `["a:z","b:y","c:x"]`,
-			},
-			{
-				Name:  apicommon.DDOrchestratorExplorerDDUrl,
-				Value: "https://foo.bar",
-			},
-		}
-		assert.True(t, apiutils.IsEqualStruct(runnerEnvs, want), "Cluster Checks Runner envvars \ndiff = %s", cmp.Diff(runnerEnvs, want))
+		assert.True(t, apiutils.IsEqualStruct(runnerEnvs, expectedOrchestratorEnvs), "Cluster Checks Runner envvars \ndiff = %s", cmp.Diff(runnerEnvs, expectedOrchestratorEnvs))
 	}
 
 	tests := test.FeatureTestSuite{
