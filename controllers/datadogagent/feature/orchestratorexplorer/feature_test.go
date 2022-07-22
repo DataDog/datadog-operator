@@ -44,6 +44,18 @@ func Test_orchestratorExplorerFeature_Configure(t *testing.T) {
 
 	}
 
+	ddaV1EnabledAndRunInRunner := ddav1OrchestratorExplorerEnable.DeepCopy()
+	ddaV1EnabledAndRunInRunner.Spec.ClusterAgent = v1alpha1.DatadogAgentSpecClusterAgentSpec{
+		Config: &v1alpha1.ClusterAgentConfig{
+			ClusterChecksEnabled: apiutils.NewBoolPointer(true),
+		},
+	}
+	ddaV1EnabledAndRunInRunner.Spec.ClusterChecksRunner = v1alpha1.DatadogAgentSpecClusterChecksRunnerSpec{
+		Enabled: apiutils.NewBoolPointer(true),
+		Rbac:    &v1alpha1.RbacConfig{},
+	}
+	ddaV1EnabledAndRunInRunner.Spec.Features.OrchestratorExplorer.ClusterCheck = apiutils.NewBoolPointer(true)
+
 	ddav2OrchestratorExplorerDisable := v2alpha1.DatadogAgent{
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
@@ -59,6 +71,14 @@ func Test_orchestratorExplorerFeature_Configure(t *testing.T) {
 		ddav2OrchestratorExplorerEnable.Spec.Features.OrchestratorExplorer.ScrubContainers = apiutils.NewBoolPointer(true)
 		ddav2OrchestratorExplorerEnable.Spec.Features.OrchestratorExplorer.ExtraTags = []string{"a:z", "b:y", "c:x"}
 		ddav2OrchestratorExplorerEnable.Spec.Features.OrchestratorExplorer.DDUrl = apiutils.NewStringPointer("https://foo.bar")
+	}
+
+	ddaV2EnabledAndRunInRunner := ddav2OrchestratorExplorerEnable.DeepCopy()
+	{
+		ddaV2EnabledAndRunInRunner.Spec.Features.ClusterChecks = &v2alpha1.ClusterChecksFeatureConfig{
+			Enabled:                 apiutils.NewBoolPointer(true),
+			UseClusterChecksRunners: apiutils.NewBoolPointer(true),
+		}
 	}
 
 	orchestratorExplorerClusterAgentWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
@@ -111,6 +131,31 @@ func Test_orchestratorExplorerFeature_Configure(t *testing.T) {
 		assert.True(t, apiutils.IsEqualStruct(agentEnvVars, want), "Process agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, want))
 	}
 
+	orchestratorExplorerClusterChecksRunnerWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+		mgr := mgrInterface.(*fake.PodTemplateManagers)
+		runnerEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ClusterChecksRunnersContainerName]
+
+		want := []*corev1.EnvVar{
+			{
+				Name:  apicommon.DDOrchestratorExplorerEnabled,
+				Value: "true",
+			},
+			{
+				Name:  apicommon.DDOrchestratorExplorerContainerScrubbingEnabled,
+				Value: "true",
+			},
+			{
+				Name:  apicommon.DDOrchestratorExplorerExtraTags,
+				Value: `["a:z","b:y","c:x"]`,
+			},
+			{
+				Name:  apicommon.DDOrchestratorExplorerDDUrl,
+				Value: "https://foo.bar",
+			},
+		}
+		assert.True(t, apiutils.IsEqualStruct(runnerEnvs, want), "Cluster Checks Runner envvars \ndiff = %s", cmp.Diff(runnerEnvs, want))
+	}
+
 	tests := test.FeatureTestSuite{
 		//////////////////////////
 		// v1Alpha1.DatadogAgent
@@ -127,6 +172,14 @@ func Test_orchestratorExplorerFeature_Configure(t *testing.T) {
 			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(orchestratorExplorerClusterAgentWantFunc),
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(orchestratorExplorerNodeAgentWantFunc),
 		},
+		{
+			Name:                "v1alpha1 orchestrator explorer enabled and runs on cluster checks runner",
+			DDAv1:               ddaV1EnabledAndRunInRunner,
+			WantConfigure:       true,
+			ClusterAgent:        test.NewDefaultComponentTest().WithWantFunc(orchestratorExplorerClusterAgentWantFunc),
+			Agent:               test.NewDefaultComponentTest().WithWantFunc(orchestratorExplorerNodeAgentWantFunc),
+			ClusterChecksRunner: test.NewDefaultComponentTest().WithWantFunc(orchestratorExplorerClusterChecksRunnerWantFunc),
+		},
 		//////////////////////////
 		// v2Alpha1.DatadogAgent
 		//////////////////////////
@@ -141,6 +194,14 @@ func Test_orchestratorExplorerFeature_Configure(t *testing.T) {
 			WantConfigure: true,
 			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(orchestratorExplorerClusterAgentWantFunc),
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(orchestratorExplorerNodeAgentWantFunc),
+		},
+		{
+			Name:                "v2alpha1 orchestrator explorer enabled and runs on cluster checks runner",
+			DDAv2:               ddaV2EnabledAndRunInRunner,
+			WantConfigure:       true,
+			ClusterAgent:        test.NewDefaultComponentTest().WithWantFunc(orchestratorExplorerClusterAgentWantFunc),
+			Agent:               test.NewDefaultComponentTest().WithWantFunc(orchestratorExplorerNodeAgentWantFunc),
+			ClusterChecksRunner: test.NewDefaultComponentTest().WithWantFunc(orchestratorExplorerClusterChecksRunnerWantFunc),
 		},
 	}
 

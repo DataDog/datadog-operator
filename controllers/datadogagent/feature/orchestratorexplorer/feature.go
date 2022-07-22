@@ -36,15 +36,16 @@ func buildOrchestratorExplorerFeature(options *feature.Options) feature.Feature 
 }
 
 type orchestratorExplorerFeature struct {
-	clusterChecksEnabled bool
-	scrubContainers      bool
-	extraTags            []string
-	ddURL                string
-	rbacSuffix           string
-	serviceAccountName   string
-	owner                metav1.Object
-	customConfig         *apicommonv1.CustomConfig
-	configConfigMapName  string
+	clusterChecksEnabled     bool
+	runInClusterChecksRunner bool
+	scrubContainers          bool
+	extraTags                []string
+	ddURL                    string
+	rbacSuffix               string
+	serviceAccountName       string
+	owner                    metav1.Object
+	customConfig             *apicommonv1.CustomConfig
+	configConfigMapName      string
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
@@ -74,6 +75,7 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 			f.clusterChecksEnabled = true
 
 			if v2alpha1.IsCCREnabled(dda) {
+				f.runInClusterChecksRunner = true
 				f.rbacSuffix = common.ChecksRunnerSuffix
 				f.serviceAccountName = v2alpha1.GetClusterChecksRunnerServiceAccount(dda)
 				reqComp.ClusterChecksRunner.IsRequired = apiutils.NewBoolPointer(true)
@@ -113,6 +115,7 @@ func (f *orchestratorExplorerFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (r
 			f.clusterChecksEnabled = true
 
 			if v1alpha1.IsCCREnabled(dda) {
+				f.runInClusterChecksRunner = true
 				reqComp.ClusterChecksRunner.IsRequired = apiutils.NewBoolPointer(true)
 
 				f.rbacSuffix = common.ChecksRunnerSuffix
@@ -178,5 +181,11 @@ func (f *orchestratorExplorerFeature) ManageNodeAgent(managers feature.PodTempla
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunner's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *orchestratorExplorerFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
+	if f.runInClusterChecksRunner {
+		for _, env := range f.getEnvVars() {
+			managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterChecksRunnersContainerName, env)
+		}
+	}
+
 	return nil
 }
