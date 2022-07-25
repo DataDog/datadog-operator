@@ -41,6 +41,7 @@ type StoreClient interface {
 	GetOrCreate(kind kubernetes.ObjectKind, namespace, name string) (client.Object, bool)
 	GetVersionInfo() string
 	Delete(kind kubernetes.ObjectKind, namespace string, name string) bool
+	DeleteAll(ctx context.Context, k8sClient client.Client) []error
 }
 
 // NewStore returns a new Store instance
@@ -276,6 +277,48 @@ func (ds *Store) Cleanup(ctx context.Context, k8sClient client.Client, ddaNs, dd
 // GetVersionInfo returns the Kubernetes version
 func (ds *Store) GetVersionInfo() string {
 	return ds.versionInfo.GitVersion
+}
+
+// DeleteAll deletes all the resources that are in the Store
+func (ds *Store) DeleteAll(ctx context.Context, k8sClient client.Client) []error {
+	ds.mutex.RLock()
+	defer ds.mutex.RUnlock()
+
+	var objsToDelete []client.Object
+
+	for _, kind := range kubernetes.GetResourcesKind(ds.supportCilium) {
+		requirementLabel, _ := labels.NewRequirement(operatorStoreLabelKey, selection.Exists, nil)
+		listOptions := &client.ListOptions{
+			LabelSelector: labels.NewSelector().Add(*requirementLabel),
+		}
+		objList := kubernetes.ObjectListFromKind(kind)
+		if err := k8sClient.List(ctx, objList, listOptions); err != nil {
+			return []error{err}
+		}
+
+		items, err := apimeta.ExtractList(objList)
+		if err != nil {
+			return []error{err}
+		}
+
+		for _, objAPIServer := range items {
+			objMeta, _ := apimeta.Accessor(objAPIServer)
+
+			idObj := buildID(objMeta.GetNamespace(), objMeta.GetName())
+			if _, found := ds.deps[kind][idObj]; found {
+				partialObj := &metav1.PartialObjectMetadata{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      objMeta.GetName(),
+						Namespace: objMeta.GetNamespace(),
+					},
+				}
+				partialObj.TypeMeta.SetGroupVersionKind(objAPIServer.GetObjectKind().GroupVersionKind())
+				objsToDelete = append(objsToDelete, partialObj)
+			}
+		}
+	}
+
+	return deleteObjects(ctx, k8sClient, objsToDelete)
 }
 
 func listObjectToDelete(objList client.ObjectList, cacheObjects map[string]client.Object) ([]client.Object, error) {
