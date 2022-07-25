@@ -756,13 +756,13 @@ func getEnvVarsCommon(dda *datadoghqv1alpha1.DatadogAgent, needAPIKey bool) ([]c
 		if dda.Spec.Agent.Config.CriSocket.CriSocketPath != nil {
 			envVars = append(envVars, corev1.EnvVar{
 				Name:  apicommon.DDCriSocketPath,
-				Value: filepath.Join(datadoghqv1alpha1.HostCriSocketPathPrefix, *dda.Spec.Agent.Config.CriSocket.CriSocketPath),
+				Value: filepath.Join(apicommon.HostCriSocketPathPrefix, *dda.Spec.Agent.Config.CriSocket.CriSocketPath),
 			})
 		}
 		if dda.Spec.Agent.Config.CriSocket.DockerSocketPath != nil {
 			envVars = append(envVars, corev1.EnvVar{
 				Name:  apicommon.DockerHost,
-				Value: "unix://" + filepath.Join(datadoghqv1alpha1.HostCriSocketPathPrefix, *dda.Spec.Agent.Config.CriSocket.DockerSocketPath),
+				Value: "unix://" + filepath.Join(apicommon.HostCriSocketPathPrefix, *dda.Spec.Agent.Config.CriSocket.DockerSocketPath),
 			})
 		}
 	}
@@ -1120,7 +1120,7 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 	}
 
 	runtimeVolume := corev1.Volume{
-		Name: datadoghqv1alpha1.CriSocketVolumeName,
+		Name: apicommon.CriSocketVolumeName,
 		VolumeSource: corev1.VolumeSource{
 			HostPath: &corev1.HostPathVolumeSource{
 				Path: defaultRuntimeDir,
@@ -1569,8 +1569,8 @@ func getVolumeMountForRuntimeSockets(criSocket *datadoghqv1alpha1.CRISocketConfi
 	}
 
 	return corev1.VolumeMount{
-		Name:      datadoghqv1alpha1.CriSocketVolumeName,
-		MountPath: filepath.Join(datadoghqv1alpha1.HostCriSocketPathPrefix, socketPath),
+		Name:      apicommon.CriSocketVolumeName,
+		MountPath: filepath.Join(apicommon.HostCriSocketPathPrefix, socketPath),
 		ReadOnly:  true,
 	}
 }
@@ -1800,8 +1800,8 @@ func getVolumeMountsForSecurityAgent(dda *datadoghqv1alpha1.DatadogAgent) []core
 	if complianceEnabled {
 		// Additional mount for runtime socket under hostroot
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      datadoghqv1alpha1.CriSocketVolumeName,
-			MountPath: strings.Replace(runtimeVolume.MountPath, datadoghqv1alpha1.HostCriSocketPathPrefix, apicommon.HostRootMountPath, 1),
+			Name:      apicommon.CriSocketVolumeName,
+			MountPath: strings.Replace(runtimeVolume.MountPath, apicommon.HostCriSocketPathPrefix, apicommon.HostRootMountPath, 1),
 			ReadOnly:  true,
 		})
 	}

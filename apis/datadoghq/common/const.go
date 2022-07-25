@@ -175,7 +175,7 @@ const (
 	DogstatsdSocketVolumePath  = "/var/run/datadog/statsd"
 	HostCriSocketPathPrefix    = "/host"
 	CriSocketVolumeName        = "runtimesocketdir"
-	DefaultKubeletAgentCAPath  = "/var/run/host-kubelet-ca.crt"
+	KubeletAgentCAPath         = "/var/run/host-kubelet-ca.crt"
 	KubeletCAVolumeName        = "kubelet-ca"
 )
 

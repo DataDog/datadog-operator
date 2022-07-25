@@ -1733,7 +1733,7 @@ spec:
                             type: string
                           tlsVerify:
                             description: 'TLSVerify toggles kubelet TLS verification.
-                              Default: true (set in datadog-agent)'
+                              Default: true'
                             type: boolean
                         type: object
                       leaderElection:
@@ -14381,7 +14381,7 @@ spec:
                                 type: string
                               tlsVerify:
                                 description: 'TLSVerify toggles kubelet TLS verification.
-                                  Default: true (set in datadog-agent)'
+                                  Default: true'
                                 type: boolean
                             type: object
                           leaderElection:
@@ -26478,7 +26478,7 @@ spec:
                         type: string
                       tlsVerify:
                         description: 'TLSVerify toggles kubelet TLS verification.
-                          Default: true (set in datadog-agent)'
+                          Default: true'
                         type: boolean
                     type: object
                   localService:

@@ -50,7 +50,7 @@ type KubeletConfig struct {
 	Host *corev1.EnvVarSource `json:"host,omitempty"`
 
 	// TLSVerify toggles kubelet TLS verification.
-	// Default: true (set in datadog-agent)
+	// Default: true
 	// +optional
 	TLSVerify *bool `json:"tlsVerify,omitempty"`
 

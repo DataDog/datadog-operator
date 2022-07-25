@@ -73,8 +73,6 @@ const (
 	// defaultPrometheusScrapeEnabled                bool = false
 	defaultPrometheusScrapeEnableServiceEndpoints bool = false
 
-	// defaultDatadogMonitorEnabled bool = false
-
 	defaultKubeletAgentCAPath            = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
 	defaultKubeletAgentCAPathHostPathSet = "/var/run/host-kubelet-ca.crt"
 )

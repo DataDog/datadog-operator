@@ -13,10 +13,12 @@ import (
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 
+	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -27,7 +29,8 @@ const (
 )
 
 // ApplyGlobalSettings use to apply global setting to a PodTemplateSpec
-func ApplyGlobalSettings(manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, componentName v2alpha1.ComponentName) *corev1.PodTemplateSpec {
+func ApplyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, componentName v2alpha1.ComponentName) *corev1.PodTemplateSpec {
+	var err error
 	config := dda.Spec.Global
 
 	// ClusterName sets a unique cluster name for the deployment to easily scope monitoring data in the Datadog app.
@@ -71,9 +74,12 @@ func ApplyGlobalSettings(manager feature.PodTemplateManagers, dda *v2alpha1.Data
 		if apiutils.BoolValue(config.NetworkPolicy.Create) {
 			switch config.NetworkPolicy.Flavor {
 			case v2alpha1.NetworkPolicyFlavorKubernetes:
-				_ = resourcesManager.NetworkPolicyManager().BuildKubernetesNetworkPolicy(dda, componentName)
+				err = resourcesManager.NetworkPolicyManager().AddKubernetesNetworkPolicy(component.BuildKubernetesNetworkPolicy(dda, componentName))
 			case v2alpha1.NetworkPolicyFlavorCilium:
 				// TODO
+			}
+			if err != nil {
+				logger.Info("Error adding Network Policy to the store", "error", err)
 			}
 		}
 	}
@@ -81,29 +87,41 @@ func ApplyGlobalSettings(manager feature.PodTemplateManagers, dda *v2alpha1.Data
 	if componentName == v2alpha1.NodeAgentComponentName {
 		// Tags contains a list of tags to attach to every metric, event and service check collected.
 		if config.Tags != nil {
-			tags, _ := json.Marshal(config.Tags)
-			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-				Name:  apicommon.DDTags,
-				Value: string(tags),
-			})
+			tags, marshalErr := json.Marshal(config.Tags)
+			if marshalErr != nil {
+				logger.Info("Failed to unmarshal json input", "error", err)
+			} else {
+				manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+					Name:  apicommon.DDTags,
+					Value: string(tags),
+				})
+			}
 		}
 
 		// Provide a mapping of Kubernetes Labels to Datadog Tags.
 		if config.PodLabelsAsTags != nil {
-			podLabelsAsTags, _ := json.Marshal(config.PodLabelsAsTags)
-			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-				Name:  apicommon.DDPodLabelsAsTags,
-				Value: string(podLabelsAsTags),
-			})
+			podLabelsAsTags, marshalErr := json.Marshal(config.PodLabelsAsTags)
+			if marshalErr != nil {
+				logger.Info("Failed to unmarshal json input", "error", err)
+			} else {
+				manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+					Name:  apicommon.DDPodLabelsAsTags,
+					Value: string(podLabelsAsTags),
+				})
+			}
 		}
 
 		// Provide a mapping of Kubernetes Annotations to Datadog Tags.
 		if config.PodAnnotationsAsTags != nil {
-			podAnnotationsAsTags, _ := json.Marshal(config.PodAnnotationsAsTags)
-			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-				Name:  apicommon.DDPodAnnotationsAsTags,
-				Value: string(podAnnotationsAsTags),
-			})
+			podAnnotationsAsTags, marshalErr := json.Marshal(config.PodAnnotationsAsTags)
+			if marshalErr != nil {
+				logger.Info("Failed to unmarshal json input", "error", err)
+			} else {
+				manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+					Name:  apicommon.DDPodAnnotationsAsTags,
+					Value: string(podAnnotationsAsTags),
+				})
+			}
 		}
 
 		// LocalService contains configuration to customize the internal traffic policy service.
@@ -111,9 +129,12 @@ func ApplyGlobalSettings(manager feature.PodTemplateManagers, dda *v2alpha1.Data
 		if utils.IsAboveMinVersion(gitVersion, minLocalServiceVersion) {
 			if utils.IsAboveMinVersion(gitVersion, minDefaultLocalServiceVersion) || (config.LocalService != nil && apiutils.BoolValue(config.LocalService.ForceEnableLocalService)) {
 				if config.LocalService != nil && config.LocalService.NameOverride != nil {
-					_ = resourcesManager.ServiceManager().BuildAgentLocalService(dda, *config.LocalService.NameOverride)
+					err = resourcesManager.ServiceManager().AddService(component.BuildAgentLocalService(dda, *config.LocalService.NameOverride))
 				} else {
-					_ = resourcesManager.ServiceManager().BuildAgentLocalService(dda, "")
+					err = resourcesManager.ServiceManager().AddService(component.BuildAgentLocalService(dda, ""))
+				}
+				if err != nil {
+					logger.Info("Error adding Local Service to the store", "error", err)
 				}
 			}
 		}
