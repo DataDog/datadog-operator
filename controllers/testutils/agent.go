@@ -27,6 +27,20 @@ func NewDatadogAgentWithoutFeatures(namespace string, name string) v2alpha1.Data
 	return newDatadogAgentWithFeatures(namespace, name, nil)
 }
 
+// NewDatadogAgentWithClusterChecks returns an agent with cluster checks enabled
+func NewDatadogAgentWithClusterChecks(namespace string, name string) v2alpha1.DatadogAgent {
+	return newDatadogAgentWithFeatures(
+		namespace,
+		name,
+		&v2alpha1.DatadogFeatures{
+			ClusterChecks: &v2alpha1.ClusterChecksFeatureConfig{
+				Enabled:                 apiutils.NewBoolPointer(true),
+				UseClusterChecksRunners: apiutils.NewBoolPointer(true),
+			},
+		},
+	)
+}
+
 // NewDatadogAgentWithCSPM returns an agent with CSPM enabled
 func NewDatadogAgentWithCSPM(namespace string, name string) v2alpha1.DatadogAgent {
 	return newDatadogAgentWithFeatures(
@@ -38,6 +52,20 @@ func NewDatadogAgentWithCSPM(namespace string, name string) v2alpha1.DatadogAgen
 				CheckInterval: &metav1.Duration{
 					Duration: 1 * time.Second,
 				},
+			},
+		},
+	)
+}
+
+// NewDatadogAgentWithCWS returns an agent with CWS enabled
+func NewDatadogAgentWithCWS(namespace string, name string) v2alpha1.DatadogAgent {
+	return newDatadogAgentWithFeatures(
+		namespace,
+		name,
+		&v2alpha1.DatadogFeatures{
+			CWS: &v2alpha1.CWSFeatureConfig{
+				Enabled:               apiutils.NewBoolPointer(true),
+				SyscallMonitorEnabled: apiutils.NewBoolPointer(true),
 			},
 		},
 	)
@@ -119,6 +147,20 @@ func NewDatadogAgentWithOOMKill(namespace string, name string) v2alpha1.DatadogA
 		name,
 		&v2alpha1.DatadogFeatures{
 			OOMKill: &v2alpha1.OOMKillFeatureConfig{
+				Enabled: apiutils.NewBoolPointer(true),
+			},
+		},
+	)
+}
+
+// NewDatadogAgentWithOrchestratorExplorer returns an agent with the
+// orchestrator explorer enabled
+func NewDatadogAgentWithOrchestratorExplorer(namespace string, name string) v2alpha1.DatadogAgent {
+	return newDatadogAgentWithFeatures(
+		namespace,
+		name,
+		&v2alpha1.DatadogFeatures{
+			OrchestratorExplorer: &v2alpha1.OrchestratorExplorerFeatureConfig{
 				Enabled: apiutils.NewBoolPointer(true),
 			},
 		},

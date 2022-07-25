@@ -6,6 +6,7 @@
 package npm
 
 import (
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
@@ -32,6 +33,11 @@ func buildNPMFeature(options *feature.Options) feature.Feature {
 }
 
 type npmFeature struct{}
+
+// ID returns the ID of the Feature
+func (f *npmFeature) ID() feature.IDType {
+	return feature.NPMIDType
+}
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *npmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
@@ -92,17 +98,7 @@ func (f *npmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 	managers.Annotation().AddAnnotation(apicommon.SystemProbeAppArmorAnnotationKey, apicommon.SystemProbeAppArmorAnnotationValue)
 
 	// security context capabilities
-	capabilities := []corev1.Capability{
-		"SYS_ADMIN",
-		"SYS_RESOURCE",
-		"SYS_PTRACE",
-		"NET_ADMIN",
-		"NET_BROADCAST",
-		"NET_RAW",
-		"IPC_LOCK",
-		"CHOWN",
-	}
-	managers.SecurityContext().AddCapabilitiesToContainer(capabilities, apicommonv1.SystemProbeContainerName)
+	managers.SecurityContext().AddCapabilitiesToContainer(agent.DefaultCapabilitiesForSystemProbe(), apicommonv1.SystemProbeContainerName)
 
 	// procdir volume mount
 	procdirVol, procdirVolMount := volume.GetVolumes(apicommon.ProcdirVolumeName, apicommon.ProcdirHostPath, apicommon.ProcdirMountPath, true)
@@ -115,20 +111,28 @@ func (f *npmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 	managers.VolumeMount().AddVolumeMountToContainers(&cgroupsVolMount, []apicommonv1.AgentContainerName{apicommonv1.ProcessAgentContainerName, apicommonv1.SystemProbeContainerName})
 
 	// debugfs volume mount
-	debugfsVol, debugfsVolMount := volume.GetVolumes(apicommon.DebugfsVolumeName, apicommon.DebugfsPath, apicommon.DebugfsPath, true)
+	debugfsVol, debugfsVolMount := volume.GetVolumes(apicommon.DebugfsVolumeName, apicommon.DebugfsPath, apicommon.DebugfsPath, false)
 	managers.Volume().AddVolume(&debugfsVol)
 	managers.VolumeMount().AddVolumeMountToContainers(&debugfsVolMount, []apicommonv1.AgentContainerName{apicommonv1.ProcessAgentContainerName, apicommonv1.SystemProbeContainerName})
 
-	// socket volume mount
-	socketVol, socketVolMount := volume.GetVolumesEmptyDir(apicommon.SystemProbeSocketVolumeName, apicommon.SystemProbeSocketVolumePath)
+	// socket volume mount (needs write perms for the system probe container but not the others)
+	socketVol, socketVolMount := volume.GetVolumesEmptyDir(apicommon.SystemProbeSocketVolumeName, apicommon.SystemProbeSocketVolumePath, false)
 	managers.Volume().AddVolume(&socketVol)
 	managers.VolumeMount().AddVolumeMountToContainers(
 		&socketVolMount,
 		[]apicommonv1.AgentContainerName{
+			apicommonv1.SystemProbeContainerName,
+		},
+	)
+
+	_, socketVolMountReadOnly := volume.GetVolumesEmptyDir(apicommon.SystemProbeSocketVolumeName, apicommon.SystemProbeSocketVolumePath, true)
+	managers.VolumeMount().AddVolumeMountToContainers(
+		&socketVolMountReadOnly,
+		[]apicommonv1.AgentContainerName{
 			apicommonv1.CoreAgentContainerName,
 			apicommonv1.ProcessAgentContainerName,
-			apicommonv1.SystemProbeContainerName,
-		})
+		},
+	)
 
 	// env vars
 	enableEnvVar := &corev1.EnvVar{

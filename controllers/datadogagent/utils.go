@@ -20,6 +20,7 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	objectvolume "github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
@@ -412,16 +413,7 @@ func getSystemProbeContainers(dda *datadoghqv1alpha1.DatadogAgent, image string)
 		Args:            getDefaultIfEmpty(dda.Spec.Agent.SystemProbe.Args, nil),
 		SecurityContext: &corev1.SecurityContext{
 			Capabilities: &corev1.Capabilities{
-				Add: []corev1.Capability{
-					"SYS_ADMIN",
-					"SYS_RESOURCE",
-					"SYS_PTRACE",
-					"NET_ADMIN",
-					"NET_BROADCAST",
-					"NET_RAW",
-					"IPC_LOCK",
-					"CHOWN",
-				},
+				Add: agent.DefaultCapabilitiesForSystemProbe(),
 			},
 			// Force root user for when the agent Dockerfile will be updated to use a non-root user by default
 			RunAsUser: apiutils.NewInt64Pointer(0),
@@ -930,12 +922,12 @@ func getEnvVarsForAgent(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent)
 			if !apiutils.BoolValue(dda.Spec.ClusterChecksRunner.Enabled) {
 				clusterEnv = append(clusterEnv, corev1.EnvVar{
 					Name:  apicommon.DDExtraConfigProviders,
-					Value: datadoghqv1alpha1.ClusterAndEndpointsConfigPoviders,
+					Value: apicommon.ClusterAndEndpointsConfigProviders,
 				})
 			} else {
 				clusterEnv = append(clusterEnv, corev1.EnvVar{
 					Name:  apicommon.DDExtraConfigProviders,
-					Value: datadoghqv1alpha1.EndpointsChecksConfigProvider,
+					Value: apicommon.EndpointsChecksConfigProvider,
 				})
 			}
 		}

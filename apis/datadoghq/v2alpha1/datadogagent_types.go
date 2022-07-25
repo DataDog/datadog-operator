@@ -330,7 +330,7 @@ type OrchestratorExplorerFeatureConfig struct {
 	// Override the API endpoint for the Orchestrator Explorer.
 	// URL Default: "https://orchestrator.datadoghq.com".
 	// +optional
-	Endpoint *Endpoint `json:"endpoint,omitempty"`
+	DDUrl *string `json:"ddUrl,omitempty"`
 }
 
 // KubeStateMetricsCoreFeatureConfig contains the Kube State Metrics Core check feature configuration.

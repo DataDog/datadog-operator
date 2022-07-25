@@ -870,17 +870,18 @@ func schema__apis_datadoghq_v2alpha1_OrchestratorExplorerFeatureConfig(ref commo
 							},
 						},
 					},
-					"endpoint": {
+					"ddUrl": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Override the API endpoint for the Orchestrator Explorer. URL Default: \"https://orchestrator.datadoghq.com\".",
-							Ref:         ref("./apis/datadoghq/v2alpha1.Endpoint"),
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v2alpha1.CustomConfig", "./apis/datadoghq/v2alpha1.Endpoint"},
+			"./apis/datadoghq/v2alpha1.CustomConfig"},
 	}
 }
 

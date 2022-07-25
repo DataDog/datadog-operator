@@ -24,14 +24,14 @@ func Register(id IDType, buildFunc BuildFunc) error {
 	defer builderMutex.Unlock()
 
 	if _, found := featureBuilders[id]; found {
-		return fmt.Errorf("the Feature %d registered already", id)
+		return fmt.Errorf("the Feature %s is registered already", id)
 	}
 	featureBuilders[id] = buildFunc
 	return nil
 }
 
 // BuildFeatures use to build a list features depending of the v1alpha1.DatadogAgent instance
-func BuildFeatures(dda *v2alpha1.DatadogAgent, options *Options) ([]Feature, RequiredComponents, error) {
+func BuildFeatures(dda *v2alpha1.DatadogAgent, options *Options) ([]Feature, RequiredComponents) {
 	builderMutex.RLock()
 	defer builderMutex.RUnlock()
 
@@ -57,11 +57,11 @@ func BuildFeatures(dda *v2alpha1.DatadogAgent, options *Options) ([]Feature, Req
 		requiredComponents.Merge(&config)
 	}
 
-	return output, requiredComponents, nil
+	return output, requiredComponents
 }
 
 // BuildFeaturesV1 use to build a list features depending of the v1alpha1.DatadogAgent instance
-func BuildFeaturesV1(dda *v1alpha1.DatadogAgent, options *Options) ([]Feature, RequiredComponents, error) {
+func BuildFeaturesV1(dda *v1alpha1.DatadogAgent, options *Options) ([]Feature, RequiredComponents) {
 	builderMutex.RLock()
 	defer builderMutex.RUnlock()
 
@@ -87,7 +87,7 @@ func BuildFeaturesV1(dda *v1alpha1.DatadogAgent, options *Options) ([]Feature, R
 		requiredComponents.Merge(&config)
 	}
 
-	return output, requiredComponents, nil
+	return output, requiredComponents
 }
 
 var (
