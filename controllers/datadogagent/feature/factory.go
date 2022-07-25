@@ -24,7 +24,7 @@ func Register(id IDType, buildFunc BuildFunc) error {
 	defer builderMutex.Unlock()
 
 	if _, found := featureBuilders[id]; found {
-		return fmt.Errorf("the Feature %d registered already", id)
+		return fmt.Errorf("the Feature %s is registered already", id)
 	}
 	featureBuilders[id] = buildFunc
 	return nil
