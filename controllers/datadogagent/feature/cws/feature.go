@@ -39,6 +39,11 @@ type cwsFeature struct {
 	syscallMonitorEnabled bool
 }
 
+// ID returns the ID of the Feature
+func (f *cwsFeature) ID() feature.IDType {
+	return feature.CWSIDType
+}
+
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *cwsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	if dda.Spec.Features != nil && dda.Spec.Features.CWS != nil && apiutils.BoolValue(dda.Spec.Features.CWS.Enabled) {

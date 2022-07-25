@@ -48,6 +48,11 @@ type orchestratorExplorerFeature struct {
 	configConfigMapName      string
 }
 
+// ID returns the ID of the Feature
+func (f *orchestratorExplorerFeature) ID() feature.IDType {
+	return feature.OrchestratorExplorerIDType
+}
+
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda

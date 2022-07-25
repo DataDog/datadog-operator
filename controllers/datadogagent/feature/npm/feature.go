@@ -34,6 +34,11 @@ func buildNPMFeature(options *feature.Options) feature.Feature {
 
 type npmFeature struct{}
 
+// ID returns the ID of the Feature
+func (f *npmFeature) ID() feature.IDType {
+	return feature.NPMIDType
+}
+
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *npmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	if dda.Spec.Features == nil {
