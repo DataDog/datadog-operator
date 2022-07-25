@@ -43,233 +43,93 @@ const (
 // errors that crash containers and keep them in "CrashLoopBackOff" state.
 var _ = Describe("V2 Controller - DatadogAgent Deployment", func() {
 	namespace := "default"
-	agent := v2alpha1.DatadogAgent{}
-	var name string
 
-	Context("with no features enabled", func() {
-		BeforeEach(func() {
-			name = "basic"
-			agent = testutils.NewDatadogAgentWithoutFeatures(namespace, name)
-			createAgent(&agent)
-		})
+	Context(
+		"with no features enabled",
+		testFunction(testutils.NewDatadogAgentWithoutFeatures(namespace, "basic")),
+	)
 
-		AfterEach(func() {
-			deleteAgent(&agent)
-		})
+	Context(
+		"with cluster checks enabled",
+		testFunction(testutils.NewDatadogAgentWithClusterChecks(namespace, "with-cluster-checks")),
+	)
 
-		It("should deploy successfully", func() {
-			checkAgentDeployment(namespace, name)
-		})
-	})
+	Context(
+		"with CSPM enabled",
+		testFunction(testutils.NewDatadogAgentWithCSPM(namespace, "with-cspm")),
+	)
 
-	Context("with cluster checks enabled", func() {
-		BeforeEach(func() {
-			name = "with-cluster-checks"
-			agent = testutils.NewDatadogAgentWithClusterChecks(namespace, name)
-			createAgent(&agent)
-		})
+	Context(
+		"with CWS enabled",
+		testFunction(testutils.NewDatadogAgentWithCWS(namespace, "with-cws")),
+	)
 
-		AfterEach(func() {
-			deleteAgent(&agent)
-		})
+	Context(
+		"with Dogstatsd enabled",
+		testFunction(testutils.NewDatadogAgentWithDogstatsd(namespace, "with-dogstatsd")),
+	)
 
-		It("should deploy successfully", func() {
-			checkAgentDeployment(namespace, name)
-		})
-	})
+	Context(
+		"with event collection",
+		testFunction(testutils.NewDatadogAgentWithEventCollection(namespace, "with-event-collection")),
+	)
 
-	Context("with CSPM enabled", func() {
-		BeforeEach(func() {
-			name = "with-cspm"
-			agent = testutils.NewDatadogAgentWithCSPM(namespace, name)
-			createAgent(&agent)
-		})
+	Context(
+		"with KSM core",
+		testFunction(testutils.NewDatadogAgentWithKSM(namespace, "with-ksm")),
+	)
 
-		AfterEach(func() {
-			deleteAgent(&agent)
-		})
+	Context(
+		"with log collection",
+		testFunction(testutils.NewDatadogAgentWithLogCollection(namespace, "with-log-collection")),
+	)
 
-		It("should deploy successfully", func() {
-			checkAgentDeployment(namespace, name)
-		})
-	})
+	Context(
+		"with NPM",
+		testFunction(testutils.NewDatadogAgentWithNPM(namespace, "with-npm")),
+	)
 
-	Context("with CWS enabled", func() {
-		BeforeEach(func() {
-			name = "with-cws"
-			agent = testutils.NewDatadogAgentWithCWS(namespace, name)
-			createAgent(&agent)
-		})
+	Context(
+		"with OOM Kill",
+		testFunction(testutils.NewDatadogAgentWithOOMKill(namespace, "with-oom-kill")),
+	)
 
-		AfterEach(func() {
-			deleteAgent(&agent)
-		})
+	Context(
+		"with orchestrator explorer",
+		testFunction(testutils.NewDatadogAgentWithOrchestratorExplorer(namespace, "with-orchestrator-explorer")),
+	)
 
-		It("should deploy successfully", func() {
-			checkAgentDeployment(namespace, name)
-		})
-	})
+	Context(
+		"with Prometheus scrape",
+		testFunction(testutils.NewDatadogAgentWithPrometheusScrape(namespace, "with-prometheus-scrape")),
+	)
 
-	Context("with Dogstatsd enabled", func() {
-		BeforeEach(func() {
-			name = "with-dogstatsd"
-			agent = testutils.NewDatadogAgentWithDogstatsd(namespace, name)
-			createAgent(&agent)
-		})
+	Context(
+		"with TCP queue length",
+		testFunction(testutils.NewDatadogAgentWithTCPQueueLength(namespace, "with-tcp-queue-length")),
+	)
 
-		AfterEach(func() {
-			deleteAgent(&agent)
-		})
-
-		It("should deploy successfully", func() {
-			checkAgentDeployment(namespace, name)
-		})
-	})
-
-	Context("with event collection", func() {
-		BeforeEach(func() {
-			name = "with-event-collection"
-			agent = testutils.NewDatadogAgentWithEventCollection(namespace, name)
-			createAgent(&agent)
-		})
-
-		AfterEach(func() {
-			deleteAgent(&agent)
-		})
-
-		It("should deploy successfully", func() {
-			checkAgentDeployment(namespace, name)
-		})
-	})
-
-	Context("with KSM core", func() {
-		BeforeEach(func() {
-			name = "with-ksm"
-			agent = testutils.NewDatadogAgentWithKSM(namespace, name)
-			createAgent(&agent)
-		})
-
-		AfterEach(func() {
-			deleteAgent(&agent)
-		})
-
-		It("should deploy successfully", func() {
-			checkAgentDeployment(namespace, name)
-		})
-	})
-
-	Context("with log collection", func() {
-		BeforeEach(func() {
-			name = "with-log-collection"
-			agent = testutils.NewDatadogAgentWithLogCollection(namespace, name)
-			createAgent(&agent)
-		})
-
-		AfterEach(func() {
-			deleteAgent(&agent)
-		})
-
-		It("should deploy successfully", func() {
-			checkAgentDeployment(namespace, name)
-		})
-	})
-
-	Context("with NPM", func() {
-		BeforeEach(func() {
-			name = "with-npm"
-			agent = testutils.NewDatadogAgentWithNPM(namespace, name)
-			createAgent(&agent)
-		})
-
-		AfterEach(func() {
-			deleteAgent(&agent)
-		})
-
-		It("should deploy successfully", func() {
-			checkAgentDeployment(namespace, name)
-		})
-	})
-
-	Context("with OOM Kill", func() {
-		BeforeEach(func() {
-			name = "with-oom-kill"
-			agent = testutils.NewDatadogAgentWithOOMKill(namespace, name)
-			createAgent(&agent)
-		})
-
-		AfterEach(func() {
-			deleteAgent(&agent)
-		})
-
-		It("should deploy successfully", func() {
-			checkAgentDeployment(namespace, name)
-		})
-	})
-
-	Context("with orchestrator explorer", func() {
-		BeforeEach(func() {
-			name = "with-orchestrator-explorer"
-			agent = testutils.NewDatadogAgentWithOrchestratorExplorer(namespace, name)
-			createAgent(&agent)
-		})
-
-		AfterEach(func() {
-			deleteAgent(&agent)
-		})
-
-		It("should deploy successfully", func() {
-			checkAgentDeployment(namespace, name)
-		})
-	})
-
-	Context("with Prometheus scrape", func() {
-		BeforeEach(func() {
-			name = "with-prometheus-scrape"
-			agent = testutils.NewDatadogAgentWithPrometheusScrape(namespace, name)
-			createAgent(&agent)
-		})
-
-		AfterEach(func() {
-			deleteAgent(&agent)
-		})
-
-		It("should deploy successfully", func() {
-			checkAgentDeployment(namespace, name)
-		})
-	})
-
-	Context("with TCP queue length", func() {
-		BeforeEach(func() {
-			name = "with-tcp-queue-length"
-			agent = testutils.NewDatadogAgentWithTCPQueueLength(namespace, name)
-			createAgent(&agent)
-		})
-
-		AfterEach(func() {
-			deleteAgent(&agent)
-		})
-
-		It("should deploy successfully", func() {
-			checkAgentDeployment(namespace, name)
-		})
-	})
-
-	Context("with USM", func() {
-		BeforeEach(func() {
-			name = "with-usm"
-			agent = testutils.NewDatadogAgentWithUSM(namespace, name)
-			createAgent(&agent)
-		})
-
-		AfterEach(func() {
-			deleteAgent(&agent)
-		})
-
-		It("should deploy successfully", func() {
-			checkAgentDeployment(namespace, name)
-		})
-	})
+	Context(
+		"with USM",
+		testFunction(testutils.NewDatadogAgentWithUSM(namespace, "with-usm")),
+	)
 })
+
+func testFunction(agent v2alpha1.DatadogAgent) func() {
+	return func() {
+		BeforeEach(func() {
+			createAgent(&agent)
+		})
+
+		AfterEach(func() {
+			deleteAgent(&agent)
+		})
+
+		It("should deploy successfully", func() {
+			checkAgentDeployment(agent.Namespace, agent.Name)
+		})
+	}
+}
 
 func checkAgentDeployment(namespace string, name string) {
 	checkAgentStatus(namespace, name)
