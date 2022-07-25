@@ -99,6 +99,8 @@ func mergeSlices(a, b []apicommonv1.AgentContainerName) []apicommonv1.AgentConta
 // Feature Feature interface
 // It returns `true` if the Feature is used, else it return `false`.
 type Feature interface {
+	// ID returns the ID of the Feature
+	ID() IDType
 	// Configure use to configure the internal of a Feature
 	// It should return `true` if the feature is enabled, else `false`.
 	Configure(dda *v2alpha1.DatadogAgent) RequiredComponents

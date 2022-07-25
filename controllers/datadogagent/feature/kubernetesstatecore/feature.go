@@ -55,6 +55,11 @@ type ksmFeature struct {
 	logger logr.Logger
 }
 
+// ID returns the ID of the Feature
+func (f *ksmFeature) ID() feature.IDType {
+	return feature.KubernetesStateCoreIDType
+}
+
 // Configure use to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredComponents {
 	f.owner = dda

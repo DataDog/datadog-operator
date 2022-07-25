@@ -46,6 +46,11 @@ type cspmFeature struct {
 	owner metav1.Object
 }
 
+// ID returns the ID of the Feature
+func (f *cspmFeature) ID() feature.IDType {
+	return feature.CSPMIDType
+}
+
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *cspmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda

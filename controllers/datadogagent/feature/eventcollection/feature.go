@@ -39,6 +39,11 @@ type eventCollectionFeature struct {
 	owner              metav1.Object
 }
 
+// ID returns the ID of the Feature
+func (f *eventCollectionFeature) ID() feature.IDType {
+	return feature.EventCollectionIDType
+}
+
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *eventCollectionFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda

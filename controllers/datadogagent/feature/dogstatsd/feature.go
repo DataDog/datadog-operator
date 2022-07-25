@@ -45,6 +45,11 @@ type dogstatsdFeature struct {
 	mapperProfiles         *apicommonv1.CustomConfig
 }
 
+// ID returns the ID of the Feature
+func (f *dogstatsdFeature) ID() feature.IDType {
+	return feature.DogstatsdIDType
+}
+
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *dogstatsdFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	dogstatsd := dda.Spec.Features.Dogstatsd

@@ -34,6 +34,11 @@ func buildUSMFeature(options *feature.Options) feature.Feature {
 
 type usmFeature struct{}
 
+// ID returns the ID of the Feature
+func (f *usmFeature) ID() feature.IDType {
+	return feature.USMIDType
+}
+
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *usmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	if dda.Spec.Features != nil && dda.Spec.Features.USM != nil && apiutils.BoolValue(dda.Spec.Features.USM.Enabled) {

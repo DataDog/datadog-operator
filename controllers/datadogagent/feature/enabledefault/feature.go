@@ -88,6 +88,11 @@ type clusterChecksRunnerConfig struct {
 	serviceAccountName string
 }
 
+// ID returns the ID of the Feature
+func (f *defaultFeature) ID() feature.IDType {
+	return feature.DefaultIDType
+}
+
 func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredComponents {
 	trueValue := true
 	f.owner = dda
