@@ -7,7 +7,6 @@ package datadogagent
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -87,10 +86,7 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, request reconcile.
 func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger, instance *datadoghqv2alpha1.DatadogAgent) (reconcile.Result, error) {
 	var result reconcile.Result
 
-	features, requiredComponents, err := feature.BuildFeatures(instance, reconcilerOptionsToFeatureOptions(&r.options, logger))
-	if err != nil {
-		return result, fmt.Errorf("unable to build features, err: %w", err)
-	}
+	features, requiredComponents := feature.BuildFeatures(instance, reconcilerOptionsToFeatureOptions(&r.options, logger))
 	logger.Info("requiredComponents status:", "agent", requiredComponents.Agent.IsEnabled(), "cluster-agent", requiredComponents.ClusterAgent.IsEnabled(), "cluster-checks-runner", requiredComponents.ClusterChecksRunner.IsEnabled())
 
 	// -----------------------
@@ -109,7 +105,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	// Set up dependencies required by enabled features
 	for id, feat := range features {
 		logger.Info("Dependency ManageDependencies", "featureID", id)
-		if featErr := feat.ManageDependencies(resourceManagers, requiredComponents); err != nil {
+		if featErr := feat.ManageDependencies(resourceManagers, requiredComponents); featErr != nil {
 			errs = append(errs, featErr)
 		}
 	}
@@ -127,6 +123,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	// Start reconcile Components
 	// -----------------------------
 
+	var err error
 	newStatus := instance.Status.DeepCopy()
 
 	if requiredComponents.ClusterAgent.IsEnabled() {
