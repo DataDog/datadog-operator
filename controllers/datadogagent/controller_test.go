@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	testutils "github.com/DataDog/datadog-operator/controllers/datadogagent/testutils"
 	"github.com/pkg/errors"
 	assert "github.com/stretchr/testify/require"
 
@@ -141,22 +142,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 	logf.SetLogger(zap.New(zap.UseDevMode(true)))
 
 	// Register operator types with the runtime scheme.
-	s := scheme.Scheme
-	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogAgent{})
-	s.AddKnownTypes(edsdatadoghqv1alpha1.GroupVersion, &edsdatadoghqv1alpha1.ExtendedDaemonSet{})
-	s.AddKnownTypes(appsv1.SchemeGroupVersion, &appsv1.DaemonSet{})
-	s.AddKnownTypes(appsv1.SchemeGroupVersion, &appsv1.Deployment{})
-	s.AddKnownTypes(corev1.SchemeGroupVersion, &corev1.Secret{})
-	s.AddKnownTypes(corev1.SchemeGroupVersion, &corev1.ServiceAccount{})
-	s.AddKnownTypes(corev1.SchemeGroupVersion, &corev1.ConfigMap{})
-	s.AddKnownTypes(rbacv1.SchemeGroupVersion, &rbacv1.ClusterRoleBinding{})
-	s.AddKnownTypes(rbacv1.SchemeGroupVersion, &rbacv1.ClusterRole{})
-	s.AddKnownTypes(rbacv1.SchemeGroupVersion, &rbacv1.Role{})
-	s.AddKnownTypes(rbacv1.SchemeGroupVersion, &rbacv1.RoleBinding{})
-	s.AddKnownTypes(policyv1.SchemeGroupVersion, &policyv1.PodDisruptionBudget{})
-	s.AddKnownTypes(apiregistrationv1.SchemeGroupVersion, &apiregistrationv1.APIServiceList{})
-	s.AddKnownTypes(apiregistrationv1.SchemeGroupVersion, &apiregistrationv1.APIService{})
-	s.AddKnownTypes(networkingv1.SchemeGroupVersion, &networkingv1.NetworkPolicy{})
+	s := testutils.TestScheme(false)
 
 	defaultRequeueDuration := 15 * time.Second
 	affinity := &corev1.Affinity{
