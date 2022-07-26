@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -135,6 +136,12 @@ func (o *Options) Run() error {
 		datadogAgent := &v1alpha1.DatadogAgent{}
 		err := o.Client.Get(context.TODO(), client.ObjectKey{Namespace: o.UserNamespace, Name: o.datadogAgentName}, datadogAgent)
 		if err != nil {
+			if errors.IsNotFound(err) {
+				o.printOutf("Got a not found error while getting %s/%s. Assuming this DatadogAgent CR has never been deployed in this environment", o.UserNamespace, o.datadogAgentName)
+
+				return true, nil
+			}
+
 			return false, fmt.Errorf("unable to get DatadogAgent, err: %w", err)
 		}
 
