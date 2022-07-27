@@ -30,7 +30,6 @@ const (
 
 // ApplyGlobalSettings use to apply global setting to a PodTemplateSpec
 func ApplyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, componentName v2alpha1.ComponentName) *corev1.PodTemplateSpec {
-	var err error
 	config := dda.Spec.Global
 
 	// ClusterName sets a unique cluster name for the deployment to easily scope monitoring data in the Datadog app.
@@ -72,6 +71,7 @@ func ApplyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 	// NetworkPolicy contains the network configuration.
 	if config.NetworkPolicy != nil {
 		if apiutils.BoolValue(config.NetworkPolicy.Create) {
+			var err error
 			switch config.NetworkPolicy.Flavor {
 			case v2alpha1.NetworkPolicyFlavorKubernetes:
 				err = resourcesManager.NetworkPolicyManager().AddKubernetesNetworkPolicy(component.BuildKubernetesNetworkPolicy(dda, componentName))
@@ -87,8 +87,8 @@ func ApplyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 	if componentName == v2alpha1.NodeAgentComponentName {
 		// Tags contains a list of tags to attach to every metric, event and service check collected.
 		if config.Tags != nil {
-			tags, marshalErr := json.Marshal(config.Tags)
-			if marshalErr != nil {
+			tags, err := json.Marshal(config.Tags)
+			if err != nil {
 				logger.Info("Failed to unmarshal json input", "error", err)
 			} else {
 				manager.EnvVar().AddEnvVar(&corev1.EnvVar{
@@ -100,8 +100,8 @@ func ApplyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 
 		// Provide a mapping of Kubernetes Labels to Datadog Tags.
 		if config.PodLabelsAsTags != nil {
-			podLabelsAsTags, marshalErr := json.Marshal(config.PodLabelsAsTags)
-			if marshalErr != nil {
+			podLabelsAsTags, err := json.Marshal(config.PodLabelsAsTags)
+			if err != nil {
 				logger.Info("Failed to unmarshal json input", "error", err)
 			} else {
 				manager.EnvVar().AddEnvVar(&corev1.EnvVar{
@@ -113,8 +113,8 @@ func ApplyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 
 		// Provide a mapping of Kubernetes Annotations to Datadog Tags.
 		if config.PodAnnotationsAsTags != nil {
-			podAnnotationsAsTags, marshalErr := json.Marshal(config.PodAnnotationsAsTags)
-			if marshalErr != nil {
+			podAnnotationsAsTags, err := json.Marshal(config.PodAnnotationsAsTags)
+			if err != nil {
 				logger.Info("Failed to unmarshal json input", "error", err)
 			} else {
 				manager.EnvVar().AddEnvVar(&corev1.EnvVar{
@@ -128,6 +128,7 @@ func ApplyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 		gitVersion := resourcesManager.Store().GetVersionInfo()
 		if utils.IsAboveMinVersion(gitVersion, minLocalServiceVersion) {
 			if utils.IsAboveMinVersion(gitVersion, minDefaultLocalServiceVersion) || (config.LocalService != nil && apiutils.BoolValue(config.LocalService.ForceEnableLocalService)) {
+				var err error
 				if config.LocalService != nil && config.LocalService.NameOverride != nil {
 					err = resourcesManager.ServiceManager().AddService(component.BuildAgentLocalService(dda, *config.LocalService.NameOverride))
 				} else {
