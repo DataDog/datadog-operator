@@ -1874,7 +1874,7 @@ func customKubeletConfigPodSpec(kubeletConfig *commonv1.KubeletConfig) corev1.Po
 
 	volumeMountsBuilder := NewVolumeMountBuilder(defaultMountVolume(), nil)
 	volumeMountsBuilder.Add(&corev1.VolumeMount{
-		Name:      datadoghqv1alpha1.KubeletCAVolumeName,
+		Name:      apicommon.KubeletCAVolumeName,
 		ReadOnly:  true,
 		MountPath: kubeletConfig.AgentCAPath,
 	})

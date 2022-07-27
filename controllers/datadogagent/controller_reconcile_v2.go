@@ -94,6 +94,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	// -----------------------
 	storeOptions := &dependencies.StoreOptions{
 		SupportCilium: r.options.SupportCilium,
+		VersionInfo:   r.versionInfo,
 		Logger:        logger,
 		Scheme:        r.scheme,
 	}
@@ -113,12 +114,6 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	// Examine user configuration to override any external dependencies (e.g. RBACs)
 	errs = append(errs, override.Dependencies(resourceManagers, instance.Spec.Override, instance.Namespace)...)
 
-	// Now create/update dependencies
-	errs = append(errs, depsStore.Apply(ctx, r.client)...)
-	if len(errs) > 0 {
-		logger.V(2).Info("Dependencies apply error", "errs", errs)
-		return result, errors.NewAggregate(errs)
-	}
 	// -----------------------------
 	// Start reconcile Components
 	// -----------------------------
@@ -128,7 +123,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 
 	if requiredComponents.ClusterAgent.IsEnabled() {
 		logger.Info("ClusterAgent enabled")
-		result, err = r.reconcileV2ClusterAgent(logger, features, instance, newStatus)
+		result, err = r.reconcileV2ClusterAgent(logger, features, instance, resourceManagers, newStatus)
 		if utils.ShouldReturn(result, err) {
 			return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err)
 		}
@@ -136,17 +131,26 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 
 	if requiredComponents.Agent.IsEnabled() {
 		requiredContainers := requiredComponents.Agent.Containers
-		result, err = r.reconcileV2Agent(logger, features, instance, newStatus, requiredContainers)
+		result, err = r.reconcileV2Agent(logger, features, instance, resourceManagers, newStatus, requiredContainers)
 		if utils.ShouldReturn(result, err) {
 			return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err)
 		}
 	}
 
 	if requiredComponents.ClusterChecksRunner.IsEnabled() {
-		result, err = r.reconcileV2ClusterChecksRunner(logger, features, instance, newStatus)
+		result, err = r.reconcileV2ClusterChecksRunner(logger, features, instance, resourceManagers, newStatus)
 		if utils.ShouldReturn(result, err) {
 			return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err)
 		}
+	}
+
+	// ------------------------------
+	// Create and update dependencies
+	// ------------------------------
+	errs = append(errs, depsStore.Apply(ctx, r.client)...)
+	if len(errs) > 0 {
+		logger.V(2).Info("Dependencies apply error", "errs", errs)
+		return result, errors.NewAggregate(errs)
 	}
 
 	// -----------------------------
