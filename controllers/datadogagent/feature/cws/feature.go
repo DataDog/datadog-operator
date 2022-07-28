@@ -147,12 +147,6 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 	}
 	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, policiesDirEnvVar)
 
-	authTokenPathEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDAuthTokenFilePath,
-		Value: filepath.Join(apicommon.AuthVolumePath, "token"),
-	}
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, authTokenPathEnvVar)
-
 	hostRootEnvVar := &corev1.EnvVar{
 		Name:  apicommon.DDHostRootEnvVar,
 		Value: apicommon.HostRootMountPath,
