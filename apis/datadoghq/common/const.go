@@ -197,6 +197,8 @@ const (
 	CriSocketVolumeName                          = "runtimesocketdir"
 	KubeletAgentCAPath                           = "/var/run/host-kubelet-ca.crt"
 	KubeletCAVolumeName                          = "kubelet-ca"
+
+	AppArmorAnnotationKey = "container.apparmor.security.beta.kubernetes.io"
 )
 
 const (
