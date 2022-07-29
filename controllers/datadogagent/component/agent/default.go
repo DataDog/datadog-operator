@@ -317,5 +317,6 @@ func volumeMountsForSystemProbe() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		component.GetVolumeMountForLogs(),
 		component.GetVolumeMountForAuth(),
+		component.GetVolumeMountForConfig(),
 	}
 }
