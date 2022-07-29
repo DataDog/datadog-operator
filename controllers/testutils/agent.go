@@ -34,7 +34,7 @@ func NewDatadogAgentWithAPM(namespace string, name string) v2alpha1.DatadogAgent
 		name,
 		&v2alpha1.DatadogFeatures{
 			APM: &v2alpha1.APMFeatureConfig{
-				Enabled:        apiutils.NewBoolPointer(true),
+				Enabled: apiutils.NewBoolPointer(true),
 				HostPortConfig: &v2alpha1.HostPortConfig{
 					Enabled: apiutils.NewBoolPointer(true),
 				},

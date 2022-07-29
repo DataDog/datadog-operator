@@ -89,10 +89,10 @@ func newV1Agent(enableAPM bool, uds bool) *v1alpha1.DatadogAgent {
 		Spec: v1alpha1.DatadogAgentSpec{
 			Agent: v1alpha1.DatadogAgentSpecAgentSpec{
 				Apm: &v1alpha1.APMSpec{
-					Enabled: apiutils.NewBoolPointer(enableAPM),
+					Enabled:  apiutils.NewBoolPointer(enableAPM),
 					HostPort: apiutils.NewInt32Pointer(8126),
 					UnixDomainSocket: &v1alpha1.APMUnixDomainSocketSpec{
-						Enabled: apiutils.NewBoolPointer(uds),
+						Enabled:      apiutils.NewBoolPointer(uds),
 						HostFilepath: apiutils.NewStringPointer("/var/run/datadog/apm/apm.sock"),
 					},
 				},
@@ -106,7 +106,7 @@ func newV2Agent(enableAPM bool, hostPort bool) *v2alpha1.DatadogAgent {
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				APM: &v2alpha1.APMFeatureConfig{
-					Enabled:        apiutils.NewBoolPointer(enableAPM),
+					Enabled: apiutils.NewBoolPointer(enableAPM),
 					HostPortConfig: &v2alpha1.HostPortConfig{
 						Enabled: apiutils.NewBoolPointer(hostPort),
 						Port:    apiutils.NewInt32Pointer(8126),
