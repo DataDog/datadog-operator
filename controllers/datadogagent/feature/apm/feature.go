@@ -58,7 +58,7 @@ func (f *apmFeature) ID() feature.IDType {
 func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda
 	apm := dda.Spec.Features.APM
-	if apiutils.BoolValue(apm.Enabled) {
+	if apm != nil && apiutils.BoolValue(apm.Enabled) {
 		// hostPort defaults to 'false' in the defaulting code
 		f.hostPortEnabled = apiutils.BoolValue(apm.HostPortConfig.Enabled)
 		f.hostPortHostPort = *apm.HostPortConfig.Port

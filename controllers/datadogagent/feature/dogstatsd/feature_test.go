@@ -22,8 +22,6 @@ import (
 )
 
 func Test_DogstatsdFeature_Configure(t *testing.T) {
-	// DogstatsdUDSHostFilepathV1 := "/var/run/datadog/statsd/statsd.sock"
-	// DogstatsdUDSHostFilepathV2 := "/var/run/datadog/statsd/dsd.socket"
 	customMapperProfilesConf := `- name: 'profile_name'
   prefix: 'profile_prefix'
   mappings:
