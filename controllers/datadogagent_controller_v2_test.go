@@ -113,6 +113,11 @@ var _ = Describe("V2 Controller - DatadogAgent Deployment", func() {
 		"with USM",
 		testFunction(testutils.NewDatadogAgentWithUSM(namespace, "with-usm")),
 	)
+
+	Context(
+		"with some global settings set",
+		testFunction(testutils.NewDatadogAgentWithGlobalConfigSettings(namespace, "with-global-settings")),
+	)
 })
 
 func testFunction(agent v2alpha1.DatadogAgent) func() {
