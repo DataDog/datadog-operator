@@ -1540,14 +1540,17 @@ func Test_PodAntiAffinity(t *testing.T) {
 			affinity: nil,
 			want: &v1.Affinity{
 				PodAntiAffinity: &v1.PodAntiAffinity{
-					RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
+					PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
 						{
-							LabelSelector: &metav1.LabelSelector{
-								MatchLabels: map[string]string{
-									"agent.datadoghq.com/component": "cluster-agent",
+							Weight: 50,
+							PodAffinityTerm: corev1.PodAffinityTerm{
+								LabelSelector: &metav1.LabelSelector{
+									MatchLabels: map[string]string{
+										apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultClusterAgentResourceSuffix,
+									},
 								},
+								TopologyKey: "kubernetes.io/hostname",
 							},
-							TopologyKey: "kubernetes.io/hostname",
 						},
 					},
 				},
