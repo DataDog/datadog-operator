@@ -161,6 +161,10 @@ const (
 	AgentCustomConfigVolumePath = "/etc/datadog-agent/datadog.yaml"
 	SystemProbeConfigVolumePath = "/etc/datadog-agent/system-probe.yaml"
 
+	// Service Internal Traffic Policy exists in Kube 1.21 but it is enabled by default since 1.22
+	LocalServiceMinimumVersion        = "1.21-0"
+	LocalServiceDefaultMinimumVersion = "1.22-0"
+
 	LogDatadogVolumeName                         = "logdatadog"
 	LogDatadogVolumePath                         = "/var/log/datadog"
 	TmpVolumeName                                = "tmp"
@@ -184,9 +188,6 @@ const (
 	SymlinkContainerVolumePath                   = "/var/log/containers"
 	DogstatsdHostPortName                        = "dogstatsdport"
 	DogstatsdHostPortHostPort                    = 8125
-	DogstatsdUDSSocketName                       = "dsdsocket"
-	DogstatsdUDSHostFilepathV1                   = "/var/run/datadog/statsd.sock"
-	DogstatsdUDSHostFilepathV2                   = "/var/run/datadog/dsd.socket"
 	DogstatsdSocketVolumeName                    = "dsdsocket"
 	DogstatsdSocketVolumePath                    = "/var/run/datadog/statsd"
 	SecurityAgentRuntimeCustomPoliciesVolumeName = "customruntimepolicies"
@@ -197,6 +198,10 @@ const (
 	CriSocketVolumeName                          = "runtimesocketdir"
 	KubeletAgentCAPath                           = "/var/run/host-kubelet-ca.crt"
 	KubeletCAVolumeName                          = "kubelet-ca"
+	APMHostPortName                              = "traceport"
+	APMHostPortHostPort                          = 8126
+	APMSocketVolumeName                          = "apmsocket"
+	APMSocketVolumePath                          = "/var/run/datadog/apm"
 )
 
 const (

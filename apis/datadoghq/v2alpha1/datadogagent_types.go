@@ -107,7 +107,7 @@ type APMFeatureConfig struct {
 	// UnixDomainSocketConfig contains socket configuration.
 	// See also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables
 	// Enabled Default: true
-	// Path Default: `/var/run/datadog/apm.socket`
+	// Path Default: `/var/run/datadog/apm/apm.socket`
 	// +optional
 	UnixDomainSocketConfig *UnixDomainSocketConfig `json:"unixDomainSocketConfig,omitempty"`
 }
@@ -282,7 +282,7 @@ type DogstatsdFeatureConfig struct {
 	// UnixDomainSocketConfig contains socket configuration.
 	// See also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables
 	// Enabled Default: true
-	// Path Default: `/var/run/datadog/dsd.socket`
+	// Path Default: `/var/run/datadog/statsd/dsd.socket`
 	// +optional
 	UnixDomainSocketConfig *UnixDomainSocketConfig `json:"unixDomainSocketConfig,omitempty"`
 

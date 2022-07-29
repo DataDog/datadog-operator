@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/utils"
 )
 
 // GetVolumeForConfig return the volume that contains the agent config
@@ -447,12 +448,9 @@ func dcaServicePort() netv1.NetworkPolicyPort {
 }
 
 // BuildAgentLocalService creates a local service for the node agent
-func BuildAgentLocalService(dda metav1.Object, nameOverride string) (string, string, map[string]string, []corev1.ServicePort, *corev1.ServiceInternalTrafficPolicyType) {
-	var serviceName string
-	if nameOverride != "" {
-		serviceName = nameOverride
-	} else {
-		serviceName = GetAgentServiceName(dda)
+func BuildAgentLocalService(dda metav1.Object, name string) (string, string, map[string]string, []corev1.ServicePort, *corev1.ServiceInternalTrafficPolicyType) {
+	if name == "" {
+		name = GetAgentServiceName(dda)
 	}
 	serviceInternalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
 	selector := map[string]string{
@@ -467,5 +465,11 @@ func BuildAgentLocalService(dda metav1.Object, nameOverride string) (string, str
 			Name:       apicommon.DefaultDogstatsdPortName,
 		},
 	}
-	return serviceName, dda.GetNamespace(), selector, ports, &serviceInternalTrafficPolicy
+	return name, dda.GetNamespace(), selector, ports, &serviceInternalTrafficPolicy
+}
+
+// ShouldCreateAgentLocalService returns whether the node agent local service should be created based on the Kubernetes version
+func ShouldCreateAgentLocalService(gitVersion string, forceEnableLocalService bool) bool {
+	// Service Internal Traffic Policy is enabled by default since 1.22
+	return utils.IsAboveMinVersion(gitVersion, apicommon.LocalServiceDefaultMinimumVersion) || (utils.IsAboveMinVersion(gitVersion, apicommon.LocalServiceMinimumVersion) && forceEnableLocalService)
 }

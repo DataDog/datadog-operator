@@ -40,7 +40,7 @@ type FeatureTest struct {
 	DDAv1   *v1alpha1.DatadogAgent
 	Options *Options
 	// Dependencies Store
-	StoreOption        *dependencies.StoreOptions
+	StoreOption        dependencies.StoreOptions
 	StoreInitFunc      func(store dependencies.StoreClient)
 	RequiredComponents feature.RequiredComponents
 	// Test configuration
@@ -149,8 +149,8 @@ func runTest(t *testing.T, tt FeatureTest, buildFunc feature.BuildFunc) {
 		return
 	}
 
-	if tt.StoreOption == nil {
-		tt.StoreOption = &dependencies.StoreOptions{
+	if (tt.StoreOption == dependencies.StoreOptions{}) {
+		tt.StoreOption = dependencies.StoreOptions{
 			Logger: logger,
 		}
 	}
@@ -159,7 +159,7 @@ func runTest(t *testing.T, tt FeatureTest, buildFunc feature.BuildFunc) {
 	}
 
 	// dependencies
-	store := dependencies.NewStore(dda, tt.StoreOption)
+	store := dependencies.NewStore(dda, &tt.StoreOption)
 	if tt.StoreInitFunc != nil {
 		tt.StoreInitFunc(store)
 	}

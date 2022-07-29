@@ -27,6 +27,22 @@ func NewDatadogAgentWithoutFeatures(namespace string, name string) v2alpha1.Data
 	return newDatadogAgentWithFeatures(namespace, name, nil)
 }
 
+// NewDatadogAgentWithAPM returns an agent with APM enabled
+func NewDatadogAgentWithAPM(namespace string, name string) v2alpha1.DatadogAgent {
+	return newDatadogAgentWithFeatures(
+		namespace,
+		name,
+		&v2alpha1.DatadogFeatures{
+			APM: &v2alpha1.APMFeatureConfig{
+				Enabled:        apiutils.NewBoolPointer(true),
+				HostPortConfig: &v2alpha1.HostPortConfig{
+					Enabled: apiutils.NewBoolPointer(true),
+				},
+			},
+		},
+	)
+}
+
 // NewDatadogAgentWithClusterChecks returns an agent with cluster checks enabled
 func NewDatadogAgentWithClusterChecks(namespace string, name string) v2alpha1.DatadogAgent {
 	return newDatadogAgentWithFeatures(

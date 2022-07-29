@@ -48,6 +48,11 @@ var _ = Describe("V2 Controller - DatadogAgent Deployment", func() {
 		"with no features enabled",
 		testFunction(testutils.NewDatadogAgentWithoutFeatures(namespace, "basic")),
 	)
+	
+	Context(
+		"with APM enabled",
+		testFunction(testutils.NewDatadogAgentWithoutFeatures(namespace, "with-apm")),
+	)
 
 	Context(
 		"with cluster checks enabled",

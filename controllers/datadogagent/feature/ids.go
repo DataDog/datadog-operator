@@ -37,6 +37,8 @@ const (
 	TCPQueueLengthIDType = "tcp_queue_length"
 	// ClusterChecksIDType Cluster checks feature
 	ClusterChecksIDType = "cluster_checks"
+	// APMIDType APM feature
+	APMIDType = "apm"
 	// DummyIDType Dummy feature.
 	DummyIDType = "dummy"
 )

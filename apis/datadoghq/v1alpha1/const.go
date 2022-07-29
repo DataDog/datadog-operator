@@ -14,8 +14,6 @@ const (
 	TmpVolumePath          = "/tmp"
 	CertificatesVolumeName = "certificates"
 	CertificatesVolumePath = "/etc/datadog-agent/certificates"
-	APMSocketVolumeName    = "apmsocket"
-	APMSocketVolumePath    = "/var/run/datadog/apm"
 	ChecksdVolumeName      = "checksd"
 	ChecksdVolumePath      = "/checks.d"
 
