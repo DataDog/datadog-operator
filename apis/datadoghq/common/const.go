@@ -58,6 +58,8 @@ const (
 	DefaultMetricsProviderPort int32 = 8443
 	// DefaultKubeStateMetricsCoreConf default ksm core ConfigMap name
 	DefaultKubeStateMetricsCoreConf string = "kube-state-metrics-core-config"
+	// DefaultOrchestratorExplorerConf default orchestrator explorer ConfigMap name
+	DefaultOrchestratorExplorerConf string = "orchestrator-explorer-config"
 	// DefaultSystemProbeSocketPath default System Probe socket path
 	DefaultSystemProbeSocketPath string = "/var/run/sysprobe/sysprobe.sock"
 
@@ -91,6 +93,11 @@ const (
 	DefaultRollingUpdateSlowStartIntervalDuration       = 1 * time.Minute
 	DefaultRollingUpdateSlowStartAdditiveIncrease       = "5"
 	DefaultReconcileFrequency                           = 10 * time.Second
+
+	KubeServicesAndEndpointsConfigProviders = "kube_services kube_endpoints"
+	KubeServicesAndEndpointsListeners       = "kube_services kube_endpoints"
+	EndpointsChecksConfigProvider           = "endpointschecks"
+	ClusterAndEndpointsConfigProviders      = "clusterchecks endpointschecks"
 )
 
 // Annotations
@@ -101,11 +108,12 @@ const (
 
 // Datadog volume names and mount paths
 const (
-	ConfdVolumeName               = "confd"
-	ConfdVolumePath               = "/conf.d"
-	ConfigVolumeName              = "config"
-	ConfigVolumePath              = "/etc/datadog-agent"
-	KubeStateMetricCoreVolumeName = "ksm-core-config"
+	ConfdVolumeName                = "confd"
+	ConfdVolumePath                = "/conf.d"
+	ConfigVolumeName               = "config"
+	ConfigVolumePath               = "/etc/datadog-agent"
+	KubeStateMetricCoreVolumeName  = "ksm-core-config"
+	OrchestratorExplorerVolumeName = "orchestrator-explorer-config"
 
 	HostRootVolumeName = "hostroot"
 	HostRootHostPath   = "/"
@@ -127,12 +135,20 @@ const (
 	CgroupsHostPath   = "/sys/fs/cgroup"
 	CgroupsMountPath  = "/host/sys/fs/cgroup"
 
+	SystemProbeOSReleaseDirVolumeName = "host-osrelease"
+	SystemProbeOSReleaseDirVolumePath = "/etc/os-release"
+	SystemProbeOSReleaseDirMountPath  = "/host/etc/os-release"
+
 	SystemProbeSocketVolumeName = "sysprobe-socket-dir"
 	SystemProbeSocketVolumePath = "/var/run/sysprobe"
 
 	DebugfsVolumeName = "debugfs"
 	// same path on host and container
 	DebugfsPath = "/sys/kernel/debug"
+
+	SecurityfsVolumeName = "securityfs"
+	SecurityfsVolumePath = "/sys/kernel/security"
+	SecurityfsMountPath  = "/host/sys/kernel/security"
 
 	ModulesVolumeName = "modules"
 	// same path on host and container
@@ -145,34 +161,42 @@ const (
 	AgentCustomConfigVolumePath = "/etc/datadog-agent/datadog.yaml"
 	SystemProbeConfigVolumePath = "/etc/datadog-agent/system-probe.yaml"
 
-	LogDatadogVolumeName       = "logdatadog"
-	LogDatadogVolumePath       = "/var/log/datadog"
-	TmpVolumeName              = "tmp"
-	TmpVolumePath              = "/tmp"
-	CertificatesVolumeName     = "certificates"
-	CertificatesVolumePath     = "/etc/datadog-agent/certificates"
-	AuthVolumeName             = "datadog-agent-auth"
-	AuthVolumePath             = "/etc/datadog-agent/auth"
-	InstallInfoVolumeName      = "installinfo"
-	InstallInfoVolumeSubPath   = "install_info"
-	InstallInfoVolumePath      = "/etc/datadog-agent/install_info"
-	InstallInfoVolumeReadOnly  = true
-	PointerVolumeName          = "pointerdir"
-	PointerVolumePath          = "/opt/datadog-agent/run"
-	LogTempStoragePath         = "/var/lib/datadog-agent/logs"
-	PodLogVolumeName           = "logpodpath"
-	PodLogVolumePath           = "/var/log/pods"
-	ContainerLogVolumeName     = "logcontainerpath"
-	ContainerLogVolumePath     = "/var/lib/docker/containers"
-	SymlinkContainerVolumeName = "symlinkcontainerpath"
-	SymlinkContainerVolumePath = "/var/log/containers"
-	DogstatsdHostPortName      = "dogstatsdport"
-	DogstatsdHostPortHostPort  = 8125
-	DogstatsdUDSSocketName     = "dsdsocket"
-	DogstatsdUDSHostFilepathV1 = "/var/run/datadog/statsd.sock"
-	DogstatsdUDSHostFilepathV2 = "/var/run/datadog/dsd.socket"
-	DogstatsdSocketVolumeName  = "dsdsocket"
-	DogstatsdSocketVolumePath  = "/var/run/datadog/statsd"
+	LogDatadogVolumeName                         = "logdatadog"
+	LogDatadogVolumePath                         = "/var/log/datadog"
+	TmpVolumeName                                = "tmp"
+	TmpVolumePath                                = "/tmp"
+	CertificatesVolumeName                       = "certificates"
+	CertificatesVolumePath                       = "/etc/datadog-agent/certificates"
+	AuthVolumeName                               = "datadog-agent-auth"
+	AuthVolumePath                               = "/etc/datadog-agent/auth"
+	InstallInfoVolumeName                        = "installinfo"
+	InstallInfoVolumeSubPath                     = "install_info"
+	InstallInfoVolumePath                        = "/etc/datadog-agent/install_info"
+	InstallInfoVolumeReadOnly                    = true
+	PointerVolumeName                            = "pointerdir"
+	PointerVolumePath                            = "/opt/datadog-agent/run"
+	LogTempStoragePath                           = "/var/lib/datadog-agent/logs"
+	PodLogVolumeName                             = "logpodpath"
+	PodLogVolumePath                             = "/var/log/pods"
+	ContainerLogVolumeName                       = "logcontainerpath"
+	ContainerLogVolumePath                       = "/var/lib/docker/containers"
+	SymlinkContainerVolumeName                   = "symlinkcontainerpath"
+	SymlinkContainerVolumePath                   = "/var/log/containers"
+	DogstatsdHostPortName                        = "dogstatsdport"
+	DogstatsdHostPortHostPort                    = 8125
+	DogstatsdUDSSocketName                       = "dsdsocket"
+	DogstatsdUDSHostFilepathV1                   = "/var/run/datadog/statsd.sock"
+	DogstatsdUDSHostFilepathV2                   = "/var/run/datadog/dsd.socket"
+	DogstatsdSocketVolumeName                    = "dsdsocket"
+	DogstatsdSocketVolumePath                    = "/var/run/datadog/statsd"
+	SecurityAgentRuntimeCustomPoliciesVolumeName = "customruntimepolicies"
+	SecurityAgentRuntimeCustomPoliciesVolumePath = "/etc/datadog-agent-runtime-policies"
+	SecurityAgentRuntimePoliciesDirVolumeName    = "runtimepoliciesdir"
+	SecurityAgentRuntimePoliciesDirVolumePath    = "/etc/datadog-agent/runtime-security.d"
+	HostCriSocketPathPrefix                      = "/host"
+	CriSocketVolumeName                          = "runtimesocketdir"
+	KubeletAgentCAPath                           = "/var/run/host-kubelet-ca.crt"
+	KubeletCAVolumeName                          = "kubelet-ca"
 )
 
 const (

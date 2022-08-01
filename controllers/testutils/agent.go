@@ -16,8 +16,11 @@ package testutils
 import (
 	"time"
 
+	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
+	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 )
@@ -25,6 +28,20 @@ import (
 // NewDatadogAgentWithoutFeatures returns an agent without any features enabled
 func NewDatadogAgentWithoutFeatures(namespace string, name string) v2alpha1.DatadogAgent {
 	return newDatadogAgentWithFeatures(namespace, name, nil)
+}
+
+// NewDatadogAgentWithClusterChecks returns an agent with cluster checks enabled
+func NewDatadogAgentWithClusterChecks(namespace string, name string) v2alpha1.DatadogAgent {
+	return newDatadogAgentWithFeatures(
+		namespace,
+		name,
+		&v2alpha1.DatadogFeatures{
+			ClusterChecks: &v2alpha1.ClusterChecksFeatureConfig{
+				Enabled:                 apiutils.NewBoolPointer(true),
+				UseClusterChecksRunners: apiutils.NewBoolPointer(true),
+			},
+		},
+	)
 }
 
 // NewDatadogAgentWithCSPM returns an agent with CSPM enabled
@@ -38,6 +55,20 @@ func NewDatadogAgentWithCSPM(namespace string, name string) v2alpha1.DatadogAgen
 				CheckInterval: &metav1.Duration{
 					Duration: 1 * time.Second,
 				},
+			},
+		},
+	)
+}
+
+// NewDatadogAgentWithCWS returns an agent with CWS enabled
+func NewDatadogAgentWithCWS(namespace string, name string) v2alpha1.DatadogAgent {
+	return newDatadogAgentWithFeatures(
+		namespace,
+		name,
+		&v2alpha1.DatadogFeatures{
+			CWS: &v2alpha1.CWSFeatureConfig{
+				Enabled:               apiutils.NewBoolPointer(true),
+				SyscallMonitorEnabled: apiutils.NewBoolPointer(true),
 			},
 		},
 	)
@@ -125,6 +156,20 @@ func NewDatadogAgentWithOOMKill(namespace string, name string) v2alpha1.DatadogA
 	)
 }
 
+// NewDatadogAgentWithOrchestratorExplorer returns an agent with the
+// orchestrator explorer enabled
+func NewDatadogAgentWithOrchestratorExplorer(namespace string, name string) v2alpha1.DatadogAgent {
+	return newDatadogAgentWithFeatures(
+		namespace,
+		name,
+		&v2alpha1.DatadogFeatures{
+			OrchestratorExplorer: &v2alpha1.OrchestratorExplorerFeatureConfig{
+				Enabled: apiutils.NewBoolPointer(true),
+			},
+		},
+	)
+}
+
 // NewDatadogAgentWithPrometheusScrape returns an agent with Prometheus scraping enabled
 func NewDatadogAgentWithPrometheusScrape(namespace string, name string) v2alpha1.DatadogAgent {
 	return newDatadogAgentWithFeatures(
@@ -162,6 +207,54 @@ func NewDatadogAgentWithUSM(namespace string, name string) v2alpha1.DatadogAgent
 			},
 		},
 	)
+}
+
+// NewDatadogAgentWithGlobalConfigSettings returns an agent with some global
+// settings set
+func NewDatadogAgentWithGlobalConfigSettings(namespace string, name string) v2alpha1.DatadogAgent {
+	agent := newDatadogAgentWithFeatures(namespace, name, nil)
+
+	// This config is invalid (incorrect URLs, paths, etc), but it's good enough
+	// to verify that the operator does not crash when parsing it and using it
+	// to configure some agent dependencies.
+	agent.Spec.Global = &v2alpha1.GlobalConfig{
+		ClusterAgentToken: apiutils.NewStringPointer("my-cluster-agent-token"),
+		ClusterName:       apiutils.NewStringPointer("my-cluster"),
+		Site:              apiutils.NewStringPointer("some-dd-site"),
+		Endpoint: &v2alpha1.Endpoint{
+			URL: apiutils.NewStringPointer("some-url"),
+			Credentials: &v2alpha1.DatadogCredentials{
+				APIKey: apiutils.NewStringPointer("my-api-key"),
+				AppKey: apiutils.NewStringPointer("my-app-key"),
+			},
+		},
+		Registry:             apiutils.NewStringPointer("my-custom-registry"),
+		LogLevel:             apiutils.NewStringPointer("INFO"),
+		Tags:                 []string{"tagA:valA", "tagB:valB"},
+		PodLabelsAsTags:      map[string]string{"some-label": "some-tag"},
+		PodAnnotationsAsTags: map[string]string{"some-annotation": "some-tag"},
+		NetworkPolicy: &v2alpha1.NetworkPolicyConfig{
+			Create: apiutils.NewBoolPointer(true),
+			Flavor: v2alpha1.NetworkPolicyFlavorKubernetes,
+		},
+		LocalService: &v2alpha1.LocalService{
+			NameOverride:            apiutils.NewStringPointer("my-local-service"),
+			ForceEnableLocalService: apiutils.NewBoolPointer(true),
+		},
+		Kubelet: &common.KubeletConfig{
+			Host: &v1.EnvVarSource{
+				FieldRef: &v1.ObjectFieldSelector{
+					FieldPath: apicommon.FieldPathSpecNodeName,
+				},
+			},
+			TLSVerify:  apiutils.NewBoolPointer(true),
+			HostCAPath: "some/path",
+		},
+		DockerSocketPath: apiutils.NewStringPointer("/some/path"),
+		CriSocketPath:    apiutils.NewStringPointer("/another/path"),
+	}
+
+	return agent
 }
 
 func newDatadogAgentWithFeatures(namespace string, name string, features *v2alpha1.DatadogFeatures) v2alpha1.DatadogAgent {

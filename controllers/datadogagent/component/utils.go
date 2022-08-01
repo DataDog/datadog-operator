@@ -9,9 +9,14 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
+	netv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 // GetVolumeForConfig return the volume that contains the agent config
@@ -251,6 +256,11 @@ func GetClusterAgentVersion(dda metav1.Object) string {
 	return ""
 }
 
+// GetAgentServiceName return the Agent service name based on the DatadogAgent name
+func GetAgentServiceName(dda metav1.Object) string {
+	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultAgentResourceSuffix)
+}
+
 // GetAgentName return the Agent name based on the DatadogAgent info
 func GetAgentName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultAgentResourceSuffix)
@@ -285,4 +295,177 @@ func BuildEnvVarFromSecret(name, key string) *corev1.EnvVarSource {
 			Key: key,
 		},
 	}
+}
+
+// BuildKubernetesNetworkPolicy creates the base node agent kubernetes network policy
+func BuildKubernetesNetworkPolicy(dda metav1.Object, componentName v2alpha1.ComponentName) (string, string, metav1.LabelSelector, []netv1.PolicyType, []netv1.NetworkPolicyIngressRule, []netv1.NetworkPolicyEgressRule) {
+	policyName, podSelector := GetNetworkPolicyMetadata(dda, componentName)
+	ddaNamespace := dda.GetNamespace()
+
+	policyTypes := []netv1.PolicyType{
+		netv1.PolicyTypeIngress,
+		netv1.PolicyTypeEgress,
+	}
+
+	var egress []netv1.NetworkPolicyEgressRule
+	var ingress []netv1.NetworkPolicyIngressRule
+
+	switch componentName {
+	case v2alpha1.NodeAgentComponentName:
+		// The agents are susceptible to connect to any pod that would
+		// be annotated with auto-discovery annotations.
+		//
+		// When a user wants to add a check on one of its pod, they
+		// need to
+		// * annotate its pod
+		// * add an ingress policy from the agent on its own pod
+		// In order to not ask end-users to inject NetworkPolicy on the
+		// agent in the agent namespace, the agent must be allowed to
+		// probe any pod.
+		egress = []netv1.NetworkPolicyEgressRule{
+			{
+				Ports: append([]netv1.NetworkPolicyPort{}, ddIntakePort()),
+			},
+		}
+		ingress = []netv1.NetworkPolicyIngressRule{}
+	case v2alpha1.ClusterAgentComponentName:
+		_, nodeAgentPodSelector := GetNetworkPolicyMetadata(dda, v2alpha1.NodeAgentComponentName)
+		egress = []netv1.NetworkPolicyEgressRule{
+			{
+				Ports: append([]netv1.NetworkPolicyPort{}, ddIntakePort()),
+			},
+			// Egress to other cluster agents
+			{
+				Ports: append([]netv1.NetworkPolicyPort{}, dcaServicePort()),
+				To: []netv1.NetworkPolicyPeer{
+					{
+						PodSelector: &podSelector,
+					},
+				},
+			},
+		}
+		ingress = []netv1.NetworkPolicyIngressRule{
+			// Ingress from the node agents (for the metadata provider) and other cluster agents
+			{
+				Ports: append([]netv1.NetworkPolicyPort{}, dcaServicePort()),
+				From: []netv1.NetworkPolicyPeer{
+					{
+						PodSelector: &nodeAgentPodSelector,
+					},
+					{
+						PodSelector: &podSelector,
+					},
+				},
+			},
+			// Ingress from the node agents (for the prometheus check)
+			{
+				Ports: []netv1.NetworkPolicyPort{
+					{
+						Port: &intstr.IntOrString{
+							Type:   intstr.Int,
+							IntVal: 5000,
+						},
+					},
+				},
+				From: []netv1.NetworkPolicyPeer{
+					{
+						PodSelector: &nodeAgentPodSelector,
+					},
+				},
+			},
+		}
+	case v2alpha1.ClusterChecksRunnerComponentName:
+		// The cluster check runners are susceptible to connect to any service
+		// that would be annotated with auto-discovery annotations.
+		//
+		// When a user wants to add a check on one of its service, he needs to
+		// * annotate its service
+		// * add an ingress policy from the CLC on its own pod
+		// In order to not ask end-users to inject NetworkPolicy on the agent in
+		// the agent namespace, the agent must be allowed to probe any service.
+		egress = []netv1.NetworkPolicyEgressRule{
+			{
+				Ports: append([]netv1.NetworkPolicyPort{}, ddIntakePort(), dcaServicePort()),
+				To: []netv1.NetworkPolicyPeer{
+					{
+						PodSelector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								"app": policyName,
+							},
+						},
+					},
+				},
+			},
+		}
+		ingress = []netv1.NetworkPolicyIngressRule{}
+	}
+
+	return policyName, ddaNamespace, podSelector, policyTypes, ingress, egress
+}
+
+// GetNetworkPolicyMetadata generates a label selector based on component
+func GetNetworkPolicyMetadata(dda metav1.Object, componentName v2alpha1.ComponentName) (policyName string, podSelector metav1.LabelSelector) {
+	var suffix string
+	switch componentName {
+	case v2alpha1.NodeAgentComponentName:
+		policyName = GetAgentName(dda)
+		suffix = apicommon.DefaultAgentResourceSuffix
+	case v2alpha1.ClusterAgentComponentName:
+		policyName = GetClusterAgentName(dda)
+		suffix = apicommon.DefaultClusterAgentResourceSuffix
+	case v2alpha1.ClusterChecksRunnerComponentName:
+		policyName = GetClusterChecksRunnerName(dda)
+		suffix = apicommon.DefaultClusterChecksRunnerResourceSuffix
+	}
+	podSelector = metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			kubernetes.AppKubernetesInstanceLabelKey: suffix,
+			kubernetes.AppKubernetesPartOfLabelKey:   object.NewPartOfLabelValue(dda).String(),
+		},
+	}
+	return policyName, podSelector
+}
+
+// datadog intake and kubeapi server port
+func ddIntakePort() netv1.NetworkPolicyPort {
+	return netv1.NetworkPolicyPort{
+		Port: &intstr.IntOrString{
+			Type:   intstr.Int,
+			IntVal: 443,
+		},
+	}
+}
+
+// cluster agent service port
+func dcaServicePort() netv1.NetworkPolicyPort {
+	return netv1.NetworkPolicyPort{
+		Port: &intstr.IntOrString{
+			Type:   intstr.Int,
+			IntVal: apicommon.DefaultClusterAgentServicePort,
+		},
+	}
+}
+
+// BuildAgentLocalService creates a local service for the node agent
+func BuildAgentLocalService(dda metav1.Object, nameOverride string) (string, string, map[string]string, []corev1.ServicePort, *corev1.ServiceInternalTrafficPolicyType) {
+	var serviceName string
+	if nameOverride != "" {
+		serviceName = nameOverride
+	} else {
+		serviceName = GetAgentServiceName(dda)
+	}
+	serviceInternalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
+	selector := map[string]string{
+		apicommon.AgentDeploymentNameLabelKey:      dda.GetName(),
+		apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
+	}
+	ports := []corev1.ServicePort{
+		{
+			Protocol:   corev1.ProtocolUDP,
+			TargetPort: intstr.FromInt(apicommon.DefaultDogstatsdPort),
+			Port:       apicommon.DefaultDogstatsdPort,
+			Name:       apicommon.DefaultDogstatsdPortName,
+		},
+	}
+	return serviceName, dda.GetNamespace(), selector, ports, &serviceInternalTrafficPolicy
 }

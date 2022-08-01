@@ -7,6 +7,7 @@ package v2alpha1
 
 import (
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
+	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 )
 
@@ -57,8 +58,8 @@ const (
 	// defaultAdmissionControllerEnabled          bool = false
 	defaultAdmissionControllerMutateUnlabelled bool = false
 
-	defaultOrchestratorExplorerEnabled bool   = true
-	DefaultOrchestratorExplorerConf    string = "orchestrator-explorer-config"
+	defaultOrchestratorExplorerEnabled         bool = true
+	defaultOrchestratorExplorerScrubContainers bool = true
 
 	// defaultExternalMetricsServerEnabled bool = false
 	defaultDatadogMetricsEnabled bool = true
@@ -72,6 +73,9 @@ const (
 
 	// defaultPrometheusScrapeEnabled                bool = false
 	defaultPrometheusScrapeEnableServiceEndpoints bool = false
+
+	defaultKubeletAgentCAPath            = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+	defaultKubeletAgentCAPathHostPathSet = "/var/run/host-kubelet-ca.crt"
 )
 
 // DefaultDatadogAgent defaults the DatadogAgentSpec GlobalConfig and Features.
@@ -97,6 +101,18 @@ func defaultGlobalConfig(ddaSpec *DatadogAgentSpec) {
 
 	if ddaSpec.Global.LogLevel == nil {
 		ddaSpec.Global.LogLevel = apiutils.NewStringPointer(defaultLogLevel)
+	}
+
+	if ddaSpec.Global.Kubelet == nil {
+		ddaSpec.Global.Kubelet = &commonv1.KubeletConfig{
+			AgentCAPath: defaultKubeletAgentCAPath,
+		}
+	} else if ddaSpec.Global.Kubelet.AgentCAPath == "" {
+		if ddaSpec.Global.Kubelet.HostCAPath != "" {
+			ddaSpec.Global.Kubelet.AgentCAPath = defaultKubeletAgentCAPathHostPathSet
+		} else {
+			ddaSpec.Global.Kubelet.AgentCAPath = defaultKubeletAgentCAPath
+		}
 	}
 }
 
@@ -205,11 +221,7 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 	}
 
 	if *ddaSpec.Features.OrchestratorExplorer.Enabled {
-		if ddaSpec.Features.OrchestratorExplorer.Conf == nil {
-			ddaSpec.Features.OrchestratorExplorer.Conf = &CustomConfig{
-				ConfigData: apiutils.NewStringPointer(DefaultOrchestratorExplorerConf),
-			}
-		}
+		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.OrchestratorExplorer.ScrubContainers, defaultOrchestratorExplorerScrubContainers)
 	}
 
 	// KubeStateMetricsCore check Feature

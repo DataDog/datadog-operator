@@ -17,6 +17,7 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	test "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/orchestrator"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
@@ -1263,7 +1264,7 @@ func defaultSystemProbePodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodSp
 				},
 				SecurityContext: &corev1.SecurityContext{
 					Capabilities: &corev1.Capabilities{
-						Add: []corev1.Capability{"SYS_ADMIN", "SYS_RESOURCE", "SYS_PTRACE", "NET_ADMIN", "NET_BROADCAST", "NET_RAW", "IPC_LOCK", "CHOWN"},
+						Add: agent.DefaultCapabilitiesForSystemProbe(),
 					},
 					RunAsUser: apiutils.NewInt64Pointer(0),
 				},
@@ -1375,7 +1376,7 @@ func noSeccompInstallSystemProbeSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1
 				},
 				SecurityContext: &corev1.SecurityContext{
 					Capabilities: &corev1.Capabilities{
-						Add: []corev1.Capability{"SYS_ADMIN", "SYS_RESOURCE", "SYS_PTRACE", "NET_ADMIN", "NET_BROADCAST", "NET_RAW", "IPC_LOCK", "CHOWN"},
+						Add: agent.DefaultCapabilitiesForSystemProbe(),
 					},
 					RunAsUser: apiutils.NewInt64Pointer(0),
 				},
@@ -1737,7 +1738,7 @@ func runtimeSecurityAgentPodSpec(extraEnv map[string]string, extraDir string) co
 				},
 				SecurityContext: &corev1.SecurityContext{
 					Capabilities: &corev1.Capabilities{
-						Add: []corev1.Capability{"SYS_ADMIN", "SYS_RESOURCE", "SYS_PTRACE", "NET_ADMIN", "NET_BROADCAST", "NET_RAW", "IPC_LOCK", "CHOWN"},
+						Add: agent.DefaultCapabilitiesForSystemProbe(),
 					},
 					RunAsUser: apiutils.NewInt64Pointer(0),
 				},
@@ -1873,7 +1874,7 @@ func customKubeletConfigPodSpec(kubeletConfig *commonv1.KubeletConfig) corev1.Po
 
 	volumeMountsBuilder := NewVolumeMountBuilder(defaultMountVolume(), nil)
 	volumeMountsBuilder.Add(&corev1.VolumeMount{
-		Name:      datadoghqv1alpha1.KubeletCAVolumeName,
+		Name:      apicommon.KubeletCAVolumeName,
 		ReadOnly:  true,
 		MountPath: kubeletConfig.AgentCAPath,
 	})

@@ -23,7 +23,7 @@ func (f *ksmFeature) buildKSMCoreConfigMap() (*corev1.ConfigMap, error) {
 		return configmap.BuildConfiguration(f.owner, f.customConfig.ConfigData, f.configConfigMapName, ksmCoreCheckName)
 	}
 
-	configMap := buildDefaultConfigMap(f.owner, f.configConfigMapName, ksmCheckConfig(f.clusterChecksEnabled))
+	configMap := buildDefaultConfigMap(f.owner, f.configConfigMapName, ksmCheckConfig(f.runInClusterChecksRunner))
 	return configMap, nil
 }
 
@@ -42,8 +42,14 @@ func buildDefaultConfigMap(owner metav1.Object, cmName string, content string) *
 	return configMap
 }
 
-func ksmCheckConfig(clusteCheck bool) string {
-	stringVal := strconv.FormatBool(clusteCheck)
+// KSM should be configured as a cluster check only when there are Cluster Check
+// Runners deployed.
+// This check is not designed to work on the DaemonSet Agent. That's why when
+// cluster checks are enabled but without Cluster Check Runners, we don't want
+// to set this check as a cluster check, because then it would be scheduled in
+// the DaemonSet agent instead of the DCA.
+func ksmCheckConfig(clusterCheck bool) string {
+	stringVal := strconv.FormatBool(clusterCheck)
 	return fmt.Sprintf(`---
 cluster_check: %s
 init_config:

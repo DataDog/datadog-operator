@@ -94,3 +94,13 @@ func ConvertCustomConfig(config *CustomConfigSpec) *commonv1.CustomConfig {
 func IsHostNetworkEnabled(dda *DatadogAgent) bool {
 	return apiutils.BoolValue(&dda.Spec.Agent.HostNetwork)
 }
+
+// IsClusterChecksEnabled returns whether the DDA should use cluster checks
+func IsClusterChecksEnabled(dda *DatadogAgent) bool {
+	return dda.Spec.ClusterAgent.Config != nil && apiutils.BoolValue(dda.Spec.ClusterAgent.Config.ClusterChecksEnabled)
+}
+
+// IsCCREnabled returns whether the DDA should use Cluster Checks Runners
+func IsCCREnabled(dda *DatadogAgent) bool {
+	return apiutils.BoolValue(dda.Spec.ClusterChecksRunner.Enabled)
+}

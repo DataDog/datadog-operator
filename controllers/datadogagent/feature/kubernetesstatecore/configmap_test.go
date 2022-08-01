@@ -27,13 +27,13 @@ instances:
       - pods
 `
 	type fields struct {
-		enable               bool
-		clusterChecksEnabled bool
-		rbacSuffix           string
-		serviceAccountName   string
-		owner                metav1.Object
-		customConfig         *apicommonv1.CustomConfig
-		configConfigMapName  string
+		enable                   bool
+		runInClusterChecksRunner bool
+		rbacSuffix               string
+		serviceAccountName       string
+		owner                    metav1.Object
+		customConfig             *apicommonv1.CustomConfig
+		configConfigMapName      string
 	}
 	tests := []struct {
 		name    string
@@ -44,36 +44,46 @@ instances:
 		{
 			name: "default",
 			fields: fields{
-				owner:                owner,
-				enable:               true,
-				clusterChecksEnabled: true,
-				configConfigMapName:  apicommon.DefaultKubeStateMetricsCoreConf,
+				owner:                    owner,
+				enable:                   true,
+				runInClusterChecksRunner: true,
+				configConfigMapName:      apicommon.DefaultKubeStateMetricsCoreConf,
 			},
 			want: buildDefaultConfigMap(owner, apicommon.DefaultKubeStateMetricsCoreConf, ksmCheckConfig(true)),
 		},
 		{
 			name: "override",
 			fields: fields{
-				owner:                owner,
-				enable:               true,
-				clusterChecksEnabled: true,
-				configConfigMapName:  apicommon.DefaultKubeStateMetricsCoreConf,
+				owner:                    owner,
+				enable:                   true,
+				runInClusterChecksRunner: true,
+				configConfigMapName:      apicommon.DefaultKubeStateMetricsCoreConf,
 				customConfig: &apicommonv1.CustomConfig{
 					ConfigData: &overrideConf,
 				},
 			},
 			want: buildDefaultConfigMap(owner, apicommon.DefaultKubeStateMetricsCoreConf, overrideConf),
 		},
+		{
+			name: "no cluster check runners",
+			fields: fields{
+				owner:                    owner,
+				enable:                   true,
+				runInClusterChecksRunner: false,
+				configConfigMapName:      apicommon.DefaultKubeStateMetricsCoreConf,
+			},
+			want: buildDefaultConfigMap(owner, apicommon.DefaultKubeStateMetricsCoreConf, ksmCheckConfig(false)),
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			f := &ksmFeature{
-				clusterChecksEnabled: tt.fields.clusterChecksEnabled,
-				rbacSuffix:           tt.fields.rbacSuffix,
-				serviceAccountName:   tt.fields.serviceAccountName,
-				owner:                tt.fields.owner,
-				customConfig:         tt.fields.customConfig,
-				configConfigMapName:  tt.fields.configConfigMapName,
+				runInClusterChecksRunner: tt.fields.runInClusterChecksRunner,
+				rbacSuffix:               tt.fields.rbacSuffix,
+				serviceAccountName:       tt.fields.serviceAccountName,
+				owner:                    tt.fields.owner,
+				customConfig:             tt.fields.customConfig,
+				configConfigMapName:      tt.fields.configConfigMapName,
 			}
 			got, err := f.buildKSMCoreConfigMap()
 			if (err != nil) != tt.wantErr {

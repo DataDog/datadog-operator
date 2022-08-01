@@ -31,7 +31,6 @@ const (
 	CgroupsVolumeReadOnly                = true
 	SystemProbeSocketVolumeName          = "sysprobe-socket-dir"
 	SystemProbeSocketVolumePath          = "/var/run/sysprobe"
-	CriSocketVolumeName                  = "runtimesocketdir"
 	CriSocketVolumeReadOnly              = true
 	PointerVolumeName                    = "pointerdir"
 	PointerVolumePath                    = "/opt/datadog-agent/run"
@@ -56,11 +55,7 @@ const (
 	SystemProbeUsrSrcVolumePath          = "/usr/src"
 	AgentCustomConfigVolumeName          = "custom-datadog-yaml"
 	AgentCustomConfigVolumeSubPath       = "datadog.yaml"
-	KubeletCAVolumeName                  = "kubelet-ca"
-	DefaultKubeletAgentCAPath            = "/var/run/host-kubelet-ca.crt"
 	OrchestratorExplorerConfigVolumeName = "orchestrator-explorer-config"
-
-	HostCriSocketPathPrefix = "/host"
 
 	SecurityAgentRuntimeCustomPoliciesVolumeName     = "customruntimepolicies"
 	SecurityAgentRuntimePoliciesDirVolumeName        = "runtimepoliciesdir"
@@ -78,18 +73,4 @@ const (
 	SystemProbeOSReleaseDirVolumeName = "host-osrelease"
 	SystemProbeOSReleaseDirVolumePath = "/etc/os-release"
 	SystemProbeOSReleaseDirMountPath  = "/host/etc/os-release"
-
-	// Extra config provider names
-
-	KubeServicesConfigProvider              = "kube_services"
-	KubeEndpointsConfigProvider             = "kube_endpoints"
-	KubeServicesAndEndpointsConfigProviders = "kube_services kube_endpoints"
-	EndpointsChecksConfigProvider           = "endpointschecks"
-	ClusterAndEndpointsConfigPoviders       = "clusterchecks endpointschecks"
-
-	// Extra listeners
-
-	KubeServicesListener              = "kube_services"
-	KubeEndpointsListener             = "kube_endpoints"
-	KubeServicesAndEndpointsListeners = "kube_services kube_endpoints"
 )

@@ -43,7 +43,7 @@ func buildKSMFeature(options *feature.Options) feature.Feature {
 }
 
 type ksmFeature struct {
-	clusterChecksEnabled bool
+	runInClusterChecksRunner bool
 
 	rbacSuffix         string
 	serviceAccountName string
@@ -53,6 +53,11 @@ type ksmFeature struct {
 	configConfigMapName string
 
 	logger logr.Logger
+}
+
+// ID returns the ID of the Feature
+func (f *ksmFeature) ID() feature.IDType {
+	return feature.KubernetesStateCoreIDType
 }
 
 // Configure use to configure the feature from a v2alpha1.DatadogAgent instance.
@@ -71,9 +76,8 @@ func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 		f.configConfigMapName = apicommonv1.GetConfName(dda, f.customConfig, apicommon.DefaultKubeStateMetricsCoreConf)
 
 		if dda.Spec.Features.ClusterChecks != nil && apiutils.BoolValue(dda.Spec.Features.ClusterChecks.Enabled) {
-			f.clusterChecksEnabled = true
-
 			if apiutils.BoolValue(dda.Spec.Features.ClusterChecks.UseClusterChecksRunners) {
+				f.runInClusterChecksRunner = true
 				f.rbacSuffix = common.ChecksRunnerSuffix
 				f.serviceAccountName = v2alpha1.GetClusterChecksRunnerServiceAccount(dda)
 				output.ClusterChecksRunner.IsRequired = apiutils.NewBoolPointer(true)
@@ -93,9 +97,8 @@ func (f *ksmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) feature.RequiredCom
 		output.ClusterAgent.IsRequired = apiutils.NewBoolPointer(true)
 
 		if dda.Spec.ClusterAgent.Config != nil && apiutils.BoolValue(dda.Spec.ClusterAgent.Config.ClusterChecksEnabled) && apiutils.BoolValue(dda.Spec.Features.KubeStateMetricsCore.ClusterCheck) {
-			f.clusterChecksEnabled = true
-
 			if apiutils.BoolValue(dda.Spec.ClusterChecksRunner.Enabled) {
+				f.runInClusterChecksRunner = true
 				output.ClusterChecksRunner.IsRequired = apiutils.NewBoolPointer(true)
 
 				f.rbacSuffix = common.ChecksRunnerSuffix
