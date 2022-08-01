@@ -22,7 +22,6 @@ import (
 
 func (r *Reconciler) reconcileV2Agent(logger logr.Logger, features []feature.Feature, dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, newStatus *datadoghqv2alpha1.DatadogAgentStatus, requiredContainers []common.AgentContainerName) (reconcile.Result, error) {
 	var result reconcile.Result
-	var err error
 	var eds *edsv1alpha1.ExtendedDaemonSet
 	var daemonset *appsv1.DaemonSet
 	var podManagers feature.PodTemplateManagers
@@ -52,11 +51,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, features []feature.Fea
 
 	// If Override is defined for the node agent component, apply the override on the PodTemplateSpec, it will cascade to container.
 	if _, ok := dda.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName]; ok {
-		_, err = override.PodTemplateSpec(podManagers, dda.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName])
-		if err != nil {
-			return result, err
-		}
-
+		override.PodTemplateSpec(podManagers, dda.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName], datadoghqv2alpha1.NodeAgentComponentName, dda.Name)
 		override.DaemonSet(daemonset, dda.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName])
 	}
 

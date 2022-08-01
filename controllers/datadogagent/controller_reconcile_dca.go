@@ -19,7 +19,6 @@ import (
 
 func (r *Reconciler) reconcileV2ClusterAgent(logger logr.Logger, features []feature.Feature, dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, newStatus *datadoghqv2alpha1.DatadogAgentStatus) (reconcile.Result, error) {
 	var result reconcile.Result
-	var err error
 
 	// Start by creating the Default Cluster-Agent deployment
 	deployment := componentdca.NewDefaultClusterAgentDeployment(dda)
@@ -37,11 +36,7 @@ func (r *Reconciler) reconcileV2ClusterAgent(logger logr.Logger, features []feat
 
 	// If Override is define for the cluster-agent component, apply the override on the PodTemplateSpec, it will cascade to container.
 	if componentOverride, ok := dda.Spec.Override[datadoghqv2alpha1.ClusterAgentComponentName]; ok {
-		_, err = override.PodTemplateSpec(podManagers, componentOverride)
-		if err != nil {
-			return result, err
-		}
-
+		override.PodTemplateSpec(podManagers, componentOverride, datadoghqv2alpha1.ClusterAgentComponentName, dda.Name)
 		override.Deployment(deployment, componentOverride)
 	}
 
