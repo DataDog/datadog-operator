@@ -93,8 +93,6 @@ func Test_liveProcessFeature_Configure(t *testing.T) {
 				Value: "true",
 			},
 		}
-		agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
-		assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantEnvVars))
 
 		processAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ProcessAgentContainerName]
 		assert.True(t, apiutils.IsEqualStruct(processAgentEnvVars, wantEnvVars), "Process Agent envvars \ndiff = %s", cmp.Diff(processAgentEnvVars, wantEnvVars))
@@ -113,10 +111,7 @@ func Test_liveProcessFeature_Configure(t *testing.T) {
 			Name:          "v1alpha1 live process collection enabled",
 			DDAv1:         ddav1LiveProcessEnabled,
 			WantConfigure: true,
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc:   liveProcessAgentNodeWantFunc,
-			},
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(liveProcessAgentNodeWantFunc),
 		},
 		// ///////////////////////////
 		// // v2alpha1.DatadogAgent //
@@ -130,10 +125,7 @@ func Test_liveProcessFeature_Configure(t *testing.T) {
 			Name:          "v2alpha1 live process collection enabled",
 			DDAv2:         ddav2LiveProcessEnabled,
 			WantConfigure: true,
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc:   liveProcessAgentNodeWantFunc,
-			},
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(liveProcessAgentNodeWantFunc),
 		},
 	}
 

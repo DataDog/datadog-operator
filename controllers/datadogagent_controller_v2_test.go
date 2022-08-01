@@ -80,6 +80,11 @@ var _ = Describe("V2 Controller - DatadogAgent Deployment", func() {
 	)
 
 	Context(
+		"with live process collection",
+		testFunction(testutils.NewDatadogAgentWithLiveProcessCollection(namespace, "with-live-process-collection")),
+	)
+
+	Context(
 		"with log collection",
 		testFunction(testutils.NewDatadogAgentWithLogCollection(namespace, "with-log-collection")),
 	)

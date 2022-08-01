@@ -32,14 +32,17 @@ func buildLiveProcessFeature(options *feature.Options) feature.Feature {
 }
 
 type liveProcessFeature struct {
-	enable    bool
 	scrubArgs bool
+}
+
+// ID returns the ID of the Feature
+func (f *liveProcessFeature) ID() feature.IDType {
+	return feature.LiveProcessIDType
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *liveProcessFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	if dda.Spec.Features.LiveProcessCollection != nil && apiutils.BoolValue(dda.Spec.Features.LiveProcessCollection.Enabled) {
-		f.enable = true
 		f.scrubArgs = apiutils.BoolValue(dda.Spec.Features.LiveProcessCollection.ScrubProcessArguments)
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
@@ -57,7 +60,6 @@ func (f *liveProcessFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feat
 // ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
 func (f *liveProcessFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	if dda.Spec.Agent.Process != nil && *dda.Spec.Agent.Process.ProcessCollectionEnabled {
-		f.enable = true
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
 				IsRequired: apiutils.NewBoolPointer(true),
@@ -97,7 +99,6 @@ func (f *liveProcessFeature) ManageNodeAgent(managers feature.PodTemplateManager
 		Value: "true",
 	}
 
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, enableEnvVar)
 	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, enableEnvVar)
 
 	if f.scrubArgs {
