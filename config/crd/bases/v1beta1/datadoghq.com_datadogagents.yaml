@@ -26034,6 +26034,10 @@ spec:
                         description: 'ScrubProcessArguments enables scrubbing of sensitive
                           data (passwords, tokens, etc. ). Default: true'
                         type: boolean
+                      stripProcessArguments:
+                        description: 'StripProcessArguments enables stripping of all
+                          process arguments. Default: false'
+                        type: boolean
                     type: object
                   logCollection:
                     description: LogCollection configuration.

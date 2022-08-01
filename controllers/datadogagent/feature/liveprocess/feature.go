@@ -32,7 +32,8 @@ func buildLiveProcessFeature(options *feature.Options) feature.Feature {
 }
 
 type liveProcessFeature struct {
-	scrubArgs bool
+	scrubArgs *bool
+	stripArgs *bool
 }
 
 // ID returns the ID of the Feature
@@ -43,11 +44,17 @@ func (f *liveProcessFeature) ID() feature.IDType {
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *liveProcessFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	if dda.Spec.Features.LiveProcessCollection != nil && apiutils.BoolValue(dda.Spec.Features.LiveProcessCollection.Enabled) {
-		f.scrubArgs = apiutils.BoolValue(dda.Spec.Features.LiveProcessCollection.ScrubProcessArguments)
+		if dda.Spec.Features.LiveProcessCollection.ScrubProcessArguments != nil {
+			f.scrubArgs = apiutils.NewBoolPointer(*dda.Spec.Features.LiveProcessCollection.ScrubProcessArguments)
+		}
+		if dda.Spec.Features.LiveProcessCollection.StripProcessArguments != nil {
+			f.stripArgs = apiutils.NewBoolPointer(*dda.Spec.Features.LiveProcessCollection.StripProcessArguments)
+		}
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
 				IsRequired: apiutils.NewBoolPointer(true),
 				Containers: []apicommonv1.AgentContainerName{
+					apicommonv1.CoreAgentContainerName,
 					apicommonv1.ProcessAgentContainerName,
 				},
 			},
@@ -101,12 +108,20 @@ func (f *liveProcessFeature) ManageNodeAgent(managers feature.PodTemplateManager
 
 	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, enableEnvVar)
 
-	if f.scrubArgs {
+	if f.scrubArgs != nil {
 		scrubArgsEnvVar := &corev1.EnvVar{
 			Name:  apicommon.DDProcessAgentScrubArgs,
-			Value: apiutils.BoolToString(&f.scrubArgs),
+			Value: apiutils.BoolToString(f.scrubArgs),
 		}
 		managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, scrubArgsEnvVar)
+	}
+
+	if f.stripArgs != nil {
+		stripArgsEnvVar := &corev1.EnvVar{
+			Name:  apicommon.DDProcessAgentStripArgs,
+			Value: apiutils.BoolToString(f.stripArgs),
+		}
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, stripArgsEnvVar)
 	}
 
 	return nil

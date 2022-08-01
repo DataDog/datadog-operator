@@ -25,8 +25,7 @@ const (
 	defaultLogTempStoragePath            string = "/var/lib/datadog-agent/logs"
 
 	// defaultLiveProcessCollectionEnabled   bool = false
-	defaultLiveProcessCollectionScrubArguments bool = true
-	defaultLiveContainerCollectionEnabled      bool = true
+	defaultLiveContainerCollectionEnabled bool = true
 
 	// defaultOOMKillEnabled        bool = false
 	// defaultTCPQueueLengthEnabled bool = false
@@ -134,11 +133,6 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 		apiutils.DefaultStringIfUnset(&ddaSpec.Features.LogCollection.ContainerSymlinksPath, defaultLogContainerSymlinksPath)
 
 		apiutils.DefaultStringIfUnset(&ddaSpec.Features.LogCollection.TempStoragePath, defaultLogTempStoragePath)
-	}
-
-	// LiveProcessCollection Feature
-	if ddaSpec.Features.LiveProcessCollection != nil && *ddaSpec.Features.LiveProcessCollection.Enabled {
-		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.LiveProcessCollection.ScrubProcessArguments, defaultLiveProcessCollectionScrubArguments)
 	}
 
 	// LiveContainerCollection Feature

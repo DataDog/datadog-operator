@@ -237,8 +237,7 @@ func Test_defaultFeatures(t *testing.T) {
 			want: &DatadogAgentSpec{
 				Features: &DatadogFeatures{
 					LiveProcessCollection: &LiveProcessCollectionFeatureConfig{
-						Enabled:               apiutils.NewBoolPointer(valueTrue),
-						ScrubProcessArguments: apiutils.NewBoolPointer(valueTrue),
+						Enabled: apiutils.NewBoolPointer(valueTrue),
 					},
 					LiveContainerCollection: &LiveContainerCollectionFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
