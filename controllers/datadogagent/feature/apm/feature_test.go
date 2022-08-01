@@ -13,7 +13,6 @@ import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/test"
@@ -21,16 +20,9 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/version"
 )
 
 func TestAPMFeature(t *testing.T) {
-	k8sv22 := dependencies.StoreOptions{
-		VersionInfo: &version.Info{
-			GitVersion: "1.22-0",
-		},
-	}
-
 	tests := test.FeatureTestSuite{
 		//////////////////////////
 		// v1Alpha1.DatadogAgent
@@ -38,21 +30,18 @@ func TestAPMFeature(t *testing.T) {
 		{
 			Name:          "v1alpha1 apm not enable",
 			DDAv1:         newV1Agent(false, false),
-			StoreOption:   k8sv22,
 			WantConfigure: false,
 		},
 		{
 			Name:          "v1alpha1 apm enabled, use hostport",
 			DDAv1:         newV1Agent(true, false),
 			WantConfigure: true,
-			StoreOption:   k8sv22,
 			Agent:         testAgentHostPortOnly(),
 		},
 		{
 			Name:          "v1alpha1 apm enabled, use uds and hostport",
 			DDAv1:         newV1Agent(true, true),
 			WantConfigure: true,
-			StoreOption:   k8sv22,
 			Agent:         testAgentHostPortUDS(),
 		},
 
@@ -62,21 +51,18 @@ func TestAPMFeature(t *testing.T) {
 		{
 			Name:          "v2alpha1 apm not enabled",
 			DDAv2:         newV2Agent(false, false),
-			StoreOption:   k8sv22,
 			WantConfigure: false,
 		},
 		{
 			Name:          "v2alpha1 apm enabled, use uds",
 			DDAv2:         newV2Agent(true, false),
 			WantConfigure: true,
-			StoreOption:   k8sv22,
 			Agent:         testAgentUDSOnly(),
 		},
 		{
 			Name:          "v2alpha1 apm enabled, use uds and host port",
 			DDAv2:         newV2Agent(true, true),
 			WantConfigure: true,
-			StoreOption:   k8sv22,
 			Agent:         testAgentHostPortUDS(),
 		},
 	}
