@@ -110,7 +110,7 @@ func (f *liveProcessFeature) ManageNodeAgent(managers feature.PodTemplateManager
 
 	if f.scrubArgs != nil {
 		scrubArgsEnvVar := &corev1.EnvVar{
-			Name:  apicommon.DDProcessAgentScrubArgs,
+			Name:  apicommon.DDProcessConfigScrubArgs,
 			Value: apiutils.BoolToString(f.scrubArgs),
 		}
 		managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, scrubArgsEnvVar)
@@ -118,7 +118,7 @@ func (f *liveProcessFeature) ManageNodeAgent(managers feature.PodTemplateManager
 
 	if f.stripArgs != nil {
 		stripArgsEnvVar := &corev1.EnvVar{
-			Name:  apicommon.DDProcessAgentStripArgs,
+			Name:  apicommon.DDProcessConfigStripArgs,
 			Value: apiutils.BoolToString(f.stripArgs),
 		}
 		managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, stripArgsEnvVar)

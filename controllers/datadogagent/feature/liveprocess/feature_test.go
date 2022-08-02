@@ -98,6 +98,62 @@ func Test_liveProcessFeature_Configure(t *testing.T) {
 		assert.True(t, apiutils.IsEqualStruct(processAgentEnvVars, wantEnvVars), "Process Agent envvars \ndiff = %s", cmp.Diff(processAgentEnvVars, wantEnvVars))
 	}
 
+	ddav2LiveProcessEnabledWithScrubStripArgs := ddav2LiveProcessEnabled.DeepCopy()
+	{
+		ddav2LiveProcessEnabledWithScrubStripArgs.Spec.Features.LiveProcessCollection.ScrubProcessArguments = apiutils.NewBoolPointer(true)
+		ddav2LiveProcessEnabledWithScrubStripArgs.Spec.Features.LiveProcessCollection.StripProcessArguments = apiutils.NewBoolPointer(true)
+	}
+
+	liveProcessAgentNodeWantFuncWithScrubStripArgs := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+		mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+		// check volume mounts
+		wantVolumeMounts := []corev1.VolumeMount{
+			{
+				Name:      apicommon.PasswdVolumeName,
+				MountPath: apicommon.PasswdMountPath,
+				ReadOnly:  true,
+			},
+		}
+
+		processAgentMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.ProcessAgentContainerName]
+		assert.True(t, apiutils.IsEqualStruct(processAgentMounts, wantVolumeMounts), "Process Agent volume mounts \ndiff = %s", cmp.Diff(processAgentMounts, wantVolumeMounts))
+
+		// check volumes
+		wantVolumes := []corev1.Volume{
+			{
+				Name: apicommon.PasswdVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: apicommon.PasswdHostPath,
+					},
+				},
+			},
+		}
+
+		volumes := mgr.VolumeMgr.Volumes
+		assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))
+
+		// check env vars
+		wantEnvVars := []*corev1.EnvVar{
+			{
+				Name:  apicommon.DDProcessAgentEnabled,
+				Value: "true",
+			},
+			{
+				Name:  apicommon.DDProcessConfigScrubArgs,
+				Value: "true",
+			},
+			{
+				Name:  apicommon.DDProcessConfigStripArgs,
+				Value: "true",
+			},
+		}
+
+		processAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ProcessAgentContainerName]
+		assert.True(t, apiutils.IsEqualStruct(processAgentEnvVars, wantEnvVars), "Process Agent envvars \ndiff = %s", cmp.Diff(processAgentEnvVars, wantEnvVars))
+	}
+
 	tests := test.FeatureTestSuite{
 		///////////////////////////
 		// v1alpha1.DatadogAgent //
@@ -113,9 +169,9 @@ func Test_liveProcessFeature_Configure(t *testing.T) {
 			WantConfigure: true,
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(liveProcessAgentNodeWantFunc),
 		},
-		// ///////////////////////////
-		// // v2alpha1.DatadogAgent //
-		// ///////////////////////////
+		///////////////////////////
+		// v2alpha1.DatadogAgent //
+		///////////////////////////
 		{
 			Name:          "v2alpha1 live process collection not enabled",
 			DDAv2:         ddav2LiveProcessDisabled.DeepCopy(),
@@ -126,6 +182,12 @@ func Test_liveProcessFeature_Configure(t *testing.T) {
 			DDAv2:         ddav2LiveProcessEnabled,
 			WantConfigure: true,
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(liveProcessAgentNodeWantFunc),
+		},
+		{
+			Name:          "v2alpha1 live process collection enabled with scrub and strip args",
+			DDAv2:         ddav2LiveProcessEnabledWithScrubStripArgs,
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(liveProcessAgentNodeWantFuncWithScrubStripArgs),
 		},
 	}
 
