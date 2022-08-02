@@ -7,6 +7,7 @@ package override
 
 import (
 	"encoding/json"
+	"fmt"
 	"path/filepath"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
@@ -16,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/pkg/defaulting"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 
 	"github.com/go-logr/logr"
@@ -55,11 +57,22 @@ func ApplyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 	}
 
 	// Registry is the image registry to use for all Agent images.
-	for _, c := range manager.PodTemplateSpec().Spec.InitContainers {
-		c.Image = *config.Registry
-	}
-	for _, c := range manager.PodTemplateSpec().Spec.Containers {
-		c.Image = *config.Registry
+	if *config.Registry != apicommon.DefaultImageRegistry {
+		image := apicommon.DefaultAgentImageName
+		version := defaulting.AgentLatestVersion
+		if componentName == v2alpha1.ClusterAgentComponentName {
+			image = apicommon.DefaultClusterAgentImageName
+			version = defaulting.ClusterAgentLatestVersion
+		}
+		fullImage := fmt.Sprintf("%s/%s:%s", *config.Registry, image, version)
+
+		for idx, _ := range manager.PodTemplateSpec().Spec.InitContainers {
+			manager.PodTemplateSpec().Spec.InitContainers[idx].Image = fullImage
+		}
+
+		for idx, _ := range manager.PodTemplateSpec().Spec.Containers {
+			manager.PodTemplateSpec().Spec.Containers[idx].Image = fullImage
+		}
 	}
 
 	// LogLevel sets logging verbosity. This can be overridden by container.
