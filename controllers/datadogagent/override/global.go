@@ -66,11 +66,11 @@ func ApplyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 		}
 		fullImage := fmt.Sprintf("%s/%s:%s", *config.Registry, image, version)
 
-		for idx, _ := range manager.PodTemplateSpec().Spec.InitContainers {
+		for idx := range manager.PodTemplateSpec().Spec.InitContainers {
 			manager.PodTemplateSpec().Spec.InitContainers[idx].Image = fullImage
 		}
 
-		for idx, _ := range manager.PodTemplateSpec().Spec.Containers {
+		for idx := range manager.PodTemplateSpec().Spec.Containers {
 			manager.PodTemplateSpec().Spec.Containers[idx].Image = fullImage
 		}
 	}
