@@ -26032,7 +26032,8 @@ spec:
                         type: boolean
                       scrubProcessArguments:
                         description: 'ScrubProcessArguments enables scrubbing of sensitive
-                          data (passwords, tokens, etc. ). Default: true'
+                          data in process command-lines (passwords, tokens, etc. ).
+                          Default: true'
                         type: boolean
                       stripProcessArguments:
                         description: 'StripProcessArguments enables stripping of all

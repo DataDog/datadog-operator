@@ -171,7 +171,7 @@ type LiveProcessCollectionFeatureConfig struct {
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
-	// ScrubProcessArguments enables scrubbing of sensitive data (passwords, tokens, etc. ).
+	// ScrubProcessArguments enables scrubbing of sensitive data in process command-lines (passwords, tokens, etc. ).
 	// Default: true
 	// +optional
 	ScrubProcessArguments *bool `json:"scrubProcessArguments,omitempty"`

@@ -78,7 +78,7 @@ spec:
 | features.kubeStateMetricsCore.enabled | Enabled enables Kube State Metrics Core. Default: true |
 | features.liveContainerCollection.enabled | Enables container collection for the Live Container View. Default: true |
 | features.liveProcessCollection.enabled | Enabled enables Process monitoring. Default: false |
-| features.liveProcessCollection.scrubProcessArguments | ScrubProcessArguments enables scrubbing of sensitive data (passwords, tokens, etc. ). Default: true |
+| features.liveProcessCollection.scrubProcessArguments | ScrubProcessArguments enables scrubbing of sensitive data in process command-lines (passwords, tokens, etc. ). Default: true |
 | features.liveProcessCollection.stripProcessArguments | StripProcessArguments enables stripping of all process arguments. Default: false |
 | features.logCollection.containerCollectAll | ContainerCollectAll enables Log collection from all containers. Default: false |
 | features.logCollection.containerCollectUsingFiles | ContainerCollectUsingFiles enables log collection from files in `/var/log/pods instead` of using the container runtime API. Collecting logs from files is usually the most efficient way of collecting logs. See also: https://docs.datadoghq.com/agent/basic_agent_usage/kubernetes/#log-collection-setup Default: true |
