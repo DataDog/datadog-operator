@@ -141,11 +141,11 @@ func runTest(t *testing.T, tt FeatureTest, buildFunc feature.BuildFunc) {
 	}
 
 	if gotConfigure.IsEnabled() != tt.WantConfigure {
-		t.Errorf("feature.Configure() = %v, want %v", gotConfigure, tt.WantConfigure)
+		t.Errorf("feature.Configure() = %v, want %v", gotConfigure.IsEnabled(), tt.WantConfigure)
 	}
 
 	if !gotConfigure.IsEnabled() {
-		// If the feature is now enable return now
+		// If the feature is not enabled return now
 		return
 	}
 

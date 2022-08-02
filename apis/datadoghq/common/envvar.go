@@ -79,6 +79,8 @@ const (
 	DDPodLabelsAsTags                               = "DD_KUBERNETES_POD_LABELS_AS_TAGS"
 	DDPPMReceiverSocket                             = "DD_APM_RECEIVER_SOCKET"
 	DDProcessAgentEnabled                           = "DD_PROCESS_AGENT_ENABLED"
+	DDProcessConfigScrubArgs                        = "DD_PROCESS_CONFIG_SCRUB_ARGS"
+	DDProcessConfigStripArgs                        = "DD_PROCESS_CONFIG_STRIP_PROC_ARGUMENTS"
 	DDPrometheusScrapeChecks                        = "DD_PROMETHEUS_SCRAPE_CHECKS"
 	DDPrometheusScrapeEnabled                       = "DD_PROMETHEUS_SCRAPE_ENABLED"
 	DDPrometheusScrapeServiceEndpoints              = "DD_PROMETHEUS_SCRAPE_SERVICE_ENDPOINTS"
