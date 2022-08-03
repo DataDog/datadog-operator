@@ -19,10 +19,8 @@ func PodTemplateSpec(manager feature.PodTemplateManagers, override *v2alpha1.Dat
 
 	var errs []error
 	// Loop over container
-	for _, container := range override.Containers {
-		if _, err := Container(manager, container); err != nil {
-			errs = append(errs, err)
-		}
+	for agentContainerName, containerOverride := range override.Containers {
+		Container(agentContainerName, manager, containerOverride)
 	}
 
 	return nil, errors.NewAggregate(errs)
