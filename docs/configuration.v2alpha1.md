@@ -21,13 +21,15 @@ kind: DatadogAgent
 metadata:
   name: datadog
 spec:
-  credentials:
-    apiSecret:
-      secretName: datadog-secret
-      keyName: api-key
-    appSecret:
-      secretName: datadog-secret
-      keyName: app-key
+  global:
+    credentials:
+      apiSecret:
+        secretName: datadog-secret
+        keyName: api-key
+      appSecret:
+        secretName: datadog-secret
+        keyName: app-key
+
 ```
 
 | Parameter | Description |
