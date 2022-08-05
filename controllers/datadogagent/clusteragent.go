@@ -395,7 +395,7 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 
 	container := &newPodTemplate.Spec.Containers[0]
 	{
-		container.Image = getImage(clusterAgentSpec.Image, dda.Spec.Registry)
+		container.Image = apicommon.GetImage(clusterAgentSpec.Image, dda.Spec.Registry)
 		if clusterAgentSpec.Image.PullPolicy != nil {
 			container.ImagePullPolicy = *clusterAgentSpec.Image.PullPolicy
 		}

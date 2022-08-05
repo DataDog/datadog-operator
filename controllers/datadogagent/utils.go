@@ -16,7 +16,6 @@ import (
 	"time"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
-	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
@@ -26,8 +25,6 @@ import (
 	objectvolume "github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/orchestrator"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
-	"github.com/DataDog/datadog-operator/pkg/defaulting"
-
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	"github.com/go-logr/logr"
 	"github.com/gobwas/glob"
@@ -84,7 +81,7 @@ func newAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent
 		annotations[key] = val
 	}
 
-	image := getImage(dda.Spec.Agent.Image, dda.Spec.Registry)
+	image := apicommon.GetImage(dda.Spec.Agent.Image, dda.Spec.Registry)
 	containers := []corev1.Container{}
 	agentContainer, err := getAgentContainer(logger, dda, image)
 	if err != nil {
@@ -2305,22 +2302,6 @@ func addBoolPointerEnVar(b *bool, varName string, varList []corev1.EnvVar) []cor
 	}
 
 	return varList
-}
-
-// getImage builds the image string based on ImageConfig and the registry configuration.
-func getImage(imageSpec *commonv1.AgentImageConfig, registry *string) string {
-	if defaulting.IsImageNameContainsTag(imageSpec.Name) {
-		// The image name corresponds to a full image string
-		return imageSpec.Name
-	}
-
-	img := defaulting.NewImage(imageSpec.Name, imageSpec.Tag, imageSpec.JMXEnabled)
-
-	if registry != nil {
-		defaulting.WithRegistry(defaulting.ContainerRegistry(*registry))(img)
-	}
-
-	return img.String()
 }
 
 // getReplicas returns the desired replicas of a
