@@ -16,7 +16,7 @@ resource. For example, if you wanted to set a value for `agent.image.name`,
 your `DatadogAgent` resource would look like the following:
 
 ```yaml
-apiVersion: datadoghq.com/v1alpha1
+apiVersion: datadoghq.com/v2alpha1
 kind: DatadogAgent
 metadata:
   name: datadog
