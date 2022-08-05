@@ -15,6 +15,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	"github.com/go-logr/logr"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -22,15 +23,25 @@ import (
 func (r *Reconciler) reconcileV2Agent(logger logr.Logger, features []feature.Feature, dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, newStatus *datadoghqv2alpha1.DatadogAgentStatus, requiredContainers []common.AgentContainerName) (reconcile.Result, error) {
 	var result reconcile.Result
 	var err error
+	var eds *edsv1alpha1.ExtendedDaemonSet
+	var daemonset *appsv1.DaemonSet
+	var podManagers feature.PodTemplateManagers
 
-	// TODO for now only support Daemonset (not EDS)
+	if r.options.SupportExtendedDaemonset {
+		// Start by creating the Default Agent extendeddaemonset
+		eds = componentagent.NewDefaultAgentExtendedDaemonset(dda, requiredContainers)
+		podManagers = feature.NewPodTemplateManagers(&eds.Spec.Template)
 
-	// Start by creating the Default Cluster-Agent deployment
-	daemonset := componentagent.NewDefaultAgentDaemonset(dda, requiredContainers)
-	podManagers := feature.NewPodTemplateManagers(&daemonset.Spec.Template)
+		// Set Global setting on the default extendeddaemonset
+		eds.Spec.Template = *override.ApplyGlobalSettings(logger, podManagers, dda, resourcesManager, datadoghqv2alpha1.NodeAgentComponentName)
+	} else {
+		// Start by creating the Default Agent daemonset
+		daemonset = componentagent.NewDefaultAgentDaemonset(dda, requiredContainers)
+		podManagers = feature.NewPodTemplateManagers(&daemonset.Spec.Template)
 
-	// Set Global setting on the default deployment
-	daemonset.Spec.Template = *override.ApplyGlobalSettings(logger, podManagers, dda, resourcesManager, datadoghqv2alpha1.NodeAgentComponentName)
+		// Set Global setting on the default daemonset
+		daemonset.Spec.Template = *override.ApplyGlobalSettings(logger, podManagers, dda, resourcesManager, datadoghqv2alpha1.NodeAgentComponentName)
+	}
 
 	// Apply features changes on the Deployment.Spec.Template
 	for _, feat := range features {
@@ -39,7 +50,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, features []feature.Fea
 		}
 	}
 
-	// If Override is define for the cluster-checks-runner component, apply the override on the PodTemplateSpec, it will cascade to container.
+	// If Override is defined for the node agent component, apply the override on the PodTemplateSpec, it will cascade to container.
 	if _, ok := dda.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName]; ok {
 		_, err = override.PodTemplateSpec(podManagers, dda.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName])
 		if err != nil {
@@ -48,10 +59,18 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, features []feature.Fea
 	}
 
 	daemonsetLogger := logger.WithValues("component", datadoghqv2alpha1.NodeAgentComponentName)
-	return r.createOrUpdateDaemonset(daemonsetLogger, dda, daemonset, newStatus, updateStatusV2WithAgent)
+	if r.options.SupportExtendedDaemonset {
+		return r.createOrUpdateExtendedDaemonset(daemonsetLogger, dda, eds, newStatus, updateEDSStatusV2WithAgent)
+	}
+	return r.createOrUpdateDaemonset(daemonsetLogger, dda, daemonset, newStatus, updateDSStatusV2WithAgent)
 }
 
-func updateStatusV2WithAgent(dda *appsv1.DaemonSet, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
+func updateDSStatusV2WithAgent(dda *appsv1.DaemonSet, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
 	newStatus.Agent = datadoghqv2alpha1.UpdateDaemonSetStatus(dda, newStatus.Agent, &updateTime)
+	datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(newStatus, updateTime, datadoghqv2alpha1.AgentReconcileConditionType, status, reason, message, true)
+}
+
+func updateEDSStatusV2WithAgent(eds *edsv1alpha1.ExtendedDaemonSet, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
+	newStatus.Agent = datadoghqv2alpha1.UpdateExtendedDaemonSetStatus(eds, newStatus.Agent, &updateTime)
 	datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(newStatus, updateTime, datadoghqv2alpha1.AgentReconcileConditionType, status, reason, message, true)
 }

@@ -8,6 +8,8 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 )
 
 // DatadogAgentState type representing the deployment state of the different Agent components.
@@ -179,5 +181,40 @@ func UpdateDaemonSetStatus(ds *appsv1.DaemonSet, dsStatus *DaemonSetStatus, upda
 	dsStatus.State = fmt.Sprintf("%v", deploymentState)
 	dsStatus.Status = fmt.Sprintf("%v (%d/%d/%d)", deploymentState, dsStatus.Desired, dsStatus.Ready, dsStatus.UpToDate)
 	dsStatus.DaemonsetName = ds.ObjectMeta.Name
+	return dsStatus
+}
+
+// UpdateExtendedDaemonSetStatus updates an ExtendedDaemonSet's DaemonSetStatus
+func UpdateExtendedDaemonSetStatus(eds *edsdatadoghqv1alpha1.ExtendedDaemonSet, dsStatus *DaemonSetStatus, updateTime *metav1.Time) *DaemonSetStatus {
+	if dsStatus == nil {
+		dsStatus = &DaemonSetStatus{}
+	}
+	if updateTime != nil {
+		dsStatus.LastUpdate = updateTime
+	}
+	if hash, ok := eds.Annotations[apicommon.MD5AgentDeploymentAnnotationKey]; ok {
+		dsStatus.CurrentHash = hash
+	}
+	dsStatus.Desired = eds.Status.Desired
+	dsStatus.Current = eds.Status.Current
+	dsStatus.Ready = eds.Status.Ready
+	dsStatus.Available = eds.Status.Available
+	dsStatus.UpToDate = eds.Status.UpToDate
+
+	var deploymentState DatadogAgentState
+	switch {
+	case eds.Status.Canary != nil:
+		deploymentState = DatadogAgentStateCanary
+	case dsStatus.UpToDate != dsStatus.Desired:
+		deploymentState = DatadogAgentStateUpdating
+	case dsStatus.Ready == 0:
+		deploymentState = DatadogAgentStateProgressing
+	default:
+		deploymentState = DatadogAgentStateRunning
+	}
+
+	dsStatus.State = fmt.Sprintf("%v", deploymentState)
+	dsStatus.Status = fmt.Sprintf("%v (%d/%d/%d)", deploymentState, dsStatus.Desired, dsStatus.Ready, dsStatus.UpToDate)
+	dsStatus.DaemonsetName = eds.ObjectMeta.Name
 	return dsStatus
 }
