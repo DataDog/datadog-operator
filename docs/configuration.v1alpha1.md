@@ -12,7 +12,7 @@
 ## All configuration options
 
 The following table lists the configurable parameters for the `DatadogAgent`
-resource. For example, if you wanted to set a value for `agent.image.name`,
+resource. For example, if you wanted to set a value for `clusterName`,
 your `DatadogAgent` resource would look like the following:
 
 ```yaml
@@ -21,6 +21,7 @@ kind: DatadogAgent
 metadata:
   name: datadog
 spec:
+  clusterName: my-test-cluster
   credentials:
     apiSecret:
       secretName: datadog-secret
