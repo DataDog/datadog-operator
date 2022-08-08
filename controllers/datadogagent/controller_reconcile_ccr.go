@@ -36,11 +36,13 @@ func (r *Reconciler) reconcileV2ClusterChecksRunner(logger logr.Logger, features
 	}
 
 	// If Override is define for the cluster-checks-runner component, apply the override on the PodTemplateSpec, it will cascade to container.
-	if _, ok := dda.Spec.Override[datadoghqv2alpha1.ClusterChecksRunnerComponentName]; ok {
-		_, err = override.PodTemplateSpec(podManagers, dda.Spec.Override[datadoghqv2alpha1.ClusterChecksRunnerComponentName])
+	if componentOverride, ok := dda.Spec.Override[datadoghqv2alpha1.ClusterChecksRunnerComponentName]; ok {
+		_, err = override.PodTemplateSpec(podManagers, componentOverride)
 		if err != nil {
 			return result, err
 		}
+
+		override.Deployment(deployment, componentOverride)
 	}
 
 	deploymentLogger := logger.WithValues("component", datadoghqv2alpha1.ClusterChecksRunnerReconcileConditionType)

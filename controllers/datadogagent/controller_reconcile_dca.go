@@ -36,11 +36,13 @@ func (r *Reconciler) reconcileV2ClusterAgent(logger logr.Logger, features []feat
 	}
 
 	// If Override is define for the cluster-agent component, apply the override on the PodTemplateSpec, it will cascade to container.
-	if _, ok := dda.Spec.Override[datadoghqv2alpha1.ClusterAgentComponentName]; ok {
-		_, err = override.PodTemplateSpec(podManagers, dda.Spec.Override[datadoghqv2alpha1.ClusterAgentComponentName])
+	if componentOverride, ok := dda.Spec.Override[datadoghqv2alpha1.ClusterAgentComponentName]; ok {
+		_, err = override.PodTemplateSpec(podManagers, componentOverride)
 		if err != nil {
 			return result, err
 		}
+
+		override.Deployment(deployment, componentOverride)
 	}
 
 	deploymentLogger := logger.WithValues("component", datadoghqv2alpha1.ClusterAgentComponentName)
