@@ -22,13 +22,18 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+const (
+	apmSocketHostPath = "/var/run/datadog/apm"
+	apmSocketPath     = "/var/run/datadog/apm/apm.sock"
+)
+
 func TestAPMFeature(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		//////////////////////////
 		// v1Alpha1.DatadogAgent
 		//////////////////////////
 		{
-			Name:          "v1alpha1 apm not enable",
+			Name:          "v1alpha1 apm not enabled",
 			DDAv1:         newV1Agent(false, false),
 			WantConfigure: false,
 		},
@@ -79,7 +84,7 @@ func newV1Agent(enableAPM bool, uds bool) *v1alpha1.DatadogAgent {
 					HostPort: apiutils.NewInt32Pointer(8126),
 					UnixDomainSocket: &v1alpha1.APMUnixDomainSocketSpec{
 						Enabled:      apiutils.NewBoolPointer(uds),
-						HostFilepath: apiutils.NewStringPointer("/var/run/datadog/apm/apm.sock"),
+						HostFilepath: apiutils.NewStringPointer(apmSocketPath),
 					},
 				},
 			},
@@ -99,7 +104,7 @@ func newV2Agent(enableAPM bool, hostPort bool) *v2alpha1.DatadogAgent {
 					},
 					UnixDomainSocketConfig: &v2alpha1.UnixDomainSocketConfig{
 						Enabled: apiutils.NewBoolPointer(true),
-						Path:    apiutils.NewStringPointer("/var/run/datadog/apm/apm.sock"),
+						Path:    apiutils.NewStringPointer(apmSocketPath),
 					},
 				},
 			},
@@ -165,7 +170,7 @@ func testAgentUDSOnly() *test.ComponentTest {
 				},
 				{
 					Name:  apicommon.DDAPMReceiverSocket,
-					Value: "/var/run/datadog/apm/apm.sock",
+					Value: apmSocketPath,
 				},
 			}
 			assert.True(
@@ -178,7 +183,7 @@ func testAgentUDSOnly() *test.ComponentTest {
 			expectedVolumeMounts := []corev1.VolumeMount{
 				{
 					Name:      "apmsocket",
-					MountPath: "/var/run/datadog/apm",
+					MountPath: apmSocketHostPath,
 					ReadOnly:  false,
 				},
 			}
@@ -194,7 +199,7 @@ func testAgentUDSOnly() *test.ComponentTest {
 					Name: "apmsocket",
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: "/var/run/datadog/apm",
+							Path: apmSocketHostPath,
 						},
 					},
 				},
@@ -243,7 +248,7 @@ func testAgentHostPortUDS() *test.ComponentTest {
 				},
 				{
 					Name:  apicommon.DDAPMReceiverSocket,
-					Value: "/var/run/datadog/apm/apm.sock",
+					Value: apmSocketPath,
 				},
 			}
 			assert.True(
@@ -256,7 +261,7 @@ func testAgentHostPortUDS() *test.ComponentTest {
 			expectedVolumeMounts := []corev1.VolumeMount{
 				{
 					Name:      "apmsocket",
-					MountPath: "/var/run/datadog/apm",
+					MountPath: apmSocketHostPath,
 					ReadOnly:  false,
 				},
 			}
@@ -272,7 +277,7 @@ func testAgentHostPortUDS() *test.ComponentTest {
 					Name: "apmsocket",
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: "/var/run/datadog/apm",
+							Path: apmSocketHostPath,
 						},
 					},
 				},

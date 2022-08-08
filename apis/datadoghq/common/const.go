@@ -161,10 +161,6 @@ const (
 	AgentCustomConfigVolumePath = "/etc/datadog-agent/datadog.yaml"
 	SystemProbeConfigVolumePath = "/etc/datadog-agent/system-probe.yaml"
 
-	// Service Internal Traffic Policy exists in Kube 1.21 but it is enabled by default since 1.22
-	LocalServiceMinimumVersion        = "1.21-0"
-	LocalServiceDefaultMinimumVersion = "1.22-0"
-
 	LogDatadogVolumeName                         = "logdatadog"
 	LogDatadogVolumePath                         = "/var/log/datadog"
 	TmpVolumeName                                = "tmp"

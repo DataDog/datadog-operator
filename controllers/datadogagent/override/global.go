@@ -18,7 +18,6 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
-	"github.com/DataDog/datadog-operator/pkg/utils"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"

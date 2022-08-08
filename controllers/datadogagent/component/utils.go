@@ -20,6 +20,11 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/utils"
 )
 
+const (
+	localServiceMinimumVersion        = "1.21-0"
+	localServiceDefaultMinimumVersion = "1.22-0"
+)
+
 // GetVolumeForConfig return the volume that contains the agent config
 func GetVolumeForConfig() corev1.Volume {
 	return corev1.Volume{
@@ -470,6 +475,6 @@ func BuildAgentLocalService(dda metav1.Object, name string) (string, string, map
 
 // ShouldCreateAgentLocalService returns whether the node agent local service should be created based on the Kubernetes version
 func ShouldCreateAgentLocalService(gitVersion string, forceEnableLocalService bool) bool {
-	// Service Internal Traffic Policy is enabled by default since 1.22
-	return utils.IsAboveMinVersion(gitVersion, apicommon.LocalServiceDefaultMinimumVersion) || (utils.IsAboveMinVersion(gitVersion, apicommon.LocalServiceMinimumVersion) && forceEnableLocalService)
+	// Service Internal Traffic Policy exists in Kube 1.21 but it is enabled by default since 1.22
+	return utils.IsAboveMinVersion(gitVersion, localServiceDefaultMinimumVersion) || (utils.IsAboveMinVersion(gitVersion, localServiceMinimumVersion) && forceEnableLocalService)
 }

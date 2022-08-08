@@ -21,6 +21,14 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+const (
+	v1DogstatsdSocketName = "statsd.sock"
+	v1DogstatsdSocketPath = "/var/run/datadog"
+	v2DogstatsdSocketPath = "/var/run/datadog/statsd/dsd.socket"
+	customVolumePath      = "/custom/host"
+	customPath            = "/custom/host/filepath"
+)
+
 func Test_DogstatsdFeature_Configure(t *testing.T) {
 	customMapperProfilesConf := `- name: 'profile_name'
   prefix: 'profile_prefix'
@@ -46,7 +54,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 	ddav1DogstatsdUDSEnabled.Spec.Agent.Config.Dogstatsd.UnixDomainSocket.Enabled = apiutils.NewBoolPointer(true)
 
 	ddav1DogstatsdUDSCustomHostFilepath := ddav1DogstatsdUDSEnabled.DeepCopy()
-	ddav1DogstatsdUDSCustomHostFilepath.Spec.Agent.Config.Dogstatsd.UnixDomainSocket.HostFilepath = apiutils.NewStringPointer("/custom/host/filepath")
+	ddav1DogstatsdUDSCustomHostFilepath.Spec.Agent.Config.Dogstatsd.UnixDomainSocket.HostFilepath = apiutils.NewStringPointer(customPath)
 
 	ddav1DogstatsdUDSOriginDetection := ddav1DogstatsdUDSEnabled.DeepCopy()
 	ddav1DogstatsdUDSOriginDetection.Spec.Agent.Config.Dogstatsd.DogstatsdOriginDetection = apiutils.NewBoolPointer(true)
@@ -75,7 +83,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 	v2alpha1.DefaultDatadogAgent(ddav2DogstatsdUDSDisabled)
 
 	ddav2DogstatsdUDSCustomHostFilepath := ddav2DogstatsdUDPDisabled.DeepCopy()
-	ddav2DogstatsdUDSCustomHostFilepath.Spec.Features.Dogstatsd.UnixDomainSocketConfig.Path = apiutils.NewStringPointer("/custom/host/filepath")
+	ddav2DogstatsdUDSCustomHostFilepath.Spec.Features.Dogstatsd.UnixDomainSocketConfig.Path = apiutils.NewStringPointer(customPath)
 	v2alpha1.DefaultDatadogAgent(ddav2DogstatsdUDSCustomHostFilepath)
 
 	ddav2DogstatsdUDSOriginDetection := ddav2DogstatsdUDPDisabled.DeepCopy()
@@ -90,7 +98,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 	wantVolumeMountsV1 := []corev1.VolumeMount{
 		{
 			Name:      apicommon.DogstatsdSocketVolumeName,
-			MountPath: "/var/run/datadog",
+			MountPath: v1DogstatsdSocketPath,
 			ReadOnly:  true,
 		},
 	}
@@ -98,7 +106,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 	wantVolumeMounts := []corev1.VolumeMount{
 		{
 			Name:      apicommon.DogstatsdSocketVolumeName,
-			MountPath: "/var/run/datadog/statsd",
+			MountPath: apicommon.DogstatsdSocketVolumePath,
 			ReadOnly:  true,
 		},
 	}
@@ -109,7 +117,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 			Name: apicommon.DogstatsdSocketVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/var/run/datadog",
+					Path: v1DogstatsdSocketPath,
 				},
 			},
 		},
@@ -121,7 +129,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 			Name: apicommon.DogstatsdSocketVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/var/run/datadog/statsd",
+					Path: apicommon.DogstatsdSocketVolumePath,
 				},
 			},
 		},
@@ -139,7 +147,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 	wantUDSEnvVarsV1 := []*corev1.EnvVar{
 		{
 			Name:  apicommon.DDDogstatsdSocket,
-			Value: "/var/run/datadog/statsd.sock",
+			Value: v1DogstatsdSocketPath + "/" + v1DogstatsdSocketName,
 		},
 	}
 
@@ -147,7 +155,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 	wantUDSEnvVarsV2 := []*corev1.EnvVar{
 		{
 			Name:  apicommon.DDDogstatsdSocket,
-			Value: "/var/run/datadog/statsd/dsd.socket",
+			Value: v2DogstatsdSocketPath,
 		},
 	}
 
@@ -166,7 +174,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 	// custom uds filepath envvar
 	customFilepathEnvVar := corev1.EnvVar{
 		Name:  apicommon.DDDogstatsdSocket,
-		Value: "/custom/host/filepath",
+		Value: customPath,
 	}
 
 	// v1alpha1 default udp port
@@ -284,7 +292,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 					customVolumeMounts := []corev1.VolumeMount{
 						{
 							Name:      apicommon.DogstatsdSocketVolumeName,
-							MountPath: "/custom/host",
+							MountPath: customVolumePath,
 							ReadOnly:  true,
 						},
 					}
@@ -295,7 +303,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 							Name: apicommon.DogstatsdSocketVolumeName,
 							VolumeSource: corev1.VolumeSource{
 								HostPath: &corev1.HostPathVolumeSource{
-									Path: "/custom/host",
+									Path: customVolumePath,
 								},
 							},
 						},
@@ -446,7 +454,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 					customVolumeMounts := []corev1.VolumeMount{
 						{
 							Name:      apicommon.DogstatsdSocketVolumeName,
-							MountPath: "/custom/host",
+							MountPath: customVolumePath,
 							ReadOnly:  true,
 						},
 					}
@@ -457,7 +465,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 							Name: apicommon.DogstatsdSocketVolumeName,
 							VolumeSource: corev1.VolumeSource{
 								HostPath: &corev1.HostPathVolumeSource{
-									Path: "/custom/host",
+									Path: customVolumePath,
 								},
 							},
 						},

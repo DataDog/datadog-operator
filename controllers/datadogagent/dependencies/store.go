@@ -275,6 +275,7 @@ func (ds *Store) Cleanup(ctx context.Context, k8sClient client.Client, ddaNs, dd
 
 // GetVersionInfo returns the Kubernetes version
 func (ds *Store) GetVersionInfo() string {
+	// versionInfo may not be set in tests
 	if ds.versionInfo != nil {
 		return ds.versionInfo.GitVersion
 	}
