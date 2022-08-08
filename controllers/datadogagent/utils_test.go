@@ -20,45 +20,6 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-func generateSpec() *datadoghqv1alpha1.DatadogAgent {
-	var boolPtr bool
-	var intPtr int32
-	dda := &datadoghqv1alpha1.DatadogAgent{
-		Spec: datadoghqv1alpha1.DatadogAgentSpec{
-			Features: datadoghqv1alpha1.DatadogFeatures{
-				KubeStateMetricsCore: &datadoghqv1alpha1.KubeStateMetricsCore{},
-				LogCollection: &datadoghqv1alpha1.LogCollectionConfig{
-					Enabled:                       &boolPtr,
-					LogsConfigContainerCollectAll: &boolPtr,
-					ContainerCollectUsingFiles:    &boolPtr,
-					OpenFilesLimit:                &intPtr,
-				},
-			},
-			ClusterAgent: datadoghqv1alpha1.DatadogAgentSpecClusterAgentSpec{
-				CustomConfig: &datadoghqv1alpha1.CustomConfigSpec{},
-				Affinity:     &v1.Affinity{},
-				Replicas:     &intPtr,
-			},
-			Agent: datadoghqv1alpha1.DatadogAgentSpecAgentSpec{
-				Config: &datadoghqv1alpha1.NodeAgentConfig{
-					PodAnnotationsAsTags: map[string]string{},
-					PodLabelsAsTags:      map[string]string{},
-					CollectEvents:        &boolPtr,
-					LeaderElection:       &boolPtr,
-					Dogstatsd: &datadoghqv1alpha1.DogstatsdConfig{
-						DogstatsdOriginDetection: &boolPtr,
-						UnixDomainSocket: &datadoghqv1alpha1.DSDUnixDomainSocketSpec{
-							Enabled: &boolPtr,
-						},
-					},
-				},
-			},
-		},
-	}
-	_ = datadoghqv1alpha1.DefaultDatadogAgent(dda)
-	return dda
-}
-
 func Test_getLocalFilepath(t *testing.T) {
 	type args struct {
 		filePath  string
