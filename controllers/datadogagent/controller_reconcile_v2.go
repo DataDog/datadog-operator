@@ -87,6 +87,9 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	var result reconcile.Result
 
 	features, requiredComponents := feature.BuildFeatures(instance, reconcilerOptionsToFeatureOptions(&r.options, logger))
+
+	override.RequiredComponents(&requiredComponents, instance.Spec.Override)
+
 	logger.Info("requiredComponents status:", "agent", requiredComponents.Agent.IsEnabled(), "cluster-agent", requiredComponents.ClusterAgent.IsEnabled(), "cluster-checks-runner", requiredComponents.ClusterChecksRunner.IsEnabled())
 
 	// -----------------------
