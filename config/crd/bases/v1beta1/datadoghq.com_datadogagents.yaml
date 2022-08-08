@@ -26030,6 +26030,15 @@ spec:
                         description: 'Enabled enables Process monitoring. Default:
                           false'
                         type: boolean
+                      scrubProcessArguments:
+                        description: 'ScrubProcessArguments enables scrubbing of sensitive
+                          data in process command-lines (passwords, tokens, etc. ).
+                          Default: true'
+                        type: boolean
+                      stripProcessArguments:
+                        description: 'StripProcessArguments enables stripping of all
+                          process arguments. Default: false'
+                        type: boolean
                     type: object
                   logCollection:
                     description: LogCollection configuration.

@@ -17,6 +17,8 @@ const (
 	EventCollectionIDType = "event_collection"
 	// KubernetesStateCoreIDType Kubernetes state core check feature.
 	KubernetesStateCoreIDType = "ksm"
+	// LiveProcessIDType Live Process feature.
+	LiveProcessIDType = "live_process"
 	// OrchestratorExplorerIDType Orchestrator Explorer feature.
 	OrchestratorExplorerIDType = "orchestrator_explorer"
 	// LogCollectionIDType Log Collection feature.

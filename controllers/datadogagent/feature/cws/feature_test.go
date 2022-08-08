@@ -123,10 +123,6 @@ func Test_cwsFeature_Configure(t *testing.T) {
 				Name:  apicommon.DDRuntimeSecurityConfigPoliciesDir,
 				Value: apicommon.SecurityAgentRuntimePoliciesDirVolumePath,
 			},
-			{
-				Name:  apicommon.DDAuthTokenFilePath,
-				Value: "/etc/datadog-agent/auth/token",
-			},
 		}
 		securityAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.SecurityAgentContainerName]
 		assert.True(t, apiutils.IsEqualStruct(securityAgentEnvVars, securityWant), "Security agent envvars \ndiff = %s", cmp.Diff(securityAgentEnvVars, securityWant))

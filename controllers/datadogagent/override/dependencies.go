@@ -9,7 +9,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/errors"
 
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 )
 
@@ -23,7 +22,7 @@ func Dependencies(manager feature.ResourceManagers, overrides map[v2alpha1.Compo
 
 func overrideComponentDependencies(manager feature.ResourceManagers, override *v2alpha1.DatadogAgentComponentOverride, component v2alpha1.ComponentName, namespace string) error {
 	var errs []error
-	if !apiutils.BoolValue(override.CreateRbac) {
+	if override.CreateRbac != nil && !*override.CreateRbac {
 		rbacManager := manager.RBACManager()
 		errs = append(errs, rbacManager.DeleteServiceAccountByComponent(string(component), namespace))
 		errs = append(errs, rbacManager.DeleteRoleByComponent(string(component), namespace))

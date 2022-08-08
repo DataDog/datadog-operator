@@ -170,6 +170,16 @@ type LiveProcessCollectionFeatureConfig struct {
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+
+	// ScrubProcessArguments enables scrubbing of sensitive data in process command-lines (passwords, tokens, etc. ).
+	// Default: true
+	// +optional
+	ScrubProcessArguments *bool `json:"scrubProcessArguments,omitempty"`
+
+	// StripProcessArguments enables stripping of all process arguments.
+	// Default: false
+	// +optional
+	StripProcessArguments *bool `json:"stripProcessArguments,omitempty"`
 }
 
 // LiveContainerCollectionFeatureConfig contains Container Collection configuration.
