@@ -15,7 +15,10 @@ import (
 // Dependencies is used to override any resource/dependency settings with a v2alpha1.DatadogAgentComponentOverride.
 func Dependencies(manager feature.ResourceManagers, overrides map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride, namespace string) (errs []error) {
 	for component, override := range overrides {
-		errs = append(errs, overrideComponentDependencies(manager, override, component, namespace))
+		err := overrideComponentDependencies(manager, override, component, namespace)
+		if err != nil {
+			errs = append(errs, err)
+		}
 	}
 	return errs
 }
