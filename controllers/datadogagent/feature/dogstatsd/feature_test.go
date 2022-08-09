@@ -21,6 +21,14 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+const (
+	v1DogstatsdSocketName = "statsd.sock"
+	v1DogstatsdSocketPath = "/var/run/datadog"
+	v2DogstatsdSocketPath = "/var/run/datadog/statsd/dsd.socket"
+	customVolumePath      = "/custom/host"
+	customPath            = "/custom/host/filepath"
+)
+
 func Test_DogstatsdFeature_Configure(t *testing.T) {
 	customMapperProfilesConf := `- name: 'profile_name'
   prefix: 'profile_prefix'
@@ -46,7 +54,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 	ddav1DogstatsdUDSEnabled.Spec.Agent.Config.Dogstatsd.UnixDomainSocket.Enabled = apiutils.NewBoolPointer(true)
 
 	ddav1DogstatsdUDSCustomHostFilepath := ddav1DogstatsdUDSEnabled.DeepCopy()
-	ddav1DogstatsdUDSCustomHostFilepath.Spec.Agent.Config.Dogstatsd.UnixDomainSocket.HostFilepath = apiutils.NewStringPointer("/custom/host/filepath")
+	ddav1DogstatsdUDSCustomHostFilepath.Spec.Agent.Config.Dogstatsd.UnixDomainSocket.HostFilepath = apiutils.NewStringPointer(customPath)
 
 	ddav1DogstatsdUDSOriginDetection := ddav1DogstatsdUDSEnabled.DeepCopy()
 	ddav1DogstatsdUDSOriginDetection.Spec.Agent.Config.Dogstatsd.DogstatsdOriginDetection = apiutils.NewBoolPointer(true)
@@ -75,7 +83,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 	v2alpha1.DefaultDatadogAgent(ddav2DogstatsdUDSDisabled)
 
 	ddav2DogstatsdUDSCustomHostFilepath := ddav2DogstatsdUDPDisabled.DeepCopy()
-	ddav2DogstatsdUDSCustomHostFilepath.Spec.Features.Dogstatsd.UnixDomainSocketConfig.Path = apiutils.NewStringPointer("/custom/host/filepath")
+	ddav2DogstatsdUDSCustomHostFilepath.Spec.Features.Dogstatsd.UnixDomainSocketConfig.Path = apiutils.NewStringPointer(customPath)
 	v2alpha1.DefaultDatadogAgent(ddav2DogstatsdUDSCustomHostFilepath)
 
 	ddav2DogstatsdUDSOriginDetection := ddav2DogstatsdUDPDisabled.DeepCopy()
@@ -89,16 +97,16 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 	// v1alpha1 default uds volume mount
 	wantVolumeMountsV1 := []corev1.VolumeMount{
 		{
-			Name:      apicommon.DogstatsdUDSSocketName,
-			MountPath: apicommon.DogstatsdUDSHostFilepathV1,
+			Name:      apicommon.DogstatsdSocketVolumeName,
+			MountPath: v1DogstatsdSocketPath,
 			ReadOnly:  true,
 		},
 	}
 	// v2alpha1 default uds volume mount
-	wantVolumeMountsV2 := []corev1.VolumeMount{
+	wantVolumeMounts := []corev1.VolumeMount{
 		{
-			Name:      apicommon.DogstatsdUDSSocketName,
-			MountPath: apicommon.DogstatsdUDSHostFilepathV2,
+			Name:      apicommon.DogstatsdSocketVolumeName,
+			MountPath: apicommon.DogstatsdSocketVolumePath,
 			ReadOnly:  true,
 		},
 	}
@@ -106,22 +114,22 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 	// v1alpha1 default uds volume
 	wantVolumesV1 := []corev1.Volume{
 		{
-			Name: apicommon.DogstatsdUDSSocketName,
+			Name: apicommon.DogstatsdSocketVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: apicommon.DogstatsdUDSHostFilepathV1,
+					Path: v1DogstatsdSocketPath,
 				},
 			},
 		},
 	}
 
 	// v2alpha1 default uds volume
-	wantVolumesV2 := []corev1.Volume{
+	wantVolumes := []corev1.Volume{
 		{
-			Name: apicommon.DogstatsdUDSSocketName,
+			Name: apicommon.DogstatsdSocketVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: apicommon.DogstatsdUDSHostFilepathV2,
+					Path: apicommon.DogstatsdSocketVolumePath,
 				},
 			},
 		},
@@ -139,7 +147,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 	wantUDSEnvVarsV1 := []*corev1.EnvVar{
 		{
 			Name:  apicommon.DDDogstatsdSocket,
-			Value: apicommon.DogstatsdUDSHostFilepathV1,
+			Value: v1DogstatsdSocketPath + "/" + v1DogstatsdSocketName,
 		},
 	}
 
@@ -147,7 +155,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 	wantUDSEnvVarsV2 := []*corev1.EnvVar{
 		{
 			Name:  apicommon.DDDogstatsdSocket,
-			Value: apicommon.DogstatsdUDSHostFilepathV2,
+			Value: v2DogstatsdSocketPath,
 		},
 	}
 
@@ -166,7 +174,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 	// custom uds filepath envvar
 	customFilepathEnvVar := corev1.EnvVar{
 		Name:  apicommon.DDDogstatsdSocket,
-		Value: "/custom/host/filepath",
+		Value: customPath,
 	}
 
 	// v1alpha1 default udp port
@@ -283,8 +291,8 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					customVolumeMounts := []corev1.VolumeMount{
 						{
-							Name:      apicommon.DogstatsdUDSSocketName,
-							MountPath: "/custom/host/filepath",
+							Name:      apicommon.DogstatsdSocketVolumeName,
+							MountPath: customVolumePath,
 							ReadOnly:  true,
 						},
 					}
@@ -292,10 +300,10 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 					volumes := mgr.VolumeMgr.Volumes
 					customVolumes := []corev1.Volume{
 						{
-							Name: apicommon.DogstatsdUDSSocketName,
+							Name: apicommon.DogstatsdSocketVolumeName,
 							VolumeSource: corev1.VolumeSource{
 								HostPath: &corev1.HostPathVolumeSource{
-									Path: "/custom/host/filepath",
+									Path: customVolumePath,
 								},
 							},
 						},
@@ -359,9 +367,9 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
-					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMountsV2), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMountsV2))
+					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMounts), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMounts))
 					volumes := mgr.VolumeMgr.Volumes
-					assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumesV2), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumesV2))
+					assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))
 					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
 					customEnvVars := append(wantUDPEnvVars, wantUDSEnvVarsV2...)
 					assert.True(t, apiutils.IsEqualStruct(agentEnvVars, customEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, customEnvVars))
@@ -378,9 +386,9 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
-					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMountsV2), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMountsV2))
+					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMounts), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMounts))
 					volumes := mgr.VolumeMgr.Volumes
-					assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumesV2), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumesV2))
+					assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))
 					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
 					customEnvVars := append(wantUDPEnvVars, wantUDSEnvVarsV2...)
 					assert.True(t, apiutils.IsEqualStruct(agentEnvVars, customEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, customEnvVars))
@@ -405,9 +413,9 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
-					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMountsV2), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMountsV2))
+					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMounts), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMounts))
 					volumes := mgr.VolumeMgr.Volumes
-					assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumesV2), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumesV2))
+					assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))
 					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
 					customEnvVars := append(wantUDPEnvVars, wantUDSEnvVarsV2...)
 					customEnvVars = append(customEnvVars, &originDetectionEnvVar)
@@ -445,8 +453,8 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					customVolumeMounts := []corev1.VolumeMount{
 						{
-							Name:      apicommon.DogstatsdUDSSocketName,
-							MountPath: "/custom/host/filepath",
+							Name:      apicommon.DogstatsdSocketVolumeName,
+							MountPath: customVolumePath,
 							ReadOnly:  true,
 						},
 					}
@@ -454,10 +462,10 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 					volumes := mgr.VolumeMgr.Volumes
 					customVolumes := []corev1.Volume{
 						{
-							Name: apicommon.DogstatsdUDSSocketName,
+							Name: apicommon.DogstatsdSocketVolumeName,
 							VolumeSource: corev1.VolumeSource{
 								HostPath: &corev1.HostPathVolumeSource{
-									Path: "/custom/host/filepath",
+									Path: customVolumePath,
 								},
 							},
 						},
@@ -479,9 +487,9 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
-					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMountsV2), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMountsV2))
+					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMounts), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMounts))
 					volumes := mgr.VolumeMgr.Volumes
-					assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumesV2), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumesV2))
+					assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))
 					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
 					customEnvVars := append(wantUDSEnvVarsV2, &originDetectionEnvVar)
 					assert.True(t, apiutils.IsEqualStruct(agentEnvVars, customEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, customEnvVars))
@@ -499,9 +507,9 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
-					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMountsV2), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMountsV2))
+					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMounts), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMounts))
 					volumes := mgr.VolumeMgr.Volumes
-					assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumesV2), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumesV2))
+					assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))
 					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
 					customEnvVars := append(wantUDSEnvVarsV2, &mapperProfilesEnvVar)
 					assert.True(t, apiutils.IsEqualStruct(agentEnvVars, customEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, customEnvVars))

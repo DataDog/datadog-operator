@@ -184,9 +184,6 @@ const (
 	SymlinkContainerVolumePath                   = "/var/log/containers"
 	DogstatsdHostPortName                        = "dogstatsdport"
 	DogstatsdHostPortHostPort                    = 8125
-	DogstatsdUDSSocketName                       = "dsdsocket"
-	DogstatsdUDSHostFilepathV1                   = "/var/run/datadog/statsd.sock"
-	DogstatsdUDSHostFilepathV2                   = "/var/run/datadog/dsd.socket"
 	DogstatsdSocketVolumeName                    = "dsdsocket"
 	DogstatsdSocketVolumePath                    = "/var/run/datadog/statsd"
 	SecurityAgentRuntimeCustomPoliciesVolumeName = "customruntimepolicies"
@@ -197,6 +194,10 @@ const (
 	CriSocketVolumeName                          = "runtimesocketdir"
 	KubeletAgentCAPath                           = "/var/run/host-kubelet-ca.crt"
 	KubeletCAVolumeName                          = "kubelet-ca"
+	APMHostPortName                              = "traceport"
+	APMHostPortHostPort                          = 8126
+	APMSocketVolumeName                          = "apmsocket"
+	APMSocketVolumePath                          = "/var/run/datadog/apm"
 
 	AppArmorAnnotationKey = "container.apparmor.security.beta.kubernetes.io"
 )

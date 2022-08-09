@@ -6,6 +6,7 @@
 package dogstatsd
 
 import (
+	"path/filepath"
 	"strconv"
 
 	corev1 "k8s.io/api/core/v1"
@@ -156,7 +157,8 @@ func (f *dogstatsdFeature) ManageNodeAgent(managers feature.PodTemplateManagers)
 
 	// uds
 	if f.udsEnabled {
-		socketVol, socketVolMount := volume.GetVolumes(apicommon.DogstatsdUDSSocketName, f.udsHostFilepath, f.udsHostFilepath, true)
+		udsHostFolder := filepath.Dir(f.udsHostFilepath)
+		socketVol, socketVolMount := volume.GetVolumes(apicommon.DogstatsdSocketVolumeName, udsHostFolder, udsHostFolder, true)
 		managers.VolumeMount().AddVolumeMountToContainer(&socketVolMount, apicommonv1.CoreAgentContainerName)
 		managers.Volume().AddVolume(&socketVol)
 		managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{

@@ -34,7 +34,7 @@ const (
 	defaultAPMHostPortEnabled bool   = false
 	defaultAPMHostPort        int32  = 8126
 	defaultAPMSocketEnabled   bool   = true
-	defaultAPMSocketPath      string = "/var/run/datadog/apm.sock"
+	defaultAPMSocketPath      string = "/var/run/datadog/apm/apm.sock"
 
 	// defaultCSPMEnabled              bool = false
 	// defaultCWSEnabled               bool = false
@@ -50,7 +50,7 @@ const (
 	defaultDogstatsdHostPortEnabled        bool   = false
 	defaultDogstatsdPort                   int32  = 8125
 	defaultDogstatsdSocketEnabled          bool   = true
-	defaultDogstatsdSocketPath             string = "/var/run/datadog/dsd.socket"
+	defaultDogstatsdSocketPath             string = "/var/run/datadog/statsd/dsd.socket"
 
 	defaultCollectKubernetesEvents bool = true
 

@@ -45,8 +45,6 @@ import (
 const (
 	authDelegatorName         string = "%s-auth-delegator"
 	externalMetricsReaderName string = "%s-metrics-reader"
-	localDogstatsdSocketPath  string = "/var/run/datadog/statsd"
-	localAPMSocketPath        string = "/var/run/datadog/apm"
 	defaultRuntimeDir         string = "/var/run"
 )
 
@@ -346,7 +344,7 @@ func getAPMAgentContainers(dda *datadoghqv1alpha1.DatadogAgent, image string) ([
 	}
 	tcpPort := corev1.ContainerPort{
 		ContainerPort: *dda.Spec.Agent.Apm.HostPort,
-		Name:          "traceport",
+		Name:          apicommon.APMHostPortName,
 		Protocol:      corev1.ProtocolTCP,
 		HostPort:      *dda.Spec.Agent.Apm.HostPort,
 	}
@@ -568,7 +566,7 @@ func getConfigInitContainers(spec *datadoghqv1alpha1.DatadogAgentSpec, volumeMou
 func getEnvVarDogstatsdSocket(dda *datadoghqv1alpha1.DatadogAgent) corev1.EnvVar {
 	return corev1.EnvVar{
 		Name:  apicommon.DDDogstatsdSocket,
-		Value: getLocalFilepath(*dda.Spec.Agent.Config.Dogstatsd.UnixDomainSocket.HostFilepath, localDogstatsdSocketPath),
+		Value: getLocalFilepath(*dda.Spec.Agent.Config.Dogstatsd.UnixDomainSocket.HostFilepath, apicommon.DogstatsdSocketVolumePath),
 	}
 }
 
@@ -586,7 +584,7 @@ func getEnvVarsForAPMAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.EnvVar
 	if apiutils.BoolValue(dda.Spec.Agent.Apm.UnixDomainSocket.Enabled) {
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  apicommon.DDPPMReceiverSocket,
-			Value: getLocalFilepath(*dda.Spec.Agent.Apm.UnixDomainSocket.HostFilepath, localAPMSocketPath),
+			Value: getLocalFilepath(*dda.Spec.Agent.Apm.UnixDomainSocket.HostFilepath, apicommon.APMSocketVolumePath),
 		})
 	}
 
@@ -1100,7 +1098,7 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 		hostPath := getDirFromFilepath(*dda.Spec.Agent.Apm.UnixDomainSocket.HostFilepath)
 
 		dsdsocketVolume := corev1.Volume{
-			Name: datadoghqv1alpha1.APMSocketVolumeName,
+			Name: apicommon.APMSocketVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: hostPath,
@@ -1642,8 +1640,8 @@ func getVolumeMountsForAPMAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Vo
 	// APM UDS
 	if apiutils.BoolValue(dda.Spec.Agent.Apm.UnixDomainSocket.Enabled) {
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      datadoghqv1alpha1.APMSocketVolumeName,
-			MountPath: datadoghqv1alpha1.APMSocketVolumePath,
+			Name:      apicommon.APMSocketVolumeName,
+			MountPath: apicommon.APMSocketVolumePath,
 		})
 	}
 

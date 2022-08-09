@@ -682,7 +682,7 @@ func schema__apis_datadoghq_v2alpha1_DogstatsdFeatureConfig(ref common.Reference
 					},
 					"unixDomainSocketConfig": {
 						SchemaProps: spec.SchemaProps{
-							Description: "UnixDomainSocketConfig contains socket configuration. See also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables Enabled Default: true Path Default: `/var/run/datadog/dsd.socket`",
+							Description: "UnixDomainSocketConfig contains socket configuration. See also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables Enabled Default: true Path Default: `/var/run/datadog/statsd/dsd.socket`",
 							Ref:         ref("./apis/datadoghq/v2alpha1.UnixDomainSocketConfig"),
 						},
 					},
