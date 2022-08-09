@@ -161,7 +161,7 @@ func defaultVolumes() []corev1.Volume {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.ChecksdVolumeName,
+			Name: apicommon.ChecksdVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
@@ -231,7 +231,7 @@ func defaultSystemProbeVolumes() []corev1.Volume {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.ChecksdVolumeName,
+			Name: apicommon.ChecksdVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
@@ -363,7 +363,7 @@ func complianceSecurityAgentVolumes() []corev1.Volume {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.ChecksdVolumeName,
+			Name: apicommon.ChecksdVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
@@ -463,7 +463,7 @@ func runtimeSecurityAgentVolumes() []corev1.Volume {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.ChecksdVolumeName,
+			Name: apicommon.ChecksdVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
@@ -1507,7 +1507,7 @@ func defaultProcessMount() []corev1.Volume {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.ChecksdVolumeName,
+			Name: apicommon.ChecksdVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
@@ -2303,7 +2303,7 @@ func Test_newExtendedDaemonSetFromInstance_CustomConfigMaps(t *testing.T) {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.ChecksdVolumeName,
+			Name: apicommon.ChecksdVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
 					LocalObjectReference: corev1.LocalObjectReference{
@@ -2430,7 +2430,7 @@ func Test_newExtendedDaemonSetFromInstance_CustomDatadogYaml(t *testing.T) {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.ChecksdVolumeName,
+			Name: apicommon.ChecksdVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},

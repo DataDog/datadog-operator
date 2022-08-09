@@ -114,6 +114,8 @@ const (
 	ConfigVolumePath               = "/etc/datadog-agent"
 	KubeStateMetricCoreVolumeName  = "ksm-core-config"
 	OrchestratorExplorerVolumeName = "orchestrator-explorer-config"
+	ChecksdVolumeName              = "checksd"
+	ChecksdVolumePath              = "/checks.d"
 
 	HostRootVolumeName = "hostroot"
 	HostRootHostPath   = "/"

@@ -1377,7 +1377,7 @@ func getVolumeForChecksd(dda *datadoghqv1alpha1.DatadogAgent) corev1.Volume {
 	}
 
 	return corev1.Volume{
-		Name:         datadoghqv1alpha1.ChecksdVolumeName,
+		Name:         apicommon.ChecksdVolumeName,
 		VolumeSource: source,
 	}
 }
@@ -1525,8 +1525,8 @@ func getVolumeMountForConfd() corev1.VolumeMount {
 
 func getVolumeMountForChecksd() corev1.VolumeMount {
 	return corev1.VolumeMount{
-		Name:      datadoghqv1alpha1.ChecksdVolumeName,
-		MountPath: datadoghqv1alpha1.ChecksdVolumePath,
+		Name:      apicommon.ChecksdVolumeName,
+		MountPath: apicommon.ChecksdVolumePath,
 		ReadOnly:  true,
 	}
 }

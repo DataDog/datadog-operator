@@ -14,8 +14,6 @@ const (
 	TmpVolumePath          = "/tmp"
 	CertificatesVolumeName = "certificates"
 	CertificatesVolumePath = "/etc/datadog-agent/certificates"
-	ChecksdVolumeName      = "checksd"
-	ChecksdVolumePath      = "/checks.d"
 
 	ProcVolumeName                       = "procdir"
 	ProcVolumePath                       = "/host/proc"
