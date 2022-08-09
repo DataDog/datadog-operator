@@ -56,6 +56,8 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, features []feature.Fea
 		if err != nil {
 			return result, err
 		}
+
+		override.DaemonSet(daemonset, dda.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName])
 	}
 
 	daemonsetLogger := logger.WithValues("component", datadoghqv2alpha1.NodeAgentComponentName)
