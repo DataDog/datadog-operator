@@ -1063,7 +1063,7 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 	volumes = append(volumes, getKubeletVolumes(dda)...)
 
 	if dda.Spec.Agent.CustomConfig != nil {
-		volume := objectvolume.GetVolumeFromCustomConfigSpec(datadoghqv1alpha1.ConvertCustomConfig(dda.Spec.Agent.CustomConfig), getAgentCustomConfigConfigMapName(dda), datadoghqv1alpha1.AgentCustomConfigVolumeName)
+		volume := objectvolume.GetVolumeFromCustomConfigSpec(datadoghqv1alpha1.ConvertCustomConfig(dda.Spec.Agent.CustomConfig), getAgentCustomConfigConfigMapName(dda), apicommon.AgentCustomConfigVolumeName)
 		volumes = append(volumes, volume)
 	}
 
@@ -1500,7 +1500,7 @@ func getVolumeMountForConfig(customConfig *datadoghqv1alpha1.CustomConfigSpec) [
 
 	// Custom config (datadog.yaml) volume
 	if customConfig != nil {
-		volumeMount := getVolumeMountFromCustomConfigSpec(customConfig, datadoghqv1alpha1.AgentCustomConfigVolumeName, apicommon.AgentCustomConfigVolumePath, datadoghqv1alpha1.AgentCustomConfigVolumeSubPath)
+		volumeMount := getVolumeMountFromCustomConfigSpec(customConfig, apicommon.AgentCustomConfigVolumeName, apicommon.AgentCustomConfigVolumePath, apicommon.AgentCustomConfigVolumeSubPath)
 		volumeMounts = append(volumeMounts, volumeMount)
 	}
 
@@ -1774,7 +1774,7 @@ func getVolumeMountsForSecurityAgent(dda *datadoghqv1alpha1.DatadogAgent) []core
 	spec := dda.Spec
 
 	if spec.Agent.CustomConfig != nil {
-		volumeMount := getVolumeMountFromCustomConfigSpec(spec.Agent.CustomConfig, datadoghqv1alpha1.AgentCustomConfigVolumeName, apicommon.AgentCustomConfigVolumePath, datadoghqv1alpha1.AgentCustomConfigVolumeSubPath)
+		volumeMount := getVolumeMountFromCustomConfigSpec(spec.Agent.CustomConfig, apicommon.AgentCustomConfigVolumeName, apicommon.AgentCustomConfigVolumePath, apicommon.AgentCustomConfigVolumeSubPath)
 		volumeMounts = append(volumeMounts, volumeMount)
 	}
 

@@ -2458,7 +2458,7 @@ func Test_newExtendedDaemonSetFromInstance_CustomDatadogYaml(t *testing.T) {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.AgentCustomConfigVolumeName,
+			Name: apicommon.AgentCustomConfigVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
 					LocalObjectReference: corev1.LocalObjectReference{

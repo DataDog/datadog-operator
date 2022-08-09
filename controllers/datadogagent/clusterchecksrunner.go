@@ -311,7 +311,7 @@ func buildClusterChecksRunnerConfigurationConfigMap(dda *datadoghqv1alpha1.Datad
 	if !apiutils.BoolValue(dda.Spec.ClusterChecksRunner.Enabled) {
 		return nil, nil
 	}
-	return buildConfigurationConfigMap(dda, datadoghqv1alpha1.ConvertCustomConfig(dda.Spec.ClusterChecksRunner.CustomConfig), getClusterChecksRunnerCustomConfigConfigMapName(dda), datadoghqv1alpha1.AgentCustomConfigVolumeSubPath)
+	return buildConfigurationConfigMap(dda, datadoghqv1alpha1.ConvertCustomConfig(dda.Spec.ClusterChecksRunner.CustomConfig), getClusterChecksRunnerCustomConfigConfigMapName(dda), apicommon.AgentCustomConfigVolumeSubPath)
 }
 
 // getEnvVarsForClusterChecksRunner converts Cluster Checks Runner Config into container env vars
@@ -473,7 +473,7 @@ func getVolumesForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []cor
 	}
 
 	if dda.Spec.ClusterChecksRunner.CustomConfig != nil {
-		volume := objectvolume.GetVolumeFromCustomConfigSpec(datadoghqv1alpha1.ConvertCustomConfig(dda.Spec.ClusterChecksRunner.CustomConfig), getClusterChecksRunnerCustomConfigConfigMapName(dda), datadoghqv1alpha1.AgentCustomConfigVolumeName)
+		volume := objectvolume.GetVolumeFromCustomConfigSpec(datadoghqv1alpha1.ConvertCustomConfig(dda.Spec.ClusterChecksRunner.CustomConfig), getClusterChecksRunnerCustomConfigConfigMapName(dda), apicommon.AgentCustomConfigVolumeName)
 		volumes = append(volumes, volume)
 	}
 	return append(volumes, dda.Spec.ClusterChecksRunner.Config.Volumes...)

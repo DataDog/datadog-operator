@@ -49,8 +49,6 @@ const (
 	SystemProbeLibModulesVolumePath      = "/lib/modules"
 	SystemProbeUsrSrcVolumeName          = "src"
 	SystemProbeUsrSrcVolumePath          = "/usr/src"
-	AgentCustomConfigVolumeName          = "custom-datadog-yaml"
-	AgentCustomConfigVolumeSubPath       = "datadog.yaml"
 	OrchestratorExplorerConfigVolumeName = "orchestrator-explorer-config"
 
 	SecurityAgentRuntimeCustomPoliciesVolumeName     = "customruntimepolicies"
@@ -59,10 +57,6 @@ const (
 	SecurityAgentComplianceCustomConfigDirVolumeName = "customcompliancebenchmarks"
 	SecurityAgentComplianceConfigDirVolumeName       = "compliancedir"
 	SecurityAgentComplianceConfigDirVolumePath       = "/etc/datadog-agent/compliance.d"
-
-	ClusterAgentCustomConfigVolumeName    = "custom-datadog-yaml"
-	ClusterAgentCustomConfigVolumePath    = "/etc/datadog-agent/datadog-cluster.yaml"
-	ClusterAgentCustomConfigVolumeSubPath = "datadog-cluster.yaml"
 
 	SysteProbeAppArmorAnnotationKey   = "container.apparmor.security.beta.kubernetes.io/system-probe"
 	SysteProbeSeccompAnnotationKey    = "container.seccomp.security.alpha.kubernetes.io/system-probe"
