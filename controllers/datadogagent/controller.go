@@ -262,9 +262,10 @@ func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, agentdeployment *d
 // setMetricsForwarderStatus sets the metrics forwarder status condition if enabled
 func (r *Reconciler) setMetricsForwarderStatus(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) {
 	if r.options.OperatorMetricsEnabled {
-		if metricsCondition := r.forwarders.MetricsForwarderStatusForObj(agentdeployment); metricsCondition != nil {
+		if agentCondition := r.forwarders.MetricsForwarderStatusForObj(agentdeployment); agentCondition != nil {
 			logger.V(1).Info("metrics conditions status not available")
-			condition.SetDatadogAgentStatusCondition(newStatus, metricsCondition)
+			agentConditionCast, _ := agentCondition.(datadoghqv1alpha1.DatadogAgentCondition)
+			condition.SetDatadogAgentStatusCondition(newStatus, &agentConditionCast)
 		}
 	}
 }
