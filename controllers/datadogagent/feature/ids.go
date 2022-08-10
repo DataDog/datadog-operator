@@ -41,6 +41,8 @@ const (
 	ClusterChecksIDType = "cluster_checks"
 	// APMIDType APM feature
 	APMIDType = "apm"
+	// OTLPIDType OTLP ingest feature
+	OTLPIDType = "otlp"
 	// DummyIDType Dummy feature.
 	DummyIDType = "dummy"
 )

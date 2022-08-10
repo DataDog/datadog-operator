@@ -223,6 +223,10 @@ type DatadogAgentSpecAgentSpec struct {
 	// +optional
 	Security *SecuritySpec `json:"security,omitempty"`
 
+	// OTLP ingest configuration
+	// +optional
+	OTLP *OTLPSpec `json:"otlp,omitempty"`
+
 	// Allow to put custom configuration for the agent, corresponding to the datadog.yaml config file.
 	// See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.
 	// +optional
@@ -719,6 +723,59 @@ type ConfigDirSpec struct {
 	// +listType=map
 	// +listMapKey=key
 	Items []corev1.KeyToPath `json:"items,omitempty"`
+}
+
+// OTLPSpec contains configuration for OTLP ingest.
+// +k8s:openapi-gen=true
+type OTLPSpec struct {
+	// Receiver contains configuration for the OTLP ingest receiver.
+	Receiver OTLPReceiverSpec `json:"receiver,omitempty"`
+}
+
+// OTLPReceiverSpec contains configuration for the OTLP ingest receiver.
+// +k8s:openapi-gen=true
+type OTLPReceiverSpec struct {
+	// Protocols contains configuration for the OTLP ingest receiver protocols.
+	Protocols OTLPProtocolsSpec `json:"protocols,omitempty"`
+}
+
+// OTLPProtocolsSpec contains configuration for the OTLP ingest receiver protocols.
+// +k8s:openapi-gen=true
+type OTLPProtocolsSpec struct {
+	// GRPC contains configuration for the OTLP ingest OTLP/gRPC receiver.
+	// +optional
+	GRPC *OTLPGRPCSpec `json:"grpc,omitempty"`
+	// HTTP contains configuration for the OTLP ingest OTLP/HTTP receiver.
+	// +optional
+	HTTP *OTLPHTTPSpec `json:"http,omitempty"`
+}
+
+// OTLPGRPCSpec contains configuration for the OTLP ingest OTLP/gRPC receiver.
+// +k8s:openapi-gen=true
+type OTLPGRPCSpec struct {
+	// Enable the OTLP/gRPC endpoint.
+	// +optional
+	Enabled *bool
+
+	// Endpoint for OTLP/gRPC.
+	// gRPC supports several naming schemes: https://github.com/grpc/grpc/blob/master/doc/naming.md
+	// The Datadog Operator only supports 'host:port' (usually '0.0.0.0:port').
+	// The default value is '0.0.0.0:4317'.
+	// +optional
+	Endpoint *string
+}
+
+// OTLPHTTPSpec contains configuration for the OTLP ingest OTLP/HTTP receiver.
+// +k8s:openapi-gen=true
+type OTLPHTTPSpec struct {
+	// Enable the OTLP/HTTP endpoint.
+	// +optional
+	Enabled *bool
+
+	// Endpoint for OTLP/HTTP.
+	// The default value is '0.0.0.0:4318'.
+	// +optional
+	Endpoint *string
 }
 
 // ConfigFileConfigMapSpec contains configMap information used to store a config file.
