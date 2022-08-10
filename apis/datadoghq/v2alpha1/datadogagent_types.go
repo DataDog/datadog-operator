@@ -66,6 +66,8 @@ type DatadogFeatures struct {
 	USM *USMFeatureConfig `json:"usm,omitempty"`
 	// Dogstatsd configuration.
 	Dogstatsd *DogstatsdFeatureConfig `json:"dogstatsd,omitempty"`
+	// OTLP ingest configuration
+	OTLP *OTLPFeatureConfig `json:"otlp,omitempty"`
 
 	// Cluster-level features
 
@@ -301,6 +303,59 @@ type DogstatsdFeatureConfig struct {
 	// See also: https://docs.datadoghq.com/developers/dogstatsd/dogstatsd_mapper/
 	// +optional
 	MapperProfiles *CustomConfig `json:"mapperProfiles,omitempty"`
+}
+
+// OTLPFeatureConfig contains configuration for OTLP ingest.
+// +k8s:openapi-gen=true
+type OTLPFeatureConfig struct {
+	// Receiver contains configuration for the OTLP ingest receiver.
+	Receiver OTLPReceiverConfig `json:"receiver,omitempty"`
+}
+
+// OTLPReceiverConfig contains configuration for the OTLP ingest receiver.
+// +k8s:openapi-gen=true
+type OTLPReceiverConfig struct {
+	// Protocols contains configuration for the OTLP ingest receiver protocols.
+	Protocols OTLPProtocolsConfig `json:"protocols,omitempty"`
+}
+
+// OTLPProtocolsConfig contains configuration for the OTLP ingest receiver protocols.
+// +k8s:openapi-gen=true
+type OTLPProtocolsConfig struct {
+	// GRPC contains configuration for the OTLP ingest OTLP/gRPC receiver.
+	// +optional
+	GRPC *OTLPGRPCConfig `json:"grpc,omitempty"`
+	// HTTP contains configuration for the OTLP ingest OTLP/HTTP receiver.
+	// +optional
+	HTTP *OTLPHTTPConfig `json:"http,omitempty"`
+}
+
+// OTLPGRPCConfig contains configuration for the OTLP ingest OTLP/gRPC receiver.
+// +k8s:openapi-gen=true
+type OTLPGRPCConfig struct {
+	// Enable the OTLP/gRPC endpoint.
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Endpoint for OTLP/gRPC.
+	// gRPC supports several naming schemes: https://github.com/grpc/grpc/blob/master/doc/naming.md
+	// The Datadog Operator only supports 'host:port' (usually '0.0.0.0:port').
+	// The default value is '0.0.0.0:4317'.
+	// +optional
+	Endpoint *string `json:"endpoint,omitempty"`
+}
+
+// OTLPHTTPConfig contains configuration for the OTLP ingest OTLP/HTTP receiver.
+// +k8s:openapi-gen=true
+type OTLPHTTPConfig struct {
+	// Enable the OTLP/HTTP endpoint.
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Endpoint for OTLP/HTTP.
+	// The default value is '0.0.0.0:4318'.
+	// +optional
+	Endpoint *string `json:"endpoint,omitempty"`
 }
 
 // EventCollectionFeatureConfig contains the Event Collection configuration.

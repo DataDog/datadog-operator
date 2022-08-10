@@ -76,6 +76,10 @@ const (
 	defaultMutateUnlabelled                                     = false
 	DefaultAdmissionServiceName                                 = "datadog-admission-controller"
 	defaultAdmissionControllerEnabled                           = false
+	defaultOTLPGRPCEnabled                               bool   = false
+	defaultOTLPGRPCEndpoint                              string = "0.0.0.0:4317"
+	defaultOTLPHTTPEnabled                               bool   = false
+	defaultOTLPHTTPEndpoint                              string = "0.0.0.0:4318"
 )
 
 var defaultImagePullPolicy = corev1.PullIfNotPresent
@@ -239,6 +243,10 @@ func DefaultDatadogAgentSpecAgent(agent *DatadogAgentSpecAgentSpec) *DatadogAgen
 
 	if sec := DefaultDatadogAgentSpecAgentSecurity(agent); !apiutils.IsEqualStruct(*sec, SecuritySpec{}) {
 		agentOverride.Security = sec
+	}
+
+	if otlp := DefaultDatadogAgentSpecAgentOTLP(agent); !apiutils.IsEqualStruct(*otlp, OTLPSpec{}) {
+		agentOverride.OTLP = otlp
 	}
 
 	if proc := DefaultDatadogAgentSpecAgentProcess(agent); !apiutils.IsEqualStruct(*proc, ProcessSpec{}) {
@@ -690,6 +698,57 @@ func DefaultDatadogAgentSpecAgentSecurity(agent *DatadogAgentSpecAgentSpec) *Sec
 	}
 
 	return secOverride
+}
+
+// DefaultDatadogAgentSpecAgentOTLP defaults the OTLP Ingest in the DatadogAgentSpec
+func DefaultDatadogAgentSpecAgentOTLP(agent *DatadogAgentSpecAgentSpec) *OTLPSpec {
+	defaultOTLP := &OTLPSpec{OTLPReceiverSpec{OTLPProtocolsSpec{
+		GRPC: &OTLPGRPCSpec{
+			Enabled:  apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+			Endpoint: apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+		},
+		HTTP: &OTLPHTTPSpec{
+			Enabled:  apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+			Endpoint: apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+		},
+	}}}
+
+	if agent.OTLP == nil {
+		agent.OTLP = defaultOTLP
+		return agent.OTLP
+	}
+
+	otlpOverride := &OTLPSpec{}
+
+	// OTLP/gRPC section
+	if agent.OTLP.Receiver.Protocols.GRPC == nil {
+		agent.OTLP.Receiver.Protocols.GRPC = defaultOTLP.Receiver.Protocols.GRPC
+	}
+	otlpOverride.Receiver.Protocols.GRPC = agent.OTLP.Receiver.Protocols.GRPC
+	if agent.OTLP.Receiver.Protocols.GRPC.Enabled == nil {
+		agent.OTLP.Receiver.Protocols.GRPC.Enabled = defaultOTLP.Receiver.Protocols.GRPC.Enabled
+		otlpOverride.Receiver.Protocols.GRPC.Enabled = agent.OTLP.Receiver.Protocols.GRPC.Enabled
+	}
+	if agent.OTLP.Receiver.Protocols.GRPC.Endpoint == nil {
+		agent.OTLP.Receiver.Protocols.GRPC.Endpoint = defaultOTLP.Receiver.Protocols.GRPC.Endpoint
+		otlpOverride.Receiver.Protocols.GRPC.Endpoint = agent.OTLP.Receiver.Protocols.GRPC.Endpoint
+	}
+
+	// OTLP/HTTP section
+	if agent.OTLP.Receiver.Protocols.HTTP == nil {
+		agent.OTLP.Receiver.Protocols.HTTP = defaultOTLP.Receiver.Protocols.HTTP
+	}
+	otlpOverride.Receiver.Protocols.HTTP = agent.OTLP.Receiver.Protocols.HTTP
+	if agent.OTLP.Receiver.Protocols.HTTP.Enabled == nil {
+		agent.OTLP.Receiver.Protocols.HTTP.Enabled = defaultOTLP.Receiver.Protocols.HTTP.Enabled
+		otlpOverride.Receiver.Protocols.HTTP.Enabled = agent.OTLP.Receiver.Protocols.HTTP.Enabled
+	}
+	if agent.OTLP.Receiver.Protocols.HTTP.Endpoint == nil {
+		agent.OTLP.Receiver.Protocols.HTTP.Endpoint = defaultOTLP.Receiver.Protocols.HTTP.Endpoint
+		otlpOverride.Receiver.Protocols.HTTP.Endpoint = agent.OTLP.Receiver.Protocols.HTTP.Endpoint
+	}
+
+	return otlpOverride
 }
 
 // DefaultDatadogFeatureLogCollection used to default an LogCollectionConfig

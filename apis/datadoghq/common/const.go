@@ -198,6 +198,8 @@ const (
 	APMHostPortHostPort                          = 8126
 	APMSocketVolumeName                          = "apmsocket"
 	APMSocketVolumePath                          = "/var/run/datadog/apm"
+	OTLPGRPCPortName                             = "otlpgrpcport"
+	OTLPHTTPPortName                             = "otlphttpport"
 
 	AppArmorAnnotationKey = "container.apparmor.security.beta.kubernetes.io"
 )

@@ -81,6 +81,16 @@ func Test_defaultFeatures(t *testing.T) {
 							Path:    apiutils.NewStringPointer(defaultDogstatsdSocketPath),
 						},
 					},
+					OTLP: &OTLPFeatureConfig{Receiver: OTLPReceiverConfig{Protocols: OTLPProtocolsConfig{
+						GRPC: &OTLPGRPCConfig{
+							Enabled:  apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+							Endpoint: apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+						},
+						HTTP: &OTLPHTTPConfig{
+							Enabled:  apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+							Endpoint: apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+						},
+					}}},
 					EventCollection: &EventCollectionFeatureConfig{
 						CollectKubernetesEvents: apiutils.NewBoolPointer(defaultCollectKubernetesEvents),
 					},
@@ -132,6 +142,10 @@ func Test_defaultFeatures(t *testing.T) {
 					USM: &USMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueFalse),
 					},
+					OTLP: &OTLPFeatureConfig{Receiver: OTLPReceiverConfig{Protocols: OTLPProtocolsConfig{
+						GRPC: &OTLPGRPCConfig{Enabled: apiutils.NewBoolPointer(valueFalse)},
+						HTTP: &OTLPHTTPConfig{Enabled: apiutils.NewBoolPointer(valueFalse)},
+					}}},
 					EventCollection: &EventCollectionFeatureConfig{
 						CollectKubernetesEvents: apiutils.NewBoolPointer(valueFalse),
 					},
@@ -198,6 +212,16 @@ func Test_defaultFeatures(t *testing.T) {
 							Path:    apiutils.NewStringPointer(defaultDogstatsdSocketPath),
 						},
 					},
+					OTLP: &OTLPFeatureConfig{Receiver: OTLPReceiverConfig{Protocols: OTLPProtocolsConfig{
+						GRPC: &OTLPGRPCConfig{
+							Enabled:  apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+							Endpoint: apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+						},
+						HTTP: &OTLPHTTPConfig{
+							Enabled:  apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+							Endpoint: apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+						},
+					}}},
 					EventCollection: &EventCollectionFeatureConfig{
 						CollectKubernetesEvents: apiutils.NewBoolPointer(valueFalse),
 					},
@@ -250,6 +274,16 @@ func Test_defaultFeatures(t *testing.T) {
 							Path:    apiutils.NewStringPointer(defaultDogstatsdSocketPath),
 						},
 					},
+					OTLP: &OTLPFeatureConfig{Receiver: OTLPReceiverConfig{Protocols: OTLPProtocolsConfig{
+						GRPC: &OTLPGRPCConfig{
+							Enabled:  apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+							Endpoint: apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+						},
+						HTTP: &OTLPHTTPConfig{
+							Enabled:  apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+							Endpoint: apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+						},
+					}}},
 					EventCollection: &EventCollectionFeatureConfig{
 						CollectKubernetesEvents: apiutils.NewBoolPointer(defaultCollectKubernetesEvents),
 					},
@@ -297,6 +331,16 @@ func Test_defaultFeatures(t *testing.T) {
 							Path:    apiutils.NewStringPointer(defaultDogstatsdSocketPath),
 						},
 					},
+					OTLP: &OTLPFeatureConfig{Receiver: OTLPReceiverConfig{Protocols: OTLPProtocolsConfig{
+						GRPC: &OTLPGRPCConfig{
+							Enabled:  apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+							Endpoint: apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+						},
+						HTTP: &OTLPHTTPConfig{
+							Enabled:  apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+							Endpoint: apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+						},
+					}}},
 					EventCollection: &EventCollectionFeatureConfig{
 						CollectKubernetesEvents: apiutils.NewBoolPointer(defaultCollectKubernetesEvents),
 					},
@@ -347,6 +391,16 @@ func Test_defaultFeatures(t *testing.T) {
 							Path:    apiutils.NewStringPointer(defaultDogstatsdSocketPath),
 						},
 					},
+					OTLP: &OTLPFeatureConfig{Receiver: OTLPReceiverConfig{Protocols: OTLPProtocolsConfig{
+						GRPC: &OTLPGRPCConfig{
+							Enabled:  apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+							Endpoint: apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+						},
+						HTTP: &OTLPHTTPConfig{
+							Enabled:  apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+							Endpoint: apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+						},
+					}}},
 					EventCollection: &EventCollectionFeatureConfig{
 						CollectKubernetesEvents: apiutils.NewBoolPointer(defaultCollectKubernetesEvents),
 					},
@@ -391,6 +445,72 @@ func Test_defaultFeatures(t *testing.T) {
 							Path:    apiutils.NewStringPointer(defaultDogstatsdSocketPath),
 						},
 					},
+					OTLP: &OTLPFeatureConfig{Receiver: OTLPReceiverConfig{Protocols: OTLPProtocolsConfig{
+						GRPC: &OTLPGRPCConfig{
+							Enabled:  apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+							Endpoint: apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+						},
+						HTTP: &OTLPHTTPConfig{
+							Enabled:  apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+							Endpoint: apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+						},
+					}}},
+					EventCollection: &EventCollectionFeatureConfig{
+						CollectKubernetesEvents: apiutils.NewBoolPointer(defaultCollectKubernetesEvents),
+					},
+					OrchestratorExplorer: &OrchestratorExplorerFeatureConfig{
+						Enabled:         apiutils.NewBoolPointer(defaultOrchestratorExplorerEnabled),
+						ScrubContainers: apiutils.NewBoolPointer(defaultOrchestratorExplorerScrubContainers),
+					},
+					KubeStateMetricsCore: &KubeStateMetricsCoreFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
+					},
+					ClusterChecks: &ClusterChecksFeatureConfig{
+						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
+						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
+					},
+				},
+			},
+		},
+		{
+			name: "OTLP is enabled",
+			ddaSpec: &DatadogAgentSpec{
+				Features: &DatadogFeatures{
+					OTLP: &OTLPFeatureConfig{Receiver: OTLPReceiverConfig{Protocols: OTLPProtocolsConfig{
+						GRPC: &OTLPGRPCConfig{
+							Enabled:  apiutils.NewBoolPointer(true),
+							Endpoint: apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+						},
+						HTTP: &OTLPHTTPConfig{
+							Enabled:  apiutils.NewBoolPointer(true),
+							Endpoint: apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+						},
+					}}},
+				},
+			},
+			want: &DatadogAgentSpec{
+				Features: &DatadogFeatures{
+					LiveContainerCollection: &LiveContainerCollectionFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
+					},
+					Dogstatsd: &DogstatsdFeatureConfig{
+						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogstatsdOriginDetectionEnabled),
+						HostPortConfig:         &HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
+						UnixDomainSocketConfig: &UnixDomainSocketConfig{
+							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
+							Path:    apiutils.NewStringPointer(defaultDogstatsdSocketPath),
+						},
+					},
+					OTLP: &OTLPFeatureConfig{Receiver: OTLPReceiverConfig{Protocols: OTLPProtocolsConfig{
+						GRPC: &OTLPGRPCConfig{
+							Enabled:  apiutils.NewBoolPointer(true),
+							Endpoint: apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+						},
+						HTTP: &OTLPHTTPConfig{
+							Enabled:  apiutils.NewBoolPointer(true),
+							Endpoint: apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+						},
+					}}},
 					EventCollection: &EventCollectionFeatureConfig{
 						CollectKubernetesEvents: apiutils.NewBoolPointer(defaultCollectKubernetesEvents),
 					},
@@ -430,6 +550,16 @@ func Test_defaultFeatures(t *testing.T) {
 							Path:    apiutils.NewStringPointer(defaultDogstatsdSocketPath),
 						},
 					},
+					OTLP: &OTLPFeatureConfig{Receiver: OTLPReceiverConfig{Protocols: OTLPProtocolsConfig{
+						GRPC: &OTLPGRPCConfig{
+							Enabled:  apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+							Endpoint: apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+						},
+						HTTP: &OTLPHTTPConfig{
+							Enabled:  apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+							Endpoint: apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+						},
+					}}},
 					EventCollection: &EventCollectionFeatureConfig{
 						CollectKubernetesEvents: apiutils.NewBoolPointer(defaultCollectKubernetesEvents),
 					},
