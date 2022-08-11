@@ -35,12 +35,12 @@ func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, dda *dat
 	var result reconcile.Result
 	var err error
 
-	// Set DatadogAgent instance  instance as the owner and controller
+	// Set DatadogAgent instance as the owner and controller
 	if err = controllerutil.SetControllerReference(dda, deployment, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
 
-	// From here the PodTemplateSpec should be ready, we can generate the hash that will be use to compare this deployment with the current (if exist).
+	// From here the PodTemplateSpec should be ready, we can generate the hash that will be used to compare this deployment with the current one (if it exists).
 	var hash string
 	hash, err = comparison.SetMD5DatadogAgentGenerationAnnotation(&deployment.ObjectMeta, deployment.Spec)
 	if err != nil {
@@ -54,23 +54,23 @@ func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, dda *dat
 	}
 
 	currentDeployment := &appsv1.Deployment{}
-	alreadyExist := true
+	alreadyExists := true
 	err = r.client.Get(context.TODO(), nsName, currentDeployment)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			logger.Info("deployment is not found")
-			alreadyExist = false
+			alreadyExists = false
 		} else {
 			logger.Error(err, "unexpected error during deployment get")
 			return reconcile.Result{}, err
 		}
 	}
 
-	if alreadyExist {
+	if alreadyExists {
 		// check if same hash
 		needUpdate := !comparison.IsSameSpecMD5Hash(hash, currentDeployment.GetAnnotations())
 		if !needUpdate {
-			// no need to update to stop here the process
+			// no need to update hasn't changed
 			now := metav1.NewTime(time.Now())
 			updateStatusFunc(currentDeployment, newStatus, now, metav1.ConditionTrue, "deployment_up_to_date", "Deployment up-to-date")
 			return reconcile.Result{}, nil
@@ -78,7 +78,7 @@ func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, dda *dat
 
 		logger.Info("Updating Deployment")
 
-		// TODO: these parameter can be added to the override.PodTemplateSpec. (it exist in v1alpha)
+		// TODO: these parameters can be added to the override.PodTemplateSpec. (It exists in v1alpha1)
 		keepAnnotationsFilter := ""
 		keepLabelsFilter := ""
 
@@ -122,12 +122,12 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 	var result reconcile.Result
 	var err error
 
-	// Set DatadogAgent instance  instance as the owner and controller
+	// Set DatadogAgent instance as the owner and controller
 	if err = controllerutil.SetControllerReference(dda, daemonset, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
 
-	// From here the PodTemplateSpec should be ready, we can generate the hash that will be use to compare this daemonset with the current (if exist).
+	// From here the PodTemplateSpec should be ready, we can generate the hash that will be used to compare this daemonset with the current one (if it exists).
 	var hash string
 	hash, err = comparison.SetMD5DatadogAgentGenerationAnnotation(&daemonset.ObjectMeta, daemonset.Spec)
 	if err != nil {
@@ -141,35 +141,35 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 	}
 
 	currentDaemonset := &appsv1.DaemonSet{}
-	alreadyExist := true
+	alreadyExists := true
 	err = r.client.Get(context.TODO(), nsName, currentDaemonset)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			logger.Info("daemonset is not found")
-			alreadyExist = false
+			alreadyExists = false
 		} else {
 			logger.Error(err, "unexpected error during daemonset get")
 			return reconcile.Result{}, err
 		}
 	}
 
-	if alreadyExist {
+	if alreadyExists {
 		// check if same hash
 		needUpdate := !comparison.IsSameSpecMD5Hash(hash, currentDaemonset.GetAnnotations())
 		if !needUpdate {
-			// Even if the DaemonSet is still the same, it's status might have
+			// Even if the DaemonSet is still the same, its status might have
 			// changed (for example, the number of pods ready). This call is
 			// needed to keep the agent status updated.
 			now := metav1.NewTime(time.Now())
 			newStatus.Agent = datadoghqv2alpha1.UpdateDaemonSetStatus(currentDaemonset, newStatus.Agent, &now)
 
-			// no need to update the DaemonSet to stop here the process
+			// Stop reconcile loop since DaemonSet hasn't changed
 			return reconcile.Result{}, nil
 		}
 
 		logger.Info("Updating Daemonset")
 
-		// TODO: these parameter can be added to the override.PodTemplateSpec. (it exist in v1alpha)
+		// TODO: these parameters can be added to the override.PodTemplateSpec. (It exists in v1alpha1)
 		keepAnnotationsFilter := ""
 		keepLabelsFilter := ""
 
@@ -211,12 +211,12 @@ func (r *Reconciler) createOrUpdateExtendedDaemonset(parentLogger logr.Logger, d
 	var result reconcile.Result
 	var err error
 
-	// Set DatadogAgent instance  instance as the owner and controller
+	// Set DatadogAgent instance as the owner and controller
 	if err = controllerutil.SetControllerReference(dda, eds, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
 
-	// From here the PodTemplateSpec should be ready, we can generate the hash that will be use to compare this extendeddaemonset with the current (if exist).
+	// From here the PodTemplateSpec should be ready, we can generate the hash that will be used to compare this extendeddaemonset with the current one (if it exists).
 	var hash string
 	hash, err = comparison.SetMD5DatadogAgentGenerationAnnotation(&eds.ObjectMeta, eds.Spec)
 	if err != nil {
@@ -230,35 +230,35 @@ func (r *Reconciler) createOrUpdateExtendedDaemonset(parentLogger logr.Logger, d
 	}
 
 	currentEDS := &edsv1alpha1.ExtendedDaemonSet{}
-	alreadyExist := true
+	alreadyExists := true
 	err = r.client.Get(context.TODO(), nsName, currentEDS)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			logger.Info("ExtendedDaemonSet is not found")
-			alreadyExist = false
+			alreadyExists = false
 		} else {
 			logger.Error(err, "unexpected error during ExtendedDaemonSet get")
 			return reconcile.Result{}, err
 		}
 	}
 
-	if alreadyExist {
+	if alreadyExists {
 		// check if same hash
 		needUpdate := !comparison.IsSameSpecMD5Hash(hash, currentEDS.GetAnnotations())
 		if !needUpdate {
-			// Even if the EDS is still the same, it's status might have
+			// Even if the EDS is still the same, its status might have
 			// changed (for example, the number of pods ready). This call is
 			// needed to keep the agent status updated.
 			now := metav1.NewTime(time.Now())
 			newStatus.Agent = datadoghqv2alpha1.UpdateExtendedDaemonSetStatus(currentEDS, newStatus.Agent, &now)
 
-			// no need to update the EDS to stop here the process
+			// Stop reconcile loop since EDS hasn't changed
 			return reconcile.Result{}, nil
 		}
 
 		logger.Info("Updating ExtendedDaemonSet")
 
-		// TODO: these parameter can be added to the override.PodTemplateSpec. (it exist in v1alpha)
+		// TODO: these parameters can be added to the override.PodTemplateSpec. (It exists in v1alpha1)
 		keepAnnotationsFilter := ""
 		keepLabelsFilter := ""
 
@@ -275,7 +275,7 @@ func (r *Reconciler) createOrUpdateExtendedDaemonset(parentLogger logr.Logger, d
 		}
 		event := buildEventInfo(updateEDS.Name, updateEDS.Namespace, extendedDaemonSetKind, datadog.UpdateEvent)
 		r.recordEvent(dda, event)
-		updateStatusFunc(updateEDS, newStatus, now, metav1.ConditionTrue, "Extended_Daemonset_updated", "ExtendedDaemonSet updated")
+		updateStatusFunc(updateEDS, newStatus, now, metav1.ConditionTrue, "ExtendedDaemonSet_updated", "ExtendedDaemonSet updated")
 	} else {
 		now := metav1.NewTime(time.Now())
 
