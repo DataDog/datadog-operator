@@ -190,7 +190,11 @@ func clusterChecksRunnerDefaultEnvVars() []corev1.EnvVar {
 			Value: "true",
 		},
 		{
-			Name:  "DD_PROCESS_AGENT_ENABLED",
+			Name:  "DD_PROCESS_CONFIG_CONTAINER_COLLECTION_ENABLED",
+			Value: "false",
+		},
+		{
+			Name:  "DD_PROCESS_CONFIG_PROCESS_COLLECTION_ENABLED",
 			Value: "false",
 		},
 		{

@@ -132,6 +132,19 @@ func NewDatadogAgentWithKSM(namespace string, name string) v2alpha1.DatadogAgent
 	)
 }
 
+// NewDatadogAgentWithLiveContainerCollection returns an agent with live container collection enabled
+func NewDatadogAgentWithLiveContainerCollection(namespace string, name string) v2alpha1.DatadogAgent {
+	return newDatadogAgentWithFeatures(
+		namespace,
+		name,
+		&v2alpha1.DatadogFeatures{
+			LiveContainerCollection: &v2alpha1.LiveContainerCollectionFeatureConfig{
+				Enabled: apiutils.NewBoolPointer(true),
+			},
+		},
+	)
+}
+
 // NewDatadogAgentWithLiveProcessCollection returns an agent with LiveProcess collection enabled
 func NewDatadogAgentWithLiveProcessCollection(namespace string, name string) v2alpha1.DatadogAgent {
 	return newDatadogAgentWithFeatures(

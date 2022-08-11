@@ -618,7 +618,7 @@ func getEnvVarsForProcessAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.En
 
 	if processCollectionEnabled(dda) {
 		envVars = append(envVars, corev1.EnvVar{
-			Name:  apicommon.DDProcessAgentEnabled,
+			Name:  apicommon.DDProcessCollectionEnabled,
 			Value: "true",
 		})
 	}

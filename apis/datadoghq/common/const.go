@@ -192,6 +192,7 @@ const (
 	SecurityAgentRuntimePoliciesDirVolumePath    = "/etc/datadog-agent/runtime-security.d"
 	HostCriSocketPathPrefix                      = "/host"
 	CriSocketVolumeName                          = "runtimesocketdir"
+	RuntimeDirVolumePath                         = "/var/run"
 	KubeletAgentCAPath                           = "/var/run/host-kubelet-ca.crt"
 	KubeletCAVolumeName                          = "kubelet-ca"
 	APMHostPortName                              = "traceport"

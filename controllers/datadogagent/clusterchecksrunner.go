@@ -343,7 +343,11 @@ func getEnvVarsForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []cor
 			Value: "false",
 		},
 		{
-			Name:  apicommon.DDProcessAgentEnabled,
+			Name:  apicommon.DDProcessCollectionEnabled,
+			Value: "false",
+		},
+		{
+			Name:  apicommon.DDContainerCollectionEnabled,
 			Value: "false",
 		},
 		{

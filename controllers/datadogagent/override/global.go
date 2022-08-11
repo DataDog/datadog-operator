@@ -187,6 +187,8 @@ func ApplyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 			}
 		}
 
+		var runtimeVol corev1.Volume
+		var runtimeVolMount corev1.VolumeMount
 		// Path to the docker runtime socket.
 		if config.DockerSocketPath != nil {
 			dockerMountPath := filepath.Join(apicommon.HostCriSocketPathPrefix, *config.DockerSocketPath)
@@ -194,36 +196,33 @@ func ApplyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 				Name:  apicommon.DockerHost,
 				Value: "unix://" + dockerMountPath,
 			})
-			dockerVol, dockerVolMount := volume.GetVolumes(apicommon.CriSocketVolumeName, *config.DockerSocketPath, dockerMountPath, true)
-			manager.VolumeMount().AddVolumeMountToContainers(
-				&dockerVolMount,
-				[]apicommonv1.AgentContainerName{
-					apicommonv1.CoreAgentContainerName,
-					apicommonv1.ProcessAgentContainerName,
-					apicommonv1.SecurityAgentContainerName,
-				},
-			)
-			manager.Volume().AddVolume(&dockerVol)
-		}
-
-		// Path to the container runtime socket (if different from Docker).
-		if config.CriSocketPath != nil {
+			runtimeVol, runtimeVolMount = volume.GetVolumes(apicommon.CriSocketVolumeName, *config.DockerSocketPath, dockerMountPath, true)
+		} else if config.CriSocketPath != nil {
+			// Path to the container runtime socket (if different from Docker).
 			criSocketMountPath := filepath.Join(apicommon.HostCriSocketPathPrefix, *config.CriSocketPath)
 			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
 				Name:  apicommon.DDCriSocketPath,
 				Value: criSocketMountPath,
 			})
-			criVol, criVolMount := volume.GetVolumes(apicommon.CriSocketVolumeName, *config.CriSocketPath, criSocketMountPath, true)
-			manager.VolumeMount().AddVolumeMountToContainers(
-				&criVolMount,
-				[]apicommonv1.AgentContainerName{
-					apicommonv1.CoreAgentContainerName,
-					apicommonv1.ProcessAgentContainerName,
-					apicommonv1.SecurityAgentContainerName,
-				},
+			runtimeVol, runtimeVolMount = volume.GetVolumes(apicommon.CriSocketVolumeName, *config.CriSocketPath, criSocketMountPath, true)
+		} else {
+			runtimeVol, runtimeVolMount = volume.GetVolumes(
+				apicommon.CriSocketVolumeName,
+				apicommon.RuntimeDirVolumePath,
+				apicommon.HostCriSocketPathPrefix+apicommon.RuntimeDirVolumePath,
+				true,
 			)
-			manager.Volume().AddVolume(&criVol)
 		}
+		manager.VolumeMount().AddVolumeMountToContainers(
+			&runtimeVolMount,
+			[]apicommonv1.AgentContainerName{
+				apicommonv1.CoreAgentContainerName,
+				apicommonv1.ProcessAgentContainerName,
+				apicommonv1.TraceAgentContainerName,
+				apicommonv1.SecurityAgentContainerName,
+			},
+		)
+		manager.Volume().AddVolume(&runtimeVol)
 	}
 
 	return manager.PodTemplateSpec()
