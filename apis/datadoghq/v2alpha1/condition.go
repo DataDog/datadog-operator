@@ -52,7 +52,6 @@ func UpdateDatadogAgentStatusCondition(condition metav1.Condition, now metav1.Ti
 		condition.LastTransitionTime = now
 		condition.Status = conditionStatus
 	}
-	condition.LastTransitionTime = now
 	condition.Message = message
 	condition.Reason = reason
 
