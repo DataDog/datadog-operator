@@ -18,16 +18,9 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
-	"github.com/DataDog/datadog-operator/pkg/utils"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
-)
-
-const (
-	// Service Internal Traffic Policy exists in Kube 1.21 but it is enabled by default since 1.22
-	minLocalServiceVersion        = "1.21-0"
-	minDefaultLocalServiceVersion = "1.22-0"
 )
 
 // ApplyGlobalSettings use to apply global setting to a PodTemplateSpec
@@ -139,17 +132,15 @@ func ApplyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 
 		// LocalService contains configuration to customize the internal traffic policy service.
 		gitVersion := resourcesManager.Store().GetVersionInfo()
-		if utils.IsAboveMinVersion(gitVersion, minLocalServiceVersion) {
-			if utils.IsAboveMinVersion(gitVersion, minDefaultLocalServiceVersion) || (config.LocalService != nil && apiutils.BoolValue(config.LocalService.ForceEnableLocalService)) {
-				var err error
-				if config.LocalService != nil && config.LocalService.NameOverride != nil {
-					err = resourcesManager.ServiceManager().AddService(component.BuildAgentLocalService(dda, *config.LocalService.NameOverride))
-				} else {
-					err = resourcesManager.ServiceManager().AddService(component.BuildAgentLocalService(dda, ""))
-				}
-				if err != nil {
-					logger.Info("Error adding Local Service to the store", "error", err)
-				}
+		forceEnableLocalService := config.LocalService != nil && apiutils.BoolValue(config.LocalService.ForceEnableLocalService)
+		if component.ShouldCreateAgentLocalService(gitVersion, forceEnableLocalService) {
+			var serviceName string
+			if config.LocalService != nil && config.LocalService.NameOverride != nil {
+				serviceName = *config.LocalService.NameOverride
+			}
+			err := resourcesManager.ServiceManager().AddService(component.BuildAgentLocalService(dda, serviceName))
+			if err != nil {
+				logger.Info("Error adding Local Service to the store", "error", err)
 			}
 		}
 

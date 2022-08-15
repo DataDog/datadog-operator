@@ -40,9 +40,15 @@ func (m *serviceManagerImpl) AddService(name, namespace string, selector map[str
 		return fmt.Errorf("unable to get from the store the Service %s", name)
 	}
 
-	service.Spec.Ports = append(service.Spec.Ports, ports...)
-	service.Spec.Selector = selector
+	if len(ports) > 0 {
+		service.Spec.Ports = append(service.Spec.Ports, ports...)
+	}
+	if selector != nil {
+		service.Spec.Selector = selector
+	}
 	service.Spec.Type = corev1.ServiceTypeClusterIP
-	service.Spec.InternalTrafficPolicy = internalTrafficPolicy
+	if internalTrafficPolicy != nil {
+		service.Spec.InternalTrafficPolicy = internalTrafficPolicy
+	}
 	return m.store.AddOrUpdate(kubernetes.ServicesKind, service)
 }

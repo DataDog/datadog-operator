@@ -25630,7 +25630,7 @@ spec:
                       unixDomainSocketConfig:
                         description: 'UnixDomainSocketConfig contains socket configuration.
                           See also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables
-                          Enabled Default: true Path Default: `/var/run/datadog/apm.socket`'
+                          Enabled Default: true Path Default: `/var/run/datadog/apm/apm.socket`'
                         properties:
                           enabled:
                             description: 'Enabled enables Unix Domain Socket. Default:
@@ -25854,7 +25854,7 @@ spec:
                       unixDomainSocketConfig:
                         description: 'UnixDomainSocketConfig contains socket configuration.
                           See also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables
-                          Enabled Default: true Path Default: `/var/run/datadog/dsd.socket`'
+                          Enabled Default: true Path Default: `/var/run/datadog/statsd/dsd.socket`'
                         properties:
                           enabled:
                             description: 'Enabled enables Unix Domain Socket. Default:
