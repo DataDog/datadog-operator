@@ -2849,7 +2849,7 @@ func (dummyManager) ProcessError(datadog.MonitoredObject, error) {
 func (dummyManager) ProcessEvent(datadog.MonitoredObject, datadog.Event) {
 }
 
-func (dummyManager) MetricsForwarderStatusForObj(obj datadog.MonitoredObject) *datadoghqv1alpha1.DatadogAgentCondition {
+func (dummyManager) MetricsForwarderStatusForObj(obj datadog.MonitoredObject) datadog.ConditionInterface {
 	return nil
 }
 
