@@ -91,8 +91,16 @@ func ApplyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 				if config.NetworkPolicy.DNSSelectorEndpoints != nil {
 					dnsSelectorEndpoints = config.NetworkPolicy.DNSSelectorEndpoints
 				}
-				resourcesManager.CiliumPolicyManager().SetupCiliumManager(*config.Site, ddURL, v2alpha1.IsHostNetworkEnabled(dda, v2alpha1.ClusterAgentComponentName), dnsSelectorEndpoints)
-				err = resourcesManager.CiliumPolicyManager().BuildCiliumPolicy(dda, componentName)
+				err = resourcesManager.CiliumPolicyManager().AddCiliumPolicy(
+					component.BuildCiliumPolicy(
+						dda,
+						*config.Site,
+						ddURL,
+						v2alpha1.IsHostNetworkEnabled(dda, v2alpha1.ClusterAgentComponentName),
+						dnsSelectorEndpoints,
+						componentName,
+					),
+				)
 			}
 			if err != nil {
 				logger.Info("Error adding Network Policy to the store", "error", err)
