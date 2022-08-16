@@ -46,6 +46,11 @@ type cspmFeature struct {
 	owner metav1.Object
 }
 
+// ID returns the ID of the Feature
+func (f *cspmFeature) ID() feature.IDType {
+	return feature.CSPMIDType
+}
+
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *cspmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda
@@ -138,7 +143,7 @@ func (f *cspmFeature) ManageDependencies(managers feature.ResourceManagers, comp
 	// Manage RBAC
 	rbacName := getRBACResourceName(f.owner)
 
-	return managers.RBACManager().AddClusterPolicyRules("", rbacName, f.serviceAccountName, getRBACPolicyRules())
+	return managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), rbacName, f.serviceAccountName, getRBACPolicyRules())
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec

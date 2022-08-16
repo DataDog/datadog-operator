@@ -12742,7 +12742,7 @@ spec:
                       unixDomainSocketConfig:
                         description: 'UnixDomainSocketConfig contains socket configuration.
                           See also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables
-                          Enabled Default: true Path Default: `/var/run/datadog/apm.socket`'
+                          Enabled Default: true Path Default: `/var/run/datadog/apm/apm.socket`'
                         properties:
                           enabled:
                             description: 'Enabled enables Unix Domain Socket. Default:
@@ -12966,7 +12966,7 @@ spec:
                       unixDomainSocketConfig:
                         description: 'UnixDomainSocketConfig contains socket configuration.
                           See also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables
-                          Enabled Default: true Path Default: `/var/run/datadog/dsd.socket`'
+                          Enabled Default: true Path Default: `/var/run/datadog/statsd/dsd.socket`'
                         properties:
                           enabled:
                             description: 'Enabled enables Unix Domain Socket. Default:
@@ -13142,6 +13142,15 @@ spec:
                         description: 'Enabled enables Process monitoring. Default:
                           false'
                         type: boolean
+                      scrubProcessArguments:
+                        description: 'ScrubProcessArguments enables scrubbing of sensitive
+                          data in process command-lines (passwords, tokens, etc. ).
+                          Default: true'
+                        type: boolean
+                      stripProcessArguments:
+                        description: 'StripProcessArguments enables stripping of all
+                          process arguments. Default: false'
+                        type: boolean
                     type: object
                   logCollection:
                     description: LogCollection configuration.
@@ -13274,65 +13283,14 @@ spec:
                                 type: string
                             type: object
                         type: object
+                      ddUrl:
+                        description: 'Override the API endpoint for the Orchestrator
+                          Explorer. URL Default: "https://orchestrator.datadoghq.com".'
+                        type: string
                       enabled:
                         description: 'Enabled enables the Orchestrator Explorer. Default:
                           true'
                         type: boolean
-                      endpoint:
-                        description: 'Override the API endpoint for the Orchestrator
-                          Explorer. URL Default: "https://orchestrator.datadoghq.com".'
-                        properties:
-                          credentials:
-                            description: Credentials defines the Datadog credentials
-                              used to submit data to/query data from Datadog.
-                            properties:
-                              apiKey:
-                                description: 'APIKey configures your Datadog API key.
-                                  See also: https://app.datadoghq.com/account/settings#agent/kubernetes'
-                                type: string
-                              apiSecret:
-                                description: APISecret references an existing Secret
-                                  which stores the API key instead of creating a new
-                                  one. If set, this parameter takes precedence over
-                                  "APIKey".
-                                properties:
-                                  keyName:
-                                    description: KeyName is the key of the secret
-                                      to use.
-                                    type: string
-                                  secretName:
-                                    description: SecretName is the name of the secret.
-                                    type: string
-                                required:
-                                - secretName
-                                type: object
-                              appKey:
-                                description: AppKey configures your Datadog application
-                                  key. If you are using clusterAgent.metricsProvider.enabled
-                                  = true, you must set a Datadog application key for
-                                  read access to your metrics.
-                                type: string
-                              appSecret:
-                                description: AppSecret references an existing Secret
-                                  which stores the application key instead of creating
-                                  a new one. If set, this parameter takes precedence
-                                  over "AppKey".
-                                properties:
-                                  keyName:
-                                    description: KeyName is the key of the secret
-                                      to use.
-                                    type: string
-                                  secretName:
-                                    description: SecretName is the name of the secret.
-                                    type: string
-                                required:
-                                - secretName
-                                type: object
-                            type: object
-                          url:
-                            description: URL defines the endpoint URL.
-                            type: string
-                        type: object
                       extraTags:
                         description: Additional tags to associate with the collected
                           data in the form of `a b c`. This is a Cluster Agent option
@@ -17560,6 +17518,150 @@ spec:
           status:
             description: DatadogAgentStatus defines the observed state of DatadogAgent.
             properties:
+              agent:
+                description: The actual state of the Agent as an extended daemonset.
+                properties:
+                  available:
+                    format: int32
+                    type: integer
+                  current:
+                    format: int32
+                    type: integer
+                  currentHash:
+                    type: string
+                  daemonsetName:
+                    description: DaemonsetName corresponds to the name of the created
+                      DaemonSet.
+                    type: string
+                  desired:
+                    format: int32
+                    type: integer
+                  lastUpdate:
+                    format: date-time
+                    type: string
+                  ready:
+                    format: int32
+                    type: integer
+                  state:
+                    type: string
+                  status:
+                    type: string
+                  upToDate:
+                    format: int32
+                    type: integer
+                required:
+                - available
+                - current
+                - desired
+                - ready
+                - upToDate
+                type: object
+              clusterAgent:
+                description: The actual state of the Cluster Agent as a deployment.
+                properties:
+                  availableReplicas:
+                    description: Total number of available pods (ready for at least
+                      minReadySeconds) targeted by this deployment.
+                    format: int32
+                    type: integer
+                  currentHash:
+                    type: string
+                  deploymentName:
+                    description: DeploymentName corresponds to the name of the Cluster
+                      Agent Deployment.
+                    type: string
+                  generatedToken:
+                    description: GeneratedToken corresponds to the generated token
+                      if any token was provided in the Credential configuration when
+                      ClusterAgent is enabled.
+                    type: string
+                  lastUpdate:
+                    format: date-time
+                    type: string
+                  readyReplicas:
+                    description: Total number of ready pods targeted by this deployment.
+                    format: int32
+                    type: integer
+                  replicas:
+                    description: Total number of non-terminated pods targeted by this
+                      deployment (their labels match the selector).
+                    format: int32
+                    type: integer
+                  state:
+                    description: State corresponds to the ClusterAgent deployment
+                      state.
+                    type: string
+                  status:
+                    description: Status corresponds to the ClusterAgent deployment
+                      computed status.
+                    type: string
+                  unavailableReplicas:
+                    description: Total number of unavailable pods targeted by this
+                      deployment. This is the total number of pods that are still
+                      required for the deployment to have 100% available capacity.
+                      They may either be pods that are running but not yet available
+                      or pods that still have not been created.
+                    format: int32
+                    type: integer
+                  updatedReplicas:
+                    description: Total number of non-terminated pods targeted by this
+                      deployment that have the desired template spec.
+                    format: int32
+                    type: integer
+                type: object
+              clusterChecksRunner:
+                description: The actual state of the Cluster Checks Runner as a deployment.
+                properties:
+                  availableReplicas:
+                    description: Total number of available pods (ready for at least
+                      minReadySeconds) targeted by this deployment.
+                    format: int32
+                    type: integer
+                  currentHash:
+                    type: string
+                  deploymentName:
+                    description: DeploymentName corresponds to the name of the Cluster
+                      Agent Deployment.
+                    type: string
+                  generatedToken:
+                    description: GeneratedToken corresponds to the generated token
+                      if any token was provided in the Credential configuration when
+                      ClusterAgent is enabled.
+                    type: string
+                  lastUpdate:
+                    format: date-time
+                    type: string
+                  readyReplicas:
+                    description: Total number of ready pods targeted by this deployment.
+                    format: int32
+                    type: integer
+                  replicas:
+                    description: Total number of non-terminated pods targeted by this
+                      deployment (their labels match the selector).
+                    format: int32
+                    type: integer
+                  state:
+                    description: State corresponds to the ClusterAgent deployment
+                      state.
+                    type: string
+                  status:
+                    description: Status corresponds to the ClusterAgent deployment
+                      computed status.
+                    type: string
+                  unavailableReplicas:
+                    description: Total number of unavailable pods targeted by this
+                      deployment. This is the total number of pods that are still
+                      required for the deployment to have 100% available capacity.
+                      They may either be pods that are running but not yet available
+                      or pods that still have not been created.
+                    format: int32
+                    type: integer
+                  updatedReplicas:
+                    description: Total number of non-terminated pods targeted by this
+                      deployment that have the desired template spec.
+                    format: int32
+                    type: integer
+                type: object
               conditions:
                 description: Conditions Represents the latest available observations
                   of a DatadogAgent's current state.

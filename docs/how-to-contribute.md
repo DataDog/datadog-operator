@@ -80,7 +80,11 @@ export DD_API_KEY=<api-key>
 export DD_APP_KEY=<app-key>
 export DD_TOKEN=<32-chars-token>
 
-kubectl -n $KUBE_NAMESPACE create secret generic datadog-secret --from-literal api-key=$DD_API_KEY --from-literal app-key=$DD_APP_KEY --from-literal token=$DD_TOKEN
+kubectl -n $KUBE_NAMESPACE create secret generic datadog-secret --from-literal api-key=$DD_API_KEY --from-literal app-key=$DD_APP_KEY
+
+
+kubectl -n $KUBE_NAMESPACE create secret generic datadog-token --from-literal token=$DD_TOKEN
+
 
 kubectl -n $KUBE_NAMESPACE  apply -f `examples/v2alpha1/min.yaml`
 ```

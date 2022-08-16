@@ -43,6 +43,11 @@ type logCollectionFeature struct {
 	openFilesLimit             int32
 }
 
+// ID returns the ID of the Feature
+func (f *logCollectionFeature) ID() feature.IDType {
+	return feature.LogCollectionIDType
+}
+
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *logCollectionFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	if dda.Spec.Features == nil {

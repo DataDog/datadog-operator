@@ -50,50 +50,18 @@ func (r *Reconciler) manageClusterAgentService(logger logr.Logger, dda *datadogh
 }
 
 func (r *Reconciler) createClusterAgentService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
-	newService := newClusterAgentService(dda)
+	newService := componentdca.GetClusterAgentService(dda)
 	return r.createService(logger, dda, newService)
 }
 
 func (r *Reconciler) updateIfNeededClusterAgentService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, currentService *corev1.Service) (reconcile.Result, error) {
-	newService := newClusterAgentService(dda)
+	newService := componentdca.GetClusterAgentService(dda)
 	return r.updateIfNeededService(logger, dda, currentService, newService)
 }
 
 func (r *Reconciler) cleanupClusterAgentService(dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
 	serviceName := componentdca.GetClusterAgentServiceName(dda)
 	return cleanupService(r.client, serviceName, dda.Namespace, dda)
-}
-
-func newClusterAgentService(dda *datadoghqv1alpha1.DatadogAgent) *corev1.Service {
-	labels := object.GetDefaultLabels(dda, apicommon.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
-	annotations := object.GetDefaultAnnotations(dda)
-
-	service := &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        componentdca.GetClusterAgentServiceName(dda),
-			Namespace:   dda.Namespace,
-			Labels:      labels,
-			Annotations: annotations,
-		},
-		Spec: corev1.ServiceSpec{
-			Type: corev1.ServiceTypeClusterIP,
-			Selector: map[string]string{
-				apicommon.AgentDeploymentNameLabelKey:      dda.Name,
-				apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultClusterAgentResourceSuffix,
-			},
-			Ports: []corev1.ServicePort{
-				{
-					Protocol:   corev1.ProtocolTCP,
-					TargetPort: intstr.FromInt(apicommon.DefaultClusterAgentServicePort),
-					Port:       apicommon.DefaultClusterAgentServicePort,
-				},
-			},
-			SessionAffinity: corev1.ServiceAffinityNone,
-		},
-	}
-	_, _ = comparison.SetMD5DatadogAgentGenerationAnnotation(&service.ObjectMeta, &service.Spec)
-
-	return service
 }
 
 func (r *Reconciler) manageMetricsServerService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {

@@ -12,6 +12,7 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/override"
 
 	"github.com/go-logr/logr"
+	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -25,7 +26,7 @@ func (r *Reconciler) reconcileV2ClusterAgent(logger logr.Logger, features []feat
 	podManagers := feature.NewPodTemplateManagers(&deployment.Spec.Template)
 
 	// Set Global setting on the default deployment
-	deployment.Spec.Template = *override.ApplyGlobalSettings(podManagers, dda, resourcesManager, datadoghqv2alpha1.ClusterAgentComponentName)
+	deployment.Spec.Template = *override.ApplyGlobalSettings(logger, podManagers, dda, resourcesManager, datadoghqv2alpha1.ClusterAgentComponentName)
 
 	// Apply features changes on the Deployment.Spec.Template
 	for _, feat := range features {
@@ -46,7 +47,7 @@ func (r *Reconciler) reconcileV2ClusterAgent(logger logr.Logger, features []feat
 	return r.createOrUpdateDeployment(deploymentLogger, dda, deployment, newStatus, updateStatusV2WithClusterAgent)
 }
 
-func updateStatusV2WithClusterAgent(newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
-	// TODO(operator-ga): update status with DCA deployment information
+func updateStatusV2WithClusterAgent(dca *appsv1.Deployment, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
+	newStatus.ClusterAgent = datadoghqv2alpha1.UpdateDeploymentStatus(dca, newStatus.ClusterAgent, &updateTime)
 	datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(newStatus, updateTime, datadoghqv2alpha1.ClusterAgentReconcileConditionType, status, reason, message, true)
 }

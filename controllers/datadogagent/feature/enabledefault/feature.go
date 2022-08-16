@@ -12,11 +12,11 @@ import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/version"
-
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/errors"
@@ -45,14 +45,13 @@ func buildDefaultFeature(options *feature.Options) feature.Feature {
 }
 
 type defaultFeature struct {
-	namespace string
-	owner     metav1.Object
+	owner metav1.Object
 
-	credentialsInfo    credentialsInfo
-	dcaTokenInfo       dcaTokenInfo
-	clusterAgent       clusterAgentConfig
-	agent              agentConfig
-	clusterCheckRunner clusterCheckRunnerConfig
+	credentialsInfo     credentialsInfo
+	dcaTokenInfo        dcaTokenInfo
+	clusterAgent        clusterAgentConfig
+	agent               agentConfig
+	clusterChecksRunner clusterChecksRunnerConfig
 }
 
 type credentialsInfo struct {
@@ -85,18 +84,22 @@ type agentConfig struct {
 	serviceAccountName string
 }
 
-type clusterCheckRunnerConfig struct {
+type clusterChecksRunnerConfig struct {
 	serviceAccountName string
+}
+
+// ID returns the ID of the Feature
+func (f *defaultFeature) ID() feature.IDType {
+	return feature.DefaultIDType
 }
 
 func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredComponents {
 	trueValue := true
-	f.namespace = dda.Namespace
 	f.owner = dda
 
 	f.clusterAgent.serviceAccountName = v2alpha1.GetClusterAgentServiceAccount(dda)
 	f.agent.serviceAccountName = v2alpha1.GetAgentServiceAccount(dda)
-	f.clusterCheckRunner.serviceAccountName = v2alpha1.GetClusterChecksRunnerServiceAccount(dda)
+	f.clusterChecksRunner.serviceAccountName = v2alpha1.GetClusterChecksRunnerServiceAccount(dda)
 
 	if dda.Spec.Global != nil {
 		if dda.Spec.Global.Credentials != nil {
@@ -163,7 +166,7 @@ func (f *defaultFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) feature.Require
 
 		f.clusterAgent.serviceAccountName = v1alpha1.GetClusterAgentServiceAccount(dda)
 		f.agent.serviceAccountName = v1alpha1.GetAgentServiceAccount(dda)
-		f.clusterCheckRunner.serviceAccountName = v1alpha1.GetClusterChecksRunnerServiceAccount(dda)
+		f.clusterChecksRunner.serviceAccountName = v1alpha1.GetClusterChecksRunnerServiceAccount(dda)
 
 		// get info about credential
 		// If API key, app key _and_ token don't need a new secret, then don't create one.
@@ -211,13 +214,13 @@ func (f *defaultFeature) ManageDependencies(managers feature.ResourceManagers, c
 	// manage credential secret
 	if f.credentialsInfo.secretCreation.createSecret {
 		for key, value := range f.credentialsInfo.secretCreation.data {
-			if err := managers.SecretManager().AddSecret(f.namespace, f.credentialsInfo.secretCreation.name, key, value); err != nil {
+			if err := managers.SecretManager().AddSecret(f.owner.GetNamespace(), f.credentialsInfo.secretCreation.name, key, value); err != nil {
 				errs = append(errs, err)
 			}
 		}
 		if components.ClusterAgent.IsEnabled() && f.dcaTokenInfo.secretCreation.createSecret {
 			for key, value := range f.credentialsInfo.secretCreation.data {
-				if err := managers.SecretManager().AddSecret(f.namespace, f.dcaTokenInfo.secretCreation.name, key, value); err != nil {
+				if err := managers.SecretManager().AddSecret(f.owner.GetNamespace(), f.dcaTokenInfo.secretCreation.name, key, value); err != nil {
 					errs = append(errs, err)
 				}
 			}
@@ -256,10 +259,16 @@ func (f *defaultFeature) agentDependencies(managers feature.ResourceManagers, co
 	var errs []error
 	// serviceAccount
 	if f.agent.serviceAccountName != "" {
-		if err := managers.RBACManager().AddServiceAccount(f.namespace, f.agent.serviceAccountName); err != nil {
+		if err := managers.RBACManager().AddServiceAccountByComponent(f.owner.GetNamespace(), f.agent.serviceAccountName, string(v2alpha1.NodeAgentComponentName)); err != nil {
 			errs = append(errs, err)
 		}
 	}
+
+	// ClusterRole creation
+	if err := managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), agent.GetAgentRoleName(f.owner), f.agent.serviceAccountName, agent.GetDefaultAgentClusterRolePolicyRules()); err != nil {
+		errs = append(errs, err)
+	}
+
 	return errors.NewAggregate(errs)
 }
 
@@ -269,19 +278,24 @@ func (f *defaultFeature) clusterAgentDependencies(managers feature.ResourceManag
 	// serviceAccount
 	if f.clusterAgent.serviceAccountName != "" {
 		// Service Account creation
-		if err := managers.RBACManager().AddServiceAccount(f.namespace, f.clusterAgent.serviceAccountName); err != nil {
+		if err := managers.RBACManager().AddServiceAccountByComponent(f.owner.GetNamespace(), f.clusterAgent.serviceAccountName, string(v2alpha1.ClusterAgentComponentName)); err != nil {
 			errs = append(errs, err)
 		}
 
 		// Role Creation
-		if err := managers.RBACManager().AddPolicyRules(f.namespace, f.clusterAgent.serviceAccountName, componentdca.GetClusterAgentRbacResourcesName(f.owner), componentdca.GetDefaultClusterAgentRolePolicyRules(f.owner)); err != nil {
+		if err := managers.RBACManager().AddPolicyRulesByComponent(f.owner.GetNamespace(), componentdca.GetClusterAgentRbacResourcesName(f.owner), f.clusterAgent.serviceAccountName, componentdca.GetDefaultClusterAgentRolePolicyRules(f.owner), string(v2alpha1.ClusterAgentComponentName)); err != nil {
 			errs = append(errs, err)
 		}
 
 		// ClusterRole creation
-		if err := managers.RBACManager().AddClusterPolicyRules(f.namespace, f.clusterAgent.serviceAccountName, componentdca.GetClusterAgentRbacResourcesName(f.owner), componentdca.GetDefaultClusterAgentClusterRolePolicyRules(f.owner)); err != nil {
+		if err := managers.RBACManager().AddClusterPolicyRulesByComponent(f.owner.GetNamespace(), componentdca.GetClusterAgentRbacResourcesName(f.owner), f.clusterAgent.serviceAccountName, componentdca.GetDefaultClusterAgentClusterRolePolicyRules(f.owner), string(v2alpha1.ClusterAgentComponentName)); err != nil {
 			errs = append(errs, err)
 		}
+	}
+
+	dcaService := componentdca.GetClusterAgentService(f.owner)
+	if err := managers.Store().AddOrUpdate(kubernetes.ServicesKind, dcaService); err != nil {
+		return err
 	}
 
 	return errors.NewAggregate(errs)
@@ -291,8 +305,8 @@ func (f *defaultFeature) clusterChecksRunnerDependencies(managers feature.Resour
 	_ = component
 	var errs []error
 	// serviceAccount
-	if f.clusterCheckRunner.serviceAccountName != "" {
-		if err := managers.RBACManager().AddServiceAccount(f.namespace, f.clusterCheckRunner.serviceAccountName); err != nil {
+	if f.clusterChecksRunner.serviceAccountName != "" {
+		if err := managers.RBACManager().AddServiceAccountByComponent(f.owner.GetNamespace(), f.clusterChecksRunner.serviceAccountName, string(v2alpha1.ClusterChecksRunnerComponentName)); err != nil {
 			errs = append(errs, err)
 		}
 	}
@@ -303,7 +317,27 @@ func (f *defaultFeature) clusterChecksRunnerDependencies(managers feature.Resour
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *defaultFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
-	// Add API/APP and Token secret envvar
+	f.addDefaultCommonEnvs(managers)
+
+	return nil
+}
+
+// ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
+// It should do nothing if the feature doesn't need to configure it.
+func (f *defaultFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+	f.addDefaultCommonEnvs(managers)
+	return nil
+}
+
+// ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunnerAgent's corev1.PodTemplateSpec
+// It should do nothing if the feature doesn't need to configure it.
+func (f *defaultFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
+	f.addDefaultCommonEnvs(managers)
+
+	return nil
+}
+
+func (f *defaultFeature) addDefaultCommonEnvs(managers feature.PodTemplateManagers) {
 	if f.dcaTokenInfo.token.SecretName != "" {
 		tokenEnvVar := component.BuildEnvVarFromSource(apicommon.DDClusterAgentAuthToken, component.BuildEnvVarFromSecret(f.dcaTokenInfo.token.SecretName, f.dcaTokenInfo.token.SecretKey))
 		managers.EnvVar().AddEnvVar(tokenEnvVar)
@@ -313,22 +347,11 @@ func (f *defaultFeature) ManageClusterAgent(managers feature.PodTemplateManagers
 		apiKeyEnvVar := component.BuildEnvVarFromSource(apicommon.DDAPIKey, component.BuildEnvVarFromSecret(f.credentialsInfo.apiKey.SecretName, f.credentialsInfo.apiKey.SecretKey))
 		managers.EnvVar().AddEnvVar(apiKeyEnvVar)
 	}
+
 	if f.credentialsInfo.appKey.SecretName != "" {
 		appKeyEnvVar := component.BuildEnvVarFromSource(apicommon.DDAppKey, component.BuildEnvVarFromSecret(f.credentialsInfo.appKey.SecretName, f.credentialsInfo.appKey.SecretKey))
 		managers.EnvVar().AddEnvVar(appKeyEnvVar)
 	}
-
-	return nil
-}
-
-// ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
-// It should do nothing if the feature doesn't need to configure it.
-func (f *defaultFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error { return nil }
-
-// ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunnerAgent's corev1.PodTemplateSpec
-// It should do nothing if the feature doesn't need to configure it.
-func (f *defaultFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
-	return nil
 }
 
 func buildInstallInfoConfigMap(dda metav1.Object) *corev1.ConfigMap {

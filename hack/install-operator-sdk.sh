@@ -20,6 +20,8 @@ uname_os() {
 }
 OS=$(uname_os)
 
+ARCH=$(go env GOARCH)
+
 mkdir -p "$ROOT/bin/$PLATFORM"
-curl -Lo "$ROOT/bin/$PLATFORM/operator-sdk" "https://github.com/operator-framework/operator-sdk/releases/download/${RELEASE_VERSION}/operator-sdk_${OS}_amd64"
+curl -Lo "$ROOT/bin/$PLATFORM/operator-sdk" "https://github.com/operator-framework/operator-sdk/releases/download/${RELEASE_VERSION}/operator-sdk_${OS}_${ARCH}"
 chmod +x "$ROOT/bin/$PLATFORM/operator-sdk"

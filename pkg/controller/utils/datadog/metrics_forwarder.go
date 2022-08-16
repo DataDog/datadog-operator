@@ -84,7 +84,7 @@ type metricsForwarder struct {
 	decryptor           secrets.Decryptor
 	creds               sync.Map
 	baseURL             string
-	status              *v1alpha1.DatadogAgentCondition
+	status              ConditionInterface
 	credsManager        *config.CredentialManager
 	sync.Mutex
 }
@@ -184,13 +184,17 @@ func (mf *metricsForwarder) stop() {
 	close(mf.stopChan)
 }
 
-func (mf *metricsForwarder) getStatus() *v1alpha1.DatadogAgentCondition {
+// ConditionInterface is a generic interface to encompass DatadogAgentCondition (v1alpha1) and metav1.Condition (v2alpha1)
+type ConditionInterface interface {
+}
+
+func (mf *metricsForwarder) getStatus() ConditionInterface {
 	mf.Lock()
 	defer mf.Unlock()
 	return mf.status
 }
 
-func (mf *metricsForwarder) setStatus(newStatus *v1alpha1.DatadogAgentCondition) {
+func (mf *metricsForwarder) setStatus(newStatus ConditionInterface) {
 	mf.Lock()
 	defer mf.Unlock()
 	mf.status = newStatus
@@ -624,9 +628,10 @@ func (mf *metricsForwarder) updateStatusIfNeeded(err error) {
 
 	if oldStatus := mf.getStatus(); oldStatus == nil {
 		newStatus := condition.NewDatadogAgentStatusCondition(v1alpha1.DatadogMetricsActive, conditionStatus, now, "", description)
-		mf.setStatus(&newStatus)
+		mf.setStatus(newStatus)
 	} else {
-		mf.setStatus(condition.UpdateDatadogAgentStatusCondition(oldStatus, now, v1alpha1.DatadogMetricsActive, conditionStatus, description))
+		oldStatusCast, _ := oldStatus.(v1alpha1.DatadogAgentCondition)
+		mf.setStatus(*condition.UpdateDatadogAgentStatusCondition(&oldStatusCast, now, v1alpha1.DatadogMetricsActive, conditionStatus, description))
 	}
 }
 

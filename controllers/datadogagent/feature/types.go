@@ -99,6 +99,8 @@ func mergeSlices(a, b []apicommonv1.AgentContainerName) []apicommonv1.AgentConta
 // Feature Feature interface
 // It returns `true` if the Feature is used, else it return `false`.
 type Feature interface {
+	// ID returns the ID of the Feature
+	ID() IDType
 	// Configure use to configure the internal of a Feature
 	// It should return `true` if the feature is enabled, else `false`.
 	Configure(dda *v2alpha1.DatadogAgent) RequiredComponents
@@ -136,26 +138,32 @@ type ResourceManagers interface {
 	RBACManager() merger.RBACManager
 	PodSecurityManager() merger.PodSecurityManager
 	SecretManager() merger.SecretManager
+	NetworkPolicyManager() merger.NetworkPolicyManager
+	ServiceManager() merger.ServiceManager
 	CiliumPolicyManager() merger.CiliumPolicyManager
 }
 
 // NewResourceManagers return new instance of the ResourceManagers interface
 func NewResourceManagers(store dependencies.StoreClient) ResourceManagers {
 	return &resourceManagersImpl{
-		store:       store,
-		rbac:        merger.NewRBACManager(store),
-		podSecurity: merger.NewPodSecurityManager(store),
-		secret:      merger.NewSecretManager(store),
-		cilium:      merger.NewCiliumPolicyManager(store),
+		store:         store,
+		rbac:          merger.NewRBACManager(store),
+		podSecurity:   merger.NewPodSecurityManager(store),
+		secret:        merger.NewSecretManager(store),
+		networkPolicy: merger.NewNetworkPolicyManager(store),
+		service:       merger.NewServiceManager(store),
+		cilium:        merger.NewCiliumPolicyManager(store),
 	}
 }
 
 type resourceManagersImpl struct {
-	store       dependencies.StoreClient
-	rbac        merger.RBACManager
-	podSecurity merger.PodSecurityManager
-	secret      merger.SecretManager
-	cilium      merger.CiliumPolicyManager
+	store         dependencies.StoreClient
+	rbac          merger.RBACManager
+	podSecurity   merger.PodSecurityManager
+	secret        merger.SecretManager
+	networkPolicy merger.NetworkPolicyManager
+	service       merger.ServiceManager
+	cilium        merger.CiliumPolicyManager
 }
 
 func (impl *resourceManagersImpl) Store() dependencies.StoreClient {
@@ -172,6 +180,14 @@ func (impl *resourceManagersImpl) PodSecurityManager() merger.PodSecurityManager
 
 func (impl *resourceManagersImpl) SecretManager() merger.SecretManager {
 	return impl.secret
+}
+
+func (impl *resourceManagersImpl) NetworkPolicyManager() merger.NetworkPolicyManager {
+	return impl.networkPolicy
+}
+
+func (impl *resourceManagersImpl) ServiceManager() merger.ServiceManager {
+	return impl.service
 }
 
 func (impl *resourceManagersImpl) CiliumPolicyManager() merger.CiliumPolicyManager {

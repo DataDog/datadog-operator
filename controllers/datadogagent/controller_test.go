@@ -132,6 +132,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 	const rbacResourcesName = "foo-agent"
 	const rbacResourcesNameClusterAgent = "foo-cluster-agent"
 	const rbacResourcesNameClusterChecksRunner = "foo-cluster-checks-runner"
+	const clusterAgentReplicas = 2
 
 	eventBroadcaster := record.NewBroadcaster()
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "TestReconcileDatadogAgent_Reconcile"})
@@ -286,7 +287,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
 				loadFunc: func(c client.Client) {
-					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, &test.NewDatadogAgentOptions{UseEDS: true, OrchestratorExplorerDisabled: true, Labels: map[string]string{"label-foo-key": "label-bar-value"}})
+					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, &test.NewDatadogAgentOptions{UseEDS: true, OrchestratorExplorerDisabled: true, Labels: map[string]string{"label-foo-key": "label-bar-value"}, ClusterAgentReplicas: apiutils.NewInt32Pointer(clusterAgentReplicas)})
 					_ = c.Create(context.TODO(), dda)
 					labels := object.GetDefaultLabels(dda, apicommon.DefaultAgentResourceSuffix, getAgentVersion(dda))
 					_ = c.Create(context.TODO(), test.NewSecret(resourcesNamespace, "foo", &test.NewSecretOptions{Labels: labels, Data: map[string][]byte{
@@ -1159,7 +1160,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
 				loadFunc: func(c client.Client) {
-					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, &test.NewDatadogAgentOptions{Labels: map[string]string{"label-foo-key": "label-bar-value"}, ClusterAgentEnabled: true})
+					dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, &test.NewDatadogAgentOptions{Labels: map[string]string{"label-foo-key": "label-bar-value"}, ClusterAgentEnabled: true, ClusterAgentReplicas: apiutils.NewInt32Pointer(clusterAgentReplicas)})
 					_ = c.Create(context.TODO(), dda)
 					commonDCAlabels := object.GetDefaultLabels(dda, apicommon.DefaultClusterAgentResourceSuffix, getClusterAgentVersion(dda))
 					_ = c.Create(context.TODO(), test.NewSecret(resourcesNamespace, "foo", &test.NewSecretOptions{Labels: commonDCAlabels, Data: map[string][]byte{
@@ -2848,7 +2849,7 @@ func (dummyManager) ProcessError(datadog.MonitoredObject, error) {
 func (dummyManager) ProcessEvent(datadog.MonitoredObject, datadog.Event) {
 }
 
-func (dummyManager) MetricsForwarderStatusForObj(obj datadog.MonitoredObject) *datadoghqv1alpha1.DatadogAgentCondition {
+func (dummyManager) MetricsForwarderStatusForObj(obj datadog.MonitoredObject) datadog.ConditionInterface {
 	return nil
 }
 

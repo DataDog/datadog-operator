@@ -62,7 +62,7 @@ func getKubeletVolumes(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 
 		return []corev1.Volume{
 			{
-				Name: datadoghqv1alpha1.KubeletCAVolumeName,
+				Name: apicommon.KubeletCAVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
 						Path: dda.Spec.Agent.Config.Kubelet.HostCAPath,
@@ -84,7 +84,7 @@ func getKubeletVolumeMounts(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume
 	if dda.Spec.Agent.Config.Kubelet.HostCAPath != "" {
 		return []corev1.VolumeMount{
 			{
-				Name:      datadoghqv1alpha1.KubeletCAVolumeName,
+				Name:      apicommon.KubeletCAVolumeName,
 				MountPath: getAgentCAPath(dda),
 				ReadOnly:  true,
 			},
@@ -99,5 +99,5 @@ func getAgentCAPath(dda *datadoghqv1alpha1.DatadogAgent) string {
 		return dda.Spec.Agent.Config.Kubelet.AgentCAPath
 	}
 
-	return datadoghqv1alpha1.DefaultKubeletAgentCAPath
+	return apicommon.KubeletAgentCAPath
 }

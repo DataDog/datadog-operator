@@ -22,11 +22,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-func createEmptyFakeManager(t testing.TB) feature.PodTemplateManagers {
-	mgr := fake.NewPodTemplateManagers(t)
-	return mgr
-}
-
 func Test_ksmFeature_Configure(t *testing.T) {
 	ddav1KSMDisable := v1alpha1.DatadogAgent{
 		Spec: v1alpha1.DatadogAgentSpec{
@@ -100,14 +95,8 @@ func Test_ksmFeature_Configure(t *testing.T) {
 			Name:          "v1alpha1 ksm-core not enable",
 			DDAv1:         ddav1KSMEnable,
 			WantConfigure: true,
-			ClusterAgent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc:   ksmClusterAgentWantFunc,
-			},
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc:   ksmAgentNodeWantFunc,
-			},
+			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(ksmClusterAgentWantFunc),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
 		},
 		//////////////////////////
 		// v2Alpha1.DatadogAgent
@@ -121,14 +110,8 @@ func Test_ksmFeature_Configure(t *testing.T) {
 			Name:          "v2alpha1 ksm-core not enable",
 			DDAv2:         ddav2KSMEnable,
 			WantConfigure: true,
-			ClusterAgent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc:   ksmClusterAgentWantFunc,
-			},
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc:   ksmAgentNodeWantFunc,
-			},
+			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(ksmClusterAgentWantFunc),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
 		},
 	}
 

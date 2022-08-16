@@ -7,7 +7,6 @@ package datadogagent
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -22,6 +21,7 @@ import (
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/override"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 )
 
@@ -76,16 +76,17 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, request reconcile.
 		}
 	*/
 
-	return r.reconcileInstanceV2(ctx, reqLogger, instance)
+	// Set default values for GlobalConfig and Features
+	instanceCopy := instance.DeepCopy()
+	datadoghqv2alpha1.DefaultDatadogAgent(instanceCopy)
+
+	return r.reconcileInstanceV2(ctx, reqLogger, instanceCopy)
 }
 
 func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger, instance *datadoghqv2alpha1.DatadogAgent) (reconcile.Result, error) {
 	var result reconcile.Result
 
-	features, requiredComponents, err := feature.BuildFeatures(instance, reconcilerOptionsToFeatureOptions(&r.options, logger))
-	if err != nil {
-		return result, fmt.Errorf("unable to build features, err: %w", err)
-	}
+	features, requiredComponents := feature.BuildFeatures(instance, reconcilerOptionsToFeatureOptions(&r.options, logger))
 	logger.Info("requiredComponents status:", "agent", requiredComponents.Agent.IsEnabled(), "cluster-agent", requiredComponents.ClusterAgent.IsEnabled(), "cluster-checks-runner", requiredComponents.ClusterChecksRunner.IsEnabled())
 
 	// -----------------------
@@ -93,33 +94,36 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	// -----------------------
 	storeOptions := &dependencies.StoreOptions{
 		SupportCilium: r.options.SupportCilium,
+		VersionInfo:   r.versionInfo,
 		Logger:        logger,
 		Scheme:        r.scheme,
 	}
 	depsStore := dependencies.NewStore(instance, storeOptions)
-	resourcesManager := feature.NewResourceManagers(depsStore)
+	resourceManagers := feature.NewResourceManagers(depsStore)
+
 	var errs []error
-	for id, feat := range features {
-		logger.Info("Dependency ManageDependencies", "featureID", id)
-		if featErr := feat.ManageDependencies(resourcesManager, requiredComponents); err != nil {
+
+	// Set up dependencies required by enabled features
+	for _, feat := range features {
+		logger.Info("Dependency ManageDependencies", "featureID", feat.ID())
+		if featErr := feat.ManageDependencies(resourceManagers, requiredComponents); featErr != nil {
 			errs = append(errs, featErr)
 		}
 	}
-	// Now create/update dependencies
-	errs = append(errs, depsStore.Apply(ctx, r.client)...)
-	if len(errs) > 0 {
-		logger.V(2).Info("Dependencies apply error", "errs", errs)
-		return result, errors.NewAggregate(errs)
-	}
+
+	// Examine user configuration to override any external dependencies (e.g. RBACs)
+	errs = append(errs, override.Dependencies(resourceManagers, instance.Spec.Override, instance.Namespace)...)
+
 	// -----------------------------
 	// Start reconcile Components
 	// -----------------------------
 
+	var err error
 	newStatus := instance.Status.DeepCopy()
 
 	if requiredComponents.ClusterAgent.IsEnabled() {
 		logger.Info("ClusterAgent enabled")
-		result, err = r.reconcileV2ClusterAgent(logger, features, instance, resourcesManager, newStatus)
+		result, err = r.reconcileV2ClusterAgent(logger, features, instance, resourceManagers, newStatus)
 		if utils.ShouldReturn(result, err) {
 			return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err)
 		}
@@ -127,17 +131,26 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 
 	if requiredComponents.Agent.IsEnabled() {
 		requiredContainers := requiredComponents.Agent.Containers
-		result, err = r.reconcileV2Agent(logger, features, instance, resourcesManager, newStatus, requiredContainers)
+		result, err = r.reconcileV2Agent(logger, features, instance, resourceManagers, newStatus, requiredContainers)
 		if utils.ShouldReturn(result, err) {
 			return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err)
 		}
 	}
 
 	if requiredComponents.ClusterChecksRunner.IsEnabled() {
-		result, err = r.reconcileV2ClusterChecksRunner(logger, features, instance, resourcesManager, newStatus)
+		result, err = r.reconcileV2ClusterChecksRunner(logger, features, instance, resourceManagers, newStatus)
 		if utils.ShouldReturn(result, err) {
 			return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err)
 		}
+	}
+
+	// ------------------------------
+	// Create and update dependencies
+	// ------------------------------
+	errs = append(errs, depsStore.Apply(ctx, r.client)...)
+	if len(errs) > 0 {
+		logger.V(2).Info("Dependencies apply error", "errs", errs)
+		return result, errors.NewAggregate(errs)
 	}
 
 	// -----------------------------
@@ -158,9 +171,9 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 func (r *Reconciler) updateStatusIfNeededV2(logger logr.Logger, agentdeployment *datadoghqv2alpha1.DatadogAgent, newStatus *datadoghqv2alpha1.DatadogAgentStatus, result reconcile.Result, currentError error) (reconcile.Result, error) {
 	now := metav1.NewTime(time.Now())
 	if currentError == nil {
-		datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(newStatus, now, datadoghqv2alpha1.DatadogAgentReconcileErrorConditionType, metav1.ConditionTrue, "DatadogAgent_reconcile_ok", "DatadogAgent reconcile ok", false)
+		datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(newStatus, now, datadoghqv2alpha1.DatadogAgentReconcileErrorConditionType, metav1.ConditionFalse, "DatadogAgent_reconcile_ok", "DatadogAgent reconcile ok", false)
 	} else {
-		datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(newStatus, now, datadoghqv2alpha1.DatadogAgentReconcileErrorConditionType, metav1.ConditionFalse, "DatadogAgent_reconcile_error", "DatadogAgent reconcile error", false)
+		datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(newStatus, now, datadoghqv2alpha1.DatadogAgentReconcileErrorConditionType, metav1.ConditionTrue, "DatadogAgent_reconcile_error", "DatadogAgent reconcile error", false)
 	}
 
 	if !apiequality.Semantic.DeepEqual(&agentdeployment.Status, newStatus) {

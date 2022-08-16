@@ -6,6 +6,7 @@
 package dogstatsd
 
 import (
+	"path/filepath"
 	"strconv"
 
 	corev1 "k8s.io/api/core/v1"
@@ -43,6 +44,11 @@ type dogstatsdFeature struct {
 	useHostNetwork         bool
 	originDetectionEnabled bool
 	mapperProfiles         *apicommonv1.CustomConfig
+}
+
+// ID returns the ID of the Feature
+func (f *dogstatsdFeature) ID() feature.IDType {
+	return feature.DogstatsdIDType
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
@@ -151,7 +157,8 @@ func (f *dogstatsdFeature) ManageNodeAgent(managers feature.PodTemplateManagers)
 
 	// uds
 	if f.udsEnabled {
-		socketVol, socketVolMount := volume.GetVolumes(apicommon.DogstatsdUDSSocketName, f.udsHostFilepath, f.udsHostFilepath, true)
+		udsHostFolder := filepath.Dir(f.udsHostFilepath)
+		socketVol, socketVolMount := volume.GetVolumes(apicommon.DogstatsdSocketVolumeName, udsHostFolder, udsHostFolder, true)
 		managers.VolumeMount().AddVolumeMountToContainer(&socketVolMount, apicommonv1.CoreAgentContainerName)
 		managers.Volume().AddVolume(&socketVol)
 		managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{

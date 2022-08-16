@@ -23,11 +23,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func createEmptyFakeManager(t testing.TB) feature.PodTemplateManagers {
-	mgr := fake.NewPodTemplateManagers(t)
-	return mgr
-}
-
 func Test_eventCollectionFeature_Configure(t *testing.T) {
 	// v1alpha1
 	ddav1EventCollectionDisabled := v1alpha1.DatadogAgent{
@@ -113,7 +108,7 @@ func Test_eventCollectionFeature_Configure(t *testing.T) {
 			},
 			{
 				Name:  apicommon.DDClusterAgentTokenName,
-				Value: "ddaDCAtoken",
+				Value: "ddaDCA-token",
 			},
 		}
 		assert.True(t, apiutils.IsEqualStruct(dcaEnvVars, want), "DCA envvars \ndiff = %s", cmp.Diff(dcaEnvVars, want))
@@ -138,7 +133,7 @@ func Test_eventCollectionFeature_Configure(t *testing.T) {
 			},
 			{
 				Name:  apicommon.DDClusterAgentTokenName,
-				Value: "ddaNodetoken",
+				Value: "ddaNode-token",
 			},
 		}
 		coreAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
@@ -159,19 +154,13 @@ func Test_eventCollectionFeature_Configure(t *testing.T) {
 			Name:          "v1alpha1 Event Collection on node agent enabled",
 			DDAv1:         ddav1EventCollectionAgentEnabled.DeepCopy(),
 			WantConfigure: true,
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc:   eventCollectionAgentNodeWantFunc,
-			},
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(eventCollectionAgentNodeWantFunc),
 		},
 		{
 			Name:          "v1alpha1 Event Collection on DCA enabled",
 			DDAv1:         ddav1EventCollectionDCAEnabled.DeepCopy(),
 			WantConfigure: true,
-			ClusterAgent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc:   eventCollectionClusterAgentWantFunc,
-			},
+			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(eventCollectionClusterAgentWantFunc),
 		},
 		//////////////////////////
 		// v2Alpha1.DatadogAgent
@@ -185,10 +174,7 @@ func Test_eventCollectionFeature_Configure(t *testing.T) {
 			Name:          "v2alpha1 Event Collection enabled",
 			DDAv2:         ddav2EventCollectionEnabled,
 			WantConfigure: true,
-			ClusterAgent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc:   eventCollectionClusterAgentWantFunc,
-			},
+			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(eventCollectionClusterAgentWantFunc),
 		},
 	}
 

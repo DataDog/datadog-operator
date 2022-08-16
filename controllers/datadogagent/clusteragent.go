@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -643,11 +644,11 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 		envVars = append(envVars, []corev1.EnvVar{
 			{
 				Name:  apicommon.DDExtraConfigProviders,
-				Value: datadoghqv1alpha1.KubeServicesAndEndpointsConfigProviders,
+				Value: apicommon.KubeServicesAndEndpointsConfigProviders,
 			},
 			{
 				Name:  apicommon.DDExtraListeners,
-				Value: datadoghqv1alpha1.KubeServicesAndEndpointsListeners,
+				Value: apicommon.KubeServicesAndEndpointsListeners,
 			},
 		}...)
 	}
@@ -942,36 +943,7 @@ func buildClusterRole(dda *datadoghqv1alpha1.DatadogAgent, needClusterLevelRBAC 
 		},
 	}
 
-	rbacRules := []rbacv1.PolicyRule{
-		{
-			// Get /metrics permissions
-			NonResourceURLs: []string{rbac.MetricsURL},
-			Verbs:           []string{rbac.GetVerb},
-		},
-		{
-			// Kubelet connectivity
-			APIGroups: []string{rbac.CoreAPIGroup},
-			Resources: []string{
-				rbac.NodeMetricsResource,
-				rbac.NodeSpecResource,
-				rbac.NodeProxyResource,
-				rbac.NodeStats,
-			},
-			Verbs: []string{rbac.GetVerb},
-		},
-		{
-			// Leader election check
-			APIGroups: []string{rbac.CoreAPIGroup},
-			Resources: []string{rbac.EndpointsResource},
-			Verbs:     []string{rbac.GetVerb},
-		},
-		{
-			// Leader election check
-			APIGroups: []string{rbac.CoordinationAPIGroup},
-			Resources: []string{rbac.LeasesResource},
-			Verbs:     []string{rbac.GetVerb},
-		},
-	}
+	rbacRules := agent.GetDefaultAgentClusterRolePolicyRules()
 
 	// If the secret backend uses the provided `/readsecret_multiple_providers.sh` script, then we need to add secrets GET permissions
 	if *dda.Spec.Credentials.UseSecretBackend &&
