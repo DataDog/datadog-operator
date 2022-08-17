@@ -246,6 +246,27 @@ func GetVolumeMountForDogstatsdSocket(readOnly bool) corev1.VolumeMount {
 	}
 }
 
+// GetVolumeForRuntimeSocket returns the Volume for the runtime socket
+func GetVolumeForRuntimeSocket() corev1.Volume {
+	return corev1.Volume{
+		Name: apicommon.CriSocketVolumeName,
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: apicommon.RuntimeDirVolumePath,
+			},
+		},
+	}
+}
+
+// GetVolumeMountForRuntimeSocket returns the VolumeMount with the runtime socket
+func GetVolumeMountForRuntimeSocket(readOnly bool) corev1.VolumeMount {
+	return corev1.VolumeMount{
+		Name:      apicommon.CriSocketVolumeName,
+		MountPath: apicommon.HostCriSocketPathPrefix + apicommon.RuntimeDirVolumePath,
+		ReadOnly:  readOnly,
+	}
+}
+
 // GetClusterAgentServiceName return the Cluster-Agent service name based on the DatadogAgent name
 func GetClusterAgentServiceName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultClusterAgentResourceSuffix)

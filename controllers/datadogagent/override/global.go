@@ -205,24 +205,19 @@ func ApplyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 				Value: criSocketMountPath,
 			})
 			runtimeVol, runtimeVolMount = volume.GetVolumes(apicommon.CriSocketVolumeName, *config.CriSocketPath, criSocketMountPath, true)
-		} else {
-			runtimeVol, runtimeVolMount = volume.GetVolumes(
-				apicommon.CriSocketVolumeName,
-				apicommon.RuntimeDirVolumePath,
-				apicommon.HostCriSocketPathPrefix+apicommon.RuntimeDirVolumePath,
-				true,
-			)
 		}
-		manager.VolumeMount().AddVolumeMountToContainers(
-			&runtimeVolMount,
-			[]apicommonv1.AgentContainerName{
-				apicommonv1.CoreAgentContainerName,
-				apicommonv1.ProcessAgentContainerName,
-				apicommonv1.TraceAgentContainerName,
-				apicommonv1.SecurityAgentContainerName,
-			},
-		)
-		manager.Volume().AddVolume(&runtimeVol)
+		if runtimeVol.Name != "" && runtimeVolMount.Name != "" {
+			manager.VolumeMount().AddVolumeMountToContainers(
+				&runtimeVolMount,
+				[]apicommonv1.AgentContainerName{
+					apicommonv1.CoreAgentContainerName,
+					apicommonv1.ProcessAgentContainerName,
+					apicommonv1.TraceAgentContainerName,
+					apicommonv1.SecurityAgentContainerName,
+				},
+			)
+			manager.Volume().AddVolume(&runtimeVol)
+		}
 	}
 
 	return manager.PodTemplateSpec()
