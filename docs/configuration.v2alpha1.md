@@ -12,22 +12,25 @@
 ## All configuration options
 
 The following table lists the configurable parameters for the `DatadogAgent`
-resource. For example, if you wanted to set a value for `agent.image.name`,
+resource. For example, if you wanted to set a value for `global.clusterName`,
 your `DatadogAgent` resource would look like the following:
 
 ```yaml
-apiVersion: datadoghq.com/v1alpha1
+apiVersion: datadoghq.com/v2alpha1
 kind: DatadogAgent
 metadata:
   name: datadog
 spec:
-  credentials:
-    apiSecret:
-      secretName: datadog-secret
-      keyName: api-key
-    appSecret:
-      secretName: datadog-secret
-      keyName: app-key
+  global:
+    clusterName: my-test-cluster
+    credentials:
+      apiSecret:
+        secretName: datadog-secret
+        keyName: api-key
+      appSecret:
+        secretName: datadog-secret
+        keyName: app-key
+
 ```
 
 | Parameter | Description |
