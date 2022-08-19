@@ -176,6 +176,7 @@ func (r *Reconciler) updateStatusIfNeededV2(logger logr.Logger, agentdeployment 
 		datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(newStatus, now, datadoghqv2alpha1.DatadogAgentReconcileErrorConditionType, metav1.ConditionTrue, "DatadogAgent_reconcile_error", "DatadogAgent reconcile error", false)
 	}
 
+	r.setMetricsForwarderStatusV2(logger, agentdeployment, newStatus)
 	if !apiequality.Semantic.DeepEqual(&agentdeployment.Status, newStatus) {
 		updateAgentDeployment := agentdeployment.DeepCopy()
 		updateAgentDeployment.Status = *newStatus
@@ -190,6 +191,30 @@ func (r *Reconciler) updateStatusIfNeededV2(logger logr.Logger, agentdeployment 
 	}
 
 	return result, currentError
+}
+
+// setMetricsForwarderStatus sets the metrics forwarder status condition if enabled
+func (r *Reconciler) setMetricsForwarderStatusV2(logger logr.Logger, datadogAgent *datadoghqv2alpha1.DatadogAgent, newStatus *datadoghqv2alpha1.DatadogAgentStatus) {
+	if r.options.OperatorMetricsEnabled {
+		if forwarderCondition := r.forwarders.MetricsForwarderStatusForObj(datadogAgent); forwarderCondition != nil {
+			datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(
+				newStatus,
+				metav1.NewTime(forwarderCondition.GetLastUpdateTime()),
+				forwarderCondition.GetType(),
+				getMetav1ConditionStatus(forwarderCondition.GetStatus()),
+				"",
+				forwarderCondition.GetDescription(),
+				true,
+			)
+		}
+	}
+}
+
+func getMetav1ConditionStatus(status bool) metav1.ConditionStatus {
+	if status {
+		return metav1.ConditionTrue
+	}
+	return metav1.ConditionFalse
 }
 
 func (r *Reconciler) finalizeDadV2(reqLogger logr.Logger, obj client.Object) {

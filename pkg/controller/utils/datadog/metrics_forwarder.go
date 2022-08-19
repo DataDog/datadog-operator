@@ -17,7 +17,6 @@ import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/pkg/config"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 
 	"github.com/go-logr/logr"
@@ -84,7 +83,7 @@ type metricsForwarder struct {
 	decryptor           secrets.Decryptor
 	creds               sync.Map
 	baseURL             string
-	status              ConditionInterface
+	status              forwarderStatus
 	credsManager        *config.CredentialManager
 	sync.Mutex
 }
@@ -186,7 +185,23 @@ func (mf *metricsForwarder) stop() {
 
 // ConditionInterface is a generic interface to encompass DatadogAgentCondition (v1alpha1) and metav1.Condition (v2alpha1)
 type ConditionInterface interface {
+	GetType() string
+	GetStatus() bool
+	GetDescription() string
+	GetLastUpdateTime() time.Time
 }
+
+type forwarderStatus struct {
+	conditionType  string
+	status         bool
+	description    string
+	lastUpdateTime time.Time
+}
+
+func (fs forwarderStatus) GetType() string              { return fs.conditionType }
+func (fs forwarderStatus) GetStatus() bool              { return fs.status }
+func (fs forwarderStatus) GetDescription() string       { return fs.description }
+func (fs forwarderStatus) GetLastUpdateTime() time.Time { return fs.lastUpdateTime }
 
 func (mf *metricsForwarder) getStatus() ConditionInterface {
 	mf.Lock()
@@ -194,7 +209,7 @@ func (mf *metricsForwarder) getStatus() ConditionInterface {
 	return mf.status
 }
 
-func (mf *metricsForwarder) setStatus(newStatus ConditionInterface) {
+func (mf *metricsForwarder) setStatus(newStatus forwarderStatus) {
 	mf.Lock()
 	defer mf.Unlock()
 	mf.status = newStatus
@@ -619,20 +634,20 @@ func (mf *metricsForwarder) getKeyFromSecret(dda *v1alpha1.DatadogAgent, secretN
 // updateStatusIfNeeded updates the Datadog metrics forwarding status in the DatadogAgent status
 func (mf *metricsForwarder) updateStatusIfNeeded(err error) {
 	now := metav1.NewTime(time.Now())
-	conditionStatus := corev1.ConditionTrue
+	status := true
 	description := "Datadog metrics forwarding ok"
 	if err != nil {
-		conditionStatus = corev1.ConditionFalse
+		status = false
 		description = "Datadog metrics forwarding error"
 	}
 
-	if oldStatus := mf.getStatus(); oldStatus == nil {
-		newStatus := condition.NewDatadogAgentStatusCondition(v1alpha1.DatadogMetricsActive, conditionStatus, now, "", description)
-		mf.setStatus(newStatus)
-	} else {
-		oldStatusCast, _ := oldStatus.(v1alpha1.DatadogAgentCondition)
-		mf.setStatus(*condition.UpdateDatadogAgentStatusCondition(&oldStatusCast, now, v1alpha1.DatadogMetricsActive, conditionStatus, description))
+	newConditionStatus := conditionStatus{
+		conditionType:  string(v1alpha1.DatadogMetricsActive),
+		status:         status,
+		lastUpdateTime: now,
+		description:    description,
 	}
+	mf.setStatus(newConditionStatus)
 }
 
 // sendReconcileMetric is used to forward reconcile metrics to Datadog
