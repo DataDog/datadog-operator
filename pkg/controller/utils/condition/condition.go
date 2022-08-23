@@ -68,6 +68,14 @@ func NewDatadogAgentStatusCondition(conditionType datadoghqv1alpha1.DatadogAgent
 	}
 }
 
+// GetCoreV1ConditionStatus converts a boolean to corev1.ConditionStatus
+func GetCoreV1ConditionStatus(status bool) corev1.ConditionStatus {
+	if status {
+		return corev1.ConditionTrue
+	}
+	return corev1.ConditionFalse
+}
+
 func getIndexForConditionType(status *datadoghqv1alpha1.DatadogAgentStatus, t datadoghqv1alpha1.DatadogAgentConditionType) int {
 	idCondition := -1
 	if status == nil {

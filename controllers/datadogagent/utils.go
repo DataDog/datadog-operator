@@ -2058,9 +2058,9 @@ func isCreateRBACEnabled(config *datadoghqv1alpha1.RbacConfig) bool {
 	return apiutils.BoolValue(config.Create)
 }
 
-func updateDaemonSetStatus(ds *appsv1.DaemonSet, dsStatus *datadoghqv1alpha1.DaemonSetStatus, updateTime *metav1.Time) *datadoghqv1alpha1.DaemonSetStatus {
+func updateDaemonSetStatus(ds *appsv1.DaemonSet, dsStatus *commonv1.DaemonSetStatus, updateTime *metav1.Time) *commonv1.DaemonSetStatus {
 	if dsStatus == nil {
-		dsStatus = &datadoghqv1alpha1.DaemonSetStatus{}
+		dsStatus = &commonv1.DaemonSetStatus{}
 	}
 	if ds == nil {
 		dsStatus.State = string(datadoghqv1alpha1.DatadogAgentStateFailed)
@@ -2094,9 +2094,9 @@ func updateDaemonSetStatus(ds *appsv1.DaemonSet, dsStatus *datadoghqv1alpha1.Dae
 	return dsStatus
 }
 
-func updateExtendedDaemonSetStatus(eds *edsdatadoghqv1alpha1.ExtendedDaemonSet, dsStatus *datadoghqv1alpha1.DaemonSetStatus, updateTime *metav1.Time) *datadoghqv1alpha1.DaemonSetStatus {
+func updateExtendedDaemonSetStatus(eds *edsdatadoghqv1alpha1.ExtendedDaemonSet, dsStatus *commonv1.DaemonSetStatus, updateTime *metav1.Time) *commonv1.DaemonSetStatus {
 	if dsStatus == nil {
-		dsStatus = &datadoghqv1alpha1.DaemonSetStatus{}
+		dsStatus = &commonv1.DaemonSetStatus{}
 	}
 	if updateTime != nil {
 		dsStatus.LastUpdate = updateTime
@@ -2126,9 +2126,9 @@ func updateExtendedDaemonSetStatus(eds *edsdatadoghqv1alpha1.ExtendedDaemonSet, 
 	return dsStatus
 }
 
-func updateDeploymentStatus(dep *appsv1.Deployment, depStatus *datadoghqv1alpha1.DeploymentStatus, updateTime *metav1.Time) *datadoghqv1alpha1.DeploymentStatus {
+func updateDeploymentStatus(dep *appsv1.Deployment, depStatus *commonv1.DeploymentStatus, updateTime *metav1.Time) *commonv1.DeploymentStatus {
 	if depStatus == nil {
-		depStatus = &datadoghqv1alpha1.DeploymentStatus{}
+		depStatus = &commonv1.DeploymentStatus{}
 	}
 	if dep == nil {
 		depStatus.State = string(datadoghqv1alpha1.DatadogAgentStateFailed)

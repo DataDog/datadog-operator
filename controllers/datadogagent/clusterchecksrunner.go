@@ -24,6 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
+	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
@@ -103,7 +104,7 @@ func (r *Reconciler) createNewClusterChecksRunnerDeployment(logger logr.Logger, 
 		return reconcile.Result{}, err
 	}
 	logger.Info("Creating a new Cluster Checks Runner Deployment", "deployment.Namespace", newDCAW.Namespace, "deployment.Name", newDCAW.Name, "agentdeployment.Status.ClusterChecksRunner.CurrentHash", hash)
-	newStatus.ClusterChecksRunner = &datadoghqv1alpha1.DeploymentStatus{}
+	newStatus.ClusterChecksRunner = &commonv1.DeploymentStatus{}
 	err = r.client.Create(context.TODO(), newDCAW)
 	now := metav1.NewTime(time.Now())
 	if err != nil {
