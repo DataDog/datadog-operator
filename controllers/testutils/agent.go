@@ -119,6 +119,21 @@ func NewDatadogAgentWithEventCollection(namespace string, name string) v2alpha1.
 	)
 }
 
+// NewDatadogAgentWithExternalMetrics returns an agent with event collection enabled
+func NewDatadogAgentWithExternalMetrics(namespace string, name string) v2alpha1.DatadogAgent {
+	return newDatadogAgentWithFeatures(
+		namespace,
+		name,
+		&v2alpha1.DatadogFeatures{
+			ExternalMetricsServer: &v2alpha1.ExternalMetricsServerFeatureConfig{
+				Enabled:           apiutils.NewBoolPointer(true),
+				WPAController:     apiutils.NewBoolPointer(true),
+				UseDatadogMetrics: apiutils.NewBoolPointer(true),
+			},
+		},
+	)
+}
+
 // NewDatadogAgentWithKSM returns an agent with KSM enabled
 func NewDatadogAgentWithKSM(namespace string, name string) v2alpha1.DatadogAgent {
 	return newDatadogAgentWithFeatures(

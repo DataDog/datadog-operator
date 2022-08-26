@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -30,6 +29,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/common"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/merger"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
@@ -592,11 +592,11 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 
 	if isMetricsProviderEnabled(spec.ClusterAgent) {
 		envVars = append(envVars, corev1.EnvVar{
-			Name:  apicommon.DDMetricsProviderEnabled,
+			Name:  apicommon.DDExternalMetricsProviderEnabled,
 			Value: strconv.FormatBool(*spec.ClusterAgent.Config.ExternalMetrics.Enabled),
 		})
 		envVars = append(envVars, corev1.EnvVar{
-			Name:  apicommon.DDMetricsProviderPort,
+			Name:  apicommon.DDExternalMetricsProviderPort,
 			Value: strconv.Itoa(int(getClusterAgentMetricsProviderPort(*spec.ClusterAgent.Config))),
 		})
 		envVars = append(envVars, corev1.EnvVar{
@@ -604,11 +604,11 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 			ValueFrom: getAppKeyFromSecret(dda),
 		})
 		envVars = append(envVars, corev1.EnvVar{
-			Name:  apicommon.DDMetricsProviderUseDatadogMetric,
+			Name:  apicommon.DDExternalMetricsProviderUseDatadogMetric,
 			Value: strconv.FormatBool(spec.ClusterAgent.Config.ExternalMetrics.UseDatadogMetrics),
 		})
 		envVars = append(envVars, corev1.EnvVar{
-			Name:  apicommon.DDMetricsProviderWPAController,
+			Name:  apicommon.DDExternalMetricsProviderWPAController,
 			Value: strconv.FormatBool(spec.ClusterAgent.Config.ExternalMetrics.WpaController),
 		})
 
@@ -621,7 +621,7 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 		}
 
 		if hasMetricsProviderCustomCredentials(spec.ClusterAgent) {
-			apiSet, secretName, secretKey := datadoghqv1alpha1.GetAPIKeySecret(dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials, getDefaultExternalMetricSecretName(dda))
+			apiSet, secretName, secretKey := datadoghqv1alpha1.GetAPIKeySecret(dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials, componentdca.GetDefaultExternalMetricSecretName(dda))
 			if apiSet {
 				envVars = append(envVars, corev1.EnvVar{
 					Name:      apicommon.DDExternalMetricsProviderAPIKey,
@@ -629,7 +629,7 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 				})
 			}
 
-			appSet, secretName, secretKey := datadoghqv1alpha1.GetAppKeySecret(dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials, getDefaultExternalMetricSecretName(dda))
+			appSet, secretName, secretKey := datadoghqv1alpha1.GetAppKeySecret(dda.Spec.ClusterAgent.Config.ExternalMetrics.Credentials, componentdca.GetDefaultExternalMetricSecretName(dda))
 			if appSet {
 				envVars = append(envVars, corev1.EnvVar{
 					Name:      apicommon.DDExternalMetricsProviderAppKey,
@@ -805,13 +805,13 @@ func (r *Reconciler) manageClusterAgentRBACs(logger logr.Logger, dda *datadoghqv
 
 	metricsProviderEnabled := isMetricsProviderEnabled(dda.Spec.ClusterAgent)
 	// Create or delete HPA ClusterRoleBinding
-	hpaClusterRoleBindingName := getHPAClusterRoleBindingName(dda)
+	hpaClusterRoleBindingName := componentdca.GetHPAClusterRoleBindingName(dda)
 	if result, err := r.manageClusterRoleBinding(logger, dda, hpaClusterRoleBindingName, clusterAgentVersion, r.createHPAClusterRoleBinding, r.updateIfNeededHPAClusterRole, !metricsProviderEnabled); err != nil {
 		return result, err
 	}
 
 	// Create or delete external metrics reader ClusterRole and ClusterRoleBinding
-	metricsReaderClusterRoleName := getExternalMetricsReaderClusterRoleName(dda, r.versionInfo)
+	metricsReaderClusterRoleName := componentdca.GetExternalMetricsReaderClusterRoleName(dda, r.versionInfo)
 	if result, err := r.manageClusterRole(logger, dda, metricsReaderClusterRoleName, clusterAgentVersion, r.createExternalMetricsReaderClusterRole, r.updateIfNeededExternalMetricsReaderClusterRole, !metricsProviderEnabled); err != nil {
 		return result, err
 	}
@@ -892,12 +892,12 @@ func (r *Reconciler) cleanupClusterAgentRbacResources(logger logr.Logger, dda *d
 		return result, err
 	}
 	// Delete HPA Cluster Role Binding
-	hpaClusterRoleBindingName := getHPAClusterRoleBindingName(dda)
+	hpaClusterRoleBindingName := componentdca.GetHPAClusterRoleBindingName(dda)
 	if result, err := r.cleanupClusterRoleBinding(logger, dda, hpaClusterRoleBindingName); err != nil {
 		return result, err
 	}
 
-	externalMetricsReaderName := getExternalMetricsReaderClusterRoleName(dda, r.versionInfo)
+	externalMetricsReaderName := componentdca.GetExternalMetricsReaderClusterRoleName(dda, r.versionInfo)
 	if result, err := r.cleanupClusterRoleBinding(logger, dda, externalMetricsReaderName); err != nil {
 		return result, err
 	}

@@ -1531,7 +1531,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 							},
 							Version:               "v1beta1",
 							InsecureSkipTLSVerify: true,
-							Group:                 "external.metrics.k8s.io",
+							Group:                 rbac.ExternalMetricsAPIGroup,
 							GroupPriorityMinimum:  100,
 							VersionPriority:       100,
 						},

@@ -36,16 +36,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/version"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/yaml"
 )
 
 const (
-	authDelegatorName         string = "%s-auth-delegator"
-	externalMetricsReaderName string = "%s-metrics-reader"
-	defaultRuntimeDir         string = "/var/run"
+	defaultRuntimeDir string = "/var/run"
 )
 
 func init() {
@@ -1890,32 +1887,12 @@ func getClusterChecksRunnerPDBName(dda *datadoghqv1alpha1.DatadogAgent) string {
 	return fmt.Sprintf("%s-%s", dda.Name, apicommon.DefaultClusterChecksRunnerResourceSuffix)
 }
 
-func getMetricsServerServiceName(dda *datadoghqv1alpha1.DatadogAgent) string {
-	return fmt.Sprintf("%s-%s", dda.Name, apicommon.DefaultMetricsServerResourceSuffix)
-}
-
-func getMetricsServerAPIServiceName() string {
-	return "v1beta1.external.metrics.k8s.io"
-}
-
 func getAgentRbacResourcesName(dda *datadoghqv1alpha1.DatadogAgent) string {
 	return fmt.Sprintf("%s-%s", dda.Name, apicommon.DefaultAgentResourceSuffix)
 }
 
 func getClusterChecksRunnerRbacResourcesName(dda *datadoghqv1alpha1.DatadogAgent) string {
 	return fmt.Sprintf("%s-%s", dda.Name, apicommon.DefaultClusterChecksRunnerResourceSuffix)
-}
-
-func getHPAClusterRoleBindingName(dda *datadoghqv1alpha1.DatadogAgent) string {
-	return fmt.Sprintf(authDelegatorName, componentdca.GetClusterAgentRbacResourcesName(dda))
-}
-
-func getExternalMetricsReaderClusterRoleName(dda *datadoghqv1alpha1.DatadogAgent, versionInfo *version.Info) string {
-	if versionInfo != nil && strings.Contains(versionInfo.GitVersion, "-gke.") {
-		// For GKE clusters the name of the role is hardcoded and cannot be changed - HPA controller expects this name
-		return "external-metrics-reader"
-	}
-	return fmt.Sprintf(externalMetricsReaderName, componentdca.GetClusterAgentRbacResourcesName(dda))
 }
 
 func getClusterChecksRunnerServiceAccount(dda *datadoghqv1alpha1.DatadogAgent) string {

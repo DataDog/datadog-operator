@@ -130,9 +130,7 @@ func buildExternalMetricsReaderClusterRole(dda *datadoghqv1alpha1.DatadogAgent, 
 
 		rbacRules := []rbacv1.PolicyRule{
 			{
-				APIGroups: []string{
-					"external.metrics.k8s.io",
-				},
+				APIGroups: []string{rbac.ExternalMetricsAPIGroup},
 				Resources: []string{"*"},
 				Verbs: []string{
 					rbac.GetVerb,
