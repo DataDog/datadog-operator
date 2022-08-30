@@ -36,18 +36,19 @@ func main() {
 	}
 
 	for _, crdVersion := range crd.Spec.Versions {
-		generateDoc(header, footer, crdVersion.Schema.OpenAPIV3Schema.Properties["spec"].Properties, strings.Replace(docsFile, "$VERSION", crdVersion.Name, 1))
+		generateDoc(header, footer, crdVersion.Schema.OpenAPIV3Schema.Properties["spec"].Properties, crdVersion.Name)
 	}
 }
 
-func generateDoc(header, footer []byte, props map[string]apiextensions.JSONSchemaProps, docsFile string) {
+func generateDoc(header, footer []byte, props map[string]apiextensions.JSONSchemaProps, version string) {
 	docs := getParameterDocs([]string{}, props)
 
 	sort.Slice(docs, func(i, j int) bool {
 		return docs[i].name < docs[j].name
 	})
 
-	f, err := os.OpenFile(docsFile, os.O_TRUNC|os.O_WRONLY|os.O_CREATE, 0o644)
+	file := strings.Replace(docsFile, "$VERSION", version, 1)
+	f, err := os.OpenFile(file, os.O_TRUNC|os.O_WRONLY|os.O_CREATE, 0o644)
 	if err != nil {
 		panic(fmt.Sprintf("cannot write to file: %s", err))
 	}
@@ -58,7 +59,12 @@ func generateDoc(header, footer []byte, props map[string]apiextensions.JSONSchem
 		}
 	}()
 
+	exampleYaml := mustReadFile(exampleFile(version))
+
 	mustWrite(f, header)
+	mustWriteString(f, "\n")
+	mustWrite(f, exampleYaml)
+	mustWriteString(f, "\n")
 	mustWriteString(f, "| Parameter | Description |\n")
 	mustWriteString(f, "| --------- | ----------- |\n")
 	for _, doc := range docs {
@@ -120,4 +126,8 @@ func getParameterDoc(path []string, name string, prop apiextensions.JSONSchemaPr
 	}
 
 	return getParameterDocs(path, prop.Properties)
+}
+
+func exampleFile(version string) string {
+	return fmt.Sprintf("hack/generate-docs/%s_example.markdown", version)
 }

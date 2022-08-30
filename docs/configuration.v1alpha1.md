@@ -12,8 +12,8 @@
 ## All configuration options
 
 The following table lists the configurable parameters for the `DatadogAgent`
-resource. For example, if you wanted to set a value for `clusterName`,
-your `DatadogAgent` resource would look like the following:
+resource. For example, if you wanted to set a custom cluster name, your
+`DatadogAgent` resource would look like the following:
 
 ```yaml
 apiVersion: datadoghq.com/v1alpha1
