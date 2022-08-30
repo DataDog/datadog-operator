@@ -133,6 +133,11 @@ var _ = Describe("V2 Controller - DatadogAgent Deployment", func() {
 		"with some global settings set",
 		testFunction(testutils.NewDatadogAgentWithGlobalConfigSettings(namespace, "with-global-settings")),
 	)
+
+	Context(
+		"with overrides",
+		testFunction(testutils.NewDatadogAgentWithOverrides(namespace, "with-overrides")),
+	)
 })
 
 func testFunction(agent v2alpha1.DatadogAgent) func() {

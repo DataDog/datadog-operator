@@ -161,7 +161,6 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, 
 	var result reconcile.Result
 
 	features, requiredComponents := feature.BuildFeaturesV1(instance, reconcilerOptionsToFeatureOptions(&r.options, logger))
-	logger.Info("requiredComponents status:", "agent", requiredComponents.Agent, "cluster-agent", requiredComponents.ClusterAgent, "cluster-checks-runner", requiredComponents.ClusterChecksRunner)
 
 	// -----------------------
 	// Manage dependencies
