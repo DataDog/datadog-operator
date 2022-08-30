@@ -225,7 +225,6 @@ func (m *rbacManagerImpl) DeleteClusterRole(roleName string) error {
 	return nil
 }
 
-// func (m *rbacManagerImpl) DeleteClusterRoleByComponent(logger logr.Logger, component, namespace string) error {
 func (m *rbacManagerImpl) DeleteClusterRoleByComponent(component string) error {
 	errs := make([]error, 0, len(m.clusterRoleByComponent[component]))
 	for _, name := range m.clusterRoleByComponent[component] {

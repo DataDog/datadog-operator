@@ -7,6 +7,7 @@ package datadogagent
 
 import (
 	"context"
+	"time"
 
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
@@ -43,25 +44,40 @@ func (r *Reconciler) reconcileV2ClusterChecksRunner(logger logr.Logger, required
 	deploymentLogger := logger.WithValues("component", datadoghqv2alpha1.ClusterChecksRunnerReconcileConditionType)
 
 	// The requiredComponents can change depending on if updates to features result in disabled components
-	if !requiredComponents.ClusterChecksRunner.IsEnabled() {
-		return r.cleanupV2ClusterChecksRunner(deploymentLogger, dda, deployment, newStatus)
-	}
+	requiredEnabled := requiredComponents.ClusterChecksRunner.IsEnabled()
+	requiredEnabledDCA := requiredComponents.ClusterAgent.IsEnabled()
 
 	// If the Cluster Agent is disabled, then CCR should be disabled too
 	if dcaOverride, ok := dda.Spec.Override[datadoghqv2alpha1.ClusterAgentComponentName]; ok {
 		if apiutils.BoolValue(dcaOverride.Disabled) {
 			return r.cleanupV2ClusterChecksRunner(deploymentLogger, dda, deployment, newStatus)
 		}
+	} else if !requiredEnabledDCA {
+		return r.cleanupV2ClusterChecksRunner(deploymentLogger, dda, deployment, newStatus)
 	}
 
 	// If Override is defined for the CCR component, apply the override on the PodTemplateSpec, it will cascade to container.
 	if componentOverride, ok := dda.Spec.Override[datadoghqv2alpha1.ClusterChecksRunnerComponentName]; ok {
 		if apiutils.BoolValue(componentOverride.Disabled) {
+			if requiredEnabled {
+				// The override supersedes what's set in requiredComponents; update status to reflect the conflict
+				datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(
+					newStatus,
+					metav1.NewTime(time.Now()),
+					datadoghqv2alpha1.OverrideReconcileConflictConditionType,
+					metav1.ConditionTrue,
+					"OverrideConflict",
+					"ClusterChecks component is set to disabled",
+					true,
+				)
+			}
 			// Delete CCR
 			return r.cleanupV2ClusterChecksRunner(deploymentLogger, dda, deployment, newStatus)
 		}
 		override.PodTemplateSpec(podManagers, componentOverride, datadoghqv2alpha1.ClusterChecksRunnerComponentName, dda.Name)
 		override.Deployment(deployment, componentOverride)
+	} else if !requiredEnabled {
+		return r.cleanupV2ClusterChecksRunner(deploymentLogger, dda, deployment, newStatus)
 	}
 
 	return r.createOrUpdateDeployment(deploymentLogger, dda, deployment, newStatus, updateStatusV2WithClusterChecksRunner)

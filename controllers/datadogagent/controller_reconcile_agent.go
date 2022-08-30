@@ -7,6 +7,7 @@ package datadogagent
 
 import (
 	"context"
+	"time"
 
 	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
@@ -33,14 +34,11 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 
 	daemonsetLogger := logger.WithValues("component", datadoghqv2alpha1.NodeAgentComponentName)
 
-	// need to take requiredComponents into account in case a feature(s) changes and a requiredComponent becomes disabled,
-	// in addition to taking into account override.Disabled
+	// requiredComponents needs to be taken into account in case a feature(s) changes and
+	// a requiredComponent becomes disabled, in addition to taking into account override.Disabled
 	disabled := false
 
-	// The requiredComponents can change depending on if updates to features result in disabled components
-	if !requiredComponents.Agent.IsEnabled() {
-		disabled = true
-	}
+	requiredEnabled := requiredComponents.Agent.IsEnabled()
 
 	if r.options.SupportExtendedDaemonset {
 		// Start by creating the Default Agent extendeddaemonset
@@ -66,6 +64,18 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 			override.ExtendedDaemonSet(eds, componentOverride)
 		}
 		if disabled {
+			if requiredEnabled {
+				// The override supersedes what's set in requiredComponents; update status to reflect the conflict
+				datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(
+					newStatus,
+					metav1.NewTime(time.Now()),
+					datadoghqv2alpha1.OverrideReconcileConflictConditionType,
+					metav1.ConditionTrue,
+					"OverrideConflict",
+					"Agent component is set to disabled",
+					true,
+				)
+			}
 			return r.cleanupV2ExtendedDaemonSet(daemonsetLogger, dda, eds, newStatus)
 		}
 		return r.createOrUpdateExtendedDaemonset(daemonsetLogger, dda, eds, newStatus, updateEDSStatusV2WithAgent)
@@ -94,6 +104,18 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 		override.DaemonSet(daemonset, componentOverride)
 	}
 	if disabled {
+		if requiredEnabled {
+			// The override supersedes what's set in requiredComponents; update status to reflect the conflict
+			datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(
+				newStatus,
+				metav1.NewTime(time.Now()),
+				datadoghqv2alpha1.OverrideReconcileConflictConditionType,
+				metav1.ConditionTrue,
+				"OverrideConflict",
+				"Agent component is set to disabled",
+				true,
+			)
+		}
 		return r.cleanupV2DaemonSet(daemonsetLogger, dda, daemonset, newStatus)
 	}
 	return r.createOrUpdateDaemonset(daemonsetLogger, dda, daemonset, newStatus, updateDSStatusV2WithAgent)
