@@ -12,6 +12,8 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/stretchr/testify/assert"
+
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 func TestRequiredComponents(t *testing.T) {
@@ -95,9 +97,12 @@ func TestRequiredComponents(t *testing.T) {
 		},
 	}
 
+	testLogger := logf.Log.WithName("TestRequiredComponents")
+	newStatus := &v2alpha1.DatadogAgentStatus{}
+
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			RequiredComponents(&test.requiredComponents, test.overrides)
+			RequiredComponents(testLogger, newStatus, &test.requiredComponents, test.overrides)
 
 			assert.Equal(t, test.expectedRequiredComponents, test.requiredComponents)
 		})

@@ -12,12 +12,15 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/stretchr/testify/assert"
+
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 func TestDependencies(t *testing.T) {
 	// These tests are not exhaustive. There's only 1 that covers a bug fix.
 
 	namespace := "test-namespace"
+	testLogger := logf.Log.WithName("TestRequiredComponents")
 
 	tests := []struct {
 		name          string
@@ -40,7 +43,7 @@ func TestDependencies(t *testing.T) {
 			store := dependencies.NewStore(&test.dda, nil)
 			manager := feature.NewResourceManagers(store)
 
-			errs := Dependencies(manager, test.overrides, namespace)
+			errs := Dependencies(testLogger, manager, test.overrides, namespace)
 
 			if test.expectsErrors {
 				assert.NotEmpty(t, errs)

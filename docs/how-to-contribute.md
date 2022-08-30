@@ -24,10 +24,10 @@ $ make lint
 $ make IMG=test/operator:test docker-build
 
 # push the {IMG} to a configured docker hub
-$ make IMG=test/operator:tes docker-push
+$ make IMG=test/operator:test docker-push
 
 # generate manifest from /config and apply to current cluster
-make IMG=test/operator:tes deploy
+make IMG=test/operator:test deploy
 ```
 
 Note: `IMG` currently defaults to: `datadog/datadog-operator:latest`

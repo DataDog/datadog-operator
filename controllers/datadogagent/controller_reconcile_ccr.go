@@ -6,18 +6,24 @@
 package datadogagent
 
 import (
+	"context"
+
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	componentccr "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusterchecksrunner"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/override"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-func (r *Reconciler) reconcileV2ClusterChecksRunner(logger logr.Logger, features []feature.Feature, dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, newStatus *datadoghqv2alpha1.DatadogAgentStatus) (reconcile.Result, error) {
+func (r *Reconciler) reconcileV2ClusterChecksRunner(logger logr.Logger, requiredComponents feature.RequiredComponents, features []feature.Feature, dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, newStatus *datadoghqv2alpha1.DatadogAgentStatus) (reconcile.Result, error) {
 	var result reconcile.Result
 
 	// Start by creating the Default Cluster-Agent deployment
@@ -34,17 +40,59 @@ func (r *Reconciler) reconcileV2ClusterChecksRunner(logger logr.Logger, features
 		}
 	}
 
-	// If Override is define for the cluster-checks-runner component, apply the override on the PodTemplateSpec, it will cascade to container.
+	deploymentLogger := logger.WithValues("component", datadoghqv2alpha1.ClusterChecksRunnerReconcileConditionType)
+
+	// The requiredComponents can change depending on if updates to features result in disabled components
+	if !requiredComponents.ClusterChecksRunner.IsEnabled() {
+		return r.cleanupV2ClusterChecksRunner(deploymentLogger, dda, deployment, newStatus)
+	}
+
+	// If the Cluster Agent is disabled, then CCR should be disabled too
+	if dcaOverride, ok := dda.Spec.Override[datadoghqv2alpha1.ClusterAgentComponentName]; ok {
+		if apiutils.BoolValue(dcaOverride.Disabled) {
+			return r.cleanupV2ClusterChecksRunner(deploymentLogger, dda, deployment, newStatus)
+		}
+	}
+
+	// If Override is defined for the CCR component, apply the override on the PodTemplateSpec, it will cascade to container.
 	if componentOverride, ok := dda.Spec.Override[datadoghqv2alpha1.ClusterChecksRunnerComponentName]; ok {
+		if apiutils.BoolValue(componentOverride.Disabled) {
+			// Delete CCR
+			return r.cleanupV2ClusterChecksRunner(deploymentLogger, dda, deployment, newStatus)
+		}
 		override.PodTemplateSpec(podManagers, componentOverride, datadoghqv2alpha1.ClusterChecksRunnerComponentName, dda.Name)
 		override.Deployment(deployment, componentOverride)
 	}
 
-	deploymentLogger := logger.WithValues("component", datadoghqv2alpha1.ClusterChecksRunnerReconcileConditionType)
 	return r.createOrUpdateDeployment(deploymentLogger, dda, deployment, newStatus, updateStatusV2WithClusterChecksRunner)
 }
 
 func updateStatusV2WithClusterChecksRunner(deployment *appsv1.Deployment, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
 	newStatus.ClusterChecksRunner = datadoghqv2alpha1.UpdateDeploymentStatus(deployment, newStatus.ClusterChecksRunner, &updateTime)
 	datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(newStatus, updateTime, datadoghqv2alpha1.ClusterChecksRunnerReconcileConditionType, status, reason, message, true)
+}
+
+func (r *Reconciler) cleanupV2ClusterChecksRunner(logger logr.Logger, dda *datadoghqv2alpha1.DatadogAgent, deployment *appsv1.Deployment, newStatus *datadoghqv2alpha1.DatadogAgentStatus) (reconcile.Result, error) {
+	nsName := types.NamespacedName{
+		Name:      deployment.GetName(),
+		Namespace: deployment.GetNamespace(),
+	}
+
+	// ClusterChecksRunnerDeployment attached to this instance
+	ClusterChecksRunnerDeployment := &appsv1.Deployment{}
+	if err := r.client.Get(context.TODO(), nsName, ClusterChecksRunnerDeployment); err != nil {
+		if !errors.IsNotFound(err) {
+			return reconcile.Result{}, err
+		}
+	} else {
+		logger.Info("Deleting Cluster Checks Runner Deployment", "deployment.Namespace", ClusterChecksRunnerDeployment.Namespace, "deployment.Name", ClusterChecksRunnerDeployment.Name)
+		event := buildEventInfo(ClusterChecksRunnerDeployment.Name, ClusterChecksRunnerDeployment.Namespace, deploymentKind, datadog.DeletionEvent)
+		r.recordEvent(dda, event)
+		if err := r.client.Delete(context.TODO(), ClusterChecksRunnerDeployment); err != nil {
+			return reconcile.Result{}, err
+		}
+	}
+
+	newStatus.ClusterChecksRunner = nil
+	return reconcile.Result{}, nil
 }
