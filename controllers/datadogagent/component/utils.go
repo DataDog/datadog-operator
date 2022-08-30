@@ -286,12 +286,6 @@ func GetClusterChecksRunnerName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultClusterChecksRunnerResourceSuffix)
 }
 
-// GetClusterChecksRunnerVersion return the Agent version based on the DatadogAgent info
-func GetClusterChecksRunnerVersion(dda metav1.Object) string {
-	// TODO implement this method
-	return ""
-}
-
 // BuildEnvVarFromSource return an *corev1.EnvVar from a Env Var name and *corev1.EnvVarSource
 func BuildEnvVarFromSource(name string, source *corev1.EnvVarSource) *corev1.EnvVar {
 	return &corev1.EnvVar{
