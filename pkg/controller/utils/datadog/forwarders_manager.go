@@ -20,14 +20,15 @@ type MetricForwardersManager interface {
 	Unregister(MonitoredObject)
 	ProcessError(MonitoredObject, error)
 	ProcessEvent(MonitoredObject, Event)
-	MetricsForwarderStatusForObj(obj MonitoredObject) ConditionInterface
+	MetricsForwarderStatusForObj(obj MonitoredObject) *ConditionCommon
 }
 
 // ForwardersManager is a collection of metricsForwarder per DatadogAgent
 // ForwardersManager implements the controller-runtime Runnable interface
 type ForwardersManager struct {
-	forwarders map[string]*metricsForwarder
 	k8sClient  client.Client
+	v2Enabled  bool
+	forwarders map[string]*metricsForwarder
 	decryptor  secrets.Decryptor
 	wg         sync.WaitGroup
 	sync.Mutex
@@ -35,9 +36,10 @@ type ForwardersManager struct {
 
 // NewForwardersManager builds a new ForwardersManager
 // ForwardersManager implements the controller-runtime Runnable interface
-func NewForwardersManager(k8sClient client.Client) *ForwardersManager {
+func NewForwardersManager(k8sClient client.Client, v2Enabled bool) *ForwardersManager {
 	return &ForwardersManager{
 		k8sClient:  k8sClient,
+		v2Enabled:  v2Enabled,
 		forwarders: make(map[string]*metricsForwarder),
 		decryptor:  secrets.NewSecretBackend(),
 		wg:         sync.WaitGroup{},
@@ -59,7 +61,7 @@ func (f *ForwardersManager) Register(obj MonitoredObject) {
 	id := getObjID(obj) // nolint: ifshort
 	if _, found := f.forwarders[id]; !found {
 		log.Info("New Datadog metrics forwarder registred", "ID", id)
-		f.forwarders[id] = newMetricsForwarder(f.k8sClient, f.decryptor, obj)
+		f.forwarders[id] = newMetricsForwarder(f.k8sClient, f.decryptor, obj, f.v2Enabled)
 		f.wg.Add(1)
 		go f.forwarders[id].start(&f.wg)
 	}
@@ -114,14 +116,13 @@ func (f *ForwardersManager) ProcessEvent(obj MonitoredObject, event Event) {
 }
 
 // MetricsForwarderStatusForObj used to retrieve the Metrics forwarder status for a given object
-func (f *ForwardersManager) MetricsForwarderStatusForObj(obj MonitoredObject) ConditionInterface {
+func (f *ForwardersManager) MetricsForwarderStatusForObj(obj MonitoredObject) *ConditionCommon {
 	id := getObjID(obj)
 	forwarder, err := f.getForwarder(id)
 	if err != nil {
 		// forwarder not present yet
 		return nil
 	}
-
 	return forwarder.getStatus()
 }
 

@@ -72,7 +72,7 @@ func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, dda *dat
 		if !needUpdate {
 			// no need to update hasn't changed
 			now := metav1.NewTime(time.Now())
-			updateStatusFunc(currentDeployment, newStatus, now, metav1.ConditionTrue, "deployment_up_to_date", "Deployment up-to-date")
+			updateStatusFunc(currentDeployment, newStatus, now, metav1.ConditionTrue, "DeploymentUpToDate", "Deployment up-to-date")
 			return reconcile.Result{}, nil
 		}
 
@@ -92,23 +92,23 @@ func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, dda *dat
 		now := metav1.NewTime(time.Now())
 		err = kubernetes.UpdateFromObject(context.TODO(), r.client, updateDeployment, currentDeployment.ObjectMeta)
 		if err != nil {
-			updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, "create_failed", "Unable to Update Deployment")
+			updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, "CreateFailed", "Unable to Update Deployment")
 			return reconcile.Result{}, err
 		}
 		event := buildEventInfo(updateDeployment.Name, updateDeployment.Namespace, deploymentKind, datadog.UpdateEvent)
 		r.recordEvent(dda, event)
-		updateStatusFunc(updateDeployment, newStatus, now, metav1.ConditionTrue, "deployment_updated", "Deployment updated")
+		updateStatusFunc(updateDeployment, newStatus, now, metav1.ConditionTrue, "DeploymentUpdated", "Deployment updated")
 	} else {
 		now := metav1.NewTime(time.Now())
 
 		err = r.client.Create(context.TODO(), deployment)
 		if err != nil {
-			updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, "create_failed", "Unable to create Deployment")
+			updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, "CreateFailed", "Unable to create Deployment")
 			return reconcile.Result{}, err
 		}
 		event := buildEventInfo(deployment.Name, deployment.Namespace, deploymentKind, datadog.CreationEvent)
 		r.recordEvent(dda, event)
-		updateStatusFunc(deployment, newStatus, now, metav1.ConditionTrue, "create_succeed", "Deployment created")
+		updateStatusFunc(deployment, newStatus, now, metav1.ConditionTrue, "CreateSucceeded", "Deployment created")
 	}
 
 	logger.Info("Creating Deployment")
@@ -186,18 +186,18 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 		}
 		event := buildEventInfo(updateDaemonset.Name, updateDaemonset.Namespace, daemonSetKind, datadog.UpdateEvent)
 		r.recordEvent(dda, event)
-		updateStatusFunc(updateDaemonset, newStatus, now, metav1.ConditionTrue, "Daemonset_updated", "Daemonset updated")
+		updateStatusFunc(updateDaemonset, newStatus, now, metav1.ConditionTrue, "DaemonsetUpdated", "Daemonset updated")
 	} else {
 		now := metav1.NewTime(time.Now())
 
 		err = r.client.Create(context.TODO(), daemonset)
 		if err != nil {
-			updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, "create_failed", "Unable to create Daemonset")
+			updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, "CreateFailed", "Unable to create Daemonset")
 			return reconcile.Result{}, err
 		}
 		event := buildEventInfo(daemonset.Name, daemonset.Namespace, daemonSetKind, datadog.CreationEvent)
 		r.recordEvent(dda, event)
-		updateStatusFunc(daemonset, newStatus, now, metav1.ConditionTrue, "create_success", "Daemonset created")
+		updateStatusFunc(daemonset, newStatus, now, metav1.ConditionTrue, "CreateSucceeded", "Daemonset created")
 	}
 
 	logger.Info("Creating Daemonset")
@@ -275,18 +275,18 @@ func (r *Reconciler) createOrUpdateExtendedDaemonset(parentLogger logr.Logger, d
 		}
 		event := buildEventInfo(updateEDS.Name, updateEDS.Namespace, extendedDaemonSetKind, datadog.UpdateEvent)
 		r.recordEvent(dda, event)
-		updateStatusFunc(updateEDS, newStatus, now, metav1.ConditionTrue, "ExtendedDaemonSet_updated", "ExtendedDaemonSet updated")
+		updateStatusFunc(updateEDS, newStatus, now, metav1.ConditionTrue, "ExtendedDaemonSetUpdated", "ExtendedDaemonSet updated")
 	} else {
 		now := metav1.NewTime(time.Now())
 
 		err = r.client.Create(context.TODO(), eds)
 		if err != nil {
-			updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, "create_failed", "Unable to create ExtendedDaemonSet")
+			updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, "CreateFailed", "Unable to create ExtendedDaemonSet")
 			return reconcile.Result{}, err
 		}
 		event := buildEventInfo(eds.Name, eds.Namespace, extendedDaemonSetKind, datadog.CreationEvent)
 		r.recordEvent(dda, event)
-		updateStatusFunc(eds, newStatus, now, metav1.ConditionTrue, "create_success", "ExtendedDaemonSet created")
+		updateStatusFunc(eds, newStatus, now, metav1.ConditionTrue, "CreateSucceeded", "ExtendedDaemonSet created")
 	}
 
 	logger.Info("Creating ExtendedDaemonSet")

@@ -33,7 +33,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./apis/datadoghq/v1alpha1.DSDUnixDomainSocketSpec":                 schema__apis_datadoghq_v1alpha1_DSDUnixDomainSocketSpec(ref),
 		"./apis/datadoghq/v1alpha1.DaemonSetDeploymentStrategy":             schema__apis_datadoghq_v1alpha1_DaemonSetDeploymentStrategy(ref),
 		"./apis/datadoghq/v1alpha1.DaemonSetRollingUpdateSpec":              schema__apis_datadoghq_v1alpha1_DaemonSetRollingUpdateSpec(ref),
-		"./apis/datadoghq/v1alpha1.DaemonSetStatus":                         schema__apis_datadoghq_v1alpha1_DaemonSetStatus(ref),
 		"./apis/datadoghq/v1alpha1.DatadogAgent":                            schema__apis_datadoghq_v1alpha1_DatadogAgent(ref),
 		"./apis/datadoghq/v1alpha1.DatadogAgentCondition":                   schema__apis_datadoghq_v1alpha1_DatadogAgentCondition(ref),
 		"./apis/datadoghq/v1alpha1.DatadogAgentSpec":                        schema__apis_datadoghq_v1alpha1_DatadogAgentSpec(ref),
@@ -47,7 +46,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./apis/datadoghq/v1alpha1.DatadogMetricCondition":                  schema__apis_datadoghq_v1alpha1_DatadogMetricCondition(ref),
 		"./apis/datadoghq/v1alpha1.DatadogMonitor":                          schema__apis_datadoghq_v1alpha1_DatadogMonitor(ref),
 		"./apis/datadoghq/v1alpha1.DatadogMonitorCondition":                 schema__apis_datadoghq_v1alpha1_DatadogMonitorCondition(ref),
-		"./apis/datadoghq/v1alpha1.DeploymentStatus":                        schema__apis_datadoghq_v1alpha1_DeploymentStatus(ref),
 		"./apis/datadoghq/v1alpha1.DogstatsdConfig":                         schema__apis_datadoghq_v1alpha1_DogstatsdConfig(ref),
 		"./apis/datadoghq/v1alpha1.ExternalMetricsConfig":                   schema__apis_datadoghq_v1alpha1_ExternalMetricsConfig(ref),
 		"./apis/datadoghq/v1alpha1.KubeStateMetricsCore":                    schema__apis_datadoghq_v1alpha1_KubeStateMetricsCore(ref),
@@ -948,87 +946,6 @@ func schema__apis_datadoghq_v1alpha1_DaemonSetRollingUpdateSpec(ref common.Refer
 	}
 }
 
-func schema__apis_datadoghq_v1alpha1_DaemonSetStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "DaemonSetStatus defines the observed state of Agent running as DaemonSet.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"desired": {
-						SchemaProps: spec.SchemaProps{
-							Default: 0,
-							Type:    []string{"integer"},
-							Format:  "int32",
-						},
-					},
-					"current": {
-						SchemaProps: spec.SchemaProps{
-							Default: 0,
-							Type:    []string{"integer"},
-							Format:  "int32",
-						},
-					},
-					"ready": {
-						SchemaProps: spec.SchemaProps{
-							Default: 0,
-							Type:    []string{"integer"},
-							Format:  "int32",
-						},
-					},
-					"available": {
-						SchemaProps: spec.SchemaProps{
-							Default: 0,
-							Type:    []string{"integer"},
-							Format:  "int32",
-						},
-					},
-					"upToDate": {
-						SchemaProps: spec.SchemaProps{
-							Default: 0,
-							Type:    []string{"integer"},
-							Format:  "int32",
-						},
-					},
-					"status": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
-					"state": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
-					"lastUpdate": {
-						SchemaProps: spec.SchemaProps{
-							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
-						},
-					},
-					"currentHash": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
-					"daemonsetName": {
-						SchemaProps: spec.SchemaProps{
-							Description: "DaemonsetName corresponds to the name of the created DaemonSet.",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-				},
-				Required: []string{"desired", "current", "ready", "available", "upToDate"},
-			},
-		},
-		Dependencies: []string{
-			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
-	}
-}
-
 func schema__apis_datadoghq_v1alpha1_DatadogAgent(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -1744,19 +1661,19 @@ func schema__apis_datadoghq_v1alpha1_DatadogAgentStatus(ref common.ReferenceCall
 					"agent": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The actual state of the Agent as an extended daemonset.",
-							Ref:         ref("./apis/datadoghq/v1alpha1.DaemonSetStatus"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/common/v1.DaemonSetStatus"),
 						},
 					},
 					"clusterAgent": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The actual state of the Cluster Agent as a deployment.",
-							Ref:         ref("./apis/datadoghq/v1alpha1.DeploymentStatus"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/common/v1.DeploymentStatus"),
 						},
 					},
 					"clusterChecksRunner": {
 						SchemaProps: spec.SchemaProps{
 							Description: "The actual state of the Cluster Checks Runner as a deployment.",
-							Ref:         ref("./apis/datadoghq/v1alpha1.DeploymentStatus"),
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/common/v1.DeploymentStatus"),
 						},
 					},
 					"conditions": {
@@ -1785,7 +1702,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogAgentStatus(ref common.ReferenceCall
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v1alpha1.DaemonSetStatus", "./apis/datadoghq/v1alpha1.DatadogAgentCondition", "./apis/datadoghq/v1alpha1.DatadogAgentSpec", "./apis/datadoghq/v1alpha1.DeploymentStatus"},
+			"./apis/datadoghq/v1alpha1.DatadogAgentCondition", "./apis/datadoghq/v1alpha1.DatadogAgentSpec", "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1.DaemonSetStatus", "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1.DeploymentStatus"},
 	}
 }
 
@@ -2096,95 +2013,6 @@ func schema__apis_datadoghq_v1alpha1_DatadogMonitorCondition(ref common.Referenc
 					},
 				},
 				Required: []string{"type", "status"},
-			},
-		},
-		Dependencies: []string{
-			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
-	}
-}
-
-func schema__apis_datadoghq_v1alpha1_DeploymentStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "DeploymentStatus type representing the Cluster Agent Deployment status.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"replicas": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Total number of non-terminated pods targeted by this deployment (their labels match the selector).",
-							Type:        []string{"integer"},
-							Format:      "int32",
-						},
-					},
-					"updatedReplicas": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Total number of non-terminated pods targeted by this deployment that have the desired template spec.",
-							Type:        []string{"integer"},
-							Format:      "int32",
-						},
-					},
-					"readyReplicas": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Total number of ready pods targeted by this deployment.",
-							Type:        []string{"integer"},
-							Format:      "int32",
-						},
-					},
-					"availableReplicas": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Total number of available pods (ready for at least minReadySeconds) targeted by this deployment.",
-							Type:        []string{"integer"},
-							Format:      "int32",
-						},
-					},
-					"unavailableReplicas": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Total number of unavailable pods targeted by this deployment. This is the total number of pods that are still required for the deployment to have 100% available capacity. They may either be pods that are running but not yet available or pods that still have not been created.",
-							Type:        []string{"integer"},
-							Format:      "int32",
-						},
-					},
-					"lastUpdate": {
-						SchemaProps: spec.SchemaProps{
-							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
-						},
-					},
-					"currentHash": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
-						},
-					},
-					"generatedToken": {
-						SchemaProps: spec.SchemaProps{
-							Description: "GeneratedToken corresponds to the generated token if any token was provided in the Credential configuration when ClusterAgent is enabled.",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"status": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Status corresponds to the ClusterAgent deployment computed status.",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"state": {
-						SchemaProps: spec.SchemaProps{
-							Description: "State corresponds to the ClusterAgent deployment state.",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"deploymentName": {
-						SchemaProps: spec.SchemaProps{
-							Description: "DeploymentName corresponds to the name of the Cluster Agent Deployment.",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-				},
 			},
 		},
 		Dependencies: []string{

@@ -47,26 +47,12 @@ KUSTOMIZE_CONFIG=config/test-v2 make deploy
 ```
 ### Deploy a basic `v2alpha1.DatadogAgent` resource.
 
-The `examples/v2alpha1/min.yaml` file is containing the mininum information need in a DatadogAgent to start the deployment.
+Create a secret that contains an `api-key` and an `app-key`. By default the Operator is installed in the
+`system` namespace, and only watches resources in this namespace. As a result, the secret and deployment must be within the same namespace.
 
-```yaml
-apiVersion: datadoghq.com/v2alpha1
-kind: DatadogAgent
-metadata:
-  name: datadog
-spec:
-  global:
-    credentials:
-      apiSecret:
-        secretName: datadog-secret
-        keyName: api-key
-      appSecret:
-        secretName: datadog-secret
-        keyName: app-key
-```
+Then apply the `examples/v2alpha1/min.yaml` file which contains the mininum information needed to deploy the Agent and related services.
 
-Before deploying this resource, create a secret that contains an `api-key` and an `app-key`. By default the Operator is installed in the
-`system` namespace = and only watch the resource in the this namespace. So the secret and deployment need to be done in the same namespace.
+The following commands show how to execute these steps:
 
 ```console
 kubens system
@@ -86,7 +72,8 @@ kubectl -n $KUBE_NAMESPACE create secret generic datadog-secret --from-literal a
 kubectl -n $KUBE_NAMESPACE create secret generic datadog-token --from-literal token=$DD_TOKEN
 
 
-kubectl -n $KUBE_NAMESPACE  apply -f `examples/v2alpha1/min.yaml`
+kubectl -n $KUBE_NAMESPACE  apply -f examples/v2alpha1/min.yaml
 ```
+
 
 The Operator should start deploying the `agent` and `cluster-agent`.

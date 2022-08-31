@@ -18,6 +18,7 @@ import (
 	assert "github.com/stretchr/testify/require"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
+	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	test "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
@@ -469,7 +470,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						OrchestratorExplorerDisabled: true,
 						Labels:                       map[string]string{"label-foo-key": "label-bar-value"},
 						Status: &datadoghqv1alpha1.DatadogAgentStatus{
-							Agent: &datadoghqv1alpha1.DaemonSetStatus{
+							Agent: &commonv1.DaemonSetStatus{
 								DaemonsetName: "datadog-agent-daemonset-before",
 							},
 						},
@@ -1707,7 +1708,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 					dadOptions := &test.NewDatadogAgentOptions{
 						Labels: map[string]string{"label-foo-key": "label-bar-value"},
 						Status: &datadoghqv1alpha1.DatadogAgentStatus{
-							ClusterAgent: &datadoghqv1alpha1.DeploymentStatus{
+							ClusterAgent: &commonv1.DeploymentStatus{
 								DeploymentName: "cluster-agent-deployment-before",
 							},
 						},
@@ -1769,7 +1770,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 					request: newRequest(resourcesNamespace, resourcesName),
 					loadFunc: func(c client.Client) {
 						dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, &test.NewDatadogAgentOptions{Labels: map[string]string{"label-foo-key": "label-bar-value"}, ClusterAgentEnabled: true})
-						dda.Status.ClusterAgent = &datadoghqv1alpha1.DeploymentStatus{
+						dda.Status.ClusterAgent = &commonv1.DeploymentStatus{
 							DeploymentName: "cluster-agent-prev-name",
 						}
 						_ = c.Create(context.TODO(), dda)
@@ -2835,7 +2836,7 @@ func (dummyManager) ProcessError(datadog.MonitoredObject, error) {
 func (dummyManager) ProcessEvent(datadog.MonitoredObject, datadog.Event) {
 }
 
-func (dummyManager) MetricsForwarderStatusForObj(obj datadog.MonitoredObject) datadog.ConditionInterface {
+func (dummyManager) MetricsForwarderStatusForObj(obj datadog.MonitoredObject) *datadog.ConditionCommon {
 	return nil
 }
 
