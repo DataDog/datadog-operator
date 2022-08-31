@@ -50,7 +50,7 @@ KUSTOMIZE_CONFIG=config/test-v2 make deploy
 Create a secret that contains an `api-key` and an `app-key`. By default the Operator is installed in the
 `system` namespace, and only watches resources in this namespace. As a result, the secret and deployment must be within the same namespace.
 
-Then apply the `examples/v2alpha1/min.yaml` file which contains the mininum information needed to deploy the agent and related services.
+Then apply the `examples/v2alpha1/min.yaml` file which contains the mininum information needed to deploy the Agent and related services.
 
 The following commands show how to execute these steps:
 
