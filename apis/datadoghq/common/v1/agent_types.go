@@ -44,16 +44,32 @@ type AgentImageConfig struct {
 // +k8s:openapi-gen=true
 // +kubebuilder:object:generate=true
 type DaemonSetStatus struct {
-	Desired   int32 `json:"desired"`
-	Current   int32 `json:"current"`
-	Ready     int32 `json:"ready"`
-	Available int32 `json:"available"`
-	UpToDate  int32 `json:"upToDate"`
+	// Number of desired pods in the DaemonSet.
+	Desired int32 `json:"desired"`
 
-	Status      string       `json:"status,omitempty"`
-	State       string       `json:"state,omitempty"`
-	LastUpdate  *metav1.Time `json:"lastUpdate,omitempty"`
-	CurrentHash string       `json:"currentHash,omitempty"`
+	// Number of current pods in the DaemonSet.
+	Current int32 `json:"current"`
+
+	// Number of ready pods in the DaemonSet.
+	Ready int32 `json:"ready"`
+
+	// Number of available pods in the DaemonSet.
+	Available int32 `json:"available"`
+
+	// Number of up to date pods in the DaemonSet.
+	UpToDate int32 `json:"upToDate"`
+
+	// LastUpdate is the last time the status was updated.
+	LastUpdate *metav1.Time `json:"lastUpdate,omitempty"`
+
+	// CurrentHash is the stored hash of the DaemonSet.
+	CurrentHash string `json:"currentHash,omitempty"`
+
+	// Status corresponds to the DaemonSet computed status.
+	Status string `json:"status,omitempty"`
+
+	// State corresponds to the DaemonSet state.
+	State string `json:"state,omitempty"`
 
 	// DaemonsetName corresponds to the name of the created DaemonSet.
 	DaemonsetName string `json:"daemonsetName,omitempty"`
@@ -63,41 +79,45 @@ type DaemonSetStatus struct {
 // +k8s:openapi-gen=true
 // +kubebuilder:object:generate=true
 type DeploymentStatus struct {
-	// Total number of non-terminated pods targeted by this deployment (their labels match the selector).
+	// Total number of non-terminated pods targeted by this Deployment (their labels match the selector).
 	// +optional
 	Replicas int32 `json:"replicas,omitempty"`
 
-	// Total number of non-terminated pods targeted by this deployment that have the desired template spec.
+	// Total number of non-terminated pods targeted by this Deployment that have the desired template spec.
 	// +optional
 	UpdatedReplicas int32 `json:"updatedReplicas,omitempty"`
 
-	// Total number of ready pods targeted by this deployment.
+	// Total number of ready pods targeted by this Deployment.
 	// +optional
 	ReadyReplicas int32 `json:"readyReplicas,omitempty"`
 
-	// Total number of available pods (ready for at least minReadySeconds) targeted by this deployment.
+	// Total number of available pods (ready for at least minReadySeconds) targeted by this Deployment.
 	// +optional
 	AvailableReplicas int32 `json:"availableReplicas,omitempty"`
 
-	// Total number of unavailable pods targeted by this deployment. This is the total number of
-	// pods that are still required for the deployment to have 100% available capacity. They may
+	// Total number of unavailable pods targeted by this Deployment. This is the total number of
+	// pods that are still required for the Deployment to have 100% available capacity. They may
 	// either be pods that are running but not yet available or pods that still have not been created.
 	// +optional
 	UnavailableReplicas int32 `json:"unavailableReplicas,omitempty"`
 
-	LastUpdate  *metav1.Time `json:"lastUpdate,omitempty"`
-	CurrentHash string       `json:"currentHash,omitempty"`
+	// LastUpdate is the last time the status was updated.
+	LastUpdate *metav1.Time `json:"lastUpdate,omitempty"`
+
+	// CurrentHash is the stored hash of the Deployment.
+	CurrentHash string `json:"currentHash,omitempty"`
 
 	// GeneratedToken corresponds to the generated token if any token was provided in the Credential configuration when ClusterAgent is
 	// enabled.
 	// +optional
 	GeneratedToken string `json:"generatedToken,omitempty"`
 
-	// Status corresponds to the ClusterAgent deployment computed status.
+	// Status corresponds to the Deployment computed status.
 	Status string `json:"status,omitempty"`
-	// State corresponds to the ClusterAgent deployment state.
+
+	// State corresponds to the Deployment state.
 	State string `json:"state,omitempty"`
 
-	// DeploymentName corresponds to the name of the Cluster Agent Deployment.
+	// DeploymentName corresponds to the name of the Deployment.
 	DeploymentName string `json:"deploymentName,omitempty"`
 }
