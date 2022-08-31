@@ -157,14 +157,6 @@ func (f *npmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, socketEnvVar)
 	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, socketEnvVar)
 
-	processEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDProcessAgentEnabled,
-		Value: "true",
-	}
-
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, processEnvVar)
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, processEnvVar)
-
 	// env vars for Process Agent only
 	sysProbeExternalEnvVar := &corev1.EnvVar{
 		Name:  apicommon.DDSystemProbeExternal,

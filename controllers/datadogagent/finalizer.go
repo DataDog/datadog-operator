@@ -9,6 +9,10 @@ import (
 	"context"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/override"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -74,6 +78,58 @@ func (r *Reconciler) finalizeDadV1(reqLogger logr.Logger, obj client.Object) {
 
 	r.forwarders.Unregister(dda)
 	reqLogger.Info("Successfully finalized DatadogAgent")
+}
+
+func (r *Reconciler) finalizeDadV2(reqLogger logr.Logger, obj client.Object) {
+	// We need to apply the defaults to be able to delete the resources
+	// associated with those defaults.
+	dda := obj.(*datadoghqv2alpha1.DatadogAgent).DeepCopy()
+	datadoghqv2alpha1.DefaultDatadogAgent(dda)
+
+	if r.options.OperatorMetricsEnabled {
+		r.forwarders.Unregister(dda)
+	}
+
+	// To delete the resources associated with the DatadogAgent that we need to
+	// delete, we figure out its dependencies, store them in the dependencies
+	// store, and then call the DeleteAll function of the store.
+
+	features, requiredComponents := feature.BuildFeatures(
+		dda, reconcilerOptionsToFeatureOptions(&r.options, reqLogger))
+
+	storeOptions := &dependencies.StoreOptions{
+		SupportCilium: r.options.SupportCilium,
+		Logger:        reqLogger,
+		Scheme:        r.scheme,
+	}
+	depsStore := dependencies.NewStore(dda, storeOptions)
+	resourceManagers := feature.NewResourceManagers(depsStore)
+
+	var errs []error
+
+	// Set up dependencies required by enabled features
+	for _, feat := range features {
+		if featErr := feat.ManageDependencies(resourceManagers, requiredComponents); featErr != nil {
+			errs = append(errs, featErr)
+		}
+	}
+
+	// Examine user configuration to override any external dependencies (e.g. RBACs)
+	errs = append(errs, override.Dependencies(reqLogger, resourceManagers, dda.Spec.Override, dda.Namespace)...)
+
+	if len(errs) > 0 {
+		reqLogger.Info("Errors calculating dependencies while finalizing the DatadogAgent", "errors", errs)
+	}
+
+	deleteErrs := depsStore.DeleteAll(context.TODO(), r.client)
+
+	if len(deleteErrs) == 0 {
+		reqLogger.Info("Successfully finalized DatadogAgent")
+	} else {
+		for _, deleteErr := range deleteErrs {
+			reqLogger.Error(deleteErr, "Error deleting dependencies while finalizing the DatadogAgent")
+		}
+	}
 }
 
 func (r *Reconciler) addFinalizer(reqLogger logr.Logger, dda client.Object) error {

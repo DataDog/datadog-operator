@@ -10,12 +10,10 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/errors"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
@@ -85,9 +83,9 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, request reconcile.
 
 func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger, instance *datadoghqv2alpha1.DatadogAgent) (reconcile.Result, error) {
 	var result reconcile.Result
+	newStatus := instance.Status.DeepCopy()
 
 	features, requiredComponents := feature.BuildFeatures(instance, reconcilerOptionsToFeatureOptions(&r.options, logger))
-	logger.Info("requiredComponents status:", "agent", requiredComponents.Agent.IsEnabled(), "cluster-agent", requiredComponents.ClusterAgent.IsEnabled(), "cluster-checks-runner", requiredComponents.ClusterChecksRunner.IsEnabled())
 
 	// -----------------------
 	// Manage dependencies
@@ -112,36 +110,28 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	}
 
 	// Examine user configuration to override any external dependencies (e.g. RBACs)
-	errs = append(errs, override.Dependencies(resourceManagers, instance.Spec.Override, instance.Namespace)...)
+	errs = append(errs, override.Dependencies(logger, resourceManagers, instance.Spec.Override, instance.Namespace)...)
 
 	// -----------------------------
 	// Start reconcile Components
 	// -----------------------------
 
 	var err error
-	newStatus := instance.Status.DeepCopy()
 
-	if requiredComponents.ClusterAgent.IsEnabled() {
-		logger.Info("ClusterAgent enabled")
-		result, err = r.reconcileV2ClusterAgent(logger, features, instance, resourceManagers, newStatus)
-		if utils.ShouldReturn(result, err) {
-			return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err)
-		}
+	result, err = r.reconcileV2ClusterAgent(logger, requiredComponents, features, instance, resourceManagers, newStatus)
+	if utils.ShouldReturn(result, err) {
+		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err)
 	}
 
-	if requiredComponents.Agent.IsEnabled() {
-		requiredContainers := requiredComponents.Agent.Containers
-		result, err = r.reconcileV2Agent(logger, features, instance, resourceManagers, newStatus, requiredContainers)
-		if utils.ShouldReturn(result, err) {
-			return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err)
-		}
+	requiredContainers := requiredComponents.Agent.Containers
+	result, err = r.reconcileV2Agent(logger, requiredComponents, features, instance, resourceManagers, newStatus, requiredContainers)
+	if utils.ShouldReturn(result, err) {
+		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err)
 	}
 
-	if requiredComponents.ClusterChecksRunner.IsEnabled() {
-		result, err = r.reconcileV2ClusterChecksRunner(logger, features, instance, resourceManagers, newStatus)
-		if utils.ShouldReturn(result, err) {
-			return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err)
-		}
+	result, err = r.reconcileV2ClusterChecksRunner(logger, requiredComponents, features, instance, resourceManagers, newStatus)
+	if utils.ShouldReturn(result, err) {
+		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err)
 	}
 
 	// ------------------------------
@@ -211,14 +201,4 @@ func (r *Reconciler) setMetricsForwarderStatusV2(logger logr.Logger, agentdeploy
 			logger.V(1).Info("metrics conditions status could not be set")
 		}
 	}
-}
-
-func (r *Reconciler) finalizeDadV2(reqLogger logr.Logger, obj client.Object) {
-	dda := obj.(*datadoghqv2alpha1.DatadogAgent)
-
-	if r.options.OperatorMetricsEnabled {
-		r.forwarders.Unregister(dda)
-	}
-
-	reqLogger.Info("Successfully finalized DatadogAgent")
 }

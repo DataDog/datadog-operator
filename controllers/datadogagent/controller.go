@@ -40,6 +40,7 @@ import (
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/enabledefault"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/eventcollection"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/kubernetesstatecore"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/livecontainer"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/liveprocess"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/logcollection"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/npm"
@@ -160,7 +161,6 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, 
 	var result reconcile.Result
 
 	features, requiredComponents := feature.BuildFeaturesV1(instance, reconcilerOptionsToFeatureOptions(&r.options, logger))
-	logger.Info("requiredComponents status:", "agent", requiredComponents.Agent, "cluster-agent", requiredComponents.ClusterAgent, "cluster-checks-runner", requiredComponents.ClusterChecksRunner)
 
 	// -----------------------
 	// Manage dependencies

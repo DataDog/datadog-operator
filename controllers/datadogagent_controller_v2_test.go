@@ -85,6 +85,11 @@ var _ = Describe("V2 Controller - DatadogAgent Deployment", func() {
 	)
 
 	Context(
+		"with live container collection",
+		testFunction(testutils.NewDatadogAgentWithLiveContainerCollection(namespace, "with-live-container-collection")),
+	)
+
+	Context(
 		"with live process collection",
 		testFunction(testutils.NewDatadogAgentWithLiveProcessCollection(namespace, "with-live-process-collection")),
 	)
@@ -127,6 +132,11 @@ var _ = Describe("V2 Controller - DatadogAgent Deployment", func() {
 	Context(
 		"with some global settings set",
 		testFunction(testutils.NewDatadogAgentWithGlobalConfigSettings(namespace, "with-global-settings")),
+	)
+
+	Context(
+		"with overrides",
+		testFunction(testutils.NewDatadogAgentWithOverrides(namespace, "with-overrides")),
 	)
 })
 

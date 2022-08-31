@@ -270,6 +270,7 @@ func volumesForAgent(dda metav1.Object) []corev1.Volume {
 		component.GetVolumeForProc(),
 		component.GetVolumeForCgroups(),
 		component.GetVolumeForDogstatsd(),
+		component.GetVolumeForRuntimeSocket(),
 	}
 }
 
@@ -283,6 +284,7 @@ func volumeMountsForCoreAgent() []corev1.VolumeMount {
 		component.GetVolumeMountForProc(),
 		component.GetVolumeMountForCgroups(),
 		component.GetVolumeMountForDogstatsdSocket(false),
+		component.GetVolumeMountForRuntimeSocket(true),
 	}
 }
 
@@ -292,6 +294,7 @@ func volumeMountsForTraceAgent() []corev1.VolumeMount {
 		component.GetVolumeMountForAuth(),
 		component.GetVolumeMountForConfig(),
 		component.GetVolumeMountForDogstatsdSocket(true),
+		component.GetVolumeMountForRuntimeSocket(true),
 	}
 }
 
@@ -301,6 +304,7 @@ func volumeMountsForProcessAgent() []corev1.VolumeMount {
 		component.GetVolumeMountForAuth(),
 		component.GetVolumeMountForConfig(),
 		component.GetVolumeMountForDogstatsdSocket(true),
+		component.GetVolumeMountForRuntimeSocket(true),
 	}
 }
 
@@ -310,6 +314,7 @@ func volumeMountsForSecurityAgent() []corev1.VolumeMount {
 		component.GetVolumeMountForAuth(),
 		component.GetVolumeMountForConfig(),
 		component.GetVolumeMountForDogstatsdSocket(true),
+		component.GetVolumeMountForRuntimeSocket(true),
 	}
 }
 

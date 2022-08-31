@@ -163,10 +163,6 @@ func Test_npmFeature_Configure(t *testing.T) {
 				Name:  apicommon.DDSystemProbeSocket,
 				Value: apicommon.DefaultSystemProbeSocketPath,
 			},
-			{
-				Name:  apicommon.DDProcessAgentEnabled,
-				Value: "true",
-			},
 		}
 		systemProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.SystemProbeContainerName]
 		assert.True(t, apiutils.IsEqualStruct(systemProbeEnvVars, sysProbeWantEnvVars), "System Probe envvars \ndiff = %s", cmp.Diff(systemProbeEnvVars, sysProbeWantEnvVars))

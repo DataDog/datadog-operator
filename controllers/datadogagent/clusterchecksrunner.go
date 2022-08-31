@@ -244,7 +244,7 @@ func newClusterChecksRunnerPodTemplate(dda *datadoghqv1alpha1.DatadogAgent, labe
 	spec := &dda.Spec
 	volumeMounts := getVolumeMountsForClusterChecksRunner(dda)
 	envVars := getEnvVarsForClusterChecksRunner(dda)
-	image := getImage(clusterChecksRunnerSpec.Image, spec.Registry)
+	image := apicommon.GetImage(clusterChecksRunnerSpec.Image, spec.Registry)
 
 	newPodTemplate := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
@@ -312,7 +312,7 @@ func buildClusterChecksRunnerConfigurationConfigMap(dda *datadoghqv1alpha1.Datad
 	if !apiutils.BoolValue(dda.Spec.ClusterChecksRunner.Enabled) {
 		return nil, nil
 	}
-	return buildConfigurationConfigMap(dda, datadoghqv1alpha1.ConvertCustomConfig(dda.Spec.ClusterChecksRunner.CustomConfig), getClusterChecksRunnerCustomConfigConfigMapName(dda), datadoghqv1alpha1.AgentCustomConfigVolumeSubPath)
+	return buildConfigurationConfigMap(dda, datadoghqv1alpha1.ConvertCustomConfig(dda.Spec.ClusterChecksRunner.CustomConfig), getClusterChecksRunnerCustomConfigConfigMapName(dda), apicommon.AgentCustomConfigVolumeSubPath)
 }
 
 // getEnvVarsForClusterChecksRunner converts Cluster Checks Runner Config into container env vars
@@ -344,7 +344,11 @@ func getEnvVarsForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []cor
 			Value: "false",
 		},
 		{
-			Name:  apicommon.DDProcessAgentEnabled,
+			Name:  apicommon.DDProcessCollectionEnabled,
+			Value: "false",
+		},
+		{
+			Name:  apicommon.DDContainerCollectionEnabled,
 			Value: "false",
 		},
 		{
@@ -470,7 +474,7 @@ func getVolumesForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []cor
 	}
 
 	if dda.Spec.ClusterChecksRunner.CustomConfig != nil {
-		volume := objectvolume.GetVolumeFromCustomConfigSpec(datadoghqv1alpha1.ConvertCustomConfig(dda.Spec.ClusterChecksRunner.CustomConfig), getClusterChecksRunnerCustomConfigConfigMapName(dda), datadoghqv1alpha1.AgentCustomConfigVolumeName)
+		volume := objectvolume.GetVolumeFromCustomConfigSpec(datadoghqv1alpha1.ConvertCustomConfig(dda.Spec.ClusterChecksRunner.CustomConfig), getClusterChecksRunnerCustomConfigConfigMapName(dda), apicommon.AgentCustomConfigVolumeName)
 		volumes = append(volumes, volume)
 	}
 	return append(volumes, dda.Spec.ClusterChecksRunner.Config.Volumes...)

@@ -251,7 +251,7 @@ func buildClusterAgentConfigurationConfigMap(dda *datadoghqv1alpha1.DatadogAgent
 	if !isClusterAgentEnabled(dda.Spec.ClusterAgent) {
 		return nil, nil
 	}
-	return buildConfigurationConfigMap(dda, datadoghqv1alpha1.ConvertCustomConfig(dda.Spec.ClusterAgent.CustomConfig), getClusterAgentCustomConfigConfigMapName(dda), datadoghqv1alpha1.ClusterAgentCustomConfigVolumeSubPath)
+	return buildConfigurationConfigMap(dda, datadoghqv1alpha1.ConvertCustomConfig(dda.Spec.ClusterAgent.CustomConfig), getClusterAgentCustomConfigConfigMapName(dda), apicommon.ClusterAgentCustomConfigVolumeSubPath)
 }
 
 func (r *Reconciler) cleanupClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
@@ -322,16 +322,16 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 		customConfigVolumeSource := objectvolume.GetVolumeFromCustomConfigSpec(
 			datadoghqv1alpha1.ConvertCustomConfig(dda.Spec.ClusterAgent.CustomConfig),
 			getClusterAgentCustomConfigConfigMapName(dda),
-			datadoghqv1alpha1.AgentCustomConfigVolumeName,
+			apicommon.AgentCustomConfigVolumeName,
 		)
 		volumes = append(volumes, customConfigVolumeSource)
 
 		// Custom config (datadog-cluster.yaml) volume
 		volumeMount := objectvolume.GetVolumeMountFromCustomConfigSpec(
 			datadoghqv1alpha1.ConvertCustomConfig(dda.Spec.ClusterAgent.CustomConfig),
-			datadoghqv1alpha1.ClusterAgentCustomConfigVolumeName,
-			datadoghqv1alpha1.ClusterAgentCustomConfigVolumePath,
-			datadoghqv1alpha1.ClusterAgentCustomConfigVolumeSubPath)
+			apicommon.ClusterAgentCustomConfigVolumeName,
+			apicommon.ClusterAgentCustomConfigVolumePath,
+			apicommon.ClusterAgentCustomConfigVolumeSubPath)
 		volumeMounts = append(volumeMounts, volumeMount)
 	}
 
@@ -396,7 +396,7 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 
 	container := &newPodTemplate.Spec.Containers[0]
 	{
-		container.Image = getImage(clusterAgentSpec.Image, dda.Spec.Registry)
+		container.Image = apicommon.GetImage(clusterAgentSpec.Image, dda.Spec.Registry)
 		if clusterAgentSpec.Image.PullPolicy != nil {
 			container.ImagePullPolicy = *clusterAgentSpec.Image.PullPolicy
 		}
