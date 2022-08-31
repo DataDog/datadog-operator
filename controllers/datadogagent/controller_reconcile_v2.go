@@ -10,12 +10,10 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/errors"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
@@ -182,14 +180,4 @@ func (r *Reconciler) updateStatusIfNeededV2(logger logr.Logger, agentdeployment 
 	}
 
 	return result, currentError
-}
-
-func (r *Reconciler) finalizeDadV2(reqLogger logr.Logger, obj client.Object) {
-	dda := obj.(*datadoghqv2alpha1.DatadogAgent)
-
-	if r.options.OperatorMetricsEnabled {
-		r.forwarders.Unregister(dda)
-	}
-
-	reqLogger.Info("Successfully finalized DatadogAgent")
 }
