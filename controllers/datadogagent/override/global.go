@@ -152,11 +152,7 @@ func ApplyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 		gitVersion := resourcesManager.Store().GetVersionInfo()
 		forceEnableLocalService := config.LocalService != nil && apiutils.BoolValue(config.LocalService.ForceEnableLocalService)
 		if component.ShouldCreateAgentLocalService(gitVersion, forceEnableLocalService) {
-			var serviceName string
-			if config.LocalService != nil && config.LocalService.NameOverride != nil {
-				serviceName = *config.LocalService.NameOverride
-			}
-			err := resourcesManager.ServiceManager().AddService(component.BuildAgentLocalService(dda, serviceName))
+			err := resourcesManager.ServiceManager().AddService(component.BuildAgentLocalService(dda, v2alpha1.GetLocalAgentServiceName(dda)))
 			if err != nil {
 				logger.Info("Error adding Local Service to the store", "error", err)
 			}
