@@ -92,7 +92,7 @@ func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, dda *dat
 		now := metav1.NewTime(time.Now())
 		err = kubernetes.UpdateFromObject(context.TODO(), r.client, updateDeployment, currentDeployment.ObjectMeta)
 		if err != nil {
-			updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, "UpdateFailed", "Unable to update Deployment")
+			updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, "UpdateSucceeded", "Unable to update Deployment")
 			return reconcile.Result{}, err
 		}
 		event := buildEventInfo(updateDeployment.Name, updateDeployment.Namespace, deploymentKind, datadog.UpdateEvent)
@@ -103,7 +103,7 @@ func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, dda *dat
 
 		err = r.client.Create(context.TODO(), deployment)
 		if err != nil {
-			updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, "CreateFailed", "Unable to create Deployment")
+			updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, "CreateSucceeded", "Unable to create Deployment")
 			return reconcile.Result{}, err
 		}
 		event := buildEventInfo(deployment.Name, deployment.Namespace, deploymentKind, datadog.CreationEvent)
@@ -182,17 +182,18 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 		now := metav1.NewTime(time.Now())
 		err = kubernetes.UpdateFromObject(context.TODO(), r.client, updateDaemonset, currentDaemonset.ObjectMeta)
 		if err != nil {
+			updateStatusFunc(updateDaemonset, newStatus, now, metav1.ConditionFalse, "UpdateSucceeded", "Unable to update Daemonset")
 			return reconcile.Result{}, err
 		}
 		event := buildEventInfo(updateDaemonset.Name, updateDaemonset.Namespace, daemonSetKind, datadog.UpdateEvent)
 		r.recordEvent(dda, event)
-		updateStatusFunc(updateDaemonset, newStatus, now, metav1.ConditionTrue, "DaemonsetUpdated", "Daemonset updated")
+		updateStatusFunc(updateDaemonset, newStatus, now, metav1.ConditionTrue, "UpdateSucceeded", "Daemonset updated")
 	} else {
 		now := metav1.NewTime(time.Now())
 
 		err = r.client.Create(context.TODO(), daemonset)
 		if err != nil {
-			updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, "CreateFailed", "Unable to create Daemonset")
+			updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, "CreateSucceeded", "Unable to create Daemonset")
 			return reconcile.Result{}, err
 		}
 		event := buildEventInfo(daemonset.Name, daemonset.Namespace, daemonSetKind, datadog.CreationEvent)
@@ -271,17 +272,18 @@ func (r *Reconciler) createOrUpdateExtendedDaemonset(parentLogger logr.Logger, d
 		now := metav1.NewTime(time.Now())
 		err = kubernetes.UpdateFromObject(context.TODO(), r.client, updateEDS, currentEDS.ObjectMeta)
 		if err != nil {
+			updateStatusFunc(updateEDS, newStatus, now, metav1.ConditionFalse, "UpdateSucceeded", "Unable to update ExtendedDaemonSet")
 			return reconcile.Result{}, err
 		}
 		event := buildEventInfo(updateEDS.Name, updateEDS.Namespace, extendedDaemonSetKind, datadog.UpdateEvent)
 		r.recordEvent(dda, event)
-		updateStatusFunc(updateEDS, newStatus, now, metav1.ConditionTrue, "ExtendedDaemonSetUpdated", "ExtendedDaemonSet updated")
+		updateStatusFunc(updateEDS, newStatus, now, metav1.ConditionTrue, "UpdateSucceeded", "ExtendedDaemonSet updated")
 	} else {
 		now := metav1.NewTime(time.Now())
 
 		err = r.client.Create(context.TODO(), eds)
 		if err != nil {
-			updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, "CreateFailed", "Unable to create ExtendedDaemonSet")
+			updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, "CreateSucceeded", "Unable to create ExtendedDaemonSet")
 			return reconcile.Result{}, err
 		}
 		event := buildEventInfo(eds.Name, eds.Namespace, extendedDaemonSetKind, datadog.CreationEvent)
