@@ -12663,9 +12663,6 @@ spec:
     subresources:
       status: {}
   - additionalPrinterColumns:
-    - jsonPath: .status.conditions[?(@.type=='Active')].status
-      name: active
-      type: string
     - jsonPath: .status.agent.status
       name: agent
       type: string

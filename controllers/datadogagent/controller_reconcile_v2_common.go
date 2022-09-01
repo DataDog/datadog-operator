@@ -92,12 +92,12 @@ func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, dda *dat
 		now := metav1.NewTime(time.Now())
 		err = kubernetes.UpdateFromObject(context.TODO(), r.client, updateDeployment, currentDeployment.ObjectMeta)
 		if err != nil {
-			updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, "CreateFailed", "Unable to Update Deployment")
+			updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, "UpdateFailed", "Unable to update Deployment")
 			return reconcile.Result{}, err
 		}
 		event := buildEventInfo(updateDeployment.Name, updateDeployment.Namespace, deploymentKind, datadog.UpdateEvent)
 		r.recordEvent(dda, event)
-		updateStatusFunc(updateDeployment, newStatus, now, metav1.ConditionTrue, "DeploymentUpdated", "Deployment updated")
+		updateStatusFunc(updateDeployment, newStatus, now, metav1.ConditionTrue, "UpdateSucceeded", "Deployment updated")
 	} else {
 		now := metav1.NewTime(time.Now())
 

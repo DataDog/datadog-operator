@@ -868,7 +868,6 @@ type DatadogAgentStatus struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:unservedversion
 // +kubebuilder:resource:path=datadogagents,shortName=dd
-// +kubebuilder:printcolumn:name="active",type="string",JSONPath=".status.conditions[?(@.type=='Active')].status"
 // +kubebuilder:printcolumn:name="agent",type="string",JSONPath=".status.agent.status"
 // +kubebuilder:printcolumn:name="cluster-agent",type="string",JSONPath=".status.clusterAgent.status"
 // +kubebuilder:printcolumn:name="cluster-checks-runner",type="string",JSONPath=".status.clusterChecksRunner.status"
