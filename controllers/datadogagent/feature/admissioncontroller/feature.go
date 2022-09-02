@@ -67,28 +67,22 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 }
 
 func (f *admissionControllerFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	// f.owner = dda
-	// f.serviceAccountName = v1alpha1.GetClusterAgentServiceAccount(dda)
+	f.owner = dda
+	f.serviceAccountName = v1alpha1.GetClusterAgentServiceAccount(dda)
 
-	// if dda.Spec.ClusterAgent.Config != nil && dda.Spec.ClusterAgent.Config.AdmissionController != nil && apiutils.BoolValue(dda.Spec.ClusterAgent.Config.AdmissionController.Enabled) {
-	// 	ac := dda.Spec.ClusterAgent.Config.AdmissionController
-	// 	f.mutateUnlabelled = apiutils.BoolValue(ac.MutateUnlabelled)
-	// 	f.serviceName = *ac.ServiceName
-	// 	if ac.AgentCommunicationMode != nil && *ac.AgentCommunicationMode != "" {
-	// 		f.agentCommunicationMode = *ac.AgentCommunicationMode
-	// 	}
-	// 	f.localServiceName = v1alpha1.GetLocalAgentServiceName(dda)
-	// 	reqComp = feature.RequiredComponents{
-	// 		ClusterAgent: feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)},
-	// 	}
-	// }
-	// return reqComp
-
-	// do not apply this feature on v1alpha1
-	// it breaks the unittests in `controller_test.go` because the `store` modifies
-	// the dependency resources, overwriting the rbac created by the test helper function
-
-	return feature.RequiredComponents{}
+	if dda.Spec.ClusterAgent.Config != nil && dda.Spec.ClusterAgent.Config.AdmissionController != nil && apiutils.BoolValue(dda.Spec.ClusterAgent.Config.AdmissionController.Enabled) {
+		ac := dda.Spec.ClusterAgent.Config.AdmissionController
+		f.mutateUnlabelled = apiutils.BoolValue(ac.MutateUnlabelled)
+		f.serviceName = *ac.ServiceName
+		if ac.AgentCommunicationMode != nil && *ac.AgentCommunicationMode != "" {
+			f.agentCommunicationMode = *ac.AgentCommunicationMode
+		}
+		f.localServiceName = v1alpha1.GetLocalAgentServiceName(dda)
+		reqComp = feature.RequiredComponents{
+			ClusterAgent: feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)},
+		}
+	}
+	return reqComp
 }
 
 func (f *admissionControllerFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {

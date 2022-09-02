@@ -10,6 +10,7 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
@@ -21,22 +22,22 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-func TestExternalMetricsFeature(t *testing.T) {
+func TestAdmissionControllerFeature(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		//////////////////////////
 		// v1Alpha1.DatadogAgent
 		//////////////////////////
-		// {
-		// 	Name:          "v1alpha1 admission controller not enabled",
-		// 	DDAv1:         newV1Agent(false),
-		// 	WantConfigure: false,
-		// },
-		// {
-		// 	Name:          "v1alpha1 admission controller enabled",
-		// 	DDAv1:         newV1Agent(true),
-		// 	WantConfigure: true,
-		// 	ClusterAgent:  testDCAResources(),
-		// },
+		{
+			Name:          "v1alpha1 admission controller not enabled",
+			DDAv1:         newV1Agent(false),
+			WantConfigure: false,
+		},
+		{
+			Name:          "v1alpha1 admission controller enabled",
+			DDAv1:         newV1Agent(true),
+			WantConfigure: true,
+			ClusterAgent:  testDCAResources(),
+		},
 
 		//////////////////////////
 		// v2Alpha1.DatadogAgent
@@ -57,22 +58,22 @@ func TestExternalMetricsFeature(t *testing.T) {
 	tests.Run(t, buildAdmissionControllerFeature)
 }
 
-// func newV1Agent(enabled bool) *v1alpha1.DatadogAgent {
-// 	return &v1alpha1.DatadogAgent{
-// 		Spec: v1alpha1.DatadogAgentSpec{
-// 			ClusterAgent: v1alpha1.DatadogAgentSpecClusterAgentSpec{
-// 				Config: &v1alpha1.ClusterAgentConfig{
-// 					AdmissionController: &v1alpha1.AdmissionControllerConfig{
-// 						Enabled:                apiutils.NewBoolPointer(enabled),
-// 						MutateUnlabelled:       apiutils.NewBoolPointer(true),
-// 						ServiceName:            apiutils.NewStringPointer("testServiceName"),
-// 						AgentCommunicationMode: apiutils.NewStringPointer("hostip"),
-// 					},
-// 				},
-// 			},
-// 		},
-// 	}
-// }
+func newV1Agent(enabled bool) *v1alpha1.DatadogAgent {
+	return &v1alpha1.DatadogAgent{
+		Spec: v1alpha1.DatadogAgentSpec{
+			ClusterAgent: v1alpha1.DatadogAgentSpecClusterAgentSpec{
+				Config: &v1alpha1.ClusterAgentConfig{
+					AdmissionController: &v1alpha1.AdmissionControllerConfig{
+						Enabled:                apiutils.NewBoolPointer(enabled),
+						MutateUnlabelled:       apiutils.NewBoolPointer(true),
+						ServiceName:            apiutils.NewStringPointer("testServiceName"),
+						AgentCommunicationMode: apiutils.NewStringPointer("hostip"),
+					},
+				},
+			},
+		},
+	}
+}
 
 func newV2Agent(enabled bool) *v2alpha1.DatadogAgent {
 	return &v2alpha1.DatadogAgent{

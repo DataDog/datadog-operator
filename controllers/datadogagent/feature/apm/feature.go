@@ -68,8 +68,8 @@ func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 
 		if dda.Spec.Global.LocalService != nil {
 			f.forceEnableLocalService = apiutils.BoolValue(dda.Spec.Global.LocalService.ForceEnableLocalService)
-			f.localServiceName = v2alpha1.GetLocalAgentServiceName(dda)
 		}
+		f.localServiceName = v2alpha1.GetLocalAgentServiceName(dda)
 
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
@@ -101,8 +101,8 @@ func (f *apmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.Re
 
 		if dda.Spec.Agent.LocalService != nil {
 			f.forceEnableLocalService = apiutils.BoolValue(dda.Spec.Agent.LocalService.ForceLocalServiceEnable)
-			f.localServiceName = v1alpha1.GetLocalAgentServiceName(dda)
 		}
+		f.localServiceName = v1alpha1.GetLocalAgentServiceName(dda)
 
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
