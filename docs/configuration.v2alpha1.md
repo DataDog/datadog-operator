@@ -100,9 +100,9 @@ spec:
 | features.orchestratorExplorer.extraTags | Additional tags to associate with the collected data in the form of `a b c`. This is a Cluster Agent option distinct from DD_TAGS that is used in the Orchestrator Explorer. |
 | features.orchestratorExplorer.scrubContainers | ScrubContainers enables scrubbing of sensitive container data (passwords, tokens, etc. ). Default: true |
 | features.otlp.receiver.protocols.grpc.enabled | Enable the OTLP/gRPC endpoint. |
-| features.otlp.receiver.protocols.grpc.endpoint | Endpoint for OTLP/gRPC. gRPC supports several naming schemes: https://github.com/grpc/grpc/blob/master/doc/naming.md The Datadog Operator only supports 'host:port' (usually '0.0.0.0:port'). The default value is '0.0.0.0:4317'. |
+| features.otlp.receiver.protocols.grpc.endpoint | Endpoint for OTLP/gRPC. gRPC supports several naming schemes: https://github.com/grpc/grpc/blob/master/doc/naming.md The Datadog Operator supports only `host:port` (usually `0.0.0.0:port`). Default: `0.0.0.0:4317` |
 | features.otlp.receiver.protocols.http.enabled | Enable the OTLP/HTTP endpoint. |
-| features.otlp.receiver.protocols.http.endpoint | Endpoint for OTLP/HTTP. The default value is '0.0.0.0:4318'. |
+| features.otlp.receiver.protocols.http.endpoint | Endpoint for OTLP/HTTP. Default: `0.0.0.0:4318` |
 | features.prometheusScrape.additionalConfigs | AdditionalConfigs allows adding advanced Prometheus check configurations with custom discovery rules. |
 | features.prometheusScrape.enableServiceEndpoints | EnableServiceEndpoints enables generating dedicated checks for service endpoints. Default: false |
 | features.prometheusScrape.enabled | Enable autodiscovery of pods and services exposing Prometheus metrics. Default: false |
