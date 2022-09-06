@@ -700,7 +700,7 @@ func schema__apis_datadoghq_v2alpha1_OTLPGRPCConfig(ref common.ReferenceCallback
 					},
 					"endpoint": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Endpoint for OTLP/gRPC. gRPC supports several naming schemes: https://github.com/grpc/grpc/blob/master/doc/naming.md The Datadog Operator only supports 'host:port' (usually '0.0.0.0:port'). The default value is '0.0.0.0:4317'.",
+							Description: "Endpoint for OTLP/gRPC. gRPC supports several naming schemes: https://github.com/grpc/grpc/blob/master/doc/naming.md The Datadog Operator supports only 'host:port' (usually `0.0.0.0:port`). Default: `0.0.0.0:4317`.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -727,7 +727,7 @@ func schema__apis_datadoghq_v2alpha1_OTLPHTTPConfig(ref common.ReferenceCallback
 					},
 					"endpoint": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Endpoint for OTLP/HTTP. The default value is '0.0.0.0:4318'.",
+							Description: "Endpoint for OTLP/HTTP. Default: '0.0.0.0:4318'.",
 							Type:        []string{"string"},
 							Format:      "",
 						},

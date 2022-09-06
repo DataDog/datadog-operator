@@ -4558,9 +4558,8 @@ spec:
                                   endpoint:
                                     description: 'Endpoint for OTLP/gRPC. gRPC supports
                                       several naming schemes: https://github.com/grpc/grpc/blob/master/doc/naming.md
-                                      The Datadog Operator only supports ''host:port''
-                                      (usually ''0.0.0.0:port''). The default value
-                                      is ''0.0.0.0:4317''.'
+                                      The Datadog Operator supports only ''host:port''
+                                      (usually ''0.0.0.0:port''). Default: ''0.0.0.0:4317''.'
                                     type: string
                                 type: object
                               http:
@@ -4571,8 +4570,8 @@ spec:
                                     description: Enable the OTLP/HTTP endpoint.
                                     type: boolean
                                   endpoint:
-                                    description: Endpoint for OTLP/HTTP. The default
-                                      value is '0.0.0.0:4318'.
+                                    description: 'Endpoint for OTLP/HTTP. Default:
+                                      ''0.0.0.0:4318''.'
                                     type: string
                                 type: object
                             type: object
@@ -17374,9 +17373,8 @@ spec:
                                       endpoint:
                                         description: 'Endpoint for OTLP/gRPC. gRPC
                                           supports several naming schemes: https://github.com/grpc/grpc/blob/master/doc/naming.md
-                                          The Datadog Operator only supports ''host:port''
-                                          (usually ''0.0.0.0:port''). The default
-                                          value is ''0.0.0.0:4317''.'
+                                          The Datadog Operator supports only ''host:port''
+                                          (usually ''0.0.0.0:port''). Default: ''0.0.0.0:4317''.'
                                         type: string
                                     type: object
                                   http:
@@ -17387,8 +17385,8 @@ spec:
                                         description: Enable the OTLP/HTTP endpoint.
                                         type: boolean
                                       endpoint:
-                                        description: Endpoint for OTLP/HTTP. The default
-                                          value is '0.0.0.0:4318'.
+                                        description: 'Endpoint for OTLP/HTTP. Default:
+                                          ''0.0.0.0:4318''.'
                                         type: string
                                     type: object
                                 type: object
@@ -26315,9 +26313,8 @@ spec:
                                   endpoint:
                                     description: 'Endpoint for OTLP/gRPC. gRPC supports
                                       several naming schemes: https://github.com/grpc/grpc/blob/master/doc/naming.md
-                                      The Datadog Operator only supports ''host:port''
-                                      (usually ''0.0.0.0:port''). The default value
-                                      is ''0.0.0.0:4317''.'
+                                      The Datadog Operator supports only ''host:port''
+                                      (usually `0.0.0.0:port`). Default: `0.0.0.0:4317`.'
                                     type: string
                                 type: object
                               http:
@@ -26328,8 +26325,8 @@ spec:
                                     description: Enable the OTLP/HTTP endpoint.
                                     type: boolean
                                   endpoint:
-                                    description: Endpoint for OTLP/HTTP. The default
-                                      value is '0.0.0.0:4318'.
+                                    description: 'Endpoint for OTLP/HTTP. Default:
+                                      ''0.0.0.0:4318''.'
                                     type: string
                                 type: object
                             type: object
