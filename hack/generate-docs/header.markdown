@@ -12,21 +12,5 @@
 ## All configuration options
 
 The following table lists the configurable parameters for the `DatadogAgent`
-resource. For example, if you wanted to set a value for `agent.image.name`,
-your `DatadogAgent` resource would look like the following:
-
-```yaml
-apiVersion: datadoghq.com/v1alpha1
-kind: DatadogAgent
-metadata:
-  name: datadog
-spec:
-  credentials:
-    apiSecret:
-      secretName: datadog-secret
-      keyName: api-key
-    appSecret:
-      secretName: datadog-secret
-      keyName: app-key
-```
-
+resource. For example, if you wanted to set a custom cluster name, your
+`DatadogAgent` resource would look like the following:

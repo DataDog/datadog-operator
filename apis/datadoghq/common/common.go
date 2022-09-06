@@ -6,6 +6,8 @@
 package common
 
 import (
+	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
+	"github.com/DataDog/datadog-operator/pkg/defaulting"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -44,4 +46,20 @@ func GetDefaultReadinessProbe() *corev1.Probe {
 		},
 	}
 	return readinessProbe
+}
+
+// GetImage builds the image string based on ImageConfig and the registry configuration.
+func GetImage(imageSpec *commonv1.AgentImageConfig, registry *string) string {
+	if defaulting.IsImageNameContainsTag(imageSpec.Name) {
+		// The image name corresponds to a full image string
+		return imageSpec.Name
+	}
+
+	img := defaulting.NewImage(imageSpec.Name, imageSpec.Tag, imageSpec.JMXEnabled)
+
+	if registry != nil {
+		defaulting.WithRegistry(defaulting.ContainerRegistry(*registry))(img)
+	}
+
+	return img.String()
 }

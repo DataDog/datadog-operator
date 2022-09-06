@@ -21,6 +21,7 @@ import (
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // ApplyGlobalSettings use to apply global setting to a PodTemplateSpec
@@ -82,7 +83,24 @@ func ApplyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 			case v2alpha1.NetworkPolicyFlavorKubernetes:
 				err = resourcesManager.NetworkPolicyManager().AddKubernetesNetworkPolicy(component.BuildKubernetesNetworkPolicy(dda, componentName))
 			case v2alpha1.NetworkPolicyFlavorCilium:
-				// TODO
+				var ddURL string
+				var dnsSelectorEndpoints []metav1.LabelSelector
+				if config.Endpoint != nil && *config.Endpoint.URL != "" {
+					ddURL = *config.Endpoint.URL
+				}
+				if config.NetworkPolicy.DNSSelectorEndpoints != nil {
+					dnsSelectorEndpoints = config.NetworkPolicy.DNSSelectorEndpoints
+				}
+				err = resourcesManager.CiliumPolicyManager().AddCiliumPolicy(
+					component.BuildCiliumPolicy(
+						dda,
+						*config.Site,
+						ddURL,
+						v2alpha1.IsHostNetworkEnabled(dda, v2alpha1.ClusterAgentComponentName),
+						dnsSelectorEndpoints,
+						componentName,
+					),
+				)
 			}
 			if err != nil {
 				logger.Info("Error adding Network Policy to the store", "error", err)
@@ -187,6 +205,8 @@ func ApplyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 			}
 		}
 
+		var runtimeVol corev1.Volume
+		var runtimeVolMount corev1.VolumeMount
 		// Path to the docker runtime socket.
 		if config.DockerSocketPath != nil {
 			dockerMountPath := filepath.Join(apicommon.HostCriSocketPathPrefix, *config.DockerSocketPath)
@@ -194,35 +214,27 @@ func ApplyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 				Name:  apicommon.DockerHost,
 				Value: "unix://" + dockerMountPath,
 			})
-			dockerVol, dockerVolMount := volume.GetVolumes(apicommon.CriSocketVolumeName, *config.DockerSocketPath, dockerMountPath, true)
-			manager.VolumeMount().AddVolumeMountToContainers(
-				&dockerVolMount,
-				[]apicommonv1.AgentContainerName{
-					apicommonv1.CoreAgentContainerName,
-					apicommonv1.ProcessAgentContainerName,
-					apicommonv1.SecurityAgentContainerName,
-				},
-			)
-			manager.Volume().AddVolume(&dockerVol)
-		}
-
-		// Path to the container runtime socket (if different from Docker).
-		if config.CriSocketPath != nil {
+			runtimeVol, runtimeVolMount = volume.GetVolumes(apicommon.CriSocketVolumeName, *config.DockerSocketPath, dockerMountPath, true)
+		} else if config.CriSocketPath != nil {
+			// Path to the container runtime socket (if different from Docker).
 			criSocketMountPath := filepath.Join(apicommon.HostCriSocketPathPrefix, *config.CriSocketPath)
 			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
 				Name:  apicommon.DDCriSocketPath,
 				Value: criSocketMountPath,
 			})
-			criVol, criVolMount := volume.GetVolumes(apicommon.CriSocketVolumeName, *config.CriSocketPath, criSocketMountPath, true)
+			runtimeVol, runtimeVolMount = volume.GetVolumes(apicommon.CriSocketVolumeName, *config.CriSocketPath, criSocketMountPath, true)
+		}
+		if runtimeVol.Name != "" && runtimeVolMount.Name != "" {
 			manager.VolumeMount().AddVolumeMountToContainers(
-				&criVolMount,
+				&runtimeVolMount,
 				[]apicommonv1.AgentContainerName{
 					apicommonv1.CoreAgentContainerName,
 					apicommonv1.ProcessAgentContainerName,
+					apicommonv1.TraceAgentContainerName,
 					apicommonv1.SecurityAgentContainerName,
 				},
 			)
-			manager.Volume().AddVolume(&criVol)
+			manager.Volume().AddVolume(&runtimeVol)
 		}
 	}
 

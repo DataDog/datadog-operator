@@ -85,7 +85,7 @@ helm delete my-datadog-operator
 [2]: https://kubernetes.io/docs/tasks/tools/install-kubectl/
 [3]: https://artifacthub.io/packages/helm/datadog/datadog-operator
 [4]: https://app.datadoghq.com/account/settings#api
-[5]: https://github.com/DataDog/datadog-operator/blob/main/docs/configuration.md
+[5]: https://github.com/DataDog/datadog-operator/blob/main/docs/configuration.v1alpha1.md
 [6]: ttps://gcr.io/datadoghq
 [7]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/datadog-agent-with-registry.yaml
 [8]: https://gallery.ecr.aws/datadog/

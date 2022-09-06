@@ -89,7 +89,7 @@ func Test_liveProcessFeature_Configure(t *testing.T) {
 		// check env vars
 		wantEnvVars := []*corev1.EnvVar{
 			{
-				Name:  apicommon.DDProcessAgentEnabled,
+				Name:  apicommon.DDProcessCollectionEnabled,
 				Value: "true",
 			},
 		}
@@ -137,7 +137,7 @@ func Test_liveProcessFeature_Configure(t *testing.T) {
 		// check env vars
 		wantEnvVars := []*corev1.EnvVar{
 			{
-				Name:  apicommon.DDProcessAgentEnabled,
+				Name:  apicommon.DDProcessCollectionEnabled,
 				Value: "true",
 			},
 			{

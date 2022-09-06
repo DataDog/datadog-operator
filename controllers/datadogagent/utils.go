@@ -26,8 +26,6 @@ import (
 	objectvolume "github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/orchestrator"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
-	"github.com/DataDog/datadog-operator/pkg/defaulting"
-
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	"github.com/go-logr/logr"
 	"github.com/gobwas/glob"
@@ -84,7 +82,7 @@ func newAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent
 		annotations[key] = val
 	}
 
-	image := getImage(dda.Spec.Agent.Image, dda.Spec.Registry)
+	image := apicommon.GetImage(dda.Spec.Agent.Image, dda.Spec.Registry)
 	containers := []corev1.Container{}
 	agentContainer, err := getAgentContainer(logger, dda, image)
 	if err != nil {
@@ -618,7 +616,7 @@ func getEnvVarsForProcessAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.En
 
 	if processCollectionEnabled(dda) {
 		envVars = append(envVars, corev1.EnvVar{
-			Name:  apicommon.DDProcessAgentEnabled,
+			Name:  apicommon.DDProcessCollectionEnabled,
 			Value: "true",
 		})
 	}
@@ -1066,7 +1064,7 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 	volumes = append(volumes, getKubeletVolumes(dda)...)
 
 	if dda.Spec.Agent.CustomConfig != nil {
-		volume := objectvolume.GetVolumeFromCustomConfigSpec(datadoghqv1alpha1.ConvertCustomConfig(dda.Spec.Agent.CustomConfig), getAgentCustomConfigConfigMapName(dda), datadoghqv1alpha1.AgentCustomConfigVolumeName)
+		volume := objectvolume.GetVolumeFromCustomConfigSpec(datadoghqv1alpha1.ConvertCustomConfig(dda.Spec.Agent.CustomConfig), getAgentCustomConfigConfigMapName(dda), apicommon.AgentCustomConfigVolumeName)
 		volumes = append(volumes, volume)
 	}
 
@@ -1380,7 +1378,7 @@ func getVolumeForChecksd(dda *datadoghqv1alpha1.DatadogAgent) corev1.Volume {
 	}
 
 	return corev1.Volume{
-		Name:         datadoghqv1alpha1.ChecksdVolumeName,
+		Name:         apicommon.ChecksdVolumeName,
 		VolumeSource: source,
 	}
 }
@@ -1503,7 +1501,7 @@ func getVolumeMountForConfig(customConfig *datadoghqv1alpha1.CustomConfigSpec) [
 
 	// Custom config (datadog.yaml) volume
 	if customConfig != nil {
-		volumeMount := getVolumeMountFromCustomConfigSpec(customConfig, datadoghqv1alpha1.AgentCustomConfigVolumeName, apicommon.AgentCustomConfigVolumePath, datadoghqv1alpha1.AgentCustomConfigVolumeSubPath)
+		volumeMount := getVolumeMountFromCustomConfigSpec(customConfig, apicommon.AgentCustomConfigVolumeName, apicommon.AgentCustomConfigVolumePath, apicommon.AgentCustomConfigVolumeSubPath)
 		volumeMounts = append(volumeMounts, volumeMount)
 	}
 
@@ -1528,8 +1526,8 @@ func getVolumeMountForConfd() corev1.VolumeMount {
 
 func getVolumeMountForChecksd() corev1.VolumeMount {
 	return corev1.VolumeMount{
-		Name:      datadoghqv1alpha1.ChecksdVolumeName,
-		MountPath: datadoghqv1alpha1.ChecksdVolumePath,
+		Name:      apicommon.ChecksdVolumeName,
+		MountPath: apicommon.ChecksdVolumePath,
 		ReadOnly:  true,
 	}
 }
@@ -1777,7 +1775,7 @@ func getVolumeMountsForSecurityAgent(dda *datadoghqv1alpha1.DatadogAgent) []core
 	spec := dda.Spec
 
 	if spec.Agent.CustomConfig != nil {
-		volumeMount := getVolumeMountFromCustomConfigSpec(spec.Agent.CustomConfig, datadoghqv1alpha1.AgentCustomConfigVolumeName, apicommon.AgentCustomConfigVolumePath, datadoghqv1alpha1.AgentCustomConfigVolumeSubPath)
+		volumeMount := getVolumeMountFromCustomConfigSpec(spec.Agent.CustomConfig, apicommon.AgentCustomConfigVolumeName, apicommon.AgentCustomConfigVolumePath, apicommon.AgentCustomConfigVolumeSubPath)
 		volumeMounts = append(volumeMounts, volumeMount)
 	}
 
@@ -2058,9 +2056,9 @@ func isCreateRBACEnabled(config *datadoghqv1alpha1.RbacConfig) bool {
 	return apiutils.BoolValue(config.Create)
 }
 
-func updateDaemonSetStatus(ds *appsv1.DaemonSet, dsStatus *datadoghqv1alpha1.DaemonSetStatus, updateTime *metav1.Time) *datadoghqv1alpha1.DaemonSetStatus {
+func updateDaemonSetStatus(ds *appsv1.DaemonSet, dsStatus *commonv1.DaemonSetStatus, updateTime *metav1.Time) *commonv1.DaemonSetStatus {
 	if dsStatus == nil {
-		dsStatus = &datadoghqv1alpha1.DaemonSetStatus{}
+		dsStatus = &commonv1.DaemonSetStatus{}
 	}
 	if ds == nil {
 		dsStatus.State = string(datadoghqv1alpha1.DatadogAgentStateFailed)
@@ -2094,9 +2092,9 @@ func updateDaemonSetStatus(ds *appsv1.DaemonSet, dsStatus *datadoghqv1alpha1.Dae
 	return dsStatus
 }
 
-func updateExtendedDaemonSetStatus(eds *edsdatadoghqv1alpha1.ExtendedDaemonSet, dsStatus *datadoghqv1alpha1.DaemonSetStatus, updateTime *metav1.Time) *datadoghqv1alpha1.DaemonSetStatus {
+func updateExtendedDaemonSetStatus(eds *edsdatadoghqv1alpha1.ExtendedDaemonSet, dsStatus *commonv1.DaemonSetStatus, updateTime *metav1.Time) *commonv1.DaemonSetStatus {
 	if dsStatus == nil {
-		dsStatus = &datadoghqv1alpha1.DaemonSetStatus{}
+		dsStatus = &commonv1.DaemonSetStatus{}
 	}
 	if updateTime != nil {
 		dsStatus.LastUpdate = updateTime
@@ -2126,9 +2124,9 @@ func updateExtendedDaemonSetStatus(eds *edsdatadoghqv1alpha1.ExtendedDaemonSet, 
 	return dsStatus
 }
 
-func updateDeploymentStatus(dep *appsv1.Deployment, depStatus *datadoghqv1alpha1.DeploymentStatus, updateTime *metav1.Time) *datadoghqv1alpha1.DeploymentStatus {
+func updateDeploymentStatus(dep *appsv1.Deployment, depStatus *commonv1.DeploymentStatus, updateTime *metav1.Time) *commonv1.DeploymentStatus {
 	if depStatus == nil {
-		depStatus = &datadoghqv1alpha1.DeploymentStatus{}
+		depStatus = &commonv1.DeploymentStatus{}
 	}
 	if dep == nil {
 		depStatus.State = string(datadoghqv1alpha1.DatadogAgentStateFailed)
@@ -2305,22 +2303,6 @@ func addBoolPointerEnVar(b *bool, varName string, varList []corev1.EnvVar) []cor
 	}
 
 	return varList
-}
-
-// getImage builds the image string based on ImageConfig and the registry configuration.
-func getImage(imageSpec *commonv1.AgentImageConfig, registry *string) string {
-	if defaulting.IsImageNameContainsTag(imageSpec.Name) {
-		// The image name corresponds to a full image string
-		return imageSpec.Name
-	}
-
-	img := defaulting.NewImage(imageSpec.Name, imageSpec.Tag, imageSpec.JMXEnabled)
-
-	if registry != nil {
-		defaulting.WithRegistry(defaulting.ContainerRegistry(*registry))(img)
-	}
-
-	return img.String()
 }
 
 // getReplicas returns the desired replicas of a

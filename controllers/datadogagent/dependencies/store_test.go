@@ -11,9 +11,11 @@ import (
 	"testing"
 
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	testutils "github.com/DataDog/datadog-operator/controllers/datadogagent/testutils"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	assert "github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -581,6 +583,135 @@ func TestStore_GetOrCreate(t *testing.T) {
 			}
 			if got1 != tt.wantFound {
 				t.Errorf("Store.GetOrCreate() got1 = %v, want %v", got1, tt.wantFound)
+			}
+		})
+	}
+}
+
+func TestStore_DeleteAll(t *testing.T) {
+	testConfigMap1 := &corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ConfigMap",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "ns1",
+			Name:      "some_name",
+			Labels: map[string]string{
+				operatorStoreLabelKey: "true",
+			},
+		},
+	}
+
+	testConfigMap2 := &corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ConfigMap",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "ns2",
+			Name:      "another_name",
+			Labels: map[string]string{
+				operatorStoreLabelKey: "true",
+			},
+		},
+	}
+
+	testStore := map[kubernetes.ObjectKind]map[string]client.Object{
+		kubernetes.ConfigMapKind: {
+			"ns1/some_name":    testConfigMap1,
+			"ns2/another_name": testConfigMap2,
+		},
+	}
+
+	// ConfigMap not included in testStore
+	testConfigMap3 := &corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ConfigMap",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "ns3",
+			Name:      "some_name",
+			Labels: map[string]string{
+				operatorStoreLabelKey: "true",
+			},
+		},
+	}
+
+	tests := []struct {
+		name                          string
+		dependenciesStore             map[kubernetes.ObjectKind]map[string]client.Object
+		existingObjects               []client.Object
+		objectsExpectedToBeDeleted    []client.Object
+		objectsExpectedNotToBeDeleted []client.Object
+	}{
+		{
+			name:              "deletes all the objects in the store",
+			dependenciesStore: testStore,
+			existingObjects: []client.Object{
+				testConfigMap1,
+				testConfigMap2,
+			},
+			objectsExpectedToBeDeleted: []client.Object{
+				testConfigMap1,
+				testConfigMap2,
+			},
+		},
+		{
+			name:              "does not delete objects that are not in the store",
+			dependenciesStore: testStore,
+			existingObjects: []client.Object{
+				testConfigMap1,
+				testConfigMap2,
+				testConfigMap3, // Not in dependenciesStore
+			},
+			objectsExpectedToBeDeleted: []client.Object{
+				testConfigMap1,
+				testConfigMap2,
+			},
+			objectsExpectedNotToBeDeleted: []client.Object{
+				testConfigMap3, // Not in dependenciesStore
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			k8sClient := fake.NewClientBuilder().
+				WithScheme(testutils.TestScheme(true)).
+				WithObjects(test.existingObjects...).
+				Build()
+
+			store := &Store{
+				deps: test.dependenciesStore,
+			}
+
+			errs := store.DeleteAll(context.TODO(), k8sClient)
+			assert.Empty(t, errs)
+
+			for _, expectedToBeDeleted := range test.objectsExpectedToBeDeleted {
+				err := k8sClient.Get(
+					context.TODO(),
+					client.ObjectKey{
+						Namespace: expectedToBeDeleted.GetNamespace(),
+						Name:      expectedToBeDeleted.GetName(),
+					},
+					&corev1.ConfigMap{}, // Adapt according to test input objects
+				)
+				assert.True(t, errors.IsNotFound(err))
+			}
+
+			for _, expectedToExist := range test.objectsExpectedNotToBeDeleted {
+				err := k8sClient.Get(
+					context.TODO(),
+					client.ObjectKey{
+						Namespace: expectedToExist.GetNamespace(),
+						Name:      expectedToExist.GetName(),
+					},
+					&corev1.ConfigMap{}, // Adapt according to test input objects
+				)
+				assert.NoError(t, err)
 			}
 		})
 	}

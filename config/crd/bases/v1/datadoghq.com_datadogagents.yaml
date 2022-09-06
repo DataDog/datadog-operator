@@ -12508,31 +12508,40 @@ spec:
                 description: The actual state of the Agent as an extended daemonset.
                 properties:
                   available:
+                    description: Number of available pods in the DaemonSet.
                     format: int32
                     type: integer
                   current:
+                    description: Number of current pods in the DaemonSet.
                     format: int32
                     type: integer
                   currentHash:
+                    description: CurrentHash is the stored hash of the DaemonSet.
                     type: string
                   daemonsetName:
                     description: DaemonsetName corresponds to the name of the created
                       DaemonSet.
                     type: string
                   desired:
+                    description: Number of desired pods in the DaemonSet.
                     format: int32
                     type: integer
                   lastUpdate:
+                    description: LastUpdate is the last time the status was updated.
                     format: date-time
                     type: string
                   ready:
+                    description: Number of ready pods in the DaemonSet.
                     format: int32
                     type: integer
                   state:
+                    description: State corresponds to the DaemonSet state.
                     type: string
                   status:
+                    description: Status corresponds to the DaemonSet computed status.
                     type: string
                   upToDate:
+                    description: Number of up to date pods in the DaemonSet.
                     format: int32
                     type: integer
                 required:
@@ -12547,14 +12556,14 @@ spec:
                 properties:
                   availableReplicas:
                     description: Total number of available pods (ready for at least
-                      minReadySeconds) targeted by this deployment.
+                      minReadySeconds) targeted by this Deployment.
                     format: int32
                     type: integer
                   currentHash:
+                    description: CurrentHash is the stored hash of the Deployment.
                     type: string
                   deploymentName:
-                    description: DeploymentName corresponds to the name of the Cluster
-                      Agent Deployment.
+                    description: DeploymentName corresponds to the name of the Deployment.
                     type: string
                   generatedToken:
                     description: GeneratedToken corresponds to the generated token
@@ -12562,36 +12571,35 @@ spec:
                       ClusterAgent is enabled.
                     type: string
                   lastUpdate:
+                    description: LastUpdate is the last time the status was updated.
                     format: date-time
                     type: string
                   readyReplicas:
-                    description: Total number of ready pods targeted by this deployment.
+                    description: Total number of ready pods targeted by this Deployment.
                     format: int32
                     type: integer
                   replicas:
                     description: Total number of non-terminated pods targeted by this
-                      deployment (their labels match the selector).
+                      Deployment (their labels match the selector).
                     format: int32
                     type: integer
                   state:
-                    description: State corresponds to the ClusterAgent deployment
-                      state.
+                    description: State corresponds to the Deployment state.
                     type: string
                   status:
-                    description: Status corresponds to the ClusterAgent deployment
-                      computed status.
+                    description: Status corresponds to the Deployment computed status.
                     type: string
                   unavailableReplicas:
                     description: Total number of unavailable pods targeted by this
-                      deployment. This is the total number of pods that are still
-                      required for the deployment to have 100% available capacity.
+                      Deployment. This is the total number of pods that are still
+                      required for the Deployment to have 100% available capacity.
                       They may either be pods that are running but not yet available
                       or pods that still have not been created.
                     format: int32
                     type: integer
                   updatedReplicas:
                     description: Total number of non-terminated pods targeted by this
-                      deployment that have the desired template spec.
+                      Deployment that have the desired template spec.
                     format: int32
                     type: integer
                 type: object
@@ -12600,14 +12608,14 @@ spec:
                 properties:
                   availableReplicas:
                     description: Total number of available pods (ready for at least
-                      minReadySeconds) targeted by this deployment.
+                      minReadySeconds) targeted by this Deployment.
                     format: int32
                     type: integer
                   currentHash:
+                    description: CurrentHash is the stored hash of the Deployment.
                     type: string
                   deploymentName:
-                    description: DeploymentName corresponds to the name of the Cluster
-                      Agent Deployment.
+                    description: DeploymentName corresponds to the name of the Deployment.
                     type: string
                   generatedToken:
                     description: GeneratedToken corresponds to the generated token
@@ -12615,36 +12623,35 @@ spec:
                       ClusterAgent is enabled.
                     type: string
                   lastUpdate:
+                    description: LastUpdate is the last time the status was updated.
                     format: date-time
                     type: string
                   readyReplicas:
-                    description: Total number of ready pods targeted by this deployment.
+                    description: Total number of ready pods targeted by this Deployment.
                     format: int32
                     type: integer
                   replicas:
                     description: Total number of non-terminated pods targeted by this
-                      deployment (their labels match the selector).
+                      Deployment (their labels match the selector).
                     format: int32
                     type: integer
                   state:
-                    description: State corresponds to the ClusterAgent deployment
-                      state.
+                    description: State corresponds to the Deployment state.
                     type: string
                   status:
-                    description: Status corresponds to the ClusterAgent deployment
-                      computed status.
+                    description: Status corresponds to the Deployment computed status.
                     type: string
                   unavailableReplicas:
                     description: Total number of unavailable pods targeted by this
-                      deployment. This is the total number of pods that are still
-                      required for the deployment to have 100% available capacity.
+                      Deployment. This is the total number of pods that are still
+                      required for the Deployment to have 100% available capacity.
                       They may either be pods that are running but not yet available
                       or pods that still have not been created.
                     format: int32
                     type: integer
                   updatedReplicas:
                     description: Total number of non-terminated pods targeted by this
-                      deployment that have the desired template spec.
+                      Deployment that have the desired template spec.
                     format: int32
                     type: integer
                 type: object
@@ -12697,9 +12704,6 @@ spec:
     subresources:
       status: {}
   - additionalPrinterColumns:
-    - jsonPath: .status.conditions[?(@.type=='Active')].status
-      name: active
-      type: string
     - jsonPath: .status.agent.status
       name: agent
       type: string
@@ -17604,31 +17608,40 @@ spec:
                 description: The actual state of the Agent as an extended daemonset.
                 properties:
                   available:
+                    description: Number of available pods in the DaemonSet.
                     format: int32
                     type: integer
                   current:
+                    description: Number of current pods in the DaemonSet.
                     format: int32
                     type: integer
                   currentHash:
+                    description: CurrentHash is the stored hash of the DaemonSet.
                     type: string
                   daemonsetName:
                     description: DaemonsetName corresponds to the name of the created
                       DaemonSet.
                     type: string
                   desired:
+                    description: Number of desired pods in the DaemonSet.
                     format: int32
                     type: integer
                   lastUpdate:
+                    description: LastUpdate is the last time the status was updated.
                     format: date-time
                     type: string
                   ready:
+                    description: Number of ready pods in the DaemonSet.
                     format: int32
                     type: integer
                   state:
+                    description: State corresponds to the DaemonSet state.
                     type: string
                   status:
+                    description: Status corresponds to the DaemonSet computed status.
                     type: string
                   upToDate:
+                    description: Number of up to date pods in the DaemonSet.
                     format: int32
                     type: integer
                 required:
@@ -17643,14 +17656,14 @@ spec:
                 properties:
                   availableReplicas:
                     description: Total number of available pods (ready for at least
-                      minReadySeconds) targeted by this deployment.
+                      minReadySeconds) targeted by this Deployment.
                     format: int32
                     type: integer
                   currentHash:
+                    description: CurrentHash is the stored hash of the Deployment.
                     type: string
                   deploymentName:
-                    description: DeploymentName corresponds to the name of the Cluster
-                      Agent Deployment.
+                    description: DeploymentName corresponds to the name of the Deployment.
                     type: string
                   generatedToken:
                     description: GeneratedToken corresponds to the generated token
@@ -17658,36 +17671,35 @@ spec:
                       ClusterAgent is enabled.
                     type: string
                   lastUpdate:
+                    description: LastUpdate is the last time the status was updated.
                     format: date-time
                     type: string
                   readyReplicas:
-                    description: Total number of ready pods targeted by this deployment.
+                    description: Total number of ready pods targeted by this Deployment.
                     format: int32
                     type: integer
                   replicas:
                     description: Total number of non-terminated pods targeted by this
-                      deployment (their labels match the selector).
+                      Deployment (their labels match the selector).
                     format: int32
                     type: integer
                   state:
-                    description: State corresponds to the ClusterAgent deployment
-                      state.
+                    description: State corresponds to the Deployment state.
                     type: string
                   status:
-                    description: Status corresponds to the ClusterAgent deployment
-                      computed status.
+                    description: Status corresponds to the Deployment computed status.
                     type: string
                   unavailableReplicas:
                     description: Total number of unavailable pods targeted by this
-                      deployment. This is the total number of pods that are still
-                      required for the deployment to have 100% available capacity.
+                      Deployment. This is the total number of pods that are still
+                      required for the Deployment to have 100% available capacity.
                       They may either be pods that are running but not yet available
                       or pods that still have not been created.
                     format: int32
                     type: integer
                   updatedReplicas:
                     description: Total number of non-terminated pods targeted by this
-                      deployment that have the desired template spec.
+                      Deployment that have the desired template spec.
                     format: int32
                     type: integer
                 type: object
@@ -17696,14 +17708,14 @@ spec:
                 properties:
                   availableReplicas:
                     description: Total number of available pods (ready for at least
-                      minReadySeconds) targeted by this deployment.
+                      minReadySeconds) targeted by this Deployment.
                     format: int32
                     type: integer
                   currentHash:
+                    description: CurrentHash is the stored hash of the Deployment.
                     type: string
                   deploymentName:
-                    description: DeploymentName corresponds to the name of the Cluster
-                      Agent Deployment.
+                    description: DeploymentName corresponds to the name of the Deployment.
                     type: string
                   generatedToken:
                     description: GeneratedToken corresponds to the generated token
@@ -17711,36 +17723,35 @@ spec:
                       ClusterAgent is enabled.
                     type: string
                   lastUpdate:
+                    description: LastUpdate is the last time the status was updated.
                     format: date-time
                     type: string
                   readyReplicas:
-                    description: Total number of ready pods targeted by this deployment.
+                    description: Total number of ready pods targeted by this Deployment.
                     format: int32
                     type: integer
                   replicas:
                     description: Total number of non-terminated pods targeted by this
-                      deployment (their labels match the selector).
+                      Deployment (their labels match the selector).
                     format: int32
                     type: integer
                   state:
-                    description: State corresponds to the ClusterAgent deployment
-                      state.
+                    description: State corresponds to the Deployment state.
                     type: string
                   status:
-                    description: Status corresponds to the ClusterAgent deployment
-                      computed status.
+                    description: Status corresponds to the Deployment computed status.
                     type: string
                   unavailableReplicas:
                     description: Total number of unavailable pods targeted by this
-                      deployment. This is the total number of pods that are still
-                      required for the deployment to have 100% available capacity.
+                      Deployment. This is the total number of pods that are still
+                      required for the Deployment to have 100% available capacity.
                       They may either be pods that are running but not yet available
                       or pods that still have not been created.
                     format: int32
                     type: integer
                   updatedReplicas:
                     description: Total number of non-terminated pods targeted by this
-                      deployment that have the desired template spec.
+                      Deployment that have the desired template spec.
                     format: int32
                     type: integer
                 type: object
