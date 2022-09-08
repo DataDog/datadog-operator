@@ -68,10 +68,8 @@ func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 
 		if dda.Spec.Global.LocalService != nil {
 			f.forceEnableLocalService = apiutils.BoolValue(dda.Spec.Global.LocalService.ForceEnableLocalService)
-			if dda.Spec.Global.LocalService.NameOverride != nil {
-				f.localServiceName = *dda.Spec.Global.LocalService.NameOverride
-			}
 		}
+		f.localServiceName = v2alpha1.GetLocalAgentServiceName(dda)
 
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
@@ -103,10 +101,8 @@ func (f *apmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.Re
 
 		if dda.Spec.Agent.LocalService != nil {
 			f.forceEnableLocalService = apiutils.BoolValue(dda.Spec.Agent.LocalService.ForceLocalServiceEnable)
-			if dda.Spec.Agent.LocalService.OverrideName != "" {
-				f.localServiceName = dda.Spec.Agent.LocalService.OverrideName
-			}
 		}
+		f.localServiceName = v1alpha1.GetLocalAgentServiceName(dda)
 
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
@@ -132,9 +128,6 @@ func (f *apmFeature) ManageDependencies(managers feature.ResourceManagers, compo
 				Port:       f.hostPortHostPort,
 				Name:       apicommon.APMHostPortName,
 			},
-		}
-		if f.localServiceName == "" {
-			f.localServiceName = component.GetAgentServiceName(f.owner)
 		}
 		return managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), nil, apmPort, nil)
 	}

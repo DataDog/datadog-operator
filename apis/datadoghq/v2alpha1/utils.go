@@ -86,3 +86,11 @@ func IsClusterChecksEnabled(dda *DatadogAgent) bool {
 func IsCCREnabled(dda *DatadogAgent) bool {
 	return dda.Spec.Features.ClusterChecks != nil && apiutils.BoolValue(dda.Spec.Features.ClusterChecks.UseClusterChecksRunners)
 }
+
+// GetLocalAgentServiceName returns the name used for the local agent service
+func GetLocalAgentServiceName(dda *DatadogAgent) string {
+	if dda.Spec.Global.LocalService != nil && dda.Spec.Global.LocalService.NameOverride != nil {
+		return *dda.Spec.Global.LocalService.NameOverride
+	}
+	return fmt.Sprintf("%s-%s", dda.Name, common.DefaultAgentResourceSuffix)
+}
