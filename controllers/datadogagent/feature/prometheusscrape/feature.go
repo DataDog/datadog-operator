@@ -43,7 +43,7 @@ func (f *prometheusScrapeFeature) ID() feature.IDType {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *prometheusScrapeFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
+func (f *prometheusScrapeFeature) Configure(dda *v2alpha1.DatadogAgent, newStatus *v2alpha1.DatadogAgentStatus) (reqComp feature.RequiredComponents) {
 	if dda.Spec.Features == nil {
 		return
 	}

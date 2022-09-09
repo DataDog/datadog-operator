@@ -55,7 +55,7 @@ func (f *apmFeature) ID() feature.IDType {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
+func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent, newStatus *v2alpha1.DatadogAgentStatus) (reqComp feature.RequiredComponents) {
 	f.owner = dda
 	apm := dda.Spec.Features.APM
 	if apm != nil && apiutils.BoolValue(apm.Enabled) {

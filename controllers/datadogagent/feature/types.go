@@ -103,7 +103,7 @@ type Feature interface {
 	ID() IDType
 	// Configure use to configure the internal of a Feature
 	// It should return `true` if the feature is enabled, else `false`.
-	Configure(dda *v2alpha1.DatadogAgent) RequiredComponents
+	Configure(dda *v2alpha1.DatadogAgent, newStatus *v2alpha1.DatadogAgentStatus) RequiredComponents
 	// ConfigureV1 use to configure the internal of a Feature from v1alpha1.DatadogAgent
 	// It should return `true` if the feature is enabled, else `false`.
 	ConfigureV1(dda *v1alpha1.DatadogAgent) RequiredComponents

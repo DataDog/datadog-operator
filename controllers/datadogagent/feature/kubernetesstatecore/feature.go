@@ -61,7 +61,7 @@ func (f *ksmFeature) ID() feature.IDType {
 }
 
 // Configure use to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredComponents {
+func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent, newStatus *v2alpha1.DatadogAgentStatus) feature.RequiredComponents {
 	f.owner = dda
 	var output feature.RequiredComponents
 

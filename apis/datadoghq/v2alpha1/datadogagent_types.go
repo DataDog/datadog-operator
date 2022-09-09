@@ -510,8 +510,11 @@ type GlobalConfig struct {
 	// Credentials defines the Datadog credentials used to submit data to/query data from Datadog.
 	Credentials *DatadogCredentials `json:"credentials,omitempty"`
 
-	// ClusterAgentToken is the token for communication between the NodeAgent and ClusterAgent
+	// ClusterAgentToken is the token for communication between the NodeAgent and ClusterAgent.
 	ClusterAgentToken *string `json:"clusterAgentToken,omitempty"`
+
+	// ClusterAgentTokenSecret is the secret containing the Cluster Agent token.
+	ClusterAgentTokenSecret *commonv1.SecretConfig `json:"clusterAgentTokenSecret,omitempty"`
 
 	// ClusterName sets a unique cluster name for the deployment to easily scope monitoring data in the Datadog app.
 	// +optional
@@ -868,7 +871,6 @@ type DatadogAgentStatus struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:unservedversion
 // +kubebuilder:resource:path=datadogagents,shortName=dd
-// +kubebuilder:printcolumn:name="active",type="string",JSONPath=".status.conditions[?(@.type=='Active')].status"
 // +kubebuilder:printcolumn:name="agent",type="string",JSONPath=".status.agent.status"
 // +kubebuilder:printcolumn:name="cluster-agent",type="string",JSONPath=".status.clusterAgent.status"
 // +kubebuilder:printcolumn:name="cluster-checks-runner",type="string",JSONPath=".status.clusterChecksRunner.status"

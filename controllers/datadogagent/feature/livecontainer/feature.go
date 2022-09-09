@@ -39,7 +39,7 @@ func (f *liveContainerFeature) ID() feature.IDType {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *liveContainerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
+func (f *liveContainerFeature) Configure(dda *v2alpha1.DatadogAgent, newStatus *v2alpha1.DatadogAgentStatus) (reqComp feature.RequiredComponents) {
 	if dda.Spec.Features.LiveContainerCollection != nil && apiutils.BoolValue(dda.Spec.Features.LiveContainerCollection.Enabled) {
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{

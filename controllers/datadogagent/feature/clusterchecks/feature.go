@@ -35,7 +35,7 @@ func (f *clusterChecksFeature) ID() feature.IDType {
 	return feature.ClusterChecksIDType
 }
 
-func (f *clusterChecksFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredComponents {
+func (f *clusterChecksFeature) Configure(dda *v2alpha1.DatadogAgent, newStatus *v2alpha1.DatadogAgentStatus) feature.RequiredComponents {
 	clusterChecksEnabled := apiutils.BoolValue(dda.Spec.Features.ClusterChecks.Enabled)
 	f.useClusterCheckRunners = clusterChecksEnabled && apiutils.BoolValue(dda.Spec.Features.ClusterChecks.UseClusterChecksRunners)
 

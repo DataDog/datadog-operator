@@ -6,22 +6,6 @@ metadata:
   creationTimestamp: null
   name: datadogagents.datadoghq.com
 spec:
-  additionalPrinterColumns:
-  - JSONPath: .status.conditions[?(@.type=='Active')].status
-    name: active
-    type: string
-  - JSONPath: .status.agent.status
-    name: agent
-    type: string
-  - JSONPath: .status.clusterAgent.status
-    name: cluster-agent
-    type: string
-  - JSONPath: .status.clusterChecksRunner.status
-    name: cluster-checks-runner
-    type: string
-  - JSONPath: .metadata.creationTimestamp
-    name: age
-    type: date
   group: datadoghq.com
   names:
     kind: DatadogAgent
@@ -36,7 +20,23 @@ spec:
     status: {}
   version: v1alpha1
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - JSONPath: .status.conditions[?(@.type=='Active')].status
+      name: active
+      type: string
+    - JSONPath: .status.agent.status
+      name: agent
+      type: string
+    - JSONPath: .status.clusterAgent.status
+      name: cluster-agent
+      type: string
+    - JSONPath: .status.clusterChecksRunner.status
+      name: cluster-checks-runner
+      type: string
+    - JSONPath: .metadata.creationTimestamp
+      name: age
+      type: date
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: DatadogAgent Deployment with Datadog Operator.
@@ -25566,7 +25566,20 @@ spec:
         type: object
     served: true
     storage: true
-  - name: v2alpha1
+  - additionalPrinterColumns:
+    - JSONPath: .status.agent.status
+      name: agent
+      type: string
+    - JSONPath: .status.clusterAgent.status
+      name: cluster-agent
+      type: string
+    - JSONPath: .status.clusterChecksRunner.status
+      name: cluster-checks-runner
+      type: string
+    - JSONPath: .metadata.creationTimestamp
+      name: age
+      type: date
+    name: v2alpha1
     schema:
       openAPIV3Schema:
         description: DatadogAgent Deployment with the Datadog Operator.
@@ -26237,8 +26250,21 @@ spec:
                 properties:
                   clusterAgentToken:
                     description: ClusterAgentToken is the token for communication
-                      between the NodeAgent and ClusterAgent
+                      between the NodeAgent and ClusterAgent.
                     type: string
+                  clusterAgentTokenSecret:
+                    description: ClusterAgentTokenSecret is the secret containing
+                      the Cluster Agent token.
+                    properties:
+                      keyName:
+                        description: KeyName is the key of the secret to use.
+                        type: string
+                      secretName:
+                        description: SecretName is the name of the secret.
+                        type: string
+                    required:
+                    - secretName
+                    type: object
                   clusterName:
                     description: ClusterName sets a unique cluster name for the deployment
                       to easily scope monitoring data in the Datadog app.

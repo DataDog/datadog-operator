@@ -85,7 +85,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	var result reconcile.Result
 	newStatus := instance.Status.DeepCopy()
 
-	features, requiredComponents := feature.BuildFeatures(instance, reconcilerOptionsToFeatureOptions(&r.options, logger))
+	features, requiredComponents := feature.BuildFeatures(instance, newStatus, reconcilerOptionsToFeatureOptions(&r.options, logger))
 
 	// -----------------------
 	// Manage dependencies

@@ -864,6 +864,11 @@ func (in *GlobalConfig) DeepCopyInto(out *GlobalConfig) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.ClusterAgentTokenSecret != nil {
+		in, out := &in.ClusterAgentTokenSecret, &out.ClusterAgentTokenSecret
+		*out = new(commonv1.SecretConfig)
+		**out = **in
+	}
 	if in.ClusterName != nil {
 		in, out := &in.ClusterName, &out.ClusterName
 		*out = new(string)

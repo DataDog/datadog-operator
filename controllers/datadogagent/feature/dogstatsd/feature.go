@@ -52,7 +52,7 @@ func (f *dogstatsdFeature) ID() feature.IDType {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *dogstatsdFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
+func (f *dogstatsdFeature) Configure(dda *v2alpha1.DatadogAgent, newStatus *v2alpha1.DatadogAgentStatus) (reqComp feature.RequiredComponents) {
 	dogstatsd := dda.Spec.Features.Dogstatsd
 	if apiutils.BoolValue(dogstatsd.HostPortConfig.Enabled) {
 		f.hostPortEnabled = true
