@@ -32,6 +32,20 @@ func NewDatadogAgentWithoutFeatures(namespace string, name string) v2alpha1.Data
 	return newDatadogAgentWithFeatures(namespace, name, nil)
 }
 
+// NewDatadogAgentWithAdmissionController returns an agent with APM enabled
+func NewDatadogAgentWithAdmissionController(namespace string, name string) v2alpha1.DatadogAgent {
+	return newDatadogAgentWithFeatures(
+		namespace,
+		name,
+		&v2alpha1.DatadogFeatures{
+			AdmissionController: &v2alpha1.AdmissionControllerFeatureConfig{
+				Enabled:          apiutils.NewBoolPointer(true),
+				MutateUnlabelled: apiutils.NewBoolPointer(true),
+			},
+		},
+	)
+}
+
 // NewDatadogAgentWithAPM returns an agent with APM enabled
 func NewDatadogAgentWithAPM(namespace string, name string) v2alpha1.DatadogAgent {
 	return newDatadogAgentWithFeatures(

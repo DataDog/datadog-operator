@@ -43,6 +43,8 @@ const (
 	ClusterChecksIDType = "cluster_checks"
 	// APMIDType APM feature
 	APMIDType = "apm"
+	// AdmissionControllerIDType Admission controller feature
+	AdmissionControllerIDType = "admission_controller"
 	// DummyIDType Dummy feature.
 	DummyIDType = "dummy"
 )
