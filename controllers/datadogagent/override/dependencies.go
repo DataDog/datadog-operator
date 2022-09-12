@@ -41,13 +41,13 @@ func overrideComponentDependencies(logger logr.Logger, manager feature.ResourceM
 	// custom seccomp configmap data
 	if override.SecCompCustomProfile != nil {
 		if override.SecCompCustomProfile.ConfigData != nil {
-			manager.ConfigMapManager().AddConfigMap(
+			errs = append(errs, manager.ConfigMapManager().AddConfigMap(
 				fmt.Sprintf("%s-%s", name, apicommon.SystemProbeAgentSecurityConfigMapSuffixName),
 				namespace,
 				map[string]string{
 					apicommon.SystemProbeSecCompKey: *override.SecCompCustomProfile.ConfigData,
 				},
-			)
+			))
 		}
 	}
 	return errors.NewAggregate(errs)
