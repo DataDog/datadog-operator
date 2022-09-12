@@ -436,7 +436,7 @@ func NewDatadogAgentWithOverrides(namespace string, name string) v2alpha1.Datado
 		HostPID:              apiutils.NewBoolPointer(true),
 		SecCompRootPath:      apiutils.NewStringPointer("/some/path"),
 		SecCompCustomProfile: &v2alpha1.CustomConfig{},
-		SecCompProfileName:   apiutils.NewStringPointer("some-comp-profile"),
+		SecCompProfileName:   apiutils.NewStringPointer("localhost/system-probe"),
 		Disabled:             apiutils.NewBoolPointer(false),
 	}
 

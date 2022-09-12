@@ -110,7 +110,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	}
 
 	// Examine user configuration to override any external dependencies (e.g. RBACs)
-	errs = append(errs, override.Dependencies(logger, resourceManagers, instance.Spec.Override, instance.Namespace)...)
+	errs = append(errs, override.Dependencies(logger, resourceManagers, instance.Spec.Override, instance.Name, instance.Namespace)...)
 
 	// -----------------------------
 	// Start reconcile Components

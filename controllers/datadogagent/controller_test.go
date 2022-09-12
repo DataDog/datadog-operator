@@ -806,7 +806,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 			wantErr: false,
 			wantFunc: func(c client.Client) error {
 				configmap := &corev1.ConfigMap{}
-				if err := c.Get(context.TODO(), newRequest(resourcesNamespace, fmt.Sprintf("%s-%s", resourcesName, SystemProbeAgentSecurityConfigMapSuffixName)).NamespacedName, configmap); err != nil {
+				if err := c.Get(context.TODO(), newRequest(resourcesNamespace, fmt.Sprintf("%s-%s", resourcesName, "system-probe-seccomp")).NamespacedName, configmap); err != nil {
 					return err
 				}
 

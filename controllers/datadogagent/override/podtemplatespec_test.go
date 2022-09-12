@@ -385,6 +385,88 @@ func TestPodTemplateSpec(t *testing.T) {
 				assert.True(t, manager.PodTemplateSpec().Spec.HostPID)
 			},
 		},
+		{
+			name: "override seccomp root path",
+			existingManager: func() *fake.PodTemplateManagers {
+				return fake.NewPodTemplateManagers(t)
+			},
+			override: v2alpha1.DatadogAgentComponentOverride{
+				SecCompRootPath: apiutils.NewStringPointer("seccomp/path"),
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
+				expectedVolumes := []*v1.Volume{
+					{
+						Name: "seccomp-root",
+						VolumeSource: v1.VolumeSource{
+							HostPath: &v1.HostPathVolumeSource{
+								Path: "seccomp/path",
+							},
+						},
+					},
+				}
+
+				assert.Equal(t, expectedVolumes, manager.VolumeMgr.Volumes)
+			},
+		},
+		{
+			name: "override seccomp profile name",
+			existingManager: func() *fake.PodTemplateManagers {
+				manager := fake.NewPodTemplateManagers(t)
+				manager.PodTemplateSpec().Annotations = map[string]string{}
+				return manager
+			},
+			override: v2alpha1.DatadogAgentComponentOverride{
+				SecCompProfileName: apiutils.NewStringPointer("seccomp-name"),
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
+				expectedAnnotations := map[string]string{
+					"container.seccomp.security.alpha.kubernetes.io/system-probe": "seccomp-name",
+				}
+
+				assert.Equal(t, expectedAnnotations, manager.PodTemplateSpec().Annotations)
+			},
+		},
+		{
+			name: "override seccomp custom profile",
+			existingManager: func() *fake.PodTemplateManagers {
+				manager := fake.NewPodTemplateManagers(t)
+				manager.PodTemplateSpec().Annotations = map[string]string{}
+				return manager
+			},
+			override: v2alpha1.DatadogAgentComponentOverride{
+				SecCompCustomProfile: &v2alpha1.CustomConfig{
+					ConfigMap: &commonv1.ConfigMapConfig{
+						Name: "seccomp-custom-profile-name",
+						Items: []v1.KeyToPath{
+							{
+								Key:  "seccomp-key",
+								Path: "/seccomp/custom/profile/path",
+							},
+						},
+					},
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
+				expectedVolumes := []*v1.Volume{
+					{
+						Name: "seccomp-root",
+						VolumeSource: v1.VolumeSource{
+							ConfigMap: &v1.ConfigMapVolumeSource{
+								LocalObjectReference: v1.LocalObjectReference{
+									Name: "seccomp-custom-profile-name",
+								},
+							},
+						},
+					},
+				}
+				assert.Equal(t, expectedVolumes, manager.VolumeMgr.Volumes)
+
+				expectedAnnotations := map[string]string{
+					"container.seccomp.security.alpha.kubernetes.io/system-probe": "seccomp-custom-profile-name",
+				}
+				assert.Equal(t, expectedAnnotations, manager.PodTemplateSpec().Annotations)
+			},
+		},
 	}
 
 	for _, test := range tests {

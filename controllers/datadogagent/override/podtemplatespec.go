@@ -26,9 +26,33 @@ func PodTemplateSpec(manager feature.PodTemplateManagers, override *v2alpha1.Dat
 		return
 	}
 
-	// TODO: seccomprootpath, seccompcustomprofile, seccomprofilename.
-	// They should only apply to system-probe, and I think there's some setup
-	// that we need to do before being able to override them.
+	if override.SecCompRootPath != nil {
+		vol := corev1.Volume{
+			Name: apicommon.SystemProbeSecCompRootVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: *override.SecCompRootPath,
+				},
+			},
+		}
+		manager.Volume().AddVolume(&vol)
+	}
+
+	if override.SecCompProfileName != nil {
+		manager.PodTemplateSpec().ObjectMeta.Annotations[apicommon.SystemProbeSeccompAnnotationKey] = *override.SecCompProfileName
+	}
+
+	if override.SecCompCustomProfile != nil {
+		if override.SecCompCustomProfile.ConfigMap != nil {
+			vol := volume.GetVolumeFromCustomConfigSpec(
+				v2alpha1.ConvertCustomConfig(override.SecCompCustomProfile),
+				override.SecCompCustomProfile.ConfigMap.Name,
+				apicommon.SystemProbeSecCompRootVolumeName,
+			)
+			manager.Volume().AddVolume(&vol)
+			manager.PodTemplateSpec().ObjectMeta.Annotations[apicommon.SystemProbeSeccompAnnotationKey] = override.SecCompCustomProfile.ConfigMap.Name
+		}
+	}
 
 	if override.ServiceAccountName != nil {
 		manager.PodTemplateSpec().Spec.ServiceAccountName = *override.ServiceAccountName

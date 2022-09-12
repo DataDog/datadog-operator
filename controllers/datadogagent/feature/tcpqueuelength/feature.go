@@ -6,8 +6,8 @@
 package tcpqueuelength
 
 import (
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
@@ -15,6 +15,8 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
 )
@@ -32,7 +34,9 @@ func buildTCPQueueLengthFeature(options *feature.Options) feature.Feature {
 	return tcpQueueLengthFeat
 }
 
-type tcpQueueLengthFeature struct{}
+type tcpQueueLengthFeature struct {
+	owner metav1.Object
+}
 
 // ID returns the ID of the Feature
 func (f *tcpQueueLengthFeature) ID() feature.IDType {
@@ -45,6 +49,7 @@ func (f *tcpQueueLengthFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp f
 		return
 	}
 	if dda.Spec.Features.TCPQueueLength != nil && apiutils.BoolValue(dda.Spec.Features.TCPQueueLength.Enabled) {
+		f.owner = dda
 		reqComp.Agent = feature.RequiredComponent{
 			IsRequired: apiutils.NewBoolPointer(true),
 			Containers: []apicommonv1.AgentContainerName{apicommonv1.CoreAgentContainerName, apicommonv1.SystemProbeContainerName},
@@ -57,6 +62,7 @@ func (f *tcpQueueLengthFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp f
 // ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
 func (f *tcpQueueLengthFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	if dda.Spec.Agent.SystemProbe != nil && apiutils.BoolValue(dda.Spec.Agent.SystemProbe.EnableTCPQueueLength) {
+		f.owner = dda
 		reqComp.Agent = feature.RequiredComponent{
 			IsRequired: apiutils.NewBoolPointer(true),
 			Containers: []apicommonv1.AgentContainerName{apicommonv1.CoreAgentContainerName, apicommonv1.SystemProbeContainerName},
@@ -69,7 +75,7 @@ func (f *tcpQueueLengthFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
 func (f *tcpQueueLengthFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
-	return nil
+	return managers.ConfigMapManager().AddConfigMap(component.GetDefaultSecCompConfigMapName(f.owner), f.owner.GetNamespace(), agent.DefaultSecCompConfigDataForSystemProbe())
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec

@@ -6,8 +6,8 @@
 package oomkill
 
 import (
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
@@ -15,6 +15,8 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
 )
@@ -32,7 +34,9 @@ func buildOOMKillFeature(options *feature.Options) feature.Feature {
 	return oomKillFeat
 }
 
-type oomKillFeature struct{}
+type oomKillFeature struct {
+	owner metav1.Object
+}
 
 // ID returns the ID of the Feature
 func (f *oomKillFeature) ID() feature.IDType {
@@ -42,6 +46,7 @@ func (f *oomKillFeature) ID() feature.IDType {
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *oomKillFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	if dda.Spec.Features != nil && dda.Spec.Features.OOMKill != nil && apiutils.BoolValue(dda.Spec.Features.OOMKill.Enabled) {
+		f.owner = dda
 		reqComp.Agent = feature.RequiredComponent{
 			IsRequired: apiutils.NewBoolPointer(true),
 			Containers: []apicommonv1.AgentContainerName{apicommonv1.CoreAgentContainerName, apicommonv1.SystemProbeContainerName},
@@ -54,6 +59,7 @@ func (f *oomKillFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.
 // ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
 func (f *oomKillFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	if dda.Spec.Agent.SystemProbe != nil && apiutils.BoolValue(dda.Spec.Agent.SystemProbe.EnableOOMKill) {
+		f.owner = dda
 		reqComp.Agent = feature.RequiredComponent{
 			IsRequired: apiutils.NewBoolPointer(true),
 			Containers: []apicommonv1.AgentContainerName{apicommonv1.CoreAgentContainerName, apicommonv1.SystemProbeContainerName},
@@ -66,7 +72,7 @@ func (f *oomKillFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp featur
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
 func (f *oomKillFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
-	return nil
+	return managers.ConfigMapManager().AddConfigMap(component.GetDefaultSecCompConfigMapName(f.owner), f.owner.GetNamespace(), agent.DefaultSecCompConfigDataForSystemProbe())
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec

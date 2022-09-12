@@ -8,8 +8,8 @@ package cws
 import (
 	"path/filepath"
 
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
@@ -17,6 +17,8 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
 )
@@ -37,6 +39,7 @@ func buildCWSFeature(options *feature.Options) feature.Feature {
 type cwsFeature struct {
 	configMapConfig       *apicommonv1.ConfigMapConfig
 	syscallMonitorEnabled bool
+	owner                 metav1.Object
 }
 
 // ID returns the ID of the Feature
@@ -47,6 +50,7 @@ func (f *cwsFeature) ID() feature.IDType {
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *cwsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	if dda.Spec.Features != nil && dda.Spec.Features.CWS != nil && apiutils.BoolValue(dda.Spec.Features.CWS.Enabled) {
+		f.owner = dda
 		cws := dda.Spec.Features.CWS
 
 		f.syscallMonitorEnabled = apiutils.BoolValue(cws.SyscallMonitorEnabled)
@@ -72,6 +76,7 @@ func (f *cwsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 // ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
 func (f *cwsFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	if dda.Spec.Agent.Security != nil && *dda.Spec.Agent.Security.Runtime.Enabled {
+		f.owner = dda
 		runtime := dda.Spec.Agent.Security.Runtime
 
 		if runtime.SyscallMonitor != nil && apiutils.BoolValue(runtime.SyscallMonitor.Enabled) {
@@ -99,7 +104,7 @@ func (f *cwsFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.Re
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
 func (f *cwsFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
-	return nil
+	return managers.ConfigMapManager().AddConfigMap(component.GetDefaultSecCompConfigMapName(f.owner), f.owner.GetNamespace(), agent.DefaultSecCompConfigDataForSystemProbe())
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
