@@ -1,6 +1,6 @@
 module github.com/DataDog/datadog-operator
 
-go 1.17
+go 1.18
 
 require (
 	github.com/DataDog/datadog-api-client-go v1.7.0
