@@ -45,6 +45,8 @@ const (
 	APMIDType = "apm"
 	// AdmissionControllerIDType Admission controller feature
 	AdmissionControllerIDType = "admission_controller"
+	// OTLPIDType OTLP ingest feature
+	OTLPIDType = "otlp"
 	// DummyIDType Dummy feature.
 	DummyIDType = "dummy"
 )

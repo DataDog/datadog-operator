@@ -4533,6 +4533,46 @@ spec:
                           or `cilium`.
                         type: string
                     type: object
+                  otlp:
+                    description: OTLP ingest configuration
+                    properties:
+                      receiver:
+                        description: Receiver contains configuration for the OTLP
+                          ingest receiver.
+                        properties:
+                          protocols:
+                            description: Protocols contains configuration for the
+                              OTLP ingest receiver protocols.
+                            properties:
+                              grpc:
+                                description: GRPC contains configuration for the OTLP
+                                  ingest OTLP/gRPC receiver.
+                                properties:
+                                  enabled:
+                                    description: Enable the OTLP/gRPC endpoint.
+                                    type: boolean
+                                  endpoint:
+                                    description: 'Endpoint for OTLP/gRPC. gRPC supports
+                                      several naming schemes: https://github.com/grpc/grpc/blob/master/doc/naming.md
+                                      The Datadog Operator supports only ''host:port''
+                                      (usually ''0.0.0.0:port''). Default: ''0.0.0.0:4317''.'
+                                    type: string
+                                type: object
+                              http:
+                                description: HTTP contains configuration for the OTLP
+                                  ingest OTLP/HTTP receiver.
+                                properties:
+                                  enabled:
+                                    description: Enable the OTLP/HTTP endpoint.
+                                    type: boolean
+                                  endpoint:
+                                    description: 'Endpoint for OTLP/HTTP. Default:
+                                      ''0.0.0.0:4318''.'
+                                    type: string
+                                type: object
+                            type: object
+                        type: object
+                    type: object
                   priorityClassName:
                     description: If specified, indicates the pod's priority. "system-node-critical"
                       and "system-cluster-critical" are two special keywords which
@@ -13307,6 +13347,46 @@ spec:
                         description: 'ScrubContainers enables scrubbing of sensitive
                           container data (passwords, tokens, etc. ). Default: true'
                         type: boolean
+                    type: object
+                  otlp:
+                    description: OTLP ingest configuration
+                    properties:
+                      receiver:
+                        description: Receiver contains configuration for the OTLP
+                          ingest receiver.
+                        properties:
+                          protocols:
+                            description: Protocols contains configuration for the
+                              OTLP ingest receiver protocols.
+                            properties:
+                              grpc:
+                                description: GRPC contains configuration for the OTLP
+                                  ingest OTLP/gRPC receiver.
+                                properties:
+                                  enabled:
+                                    description: Enable the OTLP/gRPC endpoint.
+                                    type: boolean
+                                  endpoint:
+                                    description: 'Endpoint for OTLP/gRPC. gRPC supports
+                                      several naming schemes: https://github.com/grpc/grpc/blob/master/doc/naming.md
+                                      The Datadog Operator supports only ''host:port''
+                                      (usually `0.0.0.0:port`). Default: `0.0.0.0:4317`.'
+                                    type: string
+                                type: object
+                              http:
+                                description: HTTP contains configuration for the OTLP
+                                  ingest OTLP/HTTP receiver.
+                                properties:
+                                  enabled:
+                                    description: Enable the OTLP/HTTP endpoint.
+                                    type: boolean
+                                  endpoint:
+                                    description: 'Endpoint for OTLP/HTTP. Default:
+                                      ''0.0.0.0:4318''.'
+                                    type: string
+                                type: object
+                            type: object
+                        type: object
                     type: object
                   prometheusScrape:
                     description: PrometheusScrape configuration.

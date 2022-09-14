@@ -53,6 +53,11 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./apis/datadoghq/v1alpha1.LogCollectionConfig":                     schema__apis_datadoghq_v1alpha1_LogCollectionConfig(ref),
 		"./apis/datadoghq/v1alpha1.NetworkPolicySpec":                       schema__apis_datadoghq_v1alpha1_NetworkPolicySpec(ref),
 		"./apis/datadoghq/v1alpha1.NodeAgentConfig":                         schema__apis_datadoghq_v1alpha1_NodeAgentConfig(ref),
+		"./apis/datadoghq/v1alpha1.OTLPGRPCSpec":                            schema__apis_datadoghq_v1alpha1_OTLPGRPCSpec(ref),
+		"./apis/datadoghq/v1alpha1.OTLPHTTPSpec":                            schema__apis_datadoghq_v1alpha1_OTLPHTTPSpec(ref),
+		"./apis/datadoghq/v1alpha1.OTLPProtocolsSpec":                       schema__apis_datadoghq_v1alpha1_OTLPProtocolsSpec(ref),
+		"./apis/datadoghq/v1alpha1.OTLPReceiverSpec":                        schema__apis_datadoghq_v1alpha1_OTLPReceiverSpec(ref),
+		"./apis/datadoghq/v1alpha1.OTLPSpec":                                schema__apis_datadoghq_v1alpha1_OTLPSpec(ref),
 		"./apis/datadoghq/v1alpha1.OrchestratorExplorerConfig":              schema__apis_datadoghq_v1alpha1_OrchestratorExplorerConfig(ref),
 		"./apis/datadoghq/v1alpha1.ProcessSpec":                             schema__apis_datadoghq_v1alpha1_ProcessSpec(ref),
 		"./apis/datadoghq/v1alpha1.PrometheusScrapeConfig":                  schema__apis_datadoghq_v1alpha1_PrometheusScrapeConfig(ref),
@@ -1307,6 +1312,12 @@ func schema__apis_datadoghq_v1alpha1_DatadogAgentSpecAgentSpec(ref common.Refere
 							Ref:         ref("./apis/datadoghq/v1alpha1.SecuritySpec"),
 						},
 					},
+					"otlp": {
+						SchemaProps: spec.SchemaProps{
+							Description: "OTLP ingest configuration",
+							Ref:         ref("./apis/datadoghq/v1alpha1.OTLPSpec"),
+						},
+					},
 					"customConfig": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Allow to put custom configuration for the agent, corresponding to the datadog.yaml config file. See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.",
@@ -1335,7 +1346,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogAgentSpecAgentSpec(ref common.Refere
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v1alpha1.APMSpec", "./apis/datadoghq/v1alpha1.CustomConfigSpec", "./apis/datadoghq/v1alpha1.DaemonSetDeploymentStrategy", "./apis/datadoghq/v1alpha1.LocalService", "./apis/datadoghq/v1alpha1.LogCollectionConfig", "./apis/datadoghq/v1alpha1.NetworkPolicySpec", "./apis/datadoghq/v1alpha1.NodeAgentConfig", "./apis/datadoghq/v1alpha1.ProcessSpec", "./apis/datadoghq/v1alpha1.RbacConfig", "./apis/datadoghq/v1alpha1.SecuritySpec", "./apis/datadoghq/v1alpha1.SystemProbeSpec", "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1.AgentImageConfig", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.PodDNSConfig"},
+			"./apis/datadoghq/v1alpha1.APMSpec", "./apis/datadoghq/v1alpha1.CustomConfigSpec", "./apis/datadoghq/v1alpha1.DaemonSetDeploymentStrategy", "./apis/datadoghq/v1alpha1.LocalService", "./apis/datadoghq/v1alpha1.LogCollectionConfig", "./apis/datadoghq/v1alpha1.NetworkPolicySpec", "./apis/datadoghq/v1alpha1.NodeAgentConfig", "./apis/datadoghq/v1alpha1.OTLPSpec", "./apis/datadoghq/v1alpha1.ProcessSpec", "./apis/datadoghq/v1alpha1.RbacConfig", "./apis/datadoghq/v1alpha1.SecuritySpec", "./apis/datadoghq/v1alpha1.SystemProbeSpec", "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1.AgentImageConfig", "k8s.io/api/core/v1.Affinity", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.PodDNSConfig"},
 	}
 }
 
@@ -2607,6 +2618,131 @@ func schema__apis_datadoghq_v1alpha1_NodeAgentConfig(ref common.ReferenceCallbac
 		},
 		Dependencies: []string{
 			"./apis/datadoghq/v1alpha1.CRISocketConfig", "./apis/datadoghq/v1alpha1.ConfigDirSpec", "./apis/datadoghq/v1alpha1.DogstatsdConfig", "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1.KubeletConfig", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.PodSecurityContext", "k8s.io/api/core/v1.Probe", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.Toleration", "k8s.io/api/core/v1.Volume", "k8s.io/api/core/v1.VolumeMount"},
+	}
+}
+
+func schema__apis_datadoghq_v1alpha1_OTLPGRPCSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "OTLPGRPCSpec contains configuration for the OTLP ingest OTLP/gRPC receiver.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enable the OTLP/gRPC endpoint.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"endpoint": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Endpoint for OTLP/gRPC. gRPC supports several naming schemes: https://github.com/grpc/grpc/blob/master/doc/naming.md The Datadog Operator supports only 'host:port' (usually '0.0.0.0:port'). Default: '0.0.0.0:4317'.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema__apis_datadoghq_v1alpha1_OTLPHTTPSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "OTLPHTTPSpec contains configuration for the OTLP ingest OTLP/HTTP receiver.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enable the OTLP/HTTP endpoint.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"endpoint": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Endpoint for OTLP/HTTP. Default: '0.0.0.0:4318'.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema__apis_datadoghq_v1alpha1_OTLPProtocolsSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "OTLPProtocolsSpec contains configuration for the OTLP ingest receiver protocols.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"grpc": {
+						SchemaProps: spec.SchemaProps{
+							Description: "GRPC contains configuration for the OTLP ingest OTLP/gRPC receiver.",
+							Ref:         ref("./apis/datadoghq/v1alpha1.OTLPGRPCSpec"),
+						},
+					},
+					"http": {
+						SchemaProps: spec.SchemaProps{
+							Description: "HTTP contains configuration for the OTLP ingest OTLP/HTTP receiver.",
+							Ref:         ref("./apis/datadoghq/v1alpha1.OTLPHTTPSpec"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"./apis/datadoghq/v1alpha1.OTLPGRPCSpec", "./apis/datadoghq/v1alpha1.OTLPHTTPSpec"},
+	}
+}
+
+func schema__apis_datadoghq_v1alpha1_OTLPReceiverSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "OTLPReceiverSpec contains configuration for the OTLP ingest receiver.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"protocols": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Protocols contains configuration for the OTLP ingest receiver protocols.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("./apis/datadoghq/v1alpha1.OTLPProtocolsSpec"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"./apis/datadoghq/v1alpha1.OTLPProtocolsSpec"},
+	}
+}
+
+func schema__apis_datadoghq_v1alpha1_OTLPSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "OTLPSpec contains configuration for OTLP ingest.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"receiver": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Receiver contains configuration for the OTLP ingest receiver.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("./apis/datadoghq/v1alpha1.OTLPReceiverSpec"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"./apis/datadoghq/v1alpha1.OTLPReceiverSpec"},
 	}
 }
 

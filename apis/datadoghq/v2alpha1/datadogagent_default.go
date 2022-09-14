@@ -52,6 +52,11 @@ const (
 	defaultDogstatsdSocketEnabled          bool   = true
 	defaultDogstatsdSocketPath             string = "/var/run/datadog/statsd/dsd.socket"
 
+	defaultOTLPGRPCEnabled  bool   = false
+	defaultOTLPGRPCEndpoint string = "0.0.0.0:4317"
+	defaultOTLPHTTPEnabled  bool   = false
+	defaultOTLPHTTPEndpoint string = "0.0.0.0:4318"
+
 	defaultCollectKubernetesEvents bool = true
 
 	// defaultAdmissionControllerEnabled          bool = false
@@ -198,6 +203,23 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.Dogstatsd.UnixDomainSocketConfig.Enabled, defaultDogstatsdSocketEnabled)
 
 	apiutils.DefaultStringIfUnset(&ddaSpec.Features.Dogstatsd.UnixDomainSocketConfig.Path, defaultDogstatsdSocketPath)
+
+	// OTLP ingest feature
+	if ddaSpec.Features.OTLP == nil {
+		ddaSpec.Features.OTLP = &OTLPFeatureConfig{}
+	}
+
+	if ddaSpec.Features.OTLP.Receiver.Protocols.GRPC == nil {
+		ddaSpec.Features.OTLP.Receiver.Protocols.GRPC = &OTLPGRPCConfig{}
+	}
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.OTLP.Receiver.Protocols.GRPC.Enabled, defaultOTLPGRPCEnabled)
+	apiutils.DefaultStringIfUnset(&ddaSpec.Features.OTLP.Receiver.Protocols.GRPC.Endpoint, defaultOTLPGRPCEndpoint)
+
+	if ddaSpec.Features.OTLP.Receiver.Protocols.HTTP == nil {
+		ddaSpec.Features.OTLP.Receiver.Protocols.HTTP = &OTLPHTTPConfig{}
+	}
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.OTLP.Receiver.Protocols.HTTP.Enabled, defaultOTLPHTTPEnabled)
+	apiutils.DefaultStringIfUnset(&ddaSpec.Features.OTLP.Receiver.Protocols.HTTP.Endpoint, defaultOTLPHTTPEndpoint)
 
 	// Cluster-level features
 
