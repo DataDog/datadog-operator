@@ -49,7 +49,19 @@
     "wsl",
     "godox",
     "godot",
-    "nlreturn"
+    "nlreturn",
+    "typecheck",
+    "varnamelen",
+    "tagliatelle",
+    "nilnil",
+    "contextcheck",
+    "containedctx",
+    "ireturn",
+    "errchkjson",
+    "gofumpt",
+    "maintidx",
+    "ifshort",
+    "gocritic"
   ]
 
 [issues]

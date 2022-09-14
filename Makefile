@@ -97,7 +97,7 @@ TMP_DIR=$$(mktemp -d) ;\
 cd $$TMP_DIR ;\
 go mod init tmp ;\
 echo "Downloading $(2)" ;\
-GOBIN=$(PROJECT_DIR)/bin/$(PLATFORM) go get $(2) ;\
+GOBIN=$(PROJECT_DIR)/bin/$(PLATFORM) go install $(2) ;\
 rm -rf $$TMP_DIR ;\
 }
 endef
@@ -286,7 +286,7 @@ bin/$(PLATFORM)/yq: Makefile
 	hack/install-yq.sh 3.3.0
 
 bin/$(PLATFORM)/golangci-lint: Makefile
-	hack/golangci-lint.sh -b "bin/$(PLATFORM)" v1.38.0
+	hack/golangci-lint.sh -b "bin/$(PLATFORM)" v1.45.0
 
 bin/$(PLATFORM)/operator-sdk: Makefile
 	hack/install-operator-sdk.sh v1.13.1
