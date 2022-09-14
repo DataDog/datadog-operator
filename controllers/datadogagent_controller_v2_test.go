@@ -50,8 +50,13 @@ var _ = Describe("V2 Controller - DatadogAgent Deployment", func() {
 	)
 
 	Context(
+		"with admission controller enabled",
+		testFunction(testutils.NewDatadogAgentWithAdmissionController(namespace, "with-admission-controller")),
+	)
+
+	Context(
 		"with APM enabled",
-		testFunction(testutils.NewDatadogAgentWithoutFeatures(namespace, "with-apm")),
+		testFunction(testutils.NewDatadogAgentWithAPM(namespace, "with-apm")),
 	)
 
 	Context(

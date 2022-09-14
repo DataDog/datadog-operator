@@ -60,7 +60,8 @@ const (
 	defaultCollectKubernetesEvents bool = true
 
 	// defaultAdmissionControllerEnabled          bool = false
-	defaultAdmissionControllerMutateUnlabelled bool = false
+	defaultAdmissionControllerMutateUnlabelled bool   = false
+	defaultAdmissionServiceName                string = "datadog-admission-controller"
 
 	defaultOrchestratorExplorerEnabled         bool = true
 	defaultOrchestratorExplorerScrubContainers bool = true
@@ -250,6 +251,7 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 	// AdmissionController Feature
 	if ddaSpec.Features.AdmissionController != nil && *ddaSpec.Features.AdmissionController.Enabled {
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.AdmissionController.MutateUnlabelled, defaultAdmissionControllerMutateUnlabelled)
+		apiutils.DefaultStringIfUnset(&ddaSpec.Features.AdmissionController.ServiceName, defaultAdmissionServiceName)
 	}
 
 	// ExternalMetricsServer Feature
