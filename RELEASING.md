@@ -28,7 +28,26 @@
 ## Other PRs to create
 
 - Create krew PR for the plugin on https://github.com/kubernetes-sigs/krew-index to update the `datadog.yaml` artifact. (See [kubernetes-sigs/krew-index#727](https://github.com/kubernetes-sigs/krew-index/pull/727) as an example).
-- Create PRs on https://github.com/redhat-openshift-ecosystem/community-operators-prod for `OpenShift Community` and https://github.com/k8s-operatorhub/community-operators for `Kubernetes OperatorHub`.
+- Create PRs with normal bundle on:
+https://github.com/redhat-openshift-ecosystem/community-operators-prod for `OpenShift Community`.
+Example: https://github.com/redhat-openshift-ecosystem/community-operators-prod/pull/1240
+
+https://github.com/k8s-operatorhub/community-operators for `Kubernetes OperatorHub`.
+Example: https://github.com/k8s-operatorhub/community-operators/pull/1263
+
+Then the RedHat bundles (certified and marketplace) need to be generated. It requires the operator image to be **already pushed to RedHat registry (done by CI) and published in RedHat portal (done manually)**
+It needs to be generated locally by running `make bundle-redhat` (based on the `bundle` that was generated earlier).
+Running this command requires Skopeo to be installed and the token downloaded from https://console.redhat.com/openshift/downloads#tool-pull-secret and saved to ~/.redhat/auths.json.
+
+- Create PRs with RedHat bundle + pinned images on:
+https://github.com/redhat-openshift-ecosystem/redhat-marketplace-operators for `RedHat Marketplace` (bundle is `bundle-redhat-mp`).
+Example: https://github.com/redhat-openshift-ecosystem/redhat-marketplace-operators/pull/191
+
+https://github.com/redhat-openshift-ecosystem/certified-operators for `RedHat Certified` (bundle is `bundle-redhat`).
+Example: https://github.com/redhat-openshift-ecosystem/certified-operators/pull/830
+
+If during validation you get an error in the `get-supported-versions` step, you may need to bump the minimum OpenShift version (in `hack/patch-bundle.sh`, `hack/redhat-bundle.sh`).
+Adding new versions to EOL OpenShift versions is not allowed.
 
 ## Testing the generating bundle
 

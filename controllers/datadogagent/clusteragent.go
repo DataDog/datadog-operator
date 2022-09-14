@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -25,6 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
+	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/common"
@@ -102,7 +104,7 @@ func (r *Reconciler) createNewClusterAgentDeployment(logger logr.Logger, feature
 		return reconcile.Result{}, err
 	}
 	logger.Info("Creating a new Cluster Agent Deployment", "deployment.Namespace", newDCA.Namespace, "deployment.Name", newDCA.Name, "agentdeployment.Status.ClusterAgent.CurrentHash", hash)
-	newStatus.ClusterAgent = &datadoghqv1alpha1.DeploymentStatus{}
+	newStatus.ClusterAgent = &commonv1.DeploymentStatus{}
 	err = r.client.Create(context.TODO(), newDCA)
 	now := metav1.NewTime(time.Now())
 	if err != nil {
@@ -249,7 +251,7 @@ func buildClusterAgentConfigurationConfigMap(dda *datadoghqv1alpha1.DatadogAgent
 	if !isClusterAgentEnabled(dda.Spec.ClusterAgent) {
 		return nil, nil
 	}
-	return buildConfigurationConfigMap(dda, datadoghqv1alpha1.ConvertCustomConfig(dda.Spec.ClusterAgent.CustomConfig), getClusterAgentCustomConfigConfigMapName(dda), datadoghqv1alpha1.ClusterAgentCustomConfigVolumeSubPath)
+	return buildConfigurationConfigMap(dda, datadoghqv1alpha1.ConvertCustomConfig(dda.Spec.ClusterAgent.CustomConfig), getClusterAgentCustomConfigConfigMapName(dda), apicommon.ClusterAgentCustomConfigVolumeSubPath)
 }
 
 func (r *Reconciler) cleanupClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) (reconcile.Result, error) {
@@ -320,16 +322,16 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 		customConfigVolumeSource := objectvolume.GetVolumeFromCustomConfigSpec(
 			datadoghqv1alpha1.ConvertCustomConfig(dda.Spec.ClusterAgent.CustomConfig),
 			getClusterAgentCustomConfigConfigMapName(dda),
-			datadoghqv1alpha1.AgentCustomConfigVolumeName,
+			apicommon.AgentCustomConfigVolumeName,
 		)
 		volumes = append(volumes, customConfigVolumeSource)
 
 		// Custom config (datadog-cluster.yaml) volume
 		volumeMount := objectvolume.GetVolumeMountFromCustomConfigSpec(
 			datadoghqv1alpha1.ConvertCustomConfig(dda.Spec.ClusterAgent.CustomConfig),
-			datadoghqv1alpha1.ClusterAgentCustomConfigVolumeName,
-			datadoghqv1alpha1.ClusterAgentCustomConfigVolumePath,
-			datadoghqv1alpha1.ClusterAgentCustomConfigVolumeSubPath)
+			apicommon.ClusterAgentCustomConfigVolumeName,
+			apicommon.ClusterAgentCustomConfigVolumePath,
+			apicommon.ClusterAgentCustomConfigVolumeSubPath)
 		volumeMounts = append(volumeMounts, volumeMount)
 	}
 
@@ -394,7 +396,7 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 
 	container := &newPodTemplate.Spec.Containers[0]
 	{
-		container.Image = getImage(clusterAgentSpec.Image, dda.Spec.Registry)
+		container.Image = apicommon.GetImage(clusterAgentSpec.Image, dda.Spec.Registry)
 		if clusterAgentSpec.Image.PullPolicy != nil {
 			container.ImagePullPolicy = *clusterAgentSpec.Image.PullPolicy
 		}
@@ -643,11 +645,11 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 		envVars = append(envVars, []corev1.EnvVar{
 			{
 				Name:  apicommon.DDExtraConfigProviders,
-				Value: datadoghqv1alpha1.KubeServicesAndEndpointsConfigProviders,
+				Value: apicommon.KubeServicesAndEndpointsConfigProviders,
 			},
 			{
 				Name:  apicommon.DDExtraListeners,
-				Value: datadoghqv1alpha1.KubeServicesAndEndpointsListeners,
+				Value: apicommon.KubeServicesAndEndpointsListeners,
 			},
 		}...)
 	}
@@ -942,36 +944,7 @@ func buildClusterRole(dda *datadoghqv1alpha1.DatadogAgent, needClusterLevelRBAC 
 		},
 	}
 
-	rbacRules := []rbacv1.PolicyRule{
-		{
-			// Get /metrics permissions
-			NonResourceURLs: []string{rbac.MetricsURL},
-			Verbs:           []string{rbac.GetVerb},
-		},
-		{
-			// Kubelet connectivity
-			APIGroups: []string{rbac.CoreAPIGroup},
-			Resources: []string{
-				rbac.NodeMetricsResource,
-				rbac.NodeSpecResource,
-				rbac.NodeProxyResource,
-				rbac.NodeStats,
-			},
-			Verbs: []string{rbac.GetVerb},
-		},
-		{
-			// Leader election check
-			APIGroups: []string{rbac.CoreAPIGroup},
-			Resources: []string{rbac.EndpointsResource},
-			Verbs:     []string{rbac.GetVerb},
-		},
-		{
-			// Leader election check
-			APIGroups: []string{rbac.CoordinationAPIGroup},
-			Resources: []string{rbac.LeasesResource},
-			Verbs:     []string{rbac.GetVerb},
-		},
-	}
+	rbacRules := agent.GetDefaultAgentClusterRolePolicyRules()
 
 	// If the secret backend uses the provided `/readsecret_multiple_providers.sh` script, then we need to add secrets GET permissions
 	if *dda.Spec.Credentials.UseSecretBackend &&

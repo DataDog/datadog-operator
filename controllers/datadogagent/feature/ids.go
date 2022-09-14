@@ -6,33 +6,45 @@
 package feature
 
 // IDType use to identify a Feature
-type IDType int
+type IDType string
 
 const (
 	// DefaultIDType enable default component feature.
-	DefaultIDType IDType = iota
+	DefaultIDType IDType = "default"
 	// DogstatsdIDType Dogstatsd feature.
-	DogstatsdIDType
+	DogstatsdIDType = "dogstatsd"
 	// EventCollectionIDType Event Collection feature.
-	EventCollectionIDType
+	EventCollectionIDType = "event_collection"
 	// KubernetesStateCoreIDType Kubernetes state core check feature.
-	KubernetesStateCoreIDType
+	KubernetesStateCoreIDType = "ksm"
+	// LiveContainerIDType Live Container feature.
+	LiveContainerIDType = "live_container"
+	// LiveProcessIDType Live Process feature.
+	LiveProcessIDType = "live_process"
 	// OrchestratorExplorerIDType Orchestrator Explorer feature.
-	OrchestratorExplorerIDType
+	OrchestratorExplorerIDType = "orchestrator_explorer"
 	// LogCollectionIDType Log Collection feature.
-	LogCollectionIDType
+	LogCollectionIDType = "log_collection"
 	// NPMIDType NPM feature.
-	NPMIDType
+	NPMIDType = "npm"
 	// CSPMIDType CSPM feature.
-	CSPMIDType
+	CSPMIDType = "cspm"
+	// CWSIDType CWS feature.
+	CWSIDType = "csw"
 	// USMIDType USM feature.
-	USMIDType
+	USMIDType = "usm"
 	// OOMKillIDType OOM Kill check feature
-	OOMKillIDType
+	OOMKillIDType = "oom_kill"
 	// PrometheusScrapeIDType Prometheus Scrape feature
-	PrometheusScrapeIDType
+	PrometheusScrapeIDType = "prometheus_scrape"
 	// TCPQueueLengthIDType TCP Queue length check feature
-	TCPQueueLengthIDType
+	TCPQueueLengthIDType = "tcp_queue_length"
+	// ClusterChecksIDType Cluster checks feature
+	ClusterChecksIDType = "cluster_checks"
+	// APMIDType APM feature
+	APMIDType = "apm"
+	// AdmissionControllerIDType Admission controller feature
+	AdmissionControllerIDType = "admission_controller"
 	// DummyIDType Dummy feature.
-	DummyIDType
+	DummyIDType = "dummy"
 )

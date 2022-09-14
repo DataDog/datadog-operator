@@ -3,24 +3,16 @@ package test
 import (
 	"testing"
 
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
+	testutils "github.com/DataDog/datadog-operator/controllers/datadogagent/testutils"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-
-	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
-	networkingv1 "k8s.io/api/networking/v1"
-	policyv1 "k8s.io/api/policy/v1beta1"
-	rbacv1 "k8s.io/api/rbac/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-
-	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
-	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // FeatureTestSuite use define several tests on a Feature
@@ -61,38 +53,32 @@ type ComponentTest struct {
 	WantFunc   func(testing.TB, feature.PodTemplateManagers)
 }
 
+// NewDefaultComponentTest returns a default ComponentTest
+func NewDefaultComponentTest() *ComponentTest {
+	return &ComponentTest{
+		CreateFunc: func(t testing.TB) feature.PodTemplateManagers {
+			return fake.NewPodTemplateManagers(t)
+		},
+	}
+}
+
+// WithCreateFunc sets CreateFunc
+func (ct *ComponentTest) WithCreateFunc(f func(testing.TB) feature.PodTemplateManagers) *ComponentTest {
+	ct.CreateFunc = f
+	return ct
+}
+
+// WithWantFunc sets WantFunc
+func (ct *ComponentTest) WithWantFunc(f func(testing.TB, feature.PodTemplateManagers)) *ComponentTest {
+	ct.WantFunc = f
+	return ct
+}
+
 // Run use to run the Feature test suite.
 func (suite FeatureTestSuite) Run(t *testing.T, buildFunc feature.BuildFunc) {
 	for _, test := range suite {
 		runTest(t, test, buildFunc)
 	}
-}
-
-// testScheme return a runtime.Scheme for testing purpose
-func testScheme(isV2 bool) *runtime.Scheme {
-	s := runtime.NewScheme()
-	s.AddKnownTypes(edsdatadoghqv1alpha1.GroupVersion, &edsdatadoghqv1alpha1.ExtendedDaemonSet{})
-	s.AddKnownTypes(appsv1.SchemeGroupVersion, &appsv1.DaemonSet{})
-	s.AddKnownTypes(appsv1.SchemeGroupVersion, &appsv1.Deployment{})
-	s.AddKnownTypes(corev1.SchemeGroupVersion, &corev1.Secret{})
-	s.AddKnownTypes(corev1.SchemeGroupVersion, &corev1.ServiceAccount{})
-	s.AddKnownTypes(corev1.SchemeGroupVersion, &corev1.ConfigMap{})
-	s.AddKnownTypes(rbacv1.SchemeGroupVersion, &rbacv1.ClusterRoleBinding{})
-	s.AddKnownTypes(rbacv1.SchemeGroupVersion, &rbacv1.ClusterRole{})
-	s.AddKnownTypes(rbacv1.SchemeGroupVersion, &rbacv1.Role{})
-	s.AddKnownTypes(rbacv1.SchemeGroupVersion, &rbacv1.RoleBinding{})
-	s.AddKnownTypes(policyv1.SchemeGroupVersion, &policyv1.PodDisruptionBudget{})
-	s.AddKnownTypes(apiregistrationv1.SchemeGroupVersion, &apiregistrationv1.APIServiceList{})
-	s.AddKnownTypes(apiregistrationv1.SchemeGroupVersion, &apiregistrationv1.APIService{})
-	s.AddKnownTypes(networkingv1.SchemeGroupVersion, &networkingv1.NetworkPolicy{})
-
-	if isV2 {
-		s.AddKnownTypes(v2alpha1.GroupVersion, &v2alpha1.DatadogAgent{})
-	} else {
-		s.AddKnownTypes(v1alpha1.GroupVersion, &v1alpha1.DatadogAgent{})
-	}
-
-	return s
 }
 
 func runTest(t *testing.T, tt FeatureTest, buildFunc feature.BuildFunc) {
@@ -119,11 +105,11 @@ func runTest(t *testing.T, tt FeatureTest, buildFunc feature.BuildFunc) {
 	}
 
 	if gotConfigure.IsEnabled() != tt.WantConfigure {
-		t.Errorf("feature.Configure() = %v, want %v", gotConfigure, tt.WantConfigure)
+		t.Errorf("feature.Configure() = %v, want %v", gotConfigure.IsEnabled(), tt.WantConfigure)
 	}
 
 	if !gotConfigure.IsEnabled() {
-		// If the feature is now enable return now
+		// If the feature is not enabled return now
 		return
 	}
 
@@ -133,7 +119,7 @@ func runTest(t *testing.T, tt FeatureTest, buildFunc feature.BuildFunc) {
 		}
 	}
 	if tt.StoreOption.Scheme == nil {
-		tt.StoreOption.Scheme = testScheme(isV2)
+		tt.StoreOption.Scheme = testutils.TestScheme(isV2)
 	}
 
 	// dependencies

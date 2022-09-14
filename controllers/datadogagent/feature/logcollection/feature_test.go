@@ -21,11 +21,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-func createEmptyFakeManager(t testing.TB) feature.PodTemplateManagers {
-	mgr := fake.NewPodTemplateManagers(t)
-	return mgr
-}
-
 func Test_LogCollectionFeature_Configure(t *testing.T) {
 	// v1alpha1
 	ddav1Disabled := &v1alpha1.DatadogAgent{}
@@ -164,9 +159,8 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 			Name:          "v1alpha1 log collection enabled",
 			DDAv1:         &ddav1LogCollectionEnabled,
 			WantConfigure: true,
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMounts), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMounts))
@@ -189,15 +183,14 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 					}
 					assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantEnvVars))
 				},
-			},
+			),
 		},
 		{
 			Name:          "v1alpha1 container collect all enabled",
 			DDAv1:         ddav1ContainerCollectAllEnabled,
 			WantConfigure: true,
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMounts), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMounts))
@@ -220,15 +213,14 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 					}
 					assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantEnvVars))
 				},
-			},
+			),
 		},
 		{
 			Name:          "v1alpha1 container collect using files disabled",
 			DDAv1:         ddav1ContainerCollectUsingFilesDisabled,
 			WantConfigure: true,
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMounts), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMounts))
@@ -251,15 +243,14 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 					}
 					assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantEnvVars))
 				},
-			},
+			),
 		},
 		{
 			Name:          "v1alpha1 open files limit set to custom value",
 			DDAv1:         ddav1CustomOpenFilesLimit,
 			WantConfigure: true,
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMounts), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMounts))
@@ -286,15 +277,14 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 					}
 					assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantEnvVars))
 				},
-			},
+			),
 		},
 		{
 			Name:          "v1alpha1 custom volumes",
 			DDAv1:         ddav1CustomVolumes,
 			WantConfigure: true,
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					wantCustomVolumeMounts := []corev1.VolumeMount{
@@ -373,7 +363,7 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 					}
 					assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantEnvVars))
 				},
-			},
+			),
 		},
 		///////////////////////////
 		// v2alpha1.DatadogAgent //
@@ -387,9 +377,8 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 			Name:          "v2alpha1 log collection enabled",
 			DDAv2:         ddav2LogCollectionEnabled,
 			WantConfigure: true,
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMounts), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMounts))
@@ -412,15 +401,14 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 					}
 					assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantEnvVars))
 				},
-			},
+			),
 		},
 		{
 			Name:          "v2alpha1 container collect all enabled",
 			DDAv2:         ddav2ContainerCollectAllEnabled,
 			WantConfigure: true,
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMounts), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMounts))
@@ -443,15 +431,14 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 					}
 					assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantEnvVars))
 				},
-			},
+			),
 		},
 		{
 			Name:          "v2alpha1 container collect using files disabled",
 			DDAv2:         ddav2ContainerCollectUsingFilesDisabled,
 			WantConfigure: true,
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMounts), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMounts))
@@ -474,15 +461,14 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 					}
 					assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantEnvVars))
 				},
-			},
+			),
 		},
 		{
 			Name:          "v2alpha1 open files limit set to custom value",
 			DDAv2:         ddav2CustomOpenFilesLimit,
 			WantConfigure: true,
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMounts), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMounts))
@@ -509,15 +495,14 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 					}
 					assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantEnvVars))
 				},
-			},
+			),
 		},
 		{
 			Name:          "v2alpha1 custom volumes",
 			DDAv2:         ddav2CustomVolumes,
 			WantConfigure: true,
-			Agent: &test.ComponentTest{
-				CreateFunc: createEmptyFakeManager,
-				WantFunc: func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					wantVolumeMounts := []corev1.VolumeMount{
@@ -596,7 +581,7 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 					}
 					assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantEnvVars))
 				},
-			},
+			),
 		},
 	}
 

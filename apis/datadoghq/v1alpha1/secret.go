@@ -17,47 +17,51 @@ func GetDefaultCredentialsSecretName(dda *DatadogAgent) string {
 }
 
 // GetAPIKeySecret returns the API key secret name and the key inside the secret
-// returns <is_set>, secretName, secretKey
+// returns <isSet>, secretName, secretKey
+// Note that the default name can differ depending on where this is called
 func GetAPIKeySecret(credentials *DatadogCredentials, defaultName string) (bool, string, string) {
+	isSet := false
+	secretName := defaultName
+	secretKey := apicommon.DefaultAPIKeyKey
+
 	if credentials.APISecret != nil {
+		isSet = true
+		secretName = credentials.APISecret.SecretName
 		if credentials.APISecret.KeyName != "" {
-			return true, credentials.APISecret.SecretName, credentials.APISecret.KeyName
+			secretKey = credentials.APISecret.KeyName
 		}
-
-		return true, credentials.APISecret.SecretName, apicommon.DefaultAPIKeyKey
+	} else if credentials.APIKeyExistingSecret != "" {
+		isSet = true
+		secretName = credentials.APIKeyExistingSecret
+	} else if credentials.APIKey != "" {
+		isSet = true
 	}
 
-	if credentials.APIKeyExistingSecret != "" {
-		return true, credentials.APIKeyExistingSecret, apicommon.DefaultAPIKeyKey
-	}
-
-	if credentials.APIKey != "" {
-		return true, defaultName, apicommon.DefaultAPIKeyKey
-	}
-
-	return false, defaultName, apicommon.DefaultAPIKeyKey
+	return isSet, secretName, secretKey
 }
 
 // GetAppKeySecret returns the APP key secret name and the key inside the secret
-// returns <is_set>, secretName, secretKey
+// returns <isSet>, secretName, secretKey
+// Note that the default name can differ depending on where this is called
 func GetAppKeySecret(credentials *DatadogCredentials, defaultName string) (bool, string, string) {
+	isSet := false
+	secretName := defaultName
+	secretKey := apicommon.DefaultAPPKeyKey
+
 	if credentials.APPSecret != nil {
+		isSet = true
+		secretName = credentials.APPSecret.SecretName
 		if credentials.APPSecret.KeyName != "" {
-			return true, credentials.APPSecret.SecretName, credentials.APPSecret.KeyName
+			secretKey = credentials.APPSecret.KeyName
 		}
-
-		return true, credentials.APPSecret.SecretName, apicommon.DefaultAPPKeyKey
+	} else if credentials.AppKeyExistingSecret != "" {
+		isSet = true
+		secretName = credentials.AppKeyExistingSecret
+	} else if credentials.AppKey != "" {
+		isSet = true
 	}
 
-	if credentials.AppKeyExistingSecret != "" {
-		return true, credentials.AppKeyExistingSecret, apicommon.DefaultAPPKeyKey
-	}
-
-	if credentials.AppKey != "" {
-		return true, defaultName, apicommon.DefaultAPPKeyKey
-	}
-
-	return false, defaultName, apicommon.DefaultAPPKeyKey
+	return isSet, secretName, secretKey
 }
 
 // GetKeysFromCredentials returns any key data that need to be stored in a new secret

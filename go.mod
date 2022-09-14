@@ -9,6 +9,7 @@ require (
 	github.com/go-logr/logr v1.2.0
 	github.com/gobwas/glob v0.2.3
 	github.com/google/go-cmp v0.5.5
+	github.com/google/uuid v1.3.0 // indirect
 	github.com/hako/durafmt v0.0.0-20210608085754-5c1018a4e16b
 	github.com/mholt/archiver/v3 v3.5.0
 	github.com/olekukonko/tablewriter v0.0.0-20170122224234-a0225b3f23b5
@@ -68,7 +69,6 @@ require (
 	github.com/google/btree v1.0.1 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
-	github.com/google/uuid v1.3.0 // indirect
 	github.com/googleapis/gnostic v0.5.5 // indirect
 	github.com/gregjones/httpcache v0.0.0-20180305231024-9cad4c3443a7 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect

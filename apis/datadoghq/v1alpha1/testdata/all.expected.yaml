@@ -51,8 +51,7 @@ spec:
             path: ""
           name: orch-cm
       enabled: true
-      endpoint:
-        url: https://orch-explorer.com
+      ddUrl: https://orch-explorer.com
       extraTags:
       - orch
       - exp

@@ -30,7 +30,11 @@ func (src *DatadogAgent) ConvertTo(dst conversion.Hub) error {
 // ConvertFrom converts a v2alpha1 (Hub) to v1alpha1 (local)
 // Not implemented
 func (dst *DatadogAgent) ConvertFrom(src conversion.Hub) error { //nolint
-	return fmt.Errorf("convert from v2alpha1 to %s is not implemented", src.GetObjectKind().GroupVersionKind().Version)
+	// TODO (operator-ga): uncomment the next line when we find out why this
+	// method is called every second. For now, just return nil to avoid spamming
+	// the logs.
+	// return fmt.Errorf("convert from v2alpha1 to %s is not implemented", dst.GetObjectKind().GroupVersionKind().Version)
+	return nil
 }
 
 // ConvertTo use to convert v1alpha1.DatadogAgent to v2alpha1.DatadogAgent
@@ -101,9 +105,7 @@ func convertFeatures(src DatadogFeatures, dst *v2alpha1.DatadogAgent) {
 		}
 
 		if src.OrchestratorExplorer.DDUrl != nil {
-			dstFeatures.OrchestratorExplorer.Endpoint = &v2alpha1.Endpoint{
-				URL: src.OrchestratorExplorer.DDUrl,
-			}
+			dstFeatures.OrchestratorExplorer.DDUrl = src.OrchestratorExplorer.DDUrl
 		}
 		// TODO: Handle src ClusterChecks + AdditionalEndpoints, seems to be missing from V2
 	}

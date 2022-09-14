@@ -94,3 +94,21 @@ func ConvertCustomConfig(config *CustomConfigSpec) *commonv1.CustomConfig {
 func IsHostNetworkEnabled(dda *DatadogAgent) bool {
 	return apiutils.BoolValue(&dda.Spec.Agent.HostNetwork)
 }
+
+// IsClusterChecksEnabled returns whether the DDA should use cluster checks
+func IsClusterChecksEnabled(dda *DatadogAgent) bool {
+	return dda.Spec.ClusterAgent.Config != nil && apiutils.BoolValue(dda.Spec.ClusterAgent.Config.ClusterChecksEnabled)
+}
+
+// IsCCREnabled returns whether the DDA should use Cluster Checks Runners
+func IsCCREnabled(dda *DatadogAgent) bool {
+	return apiutils.BoolValue(dda.Spec.ClusterChecksRunner.Enabled)
+}
+
+// GetLocalAgentServiceName returns the name used for the local agent service
+func GetLocalAgentServiceName(dda *DatadogAgent) string {
+	if dda.Spec.Agent.LocalService != nil && dda.Spec.Agent.LocalService.OverrideName != "" {
+		return dda.Spec.Agent.LocalService.OverrideName
+	}
+	return fmt.Sprintf("%s-%s", dda.Name, common.DefaultAgentResourceSuffix)
+}

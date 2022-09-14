@@ -12,7 +12,7 @@ import (
 
 // SecurityContextManager use to add Security Context settings to containers.
 type SecurityContextManager interface {
-	// Add capabilities to a container in the PodTemplate.
+	// AddCapabilitiesToContainer Adds capabilities to a container in the PodTemplate.
 	AddCapabilitiesToContainer(capabilities []corev1.Capability, containerName commonv1.AgentContainerName)
 }
 
@@ -28,17 +28,20 @@ type securityContextManagerImpl struct {
 }
 
 func (impl *securityContextManagerImpl) AddCapabilitiesToContainer(capabilities []corev1.Capability, containerName commonv1.AgentContainerName) {
-	for _, container := range impl.podTmpl.Spec.Containers {
+	for i, container := range impl.podTmpl.Spec.Containers {
 		if container.Name == string(containerName) {
 			if container.SecurityContext == nil {
-				container.SecurityContext = &corev1.SecurityContext{
+				impl.podTmpl.Spec.Containers[i].SecurityContext = &corev1.SecurityContext{
 					Capabilities: &corev1.Capabilities{
 						Add: capabilities,
 					},
 				}
 			} else {
 				// TODO add deduplication
-				container.SecurityContext.Capabilities.Add = append(container.SecurityContext.Capabilities.Add, capabilities...)
+				impl.podTmpl.Spec.Containers[i].SecurityContext.Capabilities.Add = append(
+					impl.podTmpl.Spec.Containers[i].SecurityContext.Capabilities.Add,
+					capabilities...,
+				)
 			}
 			return
 		}

@@ -61,6 +61,21 @@ func NewDefaultAgentPodTemplateSpec(dda metav1.Object, requiredContainers []comm
 	}
 }
 
+// DefaultCapabilitiesForSystemProbe returns the default Security Context
+// Capabilities for the System Probe container
+func DefaultCapabilitiesForSystemProbe() []corev1.Capability {
+	return []corev1.Capability{
+		"SYS_ADMIN",
+		"SYS_RESOURCE",
+		"SYS_PTRACE",
+		"NET_ADMIN",
+		"NET_BROADCAST",
+		"NET_RAW",
+		"IPC_LOCK",
+		"CHOWN",
+	}
+}
+
 func getDefaultServiceAccountName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultAgentResourceSuffix)
 }
@@ -255,6 +270,7 @@ func volumesForAgent(dda metav1.Object) []corev1.Volume {
 		component.GetVolumeForProc(),
 		component.GetVolumeForCgroups(),
 		component.GetVolumeForDogstatsd(),
+		component.GetVolumeForRuntimeSocket(),
 	}
 }
 
@@ -268,6 +284,7 @@ func volumeMountsForCoreAgent() []corev1.VolumeMount {
 		component.GetVolumeMountForProc(),
 		component.GetVolumeMountForCgroups(),
 		component.GetVolumeMountForDogstatsdSocket(false),
+		component.GetVolumeMountForRuntimeSocket(true),
 	}
 }
 
@@ -277,6 +294,7 @@ func volumeMountsForTraceAgent() []corev1.VolumeMount {
 		component.GetVolumeMountForAuth(),
 		component.GetVolumeMountForConfig(),
 		component.GetVolumeMountForDogstatsdSocket(true),
+		component.GetVolumeMountForRuntimeSocket(true),
 	}
 }
 
@@ -286,6 +304,7 @@ func volumeMountsForProcessAgent() []corev1.VolumeMount {
 		component.GetVolumeMountForAuth(),
 		component.GetVolumeMountForConfig(),
 		component.GetVolumeMountForDogstatsdSocket(true),
+		component.GetVolumeMountForRuntimeSocket(true),
 	}
 }
 
@@ -295,6 +314,7 @@ func volumeMountsForSecurityAgent() []corev1.VolumeMount {
 		component.GetVolumeMountForAuth(),
 		component.GetVolumeMountForConfig(),
 		component.GetVolumeMountForDogstatsdSocket(true),
+		component.GetVolumeMountForRuntimeSocket(true),
 	}
 }
 
@@ -302,5 +322,6 @@ func volumeMountsForSystemProbe() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		component.GetVolumeMountForLogs(),
 		component.GetVolumeMountForAuth(),
+		component.GetVolumeMountForConfig(),
 	}
 }

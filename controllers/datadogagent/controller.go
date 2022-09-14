@@ -7,7 +7,6 @@ package datadogagent
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -32,16 +31,24 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 
 	// Use to register features
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/admissioncontroller"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/apm"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/clusterchecks"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/cspm"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/cws"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/dogstatsd"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/dummy"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/enabledefault"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/eventcollection"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/kubernetesstatecore"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/livecontainer"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/liveprocess"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/logcollection"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/npm"
-	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/oom_kill"
-	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/prometheus_scrape"
-	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/tcp_queue_length"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/oomkill"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/orchestratorexplorer"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/prometheusscrape"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/tcpqueuelength"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/usm"
 )
 
@@ -154,11 +161,7 @@ func reconcilerOptionsToFeatureOptions(opts *ReconcilerOptions, logger logr.Logg
 func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, instance *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
 	var result reconcile.Result
 
-	features, requiredComponents, err := feature.BuildFeaturesV1(instance, reconcilerOptionsToFeatureOptions(&r.options, logger))
-	if err != nil {
-		return result, fmt.Errorf("unable to build features, err: %w", err)
-	}
-	logger.Info("requiredComponents status:", "agent", requiredComponents.Agent, "cluster-agent", requiredComponents.ClusterAgent, "cluster-checks-runner", requiredComponents.ClusterChecksRunner)
+	features, requiredComponents := feature.BuildFeaturesV1(instance, reconcilerOptionsToFeatureOptions(&r.options, logger))
 
 	// -----------------------
 	// Manage dependencies
@@ -172,7 +175,7 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, 
 	resourcesManager := feature.NewResourceManagers(depsStore)
 	var errs []error
 	for _, feat := range features {
-		if featErr := feat.ManageDependencies(resourcesManager, requiredComponents); err != nil {
+		if featErr := feat.ManageDependencies(resourcesManager, requiredComponents); featErr != nil {
 			errs = append(errs, featErr)
 		}
 	}
@@ -190,6 +193,7 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, 
 		r.reconcileClusterChecksRunner,
 		r.reconcileAgent,
 	}
+	var err error
 	for _, reconcileFunc := range reconcileFuncs {
 		result, err = reconcileFunc(logger, features, instance, newStatus)
 		if utils.ShouldReturn(result, err) {
@@ -260,9 +264,17 @@ func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, agentdeployment *d
 // setMetricsForwarderStatus sets the metrics forwarder status condition if enabled
 func (r *Reconciler) setMetricsForwarderStatus(logger logr.Logger, agentdeployment *datadoghqv1alpha1.DatadogAgent, newStatus *datadoghqv1alpha1.DatadogAgentStatus) {
 	if r.options.OperatorMetricsEnabled {
-		if metricsCondition := r.forwarders.MetricsForwarderStatusForObj(agentdeployment); metricsCondition != nil {
-			logger.V(1).Info("metrics conditions status not available")
-			condition.SetDatadogAgentStatusCondition(newStatus, metricsCondition)
+		if forwarderCondition := r.forwarders.MetricsForwarderStatusForObj(agentdeployment); forwarderCondition != nil {
+			condition.UpdateDatadogAgentStatusConditions(
+				newStatus,
+				forwarderCondition.LastUpdateTime,
+				datadoghqv1alpha1.DatadogAgentConditionType(forwarderCondition.ConditionType),
+				condition.GetCoreV1ConditionStatus(forwarderCondition.Status),
+				forwarderCondition.Reason,
+				true,
+			)
+		} else {
+			logger.V(1).Info("metrics forwarder status condition could not be set")
 		}
 	}
 }

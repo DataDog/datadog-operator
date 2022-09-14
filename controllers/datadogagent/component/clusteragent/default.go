@@ -143,14 +143,17 @@ func defaultEnvVars(dda metav1.Object) []corev1.EnvVar {
 func DefaultAffinity() *corev1.Affinity {
 	return &corev1.Affinity{
 		PodAntiAffinity: &corev1.PodAntiAffinity{
-			RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+			PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
 				{
-					LabelSelector: &metav1.LabelSelector{
-						MatchLabels: map[string]string{
-							apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultClusterAgentResourceSuffix,
+					Weight: 50,
+					PodAffinityTerm: corev1.PodAffinityTerm{
+						LabelSelector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultClusterAgentResourceSuffix,
+							},
 						},
+						TopologyKey: "kubernetes.io/hostname",
 					},
-					TopologyKey: "kubernetes.io/hostname",
 				},
 			},
 		},

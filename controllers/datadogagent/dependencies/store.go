@@ -17,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/go-logr/logr"
 
+	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/version"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -37,6 +39,9 @@ type StoreClient interface {
 	AddOrUpdate(kind kubernetes.ObjectKind, obj client.Object) error
 	Get(kind kubernetes.ObjectKind, namespace, name string) (client.Object, bool)
 	GetOrCreate(kind kubernetes.ObjectKind, namespace, name string) (client.Object, bool)
+	GetVersionInfo() string
+	Delete(kind kubernetes.ObjectKind, namespace string, name string) bool
+	DeleteAll(ctx context.Context, k8sClient client.Client) []error
 }
 
 // NewStore returns a new Store instance
@@ -47,6 +52,7 @@ func NewStore(owner metav1.Object, options *StoreOptions) *Store {
 	}
 	if options != nil {
 		store.supportCilium = options.SupportCilium
+		store.versionInfo = options.VersionInfo
 		store.logger = options.Logger
 		store.scheme = options.Scheme
 	}
@@ -61,6 +67,7 @@ type Store struct {
 	mutex sync.RWMutex
 
 	supportCilium bool
+	versionInfo   *version.Info
 
 	scheme *runtime.Scheme
 	logger logr.Logger
@@ -70,6 +77,7 @@ type Store struct {
 // StoreOptions use to provide to NewStore() function some Store creation options.
 type StoreOptions struct {
 	SupportCilium bool
+	VersionInfo   *version.Info
 
 	Scheme *runtime.Scheme
 	Logger logr.Logger
@@ -166,6 +174,22 @@ func (ds *Store) GetOrCreate(kind kubernetes.ObjectKind, namespace, name string)
 	return obj, found
 }
 
+// Delete deletes an item from the store by kind, namespace and name.
+func (ds *Store) Delete(kind kubernetes.ObjectKind, namespace string, name string) bool {
+	ds.mutex.RLock()
+	defer ds.mutex.RUnlock()
+
+	if _, found := ds.deps[kind]; !found {
+		return false
+	}
+	id := buildID(namespace, name)
+	if _, found := ds.deps[kind][id]; found {
+		delete(ds.deps[kind], id)
+		return true
+	}
+	return false
+}
+
 // Apply use to create/update resources in the api-server
 func (ds *Store) Apply(ctx context.Context, k8sClient client.Client) []error {
 	ds.mutex.RLock()
@@ -181,16 +205,23 @@ func (ds *Store) Apply(ctx context.Context, k8sClient client.Client) []error {
 			err := k8sClient.Get(ctx, objNSName, objAPIServer)
 			if err != nil && apierrors.IsNotFound(err) {
 				ds.logger.V(2).Info("dependencies.store Add object to create", "obj.namespace", objStore.GetNamespace(), "obj.name", objStore.GetName(), "obj.kind", kind)
-				objsToCreate = append(objsToCreate, ds.deps[kind][objID])
+				objsToCreate = append(objsToCreate, objStore)
 				continue
 			} else if err != nil {
 				errs = append(errs, err)
 				continue
 			}
 
+			// ServicesKind is a special case; the cluster IPs are immutable and resource version must be set.
+			if kind == kubernetes.ServicesKind {
+				objStore.(*v1.Service).Spec.ClusterIP = objAPIServer.(*v1.Service).Spec.ClusterIP
+				objStore.(*v1.Service).Spec.ClusterIPs = objAPIServer.(*v1.Service).Spec.ClusterIPs
+				objStore.SetResourceVersion(objAPIServer.GetResourceVersion())
+			}
+
 			if !equality.IsEqualObject(kind, objStore, objAPIServer) {
 				ds.logger.V(2).Info("dependencies.store Add object to update", "obj.namespace", objStore.GetNamespace(), "obj.name", objStore.GetName(), "obj.kind", kind)
-				objsToUpdate = append(objsToUpdate, ds.deps[kind][objID])
+				objsToUpdate = append(objsToUpdate, objStore)
 				continue
 			}
 		}
@@ -241,6 +272,57 @@ func (ds *Store) Cleanup(ctx context.Context, k8sClient client.Client, ddaNs, dd
 	}
 
 	return errs
+}
+
+// GetVersionInfo returns the Kubernetes version
+func (ds *Store) GetVersionInfo() string {
+	// versionInfo may not be set in tests
+	if ds.versionInfo != nil {
+		return ds.versionInfo.GitVersion
+	}
+	return ""
+}
+
+// DeleteAll deletes all the resources that are in the Store
+func (ds *Store) DeleteAll(ctx context.Context, k8sClient client.Client) []error {
+	ds.mutex.RLock()
+	defer ds.mutex.RUnlock()
+
+	var objsToDelete []client.Object
+
+	for _, kind := range kubernetes.GetResourcesKind(ds.supportCilium) {
+		requirementLabel, _ := labels.NewRequirement(operatorStoreLabelKey, selection.Exists, nil)
+		listOptions := &client.ListOptions{
+			LabelSelector: labels.NewSelector().Add(*requirementLabel),
+		}
+		objList := kubernetes.ObjectListFromKind(kind)
+		if err := k8sClient.List(ctx, objList, listOptions); err != nil {
+			return []error{err}
+		}
+
+		items, err := apimeta.ExtractList(objList)
+		if err != nil {
+			return []error{err}
+		}
+
+		for _, objAPIServer := range items {
+			objMeta, _ := apimeta.Accessor(objAPIServer)
+
+			idObj := buildID(objMeta.GetNamespace(), objMeta.GetName())
+			if _, found := ds.deps[kind][idObj]; found {
+				partialObj := &metav1.PartialObjectMetadata{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      objMeta.GetName(),
+						Namespace: objMeta.GetNamespace(),
+					},
+				}
+				partialObj.TypeMeta.SetGroupVersionKind(objAPIServer.GetObjectKind().GroupVersionKind())
+				objsToDelete = append(objsToDelete, partialObj)
+			}
+		}
+	}
+
+	return deleteObjects(ctx, k8sClient, objsToDelete)
 }
 
 func listObjectToDelete(objList client.ObjectList, cacheObjects map[string]client.Object) ([]client.Object, error) {

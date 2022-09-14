@@ -39,6 +39,11 @@ type eventCollectionFeature struct {
 	owner              metav1.Object
 }
 
+// ID returns the ID of the Feature
+func (f *eventCollectionFeature) ID() feature.IDType {
+	return feature.EventCollectionIDType
+}
+
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *eventCollectionFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda
@@ -103,14 +108,14 @@ func (f *eventCollectionFeature) ManageDependencies(managers feature.ResourceMan
 	// hardcoding leader election RBAC for now
 	// can look into separating this out later if this needs to be configurable for other features
 	leaderElectionResourceName := utils.GetDatadogLeaderElectionResourceName(f.owner)
-	err := managers.RBACManager().AddClusterPolicyRules("", rbacName, f.serviceAccountName, getLeaderElectionRBACPolicyRules(leaderElectionResourceName))
+	err := managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), rbacName, f.serviceAccountName, getLeaderElectionRBACPolicyRules(leaderElectionResourceName))
 	if err != nil {
 		return err
 	}
 
 	// event collection RBAC
 	tokenResourceName := v2alpha1.GetDefaultDCATokenSecretName(f.owner)
-	return managers.RBACManager().AddClusterPolicyRules("", rbacName, f.serviceAccountName, getRBACPolicyRules(tokenResourceName))
+	return managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), rbacName, f.serviceAccountName, getRBACPolicyRules(tokenResourceName))
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec

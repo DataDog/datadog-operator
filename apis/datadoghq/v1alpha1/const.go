@@ -14,10 +14,6 @@ const (
 	TmpVolumePath          = "/tmp"
 	CertificatesVolumeName = "certificates"
 	CertificatesVolumePath = "/etc/datadog-agent/certificates"
-	APMSocketVolumeName    = "apmsocket"
-	APMSocketVolumePath    = "/var/run/datadog/apm"
-	ChecksdVolumeName      = "checksd"
-	ChecksdVolumePath      = "/checks.d"
 
 	ProcVolumeName                       = "procdir"
 	ProcVolumePath                       = "/host/proc"
@@ -31,7 +27,6 @@ const (
 	CgroupsVolumeReadOnly                = true
 	SystemProbeSocketVolumeName          = "sysprobe-socket-dir"
 	SystemProbeSocketVolumePath          = "/var/run/sysprobe"
-	CriSocketVolumeName                  = "runtimesocketdir"
 	CriSocketVolumeReadOnly              = true
 	PointerVolumeName                    = "pointerdir"
 	PointerVolumePath                    = "/opt/datadog-agent/run"
@@ -54,13 +49,7 @@ const (
 	SystemProbeLibModulesVolumePath      = "/lib/modules"
 	SystemProbeUsrSrcVolumeName          = "src"
 	SystemProbeUsrSrcVolumePath          = "/usr/src"
-	AgentCustomConfigVolumeName          = "custom-datadog-yaml"
-	AgentCustomConfigVolumeSubPath       = "datadog.yaml"
-	KubeletCAVolumeName                  = "kubelet-ca"
-	DefaultKubeletAgentCAPath            = "/var/run/host-kubelet-ca.crt"
 	OrchestratorExplorerConfigVolumeName = "orchestrator-explorer-config"
-
-	HostCriSocketPathPrefix = "/host"
 
 	SecurityAgentRuntimeCustomPoliciesVolumeName     = "customruntimepolicies"
 	SecurityAgentRuntimePoliciesDirVolumeName        = "runtimepoliciesdir"
@@ -69,27 +58,9 @@ const (
 	SecurityAgentComplianceConfigDirVolumeName       = "compliancedir"
 	SecurityAgentComplianceConfigDirVolumePath       = "/etc/datadog-agent/compliance.d"
 
-	ClusterAgentCustomConfigVolumeName    = "custom-datadog-yaml"
-	ClusterAgentCustomConfigVolumePath    = "/etc/datadog-agent/datadog-cluster.yaml"
-	ClusterAgentCustomConfigVolumeSubPath = "datadog-cluster.yaml"
-
 	SysteProbeAppArmorAnnotationKey   = "container.apparmor.security.beta.kubernetes.io/system-probe"
 	SysteProbeSeccompAnnotationKey    = "container.seccomp.security.alpha.kubernetes.io/system-probe"
 	SystemProbeOSReleaseDirVolumeName = "host-osrelease"
 	SystemProbeOSReleaseDirVolumePath = "/etc/os-release"
 	SystemProbeOSReleaseDirMountPath  = "/host/etc/os-release"
-
-	// Extra config provider names
-
-	KubeServicesConfigProvider              = "kube_services"
-	KubeEndpointsConfigProvider             = "kube_endpoints"
-	KubeServicesAndEndpointsConfigProviders = "kube_services kube_endpoints"
-	EndpointsChecksConfigProvider           = "endpointschecks"
-	ClusterAndEndpointsConfigPoviders       = "clusterchecks endpointschecks"
-
-	// Extra listeners
-
-	KubeServicesListener              = "kube_services"
-	KubeEndpointsListener             = "kube_endpoints"
-	KubeServicesAndEndpointsListeners = "kube_services kube_endpoints"
 )

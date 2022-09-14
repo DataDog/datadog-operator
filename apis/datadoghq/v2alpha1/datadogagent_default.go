@@ -7,6 +7,7 @@ package v2alpha1
 
 import (
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
+	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 )
 
@@ -33,7 +34,7 @@ const (
 	defaultAPMHostPortEnabled bool   = false
 	defaultAPMHostPort        int32  = 8126
 	defaultAPMSocketEnabled   bool   = true
-	defaultAPMSocketPath      string = "/var/run/datadog/apm.sock"
+	defaultAPMSocketPath      string = "/var/run/datadog/apm/apm.sock"
 
 	// defaultCSPMEnabled              bool = false
 	// defaultCWSEnabled               bool = false
@@ -49,23 +50,23 @@ const (
 	defaultDogstatsdHostPortEnabled        bool   = false
 	defaultDogstatsdPort                   int32  = 8125
 	defaultDogstatsdSocketEnabled          bool   = true
-	defaultDogstatsdSocketPath             string = "/var/run/datadog/dsd.socket"
+	defaultDogstatsdSocketPath             string = "/var/run/datadog/statsd/dsd.socket"
 
 	defaultCollectKubernetesEvents bool = true
 
 	// defaultAdmissionControllerEnabled          bool = false
-	defaultAdmissionControllerMutateUnlabelled bool = false
+	defaultAdmissionControllerMutateUnlabelled bool   = false
+	defaultAdmissionServiceName                string = "datadog-admission-controller"
 
-	defaultOrchestratorExplorerEnabled bool   = true
-	DefaultOrchestratorExplorerConf    string = "orchestrator-explorer-config"
+	defaultOrchestratorExplorerEnabled         bool = true
+	defaultOrchestratorExplorerScrubContainers bool = true
 
 	// defaultExternalMetricsServerEnabled bool = false
 	defaultDatadogMetricsEnabled bool = true
 	// Cluster Agent versions < 1.20 should use 443
 	defaultMetricsProviderPort int32 = 8443
 
-	defaultKubeStateMetricsCoreEnabled bool   = true
-	defaultKubeStateMetricsCoreConf    string = "kube-state-metrics-core-config"
+	defaultKubeStateMetricsCoreEnabled bool = true
 
 	defaultClusterChecksEnabled    bool = true
 	defaultUseClusterChecksRunners bool = true
@@ -73,7 +74,8 @@ const (
 	// defaultPrometheusScrapeEnabled                bool = false
 	defaultPrometheusScrapeEnableServiceEndpoints bool = false
 
-	// defaultDatadogMonitorEnabled bool = false
+	defaultKubeletAgentCAPath            = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+	defaultKubeletAgentCAPathHostPathSet = "/var/run/host-kubelet-ca.crt"
 )
 
 // DefaultDatadogAgent defaults the DatadogAgentSpec GlobalConfig and Features.
@@ -99,6 +101,18 @@ func defaultGlobalConfig(ddaSpec *DatadogAgentSpec) {
 
 	if ddaSpec.Global.LogLevel == nil {
 		ddaSpec.Global.LogLevel = apiutils.NewStringPointer(defaultLogLevel)
+	}
+
+	if ddaSpec.Global.Kubelet == nil {
+		ddaSpec.Global.Kubelet = &commonv1.KubeletConfig{
+			AgentCAPath: defaultKubeletAgentCAPath,
+		}
+	} else if ddaSpec.Global.Kubelet.AgentCAPath == "" {
+		if ddaSpec.Global.Kubelet.HostCAPath != "" {
+			ddaSpec.Global.Kubelet.AgentCAPath = defaultKubeletAgentCAPathHostPathSet
+		} else {
+			ddaSpec.Global.Kubelet.AgentCAPath = defaultKubeletAgentCAPath
+		}
 	}
 }
 
@@ -202,11 +216,7 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 	}
 
 	if *ddaSpec.Features.OrchestratorExplorer.Enabled {
-		if ddaSpec.Features.OrchestratorExplorer.Conf == nil {
-			ddaSpec.Features.OrchestratorExplorer.Conf = &CustomConfig{
-				ConfigData: apiutils.NewStringPointer(DefaultOrchestratorExplorerConf),
-			}
-		}
+		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.OrchestratorExplorer.ScrubContainers, defaultOrchestratorExplorerScrubContainers)
 	}
 
 	// KubeStateMetricsCore check Feature
@@ -216,17 +226,10 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 		}
 	}
 
-	if *ddaSpec.Features.KubeStateMetricsCore.Enabled {
-		if ddaSpec.Features.KubeStateMetricsCore.Conf == nil {
-			ddaSpec.Features.KubeStateMetricsCore.Conf = &CustomConfig{
-				ConfigData: apiutils.NewStringPointer(defaultKubeStateMetricsCoreConf),
-			}
-		}
-	}
-
 	// AdmissionController Feature
 	if ddaSpec.Features.AdmissionController != nil && *ddaSpec.Features.AdmissionController.Enabled {
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.AdmissionController.MutateUnlabelled, defaultAdmissionControllerMutateUnlabelled)
+		apiutils.DefaultStringIfUnset(&ddaSpec.Features.AdmissionController.ServiceName, defaultAdmissionServiceName)
 	}
 
 	// ExternalMetricsServer Feature

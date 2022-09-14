@@ -13,10 +13,12 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/plugin/common"
 )
@@ -135,6 +137,12 @@ func (o *Options) Run() error {
 		datadogAgent := &v1alpha1.DatadogAgent{}
 		err := o.Client.Get(context.TODO(), client.ObjectKey{Namespace: o.UserNamespace, Name: o.datadogAgentName}, datadogAgent)
 		if err != nil {
+			if errors.IsNotFound(err) {
+				o.printOutf("Got a not found error while getting %s/%s. Assuming this DatadogAgent CR has never been deployed in this environment", o.UserNamespace, o.datadogAgentName)
+
+				return true, nil
+			}
+
 			return false, fmt.Errorf("unable to get DatadogAgent, err: %w", err)
 		}
 
@@ -174,7 +182,7 @@ func (o *Options) Run() error {
 	return wait.Poll(o.checkPeriod, o.checkTimeout, checkFunc)
 }
 
-func (o *Options) isAgentDone(status *v1alpha1.DaemonSetStatus) bool {
+func (o *Options) isAgentDone(status *commonv1.DaemonSetStatus) bool {
 	if status == nil {
 		return true
 	}
@@ -188,7 +196,7 @@ func (o *Options) isAgentDone(status *v1alpha1.DaemonSetStatus) bool {
 	return false
 }
 
-func (o *Options) isDeploymentDone(status *v1alpha1.DeploymentStatus, minUpToDate int32, component string) bool {
+func (o *Options) isDeploymentDone(status *commonv1.DeploymentStatus, minUpToDate int32, component string) bool {
 	if status == nil {
 		return true
 	}

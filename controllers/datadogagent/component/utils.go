@@ -7,11 +7,25 @@ package component
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
+	netv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
+	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/utils"
+)
+
+const (
+	localServiceMinimumVersion        = "1.21-0"
+	localServiceDefaultMinimumVersion = "1.22-0"
 )
 
 // GetVolumeForConfig return the volume that contains the agent config
@@ -235,6 +249,27 @@ func GetVolumeMountForDogstatsdSocket(readOnly bool) corev1.VolumeMount {
 	}
 }
 
+// GetVolumeForRuntimeSocket returns the Volume for the runtime socket
+func GetVolumeForRuntimeSocket() corev1.Volume {
+	return corev1.Volume{
+		Name: apicommon.CriSocketVolumeName,
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: apicommon.RuntimeDirVolumePath,
+			},
+		},
+	}
+}
+
+// GetVolumeMountForRuntimeSocket returns the VolumeMount with the runtime socket
+func GetVolumeMountForRuntimeSocket(readOnly bool) corev1.VolumeMount {
+	return corev1.VolumeMount{
+		Name:      apicommon.CriSocketVolumeName,
+		MountPath: apicommon.HostCriSocketPathPrefix + apicommon.RuntimeDirVolumePath,
+		ReadOnly:  readOnly,
+	}
+}
+
 // GetClusterAgentServiceName return the Cluster-Agent service name based on the DatadogAgent name
 func GetClusterAgentServiceName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultClusterAgentResourceSuffix)
@@ -249,6 +284,11 @@ func GetClusterAgentName(dda metav1.Object) string {
 func GetClusterAgentVersion(dda metav1.Object) string {
 	// Todo implement this function
 	return ""
+}
+
+// GetAgentServiceName return the Agent service name based on the DatadogAgent name
+func GetAgentServiceName(dda metav1.Object) string {
+	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultAgentResourceSuffix)
 }
 
 // GetAgentName return the Agent name based on the DatadogAgent info
@@ -283,6 +323,683 @@ func BuildEnvVarFromSecret(name, key string) *corev1.EnvVarSource {
 				Name: name,
 			},
 			Key: key,
+		},
+	}
+}
+
+// BuildKubernetesNetworkPolicy creates the base node agent kubernetes network policy
+func BuildKubernetesNetworkPolicy(dda metav1.Object, componentName v2alpha1.ComponentName) (string, string, metav1.LabelSelector, []netv1.PolicyType, []netv1.NetworkPolicyIngressRule, []netv1.NetworkPolicyEgressRule) {
+	policyName, podSelector := GetNetworkPolicyMetadata(dda, componentName)
+	ddaNamespace := dda.GetNamespace()
+
+	policyTypes := []netv1.PolicyType{
+		netv1.PolicyTypeIngress,
+		netv1.PolicyTypeEgress,
+	}
+
+	var egress []netv1.NetworkPolicyEgressRule
+	var ingress []netv1.NetworkPolicyIngressRule
+
+	switch componentName {
+	case v2alpha1.NodeAgentComponentName:
+		// The agents are susceptible to connect to any pod that would
+		// be annotated with auto-discovery annotations.
+		//
+		// When a user wants to add a check on one of its pod, they
+		// need to
+		// * annotate its pod
+		// * add an ingress policy from the agent on its own pod
+		// In order to not ask end-users to inject NetworkPolicy on the
+		// agent in the agent namespace, the agent must be allowed to
+		// probe any pod.
+		egress = []netv1.NetworkPolicyEgressRule{
+			{
+				Ports: append([]netv1.NetworkPolicyPort{}, ddIntakePort()),
+			},
+		}
+		ingress = []netv1.NetworkPolicyIngressRule{}
+	case v2alpha1.ClusterAgentComponentName:
+		_, nodeAgentPodSelector := GetNetworkPolicyMetadata(dda, v2alpha1.NodeAgentComponentName)
+		egress = []netv1.NetworkPolicyEgressRule{
+			{
+				Ports: append([]netv1.NetworkPolicyPort{}, ddIntakePort()),
+			},
+			// Egress to other cluster agents
+			{
+				Ports: append([]netv1.NetworkPolicyPort{}, dcaServicePort()),
+				To: []netv1.NetworkPolicyPeer{
+					{
+						PodSelector: &podSelector,
+					},
+				},
+			},
+		}
+		ingress = []netv1.NetworkPolicyIngressRule{
+			// Ingress from the node agents (for the metadata provider) and other cluster agents
+			{
+				Ports: append([]netv1.NetworkPolicyPort{}, dcaServicePort()),
+				From: []netv1.NetworkPolicyPeer{
+					{
+						PodSelector: &nodeAgentPodSelector,
+					},
+					{
+						PodSelector: &podSelector,
+					},
+				},
+			},
+			// Ingress from the node agents (for the prometheus check)
+			{
+				Ports: []netv1.NetworkPolicyPort{
+					{
+						Port: &intstr.IntOrString{
+							Type:   intstr.Int,
+							IntVal: 5000,
+						},
+					},
+				},
+				From: []netv1.NetworkPolicyPeer{
+					{
+						PodSelector: &nodeAgentPodSelector,
+					},
+				},
+			},
+		}
+	case v2alpha1.ClusterChecksRunnerComponentName:
+		// The cluster check runners are susceptible to connect to any service
+		// that would be annotated with auto-discovery annotations.
+		//
+		// When a user wants to add a check on one of its service, he needs to
+		// * annotate its service
+		// * add an ingress policy from the CLC on its own pod
+		// In order to not ask end-users to inject NetworkPolicy on the agent in
+		// the agent namespace, the agent must be allowed to probe any service.
+		egress = []netv1.NetworkPolicyEgressRule{
+			{
+				Ports: append([]netv1.NetworkPolicyPort{}, ddIntakePort(), dcaServicePort()),
+				To: []netv1.NetworkPolicyPeer{
+					{
+						PodSelector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								"app": policyName,
+							},
+						},
+					},
+				},
+			},
+		}
+		ingress = []netv1.NetworkPolicyIngressRule{}
+	}
+
+	return policyName, ddaNamespace, podSelector, policyTypes, ingress, egress
+}
+
+// GetNetworkPolicyMetadata generates a label selector based on component
+func GetNetworkPolicyMetadata(dda metav1.Object, componentName v2alpha1.ComponentName) (policyName string, podSelector metav1.LabelSelector) {
+	var suffix string
+	switch componentName {
+	case v2alpha1.NodeAgentComponentName:
+		policyName = GetAgentName(dda)
+		suffix = apicommon.DefaultAgentResourceSuffix
+	case v2alpha1.ClusterAgentComponentName:
+		policyName = GetClusterAgentName(dda)
+		suffix = apicommon.DefaultClusterAgentResourceSuffix
+	case v2alpha1.ClusterChecksRunnerComponentName:
+		policyName = GetClusterChecksRunnerName(dda)
+		suffix = apicommon.DefaultClusterChecksRunnerResourceSuffix
+	}
+	podSelector = metav1.LabelSelector{
+		MatchLabels: map[string]string{
+			kubernetes.AppKubernetesInstanceLabelKey: suffix,
+			kubernetes.AppKubernetesPartOfLabelKey:   object.NewPartOfLabelValue(dda).String(),
+		},
+	}
+	return policyName, podSelector
+}
+
+// datadog intake and kubeapi server port
+func ddIntakePort() netv1.NetworkPolicyPort {
+	return netv1.NetworkPolicyPort{
+		Port: &intstr.IntOrString{
+			Type:   intstr.Int,
+			IntVal: 443,
+		},
+	}
+}
+
+// cluster agent service port
+func dcaServicePort() netv1.NetworkPolicyPort {
+	return netv1.NetworkPolicyPort{
+		Port: &intstr.IntOrString{
+			Type:   intstr.Int,
+			IntVal: apicommon.DefaultClusterAgentServicePort,
+		},
+	}
+}
+
+// BuildAgentLocalService creates a local service for the node agent
+func BuildAgentLocalService(dda metav1.Object, name string) (string, string, map[string]string, []corev1.ServicePort, *corev1.ServiceInternalTrafficPolicyType) {
+	if name == "" {
+		name = GetAgentServiceName(dda)
+	}
+	serviceInternalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
+	selector := map[string]string{
+		apicommon.AgentDeploymentNameLabelKey:      dda.GetName(),
+		apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
+	}
+	ports := []corev1.ServicePort{
+		{
+			Protocol:   corev1.ProtocolUDP,
+			TargetPort: intstr.FromInt(apicommon.DefaultDogstatsdPort),
+			Port:       apicommon.DefaultDogstatsdPort,
+			Name:       apicommon.DefaultDogstatsdPortName,
+		},
+	}
+	return name, dda.GetNamespace(), selector, ports, &serviceInternalTrafficPolicy
+}
+
+// ShouldCreateAgentLocalService returns whether the node agent local service should be created based on the Kubernetes version
+func ShouldCreateAgentLocalService(gitVersion string, forceEnableLocalService bool) bool {
+	// Service Internal Traffic Policy exists in Kube 1.21 but it is enabled by default since 1.22
+	return utils.IsAboveMinVersion(gitVersion, localServiceDefaultMinimumVersion) || (utils.IsAboveMinVersion(gitVersion, localServiceMinimumVersion) && forceEnableLocalService)
+}
+
+// BuildCiliumPolicy creates the base node agent, DCA, or CCR cilium network policy
+func BuildCiliumPolicy(dda metav1.Object, site string, ddURL string, hostNetwork bool, dnsSelectorEndpoints []metav1.LabelSelector, componentName v2alpha1.ComponentName) (string, string, []cilium.NetworkPolicySpec) {
+	policyName, podSelector := GetNetworkPolicyMetadata(dda, componentName)
+	var policySpecs []cilium.NetworkPolicySpec
+
+	switch componentName {
+	case v2alpha1.NodeAgentComponentName:
+		policySpecs = []cilium.NetworkPolicySpec{
+			egressECSPorts(podSelector),
+			egressNTP(podSelector),
+			egressMetadataServerRule(podSelector),
+			egressDNS(podSelector, dnsSelectorEndpoints),
+			egressAgentDatadogIntake(podSelector, site, ddURL),
+			egressKubelet(podSelector),
+			ingressDogstatsd(podSelector),
+			egressChecks(podSelector),
+		}
+	case v2alpha1.ClusterAgentComponentName:
+		_, nodeAgentPodSelector := GetNetworkPolicyMetadata(dda, v2alpha1.NodeAgentComponentName)
+		policySpecs = []cilium.NetworkPolicySpec{
+			egressMetadataServerRule(podSelector),
+			egressDNS(podSelector, dnsSelectorEndpoints),
+			egressDCADatadogIntake(podSelector, site, ddURL),
+			egressKubeAPIServer(),
+			ingressAgent(podSelector, dda, hostNetwork),
+			ingressDCA(podSelector, nodeAgentPodSelector),
+			egressDCA(podSelector, nodeAgentPodSelector),
+		}
+	case v2alpha1.ClusterChecksRunnerComponentName:
+		policySpecs = []cilium.NetworkPolicySpec{
+			egressMetadataServerRule(podSelector),
+			egressDNS(podSelector, dnsSelectorEndpoints),
+			egressCCRDatadogIntake(podSelector, site, ddURL),
+			egressCCRToDCA(podSelector, dda),
+			egressChecks(podSelector),
+		}
+	}
+	return policyName, dda.GetNamespace(), policySpecs
+}
+
+// cilium egress ports for ECS
+func egressECSPorts(podSelector metav1.LabelSelector) cilium.NetworkPolicySpec {
+	return cilium.NetworkPolicySpec{
+		Description:      "Egress to ECS agent port 51678",
+		EndpointSelector: podSelector,
+		Egress: []cilium.EgressRule{
+			{
+				ToEntities: []cilium.Entity{cilium.EntityHost},
+				ToPorts: []cilium.PortRule{
+					{
+						Ports: []cilium.PortProtocol{
+							{
+								Port:     "51678",
+								Protocol: cilium.ProtocolTCP,
+							},
+						},
+					},
+				},
+			},
+			{
+				ToCIDR: []string{"169.254.0.0/16"},
+				ToPorts: []cilium.PortRule{
+					{
+						Ports: []cilium.PortProtocol{
+							{
+								Port:     "51678",
+								Protocol: cilium.ProtocolTCP,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+// cilium NTP egress
+func egressNTP(podSelector metav1.LabelSelector) cilium.NetworkPolicySpec {
+	return cilium.NetworkPolicySpec{
+		Description:      "Egress to ntp",
+		EndpointSelector: podSelector,
+		Egress: []cilium.EgressRule{
+			{
+				ToPorts: []cilium.PortRule{
+					{
+						Ports: []cilium.PortProtocol{
+							{
+								Port:     "123",
+								Protocol: cilium.ProtocolUDP,
+							},
+						},
+					},
+				},
+				ToFQDNs: []cilium.FQDNSelector{
+					{
+						MatchPattern: "*.datadog.pool.ntp.org",
+					},
+				},
+			},
+		},
+	}
+}
+
+// cilium egress for agent intake endpoints
+func egressAgentDatadogIntake(podSelector metav1.LabelSelector, site string, ddURL string) cilium.NetworkPolicySpec {
+	return cilium.NetworkPolicySpec{
+		Description:      "Egress to Datadog intake",
+		EndpointSelector: podSelector,
+		Egress: []cilium.EgressRule{
+			{
+				ToFQDNs: append(defaultDDFQDNs(site, ddURL), []cilium.FQDNSelector{
+					{
+						MatchName: fmt.Sprintf("api.%s", site),
+					},
+					{
+						MatchName: fmt.Sprintf("agent-intake.logs.%s", site),
+					},
+					{
+						MatchName: fmt.Sprintf("agent-http-intake.logs.%s", site),
+					},
+					{
+						MatchName: fmt.Sprintf("process.%s", site),
+					},
+					{
+						MatchName: fmt.Sprintf("orchestrator.%s", site),
+					},
+				}...),
+				ToPorts: []cilium.PortRule{
+					{
+						Ports: []cilium.PortProtocol{
+							{
+								Port:     "443",
+								Protocol: cilium.ProtocolTCP,
+							},
+							{
+								Port:     "10516",
+								Protocol: cilium.ProtocolTCP,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+// cilium egress for DCA intake endpoints
+func egressDCADatadogIntake(podSelector metav1.LabelSelector, site string, ddURL string) cilium.NetworkPolicySpec {
+	return cilium.NetworkPolicySpec{
+		Description:      "Egress to Datadog intake",
+		EndpointSelector: podSelector,
+		Egress: []cilium.EgressRule{
+			{
+				ToFQDNs: append(defaultDDFQDNs(site, ddURL), cilium.FQDNSelector{MatchName: fmt.Sprintf("orchestrator.%s", site)}),
+				ToPorts: []cilium.PortRule{
+					{
+						Ports: []cilium.PortProtocol{
+							{
+								Port:     "443",
+								Protocol: cilium.ProtocolTCP,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+// cilium egress for CCR intake endpoints
+func egressCCRDatadogIntake(podSelector metav1.LabelSelector, site string, ddURL string) cilium.NetworkPolicySpec {
+	return cilium.NetworkPolicySpec{
+		Description:      "Egress to Datadog intake",
+		EndpointSelector: podSelector,
+		Egress: []cilium.EgressRule{
+			{
+				ToFQDNs: defaultDDFQDNs(site, ddURL),
+				ToPorts: []cilium.PortRule{
+					{
+						Ports: []cilium.PortProtocol{
+							{
+								Port:     "443",
+								Protocol: cilium.ProtocolTCP,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+// cilium egress to kubelet
+func egressKubelet(podSelector metav1.LabelSelector) cilium.NetworkPolicySpec {
+	return cilium.NetworkPolicySpec{
+		Description:      "Egress to kubelet",
+		EndpointSelector: podSelector,
+		Egress: []cilium.EgressRule{
+			{
+				ToEntities: []cilium.Entity{
+					cilium.EntityHost,
+				},
+				ToPorts: []cilium.PortRule{
+					{
+						Ports: []cilium.PortProtocol{
+							{
+								Port:     "10250",
+								Protocol: cilium.ProtocolTCP,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+// cilium ingress for dogstatsd
+func ingressDogstatsd(podSelector metav1.LabelSelector) cilium.NetworkPolicySpec {
+	return cilium.NetworkPolicySpec{
+		Description:      "Ingress for dogstatsd",
+		EndpointSelector: podSelector,
+		Ingress: []cilium.IngressRule{
+			{
+				FromEndpoints: []metav1.LabelSelector{
+					{},
+				},
+				ToPorts: []cilium.PortRule{
+					{
+						Ports: []cilium.PortProtocol{
+							{
+								Port:     strconv.Itoa(apicommon.DefaultDogstatsdPort),
+								Protocol: cilium.ProtocolUDP,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+// cilium egress to metadata server for cloud providers
+func egressMetadataServerRule(podSelector metav1.LabelSelector) cilium.NetworkPolicySpec {
+	return cilium.NetworkPolicySpec{
+		Description:      "Egress to metadata server",
+		EndpointSelector: podSelector,
+		Egress: []cilium.EgressRule{
+			{
+				ToCIDR: []string{"169.254.169.254/32"},
+				ToPorts: []cilium.PortRule{
+					{
+						Ports: []cilium.PortProtocol{
+							{
+								Port:     "80",
+								Protocol: cilium.ProtocolTCP,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+// cilium egress to dns endpoints
+func egressDNS(podSelector metav1.LabelSelector, dnsSelectorEndpoints []metav1.LabelSelector) cilium.NetworkPolicySpec {
+	return cilium.NetworkPolicySpec{
+		Description:      "Egress to DNS",
+		EndpointSelector: podSelector,
+		Egress: []cilium.EgressRule{
+			{
+				ToEndpoints: dnsSelectorEndpoints,
+				ToPorts: []cilium.PortRule{
+					{
+						Ports: []cilium.PortProtocol{
+							{
+								Port:     "53",
+								Protocol: cilium.ProtocolAny,
+							},
+						},
+						Rules: &cilium.L7Rules{
+							DNS: []cilium.FQDNSelector{
+								{
+									MatchPattern: "*",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+// The agents are susceptible to connect to any pod that would be annotated
+// with auto-discovery annotations.
+//
+// When a user wants to add a check on one of its pod, he needs to
+// * annotate its pod
+// * add an ingress policy from the agent on its own pod
+//
+// In order to not ask end-users to inject NetworkPolicy on the agent in the
+// agent namespace, the agent must be allowed to probe any pod.
+func egressChecks(podSelector metav1.LabelSelector) cilium.NetworkPolicySpec {
+	return cilium.NetworkPolicySpec{
+		Description:      "Egress to anything for checks",
+		EndpointSelector: podSelector,
+		Egress: []cilium.EgressRule{
+			{
+				ToEndpoints: []metav1.LabelSelector{
+					{
+						MatchExpressions: []metav1.LabelSelectorRequirement{
+							{
+								Key:      "k8s:io.kubernetes.pod.namespace",
+								Operator: "Exists",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+// cilium egress to kube api server
+func egressKubeAPIServer() cilium.NetworkPolicySpec {
+	return cilium.NetworkPolicySpec{
+		Description: "Egress to Kube API Server",
+		Egress: []cilium.EgressRule{
+			{
+				// ToServices works only for endpoints
+				// outside of the cluster This section
+				// handles the case where the control
+				// plane is outside of the cluster.
+				ToServices: []cilium.Service{
+					{
+						K8sService: &cilium.K8sServiceNamespace{
+							Namespace:   "default",
+							ServiceName: "kubernetes",
+						},
+					},
+				},
+				ToEntities: []cilium.Entity{
+					cilium.EntityHost,
+					cilium.EntityRemoteNode,
+				},
+				ToPorts: []cilium.PortRule{
+					{
+						Ports: []cilium.PortProtocol{
+							{
+								Port:     "443",
+								Protocol: cilium.ProtocolTCP,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+// cilium egress for CCR to DCA
+func egressCCRToDCA(podSelector metav1.LabelSelector, dda metav1.Object) cilium.NetworkPolicySpec {
+	return cilium.NetworkPolicySpec{
+		Description:      "Egress to cluster agent",
+		EndpointSelector: podSelector,
+		Egress: []cilium.EgressRule{
+			{
+				ToPorts: []cilium.PortRule{
+					{
+						Ports: []cilium.PortProtocol{
+							{
+								Port:     "5005",
+								Protocol: cilium.ProtocolTCP,
+							},
+						},
+					},
+				},
+				ToEndpoints: []metav1.LabelSelector{
+					{
+						MatchLabels: map[string]string{
+							kubernetes.AppKubernetesInstanceLabelKey: apicommon.DefaultClusterAgentResourceSuffix,
+							kubernetes.AppKubernetesPartOfLabelKey:   fmt.Sprintf("%s-%s", dda.GetNamespace(), dda.GetName()),
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func defaultDDFQDNs(site, ddURL string) []cilium.FQDNSelector {
+	selectors := []cilium.FQDNSelector{}
+	if ddURL != "" {
+		selectors = append(selectors, cilium.FQDNSelector{
+			MatchName: strings.TrimPrefix(ddURL, "https://"),
+		})
+	}
+
+	selectors = append(selectors, []cilium.FQDNSelector{
+		{
+			MatchPattern: fmt.Sprintf("*-app.agent.%s", site),
+		},
+	}...)
+
+	return selectors
+}
+
+// cilium ingress from agent
+func ingressAgent(podSelector metav1.LabelSelector, dda metav1.Object, hostNetwork bool) cilium.NetworkPolicySpec {
+	ingress := cilium.IngressRule{
+		ToPorts: []cilium.PortRule{
+			{
+				Ports: []cilium.PortProtocol{
+					{
+						Port:     "5000",
+						Protocol: cilium.ProtocolTCP,
+					},
+					{
+						Port:     "5005",
+						Protocol: cilium.ProtocolTCP,
+					},
+				},
+			},
+		},
+	}
+
+	if hostNetwork {
+		ingress.FromEntities = []cilium.Entity{
+			cilium.EntityHost,
+			cilium.EntityRemoteNode,
+		}
+	} else {
+		ingress.FromEndpoints = []metav1.LabelSelector{
+			{
+				MatchLabels: map[string]string{
+					kubernetes.AppKubernetesInstanceLabelKey: GetAgentName(dda),
+					kubernetes.AppKubernetesPartOfLabelKey:   fmt.Sprintf("%s-%s", dda.GetNamespace(), dda.GetName()),
+				},
+			},
+		}
+	}
+
+	return cilium.NetworkPolicySpec{
+		Description:      "Ingress from agent",
+		EndpointSelector: podSelector,
+		Ingress:          []cilium.IngressRule{ingress},
+	}
+}
+
+// cilium ingress from DCA
+func ingressDCA(podSelector metav1.LabelSelector, nodeAgentPodSelector metav1.LabelSelector) cilium.NetworkPolicySpec {
+	return cilium.NetworkPolicySpec{
+		Description:      "Ingress from cluster agent",
+		EndpointSelector: podSelector,
+		Ingress: []cilium.IngressRule{
+			{
+				FromEndpoints: []metav1.LabelSelector{
+					nodeAgentPodSelector,
+				},
+				ToPorts: []cilium.PortRule{
+					{
+						Ports: []cilium.PortProtocol{
+							{
+								Port:     "5005",
+								Protocol: cilium.ProtocolTCP,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+// cilium egress to DCA
+func egressDCA(podSelector metav1.LabelSelector, nodeAgentPodSelector metav1.LabelSelector) cilium.NetworkPolicySpec {
+	return cilium.NetworkPolicySpec{
+		Description:      "Egress to cluster agent",
+		EndpointSelector: podSelector,
+		Egress: []cilium.EgressRule{
+			{
+				ToEndpoints: []metav1.LabelSelector{
+					nodeAgentPodSelector,
+				},
+				ToPorts: []cilium.PortRule{
+					{
+						Ports: []cilium.PortProtocol{
+							{
+								Port:     "5005",
+								Protocol: cilium.ProtocolTCP,
+							},
+						},
+					},
+				},
+			},
 		},
 	}
 }
