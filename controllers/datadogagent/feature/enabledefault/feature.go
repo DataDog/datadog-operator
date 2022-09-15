@@ -9,7 +9,6 @@ import (
 	"fmt"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
-	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
@@ -104,7 +103,7 @@ func (f *defaultFeature) ID() feature.IDType {
 	return feature.DefaultIDType
 }
 
-func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent, newStatus *v2alpha1.DatadogAgentStatus) feature.RequiredComponents {
+func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredComponents {
 	trueValue := true
 	f.owner = dda
 
@@ -157,16 +156,7 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent, newStatus *v2alph
 			f.dcaTokenInfo.secretCreation.createSecret = true
 			f.dcaTokenInfo.secretCreation.name = f.dcaTokenInfo.token.SecretName
 			if dda.Status.ClusterAgent == nil || dda.Status.ClusterAgent.GeneratedToken == "" {
-				generatedToken := apiutils.GenerateRandomString(32)
-				f.dcaTokenInfo.secretCreation.data[apicommon.DefaultTokenKey] = generatedToken
-				if newStatus == nil {
-					newStatus = &v2alpha1.DatadogAgentStatus{}
-				}
-				if newStatus.ClusterAgent == nil {
-					newStatus.ClusterAgent = &commonv1.DeploymentStatus{}
-				}
-				// Persist generated token for subsequent reconcile loops
-				newStatus.ClusterAgent.GeneratedToken = generatedToken
+				f.dcaTokenInfo.secretCreation.data[apicommon.DefaultTokenKey] = apiutils.GenerateRandomString(32)
 			} else {
 				f.dcaTokenInfo.secretCreation.data[apicommon.DefaultTokenKey] = dda.Status.ClusterAgent.GeneratedToken
 			}

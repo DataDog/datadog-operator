@@ -94,7 +94,7 @@ func runTest(t *testing.T, tt FeatureTest, buildFunc feature.BuildFunc) {
 	var dda metav1.Object
 	var isV2 bool
 	if tt.DDAv2 != nil {
-		gotConfigure = f.Configure(tt.DDAv2, nil)
+		gotConfigure = f.Configure(tt.DDAv2)
 		dda = tt.DDAv2
 		isV2 = true
 	} else if tt.DDAv1 != nil {

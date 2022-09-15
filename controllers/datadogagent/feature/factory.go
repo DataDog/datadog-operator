@@ -31,7 +31,7 @@ func Register(id IDType, buildFunc BuildFunc) error {
 }
 
 // BuildFeatures use to build a list features depending of the v1alpha1.DatadogAgent instance
-func BuildFeatures(dda *v2alpha1.DatadogAgent, newStatus *v2alpha1.DatadogAgentStatus, options *Options) ([]Feature, RequiredComponents) {
+func BuildFeatures(dda *v2alpha1.DatadogAgent, options *Options) ([]Feature, RequiredComponents) {
 	builderMutex.RLock()
 	defer builderMutex.RUnlock()
 
@@ -49,7 +49,7 @@ func BuildFeatures(dda *v2alpha1.DatadogAgent, newStatus *v2alpha1.DatadogAgentS
 
 	for _, id := range sortedkeys {
 		feat := featureBuilders[id](options)
-		config := feat.Configure(dda, newStatus)
+		config := feat.Configure(dda)
 		// only add feat to the output if the feature is enabled
 		if config.IsEnabled() {
 			output = append(output, feat)

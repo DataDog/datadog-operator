@@ -95,7 +95,7 @@ func (r *Reconciler) finalizeDadV2(reqLogger logr.Logger, obj client.Object) {
 	// store, and then call the DeleteAll function of the store.
 
 	features, requiredComponents := feature.BuildFeatures(
-		dda, nil, reconcilerOptionsToFeatureOptions(&r.options, reqLogger))
+		dda, reconcilerOptionsToFeatureOptions(&r.options, reqLogger))
 
 	storeOptions := &dependencies.StoreOptions{
 		SupportCilium: r.options.SupportCilium,

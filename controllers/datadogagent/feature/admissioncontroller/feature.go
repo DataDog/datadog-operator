@@ -45,7 +45,7 @@ func (f *admissionControllerFeature) ID() feature.IDType {
 	return feature.AdmissionControllerIDType
 }
 
-func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent, newStatus *v2alpha1.DatadogAgentStatus) (reqComp feature.RequiredComponents) {
+func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda
 	f.serviceAccountName = v2alpha1.GetClusterAgentServiceAccount(dda)
 

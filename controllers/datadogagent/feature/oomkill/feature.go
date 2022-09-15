@@ -40,7 +40,7 @@ func (f *oomKillFeature) ID() feature.IDType {
 }
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
-func (f *oomKillFeature) Configure(dda *v2alpha1.DatadogAgent, newStatus *v2alpha1.DatadogAgentStatus) (reqComp feature.RequiredComponents) {
+func (f *oomKillFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	if dda.Spec.Features != nil && dda.Spec.Features.OOMKill != nil && apiutils.BoolValue(dda.Spec.Features.OOMKill.Enabled) {
 		reqComp.Agent = feature.RequiredComponent{
 			IsRequired: apiutils.NewBoolPointer(true),

@@ -34,7 +34,7 @@ func (f *dummyFeature) ID() feature.IDType {
 	return feature.DummyIDType
 }
 
-func (f *dummyFeature) Configure(dda *v2alpha1.DatadogAgent, newStatus *v2alpha1.DatadogAgentStatus) feature.RequiredComponents {
+func (f *dummyFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredComponents {
 	return feature.RequiredComponents{}
 }
 
