@@ -12698,8 +12698,8 @@ spec:
                 x-kubernetes-preserve-unknown-fields: true
             type: object
         type: object
-    served: true
-    storage: true
+    served: false
+    storage: false
     subresources:
       status: {}
   - additionalPrinterColumns:
@@ -17829,8 +17829,8 @@ spec:
                 x-kubernetes-list-type: map
             type: object
         type: object
-    served: false
-    storage: false
+    served: true
+    storage: true
     subresources:
       status: {}
 status:

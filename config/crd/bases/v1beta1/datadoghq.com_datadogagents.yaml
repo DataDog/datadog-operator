@@ -25644,8 +25644,8 @@ spec:
                 x-kubernetes-preserve-unknown-fields: true
             type: object
         type: object
-    served: true
-    storage: true
+    served: false
+    storage: false
   - additionalPrinterColumns:
     - JSONPath: .status.agent.status
       name: agent
@@ -30773,8 +30773,8 @@ spec:
                 x-kubernetes-list-type: map
             type: object
         type: object
-    served: false
-    storage: false
+    served: true
+    storage: true
 status:
   acceptedNames:
     kind: ""
