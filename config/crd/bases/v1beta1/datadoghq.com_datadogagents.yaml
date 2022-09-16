@@ -26370,8 +26370,21 @@ spec:
                 properties:
                   clusterAgentToken:
                     description: ClusterAgentToken is the token for communication
-                      between the NodeAgent and ClusterAgent
+                      between the NodeAgent and ClusterAgent.
                     type: string
+                  clusterAgentTokenSecret:
+                    description: ClusterAgentTokenSecret is the secret containing
+                      the Cluster Agent token.
+                    properties:
+                      keyName:
+                        description: KeyName is the key of the secret to use.
+                        type: string
+                      secretName:
+                        description: SecretName is the name of the secret.
+                        type: string
+                    required:
+                    - secretName
+                    type: object
                   clusterName:
                     description: ClusterName sets a unique cluster name for the deployment
                       to easily scope monitoring data in the Datadog app.

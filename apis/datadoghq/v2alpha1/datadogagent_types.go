@@ -565,8 +565,11 @@ type GlobalConfig struct {
 	// Credentials defines the Datadog credentials used to submit data to/query data from Datadog.
 	Credentials *DatadogCredentials `json:"credentials,omitempty"`
 
-	// ClusterAgentToken is the token for communication between the NodeAgent and ClusterAgent
+	// ClusterAgentToken is the token for communication between the NodeAgent and ClusterAgent.
 	ClusterAgentToken *string `json:"clusterAgentToken,omitempty"`
+
+	// ClusterAgentTokenSecret is the secret containing the Cluster Agent token.
+	ClusterAgentTokenSecret *commonv1.SecretConfig `json:"clusterAgentTokenSecret,omitempty"`
 
 	// ClusterName sets a unique cluster name for the deployment to easily scope monitoring data in the Datadog app.
 	// +optional
