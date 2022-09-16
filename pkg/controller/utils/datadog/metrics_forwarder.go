@@ -238,7 +238,10 @@ func (mf *metricsForwarder) setupV2() error {
 	mf.baseURL = getbaseURLV2(dda)
 	mf.logger.Info("Got Datadog Site", "site", mf.baseURL)
 
-	mf.clusterName = *dda.Spec.Global.ClusterName
+	if dda.Spec.Global != nil && dda.Spec.Global.ClusterName != nil {
+		mf.clusterName = *dda.Spec.Global.ClusterName
+	}
+
 	mf.labels = dda.GetLabels()
 
 	status := dda.Status.DeepCopy()
