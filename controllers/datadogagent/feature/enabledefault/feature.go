@@ -19,7 +19,6 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/version"
 
-	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/errors"
@@ -46,16 +45,11 @@ func buildDefaultFeature(options *feature.Options) feature.Feature {
 		},
 	}
 
-	if options != nil {
-		dF.logger = options.Logger
-	}
-
 	return dF
 }
 
 type defaultFeature struct {
-	owner  metav1.Object
-	logger logr.Logger
+	owner metav1.Object
 
 	credentialsInfo     credentialsInfo
 	dcaTokenInfo        dcaTokenInfo
