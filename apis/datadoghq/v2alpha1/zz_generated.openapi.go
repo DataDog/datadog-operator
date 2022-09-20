@@ -29,6 +29,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./apis/datadoghq/v2alpha1.EventCollectionFeatureConfig":      schema__apis_datadoghq_v2alpha1_EventCollectionFeatureConfig(ref),
 		"./apis/datadoghq/v2alpha1.KubeStateMetricsCoreFeatureConfig": schema__apis_datadoghq_v2alpha1_KubeStateMetricsCoreFeatureConfig(ref),
 		"./apis/datadoghq/v2alpha1.LocalService":                      schema__apis_datadoghq_v2alpha1_LocalService(ref),
+		"./apis/datadoghq/v2alpha1.MultiCustomConfig":                 schema__apis_datadoghq_v2alpha1_MultiCustomConfig(ref),
 		"./apis/datadoghq/v2alpha1.NetworkPolicyConfig":               schema__apis_datadoghq_v2alpha1_NetworkPolicyConfig(ref),
 		"./apis/datadoghq/v2alpha1.OTLPFeatureConfig":                 schema__apis_datadoghq_v2alpha1_OTLPFeatureConfig(ref),
 		"./apis/datadoghq/v2alpha1.OTLPGRPCConfig":                    schema__apis_datadoghq_v2alpha1_OTLPGRPCConfig(ref),
@@ -45,7 +46,7 @@ func schema__apis_datadoghq_v2alpha1_CustomConfig(ref common.ReferenceCallback) 
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "CustomConfig provides a place for custom configuration of the Agent or Cluster Agent, corresponding to datadog.yaml or datadog-cluster.yaml. The configuration can be provided in the ConfigData field as raw data, or referenced in a ConfigMap. Note: `ConfigData` and `ConfigMap` cannot be set together.",
+				Description: "CustomConfig provides a place for custom configuration of the Agent or Cluster Agent, corresponding to datadog.yaml, system-probe.yaml, security-agent.yaml or datadog-cluster.yaml. The configuration can be provided in the ConfigData field as raw data, or referenced in a ConfigMap. Note: `ConfigData` and `ConfigMap` cannot be set together.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"configData": {
@@ -611,6 +612,43 @@ func schema__apis_datadoghq_v2alpha1_LocalService(ref common.ReferenceCallback) 
 				},
 			},
 		},
+	}
+}
+
+func schema__apis_datadoghq_v2alpha1_MultiCustomConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "MultiCustomConfig provides a place for custom configuration of the Agent or Cluster Agent, corresponding to /confd/*.yaml. The configuration can be provided in the ConfigDataMap field as raw data, or referenced in a single ConfigMap. Note: `ConfigDataMap` and `ConfigMap` cannot be set together.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"configDataMap": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ConfigDataMap corresponds to the content of the configuration files. They key should be the filename the contents get mounted to; for instance check.py or check.yaml.",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"configMap": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ConfigMap references an existing ConfigMap with the content of the configuration files.",
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/common/v1.ConfigMapConfig"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1.ConfigMapConfig"},
 	}
 }
 

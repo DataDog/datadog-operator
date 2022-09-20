@@ -191,13 +191,13 @@ func convertConfigMapConfig(src *CustomConfigSpec) *v2alpha1.CustomConfig {
 	return dstConfig
 }
 
-// ConvertConfigDirSpec converts v1alpha1.ConfigDirSpec to v2alpha1.CustomConfig
-func ConvertConfigDirSpec(src *ConfigDirSpec) *v2alpha1.CustomConfig {
+// ConvertConfigDirSpec converts v1alpha1.ConfigDirSpec to v2alpha1.MultiCustomConfig
+func ConvertConfigDirSpec(src *ConfigDirSpec) *v2alpha1.MultiCustomConfig {
 	if src == nil {
 		return nil
 	}
 
-	return &v2alpha1.CustomConfig{
+	return &v2alpha1.MultiCustomConfig{
 		ConfigMap: &commonv1.ConfigMapConfig{
 			Name:  src.ConfigMapName,
 			Items: src.Items,

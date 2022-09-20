@@ -123,10 +123,12 @@ func buildVolumeSourceFromCustomConfigSpec(configDir *apicommonv1.CustomConfig, 
 		return nil
 	}
 
+	// TODO configDir.ConfigData is ignored; should it be?
+
 	return buildVolumeSourceFromConfigMapConfig(configDir.ConfigMap, defaultConfigMapName)
 }
 
-// GetConfigMapVolumes use to generate the corev1.Volume and corev1.VolumeMount corresponding to a ConfigMapConfig.
+// GetConfigMapVolumes is used to generate the corev1.Volume and corev1.VolumeMount corresponding to a ConfigMapConfig.
 func GetConfigMapVolumes(configMap *apicommonv1.ConfigMapConfig, defaultCMName, volumeName, volumePath string) (corev1.Volume, corev1.VolumeMount) {
 	var volume corev1.Volume
 	var volumeMount corev1.VolumeMount
@@ -145,7 +147,7 @@ func GetConfigMapVolumes(configMap *apicommonv1.ConfigMapConfig, defaultCMName, 
 	return volume, volumeMount
 }
 
-// GetVolumeFromConfigMapConfig return a corev1.Volume corresponding to a ConfigMapConfig.
+// GetVolumeFromConfigMapConfig returns a corev1.Volume corresponding to a ConfigMapConfig.
 func GetVolumeFromConfigMapConfig(configMap *apicommonv1.ConfigMapConfig, defaultConfigMapName, volumeName string) corev1.Volume {
 	confdVolumeSource := *buildVolumeSourceFromConfigMapConfig(configMap, defaultConfigMapName)
 
@@ -155,7 +157,7 @@ func GetVolumeFromConfigMapConfig(configMap *apicommonv1.ConfigMapConfig, defaul
 	}
 }
 
-// GetVolumeMountFromConfigMapConfig return a corev1.Volume corresponding to a ConfigMapConfig.
+// GetVolumeMountFromConfigMapConfig returns a corev1.Volume corresponding to a ConfigMapConfig.
 func GetVolumeMountFromConfigMapConfig(configMap *apicommonv1.ConfigMapConfig, volumeName, volumePath, defaultSubPath string) corev1.VolumeMount {
 	subPath := defaultSubPath
 	if configMap != nil && len(configMap.Items) > 0 {

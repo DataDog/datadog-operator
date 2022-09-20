@@ -115,7 +115,7 @@ func (r *Reconciler) finalizeDadV2(reqLogger logr.Logger, obj client.Object) {
 	}
 
 	// Examine user configuration to override any external dependencies (e.g. RBACs)
-	errs = append(errs, override.Dependencies(reqLogger, resourceManagers, dda.Spec.Override, dda.Namespace)...)
+	errs = append(errs, override.Dependencies(reqLogger, resourceManagers, dda, dda.Namespace)...)
 
 	if len(errs) > 0 {
 		reqLogger.Info("Errors calculating dependencies while finalizing the DatadogAgent", "errors", errs)
