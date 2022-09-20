@@ -611,7 +611,7 @@ func (b agentNetworkPolicyBuilder) BuildCiliumPolicy() *cilium.NetworkPolicy {
 							Ports: []cilium.PortProtocol{
 								{
 									Port:     strconv.Itoa(int(*b.dda.Spec.Agent.Apm.HostPort)),
-									Protocol: cilium.ProtocolUDP,
+									Protocol: cilium.ProtocolTCP,
 								},
 							},
 						},
