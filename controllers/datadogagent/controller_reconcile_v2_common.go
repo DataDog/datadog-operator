@@ -25,6 +25,11 @@ import (
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 )
 
+const (
+	updateSucceeded = "UpdateSucceeded"
+	createSucceeded = "CreateSucceeded"
+)
+
 type updateDepStatusComponentFunc func(deployment *appsv1.Deployment, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string)
 type updateDSStatusComponentFunc func(daemonset *appsv1.DaemonSet, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string)
 type updateEDSStatusComponentFunc func(eds *edsv1alpha1.ExtendedDaemonSet, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string)
@@ -72,7 +77,7 @@ func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, dda *dat
 		if !needUpdate {
 			// no need to update hasn't changed
 			now := metav1.NewTime(time.Now())
-			updateStatusFunc(currentDeployment, newStatus, now, metav1.ConditionTrue, "deployment_up_to_date", "Deployment up-to-date")
+			updateStatusFunc(currentDeployment, newStatus, now, metav1.ConditionTrue, "DeploymentUpToDate", "Deployment up-to-date")
 			return reconcile.Result{}, nil
 		}
 
@@ -92,23 +97,23 @@ func (r *Reconciler) createOrUpdateDeployment(parentLogger logr.Logger, dda *dat
 		now := metav1.NewTime(time.Now())
 		err = kubernetes.UpdateFromObject(context.TODO(), r.client, updateDeployment, currentDeployment.ObjectMeta)
 		if err != nil {
-			updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, "create_failed", "Unable to Update Deployment")
+			updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, updateSucceeded, "Unable to update Deployment")
 			return reconcile.Result{}, err
 		}
 		event := buildEventInfo(updateDeployment.Name, updateDeployment.Namespace, deploymentKind, datadog.UpdateEvent)
 		r.recordEvent(dda, event)
-		updateStatusFunc(updateDeployment, newStatus, now, metav1.ConditionTrue, "deployment_updated", "Deployment updated")
+		updateStatusFunc(updateDeployment, newStatus, now, metav1.ConditionTrue, updateSucceeded, "Deployment updated")
 	} else {
 		now := metav1.NewTime(time.Now())
 
 		err = r.client.Create(context.TODO(), deployment)
 		if err != nil {
-			updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, "create_failed", "Unable to create Deployment")
+			updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, createSucceeded, "Unable to create Deployment")
 			return reconcile.Result{}, err
 		}
 		event := buildEventInfo(deployment.Name, deployment.Namespace, deploymentKind, datadog.CreationEvent)
 		r.recordEvent(dda, event)
-		updateStatusFunc(deployment, newStatus, now, metav1.ConditionTrue, "create_succeed", "Deployment created")
+		updateStatusFunc(deployment, newStatus, now, metav1.ConditionTrue, createSucceeded, "Deployment created")
 	}
 
 	logger.Info("Creating Deployment")
@@ -182,22 +187,23 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 		now := metav1.NewTime(time.Now())
 		err = kubernetes.UpdateFromObject(context.TODO(), r.client, updateDaemonset, currentDaemonset.ObjectMeta)
 		if err != nil {
+			updateStatusFunc(updateDaemonset, newStatus, now, metav1.ConditionFalse, updateSucceeded, "Unable to update Daemonset")
 			return reconcile.Result{}, err
 		}
 		event := buildEventInfo(updateDaemonset.Name, updateDaemonset.Namespace, daemonSetKind, datadog.UpdateEvent)
 		r.recordEvent(dda, event)
-		updateStatusFunc(updateDaemonset, newStatus, now, metav1.ConditionTrue, "Daemonset_updated", "Daemonset updated")
+		updateStatusFunc(updateDaemonset, newStatus, now, metav1.ConditionTrue, updateSucceeded, "Daemonset updated")
 	} else {
 		now := metav1.NewTime(time.Now())
 
 		err = r.client.Create(context.TODO(), daemonset)
 		if err != nil {
-			updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, "create_failed", "Unable to create Daemonset")
+			updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, createSucceeded, "Unable to create Daemonset")
 			return reconcile.Result{}, err
 		}
 		event := buildEventInfo(daemonset.Name, daemonset.Namespace, daemonSetKind, datadog.CreationEvent)
 		r.recordEvent(dda, event)
-		updateStatusFunc(daemonset, newStatus, now, metav1.ConditionTrue, "create_success", "Daemonset created")
+		updateStatusFunc(daemonset, newStatus, now, metav1.ConditionTrue, createSucceeded, "Daemonset created")
 	}
 
 	logger.Info("Creating Daemonset")
@@ -271,22 +277,23 @@ func (r *Reconciler) createOrUpdateExtendedDaemonset(parentLogger logr.Logger, d
 		now := metav1.NewTime(time.Now())
 		err = kubernetes.UpdateFromObject(context.TODO(), r.client, updateEDS, currentEDS.ObjectMeta)
 		if err != nil {
+			updateStatusFunc(updateEDS, newStatus, now, metav1.ConditionFalse, updateSucceeded, "Unable to update ExtendedDaemonSet")
 			return reconcile.Result{}, err
 		}
 		event := buildEventInfo(updateEDS.Name, updateEDS.Namespace, extendedDaemonSetKind, datadog.UpdateEvent)
 		r.recordEvent(dda, event)
-		updateStatusFunc(updateEDS, newStatus, now, metav1.ConditionTrue, "ExtendedDaemonSet_updated", "ExtendedDaemonSet updated")
+		updateStatusFunc(updateEDS, newStatus, now, metav1.ConditionTrue, updateSucceeded, "ExtendedDaemonSet updated")
 	} else {
 		now := metav1.NewTime(time.Now())
 
 		err = r.client.Create(context.TODO(), eds)
 		if err != nil {
-			updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, "create_failed", "Unable to create ExtendedDaemonSet")
+			updateStatusFunc(nil, newStatus, now, metav1.ConditionFalse, createSucceeded, "Unable to create ExtendedDaemonSet")
 			return reconcile.Result{}, err
 		}
 		event := buildEventInfo(eds.Name, eds.Namespace, extendedDaemonSetKind, datadog.CreationEvent)
 		r.recordEvent(dda, event)
-		updateStatusFunc(eds, newStatus, now, metav1.ConditionTrue, "create_success", "ExtendedDaemonSet created")
+		updateStatusFunc(eds, newStatus, now, metav1.ConditionTrue, createSucceeded, "ExtendedDaemonSet created")
 	}
 
 	logger.Info("Creating ExtendedDaemonSet")

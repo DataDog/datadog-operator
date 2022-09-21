@@ -35,6 +35,7 @@ const (
 	DDComplianceConfigCheckInterval                 = "DD_COMPLIANCE_CONFIG_CHECK_INTERVAL"
 	DDComplianceConfigDir                           = "DD_COMPLIANCE_CONFIG_DIR"
 	DDComplianceConfigEnabled                       = "DD_COMPLIANCE_CONFIG_ENABLED"
+	DDContainerCollectionEnabled                    = "DD_PROCESS_CONFIG_CONTAINER_COLLECTION_ENABLED"
 	DDCriSocketPath                                 = "DD_CRI_SOCKET_PATH"
 	DDddURL                                         = "DD_DD_URL"
 	DDDogstatsdEnabled                              = "DD_USE_DOGSTATSD"
@@ -81,7 +82,7 @@ const (
 	DDPodAnnotationsAsTags                          = "DD_KUBERNETES_POD_ANNOTATIONS_AS_TAGS"
 	DDPodLabelsAsTags                               = "DD_KUBERNETES_POD_LABELS_AS_TAGS"
 	DDPPMReceiverSocket                             = "DD_APM_RECEIVER_SOCKET"
-	DDProcessAgentEnabled                           = "DD_PROCESS_AGENT_ENABLED"
+	DDProcessCollectionEnabled                      = "DD_PROCESS_CONFIG_PROCESS_COLLECTION_ENABLED"
 	DDProcessConfigScrubArgs                        = "DD_PROCESS_CONFIG_SCRUB_ARGS"
 	DDProcessConfigStripArgs                        = "DD_PROCESS_CONFIG_STRIP_PROC_ARGUMENTS"
 	DDPrometheusScrapeChecks                        = "DD_PROMETHEUS_SCRAPE_CHECKS"
@@ -109,6 +110,9 @@ const (
 	DDSystemProbeTCPQueueLengthEnabled              = DDSystemProbeEnvPrefix + "ENABLE_TCP_QUEUE_LENGTH"
 	DDTags                                          = "DD_TAGS"
 	DockerHost                                      = "DOCKER_HOST"
+
+	DDOTLPgRPCEndpoint = "DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_GRPC_ENDPOINT"
+	DDOTLPHTTPEndpoint = "DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_HTTP_ENDPOINT"
 
 	// KubernetesEnvvarName Env var used by the Datadog Agent container entrypoint
 	// to add kubelet config provider and listener

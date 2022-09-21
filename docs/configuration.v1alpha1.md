@@ -12,8 +12,8 @@
 ## All configuration options
 
 The following table lists the configurable parameters for the `DatadogAgent`
-resource. For example, if you wanted to set a value for `agent.image.name`,
-your `DatadogAgent` resource would look like the following:
+resource. For example, if you wanted to set a custom cluster name, your
+`DatadogAgent` resource would look like the following:
 
 ```yaml
 apiVersion: datadoghq.com/v1alpha1
@@ -21,6 +21,7 @@ kind: DatadogAgent
 metadata:
   name: datadog
 spec:
+  clusterName: my-test-cluster
   credentials:
     apiSecret:
       secretName: datadog-secret
@@ -213,6 +214,10 @@ spec:
 | agent.networkPolicy.create | If true, create a NetworkPolicy for the current agent. |
 | agent.networkPolicy.dnsSelectorEndpoints | Cilium selector of the DNS server entity. |
 | agent.networkPolicy.flavor | Which network policy to use. Can be `kubernetes` or `cilium`. |
+| agent.otlp.receiver.protocols.grpc.enabled | Enable the OTLP/gRPC endpoint. |
+| agent.otlp.receiver.protocols.grpc.endpoint | Endpoint for OTLP/gRPC. gRPC supports several naming schemes: https://github.com/grpc/grpc/blob/master/doc/naming.md The Datadog Operator supports only 'host:port' (usually '0.0.0.0:port'). Default: '0.0.0.0:4317'. |
+| agent.otlp.receiver.protocols.http.enabled | Enable the OTLP/HTTP endpoint. |
+| agent.otlp.receiver.protocols.http.endpoint | Endpoint for OTLP/HTTP. Default: '0.0.0.0:4318'. |
 | agent.priorityClassName | If specified, indicates the pod's priority. "system-node-critical" and "system-cluster-critical" are two special keywords which indicate the highest priorities with the former being the highest priority. Any other name must be defined by creating a PriorityClass object with that name. If not specified, the pod priority will be default or zero if there is no default. |
 | agent.process.args | Args allows the specification of extra args to `Command` parameter |
 | agent.process.command | Command allows the specification of custom entrypoint for Process Agent container |

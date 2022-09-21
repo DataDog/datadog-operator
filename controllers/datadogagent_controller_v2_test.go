@@ -50,8 +50,13 @@ var _ = Describe("V2 Controller - DatadogAgent Deployment", func() {
 	)
 
 	Context(
+		"with admission controller enabled",
+		testFunction(testutils.NewDatadogAgentWithAdmissionController(namespace, "with-admission-controller")),
+	)
+
+	Context(
 		"with APM enabled",
-		testFunction(testutils.NewDatadogAgentWithoutFeatures(namespace, "with-apm")),
+		testFunction(testutils.NewDatadogAgentWithAPM(namespace, "with-apm")),
 	)
 
 	Context(
@@ -87,6 +92,11 @@ var _ = Describe("V2 Controller - DatadogAgent Deployment", func() {
 	Context(
 		"with KSM core",
 		testFunction(testutils.NewDatadogAgentWithKSM(namespace, "with-ksm")),
+	)
+
+	Context(
+		"with live container collection",
+		testFunction(testutils.NewDatadogAgentWithLiveContainerCollection(namespace, "with-live-container-collection")),
 	)
 
 	Context(
@@ -132,6 +142,11 @@ var _ = Describe("V2 Controller - DatadogAgent Deployment", func() {
 	Context(
 		"with some global settings set",
 		testFunction(testutils.NewDatadogAgentWithGlobalConfigSettings(namespace, "with-global-settings")),
+	)
+
+	Context(
+		"with overrides",
+		testFunction(testutils.NewDatadogAgentWithOverrides(namespace, "with-overrides")),
 	)
 })
 

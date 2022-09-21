@@ -734,7 +734,7 @@ func buildAgentConfigurationConfigMap(dda *datadoghqv1alpha1.DatadogAgent) (*cor
 	if !apiutils.BoolValue(dda.Spec.Agent.Enabled) {
 		return nil, nil
 	}
-	return buildConfigurationConfigMap(dda, datadoghqv1alpha1.ConvertCustomConfig(dda.Spec.Agent.CustomConfig), getAgentCustomConfigConfigMapName(dda), datadoghqv1alpha1.AgentCustomConfigVolumeSubPath)
+	return buildConfigurationConfigMap(dda, datadoghqv1alpha1.ConvertCustomConfig(dda.Spec.Agent.CustomConfig), getAgentCustomConfigConfigMapName(dda), common.AgentCustomConfigVolumeSubPath)
 }
 
 const installInfoDataTmpl = `---

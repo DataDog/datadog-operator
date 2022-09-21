@@ -147,7 +147,7 @@ func main() {
 
 	creds, err := config.NewCredentialManager().GetCredentials()
 	if err != nil && datadogMonitorEnabled {
-		setupLog.Error(err, "Unable to get credentials")
+		setupLog.Error(err, "Unable to get credentials for DatadogMonitor")
 		os.Exit(1)
 	}
 

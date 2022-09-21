@@ -35,7 +35,7 @@ func (m *secretManagerImpl) AddSecret(secretNamespace, secretName, key, value st
 	obj, _ := m.store.GetOrCreate(kubernetes.SecretsKind, secretNamespace, secretName)
 	secret, ok := obj.(*corev1.Secret)
 	if !ok {
-		return fmt.Errorf("unable to get from the store the Secret %s/%s", secretNamespace, secretName)
+		return fmt.Errorf("unable to get the Secret %s/%s from the store", secretNamespace, secretName)
 	}
 
 	if secret.Data == nil {

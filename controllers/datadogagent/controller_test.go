@@ -13,10 +13,12 @@ import (
 	"testing"
 	"time"
 
+	testutils "github.com/DataDog/datadog-operator/controllers/datadogagent/testutils"
 	"github.com/pkg/errors"
 	assert "github.com/stretchr/testify/require"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
+	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	test "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
@@ -141,22 +143,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 	logf.SetLogger(zap.New(zap.UseDevMode(true)))
 
 	// Register operator types with the runtime scheme.
-	s := scheme.Scheme
-	s.AddKnownTypes(datadoghqv1alpha1.GroupVersion, &datadoghqv1alpha1.DatadogAgent{})
-	s.AddKnownTypes(edsdatadoghqv1alpha1.GroupVersion, &edsdatadoghqv1alpha1.ExtendedDaemonSet{})
-	s.AddKnownTypes(appsv1.SchemeGroupVersion, &appsv1.DaemonSet{})
-	s.AddKnownTypes(appsv1.SchemeGroupVersion, &appsv1.Deployment{})
-	s.AddKnownTypes(corev1.SchemeGroupVersion, &corev1.Secret{})
-	s.AddKnownTypes(corev1.SchemeGroupVersion, &corev1.ServiceAccount{})
-	s.AddKnownTypes(corev1.SchemeGroupVersion, &corev1.ConfigMap{})
-	s.AddKnownTypes(rbacv1.SchemeGroupVersion, &rbacv1.ClusterRoleBinding{})
-	s.AddKnownTypes(rbacv1.SchemeGroupVersion, &rbacv1.ClusterRole{})
-	s.AddKnownTypes(rbacv1.SchemeGroupVersion, &rbacv1.Role{})
-	s.AddKnownTypes(rbacv1.SchemeGroupVersion, &rbacv1.RoleBinding{})
-	s.AddKnownTypes(policyv1.SchemeGroupVersion, &policyv1.PodDisruptionBudget{})
-	s.AddKnownTypes(apiregistrationv1.SchemeGroupVersion, &apiregistrationv1.APIServiceList{})
-	s.AddKnownTypes(apiregistrationv1.SchemeGroupVersion, &apiregistrationv1.APIService{})
-	s.AddKnownTypes(networkingv1.SchemeGroupVersion, &networkingv1.NetworkPolicy{})
+	s := testutils.TestScheme(false)
 
 	defaultRequeueDuration := 15 * time.Second
 	affinity := &corev1.Affinity{
@@ -483,7 +470,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						OrchestratorExplorerDisabled: true,
 						Labels:                       map[string]string{"label-foo-key": "label-bar-value"},
 						Status: &datadoghqv1alpha1.DatadogAgentStatus{
-							Agent: &datadoghqv1alpha1.DaemonSetStatus{
+							Agent: &commonv1.DaemonSetStatus{
 								DaemonsetName: "datadog-agent-daemonset-before",
 							},
 						},
@@ -1402,11 +1389,12 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				if err := c.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesNameClusterAgent}, clusterRole); err != nil {
 					return err
 				}
-				if !hasAllClusterLevelRbacResources(clusterRole.Rules) {
-					return fmt.Errorf("bad cluster role, should contain all cluster level rbac resources, current: %v", clusterRole.Rules)
+				role := &rbacv1.Role{}
+				if err := c.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesNameClusterAgent, Namespace: resourcesNamespace}, role); err != nil {
+					return err
 				}
-				if !hasAdmissionRbacResources(clusterRole.Rules) {
-					return fmt.Errorf("bad cluster role, should contain cluster level rbac resources needed by the admission controller, current: %v", clusterRole.Rules)
+				if !hasAdmissionRbacResources(clusterRole.Rules, role.Rules) {
+					return fmt.Errorf("bad rbac, should contain resources needed by the admission controller, current: %v", clusterRole.Rules)
 				}
 
 				datadogAgent := &datadoghqv1alpha1.DatadogAgent{}
@@ -1721,7 +1709,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 					dadOptions := &test.NewDatadogAgentOptions{
 						Labels: map[string]string{"label-foo-key": "label-bar-value"},
 						Status: &datadoghqv1alpha1.DatadogAgentStatus{
-							ClusterAgent: &datadoghqv1alpha1.DeploymentStatus{
+							ClusterAgent: &commonv1.DeploymentStatus{
 								DeploymentName: "cluster-agent-deployment-before",
 							},
 						},
@@ -1783,7 +1771,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 					request: newRequest(resourcesNamespace, resourcesName),
 					loadFunc: func(c client.Client) {
 						dda := test.NewDefaultedDatadogAgent(resourcesNamespace, resourcesName, &test.NewDatadogAgentOptions{Labels: map[string]string{"label-foo-key": "label-bar-value"}, ClusterAgentEnabled: true})
-						dda.Status.ClusterAgent = &datadoghqv1alpha1.DeploymentStatus{
+						dda.Status.ClusterAgent = &commonv1.DeploymentStatus{
 							DeploymentName: "cluster-agent-prev-name",
 						}
 						_ = c.Create(context.TODO(), dda)
@@ -2728,9 +2716,8 @@ func hasWpaRbacs(policyRules []rbacv1.PolicyRule) bool {
 	return false
 }
 
-func hasAdmissionRbacResources(policyRules []rbacv1.PolicyRule) bool {
+func hasAdmissionRbacResources(clusterPolicyRules []rbacv1.PolicyRule, policyRules []rbacv1.PolicyRule) bool {
 	clusterLevelResources := map[string]bool{
-		"secrets":                       true,
 		"mutatingwebhookconfigurations": true,
 		"replicasets":                   true,
 		"deployments":                   true,
@@ -2738,12 +2725,20 @@ func hasAdmissionRbacResources(policyRules []rbacv1.PolicyRule) bool {
 		"cronjobs":                      true,
 		"jobs":                          true,
 	}
-	for _, policyRule := range policyRules {
+	roleResources := map[string]bool{
+		"secrets": true,
+	}
+	for _, policyRule := range clusterPolicyRules {
 		for _, resource := range policyRule.Resources {
 			delete(clusterLevelResources, resource)
 		}
 	}
-	return len(clusterLevelResources) == 0
+	for _, policyRule := range policyRules {
+		for _, resource := range policyRule.Resources {
+			delete(roleResources, resource)
+		}
+	}
+	return len(clusterLevelResources) == 0 && len(roleResources) == 0
 }
 
 func hasAllNodeLevelRbacResources(policyRules []rbacv1.PolicyRule) bool {
@@ -2849,7 +2844,7 @@ func (dummyManager) ProcessError(datadog.MonitoredObject, error) {
 func (dummyManager) ProcessEvent(datadog.MonitoredObject, datadog.Event) {
 }
 
-func (dummyManager) MetricsForwarderStatusForObj(obj datadog.MonitoredObject) datadog.ConditionInterface {
+func (dummyManager) MetricsForwarderStatusForObj(obj datadog.MonitoredObject) *datadog.ConditionCommon {
 	return nil
 }
 

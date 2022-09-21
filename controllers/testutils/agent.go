@@ -21,13 +21,29 @@ import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 )
 
 // NewDatadogAgentWithoutFeatures returns an agent without any features enabled
 func NewDatadogAgentWithoutFeatures(namespace string, name string) v2alpha1.DatadogAgent {
 	return newDatadogAgentWithFeatures(namespace, name, nil)
+}
+
+// NewDatadogAgentWithAdmissionController returns an agent with APM enabled
+func NewDatadogAgentWithAdmissionController(namespace string, name string) v2alpha1.DatadogAgent {
+	return newDatadogAgentWithFeatures(
+		namespace,
+		name,
+		&v2alpha1.DatadogFeatures{
+			AdmissionController: &v2alpha1.AdmissionControllerFeatureConfig{
+				Enabled:          apiutils.NewBoolPointer(true),
+				MutateUnlabelled: apiutils.NewBoolPointer(true),
+			},
+		},
+	)
 }
 
 // NewDatadogAgentWithAPM returns an agent with APM enabled
@@ -141,6 +157,19 @@ func NewDatadogAgentWithKSM(namespace string, name string) v2alpha1.DatadogAgent
 		name,
 		&v2alpha1.DatadogFeatures{
 			KubeStateMetricsCore: &v2alpha1.KubeStateMetricsCoreFeatureConfig{
+				Enabled: apiutils.NewBoolPointer(true),
+			},
+		},
+	)
+}
+
+// NewDatadogAgentWithLiveContainerCollection returns an agent with live container collection enabled
+func NewDatadogAgentWithLiveContainerCollection(namespace string, name string) v2alpha1.DatadogAgent {
+	return newDatadogAgentWithFeatures(
+		namespace,
+		name,
+		&v2alpha1.DatadogFeatures{
+			LiveContainerCollection: &v2alpha1.LiveContainerCollectionFeatureConfig{
 				Enabled: apiutils.NewBoolPointer(true),
 			},
 		},
@@ -296,6 +325,148 @@ func NewDatadogAgentWithGlobalConfigSettings(namespace string, name string) v2al
 		},
 		DockerSocketPath: apiutils.NewStringPointer("/some/path"),
 		CriSocketPath:    apiutils.NewStringPointer("/another/path"),
+	}
+
+	return agent
+}
+
+// NewDatadogAgentWithOverrides returns an agent with overrides set
+func NewDatadogAgentWithOverrides(namespace string, name string) v2alpha1.DatadogAgent {
+	agent := newDatadogAgentWithFeatures(namespace, name, nil)
+
+	// This config is invalid (non-existing images, etc.), but it's good enough
+	// to verify that the operator does not crash when parsing it.
+
+	agent.Spec.Override = make(map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride)
+
+	agent.Spec.Override[v2alpha1.NodeAgentComponentName] = &v2alpha1.DatadogAgentComponentOverride{
+		Name:               nil, // Don't override because these tests assume that it's always the default
+		Replicas:           nil, // Does not apply for the node agent
+		CreateRbac:         apiutils.NewBoolPointer(true),
+		ServiceAccountName: apiutils.NewStringPointer("an-overridden-sa"),
+		Image: &common.AgentImageConfig{
+			Name:       "an-overridden-image-name",
+			Tag:        "7",
+			JMXEnabled: true,
+		},
+		Env: []v1.EnvVar{
+			{
+				Name:  "some-env",
+				Value: "some-val",
+			},
+		},
+		CustomConfigurations: nil, // This option requires creating a configmap. Set to nil here to simplify the test
+		ExtraConfd:           nil, // Also requires creating a configmap
+		ExtraChecksd:         nil, // Also requires creating a configmap
+		Containers: map[common.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
+			common.CoreAgentContainerName: {
+				Name:     apiutils.NewStringPointer("my-container-name"),
+				LogLevel: apiutils.NewStringPointer("debug"),
+				Env: []v1.EnvVar{
+					{
+						Name:  apicommon.DDLogLevel,
+						Value: "debug",
+					},
+				},
+				VolumeMounts: nil, // This option requires creating a configmap. Set to nil here to simplify the test
+				Resources: &v1.ResourceRequirements{
+					Limits: map[v1.ResourceName]resource.Quantity{
+						v1.ResourceCPU: *resource.NewQuantity(2, resource.DecimalSI),
+					},
+					Requests: map[v1.ResourceName]resource.Quantity{
+						v1.ResourceCPU: *resource.NewQuantity(1, resource.DecimalSI),
+					},
+				},
+				Command:    []string{"test-agent", "start"},
+				Args:       []string{"arg1", "val1"},
+				HealthPort: apiutils.NewInt32Pointer(1234),
+				ReadinessProbe: &v1.Probe{
+					ProbeHandler: v1.ProbeHandler{
+						HTTPGet: &v1.HTTPGetAction{
+							Path: apicommon.DefaultLivenessProbeHTTPPath,
+							Port: intstr.IntOrString{
+								IntVal: apicommon.DefaultAgentHealthPort,
+							},
+						},
+					},
+					InitialDelaySeconds: 10,
+					TimeoutSeconds:      5,
+					PeriodSeconds:       30,
+					SuccessThreshold:    1,
+					FailureThreshold:    5,
+				},
+				LivenessProbe: &v1.Probe{
+					ProbeHandler: v1.ProbeHandler{
+						HTTPGet: &v1.HTTPGetAction{
+							Path: apicommon.DefaultLivenessProbeHTTPPath,
+							Port: intstr.IntOrString{
+								IntVal: apicommon.DefaultAgentHealthPort,
+							},
+						},
+					},
+					InitialDelaySeconds: 10,
+					TimeoutSeconds:      5,
+					PeriodSeconds:       30,
+					SuccessThreshold:    1,
+					FailureThreshold:    5,
+				},
+				SecurityContext: &v1.SecurityContext{
+					RunAsUser: apiutils.NewInt64Pointer(12345),
+				},
+				AppArmorProfileName: apiutils.NewStringPointer("runtime/default"),
+			},
+		},
+		Volumes: []v1.Volume{
+			{
+				Name: "added-volume",
+				VolumeSource: v1.VolumeSource{
+					EmptyDir: &v1.EmptyDirVolumeSource{},
+				},
+			},
+		},
+		SecurityContext: &v1.PodSecurityContext{
+			RunAsUser: apiutils.NewInt64Pointer(1234),
+		},
+		PriorityClassName: apiutils.NewStringPointer("a-priority-class"),
+		Affinity: &v1.Affinity{
+			PodAntiAffinity: &v1.PodAntiAffinity{
+				PreferredDuringSchedulingIgnoredDuringExecution: []v1.WeightedPodAffinityTerm{
+					{
+						Weight: 50,
+						PodAffinityTerm: v1.PodAffinityTerm{
+							LabelSelector: &metav1.LabelSelector{
+								MatchLabels: map[string]string{
+									"some-label": "some-value",
+								},
+							},
+							TopologyKey: "kubernetes.io/hostname",
+						},
+					},
+				},
+			},
+		},
+		NodeSelector: map[string]string{
+			"key1": "val1",
+		},
+		Tolerations: []v1.Toleration{
+			{
+				Key:      "key1",
+				Operator: "Exists",
+				Effect:   "NoSchedule",
+			},
+		},
+		Annotations: map[string]string{
+			"an-annotation": "123",
+		},
+		Labels: map[string]string{
+			"some-label": "456",
+		},
+		HostNetwork:          apiutils.NewBoolPointer(false),
+		HostPID:              apiutils.NewBoolPointer(true),
+		SecCompRootPath:      apiutils.NewStringPointer("/some/path"),
+		SecCompCustomProfile: &v2alpha1.CustomConfig{},
+		SecCompProfileName:   apiutils.NewStringPointer("some-comp-profile"),
+		Disabled:             apiutils.NewBoolPointer(false),
 	}
 
 	return agent

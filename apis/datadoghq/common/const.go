@@ -114,6 +114,8 @@ const (
 	ConfigVolumePath               = "/etc/datadog-agent"
 	KubeStateMetricCoreVolumeName  = "ksm-core-config"
 	OrchestratorExplorerVolumeName = "orchestrator-explorer-config"
+	ChecksdVolumeName              = "checksd"
+	ChecksdVolumePath              = "/checks.d"
 
 	HostRootVolumeName = "hostroot"
 	HostRootHostPath   = "/"
@@ -192,6 +194,7 @@ const (
 	SecurityAgentRuntimePoliciesDirVolumePath    = "/etc/datadog-agent/runtime-security.d"
 	HostCriSocketPathPrefix                      = "/host"
 	CriSocketVolumeName                          = "runtimesocketdir"
+	RuntimeDirVolumePath                         = "/var/run"
 	KubeletAgentCAPath                           = "/var/run/host-kubelet-ca.crt"
 	KubeletCAVolumeName                          = "kubelet-ca"
 	APMHostPortName                              = "traceport"
@@ -199,8 +202,18 @@ const (
 	APMSocketVolumeName                          = "apmsocket"
 	APMSocketVolumePath                          = "/var/run/datadog/apm"
 	ExternalMetricsPortName                      = "metricsapi"
+	AdmissionControllerPortName                  = "admissioncontrollerport"
+	OTLPGRPCPortName                             = "otlpgrpcport"
+	OTLPHTTPPortName                             = "otlphttpport"
 
 	AppArmorAnnotationKey = "container.apparmor.security.beta.kubernetes.io"
+
+	AgentCustomConfigVolumeName    = "custom-datadog-yaml"
+	AgentCustomConfigVolumeSubPath = "datadog.yaml"
+
+	ClusterAgentCustomConfigVolumeName    = "custom-datadog-yaml"
+	ClusterAgentCustomConfigVolumePath    = "/etc/datadog-agent/datadog-cluster.yaml"
+	ClusterAgentCustomConfigVolumeSubPath = "datadog-cluster.yaml"
 )
 
 const (

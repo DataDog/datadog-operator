@@ -29,7 +29,7 @@ type RBACManager interface {
 	AddClusterRoleBinding(namespace string, name string, saName string, roleRef rbacv1.RoleRef) error
 	DeleteServiceAccountByComponent(component, namespace string) error
 	DeleteRoleByComponent(component, namespace string) error
-	DeleteClusterRoleByComponent(component, namespace string) error
+	DeleteClusterRoleByComponent(component string) error
 }
 
 // NewRBACManager return new RBACManager instance
@@ -166,24 +166,24 @@ func (m *rbacManagerImpl) AddClusterPolicyRulesByComponent(namespace string, rol
 }
 
 // DeleteClusterRole is used to delete a ClusterRole and ClusterRoleBinding.
-func (m *rbacManagerImpl) DeleteClusterRole(namespace string, roleName string) error {
-	found := m.store.Delete(kubernetes.ClusterRolesKind, namespace, roleName)
+func (m *rbacManagerImpl) DeleteClusterRole(roleName string) error {
+	found := m.store.Delete(kubernetes.ClusterRolesKind, "", roleName)
 	if !found {
-		return fmt.Errorf("unable to delete ClusterRole from the store because it was not found: %s/%s", namespace, roleName)
+		return fmt.Errorf("unable to delete ClusterRole from the store because it was not found: %s/%s", "", roleName)
 	}
 
-	found = m.store.Delete(kubernetes.ClusterRoleBindingKind, namespace, roleName)
+	found = m.store.Delete(kubernetes.ClusterRoleBindingKind, "", roleName)
 	if !found {
-		return fmt.Errorf("unable to delete ClusterRoleBinding from the store because it was not found: %s/%s", namespace, roleName)
+		return fmt.Errorf("unable to delete ClusterRoleBinding from the store because it was not found: %s/%s", "", roleName)
 	}
 
 	return nil
 }
 
-func (m *rbacManagerImpl) DeleteClusterRoleByComponent(component, namespace string) error {
+func (m *rbacManagerImpl) DeleteClusterRoleByComponent(component string) error {
 	errs := make([]error, 0, len(m.clusterRoleByComponent[component]))
 	for _, name := range m.clusterRoleByComponent[component] {
-		errs = append(errs, m.DeleteClusterRole(namespace, name))
+		errs = append(errs, m.DeleteClusterRole(name))
 	}
 	return errors.NewAggregate(errs)
 }

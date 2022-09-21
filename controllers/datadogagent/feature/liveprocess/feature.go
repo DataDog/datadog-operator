@@ -102,7 +102,7 @@ func (f *liveProcessFeature) ManageNodeAgent(managers feature.PodTemplateManager
 	managers.Volume().AddVolume(&passwdVol)
 
 	enableEnvVar := &corev1.EnvVar{
-		Name:  apicommon.DDProcessAgentEnabled,
+		Name:  apicommon.DDProcessCollectionEnabled,
 		Value: "true",
 	}
 

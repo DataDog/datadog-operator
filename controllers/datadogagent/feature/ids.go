@@ -19,6 +19,8 @@ const (
 	ExternalMetricsIDType = "external_metrics"
 	// KubernetesStateCoreIDType Kubernetes state core check feature.
 	KubernetesStateCoreIDType = "ksm"
+	// LiveContainerIDType Live Container feature.
+	LiveContainerIDType = "live_container"
 	// LiveProcessIDType Live Process feature.
 	LiveProcessIDType = "live_process"
 	// OrchestratorExplorerIDType Orchestrator Explorer feature.
@@ -43,6 +45,10 @@ const (
 	ClusterChecksIDType = "cluster_checks"
 	// APMIDType APM feature
 	APMIDType = "apm"
+	// AdmissionControllerIDType Admission controller feature
+	AdmissionControllerIDType = "admission_controller"
+	// OTLPIDType OTLP ingest feature
+	OTLPIDType = "otlp"
 	// DummyIDType Dummy feature.
 	DummyIDType = "dummy"
 )

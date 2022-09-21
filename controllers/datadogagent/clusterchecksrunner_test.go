@@ -67,8 +67,8 @@ func clusterChecksRunnerDefaultPodSpec() corev1.PodSpec {
 func clusterChecksRunnerDefaultVolumeMounts() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		{
-			Name:      datadoghqv1alpha1.ChecksdVolumeName,
-			MountPath: datadoghqv1alpha1.ChecksdVolumePath,
+			Name:      apicommon.ChecksdVolumeName,
+			MountPath: apicommon.ChecksdVolumePath,
 			ReadOnly:  true,
 		},
 		{
@@ -101,7 +101,7 @@ func clusterChecksRunnerDefaultVolumeMounts() []corev1.VolumeMount {
 func clusterChecksRunnerDefaultVolumes() []corev1.Volume {
 	return []corev1.Volume{
 		{
-			Name: datadoghqv1alpha1.ChecksdVolumeName,
+			Name: apicommon.ChecksdVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
@@ -190,7 +190,11 @@ func clusterChecksRunnerDefaultEnvVars() []corev1.EnvVar {
 			Value: "true",
 		},
 		{
-			Name:  "DD_PROCESS_AGENT_ENABLED",
+			Name:  "DD_PROCESS_CONFIG_CONTAINER_COLLECTION_ENABLED",
+			Value: "false",
+		},
+		{
+			Name:  "DD_PROCESS_CONFIG_PROCESS_COLLECTION_ENABLED",
 			Value: "false",
 		},
 		{

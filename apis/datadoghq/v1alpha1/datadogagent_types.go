@@ -223,6 +223,10 @@ type DatadogAgentSpecAgentSpec struct {
 	// +optional
 	Security *SecuritySpec `json:"security,omitempty"`
 
+	// OTLP ingest configuration
+	// +optional
+	OTLP *OTLPSpec `json:"otlp,omitempty"`
+
 	// Allow to put custom configuration for the agent, corresponding to the datadog.yaml config file.
 	// See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.
 	// +optional
@@ -719,6 +723,59 @@ type ConfigDirSpec struct {
 	// +listType=map
 	// +listMapKey=key
 	Items []corev1.KeyToPath `json:"items,omitempty"`
+}
+
+// OTLPSpec contains configuration for OTLP ingest.
+// +k8s:openapi-gen=true
+type OTLPSpec struct {
+	// Receiver contains configuration for the OTLP ingest receiver.
+	Receiver OTLPReceiverSpec `json:"receiver,omitempty"`
+}
+
+// OTLPReceiverSpec contains configuration for the OTLP ingest receiver.
+// +k8s:openapi-gen=true
+type OTLPReceiverSpec struct {
+	// Protocols contains configuration for the OTLP ingest receiver protocols.
+	Protocols OTLPProtocolsSpec `json:"protocols,omitempty"`
+}
+
+// OTLPProtocolsSpec contains configuration for the OTLP ingest receiver protocols.
+// +k8s:openapi-gen=true
+type OTLPProtocolsSpec struct {
+	// GRPC contains configuration for the OTLP ingest OTLP/gRPC receiver.
+	// +optional
+	GRPC *OTLPGRPCSpec `json:"grpc,omitempty"`
+	// HTTP contains configuration for the OTLP ingest OTLP/HTTP receiver.
+	// +optional
+	HTTP *OTLPHTTPSpec `json:"http,omitempty"`
+}
+
+// OTLPGRPCSpec contains configuration for the OTLP ingest OTLP/gRPC receiver.
+// +k8s:openapi-gen=true
+type OTLPGRPCSpec struct {
+	// Enable the OTLP/gRPC endpoint.
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Endpoint for OTLP/gRPC.
+	// gRPC supports several naming schemes: https://github.com/grpc/grpc/blob/master/doc/naming.md
+	// The Datadog Operator supports only 'host:port' (usually '0.0.0.0:port').
+	// Default: '0.0.0.0:4317'.
+	// +optional
+	Endpoint *string `json:"endpoint,omitempty"`
+}
+
+// OTLPHTTPSpec contains configuration for the OTLP ingest OTLP/HTTP receiver.
+// +k8s:openapi-gen=true
+type OTLPHTTPSpec struct {
+	// Enable the OTLP/HTTP endpoint.
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Endpoint for OTLP/HTTP.
+	// Default: '0.0.0.0:4318'.
+	// +optional
+	Endpoint *string `json:"endpoint,omitempty"`
 }
 
 // ConfigFileConfigMapSpec contains configMap information used to store a config file.
@@ -1292,80 +1349,20 @@ type DatadogAgentStatus struct {
 
 	// The actual state of the Agent as an extended daemonset.
 	// +optional
-	Agent *DaemonSetStatus `json:"agent,omitempty"`
+	Agent *commonv1.DaemonSetStatus `json:"agent,omitempty"`
 
 	// The actual state of the Cluster Agent as a deployment.
 	// +optional
-	ClusterAgent *DeploymentStatus `json:"clusterAgent,omitempty"`
+	ClusterAgent *commonv1.DeploymentStatus `json:"clusterAgent,omitempty"`
 
 	// The actual state of the Cluster Checks Runner as a deployment.
 	// +optional
-	ClusterChecksRunner *DeploymentStatus `json:"clusterChecksRunner,omitempty"`
+	ClusterChecksRunner *commonv1.DeploymentStatus `json:"clusterChecksRunner,omitempty"`
 
 	// Conditions Represents the latest available observations of a DatadogAgent's current state.
 	// +listType=map
 	// +listMapKey=type
 	Conditions []DatadogAgentCondition `json:"conditions,omitempty"`
-}
-
-// DaemonSetStatus defines the observed state of Agent running as DaemonSet.
-// +k8s:openapi-gen=true
-type DaemonSetStatus struct {
-	Desired   int32 `json:"desired"`
-	Current   int32 `json:"current"`
-	Ready     int32 `json:"ready"`
-	Available int32 `json:"available"`
-	UpToDate  int32 `json:"upToDate"`
-
-	Status      string       `json:"status,omitempty"`
-	State       string       `json:"state,omitempty"`
-	LastUpdate  *metav1.Time `json:"lastUpdate,omitempty"`
-	CurrentHash string       `json:"currentHash,omitempty"`
-
-	// DaemonsetName corresponds to the name of the created DaemonSet.
-	DaemonsetName string `json:"daemonsetName,omitempty"`
-}
-
-// DeploymentStatus type representing the Cluster Agent Deployment status.
-// +k8s:openapi-gen=true
-type DeploymentStatus struct {
-	// Total number of non-terminated pods targeted by this deployment (their labels match the selector).
-	// +optional
-	Replicas int32 `json:"replicas,omitempty"`
-
-	// Total number of non-terminated pods targeted by this deployment that have the desired template spec.
-	// +optional
-	UpdatedReplicas int32 `json:"updatedReplicas,omitempty"`
-
-	// Total number of ready pods targeted by this deployment.
-	// +optional
-	ReadyReplicas int32 `json:"readyReplicas,omitempty"`
-
-	// Total number of available pods (ready for at least minReadySeconds) targeted by this deployment.
-	// +optional
-	AvailableReplicas int32 `json:"availableReplicas,omitempty"`
-
-	// Total number of unavailable pods targeted by this deployment. This is the total number of
-	// pods that are still required for the deployment to have 100% available capacity. They may
-	// either be pods that are running but not yet available or pods that still have not been created.
-	// +optional
-	UnavailableReplicas int32 `json:"unavailableReplicas,omitempty"`
-
-	LastUpdate  *metav1.Time `json:"lastUpdate,omitempty"`
-	CurrentHash string       `json:"currentHash,omitempty"`
-
-	// GeneratedToken corresponds to the generated token if any token was provided in the Credential configuration when ClusterAgent is
-	// enabled.
-	// +optional
-	GeneratedToken string `json:"generatedToken,omitempty"`
-
-	// Status corresponds to the ClusterAgent deployment computed status.
-	Status string `json:"status,omitempty"`
-	// State corresponds to the ClusterAgent deployment state.
-	State string `json:"state,omitempty"`
-
-	// DeploymentName corresponds to the name of the Cluster Agent Deployment.
-	DeploymentName string `json:"deploymentName,omitempty"`
 }
 
 // DatadogAgentCondition describes the state of a DatadogAgent at a certain point.

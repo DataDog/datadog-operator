@@ -12,22 +12,24 @@
 ## All configuration options
 
 The following table lists the configurable parameters for the `DatadogAgent`
-resource. For example, if you wanted to set a value for `agent.image.name`,
-your `DatadogAgent` resource would look like the following:
+resource. For example, if you wanted to set a custom cluster name, your
+`DatadogAgent` resource would look like the following:
 
 ```yaml
-apiVersion: datadoghq.com/v1alpha1
+apiVersion: datadoghq.com/v2alpha1
 kind: DatadogAgent
 metadata:
   name: datadog
 spec:
-  credentials:
-    apiSecret:
-      secretName: datadog-secret
-      keyName: api-key
-    appSecret:
-      secretName: datadog-secret
-      keyName: app-key
+  global:
+    clusterName: my-test-cluster
+    credentials:
+      apiSecret:
+        secretName: datadog-secret
+        keyName: api-key
+      appSecret:
+        secretName: datadog-secret
+        keyName: app-key
 ```
 
 | Parameter | Description |
@@ -99,12 +101,18 @@ spec:
 | features.orchestratorExplorer.enabled | Enabled enables the Orchestrator Explorer. Default: true |
 | features.orchestratorExplorer.extraTags | Additional tags to associate with the collected data in the form of `a b c`. This is a Cluster Agent option distinct from DD_TAGS that is used in the Orchestrator Explorer. |
 | features.orchestratorExplorer.scrubContainers | ScrubContainers enables scrubbing of sensitive container data (passwords, tokens, etc. ). Default: true |
+| features.otlp.receiver.protocols.grpc.enabled | Enable the OTLP/gRPC endpoint. |
+| features.otlp.receiver.protocols.grpc.endpoint | Endpoint for OTLP/gRPC. gRPC supports several naming schemes: https://github.com/grpc/grpc/blob/master/doc/naming.md The Datadog Operator supports only 'host:port' (usually `0.0.0.0:port`). Default: `0.0.0.0:4317`. |
+| features.otlp.receiver.protocols.http.enabled | Enable the OTLP/HTTP endpoint. |
+| features.otlp.receiver.protocols.http.endpoint | Endpoint for OTLP/HTTP. Default: '0.0.0.0:4318'. |
 | features.prometheusScrape.additionalConfigs | AdditionalConfigs allows adding advanced Prometheus check configurations with custom discovery rules. |
 | features.prometheusScrape.enableServiceEndpoints | EnableServiceEndpoints enables generating dedicated checks for service endpoints. Default: false |
 | features.prometheusScrape.enabled | Enable autodiscovery of pods and services exposing Prometheus metrics. Default: false |
 | features.tcpQueueLength.enabled | Enables the TCP queue length eBPF-based check. Default: false |
 | features.usm.enabled | Enabled enables Universal Service Monitoring. Default: false |
-| global.clusterAgentToken | ClusterAgentToken is the token for communication between the NodeAgent and ClusterAgent |
+| global.clusterAgentToken | ClusterAgentToken is the token for communication between the NodeAgent and ClusterAgent. |
+| global.clusterAgentTokenSecret.keyName | KeyName is the key of the secret to use. |
+| global.clusterAgentTokenSecret.secretName | SecretName is the name of the secret. |
 | global.clusterName | ClusterName sets a unique cluster name for the deployment to easily scope monitoring data in the Datadog app. |
 | global.credentials.apiKey | APIKey configures your Datadog API key. See also: https://app.datadoghq.com/account/settings#agent/kubernetes |
 | global.credentials.apiSecret.keyName | KeyName is the key of the secret to use. |
