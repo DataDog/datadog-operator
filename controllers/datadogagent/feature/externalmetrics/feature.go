@@ -38,7 +38,7 @@ func buildExternalMetricsFeature(options *feature.Options) feature.Feature {
 }
 
 type externalMetricsFeature struct {
-	wpaController      bool
+	useWPA             bool
 	useDDM             bool
 	port               int32
 	url                string
@@ -64,7 +64,7 @@ func (f *externalMetricsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp 
 	em := dda.Spec.Features.ExternalMetricsServer
 
 	if em != nil && apiutils.BoolValue(em.Enabled) {
-		f.wpaController = apiutils.BoolValue(em.WPAController)
+		f.useWPA = apiutils.BoolValue(em.WPAController)
 		f.useDDM = apiutils.BoolValue(em.UseDatadogMetrics)
 		f.port = *em.Port
 		if em.Endpoint != nil {
@@ -76,8 +76,8 @@ func (f *externalMetricsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp 
 				f.keySecret = make(map[string]secret)
 				if !v2alpha1.CheckAPIKeySufficiency(creds, apicommon.DDExternalMetricsProviderAPIKey) ||
 					!v2alpha1.CheckAppKeySufficiency(creds, apicommon.DDExternalMetricsProviderAppKey) {
-					// neither secrets nor the external metrics api/app key env vars are defined,
-					// so store key data to create secret later
+					// for one of api or app keys, neither secrets nor external metrics key env vars
+					// are defined, so store key data to create secret later
 					for keyType, keyData := range v2alpha1.GetKeysFromCredentials(creds) {
 						f.keySecret[keyType] = secret{
 							data: keyData,
@@ -122,7 +122,7 @@ func (f *externalMetricsFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqCom
 	// 	em := dda.Spec.ClusterAgent.Config.ExternalMetrics
 
 	// 	if em != nil && apiutils.BoolValue(em.Enabled) {
-	// 		f.wpaController = em.WpaController
+	// 		f.useWPA = em.WpaController
 	// 		f.useDDM = em.UseDatadogMetrics
 	// 		f.port = *em.Port
 	// 		if em.Endpoint != nil {
@@ -184,7 +184,7 @@ func (f *externalMetricsFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqCom
 func (f *externalMetricsFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
 	ns := f.owner.GetNamespace()
 	// service
-	emPort := []corev1.ServicePort{
+	emPorts := []corev1.ServicePort{
 		{
 			Protocol: corev1.ProtocolTCP,
 			Port:     f.port,
@@ -196,7 +196,7 @@ func (f *externalMetricsFeature) ManageDependencies(managers feature.ResourceMan
 		apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultClusterAgentResourceSuffix,
 	}
 	serviceName := componentdca.GetMetricsServerServiceName(f.owner)
-	if err := managers.ServiceManager().AddService(serviceName, ns, selector, emPort, nil); err != nil {
+	if err := managers.ServiceManager().AddService(serviceName, ns, selector, emPorts, nil); err != nil {
 		return fmt.Errorf("error adding external metrics provider service to store: %w", err)
 	}
 
@@ -230,7 +230,7 @@ func (f *externalMetricsFeature) ManageDependencies(managers feature.ResourceMan
 
 	// rbac
 	rbacResourcesName := componentdca.GetClusterAgentRbacResourcesName(f.owner)
-	if err := managers.RBACManager().AddClusterPolicyRules(ns, rbacResourcesName, f.serviceAccountName, getDCAClusterPolicyRules(f.useDDM, f.wpaController)); err != nil {
+	if err := managers.RBACManager().AddClusterPolicyRules(ns, rbacResourcesName, f.serviceAccountName, getDCAClusterPolicyRules(f.useDDM, f.useWPA)); err != nil {
 		return fmt.Errorf("error adding external metrics provider dca clusterrole and clusterrolebinding to store: %w", err)
 	}
 	if err := managers.RBACManager().AddPolicyRules(ns, rbacResourcesName, f.serviceAccountName, getDCAPolicyRules()); err != nil {
@@ -242,7 +242,7 @@ func (f *externalMetricsFeature) ManageDependencies(managers feature.ResourceMan
 	if err := managers.RBACManager().AddClusterRoleBinding(ns, componentdca.GetHPAClusterRoleBindingName(f.owner), f.serviceAccountName, getAuthDelegatorRoleRef()); err != nil {
 		return fmt.Errorf("error adding external metrics provider auth delegator clusterrolebinding to store: %w", err)
 	}
-	if err := managers.RBACManager().AddRoleBinding(ns, componentdca.GetApiserverAuthReaderRoleBindingName(f.owner), f.serviceAccountName, getApiserverAuthReaderRoleRef()); err != nil {
+	if err := managers.RBACManager().AddRoleBinding(ns, componentdca.GetApiserverAuthReaderRoleBindingName(f.owner), f.serviceAccountName, getAPIServerAuthReaderRoleRef()); err != nil {
 		return fmt.Errorf("error adding external metrics provider apiserver auth rolebinding to store: %w", err)
 	}
 
@@ -266,7 +266,7 @@ func (f *externalMetricsFeature) ManageClusterAgent(managers feature.PodTemplate
 	})
 	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
 		Name:  apicommon.DDExternalMetricsProviderWPAController,
-		Value: apiutils.BoolToString(&f.wpaController),
+		Value: apiutils.BoolToString(&f.useWPA),
 	})
 
 	if f.url != "" {
@@ -287,7 +287,7 @@ func (f *externalMetricsFeature) ManageClusterAgent(managers feature.PodTemplate
 					component.BuildEnvVarFromSecret(s.name, s.key),
 				)
 			} else {
-				// api key from seret created by operator
+				// api key from secret created by operator
 				apiKeyEnvVar = component.BuildEnvVarFromSource(
 					apicommon.DDExternalMetricsProviderAPIKey,
 					component.BuildEnvVarFromSecret(componentdca.GetDefaultExternalMetricSecretName(f.owner), apicommon.DefaultAPIKeyKey),
@@ -305,7 +305,7 @@ func (f *externalMetricsFeature) ManageClusterAgent(managers feature.PodTemplate
 					component.BuildEnvVarFromSecret(s.name, s.key),
 				)
 			} else {
-				// api key from seret created by operator
+				// api key from secret created by operator
 				appKeyEnvVar = component.BuildEnvVarFromSource(
 					apicommon.DDExternalMetricsProviderAppKey,
 					component.BuildEnvVarFromSecret(componentdca.GetDefaultExternalMetricSecretName(f.owner), apicommon.DefaultAPPKeyKey),

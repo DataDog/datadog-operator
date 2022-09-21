@@ -12,7 +12,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 )
 
-func getDCAClusterPolicyRules(useDDM, wpaController bool) []rbacv1.PolicyRule {
+func getDCAClusterPolicyRules(useDDM, useWPA bool) []rbacv1.PolicyRule {
 	rbacRules := []rbacv1.PolicyRule{
 		{
 			APIGroups: []string{rbac.CoreAPIGroup},
@@ -72,7 +72,7 @@ func getDCAClusterPolicyRules(useDDM, wpaController bool) []rbacv1.PolicyRule {
 		})
 	}
 
-	if wpaController {
+	if useWPA {
 		rbacRules = append(rbacRules, rbacv1.PolicyRule{
 			APIGroups: []string{rbac.DatadogAPIGroup},
 			Resources: []string{rbac.WpaResource},
@@ -137,7 +137,7 @@ func getExternalMetricsReaderPolicyRules() []rbacv1.PolicyRule {
 	}
 }
 
-func getApiserverAuthReaderRoleRef() rbacv1.RoleRef {
+func getAPIServerAuthReaderRoleRef() rbacv1.RoleRef {
 	return rbacv1.RoleRef{
 		APIGroup: rbac.RbacAPIGroup,
 		Kind:     rbac.RoleKind,

@@ -80,7 +80,7 @@ func GetMetricsServerServiceName(dda metav1.Object) string {
 
 // GetMetricsServerAPIServiceName returns the external metrics provider apiservice name
 func GetMetricsServerAPIServiceName() string {
-	return "v1beta1.external.metrics.k8s.io"
+	return apicommon.ExternalMetricsAPIServiceName
 }
 
 // GetDefaultExternalMetricSecretName returns the external metrics provider secret name
