@@ -8,11 +8,17 @@ package clusterchecks
 import (
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
+	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
+
 	corev1 "k8s.io/api/core/v1"
+	netv1 "k8s.io/api/networking/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func init() {
@@ -24,6 +30,10 @@ func init() {
 
 type clusterChecksFeature struct {
 	useClusterCheckRunners bool
+	owner                  metav1.Object
+
+	createKubernetesNetworkPolicy bool
+	createCiliumNetworkPolicy     bool
 }
 
 func buildClusterChecksFeature(options *feature.Options) feature.Feature {
@@ -40,6 +50,16 @@ func (f *clusterChecksFeature) Configure(dda *v2alpha1.DatadogAgent) feature.Req
 	f.useClusterCheckRunners = clusterChecksEnabled && apiutils.BoolValue(dda.Spec.Features.ClusterChecks.UseClusterChecksRunners)
 
 	if clusterChecksEnabled {
+		f.owner = dda
+
+		if enabled, flavor := v2alpha1.IsNetworkPolicyEnabled(dda); enabled {
+			if flavor == v2alpha1.NetworkPolicyFlavorCilium {
+				f.createCiliumNetworkPolicy = true
+			} else {
+				f.createKubernetesNetworkPolicy = true
+			}
+		}
+
 		return feature.RequiredComponents{
 			ClusterAgent:        feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)},
 			ClusterChecksRunner: feature.RequiredComponent{IsRequired: &f.useClusterCheckRunners},
@@ -53,7 +73,7 @@ func (f *clusterChecksFeature) Configure(dda *v2alpha1.DatadogAgent) feature.Req
 	}
 }
 
-func (f *clusterChecksFeature) ConfigureV1(dda *datadoghqv1alpha1.DatadogAgent) feature.RequiredComponents {
+func (f *clusterChecksFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) feature.RequiredComponents {
 	clusterChecksEnabled := false
 
 	if dda != nil && dda.Spec.ClusterAgent.Config != nil {
@@ -62,6 +82,16 @@ func (f *clusterChecksFeature) ConfigureV1(dda *datadoghqv1alpha1.DatadogAgent) 
 	}
 
 	if clusterChecksEnabled {
+		f.owner = dda
+
+		if enabled, flavor := v1alpha1.IsAgentNetworkPolicyEnabled(dda); enabled {
+			if flavor == v1alpha1.NetworkPolicyFlavorCilium {
+				f.createCiliumNetworkPolicy = true
+			} else {
+				f.createKubernetesNetworkPolicy = true
+			}
+		}
+
 		return feature.RequiredComponents{
 			ClusterAgent:        feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)},
 			ClusterChecksRunner: feature.RequiredComponent{IsRequired: &f.useClusterCheckRunners},
@@ -74,6 +104,59 @@ func (f *clusterChecksFeature) ConfigureV1(dda *datadoghqv1alpha1.DatadogAgent) 
 }
 
 func (f *clusterChecksFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
+	policyName, podSelector := component.GetNetworkPolicyMetadata(f.owner, v2alpha1.ClusterAgentComponentName)
+	_, ccrPodSelector := component.GetNetworkPolicyMetadata(f.owner, v2alpha1.ClusterChecksRunnerComponentName)
+	if f.createKubernetesNetworkPolicy {
+		ingressRules := []netv1.NetworkPolicyIngressRule{
+			{
+				Ports: []netv1.NetworkPolicyPort{
+					{
+						Port: &intstr.IntOrString{
+							Type:   intstr.Int,
+							IntVal: apicommon.DefaultClusterAgentServicePort,
+						},
+					},
+				},
+				From: []netv1.NetworkPolicyPeer{
+					{
+						PodSelector: &ccrPodSelector,
+					},
+				},
+			},
+		}
+		return managers.NetworkPolicyManager().AddKubernetesNetworkPolicy(
+			policyName,
+			f.owner.GetNamespace(),
+			podSelector,
+			nil,
+			ingressRules,
+			nil,
+		)
+	} else if f.createCiliumNetworkPolicy {
+		policySpecs := []cilium.NetworkPolicySpec{
+			{
+				Description:      "Ingress from cluster workers",
+				EndpointSelector: podSelector,
+				Ingress: []cilium.IngressRule{
+					{
+						FromEndpoints: []metav1.LabelSelector{ccrPodSelector},
+						ToPorts: []cilium.PortRule{
+							{
+								Ports: []cilium.PortProtocol{
+									{
+										Port:     "5005",
+										Protocol: cilium.ProtocolTCP,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		return managers.CiliumPolicyManager().AddCiliumPolicy(policyName, f.owner.GetNamespace(), policySpecs)
+	}
+
 	return nil
 }
 
