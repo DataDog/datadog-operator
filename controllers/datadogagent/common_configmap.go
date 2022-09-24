@@ -141,5 +141,5 @@ func buildConfigurationConfigMap(owner metav1.Object, cfcm *commonv1.CustomConfi
 		return nil, nil
 	}
 
-	return configmap.BuildConfiguration(owner, cfcm.ConfigData, configMapName, subPath)
+	return configmap.BuildConfiguration(owner.GetNamespace(), cfcm.ConfigData, configMapName, subPath)
 }

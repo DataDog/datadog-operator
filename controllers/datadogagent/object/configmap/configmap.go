@@ -10,14 +10,13 @@ import (
 
 	"gopkg.in/yaml.v2"
 
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/errors"
 )
 
 // BuildConfiguration use to generate a configmap containing a configuration file in yaml.
-func BuildConfiguration(owner metav1.Object, configDataPointer *string, configMapName, subPath string) (*corev1.ConfigMap, error) {
+func BuildConfiguration(namespace string, configDataPointer *string, configMapName, subPath string) (*corev1.ConfigMap, error) {
 	if configDataPointer == nil {
 		return nil, nil
 	}
@@ -35,10 +34,8 @@ func BuildConfiguration(owner metav1.Object, configDataPointer *string, configMa
 
 	configMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        configMapName,
-			Namespace:   owner.GetNamespace(),
-			Labels:      object.GetDefaultLabels(owner, owner.GetName(), ""),
-			Annotations: object.GetDefaultAnnotations(owner),
+			Name:      configMapName,
+			Namespace: namespace,
 		},
 		Data: map[string]string{
 			subPath: configData,
@@ -49,7 +46,7 @@ func BuildConfiguration(owner metav1.Object, configDataPointer *string, configMa
 
 // BuildConfigMapMulti use to generate a configmap containing configuration (yaml) or check code (python).
 // Use boolean `validate` to validate against yaml.
-func BuildConfigMapMulti(owner metav1.Object, configDataMap map[string]string, configMapName string, validate bool) (*corev1.ConfigMap, error) {
+func BuildConfigMapMulti(namespace string, configDataMap map[string]string, configMapName string, validate bool) (*corev1.ConfigMap, error) {
 	var errs []error
 	data := make(map[string]string)
 
@@ -67,10 +64,8 @@ func BuildConfigMapMulti(owner metav1.Object, configDataMap map[string]string, c
 
 	configMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        configMapName,
-			Namespace:   owner.GetNamespace(),
-			Labels:      object.GetDefaultLabels(owner, owner.GetName(), ""),
-			Annotations: object.GetDefaultAnnotations(owner),
+			Name:      configMapName,
+			Namespace: namespace,
 		},
 		Data: data,
 	}

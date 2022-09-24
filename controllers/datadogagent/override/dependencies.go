@@ -17,8 +17,8 @@ import (
 )
 
 // Dependencies is used to override any resource/dependency settings with a v2alpha1.DatadogAgentComponentOverride.
-func Dependencies(logger logr.Logger, manager feature.ResourceManagers, instance *v2alpha1.DatadogAgent, namespace string) (errs []error) {
-	for component, override := range instance.Spec.Override {
+func Dependencies(logger logr.Logger, manager feature.ResourceManagers, overrides map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride, namespace string) (errs []error) {
+	for component, override := range overrides {
 		err := overrideRBAC(logger, manager, override, component, namespace)
 		if err != nil {
 			errs = append(errs, err)
@@ -26,7 +26,7 @@ func Dependencies(logger logr.Logger, manager feature.ResourceManagers, instance
 
 		// Handle custom check configurations, only if ConfigMap == nil
 		if override.ExtraConfd != nil && override.ExtraConfd.ConfigMap == nil && len(override.ExtraConfd.ConfigDataMap) > 0 {
-			cm, err := configmap.BuildConfigMapMulti(instance, override.ExtraConfd.ConfigDataMap, v2alpha1.ExtraConfdConfigMapName, true)
+			cm, err := configmap.BuildConfigMapMulti(namespace, override.ExtraConfd.ConfigDataMap, v2alpha1.ExtraConfdConfigMapName, true)
 			if err != nil {
 				errs = append(errs, err)
 			}
@@ -39,7 +39,7 @@ func Dependencies(logger logr.Logger, manager feature.ResourceManagers, instance
 
 		// Handle custom check files, only if ConfigMap == nil
 		if override.ExtraChecksd != nil && override.ExtraChecksd.ConfigMap == nil && len(override.ExtraChecksd.ConfigDataMap) > 0 {
-			cm, err := configmap.BuildConfigMapMulti(instance, override.ExtraChecksd.ConfigDataMap, v2alpha1.ExtraChecksdConfigMapName, false)
+			cm, err := configmap.BuildConfigMapMulti(namespace, override.ExtraChecksd.ConfigDataMap, v2alpha1.ExtraChecksdConfigMapName, false)
 			if err != nil {
 				errs = append(errs, err)
 			}

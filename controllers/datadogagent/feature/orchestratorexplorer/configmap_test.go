@@ -50,7 +50,7 @@ instances:
 				clusterChecksEnabled: true,
 				configConfigMapName:  apicommon.DefaultOrchestratorExplorerConf,
 			},
-			want: buildDefaultConfigMap(owner, apicommon.DefaultOrchestratorExplorerConf, orchestratorExplorerCheckConfig(true)),
+			want: buildDefaultConfigMap(owner.GetNamespace(), apicommon.DefaultOrchestratorExplorerConf, orchestratorExplorerCheckConfig(true)),
 		},
 		{
 			name: "override",
@@ -63,7 +63,7 @@ instances:
 					ConfigData: &overrideConf,
 				},
 			},
-			want: buildDefaultConfigMap(owner, apicommon.DefaultOrchestratorExplorerConf, overrideConf),
+			want: buildDefaultConfigMap(owner.GetNamespace(), apicommon.DefaultOrchestratorExplorerConf, overrideConf),
 		},
 	}
 	for _, tt := range tests {

@@ -10,7 +10,6 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	test "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1/test"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -64,10 +63,8 @@ func Test_buildConfigurationConfigMap(t *testing.T) {
 			},
 			want: &corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:        "foo",
-					Namespace:   "bar",
-					Labels:      object.GetDefaultLabels(ddaWithConfigData, ddaWithConfigData.Name, getAgentVersion(ddaWithConfigData)),
-					Annotations: object.GetDefaultAnnotations(ddaWithConfigData),
+					Name:      "foo",
+					Namespace: "bar",
 				},
 				Data: map[string]string{
 					"datadog.yaml": dataContent,
