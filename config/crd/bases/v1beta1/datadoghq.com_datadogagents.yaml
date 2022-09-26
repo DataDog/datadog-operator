@@ -25644,7 +25644,7 @@ spec:
                 x-kubernetes-preserve-unknown-fields: true
             type: object
         type: object
-    served: false
+    served: true
     storage: false
   - additionalPrinterColumns:
     - JSONPath: .status.agent.status
