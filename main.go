@@ -98,7 +98,7 @@ func main() {
 	flag.BoolVar(&supportCilium, "supportCilium", false, "Support usage of Cilium network policies.")
 	flag.BoolVar(&datadogMonitorEnabled, "datadogMonitorEnabled", false, "Enable the DatadogMonitor controller")
 	flag.BoolVar(&operatorMetricsEnabled, "operatorMetricsEnabled", true, "Enable sending operator metrics to Datadog")
-	flag.BoolVar(&v2APIEnabled, "v2APIEnabled", false, "Enable the v2 api")
+	flag.BoolVar(&v2APIEnabled, "v2APIEnabled", true, "Enable the v2 api")
 	flag.BoolVar(&webhookEnabled, "webhookEnabled", true, "Enable CRD conversion webhook.")
 
 	// Parsing flags

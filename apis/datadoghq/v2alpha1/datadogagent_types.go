@@ -924,7 +924,7 @@ type DatadogAgentStatus struct {
 // DatadogAgent Deployment with the Datadog Operator.
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:unservedversion
+// +kubebuilder:storageversion
 // +kubebuilder:resource:path=datadogagents,shortName=dd
 // +kubebuilder:printcolumn:name="agent",type="string",JSONPath=".status.agent.status"
 // +kubebuilder:printcolumn:name="cluster-agent",type="string",JSONPath=".status.clusterAgent.status"
