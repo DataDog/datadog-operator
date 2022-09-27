@@ -17,10 +17,13 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
+	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 
 	corev1 "k8s.io/api/core/v1"
+	netv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 )
 
@@ -45,6 +48,9 @@ type externalMetricsFeature struct {
 	keySecret          map[string]secret
 	serviceAccountName string
 	owner              metav1.Object
+
+	createKubernetesNetworkPolicy bool
+	createCiliumNetworkPolicy     bool
 }
 
 type secret struct {
@@ -107,6 +113,14 @@ func (f *externalMetricsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp 
 
 		f.serviceAccountName = v2alpha1.GetClusterAgentServiceAccount(dda)
 
+		if enabled, flavor := v2alpha1.IsNetworkPolicyEnabled(dda); enabled {
+			if flavor == v2alpha1.NetworkPolicyFlavorCilium {
+				f.createCiliumNetworkPolicy = true
+			} else {
+				f.createKubernetesNetworkPolicy = true
+			}
+		}
+
 		reqComp = feature.RequiredComponents{
 			ClusterAgent: feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)},
 		}
@@ -163,6 +177,14 @@ func (f *externalMetricsFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqCom
 	// 		}
 
 	// 		f.serviceAccountName = v1alpha1.GetClusterAgentServiceAccount(dda)
+
+	// if enabled, flavor := v1alpha1.IsAgentNetworkPolicyEnabled(dda); enabled {
+	// 	if flavor == v1alpha1.NetworkPolicyFlavorCilium {
+	// 		f.createCiliumNetworkPolicy = true
+	// 	} else {
+	// 		f.createKubernetesNetworkPolicy = true
+	// 	}
+	// }
 
 	// 		reqComp = feature.RequiredComponents{
 	// 			ClusterAgent: feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)},
@@ -244,6 +266,54 @@ func (f *externalMetricsFeature) ManageDependencies(managers feature.ResourceMan
 	}
 	if err := managers.RBACManager().AddRoleBinding(ns, componentdca.GetApiserverAuthReaderRoleBindingName(f.owner), f.serviceAccountName, getAPIServerAuthReaderRoleRef()); err != nil {
 		return fmt.Errorf("error adding external metrics provider apiserver auth rolebinding to store: %w", err)
+	}
+
+	// network policies
+	policyName, podSelector := component.GetNetworkPolicyMetadata(f.owner, v2alpha1.ClusterAgentComponentName)
+	if f.createKubernetesNetworkPolicy {
+		ingressRules := []netv1.NetworkPolicyIngressRule{
+			{
+				Ports: []netv1.NetworkPolicyPort{
+					{
+						Port: &intstr.IntOrString{
+							Type:   intstr.Int,
+							IntVal: f.port,
+						},
+					},
+				},
+			},
+		}
+		return managers.NetworkPolicyManager().AddKubernetesNetworkPolicy(
+			policyName,
+			f.owner.GetNamespace(),
+			podSelector,
+			nil,
+			ingressRules,
+			nil,
+		)
+	} else if f.createCiliumNetworkPolicy {
+		policySpecs := []cilium.NetworkPolicySpec{
+			{
+				Description:      "Ingress from API server for external metrics",
+				EndpointSelector: podSelector,
+				Ingress: []cilium.IngressRule{
+					{
+						FromEntities: []cilium.Entity{cilium.EntityWorld},
+						ToPorts: []cilium.PortRule{
+							{
+								Ports: []cilium.PortProtocol{
+									{
+										Port:     strconv.Itoa(int(f.port)),
+										Protocol: cilium.ProtocolTCP,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		return managers.CiliumPolicyManager().AddCiliumPolicy(policyName, f.owner.GetNamespace(), policySpecs)
 	}
 
 	return nil
