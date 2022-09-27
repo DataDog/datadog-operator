@@ -24,31 +24,11 @@ func Dependencies(logger logr.Logger, manager feature.ResourceManagers, override
 			errs = append(errs, err)
 		}
 
-		// Handle custom check configurations, only if ConfigMap == nil
-		if override.ExtraConfd != nil && override.ExtraConfd.ConfigMap == nil && len(override.ExtraConfd.ConfigDataMap) > 0 {
-			cm, err := configmap.BuildConfigMapMulti(namespace, override.ExtraConfd.ConfigDataMap, v2alpha1.ExtraConfdConfigMapName, true)
-			if err != nil {
-				errs = append(errs, err)
-			}
-			if cm != nil {
-				if err := manager.Store().AddOrUpdate(kubernetes.ConfigMapKind, cm); err != nil {
-					errs = append(errs, err)
-				}
-			}
-		}
+		// Handle custom check configurations
+		errs = append(errs, overrideExtraConfigs(manager, override.ExtraConfd, namespace, v2alpha1.ExtraConfdConfigMapName, true)...)
 
-		// Handle custom check files, only if ConfigMap == nil
-		if override.ExtraChecksd != nil && override.ExtraChecksd.ConfigMap == nil && len(override.ExtraChecksd.ConfigDataMap) > 0 {
-			cm, err := configmap.BuildConfigMapMulti(namespace, override.ExtraChecksd.ConfigDataMap, v2alpha1.ExtraChecksdConfigMapName, false)
-			if err != nil {
-				errs = append(errs, err)
-			}
-			if cm != nil {
-				if err := manager.Store().AddOrUpdate(kubernetes.ConfigMapKind, cm); err != nil {
-					errs = append(errs, err)
-				}
-			}
-		}
+		// Handle custom check files
+		errs = append(errs, overrideExtraConfigs(manager, override.ExtraChecksd, namespace, v2alpha1.ExtraChecksdConfigMapName, false)...)
 	}
 	return errs
 }
@@ -64,4 +44,19 @@ func overrideRBAC(logger logr.Logger, manager feature.ResourceManagers, override
 	}
 
 	return errors.NewAggregate(errs)
+}
+
+func overrideExtraConfigs(manager feature.ResourceManagers, multiCustomConfig *v2alpha1.MultiCustomConfig, namespace, configMapName string, isYaml bool) (errs []error) {
+	if multiCustomConfig != nil && multiCustomConfig.ConfigMap == nil && len(multiCustomConfig.ConfigDataMap) > 0 {
+		cm, err := configmap.BuildConfigMapMulti(namespace, multiCustomConfig.ConfigDataMap, configMapName, isYaml)
+		if err != nil {
+			errs = append(errs, err)
+		}
+		if cm != nil {
+			if err := manager.Store().AddOrUpdate(kubernetes.ConfigMapKind, cm); err != nil {
+				errs = append(errs, err)
+			}
+		}
+	}
+	return errs
 }
