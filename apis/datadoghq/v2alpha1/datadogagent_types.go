@@ -764,17 +764,18 @@ type DatadogAgentComponentOverride struct {
 	// +optional
 	HostPID *bool `json:"hostPID,omitempty"`
 
-	// SecCompRootPath specify the seccomp profile root directory.
+	// SystemProbeSeccompRootPath specifies the seccomp profile root directory for the system probe.
 	// +optional
-	SecCompRootPath *string `json:"secCompRootPath,omitempty"`
+	SystemProbeSeccompRootPath *string `json:"systemProbeSeccompRootPath,omitempty"`
 
-	// SecCompCustomProfileConfigMap specify a pre-existing ConfigMap containing a custom SecComp profile.
+	// SystemProbeSeccompCustomProfile specifies a pre-existing ConfigMap containing a custom Seccomp profile for the system probe.
+	// This ConfigMap must contain a file named `system-probe-seccomp.json`.
 	// +optional
-	SecCompCustomProfile *CustomConfig `json:"secCompCustomProfile,omitempty"`
+	SystemProbeSeccompCustomProfile *string `json:"systemProbeSeccompCustomProfile,omitempty"`
 
-	// SecCompProfileName specify a seccomp profile.
+	// SystemProbeSeccompLocalhostProfile specifies a pre-existing seccomp profile on the node for the system probe.
 	// +optional
-	SecCompProfileName *string `json:"secCompProfileName,omitempty"`
+	SystemProbeSeccompLocalhostProfile *string `json:"systemProbeSeccompLocalhostProfile,omitempty"`
 
 	// Disabled force disables a component.
 	// +optional

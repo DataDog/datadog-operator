@@ -273,40 +273,40 @@ func GetVolumeMountForRuntimeSocket(readOnly bool) corev1.VolumeMount {
 // GetVolumeMountForSecurity returns the VolumeMount for datadog-agent-security
 func GetVolumeMountForSecurity() corev1.VolumeMount {
 	return corev1.VolumeMount{
-		Name:      apicommon.SystemProbeAgentSecurityVolumeName,
-		MountPath: apicommon.SystemProbeAgentSecurityVolumePath,
+		Name:      apicommon.SeccompSecurityVolumeName,
+		MountPath: apicommon.SeccompSecurityVolumePath,
 	}
 }
 
 // GetVolumeForSecurity returns the Volume for datadog-agent-security
 func GetVolumeForSecurity(owner metav1.Object) corev1.Volume {
 	return corev1.Volume{
-		Name: apicommon.SystemProbeAgentSecurityVolumeName,
+		Name: apicommon.SeccompSecurityVolumeName,
 		VolumeSource: corev1.VolumeSource{
 			ConfigMap: &corev1.ConfigMapVolumeSource{
 				LocalObjectReference: corev1.LocalObjectReference{
-					Name: GetDefaultSecCompConfigMapName(owner),
+					Name: GetDefaultSeccompConfigMapName(owner),
 				},
 			},
 		},
 	}
 }
 
-// GetVolumeMountForSecComp returns the VolumeMount for seccomp root
-func GetVolumeMountForSecComp() corev1.VolumeMount {
+// GetVolumeMountForSeccomp returns the VolumeMount for seccomp root
+func GetVolumeMountForSeccomp() corev1.VolumeMount {
 	return corev1.VolumeMount{
-		Name:      apicommon.SystemProbeSecCompRootVolumeName,
-		MountPath: apicommon.SystemProbeSecCompRootVolumePath,
+		Name:      apicommon.SeccompRootVolumeName,
+		MountPath: apicommon.SeccompRootVolumePath,
 	}
 }
 
-// GetVolumeForSecComp returns the volume for seccomp root
-func GetVolumeForSecComp() corev1.Volume {
+// GetVolumeForSeccomp returns the volume for seccomp root
+func GetVolumeForSeccomp() corev1.Volume {
 	return corev1.Volume{
-		Name: apicommon.SystemProbeSecCompRootVolumeName,
+		Name: apicommon.SeccompRootVolumeName,
 		VolumeSource: corev1.VolumeSource{
 			HostPath: &corev1.HostPathVolumeSource{
-				Path: apicommon.SystemProbeSecCompRootPath,
+				Path: apicommon.SeccompRootPath,
 			},
 		},
 	}
@@ -349,8 +349,8 @@ func GetClusterChecksRunnerName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultClusterChecksRunnerResourceSuffix)
 }
 
-// GetDefaultSecCompConfigMapName returns the default seccomp configmap name based on the DatadogAgent name
-func GetDefaultSecCompConfigMapName(dda metav1.Object) string {
+// GetDefaultSeccompConfigMapName returns the default seccomp configmap name based on the DatadogAgent name
+func GetDefaultSeccompConfigMapName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.SystemProbeAgentSecurityConfigMapSuffixName)
 }
 

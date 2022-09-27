@@ -36,6 +36,10 @@ func (impl *securityContextManagerImpl) AddCapabilitiesToContainer(capabilities 
 						Add: capabilities,
 					},
 				}
+			} else if container.SecurityContext.Capabilities == nil {
+				impl.podTmpl.Spec.Containers[i].SecurityContext.Capabilities = &corev1.Capabilities{
+					Add: capabilities,
+				}
 			} else {
 				// TODO add deduplication
 				impl.podTmpl.Spec.Containers[i].SecurityContext.Capabilities.Add = append(

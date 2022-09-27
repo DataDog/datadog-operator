@@ -19,7 +19,6 @@ import (
 func TestDependencies(t *testing.T) {
 	// These tests are not exhaustive. There's only 1 that covers a bug fix.
 
-	ddaName := "test-name"
 	namespace := "test-namespace"
 	testLogger := logf.Log.WithName("TestRequiredComponents")
 
@@ -44,7 +43,7 @@ func TestDependencies(t *testing.T) {
 			store := dependencies.NewStore(&test.dda, nil)
 			manager := feature.NewResourceManagers(store)
 
-			errs := Dependencies(testLogger, manager, test.overrides, ddaName, namespace)
+			errs := Dependencies(testLogger, manager, test.overrides, namespace)
 
 			if test.expectsErrors {
 				assert.NotEmpty(t, errs)

@@ -104,8 +104,6 @@ const (
 const (
 	SystemProbeAppArmorAnnotationKey   = "container.apparmor.security.beta.kubernetes.io/system-probe"
 	SystemProbeAppArmorAnnotationValue = "unconfined"
-	SystemProbeSeccompAnnotationKey    = "container.seccomp.security.alpha.kubernetes.io/system-probe"
-	SystemProbeSeccompAnnotationValue  = "localhost/system-probe"
 )
 
 // Datadog volume names and mount paths
@@ -203,13 +201,14 @@ const (
 	APMHostPortHostPort                          = 8126
 	APMSocketVolumeName                          = "apmsocket"
 	APMSocketVolumePath                          = "/var/run/datadog/apm"
-	SystemProbeAgentSecurityVolumeName           = "datadog-agent-security"
-	SystemProbeAgentSecurityVolumePath           = "/etc/config"
-	SystemProbeSecCompRootVolumeName             = "seccomp-root"
-	SystemProbeSecCompRootVolumePath             = "/host/var/lib/kubelet/seccomp"
-	SystemProbeSecCompRootPath                   = "/var/lib/kubelet/seccomp"
-	SystemProbeSecCompKey                        = "system-probe-seccomp.json"
+	SeccompSecurityVolumeName                    = "datadog-agent-security"
+	SeccompSecurityVolumePath                    = "/etc/config"
+	SeccompRootVolumeName                        = "seccomp-root"
+	SeccompRootVolumePath                        = "/host/var/lib/kubelet/seccomp"
+	SeccompRootPath                              = "/var/lib/kubelet/seccomp"
+	SystemProbeSeccompKey                        = "system-probe-seccomp.json"
 	SystemProbeAgentSecurityConfigMapSuffixName  = "system-probe-seccomp"
+	SystemProbeSeccompProfileName                = "system-probe"
 
 	AppArmorAnnotationKey = "container.apparmor.security.beta.kubernetes.io"
 

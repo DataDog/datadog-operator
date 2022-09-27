@@ -97,7 +97,7 @@ func buildSystemProbeSecCompConfigMap(dda *datadoghqv1alpha1.DatadogAgent) (*cor
 			Labels:      object.GetDefaultLabels(dda, dda.Name, getAgentVersion(dda)),
 			Annotations: object.GetDefaultAnnotations(dda),
 		},
-		Data: agent.DefaultSecCompConfigDataForSystemProbe(),
+		Data: agent.DefaultSeccompConfigDataForSystemProbe(),
 	}
 
 	return configMap, nil
@@ -118,5 +118,5 @@ func getSecCompConfigMapName(dda *datadoghqv1alpha1.DatadogAgent) string {
 	if apiutils.BoolValue(dda.Spec.Agent.Enabled) && dda.Spec.Agent.SystemProbe.SecCompCustomProfileConfigMap != "" {
 		return dda.Spec.Agent.SystemProbe.SecCompCustomProfileConfigMap
 	}
-	return component.GetDefaultSecCompConfigMapName(dda)
+	return component.GetDefaultSeccompConfigMapName(dda)
 }

@@ -346,18 +346,18 @@ func (in *DatadogAgentComponentOverride) DeepCopyInto(out *DatadogAgentComponent
 		*out = new(bool)
 		**out = **in
 	}
-	if in.SecCompRootPath != nil {
-		in, out := &in.SecCompRootPath, &out.SecCompRootPath
+	if in.SystemProbeSeccompRootPath != nil {
+		in, out := &in.SystemProbeSeccompRootPath, &out.SystemProbeSeccompRootPath
 		*out = new(string)
 		**out = **in
 	}
-	if in.SecCompCustomProfile != nil {
-		in, out := &in.SecCompCustomProfile, &out.SecCompCustomProfile
-		*out = new(CustomConfig)
-		(*in).DeepCopyInto(*out)
+	if in.SystemProbeSeccompCustomProfile != nil {
+		in, out := &in.SystemProbeSeccompCustomProfile, &out.SystemProbeSeccompCustomProfile
+		*out = new(string)
+		**out = **in
 	}
-	if in.SecCompProfileName != nil {
-		in, out := &in.SecCompProfileName, &out.SecCompProfileName
+	if in.SystemProbeSeccompLocalhostProfile != nil {
+		in, out := &in.SystemProbeSeccompLocalhostProfile, &out.SystemProbeSeccompLocalhostProfile
 		*out = new(string)
 		**out = **in
 	}

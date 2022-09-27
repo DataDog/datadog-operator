@@ -391,7 +391,7 @@ func TestPodTemplateSpec(t *testing.T) {
 				return fake.NewPodTemplateManagers(t)
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				SecCompRootPath: apiutils.NewStringPointer("seccomp/path"),
+				SystemProbeSeccompRootPath: apiutils.NewStringPointer("seccomp/path"),
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
 				expectedVolumes := []*v1.Volume{
@@ -409,62 +409,56 @@ func TestPodTemplateSpec(t *testing.T) {
 			},
 		},
 		{
-			name: "override seccomp profile name",
+			name: "override seccomp localhost profile name",
 			existingManager: func() *fake.PodTemplateManagers {
 				manager := fake.NewPodTemplateManagers(t)
-				manager.PodTemplateSpec().Annotations = map[string]string{}
+				for i, container := range manager.PodTemplateSpec().Spec.Containers {
+					if container.Name == string(commonv1.SystemProbeContainerName) {
+						manager.PodTemplateSpec().Spec.Containers[i].SecurityContext = &v1.SecurityContext{}
+					}
+				}
 				return manager
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				SecCompProfileName: apiutils.NewStringPointer("seccomp-name"),
+				SystemProbeSeccompLocalhostProfile: apiutils.NewStringPointer("seccomp-name"),
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
-				expectedAnnotations := map[string]string{
-					"container.seccomp.security.alpha.kubernetes.io/system-probe": "seccomp-name",
+				expectedSecurityContext := &v1.SecurityContext{
+					SeccompProfile: &v1.SeccompProfile{
+						Type:             v1.SeccompProfileTypeLocalhost,
+						LocalhostProfile: apiutils.NewStringPointer("seccomp-name"),
+					},
 				}
-
-				assert.Equal(t, expectedAnnotations, manager.PodTemplateSpec().Annotations)
+				for i, container := range manager.PodTemplateSpec().Spec.Containers {
+					if container.Name == string(commonv1.SystemProbeContainerName) {
+						assert.Equal(t, expectedSecurityContext, manager.PodTemplateSpec().Spec.Containers[i].SecurityContext)
+					}
+				}
 			},
 		},
 		{
 			name: "override seccomp custom profile",
 			existingManager: func() *fake.PodTemplateManagers {
 				manager := fake.NewPodTemplateManagers(t)
-				manager.PodTemplateSpec().Annotations = map[string]string{}
 				return manager
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				SecCompCustomProfile: &v2alpha1.CustomConfig{
-					ConfigMap: &commonv1.ConfigMapConfig{
-						Name: "seccomp-custom-profile-name",
-						Items: []v1.KeyToPath{
-							{
-								Key:  "seccomp-key",
-								Path: "/seccomp/custom/profile/path",
-							},
-						},
-					},
-				},
+				SystemProbeSeccompCustomProfile: apiutils.NewStringPointer("custom-seccomp-profile"),
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
 				expectedVolumes := []*v1.Volume{
 					{
-						Name: "seccomp-root",
+						Name: "datadog-agent-security",
 						VolumeSource: v1.VolumeSource{
 							ConfigMap: &v1.ConfigMapVolumeSource{
 								LocalObjectReference: v1.LocalObjectReference{
-									Name: "seccomp-custom-profile-name",
+									Name: "custom-seccomp-profile",
 								},
 							},
 						},
 					},
 				}
 				assert.Equal(t, expectedVolumes, manager.VolumeMgr.Volumes)
-
-				expectedAnnotations := map[string]string{
-					"container.seccomp.security.alpha.kubernetes.io/system-probe": "seccomp-custom-profile-name",
-				}
-				assert.Equal(t, expectedAnnotations, manager.PodTemplateSpec().Annotations)
 			},
 		},
 	}

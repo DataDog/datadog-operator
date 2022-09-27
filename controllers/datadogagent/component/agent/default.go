@@ -43,7 +43,7 @@ func NewDefaultAgentPodTemplateSpec(dda metav1.Object, requiredContainers []comm
 	return &corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels:      labels,
-			Annotations: getDefaultAgentPodAnnotations(requiredContainers),
+			Annotations: make(map[string]string),
 		},
 		Spec: corev1.PodSpec{
 			// Force root user for when the agent Dockerfile will be updated to use a non-root user by default
@@ -77,17 +77,6 @@ func getDefaultServiceAccountName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultAgentResourceSuffix)
 }
 
-func getDefaultAgentPodAnnotations(requiredContainers []common.AgentContainerName) map[string]string {
-	annotations := make(map[string]string)
-	for _, containerName := range requiredContainers {
-		if containerName == common.SystemProbeContainerName {
-			annotations[apicommon.SystemProbeSeccompAnnotationKey] = apicommon.SystemProbeSeccompAnnotationValue
-		}
-	}
-
-	return annotations
-}
-
 func agentImage() string {
 	return fmt.Sprintf("%s/%s:%s", apicommon.DefaultImageRegistry, apicommon.DefaultAgentImageName, defaulting.AgentLatestVersion)
 }
@@ -99,7 +88,7 @@ func initContainers(dda metav1.Object, requiredContainers []common.AgentContaine
 	}
 	for _, containerName := range requiredContainers {
 		if containerName == common.SystemProbeContainerName {
-			initContainers = append(initContainers, initSecCompSetupContainer())
+			initContainers = append(initContainers, initSeccompSetupContainer())
 		}
 	}
 
@@ -196,6 +185,12 @@ func systemProbeContainer(dda metav1.Object) corev1.Container {
 		VolumeMounts:   volumeMountsForSystemProbe(),
 		LivenessProbe:  apicommon.GetDefaultLivenessProbe(),
 		ReadinessProbe: apicommon.GetDefaultReadinessProbe(),
+		SecurityContext: &corev1.SecurityContext{
+			SeccompProfile: &corev1.SeccompProfile{
+				Type:             corev1.SeccompProfileTypeLocalhost,
+				LocalhostProfile: apiutils.NewStringPointer(apicommon.SystemProbeSeccompProfileName),
+			},
+		},
 	}
 }
 
@@ -227,16 +222,16 @@ func initConfigContainer(dda metav1.Object) corev1.Container {
 	}
 }
 
-func initSecCompSetupContainer() corev1.Container {
+func initSeccompSetupContainer() corev1.Container {
 	return corev1.Container{
 		Name:  "seccomp-setup",
 		Image: agentImage(),
 		Command: []string{
 			"cp",
-			fmt.Sprintf("%s/system-probe-seccomp.json", apicommon.SystemProbeAgentSecurityVolumePath),
-			fmt.Sprintf("%s/system-probe", apicommon.SystemProbeSecCompRootVolumePath),
+			fmt.Sprintf("%s/system-probe-seccomp.json", apicommon.SeccompSecurityVolumePath),
+			fmt.Sprintf("%s/system-probe", apicommon.SeccompRootVolumePath),
 		},
-		VolumeMounts: volumeMountsForSecCompSetup(),
+		VolumeMounts: volumeMountsForSeccompSetup(),
 	}
 }
 
@@ -312,7 +307,7 @@ func volumesForAgent(dda metav1.Object, requiredContainers []common.AgentContain
 		if containerName == common.SystemProbeContainerName {
 			sysProbeVolumes := []corev1.Volume{
 				component.GetVolumeForSecurity(dda),
-				component.GetVolumeForSecComp(),
+				component.GetVolumeForSeccomp(),
 			}
 			volumes = append(volumes, sysProbeVolumes...)
 		}
@@ -373,15 +368,15 @@ func volumeMountsForSystemProbe() []corev1.VolumeMount {
 	}
 }
 
-func volumeMountsForSecCompSetup() []corev1.VolumeMount {
+func volumeMountsForSeccompSetup() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		component.GetVolumeMountForSecurity(),
-		component.GetVolumeMountForSecComp(),
+		component.GetVolumeMountForSeccomp(),
 	}
 }
 
-// DefaultSecCompConfigDataForSystemProbe returns configmap data for the default seccomp profile
-func DefaultSecCompConfigDataForSystemProbe() map[string]string {
+// DefaultSeccompConfigDataForSystemProbe returns configmap data for the default seccomp profile
+func DefaultSeccompConfigDataForSystemProbe() map[string]string {
 	return map[string]string{
 		"system-probe-seccomp.json": `{
 			"defaultAction": "SCMP_ACT_ERRNO",

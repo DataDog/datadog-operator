@@ -367,19 +367,15 @@ func convertSystemProbeSpec(src *SystemProbeSpec, dst *v2alpha1.DatadogAgent) {
 
 	// System-probe specific fields
 	if src.SecCompRootPath != "" {
-		getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName).SecCompRootPath = &src.SecCompRootPath
+		getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName).SystemProbeSeccompRootPath = &src.SecCompRootPath
 	}
 
 	if src.SecCompCustomProfileConfigMap != "" {
-		getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName).SecCompCustomProfile = &v2alpha1.CustomConfig{
-			ConfigMap: &commonv1.ConfigMapConfig{
-				Name: src.SecCompCustomProfileConfigMap,
-			},
-		}
+		getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName).SystemProbeSeccompCustomProfile = &src.SecCompCustomProfileConfigMap
 	}
 
 	if src.SecCompProfileName != "" {
-		getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName).SecCompProfileName = &src.SecCompProfileName
+		getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName).SystemProbeSeccompLocalhostProfile = &src.SecCompProfileName
 	}
 
 	if src.AppArmorProfileName != "" {

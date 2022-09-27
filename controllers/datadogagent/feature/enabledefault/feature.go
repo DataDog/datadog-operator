@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
+	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
@@ -254,8 +255,7 @@ func (f *defaultFeature) ManageDependencies(managers feature.ResourceManagers, c
 	return errors.NewAggregate(errs)
 }
 
-func (f *defaultFeature) agentDependencies(managers feature.ResourceManagers, component feature.RequiredComponent) error {
-	_ = component
+func (f *defaultFeature) agentDependencies(managers feature.ResourceManagers, requiredComponent feature.RequiredComponent) error {
 	var errs []error
 	// serviceAccount
 	if f.agent.serviceAccountName != "" {
@@ -267,6 +267,17 @@ func (f *defaultFeature) agentDependencies(managers feature.ResourceManagers, co
 	// ClusterRole creation
 	if err := managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), agent.GetAgentRoleName(f.owner), f.agent.serviceAccountName, agent.GetDefaultAgentClusterRolePolicyRules()); err != nil {
 		errs = append(errs, err)
+	}
+
+	// Seccomp profiles
+	for _, containerName := range requiredComponent.Containers {
+		if containerName == commonv1.SystemProbeContainerName {
+			errs = append(errs, managers.ConfigMapManager().AddConfigMap(
+				component.GetDefaultSeccompConfigMapName(f.owner),
+				f.owner.GetNamespace(),
+				agent.DefaultSeccompConfigDataForSystemProbe(),
+			))
+		}
 	}
 
 	return errors.NewAggregate(errs)
