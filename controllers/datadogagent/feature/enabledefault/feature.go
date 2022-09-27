@@ -12,12 +12,14 @@ import (
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/version"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/errors"
@@ -31,7 +33,7 @@ func init() {
 }
 
 func buildDefaultFeature(options *feature.Options) feature.Feature {
-	return &defaultFeature{
+	dF := &defaultFeature{
 		credentialsInfo: credentialsInfo{
 			secretCreation: secretInfo{
 				data: make(map[string]string),
@@ -43,6 +45,8 @@ func buildDefaultFeature(options *feature.Options) feature.Feature {
 			},
 		},
 	}
+
+	return dF
 }
 
 type defaultFeature struct {
@@ -131,12 +135,26 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 		}
 
 		// DCA Token management
-		f.dcaTokenInfo.token.SecretKey = apicommon.DefaultTokenKey
 		f.dcaTokenInfo.token.SecretName = v2alpha1.GetDefaultDCATokenSecretName(dda)
+		f.dcaTokenInfo.token.SecretKey = apicommon.DefaultTokenKey
 		if dda.Spec.Global.ClusterAgentToken != nil {
+			// User specifies token
 			f.dcaTokenInfo.secretCreation.createSecret = true
 			f.dcaTokenInfo.secretCreation.name = f.dcaTokenInfo.token.SecretName
 			f.dcaTokenInfo.secretCreation.data[apicommon.DefaultTokenKey] = *dda.Spec.Global.ClusterAgentToken
+		} else if dda.Spec.Global.ClusterAgentTokenSecret != nil {
+			// User specifies token secret
+			f.dcaTokenInfo.token.SecretName = dda.Spec.Global.ClusterAgentTokenSecret.SecretName
+			f.dcaTokenInfo.token.SecretKey = dda.Spec.Global.ClusterAgentTokenSecret.KeyName
+		} else if dda.Spec.Global.ClusterAgentToken == nil {
+			// Token needs to be generated or read from status
+			f.dcaTokenInfo.secretCreation.createSecret = true
+			f.dcaTokenInfo.secretCreation.name = f.dcaTokenInfo.token.SecretName
+			if dda.Status.ClusterAgent == nil || dda.Status.ClusterAgent.GeneratedToken == "" {
+				f.dcaTokenInfo.secretCreation.data[apicommon.DefaultTokenKey] = apiutils.GenerateRandomString(32)
+			} else {
+				f.dcaTokenInfo.secretCreation.data[apicommon.DefaultTokenKey] = dda.Status.ClusterAgent.GeneratedToken
+			}
 		}
 	}
 
@@ -219,11 +237,12 @@ func (f *defaultFeature) ManageDependencies(managers feature.ResourceManagers, c
 				errs = append(errs, err)
 			}
 		}
-		if components.ClusterAgent.IsEnabled() && f.dcaTokenInfo.secretCreation.createSecret {
-			for key, value := range f.credentialsInfo.secretCreation.data {
-				if err := managers.SecretManager().AddSecret(f.owner.GetNamespace(), f.dcaTokenInfo.secretCreation.name, key, value); err != nil {
-					errs = append(errs, err)
-				}
+	}
+
+	if components.ClusterAgent.IsEnabled() && f.dcaTokenInfo.secretCreation.createSecret {
+		for key, value := range f.dcaTokenInfo.secretCreation.data {
+			if err := managers.SecretManager().AddSecret(f.owner.GetNamespace(), f.dcaTokenInfo.secretCreation.name, key, value); err != nil {
+				errs = append(errs, err)
 			}
 		}
 	}

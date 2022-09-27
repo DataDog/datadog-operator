@@ -16,7 +16,7 @@ import (
 
 // GetDefaultCredentialsSecretName returns the default name for credentials secret
 func GetDefaultCredentialsSecretName(dda metav1.Object) string {
-	return dda.GetName()
+	return fmt.Sprintf("%s-secret", dda.GetName())
 }
 
 // GetDefaultDCATokenSecretName returns the default name for cluster-agent secret

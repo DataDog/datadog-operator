@@ -104,3 +104,31 @@ func IsClusterChecksEnabled(dda *DatadogAgent) bool {
 func IsCCREnabled(dda *DatadogAgent) bool {
 	return apiutils.BoolValue(dda.Spec.ClusterChecksRunner.Enabled)
 }
+
+// GetLocalAgentServiceName returns the name used for the local agent service
+func GetLocalAgentServiceName(dda *DatadogAgent) string {
+	if dda.Spec.Agent.LocalService != nil && dda.Spec.Agent.LocalService.OverrideName != "" {
+		return dda.Spec.Agent.LocalService.OverrideName
+	}
+	return fmt.Sprintf("%s-%s", dda.Name, common.DefaultAgentResourceSuffix)
+}
+
+// IsAgentNetworkPolicyEnabled returns whether a network policy should be created for the node agent and which flavor to use
+func IsAgentNetworkPolicyEnabled(dda *DatadogAgent) (bool, NetworkPolicyFlavor) {
+	if dda.Spec.Agent.NetworkPolicy != nil && apiutils.BoolValue(dda.Spec.Agent.NetworkPolicy.Create) {
+		if dda.Spec.Agent.NetworkPolicy.Flavor != "" {
+			return true, dda.Spec.Agent.NetworkPolicy.Flavor
+		}
+	}
+	return false, ""
+}
+
+// IsClusterAgentNetworkPolicyEnabled returns whether a network policy should be created for the cluster agent and which flavor to use
+func IsClusterAgentNetworkPolicyEnabled(dda *DatadogAgent) (bool, NetworkPolicyFlavor) {
+	if dda.Spec.ClusterAgent.NetworkPolicy != nil && apiutils.BoolValue(dda.Spec.ClusterAgent.NetworkPolicy.Create) {
+		if dda.Spec.ClusterAgent.NetworkPolicy.Flavor != "" {
+			return true, dda.Spec.ClusterAgent.NetworkPolicy.Flavor
+		}
+	}
+	return false, ""
+}

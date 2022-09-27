@@ -4533,6 +4533,46 @@ spec:
                           or `cilium`.
                         type: string
                     type: object
+                  otlp:
+                    description: OTLP ingest configuration
+                    properties:
+                      receiver:
+                        description: Receiver contains configuration for the OTLP
+                          ingest receiver.
+                        properties:
+                          protocols:
+                            description: Protocols contains configuration for the
+                              OTLP ingest receiver protocols.
+                            properties:
+                              grpc:
+                                description: GRPC contains configuration for the OTLP
+                                  ingest OTLP/gRPC receiver.
+                                properties:
+                                  enabled:
+                                    description: Enable the OTLP/gRPC endpoint.
+                                    type: boolean
+                                  endpoint:
+                                    description: 'Endpoint for OTLP/gRPC. gRPC supports
+                                      several naming schemes: https://github.com/grpc/grpc/blob/master/doc/naming.md
+                                      The Datadog Operator supports only ''host:port''
+                                      (usually ''0.0.0.0:port''). Default: ''0.0.0.0:4317''.'
+                                    type: string
+                                type: object
+                              http:
+                                description: HTTP contains configuration for the OTLP
+                                  ingest OTLP/HTTP receiver.
+                                properties:
+                                  enabled:
+                                    description: Enable the OTLP/HTTP endpoint.
+                                    type: boolean
+                                  endpoint:
+                                    description: 'Endpoint for OTLP/HTTP. Default:
+                                      ''0.0.0.0:4318''.'
+                                    type: string
+                                type: object
+                            type: object
+                        type: object
+                    type: object
                   priorityClassName:
                     description: If specified, indicates the pod's priority. "system-node-critical"
                       and "system-cluster-critical" are two special keywords which
@@ -12659,13 +12699,10 @@ spec:
             type: object
         type: object
     served: true
-    storage: true
+    storage: false
     subresources:
       status: {}
   - additionalPrinterColumns:
-    - jsonPath: .status.conditions[?(@.type=='Active')].status
-      name: active
-      type: string
     - jsonPath: .status.agent.status
       name: agent
       type: string
@@ -13311,6 +13348,46 @@ spec:
                           container data (passwords, tokens, etc. ). Default: true'
                         type: boolean
                     type: object
+                  otlp:
+                    description: OTLP ingest configuration
+                    properties:
+                      receiver:
+                        description: Receiver contains configuration for the OTLP
+                          ingest receiver.
+                        properties:
+                          protocols:
+                            description: Protocols contains configuration for the
+                              OTLP ingest receiver protocols.
+                            properties:
+                              grpc:
+                                description: GRPC contains configuration for the OTLP
+                                  ingest OTLP/gRPC receiver.
+                                properties:
+                                  enabled:
+                                    description: Enable the OTLP/gRPC endpoint.
+                                    type: boolean
+                                  endpoint:
+                                    description: 'Endpoint for OTLP/gRPC. gRPC supports
+                                      several naming schemes: https://github.com/grpc/grpc/blob/master/doc/naming.md
+                                      The Datadog Operator supports only ''host:port''
+                                      (usually `0.0.0.0:port`). Default: `0.0.0.0:4317`.'
+                                    type: string
+                                type: object
+                              http:
+                                description: HTTP contains configuration for the OTLP
+                                  ingest OTLP/HTTP receiver.
+                                properties:
+                                  enabled:
+                                    description: Enable the OTLP/HTTP endpoint.
+                                    type: boolean
+                                  endpoint:
+                                    description: 'Endpoint for OTLP/HTTP. Default:
+                                      ''0.0.0.0:4318''.'
+                                    type: string
+                                type: object
+                            type: object
+                        type: object
+                    type: object
                   prometheusScrape:
                     description: PrometheusScrape configuration.
                     properties:
@@ -13349,8 +13426,21 @@ spec:
                 properties:
                   clusterAgentToken:
                     description: ClusterAgentToken is the token for communication
-                      between the NodeAgent and ClusterAgent
+                      between the NodeAgent and ClusterAgent.
                     type: string
+                  clusterAgentTokenSecret:
+                    description: ClusterAgentTokenSecret is the secret containing
+                      the Cluster Agent token.
+                    properties:
+                      keyName:
+                        description: KeyName is the key of the secret to use.
+                        type: string
+                      secretName:
+                        description: SecretName is the name of the secret.
+                        type: string
+                    required:
+                    - secretName
+                    type: object
                   clusterName:
                     description: ClusterName sets a unique cluster name for the deployment
                       to easily scope monitoring data in the Datadog app.
@@ -15295,11 +15385,11 @@ spec:
                     customConfigurations:
                       additionalProperties:
                         description: 'CustomConfig provides a place for custom configuration
-                          of the Agent or Cluster Agent, corresponding to datadog.yaml
-                          or datadog-cluster.yaml. The configuration can be provided
-                          in the ConfigData field as raw data, or referenced in a
-                          ConfigMap. Note: `ConfigData` and `ConfigMap` cannot be
-                          set together.'
+                          of the Agent or Cluster Agent, corresponding to datadog.yaml,
+                          system-probe.yaml, security-agent.yaml or datadog-cluster.yaml.
+                          The configuration can be provided in the ConfigData field
+                          as raw data, or referenced in a ConfigMap. Note: `ConfigData`
+                          and `ConfigMap` cannot be set together.'
                         properties:
                           configData:
                             description: ConfigData corresponds to the configuration
@@ -15484,13 +15574,17 @@ spec:
                         checks placed under /etc/datadog-agent/checks.d/ See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6
                         for more details.
                       properties:
-                        configData:
-                          description: ConfigData corresponds to the configuration
-                            file content.
-                          type: string
+                        configDataMap:
+                          additionalProperties:
+                            type: string
+                          description: ConfigDataMap corresponds to the content of
+                            the configuration files. They key should be the filename
+                            the contents get mounted to; for instance check.py or
+                            check.yaml.
+                          type: object
                         configMap:
                           description: ConfigMap references an existing ConfigMap
-                            with the configuration file content.
+                            with the content of the configuration files.
                           properties:
                             items:
                               description: Items maps a ConfigMap data key to a file
@@ -15540,13 +15634,17 @@ spec:
                         See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6
                         for more details.
                       properties:
-                        configData:
-                          description: ConfigData corresponds to the configuration
-                            file content.
-                          type: string
+                        configDataMap:
+                          additionalProperties:
+                            type: string
+                          description: ConfigDataMap corresponds to the content of
+                            the configuration files. They key should be the filename
+                            the contents get mounted to; for instance check.py or
+                            check.yaml.
+                          type: object
                         configMap:
                           description: ConfigMap references an existing ConfigMap
-                            with the configuration file content.
+                            with the content of the configuration files.
                           properties:
                             items:
                               description: Items maps a ConfigMap data key to a file
@@ -17704,8 +17802,8 @@ spec:
                 x-kubernetes-list-type: map
             type: object
         type: object
-    served: false
-    storage: false
+    served: true
+    storage: true
     subresources:
       status: {}
 status:

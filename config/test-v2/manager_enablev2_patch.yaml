@@ -1,7 +1,0 @@
-# The following patches adds configure the DatadogAgents CRD to use v2alpha1 as the storage version.
-- op: add
-  path: /spec/template/spec/containers/0/args/-
-  value: -v2APIEnabled=true
-- op: add
-  path: /spec/template/spec/containers/0/args/-
-  value: -operatorMetricsEnabled=false

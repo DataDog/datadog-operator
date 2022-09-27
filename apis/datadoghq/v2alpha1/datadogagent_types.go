@@ -66,6 +66,8 @@ type DatadogFeatures struct {
 	USM *USMFeatureConfig `json:"usm,omitempty"`
 	// Dogstatsd configuration.
 	Dogstatsd *DogstatsdFeatureConfig `json:"dogstatsd,omitempty"`
+	// OTLP ingest configuration
+	OTLP *OTLPFeatureConfig `json:"otlp,omitempty"`
 
 	// Cluster-level features
 
@@ -303,6 +305,59 @@ type DogstatsdFeatureConfig struct {
 	MapperProfiles *CustomConfig `json:"mapperProfiles,omitempty"`
 }
 
+// OTLPFeatureConfig contains configuration for OTLP ingest.
+// +k8s:openapi-gen=true
+type OTLPFeatureConfig struct {
+	// Receiver contains configuration for the OTLP ingest receiver.
+	Receiver OTLPReceiverConfig `json:"receiver,omitempty"`
+}
+
+// OTLPReceiverConfig contains configuration for the OTLP ingest receiver.
+// +k8s:openapi-gen=true
+type OTLPReceiverConfig struct {
+	// Protocols contains configuration for the OTLP ingest receiver protocols.
+	Protocols OTLPProtocolsConfig `json:"protocols,omitempty"`
+}
+
+// OTLPProtocolsConfig contains configuration for the OTLP ingest receiver protocols.
+// +k8s:openapi-gen=true
+type OTLPProtocolsConfig struct {
+	// GRPC contains configuration for the OTLP ingest OTLP/gRPC receiver.
+	// +optional
+	GRPC *OTLPGRPCConfig `json:"grpc,omitempty"`
+	// HTTP contains configuration for the OTLP ingest OTLP/HTTP receiver.
+	// +optional
+	HTTP *OTLPHTTPConfig `json:"http,omitempty"`
+}
+
+// OTLPGRPCConfig contains configuration for the OTLP ingest OTLP/gRPC receiver.
+// +k8s:openapi-gen=true
+type OTLPGRPCConfig struct {
+	// Enable the OTLP/gRPC endpoint.
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Endpoint for OTLP/gRPC.
+	// gRPC supports several naming schemes: https://github.com/grpc/grpc/blob/master/doc/naming.md
+	// The Datadog Operator supports only 'host:port' (usually `0.0.0.0:port`).
+	// Default: `0.0.0.0:4317`.
+	// +optional
+	Endpoint *string `json:"endpoint,omitempty"`
+}
+
+// OTLPHTTPConfig contains configuration for the OTLP ingest OTLP/HTTP receiver.
+// +k8s:openapi-gen=true
+type OTLPHTTPConfig struct {
+	// Enable the OTLP/HTTP endpoint.
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Endpoint for OTLP/HTTP.
+	// Default: '0.0.0.0:4318'.
+	// +optional
+	Endpoint *string `json:"endpoint,omitempty"`
+}
+
 // EventCollectionFeatureConfig contains the Event Collection configuration.
 // +k8s:openapi-gen=true
 type EventCollectionFeatureConfig struct {
@@ -493,7 +548,8 @@ type Endpoint struct {
 	Credentials *DatadogCredentials `json:"credentials,omitempty"`
 }
 
-// CustomConfig provides a place for custom configuration of the Agent or Cluster Agent, corresponding to datadog.yaml or datadog-cluster.yaml.
+// CustomConfig provides a place for custom configuration of the Agent or Cluster Agent, corresponding to datadog.yaml,
+// system-probe.yaml, security-agent.yaml or datadog-cluster.yaml.
 // The configuration can be provided in the ConfigData field as raw data, or referenced in a ConfigMap.
 // Note: `ConfigData` and `ConfigMap` cannot be set together.
 // +k8s:openapi-gen=true
@@ -505,13 +561,29 @@ type CustomConfig struct {
 	ConfigMap *commonv1.ConfigMapConfig `json:"configMap,omitempty"`
 }
 
+// MultiCustomConfig provides a place for custom configuration of the Agent or Cluster Agent, corresponding to /confd/*.yaml.
+// The configuration can be provided in the ConfigDataMap field as raw data, or referenced in a single ConfigMap.
+// Note: `ConfigDataMap` and `ConfigMap` cannot be set together.
+// +k8s:openapi-gen=true
+type MultiCustomConfig struct {
+	// ConfigDataMap corresponds to the content of the configuration files.
+	// They key should be the filename the contents get mounted to; for instance check.py or check.yaml.
+	ConfigDataMap map[string]string `json:"configDataMap,omitempty"`
+
+	// ConfigMap references an existing ConfigMap with the content of the configuration files.
+	ConfigMap *commonv1.ConfigMapConfig `json:"configMap,omitempty"`
+}
+
 // GlobalConfig is a set of parameters that are used to configure all the components of the Datadog Operator.
 type GlobalConfig struct {
 	// Credentials defines the Datadog credentials used to submit data to/query data from Datadog.
 	Credentials *DatadogCredentials `json:"credentials,omitempty"`
 
-	// ClusterAgentToken is the token for communication between the NodeAgent and ClusterAgent
+	// ClusterAgentToken is the token for communication between the NodeAgent and ClusterAgent.
 	ClusterAgentToken *string `json:"clusterAgentToken,omitempty"`
+
+	// ClusterAgentTokenSecret is the secret containing the Cluster Agent token.
+	ClusterAgentTokenSecret *commonv1.SecretConfig `json:"clusterAgentTokenSecret,omitempty"`
 
 	// ClusterName sets a unique cluster name for the deployment to easily scope monitoring data in the Datadog app.
 	// +optional
@@ -664,6 +736,8 @@ const (
 	SystemProbeConfigFile AgentConfigFileName = "system-probe.yaml"
 	// SecurityAgentConfigFile is the name of the Security Agent config file
 	SecurityAgentConfigFile AgentConfigFileName = "security-agent.yaml"
+	// ClusterAgentConfigFile is the name of the Cluster Agent config file
+	ClusterAgentConfigFile AgentConfigFileName = "cluster-agent.yaml"
 )
 
 // DatadogAgentComponentOverride is the generic description equivalent to a subset of the PodTemplate for a component.
@@ -708,12 +782,12 @@ type DatadogAgentComponentOverride struct {
 	// Confd configuration allowing to specify config files for custom checks placed under /etc/datadog-agent/conf.d/.
 	// See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.
 	// +optional
-	ExtraConfd *CustomConfig `json:"extraConfd,omitempty"`
+	ExtraConfd *MultiCustomConfig `json:"extraConfd,omitempty"`
 
 	// Checksd configuration allowing to specify custom checks placed under /etc/datadog-agent/checks.d/
 	// See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.
 	// +optional
-	ExtraChecksd *CustomConfig `json:"extraChecksd,omitempty"`
+	ExtraChecksd *MultiCustomConfig `json:"extraChecksd,omitempty"`
 
 	// Configure the basic configurations for each agent container
 	// +optional
@@ -867,9 +941,8 @@ type DatadogAgentStatus struct {
 // DatadogAgent Deployment with the Datadog Operator.
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:unservedversion
+// +kubebuilder:storageversion
 // +kubebuilder:resource:path=datadogagents,shortName=dd
-// +kubebuilder:printcolumn:name="active",type="string",JSONPath=".status.conditions[?(@.type=='Active')].status"
 // +kubebuilder:printcolumn:name="agent",type="string",JSONPath=".status.agent.status"
 // +kubebuilder:printcolumn:name="cluster-agent",type="string",JSONPath=".status.clusterAgent.status"
 // +kubebuilder:printcolumn:name="cluster-checks-runner",type="string",JSONPath=".status.clusterChecksRunner.status"

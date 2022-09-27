@@ -139,12 +139,12 @@ func TestPodTemplateSpec(t *testing.T) {
 			},
 		},
 		{
-			name: "override confd",
+			name: "override confd with configMap",
 			existingManager: func() *fake.PodTemplateManagers {
 				return fake.NewPodTemplateManagers(t)
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				ExtraConfd: &v2alpha1.CustomConfig{
+				ExtraConfd: &v2alpha1.MultiCustomConfig{
 					ConfigMap: &commonv1.ConfigMapConfig{
 						Name: "extra-confd",
 					},
@@ -162,14 +162,60 @@ func TestPodTemplateSpec(t *testing.T) {
 			},
 		},
 		{
-			name: "override checksd",
+			name: "override confd with configData",
 			existingManager: func() *fake.PodTemplateManagers {
 				return fake.NewPodTemplateManagers(t)
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
-				ExtraChecksd: &v2alpha1.CustomConfig{
+				ExtraConfd: &v2alpha1.MultiCustomConfig{
+					ConfigDataMap: map[string]string{
+						"path_to_file.yaml": "yaml: data",
+					},
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
+				found := false
+				for _, vol := range manager.VolumeMgr.Volumes {
+					if vol.Name == common.ConfdVolumeName {
+						found = true
+						break
+					}
+				}
+				assert.True(t, found)
+			},
+		},
+		{
+			name: "override checksd with configMap",
+			existingManager: func() *fake.PodTemplateManagers {
+				return fake.NewPodTemplateManagers(t)
+			},
+			override: v2alpha1.DatadogAgentComponentOverride{
+				ExtraChecksd: &v2alpha1.MultiCustomConfig{
 					ConfigMap: &commonv1.ConfigMapConfig{
 						Name: "extra-checksd",
+					},
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
+				found := false
+				for _, vol := range manager.VolumeMgr.Volumes {
+					if vol.Name == common.ChecksdVolumeName {
+						found = true
+						break
+					}
+				}
+				assert.True(t, found)
+			},
+		},
+		{
+			name: "override checksd with configData",
+			existingManager: func() *fake.PodTemplateManagers {
+				return fake.NewPodTemplateManagers(t)
+			},
+			override: v2alpha1.DatadogAgentComponentOverride{
+				ExtraChecksd: &v2alpha1.MultiCustomConfig{
+					ConfigDataMap: map[string]string{
+						"path_to_file.py": "print('hello')",
 					},
 				},
 			},

@@ -103,7 +103,7 @@ func ApplyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 				)
 			}
 			if err != nil {
-				logger.Info("Error adding Network Policy to the store", "error", err)
+				logger.Error(err, "Error adding Network Policy to the store")
 			}
 		}
 	}
@@ -113,7 +113,7 @@ func ApplyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 		if config.Tags != nil {
 			tags, err := json.Marshal(config.Tags)
 			if err != nil {
-				logger.Info("Failed to unmarshal json input", "error", err)
+				logger.Error(err, "Failed to unmarshal json input")
 			} else {
 				manager.EnvVar().AddEnvVar(&corev1.EnvVar{
 					Name:  apicommon.DDTags,
@@ -126,7 +126,7 @@ func ApplyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 		if config.PodLabelsAsTags != nil {
 			podLabelsAsTags, err := json.Marshal(config.PodLabelsAsTags)
 			if err != nil {
-				logger.Info("Failed to unmarshal json input", "error", err)
+				logger.Error(err, "Failed to unmarshal json input")
 			} else {
 				manager.EnvVar().AddEnvVar(&corev1.EnvVar{
 					Name:  apicommon.DDPodLabelsAsTags,
@@ -139,7 +139,7 @@ func ApplyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 		if config.PodAnnotationsAsTags != nil {
 			podAnnotationsAsTags, err := json.Marshal(config.PodAnnotationsAsTags)
 			if err != nil {
-				logger.Info("Failed to unmarshal json input", "error", err)
+				logger.Error(err, "Failed to unmarshal json input")
 			} else {
 				manager.EnvVar().AddEnvVar(&corev1.EnvVar{
 					Name:  apicommon.DDPodAnnotationsAsTags,
@@ -152,13 +152,9 @@ func ApplyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 		gitVersion := resourcesManager.Store().GetVersionInfo()
 		forceEnableLocalService := config.LocalService != nil && apiutils.BoolValue(config.LocalService.ForceEnableLocalService)
 		if component.ShouldCreateAgentLocalService(gitVersion, forceEnableLocalService) {
-			var serviceName string
-			if config.LocalService != nil && config.LocalService.NameOverride != nil {
-				serviceName = *config.LocalService.NameOverride
-			}
-			err := resourcesManager.ServiceManager().AddService(component.BuildAgentLocalService(dda, serviceName))
+			err := resourcesManager.ServiceManager().AddService(component.BuildAgentLocalService(dda, v2alpha1.GetLocalAgentServiceName(dda)))
 			if err != nil {
-				logger.Info("Error adding Local Service to the store", "error", err)
+				logger.Error(err, "Error adding Local Service to the store")
 			}
 		}
 

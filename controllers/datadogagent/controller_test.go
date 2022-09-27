@@ -1389,11 +1389,12 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				if err := c.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesNameClusterAgent}, clusterRole); err != nil {
 					return err
 				}
-				if !hasAllClusterLevelRbacResources(clusterRole.Rules) {
-					return fmt.Errorf("bad cluster role, should contain all cluster level rbac resources, current: %v", clusterRole.Rules)
+				role := &rbacv1.Role{}
+				if err := c.Get(context.TODO(), types.NamespacedName{Name: rbacResourcesNameClusterAgent, Namespace: resourcesNamespace}, role); err != nil {
+					return err
 				}
-				if !hasAdmissionRbacResources(clusterRole.Rules) {
-					return fmt.Errorf("bad cluster role, should contain cluster level rbac resources needed by the admission controller, current: %v", clusterRole.Rules)
+				if !hasAdmissionRbacResources(clusterRole.Rules, role.Rules) {
+					return fmt.Errorf("bad rbac, should contain resources needed by the admission controller, current: %v", clusterRole.Rules)
 				}
 
 				datadogAgent := &datadoghqv1alpha1.DatadogAgent{}
@@ -2715,9 +2716,8 @@ func hasWpaRbacs(policyRules []rbacv1.PolicyRule) bool {
 	return false
 }
 
-func hasAdmissionRbacResources(policyRules []rbacv1.PolicyRule) bool {
+func hasAdmissionRbacResources(clusterPolicyRules []rbacv1.PolicyRule, policyRules []rbacv1.PolicyRule) bool {
 	clusterLevelResources := map[string]bool{
-		"secrets":                       true,
 		"mutatingwebhookconfigurations": true,
 		"replicasets":                   true,
 		"deployments":                   true,
@@ -2725,12 +2725,20 @@ func hasAdmissionRbacResources(policyRules []rbacv1.PolicyRule) bool {
 		"cronjobs":                      true,
 		"jobs":                          true,
 	}
-	for _, policyRule := range policyRules {
+	roleResources := map[string]bool{
+		"secrets": true,
+	}
+	for _, policyRule := range clusterPolicyRules {
 		for _, resource := range policyRule.Resources {
 			delete(clusterLevelResources, resource)
 		}
 	}
-	return len(clusterLevelResources) == 0
+	for _, policyRule := range policyRules {
+		for _, resource := range policyRule.Resources {
+			delete(roleResources, resource)
+		}
+	}
+	return len(clusterLevelResources) == 0 && len(roleResources) == 0
 }
 
 func hasAllNodeLevelRbacResources(policyRules []rbacv1.PolicyRule) bool {

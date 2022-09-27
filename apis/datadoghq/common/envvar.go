@@ -111,6 +111,9 @@ const (
 	DDTags                                          = "DD_TAGS"
 	DockerHost                                      = "DOCKER_HOST"
 
+	DDOTLPgRPCEndpoint = "DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_GRPC_ENDPOINT"
+	DDOTLPHTTPEndpoint = "DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_HTTP_ENDPOINT"
+
 	// KubernetesEnvvarName Env var used by the Datadog Agent container entrypoint
 	// to add kubelet config provider and listener
 	KubernetesEnvVar = "KUBERNETES"

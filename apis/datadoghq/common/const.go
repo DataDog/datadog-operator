@@ -201,6 +201,9 @@ const (
 	APMHostPortHostPort                          = 8126
 	APMSocketVolumeName                          = "apmsocket"
 	APMSocketVolumePath                          = "/var/run/datadog/apm"
+	AdmissionControllerPortName                  = "admissioncontrollerport"
+	OTLPGRPCPortName                             = "otlpgrpcport"
+	OTLPHTTPPortName                             = "otlphttpport"
 	SeccompSecurityVolumeName                    = "datadog-agent-security"
 	SeccompSecurityVolumePath                    = "/etc/config"
 	SeccompRootVolumeName                        = "seccomp-root"

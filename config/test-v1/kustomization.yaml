@@ -24,21 +24,22 @@ bases:
 # [PROMETHEUS] To enable prometheus monitor, uncomment all sections with 'PROMETHEUS'.
 #- ../prometheus
 
-# [V2alpha1 testing] configure v2alpha1 as the storage version
+# [V1alpha1 testing] configure v1alpha1 as the storage version
+# This is just in case we need to test something with the old version.
 patches:
-- path: storagev2_in_datadogagents.yaml
-  target:
-    group: apiextensions.k8s.io
-    version: v1
-    kind: CustomResourceDefinition
-    name: datadogagents.datadoghq.com
-- path: manager_enablev2_patch.yaml
-  target:
-    group: apps
-    version: v1
-    kind: Deployment
-    name: manager
-    namespace: system
+  - path: storagev1_in_datadogagents.yaml
+    target:
+      group: apiextensions.k8s.io
+      version: v1
+      kind: CustomResourceDefinition
+      name: datadogagents.datadoghq.com
+  - path: manager_enablev1_patch.yaml
+    target:
+      group: apps
+      version: v1
+      kind: Deployment
+      name: manager
+      namespace: system
 
 patchesStrategicMerge:
 # Protect the /metrics endpoint by putting it behind auth.

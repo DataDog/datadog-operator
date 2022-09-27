@@ -489,6 +489,16 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 					Compliance: ComplianceSpec{Enabled: apiutils.NewBoolPointer(false)},
 					Runtime:    RuntimeSecuritySpec{Enabled: apiutils.NewBoolPointer(false), SyscallMonitor: &SyscallMonitorSpec{Enabled: apiutils.NewBoolPointer(false)}},
 				},
+				OTLP: &OTLPSpec{Receiver: OTLPReceiverSpec{Protocols: OTLPProtocolsSpec{
+					GRPC: &OTLPGRPCSpec{
+						Enabled:  apiutils.NewBoolPointer(false),
+						Endpoint: apiutils.NewStringPointer("0.0.0.0:4317"),
+					},
+					HTTP: &OTLPHTTPSpec{
+						Enabled:  apiutils.NewBoolPointer(false),
+						Endpoint: apiutils.NewStringPointer("0.0.0.0:4318"),
+					},
+				}}},
 				NetworkPolicy: &NetworkPolicySpec{Create: apiutils.NewBoolPointer(false)},
 			},
 			internalDefaulted: DatadogAgentSpecAgentSpec{
@@ -539,6 +549,16 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 					Compliance: ComplianceSpec{Enabled: apiutils.NewBoolPointer(false)},
 					Runtime:    RuntimeSecuritySpec{Enabled: apiutils.NewBoolPointer(false), SyscallMonitor: &SyscallMonitorSpec{Enabled: apiutils.NewBoolPointer(false)}},
 				},
+				OTLP: &OTLPSpec{Receiver: OTLPReceiverSpec{Protocols: OTLPProtocolsSpec{
+					GRPC: &OTLPGRPCSpec{
+						Enabled:  apiutils.NewBoolPointer(false),
+						Endpoint: apiutils.NewStringPointer("0.0.0.0:4317"),
+					},
+					HTTP: &OTLPHTTPSpec{
+						Enabled:  apiutils.NewBoolPointer(false),
+						Endpoint: apiutils.NewStringPointer("0.0.0.0:4318"),
+					},
+				}}},
 				NetworkPolicy: &NetworkPolicySpec{Create: apiutils.NewBoolPointer(false)},
 			},
 		},
@@ -617,6 +637,16 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 					Compliance: ComplianceSpec{Enabled: apiutils.NewBoolPointer(false)},
 					Runtime:    RuntimeSecuritySpec{Enabled: apiutils.NewBoolPointer(false), SyscallMonitor: &SyscallMonitorSpec{Enabled: apiutils.NewBoolPointer(false)}},
 				},
+				OTLP: &OTLPSpec{Receiver: OTLPReceiverSpec{Protocols: OTLPProtocolsSpec{
+					GRPC: &OTLPGRPCSpec{
+						Enabled:  apiutils.NewBoolPointer(false),
+						Endpoint: apiutils.NewStringPointer("0.0.0.0:4317"),
+					},
+					HTTP: &OTLPHTTPSpec{
+						Enabled:  apiutils.NewBoolPointer(false),
+						Endpoint: apiutils.NewStringPointer("0.0.0.0:4318"),
+					},
+				}}},
 				NetworkPolicy: &NetworkPolicySpec{Create: apiutils.NewBoolPointer(false)},
 			},
 			internalDefaulted: DatadogAgentSpecAgentSpec{
@@ -686,6 +716,16 @@ func TestDefaultDatadogAgentSpecAgent(t *testing.T) {
 					Compliance: ComplianceSpec{Enabled: apiutils.NewBoolPointer(false)},
 					Runtime:    RuntimeSecuritySpec{Enabled: apiutils.NewBoolPointer(false), SyscallMonitor: &SyscallMonitorSpec{Enabled: apiutils.NewBoolPointer(false)}},
 				},
+				OTLP: &OTLPSpec{Receiver: OTLPReceiverSpec{Protocols: OTLPProtocolsSpec{
+					GRPC: &OTLPGRPCSpec{
+						Enabled:  apiutils.NewBoolPointer(false),
+						Endpoint: apiutils.NewStringPointer("0.0.0.0:4317"),
+					},
+					HTTP: &OTLPHTTPSpec{
+						Enabled:  apiutils.NewBoolPointer(false),
+						Endpoint: apiutils.NewStringPointer("0.0.0.0:4318"),
+					},
+				}}},
 				NetworkPolicy: &NetworkPolicySpec{Create: apiutils.NewBoolPointer(false)},
 			},
 		},
@@ -998,6 +1038,136 @@ func TestDefaultDatadogAgentSpecAgentApm(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := DefaultDatadogAgentSpecAgentApm(tt.input)
 			assert.True(t, apiutils.IsEqualStruct(got, tt.want), "TestDefaultDatadogAgentSpecAgentApm defaulting \ndiff = %s", cmp.Diff(got, tt.want))
+		})
+	}
+}
+
+func TestDefaultDatadogAgentSpecAgentOTLP(t *testing.T) {
+	defaultOTLPSection := &OTLPSpec{Receiver: OTLPReceiverSpec{Protocols: OTLPProtocolsSpec{
+		GRPC: &OTLPGRPCSpec{
+			Enabled:  apiutils.NewBoolPointer(false),
+			Endpoint: apiutils.NewStringPointer("0.0.0.0:4317"),
+		},
+		HTTP: &OTLPHTTPSpec{
+			Enabled:  apiutils.NewBoolPointer(false),
+			Endpoint: apiutils.NewStringPointer("0.0.0.0:4318"),
+		},
+	}}}
+	tests := []struct {
+		input *DatadogAgentSpecAgentSpec
+		name  string
+		want  *OTLPSpec
+	}{
+		{
+			name: "OTLP not set",
+			input: &DatadogAgentSpecAgentSpec{
+				Enabled: apiutils.NewBoolPointer(true),
+			},
+			want: defaultOTLPSection,
+		},
+		{
+			name: "OTLP not enabled",
+			input: &DatadogAgentSpecAgentSpec{
+				OTLP: &OTLPSpec{Receiver: OTLPReceiverSpec{Protocols: OTLPProtocolsSpec{
+					GRPC: &OTLPGRPCSpec{
+						Enabled: apiutils.NewBoolPointer(false),
+					},
+					HTTP: &OTLPHTTPSpec{
+						Enabled: apiutils.NewBoolPointer(false),
+					},
+				}}},
+			},
+			want: defaultOTLPSection,
+		},
+		{
+			name: "OTLP gRPC enabled",
+			input: &DatadogAgentSpecAgentSpec{
+				OTLP: &OTLPSpec{Receiver: OTLPReceiverSpec{Protocols: OTLPProtocolsSpec{
+					GRPC: &OTLPGRPCSpec{
+						Enabled: apiutils.NewBoolPointer(true),
+					},
+				}}},
+			},
+			want: &OTLPSpec{Receiver: OTLPReceiverSpec{Protocols: OTLPProtocolsSpec{
+				GRPC: &OTLPGRPCSpec{
+					Enabled:  apiutils.NewBoolPointer(true),
+					Endpoint: apiutils.NewStringPointer("0.0.0.0:4317"),
+				},
+				HTTP: &OTLPHTTPSpec{
+					Enabled:  apiutils.NewBoolPointer(false),
+					Endpoint: apiutils.NewStringPointer("0.0.0.0:4318"),
+				},
+			}}},
+		},
+		{
+			name: "OTLP gRPC custom endpoint",
+			input: &DatadogAgentSpecAgentSpec{
+				OTLP: &OTLPSpec{Receiver: OTLPReceiverSpec{Protocols: OTLPProtocolsSpec{
+					GRPC: &OTLPGRPCSpec{
+						Enabled:  apiutils.NewBoolPointer(true),
+						Endpoint: apiutils.NewStringPointer("localhost:9999"),
+					},
+				}}},
+			},
+			want: &OTLPSpec{Receiver: OTLPReceiverSpec{Protocols: OTLPProtocolsSpec{
+				GRPC: &OTLPGRPCSpec{
+					Enabled:  apiutils.NewBoolPointer(true),
+					Endpoint: apiutils.NewStringPointer("localhost:9999"),
+				},
+				HTTP: &OTLPHTTPSpec{
+					Enabled:  apiutils.NewBoolPointer(false),
+					Endpoint: apiutils.NewStringPointer("0.0.0.0:4318"),
+				},
+			}}},
+		},
+		{
+			name: "OTLP HTTP enabled",
+			input: &DatadogAgentSpecAgentSpec{
+				OTLP: &OTLPSpec{Receiver: OTLPReceiverSpec{Protocols: OTLPProtocolsSpec{
+					HTTP: &OTLPHTTPSpec{
+						Enabled: apiutils.NewBoolPointer(true),
+					},
+				}}},
+			},
+			want: &OTLPSpec{Receiver: OTLPReceiverSpec{Protocols: OTLPProtocolsSpec{
+				GRPC: &OTLPGRPCSpec{
+					Enabled:  apiutils.NewBoolPointer(false),
+					Endpoint: apiutils.NewStringPointer("0.0.0.0:4317"),
+				},
+				HTTP: &OTLPHTTPSpec{
+					Enabled:  apiutils.NewBoolPointer(true),
+					Endpoint: apiutils.NewStringPointer("0.0.0.0:4318"),
+				},
+			}}},
+		},
+		{
+			name: "OTLP gRPC and HTTP enabled",
+			input: &DatadogAgentSpecAgentSpec{
+				OTLP: &OTLPSpec{Receiver: OTLPReceiverSpec{Protocols: OTLPProtocolsSpec{
+					GRPC: &OTLPGRPCSpec{
+						Enabled: apiutils.NewBoolPointer(true),
+					},
+					HTTP: &OTLPHTTPSpec{
+						Enabled: apiutils.NewBoolPointer(true),
+					},
+				}}},
+			},
+			want: &OTLPSpec{Receiver: OTLPReceiverSpec{Protocols: OTLPProtocolsSpec{
+				GRPC: &OTLPGRPCSpec{
+					Enabled:  apiutils.NewBoolPointer(true),
+					Endpoint: apiutils.NewStringPointer("0.0.0.0:4317"),
+				},
+				HTTP: &OTLPHTTPSpec{
+					Enabled:  apiutils.NewBoolPointer(true),
+					Endpoint: apiutils.NewStringPointer("0.0.0.0:4318"),
+				},
+			}}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := DefaultDatadogAgentSpecAgentOTLP(tt.input)
+			assert.True(t, apiutils.IsEqualStruct(got, tt.want), "TestDefaultDatadogAgentSpecAgentOTLP defaulting \ndiff = %s", cmp.Diff(got, tt.want))
 		})
 	}
 }

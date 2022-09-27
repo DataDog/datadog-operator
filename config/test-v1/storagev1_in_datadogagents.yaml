@@ -1,0 +1,13 @@
+# The following patch adds a configuration to the DatadogAgents CRD to use v1alpha1 as the storage version.
+- op: replace
+  path: /spec/versions/0/storage
+  value: true
+- op: replace
+  path: /spec/versions/0/served
+  value: true
+- op: replace
+  path: /spec/versions/1/storage
+  value: false
+- op: replace
+  path: /spec/versions/1/served
+  value: false

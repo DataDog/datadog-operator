@@ -10,6 +10,7 @@ import (
 	"strconv"
 
 	corev1 "k8s.io/api/core/v1"
+	netv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
@@ -22,6 +23,7 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
+	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
 )
 
 func init() {
@@ -47,6 +49,9 @@ type apmFeature struct {
 
 	forceEnableLocalService bool
 	localServiceName        string
+
+	createKubernetesNetworkPolicy bool
+	createCiliumNetworkPolicy     bool
 }
 
 // ID returns the ID of the Feature
@@ -62,16 +67,23 @@ func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 		// hostPort defaults to 'false' in the defaulting code
 		f.hostPortEnabled = apiutils.BoolValue(apm.HostPortConfig.Enabled)
 		f.hostPortHostPort = *apm.HostPortConfig.Port
+		if f.hostPortEnabled {
+			if enabled, flavor := v2alpha1.IsNetworkPolicyEnabled(dda); enabled {
+				if flavor == v2alpha1.NetworkPolicyFlavorCilium {
+					f.createCiliumNetworkPolicy = true
+				} else {
+					f.createKubernetesNetworkPolicy = true
+				}
+			}
+		}
 		// UDS defaults to 'true' in the defaulting code
 		f.udsEnabled = apiutils.BoolValue(apm.UnixDomainSocketConfig.Enabled)
 		f.udsHostFilepath = *apm.UnixDomainSocketConfig.Path
 
 		if dda.Spec.Global.LocalService != nil {
 			f.forceEnableLocalService = apiutils.BoolValue(dda.Spec.Global.LocalService.ForceEnableLocalService)
-			if dda.Spec.Global.LocalService.NameOverride != nil {
-				f.localServiceName = *dda.Spec.Global.LocalService.NameOverride
-			}
 		}
+		f.localServiceName = v2alpha1.GetLocalAgentServiceName(dda)
 
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
@@ -103,8 +115,14 @@ func (f *apmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.Re
 
 		if dda.Spec.Agent.LocalService != nil {
 			f.forceEnableLocalService = apiutils.BoolValue(dda.Spec.Agent.LocalService.ForceLocalServiceEnable)
-			if dda.Spec.Agent.LocalService.OverrideName != "" {
-				f.localServiceName = dda.Spec.Agent.LocalService.OverrideName
+		}
+		f.localServiceName = v1alpha1.GetLocalAgentServiceName(dda)
+
+		if enabled, flavor := v1alpha1.IsAgentNetworkPolicyEnabled(dda); enabled {
+			if flavor == v1alpha1.NetworkPolicyFlavorCilium {
+				f.createCiliumNetworkPolicy = true
+			} else {
+				f.createKubernetesNetworkPolicy = true
 			}
 		}
 
@@ -133,10 +151,62 @@ func (f *apmFeature) ManageDependencies(managers feature.ResourceManagers, compo
 				Name:       apicommon.APMHostPortName,
 			},
 		}
-		if f.localServiceName == "" {
-			f.localServiceName = component.GetAgentServiceName(f.owner)
+		if err := managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), nil, apmPort, nil); err != nil {
+			return err
 		}
-		return managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), nil, apmPort, nil)
+	}
+
+	if f.hostPortEnabled {
+		policyName, podSelector := component.GetNetworkPolicyMetadata(f.owner, v2alpha1.NodeAgentComponentName)
+		if f.createKubernetesNetworkPolicy {
+			protocolTCP := corev1.ProtocolTCP
+			ingressRules := []netv1.NetworkPolicyIngressRule{
+				{
+					Ports: []netv1.NetworkPolicyPort{
+						{
+							Port: &intstr.IntOrString{
+								Type:   intstr.Int,
+								IntVal: f.hostPortHostPort,
+							},
+							Protocol: &protocolTCP,
+						},
+					},
+				},
+			}
+			return managers.NetworkPolicyManager().AddKubernetesNetworkPolicy(
+				policyName,
+				f.owner.GetNamespace(),
+				podSelector,
+				nil,
+				ingressRules,
+				nil,
+			)
+		} else if f.createCiliumNetworkPolicy {
+			policySpecs := []cilium.NetworkPolicySpec{
+				{
+					Description:      "Ingress for APM trace",
+					EndpointSelector: podSelector,
+					Ingress: []cilium.IngressRule{
+						{
+							FromEndpoints: []metav1.LabelSelector{
+								{},
+							},
+							ToPorts: []cilium.PortRule{
+								{
+									Ports: []cilium.PortProtocol{
+										{
+											Port:     strconv.Itoa(int(f.hostPortHostPort)),
+											Protocol: cilium.ProtocolTCP,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			}
+			return managers.CiliumPolicyManager().AddCiliumPolicy(policyName, f.owner.GetNamespace(), policySpecs)
+		}
 	}
 	return nil
 }

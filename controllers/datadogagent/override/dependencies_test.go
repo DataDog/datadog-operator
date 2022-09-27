@@ -8,31 +8,121 @@ package override
 import (
 	"testing"
 
+	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
-	"github.com/stretchr/testify/assert"
 
+	"github.com/stretchr/testify/assert"
+	"k8s.io/apimachinery/pkg/runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 func TestDependencies(t *testing.T) {
-	// These tests are not exhaustive. There's only 1 that covers a bug fix.
-
 	namespace := "test-namespace"
 	testLogger := logf.Log.WithName("TestRequiredComponents")
+
+	testScheme := runtime.NewScheme()
+	testScheme.AddKnownTypes(v2alpha1.GroupVersion, &v2alpha1.DatadogAgent{})
+	storeOptions := &dependencies.StoreOptions{
+		Scheme: testScheme,
+	}
 
 	tests := []struct {
 		name          string
 		dda           v2alpha1.DatadogAgent
-		overrides     map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride
 		expectsErrors bool
 	}{
 		{
-			name: "override without errors",
-			dda:  v2alpha1.DatadogAgent{},
-			overrides: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
-				v2alpha1.NodeAgentComponentName: {},
+			name: "empty override without errors",
+			dda: v2alpha1.DatadogAgent{
+				Spec: v2alpha1.DatadogAgentSpec{
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.NodeAgentComponentName: {},
+					},
+				},
+			},
+			expectsErrors: false,
+		},
+		{
+			name: "override extraConfd configmap without errors",
+			dda: v2alpha1.DatadogAgent{
+				Spec: v2alpha1.DatadogAgentSpec{
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.NodeAgentComponentName: {
+							ExtraConfd: &v2alpha1.MultiCustomConfig{
+								ConfigMap: &commonv1.ConfigMapConfig{
+									Name: "cmName",
+								},
+							},
+						},
+					},
+				},
+			},
+			expectsErrors: false,
+		},
+		{
+			name: "override extraConfd configData without errors",
+			dda: v2alpha1.DatadogAgent{
+				Spec: v2alpha1.DatadogAgentSpec{
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.NodeAgentComponentName: {
+							ExtraConfd: &v2alpha1.MultiCustomConfig{
+								ConfigDataMap: map[string]string{
+									"path_to_file.yaml": "yaml: data",
+								},
+							},
+						},
+					},
+				},
+			},
+			expectsErrors: false,
+		},
+		{
+			name: "override extraChecksd configmap without errors",
+			dda: v2alpha1.DatadogAgent{
+				Spec: v2alpha1.DatadogAgentSpec{
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.NodeAgentComponentName: {
+							ExtraChecksd: &v2alpha1.MultiCustomConfig{
+								ConfigMap: &commonv1.ConfigMapConfig{
+									Name: "cmName",
+								},
+							},
+						},
+					},
+				},
+			},
+			expectsErrors: false,
+		},
+		{
+			name: "override extraChecksd configData without errors",
+			dda: v2alpha1.DatadogAgent{
+				Spec: v2alpha1.DatadogAgentSpec{
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.NodeAgentComponentName: {
+							ExtraChecksd: &v2alpha1.MultiCustomConfig{
+								ConfigDataMap: map[string]string{
+									"path_to_file.py": "print('hello')",
+								},
+							},
+						},
+					},
+				},
+			},
+			expectsErrors: false,
+		},
+		{
+			name: "override don't createRbac without errors",
+			dda: v2alpha1.DatadogAgent{
+				Spec: v2alpha1.DatadogAgentSpec{
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.ClusterAgentComponentName: {
+							CreateRbac: apiutils.NewBoolPointer(false),
+						},
+					},
+				},
 			},
 			expectsErrors: false,
 		},
@@ -40,10 +130,10 @@ func TestDependencies(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			store := dependencies.NewStore(&test.dda, nil)
+			store := dependencies.NewStore(&test.dda, storeOptions)
 			manager := feature.NewResourceManagers(store)
 
-			errs := Dependencies(testLogger, manager, test.overrides, namespace)
+			errs := Dependencies(testLogger, manager, test.dda.Spec.Override, namespace)
 
 			if test.expectsErrors {
 				assert.NotEmpty(t, errs)

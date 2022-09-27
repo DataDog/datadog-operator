@@ -7,7 +7,10 @@ package override
 
 import (
 	"fmt"
+	"sort"
 	"strings"
+
+	"gopkg.in/yaml.v2"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
@@ -49,20 +52,87 @@ func PodTemplateSpec(manager feature.PodTemplateManagers, override *v2alpha1.Dat
 
 	overrideCustomConfigs(manager, override.CustomConfigurations, componentName, ddaName)
 
-	// Note: override.ExtraConfd.ConfigData requires creating a configmap, so it cannot be handled here
-	if override.ExtraConfd != nil && override.ExtraConfd.ConfigMap != nil {
-		vol := volume.GetVolumeFromConfigMapConfig(
-			override.ExtraConfd.ConfigMap, apicommon.ConfdVolumeName, apicommon.ConfdVolumeName,
-		)
-		manager.Volume().AddVolume(&vol)
+	// For ExtraConfd and ExtraChecksd, the ConfigMap contents to an init container. This allows use of
+	// the workaround to merge existing config and check files with custom ones. The VolumeMount is already
+	// defined in the init container; just overwrite the Volume to mount the ConfigMap instead of an EmptyDir.
+	// If both ConfigMap and ConfigData exist, ConfigMap has higher priority.
+	if override.ExtraConfd != nil {
+		if override.ExtraConfd.ConfigMap != nil {
+			vol := corev1.Volume{
+				Name: apicommon.ConfdVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: override.ExtraConfd.ConfigMap.Name,
+						},
+						Items: override.ExtraConfd.ConfigMap.Items,
+					},
+				},
+			}
+			manager.Volume().AddVolume(&vol)
+		} else if override.ExtraConfd.ConfigDataMap != nil {
+			// Sort map so that order is consistent between reconcile loops
+			sortedKeys := sortKeys(override.ExtraConfd.ConfigDataMap)
+			keysToPaths := []corev1.KeyToPath{}
+			for _, filename := range sortedKeys {
+				configData := override.ExtraConfd.ConfigDataMap[filename]
+				// Validate that user input is valid YAML
+				m := make(map[interface{}]interface{})
+				if yaml.Unmarshal([]byte(configData), m) != nil {
+					continue
+				}
+				keysToPaths = append(keysToPaths, corev1.KeyToPath{Key: filename, Path: filename})
+			}
+			vol := corev1.Volume{
+				Name: apicommon.ConfdVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: v2alpha1.ExtraConfdConfigMapName,
+						},
+						Items: keysToPaths,
+					},
+				},
+			}
+			manager.Volume().AddVolume(&vol)
+		}
 	}
 
-	// Note: override.ExtraChecksd.ConfigData requires creating a configmap, so it cannot be handled here
-	if override.ExtraChecksd != nil && override.ExtraChecksd.ConfigMap != nil {
-		vol := volume.GetVolumeFromConfigMapConfig(
-			override.ExtraChecksd.ConfigMap, apicommon.ChecksdVolumeName, apicommon.ChecksdVolumeName,
-		)
-		manager.Volume().AddVolume(&vol)
+	// If both ConfigMap and ConfigData exist, ConfigMap has higher priority.
+	if override.ExtraChecksd != nil {
+		if override.ExtraChecksd.ConfigMap != nil {
+			vol := corev1.Volume{
+				Name: apicommon.ChecksdVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: override.ExtraChecksd.ConfigMap.Name,
+						},
+						Items: override.ExtraChecksd.ConfigMap.Items,
+					},
+				},
+			}
+			manager.Volume().AddVolume(&vol)
+		} else if override.ExtraChecksd.ConfigDataMap != nil {
+			// Sort map so that order is consistent between reconcile loops
+			sortedKeys := sortKeys(override.ExtraChecksd.ConfigDataMap)
+			keysToPaths := []corev1.KeyToPath{}
+			for _, filename := range sortedKeys {
+				keysToPaths = append(keysToPaths, corev1.KeyToPath{Key: filename, Path: filename})
+			}
+			vol := corev1.Volume{
+				Name: apicommon.ChecksdVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: v2alpha1.ExtraChecksdConfigMapName,
+						},
+						Items: keysToPaths,
+					},
+				},
+			}
+			manager.Volume().AddVolume(&vol)
+		}
 	}
 
 	for agentContainerName, containerOverride := range override.Containers {
@@ -150,7 +220,6 @@ func PodTemplateSpec(manager feature.PodTemplateManagers, override *v2alpha1.Dat
 
 func overrideCustomConfigs(manager feature.PodTemplateManagers, customConfs map[v2alpha1.AgentConfigFileName]v2alpha1.CustomConfig, componentName v2alpha1.ComponentName, ddaName string) {
 	for _, customConfig := range customConfs {
-		// Note: customConfig.ConfigData requires creating a configmap, so it cannot be handled here
 		if customConfig.ConfigMap != nil {
 			switch componentName {
 			case v2alpha1.NodeAgentComponentName, v2alpha1.ClusterChecksRunnerComponentName:
@@ -186,6 +255,17 @@ func overrideCustomConfigs(manager feature.PodTemplateManagers, customConfs map[
 			}
 		}
 	}
+}
+
+func sortKeys(keysMap map[string]string) []string {
+	sortedKeys := make([]string, 0, len(keysMap))
+	for key := range keysMap {
+		sortedKeys = append(sortedKeys, key)
+	}
+	sort.Slice(sortedKeys, func(i, j int) bool {
+		return sortedKeys[i] < sortedKeys[j]
+	})
+	return sortedKeys
 }
 
 func overriddenImage(currentImg string, overrideImg *common.AgentImageConfig) string {
