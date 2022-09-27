@@ -26,25 +26,15 @@ $ make IMG=test/operator:test docker-build
 # push the {IMG} to a configured docker hub
 $ make IMG=test/operator:test docker-push
 
+# install "cert-manager" needed for the webhook
+$ kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.8.0/cert-manager.yaml 
+
 # generate manifest from /config and apply to current cluster
-make IMG=test/operator:test deploy
+$ make IMG=test/operator:test deploy
 ```
 
 Note: `IMG` currently defaults to: `datadog/datadog-operator:latest`
 
-## \[TMP\] how to test `v2alpha`
-
-* Install `cert-manager` needed for the webhook.
-
-```shell
-kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.8.0/cert-manager.yaml
-```
-
-* Deploy with `v2alpha1` enabled and configured as the storage version.
-
-```console
-KUSTOMIZE_CONFIG=config/test-v2 make deploy
-```
 ### Deploy a basic `v2alpha1.DatadogAgent` resource.
 
 Create a secret that contains an `api-key` and an `app-key`. By default the Operator is installed in the

@@ -49,7 +49,17 @@ func GetVolumeForConfd() corev1.Volume {
 	}
 }
 
-// GetVolumeForRmCorechecks return the volume that contains the agent confd config files
+// GetVolumeForChecksd return the volume that contains the agent confd config files
+func GetVolumeForChecksd() corev1.Volume {
+	return corev1.Volume{
+		Name: apicommon.ChecksdVolumeName,
+		VolumeSource: corev1.VolumeSource{
+			EmptyDir: &corev1.EmptyDirVolumeSource{},
+		},
+	}
+}
+
+// GetVolumeForRmCorechecks return the volume that overwrites the corecheck directory
 func GetVolumeForRmCorechecks() corev1.Volume {
 	return corev1.Volume{
 		Name: "remove-corechecks",
@@ -149,7 +159,16 @@ func GetVolumeMountForConfd() corev1.VolumeMount {
 	}
 }
 
-// GetVolumeMountForRmCorechecks return the VolumeMount that contains the agent confd config files
+// GetVolumeMountForChecksd return the VolumeMount that contains the agent checksd config files
+func GetVolumeMountForChecksd() corev1.VolumeMount {
+	return corev1.VolumeMount{
+		Name:      apicommon.ChecksdVolumeName,
+		MountPath: apicommon.ChecksdVolumePath,
+		ReadOnly:  true,
+	}
+}
+
+// GetVolumeMountForRmCorechecks return the VolumeMount that overwrites the corechecks directory
 func GetVolumeMountForRmCorechecks() corev1.VolumeMount {
 	return corev1.VolumeMount{
 		Name:      "remove-corechecks",

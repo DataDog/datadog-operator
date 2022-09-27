@@ -94,3 +94,14 @@ func GetLocalAgentServiceName(dda *DatadogAgent) string {
 	}
 	return fmt.Sprintf("%s-%s", dda.Name, common.DefaultAgentResourceSuffix)
 }
+
+// IsNetworkPolicyEnabled returns whether a network policy should be created and which flavor to use
+func IsNetworkPolicyEnabled(dda *DatadogAgent) (bool, NetworkPolicyFlavor) {
+	if dda.Spec.Global != nil && dda.Spec.Global.NetworkPolicy != nil && apiutils.BoolValue(dda.Spec.Global.NetworkPolicy.Create) {
+		if dda.Spec.Global.NetworkPolicy.Flavor != "" {
+			return true, dda.Spec.Global.NetworkPolicy.Flavor
+		}
+		return true, NetworkPolicyFlavorKubernetes
+	}
+	return false, ""
+}

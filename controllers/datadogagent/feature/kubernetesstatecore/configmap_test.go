@@ -49,7 +49,7 @@ instances:
 				runInClusterChecksRunner: true,
 				configConfigMapName:      apicommon.DefaultKubeStateMetricsCoreConf,
 			},
-			want: buildDefaultConfigMap(owner, apicommon.DefaultKubeStateMetricsCoreConf, ksmCheckConfig(true)),
+			want: buildDefaultConfigMap(owner.GetNamespace(), apicommon.DefaultKubeStateMetricsCoreConf, ksmCheckConfig(true)),
 		},
 		{
 			name: "override",
@@ -62,7 +62,7 @@ instances:
 					ConfigData: &overrideConf,
 				},
 			},
-			want: buildDefaultConfigMap(owner, apicommon.DefaultKubeStateMetricsCoreConf, overrideConf),
+			want: buildDefaultConfigMap(owner.GetNamespace(), apicommon.DefaultKubeStateMetricsCoreConf, overrideConf),
 		},
 		{
 			name: "no cluster check runners",
@@ -72,7 +72,7 @@ instances:
 				runInClusterChecksRunner: false,
 				configConfigMapName:      apicommon.DefaultKubeStateMetricsCoreConf,
 			},
-			want: buildDefaultConfigMap(owner, apicommon.DefaultKubeStateMetricsCoreConf, ksmCheckConfig(false)),
+			want: buildDefaultConfigMap(owner.GetNamespace(), apicommon.DefaultKubeStateMetricsCoreConf, ksmCheckConfig(false)),
 		},
 	}
 	for _, tt := range tests {

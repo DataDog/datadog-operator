@@ -200,7 +200,7 @@ func initConfigContainer(dda metav1.Object) corev1.Container {
 		Args: []string{
 			"for script in $(find /etc/cont-init.d/ -type f -name '*.sh' | sort) ; do bash $script ; done",
 		},
-		VolumeMounts: volumeMountsForCoreAgent(),
+		VolumeMounts: volumeMountsForInitConfig(),
 		Env:          envVarsForCoreAgent(dda),
 	}
 }
@@ -260,11 +260,23 @@ func envVarsForSecurityAgent(dda metav1.Object) []corev1.EnvVar {
 	return append(envs, commonEnvVars(dda)...)
 }
 
+func volumeMountsForInitConfig() []corev1.VolumeMount {
+	return []corev1.VolumeMount{
+		component.GetVolumeMountForLogs(),
+		component.GetVolumeMountForChecksd(),
+		component.GetVolumeMountForConfd(),
+		component.GetVolumeMountForConfig(),
+		component.GetVolumeMountForProc(),
+		component.GetVolumeMountForRuntimeSocket(true),
+	}
+}
+
 func volumesForAgent(dda metav1.Object) []corev1.Volume {
 	return []corev1.Volume{
 		component.GetVolumeForLogs(),
 		component.GetVolumeForAuth(),
 		component.GetVolumeInstallInfo(dda),
+		component.GetVolumeForChecksd(),
 		component.GetVolumeForConfd(),
 		component.GetVolumeForConfig(),
 		component.GetVolumeForProc(),
@@ -279,7 +291,6 @@ func volumeMountsForCoreAgent() []corev1.VolumeMount {
 		component.GetVolumeMountForLogs(),
 		component.GetVolumeMountForAuth(),
 		component.GetVolumeMountForInstallInfo(),
-		component.GetVolumeMountForConfd(),
 		component.GetVolumeMountForConfig(),
 		component.GetVolumeMountForProc(),
 		component.GetVolumeMountForCgroups(),

@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/configmap"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -20,20 +19,18 @@ func (f *ksmFeature) buildKSMCoreConfigMap() (*corev1.ConfigMap, error) {
 		return nil, nil
 	}
 	if f.customConfig != nil && f.customConfig.ConfigData != nil {
-		return configmap.BuildConfiguration(f.owner, f.customConfig.ConfigData, f.configConfigMapName, ksmCoreCheckName)
+		return configmap.BuildConfiguration(f.owner.GetNamespace(), f.customConfig.ConfigData, f.configConfigMapName, ksmCoreCheckName)
 	}
 
-	configMap := buildDefaultConfigMap(f.owner, f.configConfigMapName, ksmCheckConfig(f.runInClusterChecksRunner))
+	configMap := buildDefaultConfigMap(f.owner.GetNamespace(), f.configConfigMapName, ksmCheckConfig(f.runInClusterChecksRunner))
 	return configMap, nil
 }
 
-func buildDefaultConfigMap(owner metav1.Object, cmName string, content string) *corev1.ConfigMap {
+func buildDefaultConfigMap(namespace, cmName string, content string) *corev1.ConfigMap {
 	configMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        cmName,
-			Namespace:   owner.GetNamespace(),
-			Labels:      object.GetDefaultLabels(owner, owner.GetName(), ""),
-			Annotations: object.GetDefaultAnnotations(owner),
+			Name:      cmName,
+			Namespace: namespace,
 		},
 		Data: map[string]string{
 			ksmCoreCheckName: content,

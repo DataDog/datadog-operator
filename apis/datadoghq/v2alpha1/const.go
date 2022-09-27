@@ -12,4 +12,9 @@ const (
 	OverrideReconcileConflictConditionType = "OverrideReconcileConflict"
 	// DatadogAgentReconcileErrorConditionType ReconcileConditionType for DatadogAgent reconcile error
 	DatadogAgentReconcileErrorConditionType = "DatadogAgentReconcileError"
+
+	// ExtraConfdConfigMapName is the name of the ConfigMap storing Custom Confd data
+	ExtraConfdConfigMapName = "datadog-extra-confd"
+	// ExtraChecksdConfigMapName is the name of the ConfigMap storing Custom Checksd data
+	ExtraChecksdConfigMapName = "datadog-extra-checksd"
 )

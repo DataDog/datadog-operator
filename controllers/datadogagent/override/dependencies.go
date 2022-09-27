@@ -12,20 +12,28 @@ import (
 
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/configmap"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 // Dependencies is used to override any resource/dependency settings with a v2alpha1.DatadogAgentComponentOverride.
 func Dependencies(logger logr.Logger, manager feature.ResourceManagers, overrides map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride, namespace string) (errs []error) {
 	for component, override := range overrides {
-		err := overrideComponentDependencies(logger, manager, override, component, namespace)
+		err := overrideRBAC(logger, manager, override, component, namespace)
 		if err != nil {
 			errs = append(errs, err)
 		}
+
+		// Handle custom check configurations
+		errs = append(errs, overrideExtraConfigs(manager, override.ExtraConfd, namespace, v2alpha1.ExtraConfdConfigMapName, true)...)
+
+		// Handle custom check files
+		errs = append(errs, overrideExtraConfigs(manager, override.ExtraChecksd, namespace, v2alpha1.ExtraChecksdConfigMapName, false)...)
 	}
 	return errs
 }
 
-func overrideComponentDependencies(logger logr.Logger, manager feature.ResourceManagers, override *v2alpha1.DatadogAgentComponentOverride, component v2alpha1.ComponentName, namespace string) error {
+func overrideRBAC(logger logr.Logger, manager feature.ResourceManagers, override *v2alpha1.DatadogAgentComponentOverride, component v2alpha1.ComponentName, namespace string) error {
 	var errs []error
 	if override.CreateRbac != nil && !*override.CreateRbac {
 		rbacManager := manager.RBACManager()
@@ -34,5 +42,21 @@ func overrideComponentDependencies(logger logr.Logger, manager feature.ResourceM
 		errs = append(errs, rbacManager.DeleteRoleByComponent(string(component), namespace))
 		errs = append(errs, rbacManager.DeleteClusterRoleByComponent(string(component)))
 	}
+
 	return errors.NewAggregate(errs)
+}
+
+func overrideExtraConfigs(manager feature.ResourceManagers, multiCustomConfig *v2alpha1.MultiCustomConfig, namespace, configMapName string, isYaml bool) (errs []error) {
+	if multiCustomConfig != nil && multiCustomConfig.ConfigMap == nil && len(multiCustomConfig.ConfigDataMap) > 0 {
+		cm, err := configmap.BuildConfigMapMulti(namespace, multiCustomConfig.ConfigDataMap, configMapName, isYaml)
+		if err != nil {
+			errs = append(errs, err)
+		}
+		if cm != nil {
+			if err := manager.Store().AddOrUpdate(kubernetes.ConfigMapKind, cm); err != nil {
+				errs = append(errs, err)
+			}
+		}
+	}
+	return errs
 }

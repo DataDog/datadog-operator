@@ -28,12 +28,10 @@ func (src *DatadogAgent) ConvertTo(dst conversion.Hub) error {
 }
 
 // ConvertFrom converts a v2alpha1 (Hub) to v1alpha1 (local)
-// Not implemented
+// Not supported. Only match metadata to not block the v1alpha1 to v2alpha1 migration.
 func (dst *DatadogAgent) ConvertFrom(src conversion.Hub) error { //nolint
-	// TODO (operator-ga): uncomment the next line when we find out why this
-	// method is called every second. For now, just return nil to avoid spamming
-	// the logs.
-	// return fmt.Errorf("convert from v2alpha1 to %s is not implemented", dst.GetObjectKind().GroupVersionKind().Version)
+	ddaV2 := src.(*v2alpha1.DatadogAgent)
+	dst.ObjectMeta = ddaV2.ObjectMeta
 	return nil
 }
 
@@ -191,13 +189,13 @@ func convertConfigMapConfig(src *CustomConfigSpec) *v2alpha1.CustomConfig {
 	return dstConfig
 }
 
-// ConvertConfigDirSpec converts v1alpha1.ConfigDirSpec to v2alpha1.CustomConfig
-func ConvertConfigDirSpec(src *ConfigDirSpec) *v2alpha1.CustomConfig {
+// ConvertConfigDirSpec converts v1alpha1.ConfigDirSpec to v2alpha1.MultiCustomConfig
+func ConvertConfigDirSpec(src *ConfigDirSpec) *v2alpha1.MultiCustomConfig {
 	if src == nil {
 		return nil
 	}
 
-	return &v2alpha1.CustomConfig{
+	return &v2alpha1.MultiCustomConfig{
 		ConfigMap: &commonv1.ConfigMapConfig{
 			Name:  src.ConfigMapName,
 			Items: src.Items,
