@@ -10,13 +10,13 @@ import (
 
 	"gopkg.in/yaml.v2"
 
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/errors"
 )
 
 // BuildConfiguration use to generate a configmap containing a configuration file in yaml.
-func BuildConfiguration(owner metav1.Object, configDataPointer *string, configMapName, subPath string) (*corev1.ConfigMap, error) {
+func BuildConfiguration(namespace string, configDataPointer *string, configMapName, subPath string) (*corev1.ConfigMap, error) {
 	if configDataPointer == nil {
 		return nil, nil
 	}
@@ -34,14 +34,40 @@ func BuildConfiguration(owner metav1.Object, configDataPointer *string, configMa
 
 	configMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        configMapName,
-			Namespace:   owner.GetNamespace(),
-			Labels:      object.GetDefaultLabels(owner, owner.GetName(), ""),
-			Annotations: object.GetDefaultAnnotations(owner),
+			Name:      configMapName,
+			Namespace: namespace,
 		},
 		Data: map[string]string{
 			subPath: configData,
 		},
 	}
 	return configMap, nil
+}
+
+// BuildConfigMapMulti use to generate a configmap containing configuration (yaml) or check code (python).
+// Use boolean `validate` to validate against yaml.
+func BuildConfigMapMulti(namespace string, configDataMap map[string]string, configMapName string, validate bool) (*corev1.ConfigMap, error) {
+	var errs []error
+	data := make(map[string]string)
+
+	for path, configData := range configDataMap {
+		if validate {
+			// Validate that user input is valid YAML
+			m := make(map[interface{}]interface{})
+			if err := yaml.Unmarshal([]byte(configData), m); err != nil {
+				errs = append(errs, fmt.Errorf("unable to parse YAML from 'multiCustomConfig.ConfigDataMap' field: %w", err))
+				continue
+			}
+		}
+		data[path] = configData
+	}
+
+	configMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      configMapName,
+			Namespace: namespace,
+		},
+		Data: data,
+	}
+	return configMap, errors.NewAggregate(errs)
 }

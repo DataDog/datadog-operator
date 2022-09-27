@@ -28329,11 +28329,11 @@ spec:
                     customConfigurations:
                       additionalProperties:
                         description: 'CustomConfig provides a place for custom configuration
-                          of the Agent or Cluster Agent, corresponding to datadog.yaml
-                          or datadog-cluster.yaml. The configuration can be provided
-                          in the ConfigData field as raw data, or referenced in a
-                          ConfigMap. Note: `ConfigData` and `ConfigMap` cannot be
-                          set together.'
+                          of the Agent or Cluster Agent, corresponding to datadog.yaml,
+                          system-probe.yaml, security-agent.yaml or datadog-cluster.yaml.
+                          The configuration can be provided in the ConfigData field
+                          as raw data, or referenced in a ConfigMap. Note: `ConfigData`
+                          and `ConfigMap` cannot be set together.'
                         properties:
                           configData:
                             description: ConfigData corresponds to the configuration
@@ -28518,13 +28518,17 @@ spec:
                         checks placed under /etc/datadog-agent/checks.d/ See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6
                         for more details.
                       properties:
-                        configData:
-                          description: ConfigData corresponds to the configuration
-                            file content.
-                          type: string
+                        configDataMap:
+                          additionalProperties:
+                            type: string
+                          description: ConfigDataMap corresponds to the content of
+                            the configuration files. They key should be the filename
+                            the contents get mounted to; for instance check.py or
+                            check.yaml.
+                          type: object
                         configMap:
                           description: ConfigMap references an existing ConfigMap
-                            with the configuration file content.
+                            with the content of the configuration files.
                           properties:
                             items:
                               description: Items maps a ConfigMap data key to a file
@@ -28574,13 +28578,17 @@ spec:
                         See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6
                         for more details.
                       properties:
-                        configData:
-                          description: ConfigData corresponds to the configuration
-                            file content.
-                          type: string
+                        configDataMap:
+                          additionalProperties:
+                            type: string
+                          description: ConfigDataMap corresponds to the content of
+                            the configuration files. They key should be the filename
+                            the contents get mounted to; for instance check.py or
+                            check.yaml.
+                          type: object
                         configMap:
                           description: ConfigMap references an existing ConfigMap
-                            with the configuration file content.
+                            with the content of the configuration files.
                           properties:
                             items:
                               description: Items maps a ConfigMap data key to a file

@@ -548,7 +548,8 @@ type Endpoint struct {
 	Credentials *DatadogCredentials `json:"credentials,omitempty"`
 }
 
-// CustomConfig provides a place for custom configuration of the Agent or Cluster Agent, corresponding to datadog.yaml or datadog-cluster.yaml.
+// CustomConfig provides a place for custom configuration of the Agent or Cluster Agent, corresponding to datadog.yaml,
+// system-probe.yaml, security-agent.yaml or datadog-cluster.yaml.
 // The configuration can be provided in the ConfigData field as raw data, or referenced in a ConfigMap.
 // Note: `ConfigData` and `ConfigMap` cannot be set together.
 // +k8s:openapi-gen=true
@@ -557,6 +558,19 @@ type CustomConfig struct {
 	ConfigData *string `json:"configData,omitempty"`
 
 	// ConfigMap references an existing ConfigMap with the configuration file content.
+	ConfigMap *commonv1.ConfigMapConfig `json:"configMap,omitempty"`
+}
+
+// MultiCustomConfig provides a place for custom configuration of the Agent or Cluster Agent, corresponding to /confd/*.yaml.
+// The configuration can be provided in the ConfigDataMap field as raw data, or referenced in a single ConfigMap.
+// Note: `ConfigDataMap` and `ConfigMap` cannot be set together.
+// +k8s:openapi-gen=true
+type MultiCustomConfig struct {
+	// ConfigDataMap corresponds to the content of the configuration files.
+	// They key should be the filename the contents get mounted to; for instance check.py or check.yaml.
+	ConfigDataMap map[string]string `json:"configDataMap,omitempty"`
+
+	// ConfigMap references an existing ConfigMap with the content of the configuration files.
 	ConfigMap *commonv1.ConfigMapConfig `json:"configMap,omitempty"`
 }
 
@@ -722,6 +736,8 @@ const (
 	SystemProbeConfigFile AgentConfigFileName = "system-probe.yaml"
 	// SecurityAgentConfigFile is the name of the Security Agent config file
 	SecurityAgentConfigFile AgentConfigFileName = "security-agent.yaml"
+	// ClusterAgentConfigFile is the name of the Cluster Agent config file
+	ClusterAgentConfigFile AgentConfigFileName = "cluster-agent.yaml"
 )
 
 // DatadogAgentComponentOverride is the generic description equivalent to a subset of the PodTemplate for a component.
@@ -766,12 +782,12 @@ type DatadogAgentComponentOverride struct {
 	// Confd configuration allowing to specify config files for custom checks placed under /etc/datadog-agent/conf.d/.
 	// See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.
 	// +optional
-	ExtraConfd *CustomConfig `json:"extraConfd,omitempty"`
+	ExtraConfd *MultiCustomConfig `json:"extraConfd,omitempty"`
 
 	// Checksd configuration allowing to specify custom checks placed under /etc/datadog-agent/checks.d/
 	// See https://docs.datadoghq.com/agent/guide/agent-configuration-files/?tab=agentv6 for more details.
 	// +optional
-	ExtraChecksd *CustomConfig `json:"extraChecksd,omitempty"`
+	ExtraChecksd *MultiCustomConfig `json:"extraChecksd,omitempty"`
 
 	// Configure the basic configurations for each agent container
 	// +optional
