@@ -203,6 +203,20 @@ func ConvertConfigDirSpec(src *ConfigDirSpec) *v2alpha1.MultiCustomConfig {
 	}
 }
 
+// ConvertConfigDirSpecToCustomConfig converts v1alpha1.ConfigDirSpec to v2alpha1.CustomConfig
+func ConvertConfigDirSpecToCustomConfig(src *ConfigDirSpec) *commonv1.CustomConfig {
+	if src == nil {
+		return nil
+	}
+
+	return &commonv1.CustomConfig{
+		ConfigMap: &commonv1.ConfigMapConfig{
+			Name:  src.ConfigMapName,
+			Items: src.Items,
+		},
+	}
+}
+
 // Accessors
 func getV2GlobalConfig(dst *v2alpha1.DatadogAgent) *v2alpha1.GlobalConfig {
 	if dst.Spec.Global == nil {

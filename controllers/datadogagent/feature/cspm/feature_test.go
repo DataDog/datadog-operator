@@ -64,12 +64,14 @@ func Test_cspmFeature_Configure(t *testing.T) {
 	ddav2CSPMEnabled := ddav2CSPMDisabled.DeepCopy()
 	{
 		ddav2CSPMEnabled.Spec.Features.CSPM.Enabled = apiutils.NewBoolPointer(true)
-		ddav2CSPMEnabled.Spec.Features.CSPM.CustomBenchmarks = &apicommonv1.ConfigMapConfig{
-			Name: "custom_test",
-			Items: []corev1.KeyToPath{
-				{
-					Key:  "key1",
-					Path: "some/path",
+		ddav2CSPMEnabled.Spec.Features.CSPM.CustomBenchmarks = &v2alpha1.CustomConfig{
+			ConfigMap: &apicommonv1.ConfigMapConfig{
+				Name: "custom_test",
+				Items: []corev1.KeyToPath{
+					{
+						Key:  "key1",
+						Path: "some/path",
+					},
 				},
 			},
 		}
@@ -95,7 +97,7 @@ func Test_cspmFeature_Configure(t *testing.T) {
 		wantVolumeMounts := []corev1.VolumeMount{
 			{
 				Name:      cspmConfigVolumeName,
-				MountPath: cspmConfigVolumePath,
+				MountPath: "/etc/datadog-agent/compliance.d/some/path",
 				SubPath:   "some/path",
 				ReadOnly:  true,
 			},
@@ -112,6 +114,7 @@ func Test_cspmFeature_Configure(t *testing.T) {
 						LocalObjectReference: corev1.LocalObjectReference{
 							Name: "custom_test",
 						},
+						Items: []corev1.KeyToPath{{Key: "key1", Path: "some/path"}},
 					},
 				},
 			},
@@ -143,9 +146,8 @@ func Test_cspmFeature_Configure(t *testing.T) {
 		// check volume mounts
 		wantVolumeMounts := []corev1.VolumeMount{
 			{
-				Name:      cspmConfigVolumeName,
-				MountPath: cspmConfigVolumePath,
-				SubPath:   "some/path",
+				Name:      apicommon.SecurityAgentComplianceConfigDirVolumeName,
+				MountPath: "/etc/datadog-agent/compliance.d",
 				ReadOnly:  true,
 			},
 			{
@@ -187,7 +189,14 @@ func Test_cspmFeature_Configure(t *testing.T) {
 						LocalObjectReference: corev1.LocalObjectReference{
 							Name: "custom_test",
 						},
+						Items: []corev1.KeyToPath{{Key: "key1", Path: "some/path"}},
 					},
+				},
+			},
+			{
+				Name: apicommon.SecurityAgentComplianceConfigDirVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
 				},
 			},
 			{
