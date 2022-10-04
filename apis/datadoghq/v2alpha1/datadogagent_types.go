@@ -85,8 +85,6 @@ type DatadogFeatures struct {
 	ClusterChecks *ClusterChecksFeatureConfig `json:"clusterChecks,omitempty"`
 	// PrometheusScrape configuration.
 	PrometheusScrape *PrometheusScrapeFeatureConfig `json:"prometheusScrape,omitempty"`
-	// DatadogMonitor configuration.
-	DatadogMonitor *DatadogMonitorFeatureConfig `json:"datadogMonitor,omitempty"`
 }
 
 // Configuration structs for each feature in DatadogFeatures. All parameters are optional and have default values when necessary.
@@ -500,15 +498,6 @@ type PrometheusScrapeFeatureConfig struct {
 	// AdditionalConfigs allows adding advanced Prometheus check configurations with custom discovery rules.
 	// +optional
 	AdditionalConfigs *string `json:"additionalConfigs,omitempty"`
-}
-
-// DatadogMonitorFeatureConfig contains the Datadog Monitor feature configuration.
-// DatadogMonitor is run by the Datadog Operator.
-type DatadogMonitorFeatureConfig struct {
-	// Enabled enables Datadog Monitors.
-	// Default: false
-	// +optional
-	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // Generic support structs
