@@ -6,6 +6,8 @@
 package kubernetesstatecore
 
 import (
+	"fmt"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -121,7 +123,8 @@ func (f *ksmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) feature.RequiredCom
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
 func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
-	// Manage the Check Configuration in a configmap
+	// Create a configMap if CustomConfig.ConfigData is provided and CustomConfig.ConfigMap == nil,
+	// OR if the default configMap is needed.
 	configCM, err := f.buildKSMCoreConfigMap()
 	if err != nil {
 		return err
@@ -132,7 +135,7 @@ func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers, compo
 		}
 	}
 
-	// Manager RBAC permission
+	// Manage RBAC permission
 	rbacName := GetKubeStateMetricsRBACResourceName(f.owner, f.rbacSuffix)
 
 	return managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), rbacName, f.serviceAccountName, getRBACPolicyRules())
@@ -142,13 +145,25 @@ func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers, compo
 // It should do nothing if the feature doesn't need to configure it.
 func (f *ksmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	// Manage KSM config in configmap
-	vol, volMount := volume.GetCustomConfigSpecVolumes(
-		f.customConfig,
-		apicommon.KubeStateMetricCoreVolumeName,
-		f.configConfigMapName,
-		ksmCoreCheckFolderName,
-	)
-
+	var vol corev1.Volume
+	var volMount corev1.VolumeMount
+	if f.customConfig != nil && f.customConfig.ConfigMap != nil {
+		// Custom config is referenced via ConfigMap
+		vol, volMount = volume.GetVolumesFromConfigMap(
+			f.customConfig.ConfigMap,
+			apicommon.KubeStateMetricCoreVolumeName,
+			f.configConfigMapName,
+			ksmCoreCheckFolderName,
+		)
+	} else {
+		// Otherwise, configMap was created in ManageDependencies (whether from CustomConfig.ConfigData or using defaults, so mount default volume)
+		vol = volume.GetBasicVolume(f.configConfigMapName, apicommon.KubeStateMetricCoreVolumeName)
+		volMount = corev1.VolumeMount{
+			Name:      apicommon.KubeStateMetricCoreVolumeName,
+			MountPath: fmt.Sprintf("%s%s/%s", apicommon.ConfigVolumePath, apicommon.ConfdVolumePath, ksmCoreCheckFolderName),
+			ReadOnly:  true,
+		}
+	}
 	managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommonv1.ClusterAgentContainerName)
 	managers.Volume().AddVolume(&vol)
 

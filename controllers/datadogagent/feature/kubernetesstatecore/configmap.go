@@ -19,7 +19,7 @@ func (f *ksmFeature) buildKSMCoreConfigMap() (*corev1.ConfigMap, error) {
 		return nil, nil
 	}
 	if f.customConfig != nil && f.customConfig.ConfigData != nil {
-		return configmap.BuildConfiguration(f.owner.GetNamespace(), f.customConfig.ConfigData, f.configConfigMapName, ksmCoreCheckName)
+		return configmap.BuildConfigMapConfigData(f.owner.GetNamespace(), f.customConfig.ConfigData, f.configConfigMapName, ksmCoreCheckName)
 	}
 
 	configMap := buildDefaultConfigMap(f.owner.GetNamespace(), f.configConfigMapName, ksmCheckConfig(f.runInClusterChecksRunner))

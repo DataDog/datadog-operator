@@ -26,6 +26,11 @@ func (_m *VolumeMountManager) AddVolumeMountToContainer(volumeMount *v1.VolumeMo
 	_m.VolumeMountsByC[containerName] = append(_m.VolumeMountsByC[containerName], volumeMount)
 }
 
+// AddVolumeMountToInitContainer provides a mock function with given fields: volumeMount, containerName
+func (_m *VolumeMountManager) AddVolumeMountToInitContainer(volumeMount *v1.VolumeMount, containerName commonv1.AgentContainerName) {
+	_m.VolumeMountsByC[containerName] = append(_m.VolumeMountsByC[containerName], volumeMount)
+}
+
 // AddVolumeMountToContainers provides a mock function with given fields: volume, volumeMount, containerNames
 func (_m *VolumeMountManager) AddVolumeMountToContainers(volumeMount *v1.VolumeMount, containerNames []commonv1.AgentContainerName) {
 	for _, c := range containerNames {

@@ -6,6 +6,9 @@
 package orchestratorexplorer
 
 import (
+	"fmt"
+
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
@@ -135,7 +138,8 @@ func (f *orchestratorExplorerFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (r
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
 func (f *orchestratorExplorerFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
-	// Manage the Check Configuration in a configmap
+	// Create a configMap if CustomConfig.ConfigData is provided and CustomConfig.ConfigMap == nil,
+	// OR if the default configMap is needed.
 	configCM, err := f.buildOrchestratorExplorerConfigMap()
 	if err != nil {
 		return err
@@ -146,7 +150,7 @@ func (f *orchestratorExplorerFeature) ManageDependencies(managers feature.Resour
 		}
 	}
 
-	// Manager RBAC permission
+	// Manage RBAC permission
 	rbacName := GetOrchestratorExplorerRBACResourceName(f.owner, f.rbacSuffix)
 
 	return managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), rbacName, f.serviceAccountName, getRBACPolicyRules())
@@ -156,12 +160,26 @@ func (f *orchestratorExplorerFeature) ManageDependencies(managers feature.Resour
 // It should do nothing if the feature doesn't need to configure it.
 func (f *orchestratorExplorerFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	// Manage orchestrator config in configmap
-	vol, volMount := volume.GetCustomConfigSpecVolumes(
-		f.customConfig,
-		apicommon.OrchestratorExplorerVolumeName,
-		f.configConfigMapName,
-		orchestratorExplorerCheckFolderName,
-	)
+	var vol corev1.Volume
+	var volMount corev1.VolumeMount
+	if f.customConfig != nil && f.customConfig.ConfigMap != nil {
+		// Custom config is referenced via ConfigMap
+		vol, volMount = volume.GetVolumesFromConfigMap(
+			f.customConfig.ConfigMap,
+			apicommon.OrchestratorExplorerVolumeName,
+			f.configConfigMapName,
+			orchestratorExplorerFolderName,
+		)
+	} else {
+		// Otherwise, configMap was created in ManageDependencies (whether from CustomConfig.ConfigData or using defaults, so mount default volume)
+		vol = volume.GetBasicVolume(f.configConfigMapName, apicommon.OrchestratorExplorerVolumeName)
+
+		volMount = corev1.VolumeMount{
+			Name:      apicommon.OrchestratorExplorerVolumeName,
+			MountPath: fmt.Sprintf("%s%s/%s", apicommon.ConfigVolumePath, apicommon.ConfdVolumePath, orchestratorExplorerFolderName),
+			ReadOnly:  true,
+		}
+	}
 
 	managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommonv1.ClusterAgentContainerName)
 	managers.Volume().AddVolume(&vol)

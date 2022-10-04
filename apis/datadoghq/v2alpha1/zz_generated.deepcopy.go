@@ -97,7 +97,7 @@ func (in *CSPMFeatureConfig) DeepCopyInto(out *CSPMFeatureConfig) {
 	}
 	if in.CustomBenchmarks != nil {
 		in, out := &in.CustomBenchmarks, &out.CustomBenchmarks
-		*out = new(commonv1.ConfigMapConfig)
+		*out = new(CustomConfig)
 		(*in).DeepCopyInto(*out)
 	}
 }
@@ -127,7 +127,7 @@ func (in *CWSFeatureConfig) DeepCopyInto(out *CWSFeatureConfig) {
 	}
 	if in.CustomPolicies != nil {
 		in, out := &in.CustomPolicies, &out.CustomPolicies
-		*out = new(commonv1.ConfigMapConfig)
+		*out = new(CustomConfig)
 		(*in).DeepCopyInto(*out)
 	}
 }

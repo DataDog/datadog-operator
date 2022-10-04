@@ -17,12 +17,15 @@ import (
 )
 
 // Dependencies is used to override any resource/dependency settings with a v2alpha1.DatadogAgentComponentOverride.
-func Dependencies(logger logr.Logger, manager feature.ResourceManagers, overrides map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride, namespace string) (errs []error) {
+func Dependencies(logger logr.Logger, manager feature.ResourceManagers, overrides map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride, ddaName, namespace string) (errs []error) {
 	for component, override := range overrides {
 		err := overrideRBAC(logger, manager, override, component, namespace)
 		if err != nil {
 			errs = append(errs, err)
 		}
+
+		// Handle custom agent configurations (datadog.yaml, cluster-agent.yaml, etc.)
+		errs = append(errs, overrideCustomConfigs(manager, override.CustomConfigurations, ddaName, namespace)...)
 
 		// Handle custom check configurations
 		errs = append(errs, overrideExtraConfigs(manager, override.ExtraConfd, namespace, v2alpha1.ExtraConfdConfigMapName, true)...)
@@ -44,6 +47,27 @@ func overrideRBAC(logger logr.Logger, manager feature.ResourceManagers, override
 	}
 
 	return errors.NewAggregate(errs)
+}
+
+func overrideCustomConfigs(manager feature.ResourceManagers, customConfigMap map[v2alpha1.AgentConfigFileName]v2alpha1.CustomConfig, ddaName, namespace string) (errs []error) {
+	for fileName, customConfig := range customConfigMap {
+		// Favor ConfigMap setting; if it is specified, then move on
+		if customConfig.ConfigMap != nil {
+			continue
+		} else if customConfig.ConfigData != nil {
+			configMapName := getDefaultConfigMapName(ddaName, string(fileName))
+			cm, err := configmap.BuildConfigMapConfigData(namespace, customConfig.ConfigData, configMapName, string(fileName))
+			if err != nil {
+				errs = append(errs, err)
+			}
+			if cm != nil {
+				if err := manager.Store().AddOrUpdate(kubernetes.ConfigMapKind, cm); err != nil {
+					errs = append(errs, err)
+				}
+			}
+		}
+	}
+	return errs
 }
 
 func overrideExtraConfigs(manager feature.ResourceManagers, multiCustomConfig *v2alpha1.MultiCustomConfig, namespace, configMapName string, isYaml bool) (errs []error) {

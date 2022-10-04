@@ -130,7 +130,7 @@ func TestPodTemplateSpec(t *testing.T) {
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
 				found := false
 				for _, vol := range manager.VolumeMgr.Volumes {
-					if vol.Name == common.AgentCustomConfigVolumeName {
+					if vol.Name == getDefaultConfigMapName("datadog-agent", string(v2alpha1.AgentGeneralConfigFile)) {
 						found = true
 						break
 					}

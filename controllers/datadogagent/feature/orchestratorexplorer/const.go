@@ -12,9 +12,9 @@ import (
 )
 
 const (
-	orchestratorExplorerRBACPrefix      = "orch-exp"
-	orchestratorExplorerCheckName       = "orchestrator.yaml"
-	orchestratorExplorerCheckFolderName = "orchestrator.d"
+	orchestratorExplorerRBACPrefix   = "orch-exp"
+	orchestratorExplorerConfFileName = "orchestrator.yaml"
+	orchestratorExplorerFolderName   = "orchestrator.d"
 )
 
 // GetOrchestratorExplorerRBACResourceName returns the RBAC resources name

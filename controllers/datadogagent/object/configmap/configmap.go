@@ -15,8 +15,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/errors"
 )
 
-// BuildConfiguration use to generate a configmap containing a configuration file in yaml.
-func BuildConfiguration(namespace string, configDataPointer *string, configMapName, subPath string) (*corev1.ConfigMap, error) {
+// BuildConfigMapConfigData use to generate a configmap containing a configuration file in yaml.
+func BuildConfigMapConfigData(namespace string, configDataPointer *string, configMapName, subPath string) (*corev1.ConfigMap, error) {
 	if configDataPointer == nil {
 		return nil, nil
 	}
