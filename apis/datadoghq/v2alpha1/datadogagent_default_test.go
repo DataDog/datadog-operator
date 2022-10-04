@@ -167,9 +167,6 @@ func Test_defaultFeatures(t *testing.T) {
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueFalse),
 					},
-					DatadogMonitor: &DatadogMonitorFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueFalse),
-					},
 				},
 			},
 			want: &DatadogAgentSpec{
@@ -241,9 +238,6 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled: apiutils.NewBoolPointer(valueFalse),
 					},
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{
-						Enabled: apiutils.NewBoolPointer(valueFalse),
-					},
-					DatadogMonitor: &DatadogMonitorFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueFalse),
 					},
 				},

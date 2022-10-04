@@ -25866,13 +25866,6 @@ spec:
                           (recommended for troubleshooting only). Default: false'
                         type: boolean
                     type: object
-                  datadogMonitor:
-                    description: DatadogMonitor configuration.
-                    properties:
-                      enabled:
-                        description: 'Enabled enables Datadog Monitors. Default: false'
-                        type: boolean
-                    type: object
                   dogstatsd:
                     description: Dogstatsd configuration.
                     properties:
