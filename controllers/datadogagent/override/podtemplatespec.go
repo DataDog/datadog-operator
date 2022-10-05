@@ -148,41 +148,6 @@ func PodTemplateSpec(manager feature.PodTemplateManagers, override *v2alpha1.Dat
 		manager.PodTemplateSpec().Spec.SecurityContext = override.SecurityContext
 	}
 
-	if override.SystemProbeSeccompRootPath != nil {
-		vol := corev1.Volume{
-			Name: apicommon.SeccompRootVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: *override.SystemProbeSeccompRootPath,
-				},
-			},
-		}
-		manager.Volume().AddVolume(&vol)
-	}
-
-	if override.SystemProbeSeccompLocalhostProfile != nil {
-		for i, container := range manager.PodTemplateSpec().Spec.Containers {
-			if container.Name == string(common.SystemProbeContainerName) {
-				manager.PodTemplateSpec().Spec.Containers[i].SecurityContext.SeccompProfile.Type = corev1.SeccompProfileTypeLocalhost
-				manager.PodTemplateSpec().Spec.Containers[i].SecurityContext.SeccompProfile.LocalhostProfile = override.SystemProbeSeccompLocalhostProfile
-			}
-		}
-	}
-
-	if override.SystemProbeSeccompCustomProfile != nil {
-		vol := corev1.Volume{
-			Name: apicommon.SeccompSecurityVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: &corev1.ConfigMapVolumeSource{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: *override.SystemProbeSeccompCustomProfile,
-					},
-				},
-			},
-		}
-		manager.Volume().AddVolume(&vol)
-	}
-
 	if override.PriorityClassName != nil {
 		manager.PodTemplateSpec().Spec.PriorityClassName = *override.PriorityClassName
 	}

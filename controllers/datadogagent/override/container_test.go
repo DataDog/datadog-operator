@@ -20,16 +20,17 @@ import (
 )
 
 func TestContainer(t *testing.T) {
-	containerName := commonv1.CoreAgentContainerName
 
 	tests := []struct {
 		name            string
+		containerName   commonv1.AgentContainerName
 		existingManager func() *fake.PodTemplateManagers
 		override        v2alpha1.DatadogAgentGenericContainer
 		validateManager func(t *testing.T, manager *fake.PodTemplateManagers)
 	}{
 		{
-			name: "override container name",
+			name:          "override container name",
+			containerName: commonv1.CoreAgentContainerName,
 			existingManager: func() *fake.PodTemplateManagers {
 				return fake.NewPodTemplateManagers(t)
 			},
@@ -45,7 +46,8 @@ func TestContainer(t *testing.T) {
 			},
 		},
 		{
-			name: "override log level",
+			name:          "override log level",
+			containerName: commonv1.CoreAgentContainerName,
 			existingManager: func() *fake.PodTemplateManagers {
 				return fake.NewPodTemplateManagers(t)
 			},
@@ -64,7 +66,8 @@ func TestContainer(t *testing.T) {
 			},
 		},
 		{
-			name: "add envs",
+			name:          "add envs",
+			containerName: commonv1.CoreAgentContainerName,
 			existingManager: func() *fake.PodTemplateManagers {
 				manager := fake.NewPodTemplateManagers(t)
 				manager.EnvVar().AddEnvVarToContainer(
@@ -108,7 +111,8 @@ func TestContainer(t *testing.T) {
 			},
 		},
 		{
-			name: "add volume mounts",
+			name:          "add volume mounts",
+			containerName: commonv1.CoreAgentContainerName,
 			existingManager: func() *fake.PodTemplateManagers {
 				manager := fake.NewPodTemplateManagers(t)
 				manager.VolumeMount().AddVolumeMountToContainer(
@@ -146,7 +150,8 @@ func TestContainer(t *testing.T) {
 			},
 		},
 		{
-			name: "override resources",
+			name:          "override resources",
+			containerName: commonv1.CoreAgentContainerName,
 			existingManager: func() *fake.PodTemplateManagers {
 				return fake.NewPodTemplateManagers(t)
 			},
@@ -179,7 +184,8 @@ func TestContainer(t *testing.T) {
 			},
 		},
 		{
-			name: "override command",
+			name:          "override command",
+			containerName: commonv1.CoreAgentContainerName,
 			existingManager: func() *fake.PodTemplateManagers {
 				return fake.NewPodTemplateManagers(t)
 			},
@@ -195,7 +201,8 @@ func TestContainer(t *testing.T) {
 			},
 		},
 		{
-			name: "override args",
+			name:          "override args",
+			containerName: commonv1.CoreAgentContainerName,
 			existingManager: func() *fake.PodTemplateManagers {
 				return fake.NewPodTemplateManagers(t)
 			},
@@ -211,7 +218,8 @@ func TestContainer(t *testing.T) {
 			},
 		},
 		{
-			name: "override health port",
+			name:          "override health port",
+			containerName: commonv1.CoreAgentContainerName,
 			existingManager: func() *fake.PodTemplateManagers {
 				return fake.NewPodTemplateManagers(t)
 			},
@@ -230,7 +238,8 @@ func TestContainer(t *testing.T) {
 			},
 		},
 		{
-			name: "override readiness probe",
+			name:          "override readiness probe",
+			containerName: commonv1.CoreAgentContainerName,
 			existingManager: func() *fake.PodTemplateManagers {
 				return fake.NewPodTemplateManagers(t)
 			},
@@ -262,7 +271,8 @@ func TestContainer(t *testing.T) {
 			},
 		},
 		{
-			name: "override liveness probe",
+			name:          "override liveness probe",
+			containerName: commonv1.CoreAgentContainerName,
 			existingManager: func() *fake.PodTemplateManagers {
 				return fake.NewPodTemplateManagers(t)
 			},
@@ -294,7 +304,8 @@ func TestContainer(t *testing.T) {
 			},
 		},
 		{
-			name: "override security context",
+			name:          "override security context",
+			containerName: commonv1.CoreAgentContainerName,
 			existingManager: func() *fake.PodTemplateManagers {
 				return fake.NewPodTemplateManagers(t)
 			},
@@ -318,7 +329,64 @@ func TestContainer(t *testing.T) {
 			},
 		},
 		{
-			name: "override app armor profile",
+			name:          "override seccomp root path",
+			containerName: commonv1.SystemProbeContainerName,
+			existingManager: func() *fake.PodTemplateManagers {
+				return fake.NewPodTemplateManagers(t)
+			},
+			override: v2alpha1.DatadogAgentGenericContainer{
+				SeccompConfig: &v2alpha1.SeccompConfig{
+					CustomRootPath: apiutils.NewStringPointer("seccomp/path"),
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
+				expectedVolumes := []*corev1.Volume{
+					{
+						Name: "seccomp-root",
+						VolumeSource: corev1.VolumeSource{
+							HostPath: &corev1.HostPathVolumeSource{
+								Path: "seccomp/path",
+							},
+						},
+					},
+				}
+				assert.Equal(t, expectedVolumes, manager.VolumeMgr.Volumes)
+			},
+		},
+		{
+			name:          "override seccomp profile",
+			containerName: commonv1.SystemProbeContainerName,
+			existingManager: func() *fake.PodTemplateManagers {
+				return fake.NewPodTemplateManagers(t)
+			},
+			override: v2alpha1.DatadogAgentGenericContainer{
+				SeccompConfig: &v2alpha1.SeccompConfig{
+					CustomProfile: &v2alpha1.CustomConfig{
+						ConfigMap: &commonv1.ConfigMapConfig{
+							Name: "custom-seccomp-profile",
+						},
+					},
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
+				expectedVolumes := []*corev1.Volume{
+					{
+						Name: "datadog-agent-security",
+						VolumeSource: corev1.VolumeSource{
+							ConfigMap: &corev1.ConfigMapVolumeSource{
+								LocalObjectReference: corev1.LocalObjectReference{
+									Name: "custom-seccomp-profile",
+								},
+							},
+						},
+					},
+				}
+				assert.Equal(t, expectedVolumes, manager.VolumeMgr.Volumes)
+			},
+		},
+		{
+			name:          "override app armor profile",
+			containerName: commonv1.CoreAgentContainerName,
 			existingManager: func() *fake.PodTemplateManagers {
 				return fake.NewPodTemplateManagers(t)
 			},
@@ -336,7 +404,7 @@ func TestContainer(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			manager := test.existingManager()
 
-			Container(containerName, manager, &test.override)
+			Container(test.containerName, manager, &test.override)
 
 			test.validateManager(t, manager)
 		})

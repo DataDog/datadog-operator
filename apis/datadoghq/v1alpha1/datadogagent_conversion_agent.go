@@ -6,6 +6,8 @@
 package v1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
+
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/apis/utils"
@@ -365,17 +367,18 @@ func convertSystemProbeSpec(src *SystemProbeSpec, dst *v2alpha1.DatadogAgent) {
 		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), commonv1.SystemProbeContainerName).Args = src.Args
 	}
 
-	// System-probe specific fields
 	if src.SecCompRootPath != "" {
-		getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName).SystemProbeSeccompRootPath = &src.SecCompRootPath
+		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), commonv1.SystemProbeContainerName).SeccompConfig.CustomRootPath = &src.SecCompRootPath
 	}
 
 	if src.SecCompCustomProfileConfigMap != "" {
-		getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName).SystemProbeSeccompCustomProfile = &src.SecCompCustomProfileConfigMap
+		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), commonv1.SystemProbeContainerName).SeccompConfig.CustomProfile.ConfigMap.Name = src.SecCompCustomProfileConfigMap
 	}
 
 	if src.SecCompProfileName != "" {
-		getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName).SystemProbeSeccompLocalhostProfile = &src.SecCompProfileName
+		sysProbeContainer := getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), commonv1.SystemProbeContainerName)
+		sysProbeContainer.SecurityContext.SeccompProfile.Type = corev1.SeccompProfileTypeLocalhost
+		sysProbeContainer.SecurityContext.SeccompProfile.LocalhostProfile = &src.SecCompProfileName
 	}
 
 	if src.AppArmorProfileName != "" {

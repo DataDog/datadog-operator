@@ -31,7 +31,7 @@ type ConfigMapConfig struct {
 	Items []corev1.KeyToPath `json:"items,omitempty"`
 }
 
-// CustomConfig Allow to put custom configuration for the agent
+// CustomConfig allows one to put custom configurations for the agent.
 // +kubebuilder:object:generate=true
 type CustomConfig struct {
 	// ConfigData corresponds to the configuration file content.
@@ -68,6 +68,9 @@ type KubeletConfig struct {
 type AgentContainerName string
 
 const (
+	// SeccompSetupContainerName is the name of the Seccomp Setup init container
+	SeccompSetupContainerName AgentContainerName = "seccomp-setup"
+
 	// CoreAgentContainerName is the name of the Core Agent container
 	CoreAgentContainerName AgentContainerName = "agent"
 	// TraceAgentContainerName is the name of the Trace Agent container

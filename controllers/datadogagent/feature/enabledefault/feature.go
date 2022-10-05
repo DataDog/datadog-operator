@@ -288,7 +288,8 @@ func (f *defaultFeature) agentDependencies(managers feature.ResourceManagers, re
 		errs = append(errs, err)
 	}
 
-	// Seccomp profiles
+	// Create a configmap for the default seccomp profile in the System Probe.
+	// This is mounted in the init-volume container in the agent default code.
 	for _, containerName := range requiredComponent.Containers {
 		if containerName == commonv1.SystemProbeContainerName {
 			errs = append(errs, managers.ConfigMapManager().AddConfigMap(

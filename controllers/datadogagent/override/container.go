@@ -41,6 +41,8 @@ func Container(containerName commonv1.AgentContainerName, manager feature.PodTem
 		}
 	}
 
+	overrideSeccompProfile(containerName, manager, override)
+
 	overrideAppArmorProfile(containerName, manager, override)
 }
 
@@ -105,6 +107,62 @@ func overrideContainer(container *corev1.Container, override *v2alpha1.DatadogAg
 
 	if override.SecurityContext != nil {
 		container.SecurityContext = override.SecurityContext
+	}
+}
+
+func overrideSeccompProfile(containerName commonv1.AgentContainerName, manager feature.PodTemplateManagers, override *v2alpha1.DatadogAgentGenericContainer) {
+	// NOTE: for now, only support custom Seccomp Profiles on the System Probe
+	if containerName == commonv1.SystemProbeContainerName {
+		seccompRootPath := common.SeccompRootVolumePath
+		if override.SeccompConfig != nil && override.SeccompConfig.CustomRootPath != nil {
+			vol := corev1.Volume{
+				Name: common.SeccompRootVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: *override.SeccompConfig.CustomRootPath,
+					},
+				},
+			}
+			manager.Volume().AddVolume(&vol)
+			seccompRootPath = *override.SeccompConfig.CustomRootPath
+		}
+
+		// TODO support ConfigMap creation when ConfigData is used.
+		if override.SeccompConfig != nil && override.SeccompConfig.CustomProfile != nil && override.SeccompConfig.CustomProfile.ConfigMap != nil {
+			vol := corev1.Volume{
+				Name: common.SeccompSecurityVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: override.SeccompConfig.CustomProfile.ConfigMap.Name,
+						},
+						Items: override.SeccompConfig.CustomProfile.ConfigMap.Items,
+					},
+				},
+			}
+			manager.Volume().AddVolume(&vol)
+
+			// Add workaround command to seccomp-setup container
+			for id, container := range manager.PodTemplateSpec().Spec.InitContainers {
+				if container.Name == string(commonv1.SeccompSetupContainerName) {
+					manager.PodTemplateSpec().Spec.InitContainers[id].Args = []string{
+						fmt.Sprintf("cp %s/%s-seccomp.json %s/%s",
+							common.SeccompSecurityVolumePath,
+							string(containerName),
+							seccompRootPath,
+							string(containerName),
+						),
+					}
+				}
+				// TODO: Support for custom Seccomp profiles on other containers will require updating the LocalhostProfile.
+				// 	manager.PodTemplateSpec().Spec.InitContainers[id].SecurityContext = &corev1.SecurityContext{
+				// 		SeccompProfile: &corev1.SeccompProfile{
+				// 			Type:             corev1.SeccompProfileTypeLocalhost,
+				// 			LocalhostProfile: apiutils.NewStringPointer(containerName),
+				// 		},
+				// 	}
+			}
+		}
 	}
 }
 

@@ -726,6 +726,19 @@ type LocalService struct {
 	ForceEnableLocalService *bool `json:"forceEnableLocalService,omitempty"`
 }
 
+// SeccompConfig is used to override default values for Seccomp Profile configurations.
+type SeccompConfig struct {
+	// CustomRootPath specifies a custom Seccomp Profile root location.
+	// +optional
+	CustomRootPath *string `json:"customRootPath,omitempty"`
+
+	// CustomProfile specifies a ConfigMap containing a custom Seccomp Profile.
+	// ConfigMap data must either have the key `system-probe-seccomp.json` or CustomProfile.Items
+	// must include a corev1.KeytoPath that maps the key to the path `system-probe-seccomp.json`.
+	// +optional
+	CustomProfile *CustomConfig `json:"customProfile,omitempty"`
+}
+
 // AgentConfigFileName is the list of known Agent config files
 type AgentConfigFileName string
 
@@ -838,19 +851,6 @@ type DatadogAgentComponentOverride struct {
 	// +optional
 	HostPID *bool `json:"hostPID,omitempty"`
 
-	// SystemProbeSeccompRootPath specifies the seccomp profile root directory for the system probe.
-	// +optional
-	SystemProbeSeccompRootPath *string `json:"systemProbeSeccompRootPath,omitempty"`
-
-	// SystemProbeSeccompCustomProfile specifies a pre-existing ConfigMap containing a custom Seccomp profile for the system probe.
-	// This ConfigMap must contain a file named `system-probe-seccomp.json`.
-	// +optional
-	SystemProbeSeccompCustomProfile *string `json:"systemProbeSeccompCustomProfile,omitempty"`
-
-	// SystemProbeSeccompLocalhostProfile specifies a pre-existing seccomp profile on the node for the system probe.
-	// +optional
-	SystemProbeSeccompLocalhostProfile *string `json:"systemProbeSeccompLocalhostProfile,omitempty"`
-
 	// Disabled force disables a component.
 	// +optional
 	Disabled *bool `json:"disabled,omitempty"`
@@ -914,7 +914,11 @@ type DatadogAgentGenericContainer struct {
 	// +optional
 	SecurityContext *corev1.SecurityContext `json:"securityContext,omitempty"`
 
-	// AppArmorProfileName specify a apparmor profile.
+	// Seccomp configurations to override Operator actions. For all other Seccomp Profile manipulation,
+	// use SecurityContext.
+	SeccompConfig *SeccompConfig `json:"seccompConfig,omitempty"`
+
+	// AppArmorProfileName specifies an apparmor profile.
 	// +optional
 	AppArmorProfileName *string `json:"appArmorProfileName,omitempty"`
 }
