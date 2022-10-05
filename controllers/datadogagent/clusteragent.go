@@ -338,7 +338,7 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 	if isComplianceEnabled(&dda.Spec) {
 		if dda.Spec.Agent.Security.Compliance.ConfigDir != nil {
 			volumes = append(volumes, corev1.Volume{
-				Name: datadoghqv1alpha1.SecurityAgentComplianceConfigDirVolumeName,
+				Name: apicommon.SecurityAgentComplianceConfigDirVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					ConfigMap: &corev1.ConfigMapVolumeSource{
 						LocalObjectReference: corev1.LocalObjectReference{
@@ -348,8 +348,8 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 				},
 			})
 			volumeMounts = append(volumeMounts, corev1.VolumeMount{
-				Name:      datadoghqv1alpha1.SecurityAgentComplianceConfigDirVolumeName,
-				MountPath: datadoghqv1alpha1.SecurityAgentComplianceConfigDirVolumePath,
+				Name:      apicommon.SecurityAgentComplianceConfigDirVolumeName,
+				MountPath: apicommon.SecurityAgentComplianceConfigDirVolumePath,
 				ReadOnly:  true,
 			})
 		}
@@ -561,7 +561,7 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 		if dda.Spec.Agent.Security.Compliance.ConfigDir != nil {
 			envVars = append(envVars, corev1.EnvVar{
 				Name:  apicommon.DDComplianceConfigDir,
-				Value: datadoghqv1alpha1.SecurityAgentComplianceConfigDirVolumePath,
+				Value: apicommon.SecurityAgentComplianceConfigDirVolumePath,
 			})
 		}
 	}

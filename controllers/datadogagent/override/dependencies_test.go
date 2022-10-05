@@ -133,7 +133,7 @@ func TestDependencies(t *testing.T) {
 			store := dependencies.NewStore(&test.dda, storeOptions)
 			manager := feature.NewResourceManagers(store)
 
-			errs := Dependencies(testLogger, manager, test.dda.Spec.Override, namespace)
+			errs := Dependencies(testLogger, manager, test.dda.Spec.Override, "dd", namespace)
 
 			if test.expectsErrors {
 				assert.NotEmpty(t, errs)

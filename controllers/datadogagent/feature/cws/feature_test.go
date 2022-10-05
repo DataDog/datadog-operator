@@ -65,12 +65,14 @@ func Test_cwsFeature_Configure(t *testing.T) {
 	ddav2CWSEnabled := ddav2CWSDisabled.DeepCopy()
 	{
 		ddav2CWSEnabled.Spec.Features.CWS.Enabled = apiutils.NewBoolPointer(true)
-		ddav2CWSEnabled.Spec.Features.CWS.CustomPolicies = &apicommonv1.ConfigMapConfig{
-			Name: "custom_test",
-			Items: []corev1.KeyToPath{
-				{
-					Key:  "key1",
-					Path: "some/path",
+		ddav2CWSEnabled.Spec.Features.CWS.CustomPolicies = &v2alpha1.CustomConfig{
+			ConfigMap: &apicommonv1.ConfigMapConfig{
+				Name: "custom_test",
+				Items: []corev1.KeyToPath{
+					{
+						Key:  "key1",
+						Path: "some/path",
+					},
 				},
 			},
 		}
@@ -142,12 +144,6 @@ func Test_cwsFeature_Configure(t *testing.T) {
 				ReadOnly:  true,
 			},
 			{
-				Name:      apicommon.SecurityAgentRuntimeCustomPoliciesVolumeName,
-				MountPath: apicommon.SecurityAgentRuntimeCustomPoliciesVolumePath,
-				SubPath:   "some/path",
-				ReadOnly:  true,
-			},
-			{
 				Name:      apicommon.SecurityAgentRuntimePoliciesDirVolumeName,
 				MountPath: apicommon.SecurityAgentRuntimePoliciesDirVolumePath,
 				ReadOnly:  true,
@@ -187,12 +183,6 @@ func Test_cwsFeature_Configure(t *testing.T) {
 			{
 				Name:      apicommon.SystemProbeOSReleaseDirVolumeName,
 				MountPath: apicommon.SystemProbeOSReleaseDirMountPath,
-				ReadOnly:  true,
-			},
-			{
-				Name:      apicommon.SecurityAgentRuntimeCustomPoliciesVolumeName,
-				MountPath: apicommon.SecurityAgentRuntimeCustomPoliciesVolumePath,
-				SubPath:   "some/path",
 				ReadOnly:  true,
 			},
 			{
@@ -272,12 +262,13 @@ func Test_cwsFeature_Configure(t *testing.T) {
 				},
 			},
 			{
-				Name: apicommon.SecurityAgentRuntimeCustomPoliciesVolumeName,
+				Name: cwsConfigVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					ConfigMap: &corev1.ConfigMapVolumeSource{
 						LocalObjectReference: corev1.LocalObjectReference{
 							Name: "custom_test",
 						},
+						Items: []corev1.KeyToPath{{Key: "key1", Path: "some/path"}},
 					},
 				},
 			},

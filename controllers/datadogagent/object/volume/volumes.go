@@ -7,11 +7,14 @@ package volume
 
 import (
 	"fmt"
+	"sort"
 
+	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 )
 
 // GetVolumes creates a corev1.Volume and corev1.VolumeMount corresponding to a host path.
@@ -56,54 +59,74 @@ func GetVolumesEmptyDir(volumeName, mountPath string, readOnly bool) (corev1.Vol
 	return volume, volumeMount
 }
 
-// GetCustomConfigSpecVolumes use to generate the corev1.Volume and corev1.VolumeMount corresponding to a CustomConfig.
-func GetCustomConfigSpecVolumes(customConfig *apicommonv1.CustomConfig, volumeName, defaultCMName, configFolder string) (corev1.Volume, corev1.VolumeMount) {
-	var volume corev1.Volume
-	var volumeMount corev1.VolumeMount
-	if customConfig != nil {
-		volume = GetVolumeFromCustomConfigSpec(
-			customConfig,
-			defaultCMName,
-			volumeName,
-		)
-		// subpath only updated to Filekey if config uses configMap, default to ksmCoreCheckName for configData.
-		volumeMount = GetVolumeMountFromCustomConfigSpec(
-			customConfig,
-			volumeName,
-			fmt.Sprintf("%s%s/%s", apicommon.ConfigVolumePath, apicommon.ConfdVolumePath, configFolder),
-			"",
-		)
-	} else {
-		volume = corev1.Volume{
-			Name: volumeName,
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: &corev1.ConfigMapVolumeSource{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: defaultCMName,
-					},
-				},
-			},
-		}
-		volumeMount = corev1.VolumeMount{
-			Name:      volumeName,
-			MountPath: fmt.Sprintf("%s%s/%s", apicommon.ConfigVolumePath, apicommon.ConfdVolumePath, configFolder),
-			ReadOnly:  true,
-		}
+// common ConfigMapConfig
+
+// GetVolumesFromConfigMap returns a Volume and VolumeMount from a ConfigMapConfig. It is only used in the features that are within the conf.d/ file path
+func GetVolumesFromConfigMap(configMap *apicommonv1.ConfigMapConfig, volumeName, defaultCMName, configFolder string) (corev1.Volume, corev1.VolumeMount) {
+	volume := GetVolumeFromConfigMap(
+		configMap,
+		defaultCMName,
+		volumeName,
+	)
+
+	volumeMount := corev1.VolumeMount{
+		Name:      volumeName,
+		MountPath: fmt.Sprintf("%s%s/%s", apicommon.ConfigVolumePath, apicommon.ConfdVolumePath, configFolder),
+		ReadOnly:  true,
 	}
 	return volume, volumeMount
 }
 
-// GetVolumeFromCustomConfigSpec return a corev1.Volume corresponding to a CustomConfig.
-func GetVolumeFromCustomConfigSpec(cfcm *apicommonv1.CustomConfig, defaultConfigMapName, volumeName string) corev1.Volume {
-	confdVolumeSource := *buildVolumeSourceFromCustomConfigSpec(cfcm, defaultConfigMapName)
+// GetVolumeFromConfigMap returns a Volume from a common ConfigMapConfig.
+func GetVolumeFromConfigMap(configMap *apicommonv1.ConfigMapConfig, defaultConfigMapName, volumeName string) corev1.Volume {
+	cmName := defaultConfigMapName
+	if configMap != nil && len(configMap.Name) > 0 {
+		cmName = configMap.Name
+	}
+
+	cmSource := &corev1.ConfigMapVolumeSource{
+		LocalObjectReference: corev1.LocalObjectReference{
+			Name: cmName,
+		},
+	}
+
+	if len(configMap.Items) > 0 {
+		cmSource.Items = configMap.Items
+	}
 
 	return corev1.Volume{
-		Name:         volumeName,
-		VolumeSource: confdVolumeSource,
+		Name: volumeName,
+		VolumeSource: corev1.VolumeSource{
+			ConfigMap: cmSource,
+		},
 	}
 }
 
-// GetVolumeMountFromCustomConfigSpec return a corev1.Volume corresponding to a CustomConfig.
+// common CustomConfig
+
+// GetVolumeFromCustomConfigSpec return a corev1.Volume corresponding to a CustomConfig. This is only used in v1alpha1.
+func GetVolumeFromCustomConfigSpec(customConfig *apicommonv1.CustomConfig, volumeName, defaultConfigMapName string) corev1.Volume {
+	configMap := customConfig.ConfigMap
+	cmName := defaultConfigMapName
+	if configMap != nil && len(configMap.Name) > 0 {
+		cmName = configMap.Name
+	}
+
+	cmSource := &corev1.ConfigMapVolumeSource{
+		LocalObjectReference: corev1.LocalObjectReference{
+			Name: cmName,
+		},
+	}
+
+	return corev1.Volume{
+		Name: volumeName,
+		VolumeSource: corev1.VolumeSource{
+			ConfigMap: cmSource,
+		},
+	}
+}
+
+// GetVolumeMountFromCustomConfigSpec return a corev1.Volume corresponding to a common CustomConfig. It is only used in v1alpha1.
 func GetVolumeMountFromCustomConfigSpec(cfcm *apicommonv1.CustomConfig, volumeName, volumePath, defaultSubPath string) corev1.VolumeMount {
 	subPath := defaultSubPath
 	if cfcm.ConfigMap != nil && len(cfcm.ConfigMap.Items) > 0 {
@@ -118,52 +141,84 @@ func GetVolumeMountFromCustomConfigSpec(cfcm *apicommonv1.CustomConfig, volumeNa
 	}
 }
 
-func buildVolumeSourceFromCustomConfigSpec(configDir *apicommonv1.CustomConfig, defaultConfigMapName string) *corev1.VolumeSource {
-	if configDir == nil {
-		return nil
+// v2alpha1 CustomConfig, MultiCustomConfig, and others
+
+// GetVolumeFromCustomConfig returns a Volume from a v2alpha1 CustomConfig. It is used for agent-level configuration overrides in v2alpha1.
+func GetVolumeFromCustomConfig(customConfig v2alpha1.CustomConfig, defaultConfigMapName, volumeName string) corev1.Volume {
+	var vol corev1.Volume
+	if customConfig.ConfigMap != nil {
+		vol = GetVolumeFromConfigMap(
+			customConfig.ConfigMap,
+			defaultConfigMapName,
+			volumeName,
+		)
+	} else if customConfig.ConfigData != nil {
+		vol = GetBasicVolume(defaultConfigMapName, volumeName)
 	}
-
-	// TODO configDir.ConfigData is ignored; should it be?
-
-	return buildVolumeSourceFromConfigMapConfig(configDir.ConfigMap, defaultConfigMapName)
+	return vol
 }
 
-// GetConfigMapVolumes is used to generate the corev1.Volume and corev1.VolumeMount corresponding to a ConfigMapConfig.
-func GetConfigMapVolumes(configMap *apicommonv1.ConfigMapConfig, defaultCMName, volumeName, volumePath string) (corev1.Volume, corev1.VolumeMount) {
-	var volume corev1.Volume
-	var volumeMount corev1.VolumeMount
-	volume = GetVolumeFromConfigMapConfig(
-		configMap,
-		defaultCMName,
-		volumeName,
-	)
-
-	volumeMount = GetVolumeMountFromConfigMapConfig(
-		configMap,
-		volumeName,
-		volumePath,
-		"",
-	)
-	return volume, volumeMount
+// GetVolumeFromMultiCustomConfig returns a Volume from a v2alpha1 MultiCustomConfig. It is used for Extra Checksd and Extra Confd.
+func GetVolumeFromMultiCustomConfig(multiCustomConfig *v2alpha1.MultiCustomConfig, volumeName, configMapName string) corev1.Volume {
+	var vol corev1.Volume
+	if multiCustomConfig.ConfigMap != nil {
+		vol = corev1.Volume{
+			Name: volumeName,
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: multiCustomConfig.ConfigMap.Name,
+					},
+					Items: multiCustomConfig.ConfigMap.Items,
+				},
+			},
+		}
+	} else if multiCustomConfig.ConfigDataMap != nil {
+		// Sort map so that order is consistent between reconcile loops
+		sortedKeys := sortKeys(multiCustomConfig.ConfigDataMap)
+		keysToPaths := []corev1.KeyToPath{}
+		for _, filename := range sortedKeys {
+			configData := multiCustomConfig.ConfigDataMap[filename]
+			// Validate that user input is valid YAML
+			m := make(map[interface{}]interface{})
+			if yaml.Unmarshal([]byte(configData), m) != nil {
+				continue
+			}
+			keysToPaths = append(keysToPaths, corev1.KeyToPath{Key: filename, Path: filename})
+		}
+		vol = corev1.Volume{
+			Name: volumeName,
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: configMapName,
+					},
+					Items: keysToPaths,
+				},
+			},
+		}
+	}
+	return vol
 }
 
-// GetVolumeFromConfigMapConfig returns a corev1.Volume corresponding to a ConfigMapConfig.
-func GetVolumeFromConfigMapConfig(configMap *apicommonv1.ConfigMapConfig, defaultConfigMapName, volumeName string) corev1.Volume {
-	confdVolumeSource := *buildVolumeSourceFromConfigMapConfig(configMap, defaultConfigMapName)
-
+// GetBasicVolume returns a basic Volume from a config map name and volume name. It is used in features and overrides.
+func GetBasicVolume(configMapName, volumeName string) corev1.Volume {
 	return corev1.Volume{
-		Name:         volumeName,
-		VolumeSource: confdVolumeSource,
+		Name: volumeName,
+		VolumeSource: corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: configMapName,
+				},
+			},
+		},
 	}
 }
 
-// GetVolumeMountFromConfigMapConfig returns a corev1.Volume corresponding to a ConfigMapConfig.
-func GetVolumeMountFromConfigMapConfig(configMap *apicommonv1.ConfigMapConfig, volumeName, volumePath, defaultSubPath string) corev1.VolumeMount {
-	subPath := defaultSubPath
-	if configMap != nil && len(configMap.Items) > 0 {
-		subPath = configMap.Items[0].Path
-	}
-
+// GetVolumeMountWithSubPath return a corev1.VolumeMount with a subPath. The subPath is needed
+// in situations when a specific file needs to be mounted without affecting the rest of the directory.
+// This is used in features and overrides.
+func GetVolumeMountWithSubPath(volumeName, volumePath, subPath string) corev1.VolumeMount {
 	return corev1.VolumeMount{
 		Name:      volumeName,
 		MountPath: volumePath,
@@ -172,19 +227,13 @@ func GetVolumeMountFromConfigMapConfig(configMap *apicommonv1.ConfigMapConfig, v
 	}
 }
 
-func buildVolumeSourceFromConfigMapConfig(configMap *apicommonv1.ConfigMapConfig, defaultConfigMapName string) *corev1.VolumeSource {
-	cmName := defaultConfigMapName
-	if configMap != nil && len(configMap.Name) > 0 {
-		cmName = configMap.Name
+func sortKeys(keysMap map[string]string) []string {
+	sortedKeys := make([]string, 0, len(keysMap))
+	for key := range keysMap {
+		sortedKeys = append(sortedKeys, key)
 	}
-
-	cmSource := &corev1.ConfigMapVolumeSource{
-		LocalObjectReference: corev1.LocalObjectReference{
-			Name: cmName,
-		},
-	}
-
-	return &corev1.VolumeSource{
-		ConfigMap: cmSource,
-	}
+	sort.Slice(sortedKeys, func(i, j int) bool {
+		return sortedKeys[i] < sortedKeys[j]
+	})
+	return sortedKeys
 }

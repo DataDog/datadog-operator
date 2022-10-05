@@ -16,6 +16,8 @@ type VolumeMountManager interface {
 	AddVolumeMount(volumeMount *corev1.VolumeMount)
 	// Add the volumeMount to one container of the PodTemplate.
 	AddVolumeMountToContainer(volumeMount *corev1.VolumeMount, containerName commonv1.AgentContainerName)
+	// Add the volumeMount to an init container pfo the PodTemplate.
+	AddVolumeMountToInitContainer(volumeMount *corev1.VolumeMount, containerName commonv1.AgentContainerName)
 	// Add the volumeMount to a list of containers in the PodTemplate.
 	AddVolumeMountToContainers(volumeMount *corev1.VolumeMount, containerNames []commonv1.AgentContainerName)
 	// Add the volumeMount to the container matching the containerName.
@@ -46,6 +48,14 @@ func (impl *volumeMountManagerImpl) AddVolumeMountToContainer(volumeMount *corev
 	}
 }
 
+func (impl *volumeMountManagerImpl) AddVolumeMountToInitContainer(volumeMount *corev1.VolumeMount, containerName commonv1.AgentContainerName) {
+	for id, container := range impl.podTmpl.Spec.InitContainers {
+		if container.Name == string(containerName) {
+			_, _ = AddVolumeMountToContainerWithMergeFunc(&impl.podTmpl.Spec.InitContainers[id], volumeMount, DefaultVolumeMountMergeFunction)
+		}
+	}
+}
+
 func (impl *volumeMountManagerImpl) AddVolumeMountToContainers(volumeMount *corev1.VolumeMount, containerNames []commonv1.AgentContainerName) {
 	for _, containerName := range containerNames {
 		impl.AddVolumeMountToContainer(volumeMount, containerName)
@@ -54,8 +64,9 @@ func (impl *volumeMountManagerImpl) AddVolumeMountToContainers(volumeMount *core
 
 func (impl *volumeMountManagerImpl) AddVolumeMountWithMergeFunc(volumeMount *corev1.VolumeMount, volumeMountMergeFunc VolumeMountMergeFunction) error {
 	for id := range impl.podTmpl.Spec.Containers {
-		_, err := AddVolumeMountToContainerWithMergeFunc(&impl.podTmpl.Spec.Containers[id], volumeMount, volumeMountMergeFunc)
-		return err
+		if _, err := AddVolumeMountToContainerWithMergeFunc(&impl.podTmpl.Spec.Containers[id], volumeMount, volumeMountMergeFunc); err != nil {
+			return err
+		}
 	}
 	return nil
 }

@@ -14,7 +14,7 @@ import (
 const (
 	cspmRBACPrefix       = "cspm"
 	cspmConfigVolumeName = "complianceconfigdir"
-	cspmConfigVolumePath = "/etc/datadog-agent/compliance.d"
+	cspmConfFileName     = "compliance.yaml"
 )
 
 func getSCCName(owner metav1.Object) string {

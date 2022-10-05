@@ -51,13 +51,6 @@ const (
 	SystemProbeUsrSrcVolumePath          = "/usr/src"
 	OrchestratorExplorerConfigVolumeName = "orchestrator-explorer-config"
 
-	SecurityAgentRuntimeCustomPoliciesVolumeName     = "customruntimepolicies"
-	SecurityAgentRuntimePoliciesDirVolumeName        = "runtimepoliciesdir"
-	SecurityAgentRuntimePoliciesDirVolumePath        = "/etc/datadog-agent/runtime-security.d"
-	SecurityAgentComplianceCustomConfigDirVolumeName = "customcompliancebenchmarks"
-	SecurityAgentComplianceConfigDirVolumeName       = "compliancedir"
-	SecurityAgentComplianceConfigDirVolumePath       = "/etc/datadog-agent/compliance.d"
-
 	SysteProbeAppArmorAnnotationKey   = "container.apparmor.security.beta.kubernetes.io/system-probe"
 	SysteProbeSeccompAnnotationKey    = "container.seccomp.security.alpha.kubernetes.io/system-probe"
 	SystemProbeOSReleaseDirVolumeName = "host-osrelease"

@@ -6,11 +6,8 @@
 package override
 
 import (
-	"fmt"
 	"sort"
 	"strings"
-
-	"gopkg.in/yaml.v2"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
@@ -39,11 +36,11 @@ func PodTemplateSpec(manager feature.PodTemplateManagers, override *v2alpha1.Dat
 
 	if override.Image != nil {
 		for i, container := range manager.PodTemplateSpec().Spec.Containers {
-			manager.PodTemplateSpec().Spec.Containers[i].Image = overriddenImage(container.Image, override.Image)
+			manager.PodTemplateSpec().Spec.Containers[i].Image = overrideImage(container.Image, override.Image)
 		}
 
 		for i, initContainer := range manager.PodTemplateSpec().Spec.InitContainers {
-			manager.PodTemplateSpec().Spec.InitContainers[i].Image = overriddenImage(initContainer.Image, override.Image)
+			manager.PodTemplateSpec().Spec.InitContainers[i].Image = overrideImage(initContainer.Image, override.Image)
 		}
 	}
 
@@ -54,89 +51,22 @@ func PodTemplateSpec(manager feature.PodTemplateManagers, override *v2alpha1.Dat
 		})
 	}
 
-	overrideCustomConfigs(manager, override.CustomConfigurations, componentName, ddaName)
+	// Override agent configurations such as datadog.yaml, system-probe.yaml, etc.
+	overrideCustomConfigVolumes(manager, override.CustomConfigurations, componentName, ddaName)
 
 	// For ExtraConfd and ExtraChecksd, the ConfigMap contents to an init container. This allows use of
 	// the workaround to merge existing config and check files with custom ones. The VolumeMount is already
 	// defined in the init container; just overwrite the Volume to mount the ConfigMap instead of an EmptyDir.
 	// If both ConfigMap and ConfigData exist, ConfigMap has higher priority.
 	if override.ExtraConfd != nil {
-		if override.ExtraConfd.ConfigMap != nil {
-			vol := corev1.Volume{
-				Name: apicommon.ConfdVolumeName,
-				VolumeSource: corev1.VolumeSource{
-					ConfigMap: &corev1.ConfigMapVolumeSource{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: override.ExtraConfd.ConfigMap.Name,
-						},
-						Items: override.ExtraConfd.ConfigMap.Items,
-					},
-				},
-			}
-			manager.Volume().AddVolume(&vol)
-		} else if override.ExtraConfd.ConfigDataMap != nil {
-			// Sort map so that order is consistent between reconcile loops
-			sortedKeys := sortKeys(override.ExtraConfd.ConfigDataMap)
-			keysToPaths := []corev1.KeyToPath{}
-			for _, filename := range sortedKeys {
-				configData := override.ExtraConfd.ConfigDataMap[filename]
-				// Validate that user input is valid YAML
-				m := make(map[interface{}]interface{})
-				if yaml.Unmarshal([]byte(configData), m) != nil {
-					continue
-				}
-				keysToPaths = append(keysToPaths, corev1.KeyToPath{Key: filename, Path: filename})
-			}
-			vol := corev1.Volume{
-				Name: apicommon.ConfdVolumeName,
-				VolumeSource: corev1.VolumeSource{
-					ConfigMap: &corev1.ConfigMapVolumeSource{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: v2alpha1.ExtraConfdConfigMapName,
-						},
-						Items: keysToPaths,
-					},
-				},
-			}
-			manager.Volume().AddVolume(&vol)
-		}
+		vol := volume.GetVolumeFromMultiCustomConfig(override.ExtraConfd, apicommon.ConfdVolumeName, v2alpha1.ExtraConfdConfigMapName)
+		manager.Volume().AddVolume(&vol)
 	}
 
 	// If both ConfigMap and ConfigData exist, ConfigMap has higher priority.
 	if override.ExtraChecksd != nil {
-		if override.ExtraChecksd.ConfigMap != nil {
-			vol := corev1.Volume{
-				Name: apicommon.ChecksdVolumeName,
-				VolumeSource: corev1.VolumeSource{
-					ConfigMap: &corev1.ConfigMapVolumeSource{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: override.ExtraChecksd.ConfigMap.Name,
-						},
-						Items: override.ExtraChecksd.ConfigMap.Items,
-					},
-				},
-			}
-			manager.Volume().AddVolume(&vol)
-		} else if override.ExtraChecksd.ConfigDataMap != nil {
-			// Sort map so that order is consistent between reconcile loops
-			sortedKeys := sortKeys(override.ExtraChecksd.ConfigDataMap)
-			keysToPaths := []corev1.KeyToPath{}
-			for _, filename := range sortedKeys {
-				keysToPaths = append(keysToPaths, corev1.KeyToPath{Key: filename, Path: filename})
-			}
-			vol := corev1.Volume{
-				Name: apicommon.ChecksdVolumeName,
-				VolumeSource: corev1.VolumeSource{
-					ConfigMap: &corev1.ConfigMapVolumeSource{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: v2alpha1.ExtraChecksdConfigMapName,
-						},
-						Items: keysToPaths,
-					},
-				},
-			}
-			manager.Volume().AddVolume(&vol)
-		}
+		vol := volume.GetVolumeFromMultiCustomConfig(override.ExtraChecksd, apicommon.ChecksdVolumeName, v2alpha1.ExtraChecksdConfigMapName)
+		manager.Volume().AddVolume(&vol)
 	}
 
 	for agentContainerName, containerOverride := range override.Containers {
@@ -187,57 +117,43 @@ func PodTemplateSpec(manager feature.PodTemplateManagers, override *v2alpha1.Dat
 	}
 }
 
-func overrideCustomConfigs(manager feature.PodTemplateManagers, customConfs map[v2alpha1.AgentConfigFileName]v2alpha1.CustomConfig, componentName v2alpha1.ComponentName, ddaName string) {
-	for _, customConfig := range customConfs {
-		if customConfig.ConfigMap != nil {
-			switch componentName {
-			case v2alpha1.NodeAgentComponentName, v2alpha1.ClusterChecksRunnerComponentName:
-				vol := volume.GetVolumeFromCustomConfigSpec(
-					v2alpha1.ConvertCustomConfig(&customConfig),
-					getAgentCustomConfConfigMapName(ddaName),
-					apicommon.AgentCustomConfigVolumeName,
-				)
-				manager.Volume().AddVolume(&vol)
+func overrideCustomConfigVolumes(manager feature.PodTemplateManagers, customConfs map[v2alpha1.AgentConfigFileName]v2alpha1.CustomConfig, componentName v2alpha1.ComponentName, ddaName string) {
+	sortedKeys := sortKeys(customConfs)
+	for _, fileName := range sortedKeys {
+		customConfig := customConfs[fileName]
+		switch componentName {
+		case v2alpha1.NodeAgentComponentName, v2alpha1.ClusterChecksRunnerComponentName:
+			// For the NodeAgent, there are a few possible config files and each need their own volume.
+			// Use a volumeName that matches the defaultConfigMapName.
+			defaultConfigMapName := getDefaultConfigMapName(ddaName, string(fileName))
+			volumeName := defaultConfigMapName
+			vol := volume.GetVolumeFromCustomConfig(customConfig, defaultConfigMapName, volumeName)
+			manager.Volume().AddVolume(&vol)
 
-				volumeMount := volume.GetVolumeMountFromCustomConfigSpec(
-					v2alpha1.ConvertCustomConfig(&customConfig),
-					apicommon.AgentCustomConfigVolumeName,
-					apicommon.AgentCustomConfigVolumePath,
-					apicommon.AgentCustomConfigVolumeSubPath,
-				)
-				manager.VolumeMount().AddVolumeMount(&volumeMount)
-			case v2alpha1.ClusterAgentComponentName:
-				vol := volume.GetVolumeFromCustomConfigSpec(
-					v2alpha1.ConvertCustomConfig(&customConfig),
-					getClusterAgentCustomConfConfigMapName(ddaName),
-					apicommon.ClusterAgentCustomConfigVolumeName,
-				)
-				manager.Volume().AddVolume(&vol)
+			volumeMount := volume.GetVolumeMountWithSubPath(
+				volumeName,
+				"/etc/datadog-agent/"+string(fileName),
+				string(fileName),
+			)
+			manager.VolumeMount().AddVolumeMount(&volumeMount)
+		case v2alpha1.ClusterAgentComponentName:
+			// For the Cluster Agent, there is only one possible config file so can use a simple volume name.
+			volumeName := apicommon.ClusterAgentCustomConfigVolumeName
+			defaultConfigMapName := getDefaultConfigMapName(ddaName, string(fileName))
+			vol := volume.GetVolumeFromCustomConfig(customConfig, defaultConfigMapName, volumeName)
+			manager.Volume().AddVolume(&vol)
 
-				volumeMount := volume.GetVolumeMountFromCustomConfigSpec(
-					v2alpha1.ConvertCustomConfig(&customConfig),
-					apicommon.ClusterAgentCustomConfigVolumeName,
-					apicommon.ClusterAgentCustomConfigVolumePath,
-					apicommon.ClusterAgentCustomConfigVolumeSubPath,
-				)
-				manager.VolumeMount().AddVolumeMount(&volumeMount)
-			}
+			volumeMount := volume.GetVolumeMountWithSubPath(
+				volumeName,
+				"/etc/datadog-agent/"+string(fileName),
+				string(fileName),
+			)
+			manager.VolumeMount().AddVolumeMount(&volumeMount)
 		}
 	}
 }
 
-func sortKeys(keysMap map[string]string) []string {
-	sortedKeys := make([]string, 0, len(keysMap))
-	for key := range keysMap {
-		sortedKeys = append(sortedKeys, key)
-	}
-	sort.Slice(sortedKeys, func(i, j int) bool {
-		return sortedKeys[i] < sortedKeys[j]
-	})
-	return sortedKeys
-}
-
-func overriddenImage(currentImg string, overrideImg *common.AgentImageConfig) string {
+func overrideImage(currentImg string, overrideImg *common.AgentImageConfig) string {
 	splitImg := strings.Split(currentImg, "/")
 	registry := ""
 	if len(splitImg) > 2 {
@@ -247,10 +163,13 @@ func overriddenImage(currentImg string, overrideImg *common.AgentImageConfig) st
 	return apicommon.GetImage(overrideImg, &registry)
 }
 
-func getAgentCustomConfConfigMapName(ddaName string) string {
-	return fmt.Sprintf("%s-datadog-yaml", ddaName)
-}
-
-func getClusterAgentCustomConfConfigMapName(ddaName string) string {
-	return fmt.Sprintf("%s-cluster-datadog-yaml", ddaName)
+func sortKeys(keysMap map[v2alpha1.AgentConfigFileName]v2alpha1.CustomConfig) []v2alpha1.AgentConfigFileName {
+	sortedKeys := make([]v2alpha1.AgentConfigFileName, 0, len(keysMap))
+	for key := range keysMap {
+		sortedKeys = append(sortedKeys, key)
+	}
+	sort.Slice(sortedKeys, func(i, j int) bool {
+		return sortedKeys[i] < sortedKeys[j]
+	})
+	return sortedKeys
 }

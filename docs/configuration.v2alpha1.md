@@ -46,14 +46,15 @@ spec:
 | features.clusterChecks.enabled | Enables Cluster Checks scheduling in the Cluster Agent. Default: true |
 | features.clusterChecks.useClusterChecksRunners | Enabled enables Cluster Checks Runners to run all Cluster Checks. Default: false |
 | features.cspm.checkInterval | CheckInterval defines the check interval. |
-| features.cspm.customBenchmarks.items | Items maps a ConfigMap data key to a file path mount. |
-| features.cspm.customBenchmarks.name | Name is the name of the ConfigMap. |
+| features.cspm.customBenchmarks.configData | ConfigData corresponds to the configuration file content. |
+| features.cspm.customBenchmarks.configMap.items | Items maps a ConfigMap data key to a file path mount. |
+| features.cspm.customBenchmarks.configMap.name | Name is the name of the ConfigMap. |
 | features.cspm.enabled | Enabled enables Cloud Security Posture Management. Default: false |
-| features.cws.customPolicies.items | Items maps a ConfigMap data key to a file path mount. |
-| features.cws.customPolicies.name | Name is the name of the ConfigMap. |
+| features.cws.customPolicies.configData | ConfigData corresponds to the configuration file content. |
+| features.cws.customPolicies.configMap.items | Items maps a ConfigMap data key to a file path mount. |
+| features.cws.customPolicies.configMap.name | Name is the name of the ConfigMap. |
 | features.cws.enabled | Enabled enables Cloud Workload Security. Default: false |
 | features.cws.syscallMonitorEnabled | SyscallMonitorEnabled enables Syscall Monitoring (recommended for troubleshooting only). Default: false |
-| features.datadogMonitor.enabled | Enabled enables Datadog Monitors. Default: false |
 | features.dogstatsd.hostPortConfig.enabled | Enabled enables host port configuration Default: false |
 | features.dogstatsd.hostPortConfig.hostPort | Port takes a port number (0 < x < 65536) to expose on the host. (Most containers do not need this.) If HostNetwork is enabled, this value must match the ContainerPort. |
 | features.dogstatsd.mapperProfiles.configData | ConfigData corresponds to the configuration file content. |

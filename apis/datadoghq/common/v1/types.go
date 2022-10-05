@@ -68,6 +68,9 @@ type KubeletConfig struct {
 type AgentContainerName string
 
 const (
+	// InitVolumeContainerName is the name of the Init Volume init container
+	InitVolumeContainerName AgentContainerName = "init-volume"
+
 	// CoreAgentContainerName is the name of the Core Agent container
 	CoreAgentContainerName AgentContainerName = "agent"
 	// TraceAgentContainerName is the name of the Trace Agent container

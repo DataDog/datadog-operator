@@ -416,9 +416,11 @@ func convertSecurityAgentSpec(src *SecuritySpec, dst *v2alpha1.DatadogAgent) {
 	features.CSPM.Enabled = src.Compliance.Enabled
 	features.CSPM.CheckInterval = src.Compliance.CheckInterval
 	if features.CSPM.CustomBenchmarks != nil {
-		features.CSPM.CustomBenchmarks = &commonv1.ConfigMapConfig{
-			Name:  src.Compliance.ConfigDir.ConfigMapName,
-			Items: src.Compliance.ConfigDir.Items,
+		features.CSPM.CustomBenchmarks = &v2alpha1.CustomConfig{
+			ConfigMap: &commonv1.ConfigMapConfig{
+				Name:  src.Compliance.ConfigDir.ConfigMapName,
+				Items: src.Compliance.ConfigDir.Items,
+			},
 		}
 	}
 
@@ -427,9 +429,11 @@ func convertSecurityAgentSpec(src *SecuritySpec, dst *v2alpha1.DatadogAgent) {
 		features.CWS.SyscallMonitorEnabled = src.Runtime.SyscallMonitor.Enabled
 	}
 	if features.CWS.CustomPolicies != nil {
-		features.CWS.CustomPolicies = &commonv1.ConfigMapConfig{
-			Name:  src.Runtime.PoliciesDir.ConfigMapName,
-			Items: src.Runtime.PoliciesDir.Items,
+		features.CWS.CustomPolicies = &v2alpha1.CustomConfig{
+			ConfigMap: &commonv1.ConfigMapConfig{
+				Name:  src.Runtime.PoliciesDir.ConfigMapName,
+				Items: src.Runtime.PoliciesDir.Items,
+			},
 		}
 	}
 
