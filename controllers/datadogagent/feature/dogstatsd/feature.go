@@ -9,7 +9,9 @@ import (
 	"path/filepath"
 	"strconv"
 
+	securityv1 "github.com/openshift/api/security/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
@@ -17,6 +19,7 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
 )
@@ -44,6 +47,9 @@ type dogstatsdFeature struct {
 	useHostNetwork         bool
 	originDetectionEnabled bool
 	mapperProfiles         *apicommonv1.CustomConfig
+
+	createSCC bool
+	owner     metav1.Object
 }
 
 // ID returns the ID of the Feature
@@ -54,6 +60,7 @@ func (f *dogstatsdFeature) ID() feature.IDType {
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *dogstatsdFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	dogstatsd := dda.Spec.Features.Dogstatsd
+	f.owner = dda
 	if apiutils.BoolValue(dogstatsd.HostPortConfig.Enabled) {
 		f.hostPortEnabled = true
 		f.hostPortHostPort = *dogstatsd.HostPortConfig.Port
@@ -70,6 +77,9 @@ func (f *dogstatsdFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp featur
 	if dogstatsd.MapperProfiles != nil {
 		f.mapperProfiles = v2alpha1.ConvertCustomConfig(dogstatsd.MapperProfiles)
 	}
+
+	f.createSCC = v2alpha1.IsSCCEnabled(dda, v2alpha1.NodeAgentComponentName)
+
 	reqComp = feature.RequiredComponents{
 		Agent: feature.RequiredComponent{
 			IsRequired: apiutils.NewBoolPointer(true),
@@ -84,6 +94,7 @@ func (f *dogstatsdFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp featur
 // ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
 func (f *dogstatsdFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	config := dda.Spec.Agent.Config
+	f.owner = dda
 	if config.HostPort != nil {
 		f.hostPortEnabled = true
 		f.hostPortHostPort = *config.HostPort
@@ -115,6 +126,19 @@ func (f *dogstatsdFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feat
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
 func (f *dogstatsdFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
+	if f.createSCC {
+		sccName := component.GetAgentSCCName(f.owner)
+		scc := securityv1.SecurityContextConstraints{}
+
+		if f.hostPortEnabled {
+			scc.AllowHostPorts = true
+		}
+		if f.originDetectionEnabled && f.udsEnabled {
+			scc.AllowHostPID = true
+		}
+
+		return managers.PodSecurityManager().AddSecurityContextConstraints(sccName, f.owner.GetNamespace(), &scc)
+	}
 	return nil
 }
 

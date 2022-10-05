@@ -105,3 +105,15 @@ func IsNetworkPolicyEnabled(dda *DatadogAgent) (bool, NetworkPolicyFlavor) {
 	}
 	return false, ""
 }
+
+// IsSCCEnabled returns whether a scc should be created for a component
+func IsSCCEnabled(dda *DatadogAgent, componentName ComponentName) bool {
+	for component := range dda.Spec.Override {
+		if component == componentName {
+			if dda.Spec.Override[component].SecurityContextConstraints != nil {
+				return apiutils.BoolValue(dda.Spec.Override[component].SecurityContextConstraints.Create)
+			}
+		}
+	}
+	return false
+}
