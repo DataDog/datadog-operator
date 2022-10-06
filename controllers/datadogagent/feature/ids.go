@@ -15,6 +15,8 @@ const (
 	DogstatsdIDType = "dogstatsd"
 	// EventCollectionIDType Event Collection feature.
 	EventCollectionIDType = "event_collection"
+	// ExternalMetricsIDType External metrics feature.
+	ExternalMetricsIDType = "external_metrics"
 	// KubernetesStateCoreIDType Kubernetes state core check feature.
 	KubernetesStateCoreIDType = "ksm"
 	// LiveContainerIDType Live Container feature.

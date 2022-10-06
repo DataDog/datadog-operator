@@ -901,11 +901,11 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 				ValueFrom: appKeyValue(),
 			},
 			{
-				Name:  apicommon.DDMetricsProviderUseDatadogMetric,
+				Name:  apicommon.DDExternalMetricsProviderUseDatadogMetric,
 				Value: "false",
 			},
 			{
-				Name:  apicommon.DDMetricsProviderWPAController,
+				Name:  apicommon.DDExternalMetricsProviderWPAController,
 				Value: "false",
 			},
 			{
@@ -949,11 +949,11 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 				ValueFrom: appKeyValue(),
 			},
 			{
-				Name:  apicommon.DDMetricsProviderUseDatadogMetric,
+				Name:  apicommon.DDExternalMetricsProviderUseDatadogMetric,
 				Value: "true",
 			},
 			{
-				Name:  apicommon.DDMetricsProviderWPAController,
+				Name:  apicommon.DDExternalMetricsProviderWPAController,
 				Value: "true",
 			},
 			{

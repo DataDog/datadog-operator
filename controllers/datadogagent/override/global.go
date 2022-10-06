@@ -149,10 +149,13 @@ func ApplyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 		}
 
 		// LocalService contains configuration to customize the internal traffic policy service.
-		gitVersion := resourcesManager.Store().GetVersionInfo()
 		forceEnableLocalService := config.LocalService != nil && apiutils.BoolValue(config.LocalService.ForceEnableLocalService)
-		if component.ShouldCreateAgentLocalService(gitVersion, forceEnableLocalService) {
-			err := resourcesManager.ServiceManager().AddService(component.BuildAgentLocalService(dda, v2alpha1.GetLocalAgentServiceName(dda)))
+		if component.ShouldCreateAgentLocalService(resourcesManager.Store().GetVersionInfo(), forceEnableLocalService) {
+			var serviceName string
+			if config.LocalService != nil && config.LocalService.NameOverride != nil {
+				serviceName = *config.LocalService.NameOverride
+			}
+			err := resourcesManager.ServiceManager().AddService(component.BuildAgentLocalService(dda, serviceName))
 			if err != nil {
 				logger.Error(err, "Error adding Local Service to the store")
 			}

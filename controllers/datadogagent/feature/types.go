@@ -141,6 +141,7 @@ type ResourceManagers interface {
 	NetworkPolicyManager() merger.NetworkPolicyManager
 	ServiceManager() merger.ServiceManager
 	CiliumPolicyManager() merger.CiliumPolicyManager
+	APIServiceManager() merger.APIServiceManager
 }
 
 // NewResourceManagers return new instance of the ResourceManagers interface
@@ -153,6 +154,7 @@ func NewResourceManagers(store dependencies.StoreClient) ResourceManagers {
 		networkPolicy: merger.NewNetworkPolicyManager(store),
 		service:       merger.NewServiceManager(store),
 		cilium:        merger.NewCiliumPolicyManager(store),
+		apiService:    merger.NewAPIServiceManager(store),
 	}
 }
 
@@ -164,6 +166,7 @@ type resourceManagersImpl struct {
 	networkPolicy merger.NetworkPolicyManager
 	service       merger.ServiceManager
 	cilium        merger.CiliumPolicyManager
+	apiService    merger.APIServiceManager
 }
 
 func (impl *resourceManagersImpl) Store() dependencies.StoreClient {
@@ -192,6 +195,10 @@ func (impl *resourceManagersImpl) ServiceManager() merger.ServiceManager {
 
 func (impl *resourceManagersImpl) CiliumPolicyManager() merger.CiliumPolicyManager {
 	return impl.cilium
+}
+
+func (impl *resourceManagersImpl) APIServiceManager() merger.APIServiceManager {
+	return impl.apiService
 }
 
 // PodTemplateManagers used to access the different PodTemplateSpec manager.

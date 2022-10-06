@@ -24,6 +24,7 @@ const (
 	NetworkingAPIGroup       = "networking.k8s.io"
 	AutoscalingK8sIoAPIGroup = "autoscaling.k8s.io"
 	AuthorizationAPIGroup    = "authorization.k8s.io"
+	ExternalMetricsAPIGroup  = "external.metrics.k8s.io"
 
 	// Resources
 

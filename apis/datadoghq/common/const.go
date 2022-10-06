@@ -211,6 +211,8 @@ const (
 	AdmissionControllerPortName                      = "admissioncontrollerport"
 	OTLPGRPCPortName                                 = "otlpgrpcport"
 	OTLPHTTPPortName                                 = "otlphttpport"
+	ExternalMetricsPortName                          = "metricsapi"
+	ExternalMetricsAPIServiceName                    = "v1beta1.external.metrics.k8s.io"
 
 	AppArmorAnnotationKey = "container.apparmor.security.beta.kubernetes.io"
 

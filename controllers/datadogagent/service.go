@@ -27,6 +27,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 	"github.com/DataDog/datadog-operator/pkg/utils"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 )
@@ -69,7 +70,7 @@ func (r *Reconciler) manageMetricsServerService(logger logr.Logger, dda *datadog
 		return r.cleanupMetricsServerService(dda)
 	}
 
-	serviceName := getMetricsServerServiceName(dda)
+	serviceName := componentdca.GetMetricsServerServiceName(dda)
 	service := &corev1.Service{}
 	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: dda.Namespace, Name: serviceName}, service)
 	if err != nil {
@@ -87,7 +88,7 @@ func (r *Reconciler) manageMetricsServerAPIService(logger logr.Logger, dda *data
 		return r.cleanupMetricsServerAPIService(logger, dda)
 	}
 
-	apiServiceName := getMetricsServerAPIServiceName()
+	apiServiceName := componentdca.GetMetricsServerAPIServiceName()
 	apiService := &apiregistrationv1.APIService{}
 	err := r.client.Get(context.TODO(), types.NamespacedName{Name: apiServiceName}, apiService)
 	if err != nil {
@@ -169,12 +170,12 @@ func (r *Reconciler) createAgentService(logger logr.Logger, dda *datadoghqv1alph
 }
 
 func (r *Reconciler) cleanupMetricsServerService(dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
-	serviceName := getMetricsServerServiceName(dda)
+	serviceName := componentdca.GetMetricsServerServiceName(dda)
 	return cleanupService(r.client, serviceName, dda.Namespace, dda)
 }
 
 func (r *Reconciler) cleanupMetricsServerAPIService(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
-	apiServiceName := getMetricsServerAPIServiceName()
+	apiServiceName := componentdca.GetMetricsServerAPIServiceName()
 	return r.cleanupAPIService(logger, apiServiceName, dda)
 }
 
@@ -330,7 +331,7 @@ func newMetricsServerService(dda *datadoghqv1alpha1.DatadogAgent) *corev1.Servic
 
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        getMetricsServerServiceName(dda),
+			Name:        componentdca.GetMetricsServerServiceName(dda),
 			Namespace:   dda.Namespace,
 			Labels:      labels,
 			Annotations: annotations,
@@ -363,19 +364,19 @@ func newMetricsServerAPIService(dda *datadoghqv1alpha1.DatadogAgent) *apiregistr
 	port := int32(apicommon.DefaultMetricsServerServicePort)
 	apiService := &apiregistrationv1.APIService{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        getMetricsServerAPIServiceName(),
+			Name:        componentdca.GetMetricsServerAPIServiceName(),
 			Labels:      labels,
 			Annotations: annotations,
 		},
 		Spec: apiregistrationv1.APIServiceSpec{
 			Service: &apiregistrationv1.ServiceReference{
-				Name:      getMetricsServerServiceName(dda),
+				Name:      componentdca.GetMetricsServerServiceName(dda),
 				Namespace: dda.Namespace,
 				Port:      &port,
 			},
 			Version:               "v1beta1",
 			InsecureSkipTLSVerify: true,
-			Group:                 "external.metrics.k8s.io",
+			Group:                 rbac.ExternalMetricsAPIGroup,
 			GroupPriorityMinimum:  100,
 			VersionPriority:       100,
 		},

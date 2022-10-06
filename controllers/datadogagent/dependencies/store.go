@@ -39,7 +39,7 @@ type StoreClient interface {
 	AddOrUpdate(kind kubernetes.ObjectKind, obj client.Object) error
 	Get(kind kubernetes.ObjectKind, namespace, name string) (client.Object, bool)
 	GetOrCreate(kind kubernetes.ObjectKind, namespace, name string) (client.Object, bool)
-	GetVersionInfo() string
+	GetVersionInfo() *version.Info
 	Delete(kind kubernetes.ObjectKind, namespace string, name string) bool
 	DeleteAll(ctx context.Context, k8sClient client.Client) []error
 }
@@ -119,7 +119,7 @@ func (ds *Store) AddOrUpdate(kind kubernetes.ObjectKind, obj client.Object) erro
 		}
 
 		// Owner-reference should not be added to cluster level objects
-		if kind != kubernetes.ClusterRoleBindingKind && kind != kubernetes.ClusterRolesKind {
+		if kind != kubernetes.ClusterRoleBindingKind && kind != kubernetes.ClusterRolesKind && kind != kubernetes.APIServiceKind {
 			if err := object.SetOwnerReference(ds.owner, obj, ds.scheme); err != nil {
 				return fmt.Errorf("store.AddOrUpdate, %w", err)
 			}
@@ -218,6 +218,10 @@ func (ds *Store) Apply(ctx context.Context, k8sClient client.Client) []error {
 				objStore.(*v1.Service).Spec.ClusterIPs = objAPIServer.(*v1.Service).Spec.ClusterIPs
 				objStore.SetResourceVersion(objAPIServer.GetResourceVersion())
 			}
+			// The APIServiceKind resource version must be set.
+			if kind == kubernetes.APIServiceKind {
+				objStore.SetResourceVersion(objAPIServer.GetResourceVersion())
+			}
 
 			if !equality.IsEqualObject(kind, objStore, objAPIServer) {
 				ds.logger.V(2).Info("dependencies.store Add object to update", "obj.namespace", objStore.GetNamespace(), "obj.name", objStore.GetName(), "obj.kind", kind)
@@ -275,12 +279,8 @@ func (ds *Store) Cleanup(ctx context.Context, k8sClient client.Client, ddaNs, dd
 }
 
 // GetVersionInfo returns the Kubernetes version
-func (ds *Store) GetVersionInfo() string {
-	// versionInfo may not be set in tests
-	if ds.versionInfo != nil {
-		return ds.versionInfo.GitVersion
-	}
-	return ""
+func (ds *Store) GetVersionInfo() *version.Info {
+	return ds.versionInfo
 }
 
 // DeleteAll deletes all the resources that are in the Store

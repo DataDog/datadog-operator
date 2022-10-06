@@ -80,8 +80,13 @@ var _ = Describe("V2 Controller - DatadogAgent Deployment", func() {
 	)
 
 	Context(
-		"with event collection",
+		"with Event Collection",
 		testFunction(testutils.NewDatadogAgentWithEventCollection(namespace, "with-event-collection")),
+	)
+
+	Context(
+		"with External Metrics Server",
+		testFunction(testutils.NewDatadogAgentWithExternalMetrics(namespace, "with-external-metrics")),
 	)
 
 	Context(
