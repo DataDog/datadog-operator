@@ -8,12 +8,13 @@ package datadogagent
 import (
 	"fmt"
 
+	"github.com/go-logr/logr"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
-	"github.com/go-logr/logr"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -119,8 +120,10 @@ const systemProbeSecCompData = `{
 			"capget",
 			"capset",
 			"chdir",
+			"chmod",
 			"clock_gettime",
 			"clone",
+			"clone3",
 			"close",
 			"connect",
 			"copy_file_range",
@@ -134,7 +137,6 @@ const systemProbeSecCompData = `{
 			"epoll_ctl_old",
 			"epoll_pwait",
 			"epoll_wait",
-			"epoll_wait",
 			"epoll_wait_old",
 			"eventfd",
 			"eventfd2",
@@ -142,6 +144,8 @@ const systemProbeSecCompData = `{
 			"execveat",
 			"exit",
 			"exit_group",
+			"faccessat",
+			"faccessat2",
 			"fchmod",
 			"fchmodat",
 			"fchown",
@@ -161,7 +165,9 @@ const systemProbeSecCompData = `{
 			"getegid",
 			"geteuid",
 			"getgid",
+			"getgroups",
 			"getpeername",
+			"getpgrp",
 			"getpid",
 			"getppid",
 			"getpriority",
@@ -197,6 +203,7 @@ const systemProbeSecCompData = `{
 			"newfstatat",
 			"open",
 			"openat",
+			"openat2",
 			"pause",
 			"perf_event_open",
 			"pipe",
@@ -218,6 +225,7 @@ const systemProbeSecCompData = `{
 			"renameat2",
 			"restart_syscall",
 			"rmdir",
+			"rseq",
 			"rt_sigaction",
 			"rt_sigpending",
 			"rt_sigprocmask",
@@ -243,6 +251,7 @@ const systemProbeSecCompData = `{
 			"setgroups32",
 			"setitimer",
 			"setns",
+			"setpgid",
 			"setrlimit",
 			"setsid",
 			"setsidaccept4",
@@ -256,8 +265,8 @@ const systemProbeSecCompData = `{
 			"stat",
 			"stat64",
 			"statfs",
-			"sysinfo",
 			"symlinkat",
+			"sysinfo",
 			"tgkill",
 			"umask",
 			"uname",
@@ -266,10 +275,7 @@ const systemProbeSecCompData = `{
 			"wait4",
 			"waitid",
 			"waitpid",
-			"write",
-			"getgroups",
-			"getpgrp",
-			"setpgid"
+			"write"
 		],
 		"action": "SCMP_ACT_ALLOW",
 		"args": null
