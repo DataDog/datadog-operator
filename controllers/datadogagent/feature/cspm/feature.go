@@ -14,6 +14,8 @@ import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/configmap"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
@@ -38,7 +40,7 @@ type cspmFeature struct {
 	enable             bool
 	serviceAccountName string
 	checkInterval      string
-	configMapConfig    *apicommonv1.ConfigMapConfig
+	customConfig       *apicommonv1.CustomConfig
 	configMapName      string
 	createSCC          bool
 	createPSP          bool
@@ -64,11 +66,11 @@ func (f *cspmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 		}
 
 		if dda.Spec.Features.CSPM.CustomBenchmarks != nil {
-			f.configMapName = dda.Spec.Features.CSPM.CustomBenchmarks.Name
-			f.configMapConfig = dda.Spec.Features.CSPM.CustomBenchmarks
+			f.customConfig = v2alpha1.ConvertCustomConfig(dda.Spec.Features.CSPM.CustomBenchmarks)
 		}
+		f.configMapName = apicommonv1.GetConfName(dda, f.customConfig, apicommon.DefaultCSPMConf)
 
-		// TODO add settings to configure f.createSCC and f.createPSP
+		// CELENE TODO add settings to configure f.createSCC and f.createPSP
 
 		reqComp = feature.RequiredComponents{
 			ClusterAgent: feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)},
@@ -98,7 +100,7 @@ func (f *cspmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.R
 
 		if dda.Spec.Agent.Security.Compliance.ConfigDir != nil {
 			f.configMapName = dda.Spec.Agent.Security.Compliance.ConfigDir.ConfigMapName
-			f.configMapConfig = v1alpha1.ConvertConfigDirSpec(dda.Spec.Agent.Security.Compliance.ConfigDir).ConfigMap
+			f.customConfig = v1alpha1.ConvertConfigDirSpecToCustomConfig(dda.Spec.Agent.Security.Compliance.ConfigDir)
 		}
 
 		reqComp = feature.RequiredComponents{
@@ -118,6 +120,19 @@ func (f *cspmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.R
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
 func (f *cspmFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
+	// Create configMap if one does not already exist and ConfigData is defined
+	if f.customConfig != nil && f.customConfig.ConfigMap == nil && f.customConfig.ConfigData != nil {
+		cm, err := configmap.BuildConfigMapConfigData(f.owner.GetNamespace(), f.customConfig.ConfigData, f.configMapName, cspmConfFileName)
+		if err != nil {
+			return err
+		}
+		if cm != nil {
+			if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, cm); err != nil {
+				return err
+			}
+		}
+	}
+
 	if f.createSCC {
 		// Manage SecurityContextConstraints
 		sccName := getSCCName(f.owner)
@@ -149,15 +164,39 @@ func (f *cspmFeature) ManageDependencies(managers feature.ResourceManagers, comp
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *cspmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
-	if f.configMapConfig != nil && f.configMapName != "" {
-		cmVol, cmVolMount := volume.GetConfigMapVolumes(
-			f.configMapConfig,
-			f.configMapName,
-			cspmConfigVolumeName,
-			cspmConfigVolumePath,
-		)
-		managers.VolumeMount().AddVolumeMountToContainer(&cmVolMount, apicommonv1.ClusterAgentContainerName)
-		managers.Volume().AddVolume(&cmVol)
+	if f.customConfig != nil {
+		var vol corev1.Volume
+		var volMount corev1.VolumeMount
+		if f.customConfig.ConfigMap != nil {
+			// Custom config is referenced via ConfigMap
+			// Cannot use standard GetVolumesFromConfigMap because security features are not under /conf.d
+			vol = volume.GetVolumeFromConfigMap(f.customConfig.ConfigMap, f.configMapName, cspmConfigVolumeName)
+
+			// Need to use subpaths so that existing configurations are not overwritten
+			for _, item := range f.customConfig.ConfigMap.Items {
+				volMount = corev1.VolumeMount{
+					Name:      cspmConfigVolumeName,
+					MountPath: apicommon.SecurityAgentComplianceConfigDirVolumePath + "/" + item.Path,
+					SubPath:   item.Path,
+					ReadOnly:  true,
+				}
+
+				managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommonv1.ClusterAgentContainerName)
+			}
+		} else {
+			// Custom config is referenced via ConfigData (and configMap is created in ManageDependencies)
+			vol = volume.GetBasicVolume(f.configMapName, cspmConfigVolumeName)
+
+			// Need to use subpaths so that existing configurations are not overwritten
+			volMount = volume.GetVolumeMountWithSubPath(
+				cspmConfigVolumeName,
+				apicommon.SecurityAgentComplianceConfigDirVolumePath+"/"+cspmConfFileName,
+				cspmConfFileName,
+			)
+			managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommonv1.ClusterAgentContainerName)
+		}
+		// Mount custom policies to cluster agent container.
+		managers.Volume().AddVolume(&vol)
 	}
 
 	enabledEnvVar := &corev1.EnvVar{
@@ -190,16 +229,54 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) erro
 	volMountMgr := managers.VolumeMount()
 	VolMgr := managers.Volume()
 
-	// configmap volume mount
-	if f.configMapConfig != nil && f.configMapName != "" {
-		cmVol, cmVolMount := volume.GetConfigMapVolumes(
-			f.configMapConfig,
-			f.configMapName,
-			cspmConfigVolumeName,
-			cspmConfigVolumePath,
-		)
-		volMountMgr.AddVolumeMountToContainer(&cmVolMount, apicommonv1.SecurityAgentContainerName)
-		VolMgr.AddVolume(&cmVol)
+	// Custom policies are copied and merged with default policies via a workaround in the init-volume container.
+	if f.customConfig != nil {
+		var vol corev1.Volume
+		var volMount corev1.VolumeMount
+		if f.customConfig.ConfigMap != nil {
+			// Custom config is referenced via ConfigMap
+			// Cannot use typical GetVolumesFromConfigMap because security features are not under /conf.d
+			vol = volume.GetVolumeFromConfigMap(f.customConfig.ConfigMap, f.configMapName, cspmConfigVolumeName)
+			volMount = corev1.VolumeMount{
+				Name:      cspmConfigVolumeName,
+				MountPath: "/etc/datadog-agent-compliance-benchmarks",
+				ReadOnly:  true,
+			}
+		} else {
+			// Custom config is referenced via ConfigData (and configMap is created in ManageDependencies)
+			vol = volume.GetBasicVolume(f.configMapName, cspmConfigVolumeName)
+
+			volMount = corev1.VolumeMount{
+				Name:      cspmConfigVolumeName,
+				MountPath: "/etc/datadog-agent-compliance-benchmarks",
+				ReadOnly:  true,
+			}
+		}
+		// Mount custom policies to init-volume container.
+		managers.VolumeMount().AddVolumeMountToInitContainer(&volMount, apicommonv1.InitVolumeContainerName)
+		managers.Volume().AddVolume(&vol)
+
+		// Add workaround command to init-volume container
+		for id, container := range managers.PodTemplateSpec().Spec.InitContainers {
+			if container.Name == "init-volume" {
+				managers.PodTemplateSpec().Spec.InitContainers[id].Args = []string{
+					managers.PodTemplateSpec().Spec.InitContainers[id].Args[0] + ";cp -v /etc/datadog-agent-compliance-benchmarks/* /opt/datadog-agent/compliance.d/",
+				}
+			}
+		}
+
+		// Add empty volume to Security Agent
+		benchmarksVol, benchmarksVolMount := volume.GetVolumesEmptyDir(apicommon.SecurityAgentComplianceConfigDirVolumeName, apicommon.SecurityAgentComplianceConfigDirVolumePath, true)
+		managers.Volume().AddVolume(&benchmarksVol)
+		managers.VolumeMount().AddVolumeMountToContainer(&benchmarksVolMount, apicommonv1.SecurityAgentContainerName)
+
+		// Add compliance.d volume mount to init-volume container at different path
+		benchmarkVolMountInitVol := corev1.VolumeMount{
+			Name:      apicommon.SecurityAgentComplianceConfigDirVolumeName,
+			MountPath: "/opt/datadog-agent/compliance.d",
+			ReadOnly:  false,
+		}
+		volMountMgr.AddVolumeMountToInitContainer(&benchmarkVolMountInitVol, apicommonv1.InitVolumeContainerName)
 	}
 
 	// cgroups volume mount

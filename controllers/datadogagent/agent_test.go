@@ -369,7 +369,7 @@ func complianceSecurityAgentVolumes() []corev1.Volume {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.SecurityAgentComplianceConfigDirVolumeName,
+			Name: apicommon.SecurityAgentComplianceConfigDirVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
@@ -572,7 +572,7 @@ func runtimeSecurityAgentVolumes() []corev1.Volume {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.SecurityAgentRuntimeCustomPoliciesVolumeName,
+			Name: apicommon.SecurityAgentRuntimeCustomPoliciesVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
 					LocalObjectReference: corev1.LocalObjectReference{
@@ -582,7 +582,7 @@ func runtimeSecurityAgentVolumes() []corev1.Volume {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumeName,
+			Name: apicommon.SecurityAgentRuntimePoliciesDirVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
@@ -1639,16 +1639,16 @@ func runtimeSecurityAgentPodSpec(extraEnv map[string]string, extraDir string) co
 		command = []string{"cp -vnr /etc/datadog-agent /opt;cp -v /etc/datadog-agent-runtime-policies/* /opt/datadog-agent/runtime-security.d/"}
 
 		volumeMountsBuilder.Add(&corev1.VolumeMount{
-			Name:      datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumeName,
+			Name:      apicommon.SecurityAgentRuntimePoliciesDirVolumeName,
 			MountPath: "/opt/datadog-agent/runtime-security.d",
 		})
 		volumeMountsBuilder.Add(&corev1.VolumeMount{
-			Name:      datadoghqv1alpha1.SecurityAgentRuntimeCustomPoliciesVolumeName,
+			Name:      apicommon.SecurityAgentRuntimeCustomPoliciesVolumeName,
 			MountPath: "/etc/datadog-agent-runtime-policies",
 		})
 
 		volumesBuilder.Add(&corev1.Volume{
-			Name: datadoghqv1alpha1.SecurityAgentRuntimeCustomPoliciesVolumeName,
+			Name: apicommon.SecurityAgentRuntimeCustomPoliciesVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
 					LocalObjectReference: corev1.LocalObjectReference{
@@ -1659,7 +1659,7 @@ func runtimeSecurityAgentPodSpec(extraEnv map[string]string, extraDir string) co
 		})
 
 		volumesBuilder.Add(&corev1.Volume{
-			Name: datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumeName,
+			Name: apicommon.SecurityAgentRuntimePoliciesDirVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
@@ -2390,7 +2390,12 @@ func Test_newExtendedDaemonSetFromInstance_CustomConfigMaps(t *testing.T) {
 }
 
 func Test_newExtendedDaemonSetFromInstance_CustomDatadogYaml(t *testing.T) {
-	customConfigMapCustomDatadogYaml := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{UseEDS: true, ClusterAgentEnabled: true, APMEnabled: true, CustomConfig: "foo: bar\nbar: foo"})
+	customConfigMapCustomDatadogYaml := test.NewDefaultedDatadogAgent(
+		"bar", "foo",
+		&test.NewDatadogAgentOptions{
+			UseEDS: true, ClusterAgentEnabled: true, APMEnabled: true, CustomConfig: "foo: bar\nbar: foo",
+		},
+	)
 	customConfigMapCustomDatadogYamlSpec := defaultPodSpec(customConfigMapCustomDatadogYaml)
 	appendDefaultAPMAgentContainer(&customConfigMapCustomDatadogYamlSpec)
 
@@ -2458,11 +2463,11 @@ func Test_newExtendedDaemonSetFromInstance_CustomDatadogYaml(t *testing.T) {
 			},
 		},
 		{
-			Name: apicommon.AgentCustomConfigVolumeName,
+			Name: "foo-datadog-yaml",
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
 					LocalObjectReference: corev1.LocalObjectReference{
-						Name: "foo-datadog-yaml",
+						Name: "custom-datadog-yaml",
 					},
 				},
 			},
@@ -3440,14 +3445,14 @@ func Test_newExtendedDaemonSetFromInstance_SecurityAgent_Runtime(t *testing.T) {
 	}...)
 	securityAgentPodSpec.Containers[1].VolumeMounts = append(securityAgentPodSpec.Containers[1].VolumeMounts, []corev1.VolumeMount{
 		{
-			Name:      datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumeName,
+			Name:      apicommon.SecurityAgentRuntimePoliciesDirVolumeName,
 			MountPath: "/etc/datadog-agent/runtime-security.d",
 			ReadOnly:  true,
 		},
 	}...)
 	securityAgentPodSpec.Containers[2].VolumeMounts = append(securityAgentPodSpec.Containers[2].VolumeMounts, []corev1.VolumeMount{
 		{
-			Name:      datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumeName,
+			Name:      apicommon.SecurityAgentRuntimePoliciesDirVolumeName,
 			MountPath: "/etc/datadog-agent/runtime-security.d",
 			ReadOnly:  true,
 		},

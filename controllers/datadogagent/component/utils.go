@@ -14,6 +14,7 @@ import (
 	netv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/version"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
@@ -564,9 +565,13 @@ func BuildAgentLocalService(dda metav1.Object, name string) (string, string, map
 }
 
 // ShouldCreateAgentLocalService returns whether the node agent local service should be created based on the Kubernetes version
-func ShouldCreateAgentLocalService(gitVersion string, forceEnableLocalService bool) bool {
+func ShouldCreateAgentLocalService(versionInfo *version.Info, forceEnableLocalService bool) bool {
+	if versionInfo == nil || versionInfo.GitVersion == "" {
+		return false
+	}
 	// Service Internal Traffic Policy exists in Kube 1.21 but it is enabled by default since 1.22
-	return utils.IsAboveMinVersion(gitVersion, localServiceDefaultMinimumVersion) || (utils.IsAboveMinVersion(gitVersion, localServiceMinimumVersion) && forceEnableLocalService)
+	return utils.IsAboveMinVersion(versionInfo.GitVersion, localServiceDefaultMinimumVersion) ||
+		(utils.IsAboveMinVersion(versionInfo.GitVersion, localServiceMinimumVersion) && forceEnableLocalService)
 }
 
 // BuildCiliumPolicy creates the base node agent, DCA, or CCR cilium network policy

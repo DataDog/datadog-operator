@@ -7,13 +7,16 @@ package clusteragent
 
 import (
 	"fmt"
+	"strings"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/version"
 )
 
 // GetClusterAgentServiceName return the Cluster-Agent service name based on the DatadogAgent name
@@ -68,4 +71,38 @@ func GetClusterAgentService(dda metav1.Object) *corev1.Service {
 	_, _ = comparison.SetMD5DatadogAgentGenerationAnnotation(&service.ObjectMeta, &service.Spec)
 
 	return service
+}
+
+// GetMetricsServerServiceName returns the external metrics provider service name
+func GetMetricsServerServiceName(dda metav1.Object) string {
+	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultMetricsServerResourceSuffix)
+}
+
+// GetMetricsServerAPIServiceName returns the external metrics provider apiservice name
+func GetMetricsServerAPIServiceName() string {
+	return apicommon.ExternalMetricsAPIServiceName
+}
+
+// GetDefaultExternalMetricSecretName returns the external metrics provider secret name
+func GetDefaultExternalMetricSecretName(dda metav1.Object) string {
+	return fmt.Sprintf("%s-%s", dda.GetName(), "metrics-server")
+}
+
+// GetHPAClusterRoleBindingName returns a external metrics provider clusterrolebinding for auth-delegator
+func GetHPAClusterRoleBindingName(dda metav1.Object) string {
+	return fmt.Sprintf("%s-auth-delegator", GetClusterAgentRbacResourcesName(dda))
+}
+
+// GetExternalMetricsReaderClusterRoleName returns the name for the external metrics reader cluster role
+func GetExternalMetricsReaderClusterRoleName(dda metav1.Object, versionInfo *version.Info) string {
+	if versionInfo != nil && strings.Contains(versionInfo.GitVersion, "-gke.") {
+		// For GKE clusters the name of the role is hardcoded and cannot be changed - HPA controller expects this name
+		return "external-metrics-reader"
+	}
+	return fmt.Sprintf("%s-metrics-reader", GetClusterAgentRbacResourcesName(dda))
+}
+
+// GetApiserverAuthReaderRoleBindingName returns the name for the role binding to access the extension-apiserver-authentication cm
+func GetApiserverAuthReaderRoleBindingName(dda metav1.Object) string {
+	return fmt.Sprintf("%s-apiserver", GetClusterAgentRbacResourcesName(dda))
 }

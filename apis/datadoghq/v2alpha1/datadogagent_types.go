@@ -85,8 +85,6 @@ type DatadogFeatures struct {
 	ClusterChecks *ClusterChecksFeatureConfig `json:"clusterChecks,omitempty"`
 	// PrometheusScrape configuration.
 	PrometheusScrape *PrometheusScrapeFeatureConfig `json:"prometheusScrape,omitempty"`
-	// DatadogMonitor configuration.
-	DatadogMonitor *DatadogMonitorFeatureConfig `json:"datadogMonitor,omitempty"`
 }
 
 // Configuration structs for each feature in DatadogFeatures. All parameters are optional and have default values when necessary.
@@ -221,11 +219,11 @@ type CSPMFeatureConfig struct {
 	// +optional
 	CheckInterval *metav1.Duration `json:"checkInterval,omitempty"`
 
-	// ConfigMap contains CSPM benchmarks.
+	// CustomBenchmarks contains CSPM benchmarks.
 	// The content of the ConfigMap will be merged with the benchmarks bundled with the agent.
 	// Any benchmarks with the same name as those existing in the agent will take precedence.
 	// +optional
-	CustomBenchmarks *commonv1.ConfigMapConfig `json:"customBenchmarks,omitempty"`
+	CustomBenchmarks *CustomConfig `json:"customBenchmarks,omitempty"`
 }
 
 // CWSFeatureConfig contains CWS (Cloud Workload Security) configuration.
@@ -241,11 +239,11 @@ type CWSFeatureConfig struct {
 	// +optional
 	SyscallMonitorEnabled *bool `json:"syscallMonitorEnabled,omitempty"`
 
-	// ConfigMap contains security policies.
+	// CustomPolicies contains security policies.
 	// The content of the ConfigMap will be merged with the policies bundled with the agent.
 	// Any policies with the same name as those existing in the agent will take precedence.
 	// +optional
-	CustomPolicies *commonv1.ConfigMapConfig `json:"customPolicies,omitempty"`
+	CustomPolicies *CustomConfig `json:"customPolicies,omitempty"`
 }
 
 // NPMFeatureConfig contains NPM (Network Performance Monitoring) feature configuration.
@@ -500,15 +498,6 @@ type PrometheusScrapeFeatureConfig struct {
 	// AdditionalConfigs allows adding advanced Prometheus check configurations with custom discovery rules.
 	// +optional
 	AdditionalConfigs *string `json:"additionalConfigs,omitempty"`
-}
-
-// DatadogMonitorFeatureConfig contains the Datadog Monitor feature configuration.
-// DatadogMonitor is run by the Datadog Operator.
-type DatadogMonitorFeatureConfig struct {
-	// Enabled enables Datadog Monitors.
-	// Default: false
-	// +optional
-	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // Generic support structs

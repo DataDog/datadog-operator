@@ -19,7 +19,7 @@ func (f *orchestratorExplorerFeature) buildOrchestratorExplorerConfigMap() (*cor
 		return nil, nil
 	}
 	if f.customConfig != nil && f.customConfig.ConfigData != nil {
-		return configmap.BuildConfiguration(f.owner.GetNamespace(), f.customConfig.ConfigData, f.configConfigMapName, orchestratorExplorerCheckName)
+		return configmap.BuildConfigMapConfigData(f.owner.GetNamespace(), f.customConfig.ConfigData, f.configConfigMapName, orchestratorExplorerConfFileName)
 	}
 
 	configMap := buildDefaultConfigMap(f.owner.GetNamespace(), f.configConfigMapName, orchestratorExplorerCheckConfig(f.clusterChecksEnabled))
@@ -33,7 +33,7 @@ func buildDefaultConfigMap(namespace, cmName string, content string) *corev1.Con
 			Namespace: namespace,
 		},
 		Data: map[string]string{
-			orchestratorExplorerCheckName: content,
+			orchestratorExplorerConfFileName: content,
 		},
 	}
 	return configMap

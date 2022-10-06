@@ -484,7 +484,7 @@ func Test_newClusterAgentDeploymentMountKSMCore(t *testing.T) {
 		Enabled: &enabledFeature,
 		Conf: &datadoghqv1alpha1.CustomConfigSpec{
 			ConfigMap: &datadoghqv1alpha1.ConfigFileConfigMapSpec{
-				Name:    "bla",
+				Name:    "foo",
 				FileKey: "ksm_core.yaml",
 			},
 		},
@@ -495,8 +495,9 @@ func Test_newClusterAgentDeploymentMountKSMCore(t *testing.T) {
 			VolumeSource: v1.VolumeSource{
 				ConfigMap: &v1.ConfigMapVolumeSource{
 					LocalObjectReference: v1.LocalObjectReference{
-						Name: "bla",
+						Name: "foo",
 					},
+					Items: []v1.KeyToPath{{Key: "ksm_core.yaml", Path: "ksm_core.yaml"}},
 				},
 			},
 		},
@@ -505,7 +506,6 @@ func Test_newClusterAgentDeploymentMountKSMCore(t *testing.T) {
 		{
 			Name:      "ksm-core-config",
 			MountPath: "/etc/datadog-agent/conf.d/kubernetes_state_core.d",
-			SubPath:   "ksm_core.yaml",
 			ReadOnly:  true,
 		},
 	}
@@ -519,7 +519,7 @@ func Test_newClusterAgentDeploymentMountKSMCore(t *testing.T) {
 		},
 		{
 			Name:  apicommon.DDKubeStateMetricsCoreConfigMap,
-			Value: "bla",
+			Value: "foo",
 		},
 		{
 			Name:  orchestrator.DDOrchestratorExplorerEnabled,
@@ -901,11 +901,11 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 				ValueFrom: appKeyValue(),
 			},
 			{
-				Name:  apicommon.DDMetricsProviderUseDatadogMetric,
+				Name:  apicommon.DDExternalMetricsProviderUseDatadogMetric,
 				Value: "false",
 			},
 			{
-				Name:  apicommon.DDMetricsProviderWPAController,
+				Name:  apicommon.DDExternalMetricsProviderWPAController,
 				Value: "false",
 			},
 			{
@@ -949,11 +949,11 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 				ValueFrom: appKeyValue(),
 			},
 			{
-				Name:  apicommon.DDMetricsProviderUseDatadogMetric,
+				Name:  apicommon.DDExternalMetricsProviderUseDatadogMetric,
 				Value: "true",
 			},
 			{
-				Name:  apicommon.DDMetricsProviderWPAController,
+				Name:  apicommon.DDExternalMetricsProviderWPAController,
 				Value: "true",
 			},
 			{

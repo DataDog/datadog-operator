@@ -6,8 +6,6 @@
 package datadogagent
 
 import (
-	"fmt"
-
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -15,11 +13,12 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 )
 
 func (r *Reconciler) manageExternalMetricsSecret(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
-	return r.manageSecret(logger, managedSecret{name: getDefaultExternalMetricSecretName(dda), requireFunc: needExternalMetricsSecret, createFunc: newExternalMetricsSecret}, dda)
+	return r.manageSecret(logger, managedSecret{name: componentdca.GetDefaultExternalMetricSecretName(dda), requireFunc: needExternalMetricsSecret, createFunc: newExternalMetricsSecret}, dda)
 }
 
 func newExternalMetricsSecret(name string, dda *datadoghqv1alpha1.DatadogAgent) *corev1.Secret {
@@ -58,8 +57,4 @@ func needExternalMetricsSecret(dda *datadoghqv1alpha1.DatadogAgent) bool {
 	}
 
 	return true
-}
-
-func getDefaultExternalMetricSecretName(dda *datadoghqv1alpha1.DatadogAgent) string {
-	return fmt.Sprintf("%s-%s", dda.Name, "metrics-server")
 }

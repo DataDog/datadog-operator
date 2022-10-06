@@ -277,8 +277,8 @@ func rbacNamesForDda(dda *datadoghqv1alpha1.DatadogAgent, versionInfo *version.I
 		getAgentRbacResourcesName(dda),
 		componentdca.GetClusterAgentRbacResourcesName(dda),
 		getClusterChecksRunnerRbacResourcesName(dda),
-		getHPAClusterRoleBindingName(dda),
-		getExternalMetricsReaderClusterRoleName(dda, versionInfo),
+		componentdca.GetHPAClusterRoleBindingName(dda),
+		componentdca.GetExternalMetricsReaderClusterRoleName(dda, versionInfo),
 		// kubestatemetrics_core can run on the DCA and the Runners
 		kubernetesstatecore.GetKubeStateMetricsRBACResourceName(dda, common.ClusterAgentSuffix),
 		kubernetesstatecore.GetKubeStateMetricsRBACResourceName(dda, common.ChecksRunnerSuffix),

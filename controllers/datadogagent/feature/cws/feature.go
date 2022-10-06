@@ -8,12 +8,15 @@ package cws
 import (
 	"path/filepath"
 
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/configmap"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
@@ -35,8 +38,10 @@ func buildCWSFeature(options *feature.Options) feature.Feature {
 }
 
 type cwsFeature struct {
-	configMapConfig       *apicommonv1.ConfigMapConfig
 	syscallMonitorEnabled bool
+	customConfig          *apicommonv1.CustomConfig
+	configMapName         string
+	owner                 metav1.Object
 }
 
 // ID returns the ID of the Feature
@@ -46,14 +51,17 @@ func (f *cwsFeature) ID() feature.IDType {
 
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *cwsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
+	f.owner = dda
+
 	if dda.Spec.Features != nil && dda.Spec.Features.CWS != nil && apiutils.BoolValue(dda.Spec.Features.CWS.Enabled) {
 		cws := dda.Spec.Features.CWS
 
 		f.syscallMonitorEnabled = apiutils.BoolValue(cws.SyscallMonitorEnabled)
 
-		if cws.CustomPolicies != nil && cws.CustomPolicies.Name != "" {
-			f.configMapConfig = cws.CustomPolicies
+		if cws.CustomPolicies != nil {
+			f.customConfig = v2alpha1.ConvertCustomConfig(cws.CustomPolicies)
 		}
+		f.configMapName = apicommonv1.GetConfName(dda, f.customConfig, apicommon.DefaultCWSConf)
 
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
@@ -79,7 +87,8 @@ func (f *cwsFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.Re
 		}
 
 		if runtime.PoliciesDir != nil && runtime.PoliciesDir.ConfigMapName != "" {
-			f.configMapConfig = v1alpha1.ConvertConfigDirSpec(runtime.PoliciesDir).ConfigMap
+			f.configMapName = runtime.PoliciesDir.ConfigMapName
+			f.customConfig = v1alpha1.ConvertConfigDirSpecToCustomConfig(runtime.PoliciesDir)
 		}
 
 		reqComp = feature.RequiredComponents{
@@ -99,6 +108,18 @@ func (f *cwsFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.Re
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
 func (f *cwsFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
+	// Create configMap if one does not already exist and ConfigData is defined
+	if f.customConfig != nil && f.customConfig.ConfigMap == nil && f.customConfig.ConfigData != nil {
+		cm, err := configmap.BuildConfigMapConfigData(f.owner.GetNamespace(), f.customConfig.ConfigData, f.configMapName, cwsConfFileName)
+		if err != nil {
+			return err
+		}
+		if cm != nil {
+			if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, cm); err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
 
@@ -199,22 +220,56 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 	volMountMgr.AddVolumeMountToContainer(&hostrootVolMount, apicommonv1.SecurityAgentContainerName)
 	volMgr.AddVolume(&hostrootVol)
 
-	// custom runtime policies
-	if f.configMapConfig != nil {
-		cmVol, cmVolMount := volume.GetConfigMapVolumes(
-			f.configMapConfig,
-			f.configMapConfig.Name,
-			apicommon.SecurityAgentRuntimeCustomPoliciesVolumeName,
-			apicommon.SecurityAgentRuntimeCustomPoliciesVolumePath,
-		)
-		volMountMgr.AddVolumeMountToContainers(&cmVolMount, []apicommonv1.AgentContainerName{apicommonv1.SecurityAgentContainerName, apicommonv1.SystemProbeContainerName})
-		volMgr.AddVolume(&cmVol)
+	// Custom policies are copied and merged with default policies via a workaround in the init-volume container.
+	if f.customConfig != nil {
+		var vol corev1.Volume
+		var volMount corev1.VolumeMount
+		if f.customConfig.ConfigMap != nil {
+			// Custom config is referenced via ConfigMap
+			// Cannot use standard GetVolumesFromConfigMap because security features are not under /conf.d
+			vol = volume.GetVolumeFromConfigMap(f.customConfig.ConfigMap, f.configMapName, cwsConfigVolumeName)
+			volMount = corev1.VolumeMount{
+				Name:      cwsConfigVolumeName,
+				MountPath: apicommon.SecurityAgentRuntimeCustomPoliciesVolumePath,
+				ReadOnly:  true,
+			}
+		} else {
+			// Custom config is referenced via ConfigData (and configMap is created in ManageDependencies)
+			vol = volume.GetBasicVolume(f.configMapName, cwsConfigVolumeName)
 
+			volMount = corev1.VolumeMount{
+				Name:      cwsConfigVolumeName,
+				MountPath: apicommon.SecurityAgentRuntimeCustomPoliciesVolumePath,
+				ReadOnly:  true,
+			}
+		}
+		// Mount custom policies to init-volume container.
+		managers.VolumeMount().AddVolumeMountToInitContainer(&volMount, apicommonv1.InitVolumeContainerName)
+		managers.Volume().AddVolume(&vol)
+
+		// Add workaround command to init-volume container
+		for id, container := range managers.PodTemplateSpec().Spec.InitContainers {
+			if container.Name == "init-volume" {
+				managers.PodTemplateSpec().Spec.InitContainers[id].Args = []string{
+					managers.PodTemplateSpec().Spec.InitContainers[id].Args[0] + ";cp -v /etc/datadog-agent-runtime-policies/* /opt/datadog-agent/runtime-security.d/",
+				}
+			}
+		}
+
+		// Add policies directory envvar to Security Agent, and empty volume to System Probe and Security Agent.
 		managers.EnvVar().AddEnvVarToContainer(apicommonv1.SecurityAgentContainerName, policiesDirEnvVar)
 
 		policiesVol, policiesVolMount := volume.GetVolumesEmptyDir(apicommon.SecurityAgentRuntimePoliciesDirVolumeName, apicommon.SecurityAgentRuntimePoliciesDirVolumePath, true)
-		volMountMgr.AddVolumeMountToContainers(&policiesVolMount, []apicommonv1.AgentContainerName{apicommonv1.SecurityAgentContainerName, apicommonv1.SystemProbeContainerName})
 		volMgr.AddVolume(&policiesVol)
+		volMountMgr.AddVolumeMountToContainers(&policiesVolMount, []apicommonv1.AgentContainerName{apicommonv1.SecurityAgentContainerName, apicommonv1.SystemProbeContainerName})
+
+		// Add runtime-security.d volume mount to init-volume container at different path
+		policiesVolMountInitVol := corev1.VolumeMount{
+			Name:      apicommon.SecurityAgentRuntimePoliciesDirVolumeName,
+			MountPath: "/opt/datadog-agent/runtime-security.d",
+			ReadOnly:  false,
+		}
+		volMountMgr.AddVolumeMountToInitContainer(&policiesVolMountInitVol, apicommonv1.InitVolumeContainerName)
 	}
 
 	return nil
