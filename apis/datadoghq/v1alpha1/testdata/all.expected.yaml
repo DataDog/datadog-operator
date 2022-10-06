@@ -48,7 +48,7 @@ spec:
         configMap:
           items:
           - key: config.yaml
-            path: ""
+            path: "config.yaml"
           name: orch-cm
       enabled: true
       ddUrl: https://orch-explorer.com
