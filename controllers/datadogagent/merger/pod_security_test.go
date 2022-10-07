@@ -22,12 +22,12 @@ import (
 
 func TestPodSecurityManager_AddSecurityContextConstraints(t *testing.T) {
 	ns := "bar"
-	name1 := "foo"
-	name2 := "foo2"
+	newSCCName := "foo"
+	existingSCCName := "foo2"
 
 	newSCC := &securityv1.SecurityContextConstraints{
 		Users: []string{
-			fmt.Sprintf("system:serviceaccount:%s:%s", ns, name1),
+			fmt.Sprintf("system:serviceaccount:%s:%s", ns, newSCCName),
 		},
 		Priority: apiutils.NewInt32Pointer(8),
 		AllowedCapabilities: []corev1.Capability{
@@ -53,10 +53,10 @@ func TestPodSecurityManager_AddSecurityContextConstraints(t *testing.T) {
 	existingSCC := securityv1.SecurityContextConstraints{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: ns,
-			Name:      name2,
+			Name:      existingSCCName,
 		},
 		Users: []string{
-			fmt.Sprintf("system:serviceaccount:%s:%s", ns, name2),
+			fmt.Sprintf("system:serviceaccount:%s:%s", ns, existingSCCName),
 		},
 		AllowHostDirVolumePlugin: false,
 		FSGroup: securityv1.FSGroupStrategyOptions{
@@ -81,7 +81,7 @@ func TestPodSecurityManager_AddSecurityContextConstraints(t *testing.T) {
 	owner := &v2alpha1.DatadogAgent{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: ns,
-			Name:      name1,
+			Name:      newSCCName,
 		},
 	}
 
@@ -102,13 +102,13 @@ func TestPodSecurityManager_AddSecurityContextConstraints(t *testing.T) {
 			store: dependencies.NewStore(owner, storeOptions),
 			args: args{
 				namespace: ns,
-				name:      name1,
+				name:      newSCCName,
 				scc:       newSCC,
 			},
 			wantErr: false,
 			validateFunc: func(t *testing.T, store *dependencies.Store) {
-				if _, found := store.Get(kubernetes.SecurityContextConstraintsKind, ns, name1); !found {
-					t.Errorf("missing SecurityContextConstraints %s/%s", ns, name1)
+				if _, found := store.Get(kubernetes.SecurityContextConstraintsKind, ns, newSCCName); !found {
+					t.Errorf("missing SecurityContextConstraints %s/%s", ns, newSCCName)
 				}
 			},
 		},
@@ -117,13 +117,13 @@ func TestPodSecurityManager_AddSecurityContextConstraints(t *testing.T) {
 			store: dependencies.NewStore(owner, storeOptions).AddOrUpdateStore(kubernetes.SecurityContextConstraintsKind, &existingSCC),
 			args: args{
 				namespace: ns,
-				name:      name1,
+				name:      newSCCName,
 				scc:       newSCC,
 			},
 			wantErr: false,
 			validateFunc: func(t *testing.T, store *dependencies.Store) {
-				if _, found := store.Get(kubernetes.SecurityContextConstraintsKind, ns, name1); !found {
-					t.Errorf("missing SecurityContextConstraints %s/%s", ns, name1)
+				if _, found := store.Get(kubernetes.SecurityContextConstraintsKind, ns, newSCCName); !found {
+					t.Errorf("missing SecurityContextConstraints %s/%s", ns, newSCCName)
 				}
 			},
 		},
@@ -132,24 +132,24 @@ func TestPodSecurityManager_AddSecurityContextConstraints(t *testing.T) {
 			store: dependencies.NewStore(owner, storeOptions).AddOrUpdateStore(kubernetes.SecurityContextConstraintsKind, &existingSCC),
 			args: args{
 				namespace: ns,
-				name:      name2,
+				name:      existingSCCName,
 				scc:       newSCC,
 			},
 			wantErr: false,
 			validateFunc: func(t *testing.T, store *dependencies.Store) {
-				obj, found := store.Get(kubernetes.SecurityContextConstraintsKind, ns, name2)
+				obj, found := store.Get(kubernetes.SecurityContextConstraintsKind, ns, existingSCCName)
 				if !found {
-					t.Errorf("missing SecurityContextConstraints %s/%s", ns, name2)
+					t.Errorf("missing SecurityContextConstraints %s/%s", ns, existingSCCName)
 				}
 				scc, ok := obj.(*securityv1.SecurityContextConstraints)
 				if !ok || !scc.AllowHostDirVolumePlugin {
-					t.Errorf("AllowHostDirVolumePlugin not updated in SecurityContextConstraints %s/%s", ns, name2)
+					t.Errorf("AllowHostDirVolumePlugin not updated in SecurityContextConstraints %s/%s", ns, existingSCCName)
 				}
 				if len(scc.Volumes) != 6 {
-					t.Errorf("Volumes changed in SecurityContextConstraints %s/%s", ns, name2)
+					t.Errorf("Volumes changed in SecurityContextConstraints %s/%s", ns, existingSCCName)
 				}
 				if len(scc.AllowedCapabilities) != 10 {
-					t.Errorf("AllowedCapabilities not added in SecurityContextConstraints %s/%s", ns, name2)
+					t.Errorf("AllowedCapabilities not added in SecurityContextConstraints %s/%s", ns, existingSCCName)
 				}
 			},
 		},

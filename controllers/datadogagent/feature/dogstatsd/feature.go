@@ -78,7 +78,7 @@ func (f *dogstatsdFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp featur
 		f.mapperProfiles = v2alpha1.ConvertCustomConfig(dogstatsd.MapperProfiles)
 	}
 
-	f.createSCC = v2alpha1.IsSCCEnabled(dda, v2alpha1.NodeAgentComponentName)
+	f.createSCC = v2alpha1.ShouldCreateSCC(dda, v2alpha1.NodeAgentComponentName)
 
 	reqComp = feature.RequiredComponents{
 		Agent: feature.RequiredComponent{

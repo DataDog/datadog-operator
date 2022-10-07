@@ -40,6 +40,10 @@ type podSecurityManagerImpl struct {
 }
 
 func (m *podSecurityManagerImpl) AddSecurityContextConstraints(name, namespace string, sccUpdates *securityv1.SecurityContextConstraints) error {
+	if sccUpdates == nil {
+		return nil
+	}
+
 	obj, _ := m.store.GetOrCreate(kubernetes.SecurityContextConstraintsKind, namespace, name)
 	scc, ok := obj.(*securityv1.SecurityContextConstraints)
 	if !ok {

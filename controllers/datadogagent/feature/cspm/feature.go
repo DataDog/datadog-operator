@@ -74,7 +74,7 @@ func (f *cspmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 		f.configMapName = apicommonv1.GetConfName(dda, f.customConfig, apicommon.DefaultCSPMConf)
 
 		// TODO add settings to configure f.createPSP
-		f.createSCC = v2alpha1.IsSCCEnabled(dda, v2alpha1.NodeAgentComponentName)
+		f.createSCC = v2alpha1.ShouldCreateSCC(dda, v2alpha1.NodeAgentComponentName)
 
 		reqComp = feature.RequiredComponents{
 			ClusterAgent: feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)},
