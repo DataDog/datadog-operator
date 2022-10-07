@@ -6,8 +6,10 @@
 package cspm
 
 import (
+	"fmt"
 	"strconv"
 
+	securityv1 "github.com/openshift/api/security/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -19,6 +21,7 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
 )
@@ -70,7 +73,8 @@ func (f *cspmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 		}
 		f.configMapName = apicommonv1.GetConfName(dda, f.customConfig, apicommon.DefaultCSPMConf)
 
-		// CELENE TODO add settings to configure f.createSCC and f.createPSP
+		// TODO add settings to configure f.createPSP
+		f.createSCC = v2alpha1.ShouldCreateSCC(dda, v2alpha1.NodeAgentComponentName)
 
 		reqComp = feature.RequiredComponents{
 			ClusterAgent: feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)},
@@ -135,13 +139,11 @@ func (f *cspmFeature) ManageDependencies(managers feature.ResourceManagers, comp
 
 	if f.createSCC {
 		// Manage SecurityContextConstraints
-		sccName := getSCCName(f.owner)
-		scc, err := managers.PodSecurityManager().GetSecurityContextConstraints(f.owner.GetNamespace(), sccName)
-		if err != nil {
-			return err
+		sccName := component.GetAgentSCCName(f.owner)
+		scc := securityv1.SecurityContextConstraints{AllowHostPID: true}
+		if err := managers.PodSecurityManager().AddSecurityContextConstraints(sccName, f.owner.GetNamespace(), &scc); err != nil {
+			return fmt.Errorf("error adding scc to store: %w", err)
 		}
-		scc.AllowHostPID = true
-		managers.PodSecurityManager().UpdateSecurityContextConstraints(scc)
 	}
 
 	if f.createPSP {

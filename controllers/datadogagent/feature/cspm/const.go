@@ -17,10 +17,6 @@ const (
 	cspmConfFileName     = "compliance.yaml"
 )
 
-func getSCCName(owner metav1.Object) string {
-	return fmt.Sprintf("%s-%s", owner.GetNamespace(), owner.GetName())
-}
-
 func getPSPName(owner metav1.Object) string {
 	return fmt.Sprintf("%s-%s", owner.GetNamespace(), owner.GetName())
 }
