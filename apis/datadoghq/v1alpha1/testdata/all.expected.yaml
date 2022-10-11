@@ -172,6 +172,16 @@ spec:
           volumeMounts:
           - mountPath: ""
             name: agent-volumeMount
+        system-probe:
+          securityContext:
+            seccompProfile: 
+              type: Localhost
+              localhostProfile: seccomp-profile
+          seccompConfig: 
+            customRootPath: /custom/root/path
+            customProfile: 
+              configMap: 
+                name: seccomp-configmap
       createRbac: true
       env:
       - name: TEST_VAR_DS

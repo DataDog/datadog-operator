@@ -230,8 +230,8 @@ func initSeccompSetupContainer() corev1.Container {
 		Image: agentImage(),
 		Command: []string{
 			"cp",
-			fmt.Sprintf("%s/system-probe-seccomp.json", apicommon.SeccompSecurityVolumePath),
-			fmt.Sprintf("%s/system-probe", apicommon.SeccompRootVolumePath),
+			fmt.Sprintf("%s/%s", apicommon.SeccompSecurityVolumePath, apicommon.SystemProbeSeccompKey),
+			fmt.Sprintf("%s/%s", apicommon.SeccompRootVolumePath, apicommon.SystemProbeSeccompProfileName),
 		},
 		VolumeMounts: volumeMountsForSeccompSetup(),
 	}
