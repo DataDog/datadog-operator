@@ -348,6 +348,11 @@ func GetClusterAgentVersion(dda metav1.Object) string {
 	return ""
 }
 
+// GetClusterAgentSCCName returns the Cluster-Agent SCC name based on the DatadogAgent name
+func GetClusterAgentSCCName(dda metav1.Object) string {
+	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultClusterAgentResourceSuffix)
+}
+
 // GetAgentServiceName return the Agent service name based on the DatadogAgent name
 func GetAgentServiceName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultAgentResourceSuffix)
@@ -362,6 +367,11 @@ func GetAgentName(dda metav1.Object) string {
 func GetAgentVersion(dda metav1.Object) string {
 	// TODO implement this method
 	return ""
+}
+
+// GetAgentSCCName returns the Agent SCC name based on the DatadogAgent name
+func GetAgentSCCName(dda metav1.Object) string {
+	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultAgentResourceSuffix)
 }
 
 // GetClusterChecksRunnerName return the Cluster-Checks-Runner name based on the DatadogAgent name

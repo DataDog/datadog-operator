@@ -17,6 +17,8 @@ import (
 	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
+
+	securityv1 "github.com/openshift/api/security/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -376,6 +378,63 @@ func volumeMountsForSystemProbe() []corev1.VolumeMount {
 		component.GetVolumeMountForLogs(),
 		component.GetVolumeMountForAuth(),
 		component.GetVolumeMountForConfig(),
+	}
+}
+
+// GetDefaultSCC returns the default SCC for the node agent component
+func GetDefaultSCC(dda *v2alpha1.DatadogAgent) *securityv1.SecurityContextConstraints {
+	return &securityv1.SecurityContextConstraints{
+		Users: []string{
+			fmt.Sprintf("system:serviceaccount:%s:%s", dda.Namespace, v2alpha1.GetAgentServiceAccount(dda)),
+		},
+		Priority:         apiutils.NewInt32Pointer(8),
+		AllowHostPorts:   v2alpha1.IsHostNetworkEnabled(dda, v2alpha1.NodeAgentComponentName),
+		AllowHostNetwork: v2alpha1.IsHostNetworkEnabled(dda, v2alpha1.NodeAgentComponentName),
+		Volumes: []securityv1.FSType{
+			securityv1.FSTypeConfigMap,
+			securityv1.FSTypeDownwardAPI,
+			securityv1.FSTypeEmptyDir,
+			securityv1.FSTypeHostPath,
+			securityv1.FSTypeSecret,
+		},
+		SELinuxContext: securityv1.SELinuxContextStrategyOptions{
+			Type: securityv1.SELinuxStrategyMustRunAs,
+			SELinuxOptions: &corev1.SELinuxOptions{
+				User:  "system_u",
+				Role:  "system_r",
+				Type:  "spc_t",
+				Level: "s0",
+			},
+		},
+		SeccompProfiles: []string{
+			"runtime/default",
+			"localhost/system-probe",
+		},
+		AllowedCapabilities: []corev1.Capability{
+			"SYS_ADMIN",
+			"SYS_RESOURCE",
+			"SYS_PTRACE",
+			"NET_ADMIN",
+			"NET_BROADCAST",
+			"NET_RAW",
+			"IPC_LOCK",
+			"CHOWN",
+			"AUDIT_CONTROL",
+			"AUDIT_READ",
+		},
+		AllowHostDirVolumePlugin: true,
+		AllowHostIPC:             true,
+		AllowPrivilegedContainer: false,
+		FSGroup: securityv1.FSGroupStrategyOptions{
+			Type: securityv1.FSGroupStrategyMustRunAs,
+		},
+		ReadOnlyRootFilesystem: false,
+		RunAsUser: securityv1.RunAsUserStrategyOptions{
+			Type: securityv1.RunAsUserStrategyRunAsAny,
+		},
+		SupplementalGroups: securityv1.SupplementalGroupsStrategyOptions{
+			Type: securityv1.SupplementalGroupsStrategyRunAsAny,
+		},
 	}
 }
 

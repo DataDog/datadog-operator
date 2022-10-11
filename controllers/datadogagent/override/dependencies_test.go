@@ -20,7 +20,6 @@ import (
 )
 
 func TestDependencies(t *testing.T) {
-	namespace := "test-namespace"
 	testLogger := logf.Log.WithName("TestRequiredComponents")
 
 	testScheme := runtime.NewScheme()
@@ -126,6 +125,26 @@ func TestDependencies(t *testing.T) {
 			},
 			expectsErrors: false,
 		},
+		{
+			name: "override scc without errors",
+			dda: v2alpha1.DatadogAgent{
+				Spec: v2alpha1.DatadogAgentSpec{
+					Override: map[v2alpha1.ComponentName]*v2alpha1.DatadogAgentComponentOverride{
+						v2alpha1.ClusterAgentComponentName: {
+							SecurityContextConstraints: &v2alpha1.SecurityContextConstraintsConfig{
+								Create: apiutils.NewBoolPointer(false),
+							},
+						},
+						v2alpha1.NodeAgentComponentName: {
+							SecurityContextConstraints: &v2alpha1.SecurityContextConstraintsConfig{
+								Create: apiutils.NewBoolPointer(false),
+							},
+						},
+					},
+				},
+			},
+			expectsErrors: false,
+		},
 	}
 
 	for _, test := range tests {
@@ -133,7 +152,7 @@ func TestDependencies(t *testing.T) {
 			store := dependencies.NewStore(&test.dda, storeOptions)
 			manager := feature.NewResourceManagers(store)
 
-			errs := Dependencies(testLogger, manager, test.dda.Spec.Override, "dd", namespace)
+			errs := Dependencies(testLogger, manager, &test.dda)
 
 			if test.expectsErrors {
 				assert.NotEmpty(t, errs)

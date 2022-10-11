@@ -38,6 +38,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./apis/datadoghq/v2alpha1.OTLPReceiverConfig":                schema__apis_datadoghq_v2alpha1_OTLPReceiverConfig(ref),
 		"./apis/datadoghq/v2alpha1.OrchestratorExplorerFeatureConfig": schema__apis_datadoghq_v2alpha1_OrchestratorExplorerFeatureConfig(ref),
 		"./apis/datadoghq/v2alpha1.PrometheusScrapeFeatureConfig":     schema__apis_datadoghq_v2alpha1_PrometheusScrapeFeatureConfig(ref),
+		"./apis/datadoghq/v2alpha1.SecurityContextConstraintsConfig":  schema__apis_datadoghq_v2alpha1_SecurityContextConstraintsConfig(ref),
 		"./apis/datadoghq/v2alpha1.UnixDomainSocketConfig":            schema__apis_datadoghq_v2alpha1_UnixDomainSocketConfig(ref),
 	}
 }
@@ -918,6 +919,34 @@ func schema__apis_datadoghq_v2alpha1_PrometheusScrapeFeatureConfig(ref common.Re
 				},
 			},
 		},
+	}
+}
+
+func schema__apis_datadoghq_v2alpha1_SecurityContextConstraintsConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SecurityContextConstraintsConfig provides SecurityContextConstraints configurations for the components.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"create": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Create defines whether to create a SecurityContextConstraints for the current component. If CustomConfiguration is not set, setting Create to `true` will create a default SCC.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"customConfiguration": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CustomConfiguration defines a custom SCC configuration to use if Create is `true`.",
+							Ref:         ref("github.com/openshift/api/security/v1.SecurityContextConstraints"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/openshift/api/security/v1.SecurityContextConstraints"},
 	}
 }
 

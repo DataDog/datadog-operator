@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strconv"
 
+	securityv1 "github.com/openshift/api/security/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -16,6 +17,7 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/common"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
@@ -241,6 +243,50 @@ func GetLeaderElectionPolicyRule(dda metav1.Object) []rbacv1.PolicyRule {
 			APIGroups: []string{rbac.CoreAPIGroup},
 			Resources: []string{rbac.ConfigMapsResource},
 			Verbs:     []string{rbac.CreateVerb},
+		},
+	}
+}
+
+// GetDefaultSCC returns the default SCC for the cluster agent component
+func GetDefaultSCC(dda *v2alpha1.DatadogAgent) *securityv1.SecurityContextConstraints {
+	return &securityv1.SecurityContextConstraints{
+		Users: []string{
+			fmt.Sprintf("system:serviceaccount:%s:%s", dda.Namespace, v2alpha1.GetClusterAgentServiceAccount(dda)),
+		},
+		Priority:                 apiutils.NewInt32Pointer(8),
+		AllowHostPorts:           v2alpha1.IsHostNetworkEnabled(dda, v2alpha1.ClusterAgentComponentName),
+		AllowHostNetwork:         v2alpha1.IsHostNetworkEnabled(dda, v2alpha1.ClusterAgentComponentName),
+		AllowHostDirVolumePlugin: false,
+		AllowHostIPC:             false,
+		AllowHostPID:             false,
+		// AllowPrivilegeEscalation: false, // unavailable: https://github.com/openshift/api/issues/1281
+		AllowPrivilegedContainer: false,
+		FSGroup: securityv1.FSGroupStrategyOptions{
+			Type: securityv1.FSGroupStrategyMustRunAs,
+		},
+		ReadOnlyRootFilesystem: false,
+		RequiredDropCapabilities: []corev1.Capability{
+			"KILL",
+			"MKNOD",
+			"SETUID",
+			"SETGID",
+		},
+		RunAsUser: securityv1.RunAsUserStrategyOptions{
+			Type: securityv1.RunAsUserStrategyMustRunAsRange,
+		},
+		SELinuxContext: securityv1.SELinuxContextStrategyOptions{
+			Type: securityv1.SELinuxStrategyMustRunAs,
+		},
+		SupplementalGroups: securityv1.SupplementalGroupsStrategyOptions{
+			Type: securityv1.SupplementalGroupsStrategyRunAsAny,
+		},
+		Volumes: []securityv1.FSType{
+			securityv1.FSTypeConfigMap,
+			securityv1.FSTypeDownwardAPI,
+			securityv1.FSTypeEmptyDir,
+			securityv1.FSTypePersistentVolumeClaim,
+			securityv1.FSProjected,
+			securityv1.FSTypeSecret,
 		},
 	}
 }
