@@ -243,6 +243,28 @@ func NewDatadogAgentWithOrchestratorExplorer(namespace string, name string) v2al
 	)
 }
 
+// NewDatadogAgentWithOTLP returns an agent with OTLP enabled
+func NewDatadogAgentWithOTLP(namespace string, name string) v2alpha1.DatadogAgent {
+	return newDatadogAgentWithFeatures(
+		namespace,
+		name,
+		&v2alpha1.DatadogFeatures{
+			OTLP: &v2alpha1.OTLPFeatureConfig{
+				Receiver: v2alpha1.OTLPReceiverConfig{
+					Protocols: v2alpha1.OTLPProtocolsConfig{
+						GRPC: &v2alpha1.OTLPGRPCConfig{
+							Enabled: apiutils.NewBoolPointer(true),
+						},
+						HTTP: &v2alpha1.OTLPHTTPConfig{
+							Enabled: apiutils.NewBoolPointer(true),
+						},
+					},
+				},
+			},
+		},
+	)
+}
+
 // NewDatadogAgentWithPrometheusScrape returns an agent with Prometheus scraping enabled
 func NewDatadogAgentWithPrometheusScrape(namespace string, name string) v2alpha1.DatadogAgent {
 	return newDatadogAgentWithFeatures(
