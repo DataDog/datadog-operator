@@ -322,7 +322,7 @@ func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.Datad
 		customConfigVolumeSource := objectvolume.GetVolumeFromCustomConfigSpec(
 			datadoghqv1alpha1.ConvertCustomConfig(dda.Spec.ClusterAgent.CustomConfig),
 			getClusterAgentCustomConfigConfigMapName(dda),
-			apicommon.AgentCustomConfigVolumeName,
+			apicommon.ClusterAgentCustomConfigVolumeName,
 		)
 		volumes = append(volumes, customConfigVolumeSource)
 
