@@ -290,6 +290,48 @@ func GetVolumeMountForRuntimeSocket(readOnly bool) corev1.VolumeMount {
 	}
 }
 
+// GetVolumeMountForSecurity returns the VolumeMount for datadog-agent-security
+func GetVolumeMountForSecurity() corev1.VolumeMount {
+	return corev1.VolumeMount{
+		Name:      apicommon.SeccompSecurityVolumeName,
+		MountPath: apicommon.SeccompSecurityVolumePath,
+	}
+}
+
+// GetVolumeForSecurity returns the Volume for datadog-agent-security
+func GetVolumeForSecurity(owner metav1.Object) corev1.Volume {
+	return corev1.Volume{
+		Name: apicommon.SeccompSecurityVolumeName,
+		VolumeSource: corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: GetDefaultSeccompConfigMapName(owner),
+				},
+			},
+		},
+	}
+}
+
+// GetVolumeMountForSeccomp returns the VolumeMount for seccomp root
+func GetVolumeMountForSeccomp() corev1.VolumeMount {
+	return corev1.VolumeMount{
+		Name:      apicommon.SeccompRootVolumeName,
+		MountPath: apicommon.SeccompRootVolumePath,
+	}
+}
+
+// GetVolumeForSeccomp returns the volume for seccomp root
+func GetVolumeForSeccomp() corev1.Volume {
+	return corev1.Volume{
+		Name: apicommon.SeccompRootVolumeName,
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: apicommon.SeccompRootPath,
+			},
+		},
+	}
+}
+
 // GetClusterAgentServiceName return the Cluster-Agent service name based on the DatadogAgent name
 func GetClusterAgentServiceName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultClusterAgentResourceSuffix)
@@ -335,6 +377,11 @@ func GetAgentSCCName(dda metav1.Object) string {
 // GetClusterChecksRunnerName return the Cluster-Checks-Runner name based on the DatadogAgent name
 func GetClusterChecksRunnerName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultClusterChecksRunnerResourceSuffix)
+}
+
+// GetDefaultSeccompConfigMapName returns the default seccomp configmap name based on the DatadogAgent name
+func GetDefaultSeccompConfigMapName(dda metav1.Object) string {
+	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.SystemProbeAgentSecurityConfigMapSuffixName)
 }
 
 // BuildEnvVarFromSource return an *corev1.EnvVar from a Env Var name and *corev1.EnvVarSource

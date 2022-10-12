@@ -27622,7 +27622,8 @@ spec:
                           describing any container's common configuration.
                         properties:
                           appArmorProfileName:
-                            description: AppArmorProfileName specify a apparmor profile.
+                            description: AppArmorProfileName specifies an apparmor
+                              profile.
                             type: string
                           args:
                             description: Args allows the specification of extra args
@@ -28106,6 +28107,76 @@ spec:
                                   explicitly specified, otherwise to an implementation-defined
                                   value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                                 type: object
+                            type: object
+                          seccompConfig:
+                            description: Seccomp configurations to override Operator
+                              actions. For all other Seccomp Profile manipulation,
+                              use SecurityContext.
+                            properties:
+                              customProfile:
+                                description: CustomProfile specifies a ConfigMap containing
+                                  a custom Seccomp Profile. ConfigMap data must either
+                                  have the key `system-probe-seccomp.json` or CustomProfile.Items
+                                  must include a corev1.KeytoPath that maps the key
+                                  to the path `system-probe-seccomp.json`.
+                                properties:
+                                  configData:
+                                    description: ConfigData corresponds to the configuration
+                                      file content.
+                                    type: string
+                                  configMap:
+                                    description: ConfigMap references an existing
+                                      ConfigMap with the configuration file content.
+                                    properties:
+                                      items:
+                                        description: Items maps a ConfigMap data key
+                                          to a file path mount.
+                                        items:
+                                          description: Maps a string key to a path
+                                            within a volume.
+                                          properties:
+                                            key:
+                                              description: The key to project.
+                                              type: string
+                                            mode:
+                                              description: 'Optional: mode bits used
+                                                to set permissions on this file. Must
+                                                be an octal value between 0000 and
+                                                0777 or a decimal value between 0
+                                                and 511. YAML accepts both octal and
+                                                decimal values, JSON requires decimal
+                                                values for mode bits. If not specified,
+                                                the volume defaultMode will be used.
+                                                This might be in conflict with other
+                                                options that affect the file mode,
+                                                like fsGroup, and the result can be
+                                                other mode bits set.'
+                                              format: int32
+                                              type: integer
+                                            path:
+                                              description: The relative path of the
+                                                file to map the key to. May not be
+                                                an absolute path. May not contain
+                                                the path element '..'. May not start
+                                                with the string '..'.
+                                              type: string
+                                          required:
+                                          - key
+                                          - path
+                                          type: object
+                                        type: array
+                                        x-kubernetes-list-map-keys:
+                                        - key
+                                        x-kubernetes-list-type: map
+                                      name:
+                                        description: Name is the name of the ConfigMap.
+                                        type: string
+                                    type: object
+                                type: object
+                              customRootPath:
+                                description: CustomRootPath specifies a custom Seccomp
+                                  Profile root location.
+                                type: string
                             type: object
                           securityContext:
                             description: Container-level SecurityContext.
@@ -28726,67 +28797,6 @@ spec:
                         deployment
                       format: int32
                       type: integer
-                    secCompCustomProfile:
-                      description: SecCompCustomProfileConfigMap specify a pre-existing
-                        ConfigMap containing a custom SecComp profile.
-                      properties:
-                        configData:
-                          description: ConfigData corresponds to the configuration
-                            file content.
-                          type: string
-                        configMap:
-                          description: ConfigMap references an existing ConfigMap
-                            with the configuration file content.
-                          properties:
-                            items:
-                              description: Items maps a ConfigMap data key to a file
-                                path mount.
-                              items:
-                                description: Maps a string key to a path within a
-                                  volume.
-                                properties:
-                                  key:
-                                    description: The key to project.
-                                    type: string
-                                  mode:
-                                    description: 'Optional: mode bits used to set
-                                      permissions on this file. Must be an octal value
-                                      between 0000 and 0777 or a decimal value between
-                                      0 and 511. YAML accepts both octal and decimal
-                                      values, JSON requires decimal values for mode
-                                      bits. If not specified, the volume defaultMode
-                                      will be used. This might be in conflict with
-                                      other options that affect the file mode, like
-                                      fsGroup, and the result can be other mode bits
-                                      set.'
-                                    format: int32
-                                    type: integer
-                                  path:
-                                    description: The relative path of the file to
-                                      map the key to. May not be an absolute path.
-                                      May not contain the path element '..'. May not
-                                      start with the string '..'.
-                                    type: string
-                                required:
-                                - key
-                                - path
-                                type: object
-                              type: array
-                              x-kubernetes-list-map-keys:
-                              - key
-                              x-kubernetes-list-type: map
-                            name:
-                              description: Name is the name of the ConfigMap.
-                              type: string
-                          type: object
-                      type: object
-                    secCompProfileName:
-                      description: SecCompProfileName specify a seccomp profile.
-                      type: string
-                    secCompRootPath:
-                      description: SecCompRootPath specify the seccomp profile root
-                        directory.
-                      type: string
                     securityContext:
                       description: Pod-level SecurityContext.
                       properties:

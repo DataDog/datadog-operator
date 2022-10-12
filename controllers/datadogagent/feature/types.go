@@ -141,6 +141,7 @@ type ResourceManagers interface {
 	NetworkPolicyManager() merger.NetworkPolicyManager
 	ServiceManager() merger.ServiceManager
 	CiliumPolicyManager() merger.CiliumPolicyManager
+	ConfigMapManager() merger.ConfigMapManager
 	APIServiceManager() merger.APIServiceManager
 }
 
@@ -154,6 +155,7 @@ func NewResourceManagers(store dependencies.StoreClient) ResourceManagers {
 		networkPolicy: merger.NewNetworkPolicyManager(store),
 		service:       merger.NewServiceManager(store),
 		cilium:        merger.NewCiliumPolicyManager(store),
+		configMap:     merger.NewConfigMapManager(store),
 		apiService:    merger.NewAPIServiceManager(store),
 	}
 }
@@ -166,6 +168,7 @@ type resourceManagersImpl struct {
 	networkPolicy merger.NetworkPolicyManager
 	service       merger.ServiceManager
 	cilium        merger.CiliumPolicyManager
+	configMap     merger.ConfigMapManager
 	apiService    merger.APIServiceManager
 }
 
@@ -195,6 +198,10 @@ func (impl *resourceManagersImpl) ServiceManager() merger.ServiceManager {
 
 func (impl *resourceManagersImpl) CiliumPolicyManager() merger.CiliumPolicyManager {
 	return impl.cilium
+}
+
+func (impl *resourceManagersImpl) ConfigMapManager() merger.ConfigMapManager {
+	return impl.configMap
 }
 
 func (impl *resourceManagersImpl) APIServiceManager() merger.APIServiceManager {

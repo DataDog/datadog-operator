@@ -255,9 +255,15 @@ func schema__apis_datadoghq_v2alpha1_DatadogAgentGenericContainer(ref common.Ref
 							Ref:         ref("k8s.io/api/core/v1.SecurityContext"),
 						},
 					},
+					"seccompConfig": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Seccomp configurations to override Operator actions. For all other Seccomp Profile manipulation, use SecurityContext.",
+							Ref:         ref("./apis/datadoghq/v2alpha1.SeccompConfig"),
+						},
+					},
 					"appArmorProfileName": {
 						SchemaProps: spec.SchemaProps{
-							Description: "AppArmorProfileName specify a apparmor profile.",
+							Description: "AppArmorProfileName specifies an apparmor profile.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -266,7 +272,7 @@ func schema__apis_datadoghq_v2alpha1_DatadogAgentGenericContainer(ref common.Ref
 			},
 		},
 		Dependencies: []string{
-			"k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.Probe", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.SecurityContext", "k8s.io/api/core/v1.VolumeMount"},
+			"./apis/datadoghq/v2alpha1.SeccompConfig", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.Probe", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.SecurityContext", "k8s.io/api/core/v1.VolumeMount"},
 	}
 }
 

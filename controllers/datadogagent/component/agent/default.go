@@ -53,12 +53,9 @@ func NewDefaultAgentPodTemplateSpec(dda metav1.Object, requiredContainers []comm
 				RunAsUser: apiutils.NewInt64Pointer(0),
 			},
 			ServiceAccountName: getDefaultServiceAccountName(dda),
-			InitContainers: []corev1.Container{
-				initVolumeContainer(),
-				initConfigContainer(dda),
-			},
-			Containers: agentContainers(dda, requiredContainers),
-			Volumes:    volumesForAgent(dda),
+			InitContainers:     initContainers(dda, requiredContainers),
+			Containers:         agentContainers(dda, requiredContainers),
+			Volumes:            volumesForAgent(dda, requiredContainers),
 		},
 	}
 }
@@ -84,6 +81,20 @@ func getDefaultServiceAccountName(dda metav1.Object) string {
 
 func agentImage() string {
 	return fmt.Sprintf("%s/%s:%s", apicommon.DefaultImageRegistry, apicommon.DefaultAgentImageName, defaulting.AgentLatestVersion)
+}
+
+func initContainers(dda metav1.Object, requiredContainers []common.AgentContainerName) []corev1.Container {
+	initContainers := []corev1.Container{
+		initVolumeContainer(),
+		initConfigContainer(dda),
+	}
+	for _, containerName := range requiredContainers {
+		if containerName == common.SystemProbeContainerName {
+			initContainers = append(initContainers, initSeccompSetupContainer())
+		}
+	}
+
+	return initContainers
 }
 
 func agentContainers(dda metav1.Object, requiredContainers []common.AgentContainerName) []corev1.Container {
@@ -176,6 +187,12 @@ func systemProbeContainer(dda metav1.Object) corev1.Container {
 		VolumeMounts:   volumeMountsForSystemProbe(),
 		LivenessProbe:  apicommon.GetDefaultLivenessProbe(),
 		ReadinessProbe: apicommon.GetDefaultReadinessProbe(),
+		SecurityContext: &corev1.SecurityContext{
+			SeccompProfile: &corev1.SeccompProfile{
+				Type:             corev1.SeccompProfileTypeLocalhost,
+				LocalhostProfile: apiutils.NewStringPointer(apicommon.SystemProbeSeccompProfileName),
+			},
+		},
 	}
 }
 
@@ -204,6 +221,19 @@ func initConfigContainer(dda metav1.Object) corev1.Container {
 		},
 		VolumeMounts: volumeMountsForInitConfig(),
 		Env:          envVarsForCoreAgent(dda),
+	}
+}
+
+func initSeccompSetupContainer() corev1.Container {
+	return corev1.Container{
+		Name:  "seccomp-setup",
+		Image: agentImage(),
+		Command: []string{
+			"cp",
+			fmt.Sprintf("%s/%s", apicommon.SeccompSecurityVolumePath, apicommon.SystemProbeSeccompKey),
+			fmt.Sprintf("%s/%s", apicommon.SeccompRootVolumePath, apicommon.SystemProbeSeccompProfileName),
+		},
+		VolumeMounts: volumeMountsForSeccompSetup(),
 	}
 }
 
@@ -273,8 +303,8 @@ func volumeMountsForInitConfig() []corev1.VolumeMount {
 	}
 }
 
-func volumesForAgent(dda metav1.Object) []corev1.Volume {
-	return []corev1.Volume{
+func volumesForAgent(dda metav1.Object, requiredContainers []common.AgentContainerName) []corev1.Volume {
+	volumes := []corev1.Volume{
 		component.GetVolumeForLogs(),
 		component.GetVolumeForAuth(),
 		component.GetVolumeInstallInfo(dda),
@@ -286,6 +316,18 @@ func volumesForAgent(dda metav1.Object) []corev1.Volume {
 		component.GetVolumeForDogstatsd(),
 		component.GetVolumeForRuntimeSocket(),
 	}
+
+	for _, containerName := range requiredContainers {
+		if containerName == common.SystemProbeContainerName {
+			sysProbeVolumes := []corev1.Volume{
+				component.GetVolumeForSecurity(dda),
+				component.GetVolumeForSeccomp(),
+			}
+			volumes = append(volumes, sysProbeVolumes...)
+		}
+	}
+
+	return volumes
 }
 
 func volumeMountsForCoreAgent() []corev1.VolumeMount {
@@ -393,5 +435,228 @@ func GetDefaultSCC(dda *v2alpha1.DatadogAgent) *securityv1.SecurityContextConstr
 		SupplementalGroups: securityv1.SupplementalGroupsStrategyOptions{
 			Type: securityv1.SupplementalGroupsStrategyRunAsAny,
 		},
+	}
+}
+
+func volumeMountsForSeccompSetup() []corev1.VolumeMount {
+	return []corev1.VolumeMount{
+		component.GetVolumeMountForSecurity(),
+		component.GetVolumeMountForSeccomp(),
+	}
+}
+
+// DefaultSeccompConfigDataForSystemProbe returns configmap data for the default seccomp profile
+func DefaultSeccompConfigDataForSystemProbe() map[string]string {
+	return map[string]string{
+		"system-probe-seccomp.json": `{
+			"defaultAction": "SCMP_ACT_ERRNO",
+			"syscalls": [
+				{
+				"names": [
+					"accept4",
+					"access",
+					"arch_prctl",
+					"bind",
+					"bpf",
+					"brk",
+					"capget",
+					"capset",
+					"chdir",
+					"chmod",
+					"clock_gettime",
+					"clone",
+					"clone3",
+					"close",
+					"connect",
+					"copy_file_range",
+					"creat",
+					"dup",
+					"dup2",
+					"dup3",
+					"epoll_create",
+					"epoll_create1",
+					"epoll_ctl",
+					"epoll_ctl_old",
+					"epoll_pwait",
+					"epoll_wait",
+					"epoll_wait_old",
+					"eventfd",
+					"eventfd2",
+					"execve",
+					"execveat",
+					"exit",
+					"exit_group",
+					"faccessat",
+					"faccessat2",
+					"fchmod",
+					"fchmodat",
+					"fchown",
+					"fchown32",
+					"fchownat",
+					"fcntl",
+					"fcntl64",
+					"flock",
+					"fstat",
+					"fstat64",
+					"fstatfs",
+					"fsync",
+					"futex",
+					"getcwd",
+					"getdents",
+					"getdents64",
+					"getegid",
+					"geteuid",
+					"getgid",
+					"getgroups",
+					"getpeername",
+					"getpgrp",
+					"getpid",
+					"getppid",
+					"getpriority",
+					"getrandom",
+					"getresgid",
+					"getresgid32",
+					"getresuid",
+					"getresuid32",
+					"getrlimit",
+					"getrusage",
+					"getsid",
+					"getsockname",
+					"getsockopt",
+					"gettid",
+					"gettimeofday",
+					"getuid",
+					"getxattr",
+					"ioctl",
+					"ipc",
+					"listen",
+					"lseek",
+					"lstat",
+					"lstat64",
+					"madvise",
+					"mkdir",
+					"mkdirat",
+					"mmap",
+					"mmap2",
+					"mprotect",
+					"mremap",
+					"munmap",
+					"nanosleep",
+					"newfstatat",
+					"open",
+					"openat",
+					"openat2",
+					"pause",
+					"perf_event_open",
+					"pipe",
+					"pipe2",
+					"poll",
+					"ppoll",
+					"prctl",
+					"pread64",
+					"prlimit64",
+					"pselect6",
+					"read",
+					"readlink",
+					"readlinkat",
+					"recvfrom",
+					"recvmmsg",
+					"recvmsg",
+					"rename",
+					"renameat",
+					"renameat2",
+					"restart_syscall",
+					"rmdir",
+					"rseq",
+					"rt_sigaction",
+					"rt_sigpending",
+					"rt_sigprocmask",
+					"rt_sigqueueinfo",
+					"rt_sigreturn",
+					"rt_sigsuspend",
+					"rt_sigtimedwait",
+					"rt_tgsigqueueinfo",
+					"sched_getaffinity",
+					"sched_yield",
+					"seccomp",
+					"select",
+					"semtimedop",
+					"send",
+					"sendmmsg",
+					"sendmsg",
+					"sendto",
+					"set_robust_list",
+					"set_tid_address",
+					"setgid",
+					"setgid32",
+					"setgroups",
+					"setgroups32",
+					"setitimer",
+					"setns",
+					"setpgid",
+					"setrlimit",
+					"setsid",
+					"setsidaccept4",
+					"setsockopt",
+					"setuid",
+					"setuid32",
+					"sigaltstack",
+					"socket",
+					"socketcall",
+					"socketpair",
+					"stat",
+					"stat64",
+					"statfs",
+					"symlinkat",
+					"sysinfo",
+					"tgkill",
+					"umask",
+					"uname",
+					"unlink",
+					"unlinkat",
+					"wait4",
+					"waitid",
+					"waitpid",
+					"write"
+				],
+				"action": "SCMP_ACT_ALLOW",
+				"args": null
+				},
+				{
+				"names": [
+					"setns"
+				],
+				"action": "SCMP_ACT_ALLOW",
+				"args": [
+					{
+					"index": 1,
+					"value": 1073741824,
+					"valueTwo": 0,
+					"op": "SCMP_CMP_EQ"
+					}
+				],
+				"comment": "",
+				"includes": {},
+				"excludes": {}
+				},
+				{
+				"names": [
+					"kill"
+				],
+				"action": "SCMP_ACT_ALLOW",
+				"args": [
+					{
+					"index": 1,
+					"value": 0,
+					"op": "SCMP_CMP_EQ"
+					}
+				],
+				"comment": "allow process detection via kill",
+				"includes": {},
+				"excludes": {}
+				}
+			]
+		}
+		`,
 	}
 }

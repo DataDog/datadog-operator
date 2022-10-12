@@ -267,7 +267,7 @@ func defaultSystemProbeVolumes() []corev1.Volume {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.SystemProbeAgentSecurityVolumeName,
+			Name: apicommon.SeccompSecurityVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
 					LocalObjectReference: corev1.LocalObjectReference{
@@ -287,7 +287,7 @@ func defaultSystemProbeVolumes() []corev1.Volume {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.SystemProbeSecCompRootVolumeName,
+			Name: apicommon.SeccompRootVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: "/var/lib/kubelet/seccomp",
@@ -499,7 +499,7 @@ func runtimeSecurityAgentVolumes() []corev1.Volume {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.SystemProbeAgentSecurityVolumeName,
+			Name: apicommon.SeccompSecurityVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				ConfigMap: &corev1.ConfigMapVolumeSource{
 					LocalObjectReference: corev1.LocalObjectReference{
@@ -519,7 +519,7 @@ func runtimeSecurityAgentVolumes() []corev1.Volume {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.SystemProbeSecCompRootVolumeName,
+			Name: apicommon.SeccompRootVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: "/var/lib/kubelet/seccomp",
@@ -1222,11 +1222,11 @@ func defaultSystemProbePodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodSp
 				Command:         []string{"cp", "/etc/config/system-probe-seccomp.json", "/host/var/lib/kubelet/seccomp/system-probe"},
 				VolumeMounts: []corev1.VolumeMount{
 					{
-						Name:      datadoghqv1alpha1.SystemProbeAgentSecurityVolumeName,
+						Name:      apicommon.SeccompSecurityVolumeName,
 						MountPath: "/etc/config",
 					},
 					{
-						Name:      datadoghqv1alpha1.SystemProbeSecCompRootVolumeName,
+						Name:      apicommon.SeccompRootVolumeName,
 						MountPath: "/host/var/lib/kubelet/seccomp",
 					},
 				},
@@ -1310,7 +1310,7 @@ func noSeccompInstallSystemProbeSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1
 	// Remove volumes for seccomp profile install
 	var volumes []corev1.Volume
 	for _, vol := range defaultSystemProbeVolumes() {
-		if vol.Name == datadoghqv1alpha1.SystemProbeSecCompRootVolumeName || vol.Name == datadoghqv1alpha1.SystemProbeAgentSecurityVolumeName {
+		if vol.Name == apicommon.SeccompRootVolumeName || vol.Name == apicommon.SeccompSecurityVolumeName {
 			continue
 		}
 		volumes = append(volumes, vol)
@@ -1696,11 +1696,11 @@ func runtimeSecurityAgentPodSpec(extraEnv map[string]string, extraDir string) co
 				Command:         []string{"cp", "/etc/config/system-probe-seccomp.json", "/host/var/lib/kubelet/seccomp/system-probe"},
 				VolumeMounts: []corev1.VolumeMount{
 					{
-						Name:      datadoghqv1alpha1.SystemProbeAgentSecurityVolumeName,
+						Name:      apicommon.SeccompSecurityVolumeName,
 						MountPath: "/etc/config",
 					},
 					{
-						Name:      datadoghqv1alpha1.SystemProbeSecCompRootVolumeName,
+						Name:      apicommon.SeccompRootVolumeName,
 						MountPath: "/host/var/lib/kubelet/seccomp",
 					},
 				},

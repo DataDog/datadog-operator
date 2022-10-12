@@ -413,6 +413,14 @@ func NewDatadogAgentWithOverrides(namespace string, name string) v2alpha1.Datado
 				SecurityContext: &v1.SecurityContext{
 					RunAsUser: apiutils.NewInt64Pointer(12345),
 				},
+				SeccompConfig: &v2alpha1.SeccompConfig{
+					CustomRootPath: apiutils.NewStringPointer("/some/path"),
+					CustomProfile: &v2alpha1.CustomConfig{
+						ConfigMap: &common.ConfigMapConfig{
+							Name: "custom-seccomp-cm",
+						},
+					},
+				},
 				AppArmorProfileName: apiutils.NewStringPointer("runtime/default"),
 			},
 		},
@@ -461,12 +469,9 @@ func NewDatadogAgentWithOverrides(namespace string, name string) v2alpha1.Datado
 		Labels: map[string]string{
 			"some-label": "456",
 		},
-		HostNetwork:          apiutils.NewBoolPointer(false),
-		HostPID:              apiutils.NewBoolPointer(true),
-		SecCompRootPath:      apiutils.NewStringPointer("/some/path"),
-		SecCompCustomProfile: &v2alpha1.CustomConfig{},
-		SecCompProfileName:   apiutils.NewStringPointer("some-comp-profile"),
-		Disabled:             apiutils.NewBoolPointer(false),
+		HostNetwork: apiutils.NewBoolPointer(false),
+		HostPID:     apiutils.NewBoolPointer(true),
+		Disabled:    apiutils.NewBoolPointer(false),
 	}
 
 	return agent

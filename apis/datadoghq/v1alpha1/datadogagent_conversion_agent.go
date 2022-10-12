@@ -6,6 +6,8 @@
 package v1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
+
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/apis/utils"
@@ -365,21 +367,47 @@ func convertSystemProbeSpec(src *SystemProbeSpec, dst *v2alpha1.DatadogAgent) {
 		getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), commonv1.SystemProbeContainerName).Args = src.Args
 	}
 
-	// System-probe specific fields
 	if src.SecCompRootPath != "" {
-		getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName).SecCompRootPath = &src.SecCompRootPath
+		tmplOverride := getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName)
+		ddaGeneric := getV2Container(tmplOverride, commonv1.SystemProbeContainerName)
+		ddaGeneric.SeccompConfig = &v2alpha1.SeccompConfig{CustomRootPath: &src.SecCompRootPath}
 	}
 
 	if src.SecCompCustomProfileConfigMap != "" {
-		getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName).SecCompCustomProfile = &v2alpha1.CustomConfig{
+		tmplOverride := getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName)
+		ddaGeneric := getV2Container(tmplOverride, commonv1.SystemProbeContainerName)
+		customConfigMap := &v2alpha1.CustomConfig{
 			ConfigMap: &commonv1.ConfigMapConfig{
 				Name: src.SecCompCustomProfileConfigMap,
 			},
 		}
+		if ddaGeneric.SeccompConfig == nil {
+			ddaGeneric.SeccompConfig = &v2alpha1.SeccompConfig{
+				CustomProfile: customConfigMap,
+			}
+		} else if ddaGeneric.SeccompConfig.CustomProfile == nil {
+			ddaGeneric.SeccompConfig.CustomProfile = customConfigMap
+		} else {
+			ddaGeneric.SeccompConfig.CustomProfile.ConfigMap.Name = src.SecCompCustomProfileConfigMap
+		}
 	}
 
 	if src.SecCompProfileName != "" {
-		getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName).SecCompProfileName = &src.SecCompProfileName
+		sysProbeContainer := getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), commonv1.SystemProbeContainerName)
+		customSeccompProfile := &corev1.SeccompProfile{
+			Type:             corev1.SeccompProfileTypeLocalhost,
+			LocalhostProfile: &src.SecCompProfileName,
+		}
+		if sysProbeContainer.SecurityContext == nil {
+			sysProbeContainer.SecurityContext = &corev1.SecurityContext{
+				SeccompProfile: customSeccompProfile,
+			}
+		} else if sysProbeContainer.SecurityContext.SeccompProfile == nil {
+			sysProbeContainer.SecurityContext.SeccompProfile = customSeccompProfile
+		} else {
+			sysProbeContainer.SecurityContext.SeccompProfile.Type = corev1.SeccompProfileTypeLocalhost
+			sysProbeContainer.SecurityContext.SeccompProfile.LocalhostProfile = &src.SecCompProfileName
+		}
 	}
 
 	if src.AppArmorProfileName != "" {

@@ -470,17 +470,17 @@ func getInitContainers(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, 
 			Resources:       *spec.Agent.Config.Resources,
 			Command: []string{
 				"cp",
-				fmt.Sprintf("%s/system-probe-seccomp.json", datadoghqv1alpha1.SystemProbeAgentSecurityVolumePath),
-				fmt.Sprintf("%s/system-probe", datadoghqv1alpha1.SystemProbeSecCompRootVolumePath),
+				fmt.Sprintf("%s/system-probe-seccomp.json", apicommon.SeccompSecurityVolumePath),
+				fmt.Sprintf("%s/system-probe", apicommon.SeccompRootVolumePath),
 			},
 			VolumeMounts: []corev1.VolumeMount{
 				{
-					Name:      datadoghqv1alpha1.SystemProbeAgentSecurityVolumeName,
-					MountPath: datadoghqv1alpha1.SystemProbeAgentSecurityVolumePath,
+					Name:      apicommon.SeccompSecurityVolumeName,
+					MountPath: apicommon.SeccompSecurityVolumePath,
 				},
 				{
-					Name:      datadoghqv1alpha1.SystemProbeSecCompRootVolumeName,
-					MountPath: datadoghqv1alpha1.SystemProbeSecCompRootVolumePath,
+					Name:      apicommon.SeccompRootVolumeName,
+					MountPath: apicommon.SeccompRootVolumePath,
 				},
 			},
 		}
@@ -1178,7 +1178,7 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 
 		if shouldInstallSeccompProfileFromConfigMap(dda) {
 			systemProbeVolumes = append(systemProbeVolumes, corev1.Volume{
-				Name: datadoghqv1alpha1.SystemProbeAgentSecurityVolumeName,
+				Name: apicommon.SeccompSecurityVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					ConfigMap: &corev1.ConfigMapVolumeSource{
 						LocalObjectReference: corev1.LocalObjectReference{
@@ -1188,7 +1188,7 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 				},
 			})
 			systemProbeVolumes = append(systemProbeVolumes, corev1.Volume{
-				Name: datadoghqv1alpha1.SystemProbeSecCompRootVolumeName,
+				Name: apicommon.SeccompRootVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
 						Path: getSecCompRootPath(dda.Spec.Agent.SystemProbe),

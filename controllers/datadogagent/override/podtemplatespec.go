@@ -26,10 +26,6 @@ func PodTemplateSpec(manager feature.PodTemplateManagers, override *v2alpha1.Dat
 		return
 	}
 
-	// TODO: seccomprootpath, seccompcustomprofile, seccomprofilename.
-	// They should only apply to system-probe, and I think there's some setup
-	// that we need to do before being able to override them.
-
 	if override.ServiceAccountName != nil {
 		manager.PodTemplateSpec().Spec.ServiceAccountName = *override.ServiceAccountName
 	}
