@@ -125,6 +125,11 @@ var _ = Describe("V2 Controller - DatadogAgent Deployment", func() {
 	)
 
 	Context(
+		"with OTLP",
+		testFunction(testutils.NewDatadogAgentWithOTLP(namespace, "with-otlp")),
+	)
+
+	Context(
 		"with Prometheus scrape",
 		testFunction(testutils.NewDatadogAgentWithPrometheusScrape(namespace, "with-prometheus-scrape")),
 	)
