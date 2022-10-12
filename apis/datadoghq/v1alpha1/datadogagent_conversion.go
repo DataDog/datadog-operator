@@ -181,7 +181,8 @@ func convertConfigMapConfig(src *CustomConfigSpec) *v2alpha1.CustomConfig {
 		// TODO: Check if that was the intended usage of `FileKey`
 		if src.ConfigMap.FileKey != "" {
 			dstConfig.ConfigMap.Items = append(dstConfig.ConfigMap.Items, v1.KeyToPath{
-				Key: src.ConfigMap.FileKey,
+				Key:  src.ConfigMap.FileKey,
+				Path: src.ConfigMap.FileKey,
 			})
 		}
 	}
