@@ -91,11 +91,12 @@ metadata:
     description: Datadog provides a modern monitoring and analytics platform. Gather
       metrics, logs and traces for full observability of your Kubernetes cluster with
       Datadog Operator.
-    operators.operatorframework.io/builder: operator-sdk-v1.13.0+git
+    operators.operatorframework.io/builder: operator-sdk-v1.23.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     repository: https://github.com/DataDog/datadog-operator
-    containerImage: gcr.io/datadoghq/operator:0.8.0
-  name: datadog-operator.v0.8.0
+    containerImage: gcr.io/datadoghq/operator:1.0.0-rc.1
+    olm.skipRange: <1.0.0-rc.1
+  name: datadog-operator.v1.0.0-rc.1
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -106,6 +107,11 @@ spec:
       kind: DatadogAgent
       name: datadogagents.datadoghq.com
       version: v1alpha1
+    - description: DatadogAgent Deployment with the Datadog Operator.
+      displayName: Datadog Agent
+      kind: DatadogAgent
+      name: datadogagents.datadoghq.com
+      version: v2alpha1
     - description: DatadogMetric allows autoscaling on arbitrary Datadog query
       displayName: Datadog Metric
       kind: DatadogMetric
@@ -790,17 +796,22 @@ spec:
           - use
         serviceAccountName: datadog-agent-scc
       deployments:
-      - name: datadog-operator-manager
+      - label:
+          app.kubernetes.io/name: datadog-operator
+          control-plane: controller-manager
+        name: datadog-operator-manager
         spec:
           replicas: 1
           selector:
             matchLabels:
               app.kubernetes.io/name: datadog-operator
+              control-plane: controller-manager
           strategy: {}
           template:
             metadata:
               labels:
                 app.kubernetes.io/name: datadog-operator
+                control-plane: controller-manager
             spec:
               containers:
               - args:
@@ -817,7 +828,7 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.annotations['olm.targetNamespaces']
-                image: gcr.io/datadoghq/operator:0.8.0
+                image: gcr.io/datadoghq/operator:1.0.0-rc.1
                 imagePullPolicy: IfNotPresent
                 livenessProbe:
                   httpGet:
@@ -826,6 +837,9 @@ spec:
                   periodSeconds: 10
                 name: manager
                 ports:
+                - containerPort: 9443
+                  name: webhook-server
+                  protocol: TCP
                 - containerPort: 8080
                   name: metrics
                   protocol: TCP
@@ -836,8 +850,17 @@ spec:
                   requests:
                     cpu: 100m
                     memory: 250Mi
+                volumeMounts:
+                - mountPath: /tmp/k8s-webhook-server/serving-certs
+                  name: cert
+                  readOnly: true
               serviceAccountName: datadog-operator-controller-manager
               terminationGracePeriodSeconds: 10
+              volumes:
+              - name: cert
+                secret:
+                  defaultMode: 420
+                  secretName: webhook-server-cert
       permissions:
       - rules:
         - apiGroups:
@@ -882,9 +905,9 @@ spec:
         serviceAccountName: datadog-operator-controller-manager
     strategy: deployment
   installModes:
-  - supported: true
+  - supported: false
     type: OwnNamespace
-  - supported: true
+  - supported: false
     type: SingleNamespace
   - supported: false
     type: MultiNamespace
@@ -907,4 +930,16 @@ spec:
   minKubeVersion: 1.16.0
   provider:
     name: Datadog
-  version: 0.8.0
+  version: 1.0.0-rc.1
+  webhookdefinitions:
+  - admissionReviewVersions:
+    - v1
+    containerPort: 443
+    conversionCRDs:
+    - datadogagents.datadoghq.com
+    deploymentName: datadog-operator-manager
+    generateName: cdatadogagents.kb.io
+    sideEffects: None
+    targetPort: 9443
+    type: ConversionWebhook
+    webhookPath: /convert
