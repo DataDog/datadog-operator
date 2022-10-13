@@ -91,7 +91,7 @@ build_operator_check_image_amd64:
   variables:
     GOARCH: amd64
     TARGET_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME_CHECK:v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}-amd64
-    RELEASE_IMAGE: $@DOCKER_REGISTRY/$PROJECTNAME_CHECK:$CI_COMMIT_TAG-amd64
+    RELEASE_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME_CHECK:$CI_COMMIT_TAG-amd64
   script:
     # DockerHub login for build to limit rate limit when pulling base images
     - DOCKER_REGISTRY_LOGIN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_LOGIN_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
