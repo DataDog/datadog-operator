@@ -296,6 +296,7 @@ func volumeMountsForInitConfig() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		component.GetVolumeMountForLogs(),
 		component.GetVolumeMountForChecksd(),
+		component.GetVolumeMountForAuth(false),
 		component.GetVolumeMountForConfd(),
 		component.GetVolumeMountForConfig(),
 		component.GetVolumeMountForProc(),
@@ -333,7 +334,7 @@ func volumesForAgent(dda metav1.Object, requiredContainers []common.AgentContain
 func volumeMountsForCoreAgent() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		component.GetVolumeMountForLogs(),
-		component.GetVolumeMountForAuth(),
+		component.GetVolumeMountForAuth(false),
 		component.GetVolumeMountForInstallInfo(),
 		component.GetVolumeMountForConfig(),
 		component.GetVolumeMountForProc(),
@@ -346,7 +347,7 @@ func volumeMountsForCoreAgent() []corev1.VolumeMount {
 func volumeMountsForTraceAgent() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		component.GetVolumeMountForLogs(),
-		component.GetVolumeMountForAuth(),
+		component.GetVolumeMountForAuth(true),
 		component.GetVolumeMountForConfig(),
 		component.GetVolumeMountForDogstatsdSocket(true),
 		component.GetVolumeMountForRuntimeSocket(true),
@@ -356,7 +357,7 @@ func volumeMountsForTraceAgent() []corev1.VolumeMount {
 func volumeMountsForProcessAgent() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		component.GetVolumeMountForLogs(),
-		component.GetVolumeMountForAuth(),
+		component.GetVolumeMountForAuth(true),
 		component.GetVolumeMountForConfig(),
 		component.GetVolumeMountForDogstatsdSocket(true),
 		component.GetVolumeMountForRuntimeSocket(true),
@@ -366,7 +367,7 @@ func volumeMountsForProcessAgent() []corev1.VolumeMount {
 func volumeMountsForSecurityAgent() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		component.GetVolumeMountForLogs(),
-		component.GetVolumeMountForAuth(),
+		component.GetVolumeMountForAuth(true),
 		component.GetVolumeMountForConfig(),
 		component.GetVolumeMountForDogstatsdSocket(true),
 		component.GetVolumeMountForRuntimeSocket(true),
@@ -376,7 +377,7 @@ func volumeMountsForSecurityAgent() []corev1.VolumeMount {
 func volumeMountsForSystemProbe() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		component.GetVolumeMountForLogs(),
-		component.GetVolumeMountForAuth(),
+		component.GetVolumeMountForAuth(true),
 		component.GetVolumeMountForConfig(),
 	}
 }
