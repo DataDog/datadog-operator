@@ -177,11 +177,11 @@ func GetVolumeMountForRmCorechecks() corev1.VolumeMount {
 }
 
 // GetVolumeMountForAuth returns the VolumeMount that contains the authentication information
-func GetVolumeMountForAuth() corev1.VolumeMount {
+func GetVolumeMountForAuth(readOnly bool) corev1.VolumeMount {
 	return corev1.VolumeMount{
 		Name:      apicommon.AuthVolumeName,
 		MountPath: apicommon.AuthVolumePath,
-		ReadOnly:  true,
+		ReadOnly:  readOnly,
 	}
 }
 
