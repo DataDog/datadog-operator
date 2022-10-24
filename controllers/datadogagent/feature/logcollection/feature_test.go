@@ -295,17 +295,17 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 						},
 						{
 							Name:      apicommon.PodLogVolumeName,
-							MountPath: "/custom/pod/logs",
+							MountPath: apicommon.PodLogVolumePath,
 							ReadOnly:  true,
 						},
 						{
 							Name:      apicommon.ContainerLogVolumeName,
-							MountPath: "/custom/container/logs",
+							MountPath: apicommon.ContainerLogVolumePath,
 							ReadOnly:  true,
 						},
 						{
 							Name:      apicommon.SymlinkContainerVolumeName,
-							MountPath: "/custom/symlink",
+							MountPath: apicommon.SymlinkContainerVolumePath,
 							ReadOnly:  true,
 						},
 					}
@@ -513,17 +513,17 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 						},
 						{
 							Name:      apicommon.PodLogVolumeName,
-							MountPath: "/custom/pod/logs",
+							MountPath: apicommon.PodLogVolumePath,
 							ReadOnly:  true,
 						},
 						{
 							Name:      apicommon.ContainerLogVolumeName,
-							MountPath: "/custom/container/logs",
+							MountPath: apicommon.ContainerLogVolumePath,
 							ReadOnly:  true,
 						},
 						{
 							Name:      apicommon.SymlinkContainerVolumeName,
-							MountPath: "/custom/symlink",
+							MountPath: apicommon.SymlinkContainerVolumePath,
 							ReadOnly:  true,
 						},
 					}

@@ -134,17 +134,17 @@ func (f *logCollectionFeature) ManageNodeAgent(managers feature.PodTemplateManag
 	managers.Volume().AddVolume(&pointerVol)
 
 	// pod logs volume mount
-	podLogVol, podLogVolMount := volume.GetVolumes(apicommon.PodLogVolumeName, f.podLogsPath, f.podLogsPath, true)
+	podLogVol, podLogVolMount := volume.GetVolumes(apicommon.PodLogVolumeName, f.podLogsPath, apicommon.PodLogVolumePath, true)
 	managers.VolumeMount().AddVolumeMountToContainer(&podLogVolMount, apicommonv1.CoreAgentContainerName)
 	managers.Volume().AddVolume(&podLogVol)
 
 	// container logs volume mount
-	containerLogVol, containerLogVolMount := volume.GetVolumes(apicommon.ContainerLogVolumeName, f.containerLogsPath, f.containerLogsPath, true)
+	containerLogVol, containerLogVolMount := volume.GetVolumes(apicommon.ContainerLogVolumeName, f.containerLogsPath, apicommon.ContainerLogVolumePath, true)
 	managers.VolumeMount().AddVolumeMountToContainer(&containerLogVolMount, apicommonv1.CoreAgentContainerName)
 	managers.Volume().AddVolume(&containerLogVol)
 
 	// symlink volume mount
-	symlinkVol, symlinkVolMount := volume.GetVolumes(apicommon.SymlinkContainerVolumeName, f.containerSymlinksPath, f.containerSymlinksPath, true)
+	symlinkVol, symlinkVolMount := volume.GetVolumes(apicommon.SymlinkContainerVolumeName, f.containerSymlinksPath, apicommon.SymlinkContainerVolumePath, true)
 	managers.VolumeMount().AddVolumeMountToContainer(&symlinkVolMount, apicommonv1.CoreAgentContainerName)
 	managers.Volume().AddVolume(&symlinkVol)
 
