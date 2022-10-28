@@ -27,25 +27,27 @@ func GetConfName(owner metav1.Object, conf *CustomConfig, defaultName string) st
 // GetClusterAgentServiceAccount return the cluster-agent serviceAccountName
 func GetClusterAgentServiceAccount(dda *DatadogAgent) string {
 	saDefault := fmt.Sprintf("%s-%s", dda.Name, common.DefaultClusterAgentResourceSuffix)
-
-	// todo implement the support of override
-
+	if dda.Spec.Override[ClusterAgentComponentName] != nil && dda.Spec.Override[ClusterAgentComponentName].ServiceAccountName != nil {
+		return *dda.Spec.Override[ClusterAgentComponentName].ServiceAccountName
+	}
 	return saDefault
 }
 
 // GetAgentServiceAccount returns the agent service account name
 func GetAgentServiceAccount(dda *DatadogAgent) string {
 	saDefault := fmt.Sprintf("%s-%s", dda.Name, common.DefaultAgentResourceSuffix)
-
-	// Todo: implement the support of override
+	if dda.Spec.Override[NodeAgentComponentName] != nil && dda.Spec.Override[NodeAgentComponentName].ServiceAccountName != nil {
+		return *dda.Spec.Override[NodeAgentComponentName].ServiceAccountName
+	}
 	return saDefault
 }
 
 // GetClusterChecksRunnerServiceAccount return the cluster-checks-runner service account name
 func GetClusterChecksRunnerServiceAccount(dda *DatadogAgent) string {
 	saDefault := fmt.Sprintf("%s-%s", dda.Name, common.DefaultClusterChecksRunnerResourceSuffix)
-
-	// Todo: implement the support of override
+	if dda.Spec.Override[ClusterChecksRunnerComponentName] != nil && dda.Spec.Override[ClusterChecksRunnerComponentName].ServiceAccountName != nil {
+		return *dda.Spec.Override[ClusterChecksRunnerComponentName].ServiceAccountName
+	}
 	return saDefault
 }
 
