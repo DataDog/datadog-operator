@@ -6,6 +6,8 @@
 package v1alpha1
 
 import (
+	"strings"
+
 	corev1 "k8s.io/api/core/v1"
 
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
@@ -394,19 +396,26 @@ func convertSystemProbeSpec(src *SystemProbeSpec, dst *v2alpha1.DatadogAgent) {
 
 	if src.SecCompProfileName != "" {
 		sysProbeContainer := getV2Container(getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName), commonv1.SystemProbeContainerName)
-		customSeccompProfile := &corev1.SeccompProfile{
-			Type:             corev1.SeccompProfileTypeLocalhost,
-			LocalhostProfile: &src.SecCompProfileName,
+		profile := corev1.SeccompProfile{}
+		switch {
+		case src.SecCompProfileName == "unconfined":
+			profile.Type = corev1.SeccompProfileTypeUnconfined
+		case strings.HasPrefix(src.SecCompProfileName, "runtime"):
+			profile.Type = corev1.SeccompProfileTypeRuntimeDefault
+		case strings.HasPrefix(src.SecCompProfileName, "localhost"):
+			profile.Type = corev1.SeccompProfileTypeLocalhost
+			profileName := strings.TrimPrefix(src.SecCompProfileName, "localhost/")
+			profile.LocalhostProfile = &profileName
 		}
 		if sysProbeContainer.SecurityContext == nil {
 			sysProbeContainer.SecurityContext = &corev1.SecurityContext{
-				SeccompProfile: customSeccompProfile,
+				SeccompProfile: &profile,
 			}
 		} else if sysProbeContainer.SecurityContext.SeccompProfile == nil {
-			sysProbeContainer.SecurityContext.SeccompProfile = customSeccompProfile
+			sysProbeContainer.SecurityContext.SeccompProfile = &profile
 		} else {
-			sysProbeContainer.SecurityContext.SeccompProfile.Type = corev1.SeccompProfileTypeLocalhost
-			sysProbeContainer.SecurityContext.SeccompProfile.LocalhostProfile = &src.SecCompProfileName
+			sysProbeContainer.SecurityContext.SeccompProfile.Type = profile.Type
+			sysProbeContainer.SecurityContext.SeccompProfile.LocalhostProfile = profile.LocalhostProfile
 		}
 	}
 

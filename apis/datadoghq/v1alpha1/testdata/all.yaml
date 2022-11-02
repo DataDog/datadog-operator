@@ -158,7 +158,7 @@ spec:
     systemProbe:
       bpfDebugEnabled: true
       secCompCustomProfileConfigMap: seccomp-configmap
-      secCompProfileName: seccomp-profile
+      secCompProfileName: localhost/seccomp-profile
       secCompRootPath: /custom/root/path
     security:
       compliance:
