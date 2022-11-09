@@ -17,10 +17,11 @@ import (
 
 // FeatureTestSuite use define several tests on a Feature
 // how to define a test:
-// 	func Test_MyFeature_(t *testing.T) {
-//		tests := test.FeatureTestSuite{}
-//   	tests.Run(t, myFeatureBuildFunc)
-//	}
+//
+//		func Test_MyFeature_(t *testing.T) {
+//			tests := test.FeatureTestSuite{}
+//	  	tests.Run(t, myFeatureBuildFunc)
+//		}
 type FeatureTestSuite []FeatureTest
 
 // FeatureTest use to define a Feature test

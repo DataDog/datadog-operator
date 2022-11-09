@@ -4,8 +4,8 @@
 // Copyright 2016-present Datadog, Inc.
 
 // Package v2alpha1 contains API Schema definitions for the datadoghq v2alpha1 API group
-//+kubebuilder:object:generate=true
-//+groupName=datadoghq.com
+// +kubebuilder:object:generate=true
+// +groupName=datadoghq.com
 package v2alpha1
 
 import (

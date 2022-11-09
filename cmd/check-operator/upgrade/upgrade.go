@@ -7,6 +7,7 @@ package upgrade
 
 import (
 	"context"
+	goerrors "errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -16,10 +17,13 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/plugin/common"
 )
 
@@ -129,33 +133,84 @@ func (o *Options) Validate() error {
 	return nil
 }
 
+func (o *Options) getV1Status() (common.StatusWapper, error) {
+	datadogAgent := &v1alpha1.DatadogAgent{}
+	err := o.Client.Get(context.TODO(), client.ObjectKey{Namespace: o.UserNamespace, Name: o.datadogAgentName}, datadogAgent)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			o.printOutf("Got a not found error while getting %s/%s. Assuming this DatadogAgent CR has never been deployed in this environment", o.UserNamespace, o.datadogAgentName)
+
+			return nil, err
+		}
+
+		return nil, fmt.Errorf("unable to get DatadogAgent, err: %w", err)
+	}
+	return common.NewV1StatusWapper(datadogAgent), nil
+}
+
+func (o *Options) getV2Status() (common.StatusWapper, error) {
+	datadogAgent := &v2alpha1.DatadogAgent{}
+	err := o.Client.Get(context.TODO(), client.ObjectKey{Namespace: o.UserNamespace, Name: o.datadogAgentName}, datadogAgent)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			o.printOutf("Got a not found error while getting %s/%s. Assuming this DatadogAgent CR has never been deployed in this environment", o.UserNamespace, o.datadogAgentName)
+
+			return nil, err
+		}
+
+		return nil, fmt.Errorf("unable to get DatadogAgent, err: %w", err)
+	}
+	return common.NewV2StatusWapper(datadogAgent), nil
+}
+
+func isV2Available(cl *kubernetes.Clientset) (bool, error) {
+	_, resources, err := cl.Discovery().ServerGroupsAndResources()
+	if err != nil {
+		if !discovery.IsGroupDiscoveryFailedError(err) {
+			return false, fmt.Errorf("unable to perform resource discovery: %w", err)
+		}
+		var errGroup *discovery.ErrGroupDiscoveryFailed
+		if goerrors.As(err, &errGroup) {
+			for group, apiGroupErr := range errGroup.Groups {
+				return false, fmt.Errorf("unable to perform resource discovery for group %s: %w", group, apiGroupErr)
+			}
+		}
+	}
+
+	for _, resource := range resources {
+		if resource.GroupVersion == "datadoghq.com/v2alpha1" && resource.Kind == "DatadogAgent" {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 // Run use to run the command.
 func (o *Options) Run() error {
 	o.printOutf("Start checking rolling-update status")
 	agentDone, dcaDone, clcDone := false, false, false
 	checkFunc := func() (bool, error) {
-		datadogAgent := &v1alpha1.DatadogAgent{}
-		err := o.Client.Get(context.TODO(), client.ObjectKey{Namespace: o.UserNamespace, Name: o.datadogAgentName}, datadogAgent)
+		v2Available, err := isV2Available(o.Clientset)
 		if err != nil {
-			if errors.IsNotFound(err) {
-				o.printOutf("Got a not found error while getting %s/%s. Assuming this DatadogAgent CR has never been deployed in this environment", o.UserNamespace, o.datadogAgentName)
-
-				return true, nil
-			}
-
-			return false, fmt.Errorf("unable to get DatadogAgent, err: %w", err)
+			return false, err
+		}
+		var status common.StatusWapper
+		if v2Available {
+			status, err = o.getV2Status()
+		} else {
+			status, err = o.getV1Status()
 		}
 
 		if !agentDone {
-			agentDone = o.isAgentDone(datadogAgent.Status.Agent)
+			agentDone = o.isAgentDone(status.GetAgentStatus())
 		}
 
 		if !dcaDone {
-			dcaDone = o.isDeploymentDone(datadogAgent.Status.ClusterAgent, o.dcaMinUpToDate, "Cluster Agent")
+			dcaDone = o.isDeploymentDone(status.GetClusterAgentStatus(), o.dcaMinUpToDate, "Cluster Agent")
 		}
 
 		if !clcDone {
-			clcDone = o.isDeploymentDone(datadogAgent.Status.ClusterChecksRunner, o.clcMinUpToDate, "Cluster Check Runner")
+			clcDone = o.isDeploymentDone(status.GetClusterChecksRunnerStatus(), o.clcMinUpToDate, "Cluster Check Runner")
 		}
 
 		if agentDone && dcaDone && clcDone {
@@ -164,16 +219,16 @@ func (o *Options) Run() error {
 
 		o.printOutf("One or multiple components are still upgrading...")
 
-		if datadogAgent.Status.Agent != nil {
-			o.printOutf("[Agent] nb pods: %d, nb updated pods: %d", datadogAgent.Status.Agent.Current, datadogAgent.Status.Agent.UpToDate)
+		if status.GetAgentStatus() != nil {
+			o.printOutf("[Agent] nb pods: %d, nb updated pods: %d", status.GetAgentStatus().Current, status.GetAgentStatus().UpToDate)
 		}
 
-		if datadogAgent.Status.ClusterAgent != nil {
-			o.printOutf("[Cluster Agent] nb pods: %d, nb updated pods: %d", datadogAgent.Status.ClusterAgent.Replicas, datadogAgent.Status.ClusterAgent.UpdatedReplicas)
+		if status.GetClusterAgentStatus() != nil {
+			o.printOutf("[Cluster Agent] nb pods: %d, nb updated pods: %d", status.GetClusterAgentStatus().Replicas, status.GetClusterAgentStatus().UpdatedReplicas)
 		}
 
-		if datadogAgent.Status.ClusterChecksRunner != nil {
-			o.printOutf("[Cluster Check Runner] nb pods: %d, nb updated pods: %d", datadogAgent.Status.ClusterChecksRunner.Replicas, datadogAgent.Status.ClusterChecksRunner.UpdatedReplicas)
+		if status.GetClusterChecksRunnerStatus() != nil {
+			o.printOutf("[Cluster Check Runner] nb pods: %d, nb updated pods: %d", status.GetClusterChecksRunnerStatus().Replicas, status.GetClusterChecksRunnerStatus().UpdatedReplicas)
 		}
 
 		return false, nil

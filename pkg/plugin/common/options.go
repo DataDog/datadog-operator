@@ -54,7 +54,6 @@ func (o *Options) Init(cmd *cobra.Command) error {
 	} else {
 		o.SetNamespace(nsConfig)
 	}
-
 	return nil
 }
 

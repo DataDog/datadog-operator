@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/DataDog/datadog-api-client-go v1.7.0
-	github.com/DataDog/extendeddaemonset v0.7.1-0.20220524144423-f021aebe48ca
+	github.com/DataDog/extendeddaemonset v0.9.0-rc.2
 	github.com/Masterminds/semver/v3 v3.1.1
 	github.com/go-logr/logr v1.2.0
 	github.com/gobwas/glob v0.2.3
@@ -60,7 +60,7 @@ require (
 	github.com/go-logr/zapr v1.2.0 // indirect
 	github.com/go-openapi/jsonpointer v0.19.5 // indirect
 	github.com/go-openapi/jsonreference v0.19.5 // indirect
-	github.com/go-openapi/spec v0.19.2 // indirect
+	github.com/go-openapi/spec v0.19.3 // indirect
 	github.com/go-openapi/swag v0.19.14 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect

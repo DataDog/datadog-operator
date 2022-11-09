@@ -204,9 +204,6 @@ func TestRBACManager_AddClusterPolicyRules(t *testing.T) {
 		},
 	}
 
-	type fields struct {
-		store dependencies.StoreClient
-	}
 	type args struct {
 		namespace string
 		roleName  string

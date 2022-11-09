@@ -217,7 +217,7 @@ func Test_checkSecretBackendMultipleProvidersUsed(t *testing.T) {
 					Value: "Value2",
 				},
 				{
-					Name:  "DD_SECRET_BACKEND_COMMANDD",
+					Name:  "DD_SECRET_BACKEND_COMMAND_D",
 					Value: "/readsecret_multiple_providers.sh",
 				},
 			},

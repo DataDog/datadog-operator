@@ -2720,7 +2720,7 @@ func Test_newExtendedDaemonSetFromInstance_CustomVolumes(t *testing.T) {
 	userMountsPodSpec := defaultPodSpec(userMountsAgentDeployment)
 	userMountsPodSpec.Volumes = append(userMountsPodSpec.Volumes, userVolumes...)
 	userMountsPodSpec.Containers[0].VolumeMounts = append(userMountsPodSpec.Containers[0].VolumeMounts, userVolumeMounts...) // core agent
-	userMountsPodSpec.Containers[1].VolumeMounts = append(userMountsPodSpec.Containers[1].VolumeMounts, userVolumeMounts...) // proces agent
+	userMountsPodSpec.Containers[1].VolumeMounts = append(userMountsPodSpec.Containers[1].VolumeMounts, userVolumeMounts...) // process agent
 	userMountsPodSpec.InitContainers[1].VolumeMounts = append(userMountsPodSpec.InitContainers[1].VolumeMounts, userVolumeMounts...)
 
 	test := extendedDaemonSetFromInstanceTest{
