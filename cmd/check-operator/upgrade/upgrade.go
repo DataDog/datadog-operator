@@ -7,7 +7,6 @@ package upgrade
 
 import (
 	"context"
-	goerrors "errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -17,8 +16,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-	"k8s.io/client-go/discovery"
-	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
@@ -163,34 +160,12 @@ func (o *Options) getV2Status() (common.StatusWapper, error) {
 	return common.NewV2StatusWapper(datadogAgent), nil
 }
 
-func isV2Available(cl *kubernetes.Clientset) (bool, error) {
-	_, resources, err := cl.Discovery().ServerGroupsAndResources()
-	if err != nil {
-		if !discovery.IsGroupDiscoveryFailedError(err) {
-			return false, fmt.Errorf("unable to perform resource discovery: %w", err)
-		}
-		var errGroup *discovery.ErrGroupDiscoveryFailed
-		if goerrors.As(err, &errGroup) {
-			for group, apiGroupErr := range errGroup.Groups {
-				return false, fmt.Errorf("unable to perform resource discovery for group %s: %w", group, apiGroupErr)
-			}
-		}
-	}
-
-	for _, resource := range resources {
-		if resource.GroupVersion == "datadoghq.com/v2alpha1" && resource.Kind == "DatadogAgent" {
-			return true, nil
-		}
-	}
-	return false, nil
-}
-
 // Run use to run the command.
 func (o *Options) Run() error {
 	o.printOutf("Start checking rolling-update status")
 	agentDone, dcaDone, clcDone := false, false, false
 	checkFunc := func() (bool, error) {
-		v2Available, err := isV2Available(o.Clientset)
+		v2Available, err := common.IsV2Available(o.Clientset)
 		if err != nil {
 			return false, err
 		}

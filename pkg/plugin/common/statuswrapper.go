@@ -9,9 +9,11 @@ import (
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type StatusWapper interface {
+	GetObjectMeta() metav1.Object
 	GetAgentStatus() *commonv1.DaemonSetStatus
 	GetClusterAgentStatus() *commonv1.DeploymentStatus
 	GetClusterChecksRunnerStatus() *commonv1.DeploymentStatus
@@ -24,6 +26,8 @@ func NewV1StatusWapper(dda *v1alpha1.DatadogAgent) StatusWapper {
 type v1StatusWrapper struct {
 	dda *v1alpha1.DatadogAgent
 }
+
+func (sw v1StatusWrapper) GetObjectMeta() metav1.Object { return sw.dda.GetObjectMeta() }
 
 func (sw v1StatusWrapper) GetAgentStatus() *commonv1.DaemonSetStatus {
 	if sw.dda != nil {
@@ -51,6 +55,8 @@ func NewV2StatusWapper(dda *v2alpha1.DatadogAgent) StatusWapper {
 type v2StatusWrapper struct {
 	dda *v2alpha1.DatadogAgent
 }
+
+func (sw v2StatusWrapper) GetObjectMeta() metav1.Object { return sw.dda.GetObjectMeta() }
 
 func (sw v2StatusWrapper) GetAgentStatus() *commonv1.DaemonSetStatus {
 	if sw.dda != nil {
