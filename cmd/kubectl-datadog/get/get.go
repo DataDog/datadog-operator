@@ -12,6 +12,7 @@ import (
 	"io"
 
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/plugin/common"
 
 	"github.com/olekukonko/tablewriter"
@@ -89,6 +90,14 @@ func (o *options) validate() error {
 
 // run runs the get command.
 func (o *options) run() error {
+	if o.IsDatadogAgentV2Available() {
+		return o.runV2()
+	}
+	return o.runV1()
+}
+
+// run runs the get command.
+func (o *options) runV1() error {
 	ddList := &v1alpha1.DatadogAgentList{}
 	if o.userDatadogAgentName == "" {
 		if err := o.Client.List(context.TODO(), ddList, &client.ListOptions{Namespace: o.UserNamespace}); err != nil {
@@ -105,32 +114,64 @@ func (o *options) run() error {
 		ddList.Items = append(ddList.Items, *dd)
 	}
 
-	table := newTable(o.Out)
-	for _, item := range ddList.Items {
-		data := []string{item.Namespace, item.Name}
-		if item.Status.Agent != nil {
-			data = append(data, item.Status.Agent.Status)
-		} else {
-			data = append(data, "")
-		}
-		if item.Status.ClusterAgent != nil {
-			data = append(data, item.Status.ClusterAgent.Status)
-		} else {
-			data = append(data, "")
-		}
-		if item.Status.ClusterChecksRunner != nil {
-			data = append(data, item.Status.ClusterChecksRunner.Status)
-		} else {
-			data = append(data, "")
-		}
-		data = append(data, common.GetDurationAsString(&item.ObjectMeta))
-		table.Append(data)
+	statuses := make([]common.StatusWapper, 0, len(ddList.Items))
+	for id := range ddList.Items {
+		statuses = append(statuses, common.NewV1StatusWapper(&ddList.Items[id]))
 	}
 
-	// Send output.
-	table.Render()
+	o.renderTable(statuses)
 
 	return nil
+}
+
+func (o *options) runV2() error {
+	ddList := &v2alpha1.DatadogAgentList{}
+	if o.userDatadogAgentName == "" {
+		if err := o.Client.List(context.TODO(), ddList, &client.ListOptions{Namespace: o.UserNamespace}); err != nil {
+			return fmt.Errorf("unable to list DatadogAgent: %w", err)
+		}
+	} else {
+		dd := &v2alpha1.DatadogAgent{}
+		err := o.Client.Get(context.TODO(), client.ObjectKey{Namespace: o.UserNamespace, Name: o.userDatadogAgentName}, dd)
+		if err != nil && apierrors.IsNotFound(err) {
+			return fmt.Errorf("DatadogAgent %s/%s not found", o.UserNamespace, o.userDatadogAgentName)
+		} else if err != nil {
+			return fmt.Errorf("unable to get DatadogAgent: %w", err)
+		}
+		ddList.Items = append(ddList.Items, *dd)
+	}
+
+	statuses := make([]common.StatusWapper, 0, len(ddList.Items))
+	for id := range ddList.Items {
+		statuses = append(statuses, common.NewV2StatusWapper(&ddList.Items[id]))
+	}
+	o.renderTable(statuses)
+	return nil
+}
+
+func (o *options) renderTable(statuses []common.StatusWapper) {
+	table := newTable(o.Out)
+	for _, item := range statuses {
+		data := []string{item.GetObjectMeta().GetName(), item.GetObjectMeta().GetNamespace()}
+		if item.GetAgentStatus() != nil {
+			data = append(data, item.GetAgentStatus().Status)
+		} else {
+			data = append(data, "")
+		}
+		if item.GetClusterAgentStatus() != nil {
+			data = append(data, item.GetClusterAgentStatus().Status)
+		} else {
+			data = append(data, "")
+		}
+		if item.GetClusterChecksRunnerStatus() != nil {
+			data = append(data, item.GetClusterChecksRunnerStatus().Status)
+		} else {
+			data = append(data, "")
+		}
+		data = append(data, common.GetDurationAsString(item.GetObjectMeta()))
+		table.Append(data)
+	}
+	table.Render()
 }
 
 func newTable(out io.Writer) *tablewriter.Table {

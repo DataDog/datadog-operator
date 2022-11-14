@@ -27,8 +27,8 @@ func IntToString(i int32) string {
 }
 
 // GetDurationAsString gets object's age
-func GetDurationAsString(obj *metav1.ObjectMeta) string {
-	return durafmt.ParseShort(time.Since(obj.CreationTimestamp.Time)).String()
+func GetDurationAsString(obj metav1.Object) string {
+	return durafmt.ParseShort(time.Since(obj.GetCreationTimestamp().Time)).String()
 }
 
 // StreamToBytes converts a stream to bytes

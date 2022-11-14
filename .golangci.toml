@@ -3,6 +3,7 @@
   tests = false
 
 [linters-settings]
+
   [linters-settings.govet]
     check-shadowing = true
 
@@ -19,10 +20,23 @@
   [linters-settings.misspell]
     locale = "US"
 
+  [linters-settings.gci]
+    local-prefixes = "github.com/DataDog/datadog-operator"
+
+  [linters-settings.godot]
+    exclude = [
+      ' \+',
+    ]
+
 [linters]
   enable-all = true
   disable = [
+    "exhaustruct",
+    "nosnakecase",
+    "logrlint",
+    "nonamedreturns",
     "maligned",
+    "revive",
     "lll",
     "gas",
     "dupl",
@@ -61,7 +75,20 @@
     "gocritic",
     "errchkjson",
     "gofumpt",
-    "golint"
+    "golint",
+    "stylecheck",
+    "staticcheck",
+    "whitespace",
+    "nolintlint",
+    "usestdlibvars",
+    "interfacebloat",
+    "ineffassign",
+    "prealloc",
+    "bodyclose",
+    "unparam",
+    "goconst",
+    "errcheck",
+    "misspell",
   ]
 
 [issues]
@@ -69,10 +96,3 @@
   max-per-linter = 0
   max-same-issues = 0
   exclude = []
-  
-    [issues.exclude-rules]
-      linters = ["stylecheck"]
-      text = "ST1000:"
-
-[output]
-  sort-results = true

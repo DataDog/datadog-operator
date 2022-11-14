@@ -7,7 +7,6 @@ package condition
 
 import (
 	"errors"
-	"fmt"
 	"testing"
 	"time"
 
@@ -144,7 +143,7 @@ func TestSetErrorActiveConditions(t *testing.T) {
 				assert.Equal(t, test.err.Error(), test.status.Conditions[0].Message)
 			}
 
-			fmt.Print(test.status)
+			t.Log(test.status)
 
 			if test.wantSecondConditionType != "" {
 				assert.Equal(t, test.wantSecondConditionType, test.status.Conditions[1].Type)

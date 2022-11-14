@@ -32,9 +32,9 @@ const (
 //
 // The function that checks if a deployment is successful is
 // checkAgentDeployment(). At the moment, it checks these things:
-// 	- The DatadogAgent status contains information about the agent and the DCA.
-//  - The Agent DaemonSet has been deployed.
-//  - The DCA Deployment has been deployed.
+//   - The DatadogAgent status contains information about the agent and the DCA.
+//   - The Agent DaemonSet has been deployed.
+//   - The DCA Deployment has been deployed.
 //
 // These tests allow us to catch errors like the operator trying to create an
 // invalid Kubernetes resource (RBAC, deployment without a name, etc.). However,

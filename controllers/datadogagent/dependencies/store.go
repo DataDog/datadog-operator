@@ -157,10 +157,11 @@ func (ds *Store) Get(kind kubernetes.ObjectKind, namespace string, name string) 
 }
 
 // GetOrCreate returns the client.Object instance.
-// * if it was previously added in the Store, it returns the corresponding object
-// * if it wasn't previously added in the Store, it returns a new instance of the object Kind with
-//   the corresponding name and namespace.
-// `kind`` correspond to the object kind, and id can be `namespace/name` identifier of just
+//   - if it was previously added in the Store, it returns the corresponding object
+//   - if it wasn't previously added in the Store, it returns a new instance of the object Kind with
+//     the corresponding name and namespace.
+//
+// `kind“ correspond to the object kind, and id can be `namespace/name` identifier of just
 // `name` if we are talking about a cluster scope object like `ClusterRole`.
 // It also return a boolean to know if the Object was found in the Store.
 func (ds *Store) GetOrCreate(kind kubernetes.ObjectKind, namespace, name string) (client.Object, bool) {

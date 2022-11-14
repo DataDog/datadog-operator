@@ -42,9 +42,9 @@ func (rc *RequiredComponents) Merge(in *RequiredComponents) *RequiredComponents 
 
 // RequiredComponent use to know how if a component is required and which containers are required.
 // If set Required to:
-//   * true: the feature needs the corresponding component.
-//   * false: the corresponding component needs to ne disabled for this feature.
-//   * nil: the feature doesn't need the corresponding component.
+//   - true: the feature needs the corresponding component.
+//   - false: the corresponding component needs to ne disabled for this feature.
+//   - nil: the feature doesn't need the corresponding component.
 type RequiredComponent struct {
 	IsRequired *bool
 	Containers []apicommonv1.AgentContainerName
