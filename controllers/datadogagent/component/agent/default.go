@@ -361,6 +361,7 @@ func volumeMountsForProcessAgent() []corev1.VolumeMount {
 		component.GetVolumeMountForConfig(),
 		component.GetVolumeMountForDogstatsdSocket(true),
 		component.GetVolumeMountForRuntimeSocket(true),
+		component.GetVolumeMountForProc(),
 	}
 }
 
