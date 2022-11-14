@@ -126,8 +126,8 @@ func Test_options_upgrade(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			o := &options{}
-			o.Client = fake.NewFakeClient()
-			if err := o.upgrade(*tt.loadFunc(o.Client), tt.image); (err != nil) != tt.wantErr {
+			o.Client = fake.NewClientBuilder().WithScheme(s).Build()
+			if err := o.upgradeV1(tt.loadFunc(o.Client), tt.image); (err != nil) != tt.wantErr {
 				t.Errorf("options.upgrade() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if err := tt.wantFunc(o.Client, tt.image); err != nil {

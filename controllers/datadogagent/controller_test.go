@@ -2553,7 +2553,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				svc := &corev1.Service{}
 				err := c.Get(context.TODO(), newRequest(resourcesNamespace, svcName).NamespacedName, svc)
 				if err == nil || !apierrors.IsNotFound(err) {
-					return fmt.Errorf("Expected to not find service %s: %v", svcName, err)
+					return fmt.Errorf("Expected to not find service %s: %w", svcName, err)
 				}
 
 				return nil

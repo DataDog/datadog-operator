@@ -744,26 +744,6 @@ func genericDatadogMonitor() *datadoghqv1alpha1.DatadogMonitor {
 	}
 }
 
-// Same as generic monitor; named more specifically for tests of different monitor types.
-func testMetricMonitor() *datadoghqv1alpha1.DatadogMonitor {
-	return &datadoghqv1alpha1.DatadogMonitor{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "DatadogMonitor",
-			APIVersion: fmt.Sprintf("%s/%s", datadoghqv1alpha1.GroupVersion.Group, datadoghqv1alpha1.GroupVersion.Version),
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: resourcesNamespace,
-			Name:      resourcesName,
-		},
-		Spec: datadoghqv1alpha1.DatadogMonitorSpec{
-			Query:   "avg(last_10m):avg:system.disk.in_use{*} by {host} > 0.1",
-			Type:    datadoghqv1alpha1.DatadogMonitorTypeMetric,
-			Name:    "test metric monitor",
-			Message: "something is wrong",
-		},
-	}
-}
-
 func testQueryMonitor() *datadoghqv1alpha1.DatadogMonitor {
 	return &datadoghqv1alpha1.DatadogMonitor{
 		TypeMeta: metav1.TypeMeta{
