@@ -191,7 +191,9 @@ const (
 	DogstatsdHostPortName                            = "dogstatsdport"
 	DogstatsdHostPortHostPort                        = 8125
 	DogstatsdSocketVolumeName                        = "dsdsocket"
-	DogstatsdSocketVolumePath                        = "/var/run/datadog/statsd"
+	DogstatsdSocketVolumePath                        = "/var/run/datadog"
+	DogstatsdSocketOldVolumePath                     = "/var/run/datadog/statsd"
+	DogstatsdSocketName                              = "dsd.socket"
 	SecurityAgentComplianceCustomConfigDirVolumeName = "customcompliancebenchmarks"
 	SecurityAgentComplianceConfigDirVolumeName       = "compliancedir"
 	SecurityAgentComplianceConfigDirVolumePath       = "/etc/datadog-agent/compliance.d"
@@ -208,6 +210,7 @@ const (
 	APMHostPortHostPort                              = 8126
 	APMSocketVolumeName                              = "apmsocket"
 	APMSocketVolumePath                              = "/var/run/datadog/apm"
+	APMSocketName                                    = "apm.socket"
 	AdmissionControllerPortName                      = "admissioncontrollerport"
 	ExternalMetricsPortName                          = "metricsapi"
 	ExternalMetricsAPIServiceName                    = "v1beta1.external.metrics.k8s.io"

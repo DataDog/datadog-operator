@@ -561,7 +561,7 @@ func getConfigInitContainers(spec *datadoghqv1alpha1.DatadogAgentSpec, volumeMou
 func getEnvVarDogstatsdSocket(dda *datadoghqv1alpha1.DatadogAgent) corev1.EnvVar {
 	return corev1.EnvVar{
 		Name:  apicommon.DDDogstatsdSocket,
-		Value: getLocalFilepath(*dda.Spec.Agent.Config.Dogstatsd.UnixDomainSocket.HostFilepath, apicommon.DogstatsdSocketVolumePath),
+		Value: getLocalFilepath(*dda.Spec.Agent.Config.Dogstatsd.UnixDomainSocket.HostFilepath, apicommon.DogstatsdSocketOldVolumePath),
 	}
 }
 
@@ -1532,7 +1532,7 @@ func getVolumeMountForChecksd() corev1.VolumeMount {
 func getVolumeMountDogstatsdSocket(readOnly bool) corev1.VolumeMount {
 	return corev1.VolumeMount{
 		Name:      apicommon.DogstatsdSocketVolumeName,
-		MountPath: apicommon.DogstatsdSocketVolumePath,
+		MountPath: apicommon.DogstatsdSocketOldVolumePath,
 		ReadOnly:  readOnly,
 	}
 }

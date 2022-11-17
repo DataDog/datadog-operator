@@ -108,7 +108,7 @@ type APMFeatureConfig struct {
 	// UnixDomainSocketConfig contains socket configuration.
 	// See also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables
 	// Enabled Default: true
-	// Path Default: `/var/run/datadog/apm/apm.socket`
+	// Path Default: `/var/run/datadog/apm.socket`
 	// +optional
 	UnixDomainSocketConfig *UnixDomainSocketConfig `json:"unixDomainSocketConfig,omitempty"`
 }
@@ -293,7 +293,7 @@ type DogstatsdFeatureConfig struct {
 	// UnixDomainSocketConfig contains socket configuration.
 	// See also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables
 	// Enabled Default: true
-	// Path Default: `/var/run/datadog/statsd/dsd.socket`
+	// Path Default: `/var/run/datadog/dsd.socket`
 	// +optional
 	UnixDomainSocketConfig *UnixDomainSocketConfig `json:"unixDomainSocketConfig,omitempty"`
 
@@ -430,10 +430,14 @@ type AdmissionControllerFeatureConfig struct {
 	// +optional
 	ServiceName *string `json:"serviceName,omitempty"`
 
-	// agentCommunicationMode corresponds to the mode used by the Datadog application libraries to communicate with the Agent.
+	// AgentCommunicationMode corresponds to the mode used by the Datadog application libraries to communicate with the Agent.
 	// It can be "hostip", "service", or "socket".
 	// +optional
 	AgentCommunicationMode *string `json:"agentCommunicationMode,omitempty"`
+
+	// FailurePolicy determines how unrecognized and timeout errors are handled.
+	// +optional
+	FailurePolicy *string `json:"failurePolicy,omitempty"`
 }
 
 // ExternalMetricsServerFeatureConfig contains the External Metrics Server feature configuration.

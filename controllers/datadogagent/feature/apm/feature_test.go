@@ -23,8 +23,8 @@ import (
 )
 
 const (
-	apmSocketHostPath = "/var/run/datadog/apm"
-	apmSocketPath     = "/var/run/datadog/apm/apm.sock"
+	apmSocketHostPath = "/var/run/datadog"
+	apmSocketPath     = "/var/run/datadog/apm.sock"
 )
 
 func TestAPMFeature(t *testing.T) {
@@ -180,9 +180,9 @@ func testAgentUDSOnly() *test.ComponentTest {
 			)
 
 			agentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.TraceAgentContainerName]
-			expectedVolumeMounts := []corev1.VolumeMount{
+			expectedVolumeMounts := []*corev1.VolumeMount{
 				{
-					Name:      "apmsocket",
+					Name:      apicommon.DogstatsdSocketVolumeName,
 					MountPath: apmSocketHostPath,
 					ReadOnly:  false,
 				},
@@ -194,9 +194,9 @@ func testAgentUDSOnly() *test.ComponentTest {
 			)
 
 			agentVolumes := mgr.VolumeMgr.Volumes
-			expectedVolumes := []corev1.Volume{
+			expectedVolumes := []*corev1.Volume{
 				{
-					Name: "apmsocket",
+					Name: apicommon.DogstatsdSocketVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
 							Path: apmSocketHostPath,
@@ -258,9 +258,9 @@ func testAgentHostPortUDS() *test.ComponentTest {
 			)
 
 			agentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.TraceAgentContainerName]
-			expectedVolumeMounts := []corev1.VolumeMount{
+			expectedVolumeMounts := []*corev1.VolumeMount{
 				{
-					Name:      "apmsocket",
+					Name:      apicommon.DogstatsdSocketVolumeName,
 					MountPath: apmSocketHostPath,
 					ReadOnly:  false,
 				},
@@ -272,9 +272,9 @@ func testAgentHostPortUDS() *test.ComponentTest {
 			)
 
 			agentVolumes := mgr.VolumeMgr.Volumes
-			expectedVolumes := []corev1.Volume{
+			expectedVolumes := []*corev1.Volume{
 				{
-					Name: "apmsocket",
+					Name: apicommon.DogstatsdSocketVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
 							Path: apmSocketHostPath,

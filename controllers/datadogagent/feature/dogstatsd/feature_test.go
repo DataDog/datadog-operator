@@ -24,7 +24,7 @@ import (
 const (
 	v1DogstatsdSocketName = "statsd.sock"
 	v1DogstatsdSocketPath = "/var/run/datadog"
-	v2DogstatsdSocketPath = "/var/run/datadog/statsd/dsd.socket"
+	v2DogstatsdSocketPath = "/var/run/datadog/dsd.socket"
 	customVolumePath      = "/custom/host"
 	customPath            = "/custom/host/filepath"
 )

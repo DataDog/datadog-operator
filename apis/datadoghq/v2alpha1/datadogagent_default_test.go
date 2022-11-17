@@ -105,6 +105,11 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
 						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
 					},
+					AdmissionController: &AdmissionControllerFeatureConfig{
+						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
+						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+					},
 				},
 			},
 		},
@@ -292,6 +297,11 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
 						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
 					},
+					AdmissionController: &AdmissionControllerFeatureConfig{
+						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
+						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+					},
 				},
 			},
 		},
@@ -348,6 +358,11 @@ func Test_defaultFeatures(t *testing.T) {
 					ClusterChecks: &ClusterChecksFeatureConfig{
 						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
 						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
+					},
+					AdmissionController: &AdmissionControllerFeatureConfig{
+						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
+						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
 					},
 				},
 			},
@@ -409,6 +424,11 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
 						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
 					},
+					AdmissionController: &AdmissionControllerFeatureConfig{
+						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
+						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+					},
 				},
 			},
 		},
@@ -462,6 +482,11 @@ func Test_defaultFeatures(t *testing.T) {
 					ClusterChecks: &ClusterChecksFeatureConfig{
 						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
 						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
+					},
+					AdmissionController: &AdmissionControllerFeatureConfig{
+						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
+						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
 					},
 				},
 			},
@@ -519,6 +544,11 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
 						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
 					},
+					AdmissionController: &AdmissionControllerFeatureConfig{
+						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
+						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+					},
 				},
 			},
 		},
@@ -573,6 +603,11 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
 						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
 					},
+					AdmissionController: &AdmissionControllerFeatureConfig{
+						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
+						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+					},
 				},
 			},
 		},
@@ -621,6 +656,11 @@ func Test_defaultFeatures(t *testing.T) {
 					ClusterChecks: &ClusterChecksFeatureConfig{
 						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
 						UseClusterChecksRunners: apiutils.NewBoolPointer(false),
+					},
+					AdmissionController: &AdmissionControllerFeatureConfig{
+						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
+						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
 					},
 				},
 			},
