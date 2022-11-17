@@ -106,6 +106,7 @@ func (f *tcpQueueLengthFeature) ManageNodeAgent(managers feature.PodTemplateMana
 
 	managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, enableEnvVar)
 	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, enableEnvVar)
+	managers.EnvVar().AddEnvVarToInitContainer(apicommonv1.InitConfigContainerName, enableEnvVar)
 
 	return nil
 }
