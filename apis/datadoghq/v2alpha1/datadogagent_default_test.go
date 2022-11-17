@@ -576,6 +576,55 @@ func Test_defaultFeatures(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "ClusterChecks feature with a field set, but \"enabled\" field not set",
+			ddaSpec: &DatadogAgentSpec{
+				Features: &DatadogFeatures{
+					ClusterChecks: &ClusterChecksFeatureConfig{
+						UseClusterChecksRunners: apiutils.NewBoolPointer(false),
+					},
+				},
+			},
+			want: &DatadogAgentSpec{
+				Features: &DatadogFeatures{
+					LiveContainerCollection: &LiveContainerCollectionFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
+					},
+					Dogstatsd: &DogstatsdFeatureConfig{
+						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogstatsdOriginDetectionEnabled),
+						HostPortConfig:         &HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
+						UnixDomainSocketConfig: &UnixDomainSocketConfig{
+							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
+							Path:    apiutils.NewStringPointer(defaultDogstatsdSocketPath),
+						},
+					},
+					OTLP: &OTLPFeatureConfig{Receiver: OTLPReceiverConfig{Protocols: OTLPProtocolsConfig{
+						GRPC: &OTLPGRPCConfig{
+							Enabled:  apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+							Endpoint: apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+						},
+						HTTP: &OTLPHTTPConfig{
+							Enabled:  apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+							Endpoint: apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+						},
+					}}},
+					EventCollection: &EventCollectionFeatureConfig{
+						CollectKubernetesEvents: apiutils.NewBoolPointer(defaultCollectKubernetesEvents),
+					},
+					OrchestratorExplorer: &OrchestratorExplorerFeatureConfig{
+						Enabled:         apiutils.NewBoolPointer(defaultOrchestratorExplorerEnabled),
+						ScrubContainers: apiutils.NewBoolPointer(defaultOrchestratorExplorerScrubContainers),
+					},
+					KubeStateMetricsCore: &KubeStateMetricsCoreFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
+					},
+					ClusterChecks: &ClusterChecksFeatureConfig{
+						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
+						UseClusterChecksRunners: apiutils.NewBoolPointer(false),
+					},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {

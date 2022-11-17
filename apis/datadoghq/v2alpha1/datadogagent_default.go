@@ -268,6 +268,8 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 		}
 	}
 
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ClusterChecks.Enabled, defaultClusterChecksEnabled)
+
 	if *ddaSpec.Features.ClusterChecks.Enabled {
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ClusterChecks.UseClusterChecksRunners, defaultUseClusterChecksRunners)
 	}
