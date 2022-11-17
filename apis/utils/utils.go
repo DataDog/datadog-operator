@@ -64,6 +64,13 @@ func DefaultInt32IfUnset(valPtr **int32, d int32) {
 	}
 }
 
+// DefaultIntIfUnset sets value val of an int if unset
+func DefaultIntIfUnset(ptr **int, val int) {
+	if *ptr == nil {
+		*ptr = &val
+	}
+}
+
 // DefaultStringIfUnset sets default value d of a string if unset
 func DefaultStringIfUnset(valPtr **string, d string) {
 	if *valPtr == nil {
