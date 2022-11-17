@@ -70,6 +70,8 @@ type AgentContainerName string
 const (
 	// InitVolumeContainerName is the name of the Init Volume init container
 	InitVolumeContainerName AgentContainerName = "init-volume"
+	// InitConfigContainerName is the name of the Init config Volume init container
+	InitConfigContainerName AgentContainerName = "init-config"
 	// SeccompSetupContainerName is the name of the Seccomp Setup init container
 	SeccompSetupContainerName AgentContainerName = "seccomp-setup"
 

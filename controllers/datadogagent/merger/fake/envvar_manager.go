@@ -28,6 +28,12 @@ func (_m *EnvVarManager) AddEnvVarToContainer(containerName commonv1.AgentContai
 	_m.EnvVarsByC[containerName] = append(_m.EnvVarsByC[containerName], newEnvVar)
 }
 
+// AddEnvVarToInitContainer provides a mock function with given fields: containerName, newEnvVar
+func (_m *EnvVarManager) AddEnvVarToInitContainer(initContainerName commonv1.AgentContainerName, newEnvVar *v1.EnvVar) {
+	_m.t.Logf("AddEnvVar %s: %#v", newEnvVar.Name, newEnvVar.Value)
+	_m.EnvVarsByC[initContainerName] = append(_m.EnvVarsByC[initContainerName], newEnvVar)
+}
+
 // AddEnvVarToContainerWithMergeFunc provides a mock function with given fields: containerName, newEnvVar, mergeFunc
 func (_m *EnvVarManager) AddEnvVarToContainerWithMergeFunc(containerName commonv1.AgentContainerName, newEnvVar *v1.EnvVar, mergeFunc merger.EnvVarMergeFunction) error {
 	found := false

@@ -103,6 +103,7 @@ func (f *oomKillFeature) ManageNodeAgent(managers feature.PodTemplateManagers) e
 
 	managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, enableEnvVar)
 	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, enableEnvVar)
+	managers.EnvVar().AddEnvVarToInitContainer(apicommonv1.InitConfigContainerName, enableEnvVar)
 
 	return nil
 }
