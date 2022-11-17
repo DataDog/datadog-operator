@@ -916,6 +916,13 @@ func schema__apis_datadoghq_v2alpha1_PrometheusScrapeFeatureConfig(ref common.Re
 							Format:      "",
 						},
 					},
+					"version": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Version specifies the version of the OpenMetrics check. Default: 2",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
 				},
 			},
 		},
