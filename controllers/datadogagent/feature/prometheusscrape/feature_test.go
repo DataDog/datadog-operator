@@ -89,6 +89,9 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 		ddav2PrometheusScrapeAdditionalConfigs.Spec.Features.PrometheusScrape.AdditionalConfigs = apiutils.NewStringPointer(yamlConfigs)
 	}
 
+	ddav2PrometheusScrapeWithVersion := ddav2PrometheusScrapeEnabled.DeepCopy()
+	ddav2PrometheusScrapeWithVersion.Spec.Features.PrometheusScrape.Version = apiutils.NewIntPointer(1)
+
 	tests := test.FeatureTestSuite{
 		///////////////////////////
 		// v1alpha1.DatadogAgent //
@@ -350,6 +353,53 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 						{
 							Name:  apicommon.DDPrometheusScrapeChecks,
 							Value: jsonConfigs,
+						},
+					}
+					assert.True(t, apiutils.IsEqualStruct(dcaEnvVars, want), "DCA envvars \ndiff = %s", cmp.Diff(dcaEnvVars, want))
+				},
+			),
+		},
+		{
+			Name:          "v2alpha1 version specified",
+			DDAv2:         ddav2PrometheusScrapeWithVersion,
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					mgr := mgrInterface.(*fake.PodTemplateManagers)
+					wantEnvVars := []*corev1.EnvVar{
+						{
+							Name:  apicommon.DDPrometheusScrapeEnabled,
+							Value: "true",
+						},
+						{
+							Name:  apicommon.DDPrometheusScrapeServiceEndpoints,
+							Value: "false",
+						},
+						{
+							Name:  apicommon.DDPrometheusScrapeVersion,
+							Value: "1",
+						},
+					}
+					coreAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
+					assert.True(t, apiutils.IsEqualStruct(coreAgentEnvVars, wantEnvVars), "Core Agent envvars \ndiff = %s", cmp.Diff(coreAgentEnvVars, wantEnvVars))
+				},
+			),
+			ClusterAgent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					mgr := mgrInterface.(*fake.PodTemplateManagers)
+					dcaEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ClusterAgentContainerName]
+					want := []*corev1.EnvVar{
+						{
+							Name:  apicommon.DDPrometheusScrapeEnabled,
+							Value: "true",
+						},
+						{
+							Name:  apicommon.DDPrometheusScrapeServiceEndpoints,
+							Value: "false",
+						},
+						{
+							Name:  apicommon.DDPrometheusScrapeVersion,
+							Value: "1",
 						},
 					}
 					assert.True(t, apiutils.IsEqualStruct(dcaEnvVars, want), "DCA envvars \ndiff = %s", cmp.Diff(dcaEnvVars, want))
