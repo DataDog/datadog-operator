@@ -35,6 +35,7 @@ func buildPrometheusScrapeFeature(options *feature.Options) feature.Feature {
 type prometheusScrapeFeature struct {
 	enableServiceEndpoints bool
 	additionalConfigs      string
+	openmetricsVersion     int
 }
 
 // ID returns the ID of the Feature
@@ -54,6 +55,9 @@ func (f *prometheusScrapeFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp
 		f.enableServiceEndpoints = apiutils.BoolValue(prometheusScrape.EnableServiceEndpoints)
 		if prometheusScrape.AdditionalConfigs != nil {
 			f.additionalConfigs = *prometheusScrape.AdditionalConfigs
+		}
+		if prometheusScrape.Version != nil {
+			f.openmetricsVersion = *prometheusScrape.Version
 		}
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
@@ -125,6 +129,12 @@ func (f *prometheusScrapeFeature) ManageClusterAgent(managers feature.PodTemplat
 			Value: apiutils.YAMLToJSONString(f.additionalConfigs),
 		})
 	}
+	if f.openmetricsVersion != 0 {
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  apicommon.DDPrometheusScrapeVersion,
+			Value: strconv.Itoa(f.openmetricsVersion),
+		})
+	}
 
 	return nil
 }
@@ -144,6 +154,12 @@ func (f *prometheusScrapeFeature) ManageNodeAgent(managers feature.PodTemplateMa
 		managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
 			Name:  apicommon.DDPrometheusScrapeChecks,
 			Value: apiutils.YAMLToJSONString(f.additionalConfigs),
+		})
+	}
+	if f.openmetricsVersion != 0 {
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
+			Name:  apicommon.DDPrometheusScrapeVersion,
+			Value: strconv.Itoa(f.openmetricsVersion),
 		})
 	}
 

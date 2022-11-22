@@ -78,6 +78,7 @@ const (
 
 	// defaultPrometheusScrapeEnabled                bool = false
 	defaultPrometheusScrapeEnableServiceEndpoints bool = false
+	defaultPrometheusScrapeVersion                int  = 2
 
 	defaultKubeletAgentCAPath            = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
 	defaultKubeletAgentCAPathHostPathSet = "/var/run/host-kubelet-ca.crt"
@@ -275,7 +276,8 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 	}
 
 	// PrometheusScrape Feature
-	if ddaSpec.Features.PrometheusScrape != nil && *ddaSpec.Features.PrometheusScrape.Enabled {
+	if ddaSpec.Features.PrometheusScrape != nil && ddaSpec.Features.PrometheusScrape.Enabled != nil && *ddaSpec.Features.PrometheusScrape.Enabled {
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.PrometheusScrape.EnableServiceEndpoints, defaultPrometheusScrapeEnableServiceEndpoints)
+		apiutils.DefaultIntIfUnset(&ddaSpec.Features.PrometheusScrape.Version, defaultPrometheusScrapeVersion)
 	}
 }

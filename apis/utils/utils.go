@@ -22,6 +22,11 @@ func NewInt64Pointer(i int64) *int64 {
 	return &i
 }
 
+// NewIntPointer returns pointer to an int value
+func NewIntPointer(i int) *int {
+	return &i
+}
+
 // NewStringPointer returns pointer on a new string value instance
 func NewStringPointer(s string) *string {
 	return &s
@@ -61,6 +66,13 @@ func DefaultBooleanIfUnset(valPtr **bool, d bool) {
 func DefaultInt32IfUnset(valPtr **int32, d int32) {
 	if *valPtr == nil {
 		*valPtr = &d
+	}
+}
+
+// DefaultIntIfUnset sets value val of an int if unset
+func DefaultIntIfUnset(ptr **int, val int) {
+	if *ptr == nil {
+		*ptr = &val
 	}
 }
 
