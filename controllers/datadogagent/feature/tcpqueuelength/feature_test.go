@@ -66,7 +66,15 @@ func Test_tcpQueueLengthFeature_Configure(t *testing.T) {
 		)
 
 		// check volume mounts
-		wantVolumeMounts := []corev1.VolumeMount{
+		wantCoreAgentVolMounts := []corev1.VolumeMount{
+			{
+				Name:      apicommon.SystemProbeSocketVolumeName,
+				MountPath: apicommon.SystemProbeSocketVolumePath,
+				ReadOnly:  true,
+			},
+		}
+
+		wantSystemProbeVolMounts := []corev1.VolumeMount{
 			{
 				Name:      apicommon.ModulesVolumeName,
 				MountPath: apicommon.ModulesVolumePath,
@@ -82,10 +90,18 @@ func Test_tcpQueueLengthFeature_Configure(t *testing.T) {
 				MountPath: apicommon.DebugfsPath,
 				ReadOnly:  false,
 			},
+			{
+				Name:      apicommon.SystemProbeSocketVolumeName,
+				MountPath: apicommon.SystemProbeSocketVolumePath,
+				ReadOnly:  false,
+			},
 		}
 
+		coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
+		assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantCoreAgentVolMounts), "Core agent volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantCoreAgentVolMounts))
+
 		systemProbeVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.SystemProbeContainerName]
-		assert.True(t, apiutils.IsEqualStruct(systemProbeVolumeMounts, wantVolumeMounts), "System Probe volume mounts \ndiff = %s", cmp.Diff(systemProbeVolumeMounts, wantVolumeMounts))
+		assert.True(t, apiutils.IsEqualStruct(systemProbeVolumeMounts, wantSystemProbeVolMounts), "System Probe volume mounts \ndiff = %s", cmp.Diff(systemProbeVolumeMounts, wantSystemProbeVolMounts))
 
 		// check volumes
 		wantVolumes := []corev1.Volume{
@@ -113,6 +129,12 @@ func Test_tcpQueueLengthFeature_Configure(t *testing.T) {
 					},
 				},
 			},
+			{
+				Name: apicommon.SystemProbeSocketVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					EmptyDir: &corev1.EmptyDirVolumeSource{},
+				},
+			},
 		}
 
 		volumes := mgr.VolumeMgr.Volumes
@@ -123,6 +145,10 @@ func Test_tcpQueueLengthFeature_Configure(t *testing.T) {
 			{
 				Name:  apicommon.DDEnableTCPQueueLengthEnvVar,
 				Value: "true",
+			},
+			{
+				Name:  apicommon.DDSystemProbeSocket,
+				Value: apicommon.DefaultSystemProbeSocketPath,
 			},
 		}
 		agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
