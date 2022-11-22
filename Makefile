@@ -187,11 +187,11 @@ gotest:
 
 .PHONY: integration-tests
 integration-tests: $(ENVTEST) ## Run tests.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test --tags=integration github.com/DataDog/datadog-operator/controllers -coverprofile cover.out
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test --tags=integration github.com/DataDog/datadog-operator/controllers -coverprofile cover_integration_v1.out
 
 .PHONY: integration-tests-v2
 integration-tests-v2: $(ENVTEST) ## Run tests with reconciler V2
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test --tags=integration_v2 github.com/DataDog/datadog-operator/controllers -coverprofile cover_v2.out
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test --tags=integration_v2 github.com/DataDog/datadog-operator/controllers -coverprofile cover_integration_v2.out
 
 .PHONY: bundle
 bundle: bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq $(KUSTOMIZE) manifests ## Generate bundle manifests and metadata, then validate generated files.
