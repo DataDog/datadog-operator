@@ -13429,6 +13429,10 @@ spec:
                         description: 'Enable autodiscovery of pods and services exposing
                           Prometheus metrics. Default: false'
                         type: boolean
+                      version:
+                        description: 'Version specifies the version of the OpenMetrics
+                          check. Default: 2'
+                        type: integer
                     type: object
                   tcpQueueLength:
                     description: TCPQueueLength configuration.
