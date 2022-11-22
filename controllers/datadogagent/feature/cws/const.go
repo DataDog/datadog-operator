@@ -7,5 +7,5 @@ package cws
 
 const (
 	cwsConfigVolumeName = "customruntimepoliciesdir"
-	cwsConfFileName     = "custom_via_operator.policy"
+	cwsConfFileName     = "custom_with_operator.policy"
 )
