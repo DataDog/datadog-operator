@@ -12939,6 +12939,20 @@ spec:
                         description: 'Enabled enables Cloud Workload Security. Default:
                           false'
                         type: boolean
+                      network:
+                        properties:
+                          enabled:
+                            description: 'Enabled enables Cloud Workload Security
+                              Network detections. Default: false'
+                            type: boolean
+                        type: object
+                      securityProfiles:
+                        properties:
+                          enabled:
+                            description: 'Enabled enables Cloud Workload Security
+                              Security Profiles collection. Default: false'
+                            type: boolean
+                        type: object
                       syscallMonitorEnabled:
                         description: 'SyscallMonitorEnabled enables Syscall Monitoring
                           (recommended for troubleshooting only). Default: false'
