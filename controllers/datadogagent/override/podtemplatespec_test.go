@@ -13,6 +13,7 @@ import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
+	"github.com/DataDog/datadog-operator/pkg/defaulting"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -40,23 +41,9 @@ func TestPodTemplateSpec(t *testing.T) {
 			},
 		},
 		{
-			name: "override image",
+			name: "override image name and tag",
 			existingManager: func() *fake.PodTemplateManagers {
-				manager := fake.NewPodTemplateManagers(t)
-				manager.PodTemplateSpec().Spec.InitContainers = []v1.Container{
-					{
-						Image: "docker.io/datadog/agent:7.38.0",
-					},
-				}
-				manager.PodTemplateSpec().Spec.Containers = []v1.Container{
-					{
-						Image: "docker.io/datadog/agent:7.38.0",
-					},
-					{
-						Image: "docker.io/datadog/agent:7.38.0",
-					},
-				}
-				return manager
+				return fakePodTemplateManagers("docker.io/datadog/agent:7.38.0", t)
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
 				Image: &commonv1.AgentImageConfig{
@@ -72,6 +59,90 @@ func TestPodTemplateSpec(t *testing.T) {
 
 				for _, container := range allContainers {
 					assert.Equal(t, "docker.io/datadog/custom-agent:latest-jmx", container.Image)
+				}
+			},
+		},
+		{
+			name: "override image tag",
+			existingManager: func() *fake.PodTemplateManagers {
+				return fakePodTemplateManagers("docker.io/datadog/agent:7.38.0", t)
+			},
+			override: v2alpha1.DatadogAgentComponentOverride{
+				Image: &commonv1.AgentImageConfig{
+					Tag:        "latest",
+					JMXEnabled: false,
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
+				allContainers := append(
+					manager.PodTemplateSpec().Spec.Containers, manager.PodTemplateSpec().Spec.InitContainers...,
+				)
+
+				for _, container := range allContainers {
+					assert.Equal(t, "docker.io/datadog/agent:latest", container.Image)
+				}
+			},
+		},
+		{
+			name: "override image name and JMX flag",
+			existingManager: func() *fake.PodTemplateManagers {
+				return fakePodTemplateManagers("docker.io/datadog/agent:7.38.0", t)
+			},
+			override: v2alpha1.DatadogAgentComponentOverride{
+				Image: &commonv1.AgentImageConfig{
+					Name:       "custom-agent",
+					JMXEnabled: true,
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
+				allContainers := append(
+					manager.PodTemplateSpec().Spec.Containers, manager.PodTemplateSpec().Spec.InitContainers...,
+				)
+
+				for _, container := range allContainers {
+					assert.Equal(t, "docker.io/datadog/custom-agent:7.38.0-jmx", container.Image)
+				}
+			},
+		},
+		{
+			name: "override image no duplicate jmx suffix",
+			existingManager: func() *fake.PodTemplateManagers {
+				return fakePodTemplateManagers("docker.io/datadog/agent:7.38.0", t)
+			},
+			override: v2alpha1.DatadogAgentComponentOverride{
+				Image: &commonv1.AgentImageConfig{
+					Tag:        "latest-jmx",
+					JMXEnabled: true,
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
+				allContainers := append(
+					manager.PodTemplateSpec().Spec.Containers, manager.PodTemplateSpec().Spec.InitContainers...,
+				)
+
+				for _, container := range allContainers {
+					// Low level defaulting.NewImage makes sure jmx suffix isn't duplicated
+					assert.Equal(t, "docker.io/datadog/agent:latest-jmx", container.Image)
+				}
+			},
+		},
+		{
+			name: "override image drops existing JMX suffix",
+			existingManager: func() *fake.PodTemplateManagers {
+				return fakePodTemplateManagers("docker.io/datadog/agent:7.38.0"+defaulting.JMXTagSuffix, t)
+			},
+			override: v2alpha1.DatadogAgentComponentOverride{
+				Image: &commonv1.AgentImageConfig{
+					JMXEnabled: false,
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
+				allContainers := append(
+					manager.PodTemplateSpec().Spec.Containers, manager.PodTemplateSpec().Spec.InitContainers...,
+				)
+
+				for _, container := range allContainers {
+					assert.Equal(t, "docker.io/datadog/agent:7.38.0", container.Image)
 				}
 			},
 		},
@@ -442,4 +513,22 @@ func TestPodTemplateSpec(t *testing.T) {
 			test.validateManager(t, manager)
 		})
 	}
+}
+
+func fakePodTemplateManagers(image string, t *testing.T) *fake.PodTemplateManagers {
+	manager := fake.NewPodTemplateManagers(t)
+	manager.PodTemplateSpec().Spec.InitContainers = []v1.Container{
+		{
+			Image: image,
+		},
+	}
+	manager.PodTemplateSpec().Spec.Containers = []v1.Container{
+		{
+			Image: image,
+		},
+		{
+			Image: image,
+		},
+	}
+	return manager
 }
