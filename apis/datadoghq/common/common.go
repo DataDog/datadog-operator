@@ -6,6 +6,9 @@
 package common
 
 import (
+	"fmt"
+	"strings"
+
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 	corev1 "k8s.io/api/core/v1"
@@ -51,13 +54,21 @@ func GetDefaultReadinessProbe() *corev1.Probe {
 // GetImage builds the image string based on ImageConfig and the registry configuration.
 func GetImage(imageSpec *commonv1.AgentImageConfig, registry *string) string {
 	if defaulting.IsImageNameContainsTag(imageSpec.Name) {
-		// The image name corresponds to a full image string
-		return imageSpec.Name
+		// If the image name corresponds to a full URI we return it, otherwise
+		// we prefix name with passed registry or default one if former is empty/nil.
+		if len(strings.Split(imageSpec.Name, "/")) > 2 {
+			return imageSpec.Name
+		} else if registry != nil && *registry != "" {
+			return fmt.Sprintf("%s/%s", *registry, imageSpec.Name)
+		} else {
+			return fmt.Sprintf("%s/%s", DefaultImageRegistry, imageSpec.Name)
+		}
 	}
 
 	img := defaulting.NewImage(imageSpec.Name, imageSpec.Tag, imageSpec.JMXEnabled)
 
-	if registry != nil {
+	// Image is created with default registry, change it if non-empty one is provided
+	if registry != nil && *registry != "" {
 		defaulting.WithRegistry(defaulting.ContainerRegistry(*registry))(img)
 	}
 
