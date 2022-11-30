@@ -79,17 +79,19 @@ func (f *otlpFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 		f.usingAPM = apiutils.BoolValue(apm.Enabled)
 	}
 
-	reqComp = feature.RequiredComponents{
-		Agent: feature.RequiredComponent{
-			IsRequired: apiutils.NewBoolPointer(true),
-			Containers: []apicommonv1.AgentContainerName{
-				apicommonv1.CoreAgentContainerName,
+	if f.grpcEnabled || f.httpEnabled {
+		reqComp = feature.RequiredComponents{
+			Agent: feature.RequiredComponent{
+				IsRequired: apiutils.NewBoolPointer(true),
+				Containers: []apicommonv1.AgentContainerName{
+					apicommonv1.CoreAgentContainerName,
+				},
 			},
-		},
-	}
-	// if using APM, require the Trace Agent too.
-	if f.usingAPM {
-		reqComp.Agent.Containers = append(reqComp.Agent.Containers, apicommonv1.TraceAgentContainerName)
+		}
+		// if using APM, require the Trace Agent too.
+		if f.usingAPM {
+			reqComp.Agent.Containers = append(reqComp.Agent.Containers, apicommonv1.TraceAgentContainerName)
+		}
 	}
 
 	return reqComp
@@ -114,17 +116,19 @@ func (f *otlpFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.R
 
 	f.usingAPM = apiutils.BoolValue(dda.Spec.Agent.Apm.Enabled)
 
-	reqComp = feature.RequiredComponents{
-		Agent: feature.RequiredComponent{
-			IsRequired: apiutils.NewBoolPointer(true),
-			Containers: []apicommonv1.AgentContainerName{
-				apicommonv1.CoreAgentContainerName,
+	if f.grpcEnabled || f.httpEnabled {
+		reqComp = feature.RequiredComponents{
+			Agent: feature.RequiredComponent{
+				IsRequired: apiutils.NewBoolPointer(true),
+				Containers: []apicommonv1.AgentContainerName{
+					apicommonv1.CoreAgentContainerName,
+				},
 			},
-		},
-	}
-	// if using APM, require the Trace Agent too.
-	if f.usingAPM {
-		reqComp.Agent.Containers = append(reqComp.Agent.Containers, apicommonv1.TraceAgentContainerName)
+		}
+		// if using APM, require the Trace Agent too.
+		if f.usingAPM {
+			reqComp.Agent.Containers = append(reqComp.Agent.Containers, apicommonv1.TraceAgentContainerName)
+		}
 	}
 
 	return reqComp
