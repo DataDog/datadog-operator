@@ -1272,8 +1272,8 @@ func (in *DatadogMonitorOptions) DeepCopyInto(out *DatadogMonitorOptions) {
 		*out = new(bool)
 		**out = **in
 	}
-	if in.NewHostDelay != nil {
-		in, out := &in.NewHostDelay, &out.NewHostDelay
+	if in.NewGroupDelay != nil {
+		in, out := &in.NewGroupDelay, &out.NewGroupDelay
 		*out = new(int64)
 		**out = **in
 	}

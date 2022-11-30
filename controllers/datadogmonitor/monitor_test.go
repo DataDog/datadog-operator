@@ -29,7 +29,7 @@ func Test_buildMonitor(t *testing.T) {
 	evalDelay := int64(100)
 	escalationMsg := "This is an escalation message"
 	valTrue := true
-	newHostDelay := int64(400)
+	newGroupDelay := int64(400)
 	noDataTimeframe := int64(15)
 	renotifyInterval := int64(1440)
 	timeoutH := int64(2)
@@ -54,7 +54,7 @@ func Test_buildMonitor(t *testing.T) {
 				EscalationMessage: &escalationMsg,
 				IncludeTags:       &valTrue,
 				Locked:            &valTrue,
-				NewHostDelay:      &newHostDelay,
+				NewGroupDelay:     &newGroupDelay,
 				NotifyNoData:      &valTrue,
 				NoDataTimeframe:   &noDataTimeframe,
 				RenotifyInterval:  &renotifyInterval,
@@ -99,8 +99,8 @@ func Test_buildMonitor(t *testing.T) {
 	assert.Equal(t, *dm.Spec.Options.Locked, monitor.Options.GetLocked(), "discrepancy found in parameter: Locked")
 	assert.Equal(t, *dm.Spec.Options.Locked, monitorUR.Options.GetLocked(), "discrepancy found in parameter: Locked")
 
-	assert.Equal(t, *dm.Spec.Options.NewHostDelay, monitor.Options.GetNewHostDelay(), "discrepancy found in parameter: NewHostDelay")
-	assert.Equal(t, *dm.Spec.Options.NewHostDelay, monitorUR.Options.GetNewHostDelay(), "discrepancy found in parameter: NewHostDelay")
+	assert.Equal(t, *dm.Spec.Options.NewGroupDelay, monitor.Options.GetNewGroupDelay(), "discrepancy found in parameter: NewGroupDelay")
+	assert.Equal(t, *dm.Spec.Options.NewGroupDelay, monitorUR.Options.GetNewGroupDelay(), "discrepancy found in parameter: NewGroupDelay")
 
 	assert.Equal(t, *dm.Spec.Options.NotifyNoData, monitor.Options.GetNotifyNoData(), "discrepancy found in parameter: NotifyNoData")
 	assert.Equal(t, *dm.Spec.Options.NotifyNoData, monitorUR.Options.GetNotifyNoData(), "discrepancy found in parameter: NotifyNoData")
