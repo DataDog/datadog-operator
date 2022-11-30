@@ -111,8 +111,8 @@ func buildMonitor(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) (*da
 		o.SetLocked(*options.Locked)
 	}
 
-	if options.NewHostDelay != nil {
-		o.SetNewHostDelay(*options.NewHostDelay)
+	if options.NewGroupDelay != nil {
+		o.SetNewGroupDelay(*options.NewGroupDelay)
 	}
 
 	if options.NoDataTimeframe != nil {

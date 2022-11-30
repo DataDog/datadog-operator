@@ -16,7 +16,7 @@ spec:
     evaluationDelay: 300
     includeTags: true
     locked: false
-    newHostDelay: 300
+    newGroupDelay: 300
     notifyNoData: true
     noDataTimeframe: 30
     renotifyInterval: 1440
