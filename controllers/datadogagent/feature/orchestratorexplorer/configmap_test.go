@@ -28,13 +28,13 @@ instances:
       - services
 `
 	type fields struct {
-		enable               bool
-		clusterChecksEnabled bool
-		rbacSuffix           string
-		serviceAccountName   string
-		owner                metav1.Object
-		customConfig         *apicommonv1.CustomConfig
-		configConfigMapName  string
+		enable                   bool
+		runInClusterChecksRunner bool
+		rbacSuffix               string
+		serviceAccountName       string
+		owner                    metav1.Object
+		customConfig             *apicommonv1.CustomConfig
+		configConfigMapName      string
 	}
 	tests := []struct {
 		name    string
@@ -45,20 +45,20 @@ instances:
 		{
 			name: "default",
 			fields: fields{
-				owner:                owner,
-				enable:               true,
-				clusterChecksEnabled: true,
-				configConfigMapName:  apicommon.DefaultOrchestratorExplorerConf,
+				owner:                    owner,
+				enable:                   true,
+				runInClusterChecksRunner: false,
+				configConfigMapName:      apicommon.DefaultOrchestratorExplorerConf,
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), apicommon.DefaultOrchestratorExplorerConf, orchestratorExplorerCheckConfig(true)),
+			want: buildDefaultConfigMap(owner.GetNamespace(), apicommon.DefaultOrchestratorExplorerConf, orchestratorExplorerCheckConfig(false)),
 		},
 		{
 			name: "override",
 			fields: fields{
-				owner:                owner,
-				enable:               true,
-				clusterChecksEnabled: true,
-				configConfigMapName:  apicommon.DefaultOrchestratorExplorerConf,
+				owner:                    owner,
+				enable:                   true,
+				runInClusterChecksRunner: true,
+				configConfigMapName:      apicommon.DefaultOrchestratorExplorerConf,
 				customConfig: &apicommonv1.CustomConfig{
 					ConfigData: &overrideConf,
 				},
@@ -69,12 +69,12 @@ instances:
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			f := &orchestratorExplorerFeature{
-				clusterChecksEnabled: tt.fields.clusterChecksEnabled,
-				rbacSuffix:           tt.fields.rbacSuffix,
-				serviceAccountName:   tt.fields.serviceAccountName,
-				owner:                tt.fields.owner,
-				customConfig:         tt.fields.customConfig,
-				configConfigMapName:  tt.fields.configConfigMapName,
+				runInClusterChecksRunner: tt.fields.runInClusterChecksRunner,
+				rbacSuffix:               tt.fields.rbacSuffix,
+				serviceAccountName:       tt.fields.serviceAccountName,
+				owner:                    tt.fields.owner,
+				customConfig:             tt.fields.customConfig,
+				configConfigMapName:      tt.fields.configConfigMapName,
 			}
 			got, err := f.buildOrchestratorExplorerConfigMap()
 			if (err != nil) != tt.wantErr {

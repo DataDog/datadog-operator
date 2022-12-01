@@ -22,7 +22,7 @@ func (f *orchestratorExplorerFeature) buildOrchestratorExplorerConfigMap() (*cor
 		return configmap.BuildConfigMapConfigData(f.owner.GetNamespace(), f.customConfig.ConfigData, f.configConfigMapName, orchestratorExplorerConfFileName)
 	}
 
-	configMap := buildDefaultConfigMap(f.owner.GetNamespace(), f.configConfigMapName, orchestratorExplorerCheckConfig(f.clusterChecksEnabled))
+	configMap := buildDefaultConfigMap(f.owner.GetNamespace(), f.configConfigMapName, orchestratorExplorerCheckConfig(f.runInClusterChecksRunner))
 	return configMap, nil
 }
 
@@ -39,8 +39,8 @@ func buildDefaultConfigMap(namespace, cmName string, content string) *corev1.Con
 	return configMap
 }
 
-func orchestratorExplorerCheckConfig(clusterCheck bool) string {
-	stringClusterCheck := strconv.FormatBool(clusterCheck)
+func orchestratorExplorerCheckConfig(clusterCheckRunners bool) string {
+	stringClusterCheckRunners := strconv.FormatBool(clusterCheckRunners)
 	return fmt.Sprintf(`---
 cluster_check: %s
 ad_identifiers:
@@ -48,5 +48,5 @@ ad_identifiers:
 init_config:
 instances:
   - skip_leader_election: %s
-`, stringClusterCheck, stringClusterCheck)
+`, stringClusterCheckRunners, stringClusterCheckRunners)
 }
