@@ -190,6 +190,7 @@ const (
 	SymlinkContainerVolumePath                       = "/var/log/containers"
 	DogstatsdHostPortName                            = "dogstatsdport"
 	DogstatsdHostPortHostPort                        = 8125
+	DogstatsdAPMSocketVolumeName                     = "dsdapmsocket"
 	DogstatsdSocketVolumeName                        = "dsdsocket"
 	DogstatsdSocketVolumePath                        = "/var/run/datadog"
 	DogstatsdSocketOldVolumePath                     = "/var/run/datadog/statsd"

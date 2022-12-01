@@ -182,7 +182,7 @@ func (f *dogstatsdFeature) ManageNodeAgent(managers feature.PodTemplateManagers)
 	// uds
 	if f.udsEnabled {
 		udsHostFolder := filepath.Dir(f.udsHostFilepath)
-		socketVol, socketVolMount := volume.GetVolumes(apicommon.DogstatsdSocketVolumeName, udsHostFolder, udsHostFolder, true)
+		socketVol, socketVolMount := volume.GetVolumes(apicommon.DogstatsdAPMSocketVolumeName, udsHostFolder, udsHostFolder, true)
 		managers.VolumeMount().AddVolumeMountToContainer(&socketVolMount, apicommonv1.CoreAgentContainerName)
 		managers.Volume().AddVolume(&socketVol)
 		managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{

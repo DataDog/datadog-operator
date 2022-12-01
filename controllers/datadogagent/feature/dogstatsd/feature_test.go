@@ -97,7 +97,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 	// v1alpha1 default uds volume mount
 	wantVolumeMountsV1 := []corev1.VolumeMount{
 		{
-			Name:      apicommon.DogstatsdSocketVolumeName,
+			Name:      apicommon.DogstatsdAPMSocketVolumeName,
 			MountPath: v1DogstatsdSocketPath,
 			ReadOnly:  true,
 		},
@@ -105,7 +105,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 	// v2alpha1 default uds volume mount
 	wantVolumeMounts := []corev1.VolumeMount{
 		{
-			Name:      apicommon.DogstatsdSocketVolumeName,
+			Name:      apicommon.DogstatsdAPMSocketVolumeName,
 			MountPath: apicommon.DogstatsdSocketVolumePath,
 			ReadOnly:  true,
 		},
@@ -114,7 +114,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 	// v1alpha1 default uds volume
 	wantVolumesV1 := []corev1.Volume{
 		{
-			Name: apicommon.DogstatsdSocketVolumeName,
+			Name: apicommon.DogstatsdAPMSocketVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: v1DogstatsdSocketPath,
@@ -126,7 +126,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 	// v2alpha1 default uds volume
 	wantVolumes := []corev1.Volume{
 		{
-			Name: apicommon.DogstatsdSocketVolumeName,
+			Name: apicommon.DogstatsdAPMSocketVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: apicommon.DogstatsdSocketVolumePath,
@@ -291,7 +291,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					customVolumeMounts := []corev1.VolumeMount{
 						{
-							Name:      apicommon.DogstatsdSocketVolumeName,
+							Name:      apicommon.DogstatsdAPMSocketVolumeName,
 							MountPath: customVolumePath,
 							ReadOnly:  true,
 						},
@@ -300,7 +300,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 					volumes := mgr.VolumeMgr.Volumes
 					customVolumes := []corev1.Volume{
 						{
-							Name: apicommon.DogstatsdSocketVolumeName,
+							Name: apicommon.DogstatsdAPMSocketVolumeName,
 							VolumeSource: corev1.VolumeSource{
 								HostPath: &corev1.HostPathVolumeSource{
 									Path: customVolumePath,
@@ -453,7 +453,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
 					customVolumeMounts := []corev1.VolumeMount{
 						{
-							Name:      apicommon.DogstatsdSocketVolumeName,
+							Name:      apicommon.DogstatsdAPMSocketVolumeName,
 							MountPath: customVolumePath,
 							ReadOnly:  true,
 						},
@@ -462,7 +462,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 					volumes := mgr.VolumeMgr.Volumes
 					customVolumes := []corev1.Volume{
 						{
-							Name: apicommon.DogstatsdSocketVolumeName,
+							Name: apicommon.DogstatsdAPMSocketVolumeName,
 							VolumeSource: corev1.VolumeSource{
 								HostPath: &corev1.HostPathVolumeSource{
 									Path: customVolumePath,

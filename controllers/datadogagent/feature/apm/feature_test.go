@@ -182,7 +182,7 @@ func testAgentUDSOnly() *test.ComponentTest {
 			agentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.TraceAgentContainerName]
 			expectedVolumeMounts := []*corev1.VolumeMount{
 				{
-					Name:      apicommon.DogstatsdSocketVolumeName,
+					Name:      apicommon.DogstatsdAPMSocketVolumeName,
 					MountPath: apmSocketHostPath,
 					ReadOnly:  false,
 				},
@@ -196,7 +196,7 @@ func testAgentUDSOnly() *test.ComponentTest {
 			agentVolumes := mgr.VolumeMgr.Volumes
 			expectedVolumes := []*corev1.Volume{
 				{
-					Name: apicommon.DogstatsdSocketVolumeName,
+					Name: apicommon.DogstatsdAPMSocketVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
 							Path: apmSocketHostPath,
@@ -260,7 +260,7 @@ func testAgentHostPortUDS() *test.ComponentTest {
 			agentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.TraceAgentContainerName]
 			expectedVolumeMounts := []*corev1.VolumeMount{
 				{
-					Name:      apicommon.DogstatsdSocketVolumeName,
+					Name:      apicommon.DogstatsdAPMSocketVolumeName,
 					MountPath: apmSocketHostPath,
 					ReadOnly:  false,
 				},
@@ -274,7 +274,7 @@ func testAgentHostPortUDS() *test.ComponentTest {
 			agentVolumes := mgr.VolumeMgr.Volumes
 			expectedVolumes := []*corev1.Volume{
 				{
-					Name: apicommon.DogstatsdSocketVolumeName,
+					Name: apicommon.DogstatsdAPMSocketVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
 							Path: apmSocketHostPath,
