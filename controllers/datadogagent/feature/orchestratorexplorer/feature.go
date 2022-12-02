@@ -39,7 +39,6 @@ func buildOrchestratorExplorerFeature(options *feature.Options) feature.Feature 
 }
 
 type orchestratorExplorerFeature struct {
-	clusterChecksEnabled     bool
 	runInClusterChecksRunner bool
 	scrubContainers          bool
 	extraTags                []string
@@ -80,8 +79,6 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 		f.serviceAccountName = v2alpha1.GetClusterAgentServiceAccount(dda)
 
 		if v2alpha1.IsClusterChecksEnabled(dda) {
-			f.clusterChecksEnabled = true
-
 			if v2alpha1.IsCCREnabled(dda) {
 				f.runInClusterChecksRunner = true
 				f.rbacSuffix = common.ChecksRunnerSuffix
@@ -120,8 +117,6 @@ func (f *orchestratorExplorerFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (r
 		f.serviceAccountName = v1alpha1.GetClusterAgentServiceAccount(dda)
 
 		if v1alpha1.IsClusterChecksEnabled(dda) && apiutils.BoolValue(orchestratorExplorer.ClusterCheck) {
-			f.clusterChecksEnabled = true
-
 			if v1alpha1.IsCCREnabled(dda) {
 				f.runInClusterChecksRunner = true
 				reqComp.ClusterChecksRunner.IsRequired = apiutils.NewBoolPointer(true)

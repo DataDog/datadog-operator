@@ -74,7 +74,7 @@ const (
 	defaultKubeStateMetricsCoreEnabled bool = true
 
 	defaultClusterChecksEnabled    bool = true
-	defaultUseClusterChecksRunners bool = true
+	defaultUseClusterChecksRunners bool = false
 
 	// defaultPrometheusScrapeEnabled                bool = false
 	defaultPrometheusScrapeEnableServiceEndpoints bool = false
