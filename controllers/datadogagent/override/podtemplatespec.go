@@ -14,6 +14,7 @@ import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/pkg/defaulting"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -156,7 +157,20 @@ func overrideImage(currentImg string, overrideImg *common.AgentImageConfig) stri
 		registry = splitImg[0] + "/" + splitImg[1]
 	}
 
-	return apicommon.GetImage(overrideImg, &registry)
+	splitName := strings.Split(splitImg[len(splitImg)-1], ":")
+
+	// This deep copies primitives of the struct, we don't care about other fields
+	overrideImgCopy := *overrideImg
+	if overrideImgCopy.Name == "" {
+		overrideImgCopy.Name = splitName[0]
+	}
+
+	if overrideImgCopy.Tag == "" {
+		// If present need to drop JMX tag suffix
+		overrideImgCopy.Tag = strings.TrimSuffix(splitName[1], defaulting.JMXTagSuffix)
+	}
+
+	return apicommon.GetImage(&overrideImgCopy, &registry)
 }
 
 func sortKeys(keysMap map[v2alpha1.AgentConfigFileName]v2alpha1.CustomConfig) []v2alpha1.AgentConfigFileName {
