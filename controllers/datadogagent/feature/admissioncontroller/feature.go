@@ -31,6 +31,7 @@ type admissionControllerFeature struct {
 	serviceName            string
 	agentCommunicationMode string
 	localServiceName       string
+	failurePolicy          string
 
 	serviceAccountName string
 	owner              metav1.Object
@@ -61,6 +62,9 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 		f.localServiceName = v2alpha1.GetLocalAgentServiceName(dda)
 		reqComp = feature.RequiredComponents{
 			ClusterAgent: feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)},
+		}
+		if ac.FailurePolicy != nil && *ac.FailurePolicy != "" {
+			f.failurePolicy = *ac.FailurePolicy
 		}
 	}
 	return reqComp
@@ -142,6 +146,13 @@ func (f *admissionControllerFeature) ManageClusterAgent(managers feature.PodTemp
 		Name:  apicommon.DDAdmissionControllerLocalServiceName,
 		Value: f.localServiceName,
 	})
+
+	if f.failurePolicy != "" {
+		managers.EnvVar().AddEnvVarToContainer(common.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  apicommon.DDAdmissionControllerFailurePolicy,
+			Value: f.failurePolicy,
+		})
+	}
 
 	return nil
 }

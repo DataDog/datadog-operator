@@ -12742,7 +12742,7 @@ spec:
                     description: AdmissionController configuration.
                     properties:
                       agentCommunicationMode:
-                        description: agentCommunicationMode corresponds to the mode
+                        description: AgentCommunicationMode corresponds to the mode
                           used by the Datadog application libraries to communicate
                           with the Agent. It can be "hostip", "service", or "socket".
                         type: string
@@ -12750,6 +12750,10 @@ spec:
                         description: 'Enabled enables the Admission Controller. Default:
                           false'
                         type: boolean
+                      failurePolicy:
+                        description: FailurePolicy determines how unrecognized and
+                          timeout errors are handled.
+                        type: string
                       mutateUnlabelled:
                         description: 'MutateUnlabelled enables config injection without
                           the need of pod label ''admission.datadoghq.com/enabled="true"''.
@@ -12786,7 +12790,7 @@ spec:
                       unixDomainSocketConfig:
                         description: 'UnixDomainSocketConfig contains socket configuration.
                           See also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables
-                          Enabled Default: true Path Default: `/var/run/datadog/apm/apm.socket`'
+                          Enabled Default: true Path Default: `/var/run/datadog/apm.socket`'
                         properties:
                           enabled:
                             description: 'Enabled enables Unix Domain Socket. Default:
@@ -13025,7 +13029,7 @@ spec:
                       unixDomainSocketConfig:
                         description: 'UnixDomainSocketConfig contains socket configuration.
                           See also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables
-                          Enabled Default: true Path Default: `/var/run/datadog/statsd/dsd.socket`'
+                          Enabled Default: true Path Default: `/var/run/datadog/dsd.socket`'
                         properties:
                           enabled:
                             description: 'Enabled enables Unix Domain Socket. Default:
