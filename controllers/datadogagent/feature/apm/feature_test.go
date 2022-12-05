@@ -23,8 +23,7 @@ import (
 )
 
 const (
-	apmSocketHostPath = "/var/run/datadog/apm"
-	apmSocketPath     = "/var/run/datadog/apm/apm.sock"
+	apmSocketPath = apicommon.DogstatsdSocketVolumePath + "/" + apicommon.APMSocketName
 )
 
 func TestAPMFeature(t *testing.T) {
@@ -180,10 +179,10 @@ func testAgentUDSOnly() *test.ComponentTest {
 			)
 
 			agentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.TraceAgentContainerName]
-			expectedVolumeMounts := []corev1.VolumeMount{
+			expectedVolumeMounts := []*corev1.VolumeMount{
 				{
-					Name:      "apmsocket",
-					MountPath: apmSocketHostPath,
+					Name:      apicommon.DogstatsdAPMSocketVolumeName,
+					MountPath: apicommon.DogstatsdSocketVolumePath,
 					ReadOnly:  false,
 				},
 			}
@@ -194,12 +193,12 @@ func testAgentUDSOnly() *test.ComponentTest {
 			)
 
 			agentVolumes := mgr.VolumeMgr.Volumes
-			expectedVolumes := []corev1.Volume{
+			expectedVolumes := []*corev1.Volume{
 				{
-					Name: "apmsocket",
+					Name: apicommon.DogstatsdAPMSocketVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: apmSocketHostPath,
+							Path: apicommon.DogstatsdSocketVolumePath,
 						},
 					},
 				},
@@ -258,10 +257,10 @@ func testAgentHostPortUDS() *test.ComponentTest {
 			)
 
 			agentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.TraceAgentContainerName]
-			expectedVolumeMounts := []corev1.VolumeMount{
+			expectedVolumeMounts := []*corev1.VolumeMount{
 				{
-					Name:      "apmsocket",
-					MountPath: apmSocketHostPath,
+					Name:      apicommon.DogstatsdAPMSocketVolumeName,
+					MountPath: apicommon.DogstatsdSocketVolumePath,
 					ReadOnly:  false,
 				},
 			}
@@ -272,12 +271,12 @@ func testAgentHostPortUDS() *test.ComponentTest {
 			)
 
 			agentVolumes := mgr.VolumeMgr.Volumes
-			expectedVolumes := []corev1.Volume{
+			expectedVolumes := []*corev1.Volume{
 				{
-					Name: "apmsocket",
+					Name: apicommon.DogstatsdAPMSocketVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: apmSocketHostPath,
+							Path: apicommon.DogstatsdSocketVolumePath,
 						},
 					},
 				},

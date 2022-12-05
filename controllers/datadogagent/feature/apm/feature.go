@@ -270,7 +270,7 @@ func (f *apmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 			Name:  apicommon.DDAPMReceiverSocket,
 			Value: f.udsHostFilepath,
 		})
-		socketVol, socketVolMount := volume.GetVolumes(apicommon.APMSocketVolumeName, udsHostFolder, udsHostFolder, false)
+		socketVol, socketVolMount := volume.GetVolumes(apicommon.DogstatsdAPMSocketVolumeName, udsHostFolder, udsHostFolder, false)
 		managers.VolumeMount().AddVolumeMountToContainer(&socketVolMount, apicommonv1.TraceAgentContainerName)
 		managers.Volume().AddVolume(&socketVol)
 	}

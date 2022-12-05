@@ -34,7 +34,7 @@ const (
 	defaultAPMHostPortEnabled bool   = false
 	defaultAPMHostPort        int32  = 8126
 	defaultAPMSocketEnabled   bool   = true
-	defaultAPMSocketPath      string = "/var/run/datadog/apm/apm.sock"
+	defaultAPMSocketPath      string = "/var/run/datadog/apm.socket"
 
 	// defaultCSPMEnabled              bool = false
 	// defaultCWSEnabled               bool = false
@@ -50,7 +50,7 @@ const (
 	defaultDogstatsdHostPortEnabled        bool   = false
 	defaultDogstatsdPort                   int32  = 8125
 	defaultDogstatsdSocketEnabled          bool   = true
-	defaultDogstatsdSocketPath             string = "/var/run/datadog/statsd/dsd.socket"
+	defaultDogstatsdSocketPath             string = "/var/run/datadog/dsd.socket"
 
 	defaultOTLPGRPCEnabled  bool   = false
 	defaultOTLPGRPCEndpoint string = "0.0.0.0:4317"
@@ -59,7 +59,7 @@ const (
 
 	defaultCollectKubernetesEvents bool = true
 
-	// defaultAdmissionControllerEnabled          bool = false
+	defaultAdmissionControllerEnabled          bool   = true
 	defaultAdmissionControllerMutateUnlabelled bool   = false
 	defaultAdmissionServiceName                string = "datadog-admission-controller"
 
@@ -250,7 +250,13 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 	}
 
 	// AdmissionController Feature
-	if ddaSpec.Features.AdmissionController != nil && *ddaSpec.Features.AdmissionController.Enabled {
+	if ddaSpec.Features.AdmissionController == nil {
+		ddaSpec.Features.AdmissionController = &AdmissionControllerFeatureConfig{
+			Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+		}
+	}
+
+	if *ddaSpec.Features.AdmissionController.Enabled {
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.AdmissionController.MutateUnlabelled, defaultAdmissionControllerMutateUnlabelled)
 		apiutils.DefaultStringIfUnset(&ddaSpec.Features.AdmissionController.ServiceName, defaultAdmissionServiceName)
 	}
