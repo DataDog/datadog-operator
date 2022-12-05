@@ -89,6 +89,7 @@ const (
 	DDPrometheusScrapeChecks                        = "DD_PROMETHEUS_SCRAPE_CHECKS"
 	DDPrometheusScrapeEnabled                       = "DD_PROMETHEUS_SCRAPE_ENABLED"
 	DDPrometheusScrapeServiceEndpoints              = "DD_PROMETHEUS_SCRAPE_SERVICE_ENDPOINTS"
+	DDPrometheusScrapeVersion                       = "DD_PROMETHEUS_SCRAPE_VERSION"
 	DDRuntimeSecurityConfigEnabled                  = "DD_RUNTIME_SECURITY_CONFIG_ENABLED"
 	DDRuntimeSecurityConfigPoliciesDir              = "DD_RUNTIME_SECURITY_CONFIG_POLICIES_DIR"
 	DDRuntimeSecurityConfigRemoteTaggerEnabled      = "DD_RUNTIME_SECURITY_CONFIG_REMOTE_TAGGER"

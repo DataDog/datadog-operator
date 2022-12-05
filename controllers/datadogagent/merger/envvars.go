@@ -19,8 +19,10 @@ type EnvVarManager interface {
 	// AddEnvVarWithMergeFunc use to add an environment variable to all containers present in the Pod.
 	// The way the EnvVar is merge with an existing EnvVar can be tune thank to the EnvVarMergeFunction parameter.
 	AddEnvVarWithMergeFunc(newEnvVar *corev1.EnvVar, mergeFunc EnvVarMergeFunction) error
-	// AddEnvVar use to add an environment variable to a specific container present in the Pod.
+	// AddEnvVarToContainer use to add an environment variable to a specific container present in the Pod.
 	AddEnvVarToContainer(containerName commonv1.AgentContainerName, newEnvVar *corev1.EnvVar)
+	// AddEnvVarToInitContainer use to add an environment variable to a specific init container present in the Pod.
+	AddEnvVarToInitContainer(containerName commonv1.AgentContainerName, newEnvVar *corev1.EnvVar)
 	// AddEnvVarWithMergeFunc use to add an environment variable to a specific container present in the Pod.
 	// The way the EnvVar is merge with an existing EnvVar can be tune thank to the EnvVarMergeFunction parameter.
 	AddEnvVarToContainerWithMergeFunc(containerName commonv1.AgentContainerName, newEnvVar *corev1.EnvVar, mergeFunc EnvVarMergeFunction) error
@@ -55,10 +57,26 @@ func (impl *envVarManagerImpl) AddEnvVarToContainer(containerName commonv1.Agent
 	_ = impl.AddEnvVarToContainerWithMergeFunc(containerName, newEnvVar, DefaultEnvVarMergeFunction)
 }
 
+func (impl *envVarManagerImpl) AddEnvVarToInitContainer(initContainerName commonv1.AgentContainerName, newEnvVar *corev1.EnvVar) {
+	_ = impl.AddEnvVarToInitContainerWithMergeFunc(initContainerName, newEnvVar, DefaultEnvVarMergeFunction)
+}
+
 func (impl *envVarManagerImpl) AddEnvVarToContainerWithMergeFunc(containerName commonv1.AgentContainerName, newEnvVar *corev1.EnvVar, mergeFunc EnvVarMergeFunction) error {
 	for id := range impl.podTmpl.Spec.Containers {
 		if impl.podTmpl.Spec.Containers[id].Name == string(containerName) {
 			_, err := AddEnvVarToContainer(&impl.podTmpl.Spec.Containers[id], newEnvVar, mergeFunc)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (impl *envVarManagerImpl) AddEnvVarToInitContainerWithMergeFunc(initContainerName commonv1.AgentContainerName, newEnvVar *corev1.EnvVar, mergeFunc EnvVarMergeFunction) error {
+	for id := range impl.podTmpl.Spec.InitContainers {
+		if impl.podTmpl.Spec.InitContainers[id].Name == string(initContainerName) {
+			_, err := AddEnvVarToContainer(&impl.podTmpl.Spec.InitContainers[id], newEnvVar, mergeFunc)
 			if err != nil {
 				return err
 			}

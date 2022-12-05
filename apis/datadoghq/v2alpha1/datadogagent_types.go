@@ -503,6 +503,11 @@ type PrometheusScrapeFeatureConfig struct {
 	// AdditionalConfigs allows adding advanced Prometheus check configurations with custom discovery rules.
 	// +optional
 	AdditionalConfigs *string `json:"additionalConfigs,omitempty"`
+
+	// Version specifies the version of the OpenMetrics check.
+	// Default: 2
+	// +optional
+	Version *int `json:"version,omitempty"`
 }
 
 // Generic support structs

@@ -51,7 +51,7 @@ IMG_CHECK ?= gcr.io/datadoghq/operator-check:latest
 
 CRD_OPTIONS ?= "crd:preserveUnknownFields=false"
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
-ENVTEST_K8S_VERSION = 1.20
+ENVTEST_K8S_VERSION = 1.24
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -83,7 +83,7 @@ $(CONTROLLER_GEN): Makefile  ## Download controller-gen locally if necessary.
 
 KUSTOMIZE = bin/$(PLATFORM)/kustomize
 $(KUSTOMIZE): Makefile  ## Download kustomize locally if necessary.
-	$(call go-get-tool,$@,sigs.k8s.io/kustomize/kustomize/v3@v3.8.7)
+	$(call go-get-tool,$@,sigs.k8s.io/kustomize/kustomize/v4@v4.5.7)
 
 ENVTEST = bin/$(PLATFORM)/setup-envtest
 $(ENVTEST): Makefile ## Download envtest-setup locally if necessary.
@@ -187,11 +187,11 @@ gotest:
 
 .PHONY: integration-tests
 integration-tests: $(ENVTEST) ## Run tests.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test --tags=integration github.com/DataDog/datadog-operator/controllers -coverprofile cover.out
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test --tags=integration github.com/DataDog/datadog-operator/controllers -coverprofile cover_integration_v1.out
 
 .PHONY: integration-tests-v2
 integration-tests-v2: $(ENVTEST) ## Run tests with reconciler V2
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test --tags=integration_v2 github.com/DataDog/datadog-operator/controllers -coverprofile cover_v2.out
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test --tags=integration_v2 github.com/DataDog/datadog-operator/controllers -coverprofile cover_integration_v2.out
 
 .PHONY: bundle
 bundle: bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq $(KUSTOMIZE) manifests ## Generate bundle manifests and metadata, then validate generated files.

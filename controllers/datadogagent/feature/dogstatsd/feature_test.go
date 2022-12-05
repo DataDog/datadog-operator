@@ -99,7 +99,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 		{
 			Name:      apicommon.DogstatsdAPMSocketVolumeName,
 			MountPath: v1DogstatsdSocketPath,
-			ReadOnly:  true,
+			ReadOnly:  false,
 		},
 	}
 	// v2alpha1 default uds volume mount
@@ -107,7 +107,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 		{
 			Name:      apicommon.DogstatsdAPMSocketVolumeName,
 			MountPath: apicommon.DogstatsdSocketVolumePath,
-			ReadOnly:  true,
+			ReadOnly:  false,
 		},
 	}
 
@@ -293,7 +293,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 						{
 							Name:      apicommon.DogstatsdAPMSocketVolumeName,
 							MountPath: customVolumePath,
-							ReadOnly:  true,
+							ReadOnly:  false,
 						},
 					}
 					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, customVolumeMounts), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, customVolumeMounts))
@@ -455,7 +455,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 						{
 							Name:      apicommon.DogstatsdAPMSocketVolumeName,
 							MountPath: customVolumePath,
-							ReadOnly:  true,
+							ReadOnly:  false,
 						},
 					}
 					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, customVolumeMounts), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, customVolumeMounts))

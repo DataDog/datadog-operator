@@ -96,6 +96,14 @@ func (f *oomKillFeature) ManageNodeAgent(managers feature.PodTemplateManagers) e
 	managers.Volume().AddVolume(&debugfsVol)
 	managers.VolumeMount().AddVolumeMountToContainers(&debugfsVolMount, []apicommonv1.AgentContainerName{apicommonv1.ProcessAgentContainerName, apicommonv1.SystemProbeContainerName})
 
+	// socket volume mount (needs write perms for the system probe container but not the others)
+	socketVol, socketVolMount := volume.GetVolumesEmptyDir(apicommon.SystemProbeSocketVolumeName, apicommon.SystemProbeSocketVolumePath, false)
+	managers.Volume().AddVolume(&socketVol)
+	managers.VolumeMount().AddVolumeMountToContainer(&socketVolMount, apicommonv1.SystemProbeContainerName)
+
+	_, socketVolMountReadOnly := volume.GetVolumesEmptyDir(apicommon.SystemProbeSocketVolumeName, apicommon.SystemProbeSocketVolumePath, true)
+	managers.VolumeMount().AddVolumeMountToContainer(&socketVolMountReadOnly, apicommonv1.CoreAgentContainerName)
+
 	enableEnvVar := &corev1.EnvVar{
 		Name:  apicommon.DDEnableOOMKillEnvVar,
 		Value: "true",
@@ -103,6 +111,15 @@ func (f *oomKillFeature) ManageNodeAgent(managers feature.PodTemplateManagers) e
 
 	managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, enableEnvVar)
 	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, enableEnvVar)
+	managers.EnvVar().AddEnvVarToInitContainer(apicommonv1.InitConfigContainerName, enableEnvVar)
+
+	socketEnvVar := &corev1.EnvVar{
+		Name:  apicommon.DDSystemProbeSocket,
+		Value: apicommon.DefaultSystemProbeSocketPath,
+	}
+
+	managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, socketEnvVar)
+	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, socketEnvVar)
 
 	return nil
 }
