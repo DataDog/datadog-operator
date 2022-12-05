@@ -50,7 +50,7 @@ const (
 	reconcileFailureValue       = 0.0
 	reconcileMetricFormat       = "%s.reconcile.success"
 	reconcileErrTagFormat       = "reconcile_err:%s"
-	datadogOperatorSourceType   = "datadog_operator"
+	datadogOperatorSourceType   = "datadog"
 	defaultbaseURL              = "https://api.datadoghq.com"
 )
 
