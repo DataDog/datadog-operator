@@ -23,8 +23,7 @@ import (
 )
 
 const (
-	apmSocketHostPath = "/var/run/datadog"
-	apmSocketPath     = "/var/run/datadog/apm.sock"
+	apmSocketPath = apicommon.DogstatsdSocketVolumePath + "/" + apicommon.APMSocketName
 )
 
 func TestAPMFeature(t *testing.T) {
@@ -183,7 +182,7 @@ func testAgentUDSOnly() *test.ComponentTest {
 			expectedVolumeMounts := []*corev1.VolumeMount{
 				{
 					Name:      apicommon.DogstatsdAPMSocketVolumeName,
-					MountPath: apmSocketHostPath,
+					MountPath: apicommon.DogstatsdSocketVolumePath,
 					ReadOnly:  false,
 				},
 			}
@@ -199,7 +198,7 @@ func testAgentUDSOnly() *test.ComponentTest {
 					Name: apicommon.DogstatsdAPMSocketVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: apmSocketHostPath,
+							Path: apicommon.DogstatsdSocketVolumePath,
 						},
 					},
 				},
@@ -261,7 +260,7 @@ func testAgentHostPortUDS() *test.ComponentTest {
 			expectedVolumeMounts := []*corev1.VolumeMount{
 				{
 					Name:      apicommon.DogstatsdAPMSocketVolumeName,
-					MountPath: apmSocketHostPath,
+					MountPath: apicommon.DogstatsdSocketVolumePath,
 					ReadOnly:  false,
 				},
 			}
@@ -277,7 +276,7 @@ func testAgentHostPortUDS() *test.ComponentTest {
 					Name: apicommon.DogstatsdAPMSocketVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: apmSocketHostPath,
+							Path: apicommon.DogstatsdSocketVolumePath,
 						},
 					},
 				},

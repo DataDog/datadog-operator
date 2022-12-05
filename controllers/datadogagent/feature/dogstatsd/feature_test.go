@@ -22,11 +22,8 @@ import (
 )
 
 const (
-	v1DogstatsdSocketName = "statsd.sock"
-	v1DogstatsdSocketPath = "/var/run/datadog"
-	v2DogstatsdSocketPath = "/var/run/datadog/dsd.socket"
-	customVolumePath      = "/custom/host"
-	customPath            = "/custom/host/filepath"
+	customVolumePath = "/custom/host"
+	customPath       = "/custom/host/filepath"
 )
 
 func Test_DogstatsdFeature_Configure(t *testing.T) {
@@ -98,7 +95,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 	wantVolumeMountsV1 := []corev1.VolumeMount{
 		{
 			Name:      apicommon.DogstatsdAPMSocketVolumeName,
-			MountPath: v1DogstatsdSocketPath,
+			MountPath: apicommon.DogstatsdSocketVolumePath,
 			ReadOnly:  false,
 		},
 	}
@@ -117,7 +114,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 			Name: apicommon.DogstatsdAPMSocketVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: v1DogstatsdSocketPath,
+					Path: apicommon.DogstatsdSocketVolumePath,
 				},
 			},
 		},
@@ -147,7 +144,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 	wantUDSEnvVarsV1 := []*corev1.EnvVar{
 		{
 			Name:  apicommon.DDDogstatsdSocket,
-			Value: v1DogstatsdSocketPath + "/" + v1DogstatsdSocketName,
+			Value: apicommon.DogstatsdSocketVolumePath + "/" + "statsd.sock",
 		},
 	}
 
@@ -155,7 +152,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 	wantUDSEnvVarsV2 := []*corev1.EnvVar{
 		{
 			Name:  apicommon.DDDogstatsdSocket,
-			Value: v2DogstatsdSocketPath,
+			Value: apicommon.DogstatsdSocketVolumePath + "/" + apicommon.DogstatsdSocketName,
 		},
 	}
 
