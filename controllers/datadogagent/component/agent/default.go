@@ -347,6 +347,8 @@ func volumeMountsForCoreAgent() []corev1.VolumeMount {
 func volumeMountsForTraceAgent() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		component.GetVolumeMountForLogs(),
+		component.GetVolumeMountForProc(),
+		component.GetVolumeMountForCgroups(),
 		component.GetVolumeMountForAuth(true),
 		component.GetVolumeMountForConfig(),
 		component.GetVolumeMountForDogstatsdSocket(true),
