@@ -15,7 +15,6 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
-	corev1 "k8s.io/api/core/v1"
 )
 
 // PodTemplateSpec use to override a corev1.PodTemplateSpec with a 2alpha1.DatadogAgentPodTemplateOverride.
@@ -42,10 +41,8 @@ func PodTemplateSpec(manager feature.PodTemplateManagers, override *v2alpha1.Dat
 	}
 
 	for _, env := range override.Env {
-		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-			Name:  env.Name,
-			Value: env.Value,
-		})
+		e := env
+		manager.EnvVar().AddEnvVar(&e)
 	}
 
 	// Override agent configurations such as datadog.yaml, system-probe.yaml, etc.

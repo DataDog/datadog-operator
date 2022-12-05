@@ -233,6 +233,14 @@ func TestPodTemplateSpec(t *testing.T) {
 						Name:  "added-env",
 						Value: "456",
 					},
+					{
+						Name: "added-env-valuefrom",
+						ValueFrom: &v1.EnvVarSource{
+							FieldRef: &v1.ObjectFieldSelector{
+								FieldPath: common.FieldPathStatusPodIP,
+							},
+						},
+					},
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
@@ -244,6 +252,14 @@ func TestPodTemplateSpec(t *testing.T) {
 					{
 						Name:  "added-env",
 						Value: "456",
+					},
+					{
+						Name: "added-env-valuefrom",
+						ValueFrom: &v1.EnvVarSource{
+							FieldRef: &v1.ObjectFieldSelector{
+								FieldPath: common.FieldPathStatusPodIP,
+							},
+						},
 					},
 				}
 
