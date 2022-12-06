@@ -56,13 +56,27 @@ func GetImage(imageSpec *commonv1.AgentImageConfig, registry *string) string {
 	if defaulting.IsImageNameContainsTag(imageSpec.Name) {
 		// If the image name corresponds to a full URI we return it, otherwise
 		// we prefix name with passed registry or default one if former is empty/nil.
-		if len(strings.Split(imageSpec.Name, "/")) > 2 {
+		splitName := strings.Split(imageSpec.Name, "/")
+
+		// Assume name is full URI and we use it.
+		if len(splitName) > 2 {
 			return imageSpec.Name
-		} else if registry != nil && *registry != "" {
-			return fmt.Sprintf("%s/%s", *registry, imageSpec.Name)
-		} else {
-			return fmt.Sprintf("%s/%s", DefaultImageRegistry, imageSpec.Name)
 		}
+
+		// Use default registry unless there is an override
+		registryToUse := DefaultImageRegistry
+		if registry != nil && *registry != "" {
+			registryToUse = *registry
+		}
+
+		nameToUse := ""
+		// If name cotains repo without registry, drop the repo.
+		if len(splitName) == 2 {
+			nameToUse = splitName[1]
+		} else {
+			nameToUse = imageSpec.Name
+		}
+		return fmt.Sprintf("%s/%s", registryToUse, nameToUse)
 	}
 
 	img := defaulting.NewImage(imageSpec.Name, imageSpec.Tag, imageSpec.JMXEnabled)

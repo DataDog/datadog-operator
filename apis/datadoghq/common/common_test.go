@@ -109,6 +109,26 @@ func Test_GetImage(t *testing.T) {
 			registry: nil,
 			want:     "gcr.io/datadoghq/agent:7",
 		},
+		{
+			name: "repo+image:tag input, drop repo, prefix default registry",
+			imageSpec: &commonv1.AgentImageConfig{
+				Name:       "datadog/agent:7",
+				Tag:        "8",
+				JMXEnabled: true,
+			},
+			registry: nil,
+			want:     "gcr.io/datadoghq/agent:7",
+		},
+		{
+			name: "repo+image:tag and override input, use override registry",
+			imageSpec: &commonv1.AgentImageConfig{
+				Name:       "datadog/agent:7",
+				Tag:        "8",
+				JMXEnabled: true,
+			},
+			registry: apiutils.NewStringPointer("docker.io/datadog"),
+			want:     "docker.io/datadog/agent:7",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
