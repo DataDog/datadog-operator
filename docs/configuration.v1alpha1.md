@@ -195,7 +195,7 @@ spec:
 | agent.hostNetwork | Host networking requested for this pod. Use the host's network namespace. If this option is set, the ports that will be used must be specified. Default to false. |
 | agent.hostPID | Use the host's pid namespace. Optional: Default to false. |
 | agent.image.jmxEnabled | Define whether the Agent image should support JMX. |
-| agent.image.name | Define the image to use: Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7. Use "datadog/dogstatsd:latest" for standalone Datadog Agent DogStatsD 7. Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent. Use "agent" with the registry and tag configurations for <registry>/agent:<tag>. Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>. |
+| agent.image.name | Define the image to use: Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7. Use "datadog/dogstatsd:latest" for standalone Datadog Agent DogStatsD 7. Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent. Use "agent" with the registry and tag configurations for <registry>/agent:<tag>. Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>. Use `global.registry` if you are using a custom registry. |
 | agent.image.pullPolicy | The Kubernetes pull policy: Use Always, Never or IfNotPresent. |
 | agent.image.pullSecrets | It is possible to specify Docker registry credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod |
 | agent.image.tag | Define the image tag to use. To be used if the Name field does not correspond to a full image string. |
@@ -344,7 +344,7 @@ spec:
 | clusterAgent.deploymentName | Name of the Cluster Agent Deployment to create or migrate from. |
 | clusterAgent.enabled | Enabled |
 | clusterAgent.image.jmxEnabled | Define whether the Agent image should support JMX. |
-| clusterAgent.image.name | Define the image to use: Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7. Use "datadog/dogstatsd:latest" for standalone Datadog Agent DogStatsD 7. Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent. Use "agent" with the registry and tag configurations for <registry>/agent:<tag>. Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>. |
+| clusterAgent.image.name | Define the image to use: Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7. Use "datadog/dogstatsd:latest" for standalone Datadog Agent DogStatsD 7. Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent. Use "agent" with the registry and tag configurations for <registry>/agent:<tag>. Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>. Use `global.registry` if you are using a custom registry. |
 | clusterAgent.image.pullPolicy | The Kubernetes pull policy: Use Always, Never or IfNotPresent. |
 | clusterAgent.image.pullSecrets | It is possible to specify Docker registry credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod |
 | clusterAgent.image.tag | Define the image tag to use. To be used if the Name field does not correspond to a full image string. |
@@ -431,7 +431,7 @@ spec:
 | clusterChecksRunner.deploymentName | Name of the cluster checks deployment to create or migrate from. |
 | clusterChecksRunner.enabled | Enabled |
 | clusterChecksRunner.image.jmxEnabled | Define whether the Agent image should support JMX. |
-| clusterChecksRunner.image.name | Define the image to use: Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7. Use "datadog/dogstatsd:latest" for standalone Datadog Agent DogStatsD 7. Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent. Use "agent" with the registry and tag configurations for <registry>/agent:<tag>. Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>. |
+| clusterChecksRunner.image.name | Define the image to use: Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7. Use "datadog/dogstatsd:latest" for standalone Datadog Agent DogStatsD 7. Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent. Use "agent" with the registry and tag configurations for <registry>/agent:<tag>. Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>. Use `global.registry` if you are using a custom registry. |
 | clusterChecksRunner.image.pullPolicy | The Kubernetes pull policy: Use Always, Never or IfNotPresent. |
 | clusterChecksRunner.image.pullSecrets | It is possible to specify Docker registry credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod |
 | clusterChecksRunner.image.tag | Define the image tag to use. To be used if the Name field does not correspond to a full image string. |

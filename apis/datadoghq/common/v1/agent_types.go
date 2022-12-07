@@ -19,6 +19,7 @@ type AgentImageConfig struct {
 	// Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent.
 	// Use "agent" with the registry and tag configurations for <registry>/agent:<tag>.
 	// Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>.
+	// Use `global.registry` if you are using a custom registry.
 	Name string `json:"name,omitempty"`
 
 	// Define the image tag to use.
