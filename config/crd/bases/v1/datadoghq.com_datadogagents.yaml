@@ -4366,7 +4366,8 @@ spec:
                           standalone Datadog Agent DogStatsD 7. Use "gcr.io/datadoghq/cluster-agent:latest"
                           for Datadog Cluster Agent. Use "agent" with the registry
                           and tag configurations for <registry>/agent:<tag>. Use "cluster-agent"
-                          with the registry and tag configurations for <registry>/cluster-agent:<tag>.'
+                          with the registry and tag configurations for <registry>/cluster-agent:<tag>.
+                          Use `global.registry` if you are using a custom registry.'
                         type: string
                       pullPolicy:
                         description: 'The Kubernetes pull policy: Use Always, Never
@@ -8688,7 +8689,8 @@ spec:
                           standalone Datadog Agent DogStatsD 7. Use "gcr.io/datadoghq/cluster-agent:latest"
                           for Datadog Cluster Agent. Use "agent" with the registry
                           and tag configurations for <registry>/agent:<tag>. Use "cluster-agent"
-                          with the registry and tag configurations for <registry>/cluster-agent:<tag>.'
+                          with the registry and tag configurations for <registry>/cluster-agent:<tag>.
+                          Use `global.registry` if you are using a custom registry.'
                         type: string
                       pullPolicy:
                         description: 'The Kubernetes pull policy: Use Always, Never
@@ -12093,7 +12095,8 @@ spec:
                           standalone Datadog Agent DogStatsD 7. Use "gcr.io/datadoghq/cluster-agent:latest"
                           for Datadog Cluster Agent. Use "agent" with the registry
                           and tag configurations for <registry>/agent:<tag>. Use "cluster-agent"
-                          with the registry and tag configurations for <registry>/cluster-agent:<tag>.'
+                          with the registry and tag configurations for <registry>/cluster-agent:<tag>.
+                          Use `global.registry` if you are using a custom registry.'
                         type: string
                       pullPolicy:
                         description: 'The Kubernetes pull policy: Use Always, Never
@@ -15804,7 +15807,8 @@ spec:
                             for Datadog Cluster Agent. Use "agent" with the registry
                             and tag configurations for <registry>/agent:<tag>. Use
                             "cluster-agent" with the registry and tag configurations
-                            for <registry>/cluster-agent:<tag>.'
+                            for <registry>/cluster-agent:<tag>. Use `global.registry`
+                            if you are using a custom registry.'
                           type: string
                         pullPolicy:
                           description: 'The Kubernetes pull policy: Use Always, Never
