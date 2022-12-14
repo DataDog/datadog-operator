@@ -151,8 +151,10 @@ func overrideImage(currentImg string, overrideImg *common.AgentImageConfig) stri
 	splitImg := strings.Split(currentImg, "/")
 	registry := strings.Join(splitImg[:len(splitImg)-1], "/")
 
-	overrideImgCopy := overrideImg
 	splitName := strings.Split(splitImg[len(splitImg)-1], ":")
+
+	// This deep copies primitives of the struct, we don't care about other fields
+	overrideImgCopy := *overrideImg
 	if overrideImgCopy.Name == "" {
 		overrideImgCopy.Name = splitName[0]
 	}
@@ -161,7 +163,8 @@ func overrideImage(currentImg string, overrideImg *common.AgentImageConfig) stri
 		// If present need to drop JMX tag suffix
 		overrideImgCopy.Tag = strings.TrimSuffix(splitName[1], defaulting.JMXTagSuffix)
 	}
-	return apicommon.GetImage(overrideImgCopy, &registry)
+
+	return apicommon.GetImage(&overrideImgCopy, &registry)
 }
 
 func sortKeys(keysMap map[v2alpha1.AgentConfigFileName]v2alpha1.CustomConfig) []v2alpha1.AgentConfigFileName {
