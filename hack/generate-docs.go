@@ -8,15 +8,16 @@ import (
 	"sort"
 	"strings"
 
-	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
+	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"sigs.k8s.io/yaml"
 )
 
 const (
-	crdFile    = "config/crd/bases/v1/datadoghq.com_datadogagents.yaml"
-	headerFile = "hack/generate-docs/header.markdown"
-	footerFile = "hack/generate-docs/footer.markdown"
-	docsFile   = "docs/configuration.$VERSION.md"
+	crdFile         = "config/crd/bases/v1/datadoghq.com_datadogagents.yaml"
+	headerFile      = "hack/generate-docs/header.markdown"
+	footerFile      = "hack/generate-docs/footer.markdown"
+	v2OverridesFile = "hack/generate-docs/v2alpha1_overrides.markdown"
+	docsFile        = "docs/configuration.$VERSION.md"
 )
 
 type parameterDoc struct {
@@ -36,17 +37,11 @@ func main() {
 	}
 
 	for _, crdVersion := range crd.Spec.Versions {
-		generateDoc(header, footer, crdVersion.Schema.OpenAPIV3Schema.Properties["spec"].Properties, crdVersion.Name)
+		generateDoc(header, footer, crdVersion, crdVersion.Name)
 	}
 }
 
-func generateDoc(header, footer []byte, props map[string]apiextensions.JSONSchemaProps, version string) {
-	docs := getParameterDocs([]string{}, props)
-
-	sort.Slice(docs, func(i, j int) bool {
-		return docs[i].name < docs[j].name
-	})
-
+func generateDoc(header, footer []byte, crd apiextensions.CustomResourceDefinitionVersion, version string) {
 	file := strings.Replace(docsFile, "$VERSION", version, 1)
 	f, err := os.OpenFile(file, os.O_TRUNC|os.O_WRONLY|os.O_CREATE, 0o644)
 	if err != nil {
@@ -59,18 +54,53 @@ func generateDoc(header, footer []byte, props map[string]apiextensions.JSONSchem
 		}
 	}()
 
+	// Write header and example yaml
 	exampleYaml := mustReadFile(exampleFile(version))
 
 	mustWrite(f, header)
 	mustWriteString(f, "\n")
 	mustWrite(f, exampleYaml)
 	mustWriteString(f, "\n")
+
+	// Write prop content
+	var generator = map[string]func(*os.File, apiextensions.CustomResourceDefinitionVersion){
+		"v1alpha1": generateContent_v1alpha1,
+		"v2alpha1": generateContent_v2alpha1,
+	}
+	generator[version](f, crd)
+
+	// Write footer
+	mustWrite(f, footer)
+}
+
+func generateContent_v1alpha1(f *os.File, crd apiextensions.CustomResourceDefinitionVersion) {
+	writePropsTable(f, crd.Schema.OpenAPIV3Schema.Properties["spec"].Properties)
+}
+
+func generateContent_v2alpha1(f *os.File, crd apiextensions.CustomResourceDefinitionVersion) {
+	writePropsTable(f, crd.Schema.OpenAPIV3Schema.Properties["spec"].Properties)
+
+	overridesMarkdown := mustReadFile(v2OverridesFile)
+	mustWrite(f, overridesMarkdown)
+	mustWriteString(f, "\n")
+	mustWriteString(f, "| Parameter | Description |\n")
+	mustWriteString(f, "| --------- | ----------- |\n")
+
+	overrideProps := crd.Schema.OpenAPIV3Schema.Properties["spec"].Properties["override"]
+	writeOverridesRecursive(f, "[key]", overrideProps.AdditionalProperties.Schema.Properties)
+}
+
+func writePropsTable(f *os.File, props map[string]apiextensions.JSONSchemaProps) {
+	docs := getParameterDocs([]string{}, props)
+
+	sort.Slice(docs, func(i, j int) bool {
+		return docs[i].name < docs[j].name
+	})
 	mustWriteString(f, "| Parameter | Description |\n")
 	mustWriteString(f, "| --------- | ----------- |\n")
 	for _, doc := range docs {
 		mustWriteString(f, fmt.Sprintf("| %s | %s |\n", doc.name, doc.description))
 	}
-	mustWrite(f, footer)
 }
 
 func mustReadFile(path string) []byte {
@@ -130,4 +160,30 @@ func getParameterDoc(path []string, name string, prop apiextensions.JSONSchemaPr
 
 func exampleFile(version string) string {
 	return fmt.Sprintf("hack/generate-docs/%s_example.markdown", version)
+}
+
+func writeOverridesRecursive(f *os.File, prefix string, props map[string]apiextensions.JSONSchemaProps) {
+	docs := getParameterDocs([]string{}, props)
+
+	sort.Slice(docs, func(i, j int) bool {
+		return docs[i].name < docs[j].name
+	})
+	for _, doc := range docs {
+		if props[doc.name].Type == "array" {
+			// https://swagger.io/docs/specification/data-models/data-types/#array
+			arrayType := props[doc.name].Items.Schema.Type
+			propName := prefix + "." + doc.name
+			mustWriteString(f, fmt.Sprintf("| %s `[]%s` | %s |\n", propName, arrayType, doc.description))
+		} else if !strings.Contains(doc.name, ".") && props[doc.name].AdditionalProperties != nil {
+			// https://swagger.io/docs/specification/data-models/dictionaries/
+			mapKeyType := "string"
+			mapValueType := props[doc.name].AdditionalProperties.Schema.Type
+			propName := prefix + "." + doc.name
+			mustWriteString(f, fmt.Sprintf("| %s `map[%s]%s` | %s |\n", propName, mapKeyType, mapValueType, doc.description))
+			valueTypeProps := props[doc.name].AdditionalProperties.Schema.Properties
+			writeOverridesRecursive(f, prefix+".[key]."+doc.name, valueTypeProps)
+		} else {
+			mustWriteString(f, fmt.Sprintf("| %s | %s |\n", prefix+"."+doc.name, doc.description))
+		}
+	}
 }
