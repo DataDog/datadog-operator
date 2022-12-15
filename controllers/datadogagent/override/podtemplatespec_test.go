@@ -250,6 +250,20 @@ func TestPodTemplateSpec(t *testing.T) {
 			},
 		},
 		{
+			name: "15: given long URI, override name with slash, overrides name in current image",
+			existingManager: func() *fake.PodTemplateManagers {
+				return fakePodTemplateManagersWithImageOverride("someregistry.com/datadog/agent:9.99", t)
+			},
+			override: v2alpha1.DatadogAgentComponentOverride{
+				Image: &commonv1.AgentImageConfig{
+					Name: "otherregistry.com/agent",
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
+				assert.Equal(t, "someregistry.com/datadog/otherregistry.com/agent:9.99", actualImage(manager, t))
+			},
+		},
+		{
 			name: "add envs",
 			existingManager: func() *fake.PodTemplateManagers {
 				manager := fake.NewPodTemplateManagers(t)
@@ -634,6 +648,7 @@ func TestPodTemplateSpec(t *testing.T) {
 	}
 }
 
+// In practice, image string registry will be derived either from global.registry setting or the default.
 func fakePodTemplateManagersWithImageOverride(image string, t *testing.T) *fake.PodTemplateManagers {
 	manager := fake.NewPodTemplateManagers(t)
 	manager.PodTemplateSpec().Spec.InitContainers = []v1.Container{
