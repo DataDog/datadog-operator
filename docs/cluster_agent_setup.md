@@ -1,8 +1,8 @@
-# Cluster Agent
+# Cluster Agent with Datadog Operator
 
-By default, the Cluster Agent is deployed along with the Agent.
+By default, the Datadog Operator deploys the Cluster Agent along with the Agent.
 
-The Cluster Agent configuration is defined in the `spec.clusterAgent` section, for example: [`datadog-agent-with-clusteragent.yaml` file][1]:
+The Cluster Agent configuration is defined in the `spec.clusterAgent` section. For example: [`datadog-agent-with-clusteragent.yaml`][1]:
 
 ```yaml
 apiVersion: datadoghq.com/v1alpha1
@@ -34,7 +34,7 @@ spec:
 
 **Note**: `<DATADOG_CLUSTER_AGENT_TOKEN>` is a custom 32 characters long token that you can define. If it is omitted, a random one is generated automatically.
 
-Then apply it with:
+Apply this configuration with:
 
 ```shell
 $ kubectl apply -n $DD_NAMESPACE -f datadog-agent-with-clusteragent.yaml
@@ -53,7 +53,7 @@ NAME                          READY   UP-TO-DATE   AVAILABLE   AGE
 datadog-cluster-agent   2/2     2            2           21s
 ```
 
-The "datadog-agent" `DaemonSet` has also been updated to get the new configuration for using the `Cluster-Agent` deployment pods.
+The `datadog-agent` DaemonSet is also updated to get the new configuration for using the `Cluster-Agent` deployment Pods.
 
 ```shell
 $ kubectl get pod
