@@ -10,6 +10,7 @@ import (
 )
 
 func Test_GetImage(t *testing.T) {
+	emptyRegistry := ""
 	tests := []struct {
 		name      string
 		imageSpec *commonv1.AgentImageConfig
@@ -48,7 +49,7 @@ func Test_GetImage(t *testing.T) {
 				Name: "agent",
 				Tag:  "latest",
 			},
-			registry: nil,
+			registry: &emptyRegistry,
 			want:     "gcr.io/datadoghq/agent:latest",
 		},
 		{
@@ -90,24 +91,6 @@ func Test_GetImage(t *testing.T) {
 			},
 			registry: nil,
 			want:     "gcr.io/datadoghq/agent:latest-jmx",
-		},
-		{
-			name: "image:tag and registry input, prefix registry",
-			imageSpec: &commonv1.AgentImageConfig{
-				Name: "agent:7",
-				Tag:  "8",
-			},
-			registry: apiutils.NewStringPointer("docker.io/datadog"),
-			want:     "docker.io/datadog/agent:7",
-		},
-		{
-			name: "image:tag input, prefix default registry",
-			imageSpec: &commonv1.AgentImageConfig{
-				Name: "agent:7",
-				Tag:  "8",
-			},
-			registry: nil,
-			want:     "gcr.io/datadoghq/agent:7",
 		},
 	}
 	for _, tt := range tests {

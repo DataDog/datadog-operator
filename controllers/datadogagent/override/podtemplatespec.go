@@ -149,10 +149,7 @@ func overrideCustomConfigVolumes(manager feature.PodTemplateManagers, customConf
 
 func overrideImage(currentImg string, overrideImg *common.AgentImageConfig) string {
 	splitImg := strings.Split(currentImg, "/")
-	registry := ""
-	if len(splitImg) > 2 {
-		registry = splitImg[0] + "/" + splitImg[1]
-	}
+	registry := strings.Join(splitImg[:len(splitImg)-1], "/")
 
 	splitName := strings.Split(splitImg[len(splitImg)-1], ":")
 
