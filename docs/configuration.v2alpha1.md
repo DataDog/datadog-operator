@@ -268,8 +268,8 @@ spec:
 | [key].extraConfd.configMap.name | Name is the name of the ConfigMap. |
 | [key].hostNetwork | Host networking requested for this pod. Use the host's network namespace. |
 | [key].hostPID | Use the host's pid namespace. |
-| [key].image.jmxEnabled | Define whether the Agent image should support JMX. |
-| [key].image.name | Define the image to use: Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7. Use "datadog/dogstatsd:latest" for standalone Datadog Agent DogStatsD 7. Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent. Use "agent" with the registry and tag configurations for <registry>/agent:<tag>. Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>. |
+| [key].image.jmxEnabled | Define whether the Agent image should support JMX. To be used if the Name field does not correspond to a full image string. |
+| [key].image.name | Define the image to use: Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7. Use "datadog/dogstatsd:latest" for standalone Datadog Agent DogStatsD 7. Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent. Use "agent" with the registry and tag configurations for <registry>/agent:<tag>. Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>. If the name is full image string - `<name>:<tag>` or `<registry>/<name>:<tag>`, `tag` and `jmxEnabled` values are ignored, so is `global.registry`. Otherwise, image string is created by overriding default settings with supplied `name`, `tag` and `jmxEnabled` values; image string is created using default registry unless `global.registry` is configured. |
 | [key].image.pullPolicy | The Kubernetes pull policy: Use Always, Never or IfNotPresent. |
 | [key].image.pullSecrets | It is possible to specify Docker registry credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod |
 | [key].image.tag | Define the image tag to use. To be used if the Name field does not correspond to a full image string. |
