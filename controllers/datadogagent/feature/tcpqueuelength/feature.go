@@ -85,17 +85,17 @@ func (f *tcpQueueLengthFeature) ManageNodeAgent(managers feature.PodTemplateMana
 	managers.SecurityContext().AddCapabilitiesToContainer(agent.DefaultCapabilitiesForSystemProbe(), apicommonv1.SystemProbeContainerName)
 
 	// modules volume mount
-	modulesVol, modulesVolMount := volume.GetVolumes(apicommon.ModulesVolumeName, apicommon.ModulesVolumePath, apicommon.ModulesVolumePath, true)
+	modulesVol, modulesVolMount := volume.GetVolumes(apicommon.ModulesVolumeName, apicommon.ModulesVolumePath, apicommon.ModulesVolumePath, true, corev1.HostPathUnset)
 	managers.VolumeMount().AddVolumeMountToContainer(&modulesVolMount, apicommonv1.SystemProbeContainerName)
 	managers.Volume().AddVolume(&modulesVol)
 
 	// src volume mount
-	srcVol, srcVolMount := volume.GetVolumes(apicommon.SrcVolumeName, apicommon.SrcVolumePath, apicommon.SrcVolumePath, true)
+	srcVol, srcVolMount := volume.GetVolumes(apicommon.SrcVolumeName, apicommon.SrcVolumePath, apicommon.SrcVolumePath, true, corev1.HostPathUnset)
 	managers.VolumeMount().AddVolumeMountToContainer(&srcVolMount, apicommonv1.SystemProbeContainerName)
 	managers.Volume().AddVolume(&srcVol)
 
 	// debugfs volume mount
-	debugfsVol, debugfsVolMount := volume.GetVolumes(apicommon.DebugfsVolumeName, apicommon.DebugfsPath, apicommon.DebugfsPath, false)
+	debugfsVol, debugfsVolMount := volume.GetVolumes(apicommon.DebugfsVolumeName, apicommon.DebugfsPath, apicommon.DebugfsPath, false, corev1.HostPathUnset)
 	managers.Volume().AddVolume(&debugfsVol)
 	managers.VolumeMount().AddVolumeMountToContainers(&debugfsVolMount, []apicommonv1.AgentContainerName{apicommonv1.ProcessAgentContainerName, apicommonv1.SystemProbeContainerName})
 

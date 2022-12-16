@@ -120,12 +120,14 @@ func Test_usmFeature_Configure(t *testing.T) {
 		assert.True(t, apiutils.IsEqualStruct(processAgentMounts, processWantVolumeMounts), "Process Agent volume mounts \ndiff = %s", cmp.Diff(processAgentMounts, processWantVolumeMounts))
 
 		// check volumes
+		volumeType := corev1.HostPathUnset
 		wantVolumes := []corev1.Volume{
 			{
 				Name: apicommon.ProcdirVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
 						Path: apicommon.ProcdirHostPath,
+						Type: &volumeType,
 					},
 				},
 			},
@@ -134,6 +136,7 @@ func Test_usmFeature_Configure(t *testing.T) {
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
 						Path: apicommon.CgroupsHostPath,
+						Type: &volumeType,
 					},
 				},
 			},
@@ -142,6 +145,7 @@ func Test_usmFeature_Configure(t *testing.T) {
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
 						Path: apicommon.DebugfsPath,
+						Type: &volumeType,
 					},
 				},
 			},

@@ -111,12 +111,14 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 	}
 
 	// check volumes
+	volumeType := corev1.HostPathUnset
 	wantVolumes := []corev1.Volume{
 		{
 			Name: apicommon.PointerVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: apicommon.LogTempStoragePath,
+					Type: &volumeType,
 				},
 			},
 		},
@@ -125,6 +127,7 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: apicommon.PodLogVolumePath,
+					Type: &volumeType,
 				},
 			},
 		},
@@ -133,6 +136,7 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: apicommon.ContainerLogVolumePath,
+					Type: &volumeType,
 				},
 			},
 		},
@@ -141,6 +145,7 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: apicommon.SymlinkContainerVolumePath,
+					Type: &volumeType,
 				},
 			},
 		},
@@ -317,6 +322,7 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 							VolumeSource: corev1.VolumeSource{
 								HostPath: &corev1.HostPathVolumeSource{
 									Path: "/custom/temp/storage",
+									Type: &volumeType,
 								},
 							},
 						},
@@ -325,6 +331,7 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 							VolumeSource: corev1.VolumeSource{
 								HostPath: &corev1.HostPathVolumeSource{
 									Path: "/custom/pod/logs",
+									Type: &volumeType,
 								},
 							},
 						},
@@ -333,6 +340,7 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 							VolumeSource: corev1.VolumeSource{
 								HostPath: &corev1.HostPathVolumeSource{
 									Path: "/custom/container/logs",
+									Type: &volumeType,
 								},
 							},
 						},
@@ -341,6 +349,7 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 							VolumeSource: corev1.VolumeSource{
 								HostPath: &corev1.HostPathVolumeSource{
 									Path: "/custom/symlink",
+									Type: &volumeType,
 								},
 							},
 						},
@@ -535,6 +544,7 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 							VolumeSource: corev1.VolumeSource{
 								HostPath: &corev1.HostPathVolumeSource{
 									Path: "/custom/temp/storage",
+									Type: &volumeType,
 								},
 							},
 						},
@@ -543,6 +553,7 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 							VolumeSource: corev1.VolumeSource{
 								HostPath: &corev1.HostPathVolumeSource{
 									Path: "/custom/pod/logs",
+									Type: &volumeType,
 								},
 							},
 						},
@@ -551,6 +562,7 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 							VolumeSource: corev1.VolumeSource{
 								HostPath: &corev1.HostPathVolumeSource{
 									Path: "/custom/container/logs",
+									Type: &volumeType,
 								},
 							},
 						},
@@ -559,6 +571,7 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 							VolumeSource: corev1.VolumeSource{
 								HostPath: &corev1.HostPathVolumeSource{
 									Path: "/custom/symlink",
+									Type: &volumeType,
 								},
 							},
 						},

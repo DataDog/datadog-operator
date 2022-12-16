@@ -191,7 +191,7 @@ func testAgentUDSOnly() *test.ComponentTest {
 				apiutils.IsEqualStruct(agentVolumeMounts, expectedVolumeMounts),
 				"Trace Agent VolumeMounts \ndiff = %s", cmp.Diff(agentVolumeMounts, expectedVolumeMounts),
 			)
-
+			volumeType := corev1.HostPathDirectoryOrCreate
 			agentVolumes := mgr.VolumeMgr.Volumes
 			expectedVolumes := []*corev1.Volume{
 				{
@@ -199,6 +199,7 @@ func testAgentUDSOnly() *test.ComponentTest {
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
 							Path: apicommon.DogstatsdSocketVolumePath,
+							Type: &volumeType,
 						},
 					},
 				},
@@ -269,7 +270,7 @@ func testAgentHostPortUDS() *test.ComponentTest {
 				apiutils.IsEqualStruct(agentVolumeMounts, expectedVolumeMounts),
 				"Trace Agent VolumeMounts \ndiff = %s", cmp.Diff(agentVolumeMounts, expectedVolumeMounts),
 			)
-
+			volumeType := corev1.HostPathDirectoryOrCreate
 			agentVolumes := mgr.VolumeMgr.Volumes
 			expectedVolumes := []*corev1.Volume{
 				{
@@ -277,6 +278,7 @@ func testAgentHostPortUDS() *test.ComponentTest {
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
 							Path: apicommon.DogstatsdSocketVolumePath,
+							Type: &volumeType,
 						},
 					},
 				},

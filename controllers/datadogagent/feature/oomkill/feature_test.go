@@ -104,12 +104,14 @@ func Test_oomKillFeature_Configure(t *testing.T) {
 		assert.True(t, apiutils.IsEqualStruct(systemProbeVolumeMounts, wantSystemProbeVolMounts), "System Probe volume mounts \ndiff = %s", cmp.Diff(systemProbeVolumeMounts, wantSystemProbeVolMounts))
 
 		// check volumes
+		volumeType := corev1.HostPathUnset
 		wantVolumes := []corev1.Volume{
 			{
 				Name: apicommon.ModulesVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
 						Path: apicommon.ModulesVolumePath,
+						Type: &volumeType,
 					},
 				},
 			},
@@ -118,6 +120,7 @@ func Test_oomKillFeature_Configure(t *testing.T) {
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
 						Path: apicommon.SrcVolumePath,
+						Type: &volumeType,
 					},
 				},
 			},
@@ -126,6 +129,7 @@ func Test_oomKillFeature_Configure(t *testing.T) {
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
 						Path: apicommon.DebugfsPath,
+						Type: &volumeType,
 					},
 				},
 			},

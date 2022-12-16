@@ -129,22 +129,22 @@ func (f *logCollectionFeature) ManageClusterAgent(managers feature.PodTemplateMa
 // It should do nothing if the feature doesn't need to configure it.
 func (f *logCollectionFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	// pointerdir volume mount
-	pointerVol, pointerVolMount := volume.GetVolumes(apicommon.PointerVolumeName, f.tempStoragePath, apicommon.PointerVolumePath, false)
+	pointerVol, pointerVolMount := volume.GetVolumes(apicommon.PointerVolumeName, f.tempStoragePath, apicommon.PointerVolumePath, false, corev1.HostPathUnset)
 	managers.VolumeMount().AddVolumeMountToContainer(&pointerVolMount, apicommonv1.CoreAgentContainerName)
 	managers.Volume().AddVolume(&pointerVol)
 
 	// pod logs volume mount
-	podLogVol, podLogVolMount := volume.GetVolumes(apicommon.PodLogVolumeName, f.podLogsPath, apicommon.PodLogVolumePath, true)
+	podLogVol, podLogVolMount := volume.GetVolumes(apicommon.PodLogVolumeName, f.podLogsPath, apicommon.PodLogVolumePath, true, corev1.HostPathUnset)
 	managers.VolumeMount().AddVolumeMountToContainer(&podLogVolMount, apicommonv1.CoreAgentContainerName)
 	managers.Volume().AddVolume(&podLogVol)
 
 	// container logs volume mount
-	containerLogVol, containerLogVolMount := volume.GetVolumes(apicommon.ContainerLogVolumeName, f.containerLogsPath, apicommon.ContainerLogVolumePath, true)
+	containerLogVol, containerLogVolMount := volume.GetVolumes(apicommon.ContainerLogVolumeName, f.containerLogsPath, apicommon.ContainerLogVolumePath, true, corev1.HostPathUnset)
 	managers.VolumeMount().AddVolumeMountToContainer(&containerLogVolMount, apicommonv1.CoreAgentContainerName)
 	managers.Volume().AddVolume(&containerLogVol)
 
 	// symlink volume mount
-	symlinkVol, symlinkVolMount := volume.GetVolumes(apicommon.SymlinkContainerVolumeName, f.containerSymlinksPath, apicommon.SymlinkContainerVolumePath, true)
+	symlinkVol, symlinkVolMount := volume.GetVolumes(apicommon.SymlinkContainerVolumeName, f.containerSymlinksPath, apicommon.SymlinkContainerVolumePath, true, corev1.HostPathUnset)
 	managers.VolumeMount().AddVolumeMountToContainer(&symlinkVolMount, apicommonv1.CoreAgentContainerName)
 	managers.Volume().AddVolume(&symlinkVol)
 

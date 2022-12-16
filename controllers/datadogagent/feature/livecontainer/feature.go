@@ -88,12 +88,12 @@ func (f *liveContainerFeature) ManageClusterAgent(managers feature.PodTemplateMa
 // It should do nothing if the feature doesn't need to configure it.
 func (f *liveContainerFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	// cgroups volume mount
-	cgroupsVol, cgroupsVolMount := volume.GetVolumes(apicommon.CgroupsVolumeName, apicommon.CgroupsHostPath, apicommon.CgroupsMountPath, true)
+	cgroupsVol, cgroupsVolMount := volume.GetVolumes(apicommon.CgroupsVolumeName, apicommon.CgroupsHostPath, apicommon.CgroupsMountPath, true, corev1.HostPathUnset)
 	managers.VolumeMount().AddVolumeMountToContainer(&cgroupsVolMount, apicommonv1.ProcessAgentContainerName)
 	managers.Volume().AddVolume(&cgroupsVol)
 
 	// procdir volume mount
-	procdirVol, procdirVolMount := volume.GetVolumes(apicommon.ProcdirVolumeName, apicommon.ProcdirHostPath, apicommon.ProcdirMountPath, true)
+	procdirVol, procdirVolMount := volume.GetVolumes(apicommon.ProcdirVolumeName, apicommon.ProcdirHostPath, apicommon.ProcdirMountPath, true, corev1.HostPathUnset)
 	managers.VolumeMount().AddVolumeMountToContainer(&procdirVolMount, apicommonv1.ProcessAgentContainerName)
 	managers.Volume().AddVolume(&procdirVol)
 

@@ -178,12 +178,12 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 	volMgr := managers.Volume()
 
 	// debugfs volume mount
-	debugfsVol, debugfsVolMount := volume.GetVolumes(apicommon.DebugfsVolumeName, apicommon.DebugfsPath, apicommon.DebugfsPath, false)
+	debugfsVol, debugfsVolMount := volume.GetVolumes(apicommon.DebugfsVolumeName, apicommon.DebugfsPath, apicommon.DebugfsPath, false, corev1.HostPathUnset)
 	volMountMgr.AddVolumeMountToContainer(&debugfsVolMount, apicommonv1.SystemProbeContainerName)
 	volMgr.AddVolume(&debugfsVol)
 
 	// securityfs volume mount
-	securityfsVol, securityfsVolMount := volume.GetVolumes(apicommon.SecurityfsVolumeName, apicommon.SecurityfsVolumePath, apicommon.SecurityfsMountPath, true)
+	securityfsVol, securityfsVolMount := volume.GetVolumes(apicommon.SecurityfsVolumeName, apicommon.SecurityfsVolumePath, apicommon.SecurityfsMountPath, true, corev1.HostPathUnset)
 	volMountMgr.AddVolumeMountToContainer(&securityfsVolMount, apicommonv1.SystemProbeContainerName)
 	volMgr.AddVolume(&securityfsVol)
 
@@ -196,27 +196,27 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 	volMgr.AddVolume(&socketVol)
 
 	// procdir volume mount
-	procdirVol, procdirVolMount := volume.GetVolumes(apicommon.ProcdirVolumeName, apicommon.ProcdirHostPath, apicommon.ProcdirMountPath, true)
+	procdirVol, procdirVolMount := volume.GetVolumes(apicommon.ProcdirVolumeName, apicommon.ProcdirHostPath, apicommon.ProcdirMountPath, true, corev1.HostPathUnset)
 	volMountMgr.AddVolumeMountToContainer(&procdirVolMount, apicommonv1.SystemProbeContainerName)
 	volMgr.AddVolume(&procdirVol)
 
 	// passwd volume mount
-	passwdVol, passwdVolMount := volume.GetVolumes(apicommon.PasswdVolumeName, apicommon.PasswdHostPath, apicommon.PasswdMountPath, true)
+	passwdVol, passwdVolMount := volume.GetVolumes(apicommon.PasswdVolumeName, apicommon.PasswdHostPath, apicommon.PasswdMountPath, true, corev1.HostPathUnset)
 	volMountMgr.AddVolumeMountToContainer(&passwdVolMount, apicommonv1.SystemProbeContainerName)
 	volMgr.AddVolume(&passwdVol)
 
 	// group volume mount
-	groupVol, groupVolMount := volume.GetVolumes(apicommon.GroupVolumeName, apicommon.GroupHostPath, apicommon.GroupMountPath, true)
+	groupVol, groupVolMount := volume.GetVolumes(apicommon.GroupVolumeName, apicommon.GroupHostPath, apicommon.GroupMountPath, true, corev1.HostPathUnset)
 	volMountMgr.AddVolumeMountToContainer(&groupVolMount, apicommonv1.SystemProbeContainerName)
 	volMgr.AddVolume(&groupVol)
 
 	// osRelease volume mount
-	osReleaseVol, osReleaseVolMount := volume.GetVolumes(apicommon.SystemProbeOSReleaseDirVolumeName, apicommon.SystemProbeOSReleaseDirVolumePath, apicommon.SystemProbeOSReleaseDirMountPath, true)
+	osReleaseVol, osReleaseVolMount := volume.GetVolumes(apicommon.SystemProbeOSReleaseDirVolumeName, apicommon.SystemProbeOSReleaseDirVolumePath, apicommon.SystemProbeOSReleaseDirMountPath, true, corev1.HostPathUnset)
 	volMountMgr.AddVolumeMountToContainer(&osReleaseVolMount, apicommonv1.SystemProbeContainerName)
 	volMgr.AddVolume(&osReleaseVol)
 
 	// hostroot volume mount
-	hostrootVol, hostrootVolMount := volume.GetVolumes(apicommon.HostRootVolumeName, apicommon.HostRootHostPath, apicommon.HostRootMountPath, true)
+	hostrootVol, hostrootVolMount := volume.GetVolumes(apicommon.HostRootVolumeName, apicommon.HostRootHostPath, apicommon.HostRootMountPath, true, corev1.HostPathUnset)
 	volMountMgr.AddVolumeMountToContainer(&hostrootVolMount, apicommonv1.SecurityAgentContainerName)
 	volMgr.AddVolume(&hostrootVol)
 

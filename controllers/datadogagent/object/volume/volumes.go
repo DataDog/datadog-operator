@@ -18,7 +18,7 @@ import (
 )
 
 // GetVolumes creates a corev1.Volume and corev1.VolumeMount corresponding to a host path.
-func GetVolumes(volumeName, hostPath, mountPath string, readOnly bool) (corev1.Volume, corev1.VolumeMount) {
+func GetVolumes(volumeName, hostPath, mountPath string, readOnly bool, volumeType corev1.HostPathType) (corev1.Volume, corev1.VolumeMount) {
 	var volume corev1.Volume
 	var volumeMount corev1.VolumeMount
 
@@ -27,6 +27,7 @@ func GetVolumes(volumeName, hostPath, mountPath string, readOnly bool) (corev1.V
 		VolumeSource: corev1.VolumeSource{
 			HostPath: &corev1.HostPathVolumeSource{
 				Path: hostPath,
+				Type: &volumeType,
 			},
 		},
 	}

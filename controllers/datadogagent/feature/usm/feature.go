@@ -108,15 +108,15 @@ func (f *usmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 	managers.SecurityContext().AddCapabilitiesToContainer(agent.DefaultCapabilitiesForSystemProbe(), apicommonv1.SystemProbeContainerName)
 
 	// volume mounts
-	procdirVol, procdirMount := volume.GetVolumes(apicommon.ProcdirVolumeName, apicommon.ProcdirHostPath, apicommon.ProcdirMountPath, true)
+	procdirVol, procdirMount := volume.GetVolumes(apicommon.ProcdirVolumeName, apicommon.ProcdirHostPath, apicommon.ProcdirMountPath, true, corev1.HostPathUnset)
 	managers.VolumeMount().AddVolumeMountToContainer(&procdirMount, apicommonv1.SystemProbeContainerName)
 	managers.Volume().AddVolume(&procdirVol)
 
-	cgroupsVol, cgroupsMount := volume.GetVolumes(apicommon.CgroupsVolumeName, apicommon.CgroupsHostPath, apicommon.CgroupsMountPath, true)
+	cgroupsVol, cgroupsMount := volume.GetVolumes(apicommon.CgroupsVolumeName, apicommon.CgroupsHostPath, apicommon.CgroupsMountPath, true, corev1.HostPathUnset)
 	managers.VolumeMount().AddVolumeMountToContainer(&cgroupsMount, apicommonv1.SystemProbeContainerName)
 	managers.Volume().AddVolume(&cgroupsVol)
 
-	debugfsVol, debugfsMount := volume.GetVolumes(apicommon.DebugfsVolumeName, apicommon.DebugfsPath, apicommon.DebugfsPath, false)
+	debugfsVol, debugfsMount := volume.GetVolumes(apicommon.DebugfsVolumeName, apicommon.DebugfsPath, apicommon.DebugfsPath, false, corev1.HostPathUnset)
 	managers.VolumeMount().AddVolumeMountToContainer(&debugfsMount, apicommonv1.SystemProbeContainerName)
 	managers.Volume().AddVolume(&debugfsVol)
 

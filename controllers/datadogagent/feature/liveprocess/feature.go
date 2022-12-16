@@ -97,7 +97,7 @@ func (f *liveProcessFeature) ManageClusterAgent(managers feature.PodTemplateMana
 // It should do nothing if the feature doesn't need to configure it.
 func (f *liveProcessFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	// passwd volume mount
-	passwdVol, passwdVolMount := volume.GetVolumes(apicommon.PasswdVolumeName, apicommon.PasswdHostPath, apicommon.PasswdMountPath, true)
+	passwdVol, passwdVolMount := volume.GetVolumes(apicommon.PasswdVolumeName, apicommon.PasswdHostPath, apicommon.PasswdMountPath, true, corev1.HostPathUnset)
 	managers.VolumeMount().AddVolumeMountToContainer(&passwdVolMount, apicommonv1.ProcessAgentContainerName)
 	managers.Volume().AddVolume(&passwdVol)
 

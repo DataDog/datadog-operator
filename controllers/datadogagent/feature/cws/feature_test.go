@@ -198,12 +198,14 @@ func Test_cwsFeature_Configure(t *testing.T) {
 		assert.True(t, apiutils.IsEqualStruct(sysProbeVolumeMounts, sysprobeWantVolumeMount), "System probe volume mounts \ndiff = %s", cmp.Diff(sysProbeVolumeMounts, sysprobeWantVolumeMount))
 
 		// check volumes
+		volumeType := corev1.HostPathUnset
 		wantVolumes := []corev1.Volume{
 			{
 				Name: apicommon.DebugfsVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
 						Path: apicommon.DebugfsPath,
+						Type: &volumeType,
 					},
 				},
 			},
@@ -212,6 +214,7 @@ func Test_cwsFeature_Configure(t *testing.T) {
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
 						Path: apicommon.SecurityfsVolumePath,
+						Type: &volumeType,
 					},
 				},
 			},
@@ -226,6 +229,7 @@ func Test_cwsFeature_Configure(t *testing.T) {
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
 						Path: apicommon.ProcdirHostPath,
+						Type: &volumeType,
 					},
 				},
 			},
@@ -234,6 +238,7 @@ func Test_cwsFeature_Configure(t *testing.T) {
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
 						Path: apicommon.PasswdHostPath,
+						Type: &volumeType,
 					},
 				},
 			},
@@ -242,6 +247,7 @@ func Test_cwsFeature_Configure(t *testing.T) {
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
 						Path: apicommon.GroupHostPath,
+						Type: &volumeType,
 					},
 				},
 			},
@@ -250,6 +256,7 @@ func Test_cwsFeature_Configure(t *testing.T) {
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
 						Path: apicommon.SystemProbeOSReleaseDirVolumePath,
+						Type: &volumeType,
 					},
 				},
 			},
@@ -258,6 +265,7 @@ func Test_cwsFeature_Configure(t *testing.T) {
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
 						Path: apicommon.HostRootHostPath,
+						Type: &volumeType,
 					},
 				},
 			},

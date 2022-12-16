@@ -282,27 +282,27 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) erro
 	}
 
 	// cgroups volume mount
-	cgroupsVol, cgroupsVolMount := volume.GetVolumes(apicommon.CgroupsVolumeName, apicommon.CgroupsHostPath, apicommon.CgroupsMountPath, true)
+	cgroupsVol, cgroupsVolMount := volume.GetVolumes(apicommon.CgroupsVolumeName, apicommon.CgroupsHostPath, apicommon.CgroupsMountPath, true, corev1.HostPathUnset)
 	volMountMgr.AddVolumeMountToContainer(&cgroupsVolMount, apicommonv1.SecurityAgentContainerName)
 	VolMgr.AddVolume(&cgroupsVol)
 
 	// passwd volume mount
-	passwdVol, passwdVolMount := volume.GetVolumes(apicommon.PasswdVolumeName, apicommon.PasswdHostPath, apicommon.PasswdMountPath, true)
+	passwdVol, passwdVolMount := volume.GetVolumes(apicommon.PasswdVolumeName, apicommon.PasswdHostPath, apicommon.PasswdMountPath, true, corev1.HostPathUnset)
 	volMountMgr.AddVolumeMountToContainer(&passwdVolMount, apicommonv1.SecurityAgentContainerName)
 	VolMgr.AddVolume(&passwdVol)
 
 	// procdir volume mount
-	procdirVol, procdirVolMount := volume.GetVolumes(apicommon.ProcdirVolumeName, apicommon.ProcdirHostPath, apicommon.ProcdirMountPath, true)
+	procdirVol, procdirVolMount := volume.GetVolumes(apicommon.ProcdirVolumeName, apicommon.ProcdirHostPath, apicommon.ProcdirMountPath, true, corev1.HostPathUnset)
 	volMountMgr.AddVolumeMountToContainer(&procdirVolMount, apicommonv1.SecurityAgentContainerName)
 	VolMgr.AddVolume(&procdirVol)
 
 	// host root volume mount
-	hostRootVol, hostRootVolMount := volume.GetVolumes(apicommon.HostRootVolumeName, apicommon.HostRootHostPath, apicommon.HostRootMountPath, true)
+	hostRootVol, hostRootVolMount := volume.GetVolumes(apicommon.HostRootVolumeName, apicommon.HostRootHostPath, apicommon.HostRootMountPath, true, corev1.HostPathUnset)
 	volMountMgr.AddVolumeMountToContainer(&hostRootVolMount, apicommonv1.SecurityAgentContainerName)
 	VolMgr.AddVolume(&hostRootVol)
 
 	// group volume mount
-	groupVol, groupVolMount := volume.GetVolumes(apicommon.GroupVolumeName, apicommon.GroupHostPath, apicommon.GroupMountPath, true)
+	groupVol, groupVolMount := volume.GetVolumes(apicommon.GroupVolumeName, apicommon.GroupHostPath, apicommon.GroupMountPath, true, corev1.HostPathUnset)
 	volMountMgr.AddVolumeMountToContainer(&groupVolMount, apicommonv1.SecurityAgentContainerName)
 	VolMgr.AddVolume(&groupVol)
 

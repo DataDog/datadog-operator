@@ -120,12 +120,14 @@ func testExpectedAgent() *test.ComponentTest {
 			)
 
 			agentVolumes := mgr.VolumeMgr.Volumes
+			volumeType := corev1.HostPathUnset
 			expectedVolumes := []corev1.Volume{
 				{
 					Name: apicommon.CgroupsVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
 							Path: apicommon.CgroupsHostPath,
+							Type: &volumeType,
 						},
 					},
 				},
@@ -134,6 +136,7 @@ func testExpectedAgent() *test.ComponentTest {
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
 							Path: apicommon.ProcdirHostPath,
+							Type: &volumeType,
 						},
 					},
 				},

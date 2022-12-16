@@ -107,7 +107,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 			ReadOnly:  false,
 		},
 	}
-
+	volumeType := corev1.HostPathDirectoryOrCreate
 	// v1alpha1 default uds volume
 	wantVolumesV1 := []corev1.Volume{
 		{
@@ -115,6 +115,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: apicommon.DogstatsdSocketVolumePath,
+					Type: &volumeType,
 				},
 			},
 		},
@@ -127,6 +128,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
 					Path: apicommon.DogstatsdSocketVolumePath,
+					Type: &volumeType,
 				},
 			},
 		},
@@ -301,6 +303,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 							VolumeSource: corev1.VolumeSource{
 								HostPath: &corev1.HostPathVolumeSource{
 									Path: customVolumePath,
+									Type: &volumeType,
 								},
 							},
 						},
@@ -463,6 +466,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 							VolumeSource: corev1.VolumeSource{
 								HostPath: &corev1.HostPathVolumeSource{
 									Path: customVolumePath,
+									Type: &volumeType,
 								},
 							},
 						},

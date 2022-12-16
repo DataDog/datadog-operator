@@ -179,7 +179,7 @@ func Test_cspmFeature_Configure(t *testing.T) {
 
 		securityAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.SecurityAgentContainerName]
 		assert.True(t, apiutils.IsEqualStruct(securityAgentVolumeMounts, wantVolumeMounts), "Security Agent volume mounts \ndiff = %s", cmp.Diff(securityAgentVolumeMounts, wantVolumeMounts))
-
+		volumeType := corev1.HostPathUnset
 		// check volumes
 		wantVolumes := []corev1.Volume{
 			{
@@ -204,6 +204,7 @@ func Test_cspmFeature_Configure(t *testing.T) {
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
 						Path: apicommon.CgroupsHostPath,
+						Type: &volumeType,
 					},
 				},
 			},
@@ -212,6 +213,7 @@ func Test_cspmFeature_Configure(t *testing.T) {
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
 						Path: apicommon.PasswdHostPath,
+						Type: &volumeType,
 					},
 				},
 			},
@@ -220,6 +222,7 @@ func Test_cspmFeature_Configure(t *testing.T) {
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
 						Path: apicommon.ProcdirHostPath,
+						Type: &volumeType,
 					},
 				},
 			},
@@ -228,6 +231,7 @@ func Test_cspmFeature_Configure(t *testing.T) {
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
 						Path: apicommon.HostRootHostPath,
+						Type: &volumeType,
 					},
 				},
 			},
@@ -236,6 +240,7 @@ func Test_cspmFeature_Configure(t *testing.T) {
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
 						Path: apicommon.GroupHostPath,
+						Type: &volumeType,
 					},
 				},
 			},

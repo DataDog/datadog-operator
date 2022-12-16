@@ -51,6 +51,8 @@ func Test_liveProcessFeature_Configure(t *testing.T) {
 		ddav2LiveProcessEnabled.Spec.Features.LiveProcessCollection.Enabled = apiutils.NewBoolPointer(true)
 	}
 
+	volumeType := corev1.HostPathUnset
+
 	liveProcessAgentNodeWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
 
@@ -73,6 +75,7 @@ func Test_liveProcessFeature_Configure(t *testing.T) {
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
 						Path: apicommon.PasswdHostPath,
+						Type: &volumeType,
 					},
 				},
 			},
@@ -121,6 +124,7 @@ func Test_liveProcessFeature_Configure(t *testing.T) {
 				VolumeSource: corev1.VolumeSource{
 					HostPath: &corev1.HostPathVolumeSource{
 						Path: apicommon.PasswdHostPath,
+						Type: &volumeType,
 					},
 				},
 			},

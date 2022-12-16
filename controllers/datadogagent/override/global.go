@@ -191,7 +191,7 @@ func ApplyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 			})
 
 			if config.Kubelet.HostCAPath != "" {
-				kubeletVol, kubeletVolMount := volume.GetVolumes(apicommon.KubeletCAVolumeName, config.Kubelet.HostCAPath, config.Kubelet.AgentCAPath, true)
+				kubeletVol, kubeletVolMount := volume.GetVolumes(apicommon.KubeletCAVolumeName, config.Kubelet.HostCAPath, config.Kubelet.AgentCAPath, true, corev1.HostPathUnset)
 				manager.VolumeMount().AddVolumeMountToContainers(
 					&kubeletVolMount,
 					[]apicommonv1.AgentContainerName{
@@ -213,7 +213,7 @@ func ApplyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 				Name:  apicommon.DockerHost,
 				Value: "unix://" + dockerMountPath,
 			})
-			runtimeVol, runtimeVolMount = volume.GetVolumes(apicommon.CriSocketVolumeName, *config.DockerSocketPath, dockerMountPath, true)
+			runtimeVol, runtimeVolMount = volume.GetVolumes(apicommon.CriSocketVolumeName, *config.DockerSocketPath, dockerMountPath, true, corev1.HostPathUnset)
 		} else if config.CriSocketPath != nil {
 			// Path to the container runtime socket (if different from Docker).
 			criSocketMountPath := filepath.Join(apicommon.HostCriSocketPathPrefix, *config.CriSocketPath)
@@ -221,7 +221,7 @@ func ApplyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 				Name:  apicommon.DDCriSocketPath,
 				Value: criSocketMountPath,
 			})
-			runtimeVol, runtimeVolMount = volume.GetVolumes(apicommon.CriSocketVolumeName, *config.CriSocketPath, criSocketMountPath, true)
+			runtimeVol, runtimeVolMount = volume.GetVolumes(apicommon.CriSocketVolumeName, *config.CriSocketPath, criSocketMountPath, true, corev1.HostPathUnset)
 		}
 		if runtimeVol.Name != "" && runtimeVolMount.Name != "" {
 			manager.VolumeMount().AddVolumeMountToContainers(
