@@ -13,7 +13,6 @@ import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
-	"github.com/DataDog/datadog-operator/pkg/defaulting"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -41,9 +40,9 @@ func TestPodTemplateSpec(t *testing.T) {
 			},
 		},
 		{
-			name: "override image name and tag",
+			name: "01: given URI, override image name, tag, JMX",
 			existingManager: func() *fake.PodTemplateManagers {
-				return fakePodTemplateManagersWithImageOverride("docker.io/datadog/agent:7.38.0", t)
+				return fakePodTemplateManagersWithImageOverride("someregistry.com/datadog/agent:7.38.0", t)
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
 				Image: &commonv1.AgentImageConfig{
@@ -53,126 +52,42 @@ func TestPodTemplateSpec(t *testing.T) {
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
-				allContainers := append(
-					manager.PodTemplateSpec().Spec.Containers, manager.PodTemplateSpec().Spec.InitContainers...,
-				)
-
-				for _, container := range allContainers {
-					assert.Equal(t, "docker.io/datadog/custom-agent:latest-jmx", container.Image)
-				}
+				assert.Equal(t, "someregistry.com/datadog/custom-agent:latest-jmx", actualImage(manager, t))
 			},
 		},
 		{
-			name: "override image tag",
+			name: "02: given URI, override image name, tag",
 			existingManager: func() *fake.PodTemplateManagers {
-				return fakePodTemplateManagersWithImageOverride("docker.io/datadog/agent:7.38.0", t)
+				return fakePodTemplateManagersWithImageOverride("someregistry.com/datadog/agent:7.38.0", t)
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
 				Image: &commonv1.AgentImageConfig{
-					Tag:        "latest",
-					JMXEnabled: false,
+					Name: "custom-agent",
+					Tag:  "latest",
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
-				allContainers := append(
-					manager.PodTemplateSpec().Spec.Containers, manager.PodTemplateSpec().Spec.InitContainers...,
-				)
-
-				for _, container := range allContainers {
-					assert.Equal(t, "docker.io/datadog/agent:latest", container.Image)
-				}
+				assert.Equal(t, "someregistry.com/datadog/custom-agent:latest", actualImage(manager, t))
 			},
 		},
 		{
-			name: "override image name and JMX flag",
+			name: "03: given URI, override image tag",
 			existingManager: func() *fake.PodTemplateManagers {
-				return fakePodTemplateManagersWithImageOverride("docker.io/datadog/agent:7.38.0", t)
+				return fakePodTemplateManagersWithImageOverride("someregistry.com/datadog/agent:7.38.0", t)
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
 				Image: &commonv1.AgentImageConfig{
-					Name:       "custom-agent",
-					JMXEnabled: true,
+					Tag: "latest",
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
-				allContainers := append(
-					manager.PodTemplateSpec().Spec.Containers, manager.PodTemplateSpec().Spec.InitContainers...,
-				)
-
-				for _, container := range allContainers {
-					assert.Equal(t, "docker.io/datadog/custom-agent:7.38.0-jmx", container.Image)
-				}
+				assert.Equal(t, "someregistry.com/datadog/agent:latest", actualImage(manager, t))
 			},
 		},
 		{
-			name: "override image no duplicate jmx suffix",
+			name: "04: given URI, override image with name:tag, full name takes precedence",
 			existingManager: func() *fake.PodTemplateManagers {
-				return fakePodTemplateManagersWithImageOverride("docker.io/datadog/agent:7.38.0", t)
-			},
-			override: v2alpha1.DatadogAgentComponentOverride{
-				Image: &commonv1.AgentImageConfig{
-					Tag:        "latest-jmx",
-					JMXEnabled: true,
-				},
-			},
-			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
-				allContainers := append(
-					manager.PodTemplateSpec().Spec.Containers, manager.PodTemplateSpec().Spec.InitContainers...,
-				)
-
-				for _, container := range allContainers {
-					// Low level defaulting.NewImage makes sure jmx suffix isn't duplicated
-					assert.Equal(t, "docker.io/datadog/agent:latest-jmx", container.Image)
-				}
-			},
-		},
-		{
-			name: "override image drops existing JMX suffix",
-			existingManager: func() *fake.PodTemplateManagers {
-				return fakePodTemplateManagersWithImageOverride("docker.io/datadog/agent:7.38.0"+defaulting.JMXTagSuffix, t)
-			},
-			override: v2alpha1.DatadogAgentComponentOverride{
-				Image: &commonv1.AgentImageConfig{
-					JMXEnabled: false,
-				},
-			},
-			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
-				allContainers := append(
-					manager.PodTemplateSpec().Spec.Containers, manager.PodTemplateSpec().Spec.InitContainers...,
-				)
-
-				for _, container := range allContainers {
-					assert.Equal(t, "docker.io/datadog/agent:7.38.0", container.Image)
-				}
-			},
-		},
-		{
-			name: "override image name is full URI",
-			existingManager: func() *fake.PodTemplateManagers {
-				return fakePodTemplateManagersWithImageOverride("agent:7.38.0", t)
-			},
-			override: v2alpha1.DatadogAgentComponentOverride{
-				Image: &commonv1.AgentImageConfig{
-					Name:       "docker.io/datadog/agent:9.99.9",
-					Tag:        "latest",
-					JMXEnabled: true,
-				},
-			},
-			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
-				allContainers := append(
-					manager.PodTemplateSpec().Spec.Containers, manager.PodTemplateSpec().Spec.InitContainers...,
-				)
-
-				for _, container := range allContainers {
-					// If override name is URI use it and ignore other fields.
-					assert.Equal(t, "docker.io/datadog/agent:9.99.9", container.Image)
-				}
-			},
-		},
-		{
-			name: "override image name contains tag",
-			existingManager: func() *fake.PodTemplateManagers {
-				return fakePodTemplateManagersWithImageOverride("docker.io/datadog/agent:7.38.0", t)
+				return fakePodTemplateManagersWithImageOverride("someregistry.com/datadog/agent:7.38.0", t)
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
 				Image: &commonv1.AgentImageConfig{
@@ -182,18 +97,71 @@ func TestPodTemplateSpec(t *testing.T) {
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
-				allContainers := append(
-					manager.PodTemplateSpec().Spec.Containers, manager.PodTemplateSpec().Spec.InitContainers...,
-				)
-
-				for _, container := range allContainers {
-					// If override name contains image name and tag use it and ignore other fields.
-					assert.Equal(t, "docker.io/datadog/agent:9.99.9", container.Image)
-				}
+				assert.Equal(t, "agent:9.99.9", actualImage(manager, t))
 			},
 		},
 		{
-			name: "override image, no current registry defaults to gcr",
+			name: "05: given URI, override image name and JMX, retain tag",
+			existingManager: func() *fake.PodTemplateManagers {
+				return fakePodTemplateManagersWithImageOverride("someregistry.com/datadog/agent:7.38.0", t)
+			},
+			override: v2alpha1.DatadogAgentComponentOverride{
+				Image: &commonv1.AgentImageConfig{
+					Name:       "custom-agent",
+					JMXEnabled: true,
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
+				assert.Equal(t, "someregistry.com/datadog/custom-agent:7.38.0-jmx", actualImage(manager, t))
+			},
+		},
+		{
+			name: "06: given URI, override image with JMX tag and flag, don't duplicate jmx suffix",
+			existingManager: func() *fake.PodTemplateManagers {
+				return fakePodTemplateManagersWithImageOverride("someregistry.com/datadog/agent:7.38.0", t)
+			},
+			override: v2alpha1.DatadogAgentComponentOverride{
+				Image: &commonv1.AgentImageConfig{
+					Tag:        "latest-jmx",
+					JMXEnabled: true,
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
+				assert.Equal(t, "someregistry.com/datadog/agent:latest-jmx", actualImage(manager, t))
+			},
+		},
+		{
+			name: "07: given URI with JMX tag, override image with JMX false",
+			existingManager: func() *fake.PodTemplateManagers {
+				return fakePodTemplateManagersWithImageOverride("someregistry.com/datadog/agent:7.38.0-jmx", t)
+			},
+			override: v2alpha1.DatadogAgentComponentOverride{
+				Image: &commonv1.AgentImageConfig{
+					JMXEnabled: false,
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
+				assert.Equal(t, "someregistry.com/datadog/agent:7.38.0", actualImage(manager, t))
+			},
+		},
+		{
+			name: "08: given name:tag, override image with full URI name, ignore tag and JMX, full name takes precedence",
+			existingManager: func() *fake.PodTemplateManagers {
+				return fakePodTemplateManagersWithImageOverride("agent:7.38.0", t)
+			},
+			override: v2alpha1.DatadogAgentComponentOverride{
+				Image: &commonv1.AgentImageConfig{
+					Name:       "someregistry.com/datadog/agent:9.99.9",
+					Tag:        "latest",
+					JMXEnabled: true,
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
+				assert.Equal(t, "someregistry.com/datadog/agent:9.99.9", actualImage(manager, t))
+			},
+		},
+		{
+			name: "09: given name:tag, override image name, tag, JMX, sets default registry",
 			existingManager: func() *fake.PodTemplateManagers {
 				return fakePodTemplateManagersWithImageOverride("agent:7.38.0", t)
 			},
@@ -205,14 +173,94 @@ func TestPodTemplateSpec(t *testing.T) {
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
-				allContainers := append(
-					manager.PodTemplateSpec().Spec.Containers, manager.PodTemplateSpec().Spec.InitContainers...,
-				)
-
-				for _, container := range allContainers {
-					// If previous image didn't have registry use the default one.
-					assert.Equal(t, "gcr.io/datadoghq/agent:latest-jmx", container.Image)
-				}
+				assert.Equal(t, "gcr.io/datadoghq/agent:latest-jmx", actualImage(manager, t))
+			},
+		},
+		{
+			name: "10: given name:tag, override image with name:tag",
+			existingManager: func() *fake.PodTemplateManagers {
+				return fakePodTemplateManagersWithImageOverride("agent:7.38.0", t)
+			},
+			override: v2alpha1.DatadogAgentComponentOverride{
+				Image: &commonv1.AgentImageConfig{
+					Name: "agent:latest",
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
+				assert.Equal(t, "agent:latest", actualImage(manager, t))
+			},
+		},
+		{
+			name: "11: given URI, override image with repo name:tag, full name takes precedence",
+			// related to 09 Name precedence.
+			existingManager: func() *fake.PodTemplateManagers {
+				return fakePodTemplateManagersWithImageOverride("someregistry.com/datadog/agent:7.38.0", t)
+			},
+			override: v2alpha1.DatadogAgentComponentOverride{
+				Image: &commonv1.AgentImageConfig{
+					Name: "repo/agent:latest",
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
+				assert.Equal(t, "repo/agent:latest", actualImage(manager, t))
+			},
+		},
+		{
+			name: "12: given image URI, override with short URI, full name takes precedence",
+			existingManager: func() *fake.PodTemplateManagers {
+				return fakePodTemplateManagersWithImageOverride("someregistry.com/datadog/agent:7.38.0", t)
+			},
+			override: v2alpha1.DatadogAgentComponentOverride{
+				Image: &commonv1.AgentImageConfig{
+					Name: "someregistry.com/agent:latest",
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
+				assert.Equal(t, "someregistry.com/agent:latest", actualImage(manager, t))
+			},
+		},
+		{
+			name: "13: given short URI, override with name, tag",
+			existingManager: func() *fake.PodTemplateManagers {
+				return fakePodTemplateManagersWithImageOverride("someregistry.com/agent:7.38.0", t)
+			},
+			override: v2alpha1.DatadogAgentComponentOverride{
+				Image: &commonv1.AgentImageConfig{
+					Name: "agent",
+					Tag:  "latest",
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
+				assert.Equal(t, "someregistry.com/agent:latest", actualImage(manager, t))
+			},
+		},
+		{
+			name: "14: given long URI, override with name, tag",
+			existingManager: func() *fake.PodTemplateManagers {
+				return fakePodTemplateManagersWithImageOverride("someregistry.com/a/b/c/agent:7.38.0", t)
+			},
+			override: v2alpha1.DatadogAgentComponentOverride{
+				Image: &commonv1.AgentImageConfig{
+					Name:       "cluster-agent",
+					JMXEnabled: true,
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
+				assert.Equal(t, "someregistry.com/a/b/c/cluster-agent:7.38.0-jmx", actualImage(manager, t))
+			},
+		},
+		{
+			name: "15: given long URI, override name with slash, overrides name in current image",
+			existingManager: func() *fake.PodTemplateManagers {
+				return fakePodTemplateManagersWithImageOverride("someregistry.com/datadog/agent:9.99", t)
+			},
+			override: v2alpha1.DatadogAgentComponentOverride{
+				Image: &commonv1.AgentImageConfig{
+					Name: "otherregistry.com/agent",
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
+				assert.Equal(t, "someregistry.com/datadog/otherregistry.com/agent:9.99", actualImage(manager, t))
 			},
 		},
 		{
@@ -600,6 +648,7 @@ func TestPodTemplateSpec(t *testing.T) {
 	}
 }
 
+// In practice, image string registry will be derived either from global.registry setting or the default.
 func fakePodTemplateManagersWithImageOverride(image string, t *testing.T) *fake.PodTemplateManagers {
 	manager := fake.NewPodTemplateManagers(t)
 	manager.PodTemplateSpec().Spec.InitContainers = []v1.Container{
@@ -616,4 +665,17 @@ func fakePodTemplateManagersWithImageOverride(image string, t *testing.T) *fake.
 		},
 	}
 	return manager
+}
+
+// Assert all images are same and return the image
+func actualImage(manager *fake.PodTemplateManagers, t *testing.T) string {
+	allContainers := append(
+		manager.PodTemplateSpec().Spec.Containers, manager.PodTemplateSpec().Spec.InitContainers...,
+	)
+
+	image := allContainers[0].Image
+	for _, container := range allContainers {
+		assert.Equal(t, image, container.Image)
+	}
+	return image
 }
