@@ -34,7 +34,7 @@ const (
 	defaultAPMHostPortEnabled bool   = false
 	defaultAPMHostPort        int32  = 8126
 	defaultAPMSocketEnabled   bool   = true
-	defaultAPMSocketPath      string = "/var/run/datadog/apm.socket"
+	defaultAPMSocketHostPath  string = "/var/run/datadog/apm.socket"
 
 	// defaultCSPMEnabled              bool = false
 	// defaultCWSEnabled               bool = false
@@ -50,7 +50,7 @@ const (
 	defaultDogstatsdHostPortEnabled        bool   = false
 	defaultDogstatsdPort                   int32  = 8125
 	defaultDogstatsdSocketEnabled          bool   = true
-	defaultDogstatsdSocketPath             string = "/var/run/datadog/dsd.socket"
+	defaultDogstatsdHostSocketPath         string = "/var/run/datadog/dsd.socket"
 
 	defaultOTLPGRPCEnabled  bool   = false
 	defaultOTLPGRPCEndpoint string = "0.0.0.0:4317"
@@ -165,7 +165,7 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.APM.UnixDomainSocketConfig.Enabled, defaultAPMSocketEnabled)
 
-		apiutils.DefaultStringIfUnset(&ddaSpec.Features.APM.UnixDomainSocketConfig.Path, defaultAPMSocketPath)
+		apiutils.DefaultStringIfUnset(&ddaSpec.Features.APM.UnixDomainSocketConfig.Path, defaultAPMSocketHostPath)
 	}
 
 	// CWS (Cloud Workload Security) Feature
@@ -203,7 +203,8 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.Dogstatsd.UnixDomainSocketConfig.Enabled, defaultDogstatsdSocketEnabled)
 
-	apiutils.DefaultStringIfUnset(&ddaSpec.Features.Dogstatsd.UnixDomainSocketConfig.Path, defaultDogstatsdSocketPath)
+	// defaultDogstatsdHostSocketPath matches the default hostPath of the helm chart.
+	apiutils.DefaultStringIfUnset(&ddaSpec.Features.Dogstatsd.UnixDomainSocketConfig.Path, defaultDogstatsdHostSocketPath)
 
 	// OTLP ingest feature
 	if ddaSpec.Features.OTLP == nil {

@@ -130,7 +130,7 @@ func GetVolumeForCgroups() corev1.Volume {
 // GetVolumeForDogstatsd returns the volume with the Dogstatsd socket
 func GetVolumeForDogstatsd() corev1.Volume {
 	return corev1.Volume{
-		Name: apicommon.DogstatsdAPMSocketVolumeName,
+		Name: apicommon.DogstatsdSocketVolumeName,
 		VolumeSource: corev1.VolumeSource{
 			EmptyDir: &corev1.EmptyDirVolumeSource{},
 		},
@@ -263,8 +263,8 @@ func GetVolumeMountForCgroups() corev1.VolumeMount {
 // GetVolumeMountForDogstatsdSocket returns the VolumeMount with the Dogstatsd socket
 func GetVolumeMountForDogstatsdSocket(readOnly bool) corev1.VolumeMount {
 	return corev1.VolumeMount{
-		Name:      apicommon.DogstatsdAPMSocketVolumeName,
-		MountPath: apicommon.DogstatsdSocketVolumePath,
+		Name:      apicommon.DogstatsdSocketVolumeName,
+		MountPath: apicommon.DogstatsdSocketLocalPath,
 		ReadOnly:  readOnly,
 	}
 }

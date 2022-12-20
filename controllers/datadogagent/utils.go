@@ -561,7 +561,7 @@ func getConfigInitContainers(spec *datadoghqv1alpha1.DatadogAgentSpec, volumeMou
 func getEnvVarDogstatsdSocket(dda *datadoghqv1alpha1.DatadogAgent) corev1.EnvVar {
 	return corev1.EnvVar{
 		Name:  apicommon.DDDogstatsdSocket,
-		Value: getLocalFilepath(*dda.Spec.Agent.Config.Dogstatsd.UnixDomainSocket.HostFilepath, apicommon.DogstatsdSocketOldVolumePath),
+		Value: getLocalFilepath(*dda.Spec.Agent.Config.Dogstatsd.UnixDomainSocket.HostFilepath, apicommon.DogstatsdSocketLocalPath),
 	}
 }
 
@@ -579,7 +579,7 @@ func getEnvVarsForAPMAgent(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.EnvVar
 	if apiutils.BoolValue(dda.Spec.Agent.Apm.UnixDomainSocket.Enabled) {
 		envVars = append(envVars, corev1.EnvVar{
 			Name:  apicommon.DDPPMReceiverSocket,
-			Value: getLocalFilepath(*dda.Spec.Agent.Apm.UnixDomainSocket.HostFilepath, apicommon.APMSocketVolumePath),
+			Value: getLocalFilepath(*dda.Spec.Agent.Apm.UnixDomainSocket.HostFilepath, apicommon.APMSocketVolumeLocalPath),
 		})
 	}
 
@@ -1532,7 +1532,7 @@ func getVolumeMountForChecksd() corev1.VolumeMount {
 func getVolumeMountDogstatsdSocket(readOnly bool) corev1.VolumeMount {
 	return corev1.VolumeMount{
 		Name:      apicommon.DogstatsdSocketVolumeName,
-		MountPath: apicommon.DogstatsdSocketOldVolumePath,
+		MountPath: apicommon.DogstatsdSocketLocalPath,
 		ReadOnly:  readOnly,
 	}
 }
@@ -1636,7 +1636,7 @@ func getVolumeMountsForAPMAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Vo
 	if apiutils.BoolValue(dda.Spec.Agent.Apm.UnixDomainSocket.Enabled) {
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
 			Name:      apicommon.APMSocketVolumeName,
-			MountPath: apicommon.APMSocketVolumePath,
+			MountPath: apicommon.APMSocketVolumeLocalPath,
 		})
 	}
 

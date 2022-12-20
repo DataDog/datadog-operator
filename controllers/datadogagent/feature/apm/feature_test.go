@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	apmSocketPath = apicommon.DogstatsdSocketVolumePath + "/" + apicommon.APMSocketName
+	apmSocketPath = apicommon.APMSocketVolumeLocalPath + "/" + apicommon.APMSocketName
 )
 
 func TestAPMFeature(t *testing.T) {
@@ -181,8 +181,8 @@ func testAgentUDSOnly() *test.ComponentTest {
 			agentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.TraceAgentContainerName]
 			expectedVolumeMounts := []*corev1.VolumeMount{
 				{
-					Name:      apicommon.DogstatsdAPMSocketVolumeName,
-					MountPath: apicommon.DogstatsdSocketVolumePath,
+					Name:      apicommon.APMSocketVolumeName,
+					MountPath: apicommon.APMSocketVolumeLocalPath,
 					ReadOnly:  false,
 				},
 			}
@@ -193,12 +193,14 @@ func testAgentUDSOnly() *test.ComponentTest {
 			)
 
 			agentVolumes := mgr.VolumeMgr.Volumes
+			volType := corev1.HostPathDirectoryOrCreate
 			expectedVolumes := []*corev1.Volume{
 				{
-					Name: apicommon.DogstatsdAPMSocketVolumeName,
+					Name: apicommon.APMSocketVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: apicommon.DogstatsdSocketVolumePath,
+							Path: apicommon.APMSocketVolumeLocalPath,
+							Type: &volType,
 						},
 					},
 				},
@@ -259,8 +261,8 @@ func testAgentHostPortUDS() *test.ComponentTest {
 			agentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.TraceAgentContainerName]
 			expectedVolumeMounts := []*corev1.VolumeMount{
 				{
-					Name:      apicommon.DogstatsdAPMSocketVolumeName,
-					MountPath: apicommon.DogstatsdSocketVolumePath,
+					Name:      apicommon.APMSocketVolumeName,
+					MountPath: apicommon.APMSocketVolumeLocalPath,
 					ReadOnly:  false,
 				},
 			}
@@ -271,12 +273,14 @@ func testAgentHostPortUDS() *test.ComponentTest {
 			)
 
 			agentVolumes := mgr.VolumeMgr.Volumes
+			volType := corev1.HostPathDirectoryOrCreate
 			expectedVolumes := []*corev1.Volume{
 				{
-					Name: apicommon.DogstatsdAPMSocketVolumeName,
+					Name: apicommon.APMSocketVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: apicommon.DogstatsdSocketVolumePath,
+							Path: apicommon.APMSocketVolumeLocalPath,
+							Type: &volType,
 						},
 					},
 				},
