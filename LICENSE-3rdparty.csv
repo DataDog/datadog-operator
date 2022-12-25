@@ -323,7 +323,6 @@ core,"k8s.io/api/node/v1",Apache-2.0
 core,"k8s.io/api/node/v1alpha1",Apache-2.0
 core,"k8s.io/api/node/v1beta1",Apache-2.0
 core,"k8s.io/api/policy/v1",Apache-2.0
-core,"k8s.io/api/policy/v1beta1",Apache-2.0
 core,"k8s.io/api/rbac/v1",Apache-2.0
 core,"k8s.io/api/rbac/v1alpha1",Apache-2.0
 core,"k8s.io/api/rbac/v1beta1",Apache-2.0
@@ -428,7 +427,6 @@ core,"k8s.io/client-go/applyconfigurations/node/v1",Apache-2.0
 core,"k8s.io/client-go/applyconfigurations/node/v1alpha1",Apache-2.0
 core,"k8s.io/client-go/applyconfigurations/node/v1beta1",Apache-2.0
 core,"k8s.io/client-go/applyconfigurations/policy/v1",Apache-2.0
-core,"k8s.io/client-go/applyconfigurations/policy/v1beta1",Apache-2.0
 core,"k8s.io/client-go/applyconfigurations/rbac/v1",Apache-2.0
 core,"k8s.io/client-go/applyconfigurations/rbac/v1alpha1",Apache-2.0
 core,"k8s.io/client-go/applyconfigurations/rbac/v1beta1",Apache-2.0
@@ -478,7 +476,6 @@ core,"k8s.io/client-go/kubernetes/typed/node/v1",Apache-2.0
 core,"k8s.io/client-go/kubernetes/typed/node/v1alpha1",Apache-2.0
 core,"k8s.io/client-go/kubernetes/typed/node/v1beta1",Apache-2.0
 core,"k8s.io/client-go/kubernetes/typed/policy/v1",Apache-2.0
-core,"k8s.io/client-go/kubernetes/typed/policy/v1beta1",Apache-2.0
 core,"k8s.io/client-go/kubernetes/typed/rbac/v1",Apache-2.0
 core,"k8s.io/client-go/kubernetes/typed/rbac/v1alpha1",Apache-2.0
 core,"k8s.io/client-go/kubernetes/typed/rbac/v1beta1",Apache-2.0
