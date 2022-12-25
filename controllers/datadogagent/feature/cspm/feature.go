@@ -46,7 +46,6 @@ type cspmFeature struct {
 	customConfig       *apicommonv1.CustomConfig
 	configMapName      string
 	createSCC          bool
-	createPSP          bool
 
 	owner metav1.Object
 }
@@ -73,7 +72,6 @@ func (f *cspmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 		}
 		f.configMapName = apicommonv1.GetConfName(dda, f.customConfig, apicommon.DefaultCSPMConf)
 
-		// TODO add settings to configure f.createPSP
 		f.createSCC = v2alpha1.ShouldCreateSCC(dda, v2alpha1.NodeAgentComponentName)
 
 		reqComp = feature.RequiredComponents{
@@ -144,17 +142,6 @@ func (f *cspmFeature) ManageDependencies(managers feature.ResourceManagers, comp
 		if err := managers.PodSecurityManager().AddSecurityContextConstraints(sccName, f.owner.GetNamespace(), &scc); err != nil {
 			return fmt.Errorf("error adding scc to store: %w", err)
 		}
-	}
-
-	if f.createPSP {
-		// Manage PodSecurityPolicy
-		pspName := getPSPName(f.owner)
-		psp, err := managers.PodSecurityManager().GetPodSecurityPolicy(f.owner.GetNamespace(), pspName)
-		if err != nil {
-			return err
-		}
-		psp.Spec.HostPID = true
-		managers.PodSecurityManager().UpdatePodSecurityPolicy(psp)
 	}
 
 	// Manage RBAC
