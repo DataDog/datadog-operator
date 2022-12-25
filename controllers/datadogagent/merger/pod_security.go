@@ -13,17 +13,12 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
 	securityv1 "github.com/openshift/api/security/v1"
-	policyv1beta1 "k8s.io/api/policy/v1beta1"
 )
 
 // PodSecurityManager use to manage Security resources.
 type PodSecurityManager interface {
 	// AddSecurityContextConstraints updates a SecurityContextConstraints
 	AddSecurityContextConstraints(name, namespace string, sccUpdates *securityv1.SecurityContextConstraints) error
-	// GetPodSecurityPolicy gets a PodSecurityPolicy
-	GetPodSecurityPolicy(namespace string, pspName string) (*policyv1beta1.PodSecurityPolicy, error)
-	// UpdatePodSecurityPolicy updates a PodSecurityPolicy
-	UpdatePodSecurityPolicy(*policyv1beta1.PodSecurityPolicy)
 }
 
 // NewPodSecurityManager return new PodSecurityManager instance
@@ -116,19 +111,4 @@ func (m *podSecurityManagerImpl) AddSecurityContextConstraints(name, namespace s
 	}
 
 	return m.store.AddOrUpdate(kubernetes.SecurityContextConstraintsKind, scc)
-}
-
-func (m *podSecurityManagerImpl) GetPodSecurityPolicy(namespace string, pspName string) (psp *policyv1beta1.PodSecurityPolicy, err error) {
-	// TODO
-	// obj, _ := m.store.GetOrCreate(kubernetes.PodSecurityPoliciesKind, namespace, pspName)
-	// psp, ok := obj.(*policyv1beta1.PodSecurityPolicy)
-	// if !ok {
-	// 	return nil, fmt.Errorf("unable to get from the store the PodSecurityPolicy %s", pspName)
-	// }
-	return psp, err
-}
-
-func (m *podSecurityManagerImpl) UpdatePodSecurityPolicy(psp *policyv1beta1.PodSecurityPolicy) {
-	// TODO
-	// m.store.AddOrUpdate(kubernetes.PodSecurityPoliciesKind, psp)
 }
