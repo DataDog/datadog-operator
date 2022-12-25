@@ -52,8 +52,6 @@ func IsEqualObject(kind kubernetes.ObjectKind, a, b client.Object) bool {
 		return IsEqualPodDisruptionBudgets(a, b)
 	case kubernetes.NetworkPoliciesKind:
 		return IsEqualNetworkPolicies(a, b)
-	case kubernetes.PodSecurityPoliciesKind:
-		return IsEqualPodSecurityPolicies(a, b)
 	case kubernetes.CiliumNetworkPoliciesKind:
 		return IsEqualCiliumNetworkPolicies(a, b)
 	default:
@@ -188,16 +186,6 @@ func IsEqualPodDisruptionBudgets(objA, objB client.Object) bool {
 func IsEqualNetworkPolicies(objA, objB client.Object) bool {
 	a, okA := objA.(*networkingv1.NetworkPolicy)
 	b, okB := objB.(*networkingv1.NetworkPolicy)
-	if okA && okB && a != nil && b != nil {
-		return apiequality.Semantic.DeepEqual(a.Spec, b.Spec)
-	}
-	return false
-}
-
-// IsEqualPodSecurityPolicies return true if the two PodSecurityPolicies are equal
-func IsEqualPodSecurityPolicies(objA, objB client.Object) bool {
-	a, okA := objA.(*policyv1.PodSecurityPolicy)
-	b, okB := objB.(*policyv1.PodSecurityPolicy)
 	if okA && okB && a != nil && b != nil {
 		return apiequality.Semantic.DeepEqual(a.Spec, b.Spec)
 	}

@@ -48,8 +48,6 @@ const (
 	PodDisruptionBudgetsKind = "poddisruptionbudgets"
 	// NetworkPoliciesKind NetworkPolicies resource kind
 	NetworkPoliciesKind = "networkpolicies"
-	// PodSecurityPoliciesKind PodSecurityPolicies resource kind
-	PodSecurityPoliciesKind = "podsecuritypolicies"
 	// CiliumNetworkPoliciesKind CiliumNetworkPolicies resource kind
 	CiliumNetworkPoliciesKind = "ciliumnetworkpolicies"
 	// SecurityContextConstraintsKind SecurityContextConstraints resource kind
@@ -71,7 +69,6 @@ func GetResourcesKind(withCiliumResources bool) []ObjectKind {
 		ServiceAccountsKind,
 		PodDisruptionBudgetsKind,
 		NetworkPoliciesKind,
-		PodSecurityPoliciesKind,
 		// SecurityContextConstraintsKind,
 	}
 
