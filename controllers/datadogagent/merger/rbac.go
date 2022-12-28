@@ -23,7 +23,7 @@ type RBACManager interface {
 	AddServiceAccountByComponent(namespace, name, component string) error
 	AddPolicyRules(namespace string, roleName string, saName string, policies []rbacv1.PolicyRule) error
 	AddPolicyRulesByComponent(namespace string, roleName string, saName string, policies []rbacv1.PolicyRule, component string) error
-	AddRoleBinding(namespace string, roleName string, saName string, roleRef rbacv1.RoleRef) error
+	AddRoleBinding(roleNamespace, roleName, saNamespace, saName string, roleRef rbacv1.RoleRef) error
 	AddClusterPolicyRules(namespace string, roleName string, saName string, policies []rbacv1.PolicyRule) error
 	AddClusterPolicyRulesByComponent(namespace string, roleName string, saName string, policies []rbacv1.PolicyRule, component string) error
 	AddClusterRoleBinding(namespace string, name string, saName string, roleRef rbacv1.RoleRef) error
@@ -106,7 +106,7 @@ func (m *rbacManagerImpl) AddPolicyRules(namespace string, roleName string, saNa
 		Name:     roleName,
 	}
 
-	return m.AddRoleBinding(namespace, roleName, saName, roleRef)
+	return m.AddRoleBinding(namespace, roleName, namespace, saName, roleRef)
 }
 
 // AddPolicyRulesByComponent is used to add PolicyRules to a Role, create a RoleBinding, and associate them with a component
@@ -189,17 +189,17 @@ func (m *rbacManagerImpl) DeleteClusterRoleByComponent(component string) error {
 }
 
 // AddRoleBinding is used to create a standalone RoleBinding.
-func (m *rbacManagerImpl) AddRoleBinding(namespace string, roleName string, saName string, roleRef rbacv1.RoleRef) error {
-	bindingObj, _ := m.store.GetOrCreate(kubernetes.RoleBindingKind, namespace, roleName)
+func (m *rbacManagerImpl) AddRoleBinding(roleNamespace, roleName, saNamespace, saName string, roleRef rbacv1.RoleRef) error {
+	bindingObj, _ := m.store.GetOrCreate(kubernetes.RoleBindingKind, roleNamespace, roleName)
 	roleBinding, ok := bindingObj.(*rbacv1.RoleBinding)
 	if !ok {
-		return fmt.Errorf("unable to get from the store the RoleBinding %s/%s", namespace, roleName)
+		return fmt.Errorf("unable to get from the store the RoleBinding %s/%s", roleNamespace, roleName)
 	}
 
 	roleBinding.RoleRef = roleRef
 	found := false
 	for _, sub := range roleBinding.Subjects {
-		if sub.Namespace == namespace && sub.Name == saName && sub.Kind == rbac.ServiceAccountKind {
+		if sub.Namespace == saNamespace && sub.Name == saName && sub.Kind == rbac.ServiceAccountKind {
 			found = true
 			break
 		}
@@ -208,7 +208,7 @@ func (m *rbacManagerImpl) AddRoleBinding(namespace string, roleName string, saNa
 		roleBinding.Subjects = append(roleBinding.Subjects, rbacv1.Subject{
 			Kind:      rbac.ServiceAccountKind,
 			Name:      saName,
-			Namespace: namespace,
+			Namespace: saNamespace,
 		})
 	}
 	if err := m.store.AddOrUpdate(kubernetes.RoleBindingKind, roleBinding); err != nil {

@@ -119,7 +119,7 @@ func (ds *Store) AddOrUpdate(kind kubernetes.ObjectKind, obj client.Object) erro
 		}
 
 		// Owner-reference should not be added to cluster level objects
-		if kind != kubernetes.ClusterRoleBindingKind && kind != kubernetes.ClusterRolesKind && kind != kubernetes.APIServiceKind {
+		if shouldSetOwnerReference(kind, obj.GetNamespace(), ds.owner.GetNamespace()) {
 			if err := object.SetOwnerReference(ds.owner, obj, ds.scheme); err != nil {
 				return fmt.Errorf("store.AddOrUpdate, %w", err)
 			}
@@ -385,4 +385,23 @@ func buildObjectKey(key string) types.NamespacedName {
 		Namespace: ns,
 		Name:      name,
 	}
+}
+
+func shouldSetOwnerReference(kind kubernetes.ObjectKind, objNamespace, ownerNamespace string) bool {
+	// Owner-reference should not be added to cluster level objects
+	switch kind {
+	case kubernetes.ClusterRoleBindingKind:
+		return false
+	case kubernetes.ClusterRolesKind:
+		return false
+	case kubernetes.APIServiceKind:
+		return false
+	}
+
+	// Owner-reference should not be added to namespaced resources in a different namespace than the owner
+	if objNamespace != "" && ownerNamespace != "" && objNamespace != ownerNamespace {
+		return false
+	}
+
+	return true
 }
