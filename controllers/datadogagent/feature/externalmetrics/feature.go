@@ -260,7 +260,7 @@ func (f *externalMetricsFeature) ManageDependencies(managers feature.ResourceMan
 	if err := managers.RBACManager().AddClusterRoleBinding(ns, componentdca.GetHPAClusterRoleBindingName(f.owner), f.serviceAccountName, getAuthDelegatorRoleRef()); err != nil {
 		return fmt.Errorf("error adding external metrics provider auth delegator clusterrolebinding to store: %w", err)
 	}
-	if err := managers.RBACManager().AddRoleBinding(ns, componentdca.GetApiserverAuthReaderRoleBindingName(f.owner), f.serviceAccountName, getAPIServerAuthReaderRoleRef()); err != nil {
+	if err := managers.RBACManager().AddRoleBinding("kube-system", componentdca.GetApiserverAuthReaderRoleBindingName(f.owner), ns, f.serviceAccountName, getAPIServerAuthReaderRoleRef()); err != nil {
 		return fmt.Errorf("error adding external metrics provider apiserver auth rolebinding to store: %w", err)
 	}
 
