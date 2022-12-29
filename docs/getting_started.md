@@ -1,20 +1,19 @@
 # Getting Started
 
-This procedure describes the simplest and fastest way to deploy the Datadog agent with the operator.
-For a more complete description of a more versatile way to install the operator and configure the agent it deploys, please refer to the [Installation guide](installation.md).
+This page describes the simplest and fastest way to deploy the Datadog Agent with the Operator.
+For more details on how to install the Operator and configure the Agent it deploys, refer to the [installation guide](installation.md).
 
 ## Prerequisites
 
 Using the Datadog Operator requires the following prerequisites:
 
-- **Kubernetes Cluster version >= v1.14.X**: Tests were done on versions >= `1.14.0`. Still, it should work on versions `>= v1.11.0`. For earlier versions, due to limited CRD support, the operator may not work as expected.
-- [`Helm`][1] for deploying the `Datadog-operator`.
-- [`Kubectl` cli][2] for installing the `Datadog-agent`.
+- **Kubernetes Cluster version >= v1.14.X**: Tests were done on versions >= `1.14.0`. Still, it should work on versions `>= v1.11.0`. For earlier versions, due to limited CRD support, the Operator may not work as expected.
+- **[Helm][1]** for deploying the Datadog Operator
+- **[`kubectl` CLI][2]** for installing the Datadog Agent
 
-## Deploy the Agent with the operator
+## Deploy the Agent with the Operator
 
-To deploy the Datadog Agent with the operator in the minimum number of steps, see the [`datadog-operator`](https://github.com/DataDog/helm-charts/tree/main/charts/datadog-operator) helm chart.
-Here are the steps:
+To deploy the Datadog Agent with the Operator in the minimum number of steps, use the [`datadog-operator` Helm chart](https://github.com/DataDog/helm-charts/tree/main/charts/datadog-operator).
 
 1. Install the [Datadog Operator][3]:
 
@@ -23,14 +22,14 @@ Here are the steps:
    helm install my-datadog-operator datadog/datadog-operator
    ```
 
-1. Create a Kubernetes secret with your API and APP keys
+1. Create a Kubernetes Secret with your API and app keys:
 
    ```shell
    kubectl create secret generic datadog-secret --from-literal api-key=<DATADOG_API_KEY> --from-literal app-key=<DATADOG_APP_KEY>
    ```
-   Replace `<DATADOG_API_KEY>` and `<DATADOG_APP_KEY>` with your [Datadog API and application keys][4]
+   Replace `<DATADOG_API_KEY>` and `<DATADOG_APP_KEY>` with your [Datadog API and application keys][4].
 
-1. Create a file with the spec of your DatadogAgent deployment configuration. The simplest configuration is:
+1. Create a file with the spec of your `DatadogAgent` deployment configuration. The simplest configuration is:
 
    ```yaml
    apiVersion: datadoghq.com/v1alpha1
@@ -47,20 +46,20 @@ Here are the steps:
          keyName: app-key
    ```
 
-1. Deploy the Datadog agent with the above configuration file:
+1. Deploy the Datadog Agent with the above configuration file:
    ```shell
    kubectl apply -f /path/to/your/datadog-agent.yaml
    ```
 
-### Installation option
+### Installation options
 
 The [configuration][5] page lists all the Datadog Agent and Cluster Agent features and options that can be configured with the `DatadogAgent` resource.
 
 #### Containers registry
 
-The default registry ([gcr.io/datadoghq][6]) can be change to any other registry with the option `spec.registry`.
+To change the default registry ([gcr.io/datadoghq][6]) to another registry, use the option `spec.registry`.
 
-Use the [`datadog-agent-with-registry.yaml` example file][7] to configure the operator to use the [public.ecr.aws/datadog][8] registry.
+The example [`datadog-agent-with-registry.yaml` file][7] demonstrates how to configure the Operator to use the [public.ecr.aws/datadog][8] registry.
 
 ```yaml
 apiVersion: datadoghq.com/v1alpha1
