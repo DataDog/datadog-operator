@@ -13,7 +13,8 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
-	policyv1 "k8s.io/api/policy/v1beta1"
+	policyv1 "k8s.io/api/policy/v1"
+	policyv1beta "k8s.io/api/policy/v1beta1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -41,12 +42,13 @@ import (
 // DatadogAgentReconciler reconciles a DatadogAgent object.
 type DatadogAgentReconciler struct {
 	client.Client
-	VersionInfo *version.Info
-	Log         logr.Logger
-	Scheme      *runtime.Scheme
-	Recorder    record.EventRecorder
-	Options     datadogagent.ReconcilerOptions
-	internal    *datadogagent.Reconciler
+	VersionInfo  *version.Info
+	PlatformInfo kubernetes.PlatformInfo
+	Log          logr.Logger
+	Scheme       *runtime.Scheme
+	Recorder     record.EventRecorder
+	Options      datadogagent.ReconcilerOptions
+	internal     *datadogagent.Reconciler
 }
 
 // +kubebuilder:rbac:groups=datadoghq.com,resources=datadogagents,verbs=get;list;watch;create;update;patch;delete
@@ -183,7 +185,6 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&rbacv1.Role{}).
 		Owns(&rbacv1.RoleBinding{}).
 		Owns(&corev1.ServiceAccount{}).
-		Owns(&policyv1.PodDisruptionBudget{}).
 		Owns(&networkingv1.NetworkPolicy{})
 
 	// DatadogAgent is namespaced whereas ClusterRole and ClusterRoleBinding are
@@ -221,6 +222,12 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		}))
 	}
 
+	if r.PlatformInfo.UseV1Beta1PDB(r.Log) {
+		builder = builder.Owns(&policyv1beta.PodDisruptionBudget{})
+	} else {
+		builder = builder.Owns(&policyv1.PodDisruptionBudget{})
+	}
+
 	if r.Options.V2Enabled {
 		if err := builder.For(&datadoghqv2alpha1.DatadogAgent{}, builderOptions...).Complete(r); err != nil {
 			return err
@@ -231,7 +238,7 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		}
 	}
 
-	internal, err := datadogagent.NewReconciler(r.Options, r.Client, r.VersionInfo, r.Scheme, r.Log, r.Recorder, metricForwarder)
+	internal, err := datadogagent.NewReconciler(r.Options, r.Client, r.VersionInfo, r.PlatformInfo, r.Scheme, r.Log, r.Recorder, metricForwarder)
 	if err != nil {
 		return err
 	}

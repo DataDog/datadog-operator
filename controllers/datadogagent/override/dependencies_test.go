@@ -149,7 +149,7 @@ func TestDependencies(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			store := dependencies.NewStore(&test.dda, storeOptions)
+			store := dependencies.NewStore(&test.dda, storeOptions, false)
 			manager := feature.NewResourceManagers(store)
 
 			errs := Dependencies(testLogger, manager, &test.dda)

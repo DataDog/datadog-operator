@@ -124,7 +124,7 @@ func runTest(t *testing.T, tt FeatureTest, buildFunc feature.BuildFunc) {
 	}
 
 	// dependencies
-	store := dependencies.NewStore(dda, tt.StoreOption)
+	store := dependencies.NewStore(dda, tt.StoreOption, false)
 	if tt.StoreInitFunc != nil {
 		tt.StoreInitFunc(store)
 	}

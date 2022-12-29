@@ -100,7 +100,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 		Logger:        logger,
 		Scheme:        r.scheme,
 	}
-	depsStore := dependencies.NewStore(instance, storeOptions)
+	depsStore := dependencies.NewStore(instance, storeOptions, r.platformInfo.UseV1Beta1PDB(logger))
 	resourceManagers := feature.NewResourceManagers(depsStore)
 
 	var errs []error

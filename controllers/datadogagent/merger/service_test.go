@@ -85,7 +85,7 @@ func TestServiceManager_AddService(t *testing.T) {
 	}{
 		{
 			name:  "empty store",
-			store: dependencies.NewStore(owner, storeOptions),
+			store: dependencies.NewStore(owner, storeOptions, false),
 			args: args{
 				namespace: ns,
 				name:      name1,
@@ -102,7 +102,7 @@ func TestServiceManager_AddService(t *testing.T) {
 		},
 		{
 			name:  "another Service already exists",
-			store: dependencies.NewStore(owner, storeOptions).AddOrUpdateStore(kubernetes.ServicesKind, &existingService),
+			store: dependencies.NewStore(owner, storeOptions, false).AddOrUpdateStore(kubernetes.ServicesKind, &existingService),
 			args: args{
 				namespace: ns,
 				name:      name1,
@@ -119,7 +119,7 @@ func TestServiceManager_AddService(t *testing.T) {
 		},
 		{
 			name:  "update existing NetworkPolicy",
-			store: dependencies.NewStore(owner, storeOptions).AddOrUpdateStore(kubernetes.ServicesKind, &existingService),
+			store: dependencies.NewStore(owner, storeOptions, false).AddOrUpdateStore(kubernetes.ServicesKind, &existingService),
 			args: args{
 				namespace: ns,
 				name:      name2,

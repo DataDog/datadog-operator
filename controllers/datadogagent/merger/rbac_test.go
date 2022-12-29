@@ -85,7 +85,7 @@ func TestRBACManager_AddPolicyRules(t *testing.T) {
 	}{
 		{
 			name:  "empty store",
-			store: dependencies.NewStore(owner, storeOptions),
+			store: dependencies.NewStore(owner, storeOptions, false),
 			args: args{
 				namespace: ns,
 				saName:    name + "sa",
@@ -107,7 +107,7 @@ func TestRBACManager_AddPolicyRules(t *testing.T) {
 		},
 		{
 			name:  "another Role already exist",
-			store: dependencies.NewStore(owner, storeOptions).AddOrUpdateStore(kubernetes.RolesKind, role1),
+			store: dependencies.NewStore(owner, storeOptions, false).AddOrUpdateStore(kubernetes.RolesKind, role1),
 			args: args{
 				namespace: ns,
 				saName:    name + "sa",
@@ -129,7 +129,7 @@ func TestRBACManager_AddPolicyRules(t *testing.T) {
 		},
 		{
 			name:  "update existing Role",
-			store: dependencies.NewStore(owner, storeOptions).AddOrUpdateStore(kubernetes.RolesKind, role2),
+			store: dependencies.NewStore(owner, storeOptions, false).AddOrUpdateStore(kubernetes.RolesKind, role2),
 			args: args{
 				namespace: ns,
 				saName:    name + "sa",
@@ -219,7 +219,7 @@ func TestRBACManager_AddClusterPolicyRules(t *testing.T) {
 	}{
 		{
 			name:  "empty store",
-			store: dependencies.NewStore(owner, storeOptions),
+			store: dependencies.NewStore(owner, storeOptions, false),
 			args: args{
 				namespace: ns,
 				saName:    name + "sa",
@@ -241,7 +241,7 @@ func TestRBACManager_AddClusterPolicyRules(t *testing.T) {
 		},
 		{
 			name:  "another ClusterRole already exist",
-			store: dependencies.NewStore(owner, storeOptions).AddOrUpdateStore(kubernetes.RolesKind, role1),
+			store: dependencies.NewStore(owner, storeOptions, false).AddOrUpdateStore(kubernetes.RolesKind, role1),
 			args: args{
 				namespace: ns,
 				saName:    name + "sa",

@@ -9,7 +9,8 @@ import (
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
-	policyv1 "k8s.io/api/policy/v1beta1"
+	policyv1 "k8s.io/api/policy/v1"
+	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -18,7 +19,7 @@ import (
 )
 
 // ObjectListFromKind returns the corresponding object list from a kind
-func ObjectListFromKind(kind ObjectKind) client.ObjectList {
+func ObjectListFromKind(kind ObjectKind, useV1Beta1PDB bool) client.ObjectList {
 	switch kind {
 	case ConfigMapKind:
 		return &corev1.ConfigMapList{}
@@ -41,11 +42,11 @@ func ObjectListFromKind(kind ObjectKind) client.ObjectList {
 	case ServiceAccountsKind:
 		return &corev1.ServiceAccountList{}
 	case PodDisruptionBudgetsKind:
-		return &policyv1.PodDisruptionBudgetList{}
+		return getPDBList(useV1Beta1PDB)
 	case NetworkPoliciesKind:
 		return &networkingv1.NetworkPolicyList{}
 	case PodSecurityPoliciesKind:
-		return &policyv1.PodSecurityPolicyList{}
+		return &policyv1beta1.PodSecurityPolicyList{}
 	case CiliumNetworkPoliciesKind:
 		return ciliumv1.EmptyCiliumUnstructuredListPolicy()
 		// case SecurityContextConstraintsKind:
@@ -53,4 +54,12 @@ func ObjectListFromKind(kind ObjectKind) client.ObjectList {
 	}
 
 	return nil
+}
+
+func getPDBList(useV1Beta1PDB bool) client.ObjectList {
+	if useV1Beta1PDB {
+		return &policyv1beta1.PodDisruptionBudgetList{}
+	} else {
+		return &policyv1.PodDisruptionBudgetList{}
+	}
 }

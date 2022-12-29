@@ -26,6 +26,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
@@ -68,27 +69,28 @@ type ReconcilerOptions struct {
 
 // Reconciler is the internal reconciler for Datadog Agent
 type Reconciler struct {
-	options     ReconcilerOptions
-	client      client.Client
-	versionInfo *version.Info
-	scheme      *runtime.Scheme
-	log         logr.Logger
-	recorder    record.EventRecorder
-	forwarders  datadog.MetricForwardersManager
+	options      ReconcilerOptions
+	client       client.Client
+	versionInfo  *version.Info
+	platformInfo kubernetes.PlatformInfo
+	scheme       *runtime.Scheme
+	log          logr.Logger
+	recorder     record.EventRecorder
+	forwarders   datadog.MetricForwardersManager
 }
 
 // NewReconciler returns a reconciler for DatadogAgent
-func NewReconciler(options ReconcilerOptions, client client.Client, versionInfo *version.Info,
-	scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, metricForwarder datadog.MetricForwardersManager,
-) (*Reconciler, error) {
+func NewReconciler(options ReconcilerOptions, client client.Client, versionInfo *version.Info, platformInfo kubernetes.PlatformInfo,
+	scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, metricForwarder datadog.MetricForwardersManager) (*Reconciler, error) {
 	return &Reconciler{
-		options:     options,
-		client:      client,
-		versionInfo: versionInfo,
-		scheme:      scheme,
-		log:         log,
-		recorder:    recorder,
-		forwarders:  metricForwarder,
+		options:      options,
+		client:       client,
+		versionInfo:  versionInfo,
+		platformInfo: platformInfo,
+		scheme:       scheme,
+		log:          log,
+		recorder:     recorder,
+		forwarders:   metricForwarder,
 	}, nil
 }
 
@@ -173,7 +175,7 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, 
 		Logger:        logger,
 		Scheme:        r.scheme,
 	}
-	depsStore := dependencies.NewStore(instance, storeOptions)
+	depsStore := dependencies.NewStore(instance, storeOptions, r.platformInfo.UseV1Beta1PDB(logger))
 	resourcesManager := feature.NewResourceManagers(depsStore)
 	var errs []error
 	for _, feat := range features {

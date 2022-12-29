@@ -120,7 +120,7 @@ func TestNetworkPolicyManager_AddKubernetesNetworkPolicy(t *testing.T) {
 	}{
 		{
 			name:  "empty store",
-			store: dependencies.NewStore(owner, storeOptions),
+			store: dependencies.NewStore(owner, storeOptions, false),
 			args: args{
 				namespace:   ns,
 				name:        name1,
@@ -138,7 +138,7 @@ func TestNetworkPolicyManager_AddKubernetesNetworkPolicy(t *testing.T) {
 		},
 		{
 			name:  "another NetworkPolicy already exists",
-			store: dependencies.NewStore(owner, storeOptions).AddOrUpdateStore(kubernetes.NetworkPoliciesKind, &existingPolicy),
+			store: dependencies.NewStore(owner, storeOptions, false).AddOrUpdateStore(kubernetes.NetworkPoliciesKind, &existingPolicy),
 			args: args{
 				namespace:   ns,
 				name:        name1,
@@ -156,7 +156,7 @@ func TestNetworkPolicyManager_AddKubernetesNetworkPolicy(t *testing.T) {
 		},
 		{
 			name:  "update existing NetworkPolicy",
-			store: dependencies.NewStore(owner, storeOptions).AddOrUpdateStore(kubernetes.NetworkPoliciesKind, &existingPolicy),
+			store: dependencies.NewStore(owner, storeOptions, false).AddOrUpdateStore(kubernetes.NetworkPoliciesKind, &existingPolicy),
 			args: args{
 				namespace:   ns,
 				name:        name2,

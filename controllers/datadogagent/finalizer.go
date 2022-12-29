@@ -102,7 +102,7 @@ func (r *Reconciler) finalizeDadV2(reqLogger logr.Logger, obj client.Object) {
 		Logger:        reqLogger,
 		Scheme:        r.scheme,
 	}
-	depsStore := dependencies.NewStore(dda, storeOptions)
+	depsStore := dependencies.NewStore(dda, storeOptions, r.platformInfo.UseV1Beta1PDB(reqLogger))
 	resourceManagers := feature.NewResourceManagers(depsStore)
 
 	var errs []error
