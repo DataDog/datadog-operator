@@ -16,9 +16,9 @@ type ContainerRegistry string
 
 const (
 	// AgentLatestVersion correspond to the latest stable agent release
-	AgentLatestVersion = "7.40.1"
+	AgentLatestVersion = "7.41.1"
 	// ClusterAgentLatestVersion correspond to the latest stable cluster-agent release
-	ClusterAgentLatestVersion = "7.40.1"
+	ClusterAgentLatestVersion = "7.41.1"
 
 	// GCRContainerRegistry correspond to the datadoghq GCR registry
 	GCRContainerRegistry ContainerRegistry = "gcr.io/datadoghq"
