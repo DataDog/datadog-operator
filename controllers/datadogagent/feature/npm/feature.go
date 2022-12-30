@@ -32,7 +32,10 @@ func buildNPMFeature(options *feature.Options) feature.Feature {
 	return npmFeat
 }
 
-type npmFeature struct{}
+type npmFeature struct {
+	collectDNSStats bool
+	enableConntrack bool
+}
 
 // ID returns the ID of the Feature
 func (f *npmFeature) ID() feature.IDType {
@@ -56,6 +59,9 @@ func (f *npmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 				},
 			},
 		}
+		npm := dda.Spec.Features.NPM
+		f.collectDNSStats = apiutils.BoolValue(npm.CollectDNSStats)
+		f.enableConntrack = apiutils.BoolValue(npm.EnableConntrack)
 	}
 
 	return reqComp
@@ -154,6 +160,14 @@ func (f *npmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 		Value: apicommon.DefaultSystemProbeSocketPath,
 	}
 
+	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, &corev1.EnvVar{
+		Name:  apicommon.DDSystemProbeCollectDNSStatsEnabled,
+		Value: apiutils.BoolToString(&f.collectDNSStats),
+	})
+	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, &corev1.EnvVar{
+		Name:  apicommon.DDSystemProbeConntrackEnabled,
+		Value: apiutils.BoolToString(&f.enableConntrack),
+	})
 	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, socketEnvVar)
 	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, socketEnvVar)
 
