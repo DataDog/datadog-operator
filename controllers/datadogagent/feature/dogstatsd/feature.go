@@ -182,12 +182,15 @@ func (f *dogstatsdFeature) ManageNodeAgent(managers feature.PodTemplateManagers)
 	// uds
 	if f.udsEnabled {
 		udsHostFolder := filepath.Dir(f.udsHostFilepath)
-		socketVol, socketVolMount := volume.GetVolumes(apicommon.DogstatsdAPMSocketVolumeName, udsHostFolder, udsHostFolder, false)
+		sockName := filepath.Base(f.udsHostFilepath)
+		socketVol, socketVolMount := volume.GetVolumes(apicommon.DogstatsdSocketVolumeName, udsHostFolder, apicommon.DogstatsdSocketLocalPath, false)
+		volType := corev1.HostPathDirectoryOrCreate // We need to create the directory on the host if it does not exist.
+		socketVol.VolumeSource.HostPath.Type = &volType
 		managers.VolumeMount().AddVolumeMountToContainer(&socketVolMount, apicommonv1.CoreAgentContainerName)
 		managers.Volume().AddVolume(&socketVol)
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
+		managers.EnvVar().AddEnvVar(&corev1.EnvVar{
 			Name:  apicommon.DDDogstatsdSocket,
-			Value: f.udsHostFilepath,
+			Value: filepath.Join(apicommon.DogstatsdSocketLocalPath, sockName),
 		})
 	}
 
