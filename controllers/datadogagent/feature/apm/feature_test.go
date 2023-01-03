@@ -23,7 +23,8 @@ import (
 )
 
 const (
-	apmSocketPath = apicommon.APMSocketVolumeLocalPath + "/" + apicommon.APMSocketName
+	apmSocketHostPath  = apicommon.DogstatsdAPMSocketVolumePath + "/" + apicommon.APMSocketName
+	apmSocketLocalPath = apicommon.APMSocketVolumeLocalPath + "/" + apicommon.APMSocketName
 )
 
 func TestAPMFeature(t *testing.T) {
@@ -83,7 +84,7 @@ func newV1Agent(enableAPM bool, uds bool) *v1alpha1.DatadogAgent {
 					HostPort: apiutils.NewInt32Pointer(8126),
 					UnixDomainSocket: &v1alpha1.APMUnixDomainSocketSpec{
 						Enabled:      apiutils.NewBoolPointer(uds),
-						HostFilepath: apiutils.NewStringPointer(apmSocketPath),
+						HostFilepath: apiutils.NewStringPointer(apmSocketHostPath),
 					},
 				},
 			},
@@ -103,7 +104,7 @@ func newV2Agent(enableAPM bool, hostPort bool) *v2alpha1.DatadogAgent {
 					},
 					UnixDomainSocketConfig: &v2alpha1.UnixDomainSocketConfig{
 						Enabled: apiutils.NewBoolPointer(true),
-						Path:    apiutils.NewStringPointer(apmSocketPath),
+						Path:    apiutils.NewStringPointer(apmSocketHostPath),
 					},
 				},
 			},
@@ -169,7 +170,7 @@ func testAgentUDSOnly() *test.ComponentTest {
 				},
 				{
 					Name:  apicommon.DDAPMReceiverSocket,
-					Value: apmSocketPath,
+					Value: apmSocketLocalPath,
 				},
 			}
 			assert.True(
@@ -199,7 +200,7 @@ func testAgentUDSOnly() *test.ComponentTest {
 					Name: apicommon.APMSocketVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: apicommon.APMSocketVolumeLocalPath,
+							Path: apicommon.DogstatsdAPMSocketVolumePath,
 							Type: &volType,
 						},
 					},
@@ -249,7 +250,7 @@ func testAgentHostPortUDS() *test.ComponentTest {
 				},
 				{
 					Name:  apicommon.DDAPMReceiverSocket,
-					Value: apmSocketPath,
+					Value: apmSocketLocalPath,
 				},
 			}
 			assert.True(
@@ -279,7 +280,7 @@ func testAgentHostPortUDS() *test.ComponentTest {
 					Name: apicommon.APMSocketVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: apicommon.APMSocketVolumeLocalPath,
+							Path: apicommon.DogstatsdAPMSocketVolumePath,
 							Type: &volType,
 						},
 					},

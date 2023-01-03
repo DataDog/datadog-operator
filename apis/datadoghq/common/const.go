@@ -191,7 +191,7 @@ const (
 	DogstatsdHostPortName                            = "dogstatsdport"
 	DogstatsdHostPortHostPort                        = 8125
 	DogstatsdSocketVolumeName                        = "dsdsocket"
-	DogstatsdSocketVolumePath                        = "/var/run/datadog"
+	DogstatsdAPMSocketVolumePath                     = "/var/run/datadog"
 	DogstatsdSocketLocalPath                         = "/var/run/datadog/statsd"
 	DogstatsdSocketName                              = "dsd.socket"
 	SecurityAgentComplianceCustomConfigDirVolumeName = "customcompliancebenchmarks"

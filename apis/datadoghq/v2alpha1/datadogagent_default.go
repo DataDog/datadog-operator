@@ -34,7 +34,7 @@ const (
 	defaultAPMHostPortEnabled bool   = false
 	defaultAPMHostPort        int32  = 8126
 	defaultAPMSocketEnabled   bool   = true
-	defaultAPMSocketHostPath  string = "/var/run/datadog/apm.socket"
+	defaultAPMSocketHostPath  string = apicommon.DogstatsdAPMSocketVolumePath + "/" + apicommon.APMSocketName
 
 	// defaultCSPMEnabled              bool = false
 	// defaultCWSEnabled               bool = false
@@ -50,7 +50,7 @@ const (
 	defaultDogstatsdHostPortEnabled        bool   = false
 	defaultDogstatsdPort                   int32  = 8125
 	defaultDogstatsdSocketEnabled          bool   = true
-	defaultDogstatsdHostSocketPath         string = "/var/run/datadog/dsd.socket"
+	defaultDogstatsdHostSocketPath         string = apicommon.DogstatsdAPMSocketVolumePath + "/" + apicommon.DogstatsdSocketName
 
 	defaultOTLPGRPCEnabled  bool   = false
 	defaultOTLPGRPCEndpoint string = "0.0.0.0:4317"
