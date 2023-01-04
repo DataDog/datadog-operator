@@ -317,7 +317,7 @@ bin/$(PLATFORM)/golangci-lint: Makefile
 	hack/golangci-lint.sh -b "bin/$(PLATFORM)" v1.49.0
 
 bin/$(PLATFORM)/operator-sdk: Makefile
-	hack/install-operator-sdk.sh v1.13.1
+	hack/install-operator-sdk.sh v1.23.0
 
 bin/$(PLATFORM)/wwhrd: Makefile
 	hack/install-wwhrd.sh 0.2.4
