@@ -222,6 +222,11 @@ func buildOrchestratorExplorerRBAC(dda *datadoghqv1alpha1.DatadogAgent, name, ve
 		{
 			APIGroups: []string{rbac.AutoscalingAPIGroup},
 			Resources: []string{rbac.VPAResource},
+			Verbs: []string{
+				rbac.GetVerb,
+				rbac.CreateVerb,
+				rbac.UpdateVerb,
+			},
 		},
 	}
 

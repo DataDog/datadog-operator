@@ -90,4 +90,5 @@ rules:
       - verticalpodautoscalers
     verbs:
       - list
+      - get
       - watch
