@@ -220,12 +220,12 @@ func buildOrchestratorExplorerRBAC(dda *datadoghqv1alpha1.DatadogAgent, name, ve
 			Resources: []string{rbac.IngressesResource},
 		},
 		{
-			APIGroups: []string{rbac.AutoscalingAPIGroup},
+			APIGroups: []string{rbac.AutoscalingK8sIoAPIGroup},
 			Resources: []string{rbac.VPAResource},
 			Verbs: []string{
+				rbac.ListVerb,
 				rbac.GetVerb,
-				rbac.CreateVerb,
-				rbac.UpdateVerb,
+				rbac.WatchVerb,
 			},
 		},
 	}

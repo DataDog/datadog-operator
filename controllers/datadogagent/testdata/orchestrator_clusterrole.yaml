@@ -84,7 +84,7 @@ rules:
     verbs:
       - list
       - watch
-  - apiGroups:
+  - apigroups:
       - "autoscaling.k8s.io"
     resources:
       - verticalpodautoscalers
