@@ -685,7 +685,7 @@ func Test_defaultFeatures(t *testing.T) {
 						HostPortConfig:         &HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
 						UnixDomainSocketConfig: &UnixDomainSocketConfig{
 							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
-							Path:    apiutils.NewStringPointer(defaultDogstatsdSocketPath),
+							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
 						},
 					},
 					OTLP: &OTLPFeatureConfig{Receiver: OTLPReceiverConfig{Protocols: OTLPProtocolsConfig{
