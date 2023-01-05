@@ -84,6 +84,15 @@ func getRBACPolicyRules() []rbacv1.PolicyRule {
 			APIGroups: []string{rbac.NetworkingAPIGroup},
 			Resources: []string{rbac.IngressesResource},
 		},
+		{
+			APIGroups: []string{rbac.AutoscalingK8sIoAPIGroup},
+			Resources: []string{rbac.VPAResource},
+			Verbs: []string{
+				rbac.ListVerb,
+				rbac.GetVerb,
+				rbac.WatchVerb,
+			},
+		},
 	}
 
 	defaultVerbs := []string{
