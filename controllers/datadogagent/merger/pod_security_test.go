@@ -99,7 +99,7 @@ func TestPodSecurityManager_AddSecurityContextConstraints(t *testing.T) {
 	}{
 		{
 			name:  "empty store",
-			store: dependencies.NewStore(owner, storeOptions, false),
+			store: dependencies.NewStore(owner, storeOptions),
 			args: args{
 				namespace: ns,
 				name:      newSCCName,
@@ -114,7 +114,7 @@ func TestPodSecurityManager_AddSecurityContextConstraints(t *testing.T) {
 		},
 		{
 			name:  "another SecurityContextConstraints already exists",
-			store: dependencies.NewStore(owner, storeOptions, false).AddOrUpdateStore(kubernetes.SecurityContextConstraintsKind, &existingSCC),
+			store: dependencies.NewStore(owner, storeOptions).AddOrUpdateStore(kubernetes.SecurityContextConstraintsKind, &existingSCC),
 			args: args{
 				namespace: ns,
 				name:      newSCCName,
@@ -129,7 +129,7 @@ func TestPodSecurityManager_AddSecurityContextConstraints(t *testing.T) {
 		},
 		{
 			name:  "update existing SecurityContextConstraints",
-			store: dependencies.NewStore(owner, storeOptions, false).AddOrUpdateStore(kubernetes.SecurityContextConstraintsKind, &existingSCC),
+			store: dependencies.NewStore(owner, storeOptions).AddOrUpdateStore(kubernetes.SecurityContextConstraintsKind, &existingSCC),
 			args: args{
 				namespace: ns,
 				name:      existingSCCName,

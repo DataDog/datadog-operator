@@ -59,7 +59,7 @@ func Test_secretManagerImpl_AddSecret(t *testing.T) {
 	}{
 		{
 			name:  "empty Store",
-			store: dependencies.NewStore(owner, storeOptions, false),
+			store: dependencies.NewStore(owner, storeOptions),
 			args: args{
 				secretNamespace: secretNs,
 				secretName:      secretName,
@@ -75,7 +75,7 @@ func Test_secretManagerImpl_AddSecret(t *testing.T) {
 		},
 		{
 			name:  "secret already exist",
-			store: dependencies.NewStore(owner, storeOptions, false).AddOrUpdateStore(kubernetes.SecretsKind, secret1),
+			store: dependencies.NewStore(owner, storeOptions).AddOrUpdateStore(kubernetes.SecretsKind, secret1),
 			args: args{
 				secretNamespace: secretNs,
 				secretName:      secretName,

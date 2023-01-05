@@ -64,7 +64,7 @@ func TestConfigMapManager_AddConfigMap(t *testing.T) {
 	}{
 		{
 			name:  "empty store",
-			store: dependencies.NewStore(owner, storeOptions, false),
+			store: dependencies.NewStore(owner, storeOptions),
 			args: args{
 				namespace: ns,
 				name:      name1,
@@ -79,7 +79,7 @@ func TestConfigMapManager_AddConfigMap(t *testing.T) {
 		},
 		{
 			name:  "another ConfigMap already exists",
-			store: dependencies.NewStore(owner, storeOptions, false).AddOrUpdateStore(kubernetes.ConfigMapKind, &existingConfigMap),
+			store: dependencies.NewStore(owner, storeOptions).AddOrUpdateStore(kubernetes.ConfigMapKind, &existingConfigMap),
 			args: args{
 				namespace: ns,
 				name:      name1,
@@ -94,7 +94,7 @@ func TestConfigMapManager_AddConfigMap(t *testing.T) {
 		},
 		{
 			name:  "update existing ConfigMap",
-			store: dependencies.NewStore(owner, storeOptions, false).AddOrUpdateStore(kubernetes.ConfigMapKind, &existingConfigMap),
+			store: dependencies.NewStore(owner, storeOptions).AddOrUpdateStore(kubernetes.ConfigMapKind, &existingConfigMap),
 			args: args{
 				namespace: ns,
 				name:      name2,

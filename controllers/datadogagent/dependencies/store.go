@@ -45,15 +45,15 @@ type StoreClient interface {
 }
 
 // NewStore returns a new Store instance
-func NewStore(owner metav1.Object, options *StoreOptions, useV1Beta1PDB bool) *Store {
+func NewStore(owner metav1.Object, options *StoreOptions) *Store {
 	store := &Store{
-		deps:          make(map[kubernetes.ObjectKind]map[string]client.Object),
-		owner:         owner,
-		useV1Beta1PDB: useV1Beta1PDB,
+		deps:  make(map[kubernetes.ObjectKind]map[string]client.Object),
+		owner: owner,
 	}
 	if options != nil {
 		store.supportCilium = options.SupportCilium
 		store.versionInfo = options.VersionInfo
+		store.platformInfo = options.PlatformInfo
 		store.logger = options.Logger
 		store.scheme = options.Scheme
 	}
@@ -68,8 +68,8 @@ type Store struct {
 	mutex sync.RWMutex
 
 	supportCilium bool
-	useV1Beta1PDB bool
 	versionInfo   *version.Info
+	platformInfo  kubernetes.PlatformInfo
 
 	scheme *runtime.Scheme
 	logger logr.Logger
@@ -80,6 +80,7 @@ type Store struct {
 type StoreOptions struct {
 	SupportCilium bool
 	VersionInfo   *version.Info
+	PlatformInfo  kubernetes.PlatformInfo
 
 	Scheme *runtime.Scheme
 	Logger logr.Logger
@@ -171,7 +172,7 @@ func (ds *Store) GetOrCreate(kind kubernetes.ObjectKind, namespace, name string)
 	if found {
 		return obj, found
 	}
-	obj = kubernetes.ObjectFromKind(kind, ds.useV1Beta1PDB)
+	obj = kubernetes.ObjectFromKind(kind, ds.platformInfo.UseV1Beta1PDB(ds.logger))
 	obj.SetName(name)
 	obj.SetNamespace(namespace)
 	return obj, found
@@ -204,7 +205,7 @@ func (ds *Store) Apply(ctx context.Context, k8sClient client.Client) []error {
 	for kind := range ds.deps {
 		for objID, objStore := range ds.deps[kind] {
 			objNSName := buildObjectKey(objID)
-			objAPIServer := kubernetes.ObjectFromKind(kind, ds.useV1Beta1PDB)
+			objAPIServer := kubernetes.ObjectFromKind(kind, ds.platformInfo.UseV1Beta1PDB(ds.logger))
 			err := k8sClient.Get(ctx, objNSName, objAPIServer)
 			if err != nil && apierrors.IsNotFound(err) {
 				ds.logger.V(2).Info("dependencies.store Add object to create", "obj.namespace", objStore.GetNamespace(), "obj.name", objStore.GetName(), "obj.kind", kind)
@@ -264,7 +265,7 @@ func (ds *Store) Cleanup(ctx context.Context, k8sClient client.Client, ddaNs, dd
 		LabelSelector: labels.NewSelector().Add(*requirementLabel),
 	}
 	for _, kind := range kubernetes.GetResourcesKind(ds.supportCilium) {
-		objList := kubernetes.ObjectListFromKind(kind, ds.useV1Beta1PDB)
+		objList := kubernetes.ObjectListFromKind(kind, ds.platformInfo.UseV1Beta1PDB(ds.logger))
 		if err := k8sClient.List(ctx, objList, listOptions); err != nil {
 			errs = append(errs, err)
 			continue
@@ -298,7 +299,7 @@ func (ds *Store) DeleteAll(ctx context.Context, k8sClient client.Client) []error
 		listOptions := &client.ListOptions{
 			LabelSelector: labels.NewSelector().Add(*requirementLabel),
 		}
-		objList := kubernetes.ObjectListFromKind(kind, ds.useV1Beta1PDB)
+		objList := kubernetes.ObjectListFromKind(kind, ds.platformInfo.UseV1Beta1PDB(ds.logger))
 		if err := k8sClient.List(ctx, objList, listOptions); err != nil {
 			return []error{err}
 		}

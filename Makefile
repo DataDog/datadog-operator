@@ -77,7 +77,7 @@ vet: ## Run go vet against code
 	go vet ./...
 
 .PHONY: echo-img
-echo-img: ## Output image value
+echo-img: ## Use `make -s echo-img` to get image string for other shell commands
 	$(info $(IMG))
 
 ##@ Tools

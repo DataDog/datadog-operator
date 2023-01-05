@@ -112,7 +112,7 @@ func TestCiliumPolicyManager_AddCiliumPolicy(t *testing.T) {
 	}{
 		{
 			name:  "empty store",
-			store: dependencies.NewStore(owner, storeOptions, false),
+			store: dependencies.NewStore(owner, storeOptions),
 			args: args{
 				namespace:  ns,
 				name:       name1,
@@ -127,7 +127,7 @@ func TestCiliumPolicyManager_AddCiliumPolicy(t *testing.T) {
 		},
 		{
 			name:  "another CiliumPolicy already exists",
-			store: dependencies.NewStore(owner, storeOptions, false).AddOrUpdateStore(kubernetes.CiliumNetworkPoliciesKind, unstructuredPolicy),
+			store: dependencies.NewStore(owner, storeOptions).AddOrUpdateStore(kubernetes.CiliumNetworkPoliciesKind, unstructuredPolicy),
 			args: args{
 				namespace:  ns,
 				name:       name1,
@@ -142,7 +142,7 @@ func TestCiliumPolicyManager_AddCiliumPolicy(t *testing.T) {
 		},
 		{
 			name:  "update existing CiliumPolicy",
-			store: dependencies.NewStore(owner, storeOptions, false).AddOrUpdateStore(kubernetes.CiliumNetworkPoliciesKind, unstructuredPolicy),
+			store: dependencies.NewStore(owner, storeOptions).AddOrUpdateStore(kubernetes.CiliumNetworkPoliciesKind, unstructuredPolicy),
 			args: args{
 				namespace:  ns,
 				name:       name2,

@@ -97,10 +97,11 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	storeOptions := &dependencies.StoreOptions{
 		SupportCilium: r.options.SupportCilium,
 		VersionInfo:   r.versionInfo,
+		PlatformInfo:  r.platformInfo,
 		Logger:        logger,
 		Scheme:        r.scheme,
 	}
-	depsStore := dependencies.NewStore(instance, storeOptions, r.platformInfo.UseV1Beta1PDB(logger))
+	depsStore := dependencies.NewStore(instance, storeOptions)
 	resourceManagers := feature.NewResourceManagers(depsStore)
 
 	var errs []error
