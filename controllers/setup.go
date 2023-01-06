@@ -60,8 +60,11 @@ func SetupControllers(logger logr.Logger, mgr manager.Manager, options SetupOpti
 		return fmt.Errorf("unable to get APIServer version: %w", err)
 	}
 
-	groups, resources, _ := getServerGroupsAndResources(logger, discoveryClient)
-	platformInfo := getPlatformInfo(logger, groups, resources)
+	groups, resources, err := getServerGroupsAndResources(logger, discoveryClient)
+	if err != nil {
+		return fmt.Errorf("unable to get API resource versions: %w", err)
+	}
+	platformInfo := kubernetes.NewPlatformInfo1(versionInfo, groups, resources)
 
 	for controller, starter := range controllerStarters {
 		if err := starter(logger, mgr, versionInfo, platformInfo, options); err != nil {
@@ -72,72 +75,13 @@ func SetupControllers(logger logr.Logger, mgr manager.Manager, options SetupOpti
 	return nil
 }
 
-func getPlatformInfo(log logr.Logger, groups []*v1.APIGroup, resources []*v1.APIResourceList) (platformInfo kubernetes.PlatformInfo) {
-	preferredGroupVersions := make(map[string]struct{})
-	log.Info("identifyResources")
-
-	// Identify preferred group versions
-	for _, group := range groups {
-		log.Info("identifyResources: Pringing groups", "group", group)
-		preferredGroupVersions[group.PreferredVersion.GroupVersion] = struct{}{}
-	}
-
-	preferred := make([]*v1.APIResourceList, 0, len(resources))
-	others := make([]*v1.APIResourceList, 0, len(resources))
-	// Triage resources
-	for _, list := range resources {
-		log.Info("identifyResources: Pringing resource lists", "list", list)
-		if _, found := preferredGroupVersions[list.GroupVersion]; found {
-			preferred = append(preferred, list)
-		} else {
-			others = append(others, list)
-		}
-	}
-
-	platformInfo.ApiPreferredVersions = map[string]string{}
-	platformInfo.ApiOtherVersions = map[string]string{}
-
-	for i := range preferred {
-		for j := range preferred[i].APIResources {
-			log.Info("Using API group for the Kind",
-				"name", preferred[i].APIResources[j].Kind,
-				"groupVersion", preferred[i].GroupVersion,
-			)
-			platformInfo.ApiPreferredVersions[preferred[i].APIResources[j].Kind] = preferred[i].GroupVersion
-		}
-	}
-
-	for i := range others {
-		for j := range others[i].APIResources {
-			log.Info("Using API group for the Kind",
-				"name", others[i].APIResources[j].Kind,
-				"groupVersion", others[i].GroupVersion,
-			)
-			platformInfo.ApiOtherVersions[others[i].APIResources[j].Kind] = others[i].GroupVersion
-		}
-	}
-
-	log.Info("identifyResources: results", "preferred", preferred, "others", others)
-	log.Info("platform info", "platformInfo", platformInfo)
-
-	return platformInfo
-}
-
 func getServerGroupsAndResources(log logr.Logger, discoveryClient *discovery.DiscoveryClient) ([]*v1.APIGroup, []*v1.APIResourceList, error) {
 	groups, resources, err := discoveryClient.ServerGroupsAndResources()
-
 	if err != nil {
 		if !discovery.IsGroupDiscoveryFailedError(err) {
 			log.Info("GetServerGroupsAndResources ERROR", "err", err)
 			return nil, nil, err
 		}
-		// We don't handle API group errors here because we assume API groups used
-		// by collectors in the orchestrator check will always be part of the result
-		// even though it might be incomplete due to discovery failures on other
-		// groups.
-		// for group, apiGroupErr := range err.(*discovery.ErrGroupDiscoveryFailed).Groups {
-		// 	log.Info("Resources for API group version %s could not be discovered:", "group", group, "apiGroupErr", apiGroupErr)
-		// }
 	}
 	return groups, resources, nil
 }

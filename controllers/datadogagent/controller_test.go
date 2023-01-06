@@ -185,9 +185,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent not found",
 			fields: fields{
-				client:   fake.NewFakeClient(),
-				scheme:   s,
-				recorder: recorder,
+				client:       fake.NewFakeClient(),
+				scheme:       s,
+				recorder:     recorder,
+				platformInfo: platformInfoWithPDBV1(),
 			},
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -198,9 +199,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent found, add finalizer",
 			fields: fields{
-				client:   fake.NewFakeClient(),
-				scheme:   s,
-				recorder: recorder,
+				client:       fake.NewFakeClient(),
+				scheme:       s,
+				recorder:     recorder,
+				platformInfo: platformInfoWithPDBV1(),
 			},
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -238,9 +240,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent found, but not defaulted",
 			fields: fields{
-				client:   fake.NewFakeClient(),
-				scheme:   s,
-				recorder: recorder,
+				client:       fake.NewFakeClient(),
+				scheme:       s,
+				recorder:     recorder,
+				platformInfo: platformInfoWithPDBV1(),
 			},
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -270,9 +273,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent found and defaulted, create the Agent's ClusterRole",
 			fields: fields{
-				client:   fake.NewFakeClient(),
-				scheme:   s,
-				recorder: recorder,
+				client:       fake.NewFakeClient(),
+				scheme:       s,
+				recorder:     recorder,
+				platformInfo: platformInfoWithPDBV1(),
 			},
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -317,9 +321,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent found and defaulted, create the Agent's ClusterRoleBinding",
 			fields: fields{
-				client:   fake.NewFakeClient(),
-				scheme:   s,
-				recorder: recorder,
+				client:       fake.NewFakeClient(),
+				scheme:       s,
+				recorder:     recorder,
+				platformInfo: platformInfoWithPDBV1(),
 			},
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -361,9 +366,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent found and defaulted, create the Agent's ServiceAccount",
 			fields: fields{
-				client:   fake.NewFakeClient(),
-				scheme:   s,
-				recorder: recorder,
+				client:       fake.NewFakeClient(),
+				scheme:       s,
+				recorder:     recorder,
+				platformInfo: platformInfoWithPDBV1(),
 			},
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -412,9 +418,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent found and defaulted, create the ExtendedDaemonSet",
 			fields: fields{
-				client:   fake.NewFakeClient(),
-				scheme:   s,
-				recorder: recorder,
+				client:       fake.NewFakeClient(),
+				scheme:       s,
+				recorder:     recorder,
+				platformInfo: platformInfoWithPDBV1(),
 			},
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -461,9 +468,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent found and defaulted, block daemonsetName change",
 			fields: fields{
-				client:   fake.NewFakeClient(),
-				scheme:   s,
-				recorder: recorder,
+				client:       fake.NewFakeClient(),
+				scheme:       s,
+				recorder:     recorder,
+				platformInfo: platformInfoWithPDBV1(),
 			},
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -499,9 +507,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent found and defaulted, create the ExtendedDaemonSet with non default config",
 			fields: fields{
-				client:   fake.NewFakeClient(),
-				scheme:   s,
-				recorder: recorder,
+				client:       fake.NewFakeClient(),
+				scheme:       s,
+				recorder:     recorder,
+				platformInfo: platformInfoWithPDBV1(),
 			},
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -591,9 +600,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 		{
 			name: "Cluster Agent enabled, create the cluster agent secret",
 			fields: fields{
-				client:   fake.NewFakeClient(),
-				scheme:   s,
-				recorder: recorder,
+				client:       fake.NewFakeClient(),
+				scheme:       s,
+				recorder:     recorder,
+				platformInfo: platformInfoWithPDBV1(),
 			},
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -618,9 +628,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent found and defaulted, create the DaemonSet",
 			fields: fields{
-				client:   fake.NewFakeClient(),
-				scheme:   s,
-				recorder: recorder,
+				client:       fake.NewFakeClient(),
+				scheme:       s,
+				recorder:     recorder,
+				platformInfo: platformInfoWithPDBV1(),
 			},
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -671,9 +682,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent with APM agent found and defaulted, create Daemonset",
 			fields: fields{
-				client:   fake.NewFakeClient(),
-				scheme:   s,
-				recorder: recorder,
+				client:       fake.NewFakeClient(),
+				scheme:       s,
+				recorder:     recorder,
+				platformInfo: platformInfoWithPDBV1(),
 			},
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -710,9 +722,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent with Process agent found and defaulted, create Daemonset",
 			fields: fields{
-				client:   fake.NewFakeClient(),
-				scheme:   s,
-				recorder: recorder,
+				client:       fake.NewFakeClient(),
+				scheme:       s,
+				recorder:     recorder,
+				platformInfo: platformInfoWithPDBV1(),
 			},
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -749,9 +762,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent with Process agent found and defaulted, create system-probe-config configmap",
 			fields: fields{
-				client:   fake.NewFakeClient(),
-				scheme:   s,
-				recorder: recorder,
+				client:       fake.NewFakeClient(),
+				scheme:       s,
+				recorder:     recorder,
+				platformInfo: platformInfoWithPDBV1(),
 			},
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -783,9 +797,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent with Process agent found and defaulted, create datadog-agent-security configmap",
 			fields: fields{
-				client:   fake.NewFakeClient(),
-				scheme:   s,
-				recorder: recorder,
+				client:       fake.NewFakeClient(),
+				scheme:       s,
+				recorder:     recorder,
+				platformInfo: platformInfoWithPDBV1(),
 			},
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -819,9 +834,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent with Process agent and system-probe found and defaulted, create Daemonset",
 			fields: fields{
-				client:   fake.NewFakeClient(),
-				scheme:   s,
-				recorder: recorder,
+				client:       fake.NewFakeClient(),
+				scheme:       s,
+				recorder:     recorder,
+				platformInfo: platformInfoWithPDBV1(),
 			},
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -880,9 +896,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent found and defaulted, ExtendedDaemonSet already exists",
 			fields: fields{
-				client:   fake.NewFakeClient(),
-				scheme:   s,
-				recorder: recorder,
+				client:       fake.NewFakeClient(),
+				scheme:       s,
+				recorder:     recorder,
+				platformInfo: platformInfoWithPDBV1(),
 			},
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -923,9 +940,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent found and defaulted, ExtendedDaemonSet already exists but not up-to-date",
 			fields: fields{
-				client:   fake.NewFakeClient(),
-				scheme:   s,
-				recorder: recorder,
+				client:       fake.NewFakeClient(),
+				scheme:       s,
+				recorder:     recorder,
+				platformInfo: platformInfoWithPDBV1(),
 			},
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -973,9 +991,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent found and defaulted, Cluster Agent enabled, create the Cluster Agent Service",
 			fields: fields{
-				client:   fake.NewFakeClient(),
-				scheme:   s,
-				recorder: recorder,
+				client:       fake.NewFakeClient(),
+				scheme:       s,
+				recorder:     recorder,
+				platformInfo: platformInfoWithPDBV1(),
 			},
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -1007,9 +1026,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent found and defaulted, Cluster Agent enabled, create the Metrics Server Service",
 			fields: fields{
-				client:   fake.NewFakeClient(),
-				scheme:   s,
-				recorder: recorder,
+				client:       fake.NewFakeClient(),
+				scheme:       s,
+				recorder:     recorder,
+				platformInfo: platformInfoWithPDBV1(),
 			},
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -1056,9 +1076,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent found and defaulted, Cluster Agent enabled, create the Admission Controller Service",
 			fields: fields{
-				client:   fake.NewFakeClient(),
-				scheme:   s,
-				recorder: recorder,
+				client:       fake.NewFakeClient(),
+				scheme:       s,
+				recorder:     recorder,
+				platformInfo: platformInfoWithPDBV1(),
 			},
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -1105,9 +1126,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent found and defaulted, Cluster Agent enabled, create the Cluster Agent Deployment",
 			fields: fields{
-				client:   fake.NewFakeClient(),
-				scheme:   s,
-				recorder: recorder,
+				client:       fake.NewFakeClient(),
+				scheme:       s,
+				recorder:     recorder,
+				platformInfo: platformInfoWithPDBV1(),
 			},
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -1261,9 +1283,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent found and defaulted, Cluster Agent enabled, create the Cluster Agent ClusterRole",
 			fields: fields{
-				client:   fake.NewFakeClient(),
-				scheme:   s,
-				recorder: recorder,
+				client:       fake.NewFakeClient(),
+				scheme:       s,
+				recorder:     recorder,
+				platformInfo: platformInfoWithPDBV1(),
 			},
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -1324,9 +1347,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent found and defaulted, Cluster Agent enabled, WPA Controller enabled, create the Cluster Agent ClusterRole",
 			fields: fields{
-				client:   fake.NewFakeClient(),
-				scheme:   s,
-				recorder: recorder,
+				client:       fake.NewFakeClient(),
+				scheme:       s,
+				recorder:     recorder,
+				platformInfo: platformInfoWithPDBV1(),
 			},
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -1386,9 +1410,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent found and defaulted, Cluster Agent enabled, Admission Controller enabled, create the Cluster Agent ClusterRole",
 			fields: fields{
-				client:   fake.NewFakeClient(),
-				scheme:   s,
-				recorder: recorder,
+				client:       fake.NewFakeClient(),
+				scheme:       s,
+				recorder:     recorder,
+				platformInfo: platformInfoWithPDBV1(),
 			},
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -1475,9 +1500,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent found and defaulted, Cluster Agent enabled, create the Cluster Agent ClusterRoleBinding",
 			fields: fields{
-				client:   fake.NewFakeClient(),
-				scheme:   s,
-				recorder: recorder,
+				client:       fake.NewFakeClient(),
+				scheme:       s,
+				recorder:     recorder,
+				platformInfo: platformInfoWithPDBV1(),
 			},
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -1535,9 +1561,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent found and defaulted, Cluster Agent enabled, create the Cluster Agent HPA ClusterRoleBinding",
 			fields: fields{
-				client:   fake.NewFakeClient(),
-				scheme:   s,
-				recorder: recorder,
+				client:       fake.NewFakeClient(),
+				scheme:       s,
+				recorder:     recorder,
+				platformInfo: platformInfoWithPDBV1(),
 			},
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -1617,9 +1644,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent found and defaulted, Cluster Agent enabled, create the Cluster Agent ServiceAccount",
 			fields: fields{
-				client:   fake.NewFakeClient(),
-				scheme:   s,
-				recorder: recorder,
+				client:       fake.NewFakeClient(),
+				scheme:       s,
+				recorder:     recorder,
+				platformInfo: platformInfoWithPDBV1(),
 			},
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -1705,9 +1733,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent found and defaulted, Cluster Agent Deployment already exists, create Daemonset",
 			fields: fields{
-				client:   fake.NewFakeClient(),
-				scheme:   s,
-				recorder: recorder,
+				client:       fake.NewFakeClient(),
+				scheme:       s,
+				recorder:     recorder,
+				platformInfo: platformInfoWithPDBV1(),
 			},
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -1762,9 +1791,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent found and defaulted, Cluster Agent Deployment already exists, block DeploymentName change",
 			fields: fields{
-				client:   fake.NewFakeClient(),
-				scheme:   s,
-				recorder: recorder,
+				client:       fake.NewFakeClient(),
+				scheme:       s,
+				recorder:     recorder,
+				platformInfo: platformInfoWithPDBV1(),
 			},
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -1861,9 +1891,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent found and defaulted, Cluster Agent Deployment already exists but with 0 pods ready, do not create Daemonset",
 			fields: fields{
-				client:   fake.NewFakeClient(),
-				scheme:   s,
-				recorder: recorder,
+				client:       fake.NewFakeClient(),
+				scheme:       s,
+				recorder:     recorder,
+				platformInfo: platformInfoWithPDBV1(),
 			},
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -2148,7 +2179,7 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 					createClusterAgentDependencies(c, dda)
 
 					// Create wrong value PDB
-					pdb := buildClusterChecksRunnerPDBV1Beta1(dda)
+					pdb := buildClusterChecksRunnerPDBV1(dda)
 					wrongMinAvailable := intstr.FromInt(10)
 					pdb.Spec.MinAvailable = &wrongMinAvailable
 					_ = controllerutil.SetControllerReference(dda, pdb, s)
@@ -2172,9 +2203,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent found and defaulted, Cluster Checks Runner ClusterRoleBinding creation",
 			fields: fields{
-				client:   fake.NewFakeClient(),
-				scheme:   s,
-				recorder: recorder,
+				client:       fake.NewFakeClient(),
+				scheme:       s,
+				recorder:     recorder,
+				platformInfo: platformInfoWithPDBV1(),
 			},
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -2241,9 +2273,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent found and defaulted, Cluster Checks Runner Service Account creation",
 			fields: fields{
-				client:   fake.NewFakeClient(),
-				scheme:   s,
-				recorder: recorder,
+				client:       fake.NewFakeClient(),
+				scheme:       s,
+				recorder:     recorder,
+				platformInfo: platformInfoWithPDBV1(),
 			},
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -2315,9 +2348,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent found and defaulted, Cluster Checks Runner Deployment creation",
 			fields: fields{
-				client:   fake.NewFakeClient(),
-				scheme:   s,
-				recorder: recorder,
+				client:       fake.NewFakeClient(),
+				scheme:       s,
+				recorder:     recorder,
+				platformInfo: platformInfoWithPDBV1(),
 			},
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -2381,9 +2415,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent found and defaulted, Cluster Agent Deployment already exists but not up-to-date",
 			fields: fields{
-				client:   fake.NewFakeClient(),
-				scheme:   s,
-				recorder: recorder,
+				client:       fake.NewFakeClient(),
+				scheme:       s,
+				recorder:     recorder,
+				platformInfo: platformInfoWithPDBV1(),
 			},
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -2438,9 +2473,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent found and defaulted, Agent network policies are created",
 			fields: fields{
-				client:   fake.NewFakeClient(),
-				scheme:   s,
-				recorder: recorder,
+				client:       fake.NewFakeClient(),
+				scheme:       s,
+				recorder:     recorder,
+				platformInfo: platformInfoWithPDBV1(),
 			},
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -2483,9 +2519,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent found and defaulted, DaemonSet has Affinity",
 			fields: fields{
-				client:   fake.NewFakeClient(),
-				scheme:   s,
-				recorder: recorder,
+				client:       fake.NewFakeClient(),
+				scheme:       s,
+				recorder:     recorder,
+				platformInfo: platformInfoWithPDBV1(),
 			},
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -2520,9 +2557,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent found and defaulted, Cluster Agent network policies are created",
 			fields: fields{
-				client:   fake.NewFakeClient(),
-				scheme:   s,
-				recorder: recorder,
+				client:       fake.NewFakeClient(),
+				scheme:       s,
+				recorder:     recorder,
+				platformInfo: platformInfoWithPDBV1(),
 			},
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -2567,9 +2605,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent found and defaulted, Cluster Checks Runner network policies are created",
 			fields: fields{
-				client:   fake.NewFakeClient(),
-				scheme:   s,
-				recorder: recorder,
+				client:       fake.NewFakeClient(),
+				scheme:       s,
+				recorder:     recorder,
+				platformInfo: platformInfoWithPDBV1(),
 			},
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -2624,9 +2663,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent found and defaulted, Cilium network policies created",
 			fields: fields{
-				client:   fake.NewFakeClient(),
-				scheme:   s,
-				recorder: recorder,
+				client:       fake.NewFakeClient(),
+				scheme:       s,
+				recorder:     recorder,
+				platformInfo: platformInfoWithPDBV1(),
 			},
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -2678,9 +2718,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent found and defaulted, Local traffic Service created",
 			fields: fields{
-				client:   fake.NewFakeClient(),
-				scheme:   s,
-				recorder: recorder,
+				client:       fake.NewFakeClient(),
+				scheme:       s,
+				recorder:     recorder,
+				platformInfo: platformInfoWithPDBV1(),
 			},
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -2718,9 +2759,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent found and defaulted, Local traffic Service not created",
 			fields: fields{
-				client:   fake.NewFakeClient(),
-				scheme:   s,
-				recorder: recorder,
+				client:       fake.NewFakeClient(),
+				scheme:       s,
+				recorder:     recorder,
+				platformInfo: platformInfoWithPDBV1(),
 			},
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -2753,9 +2795,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 		{
 			name: "DatadogAgent found and defaulted, Local traffic Service forced",
 			fields: fields{
-				client:   fake.NewFakeClient(),
-				scheme:   s,
-				recorder: recorder,
+				client:       fake.NewFakeClient(),
+				scheme:       s,
+				recorder:     recorder,
+				platformInfo: platformInfoWithPDBV1(),
 			},
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
@@ -2808,12 +2851,6 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 					SupportExtendedDaemonset: true,
 					SupportCilium:            true,
 				},
-			}
-
-			// We pass PlatformInfo to tests targeting different PDBs
-			// otherwise we default to v1beta1 not to impact existing tests.
-			if r.platformInfo.ApiPreferredVersions == nil {
-				r.platformInfo = platformInfoWithPDBV1beta1()
 			}
 
 			if tt.args.loadFunc != nil {
@@ -3048,7 +3085,7 @@ func (dummyManager) MetricsForwarderStatusForObj(obj datadog.MonitoredObject) *d
 }
 
 func createClusterChecksRunnerDependencies(c client.Client, dda *datadoghqv1alpha1.DatadogAgent, needRBAC bool) {
-	_ = c.Create(context.TODO(), buildClusterChecksRunnerPDBV1Beta1(dda))
+	_ = c.Create(context.TODO(), buildClusterChecksRunnerPDBV1(dda))
 
 	installinfoCM, _ := buildInstallInfoConfigMap(dda)
 	_ = c.Create(context.TODO(), installinfoCM)
@@ -3070,24 +3107,28 @@ func createClusterChecksRunnerRBAC(c client.Client, dda *datadoghqv1alpha1.Datad
 	}, version))
 	_ = c.Create(context.TODO(), buildServiceAccount(dda, getClusterChecksRunnerServiceAccount(dda), version))
 
-	_ = c.Create(context.TODO(), buildClusterChecksRunnerPDBV1Beta1(dda))
+	_ = c.Create(context.TODO(), buildClusterChecksRunnerPDBV1(dda))
 
 	installinfoCM, _ := buildInstallInfoConfigMap(dda)
 	_ = c.Create(context.TODO(), installinfoCM)
 }
 
 func platformInfoWithPDBV1beta1() kubernetes.PlatformInfo {
-	return kubernetes.PlatformInfo{
-		ApiPreferredVersions: map[string]string{
+	return kubernetes.NewPlatformInfo(
+		nil,
+		map[string]string{
 			"PodDisruptionBudget": "policy/v1beta1",
 		},
-	}
+		map[string]string{},
+	)
 }
 
 func platformInfoWithPDBV1() kubernetes.PlatformInfo {
-	return kubernetes.PlatformInfo{
-		ApiPreferredVersions: map[string]string{
+	return kubernetes.NewPlatformInfo(
+		nil,
+		map[string]string{
 			"PodDisruptionBudget": "policy/v1",
 		},
-	}
+		map[string]string{},
+	)
 }

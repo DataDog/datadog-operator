@@ -56,7 +56,7 @@ func (r *Reconciler) managePDB(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 		return r.cleanupPDB(dda, pdbName)
 	}
 
-	useV1Beta1 := r.platformInfo.UseV1Beta1PDB(logger)
+	useV1Beta1 := r.platformInfo.UseV1Beta1PDB()
 	if useV1Beta1 {
 		pdbV1Beta1 := &policyv1beta1.PodDisruptionBudget{}
 		err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: dda.Namespace, Name: pdbName}, pdbV1Beta1)

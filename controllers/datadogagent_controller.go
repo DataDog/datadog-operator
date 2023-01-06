@@ -222,7 +222,7 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		}))
 	}
 
-	if r.PlatformInfo.UseV1Beta1PDB(r.Log) {
+	if r.PlatformInfo.UseV1Beta1PDB() {
 		builder = builder.Owns(&policyv1beta.PodDisruptionBudget{})
 	} else {
 		builder = builder.Owns(&policyv1.PodDisruptionBudget{})
