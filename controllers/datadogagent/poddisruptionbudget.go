@@ -9,6 +9,7 @@ import (
 	"context"
 
 	"github.com/go-logr/logr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -52,13 +53,12 @@ func (r *Reconciler) manageClusterChecksRunnerPDB(logger logr.Logger, dda *datad
 }
 
 func (r *Reconciler) managePDB(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, pdbName string, builder pdbBuilder, builderv1beta1 pdbV1Beta1Builder, cleanUp bool) (reconcile.Result, error) {
-	if cleanUp {
-		return r.cleanupPDB(dda, pdbName)
-	}
-
 	useV1Beta1 := r.platformInfo.UseV1Beta1PDB()
 	if useV1Beta1 {
 		pdbV1Beta1 := &policyv1beta1.PodDisruptionBudget{}
+		if cleanUp {
+			return r.cleanupPDB(dda, pdbName, pdbV1Beta1)
+		}
 		err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: dda.Namespace, Name: pdbName}, pdbV1Beta1)
 		if err != nil {
 			if errors.IsNotFound(err) {
@@ -68,15 +68,19 @@ func (r *Reconciler) managePDB(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 		}
 		r.updateIfNeededPDBV1Beta1(dda, pdbV1Beta1, builderv1beta1)
 	} else {
-		pdb := &policyv1.PodDisruptionBudget{}
-		err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: dda.Namespace, Name: pdbName}, pdb)
+		pdbV1 := &policyv1.PodDisruptionBudget{}
+		if cleanUp {
+			return r.cleanupPDB(dda, pdbName, pdbV1)
+		}
+
+		err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: dda.Namespace, Name: pdbName}, pdbV1)
 		if err != nil {
 			if errors.IsNotFound(err) {
 				return r.createPDBV1(logger, dda, builder)
 			}
 			return reconcile.Result{}, err
 		}
-		r.updateIfNeededPDBV1(dda, pdb, builder)
+		r.updateIfNeededPDBV1(dda, pdbV1, builder)
 	}
 
 	return reconcile.Result{}, nil
@@ -164,17 +168,16 @@ func (r *Reconciler) updateIfNeededPDBV1Beta1(dda *datadoghqv1alpha1.DatadogAgen
 	return result, nil
 }
 
-func (r *Reconciler) cleanupPDB(dda *datadoghqv1alpha1.DatadogAgent, pdbName string) (reconcile.Result, error) {
-	pdb := &policyv1.PodDisruptionBudget{}
-	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: dda.Namespace, Name: pdbName}, pdb)
+func (r *Reconciler) cleanupPDB(dda *datadoghqv1alpha1.DatadogAgent, pdbName string, pdbObj client.Object) (reconcile.Result, error) {
+	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: dda.Namespace, Name: pdbName}, pdbObj)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return reconcile.Result{}, nil
 		}
 		return reconcile.Result{}, err
 	}
-	if CheckOwnerReference(dda, pdb) {
-		err = r.client.Delete(context.TODO(), pdb)
+	if CheckOwnerReference(dda, pdbObj) {
+		err = r.client.Delete(context.TODO(), pdbObj)
 	}
 
 	return reconcile.Result{}, err

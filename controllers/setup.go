@@ -64,7 +64,7 @@ func SetupControllers(logger logr.Logger, mgr manager.Manager, options SetupOpti
 	if err != nil {
 		return fmt.Errorf("unable to get API resource versions: %w", err)
 	}
-	platformInfo := kubernetes.NewPlatformInfo1(versionInfo, groups, resources)
+	platformInfo := kubernetes.NewPlatformInfo(versionInfo, groups, resources)
 
 	for controller, starter := range controllerStarters {
 		if err := starter(logger, mgr, versionInfo, platformInfo, options); err != nil {

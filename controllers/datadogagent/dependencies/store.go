@@ -172,7 +172,7 @@ func (ds *Store) GetOrCreate(kind kubernetes.ObjectKind, namespace, name string)
 	if found {
 		return obj, found
 	}
-	obj = kubernetes.ObjectFromKind(kind, ds.platformInfo.UseV1Beta1PDB())
+	obj = kubernetes.ObjectFromKind(kind, ds.platformInfo)
 	obj.SetName(name)
 	obj.SetNamespace(namespace)
 	return obj, found
@@ -205,7 +205,7 @@ func (ds *Store) Apply(ctx context.Context, k8sClient client.Client) []error {
 	for kind := range ds.deps {
 		for objID, objStore := range ds.deps[kind] {
 			objNSName := buildObjectKey(objID)
-			objAPIServer := kubernetes.ObjectFromKind(kind, ds.platformInfo.UseV1Beta1PDB())
+			objAPIServer := kubernetes.ObjectFromKind(kind, ds.platformInfo)
 			err := k8sClient.Get(ctx, objNSName, objAPIServer)
 			if err != nil && apierrors.IsNotFound(err) {
 				ds.logger.V(2).Info("dependencies.store Add object to create", "obj.namespace", objStore.GetNamespace(), "obj.name", objStore.GetName(), "obj.kind", kind)
@@ -265,7 +265,7 @@ func (ds *Store) Cleanup(ctx context.Context, k8sClient client.Client, ddaNs, dd
 		LabelSelector: labels.NewSelector().Add(*requirementLabel),
 	}
 	for _, kind := range kubernetes.GetResourcesKind(ds.supportCilium) {
-		objList := kubernetes.ObjectListFromKind(kind, ds.platformInfo.UseV1Beta1PDB())
+		objList := kubernetes.ObjectListFromKind(kind, ds.platformInfo)
 		if err := k8sClient.List(ctx, objList, listOptions); err != nil {
 			errs = append(errs, err)
 			continue
@@ -299,7 +299,7 @@ func (ds *Store) DeleteAll(ctx context.Context, k8sClient client.Client) []error
 		listOptions := &client.ListOptions{
 			LabelSelector: labels.NewSelector().Add(*requirementLabel),
 		}
-		objList := kubernetes.ObjectListFromKind(kind, ds.platformInfo.UseV1Beta1PDB())
+		objList := kubernetes.ObjectListFromKind(kind, ds.platformInfo)
 		if err := k8sClient.List(ctx, objList, listOptions); err != nil {
 			return []error{err}
 		}

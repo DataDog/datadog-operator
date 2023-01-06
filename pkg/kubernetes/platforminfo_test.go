@@ -78,7 +78,7 @@ func Test_createPlatformInfoFromAPIObjects(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			platformInfo := NewPlatformInfo1(nil, tt.apiGroups, tt.apiResourceList)
+			platformInfo := NewPlatformInfo(nil, tt.apiGroups, tt.apiResourceList)
 			assert.Equal(t, tt.useV1Beta1PDB, platformInfo.UseV1Beta1PDB())
 			assert.Equal(t, tt.pdbPreferredVersion, platformInfo.apiPreferredVersions["PodDisruptionBudget"])
 			assert.Equal(t, tt.pspPreferredVersion, platformInfo.apiPreferredVersions["PodSecurityPolicy"])
@@ -127,7 +127,7 @@ func Test_getPDBFlag(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			platformInfo := NewPlatformInfo(nil, tt.preferred, tt.other)
+			platformInfo := NewPlatformInfoFromVersionMaps(nil, tt.preferred, tt.other)
 			assert.Equal(t, tt.useV1Beta1PDB, platformInfo.UseV1Beta1PDB())
 		})
 	}

@@ -10,7 +10,6 @@ import (
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
-	policyv1 "k8s.io/api/policy/v1"
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
@@ -20,7 +19,7 @@ import (
 )
 
 // ObjectFromKind returns the corresponding object list from a kind
-func ObjectFromKind(kind ObjectKind, useV1Beta1PDB bool) client.Object {
+func ObjectFromKind(kind ObjectKind, platformInfo PlatformInfo) client.Object {
 	switch kind {
 	case ConfigMapKind:
 		return &corev1.ConfigMap{}
@@ -43,7 +42,7 @@ func ObjectFromKind(kind ObjectKind, useV1Beta1PDB bool) client.Object {
 	case ServiceAccountsKind:
 		return &corev1.ServiceAccount{}
 	case PodDisruptionBudgetsKind:
-		return getPDB(useV1Beta1PDB)
+		return platformInfo.CreatePDBObject()
 	case NetworkPoliciesKind:
 		return &networkingv1.NetworkPolicy{}
 	case PodSecurityPoliciesKind:
@@ -55,12 +54,4 @@ func ObjectFromKind(kind ObjectKind, useV1Beta1PDB bool) client.Object {
 	}
 
 	return nil
-}
-
-func getPDB(useV1Beta1PDB bool) client.Object {
-	if useV1Beta1PDB {
-		return &policyv1beta1.PodDisruptionBudget{}
-	} else {
-		return &policyv1.PodDisruptionBudget{}
-	}
 }

@@ -3114,7 +3114,7 @@ func createClusterChecksRunnerRBAC(c client.Client, dda *datadoghqv1alpha1.Datad
 }
 
 func platformInfoWithPDBV1beta1() kubernetes.PlatformInfo {
-	return kubernetes.NewPlatformInfo(
+	return kubernetes.NewPlatformInfoFromVersionMaps(
 		nil,
 		map[string]string{
 			"PodDisruptionBudget": "policy/v1beta1",
@@ -3124,7 +3124,7 @@ func platformInfoWithPDBV1beta1() kubernetes.PlatformInfo {
 }
 
 func platformInfoWithPDBV1() kubernetes.PlatformInfo {
-	return kubernetes.NewPlatformInfo(
+	return kubernetes.NewPlatformInfoFromVersionMaps(
 		nil,
 		map[string]string{
 			"PodDisruptionBudget": "policy/v1",

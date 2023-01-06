@@ -1,8 +1,11 @@
 package kubernetes
 
 import (
+	policyv1 "k8s.io/api/policy/v1"
+	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/version"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type PlatformInfo struct {
@@ -11,7 +14,7 @@ type PlatformInfo struct {
 	apiOtherVersions     map[string]string
 }
 
-func NewPlatformInfo1(versionInfo *version.Info, groups []*v1.APIGroup, resources []*v1.APIResourceList) PlatformInfo {
+func NewPlatformInfo(versionInfo *version.Info, groups []*v1.APIGroup, resources []*v1.APIResourceList) PlatformInfo {
 	preferredGroupVersions := make(map[string]struct{})
 
 	for _, group := range groups {
@@ -43,14 +46,14 @@ func NewPlatformInfo1(versionInfo *version.Info, groups []*v1.APIGroup, resource
 		}
 	}
 
-	return NewPlatformInfo(
+	return NewPlatformInfoFromVersionMaps(
 		versionInfo,
 		apiPreferredVersions,
 		apiOtherVersions,
 	)
 }
 
-func NewPlatformInfo(versionInfo *version.Info, apiPreferredVersions, apiOtherVersions map[string]string) PlatformInfo {
+func NewPlatformInfoFromVersionMaps(versionInfo *version.Info, apiPreferredVersions, apiOtherVersions map[string]string) PlatformInfo {
 	return PlatformInfo{
 		versionInfo:          versionInfo,
 		apiPreferredVersions: apiPreferredVersions,
@@ -66,5 +69,21 @@ func (platformInfo *PlatformInfo) UseV1Beta1PDB() bool {
 		return true
 	} else {
 		return false
+	}
+}
+
+func (platformInfo *PlatformInfo) CreatePDBObject() client.Object {
+	if platformInfo.UseV1Beta1PDB() {
+		return &policyv1beta1.PodDisruptionBudget{}
+	} else {
+		return &policyv1.PodDisruptionBudget{}
+	}
+}
+
+func (platformInfo *PlatformInfo) CreatePDBObjectList() client.ObjectList {
+	if platformInfo.UseV1Beta1PDB() {
+		return &policyv1beta1.PodDisruptionBudgetList{}
+	} else {
+		return &policyv1.PodDisruptionBudgetList{}
 	}
 }

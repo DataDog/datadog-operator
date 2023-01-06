@@ -13,8 +13,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
-	policyv1 "k8s.io/api/policy/v1"
-	policyv1beta "k8s.io/api/policy/v1beta1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -185,6 +183,8 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&rbacv1.Role{}).
 		Owns(&rbacv1.RoleBinding{}).
 		Owns(&corev1.ServiceAccount{}).
+		// We let PlatformInfo supply PDB object based on the current API version
+		Owns(r.PlatformInfo.CreatePDBObject()).
 		Owns(&networkingv1.NetworkPolicy{})
 
 	// DatadogAgent is namespaced whereas ClusterRole and ClusterRoleBinding are
@@ -220,12 +220,6 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 				return true
 			},
 		}))
-	}
-
-	if r.PlatformInfo.UseV1Beta1PDB() {
-		builder = builder.Owns(&policyv1beta.PodDisruptionBudget{})
-	} else {
-		builder = builder.Owns(&policyv1.PodDisruptionBudget{})
 	}
 
 	if r.Options.V2Enabled {
