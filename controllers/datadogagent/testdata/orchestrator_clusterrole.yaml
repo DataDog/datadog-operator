@@ -84,3 +84,11 @@ rules:
     verbs:
       - list
       - watch
+  - apigroups:
+      - "autoscaling.k8s.io"
+    resources:
+      - verticalpodautoscalers
+    verbs:
+      - list
+      - get
+      - watch
