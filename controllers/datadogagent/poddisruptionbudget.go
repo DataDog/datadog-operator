@@ -32,10 +32,7 @@ const (
 )
 
 type (
-	pdbBuilder func(dda *datadoghqv1alpha1.DatadogAgent) *policyv1.PodDisruptionBudget
-)
-
-type (
+	pdbBuilder        func(dda *datadoghqv1alpha1.DatadogAgent) *policyv1.PodDisruptionBudget
 	pdbV1Beta1Builder func(dda *datadoghqv1alpha1.DatadogAgent) *policyv1beta1.PodDisruptionBudget
 )
 
