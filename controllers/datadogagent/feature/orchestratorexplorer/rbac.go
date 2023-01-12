@@ -89,7 +89,6 @@ func getRBACPolicyRules() []rbacv1.PolicyRule {
 			Resources: []string{rbac.VPAResource},
 			Verbs: []string{
 				rbac.ListVerb,
-				rbac.GetVerb,
 				rbac.WatchVerb,
 			},
 		},
