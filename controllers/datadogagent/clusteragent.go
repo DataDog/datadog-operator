@@ -1230,7 +1230,7 @@ func buildClusterAgentClusterRole(dda *datadoghqv1alpha1.DatadogAgent, name, age
 		rbacRules = append(rbacRules, rbacv1.PolicyRule{
 			APIGroups: []string{rbac.AutoscalingK8sIoAPIGroup},
 			Resources: []string{rbac.VPAResource},
-			Verbs:     []string{rbac.ListVerb, rbac.GetVerb, rbac.WatchVerb},
+			Verbs:     []string{rbac.ListVerb, rbac.WatchVerb},
 		})
 
 		rbacRules = append(rbacRules, rbacv1.PolicyRule{
