@@ -224,7 +224,6 @@ func buildOrchestratorExplorerRBAC(dda *datadoghqv1alpha1.DatadogAgent, name, ve
 			Resources: []string{rbac.VPAResource},
 			Verbs: []string{
 				rbac.ListVerb,
-				rbac.GetVerb,
 				rbac.WatchVerb,
 			},
 		},
