@@ -8,12 +8,14 @@ package controllers
 import (
 	"fmt"
 
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/DataDog/datadog-operator/controllers/datadogagent"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/datadogclient"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/version"
@@ -36,7 +38,7 @@ type SetupOptions struct {
 	V2APIEnabled             bool
 }
 
-type starterFunc func(logr.Logger, manager.Manager, *version.Info, SetupOptions) error
+type starterFunc func(logr.Logger, manager.Manager, *version.Info, kubernetes.PlatformInfo, SetupOptions) error
 
 var controllerStarters = map[string]starterFunc{
 	agentControllerName:   startDatadogAgent,
@@ -58,8 +60,14 @@ func SetupControllers(logger logr.Logger, mgr manager.Manager, options SetupOpti
 		return fmt.Errorf("unable to get APIServer version: %w", err)
 	}
 
+	groups, resources, err := getServerGroupsAndResources(logger, discoveryClient)
+	if err != nil {
+		return fmt.Errorf("unable to get API resource versions: %w", err)
+	}
+	platformInfo := kubernetes.NewPlatformInfo(versionInfo, groups, resources)
+
 	for controller, starter := range controllerStarters {
-		if err := starter(logger, mgr, versionInfo, options); err != nil {
+		if err := starter(logger, mgr, versionInfo, platformInfo, options); err != nil {
 			logger.Error(err, "Couldn't start controller", "controller", controller)
 		}
 	}
@@ -67,13 +75,25 @@ func SetupControllers(logger logr.Logger, mgr manager.Manager, options SetupOpti
 	return nil
 }
 
-func startDatadogAgent(logger logr.Logger, mgr manager.Manager, vInfo *version.Info, options SetupOptions) error {
+func getServerGroupsAndResources(log logr.Logger, discoveryClient *discovery.DiscoveryClient) ([]*v1.APIGroup, []*v1.APIResourceList, error) {
+	groups, resources, err := discoveryClient.ServerGroupsAndResources()
+	if err != nil {
+		if !discovery.IsGroupDiscoveryFailedError(err) {
+			log.Info("GetServerGroupsAndResources ERROR", "err", err)
+			return nil, nil, err
+		}
+	}
+	return groups, resources, nil
+}
+
+func startDatadogAgent(logger logr.Logger, mgr manager.Manager, vInfo *version.Info, pInfo kubernetes.PlatformInfo, options SetupOptions) error {
 	return (&DatadogAgentReconciler{
-		Client:      mgr.GetClient(),
-		VersionInfo: vInfo,
-		Log:         ctrl.Log.WithName("controllers").WithName(agentControllerName),
-		Scheme:      mgr.GetScheme(),
-		Recorder:    mgr.GetEventRecorderFor(agentControllerName),
+		Client:       mgr.GetClient(),
+		VersionInfo:  vInfo,
+		PlatformInfo: pInfo,
+		Log:          ctrl.Log.WithName("controllers").WithName(agentControllerName),
+		Scheme:       mgr.GetScheme(),
+		Recorder:     mgr.GetEventRecorderFor(agentControllerName),
 		Options: datadogagent.ReconcilerOptions{
 			SupportExtendedDaemonset: options.SupportExtendedDaemonset,
 			SupportCilium:            options.SupportCilium,
@@ -83,7 +103,7 @@ func startDatadogAgent(logger logr.Logger, mgr manager.Manager, vInfo *version.I
 	}).SetupWithManager(mgr)
 }
 
-func startDatadogMonitor(logger logr.Logger, mgr manager.Manager, vInfo *version.Info, options SetupOptions) error {
+func startDatadogMonitor(logger logr.Logger, mgr manager.Manager, vInfo *version.Info, pInfo kubernetes.PlatformInfo, options SetupOptions) error {
 	if !options.DatadogMonitorEnabled {
 		logger.Info("Feature disabled, not starting the controller", "controller", monitorControllerName)
 

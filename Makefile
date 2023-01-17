@@ -76,6 +76,10 @@ fmt: ## Run go fmt against code
 vet: ## Run go vet against code
 	go vet ./...
 
+.PHONY: echo-img
+echo-img: ## Use `make -s echo-img` to get image string for other shell commands
+	$(info $(IMG))
+
 ##@ Tools
 CONTROLLER_GEN = bin/$(PLATFORM)/controller-gen
 $(CONTROLLER_GEN): Makefile  ## Download controller-gen locally if necessary.
