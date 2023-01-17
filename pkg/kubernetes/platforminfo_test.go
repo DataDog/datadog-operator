@@ -106,7 +106,7 @@ func Test_getPDBFlag(t *testing.T) {
 				"PodDisruptionBudget": "policy/v1beta1",
 			},
 			useV1Beta1PDB: false,
-			supportsPSP:   false,
+			supportsPSP:   true,
 		},
 		{
 			name: "Chooses preferred version of PodDisruptionBudget",
@@ -136,7 +136,7 @@ func Test_getPDBFlag(t *testing.T) {
 			platformInfo := NewPlatformInfoFromVersionMaps(nil, tt.preferred, tt.other)
 			assert.Equal(t, tt.useV1Beta1PDB, platformInfo.UseV1Beta1PDB())
 			assert.Equal(t, tt.supportsPSP, platformInfo.supportsPSP())
-			assert.Equal(t, tt.supportsPSP, containsObjectKind(platformInfo.GetAgentResourcesKind(false), "PodDisruptionBudget"))
+			assert.Equal(t, tt.supportsPSP, containsObjectKind(platformInfo.GetAgentResourcesKind(false), PodSecurityPoliciesKind))
 		})
 	}
 }
