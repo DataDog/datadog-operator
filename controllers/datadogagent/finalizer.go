@@ -101,6 +101,7 @@ func (r *Reconciler) finalizeDadV2(reqLogger logr.Logger, obj client.Object) {
 		SupportCilium: r.options.SupportCilium,
 		Logger:        reqLogger,
 		Scheme:        r.scheme,
+		PlatformInfo:  r.platformInfo,
 	}
 	depsStore := dependencies.NewStore(dda, storeOptions)
 	resourceManagers := feature.NewResourceManagers(depsStore)

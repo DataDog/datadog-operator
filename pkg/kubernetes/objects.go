@@ -10,7 +10,7 @@ import (
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
-	policyv1 "k8s.io/api/policy/v1beta1"
+	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -19,7 +19,7 @@ import (
 )
 
 // ObjectFromKind returns the corresponding object list from a kind
-func ObjectFromKind(kind ObjectKind) client.Object {
+func ObjectFromKind(kind ObjectKind, platformInfo PlatformInfo) client.Object {
 	switch kind {
 	case ConfigMapKind:
 		return &corev1.ConfigMap{}
@@ -42,11 +42,11 @@ func ObjectFromKind(kind ObjectKind) client.Object {
 	case ServiceAccountsKind:
 		return &corev1.ServiceAccount{}
 	case PodDisruptionBudgetsKind:
-		return &policyv1.PodDisruptionBudget{}
+		return platformInfo.CreatePDBObject()
 	case NetworkPoliciesKind:
 		return &networkingv1.NetworkPolicy{}
 	case PodSecurityPoliciesKind:
-		return &policyv1.PodSecurityPolicy{}
+		return &policyv1beta1.PodSecurityPolicy{}
 	case CiliumNetworkPoliciesKind:
 		return ciliumv1.EmptyCiliumUnstructuredPolicy()
 	case SecurityContextConstraintsKind:
