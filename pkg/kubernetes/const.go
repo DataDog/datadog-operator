@@ -57,7 +57,7 @@ const (
 )
 
 // GetResourcesKind return the list of all possible ObjectKind supported as DatadogAgent dependencies
-func GetResourcesKind(withCiliumResources bool) []ObjectKind {
+func getResourcesKind(withCiliumResources, withPodSecurityPolicy bool) []ObjectKind {
 	resources := []ObjectKind{
 		ConfigMapKind,
 		ClusterRolesKind,
@@ -71,12 +71,15 @@ func GetResourcesKind(withCiliumResources bool) []ObjectKind {
 		ServiceAccountsKind,
 		PodDisruptionBudgetsKind,
 		NetworkPoliciesKind,
-		PodSecurityPoliciesKind,
 		// SecurityContextConstraintsKind,
 	}
 
 	if withCiliumResources {
 		resources = append(resources, CiliumNetworkPoliciesKind)
+	}
+
+	if withPodSecurityPolicy {
+		resources = append(resources, PodSecurityPoliciesKind)
 	}
 
 	return resources

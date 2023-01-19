@@ -264,7 +264,7 @@ func (ds *Store) Cleanup(ctx context.Context, k8sClient client.Client, ddaNs, dd
 	listOptions := &client.ListOptions{
 		LabelSelector: labels.NewSelector().Add(*requirementLabel),
 	}
-	for _, kind := range kubernetes.GetResourcesKind(ds.supportCilium) {
+	for _, kind := range ds.platformInfo.GetAgentResourcesKind(ds.supportCilium) {
 		objList := kubernetes.ObjectListFromKind(kind, ds.platformInfo)
 		if err := k8sClient.List(ctx, objList, listOptions); err != nil {
 			errs = append(errs, err)
@@ -294,7 +294,7 @@ func (ds *Store) DeleteAll(ctx context.Context, k8sClient client.Client) []error
 
 	var objsToDelete []client.Object
 
-	for _, kind := range kubernetes.GetResourcesKind(ds.supportCilium) {
+	for _, kind := range ds.platformInfo.GetAgentResourcesKind(ds.supportCilium) {
 		requirementLabel, _ := labels.NewRequirement(operatorStoreLabelKey, selection.Exists, nil)
 		listOptions := &client.ListOptions{
 			LabelSelector: labels.NewSelector().Add(*requirementLabel),
