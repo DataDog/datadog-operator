@@ -100,3 +100,17 @@ func (platformInfo *PlatformInfo) supportsPSP() bool {
 	_, preferredExists := platformInfo.apiPreferredVersions["PodSecurityPolicy"]
 	return otherExists || preferredExists
 }
+
+// IsResourceSupported returns true if a Kubernetes resource is supported by the server
+func (platformInfo *PlatformInfo) IsResourceSupported(resource string) bool {
+	if platformInfo == nil {
+		return false
+	}
+	if _, ok := platformInfo.apiPreferredVersions[resource]; ok {
+		return true
+	}
+	if _, ok := platformInfo.apiOtherVersions[resource]; ok {
+		return true
+	}
+	return false
+}

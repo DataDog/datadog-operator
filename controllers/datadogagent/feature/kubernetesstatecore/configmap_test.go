@@ -34,6 +34,7 @@ instances:
 		owner                    metav1.Object
 		customConfig             *apicommonv1.CustomConfig
 		configConfigMapName      string
+		vpaSupported             bool
 	}
 	tests := []struct {
 		name    string
@@ -49,7 +50,7 @@ instances:
 				runInClusterChecksRunner: true,
 				configConfigMapName:      apicommon.DefaultKubeStateMetricsCoreConf,
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), apicommon.DefaultKubeStateMetricsCoreConf, ksmCheckConfig(true)),
+			want: buildDefaultConfigMap(owner.GetNamespace(), apicommon.DefaultKubeStateMetricsCoreConf, ksmCheckConfig(true, false)),
 		},
 		{
 			name: "override",
@@ -72,7 +73,18 @@ instances:
 				runInClusterChecksRunner: false,
 				configConfigMapName:      apicommon.DefaultKubeStateMetricsCoreConf,
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), apicommon.DefaultKubeStateMetricsCoreConf, ksmCheckConfig(false)),
+			want: buildDefaultConfigMap(owner.GetNamespace(), apicommon.DefaultKubeStateMetricsCoreConf, ksmCheckConfig(false, false)),
+		},
+		{
+			name: "vpa supported",
+			fields: fields{
+				owner:                    owner,
+				enable:                   true,
+				runInClusterChecksRunner: true,
+				configConfigMapName:      apicommon.DefaultKubeStateMetricsCoreConf,
+				vpaSupported:             true,
+			},
+			want: buildDefaultConfigMap(owner.GetNamespace(), apicommon.DefaultKubeStateMetricsCoreConf, ksmCheckConfig(true, true)),
 		},
 	}
 	for _, tt := range tests {
@@ -85,7 +97,7 @@ instances:
 				customConfig:             tt.fields.customConfig,
 				configConfigMapName:      tt.fields.configConfigMapName,
 			}
-			got, err := f.buildKSMCoreConfigMap()
+			got, err := f.buildKSMCoreConfigMap(tt.fields.vpaSupported)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ksmFeature.buildKSMCoreConfigMap() error = %v, wantErr %v", err, tt.wantErr)
 				return

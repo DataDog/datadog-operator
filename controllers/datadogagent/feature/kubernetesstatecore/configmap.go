@@ -14,7 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (f *ksmFeature) buildKSMCoreConfigMap() (*corev1.ConfigMap, error) {
+func (f *ksmFeature) buildKSMCoreConfigMap(addVPA bool) (*corev1.ConfigMap, error) {
 	if f.customConfig != nil && f.customConfig.ConfigMap != nil {
 		return nil, nil
 	}
@@ -22,7 +22,7 @@ func (f *ksmFeature) buildKSMCoreConfigMap() (*corev1.ConfigMap, error) {
 		return configmap.BuildConfigMapConfigData(f.owner.GetNamespace(), f.customConfig.ConfigData, f.configConfigMapName, ksmCoreCheckName)
 	}
 
-	configMap := buildDefaultConfigMap(f.owner.GetNamespace(), f.configConfigMapName, ksmCheckConfig(f.runInClusterChecksRunner))
+	configMap := buildDefaultConfigMap(f.owner.GetNamespace(), f.configConfigMapName, ksmCheckConfig(f.runInClusterChecksRunner, addVPA))
 	return configMap, nil
 }
 
@@ -45,13 +45,15 @@ func buildDefaultConfigMap(namespace, cmName string, content string) *corev1.Con
 // cluster checks are enabled but without Cluster Check Runners, we don't want
 // to set this check as a cluster check, because then it would be scheduled in
 // the DaemonSet agent instead of the DCA.
-func ksmCheckConfig(clusterCheck bool) string {
+func ksmCheckConfig(clusterCheck, addVPA bool) string {
 	stringVal := strconv.FormatBool(clusterCheck)
-	return fmt.Sprintf(`---
+	config := fmt.Sprintf(`---
 cluster_check: %s
 init_config:
 instances:
-  - collectors:
+  - telemetry: true
+    skip_leader_election: %s
+    collectors:
     - pods
     - replicationcontrollers
     - statefulsets
@@ -72,7 +74,11 @@ instances:
     - persistentvolumeclaims
     - persistentvolumes
     - ingresses
-    telemetry: true
-    skip_leader_election: %s
 `, stringVal, stringVal)
+
+	if addVPA {
+		config += "    - verticalpodautoscalers\n"
+	}
+
+	return config
 }
