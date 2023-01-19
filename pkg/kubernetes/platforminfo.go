@@ -96,7 +96,7 @@ func (platformInfo *PlatformInfo) supportsPSP() bool {
 	if platformInfo.apiOtherVersions == nil || platformInfo.apiPreferredVersions == nil {
 		return true
 	}
-	_, ok1 := platformInfo.apiOtherVersions["PodSecurityPolicy"]
-	_, ok2 := platformInfo.apiPreferredVersions["PodSecurityPolicy"]
-	return ok1 || ok2
+	_, otherExists := platformInfo.apiOtherVersions["PodSecurityPolicy"]
+	_, preferredExists := platformInfo.apiPreferredVersions["PodSecurityPolicy"]
+	return otherExists || preferredExists
 }
