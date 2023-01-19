@@ -87,3 +87,16 @@ func (platformInfo *PlatformInfo) CreatePDBObjectList() client.ObjectList {
 		return &policyv1.PodDisruptionBudgetList{}
 	}
 }
+
+func (platformInfo *PlatformInfo) GetAgentResourcesKind(withCiliumResources bool) []ObjectKind {
+	return getResourcesKind(withCiliumResources, platformInfo.supportsPSP())
+}
+
+func (platformInfo *PlatformInfo) supportsPSP() bool {
+	if platformInfo.apiOtherVersions == nil || platformInfo.apiPreferredVersions == nil {
+		return true
+	}
+	_, otherExists := platformInfo.apiOtherVersions["PodSecurityPolicy"]
+	_, preferredExists := platformInfo.apiPreferredVersions["PodSecurityPolicy"]
+	return otherExists || preferredExists
+}

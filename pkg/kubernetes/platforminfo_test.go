@@ -94,16 +94,19 @@ func Test_getPDBFlag(t *testing.T) {
 		preferred     map[string]string
 		other         map[string]string
 		useV1Beta1PDB bool
+		supportsPSP   bool
 	}{
 		{
 			name: "Chooses preferred version of PodDisruptionBudget",
 			preferred: map[string]string{
 				"PodDisruptionBudget": "policy/v1",
+				"PodSecurityPolicy":   "anything",
 			},
 			other: map[string]string{
 				"PodDisruptionBudget": "policy/v1beta1",
 			},
 			useV1Beta1PDB: false,
+			supportsPSP:   true,
 		},
 		{
 			name: "Chooses preferred version of PodDisruptionBudget",
@@ -112,8 +115,10 @@ func Test_getPDBFlag(t *testing.T) {
 			},
 			other: map[string]string{
 				"PodDisruptionBudget": "policy/v1",
+				"PodSecurityPolicy":   "anything",
 			},
 			useV1Beta1PDB: true,
+			supportsPSP:   true,
 		},
 		{
 			name: "Unrecognized preferred version, defaults to v1",
@@ -122,6 +127,7 @@ func Test_getPDBFlag(t *testing.T) {
 			},
 			other:         map[string]string{},
 			useV1Beta1PDB: false,
+			supportsPSP:   false,
 		},
 	}
 
@@ -129,6 +135,8 @@ func Test_getPDBFlag(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			platformInfo := NewPlatformInfoFromVersionMaps(nil, tt.preferred, tt.other)
 			assert.Equal(t, tt.useV1Beta1PDB, platformInfo.UseV1Beta1PDB())
+			assert.Equal(t, tt.supportsPSP, platformInfo.supportsPSP())
+			assert.Equal(t, tt.supportsPSP, containsObjectKind(platformInfo.GetAgentResourcesKind(false), PodSecurityPoliciesKind))
 		})
 	}
 }
@@ -167,4 +175,13 @@ func newApiGroupPointer(apiGroup v1.APIGroup) *v1.APIGroup {
 
 func newApiResourceListPointer(apiResourceList v1.APIResourceList) *v1.APIResourceList {
 	return &apiResourceList
+}
+
+func containsObjectKind(list []ObjectKind, s ObjectKind) bool {
+	for _, v := range list {
+		if v == s {
+			return true
+		}
+	}
+	return false
 }
