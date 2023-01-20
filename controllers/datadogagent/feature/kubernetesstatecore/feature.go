@@ -125,7 +125,8 @@ func (f *ksmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) feature.RequiredCom
 func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
 	// Create a configMap if CustomConfig.ConfigData is provided and CustomConfig.ConfigMap == nil,
 	// OR if the default configMap is needed.
-	configCM, err := f.buildKSMCoreConfigMap()
+	pInfo := managers.Store().GetPlatformInfo()
+	configCM, err := f.buildKSMCoreConfigMap(pInfo.IsResourceSupported("VerticalPodAutoscaler"))
 	if err != nil {
 		return err
 	}

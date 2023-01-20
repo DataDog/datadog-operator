@@ -40,6 +40,7 @@ type StoreClient interface {
 	Get(kind kubernetes.ObjectKind, namespace, name string) (client.Object, bool)
 	GetOrCreate(kind kubernetes.ObjectKind, namespace, name string) (client.Object, bool)
 	GetVersionInfo() *version.Info
+	GetPlatformInfo() kubernetes.PlatformInfo
 	Delete(kind kubernetes.ObjectKind, namespace string, name string) bool
 	DeleteAll(ctx context.Context, k8sClient client.Client) []error
 }
@@ -285,6 +286,11 @@ func (ds *Store) Cleanup(ctx context.Context, k8sClient client.Client, ddaNs, dd
 // GetVersionInfo returns the Kubernetes version
 func (ds *Store) GetVersionInfo() *version.Info {
 	return ds.versionInfo
+}
+
+// GetPlatformInfo returns api-resources info
+func (ds *Store) GetPlatformInfo() kubernetes.PlatformInfo {
+	return ds.platformInfo
 }
 
 // DeleteAll deletes all the resources that are in the Store
