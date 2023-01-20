@@ -1,0 +1,34 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog
+spec:
+  credentials:
+    apiKey: <DATADOG_API_KEY>
+    appKey: <DATADOG_APP_KEY>
+  agent:
+    apm:
+      enabled: true
+    process:
+      enabled: true
+      processCollectionEnabled: true
+    log:
+      enabled: true
+    systemProbe:
+      bpfDebugEnabled: true
+    security:
+      compliance:
+        enabled: true
+      runtime:
+        enabled: false
+  clusterAgent:
+    config:
+      externalMetrics:
+        enabled: true
+      admissionController:
+        enabled: true
+      env:
+        - name: DD_PROXY_HTTP
+          value: "http://<insert_proxy_address>"
+        - name: DD_PROXY_HTTPS
+          value: "https://<insert_proxy_address>"
