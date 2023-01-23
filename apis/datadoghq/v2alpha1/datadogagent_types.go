@@ -285,7 +285,7 @@ type DogstatsdFeatureConfig struct {
 	OriginDetectionEnabled *bool `json:"originDetectionEnabled,omitempty"`
 
 	// HostPortConfig contains host port configuration.
-	// Enabled Default: true
+	// Enabled Default: false
 	// Port Default: 8125
 	// +optional
 	HostPortConfig *HostPortConfig `json:"hostPortConfig,omitempty"`

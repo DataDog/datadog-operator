@@ -25939,7 +25939,7 @@ spec:
                     properties:
                       hostPortConfig:
                         description: 'HostPortConfig contains host port configuration.
-                          Enabled Default: true Port Default: 8125'
+                          Enabled Default: false Port Default: 8125'
                         properties:
                           enabled:
                             description: 'Enabled enables host port configuration
