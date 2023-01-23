@@ -517,7 +517,7 @@ func schema__apis_datadoghq_v2alpha1_DogstatsdFeatureConfig(ref common.Reference
 					},
 					"hostPortConfig": {
 						SchemaProps: spec.SchemaProps{
-							Description: "HostPortConfig contains host port configuration. Enabled Default: true Port Default: 8125",
+							Description: "HostPortConfig contains host port configuration. Enabled Default: false Port Default: 8125",
 							Ref:         ref("./apis/datadoghq/v2alpha1.HostPortConfig"),
 						},
 					},
