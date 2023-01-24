@@ -194,6 +194,7 @@ func (f *otlpFeature) ManageNodeAgent(managers feature.PodTemplateManagers) erro
 		otlpgrpcPort := &corev1.ContainerPort{
 			Name:          apicommon.OTLPGRPCPortName,
 			ContainerPort: port,
+			HostPort:      port,
 			Protocol:      corev1.ProtocolTCP,
 		}
 		envVar := &corev1.EnvVar{
@@ -216,6 +217,7 @@ func (f *otlpFeature) ManageNodeAgent(managers feature.PodTemplateManagers) erro
 		otlphttpPort := &corev1.ContainerPort{
 			Name:          apicommon.OTLPHTTPPortName,
 			ContainerPort: port,
+			HostPort:      port,
 			Protocol:      corev1.ProtocolTCP,
 		}
 		envVar := &corev1.EnvVar{
