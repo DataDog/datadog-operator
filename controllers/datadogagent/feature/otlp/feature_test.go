@@ -53,11 +53,13 @@ func TestOTLPFeature(t *testing.T) {
 					{
 						Name:          apicommon.OTLPGRPCPortName,
 						ContainerPort: 4317,
+						HostPort:      4317,
 						Protocol:      corev1.ProtocolTCP,
 					},
 					{
 						Name:          apicommon.OTLPHTTPPortName,
 						ContainerPort: 4318,
+						HostPort:      4318,
 						Protocol:      corev1.ProtocolTCP,
 					},
 				},
@@ -83,6 +85,7 @@ func TestOTLPFeature(t *testing.T) {
 					{
 						Name:          apicommon.OTLPGRPCPortName,
 						ContainerPort: 4317,
+						HostPort:      4317,
 						Protocol:      corev1.ProtocolTCP,
 					},
 				},
@@ -106,6 +109,7 @@ func TestOTLPFeature(t *testing.T) {
 					{
 						Name:          apicommon.OTLPHTTPPortName,
 						ContainerPort: 4318,
+						HostPort:      4318,
 						Protocol:      corev1.ProtocolTCP,
 					},
 				},
@@ -141,11 +145,13 @@ func TestOTLPFeature(t *testing.T) {
 					{
 						Name:          apicommon.OTLPGRPCPortName,
 						ContainerPort: 4317,
+						HostPort:      4317,
 						Protocol:      corev1.ProtocolTCP,
 					},
 					{
 						Name:          apicommon.OTLPHTTPPortName,
 						ContainerPort: 4318,
+						HostPort:      4318,
 						Protocol:      corev1.ProtocolTCP,
 					},
 				},
@@ -169,6 +175,7 @@ func TestOTLPFeature(t *testing.T) {
 					{
 						Name:          apicommon.OTLPGRPCPortName,
 						ContainerPort: 4317,
+						HostPort:      4317,
 						Protocol:      corev1.ProtocolTCP,
 					},
 				},
@@ -194,6 +201,7 @@ func TestOTLPFeature(t *testing.T) {
 					{
 						Name:          apicommon.OTLPHTTPPortName,
 						ContainerPort: 4318,
+						HostPort:      4318,
 						Protocol:      corev1.ProtocolTCP,
 					},
 				},
