@@ -11,6 +11,7 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 )
 
@@ -26,23 +27,25 @@ type MetricForwardersManager interface {
 // ForwardersManager is a collection of metricsForwarder per DatadogAgent
 // ForwardersManager implements the controller-runtime Runnable interface
 type ForwardersManager struct {
-	k8sClient  client.Client
-	v2Enabled  bool
-	forwarders map[string]*metricsForwarder
-	decryptor  secrets.Decryptor
-	wg         sync.WaitGroup
+	k8sClient    client.Client
+	platformInfo *kubernetes.PlatformInfo
+	v2Enabled    bool
+	forwarders   map[string]*metricsForwarder
+	decryptor    secrets.Decryptor
+	wg           sync.WaitGroup
 	sync.Mutex
 }
 
 // NewForwardersManager builds a new ForwardersManager
 // ForwardersManager implements the controller-runtime Runnable interface
-func NewForwardersManager(k8sClient client.Client, v2Enabled bool) *ForwardersManager {
+func NewForwardersManager(k8sClient client.Client, v2Enabled bool, platformInfo *kubernetes.PlatformInfo) *ForwardersManager {
 	return &ForwardersManager{
-		k8sClient:  k8sClient,
-		v2Enabled:  v2Enabled,
-		forwarders: make(map[string]*metricsForwarder),
-		decryptor:  secrets.NewSecretBackend(),
-		wg:         sync.WaitGroup{},
+		k8sClient:    k8sClient,
+		platformInfo: platformInfo,
+		v2Enabled:    v2Enabled,
+		forwarders:   make(map[string]*metricsForwarder),
+		decryptor:    secrets.NewSecretBackend(),
+		wg:           sync.WaitGroup{},
 	}
 }
 
@@ -61,7 +64,7 @@ func (f *ForwardersManager) Register(obj MonitoredObject) {
 	id := getObjID(obj) // nolint: ifshort
 	if _, found := f.forwarders[id]; !found {
 		log.Info("New Datadog metrics forwarder registred", "ID", id)
-		f.forwarders[id] = newMetricsForwarder(f.k8sClient, f.decryptor, obj, f.v2Enabled)
+		f.forwarders[id] = newMetricsForwarder(f.k8sClient, f.decryptor, obj, f.v2Enabled, f.platformInfo)
 		f.wg.Add(1)
 		go f.forwarders[id].start(&f.wg)
 	}

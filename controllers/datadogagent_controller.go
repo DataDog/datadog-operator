@@ -211,7 +211,7 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	var metricForwarder datadog.MetricForwardersManager
 	var builderOptions []ctrlbuilder.ForOption
 	if r.Options.OperatorMetricsEnabled {
-		metricForwarder = datadog.NewForwardersManager(r.Client, r.Options.V2Enabled)
+		metricForwarder = datadog.NewForwardersManager(r.Client, r.Options.V2Enabled, &r.PlatformInfo)
 		builderOptions = append(builderOptions, ctrlbuilder.WithPredicates(predicate.Funcs{
 			// On `DatadogAgent` object creation, we register a metrics forwarder for it.
 			CreateFunc: func(e event.CreateEvent) bool {

@@ -19,6 +19,7 @@ import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/pkg/config"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 
 	"github.com/go-logr/logr"
@@ -43,6 +44,8 @@ const (
 	clusterNameTagFormat        = "cluster_name:%s"
 	crNsTagFormat               = "cr_namespace:%s"
 	crNameTagFormat             = "cr_name:%s"
+	crPreferredVersionTagFormat = "cr_preferred_version:%s"
+	crOtherVersionTagFormat     = "cr_other_version:%s"
 	agentName                   = "agent"
 	clusteragentName            = "clusteragent"
 	clusterchecksrunnerName     = "clusterchecksrunner"
@@ -88,14 +91,15 @@ type metricsForwarder struct {
 	datadogClient *api.Client
 	k8sClient     client.Client
 
-	v2Enabled   bool
-	apiKey      string
-	appKey      string
-	clusterName string
-	labels      map[string]string
-	dsStatus    *commonv1.DaemonSetStatus
-	dcaStatus   *commonv1.DeploymentStatus
-	ccrStatus   *commonv1.DeploymentStatus
+	v2Enabled    bool
+	platformInfo *kubernetes.PlatformInfo
+	apiKey       string
+	appKey       string
+	clusterName  string
+	labels       map[string]string
+	dsStatus     *commonv1.DaemonSetStatus
+	dcaStatus    *commonv1.DeploymentStatus
+	ccrStatus    *commonv1.DeploymentStatus
 
 	keysHash            uint64
 	retryInterval       time.Duration
@@ -119,11 +123,12 @@ type metricsForwarder struct {
 }
 
 // newMetricsForwarder returs a new Datadog MetricsForwarder instance
-func newMetricsForwarder(k8sClient client.Client, decryptor secrets.Decryptor, obj MonitoredObject, v2Enabled bool) *metricsForwarder {
+func newMetricsForwarder(k8sClient client.Client, decryptor secrets.Decryptor, obj MonitoredObject, v2Enabled bool, platforminfo *kubernetes.PlatformInfo) *metricsForwarder {
 	return &metricsForwarder{
 		id:                  getObjID(obj),
 		k8sClient:           k8sClient,
 		v2Enabled:           v2Enabled,
+		platformInfo:        platforminfo,
 		namespacedName:      getNamespacedName(obj),
 		retryInterval:       defaultMetricsRetryInterval,
 		sendMetricsInterval: defaultSendMetricsInterval,
@@ -400,6 +405,7 @@ func (mf *metricsForwarder) prepareReconcileMetric(reconcileErr error) (float64,
 		}
 		tags = mf.tagsWithExtraTag(reconcileErrTagFormat, reason)
 	}
+	tags = append(tags, mf.getDatadogAgentCRVersionTags()...)
 	return metricValue, tags, nil
 }
 
@@ -470,6 +476,7 @@ func (mf *metricsForwarder) sendStatusMetrics(dsStatus *commonv1.DaemonSetStatus
 			metricValue = deploymentFailureValue
 		}
 		tags := mf.tagsWithExtraTag(stateTagFormat, dsStatus.State)
+		tags = append(tags, mf.getDatadogAgentCRVersionTags()...)
 		if err := mf.sendDeploymentMetric(metricValue, agentName, tags); err != nil {
 			return err
 		}
@@ -483,6 +490,7 @@ func (mf *metricsForwarder) sendStatusMetrics(dsStatus *commonv1.DaemonSetStatus
 			metricValue = deploymentFailureValue
 		}
 		tags := mf.tagsWithExtraTag(stateTagFormat, dcaStatus.State)
+		tags = append(tags, mf.getDatadogAgentCRVersionTags()...)
 		if err := mf.sendDeploymentMetric(metricValue, clusteragentName, tags); err != nil {
 			return err
 		}
@@ -496,6 +504,7 @@ func (mf *metricsForwarder) sendStatusMetrics(dsStatus *commonv1.DaemonSetStatus
 			metricValue = deploymentFailureValue
 		}
 		tags := mf.tagsWithExtraTag(stateTagFormat, ccrStatus.State)
+		tags = append(tags, mf.getDatadogAgentCRVersionTags()...)
 		if err := mf.sendDeploymentMetric(metricValue, clusterchecksrunnerName, tags); err != nil {
 			return err
 		}
@@ -507,6 +516,18 @@ func (mf *metricsForwarder) sendStatusMetrics(dsStatus *commonv1.DaemonSetStatus
 // tagsWithExtraTag used to append an extra tag to the forwarder tags
 func (mf *metricsForwarder) tagsWithExtraTag(tagFormat, tag string) []string {
 	return append(mf.globalTags, append(mf.tags, fmt.Sprintf(tagFormat, tag))...)
+}
+
+// getDatadogAgentCRVersionTags returns DatadogAgent CRD version tags
+func (mf *metricsForwarder) getDatadogAgentCRVersionTags() []string {
+	ddaPreferredVersion, ddaOtherVersion := mf.platformInfo.GetDatadogAgentVersions()
+	if ddaOtherVersion == "" {
+		ddaOtherVersion = "null"
+	}
+	return []string{
+		fmt.Sprintf(crPreferredVersionTagFormat, ddaPreferredVersion),
+		fmt.Sprintf(crOtherVersionTagFormat, ddaOtherVersion),
+	}
 }
 
 // sendDeploymentMetric is a generic method used to forward component deployment metrics to Datadog

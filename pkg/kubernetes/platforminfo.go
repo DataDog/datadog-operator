@@ -114,3 +114,9 @@ func (platformInfo *PlatformInfo) IsResourceSupported(resource string) bool {
 	}
 	return false
 }
+
+func (platformInfo *PlatformInfo) GetDatadogAgentVersions() (preferred string, other string) {
+	preferred = platformInfo.apiPreferredVersions["DatadogAgent"]
+	other = platformInfo.apiOtherVersions["DatadogAgent"]
+	return preferred, other
+}
