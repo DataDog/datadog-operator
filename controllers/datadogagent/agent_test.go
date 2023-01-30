@@ -882,6 +882,10 @@ func defaultEnvVars(extraEnv map[string]string) []corev1.EnvVar {
 			Name:      "DD_API_KEY",
 			ValueFrom: apiKeyValue(),
 		},
+		{
+			Name:  apicommon.DDAuthTokenFilePath,
+			Value: "/etc/datadog-agent/auth/token",
+		},
 	}
 
 	if ddSite := createEnvFromExtra(extraEnv, "DD_SITE"); ddSite != nil {
@@ -935,6 +939,10 @@ func defaultAPMContainerEnvVars() []corev1.EnvVar {
 		{
 			Name:  "DD_DOGSTATSD_SOCKET",
 			Value: "/var/run/datadog/statsd/statsd.sock",
+		},
+		{
+			Name:  apicommon.DDAuthTokenFilePath,
+			Value: "/etc/datadog-agent/auth/token",
 		},
 	}
 }
@@ -1000,6 +1008,10 @@ func defaultSystemProbeEnvVars() []corev1.EnvVar {
 		{
 			Name:  apicommon.DDSystemProbeOOMKillEnabled,
 			Value: "false",
+		},
+		{
+			Name:  apicommon.DDAuthTokenFilePath,
+			Value: "/etc/datadog-agent/auth/token",
 		},
 	}
 }
@@ -1070,6 +1082,10 @@ func securityAgentEnvVars(compliance, runtime bool, policiesdir bool, extraEnv m
 		{
 			Name:      "DD_API_KEY",
 			ValueFrom: apiKeyValue(),
+		},
+		{
+			Name:  apicommon.DDAuthTokenFilePath,
+			Value: "/etc/datadog-agent/auth/token",
 		},
 	}...)
 
@@ -1583,6 +1599,10 @@ func defaultOrchestratorEnvVars(dda *datadoghqv1alpha1.DatadogAgent) []corev1.En
 			Name:      "DD_API_KEY",
 			ValueFrom: apiKeyValue(),
 		},
+		{
+			Name:  apicommon.DDAuthTokenFilePath,
+			Value: "/etc/datadog-agent/auth/token",
+		},
 	}
 	orchestratorEnvs, _ := orchestrator.EnvVars(&explorerConfig)
 	newVars = append(newVars, orchestratorEnvs...)
@@ -1939,6 +1959,10 @@ func customKubeletConfigPodSpec(kubeletConfig *commonv1.KubeletConfig) corev1.Po
 		{
 			Name:      "DD_API_KEY",
 			ValueFrom: apiKeyValue(),
+		},
+		{
+			Name:  apicommon.DDAuthTokenFilePath,
+			Value: "/etc/datadog-agent/auth/token",
 		},
 		{
 			Name:      "DD_CLUSTER_AGENT_AUTH_TOKEN",

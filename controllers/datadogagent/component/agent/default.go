@@ -72,6 +72,7 @@ func DefaultCapabilitiesForSystemProbe() []corev1.Capability {
 		"NET_RAW",
 		"IPC_LOCK",
 		"CHOWN",
+		"DAC_READ_SEARCH",
 	}
 }
 
