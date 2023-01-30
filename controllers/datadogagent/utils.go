@@ -680,10 +680,6 @@ func getEnvVarsForSystemProbe(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.Env
 				Name:  apicommon.DDRuntimeSecurityConfigPoliciesDir,
 				Value: apicommon.SecurityAgentRuntimePoliciesDirVolumePath,
 			},
-			corev1.EnvVar{
-				Name:  apicommon.DDAuthTokenFilePath,
-				Value: filepath.Join(apicommon.AuthVolumePath, "token"),
-			},
 		)
 	}
 
@@ -700,6 +696,10 @@ func getEnvVarsCommon(dda *datadoghqv1alpha1.DatadogAgent, needAPIKey bool) ([]c
 		{
 			Name:  apicommon.KubernetesEnvVar,
 			Value: "yes",
+		},
+		{
+			Name:  apicommon.DDAuthTokenFilePath,
+			Value: filepath.Join(apicommon.AuthVolumePath, "token"),
 		},
 	}
 
