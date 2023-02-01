@@ -17,7 +17,7 @@ import (
 
 // MetricForwardersManager defines interface for metrics forwarding
 type MetricForwardersManager interface {
-	Register(MonitoredObject)
+	Register(client.Object)
 	Unregister(MonitoredObject)
 	ProcessError(MonitoredObject, error)
 	ProcessEvent(MonitoredObject, Event)
@@ -58,13 +58,13 @@ func (f *ForwardersManager) Start(stop <-chan struct{}) error {
 }
 
 // Register starts a new metricsForwarder if a new MonitoredObject is detected
-func (f *ForwardersManager) Register(obj MonitoredObject) {
+func (f *ForwardersManager) Register(obj client.Object) {
 	f.Lock()
 	defer f.Unlock()
 	id := getObjID(obj) // nolint: ifshort
 	if _, found := f.forwarders[id]; !found {
 		log.Info("New Datadog metrics forwarder registred", "ID", id)
-		f.forwarders[id] = newMetricsForwarder(f.k8sClient, f.decryptor, obj, f.v2Enabled, f.platformInfo)
+		f.forwarders[id] = newMetricsForwarder(f.k8sClient, f.decryptor, obj, obj.GetObjectKind(), f.v2Enabled, f.platformInfo)
 		f.wg.Add(1)
 		go f.forwarders[id].start(&f.wg)
 	}

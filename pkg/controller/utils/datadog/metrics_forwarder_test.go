@@ -68,9 +68,10 @@ func TestMetricsForwarder_sendStatusMetrics(t *testing.T) {
 		Name:      "bar",
 	}
 	mf := &metricsForwarder{
-		namespacedName: nsn,
-		delegator:      fmf,
-		platformInfo:   createPlatformInfo(),
+		namespacedName:      nsn,
+		delegator:           fmf,
+		monitoredObjectKind: "DatadogAgent",
+		platformInfo:        createPlatformInfo(),
 	}
 	mf.initGlobalTags()
 
@@ -1030,8 +1031,9 @@ func Test_metricsForwarder_processReconcileError(t *testing.T) {
 		Name:      "bar",
 	}
 	mf := &metricsForwarder{
-		namespacedName: nsn,
-		platformInfo:   &platformInfo,
+		namespacedName:      nsn,
+		monitoredObjectKind: "DatadogAgent",
+		platformInfo:        &platformInfo,
 	}
 	mf.initGlobalTags()
 
@@ -1175,9 +1177,10 @@ func Test_metricsForwarder_prepareReconcileMetric(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mf := &metricsForwarder{
-				globalTags:   defaultGlobalTags,
-				tags:         defaultTags,
-				platformInfo: createPlatformInfo(),
+				globalTags:          defaultGlobalTags,
+				tags:                defaultTags,
+				monitoredObjectKind: "DatadogAgent",
+				platformInfo:        createPlatformInfo(),
 			}
 			got, got1, err := mf.prepareReconcileMetric(tt.reconcileErr)
 			if (err != nil) != tt.wantErr {

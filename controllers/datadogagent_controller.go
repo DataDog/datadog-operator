@@ -216,7 +216,6 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			// On `DatadogAgent` object creation, we register a metrics forwarder for it.
 			CreateFunc: func(e event.CreateEvent) bool {
 				metricForwarder.Register(e.Object)
-
 				return true
 			},
 		}))

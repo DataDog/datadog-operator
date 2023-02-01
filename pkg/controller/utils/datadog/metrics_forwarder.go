@@ -27,6 +27,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -87,9 +88,10 @@ func hashKeys(apiKey, appKey string) uint64 {
 // metricsForwarder sends metrics directly to Datadog using the public API
 // its lifecycle must be handled by a ForwardersManager
 type metricsForwarder struct {
-	id            string
-	datadogClient *api.Client
-	k8sClient     client.Client
+	id                  string
+	monitoredObjectKind string
+	datadogClient       *api.Client
+	k8sClient           client.Client
 
 	v2Enabled    bool
 	platformInfo *kubernetes.PlatformInfo
@@ -123,9 +125,10 @@ type metricsForwarder struct {
 }
 
 // newMetricsForwarder returs a new Datadog MetricsForwarder instance
-func newMetricsForwarder(k8sClient client.Client, decryptor secrets.Decryptor, obj MonitoredObject, v2Enabled bool, platforminfo *kubernetes.PlatformInfo) *metricsForwarder {
+func newMetricsForwarder(k8sClient client.Client, decryptor secrets.Decryptor, obj MonitoredObject, kind schema.ObjectKind, v2Enabled bool, platforminfo *kubernetes.PlatformInfo) *metricsForwarder {
 	return &metricsForwarder{
 		id:                  getObjID(obj),
+		monitoredObjectKind: kind.GroupVersionKind().Kind,
 		k8sClient:           k8sClient,
 		v2Enabled:           v2Enabled,
 		platformInfo:        platforminfo,
@@ -405,7 +408,7 @@ func (mf *metricsForwarder) prepareReconcileMetric(reconcileErr error) (float64,
 		}
 		tags = mf.tagsWithExtraTag(reconcileErrTagFormat, reason)
 	}
-	tags = append(tags, mf.getDatadogAgentCRVersionTags()...)
+	tags = append(tags, mf.getCRVersionTags()...)
 	return metricValue, tags, nil
 }
 
@@ -476,7 +479,7 @@ func (mf *metricsForwarder) sendStatusMetrics(dsStatus *commonv1.DaemonSetStatus
 			metricValue = deploymentFailureValue
 		}
 		tags := mf.tagsWithExtraTag(stateTagFormat, dsStatus.State)
-		tags = append(tags, mf.getDatadogAgentCRVersionTags()...)
+		tags = append(tags, mf.getCRVersionTags()...)
 		if err := mf.sendDeploymentMetric(metricValue, agentName, tags); err != nil {
 			return err
 		}
@@ -490,7 +493,7 @@ func (mf *metricsForwarder) sendStatusMetrics(dsStatus *commonv1.DaemonSetStatus
 			metricValue = deploymentFailureValue
 		}
 		tags := mf.tagsWithExtraTag(stateTagFormat, dcaStatus.State)
-		tags = append(tags, mf.getDatadogAgentCRVersionTags()...)
+		tags = append(tags, mf.getCRVersionTags()...)
 		if err := mf.sendDeploymentMetric(metricValue, clusteragentName, tags); err != nil {
 			return err
 		}
@@ -504,7 +507,7 @@ func (mf *metricsForwarder) sendStatusMetrics(dsStatus *commonv1.DaemonSetStatus
 			metricValue = deploymentFailureValue
 		}
 		tags := mf.tagsWithExtraTag(stateTagFormat, ccrStatus.State)
-		tags = append(tags, mf.getDatadogAgentCRVersionTags()...)
+		tags = append(tags, mf.getCRVersionTags()...)
 		if err := mf.sendDeploymentMetric(metricValue, clusterchecksrunnerName, tags); err != nil {
 			return err
 		}
@@ -519,8 +522,12 @@ func (mf *metricsForwarder) tagsWithExtraTag(tagFormat, tag string) []string {
 }
 
 // getDatadogAgentCRVersionTags returns DatadogAgent CRD version tags
-func (mf *metricsForwarder) getDatadogAgentCRVersionTags() []string {
-	ddaPreferredVersion, ddaOtherVersion := mf.platformInfo.GetDatadogAgentVersions()
+func (mf *metricsForwarder) getCRVersionTags() []string {
+	ddaPreferredVersion, ddaOtherVersion := mf.platformInfo.GetApiVersions(mf.monitoredObjectKind)
+
+	if ddaPreferredVersion == "" {
+		ddaPreferredVersion = "null"
+	}
 	if ddaOtherVersion == "" {
 		ddaOtherVersion = "null"
 	}
