@@ -51,8 +51,8 @@ func Test_EDSFromDefaultAgent(t *testing.T) {
 		checkEDSFuncs: []testutils.CheckExtendedDaemonSetFunc{
 			testutils.CheckMetadaInEDS(&testutils.CheckNameNamespace{Namespace: "bar", Name: "foo-agent"}),
 			// check labels
-			testutils.CheckMetadaInEDS(&testutils.CheckLabelIsPresent{Key: "agent.datadoghq.com/name", Value: "foo"}),
-			testutils.CheckMetadaInEDS(&testutils.CheckLabelIsPresent{Key: "agent.datadoghq.com/component", Value: "agent"}),
+			testutils.CheckMetadaInEDS(&testutils.CheckLabelIsPresent{Key: "app.kubernetes.io/component", Value: "foo"}),
+			testutils.CheckMetadaInEDS(&testutils.CheckLabelIsPresent{Key: "app.kubernetes.io/component", Value: "agent"}),
 			testutils.CheckMetadaInEDS(&testutils.CheckLabelIsPresent{Key: "app.kubernetes.io/instance", Value: "agent"}),
 			testutils.CheckMetadaInEDS(&testutils.CheckLabelIsPresent{Key: "app.kubernetes.io/managed-by", Value: "datadog-operator"}),
 			// check containers creation

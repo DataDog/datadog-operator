@@ -2111,7 +2111,7 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 					Name:      "foo-agent",
 					Labels: map[string]string{
 						"agent.datadoghq.com/name":      "foo",
-						"agent.datadoghq.com/component": "agent",
+						"app.kubernetes.io/component": "agent",
 						"app.kubernetes.io/instance":    "agent",
 						"app.kubernetes.io/managed-by":  "datadog-operator",
 						"app.kubernetes.io/name":        "datadog-agent-deployment",
@@ -2127,7 +2127,7 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 							Namespace:    "bar",
 							Labels: map[string]string{
 								"agent.datadoghq.com/name":      "foo",
-								"agent.datadoghq.com/component": "agent",
+								"app.kubernetes.io/component": "agent",
 								"app.kubernetes.io/instance":    "agent",
 								"app.kubernetes.io/managed-by":  "datadog-operator",
 								"app.kubernetes.io/name":        "datadog-agent-deployment",
@@ -2152,7 +2152,7 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 					Name:      "foo-agent",
 					Labels: map[string]string{
 						"agent.datadoghq.com/name":      "foo",
-						"agent.datadoghq.com/component": "agent",
+						"app.kubernetes.io/component": "agent",
 						"tags.datadoghq.com/env":        "test",
 						"app.kubernetes.io/instance":    "agent",
 						"app.kubernetes.io/managed-by":  "datadog-operator",
@@ -2169,7 +2169,7 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 							Namespace:    "bar",
 							Labels: map[string]string{
 								"agent.datadoghq.com/name":      "foo",
-								"agent.datadoghq.com/component": "agent",
+								"app.kubernetes.io/component": "agent",
 								"app.kubernetes.io/instance":    "agent",
 								"app.kubernetes.io/managed-by":  "datadog-operator",
 								"app.kubernetes.io/name":        "datadog-agent-deployment",
@@ -2195,7 +2195,7 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 					Name:      "foo-agent",
 					Labels: map[string]string{
 						"agent.datadoghq.com/name":      "foo",
-						"agent.datadoghq.com/component": "agent",
+						"app.kubernetes.io/component": "agent",
 						"app.kubernetes.io/instance":    "agent",
 						"app.kubernetes.io/managed-by":  "datadog-operator",
 						"app.kubernetes.io/name":        "datadog-agent-deployment",
@@ -2211,7 +2211,7 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 							Namespace:    "bar",
 							Labels: map[string]string{
 								"agent.datadoghq.com/name":      "foo",
-								"agent.datadoghq.com/component": "agent",
+								"app.kubernetes.io/component": "agent",
 								"app.kubernetes.io/instance":    "agent",
 								"app.kubernetes.io/managed-by":  "datadog-operator",
 								"app.kubernetes.io/name":        "datadog-agent-deployment",
@@ -2236,7 +2236,7 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 					Name:      "foo-agent",
 					Labels: map[string]string{
 						"agent.datadoghq.com/name":      "foo",
-						"agent.datadoghq.com/component": "agent",
+						"app.kubernetes.io/component": "agent",
 						"app.kubernetes.io/instance":    "agent",
 						"app.kubernetes.io/managed-by":  "datadog-operator",
 						"app.kubernetes.io/name":        "datadog-agent-deployment",
@@ -2252,7 +2252,7 @@ func Test_newExtendedDaemonSetFromInstance(t *testing.T) {
 							Namespace:    "bar",
 							Labels: map[string]string{
 								"agent.datadoghq.com/name":      "foo",
-								"agent.datadoghq.com/component": "agent",
+								"app.kubernetes.io/component": "agent",
 								"app.kubernetes.io/instance":    "agent",
 								"app.kubernetes.io/managed-by":  "datadog-operator",
 								"app.kubernetes.io/name":        "datadog-agent-deployment",
@@ -2378,7 +2378,7 @@ func Test_newExtendedDaemonSetFromInstance_CustomConfigMaps(t *testing.T) {
 				Name:      "foo-agent",
 				Labels: map[string]string{
 					"agent.datadoghq.com/name":      "foo",
-					"agent.datadoghq.com/component": "agent",
+					"app.kubernetes.io/component": "agent",
 					"app.kubernetes.io/instance":    "agent",
 					"app.kubernetes.io/managed-by":  "datadog-operator",
 					"app.kubernetes.io/name":        "datadog-agent-deployment",
@@ -2394,7 +2394,7 @@ func Test_newExtendedDaemonSetFromInstance_CustomConfigMaps(t *testing.T) {
 						Namespace:    "bar",
 						Labels: map[string]string{
 							"agent.datadoghq.com/name":      "foo",
-							"agent.datadoghq.com/component": "agent",
+							"app.kubernetes.io/component": "agent",
 							"app.kubernetes.io/instance":    "agent",
 							"app.kubernetes.io/managed-by":  "datadog-operator",
 							"app.kubernetes.io/name":        "datadog-agent-deployment",
@@ -2613,7 +2613,7 @@ func Test_newExtendedDaemonSetFromInstance_CustomDatadogYaml(t *testing.T) {
 				Name:      "foo-agent",
 				Labels: map[string]string{
 					"agent.datadoghq.com/name":      "foo",
-					"agent.datadoghq.com/component": "agent",
+					"app.kubernetes.io/component": "agent",
 					"app.kubernetes.io/instance":    "agent",
 					"app.kubernetes.io/managed-by":  "datadog-operator",
 					"app.kubernetes.io/name":        "datadog-agent-deployment",
@@ -2629,7 +2629,7 @@ func Test_newExtendedDaemonSetFromInstance_CustomDatadogYaml(t *testing.T) {
 						Namespace:    "bar",
 						Labels: map[string]string{
 							"agent.datadoghq.com/name":      "foo",
-							"agent.datadoghq.com/component": "agent",
+							"app.kubernetes.io/component": "agent",
 							"app.kubernetes.io/instance":    "agent",
 							"app.kubernetes.io/managed-by":  "datadog-operator",
 							"app.kubernetes.io/name":        "datadog-agent-deployment",
@@ -2679,7 +2679,7 @@ func Test_ExtraParameters(t *testing.T) {
 				Name:      "foo-agent",
 				Labels: map[string]string{
 					"agent.datadoghq.com/name":      "foo",
-					"agent.datadoghq.com/component": "agent",
+					"app.kubernetes.io/component": "agent",
 					"app.kubernetes.io/instance":    "agent",
 					"app.kubernetes.io/managed-by":  "datadog-operator",
 					"app.kubernetes.io/name":        "datadog-agent-deployment",
@@ -2695,7 +2695,7 @@ func Test_ExtraParameters(t *testing.T) {
 						Namespace:    "bar",
 						Labels: map[string]string{
 							"agent.datadoghq.com/name":      "foo",
-							"agent.datadoghq.com/component": "agent",
+							"app.kubernetes.io/component": "agent",
 							"app.kubernetes.io/instance":    "agent",
 							"app.kubernetes.io/managed-by":  "datadog-operator",
 							"app.kubernetes.io/name":        "datadog-agent-deployment",
@@ -2757,7 +2757,7 @@ func Test_newExtendedDaemonSetFromInstance_CustomVolumes(t *testing.T) {
 				Name:      "foo-agent",
 				Labels: map[string]string{
 					"agent.datadoghq.com/name":      "foo",
-					"agent.datadoghq.com/component": "agent",
+					"app.kubernetes.io/component": "agent",
 					"app.kubernetes.io/instance":    "agent",
 					"app.kubernetes.io/managed-by":  "datadog-operator",
 					"app.kubernetes.io/name":        "datadog-agent-deployment",
@@ -2773,7 +2773,7 @@ func Test_newExtendedDaemonSetFromInstance_CustomVolumes(t *testing.T) {
 						Namespace:    "bar",
 						Labels: map[string]string{
 							"agent.datadoghq.com/name":      "foo",
-							"agent.datadoghq.com/component": "agent",
+							"app.kubernetes.io/component": "agent",
 							"app.kubernetes.io/instance":    "agent",
 							"app.kubernetes.io/managed-by":  "datadog-operator",
 							"app.kubernetes.io/name":        "datadog-agent-deployment",
@@ -2814,7 +2814,7 @@ func Test_newExtendedDaemonSetFromInstance_DaemonSetNameAndSelector(t *testing.T
 				Name:      "custom-agent-daemonset",
 				Labels: map[string]string{
 					"agent.datadoghq.com/name":      "foo",
-					"agent.datadoghq.com/component": "agent",
+					"app.kubernetes.io/component": "agent",
 					"app.kubernetes.io/instance":    "agent",
 					"app.kubernetes.io/managed-by":  "datadog-operator",
 					"app.kubernetes.io/name":        "datadog-agent-deployment",
@@ -2835,7 +2835,7 @@ func Test_newExtendedDaemonSetFromInstance_DaemonSetNameAndSelector(t *testing.T
 						Namespace:    "bar",
 						Labels: map[string]string{
 							"agent.datadoghq.com/name":      "foo",
-							"agent.datadoghq.com/component": "agent",
+							"app.kubernetes.io/component": "agent",
 							"app.kubernetes.io/instance":    "agent",
 							"app.kubernetes.io/managed-by":  "datadog-operator",
 							"app.kubernetes.io/name":        "datadog-agent-deployment",
@@ -2939,7 +2939,7 @@ func Test_newExtendedDaemonSetFromInstance_LogsEnabled(t *testing.T) {
 				Name:      "foo-agent",
 				Labels: map[string]string{
 					"agent.datadoghq.com/name":      "foo",
-					"agent.datadoghq.com/component": "agent",
+					"app.kubernetes.io/component": "agent",
 					"app.kubernetes.io/instance":    "agent",
 					"app.kubernetes.io/managed-by":  "datadog-operator",
 					"app.kubernetes.io/name":        "datadog-agent-deployment",
@@ -2955,7 +2955,7 @@ func Test_newExtendedDaemonSetFromInstance_LogsEnabled(t *testing.T) {
 						Namespace:    "bar",
 						Labels: map[string]string{
 							"agent.datadoghq.com/name":      "foo",
-							"agent.datadoghq.com/component": "agent",
+							"app.kubernetes.io/component": "agent",
 							"app.kubernetes.io/instance":    "agent",
 							"app.kubernetes.io/managed-by":  "datadog-operator",
 							"app.kubernetes.io/name":        "datadog-agent-deployment",
@@ -2997,7 +2997,7 @@ func Test_newExtendedDaemonSetFromInstance_clusterChecksConfig(t *testing.T) {
 				Name:      "foo-agent",
 				Labels: map[string]string{
 					"agent.datadoghq.com/name":      "foo",
-					"agent.datadoghq.com/component": "agent",
+					"app.kubernetes.io/component": "agent",
 					"app.kubernetes.io/instance":    "agent",
 					"app.kubernetes.io/managed-by":  "datadog-operator",
 					"app.kubernetes.io/name":        "datadog-agent-deployment",
@@ -3013,7 +3013,7 @@ func Test_newExtendedDaemonSetFromInstance_clusterChecksConfig(t *testing.T) {
 						Namespace:    "bar",
 						Labels: map[string]string{
 							"agent.datadoghq.com/name":      "foo",
-							"agent.datadoghq.com/component": "agent",
+							"app.kubernetes.io/component": "agent",
 							"app.kubernetes.io/instance":    "agent",
 							"app.kubernetes.io/managed-by":  "datadog-operator",
 							"app.kubernetes.io/name":        "datadog-agent-deployment",
@@ -3053,7 +3053,7 @@ func Test_newExtendedDaemonSetFromInstance_endpointsChecksConfig(t *testing.T) {
 				Name:      "foo-agent",
 				Labels: map[string]string{
 					"agent.datadoghq.com/name":      "foo",
-					"agent.datadoghq.com/component": "agent",
+					"app.kubernetes.io/component": "agent",
 					"app.kubernetes.io/instance":    "agent",
 					"app.kubernetes.io/managed-by":  "datadog-operator",
 					"app.kubernetes.io/name":        "datadog-agent-deployment",
@@ -3069,7 +3069,7 @@ func Test_newExtendedDaemonSetFromInstance_endpointsChecksConfig(t *testing.T) {
 						Namespace:    "bar",
 						Labels: map[string]string{
 							"agent.datadoghq.com/name":      "foo",
-							"agent.datadoghq.com/component": "agent",
+							"app.kubernetes.io/component": "agent",
 							"app.kubernetes.io/instance":    "agent",
 							"app.kubernetes.io/managed-by":  "datadog-operator",
 							"app.kubernetes.io/name":        "datadog-agent-deployment",
@@ -3095,7 +3095,7 @@ func extendedDaemonSetWithSystemProbe(podSpec corev1.PodSpec) *edsdatadoghqv1alp
 			Name:      "foo-agent",
 			Labels: map[string]string{
 				"agent.datadoghq.com/name":      "foo",
-				"agent.datadoghq.com/component": "agent",
+				"app.kubernetes.io/component": "agent",
 				"app.kubernetes.io/instance":    "agent",
 				"app.kubernetes.io/managed-by":  "datadog-operator",
 				"app.kubernetes.io/name":        "datadog-agent-deployment",
@@ -3111,7 +3111,7 @@ func extendedDaemonSetWithSystemProbe(podSpec corev1.PodSpec) *edsdatadoghqv1alp
 					Namespace:    "bar",
 					Labels: map[string]string{
 						"agent.datadoghq.com/name":      "foo",
-						"agent.datadoghq.com/component": "agent",
+						"app.kubernetes.io/component": "agent",
 						"app.kubernetes.io/instance":    "agent",
 						"app.kubernetes.io/managed-by":  "datadog-operator",
 						"app.kubernetes.io/name":        "datadog-agent-deployment",
@@ -3137,7 +3137,7 @@ func extendedDaemonSetDefault(podSpec corev1.PodSpec) *edsdatadoghqv1alpha1.Exte
 			Name:      "foo-agent",
 			Labels: map[string]string{
 				"agent.datadoghq.com/name":      "foo",
-				"agent.datadoghq.com/component": "agent",
+				"app.kubernetes.io/component": "agent",
 				"app.kubernetes.io/instance":    "agent",
 				"app.kubernetes.io/managed-by":  "datadog-operator",
 				"app.kubernetes.io/name":        "datadog-agent-deployment",
@@ -3153,7 +3153,7 @@ func extendedDaemonSetDefault(podSpec corev1.PodSpec) *edsdatadoghqv1alpha1.Exte
 					Namespace:    "bar",
 					Labels: map[string]string{
 						"agent.datadoghq.com/name":      "foo",
-						"agent.datadoghq.com/component": "agent",
+						"app.kubernetes.io/component": "agent",
 						"app.kubernetes.io/instance":    "agent",
 						"app.kubernetes.io/managed-by":  "datadog-operator",
 						"app.kubernetes.io/name":        "datadog-agent-deployment",
@@ -3417,7 +3417,7 @@ func Test_newExtendedDaemonSetFromInstance_SecurityAgent_Compliance(t *testing.T
 				Name:      "foo-agent",
 				Labels: map[string]string{
 					"agent.datadoghq.com/name":      "foo",
-					"agent.datadoghq.com/component": "agent",
+					"app.kubernetes.io/component": "agent",
 					"app.kubernetes.io/instance":    "agent",
 					"app.kubernetes.io/managed-by":  "datadog-operator",
 					"app.kubernetes.io/name":        "datadog-agent-deployment",
@@ -3433,7 +3433,7 @@ func Test_newExtendedDaemonSetFromInstance_SecurityAgent_Compliance(t *testing.T
 						Namespace:    "bar",
 						Labels: map[string]string{
 							"agent.datadoghq.com/name":      "foo",
-							"agent.datadoghq.com/component": "agent",
+							"app.kubernetes.io/component": "agent",
 							"app.kubernetes.io/instance":    "agent",
 							"app.kubernetes.io/managed-by":  "datadog-operator",
 							"app.kubernetes.io/name":        "datadog-agent-deployment",
@@ -3516,7 +3516,7 @@ func Test_newExtendedDaemonSetFromInstance_SecurityAgent_Runtime(t *testing.T) {
 				Name:      "foo-agent",
 				Labels: map[string]string{
 					"agent.datadoghq.com/name":      "foo",
-					"agent.datadoghq.com/component": "agent",
+					"app.kubernetes.io/component": "agent",
 					"app.kubernetes.io/instance":    "agent",
 					"app.kubernetes.io/managed-by":  "datadog-operator",
 					"app.kubernetes.io/name":        "datadog-agent-deployment",
@@ -3532,7 +3532,7 @@ func Test_newExtendedDaemonSetFromInstance_SecurityAgent_Runtime(t *testing.T) {
 						Namespace:    "bar",
 						Labels: map[string]string{
 							"agent.datadoghq.com/name":      "foo",
-							"agent.datadoghq.com/component": "agent",
+							"app.kubernetes.io/component": "agent",
 							"app.kubernetes.io/instance":    "agent",
 							"app.kubernetes.io/managed-by":  "datadog-operator",
 							"app.kubernetes.io/name":        "datadog-agent-deployment",
@@ -3582,7 +3582,7 @@ func Test_newExtendedDaemonSetFromInstance_KubeletConfiguration(t *testing.T) {
 				Name:      "foo-agent",
 				Labels: map[string]string{
 					"agent.datadoghq.com/name":      "foo",
-					"agent.datadoghq.com/component": "agent",
+					"app.kubernetes.io/component": "agent",
 					"app.kubernetes.io/instance":    "agent",
 					"app.kubernetes.io/managed-by":  "datadog-operator",
 					"app.kubernetes.io/name":        "datadog-agent-deployment",
@@ -3598,7 +3598,7 @@ func Test_newExtendedDaemonSetFromInstance_KubeletConfiguration(t *testing.T) {
 						Namespace:    "bar",
 						Labels: map[string]string{
 							"agent.datadoghq.com/name":      "foo",
-							"agent.datadoghq.com/component": "agent",
+							"app.kubernetes.io/component": "agent",
 							"app.kubernetes.io/instance":    "agent",
 							"app.kubernetes.io/managed-by":  "datadog-operator",
 							"app.kubernetes.io/name":        "datadog-agent-deployment",
@@ -3643,7 +3643,7 @@ func Test_newExtendedDaemonSetFromInstance_ArgsCommandOverride(t *testing.T) {
 				Name:      "foo-agent",
 				Labels: map[string]string{
 					"agent.datadoghq.com/name":      "foo",
-					"agent.datadoghq.com/component": "agent",
+					"app.kubernetes.io/component": "agent",
 					"app.kubernetes.io/instance":    "agent",
 					"app.kubernetes.io/managed-by":  "datadog-operator",
 					"app.kubernetes.io/name":        "datadog-agent-deployment",
@@ -3659,7 +3659,7 @@ func Test_newExtendedDaemonSetFromInstance_ArgsCommandOverride(t *testing.T) {
 						Namespace:    "bar",
 						Labels: map[string]string{
 							"agent.datadoghq.com/name":      "foo",
-							"agent.datadoghq.com/component": "agent",
+							"app.kubernetes.io/component": "agent",
 							"app.kubernetes.io/instance":    "agent",
 							"app.kubernetes.io/managed-by":  "datadog-operator",
 							"app.kubernetes.io/name":        "datadog-agent-deployment",

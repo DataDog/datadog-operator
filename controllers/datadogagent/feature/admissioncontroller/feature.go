@@ -95,7 +95,7 @@ func (f *admissionControllerFeature) ManageDependencies(managers feature.Resourc
 
 	// service
 	selector := map[string]string{
-		apicommon.AgentDeploymentNameLabelKey:      f.owner.GetName(),
+		apicommon.AgentDeploymentNameLabelKey: f.owner.GetName(),
 		apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultClusterAgentResourceSuffix,
 	}
 	port := []corev1.ServicePort{

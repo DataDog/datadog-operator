@@ -31,8 +31,8 @@ spec:
       additionalEndpoints: '{"https://process.agent.datadoghq.com": ["apikey1"]}' # ignored ATM
       ddUrl: https://orch-explorer.com
       extraTags:
-        - orch
-        - exp
+      - orch
+      - exp
     kubeStateMetricsCore:
       enabled: true
       conf:
@@ -56,7 +56,7 @@ spec:
       enabled: false
   agent:
     enabled: true
-    useExtendedDaemonset: true #ignored ATM
+    useDaemonset: true #ignored ATM
     image:
       name: myagent
       tag: mytag
@@ -87,12 +87,12 @@ spec:
     dnsPolicy: None
     dnsConfig:
       nameservers:
-        - ns1
+      - ns1
     hostNetwork: false
     hostPID: true
     env:
-      - name: TEST_VAR_DS
-        value: TEST_VALUE_DS
+    - name: TEST_VAR_DS
+      value: TEST_VALUE_DS
     config:
       ddUrl: custom-agent.com
       logLevel: DEBUG-LL # ignored
@@ -105,17 +105,17 @@ spec:
       podAnnotationsAsTags:
         custom-tag2: custom-tag2
       tags:
-        - hostTag1
-        - hostTag2
+      - hostTag1
+      - hostTag2
       collectEvents: true
       leaderElection: true #ignored
       env:
-        - name: TEST_VAR_CONT
-          value: TEST_VALUE_CONT
+      - name: TEST_VAR_CONT
+        value: TEST_VALUE_CONT
       volumeMounts:
-        - name: agent-volumeMount
+      - name: agent-volumeMount
       volumes:
-        - name: agent-volume
+      - name: agent-volume
       resources:
         limits:
           cpu: 400m
@@ -131,7 +131,7 @@ spec:
         unixDomainSocket:
           enabled: true
       tolerations:
-        - operator: Exists
+      - operator: Exists
       securityContext:
         runAsUser: 0
         seLinuxOptions:
@@ -190,8 +190,8 @@ spec:
       confd:
         configMapName: cluster-agent-confd
         items:
-          - key: test
-            path: test.d/test.yaml
+        - key: test
+          path: test.d/test.yaml
   clusterChecksRunner:
     enabled: true
     image:
@@ -232,12 +232,12 @@ spec:
               values:
               - linux
     tolerations:
-      - operator: Foo
+    - operator: Foo
     nodeSelector:
       nodeName: clc
     networkPolicy:
       create: true
       flavor: kubernetes
       dnsSelectorEndpoints:
-        - matchLabels:
-          component: redis
+      - matchLabels:
+        component: redis

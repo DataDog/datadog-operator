@@ -20,7 +20,7 @@ import (
 // PodTemplateSpec use to override a corev1.PodTemplateSpec with a 2alpha1.DatadogAgentPodTemplateOverride.
 func PodTemplateSpec(manager feature.PodTemplateManagers, override *v2alpha1.DatadogAgentComponentOverride, componentName v2alpha1.ComponentName, ddaName string) {
 	// Note that there are several attributes in v2alpha1.DatadogAgentComponentOverride, like "Replicas" or "Disabled",
-	// that are not related to the pod template spec. The overrides for those attributes are not applied in this function.
+	// that are not related to the  spec. The overrides for those attributes are not applied in this function.
 
 	if override == nil {
 		return

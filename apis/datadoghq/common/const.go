@@ -16,7 +16,7 @@ const (
 	// AgentDeploymentNameLabelKey label key use to link a Resource to a DatadogAgent
 	AgentDeploymentNameLabelKey = "agent.datadoghq.com/name"
 	// AgentDeploymentComponentLabelKey label key use to know with component is it
-	AgentDeploymentComponentLabelKey = "agent.datadoghq.com/component"
+	AgentDeploymentComponentLabelKey = "app.kubernetes.io/component"
 	// MD5AgentDeploymentAnnotationKey annotation key used on a Resource in order to identify which AgentDeployment have been used to generate it.
 	MD5AgentDeploymentAnnotationKey = "agent.datadoghq.com/agentspechash"
 

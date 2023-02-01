@@ -13,7 +13,7 @@ const (
 	// AgentLabelValue label value to define the Agent
 	AgentLabelValue = "agent"
 	// ComponentLabelKey label key used to define the datadog agent component
-	ComponentLabelKey = "agent.datadoghq.com/component"
+	ComponentLabelKey = "app.kubernetes.io/component"
 	// ClcRunnerLabelValue label value to define the Cluster Checks Runner
 	ClcRunnerLabelValue = "cluster-checks-runner"
 )
