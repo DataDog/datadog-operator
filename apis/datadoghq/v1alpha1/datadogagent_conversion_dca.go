@@ -94,7 +94,7 @@ func convertClusterAgentSpec(src *DatadogAgentSpecClusterAgentSpec, dst *v2alpha
 			tmpl.CustomConfigurations = make(map[v2alpha1.AgentConfigFileName]v2alpha1.CustomConfig)
 		}
 
-		tmpl.CustomConfigurations[v2alpha1.AgentGeneralConfigFile] = *convertConfigMapConfig(src.CustomConfig)
+		tmpl.CustomConfigurations[v2alpha1.ClusterAgentConfigFile] = *convertConfigMapConfig(src.CustomConfig)
 	}
 
 	if src.Rbac != nil {

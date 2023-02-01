@@ -749,7 +749,7 @@ const (
 	// SecurityAgentConfigFile is the name of the Security Agent config file
 	SecurityAgentConfigFile AgentConfigFileName = "security-agent.yaml"
 	// ClusterAgentConfigFile is the name of the Cluster Agent config file
-	ClusterAgentConfigFile AgentConfigFileName = "cluster-agent.yaml"
+	ClusterAgentConfigFile AgentConfigFileName = "datadog-cluster.yaml"
 )
 
 // DatadogAgentComponentOverride is the generic description equivalent to a subset of the PodTemplate for a component.
