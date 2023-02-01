@@ -13,6 +13,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -95,8 +96,8 @@ func (f *admissionControllerFeature) ManageDependencies(managers feature.Resourc
 
 	// service
 	selector := map[string]string{
-		apicommon.AgentDeploymentNameLabelKey: f.owner.GetName(),
-		apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultClusterAgentResourceSuffix,
+		apicommon.AgentDeploymentNameLabelKey:     f.owner.GetName(),
+		kubernetes.AppKubernetesComponentLabelKey: apicommon.DefaultClusterAgentResourceSuffix,
 	}
 	port := []corev1.ServicePort{
 		{

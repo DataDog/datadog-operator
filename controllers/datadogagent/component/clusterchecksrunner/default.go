@@ -19,6 +19,7 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 // NewDefaultClusterChecksRunnerDeployment return a new default cluster-checks-runner deployment
@@ -215,7 +216,7 @@ func DefaultAffinity() *corev1.Affinity {
 					PodAffinityTerm: corev1.PodAffinityTerm{
 						LabelSelector: &metav1.LabelSelector{
 							MatchLabels: map[string]string{
-								apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultClusterChecksRunnerResourceSuffix,
+								kubernetes.AppKubernetesComponentLabelKey: apicommon.DefaultClusterChecksRunnerResourceSuffix,
 							},
 						},
 						TopologyKey: "kubernetes.io/hostname",

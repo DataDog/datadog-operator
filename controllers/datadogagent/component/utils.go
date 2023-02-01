@@ -560,8 +560,8 @@ func BuildAgentLocalService(dda metav1.Object, name string) (string, string, map
 	}
 	serviceInternalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
 	selector := map[string]string{
-		apicommon.AgentDeploymentNameLabelKey:      dda.GetName(),
-		apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
+		apicommon.AgentDeploymentNameLabelKey:     dda.GetName(),
+		kubernetes.AppKubernetesComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
 	}
 	ports := []corev1.ServicePort{
 		{

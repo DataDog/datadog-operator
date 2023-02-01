@@ -339,8 +339,8 @@ func newMetricsServerService(dda *datadoghqv1alpha1.DatadogAgent) *corev1.Servic
 		Spec: corev1.ServiceSpec{
 			Type: corev1.ServiceTypeClusterIP,
 			Selector: map[string]string{
-				apicommon.AgentDeploymentNameLabelKey:      dda.Name,
-				apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultClusterAgentResourceSuffix,
+				apicommon.AgentDeploymentNameLabelKey:     dda.Name,
+				kubernetes.AppKubernetesComponentLabelKey: apicommon.DefaultClusterAgentResourceSuffix,
 			},
 			Ports: []corev1.ServicePort{
 				{
@@ -397,8 +397,8 @@ func newAdmissionControllerService(dda *datadoghqv1alpha1.DatadogAgent) *corev1.
 		Spec: corev1.ServiceSpec{
 			Type: corev1.ServiceTypeClusterIP,
 			Selector: map[string]string{
-				apicommon.AgentDeploymentNameLabelKey:      dda.Name,
-				apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultClusterAgentResourceSuffix,
+				apicommon.AgentDeploymentNameLabelKey:     dda.Name,
+				kubernetes.AppKubernetesComponentLabelKey: apicommon.DefaultClusterAgentResourceSuffix,
 			},
 			Ports: []corev1.ServicePort{
 				{
@@ -428,8 +428,8 @@ func newAgentService(dda *datadoghqv1alpha1.DatadogAgent) *corev1.Service {
 		Spec: corev1.ServiceSpec{
 			Type: corev1.ServiceTypeClusterIP,
 			Selector: map[string]string{
-				apicommon.AgentDeploymentNameLabelKey:      dda.Name,
-				apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
+				apicommon.AgentDeploymentNameLabelKey:     dda.Name,
+				kubernetes.AppKubernetesComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
 			},
 			Ports: []corev1.ServicePort{
 				{

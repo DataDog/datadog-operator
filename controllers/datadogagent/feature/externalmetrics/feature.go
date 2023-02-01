@@ -18,6 +18,7 @@ import (
 	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 
 	corev1 "k8s.io/api/core/v1"
@@ -210,8 +211,8 @@ func (f *externalMetricsFeature) ManageDependencies(managers feature.ResourceMan
 		},
 	}
 	selector := map[string]string{
-		apicommon.AgentDeploymentNameLabelKey:      f.owner.GetName(),
-		apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultClusterAgentResourceSuffix,
+		apicommon.AgentDeploymentNameLabelKey:     f.owner.GetName(),
+		kubernetes.AppKubernetesComponentLabelKey: apicommon.DefaultClusterAgentResourceSuffix,
 	}
 	serviceName := componentdca.GetMetricsServerServiceName(f.owner)
 	if err := managers.ServiceManager().AddService(serviceName, ns, selector, emPorts, nil); err != nil {

@@ -18,7 +18,7 @@ import (
 func GetDefaultLabels(dda metav1.Object, instanceName, version string) map[string]string {
 	labels := make(map[string]string)
 	labels[kubernetes.AppKubernetesNameLabelKey] = "datadog-agent-deployment"
-	// labels[kubernetes.AppKubernetesComponentLabelKey] = 
+	// labels[kubernetes.AppKubernetesComponentLabelKey] =
 	labels[kubernetes.AppKubernetesInstanceLabelKey] = instanceName
 	labels[kubernetes.AppKubernetesPartOfLabelKey] = NewPartOfLabelValue(dda).String()
 	labels[kubernetes.AppKubernetesVersionLabelKey] = version

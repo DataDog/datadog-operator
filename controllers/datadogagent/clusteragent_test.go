@@ -14,6 +14,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/orchestrator"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/testutils"
 
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
@@ -1546,7 +1547,7 @@ func Test_PodAntiAffinity(t *testing.T) {
 							PodAffinityTerm: corev1.PodAffinityTerm{
 								LabelSelector: &metav1.LabelSelector{
 									MatchLabels: map[string]string{
-										apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultClusterAgentResourceSuffix,
+										kubernetes.AppKubernetesComponentLabelKey: apicommon.DefaultClusterAgentResourceSuffix,
 									},
 								},
 								TopologyKey: "kubernetes.io/hostname",

@@ -190,8 +190,8 @@ func buildClusterAgentPDBV1(dda *datadoghqv1alpha1.DatadogAgent) *policyv1.PodDi
 		Annotations: annotations,
 	}
 	matchLabels := map[string]string{
-		apicommon.AgentDeploymentNameLabelKey:      dda.Name,
-		apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultClusterAgentResourceSuffix,
+		apicommon.AgentDeploymentNameLabelKey:     dda.Name,
+		kubernetes.AppKubernetesComponentLabelKey: apicommon.DefaultClusterAgentResourceSuffix,
 	}
 
 	return buildPDBV1(metadata, matchLabels, pdbMinAvailableInstances)
@@ -207,8 +207,8 @@ func buildClusterAgentPDBV1Beta1(dda *datadoghqv1alpha1.DatadogAgent) *policyv1b
 		Annotations: annotations,
 	}
 	matchLabels := map[string]string{
-		apicommon.AgentDeploymentNameLabelKey:      dda.Name,
-		apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultClusterAgentResourceSuffix,
+		apicommon.AgentDeploymentNameLabelKey:     dda.Name,
+		kubernetes.AppKubernetesComponentLabelKey: apicommon.DefaultClusterAgentResourceSuffix,
 	}
 
 	return buildPDBV1Beta1(metadata, matchLabels, pdbMinAvailableInstances)
@@ -224,8 +224,8 @@ func buildClusterChecksRunnerPDBV1(dda *datadoghqv1alpha1.DatadogAgent) *policyv
 		Annotations: annotations,
 	}
 	matchLabels := map[string]string{
-		apicommon.AgentDeploymentNameLabelKey:      dda.Name,
-		apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultClusterChecksRunnerResourceSuffix,
+		apicommon.AgentDeploymentNameLabelKey:     dda.Name,
+		kubernetes.AppKubernetesComponentLabelKey: apicommon.DefaultClusterChecksRunnerResourceSuffix,
 	}
 
 	return buildPDBV1(metadata, matchLabels, pdbMinAvailableInstances)
@@ -241,8 +241,8 @@ func buildClusterChecksRunnerPDBV1Beta1(dda *datadoghqv1alpha1.DatadogAgent) *po
 		Annotations: annotations,
 	}
 	matchLabels := map[string]string{
-		apicommon.AgentDeploymentNameLabelKey:      dda.Name,
-		apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultClusterChecksRunnerResourceSuffix,
+		apicommon.AgentDeploymentNameLabelKey:     dda.Name,
+		kubernetes.AppKubernetesComponentLabelKey: apicommon.DefaultClusterChecksRunnerResourceSuffix,
 	}
 
 	return buildPDBV1Beta1(metadata, matchLabels, pdbMinAvailableInstances)

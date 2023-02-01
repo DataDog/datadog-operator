@@ -103,7 +103,7 @@ func getDefaultMetadata(owner metav1.Object, componentKind, componentName, versi
 	} else {
 		selector = &metav1.LabelSelector{
 			MatchLabels: map[string]string{
-				apicommon.AgentDeploymentNameLabelKey:      owner.GetName(),
+				apicommon.AgentDeploymentNameLabelKey:     owner.GetName(),
 				kubernetes.AppKubernetesComponentLabelKey: componentKind,
 			},
 		}

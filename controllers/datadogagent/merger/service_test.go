@@ -27,8 +27,8 @@ func TestServiceManager_AddService(t *testing.T) {
 	portNumber2 := 2222
 	serviceInternalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
 	selector := map[string]string{
-		apicommon.AgentDeploymentNameLabelKey:      name1,
-		apicommon.AgentDeploymentComponentLabelKey: ns,
+		apicommon.AgentDeploymentNameLabelKey:     name1,
+		kubernetes.AppKubernetesComponentLabelKey: ns,
 	}
 	ports1 := []corev1.ServicePort{
 		{

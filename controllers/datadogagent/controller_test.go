@@ -1044,8 +1044,8 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						Spec: &corev1.ServiceSpec{
 							Type: corev1.ServiceTypeClusterIP,
 							Selector: map[string]string{
-								apicommon.AgentDeploymentNameLabelKey:      resourcesName,
-								apicommon.AgentDeploymentComponentLabelKey: "cluster-agent",
+								apicommon.AgentDeploymentNameLabelKey:     resourcesName,
+								kubernetes.AppKubernetesComponentLabelKey: "cluster-agent",
 							},
 							Ports: []corev1.ServicePort{
 								{
@@ -1094,8 +1094,8 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						Spec: &corev1.ServiceSpec{
 							Type: corev1.ServiceTypeClusterIP,
 							Selector: map[string]string{
-								apicommon.AgentDeploymentNameLabelKey:      resourcesName,
-								apicommon.AgentDeploymentComponentLabelKey: "cluster-agent",
+								apicommon.AgentDeploymentNameLabelKey:     resourcesName,
+								kubernetes.AppKubernetesComponentLabelKey: "cluster-agent",
 							},
 							Ports: []corev1.ServicePort{
 								{
@@ -1183,8 +1183,8 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						Spec: &corev1.ServiceSpec{
 							Type: corev1.ServiceTypeClusterIP,
 							Selector: map[string]string{
-								apicommon.AgentDeploymentNameLabelKey:      resourcesName,
-								apicommon.AgentDeploymentComponentLabelKey: "cluster-agent",
+								apicommon.AgentDeploymentNameLabelKey:     resourcesName,
+								kubernetes.AppKubernetesComponentLabelKey: "cluster-agent",
 							},
 							Ports: []corev1.ServicePort{
 								{
@@ -1242,8 +1242,8 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						Spec: &corev1.ServiceSpec{
 							Type: corev1.ServiceTypeClusterIP,
 							Selector: map[string]string{
-								apicommon.AgentDeploymentNameLabelKey:      resourcesName,
-								apicommon.AgentDeploymentComponentLabelKey: "cluster-agent",
+								apicommon.AgentDeploymentNameLabelKey:     resourcesName,
+								kubernetes.AppKubernetesComponentLabelKey: "cluster-agent",
 							},
 							Ports: []corev1.ServicePort{
 								{
@@ -1302,8 +1302,8 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						Spec: &corev1.ServiceSpec{
 							Type: corev1.ServiceTypeClusterIP,
 							Selector: map[string]string{
-								apicommon.AgentDeploymentNameLabelKey:      resourcesName,
-								apicommon.AgentDeploymentComponentLabelKey: "cluster-agent",
+								apicommon.AgentDeploymentNameLabelKey:     resourcesName,
+								kubernetes.AppKubernetesComponentLabelKey: "cluster-agent",
 							},
 							Ports: []corev1.ServicePort{
 								{
@@ -1368,8 +1368,8 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						Spec: &corev1.ServiceSpec{
 							Type: corev1.ServiceTypeClusterIP,
 							Selector: map[string]string{
-								apicommon.AgentDeploymentNameLabelKey:      resourcesName,
-								apicommon.AgentDeploymentComponentLabelKey: "cluster-agent",
+								apicommon.AgentDeploymentNameLabelKey:     resourcesName,
+								kubernetes.AppKubernetesComponentLabelKey: "cluster-agent",
 							},
 							Ports: []corev1.ServicePort{
 								{
@@ -1429,8 +1429,8 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						Spec: &corev1.ServiceSpec{
 							Type: corev1.ServiceTypeClusterIP,
 							Selector: map[string]string{
-								apicommon.AgentDeploymentNameLabelKey:      resourcesName,
-								apicommon.AgentDeploymentComponentLabelKey: "cluster-agent",
+								apicommon.AgentDeploymentNameLabelKey:     resourcesName,
+								kubernetes.AppKubernetesComponentLabelKey: "cluster-agent",
 							},
 							Ports: []corev1.ServicePort{
 								{
@@ -1446,8 +1446,8 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						Spec: &corev1.ServiceSpec{
 							Type: corev1.ServiceTypeClusterIP,
 							Selector: map[string]string{
-								apicommon.AgentDeploymentNameLabelKey:      resourcesName,
-								apicommon.AgentDeploymentComponentLabelKey: "cluster-agent",
+								apicommon.AgentDeploymentNameLabelKey:     resourcesName,
+								kubernetes.AppKubernetesComponentLabelKey: "cluster-agent",
 							},
 							Ports: []corev1.ServicePort{
 								{
@@ -1518,8 +1518,8 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						Spec: &corev1.ServiceSpec{
 							Type: corev1.ServiceTypeClusterIP,
 							Selector: map[string]string{
-								apicommon.AgentDeploymentNameLabelKey:      resourcesName,
-								apicommon.AgentDeploymentComponentLabelKey: "cluster-agent",
+								apicommon.AgentDeploymentNameLabelKey:     resourcesName,
+								kubernetes.AppKubernetesComponentLabelKey: "cluster-agent",
 							},
 							Ports: []corev1.ServicePort{
 								{
@@ -1582,8 +1582,8 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						Spec: &corev1.ServiceSpec{
 							Type: corev1.ServiceTypeClusterIP,
 							Selector: map[string]string{
-								apicommon.AgentDeploymentNameLabelKey:      resourcesName,
-								apicommon.AgentDeploymentComponentLabelKey: "cluster-agent",
+								apicommon.AgentDeploymentNameLabelKey:     resourcesName,
+								kubernetes.AppKubernetesComponentLabelKey: "cluster-agent",
 							},
 							Ports: []corev1.ServicePort{
 								{
@@ -1662,8 +1662,8 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						Spec: &corev1.ServiceSpec{
 							Type: corev1.ServiceTypeClusterIP,
 							Selector: map[string]string{
-								apicommon.AgentDeploymentNameLabelKey:      resourcesName,
-								apicommon.AgentDeploymentComponentLabelKey: "cluster-agent",
+								apicommon.AgentDeploymentNameLabelKey:     resourcesName,
+								kubernetes.AppKubernetesComponentLabelKey: "cluster-agent",
 							},
 							Ports: []corev1.ServicePort{
 								{
@@ -1682,8 +1682,8 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 						Spec: &corev1.ServiceSpec{
 							Type: corev1.ServiceTypeClusterIP,
 							Selector: map[string]string{
-								apicommon.AgentDeploymentNameLabelKey:      resourcesName,
-								apicommon.AgentDeploymentComponentLabelKey: "cluster-agent",
+								apicommon.AgentDeploymentNameLabelKey:     resourcesName,
+								kubernetes.AppKubernetesComponentLabelKey: "cluster-agent",
 							},
 							Ports: []corev1.ServicePort{
 								{
@@ -3043,8 +3043,8 @@ func createClusterAgentDependencies(c client.Client, dda *datadoghqv1alpha1.Data
 		Spec: &corev1.ServiceSpec{
 			Type: corev1.ServiceTypeClusterIP,
 			Selector: map[string]string{
-				apicommon.AgentDeploymentNameLabelKey:      resourcesName,
-				apicommon.AgentDeploymentComponentLabelKey: "cluster-agent",
+				apicommon.AgentDeploymentNameLabelKey:     resourcesName,
+				kubernetes.AppKubernetesComponentLabelKey: "cluster-agent",
 			},
 			Ports: []corev1.ServicePort{
 				{

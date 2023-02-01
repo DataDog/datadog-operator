@@ -516,7 +516,7 @@ func getPodAffinity(affinity *corev1.Affinity) *corev1.Affinity {
 					PodAffinityTerm: corev1.PodAffinityTerm{
 						LabelSelector: &metav1.LabelSelector{
 							MatchLabels: map[string]string{
-								apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultClusterChecksRunnerResourceSuffix,
+								kubernetes.AppKubernetesComponentLabelKey: apicommon.DefaultClusterChecksRunnerResourceSuffix,
 							},
 						},
 						TopologyKey: "kubernetes.io/hostname",

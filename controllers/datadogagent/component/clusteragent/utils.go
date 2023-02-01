@@ -12,6 +12,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -55,8 +56,8 @@ func GetClusterAgentService(dda metav1.Object) *corev1.Service {
 		Spec: corev1.ServiceSpec{
 			Type: corev1.ServiceTypeClusterIP,
 			Selector: map[string]string{
-				apicommon.AgentDeploymentNameLabelKey:      dda.GetName(),
-				apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultClusterAgentResourceSuffix,
+				apicommon.AgentDeploymentNameLabelKey:     dda.GetName(),
+				kubernetes.AppKubernetesComponentLabelKey: apicommon.DefaultClusterAgentResourceSuffix,
 			},
 			Ports: []corev1.ServicePort{
 				{

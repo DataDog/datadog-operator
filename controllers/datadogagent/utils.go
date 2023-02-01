@@ -26,6 +26,7 @@ import (
 	objectvolume "github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/orchestrator"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	"github.com/go-logr/logr"
 	"github.com/gobwas/glob"
@@ -57,7 +58,7 @@ func newAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent
 	// copy Agent Spec to configure Agent Pod Template
 	labels := object.GetDefaultLabels(dda, "agent", getAgentVersion(dda))
 	labels[apicommon.AgentDeploymentNameLabelKey] = dda.Name
-	labels[apicommon.AgentDeploymentComponentLabelKey] = "agent"
+	labels[kubernetes.AppKubernetesComponentLabelKey] = "agent"
 
 	for key, val := range dda.Spec.Agent.AdditionalLabels {
 		labels[key] = val
