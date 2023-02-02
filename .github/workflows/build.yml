@@ -1,4 +1,4 @@
-name: build
+name: Build
 
 on:
   push:
@@ -19,7 +19,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.18
+          go-version: 1.19
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v3
         with:
@@ -37,7 +37,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.17
+          go-version: 1.19
       - name: Build
         uses: goreleaser/goreleaser-action@v3
         with:
@@ -54,7 +54,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.17
+          go-version: 1.19
       - name: Build
         uses: goreleaser/goreleaser-action@v3
         with:
