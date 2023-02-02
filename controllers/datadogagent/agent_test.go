@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	test "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
@@ -875,6 +876,10 @@ func defaultEnvVars(extraEnv map[string]string) []corev1.EnvVar {
 			Name:      "DD_API_KEY",
 			ValueFrom: apiKeyValue(),
 		},
+		{
+			Name:  v1alpha1.DDAuthTokenFilePath,
+			Value: "/etc/datadog-agent/auth/token",
+		},
 	}
 
 	if ddSite := createEnvFromExtra(extraEnv, "DD_SITE"); ddSite != nil {
@@ -928,6 +933,10 @@ func defaultAPMContainerEnvVars() []corev1.EnvVar {
 		{
 			Name:  "DD_DOGSTATSD_SOCKET",
 			Value: "/var/run/datadog/statsd/statsd.sock",
+		},
+		{
+			Name:  v1alpha1.DDAuthTokenFilePath,
+			Value: "/etc/datadog-agent/auth/token",
 		},
 	}
 }
@@ -993,6 +1002,10 @@ func defaultSystemProbeEnvVars() []corev1.EnvVar {
 		{
 			Name:  datadoghqv1alpha1.DDSystemProbeOOMKillEnabled,
 			Value: "false",
+		},
+		{
+			Name:  v1alpha1.DDAuthTokenFilePath,
+			Value: "/etc/datadog-agent/auth/token",
 		},
 	}
 }
@@ -1063,6 +1076,10 @@ func securityAgentEnvVars(compliance, runtime bool, policiesdir bool, extraEnv m
 		{
 			Name:      "DD_API_KEY",
 			ValueFrom: apiKeyValue(),
+		},
+		{
+			Name:  v1alpha1.DDAuthTokenFilePath,
+			Value: "/etc/datadog-agent/auth/token",
 		},
 	}...)
 
@@ -1257,7 +1274,7 @@ func defaultSystemProbePodSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1.PodSp
 				},
 				SecurityContext: &corev1.SecurityContext{
 					Capabilities: &corev1.Capabilities{
-						Add: []corev1.Capability{"SYS_ADMIN", "SYS_RESOURCE", "SYS_PTRACE", "NET_ADMIN", "NET_BROADCAST", "NET_RAW", "IPC_LOCK", "CHOWN"},
+						Add: []corev1.Capability{"SYS_ADMIN", "SYS_RESOURCE", "SYS_PTRACE", "NET_ADMIN", "NET_BROADCAST", "NET_RAW", "IPC_LOCK", "CHOWN", "DAC_READ_SEARCH"},
 					},
 					RunAsUser: apiutils.NewInt64Pointer(0),
 				},
@@ -1369,7 +1386,7 @@ func noSeccompInstallSystemProbeSpec(dda *datadoghqv1alpha1.DatadogAgent) corev1
 				},
 				SecurityContext: &corev1.SecurityContext{
 					Capabilities: &corev1.Capabilities{
-						Add: []corev1.Capability{"SYS_ADMIN", "SYS_RESOURCE", "SYS_PTRACE", "NET_ADMIN", "NET_BROADCAST", "NET_RAW", "IPC_LOCK", "CHOWN"},
+						Add: []corev1.Capability{"SYS_ADMIN", "SYS_RESOURCE", "SYS_PTRACE", "NET_ADMIN", "NET_BROADCAST", "NET_RAW", "IPC_LOCK", "CHOWN", "DAC_READ_SEARCH"},
 					},
 					RunAsUser: apiutils.NewInt64Pointer(0),
 				},
@@ -1576,6 +1593,10 @@ func defaultOrchestratorEnvVars(dda *datadoghqv1alpha1.DatadogAgent) []corev1.En
 			Name:      "DD_API_KEY",
 			ValueFrom: apiKeyValue(),
 		},
+		{
+			Name:  v1alpha1.DDAuthTokenFilePath,
+			Value: "/etc/datadog-agent/auth/token",
+		},
 	}
 	orchestratorEnvs, _ := orchestrator.EnvVars(&explorerConfig)
 	newVars = append(newVars, orchestratorEnvs...)
@@ -1731,7 +1752,7 @@ func runtimeSecurityAgentPodSpec(extraEnv map[string]string, extraDir string) co
 				},
 				SecurityContext: &corev1.SecurityContext{
 					Capabilities: &corev1.Capabilities{
-						Add: []corev1.Capability{"SYS_ADMIN", "SYS_RESOURCE", "SYS_PTRACE", "NET_ADMIN", "NET_BROADCAST", "NET_RAW", "IPC_LOCK", "CHOWN"},
+						Add: []corev1.Capability{"SYS_ADMIN", "SYS_RESOURCE", "SYS_PTRACE", "NET_ADMIN", "NET_BROADCAST", "NET_RAW", "IPC_LOCK", "CHOWN", "DAC_READ_SEARCH"},
 					},
 					RunAsUser: apiutils.NewInt64Pointer(0),
 				},
@@ -1940,6 +1961,10 @@ func customKubeletConfigPodSpec(kubeletConfig *datadoghqv1alpha1.KubeletConfig) 
 		{
 			Name:  "DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME",
 			Value: "foo-cluster-agent",
+		},
+		{
+			Name:  v1alpha1.DDAuthTokenFilePath,
+			Value: "/etc/datadog-agent/auth/token",
 		},
 	}
 

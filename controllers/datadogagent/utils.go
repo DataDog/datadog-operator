@@ -416,6 +416,7 @@ func getSystemProbeContainers(dda *datadoghqv1alpha1.DatadogAgent, image string)
 					"NET_RAW",
 					"IPC_LOCK",
 					"CHOWN",
+					"DAC_READ_SEARCH",
 				},
 			},
 			// Force root user for when the agent Dockerfile will be updated to use a non-root user by default
@@ -690,10 +691,6 @@ func getEnvVarsForSystemProbe(dda *datadoghqv1alpha1.DatadogAgent) ([]corev1.Env
 				Name:  datadoghqv1alpha1.DDRuntimeSecurityConfigPoliciesDir,
 				Value: datadoghqv1alpha1.SecurityAgentRuntimePoliciesDirVolumePath,
 			},
-			corev1.EnvVar{
-				Name:  datadoghqv1alpha1.DDAuthTokenFilePath,
-				Value: filepath.Join(datadoghqv1alpha1.AuthVolumePath, "token"),
-			},
 		)
 	}
 
@@ -710,6 +707,10 @@ func getEnvVarsCommon(dda *datadoghqv1alpha1.DatadogAgent, needAPIKey bool) ([]c
 		{
 			Name:  datadoghqv1alpha1.KubernetesEnvvarName,
 			Value: "yes",
+		},
+		{
+			Name:  datadoghqv1alpha1.DDAuthTokenFilePath,
+			Value: filepath.Join(datadoghqv1alpha1.AuthVolumePath, "token"),
 		},
 	}
 
