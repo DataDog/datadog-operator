@@ -525,16 +525,17 @@ func (mf *metricsForwarder) tagsWithExtraTag(tagFormat, tag string) []string {
 func (mf *metricsForwarder) getCRVersionTags() []string {
 	ddaPreferredVersion, ddaOtherVersion := mf.platformInfo.GetApiVersions(mf.monitoredObjectKind)
 
+	versionTags := []string{}
+
 	if ddaPreferredVersion == "" {
+		// This should never happen, since forwarder is created for an object created by Kubernetes, implying support for that API.
 		ddaPreferredVersion = "null"
 	}
-	if ddaOtherVersion == "" {
-		ddaOtherVersion = "null"
+	versionTags = append(versionTags, fmt.Sprintf(crPreferredVersionTagFormat, ddaPreferredVersion))
+	if ddaOtherVersion != "" {
+		versionTags = append(versionTags, fmt.Sprintf(crOtherVersionTagFormat, ddaOtherVersion))
 	}
-	return []string{
-		fmt.Sprintf(crPreferredVersionTagFormat, ddaPreferredVersion),
-		fmt.Sprintf(crOtherVersionTagFormat, ddaOtherVersion),
-	}
+	return versionTags
 }
 
 // sendDeploymentMetric is a generic method used to forward component deployment metrics to Datadog

@@ -1020,9 +1020,7 @@ func TestMetricsForwarder_setTags(t *testing.T) {
 func Test_metricsForwarder_processReconcileError(t *testing.T) {
 	platformInfo := kubernetes.NewPlatformInfoFromVersionMaps(
 		nil,
-		map[string]string{
-			"DatadogAgent": "v1",
-		},
+		map[string]string{},
 		map[string]string{},
 	)
 
@@ -1048,7 +1046,7 @@ func Test_metricsForwarder_processReconcileError(t *testing.T) {
 			name: "last error init value, new unknown error => send unsucess metric",
 			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
-				f.On("delegatedSendReconcileMetric", 0.0, []string{"cr_namespace:foo", "cr_name:bar", "reconcile_err:err_msg", "cr_preferred_version:v1", "cr_other_version:null"}).Once()
+				f.On("delegatedSendReconcileMetric", 0.0, []string{"cr_namespace:foo", "cr_name:bar", "reconcile_err:err_msg", "cr_preferred_version:null"}).Once()
 				mf.delegator = f
 				mf.lastReconcileErr = errInitValue
 				return mf, f
@@ -1064,7 +1062,7 @@ func Test_metricsForwarder_processReconcileError(t *testing.T) {
 			name: "last error init value, new auth error => send unsucess metric",
 			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
-				f.On("delegatedSendReconcileMetric", 0.0, []string{"cr_namespace:foo", "cr_name:bar", "reconcile_err:Unauthorized", "cr_preferred_version:v1", "cr_other_version:null"}).Once()
+				f.On("delegatedSendReconcileMetric", 0.0, []string{"cr_namespace:foo", "cr_name:bar", "reconcile_err:Unauthorized", "cr_preferred_version:null"}).Once()
 				mf.delegator = f
 				mf.lastReconcileErr = errInitValue
 				return mf, f
@@ -1080,7 +1078,7 @@ func Test_metricsForwarder_processReconcileError(t *testing.T) {
 			name: "last error init value, new error is nil => send success metric",
 			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
 				f := &fakeMetricsForwarder{}
-				f.On("delegatedSendReconcileMetric", 1.0, []string{"cr_namespace:foo", "cr_name:bar", "reconcile_err:null", "cr_preferred_version:v1", "cr_other_version:null"}).Once()
+				f.On("delegatedSendReconcileMetric", 1.0, []string{"cr_namespace:foo", "cr_name:bar", "reconcile_err:null", "cr_preferred_version:null"}).Once()
 				mf.delegator = f
 				mf.lastReconcileErr = errInitValue
 				return mf, f
