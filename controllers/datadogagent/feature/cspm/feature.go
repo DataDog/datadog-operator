@@ -9,21 +9,23 @@ import (
 	"fmt"
 	"strconv"
 
-	securityv1 "github.com/openshift/api/security/v1"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
+	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
+	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/configmap"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
-
-	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
-	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/configmap"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+
+	"github.com/go-logr/logr"
+	securityv1 "github.com/openshift/api/security/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func init() {
@@ -36,6 +38,10 @@ func init() {
 func buildCSPMFeature(options *feature.Options) feature.Feature {
 	cspmFeat := &cspmFeature{}
 
+	if options != nil {
+		cspmFeat.logger = options.Logger
+	}
+
 	return cspmFeat
 }
 
@@ -43,12 +49,16 @@ type cspmFeature struct {
 	enable             bool
 	serviceAccountName string
 	checkInterval      string
-	customConfig       *apicommonv1.CustomConfig
-	configMapName      string
 	createSCC          bool
 	createPSP          bool
 
-	owner metav1.Object
+	owner  metav1.Object
+	logger logr.Logger
+
+	customConfig                *apicommonv1.CustomConfig
+	configMapName               string
+	customConfigAnnotationKey   string
+	customConfigAnnotationValue string
 }
 
 // ID returns the ID of the Feature
@@ -70,6 +80,12 @@ func (f *cspmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 
 		if dda.Spec.Features.CSPM.CustomBenchmarks != nil {
 			f.customConfig = v2alpha1.ConvertCustomConfig(dda.Spec.Features.CSPM.CustomBenchmarks)
+			hash, err := comparison.GenerateMD5ForSpec(f.customConfig)
+			if err != nil {
+				f.logger.Error(err, "couldn't generate hash for cspm custom benchmarks config")
+			}
+			f.customConfigAnnotationValue = hash
+			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.CSPMIDType)
 		}
 		f.configMapName = apicommonv1.GetConfName(dda, f.customConfig, apicommon.DefaultCSPMConf)
 
@@ -105,6 +121,12 @@ func (f *cspmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.R
 		if dda.Spec.Agent.Security.Compliance.ConfigDir != nil {
 			f.configMapName = dda.Spec.Agent.Security.Compliance.ConfigDir.ConfigMapName
 			f.customConfig = v1alpha1.ConvertConfigDirSpecToCustomConfig(dda.Spec.Agent.Security.Compliance.ConfigDir)
+			hash, err := comparison.GenerateMD5ForSpec(f.customConfig)
+			if err != nil {
+				f.logger.Error(err, "couldn't generate hash for cspm custom benchmarks config")
+			}
+			f.customConfigAnnotationValue = hash
+			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.CSPMIDType)
 		}
 
 		reqComp = feature.RequiredComponents{
@@ -130,7 +152,14 @@ func (f *cspmFeature) ManageDependencies(managers feature.ResourceManagers, comp
 		if err != nil {
 			return err
 		}
+
 		if cm != nil {
+			// Add md5 hash annotation for custom config
+			if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
+				annotations := object.MergeAnnotationsLabels(f.logger, cm.GetAnnotations(), map[string]string{f.customConfigAnnotationKey: f.customConfigAnnotationValue}, "")
+				cm.SetAnnotations(annotations)
+			}
+
 			if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, cm); err != nil {
 				return err
 			}
@@ -169,6 +198,11 @@ func (f *cspmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) e
 	if f.customConfig != nil {
 		var vol corev1.Volume
 		var volMount corev1.VolumeMount
+
+		if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
+			managers.Annotation().AddAnnotation(f.customConfigAnnotationKey, f.customConfigAnnotationValue)
+		}
+
 		if f.customConfig.ConfigMap != nil {
 			// Custom config is referenced via ConfigMap
 			// Cannot use standard GetVolumesFromConfigMap because security features are not under /conf.d
@@ -235,6 +269,11 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) erro
 	if f.customConfig != nil {
 		var vol corev1.Volume
 		var volMount corev1.VolumeMount
+
+		if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
+			managers.Annotation().AddAnnotation(f.customConfigAnnotationKey, f.customConfigAnnotationValue)
+		}
+
 		if f.customConfig.ConfigMap != nil {
 			// Custom config is referenced via ConfigMap
 			// Cannot use typical GetVolumesFromConfigMap because security features are not under /conf.d

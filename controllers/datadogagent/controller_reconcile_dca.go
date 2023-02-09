@@ -63,7 +63,7 @@ func (r *Reconciler) reconcileV2ClusterAgent(logger logr.Logger, requiredCompone
 			}
 			return r.cleanupV2ClusterAgent(deploymentLogger, dda, deployment, resourcesManager, newStatus)
 		}
-		override.PodTemplateSpec(podManagers, componentOverride, datadoghqv2alpha1.ClusterAgentComponentName, dda.Name)
+		override.PodTemplateSpec(logger, podManagers, componentOverride, datadoghqv2alpha1.ClusterAgentComponentName, dda.Name)
 		override.Deployment(deployment, componentOverride)
 	} else if !requiredEnabled {
 		// If the override is not defined, then disable based on requiredEnabled value

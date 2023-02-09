@@ -6,9 +6,12 @@
 package object
 
 import (
+	"fmt"
 	"strings"
 
+	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+
 	"github.com/go-logr/logr"
 	"github.com/gobwas/glob"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -65,4 +68,12 @@ func MergeAnnotationsLabels(logger logr.Logger, previousVal map[string]string, n
 	}
 
 	return mergedMap
+}
+
+func GetChecksumAnnotationKey(keyName string) string {
+	if keyName == "" {
+		return ""
+	}
+
+	return fmt.Sprintf(apicommon.MD5ChecksumAnnotationKey, keyName)
 }

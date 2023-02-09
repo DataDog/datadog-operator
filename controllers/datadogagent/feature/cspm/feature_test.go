@@ -6,6 +6,7 @@
 package cspm
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -20,9 +21,22 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/test"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 )
+
+var customConfig = &apicommonv1.CustomConfig{
+	ConfigMap: &apicommonv1.ConfigMapConfig{
+		Name: "custom_test",
+		Items: []corev1.KeyToPath{
+			{
+				Key:  "key1",
+				Path: "some/path",
+			},
+		},
+	},
+}
 
 func Test_cspmFeature_Configure(t *testing.T) {
 	ddav1CSPMDisabled := v1alpha1.DatadogAgent{
@@ -121,6 +135,15 @@ func Test_cspmFeature_Configure(t *testing.T) {
 		}
 		volumes := mgr.VolumeMgr.Volumes
 		assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Cluster Agent volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))
+
+		// check annotations
+		hash, err := comparison.GenerateMD5ForSpec(customConfig)
+		assert.NoError(t, err)
+		wantAnnotations := map[string]string{
+			fmt.Sprintf(apicommon.MD5ChecksumAnnotationKey, feature.CSPMIDType): hash,
+		}
+		annotations := mgr.AnnotationMgr.Annotations
+		assert.True(t, apiutils.IsEqualStruct(annotations, wantAnnotations), "Annotations \ndiff = %s", cmp.Diff(annotations, wantAnnotations))
 	}
 
 	cspmAgentNodeWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
@@ -243,6 +266,15 @@ func Test_cspmFeature_Configure(t *testing.T) {
 
 		volumes := mgr.VolumeMgr.Volumes
 		assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))
+
+		// check annotations
+		hash, err := comparison.GenerateMD5ForSpec(customConfig)
+		assert.NoError(t, err)
+		wantAnnotations := map[string]string{
+			fmt.Sprintf(apicommon.MD5ChecksumAnnotationKey, feature.CSPMIDType): hash,
+		}
+		annotations := mgr.AnnotationMgr.Annotations
+		assert.True(t, apiutils.IsEqualStruct(annotations, wantAnnotations), "Annotations \ndiff = %s", cmp.Diff(annotations, wantAnnotations))
 	}
 
 	tests := test.FeatureTestSuite{
