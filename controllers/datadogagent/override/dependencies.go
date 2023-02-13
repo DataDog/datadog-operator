@@ -6,6 +6,9 @@
 package override
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/go-logr/logr"
 
 	securityv1 "github.com/openshift/api/security/v1"
@@ -36,10 +39,12 @@ func Dependencies(logger logr.Logger, manager feature.ResourceManagers, dda *v2a
 		errs = append(errs, overrideCustomConfigs(manager, override.CustomConfigurations, dda.Name, namespace)...)
 
 		// Handle custom check configurations
-		errs = append(errs, overrideExtraConfigs(manager, override.ExtraConfd, namespace, v2alpha1.ExtraConfdConfigMapName, true)...)
+		confdCMName := fmt.Sprintf(v2alpha1.ExtraConfdConfigMapName, strings.ToLower((string(component))))
+		errs = append(errs, overrideExtraConfigs(manager, override.ExtraConfd, namespace, confdCMName, true)...)
 
 		// Handle custom check files
-		errs = append(errs, overrideExtraConfigs(manager, override.ExtraChecksd, namespace, v2alpha1.ExtraChecksdConfigMapName, false)...)
+		checksdCMName := fmt.Sprintf(v2alpha1.ExtraChecksdConfigMapName, strings.ToLower((string(component))))
+		errs = append(errs, overrideExtraConfigs(manager, override.ExtraChecksd, namespace, checksdCMName, false)...)
 
 		// Handle scc
 		errs = append(errs, overrideSCC(manager, dda)...)

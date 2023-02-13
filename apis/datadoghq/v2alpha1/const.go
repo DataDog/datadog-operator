@@ -14,7 +14,7 @@ const (
 	DatadogAgentReconcileErrorConditionType = "DatadogAgentReconcileError"
 
 	// ExtraConfdConfigMapName is the name of the ConfigMap storing Custom Confd data
-	ExtraConfdConfigMapName = "datadog-extra-confd"
+	ExtraConfdConfigMapName = "%s-extra-confd"
 	// ExtraChecksdConfigMapName is the name of the ConfigMap storing Custom Checksd data
-	ExtraChecksdConfigMapName = "datadog-extra-checksd"
+	ExtraChecksdConfigMapName = "%s-extra-checksd"
 )

@@ -6,6 +6,7 @@
 package override
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 
@@ -53,13 +54,15 @@ func PodTemplateSpec(manager feature.PodTemplateManagers, override *v2alpha1.Dat
 	// defined in the init container; just overwrite the Volume to mount the ConfigMap instead of an EmptyDir.
 	// If both ConfigMap and ConfigData exist, ConfigMap has higher priority.
 	if override.ExtraConfd != nil {
-		vol := volume.GetVolumeFromMultiCustomConfig(override.ExtraConfd, apicommon.ConfdVolumeName, v2alpha1.ExtraConfdConfigMapName)
+		cmName := fmt.Sprintf(v2alpha1.ExtraConfdConfigMapName, strings.ToLower((string(componentName))))
+		vol := volume.GetVolumeFromMultiCustomConfig(override.ExtraConfd, apicommon.ConfdVolumeName, cmName)
 		manager.Volume().AddVolume(&vol)
 	}
 
 	// If both ConfigMap and ConfigData exist, ConfigMap has higher priority.
 	if override.ExtraChecksd != nil {
-		vol := volume.GetVolumeFromMultiCustomConfig(override.ExtraChecksd, apicommon.ChecksdVolumeName, v2alpha1.ExtraChecksdConfigMapName)
+		cmName := fmt.Sprintf(v2alpha1.ExtraChecksdConfigMapName, strings.ToLower((string(componentName))))
+		vol := volume.GetVolumeFromMultiCustomConfig(override.ExtraChecksd, apicommon.ChecksdVolumeName, cmName)
 		manager.Volume().AddVolume(&vol)
 	}
 
