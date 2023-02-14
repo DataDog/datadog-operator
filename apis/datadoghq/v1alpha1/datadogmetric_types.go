@@ -20,6 +20,9 @@ type DatadogMetricSpec struct {
 	// `external_metrics_provider.max_age`)
 	// +optional
 	MaxAge metav1.Duration `json:"maxAge,omitempty"`
+	// TimeWindow provides the time window for the metric query
+	// +optional
+	TimeWindow metav1.Duration `json:"timeWindow,omitempty"`
 }
 
 // DatadogMetricStatus defines the observed state of DatadogMetric
