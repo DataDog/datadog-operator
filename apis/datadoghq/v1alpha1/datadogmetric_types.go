@@ -20,7 +20,7 @@ type DatadogMetricSpec struct {
 	// `external_metrics_provider.max_age`)
 	// +optional
 	MaxAge metav1.Duration `json:"maxAge,omitempty"`
-	// TimeWindow provides the time window for the metric query
+	// TimeWindow provides the time window for the metric query, defaults to MaxAge.
 	// +optional
 	TimeWindow metav1.Duration `json:"timeWindow,omitempty"`
 }
