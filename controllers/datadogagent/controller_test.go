@@ -3068,7 +3068,7 @@ func createClusterAgentDependencies(c client.Client, dda *datadoghqv1alpha1.Data
 // the metricForwardersManager logic is tested in the util/datadog package
 type dummyManager struct{}
 
-func (dummyManager) Register(datadog.MonitoredObject) {
+func (dummyManager) Register(client.Object) {
 }
 
 func (dummyManager) Unregister(datadog.MonitoredObject) {
