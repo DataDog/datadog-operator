@@ -108,46 +108,46 @@ func ApplyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 		}
 	}
 
+	// Tags contains a list of tags to attach to every metric, event and service check collected.
+	if config.Tags != nil {
+		tags, err := json.Marshal(config.Tags)
+		if err != nil {
+			logger.Error(err, "Failed to unmarshal json input")
+		} else {
+			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+				Name:  apicommon.DDTags,
+				Value: string(tags),
+			})
+		}
+	}
+
+	// Provide a mapping of Kubernetes Labels to Datadog Tags.
+	if config.PodLabelsAsTags != nil {
+		podLabelsAsTags, err := json.Marshal(config.PodLabelsAsTags)
+		if err != nil {
+			logger.Error(err, "Failed to unmarshal json input")
+		} else {
+			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+				Name:  apicommon.DDPodLabelsAsTags,
+				Value: string(podLabelsAsTags),
+			})
+		}
+	}
+
+	// Provide a mapping of Kubernetes Annotations to Datadog Tags.
+	if config.PodAnnotationsAsTags != nil {
+		podAnnotationsAsTags, err := json.Marshal(config.PodAnnotationsAsTags)
+		if err != nil {
+			logger.Error(err, "Failed to unmarshal json input")
+		} else {
+			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+				Name:  apicommon.DDPodAnnotationsAsTags,
+				Value: string(podAnnotationsAsTags),
+			})
+		}
+	}
+
 	if componentName == v2alpha1.NodeAgentComponentName {
-		// Tags contains a list of tags to attach to every metric, event and service check collected.
-		if config.Tags != nil {
-			tags, err := json.Marshal(config.Tags)
-			if err != nil {
-				logger.Error(err, "Failed to unmarshal json input")
-			} else {
-				manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-					Name:  apicommon.DDTags,
-					Value: string(tags),
-				})
-			}
-		}
-
-		// Provide a mapping of Kubernetes Labels to Datadog Tags.
-		if config.PodLabelsAsTags != nil {
-			podLabelsAsTags, err := json.Marshal(config.PodLabelsAsTags)
-			if err != nil {
-				logger.Error(err, "Failed to unmarshal json input")
-			} else {
-				manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-					Name:  apicommon.DDPodLabelsAsTags,
-					Value: string(podLabelsAsTags),
-				})
-			}
-		}
-
-		// Provide a mapping of Kubernetes Annotations to Datadog Tags.
-		if config.PodAnnotationsAsTags != nil {
-			podAnnotationsAsTags, err := json.Marshal(config.PodAnnotationsAsTags)
-			if err != nil {
-				logger.Error(err, "Failed to unmarshal json input")
-			} else {
-				manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-					Name:  apicommon.DDPodAnnotationsAsTags,
-					Value: string(podAnnotationsAsTags),
-				})
-			}
-		}
-
 		// LocalService contains configuration to customize the internal traffic policy service.
 		forceEnableLocalService := config.LocalService != nil && apiutils.BoolValue(config.LocalService.ForceEnableLocalService)
 		if component.ShouldCreateAgentLocalService(resourcesManager.Store().GetVersionInfo(), forceEnableLocalService) {
