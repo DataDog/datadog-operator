@@ -14,6 +14,8 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
+
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 // NewDeployment use to generate the skeleton of a new deployment based on few information
@@ -113,6 +115,7 @@ func getDefaultLabels(owner metav1.Object, componentKind, componentName, version
 	labels := object.GetDefaultLabels(owner, componentName, version)
 	labels[apicommon.AgentDeploymentNameLabelKey] = owner.GetName()
 	labels[apicommon.AgentDeploymentComponentLabelKey] = componentKind
+	labels[kubernetes.AppKubernetesComponentLabelKey] = componentKind
 
 	return labels
 }
