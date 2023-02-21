@@ -122,12 +122,6 @@ func (f *orchestratorExplorerFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (r
 
 		if orchestratorExplorer.Conf != nil {
 			f.customConfig = v1alpha1.ConvertCustomConfig(orchestratorExplorer.Conf)
-			hash, err := comparison.GenerateMD5ForSpec(f.customConfig)
-			if err != nil {
-				f.logger.Error(err, "couldn't generate hash for orchestrator explorer custom config")
-			}
-			f.customConfigAnnotationValue = hash
-			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.OrchestratorExplorerIDType)
 		}
 		f.configConfigMapName = apicommonv1.GetConfName(dda, f.customConfig, apicommon.DefaultOrchestratorExplorerConf)
 		if orchestratorExplorer.Scrubbing != nil {

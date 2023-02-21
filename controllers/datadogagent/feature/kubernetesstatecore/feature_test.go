@@ -63,13 +63,6 @@ func Test_ksmFeature_Configure(t *testing.T) {
 			ClusterAgent:  ksmClusterAgentWantFunc(false),
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
 		},
-		{
-			Name:          "v1alpha1 ksm-core enabled, custom config",
-			DDAv1:         newV1Agent(true, true),
-			WantConfigure: true,
-			ClusterAgent:  ksmClusterAgentWantFunc(true),
-			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
-		},
 		//////////////////////////
 		// v2Alpha1.DatadogAgent
 		//////////////////////////

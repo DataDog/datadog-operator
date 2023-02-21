@@ -31,6 +31,25 @@ instances:
     collectors:
       - clusterrolebindings`
 
+var expectedOrchestratorEnvs = []*corev1.EnvVar{
+	{
+		Name:  apicommon.DDOrchestratorExplorerEnabled,
+		Value: "true",
+	},
+	{
+		Name:  apicommon.DDOrchestratorExplorerContainerScrubbingEnabled,
+		Value: "true",
+	},
+	{
+		Name:  apicommon.DDOrchestratorExplorerExtraTags,
+		Value: `["a:z","b:y","c:x"]`,
+	},
+	{
+		Name:  apicommon.DDOrchestratorExplorerDDUrl,
+		Value: "https://foo.bar",
+	},
+}
+
 func Test_orchestratorExplorerFeature_Configure(t *testing.T) {
 	ddav1OrchestratorExplorerDisable := v1alpha1.DatadogAgent{
 		Spec: v1alpha1.DatadogAgentSpec{
@@ -96,42 +115,6 @@ func Test_orchestratorExplorerFeature_Configure(t *testing.T) {
 		}
 	}
 
-	expectedOrchestratorEnvs := []*corev1.EnvVar{
-		{
-			Name:  apicommon.DDOrchestratorExplorerEnabled,
-			Value: "true",
-		},
-		{
-			Name:  apicommon.DDOrchestratorExplorerContainerScrubbingEnabled,
-			Value: "true",
-		},
-		{
-			Name:  apicommon.DDOrchestratorExplorerExtraTags,
-			Value: `["a:z","b:y","c:x"]`,
-		},
-		{
-			Name:  apicommon.DDOrchestratorExplorerDDUrl,
-			Value: "https://foo.bar",
-		},
-	}
-
-	orchestratorExplorerClusterAgentWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
-		mgr := mgrInterface.(*fake.PodTemplateManagers)
-		dcaEnvVars := mgr.EnvVarMgr.EnvVarsByC[mergerfake.AllContainers]
-		assert.True(t, apiutils.IsEqualStruct(dcaEnvVars, expectedOrchestratorEnvs), "DCA envvars \ndiff = %s", cmp.Diff(dcaEnvVars, expectedOrchestratorEnvs))
-
-		customConfig := apicommonv1.CustomConfig{
-			ConfigData: apiutils.NewStringPointer(customConfData),
-		}
-		hash, err := comparison.GenerateMD5ForSpec(&customConfig)
-		assert.NoError(t, err)
-		wantAnnotations := map[string]string{
-			fmt.Sprintf(apicommon.MD5ChecksumAnnotationKey, feature.OrchestratorExplorerIDType): hash,
-		}
-		annotations := mgr.AnnotationMgr.Annotations
-		assert.True(t, apiutils.IsEqualStruct(annotations, wantAnnotations), "Annotations \ndiff = %s", cmp.Diff(annotations, wantAnnotations))
-	}
-
 	orchestratorExplorerNodeAgentWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
 		agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ProcessAgentContainerName]
@@ -157,14 +140,14 @@ func Test_orchestratorExplorerFeature_Configure(t *testing.T) {
 			Name:          "v1alpha1 orchestrator explorer enabled",
 			DDAv1:         ddav1OrchestratorExplorerEnable,
 			WantConfigure: true,
-			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(orchestratorExplorerClusterAgentWantFunc),
+			ClusterAgent:  orchestratorExplorerClusterAgentWantFunc(false),
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(orchestratorExplorerNodeAgentWantFunc),
 		},
 		{
 			Name:                "v1alpha1 orchestrator explorer enabled and runs on cluster checks runner",
 			DDAv1:               ddaV1EnabledAndRunInRunner,
 			WantConfigure:       true,
-			ClusterAgent:        test.NewDefaultComponentTest().WithWantFunc(orchestratorExplorerClusterAgentWantFunc),
+			ClusterAgent:        orchestratorExplorerClusterAgentWantFunc(false),
 			Agent:               test.NewDefaultComponentTest().WithWantFunc(orchestratorExplorerNodeAgentWantFunc),
 			ClusterChecksRunner: test.NewDefaultComponentTest().WithWantFunc(orchestratorExplorerClusterChecksRunnerWantFunc),
 		},
@@ -180,18 +163,42 @@ func Test_orchestratorExplorerFeature_Configure(t *testing.T) {
 			Name:          "v2alpha1 orchestrator explorer enabled",
 			DDAv2:         ddav2OrchestratorExplorerEnable,
 			WantConfigure: true,
-			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(orchestratorExplorerClusterAgentWantFunc),
+			ClusterAgent:  orchestratorExplorerClusterAgentWantFunc(true),
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(orchestratorExplorerNodeAgentWantFunc),
 		},
 		{
 			Name:                "v2alpha1 orchestrator explorer enabled and runs on cluster checks runner",
 			DDAv2:               ddaV2EnabledAndRunInRunner,
 			WantConfigure:       true,
-			ClusterAgent:        test.NewDefaultComponentTest().WithWantFunc(orchestratorExplorerClusterAgentWantFunc),
+			ClusterAgent:        orchestratorExplorerClusterAgentWantFunc(true),
 			Agent:               test.NewDefaultComponentTest().WithWantFunc(orchestratorExplorerNodeAgentWantFunc),
 			ClusterChecksRunner: test.NewDefaultComponentTest().WithWantFunc(orchestratorExplorerClusterChecksRunnerWantFunc),
 		},
 	}
 
 	tests.Run(t, buildOrchestratorExplorerFeature)
+}
+
+func orchestratorExplorerClusterAgentWantFunc(useDDAV2 bool) *test.ComponentTest {
+	return test.NewDefaultComponentTest().WithWantFunc(
+		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			mgr := mgrInterface.(*fake.PodTemplateManagers)
+			dcaEnvVars := mgr.EnvVarMgr.EnvVarsByC[mergerfake.AllContainers]
+			assert.True(t, apiutils.IsEqualStruct(dcaEnvVars, expectedOrchestratorEnvs), "DCA envvars \ndiff = %s", cmp.Diff(dcaEnvVars, expectedOrchestratorEnvs))
+
+			if useDDAV2 {
+				// check annotation
+				customConfig := apicommonv1.CustomConfig{
+					ConfigData: apiutils.NewStringPointer(customConfData),
+				}
+				hash, err := comparison.GenerateMD5ForSpec(&customConfig)
+				assert.NoError(t, err)
+				wantAnnotations := map[string]string{
+					fmt.Sprintf(apicommon.MD5ChecksumAnnotationKey, feature.OrchestratorExplorerIDType): hash,
+				}
+				annotations := mgr.AnnotationMgr.Annotations
+				assert.True(t, apiutils.IsEqualStruct(annotations, wantAnnotations), "Annotations \ndiff = %s", cmp.Diff(annotations, wantAnnotations))
+			}
+		},
+	)
 }

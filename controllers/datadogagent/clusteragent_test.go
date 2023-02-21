@@ -572,7 +572,7 @@ func Test_newClusterAgentDeploymentMountKSMCore(t *testing.T) {
 							"app.kubernetes.io/part-of":     "bar-foo",
 							"app.kubernetes.io/version":     "",
 						},
-						Annotations: map[string]string{"checksum/ksm-custom-config": "49055d1787a4f1c281d0a4dfb3ff6ff4"},
+						Annotations: map[string]string{},
 					},
 					Spec: clusterAgentPodSpec,
 				},

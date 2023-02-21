@@ -121,12 +121,6 @@ func (f *cspmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.R
 		if dda.Spec.Agent.Security.Compliance.ConfigDir != nil {
 			f.configMapName = dda.Spec.Agent.Security.Compliance.ConfigDir.ConfigMapName
 			f.customConfig = v1alpha1.ConvertConfigDirSpecToCustomConfig(dda.Spec.Agent.Security.Compliance.ConfigDir)
-			hash, err := comparison.GenerateMD5ForSpec(f.customConfig)
-			if err != nil {
-				f.logger.Error(err, "couldn't generate hash for cspm custom benchmarks config")
-			}
-			f.customConfigAnnotationValue = hash
-			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.CSPMIDType)
 		}
 
 		reqComp = feature.RequiredComponents{
