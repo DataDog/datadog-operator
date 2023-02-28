@@ -6,6 +6,7 @@
 package kubernetesstatecore
 
 import (
+	"fmt"
 	"testing"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
@@ -17,58 +18,22 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/test"
 	mergerfake "github.com/DataDog/datadog-operator/controllers/datadogagent/merger/fake"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 )
 
+const (
+	customData = `cluster_check: true
+init_config:
+instances:
+    collectors:
+    - pods`
+)
+
 func Test_ksmFeature_Configure(t *testing.T) {
-	ddav1KSMDisable := v1alpha1.DatadogAgent{
-		Spec: v1alpha1.DatadogAgentSpec{
-			Features: v1alpha1.DatadogFeatures{
-				KubeStateMetricsCore: &v1alpha1.KubeStateMetricsCore{
-					Enabled: apiutils.NewBoolPointer(false),
-				},
-			},
-		},
-	}
-
-	ddav1KSMEnable := ddav1KSMDisable.DeepCopy()
-	{
-		ddav1KSMEnable.Spec.Features.KubeStateMetricsCore.Enabled = apiutils.NewBoolPointer(true)
-	}
-
-	ddav2KSMDisable := v2alpha1.DatadogAgent{
-		Spec: v2alpha1.DatadogAgentSpec{
-			Features: &v2alpha1.DatadogFeatures{
-				KubeStateMetricsCore: &v2alpha1.KubeStateMetricsCoreFeatureConfig{
-					Enabled: apiutils.NewBoolPointer(false),
-				},
-			},
-		},
-	}
-	ddav2KSMEnable := ddav2KSMDisable.DeepCopy()
-	{
-		ddav2KSMEnable.Spec.Features.KubeStateMetricsCore.Enabled = apiutils.NewBoolPointer(true)
-	}
-
-	ksmClusterAgentWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
-		mgr := mgrInterface.(*fake.PodTemplateManagers)
-		dcaEnvVars := mgr.EnvVarMgr.EnvVarsByC[mergerfake.AllContainers]
-
-		want := []*corev1.EnvVar{
-			{
-				Name:  apicommon.DDKubeStateMetricsCoreEnabled,
-				Value: "true",
-			},
-			{
-				Name:  apicommon.DDKubeStateMetricsCoreConfigMap,
-				Value: "-kube-state-metrics-core-config",
-			},
-		}
-		assert.True(t, apiutils.IsEqualStruct(dcaEnvVars, want), "DCA envvars \ndiff = %s", cmp.Diff(dcaEnvVars, want))
-	}
-
 	ksmAgentNodeWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
 		agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
@@ -87,33 +52,110 @@ func Test_ksmFeature_Configure(t *testing.T) {
 		// v1Alpha1.DatadogAgent
 		//////////////////////////
 		{
-			Name:          "v1alpha1 ksm-core not enable",
-			DDAv1:         ddav1KSMDisable.DeepCopy(),
+			Name:          "v1alpha1 ksm-core not enabled",
+			DDAv1:         newV1Agent(false, false),
 			WantConfigure: false,
 		},
 		{
-			Name:          "v1alpha1 ksm-core not enable",
-			DDAv1:         ddav1KSMEnable,
+			Name:          "v1alpha1 ksm-core enabled",
+			DDAv1:         newV1Agent(true, false),
 			WantConfigure: true,
-			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(ksmClusterAgentWantFunc),
+			ClusterAgent:  ksmClusterAgentWantFunc(false),
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
 		},
 		//////////////////////////
 		// v2Alpha1.DatadogAgent
 		//////////////////////////
 		{
-			Name:          "v2alpha1 ksm-core not enable",
-			DDAv2:         ddav2KSMDisable.DeepCopy(),
+			Name:          "v2alpha1 ksm-core not enabled",
+			DDAv2:         newV2Agent(false, false),
 			WantConfigure: false,
 		},
 		{
-			Name:          "v2alpha1 ksm-core not enable",
-			DDAv2:         ddav2KSMEnable,
+			Name:          "v2alpha1 ksm-core enabled",
+			DDAv2:         newV2Agent(true, false),
 			WantConfigure: true,
-			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(ksmClusterAgentWantFunc),
+			ClusterAgent:  ksmClusterAgentWantFunc(false),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
+		},
+		{
+			Name:          "v2alpha1 ksm-core enabled, custom config",
+			DDAv2:         newV2Agent(true, true),
+			WantConfigure: true,
+			ClusterAgent:  ksmClusterAgentWantFunc(true),
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
 		},
 	}
 
 	tests.Run(t, buildKSMFeature)
+}
+
+func newV1Agent(enableKSM bool, hasCustomConfig bool) *v1alpha1.DatadogAgent {
+	ddaV1 := &v1alpha1.DatadogAgent{
+		Spec: v1alpha1.DatadogAgentSpec{
+			Features: v1alpha1.DatadogFeatures{
+				KubeStateMetricsCore: &v1alpha1.KubeStateMetricsCore{
+					Enabled: apiutils.NewBoolPointer(enableKSM),
+				},
+			},
+		},
+	}
+	if hasCustomConfig {
+		ddaV1.Spec.Features.KubeStateMetricsCore.Conf = &v1alpha1.CustomConfigSpec{
+			ConfigData: apiutils.NewStringPointer(customData),
+		}
+	}
+	return ddaV1
+}
+
+func newV2Agent(enableKSM bool, hasCustomConfig bool) *v2alpha1.DatadogAgent {
+	ddaV2 := &v2alpha1.DatadogAgent{
+		Spec: v2alpha1.DatadogAgentSpec{
+			Features: &v2alpha1.DatadogFeatures{
+				KubeStateMetricsCore: &v2alpha1.KubeStateMetricsCoreFeatureConfig{
+					Enabled: apiutils.NewBoolPointer(enableKSM),
+				},
+			},
+		},
+	}
+	if hasCustomConfig {
+		ddaV2.Spec.Features.KubeStateMetricsCore.Conf = &v2alpha1.CustomConfig{
+			ConfigData: apiutils.NewStringPointer(customData),
+		}
+	}
+	return ddaV2
+}
+
+func ksmClusterAgentWantFunc(hasCustomConfig bool) *test.ComponentTest {
+	return test.NewDefaultComponentTest().WithWantFunc(
+		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			mgr := mgrInterface.(*fake.PodTemplateManagers)
+			dcaEnvVars := mgr.EnvVarMgr.EnvVarsByC[mergerfake.AllContainers]
+
+			want := []*corev1.EnvVar{
+				{
+					Name:  apicommon.DDKubeStateMetricsCoreEnabled,
+					Value: "true",
+				},
+				{
+					Name:  apicommon.DDKubeStateMetricsCoreConfigMap,
+					Value: "-kube-state-metrics-core-config",
+				},
+			}
+			assert.True(t, apiutils.IsEqualStruct(dcaEnvVars, want), "DCA envvars \ndiff = %s", cmp.Diff(dcaEnvVars, want))
+
+			if hasCustomConfig {
+				customConfig := apicommonv1.CustomConfig{
+					ConfigData: apiutils.NewStringPointer(customData),
+				}
+				hash, err := comparison.GenerateMD5ForSpec(&customConfig)
+				assert.NoError(t, err)
+				wantAnnotations := map[string]string{
+					fmt.Sprintf(apicommon.MD5ChecksumAnnotationKey, feature.KubernetesStateCoreIDType): hash,
+				}
+				annotations := mgr.AnnotationMgr.Annotations
+				assert.True(t, apiutils.IsEqualStruct(annotations, wantAnnotations), "Annotations \ndiff = %s", cmp.Diff(annotations, wantAnnotations))
+			}
+		},
+	)
 }

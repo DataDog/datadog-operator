@@ -15,8 +15,11 @@ import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/configmap"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/go-logr/logr"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
@@ -34,14 +37,22 @@ func init() {
 func buildCWSFeature(options *feature.Options) feature.Feature {
 	cwsFeat := &cwsFeature{}
 
+	if options != nil {
+		cwsFeat.logger = options.Logger
+	}
+
 	return cwsFeat
 }
 
 type cwsFeature struct {
 	syscallMonitorEnabled bool
-	customConfig          *apicommonv1.CustomConfig
-	configMapName         string
 	owner                 metav1.Object
+	logger                logr.Logger
+
+	customConfig                *apicommonv1.CustomConfig
+	configMapName               string
+	customConfigAnnotationKey   string
+	customConfigAnnotationValue string
 }
 
 // ID returns the ID of the Feature
@@ -60,6 +71,12 @@ func (f *cwsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 
 		if cws.CustomPolicies != nil {
 			f.customConfig = v2alpha1.ConvertCustomConfig(cws.CustomPolicies)
+			hash, err := comparison.GenerateMD5ForSpec(f.customConfig)
+			if err != nil {
+				f.logger.Error(err, "couldn't generate hash for cws custom policies config")
+			}
+			f.customConfigAnnotationValue = hash
+			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.CWSIDType)
 		}
 		f.configMapName = apicommonv1.GetConfName(dda, f.customConfig, apicommon.DefaultCWSConf)
 
@@ -114,7 +131,14 @@ func (f *cwsFeature) ManageDependencies(managers feature.ResourceManagers, compo
 		if err != nil {
 			return err
 		}
+
 		if cm != nil {
+			// Add md5 hash annotation for custom config
+			if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
+				annotations := object.MergeAnnotationsLabels(f.logger, cm.GetAnnotations(), map[string]string{f.customConfigAnnotationKey: f.customConfigAnnotationValue}, "")
+				cm.SetAnnotations(annotations)
+			}
+
 			if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, cm); err != nil {
 				return err
 			}
@@ -224,6 +248,11 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 	if f.customConfig != nil {
 		var vol corev1.Volume
 		var volMount corev1.VolumeMount
+
+		if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
+			managers.Annotation().AddAnnotation(f.customConfigAnnotationKey, f.customConfigAnnotationValue)
+		}
+
 		if f.customConfig.ConfigMap != nil {
 			// Custom config is referenced via ConfigMap
 			// Cannot use standard GetVolumesFromConfigMap because security features are not under /conf.d

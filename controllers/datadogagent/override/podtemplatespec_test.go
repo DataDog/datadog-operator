@@ -13,9 +13,11 @@ import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
+
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
 func TestPodTemplateSpec(t *testing.T) {
@@ -640,8 +642,10 @@ func TestPodTemplateSpec(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			manager := test.existingManager()
+			testLogger := zap.New(zap.UseDevMode(true))
+			logger := testLogger.WithValues("test", t.Name())
 
-			PodTemplateSpec(manager, &test.override, v2alpha1.NodeAgentComponentName, "datadog-agent")
+			PodTemplateSpec(logger, manager, &test.override, v2alpha1.NodeAgentComponentName, "datadog-agent")
 
 			test.validateManager(t, manager)
 		})
