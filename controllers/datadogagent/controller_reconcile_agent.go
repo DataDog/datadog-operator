@@ -60,7 +60,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 			if apiutils.BoolValue(componentOverride.Disabled) {
 				disabled = true
 			}
-			override.PodTemplateSpec(podManagers, componentOverride, datadoghqv2alpha1.NodeAgentComponentName, dda.Name)
+			override.PodTemplateSpec(logger, podManagers, componentOverride, datadoghqv2alpha1.NodeAgentComponentName, dda.Name)
 			override.ExtendedDaemonSet(eds, componentOverride)
 		}
 		if disabled {
@@ -100,7 +100,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 		if apiutils.BoolValue(componentOverride.Disabled) {
 			disabled = true
 		}
-		override.PodTemplateSpec(podManagers, componentOverride, datadoghqv2alpha1.NodeAgentComponentName, dda.Name)
+		override.PodTemplateSpec(logger, podManagers, componentOverride, datadoghqv2alpha1.NodeAgentComponentName, dda.Name)
 		override.DaemonSet(daemonset, componentOverride)
 	}
 	if disabled {

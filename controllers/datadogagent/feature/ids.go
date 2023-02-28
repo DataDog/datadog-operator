@@ -32,7 +32,7 @@ const (
 	// CSPMIDType CSPM feature.
 	CSPMIDType = "cspm"
 	// CWSIDType CWS feature.
-	CWSIDType = "csw"
+	CWSIDType = "cws"
 	// USMIDType USM feature.
 	USMIDType = "usm"
 	// OOMKillIDType OOM Kill check feature

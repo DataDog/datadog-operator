@@ -114,3 +114,9 @@ func (platformInfo *PlatformInfo) IsResourceSupported(resource string) bool {
 	}
 	return false
 }
+
+func (platformInfo *PlatformInfo) GetApiVersions(name string) (preferred string, other string) {
+	preferred = platformInfo.apiPreferredVersions[name]
+	other = platformInfo.apiOtherVersions[name]
+	return preferred, other
+}

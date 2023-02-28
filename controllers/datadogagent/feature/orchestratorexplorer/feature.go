@@ -14,12 +14,15 @@ import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/go-logr/logr"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	common "github.com/DataDog/datadog-operator/controllers/datadogagent/common"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
 )
 
@@ -35,6 +38,10 @@ func buildOrchestratorExplorerFeature(options *feature.Options) feature.Feature 
 		rbacSuffix: common.ClusterAgentSuffix,
 	}
 
+	if options != nil {
+		orchestratorExplorerFeat.logger = options.Logger
+	}
+
 	return orchestratorExplorerFeat
 }
 
@@ -48,6 +55,10 @@ type orchestratorExplorerFeature struct {
 	owner                    metav1.Object
 	customConfig             *apicommonv1.CustomConfig
 	configConfigMapName      string
+
+	logger                      logr.Logger
+	customConfigAnnotationKey   string
+	customConfigAnnotationValue string
 }
 
 // ID returns the ID of the Feature
@@ -69,6 +80,12 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 
 		if orchestratorExplorer.Conf != nil {
 			f.customConfig = v2alpha1.ConvertCustomConfig(orchestratorExplorer.Conf)
+			hash, err := comparison.GenerateMD5ForSpec(f.customConfig)
+			if err != nil {
+				f.logger.Error(err, "couldn't generate hash for orchestrator explorer custom config")
+			}
+			f.customConfigAnnotationValue = hash
+			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.OrchestratorExplorerIDType)
 		}
 		f.configConfigMapName = apicommonv1.GetConfName(dda, f.customConfig, apicommon.DefaultOrchestratorExplorerConf)
 		f.scrubContainers = apiutils.BoolValue(orchestratorExplorer.ScrubContainers)
@@ -140,6 +157,11 @@ func (f *orchestratorExplorerFeature) ManageDependencies(managers feature.Resour
 		return err
 	}
 	if configCM != nil {
+		// Add md5 hash annotation for custom config
+		if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
+			annotations := object.MergeAnnotationsLabels(f.logger, configCM.GetAnnotations(), map[string]string{f.customConfigAnnotationKey: f.customConfigAnnotationValue}, "")
+			configCM.SetAnnotations(annotations)
+		}
 		if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, configCM); err != nil {
 			return err
 		}
@@ -178,6 +200,10 @@ func (f *orchestratorExplorerFeature) ManageClusterAgent(managers feature.PodTem
 
 	managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommonv1.ClusterAgentContainerName)
 	managers.Volume().AddVolume(&vol)
+
+	if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
+		managers.Annotation().AddAnnotation(f.customConfigAnnotationKey, f.customConfigAnnotationValue)
+	}
 
 	for _, env := range f.getEnvVars() {
 		managers.EnvVar().AddEnvVar(env)

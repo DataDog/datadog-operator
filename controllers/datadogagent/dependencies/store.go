@@ -43,6 +43,7 @@ type StoreClient interface {
 	GetPlatformInfo() kubernetes.PlatformInfo
 	Delete(kind kubernetes.ObjectKind, namespace string, name string) bool
 	DeleteAll(ctx context.Context, k8sClient client.Client) []error
+	Logger() logr.Logger
 }
 
 // NewStore returns a new Store instance
@@ -291,6 +292,11 @@ func (ds *Store) GetVersionInfo() *version.Info {
 // GetPlatformInfo returns api-resources info
 func (ds *Store) GetPlatformInfo() kubernetes.PlatformInfo {
 	return ds.platformInfo
+}
+
+// Logger returns the log client
+func (ds *Store) Logger() logr.Logger {
+	return ds.logger
 }
 
 // DeleteAll deletes all the resources that are in the Store

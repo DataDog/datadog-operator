@@ -80,6 +80,10 @@ spec:
       appSecret:
         keyName: app-key
         secretName: datadog-secret
+    podLabelsAsTags:
+      custom-tag1: custom-tag1
+    podAnnotationsAsTags:
+      custom-tag2: custom-tag2
     criSocketPath: /var/run/crio/crio.sock
     dockerSocketPath: /var/docker.sock
     endpoint:
