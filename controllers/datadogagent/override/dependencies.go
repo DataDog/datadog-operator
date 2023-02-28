@@ -42,11 +42,11 @@ func Dependencies(logger logr.Logger, manager feature.ResourceManagers, dda *v2a
 
 		// Handle custom check configurations
 		confdCMName := fmt.Sprintf(v2alpha1.ExtraConfdConfigMapName, strings.ToLower((string(component))))
-		errs = append(errs, overrideExtraConfigs(manager, override.ExtraConfd, namespace, confdCMName, true)...)
+		errs = append(errs, overrideExtraConfigs(logger, manager, override.ExtraConfd, namespace, confdCMName, true)...)
 
 		// Handle custom check files
 		checksdCMName := fmt.Sprintf(v2alpha1.ExtraChecksdConfigMapName, strings.ToLower((string(component))))
-		errs = append(errs, overrideExtraConfigs(manager, override.ExtraChecksd, namespace, checksdCMName, false)...)
+		errs = append(errs, overrideExtraConfigs(logger, manager, override.ExtraChecksd, namespace, checksdCMName, false)...)
 
 		// Handle scc
 		errs = append(errs, overrideSCC(manager, dda)...)
