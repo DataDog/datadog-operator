@@ -74,7 +74,7 @@ func (r *Reconciler) reconcileV2ClusterChecksRunner(logger logr.Logger, required
 			// Delete CCR
 			return r.cleanupV2ClusterChecksRunner(deploymentLogger, dda, deployment, newStatus)
 		}
-		override.PodTemplateSpec(podManagers, componentOverride, datadoghqv2alpha1.ClusterChecksRunnerComponentName, dda.Name)
+		override.PodTemplateSpec(logger, podManagers, componentOverride, datadoghqv2alpha1.ClusterChecksRunnerComponentName, dda.Name)
 		override.Deployment(deployment, componentOverride)
 	} else if !requiredEnabled {
 		return r.cleanupV2ClusterChecksRunner(deploymentLogger, dda, deployment, newStatus)
