@@ -67,7 +67,7 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 		if err != nil {
 			logger.Error(err, "couldn't generate hash for extra confd custom config")
 		}
-		annotationKey := object.GetChecksumAnnotationKey(v2alpha1.ExtraConfdConfigMapName)
+		annotationKey := object.GetChecksumAnnotationKey(cmName)
 		manager.Annotation().AddAnnotation(annotationKey, hash)
 	}
 
@@ -82,7 +82,7 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 		if err != nil {
 			logger.Error(err, "couldn't generate hash for extra checks custom config")
 		}
-		annotationKey := object.GetChecksumAnnotationKey(v2alpha1.ExtraChecksdConfigMapName)
+		annotationKey := object.GetChecksumAnnotationKey(cmName)
 		manager.Annotation().AddAnnotation(annotationKey, hash)
 	}
 
