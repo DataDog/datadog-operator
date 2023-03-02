@@ -80,6 +80,10 @@ spec:
       appSecret:
         keyName: app-key
         secretName: datadog-secret
+    podLabelsAsTags:
+      custom-tag1: custom-tag1
+    podAnnotationsAsTags:
+      custom-tag2: custom-tag2
     criSocketPath: /var/run/crio/crio.sock
     dockerSocketPath: /var/docker.sock
     endpoint:
@@ -99,6 +103,13 @@ spec:
             path: test.d/test.yaml
           name: cluster-agent-confd
       replicas: 2
+      customConfigurations:
+        datadog-cluster.yaml:
+          configMap:
+            name: custom-cm-dca
+            items:
+              - key: my-dca-config.yaml
+                path: my-dca-config.yaml
       securityContext:
         runAsUser: 0
         seLinuxOptions:

@@ -4358,7 +4358,8 @@ spec:
                     properties:
                       jmxEnabled:
                         description: Define whether the Agent image should support
-                          JMX.
+                          JMX. To be used if the Name field does not correspond to
+                          a full image string.
                         type: boolean
                       name:
                         description: 'Define the image to use: Use "gcr.io/datadoghq/agent:latest"
@@ -4366,7 +4367,13 @@ spec:
                           standalone Datadog Agent DogStatsD 7. Use "gcr.io/datadoghq/cluster-agent:latest"
                           for Datadog Cluster Agent. Use "agent" with the registry
                           and tag configurations for <registry>/agent:<tag>. Use "cluster-agent"
-                          with the registry and tag configurations for <registry>/cluster-agent:<tag>.'
+                          with the registry and tag configurations for <registry>/cluster-agent:<tag>.
+                          If the name is full image string - `<name>:<tag>` or `<registry>/<name>:<tag>`,
+                          `tag` and `jmxEnabled` values are ignored, so is `global.registry`.
+                          Otherwise, image string is created by overriding default
+                          settings with supplied `name`, `tag` and `jmxEnabled` values;
+                          image string is created using default registry unless `global.registry`
+                          is configured.'
                         type: string
                       pullPolicy:
                         description: 'The Kubernetes pull policy: Use Always, Never
@@ -8680,7 +8687,8 @@ spec:
                     properties:
                       jmxEnabled:
                         description: Define whether the Agent image should support
-                          JMX.
+                          JMX. To be used if the Name field does not correspond to
+                          a full image string.
                         type: boolean
                       name:
                         description: 'Define the image to use: Use "gcr.io/datadoghq/agent:latest"
@@ -8688,7 +8696,13 @@ spec:
                           standalone Datadog Agent DogStatsD 7. Use "gcr.io/datadoghq/cluster-agent:latest"
                           for Datadog Cluster Agent. Use "agent" with the registry
                           and tag configurations for <registry>/agent:<tag>. Use "cluster-agent"
-                          with the registry and tag configurations for <registry>/cluster-agent:<tag>.'
+                          with the registry and tag configurations for <registry>/cluster-agent:<tag>.
+                          If the name is full image string - `<name>:<tag>` or `<registry>/<name>:<tag>`,
+                          `tag` and `jmxEnabled` values are ignored, so is `global.registry`.
+                          Otherwise, image string is created by overriding default
+                          settings with supplied `name`, `tag` and `jmxEnabled` values;
+                          image string is created using default registry unless `global.registry`
+                          is configured.'
                         type: string
                       pullPolicy:
                         description: 'The Kubernetes pull policy: Use Always, Never
@@ -12085,7 +12099,8 @@ spec:
                     properties:
                       jmxEnabled:
                         description: Define whether the Agent image should support
-                          JMX.
+                          JMX. To be used if the Name field does not correspond to
+                          a full image string.
                         type: boolean
                       name:
                         description: 'Define the image to use: Use "gcr.io/datadoghq/agent:latest"
@@ -12093,7 +12108,13 @@ spec:
                           standalone Datadog Agent DogStatsD 7. Use "gcr.io/datadoghq/cluster-agent:latest"
                           for Datadog Cluster Agent. Use "agent" with the registry
                           and tag configurations for <registry>/agent:<tag>. Use "cluster-agent"
-                          with the registry and tag configurations for <registry>/cluster-agent:<tag>.'
+                          with the registry and tag configurations for <registry>/cluster-agent:<tag>.
+                          If the name is full image string - `<name>:<tag>` or `<registry>/<name>:<tag>`,
+                          `tag` and `jmxEnabled` values are ignored, so is `global.registry`.
+                          Otherwise, image string is created by overriding default
+                          settings with supplied `name`, `tag` and `jmxEnabled` values;
+                          image string is created using default registry unless `global.registry`
+                          is configured.'
                         type: string
                       pullPolicy:
                         description: 'The Kubernetes pull policy: Use Always, Never
@@ -12742,7 +12763,7 @@ spec:
                     description: AdmissionController configuration.
                     properties:
                       agentCommunicationMode:
-                        description: agentCommunicationMode corresponds to the mode
+                        description: AgentCommunicationMode corresponds to the mode
                           used by the Datadog application libraries to communicate
                           with the Agent. It can be "hostip", "service", or "socket".
                         type: string
@@ -12750,6 +12771,10 @@ spec:
                         description: 'Enabled enables the Admission Controller. Default:
                           false'
                         type: boolean
+                      failurePolicy:
+                        description: FailurePolicy determines how unrecognized and
+                          timeout errors are handled.
+                        type: string
                       mutateUnlabelled:
                         description: 'MutateUnlabelled enables config injection without
                           the need of pod label ''admission.datadoghq.com/enabled="true"''.
@@ -12786,7 +12811,7 @@ spec:
                       unixDomainSocketConfig:
                         description: 'UnixDomainSocketConfig contains socket configuration.
                           See also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables
-                          Enabled Default: true Path Default: `/var/run/datadog/apm/apm.socket`'
+                          Enabled Default: true Path Default: `/var/run/datadog/apm.socket`'
                         properties:
                           enabled:
                             description: 'Enabled enables Unix Domain Socket. Default:
@@ -12963,7 +12988,7 @@ spec:
                     properties:
                       hostPortConfig:
                         description: 'HostPortConfig contains host port configuration.
-                          Enabled Default: true Port Default: 8125'
+                          Enabled Default: false Port Default: 8125'
                         properties:
                           enabled:
                             description: 'Enabled enables host port configuration
@@ -13039,7 +13064,7 @@ spec:
                       unixDomainSocketConfig:
                         description: 'UnixDomainSocketConfig contains socket configuration.
                           See also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables
-                          Enabled Default: true Path Default: `/var/run/datadog/statsd/dsd.socket`'
+                          Enabled Default: true Path Default: `/var/run/datadog/dsd.socket`'
                         properties:
                           enabled:
                             description: 'Enabled enables Unix Domain Socket. Default:
@@ -15805,7 +15830,8 @@ spec:
                       properties:
                         jmxEnabled:
                           description: Define whether the Agent image should support
-                            JMX.
+                            JMX. To be used if the Name field does not correspond
+                            to a full image string.
                           type: boolean
                         name:
                           description: 'Define the image to use: Use "gcr.io/datadoghq/agent:latest"
@@ -15814,7 +15840,13 @@ spec:
                             for Datadog Cluster Agent. Use "agent" with the registry
                             and tag configurations for <registry>/agent:<tag>. Use
                             "cluster-agent" with the registry and tag configurations
-                            for <registry>/cluster-agent:<tag>.'
+                            for <registry>/cluster-agent:<tag>. If the name is full
+                            image string - `<name>:<tag>` or `<registry>/<name>:<tag>`,
+                            `tag` and `jmxEnabled` values are ignored, so is `global.registry`.
+                            Otherwise, image string is created by overriding default
+                            settings with supplied `name`, `tag` and `jmxEnabled`
+                            values; image string is created using default registry
+                            unless `global.registry` is configured.'
                           type: string
                         pullPolicy:
                           description: 'The Kubernetes pull policy: Use Always, Never

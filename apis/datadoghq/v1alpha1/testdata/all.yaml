@@ -167,6 +167,10 @@ spec:
         enabled: false
   clusterAgent:
     replicas: 2
+    customConfig:
+      configMap:
+        name: custom-cm-dca
+        fileKey: my-dca-config.yaml
     config:
       securityContext:
         runAsUser: 0

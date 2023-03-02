@@ -1,19 +1,17 @@
 # Getting Started
 
-The simplest and fastest way to deploy a `DatadogMonitor` with the Datadog Operator is described in the steps below. **Note: Operator version 0.6+ is required.**
+This page describes the simplest and fastest way to deploy a [Datadog monitor](https://docs.datadoghq.com/monitors/) with the Datadog Operator.
 
 ## Prerequisites
 
-These prerequisites are required to use `DatadogMonitor`:
-
+- Datadog Operator v0.6+
 - **Kubernetes Cluster version >= v1.14.X**: Tests were done on versions >= `1.14.0`. However, it should work on versions `>= v1.11.0`. For earlier versions, due to limited CRD support, the Operator may not work as expected.
-- [`Helm`][1] for deploying the `datadog-operator`.
-- [`Kubectl` cli][2] for installing a `DatadogMonitor`.
+- **[Helm][1]** for deploying the Datadog Operator
+- **[`kubectl` CLI][2]** for installing a `DatadogMonitor`
 
 ## Adding a DatadogMonitor
 
-To deploy a `DatadogMonitor` with the Datadog Operator, see the [`datadog-operator`][3] Helm chart.
-Here are the steps:
+To deploy a `DatadogMonitor` with the Datadog Operator, use the [`datadog-operator` Helm chart][3].
 
 1. Install the [Datadog Operator][4]:
 
@@ -29,7 +27,7 @@ Here are the steps:
         helm install my-datadog-operator datadog/datadog-operator --set apiKey=<DATADOG_API_KEY> --set appKey=<DATADOG_APP_KEY> --set datadogMonitor.enabled=true
         ```
 
-    1. Alternatively, update the [values.yaml][6] file of the Datadog Operator Helm chart to include your [Datadog API and application keys][5] and enable `DatadogMonitor`.
+    1. Alternatively, update the [`values.yaml`][6] file of the Datadog Operator Helm chart to include your [Datadog API and application keys][5] and enable `DatadogMonitor`.
        Then, run
 
         ```shell
@@ -60,7 +58,7 @@ Here are the steps:
     kubectl apply -f /path/to/your/datadog-monitor.yaml
     ```
 
-    This results in the automatic creation of a new monitor in Datadog. The monitor can be found on the [Manage Monitors][7] page of your Datadog account.
+    This automatically creates a new monitor in Datadog. You can find it on the [Manage Monitors][7] page of your Datadog account.
     *Note*: All monitors created from `DatadogMonitor` are automatically tagged with `generated:kubernetes`.
 
 ## Cleanup

@@ -52,6 +52,14 @@ func convertDatadogAgentSpec(src *DatadogAgentSpecAgentSpec, dst *v2alpha1.Datad
 			getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName).ExtraChecksd = ConvertConfigDirSpec(src.Config.Checksd)
 		}
 
+		if src.Config.PodLabelsAsTags != nil {
+			getV2GlobalConfig(dst).PodLabelsAsTags = src.Config.PodLabelsAsTags
+		}
+
+		if src.Config.PodAnnotationsAsTags != nil {
+			getV2GlobalConfig(dst).PodAnnotationsAsTags = src.Config.PodAnnotationsAsTags
+		}
+
 		if src.Config.Tags != nil {
 			getV2GlobalConfig(dst).Tags = append(getV2GlobalConfig(dst).Tags, src.Config.Tags...)
 		}

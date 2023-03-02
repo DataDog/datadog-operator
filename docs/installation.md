@@ -2,13 +2,11 @@
 
 ## Prerequisites
 
-Using the Datadog Operator requires the following prerequisites:
-
 - **Kubernetes Cluster version >= v1.14.X**: Tests were done on versions >= `1.14.0`. Still, it should work on versions `>= v1.11.0`. For earlier versions, due to limited CRD support, the operator may not work as expected.
-- [`Helm`][1] for deploying the Datadog Operator.
-- [`Kubectl` cli][2] for installing the `DatadogAgent`.
+- **[Helm][1]** for deploying the Datadog Operator
+- **[`kubectl` CLI][2]** for installing the Datadog Agent
 
-## Deploy the Datadog Operator
+## 1. Deploy the Datadog Operator
 
 ### With Helm
 
@@ -50,11 +48,11 @@ spec:
         cpu: "500m"
 ```
 
-### Add Datadog credentials to the Operator
+### 2. Add Datadog credentials to the Operator
 
-The Datadog Operator requires access to your API and application keys to add a `DatadogMonitor`. 
+The Datadog Operator requires access to your API and application keys to add a [Datadog monitor](https://docs.datadoghq.com/monitors/). 
 
-1. Create a secret that contains both keys. In the example below, the secret keys are `api-key` and `app-key`.
+1. Create a Kubernetes Secret that contains your API and application keys. In the example below, the secret keys are `api-key` and `app-key`.
 
 ```
 export DD_API_KEY=<replace-by-your-api-key>
@@ -63,7 +61,7 @@ export DD_APP_KEY=<replace-by-your-app-key>
 kubectl create secret generic datadog-secret --from-literal api-key=$DD_API_KEY --from-literal app-key=$DD_APP_KEY
 ```
 
-2. Add references to the secret in the Datadog-Operator Subscription resource instance. 
+2. Add references to the Secret in the Datadog Operator `Subscription` resource instance. 
 
 ```yaml
 apiVersion: operators.coreos.com/v1alpha1
@@ -92,9 +90,9 @@ spec:
 
 **Note**: You can add configuration overrides in the `spec.config` section. For example, override `env` and `resources`.
 
-## Deploy the Datadog Agents with the Operator
+## 3. Deploy the Datadog Agents with the Operator
 
-After deploying the Datadog Operator, create the `DatadogAgent` resource that triggers the Datadog Agent's deployment in your Kubernetes cluster. By creating this resource, the Agent will be deployed as a `DaemonSet` on every `Node` of your cluster.
+After deploying the Datadog Operator, create the `DatadogAgent` resource that triggers the Datadog Agent's deployment in your Kubernetes cluster. The creation of this resource deploys the Agent as a DaemonSet on every Node of your cluster.
 
 1. Create a Kubernetes secret with your API and APP keys
 
@@ -103,7 +101,7 @@ After deploying the Datadog Operator, create the `DatadogAgent` resource that tr
    ```
    Replace `<DATADOG_API_KEY>` and `<DATADOG_APP_KEY>` with your [Datadog API and application keys][7]
 
-1. Create a file with the spec of your DatadogAgent deployment configuration. The simplest configuration is:
+1. Create a file with the spec of your `DatadogAgent` deployment configuration. The simplest configuration is:
 
    ```yaml
    apiVersion: datadoghq.com/v1alpha1
@@ -120,12 +118,12 @@ After deploying the Datadog Operator, create the `DatadogAgent` resource that tr
          keyName: app-key
    ```
 
-1. Deploy the Datadog agent with the above configuration file:
+1. Deploy the Datadog Agent with the above configuration file:
    ```shell
    kubectl apply -f agent_spec=/path/to/your/datadog-agent.yaml
    ```
 
-In a 2-worker-nodes cluster, you should see the Agent pods created on each node.
+In a 2-worker-nodes cluster, you should see the Agent Pods created on each node.
 
 ```shell
 $ kubectl get daemonset
@@ -141,7 +139,7 @@ datadog-agent-zcxx7                          1/1     Running   0          5m59s 
 
 ### Tolerations
 
-Update your [`datadog-agent.yaml` file][8] with the following configuration to add the toleration in the `Daemonset.spec.template` of your `DaemonSet` :
+Update your [`datadog-agent.yaml` file][8] with the following configuration to add the toleration in the `Daemonset.spec.template` of your DaemonSet:
 
    ```yaml
    apiVersion: datadoghq.com/v1alpha1
@@ -168,7 +166,7 @@ $ kubectl apply -f datadog-agent.yaml
 datadogagent.datadoghq.com/datadog updated
 ```
 
-The DaemonSet update can be validated by looking at the new desired pod value:
+Validate the DaemonSet update by looking at the new `desired` Pod value:
 
 ```shell
 $ kubectl get daemonset
@@ -183,9 +181,9 @@ datadog-agent-lkfqt                          0/1     Running    0          15s
 datadog-agent-zvdbw                          1/1     Running    0          8m1s
 ```
 
-## Install the kubectl plugin
+## Install the `kubectl` plugin
 
-[kubctl plugin doc](/docs/kubectl-plugin.md)
+See the [`kubectl` plugin doc](/docs/kubectl-plugin.md)
 
 ## Cleanup
 

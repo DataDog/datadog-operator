@@ -10,6 +10,7 @@ import (
 )
 
 func Test_GetImage(t *testing.T) {
+	emptyRegistry := ""
 	tests := []struct {
 		name      string
 		imageSpec *commonv1.AgentImageConfig
@@ -48,7 +49,7 @@ func Test_GetImage(t *testing.T) {
 				Name: "agent",
 				Tag:  "latest",
 			},
-			registry: nil,
+			registry: &emptyRegistry,
 			want:     "gcr.io/datadoghq/agent:latest",
 		},
 		{

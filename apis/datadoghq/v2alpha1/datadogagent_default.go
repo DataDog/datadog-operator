@@ -34,7 +34,7 @@ const (
 	defaultAPMHostPortEnabled bool   = false
 	defaultAPMHostPort        int32  = 8126
 	defaultAPMSocketEnabled   bool   = true
-	defaultAPMSocketPath      string = "/var/run/datadog/apm/apm.sock"
+	defaultAPMSocketHostPath  string = apicommon.DogstatsdAPMSocketVolumePath + "/" + apicommon.APMSocketName
 
 	// defaultCSPMEnabled              bool = false
 	// defaultCWSEnabled               bool = false
@@ -50,7 +50,7 @@ const (
 	defaultDogstatsdHostPortEnabled        bool   = false
 	defaultDogstatsdPort                   int32  = 8125
 	defaultDogstatsdSocketEnabled          bool   = true
-	defaultDogstatsdSocketPath             string = "/var/run/datadog/statsd/dsd.socket"
+	defaultDogstatsdHostSocketPath         string = apicommon.DogstatsdAPMSocketVolumePath + "/" + apicommon.DogstatsdSocketName
 
 	defaultOTLPGRPCEnabled  bool   = false
 	defaultOTLPGRPCEndpoint string = "0.0.0.0:4317"
@@ -59,7 +59,7 @@ const (
 
 	defaultCollectKubernetesEvents bool = true
 
-	// defaultAdmissionControllerEnabled          bool = false
+	defaultAdmissionControllerEnabled          bool   = true
 	defaultAdmissionControllerMutateUnlabelled bool   = false
 	defaultAdmissionServiceName                string = "datadog-admission-controller"
 
@@ -74,7 +74,7 @@ const (
 	defaultKubeStateMetricsCoreEnabled bool = true
 
 	defaultClusterChecksEnabled    bool = true
-	defaultUseClusterChecksRunners bool = true
+	defaultUseClusterChecksRunners bool = false
 
 	// defaultPrometheusScrapeEnabled                bool = false
 	defaultPrometheusScrapeEnableServiceEndpoints bool = false
@@ -165,7 +165,7 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.APM.UnixDomainSocketConfig.Enabled, defaultAPMSocketEnabled)
 
-		apiutils.DefaultStringIfUnset(&ddaSpec.Features.APM.UnixDomainSocketConfig.Path, defaultAPMSocketPath)
+		apiutils.DefaultStringIfUnset(&ddaSpec.Features.APM.UnixDomainSocketConfig.Path, defaultAPMSocketHostPath)
 	}
 
 	// CWS (Cloud Workload Security) Feature
@@ -203,7 +203,8 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.Dogstatsd.UnixDomainSocketConfig.Enabled, defaultDogstatsdSocketEnabled)
 
-	apiutils.DefaultStringIfUnset(&ddaSpec.Features.Dogstatsd.UnixDomainSocketConfig.Path, defaultDogstatsdSocketPath)
+	// defaultDogstatsdHostSocketPath matches the default hostPath of the helm chart.
+	apiutils.DefaultStringIfUnset(&ddaSpec.Features.Dogstatsd.UnixDomainSocketConfig.Path, defaultDogstatsdHostSocketPath)
 
 	// OTLP ingest feature
 	if ddaSpec.Features.OTLP == nil {
@@ -250,7 +251,14 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 	}
 
 	// AdmissionController Feature
-	if ddaSpec.Features.AdmissionController != nil && *ddaSpec.Features.AdmissionController.Enabled {
+	if ddaSpec.Features.AdmissionController == nil {
+		ddaSpec.Features.AdmissionController = &AdmissionControllerFeatureConfig{
+			Enabled: apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+		}
+	}
+
+	if ddaSpec.Features.AdmissionController.Enabled == nil || *ddaSpec.Features.AdmissionController.Enabled {
+		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.AdmissionController.Enabled, defaultAdmissionControllerEnabled)
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.AdmissionController.MutateUnlabelled, defaultAdmissionControllerMutateUnlabelled)
 		apiutils.DefaultStringIfUnset(&ddaSpec.Features.AdmissionController.ServiceName, defaultAdmissionServiceName)
 	}

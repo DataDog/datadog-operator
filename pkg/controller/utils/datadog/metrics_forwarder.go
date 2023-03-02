@@ -19,6 +19,7 @@ import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/pkg/config"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 
 	"github.com/go-logr/logr"
@@ -26,6 +27,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -43,6 +45,8 @@ const (
 	clusterNameTagFormat        = "cluster_name:%s"
 	crNsTagFormat               = "cr_namespace:%s"
 	crNameTagFormat             = "cr_name:%s"
+	crPreferredVersionTagFormat = "cr_preferred_version:%s"
+	crOtherVersionTagFormat     = "cr_other_version:%s"
 	agentName                   = "agent"
 	clusteragentName            = "clusteragent"
 	clusterchecksrunnerName     = "clusterchecksrunner"
@@ -50,7 +54,7 @@ const (
 	reconcileFailureValue       = 0.0
 	reconcileMetricFormat       = "%s.reconcile.success"
 	reconcileErrTagFormat       = "reconcile_err:%s"
-	datadogOperatorSourceType   = "datadog_operator"
+	datadogOperatorSourceType   = "datadog"
 	defaultbaseURL              = "https://api.datadoghq.com"
 )
 
@@ -84,18 +88,20 @@ func hashKeys(apiKey, appKey string) uint64 {
 // metricsForwarder sends metrics directly to Datadog using the public API
 // its lifecycle must be handled by a ForwardersManager
 type metricsForwarder struct {
-	id            string
-	datadogClient *api.Client
-	k8sClient     client.Client
+	id                  string
+	monitoredObjectKind string
+	datadogClient       *api.Client
+	k8sClient           client.Client
 
-	v2Enabled   bool
-	apiKey      string
-	appKey      string
-	clusterName string
-	labels      map[string]string
-	dsStatus    *commonv1.DaemonSetStatus
-	dcaStatus   *commonv1.DeploymentStatus
-	ccrStatus   *commonv1.DeploymentStatus
+	v2Enabled    bool
+	platformInfo *kubernetes.PlatformInfo
+	apiKey       string
+	appKey       string
+	clusterName  string
+	labels       map[string]string
+	dsStatus     *commonv1.DaemonSetStatus
+	dcaStatus    *commonv1.DeploymentStatus
+	ccrStatus    *commonv1.DeploymentStatus
 
 	keysHash            uint64
 	retryInterval       time.Duration
@@ -119,11 +125,13 @@ type metricsForwarder struct {
 }
 
 // newMetricsForwarder returs a new Datadog MetricsForwarder instance
-func newMetricsForwarder(k8sClient client.Client, decryptor secrets.Decryptor, obj MonitoredObject, v2Enabled bool) *metricsForwarder {
+func newMetricsForwarder(k8sClient client.Client, decryptor secrets.Decryptor, obj MonitoredObject, kind schema.ObjectKind, v2Enabled bool, platforminfo *kubernetes.PlatformInfo) *metricsForwarder {
 	return &metricsForwarder{
 		id:                  getObjID(obj),
+		monitoredObjectKind: kind.GroupVersionKind().Kind,
 		k8sClient:           k8sClient,
 		v2Enabled:           v2Enabled,
+		platformInfo:        platforminfo,
 		namespacedName:      getNamespacedName(obj),
 		retryInterval:       defaultMetricsRetryInterval,
 		sendMetricsInterval: defaultSendMetricsInterval,
@@ -400,6 +408,7 @@ func (mf *metricsForwarder) prepareReconcileMetric(reconcileErr error) (float64,
 		}
 		tags = mf.tagsWithExtraTag(reconcileErrTagFormat, reason)
 	}
+	tags = append(tags, mf.getCRVersionTags()...)
 	return metricValue, tags, nil
 }
 
@@ -470,6 +479,7 @@ func (mf *metricsForwarder) sendStatusMetrics(dsStatus *commonv1.DaemonSetStatus
 			metricValue = deploymentFailureValue
 		}
 		tags := mf.tagsWithExtraTag(stateTagFormat, dsStatus.State)
+		tags = append(tags, mf.getCRVersionTags()...)
 		if err := mf.sendDeploymentMetric(metricValue, agentName, tags); err != nil {
 			return err
 		}
@@ -483,6 +493,7 @@ func (mf *metricsForwarder) sendStatusMetrics(dsStatus *commonv1.DaemonSetStatus
 			metricValue = deploymentFailureValue
 		}
 		tags := mf.tagsWithExtraTag(stateTagFormat, dcaStatus.State)
+		tags = append(tags, mf.getCRVersionTags()...)
 		if err := mf.sendDeploymentMetric(metricValue, clusteragentName, tags); err != nil {
 			return err
 		}
@@ -496,6 +507,7 @@ func (mf *metricsForwarder) sendStatusMetrics(dsStatus *commonv1.DaemonSetStatus
 			metricValue = deploymentFailureValue
 		}
 		tags := mf.tagsWithExtraTag(stateTagFormat, ccrStatus.State)
+		tags = append(tags, mf.getCRVersionTags()...)
 		if err := mf.sendDeploymentMetric(metricValue, clusterchecksrunnerName, tags); err != nil {
 			return err
 		}
@@ -507,6 +519,23 @@ func (mf *metricsForwarder) sendStatusMetrics(dsStatus *commonv1.DaemonSetStatus
 // tagsWithExtraTag used to append an extra tag to the forwarder tags
 func (mf *metricsForwarder) tagsWithExtraTag(tagFormat, tag string) []string {
 	return append(mf.globalTags, append(mf.tags, fmt.Sprintf(tagFormat, tag))...)
+}
+
+// getDatadogAgentCRVersionTags returns DatadogAgent CRD version tags
+func (mf *metricsForwarder) getCRVersionTags() []string {
+	ddaPreferredVersion, ddaOtherVersion := mf.platformInfo.GetApiVersions(mf.monitoredObjectKind)
+
+	versionTags := []string{}
+
+	if ddaPreferredVersion == "" {
+		// This should never happen, since forwarder is created for an object created by Kubernetes, implying support for that API.
+		ddaPreferredVersion = "null"
+	}
+	versionTags = append(versionTags, fmt.Sprintf(crPreferredVersionTagFormat, ddaPreferredVersion))
+	if ddaOtherVersion != "" {
+		versionTags = append(versionTags, fmt.Sprintf(crOtherVersionTagFormat, ddaOtherVersion))
+	}
+	return versionTags
 }
 
 // sendDeploymentMetric is a generic method used to forward component deployment metrics to Datadog

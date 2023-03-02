@@ -15,6 +15,7 @@ const (
 	DDAdmissionControllerLocalServiceName           = "DD_ADMISSION_CONTROLLER_INJECT_CONFIG_LOCAL_SERVICE_NAME"
 	DDAdmissionControllerMutateUnlabelled           = "DD_ADMISSION_CONTROLLER_MUTATE_UNLABELLED"
 	DDAdmissionControllerServiceName                = "DD_ADMISSION_CONTROLLER_SERVICE_NAME"
+	DDAdmissionControllerFailurePolicy              = "DD_ADMISSION_CONTROLLER_FAILURE_POLICY"
 	DDAPIKey                                        = "DD_API_KEY"
 	DDAPMEnabled                                    = "DD_APM_ENABLED"
 	DDAPMNonLocalTraffic                            = "DD_APM_NON_LOCAL_TRAFFIC"

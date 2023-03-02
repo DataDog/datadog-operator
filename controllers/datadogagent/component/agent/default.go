@@ -72,6 +72,7 @@ func DefaultCapabilitiesForSystemProbe() []corev1.Capability {
 		"NET_RAW",
 		"IPC_LOCK",
 		"CHOWN",
+		"DAC_READ_SEARCH",
 	}
 }
 
@@ -347,6 +348,8 @@ func volumeMountsForCoreAgent() []corev1.VolumeMount {
 func volumeMountsForTraceAgent() []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		component.GetVolumeMountForLogs(),
+		component.GetVolumeMountForProc(),
+		component.GetVolumeMountForCgroups(),
 		component.GetVolumeMountForAuth(true),
 		component.GetVolumeMountForConfig(),
 		component.GetVolumeMountForDogstatsdSocket(true),

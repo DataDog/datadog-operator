@@ -78,7 +78,7 @@ func Test_defaultFeatures(t *testing.T) {
 						HostPortConfig:         &HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
 						UnixDomainSocketConfig: &UnixDomainSocketConfig{
 							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
-							Path:    apiutils.NewStringPointer(defaultDogstatsdSocketPath),
+							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
 						},
 					},
 					OTLP: &OTLPFeatureConfig{Receiver: OTLPReceiverConfig{Protocols: OTLPProtocolsConfig{
@@ -104,6 +104,11 @@ func Test_defaultFeatures(t *testing.T) {
 					ClusterChecks: &ClusterChecksFeatureConfig{
 						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
 						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
+					},
+					AdmissionController: &AdmissionControllerFeatureConfig{
+						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
+						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
 					},
 				},
 			},
@@ -206,7 +211,7 @@ func Test_defaultFeatures(t *testing.T) {
 						HostPortConfig:         &HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
 						UnixDomainSocketConfig: &UnixDomainSocketConfig{
 							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
-							Path:    apiutils.NewStringPointer(defaultDogstatsdSocketPath),
+							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
 						},
 					},
 					OTLP: &OTLPFeatureConfig{Receiver: OTLPReceiverConfig{Protocols: OTLPProtocolsConfig{
@@ -265,7 +270,7 @@ func Test_defaultFeatures(t *testing.T) {
 						HostPortConfig:         &HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
 						UnixDomainSocketConfig: &UnixDomainSocketConfig{
 							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
-							Path:    apiutils.NewStringPointer(defaultDogstatsdSocketPath),
+							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
 						},
 					},
 					OTLP: &OTLPFeatureConfig{Receiver: OTLPReceiverConfig{Protocols: OTLPProtocolsConfig{
@@ -291,6 +296,11 @@ func Test_defaultFeatures(t *testing.T) {
 					ClusterChecks: &ClusterChecksFeatureConfig{
 						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
 						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
+					},
+					AdmissionController: &AdmissionControllerFeatureConfig{
+						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
+						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
 					},
 				},
 			},
@@ -322,7 +332,7 @@ func Test_defaultFeatures(t *testing.T) {
 						HostPortConfig:         &HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
 						UnixDomainSocketConfig: &UnixDomainSocketConfig{
 							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
-							Path:    apiutils.NewStringPointer(defaultDogstatsdSocketPath),
+							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
 						},
 					},
 					OTLP: &OTLPFeatureConfig{Receiver: OTLPReceiverConfig{Protocols: OTLPProtocolsConfig{
@@ -348,6 +358,11 @@ func Test_defaultFeatures(t *testing.T) {
 					ClusterChecks: &ClusterChecksFeatureConfig{
 						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
 						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
+					},
+					AdmissionController: &AdmissionControllerFeatureConfig{
+						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
+						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
 					},
 				},
 			},
@@ -374,7 +389,7 @@ func Test_defaultFeatures(t *testing.T) {
 						},
 						UnixDomainSocketConfig: &UnixDomainSocketConfig{
 							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
-							Path:    apiutils.NewStringPointer(defaultAPMSocketPath),
+							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
 						},
 					},
 					Dogstatsd: &DogstatsdFeatureConfig{
@@ -382,7 +397,7 @@ func Test_defaultFeatures(t *testing.T) {
 						HostPortConfig:         &HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
 						UnixDomainSocketConfig: &UnixDomainSocketConfig{
 							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
-							Path:    apiutils.NewStringPointer(defaultDogstatsdSocketPath),
+							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
 						},
 					},
 					OTLP: &OTLPFeatureConfig{Receiver: OTLPReceiverConfig{Protocols: OTLPProtocolsConfig{
@@ -408,6 +423,11 @@ func Test_defaultFeatures(t *testing.T) {
 					ClusterChecks: &ClusterChecksFeatureConfig{
 						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
 						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
+					},
+					AdmissionController: &AdmissionControllerFeatureConfig{
+						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
+						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
 					},
 				},
 			},
@@ -436,7 +456,7 @@ func Test_defaultFeatures(t *testing.T) {
 						HostPortConfig:         &HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
 						UnixDomainSocketConfig: &UnixDomainSocketConfig{
 							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
-							Path:    apiutils.NewStringPointer(defaultDogstatsdSocketPath),
+							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
 						},
 					},
 					OTLP: &OTLPFeatureConfig{Receiver: OTLPReceiverConfig{Protocols: OTLPProtocolsConfig{
@@ -462,6 +482,11 @@ func Test_defaultFeatures(t *testing.T) {
 					ClusterChecks: &ClusterChecksFeatureConfig{
 						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
 						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
+					},
+					AdmissionController: &AdmissionControllerFeatureConfig{
+						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
+						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
 					},
 				},
 			},
@@ -492,7 +517,7 @@ func Test_defaultFeatures(t *testing.T) {
 						HostPortConfig:         &HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
 						UnixDomainSocketConfig: &UnixDomainSocketConfig{
 							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
-							Path:    apiutils.NewStringPointer(defaultDogstatsdSocketPath),
+							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
 						},
 					},
 					OTLP: &OTLPFeatureConfig{Receiver: OTLPReceiverConfig{Protocols: OTLPProtocolsConfig{
@@ -519,6 +544,11 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
 						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
 					},
+					AdmissionController: &AdmissionControllerFeatureConfig{
+						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
+						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+					},
 				},
 			},
 		},
@@ -541,7 +571,7 @@ func Test_defaultFeatures(t *testing.T) {
 						HostPortConfig:         &HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
 						UnixDomainSocketConfig: &UnixDomainSocketConfig{
 							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
-							Path:    apiutils.NewStringPointer(defaultDogstatsdSocketPath),
+							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
 						},
 					},
 					OTLP: &OTLPFeatureConfig{Receiver: OTLPReceiverConfig{Protocols: OTLPProtocolsConfig{
@@ -573,6 +603,11 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
 						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
 					},
+					AdmissionController: &AdmissionControllerFeatureConfig{
+						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
+						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+					},
 				},
 			},
 		},
@@ -595,7 +630,7 @@ func Test_defaultFeatures(t *testing.T) {
 						HostPortConfig:         &HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
 						UnixDomainSocketConfig: &UnixDomainSocketConfig{
 							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
-							Path:    apiutils.NewStringPointer(defaultDogstatsdSocketPath),
+							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
 						},
 					},
 					OTLP: &OTLPFeatureConfig{Receiver: OTLPReceiverConfig{Protocols: OTLPProtocolsConfig{
@@ -621,6 +656,67 @@ func Test_defaultFeatures(t *testing.T) {
 					ClusterChecks: &ClusterChecksFeatureConfig{
 						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
 						UseClusterChecksRunners: apiutils.NewBoolPointer(false),
+					},
+					AdmissionController: &AdmissionControllerFeatureConfig{
+						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
+						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+					},
+				},
+			},
+		},
+		{
+			name: "Admission controller enabled unset, other fields set",
+			ddaSpec: &DatadogAgentSpec{
+				Features: &DatadogFeatures{
+					AdmissionController: &AdmissionControllerFeatureConfig{
+						MutateUnlabelled:       apiutils.NewBoolPointer(true),
+						AgentCommunicationMode: apiutils.NewStringPointer("socket"),
+					},
+				},
+			},
+			want: &DatadogAgentSpec{
+				Features: &DatadogFeatures{
+					LiveContainerCollection: &LiveContainerCollectionFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
+					},
+					Dogstatsd: &DogstatsdFeatureConfig{
+						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogstatsdOriginDetectionEnabled),
+						HostPortConfig:         &HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
+						UnixDomainSocketConfig: &UnixDomainSocketConfig{
+							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
+							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
+						},
+					},
+					OTLP: &OTLPFeatureConfig{Receiver: OTLPReceiverConfig{Protocols: OTLPProtocolsConfig{
+						GRPC: &OTLPGRPCConfig{
+							Enabled:  apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+							Endpoint: apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+						},
+						HTTP: &OTLPHTTPConfig{
+							Enabled:  apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+							Endpoint: apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+						},
+					}}},
+					EventCollection: &EventCollectionFeatureConfig{
+						CollectKubernetesEvents: apiutils.NewBoolPointer(defaultCollectKubernetesEvents),
+					},
+					OrchestratorExplorer: &OrchestratorExplorerFeatureConfig{
+						Enabled:         apiutils.NewBoolPointer(defaultOrchestratorExplorerEnabled),
+						ScrubContainers: apiutils.NewBoolPointer(defaultOrchestratorExplorerScrubContainers),
+					},
+					KubeStateMetricsCore: &KubeStateMetricsCoreFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
+					},
+					ClusterChecks: &ClusterChecksFeatureConfig{
+						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
+						UseClusterChecksRunners: apiutils.NewBoolPointer(false),
+					},
+					AdmissionController: &AdmissionControllerFeatureConfig{
+						Enabled:                apiutils.NewBoolPointer(true),
+						MutateUnlabelled:       apiutils.NewBoolPointer(true),
+						ServiceName:            apiutils.NewStringPointer(defaultAdmissionServiceName),
+						AgentCommunicationMode: apiutils.NewStringPointer("socket"),
 					},
 				},
 			},

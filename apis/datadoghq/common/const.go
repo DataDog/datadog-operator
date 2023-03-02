@@ -19,6 +19,10 @@ const (
 	AgentDeploymentComponentLabelKey = "agent.datadoghq.com/component"
 	// MD5AgentDeploymentAnnotationKey annotation key used on a Resource in order to identify which AgentDeployment have been used to generate it.
 	MD5AgentDeploymentAnnotationKey = "agent.datadoghq.com/agentspechash"
+	// MD5ChecksumAnnotationKey annotation key is used to identify customConfig configurations
+	MD5ChecksumAnnotationKey = "checksum/%s-custom-config"
+	// MD5ChecksumAnnotationKey is part of the key name to identify custom seccomp configurations
+	MD5ChecksumSeccompProfileAnnotationName = "%s-seccomp"
 
 	// DefaultAgentResourceSuffix use as suffix for agent resource naming
 	DefaultAgentResourceSuffix = "agent"
@@ -191,7 +195,9 @@ const (
 	DogstatsdHostPortName                            = "dogstatsdport"
 	DogstatsdHostPortHostPort                        = 8125
 	DogstatsdSocketVolumeName                        = "dsdsocket"
-	DogstatsdSocketVolumePath                        = "/var/run/datadog/statsd"
+	DogstatsdAPMSocketVolumePath                     = "/var/run/datadog"
+	DogstatsdSocketLocalPath                         = "/var/run/datadog/statsd"
+	DogstatsdSocketName                              = "dsd.socket"
 	SecurityAgentComplianceCustomConfigDirVolumeName = "customcompliancebenchmarks"
 	SecurityAgentComplianceConfigDirVolumeName       = "compliancedir"
 	SecurityAgentComplianceConfigDirVolumePath       = "/etc/datadog-agent/compliance.d"
@@ -207,7 +213,8 @@ const (
 	APMHostPortName                                  = "traceport"
 	APMHostPortHostPort                              = 8126
 	APMSocketVolumeName                              = "apmsocket"
-	APMSocketVolumePath                              = "/var/run/datadog/apm"
+	APMSocketVolumeLocalPath                         = "/var/run/datadog/apm"
+	APMSocketName                                    = "apm.socket"
 	AdmissionControllerPortName                      = "admissioncontrollerport"
 	ExternalMetricsPortName                          = "metricsapi"
 	ExternalMetricsAPIServiceName                    = "v1beta1.external.metrics.k8s.io"

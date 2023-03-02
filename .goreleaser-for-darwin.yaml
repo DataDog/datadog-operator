@@ -1,0 +1,35 @@
+before:
+  hooks:
+    - go mod download
+    - go generate ./...
+builds:
+- id: kubectl-datadog
+  goos:
+  - darwin
+  goarch:
+  - amd64
+  - arm64
+  env:
+  - CGO_ENABLED=1
+  main: ./cmd/kubectl-datadog/main.go
+  ldflags: -w -X ${BUILDINFOPKG}.Commit=${GIT_COMMIT} -X ${BUILDINFOPKG}.Version=${VERSION} -X ${BUILDINFOPKG}.BuildTime=${DATE} -s
+  binary: kubectl-datadog
+archives:
+- id: kubectl-datadog
+  builds:
+  - kubectl-datadog
+  name_template: "kubectl-datadog_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+  wrap_in_directory: false
+  format: zip
+  files:
+  - LICENSE
+checksum:
+  name_template: "checksums.txt"
+snapshot:
+  name_template: "{{ .Tag }}-next"
+changelog:
+  sort: asc
+  filters:
+    exclude:
+    - '^docs:'
+    - '^test:'

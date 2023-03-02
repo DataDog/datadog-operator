@@ -517,13 +517,13 @@ func schema__apis_datadoghq_v2alpha1_DogstatsdFeatureConfig(ref common.Reference
 					},
 					"hostPortConfig": {
 						SchemaProps: spec.SchemaProps{
-							Description: "HostPortConfig contains host port configuration. Enabled Default: true Port Default: 8125",
+							Description: "HostPortConfig contains host port configuration. Enabled Default: false Port Default: 8125",
 							Ref:         ref("./apis/datadoghq/v2alpha1.HostPortConfig"),
 						},
 					},
 					"unixDomainSocketConfig": {
 						SchemaProps: spec.SchemaProps{
-							Description: "UnixDomainSocketConfig contains socket configuration. See also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables Enabled Default: true Path Default: `/var/run/datadog/statsd/dsd.socket`",
+							Description: "UnixDomainSocketConfig contains socket configuration. See also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables Enabled Default: true Path Default: `/var/run/datadog/dsd.socket`",
 							Ref:         ref("./apis/datadoghq/v2alpha1.UnixDomainSocketConfig"),
 						},
 					},

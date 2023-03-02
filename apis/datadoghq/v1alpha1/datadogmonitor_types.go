@@ -72,7 +72,7 @@ type DatadogMonitorOptions struct {
 	Locked *bool `json:"locked,omitempty"`
 	// Time (in seconds) to allow a host to boot and applications to fully start before starting the evaluation of
 	// monitor results. Should be a non negative integer.
-	NewHostDelay *int64 `json:"newHostDelay,omitempty"`
+	NewGroupDelay *int64 `json:"newGroupDelay,omitempty"`
 	// The number of minutes before a monitor notifies after data stops reporting. Datadog recommends at least 2x the
 	// monitor timeframe for metric alerts or 2 minutes for service checks. If omitted, 2x the evaluation timeframe
 	// is used for metric alerts, and 24 hours is used for service checks.

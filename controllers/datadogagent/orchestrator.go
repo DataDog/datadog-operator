@@ -219,6 +219,14 @@ func buildOrchestratorExplorerRBAC(dda *datadoghqv1alpha1.DatadogAgent, name, ve
 			APIGroups: []string{rbac.NetworkingAPIGroup},
 			Resources: []string{rbac.IngressesResource},
 		},
+		{
+			APIGroups: []string{rbac.AutoscalingK8sIoAPIGroup},
+			Resources: []string{rbac.VPAResource},
+			Verbs: []string{
+				rbac.ListVerb,
+				rbac.WatchVerb,
+			},
+		},
 	}
 
 	clusterRole.Rules = rbacRules

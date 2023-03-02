@@ -51,13 +51,12 @@ func GetDefaultReadinessProbe() *corev1.Probe {
 // GetImage builds the image string based on ImageConfig and the registry configuration.
 func GetImage(imageSpec *commonv1.AgentImageConfig, registry *string) string {
 	if defaulting.IsImageNameContainsTag(imageSpec.Name) {
-		// The image name corresponds to a full image string
 		return imageSpec.Name
 	}
 
 	img := defaulting.NewImage(imageSpec.Name, imageSpec.Tag, imageSpec.JMXEnabled)
 
-	if registry != nil {
+	if registry != nil && *registry != "" {
 		defaulting.WithRegistry(defaulting.ContainerRegistry(*registry))(img)
 	}
 

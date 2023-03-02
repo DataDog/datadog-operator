@@ -264,7 +264,7 @@ func GetVolumeMountForCgroups() corev1.VolumeMount {
 func GetVolumeMountForDogstatsdSocket(readOnly bool) corev1.VolumeMount {
 	return corev1.VolumeMount{
 		Name:      apicommon.DogstatsdSocketVolumeName,
-		MountPath: apicommon.DogstatsdSocketVolumePath,
+		MountPath: apicommon.DogstatsdSocketLocalPath,
 		ReadOnly:  readOnly,
 	}
 }

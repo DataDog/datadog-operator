@@ -87,34 +87,6 @@ func getDCAClusterPolicyRules(useDDM, useWPA bool) []rbacv1.PolicyRule {
 	return rbacRules
 }
 
-func getDCAPolicyRules() []rbacv1.PolicyRule {
-	return []rbacv1.PolicyRule{
-		{
-			APIGroups: []string{rbac.CoreAPIGroup},
-			Resources: []string{rbac.ConfigMapsResource},
-			ResourceNames: []string{
-				common.DatadogCustomMetricsResourceName,
-			},
-			Verbs: []string{
-				rbac.GetVerb,
-				rbac.UpdateVerb,
-			},
-		},
-		{
-			APIGroups: []string{rbac.CoreAPIGroup},
-			Resources: []string{rbac.ConfigMapsResource},
-			ResourceNames: []string{
-				common.ExtensionAPIServerAuthResourceName,
-			},
-			Verbs: []string{
-				rbac.GetVerb,
-				rbac.ListVerb,
-				rbac.WatchVerb,
-			},
-		},
-	}
-}
-
 func getAuthDelegatorRoleRef() rbacv1.RoleRef {
 	return rbacv1.RoleRef{
 		APIGroup: rbac.RbacAPIGroup,
@@ -134,13 +106,5 @@ func getExternalMetricsReaderPolicyRules() []rbacv1.PolicyRule {
 				rbac.WatchVerb,
 			},
 		},
-	}
-}
-
-func getAPIServerAuthReaderRoleRef() rbacv1.RoleRef {
-	return rbacv1.RoleRef{
-		APIGroup: rbac.RbacAPIGroup,
-		Kind:     rbac.RoleKind,
-		Name:     "extension-apiserver-authentication-reader",
 	}
 }

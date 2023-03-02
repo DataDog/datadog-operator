@@ -14,6 +14,8 @@ import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/go-logr/logr"
 
@@ -50,9 +52,11 @@ type ksmFeature struct {
 	rbacSuffix         string
 	serviceAccountName string
 
-	owner               metav1.Object
-	customConfig        *apicommonv1.CustomConfig
-	configConfigMapName string
+	owner                       metav1.Object
+	customConfig                *apicommonv1.CustomConfig
+	configConfigMapName         string
+	customConfigAnnotationKey   string
+	customConfigAnnotationValue string
 
 	logger logr.Logger
 }
@@ -72,6 +76,12 @@ func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 
 		if dda.Spec.Features.KubeStateMetricsCore.Conf != nil {
 			f.customConfig = v2alpha1.ConvertCustomConfig(dda.Spec.Features.KubeStateMetricsCore.Conf)
+			hash, err := comparison.GenerateMD5ForSpec(f.customConfig)
+			if err != nil {
+				f.logger.Error(err, "couldn't generate hash for ksm core custom config")
+			}
+			f.customConfigAnnotationValue = hash
+			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.KubernetesStateCoreIDType)
 		}
 
 		f.serviceAccountName = v2alpha1.GetClusterAgentServiceAccount(dda)
@@ -125,11 +135,16 @@ func (f *ksmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) feature.RequiredCom
 func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
 	// Create a configMap if CustomConfig.ConfigData is provided and CustomConfig.ConfigMap == nil,
 	// OR if the default configMap is needed.
-	configCM, err := f.buildKSMCoreConfigMap()
+	pInfo := managers.Store().GetPlatformInfo()
+	configCM, err := f.buildKSMCoreConfigMap(pInfo.IsResourceSupported("VerticalPodAutoscaler"))
 	if err != nil {
 		return err
 	}
 	if configCM != nil {
+		if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
+			annotations := object.MergeAnnotationsLabels(f.logger, configCM.GetAnnotations(), map[string]string{f.customConfigAnnotationKey: f.customConfigAnnotationValue}, "")
+			configCM.SetAnnotations(annotations)
+		}
 		if err := managers.Store().AddOrUpdate(kubernetes.ConfigMapKind, configCM); err != nil {
 			return err
 		}
@@ -163,6 +178,9 @@ func (f *ksmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 			MountPath: fmt.Sprintf("%s%s/%s", apicommon.ConfigVolumePath, apicommon.ConfdVolumePath, ksmCoreCheckFolderName),
 			ReadOnly:  true,
 		}
+	}
+	if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
+		managers.Annotation().AddAnnotation(f.customConfigAnnotationKey, f.customConfigAnnotationValue)
 	}
 	managers.VolumeMount().AddVolumeMountToContainer(&volMount, apicommonv1.ClusterAgentContainerName)
 	managers.Volume().AddVolume(&vol)

@@ -6,6 +6,9 @@
 package override
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/go-logr/logr"
 
 	securityv1 "github.com/openshift/api/security/v1"
@@ -17,7 +20,9 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/configmap"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
@@ -33,13 +38,15 @@ func Dependencies(logger logr.Logger, manager feature.ResourceManagers, dda *v2a
 		}
 
 		// Handle custom agent configurations (datadog.yaml, cluster-agent.yaml, etc.)
-		errs = append(errs, overrideCustomConfigs(manager, override.CustomConfigurations, dda.Name, namespace)...)
+		errs = append(errs, overrideCustomConfigs(logger, manager, override.CustomConfigurations, dda.Name, namespace)...)
 
 		// Handle custom check configurations
-		errs = append(errs, overrideExtraConfigs(manager, override.ExtraConfd, namespace, v2alpha1.ExtraConfdConfigMapName, true)...)
+		confdCMName := fmt.Sprintf(v2alpha1.ExtraConfdConfigMapName, strings.ToLower((string(component))))
+		errs = append(errs, overrideExtraConfigs(logger, manager, override.ExtraConfd, namespace, confdCMName, true)...)
 
 		// Handle custom check files
-		errs = append(errs, overrideExtraConfigs(manager, override.ExtraChecksd, namespace, v2alpha1.ExtraChecksdConfigMapName, false)...)
+		checksdCMName := fmt.Sprintf(v2alpha1.ExtraChecksdConfigMapName, strings.ToLower((string(component))))
+		errs = append(errs, overrideExtraConfigs(logger, manager, override.ExtraChecksd, namespace, checksdCMName, false)...)
 
 		// Handle scc
 		errs = append(errs, overrideSCC(manager, dda)...)
@@ -61,7 +68,7 @@ func overrideRBAC(logger logr.Logger, manager feature.ResourceManagers, override
 	return errors.NewAggregate(errs)
 }
 
-func overrideCustomConfigs(manager feature.ResourceManagers, customConfigMap map[v2alpha1.AgentConfigFileName]v2alpha1.CustomConfig, ddaName, namespace string) (errs []error) {
+func overrideCustomConfigs(logger logr.Logger, manager feature.ResourceManagers, customConfigMap map[v2alpha1.AgentConfigFileName]v2alpha1.CustomConfig, ddaName, namespace string) (errs []error) {
 	for fileName, customConfig := range customConfigMap {
 		// Favor ConfigMap setting; if it is specified, then move on
 		if customConfig.ConfigMap != nil {
@@ -72,6 +79,16 @@ func overrideCustomConfigs(manager feature.ResourceManagers, customConfigMap map
 			if err != nil {
 				errs = append(errs, err)
 			}
+
+			// Add md5 hash annotation for custom config
+			hash, err := comparison.GenerateMD5ForSpec(customConfig)
+			if err != nil {
+				logger.Error(err, "couldn't generate hash for custom config", "filename", fileName)
+			}
+			annotationKey := object.GetChecksumAnnotationKey(string(fileName))
+			annotations := object.MergeAnnotationsLabels(logger, cm.GetAnnotations(), map[string]string{annotationKey: hash}, "")
+			cm.SetAnnotations(annotations)
+
 			if cm != nil {
 				if err := manager.Store().AddOrUpdate(kubernetes.ConfigMapKind, cm); err != nil {
 					errs = append(errs, err)
@@ -82,12 +99,22 @@ func overrideCustomConfigs(manager feature.ResourceManagers, customConfigMap map
 	return errs
 }
 
-func overrideExtraConfigs(manager feature.ResourceManagers, multiCustomConfig *v2alpha1.MultiCustomConfig, namespace, configMapName string, isYaml bool) (errs []error) {
+func overrideExtraConfigs(logger logr.Logger, manager feature.ResourceManagers, multiCustomConfig *v2alpha1.MultiCustomConfig, namespace, configMapName string, isYaml bool) (errs []error) {
 	if multiCustomConfig != nil && multiCustomConfig.ConfigMap == nil && len(multiCustomConfig.ConfigDataMap) > 0 {
 		cm, err := configmap.BuildConfigMapMulti(namespace, multiCustomConfig.ConfigDataMap, configMapName, isYaml)
 		if err != nil {
 			errs = append(errs, err)
 		}
+
+		// Add md5 hash annotation for custom config
+		hash, err := comparison.GenerateMD5ForSpec(multiCustomConfig)
+		if err != nil {
+			logger.Error(err, "couldn't generate hash for extra custom config")
+		}
+		annotationKey := object.GetChecksumAnnotationKey(configMapName)
+		annotations := object.MergeAnnotationsLabels(logger, cm.GetAnnotations(), map[string]string{annotationKey: hash}, "")
+		cm.SetAnnotations(annotations)
+
 		if cm != nil {
 			if err := manager.Store().AddOrUpdate(kubernetes.ConfigMapKind, cm); err != nil {
 				errs = append(errs, err)

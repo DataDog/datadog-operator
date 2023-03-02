@@ -48,10 +48,41 @@ func Test_npmFeature_Configure(t *testing.T) {
 		},
 	}
 	ddav2NPMEnabled := ddav2NPMDisabled.DeepCopy()
-	{
-		ddav2NPMEnabled.Spec.Features.NPM.Enabled = apiutils.NewBoolPointer(true)
-	}
+	ddav2NPMEnabled.Spec.Features.NPM.Enabled = apiutils.NewBoolPointer(true)
 
+	ddav2NPMEnabledConfig := ddav2NPMEnabled.DeepCopy()
+	ddav2NPMEnabledConfig.Spec.Features.NPM.CollectDNSStats = apiutils.NewBoolPointer(true)
+	ddav2NPMEnabledConfig.Spec.Features.NPM.EnableConntrack = apiutils.NewBoolPointer(false)
+
+	npmFeatureEnvVarWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+		mgr := mgrInterface.(*fake.PodTemplateManagers)
+		// check env vars
+		sysProbeWantEnvVars := []*corev1.EnvVar{
+			{
+				Name:  apicommon.DDSystemProbeNPMEnabled,
+				Value: "true",
+			},
+			{
+				Name:  apicommon.DDSystemProbeEnabled,
+				Value: "true",
+			},
+			{
+				Name:  apicommon.DDSystemProbeCollectDNSStatsEnabled,
+				Value: "true",
+			},
+			{
+				Name:  apicommon.DDSystemProbeConntrackEnabled,
+				Value: "false",
+			},
+			{
+				Name:  apicommon.DDSystemProbeSocket,
+				Value: apicommon.DefaultSystemProbeSocketPath,
+			},
+		}
+		systemProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.SystemProbeContainerName]
+		assert.True(t, apiutils.IsEqualStruct(systemProbeEnvVars, sysProbeWantEnvVars), "4. System Probe envvars \ndiff = %s", cmp.Diff(systemProbeEnvVars, sysProbeWantEnvVars))
+
+	}
 	npmAgentNodeWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 		mgr := mgrInterface.(*fake.PodTemplateManagers)
 
@@ -164,8 +195,19 @@ func Test_npmFeature_Configure(t *testing.T) {
 				Value: apicommon.DefaultSystemProbeSocketPath,
 			},
 		}
+		npmFeatureEnvVar := []*corev1.EnvVar{
+			{
+				Name:  apicommon.DDSystemProbeConntrackEnabled,
+				Value: "false",
+			},
+			{
+				Name:  apicommon.DDSystemProbeCollectDNSStatsEnabled,
+				Value: "false",
+			},
+		}
+		sysProbeWantEnvVarsNPM := append(sysProbeWantEnvVars, npmFeatureEnvVar...)
 		systemProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.SystemProbeContainerName]
-		assert.True(t, apiutils.IsEqualStruct(systemProbeEnvVars, sysProbeWantEnvVars), "System Probe envvars \ndiff = %s", cmp.Diff(systemProbeEnvVars, sysProbeWantEnvVars))
+		assert.True(t, apiutils.IsEqualStruct(sysProbeWantEnvVarsNPM, sysProbeWantEnvVarsNPM), "System Probe envvars \ndiff = %s", cmp.Diff(systemProbeEnvVars, sysProbeWantEnvVarsNPM))
 
 		processWantEnvVars := append(sysProbeWantEnvVars, &corev1.EnvVar{
 			Name:  apicommon.DDSystemProbeExternal,
@@ -204,6 +246,12 @@ func Test_npmFeature_Configure(t *testing.T) {
 			DDAv2:         ddav2NPMEnabled,
 			WantConfigure: true,
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(npmAgentNodeWantFunc),
+		},
+		{
+			Name:          "v2alpha1 NPM enabled, conntrack disable, dnsstat enabled",
+			DDAv2:         ddav2NPMEnabledConfig,
+			WantConfigure: true,
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(npmFeatureEnvVarWantFunc),
 		},
 	}
 

@@ -57,6 +57,9 @@ spec:
                 description: MaxAge provides the max age for the metric query (overrides
                   the default setting `external_metrics_provider.max_age`)
                 type: string
+              timeWindow:
+                description: TimeWindow provides the time window for the metric query
+                type: string
               query:
                 description: Query is the raw datadog query
                 type: string

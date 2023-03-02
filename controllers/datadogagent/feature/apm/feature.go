@@ -266,11 +266,14 @@ func (f *apmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 	// uds
 	if f.udsEnabled {
 		udsHostFolder := filepath.Dir(f.udsHostFilepath)
+		sockName := filepath.Base(f.udsHostFilepath)
 		managers.EnvVar().AddEnvVarToContainer(apicommonv1.TraceAgentContainerName, &corev1.EnvVar{
 			Name:  apicommon.DDAPMReceiverSocket,
-			Value: f.udsHostFilepath,
+			Value: filepath.Join(apicommon.APMSocketVolumeLocalPath, sockName),
 		})
-		socketVol, socketVolMount := volume.GetVolumes(apicommon.APMSocketVolumeName, udsHostFolder, udsHostFolder, false)
+		socketVol, socketVolMount := volume.GetVolumes(apicommon.APMSocketVolumeName, udsHostFolder, apicommon.APMSocketVolumeLocalPath, false)
+		volType := corev1.HostPathDirectoryOrCreate // We need to create the directory on the host if it does not exist.
+		socketVol.VolumeSource.HostPath.Type = &volType
 		managers.VolumeMount().AddVolumeMountToContainer(&socketVolMount, apicommonv1.TraceAgentContainerName)
 		managers.Volume().AddVolume(&socketVol)
 	}

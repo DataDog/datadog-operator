@@ -40,8 +40,10 @@ type StoreClient interface {
 	Get(kind kubernetes.ObjectKind, namespace, name string) (client.Object, bool)
 	GetOrCreate(kind kubernetes.ObjectKind, namespace, name string) (client.Object, bool)
 	GetVersionInfo() *version.Info
+	GetPlatformInfo() kubernetes.PlatformInfo
 	Delete(kind kubernetes.ObjectKind, namespace string, name string) bool
 	DeleteAll(ctx context.Context, k8sClient client.Client) []error
+	Logger() logr.Logger
 }
 
 // NewStore returns a new Store instance
@@ -53,6 +55,7 @@ func NewStore(owner metav1.Object, options *StoreOptions) *Store {
 	if options != nil {
 		store.supportCilium = options.SupportCilium
 		store.versionInfo = options.VersionInfo
+		store.platformInfo = options.PlatformInfo
 		store.logger = options.Logger
 		store.scheme = options.Scheme
 	}
@@ -68,6 +71,7 @@ type Store struct {
 
 	supportCilium bool
 	versionInfo   *version.Info
+	platformInfo  kubernetes.PlatformInfo
 
 	scheme *runtime.Scheme
 	logger logr.Logger
@@ -78,6 +82,7 @@ type Store struct {
 type StoreOptions struct {
 	SupportCilium bool
 	VersionInfo   *version.Info
+	PlatformInfo  kubernetes.PlatformInfo
 
 	Scheme *runtime.Scheme
 	Logger logr.Logger
@@ -119,7 +124,7 @@ func (ds *Store) AddOrUpdate(kind kubernetes.ObjectKind, obj client.Object) erro
 		}
 
 		// Owner-reference should not be added to cluster level objects
-		if kind != kubernetes.ClusterRoleBindingKind && kind != kubernetes.ClusterRolesKind && kind != kubernetes.APIServiceKind {
+		if shouldSetOwnerReference(kind, obj.GetNamespace(), ds.owner.GetNamespace()) {
 			if err := object.SetOwnerReference(ds.owner, obj, ds.scheme); err != nil {
 				return fmt.Errorf("store.AddOrUpdate, %w", err)
 			}
@@ -169,7 +174,7 @@ func (ds *Store) GetOrCreate(kind kubernetes.ObjectKind, namespace, name string)
 	if found {
 		return obj, found
 	}
-	obj = kubernetes.ObjectFromKind(kind)
+	obj = kubernetes.ObjectFromKind(kind, ds.platformInfo)
 	obj.SetName(name)
 	obj.SetNamespace(namespace)
 	return obj, found
@@ -202,7 +207,7 @@ func (ds *Store) Apply(ctx context.Context, k8sClient client.Client) []error {
 	for kind := range ds.deps {
 		for objID, objStore := range ds.deps[kind] {
 			objNSName := buildObjectKey(objID)
-			objAPIServer := kubernetes.ObjectFromKind(kind)
+			objAPIServer := kubernetes.ObjectFromKind(kind, ds.platformInfo)
 			err := k8sClient.Get(ctx, objNSName, objAPIServer)
 			if err != nil && apierrors.IsNotFound(err) {
 				ds.logger.V(2).Info("dependencies.store Add object to create", "obj.namespace", objStore.GetNamespace(), "obj.name", objStore.GetName(), "obj.kind", kind)
@@ -261,8 +266,8 @@ func (ds *Store) Cleanup(ctx context.Context, k8sClient client.Client, ddaNs, dd
 	listOptions := &client.ListOptions{
 		LabelSelector: labels.NewSelector().Add(*requirementLabel),
 	}
-	for _, kind := range kubernetes.GetResourcesKind(ds.supportCilium) {
-		objList := kubernetes.ObjectListFromKind(kind)
+	for _, kind := range ds.platformInfo.GetAgentResourcesKind(ds.supportCilium) {
+		objList := kubernetes.ObjectListFromKind(kind, ds.platformInfo)
 		if err := k8sClient.List(ctx, objList, listOptions); err != nil {
 			errs = append(errs, err)
 			continue
@@ -284,6 +289,16 @@ func (ds *Store) GetVersionInfo() *version.Info {
 	return ds.versionInfo
 }
 
+// GetPlatformInfo returns api-resources info
+func (ds *Store) GetPlatformInfo() kubernetes.PlatformInfo {
+	return ds.platformInfo
+}
+
+// Logger returns the log client
+func (ds *Store) Logger() logr.Logger {
+	return ds.logger
+}
+
 // DeleteAll deletes all the resources that are in the Store
 func (ds *Store) DeleteAll(ctx context.Context, k8sClient client.Client) []error {
 	ds.mutex.RLock()
@@ -291,12 +306,12 @@ func (ds *Store) DeleteAll(ctx context.Context, k8sClient client.Client) []error
 
 	var objsToDelete []client.Object
 
-	for _, kind := range kubernetes.GetResourcesKind(ds.supportCilium) {
+	for _, kind := range ds.platformInfo.GetAgentResourcesKind(ds.supportCilium) {
 		requirementLabel, _ := labels.NewRequirement(operatorStoreLabelKey, selection.Exists, nil)
 		listOptions := &client.ListOptions{
 			LabelSelector: labels.NewSelector().Add(*requirementLabel),
 		}
-		objList := kubernetes.ObjectListFromKind(kind)
+		objList := kubernetes.ObjectListFromKind(kind, ds.platformInfo)
 		if err := k8sClient.List(ctx, objList, listOptions); err != nil {
 			return []error{err}
 		}
@@ -385,4 +400,23 @@ func buildObjectKey(key string) types.NamespacedName {
 		Namespace: ns,
 		Name:      name,
 	}
+}
+
+func shouldSetOwnerReference(kind kubernetes.ObjectKind, objNamespace, ownerNamespace string) bool {
+	// Owner-reference should not be added to cluster level objects
+	switch kind {
+	case kubernetes.ClusterRoleBindingKind:
+		return false
+	case kubernetes.ClusterRolesKind:
+		return false
+	case kubernetes.APIServiceKind:
+		return false
+	}
+
+	// Owner-reference should not be added to namespaced resources in a different namespace than the owner
+	if objNamespace != "" && ownerNamespace != "" && objNamespace != ownerNamespace {
+		return false
+	}
+
+	return true
 }
