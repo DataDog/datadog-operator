@@ -96,7 +96,7 @@ const (
 	DDRuntimeSecurityConfigSocket                   = "DD_RUNTIME_SECURITY_CONFIG_SOCKET"
 	DDRuntimeSecurityConfigSyscallMonitorEnabled    = "DD_RUNTIME_SECURITY_CONFIG_SYSCALL_MONITOR_ENABLED"
 	DDRuntimeSecurityConfigNetworkEnabled           = "DD_RUNTIME_SECURITY_CONFIG_NETWORK_ENABLED"
-	DDRuntimeSecurityConfigActivityDumpEnabled      = "DD_RUNTIME_SECURITY_ACTIVITY_DUMP_ENABLED"
+	DDRuntimeSecurityConfigActivityDumpEnabled      = "DD_RUNTIME_SECURITY_CONFIG_ACTIVITY_DUMP_ENABLED"
 	DDSecretBackendCommand                          = "DD_SECRET_BACKEND_COMMAND"
 	DDSite                                          = "DD_SITE"
 	DDSystemProbeAgentEnabled                       = "DD_SYSTEM_PROBE_ENABLED"
