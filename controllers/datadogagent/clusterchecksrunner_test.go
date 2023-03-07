@@ -310,7 +310,7 @@ func Test_newClusterChecksRunnerDeploymentFromInstance_UserVolumes(t *testing.T)
 				Labels: map[string]string{
 					"agent.datadoghq.com/name":      "foo",
 					"agent.datadoghq.com/component": "cluster-checks-runner",
-					"app.kubernetes.io/component":	"cluster-checks-runner",
+					"app.kubernetes.io/component":   "cluster-checks-runner",
 					"app.kubernetes.io/instance":    "foo-cluster-checks-runner",
 					"app.kubernetes.io/managed-by":  "datadog-operator",
 					"app.kubernetes.io/name":        "datadog-agent-deployment",
@@ -325,7 +325,7 @@ func Test_newClusterChecksRunnerDeploymentFromInstance_UserVolumes(t *testing.T)
 						Labels: map[string]string{
 							"agent.datadoghq.com/name":      "foo",
 							"agent.datadoghq.com/component": "cluster-checks-runner",
-							"app.kubernetes.io/component":	"cluster-checks-runner",
+							"app.kubernetes.io/component":   "cluster-checks-runner",
 							"app.kubernetes.io/instance":    "foo-cluster-checks-runner",
 							"app.kubernetes.io/managed-by":  "datadog-operator",
 							"app.kubernetes.io/name":        "datadog-agent-deployment",
@@ -391,7 +391,7 @@ func Test_newClusterChecksRunnerDeploymentFromInstance_EnvVars(t *testing.T) {
 				Labels: map[string]string{
 					"agent.datadoghq.com/name":      "foo",
 					"agent.datadoghq.com/component": "cluster-checks-runner",
-					"app.kubernetes.io/component":	"cluster-checks-runner",
+					"app.kubernetes.io/component":   "cluster-checks-runner",
 					"app.kubernetes.io/instance":    "foo-cluster-checks-runner",
 					"app.kubernetes.io/managed-by":  "datadog-operator",
 					"app.kubernetes.io/name":        "datadog-agent-deployment",
@@ -406,7 +406,7 @@ func Test_newClusterChecksRunnerDeploymentFromInstance_EnvVars(t *testing.T) {
 						Labels: map[string]string{
 							"agent.datadoghq.com/name":      "foo",
 							"agent.datadoghq.com/component": "cluster-checks-runner",
-							"app.kubernetes.io/component":	"cluster-checks-runner",
+							"app.kubernetes.io/component":   "cluster-checks-runner",
 							"app.kubernetes.io/instance":    "foo-cluster-checks-runner",
 							"app.kubernetes.io/managed-by":  "datadog-operator",
 							"app.kubernetes.io/name":        "datadog-agent-deployment",
@@ -458,7 +458,7 @@ func Test_newClusterChecksRunnerDeploymentFromInstance_CustomReplicas(t *testing
 				Labels: map[string]string{
 					"agent.datadoghq.com/name":      "foo",
 					"agent.datadoghq.com/component": "cluster-checks-runner",
-					"app.kubernetes.io/component":	"cluster-checks-runner",
+					"app.kubernetes.io/component":   "cluster-checks-runner",
 					"app.kubernetes.io/instance":    "foo-cluster-checks-runner",
 					"app.kubernetes.io/managed-by":  "datadog-operator",
 					"app.kubernetes.io/name":        "datadog-agent-deployment",
@@ -473,7 +473,7 @@ func Test_newClusterChecksRunnerDeploymentFromInstance_CustomReplicas(t *testing
 						Labels: map[string]string{
 							"agent.datadoghq.com/name":      "foo",
 							"agent.datadoghq.com/component": "cluster-checks-runner",
-							"app.kubernetes.io/component":	"cluster-checks-runner",
+							"app.kubernetes.io/component":   "cluster-checks-runner",
 							"app.kubernetes.io/instance":    "foo-cluster-checks-runner",
 							"app.kubernetes.io/managed-by":  "datadog-operator",
 							"app.kubernetes.io/name":        "datadog-agent-deployment",
@@ -597,7 +597,7 @@ func Test_newClusterChecksRunnerDeploymentFromInstance_CustomSecurityContext(t *
 				Labels: map[string]string{
 					"agent.datadoghq.com/name":      "foo",
 					"agent.datadoghq.com/component": "cluster-checks-runner",
-					"app.kubernetes.io/component":	"cluster-checks-runner",
+					"app.kubernetes.io/component":   "cluster-checks-runner",
 					"app.kubernetes.io/instance":    "foo-cluster-checks-runner",
 					"app.kubernetes.io/managed-by":  "datadog-operator",
 					"app.kubernetes.io/name":        "datadog-agent-deployment",
@@ -612,7 +612,7 @@ func Test_newClusterChecksRunnerDeploymentFromInstance_CustomSecurityContext(t *
 						Labels: map[string]string{
 							"agent.datadoghq.com/name":      "foo",
 							"agent.datadoghq.com/component": "cluster-checks-runner",
-							"app.kubernetes.io/component":	"cluster-checks-runner",
+							"app.kubernetes.io/component":   "cluster-checks-runner",
 							"app.kubernetes.io/instance":    "foo-cluster-checks-runner",
 							"app.kubernetes.io/managed-by":  "datadog-operator",
 							"app.kubernetes.io/name":        "datadog-agent-deployment",

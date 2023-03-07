@@ -6,6 +6,7 @@
 package merger
 
 import (
+	"reflect"
 	"testing"
 
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
@@ -116,6 +117,62 @@ func TestAddCapabilitiesToContainer(t *testing.T) {
 				}
 			}
 
+		})
+	}
+}
+
+func TestSortAndUnique(t *testing.T) {
+	tests := []struct {
+		name string
+		in   []corev1.Capability
+		want []corev1.Capability
+	}{
+		{
+			name: "empty in",
+			in:   nil,
+			want: nil,
+		},
+		{
+			name: "2 capabilities already sorted",
+			in: []corev1.Capability{
+				"BAR",
+				"FOO",
+			},
+			want: []corev1.Capability{
+				"BAR",
+				"FOO",
+			},
+		},
+		{
+			name: "2 capability not sorted",
+			in: []corev1.Capability{
+				"FOO",
+				"BAR",
+			},
+			want: []corev1.Capability{
+				"BAR",
+				"FOO",
+			},
+		},
+		{
+			name: "Input not unique",
+			in: []corev1.Capability{
+				"BAR",
+				"BAR",
+				"FOO",
+				"BAR",
+			},
+			want: []corev1.Capability{
+				"BAR",
+				"FOO",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := SortAndUnique(tt.in); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("SortAndUnique() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }
