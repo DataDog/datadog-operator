@@ -6,6 +6,8 @@
 package merger
 
 import (
+	"sort"
+
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -31,23 +33,47 @@ func (impl *securityContextManagerImpl) AddCapabilitiesToContainer(capabilities 
 	for i, container := range impl.podTmpl.Spec.Containers {
 		if container.Name == string(containerName) {
 			if container.SecurityContext == nil {
-				impl.podTmpl.Spec.Containers[i].SecurityContext = &corev1.SecurityContext{
-					Capabilities: &corev1.Capabilities{
-						Add: capabilities,
-					},
-				}
-			} else if container.SecurityContext.Capabilities == nil {
-				impl.podTmpl.Spec.Containers[i].SecurityContext.Capabilities = &corev1.Capabilities{
-					Add: capabilities,
-				}
-			} else {
-				// TODO add deduplication
-				impl.podTmpl.Spec.Containers[i].SecurityContext.Capabilities.Add = append(
-					impl.podTmpl.Spec.Containers[i].SecurityContext.Capabilities.Add,
-					capabilities...,
-				)
+				impl.podTmpl.Spec.Containers[i].SecurityContext = &corev1.SecurityContext{}
 			}
+			if impl.podTmpl.Spec.Containers[i].SecurityContext.Capabilities == nil {
+				impl.podTmpl.Spec.Containers[i].SecurityContext.Capabilities = &corev1.Capabilities{}
+			}
+			impl.podTmpl.Spec.Containers[i].SecurityContext.Capabilities.Add = SortAndUnique(append(impl.podTmpl.Spec.Containers[i].SecurityContext.Capabilities.Add, capabilities...))
+
 			return
 		}
 	}
+}
+
+func SortAndUnique(in []corev1.Capability) []corev1.Capability {
+	c := capabilitiesSorted(in)
+	n := c.Len()
+	if n == 0 {
+		return in
+	}
+	sort.Sort(c)
+
+	k := 0
+	for i := 1; i < n; i++ {
+		if c.Less(k, i) {
+			k++
+			c.Swap(k, i)
+		}
+	}
+
+	return c[:k+1]
+}
+
+// capabilitiesSorted used to sort and find and unique
+type capabilitiesSorted []corev1.Capability
+
+func (c capabilitiesSorted) Len() int {
+	return len(c)
+}
+func (c capabilitiesSorted) Less(i, j int) bool {
+	return c[i] < c[j]
+}
+
+func (c capabilitiesSorted) Swap(i, j int) {
+	c[i], c[j] = c[j], c[i]
 }
