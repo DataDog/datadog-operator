@@ -1819,6 +1819,12 @@ func getVolumeMountsForSystemProbe(dda *datadoghqv1alpha1.DatadogAgent) []corev1
 	// Add extra volume mounts
 	volumeMounts = append(volumeMounts, dda.Spec.Agent.SystemProbe.VolumeMounts...)
 
+	// Add configuration volumeMounts extra config (datadog.yaml) volume
+	if dda.Spec.Agent.CustomConfig != nil {
+		volumeMount := getVolumeMountFromCustomConfigSpec(dda.Spec.Agent.CustomConfig, datadoghqv1alpha1.AgentCustomConfigVolumeName, datadoghqv1alpha1.AgentCustomConfigVolumePath, datadoghqv1alpha1.AgentCustomConfigVolumeSubPath)
+		volumeMounts = append(volumeMounts, volumeMount)
+	}
+
 	return volumeMounts
 }
 
