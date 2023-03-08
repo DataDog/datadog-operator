@@ -98,6 +98,7 @@ var _ = BeforeSuite(func() {
 	options := SetupOptions{
 		SupportExtendedDaemonset: false,
 		Creds:                    config.Creds{APIKey: "dummy_api_key", AppKey: "dummy_app_key"},
+		DatadogAgentEnabled:      true,
 		DatadogMonitorEnabled:    true,
 		V2APIEnabled:             true,
 	}

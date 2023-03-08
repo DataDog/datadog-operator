@@ -96,7 +96,7 @@ func main() {
 	flag.BoolVar(&pprofActive, "pprof", false, "Enable pprof endpoint")
 	flag.BoolVar(&supportExtendedDaemonset, "supportExtendedDaemonset", false, "Support usage of Datadog ExtendedDaemonset CRD.")
 	flag.BoolVar(&supportCilium, "supportCilium", false, "Support usage of Cilium network policies.")
-	flag.BoolVar(&datadogAgentEnabled, "datadogAgentEnabled", false, "Enable the DatadogAgent controller")
+	flag.BoolVar(&datadogAgentEnabled, "datadogAgentEnabled", true, "Enable the DatadogAgent controller")
 	flag.BoolVar(&datadogMonitorEnabled, "datadogMonitorEnabled", true, "Enable the DatadogMonitor controller")
 	flag.BoolVar(&operatorMetricsEnabled, "operatorMetricsEnabled", true, "Enable sending operator metrics to Datadog")
 	flag.BoolVar(&v2APIEnabled, "v2APIEnabled", true, "Enable the v2 api")
