@@ -85,7 +85,7 @@ func main() {
 	flag.DurationVar(&leaderElectionLeaseDuration, "leader-election-lease-duration", 60*time.Second, "Define LeaseDuration as well as RenewDeadline (leaseDuration / 2) and RetryPeriod (leaseDuration / 4)")
 
 	// Custom flags
-	var printVersion, pprofActive, supportExtendedDaemonset, supportCilium, datadogMonitorEnabled, operatorMetricsEnabled, webhookEnabled, v2APIEnabled bool
+	var printVersion, pprofActive, supportExtendedDaemonset, supportCilium, datadogAgentEnabled, datadogMonitorEnabled, operatorMetricsEnabled, webhookEnabled, v2APIEnabled bool
 	var logEncoder, secretBackendCommand string
 	var secretBackendArgs stringSlice
 	flag.StringVar(&logEncoder, "logEncoder", "json", "log encoding ('json' or 'console')")
@@ -96,7 +96,8 @@ func main() {
 	flag.BoolVar(&pprofActive, "pprof", false, "Enable pprof endpoint")
 	flag.BoolVar(&supportExtendedDaemonset, "supportExtendedDaemonset", false, "Support usage of Datadog ExtendedDaemonset CRD.")
 	flag.BoolVar(&supportCilium, "supportCilium", false, "Support usage of Cilium network policies.")
-	flag.BoolVar(&datadogMonitorEnabled, "datadogMonitorEnabled", false, "Enable the DatadogMonitor controller")
+	flag.BoolVar(&datadogAgentEnabled, "datadogAgentEnabled", false, "Enable the DatadogAgent controller")
+	flag.BoolVar(&datadogMonitorEnabled, "datadogMonitorEnabled", true, "Enable the DatadogMonitor controller")
 	flag.BoolVar(&operatorMetricsEnabled, "operatorMetricsEnabled", true, "Enable sending operator metrics to Datadog")
 	flag.BoolVar(&v2APIEnabled, "v2APIEnabled", true, "Enable the v2 api")
 	flag.BoolVar(&webhookEnabled, "webhookEnabled", true, "Enable CRD conversion webhook.")
@@ -155,6 +156,7 @@ func main() {
 		SupportExtendedDaemonset: supportExtendedDaemonset,
 		SupportCilium:            supportCilium,
 		Creds:                    creds,
+		DatadogAgentEnabled:      datadogAgentEnabled,
 		DatadogMonitorEnabled:    datadogMonitorEnabled,
 		OperatorMetricsEnabled:   operatorMetricsEnabled,
 		V2APIEnabled:             v2APIEnabled,
@@ -165,7 +167,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if webhookEnabled {
+	if webhookEnabled && datadogAgentEnabled {
 		if err = (&datadoghqv2alpha1.DatadogAgent{}).SetupWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create webhook", "webhook", "DatadogAgent")
 			os.Exit(1)
