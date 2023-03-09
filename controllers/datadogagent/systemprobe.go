@@ -107,7 +107,7 @@ func buildSystemProbeSecCompConfigMap(dda *datadoghqv1alpha1.DatadogAgent) (*cor
 const systemProbeSecCompData = `{
 	"defaultAction": "SCMP_ACT_ERRNO",
 	"syscalls": [
-		{
+	{
 		"names": [
 			"accept4",
 			"access",
@@ -118,8 +118,10 @@ const systemProbeSecCompData = `{
 			"capget",
 			"capset",
 			"chdir",
+			"chmod",
 			"clock_gettime",
 			"clone",
+			"clone3",
 			"close",
 			"connect",
 			"copy_file_range",
@@ -133,7 +135,6 @@ const systemProbeSecCompData = `{
 			"epoll_ctl_old",
 			"epoll_pwait",
 			"epoll_wait",
-			"epoll_wait",
 			"epoll_wait_old",
 			"eventfd",
 			"eventfd2",
@@ -141,6 +142,8 @@ const systemProbeSecCompData = `{
 			"execveat",
 			"exit",
 			"exit_group",
+			"faccessat",
+			"faccessat2",
 			"fchmod",
 			"fchmodat",
 			"fchown",
@@ -160,7 +163,9 @@ const systemProbeSecCompData = `{
 			"getegid",
 			"geteuid",
 			"getgid",
+			"getgroups",
 			"getpeername",
+			"getpgrp",
 			"getpid",
 			"getppid",
 			"getpriority",
@@ -196,6 +201,7 @@ const systemProbeSecCompData = `{
 			"newfstatat",
 			"open",
 			"openat",
+			"openat2",
 			"pause",
 			"perf_event_open",
 			"pipe",
@@ -217,6 +223,7 @@ const systemProbeSecCompData = `{
 			"renameat2",
 			"restart_syscall",
 			"rmdir",
+			"rseq",
 			"rt_sigaction",
 			"rt_sigpending",
 			"rt_sigprocmask",
@@ -242,6 +249,7 @@ const systemProbeSecCompData = `{
 			"setgroups32",
 			"setitimer",
 			"setns",
+			"setpgid",
 			"setrlimit",
 			"setsid",
 			"setsidaccept4",
@@ -255,8 +263,8 @@ const systemProbeSecCompData = `{
 			"stat",
 			"stat64",
 			"statfs",
-			"sysinfo",
 			"symlinkat",
+			"sysinfo",
 			"tgkill",
 			"umask",
 			"uname",
@@ -265,47 +273,40 @@ const systemProbeSecCompData = `{
 			"wait4",
 			"waitid",
 			"waitpid",
-			"write",
-			"getgroups",
-			"getpgrp",
-			"setpgid"
+			"write"
 		],
 		"action": "SCMP_ACT_ALLOW",
 		"args": null
-		},
-		{
+	},
+	{
 		"names": [
 			"setns"
 		],
 		"action": "SCMP_ACT_ALLOW",
-		"args": [
-			{
+		"args": [{
 			"index": 1,
 			"value": 1073741824,
 			"valueTwo": 0,
 			"op": "SCMP_CMP_EQ"
-			}
-		],
+		}],
 		"comment": "",
 		"includes": {},
 		"excludes": {}
-		},
-		{
+	},
+	{
 		"names": [
 			"kill"
 		],
 		"action": "SCMP_ACT_ALLOW",
-		"args": [
-			{
+		"args": [{
 			"index": 1,
 			"value": 0,
 			"op": "SCMP_CMP_EQ"
-			}
-		],
+		}],
 		"comment": "allow process detection via kill",
 		"includes": {},
 		"excludes": {}
-		}
+	}
 	]
 }
 `
