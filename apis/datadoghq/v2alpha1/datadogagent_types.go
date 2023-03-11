@@ -647,6 +647,10 @@ type GlobalConfig struct {
 	// Path to the container runtime socket (if different from Docker).
 	// +optional
 	CriSocketPath *string `json:"criSocketPath,omitempty"`
+
+	// Providers to specify cloud providers
+	// +optional
+	Providers *Providers `json:"providers,omitempty"`
 }
 
 // DatadogCredentials is a generic structure that holds credentials to access Datadog.
@@ -736,6 +740,22 @@ type SeccompConfig struct {
 	// must include a corev1.KeytoPath that maps the key to the path `system-probe-seccomp.json`.
 	// +optional
 	CustomProfile *CustomConfig `json:"customProfile,omitempty"`
+}
+
+// Providers to specify cloud providers
+type Providers struct {
+	Gke *Gke `json:"gke,omitempty"`
+}
+
+// Gke to enable Gke specifications
+type Gke struct {
+	// Autopilot enables deployment of the Datadog Agent on GKE Autopilot
+	// +optional
+	Autopilot *bool `json:"autopilot,omitempty"`
+
+	// Cos enables deployment of the Datadog Agent on GKE Container-Optimized OS
+	// +optional
+	Cos *bool `json:"cos,omitempty"`
 }
 
 // AgentConfigFileName is the list of known Agent config files

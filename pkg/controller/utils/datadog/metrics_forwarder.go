@@ -604,11 +604,16 @@ func (mf *metricsForwarder) getCredentialsV2(dda *v2alpha1.DatadogAgent) (string
 	apiKey, appKey := "", ""
 
 	defaultSecretName := v2alpha1.GetDefaultCredentialsSecretName(dda)
+	mf.logger.Info("WHAT IS DDA", "dda")
 
 	if dda.Spec.Global != nil && dda.Spec.Global.Credentials != nil && dda.Spec.Global.Credentials.APIKey != nil && *dda.Spec.Global.Credentials.APIKey != "" {
 		apiKey = *dda.Spec.Global.Credentials.APIKey
 	} else {
+		mf.logger.Info("DEFAULT SECRET NAME", "default secretname", defaultSecretName)
+		mf.logger.Info("GLOBAL CREDS", "global credentials", dda.Spec.Global.Credentials)
 		_, secretName, secretKeyName := v2alpha1.GetAPIKeySecret(dda.Spec.Global.Credentials, defaultSecretName)
+		mf.logger.Info("SECRET NAME", "secretname", secretName)
+		mf.logger.Info("SECRET KEYNAME", "secret key name", secretKeyName)
 		apiKey, err = mf.getKeyFromSecret(dda.Namespace, secretName, secretKeyName)
 		if err != nil {
 			return "", "", err

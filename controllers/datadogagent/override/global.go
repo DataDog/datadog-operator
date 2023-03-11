@@ -8,8 +8,6 @@ package override
 import (
 	"encoding/json"
 	"fmt"
-	"path/filepath"
-
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
@@ -18,6 +16,7 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
+	"path/filepath"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -27,6 +26,8 @@ import (
 // ApplyGlobalSettings use to apply global setting to a PodTemplateSpec
 func ApplyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, componentName v2alpha1.ComponentName) *corev1.PodTemplateSpec {
 	config := dda.Spec.Global
+
+	logger.Info("GLOBAL SPEC", "global", dda.Spec.Global)
 
 	// ClusterName sets a unique cluster name for the deployment to easily scope monitoring data in the Datadog app.
 	if config.ClusterName != nil {
@@ -203,37 +204,38 @@ func ApplyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 				manager.Volume().AddVolume(&kubeletVol)
 			}
 		}
-
-		var runtimeVol corev1.Volume
-		var runtimeVolMount corev1.VolumeMount
-		// Path to the docker runtime socket.
-		if config.DockerSocketPath != nil {
-			dockerMountPath := filepath.Join(apicommon.HostCriSocketPathPrefix, *config.DockerSocketPath)
-			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-				Name:  apicommon.DockerHost,
-				Value: "unix://" + dockerMountPath,
-			})
-			runtimeVol, runtimeVolMount = volume.GetVolumes(apicommon.CriSocketVolumeName, *config.DockerSocketPath, dockerMountPath, true)
-		} else if config.CriSocketPath != nil {
-			// Path to the container runtime socket (if different from Docker).
-			criSocketMountPath := filepath.Join(apicommon.HostCriSocketPathPrefix, *config.CriSocketPath)
-			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-				Name:  apicommon.DDCriSocketPath,
-				Value: criSocketMountPath,
-			})
-			runtimeVol, runtimeVolMount = volume.GetVolumes(apicommon.CriSocketVolumeName, *config.CriSocketPath, criSocketMountPath, true)
-		}
-		if runtimeVol.Name != "" && runtimeVolMount.Name != "" {
-			manager.VolumeMount().AddVolumeMountToContainers(
-				&runtimeVolMount,
-				[]apicommonv1.AgentContainerName{
-					apicommonv1.CoreAgentContainerName,
-					apicommonv1.ProcessAgentContainerName,
-					apicommonv1.TraceAgentContainerName,
-					apicommonv1.SecurityAgentContainerName,
-				},
-			)
-			manager.Volume().AddVolume(&runtimeVol)
+		if !apiutils.BoolValue(config.Providers.Gke.Autopilot) {
+			var runtimeVol corev1.Volume
+			var runtimeVolMount corev1.VolumeMount
+			// Path to the docker runtime socket.
+			if config.DockerSocketPath != nil {
+				dockerMountPath := filepath.Join(apicommon.HostCriSocketPathPrefix, *config.DockerSocketPath)
+				manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+					Name:  apicommon.DockerHost,
+					Value: "unix://" + dockerMountPath,
+				})
+				runtimeVol, runtimeVolMount = volume.GetVolumes(apicommon.CriSocketVolumeName, *config.DockerSocketPath, dockerMountPath, true)
+			} else if config.CriSocketPath != nil {
+				// Path to the container runtime socket (if different from Docker).
+				criSocketMountPath := filepath.Join(apicommon.HostCriSocketPathPrefix, *config.CriSocketPath)
+				manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+					Name:  apicommon.DDCriSocketPath,
+					Value: criSocketMountPath,
+				})
+				runtimeVol, runtimeVolMount = volume.GetVolumes(apicommon.CriSocketVolumeName, *config.CriSocketPath, criSocketMountPath, true)
+			}
+			if runtimeVol.Name != "" && runtimeVolMount.Name != "" {
+				manager.VolumeMount().AddVolumeMountToContainers(
+					&runtimeVolMount,
+					[]apicommonv1.AgentContainerName{
+						apicommonv1.CoreAgentContainerName,
+						apicommonv1.ProcessAgentContainerName,
+						apicommonv1.TraceAgentContainerName,
+						apicommonv1.SecurityAgentContainerName,
+					},
+				)
+				manager.Volume().AddVolume(&runtimeVol)
+			}
 		}
 	}
 

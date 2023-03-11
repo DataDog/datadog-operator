@@ -13792,6 +13792,22 @@ spec:
                     description: 'Provide a mapping of Kubernetes Labels to Datadog
                       Tags. <KUBERNETES_LABEL>: <DATADOG_TAG_KEY>'
                     type: object
+                  providers:
+                    description: Providers to specify cloud providers
+                    properties:
+                      gke:
+                        description: Gke to enable Gke specifications
+                        properties:
+                          autopilot:
+                            description: Autopilot enables deployment of the Datadog
+                              Agent on GKE Autopilot
+                            type: boolean
+                          cos:
+                            description: Cos enables deployment of the Datadog Agent
+                              on GKE Container-Optimized OS
+                            type: boolean
+                        type: object
+                    type: object
                   registry:
                     description: 'Registry is the image registry to use for all Agent
                       images. Use ''public.ecr.aws/datadog'' for AWS ECR. Use ''docker.io/datadog''

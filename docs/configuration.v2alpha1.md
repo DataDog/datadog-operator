@@ -154,6 +154,8 @@ spec:
 | global.networkPolicy.flavor | Flavor defines Which network policy to use. |
 | global.podAnnotationsAsTags | Provide a mapping of Kubernetes Annotations to Datadog Tags. <KUBERNETES_ANNOTATIONS>: <DATADOG_TAG_KEY> |
 | global.podLabelsAsTags | Provide a mapping of Kubernetes Labels to Datadog Tags. <KUBERNETES_LABEL>: <DATADOG_TAG_KEY> |
+| global.providers.gke.autopilot | Autopilot enables deployment of the Datadog Agent on GKE Autopilot |
+| global.providers.gke.cos | Cos enables deployment of the Datadog Agent on GKE Container-Optimized OS |
 | global.registry | Registry is the image registry to use for all Agent images. Use 'public.ecr.aws/datadog' for AWS ECR. Use 'docker.io/datadog' for DockerHub. Default: 'gcr.io/datadoghq' |
 | global.site | Site is the Datadog intake site Agent data are sent to. Set to 'datadoghq.eu' to send data to the EU site. Default: 'datadoghq.com' |
 | global.tags | Tags contains a list of tags to attach to every metric, event and service check collected. Learn more about tagging: https://docs.datadoghq.com/tagging/ |

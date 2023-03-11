@@ -80,8 +80,10 @@ const (
 	defaultPrometheusScrapeEnableServiceEndpoints bool = false
 	defaultPrometheusScrapeVersion                int  = 2
 
-	defaultKubeletAgentCAPath            = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
-	defaultKubeletAgentCAPathHostPathSet = "/var/run/host-kubelet-ca.crt"
+	defaultKubeletAgentCAPath                 = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+	defaultKubeletAgentCAPathHostPathSet      = "/var/run/host-kubelet-ca.crt"
+	defaultProvidersGkeAutopilot         bool = false
+	defaultProvidersGkeCos               bool = false
 )
 
 // DefaultDatadogAgent defaults the DatadogAgentSpec GlobalConfig and Features.
@@ -118,6 +120,15 @@ func defaultGlobalConfig(ddaSpec *DatadogAgentSpec) {
 			ddaSpec.Global.Kubelet.AgentCAPath = defaultKubeletAgentCAPathHostPathSet
 		} else {
 			ddaSpec.Global.Kubelet.AgentCAPath = defaultKubeletAgentCAPath
+		}
+	}
+
+	if ddaSpec.Global.Providers == nil {
+		ddaSpec.Global.Providers = &Providers{
+			Gke: &Gke{
+				Autopilot: apiutils.NewBoolPointer(defaultProvidersGkeAutopilot),
+				Cos:       apiutils.NewBoolPointer(defaultProvidersGkeCos),
+			},
 		}
 	}
 }

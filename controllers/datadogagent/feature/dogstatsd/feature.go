@@ -6,6 +6,7 @@
 package dogstatsd
 
 import (
+	"github.com/go-logr/logr"
 	"path/filepath"
 	"strconv"
 
@@ -34,6 +35,10 @@ func init() {
 func buildDogstatsdFeature(options *feature.Options) feature.Feature {
 	dogstatsdFeat := &dogstatsdFeature{}
 
+	if options != nil {
+		dogstatsdFeat.logger = options.Logger
+	}
+
 	return dogstatsdFeat
 }
 
@@ -50,6 +55,7 @@ type dogstatsdFeature struct {
 
 	createSCC bool
 	owner     metav1.Object
+	logger    logr.Logger
 }
 
 // ID returns the ID of the Feature
@@ -60,14 +66,25 @@ func (f *dogstatsdFeature) ID() feature.IDType {
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *dogstatsdFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	dogstatsd := dda.Spec.Features.Dogstatsd
+	autopilot := dda.Spec.Global.Providers.Gke.Autopilot
+
+	f.logger.Info("WHAT IS DOGSTATSD")
+	f.logger.Info("WHAT IS DOGSTATSD", "dogstatsd", dogstatsd)
+	f.logger.Info("WHAT IS GLOBAL", "global", dda.Spec.Global)
+	f.logger.Info("WHAT IS PROVIDERS", "providers", dda.Spec.Global.Providers)
+	f.logger.Info("WHAT IS GKE", "gke", dda.Spec.Global.Providers.Gke)
+	f.logger.Info("WHAT IS AUTOPILOT", "autopilot", dda.Spec.Global.Providers.Gke.Autopilot)
+
 	f.owner = dda
 	if apiutils.BoolValue(dogstatsd.HostPortConfig.Enabled) {
 		f.hostPortEnabled = true
 		f.hostPortHostPort = *dogstatsd.HostPortConfig.Port
 	}
 	// UDS is enabled by default
-	if apiutils.BoolValue(dogstatsd.UnixDomainSocketConfig.Enabled) {
+	if apiutils.BoolValue(dogstatsd.UnixDomainSocketConfig.Enabled) && !apiutils.BoolValue(autopilot) {
 		f.udsEnabled = true
+	} else {
+		f.udsEnabled = false
 	}
 	f.udsHostFilepath = *dogstatsd.UnixDomainSocketConfig.Path
 	if apiutils.BoolValue(dogstatsd.OriginDetectionEnabled) {

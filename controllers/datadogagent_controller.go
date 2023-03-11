@@ -7,8 +7,11 @@ package controllers
 
 import (
 	"context"
-
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/go-logr/logr"
+	ctrlbuilder "sigs.k8s.io/controller-runtime/pkg/builder"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -20,11 +23,8 @@ import (
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
-	ctrlbuilder "sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
@@ -32,7 +32,6 @@ import (
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 )
@@ -215,7 +214,7 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		builderOptions = append(builderOptions, ctrlbuilder.WithPredicates(predicate.Funcs{
 			// On `DatadogAgent` object creation, we register a metrics forwarder for it.
 			CreateFunc: func(e event.CreateEvent) bool {
-				metricForwarder.Register(e.Object)
+				//metricForwarder.Register(e.Object)
 				return true
 			},
 		}))
