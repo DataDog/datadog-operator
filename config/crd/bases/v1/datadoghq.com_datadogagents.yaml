@@ -15027,6 +15027,23 @@ spec:
                           name:
                             description: Name of the container that is overridden
                             type: string
+                          providers:
+                            description: Providers specifies a cloud provider for
+                              the Datadog Agent.
+                            properties:
+                              gke:
+                                description: Gke to enable Gke specifications
+                                properties:
+                                  autopilot:
+                                    description: Autopilot enables deployment of the
+                                      Datadog Agent on GKE Autopilot
+                                    type: boolean
+                                  cos:
+                                    description: Cos enables deployment of the Datadog
+                                      Agent on GKE Container-Optimized OS
+                                    type: boolean
+                                type: object
+                            type: object
                           readinessProbe:
                             description: Configure the Readiness Probe of the container
                             properties:

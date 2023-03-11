@@ -124,11 +124,13 @@ func defaultGlobalConfig(ddaSpec *DatadogAgentSpec) {
 	}
 
 	if ddaSpec.Global.Providers == nil {
-		ddaSpec.Global.Providers = &Providers{
-			Gke: &Gke{
-				Autopilot: apiutils.NewBoolPointer(defaultProvidersGkeAutopilot),
-				Cos:       apiutils.NewBoolPointer(defaultProvidersGkeCos),
-			},
+		ddaSpec.Global.Providers = &Providers{}
+	}
+
+	if ddaSpec.Global.Providers.Gke == nil {
+		ddaSpec.Global.Providers.Gke = &Gke{
+			Autopilot: apiutils.NewBoolPointer(defaultProvidersGkeAutopilot),
+			Cos:       apiutils.NewBoolPointer(defaultProvidersGkeCos),
 		}
 	}
 }

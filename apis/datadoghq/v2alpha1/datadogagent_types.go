@@ -957,6 +957,10 @@ type DatadogAgentGenericContainer struct {
 	// AppArmorProfileName specifies an apparmor profile.
 	// +optional
 	AppArmorProfileName *string `json:"appArmorProfileName,omitempty"`
+
+	// Providers specifies a cloud provider for the Datadog Agent.
+	// +optional
+	Providers *Providers `json:"providers,omitempty"`
 }
 
 // DatadogAgentStatus defines the observed state of DatadogAgent.

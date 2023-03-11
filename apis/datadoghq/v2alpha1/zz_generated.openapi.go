@@ -268,11 +268,17 @@ func schema_datadog_operator_apis_datadoghq_v2alpha1_DatadogAgentGenericContaine
 							Format:      "",
 						},
 					},
+					"providers": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Providers specifies a cloud provider for the Datadog Agent.",
+							Ref:         ref("github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1.Providers"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1.SeccompConfig", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.Probe", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.SecurityContext", "k8s.io/api/core/v1.VolumeMount"},
+			"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1.Providers", "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1.SeccompConfig", "k8s.io/api/core/v1.EnvVar", "k8s.io/api/core/v1.Probe", "k8s.io/api/core/v1.ResourceRequirements", "k8s.io/api/core/v1.SecurityContext", "k8s.io/api/core/v1.VolumeMount"},
 	}
 }
 
