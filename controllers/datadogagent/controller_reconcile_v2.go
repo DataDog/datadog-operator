@@ -30,9 +30,11 @@ import (
 func (r *Reconciler) internalReconcileV2(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
 	reqLogger := r.log.WithValues("datadogagent", request.NamespacedName)
 	reqLogger.Info("Reconciling DatadogAgent")
-
+	reqLogger.Info("CONTEXT!!", "context", ctx)
+	reqLogger.Info("REQUEST!!", "req", request)
 	// Fetch the DatadogAgent instance
 	instance := &datadoghqv2alpha1.DatadogAgent{}
+	reqLogger.Info("INSTANCE", "instance", instance.Spec.Global)
 	var result reconcile.Result
 	err := r.client.Get(ctx, request.NamespacedName, instance)
 	if err != nil {
@@ -43,6 +45,7 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, request reconcile.
 			return result, nil
 		}
 		// Error reading the object - requeue the request.
+		reqLogger.Info("REQUEST RESULT", "reqres", result)
 		return result, err
 	}
 
@@ -67,6 +70,7 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, request reconcile.
 	}*/
 
 	if result, err = r.handleFinalizer(reqLogger, instance, r.finalizeDadV2); utils.ShouldReturn(result, err) {
+		reqLogger.Info("FINALIZER INSTANCE??", "finalizerinst", instance)
 		return result, err
 	}
 
@@ -80,12 +84,14 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, request reconcile.
 
 	// Set default values for GlobalConfig and Features
 	instanceCopy := instance.DeepCopy()
+	reqLogger.Info("INSTANCE COPY DDA", "instancecopydda", instanceCopy.Spec.Global)
 	datadoghqv2alpha1.DefaultDatadogAgent(instanceCopy)
 
 	return r.reconcileInstanceV2(ctx, reqLogger, instanceCopy)
 }
 
 func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger, instance *datadoghqv2alpha1.DatadogAgent) (reconcile.Result, error) {
+	logger.Info("DDA INSTANCE BEGINNING", "ddainstancebeginning", instance.Spec.Global)
 	var result reconcile.Result
 	newStatus := instance.Status.DeepCopy()
 
@@ -127,7 +133,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	// -----------------------------
 
 	var err error
-
+	logger.Info("WHAT IS DDA INSTANCE", "ddainstance", instance.Spec.Global)
 	result, err = r.reconcileV2ClusterAgent(logger, requiredComponents, features, instance, resourceManagers, newStatus)
 	if utils.ShouldReturn(result, err) {
 		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err)

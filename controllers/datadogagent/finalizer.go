@@ -83,8 +83,12 @@ func (r *Reconciler) finalizeDadV1(reqLogger logr.Logger, obj client.Object) {
 func (r *Reconciler) finalizeDadV2(reqLogger logr.Logger, obj client.Object) {
 	// We need to apply the defaults to be able to delete the resources
 	// associated with those defaults.
+	reqLogger.Info("OBJECT BEFORE", "objbefore", obj)
+	reqLogger.Info("OBJECT BEFORE", "objbefore", obj.GetManagedFields())
 	dda := obj.(*datadoghqv2alpha1.DatadogAgent).DeepCopy()
+	reqLogger.Info("OBJECT AFTER", "objafter", dda.Spec.Global) // SOMETHING HAPPENS HERE
 	datadoghqv2alpha1.DefaultDatadogAgent(dda)
+	reqLogger.Info("OBJECT AFTER AGAIN", "objafteragain", dda.Spec.Global)
 
 	if r.options.OperatorMetricsEnabled {
 		r.forwarders.Unregister(dda)
@@ -96,6 +100,9 @@ func (r *Reconciler) finalizeDadV2(reqLogger logr.Logger, obj client.Object) {
 
 	features, requiredComponents := feature.BuildFeatures(
 		dda, reconcilerOptionsToFeatureOptions(&r.options, reqLogger))
+
+	reqLogger.Info("FEATURES", "features", features)
+	reqLogger.Info("REQUIRED COMPS", "required", requiredComponents)
 
 	storeOptions := &dependencies.StoreOptions{
 		SupportCilium: r.options.SupportCilium,
@@ -115,8 +122,10 @@ func (r *Reconciler) finalizeDadV2(reqLogger logr.Logger, obj client.Object) {
 		}
 	}
 
+	reqLogger.Info("DDA BEFORE OVERRIDES", "ddabefore", dda)
 	// Examine user configuration to override any external dependencies (e.g. RBACs)
 	errs = append(errs, override.Dependencies(reqLogger, resourceManagers, dda)...)
+	reqLogger.Info("DDA AFTER OVERRIDES", "ddafter", dda)
 
 	if len(errs) > 0 {
 		reqLogger.Info("Errors calculating dependencies while finalizing the DatadogAgent", "errors", errs)

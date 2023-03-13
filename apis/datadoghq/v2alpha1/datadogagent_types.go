@@ -744,6 +744,7 @@ type SeccompConfig struct {
 
 // Providers to specify cloud providers
 type Providers struct {
+	// Gke enables GKE specification
 	Gke *Gke `json:"gke,omitempty"`
 }
 

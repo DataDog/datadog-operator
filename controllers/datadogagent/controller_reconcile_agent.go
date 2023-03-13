@@ -44,7 +44,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 		// Start by creating the Default Agent extendeddaemonset
 		eds = componentagent.NewDefaultAgentExtendedDaemonset(dda, requiredContainers)
 		podManagers = feature.NewPodTemplateManagers(&eds.Spec.Template)
-
+		logger.Info("WHAT IS DDA GLOBAL HERE", "global", dda.Spec.Global)
 		// Set Global setting on the default extendeddaemonset
 		eds.Spec.Template = *override.ApplyGlobalSettings(logger, podManagers, dda, resourcesManager, datadoghqv2alpha1.NodeAgentComponentName)
 

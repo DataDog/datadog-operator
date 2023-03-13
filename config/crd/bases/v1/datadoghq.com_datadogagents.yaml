@@ -13796,7 +13796,7 @@ spec:
                     description: Providers to specify cloud providers
                     properties:
                       gke:
-                        description: Gke to enable Gke specifications
+                        description: Gke enables GKE specification
                         properties:
                           autopilot:
                             description: Autopilot enables deployment of the Datadog
@@ -15032,7 +15032,7 @@ spec:
                               the Datadog Agent.
                             properties:
                               gke:
-                                description: Gke to enable Gke specifications
+                                description: Gke enables GKE specification
                                 properties:
                                   autopilot:
                                     description: Autopilot enables deployment of the
