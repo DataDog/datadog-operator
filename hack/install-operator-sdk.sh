@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PLATFORM="$(uname -s)-$(uname -m)"
-ROOT=$(git rev-parse --show-toplevel)
+SCRIPTS_DIR="$(dirname "$0")"
+# Provides $OS,$ARCH,$PLATFORM,$ROOT variables
+source "$SCRIPTS_DIR/os-env.sh"
 
 if [[ $# -ne 1 ]]; then
   echo "usage: bin/install-operator-sdk.sh <version>"

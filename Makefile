@@ -17,8 +17,8 @@ DATE=$(shell date +%Y-%m-%d/%H:%M:%S )
 LDFLAGS=-w -s -X ${BUILDINFOPKG}.Commit=${GIT_COMMIT} -X ${BUILDINFOPKG}.Version=${VERSION} -X ${BUILDINFOPKG}.BuildTime=${DATE}
 CHANNELS=alpha
 DEFAULT_CHANNEL=alpha
-GOARCH?=amd64
-PLATFORM=$(shell uname -s)-$(shell uname -m)
+GOARCH?=
+PLATFORM=$(shell uname -s | tr '[:upper:]' '[:lower:]')-$(shell uname -m)
 ROOT=$(dir $(abspath $(firstword $(MAKEFILE_LIST))))
 
 # Default bundle image tag
@@ -283,7 +283,7 @@ bin/$(PLATFORM)/openapi-gen: vendor/k8s.io/kube-openapi/cmd/openapi-gen/openapi-
 vendor/k8s.io/kube-openapi/cmd/openapi-gen/openapi-gen.go: vendor
 
 bin/$(PLATFORM)/yq: Makefile
-	hack/install-yq.sh 3.3.0
+	hack/install-yq.sh v4.31.2
 
 bin/$(PLATFORM)/golangci-lint: Makefile
 	hack/golangci-lint.sh -b "bin/$(PLATFORM)" v1.45.0
