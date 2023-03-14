@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PLATFORM="$(uname -s)-$(uname -m)"
+SCRIPTS_DIR="$(dirname "$0")"
+# Provides $OS,$ARCH,$PLATFORM,$ROOT variables
+source "$SCRIPTS_DIR/os-env.sh"
+
 export LC_ALL=C
 
 cd "$(dirname "$0")/.."
-ROOT=$(git rev-parse --show-toplevel)
 
 "$ROOT/bin/$PLATFORM/wwhrd" list
 
