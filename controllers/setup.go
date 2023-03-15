@@ -33,6 +33,7 @@ type SetupOptions struct {
 	SupportExtendedDaemonset bool
 	SupportCilium            bool
 	Creds                    config.Creds
+	DatadogAgentEnabled      bool
 	DatadogMonitorEnabled    bool
 	OperatorMetricsEnabled   bool
 	V2APIEnabled             bool
@@ -87,6 +88,12 @@ func getServerGroupsAndResources(log logr.Logger, discoveryClient *discovery.Dis
 }
 
 func startDatadogAgent(logger logr.Logger, mgr manager.Manager, vInfo *version.Info, pInfo kubernetes.PlatformInfo, options SetupOptions) error {
+	if !options.DatadogAgentEnabled {
+		logger.Info("Feature disabled, not starting the controller", "controller", agentControllerName)
+
+		return nil
+	}
+
 	return (&DatadogAgentReconciler{
 		Client:       mgr.GetClient(),
 		VersionInfo:  vInfo,
