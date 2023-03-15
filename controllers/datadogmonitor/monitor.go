@@ -115,6 +115,10 @@ func buildMonitor(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) (*da
 		o.SetNewGroupDelay(*options.NewGroupDelay)
 	}
 
+	if options.EnableLogsSample != nil {
+		o.SetEnableLogsSample(*options.EnableLogsSample)
+	}
+
 	if options.NoDataTimeframe != nil {
 		o.SetNoDataTimeframe(*options.NoDataTimeframe)
 	}
