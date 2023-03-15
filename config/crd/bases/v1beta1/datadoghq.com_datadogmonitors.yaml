@@ -62,6 +62,9 @@ spec:
             options:
               description: Options are the optional parameters associated with your monitor
               properties:
+                enableLogsSample:
+                  description: A Boolean indicating whether to send a log sample when the log monitor triggers.
+                  type: boolean
                 escalationMessage:
                   description: A message to include with a re-notification.
                   type: string
