@@ -629,12 +629,12 @@ type GlobalConfig struct {
 	PodAnnotationsAsTags map[string]string `json:"podAnnotationsAsTags,omitempty"`
 
 	// Provide a mapping of Kubernetes Node Labels to Datadog Tags.
-	// <KUBERNETES_ANNOTATIONS>: <DATADOG_TAG_KEY>
+	// <KUBERNETES_NODE_LABEL>: <DATADOG_TAG_KEY>
 	// +optional
 	NodeLabelsAsTags map[string]string `json:"nodeLabelsAsTags,omitempty"`
 
 	// Provide a mapping of Kubernetes Namespace Labels to Datadog Tags.
-	// <KUBERNETES_ANNOTATIONS>: <DATADOG_TAG_KEY>
+	// <KUBERNETES_NAMESPACE_LABEL>: <DATADOG_TAG_KEY>
 	// +optional
 	NamespaceLabelsAsTags map[string]string `json:"namespaceLabelsAsTags,omitempty"`
 
