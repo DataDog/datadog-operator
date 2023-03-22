@@ -97,7 +97,7 @@ func main() {
 	flag.BoolVar(&supportExtendedDaemonset, "supportExtendedDaemonset", false, "Support usage of Datadog ExtendedDaemonset CRD.")
 	flag.BoolVar(&supportCilium, "supportCilium", false, "Support usage of Cilium network policies.")
 	flag.BoolVar(&datadogAgentEnabled, "datadogAgentEnabled", true, "Enable the DatadogAgent controller")
-	flag.BoolVar(&datadogMonitorEnabled, "datadogMonitorEnabled", true, "Enable the DatadogMonitor controller")
+	flag.BoolVar(&datadogMonitorEnabled, "datadogMonitorEnabled", false, "Enable the DatadogMonitor controller")
 	flag.BoolVar(&operatorMetricsEnabled, "operatorMetricsEnabled", true, "Enable sending operator metrics to Datadog")
 	flag.BoolVar(&v2APIEnabled, "v2APIEnabled", true, "Enable the v2 api")
 	flag.BoolVar(&webhookEnabled, "webhookEnabled", true, "Enable CRD conversion webhook.")
