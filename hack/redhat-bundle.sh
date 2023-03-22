@@ -4,8 +4,10 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-ROOT=$(git rev-parse --show-toplevel)
-PLATFORM="$(uname -s)-$(uname -m)"
+SCRIPTS_DIR="$(dirname "$0")"
+# Provides $OS,$ARCH,$PLATFORM,$ROOT variables
+source "$SCRIPTS_DIR/os-env.sh"
+
 RH_BUNDLE_PATH="$ROOT/bundle-redhat"
 YQ="$ROOT/bin/$PLATFORM/yq"
 

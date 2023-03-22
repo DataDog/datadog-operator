@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT=$(git rev-parse --show-toplevel)
-cd "$ROOT"
+SCRIPTS_DIR="$(dirname "$0")"
+# Provides $OS,$ARCH,$PLAFORM,$ROOT variables
+source "$SCRIPTS_DIR/os-env.sh"
 
 make license 2>&1
 
