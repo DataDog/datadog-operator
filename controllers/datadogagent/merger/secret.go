@@ -11,12 +11,14 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/go-logr/logr"
 )
 
 // SecretManager Kubernetes Secret Manager interface
 type SecretManager interface {
-	AddSecret(secretNamespace, secretName, key, value string) error
+	AddSecret(logger logr.Logger, secretNamespace, secretName, key, value string, extraMetadata map[string]string) error
 }
 
 // NewSecretManager return new SecretManager instance
@@ -31,7 +33,7 @@ type secretManagerImpl struct {
 	store dependencies.StoreClient
 }
 
-func (m *secretManagerImpl) AddSecret(secretNamespace, secretName, key, value string) error {
+func (m *secretManagerImpl) AddSecret(logger logr.Logger, secretNamespace, secretName, key, value string, extraMetadata map[string]string) error {
 	obj, _ := m.store.GetOrCreate(kubernetes.SecretsKind, secretNamespace, secretName)
 	secret, ok := obj.(*corev1.Secret)
 	if !ok {
@@ -42,6 +44,11 @@ func (m *secretManagerImpl) AddSecret(secretNamespace, secretName, key, value st
 		secret.Data = make(map[string][]byte)
 	}
 	secret.Data[key] = []byte(value)
+
+	if len(extraMetadata) > 0 {
+		annotations := object.MergeAnnotationsLabels(logger, secret.GetAnnotations(), extraMetadata, "*")
+		secret.SetAnnotations(annotations)
+	}
 
 	return m.store.AddOrUpdate(kubernetes.SecretsKind, secret)
 }

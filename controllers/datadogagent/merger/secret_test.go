@@ -15,9 +15,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 func Test_secretManagerImpl_AddSecret(t *testing.T) {
+	logger := logf.Log.WithName(t.Name())
 	secretNs := "foo"
 	secretName := "bar"
 
@@ -106,7 +108,7 @@ func Test_secretManagerImpl_AddSecret(t *testing.T) {
 			m := &secretManagerImpl{
 				store: tt.store,
 			}
-			if err := m.AddSecret(tt.args.secretNamespace, tt.args.secretName, tt.args.key, tt.args.value); (err != nil) != tt.wantErr {
+			if err := m.AddSecret(logger, tt.args.secretNamespace, tt.args.secretName, tt.args.key, tt.args.value, nil); (err != nil) != tt.wantErr {
 				t.Errorf("secretManagerImpl.AddSecret() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if tt.validateFunc != nil {

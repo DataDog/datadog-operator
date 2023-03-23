@@ -19,6 +19,7 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
+	"github.com/go-logr/logr"
 
 	corev1 "k8s.io/api/core/v1"
 	netv1 "k8s.io/api/networking/v1"
@@ -37,6 +38,10 @@ func init() {
 func buildExternalMetricsFeature(options *feature.Options) feature.Feature {
 	externalMetricsFeat := &externalMetricsFeature{}
 
+	if options != nil {
+		externalMetricsFeat.logger = options.Logger
+	}
+
 	return externalMetricsFeat
 }
 
@@ -48,6 +53,7 @@ type externalMetricsFeature struct {
 	keySecret          map[string]secret
 	serviceAccountName string
 	owner              metav1.Object
+	logger             logr.Logger
 
 	createKubernetesNetworkPolicy bool
 	createCiliumNetworkPolicy     bool
@@ -239,7 +245,7 @@ func (f *externalMetricsFeature) ManageDependencies(managers feature.ResourceMan
 	if len(f.keySecret) != 0 {
 		for idx, s := range f.keySecret {
 			if len(s.data) != 0 {
-				if err := managers.SecretManager().AddSecret(ns, componentdca.GetDefaultExternalMetricSecretName(f.owner), idx, string(s.data)); err != nil {
+				if err := managers.SecretManager().AddSecret(f.logger, ns, componentdca.GetDefaultExternalMetricSecretName(f.owner), idx, string(s.data), nil); err != nil {
 					return fmt.Errorf("error adding external metrics provider credentials secret to store: %w", err)
 				}
 			}
