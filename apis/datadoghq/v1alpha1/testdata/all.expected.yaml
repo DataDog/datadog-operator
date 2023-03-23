@@ -85,6 +85,10 @@ spec:
       custom-tag1: custom-tag1
     podAnnotationsAsTags:
       custom-tag2: custom-tag2
+    nodeLabelsAsTags:
+      custom-tag3: custom-tag3
+    namespaceLabelsAsTags:
+      custom-tag4: custom-tag4
     criSocketPath: /var/run/crio/crio.sock
     dockerSocketPath: /var/docker.sock
     endpoint:

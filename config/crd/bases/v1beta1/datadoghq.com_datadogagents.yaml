@@ -16056,6 +16056,11 @@ spec:
                     logLevel:
                       description: 'LogLevel sets logging verbosity. This can be overridden by container. Valid log levels are: trace, debug, info, warn, error, critical, and off. Default: ''info'''
                       type: string
+                    namespaceLabelsAsTags:
+                      additionalProperties:
+                        type: string
+                      description: 'Provide a mapping of Kubernetes Namespace Labels to Datadog Tags. <KUBERNETES_NAMESPACE_LABEL>: <DATADOG_TAG_KEY>'
+                      type: object
                     networkPolicy:
                       description: NetworkPolicy contains the network configuration.
                       properties:
@@ -16099,6 +16104,11 @@ spec:
                         flavor:
                           description: Flavor defines Which network policy to use.
                           type: string
+                      type: object
+                    nodeLabelsAsTags:
+                      additionalProperties:
+                        type: string
+                      description: 'Provide a mapping of Kubernetes Node Labels to Datadog Tags. <KUBERNETES_NODE_LABEL>: <DATADOG_TAG_KEY>'
                       type: object
                     podAnnotationsAsTags:
                       additionalProperties:
