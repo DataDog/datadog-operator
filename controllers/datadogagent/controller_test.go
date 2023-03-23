@@ -541,6 +541,12 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 							PodAnnotationsAsTags: map[string]string{
 								"annotation": "test",
 							},
+							NodeLabelsAsTags: map[string]string{
+								"label": "test",
+							},
+							NamespaceLabelsAsTags: map[string]string{
+								"label": "test",
+							},
 							CollectEvents:  apiutils.NewBoolPointer(true),
 							LeaderElection: apiutils.NewBoolPointer(true),
 						},

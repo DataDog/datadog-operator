@@ -147,6 +147,32 @@ func ApplyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 		}
 	}
 
+	// Provide a mapping of Kubernetes Node Labels to Datadog Tags.
+	if config.NodeLabelsAsTags != nil {
+		nodeLabelsAsTags, err := json.Marshal(config.NodeLabelsAsTags)
+		if err != nil {
+			logger.Error(err, "Failed to unmarshal json input")
+		} else {
+			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+				Name:  apicommon.DDNodeLabelsAsTags,
+				Value: string(nodeLabelsAsTags),
+			})
+		}
+	}
+
+	// Provide a mapping of Kubernetes Namespace Labels to Datadog Tags.
+	if config.NamespaceLabelsAsTags != nil {
+		namespaceLabelsAsTags, err := json.Marshal(config.NamespaceLabelsAsTags)
+		if err != nil {
+			logger.Error(err, "Failed to unmarshal json input")
+		} else {
+			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+				Name:  apicommon.DDNamespaceLabelsAsTags,
+				Value: string(namespaceLabelsAsTags),
+			})
+		}
+	}
+
 	if componentName == v2alpha1.NodeAgentComponentName {
 		// LocalService contains configuration to customize the internal traffic policy service.
 		forceEnableLocalService := config.LocalService != nil && apiutils.BoolValue(config.LocalService.ForceEnableLocalService)
