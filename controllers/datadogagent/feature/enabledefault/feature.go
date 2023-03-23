@@ -17,9 +17,12 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/version"
 
+	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/errors"
@@ -46,6 +49,10 @@ func buildDefaultFeature(options *feature.Options) feature.Feature {
 		},
 	}
 
+	if options != nil {
+		dF.logger = options.Logger
+	}
+
 	return dF
 }
 
@@ -57,6 +64,10 @@ type defaultFeature struct {
 	clusterAgent        clusterAgentConfig
 	agent               agentConfig
 	clusterChecksRunner clusterChecksRunnerConfig
+	logger              logr.Logger
+
+	customConfigAnnotationKey   string
+	customConfigAnnotationValue string
 }
 
 type credentialsInfo struct {
@@ -156,6 +167,14 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 				f.dcaTokenInfo.secretCreation.data[apicommon.DefaultTokenKey] = dda.Status.ClusterAgent.GeneratedToken
 			}
 		}
+		hash, err := comparison.GenerateMD5ForSpec(f.dcaTokenInfo.secretCreation.data)
+		if err != nil {
+			f.logger.Error(err, "couldn't generate hash for Cluster Agent token hash")
+		} else {
+			f.logger.V(2).Info("built Cluster Agent token hash", "hash", hash)
+		}
+		f.customConfigAnnotationValue = hash
+		f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(string(feature.DefaultIDType))
 	}
 
 	return feature.RequiredComponents{
@@ -245,6 +264,11 @@ func (f *defaultFeature) ManageDependencies(managers feature.ResourceManagers, c
 				errs = append(errs, err)
 			}
 		}
+		// Adding Annotation containing data hash to secret.
+		if err := managers.SecretManager().AddAnnotations(f.logger, f.owner.GetNamespace(), f.dcaTokenInfo.secretCreation.name, map[string]string{f.customConfigAnnotationKey: f.customConfigAnnotationValue}); err != nil {
+			errs = append(errs, err)
+		}
+
 	}
 
 	// Create install-info configmap
@@ -349,7 +373,9 @@ func (f *defaultFeature) clusterChecksRunnerDependencies(managers feature.Resour
 // It should do nothing if the feature doesn't need to configure it.
 func (f *defaultFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	f.addDefaultCommonEnvs(managers)
-
+	if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
+		managers.Annotation().AddAnnotation(f.customConfigAnnotationKey, f.customConfigAnnotationValue)
+	}
 	return nil
 }
 
@@ -357,6 +383,10 @@ func (f *defaultFeature) ManageClusterAgent(managers feature.PodTemplateManagers
 // It should do nothing if the feature doesn't need to configure it.
 func (f *defaultFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	f.addDefaultCommonEnvs(managers)
+	if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
+		managers.Annotation().AddAnnotation(f.customConfigAnnotationKey, f.customConfigAnnotationValue)
+	}
+
 	return nil
 }
 
@@ -364,6 +394,9 @@ func (f *defaultFeature) ManageNodeAgent(managers feature.PodTemplateManagers) e
 // It should do nothing if the feature doesn't need to configure it.
 func (f *defaultFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	f.addDefaultCommonEnvs(managers)
+	if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
+		managers.Annotation().AddAnnotation(f.customConfigAnnotationKey, f.customConfigAnnotationValue)
+	}
 
 	return nil
 }

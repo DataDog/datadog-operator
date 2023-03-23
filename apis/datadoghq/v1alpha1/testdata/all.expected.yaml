@@ -71,6 +71,7 @@ spec:
       enabled: true
   global:
     clusterName: foo
+    clusterAgentToken: "foo-bar-baz"
     credentials:
       apiKey: api-key-inline
       apiSecret:
