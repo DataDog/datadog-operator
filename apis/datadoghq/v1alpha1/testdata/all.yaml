@@ -16,7 +16,7 @@ spec:
     appSecret:
       secretName: datadog-secret
       keyName: app-key
-    token: "foo-bar-baz" # ignored by conversion
+    token: "foo-bar-baz"
     useSecretBackend: true
   features:
     orchestratorExplorer:
