@@ -18,7 +18,8 @@ import (
 
 // SecretManager Kubernetes Secret Manager interface
 type SecretManager interface {
-	AddSecret(logger logr.Logger, secretNamespace, secretName, key, value string, extraMetadata map[string]string) error
+	AddSecret(secretNamespace, secretName, key, value string) error
+	AddAnnotations(logger logr.Logger, secretNamespace, secretName string, extraAnnotations map[string]string) error
 }
 
 // NewSecretManager return new SecretManager instance
@@ -33,7 +34,7 @@ type secretManagerImpl struct {
 	store dependencies.StoreClient
 }
 
-func (m *secretManagerImpl) AddSecret(logger logr.Logger, secretNamespace, secretName, key, value string, extraMetadata map[string]string) error {
+func (m *secretManagerImpl) AddSecret(secretNamespace, secretName, key, value string) error {
 	obj, _ := m.store.GetOrCreate(kubernetes.SecretsKind, secretNamespace, secretName)
 	secret, ok := obj.(*corev1.Secret)
 	if !ok {
@@ -44,8 +45,19 @@ func (m *secretManagerImpl) AddSecret(logger logr.Logger, secretNamespace, secre
 		secret.Data = make(map[string][]byte)
 	}
 	secret.Data[key] = []byte(value)
-	if len(extraMetadata) > 0 {
-		annotations := object.MergeAnnotationsLabels(logger, secret.GetAnnotations(), extraMetadata, "*")
+
+	return m.store.AddOrUpdate(kubernetes.SecretsKind, secret)
+}
+
+func (m *secretManagerImpl) AddAnnotations(logger logr.Logger, secretNamespace, secretName string, extraAnnotations map[string]string) error {
+	obj, _ := m.store.GetOrCreate(kubernetes.SecretsKind, secretNamespace, secretName)
+	secret, ok := obj.(*corev1.Secret)
+	if !ok {
+		return fmt.Errorf("unable to get the Secret %s/%s from the store", secretNamespace, secretName)
+	}
+
+	if len(extraAnnotations) > 0 {
+		annotations := object.MergeAnnotationsLabels(logger, secret.GetAnnotations(), extraAnnotations, "*")
 		secret.SetAnnotations(annotations)
 	}
 

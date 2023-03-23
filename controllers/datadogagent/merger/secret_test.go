@@ -23,7 +23,9 @@ func Test_secretManagerImpl_AddSecret(t *testing.T) {
 	logger := logf.Log.WithName(t.Name())
 	secretNs := "foo"
 	secretName := "bar"
-
+	secretAnnotations := map[string]string{
+		"checksum/default-custom-config": "0fe60b5fsweqe3224werwer",
+	}
 	owner := &v2alpha1.DatadogAgent{
 		ObjectMeta: v1.ObjectMeta{
 			Namespace: secretNs,
@@ -39,11 +41,9 @@ func Test_secretManagerImpl_AddSecret(t *testing.T) {
 
 	secret1 := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      secretName,
-			Namespace: secretNs,
-			Annotations: map[string]string{
-				"checksum/default-custom-config": "0fe60b5fsweqe3224werwer",
-			},
+			Name:        secretName,
+			Namespace:   secretNs,
+			Annotations: secretAnnotations,
 		},
 		Data: map[string][]byte{
 			"key1": []byte("defaultvalue"),
@@ -115,8 +115,11 @@ func Test_secretManagerImpl_AddSecret(t *testing.T) {
 			m := &secretManagerImpl{
 				store: tt.store,
 			}
-			if err := m.AddSecret(logger, tt.args.secretNamespace, tt.args.secretName, tt.args.key, tt.args.value, nil); (err != nil) != tt.wantErr {
+			if err := m.AddSecret(tt.args.secretNamespace, tt.args.secretName, tt.args.key, tt.args.value); (err != nil) != tt.wantErr {
 				t.Errorf("secretManagerImpl.AddSecret() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err := m.AddAnnotations(logger, tt.args.secretNamespace, tt.args.secretName, secretAnnotations); (err != nil) != tt.wantErr {
+				t.Errorf("secretManagerImpl.AddAnnotations() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if tt.validateFunc != nil {
 				tt.validateFunc(t, tt.store)

@@ -21,8 +21,8 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/version"
-	"github.com/go-logr/logr"
 
+	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/errors"
@@ -252,7 +252,7 @@ func (f *defaultFeature) ManageDependencies(managers feature.ResourceManagers, c
 	// manage credential secret
 	if f.credentialsInfo.secretCreation.createSecret {
 		for key, value := range f.credentialsInfo.secretCreation.data {
-			if err := managers.SecretManager().AddSecret(f.logger, f.owner.GetNamespace(), f.credentialsInfo.secretCreation.name, key, value, nil); err != nil {
+			if err := managers.SecretManager().AddSecret(f.owner.GetNamespace(), f.credentialsInfo.secretCreation.name, key, value); err != nil {
 				errs = append(errs, err)
 			}
 		}
@@ -260,9 +260,13 @@ func (f *defaultFeature) ManageDependencies(managers feature.ResourceManagers, c
 
 	if components.ClusterAgent.IsEnabled() && f.dcaTokenInfo.secretCreation.createSecret {
 		for key, value := range f.dcaTokenInfo.secretCreation.data {
-			if err := managers.SecretManager().AddSecret(f.logger, f.owner.GetNamespace(), f.dcaTokenInfo.secretCreation.name, key, value, map[string]string{f.customConfigAnnotationKey: f.customConfigAnnotationValue}); err != nil {
+			if err := managers.SecretManager().AddSecret(f.owner.GetNamespace(), f.dcaTokenInfo.secretCreation.name, key, value); err != nil {
 				errs = append(errs, err)
 			}
+		}
+		// Adding Annotation containing data hash to secret.
+		if err := managers.SecretManager().AddAnnotations(f.logger, f.owner.GetNamespace(), f.dcaTokenInfo.secretCreation.name, map[string]string{f.customConfigAnnotationKey: f.customConfigAnnotationValue}); err != nil {
+			errs = append(errs, err)
 		}
 
 	}

@@ -245,7 +245,7 @@ func (f *externalMetricsFeature) ManageDependencies(managers feature.ResourceMan
 	if len(f.keySecret) != 0 {
 		for idx, s := range f.keySecret {
 			if len(s.data) != 0 {
-				if err := managers.SecretManager().AddSecret(f.logger, ns, componentdca.GetDefaultExternalMetricSecretName(f.owner), idx, string(s.data), nil); err != nil {
+				if err := managers.SecretManager().AddSecret(ns, componentdca.GetDefaultExternalMetricSecretName(f.owner), idx, string(s.data)); err != nil {
 					return fmt.Errorf("error adding external metrics provider credentials secret to store: %w", err)
 				}
 			}
