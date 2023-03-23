@@ -59,7 +59,11 @@ func convertSpec(src *DatadogAgentSpec, dst *v2alpha1.DatadogAgent) error {
 	// Convert credentials
 	if src.Credentials != nil {
 		if dstCred := convertCredentials(&src.Credentials.DatadogCredentials); dstCred != nil {
-			getV2GlobalConfig(dst).Credentials = dstCred
+			dstCredGlobal := getV2GlobalConfig(dst)
+			dstCredGlobal.Credentials = dstCred
+			if src.Credentials.Token != "" {
+				dstCredGlobal.ClusterAgentToken = &src.Credentials.Token
+			}
 		}
 	}
 

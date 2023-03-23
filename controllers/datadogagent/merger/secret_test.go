@@ -10,17 +10,22 @@ import (
 
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 func Test_secretManagerImpl_AddSecret(t *testing.T) {
+	logger := logf.Log.WithName(t.Name())
 	secretNs := "foo"
 	secretName := "bar"
-
+	secretAnnotations := map[string]string{
+		"checksum/default-custom-config": "0fe60b5fsweqe3224werwer",
+	}
 	owner := &v2alpha1.DatadogAgent{
 		ObjectMeta: v1.ObjectMeta{
 			Namespace: secretNs,
@@ -36,8 +41,9 @@ func Test_secretManagerImpl_AddSecret(t *testing.T) {
 
 	secret1 := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      secretName,
-			Namespace: secretNs,
+			Name:        secretName,
+			Namespace:   secretNs,
+			Annotations: secretAnnotations,
 		},
 		Data: map[string][]byte{
 			"key1": []byte("defaultvalue"),
@@ -98,6 +104,9 @@ func Test_secretManagerImpl_AddSecret(t *testing.T) {
 				if _, ok := secret.Data["key"]; !ok {
 					t.Errorf("key not found in Secret %s/%s", secretNs, secretName)
 				}
+				if _, ok := secret.Annotations[object.GetChecksumAnnotationKey("default")]; !ok {
+					t.Errorf("missing extraMetadata in Secret %s/%s", secretNs, secretName)
+				}
 			},
 		},
 	}
@@ -108,6 +117,9 @@ func Test_secretManagerImpl_AddSecret(t *testing.T) {
 			}
 			if err := m.AddSecret(tt.args.secretNamespace, tt.args.secretName, tt.args.key, tt.args.value); (err != nil) != tt.wantErr {
 				t.Errorf("secretManagerImpl.AddSecret() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err := m.AddAnnotations(logger, tt.args.secretNamespace, tt.args.secretName, secretAnnotations); (err != nil) != tt.wantErr {
+				t.Errorf("secretManagerImpl.AddAnnotations() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if tt.validateFunc != nil {
 				tt.validateFunc(t, tt.store)
