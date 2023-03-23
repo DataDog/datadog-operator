@@ -167,14 +167,14 @@ func (f *defaultFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredC
 				f.dcaTokenInfo.secretCreation.data[apicommon.DefaultTokenKey] = dda.Status.ClusterAgent.GeneratedToken
 			}
 		}
-		hash, err := comparison.GenerateMD5ForSpec(f.dcaTokenInfo)
+		hash, err := comparison.GenerateMD5ForSpec(f.dcaTokenInfo.secretCreation.data)
 		if err != nil {
-			f.logger.Error(err, "couldn't generate hash for cws custom policies config")
+			f.logger.Error(err, "couldn't generate hash for Cluster Agent token hash")
 		} else {
-			f.logger.V(2).Info("built cws custom policies from custom config", "hash", hash)
+			f.logger.V(2).Info("built Cluster Agent token hash", "hash", hash)
 		}
 		f.customConfigAnnotationValue = hash
-		f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.CWSIDType)
+		f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(string(feature.DefaultIDType))
 	}
 
 	return feature.RequiredComponents{
@@ -369,7 +369,9 @@ func (f *defaultFeature) clusterChecksRunnerDependencies(managers feature.Resour
 // It should do nothing if the feature doesn't need to configure it.
 func (f *defaultFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
 	f.addDefaultCommonEnvs(managers)
-
+	if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
+		managers.Annotation().AddAnnotation(f.customConfigAnnotationKey, f.customConfigAnnotationValue)
+	}
 	return nil
 }
 
@@ -377,6 +379,10 @@ func (f *defaultFeature) ManageClusterAgent(managers feature.PodTemplateManagers
 // It should do nothing if the feature doesn't need to configure it.
 func (f *defaultFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	f.addDefaultCommonEnvs(managers)
+	if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
+		managers.Annotation().AddAnnotation(f.customConfigAnnotationKey, f.customConfigAnnotationValue)
+	}
+
 	return nil
 }
 
@@ -384,6 +390,9 @@ func (f *defaultFeature) ManageNodeAgent(managers feature.PodTemplateManagers) e
 // It should do nothing if the feature doesn't need to configure it.
 func (f *defaultFeature) ManageClusterChecksRunner(managers feature.PodTemplateManagers) error {
 	f.addDefaultCommonEnvs(managers)
+	if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
+		managers.Annotation().AddAnnotation(f.customConfigAnnotationKey, f.customConfigAnnotationValue)
+	}
 
 	return nil
 }

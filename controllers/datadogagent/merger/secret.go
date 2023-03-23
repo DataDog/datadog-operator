@@ -44,7 +44,6 @@ func (m *secretManagerImpl) AddSecret(logger logr.Logger, secretNamespace, secre
 		secret.Data = make(map[string][]byte)
 	}
 	secret.Data[key] = []byte(value)
-
 	if len(extraMetadata) > 0 {
 		annotations := object.MergeAnnotationsLabels(logger, secret.GetAnnotations(), extraMetadata, "*")
 		secret.SetAnnotations(annotations)

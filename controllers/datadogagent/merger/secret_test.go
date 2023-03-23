@@ -10,6 +10,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -40,6 +41,9 @@ func Test_secretManagerImpl_AddSecret(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      secretName,
 			Namespace: secretNs,
+			Annotations: map[string]string{
+				"checksum/default-custom-config": "0fe60b5fsweqe3224werwer",
+			},
 		},
 		Data: map[string][]byte{
 			"key1": []byte("defaultvalue"),
@@ -99,6 +103,9 @@ func Test_secretManagerImpl_AddSecret(t *testing.T) {
 				}
 				if _, ok := secret.Data["key"]; !ok {
 					t.Errorf("key not found in Secret %s/%s", secretNs, secretName)
+				}
+				if _, ok := secret.Annotations[object.GetChecksumAnnotationKey("default")]; !ok {
+					t.Errorf("missing extraMetadata in Secret %s/%s", secretNs, secretName)
 				}
 			},
 		},
