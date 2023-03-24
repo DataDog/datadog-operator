@@ -184,6 +184,12 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 		updateDaemonset.Annotations = mergeAnnotationsLabels(logger, currentDaemonset.GetAnnotations(), daemonset.GetAnnotations(), keepAnnotationsFilter)
 		updateDaemonset.Labels = mergeAnnotationsLabels(logger, currentDaemonset.GetLabels(), daemonset.GetLabels(), keepLabelsFilter)
 
+		// Spec.Selector is an immutable field and can't be change changing it leads to an error.
+		// Template.Labels must match Spec.Selector, otherwise they become orphaned. Hence we keep both fields from the current DS.
+		// See https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/#pod-selector
+		updateDaemonset.Spec.Selector = currentDaemonset.Spec.Selector
+		updateDaemonset.Spec.Template.Labels = currentDaemonset.Spec.Template.Labels
+
 		now := metav1.NewTime(time.Now())
 		err = kubernetes.UpdateFromObject(context.TODO(), r.client, updateDaemonset, currentDaemonset.ObjectMeta)
 		if err != nil {
