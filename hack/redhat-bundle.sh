@@ -37,5 +37,5 @@ mv "$RHMP_BUNDLE_PATH/manifests/datadog-operator.clusterserviceversion.yaml" "$R
 sed -i 's/datadog-operator-certified/datadog-operator-certified-rhmp/g' "$RHMP_BUNDLE_PATH/metadata/annotations.yaml"
 
 # Add marketplace annotations in CSV
-$YQ w -i "$RHMP_BUNDLE_PATH/manifests/datadog-operator-certified-rhmp.clusterserviceversion.yaml" 'metadata.annotations."marketplace.openshift.io/remote-workflow"' "https://marketplace.redhat.com/en-us/operators/datadog-operator-certified-rhmp/pricing?utm_source=openshift_console"
-$YQ w -i "$RHMP_BUNDLE_PATH/manifests/datadog-operator-certified-rhmp.clusterserviceversion.yaml" 'metadata.annotations."marketplace.openshift.io/support-workflow"' "https://marketplace.redhat.com/en-us/operators/datadog-operator-certified-rhmp/support?utm_source=openshift_console"
+$YQ -i '.metadata.annotations."marketplace.openshift.io/remote-workflow" = "https://marketplace.redhat.com/en-us/operators/datadog-operator-certified-rhmp/pricing?utm_source=openshift_console"' $RHMP_BUNDLE_PATH/manifests/datadog-operator-certified-rhmp.clusterserviceversion.yaml
+$YQ -i '.metadata.annotations."marketplace.openshift.io/support-workflow" = "https://marketplace.redhat.com/en-us/operators/datadog-operator-certified-rhmp/support?utm_source=openshift_console"' $RHMP_BUNDLE_PATH/manifests/datadog-operator-certified-rhmp.clusterserviceversion.yaml
