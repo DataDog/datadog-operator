@@ -181,7 +181,7 @@ func writeOverridesRecursive(f *os.File, prefix string, props map[string]apiexte
 			propName := prefix + "." + doc.name
 			mustWriteString(f, fmt.Sprintf("| %s `map[%s]%s` | %s |\n", propName, mapKeyType, mapValueType, doc.description))
 			valueTypeProps := props[doc.name].AdditionalProperties.Schema.Properties
-			writeOverridesRecursive(f, prefix+".[key]."+doc.name, valueTypeProps)
+			writeOverridesRecursive(f, prefix+"."+doc.name+".[key]", valueTypeProps)
 		} else {
 			mustWriteString(f, fmt.Sprintf("| %s | %s |\n", prefix+"."+doc.name, doc.description))
 		}
