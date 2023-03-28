@@ -130,7 +130,7 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 	}
 
 	// LogsCollection Feature
-	if ddaSpec.Features.LogCollection != nil && *ddaSpec.Features.LogCollection.Enabled {
+	if ddaSpec.Features.LogCollection != nil && ddaSpec.Features.LogCollection.Enabled != nil && *ddaSpec.Features.LogCollection.Enabled {
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.LogCollection.ContainerCollectUsingFiles, defaultLogContainerCollectUsingFiles)
 
 		apiutils.DefaultStringIfUnset(&ddaSpec.Features.LogCollection.ContainerLogsPath, defaultLogContainerLogsPath)
@@ -143,14 +143,14 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 	}
 
 	// LiveContainerCollection Feature
-	if ddaSpec.Features.LiveContainerCollection == nil {
+	if ddaSpec.Features.LiveContainerCollection == nil || apiutils.IsEqualStruct(*ddaSpec.Features.LiveContainerCollection, LiveContainerCollectionFeatureConfig{}) {
 		ddaSpec.Features.LiveContainerCollection = &LiveContainerCollectionFeatureConfig{
 			Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
 		}
 	}
 
 	// APM Feature
-	if ddaSpec.Features.APM != nil && *ddaSpec.Features.APM.Enabled {
+	if ddaSpec.Features.APM != nil && ddaSpec.Features.APM.Enabled != nil && *ddaSpec.Features.APM.Enabled {
 		if ddaSpec.Features.APM.HostPortConfig == nil {
 			ddaSpec.Features.APM.HostPortConfig = &HostPortConfig{}
 		}
@@ -169,12 +169,12 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 	}
 
 	// CWS (Cloud Workload Security) Feature
-	if ddaSpec.Features.CWS != nil && *ddaSpec.Features.CWS.Enabled {
+	if ddaSpec.Features.CWS != nil && ddaSpec.Features.CWS.Enabled != nil && *ddaSpec.Features.CWS.Enabled {
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.CWS.SyscallMonitorEnabled, defaultCWSSyscallMonitorEnabled)
 	}
 
 	// NPM (Network Performance Monitoring) Feature
-	if ddaSpec.Features.NPM != nil && *ddaSpec.Features.NPM.Enabled {
+	if ddaSpec.Features.NPM != nil && ddaSpec.Features.NPM.Enabled != nil && *ddaSpec.Features.NPM.Enabled {
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.NPM.EnableConntrack, defaultNPMEnableConntrack)
 
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.NPM.CollectDNSStats, defaultNPMCollectDNSStats)
@@ -226,14 +226,14 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 	// Cluster-level features
 
 	// EventCollection Feature
-	if ddaSpec.Features.EventCollection == nil {
+	if ddaSpec.Features.EventCollection == nil || apiutils.IsEqualStruct(*ddaSpec.Features.EventCollection, EventCollectionFeatureConfig{}) {
 		ddaSpec.Features.EventCollection = &EventCollectionFeatureConfig{
 			CollectKubernetesEvents: apiutils.NewBoolPointer(defaultCollectKubernetesEvents),
 		}
 	}
 
 	// OrchestratorExplorer check Feature
-	if ddaSpec.Features.OrchestratorExplorer == nil {
+	if ddaSpec.Features.OrchestratorExplorer == nil || apiutils.IsEqualStruct(*ddaSpec.Features.OrchestratorExplorer, OrchestratorExplorerFeatureConfig{}) {
 		ddaSpec.Features.OrchestratorExplorer = &OrchestratorExplorerFeatureConfig{
 			Enabled: apiutils.NewBoolPointer(defaultOrchestratorExplorerEnabled),
 		}
@@ -244,7 +244,7 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 	}
 
 	// KubeStateMetricsCore check Feature
-	if ddaSpec.Features.KubeStateMetricsCore == nil {
+	if ddaSpec.Features.KubeStateMetricsCore == nil || apiutils.IsEqualStruct(*ddaSpec.Features.KubeStateMetricsCore, KubeStateMetricsCoreFeatureConfig{}) {
 		ddaSpec.Features.KubeStateMetricsCore = &KubeStateMetricsCoreFeatureConfig{
 			Enabled: apiutils.NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
 		}
@@ -264,7 +264,7 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 	}
 
 	// ExternalMetricsServer Feature
-	if ddaSpec.Features.ExternalMetricsServer != nil && *ddaSpec.Features.ExternalMetricsServer.Enabled {
+	if ddaSpec.Features.ExternalMetricsServer != nil && ddaSpec.Features.ExternalMetricsServer.Enabled != nil && *ddaSpec.Features.ExternalMetricsServer.Enabled {
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ExternalMetricsServer.UseDatadogMetrics, defaultDatadogMetricsEnabled)
 
 		apiutils.DefaultInt32IfUnset(&ddaSpec.Features.ExternalMetricsServer.Port, defaultMetricsProviderPort)

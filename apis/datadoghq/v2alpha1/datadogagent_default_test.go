@@ -721,6 +721,88 @@ func Test_defaultFeatures(t *testing.T) {
 				},
 			},
 		},
+		{
+			// This test sets same defaults as the one with `Features: nil`; and leaves other configs as empty structs.
+			name: "all feature configs are empty structs, configures defaults where applicable, leaves others empty",
+			ddaSpec: &DatadogAgentSpec{
+				Features: &DatadogFeatures{
+					LogCollection:           &LogCollectionFeatureConfig{},
+					LiveProcessCollection:   &LiveProcessCollectionFeatureConfig{},
+					LiveContainerCollection: &LiveContainerCollectionFeatureConfig{},
+					OOMKill:                 &OOMKillFeatureConfig{},
+					TCPQueueLength:          &TCPQueueLengthFeatureConfig{},
+					APM:                     &APMFeatureConfig{},
+					CSPM:                    &CSPMFeatureConfig{},
+					CWS:                     &CWSFeatureConfig{},
+					NPM:                     &NPMFeatureConfig{},
+					USM:                     &USMFeatureConfig{},
+					OTLP:                    &OTLPFeatureConfig{},
+					EventCollection:         &EventCollectionFeatureConfig{},
+					OrchestratorExplorer:    &OrchestratorExplorerFeatureConfig{},
+					KubeStateMetricsCore:    &KubeStateMetricsCoreFeatureConfig{},
+					AdmissionController:     &AdmissionControllerFeatureConfig{},
+					ExternalMetricsServer:   &ExternalMetricsServerFeatureConfig{},
+					ClusterChecks:           &ClusterChecksFeatureConfig{},
+					PrometheusScrape:        &PrometheusScrapeFeatureConfig{},
+				},
+			},
+			want: &DatadogAgentSpec{
+				Features: &DatadogFeatures{
+					LogCollection:         &LogCollectionFeatureConfig{},
+					LiveProcessCollection: &LiveProcessCollectionFeatureConfig{},
+					OOMKill:               &OOMKillFeatureConfig{},
+					TCPQueueLength:        &TCPQueueLengthFeatureConfig{},
+					APM:                   &APMFeatureConfig{},
+					CSPM:                  &CSPMFeatureConfig{},
+					CWS:                   &CWSFeatureConfig{},
+					NPM:                   &NPMFeatureConfig{},
+					USM:                   &USMFeatureConfig{},
+					ExternalMetricsServer: &ExternalMetricsServerFeatureConfig{},
+					PrometheusScrape:      &PrometheusScrapeFeatureConfig{},
+
+					LiveContainerCollection: &LiveContainerCollectionFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
+					},
+					Dogstatsd: &DogstatsdFeatureConfig{
+						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogstatsdOriginDetectionEnabled),
+						HostPortConfig:         &HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
+						UnixDomainSocketConfig: &UnixDomainSocketConfig{
+							Enabled: apiutils.NewBoolPointer(defaultDogstatsdSocketEnabled),
+							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
+						},
+					},
+					OTLP: &OTLPFeatureConfig{Receiver: OTLPReceiverConfig{Protocols: OTLPProtocolsConfig{
+						GRPC: &OTLPGRPCConfig{
+							Enabled:  apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
+							Endpoint: apiutils.NewStringPointer(defaultOTLPGRPCEndpoint),
+						},
+						HTTP: &OTLPHTTPConfig{
+							Enabled:  apiutils.NewBoolPointer(defaultOTLPHTTPEnabled),
+							Endpoint: apiutils.NewStringPointer(defaultOTLPHTTPEndpoint),
+						},
+					}}},
+					EventCollection: &EventCollectionFeatureConfig{
+						CollectKubernetesEvents: apiutils.NewBoolPointer(defaultCollectKubernetesEvents),
+					},
+					OrchestratorExplorer: &OrchestratorExplorerFeatureConfig{
+						Enabled:         apiutils.NewBoolPointer(defaultOrchestratorExplorerEnabled),
+						ScrubContainers: apiutils.NewBoolPointer(defaultOrchestratorExplorerScrubContainers),
+					},
+					KubeStateMetricsCore: &KubeStateMetricsCoreFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
+					},
+					ClusterChecks: &ClusterChecksFeatureConfig{
+						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
+						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
+					},
+					AdmissionController: &AdmissionControllerFeatureConfig{
+						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
+						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
+						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+					},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
