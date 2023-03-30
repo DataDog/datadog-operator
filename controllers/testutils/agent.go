@@ -101,6 +101,9 @@ func NewDatadogAgentWithCWS(namespace string, name string) v2alpha1.DatadogAgent
 			CWS: &v2alpha1.CWSFeatureConfig{
 				Enabled:               apiutils.NewBoolPointer(true),
 				SyscallMonitorEnabled: apiutils.NewBoolPointer(true),
+				SecurityProfiles: &v2alpha1.CWSSecurityProfilesConfig{
+					Enabled: apiutils.NewBoolPointer(true),
+				},
 			},
 		},
 	)
