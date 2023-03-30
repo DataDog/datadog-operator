@@ -1,0 +1,27 @@
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog
+spec:
+  credentials:
+    apiKey: <DATADOG_API_KEY>
+    appKey: <DATADOG_APP_KEY>
+  features:
+    apm:
+      enabled: true
+    liveProcessCollection:
+      processCollectionEnabled: true
+    logCollection:
+      enabled: true
+    admissionController:
+      enabled: true
+    externalMetricsServer:
+      enabled: true
+  override:
+    system-probe:
+      bpfDebugEnabled: true
+    security:
+      compliance:
+        enabled: true
+      runtime:
+        enabled: false

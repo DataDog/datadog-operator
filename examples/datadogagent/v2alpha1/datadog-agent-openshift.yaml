@@ -1,0 +1,30 @@
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog
+  namespace: datadog
+spec:
+  features:
+    logCollection:
+      enabled: true
+    liveProcessCollection:
+      enabled: true
+    liveContainerCollection:
+      enabled: true
+    apm:
+      enabled: true
+  global:
+    credentials:
+      apiKey: <DATADOG_API_KEY>
+      appKey: <DATADOG_API_KEY>
+    criSocketPath: /var/run/crio/crio.sock
+  override:
+    nodeAgent:
+      serviceAccountName: datadog-agent-scc
+      securityContext:
+        seLinuxOptions:
+          user: system_u
+          role: system_r
+          type: spc_t
+          level: s0
+        runAsUser: 0

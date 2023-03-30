@@ -1,0 +1,21 @@
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog
+spec:
+  features:
+    orchestratorExplorer:
+      enabled: true
+    kubeStateMetricsCore:
+      enabled: true
+      conf:
+        configMap:
+          name: cluster-agent-ksm-conf
+    clusterChecks:
+      enabled: true
+      useClusterChecksRunners: true
+  global:
+    credentials:
+      apiKey: <DATADOG_API_KEY>
+      appKey: <DATADOG_APP_KEY>
+    clusterName: foo
