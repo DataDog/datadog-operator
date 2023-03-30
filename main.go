@@ -26,6 +26,7 @@ import (
 
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	"github.com/DataDog/extendeddaemonset/pkg/controller/metrics"
+	"github.com/go-logr/logr"
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
@@ -41,7 +42,7 @@ import (
 )
 
 const (
-	maximumGoroutines = 200
+	defaultMaximumGoroutines = 400
 )
 
 var (
@@ -101,6 +102,7 @@ func main() {
 	flag.BoolVar(&operatorMetricsEnabled, "operatorMetricsEnabled", true, "Enable sending operator metrics to Datadog")
 	flag.BoolVar(&v2APIEnabled, "v2APIEnabled", true, "Enable the v2 api")
 	flag.BoolVar(&webhookEnabled, "webhookEnabled", true, "Enable CRD conversion webhook.")
+	maximumGoroutines := flag.Int("maximumGoroutines", defaultMaximumGoroutines, "Override health check threshold for maximum number of goroutines.")
 
 	// Parsing flags
 	flag.Parse()
@@ -143,7 +145,7 @@ func main() {
 	}
 
 	// Custom setup
-	customSetupHealthChecks(mgr)
+	customSetupHealthChecks(setupLog, mgr, maximumGoroutines)
 	customSetupEndpoints(pprofActive, mgr)
 
 	creds, err := config.NewCredentialManager().GetCredentials()
@@ -207,9 +209,10 @@ func customSetupLogging(logLevel zapcore.Level, logEncoder string) error {
 	return nil
 }
 
-func customSetupHealthChecks(mgr manager.Manager) {
+func customSetupHealthChecks(logger logr.Logger, mgr manager.Manager, maximumGoroutines *int) {
+	setupLog.Info("configuring manager health check", "maximumGoroutines", *maximumGoroutines)
 	err := mgr.AddHealthzCheck("goroutines-number", func(req *http.Request) error {
-		if goruntime.NumGoroutine() > maximumGoroutines {
+		if goruntime.NumGoroutine() > *maximumGoroutines {
 			return fmt.Errorf("too much goroutines: %d > limit: %d", goruntime.NumGoroutine(), maximumGoroutines)
 		}
 		return nil
