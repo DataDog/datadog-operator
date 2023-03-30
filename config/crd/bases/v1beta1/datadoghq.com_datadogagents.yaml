@@ -15423,7 +15423,7 @@ spec:
                               description: ConfigMap references an existing ConfigMap with the configuration file content.
                               properties:
                                 items:
-                                  description: Items maps a ConfigMap data key to a file path mount.
+                                  description: Items maps a ConfigMap data `key` to a file `path` mount.
                                   items:
                                     description: Maps a string key to a path within a volume.
                                     properties:
@@ -15467,7 +15467,7 @@ spec:
                               description: ConfigMap references an existing ConfigMap with the configuration file content.
                               properties:
                                 items:
-                                  description: Items maps a ConfigMap data key to a file path mount.
+                                  description: Items maps a ConfigMap data `key` to a file `path` mount.
                                   items:
                                     description: Maps a string key to a path within a volume.
                                     properties:
@@ -15525,7 +15525,7 @@ spec:
                               description: ConfigMap references an existing ConfigMap with the configuration file content.
                               properties:
                                 items:
-                                  description: Items maps a ConfigMap data key to a file path mount.
+                                  description: Items maps a ConfigMap data `key` to a file `path` mount.
                                   items:
                                     description: Maps a string key to a path within a volume.
                                     properties:
@@ -15601,7 +15601,7 @@ spec:
                                     - secretName
                                   type: object
                                 appKey:
-                                  description: AppKey configures your Datadog application key. If you are using clusterAgent.metricsProvider.enabled = true, you must set a Datadog application key for read access to your metrics.
+                                  description: AppKey configures your Datadog application key. If you are using features.externalMetricsServer.enabled = true, you must set a Datadog application key for read access to your metrics.
                                   type: string
                                 appSecret:
                                   description: AppSecret references an existing Secret which stores the application key instead of creating a new one. If set, this parameter takes precedence over "AppKey".
@@ -15644,7 +15644,7 @@ spec:
                               description: ConfigMap references an existing ConfigMap with the configuration file content.
                               properties:
                                 items:
-                                  description: Items maps a ConfigMap data key to a file path mount.
+                                  description: Items maps a ConfigMap data `key` to a file `path` mount.
                                   items:
                                     description: Maps a string key to a path within a volume.
                                     properties:
@@ -15757,7 +15757,7 @@ spec:
                               description: ConfigMap references an existing ConfigMap with the configuration file content.
                               properties:
                                 items:
-                                  description: Items maps a ConfigMap data key to a file path mount.
+                                  description: Items maps a ConfigMap data `key` to a file `path` mount.
                                   items:
                                     description: Maps a string key to a path within a volume.
                                     properties:
@@ -15903,7 +15903,7 @@ spec:
                             - secretName
                           type: object
                         appKey:
-                          description: AppKey configures your Datadog application key. If you are using clusterAgent.metricsProvider.enabled = true, you must set a Datadog application key for read access to your metrics.
+                          description: AppKey configures your Datadog application key. If you are using features.externalMetricsServer.enabled = true, you must set a Datadog application key for read access to your metrics.
                           type: string
                         appSecret:
                           description: AppSecret references an existing Secret which stores the application key instead of creating a new one. If set, this parameter takes precedence over "AppKey".
@@ -15946,7 +15946,7 @@ spec:
                                 - secretName
                               type: object
                             appKey:
-                              description: AppKey configures your Datadog application key. If you are using clusterAgent.metricsProvider.enabled = true, you must set a Datadog application key for read access to your metrics.
+                              description: AppKey configures your Datadog application key. If you are using features.externalMetricsServer.enabled = true, you must set a Datadog application key for read access to your metrics.
                               type: string
                             appSecret:
                               description: AppSecret references an existing Secret which stores the application key instead of creating a new one. If set, this parameter takes precedence over "AppKey".
@@ -16954,7 +16954,7 @@ spec:
                                       description: ConfigMap references an existing ConfigMap with the configuration file content.
                                       properties:
                                         items:
-                                          description: Items maps a ConfigMap data key to a file path mount.
+                                          description: Items maps a ConfigMap data `key` to a file `path` mount.
                                           items:
                                             description: Maps a string key to a path within a volume.
                                             properties:
@@ -17121,7 +17121,7 @@ spec:
                               description: ConfigMap references an existing ConfigMap with the configuration file content.
                               properties:
                                 items:
-                                  description: Items maps a ConfigMap data key to a file path mount.
+                                  description: Items maps a ConfigMap data `key` to a file `path` mount.
                                   items:
                                     description: Maps a string key to a path within a volume.
                                     properties:
@@ -17248,7 +17248,7 @@ spec:
                             description: ConfigMap references an existing ConfigMap with the content of the configuration files.
                             properties:
                               items:
-                                description: Items maps a ConfigMap data key to a file path mount.
+                                description: Items maps a ConfigMap data `key` to a file `path` mount.
                                 items:
                                   description: Maps a string key to a path within a volume.
                                   properties:
@@ -17287,7 +17287,7 @@ spec:
                             description: ConfigMap references an existing ConfigMap with the content of the configuration files.
                             properties:
                               items:
-                                description: Items maps a ConfigMap data key to a file path mount.
+                                description: Items maps a ConfigMap data `key` to a file `path` mount.
                                 items:
                                   description: Maps a string key to a path within a volume.
                                   properties:

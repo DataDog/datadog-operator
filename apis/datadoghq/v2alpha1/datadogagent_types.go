@@ -672,7 +672,7 @@ type DatadogCredentials struct {
 	APISecret *commonv1.SecretConfig `json:"apiSecret,omitempty"`
 
 	// AppKey configures your Datadog application key.
-	// If you are using clusterAgent.metricsProvider.enabled = true, you must set
+	// If you are using features.externalMetricsServer.enabled = true, you must set
 	// a Datadog application key for read access to your metrics.
 	// +optional
 	AppKey *string `json:"appKey,omitempty"`

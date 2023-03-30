@@ -24,7 +24,7 @@ type ConfigMapConfig struct {
 	// Name is the name of the ConfigMap.
 	Name string `json:"name,omitempty"`
 
-	// Items maps a ConfigMap data key to a file path mount.
+	// Items maps a ConfigMap data `key` to a file `path` mount.
 	// +listType=map
 	// +listMapKey=key
 	// +optional

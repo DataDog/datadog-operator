@@ -17,12 +17,9 @@ spec:
   features:
       kubeStateMetricsCore:
         enabled: true
-  clusterAgent:
-      config:
-  [...]
-        clusterChecksEnabled: true
-  clusterChecksRunner:
-    enabled: true
+      clusterChecks:
+        enabled: true
+        useClusterChecksRunners: true
 ```
 
 By default the following collectors will be activated:
@@ -57,8 +54,10 @@ spec:
       enabled: true
       conf:
         configMap:
-          name: custom-kubernetes-state-core-check
-          fileKey: kubernetes_state_core.yaml
+          name: cluster-agent-ksm-conf
+          items:
+            - key: kubernetes_state_core.yaml
+              path: kubernetes_state_core.yaml
 ```
 
 For instance, in a large cluster where you might want to take advantage of the label join features and split the collectors so several Cluster Check Runners process them, your configuration could look like this:

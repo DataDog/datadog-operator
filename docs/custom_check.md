@@ -85,20 +85,23 @@ Once the `hello` check files are created, create the associated `ConfigMaps`:
 Once the `ConfigMaps` are configured, a `DatadogAgent` resource can be created to use them with the following chart:
 
 ```yaml
-apiVersion: datadoghq.com/v1alpha1
+apiVersion: datadoghq.com/v2alpha1
 kind: DatadogAgent
 metadata:
   name: datadog
 spec:
-  credentials:
-    apiKey: "<DATADOG_API_KEY>"
-    appKey: "<DATADOG_APP_KEY>"
-  agent:
-    config:
-      confd:
-        configMapName: "confd-config"
-      checksd:
-        configMapName: "checksd-config"
+  global:
+    credentials:
+      apiKey: "<DATADOG_API_KEY>"
+      appKey: "<DATADOG_APP_KEY>"
+  override:
+    nodeAgent:
+      extraConfd:
+        configMap:
+          name: confd-config
+      extraChecksd:
+        configMap:
+          name: checksd-config
 ```
 
 **Note**: Any ConfigMaps you create need to be in the same `DD_NAMESPACE` as the `DatadogAgent` resource.
@@ -128,25 +131,27 @@ In order to populate `ConfigMaps` with the content of multiple checks or their r
 Additional user-configured volumes can be mounted in either the node or Cluster Agent containers by setting the `volumes` and `volumeMounts` properties. Find below an example of using a volume to mount a secret:
 
 ```yaml
-apiVersion: datadoghq.com/v1alpha1
+apiVersion: datadoghq.com/v2alpha1
 kind: DatadogAgent
 metadata:
   name: datadog
 spec:
-  credentials:
-    apiKey: "<DATADOG_API_KEY>"
-    appKey: "<DATADOG_APP_KEY>"
-  agent:
-    image:
-      name: "gcr.io/datadoghq/agent:latest"
-    volumes:
-      - name: secrets
-        secret:
-          secretName: secrets
-    volumeMounts:
-      - name: secrets
-        mountPath: /etc/secrets
-        readOnly: true
+  global:
+    credentials:
+      apiKey: "<DATADOG_API_KEY>"
+      appKey: "<DATADOG_APP_KEY>"
+  override:
+    nodeAgent:
+      image:
+        name: "gcr.io/datadoghq/agent:latest"
+        volumes:
+          - name: secrets
+            secret:
+              secretName: secrets
+        volumeMounts:
+          - name: secrets
+            mountPath: /etc/secrets
+            readOnly: true
 ```
 
 [1]: https://docs.datadoghq.com/agent/autodiscovery/

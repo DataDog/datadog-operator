@@ -2,10 +2,10 @@
 
 By default, the Cluster Agent is deployed along with the Agent.
 
-The Cluster Agent configuration is defined in the `spec.clusterAgent` section, for example: [`datadog-agent-with-clusteragent.yaml` file][1]:
+The Cluster Agent configuration is defined in the `spec.override.clusterAgent` section, for example: [`datadog-agent-with-clusteragent.yaml` file][1]:
 
 ```yaml
-apiVersion: datadoghq.com/v1alpha1
+apiVersion: datadoghq.com/v2alpha1
 kind: DatadogAgent
 metadata:
   name: datadog
@@ -13,24 +13,30 @@ spec:
   # Credentials to communicate between:
   #  * Agents and Datadog (API/APP key)
   #  * Node Agent and Cluster Agent (Token)
-  credentials:
-    apiKey: "<DATADOG_API_KEY>"
-    appKey: "<DATADOG_APP_KEY>"
-    token: "<DATADOG_CLUSTER_AGENT_TOKEN>"
+  global:
+    credentials:
+      apiKey: "<DATADOG_API_KEY>"
+      appKey: "<DATADOG_APP_KEY>"
+    clusterAgentToken: "<DATADOG_CLUSTER_AGENT_TOKEN>"
 
-  # Node Agent configuration
-  agent:
-    config:
+  override:
+    # Node Agent configuration
+    nodeAgent:
       tolerations:
         - operator: Exists
 
-  # Cluster Agent configuration
-  clusterAgent:
-    config:
-      metricsProviderEnabled: true
-      clusterChecksEnabled: true
-    replicas: 2
-```
+    # Cluster Agent configuration
+    clusterAgent:
+      replicas: 2
+
+  # Enable Features
+  features:
+    externalMetricsServer:
+      enabled: true
+      useDatadogMetrics: false
+    clusterChecks:
+      enabled: true
+  ```
 
 **Note**: `<DATADOG_CLUSTER_AGENT_TOKEN>` is a custom 32 characters long token that you can define. If it is omitted, a random one is generated automatically.
 
@@ -66,4 +72,4 @@ datadog-cluster-agent-9f9c5c4c-pmhqb         1/1     Running   0          58s
 datadog-agent-hjlbg                          1/1     Running   0          33s
 ```
 
-[1]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/datadog-agent-with-clusteragent.yaml
+[1]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/v2alpha1/datadog-agent-with-clusteragent.yaml
