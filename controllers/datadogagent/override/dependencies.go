@@ -86,7 +86,7 @@ func overrideCustomConfigs(logger logr.Logger, manager feature.ResourceManagers,
 				logger.Error(err, "couldn't generate hash for custom config", "filename", fileName)
 			}
 			annotationKey := object.GetChecksumAnnotationKey(string(fileName))
-			annotations := object.MergeAnnotationsLabels(logger, cm.GetAnnotations(), map[string]string{annotationKey: hash}, "")
+			annotations := object.MergeAnnotationsLabels(logger, cm.GetAnnotations(), map[string]string{annotationKey: hash}, "*")
 			cm.SetAnnotations(annotations)
 
 			if cm != nil {
@@ -112,7 +112,7 @@ func overrideExtraConfigs(logger logr.Logger, manager feature.ResourceManagers, 
 			logger.Error(err, "couldn't generate hash for extra custom config")
 		}
 		annotationKey := object.GetChecksumAnnotationKey(configMapName)
-		annotations := object.MergeAnnotationsLabels(logger, cm.GetAnnotations(), map[string]string{annotationKey: hash}, "")
+		annotations := object.MergeAnnotationsLabels(logger, cm.GetAnnotations(), map[string]string{annotationKey: hash}, "*")
 		cm.SetAnnotations(annotations)
 
 		if cm != nil {

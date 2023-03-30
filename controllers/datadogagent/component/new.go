@@ -6,16 +6,19 @@
 package component
 
 import (
+	"time"
+
 	appsv1 "k8s.io/api/apps/v1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
-
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 // NewDeployment use to generate the skeleton of a new deployment based on few information
@@ -85,9 +88,17 @@ func defaultEDSStrategy() edsv1alpha1.ExtendedDaemonSetSpecStrategy {
 			&edsv1alpha1.ExtendedDaemonSetSpecStrategyCanary{},
 			edsv1alpha1.ExtendedDaemonSetSpecStrategyCanaryValidationModeAuto,
 		),
-		RollingUpdate: *edsv1alpha1.DefaultExtendedDaemonSetSpecStrategyRollingUpdate(&edsv1alpha1.ExtendedDaemonSetSpecStrategyRollingUpdate{}),
 		ReconcileFrequency: &metav1.Duration{
 			Duration: apicommon.DefaultReconcileFrequency,
+		},
+
+		// Since this is not configurable we are hard-coding more foregiving alternative compared to EDS-provided defaults.
+		RollingUpdate: edsv1alpha1.ExtendedDaemonSetSpecStrategyRollingUpdate{
+			MaxUnavailable:            &intstr.IntOrString{Type: intstr.String, StrVal: "5%"},
+			MaxPodSchedulerFailure:    &intstr.IntOrString{Type: intstr.String, StrVal: "5%"},
+			MaxParallelPodCreation:    apiutils.NewInt32Pointer(50),
+			SlowStartIntervalDuration: &metav1.Duration{Duration: 5 * time.Minute},
+			SlowStartAdditiveIncrease: &intstr.IntOrString{Type: intstr.String, StrVal: "2%"},
 		},
 	}
 }

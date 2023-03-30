@@ -4,8 +4,10 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-ROOT=$(git rev-parse --show-toplevel)
-PLATFORM="$(uname -s)-$(uname -m)"
+SCRIPTS_DIR="$(dirname "$0")"
+# Provides $OS,$ARCH,$PLATFORM,$ROOT variables
+source "$SCRIPTS_DIR/os-env.sh"
+
 RH_BUNDLE_PATH="$ROOT/bundle-redhat"
 YQ="$ROOT/bin/$PLATFORM/yq"
 
@@ -35,5 +37,5 @@ mv "$RHMP_BUNDLE_PATH/manifests/datadog-operator.clusterserviceversion.yaml" "$R
 sed -i 's/datadog-operator-certified/datadog-operator-certified-rhmp/g' "$RHMP_BUNDLE_PATH/metadata/annotations.yaml"
 
 # Add marketplace annotations in CSV
-$YQ w -i "$RHMP_BUNDLE_PATH/manifests/datadog-operator-certified-rhmp.clusterserviceversion.yaml" 'metadata.annotations."marketplace.openshift.io/remote-workflow"' "https://marketplace.redhat.com/en-us/operators/datadog-operator-certified-rhmp/pricing?utm_source=openshift_console"
-$YQ w -i "$RHMP_BUNDLE_PATH/manifests/datadog-operator-certified-rhmp.clusterserviceversion.yaml" 'metadata.annotations."marketplace.openshift.io/support-workflow"' "https://marketplace.redhat.com/en-us/operators/datadog-operator-certified-rhmp/support?utm_source=openshift_console"
+$YQ -i '.metadata.annotations."marketplace.openshift.io/remote-workflow" = "https://marketplace.redhat.com/en-us/operators/datadog-operator-certified-rhmp/pricing?utm_source=openshift_console"' $RHMP_BUNDLE_PATH/manifests/datadog-operator-certified-rhmp.clusterserviceversion.yaml
+$YQ -i '.metadata.annotations."marketplace.openshift.io/support-workflow" = "https://marketplace.redhat.com/en-us/operators/datadog-operator-certified-rhmp/support?utm_source=openshift_console"' $RHMP_BUNDLE_PATH/manifests/datadog-operator-certified-rhmp.clusterserviceversion.yaml

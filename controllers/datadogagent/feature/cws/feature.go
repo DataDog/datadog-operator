@@ -77,6 +77,8 @@ func (f *cwsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 			hash, err := comparison.GenerateMD5ForSpec(f.customConfig)
 			if err != nil {
 				f.logger.Error(err, "couldn't generate hash for cws custom policies config")
+			} else {
+				f.logger.V(2).Info("built cws custom policies from custom config", "hash", hash)
 			}
 			f.customConfigAnnotationValue = hash
 			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.CWSIDType)
@@ -145,7 +147,7 @@ func (f *cwsFeature) ManageDependencies(managers feature.ResourceManagers, compo
 		if cm != nil {
 			// Add md5 hash annotation for custom config
 			if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
-				annotations := object.MergeAnnotationsLabels(f.logger, cm.GetAnnotations(), map[string]string{f.customConfigAnnotationKey: f.customConfigAnnotationValue}, "")
+				annotations := object.MergeAnnotationsLabels(f.logger, cm.GetAnnotations(), map[string]string{f.customConfigAnnotationKey: f.customConfigAnnotationValue}, "*")
 				cm.SetAnnotations(annotations)
 			}
 

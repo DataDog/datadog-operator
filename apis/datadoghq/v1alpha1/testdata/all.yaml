@@ -16,7 +16,7 @@ spec:
     appSecret:
       secretName: datadog-secret
       keyName: app-key
-    token: "foo-bar-baz" # ignored by conversion
+    token: "foo-bar-baz"
     useSecretBackend: true
   features:
     orchestratorExplorer:
@@ -104,6 +104,10 @@ spec:
         custom-tag1: custom-tag1
       podAnnotationsAsTags:
         custom-tag2: custom-tag2
+      nodeLabelsAsTags:
+        custom-tag3: custom-tag3
+      namespaceLabelsAsTags:
+        custom-tag4: custom-tag4
       tags:
         - hostTag1
         - hostTag2
