@@ -3,7 +3,6 @@ kind: DatadogAgent
 metadata:
   name: datadog
 spec:
-  features: {}
   global:
     credentials:
       apiKey: <DATADOG_API_KEY>
