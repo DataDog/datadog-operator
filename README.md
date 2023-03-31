@@ -26,7 +26,18 @@ However, the Datadog Operator is still in beta, so it is not yet a recommended w
 
 ## Getting started
 
-See the [Getting Started][5] dedicated documentation to learn how to deploy the Datadog operator and your first Agent, and [Configuration][12] to see examples and a list of all configuration keys.
+See the [Getting Started][5] dedicated documentation to learn how to deploy the Datadog operator and your first Agent, and [Configuration][12] to see examples, a list of all configuration keys, and default values.
+
+### Default Enabled Features
+
+- Cluster Agent
+- Cluster Checks
+- Cluster Agent External Metrics Server
+- APM using UDS
+- DogStatsD using UDS
+- Kubernetes Event Collection
+- Kubernetes State Core Check
+- Orchestrator Explorer
 
 ## Functionalities
 
