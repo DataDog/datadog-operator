@@ -33,8 +33,7 @@ See the [Getting Started][5] dedicated documentation to learn how to deploy the 
 - Cluster Agent
 - Cluster Checks
 - Cluster Agent External Metrics Server
-- APM using UDS
-- DogStatsD using UDS
+- UnixDomainSocket transport for DogStatsD (and APM if enabled)
 - Kubernetes Event Collection
 - Kubernetes State Core Check
 - Orchestrator Explorer

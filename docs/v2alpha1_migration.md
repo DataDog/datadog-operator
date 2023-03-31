@@ -2,9 +2,16 @@
 
 Learn how to convert your `v1alpha` DatadogAgent Custom Resources Definitions to version `v2alpha1` used by the Datadog Operator v1.0.0.
 
-## Pre-Requisites
+## Prerequisites
 
 * Completed Datadog Operator v1.0.0 Helm Chart migration (see [Migration Guide][1])
+* Running `cert-manager` with `installCRDs` set to `true`:
+  ```shell
+  helm install \
+    cert-manager jetstack/cert-manager \
+    --version v1.11.0 \
+    --set installCRDs=true
+  ```
 * Running Datadog Operator v1.0.0 with the Conversion Webhook Server enabled:
     ```shell
     helm install \
@@ -25,26 +32,27 @@ The Datadog Operator will be running the new reconciler for v2alpha1 object and 
 $ kubectl port-forward <DATADOG_OPERATOR_POD_NAME> 2345:9443
 ```
 
-2. Copy a `v1alpha1` DatadogAgent definition to your clipboard
+2. Save a `v1alpha1` DatadogAgent definition as JSON (you can use a tool like `yq`).
 
-```yaml
-apiVersion: datadoghq.com/v1alpha1
-kind: DatadogAgent
-metadata:
-  name: datadog
-spec:
-  credentials:
-    apiKey: <DATADOG_API_KEY>
-    appKey: <DATADOG_APP_KEY>
+3. Run `curl` command targeting the `/convert` endpoint with your DatadogAgent.v1alpha1 JSON:
+
+``` shell
+curl -k https://localhost:2345/convert -X POST -d '{"request":{"uid":"123", "desiredAPIVersion":"datadoghq.com/v2alpha1", "objects":[{
+  "apiVersion": "datadoghq.com/v1alpha1",
+  "kind": "DatadogAgent",
+  "metadata": {
+    "name": "datadog"
+  },
+  "spec": {
+    "credentials": {
+      "apiKey": "DATADOG_API_KEY",
+      "appKey": "DATADOG_APP_KEY"
+    }
+  }
+}]}}'
 ```
 
-3. Run `curl` command targeting the `/convert` endpoint:
-
-```shell
-converted_json=$(pbpaste | yq -o=json -I=0 -) && curl -k https://localhost:2345/convert -X POST -d "{\"request\":{\"uid\":\"123\", \"desiredAPIVersion\":\"datadoghq.com/v2alpha1\", \"objects\":[$converted_json]}}" | jq '.response.convertedObjects[0]' | yq eval -P | pbcopy
-```
-
-4. The converted `v2alpha1` DatadogAgent definition will now be copied to your clipboard. 
+This will return a response with your converted `v2alpha1` DatadogAgent definition:
 
 ```yaml
 kind: DatadogAgent
