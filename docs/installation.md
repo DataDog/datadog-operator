@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- **Kubernetes Cluster version >= v1.20.X**: Tests were done on versions >= `1.14.0`. Still, it should work on versions `>= v1.11.0`. For earlier versions, due to limited CRD support, the operator may not work as expected.
+- **Kubernetes Cluster version >= v1.20.X**: Tests were done on versions >= `1.20.0`. Still, it should work on versions `>= v1.11.0`. For earlier versions, because of limited CRD support, the Operator may not work as expected.
 - **[Helm][1]** for deploying the Datadog Operator
 - **[`kubectl` CLI][2]** for installing the Datadog Agent
 
