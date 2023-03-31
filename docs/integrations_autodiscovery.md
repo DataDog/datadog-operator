@@ -1,6 +1,6 @@
 # Integrations Autodiscovery
 
-The Datadog Operator makes it easy for you to easily configure Datadog [integrations][2] for [Autodiscovery][1] in your Datadog Agent. The `DatadogAgent` resource can be configured to provide configuration files (`conf.d`) at initialization time.
+The Datadog Operator makes it easy for you to configure Datadog [integrations][2] for [Autodiscovery][1] in your Datadog Agent. The `DatadogAgent` resource can be configured to provide configuration files (`conf.d`) at initialization time.
 
 ## Define ConfigMap in the `DatadogAgent` Resource
 
