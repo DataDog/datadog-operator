@@ -99,10 +99,12 @@ var _ = BeforeSuite(func() {
 	Expect(err).ToNot(HaveOccurred())
 
 	options := SetupOptions{
-		SupportExtendedDaemonset: false,
-		Creds:                    config.Creds{APIKey: "dummy_api_key", AppKey: "dummy_app_key"},
-		DatadogAgentEnabled:      true,
-		DatadogMonitorEnabled:    true,
+		SupportExtendedDaemonset: ExtendedDaemonsetOptions{
+			Enabled: false,
+		},
+		Creds:                 config.Creds{APIKey: "dummy_api_key", AppKey: "dummy_app_key"},
+		DatadogAgentEnabled:   true,
+		DatadogMonitorEnabled: true,
 	}
 
 	err = SetupControllers(logger, mgr, options)

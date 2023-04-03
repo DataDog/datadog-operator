@@ -7,12 +7,14 @@ package controllers
 
 import (
 	"fmt"
+	"time"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/DataDog/datadog-operator/controllers/datadogagent"
+	componentagent "github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -30,13 +32,25 @@ const (
 
 // SetupOptions defines options for setting up controllers to ease testing
 type SetupOptions struct {
-	SupportExtendedDaemonset bool
+	SupportExtendedDaemonset ExtendedDaemonsetOptions
 	SupportCilium            bool
 	Creds                    config.Creds
 	DatadogAgentEnabled      bool
 	DatadogMonitorEnabled    bool
 	OperatorMetricsEnabled   bool
 	V2APIEnabled             bool
+}
+
+// ExtendedDaemonsetOptions defines ExtendedDaemonset options
+type ExtendedDaemonsetOptions struct {
+	Enabled                bool
+	MaxPodUnavailable      string
+	MaxPodSchedulerFailure string
+
+	CanaryDuration              time.Duration
+	CanaryPodCount              string
+	CanaryAutoPauseRestartCount int
+	CanaryAutoFailRestartCount  int
 }
 
 type starterFunc func(logr.Logger, manager.Manager, *version.Info, kubernetes.PlatformInfo, SetupOptions) error
@@ -102,10 +116,18 @@ func startDatadogAgent(logger logr.Logger, mgr manager.Manager, vInfo *version.I
 		Scheme:       mgr.GetScheme(),
 		Recorder:     mgr.GetEventRecorderFor(agentControllerName),
 		Options: datadogagent.ReconcilerOptions{
-			SupportExtendedDaemonset: options.SupportExtendedDaemonset,
-			SupportCilium:            options.SupportCilium,
-			OperatorMetricsEnabled:   options.OperatorMetricsEnabled,
-			V2Enabled:                options.V2APIEnabled,
+			ExtendedDaemonsetOptions: componentagent.ExtendedDaemonsetOptions{
+				Enabled:                     options.SupportExtendedDaemonset.Enabled,
+				MaxPodUnavailable:           options.SupportExtendedDaemonset.MaxPodUnavailable,
+				MaxPodSchedulerFailure:      options.SupportExtendedDaemonset.MaxPodSchedulerFailure,
+				CanaryDuration:              options.SupportExtendedDaemonset.CanaryDuration,
+				CanaryPodCount:              options.SupportExtendedDaemonset.CanaryPodCount,
+				CanaryAutoPauseRestartCount: int32(options.SupportExtendedDaemonset.CanaryAutoPauseRestartCount),
+				CanaryAutoFailRestartCount:  int32(options.SupportExtendedDaemonset.CanaryAutoPauseRestartCount),
+			},
+			SupportCilium:          options.SupportCilium,
+			OperatorMetricsEnabled: options.OperatorMetricsEnabled,
+			V2Enabled:              options.V2APIEnabled,
 		},
 	}).SetupWithManager(mgr)
 }

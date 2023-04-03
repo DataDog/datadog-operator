@@ -8,6 +8,7 @@ package agent
 import (
 	"fmt"
 	"strconv"
+	"time"
 
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 
@@ -27,7 +28,7 @@ import (
 
 // NewDefaultAgentDaemonset return a new default agent DaemonSet
 func NewDefaultAgentDaemonset(dda metav1.Object, requiredContainers []common.AgentContainerName) *appsv1.DaemonSet {
-	daemonset := component.NewDaemonset(dda, apicommon.DefaultAgentResourceSuffix, component.GetAgentName(dda), component.GetAgentVersion(dda), nil)
+	daemonset := NewDaemonset(dda, apicommon.DefaultAgentResourceSuffix, component.GetAgentName(dda), component.GetAgentVersion(dda), nil)
 	podTemplate := NewDefaultAgentPodTemplateSpec(dda, requiredContainers, daemonset.GetLabels())
 
 	daemonset.Spec.Template = *podTemplate
@@ -35,10 +36,23 @@ func NewDefaultAgentDaemonset(dda metav1.Object, requiredContainers []common.Age
 }
 
 // NewDefaultAgentExtendedDaemonset return a new default agent DaemonSet
-func NewDefaultAgentExtendedDaemonset(dda metav1.Object, requiredContainers []common.AgentContainerName) *edsv1alpha1.ExtendedDaemonSet {
-	edsDaemonset := component.NewExtendedDaemonset(dda, apicommon.DefaultAgentResourceSuffix, component.GetAgentName(dda), component.GetAgentVersion(dda), nil)
+func NewDefaultAgentExtendedDaemonset(dda metav1.Object, edsOptions *ExtendedDaemonsetOptions, requiredContainers []common.AgentContainerName) *edsv1alpha1.ExtendedDaemonSet {
+	edsDaemonset := NewExtendedDaemonset(dda, edsOptions, apicommon.DefaultAgentResourceSuffix, component.GetAgentName(dda), component.GetAgentVersion(dda), nil)
 	edsDaemonset.Spec.Template = *NewDefaultAgentPodTemplateSpec(dda, requiredContainers, edsDaemonset.GetLabels())
 	return edsDaemonset
+}
+
+// ExtendedDaemonsetOptions defines ExtendedDaemonset options
+type ExtendedDaemonsetOptions struct {
+	Enabled bool
+
+	MaxPodUnavailable      string
+	MaxPodSchedulerFailure string
+
+	CanaryDuration              time.Duration
+	CanaryPodCount              string
+	CanaryAutoPauseRestartCount int32
+	CanaryAutoFailRestartCount  int32
 }
 
 // NewDefaultAgentPodTemplateSpec return a default node agent for the cluster-agent deployment

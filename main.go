@@ -91,14 +91,20 @@ type options struct {
 	leaderElectionLeaseDuration time.Duration
 
 	// Controllers options
-	supportExtendedDaemonset bool
-	supportCilium            bool
-	datadogAgentEnabled      bool
-	datadogMonitorEnabled    bool
-	operatorMetricsEnabled   bool
-	webhookEnabled           bool
-	v2APIEnabled             bool
-	maximumGoroutines        int
+	supportExtendedDaemonset       bool
+	edsMaxPodUnavailable           string
+	edsMaxPodSchedulerFailure      string
+	edsCanaryDuration              time.Duration
+	edsCanaryPodCount              string
+	edsCanaryAutoPauseRestartCount int
+	edsCanaryAutoFailRestartCount  int
+	supportCilium                  bool
+	datadogAgentEnabled            bool
+	datadogMonitorEnabled          bool
+	operatorMetricsEnabled         bool
+	webhookEnabled                 bool
+	v2APIEnabled                   bool
+	maximumGoroutines              int
 
 	// Secret Backend options
 	secretBackendCommand string
@@ -120,8 +126,13 @@ func (opts *options) Parse() {
 	flag.StringVar(&opts.leaderElectionResourceLock, "leader-election-resource", "configmaps", "determines which resource lock to use for leader election. option:[configmapsleases|endpointsleases|configmaps]")
 	flag.DurationVar(&opts.leaderElectionLeaseDuration, "leader-election-lease-duration", 60*time.Second, "Define LeaseDuration as well as RenewDeadline (leaseDuration / 2) and RetryPeriod (leaseDuration / 4)")
 
-	// Controllers options flags
-	flag.BoolVar(&opts.supportExtendedDaemonset, "supportExtendedDaemonset", false, "Support usage of Datadog ExtendedDaemonset CRD.")
+	// Custom flags
+	flag.StringVar(&opts.logEncoder, "logEncoder", "json", "log encoding ('json' or 'console')")
+	flag.StringVar(&opts.secretBackendCommand, "secretBackendCommand", "", "Secret backend command")
+	flag.Var(&opts.secretBackendArgs, "secretBackendArgs", "Space separated arguments of the secret backend command")
+	opts.logLevel = zap.LevelFlag("loglevel", zapcore.InfoLevel, "Set log level")
+	flag.BoolVar(&opts.printVersion, "version", false, "Print version and exit")
+	flag.BoolVar(&opts.pprofActive, "pprof", false, "Enable pprof endpoint")
 	flag.BoolVar(&opts.supportCilium, "supportCilium", false, "Support usage of Cilium network policies.")
 	flag.BoolVar(&opts.datadogAgentEnabled, "datadogAgentEnabled", true, "Enable the DatadogAgent controller")
 	flag.BoolVar(&opts.datadogMonitorEnabled, "datadogMonitorEnabled", false, "Enable the DatadogMonitor controller")
@@ -130,9 +141,14 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.webhookEnabled, "webhookEnabled", true, "Enable CRD conversion webhook.")
 	flag.IntVar(&opts.maximumGoroutines, "maximumGoroutines", defaultMaximumGoroutines, "Override health check threshold for maximum number of goroutines.")
 
-	// Secret Backend options flags
-	flag.StringVar(&opts.secretBackendCommand, "secretBackendCommand", "", "Secret backend command")
-	flag.Var(&opts.secretBackendArgs, "secretBackendArgs", "Space separated arguments of the secret backend command")
+	// ExtendedDaemonset configuration
+	flag.BoolVar(&opts.supportExtendedDaemonset, "supportExtendedDaemonset", false, "Support usage of Datadog ExtendedDaemonset CRD.")
+	flag.StringVar(&opts.edsMaxPodUnavailable, "eds-max-pod-unavailable", "", "ExtendedDaemonset number of max unavailable pods during rolling-update")
+	flag.StringVar(&opts.edsMaxPodSchedulerFailure, "eds-max-pod-scheduler-failure", "", "ExtendedDaemonset number of max pod scheduler failure")
+	flag.DurationVar(&opts.edsCanaryDuration, "eds-canary-duration", 10*time.Minute, "ExtendedDaemonset canary duration")
+	flag.StringVar(&opts.edsCanaryPodCount, "eds-canary-pod-count", "", "ExtendedDaemonset number of canary pods")
+	flag.IntVar(&opts.edsCanaryAutoPauseRestartCount, "eds-canary-auto-pause-restart-count", 0, "ExtendedDaemonset canary auto pause restart count")
+	flag.IntVar(&opts.edsCanaryAutoFailRestartCount, "eds-canary-auto-fail-restart-count", 0, "ExtendedDaemonset canary auto fail restart count")
 
 	// trigger flag parsing
 	// in needs to be the last function call
@@ -214,13 +230,18 @@ func run(opts *options) error {
 	}
 
 	options := controllers.SetupOptions{
-		SupportExtendedDaemonset: opts.supportExtendedDaemonset,
-		SupportCilium:            opts.supportCilium,
-		Creds:                    creds,
-		DatadogAgentEnabled:      opts.datadogAgentEnabled,
-		DatadogMonitorEnabled:    opts.datadogMonitorEnabled,
-		OperatorMetricsEnabled:   opts.operatorMetricsEnabled,
-		V2APIEnabled:             opts.v2APIEnabled,
+		SupportExtendedDaemonset: controllers.ExtendedDaemonsetOptions{
+			Enabled:           opts.supportExtendedDaemonset,
+			MaxPodUnavailable: opts.edsMaxPodUnavailable,
+			CanaryDuration:    opts.edsCanaryDuration,
+			CanaryPodCount:    opts.edsCanaryPodCount,
+		},
+		SupportCilium:          opts.supportCilium,
+		Creds:                  creds,
+		DatadogAgentEnabled:    opts.datadogAgentEnabled,
+		DatadogMonitorEnabled:  opts.datadogMonitorEnabled,
+		OperatorMetricsEnabled: opts.operatorMetricsEnabled,
+		V2APIEnabled:           opts.v2APIEnabled,
 	}
 
 	if err = controllers.SetupControllers(setupLog, mgr, options); err != nil {
