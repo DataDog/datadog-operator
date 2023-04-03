@@ -1,0 +1,23 @@
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog
+spec:
+  features:
+    orchestratorExplorer:
+      enabled: true
+    kubeStateMetricsCore:
+      enabled: true
+  global:
+    credentials:
+      apiKey: <DATADOG_API_KEY>
+      appKey: <DATADOG_APP_KEY>
+    clusterName: foo
+  override:
+    clusterAgent:
+      extraConfd:
+        configMap:
+          name: cluster-agent-confd
+          items:
+            - key: test
+              path: test.d/test.yaml

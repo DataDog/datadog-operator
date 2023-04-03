@@ -353,7 +353,7 @@ func schema__apis_datadoghq_v2alpha1_DatadogCredentials(ref common.ReferenceCall
 					},
 					"appKey": {
 						SchemaProps: spec.SchemaProps{
-							Description: "AppKey configures your Datadog application key. If you are using clusterAgent.metricsProvider.enabled = true, you must set a Datadog application key for read access to your metrics.",
+							Description: "AppKey configures your Datadog application key. If you are using features.externalMetricsServer.enabled = true, you must set a Datadog application key for read access to your metrics.",
 							Type:        []string{"string"},
 							Format:      "",
 						},

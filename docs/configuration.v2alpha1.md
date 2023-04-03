@@ -48,18 +48,18 @@ spec:
 | features.clusterChecks.useClusterChecksRunners | Enabled enables Cluster Checks Runners to run all Cluster Checks. Default: false |
 | features.cspm.checkInterval | CheckInterval defines the check interval. |
 | features.cspm.customBenchmarks.configData | ConfigData corresponds to the configuration file content. |
-| features.cspm.customBenchmarks.configMap.items | Items maps a ConfigMap data key to a file path mount. |
+| features.cspm.customBenchmarks.configMap.items | Items maps a ConfigMap data `key` to a file `path` mount. |
 | features.cspm.customBenchmarks.configMap.name | Name is the name of the ConfigMap. |
 | features.cspm.enabled | Enabled enables Cloud Security Posture Management. Default: false |
 | features.cws.customPolicies.configData | ConfigData corresponds to the configuration file content. |
-| features.cws.customPolicies.configMap.items | Items maps a ConfigMap data key to a file path mount. |
+| features.cws.customPolicies.configMap.items | Items maps a ConfigMap data `key` to a file `path` mount. |
 | features.cws.customPolicies.configMap.name | Name is the name of the ConfigMap. |
 | features.cws.enabled | Enabled enables Cloud Workload Security. Default: false |
 | features.cws.syscallMonitorEnabled | SyscallMonitorEnabled enables Syscall Monitoring (recommended for troubleshooting only). Default: false |
 | features.dogstatsd.hostPortConfig.enabled | Enabled enables host port configuration Default: false |
 | features.dogstatsd.hostPortConfig.hostPort | Port takes a port number (0 < x < 65536) to expose on the host. (Most containers do not need this.) If HostNetwork is enabled, this value must match the ContainerPort. |
 | features.dogstatsd.mapperProfiles.configData | ConfigData corresponds to the configuration file content. |
-| features.dogstatsd.mapperProfiles.configMap.items | Items maps a ConfigMap data key to a file path mount. |
+| features.dogstatsd.mapperProfiles.configMap.items | Items maps a ConfigMap data `key` to a file `path` mount. |
 | features.dogstatsd.mapperProfiles.configMap.name | Name is the name of the ConfigMap. |
 | features.dogstatsd.originDetectionEnabled | OriginDetectionEnabled enables origin detection for container tagging. See also: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/#using-origin-detection-for-container-tagging |
 | features.dogstatsd.unixDomainSocketConfig.enabled | Enabled enables Unix Domain Socket. Default: true |
@@ -69,7 +69,7 @@ spec:
 | features.externalMetricsServer.endpoint.credentials.apiKey | APIKey configures your Datadog API key. See also: https://app.datadoghq.com/account/settings#agent/kubernetes |
 | features.externalMetricsServer.endpoint.credentials.apiSecret.keyName | KeyName is the key of the secret to use. |
 | features.externalMetricsServer.endpoint.credentials.apiSecret.secretName | SecretName is the name of the secret. |
-| features.externalMetricsServer.endpoint.credentials.appKey | AppKey configures your Datadog application key. If you are using clusterAgent.metricsProvider.enabled = true, you must set a Datadog application key for read access to your metrics. |
+| features.externalMetricsServer.endpoint.credentials.appKey | AppKey configures your Datadog application key. If you are using features.externalMetricsServer.enabled = true, you must set a Datadog application key for read access to your metrics. |
 | features.externalMetricsServer.endpoint.credentials.appSecret.keyName | KeyName is the key of the secret to use. |
 | features.externalMetricsServer.endpoint.credentials.appSecret.secretName | SecretName is the name of the secret. |
 | features.externalMetricsServer.endpoint.url | URL defines the endpoint URL. |
@@ -77,7 +77,7 @@ spec:
 | features.externalMetricsServer.useDatadogMetrics | UseDatadogMetrics enables usage of the DatadogMetrics CRD (allowing one to scale on arbitrary Datadog metric queries). Default: true |
 | features.externalMetricsServer.wpaController | WPAController enables the informer and controller of the Watermark Pod Autoscaler. NOTE: The Watermark Pod Autoscaler controller needs to be installed. See also: https://github.com/DataDog/watermarkpodautoscaler. Default: false |
 | features.kubeStateMetricsCore.conf.configData | ConfigData corresponds to the configuration file content. |
-| features.kubeStateMetricsCore.conf.configMap.items | Items maps a ConfigMap data key to a file path mount. |
+| features.kubeStateMetricsCore.conf.configMap.items | Items maps a ConfigMap data `key` to a file `path` mount. |
 | features.kubeStateMetricsCore.conf.configMap.name | Name is the name of the ConfigMap. |
 | features.kubeStateMetricsCore.enabled | Enabled enables Kube State Metrics Core. Default: true |
 | features.liveContainerCollection.enabled | Enables container collection for the Live Container View. Default: true |
@@ -97,7 +97,7 @@ spec:
 | features.npm.enabled | Enabled enables Network Performance Monitoring. Default: false |
 | features.oomKill.enabled | Enables the OOMKill eBPF-based check. Default: false |
 | features.orchestratorExplorer.conf.configData | ConfigData corresponds to the configuration file content. |
-| features.orchestratorExplorer.conf.configMap.items | Items maps a ConfigMap data key to a file path mount. |
+| features.orchestratorExplorer.conf.configMap.items | Items maps a ConfigMap data `key` to a file `path` mount. |
 | features.orchestratorExplorer.conf.configMap.name | Name is the name of the ConfigMap. |
 | features.orchestratorExplorer.ddUrl | Override the API endpoint for the Orchestrator Explorer. URL Default: "https://orchestrator.datadoghq.com". |
 | features.orchestratorExplorer.enabled | Enabled enables the Orchestrator Explorer. Default: true |
@@ -120,7 +120,7 @@ spec:
 | global.credentials.apiKey | APIKey configures your Datadog API key. See also: https://app.datadoghq.com/account/settings#agent/kubernetes |
 | global.credentials.apiSecret.keyName | KeyName is the key of the secret to use. |
 | global.credentials.apiSecret.secretName | SecretName is the name of the secret. |
-| global.credentials.appKey | AppKey configures your Datadog application key. If you are using clusterAgent.metricsProvider.enabled = true, you must set a Datadog application key for read access to your metrics. |
+| global.credentials.appKey | AppKey configures your Datadog application key. If you are using features.externalMetricsServer.enabled = true, you must set a Datadog application key for read access to your metrics. |
 | global.credentials.appSecret.keyName | KeyName is the key of the secret to use. |
 | global.credentials.appSecret.secretName | SecretName is the name of the secret. |
 | global.criSocketPath | Path to the container runtime socket (if different from Docker). |
@@ -128,7 +128,7 @@ spec:
 | global.endpoint.credentials.apiKey | APIKey configures your Datadog API key. See also: https://app.datadoghq.com/account/settings#agent/kubernetes |
 | global.endpoint.credentials.apiSecret.keyName | KeyName is the key of the secret to use. |
 | global.endpoint.credentials.apiSecret.secretName | SecretName is the name of the secret. |
-| global.endpoint.credentials.appKey | AppKey configures your Datadog application key. If you are using clusterAgent.metricsProvider.enabled = true, you must set a Datadog application key for read access to your metrics. |
+| global.endpoint.credentials.appKey | AppKey configures your Datadog application key. If you are using features.externalMetricsServer.enabled = true, you must set a Datadog application key for read access to your metrics. |
 | global.endpoint.credentials.appSecret.keyName | KeyName is the key of the secret to use. |
 | global.endpoint.credentials.appSecret.secretName | SecretName is the name of the secret. |
 | global.endpoint.url | URL defines the endpoint URL. |
@@ -186,7 +186,7 @@ spec:
             cpu: "2"
             memory: 1Gi
 ```
-In the table, `spec.override.nodeAgent.image.name` and `spec.override.nodeAgent.containers.system-probe.resources.limits` will appear as `[key].image.name`, `[key].containers.[key].resources.limits` respetively.
+In the table, `spec.override.nodeAgent.image.name` and `spec.override.nodeAgent.containers.system-probe.resources.limits` will appear as `[key].image.name`, `[key].containers.[key].resources.limits` respectively.
 
 
 | Parameter | Description |
@@ -241,7 +241,7 @@ In the table, `spec.override.nodeAgent.image.name` and `spec.override.nodeAgent.
 | [key].containers.[key].resources.limits | Limits describes the maximum amount of compute resources allowed. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/ |
 | [key].containers.[key].resources.requests | Requests describes the minimum amount of compute resources required. If Requests is omitted for a container, it defaults to Limits if that is explicitly specified, otherwise to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/ |
 | [key].containers.[key].seccompConfig.customProfile.configData | ConfigData corresponds to the configuration file content. |
-| [key].containers.[key].seccompConfig.customProfile.configMap.items | Items maps a ConfigMap data key to a file path mount. |
+| [key].containers.[key].seccompConfig.customProfile.configMap.items | Items maps a ConfigMap data `key` to a file `path` mount. |
 | [key].containers.[key].seccompConfig.customProfile.configMap.name | Name is the name of the ConfigMap. |
 | [key].containers.[key].seccompConfig.customRootPath | CustomRootPath specifies a custom Seccomp Profile root location. |
 | [key].containers.[key].securityContext.allowPrivilegeEscalation | AllowPrivilegeEscalation controls whether a process can gain more privileges than its parent process. This bool directly controls if the no_new_privs flag will be set on the container process. AllowPrivilegeEscalation is true always when the container is: 1) run as Privileged 2) has CAP_SYS_ADMIN Note that this field cannot be set when spec.os.name is windows. |
@@ -267,15 +267,15 @@ In the table, `spec.override.nodeAgent.image.name` and `spec.override.nodeAgent.
 | [key].createRbac | Set CreateRbac to false to prevent automatic creation of Role/ClusterRole for this component |
 | [key].customConfigurations `map[string]object` | CustomConfiguration allows to specify custom configuration files for `datadog.yaml`, `datadog-cluster.yaml`, `security-agent.yaml`, and `system-probe.yaml`. The content will be merged with configuration generated by the Datadog Operator, with priority given to custom configuration. WARNING: It's thus possible to override values set in the `DatadogAgent`. |
 | [key].customConfigurations.[key].configData | ConfigData corresponds to the configuration file content. |
-| [key].customConfigurations.[key].configMap.items | Items maps a ConfigMap data key to a file path mount. |
+| [key].customConfigurations.[key].configMap.items | Items maps a ConfigMap data `key` to a file `path` mount. |
 | [key].customConfigurations.[key].configMap.name | Name is the name of the ConfigMap. |
 | [key].disabled | Disabled force disables a component. |
 | [key].env `[]object` | Specify additional environmental variables for all containers in this component Priority is Container > Component See also: https://docs.datadoghq.com/agent/kubernetes/?tab=helm#environment-variables |
 | [key].extraChecksd.configDataMap | ConfigDataMap corresponds to the content of the configuration files. They key should be the filename the contents get mounted to; for instance check.py or check.yaml. |
-| [key].extraChecksd.configMap.items | Items maps a ConfigMap data key to a file path mount. |
+| [key].extraChecksd.configMap.items | Items maps a ConfigMap data `key` to a file `path` mount. |
 | [key].extraChecksd.configMap.name | Name is the name of the ConfigMap. |
 | [key].extraConfd.configDataMap | ConfigDataMap corresponds to the content of the configuration files. They key should be the filename the contents get mounted to; for instance check.py or check.yaml. |
-| [key].extraConfd.configMap.items | Items maps a ConfigMap data key to a file path mount. |
+| [key].extraConfd.configMap.items | Items maps a ConfigMap data `key` to a file `path` mount. |
 | [key].extraConfd.configMap.name | Name is the name of the ConfigMap. |
 | [key].hostNetwork | Host networking requested for this pod. Use the host's network namespace. |
 | [key].hostPID | Use the host's pid namespace. |
@@ -343,9 +343,9 @@ In the table, `spec.override.nodeAgent.image.name` and `spec.override.nodeAgent.
 | [key].tolerations `[]object` | Configure the component tolerations. |
 | [key].volumes `[]object` | Specify additional volumes in the different components (Datadog Agent, Cluster Agent, Cluster Check Runner). |
 
-[1]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/datadog-agent-all.yaml
-[2]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/datadog-agent-logs-apm.yaml
-[3]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/datadog-agent-logs.yaml
-[4]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/datadog-agent-apm.yaml
-[5]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/datadog-agent-with-clusteragent.yaml
-[6]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/datadog-agent-with-tolerations.yaml
+[1]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/v2alpha1/datadog-agent-all.yaml
+[2]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/v2alpha1/datadog-agent-logs-apm.yaml
+[3]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/v2alpha1/datadog-agent-logs.yaml
+[4]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/v2alpha1/datadog-agent-apm.yaml
+[5]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/v2alpha1/datadog-agent-with-clusteragent.yaml
+[6]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/v2alpha1/datadog-agent-with-tolerations.yaml

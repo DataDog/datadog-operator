@@ -1,0 +1,30 @@
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog
+spec:
+  features:
+    prometheusScrape:
+      enabled: true
+      enableServiceEndpoints: true
+      additionalConfigs: |-
+        - autodiscovery:
+            kubernetes_annotations:
+              include:
+                custom_label: true
+            kubernetes_container_names:
+            - my-app
+          configurations:
+          - send_distribution_buckets: true
+            timeout: 5
+  global:
+    credentials:
+      apiKey: <DATADOG_API_KEY>
+      appKey: <DATADOG_APP_KEY>
+    clusterAgentToken: <DATADOG_CLUSTER_AGENT_TOKEN>
+  override:
+    clusterAgent:
+      replicas: 2
+    nodeAgent:
+      tolerations:
+        - operator: Exists

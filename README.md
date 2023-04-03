@@ -4,8 +4,6 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/datadog/datadog-operator)](https://goreportcard.com/report/github.com/datadog/datadog-operator)
 [![codecov](https://codecov.io/gh/datadog/datadog-operator/branch/main/graph/badge.svg)](https://codecov.io/gh/datadog/datadog-operator)
 
-> **This project is currently in Beta**
-
 ## Overview
 
 The **Datadog Operator** aims to provide a new way of deploying the [Datadog Agent][1] on Kubernetes. Once deployed, the Datadog Operator provides:
@@ -28,7 +26,17 @@ However, the Datadog Operator is still in beta, so it is not yet a recommended w
 
 ## Getting started
 
-See the [Getting Started][5] dedicated documentation to learn how to deploy the Datadog operator and your first Agent, and [Configuration][12] to see examples and a list of all configuration keys.
+See the [Getting Started][5] dedicated documentation to learn how to deploy the Datadog operator and your first Agent, and [Configuration][12] to see examples, a list of all configuration keys, and default values.
+
+### Default Enabled Features
+
+- Cluster Agent
+- Cluster Checks
+- Cluster Agent External Metrics Server
+- UnixDomainSocket transport for DogStatsD (and APM if enabled)
+- Kubernetes Event Collection
+- Kubernetes State Core Check
+- Orchestrator Explorer
 
 ## Functionalities
 
@@ -53,7 +61,7 @@ See the [How to Contribute page][9].
 [9]: https://github.com/DataDog/datadog-operator/tree/main/docs/how-to-contribute.md
 [10]: https://catalog.redhat.com/software/operators/detail/5e9874986c5dcb34dfbb1a12
 [11]: https://operatorhub.io/operator/datadog-operator
-[12]: https://github.com/DataDog/datadog-operator/blob/main/docs/configuration.v1alpha1.md
+[12]: https://github.com/DataDog/datadog-operator/blob/main/docs/configuration.v2alpha1.md
 
 ## Release
 

@@ -5,7 +5,7 @@ This page describes the simplest and fastest way to deploy a [Datadog monitor](h
 ## Prerequisites
 
 - Datadog Operator v0.6+
-- **Kubernetes Cluster version >= v1.14.X**: Tests were done on versions >= `1.14.0`. However, it should work on versions `>= v1.11.0`. For earlier versions, due to limited CRD support, the Operator may not work as expected.
+- **Kubernetes Cluster version >= v1.20.X**: Tests were done on versions >= `1.20.0`. Still, it should work on versions `>= v1.11.0`. For earlier versions, because of limited CRD support, the Operator may not work as expected.
 - **[Helm][1]** for deploying the Datadog Operator
 - **[`kubectl` CLI][2]** for installing a `DatadogMonitor`
 

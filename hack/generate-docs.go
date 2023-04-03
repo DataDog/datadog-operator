@@ -15,7 +15,7 @@ import (
 const (
 	crdFile         = "config/crd/bases/v1/datadoghq.com_datadogagents.yaml"
 	headerFile      = "hack/generate-docs/header.markdown"
-	footerFile      = "hack/generate-docs/footer.markdown"
+	footerFile      = "hack/generate-docs/$VERSION_footer.markdown"
 	v2OverridesFile = "hack/generate-docs/v2alpha1_overrides.markdown"
 	docsFile        = "docs/configuration.$VERSION.md"
 )
@@ -28,7 +28,6 @@ type parameterDoc struct {
 func main() {
 	crdYaml := mustReadFile(crdFile)
 	header := mustReadFile(headerFile)
-	footer := mustReadFile(footerFile)
 
 	crd := apiextensions.CustomResourceDefinition{}
 	err := yaml.Unmarshal(crdYaml, &crd)
@@ -37,12 +36,14 @@ func main() {
 	}
 
 	for _, crdVersion := range crd.Spec.Versions {
-		generateDoc(header, footer, crdVersion, crdVersion.Name)
+		generateDoc(header, crdVersion, crdVersion.Name)
 	}
 }
 
-func generateDoc(header, footer []byte, crd apiextensions.CustomResourceDefinitionVersion, version string) {
+func generateDoc(header []byte, crd apiextensions.CustomResourceDefinitionVersion, version string) {
 	file := strings.Replace(docsFile, "$VERSION", version, 1)
+	footerFile := strings.Replace(footerFile, "$VERSION", version, 1)
+	footer := mustReadFile(footerFile)
 	f, err := os.OpenFile(file, os.O_TRUNC|os.O_WRONLY|os.O_CREATE, 0o644)
 	if err != nil {
 		panic(fmt.Sprintf("cannot write to file: %s", err))

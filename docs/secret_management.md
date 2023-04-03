@@ -9,14 +9,15 @@ This is the simplest way to provide credentials to the agents. This method is re
 Directly add the API and App keys to the DatadogAgent spec:
 
 ```yaml
-apiVersion: datadoghq.com/v1alpha1
+apiVersion: datadoghq.com/v2alpha1
 kind: DatadogAgent
 metadata:
   name: datadog
 spec:
-  credentials:
-    apiKey: "<api-key>"
-    appKey: "<app-key>"
+  global:
+    credentials:
+      apiKey: <DATADOG_API_KEY>
+      appKey: <DATADOG_APP_KEY>
   # ...
 ```
 
@@ -27,18 +28,19 @@ The credentials provided here will be stored in a Secret created by the Operator
 Another solution is to provide the name of the secret(s) that contains the credentials:
 
 ```yaml
-apiVersion: datadoghq.com/v1alpha1
+apiVersion: datadoghq.com/v2alpha1
 kind: DatadogAgent
 metadata:
   name: datadog
 spec:
-  credentials:
-    apiSecret:
-      secretName: "test-api-secret"
-      keyName: "api_key"
-    appSecret:
-      secretName: "test-app-secret"
-      keyName: "app_key"
+  global:
+    credentials:
+      apiSecret:
+        secretName: datadog-secret
+        keyName: api-key
+      appSecret:
+        secretName: datadog-secret
+        keyName: app-key
   # ...
 ```
 
@@ -119,55 +121,60 @@ First, mount the secret in the Operator container, for instance at `/etc/secret-
 If using a custom script, create a Datadog Agent (or Cluster Agent) image following the example for the Datadog Operator above. Then, to activate the secret backend feature in the `DatadogAgent` configuration, the `spec.credentials.useSecretBackend` parameter should be set to `true`.
 
 ```yaml
-apiVersion: datadoghq.com/v1alpha1
+apiVersion: datadoghq.com/v2alpha1
 kind: DatadogAgent
 metadata:
   name: datadog
 spec:
-  credentials:
-    apiKey: ENC[<api-key-secret-id>]
-    appKey: ENC[<app-key-secret-id>]
-    useSecretBackend: true
+  global:
+    credentials:
+      apiKey: ENC[<api-key-secret-id>]
+      appKey: ENC[<app-key-secret-id>]
   # ...
 ```
 
 Then inside the `spec.agent` configuration, the secret backend command can be specified by adding a new environment variable: "DD_SECRET_BACKEND_COMMAND".
 
 ```yaml
-apiVersion: datadoghq.com/v1alpha1
-kind: DatadogAgent
-metadata:
-  name: datadog
-spec:
-  # ..
-  agent:
-    config:
-      env:
-      - name: DD_SECRET_BACKEND_COMMAND
-        value: "/my-secret-backend.sh"
-```
-
-If the "Cluster Agent" and the "Cluster Check Runner" are also deployed, the environment variable needs to be added also in the other environment variables configuration.
-
-```yaml
-apiVersion: datadoghq.com/v1alpha1
+apiVersion: datadoghq.com/v2alpha1
 kind: DatadogAgent
 metadata:
   name: datadog
 spec:
   # ...
-  clusterAgent:
-    # ...
-    config:
-      env:
-      - name: DD_SECRET_BACKEND_COMMAND
-        value: "/my-secret-backend.sh"
-  clusterChecksRunner:
-    # ...
-    config:
-      env:
-      - name: DD_SECRET_BACKEND_COMMAND
-        value: "/my-secret-backend.sh"
+  override:
+    nodeAgent:
+      containers:
+        agent:
+          env:
+            - name: DD_SECRET_BACKEND_COMMAND
+              value: "/my-secret-backend.sh"
+```
+
+If the "Cluster Agent" and the "Cluster Check Runner" are also deployed, the environment variable needs to be added also in the other environment variables configuration.
+
+```yaml
+apiVersion: datadoghq.com/v2alpha1
+kind: DatadogAgent
+metadata:
+  name: datadog
+spec:
+  # ...
+  override:
+    clusterAgent:
+      # ...
+      containers:
+        cluster-agent:
+          env:
+            - name: DD_SECRET_BACKEND_COMMAND
+              value: "/my-secret-backend.sh"
+    clusterChecksRunner:
+      # ...
+      containers:
+        agent:
+          env:
+            - name: DD_SECRET_BACKEND_COMMAND
+              value: "/my-secret-backend.sh"
 ```
 
 As in the Datadog Operator, the Datadog Agent image includes a helper function `readsecret.sh` that can be used to read mounted secrets. After creating the secret and setting the volume mount (in any container that requires it), set the `DD_SECRET_BACKEND_COMMAND` and `DD_SECRET_BACKEND_ARGUMENTS` environmental variables.
@@ -179,62 +186,65 @@ For instance, to use the secret backend for the Agent and Cluster Agent, create 
 And then set the DatadogAgent spec:
 
 ```yaml
-apiVersion: datadoghq.com/v1alpha1
+apiVersion: datadoghq.com/v2alpha1
 kind: DatadogAgent
 metadata:
   name: datadog
 spec:
-  credentials:
-    apiKey: ENC[api_key]
-    appKey: ENC[app_key]
-    useSecretBackend: true
-  agent:
-    env:
-      - name: DD_SECRET_BACKEND_COMMAND
-        value: "/readsecret.sh"
-      - name: DD_SECRET_BACKEND_ARGUMENTS
-        value: "/etc/secret-volume"
-    config:
-      volumes:
-        - name: secret-volume
-          secret:
-            secretName: test-secret
-      volumeMounts:
-        - name: secret-volume
-          mountPath: /etc/secret-volume
-  clusterAgent:
-    enabled: true
-    config:
+  global:
+    credentials:
+      apiKey: ENC[api_key]
+      appKey: ENC[app_key]
+  override:
+    nodeAgent:
       env:
         - name: DD_SECRET_BACKEND_COMMAND
           value: "/readsecret.sh"
         - name: DD_SECRET_BACKEND_ARGUMENTS
           value: "/etc/secret-volume"
+      containers:
+        agent:
+          volumeMounts:
+            - name: secret-volume
+              mountPath: "/etc/secret-volume"
       volumes:
         - name: secret-volume
           secret:
             secretName: test-secret
-      volumeMounts:
+    clusterAgent:
+      containers:
+        cluster-agent:
+          env:
+            - name: DD_SECRET_BACKEND_COMMAND
+              value: "/readsecret.sh"
+            - name: DD_SECRET_BACKEND_ARGUMENTS
+              value: "/etc/secret-volume"
+          volumeMounts:
+            - name: secret-volume
+              mountPath: "/etc/secret-volume"
+      volumes:
         - name: secret-volume
-          mountPath: /etc/secret-volume
+          secret:
+            secretName: test-secret
 ```
 
 The Datadog Agent also includes a script that can be used to read secrets from files mounted from Kubernetes secrets, or directly from Kubernetes secrets. This script can be used by setting `DD_SECRET_BACKEND_COMMAND` to `/readsecret_multiple_providers.sh`. An example of how to configure the DatadogAgent spec is provided below. For more details, see [Secrets Management][2].
 
 ```yaml
-apiVersion: datadoghq.com/v1alpha1
+apiVersion: datadoghq.com/v2alpha1
 kind: DatadogAgent
 metadata:
   name: datadog
 spec:
-  credentials:
-    apiKey: ENC[k8s_secret@default/test-secret/api_key]
-    appKey: ENC[k8s_secret@default/test-secret/app_key]
-    useSecretBackend: true
-  agent:
-    env:
-      - name: DD_SECRET_BACKEND_COMMAND
-        value: "/readsecret_multiple_providers.sh"
+  global:
+    credentials:
+      apiKey: ENC[k8s_secret@default/test-secret/api_key]
+      appKey: ENC[k8s_secret@default/test-secret/app_key]
+  override:
+    nodeAgent:
+      env:
+        - name: DD_SECRET_BACKEND_COMMAND
+          value: "/readsecret_multiple_providers.sh"
 ```
 
 **Remarks:**

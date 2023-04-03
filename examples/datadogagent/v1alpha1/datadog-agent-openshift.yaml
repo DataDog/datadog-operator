@@ -5,8 +5,8 @@ metadata:
   namespace: datadog
 spec:
   credentials:
-    apiKey: <paste-your-api-key-here>
-    appKey: <paste-your-app-key-here>
+    apiKey: <DATADOG_API_KEY>
+    appKey: <DATADOG_API_KEY>
   agent:
     rbac:
       serviceAccountName: datadog-agent-scc

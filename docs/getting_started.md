@@ -7,7 +7,7 @@ For more details on how to install the Operator and configure the Agent it deplo
 
 Using the Datadog Operator requires the following prerequisites:
 
-- **Kubernetes Cluster version >= v1.14.X**: Tests were done on versions >= `1.14.0`. Still, it should work on versions `>= v1.11.0`. For earlier versions, due to limited CRD support, the Operator may not work as expected.
+- **Kubernetes Cluster version >= v1.20.X**: Tests were done on versions >= `1.20.0`. Still, it should work on versions `>= v1.11.0`. For earlier versions, because of limited CRD support, the Operator may not work as expected.
 - **[Helm][1]** for deploying the Datadog Operator
 - **[`kubectl` CLI][2]** for installing the Datadog Agent
 
@@ -32,18 +32,19 @@ To deploy the Datadog Agent with the Operator in the minimum number of steps, us
 1. Create a file with the spec of your `DatadogAgent` deployment configuration. The simplest configuration is:
 
    ```yaml
-   apiVersion: datadoghq.com/v1alpha1
+   apiVersion: datadoghq.com/v2alpha1
    kind: DatadogAgent
    metadata:
      name: datadog
    spec:
-     credentials:
-       apiSecret:
-         secretName: datadog-secret
-         keyName: api-key
-       appSecret:
-         secretName: datadog-secret
-         keyName: app-key
+     global:
+       credentials:
+         apiSecret:
+           secretName: datadog-secret
+           keyName: api-key
+         appSecret:
+           secretName: datadog-secret
+           keyName: app-key
    ```
 
 1. Deploy the Datadog Agent with the above configuration file:
@@ -62,12 +63,13 @@ To change the default registry ([gcr.io/datadoghq][6]) to another registry, use 
 The example [`datadog-agent-with-registry.yaml` file][7] demonstrates how to configure the Operator to use the [public.ecr.aws/datadog][8] registry.
 
 ```yaml
-apiVersion: datadoghq.com/v1alpha1
+apiVersion: datadoghq.com/v2alpha1
 kind: DatadogAgent
 metadata:
   name: datadog
 spec:
-  registry: public.ecr.aws/datadog
+  global:
+    registry: public.ecr.aws/datadog
   # ...
 ```
 
@@ -84,7 +86,7 @@ helm delete my-datadog-operator
 [2]: https://kubernetes.io/docs/tasks/tools/install-kubectl/
 [3]: https://artifacthub.io/packages/helm/datadog/datadog-operator
 [4]: https://app.datadoghq.com/account/settings#api
-[5]: https://github.com/DataDog/datadog-operator/blob/main/docs/configuration.v1alpha1.md
+[5]: https://github.com/DataDog/datadog-operator/blob/main/docs/configuration.v2alpha1.md
 [6]: ttps://gcr.io/datadoghq
-[7]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/datadog-agent-with-registry.yaml
+[7]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/v2alpha1/datadog-agent-with-registry.yaml
 [8]: https://gallery.ecr.aws/datadog/
