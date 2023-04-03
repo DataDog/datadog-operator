@@ -10,7 +10,7 @@ spec:
     apm:
       enabled: true
     liveProcessCollection:
-      processCollectionEnabled: true
+      enabled: true
     logCollection:
       enabled: true
     admissionController:
