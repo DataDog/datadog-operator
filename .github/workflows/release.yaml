@@ -47,6 +47,7 @@ jobs:
           path: |
             dist/kubectl-datadog_*.zip
             dist/checksums.txt
+            dist/CHANGELOG.md
   build-darwin-binary:
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: macos-latest
@@ -153,6 +154,7 @@ jobs:
           cat ./tmp-build/darwin/checksums.txt >> ./dist/checksums.txt
           cat ./tmp-build/linux/checksums.txt >> ./dist/checksums.txt
           cat ./tmp-build/windows/checksums.txt >> ./dist/checksums.txt
+          cp ./tmp-build/linux/CHANGELOG.md dist/CHANGELOG.md
           mv ./tmp-build/darwin/*.zip ./dist
           mv ./tmp-build/linux/*.zip ./dist
           mv ./tmp-build/windows/*.zip ./dist
