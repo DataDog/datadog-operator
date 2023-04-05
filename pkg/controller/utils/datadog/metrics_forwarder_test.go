@@ -621,6 +621,16 @@ func TestReconcileDatadogAgent_getCredentialsV2(t *testing.T) {
 				return nil
 			},
 		},
+		{
+			name: "nil credentials not causes segmentation fault",
+			fields: fields{
+				client: fake.NewFakeClient(),
+			},
+			args: args{
+				dda: testV2.NewDatadogAgent("foo", "bar", &datadoghqv2alpha1.GlobalConfig{}),
+			},
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

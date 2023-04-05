@@ -608,6 +608,10 @@ func (mf *metricsForwarder) getCredentialsV2(dda *v2alpha1.DatadogAgent) (string
 	if dda.Spec.Global != nil && dda.Spec.Global.Credentials != nil && dda.Spec.Global.Credentials.APIKey != nil && *dda.Spec.Global.Credentials.APIKey != "" {
 		apiKey = *dda.Spec.Global.Credentials.APIKey
 	} else {
+		if dda.Spec.Global.Credentials == nil {
+			return "", "", fmt.Errorf("credentials not configured in the DatadogAgent")
+		}
+
 		_, secretName, secretKeyName := v2alpha1.GetAPIKeySecret(dda.Spec.Global.Credentials, defaultSecretName)
 		apiKey, err = mf.getKeyFromSecret(dda.Namespace, secretName, secretKeyName)
 		if err != nil {
