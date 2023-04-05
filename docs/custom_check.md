@@ -144,14 +144,16 @@ spec:
     nodeAgent:
       image:
         name: "gcr.io/datadoghq/agent:latest"
-        volumes:
-          - name: secrets
-            secret:
-              secretName: secrets
-        volumeMounts:
-          - name: secrets
-            mountPath: /etc/secrets
-            readOnly: true
+      volumes:
+        - name: secrets
+          secret:
+            secretName: secrets
+      containers:
+        agent:
+          volumeMounts:
+            - name: secrets
+              mountPath: /etc/secrets
+              readOnly: true
 ```
 
 [1]: https://docs.datadoghq.com/agent/autodiscovery/
