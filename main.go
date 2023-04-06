@@ -213,7 +213,7 @@ func customSetupHealthChecks(logger logr.Logger, mgr manager.Manager, maximumGor
 	setupLog.Info("configuring manager health check", "maximumGoroutines", *maximumGoroutines)
 	err := mgr.AddHealthzCheck("goroutines-number", func(req *http.Request) error {
 		if goruntime.NumGoroutine() > *maximumGoroutines {
-			return fmt.Errorf("too much goroutines: %d > limit: %d", goruntime.NumGoroutine(), maximumGoroutines)
+			return fmt.Errorf("too much goroutines: %d > limit: %d", goruntime.NumGoroutine(), *maximumGoroutines)
 		}
 		return nil
 	})
