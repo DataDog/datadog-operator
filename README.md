@@ -33,7 +33,7 @@ See the [Getting Started][5] dedicated documentation to learn how to deploy the 
 Operator `1.0.0` contains several changes users need to be aware of:
 * `DatadogAgent` CRD has two versions, `v1alpha1` and `v2alpha1`. They are used as a stored version by Operator `0.8.x` and `1.0.0` respectively. Please see this [Kubernetes documentation page][13] for more details about CRD versioning.
 * `v1alpha1` and `v2alpha1` are not backward or forward compatible. The Datadog Operator `1.0.0` implements a Conversion Webhook to migrate, though it only supports from `v1alpha1` to `v2alpha1`.
-* With the Conversion Webhook enabled users can ran `1.0.0` but continue applying `v1alpha1` manifest. However, they won't be able to retrieve the `DatadogAgent` manifest as a `v1alpha1` object (see the previous item).
+* With the Conversion Webhook enabled users can run `1.0.0` but continue applying `v1alpha1` manifest. However, they won't be able to retrieve the `DatadogAgent` manifest as a `v1alpha1` object (see the previous item).
 *  The Conversion Webhook requires a cert manager, please see the migration guide in the [public][14] or [helm chart][15] documentation for more details.
 * `0.8.x` managed `PodDisruptionBudget` for Cluster Agent and Cluster Checks Worker deployments. `1.0.0` doesn't, however this is on our roadmap.
 
