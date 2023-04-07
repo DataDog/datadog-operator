@@ -622,7 +622,7 @@ func TestReconcileDatadogAgent_getCredentialsV2(t *testing.T) {
 			},
 		},
 		{
-			name: "nil credentials not causes segmentation fault",
+			name: "nil credentials doesn't cause segmentation fault",
 			fields: fields{
 				client: fake.NewFakeClient(),
 			},
