@@ -316,6 +316,10 @@ func NewDatadogAgentWithGlobalConfigSettings(namespace string, name string) v2al
 		ClusterAgentToken: apiutils.NewStringPointer("my-cluster-agent-token"),
 		ClusterName:       apiutils.NewStringPointer("my-cluster"),
 		Site:              apiutils.NewStringPointer("some-dd-site"),
+		Credentials: &v2alpha1.DatadogCredentials{
+			APIKey: apiutils.NewStringPointer("my-api-key"),
+			AppKey: apiutils.NewStringPointer("my-app-key"),
+		},
 		Endpoint: &v2alpha1.Endpoint{
 			URL: apiutils.NewStringPointer("some-url"),
 			Credentials: &v2alpha1.DatadogCredentials{

@@ -600,6 +600,10 @@ func (mf *metricsForwarder) getDatadogAgentV2() (*v2alpha1.DatadogAgent, error) 
 }
 
 func (mf *metricsForwarder) getCredentialsV2(dda *v2alpha1.DatadogAgent) (string, string, error) {
+	if dda.Spec.Global == nil || dda.Spec.Global.Credentials == nil {
+		return "", "", fmt.Errorf("credentials not configured in the DatadogAgent")
+	}
+
 	var err error
 	apiKey, appKey := "", ""
 
