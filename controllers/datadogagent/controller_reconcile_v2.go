@@ -7,6 +7,7 @@ package datadogagent
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -44,6 +45,10 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, request reconcile.
 		}
 		// Error reading the object - requeue the request.
 		return result, err
+	}
+
+	if instance.Spec.Global == nil || instance.Spec.Global.Credentials == nil {
+		return result, fmt.Errorf("credentials not configured in the DatadogAgent, can't reconcile")
 	}
 
 	// check it the resource was properly decoded in v2
