@@ -28,6 +28,15 @@ However, the Datadog Operator is still in beta, so it is not yet a recommended w
 
 See the [Getting Started][5] dedicated documentation to learn how to deploy the Datadog operator and your first Agent, and [Configuration][12] to see examples, a list of all configuration keys, and default values.
 
+### Migrating from `0.8.x` to `1.0.0`
+
+Operator `1.0.0` contains several changes users need to be aware of:
+* `DatadogAgent` CRD has two versions, `v1alpha1` and `v2alpha1`. They are used as a stored version by Operator `0.8.x` and `1.0.0` respectively. See this [Kubernetes documentation page][13] for more details about CRD versioning.
+* `v1alpha1` and `v2alpha1` are not backward or forward compatible. The Datadog Operator `1.0.0` implements a Conversion Webhook to migrate, though it only supports migrating from `v1alpha1` to `v2alpha1`.
+* With the Conversion Webhook enabled, users can run `1.0.0` but continue applying a `v1alpha1` manifest. However, they won't be able to retrieve the `DatadogAgent` manifest as a `v1alpha1` object (see the previous item).
+*  The Conversion Webhook requires a cert manager. See the migration guide in the [public][14] or [helm chart][15] documentation for more details.
+* `0.8.x` managed `PodDisruptionBudget` for Cluster Agent and Cluster Checks Worker deployments. `1.0.0` doesn't, however this is on our roadmap.
+
 ### Default Enabled Features
 
 - Cluster Agent
@@ -62,6 +71,9 @@ See the [How to Contribute page][9].
 [10]: https://catalog.redhat.com/software/operators/detail/5e9874986c5dcb34dfbb1a12
 [11]: https://operatorhub.io/operator/datadog-operator
 [12]: https://github.com/DataDog/datadog-operator/blob/main/docs/configuration.v2alpha1.md
+[13]: https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definition-versioning/
+[14]: https://docs.datadoghq.com/containers/guide/datadogoperator_migration/
+[15]: https://github.com/DataDog/helm-charts/tree/main/charts/datadog-operator#migration
 
 ## Release
 
