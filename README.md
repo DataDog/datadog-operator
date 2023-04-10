@@ -40,12 +40,13 @@ Operator `1.0.0` contains several changes users need to be aware of:
 ### Default Enabled Features
 
 - Cluster Agent
+- Admission Controller
 - Cluster Checks
-- Cluster Agent External Metrics Server
-- UnixDomainSocket transport for DogStatsD (and APM if enabled)
 - Kubernetes Event Collection
 - Kubernetes State Core Check
+- Live Container Collection
 - Orchestrator Explorer
+- UnixDomainSocket transport for DogStatsD (and APM if enabled)
 
 ## Functionalities
 
