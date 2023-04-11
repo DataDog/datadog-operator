@@ -286,13 +286,13 @@ patch-crds: bin/$(PLATFORM)/yq ## Patch-crds
 lint: vendor bin/$(PLATFORM)/golangci-lint fmt vet ## Lint
 	bin/$(PLATFORM)/golangci-lint run ./...
 
-.PHONY: license
-license: bin/$(PLATFORM)/wwhrd vendor
-	hack/license.sh
+.PHONY: licenses
+licenses: bin/$(PLATFORM)/go-licenses
+	./bin/$(PLATFORM)/go-licenses report . --template ./hack/licenses.tpl > LICENSE-3rdparty.csv 2> errors
 
-.PHONY: verify-license
-verify-license: bin/$(PLATFORM)/wwhrd vendor ## Verify licenses
-	hack/verify-license.sh
+.PHONY: verify-licenses
+verify-licenses: bin/$(PLATFORM)/go-licenses ## Verify licenses
+	hack/verify-licenses.sh
 
 .PHONY: tidy
 tidy: ## Run go tidy
@@ -323,8 +323,9 @@ bin/$(PLATFORM)/golangci-lint: Makefile
 bin/$(PLATFORM)/operator-sdk: Makefile
 	hack/install-operator-sdk.sh v1.23.0
 
-bin/$(PLATFORM)/wwhrd: Makefile
-	hack/install-wwhrd.sh 0.2.4
+bin/$(PLATFORM)/go-licenses:
+	mkdir -p $(ROOT)/bin/$(PLATFORM)
+	GOBIN=$(ROOT)/bin/$(PLATFORM) go install github.com/google/go-licenses@v1.5.0
 
 bin/$(PLATFORM)/operator-manifest-tools: Makefile
 	hack/install-operator-manifest-tools.sh 0.2.0
