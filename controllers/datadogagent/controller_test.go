@@ -22,6 +22,7 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	test "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
@@ -3088,6 +3089,9 @@ func (dummyManager) ProcessEvent(datadog.MonitoredObject, datadog.Event) {
 
 func (dummyManager) MetricsForwarderStatusForObj(obj datadog.MonitoredObject) *datadog.ConditionCommon {
 	return nil
+}
+
+func (dummyManager) SetEnabledFeatures(obj datadog.MonitoredObject, features []feature.Feature) {
 }
 
 func createClusterChecksRunnerDependencies(c client.Client, dda *datadoghqv1alpha1.DatadogAgent, needRBAC bool) {

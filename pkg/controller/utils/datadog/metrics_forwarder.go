@@ -54,6 +54,8 @@ const (
 	reconcileFailureValue       = 0.0
 	reconcileMetricFormat       = "%s.reconcile.success"
 	reconcileErrTagFormat       = "reconcile_err:%s"
+	featureEnabledValue         = 1.0
+	featureEnabledFormat        = "%s.%s.feature.enabled"
 	datadogOperatorSourceType   = "datadog"
 	defaultbaseURL              = "https://api.datadoghq.com"
 )
@@ -71,6 +73,7 @@ var (
 type delegatedAPI interface {
 	delegatedSendDeploymentMetric(float64, string, []string) error
 	delegatedSendReconcileMetric(float64, []string) error
+	delegatedSendFeatureMetric(string) error
 	delegatedSendEvent(string, EventType) error
 	delegatedValidateCreds(string, string) (*api.Client, error)
 }
@@ -102,6 +105,8 @@ type metricsForwarder struct {
 	dsStatus     *commonv1.DaemonSetStatus
 	dcaStatus    *commonv1.DeploymentStatus
 	ccrStatus    *commonv1.DeploymentStatus
+
+	EnabledFeatures map[string][]string
 
 	keysHash            uint64
 	retryInterval       time.Duration
@@ -361,6 +366,13 @@ func (mf *metricsForwarder) forwardMetrics() error {
 	if err = mf.sendReconcileMetric(metricValue, tags); err != nil {
 		mf.logger.Error(err, "cannot send reconcile errors metric to Datadog")
 		return err
+	}
+
+	// send feature metrics
+	for _, featuresList := range mf.EnabledFeatures {
+		for _, feature := range featuresList {
+			mf.sendFeatureMetric(feature)
+		}
 	}
 
 	return nil
@@ -824,6 +836,31 @@ func (mf *metricsForwarder) delegatedSendEvent(eventTitle string, eventType Even
 		return err
 	}
 	return nil
+}
+
+// sendFeatureMetric is used to forward feature enabled metrics to Datadog
+func (mf *metricsForwarder) sendFeatureMetric(feature string) error {
+	return mf.delegator.delegatedSendFeatureMetric(feature)
+}
+
+// delegatedSendFeatureMetric is separated from sendFeatureMetric to facilitate mocking the Datadog API
+func (mf *metricsForwarder) delegatedSendFeatureMetric(feature string) error {
+	ts := float64(time.Now().Unix())
+	metricName := fmt.Sprintf(featureEnabledFormat, mf.metricsPrefix, feature)
+	series := []api.Metric{
+		{
+			Metric: api.String(metricName),
+			Points: []api.DataPoint{
+				{
+					api.Float64(ts),
+					api.Float64(featureEnabledValue),
+				},
+			},
+			Type: api.String(gaugeType),
+			Tags: mf.globalTags,
+		},
+	}
+	return mf.datadogClient.PostMetrics(series)
 }
 
 // isErrChanFull returs if the errorChan is full
