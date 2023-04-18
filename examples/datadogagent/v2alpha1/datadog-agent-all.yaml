@@ -3,9 +3,10 @@ kind: DatadogAgent
 metadata:
   name: datadog
 spec:
-  credentials:
-    apiKey: <DATADOG_API_KEY>
-    appKey: <DATADOG_APP_KEY>
+  global:
+    credentials:
+      apiKey: <DATADOG_API_KEY>
+      appKey: <DATADOG_APP_KEY>
   features:
     apm:
       enabled: true
@@ -17,11 +18,7 @@ spec:
       enabled: true
     externalMetricsServer:
       enabled: true
-  override:
-    system-probe:
-      bpfDebugEnabled: true
-    security:
-      compliance:
-        enabled: true
-      runtime:
-        enabled: false
+    cspm:
+      enabled: true
+    cws:
+      enabled: true
