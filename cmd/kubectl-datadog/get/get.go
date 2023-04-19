@@ -114,9 +114,9 @@ func (o *options) runV1() error {
 		ddList.Items = append(ddList.Items, *dd)
 	}
 
-	statuses := make([]common.StatusWapper, 0, len(ddList.Items))
+	statuses := make([]common.StatusWrapper, 0, len(ddList.Items))
 	for id := range ddList.Items {
-		statuses = append(statuses, common.NewV1StatusWapper(&ddList.Items[id]))
+		statuses = append(statuses, common.NewV1StatusWrapper(&ddList.Items[id]))
 	}
 
 	o.renderTable(statuses)
@@ -141,15 +141,15 @@ func (o *options) runV2() error {
 		ddList.Items = append(ddList.Items, *dd)
 	}
 
-	statuses := make([]common.StatusWapper, 0, len(ddList.Items))
+	statuses := make([]common.StatusWrapper, 0, len(ddList.Items))
 	for id := range ddList.Items {
-		statuses = append(statuses, common.NewV2StatusWapper(&ddList.Items[id]))
+		statuses = append(statuses, common.NewV2StatusWrapper(&ddList.Items[id]))
 	}
 	o.renderTable(statuses)
 	return nil
 }
 
-func (o *options) renderTable(statuses []common.StatusWapper) {
+func (o *options) renderTable(statuses []common.StatusWrapper) {
 	table := newTable(o.Out)
 	for _, item := range statuses {
 		data := []string{item.GetObjectMeta().GetName(), item.GetObjectMeta().GetNamespace()}
