@@ -25,6 +25,9 @@ spec:
       originDetectionEnabled: true
       unixDomainSocketConfig:
         enabled: true
+      hostPortConfig:
+        enabled: true
+        hostPort: 420
     eventCollection:
       collectKubernetesEvents: true
     externalMetricsServer:
@@ -47,14 +50,14 @@ spec:
       conf:
         configMap:
           items:
-          - key: config.yaml
-            path: "config.yaml"
+            - key: config.yaml
+              path: "config.yaml"
           name: orch-cm
       enabled: true
       ddUrl: https://orch-explorer.com
       extraTags:
-      - orch
-      - exp
+        - orch
+        - exp
       scrubContainers: true
     prometheusScrape:
       additionalConfigs: |-
@@ -97,15 +100,15 @@ spec:
       tlsVerify: false
     registry: public.ecr.aws/datadog
     tags:
-    - hostTag1
-    - hostTag2
+      - hostTag1
+      - hostTag2
   override:
     clusterAgent:
       extraConfd:
         configMap:
           items:
-          - key: test
-            path: test.d/test.yaml
+            - key: test
+              path: test.d/test.yaml
           name: cluster-agent-confd
       replicas: 2
       customConfigurations:
@@ -127,11 +130,11 @@ spec:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
-            - matchExpressions:
-              - key: kubernetes.io/os
-                operator: In
-                values:
-                - linux
+              - matchExpressions:
+                  - key: kubernetes.io/os
+                    operator: In
+                    values:
+                      - linux
       annotations:
         baz: foo
         foo: bar
@@ -161,7 +164,7 @@ spec:
           user: system_u
       serviceAccountName: datadog-agent-clc
       tolerations:
-      - operator: Foo
+        - operator: Foo
     nodeAgent:
       annotations:
         baz: foo
@@ -169,14 +172,14 @@ spec:
       containers:
         agent:
           args:
-          - config
-          - foo.yaml
+            - config
+            - foo.yaml
           command:
-          - custom-agent
-          - start
+            - custom-agent
+            - start
           env:
-          - name: TEST_VAR_CONT
-            value: TEST_VALUE_CONT
+            - name: TEST_VAR_CONT
+              value: TEST_VALUE_CONT
           healthPort: 42
           livenessProbe:
             initialDelaySeconds: 30
@@ -186,22 +189,22 @@ spec:
             limits:
               cpu: 400m
           volumeMounts:
-          - mountPath: ""
-            name: agent-volumeMount
+            - mountPath: ""
+              name: agent-volumeMount
         system-probe:
           securityContext:
-            seccompProfile: 
+            seccompProfile:
               type: Localhost
               localhostProfile: seccomp-profile
-          seccompConfig: 
+          seccompConfig:
             customRootPath: /custom/root/path
-            customProfile: 
-              configMap: 
+            customProfile:
+              configMap:
                 name: seccomp-configmap
       createRbac: true
       env:
-      - name: TEST_VAR_DS
-        value: TEST_VALUE_DS
+        - name: TEST_VAR_DS
+          value: TEST_VALUE_DS
       extraChecksd:
         configMap:
           name: agent-checksd
@@ -227,7 +230,7 @@ spec:
           user: system_u
       serviceAccountName: datadog-agent-scc
       tolerations:
-      - operator: Exists
+        - operator: Exists
       volumes:
-      - name: agent-volume
+        - name: agent-volume
 status: {}
