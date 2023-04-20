@@ -12,14 +12,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type StatusWapper interface {
+type StatusWrapper interface {
 	GetObjectMeta() metav1.Object
 	GetAgentStatus() *commonv1.DaemonSetStatus
 	GetClusterAgentStatus() *commonv1.DeploymentStatus
 	GetClusterChecksRunnerStatus() *commonv1.DeploymentStatus
 }
 
-func NewV1StatusWapper(dda *v1alpha1.DatadogAgent) StatusWapper {
+func NewV1StatusWrapper(dda *v1alpha1.DatadogAgent) StatusWrapper {
 	return &v1StatusWrapper{dda}
 }
 
@@ -48,7 +48,7 @@ func (sw v1StatusWrapper) GetClusterChecksRunnerStatus() *commonv1.DeploymentSta
 	return nil
 }
 
-func NewV2StatusWapper(dda *v2alpha1.DatadogAgent) StatusWapper {
+func NewV2StatusWrapper(dda *v2alpha1.DatadogAgent) StatusWrapper {
 	return &v2StatusWrapper{dda}
 }
 

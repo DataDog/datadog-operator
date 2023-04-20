@@ -130,7 +130,7 @@ func (o *Options) Validate() error {
 	return nil
 }
 
-func (o *Options) getV1Status() (common.StatusWapper, error) {
+func (o *Options) getV1Status() (common.StatusWrapper, error) {
 	datadogAgent := &v1alpha1.DatadogAgent{}
 	err := o.Client.Get(context.TODO(), client.ObjectKey{Namespace: o.UserNamespace, Name: o.datadogAgentName}, datadogAgent)
 	if err != nil {
@@ -142,10 +142,10 @@ func (o *Options) getV1Status() (common.StatusWapper, error) {
 
 		return nil, fmt.Errorf("unable to get DatadogAgent, err: %w", err)
 	}
-	return common.NewV1StatusWapper(datadogAgent), nil
+	return common.NewV1StatusWrapper(datadogAgent), nil
 }
 
-func (o *Options) getV2Status() (common.StatusWapper, error) {
+func (o *Options) getV2Status() (common.StatusWrapper, error) {
 	datadogAgent := &v2alpha1.DatadogAgent{}
 	err := o.Client.Get(context.TODO(), client.ObjectKey{Namespace: o.UserNamespace, Name: o.datadogAgentName}, datadogAgent)
 	if err != nil {
@@ -157,7 +157,7 @@ func (o *Options) getV2Status() (common.StatusWapper, error) {
 
 		return nil, fmt.Errorf("unable to get DatadogAgent, err: %w", err)
 	}
-	return common.NewV2StatusWapper(datadogAgent), nil
+	return common.NewV2StatusWrapper(datadogAgent), nil
 }
 
 // Run use to run the command.
@@ -169,7 +169,7 @@ func (o *Options) Run() error {
 		if err != nil {
 			return false, err
 		}
-		var status common.StatusWapper
+		var status common.StatusWrapper
 		if v2Available {
 			status, err = o.getV2Status()
 		} else {
