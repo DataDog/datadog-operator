@@ -52,6 +52,18 @@ func convertDatadogAgentSpec(src *DatadogAgentSpecAgentSpec, dst *v2alpha1.Datad
 			getV2TemplateOverride(&dst.Spec, v2alpha1.NodeAgentComponentName).ExtraChecksd = ConvertConfigDirSpec(src.Config.Checksd)
 		}
 
+		if src.Config.HostPort != nil {
+			features := getV2Features(dst)
+			if features.Dogstatsd == nil {
+				features.Dogstatsd = &v2alpha1.DogstatsdFeatureConfig{}
+			}
+			if features.Dogstatsd.HostPortConfig == nil {
+				features.Dogstatsd.HostPortConfig = &v2alpha1.HostPortConfig{}
+			}
+			features.Dogstatsd.HostPortConfig.Enabled = utils.NewBoolPointer(true)
+			features.Dogstatsd.HostPortConfig.Port = src.Config.HostPort
+		}
+
 		if src.Config.PodLabelsAsTags != nil {
 			getV2GlobalConfig(dst).PodLabelsAsTags = src.Config.PodLabelsAsTags
 		}
