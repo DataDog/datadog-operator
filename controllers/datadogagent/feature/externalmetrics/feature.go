@@ -96,18 +96,24 @@ func (f *externalMetricsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp 
 						}
 					}
 				}
-				if isSet, secretName, secretKey := v2alpha1.GetAPIKeySecret(creds, componentdca.GetDefaultExternalMetricSecretName(f.owner)); isSet {
-					// api key secret exists; store secret name and key instead
-					f.keySecret[apicommon.DefaultAPIKeyKey] = secret{
-						name: secretName,
-						key:  secretKey,
+				if creds.APISecret != nil {
+					_, secretName, secretKey := v2alpha1.GetAPIKeySecret(creds, componentdca.GetDefaultExternalMetricSecretName(f.owner))
+					if secretName != "" && secretKey != "" {
+						// api key secret exists; store secret name and key instead
+						f.keySecret[apicommon.DefaultAPIKeyKey] = secret{
+							name: secretName,
+							key:  secretKey,
+						}
 					}
 				}
-				if isSet, secretName, secretKey := v2alpha1.GetAppKeySecret(creds, componentdca.GetDefaultExternalMetricSecretName(f.owner)); isSet {
-					// app key secret exists; store secret name and key instead
-					f.keySecret[apicommon.DefaultAPPKeyKey] = secret{
-						name: secretName,
-						key:  secretKey,
+				if creds.AppSecret != nil {
+					_, secretName, secretKey := v2alpha1.GetAppKeySecret(creds, componentdca.GetDefaultExternalMetricSecretName(f.owner))
+					if secretName != "" && secretKey != "" {
+						// app key secret exists; store secret name and key instead
+						f.keySecret[apicommon.DefaultAPPKeyKey] = secret{
+							name: secretName,
+							key:  secretKey,
+						}
 					}
 				}
 			}

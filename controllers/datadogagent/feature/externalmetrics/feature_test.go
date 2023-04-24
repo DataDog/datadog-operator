@@ -24,7 +24,6 @@ import (
 const (
 	secretName = "apisecretname"
 	apiKeyName = "apikeyname"
-	appKeyName = "appkeyname"
 )
 
 func TestExternalMetricsFeature(t *testing.T) {
@@ -45,10 +44,6 @@ func TestExternalMetricsFeature(t *testing.T) {
 			KeyName:    apiKeyName,
 		},
 		AppKey: apiutils.NewStringPointer("09876"),
-		AppSecret: &apicommonv1.SecretConfig{
-			SecretName: secretName,
-			KeyName:    appKeyName,
-		},
 	}
 
 	tests := test.FeatureTestSuite{
@@ -200,9 +195,9 @@ func testDCAResources(useDDM, wpaController, keySecrets bool) *test.ComponentTes
 						ValueFrom: &corev1.EnvVarSource{
 							SecretKeyRef: &corev1.SecretKeySelector{
 								LocalObjectReference: corev1.LocalObjectReference{
-									Name: secretName,
+									Name: "-metrics-server", // from default secret name
 								},
-								Key: appKeyName,
+								Key: apicommon.DefaultAPPKeyKey,
 							},
 						},
 					},
