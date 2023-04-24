@@ -7950,13 +7950,13 @@ spec:
                         network:
                           properties:
                             enabled:
-                              description: 'Enabled enables Cloud Workload Security Network detections. Default: false'
+                              description: 'Enabled enables Cloud Workload Security Network detections. Default: true'
                               type: boolean
                           type: object
                         securityProfiles:
                           properties:
                             enabled:
-                              description: 'Enabled enables Cloud Workload Security Security Profiles collection. Default: false'
+                              description: 'Enabled enables Cloud Workload Security Security Profiles collection. Default: true'
                               type: boolean
                           type: object
                         syscallMonitorEnabled:

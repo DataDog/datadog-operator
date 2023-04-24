@@ -252,7 +252,7 @@ type CWSFeatureConfig struct {
 
 type CWSNetworkConfig struct {
 	// Enabled enables Cloud Workload Security Network detections.
-	// Default: false
+	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 }
