@@ -96,7 +96,7 @@ func mergeSlices(a, b []apicommonv1.AgentContainerName) []apicommonv1.AgentConta
 	return out
 }
 
-// Feature Feature interface
+// Feature interface
 // It returns `true` if the Feature is used, else it return `false`.
 type Feature interface {
 	// ID returns the ID of the Feature

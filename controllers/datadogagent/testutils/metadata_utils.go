@@ -79,17 +79,17 @@ func (c *CheckAnnotationsIsNotPresent) Check(t *testing.T, obj *metav1.ObjectMet
 func checkIsPresentInMap(t *testing.T, key, value string, entries map[string]string, msgPrefix string) error {
 	if val, found := entries[key]; found {
 		if val == value {
-			t.Logf("[%s] key [%s] founded with value value [%s]", msgPrefix, key, value)
+			t.Logf("[%s] key [%s] found with value [%s]", msgPrefix, key, value)
 			return nil
 		}
-		return fmt.Errorf("[%s] key %s founded, but wrong value, got [%s], want [%s]", msgPrefix, key, val, value)
+		return fmt.Errorf("[%s] key %s found, but wrong value, got [%s], want [%s]", msgPrefix, key, val, value)
 	}
-	return fmt.Errorf("[%s] key %s not founded", msgPrefix, key)
+	return fmt.Errorf("[%s] key %s not found", msgPrefix, key)
 }
 
 func checkLabelIsNotPresent(_ *testing.T, key string, entries map[string]string, msgPrefix string) error {
 	if value, found := entries[key]; found {
-		return fmt.Errorf("[%s] key [%s] founded with value value [%s]", msgPrefix, key, value)
+		return fmt.Errorf("[%s] key [%s] found with value [%s]", msgPrefix, key, value)
 	}
 	return nil
 }

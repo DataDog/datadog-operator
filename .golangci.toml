@@ -89,6 +89,11 @@
     "goconst",
     "errcheck",
     "misspell",
+    "varcheck",
+    "structcheck",
+    "deadcode",
+    "rowserrcheck",
+    "sqlclosecheck",
   ]
 
 [issues]

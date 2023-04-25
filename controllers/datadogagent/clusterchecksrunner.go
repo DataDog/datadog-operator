@@ -138,7 +138,7 @@ func (r *Reconciler) updateClusterChecksRunnerDeployment(logger logr.Logger, dda
 
 	logger.Info("update Cluster Checks Runner deployment", "name", dep.Name, "namespace", dep.Namespace)
 
-	// Set DatadogAgent instance  instance as the owner and controller
+	// Set DatadogAgent instance as the owner and controller
 	if err = controllerutil.SetControllerReference(dda, dep, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}

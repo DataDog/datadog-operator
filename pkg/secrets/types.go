@@ -76,7 +76,7 @@ type Secret struct {
 // NewDummyDecryptor returns a dummy decryptor for tests
 // maxRetries is the number of retries before returning a nil error
 // If maxRetries < 0 Decrypt directly returns a permanent error
-// If maxRetries == 0 Decrypt directly returns a a nil error
+// If maxRetries == 0 Decrypt directly returns a nil error
 // If maxRetries > 0 Decrypt returns a retriable error until it's called maxRetries-times then returns a nil error
 func NewDummyDecryptor(maxRetries int) *DummyDecryptor {
 	return &DummyDecryptor{
