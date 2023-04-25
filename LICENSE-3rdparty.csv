@@ -578,7 +578,6 @@ core,"sigs.k8s.io/controller-runtime/pkg/controller",Apache-2.0
 core,"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil",Apache-2.0
 core,"sigs.k8s.io/controller-runtime/pkg/conversion",Apache-2.0
 core,"sigs.k8s.io/controller-runtime/pkg/envtest",Apache-2.0
-core,"sigs.k8s.io/controller-runtime/pkg/envtest/printer",Apache-2.0
 core,"sigs.k8s.io/controller-runtime/pkg/event",Apache-2.0
 core,"sigs.k8s.io/controller-runtime/pkg/handler",Apache-2.0
 core,"sigs.k8s.io/controller-runtime/pkg/healthz",Apache-2.0
