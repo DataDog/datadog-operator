@@ -102,7 +102,7 @@ func (r *Reconciler) createConfigMap(logger logr.Logger, dda *datadoghqv1alpha1.
 	if err != nil {
 		return result, err
 	}
-	// Set DatadogAgent instance  instance as the owner and controller
+	// Set DatadogAgent instance as the owner and controller
 	if err = controllerutil.SetControllerReference(dda, configMap, r.scheme); err != nil {
 		return result, err
 	}

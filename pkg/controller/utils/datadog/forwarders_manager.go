@@ -36,7 +36,7 @@ type ForwardersManager struct {
 	sync.Mutex
 }
 
-// NewForwardersManager builds a new ForwardersManager
+// NewForwardersManager builds a new ForwardersManager object
 // ForwardersManager implements the controller-runtime Runnable interface
 func NewForwardersManager(k8sClient client.Client, v2Enabled bool, platformInfo *kubernetes.PlatformInfo) *ForwardersManager {
 	return &ForwardersManager{

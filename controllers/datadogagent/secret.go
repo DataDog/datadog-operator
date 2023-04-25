@@ -49,7 +49,7 @@ func (r *Reconciler) manageSecret(logger logr.Logger, secret managedSecret, dda 
 }
 
 func (r *Reconciler) createSecret(logger logr.Logger, newSecret *corev1.Secret, dda *datadoghqv1alpha1.DatadogAgent) (reconcile.Result, error) {
-	// Set DatadogAgent instance  instance as the owner and controller
+	// Set DatadogAgent instance as the owner and controller
 	if err := controllerutil.SetControllerReference(dda, newSecret, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}

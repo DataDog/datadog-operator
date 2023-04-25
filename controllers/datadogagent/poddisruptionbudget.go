@@ -85,7 +85,7 @@ func (r *Reconciler) managePDB(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 
 func (r *Reconciler) createPDBV1(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, builder pdbBuilder) (reconcile.Result, error) {
 	newPdb := builder(dda)
-	// Set DatadogAgent instance  instance as the owner and controller
+	// Set DatadogAgent instance as the owner and controller
 	if err := controllerutil.SetControllerReference(dda, newPdb, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
@@ -101,7 +101,7 @@ func (r *Reconciler) createPDBV1(logger logr.Logger, dda *datadoghqv1alpha1.Data
 
 func (r *Reconciler) createPDBV1Beta1(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, builder pdbV1Beta1Builder) (reconcile.Result, error) {
 	newPdb := builder(dda)
-	// Set DatadogAgent instance  instance as the owner and controller
+	// Set DatadogAgent instance as the owner and controller
 	if err := controllerutil.SetControllerReference(dda, newPdb, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
