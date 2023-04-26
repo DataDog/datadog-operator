@@ -43,3 +43,12 @@ rules:
   - update
   - patch
   - delete
+- apiGroups:
+  - "coordination.k8s.op"
+  resources:
+  - leases/status
+  verbs:
+  - get
+  - update
+  - patch
+
