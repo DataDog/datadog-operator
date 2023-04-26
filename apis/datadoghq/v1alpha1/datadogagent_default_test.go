@@ -130,7 +130,8 @@ func TestDefaultFeatures(t *testing.T) {
 				LogCollection: &LogCollectionConfig{
 					Enabled: apiutils.NewBoolPointer(false),
 				},
-				NetworkMonitoring: &NetworkMonitoringConfig{Enabled: apiutils.NewBoolPointer(false)},
+				NetworkMonitoring:   &NetworkMonitoringConfig{Enabled: apiutils.NewBoolPointer(false)},
+				RemoteConfiguration: &RemoteConfigurationConfig{Enabled: apiutils.NewBoolPointer(false)},
 			},
 			internalDefaulted: DatadogFeatures{
 				OrchestratorExplorer: &OrchestratorExplorerConfig{
@@ -145,7 +146,8 @@ func TestDefaultFeatures(t *testing.T) {
 				LogCollection: &LogCollectionConfig{
 					Enabled: apiutils.NewBoolPointer(false),
 				},
-				NetworkMonitoring: &NetworkMonitoringConfig{Enabled: apiutils.NewBoolPointer(false)},
+				NetworkMonitoring:   &NetworkMonitoringConfig{Enabled: apiutils.NewBoolPointer(false)},
+				RemoteConfiguration: &RemoteConfigurationConfig{Enabled: apiutils.NewBoolPointer(false)},
 			},
 		},
 		{
@@ -175,7 +177,8 @@ func TestDefaultFeatures(t *testing.T) {
 				PrometheusScrape: &PrometheusScrapeConfig{
 					Enabled: apiutils.NewBoolPointer(false),
 				},
-				NetworkMonitoring: &NetworkMonitoringConfig{Enabled: apiutils.NewBoolPointer(false)},
+				NetworkMonitoring:   &NetworkMonitoringConfig{Enabled: apiutils.NewBoolPointer(false)},
+				RemoteConfiguration: &RemoteConfigurationConfig{Enabled: apiutils.NewBoolPointer(false)},
 			},
 			internalDefaulted: DatadogFeatures{
 				OrchestratorExplorer: &OrchestratorExplorerConfig{
@@ -194,7 +197,8 @@ func TestDefaultFeatures(t *testing.T) {
 				PrometheusScrape: &PrometheusScrapeConfig{
 					Enabled: apiutils.NewBoolPointer(false),
 				},
-				NetworkMonitoring: &NetworkMonitoringConfig{Enabled: apiutils.NewBoolPointer(false)},
+				NetworkMonitoring:   &NetworkMonitoringConfig{Enabled: apiutils.NewBoolPointer(false)},
+				RemoteConfiguration: &RemoteConfigurationConfig{Enabled: apiutils.NewBoolPointer(false)},
 			},
 		},
 		{
@@ -211,7 +215,8 @@ func TestDefaultFeatures(t *testing.T) {
 				PrometheusScrape: &PrometheusScrapeConfig{
 					ServiceEndpoints: apiutils.NewBoolPointer(true),
 				},
-				NetworkMonitoring: &NetworkMonitoringConfig{Enabled: apiutils.NewBoolPointer(true)},
+				NetworkMonitoring:   &NetworkMonitoringConfig{Enabled: apiutils.NewBoolPointer(true)},
+				RemoteConfiguration: &RemoteConfigurationConfig{Enabled: apiutils.NewBoolPointer(false)},
 			},
 			overrideExpected: &DatadogFeatures{
 				OrchestratorExplorer: &OrchestratorExplorerConfig{
@@ -228,7 +233,8 @@ func TestDefaultFeatures(t *testing.T) {
 				PrometheusScrape: &PrometheusScrapeConfig{
 					Enabled: apiutils.NewBoolPointer(false), // defaultPrometheusScrapeEnabled
 				},
-				NetworkMonitoring: &NetworkMonitoringConfig{Enabled: apiutils.NewBoolPointer(true)},
+				NetworkMonitoring:   &NetworkMonitoringConfig{Enabled: apiutils.NewBoolPointer(true)},
+				RemoteConfiguration: &RemoteConfigurationConfig{Enabled: apiutils.NewBoolPointer(false)},
 			},
 			internalDefaulted: DatadogFeatures{
 				OrchestratorExplorer: &OrchestratorExplorerConfig{
@@ -246,7 +252,8 @@ func TestDefaultFeatures(t *testing.T) {
 					Enabled:          apiutils.NewBoolPointer(false),
 					ServiceEndpoints: apiutils.NewBoolPointer(true),
 				},
-				NetworkMonitoring: &NetworkMonitoringConfig{Enabled: apiutils.NewBoolPointer(true)},
+				NetworkMonitoring:   &NetworkMonitoringConfig{Enabled: apiutils.NewBoolPointer(true)},
+				RemoteConfiguration: &RemoteConfigurationConfig{Enabled: apiutils.NewBoolPointer(false)},
 			},
 		},
 	}

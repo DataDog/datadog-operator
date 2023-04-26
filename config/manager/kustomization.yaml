@@ -3,6 +3,6 @@ resources:
 images:
 - name: controller
   newName: gcr.io/datadoghq/operator
-  newTag: 0.8.0
+  newTag: v1.0.2-rc.1_de9b2ffa
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization

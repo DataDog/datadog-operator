@@ -69,6 +69,8 @@ type DatadogFeatures struct {
 	Dogstatsd *DogstatsdFeatureConfig `json:"dogstatsd,omitempty"`
 	// OTLP ingest configuration
 	OTLP *OTLPFeatureConfig `json:"otlp,omitempty"`
+	// Remote Configuration configuration.
+	RemoteConfiguration *RemoteConfigurationFeatureConfig `json:"remoteConfiguration,omitempty"`
 
 	// Cluster-level features
 
@@ -245,6 +247,15 @@ type CWSFeatureConfig struct {
 	// Any policies with the same name as those existing in the agent will take precedence.
 	// +optional
 	CustomPolicies *CustomConfig `json:"customPolicies,omitempty"`
+}
+
+// RemoteConfigurationFeatureConfig contains RC (Remote Configuration) configuration.
+// RC runs in the Agent.
+type RemoteConfigurationFeatureConfig struct {
+	// Enabled enables Remote Configuration
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // NPMFeatureConfig contains NPM (Network Performance Monitoring) feature configuration.
