@@ -612,6 +612,7 @@ func DefaultSeccompConfigDataForSystemProbe() map[string]string {
 					"stat",
 					"stat64",
 					"statfs",
+					"statx",
 					"symlinkat",
 					"sysinfo",
 					"tgkill",
