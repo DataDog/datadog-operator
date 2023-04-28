@@ -8302,7 +8302,7 @@ spec:
                       description: Remote Configuration configuration.
                       properties:
                         enabled:
-                          description: 'Enabled enables Remote Configuration Default: false'
+                          description: 'Enable this option to activate Remote Configuration. Default: false'
                           type: boolean
                       type: object
                     tcpQueueLength:
