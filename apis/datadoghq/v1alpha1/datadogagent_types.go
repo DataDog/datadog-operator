@@ -28,8 +28,6 @@ type DatadogFeatures struct {
 	NetworkMonitoring *NetworkMonitoringConfig `json:"networkMonitoring,omitempty"`
 	// LogCollection configuration.
 	LogCollection *LogCollectionConfig `json:"logCollection,omitempty"`
-	// RemoteConfiguration configuration
-	RemoteConfiguration *RemoteConfigurationConfig `json:"remoteConfiguration,omitempty"`
 }
 
 // DatadogAgentSpec defines the desired state of DatadogAgent.
@@ -424,15 +422,6 @@ type LogCollectionConfig struct {
 	//
 	// +optional
 	OpenFilesLimit *int32 `json:"openFilesLimit,omitempty"`
-}
-
-// RemoteConfigurationConfig contains the Remote Config configuration.
-// +k8s:openapi-gen=true
-type RemoteConfigurationConfig struct {
-	// Enable this option to activate Remote Config.
-	//
-	// +optional
-	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // ProcessSpec contains the Process Agent configuration.

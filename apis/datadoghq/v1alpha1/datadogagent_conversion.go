@@ -145,12 +145,6 @@ func convertFeatures(src DatadogFeatures, dst *v2alpha1.DatadogAgent) {
 			OpenFilesLimit:             src.LogCollection.OpenFilesLimit,
 		}
 	}
-
-	if src.RemoteConfiguration != nil {
-		dstFeatures.RemoteConfiguration = &v2alpha1.RemoteConfigurationFeatureConfig{
-			Enabled: src.RemoteConfiguration.Enabled,
-		}
-	}
 }
 
 // Converting internal structs

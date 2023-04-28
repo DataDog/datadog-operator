@@ -867,10 +867,6 @@ func DefaultFeatures(dda *DatadogAgent) *DatadogFeatures {
 		featureOverride.NetworkMonitoring = net
 	}
 
-	if rc := DefaultDatadogFeatureRemoteConfiguration(ft); !apiutils.IsEqualStruct(*rc, RemoteConfigurationConfig{}) {
-		featureOverride.RemoteConfiguration = rc
-	}
-
 	return featureOverride
 }
 
@@ -976,25 +972,6 @@ func DefaultDatadogFeatureNetworkMonitoring(ft *DatadogFeatures) *NetworkMonitor
 	netOverride := &NetworkMonitoringConfig{Enabled: ft.NetworkMonitoring.Enabled}
 
 	return netOverride
-}
-
-// DefaultDatadogFeatureNetworkMonitoring used to default the RemoteConfiguration config
-func DefaultDatadogFeatureRemoteConfiguration(ft *DatadogFeatures) *RemoteConfigurationConfig {
-	if ft.RemoteConfiguration == nil {
-		ft.RemoteConfiguration = &RemoteConfigurationConfig{Enabled: apiutils.NewBoolPointer(false)}
-
-		if !apiutils.BoolValue(ft.RemoteConfiguration.Enabled) {
-			return ft.RemoteConfiguration
-		}
-	}
-
-	if ft.RemoteConfiguration.Enabled == nil {
-		ft.RemoteConfiguration.Enabled = apiutils.NewBoolPointer(false)
-	}
-
-	rcOverride := &RemoteConfigurationConfig{Enabled: ft.RemoteConfiguration.Enabled}
-
-	return rcOverride
 }
 
 // DefaultDatadogAgentSpecClusterAgent used to default an DatadogAgentSpecClusterAgentSpec

@@ -62,7 +62,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./apis/datadoghq/v1alpha1.ProcessSpec":                             schema__apis_datadoghq_v1alpha1_ProcessSpec(ref),
 		"./apis/datadoghq/v1alpha1.PrometheusScrapeConfig":                  schema__apis_datadoghq_v1alpha1_PrometheusScrapeConfig(ref),
 		"./apis/datadoghq/v1alpha1.RbacConfig":                              schema__apis_datadoghq_v1alpha1_RbacConfig(ref),
-		"./apis/datadoghq/v1alpha1.RemoteConfigurationConfig":               schema__apis_datadoghq_v1alpha1_RemoteConfigurationConfig(ref),
 		"./apis/datadoghq/v1alpha1.RuntimeSecuritySpec":                     schema__apis_datadoghq_v1alpha1_RuntimeSecuritySpec(ref),
 		"./apis/datadoghq/v1alpha1.SecuritySpec":                            schema__apis_datadoghq_v1alpha1_SecuritySpec(ref),
 		"./apis/datadoghq/v1alpha1.SyscallMonitorSpec":                      schema__apis_datadoghq_v1alpha1_SyscallMonitorSpec(ref),
@@ -1810,17 +1809,11 @@ func schema__apis_datadoghq_v1alpha1_DatadogFeatures(ref common.ReferenceCallbac
 							Ref:         ref("./apis/datadoghq/v1alpha1.LogCollectionConfig"),
 						},
 					},
-					"remoteConfiguration": {
-						SchemaProps: spec.SchemaProps{
-							Description: "RemoteConfiguration configuration",
-							Ref:         ref("./apis/datadoghq/v1alpha1.RemoteConfigurationConfig"),
-						},
-					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./apis/datadoghq/v1alpha1.KubeStateMetricsCore", "./apis/datadoghq/v1alpha1.LogCollectionConfig", "./apis/datadoghq/v1alpha1.NetworkMonitoringConfig", "./apis/datadoghq/v1alpha1.OrchestratorExplorerConfig", "./apis/datadoghq/v1alpha1.PrometheusScrapeConfig", "./apis/datadoghq/v1alpha1.RemoteConfigurationConfig"},
+			"./apis/datadoghq/v1alpha1.KubeStateMetricsCore", "./apis/datadoghq/v1alpha1.LogCollectionConfig", "./apis/datadoghq/v1alpha1.NetworkMonitoringConfig", "./apis/datadoghq/v1alpha1.OrchestratorExplorerConfig", "./apis/datadoghq/v1alpha1.PrometheusScrapeConfig"},
 	}
 }
 
@@ -3000,26 +2993,6 @@ func schema__apis_datadoghq_v1alpha1_RbacConfig(ref common.ReferenceCallback) co
 						SchemaProps: spec.SchemaProps{
 							Description: "Used to set up the service account name to use. Ignored if the field Create is true.",
 							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-				},
-			},
-		},
-	}
-}
-
-func schema__apis_datadoghq_v1alpha1_RemoteConfigurationConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "RemoteConfigurationConfig contains the Remote Config configuration.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"enabled": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Enable this option to activate Remote Config.",
-							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},

@@ -12,7 +12,6 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
@@ -23,26 +22,6 @@ import (
 )
 
 func Test_rcFeature_Configure(t *testing.T) {
-	ddav1RCDisabled := v1alpha1.DatadogAgent{
-		Spec: v1alpha1.DatadogAgentSpec{
-			Features: v1alpha1.DatadogFeatures{
-				RemoteConfiguration: &v1alpha1.RemoteConfigurationConfig{
-					Enabled: apiutils.NewBoolPointer(false),
-				},
-			},
-		},
-	}
-
-	ddav1RCEnabled := v1alpha1.DatadogAgent{
-		Spec: v1alpha1.DatadogAgentSpec{
-			Features: v1alpha1.DatadogFeatures{
-				RemoteConfiguration: &v1alpha1.RemoteConfigurationConfig{
-					Enabled: apiutils.NewBoolPointer(true),
-				},
-			},
-		},
-	}
-
 	ddav2RCDisabled := v2alpha1.DatadogAgent{
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
@@ -63,20 +42,6 @@ func Test_rcFeature_Configure(t *testing.T) {
 	}
 
 	tests := test.FeatureTestSuite{
-		//////////////////////////
-		// v1Alpha1.DatadogAgent
-		//////////////////////////
-		{
-			Name:          "v1alpha1 RC not enabled",
-			DDAv1:         ddav1RCDisabled.DeepCopy(),
-			WantConfigure: false,
-		},
-		{
-			Name:          "v1alpha1 RC enabled",
-			DDAv1:         ddav1RCEnabled.DeepCopy(),
-			WantConfigure: true,
-			Agent:         rcAgentNodeWantFunc(false),
-		},
 		//////////////////////////
 		// v2Alpha1.DatadogAgent
 		//////////////////////////

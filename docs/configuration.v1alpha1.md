@@ -481,7 +481,6 @@ spec:
 | features.prometheusScrape.additionalConfigs | AdditionalConfigs allows adding advanced prometheus check configurations with custom discovery rules. |
 | features.prometheusScrape.enabled | Enable autodiscovering pods and services exposing prometheus metrics. |
 | features.prometheusScrape.serviceEndpoints | ServiceEndpoints enables generating dedicated checks for service endpoints. |
-| features.remoteConfiguration.enabled | Enable this option to activate Remote Config. |
 | registry | Registry to use for all Agent images (default gcr.io/datadoghq). Use public.ecr.aws/datadog for AWS Use docker.io/datadog for DockerHub |
 | site | The site of the Datadog intake to send Agent data to. Set to 'datadoghq.eu' to send data to the EU site. |
 

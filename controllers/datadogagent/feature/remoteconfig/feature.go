@@ -70,19 +70,7 @@ func (f *rcFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requi
 
 // ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
 func (f *rcFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	if dda.Spec.Features.RemoteConfiguration != nil && apiutils.BoolValue(dda.Spec.Features.RemoteConfiguration.Enabled) {
-		f.enabled = true
-		reqComp = feature.RequiredComponents{
-			Agent: feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
-				Containers: []apicommonv1.AgentContainerName{
-					apicommonv1.CoreAgentContainerName,
-				},
-			},
-		}
-	}
-
-	return reqComp
+	return
 }
 
 // ManageDependencies allows a feature to manage its dependencies.

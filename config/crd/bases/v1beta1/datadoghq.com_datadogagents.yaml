@@ -7590,13 +7590,6 @@ spec:
                           description: ServiceEndpoints enables generating dedicated checks for service endpoints.
                           type: boolean
                       type: object
-                    remoteConfiguration:
-                      description: RemoteConfiguration configuration
-                      properties:
-                        enabled:
-                          description: Enable this option to activate Remote Config.
-                          type: boolean
-                      type: object
                   type: object
                 registry:
                   description: Registry to use for all Agent images (default gcr.io/datadoghq). Use public.ecr.aws/datadog for AWS Use docker.io/datadog for DockerHub
@@ -15310,13 +15303,6 @@ spec:
                               type: boolean
                             serviceEndpoints:
                               description: ServiceEndpoints enables generating dedicated checks for service endpoints.
-                              type: boolean
-                          type: object
-                        remoteConfiguration:
-                          description: RemoteConfiguration configuration
-                          properties:
-                            enabled:
-                              description: Enable this option to activate Remote Config.
                               type: boolean
                           type: object
                       type: object
