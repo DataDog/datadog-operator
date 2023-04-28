@@ -50,6 +50,7 @@ func Test_buildMonitor(t *testing.T) {
 				"kube_cluster:test.staging",
 			},
 			Options: datadoghqv1alpha1.DatadogMonitorOptions{
+				EnableLogsSample:  &valTrue,
 				EvaluationDelay:   &evalDelay,
 				EscalationMessage: &escalationMsg,
 				IncludeTags:       &valTrue,
@@ -86,6 +87,9 @@ func Test_buildMonitor(t *testing.T) {
 
 	assert.Equal(t, dm.Spec.Tags, monitor.GetTags(), "discrepancy found in parameter: Tags")
 	assert.Equal(t, dm.Spec.Tags, monitorUR.GetTags(), "discrepancy found in parameter: Tags")
+
+	assert.Equal(t, *dm.Spec.Options.EnableLogsSample, monitor.Options.GetEnableLogsSample(), "discrepancy found in parameter: EnableLogsSample")
+	assert.Equal(t, *dm.Spec.Options.EnableLogsSample, monitorUR.Options.GetEnableLogsSample(), "discrepancy found in parameter: EnableLogsSample")
 
 	assert.Equal(t, *dm.Spec.Options.EvaluationDelay, monitor.Options.GetEvaluationDelay(), "discrepancy found in parameter: EvaluationDelay")
 	assert.Equal(t, *dm.Spec.Options.EvaluationDelay, monitorUR.Options.GetEvaluationDelay(), "discrepancy found in parameter: EvaluationDelay")

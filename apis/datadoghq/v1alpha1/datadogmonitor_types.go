@@ -60,6 +60,8 @@ const (
 
 // DatadogMonitorOptions define the optional parameters of a monitor
 type DatadogMonitorOptions struct {
+	// A Boolean indicating whether to send a log sample when the log monitor triggers.
+	EnableLogsSample *bool `json:"enableLogsSample,omitempty"`
 	// A message to include with a re-notification.
 	EscalationMessage *string `json:"escalationMessage,omitempty"`
 	// Time (in seconds) to delay evaluation, as a non-negative integer. For example, if the value is set to 300 (5min),
