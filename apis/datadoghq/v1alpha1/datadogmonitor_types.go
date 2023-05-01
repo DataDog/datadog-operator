@@ -20,6 +20,10 @@ type DatadogMonitorSpec struct {
 	Priority int64 `json:"priority,omitempty"`
 	// Query is the Datadog monitor query
 	Query string `json:"query,omitempty"`
+	// RestrictedRoles is a list of unique role identifiers to define which roles are allowed to edit the monitor.
+	// `restricted_roles` is the successor of `locked`. For more information about `locked` and `restricted_roles`,
+	// see the [monitor options docs](https://docs.datadoghq.com/monitors/guide/monitor_api_options/#permissions-options).
+	RestrictedRoles []string `json:"restricted_roles,omitempty"`
 	// Tags is the monitor tags associated with your monitor
 	Tags []string `json:"tags,omitempty"`
 	// Type is the monitor type
@@ -132,6 +136,8 @@ type DatadogMonitorStatus struct {
 	Creator string `json:"creator,omitempty"`
 	// Created is the time the monitor was created
 	Created *metav1.Time `json:"created,omitempty"`
+	// Modified is the last time the monitor defintion was modified
+	Modified *metav1.Time `json:"modified,omitempty"`
 	// MonitorState is the overall state of monitor
 	MonitorState DatadogMonitorState `json:"monitorState,omitempty"`
 	// MonitorStateLastUpdateTime is the last time the monitor state updated

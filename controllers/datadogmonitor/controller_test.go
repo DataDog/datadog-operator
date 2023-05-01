@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -542,7 +543,7 @@ func Test_convertStateToStatus(t *testing.T) {
 				}
 
 				m.State = &datadogapiclientv1.MonitorState{
-					Groups: &msg,
+					Groups: msg,
 				}
 				m.OverallState = &okState
 
@@ -574,7 +575,7 @@ func Test_convertStateToStatus(t *testing.T) {
 				}
 
 				m.State = &datadogapiclientv1.MonitorState{
-					Groups: &msg,
+					Groups: msg,
 				}
 				m.OverallState = &alertState
 
@@ -612,7 +613,7 @@ func Test_convertStateToStatus(t *testing.T) {
 				}
 
 				m.State = &datadogapiclientv1.MonitorState{
-					Groups: &msg,
+					Groups: msg,
 				}
 				m.OverallState = &alertState
 
@@ -652,7 +653,7 @@ func Test_convertStateToStatus(t *testing.T) {
 				}
 
 				m.State = &datadogapiclientv1.MonitorState{
-					Groups: &msg,
+					Groups: msg,
 				}
 				m.OverallState = &noDataState
 
@@ -690,7 +691,7 @@ func Test_convertStateToStatus(t *testing.T) {
 				}
 
 				m.State = &datadogapiclientv1.MonitorState{
-					Groups: &msg,
+					Groups: msg,
 				}
 				m.OverallState = &alertState
 
@@ -938,4 +939,59 @@ func testAuditMonitor() *datadoghqv1alpha1.DatadogMonitor {
 			Message: "something is wrong",
 		},
 	}
+}
+
+func Test_checkMonitorDefSync(t *testing.T) {
+	now := time.Unix(1612244495, 0)
+	metaNow := metav1.NewTime(now)
+	fiveMinAgo := now.Add(-time.Minute * 5)
+	metaFiveMinAgo := metav1.NewTime(fiveMinAgo)
+	m := genericMonitor(12345)
+
+	// Five minutes apart, so out of sync
+	s := &datadoghqv1alpha1.DatadogMonitorStatus{
+		Modified: &metaFiveMinAgo,
+	}
+	result := checkMonitorDefSync(m, s)
+	assert.False(t, result)
+
+	// Modified at approximately the same time, so in sync
+	s = &datadoghqv1alpha1.DatadogMonitorStatus{
+		Modified: &metaNow,
+	}
+	result = checkMonitorDefSync(m, s)
+	assert.True(t, result)
+}
+
+func Test_updateMonitorState(t *testing.T) {
+	now := time.Now()
+	metaNow := metav1.NewTime(now)
+
+	okState := datadogapiclientv1.MONITOROVERALLSTATES_OK
+	alertState := datadogapiclientv1.MONITOROVERALLSTATES_ALERT
+
+	triggerTs := int64(1612244495)
+
+	m := genericMonitor(12345)
+	msg := make(map[string]datadogapiclientv1.MonitorStateGroup)
+	msg["groupA"] = datadogapiclientv1.MonitorStateGroup{
+		Status:          &okState,
+		LastTriggeredTs: &triggerTs,
+	}
+	msg["groupB"] = datadogapiclientv1.MonitorStateGroup{
+		Status:          &alertState,
+		LastTriggeredTs: &triggerTs,
+	}
+
+	m.State = &datadogapiclientv1.MonitorState{
+		Groups: msg,
+	}
+	m.OverallState = &alertState
+
+	s := &datadoghqv1alpha1.DatadogMonitorStatus{
+		MonitorState: datadoghqv1alpha1.DatadogMonitorStateOK,
+	}
+
+	updateMonitorState(m, metaNow, s)
+	assert.Equal(t, s.MonitorState, datadoghqv1alpha1.DatadogMonitorStateAlert)
 }

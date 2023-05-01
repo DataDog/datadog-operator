@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -125,11 +126,44 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 
 	statusSpecHash := instance.Status.CurrentHash
 
-	// Create or update monitor, or check monitor state. Fall through this block (without returning)
-	// if the result should be requeued with the default period
+	shouldCreate := false
+	shouldUpdate := false
 	if instance.Status.ID == 0 {
-		logger.V(1).Info("Monitor ID is not set; creating monitor in Datadog")
-		// If the monitor ID is 0, then it doesn't exist yet in Datadog. Create the monitor (only metric alerts)
+		// If the monitor ID is 0, then it doesn't exist yet
+		shouldCreate = true
+	} else {
+		// Get monitor first to make sure it exists for any necessary updates. If it doesn't, set shouldCreate
+		var m datadogapiclientv1.Monitor
+		m, err = r.get(logger, instance, newStatus, now)
+		if err != nil {
+			logger.Error(err, "error getting monitor", "Monitor ID", instance.Status.ID)
+			if strings.Contains(err.Error(), "404 Not Found") {
+				// Monitor in the app has been deleted prior to resource manifest deletion; recreate
+				shouldCreate = true
+			}
+		} else if instanceSpecHash != statusSpecHash {
+			// Custom resource manifest has changed, need to update the API
+			shouldUpdate = true
+		} else if monitorInSync := checkMonitorDefSync(m, newStatus); !monitorInSync {
+			// Monitor in the app has drifted from resource manifest; resync
+			logger.Info("DatadogMonitor definition is out of sync", "Monitor Namespace", instance.Namespace, "Monitor Name", instance.Name, "Monitor ID", instance.Status.ID)
+			shouldUpdate = true
+		} else {
+			// None of the above conditions is met, check if monitor state is due for an update
+			if instance.Status.MonitorStateLastUpdateTime != nil {
+				nextUpdateIn := defaultRequeuePeriod - now.Sub(instance.Status.MonitorStateLastUpdateTime.Time)
+				if nextUpdateIn > 0 {
+					return ctrl.Result{RequeueAfter: nextUpdateIn}, nil
+				}
+			}
+
+			logger.V(1).Info("Updating DatadogMonitor state", "Monitor Namespace", instance.Namespace, "Monitor Name", instance.Name, "Monitor ID", instance.Status.ID)
+			updateMonitorState(m, now, newStatus)
+		}
+	}
+
+	if shouldCreate {
+		logger.V(1).Info("Creating monitor in Datadog")
 		if isSupportedMonitorType(instance.Spec.Type) {
 			// Make sure required tags are present
 			if result, err = r.checkRequiredTags(logger, instance); err != nil || result.Requeue {
@@ -146,34 +180,17 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 
 			return r.updateStatusIfNeeded(logger, instance, now, newStatus, err, result)
 		}
-	} else {
-		// Check if instance needs to be updated
-		if instanceSpecHash != statusSpecHash {
-			// Make sure required tags are present
-			if result, err = r.checkRequiredTags(logger, instance); err != nil || result.Requeue {
-				return r.updateStatusIfNeeded(logger, instance, now, newStatus, err, result)
-			}
-			// Update action
-			if err = r.update(logger, instance, newStatus, now); err != nil {
-				logger.Error(err, "error updating monitor", "Monitor ID", instance.Status.ID)
-			} else {
-				newStatus.CurrentHash = instanceSpecHash
-			}
+	} else if shouldUpdate {
+		logger.V(1).Info("Updating monitor in Datadog")
+		// Make sure required tags are present
+		if result, err = r.checkRequiredTags(logger, instance); err != nil || result.Requeue {
+			return r.updateStatusIfNeeded(logger, instance, now, newStatus, err, result)
+		}
+		// Update action
+		if err = r.update(logger, instance, newStatus, now); err != nil {
+			logger.Error(err, "error updating monitor", "Monitor ID", instance.Status.ID)
 		} else {
-			// Spec has not changed, just check if monitor state has changed (alert, warn, OK, etc.)
-			// We only do it every defaultRequeuePeriod to avoid overloading APIServer and DD
-			// controller-runtime does not support Watch with Resync per controller, so doing it manually
-			// see https://github.com/kubernetes-sigs/controller-runtime/blob/master/pkg/manager/manager.go#L108-L133
-			if instance.Status.MonitorStateLastUpdateTime != nil {
-				nextUpdateIn := defaultRequeuePeriod - now.Sub(instance.Status.MonitorStateLastUpdateTime.Time)
-				if nextUpdateIn > 0 {
-					return ctrl.Result{RequeueAfter: nextUpdateIn}, nil
-				}
-			}
-
-			if err = r.get(logger, instance, newStatus, now); err != nil {
-				logger.Error(err, "error getting monitor", "Monitor ID", instance.Status.ID)
-			}
+			newStatus.CurrentHash = instanceSpecHash
 		}
 	}
 
@@ -206,6 +223,7 @@ func (r *Reconciler) create(logger logr.Logger, datadogMonitor *datadoghqv1alpha
 	status.Creator = creator.GetEmail()
 	createdTime := metav1.NewTime(m.GetCreated())
 	status.Created = &createdTime
+	status.Modified = &createdTime
 	status.Primary = true
 	status.SyncStatus = ""
 
@@ -224,7 +242,8 @@ func (r *Reconciler) update(logger logr.Logger, datadogMonitor *datadoghqv1alpha
 	}
 
 	// Update monitor in Datadog
-	if _, err := updateMonitor(r.datadogAuth, logger, r.datadogClient, datadogMonitor); err != nil {
+	m, err := updateMonitor(r.datadogAuth, logger, r.datadogClient, datadogMonitor)
+	if err != nil {
 		status.SyncStatus = datadoghqv1alpha1.SyncStatusUpdateError
 		return err
 	}
@@ -232,28 +251,38 @@ func (r *Reconciler) update(logger logr.Logger, datadogMonitor *datadoghqv1alpha
 	event := buildEventInfo(datadogMonitor.Name, datadogMonitor.Namespace, datadog.UpdateEvent)
 	r.recordEvent(datadogMonitor, event)
 
-	// Set Updated Condition
+	// Set updated condition
 	condition.UpdateDatadogMonitorConditions(status, now, datadoghqv1alpha1.DatadogMonitorConditionTypeUpdated, corev1.ConditionTrue, "DatadogMonitor Updated")
 	status.SyncStatus = datadoghqv1alpha1.SyncStatusOK
+	modifiedTime := metav1.NewTime(m.GetModified())
+	status.Modified = &modifiedTime
 	logger.Info("Updated DatadogMonitor", "Monitor Namespace", datadogMonitor.Namespace, "Monitor Name", datadogMonitor.Name, "Monitor ID", datadogMonitor.Status.ID)
 
 	return nil
 }
 
-func (r *Reconciler) get(logger logr.Logger, datadogMonitor *datadoghqv1alpha1.DatadogMonitor, status *datadoghqv1alpha1.DatadogMonitorStatus, now metav1.Time) error {
+func (r *Reconciler) get(logger logr.Logger, datadogMonitor *datadoghqv1alpha1.DatadogMonitor, status *datadoghqv1alpha1.DatadogMonitorStatus, now metav1.Time) (datadogapiclientv1.Monitor, error) {
 	// Get monitor from Datadog and update resource status if needed
 	m, err := getMonitor(r.datadogAuth, r.datadogClient, datadogMonitor.Status.ID)
 	if err != nil {
 		status.SyncStatus = datadoghqv1alpha1.SyncStatusGetError
-		return err
+		return m, err
 	}
+	return m, nil
+}
 
+// Helper functions to modify an API monitor object
+func checkMonitorDefSync(m datadogapiclientv1.Monitor, status *datadoghqv1alpha1.DatadogMonitorStatus) bool {
+	monitorModifiedTime := m.GetModified()
+	// Note: this requires server clock to be (reasonably) in sync with the Datadog API servers.
+	monitorModified := metav1.NewTime(monitorModifiedTime.Add(-time.Minute * 1))
+	return !status.Modified.Before(&monitorModified)
+}
+
+func updateMonitorState(m datadogapiclientv1.Monitor, now metav1.Time, status *datadoghqv1alpha1.DatadogMonitorStatus) {
 	convertStateToStatus(m, status, now)
 	status.MonitorStateLastUpdateTime = &now
 	status.SyncStatus = datadoghqv1alpha1.SyncStatusOK
-	logger.V(1).Info("Synced DatadogMonitor state", "Monitor Namespace", datadogMonitor.Namespace, "Monitor Name", datadogMonitor.Name, "Monitor ID", datadogMonitor.Status.ID)
-
-	return nil
 }
 
 func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, datadogMonitor *datadoghqv1alpha1.DatadogMonitor, now metav1.Time, status *datadoghqv1alpha1.DatadogMonitorStatus, currentErr error, result ctrl.Result) (ctrl.Result, error) {
@@ -324,7 +353,7 @@ func getRequiredTags() []string {
 	return []string{"generated:kubernetes"}
 }
 
-// convertStateToStatus updates status.MonitorState, status.TriggeredState, and status.DowntimeStatus according to the current state of the monitor
+// convertStateToStatus updates status.MonitorState and status.TriggeredState according to the current state of the monitor
 func convertStateToStatus(monitor datadogapiclientv1.Monitor, newStatus *datadoghqv1alpha1.DatadogMonitorStatus, now metav1.Time) {
 	// If monitor group is in Alert, Warn or No Data, then add its info to the TriggeredState
 	triggeredStates := []datadoghqv1alpha1.DatadogMonitorTriggeredState{}

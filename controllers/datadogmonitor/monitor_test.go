@@ -39,11 +39,12 @@ func Test_buildMonitor(t *testing.T) {
 
 	dm := &datadoghqv1alpha1.DatadogMonitor{
 		Spec: datadoghqv1alpha1.DatadogMonitorSpec{
-			Query:    "avg(last_10m):avg:system.disk.in_use{*} by {host} > 0.05",
-			Type:     "metric alert",
-			Name:     "Test monitor",
-			Message:  "Something went wrong",
-			Priority: priority,
+			RestrictedRoles: []string{"admin"},
+			Query:           "avg(last_10m):avg:system.disk.in_use{*} by {host} > 0.05",
+			Type:            "metric alert",
+			Name:            "Test monitor",
+			Message:         "Something went wrong",
+			Priority:        priority,
 			Tags: []string{
 				"env:staging",
 				"kube_namespace:test",
@@ -270,7 +271,7 @@ func Test_deleteMonitor(t *testing.T) {
 }
 
 func genericMonitor(mID int) datadogapiclientv1.Monitor {
-	rawNow := time.Now()
+	rawNow := time.Unix(1612244495, 0)
 	now, _ := time.Parse(dateFormat, strings.Split(rawNow.String(), " m=")[0])
 	mID64 := int64(mID)
 	msg := "Something went wrong"
@@ -293,7 +294,7 @@ func genericMonitor(mID int) datadogapiclientv1.Monitor {
 		Modified: &now,
 		Name:     &name,
 		Query:    query,
-		Tags:     &tags,
+		Tags:     tags,
 		Type:     mType,
 	}
 }

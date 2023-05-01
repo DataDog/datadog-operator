@@ -170,6 +170,14 @@ spec:
               query:
                 description: Query is the Datadog monitor query
                 type: string
+              restricted_roles:
+                description: RestrictedRoles is a list of unique role identifiers
+                  to define which roles are allowed to edit the monitor. `restricted_roles`
+                  is the successor of `locked`. For more information about `locked`
+                  and `restricted_roles`, see the [monitor options docs](https://docs.datadoghq.com/monitors/guide/monitor_api_options/#permissions-options).
+                items:
+                  type: string
+                type: array
               tags:
                 description: Tags is the monitor tags associated with your monitor
                 items:
@@ -241,6 +249,10 @@ spec:
               id:
                 description: ID is the monitor ID generated in Datadog
                 type: integer
+              modified:
+                description: Modified is the last time the monitor defintion was modified
+                format: date-time
+                type: string
               monitorState:
                 description: MonitorState is the overall state of monitor
                 type: string

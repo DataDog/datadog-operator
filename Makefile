@@ -112,12 +112,9 @@ endef
 .PHONY: manager
 manager: generate lint managergobuild ## Build manager binary
 	go build -ldflags '${LDFLAGS}' -o bin/$(PLATFORM)/manager main.go
+
 managergobuild: ## Builds only manager go binary
 	go build -ldflags '${LDFLAGS}' -o bin/$(PLATFORM)/manager main.go
-
-##@ Deploy
-
-manager: generate lint managergobuild ## Build manager binary
 
 .PHONY: run
 run: generate lint manifests ## Run against the configured Kubernetes cluster in ~/.kube/config

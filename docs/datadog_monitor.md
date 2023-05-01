@@ -50,7 +50,8 @@ To deploy a `DatadogMonitor` with the Datadog Operator, use the [`datadog-operat
         - "test:datadog"
     ```
 
-    For additional examples, see [examples/datadog-monitor](../examples/datadogmonitor). Note that only metric alerts, query alerts, and service checks are supported.
+    For additional examples, see [examples/datadog-monitor](../examples/datadogmonitor).
+    *Note*: Not all monitor types are supported. See [here](../controllers/datadogmonitor/controller.go) for the current list.
 
 1. Deploy the `DatadogMonitor` with the above configuration file:
 
