@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"strconv"
 
+	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
+
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
@@ -16,7 +18,6 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
-	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 
 	securityv1 "github.com/openshift/api/security/v1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -539,6 +540,7 @@ func DefaultSeccompConfigDataForSystemProbe() map[string]string {
 					"lstat",
 					"lstat64",
 					"madvise",
+					"memfd_create",
 					"mkdir",
 					"mkdirat",
 					"mmap",
