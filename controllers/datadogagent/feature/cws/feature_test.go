@@ -194,6 +194,11 @@ func cwsAgentNodeWantFunc(useDDAV2 bool) *test.ComponentTest {
 					ReadOnly:  false,
 				},
 				{
+					Name:      apicommon.TracefsVolumeName,
+					MountPath: apicommon.TracefsPath,
+					ReadOnly:  false,
+				},
+				{
 					Name:      apicommon.SecurityfsVolumeName,
 					MountPath: apicommon.SecurityfsMountPath,
 					ReadOnly:  true,

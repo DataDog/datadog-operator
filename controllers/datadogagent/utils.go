@@ -1147,6 +1147,14 @@ func getVolumesForAgent(dda *datadoghqv1alpha1.DatadogAgent) []corev1.Volume {
 				},
 			},
 			{
+				Name: datadoghqv1alpha1.SystemProbeTracefsVolumeName,
+				VolumeSource: corev1.VolumeSource{
+					HostPath: &corev1.HostPathVolumeSource{
+						Path: datadoghqv1alpha1.SystemProbeTracefsVolumePath,
+					},
+				},
+			},
+			{
 				Name: datadoghqv1alpha1.SystemProbeSocketVolumeName,
 				VolumeSource: corev1.VolumeSource{
 					EmptyDir: &corev1.EmptyDirVolumeSource{},
@@ -1661,6 +1669,10 @@ func getVolumeMountsForSystemProbe(dda *datadoghqv1alpha1.DatadogAgent) []corev1
 		{
 			Name:      datadoghqv1alpha1.SystemProbeDebugfsVolumeName,
 			MountPath: datadoghqv1alpha1.SystemProbeDebugfsVolumePath,
+		},
+		{
+			Name:      datadoghqv1alpha1.SystemProbeTracefsVolumeName,
+			MountPath: datadoghqv1alpha1.SystemProbeTracefsVolumePath,
 		},
 		{
 			Name:      datadoghqv1alpha1.SystemProbeSocketVolumeName,

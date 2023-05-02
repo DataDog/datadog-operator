@@ -39,6 +39,8 @@ const (
 	SymlinkContainerVolumeReadOnly       = true
 	SystemProbeDebugfsVolumeName         = "debugfs"
 	SystemProbeDebugfsVolumePath         = "/sys/kernel/debug"
+	SystemProbeTracefsVolumeName         = "tracefs"
+	SystemProbeTracefsVolumePath         = "/sys/kernel/tracing"
 	SystemProbeConfigVolumeName          = "system-probe-config"
 	SystemProbeConfigVolumeSubPath       = "system-probe.yaml"
 	SystemProbeLibModulesVolumeName      = "modules"
