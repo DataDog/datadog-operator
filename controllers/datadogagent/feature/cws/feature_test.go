@@ -251,6 +251,14 @@ func cwsAgentNodeWantFunc(useDDAV2 bool) *test.ComponentTest {
 					},
 				},
 				{
+					Name: apicommon.TracefsVolumeName,
+					VolumeSource: corev1.VolumeSource{
+						HostPath: &corev1.HostPathVolumeSource{
+							Path: apicommon.TracefsPath,
+						},
+					},
+				},
+				{
 					Name: apicommon.SecurityfsVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
