@@ -28,6 +28,7 @@ type DatadogMonitorReconciler struct {
 	Log         logr.Logger
 	Scheme      *runtime.Scheme
 	Recorder    record.EventRecorder
+	Options     datadogmonitor.ReconcilerOptions
 	internal    *datadogmonitor.Reconciler
 }
 
@@ -42,7 +43,7 @@ func (r *DatadogMonitorReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 // SetupWithManager creates a new DatadogMonitor controller.
 func (r *DatadogMonitorReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	internal, err := datadogmonitor.NewReconciler(r.Client, r.DDClient, r.VersionInfo, r.Scheme, r.Log, r.Recorder)
+	internal, err := datadogmonitor.NewReconciler(r.Client, r.DDClient, r.VersionInfo, r.Scheme, r.Log, r.Recorder, r.Options)
 	if err != nil {
 		return err
 	}

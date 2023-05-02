@@ -53,6 +53,14 @@ var supportedMonitorTypes = map[string]bool{
 	string(datadogapiclientv1.MONITORTYPE_AUDIT_ALERT):           true,
 }
 
+const requiredTag = "generated:kubernetes"
+
+// ReconcilerOptions provides options read from command line
+type ReconcilerOptions struct {
+	// Disable required automatic tagging of DatadogMonitor objects
+	RequiredTagsDisabled bool
+}
+
 // Reconciler reconciles a DatadogMonitor object
 type Reconciler struct {
 	client        client.Client
@@ -62,10 +70,11 @@ type Reconciler struct {
 	log           logr.Logger
 	scheme        *runtime.Scheme
 	recorder      record.EventRecorder
+	options       ReconcilerOptions
 }
 
 // NewReconciler returns a new Reconciler object
-func NewReconciler(client client.Client, ddClient datadogclient.DatadogClient, versionInfo *version.Info, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder) (*Reconciler, error) {
+func NewReconciler(client client.Client, ddClient datadogclient.DatadogClient, versionInfo *version.Info, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, options ReconcilerOptions) (*Reconciler, error) {
 	return &Reconciler{
 		client:        client,
 		datadogClient: ddClient.Client,
@@ -74,6 +83,7 @@ func NewReconciler(client client.Client, ddClient datadogclient.DatadogClient, v
 		scheme:        scheme,
 		log:           log,
 		recorder:      recorder,
+		options:       options,
 	}, nil
 }
 
@@ -132,8 +142,10 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 		// If the monitor ID is 0, then it doesn't exist yet in Datadog. Create the monitor (only metric alerts)
 		if isSupportedMonitorType(instance.Spec.Type) {
 			// Make sure required tags are present
-			if result, err = r.checkRequiredTags(logger, instance); err != nil || result.Requeue {
-				return r.updateStatusIfNeeded(logger, instance, now, newStatus, err, result)
+			if !r.options.RequiredTagsDisabled {
+				if result, err = r.checkRequiredTags(logger, instance); err != nil || result.Requeue {
+					return r.updateStatusIfNeeded(logger, instance, now, newStatus, err, result)
+				}
 			}
 
 			if err = r.create(logger, instance, newStatus, now); err != nil {
@@ -150,9 +162,12 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 		// Check if instance needs to be updated
 		if instanceSpecHash != statusSpecHash {
 			// Make sure required tags are present
-			if result, err = r.checkRequiredTags(logger, instance); err != nil || result.Requeue {
-				return r.updateStatusIfNeeded(logger, instance, now, newStatus, err, result)
+			if !r.options.RequiredTagsDisabled {
+				if result, err = r.checkRequiredTags(logger, instance); err != nil || result.Requeue {
+					return r.updateStatusIfNeeded(logger, instance, now, newStatus, err, result)
+				}
 			}
+
 			// Update action
 			if err = r.update(logger, instance, newStatus, now); err != nil {
 				logger.Error(err, "error updating monitor", "Monitor ID", instance.Status.ID)
@@ -321,7 +336,7 @@ func (r *Reconciler) checkRequiredTags(logger logr.Logger, datadogMonitor *datad
 }
 
 func getRequiredTags() []string {
-	return []string{"generated:kubernetes"}
+	return []string{requiredTag}
 }
 
 // convertStateToStatus updates status.MonitorState, status.TriggeredState, and status.DowntimeStatus according to the current state of the monitor
