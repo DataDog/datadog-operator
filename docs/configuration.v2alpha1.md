@@ -56,7 +56,7 @@ spec:
 | features.cws.customPolicies.configMap.name | Name is the name of the ConfigMap. |
 | features.cws.enabled | Enabled enables Cloud Workload Security. Default: false |
 | features.cws.network.enabled | Enabled enables Cloud Workload Security Network detections. Default: true |
-| features.cws.securityProfiles.enabled | Enabled enables Cloud Workload Security Security Profiles collection. Default: true |
+| features.cws.securityProfiles.enabled | Enabled enables Security Profiles collection for Cloud Workload Security. Default: true |
 | features.cws.syscallMonitorEnabled | SyscallMonitorEnabled enables Syscall Monitoring (recommended for troubleshooting only). Default: false |
 | features.dogstatsd.hostPortConfig.enabled | Enabled enables host port configuration Default: false |
 | features.dogstatsd.hostPortConfig.hostPort | Port takes a port number (0 < x < 65536) to expose on the host. (Most containers do not need this.) If HostNetwork is enabled, this value must match the ContainerPort. |

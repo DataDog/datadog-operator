@@ -258,7 +258,7 @@ type CWSNetworkConfig struct {
 }
 
 type CWSSecurityProfilesConfig struct {
-	// Enabled enables Cloud Workload Security Security Profiles collection.
+	// Enabled enables Security Profiles collection for Cloud Workload Security.
 	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
