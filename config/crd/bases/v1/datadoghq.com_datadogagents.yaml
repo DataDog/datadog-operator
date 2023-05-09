@@ -7956,7 +7956,7 @@ spec:
                         securityProfiles:
                           properties:
                             enabled:
-                              description: 'Enabled enables Cloud Workload Security Security Profiles collection. Default: true'
+                              description: 'Enabled enables Security Profiles collection for Cloud Workload Security. Default: true'
                               type: boolean
                           type: object
                         syscallMonitorEnabled:
