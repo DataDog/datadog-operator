@@ -16,7 +16,7 @@ Use the [Operator Lifecycle Manager][2] to deploy the Datadog Operator from Oper
 
 ![Datadog Operator in the OperatorHub](assets/operatorhub.png)
 
-3. Specify the namespace to install the Datadog Operator in, you can use `datadog` if you previously created the project or an existing one, e.g. `openshift-operators`:
+3. Specify the namespace to install the Datadog Operator in, you can use `datadog` if you previously created the project or an existing one, such as `openshift-operators`:
 
 ![Deploy the operator in the datadog namespace](assets/datadognamespace.png)
 
@@ -31,7 +31,7 @@ After deploying the Datadog Operator, create a `DatadogAgent` resource that trig
    ```
    Replace `<DATADOG_API_KEY>` and `<DATADOG_APP_KEY>` with your [Datadog API and application keys][3]
 
-**Note**: Starting with the version `1.0.3` of the Datadog Operator listing the Webhook Conversion is enabled by default. This will let you create DatadogAgent objects with the v1alpha1 or the new v2alpha1.
+**Note**: Starting with the version `1.0.3` of the Datadog Operator, listing the Webhook Conversion is enabled by default. This lets you create DatadogAgent objects with the v1alpha1 or the newer v2alpha1.
 
 2. Create a file with the spec of your `DatadogAgent` deployment configuration. 
 
