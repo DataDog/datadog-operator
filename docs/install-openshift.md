@@ -6,7 +6,7 @@ The Datadog Operator is [certified by RedHat's Marketplace][1].
 
 Use the [Operator Lifecycle Manager][2] to deploy the Datadog Operator from OperatorHub in your OpenShift Cluster web console.
 
-1. Create a `datadog` project in your OpenShift cluster:
+1. You can create a `datadog` project in your OpenShift cluster:
 
    ```shell
    oc new-project datadog
@@ -16,7 +16,7 @@ Use the [Operator Lifecycle Manager][2] to deploy the Datadog Operator from Oper
 
 ![Datadog Operator in the OperatorHub](assets/operatorhub.png)
 
-3. Select `datadog` as the **Installed Namespace**:
+3. Specify the namespace to install the Datadog Operator in, you can use `datadog` if you previously created the project or an existing one, such as `openshift-operators`:
 
 ![Deploy the operator in the datadog namespace](assets/datadognamespace.png)
 
@@ -31,41 +31,44 @@ After deploying the Datadog Operator, create a `DatadogAgent` resource that trig
    ```
    Replace `<DATADOG_API_KEY>` and `<DATADOG_APP_KEY>` with your [Datadog API and application keys][3]
 
+**Note**: Starting with the version `1.0.3` of the Datadog Operator, listing the Webhook Conversion is enabled by default. This lets you create DatadogAgent objects with the v1alpha1 or the newer v2alpha1.
+
 2. Create a file with the spec of your `DatadogAgent` deployment configuration. 
 
-The following contains the simplest configuration:
+The following contains the simplest configuration using the v2alpha1 object:
 
-   ```yaml
-   apiVersion: datadoghq.com/v1alpha1
-   kind: DatadogAgent
-   metadata:
-     name: datadog
-     namespace: datadog
-   spec:
-     credentials:
-       apiSecret:
-         secretName: datadog-secret
-         keyName: api-key
-       appSecret:
-         secretName: datadog-secret
-         keyName: app-key
-     agent:
-       rbac:
-         serviceAccountName: datadog-agent-scc
-       config:
-         securityContext:
-           runAsUser: 0
-           seLinuxOptions:
-             level: s0
-             role: system_r
-             type: spc_t
-             user: system_u
-         criSocket:
-           criSocketPath: /var/run/crio/crio.sock
-         env:
-         - name: DD_KUBELET_TLS_VERIFY
-           value: "false"
-   ```
+  ```yaml
+  apiVersion: datadoghq.com/v2alpha1
+  kind: DatadogAgent
+  metadata:
+    name: datadog
+    namespace: openshift-operators
+  spec:
+    global:
+      credentials:
+        apiSecret:
+          keyName: api-key
+          secretName: datadog-secret
+        appSecret:
+          keyName: app-key
+          secretName: datadog-secret
+      criSocketPath: /var/run/crio/crio.sock
+    override:
+      nodeAgent:
+        containers:
+          agent:
+            env:
+            - name: DD_KUBELET_TLS_VERIFY
+              value: "false"
+        securityContext:
+          runAsUser: 0
+          seLinuxOptions:
+            level: s0
+            role: system_r
+            type: spc_t
+            user: system_u
+        serviceAccountName: datadog-agent-scc
+  ```
 
 3. Deploy the Datadog Agent with the configuration file above:
    ```shell
