@@ -6,6 +6,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"net/http"
@@ -18,6 +19,7 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	klog "k8s.io/klog/v2"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -32,6 +34,7 @@ import (
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/controllers"
 	"github.com/DataDog/datadog-operator/pkg/config"
+	"github.com/DataDog/datadog-operator/pkg/config/remote/service"
 	"github.com/DataDog/datadog-operator/pkg/controller/debug"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 	"github.com/DataDog/datadog-operator/pkg/version"
@@ -82,7 +85,7 @@ func main() {
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", true,
 		"Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
-	flag.StringVar(&leaderElectionResourceLock, "leader-election-resource", "configmaps", "determines which resource lock to use for leader election. option:[configmapsleases|endpointsleases|configmaps]")
+	flag.StringVar(&leaderElectionResourceLock, "leader-election-resource", resourcelock.ConfigMapsLeasesResourceLock, "determines which resource lock to use for leader election. option:[configmapsleases|endpointsleases|configmaps]")
 	flag.DurationVar(&leaderElectionLeaseDuration, "leader-election-lease-duration", 60*time.Second, "Define LeaseDuration as well as RenewDeadline (leaseDuration / 2) and RetryPeriod (leaseDuration / 4)")
 
 	// Custom flags
@@ -127,6 +130,7 @@ func main() {
 	renewDeadline := leaderElectionLeaseDuration / 2
 	retryPeriod := leaderElectionLeaseDuration / 4
 
+	setupLog.Info("creating manager with LeaderElectionResourceLock", "lock", leaderElectionResourceLock)
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), config.ManagerOptionsWithNamespaces(setupLog, ctrl.Options{
 		Scheme:                     scheme,
 		MetricsBindAddress:         metricsAddr,
@@ -143,7 +147,7 @@ func main() {
 		setupLog.Error(err, "Unable to start manager")
 		os.Exit(1)
 	}
-
+	setupLog.Info("creating manager succeeded")
 	// Custom setup
 	customSetupHealthChecks(setupLog, mgr, maximumGoroutines)
 	customSetupEndpoints(pprofActive, mgr)
@@ -174,6 +178,21 @@ func main() {
 			setupLog.Error(err, "unable to create webhook", "webhook", "DatadogAgent")
 			os.Exit(1)
 		}
+	}
+
+	configService, errRC := service.NewService()
+	if errRC != nil {
+		setupLog.Error(errRC, "can't create remote config service")
+		os.Exit(1)
+	}
+	mainCtx, mainCtxCancel := context.WithCancel(context.Background())
+	defer mainCtxCancel()
+	configService.Start(mainCtx)
+
+	if state, errRC := configService.ConfigGetState(); err == nil {
+		setupLog.Info("configService.ConfigGetState()", "GetConfigState", state.GetConfigState(), "GetDirectorState", state.GetDirectorState())
+	} else {
+		setupLog.Error(errRC, "error in ConfigGetState")
 	}
 
 	// +kubebuilder:scaffold:builder
