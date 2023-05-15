@@ -150,9 +150,9 @@ func (sc *remoteStoreConfig) update(update *pbgo.LatestConfigsResponse) {
 		sc.metas[roleRoot][root.Version] = root.Raw
 	}
 	for _, delegatedMeta := range metas.DelegatedTargets {
-		role := role(delegatedMeta.Role)
-		sc.resetRole(role)
-		sc.metas[role][delegatedMeta.Version] = delegatedMeta.Raw
+		roleVal := role(delegatedMeta.Role)
+		sc.resetRole(roleVal)
+		sc.metas[roleVal][delegatedMeta.Version] = delegatedMeta.Raw
 	}
 	if metas.Timestamp != nil {
 		sc.resetRole(roleTimestamp)

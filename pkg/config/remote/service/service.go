@@ -311,13 +311,13 @@ func (s *Service) refresh() error {
 	s.lastUpdateErr = nil
 	if err != nil {
 		//s.backoffErrorCount = s.backoffPolicy.IncError(s.backoffErrorCount)
-		s.lastUpdateErr = fmt.Errorf("api: %v", err)
+		s.lastUpdateErr = fmt.Errorf("api: %w", err)
 		return err
 	}
 	err = s.uptane.Update(response)
 	if err != nil {
 		//s.backoffErrorCount = s.backoffPolicy.IncError(s.backoffErrorCount)
-		s.lastUpdateErr = fmt.Errorf("tuf: %v", err)
+		s.lastUpdateErr = fmt.Errorf("tuf: %w", err)
 		return err
 	}
 

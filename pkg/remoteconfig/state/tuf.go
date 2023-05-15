@@ -89,7 +89,7 @@ func (trc *tufRootsClient) validateTargets(rawTargets []byte) (*data.Targets, er
 	db := verify.NewDB()
 	for _, key := range root.Keys {
 		for _, id := range key.IDs() {
-			if err := db.AddKey(id, key); err != nil {
+			if err = db.AddKey(id, key); err != nil {
 				return nil, err
 			}
 		}
@@ -99,8 +99,8 @@ func (trc *tufRootsClient) validateTargets(rawTargets []byte) (*data.Targets, er
 		return nil, fmt.Errorf("root is missing a targets role")
 	}
 	role := &data.Role{Threshold: targetsRole.Threshold, KeyIDs: targetsRole.KeyIDs}
-	if err := db.AddRole("targets", role); err != nil {
-		return nil, fmt.Errorf("could not add targets role to db: %v", err)
+	if err = db.AddRole("targets", role); err != nil {
+		return nil, fmt.Errorf("could not add targets role to db: %w", err)
 	}
 	var targets data.Targets
 	err = db.Unmarshal(rawTargets, &targets, "targets", 0)

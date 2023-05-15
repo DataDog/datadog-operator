@@ -48,7 +48,7 @@ func parseConfig(product string, raw []byte, metadata Metadata) (interface{}, er
 // DebugConfig ...
 type DebugConfig struct {
 	//Config   ASMFeaturesData
-	Metadata Metadata
+	Metadata
 }
 
 func parseDebug(data []byte, metadata Metadata) (DebugConfig, error) {
@@ -81,10 +81,10 @@ func (r *Repository) DebugConfigs() map[string]DebugConfig {
 // along with its associated remote config metadata.
 //type APMSamplingConfig struct {
 //Config   []byte
-//Metadata Metadata
+//Metadata
 //}
 
-//func parseConfigAPMSampling(data []byte, metadata Metadata) (APMSamplingConfig, error) {
+//func parseConfigAPMSampling(data []byte, metadata) (APMSamplingConfig, error) {
 //// We actually don't parse the payload here, we delegate this responsibility to the trace agent
 //return APMSamplingConfig{
 //Config:   data,
@@ -115,10 +115,10 @@ func (r *Repository) DebugConfigs() map[string]DebugConfig {
 //// associated remote config metadata
 //type ConfigCWSDD struct {
 //Config   []byte
-//Metadata Metadata
+//Metadata
 //}
 
-//func parseConfigCWSDD(data []byte, metadata Metadata) (ConfigCWSDD, error) {
+//func parseConfigCWSDD(data []byte, metadata) (ConfigCWSDD, error) {
 //return ConfigCWSDD{
 //Config:   data,
 //Metadata: metadata,
@@ -148,10 +148,10 @@ func (r *Repository) DebugConfigs() map[string]DebugConfig {
 //// associated remote config metadata
 //type ConfigCWSCustom struct {
 //Config   []byte
-//Metadata Metadata
+//Metadata
 //}
 
-//func parseConfigCWSCustom(data []byte, metadata Metadata) (ConfigCWSCustom, error) {
+//func parseConfigCWSCustom(data []byte, metadata) (ConfigCWSCustom, error) {
 //return ConfigCWSCustom{
 //Config:   data,
 //Metadata: metadata,
@@ -181,10 +181,10 @@ func (r *Repository) DebugConfigs() map[string]DebugConfig {
 //// associated remote config metadata
 //type ConfigASM struct {
 //Config   []byte
-//Metadata Metadata
+//Metadata
 //}
 
-//func parseConfigASM(data []byte, metadata Metadata) (ConfigASMDD, error) {
+//func parseConfigASM(data []byte, metadata) (ConfigASMDD, error) {
 //return ConfigASMDD{
 //Config:   data,
 //Metadata: metadata,
@@ -214,10 +214,10 @@ func (r *Repository) DebugConfigs() map[string]DebugConfig {
 //// associated remote config metadata
 //type ConfigASMDD struct {
 //Config   []byte
-//Metadata Metadata
+//Metadata
 //}
 
-//func parseConfigASMDD(data []byte, metadata Metadata) (ConfigASMDD, error) {
+//func parseConfigASMDD(data []byte, metadata) (ConfigASMDD, error) {
 //return ConfigASMDD{
 //Config:   data,
 //Metadata: metadata,
@@ -247,7 +247,7 @@ func (r *Repository) DebugConfigs() map[string]DebugConfig {
 //// within a tracer, along with its associated remote config metadata.
 //type ASMFeaturesConfig struct {
 //Config   ASMFeaturesData
-//Metadata Metadata
+//Metadata
 //}
 
 //// ASMFeaturesData describes the enabled state of ASM features
@@ -257,7 +257,7 @@ func (r *Repository) DebugConfigs() map[string]DebugConfig {
 //} `json:"asm"`
 //}
 
-//func parseASMFeaturesConfig(data []byte, metadata Metadata) (ASMFeaturesConfig, error) {
+//func parseASMFeaturesConfig(data []byte, metadata) (ASMFeaturesConfig, error) {
 //var f ASMFeaturesData
 
 //err := json.Unmarshal(data, &f)
@@ -313,7 +313,7 @@ type ApplyStatus struct {
 //// by the ASM WAF for specific features (example: ip blocking).
 //type ASMDataConfig struct {
 //Config   ASMDataRulesData
-//Metadata Metadata
+//Metadata
 //}
 
 //// ASMDataRulesData is a serializable array of rules data entries
@@ -334,7 +334,7 @@ type ApplyStatus struct {
 //Value      string `json:"value"`
 //}
 
-//func parseConfigASMData(data []byte, metadata Metadata) (ASMDataConfig, error) {
+//func parseConfigASMData(data []byte, metadata) (ASMDataConfig, error) {
 //cfg := ASMDataConfig{
 //Metadata: metadata,
 //}
@@ -361,10 +361,10 @@ type ApplyStatus struct {
 
 //type APMTracingConfig struct {
 //Config   []byte
-//Metadata Metadata
+//Metadata
 //}
 
-//func parseConfigAPMTracing(data []byte, metadata Metadata) (APMTracingConfig, error) {
+//func parseConfigAPMTracing(data []byte, metadata) (APMTracingConfig, error) {
 //// Delegate the parsing responsibility to the cluster agent
 //return APMTracingConfig{
 //Config:   data,

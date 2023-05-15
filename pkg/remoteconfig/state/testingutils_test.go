@@ -6,15 +6,12 @@
 package state
 
 import (
-	"bytes"
 	"encoding/json"
-	"fmt"
 	"time"
 
 	"github.com/DataDog/go-tuf/data"
 	"github.com/DataDog/go-tuf/pkg/keys"
 	"github.com/DataDog/go-tuf/sign"
-	"github.com/DataDog/go-tuf/util"
 )
 
 var (
@@ -111,19 +108,19 @@ func newTestArtifacts() testArtifacts {
 	}
 }
 
-func signTargets(key keys.Signer, targets *data.Targets) []byte {
-	signed, err := sign.Marshal(targets, key)
-	if err != nil {
-		panic(err)
-	}
+// func signTargets(key keys.Signer, targets *data.Targets) []byte {
+// 	signed, err := sign.Marshal(targets, key)
+// 	if err != nil {
+// 		panic(err)
+// 	}
 
-	b, err := json.Marshal(signed)
-	if err != nil {
-		panic(err)
-	}
+// 	b, err := json.Marshal(signed)
+// 	if err != nil {
+// 		panic(err)
+// 	}
 
-	return b
-}
+// 	return b
+// }
 
 //func assertHashesEqual(t *testing.T, expectedHashes data.Hashes, hashes map[string][]byte) {
 //assert.Equal(t, len(expectedHashes), len(hashes))
@@ -135,43 +132,34 @@ func signTargets(key keys.Signer, targets *data.Targets) []byte {
 //}
 //}
 
-func generateFileMetaCustom(version int64) json.RawMessage {
-	v := struct {
-		Version int64 `json:"v"`
-	}{version}
+// func generateFileMetaCustom(version int64) json.RawMessage {
+// 	v := struct {
+// 		Version int64 `json:"v"`
+// 	}{version}
 
-	b, err := json.Marshal(&v)
-	if err != nil {
-		panic(err)
-	}
+// 	b, err := json.Marshal(&v)
+// 	if err != nil {
+// 		panic(err)
+// 	}
 
-	return json.RawMessage(b)
-}
+// 	return json.RawMessage(b)
+// }
 
-func generateRCTargetFileMeta(data []byte, version int64) data.TargetFileMeta {
-	tfm, err := util.GenerateTargetFileMeta(bytes.NewBuffer(data), []string{"sha256", "sha512"}...)
-	if err != nil {
-		panic(err)
-	}
-	custom := generateFileMetaCustom(version)
-	tfm.FileMeta.Custom = &custom
+// func generateRCTargetFileMeta(data []byte, version int64) data.TargetFileMeta {
+// 	tfm, err := util.GenerateTargetFileMeta(bytes.NewBuffer(data), []string{"sha256", "sha512"}...)
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// 	custom := generateFileMetaCustom(version)
+// 	tfm.FileMeta.Custom = &custom
 
-	return tfm
-}
+// 	return tfm
+// }
 
-func newCWSDDFile() []byte {
-	data := []byte("cwsddfile")
-	return data
-}
-
-func addCWSDDFile(id string, version int64, file []byte, targets *data.Targets) (string, data.Hashes, []byte) {
-	path := fmt.Sprintf("datadog/3/%s/%s/config", ProductCWSDD, id)
-	tfm := generateRCTargetFileMeta(file, version)
-
-	targets.Targets[path] = tfm
-
-	return path, tfm.Hashes, file
-}
+// func newCWSDDFile() []byte {
+// 	data := []byte("cwsddfile")
+// 	return data
+// }
 
 //func newAPMSamplingFile() []byte {
 //tps := float64(42)
@@ -206,12 +194,12 @@ func addCWSDDFile(id string, version int64, file []byte, targets *data.Targets) 
 //return path, tfm.Hashes
 //}
 
-func convertGoTufHashes(hashes data.Hashes) map[string][]byte {
-	converted := make(map[string][]byte)
+// func convertGoTufHashes(hashes data.Hashes) map[string][]byte {
+// 	converted := make(map[string][]byte)
 
-	for algo, hash := range hashes {
-		converted[algo] = hash
-	}
+// 	for algo, hash := range hashes {
+// 		converted[algo] = hash
+// 	}
 
-	return converted
-}
+// 	return converted
+// }

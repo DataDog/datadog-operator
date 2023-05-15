@@ -21,9 +21,9 @@ import (
 
 // Constraints on the maximum backoff time when errors occur
 const (
-	recoveryInterval = 2
+// recoveryInterval = 2
 
-	maxMessageSize = 1024 * 1024 * 110 // 110MB, current backend limit
+// maxMessageSize = 1024 * 1024 * 110 // 110MB, current backend limit
 )
 
 // ConfigUpdater defines the interface that an agent client uses to get config updates
@@ -41,7 +41,6 @@ type ConfigUpdateImpl struct {
 // ClientGetConfigs ...
 func (c *ConfigUpdateImpl) ClientGetConfigs(ctx context.Context, req *pbgo.ClientGetConfigsRequest) (*pbgo.ClientGetConfigsResponse, error) {
 	panic("TODO")
-	return nil, nil
 }
 
 // Client is a remote-configuration client to obtain configurations from the local API
@@ -184,13 +183,13 @@ func newClient(agentName string, updater ConfigUpdater, doTufVerification bool, 
 	//}
 	//}
 
-	ctx, close := context.WithCancel(context.Background())
+	ctx, closeLocal := context.WithCancel(context.Background())
 
 	return &Client{
 		ID:           generateID(),
 		startupSync:  sync.Once{},
 		ctx:          ctx,
-		close:        close,
+		close:        closeLocal,
 		agentName:    agentName,
 		agentVersion: agentVersion,
 		clusterName:  clusterName,
@@ -282,15 +281,15 @@ func (c *Client) update() error {
 	return nil
 }
 
-func containsProduct(products []string, product string) bool {
-	for _, p := range products {
-		if product == p {
-			return true
-		}
-	}
+// func containsProduct(products []string, product string) bool {
+// 	for _, p := range products {
+// 		if product == p {
+// 			return true
+// 		}
+// 	}
 
-	return false
-}
+// 	return false
+// }
 
 // RegisterDebug ...
 func (c *Client) RegisterDebug(fn func(update map[string]state.DebugConfig)) {

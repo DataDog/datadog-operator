@@ -112,15 +112,15 @@ func (c *Client) State() (State, error) {
 	}
 
 	for metaName, content := range metas {
-		version, err := metaVersion(content)
-		if err == nil {
+		version, err1 := metaVersion(content)
+		if err1 == nil {
 			s.ConfigState[metaName] = MetaState{Version: version, Hash: metaHash(content)}
 		}
 	}
 
-	directorMetas, err := c.directorLocalStore.GetMeta()
-	if err != nil {
-		return State{}, err
+	directorMetas, err2 := c.directorLocalStore.GetMeta()
+	if err2 != nil {
+		return State{}, err2
 	}
 
 	for metaName, content := range directorMetas {
@@ -130,9 +130,9 @@ func (c *Client) State() (State, error) {
 		}
 	}
 
-	targets, err := c.unsafeTargets()
-	if err != nil {
-		return State{}, err
+	targets, err3 := c.unsafeTargets()
+	if err3 != nil {
+		return State{}, err3
 	}
 	for targetName := range targets {
 		content, err := c.unsafeTargetFile(targetName)

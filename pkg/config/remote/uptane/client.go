@@ -271,7 +271,7 @@ func (c *Client) StoredOrgUUID() (string, error) {
 		}
 		err := c.orgStore.storeOrgUUID(rootVersion, orgUUID)
 		if err != nil {
-			return "", fmt.Errorf("could not store orgUUID in the org store: %v", err)
+			return "", fmt.Errorf("could not store orgUUID in the org store: %w", err)
 		}
 	}
 	return orgUUID, nil
@@ -280,19 +280,19 @@ func (c *Client) StoredOrgUUID() (string, error) {
 func (c *Client) verifyOrg() error {
 	rawCustom, err := c.configLocalStore.GetMetaCustom(metaSnapshot)
 	if err != nil {
-		return fmt.Errorf("could not obtain snapshot custom: %v", err)
+		return fmt.Errorf("could not obtain snapshot custom: %w", err)
 	}
 	custom, err := snapshotCustom(rawCustom)
 	if err != nil {
-		return fmt.Errorf("could not parse snapshot custom: %v", err)
+		return fmt.Errorf("could not parse snapshot custom: %w", err)
 	}
 	// Another safeguard here: if we ever get locked out of agents,
 	// we can remove the orgUUID from the snapshot and they'll work
 	// again. This being said, this is last resort.
 	if custom.OrgUUID != nil {
-		orgUUID, err := c.StoredOrgUUID()
-		if err != nil {
-			return fmt.Errorf("could not obtain stored/remote orgUUID: %v", err)
+		orgUUID, err1 := c.StoredOrgUUID()
+		if err1 != nil {
+			return fmt.Errorf("could not obtain stored/remote orgUUID: %w", err1)
 		}
 		if *custom.OrgUUID != orgUUID {
 			return fmt.Errorf("stored/remote OrgUUID and snapshot OrgUUID do not match: stored=%s received=%s", orgUUID, *custom.OrgUUID)
