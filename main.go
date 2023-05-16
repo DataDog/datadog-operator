@@ -7,6 +7,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"net/http"
@@ -78,6 +79,11 @@ func (ss *stringSlice) String() string {
 func (ss *stringSlice) Set(value string) error {
 	*ss = strings.Split(value, " ")
 	return nil
+}
+
+// LogConf ...
+type LogConf struct {
+	Enabled string `json:"logs_enabled"`
 }
 
 func main() {
@@ -183,7 +189,20 @@ func main() {
 		}
 	}
 
-	configService, errRC := service.NewService()
+	callback := func(data []byte) {
+		setupLog.Info("callback called")
+		var conf LogConf
+		err_ := json.Unmarshal(data, &conf)
+		if err_ != nil {
+			setupLog.Error(err_, "failed to fetch configurations from RC")
+			return
+		}
+		setupLog.Info(fmt.Sprintf("log conf %t", conf.Enabled == "true"))
+
+		// .. do stuff
+	}
+
+	configService, errRC := service.NewService(callback)
 	if errRC != nil {
 		setupLog.Error(errRC, "can't create remote config service")
 		os.Exit(1)

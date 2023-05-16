@@ -81,6 +81,8 @@ type Service struct {
 	cacheBypassClients cacheBypassClients
 
 	lastUpdateErr error
+
+	callbackFunc func([]byte)
 }
 
 // uptaneClient is used to mock the uptane component for testing
@@ -97,7 +99,7 @@ type uptaneClient interface {
 }
 
 // NewService instantiates a new remote configuration management service
-func NewService() (*Service, error) {
+func NewService(callbackFunc func([]byte)) (*Service, error) {
 	refreshIntervalOverrideAllowed := false // If a user provides a value we don't want to override
 
 	var refreshInterval time.Duration
@@ -207,7 +209,7 @@ func NewService() (*Service, error) {
 		defaultRefreshInterval:         refreshInterval,
 		refreshIntervalOverrideAllowed: refreshIntervalOverrideAllowed,
 		backoffErrorCount:              0,
-		//backoffPolicy:                  backoffPolicy,
+		//backoffPolicy:                backoffPolicy,
 		products:      make(map[rdata.Product]struct{}),
 		newProducts:   make(map[rdata.Product]struct{}),
 		hostname:      hname,
@@ -228,6 +230,7 @@ func NewService() (*Service, error) {
 			capacity:       clientsCacheBypassLimit,
 			allowance:      clientsCacheBypassLimit,
 		},
+		callbackFunc: callbackFunc,
 	}, nil
 }
 
@@ -314,11 +317,15 @@ func (s *Service) refresh() error {
 	rcLog.Info("Requesting configuration")
 	rcLog.Info(fmt.Sprintf("request %+v", request))
 	response, err := s.api.Fetch(ctx, request)
-	rcLog.Info(fmt.Sprintf("is response nil %t", response == nil))
-	rcLog.Info(fmt.Sprintf("is err nil %t", err == nil))
 	if response != nil {
+		rcLog.Info(fmt.Sprintf("response targets len %d", len(response.TargetFiles)))
 		rcLog.Info(fmt.Sprintf("response targets %v", response.TargetFiles))
+		if len(response.TargetFiles) > 0 {
+			s.callbackFunc(response.TargetFiles[0].Raw)
+			rcLog.Info("callback done")
+		}
 	}
+	rcLog.Info("Update local repo")
 
 	s.Lock()
 	defer s.Unlock()
