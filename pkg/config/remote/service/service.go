@@ -37,10 +37,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-//var (
-//rcLog = ctrl.Log.WithName("rcLog")
-//)
-
 const (
 	defaultRefreshInterval  = 1 * time.Minute
 	minimalRefreshInterval  = 5 * time.Second
@@ -316,7 +312,13 @@ func (s *Service) refresh() error {
 	ctx := context.Background()
 
 	rcLog.Info("Requesting configuration")
+	rcLog.Info(fmt.Sprintf("request %+v", request))
 	response, err := s.api.Fetch(ctx, request)
+	rcLog.Info(fmt.Sprintf("is response nil %t", response == nil))
+	rcLog.Info(fmt.Sprintf("is err nil %t", err == nil))
+	if response != nil {
+		rcLog.Info(fmt.Sprintf("response targets %v", response.TargetFiles))
+	}
 
 	s.Lock()
 	defer s.Unlock()

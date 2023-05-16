@@ -427,7 +427,7 @@ func (c *Client) newUpdateRequest() (*pbgo.ClientGetConfigsRequest, error) {
 			IsTracer: false,
 			ClientAgent: &pbgo.ClientAgent{
 				Name:         c.agentName,
-				Version:      "1.0.0", // c.agentVersion,
+				Version:      "9.9.9", // c.agentVersion,
 				ClusterName:  c.clusterName,
 				ClusterId:    c.clusterID,
 				CwsWorkloads: c.cwsWorkloads,

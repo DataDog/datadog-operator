@@ -176,7 +176,7 @@ func buildLatestConfigsRequest(hostname string, traceAgentEnv string, orgUUID st
 	}
 	return &pbgo.LatestConfigsRequest{
 		Hostname:                     hostname,
-		AgentVersion:                 version.Version,
+		AgentVersion:                 "9.9.9",
 		Products:                     data.ProductListToString(productsList),
 		NewProducts:                  data.ProductListToString(newProductsList),
 		CurrentConfigSnapshotVersion: state.ConfigSnapshot,
