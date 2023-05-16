@@ -14,6 +14,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/pkg/config/remote/data"
 	"github.com/DataDog/datadog-operator/pkg/config/remote/meta"
+	"github.com/DataDog/datadog-operator/pkg/config/remote/service"
 	"github.com/DataDog/datadog-operator/pkg/remoteconfig/state"
 
 	"github.com/DataDog/datadog-operator/pkg/pbgo"
@@ -35,12 +36,22 @@ type ConfigUpdater interface {
 // No grpc client needed, we create a struct to do the same
 
 // ConfigUpdateImpl ...
-type ConfigUpdateImpl struct {
+type ConfigUpdaterImpl struct {
+	service *service.Service
+}
+
+func NewConfigUpdater(service *service.Service) ConfigUpdater {
+	return &ConfigUpdaterImpl{
+		service: service,
+	}
 }
 
 // ClientGetConfigs ...
-func (c *ConfigUpdateImpl) ClientGetConfigs(ctx context.Context, req *pbgo.ClientGetConfigsRequest) (*pbgo.ClientGetConfigsResponse, error) {
-	panic("TODO")
+func (c *ConfigUpdaterImpl) ClientGetConfigs(
+	ctx context.Context,
+	req *pbgo.ClientGetConfigsRequest,
+) (*pbgo.ClientGetConfigsResponse, error) {
+	return c.service.ClientGetConfigs(ctx, req)
 }
 
 // Client is a remote-configuration client to obtain configurations from the local API
@@ -278,18 +289,26 @@ func (c *Client) update() error {
 		return nil
 	}
 
+	c.m.Lock()
+	defer c.m.Unlock()
+	if containsProduct(changedProducts, state.ProductDebug) {
+		for _, listener := range c.debugListeners {
+			listener(c.state.DebugConfigs())
+		}
+	}
+
 	return nil
 }
 
-// func containsProduct(products []string, product string) bool {
-// 	for _, p := range products {
-// 		if product == p {
-// 			return true
-// 		}
-// 	}
+func containsProduct(products []string, product string) bool {
+	for _, p := range products {
+		if product == p {
+			return true
+		}
+	}
 
-// 	return false
-// }
+	return false
+}
 
 // RegisterDebug ...
 func (c *Client) RegisterDebug(fn func(update map[string]state.DebugConfig)) {

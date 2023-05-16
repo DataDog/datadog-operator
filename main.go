@@ -34,8 +34,11 @@ import (
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/controllers"
 	"github.com/DataDog/datadog-operator/pkg/config"
+	"github.com/DataDog/datadog-operator/pkg/config/remote"
+	"github.com/DataDog/datadog-operator/pkg/config/remote/data"
 	"github.com/DataDog/datadog-operator/pkg/config/remote/service"
 	"github.com/DataDog/datadog-operator/pkg/controller/debug"
+	"github.com/DataDog/datadog-operator/pkg/remoteconfig/state"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 	"github.com/DataDog/datadog-operator/pkg/version"
 
@@ -188,6 +191,28 @@ func main() {
 	mainCtx, mainCtxCancel := context.WithCancel(context.Background())
 	defer mainCtxCancel()
 	configService.Start(mainCtx)
+
+	// fetch configurations directly from the RC service without any grpc
+	updater := remote.NewConfigUpdater(configService)
+
+	configClient, errRC := remote.NewClient(
+		"agentName",
+		updater,
+		version.Version,
+		[]data.Product{data.ProductDebug}, // the test product
+		time.Second*5,                     // fetch updates from the config server every 5 seconds
+	)
+	if err != nil {
+		setupLog.Error(errRC, "error setting up RC client")
+	}
+
+	// register function
+	configClient.RegisterDebug(func(update map[string]state.DebugConfig) {
+		for file, conf := range update {
+			setupLog.Info("file: %s - content: %+v", file, conf)
+		}
+	})
+	configClient.Start()
 
 	if state, errRC := configService.ConfigGetState(); err == nil {
 		setupLog.Info("configService.ConfigGetState()", "GetConfigState", state.GetConfigState(), "GetDirectorState", state.GetDirectorState())
