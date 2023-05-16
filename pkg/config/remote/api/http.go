@@ -71,7 +71,7 @@ func NewHTTPClient(auth Auth) (*HTTPClient, error) {
 		Transport: transport,
 	}
 	//baseRawURL := utils.GetMainEndpoint(config.Datadog, "https://config.", "remote_configuration.rc_dd_url")
-	baseRawURL := "https://config.datadoghq.com"
+	baseRawURL := "https://config.datad0g.com"
 	//baseURL, err := url.Parse(baseRawURL)
 	_, err := url.Parse(baseRawURL)
 	if err != nil {
