@@ -1,0 +1,51 @@
+{
+    "features": {
+        "admissionController": {
+            "enabled": false
+        },
+        "apm": {
+            "enabled": false
+        },
+        "clusterChecks": {
+            "enabled": false,
+            "useClusterChecksRunners": false
+        },
+        "cspm": {
+            "enabled": false
+        },
+        "cws": {
+            "enabled": false,
+            "syscallMonitorEnabled": false
+        },
+        "eventCollection": {
+            "collectKubernetesEvents": false
+        },
+        "kubeStateMetricsCore": {
+            "enabled": false
+        },
+        "liveContainerCollection": {
+            "enabled": false
+        },
+        "liveProcessCollection": {
+            "enabled": false
+        },
+        "logCollection": {
+            "containerCollectAll": false,
+            "enabled": false
+        },
+        "npm": {
+            "collectDNSStats": false,
+            "enableConntrack": false,
+            "enabled": false
+        },
+        "oomKill": {
+            "enabled": false
+        },
+        "orchestratorExplorer": {
+            "enabled": false
+        },
+        "tcpQueueLength": {
+            "enabled": false
+        }
+    }
+}

@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -39,6 +40,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/config/remote/data"
 	"github.com/DataDog/datadog-operator/pkg/config/remote/service"
 	"github.com/DataDog/datadog-operator/pkg/controller/debug"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/remoteconfig/state"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 	"github.com/DataDog/datadog-operator/pkg/version"
@@ -192,13 +194,36 @@ func main() {
 	callback := func(data []byte) {
 		setupLog.Info("callback called")
 		var conf LogConf
-		errRc  := json.Unmarshal(data, &conf)
+		errRc := json.Unmarshal(data, &conf)
 		if errRc != nil {
 			setupLog.Error(errRc, "failed to fetch configurations from RC")
 			return
 		}
 		setupLog.Info(fmt.Sprintf("log conf %t", conf.Enabled == "true"))
 
+		k8sClient := mgr.GetClient()
+
+		oldObject := &datadoghqv2alpha1.DatadogAgent{}
+
+		err = k8sClient.Get(context.TODO(), types.NamespacedName{
+			Namespace: "datadog-agent",
+			Name:      "datadog-agent",
+		}, oldObject)
+		if err == nil {
+			setupLog.Info("old DatadogAgent", "features", *oldObject.Spec.Features)
+		} else {
+			setupLog.Error(err, "Eerror when getting DDA")
+		}
+		newObject := oldObject.DeepCopy()
+		logCollectionEnabled := (conf.Enabled == "true")
+		setupLog.Info(fmt.Sprintf("log collection enabled %t", logCollectionEnabled))
+
+		newObject.Spec.Features.LogCollection.Enabled = &logCollectionEnabled
+		setupLog.Info("updating DatadogAgent", "features", *newObject.Spec.Features)
+		err = kubernetes.UpdateFromObject(context.TODO(), k8sClient, newObject, oldObject.ObjectMeta)
+		if err != nil {
+			setupLog.Error(err, "error when updating DDA")
+		}
 		// .. do stuff
 	}
 
