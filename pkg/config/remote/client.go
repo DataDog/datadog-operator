@@ -16,6 +16,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/config/remote/meta"
 	"github.com/DataDog/datadog-operator/pkg/config/remote/service"
 	"github.com/DataDog/datadog-operator/pkg/remoteconfig/state"
+	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/DataDog/datadog-operator/pkg/pbgo"
 )
@@ -25,6 +26,10 @@ const (
 // recoveryInterval = 2
 
 // maxMessageSize = 1024 * 1024 * 110 // 110MB, current backend limit
+)
+
+var (
+	rcLog = ctrl.Log.WithName("rcLog")
 )
 
 // ConfigUpdater defines the interface that an agent client uses to get config updates
@@ -245,10 +250,11 @@ func (c *Client) startFn() {
 func (c *Client) pollLoop() {
 	for {
 		//interval := c.backoffPolicy.GetBackoffDuration(c.backoffErrorCount)
+		rcLog.Info("client poll loop")
 		select {
 		case <-c.ctx.Done():
 			return
-		case <-time.After(c.pollInterval + time.Second*30):
+		case <-time.After(time.Second * 5):
 			c.lastUpdateError = c.update()
 			//if c.lastUpdateError != nil {
 			//c.backoffPolicy.IncError(c.backoffErrorCount)
@@ -421,7 +427,7 @@ func (c *Client) newUpdateRequest() (*pbgo.ClientGetConfigsRequest, error) {
 			IsTracer: false,
 			ClientAgent: &pbgo.ClientAgent{
 				Name:         c.agentName,
-				Version:      c.agentVersion,
+				Version:      "1.0.0", // c.agentVersion,
 				ClusterName:  c.clusterName,
 				ClusterId:    c.clusterID,
 				CwsWorkloads: c.cwsWorkloads,

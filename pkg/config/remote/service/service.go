@@ -34,7 +34,12 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/config/remote/meta"
 	"github.com/DataDog/datadog-operator/pkg/config/remote/uptane"
 	"github.com/DataDog/datadog-operator/pkg/pbgo"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
+
+//var (
+//rcLog = ctrl.Log.WithName("rcLog")
+//)
 
 const (
 	defaultRefreshInterval  = 1 * time.Minute
@@ -245,11 +250,14 @@ func (s *Service) Start(ctx context.Context) error {
 		defer cancel()
 
 		err := s.refresh()
+		rcLog := ctrl.Log.WithName("rcLog")
 		if err != nil {
+			rcLog.Error(err, "Could not refresh remote config")
 			//log.Errorf("Could not refresh Remote Config: %v", err)
 		}
 
 		for {
+			rcLog.Info("RC Service poll")
 			var err error
 			refreshInterval := s.calculateRefreshInterval()
 			select {
@@ -278,10 +286,11 @@ func (s *Service) Start(ctx context.Context) error {
 func (s *Service) calculateRefreshInterval() time.Duration {
 	//backoffTime := s.backoffPolicy.GetBackoffDuration(s.backoffErrorCount)
 
-	return s.defaultRefreshInterval + time.Second*5
+	return time.Second * 5
 }
 
 func (s *Service) refresh() error {
+	rcLog := ctrl.Log.WithName("rcLog")
 	s.Lock()
 	activeClients := s.clients.activeClients()
 	s.refreshProducts(activeClients)
@@ -305,7 +314,10 @@ func (s *Service) refresh() error {
 	request := buildLatestConfigsRequest(s.hostname, s.traceAgentEnv, orgUUID, previousState, activeClients, s.products, s.newProducts, s.lastUpdateErr, clientState)
 	s.Unlock()
 	ctx := context.Background()
+
+	rcLog.Info("Requesting configuration")
 	response, err := s.api.Fetch(ctx, request)
+
 	s.Lock()
 	defer s.Unlock()
 	s.lastUpdateErr = nil
