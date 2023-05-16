@@ -192,9 +192,9 @@ func main() {
 	callback := func(data []byte) {
 		setupLog.Info("callback called")
 		var conf LogConf
-		err_ := json.Unmarshal(data, &conf)
-		if err_ != nil {
-			setupLog.Error(err_, "failed to fetch configurations from RC")
+		errRc  := json.Unmarshal(data, &conf)
+		if errRc != nil {
+			setupLog.Error(errRc, "failed to fetch configurations from RC")
 			return
 		}
 		setupLog.Info(fmt.Sprintf("log conf %t", conf.Enabled == "true"))
