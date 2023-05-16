@@ -127,7 +127,9 @@ func main() {
 	renewDeadline := leaderElectionLeaseDuration / 2
 	retryPeriod := leaderElectionLeaseDuration / 4
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), config.ManagerOptionsWithNamespaces(setupLog, ctrl.Options{
+	restConfig := ctrl.GetConfigOrDie()
+	restConfig.UserAgent = "datadog-operator"
+	mgr, err := ctrl.NewManager(restConfig, config.ManagerOptionsWithNamespaces(setupLog, ctrl.Options{
 		Scheme:                     scheme,
 		MetricsBindAddress:         metricsAddr,
 		HealthProbeBindAddress:     ":8081",
