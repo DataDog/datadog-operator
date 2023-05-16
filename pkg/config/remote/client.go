@@ -9,6 +9,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
 	"sync"
 	"time"
 
@@ -297,7 +298,9 @@ func (c *Client) update() error {
 
 	c.m.Lock()
 	defer c.m.Unlock()
+	rcLog.Info(fmt.Sprintf("products %+v", changedProducts))
 	if containsProduct(changedProducts, state.ProductDebug) {
+		rcLog.Info(fmt.Sprintf("pushing to %d listeners", len(c.debugListeners)))
 		for _, listener := range c.debugListeners {
 			listener(c.state.DebugConfigs())
 		}
