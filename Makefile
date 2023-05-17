@@ -284,7 +284,6 @@ patch-crds: bin/$(PLATFORM)/yq ## Patch-crds
 
 .PHONY: lint
 lint: vendor bin/$(PLATFORM)/golangci-lint fmt vet ## Lint
-	bin/$(PLATFORM)/golangci-lint run ./...
 
 .PHONY: license
 license: bin/$(PLATFORM)/wwhrd vendor

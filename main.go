@@ -83,11 +83,6 @@ func (ss *stringSlice) Set(value string) error {
 	return nil
 }
 
-// LogConf ...
-type LogConf struct {
-	Enabled string `json:"logs_enabled"`
-}
-
 func main() {
 	var metricsAddr string
 	var enableLeaderElection bool
@@ -193,14 +188,13 @@ func main() {
 
 	callback := func(data []byte) {
 		setupLog.Info("callback called")
-		var conf LogConf
-		errRc := json.Unmarshal(data, &conf)
+		rcFeaures := datadoghqv2alpha1.DatadogFeatures{}
+		errRc := json.Unmarshal(data, &rcFeaures)
 		if errRc != nil {
 			setupLog.Error(errRc, "failed to fetch configurations from RC")
 			return
 		}
-		setupLog.Info(fmt.Sprintf("log conf %t", conf.Enabled == "true"))
-
+		setupLog.Info("remote config", "features", rcFeaures)
 		k8sClient := mgr.GetClient()
 
 		oldObject := &datadoghqv2alpha1.DatadogAgent{}
@@ -212,13 +206,10 @@ func main() {
 		if err == nil {
 			setupLog.Info("old DatadogAgent", "features", *oldObject.Spec.Features)
 		} else {
-			setupLog.Error(err, "Eerror when getting DDA")
+			setupLog.Error(err, "Error when getting DDA")
 		}
 		newObject := oldObject.DeepCopy()
-		logCollectionEnabled := (conf.Enabled == "true")
-		setupLog.Info(fmt.Sprintf("log collection enabled %t", logCollectionEnabled))
-
-		newObject.Spec.Features.LogCollection.Enabled = &logCollectionEnabled
+		newObject.Spec.Features = &rcFeaures
 		setupLog.Info("updating DatadogAgent", "features", *newObject.Spec.Features)
 		err = kubernetes.UpdateFromObject(context.TODO(), k8sClient, newObject, oldObject.ObjectMeta)
 		if err != nil {
