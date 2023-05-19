@@ -14,6 +14,7 @@ core,"github.com/DataDog/extendeddaemonset/api/v1alpha1",Apache-2.0
 core,"github.com/DataDog/extendeddaemonset/pkg/config",Apache-2.0
 core,"github.com/DataDog/extendeddaemonset/pkg/controller/metrics",Apache-2.0
 core,"github.com/DataDog/extendeddaemonset/pkg/controller/utils",Apache-2.0
+core,"github.com/DataDog/zstd",NewBSD
 core,"github.com/Masterminds/semver/v3",MIT
 core,"github.com/PuerkitoBio/purell",NewBSD
 core,"github.com/PuerkitoBio/urlesc",NewBSD
