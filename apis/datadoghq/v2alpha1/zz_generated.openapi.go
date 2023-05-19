@@ -38,6 +38,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./apis/datadoghq/v2alpha1.OTLPReceiverConfig":                schema__apis_datadoghq_v2alpha1_OTLPReceiverConfig(ref),
 		"./apis/datadoghq/v2alpha1.OrchestratorExplorerFeatureConfig": schema__apis_datadoghq_v2alpha1_OrchestratorExplorerFeatureConfig(ref),
 		"./apis/datadoghq/v2alpha1.PrometheusScrapeFeatureConfig":     schema__apis_datadoghq_v2alpha1_PrometheusScrapeFeatureConfig(ref),
+		"./apis/datadoghq/v2alpha1.SeccompConfig":                     schema__apis_datadoghq_v2alpha1_SeccompConfig(ref),
 		"./apis/datadoghq/v2alpha1.SecurityContextConstraintsConfig":  schema__apis_datadoghq_v2alpha1_SecurityContextConstraintsConfig(ref),
 		"./apis/datadoghq/v2alpha1.UnixDomainSocketConfig":            schema__apis_datadoghq_v2alpha1_UnixDomainSocketConfig(ref),
 	}
@@ -947,6 +948,34 @@ func schema__apis_datadoghq_v2alpha1_PrometheusScrapeFeatureConfig(ref common.Re
 				},
 			},
 		},
+	}
+}
+
+func schema__apis_datadoghq_v2alpha1_SeccompConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SeccompConfig is used to override default values for Seccomp Profile configurations.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"customRootPath": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CustomRootPath specifies a custom Seccomp Profile root location.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"customProfile": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CustomProfile specifies a ConfigMap containing a custom Seccomp Profile. ConfigMap data must either have the key `system-probe-seccomp.json` or CustomProfile.Items must include a corev1.KeytoPath that maps the key to the path `system-probe-seccomp.json`.",
+							Ref:         ref("./apis/datadoghq/v2alpha1.CustomConfig"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"./apis/datadoghq/v2alpha1.CustomConfig"},
 	}
 }
 
