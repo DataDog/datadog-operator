@@ -8,7 +8,6 @@ package agent
 import (
 	"fmt"
 	"strconv"
-	"time"
 
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 
@@ -40,19 +39,6 @@ func NewDefaultAgentExtendedDaemonset(dda metav1.Object, edsOptions *ExtendedDae
 	edsDaemonset := NewExtendedDaemonset(dda, edsOptions, apicommon.DefaultAgentResourceSuffix, component.GetAgentName(dda), component.GetAgentVersion(dda), nil)
 	edsDaemonset.Spec.Template = *NewDefaultAgentPodTemplateSpec(dda, requiredContainers, edsDaemonset.GetLabels())
 	return edsDaemonset
-}
-
-// ExtendedDaemonsetOptions defines ExtendedDaemonset options
-type ExtendedDaemonsetOptions struct {
-	Enabled bool
-
-	MaxPodUnavailable      string
-	MaxPodSchedulerFailure string
-
-	CanaryDuration              time.Duration
-	CanaryPodCount              string
-	CanaryAutoPauseRestartCount int32
-	CanaryAutoFailRestartCount  int32
 }
 
 // NewDefaultAgentPodTemplateSpec return a default node agent for the cluster-agent deployment

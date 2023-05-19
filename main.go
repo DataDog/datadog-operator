@@ -95,7 +95,7 @@ type options struct {
 	edsMaxPodUnavailable           string
 	edsMaxPodSchedulerFailure      string
 	edsCanaryDuration              time.Duration
-	edsCanaryPodCount              string
+	edsCanaryReplicas              string
 	edsCanaryAutoPauseRestartCount int
 	edsCanaryAutoFailRestartCount  int
 	supportCilium                  bool
@@ -146,12 +146,11 @@ func (opts *options) Parse() {
 	flag.StringVar(&opts.edsMaxPodUnavailable, "eds-max-pod-unavailable", "", "ExtendedDaemonset number of max unavailable pods during rolling-update")
 	flag.StringVar(&opts.edsMaxPodSchedulerFailure, "eds-max-pod-scheduler-failure", "", "ExtendedDaemonset number of max pod scheduler failure")
 	flag.DurationVar(&opts.edsCanaryDuration, "eds-canary-duration", 10*time.Minute, "ExtendedDaemonset canary duration")
-	flag.StringVar(&opts.edsCanaryPodCount, "eds-canary-pod-count", "", "ExtendedDaemonset number of canary pods")
+	flag.StringVar(&opts.edsCanaryReplicas, "eds-canary-pod-count", "", "ExtendedDaemonset number of canary pods")
 	flag.IntVar(&opts.edsCanaryAutoPauseRestartCount, "eds-canary-auto-pause-restart-count", 0, "ExtendedDaemonset canary auto pause restart count")
 	flag.IntVar(&opts.edsCanaryAutoFailRestartCount, "eds-canary-auto-fail-restart-count", 0, "ExtendedDaemonset canary auto fail restart count")
 
-	// trigger flag parsing
-	// in needs to be the last function call
+	// Parsing flags
 	flag.Parse()
 }
 
@@ -234,7 +233,7 @@ func run(opts *options) error {
 			Enabled:           opts.supportExtendedDaemonset,
 			MaxPodUnavailable: opts.edsMaxPodUnavailable,
 			CanaryDuration:    opts.edsCanaryDuration,
-			CanaryPodCount:    opts.edsCanaryPodCount,
+			CanaryReplicas:    opts.edsCanaryReplicas,
 		},
 		SupportCilium:          opts.supportCilium,
 		Creds:                  creds,

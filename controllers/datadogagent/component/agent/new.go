@@ -6,6 +6,8 @@
 package agent
 
 import (
+	"time"
+
 	appsv1 "k8s.io/api/apps/v1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -55,6 +57,19 @@ func NewExtendedDaemonset(owner metav1.Object, edsOptions *ExtendedDaemonsetOpti
 	return daemonset
 }
 
+// ExtendedDaemonsetOptions defines ExtendedDaemonset options
+type ExtendedDaemonsetOptions struct {
+	Enabled bool
+
+	MaxPodUnavailable      string
+	MaxPodSchedulerFailure string
+
+	CanaryDuration              time.Duration
+	CanaryReplicas              string
+	CanaryAutoPauseRestartCount int32
+	CanaryAutoFailRestartCount  int32
+}
+
 func defaultEDSSpec(options *ExtendedDaemonsetOptions) edsv1alpha1.ExtendedDaemonSetSpec {
 	spec := edsv1alpha1.ExtendedDaemonSetSpec{}
 	edsv1alpha1.DefaultExtendedDaemonSetSpec(&spec, edsv1alpha1.ExtendedDaemonSetSpecStrategyCanaryValidationModeAuto)
@@ -71,8 +86,8 @@ func defaultEDSSpec(options *ExtendedDaemonsetOptions) edsv1alpha1.ExtendedDaemo
 		spec.Strategy.Canary.Duration = &metav1.Duration{Duration: options.CanaryDuration}
 	}
 
-	if options.CanaryPodCount != "" {
-		spec.Strategy.Canary.Replicas = newIntOrStringPointer(options.CanaryPodCount)
+	if options.CanaryReplicas != "" {
+		spec.Strategy.Canary.Replicas = newIntOrStringPointer(options.CanaryReplicas)
 	}
 
 	if options.CanaryAutoFailRestartCount > 0 {

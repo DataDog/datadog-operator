@@ -48,7 +48,7 @@ type ExtendedDaemonsetOptions struct {
 	MaxPodSchedulerFailure string
 
 	CanaryDuration              time.Duration
-	CanaryPodCount              string
+	CanaryReplicas              string
 	CanaryAutoPauseRestartCount int
 	CanaryAutoFailRestartCount  int
 }
@@ -121,7 +121,7 @@ func startDatadogAgent(logger logr.Logger, mgr manager.Manager, vInfo *version.I
 				MaxPodUnavailable:           options.SupportExtendedDaemonset.MaxPodUnavailable,
 				MaxPodSchedulerFailure:      options.SupportExtendedDaemonset.MaxPodSchedulerFailure,
 				CanaryDuration:              options.SupportExtendedDaemonset.CanaryDuration,
-				CanaryPodCount:              options.SupportExtendedDaemonset.CanaryPodCount,
+				CanaryReplicas:              options.SupportExtendedDaemonset.CanaryReplicas,
 				CanaryAutoPauseRestartCount: int32(options.SupportExtendedDaemonset.CanaryAutoPauseRestartCount),
 				CanaryAutoFailRestartCount:  int32(options.SupportExtendedDaemonset.CanaryAutoPauseRestartCount),
 			},
