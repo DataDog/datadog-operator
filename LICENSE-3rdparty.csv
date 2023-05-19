@@ -1,8 +1,12 @@
 Component,Origin,License
 core,cloud.google.com/go/compute/metadata,Apache-2.0
+core,github.com/DataDog/datadog-agent/pkg/remoteconfig/state,Apache-2.0
 core,github.com/DataDog/datadog-api-client-go,Apache-2.0
+core,github.com/DataDog/datadog-go/v5/statsd,MIT
 core,github.com/DataDog/datadog-operator,Apache-2.0
 core,github.com/DataDog/extendeddaemonset,Apache-2.0
+core,github.com/DataDog/go-tuf,BSD-3-Clause
+core,github.com/DataDog/gostackparse,Apache-2.0
 core,github.com/DataDog/zstd,BSD-3-Clause
 core,github.com/Masterminds/semver/v3,MIT
 core,github.com/PuerkitoBio/purell,BSD-3-Clause
@@ -25,6 +29,7 @@ core,github.com/golang/groupcache/lru,Apache-2.0
 core,github.com/golang/protobuf,BSD-3-Clause
 core,github.com/google/go-cmp/cmp,BSD-3-Clause
 core,github.com/google/gofuzz,Apache-2.0
+core,github.com/google/pprof/profile,Apache-2.0
 core,github.com/google/uuid,BSD-3-Clause
 core,github.com/googleapis/gnostic,Apache-2.0
 core,github.com/imdario/mergo,BSD-3-Clause
@@ -42,6 +47,11 @@ core,github.com/prometheus/client_model/go,Apache-2.0
 core,github.com/prometheus/common,Apache-2.0
 core,github.com/prometheus/common/internal/bitbucket.org/ww/goautoneg,BSD-3-Clause
 core,github.com/prometheus/procfs,Apache-2.0
+core,github.com/richardartoul/molecule,MIT
+core,github.com/richardartoul/molecule/src/codec,Apache-2.0
+core,github.com/richardartoul/molecule/src/protowire,BSD-3-Clause
+core,github.com/secure-systems-lab/go-securesystemslib/cjson,MIT
+core,github.com/spaolacci/murmur3,BSD-3-Clause
 core,github.com/spf13/pflag,BSD-3-Clause
 core,github.com/stretchr/objx,MIT
 core,github.com/stretchr/testify,MIT
@@ -57,6 +67,7 @@ core,golang.org/x/text,BSD-3-Clause
 core,golang.org/x/time/rate,BSD-3-Clause
 core,gomodules.xyz/jsonpatch/v2,Apache-2.0
 core,google.golang.org/protobuf,BSD-3-Clause
+core,gopkg.in/DataDog/dd-trace-go.v1,Apache-2.0
 core,gopkg.in/inf.v0,BSD-3-Clause
 core,gopkg.in/yaml.v2,Apache-2.0
 core,gopkg.in/yaml.v3,MIT
