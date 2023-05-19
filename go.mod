@@ -3,7 +3,7 @@ module github.com/DataDog/datadog-operator
 go 1.19
 
 require (
-	github.com/DataDog/datadog-api-client-go v1.7.0
+	github.com/DataDog/datadog-api-client-go v1.16.0
 	github.com/DataDog/extendeddaemonset v0.9.0-rc.2
 	github.com/Masterminds/semver/v3 v3.1.1
 	github.com/go-logr/logr v1.2.0
@@ -44,6 +44,7 @@ require (
 	github.com/Azure/go-autorest/autorest/date v0.3.0 // indirect
 	github.com/Azure/go-autorest/logger v0.2.1 // indirect
 	github.com/Azure/go-autorest/tracing v0.6.0 // indirect
+	github.com/DataDog/zstd v1.5.0 // indirect
 	github.com/PuerkitoBio/purell v1.1.1 // indirect
 	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
 	github.com/andybalholm/brotli v1.0.0 // indirect
