@@ -76,6 +76,15 @@ func (ss *stringSlice) Set(value string) error {
 	return nil
 }
 
+const (
+	// ExtendedDaemonset default configuration values from https://github.com/DataDog/extendeddaemonset/blob/main/api/v1alpha1/extendeddaemonset_default.go
+	defaultCanaryAutoPauseEnabled = true
+	defaultCanaryAutoFailEnabled  = true
+	// default to 0, to use default value from EDS.
+	defaultCanaryAutoPauseMaxRestarts = 0
+	defaultCanaryAutoFailMaxRestarts  = 0
+)
+
 type options struct {
 	// Observability options
 	metricsAddr      string
@@ -96,7 +105,9 @@ type options struct {
 	edsMaxPodSchedulerFailure      string
 	edsCanaryDuration              time.Duration
 	edsCanaryReplicas              string
+	edsCanaryAutoPauseEnabled      bool
 	edsCanaryAutoPauseRestartCount int
+	edsCanaryAutoFailedEnabled     bool
 	edsCanaryAutoFailRestartCount  int
 	supportCilium                  bool
 	datadogAgentEnabled            bool
@@ -147,8 +158,10 @@ func (opts *options) Parse() {
 	flag.StringVar(&opts.edsMaxPodSchedulerFailure, "eds-max-pod-scheduler-failure", "", "ExtendedDaemonset number of max pod scheduler failure")
 	flag.DurationVar(&opts.edsCanaryDuration, "eds-canary-duration", 10*time.Minute, "ExtendedDaemonset canary duration")
 	flag.StringVar(&opts.edsCanaryReplicas, "eds-canary-pod-count", "", "ExtendedDaemonset number of canary pods")
-	flag.IntVar(&opts.edsCanaryAutoPauseRestartCount, "eds-canary-auto-pause-restart-count", 0, "ExtendedDaemonset canary auto pause restart count")
-	flag.IntVar(&opts.edsCanaryAutoFailRestartCount, "eds-canary-auto-fail-restart-count", 0, "ExtendedDaemonset canary auto fail restart count")
+	flag.BoolVar(&opts.edsCanaryAutoPauseEnabled, "eds-canary-auto-pause-enabled", defaultCanaryAutoPauseEnabled, "ExtendedDaemonset canary auto pause enabled")
+	flag.IntVar(&opts.edsCanaryAutoPauseRestartCount, "eds-canary-auto-pause-restart-count", defaultCanaryAutoPauseMaxRestarts, "ExtendedDaemonset canary auto pause restart count")
+	flag.BoolVar(&opts.edsCanaryAutoFailedEnabled, "eds-canary-auto-failed-enabled", defaultCanaryAutoFailEnabled, "ExtendedDaemonset canary auto failed enabled")
+	flag.IntVar(&opts.edsCanaryAutoFailRestartCount, "eds-canary-auto-fail-restart-count", defaultCanaryAutoFailMaxRestarts, "ExtendedDaemonset canary auto fail restart count")
 
 	// Parsing flags
 	flag.Parse()
@@ -230,10 +243,15 @@ func run(opts *options) error {
 
 	options := controllers.SetupOptions{
 		SupportExtendedDaemonset: controllers.ExtendedDaemonsetOptions{
-			Enabled:           opts.supportExtendedDaemonset,
-			MaxPodUnavailable: opts.edsMaxPodUnavailable,
-			CanaryDuration:    opts.edsCanaryDuration,
-			CanaryReplicas:    opts.edsCanaryReplicas,
+			Enabled:                     opts.supportExtendedDaemonset,
+			MaxPodUnavailable:           opts.edsMaxPodUnavailable,
+			CanaryDuration:              opts.edsCanaryDuration,
+			CanaryReplicas:              opts.edsCanaryReplicas,
+			CanaryAutoPauseEnabled:      opts.edsCanaryAutoPauseEnabled,
+			CanaryAutoPauseRestartCount: opts.edsCanaryAutoPauseRestartCount,
+			CanaryAutoFailEnabled:       opts.edsCanaryAutoFailedEnabled,
+			CanaryAutoFailRestartCount:  opts.edsCanaryAutoFailRestartCount,
+			MaxPodSchedulerFailure:      opts.edsMaxPodSchedulerFailure,
 		},
 		SupportCilium:          opts.supportCilium,
 		Creds:                  creds,
