@@ -1,6 +1,10 @@
 [run]
   deadline = "5m"
   tests = false
+  skip-dirs = [
+    ".cache",
+    "go/pkg/mod",
+  ]
 
 [linters-settings]
 
