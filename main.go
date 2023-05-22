@@ -126,7 +126,7 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.supportCilium, "supportCilium", false, "Support usage of Cilium network policies.")
 	flag.BoolVar(&opts.datadogAgentEnabled, "datadogAgentEnabled", true, "Enable the DatadogAgent controller")
 	flag.BoolVar(&opts.datadogMonitorEnabled, "datadogMonitorEnabled", false, "Enable the DatadogMonitor controller")
-	flag.BoolVar(&datadogMonitorRequiredTagsDisabled, "datadogMonitorRequiredTagsDisabled", false, "Disable required automatic tagging of Operator-managed monitors")
+	flag.BoolVar(&opts.datadogMonitorRequiredTagsDisabled, "datadogMonitorRequiredTagsDisabled", false, "Disable required automatic tagging of Operator-managed monitors")
 	flag.BoolVar(&opts.operatorMetricsEnabled, "operatorMetricsEnabled", true, "Enable sending operator metrics to Datadog")
 	flag.BoolVar(&opts.v2APIEnabled, "v2APIEnabled", true, "Enable the v2 api")
 	flag.BoolVar(&opts.webhookEnabled, "webhookEnabled", true, "Enable CRD conversion webhook.")
