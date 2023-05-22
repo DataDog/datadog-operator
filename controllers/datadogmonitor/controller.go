@@ -25,7 +25,8 @@ import (
 
 	datadogapiclientv1 "github.com/DataDog/datadog-api-client-go/api/v1/datadog"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
-	ctrUtils "github.com/DataDog/datadog-operator/pkg/controller/utils"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
@@ -55,12 +56,6 @@ var supportedMonitorTypes = map[string]bool{
 
 const requiredTag = "generated:kubernetes"
 
-// ReconcilerOptions provides options read from command line
-type ReconcilerOptions struct {
-	// Disable required automatic tagging of DatadogMonitor objects
-	RequiredTagsDisabled bool
-}
-
 // Reconciler reconciles a DatadogMonitor object
 type Reconciler struct {
 	client        client.Client
@@ -70,11 +65,10 @@ type Reconciler struct {
 	log           logr.Logger
 	scheme        *runtime.Scheme
 	recorder      record.EventRecorder
-	options       ReconcilerOptions
 }
 
 // NewReconciler returns a new Reconciler object
-func NewReconciler(client client.Client, ddClient datadogclient.DatadogClient, versionInfo *version.Info, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, options ReconcilerOptions) (*Reconciler, error) {
+func NewReconciler(client client.Client, ddClient datadogclient.DatadogClient, versionInfo *version.Info, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder) (*Reconciler, error) {
 	return &Reconciler{
 		client:        client,
 		datadogClient: ddClient.Client,
@@ -83,7 +77,6 @@ func NewReconciler(client client.Client, ddClient datadogclient.DatadogClient, v
 		scheme:        scheme,
 		log:           log,
 		recorder:      recorder,
-		options:       options,
 	}, nil
 }
 
@@ -115,7 +108,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 
 	newStatus := instance.Status.DeepCopy()
 
-	if result, err = r.handleFinalizer(logger, instance); ctrUtils.ShouldReturn(result, err) {
+	if result, err = r.handleFinalizer(logger, instance); ctrutils.ShouldReturn(result, err) {
 		return result, err
 	}
 
@@ -142,7 +135,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 		// If the monitor ID is 0, then it doesn't exist yet in Datadog. Create the monitor (only metric alerts)
 		if isSupportedMonitorType(instance.Spec.Type) {
 			// Make sure required tags are present
-			if !r.options.RequiredTagsDisabled {
+			if !apiutils.BoolValue(instance.Spec.ControllerOptions.DisableRequiredTags) {
 				if result, err = r.checkRequiredTags(logger, instance); err != nil || result.Requeue {
 					return r.updateStatusIfNeeded(logger, instance, now, newStatus, err, result)
 				}
@@ -162,7 +155,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 		// Check if instance needs to be updated
 		if instanceSpecHash != statusSpecHash {
 			// Make sure required tags are present
-			if !r.options.RequiredTagsDisabled {
+			if !apiutils.BoolValue(instance.Spec.ControllerOptions.DisableRequiredTags) {
 				if result, err = r.checkRequiredTags(logger, instance); err != nil || result.Requeue {
 					return r.updateStatusIfNeeded(logger, instance, now, newStatus, err, result)
 				}

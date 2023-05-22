@@ -13,7 +13,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/DataDog/datadog-operator/controllers/datadogagent"
-	"github.com/DataDog/datadog-operator/controllers/datadogmonitor"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
@@ -31,14 +30,13 @@ const (
 
 // SetupOptions defines options for setting up controllers to ease testing
 type SetupOptions struct {
-	SupportExtendedDaemonset           bool
-	SupportCilium                      bool
-	Creds                              config.Creds
-	DatadogAgentEnabled                bool
-	DatadogMonitorEnabled              bool
-	DatadogMonitorRequiredTagsDisabled bool
-	OperatorMetricsEnabled             bool
-	V2APIEnabled                       bool
+	SupportExtendedDaemonset bool
+	SupportCilium            bool
+	Creds                    config.Creds
+	DatadogAgentEnabled      bool
+	DatadogMonitorEnabled    bool
+	OperatorMetricsEnabled   bool
+	V2APIEnabled             bool
 }
 
 type starterFunc func(logr.Logger, manager.Manager, *version.Info, kubernetes.PlatformInfo, SetupOptions) error
@@ -131,8 +129,5 @@ func startDatadogMonitor(logger logr.Logger, mgr manager.Manager, vInfo *version
 		Log:         ctrl.Log.WithName("controllers").WithName(monitorControllerName),
 		Scheme:      mgr.GetScheme(),
 		Recorder:    mgr.GetEventRecorderFor(monitorControllerName),
-		Options: datadogmonitor.ReconcilerOptions{
-			RequiredTagsDisabled: options.DatadogMonitorRequiredTagsDisabled,
-		},
 	}).SetupWithManager(mgr)
 }

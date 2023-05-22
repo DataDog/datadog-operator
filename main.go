@@ -91,15 +91,14 @@ type options struct {
 	leaderElectionLeaseDuration time.Duration
 
 	// Controllers options
-	supportExtendedDaemonset           bool
-	supportCilium                      bool
-	datadogAgentEnabled                bool
-	datadogMonitorEnabled              bool
-	datadogMonitorRequiredTagsDisabled bool
-	operatorMetricsEnabled             bool
-	webhookEnabled                     bool
-	v2APIEnabled                       bool
-	maximumGoroutines                  int
+	supportExtendedDaemonset bool
+	supportCilium            bool
+	datadogAgentEnabled      bool
+	datadogMonitorEnabled    bool
+	operatorMetricsEnabled   bool
+	webhookEnabled           bool
+	v2APIEnabled             bool
+	maximumGoroutines        int
 
 	// Secret Backend options
 	secretBackendCommand string
@@ -126,7 +125,6 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.supportCilium, "supportCilium", false, "Support usage of Cilium network policies.")
 	flag.BoolVar(&opts.datadogAgentEnabled, "datadogAgentEnabled", true, "Enable the DatadogAgent controller")
 	flag.BoolVar(&opts.datadogMonitorEnabled, "datadogMonitorEnabled", false, "Enable the DatadogMonitor controller")
-	flag.BoolVar(&opts.datadogMonitorRequiredTagsDisabled, "datadogMonitorRequiredTagsDisabled", false, "Disable required automatic tagging of Operator-managed monitors")
 	flag.BoolVar(&opts.operatorMetricsEnabled, "operatorMetricsEnabled", true, "Enable sending operator metrics to Datadog")
 	flag.BoolVar(&opts.v2APIEnabled, "v2APIEnabled", true, "Enable the v2 api")
 	flag.BoolVar(&opts.webhookEnabled, "webhookEnabled", true, "Enable CRD conversion webhook.")
@@ -216,14 +214,13 @@ func run(opts *options) error {
 	}
 
 	options := controllers.SetupOptions{
-		SupportExtendedDaemonset:           opts.supportExtendedDaemonset,
-		SupportCilium:                      opts.supportCilium,
-		Creds:                              creds,
-		DatadogAgentEnabled:                opts.datadogAgentEnabled,
-		DatadogMonitorEnabled:              opts.datadogMonitorEnabled,
-		DatadogMonitorRequiredTagsDisabled: opts.datadogMonitorRequiredTagsDisabled,
-		OperatorMetricsEnabled:             opts.operatorMetricsEnabled,
-		V2APIEnabled:                       opts.v2APIEnabled,
+		SupportExtendedDaemonset: opts.supportExtendedDaemonset,
+		SupportCilium:            opts.supportCilium,
+		Creds:                    creds,
+		DatadogAgentEnabled:      opts.datadogAgentEnabled,
+		DatadogMonitorEnabled:    opts.datadogMonitorEnabled,
+		OperatorMetricsEnabled:   opts.operatorMetricsEnabled,
+		V2APIEnabled:             opts.v2APIEnabled,
 	}
 
 	if err = controllers.SetupControllers(setupLog, mgr, options); err != nil {

@@ -57,6 +57,15 @@ spec:
           spec:
             description: DatadogMonitorSpec defines the desired state of DatadogMonitor
             properties:
+              controllerOptions:
+                description: ControllerOptions are the optional parameters in the
+                  DatadogMonitor controller
+                properties:
+                  disableRequiredTags:
+                    description: DisableRequiredTags disables the automatic addition
+                      of required tags to monitors.
+                    type: boolean
+                type: object
               message:
                 description: Message is a message to include with notifications for
                   this monitor
