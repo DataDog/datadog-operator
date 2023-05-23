@@ -54,8 +54,8 @@ instances:
   - telemetry: true
     skip_leader_election: %s
     collectors:
-	- apiservices
-	- customresourcedefinitions
+    - apiservices
+    - customresourcedefinitions
     - pods
     - replicationcontrollers
     - statefulsets
