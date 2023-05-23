@@ -100,22 +100,22 @@ type options struct {
 	leaderElectionLeaseDuration time.Duration
 
 	// Controllers options
-	supportExtendedDaemonset     bool
-	edsMaxPodUnavailable         string
-	edsMaxPodSchedulerFailure    string
-	edsCanaryDuration            time.Duration
-	edsCanaryReplicas            string
-	edsCanaryAutoPauseEnabled    bool
-	edsCanaryAutoPauseMaxRestart int
-	edsCanaryAutoFailedEnabled   bool
-	edsCanaryAutoFailMaxRestarts int
-	supportCilium                bool
-	datadogAgentEnabled          bool
-	datadogMonitorEnabled        bool
-	operatorMetricsEnabled       bool
-	webhookEnabled               bool
-	v2APIEnabled                 bool
-	maximumGoroutines            int
+	supportExtendedDaemonset      bool
+	edsMaxPodUnavailable          string
+	edsMaxPodSchedulerFailure     string
+	edsCanaryDuration             time.Duration
+	edsCanaryReplicas             string
+	edsCanaryAutoPauseEnabled     bool
+	edsCanaryAutoPauseMaxRestarts int
+	edsCanaryAutoFailEnabled      bool
+	edsCanaryAutoFailMaxRestarts  int
+	supportCilium                 bool
+	datadogAgentEnabled           bool
+	datadogMonitorEnabled         bool
+	operatorMetricsEnabled        bool
+	webhookEnabled                bool
+	v2APIEnabled                  bool
+	maximumGoroutines             int
 
 	// Secret Backend options
 	secretBackendCommand string
@@ -154,14 +154,14 @@ func (opts *options) Parse() {
 
 	// ExtendedDaemonset configuration
 	flag.BoolVar(&opts.supportExtendedDaemonset, "supportExtendedDaemonset", false, "Support usage of Datadog ExtendedDaemonset CRD.")
-	flag.StringVar(&opts.edsMaxPodUnavailable, "eds-max-pod-unavailable", "", "ExtendedDaemonset number of max unavailable pods during rolling-update")
-	flag.StringVar(&opts.edsMaxPodSchedulerFailure, "eds-max-pod-scheduler-failure", "", "ExtendedDaemonset number of max pod scheduler failure")
-	flag.DurationVar(&opts.edsCanaryDuration, "eds-canary-duration", 10*time.Minute, "ExtendedDaemonset canary duration")
-	flag.StringVar(&opts.edsCanaryReplicas, "eds-canary-pod-count", "", "ExtendedDaemonset number of canary pods")
-	flag.BoolVar(&opts.edsCanaryAutoPauseEnabled, "eds-canary-auto-pause-enabled", defaultCanaryAutoPauseEnabled, "ExtendedDaemonset canary auto pause enabled")
-	flag.IntVar(&opts.edsCanaryAutoPauseMaxRestart, "eds-canary-auto-pause-max-restart-count", defaultCanaryAutoPauseMaxRestarts, "ExtendedDaemonset canary auto pause restart count")
-	flag.BoolVar(&opts.edsCanaryAutoFailedEnabled, "eds-canary-auto-failed-enabled", defaultCanaryAutoFailEnabled, "ExtendedDaemonset canary auto failed enabled")
-	flag.IntVar(&opts.edsCanaryAutoFailMaxRestarts, "eds-canary-auto-max-fail-restart-count", defaultCanaryAutoFailMaxRestarts, "ExtendedDaemonset canary auto fail restart count")
+	flag.StringVar(&opts.edsMaxPodUnavailable, "edsMaxPodUnavailable", "", "ExtendedDaemonset number of max unavailable pods during the rolling update")
+	flag.StringVar(&opts.edsMaxPodSchedulerFailure, "edsMaxPodSchedulerFailure", "", "ExtendedDaemonset number of max pod scheduler failures")
+	flag.DurationVar(&opts.edsCanaryDuration, "edsCanaryDuration", 10*time.Minute, "ExtendedDaemonset canary duration")
+	flag.StringVar(&opts.edsCanaryReplicas, "edsCanaryReplicas", "", "ExtendedDaemonset number of canary pods")
+	flag.BoolVar(&opts.edsCanaryAutoPauseEnabled, "edsCanaryAutoPauseEnabled", defaultCanaryAutoPauseEnabled, "ExtendedDaemonset canary auto pause enabled")
+	flag.IntVar(&opts.edsCanaryAutoPauseMaxRestarts, "edsCanaryAutoPauseMaxRestarts", defaultCanaryAutoPauseMaxRestarts, "ExtendedDaemonset canary auto pause max restart count")
+	flag.BoolVar(&opts.edsCanaryAutoFailEnabled, "edsCanaryAutoFailEnabled", defaultCanaryAutoFailEnabled, "ExtendedDaemonset canary auto fail enabled")
+	flag.IntVar(&opts.edsCanaryAutoFailMaxRestarts, "edsCanaryAutoFailMaxRestarts", defaultCanaryAutoFailMaxRestarts, "ExtendedDaemonset canary auto fail max restart count")
 
 	// Parsing flags
 	flag.Parse()
@@ -243,15 +243,15 @@ func run(opts *options) error {
 
 	options := controllers.SetupOptions{
 		SupportExtendedDaemonset: controllers.ExtendedDaemonsetOptions{
-			Enabled:                   opts.supportExtendedDaemonset,
-			MaxPodUnavailable:         opts.edsMaxPodUnavailable,
-			CanaryDuration:            opts.edsCanaryDuration,
-			CanaryReplicas:            opts.edsCanaryReplicas,
-			CanaryAutoPauseEnabled:    opts.edsCanaryAutoPauseEnabled,
-			CanaryAutoPauseMaxRestart: opts.edsCanaryAutoPauseMaxRestart,
-			CanaryAutoFailEnabled:     opts.edsCanaryAutoFailedEnabled,
-			CanaryAutoFailMaxRestarts: opts.edsCanaryAutoFailMaxRestarts,
-			MaxPodSchedulerFailure:    opts.edsMaxPodSchedulerFailure,
+			Enabled:                    opts.supportExtendedDaemonset,
+			MaxPodUnavailable:          opts.edsMaxPodUnavailable,
+			CanaryDuration:             opts.edsCanaryDuration,
+			CanaryReplicas:             opts.edsCanaryReplicas,
+			CanaryAutoPauseEnabled:     opts.edsCanaryAutoPauseEnabled,
+			CanaryAutoPauseMaxRestarts: opts.edsCanaryAutoPauseMaxRestarts,
+			CanaryAutoFailEnabled:      opts.edsCanaryAutoFailEnabled,
+			CanaryAutoFailMaxRestarts:  opts.edsCanaryAutoFailMaxRestarts,
+			MaxPodSchedulerFailure:     opts.edsMaxPodSchedulerFailure,
 		},
 		SupportCilium:          opts.supportCilium,
 		Creds:                  creds,
