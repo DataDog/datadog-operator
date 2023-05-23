@@ -46,15 +46,16 @@ func buildOrchestratorExplorerFeature(options *feature.Options) feature.Feature 
 }
 
 type orchestratorExplorerFeature struct {
-	runInClusterChecksRunner bool
-	scrubContainers          bool
-	extraTags                []string
-	ddURL                    string
-	rbacSuffix               string
-	serviceAccountName       string
-	owner                    metav1.Object
-	customConfig             *apicommonv1.CustomConfig
-	configConfigMapName      string
+	runInClusterChecksRunner  bool
+	scrubContainers           bool
+	extraTags                 []string
+	ddURL                     string
+	rbacSuffix                string
+	serviceAccountName        string
+	owner                     metav1.Object
+	customConfig              *apicommonv1.CustomConfig
+	customResourcesCollection []string
+	configConfigMapName       string
 
 	logger                      logr.Logger
 	customConfigAnnotationKey   string
@@ -89,6 +90,7 @@ func (f *orchestratorExplorerFeature) Configure(dda *v2alpha1.DatadogAgent) (req
 			f.customConfigAnnotationValue = hash
 			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.OrchestratorExplorerIDType)
 		}
+		f.customResourcesCollection = dda.Spec.Features.OrchestratorExplorer.CustomResourcesCollection
 		f.configConfigMapName = apicommonv1.GetConfName(dda, f.customConfig, apicommon.DefaultOrchestratorExplorerConf)
 		f.scrubContainers = apiutils.BoolValue(orchestratorExplorer.ScrubContainers)
 		f.extraTags = orchestratorExplorer.ExtraTags
@@ -172,7 +174,7 @@ func (f *orchestratorExplorerFeature) ManageDependencies(managers feature.Resour
 	// Manage RBAC permission
 	rbacName := GetOrchestratorExplorerRBACResourceName(f.owner, f.rbacSuffix)
 
-	return managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), rbacName, f.serviceAccountName, getRBACPolicyRules())
+	return managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), rbacName, f.serviceAccountName, getRBACPolicyRules(f.logger, f.customResourcesCollection))
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec

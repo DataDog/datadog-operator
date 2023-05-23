@@ -6,6 +6,7 @@
 package orchestratorexplorer
 
 import (
+	"github.com/stretchr/testify/require"
 	"reflect"
 	"testing"
 
@@ -27,6 +28,7 @@ instances:
       - nodes
       - services
 `
+	crs := []string{"datadoghq.com/v1alpha1/datadogmetrics", "datadoghq.com/v1alpha1/watermarkpodautoscalers"}
 	type fields struct {
 		enable                   bool
 		runInClusterChecksRunner bool
@@ -35,6 +37,7 @@ instances:
 		owner                    metav1.Object
 		customConfig             *apicommonv1.CustomConfig
 		configConfigMapName      string
+		crCollection             []string
 	}
 	tests := []struct {
 		name    string
@@ -50,7 +53,7 @@ instances:
 				runInClusterChecksRunner: false,
 				configConfigMapName:      apicommon.DefaultOrchestratorExplorerConf,
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), apicommon.DefaultOrchestratorExplorerConf, orchestratorExplorerCheckConfig(false)),
+			want: buildDefaultConfigMap(owner.GetNamespace(), apicommon.DefaultOrchestratorExplorerConf, orchestratorExplorerCheckConfig(false, []string{})),
 		},
 		{
 			name: "override",
@@ -64,17 +67,28 @@ instances:
 				},
 			},
 			want: buildDefaultConfigMap(owner.GetNamespace(), apicommon.DefaultOrchestratorExplorerConf, overrideConf),
+		}, {
+			name: "default config with crs",
+			fields: fields{
+				owner:                    owner,
+				enable:                   true,
+				runInClusterChecksRunner: false,
+				configConfigMapName:      apicommon.DefaultOrchestratorExplorerConf,
+				crCollection:             crs,
+			},
+			want: buildDefaultConfigMap(owner.GetNamespace(), apicommon.DefaultOrchestratorExplorerConf, orchestratorExplorerCheckConfig(false, crs)),
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			f := &orchestratorExplorerFeature{
-				runInClusterChecksRunner: tt.fields.runInClusterChecksRunner,
-				rbacSuffix:               tt.fields.rbacSuffix,
-				serviceAccountName:       tt.fields.serviceAccountName,
-				owner:                    tt.fields.owner,
-				customConfig:             tt.fields.customConfig,
-				configConfigMapName:      tt.fields.configConfigMapName,
+				runInClusterChecksRunner:  tt.fields.runInClusterChecksRunner,
+				rbacSuffix:                tt.fields.rbacSuffix,
+				serviceAccountName:        tt.fields.serviceAccountName,
+				owner:                     tt.fields.owner,
+				customConfig:              tt.fields.customConfig,
+				configConfigMapName:       tt.fields.configConfigMapName,
+				customResourcesCollection: tt.fields.crCollection,
 			}
 			got, err := f.buildOrchestratorExplorerConfigMap()
 			if (err != nil) != tt.wantErr {
@@ -86,4 +100,23 @@ instances:
 			}
 		})
 	}
+}
+
+func Test_orchestratorExplorerCheckConfig(t *testing.T) {
+	crs := []string{"datadoghq.com/v1alpha1/datadogmetrics", "datadoghq.com/v1alpha1/watermarkpodautoscalers"}
+
+	got := orchestratorExplorerCheckConfig(false, crs)
+	want := `---
+cluster_check: false
+ad_identifiers:
+  - _kube_orchestrator
+init_config:
+
+instances:
+  - skip_leader_election: false
+	crd_collectors:
+	  - datadoghq.com/v1alpha1/datadogmetrics
+	  - datadoghq.com/v1alpha1/watermarkpodautoscalers
+`
+	require.Equal(t, want, got)
 }

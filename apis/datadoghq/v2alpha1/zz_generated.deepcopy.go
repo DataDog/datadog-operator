@@ -1404,6 +1404,11 @@ func (in *OrchestratorExplorerFeatureConfig) DeepCopyInto(out *OrchestratorExplo
 		*out = new(bool)
 		**out = **in
 	}
+	if in.CustomResourcesCollection != nil {
+		in, out := &in.CustomResourcesCollection, &out.CustomResourcesCollection
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	if in.ExtraTags != nil {
 		in, out := &in.ExtraTags, &out.ExtraTags
 		*out = make([]string, len(*in))
