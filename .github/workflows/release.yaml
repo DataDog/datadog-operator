@@ -18,7 +18,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: gcc install
-        run: sudo apt install gcc-aarch64-linux-gnu
+        run: sudo apt-get update; sudo apt install gcc-aarch64-linux-gnu
       - name: Get tag
         uses: little-core-labs/get-git-tag@v3.0.2
         id: tag
