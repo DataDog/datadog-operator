@@ -16,6 +16,12 @@ import (
 func getRBACPolicyRules() []rbacv1.PolicyRule {
 	rbacRules := []rbacv1.PolicyRule{
 		{
+			APIGroups: []string{rbac.RegistrationAPIGroup},
+			Resources: []string{
+				rbac.APIServicesResource,
+			},
+		},
+		{
 			APIGroups: []string{rbac.CoreAPIGroup},
 			Resources: []string{
 				rbac.ConfigMapsResource,
@@ -39,6 +45,7 @@ func getRBACPolicyRules() []rbacv1.PolicyRule {
 				rbac.DaemonsetsResource,
 				rbac.DeploymentsResource,
 				rbac.ReplicasetsResource,
+				rbac.CustomResourceDefinitionsResource,
 			},
 		},
 		{
