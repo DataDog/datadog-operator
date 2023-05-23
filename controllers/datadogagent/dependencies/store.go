@@ -273,7 +273,7 @@ func (ds *Store) Cleanup(ctx context.Context, k8sClient client.Client, ddaNs, dd
 			continue
 		}
 
-		objsToDelete, err := listObjectToDelete(objList, ds.deps[kind], ddaNs, ddaName)
+		objsToDelete, err := ds.listObjectToDelete(objList, ds.deps[kind])
 		if err != nil {
 			errs = append(errs, err)
 			continue
@@ -341,7 +341,7 @@ func (ds *Store) DeleteAll(ctx context.Context, k8sClient client.Client) []error
 	return deleteObjects(ctx, k8sClient, objsToDelete)
 }
 
-func listObjectToDelete(objList client.ObjectList, cacheObjects map[string]client.Object, ddaNs, ddaName string) ([]client.Object, error) {
+func (ds *Store) listObjectToDelete(objList client.ObjectList, cacheObjects map[string]client.Object) ([]client.Object, error) {
 	items, err := apimeta.ExtractList(objList)
 	if err != nil {
 		return nil, err
@@ -358,8 +358,8 @@ func listObjectToDelete(objList client.ObjectList, cacheObjects map[string]clien
 			if partOfValue, found := labels[kubernetes.AppKubernetesPartOfLabelKey]; found {
 				partialDDA := &metav1.PartialObjectMetadata{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      ddaName,
-						Namespace: ddaNs,
+						Name:      ds.owner.GetName(),
+						Namespace: ds.owner.GetNamespace(),
 					},
 				}
 				if partOfValue == object.NewPartOfLabelValue(partialDDA).String() {
