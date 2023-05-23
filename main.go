@@ -100,22 +100,22 @@ type options struct {
 	leaderElectionLeaseDuration time.Duration
 
 	// Controllers options
-	supportExtendedDaemonset       bool
-	edsMaxPodUnavailable           string
-	edsMaxPodSchedulerFailure      string
-	edsCanaryDuration              time.Duration
-	edsCanaryReplicas              string
-	edsCanaryAutoPauseEnabled      bool
-	edsCanaryAutoPauseRestartCount int
-	edsCanaryAutoFailedEnabled     bool
-	edsCanaryAutoFailRestartCount  int
-	supportCilium                  bool
-	datadogAgentEnabled            bool
-	datadogMonitorEnabled          bool
-	operatorMetricsEnabled         bool
-	webhookEnabled                 bool
-	v2APIEnabled                   bool
-	maximumGoroutines              int
+	supportExtendedDaemonset     bool
+	edsMaxPodUnavailable         string
+	edsMaxPodSchedulerFailure    string
+	edsCanaryDuration            time.Duration
+	edsCanaryReplicas            string
+	edsCanaryAutoPauseEnabled    bool
+	edsCanaryAutoPauseMaxRestart int
+	edsCanaryAutoFailedEnabled   bool
+	edsCanaryAutoFailMaxRestarts int
+	supportCilium                bool
+	datadogAgentEnabled          bool
+	datadogMonitorEnabled        bool
+	operatorMetricsEnabled       bool
+	webhookEnabled               bool
+	v2APIEnabled                 bool
+	maximumGoroutines            int
 
 	// Secret Backend options
 	secretBackendCommand string
@@ -159,9 +159,9 @@ func (opts *options) Parse() {
 	flag.DurationVar(&opts.edsCanaryDuration, "eds-canary-duration", 10*time.Minute, "ExtendedDaemonset canary duration")
 	flag.StringVar(&opts.edsCanaryReplicas, "eds-canary-pod-count", "", "ExtendedDaemonset number of canary pods")
 	flag.BoolVar(&opts.edsCanaryAutoPauseEnabled, "eds-canary-auto-pause-enabled", defaultCanaryAutoPauseEnabled, "ExtendedDaemonset canary auto pause enabled")
-	flag.IntVar(&opts.edsCanaryAutoPauseRestartCount, "eds-canary-auto-pause-restart-count", defaultCanaryAutoPauseMaxRestarts, "ExtendedDaemonset canary auto pause restart count")
+	flag.IntVar(&opts.edsCanaryAutoPauseMaxRestart, "eds-canary-auto-pause-max-restart-count", defaultCanaryAutoPauseMaxRestarts, "ExtendedDaemonset canary auto pause restart count")
 	flag.BoolVar(&opts.edsCanaryAutoFailedEnabled, "eds-canary-auto-failed-enabled", defaultCanaryAutoFailEnabled, "ExtendedDaemonset canary auto failed enabled")
-	flag.IntVar(&opts.edsCanaryAutoFailRestartCount, "eds-canary-auto-fail-restart-count", defaultCanaryAutoFailMaxRestarts, "ExtendedDaemonset canary auto fail restart count")
+	flag.IntVar(&opts.edsCanaryAutoFailMaxRestarts, "eds-canary-auto-max-fail-restart-count", defaultCanaryAutoFailMaxRestarts, "ExtendedDaemonset canary auto fail restart count")
 
 	// Parsing flags
 	flag.Parse()
@@ -243,15 +243,15 @@ func run(opts *options) error {
 
 	options := controllers.SetupOptions{
 		SupportExtendedDaemonset: controllers.ExtendedDaemonsetOptions{
-			Enabled:                     opts.supportExtendedDaemonset,
-			MaxPodUnavailable:           opts.edsMaxPodUnavailable,
-			CanaryDuration:              opts.edsCanaryDuration,
-			CanaryReplicas:              opts.edsCanaryReplicas,
-			CanaryAutoPauseEnabled:      opts.edsCanaryAutoPauseEnabled,
-			CanaryAutoPauseRestartCount: opts.edsCanaryAutoPauseRestartCount,
-			CanaryAutoFailEnabled:       opts.edsCanaryAutoFailedEnabled,
-			CanaryAutoFailRestartCount:  opts.edsCanaryAutoFailRestartCount,
-			MaxPodSchedulerFailure:      opts.edsMaxPodSchedulerFailure,
+			Enabled:                   opts.supportExtendedDaemonset,
+			MaxPodUnavailable:         opts.edsMaxPodUnavailable,
+			CanaryDuration:            opts.edsCanaryDuration,
+			CanaryReplicas:            opts.edsCanaryReplicas,
+			CanaryAutoPauseEnabled:    opts.edsCanaryAutoPauseEnabled,
+			CanaryAutoPauseMaxRestart: opts.edsCanaryAutoPauseMaxRestart,
+			CanaryAutoFailEnabled:     opts.edsCanaryAutoFailedEnabled,
+			CanaryAutoFailMaxRestarts: opts.edsCanaryAutoFailMaxRestarts,
+			MaxPodSchedulerFailure:    opts.edsMaxPodSchedulerFailure,
 		},
 		SupportCilium:          opts.supportCilium,
 		Creds:                  creds,

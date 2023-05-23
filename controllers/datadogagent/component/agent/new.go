@@ -64,12 +64,12 @@ type ExtendedDaemonsetOptions struct {
 	MaxPodUnavailable      string
 	MaxPodSchedulerFailure string
 
-	CanaryDuration              time.Duration
-	CanaryReplicas              string
-	CanaryAutoPauseEnabled      bool
-	CanaryAutoPauseRestartCount int32
-	CanaryAutoFailEnabled       bool
-	CanaryAutoFailRestartCount  int32
+	CanaryDuration            time.Duration
+	CanaryReplicas            string
+	CanaryAutoPauseEnabled    bool
+	CanaryAutoPauseMaxRestart int32
+	CanaryAutoFailEnabled     bool
+	CanaryAutoFailMaxRestarts int32
 }
 
 func defaultEDSSpec(options *ExtendedDaemonsetOptions) edsv1alpha1.ExtendedDaemonSetSpec {
@@ -93,13 +93,13 @@ func defaultEDSSpec(options *ExtendedDaemonsetOptions) edsv1alpha1.ExtendedDaemo
 	}
 
 	spec.Strategy.Canary.AutoFail.Enabled = edsv1alpha1.NewBool(options.CanaryAutoFailEnabled)
-	if options.CanaryAutoFailRestartCount > 0 {
-		spec.Strategy.Canary.AutoFail.MaxRestarts = edsv1alpha1.NewInt32(options.CanaryAutoFailRestartCount)
+	if options.CanaryAutoFailMaxRestarts > 0 {
+		spec.Strategy.Canary.AutoFail.MaxRestarts = edsv1alpha1.NewInt32(options.CanaryAutoFailMaxRestarts)
 	}
 
 	spec.Strategy.Canary.AutoPause.Enabled = edsv1alpha1.NewBool(options.CanaryAutoPauseEnabled)
-	if options.CanaryAutoPauseRestartCount > 0 {
-		spec.Strategy.Canary.AutoPause.MaxRestarts = edsv1alpha1.NewInt32(options.CanaryAutoPauseRestartCount)
+	if options.CanaryAutoPauseMaxRestart > 0 {
+		spec.Strategy.Canary.AutoPause.MaxRestarts = edsv1alpha1.NewInt32(options.CanaryAutoPauseMaxRestart)
 	}
 	return spec
 }

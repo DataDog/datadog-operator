@@ -47,12 +47,12 @@ type ExtendedDaemonsetOptions struct {
 	MaxPodUnavailable      string
 	MaxPodSchedulerFailure string
 
-	CanaryDuration              time.Duration
-	CanaryReplicas              string
-	CanaryAutoPauseEnabled      bool
-	CanaryAutoPauseRestartCount int
-	CanaryAutoFailEnabled       bool
-	CanaryAutoFailRestartCount  int
+	CanaryDuration            time.Duration
+	CanaryReplicas            string
+	CanaryAutoPauseEnabled    bool
+	CanaryAutoPauseMaxRestart int
+	CanaryAutoFailEnabled     bool
+	CanaryAutoFailMaxRestarts int
 }
 
 type starterFunc func(logr.Logger, manager.Manager, *version.Info, kubernetes.PlatformInfo, SetupOptions) error
@@ -119,15 +119,15 @@ func startDatadogAgent(logger logr.Logger, mgr manager.Manager, vInfo *version.I
 		Recorder:     mgr.GetEventRecorderFor(agentControllerName),
 		Options: datadogagent.ReconcilerOptions{
 			ExtendedDaemonsetOptions: componentagent.ExtendedDaemonsetOptions{
-				Enabled:                     options.SupportExtendedDaemonset.Enabled,
-				MaxPodUnavailable:           options.SupportExtendedDaemonset.MaxPodUnavailable,
-				MaxPodSchedulerFailure:      options.SupportExtendedDaemonset.MaxPodSchedulerFailure,
-				CanaryDuration:              options.SupportExtendedDaemonset.CanaryDuration,
-				CanaryReplicas:              options.SupportExtendedDaemonset.CanaryReplicas,
-				CanaryAutoPauseEnabled:      options.SupportExtendedDaemonset.CanaryAutoPauseEnabled,
-				CanaryAutoPauseRestartCount: int32(options.SupportExtendedDaemonset.CanaryAutoPauseRestartCount),
-				CanaryAutoFailEnabled:       options.SupportExtendedDaemonset.CanaryAutoFailEnabled,
-				CanaryAutoFailRestartCount:  int32(options.SupportExtendedDaemonset.CanaryAutoPauseRestartCount),
+				Enabled:                   options.SupportExtendedDaemonset.Enabled,
+				MaxPodUnavailable:         options.SupportExtendedDaemonset.MaxPodUnavailable,
+				MaxPodSchedulerFailure:    options.SupportExtendedDaemonset.MaxPodSchedulerFailure,
+				CanaryDuration:            options.SupportExtendedDaemonset.CanaryDuration,
+				CanaryReplicas:            options.SupportExtendedDaemonset.CanaryReplicas,
+				CanaryAutoPauseEnabled:    options.SupportExtendedDaemonset.CanaryAutoPauseEnabled,
+				CanaryAutoPauseMaxRestart: int32(options.SupportExtendedDaemonset.CanaryAutoPauseMaxRestart),
+				CanaryAutoFailEnabled:     options.SupportExtendedDaemonset.CanaryAutoFailEnabled,
+				CanaryAutoFailMaxRestarts: int32(options.SupportExtendedDaemonset.CanaryAutoPauseMaxRestart),
 			},
 			SupportCilium:          options.SupportCilium,
 			OperatorMetricsEnabled: options.OperatorMetricsEnabled,
