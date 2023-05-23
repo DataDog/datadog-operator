@@ -28,6 +28,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
+	componentagent "github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 
@@ -61,7 +62,7 @@ const (
 
 // ReconcilerOptions provides options read from command line
 type ReconcilerOptions struct {
-	SupportExtendedDaemonset bool
+	ExtendedDaemonsetOptions componentagent.ExtendedDaemonsetOptions
 	SupportCilium            bool
 	OperatorMetricsEnabled   bool
 	V2Enabled                bool
@@ -157,7 +158,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, request reconcile.Re
 
 func reconcilerOptionsToFeatureOptions(opts *ReconcilerOptions, logger logr.Logger) *feature.Options {
 	return &feature.Options{
-		SupportExtendedDaemonset: opts.SupportExtendedDaemonset,
+		SupportExtendedDaemonset: opts.ExtendedDaemonsetOptions.Enabled,
 		Logger:                   logger,
 	}
 }
