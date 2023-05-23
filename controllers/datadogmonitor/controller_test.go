@@ -542,7 +542,7 @@ func Test_convertStateToStatus(t *testing.T) {
 				}
 
 				m.State = &datadogapiclientv1.MonitorState{
-					Groups: &msg,
+					Groups: msg,
 				}
 				m.OverallState = &okState
 
@@ -574,7 +574,7 @@ func Test_convertStateToStatus(t *testing.T) {
 				}
 
 				m.State = &datadogapiclientv1.MonitorState{
-					Groups: &msg,
+					Groups: msg,
 				}
 				m.OverallState = &alertState
 
@@ -612,7 +612,7 @@ func Test_convertStateToStatus(t *testing.T) {
 				}
 
 				m.State = &datadogapiclientv1.MonitorState{
-					Groups: &msg,
+					Groups: msg,
 				}
 				m.OverallState = &alertState
 
@@ -652,7 +652,7 @@ func Test_convertStateToStatus(t *testing.T) {
 				}
 
 				m.State = &datadogapiclientv1.MonitorState{
-					Groups: &msg,
+					Groups: msg,
 				}
 				m.OverallState = &noDataState
 
@@ -690,7 +690,7 @@ func Test_convertStateToStatus(t *testing.T) {
 				}
 
 				m.State = &datadogapiclientv1.MonitorState{
-					Groups: &msg,
+					Groups: msg,
 				}
 				m.OverallState = &alertState
 

@@ -5,7 +5,7 @@ SCRIPTS_DIR="$(dirname "$0")"
 # Provides $OS,$ARCH,$PLAFORM,$ROOT variables
 source "$SCRIPTS_DIR/os-env.sh"
 
-make license 2>&1
+make licenses
 
 DIFF=$(git --no-pager diff LICENSE-3rdparty.csv)
 if [[ "${DIFF}x" != "x" ]]
