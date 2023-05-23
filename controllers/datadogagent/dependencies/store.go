@@ -256,7 +256,7 @@ func (ds *Store) Apply(ctx context.Context, k8sClient client.Client) []error {
 }
 
 // Cleanup use to cleanup resources that are not needed anymore
-func (ds *Store) Cleanup(ctx context.Context, k8sClient client.Client, ddaNs, ddaName string) []error {
+func (ds *Store) Cleanup(ctx context.Context, k8sClient client.Client) []error {
 	ds.mutex.RLock()
 	defer ds.mutex.RUnlock()
 

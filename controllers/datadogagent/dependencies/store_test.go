@@ -495,8 +495,12 @@ func TestStore_Cleanup(t *testing.T) {
 			ds := &Store{
 				deps:   tt.fields.deps,
 				logger: logf.Log.WithName(t.Name()),
+				owner: &metav1.ObjectMeta{
+					Name:      tt.args.ddaName,
+					Namespace: tt.args.ddaNs,
+				},
 			}
-			got := ds.Cleanup(tt.args.ctx, tt.args.k8sClient, tt.args.ddaNs, tt.args.ddaName)
+			got := ds.Cleanup(tt.args.ctx, tt.args.k8sClient)
 			assert.EqualValues(t, tt.want, got, "Store.Cleanup() = %v, want %v", got, tt.want)
 		})
 	}

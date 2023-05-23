@@ -162,7 +162,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	// Cleanup unused dependencies
 	// -----------------------------
 	// Run it after the deployments reconcile
-	if errs = depsStore.Cleanup(ctx, r.client, instance.Namespace, instance.Name); len(errs) > 0 {
+	if errs = depsStore.Cleanup(ctx, r.client); len(errs) > 0 {
 		return result, errors.NewAggregate(errs)
 	}
 
