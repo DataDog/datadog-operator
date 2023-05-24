@@ -6,14 +6,19 @@
 package orchestratorexplorer
 
 import (
-	rbacv1 "k8s.io/api/rbac/v1"
+	"fmt"
+	"strings"
 
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/common"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
+
+	"github.com/go-logr/logr"
+	rbacv1 "k8s.io/api/rbac/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 )
 
 // getRBACRules generates the cluster role permissions required for the orchestrator explorer feature
-func getRBACPolicyRules() []rbacv1.PolicyRule {
+func getRBACPolicyRules(logger logr.Logger, crs []string) []rbacv1.PolicyRule {
 	rbacRules := []rbacv1.PolicyRule{
 		// To get the kube-system namespace UID and generate a cluster ID
 		{
@@ -87,11 +92,19 @@ func getRBACPolicyRules() []rbacv1.PolicyRule {
 		{
 			APIGroups: []string{rbac.AutoscalingK8sIoAPIGroup},
 			Resources: []string{rbac.VPAResource},
-			Verbs: []string{
-				rbac.ListVerb,
-				rbac.WatchVerb,
-			},
 		},
+		{
+			APIGroups: []string{apiextensionsv1.GroupName},
+			Resources: []string{common.CustomResourceDefinitionsName},
+		},
+	}
+
+	groupResources := mapAPIGroupsResources(logger, crs)
+	for group, resources := range groupResources {
+		rbacRules = append(rbacRules, rbacv1.PolicyRule{
+			APIGroups: []string{group},
+			Resources: append([]string{}, resources...),
+		})
 	}
 
 	defaultVerbs := []string{
@@ -107,4 +120,20 @@ func getRBACPolicyRules() []rbacv1.PolicyRule {
 	}
 
 	return rbacRules
+}
+
+func mapAPIGroupsResources(logger logr.Logger, customResources []string) map[string][]string {
+	groupResources := make(map[string][]string, len(customResources))
+	for _, cr := range customResources {
+		crSplit := strings.Split(cr, "/")
+		if len(crSplit) == 3 {
+			if _, ok := groupResources[crSplit[0]]; !ok {
+				groupResources[crSplit[0]] = make([]string, 0, len(customResources))
+			}
+			groupResources[crSplit[0]] = append(groupResources[crSplit[0]], crSplit[2])
+		} else {
+			logger.Error(fmt.Errorf("unable to create cluster role for %s, skipping", cr), "correct format should be group/version/kind")
+		}
+	}
+	return groupResources
 }

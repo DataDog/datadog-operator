@@ -101,6 +101,7 @@ spec:
 | features.orchestratorExplorer.conf.configData | ConfigData corresponds to the configuration file content. |
 | features.orchestratorExplorer.conf.configMap.items | Items maps a ConfigMap data `key` to a file `path` mount. |
 | features.orchestratorExplorer.conf.configMap.name | Name is the name of the ConfigMap. |
+| features.orchestratorExplorer.customResources | `CustomResources` defines custom resources for the orchestrator explorer to collect. Each item should follow the convention `group/version/kind`. For example, `datadoghq.com/v1alpha1/datadogmetrics`. |
 | features.orchestratorExplorer.ddUrl | Override the API endpoint for the Orchestrator Explorer. URL Default: "https://orchestrator.datadoghq.com". |
 | features.orchestratorExplorer.enabled | Enabled enables the Orchestrator Explorer. Default: true |
 | features.orchestratorExplorer.extraTags | Additional tags to associate with the collected data in the form of `a b c`. This is a Cluster Agent option distinct from DD_TAGS that is used in the Orchestrator Explorer. |

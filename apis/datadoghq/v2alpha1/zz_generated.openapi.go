@@ -853,6 +853,21 @@ func schema__apis_datadoghq_v2alpha1_OrchestratorExplorerFeatureConfig(ref commo
 							Format:      "",
 						},
 					},
+					"customResources": {
+						SchemaProps: spec.SchemaProps{
+							Description: "`CustomResources` defines custom resources for the orchestrator explorer to collect. Each item should follow the convention `group/version/kind`. For example, `datadoghq.com/v1alpha1/datadogmetrics`.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
 					"extraTags": {
 						VendorExtensible: spec.VendorExtensible{
 							Extensions: spec.Extensions{
