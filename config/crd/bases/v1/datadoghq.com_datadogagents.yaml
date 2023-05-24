@@ -8315,6 +8315,13 @@ spec:
                           description: 'Version specifies the version of the OpenMetrics check. Default: 2'
                           type: integer
                       type: object
+                    remoteConfiguration:
+                      description: Remote Configuration configuration.
+                      properties:
+                        enabled:
+                          description: 'Enable this option to activate Remote Configuration. Default: false'
+                          type: boolean
+                      type: object
                     tcpQueueLength:
                       description: TCPQueueLength configuration.
                       properties:

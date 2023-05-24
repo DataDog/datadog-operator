@@ -69,6 +69,8 @@ type DatadogFeatures struct {
 	Dogstatsd *DogstatsdFeatureConfig `json:"dogstatsd,omitempty"`
 	// OTLP ingest configuration
 	OTLP *OTLPFeatureConfig `json:"otlp,omitempty"`
+	// Remote Configuration configuration.
+	RemoteConfiguration *RemoteConfigurationFeatureConfig `json:"remoteConfiguration,omitempty"`
 
 	// Cluster-level features
 
@@ -260,6 +262,15 @@ type CWSNetworkConfig struct {
 type CWSSecurityProfilesConfig struct {
 	// Enabled enables Security Profiles collection for Cloud Workload Security.
 	// Default: true
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// RemoteConfigurationFeatureConfig contains RC (Remote Configuration) configuration.
+// RC runs in the Agent.
+type RemoteConfigurationFeatureConfig struct {
+	// Enable this option to activate Remote Configuration.
+	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 }
