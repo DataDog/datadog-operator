@@ -769,6 +769,7 @@ type LocalService struct {
 }
 
 // SeccompConfig is used to override default values for Seccomp Profile configurations.
+// +k8s:openapi-gen=true
 type SeccompConfig struct {
 	// CustomRootPath specifies a custom Seccomp Profile root location.
 	// +optional
@@ -978,6 +979,7 @@ type DatadogAgentGenericContainer struct {
 
 	// Seccomp configurations to override Operator actions. For all other Seccomp Profile manipulation,
 	// use SecurityContext.
+	// +optional
 	SeccompConfig *SeccompConfig `json:"seccompConfig,omitempty"`
 
 	// AppArmorProfileName specifies an apparmor profile.
