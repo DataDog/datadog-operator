@@ -82,13 +82,13 @@ instances:
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			f := &orchestratorExplorerFeature{
-				runInClusterChecksRunner:  tt.fields.runInClusterChecksRunner,
-				rbacSuffix:                tt.fields.rbacSuffix,
-				serviceAccountName:        tt.fields.serviceAccountName,
-				owner:                     tt.fields.owner,
-				customConfig:              tt.fields.customConfig,
-				configConfigMapName:       tt.fields.configConfigMapName,
-				customResourcesCollection: tt.fields.crCollection,
+				runInClusterChecksRunner: tt.fields.runInClusterChecksRunner,
+				rbacSuffix:               tt.fields.rbacSuffix,
+				serviceAccountName:       tt.fields.serviceAccountName,
+				owner:                    tt.fields.owner,
+				customConfig:             tt.fields.customConfig,
+				configConfigMapName:      tt.fields.configConfigMapName,
+				customResources:          tt.fields.crCollection,
 			}
 			got, err := f.buildOrchestratorExplorerConfigMap()
 			if (err != nil) != tt.wantErr {

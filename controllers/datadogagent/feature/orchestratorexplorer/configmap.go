@@ -22,7 +22,7 @@ func (f *orchestratorExplorerFeature) buildOrchestratorExplorerConfigMap() (*cor
 		return configmap.BuildConfigMapConfigData(f.owner.GetNamespace(), f.customConfig.ConfigData, f.configConfigMapName, orchestratorExplorerConfFileName)
 	}
 
-	configMap := buildDefaultConfigMap(f.owner.GetNamespace(), f.configConfigMapName, orchestratorExplorerCheckConfig(f.runInClusterChecksRunner, f.customResourcesCollection))
+	configMap := buildDefaultConfigMap(f.owner.GetNamespace(), f.configConfigMapName, orchestratorExplorerCheckConfig(f.runInClusterChecksRunner, f.customResources))
 	return configMap, nil
 }
 

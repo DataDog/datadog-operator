@@ -403,9 +403,9 @@ type OrchestratorExplorerFeatureConfig struct {
 	ScrubContainers *bool `json:"scrubContainers,omitempty"`
 
 	// +optional
-	// `CustomResourcesCollection` defines custom resources for the orchestrator explorer to collect.
+	// `CustomResources` defines custom resources for the orchestrator explorer to collect.
 	// Each item should follow the convention `group/version/kind`. For example, `datadoghq.com/v1alpha1/datadogmetrics`.
-	CustomResourcesCollection []string `json:"customResourcesCollection,omitempty"`
+	CustomResources []string `json:"customResources,omitempty"`
 
 	// Additional tags to associate with the collected data in the form of `a b c`.
 	// This is a Cluster Agent option distinct from DD_TAGS that is used in the Orchestrator Explorer.
