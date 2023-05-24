@@ -194,7 +194,7 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	builder.Watches(&source.Kind{Type: &rbacv1.ClusterRole{}}, handlerEnqueue)
 	builder.Watches(&source.Kind{Type: &rbacv1.ClusterRoleBinding{}}, handlerEnqueue)
 
-	if r.Options.SupportExtendedDaemonset {
+	if r.Options.ExtendedDaemonsetOptions.Enabled {
 		builder = builder.Owns(&edsdatadoghqv1alpha1.ExtendedDaemonSet{})
 	}
 

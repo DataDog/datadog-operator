@@ -56,7 +56,7 @@ func (r *Reconciler) reconcileAgent(logger logr.Logger, features []feature.Featu
 	}
 	// check if EDS or DS already exist
 	eds := &edsdatadoghqv1alpha1.ExtendedDaemonSet{}
-	if r.options.SupportExtendedDaemonset {
+	if r.options.ExtendedDaemonsetOptions.Enabled {
 		if err2 := r.client.Get(context.TODO(), nameNamespace, eds); err2 != nil {
 			if !errors.IsNotFound(err2) {
 				return result, err2
@@ -90,7 +90,7 @@ func (r *Reconciler) reconcileAgent(logger logr.Logger, features []feature.Featu
 		return result, err
 	}
 
-	if r.options.SupportExtendedDaemonset && apiutils.BoolValue(dda.Spec.Agent.UseExtendedDaemonset) {
+	if r.options.ExtendedDaemonsetOptions.Enabled && apiutils.BoolValue(dda.Spec.Agent.UseExtendedDaemonset) {
 		if ds != nil {
 			// TODO manage properly the migration from DS to EDS
 			err = r.deleteDaemonSet(logger, dda, ds)
@@ -108,7 +108,7 @@ func (r *Reconciler) reconcileAgent(logger logr.Logger, features []feature.Featu
 	}
 
 	// Case when Daemonset is requested
-	if eds != nil && r.options.SupportExtendedDaemonset {
+	if eds != nil && r.options.ExtendedDaemonsetOptions.Enabled {
 		// if EDS exist delete before creating or updating the Daemonset
 		err = r.deleteExtendedDaemonSet(logger, dda, eds)
 		if err != nil {

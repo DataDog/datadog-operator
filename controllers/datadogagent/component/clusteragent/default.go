@@ -244,6 +244,19 @@ func GetLeaderElectionPolicyRule(dda metav1.Object) []rbacv1.PolicyRule {
 			Resources: []string{rbac.ConfigMapsResource},
 			Verbs:     []string{rbac.CreateVerb},
 		},
+		{
+			APIGroups: []string{rbac.CoordinationAPIGroup},
+			Resources: []string{rbac.LeasesResource},
+			Verbs:     []string{rbac.CreateVerb},
+		},
+		{
+			APIGroups: []string{rbac.CoordinationAPIGroup},
+			Resources: []string{rbac.LeasesResource},
+			ResourceNames: []string{
+				utils.GetDatadogLeaderElectionResourceName(dda),
+			},
+			Verbs: []string{rbac.GetVerb, rbac.UpdateVerb},
+		},
 	}
 }
 
