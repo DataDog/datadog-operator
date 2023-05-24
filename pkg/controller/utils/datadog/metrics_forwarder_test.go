@@ -53,6 +53,11 @@ func (c *fakeMetricsForwarder) delegatedSendEvent(eventTitle string, eventType E
 	return nil
 }
 
+func (c *fakeMetricsForwarder) delegatedSendFeatureMetric(feature string) error {
+	c.Called(feature)
+	return nil
+}
+
 func (c *fakeMetricsForwarder) delegatedValidateCreds(apiKey, appKey string) (*api.Client, error) {
 	c.Called(apiKey, appKey)
 	if strings.Contains(apiKey, "invalid") || strings.Contains(appKey, "invalid") {
@@ -1473,4 +1478,59 @@ func createPlatformInfo() *kubernetes.PlatformInfo {
 		},
 	)
 	return &platformInfo
+}
+
+func TestMetricsForwarder_sendFeatureMetric(t *testing.T) {
+	fmf := &fakeMetricsForwarder{}
+	nsn := types.NamespacedName{
+		Namespace: "foo",
+		Name:      "bar",
+	}
+	mf := &metricsForwarder{
+		namespacedName:      nsn,
+		delegator:           fmf,
+		monitoredObjectKind: "DatadogAgent",
+	}
+	mf.initGlobalTags()
+
+	tests := []struct {
+		name     string
+		loadFunc func() (*metricsForwarder, *fakeMetricsForwarder)
+		feature  string
+		tags     []string
+		wantErr  bool
+		wantFunc func(*fakeMetricsForwarder) error
+	}{
+		{
+			name: "send feature metric",
+			loadFunc: func() (*metricsForwarder, *fakeMetricsForwarder) {
+				f := &fakeMetricsForwarder{}
+				f.On("delegatedSendFeatureMetric", "test_feature")
+				mf.delegator = f
+				return mf, f
+			},
+			feature: "test_feature",
+			wantErr: false,
+			wantFunc: func(f *fakeMetricsForwarder) error {
+				if !f.AssertCalled(t, "delegatedSendFeatureMetric", "test_feature") {
+					return errors.New("Function not called")
+				}
+				if !f.AssertNumberOfCalls(t, "delegatedSendFeatureMetric", 1) {
+					return errors.New("Wrong number of calls")
+				}
+				return nil
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dd, f := tt.loadFunc()
+			if err := dd.sendFeatureMetric(tt.feature); (err != nil) != tt.wantErr {
+				t.Errorf("metricsForwarder.sendFeatureMetric() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err := tt.wantFunc(f); err != nil {
+				t.Errorf("metricsForwarder.sendFeatureMetric() wantFunc validation error: %v", err)
+			}
+		})
+	}
 }

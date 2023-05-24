@@ -20,6 +20,10 @@ type DatadogMonitorSpec struct {
 	Priority int64 `json:"priority,omitempty"`
 	// Query is the Datadog monitor query
 	Query string `json:"query,omitempty"`
+	// RestrictedRoles is a list of unique role identifiers to define which roles are allowed to edit the monitor.
+	// `restricted_roles` is the successor of `locked`. For more information about `locked` and `restricted_roles`,
+	// see the [monitor options docs](https://docs.datadoghq.com/monitors/guide/monitor_api_options/#permissions-options).
+	RestrictedRoles []string `json:"restrictedRoles,omitempty"`
 	// Tags is the monitor tags associated with your monitor
 	Tags []string `json:"tags,omitempty"`
 	// Type is the monitor type
@@ -60,6 +64,8 @@ const (
 
 // DatadogMonitorOptions define the optional parameters of a monitor
 type DatadogMonitorOptions struct {
+	// A Boolean indicating whether to send a log sample when the log monitor triggers.
+	EnableLogsSample *bool `json:"enableLogsSample,omitempty"`
 	// A message to include with a re-notification.
 	EscalationMessage *string `json:"escalationMessage,omitempty"`
 	// Time (in seconds) to delay evaluation, as a non-negative integer. For example, if the value is set to 300 (5min),

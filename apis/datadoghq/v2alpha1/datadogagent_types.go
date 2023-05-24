@@ -242,11 +242,28 @@ type CWSFeatureConfig struct {
 	// +optional
 	SyscallMonitorEnabled *bool `json:"syscallMonitorEnabled,omitempty"`
 
+	Network          *CWSNetworkConfig          `json:"network,omitempty"`
+	SecurityProfiles *CWSSecurityProfilesConfig `json:"securityProfiles,omitempty"`
+
 	// CustomPolicies contains security policies.
 	// The content of the ConfigMap will be merged with the policies bundled with the agent.
 	// Any policies with the same name as those existing in the agent will take precedence.
 	// +optional
 	CustomPolicies *CustomConfig `json:"customPolicies,omitempty"`
+}
+
+type CWSNetworkConfig struct {
+	// Enabled enables Cloud Workload Security Network detections.
+	// Default: true
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+type CWSSecurityProfilesConfig struct {
+	// Enabled enables Security Profiles collection for Cloud Workload Security.
+	// Default: true
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // RemoteConfigurationFeatureConfig contains RC (Remote Configuration) configuration.

@@ -256,7 +256,7 @@ func (ds *Store) Apply(ctx context.Context, k8sClient client.Client) []error {
 }
 
 // Cleanup use to cleanup resources that are not needed anymore
-func (ds *Store) Cleanup(ctx context.Context, k8sClient client.Client, ddaNs, ddaName string) []error {
+func (ds *Store) Cleanup(ctx context.Context, k8sClient client.Client) []error {
 	ds.mutex.RLock()
 	defer ds.mutex.RUnlock()
 
@@ -273,7 +273,7 @@ func (ds *Store) Cleanup(ctx context.Context, k8sClient client.Client, ddaNs, dd
 			continue
 		}
 
-		objsToDelete, err := listObjectToDelete(objList, ds.deps[kind])
+		objsToDelete, err := ds.listObjectToDelete(objList, ds.deps[kind])
 		if err != nil {
 			errs = append(errs, err)
 			continue
@@ -341,7 +341,7 @@ func (ds *Store) DeleteAll(ctx context.Context, k8sClient client.Client) []error
 	return deleteObjects(ctx, k8sClient, objsToDelete)
 }
 
-func listObjectToDelete(objList client.ObjectList, cacheObjects map[string]client.Object) ([]client.Object, error) {
+func (ds *Store) listObjectToDelete(objList client.ObjectList, cacheObjects map[string]client.Object) ([]client.Object, error) {
 	items, err := apimeta.ExtractList(objList)
 	if err != nil {
 		return nil, err
@@ -353,14 +353,26 @@ func listObjectToDelete(objList client.ObjectList, cacheObjects map[string]clien
 
 		idObj := buildID(objMeta.GetNamespace(), objMeta.GetName())
 		if _, found := cacheObjects[idObj]; !found {
-			partialObj := &metav1.PartialObjectMetadata{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      objMeta.GetName(),
-					Namespace: objMeta.GetNamespace(),
-				},
+			labels := objMeta.GetLabels()
+			// only delete dependencies associated with the currently reconciled dda
+			if partOfValue, found := labels[kubernetes.AppKubernetesPartOfLabelKey]; found {
+				partialDDA := &metav1.PartialObjectMetadata{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      ds.owner.GetName(),
+						Namespace: ds.owner.GetNamespace(),
+					},
+				}
+				if partOfValue == object.NewPartOfLabelValue(partialDDA).String() {
+					partialObj := &metav1.PartialObjectMetadata{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      objMeta.GetName(),
+							Namespace: objMeta.GetNamespace(),
+						},
+					}
+					partialObj.TypeMeta.SetGroupVersionKind(objAPIServer.GetObjectKind().GroupVersionKind())
+					objsToDelete = append(objsToDelete, partialObj)
+				}
 			}
-			partialObj.TypeMeta.SetGroupVersionKind(objAPIServer.GetObjectKind().GroupVersionKind())
-			objsToDelete = append(objsToDelete, partialObj)
 		}
 	}
 	return objsToDelete, nil

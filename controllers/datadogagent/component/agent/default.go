@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"strconv"
 
+	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
+
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
@@ -16,7 +18,6 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
-	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 
 	securityv1 "github.com/openshift/api/security/v1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -26,7 +27,7 @@ import (
 
 // NewDefaultAgentDaemonset return a new default agent DaemonSet
 func NewDefaultAgentDaemonset(dda metav1.Object, requiredContainers []common.AgentContainerName) *appsv1.DaemonSet {
-	daemonset := component.NewDaemonset(dda, apicommon.DefaultAgentResourceSuffix, component.GetAgentName(dda), component.GetAgentVersion(dda), nil)
+	daemonset := NewDaemonset(dda, apicommon.DefaultAgentResourceSuffix, component.GetAgentName(dda), component.GetAgentVersion(dda), nil)
 	podTemplate := NewDefaultAgentPodTemplateSpec(dda, requiredContainers, daemonset.GetLabels())
 
 	daemonset.Spec.Template = *podTemplate
@@ -34,8 +35,8 @@ func NewDefaultAgentDaemonset(dda metav1.Object, requiredContainers []common.Age
 }
 
 // NewDefaultAgentExtendedDaemonset return a new default agent DaemonSet
-func NewDefaultAgentExtendedDaemonset(dda metav1.Object, requiredContainers []common.AgentContainerName) *edsv1alpha1.ExtendedDaemonSet {
-	edsDaemonset := component.NewExtendedDaemonset(dda, apicommon.DefaultAgentResourceSuffix, component.GetAgentName(dda), component.GetAgentVersion(dda), nil)
+func NewDefaultAgentExtendedDaemonset(dda metav1.Object, edsOptions *ExtendedDaemonsetOptions, requiredContainers []common.AgentContainerName) *edsv1alpha1.ExtendedDaemonSet {
+	edsDaemonset := NewExtendedDaemonset(dda, edsOptions, apicommon.DefaultAgentResourceSuffix, component.GetAgentName(dda), component.GetAgentVersion(dda), nil)
 	edsDaemonset.Spec.Template = *NewDefaultAgentPodTemplateSpec(dda, requiredContainers, edsDaemonset.GetLabels())
 	return edsDaemonset
 }
@@ -532,6 +533,10 @@ func DefaultSeccompConfigDataForSystemProbe() map[string]string {
 					"gettimeofday",
 					"getuid",
 					"getxattr",
+					"inotify_add_watch",
+					"inotify_init",
+					"inotify_init1",
+					"inotify_rm_watch",
 					"ioctl",
 					"ipc",
 					"listen",
@@ -539,6 +544,7 @@ func DefaultSeccompConfigDataForSystemProbe() map[string]string {
 					"lstat",
 					"lstat64",
 					"madvise",
+					"memfd_create",
 					"mkdir",
 					"mkdirat",
 					"mmap",
@@ -612,6 +618,7 @@ func DefaultSeccompConfigDataForSystemProbe() map[string]string {
 					"stat",
 					"stat64",
 					"statfs",
+					"statx",
 					"symlinkat",
 					"sysinfo",
 					"tgkill",

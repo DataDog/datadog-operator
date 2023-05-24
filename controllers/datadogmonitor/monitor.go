@@ -25,6 +25,7 @@ func buildMonitor(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) (*da
 	msg := dm.Spec.Message
 	priority := dm.Spec.Priority
 	query := dm.Spec.Query
+	restrictedRoles := dm.Spec.RestrictedRoles
 	options := dm.Spec.Options
 
 	var (
@@ -115,6 +116,10 @@ func buildMonitor(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) (*da
 		o.SetNewGroupDelay(*options.NewGroupDelay)
 	}
 
+	if options.EnableLogsSample != nil {
+		o.SetEnableLogsSample(*options.EnableLogsSample)
+	}
+
 	if options.NoDataTimeframe != nil {
 		o.SetNoDataTimeframe(*options.NoDataTimeframe)
 	}
@@ -154,6 +159,7 @@ func buildMonitor(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) (*da
 		u.SetMessage(msg)
 		u.SetPriority(priority)
 		u.SetQuery(query)
+		u.SetRestrictedRoles(restrictedRoles)
 		u.SetOptions(o)
 	}
 

@@ -183,7 +183,7 @@ docker-push-check-ci:
 ##@ Test
 
 .PHONY: test
-test: build manifests generate fmt vet verify-license gotest integration-tests integration-tests-v2 ## Run unit tests and E2E tests
+test: build manifests generate fmt vet verify-licenses gotest integration-tests integration-tests-v2 ## Run unit tests and E2E tests
 
 .PHONY: gotest
 gotest:
@@ -191,11 +191,11 @@ gotest:
 
 .PHONY: integration-tests
 integration-tests: $(ENVTEST) ## Run tests.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test --tags=integration github.com/DataDog/datadog-operator/controllers -coverprofile cover_integration_v1.out
+	KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test --tags=integration github.com/DataDog/datadog-operator/controllers -coverprofile cover_integration_v1.out
 
 .PHONY: integration-tests-v2
 integration-tests-v2: $(ENVTEST) ## Run tests with reconciler V2
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test --tags=integration_v2 github.com/DataDog/datadog-operator/controllers -coverprofile cover_integration_v2.out
+	KUBEBUILDER_ASSETS="$(ROOT)/bin/$(PLATFORM)/" go test --tags=integration_v2 github.com/DataDog/datadog-operator/controllers -coverprofile cover_integration_v2.out
 
 .PHONY: bundle
 bundle: bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq $(KUSTOMIZE) manifests ## Generate bundle manifests and metadata, then validate generated files.
@@ -262,7 +262,7 @@ catalog-push: ## Push a catalog image.
 
 ##@ Datadog Custom part
 .PHONY: install-tools
-install-tools: bin/$(PLATFORM)/golangci-lint bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq
+install-tools: bin/$(PLATFORM)/golangci-lint bin/$(PLATFORM)/operator-sdk bin/$(PLATFORM)/yq bin/$(PLATFORM)/kubebuilder bin/$(PLATFORM)/kubebuilder-tools bin/$(PLATFORM)/go-licenses bin/$(PLATFORM)/openapi-gen
 
 .PHONY: generate-openapi
 generate-openapi: bin/$(PLATFORM)/openapi-gen
@@ -283,24 +283,20 @@ patch-crds: bin/$(PLATFORM)/yq ## Patch-crds
 	hack/patch-crds.sh
 
 .PHONY: lint
-lint: vendor bin/$(PLATFORM)/golangci-lint fmt vet ## Lint
+lint: bin/$(PLATFORM)/golangci-lint fmt vet ## Lint
 	bin/$(PLATFORM)/golangci-lint run ./...
 
-.PHONY: license
-license: bin/$(PLATFORM)/wwhrd vendor
-	hack/license.sh
+.PHONY: licenses
+licenses: bin/$(PLATFORM)/go-licenses
+	./bin/$(PLATFORM)/go-licenses report . --template ./hack/licenses.tpl > LICENSE-3rdparty.csv 2> errors
 
-.PHONY: verify-license
-verify-license: bin/$(PLATFORM)/wwhrd vendor ## Verify licenses
-	hack/verify-license.sh
+.PHONY: verify-licenses
+verify-licenses: bin/$(PLATFORM)/go-licenses ## Verify licenses
+	hack/verify-licenses.sh
 
 .PHONY: tidy
 tidy: ## Run go tidy
 	go mod tidy -v
-
-.PHONY: vendor
-vendor: ## Run go vendor
-	go mod vendor
 
 kubectl-datadog: lint
 	go build -ldflags '${LDFLAGS}' -o bin/kubectl-datadog ./cmd/kubectl-datadog/main.go
@@ -308,11 +304,6 @@ kubectl-datadog: lint
 .PHONY: check-operator
 check-operator: fmt vet lint
 	go build -ldflags '${LDFLAGS}' -o bin/check-operator ./cmd/check-operator/main.go
-
-bin/$(PLATFORM)/openapi-gen: vendor/k8s.io/kube-openapi/cmd/openapi-gen/openapi-gen.go
-	go build -o bin/$(PLATFORM)/openapi-gen k8s.io/kube-openapi/cmd/openapi-gen
-
-vendor/k8s.io/kube-openapi/cmd/openapi-gen/openapi-gen.go: vendor
 
 bin/$(PLATFORM)/yq: Makefile
 	hack/install-yq.sh v4.31.2
@@ -323,14 +314,25 @@ bin/$(PLATFORM)/golangci-lint: Makefile
 bin/$(PLATFORM)/operator-sdk: Makefile
 	hack/install-operator-sdk.sh v1.23.0
 
-bin/$(PLATFORM)/wwhrd: Makefile
-	hack/install-wwhrd.sh 0.2.4
+bin/$(PLATFORM)/go-licenses:
+	mkdir -p $(ROOT)/bin/$(PLATFORM)
+	GOBIN=$(ROOT)/bin/$(PLATFORM) go install github.com/google/go-licenses@v1.5.0
 
 bin/$(PLATFORM)/operator-manifest-tools: Makefile
 	hack/install-operator-manifest-tools.sh 0.2.0
 
 bin/$(PLATFORM)/preflight: Makefile
 	hack/install-openshift-preflight.sh 1.2.1
+
+bin/$(PLATFORM)/openapi-gen:
+	mkdir -p $(ROOT)/bin/$(PLATFORM)
+	GOBIN=$(ROOT)/bin/$(PLATFORM) go install k8s.io/kube-openapi/cmd/openapi-gen
+
+bin/$(PLATFORM)/kubebuilder:
+	./hack/install-kubebuilder.sh 3.4.0 ./bin/$(PLATFORM)
+
+bin/$(PLATFORM)/kubebuilder-tools:
+	./hack/install-kubebuilder-tools.sh 1.24.1 ./bin/$(PLATFORM)
 
 .DEFAULT_GOAL := help
 .PHONY: help
