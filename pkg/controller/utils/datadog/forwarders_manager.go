@@ -11,6 +11,7 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 )
@@ -22,6 +23,7 @@ type MetricForwardersManager interface {
 	ProcessError(MonitoredObject, error)
 	ProcessEvent(MonitoredObject, Event)
 	MetricsForwarderStatusForObj(obj MonitoredObject) *ConditionCommon
+	SetEnabledFeatures(obj MonitoredObject, features []feature.Feature)
 }
 
 // ForwardersManager is a collection of metricsForwarder per DatadogAgent
@@ -63,7 +65,7 @@ func (f *ForwardersManager) Register(obj client.Object) {
 	defer f.Unlock()
 	id := getObjID(obj) // nolint: ifshort
 	if _, found := f.forwarders[id]; !found {
-		log.Info("New Datadog metrics forwarder registred", "ID", id)
+		log.Info("New Datadog metrics forwarder registered", "ID", id)
 		f.forwarders[id] = newMetricsForwarder(f.k8sClient, f.decryptor, obj, obj.GetObjectKind(), f.v2Enabled, f.platformInfo)
 		f.wg.Add(1)
 		go f.forwarders[id].start(&f.wg)
@@ -163,4 +165,24 @@ func (f *ForwardersManager) getForwarder(id string) (*metricsForwarder, error) {
 	}
 
 	return forwarder, nil
+}
+
+// SetEnabledFeatures updates the list of enabled features for a namespaced object
+func (f *ForwardersManager) SetEnabledFeatures(dda MonitoredObject, features []feature.Feature) {
+	id := getObjID(dda)
+	mf, err := f.getForwarder(id)
+	if err != nil {
+		log.Error(err, "cannot process error")
+	}
+
+	mf.Lock()
+	defer mf.Unlock()
+	var featureList []string
+	for _, feature := range features {
+		featureList = append(featureList, string(feature.ID()))
+	}
+	if len(mf.EnabledFeatures) == 0 {
+		mf.EnabledFeatures = make(map[string][]string)
+	}
+	mf.EnabledFeatures[id] = featureList
 }

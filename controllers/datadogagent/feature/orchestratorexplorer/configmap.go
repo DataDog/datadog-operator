@@ -22,7 +22,7 @@ func (f *orchestratorExplorerFeature) buildOrchestratorExplorerConfigMap() (*cor
 		return configmap.BuildConfigMapConfigData(f.owner.GetNamespace(), f.customConfig.ConfigData, f.configConfigMapName, orchestratorExplorerConfFileName)
 	}
 
-	configMap := buildDefaultConfigMap(f.owner.GetNamespace(), f.configConfigMapName, orchestratorExplorerCheckConfig(f.runInClusterChecksRunner))
+	configMap := buildDefaultConfigMap(f.owner.GetNamespace(), f.configConfigMapName, orchestratorExplorerCheckConfig(f.runInClusterChecksRunner, f.customResources))
 	return configMap, nil
 }
 
@@ -39,14 +39,25 @@ func buildDefaultConfigMap(namespace, cmName string, content string) *corev1.Con
 	return configMap
 }
 
-func orchestratorExplorerCheckConfig(clusterCheckRunners bool) string {
+func orchestratorExplorerCheckConfig(clusterCheckRunners bool, crs []string) string {
 	stringClusterCheckRunners := strconv.FormatBool(clusterCheckRunners)
-	return fmt.Sprintf(`---
+	config := fmt.Sprintf(`---
 cluster_check: %s
 ad_identifiers:
   - _kube_orchestrator
 init_config:
+
 instances:
   - skip_leader_election: %s
 `, stringClusterCheckRunners, stringClusterCheckRunners)
+
+	if len(crs) > 0 {
+		config = config + "\tcrd_collectors:\n"
+		for _, cr := range crs {
+			config = config + fmt.Sprintf("\t  - %s\n", cr)
+
+		}
+	}
+
+	return config
 }

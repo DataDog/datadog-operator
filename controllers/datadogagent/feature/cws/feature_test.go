@@ -64,10 +64,10 @@ func Test_cwsFeature_Configure(t *testing.T) {
 			},
 		},
 	}
-	ddav2CWSEnabled := ddav2CWSDisabled.DeepCopy()
+	ddav2CWSLiteEnabled := ddav2CWSDisabled.DeepCopy()
 	{
-		ddav2CWSEnabled.Spec.Features.CWS.Enabled = apiutils.NewBoolPointer(true)
-		ddav2CWSEnabled.Spec.Features.CWS.CustomPolicies = &v2alpha1.CustomConfig{
+		ddav2CWSLiteEnabled.Spec.Features.CWS.Enabled = apiutils.NewBoolPointer(true)
+		ddav2CWSLiteEnabled.Spec.Features.CWS.CustomPolicies = &v2alpha1.CustomConfig{
 			ConfigMap: &apicommonv1.ConfigMapConfig{
 				Name: "custom_test",
 				Items: []corev1.KeyToPath{
@@ -78,7 +78,29 @@ func Test_cwsFeature_Configure(t *testing.T) {
 				},
 			},
 		}
-		ddav2CWSEnabled.Spec.Features.CWS.SyscallMonitorEnabled = apiutils.NewBoolPointer(true)
+		ddav2CWSLiteEnabled.Spec.Features.CWS.SyscallMonitorEnabled = apiutils.NewBoolPointer(true)
+	}
+	ddav2CWSFullEnabled := ddav2CWSDisabled.DeepCopy()
+	{
+		ddav2CWSFullEnabled.Spec.Features.CWS.Enabled = apiutils.NewBoolPointer(true)
+		ddav2CWSFullEnabled.Spec.Features.CWS.Network = &v2alpha1.CWSNetworkConfig{
+			Enabled: apiutils.NewBoolPointer(true),
+		}
+		ddav2CWSFullEnabled.Spec.Features.CWS.SecurityProfiles = &v2alpha1.CWSSecurityProfilesConfig{
+			Enabled: apiutils.NewBoolPointer(true),
+		}
+		ddav2CWSFullEnabled.Spec.Features.CWS.CustomPolicies = &v2alpha1.CustomConfig{
+			ConfigMap: &apicommonv1.ConfigMapConfig{
+				Name: "custom_test",
+				Items: []corev1.KeyToPath{
+					{
+						Key:  "key1",
+						Path: "some/path",
+					},
+				},
+			},
+		}
+		ddav2CWSFullEnabled.Spec.Features.CWS.SyscallMonitorEnabled = apiutils.NewBoolPointer(true)
 	}
 
 	tests := test.FeatureTestSuite{
@@ -94,7 +116,7 @@ func Test_cwsFeature_Configure(t *testing.T) {
 			Name:          "v1alpha1 CWS enabled",
 			DDAv1:         ddav1CWSEnabled,
 			WantConfigure: true,
-			Agent:         cwsAgentNodeWantFunc(false),
+			Agent:         cwsAgentNodeWantFunc(false, false),
 		},
 		//////////////////////////
 		// v2Alpha1.DatadogAgent
@@ -106,16 +128,22 @@ func Test_cwsFeature_Configure(t *testing.T) {
 		},
 		{
 			Name:          "v2alpha1 CWS enabled",
-			DDAv2:         ddav2CWSEnabled,
+			DDAv2:         ddav2CWSLiteEnabled,
 			WantConfigure: true,
-			Agent:         cwsAgentNodeWantFunc(true),
+			Agent:         cwsAgentNodeWantFunc(true, false),
+		},
+		{
+			Name:          "v2alpha1 CWS enabled (with network and security profiles)",
+			DDAv2:         ddav2CWSFullEnabled,
+			WantConfigure: true,
+			Agent:         cwsAgentNodeWantFunc(true, true),
 		},
 	}
 
 	tests.Run(t, buildCWSFeature)
 }
 
-func cwsAgentNodeWantFunc(useDDAV2 bool) *test.ComponentTest {
+func cwsAgentNodeWantFunc(useDDAV2 bool, withSubFeatures bool) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
@@ -159,11 +187,28 @@ func cwsAgentNodeWantFunc(useDDAV2 bool) *test.ComponentTest {
 					Name:  apicommon.DDRuntimeSecurityConfigSyscallMonitorEnabled,
 					Value: "true",
 				},
-				{
+			}
+			if withSubFeatures {
+				sysProbeWant = append(
+					sysProbeWant,
+					&corev1.EnvVar{
+						Name:  apicommon.DDRuntimeSecurityConfigNetworkEnabled,
+						Value: "true",
+					},
+					&corev1.EnvVar{
+						Name:  apicommon.DDRuntimeSecurityConfigActivityDumpEnabled,
+						Value: "true",
+					},
+				)
+			}
+			sysProbeWant = append(
+				sysProbeWant,
+				&corev1.EnvVar{
 					Name:  apicommon.DDRuntimeSecurityConfigPoliciesDir,
 					Value: apicommon.SecurityAgentRuntimePoliciesDirVolumePath,
 				},
-			}
+			)
+
 			securityAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.SecurityAgentContainerName]
 			assert.True(t, apiutils.IsEqualStruct(securityAgentEnvVars, securityWant), "Security agent envvars \ndiff = %s", cmp.Diff(securityAgentEnvVars, securityWant))
 			sysProbeEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.SystemProbeContainerName]

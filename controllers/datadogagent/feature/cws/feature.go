@@ -46,8 +46,11 @@ func buildCWSFeature(options *feature.Options) feature.Feature {
 
 type cwsFeature struct {
 	syscallMonitorEnabled bool
-	owner                 metav1.Object
-	logger                logr.Logger
+	networkEnabled        bool
+	activityDumpEnabled   bool
+
+	owner  metav1.Object
+	logger logr.Logger
 
 	customConfig                *apicommonv1.CustomConfig
 	configMapName               string
@@ -81,6 +84,13 @@ func (f *cwsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.CWSIDType)
 		}
 		f.configMapName = apicommonv1.GetConfName(dda, f.customConfig, apicommon.DefaultCWSConf)
+
+		if cws.Network != nil {
+			f.networkEnabled = apiutils.BoolValue(cws.Network.Enabled)
+		}
+		if cws.SecurityProfiles != nil {
+			f.activityDumpEnabled = apiutils.BoolValue(cws.SecurityProfiles.Enabled)
+		}
 
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
@@ -186,6 +196,22 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 		}
 		managers.EnvVar().AddEnvVarToContainer(apicommonv1.SecurityAgentContainerName, monitorEnvVar)
 		managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, monitorEnvVar)
+	}
+
+	if f.networkEnabled {
+		networkEnvVar := &corev1.EnvVar{
+			Name:  apicommon.DDRuntimeSecurityConfigNetworkEnabled,
+			Value: "true",
+		}
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, networkEnvVar)
+	}
+
+	if f.activityDumpEnabled {
+		adEnvVar := &corev1.EnvVar{
+			Name:  apicommon.DDRuntimeSecurityConfigActivityDumpEnabled,
+			Value: "true",
+		}
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, adEnvVar)
 	}
 
 	policiesDirEnvVar := &corev1.EnvVar{

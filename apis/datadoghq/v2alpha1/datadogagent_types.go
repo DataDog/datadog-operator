@@ -69,6 +69,8 @@ type DatadogFeatures struct {
 	Dogstatsd *DogstatsdFeatureConfig `json:"dogstatsd,omitempty"`
 	// OTLP ingest configuration
 	OTLP *OTLPFeatureConfig `json:"otlp,omitempty"`
+	// Remote Configuration configuration.
+	RemoteConfiguration *RemoteConfigurationFeatureConfig `json:"remoteConfiguration,omitempty"`
 
 	// Cluster-level features
 
@@ -240,11 +242,37 @@ type CWSFeatureConfig struct {
 	// +optional
 	SyscallMonitorEnabled *bool `json:"syscallMonitorEnabled,omitempty"`
 
+	Network          *CWSNetworkConfig          `json:"network,omitempty"`
+	SecurityProfiles *CWSSecurityProfilesConfig `json:"securityProfiles,omitempty"`
+
 	// CustomPolicies contains security policies.
 	// The content of the ConfigMap will be merged with the policies bundled with the agent.
 	// Any policies with the same name as those existing in the agent will take precedence.
 	// +optional
 	CustomPolicies *CustomConfig `json:"customPolicies,omitempty"`
+}
+
+type CWSNetworkConfig struct {
+	// Enabled enables Cloud Workload Security Network detections.
+	// Default: true
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+type CWSSecurityProfilesConfig struct {
+	// Enabled enables Security Profiles collection for Cloud Workload Security.
+	// Default: true
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// RemoteConfigurationFeatureConfig contains RC (Remote Configuration) configuration.
+// RC runs in the Agent.
+type RemoteConfigurationFeatureConfig struct {
+	// Enable this option to activate Remote Configuration.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // NPMFeatureConfig contains NPM (Network Performance Monitoring) feature configuration.
@@ -384,6 +412,11 @@ type OrchestratorExplorerFeatureConfig struct {
 	// Default: true
 	// +optional
 	ScrubContainers *bool `json:"scrubContainers,omitempty"`
+
+	// +optional
+	// `CustomResources` defines custom resources for the orchestrator explorer to collect.
+	// Each item should follow the convention `group/version/kind`. For example, `datadoghq.com/v1alpha1/datadogmetrics`.
+	CustomResources []string `json:"customResources,omitempty"`
 
 	// Additional tags to associate with the collected data in the form of `a b c`.
 	// This is a Cluster Agent option distinct from DD_TAGS that is used in the Orchestrator Explorer.
@@ -736,6 +769,7 @@ type LocalService struct {
 }
 
 // SeccompConfig is used to override default values for Seccomp Profile configurations.
+// +k8s:openapi-gen=true
 type SeccompConfig struct {
 	// CustomRootPath specifies a custom Seccomp Profile root location.
 	// +optional
@@ -945,6 +979,7 @@ type DatadogAgentGenericContainer struct {
 
 	// Seccomp configurations to override Operator actions. For all other Seccomp Profile manipulation,
 	// use SecurityContext.
+	// +optional
 	SeccompConfig *SeccompConfig `json:"seccompConfig,omitempty"`
 
 	// AppArmorProfileName specifies an apparmor profile.

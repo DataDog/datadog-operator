@@ -38,7 +38,9 @@ const (
 
 	// defaultCSPMEnabled              bool = false
 	// defaultCWSEnabled               bool = false
-	defaultCWSSyscallMonitorEnabled bool = false
+	defaultCWSSyscallMonitorEnabled   bool = false
+	defaultCWSNetworkEnabled          bool = true
+	defaultCWSSecurityProfilesEnabled bool = true
 
 	// defaultNPMEnabled         bool = false
 	defaultNPMEnableConntrack bool = true
@@ -170,7 +172,16 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 
 	// CWS (Cloud Workload Security) Feature
 	if ddaSpec.Features.CWS != nil && ddaSpec.Features.CWS.Enabled != nil && *ddaSpec.Features.CWS.Enabled {
+		if ddaSpec.Features.CWS.Network == nil {
+			ddaSpec.Features.CWS.Network = &CWSNetworkConfig{}
+		}
+		if ddaSpec.Features.CWS.SecurityProfiles == nil {
+			ddaSpec.Features.CWS.SecurityProfiles = &CWSSecurityProfilesConfig{}
+		}
+
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.CWS.SyscallMonitorEnabled, defaultCWSSyscallMonitorEnabled)
+		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.CWS.Network.Enabled, defaultCWSNetworkEnabled)
+		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.CWS.SecurityProfiles.Enabled, defaultCWSSecurityProfilesEnabled)
 	}
 
 	// NPM (Network Performance Monitoring) Feature

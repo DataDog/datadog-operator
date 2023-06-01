@@ -401,10 +401,14 @@ func TestStore_Cleanup(t *testing.T) {
 			Namespace: "bar",
 			Name:      "foo",
 			Labels: map[string]string{
-				operatorStoreLabelKey: "true",
+				operatorStoreLabelKey:                  "true",
+				kubernetes.AppKubernetesPartOfLabelKey: "namespace--test-dda--test",
 			},
 		},
 	}
+
+	dummyName := "dda-test"
+	dummyNs := "namespace-test"
 
 	s := scheme.Scheme
 	s.AddKnownTypes(apiregistrationv1.SchemeGroupVersion, &apiregistrationv1.APIService{})
@@ -437,6 +441,8 @@ func TestStore_Cleanup(t *testing.T) {
 			args: args{
 				ctx:       context.TODO(),
 				k8sClient: fake.NewClientBuilder().WithScheme(s).WithObjects(dummyConfigMap1.DeepCopy()).Build(),
+				ddaNs:     dummyNs,
+				ddaName:   dummyName,
 			},
 			want: nil,
 		},
@@ -452,6 +458,8 @@ func TestStore_Cleanup(t *testing.T) {
 			args: args{
 				ctx:       context.TODO(),
 				k8sClient: fake.NewClientBuilder().WithScheme(s).WithObjects(dummyConfigMap1.DeepCopy()).Build(),
+				ddaNs:     dummyNs,
+				ddaName:   dummyName,
 			},
 			want: nil,
 		},
@@ -463,6 +471,21 @@ func TestStore_Cleanup(t *testing.T) {
 			args: args{
 				ctx:       context.TODO(),
 				k8sClient: fake.NewClientBuilder().WithScheme(s).WithObjects(dummyConfigMap1.DeepCopy()).Build(),
+				ddaNs:     dummyNs,
+				ddaName:   dummyName,
+			},
+			want: nil,
+		},
+		{
+			name: "1 object to keep from a different dda",
+			fields: fields{
+				deps: map[kubernetes.ObjectKind]map[string]client.Object{},
+			},
+			args: args{
+				ctx:       context.TODO(),
+				k8sClient: fake.NewClientBuilder().WithScheme(s).WithObjects(dummyConfigMap1.DeepCopy()).Build(),
+				ddaNs:     "test",
+				ddaName:   dummyName,
 			},
 			want: nil,
 		},
@@ -472,8 +495,12 @@ func TestStore_Cleanup(t *testing.T) {
 			ds := &Store{
 				deps:   tt.fields.deps,
 				logger: logf.Log.WithName(t.Name()),
+				owner: &metav1.ObjectMeta{
+					Name:      tt.args.ddaName,
+					Namespace: tt.args.ddaNs,
+				},
 			}
-			got := ds.Cleanup(tt.args.ctx, tt.args.k8sClient, tt.args.ddaNs, tt.args.ddaName)
+			got := ds.Cleanup(tt.args.ctx, tt.args.k8sClient)
 			assert.EqualValues(t, tt.want, got, "Store.Cleanup() = %v, want %v", got, tt.want)
 		})
 	}

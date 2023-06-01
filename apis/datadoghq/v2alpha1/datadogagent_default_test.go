@@ -172,6 +172,9 @@ func Test_defaultFeatures(t *testing.T) {
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueFalse),
 					},
+					RemoteConfiguration: &RemoteConfigurationFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(valueFalse),
+					},
 				},
 			},
 			want: &DatadogAgentSpec{
@@ -243,6 +246,9 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled: apiutils.NewBoolPointer(valueFalse),
 					},
 					PrometheusScrape: &PrometheusScrapeFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(valueFalse),
+					},
+					RemoteConfiguration: &RemoteConfigurationFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueFalse),
 					},
 				},
@@ -744,6 +750,7 @@ func Test_defaultFeatures(t *testing.T) {
 					ExternalMetricsServer:   &ExternalMetricsServerFeatureConfig{},
 					ClusterChecks:           &ClusterChecksFeatureConfig{},
 					PrometheusScrape:        &PrometheusScrapeFeatureConfig{},
+					RemoteConfiguration:     &RemoteConfigurationFeatureConfig{},
 				},
 			},
 			want: &DatadogAgentSpec{
@@ -759,6 +766,7 @@ func Test_defaultFeatures(t *testing.T) {
 					USM:                   &USMFeatureConfig{},
 					ExternalMetricsServer: &ExternalMetricsServerFeatureConfig{},
 					PrometheusScrape:      &PrometheusScrapeFeatureConfig{},
+					RemoteConfiguration:   &RemoteConfigurationFeatureConfig{},
 
 					LiveContainerCollection: &LiveContainerCollectionFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),

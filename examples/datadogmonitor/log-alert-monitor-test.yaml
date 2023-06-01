@@ -13,6 +13,7 @@ spec:
     - "test:datadog"
   priority: 5
   options:
+    enableLogsSample: true
     evaluationDelay: 300
     includeTags: true
     locked: false

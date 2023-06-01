@@ -4,15 +4,8 @@ metadata:
   name: datadog
 spec:
   features:
-    apm:
+    remoteConfiguration:
       enabled: true
-    otlp:
-      receiver:
-        protocols:
-          grpc:
-            enabled: true
-          http:
-            enabled: true
   global:
     credentials:
       apiKey: <DATADOG_API_KEY>

@@ -55,6 +55,8 @@ spec:
 | features.cws.customPolicies.configMap.items | Items maps a ConfigMap data `key` to a file `path` mount. |
 | features.cws.customPolicies.configMap.name | Name is the name of the ConfigMap. |
 | features.cws.enabled | Enabled enables Cloud Workload Security. Default: false |
+| features.cws.network.enabled | Enabled enables Cloud Workload Security Network detections. Default: true |
+| features.cws.securityProfiles.enabled | Enabled enables Security Profiles collection for Cloud Workload Security. Default: true |
 | features.cws.syscallMonitorEnabled | SyscallMonitorEnabled enables Syscall Monitoring (recommended for troubleshooting only). Default: false |
 | features.dogstatsd.hostPortConfig.enabled | Enabled enables host port configuration Default: false |
 | features.dogstatsd.hostPortConfig.hostPort | Port takes a port number (0 < x < 65536) to expose on the host. (Most containers do not need this.) If HostNetwork is enabled, this value must match the ContainerPort. |
@@ -99,6 +101,7 @@ spec:
 | features.orchestratorExplorer.conf.configData | ConfigData corresponds to the configuration file content. |
 | features.orchestratorExplorer.conf.configMap.items | Items maps a ConfigMap data `key` to a file `path` mount. |
 | features.orchestratorExplorer.conf.configMap.name | Name is the name of the ConfigMap. |
+| features.orchestratorExplorer.customResources | `CustomResources` defines custom resources for the orchestrator explorer to collect. Each item should follow the convention `group/version/kind`. For example, `datadoghq.com/v1alpha1/datadogmetrics`. |
 | features.orchestratorExplorer.ddUrl | Override the API endpoint for the Orchestrator Explorer. URL Default: "https://orchestrator.datadoghq.com". |
 | features.orchestratorExplorer.enabled | Enabled enables the Orchestrator Explorer. Default: true |
 | features.orchestratorExplorer.extraTags | Additional tags to associate with the collected data in the form of `a b c`. This is a Cluster Agent option distinct from DD_TAGS that is used in the Orchestrator Explorer. |
@@ -111,6 +114,7 @@ spec:
 | features.prometheusScrape.enableServiceEndpoints | EnableServiceEndpoints enables generating dedicated checks for service endpoints. Default: false |
 | features.prometheusScrape.enabled | Enable autodiscovery of pods and services exposing Prometheus metrics. Default: false |
 | features.prometheusScrape.version | Version specifies the version of the OpenMetrics check. Default: 2 |
+| features.remoteConfiguration.enabled | Enable this option to activate Remote Configuration. Default: false |
 | features.tcpQueueLength.enabled | Enables the TCP queue length eBPF-based check. Default: false |
 | features.usm.enabled | Enabled enables Universal Service Monitoring. Default: false |
 | global.clusterAgentToken | ClusterAgentToken is the token for communication between the NodeAgent and ClusterAgent. |

@@ -24,6 +24,11 @@ import (
 	ctrlzap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+
+	"gopkg.in/DataDog/dd-trace-go.v1/profiler"
+
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	"github.com/DataDog/extendeddaemonset/pkg/controller/metrics"
 	"github.com/go-logr/logr"
@@ -35,9 +40,6 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/debug"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 	"github.com/DataDog/datadog-operator/pkg/version"
-
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -74,105 +76,198 @@ func (ss *stringSlice) Set(value string) error {
 	return nil
 }
 
-func main() {
-	var metricsAddr string
-	var enableLeaderElection bool
-	var leaderElectionResourceLock string
-	var leaderElectionLeaseDuration time.Duration
-	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
-	flag.BoolVar(&enableLeaderElection, "enable-leader-election", true,
+const (
+	// ExtendedDaemonset default configuration values from https://github.com/DataDog/extendeddaemonset/blob/main/api/v1alpha1/extendeddaemonset_default.go
+	defaultCanaryAutoPauseEnabled = true
+	defaultCanaryAutoFailEnabled  = true
+	// default to 0, to use default value from EDS.
+	defaultCanaryAutoPauseMaxRestarts = 0
+	defaultCanaryAutoFailMaxRestarts  = 0
+)
+
+type options struct {
+	// Observability options
+	metricsAddr      string
+	profilingEnabled bool
+	logLevel         *zapcore.Level
+	logEncoder       string
+	printVersion     bool
+	pprofActive      bool
+
+	// Leader Election options
+	enableLeaderElection        bool
+	leaderElectionResourceLock  string
+	leaderElectionLeaseDuration time.Duration
+
+	// Controllers options
+	supportExtendedDaemonset      bool
+	edsMaxPodUnavailable          string
+	edsMaxPodSchedulerFailure     string
+	edsCanaryDuration             time.Duration
+	edsCanaryReplicas             string
+	edsCanaryAutoPauseEnabled     bool
+	edsCanaryAutoPauseMaxRestarts int
+	edsCanaryAutoFailEnabled      bool
+	edsCanaryAutoFailMaxRestarts  int
+	supportCilium                 bool
+	datadogAgentEnabled           bool
+	datadogMonitorEnabled         bool
+	operatorMetricsEnabled        bool
+	webhookEnabled                bool
+	v2APIEnabled                  bool
+	maximumGoroutines             int
+
+	// Secret Backend options
+	secretBackendCommand string
+	secretBackendArgs    stringSlice
+}
+
+func (opts *options) Parse() {
+	// Observability flags
+	flag.StringVar(&opts.metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
+	flag.BoolVar(&opts.profilingEnabled, "profiling-enabled", false, "Enable Datadog profile in the Datadog Operator process.")
+	opts.logLevel = zap.LevelFlag("loglevel", zapcore.InfoLevel, "Set log level")
+	flag.StringVar(&opts.logEncoder, "logEncoder", "json", "log encoding ('json' or 'console')")
+	flag.BoolVar(&opts.printVersion, "version", false, "Print version and exit")
+	flag.BoolVar(&opts.pprofActive, "pprof", false, "Enable pprof endpoint")
+
+	// Leader Election options flags
+	flag.BoolVar(&opts.enableLeaderElection, "enable-leader-election", true,
 		"Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
-	flag.StringVar(&leaderElectionResourceLock, "leader-election-resource", "configmaps", "determines which resource lock to use for leader election. option:[configmapsleases|endpointsleases|configmaps]")
-	flag.DurationVar(&leaderElectionLeaseDuration, "leader-election-lease-duration", 60*time.Second, "Define LeaseDuration as well as RenewDeadline (leaseDuration / 2) and RetryPeriod (leaseDuration / 4)")
+	flag.StringVar(&opts.leaderElectionResourceLock, "leader-election-resource", "configmaps", "determines which resource lock to use for leader election. option:[configmapsleases|endpointsleases|configmaps]")
+	flag.DurationVar(&opts.leaderElectionLeaseDuration, "leader-election-lease-duration", 60*time.Second, "Define LeaseDuration as well as RenewDeadline (leaseDuration / 2) and RetryPeriod (leaseDuration / 4)")
 
 	// Custom flags
-	var printVersion, pprofActive, supportExtendedDaemonset, supportCilium, datadogAgentEnabled, datadogMonitorEnabled, operatorMetricsEnabled, webhookEnabled, v2APIEnabled bool
-	var logEncoder, secretBackendCommand string
-	var secretBackendArgs stringSlice
-	flag.StringVar(&logEncoder, "logEncoder", "json", "log encoding ('json' or 'console')")
-	flag.StringVar(&secretBackendCommand, "secretBackendCommand", "", "Secret backend command")
-	flag.Var(&secretBackendArgs, "secretBackendArgs", "Space separated arguments of the secret backend command")
-	logLevel := zap.LevelFlag("loglevel", zapcore.InfoLevel, "Set log level")
-	flag.BoolVar(&printVersion, "version", false, "Print version and exit")
-	flag.BoolVar(&pprofActive, "pprof", false, "Enable pprof endpoint")
-	flag.BoolVar(&supportExtendedDaemonset, "supportExtendedDaemonset", false, "Support usage of Datadog ExtendedDaemonset CRD.")
-	flag.BoolVar(&supportCilium, "supportCilium", false, "Support usage of Cilium network policies.")
-	flag.BoolVar(&datadogAgentEnabled, "datadogAgentEnabled", true, "Enable the DatadogAgent controller")
-	flag.BoolVar(&datadogMonitorEnabled, "datadogMonitorEnabled", false, "Enable the DatadogMonitor controller")
-	flag.BoolVar(&operatorMetricsEnabled, "operatorMetricsEnabled", true, "Enable sending operator metrics to Datadog")
-	flag.BoolVar(&v2APIEnabled, "v2APIEnabled", true, "Enable the v2 api")
-	flag.BoolVar(&webhookEnabled, "webhookEnabled", true, "Enable CRD conversion webhook.")
-	maximumGoroutines := flag.Int("maximumGoroutines", defaultMaximumGoroutines, "Override health check threshold for maximum number of goroutines.")
+	flag.StringVar(&opts.logEncoder, "logEncoder", "json", "log encoding ('json' or 'console')")
+	flag.StringVar(&opts.secretBackendCommand, "secretBackendCommand", "", "Secret backend command")
+	flag.Var(&opts.secretBackendArgs, "secretBackendArgs", "Space separated arguments of the secret backend command")
+	opts.logLevel = zap.LevelFlag("loglevel", zapcore.InfoLevel, "Set log level")
+	flag.BoolVar(&opts.printVersion, "version", false, "Print version and exit")
+	flag.BoolVar(&opts.pprofActive, "pprof", false, "Enable pprof endpoint")
+	flag.BoolVar(&opts.supportCilium, "supportCilium", false, "Support usage of Cilium network policies.")
+	flag.BoolVar(&opts.datadogAgentEnabled, "datadogAgentEnabled", true, "Enable the DatadogAgent controller")
+	flag.BoolVar(&opts.datadogMonitorEnabled, "datadogMonitorEnabled", false, "Enable the DatadogMonitor controller")
+	flag.BoolVar(&opts.operatorMetricsEnabled, "operatorMetricsEnabled", true, "Enable sending operator metrics to Datadog")
+	flag.BoolVar(&opts.v2APIEnabled, "v2APIEnabled", true, "Enable the v2 api")
+	flag.BoolVar(&opts.webhookEnabled, "webhookEnabled", true, "Enable CRD conversion webhook.")
+	flag.IntVar(&opts.maximumGoroutines, "maximumGoroutines", defaultMaximumGoroutines, "Override health check threshold for maximum number of goroutines.")
+
+	// ExtendedDaemonset configuration
+	flag.BoolVar(&opts.supportExtendedDaemonset, "supportExtendedDaemonset", false, "Support usage of Datadog ExtendedDaemonset CRD.")
+	flag.StringVar(&opts.edsMaxPodUnavailable, "edsMaxPodUnavailable", "", "ExtendedDaemonset number of max unavailable pods during the rolling update")
+	flag.StringVar(&opts.edsMaxPodSchedulerFailure, "edsMaxPodSchedulerFailure", "", "ExtendedDaemonset number of max pod scheduler failures")
+	flag.DurationVar(&opts.edsCanaryDuration, "edsCanaryDuration", 10*time.Minute, "ExtendedDaemonset canary duration")
+	flag.StringVar(&opts.edsCanaryReplicas, "edsCanaryReplicas", "", "ExtendedDaemonset number of canary pods")
+	flag.BoolVar(&opts.edsCanaryAutoPauseEnabled, "edsCanaryAutoPauseEnabled", defaultCanaryAutoPauseEnabled, "ExtendedDaemonset canary auto pause enabled")
+	flag.IntVar(&opts.edsCanaryAutoPauseMaxRestarts, "edsCanaryAutoPauseMaxRestarts", defaultCanaryAutoPauseMaxRestarts, "ExtendedDaemonset canary auto pause max restart count")
+	flag.BoolVar(&opts.edsCanaryAutoFailEnabled, "edsCanaryAutoFailEnabled", defaultCanaryAutoFailEnabled, "ExtendedDaemonset canary auto fail enabled")
+	flag.IntVar(&opts.edsCanaryAutoFailMaxRestarts, "edsCanaryAutoFailMaxRestarts", defaultCanaryAutoFailMaxRestarts, "ExtendedDaemonset canary auto fail max restart count")
 
 	// Parsing flags
 	flag.Parse()
+}
 
-	// Logging setup
-	if err := customSetupLogging(*logLevel, logEncoder); err != nil {
-		setupLog.Error(err, "Unable to setup the logger")
+func main() {
+	var opts options
+	opts.Parse()
+
+	if err := run(&opts); err != nil {
 		os.Exit(1)
 	}
 
+	os.Exit(0)
+}
+
+// run allow to use defer func() paradigm properly.
+// do not use `os.Exit()` in this function
+func run(opts *options) error {
+
+	// Logging setup
+	if err := customSetupLogging(*opts.logLevel, opts.logEncoder); err != nil {
+		return setupErrorf(setupLog, err, "Unable to setup the logger")
+	}
+
 	// Print version information
-	if printVersion {
+	if opts.printVersion {
 		version.PrintVersionWriter(os.Stdout, "text")
-		os.Exit(0)
+		return nil
 	}
 	version.PrintVersionLogs(setupLog)
 
+	if opts.profilingEnabled {
+		setupLog.Info("Starting datadog profiler")
+		if err := profiler.Start(
+			profiler.WithVersion(version.Version),
+			profiler.WithProfileTypes(profiler.CPUProfile, profiler.HeapProfile),
+		); err != nil {
+			return setupErrorf(setupLog, err, "unable to start datadog profiler")
+		}
+
+		defer profiler.Stop()
+	}
+
 	// Dispatch CLI flags to each package
-	secrets.SetSecretBackendCommand(secretBackendCommand)
-	secrets.SetSecretBackendArgs(secretBackendArgs)
+	secrets.SetSecretBackendCommand(opts.secretBackendCommand)
+	secrets.SetSecretBackendArgs(opts.secretBackendArgs)
 
-	renewDeadline := leaderElectionLeaseDuration / 2
-	retryPeriod := leaderElectionLeaseDuration / 4
+	renewDeadline := opts.leaderElectionLeaseDuration / 2
+	retryPeriod := opts.leaderElectionLeaseDuration / 4
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), config.ManagerOptionsWithNamespaces(setupLog, ctrl.Options{
+	restConfig := ctrl.GetConfigOrDie()
+	restConfig.UserAgent = "datadog-operator"
+	mgr, err := ctrl.NewManager(restConfig, config.ManagerOptionsWithNamespaces(setupLog, ctrl.Options{
 		Scheme:                     scheme,
-		MetricsBindAddress:         metricsAddr,
+		MetricsBindAddress:         opts.metricsAddr,
 		HealthProbeBindAddress:     ":8081",
 		Port:                       9443,
-		LeaderElection:             enableLeaderElection,
+		LeaderElection:             opts.enableLeaderElection,
 		LeaderElectionID:           "datadog-operator-lock",
-		LeaderElectionResourceLock: leaderElectionResourceLock,
-		LeaseDuration:              &leaderElectionLeaseDuration,
+		LeaderElectionResourceLock: opts.leaderElectionResourceLock,
+		LeaseDuration:              &opts.leaderElectionLeaseDuration,
 		RenewDeadline:              &renewDeadline,
 		RetryPeriod:                &retryPeriod,
 	}))
 	if err != nil {
-		setupLog.Error(err, "Unable to start manager")
-		os.Exit(1)
+		return setupErrorf(setupLog, err, "Unable to start manager")
+
 	}
 
 	// Custom setup
-	customSetupHealthChecks(setupLog, mgr, maximumGoroutines)
-	customSetupEndpoints(pprofActive, mgr)
+	customSetupHealthChecks(setupLog, mgr, &opts.maximumGoroutines)
+	customSetupEndpoints(opts.pprofActive, mgr)
 
 	creds, err := config.NewCredentialManager().GetCredentials()
-	if err != nil && datadogMonitorEnabled {
-		setupLog.Error(err, "Unable to get credentials for DatadogMonitor")
-		os.Exit(1)
+	if err != nil && opts.datadogMonitorEnabled {
+		return setupErrorf(setupLog, err, "Unable to get credentials for DatadogMonitor")
 	}
 
 	options := controllers.SetupOptions{
-		SupportExtendedDaemonset: supportExtendedDaemonset,
-		SupportCilium:            supportCilium,
-		Creds:                    creds,
-		DatadogAgentEnabled:      datadogAgentEnabled,
-		DatadogMonitorEnabled:    datadogMonitorEnabled,
-		OperatorMetricsEnabled:   operatorMetricsEnabled,
-		V2APIEnabled:             v2APIEnabled,
+		SupportExtendedDaemonset: controllers.ExtendedDaemonsetOptions{
+			Enabled:                    opts.supportExtendedDaemonset,
+			MaxPodUnavailable:          opts.edsMaxPodUnavailable,
+			CanaryDuration:             opts.edsCanaryDuration,
+			CanaryReplicas:             opts.edsCanaryReplicas,
+			CanaryAutoPauseEnabled:     opts.edsCanaryAutoPauseEnabled,
+			CanaryAutoPauseMaxRestarts: opts.edsCanaryAutoPauseMaxRestarts,
+			CanaryAutoFailEnabled:      opts.edsCanaryAutoFailEnabled,
+			CanaryAutoFailMaxRestarts:  opts.edsCanaryAutoFailMaxRestarts,
+			MaxPodSchedulerFailure:     opts.edsMaxPodSchedulerFailure,
+		},
+		SupportCilium:          opts.supportCilium,
+		Creds:                  creds,
+		DatadogAgentEnabled:    opts.datadogAgentEnabled,
+		DatadogMonitorEnabled:  opts.datadogMonitorEnabled,
+		OperatorMetricsEnabled: opts.operatorMetricsEnabled,
+		V2APIEnabled:           opts.v2APIEnabled,
 	}
 
 	if err = controllers.SetupControllers(setupLog, mgr, options); err != nil {
-		setupLog.Error(err, "Unable to start controllers")
-		os.Exit(1)
+		return setupErrorf(setupLog, err, "Unable to start controllers")
 	}
 
-	if webhookEnabled && datadogAgentEnabled {
+	if opts.webhookEnabled && opts.datadogAgentEnabled {
 		if err = (&datadoghqv2alpha1.DatadogAgent{}).SetupWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "DatadogAgent")
-			os.Exit(1)
+			return setupErrorf(setupLog, err, "unable to create webhook", "webhook", "DatadogAgent")
 		}
 	}
 
@@ -180,9 +275,10 @@ func main() {
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-		setupLog.Error(err, "Problem running manager")
-		os.Exit(1)
+		return setupErrorf(setupLog, err, "Problem running manager")
 	}
+
+	return nil
 }
 
 func customSetupLogging(logLevel zapcore.Level, logEncoder string) error {
@@ -218,18 +314,23 @@ func customSetupHealthChecks(logger logr.Logger, mgr manager.Manager, maximumGor
 		return nil
 	})
 	if err != nil {
-		setupLog.Error(err, "Unable to add healthchecks")
+		setupErrorf(setupLog, err, "Unable to add healthchecks")
 	}
 }
 
 func customSetupEndpoints(pprofActive bool, mgr manager.Manager) {
 	if pprofActive {
 		if err := debug.RegisterEndpoint(mgr.AddMetricsExtraHandler, nil); err != nil {
-			setupLog.Error(err, "Unable to register pprof endpoint")
+			setupErrorf(setupLog, err, "Unable to register pprof endpoint")
 		}
 	}
 
 	if err := metrics.RegisterEndpoint(mgr, mgr.AddMetricsExtraHandler); err != nil {
-		setupLog.Error(err, "Unable to register custom metrics endpoints")
+		setupErrorf(setupLog, err, "Unable to register custom metrics endpoints")
 	}
+}
+
+func setupErrorf(logger logr.Logger, err error, msg string, keysAndValues ...any) error {
+	setupLog.Error(err, msg, keysAndValues...)
+	return fmt.Errorf("%s, err:%w", msg, err)
 }

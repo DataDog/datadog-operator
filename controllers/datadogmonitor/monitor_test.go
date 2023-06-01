@@ -39,17 +39,19 @@ func Test_buildMonitor(t *testing.T) {
 
 	dm := &datadoghqv1alpha1.DatadogMonitor{
 		Spec: datadoghqv1alpha1.DatadogMonitorSpec{
-			Query:    "avg(last_10m):avg:system.disk.in_use{*} by {host} > 0.05",
-			Type:     "metric alert",
-			Name:     "Test monitor",
-			Message:  "Something went wrong",
-			Priority: priority,
+			RestrictedRoles: []string{"an-admin-uuid"},
+			Query:           "avg(last_10m):avg:system.disk.in_use{*} by {host} > 0.05",
+			Type:            "metric alert",
+			Name:            "Test monitor",
+			Message:         "Something went wrong",
+			Priority:        priority,
 			Tags: []string{
 				"env:staging",
 				"kube_namespace:test",
 				"kube_cluster:test.staging",
 			},
 			Options: datadoghqv1alpha1.DatadogMonitorOptions{
+				EnableLogsSample:  &valTrue,
 				EvaluationDelay:   &evalDelay,
 				EscalationMessage: &escalationMsg,
 				IncludeTags:       &valTrue,
@@ -86,6 +88,9 @@ func Test_buildMonitor(t *testing.T) {
 
 	assert.Equal(t, dm.Spec.Tags, monitor.GetTags(), "discrepancy found in parameter: Tags")
 	assert.Equal(t, dm.Spec.Tags, monitorUR.GetTags(), "discrepancy found in parameter: Tags")
+
+	assert.Equal(t, *dm.Spec.Options.EnableLogsSample, monitor.Options.GetEnableLogsSample(), "discrepancy found in parameter: EnableLogsSample")
+	assert.Equal(t, *dm.Spec.Options.EnableLogsSample, monitorUR.Options.GetEnableLogsSample(), "discrepancy found in parameter: EnableLogsSample")
 
 	assert.Equal(t, *dm.Spec.Options.EvaluationDelay, monitor.Options.GetEvaluationDelay(), "discrepancy found in parameter: EvaluationDelay")
 	assert.Equal(t, *dm.Spec.Options.EvaluationDelay, monitorUR.Options.GetEvaluationDelay(), "discrepancy found in parameter: EvaluationDelay")
@@ -270,8 +275,8 @@ func Test_deleteMonitor(t *testing.T) {
 }
 
 func genericMonitor(mID int) datadogapiclientv1.Monitor {
-	rawNow := time.Now()
-	now, _ := time.Parse(dateFormat, strings.Split(rawNow.String(), " m=")[0])
+	fakeRawNow := time.Unix(1612244495, 0)
+	fakeNow, _ := time.Parse(dateFormat, strings.Split(fakeRawNow.String(), " m=")[0])
 	mID64 := int64(mID)
 	msg := "Something went wrong"
 	name := "Test monitor"
@@ -284,16 +289,16 @@ func genericMonitor(mID int) datadogapiclientv1.Monitor {
 		"kube_namespace:test",
 	}
 	return datadogapiclientv1.Monitor{
-		Created: &now,
+		Created: &fakeNow,
 		Creator: &datadogapiclientv1.Creator{
 			Handle: &handle,
 		},
 		Id:       &mID64,
 		Message:  &msg,
-		Modified: &now,
+		Modified: &fakeNow,
 		Name:     &name,
 		Query:    query,
-		Tags:     &tags,
+		Tags:     tags,
 		Type:     mType,
 	}
 }
