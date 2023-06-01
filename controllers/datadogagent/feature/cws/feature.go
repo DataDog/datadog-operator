@@ -234,6 +234,11 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 	volMountMgr.AddVolumeMountToContainer(&debugfsVolMount, apicommonv1.SystemProbeContainerName)
 	volMgr.AddVolume(&debugfsVol)
 
+	// tracefs volume mount
+	tracefsVol, tracefsVolMount := volume.GetVolumes(apicommon.TracefsVolumeName, apicommon.TracefsPath, apicommon.TracefsPath, false)
+	volMountMgr.AddVolumeMountToContainer(&tracefsVolMount, apicommonv1.SystemProbeContainerName)
+	volMgr.AddVolume(&tracefsVol)
+
 	// securityfs volume mount
 	securityfsVol, securityfsVolMount := volume.GetVolumes(apicommon.SecurityfsVolumeName, apicommon.SecurityfsVolumePath, apicommon.SecurityfsMountPath, true)
 	volMountMgr.AddVolumeMountToContainer(&securityfsVolMount, apicommonv1.SystemProbeContainerName)
