@@ -113,6 +113,7 @@ type options struct {
 	supportCilium                 bool
 	datadogAgentEnabled           bool
 	datadogMonitorEnabled         bool
+	datadogSLOEnabled             bool
 	operatorMetricsEnabled        bool
 	webhookEnabled                bool
 	v2APIEnabled                  bool
@@ -144,6 +145,7 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.supportCilium, "supportCilium", false, "Support usage of Cilium network policies.")
 	flag.BoolVar(&opts.datadogAgentEnabled, "datadogAgentEnabled", true, "Enable the DatadogAgent controller")
 	flag.BoolVar(&opts.datadogMonitorEnabled, "datadogMonitorEnabled", false, "Enable the DatadogMonitor controller")
+	flag.BoolVar(&opts.datadogSLOEnabled, "datadogSLOEnabled", false, "Enable the DatadogSLO controller")
 	flag.BoolVar(&opts.operatorMetricsEnabled, "operatorMetricsEnabled", true, "Enable sending operator metrics to Datadog")
 	flag.BoolVar(&opts.v2APIEnabled, "v2APIEnabled", true, "Enable the v2 api")
 	flag.BoolVar(&opts.webhookEnabled, "webhookEnabled", false, "Enable CRD conversion webhook.")
@@ -254,6 +256,7 @@ func run(opts *options) error {
 		Creds:                  creds,
 		DatadogAgentEnabled:    opts.datadogAgentEnabled,
 		DatadogMonitorEnabled:  opts.datadogMonitorEnabled,
+		DatadogSLOEnabled:      opts.datadogSLOEnabled,
 		OperatorMetricsEnabled: opts.operatorMetricsEnabled,
 		V2APIEnabled:           opts.v2APIEnabled,
 	}
