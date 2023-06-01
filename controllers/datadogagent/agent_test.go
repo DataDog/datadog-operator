@@ -303,14 +303,6 @@ func defaultSystemProbeVolumes() []corev1.Volume {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.SystemProbeTracefsVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/sys/kernel/tracing",
-				},
-			},
-		},
-		{
 			Name: apicommon.DogstatsdSocketVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
@@ -543,14 +535,6 @@ func runtimeSecurityAgentVolumes() []corev1.Volume {
 			},
 		},
 		{
-			Name: datadoghqv1alpha1.SystemProbeTracefsVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: "/sys/kernel/tracing",
-				},
-			},
-		},
-		{
 			Name: apicommon.DogstatsdSocketVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
@@ -717,10 +701,6 @@ func defaultSystemProbeMountVolume() []corev1.VolumeMount {
 		{
 			Name:      "debugfs",
 			MountPath: "/sys/kernel/debug",
-		},
-		{
-			Name:      "tracefs",
-			MountPath: "/sys/kernel/tracing",
 		},
 		{
 			Name:      "system-probe-config",
