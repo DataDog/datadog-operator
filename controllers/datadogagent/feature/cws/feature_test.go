@@ -247,6 +247,11 @@ func cwsAgentNodeWantFunc(useDDAV2 bool, withSubFeatures bool) *test.ComponentTe
 					ReadOnly:  false,
 				},
 				{
+					Name:      apicommon.TracefsVolumeName,
+					MountPath: apicommon.TracefsPath,
+					ReadOnly:  false,
+				},
+				{
 					Name:      apicommon.SecurityfsVolumeName,
 					MountPath: apicommon.SecurityfsMountPath,
 					ReadOnly:  true,
@@ -295,6 +300,14 @@ func cwsAgentNodeWantFunc(useDDAV2 bool, withSubFeatures bool) *test.ComponentTe
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
 							Path: apicommon.DebugfsPath,
+						},
+					},
+				},
+				{
+					Name: apicommon.TracefsVolumeName,
+					VolumeSource: corev1.VolumeSource{
+						HostPath: &corev1.HostPathVolumeSource{
+							Path: apicommon.TracefsPath,
 						},
 					},
 				},
