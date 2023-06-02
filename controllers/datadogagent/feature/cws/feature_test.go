@@ -101,6 +101,7 @@ func Test_cwsFeature_Configure(t *testing.T) {
 			},
 		}
 		ddav2CWSFullEnabled.Spec.Features.CWS.SyscallMonitorEnabled = apiutils.NewBoolPointer(true)
+		ddav2CWSFullEnabled.Spec.Features.RemoteConfiguration.Enabled = apiutils.NewBoolPointer(true)
 	}
 
 	tests := test.FeatureTestSuite{
@@ -133,7 +134,7 @@ func Test_cwsFeature_Configure(t *testing.T) {
 			Agent:         cwsAgentNodeWantFunc(true, false),
 		},
 		{
-			Name:          "v2alpha1 CWS enabled (with network and security profiles)",
+			Name:          "v2alpha1 CWS enabled (with network and security profiles) and RC",
 			DDAv2:         ddav2CWSFullEnabled,
 			WantConfigure: true,
 			Agent:         cwsAgentNodeWantFunc(true, true),
