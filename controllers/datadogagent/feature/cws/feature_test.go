@@ -61,6 +61,9 @@ func Test_cwsFeature_Configure(t *testing.T) {
 				CWS: &v2alpha1.CWSFeatureConfig{
 					Enabled: apiutils.NewBoolPointer(false),
 				},
+				RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
+					Enabled: apiutils.NewBoolPointer(false),
+				},
 			},
 		},
 	}
@@ -134,7 +137,7 @@ func Test_cwsFeature_Configure(t *testing.T) {
 			Agent:         cwsAgentNodeWantFunc(true, false),
 		},
 		{
-			Name:          "v2alpha1 CWS enabled (with network and security profiles) and RC",
+			Name:          "v2alpha1 CWS enabled (with network, security profiles and remote configuration)",
 			DDAv2:         ddav2CWSFullEnabled,
 			WantConfigure: true,
 			Agent:         cwsAgentNodeWantFunc(true, true),
