@@ -48,7 +48,7 @@ type cwsFeature struct {
 	syscallMonitorEnabled      bool
 	networkEnabled             bool
 	activityDumpEnabled        bool
-	RemoteConfigurationEnabled bool
+	remoteConfigurationEnabled bool
 
 	owner  metav1.Object
 	logger logr.Logger
