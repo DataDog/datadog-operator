@@ -220,10 +220,11 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 	}
 
 	if f.remoteConfigurationEnabled {
-		adEnvVar := &corev1.EnvVar{
+		rcEnvVar := &corev1.EnvVar{
 			Name:  apicommon.DDRuntimeSecurityConfigRemoteConfigurationEnabled,
 			Value: "true",
 		}
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, rcEnvVar)
 	}
 
 	policiesDirEnvVar := &corev1.EnvVar{
