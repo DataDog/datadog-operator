@@ -199,6 +199,10 @@ func cwsAgentNodeWantFunc(useDDAV2 bool, withSubFeatures bool) *test.ComponentTe
 						Name:  apicommon.DDRuntimeSecurityConfigActivityDumpEnabled,
 						Value: "true",
 					},
+					&corev1.EnvVar{
+						Name:  apicommon.DDRuntimeSecurityConfigRemoteConfigurationEnabled,
+						Value: "true",
+					},
 				)
 			}
 			sysProbeWant = append(
