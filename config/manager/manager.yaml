@@ -22,7 +22,6 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: datadog-operator
-        control-plane: controller-manager
     spec:
       containers:
       - command:
