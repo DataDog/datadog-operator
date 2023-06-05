@@ -17,7 +17,6 @@ spec:
   selector:
     matchLabels:
       app.kubernetes.io/name: datadog-operator
-      control-plane: controller-manager
   replicas: 1
   template:
     metadata:
