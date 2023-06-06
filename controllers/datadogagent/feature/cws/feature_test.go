@@ -61,6 +61,9 @@ func Test_cwsFeature_Configure(t *testing.T) {
 				CWS: &v2alpha1.CWSFeatureConfig{
 					Enabled: apiutils.NewBoolPointer(false),
 				},
+				RemoteConfiguration: &v2alpha1.RemoteConfigurationFeatureConfig{
+					Enabled: apiutils.NewBoolPointer(false),
+				},
 			},
 		},
 	}
@@ -101,6 +104,7 @@ func Test_cwsFeature_Configure(t *testing.T) {
 			},
 		}
 		ddav2CWSFullEnabled.Spec.Features.CWS.SyscallMonitorEnabled = apiutils.NewBoolPointer(true)
+		ddav2CWSFullEnabled.Spec.Features.RemoteConfiguration.Enabled = apiutils.NewBoolPointer(true)
 	}
 
 	tests := test.FeatureTestSuite{
@@ -133,7 +137,7 @@ func Test_cwsFeature_Configure(t *testing.T) {
 			Agent:         cwsAgentNodeWantFunc(true, false),
 		},
 		{
-			Name:          "v2alpha1 CWS enabled (with network and security profiles)",
+			Name:          "v2alpha1 CWS enabled (with network, security profiles and remote configuration)",
 			DDAv2:         ddav2CWSFullEnabled,
 			WantConfigure: true,
 			Agent:         cwsAgentNodeWantFunc(true, true),
@@ -197,6 +201,10 @@ func cwsAgentNodeWantFunc(useDDAV2 bool, withSubFeatures bool) *test.ComponentTe
 					},
 					&corev1.EnvVar{
 						Name:  apicommon.DDRuntimeSecurityConfigActivityDumpEnabled,
+						Value: "true",
+					},
+					&corev1.EnvVar{
+						Name:  apicommon.DDRuntimeSecurityConfigRemoteConfigurationEnabled,
 						Value: "true",
 					},
 				)

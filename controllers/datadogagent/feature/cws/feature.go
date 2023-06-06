@@ -45,9 +45,10 @@ func buildCWSFeature(options *feature.Options) feature.Feature {
 }
 
 type cwsFeature struct {
-	syscallMonitorEnabled bool
-	networkEnabled        bool
-	activityDumpEnabled   bool
+	syscallMonitorEnabled      bool
+	networkEnabled             bool
+	activityDumpEnabled        bool
+	remoteConfigurationEnabled bool
 
 	owner  metav1.Object
 	logger logr.Logger
@@ -90,6 +91,10 @@ func (f *cwsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 		}
 		if cws.SecurityProfiles != nil {
 			f.activityDumpEnabled = apiutils.BoolValue(cws.SecurityProfiles.Enabled)
+		}
+
+		if dda.Spec.Features.RemoteConfiguration != nil {
+			f.remoteConfigurationEnabled = apiutils.BoolValue(dda.Spec.Features.RemoteConfiguration.Enabled)
 		}
 
 		reqComp = feature.RequiredComponents{
@@ -212,6 +217,14 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 			Value: "true",
 		}
 		managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, adEnvVar)
+	}
+
+	if f.remoteConfigurationEnabled {
+		rcEnvVar := &corev1.EnvVar{
+			Name:  apicommon.DDRuntimeSecurityConfigRemoteConfigurationEnabled,
+			Value: "true",
+		}
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, rcEnvVar)
 	}
 
 	policiesDirEnvVar := &corev1.EnvVar{
