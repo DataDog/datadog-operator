@@ -120,3 +120,74 @@ func TestAddVolumeMountToContainer(t *testing.T) {
 		})
 	}
 }
+
+func TestRemoveVolumeMountFromContainer(t *testing.T) {
+	volumemountFoo := &corev1.VolumeMount{
+		Name:      "foo",
+		MountPath: "/path/foo",
+	}
+	volumemountFoo2 := &corev1.VolumeMount{
+		Name:      "foo2",
+		MountPath: "/path/foo2",
+	}
+	volumemountBar := &corev1.VolumeMount{
+		Name:      "bar",
+		MountPath: "/path/bar",
+	}
+	type args struct {
+		container   *corev1.Container
+		volumemount string
+	}
+	tests := []struct {
+		name string
+		args args
+		want []corev1.VolumeMount
+	}{
+		{
+			name: "container.volumeMount is empty",
+			args: args{
+				container:   &corev1.Container{},
+				volumemount: "foo",
+			},
+			want: nil,
+		},
+		{
+			name: "one existing volumemount",
+			args: args{
+				container: &corev1.Container{
+					VolumeMounts: []corev1.VolumeMount{*volumemountFoo},
+				},
+				volumemount: "foo",
+			},
+			want: []corev1.VolumeMount{},
+		},
+		{
+			name: "multiple existing volumemounts",
+			args: args{
+				container: &corev1.Container{
+					VolumeMounts: []corev1.VolumeMount{*volumemountFoo, *volumemountFoo2, *volumemountBar},
+				},
+				volumemount: "foo2",
+			},
+			want: []corev1.VolumeMount{*volumemountFoo, *volumemountBar},
+		},
+		{
+			name: "remove nonexistent volumemounts",
+			args: args{
+				container: &corev1.Container{
+					VolumeMounts: []corev1.VolumeMount{*volumemountFoo, *volumemountFoo2, *volumemountBar},
+				},
+				volumemount: "bar2",
+			},
+			want: []corev1.VolumeMount{*volumemountFoo, *volumemountFoo2, *volumemountBar},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			RemoveVolumeMountFromContainer(tt.args.container, tt.args.volumemount)
+			if !reflect.DeepEqual(tt.args.container.VolumeMounts, tt.want) {
+				t.Errorf("RemoveVolumeMountFromContainer() = %v, want %v", tt.args.container.VolumeMounts, tt.want)
+			}
+		})
+	}
+}

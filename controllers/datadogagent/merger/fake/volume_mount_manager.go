@@ -53,6 +53,17 @@ func (_m *VolumeMountManager) AddVolumeMountToContainerWithMergeFunc(volumeMount
 	return _m.volumeMountMerge(containerName, volumeMount, volumeMountMergeFunc)
 }
 
+// RemoveVolumeMount provides a mock function with given fields: volumeMount
+func (_m *VolumeMountManager) RemoveVolumeMount(volumeMount string) {
+	for id, v := range _m.VolumeMountsByC[AllContainers] {
+		if v.Name == volumeMount {
+			updatedVolumeMounts := make([]*v1.VolumeMount, 0, len(_m.VolumeMountsByC[AllContainers])-1)
+			updatedVolumeMounts = append(updatedVolumeMounts, _m.VolumeMountsByC[AllContainers][:id]...)
+			_m.VolumeMountsByC[AllContainers] = append(updatedVolumeMounts, _m.VolumeMountsByC[AllContainers][id+1:]...)
+		}
+	}
+}
+
 func (_m *VolumeMountManager) volumeMountMerge(containerName commonv1.AgentContainerName, volume *v1.VolumeMount, volumeMergeFunc merger.VolumeMountMergeFunction) error {
 	found := false
 	idFound := 0

@@ -9,6 +9,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
+
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -287,6 +289,108 @@ func Test_mergeMode(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := mergeMode(tt.args.a, tt.args.b); got != tt.want {
 				t.Errorf("mergeMode() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestRemoveVolume(t *testing.T) {
+	volumeFoo := &corev1.Volume{
+		Name: "foo",
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: "/var/logs/",
+			},
+		},
+	}
+
+	volumeBar := &corev1.Volume{
+		Name: "bar",
+		VolumeSource: corev1.VolumeSource{
+			HostPath: &corev1.HostPathVolumeSource{
+				Path: "/etc/",
+			},
+		},
+	}
+
+	volumeCM := &corev1.Volume{
+		Name: "cm",
+		VolumeSource: corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: "cm",
+				},
+				Items: []corev1.KeyToPath{
+					{
+						Key:  "key1",
+						Path: "/etc/values1.yaml",
+					},
+				},
+			},
+		},
+	}
+
+	type args struct {
+		podSpec *corev1.PodSpec
+		volume  string
+	}
+	tests := []struct {
+		name  string
+		store *dependencies.Store
+		args  args
+		want  []corev1.Volume
+	}{
+		{
+			name: "empty volumes list",
+			args: args{
+				podSpec: &corev1.PodSpec{
+					Volumes: nil,
+				},
+				volume: "foo",
+			},
+			want: nil,
+		},
+		{
+			name: "single existing volume",
+			args: args{
+				podSpec: &corev1.PodSpec{
+					Volumes: []corev1.Volume{*volumeFoo},
+				},
+				volume: "foo",
+			},
+			want: []corev1.Volume{},
+		},
+		{
+			name: "multiple existing volumes",
+			args: args{
+				podSpec: &corev1.PodSpec{
+					Volumes: []corev1.Volume{*volumeFoo, *volumeCM, *volumeBar},
+				},
+				volume: "cm",
+			},
+			want: []corev1.Volume{*volumeFoo, *volumeBar},
+		},
+		{
+			name: "remove nonexistent volume",
+			args: args{
+				podSpec: &corev1.PodSpec{
+					Volumes: []corev1.Volume{*volumeFoo, *volumeCM, *volumeBar},
+				},
+				volume: "foo2",
+			},
+			want: []corev1.Volume{*volumeFoo, *volumeCM, *volumeBar},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			volumeManager := volumeManagerImpl{
+				podTmpl: &corev1.PodTemplateSpec{
+					Spec: *tt.args.podSpec,
+				},
+			}
+			volumeManager.RemoveVolume(tt.args.volume)
+			if !reflect.DeepEqual(volumeManager.podTmpl.Spec.Volumes, tt.want) {
+				t.Errorf("RemoveVolume() = %v, want %v", volumeManager.podTmpl.Spec.Volumes, tt.want)
 			}
 		})
 	}

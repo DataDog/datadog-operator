@@ -14,9 +14,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -42,6 +44,7 @@ type DatadogAgentReconciler struct {
 	client.Client
 	VersionInfo  *version.Info
 	PlatformInfo kubernetes.PlatformInfo
+	Profiles     *kubernetes.Profiles
 	Log          logr.Logger
 	Scheme       *runtime.Scheme
 	Recorder     record.EventRecorder
@@ -193,6 +196,40 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	handlerEnqueue := handler.EnqueueRequestsFromMapFunc(enqueueIfOwnedByDatadogAgent)
 	builder.Watches(&source.Kind{Type: &rbacv1.ClusterRole{}}, handlerEnqueue)
 	builder.Watches(&source.Kind{Type: &rbacv1.ClusterRoleBinding{}}, handlerEnqueue)
+	// node informer for introspection
+	builder.Watches(&source.Kind{Type: &corev1.Node{}}, handler.EnqueueRequestsFromMapFunc(func(obj client.Object) []reconcile.Request {
+		var reconcileRequests []reconcile.Request
+		node := &corev1.Node{}
+		err := r.Get(context.TODO(), types.NamespacedName{Namespace: obj.GetNamespace(), Name: obj.GetName()}, node)
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				// node deleted
+				r.Profiles.DeleteProvider(obj)
+			}
+			r.Log.V(1).Info("Error getting node", "name", obj.GetName())
+		} else {
+			// node registered or node updated
+			r.Profiles.SetProvider(obj)
+		}
+
+		// retrieve and send reconcile requests to all DatadogAgents
+		ddaList := &datadoghqv2alpha1.DatadogAgentList{}
+		err = r.List(context.TODO(), ddaList)
+		if err != nil {
+			return []reconcile.Request{}
+		}
+
+		for _, dda := range ddaList.Items {
+			reconcileRequests = append(reconcileRequests, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      dda.Name,
+					Namespace: dda.Namespace,
+				},
+			})
+		}
+
+		return reconcileRequests
+	}))
 
 	if r.Options.ExtendedDaemonsetOptions.Enabled {
 		builder = builder.Owns(&edsdatadoghqv1alpha1.ExtendedDaemonSet{})
@@ -231,7 +268,7 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		}
 	}
 
-	internal, err := datadogagent.NewReconciler(r.Options, r.Client, r.VersionInfo, r.PlatformInfo, r.Scheme, r.Log, r.Recorder, metricForwarder)
+	internal, err := datadogagent.NewReconciler(r.Options, r.Client, r.VersionInfo, r.PlatformInfo, r.Profiles, r.Scheme, r.Log, r.Recorder, metricForwarder)
 	if err != nil {
 		return err
 	}

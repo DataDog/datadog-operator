@@ -7,6 +7,7 @@ package datadogagent
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
@@ -16,6 +17,7 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/override"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	"github.com/go-logr/logr"
@@ -31,6 +33,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	var eds *edsv1alpha1.ExtendedDaemonSet
 	var daemonset *appsv1.DaemonSet
 	var podManagers feature.PodTemplateManagers
+	var err error
 
 	daemonsetLogger := logger.WithValues("component", datadoghqv2alpha1.NodeAgentComponentName)
 
@@ -78,7 +81,38 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 			}
 			return r.cleanupV2ExtendedDaemonSet(daemonsetLogger, dda, eds, newStatus)
 		}
-		return r.createOrUpdateExtendedDaemonset(daemonsetLogger, dda, eds, newStatus, updateEDSStatusV2WithAgent)
+
+		providersList := r.profiles.GetProviders()
+		switch {
+		case len(*providersList) == 1:
+			for provider := range *providersList {
+				eds.Spec.Template = *override.Provider(&eds.Spec.Template, provider, features)
+				return r.createOrUpdateExtendedDaemonset(daemonsetLogger, dda, eds, newStatus, updateEDSStatusV2WithAgent)
+			}
+		case len(*providersList) > 1:
+			var e error
+			for p := range *providersList {
+				edsCopy := eds.DeepCopy()
+				podTemplate := edsCopy.Spec.Template
+				edsCopy.Spec.Template = *override.Provider(&podTemplate, p, features)
+
+				// use provider-specific name
+				edsCopy.Name = fmt.Sprintf("%s-%s", edsCopy.Name, p.ComponentName)
+				// add provider-specific node selector
+				nodeSelector := kubernetes.GenerateNodeSelector(p)
+				edsCopy.Spec.Template.Spec.NodeSelector = nodeSelector
+
+				result, e = r.createOrUpdateExtendedDaemonset(daemonsetLogger, dda, edsCopy, newStatus, updateEDSStatusV2WithAgent)
+				if e != nil {
+					return result, e
+				}
+			}
+			return result, e
+		default:
+			return r.createOrUpdateExtendedDaemonset(daemonsetLogger, dda, eds, newStatus, updateEDSStatusV2WithAgent)
+		}
+
+		return reconcile.Result{}, err
 	}
 
 	// Start by creating the Default Agent daemonset
@@ -118,7 +152,38 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 		}
 		return r.cleanupV2DaemonSet(daemonsetLogger, dda, daemonset, newStatus)
 	}
-	return r.createOrUpdateDaemonset(daemonsetLogger, dda, daemonset, newStatus, updateDSStatusV2WithAgent)
+
+	providersList := r.profiles.GetProviders()
+	switch {
+	case len(*providersList) == 1:
+		for provider := range *providersList {
+			daemonset.Spec.Template = *override.Provider(&daemonset.Spec.Template, provider, features)
+			return r.createOrUpdateDaemonset(daemonsetLogger, dda, daemonset, newStatus, updateDSStatusV2WithAgent)
+		}
+	case len(*providersList) > 1:
+		var e error
+		for p := range *providersList {
+			dsCopy := daemonset.DeepCopy()
+			podTemplate := dsCopy.Spec.Template
+			dsCopy.Spec.Template = *override.Provider(&podTemplate, p, features)
+
+			// use provider-specific name
+			dsCopy.Name = fmt.Sprintf("%s-%s", dsCopy.Name, p.ComponentName)
+			// add provider-specific node selector
+			nodeSelector := kubernetes.GenerateNodeSelector(p)
+			dsCopy.Spec.Template.Spec.NodeSelector = nodeSelector
+
+			result, e = r.createOrUpdateDaemonset(daemonsetLogger, dda, dsCopy, newStatus, updateDSStatusV2WithAgent)
+			if e != nil {
+				return result, e
+			}
+		}
+		return result, e
+	default:
+		return r.createOrUpdateDaemonset(daemonsetLogger, dda, daemonset, newStatus, updateDSStatusV2WithAgent)
+	}
+
+	return reconcile.Result{}, err
 }
 
 func updateDSStatusV2WithAgent(dda *appsv1.DaemonSet, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
