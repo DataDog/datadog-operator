@@ -6,7 +6,10 @@
 package clusterchecks
 
 import (
+	"fmt"
 	"testing"
+
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
@@ -19,6 +22,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
 func TestClusterChecksFeature(t *testing.T) {
@@ -40,14 +44,14 @@ func TestClusterChecksFeature(t *testing.T) {
 			Name:          "v1alpha1 cluster checks enabled and runners not enabled",
 			DDAv1:         newV1Agent(true, false),
 			WantConfigure: true,
-			ClusterAgent:  testClusterAgentHasExpectedEnvs(),
+			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(wantClusterAgentHasExpectedEnvs),
 			Agent:         testAgentHasExpectedEnvsWithNoRunners(),
 		},
 		{
 			Name:                "v1alpha1 cluster checks enabled and runners enabled",
 			DDAv1:               newV1Agent(true, true),
 			WantConfigure:       true,
-			ClusterAgent:        testClusterAgentHasExpectedEnvs(),
+			ClusterAgent:        test.NewDefaultComponentTest().WithWantFunc(wantClusterAgentHasExpectedEnvs),
 			ClusterChecksRunner: testClusterChecksRunnerHasExpectedEnvs(),
 			Agent:               testAgentHasExpectedEnvsWithRunners(),
 		},
@@ -56,33 +60,83 @@ func TestClusterChecksFeature(t *testing.T) {
 		// v2Alpha1.DatadogAgent
 		//////////////////////////
 		{
+			Name: "v2alpha1 cluster checks empty, checksum set",
+			DDAv2: &v2alpha1.DatadogAgent{
+				Spec: v2alpha1.DatadogAgentSpec{
+					Features: &v2alpha1.DatadogFeatures{
+						ClusterChecks: &v2alpha1.ClusterChecksFeatureConfig{},
+					},
+				},
+			},
+			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(wantClusterAgentHasNonEmptyChecksumAnnotation),
+			WantConfigure: false,
+		},
+		{
 			Name:          "v2alpha1 cluster checks not enabled and runners not enabled",
 			DDAv2:         newV2Agent(false, false),
+			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(wantClusterAgentHasNonEmptyChecksumAnnotation),
 			WantConfigure: false,
 		},
 		{
 			Name:          "v2alpha1 cluster checks not enabled and runners enabled",
 			DDAv2:         newV2Agent(false, true),
+			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(wantClusterAgentHasNonEmptyChecksumAnnotation),
 			WantConfigure: false,
 		},
 		{
 			Name:          "v2alpha1 cluster checks enabled and runners not enabled",
 			DDAv2:         newV2Agent(true, false),
 			WantConfigure: true,
-			ClusterAgent:  testClusterAgentHasExpectedEnvs(),
+			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(wantClusterAgentHasExpectedEnvsAndChecksum),
 			Agent:         testAgentHasExpectedEnvsWithNoRunners(),
 		},
 		{
 			Name:                "v2alpha1 cluster checks enabled and runners enabled",
 			DDAv2:               newV2Agent(true, true),
 			WantConfigure:       true,
-			ClusterAgent:        testClusterAgentHasExpectedEnvs(),
+			ClusterAgent:        test.NewDefaultComponentTest().WithWantFunc(wantClusterAgentHasExpectedEnvsAndChecksum),
 			ClusterChecksRunner: testClusterChecksRunnerHasExpectedEnvs(),
 			Agent:               testAgentHasExpectedEnvsWithRunners(),
 		},
 	}
 
 	tests.Run(t, buildClusterChecksFeature)
+}
+
+func TestClusterAgentChecksumsDifferentForDiffferentConfig(t *testing.T) {
+	logf.SetLogger(zap.New(zap.UseDevMode(true)))
+	logger := logf.Log.WithName("checksum unique")
+
+	annotationKey := fmt.Sprintf(apicommon.MD5ChecksumAnnotationKey, feature.ClusterChecksIDType)
+	feature := buildClusterChecksFeature(&feature.Options{
+		Logger: logger,
+	})
+
+	podTemplateManager := fake.NewPodTemplateManagers(t)
+	md5Values := map[string]string{}
+
+	datadogAgents := []*v2alpha1.DatadogAgent{
+		{
+			Spec: v2alpha1.DatadogAgentSpec{
+				Features: &v2alpha1.DatadogFeatures{
+					ClusterChecks: &v2alpha1.ClusterChecksFeatureConfig{},
+				},
+			},
+		},
+		newV2Agent(false, false),
+		newV2Agent(false, true),
+		newV2Agent(true, false),
+		newV2Agent(true, true),
+	}
+
+	for _, datadogAgent := range datadogAgents {
+		feature.Configure(datadogAgent)
+		feature.ManageClusterAgent(podTemplateManager)
+		md5 := podTemplateManager.AnnotationMgr.Annotations[annotationKey]
+		md5Values[md5] = ""
+	}
+
+	assert.Equal(t, 5, len(md5Values))
 }
 
 func newV1Agent(enableClusterChecks bool, enableClusterCheckRunners bool) *v1alpha1.DatadogAgent {
@@ -113,34 +167,42 @@ func newV2Agent(enableClusterChecks bool, enableClusterCheckRunners bool) *v2alp
 	}
 }
 
-func testClusterAgentHasExpectedEnvs() *test.ComponentTest {
-	return test.NewDefaultComponentTest().WithWantFunc(
-		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
-			mgr := mgrInterface.(*fake.PodTemplateManagers)
+func wantClusterAgentHasExpectedEnvsAndChecksum(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+	wantClusterAgentHasExpectedEnvs(t, mgrInterface)
+	wantClusterAgentHasNonEmptyChecksumAnnotation(t, mgrInterface)
+}
 
-			clusterAgentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ClusterAgentContainerName]
-			expectedClusterAgentEnvs := []*corev1.EnvVar{
-				{
-					Name:  apicommon.DDClusterChecksEnabled,
-					Value: "true",
-				},
-				{
-					Name:  apicommon.DDExtraConfigProviders,
-					Value: apicommon.KubeServicesAndEndpointsConfigProviders,
-				},
-				{
-					Name:  apicommon.DDExtraListeners,
-					Value: apicommon.KubeServicesAndEndpointsListeners,
-				},
-			}
+func wantClusterAgentHasExpectedEnvs(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+	mgr := mgrInterface.(*fake.PodTemplateManagers)
 
-			assert.True(
-				t,
-				apiutils.IsEqualStruct(clusterAgentEnvs, expectedClusterAgentEnvs),
-				"Cluster Agent ENVs \ndiff = %s", cmp.Diff(clusterAgentEnvs, expectedClusterAgentEnvs),
-			)
+	clusterAgentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ClusterAgentContainerName]
+	expectedClusterAgentEnvs := []*corev1.EnvVar{
+		{
+			Name:  apicommon.DDClusterChecksEnabled,
+			Value: "true",
 		},
+		{
+			Name:  apicommon.DDExtraConfigProviders,
+			Value: apicommon.KubeServicesAndEndpointsConfigProviders,
+		},
+		{
+			Name:  apicommon.DDExtraListeners,
+			Value: apicommon.KubeServicesAndEndpointsListeners,
+		},
+	}
+
+	assert.True(
+		t,
+		apiutils.IsEqualStruct(clusterAgentEnvs, expectedClusterAgentEnvs),
+		"Cluster Agent ENVs \ndiff = %s", cmp.Diff(clusterAgentEnvs, expectedClusterAgentEnvs),
 	)
+}
+
+func wantClusterAgentHasNonEmptyChecksumAnnotation(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+	mgr := mgrInterface.(*fake.PodTemplateManagers)
+	annotationKey := fmt.Sprintf(apicommon.MD5ChecksumAnnotationKey, feature.ClusterChecksIDType)
+	annotations := mgr.AnnotationMgr.Annotations
+	assert.NotEmpty(t, annotations[annotationKey])
 }
 
 func testClusterChecksRunnerHasExpectedEnvs() *test.ComponentTest {

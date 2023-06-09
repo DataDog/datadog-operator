@@ -13,7 +13,10 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+	"github.com/go-logr/logr"
 
 	corev1 "k8s.io/api/core/v1"
 	netv1 "k8s.io/api/networking/v1"
@@ -34,10 +37,19 @@ type clusterChecksFeature struct {
 
 	createKubernetesNetworkPolicy bool
 	createCiliumNetworkPolicy     bool
+
+	customConfigAnnotationKey   string
+	customConfigAnnotationValue string
+
+	logger logr.Logger
 }
 
 func buildClusterChecksFeature(options *feature.Options) feature.Feature {
-	return &clusterChecksFeature{}
+	feature := &clusterChecksFeature{}
+	if options != nil {
+		feature.logger = options.Logger
+	}
+	return feature
 }
 
 // ID returns the ID of the Feature
@@ -48,6 +60,17 @@ func (f *clusterChecksFeature) ID() feature.IDType {
 func (f *clusterChecksFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredComponents {
 	clusterChecksEnabled := apiutils.BoolValue(dda.Spec.Features.ClusterChecks.Enabled)
 	f.useClusterCheckRunners = clusterChecksEnabled && apiutils.BoolValue(dda.Spec.Features.ClusterChecks.UseClusterChecksRunners)
+
+	{
+		hash, err := comparison.GenerateMD5ForSpec(dda.Spec.Features.ClusterChecks)
+		if err != nil {
+			f.logger.Error(err, "couldn't generate hash for cluster checks config")
+		} else {
+			f.logger.V(2).Info("created cluster checks", "hash", hash)
+		}
+		f.customConfigAnnotationValue = hash
+		f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.ClusterChecksIDType)
+	}
 
 	if clusterChecksEnabled {
 		f.owner = dda
@@ -184,6 +207,10 @@ func (f *clusterChecksFeature) ManageClusterAgent(managers feature.PodTemplateMa
 			Value: apicommon.KubeServicesAndEndpointsListeners,
 		},
 	)
+
+	if f.customConfigAnnotationKey != "" && f.customConfigAnnotationValue != "" {
+		managers.Annotation().AddAnnotation(f.customConfigAnnotationKey, f.customConfigAnnotationValue)
+	}
 
 	return nil
 }
