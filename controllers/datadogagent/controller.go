@@ -28,6 +28,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
+	componentagent "github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 
@@ -51,6 +52,7 @@ import (
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/orchestratorexplorer"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/otlp"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/prometheusscrape"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/remoteconfig"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/tcpqueuelength"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/usm"
 )
@@ -61,7 +63,7 @@ const (
 
 // ReconcilerOptions provides options read from command line
 type ReconcilerOptions struct {
-	SupportExtendedDaemonset bool
+	ExtendedDaemonsetOptions componentagent.ExtendedDaemonsetOptions
 	SupportCilium            bool
 	OperatorMetricsEnabled   bool
 	V2Enabled                bool
@@ -157,7 +159,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, request reconcile.Re
 
 func reconcilerOptionsToFeatureOptions(opts *ReconcilerOptions, logger logr.Logger) *feature.Options {
 	return &feature.Options{
-		SupportExtendedDaemonset: opts.SupportExtendedDaemonset,
+		SupportExtendedDaemonset: opts.ExtendedDaemonsetOptions.Enabled,
 		Logger:                   logger,
 	}
 }
@@ -208,7 +210,7 @@ func (r *Reconciler) reconcileInstance(ctx context.Context, logger logr.Logger, 
 
 	// Cleanup unused dependencies
 	// Run it after the deployments reconcile
-	if errs = depsStore.Cleanup(ctx, r.client, instance.Namespace, instance.Name); len(errs) > 0 {
+	if errs = depsStore.Cleanup(ctx, r.client); len(errs) > 0 {
 		return result, errors.NewAggregate(errs)
 	}
 

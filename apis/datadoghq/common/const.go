@@ -156,6 +156,9 @@ const (
 	// same path on host and container
 	DebugfsPath = "/sys/kernel/debug"
 
+	TracefsVolumeName = "tracefs"
+	TracefsPath       = "/sys/kernel/tracing"
+
 	SecurityfsVolumeName = "securityfs"
 	SecurityfsVolumePath = "/sys/kernel/security"
 	SecurityfsMountPath  = "/host/sys/kernel/security"

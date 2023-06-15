@@ -17,4 +17,6 @@ const (
 	NodeAgentSuffix    = "node"
 	ChecksRunnerSuffix = "ccr"
 	ClusterAgentSuffix = "dca"
+
+	CustomResourceDefinitionsName = "customresourcedefinitions"
 )

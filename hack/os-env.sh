@@ -16,6 +16,8 @@ ARCH=$(uname -m)
 PLATFORM="$OS-$ARCH"
 ROOT=$(git rev-parse --show-toplevel)
 SED="sed -i"
-if [ "$OS" == "darwin" ]; then
+if [ "$PLATFORM" == "darwin-arm64" ]; then
+    SED="sed -i ''"
+elif [ "$OS" == "darwin" ]; then
     SED="sed -i .bak"
 fi

@@ -8246,6 +8246,12 @@ spec:
                                   type: string
                               type: object
                           type: object
+                        customResources:
+                          description: '`CustomResources` defines custom resources for the orchestrator explorer to collect. Each item should follow the convention `group/version/kind`. For example, `datadoghq.com/v1alpha1/datadogmetrics`.'
+                          items:
+                            type: string
+                          type: array
+                          x-kubernetes-list-type: set
                         ddUrl:
                           description: 'Override the API endpoint for the Orchestrator Explorer. URL Default: "https://orchestrator.datadoghq.com".'
                           type: string
@@ -8309,6 +8315,13 @@ spec:
                         version:
                           description: 'Version specifies the version of the OpenMetrics check. Default: 2'
                           type: integer
+                      type: object
+                    remoteConfiguration:
+                      description: Remote Configuration configuration.
+                      properties:
+                        enabled:
+                          description: 'Enable this option to activate Remote Configuration. Default: false'
+                          type: boolean
                       type: object
                     tcpQueueLength:
                       description: TCPQueueLength configuration.
