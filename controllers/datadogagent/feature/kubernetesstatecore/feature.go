@@ -7,6 +7,7 @@ package kubernetesstatecore
 
 import (
 	"fmt"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -17,6 +18,7 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/utils"
 	"github.com/go-logr/logr"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
@@ -48,6 +50,7 @@ func buildKSMFeature(options *feature.Options) feature.Feature {
 
 type ksmFeature struct {
 	runInClusterChecksRunner bool
+	collectCRDMetrics        bool
 
 	rbacSuffix         string
 	serviceAccountName string
@@ -61,6 +64,8 @@ type ksmFeature struct {
 	logger logr.Logger
 }
 
+const crdCollectionMinVersion = "7.46.0"
+
 // ID returns the ID of the Feature
 func (f *ksmFeature) ID() feature.IDType {
 	return feature.KubernetesStateCoreIDType
@@ -73,6 +78,22 @@ func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 
 	if dda.Spec.Features != nil && dda.Spec.Features.KubeStateMetricsCore != nil && apiutils.BoolValue(dda.Spec.Features.KubeStateMetricsCore.Enabled) {
 		output.ClusterAgent.IsRequired = apiutils.NewBoolPointer(true)
+
+		if nodeAgentOverride, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]; ok {
+			if nodeAgentOverride.Image != nil {
+				// Check image version; if image >= 7.46, then we can set collectCRDMetrics == true
+				agentTag := ""
+				if nodeAgentOverride.Image.Name != "" {
+					agentTag = strings.TrimSuffix(utils.GetTagFromImageName(nodeAgentOverride.Image.Name), "-jmx")
+				} else if nodeAgentOverride.Image.Tag != "" {
+					agentTag = nodeAgentOverride.Image.Tag
+				}
+				// Add "-0" so that prerelase versions are considered sufficient. https://github.com/Masterminds/semver#working-with-prerelease-versions
+				if utils.IsAboveMinVersion(agentTag, crdCollectionMinVersion+"-0") {
+					f.collectCRDMetrics = true
+				}
+			}
+		}
 
 		if dda.Spec.Features.KubeStateMetricsCore.Conf != nil {
 			f.customConfig = v2alpha1.ConvertCustomConfig(dda.Spec.Features.KubeStateMetricsCore.Conf)
@@ -95,6 +116,22 @@ func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 				f.rbacSuffix = common.ChecksRunnerSuffix
 				f.serviceAccountName = v2alpha1.GetClusterChecksRunnerServiceAccount(dda)
 				output.ClusterChecksRunner.IsRequired = apiutils.NewBoolPointer(true)
+
+				if ccrOverride, ok := dda.Spec.Override[v2alpha1.ClusterChecksRunnerComponentName]; ok {
+					if ccrOverride.Image != nil {
+						// check image version; if image >= 7.46, then we can set collectCRDMetrics == true
+						ccrTag := ""
+						if ccrOverride.Image.Name != "" {
+							ccrTag = strings.TrimSuffix(utils.GetTagFromImageName(ccrOverride.Image.Name), "-jmx")
+						} else if ccrOverride.Image.Tag != "" {
+							ccrTag = ccrOverride.Image.Tag
+						}
+						// Add "-0" so that prerelase versions are considered sufficient. https://github.com/Masterminds/semver#working-with-prerelease-versions
+						if utils.IsAboveMinVersion(ccrTag, crdCollectionMinVersion+"-0") {
+							f.collectCRDMetrics = true
+						}
+					}
+				}
 			}
 		}
 	}
@@ -132,13 +169,22 @@ func (f *ksmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) feature.RequiredCom
 	return output
 }
 
+type configMapOptions struct {
+	withVPA  bool
+	withCRDs bool
+}
+
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
 func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
 	// Create a configMap if CustomConfig.ConfigData is provided and CustomConfig.ConfigMap == nil,
 	// OR if the default configMap is needed.
 	pInfo := managers.Store().GetPlatformInfo()
-	configCM, err := f.buildKSMCoreConfigMap(pInfo.IsResourceSupported("VerticalPodAutoscaler"))
+	cmOptions := configMapOptions{
+		withVPA:  pInfo.IsResourceSupported("VerticalPodAutoscaler"),
+		withCRDs: f.collectCRDMetrics,
+	}
+	configCM, err := f.buildKSMCoreConfigMap(cmOptions)
 	if err != nil {
 		return err
 	}
@@ -156,7 +202,7 @@ func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers, compo
 	// Manage RBAC permission
 	rbacName := GetKubeStateMetricsRBACResourceName(f.owner, f.rbacSuffix)
 
-	return managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), rbacName, f.serviceAccountName, getRBACPolicyRules())
+	return managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), rbacName, f.serviceAccountName, getRBACPolicyRules(f.collectCRDMetrics))
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec

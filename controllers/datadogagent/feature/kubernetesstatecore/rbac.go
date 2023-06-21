@@ -11,16 +11,10 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 )
 
-// getRBACRules generates the cluster role required for the KSM informers to query
+// getRBACPolicyRules generates the cluster role required for the KSM informers to query
 // what is exposed as of the v2.0 https://github.com/kubernetes/kube-state-metrics/blob/release-2.0/examples/standard/cluster-role.yaml
-func getRBACPolicyRules() []rbacv1.PolicyRule {
+func getRBACPolicyRules(collectCRDMetrics bool) []rbacv1.PolicyRule {
 	rbacRules := []rbacv1.PolicyRule{
-		{
-			APIGroups: []string{rbac.RegistrationAPIGroup},
-			Resources: []string{
-				rbac.APIServicesResource,
-			},
-		},
 		{
 			APIGroups: []string{rbac.CoreAPIGroup},
 			Resources: []string{
@@ -45,7 +39,6 @@ func getRBACPolicyRules() []rbacv1.PolicyRule {
 				rbac.DaemonsetsResource,
 				rbac.DeploymentsResource,
 				rbac.ReplicasetsResource,
-				rbac.CustomResourceDefinitionsResource,
 			},
 		},
 		{
@@ -115,6 +108,25 @@ func getRBACPolicyRules() []rbacv1.PolicyRule {
 				rbac.VPAResource,
 			},
 		},
+	}
+
+	if collectCRDMetrics {
+		crdMetricRBACs := []rbacv1.PolicyRule{
+			{
+				APIGroups: []string{rbac.RegistrationAPIGroup},
+				Resources: []string{
+					rbac.APIServicesResource,
+				},
+			},
+			{
+				APIGroups: []string{rbac.ExtensionsAPIGroup, rbac.APIExtensionsAPIGroup},
+				Resources: []string{
+					rbac.CustomResourceDefinitionsResource,
+				},
+			},
+		}
+
+		rbacRules = append(rbacRules, crdMetricRBACs...)
 	}
 
 	commonVerbs := []string{

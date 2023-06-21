@@ -26,6 +26,10 @@ instances:
   - collectors:
       - pods
 `
+	defaultOptions := configMapOptions{}
+	optionsWithVPA := configMapOptions{withVPA: true}
+	optionsWithCRDs := configMapOptions{withCRDs: true}
+
 	type fields struct {
 		enable                   bool
 		runInClusterChecksRunner bool
@@ -34,7 +38,7 @@ instances:
 		owner                    metav1.Object
 		customConfig             *apicommonv1.CustomConfig
 		configConfigMapName      string
-		vpaSupported             bool
+		cmOptions                configMapOptions
 	}
 	tests := []struct {
 		name    string
@@ -50,7 +54,7 @@ instances:
 				runInClusterChecksRunner: true,
 				configConfigMapName:      apicommon.DefaultKubeStateMetricsCoreConf,
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), apicommon.DefaultKubeStateMetricsCoreConf, ksmCheckConfig(true, false)),
+			want: buildDefaultConfigMap(owner.GetNamespace(), apicommon.DefaultKubeStateMetricsCoreConf, ksmCheckConfig(true, defaultOptions)),
 		},
 		{
 			name: "override",
@@ -73,18 +77,29 @@ instances:
 				runInClusterChecksRunner: false,
 				configConfigMapName:      apicommon.DefaultKubeStateMetricsCoreConf,
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), apicommon.DefaultKubeStateMetricsCoreConf, ksmCheckConfig(false, false)),
+			want: buildDefaultConfigMap(owner.GetNamespace(), apicommon.DefaultKubeStateMetricsCoreConf, ksmCheckConfig(false, defaultOptions)),
 		},
 		{
-			name: "vpa supported",
+			name: "with vpa",
 			fields: fields{
 				owner:                    owner,
 				enable:                   true,
 				runInClusterChecksRunner: true,
 				configConfigMapName:      apicommon.DefaultKubeStateMetricsCoreConf,
-				vpaSupported:             true,
+				cmOptions:                optionsWithVPA,
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), apicommon.DefaultKubeStateMetricsCoreConf, ksmCheckConfig(true, true)),
+			want: buildDefaultConfigMap(owner.GetNamespace(), apicommon.DefaultKubeStateMetricsCoreConf, ksmCheckConfig(true, optionsWithVPA)),
+		},
+		{
+			name: "with CRDs",
+			fields: fields{
+				owner:                    owner,
+				enable:                   true,
+				runInClusterChecksRunner: true,
+				configConfigMapName:      apicommon.DefaultKubeStateMetricsCoreConf,
+				cmOptions:                optionsWithCRDs,
+			},
+			want: buildDefaultConfigMap(owner.GetNamespace(), apicommon.DefaultKubeStateMetricsCoreConf, ksmCheckConfig(true, optionsWithCRDs)),
 		},
 	}
 	for _, tt := range tests {
@@ -97,7 +112,7 @@ instances:
 				customConfig:             tt.fields.customConfig,
 				configConfigMapName:      tt.fields.configConfigMapName,
 			}
-			got, err := f.buildKSMCoreConfigMap(tt.fields.vpaSupported)
+			got, err := f.buildKSMCoreConfigMap(tt.fields.cmOptions)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ksmFeature.buildKSMCoreConfigMap() error = %v, wantErr %v", err, tt.wantErr)
 				return
