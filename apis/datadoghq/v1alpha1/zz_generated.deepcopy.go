@@ -1445,6 +1445,10 @@ func (in *DatadogMonitorStatus) DeepCopyInto(out *DatadogMonitorStatus) {
 		in, out := &in.Created, &out.Created
 		*out = (*in).DeepCopy()
 	}
+	if in.MonitorLastForceSyncTime != nil {
+		in, out := &in.MonitorLastForceSyncTime, &out.MonitorLastForceSyncTime
+		*out = (*in).DeepCopy()
+	}
 	if in.MonitorStateLastUpdateTime != nil {
 		in, out := &in.MonitorStateLastUpdateTime, &out.MonitorStateLastUpdateTime
 		*out = (*in).DeepCopy()
