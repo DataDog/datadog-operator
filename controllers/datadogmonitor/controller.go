@@ -137,6 +137,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 		var m datadogapiclientv1.Monitor
 		if instanceSpecHash != statusSpecHash {
 			// Custom resource manifest has changed, need to update the API
+			logger.V(1).Info("DatadogMonitor manifest has changed")
 			shouldUpdate = true
 		} else if instance.Status.MonitorLastForceSyncTime == nil || (defaultForceSyncPeriod-now.Sub(instance.Status.MonitorLastForceSyncTime.Time)) <= 0 {
 			// Periodically force a sync with the API monitor to ensure parity
