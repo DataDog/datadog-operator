@@ -199,33 +199,36 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	// node informer for introspection
 	builder.Watches(&source.Kind{Type: &corev1.Node{}}, handler.EnqueueRequestsFromMapFunc(func(obj client.Object) []reconcile.Request {
 		var reconcileRequests []reconcile.Request
+		var shouldReconcile bool
 		node := &corev1.Node{}
 		err := r.Get(context.TODO(), types.NamespacedName{Namespace: obj.GetNamespace(), Name: obj.GetName()}, node)
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				// node deleted
-				r.Profiles.DeleteProvider(obj)
+				shouldReconcile = r.Profiles.DeleteProvider(obj)
 			}
 			r.Log.V(1).Info("Error getting node", "name", obj.GetName())
 		} else {
 			// node registered or node updated
-			r.Profiles.SetProvider(obj)
+			shouldReconcile = r.Profiles.SetProvider(obj)
 		}
 
 		// retrieve and send reconcile requests to all DatadogAgents
-		ddaList := &datadoghqv2alpha1.DatadogAgentList{}
-		err = r.List(context.TODO(), ddaList)
-		if err != nil {
-			return []reconcile.Request{}
-		}
+		if shouldReconcile {
+			ddaList := &datadoghqv2alpha1.DatadogAgentList{}
+			err = r.List(context.TODO(), ddaList)
+			if err != nil {
+				return []reconcile.Request{}
+			}
 
-		for _, dda := range ddaList.Items {
-			reconcileRequests = append(reconcileRequests, reconcile.Request{
-				NamespacedName: types.NamespacedName{
-					Name:      dda.Name,
-					Namespace: dda.Namespace,
-				},
-			})
+			for _, dda := range ddaList.Items {
+				reconcileRequests = append(reconcileRequests, reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Name:      dda.Name,
+						Namespace: dda.Namespace,
+					},
+				})
+			}
 		}
 
 		return reconcileRequests

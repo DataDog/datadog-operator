@@ -68,9 +68,10 @@ func determineProvider(labels map[string]string) Provider {
 }
 
 // SetProvider creates a provider entry for a new provider or adds a node name to an existing provider
-func (p *Profiles) SetProvider(obj client.Object) {
+func (p *Profiles) SetProvider(obj client.Object) bool {
 	objName := obj.GetName()
 	objProvider := determineProvider(obj.GetLabels())
+	var shouldReconcile bool
 
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
@@ -79,19 +80,25 @@ func (p *Profiles) SetProvider(obj client.Object) {
 		p.providers = make(map[Provider]map[string]bool)
 	}
 
+	// add new provider
 	if _, ok := p.providers[objProvider]; !ok {
 		p.providers[objProvider] = map[string]bool{
 			objName: true,
 		}
+		shouldReconcile = true
 	} else {
+		// add node to existing provider
 		p.providers[objProvider][objName] = true
 	}
+
+	return shouldReconcile
 }
 
 // DeleteProvider removes a node name from a provider and removes a provider if not used by any nodes
-func (p *Profiles) DeleteProvider(obj client.Object) {
+func (p *Profiles) DeleteProvider(obj client.Object) bool {
 	objName := obj.GetName()
 	objProvider := determineProvider(obj.GetLabels())
+	var shouldReconcile bool
 
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
@@ -103,9 +110,12 @@ func (p *Profiles) DeleteProvider(obj client.Object) {
 			// delete provider if no nodes are using that provider
 			if len(p.providers[objProvider]) == 0 {
 				delete(p.providers, objProvider)
+				shouldReconcile = true
 			}
 		}
 	}
+
+	return shouldReconcile
 }
 
 // GetProviders gets a list of providers and the nodes associated with each provider

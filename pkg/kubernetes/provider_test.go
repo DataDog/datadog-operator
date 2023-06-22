@@ -83,6 +83,7 @@ func Test_SetProvider(t *testing.T) {
 		obj               corev1.Node
 		existingProviders *Profiles
 		wantProviders     *Profiles
+		shouldReconcile   bool
 	}{
 		{
 			name:              "add new provider",
@@ -100,6 +101,7 @@ func Test_SetProvider(t *testing.T) {
 					},
 				},
 			},
+			shouldReconcile: true,
 		},
 		{
 			name: "add new provider with existing provider",
@@ -126,6 +128,7 @@ func Test_SetProvider(t *testing.T) {
 					},
 				},
 			},
+			shouldReconcile: true,
 		},
 		{
 			name: "add new node name to existing provider",
@@ -155,13 +158,15 @@ func Test_SetProvider(t *testing.T) {
 					},
 				},
 			},
+			shouldReconcile: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.existingProviders.SetProvider(&tt.obj)
+			shouldReconcile := tt.existingProviders.SetProvider(&tt.obj)
 			assert.Equal(t, tt.wantProviders, tt.existingProviders)
+			assert.Equal(t, shouldReconcile, tt.shouldReconcile)
 		})
 	}
 }
@@ -187,6 +192,7 @@ func Test_DeleteProvider(t *testing.T) {
 		obj               corev1.Node
 		existingProviders *Profiles
 		wantProviders     *Profiles
+		shouldReconcile   bool
 	}{
 		{
 			name:              "no existing providers",
@@ -222,6 +228,7 @@ func Test_DeleteProvider(t *testing.T) {
 					},
 				},
 			},
+			shouldReconcile: false,
 		},
 		{
 			name: "delete only node in provider",
@@ -241,6 +248,7 @@ func Test_DeleteProvider(t *testing.T) {
 			wantProviders: &Profiles{
 				providers: map[Provider]map[string]bool{},
 			},
+			shouldReconcile: true,
 		},
 		{
 			name: "delete nonexistent provider",
@@ -259,13 +267,15 @@ func Test_DeleteProvider(t *testing.T) {
 					},
 				},
 			},
+			shouldReconcile: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.existingProviders.DeleteProvider(&tt.obj)
+			shouldReconcile := tt.existingProviders.DeleteProvider(&tt.obj)
 			assert.Equal(t, tt.wantProviders, tt.existingProviders)
+			assert.Equal(t, shouldReconcile, tt.shouldReconcile)
 		})
 	}
 }
