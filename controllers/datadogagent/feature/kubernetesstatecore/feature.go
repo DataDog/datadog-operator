@@ -7,25 +7,26 @@ package kubernetesstatecore
 
 import (
 	"fmt"
-	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/apis/utils"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
-	"github.com/DataDog/datadog-operator/pkg/utils"
 	"github.com/go-logr/logr"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/utils"
+
 	common "github.com/DataDog/datadog-operator/controllers/datadogagent/common"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/merger"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
 )
 
@@ -64,7 +65,8 @@ type ksmFeature struct {
 	logger logr.Logger
 }
 
-const crdCollectionMinVersion = "7.46.0"
+// Add "-0" so that prerelase versions are considered sufficient. https://github.com/Masterminds/semver#working-with-prerelease-versions
+const crdCollectionMinVersion = "7.46.0-0"
 
 // ID returns the ID of the Feature
 func (f *ksmFeature) ID() feature.IDType {
@@ -81,15 +83,7 @@ func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 
 		if nodeAgentOverride, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]; ok {
 			if nodeAgentOverride.Image != nil {
-				// Check image version; if image >= 7.46, then we can set collectCRDMetrics == true
-				agentTag := ""
-				if nodeAgentOverride.Image.Name != "" {
-					agentTag = strings.TrimSuffix(utils.GetTagFromImageName(nodeAgentOverride.Image.Name), "-jmx")
-				} else if nodeAgentOverride.Image.Tag != "" {
-					agentTag = nodeAgentOverride.Image.Tag
-				}
-				// Add "-0" so that prerelase versions are considered sufficient. https://github.com/Masterminds/semver#working-with-prerelease-versions
-				if utils.IsAboveMinVersion(agentTag, crdCollectionMinVersion+"-0") {
+				if utils.IsAboveMinVersion(component.GetAgentVersionFromImage(*nodeAgentOverride.Image), crdCollectionMinVersion) {
 					f.collectCRDMetrics = true
 				}
 			}
@@ -119,15 +113,7 @@ func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 
 				if ccrOverride, ok := dda.Spec.Override[v2alpha1.ClusterChecksRunnerComponentName]; ok {
 					if ccrOverride.Image != nil {
-						// check image version; if image >= 7.46, then we can set collectCRDMetrics == true
-						ccrTag := ""
-						if ccrOverride.Image.Name != "" {
-							ccrTag = strings.TrimSuffix(utils.GetTagFromImageName(ccrOverride.Image.Name), "-jmx")
-						} else if ccrOverride.Image.Tag != "" {
-							ccrTag = ccrOverride.Image.Tag
-						}
-						// Add "-0" so that prerelase versions are considered sufficient. https://github.com/Masterminds/semver#working-with-prerelease-versions
-						if utils.IsAboveMinVersion(ccrTag, crdCollectionMinVersion+"-0") {
+						if utils.IsAboveMinVersion(component.GetAgentVersionFromImage(*ccrOverride.Image), crdCollectionMinVersion+"-0") {
 							f.collectCRDMetrics = true
 						}
 					}

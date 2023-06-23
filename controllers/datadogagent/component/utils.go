@@ -17,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/version"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
+	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
@@ -367,6 +368,17 @@ func GetAgentName(dda metav1.Object) string {
 func GetAgentVersion(dda metav1.Object) string {
 	// TODO implement this method
 	return ""
+}
+
+// GetAgentVersionFromImage returns the Agent version based on the AgentImageConfig
+func GetAgentVersionFromImage(imageConfig commonv1.AgentImageConfig) string {
+	version := ""
+	if imageConfig.Name != "" {
+		version = strings.TrimSuffix(utils.GetTagFromImageName(imageConfig.Name), "-jmx")
+	} else if imageConfig.Tag != "" {
+		version = imageConfig.Tag
+	}
+	return version
 }
 
 // GetAgentSCCName returns the Agent SCC name based on the DatadogAgent name
