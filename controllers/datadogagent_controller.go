@@ -169,6 +169,7 @@ type DatadogAgentReconciler struct {
 // +kubebuilder:rbac:groups=autoscaling.k8s.io,resources=verticalpodautoscalers,verbs=list;watch
 // +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=list;watch
 // +kubebuilder:rbac:groups=extensions,resources=customresourcedefinitions,verbs=list;watch
+// +kubebuilder:rbac:groups=apiregistration.k8s.io,resources=apiservices,verbs=list;watch
 
 // Reconcile loop for DatadogAgent.
 func (r *DatadogAgentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
