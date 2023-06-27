@@ -375,7 +375,9 @@ func GetAgentVersionFromImage(imageConfig commonv1.AgentImageConfig) string {
 	version := ""
 	if imageConfig.Name != "" {
 		version = strings.TrimSuffix(utils.GetTagFromImageName(imageConfig.Name), "-jmx")
-	} else if imageConfig.Tag != "" {
+	}
+	// Give priority to image Tag setting
+	if imageConfig.Tag != "" {
 		version = imageConfig.Tag
 	}
 	return version

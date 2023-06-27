@@ -13,7 +13,7 @@ import (
 
 // getRBACPolicyRules generates the cluster role required for the KSM informers to query
 // what is exposed as of the v2.0 https://github.com/kubernetes/kube-state-metrics/blob/release-2.0/examples/standard/cluster-role.yaml
-func getRBACPolicyRules(cmOptions configMapOptions) []rbacv1.PolicyRule {
+func getRBACPolicyRules(collectorOpts collectorOptions) []rbacv1.PolicyRule {
 	rbacRules := []rbacv1.PolicyRule{
 		{
 			APIGroups: []string{rbac.CoreAPIGroup},
@@ -110,7 +110,7 @@ func getRBACPolicyRules(cmOptions configMapOptions) []rbacv1.PolicyRule {
 		},
 	}
 
-	if cmOptions.withAPIServices {
+	if collectorOpts.enableAPIService {
 		rbacRules = append(rbacRules, rbacv1.PolicyRule{
 			APIGroups: []string{rbac.RegistrationAPIGroup},
 			Resources: []string{
@@ -119,7 +119,7 @@ func getRBACPolicyRules(cmOptions configMapOptions) []rbacv1.PolicyRule {
 		})
 	}
 
-	if cmOptions.withCRDs {
+	if collectorOpts.enableCRD {
 		rbacRules = append(rbacRules, rbacv1.PolicyRule{
 			APIGroups: []string{rbac.ExtensionsAPIGroup, rbac.APIExtensionsAPIGroup},
 			Resources: []string{

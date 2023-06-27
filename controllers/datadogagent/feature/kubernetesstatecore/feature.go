@@ -159,10 +159,10 @@ func (f *ksmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) feature.RequiredCom
 	return output
 }
 
-type configMapOptions struct {
-	withVPA         bool
-	withAPIServices bool
-	withCRDs        bool
+type collectorOptions struct {
+	enableVPA        bool
+	enableAPIService bool
+	enableCRD        bool
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
@@ -171,12 +171,12 @@ func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers, compo
 	// Create a configMap if CustomConfig.ConfigData is provided and CustomConfig.ConfigMap == nil,
 	// OR if the default configMap is needed.
 	pInfo := managers.Store().GetPlatformInfo()
-	cmOptions := configMapOptions{
-		withVPA:         pInfo.IsResourceSupported("VerticalPodAutoscaler"),
-		withAPIServices: f.collectAPIServiceMetrics,
-		withCRDs:        f.collectCRDMetrics,
+	collectorOpts := collectorOptions{
+		enableVPA:        pInfo.IsResourceSupported("VerticalPodAutoscaler"),
+		enableAPIService: f.collectAPIServiceMetrics,
+		enableCRD:        f.collectCRDMetrics,
 	}
-	configCM, err := f.buildKSMCoreConfigMap(cmOptions)
+	configCM, err := f.buildKSMCoreConfigMap(collectorOpts)
 	if err != nil {
 		return err
 	}
@@ -194,7 +194,7 @@ func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers, compo
 	// Manage RBAC permission
 	rbacName := GetKubeStateMetricsRBACResourceName(f.owner, f.rbacSuffix)
 
-	return managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), rbacName, f.serviceAccountName, getRBACPolicyRules(cmOptions))
+	return managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), rbacName, f.serviceAccountName, getRBACPolicyRules(collectorOpts))
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec

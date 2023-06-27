@@ -14,7 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (f *ksmFeature) buildKSMCoreConfigMap(cmOptions configMapOptions) (*corev1.ConfigMap, error) {
+func (f *ksmFeature) buildKSMCoreConfigMap(collectorOpts collectorOptions) (*corev1.ConfigMap, error) {
 	if f.customConfig != nil && f.customConfig.ConfigMap != nil {
 		return nil, nil
 	}
@@ -22,7 +22,7 @@ func (f *ksmFeature) buildKSMCoreConfigMap(cmOptions configMapOptions) (*corev1.
 		return configmap.BuildConfigMapConfigData(f.owner.GetNamespace(), f.customConfig.ConfigData, f.configConfigMapName, ksmCoreCheckName)
 	}
 
-	configMap := buildDefaultConfigMap(f.owner.GetNamespace(), f.configConfigMapName, ksmCheckConfig(f.runInClusterChecksRunner, cmOptions))
+	configMap := buildDefaultConfigMap(f.owner.GetNamespace(), f.configConfigMapName, ksmCheckConfig(f.runInClusterChecksRunner, collectorOpts))
 	return configMap, nil
 }
 
@@ -45,7 +45,7 @@ func buildDefaultConfigMap(namespace, cmName string, content string) *corev1.Con
 // cluster checks are enabled but without Cluster Check Runners, we don't want
 // to set this check as a cluster check, because then it would be scheduled in
 // the DaemonSet agent instead of the DCA.
-func ksmCheckConfig(clusterCheck bool, cmOptions configMapOptions) string {
+func ksmCheckConfig(clusterCheck bool, collectorOpts collectorOptions) string {
 	stringVal := strconv.FormatBool(clusterCheck)
 	config := fmt.Sprintf(`---
 cluster_check: %s
@@ -76,15 +76,15 @@ instances:
     - ingresses
 `, stringVal, stringVal)
 
-	if cmOptions.withVPA {
+	if collectorOpts.enableVPA {
 		config += "    - verticalpodautoscalers\n"
 	}
 
-	if cmOptions.withAPIServices {
+	if collectorOpts.enableAPIService {
 		config += "    - apiservices\n"
 	}
 
-	if cmOptions.withCRDs {
+	if collectorOpts.enableCRD {
 		config += "    - customresourcedefinitions\n"
 	}
 
