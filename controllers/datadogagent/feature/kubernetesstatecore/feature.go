@@ -52,6 +52,7 @@ func buildKSMFeature(options *feature.Options) feature.Feature {
 type ksmFeature struct {
 	runInClusterChecksRunner bool
 	collectCRDMetrics        bool
+	collectAPIServiceMetrics bool
 
 	rbacSuffix         string
 	serviceAccountName string
@@ -65,8 +66,9 @@ type ksmFeature struct {
 	logger logr.Logger
 }
 
+// Minimum agent version that supports collection of CRD and APIService data
 // Add "-0" so that prerelase versions are considered sufficient. https://github.com/Masterminds/semver#working-with-prerelease-versions
-const crdCollectionMinVersion = "7.46.0-0"
+const crdAPIServiceCollectionMinVersion = "7.46.0-0"
 
 // ID returns the ID of the Feature
 func (f *ksmFeature) ID() feature.IDType {
@@ -83,7 +85,8 @@ func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 
 		if nodeAgentOverride, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]; ok {
 			if nodeAgentOverride.Image != nil {
-				if utils.IsAboveMinVersion(component.GetAgentVersionFromImage(*nodeAgentOverride.Image), crdCollectionMinVersion) {
+				if utils.IsAboveMinVersion(component.GetAgentVersionFromImage(*nodeAgentOverride.Image), crdAPIServiceCollectionMinVersion) {
+					f.collectAPIServiceMetrics = true
 					f.collectCRDMetrics = true
 				}
 			}
@@ -113,7 +116,8 @@ func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 
 				if ccrOverride, ok := dda.Spec.Override[v2alpha1.ClusterChecksRunnerComponentName]; ok {
 					if ccrOverride.Image != nil {
-						if utils.IsAboveMinVersion(component.GetAgentVersionFromImage(*ccrOverride.Image), crdCollectionMinVersion+"-0") {
+						if utils.IsAboveMinVersion(component.GetAgentVersionFromImage(*ccrOverride.Image), crdAPIServiceCollectionMinVersion) {
+							f.collectAPIServiceMetrics = true
 							f.collectCRDMetrics = true
 						}
 					}
@@ -156,8 +160,9 @@ func (f *ksmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) feature.RequiredCom
 }
 
 type configMapOptions struct {
-	withVPA  bool
-	withCRDs bool
+	withVPA         bool
+	withAPIServices bool
+	withCRDs        bool
 }
 
 // ManageDependencies allows a feature to manage its dependencies.
@@ -167,8 +172,9 @@ func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers, compo
 	// OR if the default configMap is needed.
 	pInfo := managers.Store().GetPlatformInfo()
 	cmOptions := configMapOptions{
-		withVPA:  pInfo.IsResourceSupported("VerticalPodAutoscaler"),
-		withCRDs: f.collectCRDMetrics,
+		withVPA:         pInfo.IsResourceSupported("VerticalPodAutoscaler"),
+		withAPIServices: f.collectAPIServiceMetrics,
+		withCRDs:        f.collectCRDMetrics,
 	}
 	configCM, err := f.buildKSMCoreConfigMap(cmOptions)
 	if err != nil {
@@ -188,7 +194,7 @@ func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers, compo
 	// Manage RBAC permission
 	rbacName := GetKubeStateMetricsRBACResourceName(f.owner, f.rbacSuffix)
 
-	return managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), rbacName, f.serviceAccountName, getRBACPolicyRules(f.collectCRDMetrics))
+	return managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), rbacName, f.serviceAccountName, getRBACPolicyRules(cmOptions))
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec

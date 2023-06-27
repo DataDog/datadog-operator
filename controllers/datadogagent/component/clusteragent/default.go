@@ -224,21 +224,6 @@ func GetDefaultClusterAgentClusterRolePolicyRules(dda metav1.Object) []rbacv1.Po
 			},
 			Verbs: []string{rbac.GetVerb},
 		},
-		// CRD data collection
-		{
-			APIGroups: []string{rbac.RegistrationAPIGroup},
-			Resources: []string{
-				rbac.APIServicesResource,
-			},
-			Verbs: []string{rbac.ListVerb, rbac.WatchVerb},
-		},
-		{
-			APIGroups: []string{rbac.ExtensionsAPIGroup, rbac.APIExtensionsAPIGroup},
-			Resources: []string{
-				rbac.CustomResourceDefinitionsResource,
-			},
-			Verbs: []string{rbac.ListVerb, rbac.WatchVerb},
-		},
 	}
 }
 

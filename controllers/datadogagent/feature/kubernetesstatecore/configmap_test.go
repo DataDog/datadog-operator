@@ -29,6 +29,7 @@ instances:
 	defaultOptions := configMapOptions{}
 	optionsWithVPA := configMapOptions{withVPA: true}
 	optionsWithCRDs := configMapOptions{withCRDs: true}
+	optionsWithAPIServices := configMapOptions{withAPIServices: true}
 
 	type fields struct {
 		enable                   bool
@@ -100,6 +101,17 @@ instances:
 				cmOptions:                optionsWithCRDs,
 			},
 			want: buildDefaultConfigMap(owner.GetNamespace(), apicommon.DefaultKubeStateMetricsCoreConf, ksmCheckConfig(true, optionsWithCRDs)),
+		},
+		{
+			name: "with APIServices",
+			fields: fields{
+				owner:                    owner,
+				enable:                   true,
+				runInClusterChecksRunner: true,
+				configConfigMapName:      apicommon.DefaultKubeStateMetricsCoreConf,
+				cmOptions:                optionsWithAPIServices,
+			},
+			want: buildDefaultConfigMap(owner.GetNamespace(), apicommon.DefaultKubeStateMetricsCoreConf, ksmCheckConfig(true, optionsWithAPIServices)),
 		},
 	}
 	for _, tt := range tests {

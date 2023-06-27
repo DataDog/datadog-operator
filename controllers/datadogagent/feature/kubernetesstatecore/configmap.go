@@ -80,8 +80,11 @@ instances:
 		config += "    - verticalpodautoscalers\n"
 	}
 
-	if cmOptions.withCRDs {
+	if cmOptions.withAPIServices {
 		config += "    - apiservices\n"
+	}
+
+	if cmOptions.withCRDs {
 		config += "    - customresourcedefinitions\n"
 	}
 
