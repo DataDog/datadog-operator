@@ -26,10 +26,10 @@ instances:
   - collectors:
       - pods
 `
-	defaultOptions := configMapOptions{}
-	optionsWithVPA := configMapOptions{withVPA: true}
-	optionsWithCRDs := configMapOptions{withCRDs: true}
-	optionsWithAPIServices := configMapOptions{withAPIServices: true}
+	defaultOptions := collectorOptions{}
+	optionsWithVPA := collectorOptions{enableVPA: true}
+	optionsWithCRD := collectorOptions{enableCRD: true}
+	optionsWithAPIService := collectorOptions{enableAPIService: true}
 
 	type fields struct {
 		enable                   bool
@@ -39,7 +39,7 @@ instances:
 		owner                    metav1.Object
 		customConfig             *apicommonv1.CustomConfig
 		configConfigMapName      string
-		cmOptions                configMapOptions
+		collectorOpts            collectorOptions
 	}
 	tests := []struct {
 		name    string
@@ -87,7 +87,7 @@ instances:
 				enable:                   true,
 				runInClusterChecksRunner: true,
 				configConfigMapName:      apicommon.DefaultKubeStateMetricsCoreConf,
-				cmOptions:                optionsWithVPA,
+				collectorOpts:            optionsWithVPA,
 			},
 			want: buildDefaultConfigMap(owner.GetNamespace(), apicommon.DefaultKubeStateMetricsCoreConf, ksmCheckConfig(true, optionsWithVPA)),
 		},
@@ -98,9 +98,9 @@ instances:
 				enable:                   true,
 				runInClusterChecksRunner: true,
 				configConfigMapName:      apicommon.DefaultKubeStateMetricsCoreConf,
-				cmOptions:                optionsWithCRDs,
+				collectorOpts:            optionsWithCRD,
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), apicommon.DefaultKubeStateMetricsCoreConf, ksmCheckConfig(true, optionsWithCRDs)),
+			want: buildDefaultConfigMap(owner.GetNamespace(), apicommon.DefaultKubeStateMetricsCoreConf, ksmCheckConfig(true, optionsWithCRD)),
 		},
 		{
 			name: "with APIServices",
@@ -109,9 +109,9 @@ instances:
 				enable:                   true,
 				runInClusterChecksRunner: true,
 				configConfigMapName:      apicommon.DefaultKubeStateMetricsCoreConf,
-				cmOptions:                optionsWithAPIServices,
+				collectorOpts:            optionsWithAPIService,
 			},
-			want: buildDefaultConfigMap(owner.GetNamespace(), apicommon.DefaultKubeStateMetricsCoreConf, ksmCheckConfig(true, optionsWithAPIServices)),
+			want: buildDefaultConfigMap(owner.GetNamespace(), apicommon.DefaultKubeStateMetricsCoreConf, ksmCheckConfig(true, optionsWithAPIService)),
 		},
 	}
 	for _, tt := range tests {
@@ -124,7 +124,7 @@ instances:
 				customConfig:             tt.fields.customConfig,
 				configConfigMapName:      tt.fields.configConfigMapName,
 			}
-			got, err := f.buildKSMCoreConfigMap(tt.fields.cmOptions)
+			got, err := f.buildKSMCoreConfigMap(tt.fields.collectorOpts)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ksmFeature.buildKSMCoreConfigMap() error = %v, wantErr %v", err, tt.wantErr)
 				return
