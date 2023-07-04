@@ -28,7 +28,10 @@ func init() {
 }
 
 func buildRCFeature(options *feature.Options) feature.Feature {
-	rcFeat := &rcFeature{}
+	rcFeat := &rcFeature{
+		// Current default for Remote Config enablement
+		enabled: false,
+	}
 
 	if options != nil {
 		rcFeat.logger = options.Logger
@@ -53,15 +56,21 @@ func (f *rcFeature) ID() feature.IDType {
 func (f *rcFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	f.owner = dda
 
-	if dda.Spec.Features != nil && dda.Spec.Features.RemoteConfiguration != nil && apiutils.BoolValue(dda.Spec.Features.RemoteConfiguration.Enabled) {
-		f.enabled = true
-		reqComp = feature.RequiredComponents{
-			Agent: feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
-				Containers: []apicommonv1.AgentContainerName{
-					apicommonv1.CoreAgentContainerName,
-				},
+	reqComp = feature.RequiredComponents{
+		Agent: feature.RequiredComponent{
+			IsRequired: apiutils.NewBoolPointer(true),
+			Containers: []apicommonv1.AgentContainerName{
+				apicommonv1.CoreAgentContainerName,
 			},
+		},
+	}
+
+	if dda.Spec.Features != nil && dda.Spec.Features.RemoteConfiguration != nil && dda.Spec.Features.RemoteConfiguration.Enabled != nil {
+		// If a value exists, explicitely enable or disable Remote Config and override the default
+		if apiutils.BoolValue(dda.Spec.Features.RemoteConfiguration.Enabled) {
+			f.enabled = true
+		} else {
+			f.enabled = false
 		}
 	}
 
