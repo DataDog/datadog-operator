@@ -67,11 +67,7 @@ func (f *rcFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requi
 
 	if dda.Spec.Features != nil && dda.Spec.Features.RemoteConfiguration != nil && dda.Spec.Features.RemoteConfiguration.Enabled != nil {
 		// If a value exists, explicitely enable or disable Remote Config and override the default
-		if apiutils.BoolValue(dda.Spec.Features.RemoteConfiguration.Enabled) {
-			f.enabled = true
-		} else {
-			f.enabled = false
-		}
+		f.enabled = apiutils.BoolValue(dda.Spec.Features.RemoteConfiguration.Enabled)
 	}
 
 	return reqComp
