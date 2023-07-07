@@ -30,6 +30,9 @@ type DatadogMonitorSpec struct {
 	Type DatadogMonitorType `json:"type,omitempty"`
 	// Options are the optional parameters associated with your monitor
 	Options DatadogMonitorOptions `json:"options,omitempty"`
+
+	// ControllerOptions are the optional parameters in the DatadogMonitor controller
+	ControllerOptions DatadogMonitorControllerOptions `json:"controllerOptions,omitempty"`
 }
 
 // DatadogMonitorType defines the type of monitor
@@ -123,6 +126,12 @@ type DatadogMonitorOptionsThresholdWindows struct {
 	RecoveryWindow *string `json:"recoveryWindow,omitempty"`
 	// Describes how long a metric must be anomalous before an alert triggers.
 	TriggerWindow *string `json:"triggerWindow,omitempty"`
+}
+
+// DatadogMonitorControllerOptions defines options in the DatadogMonitor controller
+type DatadogMonitorControllerOptions struct {
+	// DisableRequiredTags disables the automatic addition of required tags to monitors.
+	DisableRequiredTags *bool `json:"disableRequiredTags,omitempty"`
 }
 
 // DatadogMonitorStatus defines the observed state of DatadogMonitor
