@@ -49,6 +49,8 @@ const (
 	AdmissionControllerIDType = "admission_controller"
 	// OTLPIDType OTLP ingest feature
 	OTLPIDType = "otlp"
+	// RemoteConfigurationIDType Remote Config feature
+	RemoteConfigurationIDType = "remote_config"
 	// DummyIDType Dummy feature.
 	DummyIDType = "dummy"
 )

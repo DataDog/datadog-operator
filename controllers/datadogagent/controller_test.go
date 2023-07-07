@@ -22,6 +22,7 @@ import (
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	test "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	componentagent "github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
@@ -114,7 +115,7 @@ func TestReconcileDatadogAgent_createNewExtendedDaemonSet(t *testing.T) {
 				recorder:   recorder,
 				forwarders: forwarders,
 				options: ReconcilerOptions{
-					SupportExtendedDaemonset: true,
+					ExtendedDaemonsetOptions: componentagent.ExtendedDaemonsetOptions{Enabled: true},
 					SupportCilium:            true,
 				},
 			}
@@ -2855,8 +2856,10 @@ func TestReconcileDatadogAgent_Reconcile(t *testing.T) {
 				log:          logf.Log.WithName(tt.name),
 				forwarders:   forwarders,
 				options: ReconcilerOptions{
-					SupportExtendedDaemonset: true,
-					SupportCilium:            true,
+					ExtendedDaemonsetOptions: componentagent.ExtendedDaemonsetOptions{
+						Enabled: true,
+					},
+					SupportCilium: true,
 				},
 			}
 

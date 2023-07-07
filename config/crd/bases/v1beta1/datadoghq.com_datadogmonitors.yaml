@@ -16,11 +16,11 @@ spec:
       name: monitor state
       type: string
     - JSONPath: .status.monitorStateLastTransitionTime
-      name: last transition
+      name: last state transition
       type: string
     - JSONPath: .status.monitorStateLastUpdateTime
       format: date
-      name: last sync
+      name: last state sync
       type: string
     - JSONPath: .status.syncStatus
       name: sync status
@@ -221,6 +221,10 @@ spec:
             id:
               description: ID is the monitor ID generated in Datadog
               type: integer
+            monitorLastForceSyncTime:
+              description: MonitorLastForceSyncTime is the last time the API monitor was last force synced with the DatadogMonitor resource
+              format: date-time
+              type: string
             monitorState:
               description: MonitorState is the overall state of monitor
               type: string
@@ -236,7 +240,7 @@ spec:
               description: Primary defines whether the monitor is managed by the Kubernetes custom resource (true) or outside Kubernetes (false)
               type: boolean
             syncStatus:
-              description: SyncStatus shows the health of syncing the monitor state to Datadog
+              description: MonitorStateSyncStatus shows the health of syncing the monitor state to Datadog
               type: string
             triggeredState:
               description: TriggeredState only includes details for monitor groups that are triggering

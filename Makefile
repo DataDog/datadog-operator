@@ -15,8 +15,8 @@ VERSION?=$(if $(GIT_TAG),$(GIT_TAG),$(TAG_HASH))
 GIT_COMMIT?=$(shell git rev-parse HEAD)
 DATE=$(shell date +%Y-%m-%d/%H:%M:%S )
 LDFLAGS=-w -s -X ${BUILDINFOPKG}.Commit=${GIT_COMMIT} -X ${BUILDINFOPKG}.Version=${VERSION} -X ${BUILDINFOPKG}.BuildTime=${DATE}
-CHANNELS=alpha
-DEFAULT_CHANNEL=alpha
+CHANNELS=stable
+DEFAULT_CHANNEL=stable
 GOARCH?=
 PLATFORM=$(shell uname -s | tr '[:upper:]' '[:lower:]')-$(shell uname -m)
 ROOT=$(dir $(abspath $(firstword $(MAKEFILE_LIST))))

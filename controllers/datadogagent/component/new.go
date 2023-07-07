@@ -6,24 +6,18 @@
 package component
 
 import (
-	"time"
-
 	appsv1 "k8s.io/api/apps/v1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
-	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
-
-	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 )
 
 // NewDeployment use to generate the skeleton of a new deployment based on few information
 func NewDeployment(owner metav1.Object, componentKind, componentName, version string, inputSelector *metav1.LabelSelector) *appsv1.Deployment {
-	labels, annotations, selector := getDefaultMetadata(owner, componentKind, componentName, version, inputSelector)
+	labels, annotations, selector := GetDefaultMetadata(owner, componentKind, componentName, version, inputSelector)
 
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -40,71 +34,8 @@ func NewDeployment(owner metav1.Object, componentKind, componentName, version st
 	return deployment
 }
 
-// NewDaemonset use to generate the skeleton of a new daemonset based on few information
-func NewDaemonset(owner metav1.Object, componentKind, componentName, version string, selector *metav1.LabelSelector) *appsv1.DaemonSet {
-	labels, annotations, selector := getDefaultMetadata(owner, componentKind, componentName, version, selector)
-
-	daemonset := &appsv1.DaemonSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        componentName,
-			Namespace:   owner.GetNamespace(),
-			Labels:      labels,
-			Annotations: annotations,
-		},
-		Spec: appsv1.DaemonSetSpec{
-			Selector: selector,
-		},
-	}
-	return daemonset
-}
-
-// NewExtendedDaemonset use to generate the skeleton of a new extended daemonset based on few information
-func NewExtendedDaemonset(owner metav1.Object, componentKind, componentName, version string, selector *metav1.LabelSelector) *edsv1alpha1.ExtendedDaemonSet {
-	// FIXME (@CharlyF): The EDS controller uses the Spec.Selector as a node selector to get the NodeList to rollout the agent.
-	// Per https://github.com/DataDog/extendeddaemonset/blob/28a8e082cee9890ae6d925a7d6247a36c6f6ba5d/controllers/extendeddaemonsetreplicaset/controller.go#L344-L360
-	// Up until v0.8.2, the Datadog Operator set the selector to nil, which circumvented this case.
-	// Until the EDS controller uses the Affinity field to get the NodeList instead of Spec.Selector, let's keep the previous behavior.
-	labels, annotations, _ := getDefaultMetadata(owner, componentKind, componentName, version, selector)
-
-	daemonset := &edsv1alpha1.ExtendedDaemonSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        componentName,
-			Namespace:   owner.GetNamespace(),
-			Labels:      labels,
-			Annotations: annotations,
-		},
-		Spec: edsv1alpha1.ExtendedDaemonSetSpec{
-			Selector: nil,
-			Strategy: defaultEDSStrategy(),
-		},
-	}
-
-	return daemonset
-}
-
-func defaultEDSStrategy() edsv1alpha1.ExtendedDaemonSetSpecStrategy {
-	return edsv1alpha1.ExtendedDaemonSetSpecStrategy{
-		Canary: edsv1alpha1.DefaultExtendedDaemonSetSpecStrategyCanary(
-			&edsv1alpha1.ExtendedDaemonSetSpecStrategyCanary{},
-			edsv1alpha1.ExtendedDaemonSetSpecStrategyCanaryValidationModeAuto,
-		),
-		ReconcileFrequency: &metav1.Duration{
-			Duration: apicommon.DefaultReconcileFrequency,
-		},
-
-		// Since this is not configurable we are hard-coding more foregiving alternative compared to EDS-provided defaults.
-		RollingUpdate: edsv1alpha1.ExtendedDaemonSetSpecStrategyRollingUpdate{
-			MaxUnavailable:            &intstr.IntOrString{Type: intstr.String, StrVal: "5%"},
-			MaxPodSchedulerFailure:    &intstr.IntOrString{Type: intstr.String, StrVal: "5%"},
-			MaxParallelPodCreation:    apiutils.NewInt32Pointer(50),
-			SlowStartIntervalDuration: &metav1.Duration{Duration: 5 * time.Minute},
-			SlowStartAdditiveIncrease: &intstr.IntOrString{Type: intstr.String, StrVal: "2%"},
-		},
-	}
-}
-
-func getDefaultMetadata(owner metav1.Object, componentKind, componentName, version string, selector *metav1.LabelSelector) (map[string]string, map[string]string, *metav1.LabelSelector) {
-	labels := getDefaultLabels(owner, componentKind, componentName, version)
+func GetDefaultMetadata(owner metav1.Object, componentKind, componentName, version string, selector *metav1.LabelSelector) (map[string]string, map[string]string, *metav1.LabelSelector) {
+	labels := GetDefaultLabels(owner, componentKind, componentName, version)
 	annotations := object.GetDefaultAnnotations(owner)
 
 	if selector != nil {
@@ -122,7 +53,7 @@ func getDefaultMetadata(owner metav1.Object, componentKind, componentName, versi
 	return labels, annotations, selector
 }
 
-func getDefaultLabels(owner metav1.Object, componentKind, componentName, version string) map[string]string {
+func GetDefaultLabels(owner metav1.Object, componentKind, componentName, version string) map[string]string {
 	labels := object.GetDefaultLabels(owner, componentName, version)
 	labels[apicommon.AgentDeploymentNameLabelKey] = owner.GetName()
 	labels[apicommon.AgentDeploymentComponentLabelKey] = componentKind

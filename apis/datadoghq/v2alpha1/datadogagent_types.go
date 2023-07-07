@@ -69,6 +69,8 @@ type DatadogFeatures struct {
 	Dogstatsd *DogstatsdFeatureConfig `json:"dogstatsd,omitempty"`
 	// OTLP ingest configuration
 	OTLP *OTLPFeatureConfig `json:"otlp,omitempty"`
+	// Remote Configuration configuration.
+	RemoteConfiguration *RemoteConfigurationFeatureConfig `json:"remoteConfiguration,omitempty"`
 
 	// Cluster-level features
 
@@ -264,6 +266,15 @@ type CWSSecurityProfilesConfig struct {
 	Enabled *bool `json:"enabled,omitempty"`
 }
 
+// RemoteConfigurationFeatureConfig contains RC (Remote Configuration) configuration.
+// RC runs in the Agent.
+type RemoteConfigurationFeatureConfig struct {
+	// Enable this option to activate Remote Configuration.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
 // NPMFeatureConfig contains NPM (Network Performance Monitoring) feature configuration.
 // Network Performance Monitoring runs in the System Probe and Process Agent.
 type NPMFeatureConfig struct {
@@ -401,6 +412,12 @@ type OrchestratorExplorerFeatureConfig struct {
 	// Default: true
 	// +optional
 	ScrubContainers *bool `json:"scrubContainers,omitempty"`
+
+	// `CustomResources` defines custom resources for the orchestrator explorer to collect.
+	// Each item should follow the convention `group/version/kind`. For example, `datadoghq.com/v1alpha1/datadogmetrics`.
+	// +optional
+	// +listType=set
+	CustomResources []string `json:"customResources,omitempty"`
 
 	// Additional tags to associate with the collected data in the form of `a b c`.
 	// This is a Cluster Agent option distinct from DD_TAGS that is used in the Orchestrator Explorer.
@@ -753,6 +770,7 @@ type LocalService struct {
 }
 
 // SeccompConfig is used to override default values for Seccomp Profile configurations.
+// +k8s:openapi-gen=true
 type SeccompConfig struct {
 	// CustomRootPath specifies a custom Seccomp Profile root location.
 	// +optional
@@ -962,6 +980,7 @@ type DatadogAgentGenericContainer struct {
 
 	// Seccomp configurations to override Operator actions. For all other Seccomp Profile manipulation,
 	// use SecurityContext.
+	// +optional
 	SeccompConfig *SeccompConfig `json:"seccompConfig,omitempty"`
 
 	// AppArmorProfileName specifies an apparmor profile.

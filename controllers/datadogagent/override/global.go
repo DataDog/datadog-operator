@@ -174,19 +174,6 @@ func ApplyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 	}
 
 	if componentName == v2alpha1.NodeAgentComponentName {
-		// LocalService contains configuration to customize the internal traffic policy service.
-		forceEnableLocalService := config.LocalService != nil && apiutils.BoolValue(config.LocalService.ForceEnableLocalService)
-		if component.ShouldCreateAgentLocalService(resourcesManager.Store().GetVersionInfo(), forceEnableLocalService) {
-			var serviceName string
-			if config.LocalService != nil && config.LocalService.NameOverride != nil {
-				serviceName = *config.LocalService.NameOverride
-			}
-			err := resourcesManager.ServiceManager().AddService(component.BuildAgentLocalService(dda, serviceName))
-			if err != nil {
-				logger.Error(err, "Error adding Local Service to the store")
-			}
-		}
-
 		// Kubelet contains the kubelet configuration parameters.
 		if config.Kubelet != nil {
 			var kubeletHostValueFrom *corev1.EnvVarSource
