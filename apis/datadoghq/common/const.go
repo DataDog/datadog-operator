@@ -219,6 +219,7 @@ const (
 	APMSocketVolumeLocalPath                         = "/var/run/datadog/apm"
 	APMSocketName                                    = "apm.socket"
 	AdmissionControllerPortName                      = "admissioncontrollerport"
+	AdmissionControllerSocketCommunicationMode       = "socket"
 	ExternalMetricsPortName                          = "metricsapi"
 	ExternalMetricsAPIServiceName                    = "v1beta1.external.metrics.k8s.io"
 	OTLPGRPCPortName                                 = "otlpgrpcport"
