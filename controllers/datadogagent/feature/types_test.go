@@ -182,3 +182,55 @@ func TestRequiredComponent_IsEnabled(t *testing.T) {
 		})
 	}
 }
+
+func TestRequiredComponent_IsConfigured(t *testing.T) {
+	trueValue := true
+	falseValue := false
+
+	type fields struct {
+		IsRequired *bool
+		Containers []apicommonv1.AgentContainerName
+	}
+
+	tests := []struct {
+		name   string
+		fields fields
+		want   bool
+	}{
+		{
+			name: "IsConfigured == false, empty",
+			fields: fields{
+				IsRequired: nil,
+				Containers: nil,
+			},
+			want: false,
+		},
+		{
+			name: "IsConfigured == true, isRequired == true",
+			fields: fields{
+				IsRequired: &trueValue,
+				Containers: nil,
+			},
+			want: true,
+		},
+		{
+			name: "IsConfigured == true, isRequired == false",
+			fields: fields{
+				IsRequired: &falseValue,
+				Containers: nil,
+			},
+			want: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rc := &RequiredComponent{
+				IsRequired: tt.fields.IsRequired,
+				Containers: tt.fields.Containers,
+			}
+			if got := rc.IsConfigured(); got != tt.want {
+				t.Errorf("RequiredComponent.IsConfigured() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
