@@ -64,9 +64,8 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 			// use `socket` mode if either apm or dsd uses uds
 			apm := dda.Spec.Features.APM
 			dsd := dda.Spec.Features.Dogstatsd
-			if apm != nil && apiutils.BoolValue(apm.Enabled) && apiutils.BoolValue(apm.UnixDomainSocketConfig.Enabled) {
-				f.agentCommunicationMode = apicommon.AdmissionControllerSocketCommunicationMode
-			} else if dsd.UnixDomainSocketConfig != nil && apiutils.BoolValue(dsd.UnixDomainSocketConfig.Enabled) {
+			if apm != nil && apiutils.BoolValue(apm.Enabled) && apiutils.BoolValue(apm.UnixDomainSocketConfig.Enabled) ||
+				dsd.UnixDomainSocketConfig != nil && apiutils.BoolValue(dsd.UnixDomainSocketConfig.Enabled) {
 				f.agentCommunicationMode = apicommon.AdmissionControllerSocketCommunicationMode
 			}
 			// otherwise don't set to fall back to default agent setting `hostip`
