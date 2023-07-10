@@ -25,9 +25,14 @@ type RequiredComponents struct {
 	ClusterChecksRunner RequiredComponent
 }
 
-// IsEnabled return true if the Feature need to be enabled
+// IsEnabled returns true if any of the components need to be enabled
 func (rc *RequiredComponents) IsEnabled() bool {
 	return rc.ClusterAgent.IsEnabled() || rc.Agent.IsEnabled() || rc.ClusterChecksRunner.IsEnabled()
+}
+
+// IsConfigured returns true if any of the components need to be configured even if not enabled
+func (rc *RequiredComponents) IsConfigured() bool {
+	return rc.ClusterAgent.IsConfigured() || rc.Agent.IsConfigured() || rc.ClusterChecksRunner.IsConfigured()
 }
 
 // Merge use to merge 2 RequiredComponents
@@ -40,19 +45,24 @@ func (rc *RequiredComponents) Merge(in *RequiredComponents) *RequiredComponents 
 	return rc
 }
 
-// RequiredComponent use to know how if a component is required and which containers are required.
-// If set Required to:
-//   - true: the feature needs the corresponding component.
-//   - false: the corresponding component needs to ne disabled for this feature.
+// RequiredComponent is used to know if a component is required and which containers are required.
+// If isRequired is set to:
 //   - nil: the feature doesn't need the corresponding component.
+//   - true: the feature needs the corresponding component.
+//   - false: the feature does not need the corresponding component, but if it runs the feature needs to be configured (e.g. explicitly disabled).
 type RequiredComponent struct {
 	IsRequired *bool
 	Containers []apicommonv1.AgentContainerName
 }
 
-// IsEnabled return true if the Feature need the current RequiredComponent
+// IsEnabled returns true if the Feature needs the current RequiredComponent
 func (rc *RequiredComponent) IsEnabled() bool {
 	return apiutils.BoolValue(rc.IsRequired) || len(rc.Containers) > 0
+}
+
+// IsConfigured returns true if the Feature does not require the RequiredComponent, but if it runs it needs to be configured appropriately.
+func (rc *RequiredComponent) IsConfigured() bool {
+	return rc.IsRequired != nil || len(rc.Containers) > 0
 }
 
 // Merge use to merge 2 RequiredComponents

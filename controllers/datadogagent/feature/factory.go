@@ -49,12 +49,12 @@ func BuildFeatures(dda *v2alpha1.DatadogAgent, options *Options) ([]Feature, Req
 
 	for _, id := range sortedkeys {
 		feat := featureBuilders[id](options)
-		config := feat.Configure(dda)
-		// only add feat to the output if the feature is enabled
-		if config.IsEnabled() {
+		reqComponents := feat.Configure(dda)
+		// only add feature to the output if one of the components is configured (but not necessarily required)
+		if reqComponents.IsConfigured() {
 			output = append(output, feat)
 		}
-		requiredComponents.Merge(&config)
+		requiredComponents.Merge(&reqComponents)
 	}
 
 	return output, requiredComponents

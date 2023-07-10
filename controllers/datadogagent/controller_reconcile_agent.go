@@ -36,9 +36,9 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 
 	// requiredComponents needs to be taken into account in case a feature(s) changes and
 	// a requiredComponent becomes disabled, in addition to taking into account override.Disabled
-	disabled := false
+	disabledByOverride := false
 
-	requiredEnabled := requiredComponents.Agent.IsEnabled()
+	agentEnabled := requiredComponents.Agent.IsEnabled()
 
 	if r.options.ExtendedDaemonsetOptions.Enabled {
 		// Start by creating the Default Agent extendeddaemonset
@@ -58,13 +58,13 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 		// If Override is defined for the node agent component, apply the override on the PodTemplateSpec, it will cascade to container.
 		if componentOverride, ok := dda.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName]; ok {
 			if apiutils.BoolValue(componentOverride.Disabled) {
-				disabled = true
+				disabledByOverride = true
 			}
 			override.PodTemplateSpec(logger, podManagers, componentOverride, datadoghqv2alpha1.NodeAgentComponentName, dda.Name)
 			override.ExtendedDaemonSet(eds, componentOverride)
 		}
-		if disabled {
-			if requiredEnabled {
+		if disabledByOverride {
+			if agentEnabled {
 				// The override supersedes what's set in requiredComponents; update status to reflect the conflict
 				datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(
 					newStatus,
@@ -98,13 +98,13 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	// If Override is defined for the node agent component, apply the override on the PodTemplateSpec, it will cascade to container.
 	if componentOverride, ok := dda.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName]; ok {
 		if apiutils.BoolValue(componentOverride.Disabled) {
-			disabled = true
+			disabledByOverride = true
 		}
 		override.PodTemplateSpec(logger, podManagers, componentOverride, datadoghqv2alpha1.NodeAgentComponentName, dda.Name)
 		override.DaemonSet(daemonset, componentOverride)
 	}
-	if disabled {
-		if requiredEnabled {
+	if disabledByOverride {
+		if agentEnabled {
 			// The override supersedes what's set in requiredComponents; update status to reflect the conflict
 			datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(
 				newStatus,
