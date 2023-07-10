@@ -44,12 +44,12 @@ func (r *Reconciler) reconcileV2ClusterAgent(logger logr.Logger, requiredCompone
 	deploymentLogger := logger.WithValues("component", datadoghqv2alpha1.ClusterAgentComponentName)
 
 	// The requiredComponents can change depending on if updates to features result in disabled components
-	requiredEnabled := requiredComponents.ClusterAgent.IsEnabled()
+	dcaEnabled := requiredComponents.ClusterAgent.IsEnabled()
 
 	// If Override is defined for the clusterAgent component, apply the override on the PodTemplateSpec, it will cascade to container.
 	if componentOverride, ok := dda.Spec.Override[datadoghqv2alpha1.ClusterAgentComponentName]; ok {
 		if apiutils.BoolValue(componentOverride.Disabled) {
-			if requiredEnabled {
+			if dcaEnabled {
 				// The override supersedes what's set in requiredComponents; update status to reflect the conflict
 				datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(
 					newStatus,
@@ -65,8 +65,8 @@ func (r *Reconciler) reconcileV2ClusterAgent(logger logr.Logger, requiredCompone
 		}
 		override.PodTemplateSpec(logger, podManagers, componentOverride, datadoghqv2alpha1.ClusterAgentComponentName, dda.Name)
 		override.Deployment(deployment, componentOverride)
-	} else if !requiredEnabled {
-		// If the override is not defined, then disable based on requiredEnabled value
+	} else if !dcaEnabled {
+		// If the override is not defined, then disable based on dcaEnabled value
 		return r.cleanupV2ClusterAgent(deploymentLogger, dda, deployment, resourcesManager, newStatus)
 	}
 	return r.createOrUpdateDeployment(deploymentLogger, dda, deployment, newStatus, updateStatusV2WithClusterAgent)
