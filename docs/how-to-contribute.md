@@ -19,16 +19,16 @@ $ make test
 $ make lint
 
 # build docker image defined as {IMG}
-$ make IMG=test/operator:test docker-build
+$ make IMG=test/operator:test IMG_CHECK=test/operator-check:test docker-build
 
 # push the {IMG} to a configured docker hub
-$ make IMG=test/operator:test docker-push
+$ make IMG=test/operator:test IMG_CHECK=test/operator-check:test docker-push
 
 # install "cert-manager" needed for the webhook
 $ kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.8.0/cert-manager.yaml 
 
 # generate manifest from /config and apply to current cluster
-$ make IMG=test/operator:test deploy
+$ make IMG=test/operator:test IMG_CHECK=test/operator-check:test deploy
 ```
 
 Note: `IMG` currently defaults to: `datadog/datadog-operator:latest`
