@@ -60,7 +60,7 @@ kubectl -n $KUBE_NAMESPACE create secret generic datadog-secret --from-literal a
 kubectl -n $KUBE_NAMESPACE create secret generic datadog-token --from-literal token=$DD_TOKEN
 
 
-kubectl -n $KUBE_NAMESPACE  apply -f examples/v2alpha1/min.yaml
+kubectl -n $KUBE_NAMESPACE  apply -f examples/datadogagent/v2alpha1/min.yaml
 ```
 
 
