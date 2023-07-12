@@ -75,6 +75,8 @@ type DatadogFeatures struct {
 	OTLP *OTLPFeatureConfig `json:"otlp,omitempty"`
 	// Remote Configuration configuration.
 	RemoteConfiguration *RemoteConfigurationFeatureConfig `json:"remoteConfiguration,omitempty"`
+	// SBOM collection configuration.
+	SBOM *SBOMFeatureConfig `json:"sbom,omitempty"`
 
 	// Cluster-level features
 
@@ -315,6 +317,30 @@ type RemoteConfigurationFeatureConfig struct {
 	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// SBOMFeatureConfig contains SBOM collection global configuration.
+type SBOMFeatureConfig struct {
+	// Enable this option to activate SBOM collection.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	ContainerImage *SBOMConfig `json:"containerImage,omitempty"`
+	Host           *SBOMConfig `json:"host,omitempty"`
+}
+
+// SBOMConfig contains configuration for one SBOM collection type.
+type SBOMConfig struct {
+	// Enable this option to activate SBOM collection.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// Analyzers to use for SBOM collection.
+	// +optional
+	// +listType=set
+	Analyzers []string `json:"analyzers,omitempty"`
 }
 
 // NPMFeatureConfig contains NPM (Network Performance Monitoring) feature configuration.
