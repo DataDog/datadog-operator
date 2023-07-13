@@ -140,20 +140,18 @@ func (f *dogstatsdFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feat
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
 func (f *dogstatsdFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
-	if f.hostPortEnabled {
-		// agent local service
-		if component.ShouldCreateAgentLocalService(managers.Store().GetVersionInfo(), f.forceEnableLocalService) {
-			apmPort := []corev1.ServicePort{
-				{
-					Protocol:   corev1.ProtocolUDP,
-					TargetPort: intstr.FromInt(int(f.hostPortHostPort)),
-					Port:       f.hostPortHostPort,
-					Name:       apicommon.DogstatsdHostPortName,
-				},
-			}
-			if err := managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), nil, apmPort, nil); err != nil {
-				return err
-			}
+	// agent local service
+	if component.ShouldCreateAgentLocalService(managers.Store().GetVersionInfo(), f.forceEnableLocalService) {
+		dsdPort := []corev1.ServicePort{
+			{
+				Protocol:   corev1.ProtocolUDP,
+				TargetPort: intstr.FromInt(apicommon.DefaultDogstatsdPort),
+				Port:       apicommon.DefaultDogstatsdPort,
+				Name:       apicommon.DefaultDogstatsdPortName,
+			},
+		}
+		if err := managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), nil, dsdPort, nil); err != nil {
+			return err
 		}
 	}
 
