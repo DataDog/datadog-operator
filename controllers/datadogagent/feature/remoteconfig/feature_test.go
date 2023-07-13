@@ -40,6 +40,9 @@ func Test_rcFeature_Configure(t *testing.T) {
 			},
 		},
 	}
+	ddav2RCDefault := v2alpha1.DatadogAgent{
+		Spec: v2alpha1.DatadogAgentSpec{},
+	}
 
 	tests := test.FeatureTestSuite{
 		//////////////////////////
@@ -48,20 +51,27 @@ func Test_rcFeature_Configure(t *testing.T) {
 		{
 			Name:          "v2alpha1 RC not enabled",
 			DDAv2:         ddav2RCDisabled.DeepCopy(),
-			WantConfigure: false,
+			WantConfigure: true,
+			Agent:         rcAgentNodeWantFunc("false"),
 		},
 		{
 			Name:          "v2alpha1 RC enabled",
 			DDAv2:         ddav2RCEnabled.DeepCopy(),
 			WantConfigure: true,
-			Agent:         rcAgentNodeWantFunc(true),
+			Agent:         rcAgentNodeWantFunc("true"),
+		},
+		{
+			Name:          "v2alpha1 RC default",
+			DDAv2:         ddav2RCDefault.DeepCopy(),
+			WantConfigure: true,
+			Agent:         rcAgentNodeWantFunc("false"),
 		},
 	}
 
 	tests.Run(t, buildRCFeature)
 }
 
-func rcAgentNodeWantFunc(useDDAV2 bool) *test.ComponentTest {
+func rcAgentNodeWantFunc(value string) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			// Check environment variable
@@ -69,7 +79,7 @@ func rcAgentNodeWantFunc(useDDAV2 bool) *test.ComponentTest {
 			coreAgentWant := []*corev1.EnvVar{
 				{
 					Name:  apicommon.DDRemoteConfigurationEnabled,
-					Value: "true",
+					Value: value,
 				},
 			}
 			coreAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.AllContainers]
