@@ -28,6 +28,7 @@ const (
 	// DDURLEnvVar is the constant for the env variable DD_URL which is the
 	// host of the Datadog intake server to send data to.
 	DDURLEnvVar = "DD_URL"
+	// TODO consider moving DDSite here as well
 )
 
 // GetWatchNamespaces returns the Namespaces the operator should be watching for changes.
