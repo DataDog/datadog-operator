@@ -141,7 +141,7 @@ undeploy: $(KUSTOMIZE) ## Undeploy controller from the K8s cluster specified in 
 	$(KUSTOMIZE) build $(KUSTOMIZE_CONFIG) | kubectl delete -f -
 
 .PHONY: manifests
-manifests: generate-manifests patch-crds ## Generate manifestcd s e.g. CRD, RBAC etc.
+manifests: generate-manifests patch-and-pretty-print-crds ## Generate manifestcd s e.g. CRD, RBAC etc.
 
 .PHONY: generate-manifests
 generate-manifests: $(CONTROLLER_GEN)
@@ -278,9 +278,9 @@ preflight-redhat-container: bin/$(PLATFORM)/preflight
 preflight-redhat-container-submit: bin/$(PLATFORM)/preflight
 	bin/$(PLATFORM)/preflight check container ${IMG} --submit --pyxis-api-token=${RH_PARTNER_API_TOKEN} --certification-project-id=${RH_PARTNER_PROJECT_ID} -d ~/.docker/config.json
 
-.PHONY: patch-crds
-patch-crds: bin/$(PLATFORM)/yq ## Patch-crds
-	hack/patch-crds.sh
+.PHONY: patch-and-pretty-print-crds
+patch-and-pretty-print-crds: bin/$(PLATFORM)/yq ## Patch-crds
+	hack/patch-and-pretty-print-crds.sh
 
 .PHONY: lint
 lint: bin/$(PLATFORM)/golangci-lint fmt vet ## Lint
