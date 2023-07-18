@@ -11,14 +11,17 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/common"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 )
 
 // NewDefaultClusterChecksRunnerDeployment return a new default cluster-checks-runner deployment
@@ -77,8 +80,64 @@ func NewDefaultClusterChecksRunnerPodTemplateSpec(dda metav1.Object) *corev1.Pod
 	return template
 }
 
+// GetDefaultClusterChecksRunnerClusterRolePolicyRules returns the default Cluster Role Policy Rules for the Cluster Checks Runner
+func GetDefaultClusterChecksRunnerClusterRolePolicyRules(dda metav1.Object) []rbacv1.PolicyRule {
+	return []rbacv1.PolicyRule{
+		{
+			NonResourceURLs: []string{rbac.MetricsURL},
+			Verbs:           []string{rbac.GetVerb},
+		},
+		{
+			APIGroups: []string{rbac.CoreAPIGroup},
+			Resources: []string{
+				rbac.ServicesResource,
+				rbac.EventsResource,
+				rbac.EndpointsResource,
+				rbac.PodsResource,
+				rbac.NodesResource,
+				rbac.ComponentStatusesResource,
+				rbac.ConfigMapsResource,
+				rbac.NamespaceResource,
+			},
+			Verbs: []string{
+				rbac.GetVerb,
+				rbac.ListVerb,
+				rbac.WatchVerb,
+			},
+		},
+		{
+			APIGroups: []string{rbac.OpenShiftQuotaAPIGroup},
+			Resources: []string{rbac.ClusterResourceQuotasResource},
+			Verbs:     []string{rbac.GetVerb, rbac.ListVerb},
+		},
+		{
+			NonResourceURLs: []string{rbac.VersionURL, rbac.HealthzURL},
+			Verbs:           []string{rbac.GetVerb},
+		},
+		{
+			// Horizontal Pod Autoscaling
+			APIGroups: []string{rbac.AutoscalingAPIGroup},
+			Resources: []string{rbac.HorizontalPodAutoscalersRecource},
+			Verbs:     []string{rbac.ListVerb, rbac.WatchVerb},
+		},
+		{
+			APIGroups: []string{rbac.CoreAPIGroup},
+			Resources: []string{rbac.NamespaceResource},
+			ResourceNames: []string{
+				common.KubeSystemResourceName,
+			},
+			Verbs: []string{rbac.GetVerb},
+		},
+	}
+}
+
 // GetDefaultServiceAccountName return the default Cluster-Agent ServiceAccountName
 func GetDefaultServiceAccountName(dda metav1.Object) string {
+	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultClusterChecksRunnerResourceSuffix)
+}
+
+// GetCCRRbacResourcesName returns the Cluster Checks Runner RBAC resource name
+func GetCCRRbacResourcesName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultClusterChecksRunnerResourceSuffix)
 }
 
