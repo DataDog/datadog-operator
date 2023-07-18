@@ -250,6 +250,10 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 		}
 	}
 
+	if ddaSpec.Features.OrchestratorExplorer != nil {
+		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.OrchestratorExplorer.Enabled, defaultOrchestratorExplorerEnabled)
+	}
+
 	if *ddaSpec.Features.OrchestratorExplorer.Enabled {
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.OrchestratorExplorer.ScrubContainers, defaultOrchestratorExplorerScrubContainers)
 	}
