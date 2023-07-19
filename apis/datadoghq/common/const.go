@@ -56,6 +56,8 @@ const (
 	DefaultDogstatsdPort = 8125
 	// DefaultDogstatsdPortName default dogstatsd port name
 	DefaultDogstatsdPortName = "dogstatsd"
+	// DefaultApmPort default apm port
+	DefaultApmPort = 8126
 	// DefaultApmPortName default apm port name
 	DefaultApmPortName = "apm"
 	// DefaultMetricsProviderPort default metrics provider port

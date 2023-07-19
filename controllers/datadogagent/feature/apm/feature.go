@@ -45,6 +45,9 @@ type apmFeature struct {
 	udsEnabled       bool
 	udsHostFilepath  string
 
+	apmServicePort     int32
+	apmServicePortName string
+
 	owner metav1.Object
 
 	forceEnableLocalService bool
@@ -147,6 +150,13 @@ func (f *apmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.Re
 func (f *apmFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
 	// agent local service
 	if component.ShouldCreateAgentLocalService(managers.Store().GetVersionInfo(), f.forceEnableLocalService) {
+		if f.hostPortEnabled {
+			f.apmServicePort = f.hostPortHostPort
+			f.apmServicePortName = apicommon.APMHostPortName
+		} else {
+			f.apmServicePort = apicommon.DefaultApmPort
+			f.apmServicePortName = apicommon.APMHostPortName
+		}
 		apmPort := []corev1.ServicePort{
 			{
 				Protocol:   corev1.ProtocolTCP,
