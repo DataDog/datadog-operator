@@ -6,9 +6,10 @@
 package orchestratorexplorer
 
 import (
-	"github.com/stretchr/testify/require"
 	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
@@ -114,9 +115,9 @@ init_config:
 
 instances:
   - skip_leader_election: false
-	crd_collectors:
-	  - datadoghq.com/v1alpha1/datadogmetrics
-	  - datadoghq.com/v1alpha1/watermarkpodautoscalers
+    crd_collectors:
+      - datadoghq.com/v1alpha1/datadogmetrics
+      - datadoghq.com/v1alpha1/watermarkpodautoscalers
 `
 	require.Equal(t, want, got)
 }
