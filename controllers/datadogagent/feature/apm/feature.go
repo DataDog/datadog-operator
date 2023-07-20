@@ -155,14 +155,14 @@ func (f *apmFeature) ManageDependencies(managers feature.ResourceManagers, compo
 			f.apmServicePortName = apicommon.APMHostPortName
 		} else {
 			f.apmServicePort = apicommon.DefaultApmPort
-			f.apmServicePortName = apicommon.APMHostPortName
+			f.apmServicePortName = apicommon.DefaultApmPortName
 		}
 		apmPort := []corev1.ServicePort{
 			{
 				Protocol:   corev1.ProtocolTCP,
-				TargetPort: intstr.FromInt(int(f.hostPortHostPort)),
-				Port:       f.hostPortHostPort,
-				Name:       apicommon.APMHostPortName,
+				TargetPort: intstr.FromInt(int(f.apmServicePort)),
+				Port:       f.apmServicePort,
+				Name:       f.apmServicePortName,
 			},
 		}
 		if err := managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), nil, apmPort, nil); err != nil {
