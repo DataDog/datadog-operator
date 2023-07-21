@@ -82,6 +82,7 @@ const (
 	DDOrchestratorExplorerContainerScrubbingEnabled   = "DD_ORCHESTRATOR_EXPLORER_CONTAINER_SCRUBBING_ENABLED"
 	DDPodAnnotationsAsTags                            = "DD_KUBERNETES_POD_ANNOTATIONS_AS_TAGS"
 	DDPodLabelsAsTags                                 = "DD_KUBERNETES_POD_LABELS_AS_TAGS"
+	DDPodName                                         = "DD_POD_NAME"
 	DDPPMReceiverSocket                               = "DD_APM_RECEIVER_SOCKET"
 	DDProcessCollectionEnabled                        = "DD_PROCESS_CONFIG_PROCESS_COLLECTION_ENABLED"
 	DDProcessConfigScrubArgs                          = "DD_PROCESS_CONFIG_SCRUB_ARGS"

@@ -144,6 +144,14 @@ func clusterAgentPodSpectWithConfd(configDirSpec *datadoghqv1alpha1.ConfigDirSpe
 func clusterAgentDefaultEnvVars() []v1.EnvVar {
 	return []v1.EnvVar{
 		{
+			Name: "DD_POD_NAME",
+			ValueFrom: &v1.EnvVarSource{
+				FieldRef: &v1.ObjectFieldSelector{
+					FieldPath: "metadata.name",
+				},
+			},
+		},
+		{
 			Name:  "DD_CLUSTER_CHECKS_ENABLED",
 			Value: "false",
 		},
