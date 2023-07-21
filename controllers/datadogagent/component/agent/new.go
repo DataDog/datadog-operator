@@ -73,7 +73,11 @@ type ExtendedDaemonsetOptions struct {
 }
 
 func defaultEDSSpec(options *ExtendedDaemonsetOptions) edsv1alpha1.ExtendedDaemonSetSpec {
-	spec := edsv1alpha1.ExtendedDaemonSetSpec{}
+	spec := edsv1alpha1.ExtendedDaemonSetSpec{
+		Strategy: edsv1alpha1.ExtendedDaemonSetSpecStrategy{
+			Canary: &edsv1alpha1.ExtendedDaemonSetSpecStrategyCanary{},
+		},
+	}
 	edsv1alpha1.DefaultExtendedDaemonSetSpec(&spec, edsv1alpha1.ExtendedDaemonSetSpecStrategyCanaryValidationModeAuto)
 
 	if options.MaxPodUnavailable != "" {
