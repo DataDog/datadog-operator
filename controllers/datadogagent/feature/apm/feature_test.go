@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	apmSocketHostPath  = apicommon.DogstatsdAPMSocketVolumePath + "/" + apicommon.APMSocketName
+	apmSocketHostPath  = apicommon.DogstatsdAPMSocketHostPath + "/" + apicommon.APMSocketName
 	apmSocketLocalPath = apicommon.APMSocketVolumeLocalPath + "/" + apicommon.APMSocketName
 )
 
@@ -200,7 +200,7 @@ func testAgentUDSOnly() *test.ComponentTest {
 					Name: apicommon.APMSocketVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: apicommon.DogstatsdAPMSocketVolumePath,
+							Path: apicommon.DogstatsdAPMSocketHostPath,
 							Type: &volType,
 						},
 					},
@@ -280,7 +280,7 @@ func testAgentHostPortUDS() *test.ComponentTest {
 					Name: apicommon.APMSocketVolumeName,
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
-							Path: apicommon.DogstatsdAPMSocketVolumePath,
+							Path: apicommon.DogstatsdAPMSocketHostPath,
 							Type: &volType,
 						},
 					},
