@@ -123,6 +123,14 @@ func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []c
 func defaultEnvVars(dda metav1.Object) []corev1.EnvVar {
 	envVars := []corev1.EnvVar{
 		{
+			Name: apicommon.DDPodName,
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: "metadata.name",
+				},
+			},
+		},
+		{
 			Name:  apicommon.DDClusterAgentKubeServiceName,
 			Value: GetClusterAgentServiceName(dda),
 		},

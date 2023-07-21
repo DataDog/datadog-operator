@@ -505,6 +505,14 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 
 	envVars := []corev1.EnvVar{
 		{
+			Name: apicommon.DDPodName,
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: "metadata.name",
+				},
+			},
+		},
+		{
 			Name:  apicommon.DDClusterChecksEnabled,
 			Value: strconv.FormatBool(isClusterChecksEnabled(&dda.Spec)),
 		},
