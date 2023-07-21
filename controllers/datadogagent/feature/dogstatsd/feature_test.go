@@ -117,7 +117,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 			Name: apicommon.DogstatsdSocketVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: apicommon.DogstatsdAPMSocketVolumePath,
+					Path: apicommon.DogstatsdAPMSocketHostPath,
 					Type: &volType,
 				},
 			},
@@ -130,7 +130,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 			Name: apicommon.DogstatsdSocketVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				HostPath: &corev1.HostPathVolumeSource{
-					Path: apicommon.DogstatsdAPMSocketVolumePath,
+					Path: apicommon.DogstatsdAPMSocketHostPath,
 					Type: &volType,
 				},
 			},

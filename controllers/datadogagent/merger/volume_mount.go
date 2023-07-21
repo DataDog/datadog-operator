@@ -86,7 +86,7 @@ func (impl *volumeMountManagerImpl) AddVolumeMountToContainerWithMergeFunc(volum
 func AddVolumeMountToContainerWithMergeFunc(container *corev1.Container, volumeMount *corev1.VolumeMount, mergeFunc VolumeMountMergeFunction) ([]corev1.VolumeMount, error) {
 	var found bool
 	for id, cVolumeMount := range container.VolumeMounts {
-		if volumeMount.Name == cVolumeMount.Name {
+		if volumeMount.Name == cVolumeMount.Name || volumeMount.MountPath == cVolumeMount.MountPath {
 			if mergeFunc == nil {
 				mergeFunc = DefaultVolumeMountMergeFunction
 			}

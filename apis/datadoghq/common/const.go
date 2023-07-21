@@ -198,8 +198,8 @@ const (
 	DogstatsdHostPortName                            = "dogstatsdport"
 	DogstatsdHostPortHostPort                        = 8125
 	DogstatsdSocketVolumeName                        = "dsdsocket"
-	DogstatsdAPMSocketVolumePath                     = "/var/run/datadog"
-	DogstatsdSocketLocalPath                         = "/var/run/datadog/statsd"
+	DogstatsdAPMSocketHostPath                       = "/var/run/datadog"
+	DogstatsdSocketLocalPath                         = "/var/run/datadog"
 	DogstatsdSocketName                              = "dsd.socket"
 	SecurityAgentComplianceCustomConfigDirVolumeName = "customcompliancebenchmarks"
 	SecurityAgentComplianceConfigDirVolumeName       = "compliancedir"
@@ -216,7 +216,7 @@ const (
 	APMHostPortName                                  = "traceport"
 	APMHostPortHostPort                              = 8126
 	APMSocketVolumeName                              = "apmsocket"
-	APMSocketVolumeLocalPath                         = "/var/run/datadog/apm"
+	APMSocketVolumeLocalPath                         = "/var/run/datadog"
 	APMSocketName                                    = "apm.socket"
 	AdmissionControllerPortName                      = "admissioncontrollerport"
 	AdmissionControllerSocketCommunicationMode       = "socket"

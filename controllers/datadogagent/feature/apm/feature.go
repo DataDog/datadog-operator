@@ -22,6 +22,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/merger"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
 )
@@ -273,7 +274,7 @@ func (f *apmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 		socketVol, socketVolMount := volume.GetVolumes(apicommon.APMSocketVolumeName, udsHostFolder, apicommon.APMSocketVolumeLocalPath, false)
 		volType := corev1.HostPathDirectoryOrCreate // We need to create the directory on the host if it does not exist.
 		socketVol.VolumeSource.HostPath.Type = &volType
-		managers.VolumeMount().AddVolumeMountToContainer(&socketVolMount, apicommonv1.TraceAgentContainerName)
+		managers.VolumeMount().AddVolumeMountToContainerWithMergeFunc(&socketVolMount, apicommonv1.TraceAgentContainerName, merger.OverrideCurrentVolumeMountMergeFunction)
 		managers.Volume().AddVolume(&socketVol)
 	}
 
