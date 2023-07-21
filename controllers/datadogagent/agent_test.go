@@ -602,13 +602,13 @@ func defaultMountVolume() []corev1.VolumeMount {
 		},
 		{
 			Name:      "dsdsocket",
-			MountPath: "/var/run/datadog/statsd",
+			MountPath: "/var/run/datadog",
 			ReadOnly:  true,
 		},
 
 		{
 			Name:      "dsdsocket",
-			MountPath: "/var/run/datadog/statsd",
+			MountPath: "/var/run/datadog",
 		},
 		{
 			Name:      "installinfo",
@@ -661,7 +661,7 @@ func defaultProcessMountVolumes() []corev1.VolumeMount {
 		},
 		{
 			Name:      "dsdsocket",
-			MountPath: "/var/run/datadog/statsd",
+			MountPath: "/var/run/datadog",
 			ReadOnly:  true,
 		},
 		{
@@ -737,7 +737,7 @@ func complianceSecurityAgentMountVolume() []corev1.VolumeMount {
 		},
 		{
 			Name:      "dsdsocket",
-			MountPath: "/var/run/datadog/statsd",
+			MountPath: "/var/run/datadog",
 			ReadOnly:  true,
 		},
 		{
@@ -795,7 +795,7 @@ func runtimeSecurityAgentMountVolume() []corev1.VolumeMount {
 		},
 		{
 			Name:      "dsdsocket",
-			MountPath: "/var/run/datadog/statsd",
+			MountPath: "/var/run/datadog",
 			ReadOnly:  true,
 		},
 		{
@@ -844,7 +844,7 @@ func defaultEnvVars(extraEnv map[string]string) []corev1.EnvVar {
 		},
 		{
 			Name:  "DD_DOGSTATSD_SOCKET",
-			Value: "/var/run/datadog/statsd/statsd.sock",
+			Value: "/var/run/datadog/statsd.sock",
 		},
 		{
 			Name:  "DD_LOGS_ENABLED",
@@ -865,10 +865,6 @@ func defaultEnvVars(extraEnv map[string]string) []corev1.EnvVar {
 		{
 			Name:  "KUBERNETES",
 			Value: "yes",
-		},
-		{
-			Name:  "DD_DOGSTATSD_SOCKET",
-			Value: "/var/run/datadog/statsd/statsd.sock",
 		},
 		{
 			Name: "DD_KUBERNETES_KUBELET_HOST",
@@ -938,7 +934,7 @@ func defaultAPMContainerEnvVars() []corev1.EnvVar {
 		},
 		{
 			Name:  "DD_DOGSTATSD_SOCKET",
-			Value: "/var/run/datadog/statsd/statsd.sock",
+			Value: "/var/run/datadog/statsd.sock",
 		},
 		{
 			Name:  apicommon.DDAuthTokenFilePath,
@@ -1028,7 +1024,7 @@ func securityAgentEnvVars(compliance, runtime bool, policiesdir bool, extraEnv m
 		},
 		{
 			Name:  "DD_DOGSTATSD_SOCKET",
-			Value: "/var/run/datadog/statsd/statsd.sock",
+			Value: "/var/run/datadog/statsd.sock",
 		},
 	}
 
@@ -1152,7 +1148,7 @@ func appendDefaultAPMAgentContainer(podSpec *corev1.PodSpec) {
 			},
 			{
 				Name:      "dsdsocket",
-				MountPath: "/var/run/datadog/statsd",
+				MountPath: "/var/run/datadog",
 				ReadOnly:  true,
 			},
 			{
@@ -1585,7 +1581,7 @@ func defaultOrchestratorEnvVars(dda *datadoghqv1alpha1.DatadogAgent) []corev1.En
 		},
 		{
 			Name:  "DD_DOGSTATSD_SOCKET",
-			Value: "/var/run/datadog/statsd/statsd.sock",
+			Value: "/var/run/datadog/statsd.sock",
 		},
 		{
 			Name: "DD_KUBERNETES_KUBELET_HOST",
@@ -1922,7 +1918,7 @@ func customKubeletConfigPodSpec(kubeletConfig *commonv1.KubeletConfig) corev1.Po
 		},
 		{
 			Name:  "DD_DOGSTATSD_SOCKET",
-			Value: "/var/run/datadog/statsd/statsd.sock",
+			Value: "/var/run/datadog/statsd.sock",
 		},
 		{
 			Name:  "DD_LOGS_ENABLED",
@@ -2516,7 +2512,7 @@ func Test_newExtendedDaemonSetFromInstance_CustomDatadogYaml(t *testing.T) {
 		},
 		{
 			Name:      "dsdsocket",
-			MountPath: "/var/run/datadog/statsd",
+			MountPath: "/var/run/datadog",
 		},
 		{
 			Name:      "installinfo",
@@ -2572,7 +2568,7 @@ func Test_newExtendedDaemonSetFromInstance_CustomDatadogYaml(t *testing.T) {
 		},
 		{
 			Name:      "dsdsocket",
-			MountPath: "/var/run/datadog/statsd",
+			MountPath: "/var/run/datadog",
 			ReadOnly:  true,
 		},
 		{

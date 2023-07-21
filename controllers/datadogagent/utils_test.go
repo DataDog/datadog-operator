@@ -81,7 +81,7 @@ func Test_getVolumeMountsForSecurityAgent(t *testing.T) {
 			want: []v1.VolumeMount{
 				{Name: "logdatadog", MountPath: "/var/log/datadog"},
 				{Name: "datadog-agent-auth", ReadOnly: true, MountPath: "/etc/datadog-agent/auth"},
-				{Name: "dsdsocket", ReadOnly: true, MountPath: "/var/run/datadog/statsd"},
+				{Name: "dsdsocket", ReadOnly: true, MountPath: "/var/run/datadog"},
 				{Name: "config", ReadOnly: false, MountPath: "/etc/datadog-agent"},
 				{Name: "hostroot", ReadOnly: true, MountPath: "/host/root"},
 				{Name: "runtimesocketdir", ReadOnly: true, MountPath: "/host/var/run/containerd"},
@@ -93,7 +93,7 @@ func Test_getVolumeMountsForSecurityAgent(t *testing.T) {
 			want: []v1.VolumeMount{
 				{Name: "logdatadog", MountPath: "/var/log/datadog"},
 				{Name: "datadog-agent-auth", ReadOnly: true, MountPath: "/etc/datadog-agent/auth"},
-				{Name: "dsdsocket", ReadOnly: true, MountPath: "/var/run/datadog/statsd"},
+				{Name: "dsdsocket", ReadOnly: true, MountPath: "/var/run/datadog"},
 				{Name: "config", ReadOnly: false, MountPath: "/etc/datadog-agent"},
 				{Name: "hostroot", ReadOnly: true, MountPath: "/host/root"},
 				{Name: "custom-datadog-yaml", ReadOnly: true, MountPath: "/etc/datadog-agent/datadog.yaml", SubPath: "datadog.yaml", SubPathExpr: ""},
@@ -106,7 +106,7 @@ func Test_getVolumeMountsForSecurityAgent(t *testing.T) {
 			want: []v1.VolumeMount{
 				{Name: "logdatadog", MountPath: "/var/log/datadog"},
 				{Name: "datadog-agent-auth", ReadOnly: true, MountPath: "/etc/datadog-agent/auth"},
-				{Name: "dsdsocket", ReadOnly: true, MountPath: "/var/run/datadog/statsd"},
+				{Name: "dsdsocket", ReadOnly: true, MountPath: "/var/run/datadog"},
 				{Name: "config", ReadOnly: false, MountPath: "/etc/datadog-agent"},
 				{Name: "hostroot", ReadOnly: true, MountPath: "/host/root"},
 				{Name: "extra", MountPath: "/etc/datadog-agent/extra"},
@@ -119,7 +119,7 @@ func Test_getVolumeMountsForSecurityAgent(t *testing.T) {
 			want: []v1.VolumeMount{
 				{Name: "logdatadog", ReadOnly: false, MountPath: "/var/log/datadog"},
 				{Name: "datadog-agent-auth", ReadOnly: true, MountPath: "/etc/datadog-agent/auth"},
-				{Name: "dsdsocket", ReadOnly: true, MountPath: "/var/run/datadog/statsd"},
+				{Name: "dsdsocket", ReadOnly: true, MountPath: "/var/run/datadog"},
 				{Name: "config", ReadOnly: false, MountPath: "/etc/datadog-agent"},
 				{Name: "hostroot", ReadOnly: true, MountPath: "/host/root"},
 				{Name: "cgroups", ReadOnly: true, MountPath: "/host/sys/fs/cgroup"},
@@ -137,7 +137,7 @@ func Test_getVolumeMountsForSecurityAgent(t *testing.T) {
 			want: []v1.VolumeMount{
 				{Name: "logdatadog", ReadOnly: false, MountPath: "/var/log/datadog"},
 				{Name: "datadog-agent-auth", ReadOnly: true, MountPath: "/etc/datadog-agent/auth"},
-				{Name: "dsdsocket", ReadOnly: true, MountPath: "/var/run/datadog/statsd"},
+				{Name: "dsdsocket", ReadOnly: true, MountPath: "/var/run/datadog"},
 				{Name: "config", ReadOnly: false, MountPath: "/etc/datadog-agent"},
 				{Name: "hostroot", ReadOnly: true, MountPath: "/host/root"},
 				{Name: "runtimepoliciesdir", ReadOnly: true, MountPath: "/etc/datadog-agent/runtime-security.d"},
