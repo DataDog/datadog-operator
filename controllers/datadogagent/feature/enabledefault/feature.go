@@ -16,6 +16,7 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
+	componentccr "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusterchecksrunner"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
@@ -330,7 +331,6 @@ func (f *defaultFeature) agentDependencies(managers feature.ResourceManagers, re
 func (f *defaultFeature) clusterAgentDependencies(managers feature.ResourceManagers, component feature.RequiredComponent) error {
 	_ = component
 	var errs []error
-	// serviceAccount
 	if f.clusterAgent.serviceAccountName != "" {
 		// Service Account creation
 		if err := managers.RBACManager().AddServiceAccountByComponent(f.owner.GetNamespace(), f.clusterAgent.serviceAccountName, string(v2alpha1.ClusterAgentComponentName)); err != nil {
@@ -359,9 +359,14 @@ func (f *defaultFeature) clusterAgentDependencies(managers feature.ResourceManag
 func (f *defaultFeature) clusterChecksRunnerDependencies(managers feature.ResourceManagers, component feature.RequiredComponent) error {
 	_ = component
 	var errs []error
-	// serviceAccount
 	if f.clusterChecksRunner.serviceAccountName != "" {
+		// Service Account creation
 		if err := managers.RBACManager().AddServiceAccountByComponent(f.owner.GetNamespace(), f.clusterChecksRunner.serviceAccountName, string(v2alpha1.ClusterChecksRunnerComponentName)); err != nil {
+			errs = append(errs, err)
+		}
+
+		// ClusterRole creation
+		if err := managers.RBACManager().AddClusterPolicyRulesByComponent(f.owner.GetNamespace(), componentccr.GetCCRRbacResourcesName(f.owner), f.clusterChecksRunner.serviceAccountName, componentccr.GetDefaultClusterChecksRunnerClusterRolePolicyRules(f.owner), string(v2alpha1.ClusterChecksRunnerComponentName)); err != nil {
 			errs = append(errs, err)
 		}
 	}
