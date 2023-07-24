@@ -41,9 +41,6 @@ type dogstatsdFeature struct {
 	hostPortEnabled  bool
 	hostPortHostPort int32
 
-	dsdServicePort     int32
-	dsdServicePortName string
-
 	udsEnabled      bool
 	udsHostFilepath string
 
@@ -145,23 +142,19 @@ func (f *dogstatsdFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feat
 func (f *dogstatsdFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
 	// agent local service
 	if component.ShouldCreateAgentLocalService(managers.Store().GetVersionInfo(), f.forceEnableLocalService) {
-		if f.useHostNetwork && f.hostPortEnabled {
-			f.dsdServicePort = f.hostPortHostPort
-			f.dsdServicePortName = apicommon.DogstatsdHostPortName
-		} else {
-			f.dsdServicePort = apicommon.DefaultDogstatsdPort
-			f.dsdServicePortName = apicommon.DefaultDogstatsdPortName
+		dsdPort := &corev1.ServicePort{
+			Protocol:   corev1.ProtocolUDP,
+			TargetPort: intstr.FromInt(int(apicommon.DefaultDogstatsdPort)),
+			Port:       apicommon.DefaultDogstatsdPort,
+			Name:       apicommon.DefaultDogstatsdPortName,
 		}
-		dsdPort := []corev1.ServicePort{
-			{
-				Protocol:   corev1.ProtocolUDP,
-				TargetPort: intstr.FromInt(int(f.dsdServicePort)),
-				Port:       f.dsdServicePort,
-				Name:       f.dsdServicePortName,
-			},
+		if f.useHostNetwork && f.hostPortEnabled {
+			dsdPort.TargetPort = intstr.FromInt(int(f.hostPortHostPort))
+			dsdPort.Port = f.hostPortHostPort
+			dsdPort.Name = apicommon.DogstatsdHostPortName
 		}
 		serviceInternalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
-		if err := managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), nil, dsdPort, &serviceInternalTrafficPolicy); err != nil {
+		if err := managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), nil, []corev1.ServicePort{*dsdPort}, &serviceInternalTrafficPolicy); err != nil {
 			return err
 		}
 	}
@@ -193,8 +186,8 @@ func (f *dogstatsdFeature) ManageClusterAgent(managers feature.PodTemplateManage
 func (f *dogstatsdFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	// udp
 	dogstatsdPort := &corev1.ContainerPort{
-		Name:          apicommon.DogstatsdHostPortName,
-		ContainerPort: apicommon.DogstatsdHostPortHostPort,
+		Name:          apicommon.DefaultDogstatsdPortName,
+		ContainerPort: apicommon.DefaultDogstatsdPort,
 		Protocol:      corev1.ProtocolUDP,
 	}
 	if f.hostPortEnabled {
