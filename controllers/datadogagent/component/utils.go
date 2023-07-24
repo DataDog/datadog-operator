@@ -26,7 +26,6 @@ import (
 )
 
 const (
-	localServiceMinimumVersion        = "1.21-0"
 	localServiceDefaultMinimumVersion = "1.22-0"
 )
 
@@ -593,9 +592,8 @@ func ShouldCreateAgentLocalService(versionInfo *version.Info, forceEnableLocalSe
 	if versionInfo == nil || versionInfo.GitVersion == "" {
 		return false
 	}
-	// Service Internal Traffic Policy exists in Kube 1.21 but it is enabled by default since 1.22
-	return utils.IsAboveMinVersion(versionInfo.GitVersion, localServiceDefaultMinimumVersion) ||
-		(utils.IsAboveMinVersion(versionInfo.GitVersion, localServiceMinimumVersion) && forceEnableLocalService)
+	// Service Internal Traffic Policy is enabled by default since 1.22
+	return utils.IsAboveMinVersion(versionInfo.GitVersion, localServiceDefaultMinimumVersion) || forceEnableLocalService
 }
 
 // BuildCiliumPolicy creates the base node agent, DCA, or CCR cilium network policy
