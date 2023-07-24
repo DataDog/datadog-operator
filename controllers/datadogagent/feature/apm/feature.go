@@ -166,7 +166,8 @@ func (f *apmFeature) ManageDependencies(managers feature.ResourceManagers, compo
 			}
 		}
 
-		if err := managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), nil, []corev1.ServicePort{*apmPort}, nil); err != nil {
+		serviceInternalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
+		if err := managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), nil, []corev1.ServicePort{*apmPort}, &serviceInternalTrafficPolicy); err != nil {
 			return err
 		}
 	}

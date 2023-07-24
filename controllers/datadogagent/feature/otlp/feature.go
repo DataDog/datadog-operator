@@ -172,7 +172,8 @@ func (f *otlpFeature) ManageDependencies(managers feature.ResourceManagers, comp
 					Name:       apicommon.OTLPGRPCPortName,
 				},
 			}
-			if err := managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), nil, servicePort, nil); err != nil {
+			serviceInternalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
+			if err := managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), nil, servicePort, &serviceInternalTrafficPolicy); err != nil {
 				return err
 			}
 		}
@@ -192,7 +193,8 @@ func (f *otlpFeature) ManageDependencies(managers feature.ResourceManagers, comp
 					Name:       apicommon.OTLPHTTPPortName,
 				},
 			}
-			if err := managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), nil, servicePort, nil); err != nil {
+			serviceInternalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
+			if err := managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), nil, servicePort, &serviceInternalTrafficPolicy); err != nil {
 				return err
 			}
 		}
