@@ -83,12 +83,28 @@ func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 	if dda.Spec.Features != nil && dda.Spec.Features.KubeStateMetricsCore != nil && apiutils.BoolValue(dda.Spec.Features.KubeStateMetricsCore.Enabled) {
 		output.ClusterAgent.IsRequired = apiutils.NewBoolPointer(true)
 
-		if nodeAgentOverride, ok := dda.Spec.Override[v2alpha1.NodeAgentComponentName]; ok {
-			if nodeAgentOverride.Image != nil {
-				if utils.IsAboveMinVersion(component.GetAgentVersionFromImage(*nodeAgentOverride.Image), crdAPIServiceCollectionMinVersion) {
-					f.collectAPIServiceMetrics = true
-					f.collectCRDMetrics = true
+		f.collectAPIServiceMetrics = true
+		f.collectCRDMetrics = true
+
+		// This check will only run in the Cluster Checks Runners or Cluster Agent (not the Node Agent)
+		if dda.Spec.Features.ClusterChecks != nil && apiutils.BoolValue(dda.Spec.Features.ClusterChecks.Enabled) && apiutils.BoolValue(dda.Spec.Features.ClusterChecks.UseClusterChecksRunners) {
+			f.runInClusterChecksRunner = true
+			f.rbacSuffix = common.ChecksRunnerSuffix
+			f.serviceAccountName = v2alpha1.GetClusterChecksRunnerServiceAccount(dda)
+			output.ClusterChecksRunner.IsRequired = apiutils.NewBoolPointer(true)
+
+			if ccrOverride, ok := dda.Spec.Override[v2alpha1.ClusterChecksRunnerComponentName]; ok {
+				if ccrOverride.Image != nil && !utils.IsAboveMinVersion(component.GetAgentVersionFromImage(*ccrOverride.Image), crdAPIServiceCollectionMinVersion) {
+					// Disable if image is overridden to an unsupported version
+					f.collectAPIServiceMetrics = false
+					f.collectCRDMetrics = false
 				}
+			}
+		} else if clusterAgentOverride, ok := dda.Spec.Override[v2alpha1.ClusterAgentComponentName]; ok {
+			if clusterAgentOverride.Image != nil && !utils.IsAboveMinVersion(component.GetAgentVersionFromImage(*clusterAgentOverride.Image), crdAPIServiceCollectionMinVersion) {
+				// Disable if image is overridden to an unsupported version
+				f.collectAPIServiceMetrics = false
+				f.collectCRDMetrics = false
 			}
 		}
 
@@ -106,24 +122,6 @@ func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 
 		f.serviceAccountName = v2alpha1.GetClusterAgentServiceAccount(dda)
 		f.configConfigMapName = apicommonv1.GetConfName(dda, f.customConfig, apicommon.DefaultKubeStateMetricsCoreConf)
-
-		if dda.Spec.Features.ClusterChecks != nil && apiutils.BoolValue(dda.Spec.Features.ClusterChecks.Enabled) {
-			if apiutils.BoolValue(dda.Spec.Features.ClusterChecks.UseClusterChecksRunners) {
-				f.runInClusterChecksRunner = true
-				f.rbacSuffix = common.ChecksRunnerSuffix
-				f.serviceAccountName = v2alpha1.GetClusterChecksRunnerServiceAccount(dda)
-				output.ClusterChecksRunner.IsRequired = apiutils.NewBoolPointer(true)
-
-				if ccrOverride, ok := dda.Spec.Override[v2alpha1.ClusterChecksRunnerComponentName]; ok {
-					if ccrOverride.Image != nil {
-						if utils.IsAboveMinVersion(component.GetAgentVersionFromImage(*ccrOverride.Image), crdAPIServiceCollectionMinVersion) {
-							f.collectAPIServiceMetrics = true
-							f.collectCRDMetrics = true
-						}
-					}
-				}
-			}
-		}
 	}
 
 	return output
