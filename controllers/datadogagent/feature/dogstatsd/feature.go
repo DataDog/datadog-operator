@@ -148,10 +148,12 @@ func (f *dogstatsdFeature) ManageDependencies(managers feature.ResourceManagers,
 			Port:       apicommon.DefaultDogstatsdPort,
 			Name:       apicommon.DefaultDogstatsdPortName,
 		}
-		if f.useHostNetwork && f.hostPortEnabled {
-			dsdPort.TargetPort = intstr.FromInt(int(f.hostPortHostPort))
+		if f.hostPortEnabled {
 			dsdPort.Port = f.hostPortHostPort
 			dsdPort.Name = apicommon.DogstatsdHostPortName
+			if f.useHostNetwork {
+				dsdPort.TargetPort = intstr.FromInt(int(f.hostPortHostPort))
+			}
 		}
 		serviceInternalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
 		if err := managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), nil, []corev1.ServicePort{*dsdPort}, &serviceInternalTrafficPolicy); err != nil {
