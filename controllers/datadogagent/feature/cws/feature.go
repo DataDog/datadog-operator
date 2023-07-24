@@ -184,6 +184,7 @@ func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 		Name:  apicommon.DDRuntimeSecurityConfigEnabled,
 		Value: "true",
 	}
+	managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, enabledEnvVar)
 	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SecurityAgentContainerName, enabledEnvVar)
 	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SystemProbeContainerName, enabledEnvVar)
 
