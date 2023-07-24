@@ -346,6 +346,7 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) erro
 		Name:  apicommon.DDComplianceConfigEnabled,
 		Value: "true",
 	}
+	managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, enabledEnvVar)
 	managers.EnvVar().AddEnvVarToContainer(apicommonv1.SecurityAgentContainerName, enabledEnvVar)
 
 	hostRootEnvVar := &corev1.EnvVar{
