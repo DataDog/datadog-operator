@@ -55,9 +55,11 @@ const (
 	// DefaultDogstatsdPort default dogstatsd port
 	DefaultDogstatsdPort = 8125
 	// DefaultDogstatsdPortName default dogstatsd port name
-	DefaultDogstatsdPortName = "dogstatsd"
+	DefaultDogstatsdPortName = "dogstatsdport"
+	// DefaultApmPort default apm port
+	DefaultApmPort = 8126
 	// DefaultApmPortName default apm port name
-	DefaultApmPortName = "apm"
+	DefaultApmPortName = "traceport"
 	// DefaultMetricsProviderPort default metrics provider port
 	DefaultMetricsProviderPort int32 = 8443
 	// DefaultKubeStateMetricsCoreConf default ksm core ConfigMap name

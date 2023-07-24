@@ -141,7 +141,7 @@ func Test_DogstatsdFeature_Configure(t *testing.T) {
 	wantUDPEnvVars := []*corev1.EnvVar{
 		{
 			Name:  apicommon.DDDogstatsdPort,
-			Value: strconv.Itoa(apicommon.DogstatsdHostPortHostPort),
+			Value: strconv.Itoa(apicommon.DefaultDogstatsdPort),
 		},
 		{
 			Name:  apicommon.DDDogstatsdNonLocalTraffic,

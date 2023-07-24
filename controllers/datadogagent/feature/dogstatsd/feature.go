@@ -141,20 +141,24 @@ func (f *dogstatsdFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feat
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
 func (f *dogstatsdFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
-	if f.hostPortEnabled {
-		// agent local service
-		if component.ShouldCreateAgentLocalService(managers.Store().GetVersionInfo(), f.forceEnableLocalService) {
-			apmPort := []corev1.ServicePort{
-				{
-					Protocol:   corev1.ProtocolUDP,
-					TargetPort: intstr.FromInt(int(f.hostPortHostPort)),
-					Port:       f.hostPortHostPort,
-					Name:       apicommon.DogstatsdHostPortName,
-				},
+	// agent local service
+	if component.ShouldCreateAgentLocalService(managers.Store().GetVersionInfo(), f.forceEnableLocalService) {
+		dsdPort := &corev1.ServicePort{
+			Protocol:   corev1.ProtocolUDP,
+			TargetPort: intstr.FromInt(int(apicommon.DefaultDogstatsdPort)),
+			Port:       apicommon.DefaultDogstatsdPort,
+			Name:       apicommon.DefaultDogstatsdPortName,
+		}
+		if f.hostPortEnabled {
+			dsdPort.Port = f.hostPortHostPort
+			dsdPort.Name = apicommon.DogstatsdHostPortName
+			if f.useHostNetwork {
+				dsdPort.TargetPort = intstr.FromInt(int(f.hostPortHostPort))
 			}
-			if err := managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), nil, apmPort, nil); err != nil {
-				return err
-			}
+		}
+		serviceInternalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
+		if err := managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), nil, []corev1.ServicePort{*dsdPort}, &serviceInternalTrafficPolicy); err != nil {
+			return err
 		}
 	}
 
@@ -185,8 +189,8 @@ func (f *dogstatsdFeature) ManageClusterAgent(managers feature.PodTemplateManage
 func (f *dogstatsdFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	// udp
 	dogstatsdPort := &corev1.ContainerPort{
-		Name:          apicommon.DogstatsdHostPortName,
-		ContainerPort: apicommon.DogstatsdHostPortHostPort,
+		Name:          apicommon.DefaultDogstatsdPortName,
+		ContainerPort: apicommon.DefaultDogstatsdPort,
 		Protocol:      corev1.ProtocolUDP,
 	}
 	if f.hostPortEnabled {
