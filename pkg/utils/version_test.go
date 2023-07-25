@@ -111,7 +111,7 @@ func TestIsAboveMinVersion(t *testing.T) {
 	}
 }
 
-func TestFormatVersionTag(t *testing.T) {
+func Test_formatVersionTag(t *testing.T) {
 	testCases := []struct {
 		version  string
 		expected string
@@ -176,7 +176,7 @@ func TestFormatVersionTag(t *testing.T) {
 	}
 	for _, test := range testCases {
 		t.Run(test.version, func(t *testing.T) {
-			result := FormatVersionTag(test.version)
+			result := formatVersionTag(test.version)
 			assert.Equal(t, test.expected, result)
 		})
 	}

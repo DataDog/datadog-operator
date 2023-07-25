@@ -97,16 +97,14 @@ func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 			output.ClusterChecksRunner.IsRequired = apiutils.NewBoolPointer(true)
 
 			if ccrOverride, ok := dda.Spec.Override[v2alpha1.ClusterChecksRunnerComponentName]; ok {
-				versionTag = utils.FormatVersionTag(component.GetAgentVersionFromImage(*ccrOverride.Image))
-				if ccrOverride.Image != nil && versionTag != "" && !utils.IsAboveMinVersion(versionTag, crdAPIServiceCollectionMinVersion) {
+				if ccrOverride.Image != nil && versionTag != "" && !utils.IsAboveMinVersion(component.GetAgentVersionFromImage(*ccrOverride.Image), crdAPIServiceCollectionMinVersion) {
 					// Disable if image is overridden to an unsupported version
 					f.collectAPIServiceMetrics = false
 					f.collectCRDMetrics = false
 				}
 			}
 		} else if clusterAgentOverride, ok := dda.Spec.Override[v2alpha1.ClusterAgentComponentName]; ok {
-			versionTag = utils.FormatVersionTag(component.GetAgentVersionFromImage(*clusterAgentOverride.Image))
-			if clusterAgentOverride.Image != nil && versionTag != "" && !utils.IsAboveMinVersion(versionTag, crdAPIServiceCollectionMinVersion) {
+			if clusterAgentOverride.Image != nil && versionTag != "" && !utils.IsAboveMinVersion(component.GetAgentVersionFromImage(*clusterAgentOverride.Image), crdAPIServiceCollectionMinVersion) {
 				// Disable if image is overridden to an unsupported version
 				f.collectAPIServiceMetrics = false
 				f.collectCRDMetrics = false
