@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestCompareVersion(t *testing.T) {
+func TestIsAboveMinVersion(t *testing.T) {
 	testCases := []struct {
 		version    string
 		minVersion string
@@ -62,10 +62,121 @@ func TestCompareVersion(t *testing.T) {
 			minVersion: "1.22-0",
 			expected:   true,
 		},
+		{
+			version:    "7.27.0-beta",
+			minVersion: "7.26.0-0",
+			expected:   true,
+		},
+		{
+			version:    "7.27.0-beta",
+			minVersion: "7.26.0",
+			expected:   false,
+		},
+		{
+			version:    "7.25.0-beta",
+			minVersion: "7.26.0-0",
+			expected:   false,
+		},
+		{
+			version:    "7.25.0-beta",
+			minVersion: "7.26.0",
+			expected:   false,
+		},
+		{
+			version:    "7.27.0-rc-3-jmx",
+			minVersion: "7.26.0-0",
+			expected:   true,
+		},
+		{
+			version:    "7.27.0-rc-3-jmx",
+			minVersion: "7.26.0",
+			expected:   false,
+		},
+		{
+			version:    "7.25.0-rc-3-jmx",
+			minVersion: "7.26.0-0",
+			expected:   false,
+		},
+		{
+			version:    "7.25.0-rc-3-jmx",
+			minVersion: "7.26.0",
+			expected:   false,
+		},
 	}
 	for _, test := range testCases {
 		t.Run(test.version, func(t *testing.T) {
 			result := IsAboveMinVersion(test.version, test.minVersion)
+			assert.Equal(t, test.expected, result)
+		})
+	}
+}
+
+func Test_formatVersionTag(t *testing.T) {
+	testCases := []struct {
+		version  string
+		expected string
+	}{
+		{
+			version:  "7.46.0",
+			expected: "7.46.0",
+		},
+		{
+			version:  "7.46.0-jmx",
+			expected: "7.46.0-jmx",
+		},
+		{
+			version:  "7.46.0-rc.3",
+			expected: "7.46.0-rc.3",
+		},
+		{
+			version:  "7.46.0-rc.3-jmx",
+			expected: "7.46.0-rc.3-jmx",
+		},
+		{
+			version:  "7.46.0-beta",
+			expected: "7.46.0-beta",
+		},
+		// dashes ("-") in lieu of periods (".")
+		{
+			version:  "7-46-0",
+			expected: "7.46.0",
+		},
+		{
+			version:  "7-46-0-jmx",
+			expected: "7.46.0-jmx",
+		},
+		{
+			version:  "7-46-0-rc-3-jmx",
+			expected: "7.46.0-rc-3-jmx",
+		},
+		{
+			version:  "7-46-0-rc.3.jmx",
+			expected: "7.46.0-rc.3.jmx",
+		},
+		{
+			version:  "7-46-0-beta",
+			expected: "7.46.0-beta",
+		},
+		{
+			version:  "customImage",
+			expected: "",
+		},
+		{
+			version:  "customImage",
+			expected: "",
+		},
+		{
+			version:  "custom-image",
+			expected: "",
+		},
+		{
+			version:  "custom-image-long-name",
+			expected: "",
+		},
+	}
+	for _, test := range testCases {
+		t.Run(test.version, func(t *testing.T) {
+			result := formatVersionTag(test.version)
 			assert.Equal(t, test.expected, result)
 		})
 	}

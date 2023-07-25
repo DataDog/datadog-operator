@@ -5,10 +5,19 @@
 
 package utils
 
-import "github.com/Masterminds/semver/v3"
+import (
+	"regexp"
+	"strings"
+
+	"github.com/Masterminds/semver/v3"
+)
+
+var versionRx = regexp.MustCompile(`(\d+\.\d+\.\d+)(\-[^\+]+)*(\+.+)*`)
+var versionWithDashesRx = regexp.MustCompile(`(\d+\-\d+\-\d+)(\-[^\+]+)*(\+.+)*`)
 
 // IsAboveMinVersion uses semver to check if `version` is >= minVersion
 func IsAboveMinVersion(version, minVersion string) bool {
+	version = formatVersionTag(version)
 	v, err := semver.NewVersion(version)
 	if err != nil {
 		return false
@@ -20,4 +29,14 @@ func IsAboveMinVersion(version, minVersion string) bool {
 	}
 
 	return c.Check(v)
+}
+
+// formatVersionTag checks if the version tag uses dashes in lieu of periods, and replaces the first two dashes if so.
+func formatVersionTag(versionTag string) string {
+	if versionWithDashesRx.FindString(versionTag) != "" {
+		versionTag = strings.Replace(versionTag, "-", ".", 2)
+	}
+
+	// Return versionTag if it matches with versionRx regex, or "".
+	return versionRx.FindString(versionTag)
 }
