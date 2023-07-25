@@ -85,6 +85,7 @@ func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 
 		f.collectAPIServiceMetrics = true
 		f.collectCRDMetrics = true
+		f.serviceAccountName = v2alpha1.GetClusterAgentServiceAccount(dda)
 
 		versionTag := ""
 
@@ -124,7 +125,6 @@ func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.KubernetesStateCoreIDType)
 		}
 
-		f.serviceAccountName = v2alpha1.GetClusterAgentServiceAccount(dda)
 		f.configConfigMapName = apicommonv1.GetConfName(dda, f.customConfig, apicommon.DefaultKubeStateMetricsCoreConf)
 	}
 
