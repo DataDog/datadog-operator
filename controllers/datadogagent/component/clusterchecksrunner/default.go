@@ -20,6 +20,7 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/common"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 )
@@ -106,27 +107,80 @@ func GetDefaultClusterChecksRunnerClusterRolePolicyRules(dda metav1.Object) []rb
 			},
 		},
 		{
-			APIGroups: []string{rbac.OpenShiftQuotaAPIGroup},
-			Resources: []string{rbac.ClusterResourceQuotasResource},
-			Verbs:     []string{rbac.GetVerb, rbac.ListVerb},
-		},
-		{
-			NonResourceURLs: []string{rbac.VersionURL, rbac.HealthzURL},
-			Verbs:           []string{rbac.GetVerb},
-		},
-		{
-			// Horizontal Pod Autoscaling
-			APIGroups: []string{rbac.AutoscalingAPIGroup},
-			Resources: []string{rbac.HorizontalPodAutoscalersRecource},
-			Verbs:     []string{rbac.ListVerb, rbac.WatchVerb},
+			APIGroups: []string{rbac.CoreAPIGroup},
+			Resources: []string{
+				rbac.ConfigMapsResource,
+			},
+			Verbs: []string{
+				rbac.CreateVerb,
+			},
 		},
 		{
 			APIGroups: []string{rbac.CoreAPIGroup},
-			Resources: []string{rbac.NamespaceResource},
+			Resources: []string{
+				rbac.ConfigMapsResource,
+			},
+			ResourceNames: []string{
+				utils.GetDatadogLeaderElectionResourceName(dda),
+			},
+			Verbs: []string{
+				rbac.GetVerb,
+				rbac.UpdateVerb,
+			},
+		},
+		{
+			APIGroups: []string{rbac.OpenShiftQuotaAPIGroup},
+			Resources: []string{
+				rbac.ClusterResourceQuotasResource,
+			},
+			Verbs: []string{
+				rbac.GetVerb,
+				rbac.ListVerb,
+			},
+		},
+		{
+			NonResourceURLs: []string{
+				rbac.VersionURL,
+				rbac.HealthzURL,
+			},
+			Verbs: []string{
+				rbac.GetVerb,
+			},
+		},
+		// Leader election that uses Leases, such as kube-controller-manager
+		{
+			APIGroups: []string{rbac.CoordinationAPIGroup},
+			Resources: []string{
+				rbac.LeasesResource,
+			},
+			Verbs: []string{
+				rbac.GetVerb,
+				rbac.ListVerb,
+				rbac.WatchVerb,
+			},
+		},
+		// Horizontal Pod Autoscaling
+		{
+			APIGroups: []string{rbac.AutoscalingAPIGroup},
+			Resources: []string{
+				rbac.HorizontalPodAutoscalersRecource,
+			},
+			Verbs: []string{
+				rbac.ListVerb,
+				rbac.WatchVerb,
+			},
+		},
+		{
+			APIGroups: []string{rbac.CoreAPIGroup},
+			Resources: []string{
+				rbac.NamespaceResource,
+			},
 			ResourceNames: []string{
 				common.KubeSystemResourceName,
 			},
-			Verbs: []string{rbac.GetVerb},
+			Verbs: []string{
+				rbac.GetVerb,
+			},
 		},
 	}
 }
