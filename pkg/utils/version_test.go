@@ -157,12 +157,13 @@ func Test_formatVersionTag(t *testing.T) {
 			version:  "7-46-0-beta",
 			expected: "7.46.0-beta",
 		},
+		// other string formats
 		{
 			version:  "customImage",
 			expected: "",
 		},
 		{
-			version:  "customImage",
+			version:  "custom.image",
 			expected: "",
 		},
 		{
