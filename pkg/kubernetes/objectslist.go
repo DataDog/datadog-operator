@@ -6,6 +6,7 @@
 package kubernetes
 
 import (
+	securityv1 "github.com/openshift/api/security/v1"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -48,8 +49,8 @@ func ObjectListFromKind(kind ObjectKind, platformInfo PlatformInfo) client.Objec
 		return &policyv1beta1.PodSecurityPolicyList{}
 	case CiliumNetworkPoliciesKind:
 		return ciliumv1.EmptyCiliumUnstructuredListPolicy()
-		// case SecurityContextConstraintsKind:
-		// 	return &securityv1.SecurityContextConstraintsList{}
+	case SecurityContextConstraintsKind:
+		return &securityv1.SecurityContextConstraintsList{}
 	}
 
 	return nil

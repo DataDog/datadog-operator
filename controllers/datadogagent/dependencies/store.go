@@ -224,8 +224,8 @@ func (ds *Store) Apply(ctx context.Context, k8sClient client.Client) []error {
 				objStore.(*v1.Service).Spec.ClusterIPs = objAPIServer.(*v1.Service).Spec.ClusterIPs
 				objStore.SetResourceVersion(objAPIServer.GetResourceVersion())
 			}
-			// The APIServiceKind resource version must be set.
-			if kind == kubernetes.APIServiceKind {
+			// The APIServiceKind and SecurityContextConstraintsKind resource versions must be set.
+			if kind == kubernetes.APIServiceKind || kind == kubernetes.SecurityContextConstraintsKind {
 				objStore.SetResourceVersion(objAPIServer.GetResourceVersion())
 			}
 
@@ -422,6 +422,8 @@ func shouldSetOwnerReference(kind kubernetes.ObjectKind, objNamespace, ownerName
 	case kubernetes.ClusterRolesKind:
 		return false
 	case kubernetes.APIServiceKind:
+		return false
+	case kubernetes.SecurityContextConstraintsKind:
 		return false
 	}
 

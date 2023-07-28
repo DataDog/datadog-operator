@@ -6,6 +6,7 @@
 package equality
 
 import (
+	securityv1 "github.com/openshift/api/security/v1"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -57,6 +58,8 @@ func IsEqualObject(kind kubernetes.ObjectKind, a, b client.Object) bool {
 		return IsEqualPodSecurityPolicies(a, b)
 	case kubernetes.CiliumNetworkPoliciesKind:
 		return IsEqualCiliumNetworkPolicies(a, b)
+	case kubernetes.SecurityContextConstraintsKind:
+		return IsEqualSecurityContextConstraints(a, b)
 	default:
 		return false
 	}
@@ -208,6 +211,16 @@ func IsEqualPodSecurityPolicies(objA, objB client.Object) bool {
 	b, okB := objB.(*policyv1beta1.PodSecurityPolicy)
 	if okA && okB && a != nil && b != nil {
 		return apiequality.Semantic.DeepEqual(a.Spec, b.Spec)
+	}
+	return false
+}
+
+// IsEqualSecurityContextConstraints return true if the two SecurityContextConstraints are equal
+func IsEqualSecurityContextConstraints(objA, objB client.Object) bool {
+	a, okA := objA.(*securityv1.SecurityContextConstraints)
+	b, okB := objB.(*securityv1.SecurityContextConstraints)
+	if okA && okB && a != nil && b != nil {
+		return apiequality.Semantic.DeepEqual(a, b)
 	}
 	return false
 }
