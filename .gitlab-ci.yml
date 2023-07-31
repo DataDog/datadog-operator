@@ -220,7 +220,7 @@ trigger_internal_operator_image:
     - if: $PUSH_IMAGES_TO_STAGING == 'true'
       when: manual
       variables:
-        IMAGE_TAG: branch-${CI_COMMIT_REF_SLUG}-${CI_COMMIT_SHORT_SHA}
+        IMAGE_TAG: ${CI_COMMIT_BRANCH}-${CI_COMMIT_SHORT_SHA}
     - when: never
   trigger:
     project: DataDog/images
@@ -245,7 +245,7 @@ trigger_internal_operator_check_image:
     - if: $PUSH_IMAGES_TO_STAGING == 'true'
       when: manual
       variables:
-        IMAGE_TAG: branch-${CI_COMMIT_REF_SLUG}-${CI_COMMIT_SHORT_SHA}
+        IMAGE_TAG: ${CI_COMMIT_BRANCH}-${CI_COMMIT_SHORT_SHA}
     - when: never
   trigger:
     project: DataDog/images
