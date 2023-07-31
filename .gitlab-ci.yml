@@ -11,6 +11,8 @@ variables:
   RH_PARTNER_SCAN_OPERATOR_TOKEN_SSM_KEY: redhat_operator_token
   RH_PARTNER_SCAN_REGISTRY: scan.connect.redhat.com
   RH_PARTNER_API_KEY_SSM_KEY: redhat_api_key
+  PUSH_IMAGES_TO_STAGING:
+    description: "Set PUSH_IMAGE_TO_STAGING to 'true' if you want to push the operator to internal staging registry.
 
 cache: &global_cache
   key: ${CI_COMMIT_REF_SLUG}
@@ -211,6 +213,8 @@ trigger_internal_operator_image:
   stage: release
   rules:
     - if: $CI_COMMIT_TAG
+    - if: $PUSH_IMAGES_TO_STAGING == 'true'
+      when: manual
     - when: never
   trigger:
     project: DataDog/images
@@ -229,6 +233,8 @@ trigger_internal_operator_check_image:
   stage: release
   rules:
     - if: $CI_COMMIT_TAG
+    - if: $PUSH_IMAGES_TO_STAGING == 'true'
+      when: manual
     - when: never
   trigger:
     project: DataDog/images
