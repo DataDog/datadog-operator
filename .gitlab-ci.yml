@@ -12,7 +12,7 @@ variables:
   RH_PARTNER_SCAN_REGISTRY: scan.connect.redhat.com
   RH_PARTNER_API_KEY_SSM_KEY: redhat_api_key
   PUSH_IMAGES_TO_STAGING:
-    description: "Set PUSH_IMAGE_TO_STAGING to 'true' if you want to push the operator to internal staging registry.
+    description: "Set PUSH_IMAGE_TO_STAGING to 'true' if you want to push the operator to internal staging registry."
 
 cache: &global_cache
   key: ${CI_COMMIT_REF_SLUG}
