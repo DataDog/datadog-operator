@@ -45,9 +45,12 @@ func SetDatadogMonitorCondition(condition *datadoghqv1alpha1.DatadogMonitorCondi
 	if condition.Status != conditionStatus {
 		condition.LastTransitionTime = now
 		condition.Status = conditionStatus
+		condition.LastUpdateTime = now
+		condition.Message = desc
+	} else if condition.Message != desc {
+		condition.LastUpdateTime = now
+		condition.Message = desc
 	}
-	condition.LastUpdateTime = now
-	condition.Message = desc
 
 	return condition
 }

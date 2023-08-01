@@ -9,7 +9,6 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -102,10 +101,11 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
 			// Return and don't requeue
-			return result, nil
+			return ctrl.Result{}, nil
+
 		}
-		// Error reading the object - requeue the request
-		return ctrl.Result{RequeueAfter: defaultErrRequeuePeriod}, err
+		// Error reading the object - return error so it gets requeued
+		return ctrl.Result{}, err
 	}
 
 	newStatus := instance.Status.DeepCopy()
@@ -148,19 +148,19 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 			m, err = r.get(logger, instance, newStatus, now)
 			if err != nil {
 				logger.Error(err, "error getting monitor", "Monitor ID", instance.Status.ID)
-				if strings.Contains(err.Error(), "404 Not Found") {
+				if apierrors.IsNotFound(err) {
 					shouldCreate = true
 				}
 			} else {
 				shouldUpdate = true
 			}
 		} else if instance.Status.MonitorStateLastUpdateTime == nil || (defaultRequeuePeriod-now.Sub(instance.Status.MonitorStateLastUpdateTime.Time)) <= 0 {
-			// If other conditions aren't met, then update monitor state
+			// If other conditions aren't met, and we have passed the defaultRequeuePeriod, then update monitor state
 			// Get monitor to make sure it exists before trying any updates. If it doesn't, set shouldCreate
 			m, err = r.get(logger, instance, newStatus, now)
 			if err != nil {
 				logger.Error(err, "error getting monitor", "Monitor ID", instance.Status.ID)
-				if strings.Contains(err.Error(), "404 Not Found") {
+				if apierrors.IsNotFound(err) {
 					shouldCreate = true
 				}
 			}
@@ -198,7 +198,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 		}
 	}
 
-	// Requeue
+	// If reconcile was successful, requeue with period defaultRequeuePeriod
 	if !result.Requeue && result.RequeueAfter == 0 {
 		result.RequeueAfter = defaultRequeuePeriod
 	}
@@ -259,7 +259,7 @@ func (r *Reconciler) update(logger logr.Logger, datadogMonitor *datadoghqv1alpha
 	status.MonitorStateSyncStatus = datadoghqv1alpha1.MonitorStateSyncStatusOK
 	status.MonitorLastForceSyncTime = &now
 	status.CurrentHash = instanceSpecHash
-	logger.Info("Updated DatadogMonitor", "Monitor Namespace", datadogMonitor.Namespace, "Monitor Name", datadogMonitor.Name, "Monitor ID", datadogMonitor.Status.ID)
+	logger.V(1).Info("Updated DatadogMonitor", "Monitor Namespace", datadogMonitor.Namespace, "Monitor Name", datadogMonitor.Name, "Monitor ID", datadogMonitor.Status.ID)
 
 	return nil
 }
@@ -289,7 +289,7 @@ func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, datadogMonitor *da
 		if err := r.client.Status().Update(context.TODO(), datadogMonitor); err != nil {
 			if apierrors.IsConflict(err) {
 				logger.Error(err, "unable to update DatadogMonitor status due to update conflict")
-				return ctrl.Result{Requeue: true, RequeueAfter: defaultErrRequeuePeriod}, nil
+				return ctrl.Result{RequeueAfter: defaultErrRequeuePeriod}, nil
 			}
 			logger.Error(err, "unable to update DatadogMonitor status")
 
@@ -302,7 +302,7 @@ func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, datadogMonitor *da
 		// not an issue, but if a monitor has many groups and is "flapping", then it can cause a flood of updates to
 		// the Status.TriggeredState and put pressure on the controller. As a safeguard against this, the maximum number
 		// of groups stored in Status.TriggeredState should be conservative.
-		return ctrl.Result{Requeue: true, RequeueAfter: defaultRequeuePeriod}, nil
+		return ctrl.Result{RequeueAfter: defaultRequeuePeriod}, nil
 	}
 
 	return result, nil
@@ -332,14 +332,14 @@ func (r *Reconciler) checkRequiredTags(logger logr.Logger, datadogMonitor *datad
 		if err != nil {
 			logger.Error(err, "failed to update DatadogMonitor with required tags")
 
-			return ctrl.Result{Requeue: true, RequeueAfter: defaultErrRequeuePeriod}, err
+			return ctrl.Result{RequeueAfter: defaultErrRequeuePeriod}, err
 		}
 		logger.Info("Added required tags", "Monitor Namespace", datadogMonitor.Namespace, "Monitor Name", datadogMonitor.Name, "Monitor ID", datadogMonitor.Status.ID)
 
-		return ctrl.Result{Requeue: true, RequeueAfter: defaultRequeuePeriod}, nil
+		return ctrl.Result{RequeueAfter: defaultRequeuePeriod}, nil
 	}
 
-	// Proceed in reconcile loop.
+	// Proceed in reconcile loop without modifying result.
 	return ctrl.Result{}, nil
 }
 

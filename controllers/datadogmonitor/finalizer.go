@@ -30,21 +30,21 @@ func (r *Reconciler) handleFinalizer(logger logr.Logger, dm *datadoghqv1alpha1.D
 			dm.SetFinalizers(utils.RemoveString(dm.GetFinalizers(), datadogMonitorFinalizer))
 			err := r.client.Update(context.TODO(), dm)
 			if err != nil {
-				return ctrl.Result{Requeue: true, RequeueAfter: defaultErrRequeuePeriod}, err
+				return ctrl.Result{RequeueAfter: defaultErrRequeuePeriod}, err
 			}
 		}
 
 		// Requeue until the object was properly deleted by Kuberentes
-		return ctrl.Result{Requeue: true, RequeueAfter: defaultRequeuePeriod}, nil
+		return ctrl.Result{RequeueAfter: defaultRequeuePeriod}, nil
 	}
 
 	// Add finalizer for this resource if it doesn't already exist.
 	if !utils.ContainsString(dm.GetFinalizers(), datadogMonitorFinalizer) {
 		if err := r.addFinalizer(logger, dm); err != nil {
-			return ctrl.Result{Requeue: true, RequeueAfter: defaultErrRequeuePeriod}, err
+			return ctrl.Result{RequeueAfter: defaultErrRequeuePeriod}, err
 		}
 
-		return ctrl.Result{Requeue: true, RequeueAfter: defaultRequeuePeriod}, nil
+		return ctrl.Result{RequeueAfter: defaultRequeuePeriod}, nil
 	}
 
 	// Proceed in reconcile loop.
