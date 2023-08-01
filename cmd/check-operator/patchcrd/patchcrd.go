@@ -90,15 +90,15 @@ func (o *Options) Validate() error {
 	return nil
 }
 
-// Run use to run the command.
+// Run is used to run the command.
 func (o *Options) Run() error {
-	o.printOutf("Start checking patching CRD status")
+	o.printOutf("Start checking patched CRD status")
 	crd, err := o.APIExtClient.ApiextensionsV1().CustomResourceDefinitions().Get(context.Background(), o.crdName, v1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return fmt.Errorf("unable to patch %s CRD, err: %w", o.crdName, err)
 		}
-		return fmt.Errorf("unknow error during CRD get, err: %w", err)
+		return fmt.Errorf("unknown error during CRD get, err: %w", err)
 	}
 
 	o.printOutf("Current storedVersions value: %s,", strings.Join(crd.Status.StoredVersions, ","))

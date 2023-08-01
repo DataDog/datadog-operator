@@ -171,10 +171,10 @@ func (o *Options) Run() error {
 		}
 		var status common.StatusWrapper
 		if v2Available {
-			o.printOutf("v2alpha1 available")
+			o.printOutf("v2alpha1 is available")
 			status, err = o.getV2Status()
 		} else {
-			o.printOutf("Only v1alpha1 available")
+			o.printOutf("Only v1alpha1 is available")
 			status, err = o.getV1Status()
 		}
 		if err != nil {

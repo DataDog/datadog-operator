@@ -55,7 +55,7 @@ func (o *Options) Init(cmd *cobra.Command) error {
 	if err != nil {
 		return fmt.Errorf("unable to create APIExtensionClient, err:%w", err)
 	}
-	o.SetApiExtentionClient(apiextClient)
+	o.SetApiExtensionClient(apiextClient)
 
 	nsConfig, _, err := clientConfig.Namespace()
 	if err != nil {
@@ -90,8 +90,8 @@ func (o *Options) SetClientset(clientset *kubernetes.Clientset) {
 	o.Clientset = clientset
 }
 
-// SetApiExtentionClient configures the APIExtClient
-func (o *Options) SetApiExtentionClient(client *apiextensionclient.Clientset) {
+// SetApiExtensionClient configures the APIExtClient
+func (o *Options) SetApiExtensionClient(client *apiextensionclient.Clientset) {
 	o.APIExtClient = client
 }
 
