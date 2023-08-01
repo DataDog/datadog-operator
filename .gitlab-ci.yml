@@ -216,11 +216,11 @@ trigger_internal_operator_image:
     - if: $CI_COMMIT_TAG
       variables:
         IMAGE_RELEASE_PROD: "true"
-        IMAGE_TAG: ${CI_COMMIT_REF_SLUG}
+        IMAGE_TAG: $CI_COMMIT_REF_SLUG
     - if: $PUSH_IMAGES_TO_STAGING == 'true'
       when: manual
       variables:
-        IMAGE_TAG: ${CI_COMMIT_BRANCH}-${CI_COMMIT_SHORT_SHA}
+        IMAGE_TAG: $CI_COMMIT_REF_SLUG-$CI_COMMIT_SHORT_SHA
     - when: never
   trigger:
     project: DataDog/images
@@ -229,11 +229,11 @@ trigger_internal_operator_image:
   variables:
     IMAGE_VERSION: tmpl-v1
     IMAGE_NAME: datadog-operator
-    RELEASE_TAG: ${IMAGE_TAG}
-    BUILD_TAG: ${IMAGE_TAG}
+    RELEASE_TAG: $IMAGE_TAG
+    BUILD_TAG: $IMAGE_TAG
     TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
     RELEASE_STAGING: "true"
-    RELEASE_PROD: ${IMAGE_RELEASE_PROD}
+    RELEASE_PROD: $IMAGE_RELEASE_PROD
 
 trigger_internal_operator_check_image:
   stage: release
@@ -241,11 +241,11 @@ trigger_internal_operator_check_image:
     - if: $CI_COMMIT_TAG
       variables:
         IMAGE_RELEASE_PROD: "true"
-        IMAGE_TAG: ${CI_COMMIT_REF_SLUG}
+        IMAGE_TAG: $CI_COMMIT_REF_SLUG
     - if: $PUSH_IMAGES_TO_STAGING == 'true'
       when: manual
       variables:
-        IMAGE_TAG: ${CI_COMMIT_BRANCH}-${CI_COMMIT_SHORT_SHA}
+        IMAGE_TAG: $CI_COMMIT_BRANCH-$CI_COMMIT_SHORT_SHA
     - when: never
   trigger:
     project: DataDog/images
@@ -255,10 +255,10 @@ trigger_internal_operator_check_image:
     IMAGE_VERSION: tmpl-v1
     IMAGE_NAME: $PROJECTNAME_CHECK
     TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
-    RELEASE_TAG: ${IMAGE_TAG}
-    BUILD_TAG: ${IMAGE_TAG}
+    RELEASE_TAG: $IMAGE_TAG
+    BUILD_TAG: $IMAGE_TAG
     RELEASE_STAGING: "true"
-    RELEASE_PROD: ${IMAGE_RELEASE_PROD}
+    RELEASE_PROD: $IMAGE_RELEASE_PROD
 
 submit_preflight_redhat_public_tag:
   stage: post-release
