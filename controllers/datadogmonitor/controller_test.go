@@ -75,7 +75,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 					_ = c.Create(context.TODO(), genericDatadogMonitor())
 				},
 			},
-			wantResult: reconcile.Result{Requeue: true, RequeueAfter: defaultRequeuePeriod},
+			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
 			wantFunc: func(c client.Client) error {
 				dm := &datadoghqv1alpha1.DatadogMonitor{}
 				if err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, dm); err != nil {
@@ -94,7 +94,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 				},
 				firstReconcileCount: 3,
 			},
-			wantResult: reconcile.Result{Requeue: true, RequeueAfter: defaultRequeuePeriod},
+			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
 			wantFunc: func(c client.Client) error {
 				dm := &datadoghqv1alpha1.DatadogMonitor{}
 				if err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, dm); err != nil {
@@ -113,7 +113,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 				},
 				firstReconcileCount: 2,
 			},
-			wantResult: reconcile.Result{Requeue: true, RequeueAfter: defaultRequeuePeriod},
+			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
 			wantFunc: func(c client.Client) error {
 				dm := &datadoghqv1alpha1.DatadogMonitor{}
 				if err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, dm); err != nil {
@@ -152,7 +152,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 				},
 				secondReconcileCount: 2,
 			},
-			wantResult: reconcile.Result{Requeue: true, RequeueAfter: defaultRequeuePeriod},
+			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
 			wantFunc: func(c client.Client) error {
 				dm := &datadoghqv1alpha1.DatadogMonitor{}
 				if err := c.Get(context.TODO(), types.NamespacedName{Name: resourcesName, Namespace: resourcesNamespace}, dm); err != nil {
@@ -178,7 +178,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 					assert.NoError(t, err)
 				},
 			},
-			wantResult: reconcile.Result{Requeue: true, RequeueAfter: defaultRequeuePeriod},
+			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
 			wantErr:    true,
 			wantFunc: func(c client.Client) error {
 				dm := &datadoghqv1alpha1.DatadogMonitor{}
@@ -197,7 +197,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 				},
 				firstReconcileCount: 2,
 			},
-			wantResult: reconcile.Result{Requeue: true, RequeueAfter: defaultRequeuePeriod},
+			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
 			wantErr:    false,
 			wantFunc: func(c client.Client) error {
 				dm := &datadoghqv1alpha1.DatadogMonitor{}
@@ -218,7 +218,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 
 				firstReconcileCount: 10,
 			},
-			wantResult: reconcile.Result{Requeue: true, RequeueAfter: defaultRequeuePeriod},
+			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
 			wantErr:    false,
 			wantFunc: func(c client.Client) error {
 				dm := &datadoghqv1alpha1.DatadogMonitor{}
@@ -239,7 +239,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 
 				firstReconcileCount: 10,
 			},
-			wantResult: reconcile.Result{Requeue: true, RequeueAfter: defaultRequeuePeriod},
+			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
 			wantErr:    false,
 			wantFunc: func(c client.Client) error {
 				dm := &datadoghqv1alpha1.DatadogMonitor{}
@@ -260,7 +260,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 
 				firstReconcileCount: 10,
 			},
-			wantResult: reconcile.Result{Requeue: true, RequeueAfter: defaultRequeuePeriod},
+			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
 			wantErr:    false,
 			wantFunc: func(c client.Client) error {
 				dm := &datadoghqv1alpha1.DatadogMonitor{}
@@ -281,7 +281,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 
 				firstReconcileCount: 10,
 			},
-			wantResult: reconcile.Result{Requeue: true, RequeueAfter: defaultRequeuePeriod},
+			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
 			wantErr:    false,
 			wantFunc: func(c client.Client) error {
 				dm := &datadoghqv1alpha1.DatadogMonitor{}
@@ -302,7 +302,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 
 				firstReconcileCount: 10,
 			},
-			wantResult: reconcile.Result{Requeue: true, RequeueAfter: defaultRequeuePeriod},
+			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
 			wantErr:    false,
 			wantFunc: func(c client.Client) error {
 				dm := &datadoghqv1alpha1.DatadogMonitor{}
@@ -323,7 +323,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 
 				firstReconcileCount: 10,
 			},
-			wantResult: reconcile.Result{Requeue: true, RequeueAfter: defaultRequeuePeriod},
+			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
 			wantErr:    false,
 			wantFunc: func(c client.Client) error {
 				dm := &datadoghqv1alpha1.DatadogMonitor{}
@@ -344,7 +344,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 
 				firstReconcileCount: 10,
 			},
-			wantResult: reconcile.Result{Requeue: true, RequeueAfter: defaultRequeuePeriod},
+			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
 			wantErr:    false,
 			wantFunc: func(c client.Client) error {
 				dm := &datadoghqv1alpha1.DatadogMonitor{}
@@ -365,7 +365,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 
 				firstReconcileCount: 10,
 			},
-			wantResult: reconcile.Result{Requeue: true, RequeueAfter: defaultRequeuePeriod},
+			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
 			wantErr:    false,
 			wantFunc: func(c client.Client) error {
 				dm := &datadoghqv1alpha1.DatadogMonitor{}
@@ -386,7 +386,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 
 				firstReconcileCount: 10,
 			},
-			wantResult: reconcile.Result{Requeue: true, RequeueAfter: defaultRequeuePeriod},
+			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
 			wantErr:    false,
 			wantFunc: func(c client.Client) error {
 				dm := &datadoghqv1alpha1.DatadogMonitor{}
@@ -421,7 +421,7 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 				},
 				firstReconcileCount: 2,
 			},
-			wantResult: reconcile.Result{Requeue: true, RequeueAfter: defaultRequeuePeriod},
+			wantResult: reconcile.Result{RequeueAfter: defaultRequeuePeriod},
 			wantErr:    false,
 			wantFunc: func(c client.Client) error {
 				dm := &datadoghqv1alpha1.DatadogMonitor{}
