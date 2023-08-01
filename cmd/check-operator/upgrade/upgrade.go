@@ -167,13 +167,18 @@ func (o *Options) Run() error {
 	checkFunc := func() (bool, error) {
 		v2Available, err := common.IsV2Available(o.Clientset)
 		if err != nil {
-			return false, err
+			return false, fmt.Errorf("unable to detect if CRD v2 is available, err:%w", err)
 		}
 		var status common.StatusWrapper
 		if v2Available {
+			o.printOutf("v2alpha1 available")
 			status, err = o.getV2Status()
 		} else {
+			o.printOutf("Only v1alpha1 available")
 			status, err = o.getV1Status()
+		}
+		if err != nil {
+			return false, fmt.Errorf("unable to get the DatadogAgent.status, err:%w", err)
 		}
 
 		if !agentDone {
