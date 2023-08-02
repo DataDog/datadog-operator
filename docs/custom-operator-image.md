@@ -1,10 +1,10 @@
-# Customer Operator container image
+# Customer Operator container images
 
-In some case, building a customer Operator image is needed, for example: to add a customer secret backend implementation, or to add CA certificat.
+When adding a customer secret backend implementation or adding a CA certificate, for example, you may need to build a customer Operator image.
 
-## Add a CA certificat
+## Add a Certificate Authority (CA) certificate
 
-Here is an example of a Dockerfile allow to copy a local CA certificat into a container image based on the Datadog Operator image
+Below is an example of a Dockerfile that's allowed to copy a local CA certificate into a container image based on the Datadog Operator image.
 
 ```dockerfile
 FROM gcr.io/datadoghq/operator:latest

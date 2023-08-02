@@ -188,9 +188,12 @@ See the [`kubectl` plugin doc](/docs/kubectl-plugin.md)
 
 ## Use a custom Datadog Operator image
 
-you can find the instruction to build a Datadog Operator custom container image based on an official release [custom-operator-image.md][9]
+See instructions to build a Datadog Operator custom container image on an official release in [Custom Operator container images][9].
 
-### with the helm chart
+### Datadog Operator images with Helm charts
+
+To use a Datadog operator image with a Helm chart:
+
 
 ```console
 helm install my-datadog-operator --set image.repository=<custom-image-repository> --set image.tag=<custom-image-tag> datadog/datadog-operator
