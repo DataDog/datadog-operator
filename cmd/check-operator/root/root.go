@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 
+	"github.com/DataDog/datadog-operator/cmd/check-operator/patchcrd"
 	"github.com/DataDog/datadog-operator/cmd/check-operator/upgrade"
 )
 
@@ -35,6 +36,7 @@ func NewCmdRoot(streams genericclioptions.IOStreams) *cobra.Command {
 
 	o.configFlags.AddFlags(cmd.Flags())
 	cmd.AddCommand(upgrade.NewCmdUpgrade(streams))
+	cmd.AddCommand(patchcrd.NewCmdPatch(streams))
 
 	return cmd
 }

@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	apiextensionclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -17,9 +18,11 @@ import (
 
 // Options encapsulates the common fields of command options
 type Options struct {
-	ConfigFlags   *genericclioptions.ConfigFlags
-	Client        client.Client
-	Clientset     *kubernetes.Clientset
+	ConfigFlags  *genericclioptions.ConfigFlags
+	Client       client.Client
+	Clientset    *kubernetes.Clientset
+	APIExtClient *apiextensionclient.Clientset
+
 	isV2Available bool
 	UserNamespace string
 }
@@ -43,6 +46,16 @@ func (o *Options) Init(cmd *cobra.Command) error {
 	if o.isV2Available, err = IsV2Available(o.Clientset); err != nil {
 		return err
 	}
+
+	restConfig, err := o.ConfigFlags.ToRESTConfig()
+	if err != nil {
+		return fmt.Errorf("unable to create restConfig for APIExtensionClient, err:%w", err)
+	}
+	apiextClient, err := apiextensionclient.NewForConfig(restConfig)
+	if err != nil {
+		return fmt.Errorf("unable to create APIExtensionClient, err:%w", err)
+	}
+	o.SetApiExtensionClient(apiextClient)
 
 	nsConfig, _, err := clientConfig.Namespace()
 	if err != nil {
@@ -75,6 +88,11 @@ func (o *Options) SetClient(client client.Client) {
 // SetClientset configures the clientset
 func (o *Options) SetClientset(clientset *kubernetes.Clientset) {
 	o.Clientset = clientset
+}
+
+// SetApiExtensionClient configures the APIExtClient
+func (o *Options) SetApiExtensionClient(client *apiextensionclient.Clientset) {
+	o.APIExtClient = client
 }
 
 // GetClientConfig returns the client config
