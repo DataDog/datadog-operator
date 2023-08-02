@@ -19,4 +19,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - if: github.event.pull_request.milestone == null && !contains(toJson(github.event.pull_request.labels.*.name), 'qa/skip-qa')
-        run: exit 1
+        run: echo "::error::Missing milestone or \`qa/skip-qa\` label" && exit 1
