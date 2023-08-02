@@ -135,8 +135,6 @@ func (o *Options) getV1Status() (common.StatusWrapper, error) {
 	err := o.Client.Get(context.TODO(), client.ObjectKey{Namespace: o.UserNamespace, Name: o.datadogAgentName}, datadogAgent)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			o.printOutf("Got a not found error while getting %s/%s. Assuming this DatadogAgent CR has never been deployed in this environment", o.UserNamespace, o.datadogAgentName)
-
 			return nil, err
 		}
 
@@ -150,7 +148,6 @@ func (o *Options) getV2Status() (common.StatusWrapper, error) {
 	err := o.Client.Get(context.TODO(), client.ObjectKey{Namespace: o.UserNamespace, Name: o.datadogAgentName}, datadogAgent)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			o.printOutf("Got a not found error while getting %s/%s. Assuming this DatadogAgent CR has never been deployed in this environment", o.UserNamespace, o.datadogAgentName)
 
 			return nil, err
 		}
@@ -177,7 +174,11 @@ func (o *Options) Run() error {
 			o.printOutf("Only v1alpha1 is available")
 			status, err = o.getV1Status()
 		}
-		if err != nil {
+
+		if errors.IsNotFound(err) {
+			o.printOutf("Got a not found error while getting %s/%s. Assuming this DatadogAgent CR has never been deployed in this environment", o.UserNamespace, o.datadogAgentName)
+			return true, nil
+		} else if err != nil {
 			return false, fmt.Errorf("unable to get the DatadogAgent.status, err:%w", err)
 		}
 
