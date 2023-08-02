@@ -23,7 +23,6 @@ import (
 type Options struct {
 	genericclioptions.IOStreams
 	common.Options
-	args           []string
 	crdName        string
 	storedVersions []string
 }
@@ -69,7 +68,6 @@ func NewCmdPatch(streams genericclioptions.IOStreams) *cobra.Command {
 
 // Complete sets all information required for processing the command.
 func (o *Options) Complete(cmd *cobra.Command, args []string) error {
-	o.args = args
 	if len(args) > 0 {
 		o.crdName = args[0]
 	}
