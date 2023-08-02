@@ -168,7 +168,7 @@ spec:
 
 ### Override
 
-Below table lists parameters which can be used to override default or global settings. Maps and arrays have a type annotation in the table; properties which are configured as map values contain a `[key]` element which should be replaced by actual map key. `override` itself is a map with following possible keys `nodeAgent`, `clusterAgent` or `clusterChecksRunner`. Other keys can be added but it will not have any effect.
+The table below lists parameters which can be used to override default or global settings. Maps and arrays have a type annotation in the table; properties which are configured as map values contain a `[key]` element which should be replaced by actual map key. `override` itself is a map with following possible keys `nodeAgent`, `clusterAgent` or `clusterChecksRunner`. Other keys can be added but it will not have any effect.
 
 For example below manifest can be used to override node agent image and tag and resource limits of the system probe container. 
 
