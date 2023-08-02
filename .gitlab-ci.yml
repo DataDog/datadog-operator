@@ -246,7 +246,7 @@ trigger_internal_operator_check_image:
     RELEASE_PROD: "true"
 
 
-trigger_internal_staging_only_operator_image:
+trigger_custom_operator_image_staging:
   stage: release
   rules:
     - if: $PUSH_IMAGES_TO_STAGING == 'true'
@@ -265,7 +265,7 @@ trigger_internal_staging_only_operator_image:
     RELEASE_STAGING: "true"
     RELEASE_PROD: "false"
 
-trigger_internal_staging_only_operator_check_image:
+trigger_custom_operator_check_image_staging:
   stage: release
   rules:
     - if: $PUSH_IMAGES_TO_STAGING == 'true'
