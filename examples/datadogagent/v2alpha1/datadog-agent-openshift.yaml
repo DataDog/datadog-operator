@@ -18,13 +18,18 @@ spec:
       apiKey: <DATADOG_API_KEY>
       appKey: <DATADOG_API_KEY>
     criSocketPath: /var/run/crio/crio.sock
+    kubelet:
+      tlsVerify: false
   override:
     nodeAgent:
       serviceAccountName: datadog-agent-scc
       securityContext:
+        runAsUser: 0
         seLinuxOptions:
           user: system_u
           role: system_r
           type: spc_t
           level: s0
-        runAsUser: 0
+    clusterAgent:
+      serviceAccountName: datadog-agent-scc
+      replicas: 2
