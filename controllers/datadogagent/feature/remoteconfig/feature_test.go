@@ -52,38 +52,86 @@ func Test_rcFeature_Configure(t *testing.T) {
 			Name:          "v2alpha1 RC not enabled",
 			DDAv2:         ddav2RCDisabled.DeepCopy(),
 			WantConfigure: true,
-			Agent:         rcAgentNodeWantFunc("false"),
+			Agent:         rcAgentNodeWantFunc(false),
+			ClusterAgent:  rcClusterAgentNodeWantFunc(false),
 		},
 		{
 			Name:          "v2alpha1 RC enabled",
 			DDAv2:         ddav2RCEnabled.DeepCopy(),
 			WantConfigure: true,
-			Agent:         rcAgentNodeWantFunc("true"),
+			Agent:         rcAgentNodeWantFunc(true),
+			ClusterAgent:  rcClusterAgentNodeWantFunc(true),
 		},
 		{
 			Name:          "v2alpha1 RC default",
 			DDAv2:         ddav2RCDefault.DeepCopy(),
 			WantConfigure: true,
-			Agent:         rcAgentNodeWantFunc("false"),
+			Agent:         rcAgentNodeWantFunc(false),
+			ClusterAgent:  rcClusterAgentNodeWantFunc(false),
 		},
 	}
 
 	tests.Run(t, buildRCFeature)
 }
 
-func rcAgentNodeWantFunc(value string) *test.ComponentTest {
+func rcAgentNodeWantFunc(rcEnabled bool) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
-			// Check environment variable
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
-			coreAgentWant := []*corev1.EnvVar{
+
+			// Check environment variable
+			expectedEnvVars := []*corev1.EnvVar{
 				{
 					Name:  apicommon.DDRemoteConfigurationEnabled,
-					Value: value,
+					Value: apiutils.BoolToString(&rcEnabled),
 				},
 			}
-			coreAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.AllContainers]
-			assert.True(t, apiutils.IsEqualStruct(coreAgentEnvVars, coreAgentWant), "Core agent env vars \ndiff = %s", cmp.Diff(coreAgentEnvVars, coreAgentWant))
+			actualEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.AllContainers]
+			checkEqual(t, "Core agent env var", expectedEnvVars, actualEnvVars)
 		},
+	)
+}
+
+func rcClusterAgentNodeWantFunc(rcEnabled bool) *test.ComponentTest {
+	return test.NewDefaultComponentTest().WithWantFunc(
+		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+			// Check environment variable
+			expectedEnvVars := []*corev1.EnvVar{
+				{
+					Name:  apicommon.DDRemoteConfigurationEnabled,
+					Value: apiutils.BoolToString(&rcEnabled),
+				},
+			}
+			actualEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.AllContainers]
+			checkEqual(t, "Cluster agent env var", expectedEnvVars, actualEnvVars)
+
+			// Check cluster agent volume
+			expectedVolumes := make([]*corev1.Volume, 0)
+			if rcEnabled {
+				expectedVolumes = append(expectedVolumes, rcVolume)
+			}
+			actualVolumes := mgr.VolumeMgr.Volumes
+			checkEqual(t, "Cluster agent volume", expectedVolumes, actualVolumes)
+
+			// Check cluster agent volume mount
+			var expectedVolumeMounts []*corev1.VolumeMount
+			if rcEnabled {
+				expectedVolumeMounts = append(expectedVolumeMounts, rcVolumeMount)
+			}
+			actualVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.AllContainers]
+			checkEqual(t, "Cluster agent volume mount", expectedVolumeMounts, actualVolumeMounts)
+		},
+	)
+}
+
+func checkEqual(t testing.TB, description string, expected interface{}, actual interface{}) {
+	assert.True(
+		t,
+		apiutils.IsEqualStruct(expected, actual),
+		"%s\ndiff = %s",
+		description,
+		cmp.Diff(expected, actual),
 	)
 }
