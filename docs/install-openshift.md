@@ -59,6 +59,7 @@ The following is the simplest recommended configuration for the `DatadogAgent` i
         tlsVerify: false
     override:
       nodeAgent:
+        hostNetwork: true # In OpenShift 4.0+, set this parameter to get host tags and aliases
         securityContext:
           runAsUser: 0
           seLinuxOptions:

@@ -22,6 +22,7 @@ spec:
       tlsVerify: false
   override:
     nodeAgent:
+      hostNetwork: true
       serviceAccountName: datadog-agent-scc
       securityContext:
         runAsUser: 0
