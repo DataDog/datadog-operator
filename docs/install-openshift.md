@@ -30,7 +30,7 @@ After deploying the Datadog Operator, create a `DatadogAgent` resource that trig
 
 
 **Notes**:
-- In Datadog Operator versions `1.1.0` and later, the conversion webhook is **disabled** by default. To enable the webhook, use the command argument `--webhookEnabled`.
+- In Datadog Operator versions `1.1` and later, the conversion webhook is **disabled** by default. To enable the webhook, use the command argument `--webhookEnabled`.
 - In Datadog Operator version `1.0`, listing the conversion webhook is **enabled** by default. The conversion allows a smooth transition from the (deprecated) `v1alpha1` `DatadogAgent` CRD to `v2alpha1`.
 
 
