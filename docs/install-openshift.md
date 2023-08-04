@@ -22,14 +22,16 @@ Installation includes the creation of a `ServiceAccount` called `datadog-agent-s
 
 ![Deploy the operator in the datadog namespace](assets/datadognamespace.png)
 
-**Note**: Prior to version 1.0, multiple `InstallModes` were supported in the `ClusterServiceVersion` (see the [OLM operator install doc][3] as a reference). Due to the introduction of the conversion webhook in 1.0, only the `AllNamespaces` `InstallMode` [is supported][4] going forward.
+**Note**: Prior to version 1.0, multiple `InstallModes` were supported in the `ClusterServiceVersion` (see the [OLM operator install doc][3] as a reference). Due to the introduction of the conversion webhook in 1.0, only the `AllNamespaces` `InstallMode` [is supported][4] in versions 1.0 and later.
 
 ## Deploy the Datadog Agent with the Operator
 
-After deploying the Datadog Operator, create a `DatadogAgent` resource that triggers a deployment of the Datadog Agent in your OpenShift cluster. The Agent is deployed as a `Daemonset`. It is recommended to use the Cluster Agent to manage cluster-level monitoring, and this will also be deployed by default.
+After deploying the Datadog Operator, create a `DatadogAgent` resource that triggers a deployment of the Datadog Agent in your OpenShift cluster. The Agent is deployed as a `Daemonset`. Datadog recommends that you use the Cluster Agent to manage cluster-level monitoring, which will automatically be deployed by default.
 
 
-**Note**: In Datadog Operator versions `1.1.0` and above, the Conversion Webhook is **disabled** by default, and can be enabled with the command argument `--webhookEnabled`. In version `1.0.3` of the Datadog Operator, listing the Conversion Webhook is **enabled** by default. The conversion allows a smooth transition from the `v1alpha1` (deprecated) `DatadogAgent` CRD to `v2alpha1`.
+**Notes**:
+- In Datadog Operator versions `1.1.0` and later, the conversion webhook is **disabled** by default. To enable the webhook, use the command argument `--webhookEnabled`.
+- In Datadog Operator version `1.0`, listing the conversion webhook is **enabled** by default. The conversion allows a smooth transition from the (deprecated) `v1alpha1` `DatadogAgent` CRD to `v2alpha1`.
 
 
 1. Create a Kubernetes secret with your API and App keys:
@@ -37,7 +39,7 @@ After deploying the Datadog Operator, create a `DatadogAgent` resource that trig
    ```shell
    oc create secret generic datadog-secret -n datadog --from-literal api-key=<DATADOG_API_KEY> --from-literal app-key=<DATADOG_APP_KEY>
    ```
-   Replace `<DATADOG_API_KEY>` and `<DATADOG_APP_KEY>` with your [Datadog API][5] and [Application keys][6]
+   Replace `<DATADOG_API_KEY>` and `<DATADOG_APP_KEY>` with your [Datadog API][5] and [Application keys][6].
 
 
 2. Create a file with the manifest of your `DatadogAgent` deployment.
@@ -85,7 +87,7 @@ Setting the `serviceAccountName` in the `nodeAgent` and `clusterAgent` `override
    oc apply -f path/to/your/datadog-agent.yaml
    ```
 
-The Datadog Agent and Cluster Agent should now be running and collecting data to be viewed and alerted on in the Datadog web app.
+The Datadog Agent and Cluster Agent should now be running and collecting data. This data can be viewed and alerted on in the Datadog web app.
 
 [1]: https://catalog.redhat.com/software/operators/detail/5e9874986c5dcb34dfbb1a12#deploy-instructions
 [2]: https://olm.operatorframework.io/
