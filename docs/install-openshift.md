@@ -63,6 +63,8 @@ The following is the simplest recommended configuration for the `DatadogAgent` i
           secretName: datadog-secret
       criSocketPath: /var/run/crio/crio.sock
       kubelet:
+        # This is needed if the kubelet certificate is self-signed.
+        # Alternatively, the CA certificate used to create the kubelet certificate can be mounted.
         tlsVerify: false
     override:
       nodeAgent:
