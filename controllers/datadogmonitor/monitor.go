@@ -15,12 +15,13 @@ import (
 
 	"github.com/go-logr/logr"
 
-	datadogapiclientv1 "github.com/DataDog/datadog-api-client-go/api/v1/datadog"
+	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
+	datadogV1 "github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 )
 
-func buildMonitor(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) (*datadogapiclientv1.Monitor, *datadogapiclientv1.MonitorUpdateRequest) {
-	monitorType := datadogapiclientv1.MonitorType(string(dm.Spec.Type))
+func buildMonitor(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) (*datadogV1.Monitor, *datadogV1.MonitorUpdateRequest) {
+	monitorType := datadogV1.MonitorType(string(dm.Spec.Type))
 	name := dm.Spec.Name
 	msg := dm.Spec.Message
 	priority := dm.Spec.Priority
@@ -29,8 +30,8 @@ func buildMonitor(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) (*da
 	options := dm.Spec.Options
 
 	var (
-		thresholds       datadogapiclientv1.MonitorThresholds
-		thresholdWindows datadogapiclientv1.MonitorThresholdWindowOptions
+		thresholds       datadogV1.MonitorThresholds
+		thresholdWindows datadogV1.MonitorThresholdWindowOptions
 		t                float64
 		err              error
 	)
@@ -89,7 +90,7 @@ func buildMonitor(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) (*da
 		}
 	}
 
-	o := datadogapiclientv1.MonitorOptions{}
+	o := datadogV1.MonitorOptions{}
 	o.SetThresholds(thresholds)
 
 	if thresholdWindows.HasRecoveryWindow() || thresholdWindows.HasTriggerWindow() {
@@ -144,7 +145,7 @@ func buildMonitor(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) (*da
 		o.SetTimeoutH(*options.TimeoutH)
 	}
 
-	m := datadogapiclientv1.NewMonitor(query, monitorType)
+	m := datadogV1.NewMonitor(query, monitorType)
 	{
 		m.SetName(name)
 		m.SetMessage(msg)
@@ -152,7 +153,7 @@ func buildMonitor(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) (*da
 		m.SetOptions(o)
 	}
 
-	u := datadogapiclientv1.NewMonitorUpdateRequest()
+	u := datadogV1.NewMonitorUpdateRequest()
 	{
 		u.SetType(monitorType)
 		u.SetName(name)
@@ -171,44 +172,44 @@ func buildMonitor(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) (*da
 	return m, u
 }
 
-func getMonitor(auth context.Context, client *datadogapiclientv1.APIClient, monitorID int) (datadogapiclientv1.Monitor, error) {
+func getMonitor(auth context.Context, client *datadogV1.MonitorsApi, monitorID int) (datadogV1.Monitor, error) {
 	groupStates := "all"
-	optionalParams := datadogapiclientv1.GetMonitorOptionalParameters{
+	optionalParams := datadogV1.GetMonitorOptionalParameters{
 		GroupStates: &groupStates,
 	}
-	m, _, err := client.MonitorsApi.GetMonitor(auth, int64(monitorID), optionalParams)
+	m, _, err := client.GetMonitor(auth, int64(monitorID), optionalParams)
 	if err != nil {
-		return datadogapiclientv1.Monitor{}, translateClientError(err, "error getting monitor")
+		return datadogV1.Monitor{}, translateClientError(err, "error getting monitor")
 	}
 
 	return m, nil
 }
 
-func validateMonitor(auth context.Context, logger logr.Logger, client *datadogapiclientv1.APIClient, dm *datadoghqv1alpha1.DatadogMonitor) error {
+func validateMonitor(auth context.Context, logger logr.Logger, client *datadogV1.MonitorsApi, dm *datadoghqv1alpha1.DatadogMonitor) error {
 	m, _ := buildMonitor(logger, dm)
-	if _, _, err := client.MonitorsApi.ValidateMonitor(auth, *m); err != nil {
+	if _, _, err := client.ValidateMonitor(auth, *m); err != nil {
 		return translateClientError(err, "error validating monitor")
 	}
 
 	return nil
 }
 
-func createMonitor(auth context.Context, logger logr.Logger, client *datadogapiclientv1.APIClient, dm *datadoghqv1alpha1.DatadogMonitor) (datadogapiclientv1.Monitor, error) {
+func createMonitor(auth context.Context, logger logr.Logger, client *datadogV1.MonitorsApi, dm *datadoghqv1alpha1.DatadogMonitor) (datadogV1.Monitor, error) {
 	m, _ := buildMonitor(logger, dm)
-	mCreated, _, err := client.MonitorsApi.CreateMonitor(auth, *m)
+	mCreated, _, err := client.CreateMonitor(auth, *m)
 	if err != nil {
-		return datadogapiclientv1.Monitor{}, translateClientError(err, "error creating monitor")
+		return datadogV1.Monitor{}, translateClientError(err, "error creating monitor")
 	}
 
 	return mCreated, nil
 }
 
-func updateMonitor(auth context.Context, logger logr.Logger, client *datadogapiclientv1.APIClient, dm *datadoghqv1alpha1.DatadogMonitor) (datadogapiclientv1.Monitor, error) {
+func updateMonitor(auth context.Context, logger logr.Logger, client *datadogV1.MonitorsApi, dm *datadoghqv1alpha1.DatadogMonitor) (datadogV1.Monitor, error) {
 	_, u := buildMonitor(logger, dm)
 
-	mUpdated, _, err := client.MonitorsApi.UpdateMonitor(auth, int64(dm.Status.ID), *u)
+	mUpdated, _, err := client.UpdateMonitor(auth, int64(dm.Status.ID), *u)
 	if err != nil {
-		return datadogapiclientv1.Monitor{}, translateClientError(err, "error updating monitor")
+		return datadogV1.Monitor{}, translateClientError(err, "error updating monitor")
 	}
 
 	// TODO additional logic to handle downtimes (and silenced param if needed)
@@ -216,12 +217,12 @@ func updateMonitor(auth context.Context, logger logr.Logger, client *datadogapic
 	return mUpdated, nil
 }
 
-func deleteMonitor(auth context.Context, client *datadogapiclientv1.APIClient, monitorID int) error {
+func deleteMonitor(auth context.Context, client *datadogV1.MonitorsApi, monitorID int) error {
 	force := "false"
-	optionalParams := datadogapiclientv1.DeleteMonitorOptionalParameters{
+	optionalParams := datadogV1.DeleteMonitorOptionalParameters{
 		Force: &force,
 	}
-	if _, _, err := client.MonitorsApi.DeleteMonitor(auth, int64(monitorID), optionalParams); err != nil {
+	if _, _, err := client.DeleteMonitor(auth, int64(monitorID), optionalParams); err != nil {
 		return translateClientError(err, "error deleting monitor")
 	}
 
@@ -233,7 +234,7 @@ func translateClientError(err error, msg string) error {
 		msg = "an error occurred"
 	}
 
-	var apiErr datadogapiclientv1.GenericOpenAPIError
+	var apiErr datadogapi.GenericOpenAPIError
 	var errURL *url.Error
 	if errors.As(err, &apiErr) {
 		return fmt.Errorf(msg+": %w: %s", err, apiErr.Body())

@@ -23,7 +23,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	datadogapiclientv1 "github.com/DataDog/datadog-api-client-go/api/v1/datadog"
+	datadogV1 "github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
@@ -42,17 +42,17 @@ const (
 )
 
 var supportedMonitorTypes = map[string]bool{
-	string(datadogapiclientv1.MONITORTYPE_METRIC_ALERT):          true,
-	string(datadogapiclientv1.MONITORTYPE_QUERY_ALERT):           true,
-	string(datadogapiclientv1.MONITORTYPE_SERVICE_CHECK):         true,
-	string(datadogapiclientv1.MONITORTYPE_EVENT_ALERT):           true,
-	string(datadogapiclientv1.MONITORTYPE_LOG_ALERT):             true,
-	string(datadogapiclientv1.MONITORTYPE_PROCESS_ALERT):         true,
-	string(datadogapiclientv1.MONITORTYPE_RUM_ALERT):             true,
-	string(datadogapiclientv1.MONITORTYPE_TRACE_ANALYTICS_ALERT): true,
-	string(datadogapiclientv1.MONITORTYPE_SLO_ALERT):             true,
-	string(datadogapiclientv1.MONITORTYPE_EVENT_V2_ALERT):        true,
-	string(datadogapiclientv1.MONITORTYPE_AUDIT_ALERT):           true,
+	string(datadogV1.MONITORTYPE_METRIC_ALERT):          true,
+	string(datadogV1.MONITORTYPE_QUERY_ALERT):           true,
+	string(datadogV1.MONITORTYPE_SERVICE_CHECK):         true,
+	string(datadogV1.MONITORTYPE_EVENT_ALERT):           true,
+	string(datadogV1.MONITORTYPE_LOG_ALERT):             true,
+	string(datadogV1.MONITORTYPE_PROCESS_ALERT):         true,
+	string(datadogV1.MONITORTYPE_RUM_ALERT):             true,
+	string(datadogV1.MONITORTYPE_TRACE_ANALYTICS_ALERT): true,
+	string(datadogV1.MONITORTYPE_SLO_ALERT):             true,
+	string(datadogV1.MONITORTYPE_EVENT_V2_ALERT):        true,
+	string(datadogV1.MONITORTYPE_AUDIT_ALERT):           true,
 }
 
 const requiredTag = "generated:kubernetes"
@@ -60,7 +60,7 @@ const requiredTag = "generated:kubernetes"
 // Reconciler reconciles a DatadogMonitor object
 type Reconciler struct {
 	client        client.Client
-	datadogClient *datadogapiclientv1.APIClient
+	datadogClient *datadogV1.MonitorsApi
 	datadogAuth   context.Context
 	versionInfo   *version.Info
 	log           logr.Logger
@@ -69,7 +69,7 @@ type Reconciler struct {
 }
 
 // NewReconciler returns a new Reconciler object
-func NewReconciler(client client.Client, ddClient datadogclient.DatadogClient, versionInfo *version.Info, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder) (*Reconciler, error) {
+func NewReconciler(client client.Client, ddClient datadogclient.DatadogMonitorClient, versionInfo *version.Info, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder) (*Reconciler, error) {
 	return &Reconciler{
 		client:        client,
 		datadogClient: ddClient.Client,
@@ -137,7 +137,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 	if instance.Status.ID == 0 {
 		shouldCreate = true
 	} else {
-		var m datadogapiclientv1.Monitor
+		var m datadogV1.Monitor
 		if instanceSpecHash != statusSpecHash {
 			// Custom resource manifest has changed, need to update the API
 			logger.V(1).Info("DatadogMonitor manifest has changed")
@@ -264,7 +264,7 @@ func (r *Reconciler) update(logger logr.Logger, datadogMonitor *datadoghqv1alpha
 	return nil
 }
 
-func (r *Reconciler) get(logger logr.Logger, datadogMonitor *datadoghqv1alpha1.DatadogMonitor, status *datadoghqv1alpha1.DatadogMonitorStatus, now metav1.Time) (datadogapiclientv1.Monitor, error) {
+func (r *Reconciler) get(logger logr.Logger, datadogMonitor *datadoghqv1alpha1.DatadogMonitor, status *datadoghqv1alpha1.DatadogMonitorStatus, now metav1.Time) (datadogV1.Monitor, error) {
 	// Get monitor from Datadog and update resource status if needed
 	m, err := getMonitor(r.datadogAuth, r.datadogClient, datadogMonitor.Status.ID)
 	if err != nil {
@@ -274,7 +274,7 @@ func (r *Reconciler) get(logger logr.Logger, datadogMonitor *datadoghqv1alpha1.D
 	return m, nil
 }
 
-func updateMonitorState(m datadogapiclientv1.Monitor, now metav1.Time, status *datadoghqv1alpha1.DatadogMonitorStatus) {
+func updateMonitorState(m datadogV1.Monitor, now metav1.Time, status *datadoghqv1alpha1.DatadogMonitorStatus) {
 	convertStateToStatus(m, status, now)
 	status.MonitorStateLastUpdateTime = &now
 	status.MonitorStateSyncStatus = datadoghqv1alpha1.MonitorStateSyncStatusOK
@@ -348,14 +348,14 @@ func getRequiredTags() []string {
 }
 
 // convertStateToStatus updates status.MonitorState, status.TriggeredState, and status.DowntimeStatus according to the current state of the monitor
-func convertStateToStatus(monitor datadogapiclientv1.Monitor, newStatus *datadoghqv1alpha1.DatadogMonitorStatus, now metav1.Time) {
+func convertStateToStatus(monitor datadogV1.Monitor, newStatus *datadoghqv1alpha1.DatadogMonitorStatus, now metav1.Time) {
 	// If monitor group is in Alert, Warn or No Data, then add its info to the TriggeredState
 	triggeredStates := []datadoghqv1alpha1.DatadogMonitorTriggeredState{}
 	monitorState, exists := monitor.GetStateOk()
 	if exists {
 		monitorGroups, exists := monitorState.GetGroupsOk()
 		if exists {
-			var groupStatus datadogapiclientv1.MonitorOverallStates
+			var groupStatus datadogV1.MonitorOverallStates
 			for group, monitorStateGroup := range *monitorGroups {
 				groupStatus = monitorStateGroup.GetStatus()
 				if isTriggered(string(groupStatus)) {
