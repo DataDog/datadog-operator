@@ -6,60 +6,6 @@ metadata:
       [
         {
           "apiVersion": "datadoghq.com/v1alpha1",
-          "kind": "DatadogAgent",
-          "metadata": {
-            "name": "datadog"
-          },
-          "spec": {
-            "agent": {
-              "apm": {
-                "enabled": false
-              },
-              "log": {
-                "enabled": false,
-                "logsConfigContainerCollectAll": false
-              },
-              "process": {
-                "enabled": true,
-                "processCollection": false
-              },
-              "security": {
-                "compliance": {
-                  "enabled": false
-                },
-                "runtime": {
-                  "enabled": false
-                }
-              },
-              "systemProbe": {
-                "bpfDebugEnabled": false
-              }
-            },
-            "clusterAgent": {
-              "config": {
-                "admissionController": {
-                  "enabled": false
-                },
-                "clusterChecksEnabled": false,
-                "externalMetrics": {
-                  "enabled": false
-                }
-              },
-              "replicas": 2
-            },
-            "clusterChecksRunner": {
-              "replicas": 2
-            },
-            "clusterName": "\u003cCLUSTER_NAME\u003e",
-            "credentials": {
-              "apiKey": "\u003cDATADOG_API_KEY\u003e",
-              "appKey": "\u003cDATADOG_APP_KEY\u003e",
-              "token": "\u003cDATADOG_CLUSTER_AGENT_TOKEN\u003e"
-            }
-          }
-        },
-        {
-          "apiVersion": "datadoghq.com/v1alpha1",
           "kind": "DatadogMetric",
           "metadata": {
             "name": "datadogmetric-sample"
@@ -83,6 +29,66 @@ metadata:
             ],
             "title": "Latency is increasing on staging",
             "type": "metric alert"
+          }
+        },
+        {
+          "apiVersion": "datadoghq.com/v2alpha1",
+          "kind": "DatadogAgent",
+          "metadata": {
+            "name": "datadog"
+          },
+          "spec": {
+            "features": {
+              "admissionController": {
+                "enabled": false
+              },
+              "apm": {
+                "enabled": false
+              },
+              "clusterChecks": {
+                "enabled": false,
+                "useClusterChecksRunners": false
+              },
+              "cspm": {
+                "enabled": false
+              },
+              "cws": {
+                "enabled": false
+              },
+              "externalMetricsServer": {
+                "enabled": false
+              },
+              "liveProcessCollection": {
+                "enabled": false
+              },
+              "logCollection": {
+                "containerCollectAll": false,
+                "enabled": false
+              }
+            },
+            "global": {
+              "clusterAgentToken": "\u003cDATADOG_CLUSTER_AGENT_TOKEN\u003e",
+              "clusterName": "\u003cCLUSTER_NAME\u003e",
+              "credentials": {
+                "apiKey": "\u003cDATADOG_API_KEY\u003e",
+                "appKey": "\u003cDATADOG_APP_KEY\u003e"
+              }
+            },
+            "override": {
+              "clusterAgent": {
+                "replicas": 2
+              },
+              "clusterChecksRunner": {
+                "replicas": 2
+              },
+              "nodeAgent": {
+                "tolerations": [
+                  {
+                    "operator": "Exists"
+                  }
+                ]
+              }
+            }
           }
         }
       ]

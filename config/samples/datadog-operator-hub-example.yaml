@@ -1,36 +1,38 @@
-apiVersion: datadoghq.com/v1alpha1
+apiVersion: datadoghq.com/v2alpha1
 kind: DatadogAgent
 metadata:
   name: datadog
 spec:
-  clusterName: <CLUSTER_NAME>
-  credentials:
-    apiKey: <DATADOG_API_KEY>
-    appKey: <DATADOG_APP_KEY>
-    token: <DATADOG_CLUSTER_AGENT_TOKEN>
-  agent:
+  global:
+    clusterName: <CLUSTER_NAME>
+    credentials:
+      apiKey: <DATADOG_API_KEY>
+      appKey: <DATADOG_APP_KEY>
+    clusterAgentToken: <DATADOG_CLUSTER_AGENT_TOKEN>
+  features:
     apm:
       enabled: false
-    process:
-      enabled: true
-      processCollection: false
-    log:
+    liveProcessCollection:
       enabled: false
-      logsConfigContainerCollectAll: false
-    systemProbe:
-      bpfDebugEnabled: false
-    security:
-      compliance:
-        enabled: false
-      runtime:
-        enabled: false
-  clusterAgent:
-    replicas: 2
-    config:
-      externalMetrics:
-        enabled: false
-      admissionController:
-        enabled: false
-      clusterChecksEnabled: false
-  clusterChecksRunner:
-    replicas: 2
+    logCollection:
+      enabled: false
+      containerCollectAll: false
+    admissionController:
+      enabled: false
+    externalMetricsServer:
+      enabled: false
+    cspm:
+      enabled: false
+    cws:
+      enabled: false
+    clusterChecks:
+      enabled: false
+      useClusterChecksRunners: false
+  override:
+    clusterAgent:
+      replicas: 2
+    clusterChecksRunner:
+      replicas: 2
+    nodeAgent:
+      tolerations:
+        - operator: Exists
