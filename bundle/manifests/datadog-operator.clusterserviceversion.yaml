@@ -46,8 +46,8 @@ metadata:
                 "enabled": false
               },
               "clusterChecks": {
-                "enabled": false,
-                "useClusterChecksRunners": false
+                "enabled": true,
+                "useClusterChecksRunners": true
               },
               "cspm": {
                 "enabled": false

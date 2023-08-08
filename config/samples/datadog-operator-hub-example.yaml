@@ -26,8 +26,8 @@ spec:
     cws:
       enabled: false
     clusterChecks:
-      enabled: false
-      useClusterChecksRunners: false
+      enabled: true
+      useClusterChecksRunners: true
   override:
     clusterAgent:
       replicas: 2
