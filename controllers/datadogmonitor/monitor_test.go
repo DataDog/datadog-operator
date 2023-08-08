@@ -19,7 +19,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	datadogapiclientv1 "github.com/DataDog/datadog-api-client-go/api/v1/datadog"
+	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
+	datadogV1 "github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 )
 
@@ -146,9 +147,10 @@ func Test_getMonitor(t *testing.T) {
 	}))
 	defer httpServer.Close()
 
-	testConfig := datadogapiclientv1.NewConfiguration()
+	testConfig := datadogapi.NewConfiguration()
 	testConfig.HTTPClient = httpServer.Client()
-	client := datadogapiclientv1.NewAPIClient(testConfig)
+	apiClient := datadogapi.NewAPIClient(testConfig)
+	client := datadogV1.NewMonitorsApi(apiClient)
 	testAuth := setupTestAuth(httpServer.URL)
 
 	val, err := getMonitor(testAuth, client, mID)
@@ -164,9 +166,10 @@ func Test_validateMonitor(t *testing.T) {
 	}))
 	defer httpServer.Close()
 
-	testConfig := datadogapiclientv1.NewConfiguration()
+	testConfig := datadogapi.NewConfiguration()
 	testConfig.HTTPClient = httpServer.Client()
-	client := datadogapiclientv1.NewAPIClient(testConfig)
+	apiClient := datadogapi.NewAPIClient(testConfig)
+	client := datadogV1.NewMonitorsApi(apiClient)
 	testAuth := setupTestAuth(httpServer.URL)
 
 	err := validateMonitor(testAuth, testLogger, client, dm)
@@ -198,9 +201,10 @@ func Test_createMonitor(t *testing.T) {
 	}))
 	defer httpServer.Close()
 
-	testConfig := datadogapiclientv1.NewConfiguration()
+	testConfig := datadogapi.NewConfiguration()
 	testConfig.HTTPClient = httpServer.Client()
-	client := datadogapiclientv1.NewAPIClient(testConfig)
+	apiClient := datadogapi.NewAPIClient(testConfig)
+	client := datadogV1.NewMonitorsApi(apiClient)
 	testAuth := setupTestAuth(httpServer.URL)
 
 	monitor, err := createMonitor(testAuth, testLogger, client, dm)
@@ -241,9 +245,10 @@ func Test_updateMonitor(t *testing.T) {
 	}))
 	defer httpServer.Close()
 
-	testConfig := datadogapiclientv1.NewConfiguration()
+	testConfig := datadogapi.NewConfiguration()
 	testConfig.HTTPClient = httpServer.Client()
-	client := datadogapiclientv1.NewAPIClient(testConfig)
+	apiClient := datadogapi.NewAPIClient(testConfig)
+	client := datadogV1.NewMonitorsApi(apiClient)
 	testAuth := setupTestAuth(httpServer.URL)
 
 	monitor, err := updateMonitor(testAuth, testLogger, client, dm)
@@ -265,16 +270,17 @@ func Test_deleteMonitor(t *testing.T) {
 	}))
 	defer httpServer.Close()
 
-	testConfig := datadogapiclientv1.NewConfiguration()
+	testConfig := datadogapi.NewConfiguration()
 	testConfig.HTTPClient = httpServer.Client()
-	client := datadogapiclientv1.NewAPIClient(testConfig)
+	apiClient := datadogapi.NewAPIClient(testConfig)
+	client := datadogV1.NewMonitorsApi(apiClient)
 	testAuth := setupTestAuth(httpServer.URL)
 
 	err := deleteMonitor(testAuth, client, mId)
 	assert.Nil(t, err)
 }
 
-func genericMonitor(mID int) datadogapiclientv1.Monitor {
+func genericMonitor(mID int) datadogV1.Monitor {
 	fakeRawNow := time.Unix(1612244495, 0)
 	fakeNow, _ := time.Parse(dateFormat, strings.Split(fakeRawNow.String(), " m=")[0])
 	mID64 := int64(mID)
@@ -282,15 +288,15 @@ func genericMonitor(mID int) datadogapiclientv1.Monitor {
 	name := "Test monitor"
 	handle := "test_user"
 	query := "avg(last_10m):avg:system.disk.in_use{*} by {host} > 0.05"
-	mType := datadogapiclientv1.MONITORTYPE_METRIC_ALERT
+	mType := datadogV1.MONITORTYPE_METRIC_ALERT
 	tags := []string{
 		"env:staging",
 		"kube_cluster:test.staging",
 		"kube_namespace:test",
 	}
-	return datadogapiclientv1.Monitor{
+	return datadogV1.Monitor{
 		Created: &fakeNow,
-		Creator: &datadogapiclientv1.Creator{
+		Creator: &datadogV1.Creator{
 			Handle: &handle,
 		},
 		Id:       &mID64,
@@ -306,8 +312,8 @@ func genericMonitor(mID int) datadogapiclientv1.Monitor {
 func setupTestAuth(apiURL string) context.Context {
 	testAuth := context.WithValue(
 		context.Background(),
-		datadogapiclientv1.ContextAPIKeys,
-		map[string]datadogapiclientv1.APIKey{
+		datadogapi.ContextAPIKeys,
+		map[string]datadogapi.APIKey{
 			"apiKeyAuth": {
 				Key: "DUMMY_API_KEY",
 			},
@@ -317,8 +323,8 @@ func setupTestAuth(apiURL string) context.Context {
 		},
 	)
 	parsedAPIURL, _ := url.Parse(apiURL)
-	testAuth = context.WithValue(testAuth, datadogapiclientv1.ContextServerIndex, 1)
-	testAuth = context.WithValue(testAuth, datadogapiclientv1.ContextServerVariables, map[string]string{
+	testAuth = context.WithValue(testAuth, datadogapi.ContextServerIndex, 1)
+	testAuth = context.WithValue(testAuth, datadogapi.ContextServerVariables, map[string]string{
 		"name":     parsedAPIURL.Host,
 		"protocol": parsedAPIURL.Scheme,
 	})
@@ -350,10 +356,10 @@ func Test_translateClientError(t *testing.T) {
 			expectedErrorType: ErrGeneric,
 		},
 		{
-			name:                   "generic message, error type datadogapiclientv1.GenericOpenAPIError",
-			error:                  datadogapiclientv1.GenericOpenAPIError{},
+			name:                   "generic message, error type datadogV1.GenericOpenAPIError",
+			error:                  datadogapi.GenericOpenAPIError{},
 			message:                "generic message",
-			expectedErrorInterface: &datadogapiclientv1.GenericOpenAPIError{},
+			expectedErrorInterface: &datadogapi.GenericOpenAPIError{},
 		},
 		{
 			name:          "generic message, error type *url.Error",

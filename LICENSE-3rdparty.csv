@@ -1,7 +1,7 @@
 Component,Origin,License
 core,cloud.google.com/go/compute/metadata,Apache-2.0
 core,github.com/DataDog/datadog-agent/pkg/remoteconfig/state,Apache-2.0
-core,github.com/DataDog/datadog-api-client-go,Apache-2.0
+core,github.com/DataDog/datadog-api-client-go/v2,Apache-2.0
 core,github.com/DataDog/datadog-go/v5/statsd,MIT
 core,github.com/DataDog/datadog-operator,Apache-2.0
 core,github.com/DataDog/extendeddaemonset,Apache-2.0
@@ -24,6 +24,7 @@ core,github.com/go-openapi/jsonpointer,Apache-2.0
 core,github.com/go-openapi/jsonreference,Apache-2.0
 core,github.com/go-openapi/swag,Apache-2.0
 core,github.com/gobwas/glob,MIT
+core,github.com/goccy/go-json,MIT
 core,github.com/gogo/protobuf,BSD-3-Clause
 core,github.com/golang/groupcache/lru,Apache-2.0
 core,github.com/golang/protobuf,BSD-3-Clause

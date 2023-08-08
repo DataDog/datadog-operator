@@ -17,29 +17,30 @@ import (
 
 	"github.com/DataDog/datadog-operator/pkg/config"
 
-	datadogapiclientv1 "github.com/DataDog/datadog-api-client-go/api/v1/datadog"
+	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
+	datadogV1 "github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 )
 
 const prefix = "https://api."
 
-// DatadogClient contains the Datadog API Client and Authentication context.
-type DatadogClient struct {
-	Client *datadogapiclientv1.APIClient
+// DatadogMonitorClient contains the Datadog Monitor API Client and Authentication context.
+type DatadogMonitorClient struct {
+	Client *datadogV1.MonitorsApi
 	Auth   context.Context
 }
 
-// InitDatadogClient initializes the Datadog API Client and establishes credentials.
-func InitDatadogClient(logger logr.Logger, creds config.Creds) (DatadogClient, error) {
+// InitDatadogMonitorClient initializes the Datadog Monitor API Client and establishes credentials.
+func InitDatadogMonitorClient(logger logr.Logger, creds config.Creds) (DatadogMonitorClient, error) {
 	if creds.APIKey == "" || creds.AppKey == "" {
-		return DatadogClient{}, errors.New("error obtaining API key and/or app key")
+		return DatadogMonitorClient{}, errors.New("error obtaining API key and/or app key")
 	}
 
 	// Initialize the official Datadog V1 API client.
 	authV1 := context.WithValue(
 		context.Background(),
-		datadogapiclientv1.ContextAPIKeys,
-		map[string]datadogapiclientv1.APIKey{
+		datadogapi.ContextAPIKeys,
+		map[string]datadogapi.APIKey{
 			"apiKeyAuth": {
 				Key: creds.APIKey,
 			},
@@ -48,7 +49,7 @@ func InitDatadogClient(logger logr.Logger, creds config.Creds) (DatadogClient, e
 			},
 		},
 	)
-	configV1 := datadogapiclientv1.NewConfiguration()
+	configV1 := datadogapi.NewConfiguration()
 
 	apiURL := ""
 	if os.Getenv(config.DDURLEnvVar) != "" {
@@ -61,20 +62,21 @@ func InitDatadogClient(logger logr.Logger, creds config.Creds) (DatadogClient, e
 		logger.Info("Got API URL for DatadogOperator controller", "URL", apiURL)
 		parsedAPIURL, parseErr := url.Parse(apiURL)
 		if parseErr != nil {
-			return DatadogClient{}, fmt.Errorf(`invalid API URL : %w`, parseErr)
+			return DatadogMonitorClient{}, fmt.Errorf(`invalid API URL : %w`, parseErr)
 		}
 		if parsedAPIURL.Host == "" || parsedAPIURL.Scheme == "" {
-			return DatadogClient{}, fmt.Errorf(`missing protocol or host : %s`, apiURL)
+			return DatadogMonitorClient{}, fmt.Errorf(`missing protocol or host : %s`, apiURL)
 		}
 		// If API URL is passed, set and use the API name and protocol on ServerIndex{1}.
-		authV1 = context.WithValue(authV1, datadogapiclientv1.ContextServerIndex, 1)
-		authV1 = context.WithValue(authV1, datadogapiclientv1.ContextServerVariables, map[string]string{
+		authV1 = context.WithValue(authV1, datadogapi.ContextServerIndex, 1)
+		authV1 = context.WithValue(authV1, datadogapi.ContextServerVariables, map[string]string{
 			"name":     parsedAPIURL.Host,
 			"protocol": parsedAPIURL.Scheme,
 		})
 	}
 
-	client := datadogapiclientv1.NewAPIClient(configV1)
+	apiClient := datadogapi.NewAPIClient(configV1)
+	client := datadogV1.NewMonitorsApi(apiClient)
 
-	return DatadogClient{Client: client, Auth: authV1}, nil
+	return DatadogMonitorClient{Client: client, Auth: authV1}, nil
 }
