@@ -1,6 +1,6 @@
-# Customer Operator container images
+# Custom Operator container images
 
-When adding a customer secret backend implementation or adding a CA certificate, for example, you may need to build a customer Operator image.
+When adding a custom secret backend implementation or adding a CA certificate, for example, you may need to build a custom Operator image.
 
 ## Add a Certificate Authority (CA) certificate
 
