@@ -26,7 +26,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	datadogapiclientv1 "github.com/DataDog/datadog-api-client-go/api/v1/datadog"
+	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
+	datadogV1 "github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 )
@@ -441,9 +442,11 @@ func TestReconcileDatadogMonitor_Reconcile(t *testing.T) {
 			}))
 			defer httpServer.Close()
 
-			testConfig := datadogapiclientv1.NewConfiguration()
+			testConfig := datadogapi.NewConfiguration()
 			testConfig.HTTPClient = httpServer.Client()
-			client := datadogapiclientv1.NewAPIClient(testConfig)
+			apiClient := datadogapi.NewAPIClient(testConfig)
+			client := datadogV1.NewMonitorsApi(apiClient)
+
 			testAuth := setupTestAuth(httpServer.URL)
 
 			// Set up
@@ -512,36 +515,36 @@ func Test_convertStateToStatus(t *testing.T) {
 	secondTriggerTs := triggerTs + 300
 	now := metav1.Unix(secondTriggerTs, 0)
 
-	okState := datadogapiclientv1.MONITOROVERALLSTATES_OK
-	alertState := datadogapiclientv1.MONITOROVERALLSTATES_ALERT
-	noDataState := datadogapiclientv1.MONITOROVERALLSTATES_NO_DATA
+	okState := datadogV1.MONITOROVERALLSTATES_OK
+	alertState := datadogV1.MONITOROVERALLSTATES_ALERT
+	noDataState := datadogV1.MONITOROVERALLSTATES_NO_DATA
 
 	tests := []struct {
 		name       string
-		monitor    func() datadogapiclientv1.Monitor
+		monitor    func() datadogV1.Monitor
 		status     *datadoghqv1alpha1.DatadogMonitorStatus
 		wantStatus *datadoghqv1alpha1.DatadogMonitorStatus
 	}{
 		{
 			name: "3 groups, not alerting, empty status",
-			monitor: func() datadogapiclientv1.Monitor {
+			monitor: func() datadogV1.Monitor {
 				m := genericMonitor(12345)
 
-				msg := make(map[string]datadogapiclientv1.MonitorStateGroup)
-				msg["groupA"] = datadogapiclientv1.MonitorStateGroup{
+				msg := make(map[string]datadogV1.MonitorStateGroup)
+				msg["groupA"] = datadogV1.MonitorStateGroup{
 					Status:          &okState,
 					LastTriggeredTs: &triggerTs,
 				}
-				msg["groupB"] = datadogapiclientv1.MonitorStateGroup{
+				msg["groupB"] = datadogV1.MonitorStateGroup{
 					Status:          &okState,
 					LastTriggeredTs: &triggerTs,
 				}
-				msg["groupC"] = datadogapiclientv1.MonitorStateGroup{
+				msg["groupC"] = datadogV1.MonitorStateGroup{
 					Status:          &okState,
 					LastTriggeredTs: &triggerTs,
 				}
 
-				m.State = &datadogapiclientv1.MonitorState{
+				m.State = &datadogV1.MonitorState{
 					Groups: msg,
 				}
 				m.OverallState = &okState
@@ -556,24 +559,24 @@ func Test_convertStateToStatus(t *testing.T) {
 		},
 		{
 			name: "3 groups, one alerting, empty status",
-			monitor: func() datadogapiclientv1.Monitor {
+			monitor: func() datadogV1.Monitor {
 				m := genericMonitor(12345)
 
-				msg := make(map[string]datadogapiclientv1.MonitorStateGroup)
-				msg["groupA"] = datadogapiclientv1.MonitorStateGroup{
+				msg := make(map[string]datadogV1.MonitorStateGroup)
+				msg["groupA"] = datadogV1.MonitorStateGroup{
 					Status:          &okState,
 					LastTriggeredTs: &triggerTs,
 				}
-				msg["groupB"] = datadogapiclientv1.MonitorStateGroup{
+				msg["groupB"] = datadogV1.MonitorStateGroup{
 					Status:          &okState,
 					LastTriggeredTs: &triggerTs,
 				}
-				msg["groupC"] = datadogapiclientv1.MonitorStateGroup{
+				msg["groupC"] = datadogV1.MonitorStateGroup{
 					Status:          &alertState,
 					LastTriggeredTs: &triggerTs,
 				}
 
-				m.State = &datadogapiclientv1.MonitorState{
+				m.State = &datadogV1.MonitorState{
 					Groups: msg,
 				}
 				m.OverallState = &alertState
@@ -594,24 +597,24 @@ func Test_convertStateToStatus(t *testing.T) {
 		},
 		{
 			name: "3 groups, one alerting; OK status -> Alert status",
-			monitor: func() datadogapiclientv1.Monitor {
+			monitor: func() datadogV1.Monitor {
 				m := genericMonitor(12345)
 
-				msg := make(map[string]datadogapiclientv1.MonitorStateGroup)
-				msg["groupA"] = datadogapiclientv1.MonitorStateGroup{
+				msg := make(map[string]datadogV1.MonitorStateGroup)
+				msg["groupA"] = datadogV1.MonitorStateGroup{
 					Status:          &okState,
 					LastTriggeredTs: &triggerTs,
 				}
-				msg["groupB"] = datadogapiclientv1.MonitorStateGroup{
+				msg["groupB"] = datadogV1.MonitorStateGroup{
 					Status:          &okState,
 					LastTriggeredTs: &triggerTs,
 				}
-				msg["groupC"] = datadogapiclientv1.MonitorStateGroup{
+				msg["groupC"] = datadogV1.MonitorStateGroup{
 					Status:          &alertState,
 					LastTriggeredTs: &triggerTs,
 				}
 
-				m.State = &datadogapiclientv1.MonitorState{
+				m.State = &datadogV1.MonitorState{
 					Groups: msg,
 				}
 				m.OverallState = &alertState
@@ -634,24 +637,24 @@ func Test_convertStateToStatus(t *testing.T) {
 		},
 		{
 			name: "3 groups, one no data, empty status",
-			monitor: func() datadogapiclientv1.Monitor {
+			monitor: func() datadogV1.Monitor {
 				m := genericMonitor(12345)
 
-				msg := make(map[string]datadogapiclientv1.MonitorStateGroup)
-				msg["groupA"] = datadogapiclientv1.MonitorStateGroup{
+				msg := make(map[string]datadogV1.MonitorStateGroup)
+				msg["groupA"] = datadogV1.MonitorStateGroup{
 					Status:          &okState,
 					LastTriggeredTs: &triggerTs,
 				}
-				msg["groupB"] = datadogapiclientv1.MonitorStateGroup{
+				msg["groupB"] = datadogV1.MonitorStateGroup{
 					Status:          &okState,
 					LastTriggeredTs: &triggerTs,
 				}
-				msg["groupC"] = datadogapiclientv1.MonitorStateGroup{
+				msg["groupC"] = datadogV1.MonitorStateGroup{
 					Status:          &noDataState,
 					LastTriggeredTs: &triggerTs,
 				}
 
-				m.State = &datadogapiclientv1.MonitorState{
+				m.State = &datadogV1.MonitorState{
 					Groups: msg,
 				}
 				m.OverallState = &noDataState
@@ -672,24 +675,24 @@ func Test_convertStateToStatus(t *testing.T) {
 		},
 		{
 			name: "3 groups, one alerting, one no data, empty status",
-			monitor: func() datadogapiclientv1.Monitor {
+			monitor: func() datadogV1.Monitor {
 				m := genericMonitor(12345)
 
-				msg := make(map[string]datadogapiclientv1.MonitorStateGroup)
-				msg["groupA"] = datadogapiclientv1.MonitorStateGroup{
+				msg := make(map[string]datadogV1.MonitorStateGroup)
+				msg["groupA"] = datadogV1.MonitorStateGroup{
 					Status:          &okState,
 					LastTriggeredTs: &triggerTs,
 				}
-				msg["groupB"] = datadogapiclientv1.MonitorStateGroup{
+				msg["groupB"] = datadogV1.MonitorStateGroup{
 					Status:          &alertState,
 					LastTriggeredTs: &triggerTs,
 				}
-				msg["groupC"] = datadogapiclientv1.MonitorStateGroup{
+				msg["groupC"] = datadogV1.MonitorStateGroup{
 					Status:          &noDataState,
 					LastTriggeredTs: &secondTriggerTs,
 				}
 
-				m.State = &datadogapiclientv1.MonitorState{
+				m.State = &datadogV1.MonitorState{
 					Groups: msg,
 				}
 				m.OverallState = &alertState
