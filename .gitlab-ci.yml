@@ -220,7 +220,7 @@ trigger_internal_operator_image:
     strategy: depend
   variables:
     IMAGE_VERSION: tmpl-v1
-    IMAGE_NAME: $PROJECTNAME_CHECK
+    IMAGE_NAME: $PROJECTNAME
     TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
     RELEASE_TAG: ${CI_COMMIT_REF_SLUG}
     BUILD_TAG: ${CI_COMMIT_REF_SLUG}
@@ -258,7 +258,7 @@ trigger_custom_operator_image_staging:
     strategy: depend
   variables:
     IMAGE_VERSION: tmpl-v1
-    IMAGE_NAME: $PROJECTNAME_CHECK
+    IMAGE_NAME: $PROJECTNAME
     TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
     RELEASE_TAG: ${CI_COMMIT_REF_SLUG}-${CI_COMMIT_SHORT_SHA}
     BUILD_TAG: ${CI_COMMIT_REF_SLUG}-${CI_COMMIT_SHORT_SHA}
