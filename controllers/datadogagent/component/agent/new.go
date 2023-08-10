@@ -109,6 +109,6 @@ func defaultEDSSpec(options *ExtendedDaemonsetOptions) edsv1alpha1.ExtendedDaemo
 }
 
 func newIntOrStringPointer(str string) *intstr.IntOrString {
-	val := intstr.FromString(str)
+	val := intstr.Parse(str)
 	return &val
 }
