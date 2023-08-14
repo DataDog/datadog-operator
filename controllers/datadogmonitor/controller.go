@@ -381,8 +381,16 @@ func convertStateToStatus(monitor datadogV1.Monitor, newStatus *datadoghqv1alpha
 	if newStatus.MonitorState != oldMonitorState {
 		newStatus.MonitorStateLastTransitionTime = &now
 	}
-	// TODO Updating this requires having the API client also return any matching downtime objects
-	newStatus.DowntimeStatus = datadoghqv1alpha1.DatadogMonitorDowntimeStatus{}
+
+	if len(monitor.MatchingDowntimes) > 0 {
+		newStatus.DowntimeStatus = datadoghqv1alpha1.DatadogMonitorDowntimeStatus{
+			IsDowntimed: true,
+			// Only show ID of first Downtime in the list
+			DowntimeID: int(monitor.MatchingDowntimes[0].Id),
+		}
+	} else {
+		newStatus.DowntimeStatus = datadoghqv1alpha1.DatadogMonitorDowntimeStatus{}
+	}
 }
 
 func isSupportedMonitorType(monitorType datadoghqv1alpha1.DatadogMonitorType) bool {

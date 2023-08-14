@@ -15,6 +15,9 @@ spec:
     - JSONPath: .status.monitorState
       name: monitor state
       type: string
+    - JSONPath: .status.downtimeStatus.isDowntimed
+      name: is downtimed
+      type: boolean
     - JSONPath: .status.monitorStateLastTransitionTime
       name: last state transition
       type: string
