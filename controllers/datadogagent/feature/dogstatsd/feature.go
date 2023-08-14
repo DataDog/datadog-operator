@@ -12,15 +12,16 @@ import (
 	securityv1 "github.com/openshift/api/security/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	"k8s.io/apimachinery/pkg/util/intstr"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/merger"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
 )
 
@@ -47,6 +48,9 @@ type dogstatsdFeature struct {
 	useHostNetwork         bool
 	originDetectionEnabled bool
 	mapperProfiles         *apicommonv1.CustomConfig
+
+	forceEnableLocalService bool
+	localServiceName        string
 
 	createSCC bool
 	owner     metav1.Object
@@ -77,6 +81,11 @@ func (f *dogstatsdFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp featur
 	if dogstatsd.MapperProfiles != nil {
 		f.mapperProfiles = v2alpha1.ConvertCustomConfig(dogstatsd.MapperProfiles)
 	}
+
+	if dda.Spec.Global.LocalService != nil {
+		f.forceEnableLocalService = apiutils.BoolValue(dda.Spec.Global.LocalService.ForceEnableLocalService)
+	}
+	f.localServiceName = v2alpha1.GetLocalAgentServiceName(dda)
 
 	f.createSCC = v2alpha1.ShouldCreateSCC(dda, v2alpha1.NodeAgentComponentName)
 
@@ -112,6 +121,12 @@ func (f *dogstatsdFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feat
 	if config.Dogstatsd.MapperProfiles != nil {
 		f.mapperProfiles = v1alpha1.ConvertCustomConfig(config.Dogstatsd.MapperProfiles)
 	}
+
+	if dda.Spec.Agent.LocalService != nil {
+		f.forceEnableLocalService = apiutils.BoolValue(dda.Spec.Agent.LocalService.ForceLocalServiceEnable)
+	}
+	f.localServiceName = v1alpha1.GetLocalAgentServiceName(dda)
+
 	reqComp = feature.RequiredComponents{
 		Agent: feature.RequiredComponent{
 			IsRequired: apiutils.NewBoolPointer(true),
@@ -126,6 +141,27 @@ func (f *dogstatsdFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feat
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
 func (f *dogstatsdFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
+	// agent local service
+	if component.ShouldCreateAgentLocalService(managers.Store().GetVersionInfo(), f.forceEnableLocalService) {
+		dsdPort := &corev1.ServicePort{
+			Protocol:   corev1.ProtocolUDP,
+			TargetPort: intstr.FromInt(int(apicommon.DefaultDogstatsdPort)),
+			Port:       apicommon.DefaultDogstatsdPort,
+			Name:       apicommon.DefaultDogstatsdPortName,
+		}
+		if f.hostPortEnabled {
+			dsdPort.Port = f.hostPortHostPort
+			dsdPort.Name = apicommon.DogstatsdHostPortName
+			if f.useHostNetwork {
+				dsdPort.TargetPort = intstr.FromInt(int(f.hostPortHostPort))
+			}
+		}
+		serviceInternalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
+		if err := managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), nil, []corev1.ServicePort{*dsdPort}, &serviceInternalTrafficPolicy); err != nil {
+			return err
+		}
+	}
+
 	if f.createSCC {
 		sccName := component.GetAgentSCCName(f.owner)
 		scc := securityv1.SecurityContextConstraints{}
@@ -153,8 +189,8 @@ func (f *dogstatsdFeature) ManageClusterAgent(managers feature.PodTemplateManage
 func (f *dogstatsdFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	// udp
 	dogstatsdPort := &corev1.ContainerPort{
-		Name:          apicommon.DogstatsdHostPortName,
-		ContainerPort: apicommon.DogstatsdHostPortHostPort,
+		Name:          apicommon.DefaultDogstatsdPortName,
+		ContainerPort: apicommon.DefaultDogstatsdPort,
 		Protocol:      corev1.ProtocolUDP,
 	}
 	if f.hostPortEnabled {
@@ -165,12 +201,12 @@ func (f *dogstatsdFeature) ManageNodeAgent(managers feature.PodTemplateManagers)
 			// if using host network, host port should be set and needs to match container port
 			if f.useHostNetwork {
 				dogstatsdPort.ContainerPort = f.hostPortHostPort
-				managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
-					// defaults to 8125 in datadog-agent code
-					Name:  apicommon.DDDogstatsdPort,
-					Value: strconv.FormatInt(int64(f.hostPortHostPort), 10),
-				})
 			}
+			managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
+				// defaults to 8125 in datadog-agent code
+				Name:  apicommon.DDDogstatsdPort,
+				Value: strconv.FormatInt(int64(f.hostPortHostPort), 10),
+			})
 		}
 		managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
 			Name:  apicommon.DDDogstatsdNonLocalTraffic,
@@ -185,8 +221,9 @@ func (f *dogstatsdFeature) ManageNodeAgent(managers feature.PodTemplateManagers)
 		sockName := filepath.Base(f.udsHostFilepath)
 		socketVol, socketVolMount := volume.GetVolumes(apicommon.DogstatsdSocketVolumeName, udsHostFolder, apicommon.DogstatsdSocketLocalPath, false)
 		volType := corev1.HostPathDirectoryOrCreate // We need to create the directory on the host if it does not exist.
+
 		socketVol.VolumeSource.HostPath.Type = &volType
-		managers.VolumeMount().AddVolumeMountToContainer(&socketVolMount, apicommonv1.CoreAgentContainerName)
+		managers.VolumeMount().AddVolumeMountToContainerWithMergeFunc(&socketVolMount, apicommonv1.CoreAgentContainerName, merger.OverrideCurrentVolumeMountMergeFunction)
 		managers.Volume().AddVolume(&socketVol)
 		managers.EnvVar().AddEnvVar(&corev1.EnvVar{
 			Name:  apicommon.DDDogstatsdSocket,

@@ -353,7 +353,7 @@ func volumeMountsForTraceAgent() []corev1.VolumeMount {
 		component.GetVolumeMountForCgroups(),
 		component.GetVolumeMountForAuth(true),
 		component.GetVolumeMountForConfig(),
-		component.GetVolumeMountForDogstatsdSocket(true),
+		component.GetVolumeMountForDogstatsdSocket(false),
 		component.GetVolumeMountForRuntimeSocket(true),
 	}
 }
@@ -363,7 +363,7 @@ func volumeMountsForProcessAgent() []corev1.VolumeMount {
 		component.GetVolumeMountForLogs(),
 		component.GetVolumeMountForAuth(true),
 		component.GetVolumeMountForConfig(),
-		component.GetVolumeMountForDogstatsdSocket(true),
+		component.GetVolumeMountForDogstatsdSocket(false),
 		component.GetVolumeMountForRuntimeSocket(true),
 		component.GetVolumeMountForProc(),
 	}
@@ -374,7 +374,7 @@ func volumeMountsForSecurityAgent() []corev1.VolumeMount {
 		component.GetVolumeMountForLogs(),
 		component.GetVolumeMountForAuth(true),
 		component.GetVolumeMountForConfig(),
-		component.GetVolumeMountForDogstatsdSocket(true),
+		component.GetVolumeMountForDogstatsdSocket(false),
 		component.GetVolumeMountForRuntimeSocket(true),
 	}
 }
@@ -507,6 +507,7 @@ func DefaultSeccompConfigDataForSystemProbe() map[string]string {
 					"fstatfs",
 					"fsync",
 					"futex",
+					"futimens",
 					"getcwd",
 					"getdents",
 					"getdents64",
@@ -626,6 +627,9 @@ func DefaultSeccompConfigDataForSystemProbe() map[string]string {
 					"uname",
 					"unlink",
 					"unlinkat",
+					"utime",
+					"utimensat",
+					"utimes",
 					"wait4",
 					"waitid",
 					"waitpid",

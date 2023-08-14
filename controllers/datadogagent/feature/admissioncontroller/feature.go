@@ -56,8 +56,19 @@ func (f *admissionControllerFeature) Configure(dda *v2alpha1.DatadogAgent) (reqC
 		if ac.ServiceName != nil && *ac.ServiceName != "" {
 			f.serviceName = *ac.ServiceName
 		}
+		// agent communication mode set by user
 		if ac.AgentCommunicationMode != nil && *ac.AgentCommunicationMode != "" {
 			f.agentCommunicationMode = *ac.AgentCommunicationMode
+		} else {
+			// agent communication mode set automatically
+			// use `socket` mode if either apm or dsd uses uds
+			apm := dda.Spec.Features.APM
+			dsd := dda.Spec.Features.Dogstatsd
+			if apm != nil && apiutils.BoolValue(apm.Enabled) && apiutils.BoolValue(apm.UnixDomainSocketConfig.Enabled) ||
+				dsd.UnixDomainSocketConfig != nil && apiutils.BoolValue(dsd.UnixDomainSocketConfig.Enabled) {
+				f.agentCommunicationMode = apicommon.AdmissionControllerSocketCommunicationMode
+			}
+			// otherwise don't set to fall back to default agent setting `hostip`
 		}
 		f.localServiceName = v2alpha1.GetLocalAgentServiceName(dda)
 		reqComp = feature.RequiredComponents{

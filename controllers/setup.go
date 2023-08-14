@@ -146,7 +146,7 @@ func startDatadogMonitor(logger logr.Logger, mgr manager.Manager, vInfo *version
 		return nil
 	}
 
-	ddClient, err := datadogclient.InitDatadogClient(options.Creds)
+	ddClient, err := datadogclient.InitDatadogMonitorClient(logger, options.Creds)
 	if err != nil {
 		return fmt.Errorf("unable to create Datadog API Client: %w", err)
 	}

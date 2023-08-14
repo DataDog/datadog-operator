@@ -11,19 +11,22 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/apis/utils"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/go-logr/logr"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	"github.com/DataDog/datadog-operator/pkg/utils"
+
 	common "github.com/DataDog/datadog-operator/controllers/datadogagent/common"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/merger"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
 )
 
@@ -48,6 +51,8 @@ func buildKSMFeature(options *feature.Options) feature.Feature {
 
 type ksmFeature struct {
 	runInClusterChecksRunner bool
+	collectCRDMetrics        bool
+	collectAPIServiceMetrics bool
 
 	rbacSuffix         string
 	serviceAccountName string
@@ -60,6 +65,10 @@ type ksmFeature struct {
 
 	logger logr.Logger
 }
+
+// Minimum agent version that supports collection of CRD and APIService data
+// Add "-0" so that prerelase versions are considered sufficient. https://github.com/Masterminds/semver#working-with-prerelease-versions
+const crdAPIServiceCollectionMinVersion = "7.46.0-0"
 
 // ID returns the ID of the Feature
 func (f *ksmFeature) ID() feature.IDType {
@@ -74,6 +83,32 @@ func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 	if dda.Spec.Features != nil && dda.Spec.Features.KubeStateMetricsCore != nil && apiutils.BoolValue(dda.Spec.Features.KubeStateMetricsCore.Enabled) {
 		output.ClusterAgent.IsRequired = apiutils.NewBoolPointer(true)
 
+		f.collectAPIServiceMetrics = true
+		f.collectCRDMetrics = true
+		f.serviceAccountName = v2alpha1.GetClusterAgentServiceAccount(dda)
+
+		// This check will only run in the Cluster Checks Runners or Cluster Agent (not the Node Agent)
+		if dda.Spec.Features.ClusterChecks != nil && apiutils.BoolValue(dda.Spec.Features.ClusterChecks.Enabled) && apiutils.BoolValue(dda.Spec.Features.ClusterChecks.UseClusterChecksRunners) {
+			f.runInClusterChecksRunner = true
+			f.rbacSuffix = common.ChecksRunnerSuffix
+			f.serviceAccountName = v2alpha1.GetClusterChecksRunnerServiceAccount(dda)
+			output.ClusterChecksRunner.IsRequired = apiutils.NewBoolPointer(true)
+
+			if ccrOverride, ok := dda.Spec.Override[v2alpha1.ClusterChecksRunnerComponentName]; ok {
+				if ccrOverride.Image != nil && !utils.IsAboveMinVersion(component.GetAgentVersionFromImage(*ccrOverride.Image), crdAPIServiceCollectionMinVersion) {
+					// Disable if image is overridden to an unsupported version
+					f.collectAPIServiceMetrics = false
+					f.collectCRDMetrics = false
+				}
+			}
+		} else if clusterAgentOverride, ok := dda.Spec.Override[v2alpha1.ClusterAgentComponentName]; ok {
+			if clusterAgentOverride.Image != nil && !utils.IsAboveMinVersion(component.GetAgentVersionFromImage(*clusterAgentOverride.Image), crdAPIServiceCollectionMinVersion) {
+				// Disable if image is overridden to an unsupported version
+				f.collectAPIServiceMetrics = false
+				f.collectCRDMetrics = false
+			}
+		}
+
 		if dda.Spec.Features.KubeStateMetricsCore.Conf != nil {
 			f.customConfig = v2alpha1.ConvertCustomConfig(dda.Spec.Features.KubeStateMetricsCore.Conf)
 			hash, err := comparison.GenerateMD5ForSpec(f.customConfig)
@@ -86,17 +121,7 @@ func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.KubernetesStateCoreIDType)
 		}
 
-		f.serviceAccountName = v2alpha1.GetClusterAgentServiceAccount(dda)
 		f.configConfigMapName = apicommonv1.GetConfName(dda, f.customConfig, apicommon.DefaultKubeStateMetricsCoreConf)
-
-		if dda.Spec.Features.ClusterChecks != nil && apiutils.BoolValue(dda.Spec.Features.ClusterChecks.Enabled) {
-			if apiutils.BoolValue(dda.Spec.Features.ClusterChecks.UseClusterChecksRunners) {
-				f.runInClusterChecksRunner = true
-				f.rbacSuffix = common.ChecksRunnerSuffix
-				f.serviceAccountName = v2alpha1.GetClusterChecksRunnerServiceAccount(dda)
-				output.ClusterChecksRunner.IsRequired = apiutils.NewBoolPointer(true)
-			}
-		}
 	}
 
 	return output
@@ -132,13 +157,24 @@ func (f *ksmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) feature.RequiredCom
 	return output
 }
 
+type collectorOptions struct {
+	enableVPA        bool
+	enableAPIService bool
+	enableCRD        bool
+}
+
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
 func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
 	// Create a configMap if CustomConfig.ConfigData is provided and CustomConfig.ConfigMap == nil,
 	// OR if the default configMap is needed.
 	pInfo := managers.Store().GetPlatformInfo()
-	configCM, err := f.buildKSMCoreConfigMap(pInfo.IsResourceSupported("VerticalPodAutoscaler"))
+	collectorOpts := collectorOptions{
+		enableVPA:        pInfo.IsResourceSupported("VerticalPodAutoscaler"),
+		enableAPIService: f.collectAPIServiceMetrics,
+		enableCRD:        f.collectCRDMetrics,
+	}
+	configCM, err := f.buildKSMCoreConfigMap(collectorOpts)
 	if err != nil {
 		return err
 	}
@@ -156,7 +192,7 @@ func (f *ksmFeature) ManageDependencies(managers feature.ResourceManagers, compo
 	// Manage RBAC permission
 	rbacName := GetKubeStateMetricsRBACResourceName(f.owner, f.rbacSuffix)
 
-	return managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), rbacName, f.serviceAccountName, getRBACPolicyRules())
+	return managers.RBACManager().AddClusterPolicyRules(f.owner.GetNamespace(), rbacName, f.serviceAccountName, getRBACPolicyRules(collectorOpts))
 }
 
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec

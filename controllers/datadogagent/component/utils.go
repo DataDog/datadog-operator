@@ -17,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/version"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
+	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
@@ -25,7 +26,6 @@ import (
 )
 
 const (
-	localServiceMinimumVersion        = "1.21-0"
 	localServiceDefaultMinimumVersion = "1.22-0"
 )
 
@@ -369,6 +369,19 @@ func GetAgentVersion(dda metav1.Object) string {
 	return ""
 }
 
+// GetAgentVersionFromImage returns the Agent version based on the AgentImageConfig
+func GetAgentVersionFromImage(imageConfig commonv1.AgentImageConfig) string {
+	version := ""
+	if imageConfig.Name != "" {
+		version = strings.TrimSuffix(utils.GetTagFromImageName(imageConfig.Name), "-jmx")
+	}
+	// Give priority to image Tag setting
+	if imageConfig.Tag != "" {
+		version = imageConfig.Tag
+	}
+	return version
+}
+
 // GetAgentSCCName returns the Agent SCC name based on the DatadogAgent name
 func GetAgentSCCName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultAgentResourceSuffix)
@@ -579,9 +592,8 @@ func ShouldCreateAgentLocalService(versionInfo *version.Info, forceEnableLocalSe
 	if versionInfo == nil || versionInfo.GitVersion == "" {
 		return false
 	}
-	// Service Internal Traffic Policy exists in Kube 1.21 but it is enabled by default since 1.22
-	return utils.IsAboveMinVersion(versionInfo.GitVersion, localServiceDefaultMinimumVersion) ||
-		(utils.IsAboveMinVersion(versionInfo.GitVersion, localServiceMinimumVersion) && forceEnableLocalService)
+	// Service Internal Traffic Policy is enabled by default since 1.22
+	return utils.IsAboveMinVersion(versionInfo.GitVersion, localServiceDefaultMinimumVersion) || forceEnableLocalService
 }
 
 // BuildCiliumPolicy creates the base node agent, DCA, or CCR cilium network policy

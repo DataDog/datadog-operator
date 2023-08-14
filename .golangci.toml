@@ -4,6 +4,7 @@
   skip-dirs = [
     ".cache",
     "go/pkg/mod",
+    "pkg/mod",
   ]
 
 [linters-settings]

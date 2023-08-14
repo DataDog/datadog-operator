@@ -15,14 +15,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
+	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
+	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
-
-	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
-	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/merger"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
 )
@@ -43,8 +43,10 @@ func buildAPMFeature(options *feature.Options) feature.Feature {
 type apmFeature struct {
 	hostPortEnabled  bool
 	hostPortHostPort int32
-	udsEnabled       bool
-	udsHostFilepath  string
+	useHostNetwork   bool
+
+	udsEnabled      bool
+	udsHostFilepath string
 
 	owner metav1.Object
 
@@ -66,6 +68,7 @@ func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 	f.owner = dda
 	apm := dda.Spec.Features.APM
 	if apm != nil && apiutils.BoolValue(apm.Enabled) {
+		f.useHostNetwork = v2alpha1.IsHostNetworkEnabled(dda, v2alpha1.NodeAgentComponentName)
 		// hostPort defaults to 'false' in the defaulting code
 		f.hostPortEnabled = apiutils.BoolValue(apm.HostPortConfig.Enabled)
 		f.hostPortHostPort = *apm.HostPortConfig.Port
@@ -110,6 +113,7 @@ func (f *apmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.Re
 	if apiutils.BoolValue(apm.Enabled) {
 		f.hostPortEnabled = true
 		f.hostPortHostPort = *apm.HostPort
+		f.useHostNetwork = v1alpha1.IsHostNetworkEnabled(dda)
 		if apiutils.BoolValue(apm.UnixDomainSocket.Enabled) {
 			f.udsEnabled = true
 			if apm.UnixDomainSocket.HostFilepath != nil {
@@ -148,15 +152,22 @@ func (f *apmFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.Re
 func (f *apmFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
 	// agent local service
 	if component.ShouldCreateAgentLocalService(managers.Store().GetVersionInfo(), f.forceEnableLocalService) {
-		apmPort := []corev1.ServicePort{
-			{
-				Protocol:   corev1.ProtocolTCP,
-				TargetPort: intstr.FromInt(int(f.hostPortHostPort)),
-				Port:       f.hostPortHostPort,
-				Name:       apicommon.APMHostPortName,
-			},
+		apmPort := &corev1.ServicePort{
+			Protocol:   corev1.ProtocolTCP,
+			TargetPort: intstr.FromInt(int(apicommon.DefaultApmPort)),
+			Port:       apicommon.DefaultApmPort,
+			Name:       apicommon.DefaultApmPortName,
 		}
-		if err := managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), nil, apmPort, nil); err != nil {
+		if f.hostPortEnabled {
+			apmPort.Port = f.hostPortHostPort
+			apmPort.Name = apicommon.APMHostPortName
+			if f.useHostNetwork {
+				apmPort.TargetPort = intstr.FromInt(int(f.hostPortHostPort))
+			}
+		}
+
+		serviceInternalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
+		if err := managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), nil, []corev1.ServicePort{*apmPort}, &serviceInternalTrafficPolicy); err != nil {
 			return err
 		}
 	}
@@ -246,12 +257,16 @@ func (f *apmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 
 	// udp
 	apmPort := &corev1.ContainerPort{
-		Name:          apicommon.APMHostPortName,
-		ContainerPort: f.hostPortHostPort,
+		Name:          apicommon.DefaultApmPortName,
+		ContainerPort: apicommon.DefaultApmPort,
 		Protocol:      corev1.ProtocolTCP,
 	}
 	if f.hostPortEnabled {
 		apmPort.HostPort = f.hostPortHostPort
+		// if using host network, host port should be set and needs to match container port
+		if f.useHostNetwork {
+			apmPort.ContainerPort = f.hostPortHostPort
+		}
 		managers.EnvVar().AddEnvVarToContainer(apicommonv1.TraceAgentContainerName, &corev1.EnvVar{
 			Name:  apicommon.DDAPMReceiverPort,
 			Value: strconv.FormatInt(int64(f.hostPortHostPort), 10),
@@ -274,7 +289,7 @@ func (f *apmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error
 		socketVol, socketVolMount := volume.GetVolumes(apicommon.APMSocketVolumeName, udsHostFolder, apicommon.APMSocketVolumeLocalPath, false)
 		volType := corev1.HostPathDirectoryOrCreate // We need to create the directory on the host if it does not exist.
 		socketVol.VolumeSource.HostPath.Type = &volType
-		managers.VolumeMount().AddVolumeMountToContainer(&socketVolMount, apicommonv1.TraceAgentContainerName)
+		managers.VolumeMount().AddVolumeMountToContainerWithMergeFunc(&socketVolMount, apicommonv1.TraceAgentContainerName, merger.OverrideCurrentVolumeMountMergeFunction)
 		managers.Volume().AddVolume(&socketVol)
 	}
 

@@ -32,6 +32,7 @@ rules:
       - daemonsets
       - deployments
       - replicasets
+      - customresourcedefinitions
     verbs:
       - list
       - watch
@@ -60,19 +61,19 @@ rules:
     verbs:
       - list
       - watch
-## The authentication and authorization groups are not used in the first version of the KSM core check.
-#  - apigroups:
-#      - authentication.k8s.io
-#    resources:
-#      - tokenreviews
-#    verbs:
-#      - create
-#  - apigroups:
-#      - authorization.k8s.io
-#    resources:
-#      - subjectaccessreviews
-#    verbs:
-#      - create
+  ## The authentication and authorization groups are not used in the first version of the KSM core check.
+  #  - apigroups:
+  #      - authentication.k8s.io
+  #    resources:
+  #      - tokenreviews
+  #    verbs:
+  #      - create
+  #  - apigroups:
+  #      - authorization.k8s.io
+  #    resources:
+  #      - subjectaccessreviews
+  #    verbs:
+  #      - create
   - apigroups:
       - policy
     resources:
@@ -122,6 +123,20 @@ rules:
       - autoscaling.k8s.io
     resources:
       - verticalpodautoscalers
+    verbs:
+      - list
+      - watch
+  - apigroups:
+      - apiextensions.k8s.io
+    resources:
+      - customresourcedefinitions
+    verbs:
+      - list
+      - watch
+  - apiGroups:
+      - apiregistration.k8s.io
+    resources:
+      - apiservices
     verbs:
       - list
       - watch

@@ -25,9 +25,13 @@ const (
 	AutoscalingK8sIoAPIGroup = "autoscaling.k8s.io"
 	AuthorizationAPIGroup    = "authorization.k8s.io"
 	ExternalMetricsAPIGroup  = "external.metrics.k8s.io"
+	RegistrationAPIGroup     = "apiregistration.k8s.io"
+	APIExtensionsAPIGroup    = "apiextensions.k8s.io"
 
 	// Resources
 
+	APIServicesResource                 = "apiservices"
+	CustomResourceDefinitionsResource   = "customresourcedefinitions"
 	ServicesResource                    = "services"
 	EventsResource                      = "events"
 	EndpointsResource                   = "endpoints"

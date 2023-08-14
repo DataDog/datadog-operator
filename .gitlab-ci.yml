@@ -11,6 +11,8 @@ variables:
   RH_PARTNER_SCAN_OPERATOR_TOKEN_SSM_KEY: redhat_operator_token
   RH_PARTNER_SCAN_REGISTRY: scan.connect.redhat.com
   RH_PARTNER_API_KEY_SSM_KEY: redhat_api_key
+  PUSH_IMAGES_TO_STAGING:
+    description: "Set PUSH_IMAGE_TO_STAGING to 'true' if you want to push the operator to internal staging registry."
 
 cache: &global_cache
   key: ${CI_COMMIT_REF_SLUG}
@@ -218,10 +220,10 @@ trigger_internal_operator_image:
     strategy: depend
   variables:
     IMAGE_VERSION: tmpl-v1
-    IMAGE_NAME: datadog-operator
+    IMAGE_NAME: $PROJECTNAME
+    TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
     RELEASE_TAG: ${CI_COMMIT_REF_SLUG}
     BUILD_TAG: ${CI_COMMIT_REF_SLUG}
-    TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
     RELEASE_STAGING: "true"
     RELEASE_PROD: "true"
 
@@ -237,11 +239,51 @@ trigger_internal_operator_check_image:
   variables:
     IMAGE_VERSION: tmpl-v1
     IMAGE_NAME: $PROJECTNAME_CHECK
+    TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
     RELEASE_TAG: ${CI_COMMIT_REF_SLUG}
     BUILD_TAG: ${CI_COMMIT_REF_SLUG}
-    TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
     RELEASE_STAGING: "true"
     RELEASE_PROD: "true"
+
+
+trigger_custom_operator_image_staging:
+  stage: release
+  rules:
+    - if: $PUSH_IMAGES_TO_STAGING == 'true'
+      when: manual
+    - when: never
+  trigger:
+    project: DataDog/images
+    branch: master
+    strategy: depend
+  variables:
+    IMAGE_VERSION: tmpl-v1
+    IMAGE_NAME: $PROJECTNAME
+    TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
+    RELEASE_TAG: ${CI_COMMIT_REF_SLUG}-${CI_COMMIT_SHORT_SHA}
+    BUILD_TAG: ${CI_COMMIT_REF_SLUG}-${CI_COMMIT_SHORT_SHA}
+    RELEASE_STAGING: "true"
+    RELEASE_PROD: "false"
+
+trigger_custom_operator_check_image_staging:
+  stage: release
+  rules:
+    - if: $PUSH_IMAGES_TO_STAGING == 'true'
+      when: manual
+    - when: never
+  trigger:
+    project: DataDog/images
+    branch: master
+    strategy: depend
+  variables:
+    IMAGE_VERSION: tmpl-v1
+    IMAGE_NAME: $PROJECTNAME_CHECK
+    TMPL_SRC_IMAGE: v${CI_PIPELINE_ID}-${CI_COMMIT_SHORT_SHA}
+    RELEASE_TAG: ${CI_COMMIT_REF_SLUG}-${CI_COMMIT_SHORT_SHA}
+    BUILD_TAG: ${CI_COMMIT_REF_SLUG}-${CI_COMMIT_SHORT_SHA}
+    RELEASE_STAGING: "true"
+    RELEASE_PROD: "false"
+
 
 submit_preflight_redhat_public_tag:
   stage: post-release

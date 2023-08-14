@@ -34,7 +34,7 @@ const (
 	defaultAPMHostPortEnabled bool   = false
 	defaultAPMHostPort        int32  = 8126
 	defaultAPMSocketEnabled   bool   = true
-	defaultAPMSocketHostPath  string = apicommon.DogstatsdAPMSocketVolumePath + "/" + apicommon.APMSocketName
+	defaultAPMSocketHostPath  string = apicommon.DogstatsdAPMSocketHostPath + "/" + apicommon.APMSocketName
 
 	// defaultCSPMEnabled              bool = false
 	// defaultCWSEnabled               bool = false
@@ -52,7 +52,7 @@ const (
 	defaultDogstatsdHostPortEnabled        bool   = false
 	defaultDogstatsdPort                   int32  = 8125
 	defaultDogstatsdSocketEnabled          bool   = true
-	defaultDogstatsdHostSocketPath         string = apicommon.DogstatsdAPMSocketVolumePath + "/" + apicommon.DogstatsdSocketName
+	defaultDogstatsdHostSocketPath         string = apicommon.DogstatsdAPMSocketHostPath + "/" + apicommon.DogstatsdSocketName
 
 	defaultOTLPGRPCEnabled  bool   = false
 	defaultOTLPGRPCEndpoint string = "0.0.0.0:4317"
@@ -248,6 +248,10 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 		ddaSpec.Features.OrchestratorExplorer = &OrchestratorExplorerFeatureConfig{
 			Enabled: apiutils.NewBoolPointer(defaultOrchestratorExplorerEnabled),
 		}
+	}
+
+	if ddaSpec.Features.OrchestratorExplorer != nil {
+		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.OrchestratorExplorer.Enabled, defaultOrchestratorExplorerEnabled)
 	}
 
 	if *ddaSpec.Features.OrchestratorExplorer.Enabled {

@@ -23,6 +23,18 @@ import (
 )
 
 func TestAdmissionControllerFeature(t *testing.T) {
+	apmUDS := &v2alpha1.APMFeatureConfig{
+		Enabled: apiutils.NewBoolPointer(true),
+		UnixDomainSocketConfig: &v2alpha1.UnixDomainSocketConfig{
+			Enabled: apiutils.NewBoolPointer(true),
+		},
+	}
+	dsdUDS := &v2alpha1.DogstatsdFeatureConfig{
+		UnixDomainSocketConfig: &v2alpha1.UnixDomainSocketConfig{
+			Enabled: apiutils.NewBoolPointer(true),
+		},
+	}
+
 	tests := test.FeatureTestSuite{
 		//////////////////////////
 		// v1Alpha1.DatadogAgent
@@ -36,7 +48,7 @@ func TestAdmissionControllerFeature(t *testing.T) {
 			Name:          "v1alpha1 admission controller enabled",
 			DDAv1:         newV1Agent(true),
 			WantConfigure: true,
-			ClusterAgent:  testDCAResources(),
+			ClusterAgent:  testDCAResources("hostip"),
 		},
 
 		//////////////////////////
@@ -44,14 +56,26 @@ func TestAdmissionControllerFeature(t *testing.T) {
 		//////////////////////////
 		{
 			Name:          "v2alpha1 admission controller not enabled",
-			DDAv2:         newV2Agent(false),
+			DDAv2:         newV2Agent(false, "", &v2alpha1.APMFeatureConfig{}, &v2alpha1.DogstatsdFeatureConfig{}),
 			WantConfigure: false,
 		},
 		{
 			Name:          "v2alpha1 admission controller enabled",
-			DDAv2:         newV2Agent(true),
+			DDAv2:         newV2Agent(true, "", &v2alpha1.APMFeatureConfig{}, &v2alpha1.DogstatsdFeatureConfig{}),
 			WantConfigure: true,
-			ClusterAgent:  testDCAResources(),
+			ClusterAgent:  testDCAResources(""),
+		},
+		{
+			Name:          "v2alpha1 admission controller enabled, apm uses uds",
+			DDAv2:         newV2Agent(true, "", apmUDS, &v2alpha1.DogstatsdFeatureConfig{}),
+			WantConfigure: true,
+			ClusterAgent:  testDCAResources("socket"),
+		},
+		{
+			Name:          "v2alpha1 admission controller enabled, dsd uses uds",
+			DDAv2:         newV2Agent(true, "", &v2alpha1.APMFeatureConfig{}, dsdUDS),
+			WantConfigure: true,
+			ClusterAgent:  testDCAResources("socket"),
 		},
 	}
 
@@ -75,23 +99,32 @@ func newV1Agent(enabled bool) *v1alpha1.DatadogAgent {
 	}
 }
 
-func newV2Agent(enabled bool) *v2alpha1.DatadogAgent {
-	return &v2alpha1.DatadogAgent{
+func newV2Agent(enabled bool, acm string, apm *v2alpha1.APMFeatureConfig, dsd *v2alpha1.DogstatsdFeatureConfig) *v2alpha1.DatadogAgent {
+	dda := &v2alpha1.DatadogAgent{
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				AdmissionController: &v2alpha1.AdmissionControllerFeatureConfig{
-					Enabled:                apiutils.NewBoolPointer(enabled),
-					MutateUnlabelled:       apiutils.NewBoolPointer(true),
-					ServiceName:            apiutils.NewStringPointer("testServiceName"),
-					AgentCommunicationMode: apiutils.NewStringPointer("hostip"),
+					Enabled:          apiutils.NewBoolPointer(enabled),
+					MutateUnlabelled: apiutils.NewBoolPointer(true),
+					ServiceName:      apiutils.NewStringPointer("testServiceName"),
 				},
 			},
 			Global: &v2alpha1.GlobalConfig{},
 		},
 	}
+	if acm != "" {
+		dda.Spec.Features.AdmissionController.AgentCommunicationMode = apiutils.NewStringPointer(acm)
+	}
+	if apm != nil {
+		dda.Spec.Features.APM = apm
+	}
+	if dsd != nil {
+		dda.Spec.Features.Dogstatsd = dsd
+	}
+	return dda
 }
 
-func testDCAResources() *test.ComponentTest {
+func testDCAResources(acm string) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
@@ -111,19 +144,23 @@ func testDCAResources() *test.ComponentTest {
 					Value: "testServiceName",
 				},
 				{
-					Name:  apicommon.DDAdmissionControllerInjectConfigMode,
-					Value: "hostip",
-				},
-				{
 					Name:  apicommon.DDAdmissionControllerLocalServiceName,
 					Value: "-agent",
 				},
 			}
+			if acm != "" {
+				acmEnv := corev1.EnvVar{
+					Name:  apicommon.DDAdmissionControllerInjectConfigMode,
+					Value: acm,
+				}
+				expectedAgentEnvs = append(expectedAgentEnvs, &acmEnv)
+			}
 
-			assert.True(
-				t,
-				apiutils.IsEqualStruct(agentEnvs, expectedAgentEnvs),
-				"Cluster Agent ENVs \ndiff = %s", cmp.Diff(agentEnvs, expectedAgentEnvs),
+			assert.ElementsMatch(t,
+				agentEnvs,
+				expectedAgentEnvs,
+				"Cluster Agent ENVs (-want +got):\n%s",
+				cmp.Diff(agentEnvs, expectedAgentEnvs),
 			)
 		},
 	)

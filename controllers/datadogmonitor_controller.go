@@ -23,7 +23,7 @@ import (
 // DatadogMonitorReconciler reconciles a DatadogMonitor object.
 type DatadogMonitorReconciler struct {
 	Client      client.Client
-	DDClient    datadogclient.DatadogClient
+	DDClient    datadogclient.DatadogMonitorClient
 	VersionInfo *version.Info
 	Log         logr.Logger
 	Scheme      *runtime.Scheme

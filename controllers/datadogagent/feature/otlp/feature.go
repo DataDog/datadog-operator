@@ -12,6 +12,8 @@ import (
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
@@ -20,6 +22,7 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 )
 
@@ -50,6 +53,11 @@ type otlpFeature struct {
 	httpEndpoint string
 
 	usingAPM bool
+
+	forceEnableLocalService bool
+	localServiceName        string
+
+	owner metav1.Object
 }
 
 // ID returns the ID of the Feature
@@ -60,6 +68,7 @@ func (f *otlpFeature) ID() feature.IDType {
 // Configure is used to configure the feature from a v2alpha1.DatadogAgent instance.
 func (f *otlpFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	otlp := dda.Spec.Features.OTLP
+	f.owner = dda
 	if apiutils.BoolValue(otlp.Receiver.Protocols.GRPC.Enabled) {
 		f.grpcEnabled = true
 	}
@@ -78,6 +87,11 @@ func (f *otlpFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 	if apm != nil {
 		f.usingAPM = apiutils.BoolValue(apm.Enabled)
 	}
+
+	if dda.Spec.Global.LocalService != nil {
+		f.forceEnableLocalService = apiutils.BoolValue(dda.Spec.Global.LocalService.ForceEnableLocalService)
+	}
+	f.localServiceName = v2alpha1.GetLocalAgentServiceName(dda)
 
 	if f.grpcEnabled || f.httpEnabled {
 		reqComp = feature.RequiredComponents{
@@ -100,6 +114,7 @@ func (f *otlpFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 // ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
 func (f *otlpFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	otlp := dda.Spec.Agent.OTLP
+	f.owner = dda
 	if apiutils.BoolValue(otlp.Receiver.Protocols.GRPC.Enabled) {
 		f.grpcEnabled = true
 	}
@@ -115,6 +130,11 @@ func (f *otlpFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.R
 	}
 
 	f.usingAPM = apiutils.BoolValue(dda.Spec.Agent.Apm.Enabled)
+
+	if dda.Spec.Agent.LocalService != nil {
+		f.forceEnableLocalService = apiutils.BoolValue(dda.Spec.Agent.LocalService.ForceLocalServiceEnable)
+	}
+	f.localServiceName = v1alpha1.GetLocalAgentServiceName(dda)
 
 	if f.grpcEnabled || f.httpEnabled {
 		reqComp = feature.RequiredComponents{
@@ -137,6 +157,48 @@ func (f *otlpFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.R
 // ManageDependencies allows a feature to manage its dependencies.
 // Feature's dependencies should be added in the store.
 func (f *otlpFeature) ManageDependencies(managers feature.ResourceManagers, components feature.RequiredComponents) error {
+	if f.grpcEnabled {
+		if component.ShouldCreateAgentLocalService(managers.Store().GetVersionInfo(), f.forceEnableLocalService) {
+			port, err := extractPortEndpoint(f.grpcEndpoint)
+			if err != nil {
+				f.logger.Error(err, "failed to extract port from OTLP/gRPC endpoint")
+				return fmt.Errorf("failed to extract port from OTLP/gRPC endpoint: %w", err)
+			}
+			servicePort := []corev1.ServicePort{
+				{
+					Protocol:   corev1.ProtocolTCP,
+					TargetPort: intstr.FromInt(int(port)),
+					Port:       port,
+					Name:       apicommon.OTLPGRPCPortName,
+				},
+			}
+			serviceInternalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
+			if err := managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), nil, servicePort, &serviceInternalTrafficPolicy); err != nil {
+				return err
+			}
+		}
+	}
+	if f.httpEnabled {
+		if component.ShouldCreateAgentLocalService(managers.Store().GetVersionInfo(), f.forceEnableLocalService) {
+			port, err := extractPortEndpoint(f.httpEndpoint)
+			if err != nil {
+				f.logger.Error(err, "failed to extract port from OTLP/HTTP endpoint")
+				return fmt.Errorf("failed to extract port from OTLP/HTTP endpoint: %w", err)
+			}
+			servicePort := []corev1.ServicePort{
+				{
+					Protocol:   corev1.ProtocolTCP,
+					TargetPort: intstr.FromInt(int(port)),
+					Port:       port,
+					Name:       apicommon.OTLPHTTPPortName,
+				},
+			}
+			serviceInternalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
+			if err := managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), nil, servicePort, &serviceInternalTrafficPolicy); err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
 

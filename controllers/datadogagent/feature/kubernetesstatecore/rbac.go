@@ -11,9 +11,9 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 )
 
-// getRBACRules generates the cluster role required for the KSM informers to query
+// getRBACPolicyRules generates the cluster role required for the KSM informers to query
 // what is exposed as of the v2.0 https://github.com/kubernetes/kube-state-metrics/blob/release-2.0/examples/standard/cluster-role.yaml
-func getRBACPolicyRules() []rbacv1.PolicyRule {
+func getRBACPolicyRules(collectorOpts collectorOptions) []rbacv1.PolicyRule {
 	rbacRules := []rbacv1.PolicyRule{
 		{
 			APIGroups: []string{rbac.CoreAPIGroup},
@@ -108,6 +108,24 @@ func getRBACPolicyRules() []rbacv1.PolicyRule {
 				rbac.VPAResource,
 			},
 		},
+	}
+
+	if collectorOpts.enableAPIService {
+		rbacRules = append(rbacRules, rbacv1.PolicyRule{
+			APIGroups: []string{rbac.RegistrationAPIGroup},
+			Resources: []string{
+				rbac.APIServicesResource,
+			},
+		})
+	}
+
+	if collectorOpts.enableCRD {
+		rbacRules = append(rbacRules, rbacv1.PolicyRule{
+			APIGroups: []string{rbac.ExtensionsAPIGroup, rbac.APIExtensionsAPIGroup},
+			Resources: []string{
+				rbac.CustomResourceDefinitionsResource,
+			},
+		})
 	}
 
 	commonVerbs := []string{

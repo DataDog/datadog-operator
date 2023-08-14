@@ -38,10 +38,20 @@ func PodTemplateSpec(logger logr.Logger, manager feature.PodTemplateManagers, ov
 	if override.Image != nil {
 		for i, container := range manager.PodTemplateSpec().Spec.Containers {
 			manager.PodTemplateSpec().Spec.Containers[i].Image = overrideImage(container.Image, override.Image)
+			if override.Image.PullPolicy != nil {
+				manager.PodTemplateSpec().Spec.Containers[i].ImagePullPolicy = *override.Image.PullPolicy
+			}
 		}
 
 		for i, initContainer := range manager.PodTemplateSpec().Spec.InitContainers {
 			manager.PodTemplateSpec().Spec.InitContainers[i].Image = overrideImage(initContainer.Image, override.Image)
+			if override.Image.PullPolicy != nil {
+				manager.PodTemplateSpec().Spec.InitContainers[i].ImagePullPolicy = *override.Image.PullPolicy
+			}
+		}
+
+		if override.Image.PullSecrets != nil {
+			manager.PodTemplateSpec().Spec.ImagePullSecrets = *override.Image.PullSecrets
 		}
 	}
 
