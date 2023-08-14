@@ -55,6 +55,8 @@ type DatadogFeatures struct {
 	OOMKill *OOMKillFeatureConfig `json:"oomKill,omitempty"`
 	// TCPQueueLength configuration.
 	TCPQueueLength *TCPQueueLengthFeatureConfig `json:"tcpQueueLength,omitempty"`
+	// EBPFCheck configuration
+	EBPFCheck *EBPFCheckFeatureConfig `json:"ebpfCheck,omitempty"`
 	// APM (Application Performance Monitoring) configuration.
 	APM *APMFeatureConfig `json:"apm,omitempty"`
 	// CSPM (Cloud Security Posture Management) configuration.
@@ -205,6 +207,14 @@ type OOMKillFeatureConfig struct {
 // TCPQueueLengthFeatureConfig configures the TCP queue length monitoring feature.
 type TCPQueueLengthFeatureConfig struct {
 	// Enables the TCP queue length eBPF-based check.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// EBPFCheckFeatureConfig configures the eBPF check feature.
+type EBPFCheckFeatureConfig struct {
+	// Enables the eBPF check.
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
