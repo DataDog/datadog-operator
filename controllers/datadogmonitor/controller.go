@@ -145,7 +145,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 		} else if instance.Status.MonitorLastForceSyncTime == nil || (defaultForceSyncPeriod-now.Sub(instance.Status.MonitorLastForceSyncTime.Time)) <= 0 {
 			// Periodically force a sync with the API monitor to ensure parity
 			// Get monitor to make sure it exists before trying any updates. If it doesn't, set shouldCreate
-			m, err = r.get(logger, instance, newStatus, now)
+			m, err = r.get(logger, instance, now)
 			if err != nil {
 				logger.Error(err, "error getting monitor", "Monitor ID", instance.Status.ID)
 				if apierrors.IsNotFound(err) {
@@ -157,14 +157,14 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 		} else if instance.Status.MonitorStateLastUpdateTime == nil || (defaultRequeuePeriod-now.Sub(instance.Status.MonitorStateLastUpdateTime.Time)) <= 0 {
 			// If other conditions aren't met, and we have passed the defaultRequeuePeriod, then update monitor state
 			// Get monitor to make sure it exists before trying any updates. If it doesn't, set shouldCreate
-			m, err = r.get(logger, instance, newStatus, now)
+			m, err = r.get(logger, instance, now)
 			if err != nil {
 				logger.Error(err, "error getting monitor", "Monitor ID", instance.Status.ID)
 				if apierrors.IsNotFound(err) {
 					shouldCreate = true
 				}
 			}
-			updateMonitorState(m, now, newStatus)
+			updateMonitorStateAndDowntime(m, now, newStatus, err)
 		}
 	}
 
@@ -264,20 +264,31 @@ func (r *Reconciler) update(logger logr.Logger, datadogMonitor *datadoghqv1alpha
 	return nil
 }
 
-func (r *Reconciler) get(logger logr.Logger, datadogMonitor *datadoghqv1alpha1.DatadogMonitor, status *datadoghqv1alpha1.DatadogMonitorStatus, now metav1.Time) (datadogV1.Monitor, error) {
-	// Get monitor from Datadog and update resource status if needed
-	m, err := getMonitor(r.datadogAuth, r.datadogClient, datadogMonitor.Status.ID)
-	if err != nil {
-		status.MonitorStateSyncStatus = datadoghqv1alpha1.MonitorStateSyncStatusGetError
-		return m, err
-	}
-	return m, nil
+func (r *Reconciler) get(logger logr.Logger, datadogMonitor *datadoghqv1alpha1.DatadogMonitor, now metav1.Time) (datadogV1.Monitor, error) {
+	// Get monitor from Datadog
+	return getMonitor(r.datadogAuth, r.datadogClient, datadogMonitor.Status.ID)
 }
 
-func updateMonitorState(m datadogV1.Monitor, now metav1.Time, status *datadoghqv1alpha1.DatadogMonitorStatus) {
+func updateMonitorStateAndDowntime(m datadogV1.Monitor, now metav1.Time, status *datadoghqv1alpha1.DatadogMonitorStatus, err error) {
+	if err != nil {
+		status.MonitorStateSyncStatus = datadoghqv1alpha1.MonitorStateSyncStatusGetError
+		return
+	}
+
 	convertStateToStatus(m, status, now)
 	status.MonitorStateLastUpdateTime = &now
 	status.MonitorStateSyncStatus = datadoghqv1alpha1.MonitorStateSyncStatusOK
+
+	if len(m.MatchingDowntimes) > 0 {
+		status.DowntimeStatus = datadoghqv1alpha1.DatadogMonitorDowntimeStatus{
+			IsDowntimed: true,
+			// Only show ID of first Downtime in the list
+			DowntimeID: int(m.MatchingDowntimes[0].Id),
+		}
+	} else {
+		// Reset DowntimeStatus
+		status.DowntimeStatus = datadoghqv1alpha1.DatadogMonitorDowntimeStatus{IsDowntimed: false}
+	}
 }
 
 func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, datadogMonitor *datadoghqv1alpha1.DatadogMonitor, now metav1.Time, status *datadoghqv1alpha1.DatadogMonitorStatus, currentErr error, result ctrl.Result) (ctrl.Result, error) {
@@ -380,16 +391,6 @@ func convertStateToStatus(monitor datadogV1.Monitor, newStatus *datadoghqv1alpha
 	// An accurate LastTransitionTime requires looping through four timestamps in every MonitorGroup, so using an approximation based on sync time
 	if newStatus.MonitorState != oldMonitorState {
 		newStatus.MonitorStateLastTransitionTime = &now
-	}
-
-	if len(monitor.MatchingDowntimes) > 0 {
-		newStatus.DowntimeStatus = datadoghqv1alpha1.DatadogMonitorDowntimeStatus{
-			IsDowntimed: true,
-			// Only show ID of first Downtime in the list
-			DowntimeID: int(monitor.MatchingDowntimes[0].Id),
-		}
-	} else {
-		newStatus.DowntimeStatus = datadoghqv1alpha1.DatadogMonitorDowntimeStatus{}
 	}
 }
 
