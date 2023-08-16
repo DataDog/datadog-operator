@@ -1,11 +1,10 @@
 package fake
 
 import (
-	"golang.org/x/exp/slices"
 	"testing"
 
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	merger "github.com/DataDog/datadog-operator/controllers/datadogagent/merger"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/merger"
 
 	v1 "k8s.io/api/core/v1"
 )
@@ -26,15 +25,24 @@ func (_m *VolumeMountManager) AddVolumeMount(volumeMount *v1.VolumeMount) {
 
 // AddVolumeMountToContainer provides a mock function with given fields: volumeMount, containerName
 func (_m *VolumeMountManager) AddVolumeMountToContainer(volumeMount *v1.VolumeMount, containerName commonv1.AgentContainerName) {
-	if !slices.Contains(initContainerNames, containerName) {
+	isInitContainer := false
+	for _, initContainerName := range initContainerNames {
+		if containerName == initContainerName {
+			isInitContainer = true
+			break
+		}
+	}
+	if !isInitContainer {
 		_m.VolumeMountsByC[containerName] = append(_m.VolumeMountsByC[containerName], volumeMount)
 	}
 }
 
 // AddVolumeMountToInitContainer provides a mock function with given fields: volumeMount, containerName
 func (_m *VolumeMountManager) AddVolumeMountToInitContainer(volumeMount *v1.VolumeMount, containerName commonv1.AgentContainerName) {
-	if slices.Contains(initContainerNames, containerName) {
-		_m.VolumeMountsByC[containerName] = append(_m.VolumeMountsByC[containerName], volumeMount)
+	for _, initContainerName := range initContainerNames {
+		if containerName == initContainerName {
+			_m.VolumeMountsByC[containerName] = append(_m.VolumeMountsByC[containerName], volumeMount)
+		}
 	}
 }
 

@@ -37,8 +37,6 @@ require (
 	sigs.k8s.io/yaml v1.3.0
 )
 
-require golang.org/x/exp v0.0.0-20230811145659-89c5cff77bcb
-
 require (
 	cloud.google.com/go v0.81.0 // indirect
 	github.com/Azure/go-autorest v14.2.0+incompatible // indirect
