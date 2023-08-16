@@ -398,6 +398,83 @@ func TestContainer(t *testing.T) {
 				assert.Equal(t, "my-app-armor-profile", manager.AnnotationMgr.Annotations[annotation])
 			},
 		},
+		{
+			name:          "add initContainer volume mounts",
+			containerName: commonv1.InitVolumeContainerName,
+			existingManager: func() *fake.PodTemplateManagers {
+				manager := fake.NewPodTemplateManagers(t)
+				manager.VolumeMount().AddVolumeMountToInitContainer(
+					&corev1.VolumeMount{
+						Name: "existing-init-container-volume-mount",
+					},
+					commonv1.InitVolumeContainerName,
+				)
+				return manager
+			},
+			override: v2alpha1.DatadogAgentGenericContainer{
+				VolumeMounts: []corev1.VolumeMount{
+					{
+						Name: "added-volume-mount-1",
+					},
+					{
+						Name: "added-volume-mount-2",
+					},
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
+				mounts := manager.VolumeMountMgr.VolumeMountsByC[commonv1.InitVolumeContainerName]
+				expectedMounts := []*corev1.VolumeMount{
+					{
+						Name: "existing-init-container-volume-mount",
+					},
+					{
+						Name: "added-volume-mount-1",
+					},
+					{
+						Name: "added-volume-mount-2",
+					},
+				}
+				assert.Equal(t, expectedMounts, mounts)
+			},
+		},
+		{
+			name:          "override initContainer resources",
+			containerName: commonv1.InitConfigContainerName,
+			existingManager: func() *fake.PodTemplateManagers {
+				return fake.NewPodTemplateManagers(t)
+			},
+			override: v2alpha1.DatadogAgentGenericContainer{
+				Resources: &corev1.ResourceRequirements{
+					Limits: map[corev1.ResourceName]resource.Quantity{
+						corev1.ResourceCPU:    *resource.NewQuantity(2, resource.DecimalSI),
+						corev1.ResourceMemory: resource.MustParse("2Gi"),
+					},
+					Requests: map[corev1.ResourceName]resource.Quantity{
+						corev1.ResourceCPU:    *resource.NewQuantity(1, resource.DecimalSI),
+						corev1.ResourceMemory: resource.MustParse("1Gi"),
+					},
+				},
+			},
+			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers) {
+				for _, container := range manager.PodTemplateSpec().Spec.InitContainers {
+					if container.Name == string(commonv1.InitConfigContainerName) {
+						assert.Equal(
+							t,
+							&corev1.ResourceRequirements{
+								Limits: map[corev1.ResourceName]resource.Quantity{
+									corev1.ResourceCPU:    *resource.NewQuantity(2, resource.DecimalSI),
+									corev1.ResourceMemory: resource.MustParse("2Gi"),
+								},
+								Requests: map[corev1.ResourceName]resource.Quantity{
+									corev1.ResourceCPU:    *resource.NewQuantity(1, resource.DecimalSI),
+									corev1.ResourceMemory: resource.MustParse("1Gi"),
+								},
+							},
+							container.Resources)
+					}
+				}
+			},
+		},
 	}
 
 	for _, test := range tests {

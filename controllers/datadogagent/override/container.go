@@ -7,11 +7,10 @@ package override
 
 import (
 	"fmt"
-	"strconv"
-
 	"github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	corev1 "k8s.io/api/core/v1"
+	"strconv"
 
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
@@ -41,6 +40,12 @@ func Container(containerName commonv1.AgentContainerName, manager feature.PodTem
 		}
 	}
 
+	for i, initContainer := range manager.PodTemplateSpec().Spec.InitContainers {
+		if initContainer.Name == string(containerName) {
+			overrideContainer(&manager.PodTemplateSpec().Spec.InitContainers[i], override)
+		}
+	}
+
 	overrideSeccompProfile(containerName, manager, override)
 
 	overrideAppArmorProfile(containerName, manager, override)
@@ -67,6 +72,7 @@ func addVolMounts(containerName commonv1.AgentContainerName, manager feature.Pod
 	for _, mount := range mounts {
 		m := mount
 		manager.VolumeMount().AddVolumeMountToContainer(&m, containerName)
+		manager.VolumeMount().AddVolumeMountToInitContainer(&m, containerName)
 	}
 }
 
