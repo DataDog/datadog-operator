@@ -8,9 +8,9 @@ variables:
   DOCKER_REGISTRY_LOGIN_SSM_KEY: docker_hub_login
   DOCKER_REGISTRY_PWD_SSM_KEY: docker_hub_pwd
   DOCKER_REGISTRY_URL: docker.io
-  RH_PARTNER_REGISTRY: quay.io/redhat-isv-containers
-  RH_PARTNER_PROJECT_ID: 5e7c8ebc1c86a3163d1a69be
-  RH_PARTNER_REGISTRY_USER: redhat-isv-containers+5e7c8ebc1c86a3163d1a69be-robot
+  RH_PARTNER_REGISTRY: "quay.io/redhat-isv-containers"
+  RH_PARTNER_PROJECT_ID: "5e7c8ebc1c86a3163d1a69be"
+  RH_PARTNER_REGISTRY_USER: "redhat-isv-containers+5e7c8ebc1c86a3163d1a69be-robot"
   RH_PARTNER_REGISTRY_KEY_SSM_KEY: redhat_registry_key
   RH_PARTNER_API_KEY_SSM_KEY: redhat_api_key
   PUSH_IMAGES_TO_STAGING:
@@ -37,9 +37,6 @@ build:
     - mkdir -p .cache
     - make install-tools
   script:
-    - echo "TEST"
-    - echo ${CI_COMMIT_TAG:1}
-    - echo $CI_COMMIT_TAG
     - make build
 
 unit_tests:
@@ -193,20 +190,17 @@ publish_redhat_public_tag:
     - "preflight_redhat_image_amd64"
   tags: ["runner:docker", "size:large"]
   image: $JOB_DOCKER_IMAGE
-  variables:
-    SOURCE_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64
-    DEST_IMAGE: $RH_PARTNER_REGISTRY/$RH_PARTNER_PROJECT_ID:${CI_COMMIT_TAG:1}
   script:
     - apt-get update && apt-get -y install --no-install-recommends build-essential git awscli && apt-get -y clean && rm -rf /var/lib/apt/lists/*
     # Docker login to pull build image
     - DOCKER_REGISTRY_LOGIN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_LOGIN_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
     - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin "$DOCKER_REGISTRY_URL"
-    - docker pull --platform linux/amd64 $SOURCE_IMAGE
-    - echo $DEST_IMAGE
-    - docker tag $SOURCE_IMAGE $DEST_IMAGE
+    - echo "docker pull --platform linux/amd64 $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64"
+    - docker pull --platform linux/amd64 $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64
+    - docker tag $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64 $RH_PARTNER_REGISTRY/$RH_PARTNER_PROJECT_ID:${CI_COMMIT_TAG:1}
     # Docker login to push image to Redhat
     - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$RH_PARTNER_REGISTRY_KEY_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login -u "$RH_PARTNER_REGISTRY_USER" quay.io --password-stdin
-    - docker push $DEST_IMAGE
+    - docker push $RH_PARTNER_REGISTRY/$RH_PARTNER_PROJECT_ID:${CI_COMMIT_TAG:1}
 
   # Save for future use.
   # trigger:
@@ -246,19 +240,16 @@ publish_redhat_public_latest:
     - "preflight_redhat_image_amd64"
   tags: ["runner:docker", "size:large"]
   image: $JOB_DOCKER_IMAGE
-  variables:
-    SOURCE_IMAGE: $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64
-    DEST_IMAGE: $RH_PARTNER_REGISTRY/$RH_PARTNER_PROJECT_ID:latest
   script:
     - apt-get update && apt-get -y install --no-install-recommends build-essential git awscli && apt-get -y clean && rm -rf /var/lib/apt/lists/*
     # Docker login to pull build image
     - DOCKER_REGISTRY_LOGIN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_LOGIN_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
     - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$DOCKER_REGISTRY_PWD_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$DOCKER_REGISTRY_LOGIN" --password-stdin "$DOCKER_REGISTRY_URL"
-    - docker pull --platform linux/amd64 $SOURCE_IMAGE
-    - docker tag $SOURCE_IMAGE $DEST_IMAGE
+    - docker pull --platform linux/amd64 $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64
+    - docker tag $BUILD_DOCKER_REGISTRY/$PROJECTNAME:$CI_COMMIT_TAG-amd64 $RH_PARTNER_REGISTRY/$RH_PARTNER_PROJECT_ID:latest
     # Docker login to push image to Redhat
     - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$RH_PARTNER_REGISTRY_KEY_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login -u "$RH_PARTNER_REGISTRY_USER" quay.io --password-stdin
-    - docker push $DEST_IMAGE
+    - docker push $RH_PARTNER_REGISTRY/$RH_PARTNER_PROJECT_ID:latest
 
 trigger_internal_operator_image:
   stage: release
@@ -345,10 +336,9 @@ submit_preflight_redhat_public_tag:
     - "publish_redhat_public_tag"
   tags: ["runner:docker", "size:large"]
   image: $JOB_DOCKER_IMAGE
-  variables:
-    IMG: $RH_PARTNER_REGISTRY/$RH_PARTNER_PROJECT_ID:${CI_COMMIT_TAG:1}
   script:
     - apt-get update && apt-get -y install --no-install-recommends build-essential git awscli && apt-get -y clean && rm -rf /var/lib/apt/lists/*
     - aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$RH_PARTNER_REGISTRY_KEY_SSM_KEY --with-decryption --query "Parameter.Value" --out text | docker login --username "$RH_PARTNER_REGISTRY_USER" --password-stdin "$RH_PARTNER_REGISTRY"
     - RH_PARTNER_API_TOKEN=$(aws ssm get-parameter --region us-east-1 --name ci.datadog-operator.$RH_PARTNER_API_KEY_SSM_KEY --with-decryption --query "Parameter.Value" --out text)
+    - IMG=$RH_PARTNER_REGISTRY/$RH_PARTNER_PROJECT_ID:${CI_COMMIT_TAG:1}
     - make preflight-redhat-container-submit
