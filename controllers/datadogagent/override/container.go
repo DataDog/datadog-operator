@@ -7,13 +7,14 @@ package override
 
 import (
 	"fmt"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/common"
-	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	corev1 "k8s.io/api/core/v1"
 	"strconv"
 
+	"github.com/DataDog/datadog-operator/apis/datadoghq/common"
+	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
+
+	corev1 "k8s.io/api/core/v1"
 )
 
 // Container use to override a corev1.Container with a 2alpha1.DatadogAgentGenericContainer.
