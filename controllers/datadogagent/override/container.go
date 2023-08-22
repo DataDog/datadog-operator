@@ -27,13 +27,15 @@ func Container(containerName commonv1.AgentContainerName, manager feature.PodTem
 		overrideLogLevel(containerName, manager, *override.LogLevel)
 	}
 
-	addEnvs(containerName, manager, override.Env)
-
-	addVolMounts(containerName, manager, override.VolumeMounts)
-
 	if override.HealthPort != nil {
 		addHealthPort(containerName, manager, *override.HealthPort)
 	}
+
+	isInitContainerBool := isInitContainer(containerName, manager)
+
+	addEnvs(containerName, manager, override.Env, isInitContainerBool)
+
+	addVolMounts(containerName, manager, override.VolumeMounts, isInitContainerBool)
 
 	for i, container := range manager.PodTemplateSpec().Spec.Containers {
 		if container.Name == string(containerName) {
@@ -43,7 +45,7 @@ func Container(containerName commonv1.AgentContainerName, manager feature.PodTem
 
 	for i, initContainer := range manager.PodTemplateSpec().Spec.InitContainers {
 		if initContainer.Name == string(containerName) {
-			overrideContainer(&manager.PodTemplateSpec().Spec.InitContainers[i], override)
+			overrideInitContainer(&manager.PodTemplateSpec().Spec.InitContainers[i], override)
 		}
 	}
 
@@ -62,18 +64,25 @@ func overrideLogLevel(containerName commonv1.AgentContainerName, manager feature
 	)
 }
 
-func addEnvs(containerName commonv1.AgentContainerName, manager feature.PodTemplateManagers, envs []corev1.EnvVar) {
+func addEnvs(containerName commonv1.AgentContainerName, manager feature.PodTemplateManagers, envs []corev1.EnvVar, isInitContainerBool bool) {
 	for _, env := range envs {
 		e := env
-		manager.EnvVar().AddEnvVarToContainer(containerName, &e)
+		if isInitContainerBool {
+			manager.EnvVar().AddEnvVarToInitContainer(containerName, &e)
+		} else {
+			manager.EnvVar().AddEnvVarToContainer(containerName, &e)
+		}
 	}
 }
 
-func addVolMounts(containerName commonv1.AgentContainerName, manager feature.PodTemplateManagers, mounts []corev1.VolumeMount) {
+func addVolMounts(containerName commonv1.AgentContainerName, manager feature.PodTemplateManagers, mounts []corev1.VolumeMount, isInitContainerBool bool) {
 	for _, mount := range mounts {
 		m := mount
-		manager.VolumeMount().AddVolumeMountToContainer(&m, containerName)
-		manager.VolumeMount().AddVolumeMountToInitContainer(&m, containerName)
+		if isInitContainerBool {
+			manager.VolumeMount().AddVolumeMountToInitContainer(&m, containerName)
+		} else {
+			manager.VolumeMount().AddVolumeMountToContainer(&m, containerName)
+		}
 	}
 }
 
@@ -110,6 +119,24 @@ func overrideContainer(container *corev1.Container, override *v2alpha1.DatadogAg
 
 	if override.LivenessProbe != nil {
 		container.LivenessProbe = override.LivenessProbe
+	}
+
+	if override.SecurityContext != nil {
+		container.SecurityContext = override.SecurityContext
+	}
+}
+
+func overrideInitContainer(container *corev1.Container, override *v2alpha1.DatadogAgentGenericContainer) {
+	if override.Name != nil {
+		container.Name = *override.Name
+	}
+
+	if override.Resources != nil {
+		container.Resources = *override.Resources
+	}
+
+	if override.Args != nil {
+		container.Args = override.Args
 	}
 
 	if override.SecurityContext != nil {
@@ -171,4 +198,15 @@ func overrideAppArmorProfile(containerName commonv1.AgentContainerName, manager 
 
 		manager.Annotation().AddAnnotation(annotation, *override.AppArmorProfileName)
 	}
+}
+
+func isInitContainer(containerName commonv1.AgentContainerName, manager feature.PodTemplateManagers) bool {
+	foundInitContainer := false
+	for _, container := range manager.PodTemplateSpec().Spec.InitContainers {
+		if string(containerName) == container.Name {
+			foundInitContainer = true
+			break
+		}
+	}
+	return foundInitContainer
 }
