@@ -66,6 +66,7 @@ spec:
 | features.dogstatsd.originDetectionEnabled | OriginDetectionEnabled enables origin detection for container tagging. See also: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/#using-origin-detection-for-container-tagging |
 | features.dogstatsd.unixDomainSocketConfig.enabled | Enabled enables Unix Domain Socket. Default: true |
 | features.dogstatsd.unixDomainSocketConfig.path | Path defines the socket path used when enabled. |
+| features.ebpfCheck.enabled | Enables the eBPF check. Default: false |
 | features.eventCollection.collectKubernetesEvents | CollectKubernetesEvents enables Kubernetes event collection. Default: true |
 | features.externalMetricsServer.enabled | Enabled enables the External Metrics Server. Default: false |
 | features.externalMetricsServer.endpoint.credentials.apiKey | APIKey configures your Datadog API key. See also: https://app.datadoghq.com/account/settings#agent/kubernetes |
