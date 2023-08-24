@@ -47,29 +47,6 @@ func (f *ebpfCheckFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp featur
 
 // ConfigureV1 use to configure the feature from a v1alpha1.DatadogAgent instance.
 func (f *ebpfCheckFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	if dda.Spec.Agent.SystemProbe == nil {
-		return reqComp
-	}
-
-	enabledEnvVarIsSet := false
-	for _, envVar := range dda.Spec.Agent.SystemProbe.Env {
-		if envVar.Name == apicommon.DDEnableEBPFCheckEnvVar && envVar.Value == "true" {
-			enabledEnvVarIsSet = true
-		}
-	}
-
-	if dda.Spec.Agent.SystemProbe != nil && *dda.Spec.Agent.SystemProbe.Enabled && enabledEnvVarIsSet {
-		reqComp = feature.RequiredComponents{
-			Agent: feature.RequiredComponent{
-				IsRequired: apiutils.NewBoolPointer(true),
-				Containers: []apicommonv1.AgentContainerName{
-					apicommonv1.CoreAgentContainerName,
-					apicommonv1.SystemProbeContainerName,
-				},
-			},
-		}
-	}
-
 	return reqComp
 }
 

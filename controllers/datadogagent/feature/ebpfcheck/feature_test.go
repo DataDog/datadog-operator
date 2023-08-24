@@ -9,7 +9,6 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
@@ -19,28 +18,6 @@ import (
 )
 
 func Test_ebpfCheckFeature_Configure(t *testing.T) {
-	ddav1EBPFCheckDisabled := v1alpha1.DatadogAgent{
-		Spec: v1alpha1.DatadogAgentSpec{
-			Agent: v1alpha1.DatadogAgentSpecAgentSpec{
-				SystemProbe: &v1alpha1.SystemProbeSpec{
-					Enabled: apiutils.NewBoolPointer(false),
-				},
-			},
-		},
-	}
-
-	ddav1EBPFCheckEnabled := ddav1EBPFCheckDisabled.DeepCopy()
-	{
-		ddav1EBPFCheckEnabled.Spec.Agent.SystemProbe.Enabled = apiutils.NewBoolPointer(true)
-		ddav1EBPFCheckEnabled.Spec.Agent.SystemProbe.Env = append(
-			ddav1EBPFCheckEnabled.Spec.Agent.SystemProbe.Env,
-			corev1.EnvVar{
-				Name:  apicommon.DDEnableEBPFCheckEnvVar,
-				Value: "true",
-			},
-		)
-	}
-
 	ddav2EBPFCheckDisabled := v2alpha1.DatadogAgent{
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
@@ -135,20 +112,6 @@ func Test_ebpfCheckFeature_Configure(t *testing.T) {
 	}
 
 	tests := test.FeatureTestSuite{
-		///////////////////////////
-		// v1alpha1.DatadogAgent //
-		///////////////////////////
-		{
-			Name:          "v1alpha1 ebpf check not enabled",
-			DDAv1:         ddav1EBPFCheckDisabled.DeepCopy(),
-			WantConfigure: false,
-		},
-		{
-			Name:          "v1alpha1 ebpf check enabled",
-			DDAv1:         ddav1EBPFCheckEnabled,
-			WantConfigure: true,
-			Agent:         test.NewDefaultComponentTest().WithWantFunc(ebpfCheckAgentNodeWantFunc),
-		},
 		///////////////////////////
 		// v2alpha1.DatadogAgent //
 		///////////////////////////
