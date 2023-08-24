@@ -105,7 +105,7 @@ func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []c
 				Command:      nil,
 				Args:         nil,
 				SecurityContext: &corev1.SecurityContext{
-					ReadOnlyRootFilesystem:   apiutils.NewBoolPointer(true),
+					ReadOnlyRootFilesystem:   apiutils.NewBoolPointer(false),
 					AllowPrivilegeEscalation: apiutils.NewBoolPointer(false),
 				},
 			},
