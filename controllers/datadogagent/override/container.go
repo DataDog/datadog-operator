@@ -23,35 +23,31 @@ func Container(containerName commonv1.AgentContainerName, manager feature.PodTem
 		return
 	}
 
-	if override.LogLevel != nil && *override.LogLevel != "" {
-		overrideLogLevel(containerName, manager, *override.LogLevel)
-	}
-
-	if override.HealthPort != nil {
-		addHealthPort(containerName, manager, *override.HealthPort)
-	}
-
-	isInitContainerBool := isInitContainer(containerName, manager)
-
-	addEnvs(containerName, manager, override.Env, isInitContainerBool)
-
-	addVolMounts(containerName, manager, override.VolumeMounts, isInitContainerBool)
-
 	for i, container := range manager.PodTemplateSpec().Spec.Containers {
 		if container.Name == string(containerName) {
+			if override.LogLevel != nil && *override.LogLevel != "" {
+				overrideLogLevel(containerName, manager, *override.LogLevel)
+			}
+
+			if override.HealthPort != nil {
+				addHealthPort(containerName, manager, *override.HealthPort)
+			}
+
 			overrideContainer(&manager.PodTemplateSpec().Spec.Containers[i], override)
+			addEnvsToContainer(containerName, manager, override.Env)
+			addVolMountsToContainer(containerName, manager, override.VolumeMounts)
+			overrideSeccompProfile(containerName, manager, override)
+			overrideAppArmorProfile(containerName, manager, override)
 		}
 	}
 
 	for i, initContainer := range manager.PodTemplateSpec().Spec.InitContainers {
 		if initContainer.Name == string(containerName) {
 			overrideInitContainer(&manager.PodTemplateSpec().Spec.InitContainers[i], override)
+			addEnvsToInitContainer(containerName, manager, override.Env)
+			addVolMountsToInitContainer(containerName, manager, override.VolumeMounts)
 		}
 	}
-
-	overrideSeccompProfile(containerName, manager, override)
-
-	overrideAppArmorProfile(containerName, manager, override)
 }
 
 func overrideLogLevel(containerName commonv1.AgentContainerName, manager feature.PodTemplateManagers, logLevel string) {
@@ -64,25 +60,33 @@ func overrideLogLevel(containerName commonv1.AgentContainerName, manager feature
 	)
 }
 
-func addEnvs(containerName commonv1.AgentContainerName, manager feature.PodTemplateManagers, envs []corev1.EnvVar, isInitContainerBool bool) {
+func addEnvsToContainer(containerName commonv1.AgentContainerName, manager feature.PodTemplateManagers, envs []corev1.EnvVar) {
 	for _, env := range envs {
 		e := env
-		if isInitContainerBool {
-			manager.EnvVar().AddEnvVarToInitContainer(containerName, &e)
-		} else {
-			manager.EnvVar().AddEnvVarToContainer(containerName, &e)
-		}
+		manager.EnvVar().AddEnvVarToContainer(containerName, &e)
+	}
+
+}
+
+func addEnvsToInitContainer(containerName commonv1.AgentContainerName, manager feature.PodTemplateManagers, envs []corev1.EnvVar) {
+	for _, env := range envs {
+		e := env
+		manager.EnvVar().AddEnvVarToInitContainer(containerName, &e)
 	}
 }
 
-func addVolMounts(containerName commonv1.AgentContainerName, manager feature.PodTemplateManagers, mounts []corev1.VolumeMount, isInitContainerBool bool) {
+func addVolMountsToContainer(containerName commonv1.AgentContainerName, manager feature.PodTemplateManagers, mounts []corev1.VolumeMount) {
 	for _, mount := range mounts {
 		m := mount
-		if isInitContainerBool {
-			manager.VolumeMount().AddVolumeMountToInitContainer(&m, containerName)
-		} else {
-			manager.VolumeMount().AddVolumeMountToContainer(&m, containerName)
-		}
+		manager.VolumeMount().AddVolumeMountToContainer(&m, containerName)
+	}
+}
+
+func addVolMountsToInitContainer(containerName commonv1.AgentContainerName, manager feature.PodTemplateManagers, mounts []corev1.VolumeMount) {
+	for _, mount := range mounts {
+		m := mount
+		manager.VolumeMount().AddVolumeMountToInitContainer(&m, containerName)
+
 	}
 }
 
@@ -198,15 +202,4 @@ func overrideAppArmorProfile(containerName commonv1.AgentContainerName, manager 
 
 		manager.Annotation().AddAnnotation(annotation, *override.AppArmorProfileName)
 	}
-}
-
-func isInitContainer(containerName commonv1.AgentContainerName, manager feature.PodTemplateManagers) bool {
-	foundInitContainer := false
-	for _, container := range manager.PodTemplateSpec().Spec.InitContainers {
-		if string(containerName) == container.Name {
-			foundInitContainer = true
-			break
-		}
-	}
-	return foundInitContainer
 }

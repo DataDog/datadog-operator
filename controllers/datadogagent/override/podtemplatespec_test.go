@@ -28,6 +28,9 @@ func TestPodTemplateSpec(t *testing.T) {
 			Name: "otherPullSecretName",
 		},
 	}
+	agentContainer := &v1.Container{Name: string(commonv1.CoreAgentContainerName)}
+	initContainer := &v1.Container{Name: string(commonv1.InitConfigContainerName)}
+	clusterAgentContainer := &v1.Container{Name: string(commonv1.ClusterAgentContainerName)}
 
 	tests := []struct {
 		name            string
@@ -553,7 +556,12 @@ func TestPodTemplateSpec(t *testing.T) {
 			// This test is pretty simple because "container_test.go" already tests overriding containers
 			name: "override containers",
 			existingManager: func() *fake.PodTemplateManagers {
-				manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
+				manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{
+					Spec: v1.PodSpec{
+						Containers:     []v1.Container{*agentContainer, *clusterAgentContainer},
+						InitContainers: []v1.Container{*initContainer},
+					},
+				})
 
 				manager.EnvVarMgr.AddEnvVarToContainer(
 					commonv1.ClusterAgentContainerName,

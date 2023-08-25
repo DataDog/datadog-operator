@@ -29,29 +29,25 @@ func TestContainer(t *testing.T) {
 	initConfigContainer := &corev1.Container{
 		Name: string(commonv1.InitConfigContainerName),
 	}
-	type podTplSpec struct {
-		podTplSpec *corev1.PodTemplateSpec
+	systemProbeContainer := &corev1.Container{
+		Name: string(commonv1.SystemProbeContainerName),
 	}
 	tests := []struct {
 		name            string
 		containerName   commonv1.AgentContainerName
-		existingManager func(podTpl corev1.PodTemplateSpec) *fake.PodTemplateManagers
-		podTplSpec      podTplSpec
+		existingManager func() *fake.PodTemplateManagers
 		override        v2alpha1.DatadogAgentGenericContainer
 		validateManager func(t *testing.T, manager *fake.PodTemplateManagers, containerName string)
 	}{
 		{
 			name:          "override container name",
 			containerName: commonv1.CoreAgentContainerName,
-			existingManager: func(podTpl corev1.PodTemplateSpec) *fake.PodTemplateManagers {
-				return fake.NewPodTemplateManagers(t, podTpl)
-			},
-			podTplSpec: podTplSpec{
-				podTplSpec: &corev1.PodTemplateSpec{
+			existingManager: func() *fake.PodTemplateManagers {
+				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
 					Spec: corev1.PodSpec{
 						Containers: []corev1.Container{*agentContainer},
 					},
-				},
+				})
 			},
 			override: v2alpha1.DatadogAgentGenericContainer{
 				Name: apiutils.NewStringPointer("my-container-name"),
@@ -73,15 +69,12 @@ func TestContainer(t *testing.T) {
 		{
 			name:          "override log level",
 			containerName: commonv1.CoreAgentContainerName,
-			existingManager: func(podTpl corev1.PodTemplateSpec) *fake.PodTemplateManagers {
-				return fake.NewPodTemplateManagers(t, podTpl)
-			},
-			podTplSpec: podTplSpec{
-				podTplSpec: &corev1.PodTemplateSpec{
+			existingManager: func() *fake.PodTemplateManagers {
+				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
 					Spec: corev1.PodSpec{
 						Containers: []corev1.Container{*agentContainer},
 					},
-				},
+				})
 			},
 			override: v2alpha1.DatadogAgentGenericContainer{
 				LogLevel: apiutils.NewStringPointer("debug"),
@@ -100,8 +93,12 @@ func TestContainer(t *testing.T) {
 		{
 			name:          "add envs",
 			containerName: commonv1.CoreAgentContainerName,
-			existingManager: func(podTpl corev1.PodTemplateSpec) *fake.PodTemplateManagers {
-				manager := fake.NewPodTemplateManagers(t, podTpl)
+			existingManager: func() *fake.PodTemplateManagers {
+				manager := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{*agentContainer},
+					},
+				})
 				manager.EnvVar().AddEnvVarToContainer(
 					commonv1.CoreAgentContainerName,
 					&corev1.EnvVar{
@@ -110,13 +107,6 @@ func TestContainer(t *testing.T) {
 					},
 				)
 				return manager
-			},
-			podTplSpec: podTplSpec{
-				podTplSpec: &corev1.PodTemplateSpec{
-					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{*agentContainer},
-					},
-				},
 			},
 			override: v2alpha1.DatadogAgentGenericContainer{
 				Env: []corev1.EnvVar{
@@ -152,8 +142,12 @@ func TestContainer(t *testing.T) {
 		{
 			name:          "add volume mounts",
 			containerName: commonv1.CoreAgentContainerName,
-			existingManager: func(podTpl corev1.PodTemplateSpec) *fake.PodTemplateManagers {
-				manager := fake.NewPodTemplateManagers(t, podTpl)
+			existingManager: func() *fake.PodTemplateManagers {
+				manager := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{*agentContainer},
+					},
+				})
 				manager.VolumeMount().AddVolumeMountToContainer(
 					&corev1.VolumeMount{
 						Name: "existing-volume-mount",
@@ -161,13 +155,6 @@ func TestContainer(t *testing.T) {
 					commonv1.CoreAgentContainerName,
 				)
 				return manager
-			},
-			podTplSpec: podTplSpec{
-				podTplSpec: &corev1.PodTemplateSpec{
-					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{*agentContainer},
-					},
-				},
 			},
 			override: v2alpha1.DatadogAgentGenericContainer{
 				VolumeMounts: []corev1.VolumeMount{
@@ -198,15 +185,12 @@ func TestContainer(t *testing.T) {
 		{
 			name:          "override resources",
 			containerName: commonv1.CoreAgentContainerName,
-			existingManager: func(podTpl corev1.PodTemplateSpec) *fake.PodTemplateManagers {
-				return fake.NewPodTemplateManagers(t, podTpl)
-			},
-			podTplSpec: podTplSpec{
-				podTplSpec: &corev1.PodTemplateSpec{
+			existingManager: func() *fake.PodTemplateManagers {
+				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
 					Spec: corev1.PodSpec{
 						Containers: []corev1.Container{*agentContainer},
 					},
-				},
+				})
 			},
 			override: v2alpha1.DatadogAgentGenericContainer{
 				Resources: &corev1.ResourceRequirements{
@@ -239,15 +223,12 @@ func TestContainer(t *testing.T) {
 		{
 			name:          "override command",
 			containerName: commonv1.CoreAgentContainerName,
-			existingManager: func(podTpl corev1.PodTemplateSpec) *fake.PodTemplateManagers {
-				return fake.NewPodTemplateManagers(t, podTpl)
-			},
-			podTplSpec: podTplSpec{
-				podTplSpec: &corev1.PodTemplateSpec{
+			existingManager: func() *fake.PodTemplateManagers {
+				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
 					Spec: corev1.PodSpec{
 						Containers: []corev1.Container{*agentContainer},
 					},
-				},
+				})
 			},
 			override: v2alpha1.DatadogAgentGenericContainer{
 				Command: []string{"test-agent", "start"},
@@ -263,15 +244,12 @@ func TestContainer(t *testing.T) {
 		{
 			name:          "override args",
 			containerName: commonv1.CoreAgentContainerName,
-			existingManager: func(podTpl corev1.PodTemplateSpec) *fake.PodTemplateManagers {
-				return fake.NewPodTemplateManagers(t, podTpl)
-			},
-			podTplSpec: podTplSpec{
-				podTplSpec: &corev1.PodTemplateSpec{
+			existingManager: func() *fake.PodTemplateManagers {
+				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
 					Spec: corev1.PodSpec{
 						Containers: []corev1.Container{*agentContainer},
 					},
-				},
+				})
 			},
 			override: v2alpha1.DatadogAgentGenericContainer{
 				Args: []string{"arg1", "val1"},
@@ -287,15 +265,12 @@ func TestContainer(t *testing.T) {
 		{
 			name:          "override health port",
 			containerName: commonv1.CoreAgentContainerName,
-			existingManager: func(podTpl corev1.PodTemplateSpec) *fake.PodTemplateManagers {
-				return fake.NewPodTemplateManagers(t, podTpl)
-			},
-			podTplSpec: podTplSpec{
-				podTplSpec: &corev1.PodTemplateSpec{
+			existingManager: func() *fake.PodTemplateManagers {
+				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
 					Spec: corev1.PodSpec{
 						Containers: []corev1.Container{*agentContainer},
 					},
-				},
+				})
 			},
 			override: v2alpha1.DatadogAgentGenericContainer{
 				HealthPort: apiutils.NewInt32Pointer(1234),
@@ -314,15 +289,12 @@ func TestContainer(t *testing.T) {
 		{
 			name:          "override readiness probe",
 			containerName: commonv1.CoreAgentContainerName,
-			existingManager: func(podTpl corev1.PodTemplateSpec) *fake.PodTemplateManagers {
-				return fake.NewPodTemplateManagers(t, podTpl)
-			},
-			podTplSpec: podTplSpec{
-				podTplSpec: &corev1.PodTemplateSpec{
+			existingManager: func() *fake.PodTemplateManagers {
+				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
 					Spec: corev1.PodSpec{
 						Containers: []corev1.Container{*agentContainer},
 					},
-				},
+				})
 			},
 			override: v2alpha1.DatadogAgentGenericContainer{
 				ReadinessProbe: &corev1.Probe{
@@ -354,15 +326,12 @@ func TestContainer(t *testing.T) {
 		{
 			name:          "override liveness probe",
 			containerName: commonv1.CoreAgentContainerName,
-			existingManager: func(podTpl corev1.PodTemplateSpec) *fake.PodTemplateManagers {
-				return fake.NewPodTemplateManagers(t, podTpl)
-			},
-			podTplSpec: podTplSpec{
-				podTplSpec: &corev1.PodTemplateSpec{
+			existingManager: func() *fake.PodTemplateManagers {
+				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
 					Spec: corev1.PodSpec{
 						Containers: []corev1.Container{*agentContainer},
 					},
-				},
+				})
 			},
 			override: v2alpha1.DatadogAgentGenericContainer{
 				LivenessProbe: &corev1.Probe{
@@ -394,15 +363,12 @@ func TestContainer(t *testing.T) {
 		{
 			name:          "override security context",
 			containerName: commonv1.CoreAgentContainerName,
-			existingManager: func(podTpl corev1.PodTemplateSpec) *fake.PodTemplateManagers {
-				return fake.NewPodTemplateManagers(t, podTpl)
-			},
-			podTplSpec: podTplSpec{
-				podTplSpec: &corev1.PodTemplateSpec{
+			existingManager: func() *fake.PodTemplateManagers {
+				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
 					Spec: corev1.PodSpec{
 						Containers: []corev1.Container{*agentContainer},
 					},
-				},
+				})
 			},
 			override: v2alpha1.DatadogAgentGenericContainer{
 				SecurityContext: &corev1.SecurityContext{
@@ -426,15 +392,12 @@ func TestContainer(t *testing.T) {
 		{
 			name:          "override seccomp root path",
 			containerName: commonv1.SystemProbeContainerName,
-			existingManager: func(podTpl corev1.PodTemplateSpec) *fake.PodTemplateManagers {
-				return fake.NewPodTemplateManagers(t, podTpl)
-			},
-			podTplSpec: podTplSpec{
-				podTplSpec: &corev1.PodTemplateSpec{
+			existingManager: func() *fake.PodTemplateManagers {
+				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
 					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{*agentContainer},
+						Containers: []corev1.Container{*systemProbeContainer},
 					},
-				},
+				})
 			},
 			override: v2alpha1.DatadogAgentGenericContainer{
 				SeccompConfig: &v2alpha1.SeccompConfig{
@@ -458,15 +421,12 @@ func TestContainer(t *testing.T) {
 		{
 			name:          "override seccomp profile",
 			containerName: commonv1.SystemProbeContainerName,
-			existingManager: func(podTpl corev1.PodTemplateSpec) *fake.PodTemplateManagers {
-				return fake.NewPodTemplateManagers(t, podTpl)
-			},
-			podTplSpec: podTplSpec{
-				podTplSpec: &corev1.PodTemplateSpec{
+			existingManager: func() *fake.PodTemplateManagers {
+				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
 					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{*agentContainer},
+						Containers: []corev1.Container{*systemProbeContainer},
 					},
-				},
+				})
 			},
 			override: v2alpha1.DatadogAgentGenericContainer{
 				SeccompConfig: &v2alpha1.SeccompConfig{
@@ -496,15 +456,12 @@ func TestContainer(t *testing.T) {
 		{
 			name:          "override app armor profile",
 			containerName: commonv1.CoreAgentContainerName,
-			existingManager: func(podTpl corev1.PodTemplateSpec) *fake.PodTemplateManagers {
-				return fake.NewPodTemplateManagers(t, podTpl)
-			},
-			podTplSpec: podTplSpec{
-				podTplSpec: &corev1.PodTemplateSpec{
+			existingManager: func() *fake.PodTemplateManagers {
+				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
 					Spec: corev1.PodSpec{
 						Containers: []corev1.Container{*agentContainer},
 					},
-				},
+				})
 			},
 			override: v2alpha1.DatadogAgentGenericContainer{
 				AppArmorProfileName: apiutils.NewStringPointer("my-app-armor-profile"),
@@ -516,23 +473,20 @@ func TestContainer(t *testing.T) {
 		},
 		{
 			name:          "override initContainer name",
-			containerName: commonv1.InitConfigContainerName,
-			existingManager: func(podTpl corev1.PodTemplateSpec) *fake.PodTemplateManagers {
-				return fake.NewPodTemplateManagers(t, podTpl)
-			},
-			podTplSpec: podTplSpec{
-				podTplSpec: &corev1.PodTemplateSpec{
+			containerName: commonv1.InitVolumeContainerName,
+			existingManager: func() *fake.PodTemplateManagers {
+				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
 					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{*agentContainer},
+						Containers: []corev1.Container{*initVolContainer},
 					},
-				},
+				})
 			},
 			override: v2alpha1.DatadogAgentGenericContainer{
 				Name: apiutils.NewStringPointer("my-initContainer-name"),
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
 				for _, initContainer := range manager.PodTemplateSpec().Spec.InitContainers {
-					if initContainer.Name == string(commonv1.InitConfigContainerName) {
+					if initContainer.Name == string(commonv1.InitVolumeContainerName) {
 						assert.Equal(t, "my-initcontainer-name", initContainer)
 					}
 				}
@@ -541,8 +495,12 @@ func TestContainer(t *testing.T) {
 		{
 			name:          "add initContainer envs",
 			containerName: commonv1.InitVolumeContainerName,
-			existingManager: func(podTpl corev1.PodTemplateSpec) *fake.PodTemplateManagers {
-				manager := fake.NewPodTemplateManagers(t, podTpl)
+			existingManager: func() *fake.PodTemplateManagers {
+				manager := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						InitContainers: []corev1.Container{*initVolContainer},
+					},
+				})
 				manager.EnvVar().AddEnvVarToInitContainer(
 					commonv1.InitVolumeContainerName,
 					&corev1.EnvVar{
@@ -551,14 +509,6 @@ func TestContainer(t *testing.T) {
 					},
 				)
 				return manager
-			},
-			podTplSpec: podTplSpec{
-				podTplSpec: &corev1.PodTemplateSpec{
-					Spec: corev1.PodSpec{
-						Containers:     []corev1.Container{*agentContainer},
-						InitContainers: []corev1.Container{*initVolContainer},
-					},
-				},
 			},
 			override: v2alpha1.DatadogAgentGenericContainer{
 				Env: []corev1.EnvVar{
@@ -594,8 +544,12 @@ func TestContainer(t *testing.T) {
 		{
 			name:          "add initContainer volume mounts",
 			containerName: commonv1.InitVolumeContainerName,
-			existingManager: func(podTpl corev1.PodTemplateSpec) *fake.PodTemplateManagers {
-				manager := fake.NewPodTemplateManagers(t, podTpl)
+			existingManager: func() *fake.PodTemplateManagers {
+				manager := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						InitContainers: []corev1.Container{*initVolContainer},
+					},
+				})
 				manager.VolumeMount().AddVolumeMountToInitContainer(
 					&corev1.VolumeMount{
 						Name: "existing-init-container-volume-mount",
@@ -603,14 +557,6 @@ func TestContainer(t *testing.T) {
 					commonv1.InitVolumeContainerName,
 				)
 				return manager
-			},
-			podTplSpec: podTplSpec{
-				podTplSpec: &corev1.PodTemplateSpec{
-					Spec: corev1.PodSpec{
-						Containers:     []corev1.Container{*agentContainer},
-						InitContainers: []corev1.Container{*initVolContainer},
-					},
-				},
 			},
 			override: v2alpha1.DatadogAgentGenericContainer{
 				VolumeMounts: []corev1.VolumeMount{
@@ -641,16 +587,12 @@ func TestContainer(t *testing.T) {
 		{
 			name:          "override initContainer resources",
 			containerName: commonv1.InitConfigContainerName,
-			existingManager: func(podTpl corev1.PodTemplateSpec) *fake.PodTemplateManagers {
-				return fake.NewPodTemplateManagers(t, podTpl)
-			},
-			podTplSpec: podTplSpec{
-				podTplSpec: &corev1.PodTemplateSpec{
+			existingManager: func() *fake.PodTemplateManagers {
+				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
 					Spec: corev1.PodSpec{
-						Containers:     []corev1.Container{*agentContainer},
 						InitContainers: []corev1.Container{*initConfigContainer},
 					},
-				},
+				})
 			},
 			override: v2alpha1.DatadogAgentGenericContainer{
 				Resources: &corev1.ResourceRequirements{
@@ -687,16 +629,12 @@ func TestContainer(t *testing.T) {
 		{
 			name:          "override initContainer security context",
 			containerName: commonv1.InitConfigContainerName,
-			existingManager: func(podTpl corev1.PodTemplateSpec) *fake.PodTemplateManagers {
-				return fake.NewPodTemplateManagers(t, podTpl)
-			},
-			podTplSpec: podTplSpec{
-				podTplSpec: &corev1.PodTemplateSpec{
+			existingManager: func() *fake.PodTemplateManagers {
+				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
 					Spec: corev1.PodSpec{
-						Containers:     []corev1.Container{*agentContainer},
 						InitContainers: []corev1.Container{*initConfigContainer},
 					},
-				},
+				})
 			},
 			override: v2alpha1.DatadogAgentGenericContainer{
 				SecurityContext: &corev1.SecurityContext{
@@ -721,7 +659,7 @@ func TestContainer(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			manager := test.existingManager(*test.podTplSpec.podTplSpec)
+			manager := test.existingManager()
 			Container(test.containerName, manager, &test.override)
 
 			test.validateManager(t, manager, string(test.containerName))
