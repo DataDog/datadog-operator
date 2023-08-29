@@ -1032,6 +1032,10 @@ func securityAgentEnvVars(compliance, runtime bool, policiesdir bool, extraEnv m
 		if envDuration := createEnvFromExtra(extraEnv, "DD_COMPLIANCE_CONFIG_CHECK_INTERVAL"); envDuration != nil {
 			env = append(env, *envDuration)
 		}
+
+		if envHostBenchmarksEnabled := createEnvFromExtra(extraEnv, "DD_COMPLIANCE_HOST_BENCHMARKS_ENABLED"); envHostBenchmarksEnabled != nil {
+			env = append(env, *envHostBenchmarksEnabled)
+		}
 	}
 
 	env = append(env, []corev1.EnvVar{

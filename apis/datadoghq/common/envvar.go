@@ -36,6 +36,7 @@ const (
 	DDComplianceConfigCheckInterval                   = "DD_COMPLIANCE_CONFIG_CHECK_INTERVAL"
 	DDComplianceConfigDir                             = "DD_COMPLIANCE_CONFIG_DIR"
 	DDComplianceConfigEnabled                         = "DD_COMPLIANCE_CONFIG_ENABLED"
+	DDComplianceHostBenchmarksEnabled                 = "DD_COMPLIANCE_HOST_BENCHMARKS_ENABLED"
 	DDContainerCollectionEnabled                      = "DD_PROCESS_CONFIG_CONTAINER_COLLECTION_ENABLED"
 	DDCriSocketPath                                   = "DD_CRI_SOCKET_PATH"
 	DDddURL                                           = "DD_DD_URL"

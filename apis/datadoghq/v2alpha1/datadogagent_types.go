@@ -227,6 +227,19 @@ type CSPMFeatureConfig struct {
 	// Any benchmarks with the same name as those existing in the agent will take precedence.
 	// +optional
 	CustomBenchmarks *CustomConfig `json:"customBenchmarks,omitempty"`
+
+	// HostBenchmarks contains configuration for host benchmarks.
+	// +optional
+	HostBenchmarks *CSPMHostBenchmarksConfig `json:"hostBenchmarks,omitempty"`
+}
+
+// CSPMHostBenchmarksConfig contains configuration for host benchmarks.
+// +k8s:openapi-gen=true
+type CSPMHostBenchmarksConfig struct {
+	// Enabled enables host benchmarks.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // CWSFeatureConfig contains CWS (Cloud Workload Security) configuration.
