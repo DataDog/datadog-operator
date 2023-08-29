@@ -867,6 +867,11 @@ func defaultEnvVars(extraEnv map[string]string) []corev1.EnvVar {
 			Value: "yes",
 		},
 		{
+			Name:  "DD_ORCHESTRATOR_EXPLORER_ENABLED",
+			Value: "true",
+		},
+
+		{
 			Name: "DD_KUBERNETES_KUBELET_HOST",
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
