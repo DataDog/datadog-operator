@@ -57,7 +57,7 @@ To deploy the Datadog Agent with the Operator in the minimum number of steps, us
 The [configuration][5] page lists all the Datadog Agent and Cluster Agent features and options that can be configured with the `DatadogAgent` resource.
 
 ### Configure integrations
-Visit the [Integrations Autodiscover][9] page for details about how to configure Agent Integrations when using the Datadog Operator.
+Visit the [Integrations Autodiscovery][9] page for details about how to configure Agent Integrations when using the Datadog Operator.
 
 #### Containers registry
 
