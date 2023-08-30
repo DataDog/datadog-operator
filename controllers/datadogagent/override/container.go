@@ -23,29 +23,32 @@ func Container(containerName commonv1.AgentContainerName, manager feature.PodTem
 		return
 	}
 
+	if override.LogLevel != nil && *override.LogLevel != "" {
+		overrideLogLevel(containerName, manager, *override.LogLevel)
+	}
+
+	if override.HealthPort != nil {
+		addHealthPort(containerName, manager, *override.HealthPort)
+	}
+
+	addEnvsToContainer(containerName, manager, override.Env)
+	addVolMountsToContainer(containerName, manager, override.VolumeMounts)
+
+	addEnvsToInitContainer(containerName, manager, override.Env)
+	addVolMountsToInitContainer(containerName, manager, override.VolumeMounts)
+
+	overrideSeccompProfile(containerName, manager, override)
+	overrideAppArmorProfile(containerName, manager, override)
+
 	for i, container := range manager.PodTemplateSpec().Spec.Containers {
 		if container.Name == string(containerName) {
-			if override.LogLevel != nil && *override.LogLevel != "" {
-				overrideLogLevel(containerName, manager, *override.LogLevel)
-			}
-
-			if override.HealthPort != nil {
-				addHealthPort(containerName, manager, *override.HealthPort)
-			}
-
 			overrideContainer(&manager.PodTemplateSpec().Spec.Containers[i], override)
-			addEnvsToContainer(containerName, manager, override.Env)
-			addVolMountsToContainer(containerName, manager, override.VolumeMounts)
-			overrideSeccompProfile(containerName, manager, override)
-			overrideAppArmorProfile(containerName, manager, override)
 		}
 	}
 
 	for i, initContainer := range manager.PodTemplateSpec().Spec.InitContainers {
 		if initContainer.Name == string(containerName) {
 			overrideInitContainer(&manager.PodTemplateSpec().Spec.InitContainers[i], override)
-			addEnvsToInitContainer(containerName, manager, override.Env)
-			addVolMountsToInitContainer(containerName, manager, override.VolumeMounts)
 		}
 	}
 }
@@ -130,21 +133,21 @@ func overrideContainer(container *corev1.Container, override *v2alpha1.DatadogAg
 	}
 }
 
-func overrideInitContainer(container *corev1.Container, override *v2alpha1.DatadogAgentGenericContainer) {
+func overrideInitContainer(initContainer *corev1.Container, override *v2alpha1.DatadogAgentGenericContainer) {
 	if override.Name != nil {
-		container.Name = *override.Name
+		initContainer.Name = *override.Name
 	}
 
 	if override.Resources != nil {
-		container.Resources = *override.Resources
+		initContainer.Resources = *override.Resources
 	}
 
 	if override.Args != nil {
-		container.Args = override.Args
+		initContainer.Args = override.Args
 	}
 
 	if override.SecurityContext != nil {
-		container.SecurityContext = override.SecurityContext
+		initContainer.SecurityContext = override.SecurityContext
 	}
 }
 

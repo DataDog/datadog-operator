@@ -61,9 +61,7 @@ func TestContainer(t *testing.T) {
 						break
 					}
 				}
-				if !foundMatching {
-					t.Errorf("Could not find matching container: %s", containerName)
-				}
+				assert.Truef(t, foundMatching, "Could not find matching container: %s", containerName)
 			},
 		},
 		{

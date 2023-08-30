@@ -28,9 +28,6 @@ func TestPodTemplateSpec(t *testing.T) {
 			Name: "otherPullSecretName",
 		},
 	}
-	agentContainer := &v1.Container{Name: string(commonv1.CoreAgentContainerName)}
-	initContainer := &v1.Container{Name: string(commonv1.InitConfigContainerName)}
-	clusterAgentContainer := &v1.Container{Name: string(commonv1.ClusterAgentContainerName)}
 
 	tests := []struct {
 		name            string
@@ -558,8 +555,13 @@ func TestPodTemplateSpec(t *testing.T) {
 			existingManager: func() *fake.PodTemplateManagers {
 				manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{
 					Spec: v1.PodSpec{
-						Containers:     []v1.Container{*agentContainer, *clusterAgentContainer},
-						InitContainers: []v1.Container{*initContainer},
+						Containers: []v1.Container{
+							{Name: string(commonv1.CoreAgentContainerName)},
+							{Name: string(commonv1.ClusterAgentContainerName)},
+						},
+						InitContainers: []v1.Container{
+							{Name: string(commonv1.InitConfigContainerName)},
+						},
 					},
 				})
 
