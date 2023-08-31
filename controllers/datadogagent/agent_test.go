@@ -2659,7 +2659,7 @@ func Test_ExtraParameters(t *testing.T) {
 		Site:                           site,
 		ComplianceEnabled:              true,
 		ComplianceCheckInterval:        metav1.Duration{Duration: time.Minute},
-		OrchestratorExplorerDisabled:   true,
+		OrchestratorExplorerDisabled:   false,
 	}
 	datadogAgent := test.NewDefaultedDatadogAgent("bar", "foo", options)
 
@@ -3175,7 +3175,7 @@ func Test_newExtendedDaemonSetFromInstance_SystemProbe(t *testing.T) {
 		UseEDS:                       true,
 		ClusterAgentEnabled:          true,
 		SystemProbeEnabled:           true,
-		OrchestratorExplorerDisabled: true,
+		OrchestratorExplorerDisabled: false,
 	})
 
 	systemProbePodSpec := defaultSystemProbePodSpec(dda)
@@ -3230,7 +3230,7 @@ func Test_newExtendedDaemonSetFromInstance_SystemProbe(t *testing.T) {
 		UseEDS:                       true,
 		ClusterAgentEnabled:          true,
 		SystemProbeEnabled:           true,
-		OrchestratorExplorerDisabled: true,
+		OrchestratorExplorerDisabled: false,
 		SystemProbeOOMKillEnabled:    true,
 	})
 
@@ -3239,14 +3239,14 @@ func Test_newExtendedDaemonSetFromInstance_SystemProbe(t *testing.T) {
 		ClusterAgentEnabled:              true,
 		SystemProbeEnabled:               true,
 		SystemProbeTCPQueueLengthEnabled: true,
-		OrchestratorExplorerDisabled:     true,
+		OrchestratorExplorerDisabled:     false,
 	})
 
 	ddaSeccomp := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
 		UseEDS:                        true,
 		ClusterAgentEnabled:           true,
 		SystemProbeEnabled:            true,
-		OrchestratorExplorerDisabled:  true,
+		OrchestratorExplorerDisabled:  false,
 		SystemProbeSeccompProfileName: "host-profile",
 	})
 
@@ -3257,7 +3257,7 @@ func Test_newExtendedDaemonSetFromInstance_SystemProbe(t *testing.T) {
 		UseEDS:                         true,
 		ClusterAgentEnabled:            true,
 		SystemProbeEnabled:             true,
-		OrchestratorExplorerDisabled:   true,
+		OrchestratorExplorerDisabled:   false,
 		SystemProbeCustomConfigMapName: "custom-cm",
 	})
 	customConfigMapSpec := systemProbePodSpec.DeepCopy()
@@ -3404,7 +3404,7 @@ func Test_newExtendedDaemonSetFromInstance_SecurityAgent_Compliance(t *testing.T
 		ClusterAgentEnabled:          true,
 		ComplianceEnabled:            true,
 		RuntimeSyscallMonitorEnabled: true,
-		OrchestratorExplorerDisabled: true,
+		OrchestratorExplorerDisabled: false,
 	})
 
 	test := extendedDaemonSetFromInstanceTest{
@@ -3503,7 +3503,7 @@ func Test_newExtendedDaemonSetFromInstance_SecurityAgent_Runtime(t *testing.T) {
 			ConfigMapName: "test-runtime-policies",
 		},
 		SystemProbeEnabled:           true,
-		OrchestratorExplorerDisabled: true,
+		OrchestratorExplorerDisabled: false,
 	})
 
 	test := extendedDaemonSetFromInstanceTest{
@@ -3558,7 +3558,7 @@ func Test_newExtendedDaemonSetFromInstance_KubeletConfiguration(t *testing.T) {
 	dda := test.NewDefaultedDatadogAgent("bar", "foo", &test.NewDatadogAgentOptions{
 		UseEDS:                       true,
 		ClusterAgentEnabled:          true,
-		OrchestratorExplorerDisabled: true,
+		OrchestratorExplorerDisabled: false,
 	})
 
 	dda.Spec.Agent.Config.Kubelet = &commonv1.KubeletConfig{
