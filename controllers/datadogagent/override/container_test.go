@@ -53,15 +53,14 @@ func TestContainer(t *testing.T) {
 				Name: apiutils.NewStringPointer("my-container-name"),
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
-				foundMatching := false
+				assertCtrFound(t, manager.PodTemplateSpec().Spec.Containers, "my-container-name")
+
 				for _, container := range manager.PodTemplateSpec().Spec.Containers {
 					if container.Name == "my-container-name" {
-						foundMatching = true
 						assert.Equal(t, "my-container-name", container.Name)
 						break
 					}
 				}
-				assert.Truef(t, foundMatching, "Could not find matching container: %s", containerName)
 			},
 		},
 		{
@@ -201,6 +200,8 @@ func TestContainer(t *testing.T) {
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
+				assertCtrFound(t, manager.PodTemplateSpec().Spec.Containers, containerName)
+
 				for _, container := range manager.PodTemplateSpec().Spec.Containers {
 					if container.Name == string(commonv1.CoreAgentContainerName) {
 						assert.Equal(
@@ -232,6 +233,8 @@ func TestContainer(t *testing.T) {
 				Command: []string{"test-agent", "start"},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
+				assertCtrFound(t, manager.PodTemplateSpec().Spec.Containers, containerName)
+
 				for _, container := range manager.PodTemplateSpec().Spec.Containers {
 					if container.Name == string(commonv1.CoreAgentContainerName) {
 						assert.Equal(t, []string{"test-agent", "start"}, container.Command)
@@ -253,6 +256,8 @@ func TestContainer(t *testing.T) {
 				Args: []string{"arg1", "val1"},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
+				assertCtrFound(t, manager.PodTemplateSpec().Spec.Containers, containerName)
+
 				for _, container := range manager.PodTemplateSpec().Spec.Containers {
 					if container.Name == string(commonv1.CoreAgentContainerName) {
 						assert.Equal(t, []string{"arg1", "val1"}, container.Args)
@@ -304,6 +309,8 @@ func TestContainer(t *testing.T) {
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
+				assertCtrFound(t, manager.PodTemplateSpec().Spec.Containers, containerName)
+
 				for _, container := range manager.PodTemplateSpec().Spec.Containers {
 					if container.Name == string(commonv1.CoreAgentContainerName) {
 						assert.Equal(
@@ -341,6 +348,8 @@ func TestContainer(t *testing.T) {
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
+				assertCtrFound(t, manager.PodTemplateSpec().Spec.Containers, containerName)
+
 				for _, container := range manager.PodTemplateSpec().Spec.Containers {
 					if container.Name == string(commonv1.CoreAgentContainerName) {
 						assert.Equal(
@@ -374,6 +383,8 @@ func TestContainer(t *testing.T) {
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
+				assertCtrFound(t, manager.PodTemplateSpec().Spec.Containers, containerName)
+
 				for _, container := range manager.PodTemplateSpec().Spec.Containers {
 					if container.Name == string(commonv1.CoreAgentContainerName) {
 						assert.Equal(
@@ -475,7 +486,7 @@ func TestContainer(t *testing.T) {
 			existingManager: func() *fake.PodTemplateManagers {
 				return fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{
 					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{*initVolContainer},
+						InitContainers: []corev1.Container{*initVolContainer},
 					},
 				})
 			},
@@ -483,9 +494,11 @@ func TestContainer(t *testing.T) {
 				Name: apiutils.NewStringPointer("my-initContainer-name"),
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
+				assertCtrFound(t, manager.PodTemplateSpec().Spec.InitContainers, "my-initContainer-name")
+
 				for _, initContainer := range manager.PodTemplateSpec().Spec.InitContainers {
 					if initContainer.Name == string(commonv1.InitVolumeContainerName) {
-						assert.Equal(t, "my-initcontainer-name", initContainer)
+						assert.Equal(t, "my-initContainer-name", initContainer)
 					}
 				}
 			},
@@ -605,6 +618,8 @@ func TestContainer(t *testing.T) {
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
+				assertCtrFound(t, manager.PodTemplateSpec().Spec.InitContainers, containerName)
+
 				for _, container := range manager.PodTemplateSpec().Spec.InitContainers {
 					if container.Name == string(commonv1.InitConfigContainerName) {
 						assert.Equal(
@@ -640,6 +655,8 @@ func TestContainer(t *testing.T) {
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
+				assertCtrFound(t, manager.PodTemplateSpec().Spec.InitContainers, containerName)
+
 				for _, container := range manager.PodTemplateSpec().Spec.InitContainers {
 					if container.Name == string(commonv1.InitConfigContainerName) {
 						assert.Equal(
@@ -663,4 +680,15 @@ func TestContainer(t *testing.T) {
 			test.validateManager(t, manager, string(test.containerName))
 		})
 	}
+}
+
+func assertCtrFound(t *testing.T, containerList []corev1.Container, matchName string) {
+	found := false
+	for _, container := range containerList {
+		if container.Name == matchName {
+			found = true
+			break
+		}
+	}
+	assert.Truef(t, found, "Could not find matching container: %s", matchName)
 }
