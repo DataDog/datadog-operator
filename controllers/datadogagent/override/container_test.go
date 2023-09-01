@@ -640,5 +640,5 @@ func assertContainerMatch(t *testing.T, containerList []corev1.Container, matchN
 			break
 		}
 	}
-	assert.Truef(t, found, "Could not find matching container: %s", matchName)
+	assert.Truef(t, found, "Expected value for container `%s` was not found.", matchName)
 }
