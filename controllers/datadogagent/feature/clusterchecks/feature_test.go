@@ -112,7 +112,7 @@ func TestClusterAgentChecksumsDifferentForDiffferentConfig(t *testing.T) {
 		Logger: logger,
 	})
 
-	podTemplateManager := fake.NewPodTemplateManagers(t)
+	podTemplateManager := fake.NewPodTemplateManagers(t, corev1.PodTemplateSpec{})
 	md5Values := map[string]string{}
 
 	datadogAgents := []*v2alpha1.DatadogAgent{

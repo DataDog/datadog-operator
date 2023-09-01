@@ -24,14 +24,27 @@ func (_m *EnvVarManager) AddEnvVar(newEnvVar *v1.EnvVar) {
 
 // AddEnvVarToContainer provides a mock function with given fields: containerName, newEnvVar
 func (_m *EnvVarManager) AddEnvVarToContainer(containerName commonv1.AgentContainerName, newEnvVar *v1.EnvVar) {
-	_m.t.Logf("AddEnvVar %s: %#v", newEnvVar.Name, newEnvVar.Value)
-	_m.EnvVarsByC[containerName] = append(_m.EnvVarsByC[containerName], newEnvVar)
+	isInitContainer := false
+	for _, initContainerName := range initContainerNames {
+		if containerName == initContainerName {
+			isInitContainer = true
+			break
+		}
+	}
+	if !isInitContainer {
+		_m.t.Logf("AddEnvVar %s: %#v", newEnvVar.Name, newEnvVar.Value)
+		_m.EnvVarsByC[containerName] = append(_m.EnvVarsByC[containerName], newEnvVar)
+	}
 }
 
 // AddEnvVarToInitContainer provides a mock function with given fields: containerName, newEnvVar
-func (_m *EnvVarManager) AddEnvVarToInitContainer(initContainerName commonv1.AgentContainerName, newEnvVar *v1.EnvVar) {
-	_m.t.Logf("AddEnvVar %s: %#v", newEnvVar.Name, newEnvVar.Value)
-	_m.EnvVarsByC[initContainerName] = append(_m.EnvVarsByC[initContainerName], newEnvVar)
+func (_m *EnvVarManager) AddEnvVarToInitContainer(containerName commonv1.AgentContainerName, newEnvVar *v1.EnvVar) {
+	for _, initContainerName := range initContainerNames {
+		if containerName == initContainerName {
+			_m.t.Logf("AddEnvVar to container %s key:%s value:%#v", containerName, newEnvVar.Name, newEnvVar.Value)
+			_m.EnvVarsByC[containerName] = append(_m.EnvVarsByC[containerName], newEnvVar)
+		}
+	}
 }
 
 // AddEnvVarToContainerWithMergeFunc provides a mock function with given fields: containerName, newEnvVar, mergeFunc

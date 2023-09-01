@@ -12,6 +12,7 @@ import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -58,7 +59,7 @@ type ComponentTest struct {
 func NewDefaultComponentTest() *ComponentTest {
 	return &ComponentTest{
 		CreateFunc: func(t testing.TB) feature.PodTemplateManagers {
-			return fake.NewPodTemplateManagers(t)
+			return fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
 		},
 	}
 }

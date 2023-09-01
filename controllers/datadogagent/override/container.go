@@ -11,10 +11,10 @@ import (
 
 	"github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	corev1 "k8s.io/api/core/v1"
-
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
+
+	corev1 "k8s.io/api/core/v1"
 )
 
 // Container use to override a corev1.Container with a 2alpha1.DatadogAgentGenericContainer.
@@ -27,13 +27,18 @@ func Container(containerName commonv1.AgentContainerName, manager feature.PodTem
 		overrideLogLevel(containerName, manager, *override.LogLevel)
 	}
 
-	addEnvs(containerName, manager, override.Env)
-
-	addVolMounts(containerName, manager, override.VolumeMounts)
-
 	if override.HealthPort != nil {
 		addHealthPort(containerName, manager, *override.HealthPort)
 	}
+
+	addEnvsToContainer(containerName, manager, override.Env)
+	addVolMountsToContainer(containerName, manager, override.VolumeMounts)
+
+	addEnvsToInitContainer(containerName, manager, override.Env)
+	addVolMountsToInitContainer(containerName, manager, override.VolumeMounts)
+
+	overrideSeccompProfile(containerName, manager, override)
+	overrideAppArmorProfile(containerName, manager, override)
 
 	for i, container := range manager.PodTemplateSpec().Spec.Containers {
 		if container.Name == string(containerName) {
@@ -41,9 +46,11 @@ func Container(containerName commonv1.AgentContainerName, manager feature.PodTem
 		}
 	}
 
-	overrideSeccompProfile(containerName, manager, override)
-
-	overrideAppArmorProfile(containerName, manager, override)
+	for i, initContainer := range manager.PodTemplateSpec().Spec.InitContainers {
+		if initContainer.Name == string(containerName) {
+			overrideInitContainer(&manager.PodTemplateSpec().Spec.InitContainers[i], override)
+		}
+	}
 }
 
 func overrideLogLevel(containerName commonv1.AgentContainerName, manager feature.PodTemplateManagers, logLevel string) {
@@ -56,17 +63,33 @@ func overrideLogLevel(containerName commonv1.AgentContainerName, manager feature
 	)
 }
 
-func addEnvs(containerName commonv1.AgentContainerName, manager feature.PodTemplateManagers, envs []corev1.EnvVar) {
+func addEnvsToContainer(containerName commonv1.AgentContainerName, manager feature.PodTemplateManagers, envs []corev1.EnvVar) {
 	for _, env := range envs {
 		e := env
 		manager.EnvVar().AddEnvVarToContainer(containerName, &e)
 	}
+
 }
 
-func addVolMounts(containerName commonv1.AgentContainerName, manager feature.PodTemplateManagers, mounts []corev1.VolumeMount) {
+func addEnvsToInitContainer(containerName commonv1.AgentContainerName, manager feature.PodTemplateManagers, envs []corev1.EnvVar) {
+	for _, env := range envs {
+		e := env
+		manager.EnvVar().AddEnvVarToInitContainer(containerName, &e)
+	}
+}
+
+func addVolMountsToContainer(containerName commonv1.AgentContainerName, manager feature.PodTemplateManagers, mounts []corev1.VolumeMount) {
 	for _, mount := range mounts {
 		m := mount
 		manager.VolumeMount().AddVolumeMountToContainer(&m, containerName)
+	}
+}
+
+func addVolMountsToInitContainer(containerName commonv1.AgentContainerName, manager feature.PodTemplateManagers, mounts []corev1.VolumeMount) {
+	for _, mount := range mounts {
+		m := mount
+		manager.VolumeMount().AddVolumeMountToInitContainer(&m, containerName)
+
 	}
 }
 
@@ -107,6 +130,24 @@ func overrideContainer(container *corev1.Container, override *v2alpha1.DatadogAg
 
 	if override.SecurityContext != nil {
 		container.SecurityContext = override.SecurityContext
+	}
+}
+
+func overrideInitContainer(initContainer *corev1.Container, override *v2alpha1.DatadogAgentGenericContainer) {
+	if override.Name != nil {
+		initContainer.Name = *override.Name
+	}
+
+	if override.Resources != nil {
+		initContainer.Resources = *override.Resources
+	}
+
+	if override.Args != nil {
+		initContainer.Args = override.Args
+	}
+
+	if override.SecurityContext != nil {
+		initContainer.SecurityContext = override.SecurityContext
 	}
 }
 
