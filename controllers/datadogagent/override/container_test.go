@@ -10,6 +10,7 @@ import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"reflect"
 	"testing"
 
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
@@ -53,14 +54,9 @@ func TestContainer(t *testing.T) {
 				Name: apiutils.NewStringPointer("my-container-name"),
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
-				assertCtrFound(t, manager.PodTemplateSpec().Spec.Containers, "my-container-name")
-
-				for _, container := range manager.PodTemplateSpec().Spec.Containers {
-					if container.Name == "my-container-name" {
-						assert.Equal(t, "my-container-name", container.Name)
-						break
-					}
-				}
+				assertContainerMatch(t, manager.PodTemplateSpec().Spec.Containers, "my-container-name", func(container corev1.Container) bool {
+					return true
+				})
 			},
 		},
 		{
@@ -200,23 +196,18 @@ func TestContainer(t *testing.T) {
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
-				assertCtrFound(t, manager.PodTemplateSpec().Spec.Containers, containerName)
-
-				for _, container := range manager.PodTemplateSpec().Spec.Containers {
-					if container.Name == string(commonv1.CoreAgentContainerName) {
-						assert.Equal(
-							t,
-							corev1.ResourceRequirements{
-								Limits: map[corev1.ResourceName]resource.Quantity{
-									corev1.ResourceCPU: *resource.NewQuantity(2, resource.DecimalSI),
-								},
-								Requests: map[corev1.ResourceName]resource.Quantity{
-									corev1.ResourceCPU: *resource.NewQuantity(1, resource.DecimalSI),
-								},
+				assertContainerMatch(t, manager.PodTemplateSpec().Spec.Containers, containerName, func(container corev1.Container) bool {
+					return reflect.DeepEqual(
+						corev1.ResourceRequirements{
+							Limits: map[corev1.ResourceName]resource.Quantity{
+								corev1.ResourceCPU: *resource.NewQuantity(2, resource.DecimalSI),
 							},
-							container.Resources)
-					}
-				}
+							Requests: map[corev1.ResourceName]resource.Quantity{
+								corev1.ResourceCPU: *resource.NewQuantity(1, resource.DecimalSI),
+							},
+						},
+						container.Resources)
+				})
 			},
 		},
 		{
@@ -233,13 +224,9 @@ func TestContainer(t *testing.T) {
 				Command: []string{"test-agent", "start"},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
-				assertCtrFound(t, manager.PodTemplateSpec().Spec.Containers, containerName)
-
-				for _, container := range manager.PodTemplateSpec().Spec.Containers {
-					if container.Name == string(commonv1.CoreAgentContainerName) {
-						assert.Equal(t, []string{"test-agent", "start"}, container.Command)
-					}
-				}
+				assertContainerMatch(t, manager.PodTemplateSpec().Spec.Containers, containerName, func(container corev1.Container) bool {
+					return reflect.DeepEqual([]string{"test-agent", "start"}, container.Command)
+				})
 			},
 		},
 		{
@@ -256,13 +243,9 @@ func TestContainer(t *testing.T) {
 				Args: []string{"arg1", "val1"},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
-				assertCtrFound(t, manager.PodTemplateSpec().Spec.Containers, containerName)
-
-				for _, container := range manager.PodTemplateSpec().Spec.Containers {
-					if container.Name == string(commonv1.CoreAgentContainerName) {
-						assert.Equal(t, []string{"arg1", "val1"}, container.Args)
-					}
-				}
+				assertContainerMatch(t, manager.PodTemplateSpec().Spec.Containers, containerName, func(container corev1.Container) bool {
+					return reflect.DeepEqual([]string{"arg1", "val1"}, container.Args)
+				})
 			},
 		},
 		{
@@ -309,23 +292,17 @@ func TestContainer(t *testing.T) {
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
-				assertCtrFound(t, manager.PodTemplateSpec().Spec.Containers, containerName)
-
-				for _, container := range manager.PodTemplateSpec().Spec.Containers {
-					if container.Name == string(commonv1.CoreAgentContainerName) {
-						assert.Equal(
-							t,
-							&corev1.Probe{
-								InitialDelaySeconds: 10,
-								TimeoutSeconds:      5,
-								PeriodSeconds:       30,
-								SuccessThreshold:    1,
-								FailureThreshold:    5,
-							},
-							container.ReadinessProbe,
-						)
-					}
-				}
+				assertContainerMatch(t, manager.PodTemplateSpec().Spec.Containers, containerName, func(container corev1.Container) bool {
+					return reflect.DeepEqual(
+						&corev1.Probe{
+							InitialDelaySeconds: 10,
+							TimeoutSeconds:      5,
+							PeriodSeconds:       30,
+							SuccessThreshold:    1,
+							FailureThreshold:    5,
+						},
+						container.ReadinessProbe)
+				})
 			},
 		},
 		{
@@ -348,23 +325,17 @@ func TestContainer(t *testing.T) {
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
-				assertCtrFound(t, manager.PodTemplateSpec().Spec.Containers, containerName)
-
-				for _, container := range manager.PodTemplateSpec().Spec.Containers {
-					if container.Name == string(commonv1.CoreAgentContainerName) {
-						assert.Equal(
-							t,
-							&corev1.Probe{
-								InitialDelaySeconds: 10,
-								TimeoutSeconds:      5,
-								PeriodSeconds:       30,
-								SuccessThreshold:    1,
-								FailureThreshold:    5,
-							},
-							container.LivenessProbe,
-						)
-					}
-				}
+				assertContainerMatch(t, manager.PodTemplateSpec().Spec.Containers, containerName, func(container corev1.Container) bool {
+					return reflect.DeepEqual(
+						&corev1.Probe{
+							InitialDelaySeconds: 10,
+							TimeoutSeconds:      5,
+							PeriodSeconds:       30,
+							SuccessThreshold:    1,
+							FailureThreshold:    5,
+						},
+						container.LivenessProbe)
+				})
 			},
 		},
 		{
@@ -383,19 +354,13 @@ func TestContainer(t *testing.T) {
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
-				assertCtrFound(t, manager.PodTemplateSpec().Spec.Containers, containerName)
-
-				for _, container := range manager.PodTemplateSpec().Spec.Containers {
-					if container.Name == string(commonv1.CoreAgentContainerName) {
-						assert.Equal(
-							t,
-							&corev1.SecurityContext{
-								RunAsUser: apiutils.NewInt64Pointer(12345),
-							},
-							container.SecurityContext,
-						)
-					}
-				}
+				assertContainerMatch(t, manager.PodTemplateSpec().Spec.Containers, containerName, func(container corev1.Container) bool {
+					return reflect.DeepEqual(
+						&corev1.SecurityContext{
+							RunAsUser: apiutils.NewInt64Pointer(12345),
+						},
+						container.SecurityContext)
+				})
 			},
 		},
 		{
@@ -494,13 +459,9 @@ func TestContainer(t *testing.T) {
 				Name: apiutils.NewStringPointer("my-initContainer-name"),
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
-				assertCtrFound(t, manager.PodTemplateSpec().Spec.InitContainers, "my-initContainer-name")
-
-				for _, initContainer := range manager.PodTemplateSpec().Spec.InitContainers {
-					if initContainer.Name == string(commonv1.InitVolumeContainerName) {
-						assert.Equal(t, "my-initContainer-name", initContainer)
-					}
-				}
+				assertContainerMatch(t, manager.PodTemplateSpec().Spec.InitContainers, "my-initContainer-name", func(container corev1.Container) bool {
+					return true
+				})
 			},
 		},
 		{
@@ -618,25 +579,20 @@ func TestContainer(t *testing.T) {
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
-				assertCtrFound(t, manager.PodTemplateSpec().Spec.InitContainers, containerName)
-
-				for _, container := range manager.PodTemplateSpec().Spec.InitContainers {
-					if container.Name == string(commonv1.InitConfigContainerName) {
-						assert.Equal(
-							t,
-							corev1.ResourceRequirements{
-								Limits: map[corev1.ResourceName]resource.Quantity{
-									corev1.ResourceCPU:    *resource.NewQuantity(2, resource.DecimalSI),
-									corev1.ResourceMemory: resource.MustParse("2Gi"),
-								},
-								Requests: map[corev1.ResourceName]resource.Quantity{
-									corev1.ResourceCPU:    *resource.NewQuantity(1, resource.DecimalSI),
-									corev1.ResourceMemory: resource.MustParse("1Gi"),
-								},
+				assertContainerMatch(t, manager.PodTemplateSpec().Spec.InitContainers, containerName, func(container corev1.Container) bool {
+					return reflect.DeepEqual(
+						corev1.ResourceRequirements{
+							Limits: map[corev1.ResourceName]resource.Quantity{
+								corev1.ResourceCPU:    *resource.NewQuantity(2, resource.DecimalSI),
+								corev1.ResourceMemory: resource.MustParse("2Gi"),
 							},
-							container.Resources)
-					}
-				}
+							Requests: map[corev1.ResourceName]resource.Quantity{
+								corev1.ResourceCPU:    *resource.NewQuantity(1, resource.DecimalSI),
+								corev1.ResourceMemory: resource.MustParse("1Gi"),
+							},
+						},
+						container.Resources)
+				})
 			},
 		},
 		{
@@ -655,19 +611,13 @@ func TestContainer(t *testing.T) {
 				},
 			},
 			validateManager: func(t *testing.T, manager *fake.PodTemplateManagers, containerName string) {
-				assertCtrFound(t, manager.PodTemplateSpec().Spec.InitContainers, containerName)
-
-				for _, container := range manager.PodTemplateSpec().Spec.InitContainers {
-					if container.Name == string(commonv1.InitConfigContainerName) {
-						assert.Equal(
-							t,
-							&corev1.SecurityContext{
-								RunAsUser: apiutils.NewInt64Pointer(12345),
-							},
-							container.SecurityContext,
-						)
-					}
-				}
+				assertContainerMatch(t, manager.PodTemplateSpec().Spec.InitContainers, containerName, func(container corev1.Container) bool {
+					return reflect.DeepEqual(
+						&corev1.SecurityContext{
+							RunAsUser: apiutils.NewInt64Pointer(12345),
+						},
+						container.SecurityContext)
+				})
 			},
 		},
 	}
@@ -682,10 +632,10 @@ func TestContainer(t *testing.T) {
 	}
 }
 
-func assertCtrFound(t *testing.T, containerList []corev1.Container, matchName string) {
+func assertContainerMatch(t *testing.T, containerList []corev1.Container, matchName string, matcher func(container corev1.Container) bool) {
 	found := false
 	for _, container := range containerList {
-		if container.Name == matchName {
+		if container.Name == matchName && matcher(container) {
 			found = true
 			break
 		}
