@@ -80,6 +80,10 @@ The following is the simplest recommended configuration for the `DatadogAgent` i
       clusterAgent:
         serviceAccountName: datadog-agent-scc
         replicas: 2
+        containers:
+          cluster-agent:
+            securityContext:
+              readOnlyRootFilesystem: false
   ```
 
 Setting the `serviceAccountName` in the `nodeAgent` and `clusterAgent` `override` section ensures that these pods are associated with the necessary `SecurityContextConstraints` and RBACs.
