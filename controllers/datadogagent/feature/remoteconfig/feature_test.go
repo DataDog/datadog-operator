@@ -64,7 +64,7 @@ func Test_rcFeature_Configure(t *testing.T) {
 			Name:          "v2alpha1 RC default",
 			DDAv2:         ddav2RCDefault.DeepCopy(),
 			WantConfigure: true,
-			Agent:         rcAgentNodeWantFunc("false"),
+			Agent:         rcAgentNodeWantFunc("true"),
 		},
 	}
 
