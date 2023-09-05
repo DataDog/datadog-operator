@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	rcDBVolumeName = "remote-config"
+	rcDBVolumeName = "datadogrun"
 	rcDBVolumePath = "/opt/datadog-agent/run/"
 )
 
@@ -119,7 +119,7 @@ func (f *rcFeature) ManageClusterAgent(managers feature.PodTemplateManagers) err
 
 	if f.enabled {
 		// Volume to create the Remote Config Database
-		// Mandatory as the cluster agent root FS is read only by default 
+		// Mandatory as the cluster agent root FS is read only by default
 		managers.Volume().AddVolume(rcVolume)
 		managers.VolumeMount().AddVolumeMount(rcVolumeMount)
 	}
