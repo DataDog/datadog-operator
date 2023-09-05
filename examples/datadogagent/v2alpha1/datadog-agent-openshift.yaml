@@ -36,3 +36,7 @@ spec:
     clusterAgent:
       serviceAccountName: datadog-agent-scc
       replicas: 2
+      containers:
+        cluster-agent:
+          securityContext:
+            readOnlyRootFilesystem: false
