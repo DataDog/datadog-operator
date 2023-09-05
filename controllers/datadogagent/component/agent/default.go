@@ -278,10 +278,6 @@ func envVarsForCoreAgent(dda metav1.Object) []corev1.EnvVar {
 			Name:  apicommon.DDLeaderElection,
 			Value: "true",
 		},
-		{
-			Name:  "DD_ORCHESTRATOR_EXPLORER_ENABLED",
-			Value: "true",
-		},
 	}
 
 	return append(envs, commonEnvVars(dda)...)
