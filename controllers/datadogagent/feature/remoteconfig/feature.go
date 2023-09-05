@@ -20,6 +20,24 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 )
 
+const (
+	rcDBVolumeName = "datadogrun"
+	rcDBVolumePath = "/opt/datadog-agent/run/"
+)
+
+var (
+	rcVolume = &corev1.Volume{
+		Name: rcDBVolumeName,
+		VolumeSource: corev1.VolumeSource{
+			EmptyDir: &corev1.EmptyDirVolumeSource{},
+		},
+	}
+	rcVolumeMount = &corev1.VolumeMount{
+		Name:      rcDBVolumeName,
+		MountPath: rcDBVolumePath,
+	}
+)
+
 func init() {
 	err := feature.Register(feature.RemoteConfigurationIDType, buildRCFeature)
 	if err != nil {
@@ -68,6 +86,12 @@ func (f *rcFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requi
 				apicommonv1.CoreAgentContainerName,
 			},
 		},
+		ClusterAgent: feature.RequiredComponent{
+			IsRequired: apiutils.NewBoolPointer(f.enabled),
+			Containers: []apicommonv1.AgentContainerName{
+				apicommonv1.ClusterAgentContainerName,
+			},
+		},
 	}
 
 	return reqComp
@@ -92,6 +116,13 @@ func (f *rcFeature) ManageClusterAgent(managers feature.PodTemplateManagers) err
 		Value: apiutils.BoolToString(&f.enabled),
 	}
 	managers.EnvVar().AddEnvVar(enabledEnvVar)
+
+	if f.enabled {
+		// Volume to create the Remote Config Database
+		// Mandatory as the cluster agent root FS is read only by default
+		managers.Volume().AddVolume(rcVolume)
+		managers.VolumeMount().AddVolumeMount(rcVolumeMount)
+	}
 
 	return nil
 }
