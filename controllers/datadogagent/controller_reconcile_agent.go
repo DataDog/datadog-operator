@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"time"
 
+	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
@@ -22,18 +23,20 @@ import (
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents feature.RequiredComponents, features []feature.Feature, dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, newStatus *datadoghqv2alpha1.DatadogAgentStatus, requiredContainers []common.AgentContainerName) (reconcile.Result, error) {
+func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents feature.RequiredComponents, features []feature.Feature,
+	dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, newStatus *datadoghqv2alpha1.DatadogAgentStatus,
+	requiredContainers []common.AgentContainerName, provider kubernetes.Provider) (reconcile.Result, error) {
 	var result reconcile.Result
 	var eds *edsv1alpha1.ExtendedDaemonSet
 	var daemonset *appsv1.DaemonSet
 	var podManagers feature.PodTemplateManagers
-	var err error
 
 	daemonsetLogger := logger.WithValues("component", datadoghqv2alpha1.NodeAgentComponentName)
 
@@ -53,7 +56,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 
 		// Apply features changes on the Deployment.Spec.Template
 		for _, feat := range features {
-			if errFeat := feat.ManageNodeAgent(podManagers); errFeat != nil {
+			if errFeat := feat.ManageNodeAgent(podManagers, provider); errFeat != nil {
 				return result, errFeat
 			}
 		}
@@ -82,37 +85,23 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 			return r.cleanupV2ExtendedDaemonSet(daemonsetLogger, dda, eds, newStatus)
 		}
 
-		providersList := r.profiles.GetProviders()
-		switch {
-		case len(*providersList) == 1:
-			for provider := range *providersList {
-				eds.Spec.Template = *override.Provider(&eds.Spec.Template, provider, features)
-				return r.createOrUpdateExtendedDaemonset(daemonsetLogger, dda, eds, newStatus, updateEDSStatusV2WithAgent)
-			}
-		case len(*providersList) > 1:
-			var e error
-			for p := range *providersList {
-				edsCopy := eds.DeepCopy()
-				podTemplate := edsCopy.Spec.Template
-				edsCopy.Spec.Template = *override.Provider(&podTemplate, p, features)
-
-				// use provider-specific name
-				edsCopy.Name = fmt.Sprintf("%s-%s", edsCopy.Name, p.ComponentName)
-				// add provider-specific node selector
-				nodeSelector := kubernetes.GenerateNodeSelector(p)
-				edsCopy.Spec.Template.Spec.NodeSelector = nodeSelector
-
-				result, e = r.createOrUpdateExtendedDaemonset(daemonsetLogger, dda, edsCopy, newStatus, updateEDSStatusV2WithAgent)
-				if e != nil {
-					return result, e
-				}
-			}
-			return result, e
-		default:
-			return r.createOrUpdateExtendedDaemonset(daemonsetLogger, dda, eds, newStatus, updateEDSStatusV2WithAgent)
+		// Use provider-specific name
+		eds.Name = fmt.Sprintf("%s-%s", eds.Name, provider.ComponentName)
+		eds.Labels[apicommon.AgentDeploymentNameLabelKey] = eds.Name
+		eds.Spec.Selector.MatchLabels[apicommon.AgentDeploymentNameLabelKey] = eds.Name
+		// Add profile hash label
+		providerHash, err := kubernetes.GenerateProviderHash(provider)
+		if err != nil {
+			r.log.Error(err, "Error generating hash for provider", "provider", provider.ComponentName)
 		}
+		eds.Labels[apicommon.MD5AgentDeploymentProfileHashLabelKey] = providerHash
 
-		return reconcile.Result{}, err
+		// Add provider node affinity
+		affinity := eds.Spec.Template.Spec.Affinity.DeepCopy()
+		combinedAffinity := r.generateNodeAffinity(provider, affinity)
+		eds.Spec.Template.Spec.Affinity = combinedAffinity
+
+		return r.createOrUpdateExtendedDaemonset(daemonsetLogger, dda, eds, newStatus, updateEDSStatusV2WithAgent)
 	}
 
 	// Start by creating the Default Agent daemonset
@@ -124,7 +113,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 
 	// Apply features changes on the Deployment.Spec.Template
 	for _, feat := range features {
-		if errFeat := feat.ManageNodeAgent(podManagers); errFeat != nil {
+		if errFeat := feat.ManageNodeAgent(podManagers, provider); errFeat != nil {
 			return result, errFeat
 		}
 	}
@@ -153,42 +142,29 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 		return r.cleanupV2DaemonSet(daemonsetLogger, dda, daemonset, newStatus)
 	}
 
-	providersList := r.profiles.GetProviders()
-	switch {
-	case len(*providersList) == 1:
-		for provider := range *providersList {
-			daemonset.Spec.Template = *override.Provider(&daemonset.Spec.Template, provider, features)
-			return r.createOrUpdateDaemonset(daemonsetLogger, dda, daemonset, newStatus, updateDSStatusV2WithAgent)
-		}
-	case len(*providersList) > 1:
-		var e error
-		for p := range *providersList {
-			dsCopy := daemonset.DeepCopy()
-			podTemplate := dsCopy.Spec.Template
-			dsCopy.Spec.Template = *override.Provider(&podTemplate, p, features)
-
-			// use provider-specific name
-			dsCopy.Name = fmt.Sprintf("%s-%s", dsCopy.Name, p.ComponentName)
-			// add provider-specific node selector
-			nodeSelector := kubernetes.GenerateNodeSelector(p)
-			dsCopy.Spec.Template.Spec.NodeSelector = nodeSelector
-
-			result, e = r.createOrUpdateDaemonset(daemonsetLogger, dda, dsCopy, newStatus, updateDSStatusV2WithAgent)
-			if e != nil {
-				return result, e
-			}
-		}
-		return result, e
-	default:
-		return r.createOrUpdateDaemonset(daemonsetLogger, dda, daemonset, newStatus, updateDSStatusV2WithAgent)
+	// Use provider-specific name
+	daemonset.Name = fmt.Sprintf("%s-%s", daemonset.Name, provider.ComponentName)
+	daemonset.Labels[apicommon.AgentDeploymentNameLabelKey] = daemonset.Name
+	daemonset.Spec.Selector.MatchLabels[apicommon.AgentDeploymentNameLabelKey] = daemonset.Name
+	// Add profile hash label
+	providerHash, err := kubernetes.GenerateProviderHash(provider)
+	if err != nil {
+		r.log.Error(err, "Error generating hash for provider", "provider", provider.ComponentName)
 	}
+	daemonset.Labels[apicommon.MD5AgentDeploymentProfileHashLabelKey] = providerHash
 
-	return reconcile.Result{}, err
+	// Add provider node affinity
+	affinity := daemonset.Spec.Template.Spec.Affinity.DeepCopy()
+	combinedAffinity := r.generateNodeAffinity(provider, affinity)
+	daemonset.Spec.Template.Spec.Affinity = combinedAffinity
+
+	return r.createOrUpdateDaemonset(daemonsetLogger, dda, daemonset, newStatus, updateDSStatusV2WithAgent)
 }
 
-func updateDSStatusV2WithAgent(dda *appsv1.DaemonSet, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
-	newStatus.Agent = datadoghqv2alpha1.UpdateDaemonSetStatus(dda, newStatus.Agent, &updateTime)
+func updateDSStatusV2WithAgent(ds *appsv1.DaemonSet, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
+	newStatus.Agent = datadoghqv2alpha1.UpdateDaemonSetStatus(ds, newStatus.Agent, &updateTime)
 	datadoghqv2alpha1.UpdateDatadogAgentStatusConditions(newStatus, updateTime, datadoghqv2alpha1.AgentReconcileConditionType, status, reason, message, true)
+	newStatus.CombinedAgent = datadoghqv2alpha1.UpdateCombinedDaemonSetStatus(newStatus.Agent)
 }
 
 func updateEDSStatusV2WithAgent(eds *edsv1alpha1.ExtendedDaemonSet, newStatus *datadoghqv2alpha1.DatadogAgentStatus, updateTime metav1.Time, status metav1.ConditionStatus, reason, message string) {
@@ -246,4 +222,37 @@ func (r *Reconciler) cleanupV2ExtendedDaemonSet(logger logr.Logger, dda *datadog
 	newStatus.Agent = nil
 
 	return reconcile.Result{}, nil
+}
+
+func (r *Reconciler) generateNodeAffinity(p kubernetes.Provider, affinity *corev1.Affinity) *corev1.Affinity {
+	nodeSelectorReq := r.profiles.GenerateProviderNodeAffinity(p)
+	if len(nodeSelectorReq) > 0 {
+		// check for an existing affinity and merge
+		if affinity == nil {
+			affinity = &corev1.Affinity{}
+		}
+		if affinity.NodeAffinity == nil {
+			affinity.NodeAffinity = &corev1.NodeAffinity{}
+		}
+		if affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution == nil {
+			affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution = &corev1.NodeSelector{}
+		}
+		// NodeSelectorTerms are ORed
+		if len(affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms) == 0 {
+			affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms = append(
+				affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms,
+				corev1.NodeSelectorTerm{},
+			)
+		}
+		// NodeSelectorTerms are ANDed
+		if affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions == nil {
+			affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions = []corev1.NodeSelectorRequirement{}
+		}
+		affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions = append(
+			affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions,
+			nodeSelectorReq...,
+		)
+	}
+
+	return affinity
 }

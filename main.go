@@ -39,6 +39,7 @@ import (
 	"github.com/DataDog/datadog-operator/controllers"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/debug"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 	"github.com/DataDog/datadog-operator/pkg/version"
 	// +kubebuilder:scaffold:imports
@@ -121,6 +122,9 @@ type options struct {
 	// Secret Backend options
 	secretBackendCommand string
 	secretBackendArgs    stringSlice
+
+	// Profiles options
+	profilesNewNodeDelay time.Duration
 }
 
 func (opts *options) Parse() {
@@ -159,6 +163,9 @@ func (opts *options) Parse() {
 	flag.IntVar(&opts.edsCanaryAutoPauseMaxRestarts, "edsCanaryAutoPauseMaxRestarts", defaultCanaryAutoPauseMaxRestarts, "ExtendedDaemonset canary auto pause max restart count")
 	flag.BoolVar(&opts.edsCanaryAutoFailEnabled, "edsCanaryAutoFailEnabled", defaultCanaryAutoFailEnabled, "ExtendedDaemonset canary auto fail enabled")
 	flag.IntVar(&opts.edsCanaryAutoFailMaxRestarts, "edsCanaryAutoFailMaxRestarts", defaultCanaryAutoFailMaxRestarts, "ExtendedDaemonset canary auto fail max restart count")
+
+	// Profiles configuration
+	flag.DurationVar(&opts.profilesNewNodeDelay, "profilesNewNodeDelay", 5*time.Second, "Minimum time in seconds before a new node should be evaluated")
 
 	// Parsing flags
 	flag.Parse()
@@ -256,6 +263,9 @@ func run(opts *options) error {
 		DatadogMonitorEnabled:  opts.datadogMonitorEnabled,
 		OperatorMetricsEnabled: opts.operatorMetricsEnabled,
 		V2APIEnabled:           opts.v2APIEnabled,
+		Profiles: kubernetes.ProfilesOptions{
+			NewNodeDelay: opts.profilesNewNodeDelay,
+		},
 	}
 
 	if err = controllers.SetupControllers(setupLog, mgr, options); err != nil {

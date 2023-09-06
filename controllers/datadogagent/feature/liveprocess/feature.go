@@ -11,6 +11,7 @@ import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
@@ -95,7 +96,7 @@ func (f *liveProcessFeature) ManageClusterAgent(managers feature.PodTemplateMana
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *liveProcessFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+func (f *liveProcessFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider kubernetes.Provider) error {
 	// passwd volume mount
 	passwdVol, passwdVolMount := volume.GetVolumes(apicommon.PasswdVolumeName, apicommon.PasswdHostPath, apicommon.PasswdMountPath, true)
 	managers.VolumeMount().AddVolumeMountToContainer(&passwdVolMount, apicommonv1.ProcessAgentContainerName)

@@ -250,7 +250,7 @@ func (f *cspmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) e
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider kubernetes.Provider) error {
 	// security context capabilities
 	capabilities := []corev1.Capability{
 		"AUDIT_CONTROL",

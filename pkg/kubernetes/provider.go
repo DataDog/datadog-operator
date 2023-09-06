@@ -6,28 +6,48 @@
 package kubernetes
 
 import (
+	"sort"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+
+	"github.com/go-logr/logr"
+	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type Profiles struct {
-	providers map[Provider]map[string]bool
+// ProfilesOptions defines Profiles options
+type ProfilesOptions struct {
+	NewNodeDelay time.Duration
+}
 
+type Profiles struct {
+	providers       map[string]Provider // map provider hash to provider definitions to get provider def with hash string
+	sortedProviders []Provider          // sorted list to generate affinity expressions in the same order to prevent pod restarts
+	newNodes        map[string]bool     // store node name for nodes that may need more time for cloud provider labels to populate
+	newNodesDelay   time.Duration
+
+	log   logr.Logger
 	mutex sync.Mutex
 }
 
 type Provider struct {
-	Name string // name of provider, e.g. `cos`
+	// Name is the name of provider, e.g. `cos`
+	Name string
 	// https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-subdomain-names
-	ComponentName string // suffix to add to component name, e.g. `gcp-cos`
-	CloudProvider string // type of cloud provider used
-	ProviderLabel string // label used to determine which provider is used
+	// ComponentName is the suffix to add to a component name, e.g. `gcp-cos`
+	ComponentName string
+	// CloudProvider is the type of cloud provider used
+	CloudProvider string
+	// ProviderLabel is the label used to determine which provider is used
+	ProviderLabel string
 }
 
 const (
-	// https://cloud.google.com/kubernetes-engine/docs/concepts/node-images#available_node_images
+	DefaultProvider = "default"
+	// GCP provider names https://cloud.google.com/kubernetes-engine/docs/concepts/node-images#available_node_images
 	GCPCosContainerdProvider         = "cos_containerd"
 	GCPCosProvider                   = "cos"
 	GCPUbuntuContainerdProvider      = "ubuntu_containerd"
@@ -47,90 +67,155 @@ const (
 )
 
 // NewProfiles generates an empty Profiles instance
-func NewProfiles() Profiles {
+func NewProfiles(log logr.Logger, options ProfilesOptions) Profiles {
 	return Profiles{
-		providers: make(map[Provider]map[string]bool),
+		providers:       make(map[string]Provider),
+		sortedProviders: []Provider{},
+		newNodes:        make(map[string]bool),
+		newNodesDelay:   options.NewNodeDelay,
+		log:             log,
 	}
 }
 
-func determineProvider(labels map[string]string) Provider {
+// DetermineProvider creates a Provider based on a map of labels
+func DetermineProvider(labels map[string]string) Provider {
 	p := Provider{}
-	// GCP
-	if val, ok := labels[GCPProviderLabel]; ok {
-		p.Name = val
-		p.ComponentName = GCPCloudProvider + "-" + strings.Replace(val, "_", "-", -1)
-		p.CloudProvider = GCPCloudProvider
-		p.ProviderLabel = GCPProviderLabel
-		return p
+	if len(labels) > 0 {
+		// GCP
+		if val, ok := labels[GCPProviderLabel]; ok {
+			p.Name = val
+			p.CloudProvider = GCPCloudProvider
+			p.ProviderLabel = GCPProviderLabel
+			p.ComponentName = GenerateComponentName(p.CloudProvider, p.Name)
+			return p
+		}
 	}
+
+	// default Provider if a match was not found
+	p.Name = DefaultProvider
+	p.CloudProvider = DefaultProvider
+	p.ProviderLabel = DefaultProvider
+	p.ComponentName = DefaultProvider
 
 	return p
 }
 
-// SetProvider creates a provider entry for a new provider or adds a node name to an existing provider
+// SetProvider creates a provider entry for a new provider if needed and returns whether DDAs should be reconciled
 func (p *Profiles) SetProvider(obj client.Object) bool {
 	objName := obj.GetName()
-	objProvider := determineProvider(obj.GetLabels())
-	var shouldReconcile bool
+	// cloud provider labels may not be populated when a node first starts up and is sent via informer
+	// if nodes are <newNodesDelay seconds old, don't check for a provider and add to newNodes instead
+	// SetProvider is called in the reconcile loop to ensure nodes aren't missed once they are old enough
+	creationTime := obj.GetCreationTimestamp().Time
+	if time.Since(creationTime) < p.newNodesDelay {
+		p.log.Info("Node is too new to have its provider evaluated", "node", objName, "node agent", time.Since(creationTime), "minimum age", p.newNodesDelay)
+		p.mutex.Lock()
+		p.newNodes[objName] = true
+		p.mutex.Unlock()
+		return false
+	}
+	delete(p.newNodes, objName)
+
+	labels := obj.GetLabels()
+	objProvider := DetermineProvider(labels)
+	providerHash, err := GenerateProviderHash(objProvider)
+	if err != nil {
+		p.log.Error(err, "Error generating hash for node provider", "node", objName, "provider", objProvider.ComponentName)
+		return false
+	}
 
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
+	// add a new provider hash and provider definition
+	if _, ok := p.providers[providerHash]; !ok {
+		p.providers[providerHash] = objProvider
+		p.sortProviders()
+		p.log.Info("New provider detected", "provider", objProvider.ComponentName, "hash", providerHash)
 
-	if p.providers == nil {
-		p.providers = make(map[Provider]map[string]bool)
+		// reconcile if a new provider was added
+		return true
 	}
 
-	// add new provider
-	if _, ok := p.providers[objProvider]; !ok {
-		p.providers[objProvider] = map[string]bool{
-			objName: true,
-		}
-		shouldReconcile = true
-	} else {
-		// add node to existing provider
-		p.providers[objProvider][objName] = true
-	}
-
-	return shouldReconcile
+	return false
 }
 
-// DeleteProvider removes a node name from a provider and removes a provider if not used by any nodes
-func (p *Profiles) DeleteProvider(obj client.Object) bool {
-	objName := obj.GetName()
-	objProvider := determineProvider(obj.GetLabels())
-	var shouldReconcile bool
-
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
-
-	if p.providers != nil || len(p.providers) > 0 {
-		if _, ok := p.providers[objProvider]; ok {
-			delete(p.providers[objProvider], objName)
-
-			// delete provider if no nodes are using that provider
-			if len(p.providers[objProvider]) == 0 {
-				delete(p.providers, objProvider)
-				shouldReconcile = true
-			}
-		}
-	}
-
-	return shouldReconcile
-}
-
-// GetProviders gets a list of providers and the nodes associated with each provider
-func (p *Profiles) GetProviders() *map[Provider]map[string]bool {
+// GetProviders gets a list of providers
+func (p *Profiles) GetProviders() *map[string]Provider {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
 	return &p.providers
 }
 
-// GenerateNodeSelector creates a node selector based on the provider label
-func GenerateNodeSelector(p Provider) map[string]string {
-	nodeSelector := map[string]string{
-		p.ProviderLabel: p.Name,
-	}
+// GetNewNodes gets a list of nodes that had not passed their newNodeDelay time
+func (p *Profiles) GetNewNodes() *map[string]bool {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
 
-	return nodeSelector
+	return &p.newNodes
+}
+
+// GenerateProviderNodeAffinity creates NodeSelectorTerms based on the provider
+func (p *Profiles) GenerateProviderNodeAffinity(provider Provider) []corev1.NodeSelectorRequirement {
+	nsrList := []corev1.NodeSelectorRequirement{}
+	// default provider has NodeAffinity to NOT match provider-specific labels
+	if provider.Name == DefaultProvider {
+		for _, providerDef := range p.sortedProviders {
+			if providerDef.Name == DefaultProvider {
+				continue
+			}
+			nsrList = append(nsrList, corev1.NodeSelectorRequirement{
+				Key:      providerDef.ProviderLabel,
+				Operator: corev1.NodeSelectorOpNotIn,
+				Values: []string{
+					providerDef.Name,
+				},
+			})
+		}
+		return nsrList
+	}
+	// create provider-specific NodeSelectorTerm for NodeAffinity
+	nsrList = append(nsrList, corev1.NodeSelectorRequirement{
+		Key:      provider.ProviderLabel,
+		Operator: corev1.NodeSelectorOpIn,
+		Values: []string{
+			provider.Name,
+		},
+	})
+
+	return nsrList
+}
+
+// IsProviderInProfiles returns whether a provider exists in profiles
+func (p *Profiles) IsProviderInProfiles(hash string) bool {
+	if _, ok := p.providers[hash]; ok {
+		return true
+	}
+	return false
+}
+
+func (p *Profiles) sortProviders() {
+	// needed to generate NodeSelectorRequirements for NodeAffinity in a consistent order
+	// otherwise the order may change each reconcile, causing many pod restarts
+	p.sortedProviders = make([]Provider, 0, len(p.providers))
+	for _, provider := range p.providers {
+		p.sortedProviders = append(p.sortedProviders, provider)
+	}
+	sort.Slice(p.sortedProviders, func(i, j int) bool {
+		return p.sortedProviders[i].Name < p.sortedProviders[j].Name
+	})
+}
+
+// GenerateComponentName creates a ComponentName from the provider fields
+func GenerateComponentName(cloudProvider, providerName string) string {
+	return cloudProvider + "-" + strings.Replace(providerName, "_", "-", -1)
+}
+
+// GenerateProviderHash creates a md5 hash to identify a provider with
+func GenerateProviderHash(provider Provider) (string, error) {
+	providerHash, err := comparison.GenerateMD5ForSpec(provider.ComponentName)
+	if err != nil {
+		return "", err
+	}
+	return providerHash, nil
 }

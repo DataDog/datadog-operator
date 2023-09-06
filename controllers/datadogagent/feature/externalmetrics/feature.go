@@ -18,6 +18,7 @@ import (
 	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 	"github.com/go-logr/logr"
 
@@ -398,7 +399,7 @@ func (f *externalMetricsFeature) ManageClusterAgent(managers feature.PodTemplate
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *externalMetricsFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+func (f *externalMetricsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider kubernetes.Provider) error {
 	return nil
 }
 

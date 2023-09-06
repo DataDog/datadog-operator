@@ -60,7 +60,7 @@ func (sw v2StatusWrapper) GetObjectMeta() metav1.Object { return sw.dda.GetObjec
 
 func (sw v2StatusWrapper) GetAgentStatus() *commonv1.DaemonSetStatus {
 	if sw.dda != nil {
-		return sw.dda.Status.Agent
+		return sw.dda.Status.CombinedAgent
 	}
 	return nil
 }

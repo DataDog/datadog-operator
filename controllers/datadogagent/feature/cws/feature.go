@@ -172,7 +172,7 @@ func (f *cwsFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+func (f *cwsFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider kubernetes.Provider) error {
 	// annotations
 	managers.Annotation().AddAnnotation(apicommon.SystemProbeAppArmorAnnotationKey, apicommon.SystemProbeAppArmorAnnotationValue)
 

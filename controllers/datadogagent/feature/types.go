@@ -12,9 +12,9 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/merger"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
 	"github.com/go-logr/logr"
-
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -125,7 +125,7 @@ type Feature interface {
 	ManageClusterAgent(managers PodTemplateManagers) error
 	// ManageNodeAget allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 	// It should do nothing if the feature doesn't need to configure it.
-	ManageNodeAgent(managers PodTemplateManagers) error
+	ManageNodeAgent(managers PodTemplateManagers, provider kubernetes.Provider) error
 	// ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunnerAgent's corev1.PodTemplateSpec
 	// It should do nothing if the feature doesn't need to configure it.
 	ManageClusterChecksRunner(managers PodTemplateManagers) error

@@ -7,6 +7,7 @@ package oomkill
 
 import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
@@ -77,7 +78,7 @@ func (f *oomKillFeature) ManageClusterAgent(managers feature.PodTemplateManagers
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *oomKillFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+func (f *oomKillFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider kubernetes.Provider) error {
 	// security context capabilities
 	managers.SecurityContext().AddCapabilitiesToContainer(agent.DefaultCapabilitiesForSystemProbe(), apicommonv1.SystemProbeContainerName)
 
@@ -87,9 +88,11 @@ func (f *oomKillFeature) ManageNodeAgent(managers feature.PodTemplateManagers) e
 	managers.Volume().AddVolume(&modulesVol)
 
 	// src volume mount
-	srcVol, srcVolMount := volume.GetVolumes(apicommon.SrcVolumeName, apicommon.SrcVolumePath, apicommon.SrcVolumePath, true)
-	managers.VolumeMount().AddVolumeMountToContainer(&srcVolMount, apicommonv1.SystemProbeContainerName)
-	managers.Volume().AddVolume(&srcVol)
+	if provider.Name != kubernetes.GCPCosContainerdProvider && provider.Name != kubernetes.GCPCosProvider {
+		srcVol, srcVolMount := volume.GetVolumes(apicommon.SrcVolumeName, apicommon.SrcVolumePath, apicommon.SrcVolumePath, true)
+		managers.VolumeMount().AddVolumeMountToContainer(&srcVolMount, apicommonv1.SystemProbeContainerName)
+		managers.Volume().AddVolume(&srcVol)
+	}
 
 	// debugfs volume mount
 	debugfsVol, debugfsVolMount := volume.GetVolumes(apicommon.DebugfsVolumeName, apicommon.DebugfsPath, apicommon.DebugfsPath, false)

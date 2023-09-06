@@ -155,74 +155,166 @@ func UpdateDeploymentStatus(dep *appsv1.Deployment, depStatus *commonv1.Deployme
 }
 
 // UpdateDaemonSetStatus updates a daemonset's DaemonSetStatus
-func UpdateDaemonSetStatus(ds *appsv1.DaemonSet, dsStatus *commonv1.DaemonSetStatus, updateTime *metav1.Time) *commonv1.DaemonSetStatus {
+func UpdateDaemonSetStatus(ds *appsv1.DaemonSet, dsStatus []*commonv1.DaemonSetStatus, updateTime *metav1.Time) []*commonv1.DaemonSetStatus {
 	if dsStatus == nil {
-		dsStatus = &commonv1.DaemonSetStatus{}
+		dsStatus = []*commonv1.DaemonSetStatus{}
 	}
 	if ds == nil {
-		dsStatus.State = string(DatadogAgentStateFailed)
-		dsStatus.Status = string(DatadogAgentStateFailed)
+		dsStatus = append(dsStatus, &commonv1.DaemonSetStatus{
+			State:  string(DatadogAgentStateFailed),
+			Status: string(DatadogAgentStateFailed),
+		})
 		return dsStatus
 	}
+
+	newStatus := commonv1.DaemonSetStatus{
+		Desired:       ds.Status.DesiredNumberScheduled,
+		Current:       ds.Status.CurrentNumberScheduled,
+		Ready:         ds.Status.NumberReady,
+		Available:     ds.Status.NumberAvailable,
+		UpToDate:      ds.Status.UpdatedNumberScheduled,
+		DaemonsetName: ds.ObjectMeta.Name,
+	}
+
 	if updateTime != nil {
-		dsStatus.LastUpdate = updateTime
+		newStatus.LastUpdate = updateTime
 	}
 	if hash, ok := ds.Annotations[apicommon.MD5AgentDeploymentAnnotationKey]; ok {
-		dsStatus.CurrentHash = hash
+		newStatus.CurrentHash = hash
 	}
-	dsStatus.Desired = ds.Status.DesiredNumberScheduled
-	dsStatus.Current = ds.Status.CurrentNumberScheduled
-	dsStatus.Ready = ds.Status.NumberReady
-	dsStatus.Available = ds.Status.NumberAvailable
-	dsStatus.UpToDate = ds.Status.UpdatedNumberScheduled
 
 	var deploymentState DatadogAgentState
 	switch {
-	case dsStatus.UpToDate != dsStatus.Desired:
+	case newStatus.UpToDate != newStatus.Desired:
 		deploymentState = DatadogAgentStateUpdating
-	case dsStatus.Ready == 0:
+	case newStatus.Ready == 0:
 		deploymentState = DatadogAgentStateProgressing
 	default:
 		deploymentState = DatadogAgentStateRunning
 	}
 
-	dsStatus.State = fmt.Sprintf("%v", deploymentState)
-	dsStatus.Status = fmt.Sprintf("%v (%d/%d/%d)", deploymentState, dsStatus.Desired, dsStatus.Ready, dsStatus.UpToDate)
-	dsStatus.DaemonsetName = ds.ObjectMeta.Name
+	newStatus.State = fmt.Sprintf("%v", deploymentState)
+	newStatus.Status = fmt.Sprintf("%v (%d/%d/%d)", deploymentState, newStatus.Desired, newStatus.Ready, newStatus.UpToDate)
+
+	// match ds name to ds status
+	found := false
+	for id := range dsStatus {
+		if dsStatus[id].DaemonsetName == newStatus.DaemonsetName {
+			*dsStatus[id] = newStatus
+			found = true
+		}
+	}
+	if !found {
+		dsStatus = append(dsStatus, &newStatus)
+	}
+
 	return dsStatus
 }
 
 // UpdateExtendedDaemonSetStatus updates an ExtendedDaemonSet's DaemonSetStatus
-func UpdateExtendedDaemonSetStatus(eds *edsdatadoghqv1alpha1.ExtendedDaemonSet, dsStatus *commonv1.DaemonSetStatus, updateTime *metav1.Time) *commonv1.DaemonSetStatus {
+func UpdateExtendedDaemonSetStatus(eds *edsdatadoghqv1alpha1.ExtendedDaemonSet, dsStatus []*commonv1.DaemonSetStatus, updateTime *metav1.Time) []*commonv1.DaemonSetStatus {
 	if dsStatus == nil {
-		dsStatus = &commonv1.DaemonSetStatus{}
+		dsStatus = []*commonv1.DaemonSetStatus{}
 	}
+
+	newStatus := commonv1.DaemonSetStatus{
+		Desired:       eds.Status.Desired,
+		Current:       eds.Status.Current,
+		Ready:         eds.Status.Ready,
+		Available:     eds.Status.Available,
+		UpToDate:      eds.Status.UpToDate,
+		DaemonsetName: eds.ObjectMeta.Name,
+	}
+
 	if updateTime != nil {
-		dsStatus.LastUpdate = updateTime
+		newStatus.LastUpdate = updateTime
 	}
 	if hash, ok := eds.Annotations[apicommon.MD5AgentDeploymentAnnotationKey]; ok {
-		dsStatus.CurrentHash = hash
+		newStatus.CurrentHash = hash
 	}
-	dsStatus.Desired = eds.Status.Desired
-	dsStatus.Current = eds.Status.Current
-	dsStatus.Ready = eds.Status.Ready
-	dsStatus.Available = eds.Status.Available
-	dsStatus.UpToDate = eds.Status.UpToDate
 
 	var deploymentState DatadogAgentState
 	switch {
 	case eds.Status.Canary != nil:
 		deploymentState = DatadogAgentStateCanary
-	case dsStatus.UpToDate != dsStatus.Desired:
+	case newStatus.UpToDate != newStatus.Desired:
 		deploymentState = DatadogAgentStateUpdating
-	case dsStatus.Ready == 0:
+	case newStatus.Ready == 0:
 		deploymentState = DatadogAgentStateProgressing
 	default:
 		deploymentState = DatadogAgentStateRunning
 	}
 
-	dsStatus.State = fmt.Sprintf("%v", deploymentState)
-	dsStatus.Status = fmt.Sprintf("%v (%d/%d/%d)", deploymentState, dsStatus.Desired, dsStatus.Ready, dsStatus.UpToDate)
-	dsStatus.DaemonsetName = eds.ObjectMeta.Name
+	newStatus.State = fmt.Sprintf("%v", deploymentState)
+	newStatus.Status = fmt.Sprintf("%v (%d/%d/%d)", deploymentState, newStatus.Desired, newStatus.Ready, newStatus.UpToDate)
+
+	// match eds name to eds status
+	found := false
+	for id := range dsStatus {
+		if dsStatus[id].DaemonsetName == newStatus.DaemonsetName {
+			*dsStatus[id] = newStatus
+			found = true
+		}
+	}
+	if !found {
+		dsStatus = append(dsStatus, &newStatus)
+	}
+
 	return dsStatus
+}
+
+// UpdateCombinedDaemonSetStatus combines the status of multiple DaemonSetStatus
+func UpdateCombinedDaemonSetStatus(dsStatus []*commonv1.DaemonSetStatus) *commonv1.DaemonSetStatus {
+	combinedStatus := commonv1.DaemonSetStatus{}
+	if len(dsStatus) == 0 {
+		return &combinedStatus
+	}
+
+	for _, status := range dsStatus {
+		combinedStatus.Desired += status.Desired
+		combinedStatus.Current += status.Current
+		combinedStatus.Ready += status.Ready
+		combinedStatus.Available += status.Available
+		combinedStatus.UpToDate += status.UpToDate
+		if combinedStatus.LastUpdate.Before(status.LastUpdate) {
+			combinedStatus.LastUpdate = status.LastUpdate
+		}
+		combinedStatus.State = getCombinedState(combinedStatus.State, status.State)
+		combinedStatus.Status = fmt.Sprintf("%v (%d/%d/%d)", combinedStatus.State, combinedStatus.Desired, combinedStatus.Ready, combinedStatus.UpToDate)
+	}
+
+	return &combinedStatus
+}
+
+func getCombinedState(currentState, newState string) string {
+	currentNum := assignNumeralState(currentState)
+	newNum := assignNumeralState(newState)
+
+	if currentNum == 0 {
+		return newState
+	}
+	if newNum == 0 {
+		return currentState
+	}
+	if currentNum < newNum {
+		return currentState
+	}
+	return newState
+}
+
+func assignNumeralState(state string) int {
+	switch state {
+	case string(DatadogAgentStateFailed):
+		return 1
+	case string(DatadogAgentStateCanary):
+		return 2
+	case string(DatadogAgentStateUpdating):
+		return 3
+	case string(DatadogAgentStateProgressing):
+		return 4
+	case string(DatadogAgentStateRunning):
+		return 5
+	default:
+		return 0
+	}
 }

@@ -23,14 +23,13 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1/patch"
+	componentagent "github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
-
-	componentagent "github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 
 	// Use to register features
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/admissioncontroller"
@@ -67,6 +66,7 @@ type ReconcilerOptions struct {
 	SupportCilium            bool
 	OperatorMetricsEnabled   bool
 	V2Enabled                bool
+	ProfilesOptions          kubernetes.ProfilesOptions
 }
 
 // Reconciler is the internal reconciler for Datadog Agent

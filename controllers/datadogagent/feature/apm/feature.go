@@ -25,6 +25,7 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/merger"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func init() {
@@ -249,7 +250,7 @@ func (f *apmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *apmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+func (f *apmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider kubernetes.Provider) error {
 	managers.EnvVar().AddEnvVarToContainer(apicommonv1.TraceAgentContainerName, &corev1.EnvVar{
 		Name:  apicommon.DDAPMEnabled,
 		Value: "true",

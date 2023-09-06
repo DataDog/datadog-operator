@@ -218,7 +218,7 @@ func (f *orchestratorExplorerFeature) ManageClusterAgent(managers feature.PodTem
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *orchestratorExplorerFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+func (f *orchestratorExplorerFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider kubernetes.Provider) error {
 	for _, env := range f.getEnvVars() {
 		managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, env)
 	}

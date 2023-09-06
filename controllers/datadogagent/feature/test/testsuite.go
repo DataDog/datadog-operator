@@ -3,17 +3,18 @@ package test
 import (
 	"testing"
 
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
-	testutils "github.com/DataDog/datadog-operator/controllers/datadogagent/testutils"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
+	testutils "github.com/DataDog/datadog-operator/controllers/datadogagent/testutils"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
 // FeatureTestSuite use define several tests on a Feature
@@ -51,21 +52,22 @@ type Options struct{}
 
 // ComponentTest use to configure how to test a component (Cluster-Agent, Agent, ClusterChecksRunner)
 type ComponentTest struct {
-	CreateFunc func(testing.TB) feature.PodTemplateManagers
+	CreateFunc func(testing.TB) (feature.PodTemplateManagers, kubernetes.Provider)
 	WantFunc   func(testing.TB, feature.PodTemplateManagers)
 }
 
 // NewDefaultComponentTest returns a default ComponentTest
 func NewDefaultComponentTest() *ComponentTest {
+	emptyProvider := kubernetes.DetermineProvider(map[string]string{})
 	return &ComponentTest{
-		CreateFunc: func(t testing.TB) feature.PodTemplateManagers {
-			return fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
+		CreateFunc: func(t testing.TB) (feature.PodTemplateManagers, kubernetes.Provider) {
+			return fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{}), emptyProvider
 		},
 	}
 }
 
 // WithCreateFunc sets CreateFunc
-func (ct *ComponentTest) WithCreateFunc(f func(testing.TB) feature.PodTemplateManagers) *ComponentTest {
+func (ct *ComponentTest) WithCreateFunc(f func(testing.TB) (feature.PodTemplateManagers, kubernetes.Provider)) *ComponentTest {
 	ct.CreateFunc = f
 	return ct
 }
@@ -142,19 +144,19 @@ func runTest(t *testing.T, tt FeatureTest, buildFunc feature.BuildFunc) {
 
 	// check Manage functions
 	if tt.ClusterAgent != nil {
-		tplManager := tt.ClusterAgent.CreateFunc(t)
+		tplManager, _ := tt.ClusterAgent.CreateFunc(t)
 		_ = f.ManageClusterAgent(tplManager)
 		tt.ClusterAgent.WantFunc(t, tplManager)
 	}
 
 	if tt.Agent != nil {
-		tplManager := tt.Agent.CreateFunc(t)
-		_ = f.ManageNodeAgent(tplManager)
+		tplManager, provider := tt.Agent.CreateFunc(t)
+		_ = f.ManageNodeAgent(tplManager, provider)
 		tt.Agent.WantFunc(t, tplManager)
 	}
 
 	if tt.ClusterChecksRunner != nil {
-		tplManager := tt.ClusterChecksRunner.CreateFunc(t)
+		tplManager, _ := tt.ClusterChecksRunner.CreateFunc(t)
 		_ = f.ManageClusterChecksRunner(tplManager)
 		tt.ClusterChecksRunner.WantFunc(t, tplManager)
 	}

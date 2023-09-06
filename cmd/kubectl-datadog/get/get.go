@@ -152,7 +152,7 @@ func (o *options) runV2() error {
 func (o *options) renderTable(statuses []common.StatusWrapper) {
 	table := newTable(o.Out)
 	for _, item := range statuses {
-		data := []string{item.GetObjectMeta().GetName(), item.GetObjectMeta().GetNamespace()}
+		data := []string{item.GetObjectMeta().GetNamespace(), item.GetObjectMeta().GetName()}
 		if item.GetAgentStatus() != nil {
 			data = append(data, item.GetAgentStatus().Status)
 		} else {

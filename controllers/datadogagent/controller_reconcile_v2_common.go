@@ -167,6 +167,7 @@ func (r *Reconciler) createOrUpdateDaemonset(parentLogger logr.Logger, dda *data
 			// needed to keep the agent status updated.
 			now := metav1.NewTime(time.Now())
 			newStatus.Agent = datadoghqv2alpha1.UpdateDaemonSetStatus(currentDaemonset, newStatus.Agent, &now)
+			newStatus.CombinedAgent = datadoghqv2alpha1.UpdateCombinedDaemonSetStatus(newStatus.Agent)
 
 			// Stop reconcile loop since DaemonSet hasn't changed
 			return reconcile.Result{}, nil

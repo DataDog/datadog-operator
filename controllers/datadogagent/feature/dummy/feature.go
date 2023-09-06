@@ -9,6 +9,7 @@ import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func init() {
@@ -61,7 +62,9 @@ func (f *dummyFeature) ManageClusterAgent(managers feature.PodTemplateManagers) 
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *dummyFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error { return nil }
+func (f *dummyFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider kubernetes.Provider) error {
+	return nil
+}
 
 // ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunnerAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.

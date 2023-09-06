@@ -996,9 +996,14 @@ type DatadogAgentStatus struct {
 	// +listType=map
 	// +listMapKey=type
 	Conditions []metav1.Condition `json:"conditions"`
-	// The actual state of the Agent as an extended daemonset.
+	// The actual state of the Agent as a daemonset or an extended daemonset.
 	// +optional
-	Agent *commonv1.DaemonSetStatus `json:"agent,omitempty"`
+	// +listType=map
+	// +listMapKey=desired
+	Agent []*commonv1.DaemonSetStatus `json:"agent,omitempty"`
+	// The combined actual state of the all Agent as daemonsets or extended daemonsets.
+	// +optional
+	CombinedAgent *commonv1.DaemonSetStatus `json:"combinedAgent,omitempty"`
 	// The actual state of the Cluster Agent as a deployment.
 	// +optional
 	ClusterAgent *commonv1.DeploymentStatus `json:"clusterAgent,omitempty"`
@@ -1012,7 +1017,7 @@ type DatadogAgentStatus struct {
 // +kubebuilder:subresource:status
 // +kubebuilder:storageversion
 // +kubebuilder:resource:path=datadogagents,shortName=dd
-// +kubebuilder:printcolumn:name="agent",type="string",JSONPath=".status.agent.status"
+// +kubebuilder:printcolumn:name="agent",type="string",JSONPath=".status.combinedAgent.status"
 // +kubebuilder:printcolumn:name="cluster-agent",type="string",JSONPath=".status.clusterAgent.status"
 // +kubebuilder:printcolumn:name="cluster-checks-runner",type="string",JSONPath=".status.clusterChecksRunner.status"
 // +kubebuilder:printcolumn:name="age",type="date",JSONPath=".metadata.creationTimestamp"

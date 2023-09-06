@@ -16,8 +16,9 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	cilium "github.com/DataDog/datadog-operator/pkg/cilium/v1"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
-	"github.com/go-logr/logr"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
+	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	netv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -215,7 +216,7 @@ func (f *clusterChecksFeature) ManageClusterAgent(managers feature.PodTemplateMa
 	return nil
 }
 
-func (f *clusterChecksFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+func (f *clusterChecksFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider kubernetes.Provider) error {
 	if f.useClusterCheckRunners {
 		managers.EnvVar().AddEnvVarToContainer(
 			common.CoreAgentContainerName,

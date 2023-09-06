@@ -23,6 +23,7 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/merger"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/volume"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
 
 func init() {
@@ -186,7 +187,7 @@ func (f *dogstatsdFeature) ManageClusterAgent(managers feature.PodTemplateManage
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *dogstatsdFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+func (f *dogstatsdFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider kubernetes.Provider) error {
 	// udp
 	dogstatsdPort := &corev1.ContainerPort{
 		Name:          apicommon.DefaultDogstatsdPortName,
