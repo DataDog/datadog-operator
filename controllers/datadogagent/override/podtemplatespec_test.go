@@ -38,7 +38,7 @@ func TestPodTemplateSpec(t *testing.T) {
 		{
 			name: "override service account name",
 			existingManager: func() *fake.PodTemplateManagers {
-				manager := fake.NewPodTemplateManagers(t)
+				manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
 				manager.PodTemplateSpec().Spec.ServiceAccountName = "old-service-account"
 				return manager
 			},
@@ -381,7 +381,7 @@ func TestPodTemplateSpec(t *testing.T) {
 		{
 			name: "add envs",
 			existingManager: func() *fake.PodTemplateManagers {
-				manager := fake.NewPodTemplateManagers(t)
+				manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
 
 				manager.EnvVar().AddEnvVar(&v1.EnvVar{
 					Name:  "existing-env",
@@ -435,7 +435,7 @@ func TestPodTemplateSpec(t *testing.T) {
 			// Note: this test is for the node agent (hardcoded in t.Run).
 			name: "add custom configs",
 			existingManager: func() *fake.PodTemplateManagers {
-				return fake.NewPodTemplateManagers(t)
+				return fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
 				CustomConfigurations: map[v2alpha1.AgentConfigFileName]v2alpha1.CustomConfig{
@@ -460,7 +460,7 @@ func TestPodTemplateSpec(t *testing.T) {
 		{
 			name: "override confd with configMap",
 			existingManager: func() *fake.PodTemplateManagers {
-				return fake.NewPodTemplateManagers(t)
+				return fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
 				ExtraConfd: &v2alpha1.MultiCustomConfig{
@@ -483,7 +483,7 @@ func TestPodTemplateSpec(t *testing.T) {
 		{
 			name: "override confd with configData",
 			existingManager: func() *fake.PodTemplateManagers {
-				return fake.NewPodTemplateManagers(t)
+				return fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
 				ExtraConfd: &v2alpha1.MultiCustomConfig{
@@ -506,7 +506,7 @@ func TestPodTemplateSpec(t *testing.T) {
 		{
 			name: "override checksd with configMap",
 			existingManager: func() *fake.PodTemplateManagers {
-				return fake.NewPodTemplateManagers(t)
+				return fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
 				ExtraChecksd: &v2alpha1.MultiCustomConfig{
@@ -529,7 +529,7 @@ func TestPodTemplateSpec(t *testing.T) {
 		{
 			name: "override checksd with configData",
 			existingManager: func() *fake.PodTemplateManagers {
-				return fake.NewPodTemplateManagers(t)
+				return fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
 			},
 			override: v2alpha1.DatadogAgentComponentOverride{
 				ExtraChecksd: &v2alpha1.MultiCustomConfig{
@@ -553,7 +553,17 @@ func TestPodTemplateSpec(t *testing.T) {
 			// This test is pretty simple because "container_test.go" already tests overriding containers
 			name: "override containers",
 			existingManager: func() *fake.PodTemplateManagers {
-				manager := fake.NewPodTemplateManagers(t)
+				manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{
+					Spec: v1.PodSpec{
+						Containers: []v1.Container{
+							{Name: string(commonv1.CoreAgentContainerName)},
+							{Name: string(commonv1.ClusterAgentContainerName)},
+						},
+						InitContainers: []v1.Container{
+							{Name: string(commonv1.InitConfigContainerName)},
+						},
+					},
+				})
 
 				manager.EnvVarMgr.AddEnvVarToContainer(
 					commonv1.ClusterAgentContainerName,
@@ -588,7 +598,7 @@ func TestPodTemplateSpec(t *testing.T) {
 		{
 			name: "add volumes",
 			existingManager: func() *fake.PodTemplateManagers {
-				manager := fake.NewPodTemplateManagers(t)
+				manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
 
 				manager.Volume().AddVolume(&v1.Volume{
 					Name: "existing-volume",
@@ -619,7 +629,7 @@ func TestPodTemplateSpec(t *testing.T) {
 		{
 			name: "override security context",
 			existingManager: func() *fake.PodTemplateManagers {
-				manager := fake.NewPodTemplateManagers(t)
+				manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
 				manager.PodTemplateSpec().Spec.SecurityContext = &v1.PodSecurityContext{
 					RunAsUser: apiutils.NewInt64Pointer(1234),
 				}
@@ -637,7 +647,7 @@ func TestPodTemplateSpec(t *testing.T) {
 		{
 			name: "override priority class name",
 			existingManager: func() *fake.PodTemplateManagers {
-				manager := fake.NewPodTemplateManagers(t)
+				manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
 				manager.PodTemplateSpec().Spec.PriorityClassName = "old-name"
 				return manager
 			},
@@ -651,7 +661,7 @@ func TestPodTemplateSpec(t *testing.T) {
 		{
 			name: "override affinity",
 			existingManager: func() *fake.PodTemplateManagers {
-				manager := fake.NewPodTemplateManagers(t)
+				manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
 				manager.PodTemplateSpec().Spec.Affinity = &v1.Affinity{
 					PodAntiAffinity: &v1.PodAntiAffinity{
 						PreferredDuringSchedulingIgnoredDuringExecution: []v1.WeightedPodAffinityTerm{
@@ -701,7 +711,7 @@ func TestPodTemplateSpec(t *testing.T) {
 		{
 			name: "add labels",
 			existingManager: func() *fake.PodTemplateManagers {
-				manager := fake.NewPodTemplateManagers(t)
+				manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
 				manager.PodTemplateSpec().Labels = map[string]string{
 					"existing-label": "123",
 				}
@@ -725,7 +735,7 @@ func TestPodTemplateSpec(t *testing.T) {
 		{
 			name: "override host network",
 			existingManager: func() *fake.PodTemplateManagers {
-				manager := fake.NewPodTemplateManagers(t)
+				manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
 				manager.PodTemplateSpec().Spec.HostNetwork = false
 				return manager
 			},
@@ -739,7 +749,7 @@ func TestPodTemplateSpec(t *testing.T) {
 		{
 			name: "override host PID",
 			existingManager: func() *fake.PodTemplateManagers {
-				manager := fake.NewPodTemplateManagers(t)
+				manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
 				manager.PodTemplateSpec().Spec.HostPID = false
 				return manager
 			},
@@ -774,7 +784,7 @@ type containerImageOptions struct {
 // In practice, image string registry will be derived either from global.registry setting or the default.
 // func fakePodTemplateManagersWithImageOverride(image string, t *testing.T) *fake.PodTemplateManagers {
 func fakePodTemplateManagersWithImageOverride(imageOptions containerImageOptions, t *testing.T) *fake.PodTemplateManagers {
-	manager := fake.NewPodTemplateManagers(t)
+	manager := fake.NewPodTemplateManagers(t, v1.PodTemplateSpec{})
 
 	basicContainer := v1.Container{Image: imageOptions.name}
 	if imageOptions.pullPolicy != "" {

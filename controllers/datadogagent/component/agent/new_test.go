@@ -11,29 +11,27 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-
 func Test_newIntOrStringPointer(t *testing.T) {
-	tests := []struct{
+	tests := []struct {
 		input string
-		want intstr.IntOrString
+		want  intstr.IntOrString
 	}{
 		{
 			input: "15",
-			want: intstr.FromInt(15),
+			want:  intstr.FromInt(15),
 		},
 		{
 			input: "15%",
-			want: intstr.FromString("15%"),
+			want:  intstr.FromString("15%"),
 		},
 		{
 			input: "0",
-			want: intstr.FromInt(0),
+			want:  intstr.FromInt(0),
 		},
 		{
 			input: "help",
-			want: intstr.FromString("help"),
+			want:  intstr.FromString("help"),
 		},
-		
 	}
 	for _, tt := range tests {
 		t.Run("", func(t *testing.T) {

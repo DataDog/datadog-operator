@@ -56,8 +56,9 @@ func (_m *PodTemplateManagers) Port() merger.PortManager {
 }
 
 // NewPodTemplateManagers creates a new instance of PodTemplateManagers. It also registers the testing.TB interface on the mock and a cleanup function to assert the mocks expectations.
-func NewPodTemplateManagers(t testing.TB) *PodTemplateManagers {
+func NewPodTemplateManagers(t testing.TB, podTpl v1.PodTemplateSpec) *PodTemplateManagers {
 	return &PodTemplateManagers{
+		Tpl:                podTpl,
 		EnvVarMgr:          mergerfake.NewFakeEnvVarManager(t),
 		VolumeMgr:          mergerfake.NewFakeVolumeManager(t),
 		VolumeMountMgr:     mergerfake.NewFakeVolumeMountManager(t),

@@ -98,3 +98,5 @@ tags
 *.bak
 # goland
 .idea/
+# test errors
+errors
