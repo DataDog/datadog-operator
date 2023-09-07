@@ -221,6 +221,7 @@ func (f *orchestratorExplorerFeature) ManageClusterAgent(managers feature.PodTem
 func (f *orchestratorExplorerFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
 	for _, env := range f.getEnvVars() {
 		managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, env)
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, env)
 	}
 
 	return nil
