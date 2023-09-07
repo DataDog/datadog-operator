@@ -280,10 +280,21 @@ func updateMonitorStateAndDowntime(m datadogV1.Monitor, now metav1.Time, status 
 	status.MonitorStateSyncStatus = datadoghqv1alpha1.MonitorStateSyncStatusOK
 
 	if len(m.MatchingDowntimes) > 0 {
+		matchingDowntimes := []datadogV1.MatchingDowntime{}
+		_ = copy(matchingDowntimes, m.MatchingDowntimes)
+		setDowntimeStatus(matchingDowntimes, status)
+	}
+}
+
+func setDowntimeStatus(matchingDowntimes []datadogV1.MatchingDowntime, status *datadoghqv1alpha1.DatadogMonitorStatus) {
+	if len(matchingDowntimes) > 0 {
+		// Sort so that displayed Downtime is consistent
+		sort.SliceStable(matchingDowntimes, func(i, j int) bool { return *matchingDowntimes[i].Start < *matchingDowntimes[j].Start })
+
 		status.DowntimeStatus = datadoghqv1alpha1.DatadogMonitorDowntimeStatus{
 			IsDowntimed: true,
 			// Only show ID of first Downtime in the list
-			DowntimeID: int(m.MatchingDowntimes[0].Id),
+			DowntimeID: int(matchingDowntimes[0].Id),
 		}
 	} else {
 		// Reset DowntimeStatus
