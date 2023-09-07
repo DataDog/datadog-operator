@@ -7818,6 +7818,9 @@ spec:
                         serviceName:
                           description: ServiceName corresponds to the webhook service name.
                           type: string
+                        webhookName:
+                          description: 'WebhookName is a custom name for the MutatingWebhookConfiguration. Default: "datadog-webhook"'
+                          type: string
                       type: object
                     apm:
                       description: APM (Application Performance Monitoring) configuration.

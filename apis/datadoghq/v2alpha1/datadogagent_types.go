@@ -472,6 +472,11 @@ type AdmissionControllerFeatureConfig struct {
 	// FailurePolicy determines how unrecognized and timeout errors are handled.
 	// +optional
 	FailurePolicy *string `json:"failurePolicy,omitempty"`
+
+	// WebhookName is a custom name for the MutatingWebhookConfiguration.
+	// Default: "datadog-webhook"
+	// +optional
+	WebhookName *string `json:"webhookName,omitempty"`
 }
 
 // ExternalMetricsServerFeatureConfig contains the External Metrics Server feature configuration.
