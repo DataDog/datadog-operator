@@ -147,6 +147,10 @@ func testDCAResources(acm string) *test.ComponentTest {
 					Name:  apicommon.DDAdmissionControllerLocalServiceName,
 					Value: "-agent",
 				},
+				{
+					Name:  apicommon.DDAdmissionControllerWebhookName,
+					Value: "datadog-webhook",
+				},
 			}
 			if acm != "" {
 				acmEnv := corev1.EnvVar{
