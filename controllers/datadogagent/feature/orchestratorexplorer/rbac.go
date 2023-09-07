@@ -97,6 +97,10 @@ func getRBACPolicyRules(logger logr.Logger, crs []string) []rbacv1.PolicyRule {
 			APIGroups: []string{apiextensionsv1.GroupName},
 			Resources: []string{common.CustomResourceDefinitionsName},
 		},
+		{
+			APIGroups: []string{rbac.AutoscalingAPIGroup},
+			Resources: []string{rbac.HorizontalPodAutoscalersRecource},
+		},
 	}
 
 	groupResources := mapAPIGroupsResources(logger, crs)
