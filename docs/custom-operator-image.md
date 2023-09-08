@@ -9,7 +9,7 @@ Below is an example of a Dockerfile that's allowed to copy a local CA certificat
 ```dockerfile
 FROM gcr.io/datadoghq/operator:latest
 
-COPY my-ca-certificat.crt /usr/share/pki/ca-trust-source/anchors/
+COPY my-ca-certificate.crt /usr/share/pki/ca-trust-source/anchors/
 
 ## update-ca-trust needs to run as root
 USER root
