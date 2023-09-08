@@ -353,11 +353,6 @@ func GetClusterAgentSCCName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultClusterAgentResourceSuffix)
 }
 
-// GetAgentServiceName return the Agent service name based on the DatadogAgent name
-func GetAgentServiceName(dda metav1.Object) string {
-	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultAgentResourceSuffix)
-}
-
 // GetAgentName return the Agent name based on the DatadogAgent info
 func GetAgentName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultAgentResourceSuffix)
@@ -566,25 +561,12 @@ func dcaServicePort() netv1.NetworkPolicyPort {
 	}
 }
 
-// BuildAgentLocalService creates a local service for the node agent
-func BuildAgentLocalService(dda metav1.Object, name string) (string, string, map[string]string, []corev1.ServicePort, *corev1.ServiceInternalTrafficPolicyType) {
-	if name == "" {
-		name = GetAgentServiceName(dda)
-	}
-	serviceInternalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
-	selector := map[string]string{
+// GetAgentLocalServiceSelector creates the selector to be used for the agent local service
+func GetAgentLocalServiceSelector(dda metav1.Object) map[string]string {
+	return map[string]string{
 		apicommon.AgentDeploymentNameLabelKey:      dda.GetName(),
 		apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
 	}
-	ports := []corev1.ServicePort{
-		{
-			Protocol:   corev1.ProtocolUDP,
-			TargetPort: intstr.FromInt(apicommon.DefaultDogstatsdPort),
-			Port:       apicommon.DefaultDogstatsdPort,
-			Name:       apicommon.DefaultDogstatsdPortName,
-		},
-	}
-	return name, dda.GetNamespace(), selector, ports, &serviceInternalTrafficPolicy
 }
 
 // ShouldCreateAgentLocalService returns whether the node agent local service should be created based on the Kubernetes version
