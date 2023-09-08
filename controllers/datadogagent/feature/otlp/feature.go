@@ -173,7 +173,7 @@ func (f *otlpFeature) ManageDependencies(managers feature.ResourceManagers, comp
 				},
 			}
 			serviceInternalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
-			if err := managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), nil, servicePort, &serviceInternalTrafficPolicy); err != nil {
+			if err := managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), component.GetAgentLocalServiceSelector(f.owner), servicePort, &serviceInternalTrafficPolicy); err != nil {
 				return err
 			}
 		}
