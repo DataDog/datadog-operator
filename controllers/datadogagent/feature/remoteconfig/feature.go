@@ -46,10 +46,7 @@ func init() {
 }
 
 func buildRCFeature(options *feature.Options) feature.Feature {
-	rcFeat := &rcFeature{
-		// Current default for Remote Config enablement
-		enabled: true,
-	}
+	rcFeat := &rcFeature{}
 
 	if options != nil {
 		rcFeat.logger = options.Logger

@@ -63,11 +63,11 @@ func Test_rcFeature_Configure(t *testing.T) {
 			ClusterAgent:  rcClusterAgentNodeWantFunc(true),
 		},
 		{
-			Name:          "v2alpha1 RC default",
+			Name:          "v2alpha1 RC default (no datadogagent_default.go)",
 			DDAv2:         ddav2RCDefault.DeepCopy(),
 			WantConfigure: true,
-			Agent:         rcAgentNodeWantFunc(true),
-			ClusterAgent:  rcClusterAgentNodeWantFunc(true),
+			Agent:         rcAgentNodeWantFunc(false),
+			ClusterAgent:  rcClusterAgentNodeWantFunc(false),
 		},
 	}
 
