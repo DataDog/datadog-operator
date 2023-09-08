@@ -14,7 +14,7 @@ COPY my-ca-certificate.crt /usr/share/pki/ca-trust-source/anchors/
 ## update-ca-trust needs to run as root
 USER root
 RUN update-ca-trust
-## Run trust list to check that the certificat was properly added
+## Run trust list to check that the certificate was properly added
 RUN trust list
 
 # Move back to random user
