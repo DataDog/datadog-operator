@@ -110,6 +110,9 @@ func Test_defaultFeatures(t *testing.T) {
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
 					},
+					RemoteConfiguration: &RemoteConfigurationFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultRemoteConfigurationEnabled),
+					},
 				},
 			},
 		},
@@ -308,6 +311,9 @@ func Test_defaultFeatures(t *testing.T) {
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
 					},
+					RemoteConfiguration: &RemoteConfigurationFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultRemoteConfigurationEnabled),
+					},
 				},
 			},
 		},
@@ -369,6 +375,9 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+					},
+					RemoteConfiguration: &RemoteConfigurationFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultRemoteConfigurationEnabled),
 					},
 				},
 			},
@@ -435,6 +444,9 @@ func Test_defaultFeatures(t *testing.T) {
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
 					},
+					RemoteConfiguration: &RemoteConfigurationFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultRemoteConfigurationEnabled),
+					},
 				},
 			},
 		},
@@ -493,6 +505,9 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+					},
+					RemoteConfiguration: &RemoteConfigurationFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultRemoteConfigurationEnabled),
 					},
 				},
 			},
@@ -555,6 +570,9 @@ func Test_defaultFeatures(t *testing.T) {
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
 					},
+					RemoteConfiguration: &RemoteConfigurationFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultRemoteConfigurationEnabled),
+					},
 				},
 			},
 		},
@@ -614,6 +632,9 @@ func Test_defaultFeatures(t *testing.T) {
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
 					},
+					RemoteConfiguration: &RemoteConfigurationFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultRemoteConfigurationEnabled),
+					},
 				},
 			},
 		},
@@ -667,6 +688,9 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+					},
+					RemoteConfiguration: &RemoteConfigurationFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultRemoteConfigurationEnabled),
 					},
 				},
 			},
@@ -724,6 +748,9 @@ func Test_defaultFeatures(t *testing.T) {
 						ServiceName:            apiutils.NewStringPointer(defaultAdmissionServiceName),
 						AgentCommunicationMode: apiutils.NewStringPointer("socket"),
 					},
+					RemoteConfiguration: &RemoteConfigurationFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultRemoteConfigurationEnabled),
+					},
 				},
 			},
 		},
@@ -779,6 +806,9 @@ func Test_defaultFeatures(t *testing.T) {
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
 					},
+					RemoteConfiguration: &RemoteConfigurationFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultRemoteConfigurationEnabled),
+					},
 				},
 			},
 		},
@@ -821,7 +851,6 @@ func Test_defaultFeatures(t *testing.T) {
 					USM:                   &USMFeatureConfig{},
 					ExternalMetricsServer: &ExternalMetricsServerFeatureConfig{},
 					PrometheusScrape:      &PrometheusScrapeFeatureConfig{},
-					RemoteConfiguration:   &RemoteConfigurationFeatureConfig{},
 
 					LiveContainerCollection: &LiveContainerCollectionFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
@@ -862,6 +891,9 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+					},
+					RemoteConfiguration: &RemoteConfigurationFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultRemoteConfigurationEnabled),
 					},
 				},
 			},
