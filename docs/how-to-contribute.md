@@ -19,16 +19,16 @@ $ make test
 $ make lint
 
 # build docker image defined as {IMG}
-$ make IMG=test/operator:test docker-build
+$ make IMG=test/operator:test IMG_CHECK=test/operator-check:test docker-build
 
 # push the {IMG} to a configured docker hub
-$ make IMG=test/operator:test docker-push
+$ make IMG=test/operator:test IMG_CHECK=test/operator-check:test docker-push
 
 # install "cert-manager" needed for the webhook
 $ kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.8.0/cert-manager.yaml 
 
 # generate manifest from /config and apply to current cluster
-$ make IMG=test/operator:test deploy
+$ make IMG=test/operator:test IMG_CHECK=test/operator-check:test deploy
 ```
 
 Note: `IMG` currently defaults to: `datadog/datadog-operator:latest`
@@ -60,7 +60,7 @@ kubectl -n $KUBE_NAMESPACE create secret generic datadog-secret --from-literal a
 kubectl -n $KUBE_NAMESPACE create secret generic datadog-token --from-literal token=$DD_TOKEN
 
 
-kubectl -n $KUBE_NAMESPACE  apply -f examples/v2alpha1/min.yaml
+kubectl -n $KUBE_NAMESPACE  apply -f examples/datadogagent/v2alpha1/min.yaml
 ```
 
 

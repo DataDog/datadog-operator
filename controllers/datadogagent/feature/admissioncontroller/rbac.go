@@ -12,17 +12,24 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 )
 
-func getRBACClusterPolicyRules() []rbacv1.PolicyRule {
+func getRBACClusterPolicyRules(webhookName string) []rbacv1.PolicyRule {
 	return []rbacv1.PolicyRule{
 		// MutatingWebhooksConfigs
 		{
 			APIGroups: []string{rbac.AdmissionAPIGroup},
 			Resources: []string{rbac.MutatingConfigResource},
 			Verbs: []string{
+				rbac.CreateVerb,
+			},
+		},
+		{
+			APIGroups:     []string{rbac.AdmissionAPIGroup},
+			Resources:     []string{rbac.MutatingConfigResource},
+			ResourceNames: []string{webhookName},
+			Verbs: []string{
 				rbac.GetVerb,
 				rbac.ListVerb,
 				rbac.WatchVerb,
-				rbac.CreateVerb,
 				rbac.UpdateVerb,
 			},
 		},

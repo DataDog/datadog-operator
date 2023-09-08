@@ -31,8 +31,11 @@ func GetDefaultAgentClusterRolePolicyRules() []rbacv1.PolicyRule {
 
 func getMetricsEndpointPolicyRule() rbacv1.PolicyRule {
 	return rbacv1.PolicyRule{
-		NonResourceURLs: []string{rbac.MetricsURL},
-		Verbs:           []string{rbac.GetVerb},
+		NonResourceURLs: []string{
+			rbac.MetricsURL,
+			rbac.MetricsSLIsURL,
+		},
+		Verbs: []string{rbac.GetVerb},
 	}
 }
 

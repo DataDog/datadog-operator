@@ -39,6 +39,7 @@ spec:
 | features.admissionController.failurePolicy | FailurePolicy determines how unrecognized and timeout errors are handled. |
 | features.admissionController.mutateUnlabelled | MutateUnlabelled enables config injection without the need of pod label 'admission.datadoghq.com/enabled="true"'. Default: false |
 | features.admissionController.serviceName | ServiceName corresponds to the webhook service name. |
+| features.admissionController.webhookName | WebhookName is a custom name for the MutatingWebhookConfiguration. Default: "datadog-webhook" |
 | features.apm.enabled | Enabled enables Application Performance Monitoring. Default: false |
 | features.apm.hostPortConfig.enabled | Enabled enables host port configuration Default: false |
 | features.apm.hostPortConfig.hostPort | Port takes a port number (0 < x < 65536) to expose on the host. (Most containers do not need this.) If HostNetwork is enabled, this value must match the ContainerPort. |
@@ -183,12 +184,12 @@ spec:
       image:
         name: agent
         tag: 7.41.0-rc.5
-    containers:
-      system-probe:
-        resources:
-          limits:
-            cpu: "2"
-            memory: 1Gi
+      containers:
+        system-probe:
+          resources:
+            limits:
+              cpu: "2"
+              memory: 1Gi
 ```
 In the table, `spec.override.nodeAgent.image.name` and `spec.override.nodeAgent.containers.system-probe.resources.limits` will appear as `[key].image.name`, `[key].containers.[key].resources.limits` respectively.
 
