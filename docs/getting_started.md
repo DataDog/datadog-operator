@@ -56,6 +56,9 @@ To deploy the Datadog Agent with the Operator in the minimum number of steps, us
 
 The [configuration][5] page lists all the Datadog Agent and Cluster Agent features and options that can be configured with the `DatadogAgent` resource.
 
+### Configure integrations
+Visit the [Integrations Autodiscovery][9] page for details about how to configure Agent Integrations when using the Datadog Operator.
+
 #### Containers registry
 
 To change the default registry ([gcr.io/datadoghq][6]) to another registry, use the option `spec.registry`.
@@ -90,3 +93,4 @@ helm delete my-datadog-operator
 [6]: ttps://gcr.io/datadoghq
 [7]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/v2alpha1/datadog-agent-with-registry.yaml
 [8]: https://gallery.ecr.aws/datadog/
+[9]: https://github.com/DataDog/datadog-operator/blob/main/docs/integrations_autodiscovery.md

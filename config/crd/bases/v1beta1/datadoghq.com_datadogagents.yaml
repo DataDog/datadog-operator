@@ -15368,6 +15368,9 @@ spec:
                         serviceName:
                           description: ServiceName corresponds to the webhook service name.
                           type: string
+                        webhookName:
+                          description: 'WebhookName is a custom name for the MutatingWebhookConfiguration. Default: "datadog-webhook"'
+                          type: string
                       type: object
                     apm:
                       description: APM (Application Performance Monitoring) configuration.
@@ -15453,6 +15456,13 @@ spec:
                         enabled:
                           description: 'Enabled enables Cloud Security Posture Management. Default: false'
                           type: boolean
+                        hostBenchmarks:
+                          description: HostBenchmarks contains configuration for host benchmarks.
+                          properties:
+                            enabled:
+                              description: 'Enabled enables host benchmarks. Default: false'
+                              type: boolean
+                          type: object
                       type: object
                     cws:
                       description: CWS (Cloud Workload Security) configuration.

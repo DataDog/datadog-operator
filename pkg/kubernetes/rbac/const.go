@@ -82,9 +82,10 @@ const (
 
 	// Non resource URLs
 
-	VersionURL = "/version"
-	HealthzURL = "/healthz"
-	MetricsURL = "/metrics"
+	VersionURL     = "/version"
+	HealthzURL     = "/healthz"
+	MetricsURL     = "/metrics"
+	MetricsSLIsURL = "/metrics/slis"
 
 	// Verbs
 

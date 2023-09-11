@@ -17,12 +17,12 @@ spec:
       image:
         name: agent
         tag: 7.41.0-rc.5
-    containers:
-      system-probe:
-        resources:
-          limits:
-            cpu: "2"
-            memory: 1Gi
+      containers:
+        system-probe:
+          resources:
+            limits:
+              cpu: "2"
+              memory: 1Gi
 ```
 In the table, `spec.override.nodeAgent.image.name` and `spec.override.nodeAgent.containers.system-probe.resources.limits` will appear as `[key].image.name`, `[key].containers.[key].resources.limits` respectively.
 

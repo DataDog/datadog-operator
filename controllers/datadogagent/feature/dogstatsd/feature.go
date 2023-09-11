@@ -158,7 +158,7 @@ func (f *dogstatsdFeature) ManageDependencies(managers feature.ResourceManagers,
 			}
 		}
 		serviceInternalTrafficPolicy := corev1.ServiceInternalTrafficPolicyLocal
-		if err := managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), nil, []corev1.ServicePort{*dsdPort}, &serviceInternalTrafficPolicy); err != nil {
+		if err := managers.ServiceManager().AddService(f.localServiceName, f.owner.GetNamespace(), component.GetAgentLocalServiceSelector(f.owner), []corev1.ServicePort{*dsdPort}, &serviceInternalTrafficPolicy); err != nil {
 			return err
 		}
 	}

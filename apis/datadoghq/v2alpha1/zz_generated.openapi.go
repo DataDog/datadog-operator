@@ -19,6 +19,7 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
+		"./apis/datadoghq/v2alpha1.CSPMHostBenchmarksConfig":          schema__apis_datadoghq_v2alpha1_CSPMHostBenchmarksConfig(ref),
 		"./apis/datadoghq/v2alpha1.CustomConfig":                      schema__apis_datadoghq_v2alpha1_CustomConfig(ref),
 		"./apis/datadoghq/v2alpha1.DatadogAgent":                      schema__apis_datadoghq_v2alpha1_DatadogAgent(ref),
 		"./apis/datadoghq/v2alpha1.DatadogAgentGenericContainer":      schema__apis_datadoghq_v2alpha1_DatadogAgentGenericContainer(ref),
@@ -41,6 +42,26 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./apis/datadoghq/v2alpha1.SeccompConfig":                     schema__apis_datadoghq_v2alpha1_SeccompConfig(ref),
 		"./apis/datadoghq/v2alpha1.SecurityContextConstraintsConfig":  schema__apis_datadoghq_v2alpha1_SecurityContextConstraintsConfig(ref),
 		"./apis/datadoghq/v2alpha1.UnixDomainSocketConfig":            schema__apis_datadoghq_v2alpha1_UnixDomainSocketConfig(ref),
+	}
+}
+
+func schema__apis_datadoghq_v2alpha1_CSPMHostBenchmarksConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "CSPMHostBenchmarksConfig contains configuration for host benchmarks.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enabled": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Enabled enables host benchmarks. Default: false",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
 	}
 }
 

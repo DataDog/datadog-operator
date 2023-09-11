@@ -22,3 +22,5 @@ spec:
       enabled: true
     cws:
       enabled: true
+    orchestratorExplorer:
+      enabled: true

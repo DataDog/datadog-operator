@@ -11,6 +11,7 @@ import (
 )
 
 // DatadogMonitorSpec defines the desired state of DatadogMonitor
+// +k8s:openapi-gen=true
 type DatadogMonitorSpec struct {
 	// Name is the monitor name
 	Name string `json:"name,omitempty"`
@@ -23,8 +24,10 @@ type DatadogMonitorSpec struct {
 	// RestrictedRoles is a list of unique role identifiers to define which roles are allowed to edit the monitor.
 	// `restricted_roles` is the successor of `locked`. For more information about `locked` and `restricted_roles`,
 	// see the [monitor options docs](https://docs.datadoghq.com/monitors/guide/monitor_api_options/#permissions-options).
+	// +listType=set
 	RestrictedRoles []string `json:"restrictedRoles,omitempty"`
 	// Tags is the monitor tags associated with your monitor
+	// +listType=set
 	Tags []string `json:"tags,omitempty"`
 	// Type is the monitor type
 	Type DatadogMonitorType `json:"type,omitempty"`
@@ -66,6 +69,7 @@ const (
 )
 
 // DatadogMonitorOptions define the optional parameters of a monitor
+// +k8s:openapi-gen=true
 type DatadogMonitorOptions struct {
 	// A Boolean indicating whether to send a log sample when the log monitor triggers.
 	EnableLogsSample *bool `json:"enableLogsSample,omitempty"`
@@ -105,6 +109,7 @@ type DatadogMonitorOptions struct {
 }
 
 // DatadogMonitorOptionsThresholds is a struct of the different monitor threshold values
+// +k8s:openapi-gen=true
 type DatadogMonitorOptionsThresholds struct {
 	// The monitor CRITICAL threshold.
 	Critical *string `json:"critical,omitempty"`
@@ -121,6 +126,7 @@ type DatadogMonitorOptionsThresholds struct {
 }
 
 // DatadogMonitorOptionsThresholdWindows is a struct of the alerting time window options
+// +k8s:openapi-gen=true
 type DatadogMonitorOptionsThresholdWindows struct {
 	// Describes how long an anomalous metric must be normal before the alert recovers.
 	RecoveryWindow *string `json:"recoveryWindow,omitempty"`
@@ -129,12 +135,14 @@ type DatadogMonitorOptionsThresholdWindows struct {
 }
 
 // DatadogMonitorControllerOptions defines options in the DatadogMonitor controller
+// +k8s:openapi-gen=true
 type DatadogMonitorControllerOptions struct {
 	// DisableRequiredTags disables the automatic addition of required tags to monitors.
 	DisableRequiredTags *bool `json:"disableRequiredTags,omitempty"`
 }
 
 // DatadogMonitorStatus defines the observed state of DatadogMonitor
+// +k8s:openapi-gen=true
 type DatadogMonitorStatus struct {
 	// Conditions Represents the latest available observations of a DatadogMonitor's current state.
 	// +listType=map
@@ -158,6 +166,8 @@ type DatadogMonitorStatus struct {
 	// MonitorStateSyncStatus shows the health of syncing the monitor state to Datadog
 	MonitorStateSyncStatus MonitorStateSyncStatusMessage `json:"syncStatus,omitempty"`
 	// TriggeredState only includes details for monitor groups that are triggering
+	// +listType=map
+	// +listMapKey=monitorGroup
 	TriggeredState []DatadogMonitorTriggeredState `json:"triggeredState,omitempty"`
 	// DowntimeStatus defines whether the monitor is downtimed
 	DowntimeStatus DatadogMonitorDowntimeStatus `json:"downtimeStatus,omitempty"`
@@ -242,17 +252,19 @@ const (
 
 // DatadogMonitorTriggeredState represents the details of a triggering DatadogMonitor
 // The DatadogMonitor is triggering if one of its groups is in Alert, Warn, or No Data
+// +k8s:openapi-gen=true
 type DatadogMonitorTriggeredState struct {
 	// MonitorGroup is the name of the triggering group
-	MonitorGroup       string              `json:"monitorGroup,omitempty"`
+	MonitorGroup       string              `json:"monitorGroup"`
 	State              DatadogMonitorState `json:"state,omitempty"`
 	LastTransitionTime metav1.Time         `json:"lastTransitionTime,omitempty"`
 }
 
 // DatadogMonitorDowntimeStatus represents the downtime status of a DatadogMonitor
+// +k8s:openapi-gen=true
 type DatadogMonitorDowntimeStatus struct {
-	IsDowntimed bool `json:"isDowntimed,omitempty"`
-	DowntimeID  int  `json:"downtimeId,omitempty"`
+	IsDowntimed bool `json:"isDowntimed"`
+	DowntimeID  int  `json:"downtimeID,omitempty"`
 }
 
 // DatadogMonitor allows to define and manage Monitors from your Kubernetes Cluster
@@ -261,6 +273,7 @@ type DatadogMonitorDowntimeStatus struct {
 // +kubebuilder:resource:path=datadogmonitors,scope=Namespaced
 // +kubebuilder:printcolumn:name="id",type="string",JSONPath=".status.id"
 // +kubebuilder:printcolumn:name="monitor state",type="string",JSONPath=".status.monitorState"
+// +kubebuilder:printcolumn:name="is downtimed",type="boolean",JSONPath=".status.downtimeStatus.isDowntimed"
 // +kubebuilder:printcolumn:name="last state transition",type="string",JSONPath=".status.monitorStateLastTransitionTime"
 // +kubebuilder:printcolumn:name="last state sync",type="string",format="date",JSONPath=".status.monitorStateLastUpdateTime"
 // +kubebuilder:printcolumn:name="sync status",type="string",JSONPath=".status.syncStatus"

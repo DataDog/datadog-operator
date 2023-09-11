@@ -46,11 +46,12 @@ func buildCSPMFeature(options *feature.Options) feature.Feature {
 }
 
 type cspmFeature struct {
-	enable             bool
-	serviceAccountName string
-	checkInterval      string
-	createSCC          bool
-	createPSP          bool
+	enable                bool
+	serviceAccountName    string
+	checkInterval         string
+	createSCC             bool
+	createPSP             bool
+	hostBenchmarksEnabled bool
 
 	owner  metav1.Object
 	logger logr.Logger
@@ -93,6 +94,10 @@ func (f *cspmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Req
 
 		// TODO add settings to configure f.createPSP
 		f.createSCC = v2alpha1.ShouldCreateSCC(dda, v2alpha1.NodeAgentComponentName)
+
+		if dda.Spec.Features.CSPM.HostBenchmarks != nil && apiutils.BoolValue(dda.Spec.Features.CSPM.HostBenchmarks.Enabled) {
+			f.hostBenchmarksEnabled = true
+		}
 
 		reqComp = feature.RequiredComponents{
 			ClusterAgent: feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)},
@@ -361,6 +366,14 @@ func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, prov
 			Value: f.checkInterval,
 		}
 		managers.EnvVar().AddEnvVarToContainer(apicommonv1.SecurityAgentContainerName, intervalEnvVar)
+	}
+
+	if f.hostBenchmarksEnabled {
+		hostBenchmarksEnabledEnvVar := &corev1.EnvVar{
+			Name:  apicommon.DDComplianceHostBenchmarksEnabled,
+			Value: apiutils.BoolToString(&f.hostBenchmarksEnabled),
+		}
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.SecurityAgentContainerName, hostBenchmarksEnabledEnvVar)
 	}
 
 	return nil

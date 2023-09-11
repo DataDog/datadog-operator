@@ -54,6 +54,8 @@ const (
 	DefaultAdmissionControllerServicePort = 443
 	// DefaultAdmissionControllerTargetPort default admission controller pod port
 	DefaultAdmissionControllerTargetPort = 8000
+	// DefaultAdmissionControllerWebhookName default admission controller webhook name
+	DefaultAdmissionControllerWebhookName string = "datadog-webhook"
 	// DefaultDogstatsdPort default dogstatsd port
 	DefaultDogstatsdPort = 8125
 	// DefaultDogstatsdPortName default dogstatsd port name

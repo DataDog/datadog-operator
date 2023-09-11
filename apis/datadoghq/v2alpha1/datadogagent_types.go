@@ -227,6 +227,19 @@ type CSPMFeatureConfig struct {
 	// Any benchmarks with the same name as those existing in the agent will take precedence.
 	// +optional
 	CustomBenchmarks *CustomConfig `json:"customBenchmarks,omitempty"`
+
+	// HostBenchmarks contains configuration for host benchmarks.
+	// +optional
+	HostBenchmarks *CSPMHostBenchmarksConfig `json:"hostBenchmarks,omitempty"`
+}
+
+// CSPMHostBenchmarksConfig contains configuration for host benchmarks.
+// +k8s:openapi-gen=true
+type CSPMHostBenchmarksConfig struct {
+	// Enabled enables host benchmarks.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // CWSFeatureConfig contains CWS (Cloud Workload Security) configuration.
@@ -472,6 +485,11 @@ type AdmissionControllerFeatureConfig struct {
 	// FailurePolicy determines how unrecognized and timeout errors are handled.
 	// +optional
 	FailurePolicy *string `json:"failurePolicy,omitempty"`
+
+	// WebhookName is a custom name for the MutatingWebhookConfiguration.
+	// Default: "datadog-webhook"
+	// +optional
+	WebhookName *string `json:"webhookName,omitempty"`
 }
 
 // ExternalMetricsServerFeatureConfig contains the External Metrics Server feature configuration.
