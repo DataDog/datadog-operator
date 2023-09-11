@@ -178,7 +178,6 @@ func main() {
 // run allow to use defer func() paradigm properly.
 // do not use `os.Exit()` in this function
 func run(opts *options) error {
-
 	// Logging setup
 	if err := customSetupLogging(*opts.logLevel, opts.logEncoder); err != nil {
 		return setupErrorf(setupLog, err, "Unable to setup the logger")
@@ -190,6 +189,12 @@ func run(opts *options) error {
 		return nil
 	}
 	version.PrintVersionLogs(setupLog)
+
+	if !opts.v2APIEnabled {
+		setupLog.Info("The `v2APIEnabled` flag is deprecated in v1.2.0+ and will be removed in a future release." +
+			"Once removed, the Datadog Operator cannot be configured to reconcile the v1alpha1 DatadogAgent CRD." +
+			"You will still be able to apply v1alpha1 with the conversion webhook enabled (`webhookEnabled`).")
+	}
 
 	if opts.profilingEnabled {
 		setupLog.Info("Starting datadog profiler")
