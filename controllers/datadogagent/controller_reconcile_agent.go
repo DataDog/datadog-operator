@@ -7,7 +7,6 @@ package datadogagent
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
@@ -48,7 +47,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 
 	if r.options.ExtendedDaemonsetOptions.Enabled {
 		// Start by creating the Default Agent extendeddaemonset
-		eds = componentagent.NewDefaultAgentExtendedDaemonset(dda, &r.options.ExtendedDaemonsetOptions, requiredContainers)
+		eds = componentagent.NewDefaultAgentExtendedDaemonset(dda, &r.options.ExtendedDaemonsetOptions, requiredContainers, provider)
 		podManagers = feature.NewPodTemplateManagers(&eds.Spec.Template)
 
 		// Set Global setting on the default extendeddaemonset
@@ -85,10 +84,6 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 			return r.cleanupV2ExtendedDaemonSet(daemonsetLogger, dda, eds, newStatus)
 		}
 
-		// Use provider-specific name
-		eds.Name = fmt.Sprintf("%s-%s", eds.Name, provider.ComponentName)
-		eds.Labels[apicommon.AgentDeploymentNameLabelKey] = eds.Name
-		eds.Spec.Selector.MatchLabels[apicommon.AgentDeploymentNameLabelKey] = eds.Name
 		// Add profile hash label
 		providerHash, err := kubernetes.GenerateProviderHash(provider)
 		if err != nil {
@@ -105,7 +100,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	}
 
 	// Start by creating the Default Agent daemonset
-	daemonset = componentagent.NewDefaultAgentDaemonset(dda, requiredContainers)
+	daemonset = componentagent.NewDefaultAgentDaemonset(dda, requiredContainers, provider)
 	podManagers = feature.NewPodTemplateManagers(&daemonset.Spec.Template)
 
 	// Set Global setting on the default daemonset
@@ -142,10 +137,6 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 		return r.cleanupV2DaemonSet(daemonsetLogger, dda, daemonset, newStatus)
 	}
 
-	// Use provider-specific name
-	daemonset.Name = fmt.Sprintf("%s-%s", daemonset.Name, provider.ComponentName)
-	daemonset.Labels[apicommon.AgentDeploymentNameLabelKey] = daemonset.Name
-	daemonset.Spec.Selector.MatchLabels[apicommon.AgentDeploymentNameLabelKey] = daemonset.Name
 	// Add profile hash label
 	providerHash, err := kubernetes.GenerateProviderHash(provider)
 	if err != nil {

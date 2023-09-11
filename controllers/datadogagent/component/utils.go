@@ -564,7 +564,7 @@ func dcaServicePort() netv1.NetworkPolicyPort {
 // GetAgentLocalServiceSelector creates the selector to be used for the agent local service
 func GetAgentLocalServiceSelector(dda metav1.Object) map[string]string {
 	return map[string]string{
-		apicommon.AgentDeploymentNameLabelKey:      dda.GetName(),
+		kubernetes.AppKubernetesPartOfLabelKey:     object.NewPartOfLabelValue(dda).String(),
 		apicommon.AgentDeploymentComponentLabelKey: apicommon.DefaultAgentResourceSuffix,
 	}
 }
@@ -576,6 +576,14 @@ func ShouldCreateAgentLocalService(versionInfo *version.Info, forceEnableLocalSe
 	}
 	// Service Internal Traffic Policy is enabled by default since 1.22
 	return utils.IsAboveMinVersion(versionInfo.GitVersion, localServiceDefaultMinimumVersion) || forceEnableLocalService
+}
+
+// GetAgentDeploymentProviderName returns a provider-specific name for the agent component
+func GetAgentDeploymentProviderName(ddaName string, provider kubernetes.Provider) string {
+	if provider.Name != "" {
+		return ddaName + "-" + provider.ComponentName
+	}
+	return ddaName
 }
 
 // BuildCiliumPolicy creates the base node agent, DCA, or CCR cilium network policy
