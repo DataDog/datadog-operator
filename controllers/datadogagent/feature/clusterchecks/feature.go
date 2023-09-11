@@ -57,22 +57,23 @@ func (f *clusterChecksFeature) ID() feature.IDType {
 	return feature.ClusterChecksIDType
 }
 
-func (f *clusterChecksFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredComponents {
+func (f *clusterChecksFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	clusterChecksEnabled := apiutils.BoolValue(dda.Spec.Features.ClusterChecks.Enabled)
-	f.useClusterCheckRunners = clusterChecksEnabled && apiutils.BoolValue(dda.Spec.Features.ClusterChecks.UseClusterChecksRunners)
-
-	{
-		hash, err := comparison.GenerateMD5ForSpec(dda.Spec.Features.ClusterChecks)
-		if err != nil {
-			f.logger.Error(err, "couldn't generate hash for cluster checks config")
-		} else {
-			f.logger.V(2).Info("created cluster checks", "hash", hash)
-		}
-		f.customConfigAnnotationValue = hash
-		f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.ClusterChecksIDType)
-	}
 
 	if clusterChecksEnabled {
+		f.useClusterCheckRunners = clusterChecksEnabled && apiutils.BoolValue(dda.Spec.Features.ClusterChecks.UseClusterChecksRunners)
+
+		{
+			hash, err := comparison.GenerateMD5ForSpec(dda.Spec.Features.ClusterChecks)
+			if err != nil {
+				f.logger.Error(err, "couldn't generate hash for cluster checks config")
+			} else {
+				f.logger.V(2).Info("created cluster checks", "hash", hash)
+			}
+			f.customConfigAnnotationValue = hash
+			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.ClusterChecksIDType)
+		}
+
 		f.owner = dda
 
 		if enabled, flavor := v2alpha1.IsNetworkPolicyEnabled(dda); enabled {
@@ -83,13 +84,13 @@ func (f *clusterChecksFeature) Configure(dda *v2alpha1.DatadogAgent) feature.Req
 			}
 		}
 
-		return feature.RequiredComponents{
+		reqComp = feature.RequiredComponents{
 			ClusterAgent:        feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)},
 			ClusterChecksRunner: feature.RequiredComponent{IsRequired: &f.useClusterCheckRunners},
 		}
 	}
 
-	return feature.RequiredComponents{}
+	return reqComp
 }
 
 func (f *clusterChecksFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) feature.RequiredComponents {
