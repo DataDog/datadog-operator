@@ -185,6 +185,21 @@ datadog-agent-zvdbw                          1/1     Running    0          8m1s
 
 See the [`kubectl` plugin doc](/docs/kubectl-plugin.md)
 
+
+## Use a custom Datadog Operator image
+
+See instructions to build a Datadog Operator custom container image based on an official release in [Custom Operator container images][9].
+
+### Datadog Operator images with Helm charts
+
+To install a custom Datadog Operator image using the Helm chart, run the following:
+
+
+```console
+helm install my-datadog-operator --set image.repository=<custom-image-repository> --set image.tag=<custom-image-tag> datadog/datadog-operator
+```
+
+
 ## Cleanup
 
 The following command deletes all the Kubernetes resources created by the Datadog Operator and the linked `DatadogAgent` `datadog`.
@@ -208,3 +223,4 @@ helm delete my-datadog-operator
 [6]: https://github.com/operator-framework/operator-lifecycle-manager/blob/master/doc/design/subscription-config.md
 [7]: https://app.datadoghq.com/account/settings#api
 [8]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/datadog-agent-with-tolerations.yaml
+[9]: https://github.com/DataDog/datadog-operator/blob/main/docs/custom-operator-image.md
