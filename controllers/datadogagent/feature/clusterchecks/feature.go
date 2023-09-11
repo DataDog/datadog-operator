@@ -89,11 +89,7 @@ func (f *clusterChecksFeature) Configure(dda *v2alpha1.DatadogAgent) feature.Req
 		}
 	}
 
-	// Don't set ClusterAgent here because we can have a DCA deployed (as
-	// defined in the "default" feature) with cluster checks disabled.
-	return feature.RequiredComponents{
-		ClusterChecksRunner: feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(false)},
-	}
+	return feature.RequiredComponents{}
 }
 
 func (f *clusterChecksFeature) ConfigureV1(dda *v1alpha1.DatadogAgent) feature.RequiredComponents {

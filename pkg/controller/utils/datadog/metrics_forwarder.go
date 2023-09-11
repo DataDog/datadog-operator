@@ -249,7 +249,7 @@ func (mf *metricsForwarder) setupV2() error {
 	}
 
 	mf.baseURL = getbaseURLV2(dda)
-	mf.logger.V(1).Info("Got site for DatadogAgent", "site", mf.baseURL)
+	mf.logger.V(1).Info("Got API URL for DatadogAgent", "site", mf.baseURL)
 
 	if dda.Spec.Global != nil && dda.Spec.Global.ClusterName != nil {
 		mf.clusterName = *dda.Spec.Global.ClusterName
