@@ -199,10 +199,23 @@ func (f *clusterChecksFeature) ManageClusterAgent(managers feature.PodTemplateMa
 	return nil
 }
 
+// ManageMonoContainerNodeAgent allows a feature to configure the mono-container Node Agent's corev1.PodTemplateSpec
+// if mono-container usage is enabled and can be used with the current feature set
+// It should do nothing if the feature doesn't need to configure it.
+func (f *clusterChecksFeature) ManageMonoContainerNodeAgent(managers feature.PodTemplateManagers) error {
+	f.manageNodeAgent(common.NonPrivilegedMonoContainerName, managers)
+	return nil
+}
+
 func (f *clusterChecksFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+	f.manageNodeAgent(common.CoreAgentContainerName, managers)
+	return nil
+}
+
+func (f *clusterChecksFeature) manageNodeAgent(agentContainerName common.AgentContainerName, managers feature.PodTemplateManagers) error {
 	if f.useClusterCheckRunners {
 		managers.EnvVar().AddEnvVarToContainer(
-			common.CoreAgentContainerName,
+			agentContainerName,
 			&corev1.EnvVar{
 				Name:  apicommon.DDExtraConfigProviders,
 				Value: apicommon.EndpointsChecksConfigProvider,
@@ -210,7 +223,7 @@ func (f *clusterChecksFeature) ManageNodeAgent(managers feature.PodTemplateManag
 		)
 	} else {
 		managers.EnvVar().AddEnvVarToContainer(
-			common.CoreAgentContainerName,
+			agentContainerName,
 			&corev1.EnvVar{
 				Name:  apicommon.DDExtraConfigProviders,
 				Value: apicommon.ClusterAndEndpointsConfigProviders,

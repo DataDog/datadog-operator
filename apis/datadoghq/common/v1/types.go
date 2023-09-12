@@ -76,6 +76,8 @@ const (
 	SeccompSetupContainerName AgentContainerName = "seccomp-setup"
 
 	// CoreAgentContainerName is the name of the Core Agent container
+	NonPrivilegedMonoContainerName AgentContainerName = "non-privileged-mono-agent"
+	// CoreAgentContainerName is the name of the Core Agent container
 	CoreAgentContainerName AgentContainerName = "agent"
 	// TraceAgentContainerName is the name of the Trace Agent container
 	TraceAgentContainerName AgentContainerName = "trace-agent"

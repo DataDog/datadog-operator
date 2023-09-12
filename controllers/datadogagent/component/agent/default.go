@@ -17,6 +17,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
 
 	securityv1 "github.com/openshift/api/security/v1"
@@ -26,11 +27,16 @@ import (
 )
 
 // NewDefaultAgentDaemonset return a new default agent DaemonSet
-func NewDefaultAgentDaemonset(dda metav1.Object, requiredContainers []common.AgentContainerName) *appsv1.DaemonSet {
+func NewDefaultAgentDaemonset(dda metav1.Object, requiredComponents feature.RequiredComponents) *appsv1.DaemonSet {
 	daemonset := NewDaemonset(dda, apicommon.DefaultAgentResourceSuffix, component.GetAgentName(dda), component.GetAgentVersion(dda), nil)
-	podTemplate := NewDefaultAgentPodTemplateSpec(dda, requiredContainers, daemonset.GetLabels())
+	if requiredComponents.Agent.UsesMultiProcessContainer() {
+		podTemplate := NewDefaultMonoContainerAgentPodTemplateSpec(dda, requiredComponents.Agent.Containers, daemonset.GetLabels())
+		daemonset.Spec.Template = *podTemplate
+	} else {
+		podTemplate := NewDefaultAgentPodTemplateSpec(dda, requiredComponents.Agent.Containers, daemonset.GetLabels())
+		daemonset.Spec.Template = *podTemplate
+	}
 
-	daemonset.Spec.Template = *podTemplate
 	return daemonset
 }
 
@@ -39,6 +45,26 @@ func NewDefaultAgentExtendedDaemonset(dda metav1.Object, edsOptions *ExtendedDae
 	edsDaemonset := NewExtendedDaemonset(dda, edsOptions, apicommon.DefaultAgentResourceSuffix, component.GetAgentName(dda), component.GetAgentVersion(dda), nil)
 	edsDaemonset.Spec.Template = *NewDefaultAgentPodTemplateSpec(dda, requiredContainers, edsDaemonset.GetLabels())
 	return edsDaemonset
+}
+
+// NewDefaultAgentPodTemplateSpec return a default node agent for the cluster-agent deployment
+func NewDefaultMonoContainerAgentPodTemplateSpec(dda metav1.Object, requiredContainers []common.AgentContainerName, labels map[string]string) *corev1.PodTemplateSpec {
+	return &corev1.PodTemplateSpec{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels:      labels,
+			Annotations: make(map[string]string),
+		},
+		Spec: corev1.PodSpec{
+			// Force root user for when the agent Dockerfile will be updated to use a non-root user by default
+			SecurityContext: &corev1.PodSecurityContext{
+				RunAsUser: apiutils.NewInt64Pointer(0),
+			},
+			ServiceAccountName: getDefaultServiceAccountName(dda),
+			InitContainers:     initContainers(dda, requiredContainers),
+			Containers:         agentMonoContainer(dda, requiredContainers),
+			Volumes:            volumesForAgent(dda, requiredContainers),
+		},
+	}
 }
 
 // NewDefaultAgentPodTemplateSpec return a default node agent for the cluster-agent deployment
@@ -97,6 +123,21 @@ func initContainers(dda metav1.Object, requiredContainers []common.AgentContaine
 	}
 
 	return initContainers
+}
+
+func agentMonoContainer(dda metav1.Object, requiredContainers []common.AgentContainerName) []corev1.Container {
+	monoContainer := corev1.Container{
+		Name:           string(common.NonPrivilegedMonoContainerName),
+		Image:          agentImage(),
+		Env:            envVarsForCoreAgent(dda),
+		VolumeMounts:   volumeMountsForCoreAgent(),
+		LivenessProbe:  apicommon.GetDefaultLivenessProbe(),
+		ReadinessProbe: apicommon.GetDefaultReadinessProbe(),
+	}
+
+	containers := []corev1.Container{monoContainer}
+
+	return containers
 }
 
 func agentContainers(dda metav1.Object, requiredContainers []common.AgentContainerName) []corev1.Container {

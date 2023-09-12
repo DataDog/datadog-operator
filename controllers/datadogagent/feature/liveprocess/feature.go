@@ -93,12 +93,26 @@ func (f *liveProcessFeature) ManageClusterAgent(managers feature.PodTemplateMana
 	return nil
 }
 
+// ManageMonoContainerNodeAgent allows a feature to configure the mono-container Node Agent's corev1.PodTemplateSpec
+// if mono-container usage is enabled and can be used with the current feature set
+// It should do nothing if the feature doesn't need to configure it.
+func (f *liveProcessFeature) ManageMonoContainerNodeAgent(managers feature.PodTemplateManagers) error {
+	f.manageNodeAgent(apicommonv1.NonPrivilegedMonoContainerName, managers)
+	return nil
+}
+
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *liveProcessFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+	f.manageNodeAgent(apicommonv1.ProcessAgentContainerName, managers)
+	return nil
+}
+
+func (f *liveProcessFeature) manageNodeAgent(agentContainerName apicommonv1.AgentContainerName, managers feature.PodTemplateManagers) error {
+
 	// passwd volume mount
 	passwdVol, passwdVolMount := volume.GetVolumes(apicommon.PasswdVolumeName, apicommon.PasswdHostPath, apicommon.PasswdMountPath, true)
-	managers.VolumeMount().AddVolumeMountToContainer(&passwdVolMount, apicommonv1.ProcessAgentContainerName)
+	managers.VolumeMount().AddVolumeMountToContainer(&passwdVolMount, agentContainerName)
 	managers.Volume().AddVolume(&passwdVol)
 
 	enableEnvVar := &corev1.EnvVar{
@@ -106,14 +120,14 @@ func (f *liveProcessFeature) ManageNodeAgent(managers feature.PodTemplateManager
 		Value: "true",
 	}
 
-	managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, enableEnvVar)
+	managers.EnvVar().AddEnvVarToContainer(agentContainerName, enableEnvVar)
 
 	if f.scrubArgs != nil {
 		scrubArgsEnvVar := &corev1.EnvVar{
 			Name:  apicommon.DDProcessConfigScrubArgs,
 			Value: apiutils.BoolToString(f.scrubArgs),
 		}
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, scrubArgsEnvVar)
+		managers.EnvVar().AddEnvVarToContainer(agentContainerName, scrubArgsEnvVar)
 	}
 
 	if f.stripArgs != nil {
@@ -121,7 +135,7 @@ func (f *liveProcessFeature) ManageNodeAgent(managers feature.PodTemplateManager
 			Name:  apicommon.DDProcessConfigStripArgs,
 			Value: apiutils.BoolToString(f.stripArgs),
 		}
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.ProcessAgentContainerName, stripArgsEnvVar)
+		managers.EnvVar().AddEnvVarToContainer(agentContainerName, stripArgsEnvVar)
 	}
 
 	return nil
