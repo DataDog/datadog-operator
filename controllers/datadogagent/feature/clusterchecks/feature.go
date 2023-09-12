@@ -58,10 +58,8 @@ func (f *clusterChecksFeature) ID() feature.IDType {
 }
 
 func (f *clusterChecksFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
-	clusterChecksEnabled := apiutils.BoolValue(dda.Spec.Features.ClusterChecks.Enabled)
-
-	if clusterChecksEnabled {
-		f.useClusterCheckRunners = clusterChecksEnabled && apiutils.BoolValue(dda.Spec.Features.ClusterChecks.UseClusterChecksRunners)
+	if apiutils.BoolValue(dda.Spec.Features.ClusterChecks.Enabled) {
+		f.useClusterCheckRunners = apiutils.BoolValue(dda.Spec.Features.ClusterChecks.UseClusterChecksRunners)
 
 		{
 			hash, err := comparison.GenerateMD5ForSpec(dda.Spec.Features.ClusterChecks)
