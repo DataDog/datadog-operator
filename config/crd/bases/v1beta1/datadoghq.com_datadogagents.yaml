@@ -2689,10 +2689,10 @@ spec:
                           description: Define whether the Agent image should support JMX. To be used if the Name field does not correspond to a full image string.
                           type: boolean
                         name:
-                          description: 'Define the image to use: Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7. Use "datadog/dogstatsd:latest" for standalone Datadog Agent DogStatsD 7. Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent. Use "agent" with the registry and tag configurations for <registry>/agent:<tag>. Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>. If the name is full image string - `<name>:<tag>` or `<registry>/<name>:<tag>`, `tag` and `jmxEnabled` values are ignored, so is `global.registry`. Otherwise, image string is created by overriding default settings with supplied `name`, `tag` and `jmxEnabled` values; image string is created using default registry unless `global.registry` is configured.'
+                          description: 'Define the image to use: Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7. Use "datadog/dogstatsd:latest" for standalone Datadog Agent DogStatsD 7. Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent. Use "agent" with the registry and tag configurations for <registry>/agent:<tag>. Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>. If the name is full image string—`<name>:<tag>` or `<registry>/<name>:<tag>`, then `tag`, `jmxEnabled`, and `global.registry` values are ignored. Otherwise, image string is created by overriding default settings with supplied `name`, `tag`, and `jmxEnabled` values; image string is created using default registry unless `global.registry` is configured.'
                           type: string
                         pullPolicy:
-                          description: 'The Kubernetes pull policy: Use Always, Never or IfNotPresent.'
+                          description: 'The Kubernetes pull policy: Use Always, Never, or IfNotPresent.'
                           type: string
                         pullSecrets:
                           description: It is possible to specify Docker registry credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod
@@ -5316,10 +5316,10 @@ spec:
                           description: Define whether the Agent image should support JMX. To be used if the Name field does not correspond to a full image string.
                           type: boolean
                         name:
-                          description: 'Define the image to use: Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7. Use "datadog/dogstatsd:latest" for standalone Datadog Agent DogStatsD 7. Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent. Use "agent" with the registry and tag configurations for <registry>/agent:<tag>. Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>. If the name is full image string - `<name>:<tag>` or `<registry>/<name>:<tag>`, `tag` and `jmxEnabled` values are ignored, so is `global.registry`. Otherwise, image string is created by overriding default settings with supplied `name`, `tag` and `jmxEnabled` values; image string is created using default registry unless `global.registry` is configured.'
+                          description: 'Define the image to use: Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7. Use "datadog/dogstatsd:latest" for standalone Datadog Agent DogStatsD 7. Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent. Use "agent" with the registry and tag configurations for <registry>/agent:<tag>. Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>. If the name is full image string—`<name>:<tag>` or `<registry>/<name>:<tag>`, then `tag`, `jmxEnabled`, and `global.registry` values are ignored. Otherwise, image string is created by overriding default settings with supplied `name`, `tag`, and `jmxEnabled` values; image string is created using default registry unless `global.registry` is configured.'
                           type: string
                         pullPolicy:
-                          description: 'The Kubernetes pull policy: Use Always, Never or IfNotPresent.'
+                          description: 'The Kubernetes pull policy: Use Always, Never, or IfNotPresent.'
                           type: string
                         pullSecrets:
                           description: It is possible to specify Docker registry credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod
@@ -7307,10 +7307,10 @@ spec:
                           description: Define whether the Agent image should support JMX. To be used if the Name field does not correspond to a full image string.
                           type: boolean
                         name:
-                          description: 'Define the image to use: Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7. Use "datadog/dogstatsd:latest" for standalone Datadog Agent DogStatsD 7. Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent. Use "agent" with the registry and tag configurations for <registry>/agent:<tag>. Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>. If the name is full image string - `<name>:<tag>` or `<registry>/<name>:<tag>`, `tag` and `jmxEnabled` values are ignored, so is `global.registry`. Otherwise, image string is created by overriding default settings with supplied `name`, `tag` and `jmxEnabled` values; image string is created using default registry unless `global.registry` is configured.'
+                          description: 'Define the image to use: Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7. Use "datadog/dogstatsd:latest" for standalone Datadog Agent DogStatsD 7. Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent. Use "agent" with the registry and tag configurations for <registry>/agent:<tag>. Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>. If the name is full image string—`<name>:<tag>` or `<registry>/<name>:<tag>`, then `tag`, `jmxEnabled`, and `global.registry` values are ignored. Otherwise, image string is created by overriding default settings with supplied `name`, `tag`, and `jmxEnabled` values; image string is created using default registry unless `global.registry` is configured.'
                           type: string
                         pullPolicy:
-                          description: 'The Kubernetes pull policy: Use Always, Never or IfNotPresent.'
+                          description: 'The Kubernetes pull policy: Use Always, Never, or IfNotPresent.'
                           type: string
                         pullSecrets:
                           description: It is possible to specify Docker registry credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod
@@ -10404,10 +10404,10 @@ spec:
                               description: Define whether the Agent image should support JMX. To be used if the Name field does not correspond to a full image string.
                               type: boolean
                             name:
-                              description: 'Define the image to use: Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7. Use "datadog/dogstatsd:latest" for standalone Datadog Agent DogStatsD 7. Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent. Use "agent" with the registry and tag configurations for <registry>/agent:<tag>. Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>. If the name is full image string - `<name>:<tag>` or `<registry>/<name>:<tag>`, `tag` and `jmxEnabled` values are ignored, so is `global.registry`. Otherwise, image string is created by overriding default settings with supplied `name`, `tag` and `jmxEnabled` values; image string is created using default registry unless `global.registry` is configured.'
+                              description: 'Define the image to use: Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7. Use "datadog/dogstatsd:latest" for standalone Datadog Agent DogStatsD 7. Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent. Use "agent" with the registry and tag configurations for <registry>/agent:<tag>. Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>. If the name is full image string—`<name>:<tag>` or `<registry>/<name>:<tag>`, then `tag`, `jmxEnabled`, and `global.registry` values are ignored. Otherwise, image string is created by overriding default settings with supplied `name`, `tag`, and `jmxEnabled` values; image string is created using default registry unless `global.registry` is configured.'
                               type: string
                             pullPolicy:
-                              description: 'The Kubernetes pull policy: Use Always, Never or IfNotPresent.'
+                              description: 'The Kubernetes pull policy: Use Always, Never, or IfNotPresent.'
                               type: string
                             pullSecrets:
                               description: It is possible to specify Docker registry credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod
@@ -13031,10 +13031,10 @@ spec:
                               description: Define whether the Agent image should support JMX. To be used if the Name field does not correspond to a full image string.
                               type: boolean
                             name:
-                              description: 'Define the image to use: Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7. Use "datadog/dogstatsd:latest" for standalone Datadog Agent DogStatsD 7. Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent. Use "agent" with the registry and tag configurations for <registry>/agent:<tag>. Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>. If the name is full image string - `<name>:<tag>` or `<registry>/<name>:<tag>`, `tag` and `jmxEnabled` values are ignored, so is `global.registry`. Otherwise, image string is created by overriding default settings with supplied `name`, `tag` and `jmxEnabled` values; image string is created using default registry unless `global.registry` is configured.'
+                              description: 'Define the image to use: Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7. Use "datadog/dogstatsd:latest" for standalone Datadog Agent DogStatsD 7. Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent. Use "agent" with the registry and tag configurations for <registry>/agent:<tag>. Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>. If the name is full image string—`<name>:<tag>` or `<registry>/<name>:<tag>`, then `tag`, `jmxEnabled`, and `global.registry` values are ignored. Otherwise, image string is created by overriding default settings with supplied `name`, `tag`, and `jmxEnabled` values; image string is created using default registry unless `global.registry` is configured.'
                               type: string
                             pullPolicy:
-                              description: 'The Kubernetes pull policy: Use Always, Never or IfNotPresent.'
+                              description: 'The Kubernetes pull policy: Use Always, Never, or IfNotPresent.'
                               type: string
                             pullSecrets:
                               description: It is possible to specify Docker registry credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod
@@ -15022,10 +15022,10 @@ spec:
                               description: Define whether the Agent image should support JMX. To be used if the Name field does not correspond to a full image string.
                               type: boolean
                             name:
-                              description: 'Define the image to use: Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7. Use "datadog/dogstatsd:latest" for standalone Datadog Agent DogStatsD 7. Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent. Use "agent" with the registry and tag configurations for <registry>/agent:<tag>. Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>. If the name is full image string - `<name>:<tag>` or `<registry>/<name>:<tag>`, `tag` and `jmxEnabled` values are ignored, so is `global.registry`. Otherwise, image string is created by overriding default settings with supplied `name`, `tag` and `jmxEnabled` values; image string is created using default registry unless `global.registry` is configured.'
+                              description: 'Define the image to use: Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7. Use "datadog/dogstatsd:latest" for standalone Datadog Agent DogStatsD 7. Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent. Use "agent" with the registry and tag configurations for <registry>/agent:<tag>. Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>. If the name is full image string—`<name>:<tag>` or `<registry>/<name>:<tag>`, then `tag`, `jmxEnabled`, and `global.registry` values are ignored. Otherwise, image string is created by overriding default settings with supplied `name`, `tag`, and `jmxEnabled` values; image string is created using default registry unless `global.registry` is configured.'
                               type: string
                             pullPolicy:
-                              description: 'The Kubernetes pull policy: Use Always, Never or IfNotPresent.'
+                              description: 'The Kubernetes pull policy: Use Always, Never, or IfNotPresent.'
                               type: string
                             pullSecrets:
                               description: It is possible to specify Docker registry credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod
@@ -16636,7 +16636,7 @@ spec:
                       annotations:
                         additionalProperties:
                           type: string
-                        description: Annotations provide annotations that will be added to the different component (Datadog Agent, Cluster Agent, Cluster Check Runner) pods.
+                        description: Annotations provide annotations that are added to the different component (Datadog Agent, Cluster Agent, Cluster Check Runner) pods.
                         type: object
                       containers:
                         additionalProperties:
@@ -16658,7 +16658,7 @@ spec:
                               type: array
                               x-kubernetes-list-type: atomic
                             env:
-                              description: 'Specify additional environmental variables in the container See also: https://docs.datadoghq.com/agent/kubernetes/?tab=helm#environment-variables'
+                              description: 'Specify additional environment variables in the container. See also: https://docs.datadoghq.com/agent/kubernetes/?tab=helm#environment-variables'
                               items:
                                 description: EnvVar represents an environment variable present in a Container.
                                 properties:
@@ -16847,7 +16847,7 @@ spec:
                                   type: integer
                               type: object
                             logLevel:
-                              description: 'LogLevel sets logging verbosity (overrides global setting) Valid log levels are: trace, debug, info, warn, error, critical, and off. Default: ''info'''
+                              description: 'LogLevel sets logging verbosity (overrides global setting). Valid log levels are: trace, debug, info, warn, error, critical, and off. Default: ''info'''
                               type: string
                             name:
                               description: Name of the container that is overridden
@@ -17140,7 +17140,7 @@ spec:
                                 - mountPath
                               x-kubernetes-list-type: map
                           type: object
-                        description: 'Configure the basic configurations for each agent container. Valid agent container names are: `agent`, `cluster-agent`, `init-config`, `init-volume`, `process-agent`, `seccomp-setup`, `security-agent`, `system-probe`, `trace-agent`, and `all`. Configuration under `all` applies to all configured containers.'
+                        description: 'Configure the basic configurations for each Agent container. Valid Agent container names are: `agent`, `cluster-agent`, `init-config`, `init-volume`, `process-agent`, `seccomp-setup`, `security-agent`, `system-probe`, `trace-agent`, and `all`. Configuration under `all` applies to all configured containers.'
                         type: object
                       createRbac:
                         description: Set CreateRbac to false to prevent automatic creation of Role/ClusterRole for this component
@@ -17183,13 +17183,13 @@ spec:
                                   type: string
                               type: object
                           type: object
-                        description: 'CustomConfiguration allows to specify custom configuration files for `datadog.yaml`, `datadog-cluster.yaml`, `security-agent.yaml`, and `system-probe.yaml`. The content will be merged with configuration generated by the Datadog Operator, with priority given to custom configuration. WARNING: It''s thus possible to override values set in the `DatadogAgent`.'
+                        description: 'CustomConfiguration allows to specify custom configuration files for `datadog.yaml`, `datadog-cluster.yaml`, `security-agent.yaml`, and `system-probe.yaml`. The content is merged with configuration generated by the Datadog Operator, with priority given to custom configuration. WARNING: It is possible to override values set in the `DatadogAgent`.'
                         type: object
                       disabled:
                         description: Disabled force disables a component.
                         type: boolean
                       env:
-                        description: 'Specify additional environmental variables for all containers in this component Priority is Container > Component See also: https://docs.datadoghq.com/agent/kubernetes/?tab=helm#environment-variables'
+                        description: 'Specify additional environment variables for all containers in this component Priority is Container > Component. See also: https://docs.datadoghq.com/agent/kubernetes/?tab=helm#environment-variables'
                         items:
                           description: EnvVar represents an environment variable present in a Container.
                           properties:
@@ -17277,7 +17277,7 @@ spec:
                           configDataMap:
                             additionalProperties:
                               type: string
-                            description: ConfigDataMap corresponds to the content of the configuration files. They key should be the filename the contents get mounted to; for instance check.py or check.yaml.
+                            description: ConfigDataMap corresponds to the content of the configuration files. The key should be the filename the contents get mounted to; for instance check.py or check.yaml.
                             type: object
                           configMap:
                             description: ConfigMap references an existing ConfigMap with the content of the configuration files.
@@ -17316,7 +17316,7 @@ spec:
                           configDataMap:
                             additionalProperties:
                               type: string
-                            description: ConfigDataMap corresponds to the content of the configuration files. They key should be the filename the contents get mounted to; for instance check.py or check.yaml.
+                            description: ConfigDataMap corresponds to the content of the configuration files. The key should be the filename the contents get mounted to; for instance check.py or check.yaml.
                             type: object
                           configMap:
                             description: ConfigMap references an existing ConfigMap with the content of the configuration files.
@@ -17353,7 +17353,7 @@ spec:
                         description: Host networking requested for this pod. Use the host's network namespace.
                         type: boolean
                       hostPID:
-                        description: Use the host's pid namespace.
+                        description: Use the host's PID namespace.
                         type: boolean
                       image:
                         description: The container image of the different components (Datadog Agent, Cluster Agent, Cluster Check Runner).
@@ -17362,10 +17362,10 @@ spec:
                             description: Define whether the Agent image should support JMX. To be used if the Name field does not correspond to a full image string.
                             type: boolean
                           name:
-                            description: 'Define the image to use: Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7. Use "datadog/dogstatsd:latest" for standalone Datadog Agent DogStatsD 7. Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent. Use "agent" with the registry and tag configurations for <registry>/agent:<tag>. Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>. If the name is full image string - `<name>:<tag>` or `<registry>/<name>:<tag>`, `tag` and `jmxEnabled` values are ignored, so is `global.registry`. Otherwise, image string is created by overriding default settings with supplied `name`, `tag` and `jmxEnabled` values; image string is created using default registry unless `global.registry` is configured.'
+                            description: 'Define the image to use: Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7. Use "datadog/dogstatsd:latest" for standalone Datadog Agent DogStatsD 7. Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent. Use "agent" with the registry and tag configurations for <registry>/agent:<tag>. Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>. If the name is full image string—`<name>:<tag>` or `<registry>/<name>:<tag>`, then `tag`, `jmxEnabled`, and `global.registry` values are ignored. Otherwise, image string is created by overriding default settings with supplied `name`, `tag`, and `jmxEnabled` values; image string is created using default registry unless `global.registry` is configured.'
                             type: string
                           pullPolicy:
-                            description: 'The Kubernetes pull policy: Use Always, Never or IfNotPresent.'
+                            description: 'The Kubernetes pull policy: Use Always, Never, or IfNotPresent.'
                             type: string
                           pullSecrets:
                             description: It is possible to specify Docker registry credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod
@@ -17384,7 +17384,7 @@ spec:
                       labels:
                         additionalProperties:
                           type: string
-                        description: AdditionalLabels provide labels that will be added to the different component (Datadog Agent, Cluster Agent, Cluster Check Runner) pods.
+                        description: AdditionalLabels provide labels that are added to the different component (Datadog Agent, Cluster Agent, Cluster Check Runner) pods.
                         type: object
                       name:
                         description: Name overrides the default name for the resource
@@ -17395,7 +17395,7 @@ spec:
                         description: 'NodeSelector is a selector which must be true for the pod to fit on a node. Selector which must match a node''s labels for the pod to be scheduled on that node. More info: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/'
                         type: object
                       priorityClassName:
-                        description: If specified, indicates the pod's priority. "system-node-critical" and "system-cluster-critical" are two special keywords which indicate the highest priorities with the former being the highest priority. Any other name must be defined by creating a PriorityClass object with that name. If not specified, the pod priority will be default or zero if there is no default.
+                        description: If specified, indicates the pod's priority. "system-node-critical" and "system-cluster-critical" are two special keywords which indicate the highest priorities with the former being the highest priority. Any other name must be defined by creating a PriorityClass object with that name. If not specified, the pod priority is default, or zero if there is no default.
                         type: string
                       replicas:
                         description: Number of the replicas. Not applicable for a DaemonSet/ExtendedDaemonSet deployment
@@ -17493,7 +17493,7 @@ spec:
                         description: Configure the SecurityContextConstraints for each component.
                         properties:
                           create:
-                            description: Create defines whether to create a SecurityContextConstraints for the current component. If CustomConfiguration is not set, setting Create to `true` will create a default SCC.
+                            description: Create defines whether to create a SecurityContextConstraints for the current component. If CustomConfiguration is not set, setting Create to `true` creates a default SCC.
                             type: boolean
                           customConfiguration:
                             description: CustomConfiguration defines a custom SCC configuration to use if Create is `true`.
