@@ -20,6 +20,7 @@ import (
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
 		"./apis/datadoghq/v2alpha1.CSPMHostBenchmarksConfig":          schema__apis_datadoghq_v2alpha1_CSPMHostBenchmarksConfig(ref),
+		"./apis/datadoghq/v2alpha1.ContainerProcessModel":             schema__apis_datadoghq_v2alpha1_ContainerProcessModel(ref),
 		"./apis/datadoghq/v2alpha1.CustomConfig":                      schema__apis_datadoghq_v2alpha1_CustomConfig(ref),
 		"./apis/datadoghq/v2alpha1.DatadogAgent":                      schema__apis_datadoghq_v2alpha1_DatadogAgent(ref),
 		"./apis/datadoghq/v2alpha1.DatadogAgentGenericContainer":      schema__apis_datadoghq_v2alpha1_DatadogAgentGenericContainer(ref),
@@ -54,6 +55,26 @@ func schema__apis_datadoghq_v2alpha1_CSPMHostBenchmarksConfig(ref common.Referen
 					"enabled": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Enabled enables host benchmarks. Default: false",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema__apis_datadoghq_v2alpha1_ContainerProcessModel(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ContainerProcessModel determines whether agents run in single or multi-process containers.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"useMultiProcessContainer": {
+						SchemaProps: spec.SchemaProps{
+							Description: "When enabled Operator tries to minimize number of containers used for given set of features. If confiugred features require only non-privileged agents, Operator will install only one agent which is great for testing and small deployments. If privileged agent is required, this setting will be ignored. Default: false",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},
