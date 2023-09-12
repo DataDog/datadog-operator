@@ -59,19 +59,7 @@ func (f *clusterChecksFeature) ID() feature.IDType {
 
 func (f *clusterChecksFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.RequiredComponents) {
 	if apiutils.BoolValue(dda.Spec.Features.ClusterChecks.Enabled) {
-		f.useClusterCheckRunners = apiutils.BoolValue(dda.Spec.Features.ClusterChecks.UseClusterChecksRunners)
-
-		{
-			hash, err := comparison.GenerateMD5ForSpec(dda.Spec.Features.ClusterChecks)
-			if err != nil {
-				f.logger.Error(err, "couldn't generate hash for cluster checks config")
-			} else {
-				f.logger.V(2).Info("created cluster checks", "hash", hash)
-			}
-			f.customConfigAnnotationValue = hash
-			f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.ClusterChecksIDType)
-		}
-
+		f.updateConfigHash(dda)
 		f.owner = dda
 
 		if enabled, flavor := v2alpha1.IsNetworkPolicyEnabled(dda); enabled {
@@ -82,6 +70,7 @@ func (f *clusterChecksFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp fe
 			}
 		}
 
+		f.useClusterCheckRunners = apiutils.BoolValue(dda.Spec.Features.ClusterChecks.UseClusterChecksRunners)
 		reqComp = feature.RequiredComponents{
 			ClusterAgent:        feature.RequiredComponent{IsRequired: apiutils.NewBoolPointer(true)},
 			ClusterChecksRunner: feature.RequiredComponent{IsRequired: &f.useClusterCheckRunners},
@@ -252,4 +241,15 @@ func (f *clusterChecksFeature) ManageClusterChecksRunner(managers feature.PodTem
 	}
 
 	return nil
+}
+
+func (f *clusterChecksFeature) updateConfigHash(dda *v2alpha1.DatadogAgent) {
+	hash, err := comparison.GenerateMD5ForSpec(dda.Spec.Features.ClusterChecks)
+	if err != nil {
+		f.logger.Error(err, "couldn't generate hash for cluster checks config")
+	} else {
+		f.logger.V(2).Info("created cluster checks", "hash", hash)
+	}
+	f.customConfigAnnotationValue = hash
+	f.customConfigAnnotationKey = object.GetChecksumAnnotationKey(feature.ClusterChecksIDType)
 }
