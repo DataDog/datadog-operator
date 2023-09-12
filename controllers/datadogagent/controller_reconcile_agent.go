@@ -9,7 +9,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	componentagent "github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
@@ -26,7 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents feature.RequiredComponents, features []feature.Feature, dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, newStatus *datadoghqv2alpha1.DatadogAgentStatus, requiredContainers []common.AgentContainerName) (reconcile.Result, error) {
+func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents feature.RequiredComponents, features []feature.Feature, dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, newStatus *datadoghqv2alpha1.DatadogAgentStatus) (reconcile.Result, error) {
 	var result reconcile.Result
 	var eds *edsv1alpha1.ExtendedDaemonSet
 	var daemonset *appsv1.DaemonSet
@@ -42,7 +41,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 
 	if r.options.ExtendedDaemonsetOptions.Enabled {
 		// Start by creating the Default Agent extendeddaemonset
-		eds = componentagent.NewDefaultAgentExtendedDaemonset(dda, &r.options.ExtendedDaemonsetOptions, requiredContainers)
+		eds = componentagent.NewDefaultAgentExtendedDaemonset(dda, &r.options.ExtendedDaemonsetOptions, requiredComponents.Agent.Containers)
 		podManagers = feature.NewPodTemplateManagers(&eds.Spec.Template)
 
 		// Set Global setting on the default extendeddaemonset
@@ -82,16 +81,22 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	}
 
 	// Start by creating the Default Agent daemonset
-	daemonset = componentagent.NewDefaultAgentDaemonset(dda, requiredContainers)
+	daemonset = componentagent.NewDefaultAgentDaemonset(dda, requiredComponents)
 	podManagers = feature.NewPodTemplateManagers(&daemonset.Spec.Template)
-
 	// Set Global setting on the default daemonset
-	daemonset.Spec.Template = *override.ApplyGlobalSettings(logger, podManagers, dda, resourcesManager, datadoghqv2alpha1.NodeAgentComponentName)
+	daemonset.Spec.Template = *override.ApplyGlobalSettingsMonoSupport(logger, podManagers, dda, resourcesManager,
+		datadoghqv2alpha1.NodeAgentComponentName, requiredComponents.Agent.UsesMultiProcessContainer())
 
 	// Apply features changes on the Deployment.Spec.Template
 	for _, feat := range features {
-		if errFeat := feat.ManageNodeAgent(podManagers); errFeat != nil {
-			return result, errFeat
+		if requiredComponents.Agent.UsesMultiProcessContainer() {
+			if errFeat := feat.ManageMonoContainerNodeAgent(podManagers); errFeat != nil {
+				return result, errFeat
+			}
+		} else {
+			if errFeat := feat.ManageNodeAgent(podManagers); errFeat != nil {
+				return result, errFeat
+			}
 		}
 	}
 

@@ -239,6 +239,64 @@ func extractPortEndpoint(endpoint string) (int32, error) {
 	return 0, fmt.Errorf("%q does not have a port explicitly set", endpoint)
 }
 
+// ManageMonoContainerNodeAgent allows a feature to configure the mono-container Node Agent's corev1.PodTemplateSpec
+// if mono-container usage is enabled and can be used with the current feature set
+// It should do nothing if the feature doesn't need to configure it.
+func (f *otlpFeature) ManageMonoContainerNodeAgent(managers feature.PodTemplateManagers) error {
+	if f.grpcEnabled {
+		if err := validateOTLPGRPCEndpoint(f.grpcEndpoint); err != nil {
+			f.logger.Error(err, "invalid OTLP/gRPC endpoint")
+			return fmt.Errorf("invalid OTLP/gRPC endpoint: %w", err)
+		}
+
+		port, err := extractPortEndpoint(f.grpcEndpoint)
+		if err != nil {
+			f.logger.Error(err, "failed to extract port from OTLP/gRPC endpoint")
+			return fmt.Errorf("failed to extract port from OTLP/gRPC endpoint: %w", err)
+		}
+		otlpgrpcPort := &corev1.ContainerPort{
+			Name:          apicommon.OTLPGRPCPortName,
+			ContainerPort: port,
+			HostPort:      port,
+			Protocol:      corev1.ProtocolTCP,
+		}
+		envVar := &corev1.EnvVar{
+			Name:  apicommon.DDOTLPgRPCEndpoint,
+			Value: f.grpcEndpoint,
+		}
+		managers.Port().AddPortToContainer(apicommonv1.NonPrivilegedMonoContainerName, otlpgrpcPort)
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.NonPrivilegedMonoContainerName, envVar)
+		if f.usingAPM {
+			managers.EnvVar().AddEnvVarToContainer(apicommonv1.NonPrivilegedMonoContainerName, envVar)
+		}
+	}
+
+	if f.httpEnabled {
+		port, err := extractPortEndpoint(f.httpEndpoint)
+		if err != nil {
+			f.logger.Error(err, "failed to extract port from OTLP/HTTP endpoint")
+			return fmt.Errorf("failed to extract port from OTLP/HTTP endpoint: %w", err)
+		}
+		otlphttpPort := &corev1.ContainerPort{
+			Name:          apicommon.OTLPHTTPPortName,
+			ContainerPort: port,
+			HostPort:      port,
+			Protocol:      corev1.ProtocolTCP,
+		}
+		envVar := &corev1.EnvVar{
+			Name:  apicommon.DDOTLPHTTPEndpoint,
+			Value: f.httpEndpoint,
+		}
+		managers.Port().AddPortToContainer(apicommonv1.NonPrivilegedMonoContainerName, otlphttpPort)
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.NonPrivilegedMonoContainerName, envVar)
+		if f.usingAPM {
+			managers.EnvVar().AddEnvVarToContainer(apicommonv1.NonPrivilegedMonoContainerName, envVar)
+		}
+	}
+
+	return nil
+}
+
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *otlpFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {

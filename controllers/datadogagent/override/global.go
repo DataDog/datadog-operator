@@ -24,8 +24,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+func ApplyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent,
+	resourcesManager feature.ResourceManagers, componentName v2alpha1.ComponentName) *corev1.PodTemplateSpec {
+	return ApplyGlobalSettingsMonoSupport(logger, manager, dda, resourcesManager, componentName, false)
+}
+
 // ApplyGlobalSettings use to apply global setting to a PodTemplateSpec
-func ApplyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, componentName v2alpha1.ComponentName) *corev1.PodTemplateSpec {
+func ApplyGlobalSettingsMonoSupport(logger logr.Logger, manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent,
+	resourcesManager feature.ResourceManagers, componentName v2alpha1.ComponentName, usesCoreAgentMonoContainer bool) *corev1.PodTemplateSpec {
 	config := dda.Spec.Global
 
 	// ClusterName sets a unique cluster name for the deployment to easily scope monitoring data in the Datadog app.
@@ -199,16 +205,25 @@ func ApplyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 					agentCAPath = apicommon.KubeletAgentCAPath
 				}
 				kubeletVol, kubeletVolMount := volume.GetVolumes(apicommon.KubeletCAVolumeName, config.Kubelet.HostCAPath, agentCAPath, true)
-				manager.VolumeMount().AddVolumeMountToContainers(
-					&kubeletVolMount,
-					[]apicommonv1.AgentContainerName{
-						apicommonv1.CoreAgentContainerName,
-						apicommonv1.ProcessAgentContainerName,
-						apicommonv1.TraceAgentContainerName,
-						apicommonv1.SecurityAgentContainerName,
-					},
-				)
-				manager.Volume().AddVolume(&kubeletVol)
+				if usesCoreAgentMonoContainer {
+					manager.VolumeMount().AddVolumeMountToContainers(
+						&kubeletVolMount,
+						[]apicommonv1.AgentContainerName{
+							apicommonv1.NonPrivilegedMonoContainerName,
+						},
+					)
+					manager.Volume().AddVolume(&kubeletVol)
+				} else {
+					manager.VolumeMount().AddVolumeMountToContainers(
+						&kubeletVolMount,
+						[]apicommonv1.AgentContainerName{
+							apicommonv1.CoreAgentContainerName,
+							apicommonv1.ProcessAgentContainerName,
+							apicommonv1.TraceAgentContainerName,
+						},
+					)
+					manager.Volume().AddVolume(&kubeletVol)
+				}
 				// If the HostCAPath is overridden, set the environment variable `DD_KUBELET_CLIENT_CA`. The default value in the Agent is `/var/run/secrets/kubernetes.io/serviceaccount/ca.crt`.
 				manager.EnvVar().AddEnvVar(&corev1.EnvVar{
 					Name:  apicommon.DDKubeletCAPath,
@@ -237,16 +252,27 @@ func ApplyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 			runtimeVol, runtimeVolMount = volume.GetVolumes(apicommon.CriSocketVolumeName, *config.CriSocketPath, criSocketMountPath, true)
 		}
 		if runtimeVol.Name != "" && runtimeVolMount.Name != "" {
-			manager.VolumeMount().AddVolumeMountToContainers(
-				&runtimeVolMount,
-				[]apicommonv1.AgentContainerName{
-					apicommonv1.CoreAgentContainerName,
-					apicommonv1.ProcessAgentContainerName,
-					apicommonv1.TraceAgentContainerName,
-					apicommonv1.SecurityAgentContainerName,
-				},
-			)
-			manager.Volume().AddVolume(&runtimeVol)
+
+			if usesCoreAgentMonoContainer {
+				manager.VolumeMount().AddVolumeMountToContainers(
+					&runtimeVolMount,
+					[]apicommonv1.AgentContainerName{
+						apicommonv1.NonPrivilegedMonoContainerName,
+					},
+				)
+				manager.Volume().AddVolume(&runtimeVol)
+			} else {
+				manager.VolumeMount().AddVolumeMountToContainers(
+					&runtimeVolMount,
+					[]apicommonv1.AgentContainerName{
+						apicommonv1.CoreAgentContainerName,
+						apicommonv1.ProcessAgentContainerName,
+						apicommonv1.TraceAgentContainerName,
+						apicommonv1.SecurityAgentContainerName,
+					},
+				)
+				manager.Volume().AddVolume(&runtimeVol)
+			}
 		}
 	}
 

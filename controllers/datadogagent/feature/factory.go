@@ -10,8 +10,10 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 )
 
 func init() {
@@ -57,6 +59,19 @@ func BuildFeatures(dda *v2alpha1.DatadogAgent, options *Options) ([]Feature, Req
 		requiredComponents.Merge(&reqComponents)
 	}
 
+	if dda.Spec.Global != nil &&
+		dda.Spec.Global.ContainerProcessModel != nil &&
+		apiutils.BoolValue(dda.Spec.Global.ContainerProcessModel.UseMultiProcessContainer) {
+
+		requiresPrivilegedContainer := requiredComponents.Agent.IsEnabled() && requiredComponents.Agent.IsPrivileged()
+
+		if requiresPrivilegedContainer {
+			return output, requiredComponents
+		} else {
+			requiredComponents.Agent.Containers = []common.AgentContainerName{common.NonPrivilegedMonoContainerName}
+			return output, requiredComponents
+		}
+	}
 	return output, requiredComponents
 }
 

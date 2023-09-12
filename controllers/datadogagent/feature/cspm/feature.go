@@ -239,6 +239,13 @@ func (f *cspmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) e
 	return nil
 }
 
+// ManageMonoContainerNodeAgent allows a feature to configure the mono-container Node Agent's corev1.PodTemplateSpec
+// if mono-container usage is enabled and can be used with the current feature set
+// It should do nothing if the feature doesn't need to configure it.
+func (f *cspmFeature) ManageMonoContainerNodeAgent(managers feature.PodTemplateManagers) error {
+	return nil
+}
+
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *cspmFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
