@@ -15579,7 +15579,7 @@ spec:
                           type: object
                       type: object
                     ebpfCheck:
-                      description: EBPFCheck configuration
+                      description: EBPFCheck configuration.
                       properties:
                         enabled:
                           description: 'Enables the eBPF check. Default: false'

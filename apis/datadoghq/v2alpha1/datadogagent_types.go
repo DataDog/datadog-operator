@@ -55,7 +55,7 @@ type DatadogFeatures struct {
 	OOMKill *OOMKillFeatureConfig `json:"oomKill,omitempty"`
 	// TCPQueueLength configuration.
 	TCPQueueLength *TCPQueueLengthFeatureConfig `json:"tcpQueueLength,omitempty"`
-	// EBPFCheck configuration
+	// EBPFCheck configuration.
 	EBPFCheck *EBPFCheckFeatureConfig `json:"ebpfCheck,omitempty"`
 	// APM (Application Performance Monitoring) configuration.
 	APM *APMFeatureConfig `json:"apm,omitempty"`

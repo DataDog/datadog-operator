@@ -412,7 +412,7 @@ func schema__apis_datadoghq_v2alpha1_DatadogFeatures(ref common.ReferenceCallbac
 					},
 					"ebpfCheck": {
 						SchemaProps: spec.SchemaProps{
-							Description: "EBPFCheck configuration",
+							Description: "EBPFCheck configuration.",
 							Ref:         ref("./apis/datadoghq/v2alpha1.EBPFCheckFeatureConfig"),
 						},
 					},
