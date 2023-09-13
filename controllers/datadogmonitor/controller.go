@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -145,10 +146,10 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 		} else if instance.Status.MonitorLastForceSyncTime == nil || (defaultForceSyncPeriod-now.Sub(instance.Status.MonitorLastForceSyncTime.Time)) <= 0 {
 			// Periodically force a sync with the API monitor to ensure parity
 			// Get monitor to make sure it exists before trying any updates. If it doesn't, set shouldCreate
-			m, err = r.get(logger, instance, now)
+			_, err = r.get(logger, instance, now)
 			if err != nil {
 				logger.Error(err, "error getting monitor", "Monitor ID", instance.Status.ID)
-				if apierrors.IsNotFound(err) {
+				if strings.Contains(err.Error(), "404 Not Found") {
 					shouldCreate = true
 				}
 			} else {
@@ -160,7 +161,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 			m, err = r.get(logger, instance, now)
 			if err != nil {
 				logger.Error(err, "error getting monitor", "Monitor ID", instance.Status.ID)
-				if apierrors.IsNotFound(err) {
+				if strings.Contains(err.Error(), "404 Not Found") {
 					shouldCreate = true
 				}
 			}
