@@ -3,6 +3,7 @@ package test
 import (
 	"testing"
 
+	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
 	testutils "github.com/DataDog/datadog-operator/controllers/datadogagent/testutils"
 	"github.com/go-logr/logr"
@@ -135,7 +136,12 @@ func runTest(t *testing.T, tt FeatureTest, buildFunc feature.BuildFunc) {
 
 		if tt.Agent != nil {
 			tplManager := tt.Agent.CreateFunc(t)
-			_ = feat.ManageNodeAgent(tplManager)
+			if gotConfigure.Agent.Containers[0] == apicommonv1.NonPrivilegedMonoContainerName {
+				_ = feat.ManageMonoContainerNodeAgent(tplManager)
+			} else {
+				_ = feat.ManageNodeAgent(tplManager)
+			}
+
 			tt.Agent.WantFunc(t, tplManager)
 		}
 

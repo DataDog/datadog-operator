@@ -61,16 +61,12 @@ func BuildFeatures(dda *v2alpha1.DatadogAgent, options *Options) ([]Feature, Req
 
 	if dda.Spec.Global != nil &&
 		dda.Spec.Global.ContainerProcessModel != nil &&
-		apiutils.BoolValue(dda.Spec.Global.ContainerProcessModel.UseMultiProcessContainer) {
+		apiutils.BoolValue(dda.Spec.Global.ContainerProcessModel.UseMultiProcessContainer) &&
+		requiredComponents.Agent.IsEnabled() &&
+		!requiredComponents.Agent.IsPrivileged() {
 
-		requiresPrivilegedContainer := requiredComponents.Agent.IsEnabled() && requiredComponents.Agent.IsPrivileged()
-
-		if requiresPrivilegedContainer {
-			return output, requiredComponents
-		} else {
-			requiredComponents.Agent.Containers = []common.AgentContainerName{common.NonPrivilegedMonoContainerName}
-			return output, requiredComponents
-		}
+		requiredComponents.Agent.Containers = []common.AgentContainerName{common.NonPrivilegedMonoContainerName}
+		return output, requiredComponents
 	}
 	return output, requiredComponents
 }
