@@ -156,7 +156,7 @@ func schema__apis_datadoghq_v2alpha1_DatadogAgentGenericContainer(ref common.Ref
 					},
 					"logLevel": {
 						SchemaProps: spec.SchemaProps{
-							Description: "LogLevel sets logging verbosity (overrides global setting) Valid log levels are: trace, debug, info, warn, error, critical, and off. Default: 'info'",
+							Description: "LogLevel sets logging verbosity (overrides global setting). Valid log levels are: trace, debug, info, warn, error, critical, and off. Default: 'info'",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -171,7 +171,7 @@ func schema__apis_datadoghq_v2alpha1_DatadogAgentGenericContainer(ref common.Ref
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "Specify additional environmental variables in the container See also: https://docs.datadoghq.com/agent/kubernetes/?tab=helm#environment-variables",
+							Description: "Specify additional environment variables in the container. See also: https://docs.datadoghq.com/agent/kubernetes/?tab=helm#environment-variables",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -659,7 +659,7 @@ func schema__apis_datadoghq_v2alpha1_MultiCustomConfig(ref common.ReferenceCallb
 				Properties: map[string]spec.Schema{
 					"configDataMap": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ConfigDataMap corresponds to the content of the configuration files. They key should be the filename the contents get mounted to; for instance check.py or check.yaml.",
+							Description: "ConfigDataMap corresponds to the content of the configuration files. The key should be the filename the contents get mounted to; for instance check.py or check.yaml.",
 							Type:        []string{"object"},
 							AdditionalProperties: &spec.SchemaOrBool{
 								Allows: true,
@@ -1020,7 +1020,7 @@ func schema__apis_datadoghq_v2alpha1_SecurityContextConstraintsConfig(ref common
 				Properties: map[string]spec.Schema{
 					"create": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Create defines whether to create a SecurityContextConstraints for the current component. If CustomConfiguration is not set, setting Create to `true` will create a default SCC.",
+							Description: "Create defines whether to create a SecurityContextConstraints for the current component. If CustomConfiguration is not set, setting Create to `true` creates a default SCC.",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},

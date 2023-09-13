@@ -19,9 +19,9 @@ type AgentImageConfig struct {
 	// Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent.
 	// Use "agent" with the registry and tag configurations for <registry>/agent:<tag>.
 	// Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>.
-	// If the name is full image string - `<name>:<tag>` or `<registry>/<name>:<tag>`, `tag` and `jmxEnabled` values are ignored,
-	// so is `global.registry`.
-	// Otherwise, image string is created by overriding default settings with supplied `name`, `tag` and `jmxEnabled` values;
+	// If the name is the full image string—`<name>:<tag>` or `<registry>/<name>:<tag>`, then `tag`, `jmxEnabled`,
+	// and `global.registry` values are ignored.
+	// Otherwise, image string is created by overriding default settings with supplied `name`, `tag`, and `jmxEnabled` values;
 	// image string is created using default registry unless `global.registry` is configured.
 	Name string `json:"name,omitempty"`
 
@@ -36,7 +36,7 @@ type AgentImageConfig struct {
 	JMXEnabled bool `json:"jmxEnabled,omitempty"`
 
 	// The Kubernetes pull policy:
-	// Use Always, Never or IfNotPresent.
+	// Use Always, Never, or IfNotPresent.
 	PullPolicy *corev1.PullPolicy `json:"pullPolicy,omitempty"`
 
 	// It is possible to specify Docker registry credentials.
