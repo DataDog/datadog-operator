@@ -15513,6 +15513,12 @@ spec:
                               description: 'Enabled enables Cloud Workload Security Network detections. Default: true'
                               type: boolean
                           type: object
+                        remoteConfiguration:
+                          properties:
+                            enabled:
+                              description: 'Enabled enables Remote Configuration for Cloud Workload Security. Default: true'
+                              type: boolean
+                          type: object
                         securityProfiles:
                           properties:
                             enabled:
