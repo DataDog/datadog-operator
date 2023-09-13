@@ -35,7 +35,7 @@ func TestLiveContainerFeature(t *testing.T) {
 			Name:          "v1alpha1 live container collection enabled",
 			DDAv1:         newV1Agent(true),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(),
+			Agent:         testExpectedAgent(apicommonv1.ProcessAgentContainerName),
 		},
 
 		//////////////////////////
@@ -47,10 +47,21 @@ func TestLiveContainerFeature(t *testing.T) {
 			WantConfigure: false,
 		},
 		{
+			Name:          "v1alpha1 live container collection not enabled",
+			DDAv2:         newV2MonoAgent(false),
+			WantConfigure: false,
+		},
+		{
 			Name:          "v2alpha1 live container collection enabled",
 			DDAv2:         newV2Agent(true),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(),
+			Agent:         testExpectedAgent(apicommonv1.ProcessAgentContainerName),
+		},
+		{
+			Name:          "v2alpha1 live container collection enabled",
+			DDAv2:         newV2MonoAgent(true),
+			WantConfigure: true,
+			Agent:         testExpectedAgent(apicommonv1.NonPrivilegedMonoContainerName),
 		},
 	}
 
@@ -81,12 +92,23 @@ func newV2Agent(enableLiveContainer bool) *v2alpha1.DatadogAgent {
 	}
 }
 
-func testExpectedAgent() *test.ComponentTest {
+func newV2MonoAgent(enableLiveContainer bool) *v2alpha1.DatadogAgent {
+	dda := newV2Agent(enableLiveContainer)
+	dda.Spec.Global = &v2alpha1.GlobalConfig{
+		ContainerProcessModel: &v2alpha1.ContainerProcessModel{
+			UseMultiProcessContainer: apiutils.NewBoolPointer(true),
+		},
+	}
+
+	return dda
+}
+
+func testExpectedAgent(agentContainerName apicommonv1.AgentContainerName) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
 
-			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ProcessAgentContainerName]
+			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[agentContainerName]
 			expectedAgentEnvs := []*corev1.EnvVar{
 				{
 					Name:  apicommon.DDContainerCollectionEnabled,
@@ -97,10 +119,10 @@ func testExpectedAgent() *test.ComponentTest {
 			assert.True(
 				t,
 				apiutils.IsEqualStruct(agentEnvs, expectedAgentEnvs),
-				"Process Agent ENVs \ndiff = %s", cmp.Diff(agentEnvs, expectedAgentEnvs),
+				"%s ENVs \ndiff = %s", agentContainerName, cmp.Diff(agentEnvs, expectedAgentEnvs),
 			)
 
-			agentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.ProcessAgentContainerName]
+			agentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[agentContainerName]
 			expectedVolumeMounts := []corev1.VolumeMount{
 				{
 					Name:      apicommon.CgroupsVolumeName,
@@ -116,7 +138,7 @@ func testExpectedAgent() *test.ComponentTest {
 			assert.True(
 				t,
 				apiutils.IsEqualStruct(agentVolumeMounts, expectedVolumeMounts),
-				"Process Agent VolumeMounts \ndiff = %s", cmp.Diff(agentVolumeMounts, expectedVolumeMounts),
+				"%s VolumeMounts \ndiff = %s", agentContainerName, cmp.Diff(agentVolumeMounts, expectedVolumeMounts),
 			)
 
 			agentVolumes := mgr.VolumeMgr.Volumes
