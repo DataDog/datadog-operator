@@ -19,7 +19,7 @@ type AgentImageConfig struct {
 	// Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent.
 	// Use "agent" with the registry and tag configurations for <registry>/agent:<tag>.
 	// Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>.
-	// If the name is full image string—`<name>:<tag>` or `<registry>/<name>:<tag>`, then `tag`, `jmxEnabled`,
+	// If the name is the full image string—`<name>:<tag>` or `<registry>/<name>:<tag>`, then `tag`, `jmxEnabled`,
 	// and `global.registry` values are ignored.
 	// Otherwise, image string is created by overriding default settings with supplied `name`, `tag`, and `jmxEnabled` values;
 	// image string is created using default registry unless `global.registry` is configured.
