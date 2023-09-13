@@ -50,6 +50,7 @@ const (
 	DDEnableMetadataCollection                        = "DD_ENABLE_METADATA_COLLECTION"
 	DDEnableOOMKillEnvVar                             = "DD_SYSTEM_PROBE_CONFIG_ENABLE_OOM_KILL"
 	DDEnableTCPQueueLengthEnvVar                      = "DD_SYSTEM_PROBE_CONFIG_ENABLE_TCP_QUEUE_LENGTH"
+	DDEnableEBPFCheckEnvVar                           = "DD_EBPF_CHECK_ENABLED"
 	DDExternalMetricsProviderAPIKey                   = "DD_EXTERNAL_METRICS_PROVIDER_API_KEY"
 	DDExternalMetricsProviderAppKey                   = "DD_EXTERNAL_METRICS_PROVIDER_APP_KEY"
 	DDExternalMetricsProviderEndpoint                 = "DD_EXTERNAL_METRICS_PROVIDER_ENDPOINT"
