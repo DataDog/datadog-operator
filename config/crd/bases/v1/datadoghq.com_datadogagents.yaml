@@ -7807,7 +7807,7 @@ spec:
                           description: AgentCommunicationMode corresponds to the mode used by the Datadog application libraries to communicate with the Agent. It can be "hostip", "service", or "socket".
                           type: string
                         enabled:
-                          description: 'Enabled enables the Admission Controller. Default: false'
+                          description: 'Enabled enables the Admission Controller. Default: true'
                           type: boolean
                         failurePolicy:
                           description: FailurePolicy determines how unrecognized and timeout errors are handled.

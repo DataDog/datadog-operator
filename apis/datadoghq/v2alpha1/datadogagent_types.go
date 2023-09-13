@@ -482,7 +482,7 @@ type KubeStateMetricsCoreFeatureConfig struct {
 // The Admission Controller runs in the Cluster Agent.
 type AdmissionControllerFeatureConfig struct {
 	// Enabled enables the Admission Controller.
-	// Default: false
+	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
