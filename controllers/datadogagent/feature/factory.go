@@ -62,6 +62,8 @@ func BuildFeatures(dda *v2alpha1.DatadogAgent, options *Options) ([]Feature, Req
 	if dda.Spec.Global != nil &&
 		dda.Spec.Global.ContainerProcessModel != nil &&
 		apiutils.BoolValue(dda.Spec.Global.ContainerProcessModel.UseMultiProcessContainer) &&
+		// This condition requires all features, which need agent to include it in required components.
+		// Otherwise test fails since this condition turn true when feature is disabled.
 		requiredComponents.Agent.IsEnabled() &&
 		!requiredComponents.Agent.IsPrivileged() {
 
