@@ -82,6 +82,7 @@ func (f *ksmFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredCompo
 
 	if dda.Spec.Features != nil && dda.Spec.Features.KubeStateMetricsCore != nil && apiutils.BoolValue(dda.Spec.Features.KubeStateMetricsCore.Enabled) {
 		output.ClusterAgent.IsRequired = apiutils.NewBoolPointer(true)
+		output.Agent.IsRequired = apiutils.NewBoolPointer(true)
 
 		f.collectAPIServiceMetrics = true
 		f.collectCRDMetrics = true
