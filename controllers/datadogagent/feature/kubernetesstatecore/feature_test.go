@@ -34,19 +34,6 @@ instances:
 )
 
 func Test_ksmFeature_Configure(t *testing.T) {
-	ksmAgentNodeWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
-		mgr := mgrInterface.(*fake.PodTemplateManagers)
-		agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
-
-		want := []*corev1.EnvVar{
-			{
-				Name:  apicommon.DDIgnoreAutoConf,
-				Value: "kubernetes_state",
-			},
-		}
-		assert.True(t, apiutils.IsEqualStruct(agentEnvVars, want), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, want))
-	}
-
 	tests := test.FeatureTestSuite{
 		//////////////////////////
 		// v1Alpha1.DatadogAgent
@@ -72,6 +59,11 @@ func Test_ksmFeature_Configure(t *testing.T) {
 			WantConfigure: false,
 		},
 		{
+			Name:          "v2alpha1 ksm-core not enabled",
+			DDAv2:         newV2MonoAgent(false, false),
+			WantConfigure: false,
+		},
+		{
 			Name:          "v2alpha1 ksm-core enabled",
 			DDAv2:         newV2Agent(true, false),
 			WantConfigure: true,
@@ -79,11 +71,25 @@ func Test_ksmFeature_Configure(t *testing.T) {
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
 		},
 		{
+			Name:          "v2alpha1 ksm-core enabled",
+			DDAv2:         newV2MonoAgent(true, false),
+			WantConfigure: true,
+			ClusterAgent:  ksmClusterAgentWantFunc(false),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmMonoAgentWantFunc),
+		},
+		{
 			Name:          "v2alpha1 ksm-core enabled, custom config",
 			DDAv2:         newV2Agent(true, true),
 			WantConfigure: true,
 			ClusterAgent:  ksmClusterAgentWantFunc(true),
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
+		},
+		{
+			Name:          "v2alpha1 ksm-core enabled, custom config",
+			DDAv2:         newV2MonoAgent(true, true),
+			WantConfigure: true,
+			ClusterAgent:  ksmClusterAgentWantFunc(true),
+			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmMonoAgentWantFunc),
 		},
 	}
 
@@ -126,6 +132,16 @@ func newV2Agent(enableKSM bool, hasCustomConfig bool) *v2alpha1.DatadogAgent {
 	return ddaV2
 }
 
+func newV2MonoAgent(enableKSM bool, hasCustomConfig bool) *v2alpha1.DatadogAgent {
+	ddaV2 := newV2Agent(enableKSM, hasCustomConfig)
+	ddaV2.Spec.Global = &v2alpha1.GlobalConfig{
+		ContainerProcessModel: &v2alpha1.ContainerProcessModel{
+			UseMultiProcessContainer: apiutils.NewBoolPointer(true),
+		},
+	}
+	return ddaV2
+}
+
 func ksmClusterAgentWantFunc(hasCustomConfig bool) *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
@@ -158,4 +174,25 @@ func ksmClusterAgentWantFunc(hasCustomConfig bool) *test.ComponentTest {
 			}
 		},
 	)
+}
+
+func ksmAgentNodeWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+	ksmAgentWantFunc(t, mgrInterface, apicommonv1.CoreAgentContainerName)
+}
+
+func ksmMonoAgentWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+	ksmAgentWantFunc(t, mgrInterface, apicommonv1.NonPrivilegedMonoContainerName)
+}
+
+func ksmAgentWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers, agentContainerName apicommonv1.AgentContainerName) {
+	mgr := mgrInterface.(*fake.PodTemplateManagers)
+	agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[agentContainerName]
+
+	want := []*corev1.EnvVar{
+		{
+			Name:  apicommon.DDIgnoreAutoConf,
+			Value: "kubernetes_state",
+		},
+	}
+	assert.True(t, apiutils.IsEqualStruct(agentEnvVars, want), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, want))
 }
