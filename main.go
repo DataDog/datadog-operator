@@ -191,9 +191,9 @@ func run(opts *options) error {
 	version.PrintVersionLogs(setupLog)
 
 	if !opts.v2APIEnabled {
-		setupLog.Info("The `v2APIEnabled` flag is deprecated in v1.2.0+ and will be removed in a future release." +
-			"Once removed, the Datadog Operator cannot be configured to reconcile the v1alpha1 DatadogAgent CRD." +
-			"You will still be able to apply v1alpha1 with the conversion webhook enabled (`webhookEnabled`).")
+		setupLog.Info("The 'v2APIEnabled' flag is deprecated in v1.2.0+ and will be removed in a future release. " +
+			"Once removed, the Datadog Operator cannot be configured to reconcile the v1alpha1 DatadogAgent CRD. " +
+			"However, you will still be able to apply a v1alpha1 manifest with the conversion webhook enabled (using the flag 'webhookEnabled').")
 	}
 
 	if opts.profilingEnabled {
