@@ -52,7 +52,7 @@ type DatadogFeatures struct {
 	// LiveContainerCollection configuration.
 	LiveContainerCollection *LiveContainerCollectionFeatureConfig `json:"liveContainerCollection,omitempty"`
 	// ProcessDiscoveryCollection configuration.
-	ProcessDiscoveryCollection *LiveProcessCollectionFeatureConfig `json:"processDiscoveryCollection,omitempty"`
+	ProcessDiscoveryCollection *ProcessDiscoveryFeatureConfig `json:"processDiscoveryCollection,omitempty"`
 	// OOMKill configuration.
 	OOMKill *OOMKillFeatureConfig `json:"oomKill,omitempty"`
 	// TCPQueueLength configuration.
