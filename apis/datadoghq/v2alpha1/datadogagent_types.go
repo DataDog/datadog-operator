@@ -51,6 +51,8 @@ type DatadogFeatures struct {
 	LiveProcessCollection *LiveProcessCollectionFeatureConfig `json:"liveProcessCollection,omitempty"`
 	// LiveContainerCollection configuration.
 	LiveContainerCollection *LiveContainerCollectionFeatureConfig `json:"liveContainerCollection,omitempty"`
+	// ProcessDiscoveryCollection configuration.
+	ProcessDiscoveryCollection *LiveProcessCollectionFeatureConfig `json:"processDiscoveryCollection,omitempty"`
 	// OOMKill configuration.
 	OOMKill *OOMKillFeatureConfig `json:"oomKill,omitempty"`
 	// TCPQueueLength configuration.
@@ -191,6 +193,15 @@ type LiveProcessCollectionFeatureConfig struct {
 // Container Collection is run in the Process Agent.
 type LiveContainerCollectionFeatureConfig struct {
 	// Enables container collection for the Live Container View.
+	// Default: true
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// ProcessDiscoveryFeatureConfig contains the configuration for the process discovery check
+// ProcessDiscovery is run in the ProcessAgent
+type ProcessDiscoveryFeatureConfig struct {
+	// Enables process discovery collection
 	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
