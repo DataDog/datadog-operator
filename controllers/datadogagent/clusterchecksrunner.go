@@ -368,6 +368,10 @@ func getEnvVarsForClusterChecksRunner(dda *datadoghqv1alpha1.DatadogAgent) []cor
 			Value: "true",
 		},
 		{
+			Name:  apicommon.DDRemoteConfigurationEnabled,
+			Value: "false",
+		},
+		{
 			Name: apicommon.DDClcRunnerHost,
 			ValueFrom: &corev1.EnvVarSource{
 				FieldRef: &corev1.ObjectFieldSelector{
