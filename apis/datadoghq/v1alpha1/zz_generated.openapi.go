@@ -2068,19 +2068,17 @@ func schema__apis_datadoghq_v1alpha1_DatadogMonitorDowntimeStatus(ref common.Ref
 				Properties: map[string]spec.Schema{
 					"isDowntimed": {
 						SchemaProps: spec.SchemaProps{
-							Default: false,
-							Type:    []string{"boolean"},
-							Format:  "",
+							Type:   []string{"boolean"},
+							Format: "",
 						},
 					},
-					"downtimeID": {
+					"downtimeId": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"integer"},
 							Format: "int32",
 						},
 					},
 				},
-				Required: []string{"isDowntimed"},
 			},
 		},
 	}
