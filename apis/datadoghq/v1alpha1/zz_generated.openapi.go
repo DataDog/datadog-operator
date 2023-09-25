@@ -46,6 +46,14 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./apis/datadoghq/v1alpha1.DatadogMetricCondition":                  schema__apis_datadoghq_v1alpha1_DatadogMetricCondition(ref),
 		"./apis/datadoghq/v1alpha1.DatadogMonitor":                          schema__apis_datadoghq_v1alpha1_DatadogMonitor(ref),
 		"./apis/datadoghq/v1alpha1.DatadogMonitorCondition":                 schema__apis_datadoghq_v1alpha1_DatadogMonitorCondition(ref),
+		"./apis/datadoghq/v1alpha1.DatadogMonitorControllerOptions":         schema__apis_datadoghq_v1alpha1_DatadogMonitorControllerOptions(ref),
+		"./apis/datadoghq/v1alpha1.DatadogMonitorDowntimeStatus":            schema__apis_datadoghq_v1alpha1_DatadogMonitorDowntimeStatus(ref),
+		"./apis/datadoghq/v1alpha1.DatadogMonitorOptions":                   schema__apis_datadoghq_v1alpha1_DatadogMonitorOptions(ref),
+		"./apis/datadoghq/v1alpha1.DatadogMonitorOptionsThresholdWindows":   schema__apis_datadoghq_v1alpha1_DatadogMonitorOptionsThresholdWindows(ref),
+		"./apis/datadoghq/v1alpha1.DatadogMonitorOptionsThresholds":         schema__apis_datadoghq_v1alpha1_DatadogMonitorOptionsThresholds(ref),
+		"./apis/datadoghq/v1alpha1.DatadogMonitorSpec":                      schema__apis_datadoghq_v1alpha1_DatadogMonitorSpec(ref),
+		"./apis/datadoghq/v1alpha1.DatadogMonitorStatus":                    schema__apis_datadoghq_v1alpha1_DatadogMonitorStatus(ref),
+		"./apis/datadoghq/v1alpha1.DatadogMonitorTriggeredState":            schema__apis_datadoghq_v1alpha1_DatadogMonitorTriggeredState(ref),
 		"./apis/datadoghq/v1alpha1.DogstatsdConfig":                         schema__apis_datadoghq_v1alpha1_DogstatsdConfig(ref),
 		"./apis/datadoghq/v1alpha1.ExternalMetricsConfig":                   schema__apis_datadoghq_v1alpha1_ExternalMetricsConfig(ref),
 		"./apis/datadoghq/v1alpha1.KubeStateMetricsCore":                    schema__apis_datadoghq_v1alpha1_KubeStateMetricsCore(ref),
@@ -2024,6 +2032,516 @@ func schema__apis_datadoghq_v1alpha1_DatadogMonitorCondition(ref common.Referenc
 					},
 				},
 				Required: []string{"type", "status"},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+	}
+}
+
+func schema__apis_datadoghq_v1alpha1_DatadogMonitorControllerOptions(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogMonitorControllerOptions defines options in the DatadogMonitor controller",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"disableRequiredTags": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DisableRequiredTags disables the automatic addition of required tags to monitors.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema__apis_datadoghq_v1alpha1_DatadogMonitorDowntimeStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogMonitorDowntimeStatus represents the downtime status of a DatadogMonitor",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"isDowntimed": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"boolean"},
+							Format: "",
+						},
+					},
+					"downtimeId": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"integer"},
+							Format: "int32",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema__apis_datadoghq_v1alpha1_DatadogMonitorOptions(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogMonitorOptions define the optional parameters of a monitor",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"enableLogsSample": {
+						SchemaProps: spec.SchemaProps{
+							Description: "A Boolean indicating whether to send a log sample when the log monitor triggers.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"escalationMessage": {
+						SchemaProps: spec.SchemaProps{
+							Description: "A message to include with a re-notification.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"evaluationDelay": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Time (in seconds) to delay evaluation, as a non-negative integer. For example, if the value is set to 300 (5min), the timeframe is set to last_5m and the time is 7:00, the monitor evaluates data from 6:50 to 6:55. This is useful for AWS CloudWatch and other backfilled metrics to ensure the monitor always has data during evaluation.",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"includeTags": {
+						SchemaProps: spec.SchemaProps{
+							Description: "A Boolean indicating whether notifications from this monitor automatically inserts its triggering tags into the title.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"locked": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Whether or not the monitor is locked (only editable by creator and admins).",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"newGroupDelay": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Time (in seconds) to allow a host to boot and applications to fully start before starting the evaluation of monitor results. Should be a non negative integer.",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"noDataTimeframe": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The number of minutes before a monitor notifies after data stops reporting. Datadog recommends at least 2x the monitor timeframe for metric alerts or 2 minutes for service checks. If omitted, 2x the evaluation timeframe is used for metric alerts, and 24 hours is used for service checks.",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"notifyAudit": {
+						SchemaProps: spec.SchemaProps{
+							Description: "A Boolean indicating whether tagged users are notified on changes to this monitor.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"notifyNoData": {
+						SchemaProps: spec.SchemaProps{
+							Description: "A Boolean indicating whether this monitor notifies when data stops reporting.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"renotifyInterval": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The number of minutes after the last notification before a monitor re-notifies on the current status. It only re-notifies if it’s not resolved.",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"requireFullWindow": {
+						SchemaProps: spec.SchemaProps{
+							Description: "A Boolean indicating whether this monitor needs a full window of data before it’s evaluated. We highly recommend you set this to false for sparse metrics, otherwise some evaluations are skipped. Default is false.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"timeoutH": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The number of hours of the monitor not reporting data before it automatically resolves from a triggered state.",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"thresholds": {
+						SchemaProps: spec.SchemaProps{
+							Description: "A struct of the different monitor threshold values.",
+							Ref:         ref("./apis/datadoghq/v1alpha1.DatadogMonitorOptionsThresholds"),
+						},
+					},
+					"thresholdWindows": {
+						SchemaProps: spec.SchemaProps{
+							Description: "A struct of the alerting time window options.",
+							Ref:         ref("./apis/datadoghq/v1alpha1.DatadogMonitorOptionsThresholdWindows"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"./apis/datadoghq/v1alpha1.DatadogMonitorOptionsThresholdWindows", "./apis/datadoghq/v1alpha1.DatadogMonitorOptionsThresholds"},
+	}
+}
+
+func schema__apis_datadoghq_v1alpha1_DatadogMonitorOptionsThresholdWindows(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogMonitorOptionsThresholdWindows is a struct of the alerting time window options",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"recoveryWindow": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Describes how long an anomalous metric must be normal before the alert recovers.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"triggerWindow": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Describes how long a metric must be anomalous before an alert triggers.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema__apis_datadoghq_v1alpha1_DatadogMonitorOptionsThresholds(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogMonitorOptionsThresholds is a struct of the different monitor threshold values",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"critical": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The monitor CRITICAL threshold.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"criticalRecovery": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The monitor CRITICAL recovery threshold.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"ok": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The monitor OK threshold.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"unknown": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The monitor UNKNOWN threshold.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"warning": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The monitor WARNING threshold.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"warningRecovery": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The monitor WARNING recovery threshold.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema__apis_datadoghq_v1alpha1_DatadogMonitorSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogMonitorSpec defines the desired state of DatadogMonitor",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name is the monitor name",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"message": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Message is a message to include with notifications for this monitor",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"priority": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Priority is an integer from 1 (high) to 5 (low) indicating alert severity",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"query": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Query is the Datadog monitor query",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"restrictedRoles": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "set",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "RestrictedRoles is a list of unique role identifiers to define which roles are allowed to edit the monitor. `restricted_roles` is the successor of `locked`. For more information about `locked` and `restricted_roles`, see the [monitor options docs](https://docs.datadoghq.com/monitors/guide/monitor_api_options/#permissions-options).",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"tags": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "set",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Tags is the monitor tags associated with your monitor",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"type": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Type is the monitor type",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"options": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Options are the optional parameters associated with your monitor",
+							Default:     map[string]interface{}{},
+							Ref:         ref("./apis/datadoghq/v1alpha1.DatadogMonitorOptions"),
+						},
+					},
+					"controllerOptions": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ControllerOptions are the optional parameters in the DatadogMonitor controller",
+							Default:     map[string]interface{}{},
+							Ref:         ref("./apis/datadoghq/v1alpha1.DatadogMonitorControllerOptions"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"./apis/datadoghq/v1alpha1.DatadogMonitorControllerOptions", "./apis/datadoghq/v1alpha1.DatadogMonitorOptions"},
+	}
+}
+
+func schema__apis_datadoghq_v1alpha1_DatadogMonitorStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogMonitorStatus defines the observed state of DatadogMonitor",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"conditions": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"type",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Conditions Represents the latest available observations of a DatadogMonitor's current state.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("./apis/datadoghq/v1alpha1.DatadogMonitorCondition"),
+									},
+								},
+							},
+						},
+					},
+					"id": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ID is the monitor ID generated in Datadog",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"creator": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Creator is the identify of the monitor creator",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"created": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Created is the time the monitor was created",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"monitorState": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MonitorState is the overall state of monitor",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"monitorLastForceSyncTime": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MonitorLastForceSyncTime is the last time the API monitor was last force synced with the DatadogMonitor resource",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"monitorStateLastUpdateTime": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MonitorStateLastUpdateTime is the last time the monitor state updated",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"monitorStateLastTransitionTime": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MonitorStateLastTransitionTime is the last time the monitor state changed",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"syncStatus": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MonitorStateSyncStatus shows the health of syncing the monitor state to Datadog",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"triggeredState": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"monitorGroup",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "TriggeredState only includes details for monitor groups that are triggering",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("./apis/datadoghq/v1alpha1.DatadogMonitorTriggeredState"),
+									},
+								},
+							},
+						},
+					},
+					"downtimeStatus": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DowntimeStatus defines whether the monitor is downtimed",
+							Default:     map[string]interface{}{},
+							Ref:         ref("./apis/datadoghq/v1alpha1.DatadogMonitorDowntimeStatus"),
+						},
+					},
+					"primary": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Primary defines whether the monitor is managed by the Kubernetes custom resource (true) or outside Kubernetes (false)",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"currentHash": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CurrentHash tracks the hash of the current DatadogMonitorSpec to know if the Spec has changed and needs an update",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"./apis/datadoghq/v1alpha1.DatadogMonitorCondition", "./apis/datadoghq/v1alpha1.DatadogMonitorDowntimeStatus", "./apis/datadoghq/v1alpha1.DatadogMonitorTriggeredState", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+	}
+}
+
+func schema__apis_datadoghq_v1alpha1_DatadogMonitorTriggeredState(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogMonitorTriggeredState represents the details of a triggering DatadogMonitor The DatadogMonitor is triggering if one of its groups is in Alert, Warn, or No Data",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"monitorGroup": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MonitorGroup is the name of the triggering group",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"state": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"lastTransitionTime": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+				},
+				Required: []string{"monitorGroup"},
 			},
 		},
 		Dependencies: []string{
