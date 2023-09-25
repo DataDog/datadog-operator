@@ -156,9 +156,6 @@ func Test_getMonitor(t *testing.T) {
 	val, err := getMonitor(testAuth, client, mID)
 	assert.Nil(t, err)
 	assert.Equal(t, expectedMonitor, val)
-
-	// Check MatchingDowntime is correct
-	assert.Equal(t, int64(6789), val.MatchingDowntimes[0].Id)
 }
 
 func Test_validateMonitor(t *testing.T) {
@@ -309,11 +306,6 @@ func genericMonitor(mID int) datadogV1.Monitor {
 		Query:    query,
 		Tags:     tags,
 		Type:     mType,
-		MatchingDowntimes: []datadogV1.MatchingDowntime{
-			{
-				Id: 6789,
-			},
-		},
 	}
 }
 

@@ -174,10 +174,8 @@ func buildMonitor(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) (*da
 
 func getMonitor(auth context.Context, client *datadogV1.MonitorsApi, monitorID int) (datadogV1.Monitor, error) {
 	groupStates := "all"
-	withDowntimes := true
 	optionalParams := datadogV1.GetMonitorOptionalParameters{
-		GroupStates:   &groupStates,
-		WithDowntimes: &withDowntimes,
+		GroupStates: &groupStates,
 	}
 	m, _, err := client.GetMonitor(auth, int64(monitorID), optionalParams)
 	if err != nil {
