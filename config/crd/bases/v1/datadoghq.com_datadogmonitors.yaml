@@ -23,9 +23,6 @@ spec:
         - jsonPath: .status.monitorState
           name: monitor state
           type: string
-        - jsonPath: .status.downtimeStatus.isDowntimed
-          name: is downtimed
-          type: boolean
         - jsonPath: .status.monitorStateLastTransitionTime
           name: last state transition
           type: string
@@ -217,12 +214,10 @@ spec:
                 downtimeStatus:
                   description: DowntimeStatus defines whether the monitor is downtimed
                   properties:
-                    downtimeID:
+                    downtimeId:
                       type: integer
                     isDowntimed:
                       type: boolean
-                  required:
-                    - isDowntimed
                   type: object
                 id:
                   description: ID is the monitor ID generated in Datadog
