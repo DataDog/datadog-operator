@@ -11,7 +11,7 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	v2alpha1test "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
@@ -39,8 +39,8 @@ func Test_DogstatsdFeature_ConfigureV2(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		{
 			Name: "v2alpha1 dogstatsd udp hostport enabled",
-			DDAv2: newDDABuilder().
-				withHostPortEnabled(true).build(),
+			DDAv2: v2alpha1test.NewDefaultDatadogAgentBuilder().
+				WithHostPortEnabled(true).BuildWithDefaults(),
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().WithWantFunc(
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
@@ -50,9 +50,9 @@ func Test_DogstatsdFeature_ConfigureV2(t *testing.T) {
 		},
 		{
 			Name: "v2alpha1 udp custom host port",
-			DDAv2: newDDABuilder().
-				withHostPortEnabled(true).
-				withHostPortConfig(1234).build(),
+			DDAv2: v2alpha1test.NewDefaultDatadogAgentBuilder().
+				WithHostPortEnabled(true).
+				WithHostPortConfig(1234).BuildWithDefaults(),
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().WithWantFunc(
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
@@ -84,9 +84,9 @@ func Test_DogstatsdFeature_ConfigureV2(t *testing.T) {
 		},
 		{
 			Name: "v2alpha1 udp origin detection enabled",
-			DDAv2: newDDABuilder().
-				withHostPortEnabled(true).
-				withOriginDetectionEnabled(true).build(),
+			DDAv2: v2alpha1test.NewDefaultDatadogAgentBuilder().
+				WithHostPortEnabled(true).
+				WithOriginDetectionEnabled(true).BuildWithDefaults(),
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().WithWantFunc(
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
@@ -97,8 +97,8 @@ func Test_DogstatsdFeature_ConfigureV2(t *testing.T) {
 		},
 		{
 			Name: "v2alpha1 uds disabled",
-			DDAv2: newDDABuilder().
-				withUnixDomainSocketConfigEnabled(false).build(),
+			DDAv2: v2alpha1test.NewDefaultDatadogAgentBuilder().
+				WithUnixDomainSocketConfigEnabled(false).BuildWithDefaults(),
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().WithWantFunc(
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
@@ -108,8 +108,8 @@ func Test_DogstatsdFeature_ConfigureV2(t *testing.T) {
 		},
 		{
 			Name: "v2alpha1 uds custom host filepath",
-			DDAv2: newDDABuilder().
-				withUnixDomainSocketConfigPath(customPath).build(),
+			DDAv2: v2alpha1test.NewDefaultDatadogAgentBuilder().
+				WithUnixDomainSocketConfigPath(customPath).BuildWithDefaults(),
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().WithWantFunc(
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
@@ -139,8 +139,8 @@ func Test_DogstatsdFeature_ConfigureV2(t *testing.T) {
 		},
 		{
 			Name: "v2alpha1 uds origin detection",
-			DDAv2: newDDABuilder().
-				withOriginDetectionEnabled(true).build(),
+			DDAv2: v2alpha1test.NewDefaultDatadogAgentBuilder().
+				WithOriginDetectionEnabled(true).BuildWithDefaults(),
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().WithWantFunc(
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
@@ -152,8 +152,8 @@ func Test_DogstatsdFeature_ConfigureV2(t *testing.T) {
 		},
 		{
 			Name: "v2alpha1 mapper profiles",
-			DDAv2: newDDABuilder().
-				withMapperProfiles(customMapperProfilesConf).build(),
+			DDAv2: v2alpha1test.NewDefaultDatadogAgentBuilder().
+				WithMapperProfiles(customMapperProfilesConf).BuildWithDefaults(),
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().WithWantFunc(
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
@@ -286,52 +286,4 @@ func assertWants(t testing.TB, mgrInterface feature.PodTemplateManagers, testId 
 
 	coreAgentPorts := mgr.PortMgr.PortsByC[apicommonv1.CoreAgentContainerName]
 	assert.True(t, apiutils.IsEqualStruct(coreAgentPorts, wantContainerPorts), "%s. Agent ports \ndiff = %s", testId, cmp.Diff(coreAgentPorts, wantContainerPorts))
-}
-
-type DatadogAgentBuilder struct {
-	datadogAgent v2alpha1.DatadogAgent
-}
-
-func newDDABuilder() *DatadogAgentBuilder {
-	dda := &v2alpha1.DatadogAgent{}
-	v2alpha1.DefaultDatadogAgent(dda)
-
-	return &DatadogAgentBuilder{
-		datadogAgent: *dda,
-	}
-}
-
-func (builder *DatadogAgentBuilder) withHostPortEnabled(enabled bool) *DatadogAgentBuilder {
-	builder.datadogAgent.Spec.Features.Dogstatsd.HostPortConfig.Enabled = apiutils.NewBoolPointer(enabled)
-	return builder
-}
-
-func (builder *DatadogAgentBuilder) withHostPortConfig(port int32) *DatadogAgentBuilder {
-	builder.datadogAgent.Spec.Features.Dogstatsd.HostPortConfig.Port = apiutils.NewInt32Pointer(1234)
-	return builder
-}
-
-func (builder *DatadogAgentBuilder) withOriginDetectionEnabled(enabled bool) *DatadogAgentBuilder {
-	builder.datadogAgent.Spec.Features.Dogstatsd.OriginDetectionEnabled = apiutils.NewBoolPointer(enabled)
-	return builder
-}
-
-func (builder *DatadogAgentBuilder) withUnixDomainSocketConfigEnabled(enabled bool) *DatadogAgentBuilder {
-	builder.datadogAgent.Spec.Features.Dogstatsd.UnixDomainSocketConfig.Enabled = apiutils.NewBoolPointer(enabled)
-	return builder
-}
-
-func (builder *DatadogAgentBuilder) withUnixDomainSocketConfigPath(customPath string) *DatadogAgentBuilder {
-	builder.datadogAgent.Spec.Features.Dogstatsd.UnixDomainSocketConfig.Path = apiutils.NewStringPointer(customPath)
-	return builder
-}
-
-func (builder *DatadogAgentBuilder) withMapperProfiles(customMapperProfilesConf string) *DatadogAgentBuilder {
-	builder.datadogAgent.Spec.Features.Dogstatsd.MapperProfiles = &v2alpha1.CustomConfig{ConfigData: apiutils.NewStringPointer(customMapperProfilesConf)}
-	return builder
-}
-
-func (builder *DatadogAgentBuilder) build() *v2alpha1.DatadogAgent {
-	v2alpha1.DefaultDatadogAgent(&builder.datadogAgent)
-	return &builder.datadogAgent
 }
