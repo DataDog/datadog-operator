@@ -15873,6 +15873,13 @@ spec:
                               type: object
                           type: object
                       type: object
+                    processDiscovery:
+                      description: ProcessDiscovery configuration.
+                      properties:
+                        enabled:
+                          description: 'Enabled enables the Process Discovery check in the Agent. Default: true'
+                          type: boolean
+                      type: object
                     prometheusScrape:
                       description: PrometheusScrape configuration.
                       properties:

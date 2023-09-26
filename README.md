@@ -50,6 +50,7 @@ Operator `1.0.0` contains several changes users need to be aware of:
 - Live Container Collection
 - Orchestrator Explorer
 - UnixDomainSocket transport for DogStatsD (and APM if enabled)
+- Process Discovery
 
 ## Functionalities
 

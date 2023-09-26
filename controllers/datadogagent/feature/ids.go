@@ -23,6 +23,8 @@ const (
 	LiveContainerIDType = "live_container"
 	// LiveProcessIDType Live Process feature.
 	LiveProcessIDType = "live_process"
+	// ProcessDiscoveryIDType Process Discovery feature.
+	ProcessDiscoveryIDType = "process_discovery"
 	// OrchestratorExplorerIDType Orchestrator Explorer feature.
 	OrchestratorExplorerIDType = "orchestrator_explorer"
 	// LogCollectionIDType Log Collection feature.
