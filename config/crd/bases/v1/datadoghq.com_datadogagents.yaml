@@ -8327,7 +8327,7 @@ spec:
                       description: ProcessDiscoveryCollection configuration.
                       properties:
                         enabled:
-                          description: 'Enable enables process discovery collection. Default: true'
+                          description: 'Enabled enables process discovery collection. Default: true'
                           type: boolean
                       type: object
                     prometheusScrape:
