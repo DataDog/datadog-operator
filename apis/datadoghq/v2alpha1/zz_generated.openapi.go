@@ -419,7 +419,7 @@ func schema__apis_datadoghq_v2alpha1_DatadogFeatures(ref common.ReferenceCallbac
 							Ref:         ref("./apis/datadoghq/v2alpha1.LiveContainerCollectionFeatureConfig"),
 						},
 					},
-					"processDiscoveryCollection": {
+					"processDiscovery": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ProcessDiscovery configuration.",
 							Ref:         ref("./apis/datadoghq/v2alpha1.ProcessDiscoveryFeatureConfig"),

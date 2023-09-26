@@ -15873,7 +15873,7 @@ spec:
                               type: object
                           type: object
                       type: object
-                    processDiscoveryCollection:
+                    processDiscovery:
                       description: ProcessDiscovery configuration.
                       properties:
                         enabled:
