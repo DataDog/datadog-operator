@@ -201,7 +201,7 @@ type LiveContainerCollectionFeatureConfig struct {
 // ProcessDiscoveryFeatureConfig contains the configuration for the process discovery check
 // ProcessDiscovery is run in the ProcessAgent
 type ProcessDiscoveryFeatureConfig struct {
-	// Enabled enables process discovery collection.
+	// Enabled enables the Process Discovery check in the Agent.
 	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
