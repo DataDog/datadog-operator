@@ -13,7 +13,7 @@ import (
 )
 
 func init() {
-	err := feature.Register(feature.ProcessDiscoveryIdType, buildProcessDiscoveryFeature)
+	err := feature.Register(feature.ProcessDiscoveryIDType, buildProcessDiscoveryFeature)
 	if err != nil {
 		panic(err)
 	}
@@ -26,7 +26,7 @@ func buildProcessDiscoveryFeature(options *feature.Options) feature.Feature {
 type processDiscoveryFeature struct{}
 
 func (p processDiscoveryFeature) ID() feature.IDType {
-	return feature.ProcessDiscoveryIdType
+	return feature.ProcessDiscoveryIDType
 }
 
 func (p processDiscoveryFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredComponents {
