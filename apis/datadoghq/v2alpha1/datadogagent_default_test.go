@@ -73,6 +73,9 @@ func Test_defaultFeatures(t *testing.T) {
 					LiveContainerCollection: &LiveContainerCollectionFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
 					},
+					ProcessDiscoveryCollection: &ProcessDiscoveryFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultProcessDiscoveryCollectionEnabled),
+					},
 					Dogstatsd: &DogstatsdFeatureConfig{
 						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogstatsdOriginDetectionEnabled),
 						HostPortConfig:         &HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
@@ -127,6 +130,9 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled: apiutils.NewBoolPointer(valueFalse),
 					},
 					LiveContainerCollection: &LiveContainerCollectionFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(valueFalse),
+					},
+					ProcessDiscoveryCollection: &ProcessDiscoveryFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueFalse),
 					},
 					OOMKill: &OOMKillFeatureConfig{
@@ -189,6 +195,9 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled: apiutils.NewBoolPointer(valueFalse),
 					},
 					LiveContainerCollection: &LiveContainerCollectionFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(valueFalse),
+					},
+					ProcessDiscoveryCollection: &ProcessDiscoveryFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueFalse),
 					},
 					OOMKill: &OOMKillFeatureConfig{
@@ -274,6 +283,10 @@ func Test_defaultFeatures(t *testing.T) {
 					LiveContainerCollection: &LiveContainerCollectionFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
 					},
+					ProcessDiscoveryCollection: &ProcessDiscoveryFeatureConfig{
+						// The agent will automatically disable process discovery collection in this case
+						Enabled: apiutils.NewBoolPointer(defaultProcessDiscoveryCollectionEnabled),
+					},
 					Dogstatsd: &DogstatsdFeatureConfig{
 						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogstatsdOriginDetectionEnabled),
 						HostPortConfig:         &HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
@@ -339,6 +352,9 @@ func Test_defaultFeatures(t *testing.T) {
 					LiveContainerCollection: &LiveContainerCollectionFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
 					},
+					ProcessDiscoveryCollection: &ProcessDiscoveryFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultProcessDiscoveryCollectionEnabled),
+					},
 					Dogstatsd: &DogstatsdFeatureConfig{
 						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogstatsdOriginDetectionEnabled),
 						HostPortConfig:         &HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
@@ -395,6 +411,9 @@ func Test_defaultFeatures(t *testing.T) {
 				Features: &DatadogFeatures{
 					LiveContainerCollection: &LiveContainerCollectionFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
+					},
+					ProcessDiscoveryCollection: &ProcessDiscoveryFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultProcessDiscoveryCollectionEnabled),
 					},
 					APM: &APMFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueTrue),
@@ -463,6 +482,9 @@ func Test_defaultFeatures(t *testing.T) {
 				Features: &DatadogFeatures{
 					LiveContainerCollection: &LiveContainerCollectionFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
+					},
+					ProcessDiscoveryCollection: &ProcessDiscoveryFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultProcessDiscoveryCollectionEnabled),
 					},
 					NPM: &NPMFeatureConfig{
 						Enabled:         apiutils.NewBoolPointer(valueTrue),
@@ -533,6 +555,9 @@ func Test_defaultFeatures(t *testing.T) {
 					LiveContainerCollection: &LiveContainerCollectionFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
 					},
+					ProcessDiscoveryCollection: &ProcessDiscoveryFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultProcessDiscoveryCollectionEnabled),
+					},
 					Dogstatsd: &DogstatsdFeatureConfig{
 						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogstatsdOriginDetectionEnabled),
 						HostPortConfig:         &HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
@@ -589,6 +614,9 @@ func Test_defaultFeatures(t *testing.T) {
 				Features: &DatadogFeatures{
 					LiveContainerCollection: &LiveContainerCollectionFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
+					},
+					ProcessDiscoveryCollection: &ProcessDiscoveryFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultProcessDiscoveryCollectionEnabled),
 					},
 					Dogstatsd: &DogstatsdFeatureConfig{
 						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogstatsdOriginDetectionEnabled),
@@ -652,6 +680,9 @@ func Test_defaultFeatures(t *testing.T) {
 					LiveContainerCollection: &LiveContainerCollectionFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
 					},
+					ProcessDiscoveryCollection: &ProcessDiscoveryFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultProcessDiscoveryCollectionEnabled),
+					},
 					Dogstatsd: &DogstatsdFeatureConfig{
 						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogstatsdOriginDetectionEnabled),
 						HostPortConfig:         &HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
@@ -709,6 +740,9 @@ func Test_defaultFeatures(t *testing.T) {
 				Features: &DatadogFeatures{
 					LiveContainerCollection: &LiveContainerCollectionFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
+					},
+					ProcessDiscoveryCollection: &ProcessDiscoveryFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultProcessDiscoveryCollectionEnabled),
 					},
 					Dogstatsd: &DogstatsdFeatureConfig{
 						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogstatsdOriginDetectionEnabled),
@@ -768,6 +802,9 @@ func Test_defaultFeatures(t *testing.T) {
 					LiveContainerCollection: &LiveContainerCollectionFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
 					},
+					ProcessDiscoveryCollection: &ProcessDiscoveryFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultProcessDiscoveryCollectionEnabled),
+					},
 					Dogstatsd: &DogstatsdFeatureConfig{
 						OriginDetectionEnabled: apiutils.NewBoolPointer(defaultDogstatsdOriginDetectionEnabled),
 						HostPortConfig:         &HostPortConfig{Enabled: apiutils.NewBoolPointer(defaultDogstatsdHostPortEnabled)},
@@ -817,31 +854,35 @@ func Test_defaultFeatures(t *testing.T) {
 			name: "all feature configs are empty structs, configures defaults where applicable, leaves others empty",
 			ddaSpec: &DatadogAgentSpec{
 				Features: &DatadogFeatures{
-					LogCollection:           &LogCollectionFeatureConfig{},
-					LiveProcessCollection:   &LiveProcessCollectionFeatureConfig{},
-					LiveContainerCollection: &LiveContainerCollectionFeatureConfig{},
-					OOMKill:                 &OOMKillFeatureConfig{},
-					TCPQueueLength:          &TCPQueueLengthFeatureConfig{},
-					APM:                     &APMFeatureConfig{},
-					CSPM:                    &CSPMFeatureConfig{},
-					CWS:                     &CWSFeatureConfig{},
-					NPM:                     &NPMFeatureConfig{},
-					USM:                     &USMFeatureConfig{},
-					OTLP:                    &OTLPFeatureConfig{},
-					EventCollection:         &EventCollectionFeatureConfig{},
-					OrchestratorExplorer:    &OrchestratorExplorerFeatureConfig{},
-					KubeStateMetricsCore:    &KubeStateMetricsCoreFeatureConfig{},
-					AdmissionController:     &AdmissionControllerFeatureConfig{},
-					ExternalMetricsServer:   &ExternalMetricsServerFeatureConfig{},
-					ClusterChecks:           &ClusterChecksFeatureConfig{},
-					PrometheusScrape:        &PrometheusScrapeFeatureConfig{},
-					RemoteConfiguration:     &RemoteConfigurationFeatureConfig{},
+					LogCollection:              &LogCollectionFeatureConfig{},
+					LiveProcessCollection:      &LiveProcessCollectionFeatureConfig{},
+					LiveContainerCollection:    &LiveContainerCollectionFeatureConfig{},
+					ProcessDiscoveryCollection: &ProcessDiscoveryFeatureConfig{},
+					OOMKill:                    &OOMKillFeatureConfig{},
+					TCPQueueLength:             &TCPQueueLengthFeatureConfig{},
+					APM:                        &APMFeatureConfig{},
+					CSPM:                       &CSPMFeatureConfig{},
+					CWS:                        &CWSFeatureConfig{},
+					NPM:                        &NPMFeatureConfig{},
+					USM:                        &USMFeatureConfig{},
+					OTLP:                       &OTLPFeatureConfig{},
+					EventCollection:            &EventCollectionFeatureConfig{},
+					OrchestratorExplorer:       &OrchestratorExplorerFeatureConfig{},
+					KubeStateMetricsCore:       &KubeStateMetricsCoreFeatureConfig{},
+					AdmissionController:        &AdmissionControllerFeatureConfig{},
+					ExternalMetricsServer:      &ExternalMetricsServerFeatureConfig{},
+					ClusterChecks:              &ClusterChecksFeatureConfig{},
+					PrometheusScrape:           &PrometheusScrapeFeatureConfig{},
+					RemoteConfiguration:        &RemoteConfigurationFeatureConfig{},
 				},
 			},
 			want: &DatadogAgentSpec{
 				Features: &DatadogFeatures{
 					LogCollection:         &LogCollectionFeatureConfig{},
 					LiveProcessCollection: &LiveProcessCollectionFeatureConfig{},
+					ProcessDiscoveryCollection: &ProcessDiscoveryFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultProcessDiscoveryCollectionEnabled),
+					},
 					OOMKill:               &OOMKillFeatureConfig{},
 					TCPQueueLength:        &TCPQueueLengthFeatureConfig{},
 					APM:                   &APMFeatureConfig{},

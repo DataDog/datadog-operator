@@ -155,6 +155,7 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 		}
 	}
 
+	// ProcessDiscoveryCollection Feature
 	if ddaSpec.Features.ProcessDiscoveryCollection == nil || apiutils.IsEqualStruct(*ddaSpec.Features.ProcessDiscoveryCollection, ProcessDiscoveryFeatureConfig{}) {
 		ddaSpec.Features.ProcessDiscoveryCollection = &ProcessDiscoveryFeatureConfig{
 			Enabled: apiutils.NewBoolPointer(defaultProcessDiscoveryCollectionEnabled),
