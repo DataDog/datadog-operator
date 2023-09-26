@@ -8324,7 +8324,7 @@ spec:
                           type: object
                       type: object
                     processDiscoveryCollection:
-                      description: ProcessDiscoveryCollection configuration.
+                      description: ProcessDiscovery configuration.
                       properties:
                         enabled:
                           description: 'Enabled enables process discovery collection. Default: true'

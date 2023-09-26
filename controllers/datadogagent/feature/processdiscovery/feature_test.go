@@ -65,7 +65,7 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 			DDAv2: &v2alpha1.DatadogAgent{
 				Spec: v2alpha1.DatadogAgentSpec{
 					Features: &v2alpha1.DatadogFeatures{
-						ProcessDiscoveryCollection: &v2alpha1.ProcessDiscoveryFeatureConfig{
+						ProcessDiscovery: &v2alpha1.ProcessDiscoveryFeatureConfig{
 							Enabled: apiutils.NewBoolPointer(true),
 						},
 					},
@@ -79,7 +79,7 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 			DDAv2: &v2alpha1.DatadogAgent{
 				Spec: v2alpha1.DatadogAgentSpec{
 					Features: &v2alpha1.DatadogFeatures{
-						ProcessDiscoveryCollection: &v2alpha1.ProcessDiscoveryFeatureConfig{
+						ProcessDiscovery: &v2alpha1.ProcessDiscoveryFeatureConfig{
 							Enabled: apiutils.NewBoolPointer(false),
 						},
 					},
@@ -92,7 +92,7 @@ func Test_processDiscoveryFeature_Configure(t *testing.T) {
 			DDAv2: &v2alpha1.DatadogAgent{
 				Spec: v2alpha1.DatadogAgentSpec{
 					Features: &v2alpha1.DatadogFeatures{
-						ProcessDiscoveryCollection: nil,
+						ProcessDiscovery: nil,
 					},
 				},
 			},

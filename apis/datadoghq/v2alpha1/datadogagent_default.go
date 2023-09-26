@@ -27,7 +27,7 @@ const (
 	// defaultLiveProcessCollectionEnabled   bool = false
 	defaultLiveContainerCollectionEnabled bool = true
 
-	defaultProcessDiscoveryCollectionEnabled bool = true
+	defaultProcessDiscoveryEnabled bool = true
 
 	// defaultOOMKillEnabled        bool = false
 	// defaultTCPQueueLengthEnabled bool = false
@@ -155,10 +155,10 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 		}
 	}
 
-	// ProcessDiscoveryCollection Feature
-	if ddaSpec.Features.ProcessDiscoveryCollection == nil || apiutils.IsEqualStruct(*ddaSpec.Features.ProcessDiscoveryCollection, ProcessDiscoveryFeatureConfig{}) {
-		ddaSpec.Features.ProcessDiscoveryCollection = &ProcessDiscoveryFeatureConfig{
-			Enabled: apiutils.NewBoolPointer(defaultProcessDiscoveryCollectionEnabled),
+	// ProcessDiscovery Feature
+	if ddaSpec.Features.ProcessDiscovery == nil || apiutils.IsEqualStruct(*ddaSpec.Features.ProcessDiscovery, ProcessDiscoveryFeatureConfig{}) {
+		ddaSpec.Features.ProcessDiscovery = &ProcessDiscoveryFeatureConfig{
+			Enabled: apiutils.NewBoolPointer(defaultProcessDiscoveryEnabled),
 		}
 	}
 

@@ -31,7 +31,7 @@ func (p processDiscoveryFeature) ID() feature.IDType {
 
 func (p processDiscoveryFeature) Configure(dda *v2alpha1.DatadogAgent) feature.RequiredComponents {
 	var reqComp feature.RequiredComponents
-	if dda.Spec.Features.ProcessDiscoveryCollection == nil || apiutils.BoolValue(dda.Spec.Features.ProcessDiscoveryCollection.Enabled) {
+	if dda.Spec.Features.ProcessDiscovery == nil || apiutils.BoolValue(dda.Spec.Features.ProcessDiscovery.Enabled) {
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
 				IsRequired: apiutils.NewBoolPointer(true),

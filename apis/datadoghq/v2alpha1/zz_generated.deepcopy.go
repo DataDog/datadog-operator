@@ -725,8 +725,8 @@ func (in *DatadogFeatures) DeepCopyInto(out *DatadogFeatures) {
 		*out = new(LiveContainerCollectionFeatureConfig)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.ProcessDiscoveryCollection != nil {
-		in, out := &in.ProcessDiscoveryCollection, &out.ProcessDiscoveryCollection
+	if in.ProcessDiscovery != nil {
+		in, out := &in.ProcessDiscovery, &out.ProcessDiscovery
 		*out = new(ProcessDiscoveryFeatureConfig)
 		(*in).DeepCopyInto(*out)
 	}
