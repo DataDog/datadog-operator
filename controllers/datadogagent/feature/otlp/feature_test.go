@@ -158,6 +158,44 @@ func TestOTLPFeature(t *testing.T) {
 			}),
 		},
 		{
+			Name: "[mono-container] v2alpha1 gRPC and HTTP enabled, APM",
+			DDAv2: newV2MonoAgent(Settings{
+				EnabledGRPC:  true,
+				EndpointGRPC: "0.0.0.0:4317",
+				EnabledHTTP:  true,
+				EndpointHTTP: "0.0.0.0:4318",
+				APM:          true,
+			}),
+			WantConfigure: true,
+			Agent: testExpectedMono(Expected{
+				EnvVars: []*corev1.EnvVar{
+					{
+						Name:  apicommon.DDOTLPgRPCEndpoint,
+						Value: "0.0.0.0:4317",
+					},
+					{
+						Name:  apicommon.DDOTLPHTTPEndpoint,
+						Value: "0.0.0.0:4318",
+					},
+				},
+				CheckTraceAgent: true,
+				Ports: []*corev1.ContainerPort{
+					{
+						Name:          apicommon.OTLPGRPCPortName,
+						ContainerPort: 4317,
+						HostPort:      4317,
+						Protocol:      corev1.ProtocolTCP,
+					},
+					{
+						Name:          apicommon.OTLPHTTPPortName,
+						ContainerPort: 4318,
+						HostPort:      4318,
+						Protocol:      corev1.ProtocolTCP,
+					},
+				},
+			}),
+		},
+		{
 			Name: "v2alpha1 gRPC enabled, no APM",
 			DDAv2: newV2Agent(Settings{
 				EnabledGRPC:  true,
@@ -165,6 +203,30 @@ func TestOTLPFeature(t *testing.T) {
 			}),
 			WantConfigure: true,
 			Agent: testExpected(Expected{
+				EnvVars: []*corev1.EnvVar{
+					{
+						Name:  apicommon.DDOTLPgRPCEndpoint,
+						Value: "0.0.0.0:4317",
+					},
+				},
+				Ports: []*corev1.ContainerPort{
+					{
+						Name:          apicommon.OTLPGRPCPortName,
+						ContainerPort: 4317,
+						HostPort:      4317,
+						Protocol:      corev1.ProtocolTCP,
+					},
+				},
+			}),
+		},
+		{
+			Name: "[mono-container] v2alpha1 gRPC enabled, no APM",
+			DDAv2: newV2MonoAgent(Settings{
+				EnabledGRPC:  true,
+				EndpointGRPC: "0.0.0.0:4317",
+			}),
+			WantConfigure: true,
+			Agent: testExpectedMono(Expected{
 				EnvVars: []*corev1.EnvVar{
 					{
 						Name:  apicommon.DDOTLPgRPCEndpoint,
@@ -190,6 +252,32 @@ func TestOTLPFeature(t *testing.T) {
 			}),
 			WantConfigure: true,
 			Agent: testExpected(Expected{
+				EnvVars: []*corev1.EnvVar{
+					{
+						Name:  apicommon.DDOTLPHTTPEndpoint,
+						Value: "somehostname:4318",
+					},
+				},
+				CheckTraceAgent: true,
+				Ports: []*corev1.ContainerPort{
+					{
+						Name:          apicommon.OTLPHTTPPortName,
+						ContainerPort: 4318,
+						HostPort:      4318,
+						Protocol:      corev1.ProtocolTCP,
+					},
+				},
+			}),
+		},
+		{
+			Name: "[mono-container] v2alpha1 HTTP enabled, APM",
+			DDAv2: newV2MonoAgent(Settings{
+				EnabledHTTP:  true,
+				EndpointHTTP: "somehostname:4318",
+				APM:          true,
+			}),
+			WantConfigure: true,
+			Agent: testExpectedMono(Expected{
 				EnvVars: []*corev1.EnvVar{
 					{
 						Name:  apicommon.DDOTLPHTTPEndpoint,
@@ -266,6 +354,16 @@ func newV2Agent(set Settings) *v2alpha1.DatadogAgent {
 	}
 }
 
+func newV2MonoAgent(set Settings) *v2alpha1.DatadogAgent {
+	ddaV2 := newV2Agent(set)
+	ddaV2.Spec.Global = &v2alpha1.GlobalConfig{
+		ContainerProcessModel: &v2alpha1.ContainerProcessModel{
+			UseMultiProcessContainer: apiutils.NewBoolPointer(true),
+		},
+	}
+	return ddaV2
+}
+
 type Expected struct {
 	EnvVars         []*corev1.EnvVar
 	CheckTraceAgent bool
@@ -294,6 +392,37 @@ func testExpected(exp Expected) *test.ComponentTest {
 			}
 
 			agentPorts := mgr.PortMgr.PortsByC[apicommonv1.CoreAgentContainerName]
+			assert.True(
+				t,
+				apiutils.IsEqualStruct(agentPorts, exp.Ports),
+				"Core Agent Ports \ndiff = %s", cmp.Diff(agentPorts, exp.Ports),
+			)
+		},
+	)
+}
+
+func testExpectedMono(exp Expected) *test.ComponentTest {
+	return test.NewDefaultComponentTest().WithWantFunc(
+		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.NonPrivilegedMonoContainerName]
+			assert.True(
+				t,
+				apiutils.IsEqualStruct(agentEnvs, exp.EnvVars),
+				"Core Agent ENVs \ndiff = %s", cmp.Diff(agentEnvs, exp.EnvVars),
+			)
+
+			if exp.CheckTraceAgent {
+				agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.NonPrivilegedMonoContainerName]
+				assert.True(
+					t,
+					apiutils.IsEqualStruct(agentEnvs, exp.EnvVars),
+					"Trace Agent ENVs \ndiff = %s", cmp.Diff(agentEnvs, exp.EnvVars),
+				)
+			}
+
+			agentPorts := mgr.PortMgr.PortsByC[apicommonv1.NonPrivilegedMonoContainerName]
 			assert.True(
 				t,
 				apiutils.IsEqualStruct(agentPorts, exp.Ports),
