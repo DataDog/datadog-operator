@@ -165,3 +165,107 @@ func (builder *DatadogAgentBuilder) WithEventCollectionEnabled(enabled bool) *Da
 
 	return builder
 }
+
+// Remote Collection
+
+func (builder *DatadogAgentBuilder) WithRemoteConfigEnabled(enabled bool) *DatadogAgentBuilder {
+	if builder.datadogAgent.Spec.Features.RemoteConfiguration == nil {
+		builder.datadogAgent.Spec.Features.RemoteConfiguration = &v2alpha1.RemoteConfigurationFeatureConfig{}
+	}
+
+	builder.datadogAgent.Spec.Features.RemoteConfiguration.Enabled = apiutils.NewBoolPointer(enabled)
+
+	return builder
+}
+
+// Orchestrator Explorer
+
+func (builder *DatadogAgentBuilder) initOE() {
+	if builder.datadogAgent.Spec.Features.OrchestratorExplorer == nil {
+		builder.datadogAgent.Spec.Features.OrchestratorExplorer = &v2alpha1.OrchestratorExplorerFeatureConfig{}
+	}
+}
+
+func (builder *DatadogAgentBuilder) WithOrchestratorExplorerEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initOE()
+	builder.datadogAgent.Spec.Features.OrchestratorExplorer.Enabled = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithOrchestratorExplorerScrubContainersEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initOE()
+	builder.datadogAgent.Spec.Features.OrchestratorExplorer.ScrubContainers = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithOrchestratorExplorerExtraTags(tags []string) *DatadogAgentBuilder {
+	builder.initOE()
+	builder.datadogAgent.Spec.Features.OrchestratorExplorer.ExtraTags = tags
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithOrchestratorExplorerDDUrl(ddUrl string) *DatadogAgentBuilder {
+	builder.initOE()
+	builder.datadogAgent.Spec.Features.OrchestratorExplorer.DDUrl = apiutils.NewStringPointer(ddUrl)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithOrchestratorExplorerCustomConfigData(customConfigData string) *DatadogAgentBuilder {
+	builder.initOE()
+	builder.datadogAgent.Spec.Features.OrchestratorExplorer.Conf = &v2alpha1.CustomConfig{
+		ConfigData: &customConfigData,
+	}
+	return builder
+}
+
+// Cluster Checks
+
+func (builder *DatadogAgentBuilder) initCC() {
+	if builder.datadogAgent.Spec.Features.ClusterChecks == nil {
+		builder.datadogAgent.Spec.Features.ClusterChecks = &v2alpha1.ClusterChecksFeatureConfig{}
+	}
+}
+
+func (builder *DatadogAgentBuilder) WithClusterChecksEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initCC()
+	builder.datadogAgent.Spec.Features.ClusterChecks.Enabled = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithClusterChecksUseCLCEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initCC()
+	builder.datadogAgent.Spec.Features.ClusterChecks.UseClusterChecksRunners = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
+// Prometheus Scrape
+
+func (builder *DatadogAgentBuilder) initPrometheusScrape() {
+	if builder.datadogAgent.Spec.Features.PrometheusScrape == nil {
+		builder.datadogAgent.Spec.Features.PrometheusScrape = &v2alpha1.PrometheusScrapeFeatureConfig{}
+	}
+}
+
+func (builder *DatadogAgentBuilder) WithPrometheusScrapeEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initPrometheusScrape()
+	builder.datadogAgent.Spec.Features.PrometheusScrape.Enabled = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithPrometheusScrapeServiceEndpointEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initPrometheusScrape()
+	builder.datadogAgent.Spec.Features.PrometheusScrape.EnableServiceEndpoints = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithPrometheusScrapeAdditionalConfig(additionalConfig string) *DatadogAgentBuilder {
+	builder.initPrometheusScrape()
+	builder.datadogAgent.Spec.Features.PrometheusScrape.AdditionalConfigs = apiutils.NewStringPointer(additionalConfig)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithPrometheusScrapeVersion(version int) *DatadogAgentBuilder {
+	builder.initPrometheusScrape()
+	builder.datadogAgent.Spec.Features.PrometheusScrape.Version = apiutils.NewIntPointer(version)
+	return builder
+}
