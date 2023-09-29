@@ -61,7 +61,7 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithLogCollectionEnabled(true).
 				WithLogCollectionCollectAllEnabled(true).
-				WithUsingFilesDisabledEnabled(false).
+				WithLogCollectionLogCollectionUsingFilesEnabled(false).
 				BuildWithDefaults(),
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().WithWantFunc(
@@ -75,7 +75,7 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 			Name: "v2alpha1 open files limit set to custom value",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithLogCollectionEnabled(true).
-				WithOpenFilesLimit(250).
+				WithLogCollectionOpenFilesLimit(250).
 				BuildWithDefaults(),
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().WithWantFunc(
@@ -93,7 +93,7 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 			Name: "v2alpha1 custom volumes",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithLogCollectionEnabled(true).
-				WithPaths("/custom/pod/logs", "/custom/container/logs", "/custom/symlink", "/custom/temp/storage").
+				WithLogCollectionPaths("/custom/pod/logs", "/custom/container/logs", "/custom/symlink", "/custom/temp/storage").
 				BuildWithDefaults(),
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().WithWantFunc(

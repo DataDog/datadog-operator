@@ -52,102 +52,100 @@ func (builder *DatadogAgentBuilder) WithName(name string) *DatadogAgentBuilder {
 }
 
 // Dogstatsd
+func (builder *DatadogAgentBuilder) initDogstatsd() {
+	if builder.datadogAgent.Spec.Features.Dogstatsd == nil {
+		builder.datadogAgent.Spec.Features.Dogstatsd = &v2alpha1.DogstatsdFeatureConfig{}
+	}
+}
 
-func (builder *DatadogAgentBuilder) WithHostPortEnabled(enabled bool) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) WithDogstatsdHostPortEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initDogstatsd()
 	builder.datadogAgent.Spec.Features.Dogstatsd.HostPortConfig.Enabled = apiutils.NewBoolPointer(enabled)
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithHostPortConfig(port int32) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) WithDogstatsdHostPortConfig(port int32) *DatadogAgentBuilder {
+	builder.initDogstatsd()
 	builder.datadogAgent.Spec.Features.Dogstatsd.HostPortConfig.Port = apiutils.NewInt32Pointer(1234)
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithOriginDetectionEnabled(enabled bool) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) WithDogstatsdOriginDetectionEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initDogstatsd()
 	builder.datadogAgent.Spec.Features.Dogstatsd.OriginDetectionEnabled = apiutils.NewBoolPointer(enabled)
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithUnixDomainSocketConfigEnabled(enabled bool) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) WithDogstatsdUnixDomainSocketConfigEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initDogstatsd()
 	builder.datadogAgent.Spec.Features.Dogstatsd.UnixDomainSocketConfig.Enabled = apiutils.NewBoolPointer(enabled)
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithUnixDomainSocketConfigPath(customPath string) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) WithDogstatsdUnixDomainSocketConfigPath(customPath string) *DatadogAgentBuilder {
 	builder.datadogAgent.Spec.Features.Dogstatsd.UnixDomainSocketConfig.Path = apiutils.NewStringPointer(customPath)
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithMapperProfiles(customMapperProfilesConf string) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) WithDogstatsdMapperProfiles(customMapperProfilesConf string) *DatadogAgentBuilder {
+	builder.initDogstatsd()
 	builder.datadogAgent.Spec.Features.Dogstatsd.MapperProfiles = &v2alpha1.CustomConfig{ConfigData: apiutils.NewStringPointer(customMapperProfilesConf)}
 	return builder
 }
 
 // Live Processes
+func (builder *DatadogAgentBuilder) initLiveProcesses() {
+	if builder.datadogAgent.Spec.Features.LiveProcessCollection == nil {
+		builder.datadogAgent.Spec.Features.LiveProcessCollection = &v2alpha1.LiveProcessCollectionFeatureConfig{}
+	}
+}
 
 func (builder *DatadogAgentBuilder) WithLiveProcessEnabled(enabled bool) *DatadogAgentBuilder {
-	builder.datadogAgent.Spec.Features.LiveProcessCollection = &v2alpha1.LiveProcessCollectionFeatureConfig{
-		Enabled: apiutils.NewBoolPointer(enabled),
-	}
+	builder.initLiveProcesses()
+	builder.datadogAgent.Spec.Features.LiveProcessCollection.Enabled = apiutils.NewBoolPointer(enabled)
 	return builder
 }
 
 func (builder *DatadogAgentBuilder) WithLiveProcessScrubStrip(scrubEnabled, stripEnabled bool) *DatadogAgentBuilder {
-	if builder.datadogAgent.Spec.Features.LiveProcessCollection == nil {
-		builder.datadogAgent.Spec.Features.LiveProcessCollection = &v2alpha1.LiveProcessCollectionFeatureConfig{}
-	}
+	builder.initLiveProcesses()
 	builder.datadogAgent.Spec.Features.LiveProcessCollection.ScrubProcessArguments = apiutils.NewBoolPointer(scrubEnabled)
 	builder.datadogAgent.Spec.Features.LiveProcessCollection.StripProcessArguments = apiutils.NewBoolPointer(stripEnabled)
 	return builder
 }
 
 // Log Collection
-
-func (builder *DatadogAgentBuilder) WithLogCollectionEnabled(enabled bool) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) initLogCollection() {
 	if builder.datadogAgent.Spec.Features.LogCollection == nil {
 		builder.datadogAgent.Spec.Features.LogCollection = &v2alpha1.LogCollectionFeatureConfig{}
 	}
+}
 
+func (builder *DatadogAgentBuilder) WithLogCollectionEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initLogCollection()
 	builder.datadogAgent.Spec.Features.LogCollection.Enabled = apiutils.NewBoolPointer(enabled)
-
 	return builder
 }
 
 func (builder *DatadogAgentBuilder) WithLogCollectionCollectAllEnabled(enabled bool) *DatadogAgentBuilder {
-	if builder.datadogAgent.Spec.Features.LogCollection == nil {
-		builder.datadogAgent.Spec.Features.LogCollection = &v2alpha1.LogCollectionFeatureConfig{}
-	}
-
+	builder.initLogCollection()
 	builder.datadogAgent.Spec.Features.LogCollection.ContainerCollectAll = apiutils.NewBoolPointer(enabled)
-
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithUsingFilesDisabledEnabled(enabled bool) *DatadogAgentBuilder {
-	if builder.datadogAgent.Spec.Features.LogCollection == nil {
-		builder.datadogAgent.Spec.Features.LogCollection = &v2alpha1.LogCollectionFeatureConfig{}
-	}
-
+func (builder *DatadogAgentBuilder) WithLogCollectionLogCollectionUsingFilesEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initLogCollection()
 	builder.datadogAgent.Spec.Features.LogCollection.ContainerCollectUsingFiles = apiutils.NewBoolPointer(enabled)
-
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithOpenFilesLimit(limit int32) *DatadogAgentBuilder {
-	if builder.datadogAgent.Spec.Features.LogCollection == nil {
-		builder.datadogAgent.Spec.Features.LogCollection = &v2alpha1.LogCollectionFeatureConfig{}
-	}
-
+func (builder *DatadogAgentBuilder) WithLogCollectionOpenFilesLimit(limit int32) *DatadogAgentBuilder {
+	builder.initLogCollection()
 	builder.datadogAgent.Spec.Features.LogCollection.OpenFilesLimit = apiutils.NewInt32Pointer(limit)
-
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithPaths(podLogs, containerLogs, containerSymlinks, tempStorate string) *DatadogAgentBuilder {
-	if builder.datadogAgent.Spec.Features.LogCollection == nil {
-		builder.datadogAgent.Spec.Features.LogCollection = &v2alpha1.LogCollectionFeatureConfig{}
-	}
-
+func (builder *DatadogAgentBuilder) WithLogCollectionPaths(podLogs, containerLogs, containerSymlinks, tempStorate string) *DatadogAgentBuilder {
+	builder.initLogCollection()
 	builder.datadogAgent.Spec.Features.LogCollection.PodLogsPath = apiutils.NewStringPointer(podLogs)
 	builder.datadogAgent.Spec.Features.LogCollection.ContainerLogsPath = apiutils.NewStringPointer(containerLogs)
 	builder.datadogAgent.Spec.Features.LogCollection.ContainerSymlinksPath = apiutils.NewStringPointer(containerSymlinks)
@@ -156,25 +154,29 @@ func (builder *DatadogAgentBuilder) WithPaths(podLogs, containerLogs, containerS
 }
 
 // Event Collection
-
-func (builder *DatadogAgentBuilder) WithEventCollectionEnabled(enabled bool) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) initEventCollection() {
 	if builder.datadogAgent.Spec.Features.EventCollection == nil {
 		builder.datadogAgent.Spec.Features.EventCollection = &v2alpha1.EventCollectionFeatureConfig{}
 	}
+}
+
+func (builder *DatadogAgentBuilder) WithEventCollectionEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initEventCollection()
 	builder.datadogAgent.Spec.Features.EventCollection.CollectKubernetesEvents = apiutils.NewBoolPointer(enabled)
 
 	return builder
 }
 
 // Remote Collection
-
-func (builder *DatadogAgentBuilder) WithRemoteConfigEnabled(enabled bool) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) initRemoteConfig() {
 	if builder.datadogAgent.Spec.Features.RemoteConfiguration == nil {
 		builder.datadogAgent.Spec.Features.RemoteConfiguration = &v2alpha1.RemoteConfigurationFeatureConfig{}
 	}
+}
 
+func (builder *DatadogAgentBuilder) WithRemoteConfigEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initRemoteConfig()
 	builder.datadogAgent.Spec.Features.RemoteConfiguration.Enabled = apiutils.NewBoolPointer(enabled)
-
 	return builder
 }
 

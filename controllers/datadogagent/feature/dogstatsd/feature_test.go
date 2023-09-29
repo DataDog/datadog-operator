@@ -40,7 +40,7 @@ func Test_DogstatsdFeature_ConfigureV2(t *testing.T) {
 		{
 			Name: "v2alpha1 dogstatsd udp hostport enabled",
 			DDAv2: v2alpha1test.NewDefaultDatadogAgentBuilder().
-				WithHostPortEnabled(true).BuildWithDefaults(),
+				WithDogstatsdHostPortEnabled(true).BuildWithDefaults(),
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().WithWantFunc(
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
@@ -51,8 +51,8 @@ func Test_DogstatsdFeature_ConfigureV2(t *testing.T) {
 		{
 			Name: "v2alpha1 udp custom host port",
 			DDAv2: v2alpha1test.NewDefaultDatadogAgentBuilder().
-				WithHostPortEnabled(true).
-				WithHostPortConfig(1234).BuildWithDefaults(),
+				WithDogstatsdHostPortEnabled(true).
+				WithDogstatsdHostPortConfig(1234).BuildWithDefaults(),
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().WithWantFunc(
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
@@ -85,8 +85,8 @@ func Test_DogstatsdFeature_ConfigureV2(t *testing.T) {
 		{
 			Name: "v2alpha1 udp origin detection enabled",
 			DDAv2: v2alpha1test.NewDefaultDatadogAgentBuilder().
-				WithHostPortEnabled(true).
-				WithOriginDetectionEnabled(true).BuildWithDefaults(),
+				WithDogstatsdHostPortEnabled(true).
+				WithDogstatsdOriginDetectionEnabled(true).BuildWithDefaults(),
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().WithWantFunc(
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
@@ -98,7 +98,7 @@ func Test_DogstatsdFeature_ConfigureV2(t *testing.T) {
 		{
 			Name: "v2alpha1 uds disabled",
 			DDAv2: v2alpha1test.NewDefaultDatadogAgentBuilder().
-				WithUnixDomainSocketConfigEnabled(false).BuildWithDefaults(),
+				WithDogstatsdUnixDomainSocketConfigEnabled(false).BuildWithDefaults(),
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().WithWantFunc(
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
@@ -109,7 +109,7 @@ func Test_DogstatsdFeature_ConfigureV2(t *testing.T) {
 		{
 			Name: "v2alpha1 uds custom host filepath",
 			DDAv2: v2alpha1test.NewDefaultDatadogAgentBuilder().
-				WithUnixDomainSocketConfigPath(customPath).BuildWithDefaults(),
+				WithDogstatsdUnixDomainSocketConfigPath(customPath).BuildWithDefaults(),
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().WithWantFunc(
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
@@ -140,7 +140,7 @@ func Test_DogstatsdFeature_ConfigureV2(t *testing.T) {
 		{
 			Name: "v2alpha1 uds origin detection",
 			DDAv2: v2alpha1test.NewDefaultDatadogAgentBuilder().
-				WithOriginDetectionEnabled(true).BuildWithDefaults(),
+				WithDogstatsdOriginDetectionEnabled(true).BuildWithDefaults(),
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().WithWantFunc(
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
@@ -153,7 +153,7 @@ func Test_DogstatsdFeature_ConfigureV2(t *testing.T) {
 		{
 			Name: "v2alpha1 mapper profiles",
 			DDAv2: v2alpha1test.NewDefaultDatadogAgentBuilder().
-				WithMapperProfiles(customMapperProfilesConf).BuildWithDefaults(),
+				WithDogstatsdMapperProfiles(customMapperProfilesConf).BuildWithDefaults(),
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().WithWantFunc(
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
