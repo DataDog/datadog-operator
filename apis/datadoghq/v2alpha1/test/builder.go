@@ -260,7 +260,7 @@ func (builder *DatadogAgentBuilder) WithPrometheusScrapeServiceEndpoints(enabled
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithPrometheusScrapeAdditionalConfig(additionalConfig string) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) WithPrometheusScrapeAdditionalConfigs(additionalConfig string) *DatadogAgentBuilder {
 	builder.initPrometheusScrape()
 	builder.datadogAgent.Spec.Features.PrometheusScrape.AdditionalConfigs = apiutils.NewStringPointer(additionalConfig)
 	return builder
