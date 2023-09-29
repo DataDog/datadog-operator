@@ -34,7 +34,7 @@ func NewDefaultDatadogAgentBuilder() *DatadogAgentBuilder {
 	}
 }
 
-// Build returs DatadogAgent pointer with current properties
+// Build returns DatadogAgent pointer with current properties
 func (builder *DatadogAgentBuilder) Build() *v2alpha1.DatadogAgent {
 	return &builder.datadogAgent
 }
