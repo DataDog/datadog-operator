@@ -46,7 +46,7 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 			Name: "v2alpha1 container collect all enabled",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithLogCollectionEnabled(true).
-				WithLogCollectionCollectAllEnabled(true).
+				WithLogCollectionCollectAll(true).
 				BuildWithDefaults(),
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().WithWantFunc(
@@ -60,8 +60,8 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 			Name: "v2alpha1 container collect using files disabled",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithLogCollectionEnabled(true).
-				WithLogCollectionCollectAllEnabled(true).
-				WithLogCollectionLogCollectionUsingFilesEnabled(false).
+				WithLogCollectionCollectAll(true).
+				WithLogCollectionLogCollectionUsingFiles(false).
 				BuildWithDefaults(),
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().WithWantFunc(

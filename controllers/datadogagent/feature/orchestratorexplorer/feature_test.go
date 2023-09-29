@@ -63,7 +63,7 @@ func Test_orchestratorExplorerFeature_Configure(t *testing.T) {
 			Name: "v2alpha1 orchestrator explorer enabled",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithOrchestratorExplorerEnabled(true).
-				WithOrchestratorExplorerScrubContainersEnabled(true).
+				WithOrchestratorExplorerScrubContainers(true).
 				WithOrchestratorExplorerExtraTags([]string{"a:z", "b:y", "c:x"}).
 				WithOrchestratorExplorerDDUrl("https://foo.bar").
 				WithOrchestratorExplorerCustomConfigData(customConfDataV2).
@@ -76,7 +76,7 @@ func Test_orchestratorExplorerFeature_Configure(t *testing.T) {
 			Name: "v2alpha1 orchestrator explorer enabled and runs on cluster checks runner",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithOrchestratorExplorerEnabled(true).
-				WithOrchestratorExplorerScrubContainersEnabled(true).
+				WithOrchestratorExplorerScrubContainers(true).
 				WithOrchestratorExplorerExtraTags([]string{"a:z", "b:y", "c:x"}).
 				WithOrchestratorExplorerDDUrl("https://foo.bar").
 				WithOrchestratorExplorerCustomConfigData(customConfDataV2).

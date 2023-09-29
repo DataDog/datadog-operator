@@ -27,7 +27,7 @@ func Test_eventCollectionFeature_Configure(t *testing.T) {
 		{
 			Name: "v2alpha1 Event Collection not enabled",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
-				WithEventCollectionEnabled(false).
+				WithEventCollectionKubernetesEvents(false).
 				Build(),
 			WantConfigure: false,
 		},
@@ -35,7 +35,7 @@ func Test_eventCollectionFeature_Configure(t *testing.T) {
 			Name: "v2alpha1 Event Collection enabled",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithName("ddaDCA").
-				WithEventCollectionEnabled(true).
+				WithEventCollectionKubernetesEvents(true).
 				Build(),
 			WantConfigure: true,
 			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(eventCollectionClusterAgentWantFunc),

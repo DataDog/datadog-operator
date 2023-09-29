@@ -85,7 +85,7 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 			Name: "v2alpha1 Prometheus scrape service endpoints enabled",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithPrometheusScrapeEnabled(true).
-				WithPrometheusScrapeServiceEndpointEnabled(true).
+				WithPrometheusScrapeServiceEndpoints(true).
 				Build(),
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().WithWantFunc(
@@ -123,7 +123,7 @@ func Test_prometheusScrapeFeature_Configure(t *testing.T) {
 			Name: "v2alpha1 Prometheus scrape additional configs",
 			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
 				WithPrometheusScrapeEnabled(true).
-				WithPrometheusScrapeAdditionalConfig(yamlConfigs).
+				WithPrometheusScrapeAdditionalConfigs(yamlConfigs).
 				Build(),
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().WithWantFunc(
