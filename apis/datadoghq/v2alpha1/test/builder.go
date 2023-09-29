@@ -132,7 +132,7 @@ func (builder *DatadogAgentBuilder) WithLogCollectionCollectAll(enabled bool) *D
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithLogCollectionLogCollectionUsingFilesEnabled(enabled bool) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) WithLogCollectionLogCollectionUsingFiles(enabled bool) *DatadogAgentBuilder {
 	builder.initLogCollection()
 	builder.datadogAgent.Spec.Features.LogCollection.ContainerCollectUsingFiles = apiutils.NewBoolPointer(enabled)
 	return builder
