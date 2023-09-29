@@ -254,7 +254,7 @@ func (builder *DatadogAgentBuilder) WithPrometheusScrapeEnabled(enabled bool) *D
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithPrometheusScrapeServiceEndpointEnabled(enabled bool) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) WithPrometheusScrapeServiceEndpoints(enabled bool) *DatadogAgentBuilder {
 	builder.initPrometheusScrape()
 	builder.datadogAgent.Spec.Features.PrometheusScrape.EnableServiceEndpoints = apiutils.NewBoolPointer(enabled)
 	return builder
