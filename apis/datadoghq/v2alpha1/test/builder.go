@@ -126,7 +126,7 @@ func (builder *DatadogAgentBuilder) WithLogCollectionEnabled(enabled bool) *Data
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithLogCollectionCollectAllEnabled(enabled bool) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) WithLogCollectionCollectAll(enabled bool) *DatadogAgentBuilder {
 	builder.initLogCollection()
 	builder.datadogAgent.Spec.Features.LogCollection.ContainerCollectAll = apiutils.NewBoolPointer(enabled)
 	return builder
