@@ -160,7 +160,7 @@ func (builder *DatadogAgentBuilder) initEventCollection() {
 	}
 }
 
-func (builder *DatadogAgentBuilder) WithEventCollectionEnabled(enabled bool) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) WithEventCollectionKubernetesEvents(enabled bool) *DatadogAgentBuilder {
 	builder.initEventCollection()
 	builder.datadogAgent.Spec.Features.EventCollection.CollectKubernetesEvents = apiutils.NewBoolPointer(enabled)
 
