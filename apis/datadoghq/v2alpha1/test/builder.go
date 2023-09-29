@@ -167,7 +167,7 @@ func (builder *DatadogAgentBuilder) WithEventCollectionEnabled(enabled bool) *Da
 	return builder
 }
 
-// Remote Collection
+// Remote Config
 func (builder *DatadogAgentBuilder) initRemoteConfig() {
 	if builder.datadogAgent.Spec.Features.RemoteConfiguration == nil {
 		builder.datadogAgent.Spec.Features.RemoteConfiguration = &v2alpha1.RemoteConfigurationFeatureConfig{}
