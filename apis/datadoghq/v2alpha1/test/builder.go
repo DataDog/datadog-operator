@@ -194,7 +194,7 @@ func (builder *DatadogAgentBuilder) WithOrchestratorExplorerEnabled(enabled bool
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithOrchestratorExplorerScrubContainersEnabled(enabled bool) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) WithOrchestratorExplorerScrubContainers(enabled bool) *DatadogAgentBuilder {
 	builder.initOE()
 	builder.datadogAgent.Spec.Features.OrchestratorExplorer.ScrubContainers = apiutils.NewBoolPointer(enabled)
 	return builder
