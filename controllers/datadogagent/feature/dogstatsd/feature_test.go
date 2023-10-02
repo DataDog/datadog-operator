@@ -90,7 +90,7 @@ func Test_DogstatsdFeature_ConfigureV2(t *testing.T) {
 			WantConfigure: true,
 			Agent: test.NewDefaultComponentTest().WithWantFunc(
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
-					customEnvVars := append(getWantUDPEnvVars(), getOriginDetectionEnvVar(), getTagCardinalityEnvVar("low"))
+					customEnvVars := append(getWantUDPEnvVars(), getOriginDetectionEnvVar(), getTagCardinalityEnvVar())
 					assertWants(t, mgrInterface, "10", getWantVolumeMounts(), getWantVolumes(), customEnvVars, getWantUDSEnvVarsV2(), getWantHostPorts())
 				},
 			),
@@ -146,7 +146,7 @@ func Test_DogstatsdFeature_ConfigureV2(t *testing.T) {
 				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 					mgr := mgrInterface.(*fake.PodTemplateManagers)
 					assert.True(t, mgr.Tpl.Spec.HostPID, "13. Host PID \ndiff = %s", cmp.Diff(mgr.Tpl.Spec.HostPID, true))
-					assertWants(t, mgrInterface, "13", getWantVolumeMounts(), getWantVolumes(), []*corev1.EnvVar{getOriginDetectionEnvVar(), getTagCardinalityEnvVar("low")}, getWantUDSEnvVarsV2(), getWantContainerPorts())
+					assertWants(t, mgrInterface, "13", getWantVolumeMounts(), getWantVolumes(), []*corev1.EnvVar{getOriginDetectionEnvVar(), getTagCardinalityEnvVar()}, getWantUDSEnvVarsV2(), getWantContainerPorts())
 				},
 			),
 		},
@@ -208,10 +208,10 @@ func getOriginDetectionEnvVar() *corev1.EnvVar {
 	return &originDetectionEnvVar
 }
 
-func getTagCardinalityEnvVar(tc string) *corev1.EnvVar {
+func getTagCardinalityEnvVar() *corev1.EnvVar {
 	tagCardinalityEnvVar := corev1.EnvVar{
 		Name:  apicommon.DDDogstatsdTagCardinality,
-		Value: tc,
+		Value: "low",
 	}
 	return &tagCardinalityEnvVar
 }
