@@ -179,104 +179,124 @@ func ApplyGlobalSettingsMonoSupport(logger logr.Logger, manager feature.PodTempl
 		}
 	}
 
-	if componentName == v2alpha1.NodeAgentComponentName {
-		// Kubelet contains the kubelet configuration parameters.
-		if config.Kubelet != nil {
-			var kubeletHostValueFrom *corev1.EnvVarSource
-			if config.Kubelet.Host != nil {
-				kubeletHostValueFrom = config.Kubelet.Host
-			} else {
-				kubeletHostValueFrom = &corev1.EnvVarSource{
-					FieldRef: &corev1.ObjectFieldSelector{
-						FieldPath: apicommon.FieldPathStatusHostIP,
-					},
-				}
-			}
-			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-				Name:      apicommon.DDKubeletHost,
-				ValueFrom: kubeletHostValueFrom,
-			})
-
-			if config.Kubelet.TLSVerify != nil {
-				manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-					Name:  apicommon.DDKubeletTLSVerify,
-					Value: apiutils.BoolToString(config.Kubelet.TLSVerify),
-				})
-			}
-
-			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-				Name:  apicommon.DDKubeletCAPath,
-				Value: config.Kubelet.AgentCAPath,
-			})
-
-			if config.Kubelet.HostCAPath != "" {
-				kubeletVol, kubeletVolMount := volume.GetVolumes(apicommon.KubeletCAVolumeName, config.Kubelet.HostCAPath, config.Kubelet.AgentCAPath, true)
-
-				if usesCoreAgentMonoContainer {
-					manager.VolumeMount().AddVolumeMountToContainers(
-						&kubeletVolMount,
-						[]apicommonv1.AgentContainerName{
-							apicommonv1.NonPrivilegedMonoContainerName,
-						},
-					)
-					manager.Volume().AddVolume(&kubeletVol)
-				} else {
-					manager.VolumeMount().AddVolumeMountToContainers(
-						&kubeletVolMount,
-						[]apicommonv1.AgentContainerName{
-							apicommonv1.CoreAgentContainerName,
-							apicommonv1.ProcessAgentContainerName,
-							apicommonv1.TraceAgentContainerName,
-						},
-					)
-					manager.Volume().AddVolume(&kubeletVol)
-				}
-			}
-		}
-
-		var runtimeVol corev1.Volume
-		var runtimeVolMount corev1.VolumeMount
-		// Path to the docker runtime socket.
-		if config.DockerSocketPath != nil {
-			dockerMountPath := filepath.Join(apicommon.HostCriSocketPathPrefix, *config.DockerSocketPath)
-			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-				Name:  apicommon.DockerHost,
-				Value: "unix://" + dockerMountPath,
-			})
-			runtimeVol, runtimeVolMount = volume.GetVolumes(apicommon.CriSocketVolumeName, *config.DockerSocketPath, dockerMountPath, true)
-		} else if config.CriSocketPath != nil {
-			// Path to the container runtime socket (if different from Docker).
-			criSocketMountPath := filepath.Join(apicommon.HostCriSocketPathPrefix, *config.CriSocketPath)
-			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-				Name:  apicommon.DDCriSocketPath,
-				Value: criSocketMountPath,
-			})
-			runtimeVol, runtimeVolMount = volume.GetVolumes(apicommon.CriSocketVolumeName, *config.CriSocketPath, criSocketMountPath, true)
-		}
-		if runtimeVol.Name != "" && runtimeVolMount.Name != "" {
-
-			if usesCoreAgentMonoContainer {
-				manager.VolumeMount().AddVolumeMountToContainers(
-					&runtimeVolMount,
-					[]apicommonv1.AgentContainerName{
-						apicommonv1.NonPrivilegedMonoContainerName,
-					},
-				)
-				manager.Volume().AddVolume(&runtimeVol)
-			} else {
-				manager.VolumeMount().AddVolumeMountToContainers(
-					&runtimeVolMount,
-					[]apicommonv1.AgentContainerName{
-						apicommonv1.CoreAgentContainerName,
-						apicommonv1.ProcessAgentContainerName,
-						apicommonv1.TraceAgentContainerName,
-						apicommonv1.SecurityAgentContainerName,
-					},
-				)
-				manager.Volume().AddVolume(&runtimeVol)
-			}
-		}
-	}
+	// Kubelet contains the kubelet configuration parameters.
+	// Path to the docker runtime socket.
+	// Path to the container runtime socket (if different from Docker).
+	applyNodeAgentSettings(componentName, config, manager, usesCoreAgentMonoContainer)
 
 	return manager.PodTemplateSpec()
+}
+
+func applyNodeAgentSettings(componentName v2alpha1.ComponentName, config *v2alpha1.GlobalConfig, manager feature.PodTemplateManagers, usesCoreAgentMonoContainer bool) {
+	if componentName != v2alpha1.NodeAgentComponentName {
+		return
+	}
+
+	if config.Kubelet != nil {
+		applyKubeletConfig(config, manager, usesCoreAgentMonoContainer)
+	}
+
+	applySocketPathConfig(config, manager, usesCoreAgentMonoContainer)
+}
+
+func applySocketPathConfig(config *v2alpha1.GlobalConfig, manager feature.PodTemplateManagers, usesCoreAgentMonoContainer bool) {
+	runtimeVol, runtimeVolMount := getRuntimeVolumeAndMount(config, manager)
+	if runtimeVol.Name != "" && runtimeVolMount.Name != "" {
+		if usesCoreAgentMonoContainer {
+			manager.VolumeMount().AddVolumeMountToContainers(
+				&runtimeVolMount,
+				[]apicommonv1.AgentContainerName{
+					apicommonv1.NonPrivilegedMonoContainerName,
+				},
+			)
+			manager.Volume().AddVolume(&runtimeVol)
+		} else {
+			manager.VolumeMount().AddVolumeMountToContainers(
+				&runtimeVolMount,
+				[]apicommonv1.AgentContainerName{
+					apicommonv1.CoreAgentContainerName,
+					apicommonv1.ProcessAgentContainerName,
+					apicommonv1.TraceAgentContainerName,
+					apicommonv1.SecurityAgentContainerName,
+				},
+			)
+			manager.Volume().AddVolume(&runtimeVol)
+		}
+	}
+}
+
+func getRuntimeVolumeAndMount(config *v2alpha1.GlobalConfig, manager feature.PodTemplateManagers) (corev1.Volume, corev1.VolumeMount) {
+	var runtimeVol corev1.Volume
+	var runtimeVolMount corev1.VolumeMount
+
+	if config.DockerSocketPath != nil {
+		dockerMountPath := filepath.Join(apicommon.HostCriSocketPathPrefix, *config.DockerSocketPath)
+		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+			Name:  apicommon.DockerHost,
+			Value: "unix://" + dockerMountPath,
+		})
+		runtimeVol, runtimeVolMount = volume.GetVolumes(apicommon.CriSocketVolumeName, *config.DockerSocketPath, dockerMountPath, true)
+	} else if config.CriSocketPath != nil {
+
+		criSocketMountPath := filepath.Join(apicommon.HostCriSocketPathPrefix, *config.CriSocketPath)
+		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+			Name:  apicommon.DDCriSocketPath,
+			Value: criSocketMountPath,
+		})
+		runtimeVol, runtimeVolMount = volume.GetVolumes(apicommon.CriSocketVolumeName, *config.CriSocketPath, criSocketMountPath, true)
+	}
+	return runtimeVol, runtimeVolMount
+}
+
+func applyKubeletConfig(config *v2alpha1.GlobalConfig, manager feature.PodTemplateManagers, usesCoreAgentMonoContainer bool) {
+	var kubeletHostValueFrom *corev1.EnvVarSource
+	if config.Kubelet.Host != nil {
+		kubeletHostValueFrom = config.Kubelet.Host
+	} else {
+		kubeletHostValueFrom = &corev1.EnvVarSource{
+			FieldRef: &corev1.ObjectFieldSelector{
+				FieldPath: apicommon.FieldPathStatusHostIP,
+			},
+		}
+	}
+	manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+		Name:      apicommon.DDKubeletHost,
+		ValueFrom: kubeletHostValueFrom,
+	})
+
+	if config.Kubelet.TLSVerify != nil {
+		manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+			Name:  apicommon.DDKubeletTLSVerify,
+			Value: apiutils.BoolToString(config.Kubelet.TLSVerify),
+		})
+	}
+
+	manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+		Name:  apicommon.DDKubeletCAPath,
+		Value: config.Kubelet.AgentCAPath,
+	})
+
+	if config.Kubelet.HostCAPath != "" {
+		kubeletVol, kubeletVolMount := volume.GetVolumes(apicommon.KubeletCAVolumeName, config.Kubelet.HostCAPath, config.Kubelet.AgentCAPath, true)
+
+		if usesCoreAgentMonoContainer {
+			manager.VolumeMount().AddVolumeMountToContainers(
+				&kubeletVolMount,
+				[]apicommonv1.AgentContainerName{
+					apicommonv1.NonPrivilegedMonoContainerName,
+				},
+			)
+			manager.Volume().AddVolume(&kubeletVol)
+		} else {
+			manager.VolumeMount().AddVolumeMountToContainers(
+				&kubeletVolMount,
+				[]apicommonv1.AgentContainerName{
+					apicommonv1.CoreAgentContainerName,
+					apicommonv1.ProcessAgentContainerName,
+					apicommonv1.TraceAgentContainerName,
+				},
+			)
+			manager.Volume().AddVolume(&kubeletVol)
+		}
+	}
 }

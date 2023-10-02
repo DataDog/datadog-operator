@@ -1,6 +1,7 @@
 package test
 
 import (
+	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 )
@@ -269,5 +270,26 @@ func (builder *DatadogAgentBuilder) WithPrometheusScrapeAdditionalConfigs(additi
 func (builder *DatadogAgentBuilder) WithPrometheusScrapeVersion(version int) *DatadogAgentBuilder {
 	builder.initPrometheusScrape()
 	builder.datadogAgent.Spec.Features.PrometheusScrape.Version = apiutils.NewIntPointer(version)
+	return builder
+}
+
+// Global Kubelet
+
+func (builder *DatadogAgentBuilder) WithGlobalKubeletConfig(hostCAPath, agentCAPath string, tlsVerify bool) *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Global.Kubelet = &common.KubeletConfig{
+		TLSVerify:   apiutils.NewBoolPointer(tlsVerify),
+		HostCAPath:  hostCAPath,
+		AgentCAPath: agentCAPath,
+	}
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithGlobalDockerSocketPath(dockerSocketPath string) *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Global.DockerSocketPath = apiutils.NewStringPointer(dockerSocketPath)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithGlobalCriSocketPath(criSocketPath string) *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Global.DockerSocketPath = apiutils.NewStringPointer(criSocketPath)
 	return builder
 }
