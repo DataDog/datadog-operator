@@ -1,25 +1,16 @@
 // Unless explicitly stated otherwise all files in this repository are licensed
 // under the Apache License Version 2.0.
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2016-2023 Datadog, Inc.
+// Copyright 2016-present Datadog, Inc.
 
 package datadogslo
 
 import (
 	"context"
+	"strings"
 	"time"
 
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
-
-	"github.com/DataDog/datadog-operator/pkg/datadogclient"
-
-	datadogapiclientv1 "github.com/DataDog/datadog-api-client-go/api/v1/datadog"
-	"github.com/DataDog/datadog-operator/controllers/finalizer"
-	"github.com/DataDog/datadog-operator/controllers/utils"
-	ctrUtils "github.com/DataDog/datadog-operator/pkg/controller/utils"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -29,33 +20,44 @@ import (
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
-
-	"github.com/go-logr/logr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
+
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	"github.com/DataDog/datadog-operator/controllers/finalizer"
+	"github.com/DataDog/datadog-operator/controllers/utils"
+	ctrUtils "github.com/DataDog/datadog-operator/pkg/controller/utils"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 )
 
 const (
 	defaultRequeuePeriod    = 60 * time.Second
 	defaultErrRequeuePeriod = 5 * time.Second
+	defaultForceSyncPeriod  = 60 * time.Minute
 	datadogSLOKind          = "DatadogSLO"
 	datadogSLOFinalizer     = "finalizer.slo.datadoghq.com"
 )
 
 type Reconciler struct {
 	client        client.Client
-	datadogClient *datadogapiclientv1.APIClient
+	datadogClient *datadogV1.ServiceLevelObjectivesApi
 	datadogAuth   context.Context
 	versionInfo   *version.Info
 	log           logr.Logger
 	recorder      record.EventRecorder
 }
 
-func NewReconciler(client client.Client, datadogClient datadogclient.DatadogClient, versionInfo *version.Info, log logr.Logger, recorder record.EventRecorder) *Reconciler {
+func NewReconciler(client client.Client, ddClient datadogclient.DatadogSLOClient, versionInfo *version.Info, log logr.Logger, recorder record.EventRecorder) *Reconciler {
 	return &Reconciler{
 		client:        client,
-		datadogClient: datadogClient.Client,
-		datadogAuth:   datadogClient.Auth,
+		datadogClient: ddClient.Client,
+		datadogAuth:   ddClient.Auth,
 		versionInfo:   versionInfo,
 		log:           log,
 		recorder:      recorder,
@@ -76,7 +78,9 @@ func (r *Reconciler) internalReconcile(req reconcile.Request) (reconcile.Result,
 
 	// Get instance
 	instance := &v1alpha1.DatadogSLO{}
-	if err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: req.Namespace, Name: req.Name}, instance); err != nil {
+	var result ctrl.Result
+	var err error
+	if err = r.client.Get(context.TODO(), types.NamespacedName{Namespace: req.Namespace, Name: req.Name}, instance); err != nil {
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
 		}
@@ -86,11 +90,11 @@ func (r *Reconciler) internalReconcile(req reconcile.Request) (reconcile.Result,
 	final := finalizer.NewFinalizer(
 		logger,
 		r.client,
-		r.deleteExternalResource(instance, logger),
+		r.deleteResource(logger, instance),
 		defaultRequeuePeriod,
 		defaultErrRequeuePeriod,
 	)
-	if result, err := final.HandleFinalizer(context.TODO(), instance, instance.Status.ID, datadogSLOFinalizer); ctrUtils.ShouldReturn(result, err) {
+	if result, err = final.HandleFinalizer(context.TODO(), instance, instance.Status.ID, datadogSLOFinalizer); ctrUtils.ShouldReturn(result, err) {
 		return result, err
 	}
 
@@ -98,93 +102,151 @@ func (r *Reconciler) internalReconcile(req reconcile.Request) (reconcile.Result,
 	statusSpecHash := instance.Status.CurrentHash
 
 	// Validate the SLO spec
-	if err := v1alpha1.IsValidDatadogSLO(&instance.Spec); err != nil {
+	if err = v1alpha1.IsValidDatadogSLO(&instance.Spec); err != nil {
 		logger.Error(err, "invalid SLO")
 		updateErrStatus(status, now, v1alpha1.DatadogSLOSyncStatusValidateError, "ValidatingSLO", err)
-		return r.updateStatus(instance, status)
+		return r.updateStatusIfNeeded(logger, instance, status, result)
 	}
 
 	instanceSpecHash, err := comparison.GenerateMD5ForSpec(&instance.Spec)
 	if err != nil {
 		logger.Error(err, "error generating hash")
 		updateErrStatus(status, now, v1alpha1.DatadogSLOSyncStatusUpdateError, "GeneratingSLOSpecHash", err)
-		return r.updateStatus(instance, status)
+		return r.updateStatusIfNeeded(logger, instance, status, result)
 	}
+
+	shouldCreate := false
+	shouldUpdate := false
 
 	if instance.Status.ID == "" {
-		if err = r.create(instance, status, now, instanceSpecHash); err != nil {
-			logger.Error(err, "error creating SLO")
-			updateErrStatus(status, now, v1alpha1.DatadogSLOSyncStatusCreateError, "CreatingSLO", err)
-			if res, updErr := r.updateStatus(instance, status); ctrUtils.ShouldReturn(res, updErr) {
-				return res, updErr
+		shouldCreate = true
+	} else {
+		if instanceSpecHash != statusSpecHash {
+			shouldUpdate = true
+		} else if instance.Status.LastForceSyncTime == nil || (defaultForceSyncPeriod-now.Sub(instance.Status.LastForceSyncTime.Time)) <= 0 {
+			// Periodically force a sync with the API SLO to ensure parity
+			// Get SLO to make sure it exists before trying any updates. If it doesn't, set shouldCreate
+			_, err = r.get(instance)
+			if err != nil {
+				logger.Error(err, "error getting SLO", "SLO ID", instance.Status.ID)
+				if strings.Contains(err.Error(), "404 Not Found") {
+					shouldCreate = true
+				}
+			} else {
+				shouldUpdate = true
 			}
-			return ctrl.Result{Requeue: true, RequeueAfter: defaultErrRequeuePeriod}, err
-		}
-		return r.updateStatus(instance, status)
-	}
-
-	// Check if instance needs to be updated
-	if instanceSpecHash != statusSpecHash {
-		// Update action
-		if err = r.update(instance, status, now); err != nil {
-			logger.Error(err, "error updating SLO", "SLO ID", instance.Status.ID)
-			updateErrStatus(status, now, v1alpha1.DatadogSLOSyncStatusCreateError, "UpdatingSLO", err)
-			if res, updErr := r.updateStatus(instance, status); ctrUtils.ShouldReturn(res, updErr) {
-				return res, updErr
-			}
-			return ctrl.Result{Requeue: true, RequeueAfter: defaultErrRequeuePeriod}, err
+			status.LastForceSyncTime = &now
 		}
 	}
 
-	status.CurrentHash = instanceSpecHash
-	return r.updateStatus(instance, status)
+	if shouldCreate {
+		// Check that required tags are present
+		if result, err = r.checkRequiredTags(logger, instance); err != nil || result.Requeue {
+			return r.updateStatusIfNeeded(logger, instance, status, result)
+		}
+		err = r.create(logger, instance, status, now, instanceSpecHash)
+		if err != nil {
+			result.RequeueAfter = defaultErrRequeuePeriod
+		}
+	} else if shouldUpdate {
+		// Check that required tags are present
+		if result, err = r.checkRequiredTags(logger, instance); err != nil || result.Requeue {
+			return r.updateStatusIfNeeded(logger, instance, status, result)
+		}
+		err = r.update(logger, instance, status, now, instanceSpecHash)
+		if err != nil {
+			result.RequeueAfter = defaultErrRequeuePeriod
+		}
+	}
+
+	// If reconcile was successful, requeue with period defaultRequeuePeriod
+	if !result.Requeue && result.RequeueAfter == 0 {
+		result.RequeueAfter = defaultRequeuePeriod
+	}
+
+	return r.updateStatusIfNeeded(logger, instance, status, result)
 }
+
+func (r *Reconciler) checkRequiredTags(logger logr.Logger, instance *v1alpha1.DatadogSLO) (ctrl.Result, error) {
+	if apiutils.BoolValue(instance.Spec.ControllerOptions.DisableRequiredTags) {
+		return ctrl.Result{}, nil
+	}
+
+	tags := instance.Spec.Tags
+	tagsToAdd := utils.GetTagsToAdd(instance.Spec.Tags)
+
+	if len(tagsToAdd) > 0 {
+		tags = append(tags, tagsToAdd...)
+		instance.Spec.Tags = tags
+		err := r.client.Update(context.TODO(), instance)
+		if err != nil {
+			logger.Error(err, "failed to update DatadogSLO with required tags")
+
+			return ctrl.Result{RequeueAfter: defaultErrRequeuePeriod}, err
+		}
+		logger.Info("Added required tags", "SLO ID", instance.Status.ID)
+
+		return ctrl.Result{RequeueAfter: defaultRequeuePeriod}, nil
+	}
+
+	// Proceed in reconcile loop without modifying result.
+	return ctrl.Result{}, nil
+}
+
+// TODO implement when /search endpoint has been updated
+// func updateSLOState(logger logr.Logger, instance *v1alpha1.DatadogSLO, sloHistory *datadogV1.SLOHistoryResponseData, status *v1alpha1.DatadogSLOStatus, now metav1.Time, err error) {
+// 	if err != nil {
+// 		status.SLIValue = nil
+// 		status.ErrorBudgetRemaining = nil
+// 		return
+// 	}
+// 	rawSLIVal := sloHistory.Overall.SliValue.Get()
+// 	if rawSLIVal == nil && len(sloHistory.Overall.Errors) > 0 {
+// 		logger.Info("Problem with Datadog SLO", "error message", sloHistory.Overall.Errors[0].ErrorMessage, "SLO ID", instance.Status.ID)
+// 		status.Message = fmt.Sprintf("SLO Error: %s", sloHistory.Overall.Errors[0].ErrorMessage)
+// 		return
+// 	}
+// 	sliVal := fmt.Sprintf("%.2f", *rawSLIVal)
+// 	status.SLIValue = &sliVal
+// 	// There should be only one element in map
+// 	for _, v := range sloHistory.Overall.ErrorBudgetRemaining {
+// 		ebr := fmt.Sprintf("%.2f", v)
+// 		status.ErrorBudgetRemaining = &ebr
+// 	}
+// }
 
 func updateErrStatus(status *v1alpha1.DatadogSLOStatus, now metav1.Time, syncStatus v1alpha1.DatadogSLOSyncStatus, reason string, err error) {
 	condition.UpdateFailureStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeError, reason, err)
 	status.SyncStatus = syncStatus
 }
 
-func (r *Reconciler) deleteExternalResource(instance *v1alpha1.DatadogSLO, logger logr.Logger) finalizer.ExternalResourceDeleteFunc {
-	return func(ctx context.Context, k8sObj client.Object, datadogID string) error {
-		if !instance.Status.ManagedByDatadogOperator {
-			return nil
-		}
-		kind := k8sObj.GetObjectKind().GroupVersionKind().Kind
-		if err := deleteSLO(r.datadogAuth, r.datadogClient, datadogID); err != nil {
-			logger.Error(err, "error deleting SLO", "kind", kind, "ID", datadogID)
-			return err
-		}
-		logger.Info("Successfully delete", "kind", kind, "ID", datadogID)
-		r.recordEvent(instance, buildEventInfo(k8sObj.GetName(), k8sObj.GetNamespace(), datadog.DeletionEvent))
-		return nil
-	}
-}
-
-func (r *Reconciler) updateStatus(crdSLO *v1alpha1.DatadogSLO, status *v1alpha1.DatadogSLOStatus) (ctrl.Result, error) {
-	if !apiequality.Semantic.DeepEqual(&crdSLO.Status, status) {
-		crdSLO.Status = *status
-		if err := r.client.Status().Update(context.TODO(), crdSLO); err != nil {
+func (r *Reconciler) updateStatusIfNeeded(logger logr.Logger, instance *v1alpha1.DatadogSLO, status *v1alpha1.DatadogSLOStatus, result ctrl.Result) (ctrl.Result, error) {
+	if !apiequality.Semantic.DeepEqual(&instance.Status, status) {
+		instance.Status = *status
+		if err := r.client.Status().Update(context.TODO(), instance); err != nil {
 			if apierrors.IsConflict(err) {
-				r.log.Error(err, "unable to update DatadogSLO status due to update conflict")
+				logger.Error(err, "unable to update DatadogSLO status due to update conflict")
 				return ctrl.Result{Requeue: true, RequeueAfter: defaultErrRequeuePeriod}, nil
 			}
-			r.log.Error(err, "unable to update DatadogSLO status")
+			logger.Error(err, "unable to update DatadogSLO status")
 			return ctrl.Result{Requeue: true, RequeueAfter: defaultRequeuePeriod}, err
 		}
 	}
-	return ctrl.Result{}, nil
+	return result, nil
 }
 
-func (r *Reconciler) create(crdSLO *v1alpha1.DatadogSLO, status *v1alpha1.DatadogSLOStatus, now metav1.Time, hash string) error {
-	r.log.V(1).Info("SLO ID is not set; creating SLO in Datadog")
+func (r *Reconciler) create(logger logr.Logger, instance *v1alpha1.DatadogSLO, status *v1alpha1.DatadogSLOStatus, now metav1.Time, hash string) error {
+	logger.V(1).Info("SLO ID is not set; creating SLO in Datadog")
 
 	// Create SLO in Datadog
-	createdSLO, err := createSLO(r.datadogAuth, r.datadogClient, crdSLO)
+	createdSLO, err := createSLO(r.datadogAuth, r.datadogClient, instance)
 	if err != nil {
+		logger.Error(err, "error creating SLO")
+		updateErrStatus(status, now, v1alpha1.DatadogSLOSyncStatusCreateError, "CreatingSLO", err)
 		return err
 	}
 
+	// Set condition and status
 	condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeCreated, metav1.ConditionTrue, "CreatingSLO", "DatadogSLO Created")
 	creator := createdSLO.GetCreator()
 	createdTime := metav1.Unix(createdSLO.GetCreatedAt(), 0)
@@ -193,29 +255,46 @@ func (r *Reconciler) create(crdSLO *v1alpha1.DatadogSLO, status *v1alpha1.Datado
 	status.ID = createdSLO.GetId()
 	status.Creator = creator.GetEmail()
 	status.Created = &createdTime
-	status.ManagedByDatadogOperator = true
 	status.CurrentHash = hash
 
-	r.log.Info("Created a new DatadogSLO", "SLO Namespace", crdSLO.Namespace, "SLO Name", crdSLO.Name) //, "SLO ID", createdSLO.GetId())
-	r.recordEvent(crdSLO, buildEventInfo(crdSLO.Name, crdSLO.Namespace, datadog.CreationEvent))
+	logger.Info("Created a new DatadogSLO", "SLO ID", instance.Status.ID)
+	r.recordEvent(instance, buildEventInfo(instance.Name, instance.Namespace, datadog.CreationEvent))
 
 	return nil
 }
 
-func (r *Reconciler) update(crdSLO *v1alpha1.DatadogSLO, status *v1alpha1.DatadogSLOStatus, now metav1.Time) error {
-	// Update SLO in Datadog
-	if _, err := updateSLO(r.datadogAuth, r.datadogClient, crdSLO); err != nil {
-		status.SyncStatus = v1alpha1.DatadogSLOSyncStatusUpdateError
+func (r *Reconciler) get(instance *v1alpha1.DatadogSLO) (*datadogV1.SLOResponseData, error) {
+	return getSLO(r.datadogAuth, r.datadogClient, instance.Status.ID)
+}
+
+func (r *Reconciler) update(logger logr.Logger, instance *v1alpha1.DatadogSLO, status *v1alpha1.DatadogSLOStatus, now metav1.Time, hash string) error {
+	if _, err := updateSLO(r.datadogAuth, r.datadogClient, instance); err != nil {
+		logger.Error(err, "error updating SLO", "SLO ID", instance.Status.ID)
+		updateErrStatus(status, now, v1alpha1.DatadogSLOSyncStatusUpdateError, "UpdatingSLO", err)
 		return err
 	}
-	r.recordEvent(crdSLO, buildEventInfo(crdSLO.Name, crdSLO.Namespace, datadog.UpdateEvent))
+	r.recordEvent(instance, buildEventInfo(instance.Name, instance.Namespace, datadog.UpdateEvent))
 
-	// Set Updated Condition
+	// Set condition and status
 	condition.UpdateStatusConditions(&status.Conditions, now, condition.DatadogConditionTypeUpdated, metav1.ConditionTrue, "UpdatingSLO", "DatadogSLO Updated")
 	status.SyncStatus = v1alpha1.DatadogSLOSyncStatusOK
+	status.CurrentHash = hash
 
-	r.log.Info("Updated DatadogSLO", "SLO Namespace", crdSLO.Namespace, "SLO Name", crdSLO.Name, "SLO ID", crdSLO.Status.ID)
+	logger.Info("Updated DatadogSLO", "SLO ID", instance.Status.ID)
 	return nil
+}
+
+func (r *Reconciler) deleteResource(logger logr.Logger, instance *v1alpha1.DatadogSLO) finalizer.ResourceDeleteFunc {
+	return func(ctx context.Context, k8sObj client.Object, datadogID string) error {
+		kind := k8sObj.GetObjectKind().GroupVersionKind().Kind
+		if err := deleteSLO(r.datadogAuth, r.datadogClient, datadogID); err != nil {
+			logger.Error(err, "error deleting SLO", "kind", kind, "ID", datadogID)
+			return err
+		}
+		logger.Info("Successfully deleted object", "kind", kind, "ID", datadogID)
+		r.recordEvent(instance, buildEventInfo(k8sObj.GetName(), k8sObj.GetNamespace(), datadog.DeletionEvent))
+		return nil
+	}
 }
 
 // buildEventInfo creates a new EventInfo instance.

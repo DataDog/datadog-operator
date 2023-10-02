@@ -6,21 +6,15 @@
 package v1alpha1
 
 import (
-	"github.com/stretchr/testify/assert"
-	"k8s.io/apimachinery/pkg/api/resource"
 	"testing"
 
 	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
+	"k8s.io/apimachinery/pkg/api/resource"
+	utilserrors "k8s.io/apimachinery/pkg/util/errors"
 )
 
 func TestIsValidDatadogSLO(t *testing.T) {
-
-	validThresholds := []DatadogSLOThreshold{
-		{
-			Target:    resource.MustParse("99.99"),
-			Timeframe: DatadogSLOTimeFrame30d,
-		},
-	}
 
 	tests := []struct {
 		name     string
@@ -35,8 +29,9 @@ func TestIsValidDatadogSLO(t *testing.T) {
 					Numerator:   "good",
 					Denominator: "total",
 				},
-				Type:       DatadogSLOTypeMetric,
-				Thresholds: validThresholds,
+				Type:            DatadogSLOTypeMetric,
+				TargetThreshold: resource.MustParse("99.99"),
+				Timeframe:       DatadogSLOTimeFrame30d,
 			},
 			expected: nil,
 		},
@@ -47,17 +42,19 @@ func TestIsValidDatadogSLO(t *testing.T) {
 					Numerator:   "good",
 					Denominator: "total",
 				},
-				Type:       DatadogSLOTypeMetric,
-				Thresholds: validThresholds,
+				Type:            DatadogSLOTypeMetric,
+				TargetThreshold: resource.MustParse("99.99"),
+				Timeframe:       DatadogSLOTimeFrame30d,
 			},
 			expected: errors.New("spec.Name must be defined"),
 		},
 		{
 			name: "Missing Query",
 			spec: &DatadogSLOSpec{
-				Name:       "SLO without Query",
-				Type:       DatadogSLOTypeMetric,
-				Thresholds: validThresholds,
+				Name:            "SLO without Query",
+				Type:            DatadogSLOTypeMetric,
+				TargetThreshold: resource.MustParse("99.99"),
+				Timeframe:       DatadogSLOTimeFrame30d,
 			},
 			expected: errors.New("spec.Query must be defined"),
 		},
@@ -69,7 +66,8 @@ func TestIsValidDatadogSLO(t *testing.T) {
 					Numerator:   "good",
 					Denominator: "total",
 				},
-				Thresholds: validThresholds,
+				TargetThreshold: resource.MustParse("99.99"),
+				Timeframe:       DatadogSLOTimeFrame30d,
 			},
 			expected: errors.New("spec.Type must be defined"),
 		},
@@ -81,31 +79,39 @@ func TestIsValidDatadogSLO(t *testing.T) {
 					Numerator:   "good",
 					Denominator: "total",
 				},
-				Type:       "invalid",
-				Thresholds: validThresholds,
+				Type:            "invalid",
+				TargetThreshold: resource.MustParse("99.99"),
+				Timeframe:       DatadogSLOTimeFrame30d,
 			},
 			expected: errors.New("spec.Type must be one of the values: monitor or metric"),
 		},
 		{
-			name: "Missing Thresholds",
+			name: "Missing Threshold and Timeframe",
 			spec: &DatadogSLOSpec{
-				Name: "SLO without Thresholds",
+				Name: "SLO without Thresholds and Timeframe",
 				Query: &DatadogSLOQuery{
 					Numerator:   "good",
 					Denominator: "total",
 				},
 				Type: DatadogSLOTypeMetric,
 			},
-			expected: errors.New("spec.Thresholds must be defined"),
+			// expected: errors.New("spec.TargetThreshold must be greater than 0"),
+			expected: utilserrors.NewAggregate(
+				[]error{
+					errors.New("spec.TargetThreshold must be greater than 0"),
+					errors.New("spec.Timeframe must be defined as one of the values: 7d, 30d, or 90d"),
+				},
+			),
 		},
 		{
 			name: "Missing MonitorIDs",
 			spec: &DatadogSLOSpec{
-				Name:       "MySLO",
-				Query:      &DatadogSLOQuery{},
-				Type:       DatadogSLOTypeMonitor,
-				Thresholds: validThresholds,
-				MonitorIDs: []int64{},
+				Name:            "MySLO",
+				Query:           &DatadogSLOQuery{},
+				Type:            DatadogSLOTypeMonitor,
+				TargetThreshold: resource.MustParse("99.99"),
+				Timeframe:       DatadogSLOTimeFrame30d,
+				MonitorIDs:      []int64{},
 			},
 			expected: errors.New("spec.MonitorIDs must be defined when spec.Type is monitor"),
 		},
@@ -117,18 +123,11 @@ func TestIsValidDatadogSLO(t *testing.T) {
 					Numerator:   "good",
 					Denominator: "total",
 				},
-				Type: DatadogSLOTypeMetric,
-				Thresholds: []DatadogSLOThreshold{
-					{
-						Target:         resource.MustParse("0"),
-						TargetDisplay:  "98.00",
-						Timeframe:      DatadogSLOTimeFrame7d,
-						Warning:        nil,
-						WarningDisplay: "",
-					},
-				},
+				Type:            DatadogSLOTypeMetric,
+				TargetThreshold: resource.MustParse("0"),
+				Timeframe:       DatadogSLOTimeFrame30d,
 			},
-			expected: errors.New("spec.Thresholds.Target must be defined and greater than 0"),
+			expected: errors.New("spec.TargetThreshold must be greater than 0"),
 		},
 		{
 			name: "Invalid Thresholds Warning",
@@ -138,18 +137,12 @@ func TestIsValidDatadogSLO(t *testing.T) {
 					Numerator:   "good",
 					Denominator: "total",
 				},
-				Type: DatadogSLOTypeMetric,
-				Thresholds: []DatadogSLOThreshold{
-					{
-						Target:         resource.MustParse("98.00"),
-						TargetDisplay:  "98.00",
-						Timeframe:      DatadogSLOTimeFrame7d,
-						Warning:        ptrResourceQuantity(resource.MustParse("0")),
-						WarningDisplay: "",
-					},
-				},
+				Type:             DatadogSLOTypeMetric,
+				TargetThreshold:  resource.MustParse("98.00"),
+				Timeframe:        DatadogSLOTimeFrame30d,
+				WarningThreshold: ptrResourceQuantity(resource.MustParse("0")),
 			},
-			expected: errors.New("spec.Thresholds.Warning must be greater than 0"),
+			expected: errors.New("spec.WarningThreshold must be greater than 0"),
 		},
 		{
 			name: "Invalid Thresholds Timeframe",
@@ -159,18 +152,11 @@ func TestIsValidDatadogSLO(t *testing.T) {
 					Numerator:   "good",
 					Denominator: "total",
 				},
-				Type: DatadogSLOTypeMetric,
-				Thresholds: []DatadogSLOThreshold{
-					{
-						Target:         resource.MustParse("98.00"),
-						TargetDisplay:  "98.00",
-						Timeframe:      "invalid",
-						Warning:        nil,
-						WarningDisplay: "",
-					},
-				},
+				Type:            DatadogSLOTypeMetric,
+				TargetThreshold: resource.MustParse("98.00"),
+				Timeframe:       "invalid",
 			},
-			expected: errors.New("spec.Thresholds.Timeframe must be defined as one of the values: 7d, 30d, 90d, or custom"),
+			expected: errors.New("spec.Timeframe must be defined as one of the values: 7d, 30d, or 90d"),
 		},
 	}
 
@@ -178,7 +164,7 @@ func TestIsValidDatadogSLO(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := IsValidDatadogSLO(tt.spec)
 			if tt.expected != nil {
-				assert.EqualError(t, tt.expected, result.Error())
+				assert.EqualError(t, result, tt.expected.Error())
 			} else {
 				assert.Nil(t, result)
 			}

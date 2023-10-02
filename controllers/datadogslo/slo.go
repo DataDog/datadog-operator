@@ -1,7 +1,7 @@
 // Unless explicitly stated otherwise all files in this repository are licensed
 // under the Apache License Version 2.0.
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2016-2023 Datadog, Inc.
+// Copyright 2016-present Datadog, Inc.
 
 package datadogslo
 
@@ -11,100 +11,107 @@ import (
 	"fmt"
 	"net/url"
 
-	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	datadogapi "github.com/DataDog/datadog-api-client-go/v2/api/datadog"
+	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
 
-	datadogapiclientv1 "github.com/DataDog/datadog-api-client-go/api/v1/datadog"
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 )
 
-func buildSLO(crdSLO *datadoghqv2alpha1.DatadogSLO) (*datadogapiclientv1.ServiceLevelObjectiveRequest, *datadogapiclientv1.ServiceLevelObjective) {
-	sloType := datadogapiclientv1.SLOType(crdSLO.Spec.Type)
-	req := datadogapiclientv1.NewServiceLevelObjectiveRequest(crdSLO.Spec.Name, buildThreshold(crdSLO.Spec.Thresholds), sloType)
+func buildSLO(crdSLO *v1alpha1.DatadogSLO) (*datadogV1.ServiceLevelObjectiveRequest, *datadogV1.ServiceLevelObjective) {
+	sloType := datadogV1.SLOType(crdSLO.Spec.Type)
+
+	// Used for SLO creation
+	sloReq := datadogV1.NewServiceLevelObjectiveRequest(crdSLO.Spec.Name, buildThreshold(crdSLO.Spec), sloType)
 	{
 		if crdSLO.Spec.Description != nil {
-			req.SetDescription(*crdSLO.Spec.Description)
+			sloReq.SetDescription(*crdSLO.Spec.Description)
 		} else {
-			req.SetDescriptionNil()
+			sloReq.SetDescriptionNil()
 		}
-		req.SetTags(crdSLO.Spec.Tags)
-		req.SetQuery(datadogapiclientv1.ServiceLevelObjectiveQuery{
+		sloReq.SetTags(crdSLO.Spec.Tags)
+		sloReq.SetQuery(datadogV1.ServiceLevelObjectiveQuery{
 			Denominator: crdSLO.Spec.Query.Denominator,
 			Numerator:   crdSLO.Spec.Query.Numerator,
 		})
-		req.SetMonitorIds(crdSLO.Spec.MonitorIDs)
-		req.SetGroups(crdSLO.Spec.Groups)
+		sloReq.SetMonitorIds(crdSLO.Spec.MonitorIDs)
+		sloReq.SetGroups(crdSLO.Spec.Groups)
 	}
-	ddSlo := datadogapiclientv1.NewServiceLevelObjective(crdSLO.Spec.Name, buildThreshold(crdSLO.Spec.Thresholds), sloType)
+
+	// Used for SLO updates
+	slo := datadogV1.NewServiceLevelObjective(crdSLO.Spec.Name, buildThreshold(crdSLO.Spec), sloType)
 	{
 		if crdSLO.Spec.Description != nil {
-			ddSlo.SetDescription(*crdSLO.Spec.Description)
+			slo.SetDescription(*crdSLO.Spec.Description)
 		} else {
-			ddSlo.SetDescriptionNil()
+			slo.SetDescriptionNil()
 		}
-		ddSlo.SetTags(crdSLO.Spec.Tags)
-		ddSlo.SetQuery(datadogapiclientv1.ServiceLevelObjectiveQuery{
+		slo.SetTags(crdSLO.Spec.Tags)
+		slo.SetQuery(datadogV1.ServiceLevelObjectiveQuery{
 			Denominator: crdSLO.Spec.Query.Denominator,
 			Numerator:   crdSLO.Spec.Query.Numerator,
 		})
-		ddSlo.SetMonitorIds(crdSLO.Spec.MonitorIDs)
-		ddSlo.SetGroups(crdSLO.Spec.Groups)
+		slo.SetMonitorIds(crdSLO.Spec.MonitorIDs)
+		slo.SetGroups(crdSLO.Spec.Groups)
 	}
 
-	return req, ddSlo
+	return sloReq, slo
 }
 
-func buildThreshold(thresholds []datadoghqv2alpha1.DatadogSLOThreshold) []datadogapiclientv1.SLOThreshold {
-	var thresholdArray []datadogapiclientv1.SLOThreshold
-	for _, t := range thresholds {
-		timeFrame, _ := datadogapiclientv1.NewSLOTimeframeFromValue(string(t.Timeframe))
-		var warningDisplay *string
-		if t.WarningDisplay != "" {
-			warningDisplay = stringPtr(t.WarningDisplay)
-		}
+func buildThreshold(sloSpec v1alpha1.DatadogSLOSpec) []datadogV1.SLOThreshold {
+	// Convert DatadogSLOSpec Timeframe, TargetThreshold, and WarningThreshold to datadogV1.SLOThreshold
+	// (returned as a single-item list) for backwards compatibility.
 
-		var warning *float64
-		if t.Warning != nil {
-			approxFloat := t.Warning.AsApproximateFloat64()
-			warning = &approxFloat
-		}
+	timeframe, _ := datadogV1.NewSLOTimeframeFromValue(string(sloSpec.Timeframe))
 
-		threshold := datadogapiclientv1.SLOThreshold{
-			Target:         t.Target.AsApproximateFloat64(),
-			TargetDisplay:  stringPtr(t.TargetDisplay),
-			Timeframe:      *timeFrame,
-			Warning:        warning,
-			WarningDisplay: warningDisplay,
-		}
-		thresholdArray = append(thresholdArray, threshold)
+	var warningThreshold *float64
+	if sloSpec.WarningThreshold != nil {
+		approxFloat := sloSpec.WarningThreshold.AsApproximateFloat64()
+		warningThreshold = &approxFloat
 	}
-	return thresholdArray
+
+	threshold := datadogV1.SLOThreshold{
+		Target:    sloSpec.TargetThreshold.AsApproximateFloat64(),
+		Timeframe: *timeframe,
+		Warning:   warningThreshold,
+	}
+	return []datadogV1.SLOThreshold{threshold}
 }
 
-func createSLO(auth context.Context, client *datadogapiclientv1.APIClient, crdSLO *datadoghqv2alpha1.DatadogSLO) (datadogapiclientv1.ServiceLevelObjective, error) {
+func createSLO(auth context.Context, client *datadogV1.ServiceLevelObjectivesApi, crdSLO *v1alpha1.DatadogSLO) (datadogV1.ServiceLevelObjective, error) {
 	sloReq, _ := buildSLO(crdSLO)
-	createSLO, _, err := client.ServiceLevelObjectivesApi.CreateSLO(auth, *sloReq)
+	slo, _, err := client.CreateSLO(auth, *sloReq)
 	if err != nil {
-		return datadogapiclientv1.ServiceLevelObjective{}, translateClientError(err, "error creating monitor")
+		return datadogV1.ServiceLevelObjective{}, translateClientError(err, "error creating SLO")
 	}
 
-	return createSLO.Data[0], nil
+	return slo.Data[0], nil
 }
 
-func updateSLO(auth context.Context, client *datadogapiclientv1.APIClient, crdSLO *datadoghqv2alpha1.DatadogSLO) (datadogapiclientv1.SLOListResponse, error) {
+func getSLO(auth context.Context, client *datadogV1.ServiceLevelObjectivesApi, sloId string) (*datadogV1.SLOResponseData, error) {
+	slo, _, err := client.GetSLO(auth, sloId, datadogV1.GetSLOOptionalParameters{})
+	if err != nil {
+		return &datadogV1.SLOResponseData{}, translateClientError(err, "error getting SLO")
+	}
+
+	return slo.Data, nil
+}
+
+func updateSLO(auth context.Context, client *datadogV1.ServiceLevelObjectivesApi, crdSLO *v1alpha1.DatadogSLO) (datadogV1.SLOListResponse, error) {
 	_, slo := buildSLO(crdSLO)
-	updateSLO, _, err := client.ServiceLevelObjectivesApi.UpdateSLO(auth, crdSLO.Status.ID, *slo)
+	sloListResponse, _, err := client.UpdateSLO(auth, crdSLO.Status.ID, *slo)
 	if err != nil {
-		return datadogapiclientv1.SLOListResponse{}, translateClientError(err, "error updating monitor")
+		return datadogV1.SLOListResponse{}, translateClientError(err, "error updating SLO")
 	}
-	return updateSLO, nil
+	return sloListResponse, nil
 }
 
-func deleteSLO(auth context.Context, client *datadogapiclientv1.APIClient, sloID string) error {
+func deleteSLO(auth context.Context, client *datadogV1.ServiceLevelObjectivesApi, sloID string) error {
 	force := "false"
-	optionalParams := datadogapiclientv1.DeleteSLOOptionalParameters{
+	optionalParams := datadogV1.DeleteSLOOptionalParameters{
 		Force: &force,
 	}
-	if _, _, err := client.ServiceLevelObjectivesApi.DeleteSLO(auth, sloID, optionalParams); err != nil {
-		return translateClientError(err, "error deleting monitor")
+	if _, _, err := client.DeleteSLO(auth, sloID, optionalParams); err != nil {
+		return translateClientError(err, "error deleting SLO")
 	}
 	return nil
 }
@@ -114,7 +121,7 @@ func translateClientError(err error, msg string) error {
 		msg = "an error occurred"
 	}
 
-	var apiErr datadogapiclientv1.GenericOpenAPIError
+	var apiErr datadogapi.GenericOpenAPIError
 	var errURL *url.Error
 	if errors.As(err, &apiErr) {
 		return fmt.Errorf(msg+": %w: %s", err, apiErr.Body())
@@ -125,8 +132,4 @@ func translateClientError(err error, msg string) error {
 	}
 
 	return fmt.Errorf(msg+": %w", err)
-}
-
-func stringPtr(s string) *string {
-	return &s
 }

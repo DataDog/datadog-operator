@@ -31,31 +31,23 @@ func IsValidDatadogSLO(spec *DatadogSLOSpec) error {
 		errs = append(errs, fmt.Errorf("spec.Type must be one of the values: %s or %s", DatadogSLOTypeMonitor, DatadogSLOTypeMetric))
 	}
 
-	if len(spec.Thresholds) < 1 {
-		errs = append(errs, fmt.Errorf("spec.Thresholds must be defined"))
-	}
-
 	if spec.Type == DatadogSLOTypeMonitor && len(spec.MonitorIDs) < 1 {
 		errs = append(errs, fmt.Errorf("spec.MonitorIDs must be defined when spec.Type is monitor"))
 	}
 
-	for _, threshold := range spec.Thresholds {
-		if threshold.Target.Value() <= 0 {
-			errs = append(errs, fmt.Errorf("spec.Thresholds.Target must be defined and greater than 0"))
-		}
+	if spec.TargetThreshold.Value() <= 0 {
+		errs = append(errs, fmt.Errorf("spec.TargetThreshold must be greater than 0"))
+	}
 
-		if threshold.Warning != nil {
-			if threshold.Warning.Value() <= 0 {
-				errs = append(errs, fmt.Errorf("spec.Thresholds.Warning must be greater than 0"))
-			}
-		}
+	if spec.WarningThreshold != nil && spec.WarningThreshold.Value() <= 0 {
+		errs = append(errs, fmt.Errorf("spec.WarningThreshold must be greater than 0"))
+	}
 
-		switch threshold.Timeframe {
-		case DatadogSLOTimeFrame7d, DatadogSLOTimeFrame30d, DatadogSLOTimeFrame90d, DatadogSLOTimeFrameCustom:
-			break
-		default:
-			errs = append(errs, fmt.Errorf("spec.Thresholds.Timeframe must be defined as one of the values: 7d, 30d, 90d, or custom"))
-		}
+	switch spec.Timeframe {
+	case DatadogSLOTimeFrame7d, DatadogSLOTimeFrame30d, DatadogSLOTimeFrame90d:
+		break
+	default:
+		errs = append(errs, fmt.Errorf("spec.Timeframe must be defined as one of the values: 7d, 30d, or 90d"))
 	}
 
 	return utilserrors.NewAggregate(errs)

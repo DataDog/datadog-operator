@@ -12,7 +12,6 @@ spec:
   tags:
     - "service:example"
     - "env:prod"
-  thresholds:
-    - target: "99.9"
-      timeframe: "7d"
+  targetThreshold: "99.9"
+  timeframe: "7d"
   type: "metric"

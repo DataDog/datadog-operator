@@ -16,12 +16,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type ExternalResourceDeleteFunc func(ctx context.Context, k8sObj client.Object, datadogID string) error
+type ResourceDeleteFunc func(ctx context.Context, k8sObj client.Object, datadogID string) error
 
 type Finalizer struct {
-	logger      logr.Logger
-	client      client.Client
-	deleterFunc ExternalResourceDeleteFunc
+	logger     logr.Logger
+	client     client.Client
+	deleteFunc ResourceDeleteFunc
 
 	defaultRequeuePeriod    time.Duration
 	defaultErrRequeuePeriod time.Duration
@@ -30,14 +30,14 @@ type Finalizer struct {
 func NewFinalizer(
 	logger logr.Logger,
 	client client.Client,
-	deleteFunc ExternalResourceDeleteFunc,
+	deleteFunc ResourceDeleteFunc,
 	defaultRequeuePeriod time.Duration,
 	defaultErrRequeuePeriod time.Duration,
 ) *Finalizer {
 	return &Finalizer{
 		logger:                  logger,
 		client:                  client,
-		deleterFunc:             deleteFunc,
+		deleteFunc:              deleteFunc,
 		defaultRequeuePeriod:    defaultRequeuePeriod,
 		defaultErrRequeuePeriod: defaultErrRequeuePeriod,
 	}
@@ -47,12 +47,9 @@ func NewFinalizer(
 func (f *Finalizer) HandleFinalizer(ctx context.Context, clientObj client.Object, datadogID string, finalizerName string) (ctrl.Result, error) {
 	// examine DeletionTimestamp to determine if object is under deletion
 	if clientObj.GetDeletionTimestamp().IsZero() {
-		f.logger.Info("Object not being deleted", "kind", clientObj.GetObjectKind(), "finalizername", finalizerName)
-		// The object is not being deleted, so if it does not have our finalizer,
-		// then lets add the finalizer and update the object. This is equivalent
-		// registering our finalizer.
+		// The object is not being deleted. If it does not have a finalizer, add it and update the object.
 		if !controllerutil.ContainsFinalizer(clientObj, finalizerName) {
-			f.logger.Info("Object does not have finalizer adding finalizer",
+			f.logger.Info("Object does not have a finalizer; adding finalizer",
 				"kind", clientObj.GetObjectKind(),
 				"datadogID", datadogID,
 				"finalizername", finalizerName,
@@ -67,14 +64,12 @@ func (f *Finalizer) HandleFinalizer(ctx context.Context, clientObj client.Object
 		f.logger.Info("Object under the deletion", "kind", clientObj.GetObjectKind(), "finalizername", finalizerName)
 		// The object is being deleted
 		if controllerutil.ContainsFinalizer(clientObj, finalizerName) {
-			// our finalizer is present, so lets handle any external dependency
-			err := f.deleterFunc(ctx, clientObj, datadogID)
+			// Delete resource
+			err := f.deleteFunc(ctx, clientObj, datadogID)
 			if err != nil {
-				// if fail to delete the external dependency here, return with error
-				// so that it can be retried
+				// If deletion has failed, retry
 				return ctrl.Result{Requeue: true, RequeueAfter: f.defaultErrRequeuePeriod}, err
 			}
-			// remove our finalizer from the list and update it.
 			controllerutil.RemoveFinalizer(clientObj, finalizerName)
 			if err := f.client.Update(ctx, clientObj); err != nil {
 				return ctrl.Result{Requeue: true, RequeueAfter: f.defaultErrRequeuePeriod}, err

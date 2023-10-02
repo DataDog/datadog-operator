@@ -167,7 +167,7 @@ func startDatadogSLO(logger logr.Logger, mgr manager.Manager, info *version.Info
 		return nil
 	}
 
-	ddClient, err := datadogclient.InitDatadogClient(options.Creds)
+	ddClient, err := datadogclient.InitDatadogSLOClient(logger, options.Creds)
 	if err != nil {
 		return fmt.Errorf("unable to create Datadog API Client: %w", err)
 	}

@@ -23,6 +23,8 @@ spec:
     kind: DatadogSLO
     listKind: DatadogSLOList
     plural: datadogslos
+    shortNames:
+      - ddslo
     singular: datadogslo
   preserveUnknownFields: false
   scope: Namespaced
@@ -30,7 +32,7 @@ spec:
     status: {}
   validation:
     openAPIV3Schema:
-      description: DatadogSLO allows to define and manage datadog SLOs from kubernetes cluster
+      description: DatadogSLO allows a user to define and manage datadog SLOs from Kubernetes cluster.
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
@@ -42,87 +44,82 @@ spec:
           type: object
         spec:
           properties:
+            controllerOptions:
+              description: ControllerOptions are the optional parameters in the DatadogSLO controller
+              properties:
+                disableRequiredTags:
+                  description: DisableRequiredTags disables the automatic addition of required tags to SLOs.
+                  type: boolean
+              type: object
             description:
-              description: Description of this service level objective.
+              description: Description is a user-defined description of the service level objective. Always included in service level objective responses (but may be null). Optional in create/update requests.
               type: string
             groups:
-              description: Groups A list of (up to 100) monitor groups that narrow the scope of a monitor service level objective. Included in service level objective responses if it is not empty. Optional in create/update requests for monitor service level objectives, but may only be used when then length of the monitor_ids field is one.
+              description: Groups is a list of (up to 100) monitor groups that narrow the scope of a monitor service level objective. Included in service level objective responses if it is not empty. Optional in create/update requests for monitor service level objectives, but may only be used when then length of the monitor_ids field is one.
               items:
                 type: string
               type: array
-            monitor_ids:
+              x-kubernetes-list-type: set
+            monitorIDs:
               description: MonitorIDs a list of monitor IDs that defines the scope of a monitor service level objective. Required if type is monitor.
               items:
                 format: int64
                 type: integer
               type: array
+              x-kubernetes-list-type: set
             name:
-              description: Name of Datadog service level objective
+              description: Name is the name of the service level objective.
               type: string
             query:
-              description: Query The metric query of good / total events
+              description: Query is the query for a metric-based SLO. Required if type is metric. Note that Datadog only allows the sum by aggregator to be used because this will sum up all request counts instead of averaging them, or taking the max or min of all of those requests.
               properties:
                 denominator:
-                  description: Denominator the sum of the total events.
+                  description: Denominator is a Datadog metric query for total (valid) events.
                   type: string
                 numerator:
-                  description: Numerator the sum of all the good events.
+                  description: Numerator is a Datadog metric query for good events.
                   type: string
               required:
                 - denominator
                 - numerator
               type: object
             tags:
-              description: 'Tags A list of tags to associate with your service level objective. This can help you categorize and filter service level objectives in the service level objectives page of the UI. Note: it''s not currently possible to filter by these tags when querying via the API'
+              description: 'Tags a list of tags to associate with your service level objective. This can help you categorize and filter service level objectives in the service level objectives page of the UI. Note: it''s not currently possible to filter by these tags when querying via the API.'
               items:
                 type: string
               type: array
-            thresholds:
-              description: Thresholds A list of thresholds and targets that define the service level objectives from the provided SLIs.
-              items:
-                properties:
-                  target:
-                    anyOf:
-                      - type: integer
-                      - type: string
-                    description: The target value for the service level indicator within the corresponding timeframe.
-                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                    x-kubernetes-int-or-string: true
-                  target_display:
-                    description: TargetDisplay A string representation of the target that indicates its precision. It uses trailing zeros to show significant decimal places (for example 98.00). Always included in service level objective responses. Ignored in create/update requests.
-                    type: string
-                  timeframe:
-                    description: 'Timeframe The SLO time window options. Allowed enum values: 7d,30d,90d,custom'
-                    type: string
-                  warning:
-                    anyOf:
-                      - type: integer
-                      - type: string
-                    description: The warning value for the service level objective.
-                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                    x-kubernetes-int-or-string: true
-                  warning_display:
-                    description: A string representation of the warning target (see the description of the target_display field for details). Included in service level objective responses if a warning target exists. Ignored in create/update requests.
-                    type: string
-                required:
-                  - target
-                  - timeframe
-                type: object
-              type: array
-            type:
-              description: 'Type the slo allowed values: monitor | metric'
+              x-kubernetes-list-type: set
+            targetThreshold:
+              anyOf:
+                - type: integer
+                - type: string
+              description: TargetThreshold is the target threshold such that when the service level indicator is above this threshold over the given timeframe, the objective is being met.
+              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+              x-kubernetes-int-or-string: true
+            timeframe:
+              description: The SLO time window options.
               type: string
+            type:
+              description: Type is the type of the service level objective.
+              type: string
+            warningThreshold:
+              anyOf:
+                - type: integer
+                - type: string
+              description: WarningThreshold is a optional warning threshold such that when the service level indicator is below this value for the given threshold, but above the target threshold, the objective appears in a "warning" state. This value must be greater than the target threshold.
+              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+              x-kubernetes-int-or-string: true
           required:
             - name
-            - query
-            - thresholds
+            - targetThreshold
+            - timeframe
             - type
           type: object
         status:
-          description: DatadogSLOStatus defines the observed state of DatadogSLO
+          description: DatadogSLOStatus defines the observed state of a DatadogSLO.
           properties:
             conditions:
-              description: Conditions Represents the latest available observations of a DatadogSLOs current state.
+              description: Conditions represents the latest available observations of the state of a DatadogSLO.
               items:
                 description: "Condition contains details for one aspect of the current state of this API Resource. --- This struct is intended for direct use as an array at the field path .status.conditions.  For example, type FooStatus struct{     // Represents the observations of a foo's current state.     // Known .status.conditions.type are: \"Available\", \"Progressing\", and \"Degraded\"     // +patchMergeKey=type     // +patchStrategy=merge     // +listType=map     // +listMapKey=type     Conditions []metav1.Condition `json:\"conditions,omitempty\" patchStrategy:\"merge\" patchMergeKey:\"type\" protobuf:\"bytes,1,rep,name=conditions\"` \n     // other fields }"
                 properties:
@@ -169,23 +166,24 @@ spec:
                 - type
               x-kubernetes-list-type: map
             created:
-              description: Created is the time the SLO was created
+              description: Created is the time the SLO was created.
               format: date-time
               type: string
             creator:
-              description: Creator is the identity of the SLO creator
+              description: Creator is the identity of the SLO creator.
               type: string
             currentHash:
-              description: CurrentHash tracks the hash of the current DatadogMonitorSpec to know if the Spec has changed and needs an update
+              description: CurrentHash tracks the hash of the current DatadogSLOSpec to know if the Spec has changed and needs an update.
               type: string
             id:
-              description: ID is the SLO ID generated in Datadog
+              description: ID is the SLO ID generated in Datadog.
               type: string
-            primary:
-              description: ManagedByDatadogOperator defines whether the SLO is managed by the Kubernetes custom resource (true) or outside Kubernetes (false)
-              type: boolean
+            lastForceSyncTime:
+              description: LastForceSyncTime is the last time the API SLO was last force synced with the DatadogSLO resource
+              format: date-time
+              type: string
             syncStatus:
-              description: SyncStatus shows the health of syncing the SLO state to Datadog
+              description: SyncStatus shows the health of syncing the SLO state to Datadog.
               type: string
           type: object
       type: object

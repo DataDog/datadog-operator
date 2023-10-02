@@ -1,73 +1,54 @@
 // Unless explicitly stated otherwise all files in this repository are licensed
 // under the Apache License Version 2.0.
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2016-2023 Datadog, Inc.
+// Copyright 2016-present Datadog, Inc.
 
 package datadogslo
 
 import (
-	datadogapiclientv1 "github.com/DataDog/datadog-api-client-go/api/v1/datadog"
-	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	"testing"
+
+	"github.com/DataDog/datadog-api-client-go/v2/api/datadogV1"
+
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"testing"
+
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 )
 
-func TestBuildThreshold(t *testing.T) {
+func Test_buildThreshold(t *testing.T) {
 	tests := []struct {
 		name           string
-		thresholds     []datadoghqv2alpha1.DatadogSLOThreshold
-		expectedResult []datadogapiclientv1.SLOThreshold
+		mockSpec       v1alpha1.DatadogSLOSpec
+		expectedResult []datadogV1.SLOThreshold
 	}{
 		{
-			name: "Single threshold",
-			thresholds: []datadoghqv2alpha1.DatadogSLOThreshold{
-				{
-					Target:         resource.MustParse("99.9"),
-					TargetDisplay:  "99.90",
-					Timeframe:      "7d",
-					Warning:        ptrResourceQuantity(resource.MustParse("98.0")),
-					WarningDisplay: "98.00",
-				},
+			name: "Target threshold only",
+			mockSpec: v1alpha1.DatadogSLOSpec{
+				Name:            "test",
+				Timeframe:       "7d",
+				TargetThreshold: resource.MustParse("99.9"),
 			},
-			expectedResult: []datadogapiclientv1.SLOThreshold{
+			expectedResult: []datadogV1.SLOThreshold{
 				{
-					Target:         99.9,
-					TargetDisplay:  stringPtr("99.90"),
-					Timeframe:      datadogapiclientv1.SLOTimeframe("7d"),
-					Warning:        float64Ptr(98.0),
-					WarningDisplay: stringPtr("98.00"),
+					Target:    99.9,
+					Timeframe: datadogV1.SLOTimeframe("7d"),
 				},
 			},
 		},
 		{
-			name: "Multiple thresholds",
-			thresholds: []datadoghqv2alpha1.DatadogSLOThreshold{
-				{
-					Target:         resource.MustParse("99.9"),
-					TargetDisplay:  "99.90",
-					Timeframe:      "7d",
-					Warning:        ptrResourceQuantity(resource.MustParse("98.0")),
-					WarningDisplay: "98.00",
-				},
-				{
-					Target:        resource.MustParse("99.5"),
-					TargetDisplay: "99.50",
-					Timeframe:     "30d",
-				},
+			name: "Target and warning threshold",
+			mockSpec: v1alpha1.DatadogSLOSpec{
+				Name:             "test",
+				Timeframe:        "30d",
+				TargetThreshold:  resource.MustParse("99.9"),
+				WarningThreshold: ptrResourceQuantity(resource.MustParse("95.9")),
 			},
-			expectedResult: []datadogapiclientv1.SLOThreshold{
+			expectedResult: []datadogV1.SLOThreshold{
 				{
-					Target:         99.9,
-					TargetDisplay:  stringPtr("99.90"),
-					Timeframe:      datadogapiclientv1.SLOTimeframe("7d"),
-					Warning:        float64Ptr(98.0),
-					WarningDisplay: stringPtr("98.00"),
-				},
-				{
-					Target:        99.5,
-					TargetDisplay: stringPtr("99.50"),
-					Timeframe:     datadogapiclientv1.SLOTimeframe("30d"),
+					Target:    99.9,
+					Timeframe: datadogV1.SLOTimeframe("30d"),
+					Warning:   float64Ptr(95.9),
 				},
 			},
 		},
@@ -75,7 +56,7 @@ func TestBuildThreshold(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := buildThreshold(tt.thresholds)
+			result := buildThreshold(tt.mockSpec)
 			if len(result) != len(tt.expectedResult) {
 				t.Errorf("Expected %d thresholds, got %d", len(tt.expectedResult), len(result))
 				return
