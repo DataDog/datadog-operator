@@ -555,6 +555,13 @@ func schema__apis_datadoghq_v2alpha1_DogstatsdFeatureConfig(ref common.Reference
 							Format:      "",
 						},
 					},
+					"tagCardinality": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TagCardinality configures tag cardinality for the metrics collected using origin detection (`low`, `orchestrator` or `high`). See also: https://docs.datadoghq.com/getting_started/tagging/assigning_tags/?tab=containerizedenvironments#environment-variables Cardinality default: low",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"hostPortConfig": {
 						SchemaProps: spec.SchemaProps{
 							Description: "HostPortConfig contains host port configuration. Enabled Default: false Port Default: 8125",

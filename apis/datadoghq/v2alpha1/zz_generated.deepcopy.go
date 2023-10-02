@@ -840,6 +840,11 @@ func (in *DogstatsdFeatureConfig) DeepCopyInto(out *DogstatsdFeatureConfig) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.TagCardinality != nil {
+		in, out := &in.TagCardinality, &out.TagCardinality
+		*out = new(string)
+		**out = **in
+	}
 	if in.HostPortConfig != nil {
 		in, out := &in.HostPortConfig, &out.HostPortConfig
 		*out = new(HostPortConfig)

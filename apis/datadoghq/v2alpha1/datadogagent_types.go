@@ -354,6 +354,12 @@ type DogstatsdFeatureConfig struct {
 	// +optional
 	OriginDetectionEnabled *bool `json:"originDetectionEnabled,omitempty"`
 
+	// TagCardinality configures tag cardinality for the metrics collected using origin detection (`low`, `orchestrator` or `high`).
+	// See also: https://docs.datadoghq.com/getting_started/tagging/assigning_tags/?tab=containerizedenvironments#environment-variables
+	// Cardinality default: low
+	// +optional
+	TagCardinality *string `json:"tagCardinality,omitempty"`
+
 	// HostPortConfig contains host port configuration.
 	// Enabled Default: false
 	// Port Default: 8125
