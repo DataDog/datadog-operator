@@ -280,6 +280,48 @@ func (builder *DatadogAgentBuilder) WithPrometheusScrapeVersion(version int) *Da
 	return builder
 }
 
+// NPM
+
+func (builder *DatadogAgentBuilder) initAPM() {
+	if builder.datadogAgent.Spec.Features.APM == nil {
+		builder.datadogAgent.Spec.Features.APM = &v2alpha1.APMFeatureConfig{}
+	}
+}
+
+func (builder *DatadogAgentBuilder) WithAPMEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initAPM()
+	builder.datadogAgent.Spec.Features.APM.Enabled = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
+// NPM
+
+func (builder *DatadogAgentBuilder) initNPM() {
+	if builder.datadogAgent.Spec.Features.NPM == nil {
+		builder.datadogAgent.Spec.Features.NPM = &v2alpha1.NPMFeatureConfig{}
+	}
+}
+
+func (builder *DatadogAgentBuilder) WithNPMEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initNPM()
+	builder.datadogAgent.Spec.Features.NPM.Enabled = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
+// CSPM
+
+func (builder *DatadogAgentBuilder) initCSPM() {
+	if builder.datadogAgent.Spec.Features.CSPM == nil {
+		builder.datadogAgent.Spec.Features.CSPM = &v2alpha1.CSPMFeatureConfig{}
+	}
+}
+
+func (builder *DatadogAgentBuilder) WithCSPMEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initCSPM()
+	builder.datadogAgent.Spec.Features.CSPM.Enabled = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
 // Global Kubelet
 
 func (builder *DatadogAgentBuilder) WithGlobalKubeletConfig(hostCAPath, agentCAPath string, tlsVerify bool) *DatadogAgentBuilder {
@@ -298,5 +340,13 @@ func (builder *DatadogAgentBuilder) WithGlobalDockerSocketPath(dockerSocketPath 
 
 func (builder *DatadogAgentBuilder) WithGlobalCriSocketPath(criSocketPath string) *DatadogAgentBuilder {
 	builder.datadogAgent.Spec.Global.DockerSocketPath = apiutils.NewStringPointer(criSocketPath)
+	return builder
+}
+
+// Global ContainerProcessModel
+func (builder *DatadogAgentBuilder) WithMultiProcessContainer(enabled bool) *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Global.ContainerProcessModel = &v2alpha1.ContainerProcessModel{
+		UseMultiProcessContainer: apiutils.NewBoolPointer(enabled),
+	}
 	return builder
 }
