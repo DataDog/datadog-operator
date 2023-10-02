@@ -23,6 +23,8 @@ const (
 	LiveContainerIDType = "live_container"
 	// LiveProcessIDType Live Process feature.
 	LiveProcessIDType = "live_process"
+	// ProcessDiscoveryIDType Process Discovery feature.
+	ProcessDiscoveryIDType = "process_discovery"
 	// OrchestratorExplorerIDType Orchestrator Explorer feature.
 	OrchestratorExplorerIDType = "orchestrator_explorer"
 	// LogCollectionIDType Log Collection feature.
@@ -37,6 +39,8 @@ const (
 	USMIDType = "usm"
 	// OOMKillIDType OOM Kill check feature
 	OOMKillIDType = "oom_kill"
+	// EBPFCheckIDType eBPF check feature
+	EBPFCheckIDType = "ebpf_check"
 	// PrometheusScrapeIDType Prometheus Scrape feature
 	PrometheusScrapeIDType = "prometheus_scrape"
 	// TCPQueueLengthIDType TCP Queue length check feature

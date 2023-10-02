@@ -27,6 +27,8 @@ const (
 	// defaultLiveProcessCollectionEnabled   bool = false
 	defaultLiveContainerCollectionEnabled bool = true
 
+	defaultProcessDiscoveryEnabled bool = true
+
 	// defaultOOMKillEnabled        bool = false
 	// defaultTCPQueueLengthEnabled bool = false
 
@@ -58,6 +60,8 @@ const (
 	defaultOTLPGRPCEndpoint string = "0.0.0.0:4317"
 	defaultOTLPHTTPEnabled  bool   = false
 	defaultOTLPHTTPEndpoint string = "0.0.0.0:4318"
+
+	defaultRemoteConfigurationEnabled bool = true
 
 	defaultCollectKubernetesEvents bool = true
 
@@ -151,6 +155,13 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 		}
 	}
 
+	// ProcessDiscovery Feature
+	if ddaSpec.Features.ProcessDiscovery == nil || apiutils.IsEqualStruct(*ddaSpec.Features.ProcessDiscovery, ProcessDiscoveryFeatureConfig{}) {
+		ddaSpec.Features.ProcessDiscovery = &ProcessDiscoveryFeatureConfig{
+			Enabled: apiutils.NewBoolPointer(defaultProcessDiscoveryEnabled),
+		}
+	}
+
 	// APM Feature
 	if ddaSpec.Features.APM != nil && ddaSpec.Features.APM.Enabled != nil && *ddaSpec.Features.APM.Enabled {
 		if ddaSpec.Features.APM.HostPortConfig == nil {
@@ -233,6 +244,12 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 	}
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.OTLP.Receiver.Protocols.HTTP.Enabled, defaultOTLPHTTPEnabled)
 	apiutils.DefaultStringIfUnset(&ddaSpec.Features.OTLP.Receiver.Protocols.HTTP.Endpoint, defaultOTLPHTTPEndpoint)
+
+	// RemoteConfiguration feature
+	if ddaSpec.Features.RemoteConfiguration == nil {
+		ddaSpec.Features.RemoteConfiguration = &RemoteConfigurationFeatureConfig{}
+	}
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.RemoteConfiguration.Enabled, defaultRemoteConfigurationEnabled)
 
 	// Cluster-level features
 

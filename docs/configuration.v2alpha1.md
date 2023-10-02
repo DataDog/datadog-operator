@@ -35,7 +35,7 @@ spec:
 | Parameter | Description |
 | --------- | ----------- |
 | features.admissionController.agentCommunicationMode | AgentCommunicationMode corresponds to the mode used by the Datadog application libraries to communicate with the Agent. It can be "hostip", "service", or "socket". |
-| features.admissionController.enabled | Enabled enables the Admission Controller. Default: false |
+| features.admissionController.enabled | Enabled enables the Admission Controller. Default: true |
 | features.admissionController.failurePolicy | FailurePolicy determines how unrecognized and timeout errors are handled. |
 | features.admissionController.mutateUnlabelled | MutateUnlabelled enables config injection without the need of pod label 'admission.datadoghq.com/enabled="true"'. Default: false |
 | features.admissionController.serviceName | ServiceName corresponds to the webhook service name. |
@@ -52,11 +52,13 @@ spec:
 | features.cspm.customBenchmarks.configMap.items | Items maps a ConfigMap data `key` to a file `path` mount. |
 | features.cspm.customBenchmarks.configMap.name | Name is the name of the ConfigMap. |
 | features.cspm.enabled | Enabled enables Cloud Security Posture Management. Default: false |
+| features.cspm.hostBenchmarks.enabled | Enabled enables host benchmarks. Default: false |
 | features.cws.customPolicies.configData | ConfigData corresponds to the configuration file content. |
 | features.cws.customPolicies.configMap.items | Items maps a ConfigMap data `key` to a file `path` mount. |
 | features.cws.customPolicies.configMap.name | Name is the name of the ConfigMap. |
 | features.cws.enabled | Enabled enables Cloud Workload Security. Default: false |
 | features.cws.network.enabled | Enabled enables Cloud Workload Security Network detections. Default: true |
+| features.cws.remoteConfiguration.enabled | Enabled enables Remote Configuration for Cloud Workload Security. Default: true |
 | features.cws.securityProfiles.enabled | Enabled enables Security Profiles collection for Cloud Workload Security. Default: true |
 | features.cws.syscallMonitorEnabled | SyscallMonitorEnabled enables Syscall Monitoring (recommended for troubleshooting only). Default: false |
 | features.dogstatsd.hostPortConfig.enabled | Enabled enables host port configuration Default: false |
@@ -67,6 +69,7 @@ spec:
 | features.dogstatsd.originDetectionEnabled | OriginDetectionEnabled enables origin detection for container tagging. See also: https://docs.datadoghq.com/developers/dogstatsd/unix_socket/#using-origin-detection-for-container-tagging |
 | features.dogstatsd.unixDomainSocketConfig.enabled | Enabled enables Unix Domain Socket. Default: true |
 | features.dogstatsd.unixDomainSocketConfig.path | Path defines the socket path used when enabled. |
+| features.ebpfCheck.enabled | Enables the eBPF check. Default: false |
 | features.eventCollection.collectKubernetesEvents | CollectKubernetesEvents enables Kubernetes event collection. Default: true |
 | features.externalMetricsServer.enabled | Enabled enables the External Metrics Server. Default: false |
 | features.externalMetricsServer.endpoint.credentials.apiKey | APIKey configures your Datadog API key. See also: https://app.datadoghq.com/account/settings#agent/kubernetes |
@@ -111,6 +114,7 @@ spec:
 | features.otlp.receiver.protocols.grpc.endpoint | Endpoint for OTLP/gRPC. gRPC supports several naming schemes: https://github.com/grpc/grpc/blob/master/doc/naming.md The Datadog Operator supports only 'host:port' (usually `0.0.0.0:port`). Default: `0.0.0.0:4317`. |
 | features.otlp.receiver.protocols.http.enabled | Enable the OTLP/HTTP endpoint. |
 | features.otlp.receiver.protocols.http.endpoint | Endpoint for OTLP/HTTP. Default: '0.0.0.0:4318'. |
+| features.processDiscovery.enabled | Enabled enables the Process Discovery check in the Agent. Default: true |
 | features.prometheusScrape.additionalConfigs | AdditionalConfigs allows adding advanced Prometheus check configurations with custom discovery rules. |
 | features.prometheusScrape.enableServiceEndpoints | EnableServiceEndpoints enables generating dedicated checks for service endpoints. Default: false |
 | features.prometheusScrape.enabled | Enable autodiscovery of pods and services exposing Prometheus metrics. Default: false |
@@ -169,9 +173,9 @@ spec:
 
 ### Override
 
-Below table lists parameters which can be used to override default or global settings. Maps and arrays have a type annotation in the table; properties which are configured as map values contain a `[key]` element which should be replaced by actual map key. `override` itself is a map with following possible keys `nodeAgent`, `clusterAgent` or `clusterChecksRunner`. Other keys can be added but it will not have any effect.
+The table below lists parameters that can be used to override default or global settings. Maps and arrays have a type annotation in the table; properties that are configured as map values contain a `[key]` element which should be replaced by the actual map key. `override` itself is a map with the following possible keys: `nodeAgent`, `clusterAgent`, or `clusterChecksRunner`. Other keys can be added, but they do not have any effect.
 
-For example below manifest can be used to override node agent image and tag and resource limits of the system probe container. 
+For example, the manifest below can be used to override the node Agent image, tag, and the resource limits of the system probe container. 
 
 ```yaml
 apiVersion: datadoghq.com/v2alpha1
@@ -191,7 +195,7 @@ spec:
               cpu: "2"
               memory: 1Gi
 ```
-In the table, `spec.override.nodeAgent.image.name` and `spec.override.nodeAgent.containers.system-probe.resources.limits` will appear as `[key].image.name`, `[key].containers.[key].resources.limits` respectively.
+In the table, `spec.override.nodeAgent.image.name` and `spec.override.nodeAgent.containers.system-probe.resources.limits` appear as `[key].image.name` and `[key].containers.[key].resources.limits`, respectively.
 
 
 | Parameter | Description |
@@ -202,12 +206,12 @@ In the table, `spec.override.nodeAgent.image.name` and `spec.override.nodeAgent.
 | [key].affinity.podAffinity.requiredDuringSchedulingIgnoredDuringExecution | If the affinity requirements specified by this field are not met at scheduling time, the pod will not be scheduled onto the node. If the affinity requirements specified by this field cease to be met at some point during pod execution (e.g. due to a pod label update), the system may or may not try to eventually evict the pod from its node. When there are multiple elements, the lists of nodes corresponding to each podAffinityTerm are intersected, i.e. all terms must be satisfied. |
 | [key].affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution | The scheduler will prefer to schedule pods to nodes that satisfy the anti-affinity expressions specified by this field, but it may choose a node that violates one or more of the expressions. The node that is most preferred is the one with the greatest sum of weights, i.e. for each node that meets all of the scheduling requirements (resource request, requiredDuringScheduling anti-affinity expressions, etc.), compute a sum by iterating through the elements of this field and adding "weight" to the sum if the node has pods which matches the corresponding podAffinityTerm; the node(s) with the highest sum are the most preferred. |
 | [key].affinity.podAntiAffinity.requiredDuringSchedulingIgnoredDuringExecution | If the anti-affinity requirements specified by this field are not met at scheduling time, the pod will not be scheduled onto the node. If the anti-affinity requirements specified by this field cease to be met at some point during pod execution (e.g. due to a pod label update), the system may or may not try to eventually evict the pod from its node. When there are multiple elements, the lists of nodes corresponding to each podAffinityTerm are intersected, i.e. all terms must be satisfied. |
-| [key].annotations `map[string]string` | Annotations provide annotations that will be added to the different component (Datadog Agent, Cluster Agent, Cluster Check Runner) pods. |
-| [key].containers `map[string]object` | Configure the basic configurations for each agent container. Valid agent container names are: `agent`, `cluster-agent`, `init-config`, `init-volume`, `process-agent`, `seccomp-setup`, `security-agent`, `system-probe`, `trace-agent`, and `all`. Configuration under `all` applies to all configured containers. |
+| [key].annotations `map[string]string` | Annotations provide annotations that are added to the different component (Datadog Agent, Cluster Agent, Cluster Check Runner) pods. |
+| [key].containers `map[string]object` | Configure the basic configurations for each Agent container. Valid Agent container names are: `agent`, `cluster-agent`, `init-config`, `init-volume`, `process-agent`, `seccomp-setup`, `security-agent`, `system-probe`, `trace-agent`, and `all`. Configuration under `all` applies to all configured containers. |
 | [key].containers.[key].appArmorProfileName | AppArmorProfileName specifies an apparmor profile. |
 | [key].containers.[key].args `[]string` | Args allows the specification of extra args to the `Command` parameter |
 | [key].containers.[key].command `[]string` | Command allows the specification of a custom entrypoint for container |
-| [key].containers.[key].env `[]object` | Specify additional environmental variables in the container See also: https://docs.datadoghq.com/agent/kubernetes/?tab=helm#environment-variables |
+| [key].containers.[key].env `[]object` | Specify additional environment variables in the container. See also: https://docs.datadoghq.com/agent/kubernetes/?tab=helm#environment-variables |
 | [key].containers.[key].healthPort | HealthPort of the container for the internal liveness probe. Must be the same as the Liveness/Readiness probes. |
 | [key].containers.[key].livenessProbe.exec.command | Command is the command line to execute inside the container, the working directory for the command  is root ('/') in the container's filesystem. The command is simply exec'd, it is not run inside a shell, so traditional shell instructions ('|', etc) won't work. To use a shell, you need to explicitly call out to that shell. Exit status of 0 is treated as live/healthy and non-zero is unhealthy. |
 | [key].containers.[key].livenessProbe.failureThreshold | Minimum consecutive failures for the probe to be considered failed after having succeeded. Defaults to 3. Minimum value is 1. |
@@ -225,7 +229,7 @@ In the table, `spec.override.nodeAgent.image.name` and `spec.override.nodeAgent.
 | [key].containers.[key].livenessProbe.tcpSocket.port | Number or name of the port to access on the container. Number must be in the range 1 to 65535. Name must be an IANA_SVC_NAME. |
 | [key].containers.[key].livenessProbe.terminationGracePeriodSeconds | Optional duration in seconds the pod needs to terminate gracefully upon probe failure. The grace period is the duration in seconds after the processes running in the pod are sent a termination signal and the time when the processes are forcibly halted with a kill signal. Set this value longer than the expected cleanup time for your process. If this value is nil, the pod's terminationGracePeriodSeconds will be used. Otherwise, this value overrides the value provided by the pod spec. Value must be non-negative integer. The value zero indicates stop immediately via the kill signal (no opportunity to shut down). This is a beta field and requires enabling ProbeTerminationGracePeriod feature gate. Minimum value is 1. spec.terminationGracePeriodSeconds is used if unset. |
 | [key].containers.[key].livenessProbe.timeoutSeconds | Number of seconds after which the probe times out. Defaults to 1 second. Minimum value is 1. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#container-probes |
-| [key].containers.[key].logLevel | LogLevel sets logging verbosity (overrides global setting) Valid log levels are: trace, debug, info, warn, error, critical, and off. Default: 'info' |
+| [key].containers.[key].logLevel | LogLevel sets logging verbosity (overrides global setting). Valid log levels are: trace, debug, info, warn, error, critical, and off. Default: 'info' |
 | [key].containers.[key].name | Name of the container that is overridden |
 | [key].containers.[key].readinessProbe.exec.command | Command is the command line to execute inside the container, the working directory for the command  is root ('/') in the container's filesystem. The command is simply exec'd, it is not run inside a shell, so traditional shell instructions ('|', etc) won't work. To use a shell, you need to explicitly call out to that shell. Exit status of 0 is treated as live/healthy and non-zero is unhealthy. |
 | [key].containers.[key].readinessProbe.failureThreshold | Minimum consecutive failures for the probe to be considered failed after having succeeded. Defaults to 3. Minimum value is 1. |
@@ -270,29 +274,29 @@ In the table, `spec.override.nodeAgent.image.name` and `spec.override.nodeAgent.
 | [key].containers.[key].securityContext.windowsOptions.runAsUserName | The UserName in Windows to run the entrypoint of the container process. Defaults to the user specified in image metadata if unspecified. May also be set in PodSecurityContext. If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence. |
 | [key].containers.[key].volumeMounts `[]object` | Specify additional volume mounts in the container. |
 | [key].createRbac | Set CreateRbac to false to prevent automatic creation of Role/ClusterRole for this component |
-| [key].customConfigurations `map[string]object` | CustomConfiguration allows to specify custom configuration files for `datadog.yaml`, `datadog-cluster.yaml`, `security-agent.yaml`, and `system-probe.yaml`. The content will be merged with configuration generated by the Datadog Operator, with priority given to custom configuration. WARNING: It's thus possible to override values set in the `DatadogAgent`. |
+| [key].customConfigurations `map[string]object` | CustomConfiguration allows to specify custom configuration files for `datadog.yaml`, `datadog-cluster.yaml`, `security-agent.yaml`, and `system-probe.yaml`. The content is merged with configuration generated by the Datadog Operator, with priority given to custom configuration. WARNING: It is possible to override values set in the `DatadogAgent`. |
 | [key].customConfigurations.[key].configData | ConfigData corresponds to the configuration file content. |
 | [key].customConfigurations.[key].configMap.items | Items maps a ConfigMap data `key` to a file `path` mount. |
 | [key].customConfigurations.[key].configMap.name | Name is the name of the ConfigMap. |
 | [key].disabled | Disabled force disables a component. |
-| [key].env `[]object` | Specify additional environmental variables for all containers in this component Priority is Container > Component See also: https://docs.datadoghq.com/agent/kubernetes/?tab=helm#environment-variables |
-| [key].extraChecksd.configDataMap | ConfigDataMap corresponds to the content of the configuration files. They key should be the filename the contents get mounted to; for instance check.py or check.yaml. |
+| [key].env `[]object` | Specify additional environment variables for all containers in this component Priority is Container > Component. See also: https://docs.datadoghq.com/agent/kubernetes/?tab=helm#environment-variables |
+| [key].extraChecksd.configDataMap | ConfigDataMap corresponds to the content of the configuration files. The key should be the filename the contents get mounted to; for instance check.py or check.yaml. |
 | [key].extraChecksd.configMap.items | Items maps a ConfigMap data `key` to a file `path` mount. |
 | [key].extraChecksd.configMap.name | Name is the name of the ConfigMap. |
-| [key].extraConfd.configDataMap | ConfigDataMap corresponds to the content of the configuration files. They key should be the filename the contents get mounted to; for instance check.py or check.yaml. |
+| [key].extraConfd.configDataMap | ConfigDataMap corresponds to the content of the configuration files. The key should be the filename the contents get mounted to; for instance check.py or check.yaml. |
 | [key].extraConfd.configMap.items | Items maps a ConfigMap data `key` to a file `path` mount. |
 | [key].extraConfd.configMap.name | Name is the name of the ConfigMap. |
 | [key].hostNetwork | Host networking requested for this pod. Use the host's network namespace. |
-| [key].hostPID | Use the host's pid namespace. |
+| [key].hostPID | Use the host's PID namespace. |
 | [key].image.jmxEnabled | Define whether the Agent image should support JMX. To be used if the Name field does not correspond to a full image string. |
-| [key].image.name | Define the image to use: Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7. Use "datadog/dogstatsd:latest" for standalone Datadog Agent DogStatsD 7. Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent. Use "agent" with the registry and tag configurations for <registry>/agent:<tag>. Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>. If the name is full image string - `<name>:<tag>` or `<registry>/<name>:<tag>`, `tag` and `jmxEnabled` values are ignored, so is `global.registry`. Otherwise, image string is created by overriding default settings with supplied `name`, `tag` and `jmxEnabled` values; image string is created using default registry unless `global.registry` is configured. |
-| [key].image.pullPolicy | The Kubernetes pull policy: Use Always, Never or IfNotPresent. |
+| [key].image.name | Define the image to use: Use "gcr.io/datadoghq/agent:latest" for Datadog Agent 7. Use "datadog/dogstatsd:latest" for standalone Datadog Agent DogStatsD 7. Use "gcr.io/datadoghq/cluster-agent:latest" for Datadog Cluster Agent. Use "agent" with the registry and tag configurations for <registry>/agent:<tag>. Use "cluster-agent" with the registry and tag configurations for <registry>/cluster-agent:<tag>. If the name is the full image string—`<name>:<tag>` or `<registry>/<name>:<tag>`, then `tag`, `jmxEnabled`, and `global.registry` values are ignored. Otherwise, image string is created by overriding default settings with supplied `name`, `tag`, and `jmxEnabled` values; image string is created using default registry unless `global.registry` is configured. |
+| [key].image.pullPolicy | The Kubernetes pull policy: Use Always, Never, or IfNotPresent. |
 | [key].image.pullSecrets | It is possible to specify Docker registry credentials. See https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod |
 | [key].image.tag | Define the image tag to use. To be used if the Name field does not correspond to a full image string. |
-| [key].labels `map[string]string` | AdditionalLabels provide labels that will be added to the different component (Datadog Agent, Cluster Agent, Cluster Check Runner) pods. |
+| [key].labels `map[string]string` | AdditionalLabels provide labels that are added to the different component (Datadog Agent, Cluster Agent, Cluster Check Runner) pods. |
 | [key].name | Name overrides the default name for the resource |
 | [key].nodeSelector `map[string]string` | NodeSelector is a selector which must be true for the pod to fit on a node. Selector which must match a node's labels for the pod to be scheduled on that node. More info: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/ |
-| [key].priorityClassName | If specified, indicates the pod's priority. "system-node-critical" and "system-cluster-critical" are two special keywords which indicate the highest priorities with the former being the highest priority. Any other name must be defined by creating a PriorityClass object with that name. If not specified, the pod priority will be default or zero if there is no default. |
+| [key].priorityClassName | If specified, indicates the pod's priority. "system-node-critical" and "system-cluster-critical" are two special keywords which indicate the highest priorities with the former being the highest priority. Any other name must be defined by creating a PriorityClass object with that name. If not specified, the pod priority is default, or zero if there is no default. |
 | [key].replicas | Number of the replicas. Not applicable for a DaemonSet/ExtendedDaemonSet deployment |
 | [key].securityContext.fsGroup | A special supplemental group that applies to all containers in a pod. Some volume types allow the Kubelet to change the ownership of that volume to be owned by the pod:  1. The owning GID will be the FSGroup 2. The setgid bit is set (new files created in the volume will be owned by FSGroup) 3. The permission bits are OR'd with rw-rw----  If unset, the Kubelet will not modify the ownership and permissions of any volume. Note that this field cannot be set when spec.os.name is windows. |
 | [key].securityContext.fsGroupChangePolicy | fsGroupChangePolicy defines behavior of changing ownership and permission of the volume before being exposed inside Pod. This field will only apply to volume types which support fsGroup based ownership(and permissions). It will have no effect on ephemeral volume types such as: secret, configmaps and emptydir. Valid values are "OnRootMismatch" and "Always". If not specified, "Always" is used. Note that this field cannot be set when spec.os.name is windows. |
@@ -311,7 +315,7 @@ In the table, `spec.override.nodeAgent.image.name` and `spec.override.nodeAgent.
 | [key].securityContext.windowsOptions.gmsaCredentialSpecName | GMSACredentialSpecName is the name of the GMSA credential spec to use. |
 | [key].securityContext.windowsOptions.hostProcess | HostProcess determines if a container should be run as a 'Host Process' container. This field is alpha-level and will only be honored by components that enable the WindowsHostProcessContainers feature flag. Setting this field without the feature flag will result in errors when validating the Pod. All of a Pod's containers must have the same effective HostProcess value (it is not allowed to have a mix of HostProcess containers and non-HostProcess containers).  In addition, if HostProcess is true then HostNetwork must also be set to true. |
 | [key].securityContext.windowsOptions.runAsUserName | The UserName in Windows to run the entrypoint of the container process. Defaults to the user specified in image metadata if unspecified. May also be set in PodSecurityContext. If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence. |
-| [key].securityContextConstraints.create | Create defines whether to create a SecurityContextConstraints for the current component. If CustomConfiguration is not set, setting Create to `true` will create a default SCC. |
+| [key].securityContextConstraints.create | Create defines whether to create a SecurityContextConstraints for the current component. If CustomConfiguration is not set, setting Create to `true` creates a default SCC. |
 | [key].securityContextConstraints.customConfiguration.allowHostDirVolumePlugin | AllowHostDirVolumePlugin determines if the policy allow containers to use the HostDir volume plugin |
 | [key].securityContextConstraints.customConfiguration.allowHostIPC | AllowHostIPC determines if the policy allows host ipc in the containers. |
 | [key].securityContextConstraints.customConfiguration.allowHostNetwork | AllowHostNetwork determines if the policy allows the use of HostNetwork in the pod spec. |

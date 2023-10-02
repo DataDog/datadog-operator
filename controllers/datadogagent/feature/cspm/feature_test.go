@@ -90,6 +90,7 @@ func Test_cspmFeature_Configure(t *testing.T) {
 			},
 		}
 		ddav2CSPMEnabled.Spec.Features.CSPM.CheckInterval = &metav1.Duration{Duration: 20 * time.Minute}
+		ddav2CSPMEnabled.Spec.Features.CSPM.HostBenchmarks = &v2alpha1.CSPMHostBenchmarksConfig{Enabled: apiutils.NewBoolPointer(true)}
 	}
 
 	tests := test.FeatureTestSuite{
@@ -206,6 +207,12 @@ func cspmAgentNodeWantFunc(useDDAV2 bool) *test.ComponentTest {
 					Name:  apicommon.DDComplianceConfigCheckInterval,
 					Value: "1200000000000",
 				},
+			}
+			if useDDAV2 {
+				want = append(want, &corev1.EnvVar{
+					Name:  apicommon.DDComplianceHostBenchmarksEnabled,
+					Value: "true",
+				})
 			}
 			securityAgentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.SecurityAgentContainerName]
 			assert.True(t, apiutils.IsEqualStruct(securityAgentEnvVars, want), "Agent envvars \ndiff = %s", cmp.Diff(securityAgentEnvVars, want))

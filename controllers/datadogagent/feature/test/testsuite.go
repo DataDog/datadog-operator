@@ -5,6 +5,7 @@ import (
 
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
 	testutils "github.com/DataDog/datadog-operator/controllers/datadogagent/testutils"
+	"github.com/go-logr/logr"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
@@ -87,34 +88,66 @@ func runTest(t *testing.T, tt FeatureTest, buildFunc feature.BuildFunc) {
 	logf.SetLogger(zap.New(zap.UseDevMode(true)))
 	logger := logf.Log.WithName(tt.Name)
 
-	f := buildFunc(&feature.Options{
-		Logger: logger,
-	})
-
-	// check feature Configure function
+	// Use feature.BuildFeatures to get list of features and required components.
+	// If feature is not enabled, features slice will be empty.
+	// For a given test only one feature will be registered with the `featureBuilders`.
+	var features []feature.Feature
 	var gotConfigure feature.RequiredComponents
 	var dda metav1.Object
 	var isV2 bool
 	if tt.DDAv2 != nil {
-		gotConfigure = f.Configure(tt.DDAv2)
+		features, gotConfigure = feature.BuildFeatures(tt.DDAv2, &feature.Options{
+			Logger: logger,
+		})
 		dda = tt.DDAv2
 		isV2 = true
 	} else if tt.DDAv1 != nil {
-		gotConfigure = f.ConfigureV1(tt.DDAv1)
+		features, gotConfigure = feature.BuildFeaturesV1(tt.DDAv1, &feature.Options{
+			Logger: logger,
+		})
 		dda = tt.DDAv1
 	} else {
 		t.Fatal("No DatadogAgent CRD provided")
 	}
 
-	if gotConfigure.IsEnabled() != tt.WantConfigure {
-		t.Errorf("feature.Configure() = %v, want %v", gotConfigure.IsEnabled(), tt.WantConfigure)
-	}
+	// verify features and required components produced aligns with test expecations
+	verifyFeatures(t, tt, features, gotConfigure)
 
-	if !gotConfigure.IsEnabled() {
-		// If the feature is not enabled return now
-		return
-	}
+	// dependencies
+	store, depsManager := initDependencies(tt, logger, isV2, dda)
 
+	for _, feat := range features {
+		if err := feat.ManageDependencies(depsManager, tt.RequiredComponents); (err != nil) != tt.WantManageDependenciesErr {
+			t.Errorf("feature.ManageDependencies() error = %v, wantErr %v", err, tt.WantManageDependenciesErr)
+			return
+		}
+
+		if tt.WantDependenciesFunc != nil {
+			tt.WantDependenciesFunc(t, store)
+		}
+
+		// check Manage functions
+		if tt.ClusterAgent != nil {
+			tplManager := tt.ClusterAgent.CreateFunc(t)
+			_ = feat.ManageClusterAgent(tplManager)
+			tt.ClusterAgent.WantFunc(t, tplManager)
+		}
+
+		if tt.Agent != nil {
+			tplManager := tt.Agent.CreateFunc(t)
+			_ = feat.ManageNodeAgent(tplManager)
+			tt.Agent.WantFunc(t, tplManager)
+		}
+
+		if tt.ClusterChecksRunner != nil {
+			tplManager := tt.ClusterChecksRunner.CreateFunc(t)
+			_ = feat.ManageClusterChecksRunner(tplManager)
+			tt.ClusterChecksRunner.WantFunc(t, tplManager)
+		}
+	}
+}
+
+func initDependencies(tt FeatureTest, logger logr.Logger, isV2 bool, dda metav1.Object) (*dependencies.Store, feature.ResourceManagers) {
 	if tt.StoreOption == nil {
 		tt.StoreOption = &dependencies.StoreOptions{
 			Logger: logger,
@@ -124,38 +157,26 @@ func runTest(t *testing.T, tt FeatureTest, buildFunc feature.BuildFunc) {
 		tt.StoreOption.Scheme = testutils.TestScheme(isV2)
 	}
 
-	// dependencies
 	store := dependencies.NewStore(dda, tt.StoreOption)
 	if tt.StoreInitFunc != nil {
 		tt.StoreInitFunc(store)
 	}
 	depsManager := feature.NewResourceManagers(store)
+	return store, depsManager
+}
 
-	if err := f.ManageDependencies(depsManager, tt.RequiredComponents); (err != nil) != tt.WantManageDependenciesErr {
-		t.Errorf("feature.ManageDependencies() error = %v, wantErr %v", err, tt.WantManageDependenciesErr)
-		return
+func verifyFeatures(t *testing.T, tt FeatureTest, features []feature.Feature, gotConfigure feature.RequiredComponents) {
+	// Each test should test single feature
+	if len(features) > 1 {
+		t.Errorf("feature.BuildFeatures() produced more than one feature, " +
+			"it should be 1 if when features is enabled, 0 otherwise. Check code")
 	}
 
-	if tt.WantDependenciesFunc != nil {
-		tt.WantDependenciesFunc(t, store)
+	if tt.WantConfigure && len(features) == 0 {
+		t.Errorf("feature wanted but feature.BuildFeatures() return empty slice")
 	}
 
-	// check Manage functions
-	if tt.ClusterAgent != nil {
-		tplManager := tt.ClusterAgent.CreateFunc(t)
-		_ = f.ManageClusterAgent(tplManager)
-		tt.ClusterAgent.WantFunc(t, tplManager)
-	}
-
-	if tt.Agent != nil {
-		tplManager := tt.Agent.CreateFunc(t)
-		_ = f.ManageNodeAgent(tplManager)
-		tt.Agent.WantFunc(t, tplManager)
-	}
-
-	if tt.ClusterChecksRunner != nil {
-		tplManager := tt.ClusterChecksRunner.CreateFunc(t)
-		_ = f.ManageClusterChecksRunner(tplManager)
-		tt.ClusterChecksRunner.WantFunc(t, tplManager)
+	if gotConfigure.IsEnabled() != tt.WantConfigure {
+		t.Errorf("feature.Configure() = %v, want %v", gotConfigure.IsEnabled(), tt.WantConfigure)
 	}
 }

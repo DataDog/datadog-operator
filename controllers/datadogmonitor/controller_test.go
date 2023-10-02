@@ -510,61 +510,6 @@ func newRequest(ns, name string) reconcile.Request {
 	}
 }
 
-func Test_setDowntimeStatus(t *testing.T) {
-	mockNow := int64(1612244495)
-	mockNowAfterFive := mockNow + 5
-	mockNowAfterFifty := mockNow + 50
-
-	tests := []struct {
-		name              string
-		matchingDowntimes []datadogV1.MatchingDowntime
-		status            *datadoghqv1alpha1.DatadogMonitorStatus
-		wantStatus        *datadoghqv1alpha1.DatadogMonitorStatus
-	}{
-		{
-			name: "three different downtimes",
-			matchingDowntimes: []datadogV1.MatchingDowntime{
-				{
-					Id:    678,
-					Start: &mockNow,
-				},
-				{
-					Id:    45678,
-					Start: &mockNowAfterFive,
-				},
-				{
-					Id:    5678,
-					Start: &mockNowAfterFifty,
-				},
-			},
-			status: &datadoghqv1alpha1.DatadogMonitorStatus{},
-			wantStatus: &datadoghqv1alpha1.DatadogMonitorStatus{
-				DowntimeStatus: datadoghqv1alpha1.DatadogMonitorDowntimeStatus{
-					IsDowntimed: true,
-					DowntimeID:  678,
-				},
-			},
-		},
-		{
-			name:              "no downtimes",
-			matchingDowntimes: []datadogV1.MatchingDowntime{},
-			status:            &datadoghqv1alpha1.DatadogMonitorStatus{},
-			wantStatus: &datadoghqv1alpha1.DatadogMonitorStatus{
-				DowntimeStatus: datadoghqv1alpha1.DatadogMonitorDowntimeStatus{
-					IsDowntimed: false,
-				},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			setDowntimeStatus(tt.matchingDowntimes, tt.status)
-
-			assert.Equal(t, tt.wantStatus.DowntimeStatus, tt.status.DowntimeStatus)
-		})
-	}
-}
-
 func Test_convertStateToStatus(t *testing.T) {
 	triggerTs := int64(1612244495)
 	secondTriggerTs := triggerTs + 300

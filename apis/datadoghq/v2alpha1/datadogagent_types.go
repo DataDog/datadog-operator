@@ -51,10 +51,14 @@ type DatadogFeatures struct {
 	LiveProcessCollection *LiveProcessCollectionFeatureConfig `json:"liveProcessCollection,omitempty"`
 	// LiveContainerCollection configuration.
 	LiveContainerCollection *LiveContainerCollectionFeatureConfig `json:"liveContainerCollection,omitempty"`
+	// ProcessDiscovery configuration.
+	ProcessDiscovery *ProcessDiscoveryFeatureConfig `json:"processDiscovery,omitempty"`
 	// OOMKill configuration.
 	OOMKill *OOMKillFeatureConfig `json:"oomKill,omitempty"`
 	// TCPQueueLength configuration.
 	TCPQueueLength *TCPQueueLengthFeatureConfig `json:"tcpQueueLength,omitempty"`
+	// EBPFCheck configuration.
+	EBPFCheck *EBPFCheckFeatureConfig `json:"ebpfCheck,omitempty"`
 	// APM (Application Performance Monitoring) configuration.
 	APM *APMFeatureConfig `json:"apm,omitempty"`
 	// CSPM (Cloud Security Posture Management) configuration.
@@ -194,6 +198,15 @@ type LiveContainerCollectionFeatureConfig struct {
 	Enabled *bool `json:"enabled,omitempty"`
 }
 
+// ProcessDiscoveryFeatureConfig contains the configuration for the process discovery check
+// ProcessDiscovery is run in the ProcessAgent
+type ProcessDiscoveryFeatureConfig struct {
+	// Enabled enables the Process Discovery check in the Agent.
+	// Default: true
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
 // OOMKillFeatureConfig configures the OOM Kill monitoring feature.
 type OOMKillFeatureConfig struct {
 	// Enables the OOMKill eBPF-based check.
@@ -205,6 +218,14 @@ type OOMKillFeatureConfig struct {
 // TCPQueueLengthFeatureConfig configures the TCP queue length monitoring feature.
 type TCPQueueLengthFeatureConfig struct {
 	// Enables the TCP queue length eBPF-based check.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// EBPFCheckFeatureConfig configures the eBPF check feature.
+type EBPFCheckFeatureConfig struct {
+	// Enables the eBPF check.
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
@@ -227,6 +248,19 @@ type CSPMFeatureConfig struct {
 	// Any benchmarks with the same name as those existing in the agent will take precedence.
 	// +optional
 	CustomBenchmarks *CustomConfig `json:"customBenchmarks,omitempty"`
+
+	// HostBenchmarks contains configuration for host benchmarks.
+	// +optional
+	HostBenchmarks *CSPMHostBenchmarksConfig `json:"hostBenchmarks,omitempty"`
+}
+
+// CSPMHostBenchmarksConfig contains configuration for host benchmarks.
+// +k8s:openapi-gen=true
+type CSPMHostBenchmarksConfig struct {
+	// Enabled enables host benchmarks.
+	// Default: false
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
 }
 
 // CWSFeatureConfig contains CWS (Cloud Workload Security) configuration.
@@ -242,8 +276,9 @@ type CWSFeatureConfig struct {
 	// +optional
 	SyscallMonitorEnabled *bool `json:"syscallMonitorEnabled,omitempty"`
 
-	Network          *CWSNetworkConfig          `json:"network,omitempty"`
-	SecurityProfiles *CWSSecurityProfilesConfig `json:"securityProfiles,omitempty"`
+	Network             *CWSNetworkConfig             `json:"network,omitempty"`
+	SecurityProfiles    *CWSSecurityProfilesConfig    `json:"securityProfiles,omitempty"`
+	RemoteConfiguration *CWSRemoteConfigurationConfig `json:"remoteConfiguration,omitempty"`
 
 	// CustomPolicies contains security policies.
 	// The content of the ConfigMap will be merged with the policies bundled with the agent.
@@ -261,6 +296,13 @@ type CWSNetworkConfig struct {
 
 type CWSSecurityProfilesConfig struct {
 	// Enabled enables Security Profiles collection for Cloud Workload Security.
+	// Default: true
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+type CWSRemoteConfigurationConfig struct {
+	// Enabled enables Remote Configuration for Cloud Workload Security.
 	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
@@ -451,7 +493,7 @@ type KubeStateMetricsCoreFeatureConfig struct {
 // The Admission Controller runs in the Cluster Agent.
 type AdmissionControllerFeatureConfig struct {
 	// Enabled enables the Admission Controller.
-	// Default: false
+	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
@@ -605,7 +647,7 @@ type CustomConfig struct {
 // +k8s:openapi-gen=true
 type MultiCustomConfig struct {
 	// ConfigDataMap corresponds to the content of the configuration files.
-	// They key should be the filename the contents get mounted to; for instance check.py or check.yaml.
+	// The key should be the filename the contents get mounted to; for instance check.py or check.yaml.
 	ConfigDataMap map[string]string `json:"configDataMap,omitempty"`
 
 	// ConfigMap references an existing ConfigMap with the content of the configuration files.
@@ -826,8 +868,8 @@ type DatadogAgentComponentOverride struct {
 	// +optional
 	Image *commonv1.AgentImageConfig `json:"image,omitempty"`
 
-	// Specify additional environmental variables for all containers in this component
-	// Priority is Container > Component
+	// Specify additional environment variables for all containers in this component
+	// Priority is Container > Component.
 	// See also: https://docs.datadoghq.com/agent/kubernetes/?tab=helm#environment-variables
 	//
 	// +optional
@@ -836,8 +878,8 @@ type DatadogAgentComponentOverride struct {
 	Env []corev1.EnvVar `json:"env,omitempty"`
 
 	// CustomConfiguration allows to specify custom configuration files for `datadog.yaml`, `datadog-cluster.yaml`, `security-agent.yaml`, and `system-probe.yaml`.
-	// The content will be merged with configuration generated by the Datadog Operator, with priority given to custom configuration.
-	// WARNING: It's thus possible to override values set in the `DatadogAgent`.
+	// The content is merged with configuration generated by the Datadog Operator, with priority given to custom configuration.
+	// WARNING: It is possible to override values set in the `DatadogAgent`.
 	// +optional
 	CustomConfigurations map[AgentConfigFileName]CustomConfig `json:"customConfigurations,omitempty"`
 
@@ -851,7 +893,7 @@ type DatadogAgentComponentOverride struct {
 	// +optional
 	ExtraChecksd *MultiCustomConfig `json:"extraChecksd,omitempty"`
 
-	// Configure the basic configurations for each agent container. Valid agent container names are:
+	// Configure the basic configurations for each Agent container. Valid Agent container names are:
 	// `agent`, `cluster-agent`, `init-config`, `init-volume`, `process-agent`, `seccomp-setup`,
 	// `security-agent`, `system-probe`, `trace-agent`, and `all`.
 	// Configuration under `all` applies to all configured containers.
@@ -875,7 +917,7 @@ type DatadogAgentComponentOverride struct {
 	// If specified, indicates the pod's priority. "system-node-critical" and "system-cluster-critical"
 	// are two special keywords which indicate the highest priorities with the former being the highest priority.
 	// Any other name must be defined by creating a PriorityClass object with that name. If not specified,
-	// the pod priority will be default or zero if there is no default.
+	// the pod priority is default, or zero if there is no default.
 	PriorityClassName *string `json:"priorityClassName,omitempty"`
 
 	// If specified, the pod's scheduling constraints.
@@ -893,17 +935,17 @@ type DatadogAgentComponentOverride struct {
 	// +listType=atomic
 	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
 
-	// Annotations provide annotations that will be added to the different component (Datadog Agent, Cluster Agent, Cluster Check Runner) pods.
+	// Annotations provide annotations that are added to the different component (Datadog Agent, Cluster Agent, Cluster Check Runner) pods.
 	Annotations map[string]string `json:"annotations,omitempty"`
 
-	// AdditionalLabels provide labels that will be added to the different component (Datadog Agent, Cluster Agent, Cluster Check Runner) pods.
+	// AdditionalLabels provide labels that are added to the different component (Datadog Agent, Cluster Agent, Cluster Check Runner) pods.
 	Labels map[string]string `json:"labels,omitempty"`
 
 	// Host networking requested for this pod. Use the host's network namespace.
 	// +optional
 	HostNetwork *bool `json:"hostNetwork,omitempty"`
 
-	// Use the host's pid namespace.
+	// Use the host's PID namespace.
 	// +optional
 	HostPID *bool `json:"hostPID,omitempty"`
 
@@ -916,7 +958,7 @@ type DatadogAgentComponentOverride struct {
 // +k8s:openapi-gen=true
 type SecurityContextConstraintsConfig struct {
 	// Create defines whether to create a SecurityContextConstraints for the current component.
-	// If CustomConfiguration is not set, setting Create to `true` will create a default SCC.
+	// If CustomConfiguration is not set, setting Create to `true` creates a default SCC.
 	// +optional
 	Create *bool `json:"create,omitempty"`
 
@@ -932,13 +974,13 @@ type DatadogAgentGenericContainer struct {
 	//+optional
 	Name *string `json:"name,omitempty"`
 
-	// LogLevel sets logging verbosity (overrides global setting)
+	// LogLevel sets logging verbosity (overrides global setting).
 	// Valid log levels are: trace, debug, info, warn, error, critical, and off.
 	// Default: 'info'
 	// +optional
 	LogLevel *string `json:"logLevel,omitempty"`
 
-	// Specify additional environmental variables in the container
+	// Specify additional environment variables in the container.
 	// See also: https://docs.datadoghq.com/agent/kubernetes/?tab=helm#environment-variables
 	//
 	// +optional

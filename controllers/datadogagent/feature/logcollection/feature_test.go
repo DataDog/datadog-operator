@@ -10,8 +10,7 @@ import (
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	v2alpha1test "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
@@ -22,96 +21,152 @@ import (
 )
 
 func Test_LogCollectionFeature_Configure(t *testing.T) {
-	// v1alpha1
-	ddav1Disabled := &v1alpha1.DatadogAgent{}
-	ddav1LogCollectionDisabled := v1alpha1.DatadogAgent{
-		Spec: *v1alpha1.DefaultDatadogAgent(ddav1Disabled).DefaultOverride,
-	}
-
-	ddav1Enabled := &v1alpha1.DatadogAgent{
-		Spec: v1alpha1.DatadogAgentSpec{
-			Features: v1alpha1.DatadogFeatures{
-				LogCollection: &v1alpha1.LogCollectionConfig{
-					Enabled: apiutils.NewBoolPointer(true),
+	tests := test.FeatureTestSuite{
+		{
+			Name: "v2alpha1 log collection not enabled",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithLogCollectionEnabled(false).
+				BuildWithDefaults(),
+			WantConfigure: false,
+		},
+		{
+			Name: "v2alpha1 log collection enabled",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithLogCollectionEnabled(true).
+				BuildWithDefaults(),
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					wantEnvVars := createEnvVars("true", "false", "true")
+					assertWants(t, mgrInterface, getWantVolumeMounts(), getWantVolumes(), wantEnvVars)
 				},
-			},
+			),
 		},
-	}
-	ddav1LogCollectionEnabled := v1alpha1.DatadogAgent{
-		Spec: *v1alpha1.DefaultDatadogAgent(ddav1Enabled).DefaultOverride,
-	}
-
-	ddav1ContainerCollectAllEnabled := ddav1LogCollectionEnabled.DeepCopy()
-	ddav1ContainerCollectAllEnabled.Spec.Features.LogCollection.LogsConfigContainerCollectAll = apiutils.NewBoolPointer(true)
-
-	ddav1ContainerCollectUsingFilesDisabled := ddav1ContainerCollectAllEnabled.DeepCopy()
-	ddav1ContainerCollectUsingFilesDisabled.Spec.Features.LogCollection.ContainerCollectUsingFiles = apiutils.NewBoolPointer(false)
-
-	ddav1CustomOpenFilesLimit := ddav1LogCollectionEnabled.DeepCopy()
-	ddav1CustomOpenFilesLimit.Spec.Features.LogCollection.OpenFilesLimit = apiutils.NewInt32Pointer(250)
-
-	ddav1CustomVolumes := ddav1LogCollectionEnabled.DeepCopy()
-	ddav1CustomVolumes.Spec.Features.LogCollection.PodLogsPath = apiutils.NewStringPointer("/custom/pod/logs")
-	ddav1CustomVolumes.Spec.Features.LogCollection.ContainerLogsPath = apiutils.NewStringPointer("/custom/container/logs")
-	ddav1CustomVolumes.Spec.Features.LogCollection.ContainerSymlinksPath = apiutils.NewStringPointer("/custom/symlink")
-	ddav1CustomVolumes.Spec.Features.LogCollection.TempStoragePath = apiutils.NewStringPointer("/custom/temp/storage")
-
-	// v2alpha1
-	ddav2LogCollectionDisabled := &v2alpha1.DatadogAgent{}
-	v2alpha1.DefaultDatadogAgent(ddav2LogCollectionDisabled)
-
-	ddav2LogCollectionEnabled := &v2alpha1.DatadogAgent{
-		Spec: v2alpha1.DatadogAgentSpec{
-			Features: &v2alpha1.DatadogFeatures{
-				LogCollection: &v2alpha1.LogCollectionFeatureConfig{
-					Enabled: apiutils.NewBoolPointer(true),
+		{
+			Name: "v2alpha1 container collect all enabled",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithLogCollectionEnabled(true).
+				WithLogCollectionCollectAll(true).
+				BuildWithDefaults(),
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					wantEnvVars := createEnvVars("true", "true", "true")
+					assertWants(t, mgrInterface, getWantVolumeMounts(), getWantVolumes(), wantEnvVars)
 				},
-			},
+			),
+		},
+		{
+			Name: "v2alpha1 container collect using files disabled",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithLogCollectionEnabled(true).
+				WithLogCollectionCollectAll(true).
+				WithLogCollectionLogCollectionUsingFiles(false).
+				BuildWithDefaults(),
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					wantEnvVars := createEnvVars("true", "true", "false")
+					assertWants(t, mgrInterface, getWantVolumeMounts(), getWantVolumes(), wantEnvVars)
+				},
+			),
+		},
+		{
+			Name: "v2alpha1 open files limit set to custom value",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithLogCollectionEnabled(true).
+				WithLogCollectionOpenFilesLimit(250).
+				BuildWithDefaults(),
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					wantEnvVars := createEnvVars("true", "false", "true")
+					wantEnvVars = append(wantEnvVars, &corev1.EnvVar{
+						Name:  apicommon.DDLogsConfigOpenFilesLimit,
+						Value: "250",
+					})
+					assertWants(t, mgrInterface, getWantVolumeMounts(), getWantVolumes(), wantEnvVars)
+				},
+			),
+		},
+		{
+			Name: "v2alpha1 custom volumes",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithLogCollectionEnabled(true).
+				WithLogCollectionPaths("/custom/pod/logs", "/custom/container/logs", "/custom/symlink", "/custom/temp/storage").
+				BuildWithDefaults(),
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					wantVolumeMounts := []*corev1.VolumeMount{
+						{
+							Name:      apicommon.PointerVolumeName,
+							MountPath: apicommon.PointerVolumePath,
+							ReadOnly:  false,
+						},
+						{
+							Name:      apicommon.PodLogVolumeName,
+							MountPath: apicommon.PodLogVolumePath,
+							ReadOnly:  true,
+						},
+						{
+							Name:      apicommon.ContainerLogVolumeName,
+							MountPath: apicommon.ContainerLogVolumePath,
+							ReadOnly:  true,
+						},
+						{
+							Name:      apicommon.SymlinkContainerVolumeName,
+							MountPath: apicommon.SymlinkContainerVolumePath,
+							ReadOnly:  true,
+						},
+					}
+					wantVolumes := []*corev1.Volume{
+						{
+							Name: apicommon.PointerVolumeName,
+							VolumeSource: corev1.VolumeSource{
+								HostPath: &corev1.HostPathVolumeSource{
+									Path: "/custom/temp/storage",
+								},
+							},
+						},
+						{
+							Name: apicommon.PodLogVolumeName,
+							VolumeSource: corev1.VolumeSource{
+								HostPath: &corev1.HostPathVolumeSource{
+									Path: "/custom/pod/logs",
+								},
+							},
+						},
+						{
+							Name: apicommon.ContainerLogVolumeName,
+							VolumeSource: corev1.VolumeSource{
+								HostPath: &corev1.HostPathVolumeSource{
+									Path: "/custom/container/logs",
+								},
+							},
+						},
+						{
+							Name: apicommon.SymlinkContainerVolumeName,
+							VolumeSource: corev1.VolumeSource{
+								HostPath: &corev1.HostPathVolumeSource{
+									Path: "/custom/symlink",
+								},
+							},
+						},
+					}
+					wantEnvVars := createEnvVars("true", "false", "true")
+					assertWants(t, mgrInterface, wantVolumeMounts, wantVolumes, wantEnvVars)
+				},
+			),
 		},
 	}
-	v2alpha1.DefaultDatadogAgent(ddav2LogCollectionEnabled)
 
-	ddav2ContainerCollectAllEnabled := ddav2LogCollectionEnabled.DeepCopy()
-	ddav2ContainerCollectAllEnabled.Spec.Features.LogCollection.ContainerCollectAll = apiutils.NewBoolPointer(true)
+	tests.Run(t, buildLogCollectionFeature)
 
-	ddav2ContainerCollectUsingFilesDisabled := ddav2ContainerCollectAllEnabled.DeepCopy()
-	ddav2ContainerCollectUsingFilesDisabled.Spec.Features.LogCollection.ContainerCollectUsingFiles = apiutils.NewBoolPointer(false)
+}
 
-	ddav2CustomOpenFilesLimit := ddav2LogCollectionEnabled.DeepCopy()
-	ddav2CustomOpenFilesLimit.Spec.Features.LogCollection.OpenFilesLimit = apiutils.NewInt32Pointer(250)
-
-	ddav2CustomVolumes := ddav2LogCollectionEnabled.DeepCopy()
-	ddav2CustomVolumes.Spec.Features.LogCollection.PodLogsPath = apiutils.NewStringPointer("/custom/pod/logs")
-	ddav2CustomVolumes.Spec.Features.LogCollection.ContainerLogsPath = apiutils.NewStringPointer("/custom/container/logs")
-	ddav2CustomVolumes.Spec.Features.LogCollection.ContainerSymlinksPath = apiutils.NewStringPointer("/custom/symlink")
-	ddav2CustomVolumes.Spec.Features.LogCollection.TempStoragePath = apiutils.NewStringPointer("/custom/temp/storage")
-
-	// volume mounts
-	wantVolumeMounts := []corev1.VolumeMount{
-		{
-			Name:      apicommon.PointerVolumeName,
-			MountPath: apicommon.PointerVolumePath,
-			ReadOnly:  false,
-		},
-		{
-			Name:      apicommon.PodLogVolumeName,
-			MountPath: apicommon.PodLogVolumePath,
-			ReadOnly:  true,
-		},
-		{
-			Name:      apicommon.ContainerLogVolumeName,
-			MountPath: apicommon.ContainerLogVolumePath,
-			ReadOnly:  true,
-		},
-		{
-			Name:      apicommon.SymlinkContainerVolumeName,
-			MountPath: apicommon.SymlinkContainerVolumePath,
-			ReadOnly:  true,
-		},
-	}
-
-	// check volumes
-	wantVolumes := []corev1.Volume{
+func getWantVolumes() []*corev1.Volume {
+	wantVolumes := []*corev1.Volume{
 		{
 			Name: apicommon.PointerVolumeName,
 			VolumeSource: corev1.VolumeSource{
@@ -145,446 +200,59 @@ func Test_LogCollectionFeature_Configure(t *testing.T) {
 			},
 		},
 	}
+	return wantVolumes
+}
 
-	tests := test.FeatureTestSuite{
-		///////////////////////////
-		// v1alpha1.DatadogAgent //
-		///////////////////////////
+func getWantVolumeMounts() []*corev1.VolumeMount {
+	wantVolumeMounts := []*corev1.VolumeMount{
 		{
-			Name:          "v1alpha1 log collection not enabled",
-			DDAv1:         ddav1LogCollectionDisabled.DeepCopy(),
-			WantConfigure: false,
+			Name:      apicommon.PointerVolumeName,
+			MountPath: apicommon.PointerVolumePath,
+			ReadOnly:  false,
 		},
 		{
-			Name:          "v1alpha1 log collection enabled",
-			DDAv1:         &ddav1LogCollectionEnabled,
-			WantConfigure: true,
-			Agent: test.NewDefaultComponentTest().WithWantFunc(
-				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
-					mgr := mgrInterface.(*fake.PodTemplateManagers)
-					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
-					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMounts), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMounts))
-					volumes := mgr.VolumeMgr.Volumes
-					assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))
-					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
-					wantEnvVars := []*corev1.EnvVar{
-						{
-							Name:  apicommon.DDLogsEnabled,
-							Value: "true",
-						},
-						{
-							Name:  apicommon.DDLogsConfigContainerCollectAll,
-							Value: "false",
-						},
-						{
-							Name:  apicommon.DDLogsContainerCollectUsingFiles,
-							Value: "true",
-						},
-					}
-					assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantEnvVars))
-				},
-			),
+			Name:      apicommon.PodLogVolumeName,
+			MountPath: apicommon.PodLogVolumePath,
+			ReadOnly:  true,
 		},
 		{
-			Name:          "v1alpha1 container collect all enabled",
-			DDAv1:         ddav1ContainerCollectAllEnabled,
-			WantConfigure: true,
-			Agent: test.NewDefaultComponentTest().WithWantFunc(
-				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
-					mgr := mgrInterface.(*fake.PodTemplateManagers)
-					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
-					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMounts), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMounts))
-					volumes := mgr.VolumeMgr.Volumes
-					assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))
-					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
-					wantEnvVars := []*corev1.EnvVar{
-						{
-							Name:  apicommon.DDLogsEnabled,
-							Value: "true",
-						},
-						{
-							Name:  apicommon.DDLogsConfigContainerCollectAll,
-							Value: "true",
-						},
-						{
-							Name:  apicommon.DDLogsContainerCollectUsingFiles,
-							Value: "true",
-						},
-					}
-					assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantEnvVars))
-				},
-			),
+			Name:      apicommon.ContainerLogVolumeName,
+			MountPath: apicommon.ContainerLogVolumePath,
+			ReadOnly:  true,
 		},
 		{
-			Name:          "v1alpha1 container collect using files disabled",
-			DDAv1:         ddav1ContainerCollectUsingFilesDisabled,
-			WantConfigure: true,
-			Agent: test.NewDefaultComponentTest().WithWantFunc(
-				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
-					mgr := mgrInterface.(*fake.PodTemplateManagers)
-					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
-					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMounts), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMounts))
-					volumes := mgr.VolumeMgr.Volumes
-					assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))
-					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
-					wantEnvVars := []*corev1.EnvVar{
-						{
-							Name:  apicommon.DDLogsEnabled,
-							Value: "true",
-						},
-						{
-							Name:  apicommon.DDLogsConfigContainerCollectAll,
-							Value: "true",
-						},
-						{
-							Name:  apicommon.DDLogsContainerCollectUsingFiles,
-							Value: "false",
-						},
-					}
-					assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantEnvVars))
-				},
-			),
-		},
-		{
-			Name:          "v1alpha1 open files limit set to custom value",
-			DDAv1:         ddav1CustomOpenFilesLimit,
-			WantConfigure: true,
-			Agent: test.NewDefaultComponentTest().WithWantFunc(
-				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
-					mgr := mgrInterface.(*fake.PodTemplateManagers)
-					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
-					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMounts), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMounts))
-					volumes := mgr.VolumeMgr.Volumes
-					assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))
-					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
-					wantEnvVars := []*corev1.EnvVar{
-						{
-							Name:  apicommon.DDLogsEnabled,
-							Value: "true",
-						},
-						{
-							Name:  apicommon.DDLogsConfigContainerCollectAll,
-							Value: "false",
-						},
-						{
-							Name:  apicommon.DDLogsContainerCollectUsingFiles,
-							Value: "true",
-						},
-						{
-							Name:  apicommon.DDLogsConfigOpenFilesLimit,
-							Value: "250",
-						},
-					}
-					assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantEnvVars))
-				},
-			),
-		},
-		{
-			Name:          "v1alpha1 custom volumes",
-			DDAv1:         ddav1CustomVolumes,
-			WantConfigure: true,
-			Agent: test.NewDefaultComponentTest().WithWantFunc(
-				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
-					mgr := mgrInterface.(*fake.PodTemplateManagers)
-					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
-					wantCustomVolumeMounts := []corev1.VolumeMount{
-						{
-							Name:      apicommon.PointerVolumeName,
-							MountPath: apicommon.PointerVolumePath,
-							ReadOnly:  false,
-						},
-						{
-							Name:      apicommon.PodLogVolumeName,
-							MountPath: apicommon.PodLogVolumePath,
-							ReadOnly:  true,
-						},
-						{
-							Name:      apicommon.ContainerLogVolumeName,
-							MountPath: apicommon.ContainerLogVolumePath,
-							ReadOnly:  true,
-						},
-						{
-							Name:      apicommon.SymlinkContainerVolumeName,
-							MountPath: apicommon.SymlinkContainerVolumePath,
-							ReadOnly:  true,
-						},
-					}
-					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantCustomVolumeMounts), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantCustomVolumeMounts))
-					volumes := mgr.VolumeMgr.Volumes
-					wantCustomVolumes := []corev1.Volume{
-						{
-							Name: apicommon.PointerVolumeName,
-							VolumeSource: corev1.VolumeSource{
-								HostPath: &corev1.HostPathVolumeSource{
-									Path: "/custom/temp/storage",
-								},
-							},
-						},
-						{
-							Name: apicommon.PodLogVolumeName,
-							VolumeSource: corev1.VolumeSource{
-								HostPath: &corev1.HostPathVolumeSource{
-									Path: "/custom/pod/logs",
-								},
-							},
-						},
-						{
-							Name: apicommon.ContainerLogVolumeName,
-							VolumeSource: corev1.VolumeSource{
-								HostPath: &corev1.HostPathVolumeSource{
-									Path: "/custom/container/logs",
-								},
-							},
-						},
-						{
-							Name: apicommon.SymlinkContainerVolumeName,
-							VolumeSource: corev1.VolumeSource{
-								HostPath: &corev1.HostPathVolumeSource{
-									Path: "/custom/symlink",
-								},
-							},
-						},
-					}
-					assert.True(t, apiutils.IsEqualStruct(volumes, wantCustomVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, wantCustomVolumes))
-					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
-					wantEnvVars := []*corev1.EnvVar{
-						{
-							Name:  apicommon.DDLogsEnabled,
-							Value: "true",
-						},
-						{
-							Name:  apicommon.DDLogsConfigContainerCollectAll,
-							Value: "false",
-						},
-						{
-							Name:  apicommon.DDLogsContainerCollectUsingFiles,
-							Value: "true",
-						},
-					}
-					assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantEnvVars))
-				},
-			),
-		},
-		///////////////////////////
-		// v2alpha1.DatadogAgent //
-		///////////////////////////
-		{
-			Name:          "v2alpha1 log collection not enabled",
-			DDAv2:         ddav2LogCollectionDisabled.DeepCopy(),
-			WantConfigure: false,
-		},
-		{
-			Name:          "v2alpha1 log collection enabled",
-			DDAv2:         ddav2LogCollectionEnabled,
-			WantConfigure: true,
-			Agent: test.NewDefaultComponentTest().WithWantFunc(
-				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
-					mgr := mgrInterface.(*fake.PodTemplateManagers)
-					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
-					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMounts), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMounts))
-					volumes := mgr.VolumeMgr.Volumes
-					assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))
-					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
-					wantEnvVars := []*corev1.EnvVar{
-						{
-							Name:  apicommon.DDLogsEnabled,
-							Value: "true",
-						},
-						{
-							Name:  apicommon.DDLogsConfigContainerCollectAll,
-							Value: "false",
-						},
-						{
-							Name:  apicommon.DDLogsContainerCollectUsingFiles,
-							Value: "true",
-						},
-					}
-					assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantEnvVars))
-				},
-			),
-		},
-		{
-			Name:          "v2alpha1 container collect all enabled",
-			DDAv2:         ddav2ContainerCollectAllEnabled,
-			WantConfigure: true,
-			Agent: test.NewDefaultComponentTest().WithWantFunc(
-				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
-					mgr := mgrInterface.(*fake.PodTemplateManagers)
-					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
-					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMounts), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMounts))
-					volumes := mgr.VolumeMgr.Volumes
-					assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))
-					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
-					wantEnvVars := []*corev1.EnvVar{
-						{
-							Name:  apicommon.DDLogsEnabled,
-							Value: "true",
-						},
-						{
-							Name:  apicommon.DDLogsConfigContainerCollectAll,
-							Value: "true",
-						},
-						{
-							Name:  apicommon.DDLogsContainerCollectUsingFiles,
-							Value: "true",
-						},
-					}
-					assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantEnvVars))
-				},
-			),
-		},
-		{
-			Name:          "v2alpha1 container collect using files disabled",
-			DDAv2:         ddav2ContainerCollectUsingFilesDisabled,
-			WantConfigure: true,
-			Agent: test.NewDefaultComponentTest().WithWantFunc(
-				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
-					mgr := mgrInterface.(*fake.PodTemplateManagers)
-					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
-					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMounts), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMounts))
-					volumes := mgr.VolumeMgr.Volumes
-					assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))
-					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
-					wantEnvVars := []*corev1.EnvVar{
-						{
-							Name:  apicommon.DDLogsEnabled,
-							Value: "true",
-						},
-						{
-							Name:  apicommon.DDLogsConfigContainerCollectAll,
-							Value: "true",
-						},
-						{
-							Name:  apicommon.DDLogsContainerCollectUsingFiles,
-							Value: "false",
-						},
-					}
-					assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantEnvVars))
-				},
-			),
-		},
-		{
-			Name:          "v2alpha1 open files limit set to custom value",
-			DDAv2:         ddav2CustomOpenFilesLimit,
-			WantConfigure: true,
-			Agent: test.NewDefaultComponentTest().WithWantFunc(
-				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
-					mgr := mgrInterface.(*fake.PodTemplateManagers)
-					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
-					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMounts), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMounts))
-					volumes := mgr.VolumeMgr.Volumes
-					assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))
-					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
-					wantEnvVars := []*corev1.EnvVar{
-						{
-							Name:  apicommon.DDLogsEnabled,
-							Value: "true",
-						},
-						{
-							Name:  apicommon.DDLogsConfigContainerCollectAll,
-							Value: "false",
-						},
-						{
-							Name:  apicommon.DDLogsContainerCollectUsingFiles,
-							Value: "true",
-						},
-						{
-							Name:  apicommon.DDLogsConfigOpenFilesLimit,
-							Value: "250",
-						},
-					}
-					assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantEnvVars))
-				},
-			),
-		},
-		{
-			Name:          "v2alpha1 custom volumes",
-			DDAv2:         ddav2CustomVolumes,
-			WantConfigure: true,
-			Agent: test.NewDefaultComponentTest().WithWantFunc(
-				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
-					mgr := mgrInterface.(*fake.PodTemplateManagers)
-					coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
-					wantVolumeMounts := []corev1.VolumeMount{
-						{
-							Name:      apicommon.PointerVolumeName,
-							MountPath: apicommon.PointerVolumePath,
-							ReadOnly:  false,
-						},
-						{
-							Name:      apicommon.PodLogVolumeName,
-							MountPath: apicommon.PodLogVolumePath,
-							ReadOnly:  true,
-						},
-						{
-							Name:      apicommon.ContainerLogVolumeName,
-							MountPath: apicommon.ContainerLogVolumePath,
-							ReadOnly:  true,
-						},
-						{
-							Name:      apicommon.SymlinkContainerVolumeName,
-							MountPath: apicommon.SymlinkContainerVolumePath,
-							ReadOnly:  true,
-						},
-					}
-					assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMounts), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMounts))
-					volumes := mgr.VolumeMgr.Volumes
-					wantVolumes = []corev1.Volume{
-						{
-							Name: apicommon.PointerVolumeName,
-							VolumeSource: corev1.VolumeSource{
-								HostPath: &corev1.HostPathVolumeSource{
-									Path: "/custom/temp/storage",
-								},
-							},
-						},
-						{
-							Name: apicommon.PodLogVolumeName,
-							VolumeSource: corev1.VolumeSource{
-								HostPath: &corev1.HostPathVolumeSource{
-									Path: "/custom/pod/logs",
-								},
-							},
-						},
-						{
-							Name: apicommon.ContainerLogVolumeName,
-							VolumeSource: corev1.VolumeSource{
-								HostPath: &corev1.HostPathVolumeSource{
-									Path: "/custom/container/logs",
-								},
-							},
-						},
-						{
-							Name: apicommon.SymlinkContainerVolumeName,
-							VolumeSource: corev1.VolumeSource{
-								HostPath: &corev1.HostPathVolumeSource{
-									Path: "/custom/symlink",
-								},
-							},
-						},
-					}
-					assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))
-					agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
-					wantEnvVars := []*corev1.EnvVar{
-						{
-							Name:  apicommon.DDLogsEnabled,
-							Value: "true",
-						},
-						{
-							Name:  apicommon.DDLogsConfigContainerCollectAll,
-							Value: "false",
-						},
-						{
-							Name:  apicommon.DDLogsContainerCollectUsingFiles,
-							Value: "true",
-						},
-					}
-					assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantEnvVars))
-				},
-			),
+			Name:      apicommon.SymlinkContainerVolumeName,
+			MountPath: apicommon.SymlinkContainerVolumePath,
+			ReadOnly:  true,
 		},
 	}
+	return wantVolumeMounts
+}
 
-	tests.Run(t, buildLogCollectionFeature)
+func createEnvVars(logsEnabled, collectAllEnabled, collectUsingFilesEnabled string) []*corev1.EnvVar {
+	return []*corev1.EnvVar{
+		{
+			Name:  apicommon.DDLogsEnabled,
+			Value: logsEnabled,
+		},
+		{
+			Name:  apicommon.DDLogsConfigContainerCollectAll,
+			Value: collectAllEnabled,
+		},
+		{
+			Name:  apicommon.DDLogsContainerCollectUsingFiles,
+			Value: collectUsingFilesEnabled,
+		},
+	}
+}
 
+func assertWants(t testing.TB, mgrInterface feature.PodTemplateManagers, wantVolumeMounts []*corev1.VolumeMount, wantVolumes []*corev1.Volume, wantEnvVars []*corev1.EnvVar) {
+	mgr := mgrInterface.(*fake.PodTemplateManagers)
+	coreAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.CoreAgentContainerName]
+	volumes := mgr.VolumeMgr.Volumes
+	agentEnvVars := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.CoreAgentContainerName]
+
+	assert.True(t, apiutils.IsEqualStruct(coreAgentVolumeMounts, wantVolumeMounts), "Volume mounts \ndiff = %s", cmp.Diff(coreAgentVolumeMounts, wantVolumeMounts))
+	assert.True(t, apiutils.IsEqualStruct(volumes, wantVolumes), "Volumes \ndiff = %s", cmp.Diff(volumes, wantVolumes))
+	assert.True(t, apiutils.IsEqualStruct(agentEnvVars, wantEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, wantEnvVars))
 }
