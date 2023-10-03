@@ -28,6 +28,7 @@ import (
 const (
 	agentControllerName   = "DatadogAgent"
 	monitorControllerName = "DatadogMonitor"
+	sloControllerName     = "DatadogSLO"
 )
 
 // SetupOptions defines options for setting up controllers to ease testing
@@ -37,6 +38,7 @@ type SetupOptions struct {
 	Creds                    config.Creds
 	DatadogAgentEnabled      bool
 	DatadogMonitorEnabled    bool
+	DatadogSLOEnabled        bool
 	OperatorMetricsEnabled   bool
 	V2APIEnabled             bool
 }
@@ -60,6 +62,7 @@ type starterFunc func(logr.Logger, manager.Manager, *version.Info, kubernetes.Pl
 var controllerStarters = map[string]starterFunc{
 	agentControllerName:   startDatadogAgent,
 	monitorControllerName: startDatadogMonitor,
+	sloControllerName:     startDatadogSLO,
 }
 
 // SetupControllers starts all controllers (also used by e2e tests)
@@ -156,4 +159,27 @@ func startDatadogMonitor(logger logr.Logger, mgr manager.Manager, vInfo *version
 		Scheme:      mgr.GetScheme(),
 		Recorder:    mgr.GetEventRecorderFor(monitorControllerName),
 	}).SetupWithManager(mgr)
+}
+
+func startDatadogSLO(logger logr.Logger, mgr manager.Manager, info *version.Info, pInfo kubernetes.PlatformInfo, options SetupOptions) error {
+	if !options.DatadogSLOEnabled {
+		logger.Info("Feature disabled, not starting the controller", "controller", sloControllerName)
+		return nil
+	}
+
+	ddClient, err := datadogclient.InitDatadogSLOClient(logger, options.Creds)
+	if err != nil {
+		return fmt.Errorf("unable to create Datadog API Client: %w", err)
+	}
+
+	controller := &DatadogSLOReconciler{
+		Client:      mgr.GetClient(),
+		DDClient:    ddClient,
+		VersionInfo: info,
+		Log:         ctrl.Log.WithName("controllers").WithName(sloControllerName),
+		Scheme:      mgr.GetScheme(),
+		Recorder:    mgr.GetEventRecorderFor(sloControllerName),
+	}
+
+	return controller.SetupWithManager(mgr)
 }
