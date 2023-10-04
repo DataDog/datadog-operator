@@ -7,6 +7,7 @@ package feature
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"sync"
 
@@ -20,7 +21,7 @@ func init() {
 	featureBuilders = map[IDType]BuildFunc{}
 }
 
-// Register use to register a Feature to the Feature factory.
+// Register is used to register a Feature to the Feature factory.
 func Register(id IDType, buildFunc BuildFunc) error {
 	builderMutex.Lock()
 	defer builderMutex.Unlock()
@@ -40,18 +41,21 @@ func BuildFeatures(dda *v2alpha1.DatadogAgent, options *Options) ([]Feature, Req
 	var output []Feature
 	var requiredComponents RequiredComponents
 
-	// to always return in feature in the same order we need to sort the map keys
-	sortedkeys := make([]IDType, 0, len(featureBuilders))
-	for key := range featureBuilders {
-		sortedkeys = append(sortedkeys, key)
+	useMultiProcessContainer := false
+	if dda.Spec.Global != nil && dda.Spec.Global.ContainerProcessModel != nil &&
+		apiutils.BoolValue(dda.Spec.Global.ContainerProcessModel.UseMultiProcessContainer) {
+		useMultiProcessContainer = true
 	}
-	sort.Slice(sortedkeys, func(i, j int) bool {
-		return sortedkeys[i] < sortedkeys[j]
-	})
 
-	for _, id := range sortedkeys {
+	// to always return in feature in the same order we need to sort the map keys
+	sortedKeys := getSortedFeatureIDs(useMultiProcessContainer)
+
+	for _, id := range sortedKeys {
 		feat := featureBuilders[id](options)
-		reqComponents := feat.Configure(dda)
+		reqComponents := feat.Configure(dda, useMultiProcessContainer)
+		if useMultiProcessContainer && shouldDisableMultiProcessContainer(reqComponents) {
+			useMultiProcessContainer = false
+		}
 		// only add feature to the output if one of the components is configured (but not necessarily required)
 		if reqComponents.IsConfigured() {
 			output = append(output, feat)
@@ -59,18 +63,46 @@ func BuildFeatures(dda *v2alpha1.DatadogAgent, options *Options) ([]Feature, Req
 		requiredComponents.Merge(&reqComponents)
 	}
 
-	if dda.Spec.Global != nil &&
-		dda.Spec.Global.ContainerProcessModel != nil &&
-		apiutils.BoolValue(dda.Spec.Global.ContainerProcessModel.UseMultiProcessContainer) &&
-		// This condition requires all features, which need agent to include it in required components.
-		// Otherwise test fails since this condition turn true when feature is disabled.
-		requiredComponents.Agent.IsEnabled() &&
-		!requiredComponents.Agent.IsPrivileged() {
-
-		requiredComponents.Agent.Containers = []common.AgentContainerName{common.NonPrivilegedMonoContainerName}
-		return output, requiredComponents
-	}
 	return output, requiredComponents
+}
+
+const privilegedFeatures = []IDType{
+	EBPFCheckIDType,
+	CWSIDType,
+	CSPMIDType,
+	OOMKillIDType,
+	TCPQueueLengthIDType,
+	USMIDType,
+}
+
+func getSortedFeatureIDs(useMultiProcessContainer bool) []IDType {
+	sortedKeys := make([]IDType, 0, len(featureBuilders))
+
+	if useMultiProcessContainer {
+		for key := range featureBuilders {
+			if !slices.Contains(privilegedFeatures, key) {
+				sortedKeys = append(sortedKeys, key)
+			}
+		}
+		sort.Slice(sortedKeys, func(i, j int) bool {
+			return sortedKeys[i] < sortedKeys[j]
+		})
+		sortedKeys = append(sortedKeys, privilegedFeatures)
+		return sortedKeys
+	}
+
+	for key := range featureBuilders {
+		sortedKeys = append(sortedKeys, key)
+	}
+	sort.Slice(sortedKeys, func(i, j int) bool {
+		return sortedKeys[i] < sortedKeys[j]
+	})
+
+	return sortedKeys
+}
+
+func shouldDisableMultiProcessContainer(reqComponents RequiredComponents) bool {
+	return reqComponents.Agent.IsEnabled() && reqComponents.Agent.IsPrivileged()
 }
 
 // BuildFeaturesV1 use to build a list features depending of the v1alpha1.DatadogAgent instance
