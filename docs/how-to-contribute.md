@@ -1,5 +1,9 @@
 # How to contribute
 
+# Testing the Operator for development
+
+The recommended way to test the Operator is by creating a [kind](https://kind.sigs.k8s.io/) cluster.
+
 To list the available `make` commands, run:
 
 ```shell
@@ -9,8 +13,8 @@ make help
 Some important commands:
 
 ```shell
+# build binary and plugin, and generate CRDs
 $ make build
-CGO_ENABLED=0 go build -i -installsuffix cgo -ldflags '-w' -o controller ./cmd/manager/main.go
 
 # unit-tests
 $ make test
@@ -24,21 +28,27 @@ $ make IMG=test/operator:test IMG_CHECK=test/operator-check:test docker-build
 # push the {IMG} to a configured docker hub
 $ make IMG=test/operator:test IMG_CHECK=test/operator-check:test docker-push
 
-# install "cert-manager" needed for the webhook
-$ kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.8.0/cert-manager.yaml 
+# alternatively, if using a kind cluster, the images can be loaded using the `kind` commands
+$ kind load docker-image test/operator:test
+$ kind load docker-image test/operator-check:test
 
 # generate manifest from /config and apply to current cluster
 $ make IMG=test/operator:test IMG_CHECK=test/operator-check:test deploy
 ```
 
-Note: `IMG` currently defaults to: `datadog/datadog-operator:latest`
+Notes: 
+- If `IMG` is not set, it currently defaults to: `datadog/datadog-operator:latest`
+
+- If testing the webhook, install the cert-manager using:
+`$ kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.8.0/cert-manager.yaml`
+
 
 ### Deploy a basic `v2alpha1.DatadogAgent` resource.
 
 Create a secret that contains an `api-key` and an `app-key`. By default the Operator is installed in the
 `system` namespace, and only watches resources in this namespace. As a result, the secret and deployment must be within the same namespace.
 
-Then apply the `examples/v2alpha1/min.yaml` file which contains the mininum information needed to deploy the Agent and related services.
+Apply the `examples/datadogagent/v2alpha1/min.yaml` file which contains the mininum information needed to deploy the Agent and related services.
 
 The following commands show how to execute these steps:
 
