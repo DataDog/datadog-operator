@@ -76,10 +76,10 @@ func (builder *DatadogAgentBuilder) WithDogstatsdOriginDetectionEnabled(enabled 
 	return builder
 }
 
-func (builder *DatadogAgentBuilder) WithDogstatsdTagCardinality(tagCardinality string) *DatadogAgentBuilder {
+func (builder *DatadogAgentBuilder) WithDogstatsdTagCardinality(cardinality string) *DatadogAgentBuilder {
 	builder.initDogstatsd()
 	builder.datadogAgent.Spec.Features.Dogstatsd.OriginDetectionEnabled = apiutils.NewBoolPointer(true)
-	builder.datadogAgent.Spec.Features.Dogstatsd.TagCardinality = apiutils.NewStringPointer(tagCardinality)
+	builder.datadogAgent.Spec.Features.Dogstatsd.TagCardinality = (*v2alpha1.TagCardinalityName)(&cardinality)
 	return builder
 }
 

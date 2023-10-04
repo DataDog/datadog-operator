@@ -51,7 +51,6 @@ const (
 	// defaultUSMEnabled bool = false
 
 	defaultDogstatsdOriginDetectionEnabled bool   = false
-	defaultDogstatsdTagCardinality         string = "low"
 	defaultDogstatsdHostPortEnabled        bool   = false
 	defaultDogstatsdPort                   int32  = 8125
 	defaultDogstatsdSocketEnabled          bool   = true
@@ -209,10 +208,6 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 	}
 
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.Dogstatsd.OriginDetectionEnabled, defaultDogstatsdOriginDetectionEnabled)
-
-	if *ddaSpec.Features.Dogstatsd.OriginDetectionEnabled {
-		apiutils.DefaultStringIfUnset(&ddaSpec.Features.Dogstatsd.TagCardinality, defaultDogstatsdTagCardinality)
-	}
 
 	if ddaSpec.Features.Dogstatsd.HostPortConfig == nil {
 		ddaSpec.Features.Dogstatsd.HostPortConfig = &HostPortConfig{

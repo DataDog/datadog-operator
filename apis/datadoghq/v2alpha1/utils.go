@@ -14,13 +14,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// Valid values for tag cardinality (checks, DogstatsD)
-const (
-	lowTagCardinality          string = "low"
-	orchestratorTagCardinality string = "orchestrator"
-	highTagCardinality         string = "high"
-)
-
 // GetConfName get the name of the Configmap for a CustomConfigSpec
 func GetConfName(owner metav1.Object, conf *CustomConfig, defaultName string) string {
 	// `configData` and `configMap` can't be set together.
@@ -119,15 +112,6 @@ func IsNetworkPolicyEnabled(dda *DatadogAgent) (bool, NetworkPolicyFlavor) {
 func ShouldCreateSCC(dda *DatadogAgent, componentName ComponentName) bool {
 	if dda.Spec.Override[componentName] != nil && dda.Spec.Override[componentName].SecurityContextConstraints != nil {
 		return apiutils.BoolValue(dda.Spec.Override[componentName].SecurityContextConstraints.Create)
-	}
-	return false
-}
-
-// IsValidTagCardinality returns whether a tag cardinality string is an allowed value (`low`, `orchestrator`, `high`)
-func IsValidTagCardinality(tc string) bool {
-	switch tc {
-	case lowTagCardinality, orchestratorTagCardinality, highTagCardinality:
-		return true
 	}
 	return false
 }
