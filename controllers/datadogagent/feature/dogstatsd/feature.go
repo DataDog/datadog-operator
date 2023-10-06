@@ -79,7 +79,7 @@ func (f *dogstatsdFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp featur
 		f.originDetectionEnabled = true
 	}
 	if dogstatsd.TagCardinality != nil {
-		f.tagCardinality = string(*dogstatsd.TagCardinality)
+		f.tagCardinality = *dogstatsd.TagCardinality
 	}
 	f.useHostNetwork = v2alpha1.IsHostNetworkEnabled(dda, v2alpha1.NodeAgentComponentName)
 	if dogstatsd.MapperProfiles != nil {
@@ -244,9 +244,8 @@ func (f *dogstatsdFeature) ManageNodeAgent(managers feature.PodTemplateManagers)
 			managers.PodTemplateSpec().Spec.HostPID = true
 		}
 		// Tag cardinality is only configured if origin detection is enabled.
-		// Only three values (`low`, `orchestrator` and `high`) can be configured, others are ignored.
-		switch v2alpha1.TagCardinalityName(f.tagCardinality) {
-		case v2alpha1.LowTagCardinality, v2alpha1.OrchestratorTagCardinality, v2alpha1.HighTagCardinality:
+		// The value validation happens at the Agent level - if the lower(string) is not `low`, `orchestrator` or `high`, the Agent defaults to `low`.
+		if f.tagCardinality != "" {
 			managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
 				Name:  apicommon.DDDogstatsdTagCardinality,
 				Value: f.tagCardinality,

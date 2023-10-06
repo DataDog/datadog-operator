@@ -346,19 +346,6 @@ type USMFeatureConfig struct {
 	Enabled *bool `json:"enabled,omitempty"`
 }
 
-// TagCardinalityName represents known tag cardinalities (checks, DogstatsD)
-// See also: https://docs.datadoghq.com/containers/kubernetes/tag/?tab=containerizedagent#out-of-the-box-tags
-type TagCardinalityName string
-
-const (
-	// LowTagCardinality is the `low` tag cardinality, such as `kube_service`.
-	LowTagCardinality TagCardinalityName = "low"
-	// OrchestratorTagCardinality is the `orchestrator` tag cardinality, such as `pod_name`.
-	OrchestratorTagCardinality TagCardinalityName = "orchestrator"
-	// HighTagCardinality is the `high` tag cardinality, such as `container_id`.
-	HighTagCardinality TagCardinalityName = "high"
-)
-
 // DogstatsdFeatureConfig contains the Dogstatsd configuration parameters.
 // +k8s:openapi-gen=true
 type DogstatsdFeatureConfig struct {
@@ -371,7 +358,7 @@ type DogstatsdFeatureConfig struct {
 	// See also: https://docs.datadoghq.com/getting_started/tagging/assigning_tags/?tab=containerizedenvironments#environment-variables
 	// Cardinality default: low
 	// +optional
-	TagCardinality *TagCardinalityName `json:"tagCardinality,omitempty"`
+	TagCardinality *string `json:"tagCardinality,omitempty"`
 
 	// HostPortConfig contains host port configuration.
 	// Enabled Default: false
