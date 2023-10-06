@@ -117,7 +117,7 @@ data:
           label_app: app
 ``` 
 
-The above example will create 2 separate Cluster Level Checks, using different collectors and features (label joins, telemetry, remapping...).
+The above example will create 2 separate Cluster Level Checks, using different collectors and features (label joins, remapping...).
 Once you have created the ConfigMap (in the same namespace as the operator), make sure you reference the name in the DatadogAgent Spec, in this case:
 
 You can also reference the configuration in the specification of the DatadogAgent spec as follows:
