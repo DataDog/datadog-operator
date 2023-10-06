@@ -91,7 +91,6 @@ data:
           label_chart_name: chart_name
           label_chart_version: chart_version
           label_team: team
-        telemetry: true
       - collectors:
           - deployments
           - daemonsets
@@ -116,7 +115,6 @@ data:
         labels_mapper:
           label_service: service
           label_app: app
-        telemetry: true
 ``` 
 
 The above example will create 2 separate Cluster Level Checks, using different collectors and features (label joins, telemetry, remapping...).
@@ -137,7 +135,6 @@ spec:
               - collectors:
                   - pods
                   - nodes
-            telemetry: true
 ```
 
 The above will have the operator create and maintain a ConfigMap for you with this config. It will run a single Kubernetes State Metrics Core check with the pods and nodes collectors enabled.
