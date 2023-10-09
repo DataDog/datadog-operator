@@ -47,6 +47,7 @@ type dogstatsdFeature struct {
 
 	useHostNetwork         bool
 	originDetectionEnabled bool
+	tagCardinality         string
 	mapperProfiles         *apicommonv1.CustomConfig
 
 	forceEnableLocalService bool
@@ -76,6 +77,9 @@ func (f *dogstatsdFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp featur
 	f.udsHostFilepath = *dogstatsd.UnixDomainSocketConfig.Path
 	if apiutils.BoolValue(dogstatsd.OriginDetectionEnabled) {
 		f.originDetectionEnabled = true
+	}
+	if dogstatsd.TagCardinality != nil {
+		f.tagCardinality = *dogstatsd.TagCardinality
 	}
 	f.useHostNetwork = v2alpha1.IsHostNetworkEnabled(dda, v2alpha1.NodeAgentComponentName)
 	if dogstatsd.MapperProfiles != nil {
@@ -238,6 +242,14 @@ func (f *dogstatsdFeature) ManageNodeAgent(managers feature.PodTemplateManagers)
 		})
 		if f.udsEnabled {
 			managers.PodTemplateSpec().Spec.HostPID = true
+		}
+		// Tag cardinality is only configured if origin detection is enabled.
+		// The value validation happens at the Agent level - if the lower(string) is not `low`, `orchestrator` or `high`, the Agent defaults to `low`.
+		if f.tagCardinality != "" {
+			managers.EnvVar().AddEnvVarToContainer(apicommonv1.CoreAgentContainerName, &corev1.EnvVar{
+				Name:  apicommon.DDDogstatsdTagCardinality,
+				Value: f.tagCardinality,
+			})
 		}
 	}
 

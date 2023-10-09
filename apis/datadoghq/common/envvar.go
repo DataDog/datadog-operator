@@ -45,6 +45,7 @@ const (
 	DDDogstatsdMapperProfiles                         = "DD_DOGSTATSD_MAPPER_PROFILES"
 	DDDogstatsdNonLocalTraffic                        = "DD_DOGSTATSD_NON_LOCAL_TRAFFIC"
 	DDDogstatsdOriginDetection                        = "DD_DOGSTATSD_ORIGIN_DETECTION"
+	DDDogstatsdTagCardinality                         = "DD_DOGSTATSD_TAG_CARDINALITY"
 	DDDogstatsdPort                                   = "DD_DOGSTATSD_PORT"
 	DDDogstatsdSocket                                 = "DD_DOGSTATSD_SOCKET"
 	DDEnableMetadataCollection                        = "DD_ENABLE_METADATA_COLLECTION"

@@ -167,6 +167,23 @@ func Test_DogstatsdFeature_ConfigureV2(t *testing.T) {
 				},
 			),
 		},
+		{
+			Name: "v2alpha1 udp origin detection enabled, orchestrator tag cardinality",
+			DDAv2: v2alpha1test.NewDefaultDatadogAgentBuilder().
+				WithDogstatsdHostPortEnabled(true).
+				WithDogstatsdTagCardinality("orchestrator").BuildWithDefaults(),
+			WantConfigure: true,
+			Agent: test.NewDefaultComponentTest().WithWantFunc(
+				func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+					wantTagCardinalityEnvVar := corev1.EnvVar{
+						Name:  apicommon.DDDogstatsdTagCardinality,
+						Value: "orchestrator",
+					}
+					customEnvVars := append(getWantUDPEnvVars(), getOriginDetectionEnvVar(), &wantTagCardinalityEnvVar)
+					assertWants(t, mgrInterface, "15", getWantVolumeMounts(), getWantVolumes(), customEnvVars, getWantUDSEnvVarsV2(), getWantHostPorts())
+				},
+			),
+		},
 	}
 
 	tests.Run(t, buildDogstatsdFeature)
