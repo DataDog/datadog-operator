@@ -56,6 +56,7 @@ const (
 	GCPWindowsLTSCProvider           = "windows_ltsc"
 	GCPWindowsSACContainerdProvider  = "windows_sac_containerd"
 	GCPWindowsSACProvider            = "windows_sac"
+	OpenShiftRHCOSProvider           = "rhcos"
 
 	// CloudProvider
 	GCPCloudProvider   = "gcp"
@@ -63,7 +64,8 @@ const (
 	AzureCloudProvider = "azure"
 
 	// ProviderLabel
-	GCPProviderLabel = "cloud.google.com/gke-os-distribution"
+	GCPProviderLabel       = "cloud.google.com/gke-os-distribution"
+	OpenShiftProviderLabel = "node.openshift.io/os_id"
 )
 
 // NewProfiles generates an empty Profiles instance
@@ -86,6 +88,14 @@ func DetermineProvider(labels map[string]string) Provider {
 			p.Name = val
 			p.CloudProvider = GCPCloudProvider
 			p.ProviderLabel = GCPProviderLabel
+			p.ComponentName = GenerateComponentName(p.CloudProvider, p.Name)
+			return p
+		}
+		// OpenShift
+		if val, ok := labels[OpenShiftProviderLabel]; ok {
+			p.Name = val
+			p.ProviderLabel = OpenShiftProviderLabel
+			p.CloudProvider = DefaultProvider
 			p.ComponentName = GenerateComponentName(p.CloudProvider, p.Name)
 			return p
 		}

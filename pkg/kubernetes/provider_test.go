@@ -83,6 +83,19 @@ func Test_determineProvider(t *testing.T) {
 				ProviderLabel: GCPProviderLabel,
 			},
 		},
+		{
+			name: "openshift provider",
+			labels: map[string]string{
+				"foo":                  "bar",
+				OpenShiftProviderLabel: OpenShiftRHCOSProvider,
+			},
+			provider: Provider{
+				Name:          OpenShiftRHCOSProvider,
+				ComponentName: "default-rhcos",
+				CloudProvider: DefaultProvider,
+				ProviderLabel: OpenShiftProviderLabel,
+			},
+		},
 	}
 
 	for _, tt := range tests {
