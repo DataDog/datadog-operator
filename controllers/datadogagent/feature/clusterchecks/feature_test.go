@@ -109,7 +109,7 @@ func TestClusterChecksFeature(t *testing.T) {
 				Build(),
 			WantConfigure: true,
 			ClusterAgent:  test.NewDefaultComponentTest().WithWantFunc(wantClusterAgentHasExpectedEnvsAndChecksum),
-			Agent:         testAgentHasExpectedEnvsWithNoRunners(apicommonv1.NonPrivilegedMonoContainerName),
+			Agent:         testAgentHasExpectedEnvsWithNoRunners(apicommonv1.NonPrivilegedMultiProcessAgentContainerName),
 		},
 		{
 			Name: "v2alpha1 cluster checks enabled and runners enabled",
@@ -132,7 +132,7 @@ func TestClusterChecksFeature(t *testing.T) {
 			WantConfigure:       true,
 			ClusterAgent:        test.NewDefaultComponentTest().WithWantFunc(wantClusterAgentHasExpectedEnvsAndChecksum),
 			ClusterChecksRunner: testClusterChecksRunnerHasExpectedEnvs(),
-			Agent:               testAgentHasExpectedEnvsWithRunners(apicommonv1.NonPrivilegedMonoContainerName),
+			Agent:               testAgentHasExpectedEnvsWithRunners(apicommonv1.NonPrivilegedMultiProcessAgentContainerName),
 		},
 	}
 

@@ -88,7 +88,7 @@ func (f *liveContainerFeature) ManageClusterAgent(managers feature.PodTemplateMa
 // if mono-container usage is enabled and can be used with the current feature set
 // It should do nothing if the feature doesn't need to configure it.
 func (f *liveContainerFeature) ManageMonoContainerNodeAgent(managers feature.PodTemplateManagers) error {
-	f.manageNodeAgent(apicommonv1.NonPrivilegedMonoContainerName, managers)
+	f.manageNodeAgent(apicommonv1.NonPrivilegedMultiProcessAgentContainerName, managers)
 	return nil
 }
 

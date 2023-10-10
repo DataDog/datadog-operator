@@ -221,7 +221,7 @@ func (f *orchestratorExplorerFeature) ManageClusterAgent(managers feature.PodTem
 // It should do nothing if the feature doesn't need to configure it.
 func (f *orchestratorExplorerFeature) ManageMonoContainerNodeAgent(managers feature.PodTemplateManagers) error {
 	for _, env := range f.getEnvVars() {
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.NonPrivilegedMonoContainerName, env)
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.NonPrivilegedMultiProcessAgentContainerName, env)
 	}
 
 	return nil

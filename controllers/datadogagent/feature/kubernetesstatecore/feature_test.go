@@ -170,7 +170,7 @@ func ksmAgentNodeWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers
 }
 
 func ksmMonoAgentWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers) {
-	ksmAgentWantFunc(t, mgrInterface, apicommonv1.NonPrivilegedMonoContainerName)
+	ksmAgentWantFunc(t, mgrInterface, apicommonv1.NonPrivilegedMultiProcessAgentContainerName)
 }
 
 func ksmAgentWantFunc(t testing.TB, mgrInterface feature.PodTemplateManagers, agentContainerName apicommonv1.AgentContainerName) {

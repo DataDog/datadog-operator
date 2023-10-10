@@ -781,9 +781,9 @@ type GlobalConfig struct {
 	// +optional
 	CriSocketPath *string `json:"criSocketPath,omitempty"`
 
-	// ContainerProcessModel determines whether agents run in single or multi-process containers.
+	// CntainerProcessStrategy determines whether agents run in single or multi-process containers.
 	// +optional
-	ContainerProcessModel *ContainerProcessModel `json:"containerProcessModel,omitempty"`
+	ContainerProcessStrategy *ContainerProcessStrategy `json:"containerProcessStrategy,omitempty"`
 }
 
 // DatadogCredentials is a generic structure that holds credentials to access Datadog.
@@ -1083,15 +1083,17 @@ type DatadogAgentStatus struct {
 	ClusterChecksRunner *commonv1.DeploymentStatus `json:"clusterChecksRunner,omitempty"`
 }
 
-// ContainerProcessModel determines whether agents run in single or multi-process containers.
+// CntainerProcessStrategy determines how various agent processes are grouped across multiple containers.
 // +k8s:openapi-gen=true
-type ContainerProcessModel struct {
-	// When enabled Operator tries to minimize number of containers used for given set of features.
-	// If confiugred features require only non-privileged agents, Operator will install only one agent which is great for testing and small deployments.
-	// If privileged agent is required, this setting will be ignored.
-	// Default: false
+type ContainerProcessStrategy struct {
+	// `type` sets a predetermined grouping of processes across containers. Two are supported at thist point:
+	// `singleProcessContainers`, default behavior, runs one process per container.
+	// `nonPrivilegedMultiProcessContainer`, runs non-privileged processes in a single container
+	// unless current configuration requires a privileged agent, for example `security-agent` or `system-probe`
+	// is required, fall back to singleProcessContainer
+	// Default: `singleProcessContainers`
 	// +optional
-	UseMultiProcessContainer *bool `json:"useMultiProcessContainer,omitempty"`
+	Type commonv1.ContainerProcessStrategyType `json:"type,omitempty"`
 }
 
 // DatadogAgent Deployment with the Datadog Operator.

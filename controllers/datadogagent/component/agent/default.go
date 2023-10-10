@@ -126,7 +126,7 @@ func initContainers(dda metav1.Object, requiredContainers []common.AgentContaine
 
 func agentMonoContainer(dda metav1.Object, requiredContainers []common.AgentContainerName) []corev1.Container {
 	monoContainer := corev1.Container{
-		Name:           string(common.NonPrivilegedMonoContainerName),
+		Name:           string(common.NonPrivilegedMultiProcessAgentContainerName),
 		Image:          agentImage(),
 		Env:            envVarsForCoreAgent(dda),
 		VolumeMounts:   volumeMountsForCoreAgent(),

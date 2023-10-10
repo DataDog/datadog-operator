@@ -248,7 +248,7 @@ func (f *ksmFeature) ManageMonoContainerNodeAgent(managers feature.PodTemplateMa
 		Value: "kubernetes_state",
 	}
 
-	return managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommonv1.NonPrivilegedMonoContainerName, ignoreAutoConf, merger.AppendToValueEnvVarMergeFunction)
+	return managers.EnvVar().AddEnvVarToContainerWithMergeFunc(apicommonv1.NonPrivilegedMultiProcessAgentContainerName, ignoreAutoConf, merger.AppendToValueEnvVarMergeFunction)
 }
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec

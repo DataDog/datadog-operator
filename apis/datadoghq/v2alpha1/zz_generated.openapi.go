@@ -20,7 +20,7 @@ import (
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
 		"./apis/datadoghq/v2alpha1.CSPMHostBenchmarksConfig":          schema__apis_datadoghq_v2alpha1_CSPMHostBenchmarksConfig(ref),
-		"./apis/datadoghq/v2alpha1.ContainerProcessModel":             schema__apis_datadoghq_v2alpha1_ContainerProcessModel(ref),
+		"./apis/datadoghq/v2alpha1.ContainerProcessStrategy":          schema__apis_datadoghq_v2alpha1_ContainerProcessStrategy(ref),
 		"./apis/datadoghq/v2alpha1.CustomConfig":                      schema__apis_datadoghq_v2alpha1_CustomConfig(ref),
 		"./apis/datadoghq/v2alpha1.DatadogAgent":                      schema__apis_datadoghq_v2alpha1_DatadogAgent(ref),
 		"./apis/datadoghq/v2alpha1.DatadogAgentGenericContainer":      schema__apis_datadoghq_v2alpha1_DatadogAgentGenericContainer(ref),
@@ -65,17 +65,17 @@ func schema__apis_datadoghq_v2alpha1_CSPMHostBenchmarksConfig(ref common.Referen
 	}
 }
 
-func schema__apis_datadoghq_v2alpha1_ContainerProcessModel(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema__apis_datadoghq_v2alpha1_ContainerProcessStrategy(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "ContainerProcessModel determines whether agents run in single or multi-process containers.",
+				Description: "CntainerProcessStrategy determines how various agent processes are grouped across multiple containers.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"useMultiProcessContainer": {
+					"type": {
 						SchemaProps: spec.SchemaProps{
-							Description: "When enabled Operator tries to minimize number of containers used for given set of features. If confiugred features require only non-privileged agents, Operator will install only one agent which is great for testing and small deployments. If privileged agent is required, this setting will be ignored. Default: false",
-							Type:        []string{"boolean"},
+							Description: "`type` sets a predetermined grouping of processes across containers. Two are supported at thist point: `singleProcessContainers`, default behavior, runs one process per container. `nonPrivilegedMultiProcessContainer`, runs non-privileged processes in a single container unless current configuration requires a privileged agent, for example `security-agent` or `system-probe` is required, fall back to singleProcessContainer Default: `singleProcessContainers`",
+							Type:        []string{"string"},
 							Format:      "",
 						},
 					},

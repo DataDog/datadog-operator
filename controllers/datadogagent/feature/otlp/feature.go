@@ -264,8 +264,8 @@ func (f *otlpFeature) ManageMonoContainerNodeAgent(managers feature.PodTemplateM
 			Name:  apicommon.DDOTLPgRPCEndpoint,
 			Value: f.grpcEndpoint,
 		}
-		managers.Port().AddPortToContainer(apicommonv1.NonPrivilegedMonoContainerName, otlpgrpcPort)
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.NonPrivilegedMonoContainerName, envVar)
+		managers.Port().AddPortToContainer(apicommonv1.NonPrivilegedMultiProcessAgentContainerName, otlpgrpcPort)
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.NonPrivilegedMultiProcessAgentContainerName, envVar)
 	}
 
 	if f.httpEnabled {
@@ -284,8 +284,8 @@ func (f *otlpFeature) ManageMonoContainerNodeAgent(managers feature.PodTemplateM
 			Name:  apicommon.DDOTLPHTTPEndpoint,
 			Value: f.httpEndpoint,
 		}
-		managers.Port().AddPortToContainer(apicommonv1.NonPrivilegedMonoContainerName, otlphttpPort)
-		managers.EnvVar().AddEnvVarToContainer(apicommonv1.NonPrivilegedMonoContainerName, envVar)
+		managers.Port().AddPortToContainer(apicommonv1.NonPrivilegedMultiProcessAgentContainerName, otlphttpPort)
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.NonPrivilegedMultiProcessAgentContainerName, envVar)
 	}
 
 	return nil

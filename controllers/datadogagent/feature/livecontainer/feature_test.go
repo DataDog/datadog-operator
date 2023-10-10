@@ -72,7 +72,7 @@ func TestLiveContainerFeature(t *testing.T) {
 				WithMultiProcessContainer(true).
 				Build(),
 			WantConfigure: true,
-			Agent:         testExpectedAgent(apicommonv1.NonPrivilegedMonoContainerName),
+			Agent:         testExpectedAgent(apicommonv1.NonPrivilegedMultiProcessAgentContainerName),
 		},
 	}
 

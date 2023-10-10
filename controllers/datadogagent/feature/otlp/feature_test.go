@@ -391,7 +391,7 @@ func testExpectedMono(exp Expected) *test.ComponentTest {
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
 			mgr := mgrInterface.(*fake.PodTemplateManagers)
 
-			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.NonPrivilegedMonoContainerName]
+			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.NonPrivilegedMultiProcessAgentContainerName]
 			assert.True(
 				t,
 				apiutils.IsEqualStruct(agentEnvs, exp.EnvVars),
@@ -399,7 +399,7 @@ func testExpectedMono(exp Expected) *test.ComponentTest {
 			)
 
 			if exp.CheckTraceAgent {
-				agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.NonPrivilegedMonoContainerName]
+				agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.NonPrivilegedMultiProcessAgentContainerName]
 				assert.True(
 					t,
 					apiutils.IsEqualStruct(agentEnvs, exp.EnvVars),
@@ -407,7 +407,7 @@ func testExpectedMono(exp Expected) *test.ComponentTest {
 				)
 			}
 
-			agentPorts := mgr.PortMgr.PortsByC[apicommonv1.NonPrivilegedMonoContainerName]
+			agentPorts := mgr.PortMgr.PortsByC[apicommonv1.NonPrivilegedMultiProcessAgentContainerName]
 			assert.True(
 				t,
 				apiutils.IsEqualStruct(agentPorts, exp.Ports),

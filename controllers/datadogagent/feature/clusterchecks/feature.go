@@ -204,7 +204,7 @@ func (f *clusterChecksFeature) ManageClusterAgent(managers feature.PodTemplateMa
 // if mono-container usage is enabled and can be used with the current feature set
 // It should do nothing if the feature doesn't need to configure it.
 func (f *clusterChecksFeature) ManageMonoContainerNodeAgent(managers feature.PodTemplateManagers) error {
-	f.manageNodeAgent(common.NonPrivilegedMonoContainerName, managers)
+	f.manageNodeAgent(common.NonPrivilegedMultiProcessAgentContainerName, managers)
 	return nil
 }
 

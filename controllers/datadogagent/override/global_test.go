@@ -104,7 +104,7 @@ func assertAll(t testing.TB, mgrInterface feature.PodTemplateManagers, expectedE
 func assertAllMonoContainer(t testing.TB, mgrInterface feature.PodTemplateManagers, expectedEnvVars []*corev1.EnvVar, expectedVolumes []*corev1.Volume, expectedVolumeMounts []*corev1.VolumeMount) {
 	mgr := mgrInterface.(*fake.PodTemplateManagers)
 
-	monoAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.NonPrivilegedMonoContainerName]
+	monoAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.NonPrivilegedMultiProcessAgentContainerName]
 
 	assert.True(t, apiutils.IsEqualStruct(monoAgentVolumeMounts, expectedVolumeMounts), "Volume mounts \ndiff = %s", cmp.Diff(monoAgentVolumeMounts, []*corev1.VolumeMount(nil)))
 

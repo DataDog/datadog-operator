@@ -98,6 +98,33 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			},
 		},
 		{
+			name: "DatadogAgent default, create Daemonset with core and process agents",
+			fields: fields{
+				client:   fake.NewFakeClient(),
+				scheme:   s,
+				recorder: recorder,
+			},
+			args: args{
+				request: newRequest(resourcesNamespace, resourcesName),
+				loadFunc: func(c client.Client) {
+					dda := v2alpha1test.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+						WithMultiProcessContainer(false).
+						Build()
+					_ = c.Create(context.TODO(), dda)
+				},
+			},
+			want:    reconcile.Result{RequeueAfter: defaultRequeueDuration},
+			wantErr: false,
+			wantFunc: func(c client.Client) error {
+				expectedContainers := []string{
+					string(apicommonv1.CoreAgentContainerName),
+					string(apicommonv1.ProcessAgentContainerName),
+				}
+
+				return verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers)
+			},
+		},
+		{
 			name: "[mono-container] DatadogAgent default, create Daemonset with a mono-agent",
 			fields: fields{
 				client:   fake.NewFakeClient(),
@@ -117,7 +144,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			wantErr: false,
 			wantFunc: func(c client.Client) error {
 				expectedContainers := []string{
-					string(apicommonv1.NonPrivilegedMonoContainerName),
+					string(apicommonv1.NonPrivilegedMultiProcessAgentContainerName),
 				}
 
 				return verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers)
@@ -173,7 +200,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			wantErr: false,
 			wantFunc: func(c client.Client) error {
 				expectedContainers := []string{
-					string(apicommonv1.NonPrivilegedMonoContainerName),
+					string(apicommonv1.NonPrivilegedMultiProcessAgentContainerName),
 				}
 
 				return verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers)

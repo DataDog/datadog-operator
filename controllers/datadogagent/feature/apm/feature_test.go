@@ -87,7 +87,7 @@ func TestAPMFeature(t *testing.T) {
 				WithMultiProcessContainer(true).
 				Build(),
 			WantConfigure: true,
-			Agent:         testAgentUDSOnly(apicommonv1.NonPrivilegedMonoContainerName),
+			Agent:         testAgentUDSOnly(apicommonv1.NonPrivilegedMultiProcessAgentContainerName),
 		},
 		{
 			Name: "v2alpha1 apm enabled, use uds and host port",
@@ -108,7 +108,7 @@ func TestAPMFeature(t *testing.T) {
 				WithMultiProcessContainer(true).
 				Build(),
 			WantConfigure: true,
-			Agent:         testAgentHostPortUDS(apicommonv1.NonPrivilegedMonoContainerName),
+			Agent:         testAgentHostPortUDS(apicommonv1.NonPrivilegedMultiProcessAgentContainerName),
 		},
 	}
 
