@@ -7,7 +7,6 @@ package kubernetes
 
 import (
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -169,7 +168,7 @@ func Test_SetProvider(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			logger := logf.Log.WithName(t.Name())
-			profile := NewProfiles(logger, ProfilesOptions{NewNodeDelay: 5 * time.Second})
+			profile := NewProfiles(logger)
 			if tt.existingProfiles != nil && tt.existingProfiles.providers != nil {
 				profile.providers = tt.existingProfiles.providers
 			}
@@ -258,7 +257,7 @@ func Test_sortProviders(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			logger := logf.Log.WithName(t.Name())
-			profile := NewProfiles(logger, ProfilesOptions{NewNodeDelay: 5 * time.Second})
+			profile := NewProfiles(logger)
 			if tt.existingProviders != nil {
 				profile.providers = tt.existingProviders
 			}
@@ -405,7 +404,7 @@ func Test_GenerateProviderNodeAffinity(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			logger := logf.Log.WithName(t.Name())
-			profile := NewProfiles(logger, ProfilesOptions{NewNodeDelay: 5 * time.Second})
+			profile := NewProfiles(logger)
 			if tt.existingProviders != nil {
 				profile.providers = tt.existingProviders
 			}

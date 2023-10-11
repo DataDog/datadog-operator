@@ -9,7 +9,6 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 
@@ -17,11 +16,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
-
-// ProfilesOptions defines Profiles options
-type ProfilesOptions struct {
-	NewNodeDelay time.Duration
-}
 
 type Profiles struct {
 	providers       map[string]Provider // map provider hash to provider definitions to get provider def with hash string
@@ -65,7 +59,7 @@ const (
 )
 
 // NewProfiles generates an empty Profiles instance
-func NewProfiles(log logr.Logger, options ProfilesOptions) Profiles {
+func NewProfiles(log logr.Logger) Profiles {
 	return Profiles{
 		providers:       make(map[string]Provider),
 		sortedProviders: []Provider{},
