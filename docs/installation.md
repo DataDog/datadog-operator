@@ -9,14 +9,14 @@
 
 ## Install the Datadog Operator with Helm
 
-The Datadog Operator can be deployed in your cluster using the [Datadog Operator Helm chart][3]:
+You can deploy the Datadog Operator in your cluster using the [Datadog Operator Helm chart][3]:
 
 ```shell
 helm repo add datadog https://helm.datadoghq.com
 helm install my-datadog-operator datadog/datadog-operator
 ```
 
-To customize the Operator configuration, create a `values.yaml` file that can be used to override the default Helm chart values.
+To customize the Operator configuration, create a `values.yaml` file that can override the default Helm chart values.
 
 For instance:
 
@@ -33,14 +33,14 @@ The Helm release can be updated with
 helm upgrade my-datadog-operator datadog/datadog-operator -f values.yaml
 ```
 
-### Add Credentials for DatadogMonitor
+### Add credentials for DatadogMonitor
 
 If using the DatadogMonitor controller, the Datadog Operator requires API and application keys to be configured. 
-Create a Kubernetes Secret that contains your API and application keys. In the example below, the secret keys are `api-key` and `app-key`.
+Create a Kubernetes Secret that contains your API and application keys.
 
 ```
-export DD_API_KEY=<replace-by-your-api-key>
-export DD_APP_KEY=<replace-by-your-app-key>
+export DD_API_KEY=<YOUR_API_KEY>
+export DD_APP_KEY=<YOUR_APP_KEY>
 
 kubectl create secret generic datadog-operator-secret --from-literal api-key=$DD_API_KEY --from-literal app-key=$DD_APP_KEY
 ```
@@ -94,14 +94,14 @@ spec:
         cpu: "500m"
 ```
 
-### Add Credentials for DatadogMonitor
+### Add credentials for DatadogMonitor
 
 If using the DatadogMonitor controller, the Datadog Operator requires API and application keys to be configured. 
-Create a Kubernetes Secret that contains your API and application keys. In the example below, the secret keys are `api-key` and `app-key`.
+Create a Kubernetes Secret that contains your API and application keys.
 
 ```
-export DD_API_KEY=<replace-by-your-api-key>
-export DD_APP_KEY=<replace-by-your-app-key>
+export DD_API_KEY=<YOUR_API_KEY>
+export DD_APP_KEY=<YOUR_APP_KEY>
 
 kubectl create secret generic datadog-operator-secret --from-literal api-key=$DD_API_KEY --from-literal app-key=$DD_APP_KEY
 ```
@@ -134,15 +134,15 @@ spec:
 ```
 
 
-## Deploy the DatadogAgent custom resource managed by the Operator
+## Deploy the `DatadogAgent` custom resource managed by the Operator
 
-After deploying the Datadog Operator, create the `DatadogAgent` resource that triggers the deployment of the Datadog Agent, Cluster Agent and Cluster Checks Runners (if used) in your Kubernetes cluster. The Datadog Agent will be deployed as a DaemonSet, running a pod on every Node of your cluster.
+After deploying the Datadog Operator, create the `DatadogAgent` resource that triggers the deployment of the Datadog Agent, Cluster Agent and Cluster Checks Runners (if used) in your Kubernetes cluster. The Datadog Agent will be deployed as a DaemonSet, running a pod on every node of your cluster.
 
-1. Create a Kubernetes secret with your API and App keys
+1. Create a Kubernetes secret with your API and application keys
 
    ```shell
-   export DD_API_KEY=<replace-by-your-api-key>
-   export DD_APP_KEY=<replace-by-your-app-key>
+   export DD_API_KEY=<YOUR_API_KEY>
+   export DD_APP_KEY=<YOUR_APP_KEY>
 
    kubectl create secret generic datadog-secret --from-literal api-key=<DATADOG_API_KEY> --from-literal app-key=<DATADOG_APP_KEY>
    ```
