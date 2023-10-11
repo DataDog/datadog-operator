@@ -14,9 +14,7 @@ import (
 	"time"
 
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
-	test "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1/test"
-	"github.com/DataDog/datadog-operator/apis/utils"
+	v2alpha1test "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1/test"
 	testutils "github.com/DataDog/datadog-operator/controllers/datadogagent/testutils"
 	assert "github.com/stretchr/testify/require"
 
@@ -83,7 +81,8 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
 				loadFunc: func(c client.Client) {
-					dda := newBuilder(resourcesNamespace, resourcesName).build()
+					dda := v2alpha1test.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+						Build()
 					_ = c.Create(context.TODO(), dda)
 				},
 			},
@@ -108,8 +107,9 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
 				loadFunc: func(c client.Client) {
-					dda := newBuilder(resourcesNamespace, resourcesName).
-						withUseMultiProcessContainer(true).build()
+					dda := v2alpha1test.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+						WithMultiProcessContainer(true).
+						Build()
 					_ = c.Create(context.TODO(), dda)
 				},
 			},
@@ -133,9 +133,10 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
 				loadFunc: func(c client.Client) {
-					dda := newBuilder(resourcesNamespace, resourcesName).
-						withAPM(true).
-						withUseMultiProcessContainer(false).build()
+					dda := v2alpha1test.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+						WithAPMEnabled(true).
+						WithMultiProcessContainer(false).
+						Build()
 					_ = c.Create(context.TODO(), dda)
 				},
 			},
@@ -161,9 +162,10 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
 				loadFunc: func(c client.Client) {
-					dda := newBuilder(resourcesNamespace, resourcesName).
-						withAPM(true).
-						withUseMultiProcessContainer(true).build()
+					dda := v2alpha1test.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+						WithAPMEnabled(true).
+						WithMultiProcessContainer(true).
+						Build()
 					_ = c.Create(context.TODO(), dda)
 				},
 			},
@@ -187,7 +189,11 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
 				loadFunc: func(c client.Client) {
-					dda := newBuilder(resourcesNamespace, resourcesName).withAPM(true).withCWS(true).withUseMultiProcessContainer(false).build()
+					dda := v2alpha1test.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+						WithAPMEnabled(true).
+						WithCWSEnabled(true).
+						WithMultiProcessContainer(false).
+						Build()
 					_ = c.Create(context.TODO(), dda)
 				},
 			},
@@ -215,10 +221,12 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
 				loadFunc: func(c client.Client) {
-					dda := newBuilder(resourcesNamespace, resourcesName).
-						withAPM(true).
-						withCWS(true).
-						withUseMultiProcessContainer(true).build()
+					dda := v2alpha1test.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+						WithAPMEnabled(true).
+						WithCWSEnabled(true).
+						WithMultiProcessContainer(true).
+						Build()
+
 					_ = c.Create(context.TODO(), dda)
 				},
 			},
@@ -246,10 +254,11 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
 				loadFunc: func(c client.Client) {
-					dda := newBuilder(resourcesNamespace, resourcesName).
-						withAPM(true).
-						withOOMKill(true).
-						withUseMultiProcessContainer(false).build()
+					dda := v2alpha1test.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+						WithAPMEnabled(true).
+						WithOOMKillEnabled(true).
+						WithMultiProcessContainer(false).
+						Build()
 					_ = c.Create(context.TODO(), dda)
 				},
 			},
@@ -276,10 +285,11 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 			args: args{
 				request: newRequest(resourcesNamespace, resourcesName),
 				loadFunc: func(c client.Client) {
-					dda := newBuilder(resourcesNamespace, resourcesName).
-						withAPM(true).
-						withOOMKill(true).
-						withUseMultiProcessContainer(true).build()
+					dda := v2alpha1test.NewInitializedDatadogAgentBuilder(resourcesNamespace, resourcesName).
+						WithAPMEnabled(true).
+						WithOOMKillEnabled(true).
+						WithMultiProcessContainer(true).
+						Build()
 					_ = c.Create(context.TODO(), dda)
 				},
 			},
@@ -353,59 +363,4 @@ func verifyDaemonsetContainers(c client.Client, resourcesNamespace, dsName strin
 	} else {
 		return fmt.Errorf("Container don't match, expected %s, actual %s", expectedContainers, dsContainers)
 	}
-}
-
-type DatadogAgentBuilder struct {
-	datadogAgent v2alpha1.DatadogAgent
-}
-
-func newBuilder(ns, name string) *DatadogAgentBuilder {
-	dda := test.NewDatadogAgent(ns, name, &v2alpha1.GlobalConfig{
-		Credentials: &v2alpha1.DatadogCredentials{
-			APIKey: utils.NewStringPointer("apiKey"),
-			AppKey: utils.NewStringPointer("appKey"),
-		},
-	})
-
-	dda.Spec.Features = &v2alpha1.DatadogFeatures{}
-
-	return &DatadogAgentBuilder{
-		datadogAgent: *dda,
-	}
-}
-
-func (builder *DatadogAgentBuilder) withAPM(enabled bool) *DatadogAgentBuilder {
-	builder.datadogAgent.Spec.Features.APM = &v2alpha1.APMFeatureConfig{
-		Enabled: utils.NewBoolPointer(enabled),
-	}
-
-	return builder
-}
-
-func (builder *DatadogAgentBuilder) withCWS(enabled bool) *DatadogAgentBuilder {
-	builder.datadogAgent.Spec.Features.CWS = &v2alpha1.CWSFeatureConfig{
-		Enabled: utils.NewBoolPointer(enabled),
-	}
-
-	return builder
-}
-
-func (builder *DatadogAgentBuilder) withOOMKill(enabled bool) *DatadogAgentBuilder {
-	builder.datadogAgent.Spec.Features.OOMKill = &v2alpha1.OOMKillFeatureConfig{
-		Enabled: utils.NewBoolPointer(enabled),
-	}
-
-	return builder
-}
-
-func (builder *DatadogAgentBuilder) withUseMultiProcessContainer(enabled bool) *DatadogAgentBuilder {
-	builder.datadogAgent.Spec.Global.ContainerProcessModel = &v2alpha1.ContainerProcessModel{
-		UseMultiProcessContainer: utils.NewBoolPointer(enabled),
-	}
-
-	return builder
-}
-
-func (builder *DatadogAgentBuilder) build() *v2alpha1.DatadogAgent {
-	return &builder.datadogAgent
 }

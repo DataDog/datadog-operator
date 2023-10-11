@@ -12,6 +12,7 @@ import (
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	v2alpha1test "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
@@ -332,36 +333,20 @@ func newV1Agent(set Settings) *v1alpha1.DatadogAgent {
 }
 
 func newV2Agent(set Settings) *v2alpha1.DatadogAgent {
-	return &v2alpha1.DatadogAgent{
-		Spec: v2alpha1.DatadogAgentSpec{
-			Features: &v2alpha1.DatadogFeatures{
-				OTLP: &v2alpha1.OTLPFeatureConfig{Receiver: v2alpha1.OTLPReceiverConfig{Protocols: v2alpha1.OTLPProtocolsConfig{
-					GRPC: &v2alpha1.OTLPGRPCConfig{
-						Enabled:  &set.EnabledGRPC,
-						Endpoint: &set.EndpointGRPC,
-					},
-					HTTP: &v2alpha1.OTLPHTTPConfig{
-						Enabled:  &set.EnabledHTTP,
-						Endpoint: &set.EndpointHTTP,
-					},
-				}}},
-				APM: &v2alpha1.APMFeatureConfig{
-					Enabled: apiutils.NewBoolPointer(set.APM),
-				},
-			},
-			Global: &v2alpha1.GlobalConfig{},
-		},
-	}
+	return v2alpha1test.NewDatadogAgentBuilder().
+		WithOTLPGRPCSettings(set.EnabledGRPC, set.EndpointGRPC).
+		WithOTLPHTTPSettings(set.EnabledHTTP, set.EndpointHTTP).
+		WithAPMEnabled(set.APM).
+		Build()
 }
 
 func newV2MonoAgent(set Settings) *v2alpha1.DatadogAgent {
-	ddaV2 := newV2Agent(set)
-	ddaV2.Spec.Global = &v2alpha1.GlobalConfig{
-		ContainerProcessModel: &v2alpha1.ContainerProcessModel{
-			UseMultiProcessContainer: apiutils.NewBoolPointer(true),
-		},
-	}
-	return ddaV2
+	return v2alpha1test.NewDatadogAgentBuilder().
+		WithOTLPGRPCSettings(set.EnabledGRPC, set.EndpointGRPC).
+		WithOTLPHTTPSettings(set.EnabledHTTP, set.EndpointHTTP).
+		WithAPMEnabled(set.APM).
+		WithMultiProcessContainer(true).
+		Build()
 }
 
 type Expected struct {

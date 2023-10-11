@@ -12,7 +12,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	v2alpha1test "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
@@ -54,39 +54,56 @@ func Test_ksmFeature_Configure(t *testing.T) {
 		// v2Alpha1.DatadogAgent
 		//////////////////////////
 		{
-			Name:          "v2alpha1 ksm-core not enabled",
-			DDAv2:         newV2Agent(false, false),
+			Name: "v2alpha1 ksm-core not enabled",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithKSMEnabled(false).
+				Build(),
 			WantConfigure: false,
 		},
 		{
-			Name:          "v2alpha1 ksm-core not enabled",
-			DDAv2:         newV2MonoAgent(false, false),
+			Name: "v2alpha1 ksm-core not enabled with multi-process container",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithKSMEnabled(false).
+				WithMultiProcessContainer(true).
+				Build(),
 			WantConfigure: false,
 		},
 		{
-			Name:          "v2alpha1 ksm-core enabled",
-			DDAv2:         newV2Agent(true, false),
+			Name: "v2alpha1 ksm-core enabled",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithKSMEnabled(true).
+				Build(),
 			WantConfigure: true,
 			ClusterAgent:  ksmClusterAgentWantFunc(false),
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
 		},
 		{
-			Name:          "v2alpha1 ksm-core enabled",
-			DDAv2:         newV2MonoAgent(true, false),
+			Name: "v2alpha1 ksm-core enabled with multi-process container",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithKSMEnabled(true).
+				WithMultiProcessContainer(true).
+				Build(),
 			WantConfigure: true,
 			ClusterAgent:  ksmClusterAgentWantFunc(false),
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmMonoAgentWantFunc),
 		},
 		{
-			Name:          "v2alpha1 ksm-core enabled, custom config",
-			DDAv2:         newV2Agent(true, true),
+			Name: "v2alpha1 ksm-core enabled, custom config",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithKSMEnabled(true).
+				WithKSMCustomConf(customData).
+				Build(),
 			WantConfigure: true,
 			ClusterAgent:  ksmClusterAgentWantFunc(true),
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmAgentNodeWantFunc),
 		},
 		{
-			Name:          "v2alpha1 ksm-core enabled, custom config",
-			DDAv2:         newV2MonoAgent(true, true),
+			Name: "v2alpha1 ksm-core enabled, custom config with multi-process container",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithKSMEnabled(true).
+				WithKSMCustomConf(customData).
+				WithMultiProcessContainer(true).
+				Build(),
 			WantConfigure: true,
 			ClusterAgent:  ksmClusterAgentWantFunc(true),
 			Agent:         test.NewDefaultComponentTest().WithWantFunc(ksmMonoAgentWantFunc),
@@ -112,34 +129,6 @@ func newV1Agent(enableKSM bool, hasCustomConfig bool) *v1alpha1.DatadogAgent {
 		}
 	}
 	return ddaV1
-}
-
-func newV2Agent(enableKSM bool, hasCustomConfig bool) *v2alpha1.DatadogAgent {
-	ddaV2 := &v2alpha1.DatadogAgent{
-		Spec: v2alpha1.DatadogAgentSpec{
-			Features: &v2alpha1.DatadogFeatures{
-				KubeStateMetricsCore: &v2alpha1.KubeStateMetricsCoreFeatureConfig{
-					Enabled: apiutils.NewBoolPointer(enableKSM),
-				},
-			},
-		},
-	}
-	if hasCustomConfig {
-		ddaV2.Spec.Features.KubeStateMetricsCore.Conf = &v2alpha1.CustomConfig{
-			ConfigData: apiutils.NewStringPointer(customData),
-		}
-	}
-	return ddaV2
-}
-
-func newV2MonoAgent(enableKSM bool, hasCustomConfig bool) *v2alpha1.DatadogAgent {
-	ddaV2 := newV2Agent(enableKSM, hasCustomConfig)
-	ddaV2.Spec.Global = &v2alpha1.GlobalConfig{
-		ContainerProcessModel: &v2alpha1.ContainerProcessModel{
-			UseMultiProcessContainer: apiutils.NewBoolPointer(true),
-		},
-	}
-	return ddaV2
 }
 
 func ksmClusterAgentWantFunc(hasCustomConfig bool) *test.ComponentTest {

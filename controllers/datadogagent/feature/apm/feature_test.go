@@ -11,7 +11,7 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	v2alpha1test "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1/test"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
@@ -54,36 +54,59 @@ func TestAPMFeature(t *testing.T) {
 		// v2Alpha1.DatadogAgent
 		//////////////////////////
 		{
-			Name:          "v2alpha1 apm not enabled",
-			DDAv2:         newV2Agent(false, false),
+			Name: "v2alpha1 apm not enabled",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithAPMEnabled(false).
+				Build(),
 			WantConfigure: false,
 		},
 		{
-			Name:          "v2alpha1 apm not enabled",
-			DDAv2:         newV2MonoAgent(false, false),
+			Name: "v2alpha1 apm not enabled with multi-process container",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithAPMEnabled(false).
+				WithMultiProcessContainer(true).
+				Build(),
 			WantConfigure: false,
 		},
 		{
-			Name:          "v2alpha1 apm enabled, use uds",
-			DDAv2:         newV2Agent(true, false),
+			Name: "v2alpha1 apm enabled, use uds",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithAPMEnabled(true).
+				WithAPMHostPortEnabled(false, 8126).
+				WithAPMUDSEnabled(true, apmSocketHostPath).
+				Build(),
 			WantConfigure: true,
 			Agent:         testAgentUDSOnly(apicommonv1.TraceAgentContainerName),
 		},
 		{
-			Name:          "v2alpha1 apm enabled, use uds",
-			DDAv2:         newV2MonoAgent(true, false),
+			Name: "v2alpha1 apm enabled, use uds with multi-process container",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithAPMEnabled(true).
+				WithAPMHostPortEnabled(false, 8126).
+				WithAPMUDSEnabled(true, apmSocketHostPath).
+				WithMultiProcessContainer(true).
+				Build(),
 			WantConfigure: true,
 			Agent:         testAgentUDSOnly(apicommonv1.NonPrivilegedMonoContainerName),
 		},
 		{
-			Name:          "v2alpha1 apm enabled, use uds and host port",
-			DDAv2:         newV2Agent(true, true),
+			Name: "v2alpha1 apm enabled, use uds and host port",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithAPMEnabled(true).
+				WithAPMHostPortEnabled(true, 8126).
+				WithAPMUDSEnabled(true, apmSocketHostPath).
+				Build(),
 			WantConfigure: true,
 			Agent:         testAgentHostPortUDS(apicommonv1.TraceAgentContainerName),
 		},
 		{
-			Name:          "v2alpha1 apm enabled, use uds and host port",
-			DDAv2:         newV2MonoAgent(true, true),
+			Name: "v2alpha1 apm enabled, use uds and host port with multi-process container",
+			DDAv2: v2alpha1test.NewDatadogAgentBuilder().
+				WithAPMEnabled(true).
+				WithAPMHostPortEnabled(true, 8126).
+				WithAPMUDSEnabled(true, apmSocketHostPath).
+				WithMultiProcessContainer(true).
+				Build(),
 			WantConfigure: true,
 			Agent:         testAgentHostPortUDS(apicommonv1.NonPrivilegedMonoContainerName),
 		},
@@ -107,37 +130,6 @@ func newV1Agent(enableAPM bool, uds bool) *v1alpha1.DatadogAgent {
 			},
 		},
 	}
-}
-
-func newV2Agent(enableAPM bool, hostPort bool) *v2alpha1.DatadogAgent {
-	return &v2alpha1.DatadogAgent{
-		Spec: v2alpha1.DatadogAgentSpec{
-			Features: &v2alpha1.DatadogFeatures{
-				APM: &v2alpha1.APMFeatureConfig{
-					Enabled: apiutils.NewBoolPointer(enableAPM),
-					HostPortConfig: &v2alpha1.HostPortConfig{
-						Enabled: apiutils.NewBoolPointer(hostPort),
-						Port:    apiutils.NewInt32Pointer(8126),
-					},
-					UnixDomainSocketConfig: &v2alpha1.UnixDomainSocketConfig{
-						Enabled: apiutils.NewBoolPointer(true),
-						Path:    apiutils.NewStringPointer(apmSocketHostPath),
-					},
-				},
-			},
-			Global: &v2alpha1.GlobalConfig{},
-		},
-	}
-}
-
-func newV2MonoAgent(enableAPM bool, hostPort bool) *v2alpha1.DatadogAgent {
-	ddaV2 := newV2Agent(enableAPM, hostPort)
-	ddaV2.Spec.Global = &v2alpha1.GlobalConfig{
-		ContainerProcessModel: &v2alpha1.ContainerProcessModel{
-			UseMultiProcessContainer: apiutils.NewBoolPointer(true),
-		},
-	}
-	return ddaV2
 }
 
 func testAgentHostPortOnly() *test.ComponentTest {

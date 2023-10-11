@@ -3,6 +3,7 @@ package test
 import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/apis/utils"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 )
 
@@ -29,6 +30,16 @@ func NewDatadogAgentBuilder() *DatadogAgentBuilder {
 func NewDefaultDatadogAgentBuilder() *DatadogAgentBuilder {
 	dda := &v2alpha1.DatadogAgent{}
 	v2alpha1.DefaultDatadogAgent(dda)
+
+	return &DatadogAgentBuilder{
+		datadogAgent: *dda,
+	}
+}
+
+// NewDefaultDatadogAgentBuilder initialized with name, namespace, creds and metadata
+func NewInitializedDatadogAgentBuilder(ns, name string) *DatadogAgentBuilder {
+	dda := NewDatadogAgent(ns, name, nil)
+	dda.Spec.Features = &v2alpha1.DatadogFeatures{}
 
 	return &DatadogAgentBuilder{
 		datadogAgent: *dda,
@@ -98,6 +109,20 @@ func (builder *DatadogAgentBuilder) WithDogstatsdUnixDomainSocketConfigPath(cust
 func (builder *DatadogAgentBuilder) WithDogstatsdMapperProfiles(customMapperProfilesConf string) *DatadogAgentBuilder {
 	builder.initDogstatsd()
 	builder.datadogAgent.Spec.Features.Dogstatsd.MapperProfiles = &v2alpha1.CustomConfig{ConfigData: apiutils.NewStringPointer(customMapperProfilesConf)}
+	return builder
+}
+
+// Live Processes
+
+func (builder *DatadogAgentBuilder) initLiveContainer() {
+	if builder.datadogAgent.Spec.Features.LiveContainerCollection == nil {
+		builder.datadogAgent.Spec.Features.LiveContainerCollection = &v2alpha1.LiveContainerCollectionFeatureConfig{}
+	}
+}
+
+func (builder *DatadogAgentBuilder) WithLiveContainerCollectionEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initLiveContainer()
+	builder.datadogAgent.Spec.Features.LiveContainerCollection.Enabled = apiutils.NewBoolPointer(enabled)
 	return builder
 }
 
@@ -185,6 +210,28 @@ func (builder *DatadogAgentBuilder) initRemoteConfig() {
 func (builder *DatadogAgentBuilder) WithRemoteConfigEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initRemoteConfig()
 	builder.datadogAgent.Spec.Features.RemoteConfiguration.Enabled = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
+// KSM
+
+func (builder *DatadogAgentBuilder) initKSM() {
+	if builder.datadogAgent.Spec.Features.KubeStateMetricsCore == nil {
+		builder.datadogAgent.Spec.Features.KubeStateMetricsCore = &v2alpha1.KubeStateMetricsCoreFeatureConfig{}
+	}
+}
+
+func (builder *DatadogAgentBuilder) WithKSMEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initKSM()
+	builder.datadogAgent.Spec.Features.KubeStateMetricsCore.Enabled = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithKSMCustomConf(customData string) *DatadogAgentBuilder {
+	builder.initKSM()
+	builder.datadogAgent.Spec.Features.KubeStateMetricsCore.Conf = &v2alpha1.CustomConfig{
+		ConfigData: apiutils.NewStringPointer(customData),
+	}
 	return builder
 }
 
@@ -280,7 +327,7 @@ func (builder *DatadogAgentBuilder) WithPrometheusScrapeVersion(version int) *Da
 	return builder
 }
 
-// NPM
+// APM
 
 func (builder *DatadogAgentBuilder) initAPM() {
 	if builder.datadogAgent.Spec.Features.APM == nil {
@@ -291,6 +338,53 @@ func (builder *DatadogAgentBuilder) initAPM() {
 func (builder *DatadogAgentBuilder) WithAPMEnabled(enabled bool) *DatadogAgentBuilder {
 	builder.initAPM()
 	builder.datadogAgent.Spec.Features.APM.Enabled = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithAPMHostPortEnabled(enabled bool, port int32) *DatadogAgentBuilder {
+	builder.initAPM()
+	builder.datadogAgent.Spec.Features.APM.HostPortConfig = &v2alpha1.HostPortConfig{
+		Enabled: apiutils.NewBoolPointer(enabled),
+		Port:    apiutils.NewInt32Pointer(port),
+	}
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithAPMUDSEnabled(enabled bool, apmSocketHostPath string) *DatadogAgentBuilder {
+	builder.initAPM()
+	builder.datadogAgent.Spec.Features.APM.UnixDomainSocketConfig = &v2alpha1.UnixDomainSocketConfig{
+		Enabled: apiutils.NewBoolPointer(enabled),
+		Path:    apiutils.NewStringPointer(apmSocketHostPath),
+	}
+	return builder
+}
+
+// OTLP
+
+func (builder *DatadogAgentBuilder) initOTLP() {
+	if builder.datadogAgent.Spec.Features.OTLP == nil {
+		builder.datadogAgent.Spec.Features.OTLP = &v2alpha1.OTLPFeatureConfig{}
+		builder.datadogAgent.Spec.Features.OTLP.Receiver = v2alpha1.OTLPReceiverConfig{
+			Protocols: v2alpha1.OTLPProtocolsConfig{},
+		}
+	}
+}
+
+func (builder *DatadogAgentBuilder) WithOTLPGRPCSettings(enabled bool, endpoint string) *DatadogAgentBuilder {
+	builder.initOTLP()
+	builder.datadogAgent.Spec.Features.OTLP.Receiver.Protocols.GRPC = &v2alpha1.OTLPGRPCConfig{
+		Enabled:  apiutils.NewBoolPointer(enabled),
+		Endpoint: apiutils.NewStringPointer(endpoint),
+	}
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithOTLPHTTPSettings(enabled bool, endpoint string) *DatadogAgentBuilder {
+	builder.initOTLP()
+	builder.datadogAgent.Spec.Features.OTLP.Receiver.Protocols.HTTP = &v2alpha1.OTLPHTTPConfig{
+		Enabled:  apiutils.NewBoolPointer(enabled),
+		Endpoint: apiutils.NewStringPointer(endpoint),
+	}
 	return builder
 }
 
@@ -322,6 +416,34 @@ func (builder *DatadogAgentBuilder) WithCSPMEnabled(enabled bool) *DatadogAgentB
 	return builder
 }
 
+// CWS
+
+func (builder *DatadogAgentBuilder) initCWS() {
+	if builder.datadogAgent.Spec.Features.CWS == nil {
+		builder.datadogAgent.Spec.Features.CWS = &v2alpha1.CWSFeatureConfig{}
+	}
+}
+
+func (builder *DatadogAgentBuilder) WithCWSEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initCWS()
+	builder.datadogAgent.Spec.Features.CWS.Enabled = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
+// OOMKill
+
+func (builder *DatadogAgentBuilder) initOOMKill() {
+	if builder.datadogAgent.Spec.Features.OOMKill == nil {
+		builder.datadogAgent.Spec.Features.OOMKill = &v2alpha1.OOMKillFeatureConfig{}
+	}
+}
+
+func (builder *DatadogAgentBuilder) WithOOMKillEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initOOMKill()
+	builder.datadogAgent.Spec.Features.OOMKill.Enabled = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
 // Global Kubelet
 
 func (builder *DatadogAgentBuilder) WithGlobalKubeletConfig(hostCAPath, agentCAPath string, tlsVerify bool) *DatadogAgentBuilder {
@@ -344,9 +466,20 @@ func (builder *DatadogAgentBuilder) WithGlobalCriSocketPath(criSocketPath string
 }
 
 // Global ContainerProcessModel
+
 func (builder *DatadogAgentBuilder) WithMultiProcessContainer(enabled bool) *DatadogAgentBuilder {
 	builder.datadogAgent.Spec.Global.ContainerProcessModel = &v2alpha1.ContainerProcessModel{
 		UseMultiProcessContainer: apiutils.NewBoolPointer(enabled),
+	}
+	return builder
+}
+
+// Global Credentials
+
+func (builder *DatadogAgentBuilder) WithCredentials(apiKey, appKey string) *DatadogAgentBuilder {
+	builder.datadogAgent.Spec.Global.Credentials = &v2alpha1.DatadogCredentials{
+		APIKey: utils.NewStringPointer(apiKey),
+		AppKey: utils.NewStringPointer(appKey),
 	}
 	return builder
 }
