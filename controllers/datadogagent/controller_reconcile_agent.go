@@ -90,7 +90,7 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	// Apply features changes on the Deployment.Spec.Template
 	for _, feat := range features {
 		if requiredComponents.Agent.UsesMultiProcessContainer() {
-			if errFeat := feat.ManageMonoContainerNodeAgent(podManagers); errFeat != nil {
+			if errFeat := feat.ManageMultiProcessNodeAgent(podManagers); errFeat != nil {
 				return result, errFeat
 			}
 		} else {

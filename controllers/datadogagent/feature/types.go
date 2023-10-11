@@ -142,10 +142,10 @@ type Feature interface {
 	// ManageNodeAget allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 	// It should do nothing if the feature doesn't need to configure it.
 	ManageNodeAgent(managers PodTemplateManagers) error
-	// ManageMonoContainerNodeAgent allows a feature to configure the mono-container Node Agent's corev1.PodTemplateSpec
+	// ManageMultiProcessNodeAgent allows a feature to configure the mono-container Node Agent's corev1.PodTemplateSpec
 	// if mono-container usage is enabled and can be used with the current feature set
 	// It should do nothing if the feature doesn't need to configure it.
-	ManageMonoContainerNodeAgent(managers PodTemplateManagers) error
+	ManageMultiProcessNodeAgent(managers PodTemplateManagers) error
 	// ManageClusterChecksRunner allows a feature to configure the ClusterChecksRunnerAgent's corev1.PodTemplateSpec
 	// It should do nothing if the feature doesn't need to configure it.
 	ManageClusterChecksRunner(managers PodTemplateManagers) error

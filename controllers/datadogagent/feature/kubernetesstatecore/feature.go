@@ -238,10 +238,10 @@ func (f *ksmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 	return nil
 }
 
-// ManageMonoContainerNodeAgent allows a feature to configure the mono-container Node Agent's corev1.PodTemplateSpec
+// ManageMultiProcessNodeAgent allows a feature to configure the mono-container Node Agent's corev1.PodTemplateSpec
 // if mono-container usage is enabled and can be used with the current feature set
 // It should do nothing if the feature doesn't need to configure it.
-func (f *ksmFeature) ManageMonoContainerNodeAgent(managers feature.PodTemplateManagers) error {
+func (f *ksmFeature) ManageMultiProcessNodeAgent(managers feature.PodTemplateManagers) error {
 	// Remove ksm v1 conf if the cluster checks are enabled and the ksm core is enabled
 	ignoreAutoConf := &corev1.EnvVar{
 		Name:  apicommon.DDIgnoreAutoConf,
