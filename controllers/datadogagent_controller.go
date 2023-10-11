@@ -17,7 +17,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -200,29 +199,9 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	builder.Watches(&source.Kind{Type: &rbacv1.ClusterRoleBinding{}}, handlerEnqueue)
 
 	// node informer for introspection
-	builder.Watches(&source.Kind{Type: &corev1.Node{}}, handler.EnqueueRequestsFromMapFunc(func(obj client.Object) []reconcile.Request {
-		var reconcileRequests []reconcile.Request
-		shouldReconcile := r.Profiles.SetProvider(obj)
-
-		// retrieve and send reconcile requests to all DatadogAgents
-		if shouldReconcile {
-			ddaList := &datadoghqv2alpha1.DatadogAgentList{}
-			err := r.List(context.TODO(), ddaList)
-			if err != nil {
-				return []reconcile.Request{}
-			}
-
-			for _, dda := range ddaList.Items {
-				reconcileRequests = append(reconcileRequests, reconcile.Request{
-					NamespacedName: types.NamespacedName{
-						Name:      dda.Name,
-						Namespace: dda.Namespace,
-					},
-				})
-			}
-		}
-
-		return reconcileRequests
+	builder.Watches(&source.Kind{Type: &corev1.Node{}}, handler.EnqueueRequestsFromMapFunc(func(obj client.Object) (reqs []reconcile.Request) {
+		r.Profiles.SetProvider(obj)
+		return
 	}))
 
 	if r.Options.ExtendedDaemonsetOptions.Enabled {

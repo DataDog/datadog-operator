@@ -93,23 +93,11 @@ func Test_determineProvider(t *testing.T) {
 	}
 }
 func Test_SetProvider(t *testing.T) {
-	newNode := corev1.Node{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "bar",
-			Name:      "node0",
-			Labels: map[string]string{
-				GCPProviderLabel: GCPCosProvider,
-			},
-			CreationTimestamp: metav1.Now(),
-		},
-	}
-
 	tests := []struct {
 		name             string
 		obj              corev1.Node
 		existingProfiles *Profiles
 		wantProfile      *Profiles
-		shouldReconcile  bool
 	}{
 		{
 			name:             "add new provider",
@@ -125,7 +113,6 @@ func Test_SetProvider(t *testing.T) {
 					},
 				},
 			},
-			shouldReconcile: true,
 		},
 		{
 			name: "add new provider with existing provider",
@@ -152,7 +139,6 @@ func Test_SetProvider(t *testing.T) {
 					},
 				},
 			},
-			shouldReconcile: true,
 		},
 		{
 			name: "add new node name to existing provider",
@@ -176,32 +162,7 @@ func Test_SetProvider(t *testing.T) {
 						ProviderLabel: GCPProviderLabel,
 					},
 				},
-				newNodes: map[string]bool{
-					"node0": true,
-				},
 			},
-			shouldReconcile: false,
-		},
-		{
-			name: "node too new to be collected",
-			obj:  newNode,
-			existingProfiles: &Profiles{
-				providers: map[string]Provider{
-					"abcdef": {
-						Name:          "test2",
-						ComponentName: "test2",
-					},
-				},
-			},
-			wantProfile: &Profiles{
-				providers: map[string]Provider{
-					"abcdef": {
-						Name:          "test2",
-						ComponentName: "test2",
-					},
-				},
-			},
-			shouldReconcile: false,
 		},
 	}
 
@@ -213,9 +174,8 @@ func Test_SetProvider(t *testing.T) {
 				profile.providers = tt.existingProfiles.providers
 			}
 
-			shouldReconcile := profile.SetProvider(&tt.obj)
+			profile.SetProvider(&tt.obj)
 			assert.Equal(t, tt.wantProfile.providers, profile.providers)
-			assert.Equal(t, shouldReconcile, tt.shouldReconcile)
 		})
 	}
 }

@@ -26,8 +26,6 @@ type ProfilesOptions struct {
 type Profiles struct {
 	providers       map[string]Provider // map provider hash to provider definitions to get provider def with hash string
 	sortedProviders []Provider          // sorted list to generate affinity expressions in the same order to prevent pod restarts
-	newNodes        map[string]bool     // store node name for nodes that may need more time for cloud provider labels to populate
-	newNodesDelay   time.Duration
 
 	log   logr.Logger
 	mutex sync.Mutex
@@ -71,8 +69,6 @@ func NewProfiles(log logr.Logger, options ProfilesOptions) Profiles {
 	return Profiles{
 		providers:       make(map[string]Provider),
 		sortedProviders: []Provider{},
-		newNodes:        make(map[string]bool),
-		newNodesDelay:   options.NewNodeDelay,
 		log:             log,
 	}
 }
@@ -101,27 +97,13 @@ func DetermineProvider(labels map[string]string) Provider {
 }
 
 // SetProvider creates a provider entry for a new provider if needed and returns whether DDAs should be reconciled
-func (p *Profiles) SetProvider(obj client.Object) bool {
+func (p *Profiles) SetProvider(obj client.Object) {
 	objName := obj.GetName()
-	// cloud provider labels may not be populated when a node first starts up and is sent via informer
-	// if nodes are <newNodesDelay seconds old, don't check for a provider and add to newNodes instead
-	// SetProvider is called in the reconcile loop to ensure nodes aren't missed once they are old enough
-	creationTime := obj.GetCreationTimestamp().Time
-	if time.Since(creationTime) < p.newNodesDelay {
-		p.log.Info("Node is too new to have its provider evaluated", "node", objName, "node agent", time.Since(creationTime), "minimum age", p.newNodesDelay)
-		p.mutex.Lock()
-		p.newNodes[objName] = true
-		p.mutex.Unlock()
-		return false
-	}
-	delete(p.newNodes, objName)
-
 	labels := obj.GetLabels()
 	objProvider := DetermineProvider(labels)
 	providerHash, err := GenerateProviderHash(objProvider)
 	if err != nil {
 		p.log.Error(err, "Error generating hash for node provider", "node", objName, "provider", objProvider.ComponentName)
-		return false
 	}
 
 	p.mutex.Lock()
@@ -131,12 +113,7 @@ func (p *Profiles) SetProvider(obj client.Object) bool {
 		p.providers[providerHash] = objProvider
 		p.sortProviders()
 		p.log.Info("New provider detected", "provider", objProvider.ComponentName, "hash", providerHash)
-
-		// reconcile if a new provider was added
-		return true
 	}
-
-	return false
 }
 
 // GetProviders gets a list of providers
@@ -145,14 +122,6 @@ func (p *Profiles) GetProviders() *map[string]Provider {
 	defer p.mutex.Unlock()
 
 	return &p.providers
-}
-
-// GetNewNodes gets a list of nodes that had not passed their newNodeDelay time
-func (p *Profiles) GetNewNodes() *map[string]bool {
-	p.mutex.Lock()
-	defer p.mutex.Unlock()
-
-	return &p.newNodes
 }
 
 // GenerateProviderNodeAffinity creates NodeSelectorTerms based on the provider
