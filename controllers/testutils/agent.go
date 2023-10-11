@@ -16,15 +16,16 @@ package testutils
 import (
 	"time"
 
-	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	controllerruntime "sigs.k8s.io/controller-runtime"
+
+	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
+	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 )
 
 // NewDatadogAgentWithoutFeatures returns an agent without any features enabled
@@ -120,6 +121,19 @@ func NewDatadogAgentWithDogstatsd(namespace string, name string) v2alpha1.Datado
 					Enabled: apiutils.NewBoolPointer(true),
 					Port:    apiutils.NewInt32Pointer(1234),
 				},
+			},
+		},
+	)
+}
+
+// NewDatadogAgentWithEBPFCheck returns an agent with eBPF Check enabled
+func NewDatadogAgentWithEBPFCheck(namespace string, name string) v2alpha1.DatadogAgent {
+	return newDatadogAgentWithFeatures(
+		namespace,
+		name,
+		&v2alpha1.DatadogFeatures{
+			EBPFCheck: &v2alpha1.EBPFCheckFeatureConfig{
+				Enabled: apiutils.NewBoolPointer(true),
 			},
 		},
 	)

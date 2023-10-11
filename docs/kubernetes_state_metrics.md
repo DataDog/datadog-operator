@@ -91,7 +91,6 @@ data:
           label_chart_name: chart_name
           label_chart_version: chart_version
           label_team: team
-        telemetry: true
       - collectors:
           - deployments
           - daemonsets
@@ -116,10 +115,9 @@ data:
         labels_mapper:
           label_service: service
           label_app: app
-        telemetry: true
 ``` 
 
-The above example will create 2 separate Cluster Level Checks, using different collectors and features (label joins, telemetry, remapping...).
+The above example will create 2 separate Cluster Level Checks, using different collectors and features (label joins, remapping...).
 Once you have created the ConfigMap (in the same namespace as the operator), make sure you reference the name in the DatadogAgent Spec, in this case:
 
 You can also reference the configuration in the specification of the DatadogAgent spec as follows:
@@ -137,7 +135,6 @@ spec:
               - collectors:
                   - pods
                   - nodes
-            telemetry: true
 ```
 
 The above will have the operator create and maintain a ConfigMap for you with this config. It will run a single Kubernetes State Metrics Core check with the pods and nodes collectors enabled.

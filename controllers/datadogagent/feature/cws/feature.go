@@ -95,6 +95,9 @@ func (f *cwsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 
 		if dda.Spec.Features.RemoteConfiguration != nil {
 			f.remoteConfigurationEnabled = apiutils.BoolValue(dda.Spec.Features.RemoteConfiguration.Enabled)
+			if cws.RemoteConfiguration != nil {
+				f.remoteConfigurationEnabled = f.remoteConfigurationEnabled && apiutils.BoolValue(cws.RemoteConfiguration.Enabled)
+			}
 		}
 
 		reqComp = feature.RequiredComponents{

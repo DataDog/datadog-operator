@@ -116,7 +116,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 
 	// Set up dependencies required by enabled features
 	for _, feat := range features {
-		logger.Info("Dependency ManageDependencies", "featureID", feat.ID())
+		logger.V(1).Info("Dependency ManageDependencies", "featureID", feat.ID())
 		if featErr := feat.ManageDependencies(resourceManagers, requiredComponents); featErr != nil {
 			errs = append(errs, featErr)
 		}

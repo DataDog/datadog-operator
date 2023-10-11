@@ -136,7 +136,8 @@ func TestClusterAgentChecksumsDifferentForDiffferentConfig(t *testing.T) {
 		md5Values[md5] = ""
 	}
 
-	assert.Equal(t, 5, len(md5Values))
+	// First three cases, when cluster checks is disabled md5 is empty string
+	assert.Equal(t, 3, len(md5Values))
 }
 
 func newV1Agent(enableClusterChecks bool, enableClusterCheckRunners bool) *v1alpha1.DatadogAgent {
