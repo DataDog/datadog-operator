@@ -1,19 +1,19 @@
 # Getting Started
 
-This page describes the simplest and fastest way to deploy the Datadog Agent with the Operator.
+This page describes a simple and fast way to deploy the Datadog Agent with the Operator.
 For more details on how to install the Operator and configure the Agent it deploys, refer to the [installation guide](installation.md).
 
 ## Prerequisites
 
 Using the Datadog Operator requires the following prerequisites:
 
-- **Kubernetes Cluster version >= v1.20.X**: Tests were done on versions >= `1.20.0`. Still, it should work on versions `>= v1.11.0`. For earlier versions, because of limited CRD support, the Operator may not work as expected.
+- **Kubernetes Cluster version >= v1.20.X**: Tests were performed on Kubernetes versions >= `1.20.0`. It is expected to work on versions `>= v1.11.0`, but for earlier versions the Operator may not work as expected because of limited CRD support.
 - **[Helm][1]** for deploying the Datadog Operator
 - **[`kubectl` CLI][2]** for installing the Datadog Agent
 
 ## Deploy the Agent with the Operator
 
-To deploy the Datadog Agent with the Operator in the minimum number of steps, use the [`datadog-operator` Helm chart](https://github.com/DataDog/helm-charts/tree/main/charts/datadog-operator).
+To deploy the Datadog Agent with the Operator using a minimum number of steps, use the [`datadog-operator` Helm chart](https://github.com/DataDog/helm-charts/tree/main/charts/datadog-operator).
 
 1. Install the [Datadog Operator][3]:
 
@@ -22,7 +22,7 @@ To deploy the Datadog Agent with the Operator in the minimum number of steps, us
    helm install my-datadog-operator datadog/datadog-operator
    ```
 
-1. Create a Kubernetes Secret with your API and app keys:
+1. Create a Kubernetes Secret with your API and application keys:
 
    ```shell
    kubectl create secret generic datadog-secret --from-literal api-key=<DATADOG_API_KEY> --from-literal app-key=<DATADOG_APP_KEY>
@@ -61,7 +61,7 @@ Visit the [Integrations Autodiscovery][9] page for details about how to configur
 
 #### Containers registry
 
-To change the default registry ([gcr.io/datadoghq][6]) to another registry, use the option `spec.registry`.
+To change the default registry ([gcr.io/datadoghq][6]) to another registry, use the option `spec.global.registry`.
 
 The example [`datadog-agent-with-registry.yaml` file][7] demonstrates how to configure the Operator to use the [public.ecr.aws/datadog][8] registry.
 
@@ -90,7 +90,7 @@ helm delete my-datadog-operator
 [3]: https://artifacthub.io/packages/helm/datadog/datadog-operator
 [4]: https://app.datadoghq.com/account/settings#api
 [5]: https://github.com/DataDog/datadog-operator/blob/main/docs/configuration.v2alpha1.md
-[6]: ttps://gcr.io/datadoghq
+[6]: https://gcr.io/datadoghq
 [7]: https://github.com/DataDog/datadog-operator/blob/main/examples/datadogagent/v2alpha1/datadog-agent-with-registry.yaml
 [8]: https://gallery.ecr.aws/datadog/
 [9]: https://github.com/DataDog/datadog-operator/blob/main/docs/integrations_autodiscovery.md
