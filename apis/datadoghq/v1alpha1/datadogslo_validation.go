@@ -19,10 +19,6 @@ func IsValidDatadogSLO(spec *DatadogSLOSpec) error {
 		errs = append(errs, fmt.Errorf("spec.Name must be defined"))
 	}
 
-	if spec.Query == nil {
-		errs = append(errs, fmt.Errorf("spec.Query must be defined"))
-	}
-
 	if spec.Type == "" {
 		errs = append(errs, fmt.Errorf("spec.Type must be defined"))
 	}
@@ -31,16 +27,20 @@ func IsValidDatadogSLO(spec *DatadogSLOSpec) error {
 		errs = append(errs, fmt.Errorf("spec.Type must be one of the values: %s or %s", DatadogSLOTypeMonitor, DatadogSLOTypeMetric))
 	}
 
-	if spec.Type == DatadogSLOTypeMonitor && len(spec.MonitorIDs) < 1 {
+	if spec.Type == DatadogSLOTypeMetric && spec.Query == nil {
+		errs = append(errs, fmt.Errorf("spec.Query must be defined when spec.Type is metric"))
+	}
+
+	if spec.Type == DatadogSLOTypeMonitor && len(spec.MonitorIDs) == 0 {
 		errs = append(errs, fmt.Errorf("spec.MonitorIDs must be defined when spec.Type is monitor"))
 	}
 
-	if spec.TargetThreshold.Value() <= 0 {
-		errs = append(errs, fmt.Errorf("spec.TargetThreshold must be greater than 0"))
+	if spec.TargetThreshold.Value() <= 0 || spec.TargetThreshold.Value() >= 100 {
+		errs = append(errs, fmt.Errorf("spec.TargetThreshold must be greater than 0 and less than 100"))
 	}
 
-	if spec.WarningThreshold != nil && spec.WarningThreshold.Value() <= 0 {
-		errs = append(errs, fmt.Errorf("spec.WarningThreshold must be greater than 0"))
+	if spec.WarningThreshold != nil && (spec.WarningThreshold.Value() <= 0 || spec.WarningThreshold.Value() >= 100) {
+		errs = append(errs, fmt.Errorf("spec.WarningThreshold must be greater than 0 and less than 100"))
 	}
 
 	switch spec.Timeframe {
