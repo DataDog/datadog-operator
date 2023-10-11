@@ -65,7 +65,7 @@ helm upgrade my-datadog-operator datadog/datadog-operator -f values.yaml
 
 ### Install the Datadog Operator with Operator Lifecycle Manager
 
-Instructions for deploying the Datadog Operator with [Operator Lifecycle Manager][4] is available at [operatorhub.io][5].
+Instructions for deploying the Datadog Operator with [Operator Lifecycle Manager][4] are available at [operatorhub.io][5].
 
 #### Override the default Operator configuration with OLM
 
