@@ -8353,7 +8353,7 @@ spec:
                       description: Remote Configuration configuration.
                       properties:
                         enabled:
-                          description: 'Enable this option to activate Remote Configuration. Default: false'
+                          description: 'Enable this option to activate Remote Configuration. Default: true'
                           type: boolean
                       type: object
                     tcpQueueLength:
