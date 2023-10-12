@@ -178,6 +178,10 @@ func clusterChecksRunnerDefaultEnvVars() []corev1.EnvVar {
 			Value: "false",
 		},
 		{
+			Name:  "DD_REMOTE_CONFIGURATION_ENABLED",
+			Value: "false",
+		},
+		{
 			Name:  "DD_LOG_LEVEL",
 			Value: "INFO",
 		},
