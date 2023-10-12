@@ -120,7 +120,7 @@ spec:
 | features.prometheusScrape.enableServiceEndpoints | EnableServiceEndpoints enables generating dedicated checks for service endpoints. Default: false |
 | features.prometheusScrape.enabled | Enable autodiscovery of pods and services exposing Prometheus metrics. Default: false |
 | features.prometheusScrape.version | Version specifies the version of the OpenMetrics check. Default: 2 |
-| features.remoteConfiguration.enabled | Enable this option to activate Remote Configuration. Default: false |
+| features.remoteConfiguration.enabled | Enable this option to activate Remote Configuration. Default: true |
 | features.tcpQueueLength.enabled | Enables the TCP queue length eBPF-based check. Default: false |
 | features.usm.enabled | Enabled enables Universal Service Monitoring. Default: false |
 | global.clusterAgentToken | ClusterAgentToken is the token for communication between the NodeAgent and ClusterAgent. |
@@ -176,7 +176,7 @@ spec:
 
 The table below lists parameters that can be used to override default or global settings. Maps and arrays have a type annotation in the table; properties that are configured as map values contain a `[key]` element which should be replaced by the actual map key. `override` itself is a map with the following possible keys: `nodeAgent`, `clusterAgent`, or `clusterChecksRunner`. Other keys can be added, but they do not have any effect.
 
-For example, the manifest below can be used to override the node Agent image, tag, and the resource limits of the system probe container. 
+For example, the manifest below can be used to override the node Agent image, tag, and the resource limits of the system probe container.
 
 ```yaml
 apiVersion: datadoghq.com/v2alpha1
