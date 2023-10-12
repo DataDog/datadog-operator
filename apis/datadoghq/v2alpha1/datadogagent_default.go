@@ -7,7 +7,6 @@ package v2alpha1
 
 import (
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
-	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 )
 
@@ -85,7 +84,7 @@ const (
 	defaultPrometheusScrapeVersion                int  = 2
 
 	defaultKubeletAgentCAPath            = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
-	defaultKubeletAgentCAPathHostPathSet = "/var/run/host-kubelet-ca.crt"
+	defaultKubeletAgentCAPathHostPathSet = apicommon.KubeletAgentCAPath
 )
 
 // DefaultDatadogAgent defaults the DatadogAgentSpec GlobalConfig and Features.
@@ -113,17 +112,17 @@ func defaultGlobalConfig(ddaSpec *DatadogAgentSpec) {
 		ddaSpec.Global.LogLevel = apiutils.NewStringPointer(defaultLogLevel)
 	}
 
-	if ddaSpec.Global.Kubelet == nil {
-		ddaSpec.Global.Kubelet = &commonv1.KubeletConfig{
-			AgentCAPath: defaultKubeletAgentCAPath,
-		}
-	} else if ddaSpec.Global.Kubelet.AgentCAPath == "" {
-		if ddaSpec.Global.Kubelet.HostCAPath != "" {
-			ddaSpec.Global.Kubelet.AgentCAPath = defaultKubeletAgentCAPathHostPathSet
-		} else {
-			ddaSpec.Global.Kubelet.AgentCAPath = defaultKubeletAgentCAPath
-		}
-	}
+	// if ddaSpec.Global.Kubelet == nil {
+	// 	ddaSpec.Global.Kubelet = &commonv1.KubeletConfig{
+	// 		AgentCAPath: defaultKubeletAgentCAPath,
+	// 	}
+	// } else if ddaSpec.Global.Kubelet.AgentCAPath == "" {
+	// 	if ddaSpec.Global.Kubelet.HostCAPath != "" {
+	// 		ddaSpec.Global.Kubelet.AgentCAPath = defaultKubeletAgentCAPathHostPathSet
+	// 	} else {
+	// 		ddaSpec.Global.Kubelet.AgentCAPath = defaultKubeletAgentCAPath
+	// 	}
+	// }
 }
 
 // defaultFeaturesConfig sets default values in DatadogAgentSpec.Features.

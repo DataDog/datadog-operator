@@ -29,7 +29,12 @@ import (
 // NewDefaultAgentDaemonset return a new default agent DaemonSet
 func NewDefaultAgentDaemonset(dda metav1.Object, requiredContainers []common.AgentContainerName, provider kubernetes.Provider) *appsv1.DaemonSet {
 	daemonset := NewDaemonset(dda, apicommon.DefaultAgentResourceSuffix, component.GetAgentName(dda), component.GetAgentVersion(dda), nil, provider)
-	podTemplate := NewDefaultAgentPodTemplateSpec(dda, requiredContainers, daemonset.GetLabels())
+	var podTemplate *corev1.PodTemplateSpec
+	if provider.Name == kubernetes.OpenShiftRHCOSProvider {
+		podTemplate = NewDefaultOpenShiftAgentPodTemplateSpec(dda, requiredContainers, daemonset.GetLabels())
+	} else {
+		podTemplate = NewDefaultAgentPodTemplateSpec(dda, requiredContainers, daemonset.GetLabels())
+	}
 
 	daemonset.Spec.Template = *podTemplate
 	return daemonset
@@ -42,8 +47,9 @@ func NewDefaultAgentExtendedDaemonset(dda metav1.Object, edsOptions *ExtendedDae
 	return edsDaemonset
 }
 
-// NewDefaultAgentPodTemplateSpec return a default node agent for the cluster-agent deployment
+// NewDefaultAgentPodTemplateSpec return a default node agent for the agent daemonset
 func NewDefaultAgentPodTemplateSpec(dda metav1.Object, requiredContainers []common.AgentContainerName, labels map[string]string) *corev1.PodTemplateSpec {
+	emptyProvider := kubernetes.DetermineProvider(map[string]string{})
 	return &corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels:      labels,
@@ -55,9 +61,54 @@ func NewDefaultAgentPodTemplateSpec(dda metav1.Object, requiredContainers []comm
 				RunAsUser: apiutils.NewInt64Pointer(0),
 			},
 			ServiceAccountName: getDefaultServiceAccountName(dda),
-			InitContainers:     initContainers(dda, requiredContainers),
-			Containers:         agentContainers(dda, requiredContainers),
-			Volumes:            volumesForAgent(dda, requiredContainers),
+			InitContainers:     initContainers(dda, requiredContainers, emptyProvider),
+			Containers:         agentContainers(dda, requiredContainers, emptyProvider),
+			Volumes:            volumesForAgent(dda, requiredContainers, emptyProvider),
+		},
+	}
+}
+
+// NewDefaultOpenShiftAgentPodTemplateSpec return a default node agent for the agent daemonset in OpenShift
+func NewDefaultOpenShiftAgentPodTemplateSpec(dda metav1.Object, requiredContainers []common.AgentContainerName, labels map[string]string) *corev1.PodTemplateSpec {
+	openShiftProvider := kubernetes.DetermineProvider(map[string]string{kubernetes.OpenShiftProviderLabel: kubernetes.OpenShiftRHCOSProvider})
+	return &corev1.PodTemplateSpec{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels:      labels,
+			Annotations: make(map[string]string),
+		},
+		Spec: corev1.PodSpec{
+			// Force root user for when the agent Dockerfile will be updated to use a non-root user by default
+			SecurityContext: &corev1.PodSecurityContext{
+				RunAsUser: apiutils.NewInt64Pointer(0),
+				SELinuxOptions: &corev1.SELinuxOptions{
+					Level: "s0",
+					Role:  "system_r",
+					Type:  "spc_t",
+					User:  "system_u",
+				},
+			},
+			// Comment to remove - This requires the bundle to be updated to use `datadog-agent` (with `datadog` being the recommended/default CRD name) on top of `datadog-agent-scc` (to allow users upgrading to keep a working setup with only serviceaccountname override):
+			// https://github.com/DataDog/datadog-operator/blob/1a5623dde36f2cb48999b1b14909f8d431f83c4c/bundle/manifests/datadog-operator.clusterserviceversion.yaml#L791-L801
+			// https://github.com/DataDog/datadog-operator/blob/main/hack/patch-bundle-csv-scc.yaml
+			ServiceAccountName: getDefaultServiceAccountName(dda),
+			// Use HostNetwork to access cloud metadata
+			HostNetwork: true,
+			// Default tolerations for master nodes
+			Tolerations: []corev1.Toleration{
+				{
+					Key:      "node-role.kubernetes.io/master",
+					Operator: "Exists",
+					Effect:   "NoSchedule",
+				},
+				{
+					Key:      "node-role.kubernetes.io/infra",
+					Operator: "Exists",
+					Effect:   "NoSchedule",
+				},
+			},
+			InitContainers: initContainers(dda, requiredContainers, openShiftProvider),
+			Containers:     agentContainers(dda, requiredContainers, openShiftProvider),
+			Volumes:        volumesForAgent(dda, requiredContainers, openShiftProvider),
 		},
 	}
 }
@@ -86,10 +137,10 @@ func agentImage() string {
 	return fmt.Sprintf("%s/%s:%s", apicommon.DefaultImageRegistry, apicommon.DefaultAgentImageName, defaulting.AgentLatestVersion)
 }
 
-func initContainers(dda metav1.Object, requiredContainers []common.AgentContainerName) []corev1.Container {
+func initContainers(dda metav1.Object, requiredContainers []common.AgentContainerName, provider kubernetes.Provider) []corev1.Container {
 	initContainers := []corev1.Container{
 		initVolumeContainer(),
-		initConfigContainer(dda),
+		initConfigContainer(dda, provider),
 	}
 	for _, containerName := range requiredContainers {
 		if containerName == common.SystemProbeContainerName {
@@ -100,40 +151,40 @@ func initContainers(dda metav1.Object, requiredContainers []common.AgentContaine
 	return initContainers
 }
 
-func agentContainers(dda metav1.Object, requiredContainers []common.AgentContainerName) []corev1.Container {
-	containers := []corev1.Container{coreAgentContainer(dda)}
+func agentContainers(dda metav1.Object, requiredContainers []common.AgentContainerName, provider kubernetes.Provider) []corev1.Container {
+	containers := []corev1.Container{coreAgentContainer(dda, provider)}
 
 	for _, containerName := range requiredContainers {
 		switch containerName {
 		case common.CoreAgentContainerName:
 			// Nothing to do. It's always required.
 		case common.TraceAgentContainerName:
-			containers = append(containers, traceAgentContainer(dda))
+			containers = append(containers, traceAgentContainer(dda, provider))
 		case common.ProcessAgentContainerName:
-			containers = append(containers, processAgentContainer(dda))
+			containers = append(containers, processAgentContainer(dda, provider))
 		case common.SecurityAgentContainerName:
-			containers = append(containers, securityAgentContainer(dda))
+			containers = append(containers, securityAgentContainer(dda, provider))
 		case common.SystemProbeContainerName:
-			containers = append(containers, systemProbeContainer(dda))
+			containers = append(containers, systemProbeContainer(dda, provider))
 		}
 	}
 
 	return containers
 }
 
-func coreAgentContainer(dda metav1.Object) corev1.Container {
+func coreAgentContainer(dda metav1.Object, provider kubernetes.Provider) corev1.Container {
 	return corev1.Container{
 		Name:           string(common.CoreAgentContainerName),
 		Image:          agentImage(),
 		Command:        []string{"agent", "run"},
-		Env:            envVarsForCoreAgent(dda),
-		VolumeMounts:   volumeMountsForCoreAgent(),
+		Env:            envVarsForCoreAgent(dda, provider),
+		VolumeMounts:   volumeMountsForCoreAgent(provider),
 		LivenessProbe:  apicommon.GetDefaultLivenessProbe(),
 		ReadinessProbe: apicommon.GetDefaultReadinessProbe(),
 	}
 }
 
-func traceAgentContainer(dda metav1.Object) corev1.Container {
+func traceAgentContainer(dda metav1.Object, provider kubernetes.Provider) corev1.Container {
 	return corev1.Container{
 		Name:  string(common.TraceAgentContainerName),
 		Image: agentImage(),
@@ -141,14 +192,14 @@ func traceAgentContainer(dda metav1.Object) corev1.Container {
 			"trace-agent",
 			fmt.Sprintf("--config=%s", apicommon.AgentCustomConfigVolumePath),
 		},
-		Env:            commonEnvVars(dda),
-		VolumeMounts:   volumeMountsForTraceAgent(),
+		Env:            commonEnvVars(dda, provider),
+		VolumeMounts:   volumeMountsForTraceAgent(provider),
 		LivenessProbe:  apicommon.GetDefaultLivenessProbe(),
 		ReadinessProbe: apicommon.GetDefaultReadinessProbe(),
 	}
 }
 
-func processAgentContainer(dda metav1.Object) corev1.Container {
+func processAgentContainer(dda metav1.Object, provider kubernetes.Provider) corev1.Container {
 	return corev1.Container{
 		Name:  string(common.ProcessAgentContainerName),
 		Image: agentImage(),
@@ -156,14 +207,14 @@ func processAgentContainer(dda metav1.Object) corev1.Container {
 			"process-agent", fmt.Sprintf("--config=%s", apicommon.AgentCustomConfigVolumePath),
 			fmt.Sprintf("--sysprobe-config=%s", apicommon.SystemProbeConfigVolumePath),
 		},
-		Env:            commonEnvVars(dda),
-		VolumeMounts:   volumeMountsForProcessAgent(),
+		Env:            commonEnvVars(dda, provider),
+		VolumeMounts:   volumeMountsForProcessAgent(provider),
 		LivenessProbe:  apicommon.GetDefaultLivenessProbe(),
 		ReadinessProbe: apicommon.GetDefaultReadinessProbe(),
 	}
 }
 
-func securityAgentContainer(dda metav1.Object) corev1.Container {
+func securityAgentContainer(dda metav1.Object, provider kubernetes.Provider) corev1.Container {
 	return corev1.Container{
 		Name:  string(common.SecurityAgentContainerName),
 		Image: agentImage(),
@@ -171,14 +222,14 @@ func securityAgentContainer(dda metav1.Object) corev1.Container {
 			"security-agent",
 			"start", fmt.Sprintf("-c=%s", apicommon.AgentCustomConfigVolumePath),
 		},
-		Env:            envVarsForSecurityAgent(dda),
-		VolumeMounts:   volumeMountsForSecurityAgent(),
+		Env:            envVarsForSecurityAgent(dda, provider),
+		VolumeMounts:   volumeMountsForSecurityAgent(provider),
 		LivenessProbe:  apicommon.GetDefaultLivenessProbe(),
 		ReadinessProbe: apicommon.GetDefaultReadinessProbe(),
 	}
 }
 
-func systemProbeContainer(dda metav1.Object) corev1.Container {
+func systemProbeContainer(dda metav1.Object, provider kubernetes.Provider) corev1.Container {
 	return corev1.Container{
 		Name:  string(common.SystemProbeContainerName),
 		Image: agentImage(),
@@ -186,8 +237,8 @@ func systemProbeContainer(dda metav1.Object) corev1.Container {
 			"system-probe",
 			fmt.Sprintf("--config=%s", apicommon.SystemProbeConfigVolumePath),
 		},
-		Env:            commonEnvVars(dda),
-		VolumeMounts:   volumeMountsForSystemProbe(),
+		Env:            commonEnvVars(dda, provider),
+		VolumeMounts:   volumeMountsForSystemProbe(provider),
 		LivenessProbe:  apicommon.GetDefaultLivenessProbe(),
 		ReadinessProbe: apicommon.GetDefaultReadinessProbe(),
 		SecurityContext: &corev1.SecurityContext{
@@ -214,7 +265,7 @@ func initVolumeContainer() corev1.Container {
 	}
 }
 
-func initConfigContainer(dda metav1.Object) corev1.Container {
+func initConfigContainer(dda metav1.Object, provider kubernetes.Provider) corev1.Container {
 	return corev1.Container{
 		Name:    "init-config",
 		Image:   agentImage(),
@@ -222,8 +273,8 @@ func initConfigContainer(dda metav1.Object) corev1.Container {
 		Args: []string{
 			"for script in $(find /etc/cont-init.d/ -type f -name '*.sh' | sort) ; do bash $script ; done",
 		},
-		VolumeMounts: volumeMountsForInitConfig(),
-		Env:          envVarsForCoreAgent(dda),
+		VolumeMounts: volumeMountsForInitConfig(provider),
+		Env:          envVarsForCoreAgent(dda, provider),
 	}
 }
 
@@ -240,8 +291,8 @@ func initSeccompSetupContainer() corev1.Container {
 	}
 }
 
-func commonEnvVars(dda metav1.Object) []corev1.EnvVar {
-	return []corev1.EnvVar{
+func commonEnvVars(dda metav1.Object, provider kubernetes.Provider) []corev1.EnvVar {
+	envs := []corev1.EnvVar{
 		{
 			Name:  apicommon.KubernetesEnvVar,
 			Value: "yes",
@@ -267,9 +318,23 @@ func commonEnvVars(dda metav1.Object) []corev1.EnvVar {
 			},
 		},
 	}
+	if provider.Name == kubernetes.OpenShiftRHCOSProvider {
+		openShiftCoreEnvs := []corev1.EnvVar{
+			{
+				Name:  apicommon.DDCriSocketPath,
+				Value: apicommon.HostCriSocketPathPrefix + apicommon.RuntimeDirVolumePath + "/crio/crio.sock",
+			},
+			{
+				Name:  apicommon.DDKubeletCAPath,
+				Value: apicommon.KubeletAgentCAPath,
+			},
+		}
+		envs = append(envs, openShiftCoreEnvs...)
+	}
+	return envs
 }
 
-func envVarsForCoreAgent(dda metav1.Object) []corev1.EnvVar {
+func envVarsForCoreAgent(dda metav1.Object, provider kubernetes.Provider) []corev1.EnvVar {
 	envs := []corev1.EnvVar{
 		{
 			Name:  apicommon.DDHealthPort,
@@ -281,10 +346,10 @@ func envVarsForCoreAgent(dda metav1.Object) []corev1.EnvVar {
 		},
 	}
 
-	return append(envs, commonEnvVars(dda)...)
+	return append(envs, commonEnvVars(dda, provider)...)
 }
 
-func envVarsForSecurityAgent(dda metav1.Object) []corev1.EnvVar {
+func envVarsForSecurityAgent(dda metav1.Object, provider kubernetes.Provider) []corev1.EnvVar {
 	envs := []corev1.EnvVar{
 		{
 			Name:  "HOST_ROOT",
@@ -292,10 +357,10 @@ func envVarsForSecurityAgent(dda metav1.Object) []corev1.EnvVar {
 		},
 	}
 
-	return append(envs, commonEnvVars(dda)...)
+	return append(envs, commonEnvVars(dda, provider)...)
 }
 
-func volumeMountsForInitConfig() []corev1.VolumeMount {
+func volumeMountsForInitConfig(provider kubernetes.Provider) []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		component.GetVolumeMountForLogs(),
 		component.GetVolumeMountForChecksd(),
@@ -303,11 +368,11 @@ func volumeMountsForInitConfig() []corev1.VolumeMount {
 		component.GetVolumeMountForConfd(),
 		component.GetVolumeMountForConfig(),
 		component.GetVolumeMountForProc(),
-		component.GetVolumeMountForRuntimeSocket(true),
+		component.GetVolumeMountForRuntimeSocket(true, provider),
 	}
 }
 
-func volumesForAgent(dda metav1.Object, requiredContainers []common.AgentContainerName) []corev1.Volume {
+func volumesForAgent(dda metav1.Object, requiredContainers []common.AgentContainerName, provider kubernetes.Provider) []corev1.Volume {
 	volumes := []corev1.Volume{
 		component.GetVolumeForLogs(),
 		component.GetVolumeForAuth(),
@@ -318,7 +383,21 @@ func volumesForAgent(dda metav1.Object, requiredContainers []common.AgentContain
 		component.GetVolumeForProc(),
 		component.GetVolumeForCgroups(),
 		component.GetVolumeForDogstatsd(),
-		component.GetVolumeForRuntimeSocket(),
+		component.GetVolumeForRuntimeSocket(provider),
+	}
+
+	// The kubelet CA certificate is stored by default on OpenShift nodes in `/etc/kubernetes/kubelet-ca.crt`.
+	// If the provider is OpenShift, we mount this volume to allow TLS connection to the kubelet.
+	if provider.Name == kubernetes.OpenShiftRHCOSProvider {
+		kubeletCAVol := corev1.Volume{
+			Name: apicommon.KubeletCAVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: apicommon.KubeletCAOpenShiftPath,
+				},
+			},
+		}
+		volumes = append(volumes, kubeletCAVol)
 	}
 
 	for _, containerName := range requiredContainers {
@@ -334,8 +413,8 @@ func volumesForAgent(dda metav1.Object, requiredContainers []common.AgentContain
 	return volumes
 }
 
-func volumeMountsForCoreAgent() []corev1.VolumeMount {
-	return []corev1.VolumeMount{
+func volumeMountsForCoreAgent(provider kubernetes.Provider) []corev1.VolumeMount {
+	volumeMounts := []corev1.VolumeMount{
 		component.GetVolumeMountForLogs(),
 		component.GetVolumeMountForAuth(false),
 		component.GetVolumeMountForInstallInfo(),
@@ -343,44 +422,71 @@ func volumeMountsForCoreAgent() []corev1.VolumeMount {
 		component.GetVolumeMountForProc(),
 		component.GetVolumeMountForCgroups(),
 		component.GetVolumeMountForDogstatsdSocket(false),
-		component.GetVolumeMountForRuntimeSocket(true),
+		component.GetVolumeMountForRuntimeSocket(true, provider),
 	}
+	if provider.Name == kubernetes.OpenShiftRHCOSProvider {
+		kubeletCAVolumeMount := corev1.VolumeMount{
+			Name:      apicommon.KubeletCAVolumeName,
+			MountPath: apicommon.KubeletAgentCAPath,
+			ReadOnly:  true,
+		}
+		return append(volumeMounts, kubeletCAVolumeMount)
+	}
+	return volumeMounts
 }
 
-func volumeMountsForTraceAgent() []corev1.VolumeMount {
-	return []corev1.VolumeMount{
+func volumeMountsForTraceAgent(provider kubernetes.Provider) []corev1.VolumeMount {
+	volumeMounts := []corev1.VolumeMount{
 		component.GetVolumeMountForLogs(),
 		component.GetVolumeMountForProc(),
 		component.GetVolumeMountForCgroups(),
 		component.GetVolumeMountForAuth(true),
 		component.GetVolumeMountForConfig(),
 		component.GetVolumeMountForDogstatsdSocket(false),
-		component.GetVolumeMountForRuntimeSocket(true),
+		component.GetVolumeMountForRuntimeSocket(true, provider),
 	}
+	if provider.Name == kubernetes.OpenShiftRHCOSProvider {
+		kubeletCAVolumeMount := corev1.VolumeMount{
+			Name:      apicommon.KubeletCAVolumeName,
+			MountPath: apicommon.KubeletAgentCAPath,
+			ReadOnly:  true,
+		}
+		return append(volumeMounts, kubeletCAVolumeMount)
+	}
+	return volumeMounts
 }
 
-func volumeMountsForProcessAgent() []corev1.VolumeMount {
-	return []corev1.VolumeMount{
+func volumeMountsForProcessAgent(provider kubernetes.Provider) []corev1.VolumeMount {
+	volumeMounts := []corev1.VolumeMount{
 		component.GetVolumeMountForLogs(),
 		component.GetVolumeMountForAuth(true),
 		component.GetVolumeMountForConfig(),
 		component.GetVolumeMountForDogstatsdSocket(false),
-		component.GetVolumeMountForRuntimeSocket(true),
+		component.GetVolumeMountForRuntimeSocket(true, provider),
 		component.GetVolumeMountForProc(),
 	}
+	if provider.Name == kubernetes.OpenShiftRHCOSProvider {
+		kubeletCAVolumeMount := corev1.VolumeMount{
+			Name:      apicommon.KubeletCAVolumeName,
+			MountPath: apicommon.KubeletAgentCAPath,
+			ReadOnly:  true,
+		}
+		return append(volumeMounts, kubeletCAVolumeMount)
+	}
+	return volumeMounts
 }
 
-func volumeMountsForSecurityAgent() []corev1.VolumeMount {
+func volumeMountsForSecurityAgent(provider kubernetes.Provider) []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		component.GetVolumeMountForLogs(),
 		component.GetVolumeMountForAuth(true),
 		component.GetVolumeMountForConfig(),
 		component.GetVolumeMountForDogstatsdSocket(false),
-		component.GetVolumeMountForRuntimeSocket(true),
+		component.GetVolumeMountForRuntimeSocket(true, provider),
 	}
 }
 
-func volumeMountsForSystemProbe() []corev1.VolumeMount {
+func volumeMountsForSystemProbe(provider kubernetes.Provider) []corev1.VolumeMount {
 	return []corev1.VolumeMount{
 		component.GetVolumeMountForLogs(),
 		component.GetVolumeMountForAuth(true),

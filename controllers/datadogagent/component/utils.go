@@ -270,22 +270,34 @@ func GetVolumeMountForDogstatsdSocket(readOnly bool) corev1.VolumeMount {
 }
 
 // GetVolumeForRuntimeSocket returns the Volume for the runtime socket
-func GetVolumeForRuntimeSocket() corev1.Volume {
+func GetVolumeForRuntimeSocket(provider kubernetes.Provider) corev1.Volume {
+	var path string
+	if provider.Name == kubernetes.OpenShiftRHCOSProvider {
+		path = apicommon.RuntimeDirVolumePath + "/crio/crio.sock"
+	} else {
+		path = apicommon.RuntimeDirVolumePath
+	}
 	return corev1.Volume{
 		Name: apicommon.CriSocketVolumeName,
 		VolumeSource: corev1.VolumeSource{
 			HostPath: &corev1.HostPathVolumeSource{
-				Path: apicommon.RuntimeDirVolumePath,
+				Path: path,
 			},
 		},
 	}
 }
 
 // GetVolumeMountForRuntimeSocket returns the VolumeMount with the runtime socket
-func GetVolumeMountForRuntimeSocket(readOnly bool) corev1.VolumeMount {
+func GetVolumeMountForRuntimeSocket(readOnly bool, provider kubernetes.Provider) corev1.VolumeMount {
+	var mountPath string
+	if provider.Name == kubernetes.OpenShiftRHCOSProvider {
+		mountPath = apicommon.HostCriSocketPathPrefix + apicommon.RuntimeDirVolumePath + "/crio/crio.sock"
+	} else {
+		mountPath = apicommon.HostCriSocketPathPrefix + apicommon.RuntimeDirVolumePath
+	}
 	return corev1.VolumeMount{
 		Name:      apicommon.CriSocketVolumeName,
-		MountPath: apicommon.HostCriSocketPathPrefix + apicommon.RuntimeDirVolumePath,
+		MountPath: mountPath,
 		ReadOnly:  readOnly,
 	}
 }

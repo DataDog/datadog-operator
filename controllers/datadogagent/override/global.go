@@ -198,13 +198,14 @@ func ApplyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 				})
 			}
 
-			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-				Name:  apicommon.DDKubeletCAPath,
-				Value: config.Kubelet.AgentCAPath,
-			})
-
 			if config.Kubelet.HostCAPath != "" {
-				kubeletVol, kubeletVolMount := volume.GetVolumes(apicommon.KubeletCAVolumeName, config.Kubelet.HostCAPath, config.Kubelet.AgentCAPath, true)
+				var agentCAPath string
+				if config.Kubelet.AgentCAPath != "" {
+					agentCAPath = config.Kubelet.AgentCAPath
+				} else {
+					agentCAPath = apicommon.KubeletAgentCAPath
+				}
+				kubeletVol, kubeletVolMount := volume.GetVolumes(apicommon.KubeletCAVolumeName, config.Kubelet.HostCAPath, agentCAPath, true)
 				manager.VolumeMount().AddVolumeMountToContainers(
 					&kubeletVolMount,
 					[]apicommonv1.AgentContainerName{
@@ -214,6 +215,10 @@ func ApplyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 					},
 				)
 				manager.Volume().AddVolume(&kubeletVol)
+				manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+					Name:  apicommon.DDKubeletCAPath,
+					Value: agentCAPath,
+				})
 			}
 		}
 
