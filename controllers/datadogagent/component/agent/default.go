@@ -43,7 +43,13 @@ func NewDefaultAgentDaemonset(dda metav1.Object, requiredContainers []common.Age
 // NewDefaultAgentExtendedDaemonset return a new default agent DaemonSet
 func NewDefaultAgentExtendedDaemonset(dda metav1.Object, edsOptions *ExtendedDaemonsetOptions, requiredContainers []common.AgentContainerName, provider kubernetes.Provider) *edsv1alpha1.ExtendedDaemonSet {
 	edsDaemonset := NewExtendedDaemonset(dda, edsOptions, apicommon.DefaultAgentResourceSuffix, component.GetAgentName(dda), component.GetAgentVersion(dda), nil, provider)
-	edsDaemonset.Spec.Template = *NewDefaultAgentPodTemplateSpec(dda, requiredContainers, edsDaemonset.GetLabels())
+	var podTemplate *corev1.PodTemplateSpec
+	if provider.Name == kubernetes.OpenShiftRHCOSProvider {
+		podTemplate = NewDefaultOpenShiftAgentPodTemplateSpec(dda, requiredContainers, edsDaemonset.GetLabels())
+	} else {
+		podTemplate = NewDefaultAgentPodTemplateSpec(dda, requiredContainers, edsDaemonset.GetLabels())
+	}
+	edsDaemonset.Spec.Template = *podTemplate
 	return edsDaemonset
 }
 
