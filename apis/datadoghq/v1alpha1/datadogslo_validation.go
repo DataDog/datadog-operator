@@ -35,11 +35,11 @@ func IsValidDatadogSLO(spec *DatadogSLOSpec) error {
 		errs = append(errs, fmt.Errorf("spec.MonitorIDs must be defined when spec.Type is monitor"))
 	}
 
-	if spec.TargetThreshold.Value() <= 0 || spec.TargetThreshold.Value() >= 100 {
+	if spec.TargetThreshold.AsApproximateFloat64() <= 0 || spec.TargetThreshold.AsApproximateFloat64() >= 100 {
 		errs = append(errs, fmt.Errorf("spec.TargetThreshold must be greater than 0 and less than 100"))
 	}
 
-	if spec.WarningThreshold != nil && (spec.WarningThreshold.Value() <= 0 || spec.WarningThreshold.Value() >= 100) {
+	if spec.WarningThreshold != nil && (spec.WarningThreshold.AsApproximateFloat64() <= 0 || spec.WarningThreshold.AsApproximateFloat64() >= 100) {
 		errs = append(errs, fmt.Errorf("spec.WarningThreshold must be greater than 0 and less than 100"))
 	}
 

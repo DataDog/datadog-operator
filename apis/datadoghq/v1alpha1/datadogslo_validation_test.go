@@ -56,7 +56,7 @@ func TestIsValidDatadogSLO(t *testing.T) {
 				TargetThreshold: resource.MustParse("99.99"),
 				Timeframe:       DatadogSLOTimeFrame30d,
 			},
-			expected: errors.New("spec.Query must be defined"),
+			expected: errors.New("spec.Query must be defined when spec.Type is metric"),
 		},
 		{
 			name: "Missing Type",
@@ -95,10 +95,9 @@ func TestIsValidDatadogSLO(t *testing.T) {
 				},
 				Type: DatadogSLOTypeMetric,
 			},
-			// expected: errors.New("spec.TargetThreshold must be greater than 0"),
 			expected: utilserrors.NewAggregate(
 				[]error{
-					errors.New("spec.TargetThreshold must be greater than 0"),
+					errors.New("spec.TargetThreshold must be greater than 0 and less than 100"),
 					errors.New("spec.Timeframe must be defined as one of the values: 7d, 30d, or 90d"),
 				},
 			),
@@ -127,7 +126,7 @@ func TestIsValidDatadogSLO(t *testing.T) {
 				TargetThreshold: resource.MustParse("0"),
 				Timeframe:       DatadogSLOTimeFrame30d,
 			},
-			expected: errors.New("spec.TargetThreshold must be greater than 0"),
+			expected: errors.New("spec.TargetThreshold must be greater than 0 and less than 100"),
 		},
 		{
 			name: "Invalid Thresholds Warning",
@@ -142,7 +141,7 @@ func TestIsValidDatadogSLO(t *testing.T) {
 				Timeframe:        DatadogSLOTimeFrame30d,
 				WarningThreshold: ptrResourceQuantity(resource.MustParse("0")),
 			},
-			expected: errors.New("spec.WarningThreshold must be greater than 0"),
+			expected: errors.New("spec.WarningThreshold must be greater than 0 and less than 100"),
 		},
 		{
 			name: "Invalid Thresholds Timeframe",
