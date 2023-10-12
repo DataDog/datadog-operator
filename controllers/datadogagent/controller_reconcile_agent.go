@@ -50,6 +50,14 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 		eds = componentagent.NewDefaultAgentExtendedDaemonset(dda, &r.options.ExtendedDaemonsetOptions, requiredContainers, provider)
 		podManagers = feature.NewPodTemplateManagers(&eds.Spec.Template)
 
+		// OpenShit provider - Modify dda spec to include hostNetwork set to `true` to ensure `github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1.IsHostNetworkEnabled` returns the proper result for the node Agent, if there is no override.
+		if provider.Name == kubernetes.OpenShiftRHCOSProvider {
+			config := dda.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName]
+			if config.HostNetwork == nil {
+				config.HostNetwork = apiutils.NewBoolPointer(true)
+			}
+		}
+
 		// Set Global setting on the default extendeddaemonset
 		eds.Spec.Template = *override.ApplyGlobalSettings(logger, podManagers, dda, resourcesManager, datadoghqv2alpha1.NodeAgentComponentName)
 
@@ -102,6 +110,14 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	// Start by creating the Default Agent daemonset
 	daemonset = componentagent.NewDefaultAgentDaemonset(dda, requiredContainers, provider)
 	podManagers = feature.NewPodTemplateManagers(&daemonset.Spec.Template)
+
+	// OpenShift provider - Modify dda spec to include hostNetwork set to `true` to ensure `github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1.IsHostNetworkEnabled` returns the proper result for the node Agent, if there is no override.
+	if provider.Name == kubernetes.OpenShiftRHCOSProvider {
+		config := dda.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName]
+		if config.HostNetwork == nil {
+			config.HostNetwork = apiutils.NewBoolPointer(true)
+		}
+	}
 
 	// Set Global setting on the default daemonset
 	daemonset.Spec.Template = *override.ApplyGlobalSettings(logger, podManagers, dda, resourcesManager, datadoghqv2alpha1.NodeAgentComponentName)
