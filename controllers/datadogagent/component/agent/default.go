@@ -93,10 +93,7 @@ func NewDefaultOpenShiftAgentPodTemplateSpec(dda metav1.Object, requiredContaine
 					User:  "system_u",
 				},
 			},
-			// Comment to remove - This requires the bundle to be updated to use `datadog-agent` (with `datadog` being the recommended/default CRD name) on top of `datadog-agent-scc` (to allow users upgrading to keep a working setup with only serviceaccountname override):
-			// https://github.com/DataDog/datadog-operator/blob/1a5623dde36f2cb48999b1b14909f8d431f83c4c/bundle/manifests/datadog-operator.clusterserviceversion.yaml#L791-L801
-			// https://github.com/DataDog/datadog-operator/blob/main/hack/patch-bundle-csv-scc.yaml
-			ServiceAccountName: getDefaultServiceAccountName(dda),
+			ServiceAccountName: "datadog-agent-scc",
 			// Use HostNetwork to access cloud metadata
 			HostNetwork: true,
 			// Default tolerations for master nodes
