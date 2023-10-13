@@ -142,8 +142,8 @@ func traceAgentContainer(dda metav1.Object) corev1.Container {
 		},
 		Env:            commonEnvVars(dda),
 		VolumeMounts:   volumeMountsForTraceAgent(),
-		LivenessProbe:  apicommon.GetDefaultLivenessProbe(),
-		ReadinessProbe: apicommon.GetDefaultReadinessProbe(),
+		LivenessProbe:  apicommon.GetDefaultTraceAgentProbe(),
+		ReadinessProbe: apicommon.GetDefaultTraceAgentProbe(),
 	}
 }
 
@@ -155,10 +155,8 @@ func processAgentContainer(dda metav1.Object) corev1.Container {
 			"process-agent", fmt.Sprintf("--config=%s", apicommon.AgentCustomConfigVolumePath),
 			fmt.Sprintf("--sysprobe-config=%s", apicommon.SystemProbeConfigVolumePath),
 		},
-		Env:            commonEnvVars(dda),
-		VolumeMounts:   volumeMountsForProcessAgent(),
-		LivenessProbe:  apicommon.GetDefaultLivenessProbe(),
-		ReadinessProbe: apicommon.GetDefaultReadinessProbe(),
+		Env:          commonEnvVars(dda),
+		VolumeMounts: volumeMountsForProcessAgent(),
 	}
 }
 
@@ -170,10 +168,8 @@ func securityAgentContainer(dda metav1.Object) corev1.Container {
 			"security-agent",
 			"start", fmt.Sprintf("-c=%s", apicommon.AgentCustomConfigVolumePath),
 		},
-		Env:            envVarsForSecurityAgent(dda),
-		VolumeMounts:   volumeMountsForSecurityAgent(),
-		LivenessProbe:  apicommon.GetDefaultLivenessProbe(),
-		ReadinessProbe: apicommon.GetDefaultReadinessProbe(),
+		Env:          envVarsForSecurityAgent(dda),
+		VolumeMounts: volumeMountsForSecurityAgent(),
 	}
 }
 
@@ -185,10 +181,8 @@ func systemProbeContainer(dda metav1.Object) corev1.Container {
 			"system-probe",
 			fmt.Sprintf("--config=%s", apicommon.SystemProbeConfigVolumePath),
 		},
-		Env:            commonEnvVars(dda),
-		VolumeMounts:   volumeMountsForSystemProbe(),
-		LivenessProbe:  apicommon.GetDefaultLivenessProbe(),
-		ReadinessProbe: apicommon.GetDefaultReadinessProbe(),
+		Env:          commonEnvVars(dda),
+		VolumeMounts: volumeMountsForSystemProbe(),
 		SecurityContext: &corev1.SecurityContext{
 			SeccompProfile: &corev1.SeccompProfile{
 				Type:             corev1.SeccompProfileTypeLocalhost,
