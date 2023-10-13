@@ -211,7 +211,7 @@ func ApplyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 				// The environment variable `DD_KUBELET_CLIENT_CA` is necessary, as the Agent defaults to `/var/run/secrets/kubernetes.io/serviceaccount/ca.crt` otherwise.
 				manager.EnvVar().AddEnvVar(&corev1.EnvVar{
 					Name:  apicommon.DDKubeletCAPath,
-					Value: config.Kubelet.AgentCAPath,
+					Value: agentCAPath,
 				})
 			}
 		}
