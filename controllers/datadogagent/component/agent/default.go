@@ -140,10 +140,9 @@ func traceAgentContainer(dda metav1.Object) corev1.Container {
 			"trace-agent",
 			fmt.Sprintf("--config=%s", apicommon.AgentCustomConfigVolumePath),
 		},
-		Env:            commonEnvVars(dda),
-		VolumeMounts:   volumeMountsForTraceAgent(),
-		LivenessProbe:  apicommon.GetDefaultTraceAgentProbe(),
-		ReadinessProbe: apicommon.GetDefaultTraceAgentProbe(),
+		Env:           commonEnvVars(dda),
+		VolumeMounts:  volumeMountsForTraceAgent(),
+		LivenessProbe: apicommon.GetDefaultTraceAgentProbe(),
 	}
 }
 
