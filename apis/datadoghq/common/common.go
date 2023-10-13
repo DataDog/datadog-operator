@@ -12,7 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
-// GetDefaultLivenessProbe creates a all defaulted LivenessProbe
+// GetDefaultLivenessProbe creates a defaulted LivenessProbe
 func GetDefaultLivenessProbe() *corev1.Probe {
 	livenessProbe := &corev1.Probe{
 		InitialDelaySeconds: DefaultLivenessProbeInitialDelaySeconds,
@@ -30,7 +30,7 @@ func GetDefaultLivenessProbe() *corev1.Probe {
 	return livenessProbe
 }
 
-// GetDefaultReadinessProbe creates a all defaulted ReadynessProbe
+// GetDefaultReadinessProbe creates a defaulted ReadinessProbe
 func GetDefaultReadinessProbe() *corev1.Probe {
 	readinessProbe := &corev1.Probe{
 		InitialDelaySeconds: DefaultReadinessProbeInitialDelaySeconds,
@@ -46,6 +46,21 @@ func GetDefaultReadinessProbe() *corev1.Probe {
 		},
 	}
 	return readinessProbe
+}
+
+// GetDefaultTraceAgentProbe creates a defaulted liveness/readiness probe for the Trace Agent
+func GetDefaultTraceAgentProbe() *corev1.Probe {
+	probe := &corev1.Probe{
+		InitialDelaySeconds: DefaultLivenessProbeInitialDelaySeconds,
+		PeriodSeconds:       DefaultLivenessProbePeriodSeconds,
+		TimeoutSeconds:      DefaultLivenessProbeTimeoutSeconds,
+	}
+	probe.TCPSocket = &corev1.TCPSocketAction{
+		Port: intstr.IntOrString{
+			IntVal: DefaultApmPort,
+		},
+	}
+	return probe
 }
 
 // GetImage builds the image string based on ImageConfig and the registry configuration.
