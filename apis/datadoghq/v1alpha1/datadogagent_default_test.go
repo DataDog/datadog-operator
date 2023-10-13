@@ -1034,7 +1034,7 @@ func TestDefaultDatadogAgentSpecAgentApm(t *testing.T) {
 			want: &APMSpec{
 				HostPort:         apiutils.NewInt32Pointer(8126),
 				UnixDomainSocket: &APMUnixDomainSocketSpec{Enabled: apiutils.NewBoolPointer(false)},
-				LivenessProbe:    getDefaultAPMAgentLivenessProbe(),
+				LivenessProbe:    apicommon.GetDefaultTraceAgentProbe(),
 			},
 		},
 	}
