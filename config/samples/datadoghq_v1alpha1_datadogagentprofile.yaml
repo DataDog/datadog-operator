@@ -1,0 +1,6 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogAgentProfile
+metadata:
+  name: datadogagentprofile-sample
+spec:
+  # TODO(user): Add fields here

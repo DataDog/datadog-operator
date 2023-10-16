@@ -23,14 +23,14 @@ import (
 
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1/patch"
+	componentagent "github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
-
-	componentagent "github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/pkg/profiles"
 
 	// Use to register features
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/admissioncontroller"
@@ -77,6 +77,7 @@ type Reconciler struct {
 	client       client.Client
 	versionInfo  *version.Info
 	platformInfo kubernetes.PlatformInfo
+	pv2          *profiles.ProfilesV2
 	scheme       *runtime.Scheme
 	log          logr.Logger
 	recorder     record.EventRecorder
@@ -85,12 +86,14 @@ type Reconciler struct {
 
 // NewReconciler returns a reconciler for DatadogAgent
 func NewReconciler(options ReconcilerOptions, client client.Client, versionInfo *version.Info, platformInfo kubernetes.PlatformInfo,
-	scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, metricForwarder datadog.MetricForwardersManager) (*Reconciler, error) {
+	pv2 *profiles.ProfilesV2, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder,
+	metricForwarder datadog.MetricForwardersManager) (*Reconciler, error) {
 	return &Reconciler{
 		options:      options,
 		client:       client,
 		versionInfo:  versionInfo,
 		platformInfo: platformInfo,
+		pv2:          pv2,
 		scheme:       scheme,
 		log:          log,
 		recorder:     recorder,
@@ -104,7 +107,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 	var err error
 
 	if r.options.V2Enabled {
-		resp, err = r.internalReconcileV2(ctx, request)
+		mergedDDAs := r.pv2.GetAllDDA()
+		for name := range mergedDDAs {
+			request.NamespacedName.Name = name
+			resp, err = r.internalReconcileV2(ctx, request)
+		}
+		// dda, no daps
+		if len(mergedDDAs) == 0 {
+			resp, err = r.internalReconcileV2(ctx, request)
+		}
 	} else {
 		resp, err = r.internalReconcile(ctx, request)
 	}

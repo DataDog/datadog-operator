@@ -18,6 +18,7 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/datadogclient"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	profilesV2 "github.com/DataDog/datadog-operator/pkg/profiles"
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/version"
@@ -28,6 +29,7 @@ import (
 const (
 	agentControllerName   = "DatadogAgent"
 	monitorControllerName = "DatadogMonitor"
+	dapControllerName     = "DatadogAgentProfile"
 )
 
 // SetupOptions defines options for setting up controllers to ease testing
@@ -55,11 +57,12 @@ type ExtendedDaemonsetOptions struct {
 	CanaryAutoFailMaxRestarts  int
 }
 
-type starterFunc func(logr.Logger, manager.Manager, *version.Info, kubernetes.PlatformInfo, SetupOptions) error
+type starterFunc func(logr.Logger, manager.Manager, *version.Info, kubernetes.PlatformInfo, *profilesV2.ProfilesV2, SetupOptions) error
 
 var controllerStarters = map[string]starterFunc{
 	agentControllerName:   startDatadogAgent,
 	monitorControllerName: startDatadogMonitor,
+	dapControllerName:     startDatadogAgentProfiles,
 }
 
 // SetupControllers starts all controllers (also used by e2e tests)
@@ -83,8 +86,10 @@ func SetupControllers(logger logr.Logger, mgr manager.Manager, options SetupOpti
 	}
 	platformInfo := kubernetes.NewPlatformInfo(versionInfo, groups, resources)
 
+	pv2 := profilesV2.NewProfilesV2(logger)
+
 	for controller, starter := range controllerStarters {
-		if err := starter(logger, mgr, versionInfo, platformInfo, options); err != nil {
+		if err := starter(logger, mgr, versionInfo, platformInfo, &pv2, options); err != nil {
 			logger.Error(err, "Couldn't start controller", "controller", controller)
 		}
 	}
@@ -103,7 +108,7 @@ func getServerGroupsAndResources(log logr.Logger, discoveryClient *discovery.Dis
 	return groups, resources, nil
 }
 
-func startDatadogAgent(logger logr.Logger, mgr manager.Manager, vInfo *version.Info, pInfo kubernetes.PlatformInfo, options SetupOptions) error {
+func startDatadogAgent(logger logr.Logger, mgr manager.Manager, vInfo *version.Info, pInfo kubernetes.PlatformInfo, pv2 *profilesV2.ProfilesV2, options SetupOptions) error {
 	if !options.DatadogAgentEnabled {
 		logger.Info("Feature disabled, not starting the controller", "controller", agentControllerName)
 
@@ -114,6 +119,7 @@ func startDatadogAgent(logger logr.Logger, mgr manager.Manager, vInfo *version.I
 		Client:       mgr.GetClient(),
 		VersionInfo:  vInfo,
 		PlatformInfo: pInfo,
+		PV2:          pv2,
 		Log:          ctrl.Log.WithName("controllers").WithName(agentControllerName),
 		Scheme:       mgr.GetScheme(),
 		Recorder:     mgr.GetEventRecorderFor(agentControllerName),
@@ -136,7 +142,7 @@ func startDatadogAgent(logger logr.Logger, mgr manager.Manager, vInfo *version.I
 	}).SetupWithManager(mgr)
 }
 
-func startDatadogMonitor(logger logr.Logger, mgr manager.Manager, vInfo *version.Info, pInfo kubernetes.PlatformInfo, options SetupOptions) error {
+func startDatadogMonitor(logger logr.Logger, mgr manager.Manager, vInfo *version.Info, pInfo kubernetes.PlatformInfo, pv2 *profilesV2.ProfilesV2, options SetupOptions) error {
 	if !options.DatadogMonitorEnabled {
 		logger.Info("Feature disabled, not starting the controller", "controller", monitorControllerName)
 
@@ -155,5 +161,21 @@ func startDatadogMonitor(logger logr.Logger, mgr manager.Manager, vInfo *version
 		Log:         ctrl.Log.WithName("controllers").WithName(monitorControllerName),
 		Scheme:      mgr.GetScheme(),
 		Recorder:    mgr.GetEventRecorderFor(monitorControllerName),
+	}).SetupWithManager(mgr)
+}
+
+func startDatadogAgentProfiles(logger logr.Logger, mgr manager.Manager, vInfo *version.Info, pInfo kubernetes.PlatformInfo, pv2 *profilesV2.ProfilesV2, options SetupOptions) error {
+	// if !options.DatadogMonitorEnabled {
+	// 	logger.Info("Feature disabled, not starting the controller", "controller", dapControllerName)
+
+	// 	return nil
+	// }
+
+	return (&DatadogAgentProfileReconciler{
+		Client:   mgr.GetClient(),
+		PV2:      pv2,
+		Log:      ctrl.Log.WithName("controllers").WithName(dapControllerName),
+		Scheme:   mgr.GetScheme(),
+		Recorder: mgr.GetEventRecorderFor(dapControllerName),
 	}).SetupWithManager(mgr)
 }
