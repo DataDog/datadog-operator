@@ -205,7 +205,6 @@ func ApplyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 						apicommonv1.CoreAgentContainerName,
 						apicommonv1.ProcessAgentContainerName,
 						apicommonv1.TraceAgentContainerName,
-						apicommonv1.SystemProbeContainerName,
 						apicommonv1.SecurityAgentContainerName,
 					},
 				)
