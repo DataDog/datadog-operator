@@ -13,7 +13,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
@@ -211,7 +210,7 @@ func Test_newExternalMetricsSecret(t *testing.T) {
 	}
 	result := newExternalMetricsSecret(name, dda)
 
-	labels := object.GetDefaultLabels(dda, common.DefaultClusterAgentResourceSuffix, "")
+	labels := object.GetDefaultLabels(dda, apicommon.DefaultClusterAgentResourceSuffix, "")
 	wantSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        name,
