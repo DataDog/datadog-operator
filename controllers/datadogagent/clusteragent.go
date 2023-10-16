@@ -279,7 +279,9 @@ func (r *Reconciler) cleanupClusterAgent(logger logr.Logger, dda *datadoghqv1alp
 
 // newClusterAgentPodTemplate generates a PodTemplate from a DatadogClusterAgentDeployment spec
 func newClusterAgentPodTemplate(logger logr.Logger, dda *datadoghqv1alpha1.DatadogAgent, labels, annotations map[string]string) (corev1.PodTemplateSpec, error) {
-	newPodTemplate := *componentdca.NewDefaultClusterAgentPodTemplateSpec(dda)
+	// (v2alpha1) Operator node introspection introduces the provider, which can change the default template spec. emptyProvider is used for retro-compatibility for `v1alpha1`.
+	emptyProvider := kubernetes.DetermineProvider(map[string]string{})
+	newPodTemplate := *componentdca.NewDefaultClusterAgentPodTemplateSpec(dda, emptyProvider)
 
 	volumes := []corev1.Volume{}
 	volumeMounts := []corev1.VolumeMount{}

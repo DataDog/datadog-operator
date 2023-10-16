@@ -23,14 +23,15 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes/rbac"
 )
 
 // NewDefaultClusterAgentDeployment return a new default cluster-agent deployment
-func NewDefaultClusterAgentDeployment(dda metav1.Object) *appsv1.Deployment {
+func NewDefaultClusterAgentDeployment(dda metav1.Object, provider kubernetes.Provider) *appsv1.Deployment {
 	deployment := component.NewDeployment(dda, apicommon.DefaultClusterAgentResourceSuffix, GetClusterAgentName(dda), GetClusterAgentVersion(dda), nil)
 
-	podTemplate := NewDefaultClusterAgentPodTemplateSpec(dda)
+	podTemplate := NewDefaultClusterAgentPodTemplateSpec(dda, provider)
 	for key, val := range deployment.GetLabels() {
 		podTemplate.Labels[key] = val
 	}
@@ -45,7 +46,7 @@ func NewDefaultClusterAgentDeployment(dda metav1.Object) *appsv1.Deployment {
 }
 
 // NewDefaultClusterAgentPodTemplateSpec return a default PodTemplateSpec for the cluster-agent deployment
-func NewDefaultClusterAgentPodTemplateSpec(dda metav1.Object) *corev1.PodTemplateSpec {
+func NewDefaultClusterAgentPodTemplateSpec(dda metav1.Object, provider kubernetes.Provider) *corev1.PodTemplateSpec {
 	volumes := []corev1.Volume{
 		component.GetVolumeInstallInfo(dda),
 		component.GetVolumeForConfd(),
@@ -75,7 +76,7 @@ func NewDefaultClusterAgentPodTemplateSpec(dda metav1.Object) *corev1.PodTemplat
 			Labels:      make(map[string]string),
 			Annotations: make(map[string]string),
 		},
-		Spec: defaultPodSpec(dda, volumes, volumeMounts, defaultEnvVars(dda)),
+		Spec: defaultPodSpec(dda, volumes, volumeMounts, defaultEnvVars(dda), provider),
 	}
 
 	return podTemplate
@@ -86,7 +87,17 @@ func GetDefaultServiceAccountName(dda metav1.Object) string {
 	return fmt.Sprintf("%s-%s", dda.GetName(), apicommon.DefaultClusterAgentResourceSuffix)
 }
 
-func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount, envVars []corev1.EnvVar) corev1.PodSpec {
+func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount, envVars []corev1.EnvVar, provider kubernetes.Provider) corev1.PodSpec {
+	var dcaReadOnlyRootFilesystem bool
+	if provider.Name == kubernetes.OpenShiftRHCOSProvider {
+		// On OpenShift, modify the cluster Agent pod root file system to `false` as `true` currently (2023-10-16) prevents some features from working :
+		// * `agent` commands as the `auth_token` cannot get written to `/etc/datadog-agent/auth_token`.
+		// * cluster checks files coming from spec.override.clusterAgent.extraConfd.configDataMap cannot be written to `/etc/datadog-agent/conf.d`.
+		// To be removed when the file ownership is updated.
+		dcaReadOnlyRootFilesystem = false
+	} else {
+		dcaReadOnlyRootFilesystem = true
+	}
 	podSpec := corev1.PodSpec{
 		ServiceAccountName: GetDefaultServiceAccountName(dda),
 		Containers: []corev1.Container{
@@ -105,7 +116,7 @@ func defaultPodSpec(dda metav1.Object, volumes []corev1.Volume, volumeMounts []c
 				Command:      nil,
 				Args:         nil,
 				SecurityContext: &corev1.SecurityContext{
-					ReadOnlyRootFilesystem:   apiutils.NewBoolPointer(true),
+					ReadOnlyRootFilesystem:   apiutils.NewBoolPointer(dcaReadOnlyRootFilesystem),
 					AllowPrivilegeEscalation: apiutils.NewBoolPointer(false),
 				},
 			},
