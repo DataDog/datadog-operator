@@ -473,13 +473,22 @@ func volumeMountsForProcessAgent(provider kubernetes.Provider) []corev1.VolumeMo
 }
 
 func volumeMountsForSecurityAgent(provider kubernetes.Provider) []corev1.VolumeMount {
-	return []corev1.VolumeMount{
+	volumeMounts := []corev1.VolumeMount{
 		component.GetVolumeMountForLogs(),
 		component.GetVolumeMountForAuth(true),
 		component.GetVolumeMountForConfig(),
 		component.GetVolumeMountForDogstatsdSocket(false),
 		component.GetVolumeMountForRuntimeSocket(true, provider),
 	}
+	if provider.Name == kubernetes.OpenShiftRHCOSProvider {
+		kubeletCAVolumeMount := corev1.VolumeMount{
+			Name:      apicommon.KubeletCAVolumeName,
+			MountPath: apicommon.KubeletAgentCAPath,
+			ReadOnly:  true,
+		}
+		return append(volumeMounts, kubeletCAVolumeMount)
+	}
+	return volumeMounts
 }
 
 func volumeMountsForSystemProbe(provider kubernetes.Provider) []corev1.VolumeMount {
