@@ -7,7 +7,6 @@ package kubernetes
 
 import (
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -106,23 +105,11 @@ func Test_determineProvider(t *testing.T) {
 	}
 }
 func Test_SetProvider(t *testing.T) {
-	newNode := corev1.Node{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "bar",
-			Name:      "node0",
-			Labels: map[string]string{
-				GCPProviderLabel: GCPCosProvider,
-			},
-			CreationTimestamp: metav1.Now(),
-		},
-	}
-
 	tests := []struct {
 		name             string
 		obj              corev1.Node
 		existingProfiles *Profiles
 		wantProfile      *Profiles
-		shouldReconcile  bool
 	}{
 		{
 			name:             "add new provider",
@@ -138,7 +125,6 @@ func Test_SetProvider(t *testing.T) {
 					},
 				},
 			},
-			shouldReconcile: true,
 		},
 		{
 			name: "add new provider with existing provider",
@@ -165,7 +151,6 @@ func Test_SetProvider(t *testing.T) {
 					},
 				},
 			},
-			shouldReconcile: true,
 		},
 		{
 			name: "add new node name to existing provider",
@@ -189,46 +174,20 @@ func Test_SetProvider(t *testing.T) {
 						ProviderLabel: GCPProviderLabel,
 					},
 				},
-				newNodes: map[string]bool{
-					"node0": true,
-				},
 			},
-			shouldReconcile: false,
-		},
-		{
-			name: "node too new to be collected",
-			obj:  newNode,
-			existingProfiles: &Profiles{
-				providers: map[string]Provider{
-					"abcdef": {
-						Name:          "test2",
-						ComponentName: "test2",
-					},
-				},
-			},
-			wantProfile: &Profiles{
-				providers: map[string]Provider{
-					"abcdef": {
-						Name:          "test2",
-						ComponentName: "test2",
-					},
-				},
-			},
-			shouldReconcile: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			logger := logf.Log.WithName(t.Name())
-			profile := NewProfiles(logger, ProfilesOptions{NewNodeDelay: 5 * time.Second})
+			profile := NewProfiles(logger)
 			if tt.existingProfiles != nil && tt.existingProfiles.providers != nil {
 				profile.providers = tt.existingProfiles.providers
 			}
 
-			shouldReconcile := profile.SetProvider(&tt.obj)
+			profile.SetProvider(&tt.obj)
 			assert.Equal(t, tt.wantProfile.providers, profile.providers)
-			assert.Equal(t, shouldReconcile, tt.shouldReconcile)
 		})
 	}
 }
@@ -311,7 +270,7 @@ func Test_sortProviders(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			logger := logf.Log.WithName(t.Name())
-			profile := NewProfiles(logger, ProfilesOptions{NewNodeDelay: 5 * time.Second})
+			profile := NewProfiles(logger)
 			if tt.existingProviders != nil {
 				profile.providers = tt.existingProviders
 			}
@@ -458,7 +417,7 @@ func Test_GenerateProviderNodeAffinity(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			logger := logf.Log.WithName(t.Name())
-			profile := NewProfiles(logger, ProfilesOptions{NewNodeDelay: 5 * time.Second})
+			profile := NewProfiles(logger)
 			if tt.existingProviders != nil {
 				profile.providers = tt.existingProviders
 			}

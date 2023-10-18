@@ -146,7 +146,7 @@ func Test_generateNodeAffinity(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := kubernetes.NewProfiles(logf.Log.WithName("test_generateNodeAffinity"), kubernetes.ProfilesOptions{})
+			p := kubernetes.NewProfiles(logf.Log.WithName("test_generateNodeAffinity"))
 			r := &Reconciler{
 				profiles: &p,
 			}

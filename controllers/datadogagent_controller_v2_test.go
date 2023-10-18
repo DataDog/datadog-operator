@@ -13,14 +13,15 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
-	"github.com/DataDog/datadog-operator/controllers/testutils"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	"github.com/DataDog/datadog-operator/controllers/testutils"
 )
 
 const (
@@ -77,6 +78,11 @@ var _ = Describe("V2 Controller - DatadogAgent Deployment", func() {
 	Context(
 		"with Dogstatsd enabled",
 		testFunction(testutils.NewDatadogAgentWithDogstatsd(namespace, "with-dogstatsd")),
+	)
+
+	Context(
+		"with eBPF check enabled",
+		testFunction(testutils.NewDatadogAgentWithEBPFCheck(namespace, "with-ebpfcheck")),
 	)
 
 	Context(

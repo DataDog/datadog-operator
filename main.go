@@ -39,7 +39,6 @@ import (
 	"github.com/DataDog/datadog-operator/controllers"
 	"github.com/DataDog/datadog-operator/pkg/config"
 	"github.com/DataDog/datadog-operator/pkg/controller/debug"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/DataDog/datadog-operator/pkg/secrets"
 	"github.com/DataDog/datadog-operator/pkg/version"
 	// +kubebuilder:scaffold:imports
@@ -122,9 +121,6 @@ type options struct {
 	// Secret Backend options
 	secretBackendCommand string
 	secretBackendArgs    stringSlice
-
-	// Profiles options
-	profilesNewNodeDelay time.Duration
 }
 
 func (opts *options) Parse() {
@@ -164,9 +160,6 @@ func (opts *options) Parse() {
 	flag.BoolVar(&opts.edsCanaryAutoFailEnabled, "edsCanaryAutoFailEnabled", defaultCanaryAutoFailEnabled, "ExtendedDaemonset canary auto fail enabled")
 	flag.IntVar(&opts.edsCanaryAutoFailMaxRestarts, "edsCanaryAutoFailMaxRestarts", defaultCanaryAutoFailMaxRestarts, "ExtendedDaemonset canary auto fail max restart count")
 
-	// Profiles configuration
-	flag.DurationVar(&opts.profilesNewNodeDelay, "profilesNewNodeDelay", 5*time.Second, "Minimum time in seconds before a new node should be evaluated")
-
 	// Parsing flags
 	flag.Parse()
 }
@@ -185,7 +178,6 @@ func main() {
 // run allow to use defer func() paradigm properly.
 // do not use `os.Exit()` in this function
 func run(opts *options) error {
-
 	// Logging setup
 	if err := customSetupLogging(*opts.logLevel, opts.logEncoder); err != nil {
 		return setupErrorf(setupLog, err, "Unable to setup the logger")
@@ -197,6 +189,12 @@ func run(opts *options) error {
 		return nil
 	}
 	version.PrintVersionLogs(setupLog)
+
+	if !opts.v2APIEnabled {
+		setupLog.Info("The 'v2APIEnabled' flag is deprecated in v1.2.0+ and will be removed in a future release. " +
+			"Once removed, the Datadog Operator cannot be configured to reconcile the v1alpha1 DatadogAgent CRD. " +
+			"However, you will still be able to apply a v1alpha1 manifest with the conversion webhook enabled (using the flag 'webhookEnabled').")
+	}
 
 	if opts.profilingEnabled {
 		setupLog.Info("Starting datadog profiler")
@@ -263,9 +261,6 @@ func run(opts *options) error {
 		DatadogMonitorEnabled:  opts.datadogMonitorEnabled,
 		OperatorMetricsEnabled: opts.operatorMetricsEnabled,
 		V2APIEnabled:           opts.v2APIEnabled,
-		Profiles: kubernetes.ProfilesOptions{
-			NewNodeDelay: opts.profilesNewNodeDelay,
-		},
 	}
 
 	if err = controllers.SetupControllers(setupLog, mgr, options); err != nil {

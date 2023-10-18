@@ -263,8 +263,8 @@ type DatadogMonitorTriggeredState struct {
 // DatadogMonitorDowntimeStatus represents the downtime status of a DatadogMonitor
 // +k8s:openapi-gen=true
 type DatadogMonitorDowntimeStatus struct {
-	IsDowntimed bool `json:"isDowntimed"`
-	DowntimeID  int  `json:"downtimeID,omitempty"`
+	IsDowntimed bool `json:"isDowntimed,omitempty"`
+	DowntimeID  int  `json:"downtimeId,omitempty"`
 }
 
 // DatadogMonitor allows to define and manage Monitors from your Kubernetes Cluster
@@ -273,7 +273,6 @@ type DatadogMonitorDowntimeStatus struct {
 // +kubebuilder:resource:path=datadogmonitors,scope=Namespaced
 // +kubebuilder:printcolumn:name="id",type="string",JSONPath=".status.id"
 // +kubebuilder:printcolumn:name="monitor state",type="string",JSONPath=".status.monitorState"
-// +kubebuilder:printcolumn:name="is downtimed",type="boolean",JSONPath=".status.downtimeStatus.isDowntimed"
 // +kubebuilder:printcolumn:name="last state transition",type="string",JSONPath=".status.monitorStateLastTransitionTime"
 // +kubebuilder:printcolumn:name="last state sync",type="string",format="date",JSONPath=".status.monitorStateLastUpdateTime"
 // +kubebuilder:printcolumn:name="sync status",type="string",JSONPath=".status.syncStatus"

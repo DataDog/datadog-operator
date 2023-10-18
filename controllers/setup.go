@@ -39,7 +39,6 @@ type SetupOptions struct {
 	DatadogMonitorEnabled    bool
 	OperatorMetricsEnabled   bool
 	V2APIEnabled             bool
-	Profiles                 kubernetes.ProfilesOptions
 }
 
 // ExtendedDaemonsetOptions defines ExtendedDaemonset options
@@ -84,7 +83,7 @@ func SetupControllers(logger logr.Logger, mgr manager.Manager, options SetupOpti
 	}
 	platformInfo := kubernetes.NewPlatformInfo(versionInfo, groups, resources)
 
-	profiles := kubernetes.NewProfiles(logger, options.Profiles)
+	profiles := kubernetes.NewProfiles(logger)
 
 	for controller, starter := range controllerStarters {
 		if err := starter(logger, mgr, versionInfo, platformInfo, &profiles, options); err != nil {

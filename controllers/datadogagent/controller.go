@@ -39,6 +39,7 @@ import (
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/cws"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/dogstatsd"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/dummy"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/ebpfcheck"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/enabledefault"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/eventcollection"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/externalmetrics"
@@ -50,6 +51,7 @@ import (
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/oomkill"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/orchestratorexplorer"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/otlp"
+	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/processdiscovery"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/prometheusscrape"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/remoteconfig"
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/tcpqueuelength"
@@ -66,7 +68,6 @@ type ReconcilerOptions struct {
 	SupportCilium            bool
 	OperatorMetricsEnabled   bool
 	V2Enabled                bool
-	ProfilesOptions          kubernetes.ProfilesOptions
 }
 
 // Reconciler is the internal reconciler for Datadog Agent

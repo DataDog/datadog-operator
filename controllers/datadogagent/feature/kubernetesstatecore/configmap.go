@@ -51,8 +51,7 @@ func ksmCheckConfig(clusterCheck bool, collectorOpts collectorOptions) string {
 cluster_check: %s
 init_config:
 instances:
-  - telemetry: true
-    skip_leader_election: %s
+  - skip_leader_election: %s
     collectors:
     - pods
     - replicationcontrollers
