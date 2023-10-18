@@ -195,10 +195,9 @@ func traceAgentContainer(dda metav1.Object, provider kubernetes.Provider) corev1
 			"trace-agent",
 			fmt.Sprintf("--config=%s", apicommon.AgentCustomConfigVolumePath),
 		},
-		Env:            commonEnvVars(dda, provider),
-		VolumeMounts:   volumeMountsForTraceAgent(provider),
-		LivenessProbe:  apicommon.GetDefaultLivenessProbe(),
-		ReadinessProbe: apicommon.GetDefaultReadinessProbe(),
+		Env:           commonEnvVars(dda, provider),
+		VolumeMounts:  volumeMountsForTraceAgent(provider),
+		LivenessProbe: apicommon.GetDefaultTraceAgentProbe(),
 	}
 }
 
@@ -210,10 +209,8 @@ func processAgentContainer(dda metav1.Object, provider kubernetes.Provider) core
 			"process-agent", fmt.Sprintf("--config=%s", apicommon.AgentCustomConfigVolumePath),
 			fmt.Sprintf("--sysprobe-config=%s", apicommon.SystemProbeConfigVolumePath),
 		},
-		Env:            commonEnvVars(dda, provider),
-		VolumeMounts:   volumeMountsForProcessAgent(provider),
-		LivenessProbe:  apicommon.GetDefaultLivenessProbe(),
-		ReadinessProbe: apicommon.GetDefaultReadinessProbe(),
+		Env:          commonEnvVars(dda, provider),
+		VolumeMounts: volumeMountsForProcessAgent(provider),
 	}
 }
 
@@ -225,10 +222,8 @@ func securityAgentContainer(dda metav1.Object, provider kubernetes.Provider) cor
 			"security-agent",
 			"start", fmt.Sprintf("-c=%s", apicommon.AgentCustomConfigVolumePath),
 		},
-		Env:            envVarsForSecurityAgent(dda, provider),
-		VolumeMounts:   volumeMountsForSecurityAgent(provider),
-		LivenessProbe:  apicommon.GetDefaultLivenessProbe(),
-		ReadinessProbe: apicommon.GetDefaultReadinessProbe(),
+		Env:          envVarsForSecurityAgent(dda, provider),
+		VolumeMounts: volumeMountsForSecurityAgent(provider),
 	}
 }
 
@@ -240,10 +235,8 @@ func systemProbeContainer(dda metav1.Object, provider kubernetes.Provider) corev
 			"system-probe",
 			fmt.Sprintf("--config=%s", apicommon.SystemProbeConfigVolumePath),
 		},
-		Env:            commonEnvVars(dda, provider),
-		VolumeMounts:   volumeMountsForSystemProbe(provider),
-		LivenessProbe:  apicommon.GetDefaultLivenessProbe(),
-		ReadinessProbe: apicommon.GetDefaultReadinessProbe(),
+		Env:          commonEnvVars(dda, provider),
+		VolumeMounts: volumeMountsForSystemProbe(provider),
 		SecurityContext: &corev1.SecurityContext{
 			SeccompProfile: &corev1.SeccompProfile{
 				Type:             corev1.SeccompProfileTypeLocalhost,

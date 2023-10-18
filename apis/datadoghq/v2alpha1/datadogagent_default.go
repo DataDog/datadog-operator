@@ -84,6 +84,9 @@ const (
 	// defaultPrometheusScrapeEnabled                bool = false
 	defaultPrometheusScrapeEnableServiceEndpoints bool = false
 	defaultPrometheusScrapeVersion                int  = 2
+
+	// defaultKubeletAgentCAPath            = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+	// defaultKubeletAgentCAPathHostPathSet = "/var/run/host-kubelet-ca.crt"
 )
 
 // DefaultDatadogAgent defaults the DatadogAgentSpec GlobalConfig and Features.

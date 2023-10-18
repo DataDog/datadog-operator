@@ -551,7 +551,7 @@ func DefaultDatadogAgentSpecAgentApm(agent *DatadogAgentSpecAgentSpec) *APMSpec 
 	}
 
 	if agent.Apm.LivenessProbe == nil {
-		agent.Apm.LivenessProbe = getDefaultAPMAgentLivenessProbe()
+		agent.Apm.LivenessProbe = apicommon.GetDefaultTraceAgentProbe()
 		apmOverride.LivenessProbe = agent.Apm.LivenessProbe
 	}
 
@@ -560,20 +560,6 @@ func DefaultDatadogAgentSpecAgentApm(agent *DatadogAgentSpecAgentSpec) *APMSpec 
 	}
 
 	return apmOverride
-}
-
-func getDefaultAPMAgentLivenessProbe() *corev1.Probe {
-	livenessProbe := &corev1.Probe{
-		InitialDelaySeconds: apicommon.DefaultLivenessProbeInitialDelaySeconds,
-		PeriodSeconds:       apicommon.DefaultLivenessProbePeriodSeconds,
-		TimeoutSeconds:      apicommon.DefaultLivenessProbeTimeoutSeconds,
-	}
-	livenessProbe.TCPSocket = &corev1.TCPSocketAction{
-		Port: intstr.IntOrString{
-			IntVal: defaultApmHostPort,
-		},
-	}
-	return livenessProbe
 }
 
 // DefaultDatadogAgentSpecAgentApmUDS used to default APMUnixDomainSocketSpec

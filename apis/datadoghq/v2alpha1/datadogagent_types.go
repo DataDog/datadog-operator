@@ -312,7 +312,7 @@ type CWSRemoteConfigurationConfig struct {
 // RC runs in the Agent.
 type RemoteConfigurationFeatureConfig struct {
 	// Enable this option to activate Remote Configuration.
-	// Default: false
+	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 }
