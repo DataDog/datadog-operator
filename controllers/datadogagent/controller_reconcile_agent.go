@@ -45,20 +45,6 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 
 	agentEnabled := requiredComponents.Agent.IsEnabled()
 
-	// OpenShit provider - Modify dda spec to :
-	// * include hostNetwork set to `true` to ensure `github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1.IsHostNetworkEnabled` returns the proper result for the node Agent, if there is no override.
-	// * include the service account name `datadog-agent-scc` defined in the CSV to ensure RBACs are handled appropriately by enabledefault/feature.go.
-	// User overrides will apply afterwards to change this "default" behaviour.
-	// if provider.Name == kubernetes.OpenShiftRHCOSProvider {
-	// 	config := dda.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName]
-	// 	if config.HostNetwork == nil {
-	// 		config.HostNetwork = apiutils.NewBoolPointer(true)
-	// 	}
-	// 	if config.ServiceAccountName == nil {
-	// 		config.ServiceAccountName = apiutils.NewStringPointer("datadog-agent-scc")
-	// 	}
-	// }
-
 	if r.options.ExtendedDaemonsetOptions.Enabled {
 		// Start by creating the Default Agent extendeddaemonset
 		eds = componentagent.NewDefaultAgentExtendedDaemonset(dda, &r.options.ExtendedDaemonsetOptions, requiredContainers, provider)
