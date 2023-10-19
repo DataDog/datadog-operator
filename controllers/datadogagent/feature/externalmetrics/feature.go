@@ -57,7 +57,7 @@ type externalMetricsFeature struct {
 
 	createKubernetesNetworkPolicy bool
 	createCiliumNetworkPolicy     bool
-	registerEndpoint              bool
+	registerAPIService            bool
 }
 
 type secret struct {
@@ -78,7 +78,7 @@ func (f *externalMetricsFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp 
 
 	if em != nil && apiutils.BoolValue(em.Enabled) {
 		// By default, we register the external metrics endpoint
-		f.registerEndpoint = em.RegisterEndpoint == nil || apiutils.BoolValue(em.RegisterEndpoint)
+		f.registerAPIService = em.RegisterAPIService == nil || apiutils.BoolValue(em.RegisterAPIService)
 
 		f.useWPA = apiutils.BoolValue(em.WPAController)
 		f.useDDM = apiutils.BoolValue(em.UseDatadogMetrics)
@@ -234,7 +234,7 @@ func (f *externalMetricsFeature) ManageDependencies(managers feature.ResourceMan
 		return fmt.Errorf("error adding external metrics provider service to store: %w", err)
 	}
 
-	if f.registerEndpoint {
+	if f.registerAPIService {
 		// apiservice
 		apiServiceSpec := apiregistrationv1.APIServiceSpec{
 			Service: &apiregistrationv1.ServiceReference{

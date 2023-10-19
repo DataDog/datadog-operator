@@ -113,7 +113,7 @@ func TestExternalMetricsFeature(t *testing.T) {
 			ClusterAgent:  testDCAResources(true, false, true),
 		},
 		{
-			Name:          "v2alpha1 external metrics enabled, secrets set, registerEndpoint disabled",
+			Name:          "v2alpha1 external metrics enabled, secrets set, registerAPIService disabled",
 			DDAv2:         newV2Agent(true, false, true, false, secretV2),
 			WantConfigure: true,
 			ClusterAgent:  testDCAResources(true, false, true),
@@ -141,16 +141,16 @@ func TestExternalMetricsFeature(t *testing.T) {
 // 	}
 // }
 
-func newV2Agent(enabled, registerEndpoint, useDDM, wpaController bool, secret v2alpha1.DatadogCredentials) *v2alpha1.DatadogAgent {
+func newV2Agent(enabled, registerAPIService, useDDM, wpaController bool, secret v2alpha1.DatadogCredentials) *v2alpha1.DatadogAgent {
 	return &v2alpha1.DatadogAgent{
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				ExternalMetricsServer: &v2alpha1.ExternalMetricsServerFeatureConfig{
-					Enabled:           apiutils.NewBoolPointer(enabled),
-					RegisterEndpoint:  apiutils.NewBoolPointer(registerEndpoint),
-					WPAController:     apiutils.NewBoolPointer(wpaController),
-					UseDatadogMetrics: apiutils.NewBoolPointer(useDDM),
-					Port:              apiutils.NewInt32Pointer(8443),
+					Enabled:            apiutils.NewBoolPointer(enabled),
+					RegisterAPIService: apiutils.NewBoolPointer(registerAPIService),
+					WPAController:      apiutils.NewBoolPointer(wpaController),
+					UseDatadogMetrics:  apiutils.NewBoolPointer(useDDM),
+					Port:               apiutils.NewInt32Pointer(8443),
 					Endpoint: &v2alpha1.Endpoint{
 						Credentials: &secret,
 					},

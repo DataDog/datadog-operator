@@ -81,7 +81,7 @@ spec:
 | features.externalMetricsServer.endpoint.credentials.appSecret.secretName | SecretName is the name of the secret. |
 | features.externalMetricsServer.endpoint.url | URL defines the endpoint URL. |
 | features.externalMetricsServer.port | Port specifies the metricsProvider External Metrics Server service port. Default: 8443 |
-| features.externalMetricsServer.registerEndpoint | RegisterEndpoint registers the External Metrics endpoint as an APIService Default: true |
+| features.externalMetricsServer.registerAPIService | RegisterAPIService registers the External Metrics endpoint as an APIService Default: true |
 | features.externalMetricsServer.useDatadogMetrics | UseDatadogMetrics enables usage of the DatadogMetrics CRD (allowing one to scale on arbitrary Datadog metric queries). Default: true |
 | features.externalMetricsServer.wpaController | WPAController enables the informer and controller of the Watermark Pod Autoscaler. NOTE: The Watermark Pod Autoscaler controller needs to be installed. See also: https://github.com/DataDog/watermarkpodautoscaler. Default: false |
 | features.kubeStateMetricsCore.conf.configData | ConfigData corresponds to the configuration file content. |

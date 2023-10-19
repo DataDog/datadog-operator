@@ -945,8 +945,8 @@ func (in *ExternalMetricsServerFeatureConfig) DeepCopyInto(out *ExternalMetricsS
 		*out = new(bool)
 		**out = **in
 	}
-	if in.RegisterEndpoint != nil {
-		in, out := &in.RegisterEndpoint, &out.RegisterEndpoint
+	if in.RegisterAPIService != nil {
+		in, out := &in.RegisterAPIService, &out.RegisterAPIService
 		*out = new(bool)
 		**out = **in
 	}
