@@ -85,30 +85,36 @@ func TestExternalMetricsFeature(t *testing.T) {
 		//////////////////////////
 		{
 			Name:          "v2alpha1 external metrics not enabled",
-			DDAv2:         newV2Agent(false, false, false, v2alpha1.DatadogCredentials{}),
+			DDAv2:         newV2Agent(false, true, false, false, v2alpha1.DatadogCredentials{}),
 			WantConfigure: false,
 		},
 		{
 			Name:          "v2alpha1 external metrics enabled",
-			DDAv2:         newV2Agent(true, true, false, v2alpha1.DatadogCredentials{}),
+			DDAv2:         newV2Agent(true, true, true, false, v2alpha1.DatadogCredentials{}),
 			WantConfigure: true,
 			ClusterAgent:  testDCAResources(true, false, false),
 		},
 		{
 			Name:          "v2alpha1 external metrics enabled, wpa controller enabled",
-			DDAv2:         newV2Agent(true, true, true, v2alpha1.DatadogCredentials{}),
+			DDAv2:         newV2Agent(true, true, true, true, v2alpha1.DatadogCredentials{}),
 			WantConfigure: true,
 			ClusterAgent:  testDCAResources(true, true, false),
 		},
 		{
 			Name:          "v2alpha1 external metrics enabled, ddm disabled",
-			DDAv2:         newV2Agent(true, false, false, v2alpha1.DatadogCredentials{}),
+			DDAv2:         newV2Agent(true, true, false, false, v2alpha1.DatadogCredentials{}),
 			WantConfigure: true,
 			ClusterAgent:  testDCAResources(false, false, false),
 		},
 		{
 			Name:          "v2alpha1 external metrics enabled, secrets set",
-			DDAv2:         newV2Agent(true, true, false, secretV2),
+			DDAv2:         newV2Agent(true, true, true, false, secretV2),
+			WantConfigure: true,
+			ClusterAgent:  testDCAResources(true, false, true),
+		},
+		{
+			Name:          "v2alpha1 external metrics enabled, secrets set, registerEndpoint disabled",
+			DDAv2:         newV2Agent(true, false, true, false, secretV2),
 			WantConfigure: true,
 			ClusterAgent:  testDCAResources(true, false, true),
 		},
@@ -135,12 +141,13 @@ func TestExternalMetricsFeature(t *testing.T) {
 // 	}
 // }
 
-func newV2Agent(enabled, useDDM, wpaController bool, secret v2alpha1.DatadogCredentials) *v2alpha1.DatadogAgent {
+func newV2Agent(enabled, registerEndpoint, useDDM, wpaController bool, secret v2alpha1.DatadogCredentials) *v2alpha1.DatadogAgent {
 	return &v2alpha1.DatadogAgent{
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
 				ExternalMetricsServer: &v2alpha1.ExternalMetricsServerFeatureConfig{
 					Enabled:           apiutils.NewBoolPointer(enabled),
+					RegisterEndpoint:  apiutils.NewBoolPointer(registerEndpoint),
 					WPAController:     apiutils.NewBoolPointer(wpaController),
 					UseDatadogMetrics: apiutils.NewBoolPointer(useDDM),
 					Port:              apiutils.NewInt32Pointer(8443),
