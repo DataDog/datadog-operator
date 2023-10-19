@@ -945,6 +945,11 @@ func (in *ExternalMetricsServerFeatureConfig) DeepCopyInto(out *ExternalMetricsS
 		*out = new(bool)
 		**out = **in
 	}
+	if in.RegisterEndpoint != nil {
+		in, out := &in.RegisterEndpoint, &out.RegisterEndpoint
+		*out = new(bool)
+		**out = **in
+	}
 	if in.WPAController != nil {
 		in, out := &in.WPAController, &out.WPAController
 		*out = new(bool)
