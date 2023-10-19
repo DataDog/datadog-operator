@@ -30,7 +30,6 @@ import (
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
-	"github.com/DataDog/datadog-operator/pkg/profiles"
 
 	// Use to register features
 	_ "github.com/DataDog/datadog-operator/controllers/datadogagent/feature/admissioncontroller"
@@ -77,7 +76,6 @@ type Reconciler struct {
 	client       client.Client
 	versionInfo  *version.Info
 	platformInfo kubernetes.PlatformInfo
-	pv2          *profiles.ProfilesV2
 	scheme       *runtime.Scheme
 	log          logr.Logger
 	recorder     record.EventRecorder
@@ -86,14 +84,12 @@ type Reconciler struct {
 
 // NewReconciler returns a reconciler for DatadogAgent
 func NewReconciler(options ReconcilerOptions, client client.Client, versionInfo *version.Info, platformInfo kubernetes.PlatformInfo,
-	pv2 *profiles.ProfilesV2, scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder,
-	metricForwarder datadog.MetricForwardersManager) (*Reconciler, error) {
+	scheme *runtime.Scheme, log logr.Logger, recorder record.EventRecorder, metricForwarder datadog.MetricForwardersManager) (*Reconciler, error) {
 	return &Reconciler{
 		options:      options,
 		client:       client,
 		versionInfo:  versionInfo,
 		platformInfo: platformInfo,
-		pv2:          pv2,
 		scheme:       scheme,
 		log:          log,
 		recorder:     recorder,
@@ -107,15 +103,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 	var err error
 
 	if r.options.V2Enabled {
-		mergedDDAs := r.pv2.GetAllDDA()
-		for name := range mergedDDAs {
-			request.NamespacedName.Name = name
-			resp, err = r.internalReconcileV2(ctx, request)
-		}
-		// dda, no daps
-		if len(mergedDDAs) == 0 {
-			resp, err = r.internalReconcileV2(ctx, request)
-		}
+		resp, err = r.internalReconcileV2(ctx, request)
 	} else {
 		resp, err = r.internalReconcile(ctx, request)
 	}

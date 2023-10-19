@@ -6,35 +6,40 @@
 package v1alpha1
 
 import (
-	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
+type ComponentName string
+
+const (
+	// NodeAgentComponentName is the name of the Datadog Node Agent
+	NodeAgentComponentName ComponentName = "nodeAgent"
+)
 
 // DatadogAgentProfileSpec defines the desired state of DatadogAgentProfile
 type DatadogAgentProfileSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// Foo is an example field of DatadogAgentProfile. Edit datadogagentprofile_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
-
-	// Foo is an example field of DatadogAgentProfile. Edit datadogagentprofile_types.go to remove/update
-	DAPAffinity *DAPAffinity                        `json:"dapAffinity,omitempty"`
-	Config      *datadoghqv2alpha1.DatadogAgentSpec `json:"config,omitempty"`
+	ProfileAffinity *ProfileAffinity `json:"dapAffinity,omitempty"`
+	Config          *Config          `json:"config,omitempty"`
 }
 
-type DAPAffinity struct {
-	DAPNodeAffinity []corev1.NodeSelectorRequirement `json:"dapNodeAffinity,omitempty"`
+type ProfileAffinity struct {
+	ProfileNodeAffinity []corev1.NodeSelectorRequirement `json:"dapNodeAffinity,omitempty"`
 }
 
-// type DAPNodeAffinity struct {
-// 	[]corev1.NodeSelectorRequirement `json:"`
-// }
+type Config struct {
+	Override map[ComponentName]*Override `json:"override,omitempty"`
+}
+
+type Override struct {
+	Containers map[commonv1.AgentContainerName]*Container `json:"containers,omitempty"`
+}
+
+type Container struct {
+	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
+}
 
 // DatadogAgentProfileStatus defines the observed state of DatadogAgentProfile
 type DatadogAgentProfileStatus struct {

@@ -34,7 +34,6 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
-	"github.com/DataDog/datadog-operator/pkg/profiles"
 	edsdatadoghqv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 )
 
@@ -43,7 +42,6 @@ type DatadogAgentReconciler struct {
 	client.Client
 	VersionInfo  *version.Info
 	PlatformInfo kubernetes.PlatformInfo
-	PV2          *profiles.ProfilesV2
 	Log          logr.Logger
 	Scheme       *runtime.Scheme
 	Recorder     record.EventRecorder
@@ -236,7 +234,7 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		}
 	}
 
-	internal, err := datadogagent.NewReconciler(r.Options, r.Client, r.VersionInfo, r.PlatformInfo, r.PV2, r.Scheme, r.Log, r.Recorder, metricForwarder)
+	internal, err := datadogagent.NewReconciler(r.Options, r.Client, r.VersionInfo, r.PlatformInfo, r.Scheme, r.Log, r.Recorder, metricForwarder)
 	if err != nil {
 		return err
 	}

@@ -33,23 +33,18 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, request reconcile.
 	reqLogger.Info("Reconciling DatadogAgent")
 
 	// Fetch the DatadogAgent instance
-	// instance := r.getDDA(request.NamespacedName)
-	var result reconcile.Result
 	instance := &datadoghqv2alpha1.DatadogAgent{}
-	if dda := r.pv2.GetDDAByNamespacedName(request.NamespacedName); dda != nil {
-		instance = dda
-	} else {
-		err := r.client.Get(ctx, request.NamespacedName, instance)
-		if err != nil {
-			if apierrors.IsNotFound(err) {
-				// Request object not found, could have been deleted after reconcile request.
-				// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
-				// Return and don't requeue
-				return result, nil
-			}
-			// Error reading the object - requeue the request.
-			return result, err
+	var result reconcile.Result
+	err := r.client.Get(ctx, request.NamespacedName, instance)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			// Request object not found, could have been deleted after reconcile request.
+			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
+			// Return and don't requeue
+			return result, nil
 		}
+		// Error reading the object - requeue the request.
+		return result, err
 	}
 
 	if instance.Spec.Global == nil || instance.Spec.Global.Credentials == nil {
@@ -76,7 +71,7 @@ func (r *Reconciler) internalReconcileV2(ctx context.Context, request reconcile.
 		}
 	}*/
 
-	if result, err := r.handleFinalizer(reqLogger, instance, r.finalizeDadV2); utils.ShouldReturn(result, err) {
+	if result, err = r.handleFinalizer(reqLogger, instance, r.finalizeDadV2); utils.ShouldReturn(result, err) {
 		return result, err
 	}
 
