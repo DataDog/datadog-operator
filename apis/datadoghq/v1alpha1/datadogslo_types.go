@@ -29,7 +29,7 @@ type DatadogSLOSpec struct {
 	// +listType=set
 	MonitorIDs []int64 `json:"monitorIDs,omitempty"`
 
-	// Tags a list of tags to associate with your service level objective.
+	// Tags is a list of tags to associate with your service level objective.
 	// This can help you categorize and filter service level objectives in the service level objectives page of the UI.
 	// Note: it's not currently possible to filter by these tags when querying via the API.
 	// +listType=set
