@@ -160,7 +160,9 @@ func (o *Options) getV2Status() (common.StatusWrapper, error) {
 
 func isReconcileError(conditions []metav1.Condition) bool {
 	for _, condition := range conditions {
-		if (condition.Type == "DatadogAgentReconcileError" && condition.Status == metav1.ConditionTrue) || (condition.Type == "AgentReconcile" && condition.Status == metav1.ConditionTrue) || (condition.Type == "ClusterAgentReconcile" && condition.Status == metav1.ConditionTrue) {
+		if (condition.Type == "DatadogAgentReconcileError" && condition.Status == metav1.ConditionTrue) ||
+			(condition.Type == "AgentReconcile" && condition.Status == metav1.ConditionFalse) ||
+			(condition.Type == "ClusterAgentReconcile" && condition.Status == metav1.ConditionFalse) {
 			return true
 		}
 	}
@@ -193,7 +195,7 @@ func (o *Options) Run() error {
 		}
 
 		if isReconcileError(status.GetStatusCondition()) {
-			return false, fmt.Errorf("Got reconcile error.")
+			return false, fmt.Errorf("got reconcile error")
 		}
 
 		if !agentDone {
