@@ -219,7 +219,6 @@ const (
 	RuntimeDirVolumePath                             = "/var/run"
 	KubeletAgentCAPath                               = "/var/run/host-kubelet-ca.crt"
 	KubeletCAVolumeName                              = "kubelet-ca"
-	KubeletCAOpenShiftPath                           = "/etc/kubernetes/kubelet-ca.crt"
 	APMHostPortName                                  = "traceport"
 	APMHostPortHostPort                              = 8126
 	APMSocketVolumeName                              = "apmsocket"
