@@ -315,17 +315,19 @@ func commonEnvVars(dda metav1.Object, provider kubernetes.Provider) []corev1.Env
 		},
 	}
 	if provider.Name == kubernetes.OpenShiftRHCOSProvider {
-		openShiftCoreEnvs := []corev1.EnvVar{
+		// On OpenShift, the runtime socket is necessarily CRI-O.
+		// Kubelet certificates on worker nodes are self-signed.
+		openShiftCommonEnvs := []corev1.EnvVar{
 			{
 				Name:  apicommon.DDCriSocketPath,
 				Value: apicommon.HostCriSocketPathPrefix + apicommon.RuntimeDirVolumePath + "/crio/crio.sock",
 			},
 			{
-				Name:  apicommon.DDKubeletCAPath,
-				Value: apicommon.KubeletAgentCAPath,
+				Name:  apicommon.DDKubeletTLSVerify,
+				Value: strconv.FormatBool(false),
 			},
 		}
-		envs = append(envs, openShiftCoreEnvs...)
+		envs = append(envs, openShiftCommonEnvs...)
 	}
 	return envs
 }
@@ -382,20 +384,6 @@ func volumesForAgent(dda metav1.Object, requiredContainers []common.AgentContain
 		component.GetVolumeForRuntimeSocket(provider),
 	}
 
-	// The kubelet CA certificate is stored by default on OpenShift nodes in `/etc/kubernetes/kubelet-ca.crt`.
-	// If the provider is OpenShift, we mount this volume to allow TLS connection to the kubelet.
-	if provider.Name == kubernetes.OpenShiftRHCOSProvider {
-		kubeletCAVol := corev1.Volume{
-			Name: apicommon.KubeletCAVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				HostPath: &corev1.HostPathVolumeSource{
-					Path: apicommon.KubeletCAOpenShiftPath,
-				},
-			},
-		}
-		volumes = append(volumes, kubeletCAVol)
-	}
-
 	for _, containerName := range requiredContainers {
 		if containerName == common.SystemProbeContainerName {
 			sysProbeVolumes := []corev1.Volume{
@@ -410,7 +398,7 @@ func volumesForAgent(dda metav1.Object, requiredContainers []common.AgentContain
 }
 
 func volumeMountsForCoreAgent(provider kubernetes.Provider) []corev1.VolumeMount {
-	volumeMounts := []corev1.VolumeMount{
+	return []corev1.VolumeMount{
 		component.GetVolumeMountForLogs(),
 		component.GetVolumeMountForAuth(false),
 		component.GetVolumeMountForInstallInfo(),
@@ -420,19 +408,10 @@ func volumeMountsForCoreAgent(provider kubernetes.Provider) []corev1.VolumeMount
 		component.GetVolumeMountForDogstatsdSocket(false),
 		component.GetVolumeMountForRuntimeSocket(true, provider),
 	}
-	if provider.Name == kubernetes.OpenShiftRHCOSProvider {
-		kubeletCAVolumeMount := corev1.VolumeMount{
-			Name:      apicommon.KubeletCAVolumeName,
-			MountPath: apicommon.KubeletAgentCAPath,
-			ReadOnly:  true,
-		}
-		return append(volumeMounts, kubeletCAVolumeMount)
-	}
-	return volumeMounts
 }
 
 func volumeMountsForTraceAgent(provider kubernetes.Provider) []corev1.VolumeMount {
-	volumeMounts := []corev1.VolumeMount{
+	return []corev1.VolumeMount{
 		component.GetVolumeMountForLogs(),
 		component.GetVolumeMountForProc(),
 		component.GetVolumeMountForCgroups(),
@@ -441,19 +420,10 @@ func volumeMountsForTraceAgent(provider kubernetes.Provider) []corev1.VolumeMoun
 		component.GetVolumeMountForDogstatsdSocket(false),
 		component.GetVolumeMountForRuntimeSocket(true, provider),
 	}
-	if provider.Name == kubernetes.OpenShiftRHCOSProvider {
-		kubeletCAVolumeMount := corev1.VolumeMount{
-			Name:      apicommon.KubeletCAVolumeName,
-			MountPath: apicommon.KubeletAgentCAPath,
-			ReadOnly:  true,
-		}
-		return append(volumeMounts, kubeletCAVolumeMount)
-	}
-	return volumeMounts
 }
 
 func volumeMountsForProcessAgent(provider kubernetes.Provider) []corev1.VolumeMount {
-	volumeMounts := []corev1.VolumeMount{
+	return []corev1.VolumeMount{
 		component.GetVolumeMountForLogs(),
 		component.GetVolumeMountForAuth(true),
 		component.GetVolumeMountForConfig(),
@@ -461,34 +431,16 @@ func volumeMountsForProcessAgent(provider kubernetes.Provider) []corev1.VolumeMo
 		component.GetVolumeMountForRuntimeSocket(true, provider),
 		component.GetVolumeMountForProc(),
 	}
-	if provider.Name == kubernetes.OpenShiftRHCOSProvider {
-		kubeletCAVolumeMount := corev1.VolumeMount{
-			Name:      apicommon.KubeletCAVolumeName,
-			MountPath: apicommon.KubeletAgentCAPath,
-			ReadOnly:  true,
-		}
-		return append(volumeMounts, kubeletCAVolumeMount)
-	}
-	return volumeMounts
 }
 
 func volumeMountsForSecurityAgent(provider kubernetes.Provider) []corev1.VolumeMount {
-	volumeMounts := []corev1.VolumeMount{
+	return []corev1.VolumeMount{
 		component.GetVolumeMountForLogs(),
 		component.GetVolumeMountForAuth(true),
 		component.GetVolumeMountForConfig(),
 		component.GetVolumeMountForDogstatsdSocket(false),
 		component.GetVolumeMountForRuntimeSocket(true, provider),
 	}
-	if provider.Name == kubernetes.OpenShiftRHCOSProvider {
-		kubeletCAVolumeMount := corev1.VolumeMount{
-			Name:      apicommon.KubeletCAVolumeName,
-			MountPath: apicommon.KubeletAgentCAPath,
-			ReadOnly:  true,
-		}
-		return append(volumeMounts, kubeletCAVolumeMount)
-	}
-	return volumeMounts
 }
 
 func volumeMountsForSystemProbe(provider kubernetes.Provider) []corev1.VolumeMount {
