@@ -73,6 +73,7 @@ const (
 
 	// defaultExternalMetricsServerEnabled bool = false
 	defaultDatadogMetricsEnabled bool = true
+	defaultRegisterAPIService    bool = true
 	// Cluster Agent versions < 1.20 should use 443
 	defaultMetricsProviderPort int32 = 8443
 
@@ -285,7 +286,7 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 	// ExternalMetricsServer Feature
 	if ddaSpec.Features.ExternalMetricsServer != nil && ddaSpec.Features.ExternalMetricsServer.Enabled != nil && *ddaSpec.Features.ExternalMetricsServer.Enabled {
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ExternalMetricsServer.UseDatadogMetrics, defaultDatadogMetricsEnabled)
-
+		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ExternalMetricsServer.RegisterAPIService, defaultRegisterAPIService)
 		apiutils.DefaultInt32IfUnset(&ddaSpec.Features.ExternalMetricsServer.Port, defaultMetricsProviderPort)
 	}
 
