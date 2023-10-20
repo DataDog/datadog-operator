@@ -21,7 +21,7 @@ type DatadogSLOSpec struct {
 
 	// Groups is a list of (up to 100) monitor groups that narrow the scope of a monitor service level objective.
 	// Included in service level objective responses if it is not empty.
-	// Optional in create/update requests for monitor service level objectives, but may only be used when then length of the monitor_ids field is one.
+	// Optional in create/update requests for monitor service level objectives, but may only be used when the length of the monitor_ids field is one.
 	// +listType=set
 	Groups []string `json:"groups,omitempty"`
 
