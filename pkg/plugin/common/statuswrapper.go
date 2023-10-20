@@ -17,6 +17,7 @@ type StatusWrapper interface {
 	GetAgentStatus() *commonv1.DaemonSetStatus
 	GetClusterAgentStatus() *commonv1.DeploymentStatus
 	GetClusterChecksRunnerStatus() *commonv1.DeploymentStatus
+	GetStatusCondition() []metav1.Condition
 }
 
 func NewV1StatusWrapper(dda *v1alpha1.DatadogAgent) StatusWrapper {
@@ -28,6 +29,13 @@ type v1StatusWrapper struct {
 }
 
 func (sw v1StatusWrapper) GetObjectMeta() metav1.Object { return sw.dda.GetObjectMeta() }
+func (sw v1StatusWrapper) GetStatusCondition() []metav1.Condition {
+	var newConditionsList []metav1.Condition
+	for _, condition := range sw.dda.Status.Conditions {
+		newConditionsList = append(newConditionsList, AgentConditionToMetaV1(condition))
+	}
+	return newConditionsList
+}
 
 func (sw v1StatusWrapper) GetAgentStatus() *commonv1.DaemonSetStatus {
 	if sw.dda != nil {
@@ -57,6 +65,9 @@ type v2StatusWrapper struct {
 }
 
 func (sw v2StatusWrapper) GetObjectMeta() metav1.Object { return sw.dda.GetObjectMeta() }
+func (sw v2StatusWrapper) GetStatusCondition() []metav1.Condition {
+	return sw.dda.Status.Conditions
+}
 
 func (sw v2StatusWrapper) GetAgentStatus() *commonv1.DaemonSetStatus {
 	if sw.dda != nil {
@@ -75,4 +86,14 @@ func (sw v2StatusWrapper) GetClusterChecksRunnerStatus() *commonv1.DeploymentSta
 		return sw.dda.Status.ClusterChecksRunner
 	}
 	return nil
+}
+
+func AgentConditionToMetaV1(condition v1alpha1.DatadogAgentCondition) metav1.Condition {
+	return metav1.Condition{
+		Type:               string(condition.Type),
+		Status:             metav1.ConditionStatus(condition.Status),
+		LastTransitionTime: condition.LastTransitionTime,
+		Reason:             condition.Reason,
+		Message:            condition.Message,
+	}
 }
