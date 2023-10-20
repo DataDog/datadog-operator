@@ -25,7 +25,7 @@ type DatadogSLOSpec struct {
 	// +listType=set
 	Groups []string `json:"groups,omitempty"`
 
-	// MonitorIDs a list of monitor IDs that defines the scope of a monitor service level objective. Required if type is monitor.
+	// MonitorIDs is a list of monitor IDs that defines the scope of a monitor service level objective. Required if type is monitor.
 	// +listType=set
 	MonitorIDs []int64 `json:"monitorIDs,omitempty"`
 
