@@ -12,9 +12,11 @@ import (
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/test"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
@@ -113,10 +115,34 @@ func TestExternalMetricsFeature(t *testing.T) {
 			ClusterAgent:  testDCAResources(true, false, true),
 		},
 		{
+			Name:          "v2alpha1 external metrics enabled, secrets set, registerAPIService enabled",
+			DDAv2:         newV2Agent(true, true, true, false, secretV2),
+			WantConfigure: true,
+			WantDependenciesFunc: func(t testing.TB, store dependencies.StoreClient) {
+				apiServiceName := "v1beta1.external.metrics.k8s.io"
+				ns := ""
+
+				_, found := store.Get(kubernetes.APIServiceKind, ns, apiServiceName)
+				if !found {
+					t.Error("Should have created an APIService")
+				}
+			},
+			ClusterAgent: testDCAResources(true, false, true),
+		},
+		{
 			Name:          "v2alpha1 external metrics enabled, secrets set, registerAPIService disabled",
 			DDAv2:         newV2Agent(true, false, true, false, secretV2),
 			WantConfigure: true,
-			ClusterAgent:  testDCAResources(true, false, true),
+			WantDependenciesFunc: func(t testing.TB, store dependencies.StoreClient) {
+				apiServiceName := "v1beta1.external.metrics.k8s.io"
+				ns := ""
+
+				_, found := store.Get(kubernetes.APIServiceKind, ns, apiServiceName)
+				if found {
+					t.Error("Shouldn't have created an APIService")
+				}
+			},
+			ClusterAgent: testDCAResources(true, false, true),
 		},
 	}
 

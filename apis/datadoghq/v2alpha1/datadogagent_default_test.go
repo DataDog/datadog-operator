@@ -602,7 +602,7 @@ func Test_defaultFeatures(t *testing.T) {
 			},
 		},
 		{
-			name: "ExternalMetricsServer is enabled and RegisterAPIService is set to true by default",
+			name: "ExternalMetricsServer is enabled",
 			ddaSpec: &DatadogAgentSpec{
 				Features: &DatadogFeatures{
 					ExternalMetricsServer: &ExternalMetricsServerFeatureConfig{
