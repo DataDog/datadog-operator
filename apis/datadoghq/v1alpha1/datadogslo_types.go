@@ -36,8 +36,7 @@ type DatadogSLOSpec struct {
 	Tags []string `json:"tags,omitempty"`
 
 	// Query is the query for a metric-based SLO. Required if type is metric.
-	// Note that Datadog only allows the sum by aggregator to be used because this will sum up all request counts instead of averaging them,
-	// or taking the max or min of all of those requests.
+	// Note that only the `sum by` aggregator is allowed, which sums all request counts. `Average`, `max`, nor `min` request aggregators are not supported.
 	Query *DatadogSLOQuery `json:"query,omitempty"`
 
 	// Type is the type of the service level objective.
