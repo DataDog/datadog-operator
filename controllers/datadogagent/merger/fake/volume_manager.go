@@ -56,14 +56,3 @@ func NewFakeVolumeManager(t testing.TB) *VolumeManager {
 		t:       t,
 	}
 }
-
-// RemoveVolume provides a mock function with given fields: volume
-func (_m *VolumeManager) RemoveVolume(volume string) {
-	for id, cVolume := range _m.Volumes {
-		if volume == cVolume.Name {
-			updatedVolumes := make([]*v1.Volume, 0, len(_m.Volumes)-1)
-			updatedVolumes = append(updatedVolumes, _m.Volumes[:id]...)
-			_m.Volumes = append(updatedVolumes, _m.Volumes[id+1:]...)
-		}
-	}
-}

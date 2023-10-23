@@ -18,7 +18,6 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/component"
 	componentdca "github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
 	securityv1 "github.com/openshift/api/security/v1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -27,7 +26,7 @@ import (
 )
 
 // NewDefaultAgentDaemonset return a new default agent DaemonSet
-func NewDefaultAgentDaemonset(dda metav1.Object, requiredContainers []common.AgentContainerName, provider kubernetes.Provider) *appsv1.DaemonSet {
+func NewDefaultAgentDaemonset(dda metav1.Object, requiredContainers []common.AgentContainerName, provider string) *appsv1.DaemonSet {
 	daemonset := NewDaemonset(dda, apicommon.DefaultAgentResourceSuffix, component.GetAgentName(dda), component.GetAgentVersion(dda), nil, provider)
 	podTemplate := NewDefaultAgentPodTemplateSpec(dda, requiredContainers, daemonset.GetLabels())
 
@@ -36,7 +35,7 @@ func NewDefaultAgentDaemonset(dda metav1.Object, requiredContainers []common.Age
 }
 
 // NewDefaultAgentExtendedDaemonset return a new default agent DaemonSet
-func NewDefaultAgentExtendedDaemonset(dda metav1.Object, edsOptions *ExtendedDaemonsetOptions, requiredContainers []common.AgentContainerName, provider kubernetes.Provider) *edsv1alpha1.ExtendedDaemonSet {
+func NewDefaultAgentExtendedDaemonset(dda metav1.Object, edsOptions *ExtendedDaemonsetOptions, requiredContainers []common.AgentContainerName, provider string) *edsv1alpha1.ExtendedDaemonSet {
 	edsDaemonset := NewExtendedDaemonset(dda, edsOptions, apicommon.DefaultAgentResourceSuffix, component.GetAgentName(dda), component.GetAgentVersion(dda), nil, provider)
 	edsDaemonset.Spec.Template = *NewDefaultAgentPodTemplateSpec(dda, requiredContainers, edsDaemonset.GetLabels())
 	return edsDaemonset

@@ -10,108 +10,67 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
-
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type Profiles struct {
-	providers       map[string]Provider // map provider hash to provider definitions to get provider def with hash string
-	sortedProviders []Provider          // sorted list to generate affinity expressions in the same order to prevent pod restarts
+type ProviderStore struct {
+	providers map[string]struct{}
 
 	log   logr.Logger
 	mutex sync.Mutex
 }
 
-type Provider struct {
-	// Name is the name of provider, e.g. `cos`
-	Name string
-	// https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-subdomain-names
-	// ComponentName is the suffix to add to a component name, e.g. `gcp-cos`
-	ComponentName string
-	// CloudProvider is the type of cloud provider used
-	CloudProvider string
-	// ProviderLabel is the label used to determine which provider is used
-	ProviderLabel string
-}
-
 const (
 	DefaultProvider = "default"
-	// GCP provider names https://cloud.google.com/kubernetes-engine/docs/concepts/node-images#available_node_images
-	GCPCosContainerdProvider         = "cos_containerd"
-	GCPCosProvider                   = "cos"
-	GCPUbuntuContainerdProvider      = "ubuntu_containerd"
-	GCPUbuntuProvider                = "ubuntu"
-	GCPWindowsLTSCContainerdProvider = "windows_ltsc_containerd"
-	GCPWindowsLTSCProvider           = "windows_ltsc"
-	GCPWindowsSACContainerdProvider  = "windows_sac_containerd"
-	GCPWindowsSACProvider            = "windows_sac"
+	// GCP provider values https://cloud.google.com/kubernetes-engine/docs/concepts/node-images#available_node_images
+	GCPCosContainerdProviderValue = "cos_containerd"
+	GCPCosProviderValue           = "cos"
 
 	// CloudProvider
-	GCPCloudProvider   = "gcp"
-	AWSCloudProvider   = "aws"
-	AzureCloudProvider = "azure"
+	GCPCloudProvider = "gcp"
 
 	// ProviderLabel
 	GCPProviderLabel = "cloud.google.com/gke-os-distribution"
 )
 
-// NewProfiles generates an empty Profiles instance
-func NewProfiles(log logr.Logger) Profiles {
-	return Profiles{
-		providers:       make(map[string]Provider),
-		sortedProviders: []Provider{},
-		log:             log,
+// NewProviderStore generates an empty ProviderStore instance
+func NewProviderStore(log logr.Logger) ProviderStore {
+	return ProviderStore{
+		providers: make(map[string]struct{}),
+		log:       log,
 	}
 }
 
-// DetermineProvider creates a Provider based on a map of labels
-func DetermineProvider(labels map[string]string) Provider {
-	p := Provider{}
+// determineProvider creates a Provider based on a map of labels
+func determineProvider(labels map[string]string) string {
 	if len(labels) > 0 {
 		// GCP
 		if val, ok := labels[GCPProviderLabel]; ok {
-			p.Name = val
-			p.CloudProvider = GCPCloudProvider
-			p.ProviderLabel = GCPProviderLabel
-			p.ComponentName = GenerateComponentName(p.CloudProvider, p.Name)
-			return p
+			return generateProviderName(GCPCloudProvider, val)
 		}
 	}
 
-	// default Provider if a match was not found
-	p.Name = DefaultProvider
-	p.CloudProvider = DefaultProvider
-	p.ProviderLabel = DefaultProvider
-	p.ComponentName = DefaultProvider
-
-	return p
+	return DefaultProvider
 }
 
-// SetProvider creates a provider entry for a new provider if needed and returns whether DDAs should be reconciled
-func (p *Profiles) SetProvider(obj client.Object) {
-	objName := obj.GetName()
+// SetProvider creates a provider entry for a new provider if needed
+func (p *ProviderStore) SetProvider(obj client.Object) {
 	labels := obj.GetLabels()
-	objProvider := DetermineProvider(labels)
-	providerHash, err := GenerateProviderHash(objProvider)
-	if err != nil {
-		p.log.Error(err, "Error generating hash for node provider", "node", objName, "provider", objProvider.ComponentName)
-	}
+	objProvider := determineProvider(labels)
 
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 	// add a new provider hash and provider definition
-	if _, ok := p.providers[providerHash]; !ok {
-		p.providers[providerHash] = objProvider
-		p.sortProviders()
-		p.log.Info("New provider detected", "provider", objProvider.ComponentName, "hash", providerHash)
+	if _, ok := p.providers[objProvider]; !ok {
+		p.providers[objProvider] = struct{}{}
+		p.log.Info("New provider detected", "provider", objProvider)
 	}
 }
 
 // GetProviders gets a list of providers
-func (p *Profiles) GetProviders() *map[string]Provider {
+func (p *ProviderStore) GetProviders() *map[string]struct{} {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
@@ -119,66 +78,80 @@ func (p *Profiles) GetProviders() *map[string]Provider {
 }
 
 // GenerateProviderNodeAffinity creates NodeSelectorTerms based on the provider
-func (p *Profiles) GenerateProviderNodeAffinity(provider Provider) []corev1.NodeSelectorRequirement {
-	nsrList := []corev1.NodeSelectorRequirement{}
+func (p *ProviderStore) GenerateProviderNodeAffinity(provider string) []corev1.NodeSelectorRequirement {
 	// default provider has NodeAffinity to NOT match provider-specific labels
-	if provider.Name == DefaultProvider {
-		for _, providerDef := range p.sortedProviders {
-			if providerDef.Name == DefaultProvider {
-				continue
+	nsrList := []corev1.NodeSelectorRequirement{}
+	if provider == DefaultProvider {
+		// sort providers to get consistently ordered affinity
+		p.mutex.Lock()
+		sortedProviders := sortProviders(p.providers)
+		p.mutex.Unlock()
+
+		for _, providerDef := range sortedProviders {
+			key, value := GetProviderLabelKeyValue(providerDef)
+			if key != "" && value != "" {
+				nsrList = append(nsrList, corev1.NodeSelectorRequirement{
+					Key:      key,
+					Operator: corev1.NodeSelectorOpNotIn,
+					Values: []string{
+						value,
+					},
+				})
 			}
-			nsrList = append(nsrList, corev1.NodeSelectorRequirement{
-				Key:      providerDef.ProviderLabel,
-				Operator: corev1.NodeSelectorOpNotIn,
-				Values: []string{
-					providerDef.Name,
-				},
-			})
 		}
 		return nsrList
 	}
 	// create provider-specific NodeSelectorTerm for NodeAffinity
-	nsrList = append(nsrList, corev1.NodeSelectorRequirement{
-		Key:      provider.ProviderLabel,
-		Operator: corev1.NodeSelectorOpIn,
-		Values: []string{
-			provider.Name,
-		},
-	})
+	key, value := GetProviderLabelKeyValue(provider)
+	if key != "" && value != "" {
+		nsrList = append(nsrList, corev1.NodeSelectorRequirement{
+			Key:      key,
+			Operator: corev1.NodeSelectorOpIn,
+			Values: []string{
+				value,
+			},
+		})
+	}
 
 	return nsrList
 }
 
-// IsProviderInProfiles returns whether a provider exists in profiles
-func (p *Profiles) IsProviderInProfiles(hash string) bool {
-	if _, ok := p.providers[hash]; ok {
-		return true
-	}
-	return false
+// generateProviderName creates a provider name from the cloud provider and provider value
+// this should not be used to create a resource name as it may contain underscores
+func generateProviderName(cloudProvider, providerValue string) string {
+	return cloudProvider + "-" + providerValue
 }
 
-func (p *Profiles) sortProviders() {
-	// needed to generate NodeSelectorRequirements for NodeAffinity in a consistent order
-	// otherwise the order may change each reconcile, causing many pod restarts
-	p.sortedProviders = make([]Provider, 0, len(p.providers))
-	for _, provider := range p.providers {
-		p.sortedProviders = append(p.sortedProviders, provider)
+// GetProviderLabelKeyValue gets the corresponding cloud provider label key and value from a provider name
+func GetProviderLabelKeyValue(provider string) (string, string) {
+	// cloud provider to label mapping
+	providerMapping := map[string]string{
+		GCPCloudProvider: GCPProviderLabel,
 	}
-	sort.Slice(p.sortedProviders, func(i, j int) bool {
-		return p.sortedProviders[i].Name < p.sortedProviders[j].Name
-	})
+
+	cp, value := splitProviderSuffix(provider)
+	if label, ok := providerMapping[cp]; ok {
+		return label, value
+	}
+	return "", ""
 }
 
-// GenerateComponentName creates a ComponentName from the provider fields
-func GenerateComponentName(cloudProvider, providerName string) string {
-	return cloudProvider + "-" + strings.Replace(providerName, "_", "-", -1)
+// splitProviderSuffix splits a provider suffix into the cloud provider and the provider value
+func splitProviderSuffix(provider string) (string, string) {
+	splitSuffix := strings.SplitN(provider, "-", 2)
+	if len(splitSuffix) != 2 {
+		return "", ""
+	}
+	return splitSuffix[0], splitSuffix[1]
 }
 
-// GenerateProviderHash creates a md5 hash to identify a provider with
-func GenerateProviderHash(provider Provider) (string, error) {
-	providerHash, err := comparison.GenerateMD5ForSpec(provider.ComponentName)
-	if err != nil {
-		return "", err
+// sortProviders sorts a map of providers to get a consistently ordered list to create affinity requirements
+func sortProviders(providers map[string]struct{}) []string {
+	sortedProviders := make([]string, 0, len(providers))
+	for provider := range providers {
+		sortedProviders = append(sortedProviders, provider)
 	}
-	return providerHash, nil
+	sort.Strings(sortedProviders)
+
+	return sortedProviders
 }

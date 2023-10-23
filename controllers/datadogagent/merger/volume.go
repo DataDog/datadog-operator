@@ -18,8 +18,6 @@ type VolumeManager interface {
 	// Add the volume to the PodTemplate.
 	// Provide merge functions if the merge is specific.
 	AddVolumeWithMergeFunc(volume *corev1.Volume, volumeMergeFunc VolumeMergeFunction) error
-	// RemoveVolume removes a volume from the PodTemplate.
-	RemoveVolume(volume string)
 }
 
 // NewVolumeManager returns a new instance of the VolumeManager
@@ -147,15 +145,4 @@ func mergeMode(a, b *int32) *int32 {
 		return b
 	}
 	return a
-}
-
-// RemoveVolume removes a volume from the PodTemplate
-func (impl *volumeManagerImpl) RemoveVolume(volume string) {
-	for id, cVolume := range impl.podTmpl.Spec.Volumes {
-		if volume == cVolume.Name {
-			updatedVolumes := make([]corev1.Volume, 0, len(impl.podTmpl.Spec.Volumes)-1)
-			updatedVolumes = append(updatedVolumes, impl.podTmpl.Spec.Volumes[:id]...)
-			impl.podTmpl.Spec.Volumes = append(updatedVolumes, impl.podTmpl.Spec.Volumes[id+1:]...)
-		}
-	}
 }

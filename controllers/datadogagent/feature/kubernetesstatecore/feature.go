@@ -239,7 +239,7 @@ func (f *ksmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *ksmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider kubernetes.Provider) error {
+func (f *ksmFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	// Remove ksm v1 conf if the cluster checks are enabled and the ksm core is enabled
 	ignoreAutoConf := &corev1.EnvVar{
 		Name:  apicommon.DDIgnoreAutoConf,

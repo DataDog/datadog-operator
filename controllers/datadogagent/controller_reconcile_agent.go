@@ -17,7 +17,6 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/override"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	"github.com/go-logr/logr"
@@ -31,7 +30,7 @@ import (
 
 func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents feature.RequiredComponents, features []feature.Feature,
 	dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, newStatus *datadoghqv2alpha1.DatadogAgentStatus,
-	requiredContainers []common.AgentContainerName, provider kubernetes.Provider) (reconcile.Result, error) {
+	requiredContainers []common.AgentContainerName, provider string) (reconcile.Result, error) {
 	var result reconcile.Result
 	var eds *edsv1alpha1.ExtendedDaemonSet
 	var daemonset *appsv1.DaemonSet
@@ -84,12 +83,8 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 			return r.cleanupV2ExtendedDaemonSet(daemonsetLogger, dda, eds, newStatus)
 		}
 
-		// Add profile hash label
-		providerHash, err := kubernetes.GenerateProviderHash(provider)
-		if err != nil {
-			r.log.Error(err, "Error generating hash for provider", "provider", provider.ComponentName)
-		}
-		eds.Labels[apicommon.MD5AgentDeploymentProfileHashLabelKey] = providerHash
+		// Add provider-specific label
+		eds.Labels[apicommon.MD5AgentDeploymentProviderLabelKey] = provider
 
 		// Add provider node affinity
 		affinity := eds.Spec.Template.Spec.Affinity.DeepCopy()
@@ -137,12 +132,8 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 		return r.cleanupV2DaemonSet(daemonsetLogger, dda, daemonset, newStatus)
 	}
 
-	// Add profile hash label
-	providerHash, err := kubernetes.GenerateProviderHash(provider)
-	if err != nil {
-		r.log.Error(err, "Error generating hash for provider", "provider", provider.ComponentName)
-	}
-	daemonset.Labels[apicommon.MD5AgentDeploymentProfileHashLabelKey] = providerHash
+	// Add provider-specific label
+	daemonset.Labels[apicommon.MD5AgentDeploymentProviderLabelKey] = provider
 
 	// Add provider node affinity
 	affinity := daemonset.Spec.Template.Spec.Affinity.DeepCopy()
@@ -215,8 +206,8 @@ func (r *Reconciler) cleanupV2ExtendedDaemonSet(logger logr.Logger, dda *datadog
 	return reconcile.Result{}, nil
 }
 
-func (r *Reconciler) generateNodeAffinity(p kubernetes.Provider, affinity *corev1.Affinity) *corev1.Affinity {
-	nodeSelectorReq := r.profiles.GenerateProviderNodeAffinity(p)
+func (r *Reconciler) generateNodeAffinity(p string, affinity *corev1.Affinity) *corev1.Affinity {
+	nodeSelectorReq := r.providers.GenerateProviderNodeAffinity(p)
 	if len(nodeSelectorReq) > 0 {
 		// check for an existing affinity and merge
 		if affinity == nil {

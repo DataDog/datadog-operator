@@ -18,7 +18,6 @@ import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/go-logr/logr"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
@@ -242,7 +241,7 @@ func extractPortEndpoint(endpoint string) (int32, error) {
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *otlpFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider kubernetes.Provider) error {
+func (f *otlpFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	if f.grpcEnabled {
 		if err := validateOTLPGRPCEndpoint(f.grpcEndpoint); err != nil {
 			f.logger.Error(err, "invalid OTLP/gRPC endpoint")

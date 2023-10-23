@@ -55,7 +55,7 @@ type ExtendedDaemonsetOptions struct {
 	CanaryAutoFailMaxRestarts  int
 }
 
-type starterFunc func(logr.Logger, manager.Manager, *version.Info, kubernetes.PlatformInfo, *kubernetes.Profiles, SetupOptions) error
+type starterFunc func(logr.Logger, manager.Manager, *version.Info, kubernetes.PlatformInfo, *kubernetes.ProviderStore, SetupOptions) error
 
 var controllerStarters = map[string]starterFunc{
 	agentControllerName:   startDatadogAgent,
@@ -83,10 +83,10 @@ func SetupControllers(logger logr.Logger, mgr manager.Manager, options SetupOpti
 	}
 	platformInfo := kubernetes.NewPlatformInfo(versionInfo, groups, resources)
 
-	profiles := kubernetes.NewProfiles(logger)
+	providers := kubernetes.NewProviderStore(logger)
 
 	for controller, starter := range controllerStarters {
-		if err := starter(logger, mgr, versionInfo, platformInfo, &profiles, options); err != nil {
+		if err := starter(logger, mgr, versionInfo, platformInfo, &providers, options); err != nil {
 			logger.Error(err, "Couldn't start controller", "controller", controller)
 		}
 	}
@@ -105,7 +105,7 @@ func getServerGroupsAndResources(log logr.Logger, discoveryClient *discovery.Dis
 	return groups, resources, nil
 }
 
-func startDatadogAgent(logger logr.Logger, mgr manager.Manager, vInfo *version.Info, pInfo kubernetes.PlatformInfo, profiles *kubernetes.Profiles, options SetupOptions) error {
+func startDatadogAgent(logger logr.Logger, mgr manager.Manager, vInfo *version.Info, pInfo kubernetes.PlatformInfo, providers *kubernetes.ProviderStore, options SetupOptions) error {
 	if !options.DatadogAgentEnabled {
 		logger.Info("Feature disabled, not starting the controller", "controller", agentControllerName)
 
@@ -116,7 +116,7 @@ func startDatadogAgent(logger logr.Logger, mgr manager.Manager, vInfo *version.I
 		Client:       mgr.GetClient(),
 		VersionInfo:  vInfo,
 		PlatformInfo: pInfo,
-		Profiles:     profiles,
+		Providers:    providers,
 		Log:          ctrl.Log.WithName("controllers").WithName(agentControllerName),
 		Scheme:       mgr.GetScheme(),
 		Recorder:     mgr.GetEventRecorderFor(agentControllerName),
@@ -139,7 +139,7 @@ func startDatadogAgent(logger logr.Logger, mgr manager.Manager, vInfo *version.I
 	}).SetupWithManager(mgr)
 }
 
-func startDatadogMonitor(logger logr.Logger, mgr manager.Manager, vInfo *version.Info, pInfo kubernetes.PlatformInfo, profiles *kubernetes.Profiles, options SetupOptions) error {
+func startDatadogMonitor(logger logr.Logger, mgr manager.Manager, vInfo *version.Info, pInfo kubernetes.PlatformInfo, providers *kubernetes.ProviderStore, options SetupOptions) error {
 	if !options.DatadogMonitorEnabled {
 		logger.Info("Feature disabled, not starting the controller", "controller", monitorControllerName)
 

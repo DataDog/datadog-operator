@@ -42,7 +42,7 @@ type DatadogAgentReconciler struct {
 	client.Client
 	VersionInfo  *version.Info
 	PlatformInfo kubernetes.PlatformInfo
-	Profiles     *kubernetes.Profiles
+	Providers    *kubernetes.ProviderStore
 	Log          logr.Logger
 	Scheme       *runtime.Scheme
 	Recorder     record.EventRecorder
@@ -200,7 +200,7 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	// node informer for introspection
 	builder.Watches(&source.Kind{Type: &corev1.Node{}}, handler.EnqueueRequestsFromMapFunc(func(obj client.Object) (reqs []reconcile.Request) {
-		r.Profiles.SetProvider(obj)
+		r.Providers.SetProvider(obj)
 		return
 	}))
 
@@ -241,7 +241,7 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		}
 	}
 
-	internal, err := datadogagent.NewReconciler(r.Options, r.Client, r.VersionInfo, r.PlatformInfo, r.Profiles, r.Scheme, r.Log, r.Recorder, metricForwarder)
+	internal, err := datadogagent.NewReconciler(r.Options, r.Client, r.VersionInfo, r.PlatformInfo, r.Providers, r.Scheme, r.Log, r.Recorder, metricForwarder)
 	if err != nil {
 		return err
 	}

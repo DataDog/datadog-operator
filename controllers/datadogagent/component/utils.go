@@ -578,10 +578,10 @@ func ShouldCreateAgentLocalService(versionInfo *version.Info, forceEnableLocalSe
 	return utils.IsAboveMinVersion(versionInfo.GitVersion, localServiceDefaultMinimumVersion) || forceEnableLocalService
 }
 
-// GetAgentDeploymentProviderName returns a provider-specific name for the agent component
-func GetAgentDeploymentProviderName(ddaName string, provider kubernetes.Provider) string {
-	if provider.Name != "" {
-		return ddaName + "-" + provider.ComponentName
+// GetAgentNameWithProvider returns a provider-specific name for the agent component
+func GetAgentNameWithProvider(ddaName string, provider string) string {
+	if provider != "" {
+		return ddaName + "-" + strings.Replace(provider, "_", "-", -1)
 	}
 	return ddaName
 }

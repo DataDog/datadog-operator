@@ -12,7 +12,6 @@ import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	"github.com/go-logr/logr"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
@@ -127,7 +126,7 @@ func (f *rcFeature) ManageClusterAgent(managers feature.PodTemplateManagers) err
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *rcFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider kubernetes.Provider) error {
+func (f *rcFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	enabledEnvVar := &corev1.EnvVar{
 		Name:  apicommon.DDRemoteConfigurationEnabled,
 		Value: apiutils.BoolToString(&f.enabled),

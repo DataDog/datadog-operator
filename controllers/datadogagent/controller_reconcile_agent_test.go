@@ -12,20 +12,12 @@ import (
 )
 
 func Test_generateNodeAffinity(t *testing.T) {
-	defaultProvider := kubernetes.Provider{
-		Name:          kubernetes.DefaultProvider,
-		ComponentName: kubernetes.DefaultProvider,
-	}
-	gcpUbuntuProvider := kubernetes.Provider{
-		Name:          kubernetes.GCPUbuntuProvider,
-		ComponentName: kubernetes.GenerateComponentName(kubernetes.GCPCloudProvider, kubernetes.GCPUbuntuProvider),
-		ProviderLabel: kubernetes.GCPProviderLabel,
-		CloudProvider: kubernetes.GCPCloudProvider,
-	}
+	defaultProvider := kubernetes.DefaultProvider
+	gcpCosContainerdProvider := kubernetes.GCPCloudProvider + "-" + kubernetes.GCPCosContainerdProviderValue
 
 	type args struct {
 		affinity *corev1.Affinity
-		provider kubernetes.Provider
+		provider string
 	}
 	tests := []struct {
 		name string
@@ -39,10 +31,10 @@ func Test_generateNodeAffinity(t *testing.T) {
 			},
 		},
 		{
-			name: "nil affinity, gcp ubuntu provider",
+			name: "nil affinity, gcp cos containerd provider",
 			args: args{
 				affinity: nil,
-				provider: gcpUbuntuProvider,
+				provider: gcpCosContainerdProvider,
 			},
 		},
 		{
@@ -53,10 +45,10 @@ func Test_generateNodeAffinity(t *testing.T) {
 			},
 		},
 		{
-			name: "existing affinity, but empty, gcp ubuntu provider",
+			name: "existing affinity, but empty, gcp cos containerd provider",
 			args: args{
 				affinity: &corev1.Affinity{},
-				provider: gcpUbuntuProvider,
+				provider: gcpCosContainerdProvider,
 			},
 		},
 		{
@@ -80,7 +72,7 @@ func Test_generateNodeAffinity(t *testing.T) {
 			},
 		},
 		{
-			name: "existing affinity, NodeAffinity empty, gcp ubuntu provider",
+			name: "existing affinity, NodeAffinity empty, cos containerd provider",
 			args: args{
 				affinity: &corev1.Affinity{
 					PodAffinity: &corev1.PodAffinity{
@@ -96,7 +88,7 @@ func Test_generateNodeAffinity(t *testing.T) {
 						},
 					},
 				},
-				provider: gcpUbuntuProvider,
+				provider: gcpCosContainerdProvider,
 			},
 		},
 		{
@@ -122,7 +114,7 @@ func Test_generateNodeAffinity(t *testing.T) {
 			},
 		},
 		{
-			name: "existing affinity, NodeAffinity filled, gcp ubuntu provider",
+			name: "existing affinity, NodeAffinity filled, cos containerd provider",
 			args: args{
 				affinity: &corev1.Affinity{
 					NodeAffinity: &corev1.NodeAffinity{
@@ -140,15 +132,15 @@ func Test_generateNodeAffinity(t *testing.T) {
 						},
 					},
 				},
-				provider: gcpUbuntuProvider,
+				provider: gcpCosContainerdProvider,
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := kubernetes.NewProfiles(logf.Log.WithName("test_generateNodeAffinity"))
+			p := kubernetes.NewProviderStore(logf.Log.WithName("test_generateNodeAffinity"))
 			r := &Reconciler{
-				profiles: &p,
+				providers: &p,
 			}
 			setUpProviders(r)
 
@@ -167,23 +159,7 @@ func setUpProviders(r *Reconciler) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "node-gcp-cos",
 				Labels: map[string]string{
-					kubernetes.GCPProviderLabel: kubernetes.GCPCosProvider,
-				},
-			},
-		},
-		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "node-gcp-ubuntu",
-				Labels: map[string]string{
-					kubernetes.GCPProviderLabel: kubernetes.GCPUbuntuContainerdProvider,
-				},
-			},
-		},
-		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "node-gcp-windows",
-				Labels: map[string]string{
-					kubernetes.GCPProviderLabel: kubernetes.GCPWindowsLTSCContainerdProvider,
+					kubernetes.GCPProviderLabel: kubernetes.GCPCosProviderValue,
 				},
 			},
 		},
@@ -197,11 +173,11 @@ func setUpProviders(r *Reconciler) {
 		},
 	}
 	for _, node := range nodes {
-		r.profiles.SetProvider(&node)
+		r.providers.SetProvider(&node)
 	}
 }
 
-func generateWantedAffinity(provider kubernetes.Provider, na *corev1.NodeAffinity, pa *corev1.PodAffinity, paa *corev1.PodAntiAffinity) *corev1.Affinity {
+func generateWantedAffinity(provider string, na *corev1.NodeAffinity, pa *corev1.PodAffinity, paa *corev1.PodAntiAffinity) *corev1.Affinity {
 	defaultNA := corev1.NodeAffinity{
 		RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
 			NodeSelectorTerms: []corev1.NodeSelectorTerm{
@@ -210,17 +186,7 @@ func generateWantedAffinity(provider kubernetes.Provider, na *corev1.NodeAffinit
 						{
 							Key:      kubernetes.GCPProviderLabel,
 							Operator: corev1.NodeSelectorOpNotIn,
-							Values:   []string{kubernetes.GCPCosProvider},
-						},
-						{
-							Key:      kubernetes.GCPProviderLabel,
-							Operator: corev1.NodeSelectorOpNotIn,
-							Values:   []string{kubernetes.GCPUbuntuContainerdProvider},
-						},
-						{
-							Key:      kubernetes.GCPProviderLabel,
-							Operator: corev1.NodeSelectorOpNotIn,
-							Values:   []string{kubernetes.GCPWindowsLTSCContainerdProvider},
+							Values:   []string{kubernetes.GCPCosProviderValue},
 						},
 					},
 				},
@@ -230,7 +196,7 @@ func generateWantedAffinity(provider kubernetes.Provider, na *corev1.NodeAffinit
 	if na != nil {
 		defaultNA = *na
 	}
-	if provider.Name == kubernetes.DefaultProvider {
+	if provider == kubernetes.DefaultProvider {
 		return &corev1.Affinity{
 			NodeAffinity:    &defaultNA,
 			PodAffinity:     pa,
@@ -238,15 +204,17 @@ func generateWantedAffinity(provider kubernetes.Provider, na *corev1.NodeAffinit
 		}
 	}
 
+	key, value := kubernetes.GetProviderLabelKeyValue(provider)
+
 	providerNA := corev1.NodeAffinity{
 		RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
 			NodeSelectorTerms: []corev1.NodeSelectorTerm{
 				{
 					MatchExpressions: []corev1.NodeSelectorRequirement{
 						{
-							Key:      provider.ProviderLabel,
+							Key:      key,
 							Operator: corev1.NodeSelectorOpIn,
-							Values:   []string{provider.Name},
+							Values:   []string{value},
 						},
 					},
 				},
