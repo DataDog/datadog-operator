@@ -647,9 +647,10 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled: apiutils.NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
 					},
 					ExternalMetricsServer: &ExternalMetricsServerFeatureConfig{
-						Enabled:           apiutils.NewBoolPointer(valueTrue),
-						UseDatadogMetrics: apiutils.NewBoolPointer(defaultDatadogMetricsEnabled),
-						Port:              apiutils.NewInt32Pointer(defaultMetricsProviderPort),
+						Enabled:            apiutils.NewBoolPointer(valueTrue),
+						RegisterAPIService: apiutils.NewBoolPointer(defaultRegisterAPIService),
+						UseDatadogMetrics:  apiutils.NewBoolPointer(defaultDatadogMetricsEnabled),
+						Port:               apiutils.NewInt32Pointer(defaultMetricsProviderPort),
 					},
 					ClusterChecks: &ClusterChecksFeatureConfig{
 						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),

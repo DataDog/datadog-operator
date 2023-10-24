@@ -175,45 +175,45 @@ func ApplyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers
 
 	if componentName == v2alpha1.NodeAgentComponentName {
 		// Kubelet contains the kubelet configuration parameters.
+		// The environment variable `DD_KUBERNETES_KUBELET_HOST` defaults to `status.hostIP` if not overriden.
 		if config.Kubelet != nil {
-			var kubeletHostValueFrom *corev1.EnvVarSource
 			if config.Kubelet.Host != nil {
-				kubeletHostValueFrom = config.Kubelet.Host
-			} else {
-				kubeletHostValueFrom = &corev1.EnvVarSource{
-					FieldRef: &corev1.ObjectFieldSelector{
-						FieldPath: apicommon.FieldPathStatusHostIP,
-					},
-				}
+				manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+					Name:      apicommon.DDKubeletHost,
+					ValueFrom: config.Kubelet.Host,
+				})
 			}
-			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-				Name:      apicommon.DDKubeletHost,
-				ValueFrom: kubeletHostValueFrom,
-			})
-
 			if config.Kubelet.TLSVerify != nil {
 				manager.EnvVar().AddEnvVar(&corev1.EnvVar{
 					Name:  apicommon.DDKubeletTLSVerify,
 					Value: apiutils.BoolToString(config.Kubelet.TLSVerify),
 				})
 			}
-
-			manager.EnvVar().AddEnvVar(&corev1.EnvVar{
-				Name:  apicommon.DDKubeletCAPath,
-				Value: config.Kubelet.AgentCAPath,
-			})
-
 			if config.Kubelet.HostCAPath != "" {
-				kubeletVol, kubeletVolMount := volume.GetVolumes(apicommon.KubeletCAVolumeName, config.Kubelet.HostCAPath, config.Kubelet.AgentCAPath, true)
+				var agentCAPath string
+				// If the user configures a Kubelet CA certificate, it is mounted in AgentCAPath.
+				// The default mount value is `/var/run/host-kubelet-ca.crt`, which can be overriden by the user-provided parameter.
+				if config.Kubelet.AgentCAPath != "" {
+					agentCAPath = config.Kubelet.AgentCAPath
+				} else {
+					agentCAPath = apicommon.KubeletAgentCAPath
+				}
+				kubeletVol, kubeletVolMount := volume.GetVolumes(apicommon.KubeletCAVolumeName, config.Kubelet.HostCAPath, agentCAPath, true)
 				manager.VolumeMount().AddVolumeMountToContainers(
 					&kubeletVolMount,
 					[]apicommonv1.AgentContainerName{
 						apicommonv1.CoreAgentContainerName,
 						apicommonv1.ProcessAgentContainerName,
 						apicommonv1.TraceAgentContainerName,
+						apicommonv1.SecurityAgentContainerName,
 					},
 				)
 				manager.Volume().AddVolume(&kubeletVol)
+				// If the HostCAPath is overridden, set the environment variable `DD_KUBELET_CLIENT_CA`. The default value in the Agent is `/var/run/secrets/kubernetes.io/serviceaccount/ca.crt`.
+				manager.EnvVar().AddEnvVar(&corev1.EnvVar{
+					Name:  apicommon.DDKubeletCAPath,
+					Value: agentCAPath,
+				})
 			}
 		}
 

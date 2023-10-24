@@ -8,7 +8,6 @@ import (
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	test "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1/test"
-	"github.com/DataDog/datadog-operator/apis/utils"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
@@ -17,7 +16,6 @@ import (
 	assert "github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -50,7 +48,7 @@ func clusterChecksRunnerDefaultPodSpec() corev1.PodSpec {
 				LivenessProbe:   defaultLivenessProbe(),
 				ReadinessProbe:  defaultReadinessProbe(),
 				Command:         []string{"agent", "run"},
-				SecurityContext: &v1.SecurityContext{
+				SecurityContext: &corev1.SecurityContext{
 					ReadOnlyRootFilesystem:   apiutils.NewBoolPointer(true),
 					AllowPrivilegeEscalation: apiutils.NewBoolPointer(false),
 				},
@@ -175,6 +173,10 @@ func clusterChecksRunnerDefaultEnvVars() []corev1.EnvVar {
 		},
 		{
 			Name:  "DD_APM_ENABLED",
+			Value: "false",
+		},
+		{
+			Name:  "DD_REMOTE_CONFIGURATION_ENABLED",
 			Value: "false",
 		},
 		{
@@ -567,8 +569,8 @@ func Test_getPodAffinity(t *testing.T) {
 
 func Test_newClusterChecksRunnerDeploymentFromInstance_CustomSecurityContext(t *testing.T) {
 	podSpec := clusterChecksRunnerDefaultPodSpec()
-	podSpec.SecurityContext = &v1.PodSecurityContext{
-		RunAsGroup: utils.NewInt64Pointer(42),
+	podSpec.SecurityContext = &corev1.PodSecurityContext{
+		RunAsGroup: apiutils.NewInt64Pointer(42),
 	}
 
 	agentDeployment := test.NewDefaultedDatadogAgent(
@@ -579,8 +581,8 @@ func Test_newClusterChecksRunnerDeploymentFromInstance_CustomSecurityContext(t *
 			ClusterChecksRunnerEnabled: true,
 		},
 	)
-	agentDeployment.Spec.ClusterChecksRunner.Config.SecurityContext = &v1.PodSecurityContext{
-		RunAsGroup: utils.NewInt64Pointer(42),
+	agentDeployment.Spec.ClusterChecksRunner.Config.SecurityContext = &corev1.PodSecurityContext{
+		RunAsGroup: apiutils.NewInt64Pointer(42),
 	}
 
 	clusterChecksRunnerAgentHash, _ := comparison.GenerateMD5ForSpec(agentDeployment.Spec.ClusterChecksRunner)

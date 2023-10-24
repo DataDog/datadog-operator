@@ -10,7 +10,6 @@ import (
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1/test"
-	"github.com/DataDog/datadog-operator/apis/utils"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/orchestrator"
 	"github.com/DataDog/datadog-operator/pkg/defaulting"
@@ -22,7 +21,6 @@ import (
 	assert "github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -34,17 +32,17 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-func clusterAgentDefaultPodSpec() v1.PodSpec {
-	return v1.PodSpec{
+func clusterAgentDefaultPodSpec() corev1.PodSpec {
+	return corev1.PodSpec{
 		Affinity:           getClusterAgentAffinity(nil),
 		ServiceAccountName: "foo-cluster-agent",
-		Containers: []v1.Container{
+		Containers: []corev1.Container{
 			{
 				Name:            "cluster-agent",
 				Image:           defaulting.GetLatestClusterAgentImage(),
-				ImagePullPolicy: v1.PullIfNotPresent,
-				Resources:       v1.ResourceRequirements{},
-				Ports: []v1.ContainerPort{
+				ImagePullPolicy: corev1.PullIfNotPresent,
+				Resources:       corev1.ResourceRequirements{},
+				Ports: []corev1.ContainerPort{
 					{
 						ContainerPort: 5005,
 						Name:          "agentport",
@@ -52,7 +50,7 @@ func clusterAgentDefaultPodSpec() v1.PodSpec {
 					},
 				},
 				Env: clusterAgentDefaultEnvVars(),
-				VolumeMounts: []v1.VolumeMount{
+				VolumeMounts: []corev1.VolumeMount{
 					{Name: "installinfo", ReadOnly: true, SubPath: "install_info", MountPath: "/etc/datadog-agent/install_info"},
 					{Name: "confd", ReadOnly: true, MountPath: "/conf.d"},
 					{Name: "orchestrator-explorer-config", ReadOnly: true, MountPath: "/etc/datadog-agent/conf.d/orchestrator.d"},
@@ -62,18 +60,18 @@ func clusterAgentDefaultPodSpec() v1.PodSpec {
 				},
 				LivenessProbe:  defaultLivenessProbe(),
 				ReadinessProbe: defaultReadinessProbe(),
-				SecurityContext: &v1.SecurityContext{
+				SecurityContext: &corev1.SecurityContext{
 					ReadOnlyRootFilesystem:   apiutils.NewBoolPointer(true),
 					AllowPrivilegeEscalation: apiutils.NewBoolPointer(false),
 				},
 			},
 		},
-		Volumes: []v1.Volume{
+		Volumes: []corev1.Volume{
 			{
 				Name: "installinfo",
-				VolumeSource: v1.VolumeSource{
-					ConfigMap: &v1.ConfigMapVolumeSource{
-						LocalObjectReference: v1.LocalObjectReference{
+				VolumeSource: corev1.VolumeSource{
+					ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{
 							Name: "foo-install-info",
 						},
 					},
@@ -81,13 +79,13 @@ func clusterAgentDefaultPodSpec() v1.PodSpec {
 			},
 			{
 				Name:         "confd",
-				VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}},
+				VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}},
 			},
 			{
 				Name: "orchestrator-explorer-config",
-				VolumeSource: v1.VolumeSource{
-					ConfigMap: &v1.ConfigMapVolumeSource{
-						LocalObjectReference: v1.LocalObjectReference{
+				VolumeSource: corev1.VolumeSource{
+					ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{
 							Name: "foo-orchestrator-explorer-config",
 						},
 					},
@@ -113,22 +111,22 @@ func clusterAgentDefaultPodSpec() v1.PodSpec {
 			},
 		},
 		// To be uncommented when the cluster-agent Dockerfile will be updated to use a non-root user by default
-		// SecurityContext: &v1.PodSecurityContext{
+		// SecurityContext: &corev1.PodSecurityContext{
 		// 	RunAsNonRoot: apiutils.NewBoolPointer(true),
 		// },
 	}
 }
 
-func clusterAgentPodSpectWithConfd(configDirSpec *datadoghqv1alpha1.ConfigDirSpec) v1.PodSpec {
+func clusterAgentPodSpectWithConfd(configDirSpec *datadoghqv1alpha1.ConfigDirSpec) corev1.PodSpec {
 	spec := clusterAgentDefaultPodSpec()
 
 	if configDirSpec != nil {
 		builder := NewVolumeBuilder(spec.Volumes, nil)
-		builder.Add(&v1.Volume{
+		builder.Add(&corev1.Volume{
 			Name: "confd",
-			VolumeSource: v1.VolumeSource{
-				ConfigMap: &v1.ConfigMapVolumeSource{
-					LocalObjectReference: v1.LocalObjectReference{
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
 						Name: configDirSpec.ConfigMapName,
 					},
 					Items: configDirSpec.Items,
@@ -141,12 +139,12 @@ func clusterAgentPodSpectWithConfd(configDirSpec *datadoghqv1alpha1.ConfigDirSpe
 	return spec
 }
 
-func clusterAgentDefaultEnvVars() []v1.EnvVar {
-	return []v1.EnvVar{
+func clusterAgentDefaultEnvVars() []corev1.EnvVar {
+	return []corev1.EnvVar{
 		{
 			Name: "DD_POD_NAME",
-			ValueFrom: &v1.EnvVarSource{
-				FieldRef: &v1.ObjectFieldSelector{
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
 					FieldPath: "metadata.name",
 				},
 			},
@@ -206,31 +204,31 @@ func clusterAgentDefaultEnvVars() []v1.EnvVar {
 	}
 }
 
-func clusterAgentWithAdmissionControllerDefaultEnvVars(webhookService, agentService string, mode *string, unlabelled bool) []v1.EnvVar {
+func clusterAgentWithAdmissionControllerDefaultEnvVars(webhookService, agentService string, mode *string, unlabelled bool) []corev1.EnvVar {
 	builder := NewEnvVarsBuilder(clusterAgentDefaultEnvVars(), nil)
-	builder.Add(&v1.EnvVar{
+	builder.Add(&corev1.EnvVar{
 		Name:  "DD_ADMISSION_CONTROLLER_ENABLED",
 		Value: "true",
 	})
-	builder.Add(&v1.EnvVar{
+	builder.Add(&corev1.EnvVar{
 		Name:  "DD_ADMISSION_CONTROLLER_MUTATE_UNLABELLED",
 		Value: apiutils.BoolToString(&unlabelled),
 	})
-	builder.Add(&v1.EnvVar{
+	builder.Add(&corev1.EnvVar{
 		Name:  "DD_ADMISSION_CONTROLLER_SERVICE_NAME",
 		Value: webhookService,
 	})
 	if mode != nil {
-		builder.Add(&v1.EnvVar{
+		builder.Add(&corev1.EnvVar{
 			Name:  "DD_ADMISSION_CONTROLLER_INJECT_CONFIG_MODE",
 			Value: *mode,
 		})
 	}
-	builder.Add(&v1.EnvVar{
+	builder.Add(&corev1.EnvVar{
 		Name:  "DD_ADMISSION_CONTROLLER_INJECT_CONFIG_LOCAL_SERVICE_NAME",
 		Value: agentService,
 	})
-	builder.Add(&v1.EnvVar{
+	builder.Add(&corev1.EnvVar{
 		Name:  "DD_ADMISSION_CONTROLLER_WEBHOOK_NAME",
 		Value: "datadog-webhook",
 	})
@@ -300,7 +298,7 @@ func Test_newClusterAgentDeploymentFromInstance(t *testing.T) {
 					Annotations: map[string]string{},
 				},
 				Spec: appsv1.DeploymentSpec{
-					Template: v1.PodTemplateSpec{
+					Template: corev1.PodTemplateSpec{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: map[string]string{
 								"agent.datadoghq.com/name":      "foo",
@@ -348,7 +346,7 @@ func Test_newClusterAgentDeploymentFromInstance(t *testing.T) {
 					Annotations: map[string]string{},
 				},
 				Spec: appsv1.DeploymentSpec{
-					Template: v1.PodTemplateSpec{
+					Template: corev1.PodTemplateSpec{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: map[string]string{
 								"agent.datadoghq.com/name":      "foo",
@@ -396,7 +394,7 @@ func Test_newClusterAgentDeploymentFromInstance(t *testing.T) {
 					Annotations: map[string]string{},
 				},
 				Spec: appsv1.DeploymentSpec{
-					Template: v1.PodTemplateSpec{
+					Template: corev1.PodTemplateSpec{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: map[string]string{
 								"agent.datadoghq.com/name":      "foo",
@@ -430,7 +428,7 @@ func Test_newClusterAgentDeploymentFromInstance(t *testing.T) {
 					ClusterAgentConfd: &datadoghqv1alpha1.ClusterAgentConfig{
 						Confd: &datadoghqv1alpha1.ConfigDirSpec{
 							ConfigMapName: "my-confd",
-							Items: []v1.KeyToPath{
+							Items: []corev1.KeyToPath{
 								{
 									Key:  "foo.d--foo.yaml",
 									Path: "foo.d/foo.yaml",
@@ -458,7 +456,7 @@ func Test_newClusterAgentDeploymentFromInstance(t *testing.T) {
 					Annotations: map[string]string{},
 				},
 				Spec: appsv1.DeploymentSpec{
-					Template: v1.PodTemplateSpec{
+					Template: corev1.PodTemplateSpec{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: map[string]string{
 								"agent.datadoghq.com/name":      "foo",
@@ -475,7 +473,7 @@ func Test_newClusterAgentDeploymentFromInstance(t *testing.T) {
 						Spec: clusterAgentPodSpectWithConfd(
 							&datadoghqv1alpha1.ConfigDirSpec{
 								ConfigMapName: "my-confd",
-								Items: []v1.KeyToPath{
+								Items: []corev1.KeyToPath{
 									{
 										Key:  "foo.d--foo.yaml",
 										Path: "foo.d/foo.yaml",
@@ -509,20 +507,20 @@ func Test_newClusterAgentDeploymentMountKSMCore(t *testing.T) {
 			},
 		},
 	}
-	userVolumes := []v1.Volume{
+	userVolumes := []corev1.Volume{
 		{
 			Name: "ksm-core-config",
-			VolumeSource: v1.VolumeSource{
-				ConfigMap: &v1.ConfigMapVolumeSource{
-					LocalObjectReference: v1.LocalObjectReference{
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
 						Name: "foo",
 					},
-					Items: []v1.KeyToPath{{Key: "ksm_core.yaml", Path: "ksm_core.yaml"}},
+					Items: []corev1.KeyToPath{{Key: "ksm_core.yaml", Path: "ksm_core.yaml"}},
 				},
 			},
 		},
 	}
-	userVolumeMounts := []v1.VolumeMount{
+	userVolumeMounts := []corev1.VolumeMount{
 		{
 			Name:      "ksm-core-config",
 			MountPath: "/etc/datadog-agent/conf.d/kubernetes_state_core.d",
@@ -532,7 +530,7 @@ func Test_newClusterAgentDeploymentMountKSMCore(t *testing.T) {
 	clusterAgentPodSpec := clusterAgentDefaultPodSpec()
 	clusterAgentPodSpec.Volumes = append(clusterAgentPodSpec.Volumes, userVolumes...)
 	clusterAgentPodSpec.Containers[0].VolumeMounts = append(clusterAgentPodSpec.Containers[0].VolumeMounts, userVolumeMounts...)
-	envVars := []v1.EnvVar{
+	envVars := []corev1.EnvVar{
 		{
 			Name:  apicommon.DDKubeStateMetricsCoreEnabled,
 			Value: "true",
@@ -582,7 +580,7 @@ func Test_newClusterAgentDeploymentMountKSMCore(t *testing.T) {
 				Annotations: map[string]string{},
 			},
 			Spec: appsv1.DeploymentSpec{
-				Template: v1.PodTemplateSpec{
+				Template: corev1.PodTemplateSpec{
 					ObjectMeta: metav1.ObjectMeta{
 						Labels: map[string]string{
 							"agent.datadoghq.com/name":      "foo",
@@ -650,7 +648,7 @@ func Test_newClusterAgentPrometheusScrapeEnabled(t *testing.T) {
 				Annotations: map[string]string{},
 			},
 			Spec: appsv1.DeploymentSpec{
-				Template: v1.PodTemplateSpec{
+				Template: corev1.PodTemplateSpec{
 					ObjectMeta: metav1.ObjectMeta{
 						Labels: map[string]string{
 							"agent.datadoghq.com/name":      "foo",
@@ -680,17 +678,17 @@ func Test_newClusterAgentPrometheusScrapeEnabled(t *testing.T) {
 }
 
 func Test_newClusterAgentDeploymentFromInstance_UserVolumes(t *testing.T) {
-	userVolumes := []v1.Volume{
+	userVolumes := []corev1.Volume{
 		{
 			Name: "tmp",
-			VolumeSource: v1.VolumeSource{
-				HostPath: &v1.HostPathVolumeSource{
+			VolumeSource: corev1.VolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
 					Path: "/tmp",
 				},
 			},
 		},
 	}
-	userVolumeMounts := []v1.VolumeMount{
+	userVolumeMounts := []corev1.VolumeMount{
 		{
 			Name:      "tmp",
 			MountPath: "/some/path",
@@ -731,7 +729,7 @@ func Test_newClusterAgentDeploymentFromInstance_UserVolumes(t *testing.T) {
 				Annotations: map[string]string{},
 			},
 			Spec: appsv1.DeploymentSpec{
-				Template: v1.PodTemplateSpec{
+				Template: corev1.PodTemplateSpec{
 					ObjectMeta: metav1.ObjectMeta{
 						Labels: map[string]string{
 							"agent.datadoghq.com/name":      "foo",
@@ -761,15 +759,15 @@ func Test_newClusterAgentDeploymentFromInstance_UserVolumes(t *testing.T) {
 }
 
 func Test_newClusterAgentDeploymentFromInstance_EnvVars(t *testing.T) {
-	envVars := []v1.EnvVar{
+	envVars := []corev1.EnvVar{
 		{
 			Name:  "ExtraEnvVar",
 			Value: "ExtraEnvVarValue",
 		},
 		{
 			Name: "ExtraEnvVarFromSpec",
-			ValueFrom: &v1.EnvVarSource{
-				FieldRef: &v1.ObjectFieldSelector{
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
 					FieldPath: "status.podIP",
 				},
 			},
@@ -809,7 +807,7 @@ func Test_newClusterAgentDeploymentFromInstance_EnvVars(t *testing.T) {
 				Annotations: map[string]string{},
 			},
 			Spec: appsv1.DeploymentSpec{
-				Template: v1.PodTemplateSpec{
+				Template: corev1.PodTemplateSpec{
 					ObjectMeta: metav1.ObjectMeta{
 						Labels: map[string]string{
 							"agent.datadoghq.com/name":      "foo",
@@ -878,7 +876,7 @@ func Test_newClusterAgentDeploymentFromInstance_CustomDeploymentName(t *testing.
 				Annotations: map[string]string{},
 			},
 			Spec: appsv1.DeploymentSpec{
-				Template: v1.PodTemplateSpec{
+				Template: corev1.PodTemplateSpec{
 					ObjectMeta: metav1.ObjectMeta{
 						Labels: map[string]string{
 							"agent.datadoghq.com/name":      "foo",
@@ -910,14 +908,14 @@ func Test_newClusterAgentDeploymentFromInstance_CustomDeploymentName(t *testing.
 func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 	metricsServerPodSpec := clusterAgentDefaultPodSpec()
 	metricsServerPort := int32(4443)
-	metricsServerPodSpec.Containers[0].Ports = append(metricsServerPodSpec.Containers[0].Ports, v1.ContainerPort{
+	metricsServerPodSpec.Containers[0].Ports = append(metricsServerPodSpec.Containers[0].Ports, corev1.ContainerPort{
 		ContainerPort: metricsServerPort,
 		Name:          "metricsapi",
 		Protocol:      "TCP",
 	})
 
 	metricsServerPodSpec.Containers[0].Env = append(metricsServerPodSpec.Containers[0].Env,
-		[]v1.EnvVar{
+		[]corev1.EnvVar{
 			{
 				Name:  "DD_EXTERNAL_METRICS_PROVIDER_ENABLED",
 				Value: "true",
@@ -958,14 +956,14 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 		})
 
 	metricsServerWithSitePodSpec := clusterAgentDefaultPodSpec()
-	metricsServerWithSitePodSpec.Containers[0].Ports = append(metricsServerWithSitePodSpec.Containers[0].Ports, v1.ContainerPort{
+	metricsServerWithSitePodSpec.Containers[0].Ports = append(metricsServerWithSitePodSpec.Containers[0].Ports, corev1.ContainerPort{
 		ContainerPort: metricsServerPort,
 		Name:          "metricsapi",
 		Protocol:      "TCP",
 	})
 
 	metricsServerWithSitePodSpec.Containers[0].Env = append(metricsServerWithSitePodSpec.Containers[0].Env,
-		[]v1.EnvVar{
+		[]corev1.EnvVar{
 			{
 				Name:  "DD_EXTERNAL_METRICS_PROVIDER_ENABLED",
 				Value: "true",
@@ -1056,7 +1054,7 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 					Annotations: map[string]string{},
 				},
 				Spec: appsv1.DeploymentSpec{
-					Template: v1.PodTemplateSpec{
+					Template: corev1.PodTemplateSpec{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: map[string]string{
 								"agent.datadoghq.com/name":      "foo",
@@ -1110,7 +1108,7 @@ func Test_newClusterAgentDeploymentFromInstance_MetricsServer(t *testing.T) {
 					Annotations: map[string]string{},
 				},
 				Spec: appsv1.DeploymentSpec{
-					Template: v1.PodTemplateSpec{
+					Template: corev1.PodTemplateSpec{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: map[string]string{
 								"agent.datadoghq.com/name":      "foo",
@@ -1195,7 +1193,7 @@ func Test_newClusterAgentDeploymentFromInstance_AdmissionController(t *testing.T
 					Labels:    commonLabels,
 				},
 				Spec: appsv1.DeploymentSpec{
-					Template: v1.PodTemplateSpec{
+					Template: corev1.PodTemplateSpec{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels:      commonLabels,
 							Annotations: map[string]string{},
@@ -1228,7 +1226,7 @@ func Test_newClusterAgentDeploymentFromInstance_AdmissionController(t *testing.T
 					Labels:    commonLabels,
 				},
 				Spec: appsv1.DeploymentSpec{
-					Template: v1.PodTemplateSpec{
+					Template: corev1.PodTemplateSpec{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels:      commonLabels,
 							Annotations: map[string]string{},
@@ -1288,7 +1286,7 @@ func Test_newClusterAgentDeploymentFromInstance_UserProvidedSecret(t *testing.T)
 					Annotations: map[string]string{},
 				},
 				Spec: appsv1.DeploymentSpec{
-					Template: v1.PodTemplateSpec{
+					Template: corev1.PodTemplateSpec{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: map[string]string{
 								"agent.datadoghq.com/name":      "foo",
@@ -1343,7 +1341,7 @@ func Test_newClusterAgentDeploymentFromInstance_UserProvidedSecret(t *testing.T)
 					Annotations: map[string]string{},
 				},
 				Spec: appsv1.DeploymentSpec{
-					Template: v1.PodTemplateSpec{
+					Template: corev1.PodTemplateSpec{
 						ObjectMeta: metav1.ObjectMeta{
 							Labels: map[string]string{
 								"agent.datadoghq.com/name":      "foo",
@@ -1408,7 +1406,7 @@ func Test_newClusterAgentDeploymentFromInstance_Compliance(t *testing.T) {
 				Annotations: map[string]string{},
 			},
 			Spec: appsv1.DeploymentSpec{
-				Template: v1.PodTemplateSpec{
+				Template: corev1.PodTemplateSpec{
 					ObjectMeta: metav1.ObjectMeta{
 						Labels: map[string]string{
 							"agent.datadoghq.com/name":      "foo",
@@ -1477,7 +1475,7 @@ func Test_newClusterAgentDeploymentFromInstance_CustomReplicas(t *testing.T) {
 				Annotations: map[string]string{},
 			},
 			Spec: appsv1.DeploymentSpec{
-				Template: v1.PodTemplateSpec{
+				Template: corev1.PodTemplateSpec{
 					ObjectMeta: metav1.ObjectMeta{
 						Labels: map[string]string{
 							"agent.datadoghq.com/name":      "foo",
@@ -1508,7 +1506,7 @@ func Test_newClusterAgentDeploymentFromInstance_CustomReplicas(t *testing.T) {
 
 func TestReconcileDatadogAgent_createNewClusterAgentDeployment(t *testing.T) {
 	eventBroadcaster := record.NewBroadcaster()
-	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, v1.EventSource{Component: "TestReconcileDatadogAgent_createNewClusterAgentDeployment"})
+	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: "TestReconcileDatadogAgent_createNewClusterAgentDeployment"})
 	forwarders := dummyManager{}
 
 	logf.SetLogger(zap.New(zap.UseDevMode(true)))
@@ -1575,14 +1573,14 @@ func TestReconcileDatadogAgent_createNewClusterAgentDeployment(t *testing.T) {
 func Test_PodAntiAffinity(t *testing.T) {
 	tests := []struct {
 		name     string
-		affinity *v1.Affinity
-		want     *v1.Affinity
+		affinity *corev1.Affinity
+		want     *corev1.Affinity
 	}{
 		{
 			name:     "no user-defined affinity - apply default",
 			affinity: nil,
-			want: &v1.Affinity{
-				PodAntiAffinity: &v1.PodAntiAffinity{
+			want: &corev1.Affinity{
+				PodAntiAffinity: &corev1.PodAntiAffinity{
 					PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
 						{
 							Weight: 50,
@@ -1602,12 +1600,12 @@ func Test_PodAntiAffinity(t *testing.T) {
 
 		{
 			name: "user-defined affinity",
-			affinity: &v1.Affinity{
-				PodAntiAffinity: &v1.PodAntiAffinity{
-					PreferredDuringSchedulingIgnoredDuringExecution: []v1.WeightedPodAffinityTerm{
+			affinity: &corev1.Affinity{
+				PodAntiAffinity: &corev1.PodAntiAffinity{
+					PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
 						{
 							Weight: 50,
-							PodAffinityTerm: v1.PodAffinityTerm{
+							PodAffinityTerm: corev1.PodAffinityTerm{
 								LabelSelector: &metav1.LabelSelector{
 									MatchLabels: map[string]string{
 										"foo": "bar",
@@ -1619,12 +1617,12 @@ func Test_PodAntiAffinity(t *testing.T) {
 					},
 				},
 			},
-			want: &v1.Affinity{
-				PodAntiAffinity: &v1.PodAntiAffinity{
-					PreferredDuringSchedulingIgnoredDuringExecution: []v1.WeightedPodAffinityTerm{
+			want: &corev1.Affinity{
+				PodAntiAffinity: &corev1.PodAntiAffinity{
+					PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
 						{
 							Weight: 50,
-							PodAffinityTerm: v1.PodAffinityTerm{
+							PodAffinityTerm: corev1.PodAffinityTerm{
 								LabelSelector: &metav1.LabelSelector{
 									MatchLabels: map[string]string{
 										"foo": "bar",
@@ -1650,8 +1648,8 @@ func Test_PodAntiAffinity(t *testing.T) {
 
 func Test_newClusterAgentDeploymentFromInstance_CustomSecurityContext(t *testing.T) {
 	podSpec := clusterAgentDefaultPodSpec()
-	podSpec.SecurityContext = &v1.PodSecurityContext{
-		RunAsGroup: utils.NewInt64Pointer(42),
+	podSpec.SecurityContext = &corev1.PodSecurityContext{
+		RunAsGroup: apiutils.NewInt64Pointer(42),
 	}
 
 	agentDeployment := test.NewDefaultedDatadogAgent(
@@ -1661,8 +1659,8 @@ func Test_newClusterAgentDeploymentFromInstance_CustomSecurityContext(t *testing
 			ClusterAgentEnabled: true,
 		},
 	)
-	agentDeployment.Spec.ClusterAgent.Config.SecurityContext = &v1.PodSecurityContext{
-		RunAsGroup: utils.NewInt64Pointer(42),
+	agentDeployment.Spec.ClusterAgent.Config.SecurityContext = &corev1.PodSecurityContext{
+		RunAsGroup: apiutils.NewInt64Pointer(42),
 	}
 
 	test := clusterAgentDeploymentFromInstanceTest{
@@ -1687,7 +1685,7 @@ func Test_newClusterAgentDeploymentFromInstance_CustomSecurityContext(t *testing
 				Annotations: map[string]string{},
 			},
 			Spec: appsv1.DeploymentSpec{
-				Template: v1.PodTemplateSpec{
+				Template: corev1.PodTemplateSpec{
 					ObjectMeta: metav1.ObjectMeta{
 						Labels: map[string]string{
 							"agent.datadoghq.com/name":      "foo",

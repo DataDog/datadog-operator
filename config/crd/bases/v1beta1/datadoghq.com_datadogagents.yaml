@@ -15662,6 +15662,9 @@ spec:
                           description: 'Port specifies the metricsProvider External Metrics Server service port. Default: 8443'
                           format: int32
                           type: integer
+                        registerAPIService:
+                          description: 'RegisterAPIService registers the External Metrics endpoint as an APIService Default: true'
+                          type: boolean
                         useDatadogMetrics:
                           description: 'UseDatadogMetrics enables usage of the DatadogMetrics CRD (allowing one to scale on arbitrary Datadog metric queries). Default: true'
                           type: boolean
@@ -15903,7 +15906,7 @@ spec:
                       description: Remote Configuration configuration.
                       properties:
                         enabled:
-                          description: 'Enable this option to activate Remote Configuration. Default: false'
+                          description: 'Enable this option to activate Remote Configuration. Default: true'
                           type: boolean
                       type: object
                     tcpQueueLength:

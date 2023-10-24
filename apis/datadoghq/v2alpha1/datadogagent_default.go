@@ -7,7 +7,6 @@ package v2alpha1
 
 import (
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
-	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 )
 
@@ -74,6 +73,7 @@ const (
 
 	// defaultExternalMetricsServerEnabled bool = false
 	defaultDatadogMetricsEnabled bool = true
+	defaultRegisterAPIService    bool = true
 	// Cluster Agent versions < 1.20 should use 443
 	defaultMetricsProviderPort int32 = 8443
 
@@ -86,8 +86,8 @@ const (
 	defaultPrometheusScrapeEnableServiceEndpoints bool = false
 	defaultPrometheusScrapeVersion                int  = 2
 
-	defaultKubeletAgentCAPath            = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
-	defaultKubeletAgentCAPathHostPathSet = "/var/run/host-kubelet-ca.crt"
+	// defaultKubeletAgentCAPath            = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+	// defaultKubeletAgentCAPathHostPathSet = "/var/run/host-kubelet-ca.crt"
 )
 
 // DefaultDatadogAgent defaults the DatadogAgentSpec GlobalConfig and Features.
@@ -113,18 +113,6 @@ func defaultGlobalConfig(ddaSpec *DatadogAgentSpec) {
 
 	if ddaSpec.Global.LogLevel == nil {
 		ddaSpec.Global.LogLevel = apiutils.NewStringPointer(defaultLogLevel)
-	}
-
-	if ddaSpec.Global.Kubelet == nil {
-		ddaSpec.Global.Kubelet = &commonv1.KubeletConfig{
-			AgentCAPath: defaultKubeletAgentCAPath,
-		}
-	} else if ddaSpec.Global.Kubelet.AgentCAPath == "" {
-		if ddaSpec.Global.Kubelet.HostCAPath != "" {
-			ddaSpec.Global.Kubelet.AgentCAPath = defaultKubeletAgentCAPathHostPathSet
-		} else {
-			ddaSpec.Global.Kubelet.AgentCAPath = defaultKubeletAgentCAPath
-		}
 	}
 }
 
@@ -298,7 +286,7 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 	// ExternalMetricsServer Feature
 	if ddaSpec.Features.ExternalMetricsServer != nil && ddaSpec.Features.ExternalMetricsServer.Enabled != nil && *ddaSpec.Features.ExternalMetricsServer.Enabled {
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ExternalMetricsServer.UseDatadogMetrics, defaultDatadogMetricsEnabled)
-
+		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.ExternalMetricsServer.RegisterAPIService, defaultRegisterAPIService)
 		apiutils.DefaultInt32IfUnset(&ddaSpec.Features.ExternalMetricsServer.Port, defaultMetricsProviderPort)
 	}
 

@@ -312,7 +312,7 @@ type CWSRemoteConfigurationConfig struct {
 // RC runs in the Agent.
 type RemoteConfigurationFeatureConfig struct {
 	// Enable this option to activate Remote Configuration.
-	// Default: false
+	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 }
@@ -534,6 +534,11 @@ type ExternalMetricsServerFeatureConfig struct {
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
+
+	// RegisterAPIService registers the External Metrics endpoint as an APIService
+	// Default: true
+	// +optional
+	RegisterAPIService *bool `json:"registerAPIService,omitempty"`
 
 	// WPAController enables the informer and controller of the Watermark Pod Autoscaler.
 	// NOTE: The Watermark Pod Autoscaler controller needs to be installed.

@@ -81,6 +81,7 @@ spec:
 | features.externalMetricsServer.endpoint.credentials.appSecret.secretName | SecretName is the name of the secret. |
 | features.externalMetricsServer.endpoint.url | URL defines the endpoint URL. |
 | features.externalMetricsServer.port | Port specifies the metricsProvider External Metrics Server service port. Default: 8443 |
+| features.externalMetricsServer.registerAPIService | RegisterAPIService registers the External Metrics endpoint as an APIService Default: true |
 | features.externalMetricsServer.useDatadogMetrics | UseDatadogMetrics enables usage of the DatadogMetrics CRD (allowing one to scale on arbitrary Datadog metric queries). Default: true |
 | features.externalMetricsServer.wpaController | WPAController enables the informer and controller of the Watermark Pod Autoscaler. NOTE: The Watermark Pod Autoscaler controller needs to be installed. See also: https://github.com/DataDog/watermarkpodautoscaler. Default: false |
 | features.kubeStateMetricsCore.conf.configData | ConfigData corresponds to the configuration file content. |
@@ -120,7 +121,7 @@ spec:
 | features.prometheusScrape.enableServiceEndpoints | EnableServiceEndpoints enables generating dedicated checks for service endpoints. Default: false |
 | features.prometheusScrape.enabled | Enable autodiscovery of pods and services exposing Prometheus metrics. Default: false |
 | features.prometheusScrape.version | Version specifies the version of the OpenMetrics check. Default: 2 |
-| features.remoteConfiguration.enabled | Enable this option to activate Remote Configuration. Default: false |
+| features.remoteConfiguration.enabled | Enable this option to activate Remote Configuration. Default: true |
 | features.tcpQueueLength.enabled | Enables the TCP queue length eBPF-based check. Default: false |
 | features.usm.enabled | Enabled enables Universal Service Monitoring. Default: false |
 | global.clusterAgentToken | ClusterAgentToken is the token for communication between the NodeAgent and ClusterAgent. |
