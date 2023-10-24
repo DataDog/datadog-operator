@@ -535,6 +535,11 @@ type ExternalMetricsServerFeatureConfig struct {
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
+	// RegisterAPIService registers the External Metrics endpoint as an APIService
+	// Default: true
+	// +optional
+	RegisterAPIService *bool `json:"registerAPIService,omitempty"`
+
 	// WPAController enables the informer and controller of the Watermark Pod Autoscaler.
 	// NOTE: The Watermark Pod Autoscaler controller needs to be installed.
 	// See also: https://github.com/DataDog/watermarkpodautoscaler.
