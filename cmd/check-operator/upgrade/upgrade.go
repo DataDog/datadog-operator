@@ -162,7 +162,8 @@ func isReconcileError(conditions []metav1.Condition) bool {
 	for _, condition := range conditions {
 		if (condition.Type == "DatadogAgentReconcileError" && condition.Status == metav1.ConditionTrue) ||
 			(condition.Type == "AgentReconcile" && condition.Status == metav1.ConditionFalse) ||
-			(condition.Type == "ClusterAgentReconcile" && condition.Status == metav1.ConditionFalse) {
+			(condition.Type == "ClusterAgentReconcile" && condition.Status == metav1.ConditionFalse) ||
+			(condition.Type == "ClusterChecksRunnerReconcile" && condition.Status == metav1.ConditionFalse) {
 			return true
 		}
 	}
