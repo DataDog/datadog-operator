@@ -61,7 +61,7 @@ func (f *Finalizer) HandleFinalizer(ctx context.Context, clientObj client.Object
 			}
 		}
 	} else {
-		f.logger.Info("Object under the deletion", "kind", clientObj.GetObjectKind(), "finalizername", finalizerName)
+		f.logger.Info("Object being deleted", "kind", clientObj.GetObjectKind(), "finalizername", finalizerName)
 		// The object is being deleted
 		if controllerutil.ContainsFinalizer(clientObj, finalizerName) {
 			// Delete resource

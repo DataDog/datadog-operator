@@ -53,7 +53,7 @@ type DatadogSLOSpec struct {
 	WarningThreshold *resource.Quantity `json:"warningThreshold,omitempty"`
 
 	// ControllerOptions are the optional parameters in the DatadogSLO controller
-	ControllerOptions DatadogSLOControllerOptions `json:"controllerOptions,omitempty"`
+	ControllerOptions *DatadogSLOControllerOptions `json:"controllerOptions,omitempty"`
 }
 
 // +k8s:openapi-gen=true
@@ -80,19 +80,6 @@ func (t DatadogSLOType) IsValid() bool {
 	}
 }
 
-// DatadogSLOThreshold is deprecated and is not configurable. It is only used for backward compatibility of the API.
-type DatadogSLOThreshold struct {
-	// The target value for the service level indicator within the corresponding timeframe.
-	Target resource.Quantity `json:"target"`
-
-	// Timeframe The SLO time window options. Allowed enum values: 7d,30d,90d,custom
-	Timeframe DatadogSLOTimeFrame `json:"timeframe"`
-
-	// The warning value for the service level objective.
-	// +optional
-	Warning *resource.Quantity `json:"warning"`
-}
-
 type DatadogSLOTimeFrame string
 
 const (
@@ -101,7 +88,7 @@ const (
 	DatadogSLOTimeFrame90d DatadogSLOTimeFrame = "90d"
 )
 
-// DatadogSLOControllerOptions defines options in the DatadogSLO controller
+// DatadogSLOControllerOptions defines options in the DatadogSLO controller.
 // +k8s:openapi-gen=true
 type DatadogSLOControllerOptions struct {
 	// DisableRequiredTags disables the automatic addition of required tags to SLOs.
@@ -128,7 +115,7 @@ type DatadogSLOStatus struct {
 	// SyncStatus shows the health of syncing the SLO state to Datadog.
 	SyncStatus DatadogSLOSyncStatus `json:"syncStatus,omitempty"`
 
-	// LastForceSyncTime is the last time the API SLO was last force synced with the DatadogSLO resource
+	// LastForceSyncTime is the last time the API SLO was last force synced with the DatadogSLO resource.
 	LastForceSyncTime *metav1.Time `json:"lastForceSyncTime,omitempty"`
 
 	// CurrentHash tracks the hash of the current DatadogSLOSpec to know

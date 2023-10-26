@@ -29,12 +29,16 @@ func buildSLO(crdSLO *v1alpha1.DatadogSLO) (*datadogV1.ServiceLevelObjectiveRequ
 			sloReq.SetDescriptionNil()
 		}
 		sloReq.SetTags(crdSLO.Spec.Tags)
-		sloReq.SetQuery(datadogV1.ServiceLevelObjectiveQuery{
-			Denominator: crdSLO.Spec.Query.Denominator,
-			Numerator:   crdSLO.Spec.Query.Numerator,
-		})
-		sloReq.SetMonitorIds(crdSLO.Spec.MonitorIDs)
-		sloReq.SetGroups(crdSLO.Spec.Groups)
+		if crdSLO.Spec.Type == v1alpha1.DatadogSLOTypeMetric {
+			sloReq.SetQuery(datadogV1.ServiceLevelObjectiveQuery{
+				Denominator: crdSLO.Spec.Query.Denominator,
+				Numerator:   crdSLO.Spec.Query.Numerator,
+			})
+		}
+		if crdSLO.Spec.Type == v1alpha1.DatadogSLOTypeMonitor {
+			sloReq.SetMonitorIds(crdSLO.Spec.MonitorIDs)
+			sloReq.SetGroups(crdSLO.Spec.Groups)
+		}
 	}
 
 	// Used for SLO updates
@@ -46,12 +50,16 @@ func buildSLO(crdSLO *v1alpha1.DatadogSLO) (*datadogV1.ServiceLevelObjectiveRequ
 			slo.SetDescriptionNil()
 		}
 		slo.SetTags(crdSLO.Spec.Tags)
-		slo.SetQuery(datadogV1.ServiceLevelObjectiveQuery{
-			Denominator: crdSLO.Spec.Query.Denominator,
-			Numerator:   crdSLO.Spec.Query.Numerator,
-		})
-		slo.SetMonitorIds(crdSLO.Spec.MonitorIDs)
-		slo.SetGroups(crdSLO.Spec.Groups)
+		if crdSLO.Spec.Type == v1alpha1.DatadogSLOTypeMetric {
+			slo.SetQuery(datadogV1.ServiceLevelObjectiveQuery{
+				Denominator: crdSLO.Spec.Query.Denominator,
+				Numerator:   crdSLO.Spec.Query.Numerator,
+			})
+		}
+		if crdSLO.Spec.Type == v1alpha1.DatadogSLOTypeMonitor {
+			slo.SetMonitorIds(crdSLO.Spec.MonitorIDs)
+			slo.SetGroups(crdSLO.Spec.Groups)
+		}
 	}
 
 	return sloReq, slo

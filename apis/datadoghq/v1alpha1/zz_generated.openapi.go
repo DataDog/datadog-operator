@@ -2605,7 +2605,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogSLOControllerOptions(ref common.Refe
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "DatadogSLOControllerOptions defines options in the DatadogSLO controller",
+				Description: "DatadogSLOControllerOptions defines options in the DatadogSLO controller.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"disableRequiredTags": {
@@ -2769,7 +2769,6 @@ func schema__apis_datadoghq_v1alpha1_DatadogSLOSpec(ref common.ReferenceCallback
 					"controllerOptions": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ControllerOptions are the optional parameters in the DatadogSLO controller",
-							Default:     map[string]interface{}{},
 							Ref:         ref("./apis/datadoghq/v1alpha1.DatadogSLOControllerOptions"),
 						},
 					},
@@ -2840,7 +2839,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogSLOStatus(ref common.ReferenceCallba
 					},
 					"lastForceSyncTime": {
 						SchemaProps: spec.SchemaProps{
-							Description: "LastForceSyncTime is the last time the API SLO was last force synced with the DatadogSLO resource",
+							Description: "LastForceSyncTime is the last time the API SLO was last force synced with the DatadogSLO resource.",
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},

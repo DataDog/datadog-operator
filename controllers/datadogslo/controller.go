@@ -29,7 +29,7 @@ import (
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"github.com/DataDog/datadog-operator/controllers/finalizer"
 	"github.com/DataDog/datadog-operator/controllers/utils"
-	ctrUtils "github.com/DataDog/datadog-operator/pkg/controller/utils"
+	ctrutils "github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/comparison"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/condition"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
@@ -66,12 +66,12 @@ func NewReconciler(client client.Client, ddClient datadogclient.DatadogSLOClient
 
 var _ reconcile.Reconciler = (*Reconciler)(nil)
 
-func (r *Reconciler) Reconcile(_ context.Context, req reconcile.Request) (reconcile.Result, error) {
-	res, err := r.internalReconcile(req)
+func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
+	res, err := r.internalReconcile(ctx, req)
 	return res, err
 }
 
-func (r *Reconciler) internalReconcile(req reconcile.Request) (reconcile.Result, error) {
+func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 	logger := r.log.WithValues("datadogslo", req.NamespacedName)
 	logger.Info("Reconciling Datadog SLO", "version", r.versionInfo.String())
 	now := metav1.NewTime(time.Now())
@@ -80,7 +80,7 @@ func (r *Reconciler) internalReconcile(req reconcile.Request) (reconcile.Result,
 	instance := &v1alpha1.DatadogSLO{}
 	var result ctrl.Result
 	var err error
-	if err = r.client.Get(context.TODO(), types.NamespacedName{Namespace: req.Namespace, Name: req.Name}, instance); err != nil {
+	if err = r.client.Get(ctx, types.NamespacedName{Namespace: req.Namespace, Name: req.Name}, instance); err != nil {
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
 		}
@@ -94,7 +94,7 @@ func (r *Reconciler) internalReconcile(req reconcile.Request) (reconcile.Result,
 		defaultRequeuePeriod,
 		defaultErrRequeuePeriod,
 	)
-	if result, err = final.HandleFinalizer(context.TODO(), instance, instance.Status.ID, datadogSLOFinalizer); ctrUtils.ShouldReturn(result, err) {
+	if result, err = final.HandleFinalizer(ctx, instance, instance.Status.ID, datadogSLOFinalizer); ctrutils.ShouldReturn(result, err) {
 		return result, err
 	}
 
@@ -129,7 +129,7 @@ func (r *Reconciler) internalReconcile(req reconcile.Request) (reconcile.Result,
 			_, err = r.get(instance)
 			if err != nil {
 				logger.Error(err, "error getting SLO", "SLO ID", instance.Status.ID)
-				if strings.Contains(err.Error(), "404 Not Found") {
+				if strings.Contains(err.Error(), ctrutils.NotFoundString) {
 					shouldCreate = true
 				}
 			} else {
@@ -168,7 +168,7 @@ func (r *Reconciler) internalReconcile(req reconcile.Request) (reconcile.Result,
 }
 
 func (r *Reconciler) checkRequiredTags(logger logr.Logger, instance *v1alpha1.DatadogSLO) (ctrl.Result, error) {
-	if apiutils.BoolValue(instance.Spec.ControllerOptions.DisableRequiredTags) {
+	if instance.Spec.ControllerOptions != nil && apiutils.BoolValue(instance.Spec.ControllerOptions.DisableRequiredTags) {
 		return ctrl.Result{}, nil
 	}
 
@@ -286,12 +286,14 @@ func (r *Reconciler) update(logger logr.Logger, instance *v1alpha1.DatadogSLO, s
 
 func (r *Reconciler) deleteResource(logger logr.Logger, instance *v1alpha1.DatadogSLO) finalizer.ResourceDeleteFunc {
 	return func(ctx context.Context, k8sObj client.Object, datadogID string) error {
-		kind := k8sObj.GetObjectKind().GroupVersionKind().Kind
-		if err := deleteSLO(r.datadogAuth, r.datadogClient, datadogID); err != nil {
-			logger.Error(err, "error deleting SLO", "kind", kind, "ID", datadogID)
-			return err
+		if datadogID != "" {
+			kind := k8sObj.GetObjectKind().GroupVersionKind().Kind
+			if err := deleteSLO(r.datadogAuth, r.datadogClient, datadogID); err != nil {
+				logger.Error(err, "error deleting SLO", "kind", kind, "ID", datadogID)
+				return err
+			}
+			logger.Info("Successfully deleted object", "kind", kind, "ID", datadogID)
 		}
-		logger.Info("Successfully deleted object", "kind", kind, "ID", datadogID)
 		r.recordEvent(instance, buildEventInfo(k8sObj.GetName(), k8sObj.GetNamespace(), datadog.DeletionEvent))
 		return nil
 	}

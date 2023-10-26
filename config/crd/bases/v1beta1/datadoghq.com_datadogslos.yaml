@@ -179,7 +179,7 @@ spec:
               description: ID is the SLO ID generated in Datadog.
               type: string
             lastForceSyncTime:
-              description: LastForceSyncTime is the last time the API SLO was last force synced with the DatadogSLO resource
+              description: LastForceSyncTime is the last time the API SLO was last force synced with the DatadogSLO resource.
               format: date-time
               type: string
             syncStatus:
