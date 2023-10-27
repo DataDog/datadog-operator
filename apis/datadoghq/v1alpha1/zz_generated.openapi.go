@@ -2678,7 +2678,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogSLOSpec(ref common.ReferenceCallback
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "Groups is a list of (up to 100) monitor groups that narrow the scope of a monitor service level objective. Included in service level objective responses if it is not empty. Optional in create/update requests for monitor service level objectives, but may only be used when then length of the monitor_ids field is one.",
+							Description: "Groups is a list of (up to 100) monitor groups that narrow the scope of a monitor service level objective. Included in service level objective responses if it is not empty. Optional in create/update requests for monitor service level objectives, but may only be used when the length of the monitor_ids field is one.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -2698,7 +2698,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogSLOSpec(ref common.ReferenceCallback
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "MonitorIDs a list of monitor IDs that defines the scope of a monitor service level objective. Required if type is monitor.",
+							Description: "MonitorIDs is a list of monitor IDs that defines the scope of a monitor service level objective. Required if type is monitor.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -2718,7 +2718,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogSLOSpec(ref common.ReferenceCallback
 							},
 						},
 						SchemaProps: spec.SchemaProps{
-							Description: "Tags a list of tags to associate with your service level objective. This can help you categorize and filter service level objectives in the service level objectives page of the UI. Note: it's not currently possible to filter by these tags when querying via the API.",
+							Description: "Tags is a list of tags to associate with your service level objective. This can help you categorize and filter service level objectives in the service level objectives page of the UI. Note: it's not currently possible to filter by these tags when querying via the API.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
@@ -2733,7 +2733,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogSLOSpec(ref common.ReferenceCallback
 					},
 					"query": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Query is the query for a metric-based SLO. Required if type is metric. Note that Datadog only allows the sum by aggregator to be used because this will sum up all request counts instead of averaging them, or taking the max or min of all of those requests.",
+							Description: "Query is the query for a metric-based SLO. Required if type is metric. Note that only the `sum by` aggregator is allowed, which sums all request counts. `Average`, `max`, nor `min` request aggregators are not supported.",
 							Ref:         ref("./apis/datadoghq/v1alpha1.DatadogSLOQuery"),
 						},
 					},
