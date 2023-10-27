@@ -66,6 +66,8 @@ github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym
 github.com/DataDog/datadog-agent/pkg/obfuscate v0.43.0 h1:wWHh/c+AboewQcXQnCdyb3gOnQlO8aaGgvrMgGz0IPo=
 github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.43.1 h1:1yg8/bJTJwwqwmQ+z9ctlqRJ09e7WjectGdtWlZvFYw=
 github.com/DataDog/datadog-agent/pkg/remoteconfig/state v0.43.1/go.mod h1:VVMDDibJxYEkwcLdZBT2g8EHKpbMT4JdOhRbQ9GdjbM=
+github.com/DataDog/datadog-api-client-go v1.16.0 h1:5jOZv1m98criCvYTa3qpW8Hzv301nbZX3K9yJtwGyWY=
+github.com/DataDog/datadog-api-client-go v1.16.0/go.mod h1:PgrP2ABuJWL3Auw2iEkemAJ/r72ghG4DQQmb5sgnKW4=
 github.com/DataDog/datadog-api-client-go/v2 v2.15.0 h1:5UVON1xs6Lul4d6R5TmLDqqSJxOkunkm/UdM/fjm+zc=
 github.com/DataDog/datadog-api-client-go/v2 v2.15.0/go.mod h1:ZG8wS+y2rUmkRDJZQq7Og7EAPFPage+7vXcmuah2I9o=
 github.com/DataDog/datadog-go/v5 v5.1.1 h1:JLZ6s2K1pG2h9GkvEvMdEGqMDyVLEAccdX5TltWcLMU=

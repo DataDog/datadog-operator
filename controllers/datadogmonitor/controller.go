@@ -149,7 +149,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 			m, err = r.get(instance, newStatus)
 			if err != nil {
 				logger.Error(err, "error getting monitor", "Monitor ID", instance.Status.ID)
-				if strings.Contains(err.Error(), "404 Not Found") {
+				if strings.Contains(err.Error(), ctrutils.NotFoundString) {
 					shouldCreate = true
 				}
 			} else {
@@ -161,7 +161,7 @@ func (r *Reconciler) internalReconcile(ctx context.Context, req reconcile.Reques
 			m, err = r.get(instance, newStatus)
 			if err != nil {
 				logger.Error(err, "error getting monitor", "Monitor ID", instance.Status.ID)
-				if strings.Contains(err.Error(), "404 Not Found") {
+				if strings.Contains(err.Error(), ctrutils.NotFoundString) {
 					shouldCreate = true
 				}
 			}

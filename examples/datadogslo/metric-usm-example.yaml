@@ -1,0 +1,17 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogSLO
+metadata:
+  name: example-slo-usm
+  namespace: system 
+spec:
+  name: example-slo-usm
+  description: "This is an example metric SLO from datadog-operator with Universal Service Monitoring metrics"
+  query:
+    denominator: "sum:universal.http.server.hits{service:example,env:prod}.as_count()"
+    numerator: "sum:universal.http.server.hits{service:example,env:prod,!http.status_class:5xx}.as_count()"
+  tags:
+    - "service:example"
+    - "env:prod"
+  targetThreshold: "99.9"
+  timeframe: "7d"
+  type: "metric"
