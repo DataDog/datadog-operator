@@ -180,8 +180,8 @@ spec:
 | agent.deploymentStrategy.canary.replicas |  |
 | agent.deploymentStrategy.canary.validationMode | ValidationMode used to configure how a canary deployment is validated. Possible values are 'auto' (default) and 'manual' |
 | agent.deploymentStrategy.reconcileFrequency | The reconcile frequency of the ExtendDaemonSet. |
-| agent.deploymentStrategy.rollingUpdate.maxParallelPodCreation | The maximum number of pods created in parallel. Default value is 250. |
-| agent.deploymentStrategy.rollingUpdate.maxPodSchedulerFailure | MaxPodSchedulerFailure the maximum number of not scheduled on its Node due to a scheduler failure: resource constraints. Value can be an absolute number (ex: 5) or a percentage of total number of DaemonSet pods at the start of the update (ex: 10%). Absolute |
+| agent.deploymentStrategy.rollingUpdate.maxParallelPodCreation | The maxium number of pods created in parallel. Default value is 250. |
+| agent.deploymentStrategy.rollingUpdate.maxPodSchedulerFailure | MaxPodSchedulerFailure the maxinum number of not scheduled on its Node due to a scheduler failure: resource constraints. Value can be an absolute number (ex: 5) or a percentage of total number of DaemonSet pods at the start of the update (ex: 10%). Absolute |
 | agent.deploymentStrategy.rollingUpdate.maxUnavailable | The maximum number of DaemonSet pods that can be unavailable during the update. Value can be an absolute number (ex: 5) or a percentage of total number of DaemonSet pods at the start of the update (ex: 10%). Absolute number is calculated from percentage by rounding up. This cannot be 0. Default value is 1. |
 | agent.deploymentStrategy.rollingUpdate.slowStartAdditiveIncrease | SlowStartAdditiveIncrease Value can be an absolute number (ex: 5) or a percentage of total number of DaemonSet pods at the start of the update (ex: 10%). Default value is 5. |
 | agent.deploymentStrategy.rollingUpdate.slowStartIntervalDuration | SlowStartIntervalDuration the duration between to 2 Default value is 1min. |
