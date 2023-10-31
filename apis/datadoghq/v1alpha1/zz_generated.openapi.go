@@ -933,13 +933,13 @@ func schema__apis_datadoghq_v1alpha1_DaemonSetRollingUpdateSpec(ref common.Refer
 					},
 					"maxPodSchedulerFailure": {
 						SchemaProps: spec.SchemaProps{
-							Description: "MaxPodSchedulerFailure the maxinum number of not scheduled on its Node due to a scheduler failure: resource constraints. Value can be an absolute number (ex: 5) or a percentage of total number of DaemonSet pods at the start of the update (ex: 10%). Absolute",
+							Description: "MaxPodSchedulerFailure the maximum number of not scheduled on its Node due to a scheduler failure: resource constraints. Value can be an absolute number (ex: 5) or a percentage of total number of DaemonSet pods at the start of the update (ex: 10%). Absolute",
 							Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
 						},
 					},
 					"maxParallelPodCreation": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The maxium number of pods created in parallel. Default value is 250.",
+							Description: "The maximum number of pods created in parallel. Default value is 250.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
