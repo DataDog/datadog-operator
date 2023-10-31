@@ -280,11 +280,11 @@ type DaemonSetRollingUpdateSpec struct {
 	// This cannot be 0.
 	// Default value is 1.
 	MaxUnavailable *intstr.IntOrString `json:"maxUnavailable,omitempty"`
-	// MaxPodSchedulerFailure the maxinum number of not scheduled on its Node due to a
+	// MaxPodSchedulerFailure the maximum number of not scheduled on its Node due to a
 	// scheduler failure: resource constraints. Value can be an absolute number (ex: 5) or a percentage of total
 	// number of DaemonSet pods at the start of the update (ex: 10%). Absolute
 	MaxPodSchedulerFailure *intstr.IntOrString `json:"maxPodSchedulerFailure,omitempty"`
-	// The maxium number of pods created in parallel.
+	// The maximum number of pods created in parallel.
 	// Default value is 250.
 	MaxParallelPodCreation *int32 `json:"maxParallelPodCreation,omitempty"`
 	// SlowStartIntervalDuration the duration between to 2
