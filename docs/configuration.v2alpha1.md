@@ -122,7 +122,6 @@ spec:
 | features.prometheusScrape.enabled | Enable autodiscovery of pods and services exposing Prometheus metrics. Default: false |
 | features.prometheusScrape.version | Version specifies the version of the OpenMetrics check. Default: 2 |
 | features.remoteConfiguration.enabled | Enable this option to activate Remote Configuration. Default: true |
-| features.remoteConfiguration.enabled | Enable this option to activate Remote Configuration. Default: false |
 | features.sbom.containerImage.analyzers | Analyzers to use for SBOM collection. |
 | features.sbom.containerImage.enabled | Enable this option to activate SBOM collection. Default: false |
 | features.sbom.enabled | Enable this option to activate SBOM collection. Default: false |

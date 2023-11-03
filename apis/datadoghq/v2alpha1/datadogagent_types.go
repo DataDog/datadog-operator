@@ -319,19 +319,20 @@ type RemoteConfigurationFeatureConfig struct {
 	Enabled *bool `json:"enabled,omitempty"`
 }
 
-// SBOMFeatureConfig contains SBOM collection global configuration.
+// SBOMFeatureConfig contains SBOM (Software Bill of Materials) collection configuration.
+// SBOM runs in the Agent.
 type SBOMFeatureConfig struct {
 	// Enable this option to activate SBOM collection.
 	// Default: false
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 
-	ContainerImage *SBOMConfig `json:"containerImage,omitempty"`
-	Host           *SBOMConfig `json:"host,omitempty"`
+	ContainerImage *SBOMTypeConfig `json:"containerImage,omitempty"`
+	Host           *SBOMTypeConfig `json:"host,omitempty"`
 }
 
-// SBOMConfig contains configuration for one SBOM collection type.
-type SBOMConfig struct {
+// SBOMTypeConfig contains configuration for a SBOM collection type.
+type SBOMTypeConfig struct {
 	// Enable this option to activate SBOM collection.
 	// Default: false
 	// +optional

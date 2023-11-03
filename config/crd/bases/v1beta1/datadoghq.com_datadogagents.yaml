@@ -15913,7 +15913,7 @@ spec:
                       description: SBOM collection configuration.
                       properties:
                         containerImage:
-                          description: SBOMConfig contains configuration for one SBOM collection type.
+                          description: SBOMTypeConfig contains configuration for a SBOM collection type.
                           properties:
                             analyzers:
                               description: Analyzers to use for SBOM collection.
@@ -15929,7 +15929,7 @@ spec:
                           description: 'Enable this option to activate SBOM collection. Default: false'
                           type: boolean
                         host:
-                          description: SBOMConfig contains configuration for one SBOM collection type.
+                          description: SBOMTypeConfig contains configuration for a SBOM collection type.
                           properties:
                             analyzers:
                               description: Analyzers to use for SBOM collection.

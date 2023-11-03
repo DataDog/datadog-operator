@@ -106,22 +106,28 @@ func (f *sbomFeature) ManageNodeAgent(managers feature.PodTemplateManagers) erro
 		Name:  apicommon.DDSBOMEnabled,
 		Value: apiutils.BoolToString(&f.enabled),
 	})
+
 	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
 		Name:  apicommon.DDSBOMContainerImageEnabled,
 		Value: apiutils.BoolToString(&f.containerImageEnabled),
 	})
-	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
-		Name:  apicommon.DDSBOMContainerImageAnalyzers,
-		Value: strings.Join(f.containerImageAnalyzers, " "),
-	})
+	if len(f.containerImageAnalyzers) > 0 {
+		managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+			Name:  apicommon.DDSBOMContainerImageAnalyzers,
+			Value: strings.Join(f.containerImageAnalyzers, " "),
+		})
+	}
+
 	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
 		Name:  apicommon.DDSBOMHostEnabled,
 		Value: apiutils.BoolToString(&f.hostEnabled),
 	})
-	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
-		Name:  apicommon.DDSBOMHostAnalyzers,
-		Value: strings.Join(f.hostAnalyzers, " "),
-	})
+	if len(f.hostAnalyzers) > 0 {
+		managers.EnvVar().AddEnvVar(&corev1.EnvVar{
+			Name:  apicommon.DDSBOMHostAnalyzers,
+			Value: strings.Join(f.hostAnalyzers, " "),
+		})
+	}
 
 	return nil
 }
