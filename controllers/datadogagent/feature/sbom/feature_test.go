@@ -12,7 +12,6 @@ import (
 	apicommonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
-	// "github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/fake"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature/test"
@@ -39,14 +38,12 @@ func Test_sbomFeature_Configure(t *testing.T) {
 
 	sbomEnabledContainerImageEnabled := sbomEnabled.DeepCopy()
 	{
-		sbomEnabledContainerImageEnabled.Spec.Features.SBOM.ContainerImage = &v2alpha1.SBOMTypeConfig{}
-		sbomEnabledContainerImageEnabled.Spec.Features.SBOM.ContainerImage.Enabled = apiutils.NewBoolPointer(true)
+		sbomEnabledContainerImageEnabled.Spec.Features.SBOM.ContainerImage = &v2alpha1.SBOMTypeConfig{Enabled: apiutils.NewBoolPointer(true)}
 	}
 
 	sbomEnabledHostEnabled := sbomEnabled.DeepCopy()
 	{
-		sbomEnabledHostEnabled.Spec.Features.SBOM.Host = &v2alpha1.SBOMTypeConfig{}
-		sbomEnabledHostEnabled.Spec.Features.SBOM.Host.Enabled = apiutils.NewBoolPointer(true)
+		sbomEnabledHostEnabled.Spec.Features.SBOM.Host = &v2alpha1.SBOMTypeConfig{Enabled: apiutils.NewBoolPointer(true)}
 	}
 
 	sbomNodeAgentWantFunc := func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
