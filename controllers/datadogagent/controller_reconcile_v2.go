@@ -96,9 +96,7 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 
 	features, requiredComponents := feature.BuildFeatures(instance, reconcilerOptionsToFeatureOptions(&r.options, logger))
 	// update list of enabled features for metrics forwarder
-	if r.options.OperatorMetricsEnabled {
-		r.updateMetricsForwardersFeatures(instance, features)
-	}
+	r.updateMetricsForwardersFeatures(instance, features)
 
 	// -----------------------
 	// Manage dependencies

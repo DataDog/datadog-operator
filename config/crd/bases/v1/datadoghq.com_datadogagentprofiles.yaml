@@ -69,9 +69,9 @@ spec:
                         type: object
                       type: object
                   type: object
-                dapAffinity:
+                profileAffinity:
                   properties:
-                    dapNodeAffinity:
+                    profileNodeAffinity:
                       items:
                         description: A node selector requirement is a selector that contains values, a key, and an operator that relates the key and values.
                         properties:
