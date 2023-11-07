@@ -22,6 +22,7 @@ import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/pkg/plugin/common"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // Options provides information required to manage canary.
@@ -157,6 +158,18 @@ func (o *Options) getV2Status() (common.StatusWrapper, error) {
 	return common.NewV2StatusWrapper(datadogAgent), nil
 }
 
+func isReconcileError(conditions []metav1.Condition) bool {
+	for _, condition := range conditions {
+		if (condition.Type == "DatadogAgentReconcileError" && condition.Status == metav1.ConditionTrue) ||
+			(condition.Type == "AgentReconcile" && condition.Status == metav1.ConditionFalse) ||
+			(condition.Type == "ClusterAgentReconcile" && condition.Status == metav1.ConditionFalse) ||
+			(condition.Type == "ClusterChecksRunnerReconcile" && condition.Status == metav1.ConditionFalse) {
+			return true
+		}
+	}
+	return false
+}
+
 // Run use to run the command.
 func (o *Options) Run() error {
 	o.printOutf("Start checking rolling-update status")
@@ -180,6 +193,10 @@ func (o *Options) Run() error {
 			return true, nil
 		} else if err != nil {
 			return false, fmt.Errorf("unable to get the DatadogAgent.status, err:%w", err)
+		}
+
+		if isReconcileError(status.GetStatusCondition()) {
+			return false, fmt.Errorf("got reconcile error")
 		}
 
 		if !agentDone {

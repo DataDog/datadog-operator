@@ -54,6 +54,11 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"./apis/datadoghq/v1alpha1.DatadogMonitorSpec":                      schema__apis_datadoghq_v1alpha1_DatadogMonitorSpec(ref),
 		"./apis/datadoghq/v1alpha1.DatadogMonitorStatus":                    schema__apis_datadoghq_v1alpha1_DatadogMonitorStatus(ref),
 		"./apis/datadoghq/v1alpha1.DatadogMonitorTriggeredState":            schema__apis_datadoghq_v1alpha1_DatadogMonitorTriggeredState(ref),
+		"./apis/datadoghq/v1alpha1.DatadogSLO":                              schema__apis_datadoghq_v1alpha1_DatadogSLO(ref),
+		"./apis/datadoghq/v1alpha1.DatadogSLOControllerOptions":             schema__apis_datadoghq_v1alpha1_DatadogSLOControllerOptions(ref),
+		"./apis/datadoghq/v1alpha1.DatadogSLOQuery":                         schema__apis_datadoghq_v1alpha1_DatadogSLOQuery(ref),
+		"./apis/datadoghq/v1alpha1.DatadogSLOSpec":                          schema__apis_datadoghq_v1alpha1_DatadogSLOSpec(ref),
+		"./apis/datadoghq/v1alpha1.DatadogSLOStatus":                        schema__apis_datadoghq_v1alpha1_DatadogSLOStatus(ref),
 		"./apis/datadoghq/v1alpha1.DogstatsdConfig":                         schema__apis_datadoghq_v1alpha1_DogstatsdConfig(ref),
 		"./apis/datadoghq/v1alpha1.ExternalMetricsConfig":                   schema__apis_datadoghq_v1alpha1_ExternalMetricsConfig(ref),
 		"./apis/datadoghq/v1alpha1.KubeStateMetricsCore":                    schema__apis_datadoghq_v1alpha1_KubeStateMetricsCore(ref),
@@ -928,13 +933,13 @@ func schema__apis_datadoghq_v1alpha1_DaemonSetRollingUpdateSpec(ref common.Refer
 					},
 					"maxPodSchedulerFailure": {
 						SchemaProps: spec.SchemaProps{
-							Description: "MaxPodSchedulerFailure the maxinum number of not scheduled on its Node due to a scheduler failure: resource constraints. Value can be an absolute number (ex: 5) or a percentage of total number of DaemonSet pods at the start of the update (ex: 10%). Absolute",
+							Description: "MaxPodSchedulerFailure the maximum number of not scheduled on its Node due to a scheduler failure: resource constraints. Value can be an absolute number (ex: 5) or a percentage of total number of DaemonSet pods at the start of the update (ex: 10%). Absolute",
 							Ref:         ref("k8s.io/apimachinery/pkg/util/intstr.IntOrString"),
 						},
 					},
 					"maxParallelPodCreation": {
 						SchemaProps: spec.SchemaProps{
-							Description: "The maxium number of pods created in parallel. Default value is 250.",
+							Description: "The maximum number of pods created in parallel. Default value is 250.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
@@ -2546,6 +2551,310 @@ func schema__apis_datadoghq_v1alpha1_DatadogMonitorTriggeredState(ref common.Ref
 		},
 		Dependencies: []string{
 			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+	}
+}
+
+func schema__apis_datadoghq_v1alpha1_DatadogSLO(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogSLO allows a user to define and manage datadog SLOs from Kubernetes cluster.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("./apis/datadoghq/v1alpha1.DatadogSLOSpec"),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("./apis/datadoghq/v1alpha1.DatadogSLOStatus"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"./apis/datadoghq/v1alpha1.DatadogSLOSpec", "./apis/datadoghq/v1alpha1.DatadogSLOStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema__apis_datadoghq_v1alpha1_DatadogSLOControllerOptions(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogSLOControllerOptions defines options in the DatadogSLO controller.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"disableRequiredTags": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DisableRequiredTags disables the automatic addition of required tags to SLOs.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func schema__apis_datadoghq_v1alpha1_DatadogSLOQuery(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"numerator": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Numerator is a Datadog metric query for good events.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"denominator": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Denominator is a Datadog metric query for total (valid) events.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"numerator", "denominator"},
+			},
+		},
+	}
+}
+
+func schema__apis_datadoghq_v1alpha1_DatadogSLOSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name is the name of the service level objective.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"description": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Description is a user-defined description of the service level objective. Always included in service level objective responses (but may be null). Optional in create/update requests.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"groups": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "set",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Groups is a list of (up to 100) monitor groups that narrow the scope of a monitor service level objective. Included in service level objective responses if it is not empty. Optional in create/update requests for monitor service level objectives, but may only be used when the length of the monitor_ids field is one.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"monitorIDs": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "set",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "MonitorIDs is a list of monitor IDs that defines the scope of a monitor service level objective. Required if type is monitor.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: 0,
+										Type:    []string{"integer"},
+										Format:  "int64",
+									},
+								},
+							},
+						},
+					},
+					"tags": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "set",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Tags is a list of tags to associate with your service level objective. This can help you categorize and filter service level objectives in the service level objectives page of the UI. Note: it's not currently possible to filter by these tags when querying via the API.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"query": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Query is the query for a metric-based SLO. Required if type is metric. Note that only the `sum by` aggregator is allowed, which sums all request counts. `Average`, `max`, nor `min` request aggregators are not supported.",
+							Ref:         ref("./apis/datadoghq/v1alpha1.DatadogSLOQuery"),
+						},
+					},
+					"type": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Type is the type of the service level objective.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"timeframe": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The SLO time window options.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"targetThreshold": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TargetThreshold is the target threshold such that when the service level indicator is above this threshold over the given timeframe, the objective is being met.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("k8s.io/apimachinery/pkg/api/resource.Quantity"),
+						},
+					},
+					"warningThreshold": {
+						SchemaProps: spec.SchemaProps{
+							Description: "WarningThreshold is a optional warning threshold such that when the service level indicator is below this value for the given threshold, but above the target threshold, the objective appears in a \"warning\" state. This value must be greater than the target threshold.",
+							Ref:         ref("k8s.io/apimachinery/pkg/api/resource.Quantity"),
+						},
+					},
+					"controllerOptions": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ControllerOptions are the optional parameters in the DatadogSLO controller",
+							Ref:         ref("./apis/datadoghq/v1alpha1.DatadogSLOControllerOptions"),
+						},
+					},
+				},
+				Required: []string{"name", "type", "timeframe", "targetThreshold"},
+			},
+		},
+		Dependencies: []string{
+			"./apis/datadoghq/v1alpha1.DatadogSLOControllerOptions", "./apis/datadoghq/v1alpha1.DatadogSLOQuery", "k8s.io/apimachinery/pkg/api/resource.Quantity"},
+	}
+}
+
+func schema__apis_datadoghq_v1alpha1_DatadogSLOStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "DatadogSLOStatus defines the observed state of a DatadogSLO.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"conditions": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-map-keys": []interface{}{
+									"type",
+								},
+								"x-kubernetes-list-type": "map",
+							},
+						},
+						SchemaProps: spec.SchemaProps{
+							Description: "Conditions represents the latest available observations of the state of a DatadogSLO.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("k8s.io/apimachinery/pkg/apis/meta/v1.Condition"),
+									},
+								},
+							},
+						},
+					},
+					"id": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ID is the SLO ID generated in Datadog.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"creator": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Creator is the identity of the SLO creator.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"created": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Created is the time the SLO was created.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"syncStatus": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SyncStatus shows the health of syncing the SLO state to Datadog.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"lastForceSyncTime": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LastForceSyncTime is the last time the API SLO was last force synced with the DatadogSLO resource.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"currentHash": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CurrentHash tracks the hash of the current DatadogSLOSpec to know if the Spec has changed and needs an update.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Condition", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 

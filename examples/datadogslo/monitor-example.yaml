@@ -1,0 +1,16 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogSLO
+metadata:
+  name: example-slo-monitor3
+  namespace: system 
+spec:
+  name: example-slo-monitor3
+  description: "This is an example monitor SLO from datadog-operator"
+  monitorIDs:
+    - 1234
+  tags:
+    - "service:example"
+    - "env:prod"
+  targetThreshold: "99.9"
+  timeframe: "7d"
+  type: "monitor"

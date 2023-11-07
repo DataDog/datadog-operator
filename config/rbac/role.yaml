@@ -664,3 +664,35 @@ rules:
   verbs:
   - list
   - watch
+- apiGroups:
+    - datadoghq.com
+  resources:
+    - datadogslos
+  verbs:
+    - create
+    - delete
+    - get
+    - list
+    - patch
+    - update
+    - watch
+- apiGroups:
+    - datadoghq.com
+  resources:
+    - datadogslos/finalizers
+  verbs:
+    - create
+    - delete
+    - get
+    - list
+    - patch
+    - update
+    - watch
+- apiGroups:
+    - datadoghq.com
+  resources:
+    - datadogslos/status
+  verbs:
+    - get
+    - patch
+    - update

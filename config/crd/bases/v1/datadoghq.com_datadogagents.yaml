@@ -2528,14 +2528,14 @@ spec:
                           description: Configure the rolling updater strategy of the DaemonSet or the ExtendedDaemonSet.
                           properties:
                             maxParallelPodCreation:
-                              description: The maxium number of pods created in parallel. Default value is 250.
+                              description: The maximum number of pods created in parallel. Default value is 250.
                               format: int32
                               type: integer
                             maxPodSchedulerFailure:
                               anyOf:
                                 - type: integer
                                 - type: string
-                              description: 'MaxPodSchedulerFailure the maxinum number of not scheduled on its Node due to a scheduler failure: resource constraints. Value can be an absolute number (ex: 5) or a percentage of total number of DaemonSet pods at the start of the update (ex: 10%). Absolute'
+                              description: 'MaxPodSchedulerFailure the maximum number of not scheduled on its Node due to a scheduler failure: resource constraints. Value can be an absolute number (ex: 5) or a percentage of total number of DaemonSet pods at the start of the update (ex: 10%). Absolute'
                               x-kubernetes-int-or-string: true
                             maxUnavailable:
                               anyOf:
@@ -8358,6 +8358,39 @@ spec:
                         enabled:
                           description: 'Enable this option to activate Remote Configuration. Default: true'
                           type: boolean
+                      type: object
+                    sbom:
+                      description: SBOM collection configuration.
+                      properties:
+                        containerImage:
+                          description: SBOMTypeConfig contains configuration for a SBOM collection type.
+                          properties:
+                            analyzers:
+                              description: Analyzers to use for SBOM collection.
+                              items:
+                                type: string
+                              type: array
+                              x-kubernetes-list-type: set
+                            enabled:
+                              description: 'Enable this option to activate SBOM collection. Default: false'
+                              type: boolean
+                          type: object
+                        enabled:
+                          description: 'Enable this option to activate SBOM collection. Default: false'
+                          type: boolean
+                        host:
+                          description: SBOMTypeConfig contains configuration for a SBOM collection type.
+                          properties:
+                            analyzers:
+                              description: Analyzers to use for SBOM collection.
+                              items:
+                                type: string
+                              type: array
+                              x-kubernetes-list-type: set
+                            enabled:
+                              description: 'Enable this option to activate SBOM collection. Default: false'
+                              type: boolean
+                          type: object
                       type: object
                     tcpQueueLength:
                       description: TCPQueueLength configuration.

@@ -5,6 +5,7 @@ resources:
 - bases/v1/datadoghq.com_datadogagents.yaml
 - bases/v1/datadoghq.com_datadogmetrics.yaml
 - bases/v1/datadoghq.com_datadogmonitors.yaml
+- bases/v1/datadoghq.com_datadogslos.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patchesStrategicMerge:
