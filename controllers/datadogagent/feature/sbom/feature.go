@@ -101,7 +101,7 @@ func (f *sbomFeature) ManageClusterAgent(managers feature.PodTemplateManagers) e
 
 // ManageNodeAgent allows a feature to configure the Node Agent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
-func (f *sbomFeature) ManageNodeAgent(managers feature.PodTemplateManagers) error {
+func (f *sbomFeature) ManageNodeAgent(managers feature.PodTemplateManagers, provider string) error {
 	managers.EnvVar().AddEnvVar(&corev1.EnvVar{
 		Name:  apicommon.DDSBOMEnabled,
 		Value: apiutils.BoolToString(&f.enabled),
