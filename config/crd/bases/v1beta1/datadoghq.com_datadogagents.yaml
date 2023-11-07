@@ -18711,9 +18711,7 @@ spec:
                       - upToDate
                     type: object
                   type: array
-                  x-kubernetes-list-map-keys:
-                    - desired
-                  x-kubernetes-list-type: map
+                  x-kubernetes-list-type: atomic
                 clusterAgent:
                   description: The actual state of the Cluster Agent as a deployment.
                   properties:

@@ -1056,8 +1056,7 @@ type DatadogAgentStatus struct {
 	Conditions []metav1.Condition `json:"conditions"`
 	// The actual state of the Agent as a daemonset or an extended daemonset.
 	// +optional
-	// +listType=map
-	// +listMapKey=desired
+	// +listType=atomic
 	Agent []*commonv1.DaemonSetStatus `json:"agent,omitempty"`
 	// The combined actual state of the all Agent as daemonsets or extended daemonsets.
 	// +optional
