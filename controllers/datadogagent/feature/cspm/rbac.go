@@ -12,7 +12,8 @@ import (
 )
 
 // getRBACRules generates the cluster role required for CSPM
-func getRBACPolicyRules() []rbacv1.PolicyRule {
+func getRBACPolicyRules(supportsPSP bool) []rbacv1.PolicyRule {
+
 	rbacRules := []rbacv1.PolicyRule{
 		{
 			APIGroups: []string{rbac.CoreAPIGroup},
@@ -21,13 +22,6 @@ func getRBACPolicyRules() []rbacv1.PolicyRule {
 				rbac.ServiceAccountResource,
 			},
 			Verbs: []string{rbac.ListVerb},
-		},
-		{
-			APIGroups: []string{rbac.PolicyAPIGroup},
-			Resources: []string{
-				rbac.PodSecurityPolicyResource,
-			},
-			Verbs: []string{rbac.GetVerb, rbac.ListVerb, rbac.WatchVerb},
 		},
 		{
 			APIGroups: []string{rbac.RbacAPIGroup},
@@ -44,6 +38,17 @@ func getRBACPolicyRules() []rbacv1.PolicyRule {
 			},
 			Verbs: []string{rbac.ListVerb},
 		},
+	}
+
+	if supportsPSP {
+		pspRule := rbacv1.PolicyRule{
+			APIGroups: []string{rbac.PolicyAPIGroup},
+			Resources: []string{
+				rbac.PodSecurityPolicyResource,
+			},
+			Verbs: []string{rbac.GetVerb, rbac.ListVerb, rbac.WatchVerb},
+		}
+		rbacRules = append(rbacRules[:1], append([]rbacv1.PolicyRule{pspRule}, rbacRules[1:]...)...)
 	}
 
 	return rbacRules
