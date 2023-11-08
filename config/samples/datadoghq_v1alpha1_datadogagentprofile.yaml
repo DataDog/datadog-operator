@@ -3,4 +3,17 @@ kind: DatadogAgentProfile
 metadata:
   name: datadogagentprofile-sample
 spec:
-  # TODO(user): Add fields here
+  profileAffinity:
+    profileNodeAffinity:
+      - key: kubernetes.io/os
+        operator: In
+        values:
+          - linux
+  config:
+    override:
+      nodeAgent:
+        containers:
+          agent:
+            resources:
+              requests:
+                cpu: 256m
