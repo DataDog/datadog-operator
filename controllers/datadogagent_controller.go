@@ -190,6 +190,8 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(r.PlatformInfo.CreatePDBObject()).
 		Owns(&networkingv1.NetworkPolicy{})
 
+	builder.Watches(&source.Kind{Type: &datadoghqv1alpha1.DatadogAgentProfile{}}, &handler.EnqueueRequestForObject{})
+
 	// DatadogAgent is namespaced whereas ClusterRole and ClusterRoleBinding are
 	// cluster-scoped. That means that DatadogAgent cannot be their owner, and
 	// we cannot use .Owns().
