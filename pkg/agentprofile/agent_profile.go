@@ -143,16 +143,27 @@ func containersOverride(profile *datadoghqv1alpha1.DatadogAgentProfile) map[comm
 		return nil
 	}
 
-	// TODO: add support for other agent containers. Only core-agent is supported for now.
-
-	overrideForCoreAgent, ok := nodeAgentOverride.Containers[common.CoreAgentContainerName]
-	if !ok {
+	if len(nodeAgentOverride.Containers) == 0 {
 		return nil
 	}
 
-	return map[common.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{
-		common.CoreAgentContainerName: {
-			Resources: overrideForCoreAgent.Resources,
-		},
+	containersInNodeAgent := []common.AgentContainerName{
+		common.CoreAgentContainerName,
+		common.TraceAgentContainerName,
+		common.ProcessAgentContainerName,
+		common.SecurityAgentContainerName,
+		common.SystemProbeContainerName,
 	}
+
+	res := map[common.AgentContainerName]*v2alpha1.DatadogAgentGenericContainer{}
+
+	for _, containerName := range containersInNodeAgent {
+		if overrideForContainer, overrideIsDefined := nodeAgentOverride.Containers[containerName]; overrideIsDefined {
+			res[containerName] = &v2alpha1.DatadogAgentGenericContainer{
+				Resources: overrideForContainer.Resources,
+			}
+		}
+	}
+
+	return res
 }
