@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"strconv"
 
-	securityv1 "github.com/openshift/api/security/v1"
 	corev1 "k8s.io/api/core/v1"
 	netv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -55,7 +54,6 @@ type apmFeature struct {
 
 	createKubernetesNetworkPolicy bool
 	createCiliumNetworkPolicy     bool
-	createSCC                     bool
 }
 
 // ID returns the ID of the Feature
@@ -89,8 +87,6 @@ func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 			f.forceEnableLocalService = apiutils.BoolValue(dda.Spec.Global.LocalService.ForceEnableLocalService)
 		}
 		f.localServiceName = v2alpha1.GetLocalAgentServiceName(dda)
-
-		f.createSCC = v2alpha1.ShouldCreateSCC(dda, v2alpha1.NodeAgentComponentName)
 
 		reqComp = feature.RequiredComponents{
 			Agent: feature.RequiredComponent{
@@ -224,18 +220,6 @@ func (f *apmFeature) ManageDependencies(managers feature.ResourceManagers, compo
 			}
 			return managers.CiliumPolicyManager().AddCiliumPolicy(policyName, f.owner.GetNamespace(), policySpecs)
 		}
-	}
-
-	// scc
-	if f.createSCC {
-		sccName := component.GetAgentSCCName(f.owner)
-		scc := securityv1.SecurityContextConstraints{}
-
-		if f.hostPortEnabled {
-			scc.AllowHostPorts = true
-		}
-
-		return managers.PodSecurityManager().AddSecurityContextConstraints(sccName, f.owner.GetNamespace(), &scc)
 	}
 
 	return nil

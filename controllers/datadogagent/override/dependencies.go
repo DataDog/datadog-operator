@@ -11,14 +11,9 @@ import (
 
 	"github.com/go-logr/logr"
 
-	securityv1 "github.com/openshift/api/security/v1"
 	"k8s.io/apimachinery/pkg/util/errors"
 
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/apis/utils"
-	ddacomponent "github.com/DataDog/datadog-operator/controllers/datadogagent/component"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/component/clusteragent"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/object/configmap"
@@ -47,9 +42,6 @@ func Dependencies(logger logr.Logger, manager feature.ResourceManagers, dda *v2a
 		// Handle custom check files
 		checksdCMName := fmt.Sprintf(v2alpha1.ExtraChecksdConfigMapName, strings.ToLower((string(component))))
 		errs = append(errs, overrideExtraConfigs(logger, manager, override.ExtraChecksd, namespace, checksdCMName, false)...)
-
-		// Handle scc
-		errs = append(errs, overrideSCC(manager, dda)...)
 	}
 
 	return errs
@@ -121,32 +113,5 @@ func overrideExtraConfigs(logger logr.Logger, manager feature.ResourceManagers, 
 			}
 		}
 	}
-	return errs
-}
-
-func overrideSCC(manager feature.ResourceManagers, dda *v2alpha1.DatadogAgent) (errs []error) {
-	for component, override := range dda.Spec.Override {
-		sccConfig := override.SecurityContextConstraints
-		if sccConfig != nil && apiutils.BoolValue(sccConfig.Create) {
-			var sccName string
-			scc := &securityv1.SecurityContextConstraints{}
-
-			switch component {
-			case v2alpha1.NodeAgentComponentName:
-				sccName = ddacomponent.GetAgentSCCName(dda)
-				scc = agent.GetDefaultSCC(dda)
-			case v2alpha1.ClusterAgentComponentName:
-				sccName = ddacomponent.GetClusterAgentSCCName(dda)
-				scc = clusteragent.GetDefaultSCC(dda)
-			}
-
-			if sccConfig.CustomConfiguration != nil {
-				scc = sccConfig.CustomConfiguration
-			}
-
-			errs = append(errs, manager.PodSecurityManager().AddSecurityContextConstraints(sccName, dda.Namespace, scc))
-		}
-	}
-
 	return errs
 }
