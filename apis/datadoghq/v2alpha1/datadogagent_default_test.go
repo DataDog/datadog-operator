@@ -39,6 +39,51 @@ func Test_defaultGlobal(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "test registry defaulting based on site - EU",
+			ddaSpec: &DatadogAgentSpec{
+				Global: &GlobalConfig{
+					Site: apiutils.NewStringPointer(defaultEuropeSite),
+				},
+			},
+			want: &DatadogAgentSpec{
+				Global: &GlobalConfig{
+					Site:     apiutils.NewStringPointer(defaultEuropeSite),
+					Registry: apiutils.NewStringPointer(apicommon.DefaultEuropeImageRegistry),
+					LogLevel: apiutils.NewStringPointer(defaultLogLevel),
+				},
+			},
+		},
+		{
+			name: "test registry defaulting based on site - Asia",
+			ddaSpec: &DatadogAgentSpec{
+				Global: &GlobalConfig{
+					Site: apiutils.NewStringPointer(defaultAsiaSite),
+				},
+			},
+			want: &DatadogAgentSpec{
+				Global: &GlobalConfig{
+					Site:     apiutils.NewStringPointer(defaultAsiaSite),
+					Registry: apiutils.NewStringPointer(apicommon.DefaultAsiaImageRegistry),
+					LogLevel: apiutils.NewStringPointer(defaultLogLevel),
+				},
+			},
+		},
+		{
+			name: "test registry defaulting based on site - Gov",
+			ddaSpec: &DatadogAgentSpec{
+				Global: &GlobalConfig{
+					Site: apiutils.NewStringPointer(defaultGovSite),
+				},
+			},
+			want: &DatadogAgentSpec{
+				Global: &GlobalConfig{
+					Site:     apiutils.NewStringPointer(defaultGovSite),
+					Registry: apiutils.NewStringPointer(apicommon.DefaultGovImageRegistry),
+					LogLevel: apiutils.NewStringPointer(defaultLogLevel),
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
