@@ -84,6 +84,58 @@ metadata:
             "title": "Latency is increasing on staging",
             "type": "metric alert"
           }
+        },
+        {
+          "apiVersion": "datadoghq.com/v2alpha1",
+          "kind": "DatadogAgent",
+          "metadata": {
+            "name": "datadog"
+          },
+          "spec": {
+            "features": {
+              "admissionController": {
+                "enabled": false
+              },
+              "apm": {
+                "enabled": false
+              },
+              "clusterChecks": {
+                "enabled": false
+              },
+              "cspm": {
+                "enabled": false
+              },
+              "cws": {
+                "enabled": false
+              },
+              "externalMetricsServer": {
+                "enabled": false
+              },
+              "liveProcessCollection": {
+                "enabled": false
+              },
+              "logCollection": {
+                "containerCollectAll": false,
+                "enabled": true
+              }
+            },
+            "global": {
+              "clusterAgentToken": "\u003cDATADOG_CLUSTER_AGENT_TOKEN\u003e",
+              "clusterName": "\u003cCLUSTER_NAME\u003e",
+              "credentials": {
+                "apiKey": "\u003cDATADOG_API_KEY\u003e",
+                "appKey": "\u003cDATADOG_APP_KEY\u003e"
+              }
+            },
+            "override": {
+              "clusterAgent": {
+                "replicas": 2
+              },
+              "clusterChecksRunner": {
+                "replicas": 2
+              }
+            }
+          }
         }
       ]
     capabilities: Full Lifecycle
@@ -92,9 +144,9 @@ metadata:
     operators.operatorframework.io/builder: operator-sdk-v1.23.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     repository: https://github.com/DataDog/datadog-operator
-    containerImage: gcr.io/datadoghq/operator:1.2.1
-    olm.skipRange: <1.2.1
-  name: datadog-operator.v1.2.1
+    containerImage: gcr.io/datadoghq/operator:1.3.0-rc.1
+    olm.skipRange: <1.3.0-rc.1
+  name: datadog-operator.v1.3.0-rc.1
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -119,6 +171,9 @@ spec:
         displayName: Datadog Monitor
         kind: DatadogMonitor
         name: datadogmonitors.datadoghq.com
+        version: v1alpha1
+      - kind: DatadogSLO
+        name: datadogslos.datadoghq.com
         version: v1alpha1
   description: Datadog provides a modern monitoring and analytics platform. Gather metrics, logs and traces for full observability of your Kubernetes cluster with Datadog Operator.
   displayName: Datadog Operator
@@ -787,6 +842,38 @@ spec:
               verbs:
                 - list
                 - watch
+            - apiGroups:
+                - datadoghq.com
+              resources:
+                - datadogslos
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - datadoghq.com
+              resources:
+                - datadogslos/finalizers
+              verbs:
+                - create
+                - delete
+                - get
+                - list
+                - patch
+                - update
+                - watch
+            - apiGroups:
+                - datadoghq.com
+              resources:
+                - datadogslos/status
+              verbs:
+                - get
+                - patch
+                - update
           serviceAccountName: datadog-operator-controller-manager
         - rules:
             - apiGroups:
@@ -830,7 +917,7 @@ spec:
                         valueFrom:
                           fieldRef:
                             fieldPath: metadata.annotations['olm.targetNamespaces']
-                    image: gcr.io/datadoghq/operator:1.2.1
+                    image: gcr.io/datadoghq/operator:1.3.0-rc.1
                     imagePullPolicy: IfNotPresent
                     livenessProbe:
                       httpGet:
@@ -928,4 +1015,4 @@ spec:
   minKubeVersion: 1.16.0
   provider:
     name: Datadog
-  version: 1.2.1
+  version: 1.3.0-rc.1
