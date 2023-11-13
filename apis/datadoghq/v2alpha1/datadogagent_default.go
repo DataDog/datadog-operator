@@ -13,8 +13,11 @@ import (
 // Default configuration values. These are the recommended settings for monitoring with Datadog in Kubernetes.
 // Note: many default values are set in the Datadog Agent and deliberately not set by the Operator.
 const (
-	defaultSite     string = "datadoghq.com"
-	defaultLogLevel string = "info"
+	defaultSite       string = "datadoghq.com"
+	defaultEuropeSite string = "datadoghq.eu"
+	defaultAsiaSite   string = "ap1.datadoghq.com"
+	defaultGovSite    string = "ddog-gov.com"
+	defaultLogLevel   string = "info"
 
 	// defaultLogCollectionEnabled          bool   = false
 	defaultLogContainerCollectUsingFiles bool   = true
@@ -108,7 +111,16 @@ func defaultGlobalConfig(ddaSpec *DatadogAgentSpec) {
 	}
 
 	if ddaSpec.Global.Registry == nil {
-		ddaSpec.Global.Registry = apiutils.NewStringPointer(apicommon.DefaultImageRegistry)
+		switch *ddaSpec.Global.Site {
+		case defaultEuropeSite:
+			ddaSpec.Global.Registry = apiutils.NewStringPointer(apicommon.DefaultEuropeImageRegistry)
+		case defaultAsiaSite:
+			ddaSpec.Global.Registry = apiutils.NewStringPointer(apicommon.DefaultAsiaImageRegistry)
+		case defaultGovSite:
+			ddaSpec.Global.Registry = apiutils.NewStringPointer(apicommon.DefaultGovImageRegistry)
+		default:
+			ddaSpec.Global.Registry = apiutils.NewStringPointer(apicommon.DefaultImageRegistry)
+		}
 	}
 
 	if ddaSpec.Global.LogLevel == nil {
