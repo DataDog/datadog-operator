@@ -7,26 +7,32 @@ package datadogagent
 
 import (
 	"context"
+	"fmt"
 	"time"
 
-	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
-	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
-	apiutils "github.com/DataDog/datadog-operator/apis/utils"
-	componentagent "github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
-	"github.com/DataDog/datadog-operator/controllers/datadogagent/override"
-	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
-
-	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
+	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
+	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
+	apiutils "github.com/DataDog/datadog-operator/apis/utils"
+	ddacomponent "github.com/DataDog/datadog-operator/controllers/datadogagent/component"
+	componentagent "github.com/DataDog/datadog-operator/controllers/datadogagent/component/agent"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
+	"github.com/DataDog/datadog-operator/controllers/datadogagent/override"
+	"github.com/DataDog/datadog-operator/pkg/agentprofile"
+	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
+	"github.com/DataDog/datadog-operator/pkg/kubernetes"
+	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 )
 
-func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents feature.RequiredComponents, features []feature.Feature, dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, newStatus *datadoghqv2alpha1.DatadogAgentStatus, requiredContainers []common.AgentContainerName) (reconcile.Result, error) {
+func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents feature.RequiredComponents, features []feature.Feature, dda *datadoghqv2alpha1.DatadogAgent, resourcesManager feature.ResourceManagers, newStatus *datadoghqv2alpha1.DatadogAgentStatus, requiredContainers []common.AgentContainerName, profile *v1alpha1.DatadogAgentProfile) (reconcile.Result, error) {
 	var result reconcile.Result
 	var eds *edsv1alpha1.ExtendedDaemonSet
 	var daemonset *appsv1.DaemonSet
@@ -41,6 +47,8 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	agentEnabled := requiredComponents.Agent.IsEnabled()
 
 	if r.options.ExtendedDaemonsetOptions.Enabled {
+		// TODO: handle profiles like we do for DaemonSets below
+
 		// Start by creating the Default Agent extendeddaemonset
 		eds = componentagent.NewDefaultAgentExtendedDaemonset(dda, &r.options.ExtendedDaemonsetOptions, requiredContainers)
 		podManagers = feature.NewPodTemplateManagers(&eds.Spec.Template)
@@ -96,13 +104,23 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	}
 
 	// If Override is defined for the node agent component, apply the override on the PodTemplateSpec, it will cascade to container.
+	var componentOverrides []*datadoghqv2alpha1.DatadogAgentComponentOverride
 	if componentOverride, ok := dda.Spec.Override[datadoghqv2alpha1.NodeAgentComponentName]; ok {
+		componentOverrides = append(componentOverrides, componentOverride)
+	}
+
+	// Apply overrides from profiles last, so they can override what's defined in the DDA.
+	overrideFromProfile := agentprofile.ComponentOverrideFromProfile(profile)
+	componentOverrides = append(componentOverrides, &overrideFromProfile)
+
+	for _, componentOverride := range componentOverrides {
 		if apiutils.BoolValue(componentOverride.Disabled) {
 			disabledByOverride = true
 		}
 		override.PodTemplateSpec(logger, podManagers, componentOverride, datadoghqv2alpha1.NodeAgentComponentName, dda.Name)
 		override.DaemonSet(daemonset, componentOverride)
 	}
+
 	if disabledByOverride {
 		if agentEnabled {
 			// The override supersedes what's set in requiredComponents; update status to reflect the conflict
@@ -181,4 +199,50 @@ func (r *Reconciler) cleanupV2ExtendedDaemonSet(logger logr.Logger, dda *datadog
 	newStatus.Agent = nil
 
 	return reconcile.Result{}, nil
+}
+
+func (r *Reconciler) cleanupDaemonSetsForProfilesThatNoLongerApply(ctx context.Context, dda *datadoghqv2alpha1.DatadogAgent, daemonSetNamesAppliedProfiles map[string]struct{}) error {
+	daemonSets, err := r.agentDaemonSetsCreatedByOperator(ctx)
+	if err != nil {
+		return err
+	}
+
+	defaultDaemonSetName := ddacomponent.GetAgentName(dda) // TODO: take into account name override
+	for _, daemonSet := range daemonSets {
+		_, belongsToActiveProfile := daemonSetNamesAppliedProfiles[daemonSet.Name]
+
+		if belongsToActiveProfile || daemonSet.Name == defaultDaemonSetName {
+			continue
+		}
+
+		if err = r.client.Delete(ctx, &daemonSet); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// TODO: add specific labels to the daemonset created by the operator that belong to a profile so that we can filter more easily
+func (r *Reconciler) agentDaemonSetsCreatedByOperator(ctx context.Context) ([]appsv1.DaemonSet, error) {
+	daemonSetList := appsv1.DaemonSetList{}
+
+	err := r.client.List(
+		ctx,
+		&daemonSetList,
+		client.HasLabels{
+			fmt.Sprintf(
+				"%s=%s,%s=%s",
+				kubernetes.AppKubernetesNameLabelKey,
+				"datadog-agent-deployment",
+				kubernetes.AppKubernetesManageByLabelKey,
+				"datadog-operator",
+			),
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return daemonSetList.Items, nil
 }

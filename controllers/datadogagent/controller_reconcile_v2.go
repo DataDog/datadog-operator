@@ -15,15 +15,18 @@ import (
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/errors"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	apicommon "github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	commonv1 "github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
+	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
 	datadoghqv2alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v2alpha1"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/dependencies"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/feature"
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/override"
+	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils"
 	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 )
@@ -141,9 +144,27 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 	}
 
 	requiredContainers := requiredComponents.Agent.Containers
-	result, err = r.reconcileV2Agent(logger, requiredComponents, features, instance, resourceManagers, newStatus, requiredContainers)
-	if utils.ShouldReturn(result, err) {
-		return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err)
+
+	profiles, err := r.profilesToApply(ctx)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	daemonSetNamesAppliedProfiles := map[string]struct{}{} // TODO: do the same for EDS
+	for _, profile := range profiles {
+		result, err = r.reconcileV2Agent(logger, requiredComponents, features, instance, resourceManagers, newStatus, requiredContainers, &profile)
+		if utils.ShouldReturn(result, err) {
+			return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err)
+		}
+		profileNamespacedName := types.NamespacedName{
+			Namespace: profile.Namespace,
+			Name:      profile.Name,
+		}
+		daemonSetNamesAppliedProfiles[agentprofile.DaemonSetName(profileNamespacedName)] = struct{}{}
+	}
+	// TODO: do the same for EDS. Also make sure that this doesn't delete anything that it isn't supposed to when there's an error in the for above that doesn't return
+	if err = r.cleanupDaemonSetsForProfilesThatNoLongerApply(ctx, instance, daemonSetNamesAppliedProfiles); err != nil {
+		return reconcile.Result{}, err
 	}
 
 	result, err = r.reconcileV2ClusterChecksRunner(logger, requiredComponents, features, instance, resourceManagers, newStatus)
@@ -251,4 +272,13 @@ func (r *Reconciler) updateMetricsForwardersFeatures(dda *datadoghqv2alpha1.Data
 	// if r.forwarders != nil {
 	// 	r.forwarders.SetEnabledFeatures(dda, features)
 	// }
+}
+
+func (r *Reconciler) profilesToApply(ctx context.Context) ([]datadoghqv1alpha1.DatadogAgentProfile, error) {
+	profilesList := datadoghqv1alpha1.DatadogAgentProfileList{}
+	err := r.client.List(ctx, &profilesList)
+	if err != nil {
+		return nil, err
+	}
+	return agentprofile.ProfilesToApply(profilesList.Items), nil
 }
