@@ -12,6 +12,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	"github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
@@ -81,8 +82,8 @@ func TestProfilesToApply(t *testing.T) {
 }
 
 func TestComponentOverrideFromProfile(t *testing.T) {
-	overrideNameForLinuxProfile := "datadog-agent-with-profile-linux"
-	overrideNameForExampleProfile := "datadog-agent-with-profile-example"
+	overrideNameForLinuxProfile := "datadog-agent-with-profile-default-linux"
+	overrideNameForExampleProfile := "datadog-agent-with-profile-default-example"
 
 	tests := []struct {
 		name             string
@@ -93,7 +94,8 @@ func TestComponentOverrideFromProfile(t *testing.T) {
 			name: "profile without affinity or config",
 			profile: v1alpha1.DatadogAgentProfile{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "example",
+					Namespace: "default",
+					Name:      "example",
 				},
 			},
 			expectedOverride: v2alpha1.DatadogAgentComponentOverride{
@@ -145,24 +147,30 @@ func TestComponentOverrideFromProfile(t *testing.T) {
 func TestDaemonSetName(t *testing.T) {
 	tests := []struct {
 		name                  string
-		profileName           string
+		profileNamespacedName types.NamespacedName
 		expectedDaemonSetName string
 	}{
 		{
-			name:                  "default profile name",
-			profileName:           "default",
+			name: "default profile name",
+			profileNamespacedName: types.NamespacedName{
+				Namespace: "agent",
+				Name:      "default",
+			},
 			expectedDaemonSetName: "",
 		},
 		{
-			name:                  "non-default profile name",
-			profileName:           "linux",
-			expectedDaemonSetName: "datadog-agent-with-profile-linux",
+			name: "non-default profile name",
+			profileNamespacedName: types.NamespacedName{
+				Namespace: "agent",
+				Name:      "linux",
+			},
+			expectedDaemonSetName: "datadog-agent-with-profile-agent-linux",
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			assert.Equal(t, test.expectedDaemonSetName, DaemonSetName(test.profileName))
+			assert.Equal(t, test.expectedDaemonSetName, DaemonSetName(test.profileNamespacedName))
 		})
 	}
 }
@@ -170,7 +178,8 @@ func TestDaemonSetName(t *testing.T) {
 func exampleProfileForLinux() v1alpha1.DatadogAgentProfile {
 	return v1alpha1.DatadogAgentProfile{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "linux",
+			Namespace: "default",
+			Name:      "linux",
 		},
 		Spec: v1alpha1.DatadogAgentProfileSpec{
 			ProfileAffinity: &v1alpha1.ProfileAffinity{
@@ -204,7 +213,8 @@ func exampleProfileForLinux() v1alpha1.DatadogAgentProfile {
 func exampleProfileForWindows() v1alpha1.DatadogAgentProfile {
 	return v1alpha1.DatadogAgentProfile{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "windows",
+			Namespace: "default",
+			Name:      "windows",
 		},
 		Spec: v1alpha1.DatadogAgentProfileSpec{
 			ProfileAffinity: &v1alpha1.ProfileAffinity{

@@ -15,6 +15,7 @@ import (
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/errors"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -155,7 +156,11 @@ func (r *Reconciler) reconcileInstanceV2(ctx context.Context, logger logr.Logger
 		if utils.ShouldReturn(result, err) {
 			return r.updateStatusIfNeededV2(logger, instance, newStatus, result, err)
 		}
-		daemonSetNamesAppliedProfiles[agentprofile.DaemonSetName(profile.Name)] = struct{}{}
+		profileNamespacedName := types.NamespacedName{
+			Namespace: profile.Namespace,
+			Name:      profile.Name,
+		}
+		daemonSetNamesAppliedProfiles[agentprofile.DaemonSetName(profileNamespacedName)] = struct{}{}
 	}
 	// TODO: do the same for EDS. Also make sure that this doesn't delete anything that it isn't supposed to when there's an error in the for above that doesn't return
 	if err = r.cleanupDaemonSetsForProfilesThatNoLongerApply(ctx, instance, daemonSetNamesAppliedProfiles); err != nil {

@@ -223,6 +223,7 @@ func (r *Reconciler) cleanupDaemonSetsForProfilesThatNoLongerApply(ctx context.C
 	return nil
 }
 
+// TODO: add specific labels to the daemonset created by the operator that belong to a profile so that we can filter more easily
 func (r *Reconciler) agentDaemonSetsCreatedByOperator(ctx context.Context) ([]appsv1.DaemonSet, error) {
 	daemonSetList := appsv1.DaemonSetList{}
 

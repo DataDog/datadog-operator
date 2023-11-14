@@ -8,6 +8,7 @@ package agentprofile
 import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
 	datadoghqv1alpha1 "github.com/DataDog/datadog-operator/apis/datadoghq/v1alpha1"
@@ -40,7 +41,10 @@ func ProfilesToApply(profiles []datadoghqv1alpha1.DatadogAgentProfile) []datadog
 // ComponentOverrideFromProfile returns the component override that should be
 // applied according to the given profile.
 func ComponentOverrideFromProfile(profile *datadoghqv1alpha1.DatadogAgentProfile) v2alpha1.DatadogAgentComponentOverride {
-	overrideDSName := DaemonSetName(profile.Name)
+	overrideDSName := DaemonSetName(types.NamespacedName{
+		Namespace: profile.Namespace,
+		Name:      profile.Name,
+	})
 
 	return v2alpha1.DatadogAgentComponentOverride{
 		Name:       &overrideDSName,
@@ -51,12 +55,12 @@ func ComponentOverrideFromProfile(profile *datadoghqv1alpha1.DatadogAgentProfile
 
 // DaemonSetName returns the name that the DaemonSet should have according to
 // the name of the profile associated with it.
-func DaemonSetName(profileName string) string {
-	if profileName == defaultProfileName {
+func DaemonSetName(profileNamespacedName types.NamespacedName) string {
+	if profileNamespacedName.Name == defaultProfileName {
 		return "" // Return empty so it does not override the default DaemonSet name
 	}
 
-	return daemonSetNamePrefix + profileName
+	return daemonSetNamePrefix + profileNamespacedName.Namespace + "-" + profileNamespacedName.Name
 }
 
 // defaultProfile returns the default profile, which is the one to be applied in
