@@ -1,0 +1,48 @@
+name: openshift community pull requests
+on: [push]
+jobs:
+  create-community-pr:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: sync fork
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh repo sync fanny-jiang/community-operators \
+          --source k8s-operatorhub/community-operators \
+          --force
+      - name: checkout fork
+        uses: actions/checkout@v4
+        with:
+          repository: fanny-jiang/community-operators
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: checkout datadog-operator to tmp/ dir
+        uses: actions/checkout@v4
+        with:
+          repository: fanny-jiang/datadog-operator
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: tmp/
+
+      - name: update bundle
+        run: |
+          mkdir operators/datadog-operator/test-version
+          cp -R ./tmp/bundle/* operators/datadog-operator/test-version
+      - name: create PR
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          message="test PR"
+          body="test PR"
+          branch="community-prs"
+          git checkout -b $branch
+          git add -A
+          git commit -s -m "$message"
+          git push -f --set-upstream origin $branch
+          gh pr create --title "$message" \
+          --body "$body" \
+          --repo fanny-jiang/community-operators
+          --base main
+          --draft
