@@ -6,6 +6,8 @@
 package apm
 
 import (
+	"encoding/json"
+	"fmt"
 	"path/filepath"
 	"strconv"
 
@@ -54,6 +56,15 @@ type apmFeature struct {
 
 	createKubernetesNetworkPolicy bool
 	createCiliumNetworkPolicy     bool
+
+	singleStepInstrumentation *InstrumentationConfig
+}
+
+type InstrumentationConfig struct {
+	enabled            bool
+	enabledNamespaces  []string
+	disabledNamespaces []string
+	libVersions        map[string]string
 }
 
 // ID returns the ID of the Feature
@@ -96,6 +107,20 @@ func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 					apicommonv1.TraceAgentContainerName,
 				},
 			},
+		}
+		if apm.SingleStepInstrumentation != nil && apiutils.BoolValue(apm.SingleStepInstrumentation.Enabled) {
+
+			f.singleStepInstrumentation.enabled = true
+			f.singleStepInstrumentation.disabledNamespaces = apm.SingleStepInstrumentation.DisabledNamespaces
+			f.singleStepInstrumentation.enabledNamespaces = apm.SingleStepInstrumentation.EnabledNamespaces
+			f.singleStepInstrumentation.libVersions = apm.SingleStepInstrumentation.LibVersions
+
+			reqComp.ClusterAgent = feature.RequiredComponent{
+				IsRequired: apiutils.NewBoolPointer(true),
+				Containers: []apicommonv1.AgentContainerName{
+					apicommonv1.ClusterAgentContainerName,
+				},
+			}
 		}
 	}
 
@@ -228,6 +253,47 @@ func (f *apmFeature) ManageDependencies(managers feature.ResourceManagers, compo
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *apmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
+	if f.singleStepInstrumentation.enabled {
+		if len(f.singleStepInstrumentation.disabledNamespaces) > 0 && len(f.singleStepInstrumentation.enabledNamespaces) > 0 {
+			// This configuration is not supported
+			return fmt.Errorf("`enabledMamespaces` and `disabledNamespaces` cannot be set together")
+		}
+		managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
+			Name:  apicommon.DDAPMInstrumentationEnabled,
+			Value: "true",
+		})
+		if len(f.singleStepInstrumentation.disabledNamespaces) > 0 {
+			ns, err := json.Marshal(f.singleStepInstrumentation.disabledNamespaces)
+			if err != nil {
+				return err
+			}
+			managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
+				Name:  apicommon.DDAPMInstrumentationDisabledNamespaces,
+				Value: string(ns),
+			})
+		}
+		if len(f.singleStepInstrumentation.enabledNamespaces) > 0 {
+			ns, err := json.Marshal(f.singleStepInstrumentation.enabledNamespaces)
+			if err != nil {
+				return err
+			}
+			managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
+				Name:  apicommon.DDAPMInstrumentationEnabledNamespaces,
+				Value: string(ns),
+			})
+		}
+		if f.singleStepInstrumentation.libVersions != nil {
+			libs, err := json.Marshal(f.singleStepInstrumentation.libVersions)
+			if err != nil {
+				return err
+			}
+			managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
+				Name:  apicommon.DDAPMInstrumentationLibVersions,
+				Value: string(libs),
+			})
+		}
+
+	}
 	return nil
 }
 
