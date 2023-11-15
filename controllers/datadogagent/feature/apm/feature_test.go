@@ -72,7 +72,7 @@ func TestAPMFeature(t *testing.T) {
 		},
 		{
 			Name: "v2alpha1 basic apm single step instrumentation",
-			DDAv2: newV2Agent(true, true, &InstrumentationConfig{
+			DDAv2: newV2Agent(true, true, &instrumentationConfig{
 				enabled: true,
 			}),
 			WantConfigure: true,
@@ -80,7 +80,7 @@ func TestAPMFeature(t *testing.T) {
 		},
 		{
 			Name: "v2alpha1 error apm single step instrumentation",
-			DDAv2: newV2Agent(true, true, &InstrumentationConfig{
+			DDAv2: newV2Agent(true, true, &instrumentationConfig{
 				enabled:            true,
 				disabledNamespaces: []string{"foo", "bar"},
 				libVersions: map[string]string{
@@ -112,7 +112,7 @@ func newV1Agent(enableAPM bool, uds bool) *v1alpha1.DatadogAgent {
 	}
 }
 
-func newV2Agent(enableAPM bool, hostPort bool, ic *InstrumentationConfig) *v2alpha1.DatadogAgent {
+func newV2Agent(enableAPM bool, hostPort bool, ic *instrumentationConfig) *v2alpha1.DatadogAgent {
 	var conf *v2alpha1.SingleStepInstrumentation
 	if ic != nil {
 		conf = &v2alpha1.SingleStepInstrumentation{

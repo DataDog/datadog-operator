@@ -57,10 +57,10 @@ type apmFeature struct {
 	createKubernetesNetworkPolicy bool
 	createCiliumNetworkPolicy     bool
 
-	singleStepInstrumentation *InstrumentationConfig
+	singleStepInstrumentation *instrumentationConfig
 }
 
-type InstrumentationConfig struct {
+type instrumentationConfig struct {
 	enabled            bool
 	enabledNamespaces  []string
 	disabledNamespaces []string
@@ -109,7 +109,7 @@ func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 			},
 		}
 		if apm.SingleStepInstrumentation != nil && apiutils.BoolValue(apm.SingleStepInstrumentation.Enabled) {
-			f.singleStepInstrumentation = &InstrumentationConfig{}
+			f.singleStepInstrumentation = &instrumentationConfig{}
 			f.singleStepInstrumentation.enabled = true
 			f.singleStepInstrumentation.disabledNamespaces = apm.SingleStepInstrumentation.DisabledNamespaces
 			f.singleStepInstrumentation.enabledNamespaces = apm.SingleStepInstrumentation.EnabledNamespaces
@@ -252,7 +252,7 @@ func (f *apmFeature) ManageDependencies(managers feature.ResourceManagers, compo
 // ManageClusterAgent allows a feature to configure the ClusterAgent's corev1.PodTemplateSpec
 // It should do nothing if the feature doesn't need to configure it.
 func (f *apmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) error {
-	if f.singleStepInstrumentation.enabled {
+	if f.singleStepInstrumentation != nil && f.singleStepInstrumentation.enabled {
 		if len(f.singleStepInstrumentation.disabledNamespaces) > 0 && len(f.singleStepInstrumentation.enabledNamespaces) > 0 {
 			// This configuration is not supported
 			return fmt.Errorf("`enabledMamespaces` and `disabledNamespaces` cannot be set together")
