@@ -7839,6 +7839,30 @@ spec:
                               format: int32
                               type: integer
                           type: object
+                        singleStepInstrumentation:
+                          description: 'Single Step Instrumentation allows the agent to inject the Datadog APM libraries into all pods in the cluster. Feature is in beta. See also: https://docs.datadoghq.com/tracing/trace_collection/single-step-apm Enabled Default: false'
+                          properties:
+                            disabledNamespaces:
+                              description: DisabledNamespaces specifies the namespaces of the pods to not inject the Datadog APM libraries into.
+                              items:
+                                type: string
+                              type: array
+                              x-kubernetes-list-type: set
+                            enabled:
+                              description: 'Enabled enables injecting the Datadog APM libraries into all pods in the cluster. Default: false'
+                              type: boolean
+                            enabledNamespaces:
+                              description: EnabledNamespaces specifies the namespaces of the pods to inject the Datadog APM libraries into.
+                              items:
+                                type: string
+                              type: array
+                              x-kubernetes-list-type: set
+                            libVersions:
+                              additionalProperties:
+                                type: string
+                              description: 'Inject specific version of tracing libraries with Single Step Instrumentation <Library>: <Version> ex: "java": "v1.18.0"'
+                              type: object
+                          type: object
                         unixDomainSocketConfig:
                           description: 'UnixDomainSocketConfig contains socket configuration. See also: https://docs.datadoghq.com/agent/kubernetes/apm/?tab=helm#agent-environment-variables Enabled Default: true Path Default: `/var/run/datadog/apm.socket`'
                           properties:
