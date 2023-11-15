@@ -151,6 +151,19 @@ func (builder *DatadogAgentBuilder) WithLiveProcessScrubStrip(scrubEnabled, stri
 	return builder
 }
 
+// Admission Controller
+func (builder *DatadogAgentBuilder) initAdmissionController() {
+	if builder.datadogAgent.Spec.Features.AdmissionController == nil {
+		builder.datadogAgent.Spec.Features.AdmissionController = &v2alpha1.AdmissionControllerFeatureConfig{}
+	}
+}
+
+func (builder *DatadogAgentBuilder) WithAdmissionControllerEnabled(enabled bool) *DatadogAgentBuilder {
+	builder.initAdmissionController()
+	builder.datadogAgent.Spec.Features.AdmissionController.Enabled = apiutils.NewBoolPointer(enabled)
+	return builder
+}
+
 // Log Collection
 func (builder *DatadogAgentBuilder) initLogCollection() {
 	if builder.datadogAgent.Spec.Features.LogCollection == nil {
@@ -360,6 +373,17 @@ func (builder *DatadogAgentBuilder) WithAPMUDSEnabled(enabled bool, apmSocketHos
 	builder.datadogAgent.Spec.Features.APM.UnixDomainSocketConfig = &v2alpha1.UnixDomainSocketConfig{
 		Enabled: apiutils.NewBoolPointer(enabled),
 		Path:    apiutils.NewStringPointer(apmSocketHostPath),
+	}
+	return builder
+}
+
+func (builder *DatadogAgentBuilder) WithAPMSingleStepInstrumentationEnabled(enabled bool, enabledNamespaces []string, disabledNamespaces []string, libVersion map[string]string) *DatadogAgentBuilder {
+	builder.initAPM()
+	builder.datadogAgent.Spec.Features.APM.SingleStepInstrumentation = &v2alpha1.SingleStepInstrumentation{
+		Enabled:            apiutils.NewBoolPointer(enabled),
+		EnabledNamespaces:  enabledNamespaces,
+		DisabledNamespaces: disabledNamespaces,
+		LibVersions:        libVersion,
 	}
 	return builder
 }

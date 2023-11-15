@@ -35,17 +35,17 @@ const (
 
 	defaultEBPFCheckEnabled bool = false
 
-	defaultAPMEnabled         bool   = true
-	defaultAPMHostPortEnabled bool   = false
-	defaultAPMHostPort        int32  = 8126
-	defaultAPMSocketEnabled   bool   = true
-	defaultAPMSocketHostPath  string = apicommon.DogstatsdAPMSocketHostPath + "/" + apicommon.APMSocketName
-
-	defaultCSPMEnabled                bool = false
-	defaultCWSEnabled                 bool = false
-	defaultCWSSyscallMonitorEnabled   bool = false
-	defaultCWSNetworkEnabled          bool = true
-	defaultCWSSecurityProfilesEnabled bool = true
+	defaultAPMEnabled                       bool   = true
+	defaultAPMHostPortEnabled               bool   = false
+	defaultAPMHostPort                      int32  = 8126
+	defaultAPMSocketEnabled                 bool   = true
+	defaultAPMSocketHostPath                string = apicommon.DogstatsdAPMSocketHostPath + "/" + apicommon.APMSocketName
+	defaultSingleStepInstrumentationEnabled bool   = false
+	defaultCSPMEnabled                      bool   = false
+	defaultCWSEnabled                       bool   = false
+	defaultCWSSyscallMonitorEnabled         bool   = false
+	defaultCWSNetworkEnabled                bool   = true
+	defaultCWSSecurityProfilesEnabled       bool   = true
 
 	defaultNPMEnabled         bool = false
 	defaultNPMEnableConntrack bool = true
@@ -199,9 +199,11 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.EBPFCheck.Enabled, defaultEBPFCheckEnabled)
 
 	// APM Feature
+	// APM is enabled by default
 	if ddaSpec.Features.APM == nil {
 		ddaSpec.Features.APM = &APMFeatureConfig{}
 	}
+
 	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.APM.Enabled, defaultAPMEnabled)
 
 	if *ddaSpec.Features.APM.Enabled {
@@ -220,6 +222,11 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.APM.UnixDomainSocketConfig.Enabled, defaultAPMSocketEnabled)
 
 		apiutils.DefaultStringIfUnset(&ddaSpec.Features.APM.UnixDomainSocketConfig.Path, defaultAPMSocketHostPath)
+
+		if ddaSpec.Features.APM.SingleStepInstrumentation == nil {
+			ddaSpec.Features.APM.SingleStepInstrumentation = &SingleStepInstrumentation{}
+		}
+		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.APM.SingleStepInstrumentation.Enabled, defaultSingleStepInstrumentationEnabled)
 	}
 
 	// CSPM (Cloud Security Posture Management) Feature
