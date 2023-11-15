@@ -109,12 +109,11 @@ func (f *apmFeature) Configure(dda *v2alpha1.DatadogAgent) (reqComp feature.Requ
 			},
 		}
 		if apm.SingleStepInstrumentation != nil && apiutils.BoolValue(apm.SingleStepInstrumentation.Enabled) {
-
+			f.singleStepInstrumentation = &InstrumentationConfig{}
 			f.singleStepInstrumentation.enabled = true
 			f.singleStepInstrumentation.disabledNamespaces = apm.SingleStepInstrumentation.DisabledNamespaces
 			f.singleStepInstrumentation.enabledNamespaces = apm.SingleStepInstrumentation.EnabledNamespaces
 			f.singleStepInstrumentation.libVersions = apm.SingleStepInstrumentation.LibVersions
-
 			reqComp.ClusterAgent = feature.RequiredComponent{
 				IsRequired: apiutils.NewBoolPointer(true),
 				Containers: []apicommonv1.AgentContainerName{
