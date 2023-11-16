@@ -4,7 +4,7 @@ The Datadog Operator makes it easy for you to configure Datadog [integrations][2
 
 ## Define ConfigMap in the `DatadogAgent` Resource
 
-Use the `spec.override.nodeAgent.extraConfd.configDataMap` field to define your check's configuration:
+Use the `spec.override.clusterAgent.extraConfd.configDataMap` field to define your check's configuration:
 
 ```yaml
 apiVersion: datadoghq.com/v2alpha1
