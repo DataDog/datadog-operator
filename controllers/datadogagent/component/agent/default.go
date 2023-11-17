@@ -268,7 +268,13 @@ func envVarsForCoreAgent(dda metav1.Object) []corev1.EnvVar {
 		},
 		{
 			Name:  apicommon.DDLeaderElection,
-			Value: "true",
+			Value: apicommon.EnvVarTrueValue,
+		},
+		{
+			// we want to default it in 7.49.0
+			// but in 7.50.0 it will be already defaulted in the agent process.
+			Name:  apicommon.DDContainerImageEnabled,
+			Value: apicommon.EnvVarTrueValue,
 		},
 	}
 
