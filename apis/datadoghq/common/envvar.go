@@ -105,6 +105,7 @@ const (
 	DDRuntimeSecurityConfigNetworkEnabled             = "DD_RUNTIME_SECURITY_CONFIG_NETWORK_ENABLED"
 	DDRuntimeSecurityConfigActivityDumpEnabled        = "DD_RUNTIME_SECURITY_CONFIG_ACTIVITY_DUMP_ENABLED"
 	DDRuntimeSecurityConfigRemoteConfigurationEnabled = "DD_RUNTIME_SECURITY_CONFIG_REMOTE_CONFIGURATION_ENABLED"
+	DDContainerImageEnabled                           = "DD_CONTAINER_IMAGE_ENABLED"
 	DDSBOMEnabled                                     = "DD_SBOM_ENABLED"
 	DDSBOMContainerImageEnabled                       = "DD_SBOM_CONTAINER_IMAGE_ENABLED"
 	DDSBOMContainerImageAnalyzers                     = "DD_SBOM_CONTAINER_IMAGE_ANALYZERS"
@@ -136,4 +137,7 @@ const (
 	KubernetesEnvVar = "KUBERNETES"
 
 	ClusterChecksConfigProvider = "clusterchecks"
+
+	EnvVarTrueValue  = "true"
+	EnvVarFalseValue = "false"
 )
