@@ -129,6 +129,17 @@ func Test_defaultFeatures(t *testing.T) {
 							Path:    apiutils.NewStringPointer(defaultDogstatsdHostSocketPath),
 						},
 					},
+					APM: &APMFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
+						HostPortConfig: &HostPortConfig{
+							Port:    apiutils.NewInt32Pointer(defaultAPMHostPort),
+							Enabled: apiutils.NewBoolPointer(defaultAPMHostPortEnabled),
+						},
+						UnixDomainSocketConfig: &UnixDomainSocketConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
+							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
+						},
+					},
 					OTLP: &OTLPFeatureConfig{Receiver: OTLPReceiverConfig{Protocols: OTLPProtocolsConfig{
 						GRPC: &OTLPGRPCConfig{
 							Enabled:  apiutils.NewBoolPointer(defaultOTLPGRPCEnabled),
@@ -369,6 +380,17 @@ func Test_defaultFeatures(t *testing.T) {
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
 					},
+					APM: &APMFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
+						HostPortConfig: &HostPortConfig{
+							Port:    apiutils.NewInt32Pointer(defaultAPMHostPort),
+							Enabled: apiutils.NewBoolPointer(defaultAPMHostPortEnabled),
+						},
+						UnixDomainSocketConfig: &UnixDomainSocketConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
+							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
+						},
+					},
 					RemoteConfiguration: &RemoteConfigurationFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultRemoteConfigurationEnabled),
 					},
@@ -436,6 +458,17 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
+					},
+					APM: &APMFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
+						HostPortConfig: &HostPortConfig{
+							Port:    apiutils.NewInt32Pointer(defaultAPMHostPort),
+							Enabled: apiutils.NewBoolPointer(defaultAPMHostPortEnabled),
+						},
+						UnixDomainSocketConfig: &UnixDomainSocketConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
+							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
+						},
 					},
 					RemoteConfiguration: &RemoteConfigurationFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultRemoteConfigurationEnabled),
@@ -568,6 +601,17 @@ func Test_defaultFeatures(t *testing.T) {
 						Enabled:                 apiutils.NewBoolPointer(defaultClusterChecksEnabled),
 						UseClusterChecksRunners: apiutils.NewBoolPointer(defaultUseClusterChecksRunners),
 					},
+					APM: &APMFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
+						HostPortConfig: &HostPortConfig{
+							Port:    apiutils.NewInt32Pointer(defaultAPMHostPort),
+							Enabled: apiutils.NewBoolPointer(defaultAPMHostPortEnabled),
+						},
+						UnixDomainSocketConfig: &UnixDomainSocketConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
+							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
+						},
+					},
 					AdmissionController: &AdmissionControllerFeatureConfig{
 						Enabled:          apiutils.NewBoolPointer(defaultAdmissionControllerEnabled),
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
@@ -640,6 +684,17 @@ func Test_defaultFeatures(t *testing.T) {
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
 					},
+					APM: &APMFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
+						HostPortConfig: &HostPortConfig{
+							Port:    apiutils.NewInt32Pointer(defaultAPMHostPort),
+							Enabled: apiutils.NewBoolPointer(defaultAPMHostPortEnabled),
+						},
+						UnixDomainSocketConfig: &UnixDomainSocketConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
+							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
+						},
+					},
 					RemoteConfiguration: &RemoteConfigurationFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultRemoteConfigurationEnabled),
 					},
@@ -690,6 +745,17 @@ func Test_defaultFeatures(t *testing.T) {
 					},
 					KubeStateMetricsCore: &KubeStateMetricsCoreFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultKubeStateMetricsCoreEnabled),
+					},
+					APM: &APMFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
+						HostPortConfig: &HostPortConfig{
+							Port:    apiutils.NewInt32Pointer(defaultAPMHostPort),
+							Enabled: apiutils.NewBoolPointer(defaultAPMHostPortEnabled),
+						},
+						UnixDomainSocketConfig: &UnixDomainSocketConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
+							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
+						},
 					},
 					ExternalMetricsServer: &ExternalMetricsServerFeatureConfig{
 						Enabled:            apiutils.NewBoolPointer(valueTrue),
@@ -766,6 +832,17 @@ func Test_defaultFeatures(t *testing.T) {
 						MutateUnlabelled: apiutils.NewBoolPointer(defaultAdmissionControllerMutateUnlabelled),
 						ServiceName:      apiutils.NewStringPointer(defaultAdmissionServiceName),
 					},
+					APM: &APMFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
+						HostPortConfig: &HostPortConfig{
+							Port:    apiutils.NewInt32Pointer(defaultAPMHostPort),
+							Enabled: apiutils.NewBoolPointer(defaultAPMHostPortEnabled),
+						},
+						UnixDomainSocketConfig: &UnixDomainSocketConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
+							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
+						},
+					},
 					RemoteConfiguration: &RemoteConfigurationFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultRemoteConfigurationEnabled),
 					},
@@ -786,6 +863,17 @@ func Test_defaultFeatures(t *testing.T) {
 				Features: &DatadogFeatures{
 					LiveContainerCollection: &LiveContainerCollectionFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
+					},
+					APM: &APMFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
+						HostPortConfig: &HostPortConfig{
+							Port:    apiutils.NewInt32Pointer(defaultAPMHostPort),
+							Enabled: apiutils.NewBoolPointer(defaultAPMHostPortEnabled),
+						},
+						UnixDomainSocketConfig: &UnixDomainSocketConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
+							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
+						},
 					},
 					ProcessDiscovery: &ProcessDiscoveryFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultProcessDiscoveryEnabled),
@@ -872,6 +960,17 @@ func Test_defaultFeatures(t *testing.T) {
 					EventCollection: &EventCollectionFeatureConfig{
 						CollectKubernetesEvents: apiutils.NewBoolPointer(defaultCollectKubernetesEvents),
 					},
+					APM: &APMFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
+						HostPortConfig: &HostPortConfig{
+							Port:    apiutils.NewInt32Pointer(defaultAPMHostPort),
+							Enabled: apiutils.NewBoolPointer(defaultAPMHostPortEnabled),
+						},
+						UnixDomainSocketConfig: &UnixDomainSocketConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
+							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
+						},
+					},
 					OrchestratorExplorer: &OrchestratorExplorerFeatureConfig{
 						Enabled:         apiutils.NewBoolPointer(defaultOrchestratorExplorerEnabled),
 						ScrubContainers: apiutils.NewBoolPointer(defaultOrchestratorExplorerScrubContainers),
@@ -929,9 +1028,19 @@ func Test_defaultFeatures(t *testing.T) {
 					ProcessDiscovery: &ProcessDiscoveryFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultProcessDiscoveryEnabled),
 					},
-					OOMKill:               &OOMKillFeatureConfig{},
-					TCPQueueLength:        &TCPQueueLengthFeatureConfig{},
-					APM:                   &APMFeatureConfig{},
+					OOMKill:        &OOMKillFeatureConfig{},
+					TCPQueueLength: &TCPQueueLengthFeatureConfig{},
+					APM: &APMFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
+						HostPortConfig: &HostPortConfig{
+							Port:    apiutils.NewInt32Pointer(defaultAPMHostPort),
+							Enabled: apiutils.NewBoolPointer(defaultAPMHostPortEnabled),
+						},
+						UnixDomainSocketConfig: &UnixDomainSocketConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
+							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
+						},
+					},
 					CSPM:                  &CSPMFeatureConfig{},
 					CWS:                   &CWSFeatureConfig{},
 					NPM:                   &NPMFeatureConfig{},

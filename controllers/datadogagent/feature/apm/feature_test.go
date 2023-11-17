@@ -55,32 +55,32 @@ func TestAPMFeature(t *testing.T) {
 		//////////////////////////
 		{
 			Name:          "v2alpha1 apm not enabled",
-			DDAv2:         newV2Agent(false, false, nil),
+			DDAv2:         newV2Agent(false, false, apiutils.NewBoolPointer(false), nil),
 			WantConfigure: false,
 		},
 		{
 			Name:          "v2alpha1 apm enabled, use uds",
-			DDAv2:         newV2Agent(true, false, nil),
+			DDAv2:         newV2Agent(true, false, apiutils.NewBoolPointer(false), nil),
 			WantConfigure: true,
 			Agent:         testAgentUDSOnly(),
 		},
 		{
 			Name:          "v2alpha1 apm enabled, use uds and host port",
-			DDAv2:         newV2Agent(true, true, nil),
+			DDAv2:         newV2Agent(true, true, apiutils.NewBoolPointer(false), nil),
 			WantConfigure: true,
 			Agent:         testAgentHostPortUDS(),
 		},
 		{
 			Name: "v2alpha1 basic apm single step instrumentation",
-			DDAv2: newV2Agent(true, true, &instrumentationConfig{
+			DDAv2: newV2Agent(true, true, apiutils.NewBoolPointer(true), &instrumentationConfig{
 				enabled: true,
 			}),
 			WantConfigure: true,
 			ClusterAgent:  testAPMInstrumentation(),
 		},
 		{
-			Name: "v2alpha1 error apm single step instrumentation",
-			DDAv2: newV2Agent(true, true, &instrumentationConfig{
+			Name: "v2alpha1 basic apm single step instrumentation",
+			DDAv2: newV2Agent(true, true, apiutils.NewBoolPointer(true), &instrumentationConfig{
 				enabled:            true,
 				disabledNamespaces: []string{"foo", "bar"},
 				libVersions: map[string]string{
@@ -89,6 +89,34 @@ func TestAPMFeature(t *testing.T) {
 			}),
 			WantConfigure: true,
 			ClusterAgent:  testAPMInstrumentationFull(),
+		},
+		{
+			Name: "v2alpha1 step instrumentation precedence ",
+			DDAv2: newV2Agent(false, true, apiutils.NewBoolPointer(true), &instrumentationConfig{
+				enabled: true,
+			}),
+			WantConfigure: false,
+		},
+		{
+			Name: "v2alpha1 step instrumentation w/o AC",
+			DDAv2: newV2Agent(true, true, apiutils.NewBoolPointer(false), &instrumentationConfig{
+				enabled: true,
+			}),
+			WantConfigure: true,
+			Agent:         testTraceAgentEnabled(),
+			ClusterAgent:  testAPMInstrumentationDisabledWithAC(),
+		},
+		{
+			Name: "v2alpha1 single step instrumentation namespace specific",
+			DDAv2: newV2Agent(true, true, apiutils.NewBoolPointer(true), &instrumentationConfig{
+				enabled:           false,
+				enabledNamespaces: []string{"foo", "bar"},
+				libVersions: map[string]string{
+					"java": "1.2.4",
+				},
+			}),
+			WantConfigure: true,
+			ClusterAgent:  testAPMInstrumentationNamespaces(),
 		},
 	}
 
@@ -112,7 +140,7 @@ func newV1Agent(enableAPM bool, uds bool) *v1alpha1.DatadogAgent {
 	}
 }
 
-func newV2Agent(enableAPM bool, hostPort bool, ic *instrumentationConfig) *v2alpha1.DatadogAgent {
+func newV2Agent(enableAPM bool, hostPort bool, ac *bool, ic *instrumentationConfig) *v2alpha1.DatadogAgent {
 	var conf *v2alpha1.SingleStepInstrumentation
 	if ic != nil {
 		conf = &v2alpha1.SingleStepInstrumentation{
@@ -122,7 +150,12 @@ func newV2Agent(enableAPM bool, hostPort bool, ic *instrumentationConfig) *v2alp
 			LibVersions:        ic.libVersions,
 		}
 	}
-
+	var acConfig *v2alpha1.AdmissionControllerFeatureConfig
+	if ac != nil {
+		acConfig = &v2alpha1.AdmissionControllerFeatureConfig{
+			Enabled: ac,
+		}
+	}
 	return &v2alpha1.DatadogAgent{
 		Spec: v2alpha1.DatadogAgentSpec{
 			Features: &v2alpha1.DatadogFeatures{
@@ -138,10 +171,43 @@ func newV2Agent(enableAPM bool, hostPort bool, ic *instrumentationConfig) *v2alp
 					},
 					SingleStepInstrumentation: conf,
 				},
+				AdmissionController: acConfig,
 			},
 			Global: &v2alpha1.GlobalConfig{},
 		},
 	}
+}
+
+func testTraceAgentEnabled() *test.ComponentTest {
+	return test.NewDefaultComponentTest().WithWantFunc(
+		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			mgr := mgrInterface.(*fake.PodTemplateManagers)
+			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.TraceAgentContainerName]
+			expectedAgentEnvs := []*corev1.EnvVar{
+				{
+					Name:  apicommon.DDAPMEnabled,
+					Value: "true",
+				},
+				{
+					Name:  apicommon.DDAPMReceiverPort,
+					Value: "8126",
+				},
+				{
+					Name:  apicommon.DDAPMNonLocalTraffic,
+					Value: "true",
+				},
+				{
+					Name:  apicommon.DDAPMReceiverSocket,
+					Value: apmSocketLocalPath,
+				},
+			}
+			assert.True(
+				t,
+				apiutils.IsEqualStruct(agentEnvs, expectedAgentEnvs),
+				"Trace Agent Env \ndiff = %s", cmp.Diff(agentEnvs, expectedAgentEnvs),
+			)
+		},
+	)
 }
 
 func testAgentHostPortOnly() *test.ComponentTest {
@@ -278,6 +344,73 @@ func testAPMInstrumentationFull() *test.ComponentTest {
 				{
 					Name:  apicommon.DDAPMInstrumentationLibVersions,
 					Value: "{\"java\":\"1.2.4\"}",
+				},
+			}
+			assert.True(
+				t,
+				apiutils.IsEqualStruct(agentEnvs, expectedAgentEnvs),
+				"Cluster Agent ENVs \ndiff = %s", cmp.Diff(agentEnvs, expectedAgentEnvs),
+			)
+		},
+	)
+}
+
+func testAPMInstrumentationDisabledWithAC() *test.ComponentTest {
+	// Work around to test that the Cluster Agent will not be configured with SSI if the AC is not enabled.
+	return test.NewDefaultComponentTest().WithWantFunc(
+		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ClusterAgentContainerName]
+
+			assert.True(
+				t,
+				apiutils.IsEqualStruct(agentEnvs, nil),
+				"Cluster Agent ENVs \ndiff = %s", cmp.Diff(agentEnvs, nil),
+			)
+		},
+	)
+}
+
+func testAPMInstrumentationNamespaces() *test.ComponentTest {
+	return test.NewDefaultComponentTest().WithWantFunc(
+		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ClusterAgentContainerName]
+			expectedAgentEnvs := []*corev1.EnvVar{
+				{
+					Name:  apicommon.DDAPMInstrumentationEnabled,
+					Value: "false",
+				},
+				{
+					Name:  apicommon.DDAPMInstrumentationEnabledNamespaces,
+					Value: "[\"foo\",\"bar\"]",
+				},
+				{
+					Name:  apicommon.DDAPMInstrumentationLibVersions,
+					Value: "{\"java\":\"1.2.4\"}",
+				},
+			}
+			assert.True(
+				t,
+				apiutils.IsEqualStruct(agentEnvs, expectedAgentEnvs),
+				"Cluster Agent ENVs \ndiff = %s", cmp.Diff(agentEnvs, expectedAgentEnvs),
+			)
+		},
+	)
+}
+
+func testAPMInstrumentationPrecedence() *test.ComponentTest {
+	return test.NewDefaultComponentTest().WithWantFunc(
+		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
+			mgr := mgrInterface.(*fake.PodTemplateManagers)
+
+			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ClusterAgentContainerName]
+			expectedAgentEnvs := []*corev1.EnvVar{
+				{
+					Name:  apicommon.DDAPMInstrumentationEnabled,
+					Value: "true",
 				},
 			}
 			assert.True(
