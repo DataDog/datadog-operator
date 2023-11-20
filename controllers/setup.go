@@ -55,6 +55,7 @@ type ExtendedDaemonsetOptions struct {
 	CanaryAutoPauseMaxRestarts int
 	CanaryAutoFailEnabled      bool
 	CanaryAutoFailMaxRestarts  int
+	CanaryMaxSlowStartDuration time.Duration
 }
 
 type starterFunc func(logr.Logger, manager.Manager, *version.Info, kubernetes.PlatformInfo, SetupOptions) error
@@ -131,6 +132,7 @@ func startDatadogAgent(logger logr.Logger, mgr manager.Manager, vInfo *version.I
 				CanaryAutoPauseMaxRestarts: int32(options.SupportExtendedDaemonset.CanaryAutoPauseMaxRestarts),
 				CanaryAutoFailEnabled:      options.SupportExtendedDaemonset.CanaryAutoFailEnabled,
 				CanaryAutoFailMaxRestarts:  int32(options.SupportExtendedDaemonset.CanaryAutoFailMaxRestarts),
+				CanaryMaxSlowStartDuration: options.SupportExtendedDaemonset.CanaryMaxSlowStartDuration,
 			},
 			SupportCilium:          options.SupportCilium,
 			OperatorMetricsEnabled: options.OperatorMetricsEnabled,

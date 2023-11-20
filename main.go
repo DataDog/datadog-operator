@@ -84,6 +84,7 @@ const (
 	// default to 0, to use default value from EDS.
 	defaultCanaryAutoPauseMaxRestarts = 0
 	defaultCanaryAutoFailMaxRestarts  = 0
+	defaultCanaryMaxSlowStartDuration = 0
 )
 
 type options struct {
@@ -110,6 +111,7 @@ type options struct {
 	edsCanaryAutoPauseMaxRestarts int
 	edsCanaryAutoFailEnabled      bool
 	edsCanaryAutoFailMaxRestarts  int
+	edsCanaryMaxSlowStartDuration time.Duration
 	supportCilium                 bool
 	datadogAgentEnabled           bool
 	datadogMonitorEnabled         bool
@@ -161,6 +163,7 @@ func (opts *options) Parse() {
 	flag.IntVar(&opts.edsCanaryAutoPauseMaxRestarts, "edsCanaryAutoPauseMaxRestarts", defaultCanaryAutoPauseMaxRestarts, "ExtendedDaemonset canary auto pause max restart count")
 	flag.BoolVar(&opts.edsCanaryAutoFailEnabled, "edsCanaryAutoFailEnabled", defaultCanaryAutoFailEnabled, "ExtendedDaemonset canary auto fail enabled")
 	flag.IntVar(&opts.edsCanaryAutoFailMaxRestarts, "edsCanaryAutoFailMaxRestarts", defaultCanaryAutoFailMaxRestarts, "ExtendedDaemonset canary auto fail max restart count")
+	flag.DurationVar(&opts.edsCanaryMaxSlowStartDuration, "edsCanaryMaxSlowStartDuration", defaultCanaryMaxSlowStartDuration*time.Minute, "ExtendedDaemonset canary max slow start duration")
 
 	// Parsing flags
 	flag.Parse()
@@ -255,6 +258,7 @@ func run(opts *options) error {
 			CanaryAutoPauseMaxRestarts: opts.edsCanaryAutoPauseMaxRestarts,
 			CanaryAutoFailEnabled:      opts.edsCanaryAutoFailEnabled,
 			CanaryAutoFailMaxRestarts:  opts.edsCanaryAutoFailMaxRestarts,
+			CanaryMaxSlowStartDuration: opts.edsCanaryMaxSlowStartDuration,
 			MaxPodSchedulerFailure:     opts.edsMaxPodSchedulerFailure,
 		},
 		SupportCilium:          opts.supportCilium,

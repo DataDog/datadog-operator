@@ -70,6 +70,7 @@ type ExtendedDaemonsetOptions struct {
 	CanaryAutoPauseMaxRestarts int32
 	CanaryAutoFailEnabled      bool
 	CanaryAutoFailMaxRestarts  int32
+	CanaryMaxSlowStartDuration time.Duration
 }
 
 func defaultEDSSpec(options *ExtendedDaemonsetOptions) edsv1alpha1.ExtendedDaemonSetSpec {
@@ -99,6 +100,10 @@ func defaultEDSSpec(options *ExtendedDaemonsetOptions) edsv1alpha1.ExtendedDaemo
 	spec.Strategy.Canary.AutoFail.Enabled = edsv1alpha1.NewBool(options.CanaryAutoFailEnabled)
 	if options.CanaryAutoFailMaxRestarts > 0 {
 		spec.Strategy.Canary.AutoFail.MaxRestarts = edsv1alpha1.NewInt32(options.CanaryAutoFailMaxRestarts)
+	}
+
+	if options.CanaryMaxSlowStartDuration != 0 {
+		spec.Strategy.Canary.AutoPause.MaxSlowStartDuration = &metav1.Duration{Duration: options.CanaryMaxSlowStartDuration}
 	}
 
 	spec.Strategy.Canary.AutoPause.Enabled = edsv1alpha1.NewBool(options.CanaryAutoPauseEnabled)
