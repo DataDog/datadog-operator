@@ -22,8 +22,8 @@ $YQ -i ".metadata.annotations.containerImage = \"$IMAGE\"" bundle/manifests/data
 VERSION=$($YQ '.spec.version' bundle/manifests/datadog-operator.clusterserviceversion.yaml )
 $YQ -i ".metadata.annotations.\"olm.skipRange\" = \"<$VERSION\"" bundle/manifests/datadog-operator.clusterserviceversion.yaml
 
-# Delete replaces
-$YQ -i 'del(.spec.replaces)' bundle/manifests/datadog-operator.clusterserviceversion.yaml
+# Set spec.replaces to latest released version
+$YQ -i ".spec.\"replaces\" = \"$LATEST_VERSION\"" bundle/manifests/datadog-operator.clusterserviceversion.yaml
 
 # Add OpenShift version annotation (adding in main bundle as it's used for OpenShift Community)
 $YQ -i ".annotations.\"com.redhat.openshift.versions\" = \"v4.6\"" bundle/metadata/annotations.yaml
