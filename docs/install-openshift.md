@@ -6,27 +6,21 @@ The Datadog Operator is [certified by RedHat's Marketplace][1].
 
 Use the [Operator Lifecycle Manager][2] to deploy the Datadog Operator from OperatorHub in your OpenShift Cluster web console.
 
-1. You can create a `datadog` project in your OpenShift cluster:
-
-   ```shell
-   oc new-project datadog
-   ```
-
-2. In OperatorHub or the OpenShift Web Console, search for the Datadog Operator and click **Install**.
+1. In OperatorHub or the OpenShift Web Console, search for the Datadog Operator and click **Install**.
 
 ![Datadog Operator in the OperatorHub](assets/operatorhub.png)
 
-Installation includes the creation of a `ServiceAccount` called `datadog-agent-scc` that is bound to two default OpenShift `SecurityContextConstraints`.
+Installation includes the creation of a `ServiceAccount` called `datadog-agent-scc` that is bound to two default OpenShift `SecurityContextConstraints` (`hostaccess` and `privileged`), which are required for the Datadog Agent to run.
 
-3. Specify the namespace to install the Datadog Operator in, you can use `datadog` if you previously created the project or an existing one, such as `openshift-operators`:
+2. Specify the namespace to install the Datadog Operator in, you can use the default `openshift-operators` or a different existing one:
 
-![Deploy the operator in the datadog namespace](assets/datadognamespace.png)
+![Deploy the operator in the openshift-operators namespace](assets/openshiftoperatornamespace.png)
 
 **Note**: Prior to version 1.0, multiple `InstallModes` were supported in the `ClusterServiceVersion` (see the [OLM operator install doc][3] as a reference). Due to the introduction of the conversion webhook in 1.0, only the `AllNamespaces` `InstallMode` [is supported][4] in versions 1.0 and later.
 
 ## Deploy the Datadog Agent with the Operator
 
-After deploying the Datadog Operator, create a `DatadogAgent` resource that triggers a deployment of the Datadog Agent in your OpenShift cluster. The Agent is deployed as a `Daemonset`. Datadog recommends that you use the Cluster Agent to manage cluster-level monitoring, which will automatically be deployed by default.
+After deploying the Datadog Operator, create a `DatadogAgent` resource that triggers a deployment of the Datadog Agent in your OpenShift cluster. The Agent is deployed as a `DaemonSet`. Datadog recommends that you use the Cluster Agent to manage cluster-level monitoring, which will automatically be deployed by default as an additional `Deployment`.
 
 
 **Notes**:
@@ -34,10 +28,10 @@ After deploying the Datadog Operator, create a `DatadogAgent` resource that trig
 - In Datadog Operator version `1.0`, listing the conversion webhook is **enabled** by default. The conversion allows a smooth transition from the (deprecated) `v1alpha1` `DatadogAgent` CRD to `v2alpha1`.
 
 
-1. Create a Kubernetes secret with your API and App keys:
+1. In the namespace where the Datadog Operator was deployed, create a Kubernetes secret with your API and App keys:
 
    ```shell
-   oc create secret generic datadog-secret -n datadog --from-literal api-key=<DATADOG_API_KEY> --from-literal app-key=<DATADOG_APP_KEY>
+   oc create secret generic datadog-secret -n openshift-operators --from-literal api-key=<DATADOG_API_KEY> --from-literal app-key=<DATADOG_APP_KEY>
    ```
    Replace `<DATADOG_API_KEY>` and `<DATADOG_APP_KEY>` with your [Datadog API][5] and [Application keys][6].
 
@@ -51,7 +45,7 @@ The following is the simplest recommended configuration for the `DatadogAgent` i
   kind: DatadogAgent
   metadata:
     name: datadog
-    namespace: datadog # or openshift-operators depending on where the Datadog Operator was deployed
+    namespace: openshift-operators # same namespace as where the Datadog Operator was deployed
   spec:
     global:
       credentials:
@@ -68,7 +62,9 @@ The following is the simplest recommended configuration for the `DatadogAgent` i
         tlsVerify: false
     override:
       nodeAgent:
-        hostNetwork: true # In OpenShift 4.0+, set this parameter to get host tags and aliases
+        # In OpenShift 4.0+, set the hostNetwork parameter to allow access to your cloud provider metadata API endpoint.
+        # This is necessary to retrieve host tags and aliases collected by Datadog cloud provider integrations. 
+        hostNetwork: true
         securityContext:
           runAsUser: 0
           seLinuxOptions:
