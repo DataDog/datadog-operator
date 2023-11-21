@@ -49,13 +49,13 @@ type ExtendedDaemonsetOptions struct {
 	MaxPodUnavailable      string
 	MaxPodSchedulerFailure string
 
-	CanaryDuration             time.Duration
-	CanaryReplicas             string
-	CanaryAutoPauseEnabled     bool
-	CanaryAutoPauseMaxRestarts int
-	CanaryAutoFailEnabled      bool
-	CanaryAutoFailMaxRestarts  int
-	CanaryMaxSlowStartDuration time.Duration
+	CanaryDuration                      time.Duration
+	CanaryReplicas                      string
+	CanaryAutoPauseEnabled              bool
+	CanaryAutoPauseMaxRestarts          int
+	CanaryAutoFailEnabled               bool
+	CanaryAutoFailMaxRestarts           int
+	CanaryAutoPauseMaxSlowStartDuration time.Duration
 }
 
 type starterFunc func(logr.Logger, manager.Manager, *version.Info, kubernetes.PlatformInfo, SetupOptions) error
@@ -132,7 +132,7 @@ func startDatadogAgent(logger logr.Logger, mgr manager.Manager, vInfo *version.I
 				CanaryAutoPauseMaxRestarts: int32(options.SupportExtendedDaemonset.CanaryAutoPauseMaxRestarts),
 				CanaryAutoFailEnabled:      options.SupportExtendedDaemonset.CanaryAutoFailEnabled,
 				CanaryAutoFailMaxRestarts:  int32(options.SupportExtendedDaemonset.CanaryAutoFailMaxRestarts),
-				CanaryMaxSlowStartDuration: options.SupportExtendedDaemonset.CanaryMaxSlowStartDuration,
+				CanaryMaxSlowStartDuration: options.SupportExtendedDaemonset.CanaryAutoPauseMaxSlowStartDuration,
 			},
 			SupportCilium:          options.SupportCilium,
 			OperatorMetricsEnabled: options.OperatorMetricsEnabled,

@@ -82,9 +82,9 @@ const (
 	defaultCanaryAutoPauseEnabled = true
 	defaultCanaryAutoFailEnabled  = true
 	// default to 0, to use default value from EDS.
-	defaultCanaryAutoPauseMaxRestarts = 0
-	defaultCanaryAutoFailMaxRestarts  = 0
-	defaultCanaryMaxSlowStartDuration = 0
+	defaultCanaryAutoPauseMaxRestarts          = 0
+	defaultCanaryAutoFailMaxRestarts           = 0
+	defaultCanaryAutoPauseMaxSlowStartDuration = 0
 )
 
 type options struct {
@@ -102,24 +102,24 @@ type options struct {
 	leaderElectionLeaseDuration time.Duration
 
 	// Controllers options
-	supportExtendedDaemonset      bool
-	edsMaxPodUnavailable          string
-	edsMaxPodSchedulerFailure     string
-	edsCanaryDuration             time.Duration
-	edsCanaryReplicas             string
-	edsCanaryAutoPauseEnabled     bool
-	edsCanaryAutoPauseMaxRestarts int
-	edsCanaryAutoFailEnabled      bool
-	edsCanaryAutoFailMaxRestarts  int
-	edsCanaryMaxSlowStartDuration time.Duration
-	supportCilium                 bool
-	datadogAgentEnabled           bool
-	datadogMonitorEnabled         bool
-	datadogSLOEnabled             bool
-	operatorMetricsEnabled        bool
-	webhookEnabled                bool
-	v2APIEnabled                  bool
-	maximumGoroutines             int
+	supportExtendedDaemonset               bool
+	edsMaxPodUnavailable                   string
+	edsMaxPodSchedulerFailure              string
+	edsCanaryDuration                      time.Duration
+	edsCanaryReplicas                      string
+	edsCanaryAutoPauseEnabled              bool
+	edsCanaryAutoPauseMaxRestarts          int
+	edsCanaryAutoFailEnabled               bool
+	edsCanaryAutoFailMaxRestarts           int
+	edsCanaryAutoPauseMaxSlowStartDuration time.Duration
+	supportCilium                          bool
+	datadogAgentEnabled                    bool
+	datadogMonitorEnabled                  bool
+	datadogSLOEnabled                      bool
+	operatorMetricsEnabled                 bool
+	webhookEnabled                         bool
+	v2APIEnabled                           bool
+	maximumGoroutines                      int
 
 	// Secret Backend options
 	secretBackendCommand string
@@ -163,7 +163,7 @@ func (opts *options) Parse() {
 	flag.IntVar(&opts.edsCanaryAutoPauseMaxRestarts, "edsCanaryAutoPauseMaxRestarts", defaultCanaryAutoPauseMaxRestarts, "ExtendedDaemonset canary auto pause max restart count")
 	flag.BoolVar(&opts.edsCanaryAutoFailEnabled, "edsCanaryAutoFailEnabled", defaultCanaryAutoFailEnabled, "ExtendedDaemonset canary auto fail enabled")
 	flag.IntVar(&opts.edsCanaryAutoFailMaxRestarts, "edsCanaryAutoFailMaxRestarts", defaultCanaryAutoFailMaxRestarts, "ExtendedDaemonset canary auto fail max restart count")
-	flag.DurationVar(&opts.edsCanaryMaxSlowStartDuration, "edsCanaryMaxSlowStartDuration", defaultCanaryMaxSlowStartDuration*time.Minute, "ExtendedDaemonset canary max slow start duration")
+	flag.DurationVar(&opts.edsCanaryAutoPauseMaxSlowStartDuration, "edsCanaryAutoPauseMaxSlowStartDuration", defaultCanaryAutoPauseMaxSlowStartDuration*time.Minute, "ExtendedDaemonset canary max slow start duration")
 
 	// Parsing flags
 	flag.Parse()
@@ -250,16 +250,16 @@ func run(opts *options) error {
 
 	options := controllers.SetupOptions{
 		SupportExtendedDaemonset: controllers.ExtendedDaemonsetOptions{
-			Enabled:                    opts.supportExtendedDaemonset,
-			MaxPodUnavailable:          opts.edsMaxPodUnavailable,
-			CanaryDuration:             opts.edsCanaryDuration,
-			CanaryReplicas:             opts.edsCanaryReplicas,
-			CanaryAutoPauseEnabled:     opts.edsCanaryAutoPauseEnabled,
-			CanaryAutoPauseMaxRestarts: opts.edsCanaryAutoPauseMaxRestarts,
-			CanaryAutoFailEnabled:      opts.edsCanaryAutoFailEnabled,
-			CanaryAutoFailMaxRestarts:  opts.edsCanaryAutoFailMaxRestarts,
-			CanaryMaxSlowStartDuration: opts.edsCanaryMaxSlowStartDuration,
-			MaxPodSchedulerFailure:     opts.edsMaxPodSchedulerFailure,
+			Enabled:                             opts.supportExtendedDaemonset,
+			MaxPodUnavailable:                   opts.edsMaxPodUnavailable,
+			CanaryDuration:                      opts.edsCanaryDuration,
+			CanaryReplicas:                      opts.edsCanaryReplicas,
+			CanaryAutoPauseEnabled:              opts.edsCanaryAutoPauseEnabled,
+			CanaryAutoPauseMaxRestarts:          opts.edsCanaryAutoPauseMaxRestarts,
+			CanaryAutoFailEnabled:               opts.edsCanaryAutoFailEnabled,
+			CanaryAutoFailMaxRestarts:           opts.edsCanaryAutoFailMaxRestarts,
+			CanaryAutoPauseMaxSlowStartDuration: opts.edsCanaryAutoPauseMaxSlowStartDuration,
+			MaxPodSchedulerFailure:              opts.edsMaxPodSchedulerFailure,
 		},
 		SupportCilium:          opts.supportCilium,
 		Creds:                  creds,
