@@ -12,7 +12,7 @@ Use the [Operator Lifecycle Manager][2] to deploy the Datadog Operator from Oper
 
 Installation includes the creation of a `ServiceAccount` called `datadog-agent-scc` that is bound to two default OpenShift `SecurityContextConstraints` (`hostaccess` and `privileged`), which are required for the Datadog Agent to run.
 
-2. Specify the namespace to install the Datadog Operator in, you can use the default `openshift-operators` or a different existing one:
+2. Specify the namespace to install the Datadog Operator in. You can use the default `openshift-operators` or a different existing one:
 
 ![Deploy the operator in the openshift-operators namespace](assets/openshiftoperatornamespace.png)
 
