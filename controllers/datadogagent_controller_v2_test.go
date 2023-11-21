@@ -16,7 +16,6 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -164,11 +163,11 @@ var _ = Describe("V2 Controller - DatadogAgent Deployment", func() {
 func testFunction(agent v2alpha1.DatadogAgent) func() {
 	return func() {
 		BeforeEach(func() {
-			createAgent(&agent)
+			createKubernetesObject(k8sClient, &agent)
 		})
 
 		AfterEach(func() {
-			deleteAgent(&agent)
+			deleteKubernetesObject(k8sClient, &agent)
 		})
 
 		It("should deploy successfully", func() {
@@ -232,28 +231,30 @@ func getObjectAndCheck(obj client.Object, key types.NamespacedName, check func()
 	}, timeout, interval).Should(BeTrue())
 }
 
-// createAgent creates an agent and waits until it is accessible
-func createAgent(agent *v2alpha1.DatadogAgent) {
-	Expect(k8sClient.Create(context.TODO(), agent)).Should(Succeed())
+// createKubernetesObject creates a kubernetes object and waits until it is accessible
+func createKubernetesObject(k8sClient client.Client, obj client.Object) {
+	Expect(k8sClient.Create(context.TODO(), obj)).Should(Succeed())
 
 	Eventually(func() bool {
-		err := k8sClient.Get(context.Background(), types.NamespacedName{
-			Namespace: agent.Namespace,
-			Name:      agent.Name,
-		}, agent)
+		key := types.NamespacedName{
+			Namespace: obj.GetNamespace(),
+			Name:      obj.GetName(),
+		}
+		err := k8sClient.Get(context.Background(), key, obj)
 		return err == nil
 	}, timeout, interval).Should(BeTrue())
 }
 
-// deleteAgent deletes an agent and waits until it is no longer accessible
-func deleteAgent(agent *v2alpha1.DatadogAgent) {
-	_ = k8sClient.Delete(context.TODO(), agent)
+// deleteKubernetesObject deletes a kubernetes object and waits until it is no longer accessible
+func deleteKubernetesObject(k8sClient client.Client, obj client.Object) {
+	Expect(k8sClient.Delete(context.Background(), obj)).Should(Succeed())
 
 	Eventually(func() bool {
-		err := k8sClient.Get(context.Background(), types.NamespacedName{
-			Namespace: agent.Namespace,
-			Name:      agent.Name,
-		}, agent)
-		return err != nil && errors.IsNotFound(err)
+		key := types.NamespacedName{
+			Namespace: obj.GetNamespace(),
+			Name:      obj.GetName(),
+		}
+		err := k8sClient.Get(context.Background(), key, obj)
+		return client.IgnoreNotFound(err) == nil
 	}, timeout, interval).Should(BeTrue())
 }
