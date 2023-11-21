@@ -269,7 +269,7 @@ func (f *apmFeature) ManageClusterAgent(managers feature.PodTemplateManagers) er
 	if f.singleStepInstrumentation != nil {
 		if len(f.singleStepInstrumentation.disabledNamespaces) > 0 && len(f.singleStepInstrumentation.enabledNamespaces) > 0 {
 			// This configuration is not supported
-			return fmt.Errorf("`enabledMamespaces` and `disabledNamespaces` cannot be set together")
+			return fmt.Errorf("`enabledNamespaces` and `disabledNamespaces` cannot be set together")
 		}
 		managers.EnvVar().AddEnvVarToContainer(apicommonv1.ClusterAgentContainerName, &corev1.EnvVar{
 			Name:  apicommon.DDAPMInstrumentationEnabled,

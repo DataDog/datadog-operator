@@ -102,7 +102,7 @@ type DatadogFeatures struct {
 // APM runs in the Trace Agent.
 type APMFeatureConfig struct {
 	// Enabled enables Application Performance Monitoring.
-	// Default: false
+	// Default: true
 	// +optional
 	Enabled *bool `json:"enabled,omitempty"`
 

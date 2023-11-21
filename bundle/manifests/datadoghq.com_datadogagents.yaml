@@ -12800,7 +12800,7 @@ spec:
                     properties:
                       enabled:
                         description: 'Enabled enables Application Performance Monitoring.
-                          Default: false'
+                          Default: true'
                         type: boolean
                       hostPortConfig:
                         description: 'HostPortConfig contains host port configuration.

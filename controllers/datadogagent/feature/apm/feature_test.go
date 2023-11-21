@@ -401,27 +401,6 @@ func testAPMInstrumentationNamespaces() *test.ComponentTest {
 	)
 }
 
-func testAPMInstrumentationPrecedence() *test.ComponentTest {
-	return test.NewDefaultComponentTest().WithWantFunc(
-		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
-			mgr := mgrInterface.(*fake.PodTemplateManagers)
-
-			agentEnvs := mgr.EnvVarMgr.EnvVarsByC[apicommonv1.ClusterAgentContainerName]
-			expectedAgentEnvs := []*corev1.EnvVar{
-				{
-					Name:  apicommon.DDAPMInstrumentationEnabled,
-					Value: "true",
-				},
-			}
-			assert.True(
-				t,
-				apiutils.IsEqualStruct(agentEnvs, expectedAgentEnvs),
-				"Cluster Agent ENVs \ndiff = %s", cmp.Diff(agentEnvs, expectedAgentEnvs),
-			)
-		},
-	)
-}
-
 func testAPMInstrumentation() *test.ComponentTest {
 	return test.NewDefaultComponentTest().WithWantFunc(
 		func(t testing.TB, mgrInterface feature.PodTemplateManagers) {
