@@ -27,6 +27,50 @@ const (
 	apmSocketLocalPath = apicommon.APMSocketVolumeLocalPath + "/" + apicommon.APMSocketName
 )
 
+func TestShouldEnableAPM(t *testing.T) {
+	tests := []struct {
+		name    string
+		dda     *v2alpha1.DatadogAgent
+		enabled bool
+	}{
+		{
+			// Note that this should not happen since APM is defaulted.
+			// This test is just to unitest the function.
+			name: "APM nil, SSI nil, all disabled",
+			dda: &v2alpha1.DatadogAgent{
+				Spec: v2alpha1.DatadogAgentSpec{
+					Features: &v2alpha1.DatadogFeatures{
+						APM: &v2alpha1.APMFeatureConfig{},
+					},
+				},
+			},
+			enabled: false,
+		},
+		{
+			name: "APM false, SSI true, APM and SSI disabled",
+			dda: &v2alpha1.DatadogAgent{
+				Spec: v2alpha1.DatadogAgentSpec{
+					Features: &v2alpha1.DatadogFeatures{
+						APM: &v2alpha1.APMFeatureConfig{
+							Enabled: apiutils.NewBoolPointer(false),
+							SingleStepInstrumentation: &v2alpha1.SingleStepInstrumentation{
+								Enabled: apiutils.NewBoolPointer(true),
+							},
+						},
+					},
+				},
+			},
+			enabled: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			isEnabled := shouldEnableAPM(tt.dda.Spec.Features.APM)
+			assert.Equal(t, tt.enabled, isEnabled)
+		})
+	}
+}
+
 func TestAPMFeature(t *testing.T) {
 	tests := test.FeatureTestSuite{
 		//////////////////////////
@@ -91,7 +135,7 @@ func TestAPMFeature(t *testing.T) {
 			ClusterAgent:  testAPMInstrumentationFull(),
 		},
 		{
-			Name: "v2alpha1 step instrumentation precedence ",
+			Name: "v2alpha1 step instrumentation precedence",
 			DDAv2: newV2Agent(false, true, apiutils.NewBoolPointer(true), &instrumentationConfig{
 				enabled: true,
 			}),
