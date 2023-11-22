@@ -34,12 +34,12 @@ const (
 	// defaultOOMKillEnabled        bool = false
 	// defaultTCPQueueLengthEnabled bool = false
 
-	defaultAPMEnabled                bool   = true
-	defaultAPMHostPortEnabled        bool   = false
-	defaultAPMHostPort               int32  = 8126
-	defaultAPMSocketEnabled          bool   = true
-	defaultAPMSocketHostPath         string = apicommon.DogstatsdAPMSocketHostPath + "/" + apicommon.APMSocketName
-	defaultSingleStepInstrumentation bool   = false
+	defaultAPMEnabled                       bool   = true
+	defaultAPMHostPortEnabled               bool   = false
+	defaultAPMHostPort                      int32  = 8126
+	defaultAPMSocketEnabled                 bool   = true
+	defaultAPMSocketHostPath                string = apicommon.DogstatsdAPMSocketHostPath + "/" + apicommon.APMSocketName
+	defaultSingleStepInstrumentationEnabled bool   = false
 	// defaultCSPMEnabled              bool = false
 	// defaultCWSEnabled               bool = false
 	defaultCWSSyscallMonitorEnabled   bool = false
@@ -190,7 +190,7 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 		if ddaSpec.Features.APM.SingleStepInstrumentation == nil {
 			ddaSpec.Features.APM.SingleStepInstrumentation = &SingleStepInstrumentation{}
 		}
-		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.APM.SingleStepInstrumentation.Enabled, defaultSingleStepInstrumentation)
+		apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.APM.SingleStepInstrumentation.Enabled, defaultSingleStepInstrumentationEnabled)
 	}
 
 	// CWS (Cloud Workload Security) Feature
