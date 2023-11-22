@@ -10,6 +10,7 @@ import (
 	"github.com/DataDog/datadog-operator/apis/datadoghq/common"
 	apiutils "github.com/DataDog/datadog-operator/apis/utils"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"reflect"
 	"testing"
 
@@ -295,6 +296,14 @@ func TestContainer(t *testing.T) {
 				assertContainerMatch(t, manager.PodTemplateSpec().Spec.Containers, containerName, func(container corev1.Container) bool {
 					return reflect.DeepEqual(
 						&corev1.Probe{
+							ProbeHandler: corev1.ProbeHandler{
+								HTTPGet: &corev1.HTTPGetAction{
+									Path: "/ready",
+									Port: intstr.IntOrString{
+										IntVal: 5555,
+									},
+								},
+							},
 							InitialDelaySeconds: 10,
 							TimeoutSeconds:      5,
 							PeriodSeconds:       30,
