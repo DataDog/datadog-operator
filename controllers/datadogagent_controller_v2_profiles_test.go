@@ -67,7 +67,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 			},
 		}
 
-		testProfilesFunc(nil, &agent, nodes, expectedDaemonSets)()
+		testProfilesFunc(nil, &agent, nodes, expectedDaemonSets, false)()
 	})
 
 	Context("with a profile that does not apply to any node", func() {
@@ -178,7 +178,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 			},
 		}
 
-		testProfilesFunc([]*v1alpha1.DatadogAgentProfile{profile}, &agent, nodes, expectedDaemonSets)()
+		testProfilesFunc([]*v1alpha1.DatadogAgentProfile{profile}, &agent, nodes, expectedDaemonSets, false)()
 	})
 
 	Context("with a profile that applies to all nodes", func() {
@@ -289,7 +289,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 			},
 		}
 
-		testProfilesFunc([]*v1alpha1.DatadogAgentProfile{profile}, &agent, nodes, expectedDaemonSets)()
+		testProfilesFunc([]*v1alpha1.DatadogAgentProfile{profile}, &agent, nodes, expectedDaemonSets, false)()
 	})
 
 	Context("with a profile that applies to some nodes", func() {
@@ -400,7 +400,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 			},
 		}
 
-		testProfilesFunc([]*v1alpha1.DatadogAgentProfile{profile}, &agent, nodes, expectedDaemonSets)()
+		testProfilesFunc([]*v1alpha1.DatadogAgentProfile{profile}, &agent, nodes, expectedDaemonSets, false)()
 	})
 
 	Context("with several profiles that don't conflict between them", func() {
@@ -592,25 +592,23 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 			},
 		}
 
-		testProfilesFunc(profiles, &agent, nodes, expectedDaemonSets)()
+		testProfilesFunc(profiles, &agent, nodes, expectedDaemonSets, false)()
 	})
 
-	// TODO: marked this one as "pending" because we haven't implemented support for conflicting profiles yet.
-	PContext("with several profiles that conflict between them", func() {
+	Context("with several profiles that conflict between them", func() {
 		nodes := []*v1.Node{
 			testutils.NewNode("test-profiles-node-1", map[string]string{"some-label": "1"}),
 			testutils.NewNode("test-profiles-node-2", map[string]string{"some-label": "2"}),
 		}
 
-		creationTimeStampOlderProfile := metav1.NewTime(metav1.Now().Add(-1 * time.Hour))
-		creationTimeStampNewerProfile := metav1.NewTime(creationTimeStampOlderProfile.Add(30 * time.Minute))
-
+		// The order is important in this test. We cannot set the Creation
+		// Timestamp here, it will be set by Kubernetes, and the objects will be
+		// created in the order specified here.
 		profiles := []*v1alpha1.DatadogAgentProfile{
 			{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:              randomKubernetesObjectName(),
-					Namespace:         namespace,
-					CreationTimestamp: creationTimeStampOlderProfile,
+					Name:      randomKubernetesObjectName(),
+					Namespace: namespace,
 				},
 				Spec: v1alpha1.DatadogAgentProfileSpec{
 					ProfileAffinity: &v1alpha1.ProfileAffinity{
@@ -644,9 +642,8 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 			},
 			{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:              randomKubernetesObjectName(),
-					Namespace:         namespace,
-					CreationTimestamp: creationTimeStampNewerProfile, // Newer, so won't apply when conflict
+					Name:      randomKubernetesObjectName(),
+					Namespace: namespace,
 				},
 				Spec: v1alpha1.DatadogAgentProfileSpec{
 					ProfileAffinity: &v1alpha1.ProfileAffinity{
@@ -747,7 +744,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 			// Don't expect a DaemonSet for the conflicting profile
 		}
 
-		testProfilesFunc(profiles, &agent, nodes, expectedDaemonSets)()
+		testProfilesFunc(profiles, &agent, nodes, expectedDaemonSets, true)()
 	})
 
 	Context("with a profile that applies and an agent with some resource overrides", func() {
@@ -887,7 +884,7 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 			},
 		}
 
-		testProfilesFunc([]*v1alpha1.DatadogAgentProfile{profile}, &agent, nodes, expectedDaemonSets)()
+		testProfilesFunc([]*v1alpha1.DatadogAgentProfile{profile}, &agent, nodes, expectedDaemonSets, false)()
 	})
 
 	// TODO: marked this one as pending because the current approach of
@@ -897,18 +894,27 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 	})
 })
 
-func testProfilesFunc(profiles []*v1alpha1.DatadogAgentProfile, agent *v2alpha1.DatadogAgent, nodes []*v1.Node, expectedDaemonSets map[types.NamespacedName]daemonSetExpectations) func() {
+func testProfilesFunc(profiles []*v1alpha1.DatadogAgentProfile, agent *v2alpha1.DatadogAgent, nodes []*v1.Node, expectedDaemonSets map[types.NamespacedName]daemonSetExpectations, waitBetweenProfiles bool) func() {
 	return func() {
 		BeforeEach(func() {
 			for _, node := range nodes {
 				createKubernetesObject(k8sClient, node)
 			}
 
-			createKubernetesObject(k8sClient, agent)
-
 			for _, profile := range profiles {
 				createKubernetesObject(k8sClient, profile)
+
+				// When there are conflicts between profiles, their creation
+				// timestamp matters because the oldest has precedence. We
+				// cannot set the Creation Timestamp here, it will be set by
+				// Kubernetes. We need to wait a bit between profiles to make
+				// sure they are created with different timestamps.
+				if waitBetweenProfiles {
+					time.Sleep(2 * time.Second)
+				}
 			}
+
+			createKubernetesObject(k8sClient, agent)
 		})
 
 		AfterEach(func() {
