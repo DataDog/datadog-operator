@@ -7,7 +7,6 @@ package datadogagent
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -28,7 +27,6 @@ import (
 	"github.com/DataDog/datadog-operator/controllers/datadogagent/override"
 	"github.com/DataDog/datadog-operator/pkg/agentprofile"
 	"github.com/DataDog/datadog-operator/pkg/controller/utils/datadog"
-	"github.com/DataDog/datadog-operator/pkg/kubernetes"
 	edsv1alpha1 "github.com/DataDog/extendeddaemonset/api/v1alpha1"
 )
 
@@ -223,23 +221,10 @@ func (r *Reconciler) cleanupDaemonSetsForProfilesThatNoLongerApply(ctx context.C
 	return nil
 }
 
-// TODO: add specific labels to the daemonset created by the operator that belong to a profile so that we can filter more easily
 func (r *Reconciler) agentDaemonSetsCreatedByOperator(ctx context.Context) ([]appsv1.DaemonSet, error) {
 	daemonSetList := appsv1.DaemonSetList{}
 
-	err := r.client.List(
-		ctx,
-		&daemonSetList,
-		client.HasLabels{
-			fmt.Sprintf(
-				"%s=%s,%s=%s",
-				kubernetes.AppKubernetesNameLabelKey,
-				"datadog-agent-deployment",
-				kubernetes.AppKubernetesManageByLabelKey,
-				"datadog-operator",
-			),
-		},
-	)
+	err := r.client.List(ctx, &daemonSetList, client.HasLabels{agentprofile.DaemonSetLabelKey})
 	if err != nil {
 		return nil, err
 	}
