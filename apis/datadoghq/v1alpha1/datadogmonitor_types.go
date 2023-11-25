@@ -68,6 +68,16 @@ const (
 	DatadogMonitorTypeComposite DatadogMonitorType = "composite"
 )
 
+// DatadogMonitorOptionsNotificationPresets Toggles the display of additional content sent in the monitor notification.
+type DatadogMonitorOptionsNotificationPresets string
+
+const (
+	DatadogMonitorOptionsNotificationPresetsShowAll     DatadogMonitorOptionsNotificationPresets = "show_all"
+	DatadogMonitorOptionsNotificationPresetsHideQuery   DatadogMonitorOptionsNotificationPresets = "hide_query"
+	DatadogMonitorOptionsNotificationPresetsHideHandles DatadogMonitorOptionsNotificationPresets = "hide_handles"
+	DatadogMonitorOptionsNotificationPresetsHideAll     DatadogMonitorOptionsNotificationPresets = "hide_all"
+)
+
 // DatadogMonitorOptions define the optional parameters of a monitor
 // +k8s:openapi-gen=true
 type DatadogMonitorOptions struct {
@@ -90,6 +100,8 @@ type DatadogMonitorOptions struct {
 	// monitor timeframe for metric alerts or 2 minutes for service checks. If omitted, 2x the evaluation timeframe
 	// is used for metric alerts, and 24 hours is used for service checks.
 	NoDataTimeframe *int64 `json:"noDataTimeframe,omitempty"`
+	// An enum for toggling the display of additional content sent in the monitor notification.
+	NotificationPresetName DatadogMonitorOptionsNotificationPresets `json:"notificationPresetName,omitempty"`
 	// A Boolean indicating whether tagged users are notified on changes to this monitor.
 	NotifyAudit *bool `json:"notifyAudit,omitempty"`
 	// A Boolean indicating whether this monitor notifies when data stops reporting.
