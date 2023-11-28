@@ -6,6 +6,7 @@
 package agentprofile
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -100,6 +101,9 @@ func TestComponentOverrideFromProfile(t *testing.T) {
 			},
 			expectedOverride: v2alpha1.DatadogAgentComponentOverride{
 				Name: &overrideNameForExampleProfile,
+				Labels: map[string]string{
+					"agent.datadoghq.com/profile": fmt.Sprintf("%s-%s", "default", "example"),
+				},
 			},
 		},
 		{
@@ -132,6 +136,9 @@ func TestComponentOverrideFromProfile(t *testing.T) {
 							},
 						},
 					},
+				},
+				Labels: map[string]string{
+					"agent.datadoghq.com/profile": fmt.Sprintf("%s-%s", "default", "linux"),
 				},
 			},
 		},

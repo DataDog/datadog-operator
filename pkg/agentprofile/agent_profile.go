@@ -6,6 +6,8 @@
 package agentprofile
 
 import (
+	"fmt"
+
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -16,6 +18,7 @@ import (
 )
 
 const (
+	DaemonSetLabelKey   = "agent.datadoghq.com/profile"
 	defaultProfileName  = "default"
 	daemonSetNamePrefix = "datadog-agent-with-profile-"
 )
@@ -50,6 +53,7 @@ func ComponentOverrideFromProfile(profile *datadoghqv1alpha1.DatadogAgentProfile
 		Name:       &overrideDSName,
 		Affinity:   affinityOverride(profile),
 		Containers: containersOverride(profile),
+		Labels:     labelsOverride(profile),
 	}
 }
 
@@ -170,4 +174,16 @@ func containersOverride(profile *datadoghqv1alpha1.DatadogAgentProfile) map[comm
 	}
 
 	return res
+}
+
+func labelsOverride(profile *datadoghqv1alpha1.DatadogAgentProfile) map[string]string {
+	if profile.Name == defaultProfileName {
+		return nil
+	}
+
+	return map[string]string{
+		// Can't use the namespaced name because it includes "/" which is not
+		// accepted in labels.
+		DaemonSetLabelKey: fmt.Sprintf("%s-%s", profile.Namespace, profile.Name),
+	}
 }
