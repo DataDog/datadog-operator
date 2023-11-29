@@ -73,14 +73,20 @@ func (f *apmFeature) ID() feature.IDType {
 }
 
 func shouldEnableAPM(apmConf *v2alpha1.APMFeatureConfig) bool {
-	if apmConf != nil {
+	if apmConf == nil {
+		return false
+	}
+
+	if apmConf.Enabled != nil {
 		return apiutils.BoolValue(apmConf.Enabled)
 	}
+
 	// SingleStepInstrumentation requires APM Enabled
 	if apmConf.SingleStepInstrumentation != nil &&
 		(apiutils.BoolValue(apmConf.SingleStepInstrumentation.Enabled) || len(apmConf.SingleStepInstrumentation.EnabledNamespaces) > 0) {
 		return true
 	}
+
 	return false
 }
 
