@@ -28,6 +28,7 @@ func TestScheme(isV2 bool) *runtime.Scheme {
 	s.AddKnownTypes(corev1.SchemeGroupVersion, &corev1.Secret{})
 	s.AddKnownTypes(corev1.SchemeGroupVersion, &corev1.ServiceAccount{})
 	s.AddKnownTypes(corev1.SchemeGroupVersion, &corev1.ConfigMap{})
+	s.AddKnownTypes(corev1.SchemeGroupVersion, &corev1.Node{})
 	s.AddKnownTypes(rbacv1.SchemeGroupVersion, &rbacv1.ClusterRoleBinding{})
 	s.AddKnownTypes(rbacv1.SchemeGroupVersion, &rbacv1.ClusterRole{})
 	s.AddKnownTypes(rbacv1.SchemeGroupVersion, &rbacv1.Role{})
