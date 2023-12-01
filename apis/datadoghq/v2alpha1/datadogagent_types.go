@@ -124,7 +124,7 @@ type APMFeatureConfig struct {
 	// See also: https://docs.datadoghq.com/tracing/trace_collection/single-step-apm
 	// Enabled Default: false
 	// +optional
-	SingleStepInstrumentation *SingleStepInstrumentation `json:"singleStepInstrumentation,omitempty"`
+	SingleStepInstrumentation *SingleStepInstrumentation `json:"instrumentation,omitempty"`
 }
 
 // SingleStepInstrumentation contains the config for the namespaces to target and the library to inject.

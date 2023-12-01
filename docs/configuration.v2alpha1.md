@@ -43,10 +43,10 @@ spec:
 | features.apm.enabled | Enabled enables Application Performance Monitoring. Default: true |
 | features.apm.hostPortConfig.enabled | Enabled enables host port configuration Default: false |
 | features.apm.hostPortConfig.hostPort | Port takes a port number (0 < x < 65536) to expose on the host. (Most containers do not need this.) If HostNetwork is enabled, this value must match the ContainerPort. |
-| features.apm.singleStepInstrumentation.disabledNamespaces | DisabledNamespaces specifies the namespaces of the pods to not inject the Datadog APM libraries into. |
-| features.apm.singleStepInstrumentation.enabled | Enabled enables injecting the Datadog APM libraries into all pods in the cluster. Default: false |
-| features.apm.singleStepInstrumentation.enabledNamespaces | EnabledNamespaces specifies the namespaces of the pods to inject the Datadog APM libraries into. |
-| features.apm.singleStepInstrumentation.libVersions | Inject specific version of tracing libraries with Single Step Instrumentation <Library>: <Version> ex: "java": "v1.18.0" |
+| features.apm.instrumentation.disabledNamespaces | DisabledNamespaces specifies the namespaces of the pods to not inject the Datadog APM libraries into. |
+| features.apm.instrumentation.enabled | Enabled enables injecting the Datadog APM libraries into all pods in the cluster. Default: false |
+| features.apm.instrumentation.enabledNamespaces | EnabledNamespaces specifies the namespaces of the pods to inject the Datadog APM libraries into. |
+| features.apm.instrumentation.libVersions | Inject specific version of tracing libraries with Single Step Instrumentation <Library>: <Version> ex: "java": "v1.18.0" |
 | features.apm.unixDomainSocketConfig.enabled | Enabled enables Unix Domain Socket. Default: true |
 | features.apm.unixDomainSocketConfig.path | Path defines the socket path used when enabled. |
 | features.clusterChecks.enabled | Enables Cluster Checks scheduling in the Cluster Agent. Default: true |

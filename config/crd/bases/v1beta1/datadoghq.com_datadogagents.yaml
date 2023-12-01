@@ -15389,7 +15389,7 @@ spec:
                               format: int32
                               type: integer
                           type: object
-                        singleStepInstrumentation:
+                        instrumentation:
                           description: 'Single Step Instrumentation allows the agent to inject the Datadog APM libraries into all pods in the cluster. Feature is in beta. See also: https://docs.datadoghq.com/tracing/trace_collection/single-step-apm Enabled Default: false'
                           properties:
                             disabledNamespaces:
