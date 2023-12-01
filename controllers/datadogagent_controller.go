@@ -7,6 +7,7 @@ package controllers
 
 import (
 	"context"
+	"reflect"
 
 	"github.com/go-logr/logr"
 
@@ -192,6 +193,9 @@ func (r *DatadogAgentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	builder.Watches(&source.Kind{Type: &datadoghqv1alpha1.DatadogAgentProfile{}}, &handler.EnqueueRequestForObject{})
 
+	// Watch node and enqueue if node labels changes for DatadogAgentProfile
+	builder.Watches(&source.Kind{Type: &corev1.Node{}}, &handler.EnqueueRequestForObject{}).WithEventFilter(enqueueIfNodeChangeIsRelevantToProfiles())
+
 	// DatadogAgent is namespaced whereas ClusterRole and ClusterRoleBinding are
 	// cluster-scoped. That means that DatadogAgent cannot be their owner, and
 	// we cannot use .Owns().
@@ -256,4 +260,21 @@ func enqueueIfOwnedByDatadogAgent(obj client.Object) []reconcile.Request {
 	owner := partOfLabelVal.NamespacedName()
 
 	return []reconcile.Request{{NamespacedName: owner}}
+}
+
+func enqueueIfNodeChangeIsRelevantToProfiles() predicate.Funcs {
+	return predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			return !reflect.DeepEqual(e.ObjectOld.GetLabels(), e.ObjectNew.GetLabels())
+		},
+		CreateFunc: func(e event.CreateEvent) bool {
+			return true
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			return true
+		},
+		//GenericFunc: func(e event.GenericEvent) bool {
+		//	return true // Not sure about this one
+		//},
+	}
 }
