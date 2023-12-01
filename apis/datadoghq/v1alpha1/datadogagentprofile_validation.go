@@ -9,8 +9,8 @@ import (
 	"fmt"
 )
 
-// IsValidDatadogAgentProfile is used to check if a DatadogAgentProfileSpec is valid
-func IsValidDatadogAgentProfile(spec *DatadogAgentProfileSpec) error {
+// ValidateDatadogAgentProfileSpec is used to check if a DatadogAgentProfileSpec is valid
+func ValidateDatadogAgentProfileSpec(spec *DatadogAgentProfileSpec) error {
 	// check that profileAffinity contains a set of requirements
 	if spec.ProfileAffinity == nil {
 		return fmt.Errorf("profileAffinity must be defined")
@@ -35,10 +35,14 @@ func IsValidDatadogAgentProfile(spec *DatadogAgentProfileSpec) error {
 	if spec.Config.Override[NodeAgentComponentName].Containers == nil {
 		return fmt.Errorf("node agent container must be defined")
 	}
-	for name, container := range spec.Config.Override[NodeAgentComponentName].Containers {
-		if container.Resources == nil {
-			return fmt.Errorf("%s container resource must be defined", name)
+	containsAtLeastOneContainerResourceOverride := false
+	for _, container := range spec.Config.Override[NodeAgentComponentName].Containers {
+		if container.Resources != nil {
+			containsAtLeastOneContainerResourceOverride = true
 		}
+	}
+	if !containsAtLeastOneContainerResourceOverride {
+		return fmt.Errorf("at least one container resource must be defined")
 	}
 
 	return nil

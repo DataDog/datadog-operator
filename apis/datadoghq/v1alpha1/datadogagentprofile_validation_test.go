@@ -43,6 +43,33 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 			},
 		},
 	}
+	validResourceOverrideInOneContainerOnly := &DatadogAgentProfileSpec{
+		ProfileAffinity: &ProfileAffinity{
+			ProfileNodeAffinity: []corev1.NodeSelectorRequirement{
+				{
+					Key:      "foo",
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{"bar"},
+				},
+			},
+		},
+		Config: &Config{
+			Override: map[ComponentName]*Override{
+				NodeAgentComponentName: {
+					Containers: map[commonv1.AgentContainerName]*Container{
+						commonv1.CoreAgentContainerName: {
+							Resources: &corev1.ResourceRequirements{
+								Limits: corev1.ResourceList{
+									corev1.ResourceCPU: *resource.NewQuantity(2, resource.DecimalSI),
+								},
+							},
+						},
+						commonv1.TraceAgentContainerName: {},
+					},
+				},
+			},
+		},
+	}
 	missingResources := &DatadogAgentProfileSpec{
 		ProfileAffinity: &ProfileAffinity{
 			ProfileNodeAffinity: []corev1.NodeSelectorRequirement{
@@ -136,9 +163,13 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 			spec: valid,
 		},
 		{
+			name: "valid dap, resources specified in one container only",
+			spec: validResourceOverrideInOneContainerOnly,
+		},
+		{
 			name:    "missing resources",
 			spec:    missingResources,
-			wantErr: "agent container resource must be defined",
+			wantErr: "at least one container resource must be defined",
 		},
 		{
 			name:    "missing container",
@@ -178,7 +209,7 @@ func TestIsValidDatadogAgentProfile(t *testing.T) {
 	}
 	for _, test := range testCases {
 		t.Run(test.name, func(t *testing.T) {
-			result := IsValidDatadogAgentProfile(test.spec)
+			result := ValidateDatadogAgentProfileSpec(test.spec)
 			if test.wantErr != "" {
 				assert.Error(t, result)
 				assert.EqualError(t, result, test.wantErr)
