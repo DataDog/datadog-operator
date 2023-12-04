@@ -100,7 +100,7 @@ type DatadogMonitorOptions struct {
 	// monitor timeframe for metric alerts or 2 minutes for service checks. If omitted, 2x the evaluation timeframe
 	// is used for metric alerts, and 24 hours is used for service checks.
 	NoDataTimeframe *int64 `json:"noDataTimeframe,omitempty"`
-	// An enum for toggling the display of additional content sent in the monitor notification.
+	// An enum that toggles the display of additional content sent in the monitor notification.
 	NotificationPresetName DatadogMonitorOptionsNotificationPresets `json:"notificationPresetName,omitempty"`
 	// A Boolean indicating whether tagged users are notified on changes to this monitor.
 	NotifyAudit *bool `json:"notifyAudit,omitempty"`
