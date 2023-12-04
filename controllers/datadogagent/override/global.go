@@ -209,7 +209,7 @@ func ApplyGlobalSettingsMonoSupport(logger logr.Logger, manager feature.PodTempl
 					manager.VolumeMount().AddVolumeMountToContainers(
 						&kubeletVolMount,
 						[]apicommonv1.AgentContainerName{
-							apicommonv1.NonPrivilegedMonoContainerName,
+							apicommonv1.NonPrivilegedMultiProcessAgentContainerName,
 						},
 					)
 					manager.Volume().AddVolume(&kubeletVol)
@@ -257,7 +257,7 @@ func ApplyGlobalSettingsMonoSupport(logger logr.Logger, manager feature.PodTempl
 				manager.VolumeMount().AddVolumeMountToContainers(
 					&runtimeVolMount,
 					[]apicommonv1.AgentContainerName{
-						apicommonv1.NonPrivilegedMonoContainerName,
+						apicommonv1.NonPrivilegedMultiProcessAgentContainerName,
 					},
 				)
 				manager.Volume().AddVolume(&runtimeVol)

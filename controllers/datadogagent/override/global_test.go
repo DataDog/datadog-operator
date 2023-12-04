@@ -126,14 +126,6 @@ func getExpectedEnvVars() []*corev1.EnvVar {
 			Value: "info",
 		},
 		{
-			Name: apicommon.DDKubeletHost,
-			ValueFrom: &corev1.EnvVarSource{
-				FieldRef: &corev1.ObjectFieldSelector{
-					FieldPath: apicommon.FieldPathStatusHostIP,
-				},
-			},
-		},
-		{
 			Name:  apicommon.DDKubeletTLSVerify,
 			Value: "true",
 		},
