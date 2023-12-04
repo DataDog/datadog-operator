@@ -45,7 +45,8 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 		podManagers = feature.NewPodTemplateManagers(&eds.Spec.Template)
 
 		// Set Global setting on the default extendeddaemonset
-		eds.Spec.Template = *override.ApplyGlobalSettings(logger, podManagers, dda, resourcesManager, datadoghqv2alpha1.NodeAgentComponentName)
+		eds.Spec.Template = *override.ApplyGlobalSettingsNodeAgent(logger, podManagers, dda, resourcesManager,
+			requiredComponents.Agent.UsesMultiProcessContainer())
 
 		// Apply features changes on the Deployment.Spec.Template
 		for _, feat := range features {
@@ -84,8 +85,8 @@ func (r *Reconciler) reconcileV2Agent(logger logr.Logger, requiredComponents fea
 	daemonset = componentagent.NewDefaultAgentDaemonset(dda, requiredComponents)
 	podManagers = feature.NewPodTemplateManagers(&daemonset.Spec.Template)
 	// Set Global setting on the default daemonset
-	daemonset.Spec.Template = *override.ApplyGlobalSettingsMonoSupport(logger, podManagers, dda, resourcesManager,
-		datadoghqv2alpha1.NodeAgentComponentName, requiredComponents.Agent.UsesMultiProcessContainer())
+	daemonset.Spec.Template = *override.ApplyGlobalSettingsNodeAgent(logger, podManagers, dda, resourcesManager,
+		requiredComponents.Agent.UsesMultiProcessContainer())
 
 	// Apply features changes on the Deployment.Spec.Template
 	for _, feat := range features {

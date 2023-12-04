@@ -1,3 +1,8 @@
+// Unless explicitly stated otherwise all files in this repository are licensed
+// under the Apache License Version 2.0.
+// This product includes software developed at Datadog (https://www.datadoghq.com/).
+// Copyright 2016-present Datadog, Inc.
+
 package override
 
 import (
@@ -36,17 +41,17 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 	}
 
 	tests := []struct {
-		name             string
-		dda              *v2alpha1.DatadogAgent
-		useMonoContainer bool
-		wantVolumeMounts []*corev1.VolumeMount
-		wantVolumes      []*corev1.Volume
-		wantEnvVars      []*corev1.EnvVar
-		want             func(t testing.TB, mgrInterface feature.PodTemplateManagers, expectedEnvVars []*corev1.EnvVar, expectedVolumes []*corev1.Volume, expectedVolumeMounts []*corev1.VolumeMount)
+		name                          string
+		dda                           *v2alpha1.DatadogAgent
+		useMultiProcessAgentContainer bool
+		wantVolumeMounts              []*corev1.VolumeMount
+		wantVolumes                   []*corev1.Volume
+		wantEnvVars                   []*corev1.EnvVar
+		want                          func(t testing.TB, mgrInterface feature.PodTemplateManagers, expectedEnvVars []*corev1.EnvVar, expectedVolumes []*corev1.Volume, expectedVolumeMounts []*corev1.VolumeMount)
 	}{
 		{
-			name:             "Kubelet volume configured",
-			useMonoContainer: false,
+			name:                          "Kubelet volume configured",
+			useMultiProcessAgentContainer: false,
 			dda: v2alpha1test.NewDatadogAgentBuilder().
 				WithGlobalKubeletConfig(hostCAPath, agentCAPath, true).
 				WithGlobalDockerSocketPath(dockerSocketPath).
@@ -57,8 +62,8 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			want:             assertAll,
 		},
 		{
-			name:             "Kubelet volume configured",
-			useMonoContainer: true,
+			name:                          "Kubelet volume configured",
+			useMultiProcessAgentContainer: true,
 			dda: v2alpha1test.NewDatadogAgentBuilder().
 				WithGlobalKubeletConfig(hostCAPath, agentCAPath, true).
 				WithGlobalDockerSocketPath(dockerSocketPath).
@@ -66,7 +71,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			wantEnvVars:      getExpectedEnvVars(),
 			wantVolumeMounts: getExpectedVolumeMounts(),
 			wantVolumes:      getExpectedVolumes(),
-			want:             assertAllMonoContainer,
+			want:             assertAllAgentMultiProcessContainer,
 		},
 	}
 
@@ -76,7 +81,7 @@ func TestNodeAgentComponenGlobalSettings(t *testing.T) {
 			store := dependencies.NewStore(tt.dda, storeOptions)
 			resourcesManager := feature.NewResourceManagers(store)
 
-			ApplyGlobalSettingsMonoSupport(logger, podTemplateManager, tt.dda, resourcesManager, v2alpha1.NodeAgentComponentName, tt.useMonoContainer)
+			ApplyGlobalSettingsNodeAgent(logger, podTemplateManager, tt.dda, resourcesManager, tt.useMultiProcessAgentContainer)
 
 			tt.want(t, podTemplateManager, tt.wantEnvVars, tt.wantVolumes, tt.wantVolumeMounts)
 		})
@@ -101,7 +106,7 @@ func assertAll(t testing.TB, mgrInterface feature.PodTemplateManagers, expectedE
 	assert.True(t, apiutils.IsEqualStruct(agentEnvVars, expectedEnvVars), "Agent envvars \ndiff = %s", cmp.Diff(agentEnvVars, expectedEnvVars))
 }
 
-func assertAllMonoContainer(t testing.TB, mgrInterface feature.PodTemplateManagers, expectedEnvVars []*corev1.EnvVar, expectedVolumes []*corev1.Volume, expectedVolumeMounts []*corev1.VolumeMount) {
+func assertAllAgentMultiProcessContainer(t testing.TB, mgrInterface feature.PodTemplateManagers, expectedEnvVars []*corev1.EnvVar, expectedVolumes []*corev1.Volume, expectedVolumeMounts []*corev1.VolumeMount) {
 	mgr := mgrInterface.(*fake.PodTemplateManagers)
 
 	monoAgentVolumeMounts := mgr.VolumeMountMgr.VolumeMountsByC[apicommonv1.NonPrivilegedMultiProcessAgentContainerName]

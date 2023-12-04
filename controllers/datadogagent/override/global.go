@@ -24,14 +24,24 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func ApplyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent,
-	resourcesManager feature.ResourceManagers, componentName v2alpha1.ComponentName) *corev1.PodTemplateSpec {
-	return ApplyGlobalSettingsMonoSupport(logger, manager, dda, resourcesManager, componentName, false)
+func ApplyGlobalSettingsClusterAgent(logger logr.Logger, manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent,
+	resourcesManager feature.ResourceManagers) *corev1.PodTemplateSpec {
+	return applyGlobalSettings(logger, manager, dda, resourcesManager, v2alpha1.ClusterAgentComponentName, false)
+}
+
+func ApplyGlobalSettingsClusterChecksRunner(logger logr.Logger, manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent,
+	resourcesManager feature.ResourceManagers) *corev1.PodTemplateSpec {
+	return applyGlobalSettings(logger, manager, dda, resourcesManager, v2alpha1.ClusterChecksRunnerComponentName, false)
+}
+
+func ApplyGlobalSettingsNodeAgent(logger logr.Logger, manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent,
+	resourcesManager feature.ResourceManagers, usesMultiProcessCoreAgent bool) *corev1.PodTemplateSpec {
+	return applyGlobalSettings(logger, manager, dda, resourcesManager, v2alpha1.NodeAgentComponentName, usesMultiProcessCoreAgent)
 }
 
 // ApplyGlobalSettings use to apply global setting to a PodTemplateSpec
-func ApplyGlobalSettingsMonoSupport(logger logr.Logger, manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent,
-	resourcesManager feature.ResourceManagers, componentName v2alpha1.ComponentName, usesCoreAgentMonoContainer bool) *corev1.PodTemplateSpec {
+func applyGlobalSettings(logger logr.Logger, manager feature.PodTemplateManagers, dda *v2alpha1.DatadogAgent,
+	resourcesManager feature.ResourceManagers, componentName v2alpha1.ComponentName, usesMultiProcessCoreAgent bool) *corev1.PodTemplateSpec {
 	config := dda.Spec.Global
 
 	// ClusterName sets a unique cluster name for the deployment to easily scope monitoring data in the Datadog app.
@@ -205,7 +215,7 @@ func ApplyGlobalSettingsMonoSupport(logger logr.Logger, manager feature.PodTempl
 					agentCAPath = apicommon.KubeletAgentCAPath
 				}
 				kubeletVol, kubeletVolMount := volume.GetVolumes(apicommon.KubeletCAVolumeName, config.Kubelet.HostCAPath, agentCAPath, true)
-				if usesCoreAgentMonoContainer {
+				if usesMultiProcessCoreAgent {
 					manager.VolumeMount().AddVolumeMountToContainers(
 						&kubeletVolMount,
 						[]apicommonv1.AgentContainerName{
@@ -253,7 +263,7 @@ func ApplyGlobalSettingsMonoSupport(logger logr.Logger, manager feature.PodTempl
 		}
 		if runtimeVol.Name != "" && runtimeVolMount.Name != "" {
 
-			if usesCoreAgentMonoContainer {
+			if usesMultiProcessCoreAgent {
 				manager.VolumeMount().AddVolumeMountToContainers(
 					&runtimeVolMount,
 					[]apicommonv1.AgentContainerName{
