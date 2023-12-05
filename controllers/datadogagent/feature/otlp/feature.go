@@ -239,8 +239,8 @@ func extractPortEndpoint(endpoint string) (int32, error) {
 	return 0, fmt.Errorf("%q does not have a port explicitly set", endpoint)
 }
 
-// ManageMultiProcessNodeAgent allows a feature to configure the mono-container Node Agent's corev1.PodTemplateSpec
-// if mono-container usage is enabled and can be used with the current feature set
+// ManageMultiProcessNodeAgent allows a feature to configure the multi-process container for Node Agent's corev1.PodTemplateSpec
+// if multi-process container usage is enabled and can be used with the current feature set
 // It should do nothing if the feature doesn't need to configure it.
 func (f *otlpFeature) ManageMultiProcessNodeAgent(managers feature.PodTemplateManagers) error {
 	if f.grpcEnabled {

@@ -39,7 +39,7 @@ func TestBuilder(t *testing.T) {
 			},
 		},
 		{
-			name: "Default DDA with monoagent, 1 mono agent",
+			name: "Default DDA with multi-process container, 1 multi-process container",
 			dda: v2alpha1test.NewDatadogAgentBuilder().
 				WithMultiProcessContainer(true).
 				BuildWithDefaults(),
@@ -67,7 +67,7 @@ func TestBuilder(t *testing.T) {
 			},
 		},
 		{
-			name: "APM enabled with monocontainer, 1 mono agent",
+			name: "APM enabled with multi-process container, 1 multi-process container",
 			dda: v2alpha1test.NewDatadogAgentBuilder().
 				WithMultiProcessContainer(true).
 				WithAPMEnabled(true).
@@ -97,7 +97,7 @@ func TestBuilder(t *testing.T) {
 			},
 		},
 		{
-			name: "APM, NPM enabled with monocontainer, 4 agents",
+			name: "APM, NPM enabled with multi-process container, 4 agents",
 			dda: v2alpha1test.NewDatadogAgentBuilder().
 				WithMultiProcessContainer(true).
 				WithAPMEnabled(true).
@@ -129,7 +129,7 @@ func TestBuilder(t *testing.T) {
 			},
 		},
 		{
-			name: "APM, NPM, CSPM enabled with monocontainer, 5 agents",
+			name: "APM, NPM, CSPM enabled with multi-process container, 5 agents",
 			dda: v2alpha1test.NewDatadogAgentBuilder().
 				WithMultiProcessContainer(true).
 				WithAPMEnabled(true).

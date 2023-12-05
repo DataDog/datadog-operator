@@ -29,7 +29,7 @@ import (
 func NewDefaultAgentDaemonset(dda metav1.Object, requiredComponents feature.RequiredComponents) *appsv1.DaemonSet {
 	daemonset := NewDaemonset(dda, apicommon.DefaultAgentResourceSuffix, component.GetAgentName(dda), component.GetAgentVersion(dda), nil)
 	if requiredComponents.Agent.UsesMultiProcessContainer() {
-		podTemplate := NewDefaultMonoContainerAgentPodTemplateSpec(dda, requiredComponents.Agent.Containers, daemonset.GetLabels())
+		podTemplate := NewDefaultAgentMultiProcessContainerPodTemplateSpec(dda, requiredComponents.Agent.Containers, daemonset.GetLabels())
 		daemonset.Spec.Template = *podTemplate
 	} else {
 		podTemplate := NewDefaultAgentPodTemplateSpec(dda, requiredComponents.Agent.Containers, daemonset.GetLabels())
@@ -47,7 +47,7 @@ func NewDefaultAgentExtendedDaemonset(dda metav1.Object, edsOptions *ExtendedDae
 }
 
 // NewDefaultAgentPodTemplateSpec return a default node agent for the cluster-agent deployment
-func NewDefaultMonoContainerAgentPodTemplateSpec(dda metav1.Object, requiredContainers []common.AgentContainerName, labels map[string]string) *corev1.PodTemplateSpec {
+func NewDefaultAgentMultiProcessContainerPodTemplateSpec(dda metav1.Object, requiredContainers []common.AgentContainerName, labels map[string]string) *corev1.PodTemplateSpec {
 	return &corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels:      labels,
@@ -60,7 +60,7 @@ func NewDefaultMonoContainerAgentPodTemplateSpec(dda metav1.Object, requiredCont
 			},
 			ServiceAccountName: getDefaultServiceAccountName(dda),
 			InitContainers:     initContainers(dda, requiredContainers),
-			Containers:         agentMonoContainer(dda, requiredContainers),
+			Containers:         agentMultiProcessContainer(dda, requiredContainers),
 			Volumes:            volumesForAgent(dda, requiredContainers),
 		},
 	}
@@ -124,8 +124,8 @@ func initContainers(dda metav1.Object, requiredContainers []common.AgentContaine
 	return initContainers
 }
 
-func agentMonoContainer(dda metav1.Object, requiredContainers []common.AgentContainerName) []corev1.Container {
-	monoContainer := corev1.Container{
+func agentMultiProcessContainer(dda metav1.Object, requiredContainers []common.AgentContainerName) []corev1.Container {
+	agentMultiProcessContainer := corev1.Container{
 		Name:           string(common.NonPrivilegedMultiProcessAgentContainerName),
 		Image:          agentImage(),
 		Env:            envVarsForCoreAgent(dda),
@@ -134,7 +134,7 @@ func agentMonoContainer(dda metav1.Object, requiredContainers []common.AgentCont
 		ReadinessProbe: apicommon.GetDefaultReadinessProbe(),
 	}
 
-	containers := []corev1.Container{monoContainer}
+	containers := []corev1.Container{agentMultiProcessContainer}
 
 	return containers
 }
