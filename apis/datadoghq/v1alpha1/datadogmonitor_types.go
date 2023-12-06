@@ -72,10 +72,10 @@ const (
 type DatadogMonitorOptionsNotificationPreset string
 
 const (
-	DatadogMonitorOptionsNotificationPresetsShowAll     DatadogMonitorOptionsNotificationPresets = "show_all"
-	DatadogMonitorOptionsNotificationPresetsHideQuery   DatadogMonitorOptionsNotificationPresets = "hide_query"
-	DatadogMonitorOptionsNotificationPresetsHideHandles DatadogMonitorOptionsNotificationPresets = "hide_handles"
-	DatadogMonitorOptionsNotificationPresetsHideAll     DatadogMonitorOptionsNotificationPresets = "hide_all"
+	DatadogMonitorOptionsNotificationPresetShowAll     DatadogMonitorOptionsNotificationPreset = "show_all"
+	DatadogMonitorOptionsNotificationPresetHideQuery   DatadogMonitorOptionsNotificationPreset = "hide_query"
+	DatadogMonitorOptionsNotificationPresetHideHandles DatadogMonitorOptionsNotificationPreset = "hide_handles"
+	DatadogMonitorOptionsNotificationPresetHideAll     DatadogMonitorOptionsNotificationPreset = "hide_all"
 )
 
 // DatadogMonitorOptions define the optional parameters of a monitor
