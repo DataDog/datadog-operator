@@ -115,6 +115,17 @@ func Test_defaultFeatures(t *testing.T) {
 			},
 			want: &DatadogAgentSpec{
 				Features: &DatadogFeatures{
+					APM: &APMFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
+						HostPortConfig: &HostPortConfig{
+							Port:    apiutils.NewInt32Pointer(defaultAPMHostPort),
+							Enabled: apiutils.NewBoolPointer(defaultAPMHostPortEnabled),
+						},
+						UnixDomainSocketConfig: &UnixDomainSocketConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
+							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
+						},
+					},
 					LiveContainerCollection: &LiveContainerCollectionFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
 					},
@@ -322,6 +333,17 @@ func Test_defaultFeatures(t *testing.T) {
 			},
 			want: &DatadogAgentSpec{
 				Features: &DatadogFeatures{
+					APM: &APMFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
+						HostPortConfig: &HostPortConfig{
+							Port:    apiutils.NewInt32Pointer(defaultAPMHostPort),
+							Enabled: apiutils.NewBoolPointer(defaultAPMHostPortEnabled),
+						},
+						UnixDomainSocketConfig: &UnixDomainSocketConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
+							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
+						},
+					},
 					LiveProcessCollection: &LiveProcessCollectionFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(valueTrue),
 					},
@@ -386,6 +408,17 @@ func Test_defaultFeatures(t *testing.T) {
 			},
 			want: &DatadogAgentSpec{
 				Features: &DatadogFeatures{
+					APM: &APMFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
+						HostPortConfig: &HostPortConfig{
+							Port:    apiutils.NewInt32Pointer(defaultAPMHostPort),
+							Enabled: apiutils.NewBoolPointer(defaultAPMHostPortEnabled),
+						},
+						UnixDomainSocketConfig: &UnixDomainSocketConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
+							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
+						},
+					},
 					LogCollection: &LogCollectionFeatureConfig{
 						Enabled:                    apiutils.NewBoolPointer(valueTrue),
 						ContainerCollectUsingFiles: apiutils.NewBoolPointer(defaultLogContainerCollectUsingFiles),
@@ -525,6 +558,17 @@ func Test_defaultFeatures(t *testing.T) {
 			},
 			want: &DatadogAgentSpec{
 				Features: &DatadogFeatures{
+					APM: &APMFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
+						HostPortConfig: &HostPortConfig{
+							Port:    apiutils.NewInt32Pointer(defaultAPMHostPort),
+							Enabled: apiutils.NewBoolPointer(defaultAPMHostPortEnabled),
+						},
+						UnixDomainSocketConfig: &UnixDomainSocketConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
+							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
+						},
+					},
 					LiveContainerCollection: &LiveContainerCollectionFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
 					},
@@ -597,6 +641,17 @@ func Test_defaultFeatures(t *testing.T) {
 			},
 			want: &DatadogAgentSpec{
 				Features: &DatadogFeatures{
+					APM: &APMFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
+						HostPortConfig: &HostPortConfig{
+							Port:    apiutils.NewInt32Pointer(defaultAPMHostPort),
+							Enabled: apiutils.NewBoolPointer(defaultAPMHostPortEnabled),
+						},
+						UnixDomainSocketConfig: &UnixDomainSocketConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
+							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
+						},
+					},
 					LiveContainerCollection: &LiveContainerCollectionFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
 					},
@@ -657,6 +712,17 @@ func Test_defaultFeatures(t *testing.T) {
 			},
 			want: &DatadogAgentSpec{
 				Features: &DatadogFeatures{
+					APM: &APMFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
+						HostPortConfig: &HostPortConfig{
+							Port:    apiutils.NewInt32Pointer(defaultAPMHostPort),
+							Enabled: apiutils.NewBoolPointer(defaultAPMHostPortEnabled),
+						},
+						UnixDomainSocketConfig: &UnixDomainSocketConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
+							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
+						},
+					},
 					LiveContainerCollection: &LiveContainerCollectionFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
 					},
@@ -723,6 +789,17 @@ func Test_defaultFeatures(t *testing.T) {
 			},
 			want: &DatadogAgentSpec{
 				Features: &DatadogFeatures{
+					APM: &APMFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
+						HostPortConfig: &HostPortConfig{
+							Port:    apiutils.NewInt32Pointer(defaultAPMHostPort),
+							Enabled: apiutils.NewBoolPointer(defaultAPMHostPortEnabled),
+						},
+						UnixDomainSocketConfig: &UnixDomainSocketConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
+							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
+						},
+					},
 					LiveContainerCollection: &LiveContainerCollectionFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
 					},
@@ -784,6 +861,17 @@ func Test_defaultFeatures(t *testing.T) {
 			},
 			want: &DatadogAgentSpec{
 				Features: &DatadogFeatures{
+					APM: &APMFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
+						HostPortConfig: &HostPortConfig{
+							Port:    apiutils.NewInt32Pointer(defaultAPMHostPort),
+							Enabled: apiutils.NewBoolPointer(defaultAPMHostPortEnabled),
+						},
+						UnixDomainSocketConfig: &UnixDomainSocketConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
+							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
+						},
+					},
 					LiveContainerCollection: &LiveContainerCollectionFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
 					},
@@ -845,6 +933,17 @@ func Test_defaultFeatures(t *testing.T) {
 			},
 			want: &DatadogAgentSpec{
 				Features: &DatadogFeatures{
+					APM: &APMFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
+						HostPortConfig: &HostPortConfig{
+							Port:    apiutils.NewInt32Pointer(defaultAPMHostPort),
+							Enabled: apiutils.NewBoolPointer(defaultAPMHostPortEnabled),
+						},
+						UnixDomainSocketConfig: &UnixDomainSocketConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
+							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
+						},
+					},
 					LiveContainerCollection: &LiveContainerCollectionFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultLiveContainerCollectionEnabled),
 					},
@@ -929,9 +1028,19 @@ func Test_defaultFeatures(t *testing.T) {
 					ProcessDiscovery: &ProcessDiscoveryFeatureConfig{
 						Enabled: apiutils.NewBoolPointer(defaultProcessDiscoveryEnabled),
 					},
-					OOMKill:               &OOMKillFeatureConfig{},
-					TCPQueueLength:        &TCPQueueLengthFeatureConfig{},
-					APM:                   &APMFeatureConfig{},
+					OOMKill:        &OOMKillFeatureConfig{},
+					TCPQueueLength: &TCPQueueLengthFeatureConfig{},
+					APM: &APMFeatureConfig{
+						Enabled: apiutils.NewBoolPointer(defaultAPMEnabled),
+						HostPortConfig: &HostPortConfig{
+							Port:    apiutils.NewInt32Pointer(defaultAPMHostPort),
+							Enabled: apiutils.NewBoolPointer(defaultAPMHostPortEnabled),
+						},
+						UnixDomainSocketConfig: &UnixDomainSocketConfig{
+							Enabled: apiutils.NewBoolPointer(defaultAPMSocketEnabled),
+							Path:    apiutils.NewStringPointer(defaultAPMSocketHostPath),
+						},
+					},
 					CSPM:                  &CSPMFeatureConfig{},
 					CWS:                   &CWSFeatureConfig{},
 					NPM:                   &NPMFeatureConfig{},

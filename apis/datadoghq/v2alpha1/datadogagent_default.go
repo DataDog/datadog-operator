@@ -34,7 +34,7 @@ const (
 	// defaultOOMKillEnabled        bool = false
 	// defaultTCPQueueLengthEnabled bool = false
 
-	// defaultAPMEnabled         bool   = false
+	defaultAPMEnabled         bool   = true
 	defaultAPMHostPortEnabled bool   = false
 	defaultAPMHostPort        int32  = 8126
 	defaultAPMSocketEnabled   bool   = true
@@ -162,8 +162,14 @@ func defaultFeaturesConfig(ddaSpec *DatadogAgentSpec) {
 		}
 	}
 
-	// APM Feature
-	if ddaSpec.Features.APM != nil && ddaSpec.Features.APM.Enabled != nil && *ddaSpec.Features.APM.Enabled {
+	// APM is enabled by default
+	if ddaSpec.Features.APM == nil {
+		ddaSpec.Features.APM = &APMFeatureConfig{}
+	}
+
+	apiutils.DefaultBooleanIfUnset(&ddaSpec.Features.APM.Enabled, defaultAPMEnabled)
+
+	if *ddaSpec.Features.APM.Enabled {
 		if ddaSpec.Features.APM.HostPortConfig == nil {
 			ddaSpec.Features.APM.HostPortConfig = &HostPortConfig{}
 		}
