@@ -68,8 +68,8 @@ const (
 	DatadogMonitorTypeComposite DatadogMonitorType = "composite"
 )
 
-// DatadogMonitorOptionsNotificationPresets Toggles the display of additional content sent in the monitor notification.
-type DatadogMonitorOptionsNotificationPresets string
+// DatadogMonitorOptionsNotificationPreset toggles the display of additional content sent in the monitor notification.
+type DatadogMonitorOptionsNotificationPreset string
 
 const (
 	DatadogMonitorOptionsNotificationPresetsShowAll     DatadogMonitorOptionsNotificationPresets = "show_all"
