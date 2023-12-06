@@ -33,7 +33,7 @@ func TestBuilder(t *testing.T) {
 				apicommonv1.NonPrivilegedMultiProcessAgentContainerName: false,
 				apicommonv1.CoreAgentContainerName:                      true,
 				apicommonv1.ProcessAgentContainerName:                   true,
-				apicommonv1.TraceAgentContainerName:                     false,
+				apicommonv1.TraceAgentContainerName:                     true,
 				apicommonv1.SystemProbeContainerName:                    false,
 				apicommonv1.SecurityAgentContainerName:                  false,
 			},

@@ -72,7 +72,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 		wantFunc func(c client.Client) error
 	}{
 		{
-			name: "DatadogAgent default, create Daemonset with core and process agents",
+			name: "DatadogAgent default, create Daemonset with core, trace and process agents",
 			fields: fields{
 				client:   fake.NewFakeClient(),
 				scheme:   s,
@@ -92,13 +92,14 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 				expectedContainers := []string{
 					string(apicommonv1.CoreAgentContainerName),
 					string(apicommonv1.ProcessAgentContainerName),
+					string(apicommonv1.TraceAgentContainerName),
 				}
 
 				return verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers)
 			},
 		},
 		{
-			name: "DatadogAgent default, create Daemonset with core and process agents",
+			name: "DatadogAgent singleProcessContainer, create Daemonset with core, trace and process agents",
 			fields: fields{
 				client:   fake.NewFakeClient(),
 				scheme:   s,
@@ -119,6 +120,7 @@ func TestReconcileDatadogAgentV2_Reconcile(t *testing.T) {
 				expectedContainers := []string{
 					string(apicommonv1.CoreAgentContainerName),
 					string(apicommonv1.ProcessAgentContainerName),
+					string(apicommonv1.TraceAgentContainerName),
 				}
 
 				return verifyDaemonsetContainers(c, resourcesNamespace, dsName, expectedContainers)
