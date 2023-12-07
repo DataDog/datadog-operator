@@ -2147,7 +2147,7 @@ func schema__apis_datadoghq_v1alpha1_DatadogMonitorOptions(ref common.ReferenceC
 					},
 					"notificationPresetName": {
 						SchemaProps: spec.SchemaProps{
-							Description: "An enum for toggling the display of additional content sent in the monitor notification.",
+							Description: "An enum that toggles the display of additional content sent in the monitor notification.",
 							Type:        []string{"string"},
 							Format:      "",
 						},

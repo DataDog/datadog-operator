@@ -94,7 +94,7 @@ spec:
                   format: int64
                   type: integer
                 notificationPresetName:
-                  description: An enum for toggling the display of additional content sent in the monitor notification.
+                  description: An enum that toggles the display of additional content sent in the monitor notification.
                   type: string
                 notifyAudit:
                   description: A Boolean indicating whether tagged users are notified on changes to this monitor.
