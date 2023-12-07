@@ -7,9 +7,12 @@ package agentprofile
 
 import (
 	"fmt"
+	"sort"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/DataDog/datadog-operator/apis/datadoghq/common/v1"
@@ -29,16 +32,52 @@ const (
 // - If there are no conflicting profiles, it returns all the profiles plus the default one.
 // - If there are conflicting profiles, it returns a subset that does not
 // conflict plus the default one. When there are conflicting profiles, the
-// oldest one is the one that takes precedence.
-func ProfilesToApply(profiles []datadoghqv1alpha1.DatadogAgentProfile) []datadoghqv1alpha1.DatadogAgentProfile {
+// oldest one is the one that takes precedence. When two profiles share an
+// identical creation timestamp, the profile whose name is alphabetically first
+// is considered to have priority.
+func ProfilesToApply(profiles []datadoghqv1alpha1.DatadogAgentProfile, nodes []v1.Node) ([]datadoghqv1alpha1.DatadogAgentProfile, error) {
 	var res []datadoghqv1alpha1.DatadogAgentProfile
 
-	// TODO: detect conflicts here and only add the ones that are not
-	// conflicting (Give precedence to the oldest profile).
-	// This function will need the list of hosts to check for conflicts.
-	res = append(res, profiles...)
+	nodesWithProfilesApplied := make(map[string]bool, len(nodes))
+	for _, node := range nodes {
+		nodesWithProfilesApplied[node.Name] = false
+	}
 
-	return append(res, defaultProfile(res))
+	sortedProfiles := sortProfiles(profiles)
+
+	for _, profile := range sortedProfiles {
+		conflicts := false
+		nodesThatMatchProfile := map[string]bool{}
+
+		for _, node := range nodes {
+			matchesNode, err := profileMatchesNode(&profile, &node)
+			if err != nil {
+				return nil, err
+			}
+
+			if matchesNode {
+				if nodesWithProfilesApplied[node.Name] {
+					// Conflict. This profile should not be applied.
+					conflicts = true
+					break
+				} else {
+					nodesThatMatchProfile[node.Name] = true
+				}
+			}
+		}
+
+		if conflicts {
+			continue
+		}
+
+		for node := range nodesThatMatchProfile {
+			nodesWithProfilesApplied[node] = true
+		}
+
+		res = append(res, profile)
+	}
+
+	return append(res, defaultProfile(res)), nil
 }
 
 // ComponentOverrideFromProfile returns the component override that should be
@@ -185,5 +224,64 @@ func labelsOverride(profile *datadoghqv1alpha1.DatadogAgentProfile) map[string]s
 		// Can't use the namespaced name because it includes "/" which is not
 		// accepted in labels.
 		DaemonSetLabelKey: fmt.Sprintf("%s-%s", profile.Namespace, profile.Name),
+	}
+}
+
+// sortProfiles sorts the profiles by creation timestamp. If two profiles have
+// the same creation timestamp, it sorts them by name.
+func sortProfiles(profiles []datadoghqv1alpha1.DatadogAgentProfile) []datadoghqv1alpha1.DatadogAgentProfile {
+	sortedProfiles := make([]datadoghqv1alpha1.DatadogAgentProfile, len(profiles))
+	copy(sortedProfiles, profiles)
+
+	sort.Slice(sortedProfiles, func(i, j int) bool {
+		if !sortedProfiles[i].CreationTimestamp.Equal(&sortedProfiles[j].CreationTimestamp) {
+			return sortedProfiles[i].CreationTimestamp.Before(&sortedProfiles[j].CreationTimestamp)
+		}
+
+		return sortedProfiles[i].Name < sortedProfiles[j].Name
+	})
+
+	return sortedProfiles
+}
+
+func profileMatchesNode(profile *datadoghqv1alpha1.DatadogAgentProfile, node *v1.Node) (bool, error) {
+	if profile.Spec.ProfileAffinity == nil {
+		return true, nil
+	}
+
+	for _, requirement := range profile.Spec.ProfileAffinity.ProfileNodeAffinity {
+		selector, err := labels.NewRequirement(
+			requirement.Key,
+			nodeSelectorOperatorToSelectionOperator(requirement.Operator),
+			requirement.Values,
+		)
+		if err != nil {
+			return false, err
+		}
+
+		if !selector.Matches(labels.Set(node.Labels)) {
+			return false, nil
+		}
+	}
+
+	return true, nil
+}
+
+func nodeSelectorOperatorToSelectionOperator(op v1.NodeSelectorOperator) selection.Operator {
+	switch op {
+	case v1.NodeSelectorOpIn:
+		return selection.In
+	case v1.NodeSelectorOpNotIn:
+		return selection.NotIn
+	case v1.NodeSelectorOpExists:
+		return selection.Exists
+	case v1.NodeSelectorOpDoesNotExist:
+		return selection.DoesNotExist
+	case v1.NodeSelectorOpGt:
+		return selection.GreaterThan
+	case v1.NodeSelectorOpLt:
+		return selection.LessThan
+	default:
+		return ""
 	}
 }
