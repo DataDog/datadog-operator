@@ -145,6 +145,10 @@ func buildMonitor(logger logr.Logger, dm *datadoghqv1alpha1.DatadogMonitor) (*da
 		o.SetTimeoutH(*options.TimeoutH)
 	}
 
+	if options.NotificationPresetName != "" {
+		o.SetNotificationPresetName(datadogV1.MonitorOptionsNotificationPresets(string(options.NotificationPresetName)))
+	}
+
 	m := datadogV1.NewMonitor(query, monitorType)
 	{
 		m.SetName(name)
