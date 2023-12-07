@@ -258,3 +258,16 @@ func deleteKubernetesObject(k8sClient client.Client, obj client.Object) {
 		return client.IgnoreNotFound(err) == nil
 	}, timeout, interval).Should(BeTrue())
 }
+
+func updateKubernetesObject(k8sClient client.Client, obj client.Object) {
+	Expect(k8sClient.Update(context.Background(), obj)).Should(Succeed())
+
+	Eventually(func() bool {
+		key := types.NamespacedName{
+			Namespace: obj.GetNamespace(),
+			Name:      obj.GetName(),
+		}
+		err := k8sClient.Get(context.Background(), key, obj)
+		return err == nil
+	}, timeout, interval).Should(BeTrue())
+}

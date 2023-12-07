@@ -892,6 +892,150 @@ var _ = Describe("V2 Controller - DatadogAgentProfile", func() {
 	// in this case.
 	PContext("with a profile that has more than one node selector requirement", func() {
 	})
+
+	Context("with a profile that applies node labels change", func() {
+		nodes := []*v1.Node{
+			testutils.NewNode("test-profiles-node-1", map[string]string{"some-label": "1"}),
+			testutils.NewNode("test-profiles-node-2", map[string]string{"some-label": "2"}),
+		}
+
+		updatedNodes := []*v1.Node{
+			testutils.NewNode("test-profiles-node-1", map[string]string{"some-label": "1"}),
+			testutils.NewNode("test-profiles-node-2", map[string]string{"some-label": "2", "new-label": "3"}),
+		}
+
+		profiles := []*v1alpha1.DatadogAgentProfile{
+			{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      randomKubernetesObjectName(),
+					Namespace: namespace,
+				},
+				Spec: v1alpha1.DatadogAgentProfileSpec{
+					ProfileAffinity: &v1alpha1.ProfileAffinity{
+						ProfileNodeAffinity: []v1.NodeSelectorRequirement{
+							{
+								Key:      "new-label",
+								Operator: v1.NodeSelectorOpIn,
+								Values:   []string{"3"}, // Applies to no nodes at first
+							},
+						},
+					},
+					Config: &v1alpha1.Config{
+						Override: map[v1alpha1.ComponentName]*v1alpha1.Override{
+							v1alpha1.NodeAgentComponentName: {
+								Containers: map[common.AgentContainerName]*v1alpha1.Container{
+									common.CoreAgentContainerName: {
+										Resources: &v1.ResourceRequirements{
+											Limits: map[v1.ResourceName]resource.Quantity{
+												v1.ResourceCPU: resource.MustParse("2"),
+											},
+											Requests: map[v1.ResourceName]resource.Quantity{
+												v1.ResourceCPU: resource.MustParse("1"),
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		agent := testutils.NewDatadogAgentWithoutFeatures(namespace, randomKubernetesObjectName())
+
+		profileDaemonSetName := types.NamespacedName{
+			Namespace: namespace,
+			Name: agentprofile.DaemonSetName(types.NamespacedName{
+				Namespace: profiles[0].Namespace,
+				Name:      profiles[0].Name,
+			}),
+		}
+
+		expectedDaemonSets := map[types.NamespacedName]daemonSetExpectations{
+			defaultDaemonSetNamespacedName(namespace, &agent): {
+				affinity: &v1.Affinity{
+					NodeAffinity: &v1.NodeAffinity{
+						RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
+							NodeSelectorTerms: []v1.NodeSelectorTerm{
+								{
+									MatchExpressions: []v1.NodeSelectorRequirement{
+										{
+											Key:      "new-label",
+											Operator: v1.NodeSelectorOpNotIn,
+											Values:   []string{"3"},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				containerResources: map[common.AgentContainerName]v1.ResourceRequirements{
+					common.CoreAgentContainerName:    {},
+					common.ProcessAgentContainerName: {},
+				},
+			},
+		}
+
+		updatedExpectedDaemonSets := map[types.NamespacedName]daemonSetExpectations{
+			defaultDaemonSetNamespacedName(namespace, &agent): {
+				affinity: &v1.Affinity{
+					NodeAffinity: &v1.NodeAffinity{
+						RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
+							NodeSelectorTerms: []v1.NodeSelectorTerm{
+								{
+									MatchExpressions: []v1.NodeSelectorRequirement{
+										{
+											Key:      "new-label",
+											Operator: v1.NodeSelectorOpNotIn,
+											Values:   []string{"3"},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				containerResources: map[common.AgentContainerName]v1.ResourceRequirements{
+					common.CoreAgentContainerName:    {},
+					common.ProcessAgentContainerName: {},
+				},
+			},
+			profileDaemonSetName: {
+				affinity: &v1.Affinity{
+					NodeAffinity: &v1.NodeAffinity{
+						RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
+							NodeSelectorTerms: []v1.NodeSelectorTerm{
+								{
+									MatchExpressions: []v1.NodeSelectorRequirement{
+										{
+											Key:      "new-label",
+											Operator: v1.NodeSelectorOpIn,
+											Values:   []string{"3"},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				containerResources: map[common.AgentContainerName]v1.ResourceRequirements{
+					common.CoreAgentContainerName: {
+						Limits: map[v1.ResourceName]resource.Quantity{
+							v1.ResourceCPU: resource.MustParse("2"),
+						},
+						Requests: map[v1.ResourceName]resource.Quantity{
+							v1.ResourceCPU: resource.MustParse("1"),
+						},
+					},
+					common.ProcessAgentContainerName: {},
+				},
+			},
+		}
+
+		testProfilesWithNodesUpdateFunc(profiles, &agent, nodes, updatedNodes, expectedDaemonSets, updatedExpectedDaemonSets, false)()
+	})
 })
 
 func testProfilesFunc(profiles []*v1alpha1.DatadogAgentProfile, agent *v2alpha1.DatadogAgent, nodes []*v1.Node, expectedDaemonSets map[types.NamespacedName]daemonSetExpectations, waitBetweenProfiles bool) func() {
@@ -930,37 +1074,57 @@ func testProfilesFunc(profiles []*v1alpha1.DatadogAgentProfile, agent *v2alpha1.
 		})
 
 		It("should create the expected DaemonSets", func() {
-			for namespacedName, expectedDaemonSet := range expectedDaemonSets {
-				storedDaemonSet := &appsv1.DaemonSet{}
+			validateExpectedDaemonSets(expectedDaemonSets)
+		})
+	}
+}
 
-				// Wait until the DaemonSet is created
-				getObjectAndCheck(storedDaemonSet, namespacedName, func() bool { return true })
-
-				sortAffinityRequirements(storedDaemonSet.Spec.Template.Spec.Affinity)
-				sortAffinityRequirements(expectedDaemonSet.affinity)
-				Expect(storedDaemonSet.Spec.Template.Spec.Affinity).Should(Equal(expectedDaemonSet.affinity))
-
-				// Check the limits and requests for each container
-				Expect(len(storedDaemonSet.Spec.Template.Spec.Containers)).Should(Equal(len(expectedDaemonSet.containerResources)))
-				for expectedContainerName, expectedResources := range expectedDaemonSet.containerResources {
-					for _, container := range storedDaemonSet.Spec.Template.Spec.Containers {
-						if container.Name == string(expectedContainerName) {
-							Expect(len(container.Resources.Requests)).Should(Equal(len(expectedResources.Requests)))
-							Expect(len(container.Resources.Limits)).Should(Equal(len(expectedResources.Limits)))
-
-							for resourceName, expectedRequest := range expectedResources.Requests {
-								quantityCmp := expectedRequest.Cmp(container.Resources.Requests[resourceName])
-								Expect(quantityCmp).Should(BeZero()) // Cmp returns 0 if the quantities are equal
-							}
-
-							for resourceName, expectedLimit := range expectedResources.Limits {
-								quantityCmp := expectedLimit.Cmp(container.Resources.Limits[resourceName])
-								Expect(quantityCmp).Should(BeZero()) // Cmp returns 0 if the quantities are equal
-							}
-						}
-					}
-				}
+func testProfilesWithNodesUpdateFunc(profiles []*v1alpha1.DatadogAgentProfile, agent *v2alpha1.DatadogAgent, nodes []*v1.Node, updatedNodes []*v1.Node, expectedDaemonSets map[types.NamespacedName]daemonSetExpectations, updatedExpectedDaemonSets map[types.NamespacedName]daemonSetExpectations, waitBetweenProfiles bool) func() {
+	return func() {
+		BeforeEach(func() {
+			for _, node := range nodes {
+				createKubernetesObject(k8sClient, node)
 			}
+
+			createKubernetesObject(k8sClient, agent)
+
+			for _, profile := range profiles {
+				// When there are conflicts between profiles, their creation
+				// timestamp matters because the oldest has precedence. We
+				// cannot set the Creation Timestamp here, it will be set by
+				// Kubernetes. We need to wait a bit between profiles to make
+				// sure they are created with different timestamps.
+				if waitBetweenProfiles {
+					time.Sleep(2 * time.Second)
+				}
+				createKubernetesObject(k8sClient, profile)
+			}
+		})
+
+		AfterEach(func() {
+			for _, profile := range profiles {
+				deleteKubernetesObject(k8sClient, profile)
+			}
+
+			deleteKubernetesObject(k8sClient, agent)
+
+			for _, node := range nodes {
+				deleteKubernetesObject(k8sClient, node)
+			}
+		})
+
+		It("should create the expected DaemonSets before and after nodes update", func() {
+			By("Initial expected DaemonSets", func() {
+				validateExpectedDaemonSets(expectedDaemonSets)
+			})
+
+			By("Expected DaemonSets after nodes update", func() {
+				//	Update nodes
+				for _, node := range updatedNodes {
+					updateKubernetesObject(k8sClient, node)
+				}
+				validateExpectedDaemonSets(updatedExpectedDaemonSets)
+			})
 		})
 	}
 }
@@ -1010,4 +1174,38 @@ func sortAffinityRequirements(affinity *v1.Affinity) {
 	sort.Slice(nodeSelectorTerms, func(i, j int) bool {
 		return nodeSelectorTerms[i].String() < nodeSelectorTerms[j].String()
 	})
+}
+
+func validateExpectedDaemonSets(expectedDaemonSets map[types.NamespacedName]daemonSetExpectations) {
+	for namespacedName, expectedDaemonSet := range expectedDaemonSets {
+		storedDaemonSet := &appsv1.DaemonSet{}
+
+		// Wait until the DaemonSet is created
+		getObjectAndCheck(storedDaemonSet, namespacedName, func() bool { return true })
+
+		sortAffinityRequirements(storedDaemonSet.Spec.Template.Spec.Affinity)
+		sortAffinityRequirements(expectedDaemonSet.affinity)
+		Expect(storedDaemonSet.Spec.Template.Spec.Affinity).Should(Equal(expectedDaemonSet.affinity))
+
+		// Check the limits and requests for each container
+		Expect(len(storedDaemonSet.Spec.Template.Spec.Containers)).Should(Equal(len(expectedDaemonSet.containerResources)))
+		for expectedContainerName, expectedResources := range expectedDaemonSet.containerResources {
+			for _, container := range storedDaemonSet.Spec.Template.Spec.Containers {
+				if container.Name == string(expectedContainerName) {
+					Expect(len(container.Resources.Requests)).Should(Equal(len(expectedResources.Requests)))
+					Expect(len(container.Resources.Limits)).Should(Equal(len(expectedResources.Limits)))
+
+					for resourceName, expectedRequest := range expectedResources.Requests {
+						quantityCmp := expectedRequest.Cmp(container.Resources.Requests[resourceName])
+						Expect(quantityCmp).Should(BeZero()) // Cmp returns 0 if the quantities are equal
+					}
+
+					for resourceName, expectedLimit := range expectedResources.Limits {
+						quantityCmp := expectedLimit.Cmp(container.Resources.Limits[resourceName])
+						Expect(quantityCmp).Should(BeZero()) // Cmp returns 0 if the quantities are equal
+					}
+				}
+			}
+		}
+	}
 }
