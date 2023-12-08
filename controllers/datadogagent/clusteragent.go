@@ -529,6 +529,10 @@ func getEnvVarsForClusterAgent(logger logr.Logger, dda *datadoghqv1alpha1.Datado
 			Value: utils.GetDatadogLeaderElectionResourceName(dda),
 		},
 		{
+			Name:  apicommon.DDKubeResourcesNamespace,
+			Value: utils.GetDatadogAgentResourceNamespace(dda),
+		},
+		{
 			Name:  apicommon.DDComplianceConfigEnabled,
 			Value: strconv.FormatBool(complianceEnabled),
 		},
